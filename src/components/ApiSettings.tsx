@@ -100,11 +100,11 @@ export function ApiSettings() {
           }
           setOpen(!open);
         }}
-        className="relative text-muted/50 hover:text-foreground transition-colors cursor-pointer p-1"
+        className="relative text-muted/50 hover:text-foreground transition-colors cursor-pointer p-1.5"
         aria-label="API settings"
         title="API endpoint settings"
       >
-        <Settings size={14} />
+        <Settings size={18} />
         {customApiUrl && (
           <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-bitcoin rounded-full" />
         )}
@@ -119,9 +119,9 @@ export function ApiSettings() {
             {customApiUrl && (
               <button
                 onClick={handleReset}
-                className="inline-flex items-center gap-1 text-[10px] text-muted/50 hover:text-foreground transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 text-xs text-muted/50 hover:text-foreground transition-colors cursor-pointer"
               >
-                <RotateCcw size={10} />
+                <RotateCcw size={12} />
                 Reset to default
               </button>
             )}
@@ -138,15 +138,15 @@ export function ApiSettings() {
                 setErrorHint("");
               }}
               placeholder="https://mempool.space/api"
-              className="flex-1 bg-surface-inset border border-card-border rounded-lg px-3 py-1.5 text-xs text-foreground font-mono placeholder:text-muted/30 focus:outline-none focus:border-bitcoin/50"
+              className="flex-1 bg-surface-inset border border-card-border rounded-lg px-3 py-1.5 text-sm text-foreground font-mono placeholder:text-muted/30 focus:outline-none focus:border-bitcoin/50"
             />
             <button
               type="submit"
               disabled={!inputValue.trim() || health === "checking"}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-bitcoin/10 text-bitcoin hover:bg-bitcoin/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              className="px-3 py-1.5 text-sm font-medium rounded-lg bg-bitcoin/10 text-bitcoin hover:bg-bitcoin/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
             >
               {health === "checking" ? (
-                <Loader2 size={12} className="animate-spin" />
+                <Loader2 size={14} className="animate-spin" />
               ) : (
                 "Apply"
               )}
@@ -155,24 +155,24 @@ export function ApiSettings() {
 
           {/* Status indicator */}
           {health === "ok" && (
-            <div className="flex items-center gap-1.5 text-[11px] text-severity-good">
-              <Check size={12} />
+            <div className="flex items-center gap-1.5 text-xs text-severity-good">
+              <Check size={14} />
               Connected. Using custom endpoint.
             </div>
           )}
           {health === "error" && (
-            <div className="flex items-center gap-1.5 text-[11px] text-severity-high">
-              <X size={12} />
+            <div className="flex items-center gap-1.5 text-xs text-severity-high">
+              <X size={14} />
               {errorHint || "Connection failed"}
             </div>
           )}
           {customApiUrl && health !== "checking" && (
-            <p className="text-[10px] text-muted/40">
+            <p className="text-xs text-muted/40">
               Active: <span className="font-mono">{customApiUrl}</span>
             </p>
           )}
           {!customApiUrl && health === "idle" && (
-            <p className="text-[10px] text-muted/30">
+            <p className="text-xs text-muted/30">
               Point to your own mempool.space instance for maximum privacy.
             </p>
           )}

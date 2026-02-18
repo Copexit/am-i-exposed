@@ -74,7 +74,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
   };
 
   return (
-    <form onSubmit={handleSubmit} className="w-full max-w-2xl">
+    <form onSubmit={handleSubmit} className="w-full max-w-3xl">
       <div className="relative group">
         <div className="absolute -inset-1 bg-bitcoin/5 rounded-2xl blur-xl group-focus-within:bg-bitcoin/10 transition-all duration-300 pointer-events-none" />
         <input
@@ -106,7 +106,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
             <button
               type="submit"
               disabled={!value.trim()}
-              className="px-4 py-1.5 bg-bitcoin text-black font-semibold text-sm rounded-lg
+              className="px-5 py-2 bg-bitcoin text-black font-semibold text-sm sm:text-base rounded-lg
                 hover:bg-bitcoin-hover transition-all duration-150 disabled:opacity-30
                 disabled:cursor-not-allowed cursor-pointer"
             >
