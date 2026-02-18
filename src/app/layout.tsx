@@ -5,6 +5,7 @@ import { NetworkProvider } from "@/context/NetworkContext";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { PrivacyNotice } from "@/components/PrivacyNotice";
+import { TipToast } from "@/components/TipToast";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -68,7 +69,7 @@ export default function RootLayout({
       <head>
         <meta
           httpEquiv="Content-Security-Policy"
-          content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://mempool.space https://blockstream.info http://mempoolhqx4isw62xs7abwphsq7ldayuidyx2v2oethdhhj6mlo2r6ad.onion; img-src 'self' data:; frame-ancestors 'none'"
+          content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; connect-src *; img-src 'self' data:; frame-ancestors 'none'"
         />
         <meta name="referrer" content="strict-origin-when-cross-origin" />
         <meta name="theme-color" content="#0a0a0a" />
@@ -103,6 +104,7 @@ export default function RootLayout({
             <PrivacyNotice />
             <main className="flex-1 flex flex-col">{children}</main>
             <Footer />
+            <TipToast />
           </NetworkProvider>
         </Suspense>
       </body>
