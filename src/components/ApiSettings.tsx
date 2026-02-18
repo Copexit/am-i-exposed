@@ -111,15 +111,15 @@ export function ApiSettings() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-card-bg border border-card-border rounded-xl shadow-lg z-50 p-4 space-y-3">
+        <div className="absolute right-0 top-full mt-2 w-80 bg-surface-elevated border border-card-border rounded-xl shadow-xl z-50 p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted uppercase tracking-wider">
-              API Endpoint
+            <span className="text-xs font-medium text-foreground/70 uppercase tracking-wider">
+              Mempool API
             </span>
             {customApiUrl && (
               <button
                 onClick={handleReset}
-                className="inline-flex items-center gap-1 text-xs text-muted/50 hover:text-foreground transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
               >
                 <RotateCcw size={12} />
                 Reset to default
@@ -138,7 +138,7 @@ export function ApiSettings() {
                 setErrorHint("");
               }}
               placeholder="https://mempool.space/api"
-              className="flex-1 bg-surface-inset border border-card-border rounded-lg px-3 py-1.5 text-sm text-foreground font-mono placeholder:text-muted/30 focus:outline-none focus:border-bitcoin/50"
+              className="flex-1 bg-surface-inset border border-card-border rounded-lg px-3 py-1.5 text-sm text-foreground font-mono placeholder:text-muted/50 focus:outline-none focus:border-bitcoin/50"
             />
             <button
               type="submit"
@@ -167,12 +167,12 @@ export function ApiSettings() {
             </div>
           )}
           {customApiUrl && health !== "checking" && (
-            <p className="text-xs text-muted/40">
+            <p className="text-xs text-muted/70">
               Active: <span className="font-mono">{customApiUrl}</span>
             </p>
           )}
           {!customApiUrl && health === "idle" && (
-            <p className="text-xs text-muted/30">
+            <p className="text-xs text-muted/60">
               Point to your own mempool.space instance for maximum privacy.
             </p>
           )}
