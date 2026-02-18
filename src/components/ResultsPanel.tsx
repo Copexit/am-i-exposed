@@ -11,6 +11,9 @@ import { AddressSummary } from "./AddressSummary";
 import { ExportButton } from "./ExportButton";
 import { ScoreBreakdown } from "./ScoreBreakdown";
 import { Remediation } from "./Remediation";
+import { CexRiskPanel } from "./CexRiskPanel";
+import { TipJar } from "./TipJar";
+import { CrossPromo } from "./CrossPromo";
 import type { ScoringResult, InputType } from "@/lib/types";
 import type { MempoolTransaction, MempoolAddress } from "@/lib/api/types";
 
@@ -243,9 +246,16 @@ export function ResultsPanel({
       {/* Remediation */}
       <Remediation findings={result.findings} grade={result.grade} />
 
+      {/* Exchange Risk Check */}
+      <CexRiskPanel query={query} inputType={inputType} txData={txData} />
+
       {/* Score breakdown & how scoring works */}
       <ScoreBreakdown findings={result.findings} finalScore={result.score} />
       <ScoringExplainer />
+
+      {/* TipJar + CrossPromo */}
+      <TipJar />
+      {inputType === "txid" && <CrossPromo />}
 
       {/* Footer */}
       <div className="w-full flex flex-wrap items-center justify-center gap-4 pt-2 pb-4 text-sm">
@@ -264,7 +274,10 @@ export function ResultsPanel({
       <div className="w-full bg-surface-inset rounded-lg px-4 py-3 text-xs text-muted/50 leading-relaxed">
         {result.findings.length} findings from {inputType === "txid" ? "13" : "4"} heuristics
         {durationMs ? ` in ${(durationMs / 1000).toFixed(1)}s` : ""}.
-        Analysis ran entirely in your browser. API queries were sent to mempool.space.
+        Analysis ran entirely in your browser. API queries were sent to{" "}
+        {config.mempoolBaseUrl.includes("mempool.space")
+          ? "mempool.space"
+          : new URL(config.mempoolBaseUrl).hostname}.
         Scores are heuristic-based estimates, not definitive privacy assessments.
       </div>
 
