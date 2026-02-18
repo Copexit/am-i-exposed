@@ -2,6 +2,7 @@
 
 import { NetworkSelector } from "./NetworkSelector";
 import { ConnectionBadge } from "./ConnectionBadge";
+import { ApiSettings } from "./ApiSettings";
 
 export function Header() {
   const handleLogoClick = () => {
@@ -22,6 +23,7 @@ export function Header() {
         </button>
         <div className="flex items-center gap-3">
           <ConnectionBadge />
+          <ApiSettings />
           <NetworkSelector />
         </div>
       </div>
