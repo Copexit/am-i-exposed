@@ -1,0 +1,64 @@
+import type { TxHeuristic } from "./types";
+
+/**
+ * H3: Common Input Ownership Heuristic (CIOH)
+ *
+ * The foundational clustering heuristic: if a transaction has multiple inputs,
+ * they are assumed to be controlled by the same entity. This is the primary
+ * technique used by chain analysis firms to cluster addresses.
+ *
+ * Exception: CoinJoin and PayJoin transactions intentionally violate this.
+ *
+ * References:
+ * - Nakamoto, 2008 (Section 10)
+ * - Meiklejohn et al., 2013
+ *
+ * Impact: -3 to -15
+ */
+export const analyzeCioh: TxHeuristic = (tx) => {
+  const uniqueInputAddresses = new Set<string>();
+
+  for (const vin of tx.vin) {
+    if (vin.is_coinbase) continue;
+    if (vin.prevout?.scriptpubkey_address) {
+      uniqueInputAddresses.add(vin.prevout.scriptpubkey_address);
+    }
+  }
+
+  // Single input or coinbase - no CIOH concern
+  if (uniqueInputAddresses.size <= 1) {
+    return {
+      findings: [
+        {
+          id: "h3-single-input",
+          severity: "good",
+          title: "Single input address",
+          description:
+            "This transaction uses a single input address, so the common-input-ownership heuristic does not apply. No address clustering is possible from inputs alone.",
+          recommendation: "Keep using single-input transactions when possible.",
+          scoreImpact: 0,
+        },
+      ],
+    };
+  }
+
+  const count = uniqueInputAddresses.size;
+  const impact = Math.min(count * 3, 15);
+
+  return {
+    findings: [
+      {
+        id: "h3-cioh",
+        severity: impact >= 12 ? "high" : "medium",
+        title: `${count} input addresses linked by CIOH`,
+        description:
+          `This transaction combines inputs from ${count} different addresses. ` +
+          `Chain analysis firms assume all inputs in a transaction belong to the same entity. ` +
+          `These ${count} addresses are now permanently linked in clustering databases.`,
+        recommendation:
+          "Use coin control to avoid combining UTXOs from different addresses. If consolidation is necessary, use CoinJoin first to break the link between source addresses.",
+        scoreImpact: -impact,
+      },
+    ],
+  };
+};

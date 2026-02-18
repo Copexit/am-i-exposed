@@ -1,0 +1,32 @@
+{
+  "name": "am-i.exposed - Bitcoin Privacy Scanner",
+  "short_name": "am-i.exposed",
+  "description": "The Bitcoin privacy scanner you were afraid to run. Paste a Bitcoin address or transaction ID. Get a privacy score.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#0a0a0a",
+  "background_color": "#0a0a0a",
+  "categories": ["finance", "security", "utilities"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
+}

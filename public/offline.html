@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>am-i.exposed - Offline</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a0a;
+      color: #ededed;
+      font-family: system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 2rem;
+    }
+    h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+    h1 span { color: #ef4444; }
+    p { color: #787880; max-width: 400px; line-height: 1.6; }
+    .icon { font-size: 3rem; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <div>
+    <div class="icon">&#x1f6e1;</div>
+    <h1>Am I <span>exposed?</span></h1>
+    <p>
+      You are currently offline. Privacy analysis requires an internet connection
+      to fetch blockchain data from mempool.space. Please reconnect and try again.
+    </p>
+  </div>
+</body>
+</html>
