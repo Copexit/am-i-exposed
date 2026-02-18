@@ -850,6 +850,140 @@ We take the following measures to minimize the privacy risks of using this tool:
 
 ---
 
+## Future Heuristics
+
+### H13: Address Check (Pre-Send Destination Analysis)
+
+**Status:** Planned - Phase 2
+
+**Technical description**
+
+Before sending bitcoin to an address, a user pastes the destination address into am-i.exposed. The tool queries the address's full transaction history and reports:
+
+1. **Reuse count** - How many times has this address received funds? If more than once, the recipient has poor privacy hygiene, and sending to them links your transaction to all of their other activity.
+2. **Total received/spent** - Volume of activity on this address. High volume on a single address suggests an exchange deposit address, a merchant, or a careless user.
+3. **Associated transaction count** - How many transactions involve this address.
+4. **Known entity detection** - If the address appears in known databases (exchange hot wallets, mining pools, sanctioned addresses), flag it.
+5. **First-degree cluster size** (see H14) - How many other addresses are linked to this one through CIOH.
+
+```
+destination = user_input_address
+history = fetch_address_transactions(destination)
+receive_count = count_receives(history)
+if receive_count > 1:
+  warn("This address has been used {receive_count} times. The recipient is reusing addresses.")
+if receive_count > 10:
+  warn("This address has received {receive_count} deposits. Likely an exchange or service address.")
+
+cluster = build_first_degree_cluster(history)
+if len(cluster) > 1:
+  warn("This address belongs to a cluster of {len(cluster)} addresses via common-input-ownership.")
+```
+
+**Why it matters for privacy**
+
+Sending to a reused address is a privacy leak for BOTH parties. The sender's transaction becomes trivially linkable to all other transactions involving that address. If the destination is a known entity (exchange, merchant), the sender's identity may be inferred through the recipient's KYC records.
+
+No wallet currently warns users about destination address privacy. Sparrow flags your own address reuse but not the recipient's. This is a gap - wallets could integrate this check, but until they do, am-i.exposed provides it as a standalone tool.
+
+**Implementation:** New tab/mode on the main UI - "Check Address Before Sending." Same client-side architecture, same API calls. Minimal new code - reuses existing address analysis logic with a different presentation focused on send-time risk assessment.
+
+**UX:** Paste address → instant report card:
+- "This address has been used X times" (with severity color)
+- "Cluster size: Y addresses" (if H14 is available)
+- "Risk level: LOW/MEDIUM/HIGH/CRITICAL"
+- Actionable advice: "Ask the recipient for a fresh address" / "This appears to be an exchange deposit address"
+
+---
+
+### H14: First-Degree Cluster Analysis (CIOH Graph Walk)
+
+**Status:** Planned - Phase 2
+
+**Technical description**
+
+Given a Bitcoin address, build a cluster of all addresses linked through one hop of Common Input Ownership:
+
+1. Fetch all transactions involving the target address
+2. For each transaction where the target address appears as an input alongside other addresses, add all co-input addresses to the cluster (CIOH - H3)
+3. For change outputs identified via H2, follow the change address and repeat step 2 for that address only (one additional hop via change)
+
+This is a **one-hop** analysis. It does not recursively walk the entire graph (that would require a backend/indexer). But one hop is enough to reveal:
+
+- How many addresses the target entity controls (minimum lower bound)
+- The total balance across the cluster
+- Whether the entity has used CoinJoin (cluster will be smaller/fragmented)
+- Whether the entity consolidates UTXOs (cluster will be large)
+
+```
+function build_first_degree_cluster(target_address):
+  cluster = {target_address}
+  txs = fetch_address_transactions(target_address)
+
+  for tx in txs:
+    input_addresses = [inp.address for inp in tx.inputs]
+    if target_address in input_addresses:
+      // CIOH: all inputs in same tx are same entity
+      cluster.update(input_addresses)
+
+    // Optional: follow change output one hop
+    change_output = detect_change(tx)  // uses H2 sub-heuristics
+    if change_output and change_output.address not in cluster:
+      change_txs = fetch_address_transactions(change_output.address)
+      for ctx in change_txs:
+        ctx_input_addresses = [inp.address for inp in ctx.inputs]
+        if change_output.address in ctx_input_addresses:
+          cluster.update(ctx_input_addresses)
+
+  // Filter out CoinJoin transactions (H4) to avoid false clustering
+  // CoinJoin inputs are NOT same entity despite being in same tx
+  cluster = filter_coinjoin_false_positives(cluster, txs)
+
+  return cluster
+```
+
+**Rate limiting considerations:**
+
+Client-side cluster analysis requires multiple API calls. For a target address with N transactions, we need:
+- 1 call to fetch address transactions
+- Up to N calls to fetch full transaction details (if not already fetched)
+- Up to M calls to follow change outputs (where M = number of change outputs identified)
+
+For addresses with many transactions, this can hit mempool.space rate limits. Mitigations:
+- Cap at 50 transactions analyzed (most recent)
+- Batch requests where possible
+- Show partial results with "analyzing..." progress
+- Cache results in memory during the session
+
+**Deep version (future - requires backend):**
+
+The one-hop version reveals the minimum cluster size. A full graph walk - following every cluster member through all their transactions, recursively - would reveal the true cluster size. This is what Chainalysis does. It requires:
+- An Electrum/Fulcrum server or direct node access
+- A graph database (Neo4j or similar) or in-memory graph
+- Significant compute time for large clusters (exchanges can have millions of addresses)
+
+This is Phase 3+ territory. For now, one-hop gives users more information than any free tool currently provides.
+
+**Why it matters for privacy**
+
+Cluster analysis is THE core technique of chain surveillance. Showing users their cluster size - even a lower-bound estimate - makes the abstract threat concrete. "Your address belongs to a cluster of 47 addresses" is far more impactful than "you used multiple inputs once."
+
+Combined with H13 (Address Check), users can see not just their own exposure but the exposure of addresses they're about to send to. "The address you're sending to belongs to a cluster of 200+ addresses - this is likely an exchange or service."
+
+**Scoring impact:** Informational in Phase 2 (displayed but not scored). In future phases, cluster size could modify the privacy score:
+- Cluster size 1 (no CIOH exposure): +0
+- Cluster size 2-5: -5
+- Cluster size 6-20: -10
+- Cluster size 21-50: -15
+- Cluster size 50+: -20
+
+**References**
+- Meiklejohn et al., "A Fistful of Bitcoins" (2013) - foundational clustering methodology
+- Ron and Shamir, "Quantitative Analysis of the Full Bitcoin Transaction Graph" (2013)
+- Harrigan and Fretter, "The Unreasonable Effectiveness of Address Clustering" (2016)
+
+---
+
 ## References
 
 - Meiklejohn, S., Pomarole, M., Jordan, G., Levchenko, K., McCoy, D., Voelker, G. M., and Savage, S. "A Fistful of Bitcoins: Characterizing Payments Among Men with No Names." IMC 2013.
