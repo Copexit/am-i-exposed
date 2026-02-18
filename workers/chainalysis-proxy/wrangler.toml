@@ -1,0 +1,7 @@
+name = "chainalysis-proxy"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+CHAINALYSIS_API_KEY = "***REDACTED_API_KEY***"
+ALLOWED_ORIGIN = "https://am-i.exposed"
