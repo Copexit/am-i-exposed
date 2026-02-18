@@ -12,9 +12,11 @@ import { ExportButton } from "./ExportButton";
 import { ScoreBreakdown } from "./ScoreBreakdown";
 import { Remediation } from "./Remediation";
 import { CexRiskPanel } from "./CexRiskPanel";
+import { TxBreakdownPanel } from "./TxBreakdownPanel";
+import { ClusterPanel } from "./ClusterPanel";
 import { TipJar } from "./TipJar";
 import { CrossPromo } from "./CrossPromo";
-import type { ScoringResult, InputType } from "@/lib/types";
+import type { ScoringResult, InputType, TxAnalysisResult } from "@/lib/types";
 import type { MempoolTransaction, MempoolAddress } from "@/lib/api/types";
 
 function ScoringExplainer() {
@@ -113,6 +115,8 @@ interface ResultsPanelProps {
   result: ScoringResult;
   txData: MempoolTransaction | null;
   addressData: MempoolAddress | null;
+  addressTxs: MempoolTransaction[] | null;
+  txBreakdown: TxAnalysisResult[] | null;
   onBack: () => void;
   onScan?: (input: string) => void;
   durationMs?: number | null;
@@ -124,6 +128,8 @@ export function ResultsPanel({
   result,
   txData,
   addressData,
+  addressTxs,
+  txBreakdown,
   onBack,
   onScan,
   durationMs,
@@ -226,6 +232,16 @@ export function ResultsPanel({
       {txData && <TxSummary tx={txData} onAddressClick={onScan} />}
       {addressData && <AddressSummary address={addressData} />}
 
+      {/* Per-transaction breakdown (address analysis only) */}
+      {txBreakdown && txBreakdown.length > 0 && addressData && (
+        <TxBreakdownPanel
+          breakdown={txBreakdown}
+          targetAddress={query}
+          totalTxCount={addressData.chain_stats.tx_count + addressData.mempool_stats.tx_count}
+          onScan={onScan}
+        />
+      )}
+
       {/* Findings */}
       {result.findings.length > 0 && (
         <div className="w-full space-y-3">
@@ -241,6 +257,15 @@ export function ResultsPanel({
             ))}
           </div>
         </div>
+      )}
+
+      {/* Cluster Analysis (address only, opt-in) */}
+      {inputType === "address" && addressTxs && addressTxs.length > 0 && (
+        <ClusterPanel
+          targetAddress={query}
+          txs={addressTxs}
+          onAddressClick={onScan}
+        />
       )}
 
       {/* Remediation */}
@@ -273,6 +298,7 @@ export function ResultsPanel({
       {/* Disclaimer */}
       <div className="w-full bg-surface-inset rounded-lg px-4 py-3 text-xs text-muted/50 leading-relaxed">
         {result.findings.length} findings from {inputType === "txid" ? "13" : "4"} heuristics
+        {txBreakdown ? ` + ${txBreakdown.length} transactions analyzed` : ""}
         {durationMs ? ` in ${(durationMs / 1000).toFixed(1)}s` : ""}.
         Analysis ran entirely in your browser. API queries were sent to{" "}
         {config.mempoolBaseUrl.includes("mempool.space")
