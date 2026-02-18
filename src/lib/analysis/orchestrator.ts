@@ -1,4 +1,4 @@
-import type { Finding } from "@/lib/types";
+import type { Finding, TxAnalysisResult, Severity } from "@/lib/types";
 import type {
   MempoolTransaction,
   MempoolAddress,
@@ -186,6 +186,141 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
       }
     }
   }
+}
+
+/**
+ * Run all tx-level heuristics on each of an address's transactions.
+ * Returns per-tx analysis results (capped at 50 most recent).
+ */
+export function analyzeTransactionsForAddress(
+  targetAddress: string,
+  txs: MempoolTransaction[],
+): TxAnalysisResult[] {
+  const cap = Math.min(txs.length, 50);
+  const results: TxAnalysisResult[] = [];
+
+  for (let i = 0; i < cap; i++) {
+    const tx = txs[i];
+    const allFindings: Finding[] = [];
+
+    for (const heuristic of TX_HEURISTICS) {
+      const result = heuristic.fn(tx);
+      allFindings.push(...result.findings);
+    }
+
+    applyCrossHeuristicRules(allFindings);
+
+    const isSender = tx.vin.some(
+      (v) => v.prevout?.scriptpubkey_address === targetAddress,
+    );
+    const isReceiver = tx.vout.some(
+      (v) => v.scriptpubkey_address === targetAddress,
+    );
+
+    const scored = calculateScore(allFindings);
+    results.push({
+      txid: tx.txid,
+      tx,
+      findings: scored.findings,
+      score: scored.score,
+      grade: scored.grade,
+      role: isSender && isReceiver ? "both" : isSender ? "sender" : "receiver",
+    });
+  }
+
+  return results;
+}
+
+// ── Pre-send destination check (H13) ────────────────────────────────────────
+
+export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+export interface PreSendResult {
+  riskLevel: RiskLevel;
+  summary: string;
+  findings: Finding[];
+  reuseCount: number;
+  txCount: number;
+  totalReceived: number;
+}
+
+/**
+ * H13: Analyze a destination address before sending.
+ * Runs the same address heuristics but presents results as a risk assessment.
+ */
+export async function analyzeDestination(
+  address: MempoolAddress,
+  utxos: MempoolUtxo[],
+  txs: MempoolTransaction[],
+  onStep?: (stepId: string, impact?: number) => void,
+): Promise<PreSendResult> {
+  const allFindings: Finding[] = [];
+
+  for (const heuristic of ADDRESS_HEURISTICS) {
+    onStep?.(heuristic.id);
+    await tick();
+    const result = heuristic.fn(address, utxos, txs);
+    allFindings.push(...result.findings);
+    const stepImpact = result.findings.reduce((s, f) => s + f.scoreImpact, 0);
+    onStep?.(heuristic.id, stepImpact);
+  }
+
+  const { chain_stats, mempool_stats } = address;
+  const reuseCount = chain_stats.funded_txo_count + mempool_stats.funded_txo_count;
+  const txCount = chain_stats.tx_count + mempool_stats.tx_count;
+  const totalReceived = chain_stats.funded_txo_sum + mempool_stats.funded_txo_sum;
+
+  // Determine risk level
+  let riskLevel: RiskLevel;
+  let summary: string;
+
+  if (reuseCount >= 100) {
+    riskLevel = "CRITICAL";
+    summary = `This address has been used ${reuseCount} times. It is almost certainly a service or exchange deposit address — sending here will link your transaction to a known entity.`;
+  } else if (reuseCount >= 10) {
+    riskLevel = "HIGH";
+    summary = `This address has been reused ${reuseCount} times. All senders to this address are trivially linkable. Ask the recipient for a fresh address.`;
+  } else if (reuseCount >= 2) {
+    riskLevel = "MEDIUM";
+    summary = `This address has been used ${reuseCount} times. There is some reuse, which means your payment will be linkable to previous transactions to this address.`;
+  } else {
+    riskLevel = "LOW";
+    summary = "This address appears to be single-use. No significant privacy concerns detected for the recipient.";
+  }
+
+  // Check for OFAC/sanctioned match — escalate to CRITICAL
+  const hasSanctionMatch = allFindings.some((f) => f.id.includes("ofac") || f.id.includes("sanction"));
+  if (hasSanctionMatch) {
+    riskLevel = "CRITICAL";
+    summary = "This address may be associated with a sanctioned entity. Do NOT send funds to this address.";
+  }
+
+  // Add a pre-send specific finding summarizing the check
+  const preSendSeverity: Severity =
+    riskLevel === "CRITICAL" ? "critical" :
+    riskLevel === "HIGH" ? "high" :
+    riskLevel === "MEDIUM" ? "medium" : "good";
+
+  allFindings.unshift({
+    id: "h13-presend-check",
+    severity: preSendSeverity,
+    title: `Destination risk: ${riskLevel}`,
+    description: summary,
+    recommendation:
+      riskLevel === "LOW"
+        ? "This destination looks clean. You can proceed with your transaction."
+        : "Ask the recipient for a fresh, unused address. If this is an exchange, consider the privacy implications.",
+    scoreImpact: 0,
+  });
+
+  return {
+    riskLevel,
+    summary,
+    findings: allFindings,
+    reuseCount,
+    txCount,
+    totalReceived,
+  };
 }
 
 /** Yield to the event loop so the UI can update. */

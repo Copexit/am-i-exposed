@@ -6,11 +6,13 @@ import { ShieldCheck, AlertCircle, Scan, Fingerprint, Shield, Eye } from "lucide
 import { AddressInput } from "@/components/AddressInput";
 import { DiagnosticLoader } from "@/components/DiagnosticLoader";
 import { ResultsPanel } from "@/components/ResultsPanel";
+import { PreSendResultPanel } from "@/components/PreSendResultPanel";
 import { RecentScans } from "@/components/RecentScans";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useRecentScans } from "@/hooks/useRecentScans";
 import { useKeyboardNav } from "@/hooks/useKeyboardNav";
+import type { AnalysisMode } from "@/lib/types";
 
 const PRIVACY_TIPS = [
   "Never reuse a Bitcoin address. HD wallets generate a new address for each receive automatically.",
@@ -55,15 +57,20 @@ export default function Home() {
     result,
     txData,
     addressData,
+    txBreakdown,
+    addressTxs,
+    preSendResult,
     error,
     durationMs,
     analyze,
+    checkDestination,
     reset,
   } = useAnalysis();
 
   const { scans, addScan, clearScans } = useRecentScans();
   const inputRef = useRef<HTMLInputElement>(null);
   const [tipIndex, setTipIndex] = useState(() => Math.floor(Math.random() * PRIVACY_TIPS.length));
+  const [mode, setMode] = useState<AnalysisMode>("scan");
 
   // Register service worker
   useEffect(() => {
@@ -76,14 +83,16 @@ export default function Home() {
 
   // Dynamic page title
   useEffect(() => {
-    if (phase === "complete" && result) {
+    if (phase === "complete" && preSendResult && mode === "check") {
+      document.title = `${preSendResult.riskLevel} Risk - am-i.exposed`;
+    } else if (phase === "complete" && result) {
       document.title = `${result.grade} (${result.score}/100) - am-i.exposed`;
     } else if (phase === "fetching" || phase === "analyzing") {
-      document.title = "Scanning... - am-i.exposed";
+      document.title = `${mode === "check" ? "Checking" : "Scanning"}... - am-i.exposed`;
     } else {
       document.title = "am-i.exposed - Bitcoin Privacy Scanner";
     }
-  }, [phase, result]);
+  }, [phase, result, preSendResult, mode]);
 
   // Save completed scan to recent history
   useEffect(() => {
@@ -109,10 +118,17 @@ export default function Home() {
       const params = new URLSearchParams(hash);
       const txid = params.get("tx");
       const addr = params.get("addr");
-      const input = txid ?? addr;
+      const check = params.get("check");
 
-      if (input) {
-        analyze(input);
+      if (check) {
+        setMode("check");
+        checkDestination(check);
+      } else {
+        const input = txid ?? addr;
+        if (input) {
+          setMode("scan");
+          analyze(input);
+        }
       }
     }
 
@@ -140,9 +156,14 @@ export default function Home() {
   });
 
   const handleSubmit = (input: string) => {
-    const prefix = input.length === 64 ? "tx" : "addr";
-    window.location.hash = `${prefix}=${input}`;
-    analyze(input);
+    if (mode === "check") {
+      window.location.hash = `check=${input}`;
+      checkDestination(input);
+    } else {
+      const prefix = input.length === 64 ? "tx" : "addr";
+      window.location.hash = `${prefix}=${input}`;
+      analyze(input);
+    }
   };
 
   const handleBack = () => {
@@ -176,6 +197,8 @@ export default function Home() {
               onSubmit={handleSubmit}
               isLoading={false}
               inputRef={inputRef}
+              mode={mode}
+              onModeChange={setMode}
             />
 
             <RecentScans scans={scans} onSelect={handleSubmit} onClear={clearScans} />
@@ -283,7 +306,7 @@ export default function Home() {
           </motion.div>
         )}
 
-        {phase === "complete" && query && inputType && result && (
+        {phase === "complete" && query && inputType && result && mode === "scan" && (
           <ResultsPanel
             key="results"
             query={query}
@@ -291,8 +314,21 @@ export default function Home() {
             result={result}
             txData={txData}
             addressData={addressData}
+            addressTxs={addressTxs}
+            txBreakdown={txBreakdown}
             onBack={handleBack}
             onScan={handleSubmit}
+            durationMs={durationMs}
+          />
+        )}
+
+        {phase === "complete" && query && preSendResult && mode === "check" && (
+          <PreSendResultPanel
+            key="presend"
+            query={query}
+            preSendResult={preSendResult}
+            addressData={addressData}
+            onBack={handleBack}
             durationMs={durationMs}
           />
         )}
