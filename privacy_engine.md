@@ -1,0 +1,875 @@
+# Privacy Engine - Technical Reference
+
+## Overview
+
+This document describes the privacy analysis engine behind **am-i.exposed**, an open-source, client-side Bitcoin privacy scanner. It is intended for cypherpunks, privacy researchers, wallet developers, and anyone who wants to understand exactly how their Bitcoin transactions are being analyzed - by us, and by adversaries.
+
+The engine implements 12 heuristics (H1-H12) that evaluate the on-chain privacy of Bitcoin addresses and transactions. These are the same techniques - sometimes simplified, sometimes extended - that chain surveillance firms use to cluster addresses, trace fund flows, and deanonymize users.
+
+**Why this tool exists now.** In April 2024, OXT.me and KYCP.org ("Know Your Coin Privacy") went offline following the arrest of the Samourai Wallet developers. OXT.me was the gold standard for Boltzmann entropy analysis of Bitcoin transactions, created by LaurentMT as part of OXT Research. KYCP.org provided CoinJoin analysis and entropy calculations accessible to ordinary users. Both are gone. As of today, there is no publicly available tool that combines Boltzmann entropy estimation, wallet fingerprinting detection, and multi-transaction graph analysis in a single interface. am-i.exposed fills that gap.
+
+Everything runs client-side. No server ever sees your query and your results together. The code is open source. Verify, don't trust.
+
+---
+
+## Threat Model
+
+### Adversaries
+
+**Chain surveillance firms** - Chainalysis, Elliptic, CipherTrace (now Mastercard), Crystal Blockchain, Scorechain, and others. These companies operate full-node infrastructure, run proprietary clustering algorithms at scale, and sell deanonymization services to law enforcement, exchanges, and financial institutions. They maintain databases mapping address clusters to real-world identities. Their heuristics are more sophisticated than ours - they have access to off-chain data, proprietary intelligence feeds, and years of accumulated cluster data - but the on-chain heuristics they rely on are the same ones documented here.
+
+**Exchanges with KYC requirements** - Any exchange that collects identity documents can link deposit and withdrawal addresses to your government ID. When combined with chain analysis, this creates an anchor point from which all connected transactions can be traced. Even if you acquire bitcoin through non-KYC means, sending to or receiving from a KYC-linked address can compromise your privacy.
+
+**Blockchain explorers logging IP-to-query correlations** - Services like blockchain.com, blockchair.com, and even mempool.space log queries. If you search for your own address from your home IP, you have created a correlation between your IP address and your Bitcoin address. This is a metadata leak that exists entirely outside the blockchain itself. The explorer operator, anyone with access to their logs, and any network-level observer between you and the server can see which addresses you are interested in.
+
+### What adversaries are trying to do
+
+1. **Cluster addresses** - Group addresses controlled by the same entity. The Common Input Ownership Heuristic (H3) is the primary tool, but change detection (H2), address reuse (H8), and dust attacks (H9/H12) all contribute.
+
+2. **Link identities** - Connect address clusters to real-world identities. This requires at least one "anchor point" - a KYC exchange deposit, a merchant payment, a donation page, a forum post containing an address.
+
+3. **Trace fund flows** - Follow the movement of bitcoin from source to destination, even across multiple hops. Change detection, CIOH, and temporal analysis enable this.
+
+4. **Assess privacy tool usage** - Determine whether a user has employed CoinJoins, PayJoins, or other privacy-enhancing techniques, and attempt to undo the privacy gains through post-mix analysis.
+
+5. **Profile behavior** - Identify spending patterns, transaction timing, wallet software, and financial activity that can be correlated with other data sources.
+
+---
+
+## Heuristics
+
+Each heuristic is described with its technical mechanism, privacy implications, detection method, scoring impact, and relevant references. Scoring impacts are applied as modifiers to a base score of 70.
+
+---
+
+### H1: Round Amount Detection
+
+**Technical description**
+
+A transaction output is flagged as a "round amount" if its value matches common round BTC denominations or round satoshi values. We check for:
+
+- Round BTC values: 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0 BTC and other powers and multiples
+- Round satoshi amounts: 1000, 5000, 10000, 50000, 100000, 500000, 1000000, 5000000, 10000000, 50000000, 100000000 sats
+- Any output value where `value % 10000 == 0` (multiples of 10,000 sats)
+
+The check is performed against all transaction outputs.
+
+**Why it matters for privacy**
+
+When a user sends a payment, they typically choose a round amount - "send 0.1 BTC" or "send $500 worth." The change output, by contrast, is whatever is left over after subtracting the payment and the fee. Change is almost never round.
+
+This means that if a transaction has two outputs and one is a round amount, an observer can confidently identify which output is the payment and which is the change. This breaks the ambiguity that protects the sender's privacy, because the change output goes back to the sender's wallet and can be traced forward through subsequent spending.
+
+**How we detect it**
+
+```
+For each output in the transaction:
+  value_btc = output.value / 100_000_000
+  if value_btc matches known round BTC denominations OR
+     output.value matches known round sat amounts OR
+     output.value % 10000 == 0:
+    flag as round amount
+```
+
+We also check for "nearly round" amounts where the fee was subtracted from the payment (e.g., a "send max" that produces slightly less than 0.1 BTC).
+
+**Scoring impact:** -5 to -15
+
+- Single round output in a 2-output transaction: -15 (payment direction is obvious)
+- Round output in a multi-output transaction (3+ outputs): -5 (less certain which is change)
+- Multiple round outputs (ambiguity preserved to some degree): -10
+
+**References**
+- Meiklejohn et al., "A Fistful of Bitcoins: Characterizing Payments Among Men with No Names" (2013) - identifies round amounts as a payment indicator
+- Nick, "Data-Driven De-Anonymization in Bitcoin" (2015)
+
+---
+
+### H2: Change Detection
+
+**Technical description**
+
+Change detection attempts to identify which output in a transaction returns funds to the sender. This is one of the most consequential heuristics because correctly identifying change allows an adversary to follow the money through multiple hops. We implement four sub-heuristics:
+
+**Sub-heuristic 2a: Address type mismatch**
+
+If all inputs are spent from one address type (e.g., P2WPKH / bc1q) and one output matches that type while another does not, the matching output is likely change. Wallets typically generate change addresses of the same type as their receiving addresses.
+
+```
+input_types = set of address types across all inputs
+for each output:
+  if output.address_type in input_types:
+    candidate_change.add(output)
+  else:
+    candidate_payment.add(output)
+```
+
+**Sub-heuristic 2b: Round payment amount leaves non-round change**
+
+If one output is a round amount and the other is not, the non-round output is likely change. This overlaps with H1 but is scored here in the context of change identification specifically.
+
+**Sub-heuristic 2c: Unnecessary input heuristic**
+
+If a transaction has multiple inputs and a single input alone would have been sufficient to fund the payment output (plus fee), then the additional inputs are likely from the same wallet. This heuristic relies on the assumption that wallets select UTXOs automatically and sometimes include more than strictly necessary. The output that could have been funded by one input alone is likely the payment; the other output is likely change.
+
+```
+largest_input = max(input.value for input in tx.inputs)
+for each output:
+  if output.value + estimated_fee <= largest_input:
+    // This output could have been funded by one input alone.
+    // The other inputs were unnecessary - they are from the same wallet.
+```
+
+**Sub-heuristic 2d: Output ordering**
+
+Some wallet software consistently places the change output in a specific position. Historically, many wallets placed change last (index 1 in a 2-output transaction). BIP69-compliant wallets sort outputs lexicographically, which randomizes position based on value and script. Bitcoin Core randomizes output order. A wallet that always puts change at the same index leaks information.
+
+**Why it matters for privacy**
+
+Change detection is the backbone of transaction tracing. If an adversary can identify which output is change, they know which output returns to the sender's wallet. They can then follow that change output into subsequent transactions, building a chain of custody. Break change detection, and you break most tracing.
+
+**Scoring impact:** -5 to -15
+
+- High-confidence change detection (multiple sub-heuristics agree on the same output): -15
+- Medium confidence (one sub-heuristic matches clearly): -10
+- Ambiguous (sub-heuristics disagree or CoinJoin-like structure): -5
+
+**References**
+- Meiklejohn et al., "A Fistful of Bitcoins: Characterizing Payments Among Men with No Names" (2013) - foundational change detection heuristics
+- Bitcoin Wiki, "Privacy" - change avoidance section
+
+---
+
+### H3: Common Input Ownership Heuristic (CIOH)
+
+**Technical description**
+
+If a transaction spends multiple inputs, all of those inputs are assumed to be controlled by the same entity. This is the foundational clustering heuristic - the single most powerful tool in the chain surveillance arsenal. It works because constructing a valid Bitcoin transaction requires signatures from the private keys controlling each input. Under normal circumstances, only the wallet owner has access to all of those keys.
+
+```
+if len(tx.inputs) > 1:
+  cluster = set()
+  for input in tx.inputs:
+    cluster.add(input.address)
+  // All addresses in 'cluster' are now assumed to belong to the same entity
+```
+
+This heuristic is applied transitively. If address A appears in a multi-input transaction with address B, and address B appears in a different multi-input transaction with address C, then A, B, and C are all clustered together. Surveillance firms build massive cluster databases this way, containing millions of addresses per cluster for large services like exchanges.
+
+**Critical exceptions where CIOH does not hold:**
+
+- **CoinJoin transactions** - Multiple users contribute inputs to a single transaction. CIOH is deliberately broken. This is the entire point of CoinJoin.
+- **PayJoin (P2EP / BIP78)** - The sender and the recipient both contribute inputs. CIOH is deliberately violated to poison the heuristic.
+- **Dual-funded Lightning channel opens** - Two parties contribute inputs to open a channel cooperatively.
+- **Batched payments by exchanges** - Some exchanges batch many customer withdrawals into one transaction. The inputs come from exchange hot wallets, not individual users.
+
+**Why it matters for privacy**
+
+CIOH alone enables the majority of address clustering. A single multi-input transaction can link dozens of addresses to the same entity. Combined with a single KYC anchor point, an entire wallet's history can be deanonymized. Users who consolidate UTXOs are especially vulnerable - they are voluntarily linking all of their addresses in a single transaction.
+
+**Scoring impact:** -3 to -15
+
+- Single-input transaction: 0 (no CIOH exposure)
+- 2-input transaction with 2 unique addresses: -3 to -8 depending on other factors
+- 3+ input transaction with 3+ unique addresses: -8 to -15
+- Exception: CoinJoin pattern detected (H4): 0 (suppressed)
+
+**References**
+- Nakamoto, "Bitcoin: A Peer-to-Peer Electronic Cash System" (2008), Section 10 - "Some linking is still unavoidable with multi-input transactions, which necessarily reveal that their inputs were owned by the same owner."
+- Meiklejohn et al., "A Fistful of Bitcoins: Characterizing Payments Among Men with No Names" (2013) - formalizes and applies CIOH at scale
+- Ron and Shamir, "Quantitative Analysis of the Full Bitcoin Transaction Graph" (2013)
+
+---
+
+### H4: CoinJoin Detection
+
+**Technical description**
+
+CoinJoin is a collaborative transaction protocol where multiple users combine their inputs and outputs into a single transaction. When done correctly, an observer cannot determine which inputs funded which outputs. CoinJoin is the single most effective on-chain privacy technique available today.
+
+We detect three major CoinJoin implementations:
+
+**Whirlpool (Samourai / Sparrow)**
+
+- Exactly 5 inputs and 5 outputs (Whirlpool uses fixed participant counts)
+- All 5 outputs have equal value
+- Standard pool denominations: 100,000 sats (0.001 BTC), 1,000,000 sats (0.01 BTC), 5,000,000 sats (0.05 BTC), 50,000,000 sats (0.5 BTC)
+- No toxic change in the CoinJoin transaction itself (change is handled in a separate TX0 premix transaction)
+
+```
+if len(tx.outputs) == 5:
+  output_values = [o.value for o in tx.outputs]
+  if len(set(output_values)) == 1:  // all equal
+    if output_values[0] in WHIRLPOOL_DENOMINATIONS:
+      flag as Whirlpool CoinJoin
+```
+
+**Wasabi Wallet (WabiSabi)**
+
+- Large number of inputs (typically 50-150)
+- Many equal-value outputs forming the anonymity set
+- Additional outputs of varying values (change, coordinator fee)
+- Post-2.0 Wasabi uses the WabiSabi protocol allowing variable denominations and multiple equal-output groups
+
+```
+if len(tx.inputs) >= 10 and len(tx.outputs) >= 10:
+  value_counts = Counter(o.value for o in tx.outputs)
+  most_common_value, count = value_counts.most_common(1)[0]
+  if count >= 5 and count / len(tx.outputs) > 0.3:
+    flag as probable Wasabi CoinJoin
+```
+
+**JoinMarket**
+
+- Maker/taker model: one taker initiates the CoinJoin, multiple makers provide liquidity
+- Unequal inputs (different makers have different UTXOs)
+- Equal outputs for the CoinJoin amount, plus change outputs for makers
+- Fewer participants than Wasabi, but higher flexibility in amounts
+- Identifiable by the characteristic pattern of equal-value outputs mixed with varied change outputs
+
+**Why it matters for privacy**
+
+CoinJoins are the ONLY positive privacy signal in on-chain analysis. A well-executed CoinJoin breaks the transaction graph by creating ambiguity about which inputs funded which outputs. After a CoinJoin, an adversary tracking funds encounters an exponential increase in possible interpretations. This is why CoinJoin detection is the only heuristic that increases the privacy score.
+
+CoinJoin is not a silver bullet. Post-mix behavior matters enormously. If a user performs a CoinJoin and then immediately consolidates the outputs, or sends them all to a single address, the privacy gains are destroyed. Toxic change from premix transactions can also link back to the user's pre-CoinJoin identity if handled carelessly.
+
+**Scoring impact:** +15 to +30
+
+- Whirlpool-pattern CoinJoin detected: +25 to +30
+- Wasabi/WabiSabi-pattern CoinJoin detected: +20 to +25
+- JoinMarket-pattern CoinJoin detected: +15 to +20
+- Possible CoinJoin (ambiguous but suggestive pattern): +10 to +15
+
+**References**
+- Maxwell, "CoinJoin: Bitcoin privacy for the real world" (2013) - original proposal on bitcointalk
+- Ficsor (nopara73), "ZeroLink: The Bitcoin Fungibility Framework" (2017) - Wasabi's protocol design
+- Belcher, "Design for a CoinJoin Implementation with Fidelity Bonds" - JoinMarket design
+- OXT Research, CoinJoin detection methodology
+
+---
+
+### H5: Simplified Entropy (Boltzmann)
+
+**Technical description**
+
+Transaction entropy measures the number of valid interpretations of a transaction - that is, how many different mappings of inputs to outputs are consistent with the transaction's structure. Higher entropy means more ambiguity for an adversary.
+
+Full Boltzmann analysis, as implemented by LaurentMT in the OXT.me Boltzmann tool, enumerates all valid sub-mappings of inputs to outputs and computes the Shannon entropy of the resulting probability distribution. This is computationally expensive. The number of possible mappings grows combinatorially with the number of inputs and outputs, making full enumeration infeasible for large transactions without significant optimization.
+
+We use a simplified approach with two tiers:
+
+**Small transactions (<=8 inputs, <=8 outputs):**
+
+Enumerate all valid mappings directly. A mapping is valid if the sum of input values assigned to each output is greater than or equal to the output value. We use a recursive algorithm with pruning to avoid enumerating clearly impossible mappings.
+
+```
+function count_valid_mappings(inputs, outputs):
+  // For each output, determine which subsets of inputs could fund it
+  // Count distinct valid complete mappings where each input is used exactly once
+  // Apply constraint: sum of assigned inputs >= output value for each output
+  valid_count = enumerate_with_pruning(inputs, outputs)
+  entropy = log2(valid_count)
+  return entropy
+```
+
+**Large transactions (>8 inputs or >8 outputs):**
+
+Full enumeration is computationally infeasible client-side. We estimate entropy based on structural features:
+- Number of equal-value outputs (more equal outputs = higher entropy)
+- Ratio of inputs to outputs
+- Whether the transaction matches known CoinJoin patterns
+- Presence of outputs that could plausibly be funded by multiple different input combinations
+
+For each group of k equal-value outputs, we estimate the contribution as log2(k!) bits, since any permutation of those outputs among their possible funding inputs is valid.
+
+**Entropy interpretation:**
+- 0 bits: Deterministic transaction. Only one valid interpretation exists. An adversary knows exactly which inputs funded which outputs.
+- 1-3 bits: Low entropy. A few possible interpretations, but the adversary can narrow it down significantly.
+- 4-7 bits: Moderate entropy. Meaningful ambiguity exists.
+- 8+ bits: High entropy. Typical of CoinJoin transactions. The adversary faces many possible interpretations.
+
+**Why it matters for privacy**
+
+Entropy is the most rigorous measure of transaction privacy. Unlike heuristics that flag specific patterns, entropy quantifies the actual ambiguity an adversary faces when analyzing a transaction. A transaction with high entropy is genuinely difficult to trace, regardless of other heuristic signals.
+
+This is why OXT.me's Boltzmann tool was so valuable - and why its loss in April 2024 was so significant. It gave users a mathematically grounded privacy metric. Our simplified approach captures the essential signal for common transaction shapes and will be upgraded to full Boltzmann analysis (via WebWorker) in a future release.
+
+**Scoring impact:** -5 to +15
+
+- 0 bits entropy (deterministic, no ambiguity): -5
+- 1-3 bits (some ambiguity, but limited): 0
+- 4-7 bits (moderate ambiguity): +5 to +10
+- 8+ bits (high entropy, CoinJoin territory): +10 to +15
+
+**References**
+- LaurentMT, "Boltzmann" - the original entropy analysis tool for Bitcoin transactions, part of OXT Research (github.com/LaurentMT/boltzmann)
+- LaurentMT, "Introducing Boltzmann" blog post series - detailed explanation of the methodology
+- Shannon, "A Mathematical Theory of Communication" (1948) - foundational information theory
+- OXT Research, transaction entropy methodology
+
+---
+
+### H6: Fee Analysis
+
+**Technical description**
+
+Transaction fees and their associated metadata reveal information about the wallet software used and the user's behavior. We analyze several fee-related signals:
+
+**Round fee rates**
+
+If the fee rate is an exact integer multiple of 1 sat/vB (e.g., exactly 5.0 sat/vB rather than 5.3), this suggests the wallet uses simple fee estimation or offers only discrete fee tiers ("low / medium / high"). More sophisticated wallets use precise algorithmic fee estimation that results in non-round rates.
+
+**RBF signaling**
+
+Replace-By-Fee is signaled via the nSequence field of transaction inputs. If any input has nSequence < 0xfffffffe, the transaction signals RBF opt-in (BIP125). This reveals:
+- The wallet supports RBF (narrows wallet identification)
+- The user (or their wallet's default settings) chose to enable replaceability
+- The transaction can be fee-bumped, which has implications for payment acceptance and zero-confirmation security
+
+```
+for input in tx.inputs:
+  if input.sequence < 0xfffffffe:
+    rbf_signaled = true
+    break
+```
+
+**Fee rate relative to mempool conditions**
+
+If the fee rate is significantly higher or lower than the prevailing mempool fee rate at the time of broadcast, it may indicate urgency, a lack of fee estimation sophistication, or specific wallet behavior. This signal is noisy but contributes to the overall wallet fingerprint (H11).
+
+**Why it matters for privacy**
+
+Fee analysis alone is a weak signal. But combined with other wallet fingerprinting data (H11), it narrows the set of possible wallet software significantly. Knowing the wallet software can reveal the user's technical sophistication, preferred privacy tools, and even geographic region (some wallets are popular in specific communities).
+
+**Scoring impact:** -2 to -5
+
+- Round fee rate detected: -2
+- RBF signaling that contributes to wallet fingerprinting: -2
+- Both round fee rate and identifiable RBF pattern: -5
+
+**References**
+- BIP125 - Opt-in Full Replace-by-Fee Signaling
+- 0xB10C, wallet fingerprinting research on fee patterns
+
+---
+
+### H7: OP_RETURN Detection
+
+**Technical description**
+
+OP_RETURN is a Bitcoin script opcode that marks an output as provably unspendable and allows up to 80 bytes of arbitrary data to be embedded in the transaction. This data is stored permanently in the blockchain and is visible to anyone, forever.
+
+We check all transaction outputs for the OP_RETURN opcode and, when found, attempt to identify the protocol or purpose:
+
+**Known protocol markers:**
+- **Omni Layer** (formerly Mastercoin): hex prefix `6f6d6e69` ("omni") - indicates a token transfer, historically used by Tether (USDT) before migrating to other chains
+- **OpenTimestamps**: prefix `4f54` - cryptographic timestamp proof anchored to the Bitcoin blockchain
+- **Counterparty**: prefix `434e545250525459` ("CNTRPRTY") - XCP protocol messages
+- **Veriblock**: proof-of-proof data for the VeriBlock sidechain
+- **RUNES protocol**: Runes etching and minting data
+- **Ordinals**: envelope data related to inscriptions
+
+**Arbitrary messages:**
+
+Some users embed ASCII text, URLs, hashes, or other data in OP_RETURN outputs. We attempt to decode the payload as UTF-8 and flag any human-readable content.
+
+```
+for output in tx.outputs:
+  if output.scriptPubKey starts with OP_RETURN:
+    data = output.scriptPubKey.data
+    protocol = identify_protocol(data)
+    if protocol:
+      flag as "OP_RETURN: {protocol} data"
+    elif is_printable_ascii(data):
+      flag as "OP_RETURN: contains readable text"
+    else:
+      flag as "OP_RETURN: contains embedded binary data"
+```
+
+**Why it matters for privacy**
+
+OP_RETURN data is a permanent, public annotation on a transaction. It may contain identifying information - a protocol marker that reveals the purpose of the transaction, a message, a hash that can be correlated with off-chain data, or metadata that narrows the universe of possible senders. Even when the data itself is not directly identifying, it reduces the anonymity set by distinguishing the transaction from ordinary payments.
+
+**Scoring impact:** -5 to -10
+
+- OP_RETURN with known protocol marker: -5 (reveals transaction purpose)
+- OP_RETURN with unknown binary data: -5
+- OP_RETURN containing readable ASCII text: -10 (may contain identifying information)
+
+**References**
+- Bitcoin Core documentation on OP_RETURN
+- Bartoletti and Pompianu, "An Empirical Analysis of Smart Contracts: Platforms, Applications, and Design Patterns" (2017)
+
+---
+
+### H8: Address Reuse
+
+**Technical description**
+
+Address reuse occurs when a Bitcoin address receives funds in more than one transaction. This is the single biggest privacy failure a Bitcoin user can make.
+
+When an address is used only once (as intended by the Bitcoin protocol's design), the transactions associated with it retain a degree of ambiguity - an observer cannot trivially determine which outputs in subsequent transactions belong to the same user without applying heuristics. But when an address is reused, every transaction involving that address is trivially linked. The address becomes a persistent identifier, functionally equivalent to a bank account number.
+
+We detect address reuse by querying the transaction history:
+
+```
+address_txs = fetch_address_transactions(address)
+receive_count = count_transactions_where_address_appears_in_outputs(address_txs)
+if receive_count > 1:
+  flag as address reuse
+  severity scales with receive_count
+```
+
+**Why it matters for privacy**
+
+Address reuse:
+- Links all transactions to and from that address to the same entity, with certainty
+- Reveals the total amount received and spent over time
+- Allows temporal analysis of spending patterns
+- Makes change detection trivial in subsequent transactions (the reused address is always the same entity)
+- Exposes the public key on first spend for P2PKH, enabling potential future quantum-computing attacks
+- Destroys any privacy gains from prior CoinJoin activity if a post-mix output is sent to a reused address
+- Is not a probabilistic heuristic - it is a deterministic, irrefutable link
+
+Many wallets handle this correctly by generating a new address for each receive using HD key derivation. But some users manually share the same address multiple times, and some poorly designed software defaults to showing a static receive address.
+
+**Scoring impact:** -20 to -35
+
+- Address used in 2 transactions (first reuse): -20
+- Address used in 3-5 transactions: -25
+- Address used in 6-10 transactions: -30
+- Address used in 11+ transactions: -35
+
+This is intentionally the harshest penalty in the scoring model. Address reuse is the most damaging privacy behavior, and it is entirely avoidable.
+
+**References**
+- Nakamoto, "Bitcoin: A Peer-to-Peer Electronic Cash System" (2008), Section 10 - recommends using a new key pair for each transaction
+- Meiklejohn et al., "A Fistful of Bitcoins: Characterizing Payments Among Men with No Names" (2013) - demonstrates how address reuse enables large-scale clustering
+- Bitcoin Wiki, "Address reuse"
+
+---
+
+### H9: UTXO Analysis
+
+**Technical description**
+
+A Bitcoin address's UTXO (Unspent Transaction Output) set represents the funds currently available to spend. The characteristics of this set reveal information about the user's behavior and potential vulnerabilities.
+
+We analyze several properties:
+
+**UTXO count**
+
+A large number of UTXOs on a single address suggests either many small receives over time (which implies address reuse or predictable receive patterns) or that the address serves as a collection or donation endpoint. Either way, a large UTXO count increases exposure.
+
+**Total value distribution**
+
+The distribution of values across UTXOs reveals patterns. Many equal-value UTXOs suggest CoinJoin outputs. Highly varied values suggest organic transaction activity. A few large UTXOs suggest consolidation or large transfers.
+
+**Dust detection (see also H12)**
+
+UTXOs with very small values - under 1000 sats - may be "dusting attacks." In a dusting attack, an adversary sends tiny, unsolicited amounts to target addresses. When the victim later spends this dust alongside their other UTXOs, the Common Input Ownership Heuristic (H3) links the dusted address to all other inputs in the spending transaction. This is an active surveillance technique, not a passive observation.
+
+```
+for utxo in address.utxos:
+  if utxo.value < 1000:
+    flag as potential dust
+  if utxo.value < 546:
+    flag as non-standard dust (below Bitcoin Core's default dust limit)
+```
+
+**Consolidation risk**
+
+If a user has many UTXOs and decides to consolidate them into one, the consolidation transaction will link all input addresses via CIOH (H3). We flag large UTXO counts as a future consolidation risk.
+
+**Why it matters for privacy**
+
+The UTXO set is a snapshot of the user's current on-chain state. Dust UTXOs represent active threats - landmines that will detonate when spent carelessly. A large UTXO count represents potential future privacy damage if consolidation is performed without coin control. Understanding the UTXO set helps users make informed decisions about coin selection and spending strategy.
+
+**Scoring impact:** -3 to -10
+
+- Clean UTXO set (no dust, reasonable count): 0
+- Dust UTXOs detected (< 1000 sats): -5 to -10 depending on count and value
+- Large UTXO count (>20 on a single address): -3 (consolidation risk)
+- Very large UTXO count (>50): -5
+
+**References**
+- BitMEX Research, "Dust Attacks" analysis
+- Bitcoin Wiki, "Privacy" - UTXO management section
+
+---
+
+### H10: Address Type Analysis
+
+**Technical description**
+
+Bitcoin supports several address types, each with different privacy properties. The address type determines the script used to lock and unlock funds, which in turn affects the information revealed on-chain when funds are spent.
+
+**P2TR - Pay-to-Taproot (bc1p...)**
+
+Taproot addresses (BIP341/342) provide the best privacy among current address types. The key innovation is that all Taproot spends look identical on-chain, regardless of the underlying script complexity. A simple single-signature spend, a multisig spend, a timelock, and a complex smart contract all produce the same-looking output when using the key-path spend. This dramatically increases the anonymity set because an observer cannot distinguish between these use cases.
+
+Taproot uses Schnorr signatures (BIP340), which enable signature aggregation. In a multisig setup, all participants can produce a single aggregate signature that is indistinguishable from a single-signer signature.
+
+**P2WPKH - Pay-to-Witness-Public-Key-Hash (bc1q...)**
+
+Native SegWit addresses are the current mainstream standard. They have a large anonymity set due to widespread adoption. On spend, they reveal the public key and signature in the witness data. Privacy is good but not as strong as Taproot because the script type is visible, distinguishing single-sig from multisig.
+
+**P2SH - Pay-to-Script-Hash (3...)**
+
+P2SH addresses can wrap various script types - most commonly SegWit (P2SH-P2WPKH) or multisig. The script is revealed on spend, which can disclose the spending conditions (e.g., 2-of-3 multisig). The address format is shared between many different use cases, providing some anonymity, but the revealed script on spending narrows identification.
+
+**P2PKH - Pay-to-Public-Key-Hash (1...)**
+
+The original Bitcoin address format. Has the largest historical anonymity set simply because it has been in use the longest. However, it reveals the public key on first spend, is the least efficient format, and is increasingly associated with older or less sophisticated software. As adoption of newer formats grows, P2PKH transactions become more distinguishable.
+
+**Why it matters for privacy**
+
+The address type determines the ceiling of on-chain privacy. A user on Taproot benefits from the largest possible anonymity set because their transactions are indistinguishable from all other Taproot transactions regardless of script complexity. A user on P2PKH leaks more information with every spend and is increasingly distinguishable as the ecosystem moves to newer formats.
+
+Address type also contributes to change detection (H2). If a transaction spends from P2WPKH inputs and creates one P2WPKH output and one P2TR output, the P2WPKH output is likely change (returning to the sender's wallet) and the P2TR output is likely the payment (going to the recipient's newer wallet).
+
+**Scoring impact:** -5 to +5
+
+- P2TR (Taproot): +5
+- P2WPKH (Native SegWit): +2
+- P2SH (Wrapped SegWit or other): -2
+- P2PKH (Legacy): -5
+- Mixed types across inputs: additional -3 (cross-type spending is unusual and distinguishing)
+
+**References**
+- BIP341/342 - Taproot (Schnorr + MAST)
+- BIP340 - Schnorr Signatures for secp256k1
+- BIP141 - Segregated Witness
+- Bitcoin Wiki, "Privacy" - address types section
+
+---
+
+### H11: Wallet Fingerprinting
+
+**Technical description**
+
+Different wallet software produces transactions with subtly different structural characteristics. By examining the raw transaction data, we can often identify the wallet that created it - or at least narrow the possibilities significantly. Research by 0xB10C and Chris Belcher has shown that approximately 45% of Bitcoin transactions are identifiable by wallet software based on transaction structure alone.
+
+We analyze the following signals:
+
+**nLockTime**
+
+The nLockTime field specifies the earliest block height (or timestamp) at which a transaction can be mined. Different wallets set this differently:
+
+- **Bitcoin Core**: Sets nLockTime to the current block height as an anti-fee-sniping measure. This is a strong fingerprint.
+- **Electrum**: Also sets nLockTime to the current block height (since version 3.x).
+- **Most mobile wallets**: Set nLockTime to 0.
+- **Wasabi Wallet**: Sets nLockTime to the current block height with occasional random offset.
+- **Hardware wallets**: Varies by firmware and companion software.
+
+```
+if tx.locktime == 0:
+  possible_wallets = ["mobile wallets", "older software", "some hardware wallets"]
+elif tx.locktime is close to block height at confirmation time:
+  possible_wallets = ["Bitcoin Core", "Electrum", "Wasabi"]
+```
+
+**nVersion**
+
+- Version 1: Legacy default. Increasingly rare in modern transactions.
+- Version 2: Required for BIP68 relative timelocks. Used by wallets that enable RBF by default.
+
+A version 1 transaction in 2025 or later is itself a mild fingerprint, indicating older or deliberately conservative software.
+
+**nSequence values**
+
+The sequence number on each input encodes RBF and timelock information:
+
+- `0xffffffff`: Final. No RBF, no relative timelock. Common in legacy wallets.
+- `0xfffffffe`: No RBF, no relative timelock, but transaction is not final (allows nLockTime). Used by wallets that set nLockTime for anti-fee-sniping but disable RBF.
+- `0xfffffffd`: RBF opt-in (BIP125), no relative timelock. Bitcoin Core default since version 0.25.
+
+Different wallets set different default nSequence values. Some always signal RBF, some never do, some let the user choose. This is a distinguishing signal.
+
+**BIP69 lexicographic ordering**
+
+BIP69 specifies a deterministic ordering of inputs and outputs based on lexicographic sorting. Electrum and some other wallets implement this. If inputs are sorted by txid (then by vout index) and outputs are sorted by value (then by scriptPubKey), the transaction follows BIP69 ordering.
+
+```
+inputs_sorted = all(inputs[i] <= inputs[i+1] for i in range(len(inputs)-1))
+  // comparison by txid, then by vout
+outputs_sorted = all(outputs[i] <= outputs[i+1] for i in range(len(outputs)-1))
+  // comparison by value, then by scriptPubKey
+bip69_compliant = inputs_sorted and outputs_sorted
+```
+
+BIP69 was intended to improve privacy by standardizing ordering, but because adoption is not universal, it ironically became a fingerprint for the wallets that implement it.
+
+**Low-R signatures**
+
+Bitcoin Core since version 0.17 grinds the ECDSA nonce to produce signatures where the R value is in the lower half of the curve order. This produces 71-byte signatures instead of 72-byte, saving 1 byte per input. This is a distinctive fingerprint - most other wallets do not implement low-R grinding.
+
+```
+for input in tx.inputs:
+  sig = extract_signature(input.witness or input.scriptSig)
+  r_value = parse_der_signature(sig).r
+  if r_value < secp256k1_order / 2:
+    low_r_count += 1
+if low_r_count == len(tx.inputs):
+  flag as probable Bitcoin Core (>= 0.17)
+```
+
+**Why it matters for privacy**
+
+Wallet fingerprinting reduces the anonymity set. If an adversary can determine that a transaction was created by Bitcoin Core, they have eliminated all Electrum, Wasabi, mobile wallet, and hardware wallet users from consideration. Combined with other metadata (geographic IP data, timing patterns, transaction amounts), wallet identification significantly aids deanonymization.
+
+Research shows approximately 45% of transactions carry enough structural signals to be attributed to specific wallet software with reasonable confidence. For privacy-conscious users, this is a reminder that the choice of wallet software has privacy implications beyond its feature set.
+
+**Scoring impact:** -2 to -8
+
+- Wallet software confidently identified (3+ signals agree): -8
+- Wallet software narrowed to 2-3 candidates (2 signals): -5
+- Weak fingerprinting signals only (1 signal): -2
+- Signals are contradictory or ambiguous: -1
+
+**References**
+- 0xB10C, "Wallet Fingerprinting" research - empirical analysis of transaction structure patterns
+- Belcher, Chris, "Wallet Fingerprinting" analysis
+- BIP69 - Lexicographic Indexing of Transaction Inputs and Outputs
+- Bitcoin Core source code - low-R signature grinding implementation (src/key.cpp)
+
+---
+
+### H12: Dust Detection
+
+**Technical description**
+
+While dust detection is part of H9 (UTXO Analysis), it is important enough to document as its own heuristic. Dust attacks are an active surveillance technique - not a passive analytical observation, but a deliberate attack against a target's privacy.
+
+A dusting attack works as follows:
+
+1. The attacker sends a tiny amount of bitcoin (typically 500-1000 sats, sometimes less) to a target address. This is the "dust."
+
+2. The target sees the incoming UTXO in their wallet. If using automatic coin selection (as most wallets do by default), this dust UTXO may be included as an input the next time the target spends funds.
+
+3. When the dust is spent alongside other UTXOs, the Common Input Ownership Heuristic (H3) links the dusted address to all other input addresses in the spending transaction.
+
+4. If the attacker knows the identity behind the dusted address (e.g., from a forum post, a merchant payment, or a previous analysis), they now know the identity behind all the other input addresses as well.
+
+**Detection criteria:**
+
+```
+for utxo in address.utxos:
+  if utxo.value < 1000:
+    // Check if the sending transaction suggests a dust attack
+    sending_tx = fetch_transaction(utxo.txid)
+    indicators = 0
+    if utxo.value < 546:  // Below Bitcoin Core's default dust limit
+      indicators += 2
+    if sending_tx has many outputs to different addresses:
+      indicators += 1  // Fan-out pattern typical of mass dusting campaigns
+    if indicators >= 2:
+      flag as "probable dusting attack"
+    else:
+      flag as "potential dust - exercise caution"
+```
+
+Any UTXO with a value below 1000 sats is flagged. UTXOs below 546 sats (the default dust limit in Bitcoin Core) are flagged with higher severity, as they are below the economic threshold for normal use and are more likely to be surveillance dust.
+
+**Why it matters for privacy**
+
+Dusting attacks are cheap to execute (a few hundred sats per target) and devastatingly effective against users who are unaware of the threat. A single dusting attack, combined with careless automatic coin selection, can link an entire wallet's address set through CIOH. This is an asymmetric attack - the cost to the attacker is negligible, but the privacy damage to the victim can be catastrophic.
+
+The recommended response is to never spend dust UTXOs. Most privacy-aware wallets (Sparrow, Wasabi) support coin control - the ability to manually select which UTXOs to include in a transaction. Dust UTXOs should be frozen (excluded from automatic coin selection) or spent in isolation through a CoinJoin.
+
+**Scoring impact:** -3 to -10
+
+- No dust UTXOs: 0
+- 1 dust UTXO (< 1000 sats): -3
+- 2-5 dust UTXOs: -5
+- 5+ dust UTXOs or sub-546-sat dust: -10
+
+**References**
+- BitMEX Research, "Dusting Attacks" analysis
+- Bitcoin Wiki, "Privacy" - dust attacks section
+
+---
+
+## Scoring Model
+
+### Base Score
+
+Every analysis begins with a base score of **70**. This represents a "typical" Bitcoin transaction or address with no obviously good or bad privacy characteristics. The base score is set above the midpoint (50) because most transactions do not have catastrophic privacy failures - they have the normal, baseline level of exposure inherent in using a transparent public blockchain.
+
+### Score Calculation
+
+```
+final_score = base_score + sum(all heuristic impacts)
+final_score = clamp(final_score, 0, 100)
+```
+
+All heuristic impacts are summed. Negative impacts indicate privacy weaknesses. Positive impacts indicate privacy-enhancing features. Currently, only CoinJoin detection (H4), Taproot usage (H10), and high entropy (H5) can produce positive impacts.
+
+### Grade Thresholds
+
+| Grade | Score Range | Interpretation |
+|-------|-------------|----------------|
+| A+ | >= 90 | Excellent. CoinJoin participant, Taproot, no address reuse, high entropy. You know what you are doing. |
+| B | >= 75 | Good. Minor issues that could be improved, but no critical exposure. |
+| C | >= 50 | Fair. Notable privacy concerns. An adversary with moderate resources could trace activity. |
+| D | >= 25 | Poor. Significant exposure. Chain analysis firms can likely cluster and trace with confidence. |
+| F | < 25 | Critical. Severe privacy failures. Address reuse, trivial clustering, deterministic transaction interpretation. |
+
+### Heuristic Impact Summary
+
+| ID | Heuristic | Min Impact | Max Impact |
+|----|-----------|------------|------------|
+| H1 | Round Amount Detection | -5 | -15 |
+| H2 | Change Detection | -5 | -15 |
+| H3 | Common Input Ownership (CIOH) | -3 | -15 |
+| H4 | CoinJoin Detection | +15 | +30 |
+| H5 | Simplified Entropy (Boltzmann) | -5 | +15 |
+| H6 | Fee Analysis | -2 | -5 |
+| H7 | OP_RETURN Detection | -5 | -10 |
+| H8 | Address Reuse | -20 | -35 |
+| H9 | UTXO Analysis | -3 | -10 |
+| H10 | Address Type Analysis | -5 | +5 |
+| H11 | Wallet Fingerprinting | -2 | -8 |
+| H12 | Dust Detection (within H9) | -3 | -10 |
+
+### Score Design Properties
+
+- A single critical failure (e.g., extensive address reuse at -35) can drop the grade from B to D by itself
+- Multiple minor issues compound to produce meaningful score reductions
+- CoinJoin participation provides a substantial boost but does not erase other issues
+- The theoretical maximum (100) requires: CoinJoin participation, Taproot address, no address reuse, high entropy, no dust, no OP_RETURN, clean wallet fingerprint
+- The theoretical minimum (0) requires: extensive address reuse, deterministic transaction, dust UTXOs, legacy address type, identifiable wallet, OP_RETURN metadata
+
+---
+
+## Operational Security Concerns
+
+The privacy of your Bitcoin transactions is only one dimension of your overall privacy. How you use this tool - or any blockchain analysis tool - introduces its own set of risks.
+
+### IP Address Disclosure
+
+When you query the mempool.space API (or any blockchain explorer API), your request reveals:
+
+- **Your IP address** - which can be geolocated to your city, linked to your ISP account, and correlated with other activity from the same IP
+- **Which addresses and transactions you are querying** - this is the critical leak. If you are querying your own address, you have created a link between your IP and your Bitcoin address
+- **Timestamps of queries** - when you made the request, which can be correlated with on-chain transaction timing
+
+The mempool.space operators can see all of this. While mempool.space is operated by a privacy-respecting team, you are trusting their operational practices. Any compromise of their infrastructure would expose query logs.
+
+**Mitigation:** Use Tor Browser or a trusted, no-log VPN. Route all API requests through Tor. Our tool auto-detects Tor and can use the mempool.space .onion endpoint when available.
+
+### Timing Correlation
+
+If you receive bitcoin and immediately query that address or transaction on am-i.exposed (or any blockchain explorer), the timing itself creates a correlation. An adversary monitoring both the Bitcoin network (for new transactions) and the explorer API (for queries) can correlate the two.
+
+Example: A transaction confirms at block height N. Within 30 seconds, an IP address queries that transaction on mempool.space. The observer can reasonably infer that the IP address belongs to a party involved in that transaction.
+
+**Mitigation:** Wait before querying. There is no precise safe interval, but querying hours or days after a transaction significantly reduces timing correlation risk.
+
+### DNS Leakage
+
+Even with a VPN, your DNS queries may leak to your ISP if DNS is not properly configured. When your browser resolves `mempool.space` or `am-i.exposed`, the DNS query reveals that you are using these services.
+
+**Mitigation:** Use DNS-over-HTTPS (DoH) or DNS-over-TLS (DoT). Configure your VPN to handle all DNS resolution. Better yet, use Tor, which handles DNS resolution through the Tor network.
+
+### Browser Fingerprinting
+
+Standard web fingerprinting techniques - canvas rendering, WebGL renderer strings, installed fonts, screen resolution, timezone, language preferences, and dozens of other signals - can create a unique identifier for your browser. This fingerprint persists across sessions and can be used to track you even without cookies.
+
+If mempool.space or any intermediary CDN employs browser fingerprinting (or is compromised to do so), your queries across different sessions could be linked together, allowing an observer to build a profile of all addresses and transactions you have ever queried.
+
+**Mitigation:** Use Tor Browser, which standardizes the browser fingerprint across all users. If not using Tor, use a privacy-focused browser with fingerprinting resistance (Firefox with `privacy.resistFingerprinting` enabled, or Brave with aggressive fingerprinting protection).
+
+### Our Mitigations
+
+We take the following measures to minimize the privacy risks of using this tool:
+
+- **All analysis runs client-side.** Your browser fetches raw data from the blockchain API and runs all heuristics locally. No server ever receives your query and your analysis results together. There is no am-i.exposed backend that processes or logs what you are analyzing.
+- **Tor .onion endpoint auto-detection.** When the tool detects that it is running in Tor Browser, it automatically routes API requests to the mempool.space .onion address, keeping your queries within the Tor network.
+- **Strict Referrer-Policy headers.** We set `Referrer-Policy: no-referrer` to prevent the browser from sending the page URL (which may contain your queried address in the hash) in the Referer header when making API requests.
+- **Content Security Policy.** CSP headers restrict which domains the page can connect to, preventing exfiltration of data to unauthorized endpoints. Only explicitly listed API endpoints are allowed.
+- **No analytics, no tracking, no cookies.** We do not use Google Analytics, Plausible, or any analytics platform. We do not set cookies. We do not use localStorage to persist query history. When you close the tab, your session is gone.
+
+---
+
+## Competitor Analysis
+
+### Blockchair Privacy-o-Meter
+
+- Provides a "privacy score" for Bitcoin transactions
+- **Black box scoring algorithm** - the methodology is not publicly documented, making it impossible to verify, audit, or understand the score
+- **Server-side analysis** - Blockchair's servers see every query you make, creating a direct correlation between your IP and the addresses/transactions you are analyzing
+- No Boltzmann entropy calculation
+- No wallet fingerprinting detection
+- No dust attack detection
+- No address reuse analysis (transaction-level scoring only)
+
+### OXT.me (OFFLINE since April 2024)
+
+- Was the gold standard for Boltzmann entropy analysis of Bitcoin transactions
+- Created by LaurentMT as part of the Samourai Wallet ecosystem and OXT Research
+- Provided detailed transaction graphs, entropy scores, wallet cluster analysis, and advanced tools for privacy researchers
+- The Boltzmann tool was open source and academically rigorous
+- **Shut down following the arrest of Samourai Wallet developers in April 2024**
+- The source code exists on GitHub but the hosted service is offline with no indication of return
+- Our tool fills this gap with a simplified but functional entropy estimation, with plans for full Boltzmann in a future release
+
+### KYCP.org (OFFLINE since April 2024)
+
+- "Know Your Coin Privacy" - built by the Samourai Wallet team
+- Focused on CoinJoin analysis, post-mix privacy assessment, and Whirlpool-specific metrics
+- Entropy calculations for Whirlpool CoinJoin transactions
+- Clean, accessible interface that made privacy analysis approachable for non-technical users
+- **Also shut down after the Samourai arrests**
+- No replacement exists in the public ecosystem
+- Our tool incorporates KYCP-style CoinJoin detection and privacy assessment
+
+### Sparrow Wallet
+
+- Excellent privacy features at transaction construction time: coin control, PayJoin support, Whirlpool integration, UTXO management, address labeling
+- **No post-hoc analysis** of existing transactions - it helps you build private transactions, not analyze arbitrary existing ones
+- Desktop only (no web interface)
+- Cannot analyze transactions or addresses that are not part of your own wallet
+- Complementary to our tool rather than competitive - use Sparrow to construct transactions, use am-i.exposed to verify the result from the outside
+
+---
+
+## What Makes Us Different
+
+1. **Open source, client-side analysis.** Every heuristic is documented in this file and implemented in publicly auditable TypeScript. No black boxes. No proprietary algorithms. Fork the code and verify the scoring yourself.
+
+2. **No server ever sees your query and results together.** API calls go directly from your browser to the blockchain data source. Our static hosting infrastructure serves files and has no visibility into what you are analyzing. There is nothing to subpoena.
+
+3. **Wallet fingerprinting detection.** No other consumer-facing privacy tool currently offers transaction-level wallet fingerprinting. This is a heuristic that chain surveillance firms use routinely, but that has never been exposed to end users in an accessible format until now.
+
+4. **Dust attack detection.** We flag potential dusting attacks on addresses, alerting users to active surveillance threats before they accidentally compromise their privacy by spending dust UTXOs through careless automatic coin selection.
+
+5. **Honest about operational security limitations.** We document the privacy risks of using our own tool. We tell you about IP disclosure, timing correlation, DNS leakage, and browser fingerprinting. We provide specific mitigations. Most tools pretend these risks do not exist.
+
+6. **Fills the gap left by OXT.me and KYCP.org.** Since April 2024, there has been no publicly available tool combining entropy analysis, CoinJoin detection, wallet fingerprinting, and multi-heuristic privacy assessment. We are building what was lost.
+
+---
+
+## References
+
+- Meiklejohn, S., Pomarole, M., Jordan, G., Levchenko, K., McCoy, D., Voelker, G. M., and Savage, S. "A Fistful of Bitcoins: Characterizing Payments Among Men with No Names." IMC 2013.
+- Ron, D. and Shamir, A. "Quantitative Analysis of the Full Bitcoin Transaction Graph." Financial Cryptography 2013.
+- Nakamoto, S. "Bitcoin: A Peer-to-Peer Electronic Cash System." 2008. Section 10: Privacy.
+- LaurentMT. "Boltzmann" - entropy analysis for Bitcoin transactions. OXT Research. github.com/LaurentMT/boltzmann
+- Erhardt, M. and Shigeya, S. "An Empirical Analysis of Privacy in the Lightning Network." 2020.
+- Bitcoin Wiki. "Privacy." en.bitcoin.it/wiki/Privacy
+- Belcher, C. "Wallet Fingerprinting" research.
+- 0xB10C. "Wallet Fingerprinting" - empirical analysis of transaction structure patterns.
+- Maxwell, G. "CoinJoin: Bitcoin privacy for the real world." BitcoinTalk, 2013.
+- Ficsor, A. (nopara73). "ZeroLink: The Bitcoin Fungibility Framework." 2017.
+- BIP69 - Lexicographic Indexing of Transaction Inputs and Outputs.
+- BIP125 - Opt-in Full Replace-by-Fee Signaling.
+- BIP141 - Segregated Witness (Consensus Layer).
+- BIP340 - Schnorr Signatures for secp256k1.
+- BIP341 - Taproot: SegWit version 1 spending rules.
+- BIP342 - Validation of Taproot Scripts.
+- Nick, J. "Data-Driven De-Anonymization in Bitcoin." Master's thesis, ETH Zurich, 2015.
+
+---
+
+*This document is part of the am-i.exposed project. It is public documentation intended for privacy researchers, cypherpunks, and anyone who wants to understand how on-chain Bitcoin privacy works - and how it fails. If you find an error or want to contribute a heuristic, open an issue or PR.*
