@@ -40,26 +40,14 @@ export function PrivacyNotice() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.3 }}
-          className="bg-surface-elevated border border-card-border rounded-lg p-4 mx-4 mb-4"
+          className="bg-surface-elevated border border-card-border rounded-lg px-3 py-2 mx-4 mb-3 max-w-6xl sm:mx-auto w-auto"
         >
-          <div className="flex items-start gap-3">
-            <ShieldAlert
-              size={18}
-              className="text-warning shrink-0 mt-0.5"
-            />
-            <div className="flex-1 space-y-2">
-              <p className="text-sm font-medium text-foreground">
-                A note on your privacy
-              </p>
-              <p className="text-sm text-muted leading-relaxed">
-                This tool analyzes Bitcoin data by requesting it from
-                mempool.space. Their servers can see which addresses or
-                transactions you look up, along with your IP address. For
-                stronger privacy, use Tor Browser or a VPN. Your funds are
-                never at risk - this only affects who can see what you
-                searched for.
-              </p>
-            </div>
+          <div className="flex items-center gap-2">
+            <ShieldAlert size={16} className="text-warning shrink-0" />
+            <p className="text-sm text-muted flex-1">
+              Queries are sent to mempool.space — your IP is visible. Use
+              Tor or a VPN for stronger privacy.
+            </p>
             <button
               onClick={handleDismiss}
               className="text-muted hover:text-foreground transition-colors shrink-0 cursor-pointer"
