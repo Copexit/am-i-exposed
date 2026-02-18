@@ -100,7 +100,7 @@ export function ApiSettings() {
           }
           setOpen(!open);
         }}
-        className="relative text-muted/50 hover:text-foreground transition-colors cursor-pointer p-1.5"
+        className="relative text-muted hover:text-foreground transition-colors cursor-pointer p-1.5"
         aria-label="API settings"
         title="API endpoint settings"
       >

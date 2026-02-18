@@ -28,8 +28,8 @@ export function ConnectionBadge() {
         </>
       ) : (
         <>
-          <ShieldAlert size={16} className="text-warning/60" />
-          <span className="text-warning/60 hidden sm:inline">Clearnet</span>
+          <ShieldAlert size={16} className="text-warning" />
+          <span className="text-warning hidden sm:inline">Clearnet</span>
         </>
       )}
     </div>
