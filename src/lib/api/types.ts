@@ -21,7 +21,7 @@ export interface MempoolVin {
     scriptpubkey_type: string;
     scriptpubkey_address: string;
     value: number;
-  };
+  } | null;
   scriptsig: string;
   scriptsig_asm: string;
   witness?: string[];

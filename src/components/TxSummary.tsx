@@ -8,13 +8,15 @@ interface TxSummaryProps {
   tx: MempoolTransaction;
   changeOutputIndex?: number;
   onAddressClick?: (address: string) => void;
+  /** When set, matching addresses render highlighted */
+  highlightAddress?: string;
 }
 
 /**
  * Visual transaction summary showing inputs -> outputs with
  * anonymity set highlighting (equal outputs get matching colors).
  */
-export function TxSummary({ tx, changeOutputIndex, onAddressClick }: TxSummaryProps) {
+export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddress }: TxSummaryProps) {
   // Lightweight change detection for visual hint (only 2-output txs)
   const likelyChangeIdx = changeOutputIndex ?? detectLikelyChange(tx);
   // Calculate anonymity sets (output value -> count)
@@ -68,10 +70,11 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick }: TxSummaryPr
         <div className="space-y-1">
           {inputsToShow.map((vin, i) => {
             const addr = vin.prevout?.scriptpubkey_address;
+            const isHighlighted = highlightAddress && addr === highlightAddress;
             return (
               <div
                 key={i}
-                className="text-xs font-mono truncate text-foreground/60"
+                className={`text-xs font-mono truncate ${isHighlighted ? "text-bitcoin font-semibold" : "text-foreground/60"}`}
                 title={addr ?? "coinbase"}
               >
                 {vin.is_coinbase ? (
@@ -87,9 +90,11 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick }: TxSummaryPr
                 ) : (
                   truncateAddr(addr ?? "?")
                 )}
-                <span className="text-muted ml-1">
-                  {formatSats(vin.prevout?.value ?? 0)}
-                </span>
+                {vin.prevout && !vin.is_coinbase && (
+                  <span className="text-muted ml-1">
+                    {formatSats(vin.prevout.value)}
+                  </span>
+                )}
               </div>
             );
           })}
@@ -111,10 +116,11 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick }: TxSummaryPr
             const anonSet = valueCounts.get(vout.value) ?? 1;
             const color = groupColors.get(vout.value);
             const outAddr = vout.scriptpubkey_address;
+            const isHighlighted = highlightAddress && outAddr === highlightAddress;
             return (
               <div
                 key={i}
-                className={`text-xs font-mono truncate ${color ?? "text-foreground/60"}`}
+                className={`text-xs font-mono truncate ${isHighlighted ? "text-bitcoin font-semibold" : (color ?? "text-foreground/60")}`}
                 title={outAddr ?? vout.scriptpubkey_type}
               >
                 {outAddr && onAddressClick ? (

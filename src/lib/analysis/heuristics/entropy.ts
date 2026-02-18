@@ -21,7 +21,8 @@ const MAX_ENUMERABLE_SIZE = 8;
 export const analyzeEntropy: TxHeuristic = (tx) => {
   const inputs = tx.vin
     .filter((v) => !v.is_coinbase)
-    .map((v) => v.prevout?.value ?? 0);
+    .map((v) => v.prevout?.value)
+    .filter((v): v is number => v != null);
   const outputs = tx.vout.map((v) => v.value);
 
   // Coinbase transactions have no privacy implications
