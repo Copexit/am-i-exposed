@@ -100,7 +100,7 @@ export function ApiSettings() {
           }
           setOpen(!open);
         }}
-        className="relative text-muted hover:text-foreground transition-colors cursor-pointer p-1.5"
+        className="relative text-muted hover:text-foreground transition-colors cursor-pointer p-2 rounded-lg border border-card-border bg-surface-elevated hover:bg-surface-inset"
         aria-label="API settings"
         title="API endpoint settings"
       >
@@ -111,7 +111,7 @@ export function ApiSettings() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-surface-elevated border border-card-border rounded-xl shadow-xl z-50 p-4 space-y-3">
+        <div className="fixed inset-x-0 top-[60px] mx-3 sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mx-0 sm:mt-2 sm:w-80 bg-surface-elevated border border-card-border rounded-xl shadow-xl z-50 p-4 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-foreground/70 uppercase tracking-wider">
               Mempool API
