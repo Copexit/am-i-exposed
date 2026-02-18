@@ -29,7 +29,10 @@ function persistDismiss(): void {
 export function TipToast() {
   const [visible, setVisible] = useState(false);
   const [dismissed, setDismissed] = useState(isDismissed);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(min-width: 1024px)").matches;
+  });
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {

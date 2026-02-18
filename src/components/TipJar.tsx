@@ -23,7 +23,10 @@ function persistDismiss(): void {
 }
 
 export function TipJar() {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(min-width: 1024px)").matches;
+  });
   const [dismissed, setDismissed] = useState(isDismissedInSession);
   const [copied, setCopied] = useState(false);
 
