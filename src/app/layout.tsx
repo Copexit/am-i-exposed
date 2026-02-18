@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Suspense } from "react";
 import { NetworkProvider } from "@/context/NetworkContext";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
@@ -98,15 +97,13 @@ export default function RootLayout({
             }),
           }}
         />
-        <Suspense fallback={null}>
-          <NetworkProvider>
-            <Header />
-            <PrivacyNotice />
-            <main className="flex-1 flex flex-col">{children}</main>
-            <Footer />
-            <TipToast />
-          </NetworkProvider>
-        </Suspense>
+        <NetworkProvider>
+          <Header />
+          <PrivacyNotice />
+          <main className="flex-1 flex flex-col">{children}</main>
+          <Footer />
+          <TipToast />
+        </NetworkProvider>
       </body>
     </html>
   );

@@ -1,34 +1,43 @@
 "use client";
 
-import { useCallback } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
 import {
   type BitcoinNetwork,
   DEFAULT_NETWORK,
   isValidNetwork,
 } from "@/lib/bitcoin/networks";
 
+function readNetworkFromUrl(): BitcoinNetwork {
+  if (typeof window === "undefined") return DEFAULT_NETWORK;
+  const params = new URLSearchParams(window.location.search);
+  const raw = params.get("network");
+  return raw && isValidNetwork(raw) ? raw : DEFAULT_NETWORK;
+}
+
 export function useUrlState() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
+  const [network, setNetworkState] = useState<BitcoinNetwork>(DEFAULT_NETWORK);
 
-  const rawNetwork = searchParams.get("network");
-  const network: BitcoinNetwork =
-    rawNetwork && isValidNetwork(rawNetwork) ? rawNetwork : DEFAULT_NETWORK;
+  // Read network from URL on mount and on popstate (back/forward)
+  useEffect(() => {
+    setNetworkState(readNetworkFromUrl());
 
-  const setNetwork = useCallback(
-    (n: BitcoinNetwork) => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (n === DEFAULT_NETWORK) {
-        params.delete("network");
-      } else {
-        params.set("network", n);
-      }
-      const qs = params.toString();
-      router.replace(qs ? `/?${qs}` : "/", { scroll: false });
-    },
-    [searchParams, router],
-  );
+    const handlePopState = () => setNetworkState(readNetworkFromUrl());
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const setNetwork = useCallback((n: BitcoinNetwork) => {
+    setNetworkState(n);
+    const params = new URLSearchParams(window.location.search);
+    if (n === DEFAULT_NETWORK) {
+      params.delete("network");
+    } else {
+      params.set("network", n);
+    }
+    const qs = params.toString();
+    const url = qs ? `${window.location.pathname}?${qs}${window.location.hash}` : `${window.location.pathname}${window.location.hash}`;
+    window.history.replaceState(null, "", url);
+  }, []);
 
   return { network, setNetwork };
 }

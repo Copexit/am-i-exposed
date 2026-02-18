@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
 import { useNetwork } from "@/context/NetworkContext";
 import { type BitcoinNetwork } from "@/lib/bitcoin/networks";
 
@@ -32,15 +33,10 @@ export function NetworkSelector() {
       <span
         className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full ${current.dot}`}
       />
-      <svg
-        className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-      </svg>
+      <ChevronDown
+        size={16}
+        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+      />
     </div>
   );
 }
