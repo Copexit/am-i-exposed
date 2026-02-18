@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, type FormEvent } from "react";
+import { Radar, SendHorizontal } from "lucide-react";
 import { useNetwork } from "@/context/NetworkContext";
 import { detectInputType, cleanInput } from "@/lib/analysis/detect-input";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
@@ -18,13 +19,17 @@ function InputTypeHint({ value, network }: { value: string; network: BitcoinNetw
   );
 }
 
+type AnalysisMode = "scan" | "check";
+
 interface AddressInputProps {
   onSubmit: (input: string) => void;
   isLoading: boolean;
   inputRef?: React.RefObject<HTMLInputElement | null>;
+  mode?: AnalysisMode;
+  onModeChange?: (mode: AnalysisMode) => void;
 }
 
-export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: AddressInputProps) {
+export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode = "scan", onModeChange }: AddressInputProps) {
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pasteSuccess, setPasteSuccess] = useState(false);
@@ -73,8 +78,51 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
     }
   };
 
+  const isCheck = mode === "check";
+  const placeholder = isCheck
+    ? "Paste destination address to check"
+    : "Paste a Bitcoin address or transaction ID";
+  const buttonLabel = isCheck ? "Check" : "Scan";
+
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-3xl">
+      {/* Mode toggle */}
+      {onModeChange && (
+        <div className="flex flex-col items-center gap-1.5 mb-4">
+          <div className="inline-flex items-center gap-1 bg-surface-elevated/50 border border-card-border/50 rounded-xl p-1">
+            <button
+              type="button"
+              onClick={() => onModeChange("scan")}
+              className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                !isCheck
+                  ? "bg-bitcoin/15 text-bitcoin shadow-sm"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              <Radar size={14} />
+              Scan
+            </button>
+            <button
+              type="button"
+              onClick={() => onModeChange("check")}
+              className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                isCheck
+                  ? "bg-bitcoin/15 text-bitcoin shadow-sm"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              <SendHorizontal size={14} />
+              Pre-send check
+            </button>
+          </div>
+          <p className="text-xs text-muted/50">
+            {isCheck
+              ? "Check a destination address before you send bitcoin to it"
+              : "Analyze your address or transaction for privacy leaks"}
+          </p>
+        </div>
+      )}
+
       <div className="relative group">
         <div className="absolute -inset-1 bg-bitcoin/5 rounded-2xl blur-xl group-focus-within:bg-bitcoin/10 transition-all duration-300 pointer-events-none" />
         <input
@@ -86,11 +134,11 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
             setError(null);
           }}
           onPaste={handlePaste}
-          placeholder="Paste a Bitcoin address or transaction ID"
+          placeholder={placeholder}
           spellCheck={false}
           autoComplete="off"
           autoFocus
-          aria-label="Bitcoin address or transaction ID"
+          aria-label={placeholder}
           aria-describedby={error ? "input-error" : undefined}
           className={`relative w-full bg-card-bg border rounded-xl pl-5 pr-20 py-4
             font-mono text-sm sm:text-base text-foreground placeholder:text-muted/50
@@ -110,7 +158,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
                 hover:bg-bitcoin-hover transition-all duration-150 disabled:opacity-30
                 disabled:cursor-not-allowed cursor-pointer"
             >
-              Scan
+              {buttonLabel}
             </button>
           )}
         </div>
