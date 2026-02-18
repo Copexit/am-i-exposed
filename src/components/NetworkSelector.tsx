@@ -30,7 +30,7 @@ export function NetworkSelector() {
         ))}
       </select>
       <span
-        className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${current.dot}`}
+        className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full ${current.dot}`}
       />
       <svg
         className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none"

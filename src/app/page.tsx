@@ -167,7 +167,7 @@ export default function Home() {
                 <span className="text-foreground">Am I </span>
                 <span className="text-danger">exposed?</span>
               </h1>
-              <p className="text-muted text-lg max-w-lg mx-auto">
+              <p className="text-muted text-lg sm:text-xl max-w-xl mx-auto">
                 The Bitcoin privacy scanner you were afraid to run.
               </p>
             </div>
@@ -181,8 +181,8 @@ export default function Home() {
             <RecentScans scans={scans} onSelect={handleSubmit} onClear={clearScans} />
 
             {scans.length === 0 && (
-              <div className="w-full max-w-2xl">
-                <div className="flex items-center gap-1.5 text-xs text-muted/40 mb-2 px-1">
+              <div className="w-full max-w-3xl">
+                <div className="flex items-center gap-1.5 text-sm text-muted/40 mb-2 px-1">
                   <span>Try an example</span>
                 </div>
                 <div className="flex flex-wrap gap-2 justify-center">
@@ -190,14 +190,14 @@ export default function Home() {
                     <button
                       key={ex.input}
                       onClick={() => handleSubmit(ex.input)}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-elevated/50
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-elevated/50
                         border border-card-border/50 hover:border-card-border hover:bg-surface-elevated
-                        transition-all text-xs cursor-pointer group"
+                        transition-all text-sm cursor-pointer group"
                     >
                       <span className="text-muted group-hover:text-foreground/70 transition-colors">
                         {ex.label}
                       </span>
-                      <span className={`text-[10px] font-bold ${
+                      <span className={`text-xs font-bold ${
                         ex.hint === "A+" ? "text-severity-good/60" :
                         ex.hint === "F" ? "text-severity-critical/60" :
                         "text-severity-medium/60"
@@ -210,12 +210,12 @@ export default function Home() {
               </div>
             )}
 
-            <p className="text-muted/60 text-sm max-w-md mx-auto">
+            <p className="text-muted/60 text-sm sm:text-base max-w-xl mx-auto">
               Find out what the blockchain knows about you. Paste a Bitcoin address
               or transaction ID to get a privacy score with actionable findings.
             </p>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-2xl">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-3xl">
               {[
                 { icon: Scan, label: "17 heuristics", desc: "Deep analysis" },
                 { icon: Fingerprint, label: "Wallet ID", desc: "Fingerprinting" },
@@ -226,9 +226,9 @@ export default function Home() {
                   key={feat.label}
                   className="flex flex-col items-center gap-1 py-2.5 rounded-lg bg-surface-elevated/30 border border-card-border/30"
                 >
-                  <feat.icon size={16} className="text-bitcoin/50" />
-                  <span className="text-xs font-medium text-foreground/70">{feat.label}</span>
-                  <span className="text-[10px] text-muted/40">{feat.desc}</span>
+                  <feat.icon size={20} className="text-bitcoin/50" />
+                  <span className="text-sm font-medium text-foreground/70">{feat.label}</span>
+                  <span className="text-xs text-muted/50">{feat.desc}</span>
                 </div>
               ))}
             </div>
@@ -237,22 +237,22 @@ export default function Home() {
               onClick={() => setTipIndex((i) => (i + 1) % PRIVACY_TIPS.length)}
               className="w-full max-w-lg mx-auto text-center cursor-pointer group"
             >
-              <p className="text-xs text-muted/30 mb-1">Privacy tip</p>
-              <p className="text-xs text-muted/60 leading-relaxed group-hover:text-muted/80 transition-colors">
+              <p className="text-xs text-muted/50 mb-1">Privacy tip</p>
+              <p className="text-sm text-muted/60 leading-relaxed group-hover:text-muted/80 transition-colors">
                 {PRIVACY_TIPS[tipIndex]}
               </p>
             </button>
 
-            <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-muted/40">
+            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted/50">
               <span className="inline-flex items-center gap-1.5">
-                <ShieldCheck size={14} className="text-success/50" />
+                <ShieldCheck size={16} className="text-success/50" />
                 100% client-side
               </span>
               <span>No tracking</span>
               <span>Open source</span>
             </div>
 
-            <div className="text-xs text-muted/30">
+            <div className="text-xs text-muted/40">
               Press <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted/50 font-mono">/</kbd> to focus search
             </div>
           </motion.div>
@@ -265,7 +265,7 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-            className="flex flex-col items-center gap-6 w-full max-w-2xl"
+            className="flex flex-col items-center gap-6 w-full max-w-3xl"
           >
             <div className="w-full bg-card-bg border border-card-border rounded-xl p-8 space-y-6">
               <div className="space-y-1">
@@ -304,7 +304,7 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-            className="flex flex-col items-center gap-6 w-full max-w-md"
+            className="flex flex-col items-center gap-6 w-full max-w-xl"
           >
             <div className="bg-card-bg border border-severity-critical/30 rounded-xl p-8 w-full space-y-4 text-center">
               <AlertCircle size={32} className="text-severity-critical mx-auto" />

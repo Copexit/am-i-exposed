@@ -23,12 +23,12 @@ export function ConnectionBadge() {
     >
       {isTor ? (
         <>
-          <Shield size={13} className="text-success" />
+          <Shield size={16} className="text-success" />
           <span className="text-success hidden sm:inline">Tor</span>
         </>
       ) : (
         <>
-          <ShieldAlert size={13} className="text-warning/60" />
+          <ShieldAlert size={16} className="text-warning/60" />
           <span className="text-warning/60 hidden sm:inline">Clearnet</span>
         </>
       )}
