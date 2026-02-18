@@ -69,8 +69,13 @@ export default function Home() {
 
   const { scans, addScan, clearScans } = useRecentScans();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [tipIndex, setTipIndex] = useState(() => Math.floor(Math.random() * PRIVACY_TIPS.length));
+  const [tipIndex, setTipIndex] = useState(0);
   const [mode, setMode] = useState<AnalysisMode>("scan");
+
+  // Randomize tip after mount to avoid hydration mismatch
+  useEffect(() => {
+    setTipIndex(Math.floor(Math.random() * PRIVACY_TIPS.length));
+  }, []);
 
   // Register service worker
   useEffect(() => {
