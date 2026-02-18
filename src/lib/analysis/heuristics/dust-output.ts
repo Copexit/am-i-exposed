@@ -58,6 +58,17 @@ export const analyzeDustOutputs: TxHeuristic = (tx) => {
         "use a CoinJoin or send it to a completely separate wallet first. Many wallets " +
         "support coin control to freeze individual UTXOs.",
       scoreImpact: -8,
+      remediation: {
+        steps: [
+          "Open your wallet's coin control / UTXO management and freeze (mark as 'do not spend') this dust UTXO.",
+          "Never include this UTXO in any transaction — spending it alongside your other UTXOs links all your addresses.",
+          "If you must clean it up, send it through a CoinJoin or to a completely separate wallet you don't mind burning.",
+        ],
+        tools: [
+          { name: "Sparrow Wallet (Coin Control)", url: "https://sparrowwallet.com" },
+        ],
+        urgency: "immediate",
+      },
     });
   } else {
     const severity = extremeDust.length > 0 ? "medium" : "low";

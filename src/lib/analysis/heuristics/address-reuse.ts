@@ -68,6 +68,19 @@ export const analyzeAddressReuse: AddressHeuristic = (address) => {
         recommendation:
           "Use a wallet that generates a new address for every receive (HD wallets). Never share the same address twice. Consider consolidating funds to a new address via CoinJoin.",
         scoreImpact: impact,
+        remediation: {
+          steps: [
+            "Stop using this address immediately — do not share it again for any future receives.",
+            "Generate a fresh receive address in your wallet (HD wallets do this automatically).",
+            "Move remaining funds from this address through a CoinJoin to break the link to your transaction history.",
+            "If CoinJoin is not an option, send funds to a new wallet through an intermediate address with a time delay.",
+          ],
+          tools: [
+            { name: "Sparrow Wallet", url: "https://sparrowwallet.com" },
+            { name: "Wasabi Wallet", url: "https://wasabiwallet.io" },
+          ],
+          urgency: totalFunded >= 10 ? "immediate" : "soon",
+        },
       },
     ],
   };

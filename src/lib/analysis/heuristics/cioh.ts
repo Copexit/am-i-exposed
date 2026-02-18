@@ -58,6 +58,19 @@ export const analyzeCioh: TxHeuristic = (tx) => {
         recommendation:
           "Use coin control to avoid combining UTXOs from different addresses. If consolidation is necessary, use CoinJoin first to break the link between source addresses.",
         scoreImpact: -impact,
+        remediation: {
+          steps: [
+            "Use coin control in your wallet to select specific UTXOs for each transaction — never auto-select.",
+            "Avoid multi-input transactions unless all inputs are from the same address or have been through a CoinJoin.",
+            "If you need to consolidate UTXOs, run them through a CoinJoin first to break the ownership link.",
+            "For future transactions, use a wallet that supports strict coin control and labels.",
+          ],
+          tools: [
+            { name: "Sparrow Wallet (Coin Control)", url: "https://sparrowwallet.com" },
+            { name: "Wasabi Wallet (CoinJoin)", url: "https://wasabiwallet.io" },
+          ],
+          urgency: count >= 5 ? "soon" : "when-convenient",
+        },
       },
     ],
   };

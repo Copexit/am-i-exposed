@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Lightbulb, ChevronDown } from "lucide-react";
-import type { Finding, Grade } from "@/lib/types";
+import { Lightbulb, ChevronDown, ExternalLink, AlertCircle, Clock, Wrench } from "lucide-react";
+import type { Finding, Grade, Remediation as RemediationType } from "@/lib/types";
 
 interface RemediationProps {
   findings: Finding[];
@@ -15,6 +15,12 @@ interface Action {
   text: string;
   detail: string;
 }
+
+const URGENCY_CONFIG = {
+  immediate: { label: "Act now", color: "text-severity-critical", icon: AlertCircle },
+  soon: { label: "Act soon", color: "text-severity-medium", icon: Clock },
+  "when-convenient": { label: "When convenient", color: "text-muted", icon: Wrench },
+} as const;
 
 /**
  * Generates prioritized remediation actions based on findings.
@@ -173,12 +179,64 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
   return actions.slice(0, 3);
 }
 
+function StructuredRemediation({ remediation, findingTitle }: { remediation: RemediationType; findingTitle: string }) {
+  const urgency = URGENCY_CONFIG[remediation.urgency];
+  const UrgencyIcon = urgency.icon;
+
+  return (
+    <div className="bg-surface-inset rounded-lg px-4 py-3 border-l-2 border-l-bitcoin/50 space-y-2.5">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-foreground/80">{findingTitle}</p>
+        <span className={`inline-flex items-center gap-1 text-xs ${urgency.color}`}>
+          <UrgencyIcon size={11} />
+          {urgency.label}
+        </span>
+      </div>
+
+      <ol className="space-y-1.5 pl-4">
+        {remediation.steps.map((step, i) => (
+          <li key={i} className="text-xs text-muted/70 leading-relaxed list-decimal">
+            {step}
+          </li>
+        ))}
+      </ol>
+
+      {remediation.tools && remediation.tools.length > 0 && (
+        <div className="flex flex-wrap gap-2 pt-1">
+          {remediation.tools.map((tool) => (
+            <a
+              key={tool.name}
+              href={tool.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-bitcoin/70 hover:text-bitcoin transition-colors"
+            >
+              {tool.name}
+              <ExternalLink size={10} />
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function Remediation({ findings, grade }: RemediationProps) {
   // Auto-open for poor grades where remediation is most important
   const [open, setOpen] = useState(grade === "D" || grade === "F");
+
+  // Collect structured remediations from findings (sorted by urgency)
+  const structuredRemediations = findings
+    .filter((f) => f.remediation)
+    .sort((a, b) => {
+      const order = { immediate: 0, soon: 1, "when-convenient": 2 };
+      return (order[a.remediation!.urgency] ?? 2) - (order[b.remediation!.urgency] ?? 2);
+    });
+
+  // Fallback actions for findings without structured remediation
   const actions = generateActions(findings, grade);
 
-  if (actions.length === 0) return null;
+  if (structuredRemediations.length === 0 && actions.length === 0) return null;
 
   return (
     <div className="w-full">
@@ -188,6 +246,11 @@ export function Remediation({ findings, grade }: RemediationProps) {
       >
         <Lightbulb size={12} />
         What to do next
+        {structuredRemediations.length > 0 && (
+          <span className="text-[10px] text-bitcoin/40">
+            ({structuredRemediations.length} detailed)
+          </span>
+        )}
         <ChevronDown
           size={12}
           className={`transition-transform ${open ? "rotate-180" : ""}`}
@@ -203,7 +266,17 @@ export function Remediation({ findings, grade }: RemediationProps) {
             className="overflow-hidden"
           >
             <div className="mt-2 space-y-2">
-              {actions.map((action, i) => (
+              {/* Structured remediations first */}
+              {structuredRemediations.map((f) => (
+                <StructuredRemediation
+                  key={f.id}
+                  remediation={f.remediation!}
+                  findingTitle={f.title}
+                />
+              ))}
+
+              {/* Then fallback actions for findings without structured data */}
+              {structuredRemediations.length === 0 && actions.map((action, i) => (
                 <div
                   key={i}
                   className="bg-surface-inset rounded-lg px-4 py-3 border-l-2 border-l-bitcoin/50"

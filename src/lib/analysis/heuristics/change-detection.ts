@@ -78,6 +78,19 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
     recommendation:
       "Use wallets with change output randomization. Avoid round payment amounts. Consider using the same address type for all outputs (Taproot makes this easier).",
     scoreImpact: impact,
+    remediation: {
+      steps: [
+        "Avoid sending round BTC amounts (e.g., 0.01 BTC) — use exact amounts or add randomness to make both outputs look similar.",
+        "Use a Taproot (bc1p) wallet so all outputs use the same script type, removing the address-type-mismatch signal.",
+        "Use coin control to spend the change output in isolation, avoiding further linkage.",
+        "Consider PayJoin for your next payment — it adds receiver inputs that break change analysis.",
+      ],
+      tools: [
+        { name: "Sparrow Wallet", url: "https://sparrowwallet.com" },
+        { name: "BTCPay Server (PayJoin)", url: "https://btcpayserver.org" },
+      ],
+      urgency: "when-convenient",
+    },
   });
 
   return { findings };
