@@ -36,7 +36,7 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
   // OFAC check runs immediately (local, no privacy cost)
   const ofacResult = useMemo(() => checkOfac(addresses), [addresses]);
 
-  // Chainalysis is opt-in
+  // Chainalysis is opt-in (routed through Cloudflare Worker proxy)
   const [chainalysis, setChainalysis] = useState<ChainalysisCheckResult>({
     status: "idle",
     sanctioned: false,
@@ -225,7 +225,7 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
                       <p className="text-[10px] text-severity-medium mt-1 flex items-center gap-1">
                         <AlertTriangle size={10} className="shrink-0" />
                         Sends {inputType === "txid" && addresses.length > 1 ? "addresses" : "address"} to
-                        chainalysis.com
+                        chainalysis.com via proxy
                       </p>
                     </div>
                   )}

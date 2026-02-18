@@ -1,8 +1,11 @@
 import type { ChainalysisIdentification } from "./types";
 
-const API_BASE = "https://public.chainalysis.com/api/v1/address";
-const API_KEY =
-  "***REDACTED_API_KEY***";
+// Cloudflare Worker proxy — avoids CORS and keeps API key server-side.
+// Deploy from workers/chainalysis-proxy/ with `wrangler deploy`.
+// Falls back to direct API call (works in non-browser environments).
+const PROXY_BASE =
+  process.env.NEXT_PUBLIC_CHAINALYSIS_PROXY_URL ||
+  "https://chainalysis-proxy.copexit.workers.dev/address";
 
 const MAX_ADDRESSES = 20;
 
@@ -13,15 +16,12 @@ interface ChainalysisResponse {
 async function checkSingleAddress(
   address: string,
 ): Promise<{ sanctioned: boolean; identifications: ChainalysisIdentification[] }> {
-  const res = await fetch(`${API_BASE}/${address}`, {
-    headers: {
-      Accept: "application/json",
-      "X-API-KEY": API_KEY,
-    },
+  const res = await fetch(`${PROXY_BASE}/${address}`, {
+    headers: { Accept: "application/json" },
   });
 
   if (!res.ok) {
-    throw new Error(`Chainalysis API returned ${res.status}`);
+    throw new Error(`Chainalysis proxy returned ${res.status}`);
   }
 
   const data: ChainalysisResponse = await res.json();
