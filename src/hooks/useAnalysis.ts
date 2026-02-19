@@ -16,6 +16,7 @@ import {
   type HeuristicStep,
   type PreSendResult,
 } from "@/lib/analysis/orchestrator";
+import { checkOfac } from "@/lib/analysis/cex-risk/ofac-check";
 import type { ScoringResult, InputType, TxAnalysisResult } from "@/lib/types";
 import type { MempoolTransaction } from "@/lib/api/types";
 
@@ -313,6 +314,52 @@ export function useAnalysis() {
         }));
       } catch (err) {
         if (controller.signal.aborted) return;
+
+        // Even when the API fails, run the local OFAC check - it needs no API data
+        const ofacResult = checkOfac([input]);
+        if (ofacResult.sanctioned) {
+          const preSendResult: PreSendResult = {
+            riskLevel: "CRITICAL",
+            summary:
+              "This address appears on the OFAC sanctions list. " +
+              "Sending funds to this address may violate sanctions law.",
+            findings: [
+              {
+                id: "h13-presend-check",
+                severity: "critical",
+                title: "Destination risk: CRITICAL",
+                description:
+                  "This address appears on the OFAC sanctions list. " +
+                  "Sending funds to this address may violate sanctions law.",
+                recommendation:
+                  "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address.",
+                scoreImpact: 0,
+              },
+              {
+                id: "h13-ofac-match",
+                severity: "critical",
+                title: "OFAC sanctioned address",
+                description:
+                  "This address matches an entry on the U.S. Treasury OFAC Specially Designated Nationals (SDN) list. " +
+                  "Transacting with sanctioned addresses may have serious legal consequences.",
+                recommendation:
+                  "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address.",
+                scoreImpact: -100,
+              },
+            ],
+            txCount: 0,
+            timesReceived: 0,
+            totalReceived: 0,
+          };
+          setState((prev) => ({
+            ...prev,
+            phase: "complete",
+            steps: prev.steps.map((s) => ({ ...s, status: "done" as const })),
+            preSendResult,
+            durationMs: Date.now() - startTime,
+          }));
+          return;
+        }
 
         let message = "An unexpected error occurred.";
         if (err instanceof ApiError) {
