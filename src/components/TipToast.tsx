@@ -38,8 +38,7 @@ export function TipToast() {
   useEffect(() => {
     if (dismissed) return;
 
-    const delay = Math.floor(Math.random() * 20000) + 20000; // 20-40s
-    const timer = setTimeout(() => setVisible(true), delay);
+    const timer = setTimeout(() => setVisible(true), 3000);
     return () => clearTimeout(timer);
   }, [dismissed]);
 

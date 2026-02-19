@@ -4,7 +4,6 @@ import { NetworkProvider } from "@/context/NetworkContext";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { PrivacyNotice } from "@/components/PrivacyNotice";
-import { TipToast } from "@/components/TipToast";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -108,7 +107,6 @@ export default function RootLayout({
           <PrivacyNotice />
           <main className="flex-1 flex flex-col">{children}</main>
           <Footer />
-          <TipToast />
         </NetworkProvider>
       </body>
     </html>

@@ -12,6 +12,7 @@ import { InstallPrompt } from "@/components/InstallPrompt";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useRecentScans } from "@/hooks/useRecentScans";
 import { useKeyboardNav } from "@/hooks/useKeyboardNav";
+import { TipToast } from "@/components/TipToast";
 import type { AnalysisMode } from "@/lib/types";
 
 const PRIVACY_TIPS = [
@@ -409,6 +410,7 @@ export default function Home() {
       </AnimatePresence>
 
       <InstallPrompt />
+      {phase === "complete" && <TipToast />}
     </div>
   );
 }
