@@ -33,7 +33,7 @@ export function ConnectionBadge() {
     },
     tor: {
       icon: <Shield size={16} className="text-success" />,
-      label: <span className="text-success text-[10px] sm:text-xs">Tor</span>,
+      label: <span className="text-success text-xs">Tor</span>,
       tip: "Connected via Tor - your IP is hidden from API providers",
     },
     unknown: {
@@ -43,7 +43,7 @@ export function ConnectionBadge() {
     },
     clearnet: {
       icon: <ShieldAlert size={16} className="text-warning" />,
-      label: <span className="text-warning text-[10px] sm:text-xs">Clearnet</span>,
+      label: <span className="text-warning text-xs">Clearnet</span>,
       tip: "Not using Tor - mempool.space can see your IP address",
     },
   }[status];

@@ -188,14 +188,14 @@ function StructuredRemediation({ remediation, findingTitle }: { remediation: Rem
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-foreground/90">{findingTitle}</p>
         <span className={`inline-flex items-center gap-1 text-xs ${urgency.color}`}>
-          <UrgencyIcon size={11} />
+          <UrgencyIcon size={14} />
           {urgency.label}
         </span>
       </div>
 
       <ol className="space-y-1.5 pl-4">
         {remediation.steps.map((step, i) => (
-          <li key={i} className="text-xs text-muted/90 leading-relaxed list-decimal">
+          <li key={i} className="text-sm text-muted leading-relaxed list-decimal">
             {step}
           </li>
         ))}
@@ -209,10 +209,10 @@ function StructuredRemediation({ remediation, findingTitle }: { remediation: Rem
               href={tool.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs text-bitcoin/70 hover:text-bitcoin transition-colors"
+              className="inline-flex items-center gap-1 text-sm text-bitcoin/70 hover:text-bitcoin transition-colors"
             >
               {tool.name}
-              <ExternalLink size={10} />
+              <ExternalLink size={14} />
             </a>
           ))}
         </div>
@@ -242,17 +242,17 @@ export function Remediation({ findings, grade }: RemediationProps) {
     <div className="w-full">
       <button
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1.5 text-sm text-bitcoin/70 hover:text-bitcoin transition-colors cursor-pointer bg-bitcoin/5 rounded-lg px-3 py-2"
+        className="inline-flex items-center gap-1.5 text-sm text-bitcoin/70 hover:text-bitcoin transition-colors cursor-pointer bg-bitcoin/10 rounded-lg px-3 py-3"
       >
-        <Lightbulb size={12} />
+        <Lightbulb size={16} />
         What to do next
         {structuredRemediations.length > 0 && (
-          <span className="text-[10px] text-bitcoin/40">
+          <span className="text-xs text-bitcoin/80">
             ({structuredRemediations.length} detailed)
           </span>
         )}
         <ChevronDown
-          size={12}
+          size={16}
           className={`transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
@@ -289,7 +289,7 @@ export function Remediation({ findings, grade }: RemediationProps) {
                       <p className="text-sm font-medium text-foreground/90">
                         {action.text}
                       </p>
-                      <p className="text-xs text-muted/90 mt-1 leading-relaxed">
+                      <p className="text-sm text-muted mt-1 leading-relaxed">
                         {action.detail}
                       </p>
                     </div>

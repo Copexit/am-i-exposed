@@ -80,19 +80,19 @@ export function InstallPrompt() {
             <p className="text-sm font-medium text-foreground">
               Install am-i.exposed
             </p>
-            <p className="text-xs text-muted">
+            <p className="text-sm text-muted">
               Install as an app for faster access. No app store needed.
             </p>
             <button
               onClick={handleInstall}
-              className="text-xs font-medium text-bitcoin bg-bitcoin/10 hover:bg-bitcoin/20 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+              className="text-xs font-medium text-bitcoin bg-bitcoin/10 hover:bg-bitcoin/20 px-3 py-2.5 rounded-lg transition-colors cursor-pointer"
             >
               Install now
             </button>
           </div>
           <button
             onClick={handleDismiss}
-            className="text-muted hover:text-foreground transition-colors shrink-0 cursor-pointer"
+            className="text-muted hover:text-foreground transition-colors shrink-0 cursor-pointer p-2"
             aria-label="Dismiss"
           >
             <X size={14} />

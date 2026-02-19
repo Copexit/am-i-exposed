@@ -232,7 +232,7 @@ export default function Home() {
 
             {scans.length === 0 && (
               <div className="w-full max-w-3xl">
-                <div className="flex items-center gap-1.5 text-sm text-muted/90 mb-2 px-1">
+                <div className="flex items-center gap-1.5 text-base text-muted mb-2 px-1">
                   <span>Try an example</span>
                 </div>
                 <div className="flex flex-wrap gap-2 justify-center">
@@ -244,13 +244,13 @@ export default function Home() {
                         border border-card-border hover:border-bitcoin/40 hover:bg-surface-elevated
                         transition-all text-sm cursor-pointer group"
                     >
-                      <span className="text-muted group-hover:text-foreground/80 transition-colors">
+                      <span className="text-muted group-hover:text-foreground transition-colors">
                         {ex.label}
                       </span>
                       <span className={`text-xs font-bold ${
-                        ex.hint === "A+" ? "text-severity-good/60" :
-                        ex.hint === "F" ? "text-severity-critical/60" :
-                        "text-severity-medium/60"
+                        ex.hint === "A+" ? "text-severity-good" :
+                        ex.hint === "F" ? "text-severity-critical" :
+                        "text-severity-medium"
                       }`}>
                         {ex.hint}
                       </span>
@@ -260,12 +260,12 @@ export default function Home() {
               </div>
             )}
 
-            <p className="text-muted/90 text-sm sm:text-base max-w-xl mx-auto">
+            <p className="text-muted text-sm sm:text-base max-w-xl mx-auto">
               Find out what the blockchain knows about you. Paste a Bitcoin address
               or transaction ID to get a privacy score with actionable findings.
             </p>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-3xl">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full max-w-3xl">
               {[
                 { icon: Scan, label: "16 heuristics", desc: "Deep analysis" },
                 { icon: Fingerprint, label: "Wallet ID", desc: "Fingerprinting" },
@@ -274,11 +274,11 @@ export default function Home() {
               ].map((feat) => (
                 <div
                   key={feat.label}
-                  className="flex flex-col items-center gap-1 py-2.5 rounded-lg bg-surface-elevated/30 border border-card-border/30"
+                  className="flex flex-col items-center gap-1 py-2.5 rounded-lg bg-surface-elevated/30 border border-card-border"
                 >
                   <feat.icon size={20} className="text-bitcoin/50" />
-                  <span className="text-sm font-medium text-foreground/80">{feat.label}</span>
-                  <span className="text-xs text-muted/90">{feat.desc}</span>
+                  <span className="text-sm font-medium text-foreground">{feat.label}</span>
+                  <span className="text-sm text-muted">{feat.desc}</span>
                 </div>
               ))}
             </div>
@@ -287,13 +287,13 @@ export default function Home() {
               onClick={() => setTipIndex((i) => (i + 1) % PRIVACY_TIPS.length)}
               className="w-full max-w-lg mx-auto text-center cursor-pointer group"
             >
-              <p className="text-xs text-muted/90 mb-1">Privacy tip</p>
-              <p suppressHydrationWarning className="text-sm text-muted/90 leading-relaxed group-hover:text-muted/90 transition-colors">
+              <p className="text-sm text-muted mb-1">Privacy tip</p>
+              <p suppressHydrationWarning className="text-sm text-muted leading-relaxed group-hover:text-muted transition-colors">
                 {PRIVACY_TIPS[tipIndex]}
               </p>
             </button>
 
-            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted/90">
+            <div className="flex flex-wrap items-center justify-center gap-4 text-base text-muted">
               <span className="inline-flex items-center gap-1.5">
                 <ShieldCheck size={16} className="text-success/50" />
                 100% client-side
@@ -302,8 +302,8 @@ export default function Home() {
               <span>Open source</span>
             </div>
 
-            <div className="text-xs text-muted/90 hidden sm:block">
-              Press <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted/90 font-mono">/</kbd> to focus search
+            <div className="text-xs text-muted hidden sm:block">
+              Press <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted font-mono">/</kbd> to focus search
             </div>
           </motion.div>
         )}
@@ -376,7 +376,7 @@ export default function Home() {
                   Analysis failed
                 </h2>
                 {query && (
-                  <p className="font-mono text-xs text-muted/90 break-all">
+                  <p className="font-mono text-sm text-muted break-all">
                     {query}
                   </p>
                 )}
@@ -402,8 +402,8 @@ export default function Home() {
                 </button>
               </div>
             </div>
-            <div className="text-xs text-muted/90 hidden sm:block">
-              Press <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted/90 font-mono">Esc</kbd> to go back
+            <div className="text-xs text-muted hidden sm:block">
+              Press <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted font-mono">Esc</kbd> to go back
             </div>
           </motion.div>
         )}

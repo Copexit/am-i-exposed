@@ -87,8 +87,8 @@ export function FindingCard({ finding, index }: FindingCardProps) {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="px-4 pb-4 space-y-3 border-t border-card-border pt-3">
-              <p className="text-sm text-foreground/80 leading-relaxed">
+            <div className="px-5 pb-5 space-y-3 border-t border-card-border pt-3">
+              <p className="text-sm text-foreground leading-relaxed">
                 {finding.description}
               </p>
               {finding.recommendation && (

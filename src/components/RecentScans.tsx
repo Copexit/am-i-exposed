@@ -40,8 +40,8 @@ export function RecentScans({ scans, onSelect, onClear }: RecentScansProps) {
       className="w-full max-w-2xl"
     >
       <div className="flex items-center justify-between mb-2 px-1">
-        <div className="flex items-center gap-1.5 text-xs text-muted/90">
-          <Clock size={11} />
+        <div className="flex items-center gap-1.5 text-xs text-muted">
+          <Clock size={14} />
           <span>Recent scans</span>
         </div>
         {onClear && (
@@ -50,7 +50,7 @@ export function RecentScans({ scans, onSelect, onClear }: RecentScansProps) {
             className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer p-2 -m-2"
             title="Clear scan history"
           >
-            <X size={10} />
+            <X size={14} />
             Clear
           </button>
         )}
@@ -60,18 +60,18 @@ export function RecentScans({ scans, onSelect, onClear }: RecentScansProps) {
           <button
             key={scan.input}
             onClick={() => onSelect(scan.input)}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-elevated/50
-              border border-card-border/50 hover:border-card-border hover:bg-surface-elevated
+            className="inline-flex items-center gap-2 px-3 py-2.5 rounded-lg bg-surface-elevated/50
+              border border-card-border hover:border-card-border hover:bg-surface-elevated
               transition-all text-xs cursor-pointer group"
             title={`${scan.type === "txid" ? "Transaction" : "Address"} · ${timeAgo(scan.timestamp)}`}
           >
             <span className={`font-bold ${GRADE_COLORS[scan.grade] ?? "text-muted"}`}>
               {scan.grade}
             </span>
-            <span className="font-mono text-muted group-hover:text-foreground/80 transition-colors truncate max-w-32">
+            <span className="font-mono text-muted group-hover:text-foreground transition-colors truncate max-w-32">
               {truncate(scan.input)}
             </span>
-            <span className="text-muted/90 text-[10px]">{timeAgo(scan.timestamp)}</span>
+            <span className="text-muted text-xs">{timeAgo(scan.timestamp)}</span>
           </button>
         ))}
       </div>

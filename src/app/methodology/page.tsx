@@ -164,7 +164,7 @@ export default function MethodologyPage() {
         </div>
 
         {/* Table of contents */}
-        <nav className="flex flex-wrap gap-2 text-xs" aria-label="Page sections">
+        <nav className="flex flex-wrap gap-2 text-sm" aria-label="Page sections">
           {[
             { label: "Threat Model", id: "threat-model" },
             { label: "Heuristics", id: "heuristics" },
@@ -176,7 +176,7 @@ export default function MethodologyPage() {
             <a
               key={s.id}
               href={`#${s.id}`}
-              className="px-2.5 py-1.5 rounded-lg bg-surface-elevated/50 border border-card-border/50 text-muted hover:text-foreground hover:border-bitcoin/30 transition-all"
+              className="px-3 py-2.5 rounded-lg bg-surface-elevated border border-card-border text-muted hover:text-foreground hover:border-bitcoin/30 transition-all"
             >
               {s.label}
             </a>
@@ -223,7 +223,7 @@ export default function MethodologyPage() {
               <div
                 key={h.id}
                 id={h.id.toLowerCase()}
-                className="bg-card-bg border border-card-border rounded-xl p-5 space-y-2 hover:border-bitcoin/20 transition-colors"
+                className="bg-card-bg border border-card-border rounded-xl p-6 space-y-2 hover:border-bitcoin/20 transition-colors"
               >
                 <div className="flex items-baseline gap-3">
                   <span className="text-xs font-mono font-bold text-bitcoin bg-bitcoin/10 px-2 py-0.5 rounded shrink-0">
@@ -234,7 +234,7 @@ export default function MethodologyPage() {
                     {h.impact}
                   </span>
                 </div>
-                <p className="text-muted text-sm leading-relaxed">
+                <p className="text-muted text-base leading-relaxed">
                   {h.description}
                 </p>
               </div>
@@ -251,7 +251,7 @@ export default function MethodologyPage() {
               <p className="text-muted leading-relaxed">
                 Every analysis starts from a <span className="text-foreground font-medium">base score of 70</span> - representing a typical Bitcoin transaction with no obviously good or bad characteristics. The base is above 50 because most transactions are not catastrophically bad; they carry the normal, baseline exposure of a transparent public blockchain.
               </p>
-              <div className="bg-surface-inset rounded-lg p-4 font-mono text-sm text-foreground/90">
+              <div className="bg-surface-inset rounded-lg p-4 font-mono text-sm text-foreground">
                 final_score = clamp(70 + sum(all_heuristic_impacts), 0, 100)
               </div>
             </div>
@@ -268,13 +268,13 @@ export default function MethodologyPage() {
               <div className="px-4 py-2.5 bg-surface-inset text-muted font-medium border-b border-card-border">Interpretation</div>
               {GRADES.map((g, i) => (
                 <div key={g.grade} className="contents">
-                  <div className={`px-4 py-3 font-bold text-lg ${g.color} ${i < GRADES.length - 1 ? "border-b border-card-border/50" : ""}`}>
+                  <div className={`px-4 py-3 font-bold text-lg ${g.color} ${i < GRADES.length - 1 ? "border-b border-card-border" : ""}`}>
                     {g.grade}
                   </div>
-                  <div className={`px-4 py-3 font-mono text-muted ${i < GRADES.length - 1 ? "border-b border-card-border/50" : ""}`}>
+                  <div className={`px-4 py-3 font-mono text-muted ${i < GRADES.length - 1 ? "border-b border-card-border" : ""}`}>
                     {g.range}
                   </div>
-                  <div className={`px-4 py-3 text-muted leading-relaxed ${i < GRADES.length - 1 ? "border-b border-card-border/50" : ""}`}>
+                  <div className={`px-4 py-3 text-muted leading-relaxed ${i < GRADES.length - 1 ? "border-b border-card-border" : ""}`}>
                     {g.description}
                   </div>
                 </div>
@@ -290,7 +290,7 @@ export default function MethodologyPage() {
             <p className="text-muted leading-relaxed">
               After all heuristics run, the engine applies cross-heuristic rules to avoid false penalties:
             </p>
-            <ul className="space-y-2 text-muted text-sm leading-relaxed">
+            <ul className="space-y-2 text-muted text-base leading-relaxed">
               <li className="flex gap-2">
                 <span className="text-bitcoin shrink-0">&bull;</span>
                 <span><span className="text-foreground font-medium">CoinJoin suppresses CIOH</span> - multiple input addresses in a CoinJoin belong to different participants, so the CIOH penalty is zeroed out</span>
@@ -335,7 +335,7 @@ export default function MethodologyPage() {
         <section id="limitations" className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground">Limitations</h2>
           <div className="bg-card-bg border border-card-border rounded-xl p-6 space-y-3">
-            <ul className="space-y-2 text-muted text-sm leading-relaxed">
+            <ul className="space-y-2 text-muted text-base leading-relaxed">
               <li className="flex gap-2">
                 <span className="text-severity-medium shrink-0">&bull;</span>
                 <span>Entropy calculation is simplified. Full Boltzmann analysis requires expensive enumeration that is impractical client-side for large transactions.</span>

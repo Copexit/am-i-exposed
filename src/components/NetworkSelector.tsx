@@ -19,7 +19,7 @@ export function NetworkSelector() {
       <select
         value={network}
         onChange={(e) => setNetwork(e.target.value as BitcoinNetwork)}
-        className="appearance-none bg-card-bg border border-card-border rounded-lg px-3 py-1.5
+        className="appearance-none bg-card-bg border border-card-border rounded-lg px-3 py-2.5 min-h-[44px]
           text-sm text-foreground cursor-pointer hover:border-muted transition-colors
           pl-7 pr-8 focus-visible:border-bitcoin"
         aria-label="Select Bitcoin network"

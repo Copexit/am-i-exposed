@@ -26,7 +26,7 @@ function ScoringExplainer() {
     <div className="w-full">
       <button
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1.5 text-xs text-foreground/80 hover:text-foreground transition-colors cursor-pointer px-1 min-h-[44px]"
+        className="inline-flex items-center gap-1.5 text-xs text-foreground hover:text-foreground transition-colors cursor-pointer px-1 min-h-[44px]"
       >
         <Info size={12} />
         How scoring works
@@ -40,9 +40,9 @@ function ScoringExplainer() {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="mt-2 bg-surface-inset rounded-lg px-4 py-3 text-xs text-muted/90 leading-relaxed space-y-2">
+            <div className="mt-2 bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed space-y-2">
               <p>
-                Scores start at <strong className="text-foreground/80">70/100</strong> (baseline) and are adjusted by each heuristic finding.
+                Scores start at <strong className="text-foreground">70/100</strong> (baseline) and are adjusted by each heuristic finding.
                 Negative findings (address reuse, change detection, round amounts) lower the score.
                 Positive findings (CoinJoin, high entropy, anonymity sets) raise it.
               </p>
@@ -87,7 +87,7 @@ function AddressTypeBadge({ address }: { address: string }) {
   }
 
   return (
-    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${color}`}>
+    <span className={`text-xs font-medium px-1.5 py-0.5 rounded border ${color}`}>
       {type}
     </span>
   );
@@ -98,7 +98,7 @@ function FindingSummary({ findings }: { findings: ScoringResult["findings"] }) {
   const good = findings.filter((f) => f.scoreImpact > 0 || f.severity === "good").length;
 
   return (
-    <div className="flex items-center gap-3 text-xs text-muted">
+    <div className="flex items-center gap-3 text-sm text-muted">
       {issues > 0 && (
         <span className="text-severity-high">{issues} issue{issues > 1 ? "s" : ""}</span>
       )}
@@ -160,7 +160,7 @@ export function ResultsPanel({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
       id="results-panel"
-      className="flex flex-col items-center gap-6 w-full max-w-2xl"
+      className="flex flex-col items-center gap-8 w-full max-w-3xl"
     >
       {/* Top bar */}
       <div className="w-full flex items-center justify-between">
@@ -185,10 +185,10 @@ export function ResultsPanel({
       </div>
 
       {/* Query + Score */}
-      <div className="w-full bg-card-bg border border-card-border rounded-xl p-6 space-y-6">
+      <div className="w-full bg-card-bg border border-card-border rounded-xl p-7 space-y-6">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-muted uppercase tracking-wider">
+            <span className="text-sm font-medium text-muted uppercase tracking-wider">
               {inputType === "txid" ? "Transaction" : "Address"}
             </span>
             {inputType === "address" && (
@@ -197,10 +197,11 @@ export function ResultsPanel({
           </div>
           <button
             onClick={() => navigator.clipboard.writeText(query).catch(() => {})}
-            className="font-mono text-sm text-foreground/90 break-all leading-relaxed text-left hover:text-foreground transition-colors cursor-pointer"
+            className="inline-flex items-start gap-2 font-mono text-sm text-foreground/90 break-all leading-relaxed text-left hover:text-foreground transition-colors cursor-pointer group/copy"
             title="Click to copy"
           >
-            {query}
+            <span className="break-all">{query}</span>
+            <Copy size={14} className="shrink-0 mt-1 text-muted opacity-0 group-hover/copy:opacity-100 transition-opacity" />
           </button>
         </div>
 
@@ -222,7 +223,7 @@ export function ResultsPanel({
             <p className="text-sm font-medium text-severity-critical">
               High exposure risk
             </p>
-            <p className="text-xs text-foreground/80 mt-1 leading-relaxed">
+            <p className="text-xs text-foreground mt-1 leading-relaxed">
               This {inputType === "txid" ? "transaction" : "address"} has severe privacy issues.
               On-chain surveillance can likely identify the owner and trace fund flows.
               Immediate remediation steps are recommended below.
@@ -247,14 +248,14 @@ export function ResultsPanel({
 
       {/* Findings */}
       {result.findings.length > 0 && (
-        <div className="w-full space-y-3">
+        <div className="w-full space-y-4">
           <div className="flex items-center justify-between px-1">
-            <h2 className="text-sm font-medium text-muted uppercase tracking-wider">
+            <h2 className="text-base font-medium text-muted uppercase tracking-wider">
               Findings ({result.findings.length})
             </h2>
             <FindingSummary findings={result.findings} />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {result.findings.map((finding, i) => (
               <FindingCard key={finding.id} finding={finding} index={i} />
             ))}
@@ -299,7 +300,7 @@ export function ResultsPanel({
       </div>
 
       {/* Disclaimer */}
-      <div className="w-full bg-surface-inset rounded-lg px-4 py-3 text-xs text-muted/90 leading-relaxed">
+      <div className="w-full bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed">
         {result.findings.length} findings from {inputType === "txid" ? "12" : "4"} heuristics
         {txBreakdown ? ` + ${txBreakdown.length} transactions analyzed` : ""}
         {durationMs ? ` in ${(durationMs / 1000).toFixed(1)}s` : ""}.
@@ -310,8 +311,8 @@ export function ResultsPanel({
         Scores are heuristic-based estimates, not definitive privacy assessments.
       </div>
 
-      <div className="text-xs text-muted/90 pb-4 hidden sm:block">
-        Press <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted/90 font-mono">Esc</kbd> for new scan
+      <div className="text-xs text-muted pb-4 hidden sm:block">
+        Press <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted font-mono">Esc</kbd> for new scan
       </div>
     </motion.div>
   );
