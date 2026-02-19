@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import {
   type BitcoinNetwork,
   DEFAULT_NETWORK,
@@ -14,20 +14,61 @@ function readNetworkFromUrl(): BitcoinNetwork {
   return raw && isValidNetwork(raw) ? raw : DEFAULT_NETWORK;
 }
 
+// External store for network state synced with URL
+let listeners: Array<() => void> = [];
+let cachedNetwork: BitcoinNetwork = DEFAULT_NETWORK;
+
+// Initialize cache on first client-side access
+let initialized = false;
+
+function subscribe(listener: () => void): () => void {
+  listeners = [...listeners, listener];
+
+  // Initialize cache on first subscription
+  if (!initialized) {
+    cachedNetwork = readNetworkFromUrl();
+    initialized = true;
+  }
+
+  const handlePopState = () => {
+    const next = readNetworkFromUrl();
+    if (next !== cachedNetwork) {
+      cachedNetwork = next;
+      emitChange();
+    }
+  };
+  window.addEventListener("popstate", handlePopState);
+
+  return () => {
+    listeners = listeners.filter((l) => l !== listener);
+    window.removeEventListener("popstate", handlePopState);
+  };
+}
+
+function emitChange() {
+  for (const listener of listeners) {
+    listener();
+  }
+}
+
+function getSnapshot(): BitcoinNetwork {
+  // Return cached value - only updated via subscribe/setNetwork
+  if (!initialized && typeof window !== "undefined") {
+    cachedNetwork = readNetworkFromUrl();
+    initialized = true;
+  }
+  return cachedNetwork;
+}
+
+function getServerSnapshot(): BitcoinNetwork {
+  return DEFAULT_NETWORK;
+}
+
 export function useUrlState() {
-  const [network, setNetworkState] = useState<BitcoinNetwork>(DEFAULT_NETWORK);
-
-  // Read network from URL on mount and on popstate (back/forward)
-  useEffect(() => {
-    setNetworkState(readNetworkFromUrl());
-
-    const handlePopState = () => setNetworkState(readNetworkFromUrl());
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
+  const network = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   const setNetwork = useCallback((n: BitcoinNetwork) => {
-    setNetworkState(n);
+    cachedNetwork = n;
     const params = new URLSearchParams(window.location.search);
     if (n === DEFAULT_NETWORK) {
       params.delete("network");
@@ -37,6 +78,7 @@ export function useUrlState() {
     const qs = params.toString();
     const url = qs ? `${window.location.pathname}?${qs}${window.location.hash}` : `${window.location.pathname}${window.location.hash}`;
     window.history.replaceState(null, "", url);
+    emitChange();
   }, []);
 
   return { network, setNetwork };

@@ -66,7 +66,7 @@ export function TipToast() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
           transition={{ duration: 0.3 }}
-          className="fixed bottom-4 right-4 left-4 sm:left-auto max-w-sm z-50"
+          className="fixed bottom-20 right-4 left-4 sm:left-auto max-w-sm z-50"
         >
           <div className="relative bg-surface-elevated border border-bitcoin/30 rounded-xl shadow-xl overflow-hidden">
             {/* Collapsed row */}
@@ -86,7 +86,7 @@ export function TipToast() {
             {/* Dismiss */}
             <button
               onClick={handleDismiss}
-              className="absolute top-3 right-3 text-muted/50 hover:text-foreground transition-colors cursor-pointer p-0.5"
+              className="absolute top-3 right-3 text-muted hover:text-foreground transition-colors cursor-pointer p-0.5"
               aria-label="Dismiss"
             >
               <X size={12} />

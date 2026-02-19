@@ -108,7 +108,7 @@ export function FindingCard({ finding, index }: FindingCardProps) {
                     className={
                       finding.scoreImpact > 0
                         ? "text-severity-good"
-                        : "text-severity-critical"
+                        : "text-severity-high"
                     }
                   >
                     {finding.scoreImpact > 0 ? "+" : ""}

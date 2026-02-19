@@ -76,7 +76,7 @@ function Stat({
         {label}
       </div>
       <div className="text-sm font-mono text-foreground">{value}</div>
-      {sub && <div className="text-xs text-muted/50">{sub}</div>}
+      {sub && <div className="text-xs text-muted">{sub}</div>}
     </div>
   );
 }

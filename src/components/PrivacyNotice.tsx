@@ -45,12 +45,12 @@ export function PrivacyNotice() {
           <div className="flex items-center gap-2">
             <ShieldAlert size={16} className="text-warning shrink-0" />
             <p className="text-sm text-muted flex-1">
-              Queries are sent to mempool.space — your IP is visible. Use
+              Queries are sent to mempool.space - your IP is visible. Use
               Tor or a VPN for stronger privacy.
             </p>
             <button
               onClick={handleDismiss}
-              className="text-muted hover:text-foreground transition-colors shrink-0 cursor-pointer"
+              className="text-muted hover:text-foreground transition-colors shrink-0 cursor-pointer p-3 -m-1.5 rounded-lg"
               aria-label="Dismiss notice"
             >
               <X size={16} />

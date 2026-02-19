@@ -2,19 +2,20 @@
 
 import { useState, useCallback } from "react";
 import { ClipboardCopy, Check } from "lucide-react";
-import type { ScoringResult } from "@/lib/types";
+import type { ScoringResult, InputType } from "@/lib/types";
 
 interface ExportButtonProps {
   targetId: string;
   query?: string;
   result?: ScoringResult;
+  inputType?: InputType;
 }
 
 /**
  * Export the analysis report as text to clipboard.
  * Includes grade, score, all findings with details.
  */
-export function ExportButton({ targetId, query, result }: ExportButtonProps) {
+export function ExportButton({ targetId, query, result, inputType }: ExportButtonProps) {
   const [status, setStatus] = useState<"idle" | "done" | "failed">("idle");
 
   const handleExport = useCallback(async () => {
@@ -79,7 +80,7 @@ export function ExportButton({ targetId, query, result }: ExportButtonProps) {
 
       // Share URL (clean, without dev server artifacts)
       const shareBase = window.location.origin + window.location.pathname;
-      const prefix = query && query.length === 64 ? "tx" : "addr";
+      const prefix = inputType === "txid" ? "tx" : "addr";
       const shareUrl = query ? `${shareBase}#${prefix}=${query}` : url;
 
       lines.push("─── Link ───");
@@ -94,16 +95,16 @@ export function ExportButton({ targetId, query, result }: ExportButtonProps) {
       setStatus("failed");
       setTimeout(() => setStatus("idle"), 2000);
     }
-  }, [targetId, query, result]);
+  }, [targetId, query, result, inputType]);
 
   return (
     <button
       onClick={handleExport}
-      className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer"
+      className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer py-2 min-h-[44px]"
       title="Copy report to clipboard"
     >
       {status === "done" ? <Check size={14} /> : <ClipboardCopy size={14} />}
-      {status === "done" ? "Copied" : status === "failed" ? "Failed" : "Report"}
+      {status === "done" ? "Copied" : status === "failed" ? "Failed" : "Copy report"}
     </button>
   );
 }

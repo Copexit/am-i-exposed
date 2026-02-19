@@ -17,7 +17,13 @@ import type { Finding } from "@/lib/types";
  */
 export const analyzeAnonymitySet: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
-  const outputs = tx.vout;
+  // Filter to spendable outputs (exclude OP_RETURN and other non-spendable)
+  const outputs = tx.vout.filter(
+    (o) => o.scriptpubkey_type !== "op_return" && o.value > 0,
+  );
+
+  // Skip coinbase transactions
+  if (tx.vin.some((v) => v.is_coinbase)) return { findings };
 
   if (outputs.length < 2) return { findings };
 
@@ -74,17 +80,17 @@ export const analyzeAnonymitySet: TxHeuristic = (tx) => {
       scoreImpact: 1,
     });
   } else if (uniqueOutputs === totalSets) {
-    // All outputs are unique - no ambiguity
+    // All outputs are unique - no ambiguity (normal for most transactions)
     findings.push({
       id: "anon-set-none",
-      severity: "medium",
+      severity: "low",
       title: "No anonymity set (all outputs unique)",
       description:
         `All ${outputs.length} outputs have unique values. Each output is trivially distinguishable, ` +
-        `making it easy to determine payment vs change and trace the fund flow.`,
+        `which is typical for standard transactions.`,
       recommendation:
-        "Transactions where all outputs have unique values provide no ambiguity to observers. Consider using CoinJoin for better privacy.",
-      scoreImpact: -2,
+        "This is normal for most transactions. CoinJoin creates larger anonymity sets for improved privacy.",
+      scoreImpact: -1,
     });
   }
 

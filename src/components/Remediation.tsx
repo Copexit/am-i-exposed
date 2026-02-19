@@ -83,14 +83,14 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
       priority: 5,
       text: "Excellent! Continue using CoinJoin",
       detail:
-        "Your CoinJoin transaction provides strong privacy. Continue using Whirlpool, " +
-        "Wasabi, or JoinMarket for future transactions. Avoid consolidating CoinJoin " +
+        "Your CoinJoin transaction provides strong privacy. Continue using Whirlpool " +
+        "or Wasabi for future transactions. Avoid consolidating CoinJoin " +
         "outputs with non-CoinJoin UTXOs.",
     });
   }
 
   // Legacy address type
-  if (ids.has("h10-legacy-type")) {
+  if (ids.has("h10-p2pkh") || ids.has("h10-p2sh")) {
     actions.push({
       priority: 4,
       text: "Upgrade to a Taproot (P2TR) wallet",
@@ -151,7 +151,7 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
   }
 
   // Low-entropy simple transactions
-  if (ids.has("h5-low-entropy")) {
+  if (ids.has("h5-low-entropy") || ids.has("h5-zero-entropy")) {
     actions.push({
       priority: 4,
       text: "Use PayJoin or CoinJoin for better transaction entropy",
@@ -223,7 +223,7 @@ function StructuredRemediation({ remediation, findingTitle }: { remediation: Rem
 
 export function Remediation({ findings, grade }: RemediationProps) {
   // Auto-open for poor grades where remediation is most important
-  const [open, setOpen] = useState(grade === "D" || grade === "F");
+  const [open, setOpen] = useState(grade === "C" || grade === "D" || grade === "F");
 
   // Collect structured remediations from findings (sorted by urgency)
   const structuredRemediations = findings
@@ -242,7 +242,7 @@ export function Remediation({ findings, grade }: RemediationProps) {
     <div className="w-full">
       <button
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1.5 text-xs text-bitcoin/70 hover:text-bitcoin transition-colors cursor-pointer px-1"
+        className="inline-flex items-center gap-1.5 text-sm text-bitcoin/70 hover:text-bitcoin transition-colors cursor-pointer bg-bitcoin/5 rounded-lg px-3 py-2"
       >
         <Lightbulb size={12} />
         What to do next

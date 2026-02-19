@@ -13,7 +13,7 @@ function InputTypeHint({ value, network }: { value: string; network: BitcoinNetw
 
   const label = type === "txid" ? "Transaction ID" : "Bitcoin address";
   return (
-    <p className="text-muted/40 text-xs mt-1.5 text-center">
+    <p className="text-muted/60 text-xs mt-1.5 text-center">
       Detected: <span className="text-muted/60">{label}</span>
     </p>
   );
@@ -115,7 +115,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
               Pre-send check
             </button>
           </div>
-          <p className="text-xs text-muted/50">
+          <p className="text-xs text-muted/70">
             {isCheck
               ? "Check a destination address before you send bitcoin to it"
               : "Analyze your address or transaction for privacy leaks"}
@@ -126,6 +126,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
       <div className="relative group">
         <div className="absolute -inset-1 bg-bitcoin/5 rounded-2xl blur-xl group-focus-within:bg-bitcoin/10 transition-all duration-300 pointer-events-none" />
         <input
+          id="main-input"
           ref={inputRef}
           type="text"
           value={value}
@@ -140,7 +141,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
           autoFocus
           aria-label={placeholder}
           aria-describedby={error ? "input-error" : undefined}
-          className={`relative w-full bg-card-bg border rounded-xl pl-5 pr-20 py-4
+          className={`relative w-full bg-card-bg border rounded-xl pl-4 pr-24 sm:pl-5 sm:pr-20 py-4
             font-mono text-sm sm:text-base text-foreground placeholder:text-muted/50
             focus:border-bitcoin focus:ring-2 focus:ring-bitcoin/20
             focus:shadow-[0_0_20px_rgba(247,147,26,0.15)]

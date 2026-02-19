@@ -6,10 +6,22 @@ import type { AddressHeuristic } from "./types";
  * The single biggest privacy failure in Bitcoin. When an address receives
  * funds more than once, all transactions become trivially linkable.
  *
- * Impact: -20 to -70
+ * Gates on funded_txo_count (actual receive events) to confirm address
+ * reuse, then scales severity using tx_count (total transaction involvement
+ * including spends) for a broader picture of linkability exposure.
+ *
+ * Impact: -24 to -70
  */
 export const analyzeAddressReuse: AddressHeuristic = (address) => {
   const { chain_stats, mempool_stats } = address;
+
+  // tx_count = number of distinct transactions involving this address
+  // This is more accurate than funded_txo_count which counts individual
+  // UTXOs (a single batched withdrawal can create multiple UTXOs)
+  const txCount = chain_stats.tx_count + mempool_stats.tx_count;
+
+  // Also check funded_txo_count to confirm the address actually received
+  // more than once (tx_count includes spends too)
   const totalFunded =
     chain_stats.funded_txo_count + mempool_stats.funded_txo_count;
 
@@ -29,30 +41,51 @@ export const analyzeAddressReuse: AddressHeuristic = (address) => {
     };
   }
 
-  // Severity scales with reuse count - extreme reuse gets extreme penalties
+  // Batch payment edge case: an exchange may send multiple outputs to the
+  // same address in a single transaction (funded_txo_count > 1 but tx_count <= 1).
+  // This is not true address reuse since only one transaction is involved.
+  if (txCount <= 1) {
+    return {
+      findings: [
+        {
+          id: "h8-batch-receive",
+          severity: "low",
+          title: `Multiple UTXOs from a single transaction (batch payment)`,
+          description:
+            `This address received ${totalFunded} outputs in a single transaction, likely a batched payment. ` +
+            "While this creates multiple UTXOs, it does not constitute address reuse since only one transaction is involved.",
+          recommendation:
+            "This is typically caused by exchange batched withdrawals. Use a fresh address for the next receive.",
+          scoreImpact: 0,
+        },
+      ],
+    };
+  }
+
+  // Use tx_count for severity scaling (more accurate than funded_txo_count)
   let impact: number;
   let severity: "critical" | "high" | "medium";
 
-  if (totalFunded >= 1000) {
+  if (txCount >= 1000) {
     impact = -70;
     severity = "critical";
-  } else if (totalFunded >= 100) {
-    impact = -55;
+  } else if (txCount >= 100) {
+    impact = -65;
     severity = "critical";
-  } else if (totalFunded >= 50) {
+  } else if (txCount >= 50) {
+    impact = -58;
+    severity = "critical";
+  } else if (txCount >= 10) {
+    impact = -50;
+    severity = "critical";
+  } else if (txCount >= 5) {
     impact = -45;
     severity = "critical";
-  } else if (totalFunded >= 10) {
-    impact = -35;
+  } else if (txCount >= 3) {
+    impact = -32;
     severity = "critical";
-  } else if (totalFunded >= 5) {
-    impact = -28;
-    severity = "critical";
-  } else if (totalFunded >= 3) {
-    impact = -22;
-    severity = "high";
   } else {
-    impact = -20;
+    impact = -24;
     severity = "high";
   }
 
@@ -61,16 +94,16 @@ export const analyzeAddressReuse: AddressHeuristic = (address) => {
       {
         id: "h8-address-reuse",
         severity,
-        title: `Address reused ${totalFunded} times`,
+        title: `Address reused across ${txCount} transactions`,
         description:
-          `This address has received funds ${totalFunded} times. Every transaction to and from this address is now trivially linkable by chain analysis. ` +
+          `This address appears in ${txCount} transactions. Every transaction to and from this address is now trivially linkable by chain analysis. ` +
           `Address reuse is the single most damaging privacy practice in Bitcoin.`,
         recommendation:
           "Use a wallet that generates a new address for every receive (HD wallets). Never share the same address twice. Consider consolidating funds to a new address via CoinJoin.",
         scoreImpact: impact,
         remediation: {
           steps: [
-            "Stop using this address immediately — do not share it again for any future receives.",
+            "Stop using this address immediately - do not share it again for any future receives.",
             "Generate a fresh receive address in your wallet (HD wallets do this automatically).",
             "Move remaining funds from this address through a CoinJoin to break the link to your transaction history.",
             "If CoinJoin is not an option, send funds to a new wallet through an intermediate address with a time delay.",
@@ -79,7 +112,7 @@ export const analyzeAddressReuse: AddressHeuristic = (address) => {
             { name: "Sparrow Wallet", url: "https://sparrowwallet.com" },
             { name: "Wasabi Wallet", url: "https://wasabiwallet.io" },
           ],
-          urgency: totalFunded >= 10 ? "immediate" : "soon",
+          urgency: txCount >= 10 ? "immediate" : "soon",
         },
       },
     ],

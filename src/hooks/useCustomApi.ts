@@ -12,12 +12,22 @@ function subscribe(callback: () => void) {
   return () => window.removeEventListener("storage", callback);
 }
 
+function isValidApiUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" || parsed.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
 function getSnapshot(): string | null {
   try {
     const stored = localStorage.getItem(STORAGE_KEY) ?? "";
     if (stored === cachedRaw) return cachedUrl;
     cachedRaw = stored;
-    cachedUrl = stored || null;
+    // Validate protocol to prevent data:/javascript: URI injection from localStorage
+    cachedUrl = stored && isValidApiUrl(stored) ? stored : null;
     return cachedUrl;
   } catch {
     return null;

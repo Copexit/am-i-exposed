@@ -53,14 +53,14 @@ export const analyzeCioh: TxHeuristic = (tx) => {
         title: `${count} input addresses linked by CIOH`,
         description:
           `This transaction combines inputs from ${count} different addresses. ` +
-          `Chain analysis firms assume all inputs in a transaction belong to the same entity. ` +
-          `These ${count} addresses are now permanently linked in clustering databases.`,
+          `Chain analysis firms will assume these ${count} addresses belong to the same entity. ` +
+          `This assumption is probabilistic but widely applied in commercial chain surveillance.`,
         recommendation:
           "Use coin control to avoid combining UTXOs from different addresses. If consolidation is necessary, use CoinJoin first to break the link between source addresses.",
         scoreImpact: -impact,
         remediation: {
           steps: [
-            "Use coin control in your wallet to select specific UTXOs for each transaction — never auto-select.",
+            "Use coin control in your wallet to select specific UTXOs for each transaction - never auto-select.",
             "Avoid multi-input transactions unless all inputs are from the same address or have been through a CoinJoin.",
             "If you need to consolidate UTXOs, run them through a CoinJoin first to break the ownership link.",
             "For future transactions, use a wallet that supports strict coin control and labels.",

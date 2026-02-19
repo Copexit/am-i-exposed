@@ -40,7 +40,7 @@ export function useClusterAnalysis() {
       setState({ phase: "analyzing", progress: null, result: null, error: null });
 
       try {
-        const api = createApiClient(config);
+        const api = createApiClient(config, controller.signal);
         const result = await buildFirstDegreeCluster(
           targetAddress,
           txs,

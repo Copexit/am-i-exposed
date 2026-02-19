@@ -21,7 +21,9 @@ export const analyzeFees: TxHeuristic = (tx) => {
   const feeRate = tx.fee / vsize;
 
   // Check for exact integer fee rate (common in some wallets)
-  if (feeRate === Math.floor(feeRate) && feeRate > 0) {
+  // Exclude low rates (1-5 sat/vB) since these are common during low-fee periods
+  // and being in a large cohort is actually privacy-neutral
+  if (feeRate === Math.floor(feeRate) && feeRate > 5) {
     findings.push({
       id: "h6-round-fee-rate",
       severity: "low",

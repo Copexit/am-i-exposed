@@ -40,14 +40,14 @@ export function RecentScans({ scans, onSelect, onClear }: RecentScansProps) {
       className="w-full max-w-2xl"
     >
       <div className="flex items-center justify-between mb-2 px-1">
-        <div className="flex items-center gap-1.5 text-xs text-muted/40">
+        <div className="flex items-center gap-1.5 text-xs text-muted/60">
           <Clock size={11} />
           <span>Recent scans</span>
         </div>
         {onClear && (
           <button
             onClick={onClear}
-            className="inline-flex items-center gap-1 text-xs text-muted/30 hover:text-muted/60 transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer p-2 -m-2"
             title="Clear scan history"
           >
             <X size={10} />
@@ -71,7 +71,7 @@ export function RecentScans({ scans, onSelect, onClear }: RecentScansProps) {
             <span className="font-mono text-muted group-hover:text-foreground/70 transition-colors truncate max-w-32">
               {truncate(scan.input)}
             </span>
-            <span className="text-muted/30 text-[10px]">{timeAgo(scan.timestamp)}</span>
+            <span className="text-muted/70 text-[10px]">{timeAgo(scan.timestamp)}</span>
           </button>
         ))}
       </div>

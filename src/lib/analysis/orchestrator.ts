@@ -23,6 +23,7 @@ import {
   analyzeDustOutputs,
 } from "./heuristics";
 import { calculateScore } from "@/lib/scoring/score";
+import { checkOfac } from "./cex-risk/ofac-check";
 import type { ScoringResult } from "@/lib/types";
 
 export interface HeuristicStep {
@@ -127,6 +128,34 @@ export async function analyzeAddress(
     onStep?.(heuristic.id, stepImpact);
   }
 
+  // Warn if we couldn't fetch all transactions for this address
+  const totalOnChain = address.chain_stats.tx_count + address.mempool_stats.tx_count;
+  if (txs.length === 0 && totalOnChain > 0) {
+    allFindings.push({
+      id: "partial-history",
+      severity: "medium",
+      title: "Transaction history unavailable",
+      description:
+        `This address has ${totalOnChain.toLocaleString()} transactions but transaction history could not be fetched. ` +
+        "Spending pattern analysis could not be performed, so the score may be incomplete.",
+      recommendation:
+        "Try again later, or use a custom API endpoint with higher rate limits.",
+      scoreImpact: 0,
+    });
+  } else if (txs.length > 0 && totalOnChain > txs.length) {
+    allFindings.push({
+      id: "partial-history",
+      severity: "low",
+      title: `Partial history analyzed (${txs.length} of ${totalOnChain.toLocaleString()} transactions)`,
+      description:
+        `This address has ${totalOnChain.toLocaleString()} total transactions but only the most recent ${txs.length} were analyzed. ` +
+        "Older transactions may contain additional privacy-relevant patterns not reflected in these results.",
+      recommendation:
+        "For a complete analysis of high-activity addresses, consider running a full node with a local Electrum server.",
+      scoreImpact: 0,
+    });
+  }
+
   return calculateScore(allFindings);
 }
 
@@ -166,6 +195,45 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
         f.title = `${f.title} (CoinJoin - unreliable)`;
         f.scoreImpact = 0;
       }
+      // Script type mixing is expected in CoinJoin (participants use different wallets)
+      if (f.id === "script-mixed") {
+        f.severity = "low";
+        f.title = `${f.title} (CoinJoin - expected)`;
+        f.description =
+          "Mixed script types are expected in CoinJoin transactions since participants use different wallet software.";
+        f.scoreImpact = 0;
+      }
+      // Wallet fingerprint is irrelevant for CoinJoin (the link is already broken)
+      if (f.id === "h11-wallet-fingerprint") {
+        f.severity = "low";
+        f.title = `${f.title} (CoinJoin - less relevant)`;
+        f.scoreImpact = 0;
+      }
+      // Dust outputs in CoinJoin may be coordinator fees (e.g. Whirlpool)
+      if (f.id === "dust-attack" || f.id === "dust-outputs") {
+        f.severity = "low";
+        f.title = `${f.title} (CoinJoin - likely coordinator fee)`;
+        f.scoreImpact = 0;
+      }
+      // Timing analysis is meaningless for CoinJoin (participants broadcast together)
+      if (f.id === "timing-unconfirmed") {
+        f.severity = "low";
+        f.title = `${f.title} (CoinJoin - expected)`;
+        f.scoreImpact = 0;
+      }
+      // Fee fingerprinting reveals the coordinator, not the participant's wallet
+      if (f.id === "h6-round-fee-rate" || f.id === "h6-rbf-signaled") {
+        f.severity = "low";
+        f.title = `${f.title} (CoinJoin - coordinator fee)`;
+        f.scoreImpact = 0;
+      }
+      // No anonymity set finding: CoinJoin structure itself provides privacy
+      // beyond simple output value matching, so the penalty is unwarranted
+      if (f.id === "anon-set-none") {
+        f.severity = "low";
+        f.title = `${f.title} (CoinJoin - structural privacy)`;
+        f.scoreImpact = 0;
+      }
     }
   }
 
@@ -175,14 +243,17 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
  * Run all tx-level heuristics on each of an address's transactions.
  * Returns per-tx analysis results (capped at 50 most recent).
  */
-export function analyzeTransactionsForAddress(
+export async function analyzeTransactionsForAddress(
   targetAddress: string,
   txs: MempoolTransaction[],
-): TxAnalysisResult[] {
+): Promise<TxAnalysisResult[]> {
   const cap = Math.min(txs.length, 50);
   const results: TxAnalysisResult[] = [];
 
   for (let i = 0; i < cap; i++) {
+    // Yield to the event loop every 10 txs to prevent UI freezing
+    if (i > 0 && i % 10 === 0) await tick();
+
     const tx = txs[i];
     const allFindings: Finding[] = [];
 
@@ -222,8 +293,8 @@ export interface PreSendResult {
   riskLevel: RiskLevel;
   summary: string;
   findings: Finding[];
-  reuseCount: number;
   txCount: number;
+  timesReceived: number;
   totalReceived: number;
 }
 
@@ -249,33 +320,60 @@ export async function analyzeDestination(
   }
 
   const { chain_stats, mempool_stats } = address;
-  const reuseCount = chain_stats.funded_txo_count + mempool_stats.funded_txo_count;
+  // Use tx_count for display, but funded_txo_count for reuse detection.
+  // An address with tx_count=2 but funded_txo_count=1 was received once and
+  // spent once - normal single-use behavior, not reuse.
   const txCount = chain_stats.tx_count + mempool_stats.tx_count;
+  const reuseCount = chain_stats.funded_txo_count + mempool_stats.funded_txo_count;
+  const timesReceived = reuseCount;
   const totalReceived = chain_stats.funded_txo_sum + mempool_stats.funded_txo_sum;
 
-  // Determine risk level
+  // Determine risk level based on how many times the address received funds
   let riskLevel: RiskLevel;
   let summary: string;
 
   if (reuseCount >= 100) {
     riskLevel = "CRITICAL";
-    summary = `This address has been used ${reuseCount} times. It is almost certainly a service or exchange deposit address — sending here will link your transaction to a known entity.`;
+    summary = `This address has received funds ${reuseCount} times. It is almost certainly a service or exchange deposit address - sending here will link your transaction to a known entity.`;
   } else if (reuseCount >= 10) {
     riskLevel = "HIGH";
-    summary = `This address has been reused ${reuseCount} times. All senders to this address are trivially linkable. Ask the recipient for a fresh address.`;
+    summary = `This address has received funds ${reuseCount} times. All senders to this address are trivially linkable. Ask the recipient for a fresh address.`;
   } else if (reuseCount >= 2) {
     riskLevel = "MEDIUM";
-    summary = `This address has been used ${reuseCount} times. There is some reuse, which means your payment will be linkable to previous transactions to this address.`;
+    summary = `This address has received funds ${reuseCount} times (${txCount} total transactions). There is reuse, which means your payment will be linkable to previous transactions to this address.`;
+  } else if (reuseCount === 1) {
+    riskLevel = "MEDIUM";
+    summary = "This address has already received funds once. Sending here will create address reuse, linking your transaction to the previous one on-chain.";
   } else {
     riskLevel = "LOW";
-    summary = "This address appears to be single-use. No significant privacy concerns detected for the recipient.";
+    summary = "This address appears unused. No significant privacy concerns detected for the recipient.";
   }
 
-  // Check for OFAC/sanctioned match — escalate to CRITICAL
-  const hasSanctionMatch = allFindings.some((f) => f.id.includes("ofac") || f.id.includes("sanction"));
-  if (hasSanctionMatch) {
+  // Escalate risk level if heuristic findings show high/critical severity
+  const hasHighSeverityFinding = allFindings.some(
+    (f) => (f.severity === "high" || f.severity === "critical") && f.scoreImpact < 0,
+  );
+  if (hasHighSeverityFinding && riskLevel === "LOW") {
+    riskLevel = "MEDIUM";
+    summary += " However, heuristic analysis identified concerning patterns.";
+  }
+
+  // Run local OFAC sanctions check (no network requests - bundled list)
+  const ofacResult = checkOfac([address.address]);
+  if (ofacResult.sanctioned) {
     riskLevel = "CRITICAL";
-    summary = "This address may be associated with a sanctioned entity. Do NOT send funds to this address.";
+    summary = "This address appears on the OFAC sanctions list. Sending funds to this address may violate sanctions law.";
+    allFindings.unshift({
+      id: "h13-ofac-match",
+      severity: "critical",
+      title: "OFAC sanctioned address",
+      description:
+        "This address matches an entry on the U.S. Treasury OFAC Specially Designated Nationals (SDN) list. " +
+        "Transacting with sanctioned addresses may have serious legal consequences.",
+      recommendation:
+        "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address.",
+      scoreImpact: -100,
+    });
   }
 
   // Add a pre-send specific finding summarizing the check
@@ -300,8 +398,8 @@ export async function analyzeDestination(
     riskLevel,
     summary,
     findings: allFindings,
-    reuseCount,
     txCount,
+    timesReceived,
     totalReceived,
   };
 }

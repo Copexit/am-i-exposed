@@ -83,7 +83,7 @@ export function useAnalysis() {
         return;
       }
 
-      const api = createApiClient(config);
+      const api = createApiClient(config, controller.signal);
 
       const steps =
         inputType === "txid"
@@ -183,7 +183,7 @@ export function useAnalysis() {
 
           // Run per-tx heuristic breakdown for address analysis
           const txBreakdown = txs.length > 0
-            ? analyzeTransactionsForAddress(input, txs)
+            ? await analyzeTransactionsForAddress(input, txs)
             : null;
 
           setState((prev) => ({
@@ -253,7 +253,7 @@ export function useAnalysis() {
         return;
       }
 
-      const api = createApiClient(config);
+      const api = createApiClient(config, controller.signal);
       const steps = getAddressHeuristicSteps();
       const startTime = Date.now();
 

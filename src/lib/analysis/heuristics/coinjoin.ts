@@ -3,10 +3,12 @@ import type { Finding } from "@/lib/types";
 
 // Whirlpool pool denominations (in sats)
 const WHIRLPOOL_DENOMS = [
+  50_000, // 0.0005 BTC
   100_000, // 0.001 BTC
+  500_000, // 0.005 BTC (historical pool)
   1_000_000, // 0.01 BTC
   5_000_000, // 0.05 BTC
-  50_000_000, // 0.5 BTC
+  50_000_000, // 0.5 BTC (retired 2023)
 ];
 
 /**
@@ -42,11 +44,41 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
     return { findings };
   }
 
-  // Check for WabiSabi / Wasabi pattern (many inputs, many equal-tier outputs)
-  const isWabiSabi = tx.vin.length > 20 && tx.vout.length > 20;
+  // Check for WabiSabi / Wasabi pattern (many inputs, many outputs)
+  // WabiSabi rounds can have as few as ~10 participants
+  const isWabiSabi = tx.vin.length > 10 && tx.vout.length > 10;
 
   // Check for generic equal-output CoinJoin
   const equalOutput = detectEqualOutputs(tx.vout.map((o) => o.value));
+
+  // WabiSabi multi-tier detection: if the structure looks like WabiSabi (many in/out)
+  // but no single denomination has 5+ outputs, check for multiple denomination groups
+  if (!equalOutput && isWabiSabi) {
+    const counts = new Map<number, number>();
+    for (const o of tx.vout) {
+      counts.set(o.value, (counts.get(o.value) ?? 0) + 1);
+    }
+    const groups = [...counts.entries()].filter(([, c]) => c >= 2);
+    const totalEqual = groups.reduce((sum, [, c]) => sum + c, 0);
+
+    if (totalEqual >= 5 && groups.length >= 2) {
+      const impact = totalEqual >= 20 ? 25 : totalEqual >= 10 ? 20 : 15;
+      findings.push({
+        id: "h4-coinjoin",
+        severity: "good",
+        title: `WabiSabi CoinJoin: ${groups.length} denomination tiers, ${totalEqual} equal outputs across ${tx.vout.length} total`,
+        description:
+          `This transaction has ${tx.vin.length} inputs and ${tx.vout.length} outputs with ${groups.length} groups of equal-value outputs, ` +
+          "consistent with a WabiSabi (Wasabi Wallet 2.0) CoinJoin using multiple denomination tiers. " +
+          "This pattern breaks the link between inputs and outputs, significantly improving privacy.",
+        recommendation:
+          "WabiSabi CoinJoins provide excellent privacy through large anonymity sets and multiple denomination tiers. Continue using CoinJoin for maximum privacy.",
+        scoreImpact: impact,
+      });
+      return { findings };
+    }
+  }
+
   if (equalOutput) {
     const { count, denomination, total } = equalOutput;
 
@@ -102,17 +134,19 @@ function detectEqualOutputs(
     counts.set(v, (counts.get(v) ?? 0) + 1);
   }
 
-  // Find the most common value with 3+ occurrences
+  // Find the most common value with 5+ occurrences
+  // (3 equal outputs is too weak - exchange batched withdrawals and payroll
+  // transactions routinely produce 3-4 equal outputs)
   let bestValue = 0;
   let bestCount = 0;
   for (const [value, count] of counts) {
-    if (count > bestCount && count >= 3) {
+    if (count > bestCount && count >= 5) {
       bestCount = count;
       bestValue = value;
     }
   }
 
-  if (bestCount < 3) return null;
+  if (bestCount < 5) return null;
 
   return {
     count: bestCount,

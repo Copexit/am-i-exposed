@@ -1,5 +1,7 @@
 import type { AddressHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
+import { analyzeCoinJoin } from "./coinjoin";
+import { getAddressType } from "@/lib/bitcoin/address-type";
 
 /**
  * Spending Pattern Analysis (Address-level)
@@ -53,15 +55,59 @@ export const analyzeSpendingPattern: AddressHeuristic = (address, _utxos, txs) =
 
   // Mixed receive/send with transaction history to analyze
   if (txs.length > 0 && spentCount > 0) {
-    // Check if the address mixes with many different counterparties
+    // Count unique counterparties from transactions where this address is a sender.
+    // Exclude likely change outputs to avoid inflating the count.
     const counterparties = new Set<string>();
+    const senderAddrType = getAddressType(address.address);
+
     for (const tx of txs) {
-      for (const vout of tx.vout) {
-        if (
-          vout.scriptpubkey_address &&
-          vout.scriptpubkey_address !== address.address
-        ) {
-          counterparties.add(vout.scriptpubkey_address);
+      // Only count counterparties when this address is an input (sender)
+      const isSender = tx.vin.some(
+        (v) => v.prevout?.scriptpubkey_address === address.address,
+      );
+      if (!isSender) continue;
+
+      // Skip CoinJoin transactions - their outputs are other participants,
+      // not true counterparties. Counting them would penalize CoinJoin users.
+      const cjResult = analyzeCoinJoin(tx);
+      const isCoinJoin = cjResult.findings.some(
+        (f) => (f.id === "h4-whirlpool" || f.id === "h4-coinjoin") && f.scoreImpact > 0,
+      );
+      if (isCoinJoin) continue;
+
+      const spendableOutputs = tx.vout.filter(
+        (v) =>
+          v.scriptpubkey_type !== "op_return" &&
+          v.scriptpubkey_address &&
+          v.scriptpubkey_address !== address.address,
+      );
+
+      // For 2-spendable-output txs (typical send), exclude the likely change output.
+      // Change usually matches the sender's address type.
+      if (spendableOutputs.length === 1) {
+        // Single non-self output: clear counterparty
+        counterparties.add(spendableOutputs[0].scriptpubkey_address!);
+      } else if (spendableOutputs.length === 2) {
+        // Identify likely payment (non-change) by address type mismatch
+        const type0 = getAddressType(spendableOutputs[0].scriptpubkey_address!);
+        const type1 = getAddressType(spendableOutputs[1].scriptpubkey_address!);
+
+        if (type0 === senderAddrType && type1 !== senderAddrType) {
+          // Output 0 matches sender type (likely change), output 1 is the payment
+          counterparties.add(spendableOutputs[1].scriptpubkey_address!);
+        } else if (type1 === senderAddrType && type0 !== senderAddrType) {
+          // Output 1 matches sender type (likely change), output 0 is the payment
+          counterparties.add(spendableOutputs[0].scriptpubkey_address!);
+        } else {
+          // Same type or mixed - count both (can't reliably exclude change)
+          for (const out of spendableOutputs) {
+            counterparties.add(out.scriptpubkey_address!);
+          }
+        }
+      } else {
+        // 3+ outputs (batch payment) - count all
+        for (const out of spendableOutputs) {
+          counterparties.add(out.scriptpubkey_address!);
         }
       }
     }
@@ -84,3 +130,5 @@ export const analyzeSpendingPattern: AddressHeuristic = (address, _utxos, txs) =
 
   return { findings };
 };
+
+

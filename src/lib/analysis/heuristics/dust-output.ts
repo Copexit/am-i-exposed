@@ -36,12 +36,12 @@ export const analyzeDustOutputs: TxHeuristic = (tx) => {
 
   const totalDustValue = dustOutputs.reduce((sum, out) => sum + out.value, 0);
 
-  // Check if this looks like a dust attack (small output sent to external address)
-  // vs just a small change amount
+  // Check if this looks like a dust attack:
+  // - Classic: 1 input, 2 outputs, 1 dust (attacker sends dust + change)
+  // - Batch: many outputs, majority are dust (attacker dusts many addresses at once)
   const isLikelyDustAttack =
-    dustOutputs.length === 1 &&
-    tx.vout.length === 2 &&
-    tx.vin.length === 1;
+    (dustOutputs.length === 1 && tx.vout.length === 2 && tx.vin.length === 1) ||
+    (dustOutputs.length >= 5 && dustOutputs.length > tx.vout.length * 0.5);
 
   if (isLikelyDustAttack) {
     findings.push({
@@ -61,7 +61,7 @@ export const analyzeDustOutputs: TxHeuristic = (tx) => {
       remediation: {
         steps: [
           "Open your wallet's coin control / UTXO management and freeze (mark as 'do not spend') this dust UTXO.",
-          "Never include this UTXO in any transaction — spending it alongside your other UTXOs links all your addresses.",
+          "Never include this UTXO in any transaction - spending it alongside your other UTXOs links all your addresses.",
           "If you must clean it up, send it through a CoinJoin or to a completely separate wallet you don't mind burning.",
         ],
         tools: [

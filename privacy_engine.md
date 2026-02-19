@@ -193,7 +193,7 @@ We detect three major CoinJoin implementations:
 
 - Exactly 5 inputs and 5 outputs (Whirlpool uses fixed participant counts)
 - All 5 outputs have equal value
-- Standard pool denominations: 100,000 sats (0.001 BTC), 1,000,000 sats (0.01 BTC), 5,000,000 sats (0.05 BTC), 50,000,000 sats (0.5 BTC)
+- Standard pool denominations: 50,000 sats (0.0005 BTC), 100,000 sats (0.001 BTC), 1,000,000 sats (0.01 BTC), 5,000,000 sats (0.05 BTC), 50,000,000 sats (0.5 BTC)
 - No toxic change in the CoinJoin transaction itself (change is handled in a separate TX0 premix transaction)
 
 ```
@@ -690,6 +690,111 @@ The recommended response is to never spend dust UTXOs. Most privacy-aware wallet
 
 ---
 
+### Anonymity Set Analysis
+
+**Technical description**
+
+Calculates the anonymity set for each output value - the number of outputs sharing the same value, making them indistinguishable from each other. An anonymity set of 1 means the output is unique and trivially traceable. Higher anonymity sets (like in CoinJoin) mean more possible interpretations of the transaction graph.
+
+This is complementary to H4 CoinJoin detection. While H4 determines whether a transaction is a CoinJoin, the anonymity set analysis provides granular per-output ambiguity measurement that applies to any transaction.
+
+**Detection criteria:**
+
+```
+value_counts = count occurrences of each output value
+max_set = largest group of equal-value outputs
+
+if max_set >= 5:
+  "Strong anonymity set" (+5, good)
+elif max_set >= 2:
+  "Moderate anonymity set" (+1, low)
+else:
+  "No anonymity set - all outputs unique" (-1, low)
+```
+
+**Scoring impact:** -1 to +5
+
+---
+
+### Script Type Mix Analysis
+
+**Technical description**
+
+Analyzes the mix of script types (P2PKH, P2SH, P2WPKH, P2WSH, P2TR) across inputs and outputs. When a transaction mixes different script types (e.g., P2WPKH inputs with a P2TR change output), the change output is easily identifiable because it often matches the input type.
+
+Also detects bare multisig (P2MS) outputs, which expose all participant public keys directly on the blockchain.
+
+**Detection criteria:**
+
+```
+input_types = set of input script types
+output_types = set of output script types (excluding OP_RETURN)
+all_types = union of input_types and output_types
+
+if bare multisig output detected:
+  "Bare multisig - all public keys exposed" (-8, high)
+
+if all_types has 1 element:
+  "Uniform script types" (+2, good)
+elif all_types has 3+ elements:
+  "Mixed script types" (-3, medium)
+else:
+  "Mixed script types" (-1, low)
+```
+
+This heuristic is suppressed (impact set to 0) for CoinJoin transactions, where mixed script types are expected since participants use different wallet software.
+
+**Scoring impact:** -8 to +2
+
+---
+
+### Timing Analysis
+
+**Technical description**
+
+Analyzes transaction timing patterns that may reveal information about the sender. Unconfirmed transactions are visible in the mempool, creating IP correlation risk. UNIX timestamp-based nLockTime values are rare and reveal the intended broadcast time. Stale locktime values (significantly before the confirmation block height) suggest the transaction was created well before broadcast.
+
+**Detection criteria:**
+
+```
+if transaction is unconfirmed:
+  "Mempool visible - IP correlation risk" (-2, low)
+
+if nLockTime >= 500,000,000:
+  "UNIX timestamp locktime - reveals creation time" (-3, medium)
+elif confirmed and (block_height - nLockTime) > 100:
+  "Stale locktime - delayed broadcast" (-1, low)
+```
+
+**Scoring impact:** -1 to -3
+
+---
+
+### Spending Pattern Analysis (Address-level)
+
+**Technical description**
+
+Analyzes spending behavior of an address to assess exposure. High-volume addresses (100+ transactions) are more likely to be monitored by chain analysis firms. Addresses that have never spent ("cold storage") reveal no spending patterns. Addresses transacting with many counterparties create a wide exposure surface.
+
+Counterparty counting excludes likely change outputs by comparing address types: in a 2-output send transaction, the output matching the sender's address type is excluded as probable change.
+
+**Detection criteria:**
+
+```
+if tx_count >= 100:
+  "High transaction volume" (-3, medium)
+
+if spent_count == 0 and funded_count > 0:
+  "Cold storage pattern" (+2, good)
+
+if unique_counterparties >= 20:
+  "Wide exposure surface" (-2, medium)
+```
+
+**Scoring impact:** -3 to +2
+
+---
+
 ## Scoring Model
 
 ### Base Score
@@ -717,20 +822,24 @@ All heuristic impacts are summed. Negative impacts indicate privacy weaknesses. 
 
 ### Heuristic Impact Summary
 
-| ID | Heuristic | Min Impact | Max Impact |
-|----|-----------|------------|------------|
-| H1 | Round Amount Detection | -5 | -15 |
-| H2 | Change Detection | -5 | -15 |
-| H3 | Common Input Ownership (CIOH) | -3 | -15 |
-| H4 | CoinJoin Detection | +15 | +30 |
-| H5 | Simplified Entropy (Boltzmann) | -5 | +15 |
-| H6 | Fee Analysis | -2 | -5 |
-| H7 | OP_RETURN Detection | -5 | -10 |
-| H8 | Address Reuse | -20 | -35 |
-| H9 | UTXO Analysis | -3 | -10 |
-| H10 | Address Type Analysis | -5 | +5 |
-| H11 | Wallet Fingerprinting | -2 | -8 |
-| H12 | Dust Detection (within H9) | -3 | -10 |
+| ID | Heuristic | Level | Min Impact | Max Impact |
+|----|-----------|-------|------------|------------|
+| H1 | Round Amount Detection | TX | -5 | -15 |
+| H2 | Change Detection | TX | -5 | -15 |
+| H3 | Common Input Ownership (CIOH) | TX | -3 | -15 |
+| H4 | CoinJoin Detection | TX | +15 | +30 |
+| H5 | Simplified Entropy (Boltzmann) | TX | -5 | +15 |
+| H6 | Fee Analysis | TX | -2 | -5 |
+| H7 | OP_RETURN Detection | TX | -5 | -10 |
+| H8 | Address Reuse | Addr | -20 | -70 |
+| H9 | UTXO Analysis | Addr | -3 | -10 |
+| H10 | Address Type Analysis | Addr | -5 | +5 |
+| H11 | Wallet Fingerprinting | TX | -2 | -8 |
+| H12 | Dust Detection (within H9) | Addr | -3 | -10 |
+| - | Anonymity Set Analysis | TX | -1 | +5 |
+| - | Script Type Mix Analysis | TX | -8 | +2 |
+| - | Timing Analysis | TX | -3 | -1 |
+| - | Spending Pattern Analysis | Addr | -3 | +2 |
 
 ### Score Design Properties
 
@@ -788,7 +897,7 @@ We take the following measures to minimize the privacy risks of using this tool:
 - **Tor .onion endpoint auto-detection.** When the tool detects that it is running in Tor Browser, it automatically routes API requests to the mempool.space .onion address, keeping your queries within the Tor network.
 - **Strict Referrer-Policy headers.** We set `Referrer-Policy: no-referrer` to prevent the browser from sending the page URL (which may contain your queried address in the hash) in the Referer header when making API requests.
 - **Content Security Policy.** CSP headers restrict which domains the page can connect to, preventing exfiltration of data to unauthorized endpoints. Only explicitly listed API endpoints are allowed.
-- **No analytics, no tracking, no cookies.** We do not use Google Analytics, Plausible, or any analytics platform. We do not set cookies. We do not use localStorage to persist query history. When you close the tab, your session is gone.
+- **No analytics, no tracking, no cookies.** We do not use Google Analytics, Plausible, or any analytics platform. We do not set cookies. Recent scan history is stored in sessionStorage (cleared automatically when the browser tab closes). No addresses or transaction IDs persist between sessions.
 
 ---
 
@@ -850,11 +959,11 @@ We take the following measures to minimize the privacy risks of using this tool:
 
 ---
 
-## Future Heuristics
+## Additional Heuristics (Implemented)
 
 ### H13: Address Check (Pre-Send Destination Analysis)
 
-**Status:** Planned - Phase 2
+**Status:** Implemented
 
 **Technical description**
 
@@ -898,7 +1007,7 @@ No wallet currently warns users about destination address privacy. Sparrow flags
 
 ### H14: First-Degree Cluster Analysis (CIOH Graph Walk)
 
-**Status:** Planned - Phase 2
+**Status:** Implemented
 
 **Technical description**
 

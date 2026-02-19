@@ -10,10 +10,13 @@ import type { TxHeuristic } from "./types";
  * Conversely, when all inputs and outputs use the same script type,
  * change detection is harder.
  *
- * Impact: -3 to +2
+ * Impact: -8 to +2
  */
 export const analyzeScriptTypeMix: TxHeuristic = (tx) => {
   const findings: import("@/lib/types").Finding[] = [];
+
+  // Skip coinbase transactions (no meaningful input scripts)
+  if (tx.vin.some((v) => v.is_coinbase)) return { findings };
 
   // Check for bare multisig outputs (P2MS) - a serious privacy concern
   const multisigOutputs = tx.vout.filter(

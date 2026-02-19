@@ -8,8 +8,8 @@ const ROUND_BTC_VALUES = [
   0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.25, 0.5, 1, 2, 5, 10,
 ].map((btc) => btc * SATS_PER_BTC);
 
-// Round sat multiples
-const ROUND_SAT_MULTIPLES = [1_000, 10_000, 100_000, 1_000_000, 10_000_000];
+// Round sat multiples (10k+ only; 1000 sats is too common to be a meaningful signal)
+const ROUND_SAT_MULTIPLES = [10_000, 100_000, 1_000_000, 10_000_000];
 
 /**
  * H1: Round Amount Detection
@@ -22,7 +22,13 @@ const ROUND_SAT_MULTIPLES = [1_000, 10_000, 100_000, 1_000_000, 10_000_000];
  */
 export const analyzeRoundAmounts: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
-  const outputs = tx.vout;
+  // Filter to spendable outputs (exclude OP_RETURN and other non-spendable)
+  const outputs = tx.vout.filter(
+    (o) => o.scriptpubkey_type !== "op_return" && o.value > 0,
+  );
+
+  // Skip coinbase transactions (block reward amounts are protocol-defined)
+  if (tx.vin.some((v) => v.is_coinbase)) return { findings };
 
   // Skip single-output transactions (no change to distinguish)
   if (outputs.length < 2) return { findings };

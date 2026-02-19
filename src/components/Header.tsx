@@ -17,7 +17,7 @@ export function Header() {
           aria-label="am-i.exposed home"
           className="flex items-center gap-2 group hover:opacity-80 transition-opacity cursor-pointer"
         >
-          <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground select-none">
+          <span className="text-lg sm:text-2xl font-bold tracking-tight text-foreground select-none whitespace-nowrap">
             am-i.<span className="text-danger">exposed</span>
           </span>
         </button>

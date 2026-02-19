@@ -1,6 +1,7 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import type { MempoolVin, MempoolVout } from "@/lib/api/types";
+import { getAddressType } from "@/lib/bitcoin/address-type";
 
 /**
  * H2: Change Detection
@@ -19,12 +20,17 @@ import type { MempoolVin, MempoolVout } from "@/lib/api/types";
 export const analyzeChangeDetection: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
 
-  // Only applies to transactions with exactly 2 outputs
-  // (more complex transactions need graph analysis)
-  if (tx.vout.length !== 2) return { findings };
+  // Filter out OP_RETURN outputs before analysis (they are data-only, not payments)
+  const spendableOutputs = tx.vout.filter(
+    (out) => out.scriptpubkey_type !== "op_return" && out.scriptpubkey_address,
+  );
 
-  // Skip if either output has no address (OP_RETURN, etc.)
-  if (!tx.vout[0].scriptpubkey_address || !tx.vout[1].scriptpubkey_address) {
+  // Only applies to transactions with exactly 2 spendable outputs
+  // (more complex transactions need graph analysis)
+  if (spendableOutputs.length !== 2) return { findings };
+
+  // Skip if either output has no address
+  if (!spendableOutputs[0].scriptpubkey_address || !spendableOutputs[1].scriptpubkey_address) {
     return { findings };
   }
 
@@ -35,13 +41,13 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
   const changeIndices = new Map<number, number>(); // output index -> signal count
 
   // Sub-heuristic 1: Address type mismatch
-  checkAddressTypeMismatch(tx.vin, tx.vout, changeIndices, signals);
+  checkAddressTypeMismatch(tx.vin, spendableOutputs, changeIndices, signals);
 
   // Sub-heuristic 2: Round amount
-  checkRoundAmount(tx.vout, changeIndices, signals);
+  checkRoundAmount(spendableOutputs, changeIndices, signals);
 
   // Sub-heuristic 3: Script type reuse
-  checkScriptTypeReuse(tx.vin, tx.vout, changeIndices, signals);
+  checkScriptTypeReuse(tx.vin, spendableOutputs, changeIndices, signals);
 
   if (signals.length === 0) return { findings };
 
@@ -80,10 +86,10 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
     scoreImpact: impact,
     remediation: {
       steps: [
-        "Avoid sending round BTC amounts (e.g., 0.01 BTC) — use exact amounts or add randomness to make both outputs look similar.",
+        "Avoid sending round BTC amounts (e.g., 0.01 BTC) - use exact amounts or add randomness to make both outputs look similar.",
         "Use a Taproot (bc1p) wallet so all outputs use the same script type, removing the address-type-mismatch signal.",
         "Use coin control to spend the change output in isolation, avoiding further linkage.",
-        "Consider PayJoin for your next payment — it adds receiver inputs that break change analysis.",
+        "Consider PayJoin for your next payment - it adds receiver inputs that break change analysis.",
       ],
       tools: [
         { name: "Sparrow Wallet", url: "https://sparrowwallet.com" },
@@ -96,12 +102,6 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
   return { findings };
 };
 
-function getAddressTypePrefix(addr: string): string {
-  if (addr.startsWith("bc1p") || addr.startsWith("tb1p")) return "p2tr";
-  if (addr.startsWith("bc1q") || addr.startsWith("tb1q")) return "p2wpkh";
-  if (addr.startsWith("3") || addr.startsWith("2")) return "p2sh";
-  return "p2pkh";
-}
 
 function checkAddressTypeMismatch(
   vin: MempoolVin[],
@@ -113,15 +113,15 @@ function checkAddressTypeMismatch(
   const inputTypes = new Set<string>();
   for (const v of vin) {
     if (v.prevout?.scriptpubkey_address) {
-      inputTypes.add(getAddressTypePrefix(v.prevout.scriptpubkey_address));
+      inputTypes.add(getAddressType(v.prevout.scriptpubkey_address));
     }
   }
 
   if (inputTypes.size !== 1) return; // Mixed inputs, can't determine
 
   const inputType = [...inputTypes][0];
-  const out0Type = getAddressTypePrefix(vout[0].scriptpubkey_address!);
-  const out1Type = getAddressTypePrefix(vout[1].scriptpubkey_address!);
+  const out0Type = getAddressType(vout[0].scriptpubkey_address!);
+  const out1Type = getAddressType(vout[1].scriptpubkey_address!);
 
   // If one output matches input type and the other doesn't
   if (out0Type === inputType && out1Type !== inputType) {

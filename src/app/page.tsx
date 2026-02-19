@@ -69,13 +69,20 @@ export default function Home() {
 
   const { scans, addScan, clearScans } = useRecentScans();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [tipIndex, setTipIndex] = useState(0);
+  const [tipIndex, setTipIndex] = useState(
+    () => Math.floor(Math.random() * PRIVACY_TIPS.length),
+  );
   const [mode, setMode] = useState<AnalysisMode>("scan");
 
-  // Randomize tip after mount to avoid hydration mismatch
+  // Keep latest function refs for hashchange listener (avoids stale closures)
+  const analyzeRef = useRef(analyze);
+  const checkDestinationRef = useRef(checkDestination);
+  const resetRef = useRef(reset);
   useEffect(() => {
-    setTipIndex(Math.floor(Math.random() * PRIVACY_TIPS.length));
-  }, []);
+    analyzeRef.current = analyze;
+    checkDestinationRef.current = checkDestination;
+    resetRef.current = reset;
+  });
 
   // Register service worker
   useEffect(() => {
@@ -112,11 +119,12 @@ export default function Home() {
   }, [phase, query, inputType, result, addScan]);
 
   // Auto-analyze from URL hash on mount and on hash change (back button)
+  // Uses refs to always access latest function references after network changes
   useEffect(() => {
     function handleHash() {
       const hash = window.location.hash.slice(1);
       if (!hash) {
-        reset();
+        resetRef.current();
         return;
       }
 
@@ -127,12 +135,12 @@ export default function Home() {
 
       if (check) {
         setMode("check");
-        checkDestination(check);
+        checkDestinationRef.current(check);
       } else {
         const input = txid ?? addr;
         if (input) {
           setMode("scan");
-          analyze(input);
+          analyzeRef.current(input);
         }
       }
     }
@@ -143,7 +151,7 @@ export default function Home() {
     // Listen for back/forward navigation
     window.addEventListener("hashchange", handleHash);
     return () => window.removeEventListener("hashchange", handleHash);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Keyboard navigation
   useKeyboardNav({
@@ -176,8 +184,21 @@ export default function Home() {
     reset();
   };
 
+  // Aria-live announcements for screen readers during phase transitions
+  const ariaStatus =
+    phase === "fetching" || phase === "analyzing"
+      ? `${mode === "check" ? "Checking destination" : "Scanning"}. Please wait.`
+      : phase === "complete" && result && mode === "scan"
+        ? `Scan complete. Grade ${result.grade}, score ${result.score} out of 100.`
+        : phase === "complete" && preSendResult && mode === "check"
+          ? `Check complete. Risk level: ${preSendResult.riskLevel}.`
+          : phase === "error"
+            ? `Analysis failed. ${error ?? ""}`
+            : "";
+
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-4 py-6">
+      <div className="sr-only" role="status" aria-live="polite">{ariaStatus}</div>
       <AnimatePresence mode="wait">
         {phase === "idle" && (
           <motion.div
@@ -210,7 +231,7 @@ export default function Home() {
 
             {scans.length === 0 && (
               <div className="w-full max-w-3xl">
-                <div className="flex items-center gap-1.5 text-sm text-muted/40 mb-2 px-1">
+                <div className="flex items-center gap-1.5 text-sm text-muted/60 mb-2 px-1">
                   <span>Try an example</span>
                 </div>
                 <div className="flex flex-wrap gap-2 justify-center">
@@ -219,7 +240,7 @@ export default function Home() {
                       key={ex.input}
                       onClick={() => handleSubmit(ex.input)}
                       className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-elevated/50
-                        border border-card-border/50 hover:border-card-border hover:bg-surface-elevated
+                        border border-card-border hover:border-bitcoin/40 hover:bg-surface-elevated
                         transition-all text-sm cursor-pointer group"
                     >
                       <span className="text-muted group-hover:text-foreground/70 transition-colors">
@@ -256,7 +277,7 @@ export default function Home() {
                 >
                   <feat.icon size={20} className="text-bitcoin/50" />
                   <span className="text-sm font-medium text-foreground/70">{feat.label}</span>
-                  <span className="text-xs text-muted/50">{feat.desc}</span>
+                  <span className="text-xs text-muted/70">{feat.desc}</span>
                 </div>
               ))}
             </div>
@@ -265,13 +286,13 @@ export default function Home() {
               onClick={() => setTipIndex((i) => (i + 1) % PRIVACY_TIPS.length)}
               className="w-full max-w-lg mx-auto text-center cursor-pointer group"
             >
-              <p className="text-xs text-muted/50 mb-1">Privacy tip</p>
-              <p className="text-sm text-muted/60 leading-relaxed group-hover:text-muted/80 transition-colors">
+              <p className="text-xs text-muted/70 mb-1">Privacy tip</p>
+              <p suppressHydrationWarning className="text-sm text-muted/60 leading-relaxed group-hover:text-muted/80 transition-colors">
                 {PRIVACY_TIPS[tipIndex]}
               </p>
             </button>
 
-            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted/50">
+            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted/70">
               <span className="inline-flex items-center gap-1.5">
                 <ShieldCheck size={16} className="text-success/50" />
                 100% client-side
@@ -280,8 +301,8 @@ export default function Home() {
               <span>Open source</span>
             </div>
 
-            <div className="text-xs text-muted/40">
-              Press <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted/50 font-mono">/</kbd> to focus search
+            <div className="text-xs text-muted/60 hidden sm:block">
+              Press <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted/70 font-mono">/</kbd> to focus search
             </div>
           </motion.div>
         )}
@@ -298,7 +319,7 @@ export default function Home() {
             <div className="w-full bg-card-bg border border-card-border rounded-xl p-8 space-y-6">
               <div className="space-y-1">
                 <span className="text-xs font-medium text-muted uppercase tracking-wider">
-                  {inputType === "txid" ? "Transaction" : "Address"}
+                  {mode === "check" ? "Pre-send destination check" : inputType === "txid" ? "Transaction" : "Address"}
                 </span>
                 <p className="font-mono text-sm text-foreground/80 break-all leading-relaxed">
                   {query}
@@ -345,7 +366,7 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-            className="flex flex-col items-center gap-6 w-full max-w-xl"
+            className="flex flex-col items-center gap-6 w-full max-w-xl mt-8 sm:mt-0"
           >
             <div className="bg-card-bg border border-severity-critical/30 rounded-xl p-8 w-full space-y-4 text-center">
               <AlertCircle size={32} className="text-severity-critical mx-auto" />
@@ -354,7 +375,7 @@ export default function Home() {
                   Analysis failed
                 </h2>
                 {query && (
-                  <p className="font-mono text-xs text-muted/50 break-all">
+                  <p className="font-mono text-xs text-muted/70 break-all">
                     {query}
                   </p>
                 )}
@@ -363,7 +384,7 @@ export default function Home() {
                 </p>
               </div>
               <div className="flex items-center justify-center gap-4">
-                {query && (
+                {query && error && !error.includes("Not found") && !error.includes("Invalid") && !error.includes("only works with") && (
                   <button
                     onClick={() => analyze(query)}
                     className="px-4 py-1.5 bg-bitcoin text-black font-semibold text-sm rounded-lg
@@ -380,8 +401,8 @@ export default function Home() {
                 </button>
               </div>
             </div>
-            <div className="text-xs text-muted/30">
-              Press <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted/50 font-mono">Esc</kbd> to go back
+            <div className="text-xs text-muted/70 hidden sm:block">
+              Press <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted/70 font-mono">Esc</kbd> to go back
             </div>
           </motion.div>
         )}

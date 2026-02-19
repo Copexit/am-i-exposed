@@ -8,7 +8,7 @@ import type { Finding } from "@/lib/types";
  * This data is publicly visible forever and may contain protocol markers,
  * messages, timestamps, or other identifying information.
  *
- * Impact: -5 to -10
+ * Impact: -5 to -8 per output (stacks)
  */
 export const analyzeOpReturn: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
@@ -23,7 +23,7 @@ export const analyzeOpReturn: TxHeuristic = (tx) => {
     const out = opReturnOutputs[idx];
     const dataHex = extractOpReturnData(out.scriptpubkey);
     const decoded = tryDecodeUtf8(dataHex);
-    const protocol = detectProtocol(dataHex);
+    const protocol = isRunesScript(out.scriptpubkey) ? "Runes" : detectProtocol(dataHex);
 
     let description =
       "This transaction embeds data permanently in the blockchain via OP_RETURN. " +
@@ -108,7 +108,16 @@ function detectProtocol(hex: string): string | null {
   // Veriblock: starts with "56424b" (ascii "VBK")
   if (hex.startsWith("56424b")) return "VeriBlock";
 
+  // Runes: OP_RETURN followed by OP_13 (0x5d)
+  // Note: we check the raw data after OP_RETURN extraction
+  // The scriptpubkey itself starts with 6a5d for Runes
   return null;
+}
+
+/** Check if the full scriptpubkey is a Runes OP_RETURN (6a 5d ...). */
+function isRunesScript(scriptpubkey: string): boolean {
+  // Runes use OP_RETURN (6a) followed by OP_13 (5d) as the protocol tag
+  return scriptpubkey.startsWith("6a5d");
 }
 
 function truncate(str: string, maxLen: number): string {

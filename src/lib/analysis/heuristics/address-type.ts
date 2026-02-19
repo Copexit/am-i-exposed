@@ -1,5 +1,5 @@
 import type { AddressHeuristic } from "./types";
-import type { AddressType } from "@/lib/types";
+import { getAddressType } from "@/lib/bitcoin/address-type";
 
 /**
  * H10: Address Type Analysis
@@ -11,7 +11,7 @@ import type { AddressType } from "@/lib/types";
  * Impact: -5 to +5
  */
 export const analyzeAddressType: AddressHeuristic = (address) => {
-  const type = detectAddressType(address.address);
+  const type = getAddressType(address.address);
 
   switch (type) {
     case "p2tr":
@@ -22,7 +22,7 @@ export const analyzeAddressType: AddressHeuristic = (address) => {
             severity: "good",
             title: "Taproot address (P2TR)",
             description:
-              "Taproot addresses provide the best on-chain privacy. All spend conditions (single-sig, multisig, timelocks) look identical on-chain, making transactions indistinguishable from each other.",
+              "Taproot addresses provide the best on-chain privacy. When using key-path spends (the common case), all spend conditions - single-sig, multisig, timelocks - look identical on-chain, making transactions indistinguishable from each other.",
             recommendation:
               "You are using the most private address type available. Encourage others to adopt Taproot to grow the anonymity set.",
             scoreImpact: 5,
@@ -42,6 +42,22 @@ export const analyzeAddressType: AddressHeuristic = (address) => {
             recommendation:
               "Consider upgrading to a Taproot-capable wallet for improved privacy.",
             scoreImpact: 0,
+          },
+        ],
+      };
+
+    case "p2wsh":
+      return {
+        findings: [
+          {
+            id: "h10-p2wsh",
+            severity: "low",
+            title: "Native SegWit multisig address (P2WSH)",
+            description:
+              "P2WSH is used for native SegWit multisig and complex scripts. The spending script is revealed on-chain when spent, which reduces privacy compared to Taproot where key-path spends hide the script.",
+            recommendation:
+              "Consider upgrading to a Taproot-based multisig setup (MuSig2 or FROST) for improved privacy.",
+            scoreImpact: -2,
           },
         ],
       };
@@ -83,11 +99,4 @@ export const analyzeAddressType: AddressHeuristic = (address) => {
   }
 };
 
-function detectAddressType(addr: string): AddressType {
-  if (addr.startsWith("bc1p") || addr.startsWith("tb1p")) return "p2tr";
-  if (addr.startsWith("bc1q") || addr.startsWith("tb1q")) return "p2wpkh";
-  if (addr.startsWith("3") || addr.startsWith("2")) return "p2sh";
-  if (addr.startsWith("1") || addr.startsWith("m") || addr.startsWith("n"))
-    return "p2pkh";
-  return "unknown";
-}
+
