@@ -258,6 +258,59 @@ export function useAnalysis() {
       const steps = getAddressHeuristicSteps();
       const startTime = Date.now();
 
+      // Run local OFAC check first - no network needed
+      const ofacResult = checkOfac([input]);
+      if (ofacResult.sanctioned) {
+        const preSendResult: PreSendResult = {
+          riskLevel: "CRITICAL",
+          summary:
+            "This address appears on the OFAC sanctions list. " +
+            "Sending funds to this address may violate sanctions law.",
+          findings: [
+            {
+              id: "h13-presend-check",
+              severity: "critical",
+              title: "Destination risk: CRITICAL",
+              description:
+                "This address appears on the OFAC sanctions list. " +
+                "Sending funds to this address may violate sanctions law.",
+              recommendation:
+                "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address.",
+              scoreImpact: 0,
+            },
+            {
+              id: "h13-ofac-match",
+              severity: "critical",
+              title: "OFAC sanctioned address",
+              description:
+                "This address matches an entry on the U.S. Treasury OFAC Specially Designated Nationals (SDN) list. " +
+                "Transacting with sanctioned addresses may have serious legal consequences.",
+              recommendation:
+                "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address.",
+              scoreImpact: -100,
+            },
+          ],
+          txCount: 0,
+          timesReceived: 0,
+          totalReceived: 0,
+        };
+        setState({
+          phase: "complete",
+          query: input,
+          inputType: "address",
+          steps: steps.map((s) => ({ ...s, status: "done" as const })),
+          result: null,
+          txData: null,
+          addressData: null,
+          addressTxs: null,
+          txBreakdown: null,
+          preSendResult,
+          error: null,
+          durationMs: Date.now() - startTime,
+        });
+        return;
+      }
+
       setState({
         phase: "fetching",
         query: input,
