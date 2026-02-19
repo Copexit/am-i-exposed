@@ -31,13 +31,9 @@ self.addEventListener("fetch", (event) => {
   // Only handle GET requests
   if (event.request.method !== "GET") return;
 
-  // Don't cache API calls
+  // Skip all cross-origin requests (API calls, custom endpoints, etc.)
   const url = new URL(event.request.url);
-  if (
-    url.hostname === "mempool.space" ||
-    url.hostname === "blockstream.info" ||
-    url.hostname.endsWith(".onion")
-  ) {
+  if (url.origin !== self.location.origin) {
     return;
   }
 

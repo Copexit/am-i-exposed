@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { Settings, Check, X, Loader2, RotateCcw } from "lucide-react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { Settings, Check, X, Loader2, RotateCcw, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { useNetwork } from "@/context/NetworkContext";
+import { diagnoseUrl } from "@/lib/api/url-diagnostics";
 
 type HealthStatus = "idle" | "checking" | "ok" | "error";
 
@@ -12,8 +13,21 @@ export function ApiSettings() {
   const [inputValue, setInputValue] = useState(customApiUrl ?? "");
   const [health, setHealth] = useState<HealthStatus>("idle");
   const [errorHint, setErrorHint] = useState("");
+  const [helpOpen, setHelpOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Pre-flight diagnostics on the current input URL
+  const diagnostic = useMemo(() => {
+    const trimmed = inputValue.trim().replace(/\/+$/, "");
+    if (!trimmed) return null;
+    try {
+      new URL(trimmed);
+    } catch {
+      return null;
+    }
+    return diagnoseUrl(trimmed);
+  }, [inputValue]);
 
   // Close on click outside
   useEffect(() => {
@@ -65,8 +79,18 @@ export function ApiSettings() {
         }
       } catch (err) {
         setHealth("error");
-        if (err instanceof TypeError && err.message.includes("fetch")) {
-          setErrorHint("Connection failed. Check CORS settings.");
+        // Use pre-flight diagnostic to give a more specific error
+        const diag = diagnoseUrl(trimmed);
+        if (diag.isMixedContent) {
+          setErrorHint(
+            "Blocked: your browser prevents HTTP requests from this HTTPS page. " +
+            "Use SSH port forwarding to localhost, or set up HTTPS on your node."
+          );
+        } else if (err instanceof TypeError && err.message.includes("fetch")) {
+          setErrorHint(
+            "Connection failed. Your node likely needs CORS headers. " +
+            "See the setup guide below."
+          );
         } else if (err instanceof DOMException && err.name === "AbortError") {
           setErrorHint("Timeout (10s)");
         } else {
@@ -111,7 +135,7 @@ export function ApiSettings() {
       </button>
 
       {open && (
-        <div className="fixed inset-x-0 top-[60px] mx-3 sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mx-0 sm:mt-2 sm:w-80 bg-surface-elevated border border-card-border rounded-xl shadow-xl z-50 p-4 space-y-3">
+        <div className="fixed inset-x-0 top-[60px] mx-3 sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mx-0 sm:mt-2 sm:w-96 bg-surface-elevated border border-card-border rounded-xl shadow-xl z-50 p-4 space-y-3 max-h-[80vh] overflow-y-auto">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-foreground/70 uppercase tracking-wider">
               Mempool API
@@ -153,6 +177,14 @@ export function ApiSettings() {
             </button>
           </form>
 
+          {/* Pre-flight diagnostic warning */}
+          {diagnostic?.hint && health === "idle" && (
+            <div className="flex items-start gap-2 text-xs text-warning bg-warning/10 rounded-lg p-2.5">
+              <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+              <span className="whitespace-pre-line">{diagnostic.hint}</span>
+            </div>
+          )}
+
           {/* Status indicator */}
           {health === "ok" && (
             <div className="flex items-center gap-1.5 text-xs text-severity-good">
@@ -161,9 +193,9 @@ export function ApiSettings() {
             </div>
           )}
           {health === "error" && (
-            <div className="flex items-center gap-1.5 text-xs text-severity-high">
-              <X size={14} />
-              {errorHint || "Connection failed"}
+            <div className="flex items-start gap-1.5 text-xs text-severity-high">
+              <X size={14} className="shrink-0 mt-0.5" />
+              <span>{errorHint || "Connection failed"}</span>
             </div>
           )}
           {customApiUrl && health !== "checking" && (
@@ -171,11 +203,78 @@ export function ApiSettings() {
               Active: <span className="font-mono">{customApiUrl}</span>
             </p>
           )}
-          {!customApiUrl && health === "idle" && (
+          {!customApiUrl && health === "idle" && !diagnostic?.hint && (
             <p className="text-xs text-muted/60">
               Point to your own mempool.space instance for maximum privacy.
             </p>
           )}
+
+          {/* Collapsible help section */}
+          <div className="border-t border-card-border pt-2">
+            <button
+              onClick={() => setHelpOpen(!helpOpen)}
+              className="flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer w-full"
+            >
+              {helpOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              How to connect your node
+            </button>
+            {helpOpen && (
+              <div className="mt-2 space-y-3 text-xs text-muted/80">
+                <p>
+                  Self-hosted mempool instances need <strong className="text-foreground/70">CORS headers</strong> to
+                  accept requests from this site. Add this to your mempool nginx config:
+                </p>
+                <pre className="bg-surface-inset rounded-lg p-2 text-[11px] font-mono overflow-x-auto whitespace-pre">{`location /api/ {
+  add_header 'Access-Control-Allow-Origin' '*' always;
+  add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+  if ($request_method = 'OPTIONS') {
+    return 204;
+  }
+}`}</pre>
+
+                <div className="space-y-2">
+                  <p className="font-medium text-foreground/70">Option A: SSH tunnel (recommended)</p>
+                  <p>
+                    Forward your node to localhost to avoid mixed-content blocking:
+                  </p>
+                  <pre className="bg-surface-inset rounded-lg p-2 text-[11px] font-mono overflow-x-auto">
+                    ssh -L 3006:localhost:3006 umbrel@umbrel.local
+                  </pre>
+                  <p>
+                    Then enter <code className="text-bitcoin">http://localhost:3006/api</code> above.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="font-medium text-foreground/70">Option B: HTTPS reverse proxy</p>
+                  <p>
+                    Set up HTTPS on your node with Caddy or nginx + Let&apos;s Encrypt,
+                    add CORS headers, then use your HTTPS URL.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="font-medium text-foreground/70">Option C: Tor Browser + .onion</p>
+                  <p>
+                    If this site has a .onion mirror, use Tor Browser to visit it and
+                    enter your mempool&apos;s .onion address. Both are HTTP, so no
+                    mixed-content blocking.
+                  </p>
+                </div>
+
+                <p className="text-muted/50">
+                  <a
+                    href="https://github.com/Copexit/am-i-exposed/blob/main/onion.md"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-foreground/70 transition-colors"
+                  >
+                    Full setup guide
+                  </a>
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
