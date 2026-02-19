@@ -4,12 +4,17 @@ import { useState, useEffect } from "react";
 
 export type TorStatus = "checking" | "tor" | "clearnet" | "unknown";
 
-/** Response shape from check.torproject.org - deliberately omits IP field */
+/** Response shape from the tor-check Cloudflare Worker */
 interface TorCheckResponse {
-  IsTor: boolean;
+  isTor: boolean;
 }
 
-const TOR_CHECK_URL = "https://check.torproject.org/api/ip";
+// Cloudflare Worker that checks CF-Connecting-IP against Tor exit node list.
+// Deploy from workers/tor-check/ with `wrangler deploy`.
+const TOR_CHECK_URL =
+  process.env.NEXT_PUBLIC_TOR_CHECK_URL ||
+  "https://tor-check.copexit.workers.dev";
+
 const TIMEOUT_MS = 5000;
 
 /** Module-level cache so we call the API at most once per page load */
@@ -31,7 +36,7 @@ async function checkTor(signal: AbortSignal): Promise<TorStatus> {
     });
     if (!res.ok) return "unknown";
     const data: TorCheckResponse = await res.json();
-    return data.IsTor ? "tor" : "clearnet";
+    return data.isTor ? "tor" : "clearnet";
   } catch {
     return "unknown";
   }
