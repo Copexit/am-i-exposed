@@ -17,7 +17,6 @@ import {
   analyzeAddressType,
   analyzeWalletFingerprint,
   analyzeAnonymitySet,
-  analyzePayJoin,
   analyzeTiming,
   analyzeScriptTypeMix,
   analyzeSpendingPattern,
@@ -45,7 +44,6 @@ const TX_HEURISTICS = [
   { id: "h7", label: "OP_RETURN metadata", fn: analyzeOpReturn },
   { id: "h11", label: "Wallet fingerprinting", fn: analyzeWalletFingerprint },
   { id: "anon", label: "Anonymity sets", fn: analyzeAnonymitySet },
-  { id: "pj", label: "PayJoin detection", fn: analyzePayJoin },
   { id: "timing", label: "Timing analysis", fn: analyzeTiming },
   { id: "script", label: "Script type analysis", fn: analyzeScriptTypeMix },
   { id: "dust", label: "Dust output detection", fn: analyzeDustOutputs },
@@ -143,8 +141,6 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
       f.scoreImpact > 0,
   );
 
-  const isPayJoin = findings.some((f) => f.id === "payjoin-detected");
-
   if (isCoinJoin) {
     for (const f of findings) {
       // CIOH is expected in CoinJoin (each input = different participant)
@@ -173,19 +169,6 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
     }
   }
 
-  if (isPayJoin) {
-    // PayJoin deliberately breaks CIOH, so suppress the penalty
-    for (const f of findings) {
-      if (f.id === "h3-cioh") {
-        f.severity = "low";
-        f.title = `${f.title} (PayJoin - deliberate)`;
-        f.description =
-          "Multiple input addresses are linked, but this is expected in a PayJoin transaction. " +
-          "PayJoin deliberately has the receiver contribute an input to break chain analysis.";
-        f.scoreImpact = 0;
-      }
-    }
-  }
 }
 
 /**

@@ -10,7 +10,6 @@ export { analyzeUtxos } from "./utxo-analysis";
 export { analyzeAddressType } from "./address-type";
 export { analyzeWalletFingerprint } from "./wallet-fingerprint";
 export { analyzeAnonymitySet } from "./anonymity-set";
-export { analyzePayJoin } from "./payjoin";
 export { analyzeTiming } from "./timing";
 export { analyzeScriptTypeMix } from "./script-type-mix";
 export { analyzeSpendingPattern } from "./spending-analysis";

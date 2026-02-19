@@ -245,7 +245,7 @@ export default function Home() {
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-3xl">
               {[
-                { icon: Scan, label: "17 heuristics", desc: "Deep analysis" },
+                { icon: Scan, label: "16 heuristics", desc: "Deep analysis" },
                 { icon: Fingerprint, label: "Wallet ID", desc: "Fingerprinting" },
                 { icon: Shield, label: "CoinJoin", desc: "Detection" },
                 { icon: Eye, label: "Dust attacks", desc: "Flagged" },

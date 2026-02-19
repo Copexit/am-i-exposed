@@ -984,6 +984,31 @@ Combined with H13 (Address Check), users can see not just their own exposure but
 
 ---
 
+## Non-Heuristics
+
+Some privacy techniques are deliberately excluded from our analysis engine. This section explains why.
+
+### PayJoin (BIP78 / P2EP)
+
+**Why PayJoin is not a heuristic**
+
+PayJoin (Pay-to-EndPoint, BIP78) is a protocol where the recipient contributes one or more inputs to the payment transaction. The result is a transaction that looks indistinguishable from a normal payment - two or more inputs, two outputs, nothing unusual.
+
+That indistinguishability is the entire point. PayJoin's security model is that it poisons the Common Input Ownership Heuristic (H3) silently. If all inputs in a multi-input transaction are assumed to belong to the same entity, and in fact one input belongs to the recipient, then every clustering algorithm that relies on CIOH produces a false positive. The sender's addresses get incorrectly clustered with the recipient's addresses. Chain surveillance firms cannot tell this has happened.
+
+**If you can detect it, it is not a PayJoin.** A properly constructed PayJoin transaction has no on-chain signature that distinguishes it from an ordinary payment. There are no extra outputs, no unusual value patterns, no script type anomalies, no identifiable metadata. Any "PayJoin detector" that fires on a transaction is either wrong (false positive on a normal transaction) or the PayJoin implementation is broken (leaking information it should not).
+
+Previous versions of this tool included a PayJoin detection heuristic. It was removed because the premise is contradictory - claiming to detect something that is designed to be undetectable either discredits the tool or discredits PayJoin, and PayJoin works as designed. The heuristic matched a narrow pattern (exactly 2 inputs, 2 outputs, with an output address matching an input address) that is far more likely to be a self-spend or consolidation than an actual PayJoin.
+
+**PayJoin remains one of the best privacy techniques available.** We recommend it in our remediation guidance. Use BTCPay Server, Sparrow Wallet, or any BIP78-compatible wallet to construct PayJoin transactions. The fact that we cannot detect them is exactly why they work.
+
+**References**
+- BIP78 - Pay-to-EndPoint (PayJoin)
+- Belcher, C. "PayJoin" - design rationale and protocol specification
+- Bitcoin Wiki, "PayJoin" - protocol overview
+
+---
+
 ## References
 
 - Meiklejohn, S., Pomarole, M., Jordan, G., Levchenko, K., McCoy, D., Voelker, G. M., and Savage, S. "A Fistful of Bitcoins: Characterizing Payments Among Men with No Names." IMC 2013.

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Github } from "lucide-react";
 
 export function Footer() {
@@ -6,6 +7,12 @@ export function Footer() {
       <span className="font-medium text-foreground/60">am-i.exposed</span>
       <span className="text-muted/50">Your privacy. Diagnosed.</span>
       <span className="text-muted/50">100% client-side</span>
+      <Link
+        href="/methodology"
+        className="text-muted/50 hover:text-foreground transition-colors"
+      >
+        Methodology
+      </Link>
       <a
         href="https://github.com/Copexit/am-i-exposed"
         target="_blank"
