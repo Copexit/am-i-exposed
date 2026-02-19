@@ -36,8 +36,7 @@ yarn-error.log*
 next-env.d.ts
 
 # claude local state
-.claude/agent-memory/
-.claude/settings.local.json
+.claude/
 
 # internal planning docs
 ROADMAP.md
