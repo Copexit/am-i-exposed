@@ -13,8 +13,8 @@ function InputTypeHint({ value, network }: { value: string; network: BitcoinNetw
 
   const label = type === "txid" ? "Transaction ID" : "Bitcoin address";
   return (
-    <p className="text-muted/60 text-xs mt-1.5 text-center">
-      Detected: <span className="text-muted/60">{label}</span>
+    <p className="text-muted/80 text-xs mt-1.5 text-center">
+      Detected: <span className="text-muted/80">{label}</span>
     </p>
   );
 }

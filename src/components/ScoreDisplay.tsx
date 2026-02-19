@@ -102,7 +102,7 @@ export function ScoreDisplay({ score, grade }: ScoreDisplayProps) {
               style={{ left: `${threshold}%` }}
             />
           ))}
-          <div className="flex justify-between text-[10px] text-muted/60 mt-1">
+          <div className="flex justify-between text-[10px] text-muted/80 mt-1">
             <span>F</span>
             <span style={{ position: "absolute", left: "25%", transform: "translateX(-50%)" }}>D</span>
             <span style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}>C</span>

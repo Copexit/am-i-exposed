@@ -74,7 +74,7 @@ export function ScoreBreakdown({ findings, finalScore }: ScoreBreakdownProps) {
 
                 return (
                   <div key={f.id} className="flex items-center gap-2 text-xs">
-                    <span className="flex-1 text-muted/60 truncate" title={f.title}>
+                    <span className="flex-1 text-muted/80 truncate" title={f.title}>
                       {f.title}
                     </span>
                     <div className="w-20 h-2 bg-surface-elevated rounded-full overflow-hidden">

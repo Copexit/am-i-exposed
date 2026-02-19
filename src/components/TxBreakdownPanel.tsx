@@ -72,7 +72,7 @@ export function TxBreakdownPanel({
       </div>
 
       {totalTxCount > breakdown.length && (
-        <p className="text-xs text-muted/60 px-1">
+        <p className="text-xs text-muted/80 px-1">
           Showing {breakdown.length} most recent of {totalTxCount} transactions.
         </p>
       )}

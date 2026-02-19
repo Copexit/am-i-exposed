@@ -238,7 +238,7 @@ export function ApiSettings() {
             </p>
           )}
           {!customApiUrl && health === "idle" && !diagnostic?.hint && (
-            <p className="text-xs text-muted/60">
+            <p className="text-xs text-muted/80">
               Point to your own mempool.space instance for maximum privacy.
             </p>
           )}

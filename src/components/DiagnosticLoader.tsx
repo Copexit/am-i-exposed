@@ -56,7 +56,7 @@ export function DiagnosticLoader({ steps, phase }: DiagnosticLoaderProps) {
               {runningScore}
             </motion.span>
           )}
-          <span className="text-xs text-muted/60 tabular-nums">
+          <span className="text-xs text-muted/80 tabular-nums">
             {elapsed.toFixed(1)}s
           </span>
         </div>

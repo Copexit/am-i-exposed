@@ -289,7 +289,7 @@ export function Remediation({ findings, grade }: RemediationProps) {
                       <p className="text-sm font-medium text-foreground/80">
                         {action.text}
                       </p>
-                      <p className="text-xs text-muted/60 mt-1 leading-relaxed">
+                      <p className="text-xs text-muted/80 mt-1 leading-relaxed">
                         {action.detail}
                       </p>
                     </div>

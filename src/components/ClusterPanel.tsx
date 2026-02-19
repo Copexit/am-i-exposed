@@ -36,7 +36,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
             Build cluster
           </button>
         </div>
-        <p className="text-xs text-muted/60 leading-relaxed">
+        <p className="text-xs text-muted/80 leading-relaxed">
           Discover linked addresses using common-input-ownership heuristic (CIOH).
           Follows change outputs one hop. This makes additional API calls and may take a few seconds.
         </p>
@@ -82,7 +82,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
           <AlertTriangle size={16} />
           <span className="text-sm font-medium">Cluster analysis failed</span>
         </div>
-        <p className="text-xs text-muted/60">{error}</p>
+        <p className="text-xs text-muted/80">{error}</p>
         <button
           onClick={() => analyze(targetAddress, txs)}
           className="text-xs text-bitcoin hover:text-bitcoin-hover transition-colors cursor-pointer"
@@ -158,7 +158,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
       )}
 
       {result.coinJoinTxCount > 0 && (
-        <p className="text-xs text-muted/60">
+        <p className="text-xs text-muted/80">
           {result.coinJoinTxCount} CoinJoin transaction{result.coinJoinTxCount > 1 ? "s" : ""} excluded from clustering (CIOH does not apply).
         </p>
       )}
@@ -220,7 +220,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
       )}
 
       {/* Disclaimer */}
-      <p className="text-[10px] text-muted/60 leading-relaxed">
+      <p className="text-[10px] text-muted/80 leading-relaxed">
         This is a lower-bound estimate based on one-hop CIOH analysis of the {result.txsAnalyzed} most recent transactions.
         The actual cluster may be larger.
       </p>

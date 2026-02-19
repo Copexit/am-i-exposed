@@ -40,7 +40,7 @@ export function RecentScans({ scans, onSelect, onClear }: RecentScansProps) {
       className="w-full max-w-2xl"
     >
       <div className="flex items-center justify-between mb-2 px-1">
-        <div className="flex items-center gap-1.5 text-xs text-muted/60">
+        <div className="flex items-center gap-1.5 text-xs text-muted/80">
           <Clock size={11} />
           <span>Recent scans</span>
         </div>

@@ -99,7 +99,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
             );
           })}
           {hiddenInputs > 0 && (
-            <div className="text-xs text-muted/60">
+            <div className="text-xs text-muted/80">
               +{hiddenInputs} more
             </div>
           )}
@@ -151,7 +151,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
             );
           })}
           {hiddenOutputs > 0 && (
-            <div className="text-xs text-muted/60">
+            <div className="text-xs text-muted/80">
               +{hiddenOutputs} more
             </div>
           )}
@@ -174,7 +174,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
           <span className="w-1.5 h-1.5 rounded-full bg-severity-good/50" />
           Confirmed in block {tx.status.block_height?.toLocaleString()}
           {tx.status.block_time && (
-            <span className="text-muted/60">
+            <span className="text-muted/80">
               ({formatTimeAgo(tx.status.block_time)})
             </span>
           )}
