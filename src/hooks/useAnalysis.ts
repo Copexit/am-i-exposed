@@ -4,6 +4,7 @@ import { useState, useCallback, useRef } from "react";
 import { useNetwork } from "@/context/NetworkContext";
 import { createApiClient } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/fetch-with-retry";
+import { NETWORK_CONFIG } from "@/lib/bitcoin/networks";
 import { detectInputType } from "@/lib/analysis/detect-input";
 import {
   analyzeTransaction,
@@ -59,6 +60,9 @@ export function useAnalysis() {
   const [state, setState] = useState<AnalysisState>(INITIAL_STATE);
   const { network, config } = useNetwork();
   const abortRef = useRef<AbortController | null>(null);
+
+  const isCustomApi =
+    config.mempoolBaseUrl !== NETWORK_CONFIG[network].mempoolBaseUrl;
 
   const analyze = useCallback(
     async (input: string) => {
@@ -206,10 +210,14 @@ export function useAnalysis() {
               message = "Rate limited by mempool.space. Please wait a moment and try again.";
               break;
             case "NETWORK_ERROR":
-              message = "Network error. Check your internet connection or try again later.";
+              message = isCustomApi
+                ? "Connection to your custom endpoint failed. Open API settings to troubleshoot."
+                : "Network error. Check your internet connection or try again later.";
               break;
             case "API_UNAVAILABLE":
-              message = "The API is temporarily unavailable. Please try again later.";
+              message = isCustomApi
+                ? "Your custom API endpoint returned an error. Check that it is running."
+                : "The API is temporarily unavailable. Please try again later.";
               break;
           }
         } else if (err instanceof Error) {
@@ -222,7 +230,7 @@ export function useAnalysis() {
         }));
       }
     },
-    [network, config],
+    [network, config, isCustomApi],
   );
 
   const checkDestination = useCallback(
@@ -316,10 +324,14 @@ export function useAnalysis() {
               message = "Rate limited. Please wait a moment and try again.";
               break;
             case "NETWORK_ERROR":
-              message = "Network error. Check your internet connection.";
+              message = isCustomApi
+                ? "Connection to your custom endpoint failed. Open API settings to troubleshoot."
+                : "Network error. Check your internet connection.";
               break;
             case "API_UNAVAILABLE":
-              message = "API temporarily unavailable. Try again later.";
+              message = isCustomApi
+                ? "Your custom API endpoint returned an error. Check that it is running."
+                : "API temporarily unavailable. Try again later.";
               break;
           }
         } else if (err instanceof Error) {
@@ -328,7 +340,7 @@ export function useAnalysis() {
         setState((prev) => ({ ...prev, phase: "error", error: message }));
       }
     },
-    [network, config],
+    [network, config, isCustomApi],
   );
 
   const reset = useCallback(() => {
