@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Search } from "lucide-react";
 import type { MempoolTransaction } from "@/lib/api/types";
 
 interface TxSummaryProps {
@@ -53,9 +53,9 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ delay: 0.1 }}
-      className="w-full bg-card-bg border border-card-border rounded-xl p-5 space-y-4"
+      className="w-full bg-card-bg border border-card-border rounded-xl p-6 space-y-4"
     >
-      <div className="flex items-center justify-between text-xs text-muted uppercase tracking-wider">
+      <div className="flex items-center justify-between text-sm text-muted uppercase tracking-wider">
         <span>
           {tx.vin.length} input{tx.vin.length !== 1 ? "s" : ""}
         </span>
@@ -67,14 +67,14 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
 
       <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-start overflow-hidden">
         {/* Inputs */}
-        <div className="space-y-1 min-w-0">
+        <div className="space-y-2 min-w-0">
           {inputsToShow.map((vin, i) => {
             const addr = vin.prevout?.scriptpubkey_address;
             const isHighlighted = highlightAddress && addr === highlightAddress;
             return (
               <div
                 key={i}
-                className={`text-xs font-mono truncate ${isHighlighted ? "text-bitcoin font-semibold" : "text-foreground/80"}`}
+                className={`text-xs font-mono truncate ${isHighlighted ? "text-bitcoin font-semibold" : "text-foreground"}`}
                 title={addr ?? "coinbase"}
               >
                 {vin.is_coinbase ? (
@@ -82,10 +82,11 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
                 ) : addr && onAddressClick ? (
                   <button
                     onClick={() => onAddressClick(addr)}
-                    className="hover:text-bitcoin transition-colors cursor-pointer py-0.5"
+                    className="inline-flex items-center gap-1 hover:text-bitcoin transition-colors cursor-pointer py-2 group/addr"
                     title={`Scan ${addr}`}
                   >
                     {truncateAddr(addr)}
+                    <Search size={12} className="shrink-0 opacity-0 group-hover/addr:opacity-100 transition-opacity" />
                   </button>
                 ) : (
                   truncateAddr(addr ?? "?")
@@ -99,7 +100,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
             );
           })}
           {hiddenInputs > 0 && (
-            <div className="text-xs text-muted/90">
+            <div className="text-xs text-muted">
               +{hiddenInputs} more
             </div>
           )}
@@ -107,11 +108,11 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
 
         {/* Arrow column */}
         <div className="flex items-center justify-center pt-1">
-          <ArrowRight size={14} className="text-muted/90" />
+          <ArrowRight size={14} className="text-muted" />
         </div>
 
         {/* Outputs */}
-        <div className="space-y-1 min-w-0">
+        <div className="space-y-2 min-w-0">
           {outputsToShow.map((vout, i) => {
             const anonSet = valueCounts.get(vout.value) ?? 1;
             const color = groupColors.get(vout.value);
@@ -120,16 +121,17 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
             return (
               <div
                 key={i}
-                className={`text-xs font-mono truncate ${isHighlighted ? "text-bitcoin font-semibold" : (color ?? "text-foreground/80")}`}
+                className={`text-xs font-mono truncate ${isHighlighted ? "text-bitcoin font-semibold" : (color ?? "text-foreground")}`}
                 title={outAddr ?? vout.scriptpubkey_type}
               >
                 {outAddr && onAddressClick ? (
                   <button
                     onClick={() => onAddressClick(outAddr)}
-                    className="hover:text-bitcoin transition-colors cursor-pointer py-0.5"
+                    className="inline-flex items-center gap-1 hover:text-bitcoin transition-colors cursor-pointer py-2 group/addr"
                     title={`Scan ${outAddr}`}
                   >
                     {truncateAddr(outAddr)}
+                    <Search size={12} className="shrink-0 opacity-0 group-hover/addr:opacity-100 transition-opacity" />
                   </button>
                 ) : (
                   formatOutputAddr(vout)
@@ -143,7 +145,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
                   </span>
                 )}
                 {i === likelyChangeIdx && (
-                  <span className="ml-1 text-severity-medium text-[10px]">
+                  <span className="ml-1 text-severity-medium text-xs">
                     change?
                   </span>
                 )}
@@ -151,7 +153,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
             );
           })}
           {hiddenOutputs > 0 && (
-            <div className="text-xs text-muted/90">
+            <div className="text-xs text-muted">
               +{hiddenOutputs} more
             </div>
           )}
@@ -159,7 +161,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
       </div>
 
       {/* Fee + size */}
-      <div className="flex items-center justify-between text-xs text-muted border-t border-card-border pt-2">
+      <div className="flex items-center justify-between text-sm text-muted border-t border-card-border pt-2">
         <span>
           Fee: {formatSats(tx.fee)} ({feeRate(tx)} sat/vB)
         </span>
@@ -170,17 +172,17 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
 
       {/* Confirmation status */}
       {tx.status.confirmed ? (
-        <div className="flex items-center justify-center gap-2 text-xs text-severity-good/70">
+        <div className="flex items-center justify-center gap-2 text-sm text-severity-good/70">
           <span className="w-1.5 h-1.5 rounded-full bg-severity-good/50" />
           Confirmed in block {tx.status.block_height?.toLocaleString()}
           {tx.status.block_time && (
-            <span className="text-muted/90">
+            <span className="text-muted">
               ({formatTimeAgo(tx.status.block_time)})
             </span>
           )}
         </div>
       ) : (
-        <div className="flex items-center justify-center gap-2 text-xs text-severity-medium">
+        <div className="flex items-center justify-center gap-2 text-sm text-severity-medium">
           <span className="w-1.5 h-1.5 rounded-full bg-severity-medium animate-pulse" />
           Unconfirmed (in mempool)
         </div>

@@ -72,10 +72,10 @@ export function TipJar() {
           persistDismiss();
           setDismissed(true);
         }}
-        className="absolute top-3 right-3 text-muted hover:text-foreground transition-colors cursor-pointer p-0.5"
+        className="absolute top-3 right-3 text-muted hover:text-foreground transition-colors cursor-pointer p-3"
         aria-label="Dismiss tip jar"
       >
-        <X size={12} />
+        <X size={16} />
       </button>
 
       <AnimatePresence>
@@ -111,9 +111,9 @@ export function TipJar() {
                   </code>
                   <button
                     onClick={handleCopy}
-                    className="inline-flex items-center gap-1 text-[10px] text-muted hover:text-foreground transition-colors cursor-pointer px-2 py-0.5 rounded border border-card-border"
+                    className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer px-2 py-2 rounded border border-card-border"
                   >
-                    {copied ? <Check size={10} /> : <Copy size={10} />}
+                    {copied ? <Check size={14} /> : <Copy size={14} />}
                     {copied ? "Copied" : "Copy"}
                   </button>
                 </div>

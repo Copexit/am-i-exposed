@@ -41,9 +41,9 @@ export function ScoreBreakdown({ findings, finalScore }: ScoreBreakdownProps) {
     <div className="w-full">
       <button
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1.5 text-xs text-foreground/80 hover:text-foreground transition-colors cursor-pointer px-1 min-h-[44px]"
+        className="inline-flex items-center gap-1.5 text-xs text-foreground hover:text-foreground transition-colors cursor-pointer px-1 min-h-[44px]"
       >
-        <BarChart3 size={12} />
+        <BarChart3 size={14} />
         Score breakdown
       </button>
       <AnimatePresence>
@@ -57,9 +57,9 @@ export function ScoreBreakdown({ findings, finalScore }: ScoreBreakdownProps) {
           >
             <div className="mt-2 bg-surface-inset rounded-lg px-4 py-3 space-y-2">
               {/* Base score */}
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted/90">Base score</span>
-                <span className="text-foreground/80 font-mono tabular-nums">{BASE_SCORE}</span>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted">Base score</span>
+                <span className="text-foreground font-mono tabular-nums">{BASE_SCORE}</span>
               </div>
 
               {/* Waterfall items */}
@@ -73,14 +73,14 @@ export function ScoreBreakdown({ findings, finalScore }: ScoreBreakdownProps) {
                 );
 
                 return (
-                  <div key={f.id} className="flex items-center gap-2 text-xs">
-                    <span className="flex-1 text-muted/90 truncate" title={f.title}>
+                  <div key={f.id} className="flex items-center gap-2 text-sm">
+                    <span className="flex-1 text-muted truncate" title={f.title}>
                       {f.title}
                     </span>
                     <div className="w-20 h-2 bg-surface-elevated rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full ${
-                          f.scoreImpact > 0 ? "bg-severity-good/60" : "bg-severity-high/60"
+                          f.scoreImpact > 0 ? "bg-severity-good/80" : "bg-severity-high/80"
                         }`}
                         style={{ width: `${barWidth}%` }}
                       />
@@ -102,10 +102,10 @@ export function ScoreBreakdown({ findings, finalScore }: ScoreBreakdownProps) {
               })}
 
               {/* Divider */}
-              <div className="border-t border-card-border/50 my-1" />
+              <div className="border-t border-card-border my-1" />
 
               {/* Summary */}
-              <div className="flex items-center justify-between text-xs">
+              <div className="flex items-center justify-between text-sm">
                 <div className="flex gap-3">
                   {totalPositive > 0 && (
                     <span className="text-severity-good font-mono">
@@ -119,7 +119,7 @@ export function ScoreBreakdown({ findings, finalScore }: ScoreBreakdownProps) {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-muted/90">Final:</span>
+                  <span className="text-muted">Final:</span>
                   <span className="text-foreground font-bold font-mono tabular-nums">
                     {finalScore}/100
                   </span>

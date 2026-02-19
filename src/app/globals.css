@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  --muted: #b8b8c0;
-  --card-bg: #18181b;
-  --card-border: #333338;
-  --surface-inset: #111113;
-  --surface-elevated: #1c1c1f;
+  --background: #0c0c0e;
+  --foreground: #f0f0f2;
+  --muted: #c8c8d0;
+  --card-bg: #1c1c20;
+  --card-border: #444450;
+  --surface-inset: #151518;
+  --surface-elevated: #222228;
   --bitcoin: #f7931a;
   --bitcoin-hover: #e8850f;
   --success: #28d065;

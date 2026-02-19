@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ChevronDown, ArrowUpRight, ArrowDownLeft, ArrowLeftRight } from "lucide-react";
+import { ChevronDown, ArrowUpRight, ArrowDownLeft, ArrowLeftRight, ArrowUpDown } from "lucide-react";
 import { TxSummary } from "./TxSummary";
 import { FindingCard } from "./FindingCard";
 import type { TxAnalysisResult, Grade } from "@/lib/types";
@@ -53,7 +53,7 @@ export function TxBreakdownPanel({
       className="w-full space-y-3"
     >
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-sm font-medium text-muted uppercase tracking-wider">
+        <h2 className="text-base font-medium text-muted uppercase tracking-wider">
           Transaction History ({breakdown.length})
         </h2>
         <div className="flex items-center gap-3">
@@ -64,20 +64,21 @@ export function TxBreakdownPanel({
           )}
           <button
             onClick={() => setSortBy(sortBy === "grade" ? "time" : "grade")}
-            className="text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground bg-surface-elevated rounded-lg px-2.5 py-1.5 transition-colors cursor-pointer"
           >
+            <ArrowUpDown size={14} />
             Sort: {sortBy === "grade" ? "Worst first" : "Recent first"}
           </button>
         </div>
       </div>
 
       {totalTxCount > breakdown.length && (
-        <p className="text-xs text-muted/90 px-1">
+        <p className="text-xs text-muted px-1">
           Showing {breakdown.length} most recent of {totalTxCount} transactions.
         </p>
       )}
 
-      <div className="space-y-1.5">
+      <div className="space-y-2.5">
         {sorted.slice(0, visibleCount).map((item) => {
           const isExpanded = expandedTx === item.txid;
           const role = ROLE_CONFIG[item.role];
@@ -104,7 +105,7 @@ export function TxBreakdownPanel({
                 </span>
 
                 {/* Txid */}
-                <span className="flex-1 font-mono text-xs text-foreground/80 truncate">
+                <span className="flex-1 font-mono text-sm text-foreground truncate">
                   {item.txid.slice(0, 8)}...{item.txid.slice(-6)}
                 </span>
 
@@ -169,8 +170,9 @@ export function TxBreakdownPanel({
       {visibleCount < sorted.length && (
         <button
           onClick={() => setVisibleCount((prev) => Math.min(prev + 10, sorted.length))}
-          className="w-full py-2 text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
+          className="w-full inline-flex items-center justify-center gap-1.5 py-3 min-h-[44px] text-sm text-muted hover:text-foreground border border-card-border rounded-lg transition-colors cursor-pointer"
         >
+          <ChevronDown size={14} />
           Show more ({sorted.length - visibleCount} remaining)
         </button>
       )}

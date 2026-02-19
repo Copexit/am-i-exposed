@@ -13,8 +13,8 @@ function InputTypeHint({ value, network }: { value: string; network: BitcoinNetw
 
   const label = type === "txid" ? "Transaction ID" : "Bitcoin address";
   return (
-    <p className="text-muted/90 text-xs mt-1.5 text-center">
-      Detected: <span className="text-muted/90">{label}</span>
+    <p className="text-muted text-sm mt-1.5 text-center">
+      Detected: <span className="text-muted">{label}</span>
     </p>
   );
 }
@@ -89,11 +89,11 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
       {/* Mode toggle */}
       {onModeChange && (
         <div className="flex flex-col items-center gap-1.5 mb-4">
-          <div className="inline-flex items-center gap-1 bg-surface-elevated/50 border border-card-border/50 rounded-xl p-1">
+          <div className="inline-flex items-center gap-1 bg-surface-elevated/50 border border-card-border rounded-xl p-1">
             <button
               type="button"
               onClick={() => onModeChange("scan")}
-              className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                 !isCheck
                   ? "bg-bitcoin/15 text-bitcoin shadow-sm"
                   : "text-muted hover:text-foreground"
@@ -105,7 +105,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
             <button
               type="button"
               onClick={() => onModeChange("check")}
-              className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                 isCheck
                   ? "bg-bitcoin/15 text-bitcoin shadow-sm"
                   : "text-muted hover:text-foreground"
@@ -115,7 +115,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
               Pre-send check
             </button>
           </div>
-          <p className="text-xs text-muted/90">
+          <p className="text-sm text-muted">
             {isCheck
               ? "Check a destination address before you send bitcoin to it"
               : "Analyze your address or transaction for privacy leaks"}
@@ -142,7 +142,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
           aria-label={placeholder}
           aria-describedby={error ? "input-error" : undefined}
           className={`relative w-full bg-card-bg border rounded-xl pl-4 pr-24 sm:pl-5 sm:pr-20 py-4
-            font-mono text-sm sm:text-base text-foreground placeholder:text-muted/50
+            font-mono text-sm sm:text-base text-foreground placeholder:text-muted/70
             focus:border-bitcoin focus:ring-2 focus:ring-bitcoin/20
             focus:shadow-[0_0_20px_rgba(247,147,26,0.15)]
             transition-all duration-200
@@ -165,7 +165,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
         </div>
       </div>
       {error && (
-        <p id="input-error" className="text-danger text-xs mt-2 text-center">
+        <p id="input-error" className="text-danger text-sm mt-2 text-center">
           {error}
         </p>
       )}

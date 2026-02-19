@@ -90,7 +90,7 @@ export function PreSendResultPanel({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-      className="flex flex-col items-center gap-6 w-full max-w-2xl"
+      className="flex flex-col items-center gap-8 w-full max-w-3xl"
     >
       {/* Top bar */}
       <div className="w-full flex items-center justify-between">
@@ -111,9 +111,9 @@ export function PreSendResultPanel({
       </div>
 
       {/* Destination + Risk Level */}
-      <div className="w-full bg-card-bg border border-card-border rounded-xl p-6 space-y-6">
+      <div className="w-full bg-card-bg border border-card-border rounded-xl p-7 space-y-6">
         <div className="space-y-1">
-          <span className="text-xs font-medium text-muted uppercase tracking-wider">
+          <span className="text-sm font-medium text-muted uppercase tracking-wider">
             Pre-Send Destination Check
           </span>
           <p className="font-mono text-sm text-foreground/90 break-all leading-relaxed">
@@ -127,30 +127,30 @@ export function PreSendResultPanel({
           <span className={`text-2xl font-bold ${risk.color}`}>
             {risk.label}
           </span>
-          <p className="text-sm text-center text-foreground/80 max-w-md">
+          <p className="text-sm text-center text-foreground max-w-md">
             {preSendResult.summary}
           </p>
         </div>
 
         {/* Quick stats */}
-        <div className="grid grid-cols-3 gap-3 text-center">
+        <div className="grid grid-cols-3 gap-4 text-center">
           <div>
             <p className="text-lg font-semibold text-foreground">
               {preSendResult.txCount}
             </p>
-            <p className="text-xs text-muted">Transactions</p>
+            <p className="text-sm text-muted">Transactions</p>
           </div>
           <div>
             <p className="text-lg font-semibold text-foreground">
               {preSendResult.timesReceived}
             </p>
-            <p className="text-xs text-muted">Times received</p>
+            <p className="text-sm text-muted">Times received</p>
           </div>
           <div>
             <p className="text-lg font-semibold text-foreground truncate">
               {formatBtc(preSendResult.totalReceived)}
             </p>
-            <p className="text-xs text-muted">Total received</p>
+            <p className="text-sm text-muted">Total received</p>
           </div>
         </div>
       </div>
@@ -163,7 +163,7 @@ export function PreSendResultPanel({
             {risk.advice}
           </p>
           {preSendResult.riskLevel !== "LOW" && (
-            <p className="text-xs text-foreground/80 mt-1 leading-relaxed">
+            <p className="text-sm text-foreground mt-1 leading-relaxed">
               Sending to a reused address links your transaction to all other transactions
               involving this address. Chain analysis can trivially trace your payment.
             </p>
@@ -177,7 +177,7 @@ export function PreSendResultPanel({
       {/* Findings */}
       {preSendResult.findings.length > 0 && (
         <div className="w-full space-y-3">
-          <h2 className="text-sm font-medium text-muted uppercase tracking-wider px-1">
+          <h2 className="text-base font-medium text-muted uppercase tracking-wider px-1">
             Findings ({preSendResult.findings.length})
           </h2>
           <div className="space-y-2">
@@ -202,7 +202,7 @@ export function PreSendResultPanel({
       </div>
 
       {/* Disclaimer */}
-      <div className="w-full bg-surface-inset rounded-lg px-4 py-3 text-xs text-muted/90 leading-relaxed">
+      <div className="w-full bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed">
         Pre-send check completed{durationMs ? ` in ${(durationMs / 1000).toFixed(1)}s` : ""}.
         Analysis ran entirely in your browser. This is a heuristic-based assessment - always verify independently.
       </div>

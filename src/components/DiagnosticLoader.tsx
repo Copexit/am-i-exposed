@@ -56,7 +56,7 @@ export function DiagnosticLoader({ steps, phase }: DiagnosticLoaderProps) {
               {runningScore}
             </motion.span>
           )}
-          <span className="text-xs text-muted/90 tabular-nums">
+          <span className="text-sm text-muted tabular-nums">
             {elapsed.toFixed(1)}s
           </span>
         </div>
@@ -74,7 +74,7 @@ export function DiagnosticLoader({ steps, phase }: DiagnosticLoaderProps) {
         </div>
       )}
 
-      <div className="space-y-1.5">
+      <div className="space-y-2.5">
         {steps.map((step, i) => (
           <motion.div
             key={step.id}
@@ -87,10 +87,10 @@ export function DiagnosticLoader({ steps, phase }: DiagnosticLoaderProps) {
             <span
               className={`flex-1 ${
                 step.status === "done"
-                  ? "text-foreground/80"
+                  ? "text-foreground"
                   : step.status === "running"
                     ? "text-foreground"
-                    : "text-muted/90"
+                    : "text-muted"
               }`}
             >
               {step.label}
@@ -120,6 +120,6 @@ function StepIcon({ status }: { status: HeuristicStep["status"] }) {
         <Loader2 size={14} className="animate-spin text-bitcoin shrink-0" />
       );
     case "pending":
-      return <Circle size={14} className="text-muted/90 shrink-0" />;
+      return <Circle size={14} className="text-muted shrink-0" />;
   }
 }
