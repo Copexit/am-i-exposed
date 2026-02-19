@@ -13,8 +13,8 @@ function InputTypeHint({ value, network }: { value: string; network: BitcoinNetw
 
   const label = type === "txid" ? "Transaction ID" : "Bitcoin address";
   return (
-    <p className="text-muted/80 text-xs mt-1.5 text-center">
-      Detected: <span className="text-muted/80">{label}</span>
+    <p className="text-muted/90 text-xs mt-1.5 text-center">
+      Detected: <span className="text-muted/90">{label}</span>
     </p>
   );
 }
@@ -115,7 +115,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
               Pre-send check
             </button>
           </div>
-          <p className="text-xs text-muted/70">
+          <p className="text-xs text-muted/90">
             {isCheck
               ? "Check a destination address before you send bitcoin to it"
               : "Analyze your address or transaction for privacy leaks"}

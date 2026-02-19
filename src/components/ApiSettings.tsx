@@ -171,7 +171,7 @@ export function ApiSettings() {
         />
         <div className="fixed inset-x-0 top-[60px] mx-3 sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mx-0 sm:mt-2 sm:w-96 bg-surface-elevated border border-card-border rounded-xl shadow-xl z-50 p-4 space-y-3 max-h-[80vh] overflow-y-auto">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-foreground/70 uppercase tracking-wider">
+            <span className="text-xs font-medium text-foreground/80 uppercase tracking-wider">
               Mempool API
             </span>
             {customApiUrl && (
@@ -233,12 +233,12 @@ export function ApiSettings() {
             </div>
           )}
           {customApiUrl && health !== "checking" && (
-            <p className="text-xs text-muted/70">
+            <p className="text-xs text-muted/90">
               Active: <span className="font-mono">{customApiUrl}</span>
             </p>
           )}
           {!customApiUrl && health === "idle" && !diagnostic?.hint && (
-            <p className="text-xs text-muted/80">
+            <p className="text-xs text-muted/90">
               Point to your own mempool.space instance for maximum privacy.
             </p>
           )}
@@ -253,9 +253,9 @@ export function ApiSettings() {
               How to connect your node
             </button>
             {helpOpen && (
-              <div className="mt-2 space-y-3 text-xs text-muted/80">
+              <div className="mt-2 space-y-3 text-xs text-muted/90">
                 <p>
-                  Self-hosted mempool instances need <strong className="text-foreground/70">CORS headers</strong> to
+                  Self-hosted mempool instances need <strong className="text-foreground/80">CORS headers</strong> to
                   accept requests from this site. Add this to your mempool nginx config:
                 </p>
                 <pre className="bg-surface-inset rounded-lg p-2 text-[11px] font-mono overflow-x-auto whitespace-pre">{`location /api/ {
@@ -267,7 +267,7 @@ export function ApiSettings() {
 }`}</pre>
 
                 <div className="space-y-2">
-                  <p className="font-medium text-foreground/70">Option A: SSH tunnel (recommended)</p>
+                  <p className="font-medium text-foreground/80">Option A: SSH tunnel (recommended)</p>
                   <p>
                     Forward your node to localhost to avoid mixed-content blocking:
                   </p>
@@ -280,7 +280,7 @@ export function ApiSettings() {
                 </div>
 
                 <div className="space-y-2">
-                  <p className="font-medium text-foreground/70">Option B: HTTPS reverse proxy</p>
+                  <p className="font-medium text-foreground/80">Option B: HTTPS reverse proxy</p>
                   <p>
                     Set up HTTPS on your node with Caddy or nginx + Let&apos;s Encrypt,
                     add CORS headers, then use your HTTPS URL.
@@ -288,7 +288,7 @@ export function ApiSettings() {
                 </div>
 
                 <div className="space-y-2">
-                  <p className="font-medium text-foreground/70">Option C: Tor Browser + .onion</p>
+                  <p className="font-medium text-foreground/80">Option C: Tor Browser + .onion</p>
                   <p>
                     If this site has a .onion mirror, use Tor Browser to visit it and
                     enter your mempool&apos;s .onion address. Both are HTTP, so no
@@ -296,12 +296,12 @@ export function ApiSettings() {
                   </p>
                 </div>
 
-                <p className="text-muted/70">
+                <p className="text-muted/90">
                   <a
                     href="https://github.com/Copexit/am-i-exposed/blob/main/onion.md"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="underline hover:text-foreground/70 transition-colors"
+                    className="underline hover:text-foreground/80 transition-colors"
                   >
                     Full setup guide
                   </a>

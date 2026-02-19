@@ -38,11 +38,11 @@ export function CrossPromo() {
         rel="noopener noreferrer"
         className="group block w-full rounded-lg border border-dashed border-card-border/60 px-4 py-3 transition-all duration-200 hover:border-bitcoin/30 hover:bg-bitcoin/[0.02]"
       >
-        <p className="flex items-center gap-2 text-sm text-muted/80 group-hover:text-muted transition-colors duration-200">
-          <Wrench size={14} className="shrink-0 text-muted/80 group-hover:text-bitcoin/60 transition-colors duration-200" />
+        <p className="flex items-center gap-2 text-sm text-muted/90 group-hover:text-muted transition-colors duration-200">
+          <Wrench size={14} className="shrink-0 text-muted/90 group-hover:text-bitcoin/60 transition-colors duration-200" />
           Transaction stuck or slow? Unstick it in 3 clicks.
         </p>
-        <p className="mt-0.5 ml-[22px] text-[11px] text-muted/70 group-hover:text-muted/70 transition-colors duration-200">
+        <p className="mt-0.5 ml-[22px] text-[11px] text-muted/90 group-hover:text-muted/90 transition-colors duration-200">
           txfix.click - free, open-source transaction rescue
         </p>
       </a>

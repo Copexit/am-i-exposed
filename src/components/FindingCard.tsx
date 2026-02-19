@@ -88,7 +88,7 @@ export function FindingCard({ finding, index }: FindingCardProps) {
             className="overflow-hidden"
           >
             <div className="px-4 pb-4 space-y-3 border-t border-card-border pt-3">
-              <p className="text-sm text-foreground/70 leading-relaxed">
+              <p className="text-sm text-foreground/80 leading-relaxed">
                 {finding.description}
               </p>
               {finding.recommendation && (
@@ -96,7 +96,7 @@ export function FindingCard({ finding, index }: FindingCardProps) {
                   <p className="text-xs font-medium text-muted mb-1">
                     Recommendation
                   </p>
-                  <p className="text-sm text-foreground/80 leading-relaxed">
+                  <p className="text-sm text-foreground/90 leading-relaxed">
                     {finding.recommendation}
                   </p>
                 </div>

@@ -232,7 +232,7 @@ export default function Home() {
 
             {scans.length === 0 && (
               <div className="w-full max-w-3xl">
-                <div className="flex items-center gap-1.5 text-sm text-muted/80 mb-2 px-1">
+                <div className="flex items-center gap-1.5 text-sm text-muted/90 mb-2 px-1">
                   <span>Try an example</span>
                 </div>
                 <div className="flex flex-wrap gap-2 justify-center">
@@ -244,7 +244,7 @@ export default function Home() {
                         border border-card-border hover:border-bitcoin/40 hover:bg-surface-elevated
                         transition-all text-sm cursor-pointer group"
                     >
-                      <span className="text-muted group-hover:text-foreground/70 transition-colors">
+                      <span className="text-muted group-hover:text-foreground/80 transition-colors">
                         {ex.label}
                       </span>
                       <span className={`text-xs font-bold ${
@@ -260,7 +260,7 @@ export default function Home() {
               </div>
             )}
 
-            <p className="text-muted/80 text-sm sm:text-base max-w-xl mx-auto">
+            <p className="text-muted/90 text-sm sm:text-base max-w-xl mx-auto">
               Find out what the blockchain knows about you. Paste a Bitcoin address
               or transaction ID to get a privacy score with actionable findings.
             </p>
@@ -277,8 +277,8 @@ export default function Home() {
                   className="flex flex-col items-center gap-1 py-2.5 rounded-lg bg-surface-elevated/30 border border-card-border/30"
                 >
                   <feat.icon size={20} className="text-bitcoin/50" />
-                  <span className="text-sm font-medium text-foreground/70">{feat.label}</span>
-                  <span className="text-xs text-muted/70">{feat.desc}</span>
+                  <span className="text-sm font-medium text-foreground/80">{feat.label}</span>
+                  <span className="text-xs text-muted/90">{feat.desc}</span>
                 </div>
               ))}
             </div>
@@ -287,13 +287,13 @@ export default function Home() {
               onClick={() => setTipIndex((i) => (i + 1) % PRIVACY_TIPS.length)}
               className="w-full max-w-lg mx-auto text-center cursor-pointer group"
             >
-              <p className="text-xs text-muted/70 mb-1">Privacy tip</p>
-              <p suppressHydrationWarning className="text-sm text-muted/80 leading-relaxed group-hover:text-muted/80 transition-colors">
+              <p className="text-xs text-muted/90 mb-1">Privacy tip</p>
+              <p suppressHydrationWarning className="text-sm text-muted/90 leading-relaxed group-hover:text-muted/90 transition-colors">
                 {PRIVACY_TIPS[tipIndex]}
               </p>
             </button>
 
-            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted/70">
+            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted/90">
               <span className="inline-flex items-center gap-1.5">
                 <ShieldCheck size={16} className="text-success/50" />
                 100% client-side
@@ -302,8 +302,8 @@ export default function Home() {
               <span>Open source</span>
             </div>
 
-            <div className="text-xs text-muted/80 hidden sm:block">
-              Press <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted/70 font-mono">/</kbd> to focus search
+            <div className="text-xs text-muted/90 hidden sm:block">
+              Press <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted/90 font-mono">/</kbd> to focus search
             </div>
           </motion.div>
         )}
@@ -322,7 +322,7 @@ export default function Home() {
                 <span className="text-xs font-medium text-muted uppercase tracking-wider">
                   {mode === "check" ? "Pre-send destination check" : inputType === "txid" ? "Transaction" : "Address"}
                 </span>
-                <p className="font-mono text-sm text-foreground/80 break-all leading-relaxed">
+                <p className="font-mono text-sm text-foreground/90 break-all leading-relaxed">
                   {query}
                 </p>
               </div>
@@ -376,7 +376,7 @@ export default function Home() {
                   Analysis failed
                 </h2>
                 {query && (
-                  <p className="font-mono text-xs text-muted/70 break-all">
+                  <p className="font-mono text-xs text-muted/90 break-all">
                     {query}
                   </p>
                 )}
@@ -402,8 +402,8 @@ export default function Home() {
                 </button>
               </div>
             </div>
-            <div className="text-xs text-muted/70 hidden sm:block">
-              Press <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted/70 font-mono">Esc</kbd> to go back
+            <div className="text-xs text-muted/90 hidden sm:block">
+              Press <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted/90 font-mono">Esc</kbd> to go back
             </div>
           </motion.div>
         )}

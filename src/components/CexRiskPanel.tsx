@@ -90,11 +90,11 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
         {hasSanction ? (
           <ShieldX size={14} className="text-severity-critical shrink-0" />
         ) : (
-          <ShieldCheck size={14} className="text-muted/70 group-hover:text-muted shrink-0" />
+          <ShieldCheck size={14} className="text-muted/90 group-hover:text-muted shrink-0" />
         )}
         <span
           className={`text-xs font-medium uppercase tracking-wider ${
-            hasSanction ? "text-severity-critical" : "text-muted/70 group-hover:text-muted"
+            hasSanction ? "text-severity-critical" : "text-muted/90 group-hover:text-muted"
           }`}
         >
           Exchange Risk Check
@@ -106,7 +106,7 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
         )}
         <ChevronDown
           size={12}
-          className={`ml-auto text-muted/70 transition-transform duration-200 ${
+          className={`ml-auto text-muted/90 transition-transform duration-200 ${
             open ? "rotate-180" : ""
           }`}
         />
@@ -122,7 +122,7 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
             className="overflow-hidden"
           >
             <div className="mt-3 bg-card-bg border border-card-border rounded-xl p-5 space-y-4">
-              <p className="text-xs text-muted/70">
+              <p className="text-xs text-muted/90">
                 Will exchanges flag this {inputType === "txid" ? "transaction" : "address"}?
               </p>
 
@@ -137,7 +137,7 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-foreground/80">
+                    <span className="text-sm font-medium text-foreground/90">
                       OFAC Sanctions List
                     </span>
                     <span
@@ -173,11 +173,11 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-xs text-muted/70 mt-0.5">
+                    <p className="text-xs text-muted/90 mt-0.5">
                       Checked against US Treasury SDN list. Client-side - no data sent.
                     </p>
                   )}
-                  <p className="text-[10px] text-muted/70 mt-1">
+                  <p className="text-[10px] text-muted/90 mt-1">
                     Last updated: {ofacResult.lastUpdated}
                   </p>
                 </div>
@@ -200,12 +200,12 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
                   ) : chainalysis.status === "error" ? (
                     <ShieldAlert size={16} className="text-severity-high" />
                   ) : (
-                    <ShieldAlert size={16} className="text-muted/70" />
+                    <ShieldAlert size={16} className="text-muted/90" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-foreground/80">
+                    <span className="text-sm font-medium text-foreground/90">
                       Chainalysis Screening
                     </span>
                     {chainalysis.status === "done" && (
@@ -229,12 +229,12 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
                       >
                         Run Chainalysis Check
                         {inputType === "txid" && addresses.length > 1 && (
-                          <span className="text-muted/70">
+                          <span className="text-muted/90">
                             ({Math.min(addresses.length, 20)} address
                             {Math.min(addresses.length, 20) > 1 ? "es" : ""})
                           </span>
                         )}
-                        <span className="text-muted/70">&rarr;</span>
+                        <span className="text-muted/90">&rarr;</span>
                       </button>
                       <p className="text-xs text-severity-medium mt-1 flex items-center gap-1.5">
                         <AlertTriangle size={12} className="shrink-0" />
@@ -245,14 +245,14 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
                   )}
 
                   {chainalysis.status === "loading" && (
-                    <p className="text-xs text-muted/70 mt-1">
+                    <p className="text-xs text-muted/90 mt-1">
                       Checking {Math.min(addresses.length, 20)} address
                       {Math.min(addresses.length, 20) > 1 ? "es" : ""}...
                     </p>
                   )}
 
                   {chainalysis.status === "done" && !chainalysis.sanctioned && (
-                    <p className="text-xs text-muted/70 mt-0.5">
+                    <p className="text-xs text-muted/90 mt-0.5">
                       No sanctions identified. Exchanges are unlikely to flag this
                       {inputType === "txid" ? " transaction" : " address"}.
                     </p>
@@ -272,7 +272,7 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
                             {id.category}
                           </span>
                           {id.name && (
-                            <span className="text-foreground/60"> - {id.name}</span>
+                            <span className="text-foreground/80"> - {id.name}</span>
                           )}
                         </div>
                       ))}
@@ -306,7 +306,7 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
               </div>
 
               {/* Disclaimer */}
-              <p className="text-[10px] text-muted/70 leading-relaxed border-t border-card-border pt-3">
+              <p className="text-[10px] text-muted/90 leading-relaxed border-t border-card-border pt-3">
                 These checks cover sanctions screening only. Exchanges may flag
                 addresses for other reasons (mixer usage, high-risk jurisdiction, etc.)
                 that are not detectable with public tools.

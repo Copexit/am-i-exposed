@@ -72,7 +72,7 @@ export function TxBreakdownPanel({
       </div>
 
       {totalTxCount > breakdown.length && (
-        <p className="text-xs text-muted/80 px-1">
+        <p className="text-xs text-muted/90 px-1">
           Showing {breakdown.length} most recent of {totalTxCount} transactions.
         </p>
       )}
@@ -104,7 +104,7 @@ export function TxBreakdownPanel({
                 </span>
 
                 {/* Txid */}
-                <span className="flex-1 font-mono text-xs text-foreground/60 truncate">
+                <span className="flex-1 font-mono text-xs text-foreground/80 truncate">
                   {item.txid.slice(0, 8)}...{item.txid.slice(-6)}
                 </span>
 

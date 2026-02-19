@@ -22,10 +22,10 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Network size={16} className="text-bitcoin/60" />
-            <span className="text-sm font-medium text-foreground/80">
+            <span className="text-sm font-medium text-foreground/90">
               Cluster Analysis
             </span>
-            <span className="text-[10px] text-muted/70 bg-surface-elevated px-1.5 py-0.5 rounded">
+            <span className="text-[10px] text-muted/90 bg-surface-elevated px-1.5 py-0.5 rounded">
               H14
             </span>
           </div>
@@ -36,7 +36,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
             Build cluster
           </button>
         </div>
-        <p className="text-xs text-muted/80 leading-relaxed">
+        <p className="text-xs text-muted/90 leading-relaxed">
           Discover linked addresses using common-input-ownership heuristic (CIOH).
           Follows change outputs one hop. This makes additional API calls and may take a few seconds.
         </p>
@@ -49,7 +49,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
       <div className="w-full bg-surface-inset rounded-xl p-4 space-y-3">
         <div className="flex items-center gap-2">
           <Loader2 size={16} className="text-bitcoin animate-spin" />
-          <span className="text-sm font-medium text-foreground/80">
+          <span className="text-sm font-medium text-foreground/90">
             Building cluster...
           </span>
         </div>
@@ -82,7 +82,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
           <AlertTriangle size={16} />
           <span className="text-sm font-medium">Cluster analysis failed</span>
         </div>
-        <p className="text-xs text-muted/80">{error}</p>
+        <p className="text-xs text-muted/90">{error}</p>
         <button
           onClick={() => analyze(targetAddress, txs)}
           className="text-xs text-bitcoin hover:text-bitcoin-hover transition-colors cursor-pointer"
@@ -104,10 +104,10 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
     >
       <div className="flex items-center gap-2">
         <Network size={16} className="text-bitcoin" />
-        <span className="text-sm font-medium text-foreground/80">
+        <span className="text-sm font-medium text-foreground/90">
           Cluster Analysis
         </span>
-        <span className="text-[10px] text-muted/70 bg-surface-elevated px-1.5 py-0.5 rounded">
+        <span className="text-[10px] text-muted/90 bg-surface-elevated px-1.5 py-0.5 rounded">
           H14
         </span>
       </div>
@@ -158,7 +158,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
       )}
 
       {result.coinJoinTxCount > 0 && (
-        <p className="text-xs text-muted/80">
+        <p className="text-xs text-muted/90">
           {result.coinJoinTxCount} CoinJoin transaction{result.coinJoinTxCount > 1 ? "s" : ""} excluded from clustering (CIOH does not apply).
         </p>
       )}
@@ -192,7 +192,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
                       className={`text-xs font-mono truncate px-2 py-1 rounded ${
                         addr === targetAddress
                           ? "text-bitcoin bg-bitcoin/5 font-semibold"
-                          : "text-foreground/60 hover:bg-surface-elevated/50"
+                          : "text-foreground/80 hover:bg-surface-elevated/50"
                       }`}
                     >
                       {onAddressClick ? (
@@ -220,7 +220,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
       )}
 
       {/* Disclaimer */}
-      <p className="text-[10px] text-muted/80 leading-relaxed">
+      <p className="text-[10px] text-muted/90 leading-relaxed">
         This is a lower-bound estimate based on one-hop CIOH analysis of the {result.txsAnalyzed} most recent transactions.
         The actual cluster may be larger.
       </p>

@@ -26,7 +26,7 @@ function ScoringExplainer() {
     <div className="w-full">
       <button
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1.5 text-xs text-foreground/70 hover:text-foreground transition-colors cursor-pointer px-1 min-h-[44px]"
+        className="inline-flex items-center gap-1.5 text-xs text-foreground/80 hover:text-foreground transition-colors cursor-pointer px-1 min-h-[44px]"
       >
         <Info size={12} />
         How scoring works
@@ -40,9 +40,9 @@ function ScoringExplainer() {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="mt-2 bg-surface-inset rounded-lg px-4 py-3 text-xs text-muted/70 leading-relaxed space-y-2">
+            <div className="mt-2 bg-surface-inset rounded-lg px-4 py-3 text-xs text-muted/90 leading-relaxed space-y-2">
               <p>
-                Scores start at <strong className="text-foreground/70">70/100</strong> (baseline) and are adjusted by each heuristic finding.
+                Scores start at <strong className="text-foreground/80">70/100</strong> (baseline) and are adjusted by each heuristic finding.
                 Negative findings (address reuse, change detection, round amounts) lower the score.
                 Positive findings (CoinJoin, high entropy, anonymity sets) raise it.
               </p>
@@ -197,7 +197,7 @@ export function ResultsPanel({
           </div>
           <button
             onClick={() => navigator.clipboard.writeText(query).catch(() => {})}
-            className="font-mono text-sm text-foreground/80 break-all leading-relaxed text-left hover:text-foreground transition-colors cursor-pointer"
+            className="font-mono text-sm text-foreground/90 break-all leading-relaxed text-left hover:text-foreground transition-colors cursor-pointer"
             title="Click to copy"
           >
             {query}
@@ -222,7 +222,7 @@ export function ResultsPanel({
             <p className="text-sm font-medium text-severity-critical">
               High exposure risk
             </p>
-            <p className="text-xs text-foreground/60 mt-1 leading-relaxed">
+            <p className="text-xs text-foreground/80 mt-1 leading-relaxed">
               This {inputType === "txid" ? "transaction" : "address"} has severe privacy issues.
               On-chain surveillance can likely identify the owner and trace fund flows.
               Immediate remediation steps are recommended below.
@@ -299,7 +299,7 @@ export function ResultsPanel({
       </div>
 
       {/* Disclaimer */}
-      <div className="w-full bg-surface-inset rounded-lg px-4 py-3 text-xs text-muted/70 leading-relaxed">
+      <div className="w-full bg-surface-inset rounded-lg px-4 py-3 text-xs text-muted/90 leading-relaxed">
         {result.findings.length} findings from {inputType === "txid" ? "12" : "4"} heuristics
         {txBreakdown ? ` + ${txBreakdown.length} transactions analyzed` : ""}
         {durationMs ? ` in ${(durationMs / 1000).toFixed(1)}s` : ""}.
@@ -310,8 +310,8 @@ export function ResultsPanel({
         Scores are heuristic-based estimates, not definitive privacy assessments.
       </div>
 
-      <div className="text-xs text-muted/70 pb-4 hidden sm:block">
-        Press <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted/70 font-mono">Esc</kbd> for new scan
+      <div className="text-xs text-muted/90 pb-4 hidden sm:block">
+        Press <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted/90 font-mono">Esc</kbd> for new scan
       </div>
     </motion.div>
   );

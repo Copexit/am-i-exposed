@@ -40,7 +40,7 @@ export function RecentScans({ scans, onSelect, onClear }: RecentScansProps) {
       className="w-full max-w-2xl"
     >
       <div className="flex items-center justify-between mb-2 px-1">
-        <div className="flex items-center gap-1.5 text-xs text-muted/80">
+        <div className="flex items-center gap-1.5 text-xs text-muted/90">
           <Clock size={11} />
           <span>Recent scans</span>
         </div>
@@ -68,10 +68,10 @@ export function RecentScans({ scans, onSelect, onClear }: RecentScansProps) {
             <span className={`font-bold ${GRADE_COLORS[scan.grade] ?? "text-muted"}`}>
               {scan.grade}
             </span>
-            <span className="font-mono text-muted group-hover:text-foreground/70 transition-colors truncate max-w-32">
+            <span className="font-mono text-muted group-hover:text-foreground/80 transition-colors truncate max-w-32">
               {truncate(scan.input)}
             </span>
-            <span className="text-muted/70 text-[10px]">{timeAgo(scan.timestamp)}</span>
+            <span className="text-muted/90 text-[10px]">{timeAgo(scan.timestamp)}</span>
           </button>
         ))}
       </div>

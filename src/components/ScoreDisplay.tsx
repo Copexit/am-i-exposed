@@ -80,7 +80,7 @@ export function ScoreDisplay({ score, grade }: ScoreDisplayProps) {
         </motion.span>
         <span className="text-2xl text-muted tabular-nums">
           {displayScore}
-          <span className="text-muted/70">/100</span>
+          <span className="text-muted/90">/100</span>
         </span>
       </div>
 
@@ -102,7 +102,7 @@ export function ScoreDisplay({ score, grade }: ScoreDisplayProps) {
               style={{ left: `${threshold}%` }}
             />
           ))}
-          <div className="flex justify-between text-[10px] text-muted/80 mt-1">
+          <div className="flex justify-between text-[10px] text-muted/90 mt-1">
             <span>F</span>
             <span style={{ position: "absolute", left: "25%", transform: "translateX(-50%)" }}>D</span>
             <span style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}>C</span>

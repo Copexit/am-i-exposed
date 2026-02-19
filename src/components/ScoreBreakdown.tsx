@@ -41,7 +41,7 @@ export function ScoreBreakdown({ findings, finalScore }: ScoreBreakdownProps) {
     <div className="w-full">
       <button
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1.5 text-xs text-foreground/70 hover:text-foreground transition-colors cursor-pointer px-1 min-h-[44px]"
+        className="inline-flex items-center gap-1.5 text-xs text-foreground/80 hover:text-foreground transition-colors cursor-pointer px-1 min-h-[44px]"
       >
         <BarChart3 size={12} />
         Score breakdown
@@ -58,8 +58,8 @@ export function ScoreBreakdown({ findings, finalScore }: ScoreBreakdownProps) {
             <div className="mt-2 bg-surface-inset rounded-lg px-4 py-3 space-y-2">
               {/* Base score */}
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted/70">Base score</span>
-                <span className="text-foreground/70 font-mono tabular-nums">{BASE_SCORE}</span>
+                <span className="text-muted/90">Base score</span>
+                <span className="text-foreground/80 font-mono tabular-nums">{BASE_SCORE}</span>
               </div>
 
               {/* Waterfall items */}
@@ -74,7 +74,7 @@ export function ScoreBreakdown({ findings, finalScore }: ScoreBreakdownProps) {
 
                 return (
                   <div key={f.id} className="flex items-center gap-2 text-xs">
-                    <span className="flex-1 text-muted/80 truncate" title={f.title}>
+                    <span className="flex-1 text-muted/90 truncate" title={f.title}>
                       {f.title}
                     </span>
                     <div className="w-20 h-2 bg-surface-elevated rounded-full overflow-hidden">
@@ -119,7 +119,7 @@ export function ScoreBreakdown({ findings, finalScore }: ScoreBreakdownProps) {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-muted/70">Final:</span>
+                  <span className="text-muted/90">Final:</span>
                   <span className="text-foreground font-bold font-mono tabular-nums">
                     {finalScore}/100
                   </span>

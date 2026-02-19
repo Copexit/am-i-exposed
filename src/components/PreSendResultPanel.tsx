@@ -116,7 +116,7 @@ export function PreSendResultPanel({
           <span className="text-xs font-medium text-muted uppercase tracking-wider">
             Pre-Send Destination Check
           </span>
-          <p className="font-mono text-sm text-foreground/80 break-all leading-relaxed">
+          <p className="font-mono text-sm text-foreground/90 break-all leading-relaxed">
             {query}
           </p>
         </div>
@@ -127,7 +127,7 @@ export function PreSendResultPanel({
           <span className={`text-2xl font-bold ${risk.color}`}>
             {risk.label}
           </span>
-          <p className="text-sm text-center text-foreground/70 max-w-md">
+          <p className="text-sm text-center text-foreground/80 max-w-md">
             {preSendResult.summary}
           </p>
         </div>
@@ -163,7 +163,7 @@ export function PreSendResultPanel({
             {risk.advice}
           </p>
           {preSendResult.riskLevel !== "LOW" && (
-            <p className="text-xs text-foreground/60 mt-1 leading-relaxed">
+            <p className="text-xs text-foreground/80 mt-1 leading-relaxed">
               Sending to a reused address links your transaction to all other transactions
               involving this address. Chain analysis can trivially trace your payment.
             </p>
@@ -202,7 +202,7 @@ export function PreSendResultPanel({
       </div>
 
       {/* Disclaimer */}
-      <div className="w-full bg-surface-inset rounded-lg px-4 py-3 text-xs text-muted/70 leading-relaxed">
+      <div className="w-full bg-surface-inset rounded-lg px-4 py-3 text-xs text-muted/90 leading-relaxed">
         Pre-send check completed{durationMs ? ` in ${(durationMs / 1000).toFixed(1)}s` : ""}.
         Analysis ran entirely in your browser. This is a heuristic-based assessment - always verify independently.
       </div>

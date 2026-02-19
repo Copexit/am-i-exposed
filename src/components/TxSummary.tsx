@@ -74,7 +74,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
             return (
               <div
                 key={i}
-                className={`text-xs font-mono truncate ${isHighlighted ? "text-bitcoin font-semibold" : "text-foreground/60"}`}
+                className={`text-xs font-mono truncate ${isHighlighted ? "text-bitcoin font-semibold" : "text-foreground/80"}`}
                 title={addr ?? "coinbase"}
               >
                 {vin.is_coinbase ? (
@@ -99,7 +99,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
             );
           })}
           {hiddenInputs > 0 && (
-            <div className="text-xs text-muted/80">
+            <div className="text-xs text-muted/90">
               +{hiddenInputs} more
             </div>
           )}
@@ -107,7 +107,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
 
         {/* Arrow column */}
         <div className="flex items-center justify-center pt-1">
-          <ArrowRight size={14} className="text-muted/70" />
+          <ArrowRight size={14} className="text-muted/90" />
         </div>
 
         {/* Outputs */}
@@ -120,7 +120,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
             return (
               <div
                 key={i}
-                className={`text-xs font-mono truncate ${isHighlighted ? "text-bitcoin font-semibold" : (color ?? "text-foreground/60")}`}
+                className={`text-xs font-mono truncate ${isHighlighted ? "text-bitcoin font-semibold" : (color ?? "text-foreground/80")}`}
                 title={outAddr ?? vout.scriptpubkey_type}
               >
                 {outAddr && onAddressClick ? (
@@ -151,7 +151,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
             );
           })}
           {hiddenOutputs > 0 && (
-            <div className="text-xs text-muted/80">
+            <div className="text-xs text-muted/90">
               +{hiddenOutputs} more
             </div>
           )}
@@ -174,7 +174,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
           <span className="w-1.5 h-1.5 rounded-full bg-severity-good/50" />
           Confirmed in block {tx.status.block_height?.toLocaleString()}
           {tx.status.block_time && (
-            <span className="text-muted/80">
+            <span className="text-muted/90">
               ({formatTimeAgo(tx.status.block_time)})
             </span>
           )}

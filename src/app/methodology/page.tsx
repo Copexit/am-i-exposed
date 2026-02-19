@@ -251,7 +251,7 @@ export default function MethodologyPage() {
               <p className="text-muted leading-relaxed">
                 Every analysis starts from a <span className="text-foreground font-medium">base score of 70</span> - representing a typical Bitcoin transaction with no obviously good or bad characteristics. The base is above 50 because most transactions are not catastrophically bad; they carry the normal, baseline exposure of a transparent public blockchain.
               </p>
-              <div className="bg-surface-inset rounded-lg p-4 font-mono text-sm text-foreground/80">
+              <div className="bg-surface-inset rounded-lg p-4 font-mono text-sm text-foreground/90">
                 final_score = clamp(70 + sum(all_heuristic_impacts), 0, 100)
               </div>
             </div>

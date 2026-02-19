@@ -186,7 +186,7 @@ function StructuredRemediation({ remediation, findingTitle }: { remediation: Rem
   return (
     <div className="bg-surface-inset rounded-lg px-4 py-3 border-l-2 border-l-bitcoin/50 space-y-2.5">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-foreground/80">{findingTitle}</p>
+        <p className="text-sm font-medium text-foreground/90">{findingTitle}</p>
         <span className={`inline-flex items-center gap-1 text-xs ${urgency.color}`}>
           <UrgencyIcon size={11} />
           {urgency.label}
@@ -195,7 +195,7 @@ function StructuredRemediation({ remediation, findingTitle }: { remediation: Rem
 
       <ol className="space-y-1.5 pl-4">
         {remediation.steps.map((step, i) => (
-          <li key={i} className="text-xs text-muted/70 leading-relaxed list-decimal">
+          <li key={i} className="text-xs text-muted/90 leading-relaxed list-decimal">
             {step}
           </li>
         ))}
@@ -286,10 +286,10 @@ export function Remediation({ findings, grade }: RemediationProps) {
                       {i + 1}.
                     </span>
                     <div>
-                      <p className="text-sm font-medium text-foreground/80">
+                      <p className="text-sm font-medium text-foreground/90">
                         {action.text}
                       </p>
-                      <p className="text-xs text-muted/80 mt-1 leading-relaxed">
+                      <p className="text-xs text-muted/90 mt-1 leading-relaxed">
                         {action.detail}
                       </p>
                     </div>
