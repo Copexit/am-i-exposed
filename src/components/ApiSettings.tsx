@@ -146,7 +146,8 @@ export function ApiSettings() {
         onClick={() => {
           if (!open) {
             setInputValue(customApiUrl ?? "");
-            setHealth("idle");
+            // If a custom URL is already active, show it as connected
+            setHealth(customApiUrl ? "ok" : "idle");
             setErrorHint("");
           }
           setOpen(!open);
@@ -191,8 +192,15 @@ export function ApiSettings() {
               type="text"
               value={inputValue}
               onChange={(e) => {
-                setInputValue(e.target.value);
-                setHealth("idle");
+                const val = e.target.value;
+                setInputValue(val);
+                // Keep "ok" if the input still matches the active custom URL
+                const normalized = val.trim().replace(/\/+$/, "");
+                if (customApiUrl && normalized === customApiUrl) {
+                  setHealth("ok");
+                } else {
+                  setHealth("idle");
+                }
                 setErrorHint("");
               }}
               placeholder="https://mempool.space/api"

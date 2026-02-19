@@ -76,13 +76,17 @@ export function diagnoseUrl(url: string): UrlDiagnostic {
       "Your browser blocks HTTP requests from this HTTPS page. " +
       "Set up HTTPS on your node, or use SSH port forwarding to localhost.";
   } else if (result.isOnion) {
-    const pageIsOnion =
-      typeof window !== "undefined" &&
-      window.location.hostname.endsWith(".onion");
-    result.hint = pageIsOnion
-      ? "Your node needs CORS headers to allow cross-origin requests."
-      : "Ensure you are using Tor Browser to reach .onion addresses. " +
-        "Your node also needs CORS headers for cross-origin requests.";
+    // No warning needed for the well-known mempool.space .onion
+    const isKnownMempool = hostname.startsWith("mempoolhqx4isw62");
+    if (!isKnownMempool) {
+      const pageIsOnion =
+        typeof window !== "undefined" &&
+        window.location.hostname.endsWith(".onion");
+      result.hint = pageIsOnion
+        ? "Your node needs CORS headers to allow cross-origin requests."
+        : "Ensure you are using Tor Browser to reach .onion addresses. " +
+          "Your node also needs CORS headers for cross-origin requests.";
+    }
   }
 
   return result;
