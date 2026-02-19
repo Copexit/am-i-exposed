@@ -21,6 +21,18 @@ const TIMEOUT_MS = 5000;
 let cachedStatus: TorStatus | null = null;
 let inflight: Promise<TorStatus> | null = null;
 
+/**
+ * Detect Tor Browser through browser characteristics when the worker
+ * fetch is blocked (Tor Browser blocks most cross-origin requests).
+ * Checks: Firefox-based UA + WebRTC disabled (Tor Browser disables it).
+ */
+function detectTorBrowserLocally(): boolean {
+  if (typeof window === "undefined") return false;
+  const isFirefox = /Firefox\//i.test(navigator.userAgent);
+  const noWebRTC = typeof RTCPeerConnection === "undefined";
+  return isFirefox && noWebRTC;
+}
+
 async function checkTor(signal: AbortSignal): Promise<TorStatus> {
   // Instant check: if the page itself is served from a .onion address
   if (
@@ -34,11 +46,15 @@ async function checkTor(signal: AbortSignal): Promise<TorStatus> {
     const res = await fetch(TOR_CHECK_URL, {
       signal: AbortSignal.any([signal, AbortSignal.timeout(TIMEOUT_MS)]),
     });
-    if (!res.ok) return "unknown";
+    if (!res.ok) {
+      // Worker returned an error - fall back to local heuristics
+      return detectTorBrowserLocally() ? "tor" : "unknown";
+    }
     const data: TorCheckResponse = await res.json();
     return data.isTor ? "tor" : "clearnet";
   } catch {
-    return "unknown";
+    // Worker fetch failed (likely blocked by Tor Browser's privacy settings)
+    return detectTorBrowserLocally() ? "tor" : "unknown";
   }
 }
 

@@ -3,7 +3,7 @@
 import { useSyncExternalStore, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ShieldAlert, X } from "lucide-react";
-import { useTorDetection } from "@/hooks/useTorDetection";
+import { useNetwork } from "@/context/NetworkContext";
 
 const STORAGE_KEY = "privacy-notice-dismissed";
 
@@ -21,7 +21,7 @@ function getServerSnapshot(): boolean {
 }
 
 export function PrivacyNotice() {
-  const torStatus = useTorDetection();
+  const { torStatus } = useNetwork();
   const dismissed = useSyncExternalStore(
     subscribe,
     getSnapshot,
@@ -36,7 +36,7 @@ export function PrivacyNotice() {
 
   return (
     <AnimatePresence>
-      {!dismissed && torStatus !== "tor" && (
+      {!dismissed && torStatus === "clearnet" && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}

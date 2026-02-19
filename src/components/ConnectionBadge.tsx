@@ -2,14 +2,14 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Shield, ShieldAlert, ShieldQuestion } from "lucide-react";
-import { useTorDetection } from "@/hooks/useTorDetection";
+import { useNetwork } from "@/context/NetworkContext";
 
 /**
  * Shows connection privacy status by checking the Tor Project API.
  * Tappable on mobile to reveal a tooltip explaining the status.
  */
 export function ConnectionBadge() {
-  const status = useTorDetection();
+  const { torStatus: status } = useNetwork();
   const [showTip, setShowTip] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 

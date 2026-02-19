@@ -10,6 +10,8 @@ export class ApiError extends Error {
 
 const MAX_RETRIES = 3;
 const RETRY_DELAYS = [1000, 2000, 4000];
+/** Per-request timeout - prevents individual fetch attempts hanging on Tor */
+const REQUEST_TIMEOUT_MS = 15_000;
 
 function sleep(ms: number, signal?: AbortSignal) {
   return new Promise<void>((resolve, reject) => {
@@ -30,7 +32,11 @@ export async function fetchWithRetry(
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const response = await fetch(url, options);
+      const timeoutSignal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+      const fetchSignal = options?.signal
+        ? AbortSignal.any([options.signal, timeoutSignal])
+        : timeoutSignal;
+      const response = await fetch(url, { ...options, signal: fetchSignal });
 
       if (response.ok) return response;
 
