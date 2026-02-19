@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   ShieldCheck,
@@ -44,10 +44,23 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
     matchedAddresses: [],
   });
 
+  // AbortController to cancel in-flight chainalysis requests on unmount/re-render
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
+
   const runChainalysis = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setChainalysis((prev) => ({ ...prev, status: "loading" }));
     try {
-      const result = await checkChainalysis(addresses);
+      const result = await checkChainalysis(addresses, controller.signal);
       setChainalysis({
         status: "done",
         sanctioned: result.sanctioned,
@@ -55,6 +68,7 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
         matchedAddresses: result.matchedAddresses,
       });
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setChainalysis((prev) => ({
         ...prev,
         status: "error",
@@ -71,16 +85,16 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
     <div className="w-full">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-2 text-left cursor-pointer group px-1"
+        className="w-full flex items-center gap-2 text-left cursor-pointer group px-1 py-3 min-h-[44px]"
       >
         {hasSanction ? (
           <ShieldX size={14} className="text-severity-critical shrink-0" />
         ) : (
-          <ShieldCheck size={14} className="text-muted/50 group-hover:text-muted shrink-0" />
+          <ShieldCheck size={14} className="text-muted/70 group-hover:text-muted shrink-0" />
         )}
         <span
           className={`text-xs font-medium uppercase tracking-wider ${
-            hasSanction ? "text-severity-critical" : "text-muted/50 group-hover:text-muted"
+            hasSanction ? "text-severity-critical" : "text-muted/70 group-hover:text-muted"
           }`}
         >
           Exchange Risk Check
@@ -92,7 +106,7 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
         )}
         <ChevronDown
           size={12}
-          className={`ml-auto text-muted/30 transition-transform duration-200 ${
+          className={`ml-auto text-muted/70 transition-transform duration-200 ${
             open ? "rotate-180" : ""
           }`}
         />
@@ -108,7 +122,7 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
             className="overflow-hidden"
           >
             <div className="mt-3 bg-card-bg border border-card-border rounded-xl p-5 space-y-4">
-              <p className="text-xs text-muted/60">
+              <p className="text-xs text-muted/70">
                 Will exchanges flag this {inputType === "txid" ? "transaction" : "address"}?
               </p>
 
@@ -159,11 +173,11 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-xs text-muted/50 mt-0.5">
-                      Checked against US Treasury SDN list. Client-side — no data sent.
+                    <p className="text-xs text-muted/70 mt-0.5">
+                      Checked against US Treasury SDN list. Client-side - no data sent.
                     </p>
                   )}
-                  <p className="text-[10px] text-muted/30 mt-1">
+                  <p className="text-[10px] text-muted/70 mt-1">
                     Last updated: {ofacResult.lastUpdated}
                   </p>
                 </div>
@@ -186,7 +200,7 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
                   ) : chainalysis.status === "error" ? (
                     <ShieldAlert size={16} className="text-severity-high" />
                   ) : (
-                    <ShieldAlert size={16} className="text-muted/30" />
+                    <ShieldAlert size={16} className="text-muted/70" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -215,30 +229,30 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
                       >
                         Run Chainalysis Check
                         {inputType === "txid" && addresses.length > 1 && (
-                          <span className="text-muted/50">
+                          <span className="text-muted/70">
                             ({Math.min(addresses.length, 20)} address
                             {Math.min(addresses.length, 20) > 1 ? "es" : ""})
                           </span>
                         )}
-                        <span className="text-muted/50">&rarr;</span>
+                        <span className="text-muted/70">&rarr;</span>
                       </button>
-                      <p className="text-[10px] text-severity-medium mt-1 flex items-center gap-1">
-                        <AlertTriangle size={10} className="shrink-0" />
+                      <p className="text-xs text-severity-medium mt-1 flex items-center gap-1.5">
+                        <AlertTriangle size={12} className="shrink-0" />
                         Sends {inputType === "txid" && addresses.length > 1 ? "addresses" : "address"} to
-                        chainalysis.com via proxy
+                        chainalysis.com via proxy. The proxy operator also sees the addresses.
                       </p>
                     </div>
                   )}
 
                   {chainalysis.status === "loading" && (
-                    <p className="text-xs text-muted/50 mt-1">
+                    <p className="text-xs text-muted/70 mt-1">
                       Checking {Math.min(addresses.length, 20)} address
                       {Math.min(addresses.length, 20) > 1 ? "es" : ""}...
                     </p>
                   )}
 
                   {chainalysis.status === "done" && !chainalysis.sanctioned && (
-                    <p className="text-xs text-muted/50 mt-0.5">
+                    <p className="text-xs text-muted/70 mt-0.5">
                       No sanctions identified. Exchanges are unlikely to flag this
                       {inputType === "txid" ? " transaction" : " address"}.
                     </p>
@@ -258,7 +272,7 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
                             {id.category}
                           </span>
                           {id.name && (
-                            <span className="text-foreground/60"> — {id.name}</span>
+                            <span className="text-foreground/60"> - {id.name}</span>
                           )}
                         </div>
                       ))}
@@ -292,7 +306,7 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
               </div>
 
               {/* Disclaimer */}
-              <p className="text-[10px] text-muted/30 leading-relaxed border-t border-card-border pt-3">
+              <p className="text-[10px] text-muted/70 leading-relaxed border-t border-card-border pt-3">
                 These checks cover sanctions screening only. Exchanges may flag
                 addresses for other reasons (mixer usage, high-risk jurisdiction, etc.)
                 that are not detectable with public tools.

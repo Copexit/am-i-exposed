@@ -19,9 +19,12 @@ function extractFromUrl(input: string): string | null {
   return null;
 }
 
+/** Max length for a valid Bitcoin address or txid (64 hex + some margin for URLs). */
+const MAX_INPUT_LENGTH = 512;
+
 /** Clean user input, extracting from URLs if needed. */
 export function cleanInput(input: string): string {
-  const trimmed = input.trim();
+  const trimmed = input.trim().slice(0, MAX_INPUT_LENGTH);
   return extractFromUrl(trimmed) ?? trimmed;
 }
 
@@ -40,15 +43,16 @@ export function detectInputType(
   if (/^[a-fA-F0-9]{64}$/.test(trimmed)) return "txid";
 
   if (network === "mainnet") {
-    // Bech32 mainnet (bc1q for P2WPKH, bc1p for P2TR)
-    if (/^bc1[a-zA-HJ-NP-Z0-9]{25,62}$/i.test(trimmed)) return "address";
+    // Bech32/bech32m mainnet (bc1q for P2WPKH/P2WSH, bc1p for P2TR)
+    // Bech32 charset: qpzry9x8gf2tvdw0s3jn54khce6mua7l
+    if (/^bc1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{39,87}$/.test(trimmed.toLowerCase())) return "address";
     // Legacy P2PKH (1...)
     if (/^1[a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(trimmed)) return "address";
     // P2SH (3...)
     if (/^3[a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(trimmed)) return "address";
   } else {
-    // Bech32 testnet/signet (tb1q for P2WPKH, tb1p for P2TR)
-    if (/^tb1[a-zA-HJ-NP-Z0-9]{25,62}$/i.test(trimmed)) return "address";
+    // Bech32/bech32m testnet/signet (tb1q for P2WPKH/P2WSH, tb1p for P2TR)
+    if (/^tb1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{39,87}$/.test(trimmed.toLowerCase())) return "address";
     // Testnet P2PKH (m... or n...)
     if (/^[mn][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(trimmed)) return "address";
     // Testnet P2SH (2...)

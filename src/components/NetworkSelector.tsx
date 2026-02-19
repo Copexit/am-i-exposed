@@ -21,7 +21,7 @@ export function NetworkSelector() {
         onChange={(e) => setNetwork(e.target.value as BitcoinNetwork)}
         className="appearance-none bg-card-bg border border-card-border rounded-lg px-3 py-1.5
           text-sm text-foreground cursor-pointer hover:border-muted transition-colors
-          pl-7 pr-8 focus:outline-none focus:border-bitcoin"
+          pl-7 pr-8 focus-visible:border-bitcoin"
         aria-label="Select Bitcoin network"
       >
         {NETWORKS.map((n) => (

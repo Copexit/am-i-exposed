@@ -68,10 +68,13 @@ export function PreSendResultPanel({
   onBack,
   durationMs,
 }: PreSendResultPanelProps) {
-  const { config } = useNetwork();
+  const { config, customApiUrl } = useNetwork();
   const [shareStatus, setShareStatus] = useState<"idle" | "copied">("idle");
   const risk = RISK_CONFIG[preSendResult.riskLevel];
   const RiskIcon = risk.icon;
+  const explorerLabel = customApiUrl
+    ? `View on ${new URL(config.explorerUrl).hostname}`
+    : "View on mempool.space";
 
   const handleCopy = async () => {
     const shareUrl = `${window.location.origin}${window.location.pathname}#check=${query}`;
@@ -93,14 +96,14 @@ export function PreSendResultPanel({
       <div className="w-full flex items-center justify-between">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer py-2 min-h-[44px]"
         >
           <ArrowLeft size={16} />
           New check
         </button>
         <button
           onClick={handleCopy}
-          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer py-2 min-h-[44px]"
         >
           {shareStatus === "copied" ? <Check size={14} /> : <Copy size={14} />}
           {shareStatus === "copied" ? "Copied" : "Share"}
@@ -133,18 +136,18 @@ export function PreSendResultPanel({
         <div className="grid grid-cols-3 gap-3 text-center">
           <div>
             <p className="text-lg font-semibold text-foreground">
-              {preSendResult.reuseCount}
-            </p>
-            <p className="text-xs text-muted">Times used</p>
-          </div>
-          <div>
-            <p className="text-lg font-semibold text-foreground">
               {preSendResult.txCount}
             </p>
             <p className="text-xs text-muted">Transactions</p>
           </div>
           <div>
             <p className="text-lg font-semibold text-foreground">
+              {preSendResult.timesReceived}
+            </p>
+            <p className="text-xs text-muted">Times received</p>
+          </div>
+          <div>
+            <p className="text-lg font-semibold text-foreground truncate">
               {formatBtc(preSendResult.totalReceived)}
             </p>
             <p className="text-xs text-muted">Total received</p>
@@ -193,15 +196,15 @@ export function PreSendResultPanel({
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 text-bitcoin hover:text-bitcoin-hover transition-colors"
         >
-          View on mempool.space
+          {explorerLabel}
           <ExternalLink size={13} />
         </a>
       </div>
 
       {/* Disclaimer */}
-      <div className="w-full bg-surface-inset rounded-lg px-4 py-3 text-xs text-muted/50 leading-relaxed">
+      <div className="w-full bg-surface-inset rounded-lg px-4 py-3 text-xs text-muted/70 leading-relaxed">
         Pre-send check completed{durationMs ? ` in ${(durationMs / 1000).toFixed(1)}s` : ""}.
-        Analysis ran entirely in your browser. This is a heuristic-based assessment — always verify independently.
+        Analysis ran entirely in your browser. This is a heuristic-based assessment - always verify independently.
       </div>
     </motion.div>
   );

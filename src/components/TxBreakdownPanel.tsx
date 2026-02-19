@@ -36,6 +36,7 @@ export function TxBreakdownPanel({
 }: TxBreakdownPanelProps) {
   const [expandedTx, setExpandedTx] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"grade" | "time">("grade");
+  const [visibleCount, setVisibleCount] = useState(10);
 
   const sorted = [...breakdown].sort((a, b) => {
     if (sortBy === "grade") return a.score - b.score; // worst first
@@ -77,7 +78,7 @@ export function TxBreakdownPanel({
       )}
 
       <div className="space-y-1.5">
-        {sorted.map((item) => {
+        {sorted.slice(0, visibleCount).map((item) => {
           const isExpanded = expandedTx === item.txid;
           const role = ROLE_CONFIG[item.role];
           const RoleIcon = role.icon;
@@ -164,6 +165,15 @@ export function TxBreakdownPanel({
           );
         })}
       </div>
+
+      {visibleCount < sorted.length && (
+        <button
+          onClick={() => setVisibleCount((prev) => Math.min(prev + 10, sorted.length))}
+          className="w-full py-2 text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
+        >
+          Show more ({sorted.length - visibleCount} remaining)
+        </button>
+      )}
     </motion.div>
   );
 }

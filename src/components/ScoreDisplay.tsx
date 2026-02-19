@@ -80,7 +80,7 @@ export function ScoreDisplay({ score, grade }: ScoreDisplayProps) {
         </motion.span>
         <span className="text-2xl text-muted tabular-nums">
           {displayScore}
-          <span className="text-muted/50">/100</span>
+          <span className="text-muted/70">/100</span>
         </span>
       </div>
 
@@ -98,16 +98,16 @@ export function ScoreDisplay({ score, grade }: ScoreDisplayProps) {
           {[25, 50, 75, 90].map((threshold) => (
             <div
               key={threshold}
-              className="absolute top-0 w-px h-1.5 bg-muted/20"
+              className="absolute top-0 w-px h-1.5 bg-muted/60"
               style={{ left: `${threshold}%` }}
             />
           ))}
-          <div className="flex justify-between text-[8px] text-muted/30 mt-1">
+          <div className="flex justify-between text-[10px] text-muted/60 mt-1">
             <span>F</span>
-            <span style={{ position: "absolute", left: "25%" }}>D</span>
-            <span style={{ position: "absolute", left: "50%" }}>C</span>
-            <span style={{ position: "absolute", left: "75%" }}>B</span>
-            <span style={{ position: "absolute", left: "90%" }}>A+</span>
+            <span style={{ position: "absolute", left: "25%", transform: "translateX(-50%)" }}>D</span>
+            <span style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}>C</span>
+            <span style={{ position: "absolute", left: "75%", transform: "translateX(-50%)" }}>B</span>
+            <span style={{ position: "absolute", left: "90%", transform: "translateX(-50%)" }}>A+</span>
           </div>
         </div>
       </div>

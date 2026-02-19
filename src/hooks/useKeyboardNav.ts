@@ -50,8 +50,8 @@ export function useKeyboardNav({
         return;
       }
 
-      // Backspace: go back
-      if (e.key === "Backspace") {
+      // Backspace: go back (only when no interactive element is focused)
+      if (e.key === "Backspace" && document.activeElement === document.body) {
         e.preventDefault();
         onBack?.();
         return;

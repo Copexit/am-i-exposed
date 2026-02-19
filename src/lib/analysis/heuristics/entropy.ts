@@ -23,7 +23,10 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
     .filter((v) => !v.is_coinbase)
     .map((v) => v.prevout?.value)
     .filter((v): v is number => v != null);
-  const outputs = tx.vout.map((v) => v.value);
+  // Filter to spendable outputs (exclude OP_RETURN and other non-spendable)
+  const outputs = tx.vout
+    .filter((o) => o.scriptpubkey_type !== "op_return" && o.value > 0)
+    .map((v) => v.value);
 
   // Coinbase transactions have no privacy implications
   if (inputs.length === 0) return { findings: [] };
@@ -53,15 +56,19 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
     inputs.length <= MAX_ENUMERABLE_SIZE &&
     outputs.length <= MAX_ENUMERABLE_SIZE
   ) {
-    const validMappings = countValidMappings(inputs, outputs);
+    const { count: validMappings, truncated } = countValidMappings(inputs, outputs);
     entropyBits = validMappings > 1 ? Math.log2(validMappings) : 0;
-    method = "exact enumeration";
+    method = truncated ? "lower-bound estimate" : "exact enumeration";
   } else {
     entropyBits = estimateEntropy(inputs, outputs);
-    method = "estimation";
+    method = "structural upper bound";
   }
 
-  const roundedEntropy = Math.round(entropyBits * 100) / 100;
+  // Cap displayed entropy to avoid misleadingly large values from estimation.
+  // The estimation formula overestimates for large CoinJoins because it doesn't
+  // account for subset-sum constraints. Cap display at 64 bits (practical maximum).
+  const displayEntropy = Math.min(entropyBits, 64);
+  const roundedEntropy = Math.round(displayEntropy * 100) / 100;
 
   if (roundedEntropy <= 0) {
     return {
@@ -81,7 +88,8 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
     };
   }
 
-  const impact = Math.min(Math.floor(entropyBits * 3), 15);
+  // Conservative scaling: low entropy gets modest impact, high entropy rewarded more
+  const impact = entropyBits < 1 ? 0 : Math.min(Math.floor(entropyBits * 2), 15);
 
   return {
     findings: [
@@ -90,8 +98,11 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
         severity: impact >= 10 ? "good" : impact >= 5 ? "low" : "medium",
         title: `Transaction entropy: ${roundedEntropy} bits`,
         description:
-          `This transaction has ${roundedEntropy} bits of entropy (via ${method}), meaning there are ~${Math.round(Math.pow(2, entropyBits))} valid interpretations ` +
-          "of the fund flow. Higher entropy makes chain analysis less reliable.",
+          `This transaction has ${roundedEntropy} bits of entropy (via ${method}), meaning there are ` +
+          (method === "structural upper bound" ? "up to " : "") +
+          `~${Math.round(Math.pow(2, displayEntropy)).toLocaleString()} ` +
+          (method === "structural upper bound" ? "possible" : "valid") +
+          " interpretations of the fund flow. Higher entropy makes chain analysis less reliable.",
         recommendation:
           entropyBits >= 4
             ? "Good entropy level. CoinJoin transactions can achieve even higher entropy."
@@ -109,7 +120,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
  * (sum of assigned outputs <= input value). This is a simplified model
  * that counts subset-sum valid partitions.
  */
-function countValidMappings(inputs: number[], outputs: number[]): number {
+function countValidMappings(inputs: number[], outputs: number[]): { count: number; truncated: boolean } {
   const n = inputs.length;
   const m = outputs.length;
 
@@ -119,7 +130,7 @@ function countValidMappings(inputs: number[], outputs: number[]): number {
   const totalOutput = outputs.reduce((s, v) => s + v, 0);
 
   // If total input < total output (shouldn't happen in valid tx), no valid mappings
-  if (totalInput < totalOutput) return 1;
+  if (totalInput < totalOutput) return { count: 1, truncated: false };
 
   // Simple approach: for each permutation of input assignment, check validity.
   // For small transactions, we enumerate which input each output maps to.
@@ -154,7 +165,7 @@ function countValidMappings(inputs: number[], outputs: number[]): number {
   }
 
   count = enumerate(0, [...inputs]);
-  return Math.max(count, 1);
+  return { count: Math.max(count, 1), truncated: iterations > limit };
 }
 
 /**
@@ -173,13 +184,15 @@ function estimateEntropy(inputs: number[], outputs: number[]): number {
     if (count > maxGroupSize) maxGroupSize = count;
   }
 
-  // Entropy estimate: equal outputs create ambiguity
-  // n equal outputs among m inputs gives roughly log2(m^n / n!) bits
+  // Entropy estimate: equal outputs create ambiguity because each equal output
+  // could plausibly map to any input capable of funding it.
+  // n equal outputs among m inputs gives roughly n * log2(m) bits
+  // (each equal output has m possible source inputs)
   if (maxGroupSize >= 2) {
     const n = maxGroupSize;
-    const m = Math.min(inputs.length, n);
-    // Simplified: log2(C(inputs, equalOutputs)) for the largest group
-    return Math.log2(factorial(m)) / Math.log2(2);
+    const m = inputs.length;
+    if (m <= 1) return 0;
+    return n * Math.log2(m);
   }
 
   // All unique outputs: entropy from input-output pairing ambiguity
@@ -187,9 +200,3 @@ function estimateEntropy(inputs: number[], outputs: number[]): number {
   return minDim > 1 ? Math.log2(minDim) : 0;
 }
 
-function factorial(n: number): number {
-  if (n <= 1) return 1;
-  let result = 1;
-  for (let i = 2; i <= n; i++) result *= i;
-  return result;
-}

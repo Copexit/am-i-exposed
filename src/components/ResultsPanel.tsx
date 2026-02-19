@@ -26,7 +26,7 @@ function ScoringExplainer() {
     <div className="w-full">
       <button
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1.5 text-xs text-muted/50 hover:text-muted transition-colors cursor-pointer px-1"
+        className="inline-flex items-center gap-1.5 text-xs text-foreground/70 hover:text-foreground transition-colors cursor-pointer px-1 min-h-[44px]"
       >
         <Info size={12} />
         How scoring works
@@ -54,7 +54,7 @@ function ScoringExplainer() {
                 <strong className="text-severity-critical">F (&lt;25)</strong>
               </p>
               <p>
-                The engine runs 17 heuristics based on published chain analysis research.
+                The engine runs 16 heuristics based on published chain analysis research.
                 Scores are clamped to 0-100. CoinJoin transactions receive adjusted
                 scoring that accounts for their privacy-enhancing properties.
               </p>
@@ -134,10 +134,13 @@ export function ResultsPanel({
   onScan,
   durationMs,
 }: ResultsPanelProps) {
-  const { config } = useNetwork();
+  const { config, customApiUrl } = useNetwork();
   const [shareStatus, setShareStatus] = useState<"idle" | "copied" | "failed">("idle");
 
   const explorerUrl = `${config.explorerUrl}/${inputType === "txid" ? "tx" : "address"}/${query}`;
+  const explorerLabel = customApiUrl
+    ? `View on ${new URL(config.explorerUrl).hostname}`
+    : "View on mempool.space";
 
   const handleShare = async () => {
     const shareUrl = `${window.location.origin}${window.location.pathname}#${inputType === "txid" ? "tx" : "addr"}=${query}`;
@@ -163,17 +166,17 @@ export function ResultsPanel({
       <div className="w-full flex items-center justify-between">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer py-2 min-h-[44px]"
         >
           <ArrowLeft size={16} />
           New scan
         </button>
 
         <div className="flex items-center gap-4">
-          <ExportButton targetId="results-panel" query={query} result={result} />
+          <ExportButton targetId="results-panel" query={query} result={result} inputType={inputType} />
           <button
             onClick={handleShare}
-            className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer py-2 min-h-[44px]"
           >
             {shareStatus === "copied" ? <Check size={14} /> : <Copy size={14} />}
             {shareStatus === "copied" ? "Copied" : shareStatus === "failed" ? "Failed" : "Share"}
@@ -290,14 +293,14 @@ export function ResultsPanel({
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 text-bitcoin hover:text-bitcoin-hover transition-colors"
         >
-          View on mempool.space
+          {explorerLabel}
           <ExternalLink size={13} />
         </a>
       </div>
 
       {/* Disclaimer */}
-      <div className="w-full bg-surface-inset rounded-lg px-4 py-3 text-xs text-muted/50 leading-relaxed">
-        {result.findings.length} findings from {inputType === "txid" ? "13" : "4"} heuristics
+      <div className="w-full bg-surface-inset rounded-lg px-4 py-3 text-xs text-muted/70 leading-relaxed">
+        {result.findings.length} findings from {inputType === "txid" ? "12" : "4"} heuristics
         {txBreakdown ? ` + ${txBreakdown.length} transactions analyzed` : ""}
         {durationMs ? ` in ${(durationMs / 1000).toFixed(1)}s` : ""}.
         Analysis ran entirely in your browser. API queries were sent to{" "}
@@ -307,8 +310,8 @@ export function ResultsPanel({
         Scores are heuristic-based estimates, not definitive privacy assessments.
       </div>
 
-      <div className="text-xs text-muted/30 pb-4">
-        Press <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted/50 font-mono">Esc</kbd> for new scan
+      <div className="text-xs text-muted/70 pb-4 hidden sm:block">
+        Press <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted/70 font-mono">Esc</kbd> for new scan
       </div>
     </motion.div>
   );

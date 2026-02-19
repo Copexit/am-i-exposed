@@ -25,7 +25,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
             <span className="text-sm font-medium text-foreground/80">
               Cluster Analysis
             </span>
-            <span className="text-[10px] text-muted/50 bg-surface-elevated px-1.5 py-0.5 rounded">
+            <span className="text-[10px] text-muted/70 bg-surface-elevated px-1.5 py-0.5 rounded">
               H14
             </span>
           </div>
@@ -107,7 +107,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
         <span className="text-sm font-medium text-foreground/80">
           Cluster Analysis
         </span>
-        <span className="text-[10px] text-muted/50 bg-surface-elevated px-1.5 py-0.5 rounded">
+        <span className="text-[10px] text-muted/70 bg-surface-elevated px-1.5 py-0.5 rounded">
           H14
         </span>
       </div>
@@ -220,7 +220,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
       )}
 
       {/* Disclaimer */}
-      <p className="text-[10px] text-muted/40 leading-relaxed">
+      <p className="text-[10px] text-muted/60 leading-relaxed">
         This is a lower-bound estimate based on one-hop CIOH analysis of the {result.txsAnalyzed} most recent transactions.
         The actual cluster may be larger.
       </p>

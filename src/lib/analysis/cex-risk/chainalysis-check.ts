@@ -1,6 +1,6 @@
 import type { ChainalysisIdentification } from "./types";
 
-// Cloudflare Worker proxy — avoids CORS and keeps API key server-side.
+// Cloudflare Worker proxy - avoids CORS and keeps API key server-side.
 // Deploy from workers/chainalysis-proxy/ with `wrangler deploy`.
 // Falls back to direct API call (works in non-browser environments).
 const PROXY_BASE =
@@ -15,9 +15,11 @@ interface ChainalysisResponse {
 
 async function checkSingleAddress(
   address: string,
+  signal?: AbortSignal,
 ): Promise<{ sanctioned: boolean; identifications: ChainalysisIdentification[] }> {
   const res = await fetch(`${PROXY_BASE}/${address}`, {
     headers: { Accept: "application/json" },
+    signal,
   });
 
   if (!res.ok) {
@@ -33,6 +35,7 @@ async function checkSingleAddress(
 
 export async function checkChainalysis(
   addresses: string[],
+  signal?: AbortSignal,
 ): Promise<{
   sanctioned: boolean;
   identifications: ChainalysisIdentification[];
@@ -43,7 +46,8 @@ export async function checkChainalysis(
   const matchedAddresses: string[] = [];
 
   for (const addr of toCheck) {
-    const result = await checkSingleAddress(addr);
+    signal?.throwIfAborted();
+    const result = await checkSingleAddress(addr, signal);
     if (result.sanctioned) {
       matchedAddresses.push(addr);
       allIdentifications.push(...result.identifications);

@@ -65,9 +65,9 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
         </span>
       </div>
 
-      <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-start">
+      <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-start overflow-hidden">
         {/* Inputs */}
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0">
           {inputsToShow.map((vin, i) => {
             const addr = vin.prevout?.scriptpubkey_address;
             const isHighlighted = highlightAddress && addr === highlightAddress;
@@ -82,7 +82,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
                 ) : addr && onAddressClick ? (
                   <button
                     onClick={() => onAddressClick(addr)}
-                    className="hover:text-bitcoin transition-colors cursor-pointer"
+                    className="hover:text-bitcoin transition-colors cursor-pointer py-0.5"
                     title={`Scan ${addr}`}
                   >
                     {truncateAddr(addr)}
@@ -99,7 +99,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
             );
           })}
           {hiddenInputs > 0 && (
-            <div className="text-xs text-muted/40">
+            <div className="text-xs text-muted/60">
               +{hiddenInputs} more
             </div>
           )}
@@ -107,11 +107,11 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
 
         {/* Arrow column */}
         <div className="flex items-center justify-center pt-1">
-          <ArrowRight size={14} className="text-muted/30" />
+          <ArrowRight size={14} className="text-muted/70" />
         </div>
 
         {/* Outputs */}
-        <div className="space-y-1">
+        <div className="space-y-1 min-w-0">
           {outputsToShow.map((vout, i) => {
             const anonSet = valueCounts.get(vout.value) ?? 1;
             const color = groupColors.get(vout.value);
@@ -126,7 +126,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
                 {outAddr && onAddressClick ? (
                   <button
                     onClick={() => onAddressClick(outAddr)}
-                    className="hover:text-bitcoin transition-colors cursor-pointer"
+                    className="hover:text-bitcoin transition-colors cursor-pointer py-0.5"
                     title={`Scan ${outAddr}`}
                   >
                     {truncateAddr(outAddr)}
@@ -151,7 +151,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
             );
           })}
           {hiddenOutputs > 0 && (
-            <div className="text-xs text-muted/40">
+            <div className="text-xs text-muted/60">
               +{hiddenOutputs} more
             </div>
           )}
@@ -174,7 +174,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
           <span className="w-1.5 h-1.5 rounded-full bg-severity-good/50" />
           Confirmed in block {tx.status.block_height?.toLocaleString()}
           {tx.status.block_time && (
-            <span className="text-muted/40">
+            <span className="text-muted/60">
               ({formatTimeAgo(tx.status.block_time)})
             </span>
           )}

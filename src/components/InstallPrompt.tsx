@@ -85,7 +85,7 @@ export function InstallPrompt() {
             </p>
             <button
               onClick={handleInstall}
-              className="text-xs font-medium text-bitcoin hover:text-bitcoin-hover transition-colors cursor-pointer"
+              className="text-xs font-medium text-bitcoin bg-bitcoin/10 hover:bg-bitcoin/20 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
             >
               Install now
             </button>

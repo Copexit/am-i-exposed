@@ -41,7 +41,7 @@ export function ScoreBreakdown({ findings, finalScore }: ScoreBreakdownProps) {
     <div className="w-full">
       <button
         onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1.5 text-xs text-muted/50 hover:text-muted transition-colors cursor-pointer px-1"
+        className="inline-flex items-center gap-1.5 text-xs text-foreground/70 hover:text-foreground transition-colors cursor-pointer px-1 min-h-[44px]"
       >
         <BarChart3 size={12} />
         Score breakdown
@@ -119,7 +119,7 @@ export function ScoreBreakdown({ findings, finalScore }: ScoreBreakdownProps) {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-muted/50">Final:</span>
+                  <span className="text-muted/70">Final:</span>
                   <span className="text-foreground font-bold font-mono tabular-nums">
                     {finalScore}/100
                   </span>

@@ -5,9 +5,9 @@ import type {
   MempoolUtxo,
 } from "./types";
 
-export function createEsploraClient(baseUrl: string) {
+export function createEsploraClient(baseUrl: string, signal?: AbortSignal) {
   async function get<T>(path: string): Promise<T> {
-    const res = await fetchWithRetry(`${baseUrl}${path}`);
+    const res = await fetchWithRetry(`${baseUrl}${path}`, { signal });
     try {
       return await res.json();
     } catch {
@@ -16,7 +16,7 @@ export function createEsploraClient(baseUrl: string) {
   }
 
   async function getText(path: string): Promise<string> {
-    const res = await fetchWithRetry(`${baseUrl}${path}`);
+    const res = await fetchWithRetry(`${baseUrl}${path}`, { signal });
     return res.text();
   }
 
@@ -33,8 +33,25 @@ export function createEsploraClient(baseUrl: string) {
       return get(`/address/${address}`);
     },
 
-    getAddressTxs(address: string): Promise<MempoolTransaction[]> {
-      return get(`/address/${address}/txs`);
+    async getAddressTxs(address: string, maxPages = 4): Promise<MempoolTransaction[]> {
+      const allTxs: MempoolTransaction[] = [];
+
+      const firstPage = await get<MempoolTransaction[]>(`/address/${address}/txs`);
+      allTxs.push(...firstPage);
+
+      let page = 1;
+      while (firstPage.length === 25 && page < maxPages && allTxs.length < 200 && !signal?.aborted) {
+        const lastTxid = allTxs[allTxs.length - 1].txid;
+        const nextPage = await get<MempoolTransaction[]>(
+          `/address/${address}/txs/chain/${lastTxid}`,
+        );
+        if (nextPage.length === 0) break;
+        allTxs.push(...nextPage);
+        if (nextPage.length < 25) break;
+        page++;
+      }
+
+      return allTxs;
     },
 
     getAddressUtxos(address: string): Promise<MempoolUtxo[]> {

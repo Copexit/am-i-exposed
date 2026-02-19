@@ -58,6 +58,33 @@ export function ApiSettings() {
     }
   }, [open]);
 
+  // Focus trap when panel is open
+  useEffect(() => {
+    if (!open || !panelRef.current) return;
+    const savedFocus = document.activeElement as HTMLElement | null;
+    function handleTrap(e: KeyboardEvent) {
+      if (e.key !== "Tab" || !panelRef.current) return;
+      const focusable = panelRef.current.querySelectorAll<HTMLElement>(
+        'button, input, a, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", handleTrap);
+    return () => {
+      document.removeEventListener("keydown", handleTrap);
+      savedFocus?.focus();
+    };
+  }, [open]);
+
   const checkHealth = useCallback(
     async (url: string) => {
       const trimmed = url.trim().replace(/\/+$/, "");
@@ -135,6 +162,13 @@ export function ApiSettings() {
       </button>
 
       {open && (
+        <>
+        {/* Mobile backdrop */}
+        <div
+          className="fixed inset-0 bg-black/40 z-40 sm:hidden"
+          onClick={() => setOpen(false)}
+          aria-hidden="true"
+        />
         <div className="fixed inset-x-0 top-[60px] mx-3 sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mx-0 sm:mt-2 sm:w-96 bg-surface-elevated border border-card-border rounded-xl shadow-xl z-50 p-4 space-y-3 max-h-[80vh] overflow-y-auto">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-foreground/70 uppercase tracking-wider">
@@ -162,7 +196,7 @@ export function ApiSettings() {
                 setErrorHint("");
               }}
               placeholder="https://mempool.space/api"
-              className="flex-1 bg-surface-inset border border-card-border rounded-lg px-3 py-1.5 text-sm text-foreground font-mono placeholder:text-muted/50 focus:outline-none focus:border-bitcoin/50"
+              className="flex-1 bg-surface-inset border border-card-border rounded-lg px-3 py-1.5 text-sm text-foreground font-mono placeholder:text-muted/50 focus-visible:border-bitcoin/50"
             />
             <button
               type="submit"
@@ -262,7 +296,7 @@ export function ApiSettings() {
                   </p>
                 </div>
 
-                <p className="text-muted/50">
+                <p className="text-muted/70">
                   <a
                     href="https://github.com/Copexit/am-i-exposed/blob/main/onion.md"
                     target="_blank"
@@ -276,6 +310,7 @@ export function ApiSettings() {
             )}
           </div>
         </div>
+        </>
       )}
     </div>
   );

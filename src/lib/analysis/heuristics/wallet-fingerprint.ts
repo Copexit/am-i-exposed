@@ -17,24 +17,25 @@ import type { Finding, Severity } from "@/lib/types";
  */
 export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
   const findings: Finding[] = [];
+
+  // Skip coinbase transactions (mining pool software fingerprinting is not meaningful here)
+  if (tx.vin.some((v) => v.is_coinbase)) return { findings };
+
   const signals: string[] = [];
   let walletGuess: string | null = null;
 
   // --- nLockTime analysis ---
-  if (tx.locktime === 0) {
-    signals.push("nLockTime=0 (non-Core wallet pattern)");
-  } else if (tx.locktime > 0 && tx.locktime < 500_000_000) {
+  // nLockTime=0 is too common (~40-50% of all txs) to be a useful fingerprint.
+  // Only flag the positive signal: block-height locktime (Bitcoin Core anti-fee-sniping).
+  if (tx.locktime > 0 && tx.locktime < 500_000_000) {
     // Looks like a block height - Bitcoin Core anti-fee-sniping
     signals.push("nLockTime set to block height (Bitcoin Core pattern)");
     walletGuess = "Bitcoin Core";
   }
 
-  // --- nVersion analysis ---
-  if (tx.version === 1) {
-    signals.push("nVersion=1 (legacy, pre-BIP68)");
-  } else if (tx.version === 2) {
-    signals.push("nVersion=2 (BIP68 relative locktime support)");
-  }
+  // nVersion is too generic to be a useful fingerprint: nearly all modern
+  // wallets use version 2 (BIP68), and version 1 just means older software.
+  // Neither value narrows wallet identification meaningfully.
 
   // --- nSequence analysis ---
   const sequences = tx.vin
@@ -54,7 +55,11 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
   }
 
   // --- BIP69 lexicographic ordering check ---
-  if (tx.vin.length > 1 || tx.vout.length > 1) {
+  // Require at least 2 on each side and at least one side >= 3 to reduce false positives.
+  // 1-input + 3-output has ~16.7% chance of random BIP69 compliance (too noisy).
+  // 2-input + 3-output: ~8.3% false positive rate (acceptable).
+  if (tx.vin.length >= 2 && tx.vout.length >= 2 &&
+      (tx.vin.length >= 3 || tx.vout.length >= 3)) {
     const isBip69 = checkBip69(tx);
     if (isBip69) {
       // Whirlpool/Samourai also use BIP69 - check for CoinJoin patterns
@@ -125,13 +130,14 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
 };
 
 /** Whirlpool pool denominations (in sats). */
-const WHIRLPOOL_DENOMS = [100_000, 1_000_000, 5_000_000, 50_000_000];
+const WHIRLPOOL_DENOMS = [50_000, 100_000, 500_000, 1_000_000, 5_000_000, 50_000_000];
 
-/** Detect Whirlpool CoinJoin pattern: 5 equal outputs at known denominations, BIP69 ordered. */
+/** Detect Whirlpool CoinJoin pattern: 5 equal outputs at known denominations (5-8 total outputs). */
 function detectWhirlpoolPattern(
   tx: { vin: Array<{ txid: string; vout: number }>; vout: Array<{ value: number; scriptpubkey: string }> },
 ): boolean {
-  if (tx.vout.length < 5) return false;
+  // Whirlpool txs have 5-8 outputs (5 equal + optional coordinator fees)
+  if (tx.vout.length < 5 || tx.vout.length > 8) return false;
   for (const denom of WHIRLPOOL_DENOMS) {
     if (tx.vout.filter((o) => o.value === denom).length === 5) return true;
   }

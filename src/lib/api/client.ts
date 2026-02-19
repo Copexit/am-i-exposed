@@ -12,13 +12,13 @@ import type {
  * Unified API client that tries the primary API (mempool.space) first,
  * then falls back to Esplora (blockstream.info) on mainnet.
  */
-export function createApiClient(config: NetworkConfig) {
-  const mempool = createMempoolClient(config.mempoolBaseUrl);
+export function createApiClient(config: NetworkConfig, signal?: AbortSignal) {
+  const mempool = createMempoolClient(config.mempoolBaseUrl, signal);
 
   // Esplora fallback only available on mainnet
   const esplora: EsploraClient | null =
     config.esploraBaseUrl !== config.mempoolBaseUrl
-      ? createEsploraClient(config.esploraBaseUrl)
+      ? createEsploraClient(config.esploraBaseUrl, signal)
       : null;
 
   async function withFallback<T>(
