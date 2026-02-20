@@ -1,13 +1,11 @@
-const CACHE_NAME = "ami-exposed-v1";
+const CACHE_NAME = "ami-exposed-v2";
 const OFFLINE_URL = "/offline.html";
-
-const PRECACHE_URLS = ["/", "/offline.html"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) => cache.addAll(PRECACHE_URLS))
+      .then((cache) => cache.addAll([OFFLINE_URL]))
       .then(() => self.skipWaiting()),
   );
 });
@@ -28,42 +26,48 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  // Only handle GET requests
   if (event.request.method !== "GET") return;
 
-  // Skip all cross-origin requests (API calls, custom endpoints, etc.)
   const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin) {
-    return;
-  }
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
+  // Skip cross-origin requests (API calls, custom endpoints, etc.)
+  if (url.origin !== self.location.origin) return;
 
-      return fetch(event.request)
-        .then((response) => {
-          // Cache successful responses for static assets
-          if (
-            response.ok &&
-            (url.pathname.endsWith(".js") ||
-              url.pathname.endsWith(".css") ||
-              url.pathname.endsWith(".svg") ||
-              url.pathname.endsWith(".woff2") ||
-              url.pathname.endsWith(".json"))
-          ) {
+  // Content-hashed assets (_next/static/*) are immutable - cache-first is safe
+  if (url.pathname.startsWith("/_next/static/")) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((response) => {
+          if (response.ok) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           }
           return response;
-        })
-        .catch(() => {
-          // Offline fallback for navigation requests
+        });
+      }),
+    );
+    return;
+  }
+
+  // HTML and everything else: network-first, fall back to cache
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
+      })
+      .catch(() => {
+        return caches.match(event.request).then((cached) => {
+          if (cached) return cached;
           if (event.request.mode === "navigate") {
             return caches.match(OFFLINE_URL);
           }
           return new Response("Offline", { status: 503 });
         });
-    }),
+      }),
   );
 });
