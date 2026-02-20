@@ -39,6 +39,17 @@ server {
         proxy_connect_timeout 5s;
     }
 
+    # Reverse proxy: forward /tor-proxy/* to the Tor proxy sidecar
+    location /tor-proxy/ {
+        proxy_pass http://${APP_TOR_PROXY_IP}:${APP_TOR_PROXY_PORT}/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+        proxy_connect_timeout 5s;
+    }
+
     # SPA fallback: serve index.html for all non-file routes
     location / {
         try_files $uri $uri/ /index.html;

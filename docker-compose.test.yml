@@ -6,13 +6,25 @@ services:
     environment:
       APP_MEMPOOL_IP: mempool-proxy
       APP_MEMPOOL_PORT: "80"
+      APP_TOR_PROXY_IP: tor-proxy
+      APP_TOR_PROXY_PORT: "3001"
     volumes:
       - ./out:/usr/share/nginx/html:ro
       - ./umbrel/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
     depends_on:
       - mempool-proxy
+      - tor-proxy
 
   mempool-proxy:
     image: nginx:1.27-alpine
     volumes:
       - ./umbrel/test-mempool-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+
+  tor-proxy:
+    build: ./umbrel/tor-proxy
+    environment:
+      PORT: "3001"
+      # No real Tor in test env - Chainalysis requests will 502,
+      # which validates the fallback dialog flow
+      TOR_PROXY_IP: "127.0.0.1"
+      TOR_PROXY_PORT: "9050"

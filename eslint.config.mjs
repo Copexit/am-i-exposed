@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Standalone Node.js sidecar (CommonJS, not part of Next.js app)
+    "umbrel/tor-proxy/**",
   ]),
 ]);
 
