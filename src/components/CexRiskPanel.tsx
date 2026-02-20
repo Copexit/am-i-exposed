@@ -13,8 +13,14 @@ import {
   RotateCw,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useNetwork } from "@/context/NetworkContext";
 import { checkOfac } from "@/lib/analysis/cex-risk/ofac-check";
-import { checkChainalysis } from "@/lib/analysis/cex-risk/chainalysis-check";
+import {
+  checkChainalysis,
+  checkChainalysisViaTor,
+  checkChainalysisDirect,
+  type ChainalysisRoute,
+} from "@/lib/analysis/cex-risk/chainalysis-check";
 import { extractTxAddresses } from "@/lib/analysis/cex-risk/extract-addresses";
 import type { ChainalysisCheckResult } from "@/lib/analysis/cex-risk/types";
 import type { InputType } from "@/lib/types";
@@ -28,6 +34,8 @@ interface CexRiskPanelProps {
 
 export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
   const { t } = useTranslation();
+  const { localApiStatus } = useNetwork();
+  const isUmbrel = localApiStatus === "available";
   const [open, setOpen] = useState(true);
 
   // Derive addresses to check
@@ -48,6 +56,9 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
     matchedAddresses: [],
   });
 
+  const [showFallbackConfirm, setShowFallbackConfirm] = useState(false);
+  const [routeUsed, setRouteUsed] = useState<ChainalysisRoute | null>(null);
+
   // AbortController to cancel in-flight chainalysis requests on unmount/re-render
   const abortRef = useRef<AbortController | null>(null);
 
@@ -63,8 +74,71 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
     abortRef.current = controller;
 
     setChainalysis((prev) => ({ ...prev, status: "loading" }));
+    setRouteUsed(null);
+    setShowFallbackConfirm(false);
+
     try {
+      if (isUmbrel) {
+        // Umbrel mode: try Tor proxy first
+        try {
+          const result = await checkChainalysisViaTor(
+            addresses,
+            controller.signal,
+          );
+          setRouteUsed(result.route);
+          setChainalysis({
+            status: "done",
+            sanctioned: result.sanctioned,
+            identifications: result.identifications,
+            matchedAddresses: result.matchedAddresses,
+          });
+          return;
+        } catch (torErr) {
+          if (
+            torErr instanceof DOMException &&
+            torErr.name === "AbortError"
+          )
+            return;
+          // Tor proxy failed - ask user before falling back to direct
+          setChainalysis((prev) => ({ ...prev, status: "idle" }));
+          setShowFallbackConfirm(true);
+          return;
+        }
+      }
+
+      // Non-Umbrel: direct check (original behavior)
       const result = await checkChainalysis(addresses, controller.signal);
+      setRouteUsed("direct");
+      setChainalysis({
+        status: "done",
+        sanctioned: result.sanctioned,
+        identifications: result.identifications,
+        matchedAddresses: result.matchedAddresses,
+      });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      setChainalysis((prev) => ({
+        ...prev,
+        status: "error",
+        error: err instanceof Error ? err.message : "Request failed",
+      }));
+    }
+  }, [addresses, isUmbrel]);
+
+  const runChainalysisDirect = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setChainalysis((prev) => ({ ...prev, status: "loading" }));
+    setShowFallbackConfirm(false);
+
+    try {
+      const result = await checkChainalysisDirect(
+        addresses,
+        controller.signal,
+      );
+      setRouteUsed(result.route);
       setChainalysis({
         status: "done",
         sanctioned: result.sanctioned,
@@ -211,19 +285,34 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
                       {t("cex.chainalysisTitle", { defaultValue: "Chainalysis Screening" })}
                     </span>
                     {chainalysis.status === "done" && (
-                      <span
-                        className={`text-xs font-medium px-1.5 py-0.5 rounded ${
-                          chainalysis.sanctioned
-                            ? "bg-severity-critical/10 text-severity-critical"
-                            : "bg-severity-good/10 text-severity-good"
-                        }`}
-                      >
-                        {chainalysis.sanctioned ? t("cex.flagged", { defaultValue: "FLAGGED" }) : t("cex.clear", { defaultValue: "Clear" })}
-                      </span>
+                      <>
+                        <span
+                          className={`text-xs font-medium px-1.5 py-0.5 rounded ${
+                            chainalysis.sanctioned
+                              ? "bg-severity-critical/10 text-severity-critical"
+                              : "bg-severity-good/10 text-severity-good"
+                          }`}
+                        >
+                          {chainalysis.sanctioned ? t("cex.flagged", { defaultValue: "FLAGGED" }) : t("cex.clear", { defaultValue: "Clear" })}
+                        </span>
+                        {routeUsed && (
+                          <span
+                            className={`text-xs px-1.5 py-0.5 rounded ${
+                              routeUsed === "tor-proxy"
+                                ? "bg-severity-good/10 text-severity-good"
+                                : "bg-severity-medium/10 text-severity-medium"
+                            }`}
+                          >
+                            {routeUsed === "tor-proxy"
+                              ? t("cex.routedViaTor", { defaultValue: "via Tor" })
+                              : t("cex.routedDirect", { defaultValue: "direct" })}
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
 
-                  {chainalysis.status === "idle" && (
+                  {chainalysis.status === "idle" && !showFallbackConfirm && (
                     <div className="mt-1.5">
                       <button
                         onClick={runChainalysis}
@@ -239,10 +328,37 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
                       </button>
                       <p className="text-xs text-severity-medium mt-1 flex items-center gap-1.5">
                         <AlertTriangle size={12} className="shrink-0" />
-                        {inputType === "txid" && addresses.length > 1
-                          ? t("cex.privacyWarningPlural", { defaultValue: "Sends addresses to chainalysis.com via proxy. The proxy operator also sees the addresses." })
-                          : t("cex.privacyWarningSingular", { defaultValue: "Sends address to chainalysis.com via proxy. The proxy operator also sees the addresses." })}
+                        {isUmbrel
+                          ? t("cex.privacyNoteTor", { defaultValue: "Routed through Tor to protect your IP. Chainalysis sees the address but not your identity." })
+                          : inputType === "txid" && addresses.length > 1
+                            ? t("cex.privacyWarningPlural", { defaultValue: "Sends addresses to chainalysis.com via proxy. The proxy operator also sees the addresses." })
+                            : t("cex.privacyWarningSingular", { defaultValue: "Sends address to chainalysis.com via proxy. The proxy operator also sees the addresses." })}
                       </p>
+                    </div>
+                  )}
+
+                  {showFallbackConfirm && (
+                    <div className="mt-1.5 bg-severity-medium/5 border border-severity-medium/20 rounded-lg p-3 space-y-2">
+                      <p className="text-xs text-severity-medium flex items-center gap-1.5">
+                        <AlertTriangle size={12} className="shrink-0" />
+                        {t("cex.torFailed", {
+                          defaultValue: "Tor proxy is unavailable. Proceeding will send the request directly - Chainalysis and the proxy operator will see your IP address.",
+                        })}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={runChainalysisDirect}
+                          className="text-xs font-medium text-severity-medium hover:text-severity-medium/80 bg-severity-medium/10 hover:bg-severity-medium/20 rounded-lg px-3 py-2 transition-colors cursor-pointer"
+                        >
+                          {t("cex.proceedDirect", { defaultValue: "Proceed without Tor" })}
+                        </button>
+                        <button
+                          onClick={() => setShowFallbackConfirm(false)}
+                          className="text-xs font-medium text-muted hover:text-foreground/80 bg-surface-inset hover:bg-surface-inset/80 rounded-lg px-3 py-2 transition-colors cursor-pointer"
+                        >
+                          {t("cex.cancel", { defaultValue: "Cancel" })}
+                        </button>
+                      </div>
                     </div>
                   )}
 

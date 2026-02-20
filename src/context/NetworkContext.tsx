@@ -40,8 +40,8 @@ const NetworkContext = createContext<NetworkContextValue>({
 export function NetworkProvider({ children }: { children: ReactNode }) {
   const { network, setNetwork } = useUrlState();
   const { customUrl, setCustomUrl } = useCustomApi();
-  const torStatus = useTorDetection();
   const localApiStatus = useLocalApi();
+  const torStatus = useTorDetection(localApiStatus === "available");
   const baseConfig = NETWORK_CONFIG[network];
 
   const config = useMemo(() => {

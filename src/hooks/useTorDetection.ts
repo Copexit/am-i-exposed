@@ -103,12 +103,24 @@ async function checkTor(signal: AbortSignal): Promise<TorStatus> {
   return workerResult;
 }
 
-export function useTorDetection(): TorStatus {
-  const [status, setStatus] = useState<TorStatus>(() =>
-    cachedStatus ?? "checking"
-  );
+/**
+ * @param skip When true (e.g. local API detected on Umbrel), return "clearnet"
+ *   immediately without firing any external checks. This prevents IP leakage
+ *   to tor-check.copexit.workers.dev on every page load.
+ */
+export function useTorDetection(skip?: boolean): TorStatus {
+  const [status, setStatus] = useState<TorStatus>(() => {
+    if (skip) return "clearnet";
+    return cachedStatus ?? "checking";
+  });
 
   useEffect(() => {
+    // Local API available (Umbrel) - skip all external Tor checks.
+    // The useState initializer already returned "clearnet" when skip was
+    // true at mount time. If skip transitions to true after mount
+    // (localApiStatus resolved), the early return prevents firing checks.
+    if (skip) return;
+
     // Already resolved from a previous render / page load
     // (initial state handles this via the useState initializer)
     if (cachedStatus) return;
@@ -131,7 +143,7 @@ export function useTorDetection(): TorStatus {
     });
 
     return () => controller.abort();
-  }, []);
+  }, [skip]);
 
-  return status;
+  return skip ? "clearnet" : status;
 }

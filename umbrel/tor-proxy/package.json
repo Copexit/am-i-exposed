@@ -1,0 +1,11 @@
+{
+  "name": "am-i-exposed-tor-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "socks-proxy-agent": "^8.0.5"
+  }
+}
