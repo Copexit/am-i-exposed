@@ -27,6 +27,18 @@ server {
         proxy_connect_timeout 5s;
     }
 
+    # Strip network prefix for signet/testnet - local mempool already runs on the right network
+    location ~ ^/(signet|testnet4)/api/ {
+        rewrite ^/(signet|testnet4)/api/(.*)$ /api/$2 break;
+        proxy_pass http://${APP_MEMPOOL_IP}:${APP_MEMPOOL_PORT};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 30s;
+        proxy_connect_timeout 5s;
+    }
+
     # SPA fallback: serve index.html for all non-file routes
     location / {
         try_files $uri $uri/ /index.html;
