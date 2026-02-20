@@ -73,7 +73,7 @@ export default function SetupGuidePage() {
             { label: "Why Self-Host", id: "why" },
             { label: "CORS Headers", id: "cors" },
             { label: "SSH Tunnel", id: "ssh-tunnel" },
-            { label: "Umbrel", id: "umbrel" },
+            { label: "Umbrel App", id: "umbrel" },
             { label: "Start9", id: "start9" },
             { label: "Docker", id: "docker" },
             { label: "CORS Proxy", id: "cors-proxy" },
@@ -200,7 +200,71 @@ export default function SetupGuidePage() {
             <Terminal size={22} />
             Umbrel
           </h2>
+
+          {/* Recommended: Umbrel app */}
+          <div className="bg-card-bg border border-bitcoin/30 rounded-xl p-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-bitcoin bg-bitcoin/10 px-2 py-0.5 rounded">
+                Recommended
+              </span>
+            </div>
+            <h3 className="text-lg font-semibold text-foreground">Install the Umbrel App</h3>
+            <p className="text-muted leading-relaxed">
+              The easiest way. Install <span className="text-foreground font-medium">am-i.exposed</span> directly
+              on your Umbrel and it automatically connects to your local mempool instance.
+              No CORS headers, no SSH tunnel, no configuration needed.
+            </p>
+            <ol className="space-y-2 text-muted leading-relaxed">
+              <li className="flex gap-2">
+                <span className="text-bitcoin shrink-0 font-bold">1.</span>
+                <span>
+                  Open your Umbrel dashboard and go to the <strong className="text-foreground">App Store</strong>
+                </span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-bitcoin shrink-0 font-bold">2.</span>
+                <span>
+                  Click the <strong className="text-foreground">three-dot menu</strong> (top right)
+                  and select <strong className="text-foreground">Community App Stores</strong>
+                </span>
+              </li>
+              <li className="flex gap-2">
+                <span className="text-bitcoin shrink-0 font-bold">3.</span>
+                <span>
+                  Paste the store URL and click <strong className="text-foreground">Add</strong>:
+                </span>
+              </li>
+            </ol>
+            <div className="relative">
+              <pre className="bg-surface-inset rounded-lg p-3 text-sm font-mono overflow-x-auto text-bitcoin">
+                https://github.com/Copexit/copexit-umbrel-app-store
+              </pre>
+              <CopyButton text="https://github.com/Copexit/copexit-umbrel-app-store" />
+            </div>
+            <ol start={4} className="space-y-2 text-muted leading-relaxed">
+              <li className="flex gap-2">
+                <span className="text-bitcoin shrink-0 font-bold">4.</span>
+                <span>
+                  Find <strong className="text-foreground">am-i.exposed</strong> in the store and click <strong className="text-foreground">Install</strong>
+                </span>
+              </li>
+            </ol>
+            <p className="text-muted leading-relaxed">
+              The app detects your local mempool automatically. All API requests stay on your local network
+              and Chainalysis lookups are routed through a built-in Tor proxy.
+            </p>
+          </div>
+
+          {/* Alternative: manual setup */}
           <div className="bg-card-bg border border-card-border rounded-xl p-6 space-y-5">
+            <h3 className="text-lg font-semibold text-foreground">
+              Alternative: Use the Website with Your Umbrel Node
+            </h3>
+            <p className="text-muted leading-relaxed">
+              If you prefer using <span className="text-foreground font-medium">am-i.exposed</span> from the public
+              website instead of the Umbrel app, you can point it at your Umbrel&apos;s mempool instance.
+              This requires CORS headers and an SSH tunnel.
+            </p>
             <p className="text-muted leading-relaxed">
               On Umbrel, the mempool app listens on <span className="text-foreground font-medium">port 3006</span> via
               Umbrel&apos;s <code className="text-foreground text-xs">app_proxy</code> container.
