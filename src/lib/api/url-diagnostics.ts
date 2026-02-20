@@ -12,6 +12,8 @@ export interface UrlDiagnostic {
   isOnion: boolean;
   /** Target host is local (.local, private IP, localhost) */
   isLocal: boolean;
+  /** URL path does not end with /api */
+  isMissingApiSuffix: boolean;
   /** Human-readable hint when a known barrier is detected, or null */
   hint: string | null;
 }
@@ -36,6 +38,7 @@ export function diagnoseUrl(url: string): UrlDiagnostic {
     isMixedContent: false,
     isOnion: false,
     isLocal: false,
+    isMissingApiSuffix: false,
     hint: null,
   };
 
@@ -53,6 +56,11 @@ export function diagnoseUrl(url: string): UrlDiagnostic {
 
   result.isOnion = hostname.endsWith(".onion");
   result.isLocal = isLocalNetworkHost(hostname);
+
+  // Check if URL path ends with /api (required for mempool API calls)
+  const pathname = parsed.pathname.replace(/\/+$/, "");
+  const looksLikeNode = parsed.port !== "" || result.isLocal;
+  result.isMissingApiSuffix = !pathname.endsWith("/api") && looksLikeNode;
 
   // Mixed content: HTTPS page fetching HTTP URL (localhost is exempt)
   if (pageIsHttps && isHttpTarget && !isLocalhostHost(hostname)) {
@@ -87,6 +95,16 @@ export function diagnoseUrl(url: string): UrlDiagnostic {
         : "Ensure you are using Tor Browser to reach .onion addresses. " +
           "Your node also needs CORS headers for cross-origin requests.";
     }
+  }
+
+  // Append /api suffix hint if applicable
+  if (result.isMissingApiSuffix) {
+    const trimmedUrl = url.replace(/\/+$/, "");
+    const apiHint =
+      "This URL does not end with /api. Mempool instances serve " +
+      "their API at the /api path.\n" +
+      "Try: " + trimmedUrl + "/api";
+    result.hint = result.hint ? result.hint + "\n\n" + apiHint : apiHint;
   }
 
   return result;

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 import { Wrench, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const DISMISS_KEY = "ami-crosspromo-dismissed";
 
@@ -21,6 +22,7 @@ function persistDismiss(): void {
 }
 
 export function CrossPromo() {
+  const { t } = useTranslation();
   const [dismissed, setDismissed] = useState(isDismissedInSession);
 
   if (dismissed) return null;
@@ -40,10 +42,10 @@ export function CrossPromo() {
       >
         <p className="flex items-center gap-2 text-sm text-muted group-hover:text-muted transition-colors duration-200">
           <Wrench size={14} className="shrink-0 text-muted group-hover:text-bitcoin/60 transition-colors duration-200" />
-          Transaction stuck or slow? Unstick it in 3 clicks.
+          {t("crosspromo.stuckTx", { defaultValue: "Transaction stuck or slow? Unstick it in 3 clicks." })}
         </p>
         <p className="mt-0.5 ml-[22px] text-xs text-muted group-hover:text-muted transition-colors duration-200">
-          txfix.click - free, open-source transaction rescue
+          {t("crosspromo.txfixDescription", { defaultValue: "txfix.click - free, open-source transaction rescue" })}
         </p>
       </a>
 

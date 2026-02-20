@@ -1,8 +1,10 @@
 "use client";
 
+import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { ArrowRight, Search } from "lucide-react";
 import type { MempoolTransaction } from "@/lib/api/types";
+import { formatTimeAgo } from "@/lib/i18n/format";
 
 interface TxSummaryProps {
   tx: MempoolTransaction;
@@ -17,6 +19,7 @@ interface TxSummaryProps {
  * anonymity set highlighting (equal outputs get matching colors).
  */
 export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddress }: TxSummaryProps) {
+  const { t, i18n } = useTranslation();
   // Lightweight change detection for visual hint (only 2-output txs)
   const likelyChangeIdx = changeOutputIndex ?? detectLikelyChange(tx);
   // Calculate anonymity sets (output value -> count)
@@ -57,11 +60,11 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
     >
       <div className="flex items-center justify-between text-sm text-muted uppercase tracking-wider">
         <span>
-          {tx.vin.length} input{tx.vin.length !== 1 ? "s" : ""}
+          {t("tx.inputCount", { count: tx.vin.length, defaultValue: "{{count}} inputs" })}
         </span>
         <ArrowRight size={12} />
         <span>
-          {tx.vout.length} output{tx.vout.length !== 1 ? "s" : ""}
+          {t("tx.outputCount", { count: tx.vout.length, defaultValue: "{{count}} outputs" })}
         </span>
       </div>
 
@@ -93,7 +96,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
                 )}
                 {vin.prevout && !vin.is_coinbase && (
                   <span className="text-muted ml-1">
-                    {formatSats(vin.prevout.value)}
+                    {formatSats(vin.prevout.value, i18n.language)}
                   </span>
                 )}
               </div>
@@ -101,7 +104,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
           })}
           {hiddenInputs > 0 && (
             <div className="text-xs text-muted">
-              +{hiddenInputs} more
+              {t("tx.moreItems", { count: hiddenInputs, defaultValue: "+{{count}} more" })}
             </div>
           )}
         </div>
@@ -137,7 +140,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
                   formatOutputAddr(vout)
                 )}
                 <span className="text-muted ml-1">
-                  {formatSats(vout.value)}
+                  {formatSats(vout.value, i18n.language)}
                 </span>
                 {anonSet >= 2 && (
                   <span className={`ml-1 ${color ?? "text-muted"}`}>
@@ -146,7 +149,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
                 )}
                 {i === likelyChangeIdx && (
                   <span className="ml-1 text-severity-medium text-xs">
-                    change?
+                    {t("tx.changeHint", { defaultValue: "change?" })}
                   </span>
                 )}
               </div>
@@ -154,7 +157,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
           })}
           {hiddenOutputs > 0 && (
             <div className="text-xs text-muted">
-              +{hiddenOutputs} more
+              {t("tx.moreItems", { count: hiddenOutputs, defaultValue: "+{{count}} more" })}
             </div>
           )}
         </div>
@@ -163,10 +166,10 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
       {/* Fee + size */}
       <div className="flex items-center justify-between text-sm text-muted border-t border-card-border pt-2">
         <span>
-          Fee: {formatSats(tx.fee)} ({feeRate(tx)} sat/vB)
+          {t("tx.fee", { defaultValue: "Fee:" })} {formatSats(tx.fee, i18n.language)} ({feeRate(tx)} sat/vB)
         </span>
         <span>
-          {tx.weight} WU / {Math.ceil(tx.weight / 4)} vB
+          {tx.weight.toLocaleString(i18n.language)} WU / {Math.ceil(tx.weight / 4).toLocaleString(i18n.language)} vB
         </span>
       </div>
 
@@ -174,17 +177,17 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
       {tx.status.confirmed ? (
         <div className="flex items-center justify-center gap-2 text-sm text-severity-good/70">
           <span className="w-1.5 h-1.5 rounded-full bg-severity-good/50" />
-          Confirmed in block {tx.status.block_height?.toLocaleString()}
+          {t("tx.confirmedInBlock", { block: tx.status.block_height?.toLocaleString(i18n.language), defaultValue: "Confirmed in block {{block}}" })}
           {tx.status.block_time && (
             <span className="text-muted">
-              ({formatTimeAgo(tx.status.block_time)})
+              ({formatTimeAgo(tx.status.block_time, i18n.language)})
             </span>
           )}
         </div>
       ) : (
         <div className="flex items-center justify-center gap-2 text-sm text-severity-medium">
           <span className="w-1.5 h-1.5 rounded-full bg-severity-medium animate-pulse" />
-          Unconfirmed (in mempool)
+          {t("tx.unconfirmed", { defaultValue: "Unconfirmed (in mempool)" })}
         </div>
       )}
     </motion.div>
@@ -244,7 +247,7 @@ function truncateAddr(addr: string): string {
   return `${addr.slice(0, 8)}...${addr.slice(-6)}`;
 }
 
-function formatSats(sats: number): string {
+function formatSats(sats: number, locale?: string): string {
   if (sats >= 1_000_000_000) {
     return `${(sats / 100_000_000).toFixed(2)} BTC`;
   }
@@ -257,7 +260,7 @@ function formatSats(sats: number): string {
   if (sats >= 10_000) {
     return `${(sats / 1000).toFixed(1)}k`;
   }
-  return `${sats.toLocaleString()}`;
+  return `${sats.toLocaleString(locale)}`;
 }
 
 function feeRate(tx: MempoolTransaction): string {
@@ -266,14 +269,3 @@ function feeRate(tx: MempoolTransaction): string {
   return (tx.fee / vsize).toFixed(1);
 }
 
-function formatTimeAgo(unixTimestamp: number): string {
-  const now = Math.floor(Date.now() / 1000);
-  const diff = now - unixTimestamp;
-
-  if (diff < 60) return "just now";
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`;
-  if (diff < 31536000) return `${Math.floor(diff / 2592000)}mo ago`;
-  return `${Math.floor(diff / 31536000)}y ago`;
-}

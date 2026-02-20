@@ -34,6 +34,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
       id: "h4-whirlpool",
       severity: "good",
       title: `Whirlpool CoinJoin detected (${formatBtc(whirlpool.denomination)} pool)`,
+      params: { denom: formatBtc(whirlpool.denomination) },
       description:
         "This transaction matches the Whirlpool CoinJoin pattern: 5 equal outputs at a standard denomination. " +
         "Whirlpool provides strong forward-looking privacy by breaking deterministic transaction links.",
@@ -67,6 +68,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
         id: "h4-coinjoin",
         severity: "good",
         title: `WabiSabi CoinJoin: ${groups.length} denomination tiers, ${totalEqual} equal outputs across ${tx.vout.length} total`,
+        params: { groups: groups.length, totalEqual, vout: tx.vout.length, vin: tx.vin.length, isWabiSabi: 1 },
         description:
           `This transaction has ${tx.vin.length} inputs and ${tx.vout.length} outputs with ${groups.length} groups of equal-value outputs, ` +
           "consistent with a WabiSabi (Wasabi Wallet 2.0) CoinJoin using multiple denomination tiers. " +
@@ -93,6 +95,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
       id: "h4-coinjoin",
       severity: "good",
       title: label,
+      params: { count, denomination: formatBtc(denomination), total, vin: tx.vin.length, isWabiSabi: isWabiSabi ? 1 : 0 },
       description:
         (isWabiSabi
           ? `This transaction has ${tx.vin.length} inputs and ${total} outputs, consistent with a WabiSabi (Wasabi Wallet 2.0) CoinJoin. `

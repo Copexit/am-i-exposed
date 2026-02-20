@@ -19,6 +19,8 @@ export interface Finding {
   description: string;
   recommendation: string;
   scoreImpact: number;
+  /** Interpolation values for i18n translation of title/description/recommendation */
+  params?: Record<string, string | number>;
   remediation?: Remediation;
 }
 

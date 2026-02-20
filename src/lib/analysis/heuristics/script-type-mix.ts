@@ -27,6 +27,7 @@ export const analyzeScriptTypeMix: TxHeuristic = (tx) => {
       id: "script-multisig",
       severity: "high",
       title: `Bare multisig output${multisigOutputs.length > 1 ? "s" : ""} detected`,
+      params: { count: multisigOutputs.length },
       description:
         `This transaction contains ${multisigOutputs.length} bare multisig (P2MS) output${multisigOutputs.length > 1 ? "s" : ""}. ` +
         "Bare multisig exposes ALL public keys directly on the blockchain, making it trivial to " +
@@ -78,6 +79,7 @@ export const analyzeScriptTypeMix: TxHeuristic = (tx) => {
     id: "script-mixed",
     severity: allTypes.size >= 3 ? "medium" : "low",
     title: `${allTypes.size} different script types in transaction`,
+    params: { typeCount: allTypes.size, types: [...allTypes].join(", ") },
     description:
       `This transaction uses ${allTypes.size} different script types (${[...allTypes].join(", ")}). ` +
       "Mixing script types makes change detection easier and can fingerprint the wallet software.",

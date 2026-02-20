@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ArrowLeft, ExternalLink } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 /** Map impact range to appropriate severity color. */
 function getImpactColor(impact: string): string {
@@ -139,6 +140,9 @@ const GRADES = [
 ];
 
 export default function MethodologyPage() {
+  const { t, i18n } = useTranslation();
+  const isEnglish = i18n.language?.startsWith("en") ?? true;
+
   return (
     <div className="flex-1 flex flex-col items-center px-4 py-8">
       <div className="w-full max-w-4xl space-y-10">
@@ -148,18 +152,23 @@ export default function MethodologyPage() {
           className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors py-2 -my-2"
         >
           <ArrowLeft size={16} />
-          Back to scanner
+          {t("methodology.back", { defaultValue: "Back to scanner" })}
         </Link>
 
         {/* Title */}
         <div className="space-y-3">
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
-            Methodology
+            {t("methodology.title", { defaultValue: "Methodology" })}
           </h1>
+          {!isEnglish && (
+            <p className="text-sm text-severity-medium bg-severity-medium/10 border border-severity-medium/20 rounded-lg px-4 py-2.5">
+              {t("methodology.english_only", { defaultValue: "This page is currently available in English only. Translation coming soon." })}
+            </p>
+          )}
           <p className="text-muted text-lg leading-relaxed max-w-2xl">
-            How we score your Bitcoin privacy. Every heuristic documented,
-            every penalty explained. These are the same techniques chain
-            surveillance firms use - we just show you the results.
+            How your Bitcoin privacy is scored. Every heuristic documented,
+            every penalty explained. The same techniques chain
+            surveillance firms use - applied client-side to show you the results.
           </p>
         </div>
 
@@ -188,7 +197,7 @@ export default function MethodologyPage() {
           <h2 className="text-2xl font-semibold text-foreground">Threat Model</h2>
           <div className="bg-card-bg border border-card-border rounded-xl p-6 space-y-4">
             <p className="text-muted leading-relaxed">
-              Our analysis models the capabilities of <span className="text-foreground font-medium">chain surveillance firms</span> (Chainalysis, Elliptic, CipherTrace) and <span className="text-foreground font-medium">KYC-linked exchanges</span>. These adversaries:
+              The analysis models the capabilities of <span className="text-foreground font-medium">chain surveillance firms</span> (Chainalysis, Elliptic, CipherTrace) and <span className="text-foreground font-medium">KYC-linked exchanges</span>. These adversaries:
             </p>
             <ul className="space-y-2 text-muted leading-relaxed">
               <li className="flex gap-2">
@@ -215,7 +224,7 @@ export default function MethodologyPage() {
         <section id="heuristics" className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground">Heuristics</h2>
           <p className="text-muted leading-relaxed">
-            We implement 16 heuristics that evaluate on-chain privacy - 12 at the transaction level and 4 at the address level.
+            The engine implements 16 heuristics that evaluate on-chain privacy - 12 at the transaction level and 4 at the address level.
             Each produces a score impact applied to a base score of 70.
           </p>
           <div className="space-y-3">
@@ -342,7 +351,7 @@ export default function MethodologyPage() {
               </li>
               <li className="flex gap-2">
                 <span className="text-severity-medium shrink-0">&bull;</span>
-                <span>We only see on-chain data. Off-chain intelligence (IP correlations, exchange records, human intelligence) that surveillance firms use is not modeled.</span>
+                <span>Only on-chain data is analyzed. Off-chain intelligence (IP correlations, exchange records, human intelligence) that surveillance firms use is not modeled.</span>
               </li>
               <li className="flex gap-2">
                 <span className="text-severity-medium shrink-0">&bull;</span>

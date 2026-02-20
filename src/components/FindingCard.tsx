@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronDown } from "lucide-react";
 import type { Finding, Severity } from "@/lib/types";
@@ -47,10 +48,12 @@ const SEVERITY_STYLES: Record<
 };
 
 export function FindingCard({ finding, index }: FindingCardProps) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(
     finding.severity === "critical" || finding.severity === "high",
   );
   const style = SEVERITY_STYLES[finding.severity];
+  const severityLabel = t(`common.severity.${finding.severity}`, { defaultValue: style.label });
 
   return (
     <motion.div
@@ -59,7 +62,7 @@ export function FindingCard({ finding, index }: FindingCardProps) {
       transition={{ delay: index * 0.05, duration: 0.25 }}
       className={`border border-card-border rounded-lg overflow-hidden border-l-2 ${style.border}`}
       role="article"
-      aria-label={`${style.label} finding: ${finding.title}`}
+      aria-label={`${severityLabel} finding: ${t(`finding.${finding.id}.title`, { ...finding.params, defaultValue: finding.title })}`}
     >
       <button
         onClick={() => setExpanded(!expanded)}
@@ -67,10 +70,10 @@ export function FindingCard({ finding, index }: FindingCardProps) {
       >
         <span className={`w-2 h-2 rounded-full shrink-0 ${style.dot}`} />
         <span className="flex-1 text-sm font-medium text-foreground">
-          {finding.title}
+          {t(`finding.${finding.id}.title`, { ...finding.params, defaultValue: finding.title })}
         </span>
         <span className={`text-xs font-medium ${style.text}`}>
-          {style.label}
+          {severityLabel}
         </span>
         <ChevronDown
           size={14}
@@ -89,21 +92,21 @@ export function FindingCard({ finding, index }: FindingCardProps) {
           >
             <div className="px-5 pb-5 space-y-3 border-t border-card-border pt-3">
               <p className="text-sm text-foreground leading-relaxed">
-                {finding.description}
+                {t(`finding.${finding.id}.description`, { ...finding.params, defaultValue: finding.description })}
               </p>
               {finding.recommendation && (
                 <div className="bg-surface-inset rounded-md px-3 py-2">
                   <p className="text-xs font-medium text-muted mb-1">
-                    Recommendation
+                    {t("finding.recommendationLabel", { defaultValue: "Recommendation" })}
                   </p>
                   <p className="text-sm text-foreground/90 leading-relaxed">
-                    {finding.recommendation}
+                    {t(`finding.${finding.id}.recommendation`, { ...finding.params, defaultValue: finding.recommendation })}
                   </p>
                 </div>
               )}
               {finding.scoreImpact !== 0 && (
                 <p className="text-xs text-muted">
-                  Score impact:{" "}
+                  {t("finding.scoreImpactLabel", { defaultValue: "Score impact:" })}{" "}
                   <span
                     className={
                       finding.scoreImpact > 0

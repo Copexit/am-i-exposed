@@ -42,6 +42,7 @@ export const analyzeTiming: TxHeuristic = (tx) => {
         id: "timing-locktime-timestamp",
         severity: "medium",
         title: `nLockTime set to timestamp (${locktimeDate.toISOString().slice(0, 10)})`,
+        params: { date: locktimeDate.toISOString().slice(0, 10), locktime: tx.locktime },
         description:
           `This transaction uses nLockTime as a UNIX timestamp (${tx.locktime}), ` +
           "which is unusual. Most wallets use block-height-based locktime or 0. " +
@@ -63,6 +64,7 @@ export const analyzeTiming: TxHeuristic = (tx) => {
           id: "timing-stale-locktime",
           severity: "low",
           title: `Transaction held for ~${diff} blocks before confirmation`,
+          params: { diff, locktime: tx.locktime, blockHeight: status.block_height },
           description:
             `The nLockTime (${tx.locktime}) is ${diff} blocks before the confirmation height (${status.block_height}). ` +
             "This suggests the transaction was created well before it was broadcast, " +

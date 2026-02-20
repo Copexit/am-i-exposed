@@ -75,6 +75,7 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
           ? "medium"
           : "low",
     title: `Change output likely identifiable (${confidence} confidence)`,
+    params: { signalCount: signals.length, confidence },
     description:
       `${signals.length} sub-heuristic${signals.length > 1 ? "s" : ""} point to a likely change output: ${signals.join("; ")}. ` +
       (maxSignals >= 2

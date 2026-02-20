@@ -57,6 +57,7 @@ export const analyzeAnonymitySet: TxHeuristic = (tx) => {
       id: "anon-set-strong",
       severity: "good",
       title: `Largest anonymity set: ${maxSet.count} outputs`,
+      params: { count: maxSet.count, value: formatSats(maxSet.value) },
       description:
         `${maxSet.count} outputs share the value ${formatSats(maxSet.value)}, creating an anonymity set of ${maxSet.count}. ` +
         `An observer cannot distinguish which input funded which of these ${maxSet.count} equal outputs. ` +
@@ -71,6 +72,7 @@ export const analyzeAnonymitySet: TxHeuristic = (tx) => {
       id: "anon-set-moderate",
       severity: "low",
       title: `Anonymity set: ${maxSet.count} equal outputs`,
+      params: { count: maxSet.count, value: formatSats(maxSet.value) },
       description:
         `${maxSet.count} outputs share the value ${formatSats(maxSet.value)}. ` +
         `This provides limited ambiguity. ` +
@@ -85,6 +87,7 @@ export const analyzeAnonymitySet: TxHeuristic = (tx) => {
       id: "anon-set-none",
       severity: "low",
       title: "No anonymity set (all outputs unique)",
+      params: { outputCount: outputs.length },
       description:
         `All ${outputs.length} outputs have unique values. Each output is trivially distinguishable, ` +
         `which is typical for standard transactions.`,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { Radar, SendHorizontal } from "lucide-react";
 import { useNetwork } from "@/context/NetworkContext";
 import { detectInputType, cleanInput } from "@/lib/analysis/detect-input";
@@ -8,13 +9,17 @@ import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
 import { Spinner } from "./ui/Spinner";
 
 function InputTypeHint({ value, network }: { value: string; network: BitcoinNetwork }) {
+  const { t } = useTranslation();
   const type = detectInputType(value, network);
   if (type === "invalid") return null;
 
-  const label = type === "txid" ? "Transaction ID" : "Bitcoin address";
+  const label = type === "txid"
+    ? t("input.detectedTxid", { defaultValue: "Transaction ID" })
+    : t("input.detectedAddress", { defaultValue: "Bitcoin address" });
   return (
     <p className="text-muted text-sm mt-1.5 text-center">
-      Detected: <span className="text-muted">{label}</span>
+      {t("input.detected", { defaultValue: "Detected:" })}{" "}
+      <span className="text-muted">{label}</span>
     </p>
   );
 }
@@ -30,6 +35,7 @@ interface AddressInputProps {
 }
 
 export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode = "scan", onModeChange }: AddressInputProps) {
+  const { t } = useTranslation();
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pasteSuccess, setPasteSuccess] = useState(false);
@@ -44,7 +50,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
       const type = detectInputType(cleaned, network);
       if (type === "invalid") {
         setError(
-          "That doesn't look like a Bitcoin address or txid. Check and try again.",
+          t("input.errorInvalid", { defaultValue: "That doesn't look like a Bitcoin address or txid. Check and try again." }),
         );
         return;
       }
@@ -52,7 +58,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
       setValue(cleaned);
       onSubmit(cleaned);
     },
-    [onSubmit, network],
+    [onSubmit, network, t],
   );
 
   const handleSubmit = (e: FormEvent) => {
@@ -80,9 +86,11 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
 
   const isCheck = mode === "check";
   const placeholder = isCheck
-    ? "Paste destination address to check"
-    : "Paste a Bitcoin address or transaction ID";
-  const buttonLabel = isCheck ? "Check" : "Scan";
+    ? t("input.placeholderCheck", { defaultValue: "Paste destination address to check" })
+    : t("input.placeholderScan", { defaultValue: "Paste a Bitcoin address or transaction ID" });
+  const buttonLabel = isCheck
+    ? t("input.buttonCheck", { defaultValue: "Check" })
+    : t("input.buttonScan", { defaultValue: "Scan" });
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-3xl">
@@ -100,7 +108,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
               }`}
             >
               <Radar size={14} />
-              Scan
+              {t("input.modeScan", { defaultValue: "Scan" })}
             </button>
             <button
               type="button"
@@ -112,13 +120,13 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
               }`}
             >
               <SendHorizontal size={14} />
-              Pre-send check
+              {t("input.modeCheck", { defaultValue: "Pre-send check" })}
             </button>
           </div>
           <p className="text-sm text-muted">
             {isCheck
-              ? "Check a destination address before you send bitcoin to it"
-              : "Analyze your address or transaction for privacy leaks"}
+              ? t("input.descriptionCheck", { defaultValue: "Check a destination address before you send bitcoin to it" })
+              : t("input.descriptionScan", { defaultValue: "Analyze your address or transaction for privacy leaks" })}
           </p>
         </div>
       )}

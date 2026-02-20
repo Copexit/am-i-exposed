@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NetworkProvider } from "@/context/NetworkContext";
+import { I18nProvider } from "@/lib/i18n/I18nProvider";
+import { LangAttributeSync } from "@/lib/i18n/LangAttributeSync";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { PrivacyNotice } from "@/components/PrivacyNotice";
@@ -96,18 +98,21 @@ export default function RootLayout({
             }),
           }}
         />
-        <NetworkProvider>
-          <a
-            href="#main-input"
-            className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:bg-bitcoin focus:text-black focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm focus:font-semibold"
-          >
-            Skip to search
-          </a>
-          <Header />
-          <PrivacyNotice />
-          <main className="flex-1 flex flex-col">{children}</main>
-          <Footer />
-        </NetworkProvider>
+        <I18nProvider>
+          <LangAttributeSync />
+          <NetworkProvider>
+            <a
+              href="#main-input"
+              className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:bg-bitcoin focus:text-black focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm focus:font-semibold"
+            >
+              Skip to search
+            </a>
+            <Header />
+            <PrivacyNotice />
+            <main className="flex-1 flex flex-col">{children}</main>
+            <Footer />
+          </NetworkProvider>
+        </I18nProvider>
       </body>
     </html>
   );

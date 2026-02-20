@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Lightbulb, ChevronDown, ExternalLink, AlertCircle, Clock, Wrench } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { Finding, Grade, Remediation as RemediationType } from "@/lib/types";
 
 interface RemediationProps {
@@ -12,14 +13,16 @@ interface RemediationProps {
 
 interface Action {
   priority: number;
-  text: string;
-  detail: string;
+  textKey: string;
+  textDefault: string;
+  detailKey: string;
+  detailDefault: string;
 }
 
 const URGENCY_CONFIG = {
-  immediate: { label: "Act now", color: "text-severity-critical", icon: AlertCircle },
-  soon: { label: "Act soon", color: "text-severity-medium", icon: Clock },
-  "when-convenient": { label: "When convenient", color: "text-muted", icon: Wrench },
+  immediate: { labelKey: "remediation.urgencyImmediate", labelDefault: "Act now", color: "text-severity-critical", icon: AlertCircle },
+  soon: { labelKey: "remediation.urgencySoon", labelDefault: "Act soon", color: "text-severity-medium", icon: Clock },
+  "when-convenient": { labelKey: "remediation.urgencyConvenient", labelDefault: "When convenient", color: "text-muted", icon: Wrench },
 } as const;
 
 /**
@@ -36,16 +39,20 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
     if (reuseFinding?.severity === "critical") {
       actions.push({
         priority: 1,
-        text: "Stop reusing this address immediately",
-        detail:
+        textKey: "remediation.stopReusingAddress",
+        textDefault: "Stop reusing this address immediately",
+        detailKey: "remediation.stopReusingAddressDetail",
+        detailDefault:
           "Generate a new address for every receive. Most wallets do this automatically. " +
           "Send remaining funds to a fresh wallet using a CoinJoin or intermediate address.",
       });
     } else {
       actions.push({
         priority: 2,
-        text: "Avoid further address reuse",
-        detail:
+        textKey: "remediation.avoidAddressReuse",
+        textDefault: "Avoid further address reuse",
+        detailKey: "remediation.avoidAddressReuseDetail",
+        detailDefault:
           "Use a new address for each transaction. Enable HD wallet features if available.",
       });
     }
@@ -55,8 +62,10 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
   if (ids.has("dust-attack")) {
     actions.push({
       priority: 1,
-      text: "Do NOT spend the dust output",
-      detail:
+      textKey: "remediation.doNotSpendDust",
+      textDefault: "Do NOT spend the dust output",
+      detailKey: "remediation.doNotSpendDustDetail",
+      detailDefault:
         "Freeze this UTXO in your wallet's coin control. Spending it will link your addresses. " +
         "If you must clean it up, send it through a CoinJoin first.",
     });
@@ -66,8 +75,10 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
   if (ids.has("h2-change-detected")) {
     actions.push({
       priority: 3,
-      text: "Use wallets with better change handling",
-      detail:
+      textKey: "remediation.betterChangeHandling",
+      textDefault: "Use wallets with better change handling",
+      detailKey: "remediation.betterChangeHandlingDetail",
+      detailDefault:
         "Switch to a wallet that uses the same address type for change as for payments. " +
         "Taproot (P2TR) wallets like Sparrow or Blue Wallet help with this.",
     });
@@ -81,8 +92,10 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
   if (coinJoinFound && grade === "A+") {
     actions.push({
       priority: 5,
-      text: "Excellent! Continue using CoinJoin",
-      detail:
+      textKey: "remediation.continueCoinJoin",
+      textDefault: "Excellent! Continue using CoinJoin",
+      detailKey: "remediation.continueCoinJoinDetail",
+      detailDefault:
         "Your CoinJoin transaction provides strong privacy. Continue using Whirlpool " +
         "or Wasabi for future transactions. Avoid consolidating CoinJoin " +
         "outputs with non-CoinJoin UTXOs.",
@@ -93,8 +106,10 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
   if (ids.has("h10-p2pkh") || ids.has("h10-p2sh")) {
     actions.push({
       priority: 4,
-      text: "Upgrade to a Taproot (P2TR) wallet",
-      detail:
+      textKey: "remediation.upgradeTaproot",
+      textDefault: "Upgrade to a Taproot (P2TR) wallet",
+      detailKey: "remediation.upgradeTaprootDetail",
+      detailDefault:
         "Taproot addresses (bc1p...) provide the best privacy by making all transactions " +
         "look identical on-chain. They also have lower fees. Sparrow, Blue Wallet, and " +
         "Bitcoin Core all support Taproot.",
@@ -105,8 +120,10 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
   if (findings.some((f) => f.id.startsWith("h7-op-return"))) {
     actions.push({
       priority: 4,
-      text: "Avoid services that embed OP_RETURN data",
-      detail:
+      textKey: "remediation.avoidOpReturn",
+      textDefault: "Avoid services that embed OP_RETURN data",
+      detailKey: "remediation.avoidOpReturnDetail",
+      detailDefault:
         "OP_RETURN data is permanent and public. If a service you use embeds data in transactions, " +
         "consider alternatives that don't leave metadata on-chain.",
     });
@@ -116,8 +133,10 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
   if (ids.has("script-multisig")) {
     actions.push({
       priority: 2,
-      text: "Switch from bare multisig to Taproot MuSig2",
-      detail:
+      textKey: "remediation.switchMultisig",
+      textDefault: "Switch from bare multisig to Taproot MuSig2",
+      detailKey: "remediation.switchMultisigDetail",
+      detailDefault:
         "Bare multisig exposes all public keys on-chain. Use P2WSH-wrapped multisig at minimum, " +
         "or ideally Taproot with MuSig2/FROST which looks identical to single-sig.",
     });
@@ -127,8 +146,10 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
   if (ids.has("h11-wallet-fingerprint")) {
     actions.push({
       priority: 5,
-      text: "Consider wallet software with better fingerprint resistance",
-      detail:
+      textKey: "remediation.walletFingerprint",
+      textDefault: "Consider wallet software with better fingerprint resistance",
+      detailKey: "remediation.walletFingerprintDetail",
+      detailDefault:
         "Your wallet software can be identified through transaction patterns. " +
         "Bitcoin Core, Sparrow, and Wasabi have the best fingerprint resistance.",
     });
@@ -142,8 +163,10 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
   ) {
     actions.push({
       priority: 3,
-      text: "Minimize multi-input transactions",
-      detail:
+      textKey: "remediation.minimizeMultiInput",
+      textDefault: "Minimize multi-input transactions",
+      detailKey: "remediation.minimizeMultiInputDetail",
+      detailDefault:
         "Consolidating UTXOs links your addresses together. Use coin control to avoid " +
         "spending from multiple addresses in one transaction. If you must consolidate, " +
         "do it through a CoinJoin.",
@@ -154,8 +177,10 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
   if (ids.has("h5-low-entropy") || ids.has("h5-zero-entropy")) {
     actions.push({
       priority: 4,
-      text: "Use PayJoin or CoinJoin for better transaction entropy",
-      detail:
+      textKey: "remediation.usePayJoin",
+      textDefault: "Use PayJoin or CoinJoin for better transaction entropy",
+      detailKey: "remediation.usePayJoinDetail",
+      detailDefault:
         "Simple 1-in/2-out transactions have low entropy, making analysis straightforward. " +
         "PayJoin (BIP78) adds inputs from the receiver to break common analysis heuristics.",
     });
@@ -165,8 +190,10 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
   if (actions.length === 0 && (grade === "D" || grade === "F")) {
     actions.push({
       priority: 1,
-      text: "Consider a fresh start with better privacy practices",
-      detail:
+      textKey: "remediation.freshStart",
+      textDefault: "Consider a fresh start with better privacy practices",
+      detailKey: "remediation.freshStartDetail",
+      detailDefault:
         "Use a privacy-focused wallet (Sparrow, Wasabi), generate a new seed, and send " +
         "funds through a CoinJoin before depositing to the new wallet. Use Tor for all " +
         "Bitcoin network activity.",
@@ -179,17 +206,18 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
   return actions.slice(0, 3);
 }
 
-function StructuredRemediation({ remediation, findingTitle }: { remediation: RemediationType; findingTitle: string }) {
+function StructuredRemediation({ remediation, findingId, findingTitle }: { remediation: RemediationType; findingId: string; findingTitle: string }) {
+  const { t } = useTranslation();
   const urgency = URGENCY_CONFIG[remediation.urgency];
   const UrgencyIcon = urgency.icon;
 
   return (
     <div className="bg-surface-inset rounded-lg px-4 py-3 border-l-2 border-l-bitcoin/50 space-y-2.5">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-foreground/90">{findingTitle}</p>
+        <p className="text-sm font-medium text-foreground/90">{t(`finding.${findingId}.title`, { defaultValue: findingTitle })}</p>
         <span className={`inline-flex items-center gap-1 text-xs ${urgency.color}`}>
           <UrgencyIcon size={14} />
-          {urgency.label}
+          {t(urgency.labelKey, { defaultValue: urgency.labelDefault })}
         </span>
       </div>
 
@@ -222,6 +250,7 @@ function StructuredRemediation({ remediation, findingTitle }: { remediation: Rem
 }
 
 export function Remediation({ findings, grade }: RemediationProps) {
+  const { t } = useTranslation();
   // Auto-open for poor grades where remediation is most important
   const [open, setOpen] = useState(grade === "C" || grade === "D" || grade === "F");
 
@@ -245,10 +274,10 @@ export function Remediation({ findings, grade }: RemediationProps) {
         className="inline-flex items-center gap-1.5 text-sm text-bitcoin/70 hover:text-bitcoin transition-colors cursor-pointer bg-bitcoin/10 rounded-lg px-3 py-3"
       >
         <Lightbulb size={16} />
-        What to do next
+        {t("remediation.whatToDoNext", { defaultValue: "What to do next" })}
         {structuredRemediations.length > 0 && (
           <span className="text-xs text-bitcoin/80">
-            ({structuredRemediations.length} detailed)
+            ({t("remediation.detailedCount", { count: structuredRemediations.length, defaultValue: "{{count}} detailed" })})
           </span>
         )}
         <ChevronDown
@@ -271,6 +300,7 @@ export function Remediation({ findings, grade }: RemediationProps) {
                 <StructuredRemediation
                   key={f.id}
                   remediation={f.remediation!}
+                  findingId={f.id}
                   findingTitle={f.title}
                 />
               ))}
@@ -287,10 +317,10 @@ export function Remediation({ findings, grade }: RemediationProps) {
                     </span>
                     <div>
                       <p className="text-sm font-medium text-foreground/90">
-                        {action.text}
+                        {t(action.textKey, { defaultValue: action.textDefault })}
                       </p>
                       <p className="text-sm text-muted mt-1 leading-relaxed">
-                        {action.detail}
+                        {t(action.detailKey, { defaultValue: action.detailDefault })}
                       </p>
                     </div>
                   </div>

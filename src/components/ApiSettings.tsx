@@ -1,13 +1,16 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 import { Settings, Check, X, Loader2, RotateCcw, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { diagnoseUrl } from "@/lib/api/url-diagnostics";
 
 type HealthStatus = "idle" | "checking" | "ok" | "error";
 
 export function ApiSettings() {
+  const { t } = useTranslation();
   const { customApiUrl, setCustomApiUrl } = useNetwork();
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState(customApiUrl ?? "");
@@ -153,8 +156,8 @@ export function ApiSettings() {
           setOpen(!open);
         }}
         className="relative text-muted hover:text-foreground transition-colors cursor-pointer p-2 rounded-lg border border-card-border bg-surface-elevated hover:bg-surface-inset"
-        aria-label="API settings"
-        title="API endpoint settings"
+        aria-label={t("settings.ariaLabel", { defaultValue: "API settings" })}
+        title={t("settings.title", { defaultValue: "API endpoint settings" })}
       >
         <Settings size={18} />
         {customApiUrl && (
@@ -173,7 +176,7 @@ export function ApiSettings() {
         <div className="fixed inset-x-0 top-[60px] mx-3 sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mx-0 sm:mt-2 sm:w-96 bg-surface-elevated border border-card-border rounded-xl shadow-xl z-50 p-4 space-y-3 max-h-[80vh] overflow-y-auto">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-foreground uppercase tracking-wider">
-              Mempool API
+              {t("settings.mempoolApi", { defaultValue: "Mempool API" })}
             </span>
             {customApiUrl && (
               <button
@@ -181,7 +184,7 @@ export function ApiSettings() {
                 className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
               >
                 <RotateCcw size={12} />
-                Reset to default
+                {t("settings.resetToDefault", { defaultValue: "Reset to default" })}
               </button>
             )}
           </div>
@@ -214,7 +217,7 @@ export function ApiSettings() {
               {health === "checking" ? (
                 <Loader2 size={14} className="animate-spin" />
               ) : (
-                "Apply"
+                t("settings.apply", { defaultValue: "Apply" })
               )}
             </button>
           </form>
@@ -223,7 +226,21 @@ export function ApiSettings() {
           {diagnostic?.hint && health === "idle" && (
             <div className="flex items-start gap-2 text-xs text-warning bg-warning/10 rounded-lg p-2.5">
               <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-              <span className="whitespace-pre-line">{diagnostic.hint}</span>
+              <div className="flex-1 space-y-1.5">
+                <span className="whitespace-pre-line">{diagnostic.hint}</span>
+                {diagnostic.isMissingApiSuffix && (
+                  <button
+                    onClick={() => {
+                      const fixed = inputValue.trim().replace(/\/+$/, "") + "/api";
+                      setInputValue(fixed);
+                      setHealth("idle");
+                    }}
+                    className="block text-bitcoin underline text-xs cursor-pointer hover:text-bitcoin/80 transition-colors"
+                  >
+                    {t("settings.addApiSuffix", { defaultValue: "Add /api to URL" })}
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -231,7 +248,7 @@ export function ApiSettings() {
           {health === "ok" && (
             <div className="flex items-center gap-1.5 text-xs text-severity-good">
               <Check size={14} />
-              Connected. Using custom endpoint.
+              {t("settings.connected", { defaultValue: "Connected. Using custom endpoint." })}
             </div>
           )}
           {health === "error" && (
@@ -242,12 +259,12 @@ export function ApiSettings() {
           )}
           {customApiUrl && health !== "checking" && (
             <p className="text-xs text-muted">
-              Active: <span className="font-mono">{customApiUrl}</span>
+              {t("settings.active", { defaultValue: "Active:" })} <span className="font-mono">{customApiUrl}</span>
             </p>
           )}
           {!customApiUrl && health === "idle" && !diagnostic?.hint && (
             <p className="text-xs text-muted">
-              Point to your own mempool.space instance for maximum privacy.
+              {t("settings.selfHostHint", { defaultValue: "Point to your own mempool.space instance for maximum privacy." })}
             </p>
           )}
 
@@ -258,13 +275,12 @@ export function ApiSettings() {
               className="flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer w-full"
             >
               {helpOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-              How to connect your node
+              {t("settings.howToConnect", { defaultValue: "How to connect your node" })}
             </button>
             {helpOpen && (
               <div className="mt-2 space-y-3 text-xs text-muted">
                 <p>
-                  Self-hosted mempool instances need <strong className="text-foreground">CORS headers</strong> to
-                  accept requests from this site. Add this to your mempool nginx config:
+                  {t("settings.corsExplanation", { defaultValue: "Self-hosted mempool instances need" })} <strong className="text-foreground">{t("settings.corsHeaders", { defaultValue: "CORS headers" })}</strong> {t("settings.corsExplanation2", { defaultValue: "to accept requests from this site. Add this to your mempool nginx config:" })}
                 </p>
                 <pre className="bg-surface-inset rounded-lg p-2 text-xs font-mono overflow-x-auto whitespace-pre">{`location /api/ {
   add_header 'Access-Control-Allow-Origin' '*' always;
@@ -275,44 +291,40 @@ export function ApiSettings() {
 }`}</pre>
 
                 <div className="space-y-2">
-                  <p className="font-medium text-foreground">Option A: SSH tunnel (recommended)</p>
+                  <p className="font-medium text-foreground">{t("settings.optionA", { defaultValue: "Option A: SSH tunnel (recommended)" })}</p>
                   <p>
-                    Forward your node to localhost to avoid mixed-content blocking:
+                    {t("settings.optionADesc", { defaultValue: "Forward your node to localhost to avoid mixed-content blocking:" })}
                   </p>
                   <pre className="bg-surface-inset rounded-lg p-2 text-xs font-mono overflow-x-auto">
                     ssh -L 3006:localhost:3006 umbrel@umbrel.local
                   </pre>
                   <p>
-                    Then enter <code className="text-bitcoin">http://localhost:3006/api</code> above.
+                    {t("settings.optionAEnter", { defaultValue: "Then enter" })} <code className="text-bitcoin">http://localhost:3006/api</code> {t("settings.optionAAbove", { defaultValue: "above." })}
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <p className="font-medium text-foreground">Option B: HTTPS reverse proxy</p>
+                  <p className="font-medium text-foreground">{t("settings.optionB", { defaultValue: "Option B: HTTPS reverse proxy" })}</p>
                   <p>
-                    Set up HTTPS on your node with Caddy or nginx + Let&apos;s Encrypt,
-                    add CORS headers, then use your HTTPS URL.
+                    {t("settings.optionBDesc", { defaultValue: "Set up HTTPS on your node with Caddy or nginx + Let's Encrypt, add CORS headers, then use your HTTPS URL." })}
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <p className="font-medium text-foreground">Option C: Tor Browser + .onion</p>
+                  <p className="font-medium text-foreground">{t("settings.optionC", { defaultValue: "Option C: Tor Browser + .onion" })}</p>
                   <p>
-                    If this site has a .onion mirror, use Tor Browser to visit it and
-                    enter your mempool&apos;s .onion address. Both are HTTP, so no
-                    mixed-content blocking.
+                    {t("settings.optionCDesc", { defaultValue: "If this site has a .onion mirror, use Tor Browser to visit it and enter your mempool's .onion address. Both are HTTP, so no mixed-content blocking." })}
                   </p>
                 </div>
 
                 <p className="text-muted">
-                  <a
-                    href="https://github.com/Copexit/am-i-exposed/blob/main/onion.md"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Link
+                    href="/setup-guide"
                     className="underline hover:text-foreground transition-colors"
+                    onClick={() => setOpen(false)}
                   >
-                    Full setup guide
-                  </a>
+                    {t("settings.fullSetupGuide", { defaultValue: "Full setup guide" })}
+                  </Link>
                 </p>
               </div>
             )}

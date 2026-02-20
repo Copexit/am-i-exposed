@@ -51,6 +51,7 @@ export const analyzeAddressReuse: AddressHeuristic = (address) => {
           id: "h8-batch-receive",
           severity: "low",
           title: `Multiple UTXOs from a single transaction (batch payment)`,
+          params: { totalFunded },
           description:
             `This address received ${totalFunded} outputs in a single transaction, likely a batched payment. ` +
             "While this creates multiple UTXOs, it does not constitute address reuse since only one transaction is involved.",
@@ -95,6 +96,7 @@ export const analyzeAddressReuse: AddressHeuristic = (address) => {
         id: "h8-address-reuse",
         severity,
         title: `Address reused across ${txCount} transactions`,
+        params: { txCount },
         description:
           `This address appears in ${txCount} transactions. Every transaction to and from this address is now trivially linkable by chain analysis. ` +
           `Address reuse is the single most damaging privacy practice in Bitcoin.`,

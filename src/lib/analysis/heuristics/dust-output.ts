@@ -48,6 +48,7 @@ export const analyzeDustOutputs: TxHeuristic = (tx) => {
       id: "dust-attack",
       severity: "high",
       title: `Possible dust attack (${totalDustValue} sats)`,
+      params: { totalDustValue },
       description:
         `This transaction sends a tiny amount (${totalDustValue} sats) which is a common ` +
         "pattern in dust attacks. Attackers send small amounts to target addresses to track " +
@@ -76,6 +77,7 @@ export const analyzeDustOutputs: TxHeuristic = (tx) => {
       id: "dust-outputs",
       severity,
       title: `${dustOutputs.length} dust output${dustOutputs.length > 1 ? "s" : ""} detected (< ${DUST_THRESHOLD} sats)`,
+      params: { dustCount: dustOutputs.length, threshold: DUST_THRESHOLD, totalDustValue, extremeCount: extremeDust.length },
       description:
         `This transaction contains ${dustOutputs.length} output${dustOutputs.length > 1 ? "s" : ""} ` +
         `below ${DUST_THRESHOLD} sats (total: ${totalDustValue} sats). ` +

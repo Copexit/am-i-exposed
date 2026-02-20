@@ -77,6 +77,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
           id: "h5-low-entropy",
           severity: "medium",
           title: "Very low transaction entropy",
+          params: { entropy: roundedEntropy, method },
           description:
             `This transaction has near-zero entropy (${roundedEntropy} bits, via ${method}). ` +
             "There is essentially only one valid interpretation of the fund flow, making it trivial to trace.",
@@ -97,6 +98,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
         id: "h5-entropy",
         severity: impact >= 10 ? "good" : impact >= 5 ? "low" : "medium",
         title: `Transaction entropy: ${roundedEntropy} bits`,
+        params: { entropy: roundedEntropy, method, interpretations: Math.round(Math.pow(2, displayEntropy)) },
         description:
           `This transaction has ${roundedEntropy} bits of entropy (via ${method}), meaning there are ` +
           (method === "structural upper bound" ? "up to " : "") +

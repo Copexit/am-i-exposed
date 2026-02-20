@@ -4,6 +4,7 @@ import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { motion, AnimatePresence } from "motion/react";
 import { Heart, ChevronDown, X, Copy, Check } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 const LN_ADDRESS = "woozycuticle72@walletofsatoshi.com";
 const DISMISS_KEY = "ami-tip-dismissed";
@@ -23,6 +24,7 @@ function persistDismiss(): void {
 }
 
 export function TipJar() {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.matchMedia("(min-width: 1024px)").matches;
@@ -56,7 +58,7 @@ export function TipJar() {
           className="text-bitcoin shrink-0 group-hover:text-bitcoin/80 transition-colors"
         />
         <span className="text-sm text-muted group-hover:text-foreground transition-colors flex-1">
-          am-i.exposed is free and open source. If it helped you, consider a tip.
+          {t("common.tipMessage", { defaultValue: "am-i.exposed is free and open source. If it helped you, consider a tip." })}
         </span>
         <ChevronDown
           size={14}
@@ -103,7 +105,7 @@ export function TipJar() {
 
               <div className="text-center space-y-2">
                 <p className="text-xs text-muted">
-                  Scan with any Lightning wallet, or copy the address below
+                  {t("common.tipScanQR", { defaultValue: "Scan with any Lightning wallet, or copy the address below" })}
                 </p>
                 <div className="flex items-center justify-center gap-2">
                   <code className="text-xs text-bitcoin bg-bitcoin/10 px-2 py-1 rounded font-mono break-all">
@@ -114,7 +116,7 @@ export function TipJar() {
                     className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer px-2 py-2 rounded border border-card-border"
                   >
                     {copied ? <Check size={14} /> : <Copy size={14} />}
-                    {copied ? "Copied" : "Copy"}
+                    {copied ? t("common.copied", { defaultValue: "Copied" }) : t("common.copy", { defaultValue: "Copy" })}
                   </button>
                 </div>
               </div>

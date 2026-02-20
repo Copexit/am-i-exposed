@@ -28,6 +28,7 @@ export const analyzeUtxos: AddressHeuristic = (_address, utxos) => {
       id: "h9-dust-detected",
       severity: dustUtxos.length >= 3 ? "high" : "medium",
       title: `${dustUtxos.length} potential dust UTXO${dustUtxos.length > 1 ? "s" : ""} detected`,
+      params: { dustCount: dustUtxos.length, totalDust, threshold: DUST_THRESHOLD },
       description:
         `Found ${dustUtxos.length} UTXO${dustUtxos.length > 1 ? "s" : ""} below ${DUST_THRESHOLD} sats (total: ${totalDust} sats). ` +
         `Tiny unsolicited UTXOs are often "dusting attacks" -- surveillance entities send small amounts to track your spending. ` +
@@ -44,6 +45,7 @@ export const analyzeUtxos: AddressHeuristic = (_address, utxos) => {
       id: "h9-many-utxos",
       severity: "medium",
       title: `Large UTXO set (${utxos.length} UTXOs)`,
+      params: { utxoCount: utxos.length },
       description:
         `This address holds ${utxos.length} UTXOs. Spending multiple UTXOs in a single transaction links them together via CIOH, reducing privacy. Large UTXO sets also increase transaction fees.`,
       recommendation:
@@ -55,6 +57,7 @@ export const analyzeUtxos: AddressHeuristic = (_address, utxos) => {
       id: "h9-moderate-utxos",
       severity: "low",
       title: `${utxos.length} UTXOs on this address`,
+      params: { utxoCount: utxos.length },
       description:
         `This address has ${utxos.length} UTXOs. Be mindful when spending -- combining UTXOs in a single transaction reveals common ownership.`,
       recommendation:

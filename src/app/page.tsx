@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import { ShieldCheck, AlertCircle, Scan, Fingerprint, Shield, Eye } from "lucide-react";
 import { AddressInput } from "@/components/AddressInput";
@@ -15,7 +16,18 @@ import { useKeyboardNav } from "@/hooks/useKeyboardNav";
 import { TipToast } from "@/components/TipToast";
 import type { AnalysisMode } from "@/lib/types";
 
-const PRIVACY_TIPS = [
+const PRIVACY_TIP_KEYS = [
+  "tips.0",
+  "tips.1",
+  "tips.2",
+  "tips.3",
+  "tips.4",
+  "tips.5",
+  "tips.6",
+  "tips.7",
+];
+
+const PRIVACY_TIPS_EN = [
   "Never reuse a Bitcoin address. HD wallets generate a new address for each receive automatically.",
   "CoinJoin breaks the common-input-ownership heuristic, making chain analysis significantly harder.",
   "Use Tor when broadcasting transactions. Your IP can be correlated with your on-chain activity.",
@@ -28,22 +40,26 @@ const PRIVACY_TIPS = [
 
 const EXAMPLES = [
   {
-    label: "Whirlpool CoinJoin",
+    labelKey: "page.example_whirlpool",
+    labelDefault: "Whirlpool CoinJoin",
     hint: "A+",
     input: "323df21f0b0756f98336437aa3d2fb87e02b59f1946b714a7b09df04d429dec2",
   },
   {
-    label: "WabiSabi CoinJoin",
+    labelKey: "page.example_wabisabi",
+    labelDefault: "WabiSabi CoinJoin",
     hint: "A+",
     input: "fb596c9f675471019c60e984b569f9020dac3b2822b16396042b50c890b45e5e",
   },
   {
-    label: "Satoshi's address",
+    labelKey: "page.example_satoshi",
+    labelDefault: "Satoshi's address",
     hint: "F",
     input: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
   },
   {
-    label: "OP_RETURN data",
+    labelKey: "page.example_opreturn",
+    labelDefault: "OP_RETURN data",
     hint: "C",
     input: "8bae12b5f4c088d940733dcd1455efc6a3a69cf9340e17a981286d3778615684",
   },
@@ -68,10 +84,11 @@ export default function Home() {
     reset,
   } = useAnalysis();
 
+  const { t } = useTranslation();
   const { scans, addScan, clearScans } = useRecentScans();
   const inputRef = useRef<HTMLInputElement>(null);
   const [tipIndex, setTipIndex] = useState(
-    () => Math.floor(Math.random() * PRIVACY_TIPS.length),
+    () => Math.floor(Math.random() * PRIVACY_TIP_KEYS.length),
   );
   const [mode, setMode] = useState<AnalysisMode>("scan");
 
@@ -97,15 +114,15 @@ export default function Home() {
   // Dynamic page title
   useEffect(() => {
     if (phase === "complete" && preSendResult && mode === "check") {
-      document.title = `${preSendResult.riskLevel} Risk - am-i.exposed`;
+      document.title = `${preSendResult.riskLevel} ${t("page.title_risk", { defaultValue: "Risk" })} - am-i.exposed`;
     } else if (phase === "complete" && result) {
       document.title = `${result.grade} (${result.score}/100) - am-i.exposed`;
     } else if (phase === "fetching" || phase === "analyzing") {
-      document.title = `${mode === "check" ? "Checking" : "Scanning"}... - am-i.exposed`;
+      document.title = `${mode === "check" ? t("page.title_checking", { defaultValue: "Checking" }) : t("page.title_scanning", { defaultValue: "Scanning" })}... - am-i.exposed`;
     } else {
-      document.title = "am-i.exposed - Bitcoin Privacy Scanner";
+      document.title = `am-i.exposed - ${t("page.title_default", { defaultValue: "Bitcoin Privacy Scanner" })}`;
     }
-  }, [phase, result, preSendResult, mode]);
+  }, [phase, result, preSendResult, mode, t]);
 
   // Save completed scan to recent history
   useEffect(() => {
@@ -188,13 +205,13 @@ export default function Home() {
   // Aria-live announcements for screen readers during phase transitions
   const ariaStatus =
     phase === "fetching" || phase === "analyzing"
-      ? `${mode === "check" ? "Checking destination" : "Scanning"}. Please wait.`
+      ? t("page.aria_scanning", { defaultValue: `${mode === "check" ? "Checking destination" : "Scanning"}. Please wait.` })
       : phase === "complete" && result && mode === "scan"
-        ? `Scan complete. Grade ${result.grade}, score ${result.score} out of 100.`
+        ? t("page.aria_complete", { grade: result.grade, score: result.score, defaultValue: `Scan complete. Grade ${result.grade}, score ${result.score} out of 100.` })
         : phase === "complete" && preSendResult && mode === "check"
-          ? `Check complete. Risk level: ${preSendResult.riskLevel}.`
+          ? t("page.aria_check_complete", { riskLevel: preSendResult.riskLevel, defaultValue: `Check complete. Risk level: ${preSendResult.riskLevel}.` })
           : phase === "error"
-            ? `Analysis failed. ${error ?? ""}`
+            ? t("page.aria_error", { error: error ?? "", defaultValue: `Analysis failed. ${error ?? ""}` })
             : "";
 
   return (
@@ -212,11 +229,11 @@ export default function Home() {
           >
             <div className="space-y-3">
               <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-tight">
-                <span className="text-foreground">Am I </span>
-                <span className="text-danger">exposed?</span>
+                <span className="text-foreground">{t("page.hero_prefix", { defaultValue: "Am I " })}</span>
+                <span className="text-danger">{t("page.hero_suffix", { defaultValue: "exposed?" })}</span>
               </h1>
               <p className="text-muted text-lg sm:text-xl max-w-xl mx-auto">
-                The Bitcoin privacy scanner you were afraid to run.
+                {t("page.tagline", { defaultValue: "The Bitcoin privacy scanner you were afraid to run." })}
               </p>
             </div>
 
@@ -233,7 +250,7 @@ export default function Home() {
             {scans.length === 0 && (
               <div className="w-full max-w-3xl">
                 <div className="flex items-center gap-1.5 text-base text-muted mb-2 px-1">
-                  <span>Try an example</span>
+                  <span>{t("page.try_example", { defaultValue: "Try an example" })}</span>
                 </div>
                 <div className="flex flex-wrap gap-2 justify-center">
                   {EXAMPLES.map((ex) => (
@@ -245,7 +262,7 @@ export default function Home() {
                         transition-all text-sm cursor-pointer group"
                     >
                       <span className="text-muted group-hover:text-foreground transition-colors">
-                        {ex.label}
+                        {t(ex.labelKey, { defaultValue: ex.labelDefault })}
                       </span>
                       <span className={`text-xs font-bold ${
                         ex.hint === "A+" ? "text-severity-good" :
@@ -261,16 +278,15 @@ export default function Home() {
             )}
 
             <p className="text-muted text-sm sm:text-base max-w-xl mx-auto">
-              Find out what the blockchain knows about you. Paste a Bitcoin address
-              or transaction ID to get a privacy score with actionable findings.
+              {t("page.description", { defaultValue: "Find out what the blockchain knows about you. Paste a Bitcoin address or transaction ID to get a privacy score with actionable findings." })}
             </p>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full max-w-3xl">
               {[
-                { icon: Scan, label: "16 heuristics", desc: "Deep analysis" },
-                { icon: Fingerprint, label: "Wallet ID", desc: "Fingerprinting" },
-                { icon: Shield, label: "CoinJoin", desc: "Detection" },
-                { icon: Eye, label: "Dust attacks", desc: "Flagged" },
+                { icon: Scan, label: t("page.feat_heuristics", { defaultValue: "16 heuristics" }), desc: t("page.feat_heuristics_desc", { defaultValue: "Deep analysis" }) },
+                { icon: Fingerprint, label: t("page.feat_wallet", { defaultValue: "Wallet ID" }), desc: t("page.feat_wallet_desc", { defaultValue: "Fingerprinting" }) },
+                { icon: Shield, label: "CoinJoin", desc: t("page.feat_coinjoin_desc", { defaultValue: "Detection" }) },
+                { icon: Eye, label: t("page.feat_dust", { defaultValue: "Dust attacks" }), desc: t("page.feat_dust_desc", { defaultValue: "Flagged" }) },
               ].map((feat) => (
                 <div
                   key={feat.label}
@@ -284,26 +300,26 @@ export default function Home() {
             </div>
 
             <button
-              onClick={() => setTipIndex((i) => (i + 1) % PRIVACY_TIPS.length)}
+              onClick={() => setTipIndex((i) => (i + 1) % PRIVACY_TIP_KEYS.length)}
               className="w-full max-w-lg mx-auto text-center cursor-pointer group"
             >
-              <p className="text-sm text-muted mb-1">Privacy tip</p>
+              <p className="text-sm text-muted mb-1">{t("page.privacy_tip", { defaultValue: "Privacy tip" })}</p>
               <p suppressHydrationWarning className="text-sm text-muted leading-relaxed group-hover:text-muted transition-colors">
-                {PRIVACY_TIPS[tipIndex]}
+                {t(PRIVACY_TIP_KEYS[tipIndex], { defaultValue: PRIVACY_TIPS_EN[tipIndex] })}
               </p>
             </button>
 
             <div className="flex flex-wrap items-center justify-center gap-4 text-base text-muted">
               <span className="inline-flex items-center gap-1.5">
                 <ShieldCheck size={16} className="text-success/50" />
-                100% client-side
+                {t("page.trust_client", { defaultValue: "100% client-side" })}
               </span>
-              <span>No tracking</span>
-              <span>Open source</span>
+              <span>{t("page.trust_tracking", { defaultValue: "No tracking" })}</span>
+              <span>{t("page.trust_opensource", { defaultValue: "Open source" })}</span>
             </div>
 
             <div className="text-xs text-muted hidden sm:block">
-              Press <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted font-mono">/</kbd> to focus search
+              {t("page.kbd_search", { defaultValue: "Press" })} <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted font-mono">/</kbd> {t("page.kbd_search_suffix", { defaultValue: "to focus search" })}
             </div>
           </motion.div>
         )}
@@ -320,7 +336,7 @@ export default function Home() {
             <div className="w-full bg-card-bg border border-card-border rounded-xl p-8 space-y-6">
               <div className="space-y-1">
                 <span className="text-xs font-medium text-muted uppercase tracking-wider">
-                  {mode === "check" ? "Pre-send destination check" : inputType === "txid" ? "Transaction" : "Address"}
+                  {mode === "check" ? t("page.label_presend", { defaultValue: "Pre-send destination check" }) : inputType === "txid" ? t("page.label_transaction", { defaultValue: "Transaction" }) : t("page.label_address", { defaultValue: "Address" })}
                 </span>
                 <p className="font-mono text-sm text-foreground/90 break-all leading-relaxed">
                   {query}
@@ -373,7 +389,7 @@ export default function Home() {
               <AlertCircle size={32} className="text-severity-critical mx-auto" />
               <div className="space-y-2">
                 <h2 className="text-lg font-semibold text-foreground">
-                  Analysis failed
+                  {t("page.error_title", { defaultValue: "Analysis failed" })}
                 </h2>
                 {query && (
                   <p className="font-mono text-sm text-muted break-all">
@@ -391,19 +407,19 @@ export default function Home() {
                     className="px-4 py-1.5 bg-bitcoin text-black font-semibold text-sm rounded-lg
                       hover:bg-bitcoin-hover transition-all duration-150 cursor-pointer"
                   >
-                    Retry
+                    {t("page.retry", { defaultValue: "Retry" })}
                   </button>
                 )}
                 <button
                   onClick={handleBack}
                   className="text-sm text-muted hover:text-foreground transition-colors cursor-pointer"
                 >
-                  New scan
+                  {t("page.new_scan", { defaultValue: "New scan" })}
                 </button>
               </div>
             </div>
             <div className="text-xs text-muted hidden sm:block">
-              Press <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted font-mono">Esc</kbd> to go back
+              {t("page.kbd_back", { defaultValue: "Press" })} <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted font-mono">Esc</kbd> {t("page.kbd_back_suffix", { defaultValue: "to go back" })}
             </div>
           </motion.div>
         )}

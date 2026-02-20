@@ -28,6 +28,7 @@ export const analyzeFees: TxHeuristic = (tx) => {
       id: "h6-round-fee-rate",
       severity: "low",
       title: `Exact fee rate: ${feeRate} sat/vB`,
+      params: { feeRate },
       description:
         `This transaction uses an exact integer fee rate of ${feeRate} sat/vB. ` +
         "Some wallet software uses round fee rates rather than precise estimates, " +

@@ -14,4 +14,4 @@ export { analyzeTiming } from "./timing";
 export { analyzeScriptTypeMix } from "./script-type-mix";
 export { analyzeSpendingPattern } from "./spending-analysis";
 export { analyzeDustOutputs } from "./dust-output";
-export type { TxHeuristic, AddressHeuristic, HeuristicResult } from "./types";
+export type { TxHeuristic, AddressHeuristic, HeuristicResult, HeuristicTranslator } from "./types";

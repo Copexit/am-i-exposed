@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { Check, Loader2, Circle } from "lucide-react";
 import type { HeuristicStep } from "@/lib/analysis/orchestrator";
@@ -11,6 +12,7 @@ interface DiagnosticLoaderProps {
 }
 
 export function DiagnosticLoader({ steps, phase }: DiagnosticLoaderProps) {
+  const { t } = useTranslation();
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
@@ -35,8 +37,8 @@ export function DiagnosticLoader({ steps, phase }: DiagnosticLoaderProps) {
           <Loader2 size={14} className="animate-spin text-bitcoin" />
           <span>
             {phase === "fetching"
-              ? "Fetching data from mempool.space..."
-              : "Diagnosing your privacy..."}
+              ? t("loader.fetching", { defaultValue: "Fetching data from mempool.space..." })
+              : t("loader.diagnosing", { defaultValue: "Diagnosing your privacy..." })}
           </span>
         </div>
         <div className="flex items-center gap-3">

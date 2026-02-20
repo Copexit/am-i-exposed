@@ -5,6 +5,9 @@ import type {
   MempoolUtxo,
 } from "@/lib/api/types";
 
+/** Translation function passed from React layer to analysis code. */
+export type HeuristicTranslator = (key: string, options?: Record<string, unknown>) => string;
+
 export interface HeuristicResult {
   findings: Finding[];
 }

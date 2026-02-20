@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import type { Grade } from "@/lib/types";
+import { useTranslation } from "react-i18next";
 
 interface ScoreDisplayProps {
   score: number;
@@ -26,6 +27,7 @@ const BAR_COLORS: Record<Grade, string> = {
 };
 
 export function ScoreDisplay({ score, grade }: ScoreDisplayProps) {
+  const { t } = useTranslation();
   const [displayScore, setDisplayScore] = useState(0);
 
   // Animated count-up
@@ -58,7 +60,7 @@ export function ScoreDisplay({ score, grade }: ScoreDisplayProps) {
       data-score={score}
       data-grade={grade}
       role="status"
-      aria-label={`Privacy score: ${score} out of 100, grade ${grade}`}
+      aria-label={t("score.ariaLabel", { score, grade, defaultValue: "Privacy score: {{score}} out of 100, grade {{grade}}" })}
     >
       {isDanger && (
         <motion.div
@@ -114,14 +116,14 @@ export function ScoreDisplay({ score, grade }: ScoreDisplayProps) {
 
       <p className="text-sm text-muted">
         {grade === "A+"
-          ? "Excellent privacy practices"
+          ? t("score.gradeAPlus", { defaultValue: "Excellent privacy practices" })
           : grade === "B"
-            ? "Good privacy, minor concerns"
+            ? t("score.gradeB", { defaultValue: "Good privacy, minor concerns" })
             : grade === "C"
-              ? "Fair privacy, notable issues found"
+              ? t("score.gradeC", { defaultValue: "Fair privacy, notable issues found" })
               : grade === "D"
-                ? "Poor privacy, significant exposure"
-                : "Critical privacy failures detected"}
+                ? t("score.gradeD", { defaultValue: "Poor privacy, significant exposure" })
+                : t("score.gradeF", { defaultValue: "Critical privacy failures detected" })}
       </p>
     </div>
   );

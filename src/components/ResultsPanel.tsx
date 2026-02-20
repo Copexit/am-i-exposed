@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft, ExternalLink, Copy, Check, Info, AlertTriangle } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { ScoreDisplay } from "./ScoreDisplay";
 import { FindingCard } from "./FindingCard";
@@ -21,6 +22,7 @@ import type { MempoolTransaction, MempoolAddress } from "@/lib/api/types";
 
 function ScoringExplainer() {
   const [open, setOpen] = useState(false);
+  const { t } = useTranslation();
 
   return (
     <div className="w-full">
@@ -29,7 +31,7 @@ function ScoringExplainer() {
         className="inline-flex items-center gap-1.5 text-xs text-foreground hover:text-foreground transition-colors cursor-pointer px-1 min-h-[44px]"
       >
         <Info size={12} />
-        How scoring works
+        {t("results.howScoringWorks", { defaultValue: "How scoring works" })}
       </button>
       <AnimatePresence>
         {open && (
@@ -42,9 +44,7 @@ function ScoringExplainer() {
           >
             <div className="mt-2 bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed space-y-2">
               <p>
-                Scores start at <strong className="text-foreground">70/100</strong> (baseline) and are adjusted by each heuristic finding.
-                Negative findings (address reuse, change detection, round amounts) lower the score.
-                Positive findings (CoinJoin, high entropy, anonymity sets) raise it.
+                {t("results.scoringExplainerP1", { defaultValue: "Scores start at " })}<strong className="text-foreground">70/100</strong>{t("results.scoringExplainerP1b", { defaultValue: " (baseline) and are adjusted by each heuristic finding. Negative findings (address reuse, change detection, round amounts) lower the score. Positive findings (CoinJoin, high entropy, anonymity sets) raise it." })}
               </p>
               <p>
                 <strong className="text-severity-good">A+ (90+)</strong>{" "}
@@ -54,9 +54,7 @@ function ScoringExplainer() {
                 <strong className="text-severity-critical">F (&lt;25)</strong>
               </p>
               <p>
-                The engine runs 16 heuristics based on published chain analysis research.
-                Scores are clamped to 0-100. CoinJoin transactions receive adjusted
-                scoring that accounts for their privacy-enhancing properties.
+                {t("results.scoringExplainerP3", { defaultValue: "The engine runs 16 heuristics based on published chain analysis research. Scores are clamped to 0-100. CoinJoin transactions receive adjusted scoring that accounts for their privacy-enhancing properties." })}
               </p>
             </div>
           </motion.div>
@@ -67,20 +65,21 @@ function ScoringExplainer() {
 }
 
 function AddressTypeBadge({ address }: { address: string }) {
-  let type: string;
+  const { t } = useTranslation();
+  let typeKey: string;
   let color: string;
 
   if (address.startsWith("bc1p") || address.startsWith("tb1p")) {
-    type = "Taproot";
+    typeKey = "Taproot";
     color = "bg-severity-good/20 text-severity-good border-severity-good/30";
   } else if (address.startsWith("bc1q") || address.startsWith("tb1q")) {
-    type = "SegWit";
+    typeKey = "SegWit";
     color = "bg-severity-low/20 text-severity-low border-severity-low/30";
   } else if (address.startsWith("3") || address.startsWith("2")) {
-    type = "P2SH";
+    typeKey = "P2SH";
     color = "bg-severity-medium/20 text-severity-medium border-severity-medium/30";
   } else if (address.startsWith("1") || address.startsWith("m") || address.startsWith("n")) {
-    type = "Legacy";
+    typeKey = "Legacy";
     color = "bg-severity-high/20 text-severity-high border-severity-high/30";
   } else {
     return null;
@@ -88,22 +87,23 @@ function AddressTypeBadge({ address }: { address: string }) {
 
   return (
     <span className={`text-xs font-medium px-1.5 py-0.5 rounded border ${color}`}>
-      {type}
+      {t(`results.addressType.${typeKey}`, { defaultValue: typeKey })}
     </span>
   );
 }
 
 function FindingSummary({ findings }: { findings: ScoringResult["findings"] }) {
+  const { t } = useTranslation();
   const issues = findings.filter((f) => f.scoreImpact < 0).length;
   const good = findings.filter((f) => f.scoreImpact > 0 || f.severity === "good").length;
 
   return (
     <div className="flex items-center gap-3 text-sm text-muted">
       {issues > 0 && (
-        <span className="text-severity-high">{issues} issue{issues > 1 ? "s" : ""}</span>
+        <span className="text-severity-high">{t("results.issueCount", { count: issues, defaultValue: "{{count}} issue", defaultValue_plural: "{{count}} issues" })}</span>
       )}
       {good > 0 && (
-        <span className="text-severity-good">{good} positive</span>
+        <span className="text-severity-good">{t("results.positiveCount", { count: good, defaultValue: "{{count}} positive" })}</span>
       )}
     </div>
   );
@@ -135,12 +135,13 @@ export function ResultsPanel({
   durationMs,
 }: ResultsPanelProps) {
   const { config, customApiUrl } = useNetwork();
+  const { t } = useTranslation();
   const [shareStatus, setShareStatus] = useState<"idle" | "copied" | "failed">("idle");
 
   const explorerUrl = `${config.explorerUrl}/${inputType === "txid" ? "tx" : "address"}/${query}`;
   const explorerLabel = customApiUrl
-    ? `View on ${new URL(config.explorerUrl).hostname}`
-    : "View on mempool.space";
+    ? t("results.viewOnCustom", { hostname: new URL(config.explorerUrl).hostname, defaultValue: "View on {{hostname}}" })
+    : t("results.viewOnMempool", { defaultValue: "View on mempool.space" });
 
   const handleShare = async () => {
     const shareUrl = `${window.location.origin}${window.location.pathname}#${inputType === "txid" ? "tx" : "addr"}=${query}`;
@@ -169,7 +170,7 @@ export function ResultsPanel({
           className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer py-2 min-h-[44px]"
         >
           <ArrowLeft size={16} />
-          New scan
+          {t("results.newScan", { defaultValue: "New scan" })}
         </button>
 
         <div className="flex items-center gap-4">
@@ -179,7 +180,7 @@ export function ResultsPanel({
             className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer py-2 min-h-[44px]"
           >
             {shareStatus === "copied" ? <Check size={14} /> : <Copy size={14} />}
-            {shareStatus === "copied" ? "Copied" : shareStatus === "failed" ? "Failed" : "Share"}
+            {shareStatus === "copied" ? t("results.copied", { defaultValue: "Copied" }) : shareStatus === "failed" ? t("results.failed", { defaultValue: "Failed" }) : t("results.share", { defaultValue: "Share" })}
           </button>
         </div>
       </div>
@@ -189,7 +190,7 @@ export function ResultsPanel({
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-muted uppercase tracking-wider">
-              {inputType === "txid" ? "Transaction" : "Address"}
+              {inputType === "txid" ? t("results.transaction", { defaultValue: "Transaction" }) : t("results.address", { defaultValue: "Address" })}
             </span>
             {inputType === "address" && (
               <AddressTypeBadge address={query} />
@@ -221,12 +222,12 @@ export function ResultsPanel({
           <AlertTriangle size={18} className="text-severity-critical shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-severity-critical">
-              High exposure risk
+              {t("results.highExposureRisk", { defaultValue: "High exposure risk" })}
             </p>
             <p className="text-xs text-foreground mt-1 leading-relaxed">
-              This {inputType === "txid" ? "transaction" : "address"} has severe privacy issues.
-              On-chain surveillance can likely identify the owner and trace fund flows.
-              Immediate remediation steps are recommended below.
+              {inputType === "txid"
+                ? t("results.fGradeWarningTx", { defaultValue: "This transaction has severe privacy issues. On-chain surveillance can likely identify the owner and trace fund flows. Immediate remediation steps are recommended below." })
+                : t("results.fGradeWarningAddr", { defaultValue: "This address has severe privacy issues. On-chain surveillance can likely identify the owner and trace fund flows. Immediate remediation steps are recommended below." })}
             </p>
           </div>
         </motion.div>
@@ -251,7 +252,7 @@ export function ResultsPanel({
         <div className="w-full space-y-4">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-base font-medium text-muted uppercase tracking-wider">
-              Findings ({result.findings.length})
+              {t("results.findingsHeading", { count: result.findings.length, defaultValue: "Findings ({{count}})" })}
             </h2>
             <FindingSummary findings={result.findings} />
           </div>
@@ -301,18 +302,25 @@ export function ResultsPanel({
 
       {/* Disclaimer */}
       <div className="w-full bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed">
-        {result.findings.length} findings from {inputType === "txid" ? "12" : "4"} heuristics
-        {txBreakdown ? ` + ${txBreakdown.length} transactions analyzed` : ""}
-        {durationMs ? ` in ${(durationMs / 1000).toFixed(1)}s` : ""}.
-        Analysis ran entirely in your browser. API queries were sent to{" "}
-        {config.mempoolBaseUrl.includes("mempool.space")
-          ? "mempool.space"
-          : new URL(config.mempoolBaseUrl).hostname}.
-        Scores are heuristic-based estimates, not definitive privacy assessments.
+        {t("results.disclaimerStats", {
+          findingCount: result.findings.length,
+          heuristicCount: inputType === "txid" ? "12" : "4",
+          defaultValue: "{{findingCount}} findings from {{heuristicCount}} heuristics",
+        })}
+        {txBreakdown ? t("results.disclaimerTxAnalyzed", { count: txBreakdown.length, defaultValue: " + {{count}} transactions analyzed" }) : ""}
+        {durationMs ? t("results.disclaimerDuration", { duration: (durationMs / 1000).toFixed(1), defaultValue: " in {{duration}}s" }) : ""}.
+        {" "}{t("results.disclaimerBrowser", { defaultValue: "Analysis ran entirely in your browser." })}{" "}
+        {t("results.disclaimerApi", {
+          hostname: config.mempoolBaseUrl.includes("mempool.space")
+            ? "mempool.space"
+            : new URL(config.mempoolBaseUrl).hostname,
+          defaultValue: "API queries were sent to {{hostname}}.",
+        })}{" "}
+        {t("results.disclaimerHeuristic", { defaultValue: "Scores are heuristic-based estimates, not definitive privacy assessments." })}
       </div>
 
       <div className="text-xs text-muted pb-4 hidden sm:block">
-        Press <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted font-mono">Esc</kbd> for new scan
+        {t("results.pressEsc", { defaultValue: "Press" })} <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted font-mono">Esc</kbd> {t("results.forNewScan", { defaultValue: "for new scan" })}
       </div>
     </motion.div>
   );

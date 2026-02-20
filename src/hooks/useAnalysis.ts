@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { createApiClient } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/fetch-with-retry";
@@ -19,6 +20,7 @@ import {
 import { checkOfac } from "@/lib/analysis/cex-risk/ofac-check";
 import type { ScoringResult, InputType, TxAnalysisResult } from "@/lib/types";
 import type { MempoolTransaction } from "@/lib/api/types";
+import type { HeuristicTranslator } from "@/lib/analysis/heuristics/types";
 
 export type AnalysisPhase =
   | "idle"
@@ -60,7 +62,14 @@ const INITIAL_STATE: AnalysisState = {
 export function useAnalysis() {
   const [state, setState] = useState<AnalysisState>(INITIAL_STATE);
   const { network, config } = useNetwork();
+  const { t } = useTranslation();
   const abortRef = useRef<AbortController | null>(null);
+
+  // Wrap t as HeuristicTranslator for passing into analysis layer
+  const ht: HeuristicTranslator = useCallback(
+    (key: string, options?: Record<string, unknown>) => t(key, options as Record<string, string>),
+    [t],
+  );
 
   const isCustomApi =
     config.mempoolBaseUrl !== NETWORK_CONFIG[network].mempoolBaseUrl;
@@ -79,7 +88,7 @@ export function useAnalysis() {
           phase: "error",
           query: input,
           inputType: "invalid",
-          error: "Invalid Bitcoin address or transaction ID.",
+          error: t("errors.invalid_input", { defaultValue: "Invalid Bitcoin address or transaction ID." }),
         });
         return;
       }
@@ -88,8 +97,8 @@ export function useAnalysis() {
 
       const steps =
         inputType === "txid"
-          ? getTxHeuristicSteps()
-          : getAddressHeuristicSteps();
+          ? getTxHeuristicSteps(ht)
+          : getAddressHeuristicSteps(ht);
 
       const startTime = Date.now();
 
@@ -201,24 +210,24 @@ export function useAnalysis() {
         // Ignore aborted requests (user started a new analysis)
         if (controller.signal.aborted) return;
 
-        let message = "An unexpected error occurred.";
+        let message = t("errors.unexpected", { defaultValue: "An unexpected error occurred." });
         if (err instanceof ApiError) {
           switch (err.code) {
             case "NOT_FOUND":
-              message = "Not found. Check that the address or transaction ID is correct and exists on the selected network.";
+              message = t("errors.not_found", { defaultValue: "Not found. Check that the address or transaction ID is correct and exists on the selected network." });
               break;
             case "RATE_LIMITED":
-              message = "Rate limited by mempool.space. Please wait a moment and try again.";
+              message = t("errors.rate_limited", { defaultValue: "Rate limited by mempool.space. Please wait a moment and try again." });
               break;
             case "NETWORK_ERROR":
               message = isCustomApi
-                ? "Connection to your custom endpoint failed. Open API settings to troubleshoot."
-                : "Network error. Check your internet connection or try again later.";
+                ? t("errors.network_custom", { defaultValue: "Connection to your custom endpoint failed. Open API settings to troubleshoot." })
+                : t("errors.network", { defaultValue: "Network error. Check your internet connection or try again later." });
               break;
             case "API_UNAVAILABLE":
               message = isCustomApi
-                ? "Your custom API endpoint returned an error. Check that it is running."
-                : "The API is temporarily unavailable. Please try again later.";
+                ? t("errors.api_custom", { defaultValue: "Your custom API endpoint returned an error. Check that it is running." })
+                : t("errors.api_unavailable", { defaultValue: "The API is temporarily unavailable. Please try again later." });
               break;
           }
         } else if (err instanceof Error) {
@@ -231,7 +240,7 @@ export function useAnalysis() {
         }));
       }
     },
-    [network, config, isCustomApi],
+    [network, config, isCustomApi, t, ht],
   );
 
   const checkDestination = useCallback(
@@ -248,14 +257,14 @@ export function useAnalysis() {
           query: input,
           inputType: inputType === "txid" ? "txid" : "invalid",
           error: inputType === "txid"
-            ? "Pre-send check only works with addresses, not transaction IDs."
-            : "Invalid Bitcoin address.",
+            ? t("errors.presend_txid", { defaultValue: "Pre-send check only works with addresses, not transaction IDs." })
+            : t("errors.invalid_address", { defaultValue: "Invalid Bitcoin address." }),
         });
         return;
       }
 
       const api = createApiClient(config, controller.signal);
-      const steps = getAddressHeuristicSteps();
+      const steps = getAddressHeuristicSteps(ht);
       const startTime = Date.now();
 
       // Run local OFAC check first - no network needed
@@ -414,24 +423,24 @@ export function useAnalysis() {
           return;
         }
 
-        let message = "An unexpected error occurred.";
+        let message = t("errors.unexpected", { defaultValue: "An unexpected error occurred." });
         if (err instanceof ApiError) {
           switch (err.code) {
             case "NOT_FOUND":
-              message = "Address not found. Check that it's correct and exists on the selected network.";
+              message = t("errors.address_not_found", { defaultValue: "Address not found. Check that it's correct and exists on the selected network." });
               break;
             case "RATE_LIMITED":
-              message = "Rate limited. Please wait a moment and try again.";
+              message = t("errors.rate_limited_short", { defaultValue: "Rate limited. Please wait a moment and try again." });
               break;
             case "NETWORK_ERROR":
               message = isCustomApi
-                ? "Connection to your custom endpoint failed. Open API settings to troubleshoot."
-                : "Network error. Check your internet connection.";
+                ? t("errors.network_custom", { defaultValue: "Connection to your custom endpoint failed. Open API settings to troubleshoot." })
+                : t("errors.network_short", { defaultValue: "Network error. Check your internet connection." });
               break;
             case "API_UNAVAILABLE":
               message = isCustomApi
-                ? "Your custom API endpoint returned an error. Check that it is running."
-                : "API temporarily unavailable. Try again later.";
+                ? t("errors.api_custom", { defaultValue: "Your custom API endpoint returned an error. Check that it is running." })
+                : t("errors.api_unavailable_short", { defaultValue: "API temporarily unavailable. Try again later." });
               break;
           }
         } else if (err instanceof Error) {
@@ -440,7 +449,7 @@ export function useAnalysis() {
         setState((prev) => ({ ...prev, phase: "error", error: message }));
       }
     },
-    [network, config, isCustomApi],
+    [network, config, isCustomApi, t, ht],
   );
 
   const reset = useCallback(() => {

@@ -12,6 +12,7 @@ import {
   Search,
   RotateCw,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { checkOfac } from "@/lib/analysis/cex-risk/ofac-check";
 import { checkChainalysis } from "@/lib/analysis/cex-risk/chainalysis-check";
 import { extractTxAddresses } from "@/lib/analysis/cex-risk/extract-addresses";
@@ -26,6 +27,7 @@ interface CexRiskPanelProps {
 }
 
 export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(true);
 
   // Derive addresses to check
@@ -99,11 +101,11 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
             hasSanction ? "text-severity-critical" : "text-muted group-hover:text-muted"
           }`}
         >
-          Exchange Risk Check
+          {t("cex.exchangeRiskCheck", { defaultValue: "Exchange Risk Check" })}
         </span>
         {hasSanction && (
           <span className="text-xs font-medium text-severity-critical bg-severity-critical/10 px-1.5 py-0.5 rounded">
-            FLAGGED
+            {t("cex.flagged", { defaultValue: "FLAGGED" })}
           </span>
         )}
         <ChevronDown
@@ -125,7 +127,9 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
           >
             <div className="mt-3 bg-card-bg border border-card-border rounded-xl p-5 space-y-4">
               <p className="text-sm text-muted">
-                Will exchanges flag this {inputType === "txid" ? "transaction" : "address"}?
+                {inputType === "txid"
+                  ? t("cex.willFlagTx", { defaultValue: "Will exchanges flag this transaction?" })
+                  : t("cex.willFlagAddr", { defaultValue: "Will exchanges flag this address?" })}
               </p>
 
               {/* OFAC row */}
@@ -140,7 +144,7 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-foreground/90">
-                      OFAC Sanctions List
+                      {t("cex.ofacTitle", { defaultValue: "OFAC Sanctions List" })}
                     </span>
                     <span
                       className={`text-xs font-medium px-1.5 py-0.5 rounded ${
@@ -149,19 +153,15 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
                           : "bg-severity-good/10 text-severity-good"
                       }`}
                     >
-                      {ofacResult.sanctioned ? "FLAGGED" : "Clear"}
+                      {ofacResult.sanctioned ? t("cex.flagged", { defaultValue: "FLAGGED" }) : t("cex.clear", { defaultValue: "Clear" })}
                     </span>
                   </div>
                   {ofacResult.sanctioned ? (
                     <div className="mt-1 space-y-1">
                       <p className="text-xs text-severity-critical">
-                        {ofacResult.matchedAddresses.length} sanctioned address
-                        {ofacResult.matchedAddresses.length > 1 ? "es" : ""} found.
-                        Exchanges will likely freeze funds associated with{" "}
                         {ofacResult.matchedAddresses.length > 1
-                          ? "these addresses"
-                          : "this address"}
-                        .
+                          ? t("cex.ofacFlaggedPlural", { count: ofacResult.matchedAddresses.length, defaultValue: "{{count}} sanctioned addresses found. Exchanges will likely freeze funds associated with these addresses." })
+                          : t("cex.ofacFlaggedSingular", { defaultValue: "1 sanctioned address found. Exchanges will likely freeze funds associated with this address." })}
                       </p>
                       <div className="space-y-0.5">
                         {ofacResult.matchedAddresses.map((addr) => (
@@ -176,11 +176,11 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
                     </div>
                   ) : (
                     <p className="text-sm text-muted mt-0.5">
-                      Checked against US Treasury SDN list. Client-side - no data sent.
+                      {t("cex.ofacClear", { defaultValue: "Checked against US Treasury SDN list. Client-side - no data sent." })}
                     </p>
                   )}
                   <p className="text-xs text-muted mt-1">
-                    Last updated: {ofacResult.lastUpdated}
+                    {t("cex.lastUpdated", { date: ofacResult.lastUpdated, defaultValue: "Last updated: {{date}}" })}
                   </p>
                 </div>
               </div>
@@ -208,7 +208,7 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-foreground/90">
-                      Chainalysis Screening
+                      {t("cex.chainalysisTitle", { defaultValue: "Chainalysis Screening" })}
                     </span>
                     {chainalysis.status === "done" && (
                       <span
@@ -218,7 +218,7 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
                             : "bg-severity-good/10 text-severity-good"
                         }`}
                       >
-                        {chainalysis.sanctioned ? "FLAGGED" : "Clear"}
+                        {chainalysis.sanctioned ? t("cex.flagged", { defaultValue: "FLAGGED" }) : t("cex.clear", { defaultValue: "Clear" })}
                       </span>
                     )}
                   </div>
@@ -230,40 +230,40 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
                         className="inline-flex items-center gap-2 text-sm font-medium text-bitcoin hover:text-bitcoin-hover bg-bitcoin/10 hover:bg-bitcoin/20 rounded-lg px-3 py-2.5 transition-colors cursor-pointer"
                       >
                         <Search size={14} />
-                        Run Chainalysis Check
+                        {t("cex.runChainalysis", { defaultValue: "Run Chainalysis Check" })}
                         {inputType === "txid" && addresses.length > 1 && (
                           <span className="text-muted text-xs">
-                            ({Math.min(addresses.length, 20)} address
-                            {Math.min(addresses.length, 20) > 1 ? "es" : ""})
+                            ({t("cex.addressCount", { count: Math.min(addresses.length, 20), defaultValue: "{{count}} address", defaultValue_plural: "{{count}} addresses" })})
                           </span>
                         )}
                       </button>
                       <p className="text-xs text-severity-medium mt-1 flex items-center gap-1.5">
                         <AlertTriangle size={12} className="shrink-0" />
-                        Sends {inputType === "txid" && addresses.length > 1 ? "addresses" : "address"} to
-                        chainalysis.com via proxy. The proxy operator also sees the addresses.
+                        {inputType === "txid" && addresses.length > 1
+                          ? t("cex.privacyWarningPlural", { defaultValue: "Sends addresses to chainalysis.com via proxy. The proxy operator also sees the addresses." })
+                          : t("cex.privacyWarningSingular", { defaultValue: "Sends address to chainalysis.com via proxy. The proxy operator also sees the addresses." })}
                       </p>
                     </div>
                   )}
 
                   {chainalysis.status === "loading" && (
                     <p className="text-sm text-muted mt-1">
-                      Checking {Math.min(addresses.length, 20)} address
-                      {Math.min(addresses.length, 20) > 1 ? "es" : ""}...
+                      {t("cex.checking", { count: Math.min(addresses.length, 20), defaultValue: "Checking {{count}} address...", defaultValue_plural: "Checking {{count}} addresses..." })}
                     </p>
                   )}
 
                   {chainalysis.status === "done" && !chainalysis.sanctioned && (
                     <p className="text-sm text-muted mt-0.5">
-                      No sanctions identified. Exchanges are unlikely to flag this
-                      {inputType === "txid" ? " transaction" : " address"}.
+                      {inputType === "txid"
+                        ? t("cex.chainalysisClearTx", { defaultValue: "No sanctions identified. Exchanges are unlikely to flag this transaction." })
+                        : t("cex.chainalysisClearAddr", { defaultValue: "No sanctions identified. Exchanges are unlikely to flag this address." })}
                     </p>
                   )}
 
                   {chainalysis.status === "done" && chainalysis.sanctioned && (
                     <div className="mt-1 space-y-1">
                       <p className="text-xs text-severity-critical">
-                        Sanctions identified. Exchanges will likely freeze funds.
+                        {t("cex.sanctionsIdentified", { defaultValue: "Sanctions identified. Exchanges will likely freeze funds." })}
                       </p>
                       {chainalysis.identifications.map((id, i) => (
                         <div
@@ -294,14 +294,14 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
                   {chainalysis.status === "error" && (
                     <div className="mt-1 space-y-1">
                       <p className="text-xs text-severity-high">
-                        {chainalysis.error || "Request failed"}
+                        {chainalysis.error || t("cex.requestFailed", { defaultValue: "Request failed" })}
                       </p>
                       <button
                         onClick={runChainalysis}
                         className="inline-flex items-center gap-1.5 text-sm font-medium text-bitcoin hover:text-bitcoin-hover bg-bitcoin/10 hover:bg-bitcoin/20 rounded-lg px-3 py-2 transition-colors cursor-pointer"
                       >
                         <RotateCw size={14} />
-                        Retry
+                        {t("cex.retry", { defaultValue: "Retry" })}
                       </button>
                     </div>
                   )}
@@ -310,9 +310,7 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
 
               {/* Disclaimer */}
               <p className="text-xs text-muted leading-relaxed border-t border-card-border pt-3">
-                These checks cover sanctions screening only. Exchanges may flag
-                addresses for other reasons (mixer usage, high-risk jurisdiction, etc.)
-                that are not detectable with public tools.
+                {t("cex.disclaimer", { defaultValue: "These checks cover sanctions screening only. Exchanges may flag addresses for other reasons (mixer usage, high-risk jurisdiction, etc.) that are not detectable with public tools." })}
               </p>
             </div>
           </motion.div>

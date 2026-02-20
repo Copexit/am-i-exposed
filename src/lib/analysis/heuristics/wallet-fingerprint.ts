@@ -112,6 +112,7 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
     id: "h11-wallet-fingerprint",
     severity,
     title,
+    params: { ...(walletGuess ? { walletGuess } : {}), signalCount: signals.length, signals: signals.join("; ") },
     description:
       `Transaction metadata reveals wallet characteristics: ${signals.join("; ")}. ` +
       (walletGuess

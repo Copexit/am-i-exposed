@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { BarChart3 } from "lucide-react";
 import type { Finding } from "@/lib/types";
+import { useTranslation } from "react-i18next";
 
 interface ScoreBreakdownProps {
   findings: Finding[];
@@ -17,6 +18,7 @@ const BASE_SCORE = 70;
  * Starts at base 70, shows each positive/negative impact as a bar segment.
  */
 export function ScoreBreakdown({ findings, finalScore }: ScoreBreakdownProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   // Only show findings with non-zero impact
@@ -44,7 +46,7 @@ export function ScoreBreakdown({ findings, finalScore }: ScoreBreakdownProps) {
         className="inline-flex items-center gap-1.5 text-xs text-foreground hover:text-foreground transition-colors cursor-pointer px-1 min-h-[44px]"
       >
         <BarChart3 size={14} />
-        Score breakdown
+        {t("score.breakdown", { defaultValue: "Score breakdown" })}
       </button>
       <AnimatePresence>
         {open && (
@@ -58,7 +60,7 @@ export function ScoreBreakdown({ findings, finalScore }: ScoreBreakdownProps) {
             <div className="mt-2 bg-surface-inset rounded-lg px-4 py-3 space-y-2">
               {/* Base score */}
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted">Base score</span>
+                <span className="text-muted">{t("score.baseScore", { defaultValue: "Base score" })}</span>
                 <span className="text-foreground font-mono tabular-nums">{BASE_SCORE}</span>
               </div>
 
@@ -119,7 +121,7 @@ export function ScoreBreakdown({ findings, finalScore }: ScoreBreakdownProps) {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-muted">Final:</span>
+                  <span className="text-muted">{t("score.final", { defaultValue: "Final:" })}</span>
                   <span className="text-foreground font-bold font-mono tabular-nums">
                     {finalScore}/100
                   </span>

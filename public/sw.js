@@ -49,7 +49,8 @@ self.addEventListener("fetch", (event) => {
             (url.pathname.endsWith(".js") ||
               url.pathname.endsWith(".css") ||
               url.pathname.endsWith(".svg") ||
-              url.pathname.endsWith(".woff2"))
+              url.pathname.endsWith(".woff2") ||
+              url.pathname.endsWith(".json"))
           ) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));

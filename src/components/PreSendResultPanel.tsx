@@ -12,6 +12,7 @@ import {
   Check,
 } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { FindingCard } from "./FindingCard";
 import { AddressSummary } from "./AddressSummary";
@@ -31,29 +32,37 @@ const RISK_CONFIG = {
     icon: ShieldCheck,
     color: "text-severity-good",
     bg: "bg-severity-good/10 border-severity-good/30",
-    label: "Low Risk",
-    advice: "This destination looks safe to send to.",
+    labelKey: "presend.riskLow",
+    labelDefault: "Low Risk",
+    adviceKey: "presend.adviceLow",
+    adviceDefault: "This destination looks safe to send to.",
   },
   MEDIUM: {
     icon: ShieldAlert,
     color: "text-severity-medium",
     bg: "bg-severity-medium/10 border-severity-medium/30",
-    label: "Medium Risk",
-    advice: "Consider asking the recipient for a fresh address.",
+    labelKey: "presend.riskMedium",
+    labelDefault: "Medium Risk",
+    adviceKey: "presend.adviceMedium",
+    adviceDefault: "Consider asking the recipient for a fresh address.",
   },
   HIGH: {
     icon: ShieldAlert,
     color: "text-severity-high",
     bg: "bg-severity-high/10 border-severity-high/30",
-    label: "High Risk",
-    advice: "Ask the recipient for a fresh, unused address before sending.",
+    labelKey: "presend.riskHigh",
+    labelDefault: "High Risk",
+    adviceKey: "presend.adviceHigh",
+    adviceDefault: "Ask the recipient for a fresh, unused address before sending.",
   },
   CRITICAL: {
     icon: ShieldX,
     color: "text-severity-critical",
     bg: "bg-severity-critical/10 border-severity-critical/30",
-    label: "Critical Risk",
-    advice: "Do NOT send to this address. It poses severe privacy or legal risks.",
+    labelKey: "presend.riskCritical",
+    labelDefault: "Critical Risk",
+    adviceKey: "presend.adviceCritical",
+    adviceDefault: "Do NOT send to this address. It poses severe privacy or legal risks.",
   },
 } as const;
 
@@ -69,12 +78,13 @@ export function PreSendResultPanel({
   durationMs,
 }: PreSendResultPanelProps) {
   const { config, customApiUrl } = useNetwork();
+  const { t } = useTranslation();
   const [shareStatus, setShareStatus] = useState<"idle" | "copied">("idle");
   const risk = RISK_CONFIG[preSendResult.riskLevel];
   const RiskIcon = risk.icon;
   const explorerLabel = customApiUrl
-    ? `View on ${new URL(config.explorerUrl).hostname}`
-    : "View on mempool.space";
+    ? t("presend.viewOnCustom", { hostname: new URL(config.explorerUrl).hostname, defaultValue: "View on {{hostname}}" })
+    : t("presend.viewOnMempool", { defaultValue: "View on mempool.space" });
 
   const handleCopy = async () => {
     const shareUrl = `${window.location.origin}${window.location.pathname}#check=${query}`;
@@ -99,14 +109,14 @@ export function PreSendResultPanel({
           className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer py-2 min-h-[44px]"
         >
           <ArrowLeft size={16} />
-          New check
+          {t("presend.newCheck", { defaultValue: "New check" })}
         </button>
         <button
           onClick={handleCopy}
           className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer py-2 min-h-[44px]"
         >
           {shareStatus === "copied" ? <Check size={14} /> : <Copy size={14} />}
-          {shareStatus === "copied" ? "Copied" : "Share"}
+          {shareStatus === "copied" ? t("presend.copied", { defaultValue: "Copied" }) : t("presend.share", { defaultValue: "Share" })}
         </button>
       </div>
 
@@ -114,7 +124,7 @@ export function PreSendResultPanel({
       <div className="w-full bg-card-bg border border-card-border rounded-xl p-7 space-y-6">
         <div className="space-y-1">
           <span className="text-sm font-medium text-muted uppercase tracking-wider">
-            Pre-Send Destination Check
+            {t("presend.destinationCheck", { defaultValue: "Pre-Send Destination Check" })}
           </span>
           <p className="font-mono text-sm text-foreground/90 break-all leading-relaxed">
             {query}
@@ -125,7 +135,7 @@ export function PreSendResultPanel({
         <div className={`rounded-xl border p-6 ${risk.bg} flex flex-col items-center gap-3`}>
           <RiskIcon size={40} className={risk.color} />
           <span className={`text-2xl font-bold ${risk.color}`}>
-            {risk.label}
+            {t(risk.labelKey, { defaultValue: risk.labelDefault })}
           </span>
           <p className="text-sm text-center text-foreground max-w-md">
             {preSendResult.summary}
@@ -138,19 +148,19 @@ export function PreSendResultPanel({
             <p className="text-lg font-semibold text-foreground">
               {preSendResult.txCount}
             </p>
-            <p className="text-sm text-muted">Transactions</p>
+            <p className="text-sm text-muted">{t("presend.transactions", { defaultValue: "Transactions" })}</p>
           </div>
           <div>
             <p className="text-lg font-semibold text-foreground">
               {preSendResult.timesReceived}
             </p>
-            <p className="text-sm text-muted">Times received</p>
+            <p className="text-sm text-muted">{t("presend.timesReceived", { defaultValue: "Times received" })}</p>
           </div>
           <div>
             <p className="text-lg font-semibold text-foreground truncate">
               {formatBtc(preSendResult.totalReceived)}
             </p>
-            <p className="text-sm text-muted">Total received</p>
+            <p className="text-sm text-muted">{t("presend.totalReceived", { defaultValue: "Total received" })}</p>
           </div>
         </div>
       </div>
@@ -160,12 +170,11 @@ export function PreSendResultPanel({
         <AlertTriangle size={18} className={`${risk.color} shrink-0 mt-0.5`} />
         <div>
           <p className={`text-sm font-medium ${risk.color}`}>
-            {risk.advice}
+            {t(risk.adviceKey, { defaultValue: risk.adviceDefault })}
           </p>
           {preSendResult.riskLevel !== "LOW" && (
             <p className="text-sm text-foreground mt-1 leading-relaxed">
-              Sending to a reused address links your transaction to all other transactions
-              involving this address. Chain analysis can trivially trace your payment.
+              {t("presend.reusedAddressWarning", { defaultValue: "Sending to a reused address links your transaction to all other transactions involving this address. Chain analysis can trivially trace your payment." })}
             </p>
           )}
         </div>
@@ -178,7 +187,7 @@ export function PreSendResultPanel({
       {preSendResult.findings.length > 0 && (
         <div className="w-full space-y-3">
           <h2 className="text-base font-medium text-muted uppercase tracking-wider px-1">
-            Findings ({preSendResult.findings.length})
+            {t("presend.findingsHeading", { count: preSendResult.findings.length, defaultValue: "Findings ({{count}})" })}
           </h2>
           <div className="space-y-2">
             {preSendResult.findings.map((finding, i) => (
@@ -203,8 +212,8 @@ export function PreSendResultPanel({
 
       {/* Disclaimer */}
       <div className="w-full bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed">
-        Pre-send check completed{durationMs ? ` in ${(durationMs / 1000).toFixed(1)}s` : ""}.
-        Analysis ran entirely in your browser. This is a heuristic-based assessment - always verify independently.
+        {t("presend.disclaimerCompleted", { defaultValue: "Pre-send check completed" })}{durationMs ? t("presend.disclaimerDuration", { duration: (durationMs / 1000).toFixed(1), defaultValue: " in {{duration}}s" }) : ""}.
+        {" "}{t("presend.disclaimerBrowser", { defaultValue: "Analysis ran entirely in your browser. This is a heuristic-based assessment - always verify independently." })}
       </div>
     </motion.div>
   );

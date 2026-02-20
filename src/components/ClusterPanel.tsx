@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Network, Loader2, ChevronDown, AlertTriangle, GitBranch, RotateCw, Search } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useClusterAnalysis } from "@/hooks/useClusterAnalysis";
 import type { MempoolTransaction } from "@/lib/api/types";
 
@@ -13,6 +14,7 @@ interface ClusterPanelProps {
 }
 
 export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPanelProps) {
+  const { t } = useTranslation();
   const { phase, progress, result, error, analyze } = useClusterAnalysis();
   const [showAddresses, setShowAddresses] = useState(false);
 
@@ -23,7 +25,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
           <div className="flex items-center gap-2">
             <Network size={16} className="text-bitcoin/60" />
             <span className="text-sm font-medium text-foreground/90">
-              Cluster Analysis
+              {t("cluster.title", { defaultValue: "Cluster Analysis" })}
             </span>
             <span className="text-xs text-muted bg-surface-elevated px-1.5 py-0.5 rounded">
               H14
@@ -34,12 +36,11 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
             className="inline-flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium rounded-lg bg-bitcoin/10 text-bitcoin hover:bg-bitcoin/20 transition-colors cursor-pointer"
           >
             <GitBranch size={14} />
-            Build cluster
+            {t("cluster.buildCluster", { defaultValue: "Build cluster" })}
           </button>
         </div>
         <p className="text-sm text-muted leading-relaxed">
-          Discover linked addresses using common-input-ownership heuristic (CIOH).
-          Follows change outputs one hop. This makes additional API calls and may take a few seconds.
+          {t("cluster.description", { defaultValue: "Discover linked addresses using common-input-ownership heuristic (CIOH). Follows change outputs one hop. This makes additional API calls and may take a few seconds." })}
         </p>
       </div>
     );
@@ -51,7 +52,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
         <div className="flex items-center gap-2">
           <Loader2 size={16} className="text-bitcoin animate-spin" />
           <span className="text-sm font-medium text-foreground/90">
-            Building cluster...
+            {t("cluster.building", { defaultValue: "Building cluster..." })}
           </span>
         </div>
         {progress && (
@@ -59,8 +60,8 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
             <div className="flex items-center justify-between text-xs text-muted">
               <span>
                 {progress.phase === "inputs"
-                  ? "Analyzing transactions"
-                  : "Following change outputs"}
+                  ? t("cluster.analyzingTxs", { defaultValue: "Analyzing transactions" })
+                  : t("cluster.followingChange", { defaultValue: "Following change outputs" })}
               </span>
               <span>{progress.current} / {progress.total}</span>
             </div>
@@ -81,7 +82,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
       <div className="w-full bg-surface-inset rounded-xl p-5 space-y-2">
         <div className="flex items-center gap-2 text-severity-high">
           <AlertTriangle size={16} />
-          <span className="text-sm font-medium">Cluster analysis failed</span>
+          <span className="text-sm font-medium">{t("cluster.failed", { defaultValue: "Cluster analysis failed" })}</span>
         </div>
         <p className="text-xs text-muted">{error}</p>
         <button
@@ -89,7 +90,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
           className="inline-flex items-center gap-1.5 text-sm font-medium text-bitcoin hover:text-bitcoin-hover bg-bitcoin/10 hover:bg-bitcoin/20 rounded-lg px-3 py-2 transition-colors cursor-pointer"
         >
           <RotateCw size={14} />
-          Retry
+          {t("cluster.retry", { defaultValue: "Retry" })}
         </button>
       </div>
     );
@@ -107,7 +108,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
       <div className="flex items-center gap-2">
         <Network size={16} className="text-bitcoin" />
         <span className="text-sm font-medium text-foreground/90">
-          Cluster Analysis
+          {t("cluster.title", { defaultValue: "Cluster Analysis" })}
         </span>
         <span className="text-xs text-muted bg-surface-elevated px-1.5 py-0.5 rounded">
           H14
@@ -120,19 +121,19 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
           <p className="text-2xl font-bold text-foreground">
             {result.size}
           </p>
-          <p className="text-xs text-muted">Addresses</p>
+          <p className="text-xs text-muted">{t("cluster.addresses", { defaultValue: "Addresses" })}</p>
         </div>
         <div>
           <p className="text-2xl font-bold text-foreground">
             {result.txsAnalyzed}
           </p>
-          <p className="text-xs text-muted">Txs analyzed</p>
+          <p className="text-xs text-muted">{t("cluster.txsAnalyzed", { defaultValue: "Txs analyzed" })}</p>
         </div>
         <div>
           <p className="text-2xl font-bold text-foreground">
             {result.coinJoinTxCount}
           </p>
-          <p className="text-xs text-muted">CoinJoin txs</p>
+          <p className="text-xs text-muted">{t("cluster.coinJoinTxs", { defaultValue: "CoinJoin txs" })}</p>
         </div>
       </div>
 
@@ -146,22 +147,22 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
               : "bg-severity-medium/10 text-severity-medium"
         }`}>
           {result.size >= 20
-            ? `Large cluster: ${result.size} addresses are linked through common inputs. A chain analysis firm can see all of them as belonging to the same entity.`
+            ? t("cluster.severityLarge", { count: result.size, defaultValue: "Large cluster: {{count}} addresses are linked through common inputs. A chain analysis firm can see all of them as belonging to the same entity." })
             : result.size >= 5
-              ? `Notable cluster: ${result.size} addresses linked. Consider using CoinJoin before consolidating UTXOs.`
-              : `Small cluster: ${result.size} addresses linked through common inputs.`}
+              ? t("cluster.severityNotable", { count: result.size, defaultValue: "Notable cluster: {{count}} addresses linked. Consider using CoinJoin before consolidating UTXOs." })
+              : t("cluster.severitySmall", { count: result.size, defaultValue: "Small cluster: {{count}} addresses linked through common inputs." })}
         </div>
       )}
 
       {result.size === 1 && (
         <div className="text-sm leading-relaxed rounded-lg px-3 py-2 bg-severity-good/10 text-severity-good">
-          No linked addresses found. This address does not share inputs with other addresses in analyzed transactions.
+          {t("cluster.noLinked", { defaultValue: "No linked addresses found. This address does not share inputs with other addresses in analyzed transactions." })}
         </div>
       )}
 
       {result.coinJoinTxCount > 0 && (
         <p className="text-sm text-muted">
-          {result.coinJoinTxCount} CoinJoin transaction{result.coinJoinTxCount > 1 ? "s" : ""} excluded from clustering (CIOH does not apply).
+          {t("cluster.coinJoinExcluded", { count: result.coinJoinTxCount, defaultValue: "{{count}} CoinJoin transaction excluded from clustering (CIOH does not apply).", defaultValue_plural: "{{count}} CoinJoin transactions excluded from clustering (CIOH does not apply)." })}
         </p>
       )}
 
@@ -176,7 +177,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
               size={14}
               className={`transition-transform ${showAddresses ? "rotate-180" : ""}`}
             />
-            {showAddresses ? "Hide" : "Show"} addresses
+            {showAddresses ? t("cluster.hideAddresses", { defaultValue: "Hide addresses" }) : t("cluster.showAddresses", { defaultValue: "Show addresses" })}
           </button>
           <AnimatePresence>
             {showAddresses && (
@@ -205,7 +206,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
                         >
                           <span className="truncate">
                             {addr}
-                            {addr === targetAddress && " (target)"}
+                            {addr === targetAddress && ` (${t("cluster.targetLabel", { defaultValue: "target" })})`}
                           </span>
                           <Search size={12} className="shrink-0 opacity-0 group-hover/addr:opacity-100 transition-opacity" />
                         </button>
@@ -226,8 +227,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
 
       {/* Disclaimer */}
       <p className="text-xs text-muted leading-relaxed">
-        This is a lower-bound estimate based on one-hop CIOH analysis of the {result.txsAnalyzed} most recent transactions.
-        The actual cluster may be larger.
+        {t("cluster.disclaimer", { count: result.txsAnalyzed, defaultValue: "This is a lower-bound estimate based on one-hop CIOH analysis of the {{count}} most recent transactions. The actual cluster may be larger." })}
       </p>
     </motion.div>
   );

@@ -4,6 +4,7 @@ import { useSyncExternalStore, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ShieldAlert, X } from "lucide-react";
 import { useNetwork } from "@/context/NetworkContext";
+import { useTranslation } from "react-i18next";
 
 const STORAGE_KEY = "privacy-notice-dismissed";
 
@@ -21,6 +22,7 @@ function getServerSnapshot(): boolean {
 }
 
 export function PrivacyNotice() {
+  const { t } = useTranslation();
   const { torStatus } = useNetwork();
   const dismissed = useSyncExternalStore(
     subscribe,
@@ -47,8 +49,7 @@ export function PrivacyNotice() {
           <div className="flex items-center gap-2">
             <ShieldAlert size={16} className="text-warning shrink-0" />
             <p className="text-sm text-muted flex-1">
-              Queries are sent to mempool.space - your IP is visible. Use
-              Tor or a VPN for stronger privacy.
+              {t("common.privacyNotice", { defaultValue: "Queries are sent to mempool.space - your IP is visible. Use Tor or a VPN for stronger privacy." })}
             </p>
             <button
               onClick={handleDismiss}

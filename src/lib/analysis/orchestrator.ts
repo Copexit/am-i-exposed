@@ -4,6 +4,7 @@ import type {
   MempoolAddress,
   MempoolUtxo,
 } from "@/lib/api/types";
+import type { HeuristicTranslator } from "./heuristics/types";
 import {
   analyzeRoundAmounts,
   analyzeChangeDetection,
@@ -57,18 +58,18 @@ const ADDRESS_HEURISTICS = [
   { id: "spending", label: "Spending patterns", fn: analyzeSpendingPattern },
 ] as const;
 
-export function getTxHeuristicSteps(): HeuristicStep[] {
+export function getTxHeuristicSteps(t?: HeuristicTranslator): HeuristicStep[] {
   return TX_HEURISTICS.map((h) => ({
     id: h.id,
-    label: h.label,
+    label: t ? t(`step.${h.id}.label`, { defaultValue: h.label }) : h.label,
     status: "pending" as const,
   }));
 }
 
-export function getAddressHeuristicSteps(): HeuristicStep[] {
+export function getAddressHeuristicSteps(t?: HeuristicTranslator): HeuristicStep[] {
   return ADDRESS_HEURISTICS.map((h) => ({
     id: h.id,
-    label: h.label,
+    label: t ? t(`step.${h.id}.label`, { defaultValue: h.label }) : h.label,
     status: "pending" as const,
   }));
 }
@@ -135,6 +136,7 @@ export async function analyzeAddress(
       id: "partial-history",
       severity: "medium",
       title: "Transaction history unavailable",
+      params: { totalOnChain },
       description:
         `This address has ${totalOnChain.toLocaleString()} transactions but transaction history could not be fetched. ` +
         "Spending pattern analysis could not be performed, so the score may be incomplete.",
@@ -147,6 +149,7 @@ export async function analyzeAddress(
       id: "partial-history",
       severity: "low",
       title: `Partial history analyzed (${txs.length} of ${totalOnChain.toLocaleString()} transactions)`,
+      params: { totalOnChain, txsAnalyzed: txs.length },
       description:
         `This address has ${totalOnChain.toLocaleString()} total transactions but only the most recent ${txs.length} were analyzed. ` +
         "Older transactions may contain additional privacy-relevant patterns not reflected in these results.",
@@ -176,6 +179,7 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
       if (f.id === "h3-cioh") {
         f.severity = "low";
         f.title = `${f.title} (CoinJoin - expected)`;
+        f.params = { ...f.params, coinjoinContext: "expected" };
         f.description =
           "Multiple input addresses are linked, but this is expected in a CoinJoin transaction. " +
           "In CoinJoins, each input typically belongs to a different participant, so CIOH does not apply.";
@@ -185,6 +189,7 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
       if (f.id === "h1-round-amount") {
         f.severity = "low";
         f.title = `${f.title} (CoinJoin denomination)`;
+        f.params = { ...f.params, coinjoinContext: "denomination" };
         f.description =
           "Equal round outputs are expected in CoinJoin transactions - they are the denomination, not a privacy leak.";
         f.scoreImpact = 0;
@@ -193,12 +198,14 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
       if (f.id === "h2-change-detected") {
         f.severity = "low";
         f.title = `${f.title} (CoinJoin - unreliable)`;
+        f.params = { ...f.params, coinjoinContext: "unreliable" };
         f.scoreImpact = 0;
       }
       // Script type mixing is expected in CoinJoin (participants use different wallets)
       if (f.id === "script-mixed") {
         f.severity = "low";
         f.title = `${f.title} (CoinJoin - expected)`;
+        f.params = { ...f.params, coinjoinContext: "expected" };
         f.description =
           "Mixed script types are expected in CoinJoin transactions since participants use different wallet software.";
         f.scoreImpact = 0;
@@ -207,24 +214,28 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
       if (f.id === "h11-wallet-fingerprint") {
         f.severity = "low";
         f.title = `${f.title} (CoinJoin - less relevant)`;
+        f.params = { ...f.params, coinjoinContext: "less_relevant" };
         f.scoreImpact = 0;
       }
       // Dust outputs in CoinJoin may be coordinator fees (e.g. Whirlpool)
       if (f.id === "dust-attack" || f.id === "dust-outputs") {
         f.severity = "low";
         f.title = `${f.title} (CoinJoin - likely coordinator fee)`;
+        f.params = { ...f.params, coinjoinContext: "coordinator_fee" };
         f.scoreImpact = 0;
       }
       // Timing analysis is meaningless for CoinJoin (participants broadcast together)
       if (f.id === "timing-unconfirmed") {
         f.severity = "low";
         f.title = `${f.title} (CoinJoin - expected)`;
+        f.params = { ...f.params, coinjoinContext: "expected" };
         f.scoreImpact = 0;
       }
       // Fee fingerprinting reveals the coordinator, not the participant's wallet
       if (f.id === "h6-round-fee-rate" || f.id === "h6-rbf-signaled") {
         f.severity = "low";
         f.title = `${f.title} (CoinJoin - coordinator fee)`;
+        f.params = { ...f.params, coinjoinContext: "coordinator_fee" };
         f.scoreImpact = 0;
       }
       // No anonymity set finding: CoinJoin structure itself provides privacy
@@ -232,6 +243,7 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
       if (f.id === "anon-set-none") {
         f.severity = "low";
         f.title = `${f.title} (CoinJoin - structural privacy)`;
+        f.params = { ...f.params, coinjoinContext: "structural_privacy" };
         f.scoreImpact = 0;
       }
     }
@@ -349,6 +361,9 @@ export async function analyzeDestination(
     summary = "This address appears unused. No significant privacy concerns detected for the recipient.";
   }
 
+  // Store params for i18n translation at the display layer
+  const preSendParams = { reuseCount, txCount };
+
   // Escalate risk level if heuristic findings show high/critical severity
   const hasHighSeverityFinding = allFindings.some(
     (f) => (f.severity === "high" || f.severity === "critical") && f.scoreImpact < 0,
@@ -386,6 +401,7 @@ export async function analyzeDestination(
     id: "h13-presend-check",
     severity: preSendSeverity,
     title: `Destination risk: ${riskLevel}`,
+    params: { ...preSendParams, riskLevel },
     description: summary,
     recommendation:
       riskLevel === "LOW"

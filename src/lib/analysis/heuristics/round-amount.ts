@@ -49,6 +49,7 @@ export const analyzeRoundAmounts: TxHeuristic = (tx) => {
       id: "h1-round-amount",
       severity: impact >= 10 ? "medium" : "low",
       title: `${roundOutputCount} round amount output${roundOutputCount > 1 ? "s" : ""} detected`,
+      params: { count: roundOutputCount, total: outputs.length },
       description:
         `${roundOutputCount} of ${outputs.length} outputs are round numbers. ` +
         `Round payment amounts make it trivial to distinguish payments from change, ` +

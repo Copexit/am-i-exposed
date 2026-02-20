@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import { Clock, X } from "lucide-react";
 import type { RecentScan } from "@/hooks/useRecentScans";
+import { useTranslation } from "react-i18next";
 
 interface RecentScansProps {
   scans: RecentScan[];
@@ -30,6 +31,8 @@ function timeAgo(timestamp: number): string {
 }
 
 export function RecentScans({ scans, onSelect, onClear }: RecentScansProps) {
+  const { t } = useTranslation();
+
   if (scans.length === 0) return null;
 
   return (
@@ -42,16 +45,16 @@ export function RecentScans({ scans, onSelect, onClear }: RecentScansProps) {
       <div className="flex items-center justify-between mb-2 px-1">
         <div className="flex items-center gap-1.5 text-xs text-muted">
           <Clock size={14} />
-          <span>Recent scans</span>
+          <span>{t("recent.title", { defaultValue: "Recent scans" })}</span>
         </div>
         {onClear && (
           <button
             onClick={onClear}
             className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer p-2 -m-2"
-            title="Clear scan history"
+            title={t("recent.clearHistory", { defaultValue: "Clear scan history" })}
           >
             <X size={14} />
-            Clear
+            {t("recent.clear", { defaultValue: "Clear" })}
           </button>
         )}
       </div>
@@ -63,7 +66,7 @@ export function RecentScans({ scans, onSelect, onClear }: RecentScansProps) {
             className="inline-flex items-center gap-2 px-3 py-2.5 rounded-lg bg-surface-elevated/50
               border border-card-border hover:border-card-border hover:bg-surface-elevated
               transition-all text-xs cursor-pointer group"
-            title={`${scan.type === "txid" ? "Transaction" : "Address"} · ${timeAgo(scan.timestamp)}`}
+            title={`${scan.type === "txid" ? t("recent.transaction", { defaultValue: "Transaction" }) : t("recent.address", { defaultValue: "Address" })} · ${timeAgo(scan.timestamp)}`}
           >
             <span className={`font-bold ${GRADE_COLORS[scan.grade] ?? "text-muted"}`}>
               {scan.grade}

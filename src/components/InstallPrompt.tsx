@@ -3,6 +3,7 @@
 import { useState, useEffect, useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Download, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -29,6 +30,7 @@ function subscribeStandalone(callback: () => void) {
  * when the app is running in a browser (not already installed as PWA).
  */
 export function InstallPrompt() {
+  const { t } = useTranslation();
   const isStandalone = useSyncExternalStore(
     subscribeStandalone,
     getIsStandalone,
@@ -78,16 +80,16 @@ export function InstallPrompt() {
           <Download size={18} className="text-bitcoin shrink-0 mt-0.5" />
           <div className="flex-1 space-y-2">
             <p className="text-sm font-medium text-foreground">
-              Install am-i.exposed
+              {t("install.title", { defaultValue: "Install am-i.exposed" })}
             </p>
             <p className="text-sm text-muted">
-              Install as an app for faster access. No app store needed.
+              {t("install.description", { defaultValue: "Install as an app for faster access. No app store needed." })}
             </p>
             <button
               onClick={handleInstall}
               className="text-xs font-medium text-bitcoin bg-bitcoin/10 hover:bg-bitcoin/20 px-3 py-2.5 rounded-lg transition-colors cursor-pointer"
             >
-              Install now
+              {t("install.installNow", { defaultValue: "Install now" })}
             </button>
           </div>
           <button

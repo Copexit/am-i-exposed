@@ -27,6 +27,7 @@ export const analyzeSpendingPattern: AddressHeuristic = (address, _utxos, txs) =
       id: "spending-high-volume",
       severity: "medium",
       title: `High transaction volume (${totalTxs.toLocaleString()} transactions)`,
+      params: { totalTxs },
       description:
         `This address has been involved in ${totalTxs.toLocaleString()} transactions. ` +
         "High-volume addresses are more likely to be monitored by chain analysis firms " +
@@ -117,6 +118,7 @@ export const analyzeSpendingPattern: AddressHeuristic = (address, _utxos, txs) =
         id: "spending-many-counterparties",
         severity: "medium",
         title: `Transacted with ${counterparties.size}+ counterparties`,
+        params: { counterpartyCount: counterparties.size },
         description:
           `This address has sent or received funds involving ${counterparties.size}+ different addresses. ` +
           "A large number of counterparties creates a wide exposure surface " +

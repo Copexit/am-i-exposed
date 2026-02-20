@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronDown, ArrowUpRight, ArrowDownLeft, ArrowLeftRight, ArrowUpDown } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { TxSummary } from "./TxSummary";
 import { FindingCard } from "./FindingCard";
 import type { TxAnalysisResult, Grade } from "@/lib/types";
@@ -23,9 +24,9 @@ const GRADE_COLORS: Record<Grade, string> = {
 };
 
 const ROLE_CONFIG = {
-  sender: { label: "Sent", icon: ArrowUpRight, color: "text-severity-high" },
-  receiver: { label: "Received", icon: ArrowDownLeft, color: "text-severity-good" },
-  both: { label: "Self", icon: ArrowLeftRight, color: "text-bitcoin" },
+  sender: { labelKey: "breakdown.roleSent", labelDefault: "Sent", icon: ArrowUpRight, color: "text-severity-high" },
+  receiver: { labelKey: "breakdown.roleReceived", labelDefault: "Received", icon: ArrowDownLeft, color: "text-severity-good" },
+  both: { labelKey: "breakdown.roleSelf", labelDefault: "Self", icon: ArrowLeftRight, color: "text-bitcoin" },
 } as const;
 
 export function TxBreakdownPanel({
@@ -34,6 +35,7 @@ export function TxBreakdownPanel({
   totalTxCount,
   onScan,
 }: TxBreakdownPanelProps) {
+  const { t } = useTranslation();
   const [expandedTx, setExpandedTx] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"grade" | "time">("grade");
   const [visibleCount, setVisibleCount] = useState(10);
@@ -54,12 +56,12 @@ export function TxBreakdownPanel({
     >
       <div className="flex items-center justify-between px-1">
         <h2 className="text-base font-medium text-muted uppercase tracking-wider">
-          Transaction History ({breakdown.length})
+          {t("breakdown.heading", { count: breakdown.length, defaultValue: "Transaction History ({{count}})" })}
         </h2>
         <div className="flex items-center gap-3">
           {issues > 0 && (
             <span className="text-xs text-severity-high">
-              {issues} with issues
+              {t("breakdown.withIssues", { count: issues, defaultValue: "{{count}} with issues" })}
             </span>
           )}
           <button
@@ -67,14 +69,14 @@ export function TxBreakdownPanel({
             className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground bg-surface-elevated rounded-lg px-2.5 py-1.5 transition-colors cursor-pointer"
           >
             <ArrowUpDown size={14} />
-            Sort: {sortBy === "grade" ? "Worst first" : "Recent first"}
+            {sortBy === "grade" ? t("breakdown.sortWorst", { defaultValue: "Sort: Worst first" }) : t("breakdown.sortRecent", { defaultValue: "Sort: Recent first" })}
           </button>
         </div>
       </div>
 
       {totalTxCount > breakdown.length && (
         <p className="text-xs text-muted px-1">
-          Showing {breakdown.length} most recent of {totalTxCount} transactions.
+          {t("breakdown.showingRecent", { shown: breakdown.length, total: totalTxCount, defaultValue: "Showing {{shown}} most recent of {{total}} transactions." })}
         </p>
       )}
 
@@ -112,7 +114,7 @@ export function TxBreakdownPanel({
                 {/* Role */}
                 <span className={`inline-flex items-center gap-1 text-xs ${role.color}`}>
                   <RoleIcon size={12} />
-                  {role.label}
+                  {t(role.labelKey, { defaultValue: role.labelDefault })}
                 </span>
 
                 {/* Finding counts */}
@@ -173,7 +175,7 @@ export function TxBreakdownPanel({
           className="w-full inline-flex items-center justify-center gap-1.5 py-3 min-h-[44px] text-sm text-muted hover:text-foreground border border-card-border rounded-lg transition-colors cursor-pointer"
         >
           <ChevronDown size={14} />
-          Show more ({sorted.length - visibleCount} remaining)
+          {t("breakdown.showMore", { count: sorted.length - visibleCount, defaultValue: "Show more ({{count}} remaining)" })}
         </button>
       )}
     </motion.div>
