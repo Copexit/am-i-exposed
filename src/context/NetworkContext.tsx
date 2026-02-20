@@ -15,6 +15,7 @@ import {
 import { useUrlState } from "@/hooks/useUrlState";
 import { useCustomApi } from "@/hooks/useCustomApi";
 import { useTorDetection, type TorStatus } from "@/hooks/useTorDetection";
+import { useLocalApi, type LocalApiStatus } from "@/hooks/useLocalApi";
 
 interface NetworkContextValue {
   network: BitcoinNetwork;
@@ -23,6 +24,7 @@ interface NetworkContextValue {
   customApiUrl: string | null;
   setCustomApiUrl: (url: string | null) => void;
   torStatus: TorStatus;
+  localApiStatus: LocalApiStatus;
 }
 
 const NetworkContext = createContext<NetworkContextValue>({
@@ -32,16 +34,18 @@ const NetworkContext = createContext<NetworkContextValue>({
   customApiUrl: null,
   setCustomApiUrl: () => {},
   torStatus: "checking",
+  localApiStatus: "checking",
 });
 
 export function NetworkProvider({ children }: { children: ReactNode }) {
   const { network, setNetwork } = useUrlState();
   const { customUrl, setCustomUrl } = useCustomApi();
   const torStatus = useTorDetection();
+  const localApiStatus = useLocalApi();
   const baseConfig = NETWORK_CONFIG[network];
 
   const config = useMemo(() => {
-    // Custom API URL takes priority over everything
+    // Priority 1: Custom API URL takes priority over everything
     if (customUrl) {
       return {
         ...baseConfig,
@@ -50,7 +54,15 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
         explorerUrl: customUrl.replace(/\/api\/?$/, ""),
       };
     }
-    // When Tor detected and onion URL available, use it as primary
+    // Priority 2: Same-origin API proxy detected (Umbrel mode)
+    if (localApiStatus === "available") {
+      return {
+        ...baseConfig,
+        mempoolBaseUrl: "/api",
+        esploraBaseUrl: "/api", // Disable external fallback
+      };
+    }
+    // Priority 3: Tor detected and onion URL available - use it as primary
     // with clearnet mempool as fallback (still routed through Tor exit nodes)
     if (torStatus === "tor" && baseConfig.mempoolOnionUrl) {
       return {
@@ -60,8 +72,9 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
         explorerUrl: baseConfig.mempoolOnionUrl.replace(/\/api\/?$/, ""),
       };
     }
+    // Priority 4: Hardcoded defaults
     return baseConfig;
-  }, [baseConfig, customUrl, torStatus]);
+  }, [baseConfig, customUrl, localApiStatus, torStatus]);
 
   const value = useMemo(
     () => ({
@@ -71,8 +84,9 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
       customApiUrl: customUrl,
       setCustomApiUrl: setCustomUrl,
       torStatus,
+      localApiStatus,
     }),
-    [network, setNetwork, config, customUrl, setCustomUrl, torStatus],
+    [network, setNetwork, config, customUrl, setCustomUrl, torStatus, localApiStatus],
   );
 
   return (

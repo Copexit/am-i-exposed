@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { NetworkSelector } from "./NetworkSelector";
 import { ConnectionBadge } from "./ConnectionBadge";
 import { ApiSettings } from "./ApiSettings";
@@ -19,14 +18,7 @@ export function Header() {
           aria-label="am-i.exposed home"
           className="flex items-center gap-2 group hover:opacity-80 transition-opacity cursor-pointer"
         >
-          <Image
-            src="/logo-256.svg"
-            alt=""
-            width={28}
-            height={28}
-            className="rounded-md"
-          />
-          <span className="hidden sm:inline text-xl sm:text-2xl font-bold tracking-tight text-foreground select-none whitespace-nowrap">
+          <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground select-none whitespace-nowrap">
             am-i.<span className="text-danger">exposed</span>
           </span>
         </button>
