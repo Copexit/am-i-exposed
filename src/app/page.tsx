@@ -281,6 +281,7 @@ export default function Home() {
               {t("page.description", { defaultValue: "Find out what the blockchain knows about you. Paste a Bitcoin address or transaction ID to get a privacy score with actionable findings." })}
             </p>
 
+            <h2 className="sr-only">{t("page.featuresHeading", { defaultValue: "Features" })}</h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full max-w-3xl">
               {[
                 { icon: Scan, label: t("page.feat_heuristics", { defaultValue: "16 heuristics" }), desc: t("page.feat_heuristics_desc", { defaultValue: "Deep analysis" }) },
@@ -299,6 +300,7 @@ export default function Home() {
               ))}
             </div>
 
+            <h2 className="sr-only">{t("page.tipsHeading", { defaultValue: "Privacy Tips" })}</h2>
             <button
               onClick={() => setTipIndex((i) => (i + 1) % PRIVACY_TIP_KEYS.length)}
               className="w-full max-w-lg mx-auto text-center cursor-pointer group"

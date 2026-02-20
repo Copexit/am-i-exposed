@@ -34,13 +34,13 @@ export const metadata: Metadata = {
     "bitcoin privacy tool",
   ],
   alternates: {
-    canonical: "https://am-i.exposed",
+    canonical: "https://am-i.exposed/",
   },
   openGraph: {
     title: "am-i.exposed - Bitcoin Privacy Scanner",
     description:
       "Find out what the blockchain knows about you. Free, client-side Bitcoin privacy analysis.",
-    url: "https://am-i.exposed",
+    url: "https://am-i.exposed/",
     siteName: "am-i.exposed",
     type: "website",
     locale: "en_US",
@@ -51,9 +51,12 @@ export const metadata: Metadata = {
     description:
       "The Bitcoin privacy scanner you were afraid to run. Paste a Bitcoin address or txid. Get a score.",
   },
-  robots: {
-    index: true,
-    follow: true,
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
   },
   applicationName: "am-i.exposed",
   manifest: "/manifest.json",
@@ -69,7 +72,7 @@ export default function RootLayout({
       <head>
         <meta
           httpEquiv="Content-Security-Policy"
-          content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; connect-src *; img-src 'self' data:; frame-ancestors 'none'"
+          content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src *; img-src 'self' data:"
         />
         <meta name="referrer" content="no-referrer" />
         <meta name="theme-color" content="#0a0a0a" />
@@ -84,7 +87,7 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "WebApplication",
               name: "am-i.exposed",
-              url: "https://am-i.exposed",
+              url: "https://am-i.exposed/",
               description:
                 "Free, client-side Bitcoin privacy analyzer. Get a privacy score and actionable findings for any address or transaction.",
               applicationCategory: "FinanceApplication",
