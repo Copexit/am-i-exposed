@@ -1,0 +1,8 @@
+node_modules
+.next
+out
+.git
+screenshots
+*.md
+!README.md
+.claude

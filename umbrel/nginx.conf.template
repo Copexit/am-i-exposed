@@ -1,0 +1,40 @@
+server {
+    listen 8080;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
+
+    # Hashed static assets - cache aggressively
+    location /_next/static/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable" always;
+    }
+
+    # Reverse proxy: forward /api/* to the local Umbrel mempool instance
+    location /api/ {
+        proxy_pass http://${APP_MEMPOOL_IP}:${APP_MEMPOOL_PORT}/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 30s;
+        proxy_connect_timeout 5s;
+    }
+
+    # SPA fallback: serve index.html for all non-file routes
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Health check endpoint
+    location = /health {
+        access_log off;
+        return 200 "ok";
+    }
+}
