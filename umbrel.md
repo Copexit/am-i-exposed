@@ -233,7 +233,7 @@ docker save ghcr.io/copexit/am-i-exposed-umbrel:vX.Y.Z | \
 # WARNING: Umbrel's uninstall nukes app images. Reload after each uninstall.
 ```
 
-Umbrel's install process calls `docker.pull()` via Dockerode before running `docker compose up`. If the image exists locally but the registry returns 401/404, the install fails. To work around this during development, patch `packages/umbreld/source/modules/utilities/docker-pull.ts` to check local images first:
+Umbrel's install process calls `docker.pull()` via Dockerode before running `docker compose up`. If the image exists locally but the registry returns 401/404, the install fails. To work around this during development, patch `/opt/umbreld/source/modules/utilities/docker-pull.ts` (inside the container) to check local images first:
 
 ```typescript
 // At the top of the pull() function, add:
@@ -246,24 +246,142 @@ try {
 // Then proceed with normal pull
 ```
 
-Also patch `packages/umbreld/source/modules/apps/legacy-compat/app-script` to make pulls non-fatal:
+Also patch `/opt/umbreld/source/modules/apps/legacy-compat/app-script` to make pulls non-fatal:
 ```bash
 # Change:  compose "${app}" pull
 # To:      compose "${app}" pull --ignore-pull-failures || true
+
+# One-liner:
+docker exec umbrel-dev sed -i 's@compose "${app}" pull@compose "${app}" pull --ignore-pull-failures || true@g' \
+  /opt/umbreld/source/modules/apps/legacy-compat/app-script
 ```
 
-## Release Checklist
+After patching, restart the service: `docker exec umbrel-dev systemctl restart umbrel`
 
-1. `pnpm lint` (0 errors)
-2. `pnpm build` (static export to `out/`)
-3. Tag: `git tag vX.Y.Z && git push --tags` (triggers CI Docker build)
-4. Or build/push manually: `docker build -f Dockerfile.umbrel -t ghcr.io/copexit/am-i-exposed-umbrel:vX.Y.Z . && docker push ...`
-5. **Make GHCR package public** (GitHub > Packages > am-i-exposed-umbrel > Settings > Visibility > Public)
-6. Update `copexit-umbrel-app-store`:
-   - `docker-compose.yml`: bump image tag
-   - `umbrel-app.yml`: bump `version` field
-   - `git push origin master`
-7. Users update the app store in Umbrel UI to pick up the new version
+These patches survive container restarts but are lost if the container is recreated (`npm run dev destroy`). They are NOT needed once the GHCR package is public.
+
+## Releasing a New Version
+
+### Overview: two-repo workflow
+
+A release touches **two repositories**:
+
+| Step | Repo | What changes |
+|------|------|-------------|
+| 1. Code changes | `am-i-exposed` | App source, nginx config, Dockerfile |
+| 2. Docker image | `am-i-exposed` | Built by CI from git tag, pushed to GHCR |
+| 3. App store update | `copexit-umbrel-app-store` | Image tag, version, release notes |
+
+Users receive updates when they refresh the app store in the Umbrel UI.
+
+### Step-by-step release checklist
+
+#### 1. Prepare the code (am-i-exposed repo)
+
+```bash
+cd ~/am-i-exposed
+
+# Ensure quality
+pnpm lint          # Must be 0 errors
+pnpm build         # Verify static export works
+
+# Optional: test with Docker Compose mock
+docker compose -f docker-compose.test.yml up --build
+# Verify at http://localhost:3080, then Ctrl+C
+```
+
+#### 2. Tag and push (triggers CI)
+
+```bash
+# Tag format: vMAJOR.MINOR.PATCH (e.g. v0.2.0)
+git tag v0.2.0
+git push origin main --tags
+```
+
+This triggers `.github/workflows/docker-umbrel.yml` which:
+- Builds `Dockerfile.umbrel` for `linux/amd64` + `linux/arm64`
+- Pushes to `ghcr.io/copexit/am-i-exposed-umbrel:v0.2.0` and `:latest`
+- Uses GitHub Actions cache for faster rebuilds
+
+**Wait for the CI job to finish** before proceeding. Check at: `github.com/Copexit/am-i-exposed/actions`
+
+#### 3. Ensure GHCR package is public
+
+**First release only** - new GHCR packages default to private. Go to:
+GitHub > Your Profile > Packages > `am-i-exposed-umbrel` > Package Settings > Danger Zone > Change Visibility > Public
+
+After the first time, subsequent pushes to the same package remain public.
+
+#### 4. Update the app store (copexit-umbrel-app-store repo)
+
+```bash
+cd ~/copexit-umbrel-app-store
+```
+
+Edit `copexit-am-i-exposed/docker-compose.yml` - bump the image tag:
+```yaml
+web:
+  image: ghcr.io/copexit/am-i-exposed-umbrel:v0.2.0   # <-- new tag
+```
+
+Edit `copexit-am-i-exposed/umbrel-app.yml` - bump version and update release notes:
+```yaml
+version: "0.2.0"                    # <-- must match (without "v" prefix)
+releaseNotes: >-
+  Describe what changed in this release. This text is shown to users
+  in the Umbrel app store update UI.
+```
+
+Push to the app store:
+```bash
+git add -A
+git commit -m "release: am-i.exposed v0.2.0"
+git push origin master
+```
+
+#### 5. Verify
+
+- Users see the update in Umbrel UI when they refresh the app store
+- On a dev instance: uninstall and reinstall, or wait for the update prompt
+
+### Manual Docker build (no CI)
+
+If CI is unavailable or you need to build locally:
+
+```bash
+cd ~/am-i-exposed
+
+# Multi-platform build and push
+docker buildx build -f Dockerfile.umbrel \
+  --platform linux/amd64,linux/arm64 \
+  -t ghcr.io/copexit/am-i-exposed-umbrel:v0.2.0 \
+  -t ghcr.io/copexit/am-i-exposed-umbrel:latest \
+  --push .
+
+# Or single-platform (faster, for testing)
+docker build -f Dockerfile.umbrel -t ghcr.io/copexit/am-i-exposed-umbrel:v0.2.0 .
+docker push ghcr.io/copexit/am-i-exposed-umbrel:v0.2.0
+```
+
+Requires prior auth: `echo "$GHCR_TOKEN" | docker login ghcr.io -u USERNAME --password-stdin`
+
+### Version numbering
+
+- Docker image tags use `v` prefix: `v0.1.0`, `v0.2.0`
+- `umbrel-app.yml` `version` field has no prefix: `0.1.0`, `0.2.0`
+- Keep them in sync (e.g. tag `v0.2.0` -> docker-compose `v0.2.0` -> manifest `0.2.0`)
+
+### What files typically change per release
+
+| File | When to change |
+|------|---------------|
+| `umbrel/nginx.conf.template` | Proxy routing changes (new endpoints, headers) |
+| `Dockerfile.umbrel` | Build process changes (base image, build steps) |
+| `.github/workflows/docker-umbrel.yml` | CI changes (platforms, caching) |
+| `src/hooks/useLocalApi.ts` | Local API detection logic |
+| `src/contexts/NetworkContext.tsx` | How mempoolBaseUrl is set in local mode |
+| App store `docker-compose.yml` | Every release (image tag bump) |
+| App store `umbrel-app.yml` | Every release (version + releaseNotes) |
 
 ## Verified Test Results
 
