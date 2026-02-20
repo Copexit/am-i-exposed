@@ -1,5 +1,7 @@
-# Stage 1: Build the static export
-FROM node:22-alpine AS builder
+# Stage 1: Build the static export (always on native amd64 - output is
+# just HTML/CSS/JS so it doesn't need to match the target platform).
+# This avoids QEMU arm64 emulation crashes during pnpm install.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS builder
 
 RUN corepack enable && corepack prepare pnpm@10 --activate
 
