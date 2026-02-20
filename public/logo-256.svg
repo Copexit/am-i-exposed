@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#141414"/>
+      <stop offset="100%" stop-color="#0a0a0a"/>
+    </radialGradient>
+    <radialGradient id="iris" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ef4444"/>
+      <stop offset="60%" stop-color="#dc2626"/>
+      <stop offset="100%" stop-color="#991b1b"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ef4444" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#ef4444" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="256" height="256" rx="48" fill="url(#bg)"/>
+
+  <!-- Subtle glow behind eye -->
+  <circle cx="128" cy="128" r="90" fill="url(#glow)"/>
+
+  <!-- Eye shape - outer -->
+  <path d="M32 128 C32 128 80 56 128 56 C176 56 224 128 224 128 C224 128 176 200 128 200 C80 200 32 128 32 128Z"
+        fill="none" stroke="#ef4444" stroke-width="5" stroke-linejoin="round" opacity="0.9"/>
+
+  <!-- Eye shape - inner line for depth -->
+  <path d="M44 128 C44 128 86 66 128 66 C170 66 212 128 212 128 C212 128 170 190 128 190 C86 190 44 128 44 128Z"
+        fill="none" stroke="#ef4444" stroke-width="1.5" opacity="0.3"/>
+
+  <!-- Iris circle -->
+  <circle cx="128" cy="128" r="40" fill="url(#iris)" opacity="0.9"/>
+
+  <!-- Iris ring -->
+  <circle cx="128" cy="128" r="40" fill="none" stroke="#fca5a5" stroke-width="1.5" opacity="0.4"/>
+
+  <!-- Pupil -->
+  <circle cx="128" cy="128" r="18" fill="#0a0a0a"/>
+
+  <!-- Bitcoin B in the pupil -->
+  <text x="128" y="137" text-anchor="middle" font-family="system-ui,sans-serif"
+        font-size="24" font-weight="700" fill="#ef4444" opacity="0.8">&#x20BF;</text>
+
+  <!-- Highlight/reflection -->
+  <circle cx="113" cy="113" r="8" fill="white" opacity="0.25"/>
+  <circle cx="119" cy="117" r="3" fill="white" opacity="0.15"/>
+
+  <!-- Scan lines across the eye for "scanner" feel -->
+  <line x1="48" y1="108" x2="208" y2="108" stroke="#ef4444" stroke-width="0.5" opacity="0.15"/>
+  <line x1="40" y1="128" x2="216" y2="128" stroke="#ef4444" stroke-width="0.75" opacity="0.2"/>
+  <line x1="48" y1="148" x2="208" y2="148" stroke="#ef4444" stroke-width="0.5" opacity="0.15"/>
+
+  <!-- Question mark - subtle, bottom right -->
+  <text x="196" y="218" font-family="system-ui,sans-serif" font-size="48" font-weight="800"
+        fill="#ef4444" opacity="0.5">?</text>
+</svg>
