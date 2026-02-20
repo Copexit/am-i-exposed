@@ -284,10 +284,10 @@ export default function Home() {
             <h2 className="sr-only">{t("page.featuresHeading", { defaultValue: "Features" })}</h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full max-w-3xl">
               {[
-                { icon: Scan, label: t("page.feat_heuristics", { defaultValue: "16 heuristics" }), desc: t("page.feat_heuristics_desc", { defaultValue: "Deep analysis" }) },
+                { icon: Scan, label: t("page.feat_heuristics", { defaultValue: "16 heuristics" }), desc: t("page.feat_heuristics_desc", { defaultValue: "Score 0-100" }) },
                 { icon: Fingerprint, label: t("page.feat_wallet", { defaultValue: "Wallet ID" }), desc: t("page.feat_wallet_desc", { defaultValue: "Fingerprinting" }) },
-                { icon: Shield, label: "CoinJoin", desc: t("page.feat_coinjoin_desc", { defaultValue: "Detection" }) },
-                { icon: Eye, label: t("page.feat_dust", { defaultValue: "Dust attacks" }), desc: t("page.feat_dust_desc", { defaultValue: "Flagged" }) },
+                { icon: Shield, label: "CoinJoin", desc: t("page.feat_coinjoin_desc", { defaultValue: "Whirlpool & Wasabi" }) },
+                { icon: Eye, label: t("page.feat_dust", { defaultValue: "Dust attacks" }), desc: t("page.feat_dust_desc", { defaultValue: "Don't spend it" }) },
               ].map((feat) => (
                 <div
                   key={feat.label}
@@ -317,12 +317,9 @@ export default function Home() {
                 {t("page.trust_client", { defaultValue: "100% client-side" })}
               </span>
               <span>{t("page.trust_tracking", { defaultValue: "No tracking" })}</span>
-              <span>{t("page.trust_opensource", { defaultValue: "Open source" })}</span>
+              <a href="https://github.com/Copexit/am-i-exposed" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">{t("page.trust_opensource", { defaultValue: "Open source" })}</a>
             </div>
 
-            <div className="text-xs text-muted hidden sm:block">
-              {t("page.kbd_search", { defaultValue: "Press" })} <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted font-mono">/</kbd> {t("page.kbd_search_suffix", { defaultValue: "to focus search" })}
-            </div>
           </motion.div>
         )}
 

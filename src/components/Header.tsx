@@ -2,10 +2,8 @@
 
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
-import { NetworkSelector } from "./NetworkSelector";
 import { ConnectionBadge } from "./ConnectionBadge";
 import { ApiSettings } from "./ApiSettings";
-import { LanguageSelector } from "./LanguageSelector";
 
 export function Header() {
   const { t } = useTranslation();
@@ -30,19 +28,11 @@ export function Header() {
             >
               {t("common.methodology", { defaultValue: "Methodology" })}
             </Link>
-            <Link
-              href="/setup-guide/"
-              className="text-sm text-muted hover:text-foreground transition-colors px-2 py-1 rounded"
-            >
-              {t("common.setupGuide", { defaultValue: "Setup Guide" })}
-            </Link>
           </nav>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
           <ConnectionBadge />
           <ApiSettings />
-          <NetworkSelector />
-          <LanguageSelector />
         </div>
       </div>
     </header>

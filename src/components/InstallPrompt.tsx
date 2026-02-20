@@ -40,6 +40,13 @@ export function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(false);
+  const [enoughVisits] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const key = "ami-visit-count";
+    const count = parseInt(localStorage.getItem(key) ?? "0", 10) + 1;
+    localStorage.setItem(key, String(count));
+    return count >= 5;
+  });
 
   useEffect(() => {
     function handleBeforeInstall(e: Event) {
@@ -66,7 +73,7 @@ export function InstallPrompt() {
     setDismissed(true);
   };
 
-  if (isStandalone || dismissed || !deferredPrompt) return null;
+  if (isStandalone || dismissed || !deferredPrompt || !enoughVisits) return null;
 
   return (
     <AnimatePresence>

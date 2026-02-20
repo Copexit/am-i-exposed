@@ -311,9 +311,11 @@ export function ResultsPanel({
         {durationMs ? t("results.disclaimerDuration", { duration: (durationMs / 1000).toFixed(1), defaultValue: " in {{duration}}s" }) : ""}.
         {" "}{t("results.disclaimerBrowser", { defaultValue: "Analysis ran entirely in your browser." })}{" "}
         {t("results.disclaimerApi", {
-          hostname: config.mempoolBaseUrl.includes("mempool.space")
-            ? "mempool.space"
-            : new URL(config.mempoolBaseUrl).hostname,
+          hostname: config.mempoolBaseUrl.startsWith("/")
+            ? "local API"
+            : config.mempoolBaseUrl.includes("mempool.space")
+              ? "mempool.space"
+              : new URL(config.mempoolBaseUrl).hostname,
           defaultValue: "API queries were sent to {{hostname}}.",
         })}{" "}
         {t("results.disclaimerHeuristic", { defaultValue: "Scores are heuristic-based estimates, not definitive privacy assessments." })}

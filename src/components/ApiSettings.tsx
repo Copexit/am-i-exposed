@@ -6,12 +6,20 @@ import { Settings, Check, X, Loader2, RotateCcw, ChevronDown, ChevronUp, AlertTr
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { diagnoseUrl } from "@/lib/api/url-diagnostics";
+import { type BitcoinNetwork } from "@/lib/bitcoin/networks";
+import { LANGUAGE_OPTIONS } from "@/lib/i18n/config";
 
 type HealthStatus = "idle" | "checking" | "ok" | "error";
 
+const NETWORKS: { value: BitcoinNetwork; label: string; dot: string }[] = [
+  { value: "mainnet", label: "Mainnet", dot: "bg-bitcoin" },
+  { value: "testnet4", label: "Testnet4", dot: "bg-success" },
+  { value: "signet", label: "Signet", dot: "bg-info" },
+];
+
 export function ApiSettings() {
-  const { t } = useTranslation();
-  const { customApiUrl, setCustomApiUrl } = useNetwork();
+  const { t, i18n } = useTranslation();
+  const { network, setNetwork, customApiUrl, setCustomApiUrl } = useNetwork();
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState(customApiUrl ?? "");
   const [health, setHealth] = useState<HealthStatus>("idle");
@@ -19,6 +27,8 @@ export function ApiSettings() {
   const [helpOpen, setHelpOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const currentNetwork = NETWORKS.find((n) => n.value === network) ?? NETWORKS[0];
 
   // Pre-flight diagnostics on the current input URL
   const diagnostic = useMemo(() => {
@@ -68,7 +78,7 @@ export function ApiSettings() {
     function handleTrap(e: KeyboardEvent) {
       if (e.key !== "Tab" || !panelRef.current) return;
       const focusable = panelRef.current.querySelectorAll<HTMLElement>(
-        'button, input, a, [tabindex]:not([tabindex="-1"])'
+        'button, input, select, a, [tabindex]:not([tabindex="-1"])'
       );
       if (focusable.length === 0) return;
       const first = focusable[0];
@@ -155,11 +165,13 @@ export function ApiSettings() {
           }
           setOpen(!open);
         }}
-        className="relative text-muted hover:text-foreground transition-colors cursor-pointer p-2 rounded-lg border border-card-border bg-surface-elevated hover:bg-surface-inset"
-        aria-label={t("settings.ariaLabel", { defaultValue: "API settings" })}
-        title={t("settings.title", { defaultValue: "API endpoint settings" })}
+        className="relative inline-flex items-center gap-1.5 text-muted hover:text-foreground transition-colors cursor-pointer p-2 rounded-lg border border-card-border bg-surface-elevated hover:bg-surface-inset"
+        aria-label={t("settings.ariaLabel", { defaultValue: "Settings" })}
+        title={t("settings.title", { defaultValue: "Settings" })}
       >
         <Settings size={18} />
+        {/* Network indicator dot */}
+        <span className={`w-2 h-2 rounded-full ${currentNetwork.dot}`} />
         {customApiUrl && (
           <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-bitcoin rounded-full" />
         )}
@@ -173,100 +185,163 @@ export function ApiSettings() {
           onClick={() => setOpen(false)}
           aria-hidden="true"
         />
-        <div className="fixed inset-x-0 top-[60px] mx-3 sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mx-0 sm:mt-2 sm:w-96 bg-surface-elevated border border-card-border rounded-xl shadow-xl z-50 p-4 space-y-3 max-h-[80vh] overflow-y-auto">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-foreground uppercase tracking-wider">
-              {t("settings.mempoolApi", { defaultValue: "Mempool API" })}
-            </span>
-            {customApiUrl && (
-              <button
-                onClick={handleReset}
-                className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
-              >
-                <RotateCcw size={12} />
-                {t("settings.resetToDefault", { defaultValue: "Reset to default" })}
-              </button>
-            )}
-          </div>
+        <div className="fixed inset-x-0 top-[60px] mx-3 sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mx-0 sm:mt-2 sm:w-96 bg-surface-elevated border border-card-border rounded-xl shadow-xl z-50 p-4 space-y-4 max-h-[80vh] overflow-y-auto">
 
-          <form onSubmit={handleSubmit} className="flex gap-2">
-            <input
-              ref={inputRef}
-              type="text"
-              value={inputValue}
-              onChange={(e) => {
-                const val = e.target.value;
-                setInputValue(val);
-                // Keep "ok" if the input still matches the active custom URL
-                const normalized = val.trim().replace(/\/+$/, "");
-                if (customApiUrl && normalized === customApiUrl) {
-                  setHealth("ok");
-                } else {
-                  setHealth("idle");
-                }
-                setErrorHint("");
-              }}
-              placeholder="https://mempool.space/api"
-              className="flex-1 bg-surface-inset border border-card-border rounded-lg px-3 py-2.5 text-sm text-foreground font-mono placeholder:text-muted/70 focus-visible:border-bitcoin/50"
-            />
-            <button
-              type="submit"
-              disabled={!inputValue.trim() || health === "checking"}
-              className="px-3 py-2.5 text-sm font-medium rounded-lg bg-bitcoin/10 text-bitcoin hover:bg-bitcoin/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
-            >
-              {health === "checking" ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                t("settings.apply", { defaultValue: "Apply" })
-              )}
-            </button>
-          </form>
-
-          {/* Pre-flight diagnostic warning */}
-          {diagnostic?.hint && health === "idle" && (
-            <div className="flex items-start gap-2 text-xs text-warning bg-warning/10 rounded-lg p-2.5">
-              <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-              <div className="flex-1 space-y-1.5">
-                <span className="whitespace-pre-line">{diagnostic.hint}</span>
-                {diagnostic.isMissingApiSuffix && (
-                  <button
-                    onClick={() => {
-                      const fixed = inputValue.trim().replace(/\/+$/, "") + "/api";
-                      setInputValue(fixed);
-                      setHealth("idle");
-                    }}
-                    className="block text-bitcoin underline text-xs cursor-pointer hover:text-bitcoin/80 transition-colors"
-                  >
-                    {t("settings.addApiSuffix", { defaultValue: "Add /api to URL" })}
-                  </button>
-                )}
+          {/* Network & Language row */}
+          <div className="flex items-center gap-3">
+            {/* Network selector */}
+            <div className="flex-1">
+              <label className="text-xs font-medium text-muted uppercase tracking-wider block mb-1.5">
+                {t("settings.network", { defaultValue: "Network" })}
+              </label>
+              <div className="relative">
+                <select
+                  value={network}
+                  onChange={(e) => setNetwork(e.target.value as BitcoinNetwork)}
+                  className="appearance-none w-full bg-surface-inset border border-card-border rounded-lg px-3 py-2 text-sm text-foreground cursor-pointer hover:border-muted transition-colors pl-7 pr-8 focus-visible:border-bitcoin"
+                  aria-label={t("common.selectNetwork", { defaultValue: "Select Bitcoin network" })}
+                >
+                  {NETWORKS.map((n) => (
+                    <option key={n.value} value={n.value}>
+                      {n.label}
+                    </option>
+                  ))}
+                </select>
+                <span
+                  className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full ${currentNetwork.dot} pointer-events-none`}
+                />
+                <ChevronDown
+                  size={14}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+                />
               </div>
             </div>
-          )}
 
-          {/* Status indicator */}
-          {health === "ok" && (
-            <div className="flex items-center gap-1.5 text-xs text-severity-good">
-              <Check size={14} />
-              {t("settings.connected", { defaultValue: "Connected. Using custom endpoint." })}
+            {/* Language selector */}
+            <div className="flex-1">
+              <label className="text-xs font-medium text-muted uppercase tracking-wider block mb-1.5">
+                {t("settings.language", { defaultValue: "Language" })}
+              </label>
+              <div className="relative">
+                <select
+                  value={i18n.language?.split("-")[0] ?? "en"}
+                  onChange={(e) => i18n.changeLanguage(e.target.value)}
+                  className="appearance-none w-full bg-surface-inset border border-card-border rounded-lg px-3 py-2 text-sm text-foreground cursor-pointer hover:border-muted transition-colors pr-8 focus-visible:border-bitcoin"
+                  aria-label={t("settings.selectLanguage", { defaultValue: "Select language" })}
+                >
+                  {LANGUAGE_OPTIONS.map((lang) => (
+                    <option key={lang.code} value={lang.code}>
+                      {lang.flag} {lang.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown
+                  size={14}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+                />
+              </div>
             </div>
-          )}
-          {health === "error" && (
-            <div className="flex items-start gap-1.5 text-xs text-severity-high">
-              <X size={14} className="shrink-0 mt-0.5" />
-              <span>{errorHint || "Connection failed"}</span>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-card-border" />
+
+          {/* API endpoint section */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-foreground uppercase tracking-wider">
+                {t("settings.mempoolApi", { defaultValue: "Mempool API" })}
+              </span>
+              {customApiUrl && (
+                <button
+                  onClick={handleReset}
+                  className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <RotateCcw size={12} />
+                  {t("settings.resetToDefault", { defaultValue: "Reset to default" })}
+                </button>
+              )}
             </div>
-          )}
-          {customApiUrl && health !== "checking" && (
-            <p className="text-xs text-muted">
-              {t("settings.active", { defaultValue: "Active:" })} <span className="font-mono">{customApiUrl}</span>
-            </p>
-          )}
-          {!customApiUrl && health === "idle" && !diagnostic?.hint && (
-            <p className="text-xs text-muted">
-              {t("settings.selfHostHint", { defaultValue: "Point to your own mempool.space instance for maximum privacy." })}
-            </p>
-          )}
+
+            <form onSubmit={handleSubmit} className="flex gap-2">
+              <input
+                ref={inputRef}
+                type="text"
+                value={inputValue}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setInputValue(val);
+                  // Keep "ok" if the input still matches the active custom URL
+                  const normalized = val.trim().replace(/\/+$/, "");
+                  if (customApiUrl && normalized === customApiUrl) {
+                    setHealth("ok");
+                  } else {
+                    setHealth("idle");
+                  }
+                  setErrorHint("");
+                }}
+                placeholder="https://mempool.space/api"
+                className="flex-1 bg-surface-inset border border-card-border rounded-lg px-3 py-2.5 text-sm text-foreground font-mono placeholder:text-muted/70 focus-visible:border-bitcoin/50"
+              />
+              <button
+                type="submit"
+                disabled={!inputValue.trim() || health === "checking"}
+                className="px-3 py-2.5 text-sm font-medium rounded-lg bg-bitcoin/10 text-bitcoin hover:bg-bitcoin/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer"
+              >
+                {health === "checking" ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  t("settings.apply", { defaultValue: "Apply" })
+                )}
+              </button>
+            </form>
+
+            {/* Pre-flight diagnostic warning */}
+            {diagnostic?.hint && health === "idle" && (
+              <div className="flex items-start gap-2 text-xs text-warning bg-warning/10 rounded-lg p-2.5">
+                <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                <div className="flex-1 space-y-1.5">
+                  <span className="whitespace-pre-line">{diagnostic.hint}</span>
+                  {diagnostic.isMissingApiSuffix && (
+                    <button
+                      onClick={() => {
+                        const fixed = inputValue.trim().replace(/\/+$/, "") + "/api";
+                        setInputValue(fixed);
+                        setHealth("idle");
+                      }}
+                      className="block text-bitcoin underline text-xs cursor-pointer hover:text-bitcoin/80 transition-colors"
+                    >
+                      {t("settings.addApiSuffix", { defaultValue: "Add /api to URL" })}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Status indicator */}
+            {health === "ok" && (
+              <div className="flex items-center gap-1.5 text-xs text-severity-good">
+                <Check size={14} />
+                {t("settings.connected", { defaultValue: "Connected. Using custom endpoint." })}
+              </div>
+            )}
+            {health === "error" && (
+              <div className="flex items-start gap-1.5 text-xs text-severity-high">
+                <X size={14} className="shrink-0 mt-0.5" />
+                <span>{errorHint || "Connection failed"}</span>
+              </div>
+            )}
+            {customApiUrl && health !== "checking" && (
+              <p className="text-xs text-muted">
+                {t("settings.active", { defaultValue: "Active:" })} <span className="font-mono">{customApiUrl}</span>
+              </p>
+            )}
+            {!customApiUrl && health === "idle" && !diagnostic?.hint && (
+              <p className="text-xs text-muted">
+                {t("settings.selfHostHint", { defaultValue: "Point to your own mempool.space instance for maximum privacy." })}
+              </p>
+            )}
+          </div>
 
           {/* Collapsible help section */}
           <div className="border-t border-card-border pt-2">
@@ -313,8 +388,16 @@ export function ApiSettings() {
                 <div className="space-y-2">
                   <p className="font-medium text-foreground">{t("settings.optionC", { defaultValue: "Option C: Tor Browser + .onion" })}</p>
                   <p>
-                    {t("settings.optionCDesc", { defaultValue: "If this site has a .onion mirror, use Tor Browser to visit it and enter your mempool's .onion address. Both are HTTP, so no mixed-content blocking." })}
+                    {t("settings.optionCDesc", { defaultValue: "Visit this site via its .onion mirror in Tor Browser, then enter your mempool's .onion address. Both are HTTP, so no mixed-content blocking." })}
                   </p>
+                  <a
+                    href="http://exposed6vdtfoeeolm4d36gj6rqpjhrfri36idyevsw7yl2sda2mw6id.onion"
+                    className="inline-block font-mono text-bitcoin/70 hover:text-bitcoin transition-colors break-all"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    exposed6vdtfo...w6id.onion
+                  </a>
                 </div>
 
                 <p className="text-muted">
