@@ -7,11 +7,18 @@ import {
   isValidNetwork,
 } from "@/lib/bitcoin/networks";
 
-function readNetworkFromUrl(): BitcoinNetwork {
+const STORAGE_KEY = "ami-network";
+
+function readNetwork(): BitcoinNetwork {
   if (typeof window === "undefined") return DEFAULT_NETWORK;
+  // URL query param takes priority (shared links)
   const params = new URLSearchParams(window.location.search);
-  const raw = params.get("network");
-  return raw && isValidNetwork(raw) ? raw : DEFAULT_NETWORK;
+  const fromUrl = params.get("network");
+  if (fromUrl && isValidNetwork(fromUrl)) return fromUrl;
+  // Fall back to localStorage
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (stored && isValidNetwork(stored)) return stored;
+  return DEFAULT_NETWORK;
 }
 
 // External store for network state synced with URL
@@ -26,12 +33,12 @@ function subscribe(listener: () => void): () => void {
 
   // Initialize cache on first subscription
   if (!initialized) {
-    cachedNetwork = readNetworkFromUrl();
+    cachedNetwork = readNetwork();
     initialized = true;
   }
 
   const handlePopState = () => {
-    const next = readNetworkFromUrl();
+    const next = readNetwork();
     if (next !== cachedNetwork) {
       cachedNetwork = next;
       emitChange();
@@ -54,7 +61,7 @@ function emitChange() {
 function getSnapshot(): BitcoinNetwork {
   // Return cached value - only updated via subscribe/setNetwork
   if (!initialized && typeof window !== "undefined") {
-    cachedNetwork = readNetworkFromUrl();
+    cachedNetwork = readNetwork();
     initialized = true;
   }
   return cachedNetwork;
@@ -69,6 +76,7 @@ export function useUrlState() {
 
   const setNetwork = useCallback((n: BitcoinNetwork) => {
     cachedNetwork = n;
+    localStorage.setItem(STORAGE_KEY, n);
     const params = new URLSearchParams(window.location.search);
     if (n === DEFAULT_NETWORK) {
       params.delete("network");

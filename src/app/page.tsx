@@ -11,6 +11,7 @@ import { PreSendResultPanel } from "@/components/PreSendResultPanel";
 import { RecentScans } from "@/components/RecentScans";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { useAnalysis } from "@/hooks/useAnalysis";
+import { useNetwork } from "@/context/NetworkContext";
 import { useRecentScans } from "@/hooks/useRecentScans";
 import { useKeyboardNav } from "@/hooks/useKeyboardNav";
 import { TipToast } from "@/components/TipToast";
@@ -136,8 +137,12 @@ export default function Home() {
     }
   }, [phase, query, inputType, result, addScan]);
 
-  // Auto-analyze from URL hash on mount and on hash change (back button)
-  // Uses refs to always access latest function references after network changes
+  // Wait for API status to settle before processing initial hash URL.
+  // This prevents firing requests to mempool.space on Umbrel where the
+  // local API probe hasn't resolved yet.
+  const { localApiStatus } = useNetwork();
+  const initialHashProcessed = useRef(false);
+
   useEffect(() => {
     function handleHash() {
       const hash = window.location.hash.slice(1);
@@ -163,13 +168,17 @@ export default function Home() {
       }
     }
 
-    // Run on mount
-    handleHash();
-
-    // Listen for back/forward navigation
+    // Always listen for hash changes (user-initiated navigation)
     window.addEventListener("hashchange", handleHash);
+
+    // Only process initial hash after API status settles
+    if (localApiStatus !== "checking" && !initialHashProcessed.current) {
+      initialHashProcessed.current = true;
+      handleHash();
+    }
+
     return () => window.removeEventListener("hashchange", handleHash);
-  }, []);
+  }, [localApiStatus]);
 
   // Keyboard navigation
   useKeyboardNav({

@@ -12,15 +12,21 @@ export function Header() {
     <header className="sticky top-0 z-50 border-b border-card-border bg-background/80 backdrop-blur-md">
       <div className="flex items-center justify-between px-4 sm:px-6 py-4 max-w-6xl mx-auto w-full">
         <div className="flex items-center">
-          <Link
-            href="/"
+          <button
+            onClick={() => {
+              if (window.location.pathname !== "/") {
+                window.location.href = "/";
+              } else {
+                window.location.hash = "";
+              }
+            }}
             aria-label="am-i.exposed home"
-            className="flex items-center gap-2 group hover:opacity-80 transition-opacity"
+            className="flex items-center gap-2 group hover:opacity-80 transition-opacity cursor-pointer"
           >
             <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground select-none whitespace-nowrap">
               am-i.<span className="text-danger">exposed</span>
             </span>
-          </Link>
+          </button>
           <nav className="hidden sm:flex items-center gap-1 ml-4" aria-label="Main navigation">
             <Link
               href="/methodology/"
