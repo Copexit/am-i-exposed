@@ -433,7 +433,7 @@
   "settings.optionB": "Option B: HTTPS reverse proxy",
   "settings.optionBDesc": "Set up HTTPS on your node with Caddy or nginx + Let's Encrypt, add CORS headers, then use your HTTPS URL.",
   "settings.optionC": "Option C: Tor Browser + .onion",
-  "settings.optionCDesc": "If this site has a .onion mirror, use Tor Browser to visit it and enter your mempool",
+  "settings.optionCDesc": "Visit this site via its .onion mirror in Tor Browser, then enter your mempool's .onion address. Both are HTTP, so no mixed-content blocking.",
   "settings.resetToDefault": "Reset to default",
   "settings.language": "Language",
   "settings.network": "Network",

@@ -460,7 +460,7 @@
   "tips.5": "Las salidas dust (< 1000 sats) pueden ser polvo de vigilancia. Congélalas en el control de monedas de tu billetera.",
   "tips.6": "El software de billetera puede ser identificado a través de los patrones de nLockTime, nSequence y firmas.",
   "tips.7": "PayJoin hace que el receptor contribuya con una entrada, rompiendo la suposición de que todas las entradas pertenecen al remitente.",
-  "tx.changeHint": "cambio?",
+  "tx.changeHint": "¿cambio?",
   "tx.confirmedInBlock": "Confirmada en el bloque {{block}}",
   "tx.fee": "Comisión: {{amount}} ({{rate}} sat/vB)",
   "tx.inputCount": "{{count}} entradas",

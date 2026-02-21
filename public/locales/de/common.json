@@ -429,7 +429,7 @@
   "settings.optionB": "Option B: HTTPS-Reverse-Proxy",
   "settings.optionBDesc": "Richte HTTPS auf deinem Node ein mit Caddy oder nginx + Let's Encrypt, füge CORS-Header hinzu und verwende dann deine HTTPS-URL.",
   "settings.optionC": "Option C: Tor Browser + .onion",
-  "settings.optionCDesc": "Wenn diese Seite einen .onion-Mirror hat, besuche sie mit dem Tor Browser und gib die mempool",
+  "settings.optionCDesc": "Besuche diese Seite über den .onion-Mirror im Tor Browser und gib die .onion-Adresse deines Mempools ein. Beides ist HTTP, also kein Mixed-Content-Problem.",
   "settings.resetToDefault": "Auf Standard zurücksetzen",
   "settings.language": "Sprache",
   "settings.network": "Netzwerk",

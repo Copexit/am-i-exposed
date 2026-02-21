@@ -15,11 +15,11 @@ import { getAddressType } from "@/lib/bitcoin/address-type";
  */
 export const analyzeSpendingPattern: AddressHeuristic = (address, _utxos, txs) => {
   const findings: Finding[] = [];
-  const { chain_stats } = address;
+  const { chain_stats, mempool_stats } = address;
 
-  const totalTxs = chain_stats.tx_count;
-  const spentCount = chain_stats.spent_txo_count;
-  const fundedCount = chain_stats.funded_txo_count;
+  const totalTxs = chain_stats.tx_count + mempool_stats.tx_count;
+  const spentCount = chain_stats.spent_txo_count + mempool_stats.spent_txo_count;
+  const fundedCount = chain_stats.funded_txo_count + mempool_stats.funded_txo_count;
 
   // High volume address
   if (totalTxs >= 100) {

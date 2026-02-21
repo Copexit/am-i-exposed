@@ -13,6 +13,9 @@ import type { Finding } from "@/lib/types";
 export const analyzeOpReturn: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
 
+  // Coinbase transactions contain OP_RETURN for SegWit commitment - not a privacy leak
+  if (tx.vin.length === 1 && tx.vin[0].is_coinbase) return { findings };
+
   const opReturnOutputs = tx.vout.filter(
     (out) => out.scriptpubkey_type === "op_return",
   );

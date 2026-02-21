@@ -59,7 +59,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
   // but no single denomination has 5+ outputs, check for multiple denomination groups
   if (!equalOutput && isWabiSabi) {
     const counts = new Map<number, number>();
-    for (const o of tx.vout) {
+    for (const o of spendableOutputs) {
       counts.set(o.value, (counts.get(o.value) ?? 0) + 1);
     }
     const groups = [...counts.entries()].filter(([, c]) => c >= 2);

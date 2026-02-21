@@ -13,6 +13,10 @@ import type { Finding } from "@/lib/types";
  */
 export const analyzeTiming: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
+
+  // Coinbase transactions have no privacy implications for timing
+  if (tx.vin.length === 1 && tx.vin[0].is_coinbase) return { findings };
+
   const { status } = tx;
 
   if (!status.confirmed) {
