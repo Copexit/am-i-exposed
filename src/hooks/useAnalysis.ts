@@ -41,6 +41,8 @@ export interface AnalysisState {
   txBreakdown: TxAnalysisResult[] | null;
   preSendResult: PreSendResult | null;
   error: string | null;
+  /** Error classification for UI logic (e.g. hide retry on non-retryable errors) */
+  errorCode: "retryable" | "not-retryable" | null;
   durationMs: number | null;
 }
 
@@ -56,6 +58,7 @@ const INITIAL_STATE: AnalysisState = {
   txBreakdown: null,
   preSendResult: null,
   error: null,
+  errorCode: null,
   durationMs: null,
 };
 
@@ -89,6 +92,7 @@ export function useAnalysis() {
           query: input,
           inputType: "invalid",
           error: t("errors.invalid_input", { defaultValue: "Invalid Bitcoin address or transaction ID." }),
+          errorCode: "not-retryable",
         });
         return;
       }
@@ -103,18 +107,11 @@ export function useAnalysis() {
       const startTime = Date.now();
 
       setState({
+        ...INITIAL_STATE,
         phase: "fetching",
         query: input,
         inputType,
         steps,
-        result: null,
-        txData: null,
-        addressData: null,
-        addressTxs: null,
-        txBreakdown: null,
-        preSendResult: null,
-        error: null,
-        durationMs: null,
       });
 
       try {
@@ -211,10 +208,15 @@ export function useAnalysis() {
         if (controller.signal.aborted) return;
 
         let message = t("errors.unexpected", { defaultValue: "An unexpected error occurred." });
+        let errorCode: "retryable" | "not-retryable" = "retryable";
         if (err instanceof ApiError) {
           switch (err.code) {
             case "NOT_FOUND":
               message = t("errors.not_found", { defaultValue: "Not found. Check that the address or transaction ID is correct and exists on the selected network." });
+              errorCode = "not-retryable";
+              break;
+            case "INVALID_INPUT":
+              errorCode = "not-retryable";
               break;
             case "RATE_LIMITED":
               message = t("errors.rate_limited", { defaultValue: "Rate limited by mempool.space. Please wait a moment and try again." });
@@ -238,6 +240,7 @@ export function useAnalysis() {
           ...prev,
           phase: "error",
           error: message,
+          errorCode,
         }));
       }
     },
@@ -260,6 +263,7 @@ export function useAnalysis() {
           error: inputType === "txid"
             ? t("errors.presend_txid", { defaultValue: "Pre-send check only works with addresses, not transaction IDs." })
             : t("errors.invalid_address", { defaultValue: "Invalid Bitcoin address." }),
+          errorCode: "not-retryable",
         });
         return;
       }
@@ -273,30 +277,22 @@ export function useAnalysis() {
       if (ofacResult.sanctioned) {
         const preSendResult: PreSendResult = {
           riskLevel: "CRITICAL",
-          summary:
-            "This address appears on the OFAC sanctions list. " +
-            "Sending funds to this address may violate sanctions law.",
+          summary: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
           findings: [
             {
               id: "h13-presend-check",
               severity: "critical",
-              title: "Destination risk: CRITICAL",
-              description:
-                "This address appears on the OFAC sanctions list. " +
-                "Sending funds to this address may violate sanctions law.",
-              recommendation:
-                "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address.",
+              title: t("finding.h13-presend-check.title", { riskLevel: "CRITICAL", defaultValue: "Destination risk: CRITICAL" }),
+              description: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
+              recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),
               scoreImpact: 0,
             },
             {
               id: "h13-ofac-match",
               severity: "critical",
-              title: "OFAC sanctioned address",
-              description:
-                "This address matches an entry on the U.S. Treasury OFAC Specially Designated Nationals (SDN) list. " +
-                "Transacting with sanctioned addresses may have serious legal consequences.",
-              recommendation:
-                "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address.",
+              title: t("finding.h13-ofac-match.title", { defaultValue: "OFAC sanctioned address" }),
+              description: t("finding.h13-ofac-match.description", { defaultValue: "This address matches an entry on the U.S. Treasury OFAC Specially Designated Nationals (SDN) list. Transacting with sanctioned addresses may have serious legal consequences." }),
+              recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),
               scoreImpact: -100,
             },
           ],
@@ -305,35 +301,23 @@ export function useAnalysis() {
           totalReceived: 0,
         };
         setState({
+          ...INITIAL_STATE,
           phase: "complete",
           query: input,
           inputType: "address",
           steps: steps.map((s) => ({ ...s, status: "done" as const })),
-          result: null,
-          txData: null,
-          addressData: null,
-          addressTxs: null,
-          txBreakdown: null,
           preSendResult,
-          error: null,
           durationMs: Date.now() - startTime,
         });
         return;
       }
 
       setState({
+        ...INITIAL_STATE,
         phase: "fetching",
         query: input,
         inputType: "address",
         steps,
-        result: null,
-        txData: null,
-        addressData: null,
-        addressTxs: null,
-        txBreakdown: null,
-        preSendResult: null,
-        error: null,
-        durationMs: null,
       });
 
       try {
@@ -425,10 +409,15 @@ export function useAnalysis() {
         }
 
         let message = t("errors.unexpected", { defaultValue: "An unexpected error occurred." });
+        let errorCode: "retryable" | "not-retryable" = "retryable";
         if (err instanceof ApiError) {
           switch (err.code) {
             case "NOT_FOUND":
               message = t("errors.address_not_found", { defaultValue: "Address not found. Check that it's correct and exists on the selected network." });
+              errorCode = "not-retryable";
+              break;
+            case "INVALID_INPUT":
+              errorCode = "not-retryable";
               break;
             case "RATE_LIMITED":
               message = t("errors.rate_limited_short", { defaultValue: "Rate limited. Please wait a moment and try again." });
@@ -448,7 +437,7 @@ export function useAnalysis() {
           console.error("Check error:", err.name);
           message = t("errors.unexpected", { defaultValue: "An unexpected error occurred. Please try again." });
         }
-        setState((prev) => ({ ...prev, phase: "error", error: message }));
+        setState((prev) => ({ ...prev, phase: "error", error: message, errorCode }));
       }
     },
     [network, config, isCustomApi, t, ht],

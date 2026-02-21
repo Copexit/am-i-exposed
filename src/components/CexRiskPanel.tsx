@@ -120,7 +120,7 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
       setChainalysis((prev) => ({
         ...prev,
         status: "error",
-        error: err instanceof Error ? err.message : "Request failed",
+        error: "Request failed",
       }));
     }
   }, [addresses, isUmbrel]);
@@ -150,7 +150,7 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
       setChainalysis((prev) => ({
         ...prev,
         status: "error",
-        error: err instanceof Error ? err.message : "Request failed",
+        error: "Request failed",
       }));
     }
   }, [addresses]);

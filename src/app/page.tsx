@@ -79,6 +79,7 @@ export default function Home() {
     addressTxs,
     preSendResult,
     error,
+    errorCode,
     durationMs,
     analyze,
     checkDestination,
@@ -409,7 +410,7 @@ export default function Home() {
                 </p>
               </div>
               <div className="flex items-center justify-center gap-4">
-                {query && error && !error.includes("Not found") && !error.includes("Invalid") && !error.includes("only works with") && (
+                {query && error && errorCode !== "not-retryable" && (
                   <button
                     onClick={() => analyze(query)}
                     className="px-4 py-1.5 bg-bitcoin text-black font-semibold text-sm rounded-lg

@@ -54,13 +54,13 @@ export function useClusterAnalysis() {
         if (controller.signal.aborted) return;
 
         setState({ phase: "complete", progress: null, result, error: null });
-      } catch (err) {
+      } catch {
         if (controller.signal.aborted) return;
         setState({
           phase: "error",
           progress: null,
           result: null,
-          error: err instanceof Error ? err.message : "Cluster analysis failed",
+          error: "Cluster analysis failed",
         });
       }
     },

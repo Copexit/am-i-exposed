@@ -200,7 +200,7 @@ export function ResultsPanel({
           <button
             onClick={() => navigator.clipboard.writeText(query).catch(() => {})}
             className="inline-flex items-start gap-2 font-mono text-sm text-foreground/90 break-all leading-relaxed text-left hover:text-foreground transition-colors cursor-pointer group/copy"
-            title="Click to copy"
+            title={t("common.copy", { defaultValue: "Copy" })}
           >
             <span className="break-all">{query}</span>
             <Copy size={14} className="shrink-0 mt-1 text-muted opacity-0 group-hover/copy:opacity-100 transition-opacity" />

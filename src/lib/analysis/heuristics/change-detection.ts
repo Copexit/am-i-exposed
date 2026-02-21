@@ -66,7 +66,9 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
       `${signals.length} sub-heuristic${signals.length > 1 ? "s" : ""} point to a likely change output: ${signals.join("; ")}. ` +
       (maxSignals >= 2
         ? "Multiple signals agree, making change identification reliable. "
-        : "") +
+        : signals.length >= 2
+          ? "However, sub-heuristics disagree on which output is change, reducing confidence. "
+          : "") +
       "When the change output is known, the exact payment amount and recipient are revealed.",
     recommendation:
       "Use wallets with change output randomization. Avoid round payment amounts. Consider using the same address type for all outputs (Taproot makes this easier).",

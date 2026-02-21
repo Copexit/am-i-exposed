@@ -28,8 +28,6 @@ export async function fetchWithRetry(
   url: string,
   options?: RequestInit,
 ): Promise<Response> {
-  let lastError: Error | null = null;
-
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
       const timeoutSignal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
@@ -41,7 +39,7 @@ export async function fetchWithRetry(
       if (response.ok) return response;
 
       if (response.status === 404) {
-        throw new ApiError("NOT_FOUND", `Not found: ${url}`);
+        throw new ApiError("NOT_FOUND", "Not found");
       }
       // 429 rate limit: retry with backoff (reading Retry-After if available)
       if (response.status === 429 && attempt < MAX_RETRIES) {
@@ -68,7 +66,6 @@ export async function fetchWithRetry(
       if (error instanceof ApiError) throw error;
       if (error instanceof DOMException && error.name === "AbortError") throw error;
 
-      lastError = error as Error;
       if (attempt < MAX_RETRIES) {
         await sleep(RETRY_DELAYS[attempt], options?.signal as AbortSignal | undefined);
         continue;
@@ -76,5 +73,5 @@ export async function fetchWithRetry(
     }
   }
 
-  throw new ApiError("NETWORK_ERROR", lastError?.message);
+  throw new ApiError("NETWORK_ERROR", "Network request failed");
 }

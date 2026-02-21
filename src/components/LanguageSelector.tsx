@@ -5,7 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { LANGUAGE_OPTIONS } from "@/lib/i18n/config";
 
 export function LanguageSelector() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const currentCode = i18n.language?.split("-")[0] ?? "en";
   const currentFlag =
     LANGUAGE_OPTIONS.find((l) => l.code === currentCode)?.flag ?? LANGUAGE_OPTIONS[0].flag;
@@ -19,7 +19,7 @@ export function LanguageSelector() {
           text-sm text-foreground cursor-pointer hover:border-muted transition-colors
           focus-visible:border-bitcoin
           pl-7 pr-5 sm:pl-2.5 sm:pr-7 text-[0px] sm:text-sm"
-        aria-label="Select language"
+        aria-label={t("settings.selectLanguage", { defaultValue: "Select language" })}
       >
         {LANGUAGE_OPTIONS.map((lang) => (
           <option key={lang.code} value={lang.code}>
