@@ -72,7 +72,7 @@ export function ConnectionBadge() {
         {config.label}
       </button>
       {showTip && (
-        <div className="absolute top-full right-0 mt-1 w-56 bg-surface-elevated border border-card-border rounded-lg px-3 py-2 shadow-xl z-50 text-xs text-muted leading-relaxed">
+        <div role="tooltip" className="absolute top-full right-0 mt-1 w-56 bg-surface-elevated border border-card-border rounded-lg px-3 py-2 shadow-xl z-50 text-xs text-muted leading-relaxed">
           {config.tip}
         </div>
       )}

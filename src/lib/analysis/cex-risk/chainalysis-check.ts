@@ -12,6 +12,11 @@ const TOR_PROXY_BASE = "/tor-proxy/chainalysis/address";
 
 const MAX_ADDRESSES = 20;
 const TOR_TIMEOUT_MS = 30_000;
+const ADDR_RE = /^[a-zA-Z0-9]{25,90}$/;
+
+function assertAddress(addr: string): void {
+  if (!ADDR_RE.test(addr)) throw new Error("Invalid address format");
+}
 
 interface ChainalysisResponse {
   identifications: ChainalysisIdentification[];
@@ -32,6 +37,8 @@ async function checkSingleAddress(
   signal?: AbortSignal,
   timeoutMs?: number,
 ): Promise<{ sanctioned: boolean; identifications: ChainalysisIdentification[] }> {
+  assertAddress(address);
+
   const signals: AbortSignal[] = [];
   if (signal) signals.push(signal);
   if (timeoutMs) signals.push(AbortSignal.timeout(timeoutMs));

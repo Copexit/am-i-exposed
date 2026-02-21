@@ -162,7 +162,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
 
       {result.coinJoinTxCount > 0 && (
         <p className="text-sm text-muted">
-          {t("cluster.coinJoinExcluded", { count: result.coinJoinTxCount, defaultValue: "{{count}} CoinJoin transaction excluded from clustering (CIOH does not apply).", defaultValue_plural: "{{count}} CoinJoin transactions excluded from clustering (CIOH does not apply)." })}
+          {t("cluster.coinJoinExcluded", { count: result.coinJoinTxCount, defaultValue: "{{count}} CoinJoin transaction excluded from clustering (CIOH does not apply).", defaultValue_other: "{{count}} CoinJoin transactions excluded from clustering (CIOH does not apply)." })}
         </p>
       )}
 

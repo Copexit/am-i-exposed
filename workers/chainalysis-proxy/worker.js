@@ -14,7 +14,7 @@ const handler = {
 
     // Extract address from path: /address/{address}
     const url = new URL(request.url);
-    const match = url.pathname.match(/^\/address\/([a-zA-Z0-9]+)$/);
+    const match = url.pathname.match(/^\/address\/([13][a-km-zA-HJ-NP-Z1-9]{25,34}|bc1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{39,87})$/);
     if (!match) {
       return new Response("Invalid path. Use /address/{btc_address}", {
         status: 400,

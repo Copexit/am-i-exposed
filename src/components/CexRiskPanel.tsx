@@ -323,7 +323,7 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
                         {t("cex.runChainalysis", { defaultValue: "Run Chainalysis Check" })}
                         {inputType === "txid" && addresses.length > 1 && (
                           <span className="text-muted text-xs">
-                            ({t("cex.addressCount", { count: Math.min(addresses.length, 20), defaultValue: "{{count}} address", defaultValue_plural: "{{count}} addresses" })})
+                            ({t("cex.addressCount", { count: Math.min(addresses.length, 20), defaultValue: "{{count}} address", defaultValue_other: "{{count}} addresses" })})
                           </span>
                         )}
                       </button>
@@ -365,7 +365,7 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
 
                   {chainalysis.status === "loading" && (
                     <p className="text-sm text-muted mt-1">
-                      {t("cex.checking", { count: Math.min(addresses.length, 20), defaultValue: "Checking {{count}} address...", defaultValue_plural: "Checking {{count}} addresses..." })}
+                      {t("cex.checking", { count: Math.min(addresses.length, 20), defaultValue: "Checking {{count}} address...", defaultValue_other: "Checking {{count}} addresses..." })}
                     </p>
                   )}
 

@@ -16,6 +16,7 @@ const agent = new SocksProxyAgent(
 
 const ADDR_RE = /^\/chainalysis\/address\/([13][a-km-zA-HJ-NP-Z1-9]{25,34}|bc1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{39,87})$/;
 const REQUEST_TIMEOUT_MS = 30_000;
+const MAX_RESPONSE_BYTES = 1024 * 1024; // 1 MB limit to prevent memory exhaustion
 
 function fetchViaAgent(url) {
   return new Promise((resolve, reject) => {
@@ -32,7 +33,16 @@ function fetchViaAgent(url) {
       },
       (res) => {
         const chunks = [];
-        res.on("data", (chunk) => chunks.push(chunk));
+        let totalBytes = 0;
+        res.on("data", (chunk) => {
+          totalBytes += chunk.length;
+          if (totalBytes > MAX_RESPONSE_BYTES) {
+            req.destroy();
+            reject(new Error("Upstream response too large"));
+            return;
+          }
+          chunks.push(chunk);
+        });
         res.on("end", () => {
           const body = Buffer.concat(chunks).toString();
           if (res.statusCode >= 200 && res.statusCode < 300) {
@@ -80,7 +90,7 @@ const server = http.createServer(async (req, res) => {
 
   try {
     const body = await fetchViaAgent(upstreamUrl);
-    res.writeHead(200, { "Content-Type": "application/json" });
+    res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
     res.end(body);
   } catch (err) {
     console.error(`Tor proxy error: ${err.message}`);
@@ -93,3 +103,11 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`Tor proxy sidecar listening on port ${PORT}`);
   console.log(`Routing via socks5h://${TOR_PROXY_IP}:${TOR_PROXY_PORT}`);
 });
+
+// Graceful shutdown
+function shutdown() {
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(1), 5000);
+}
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
