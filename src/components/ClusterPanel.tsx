@@ -171,6 +171,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
         <div>
           <button
             onClick={() => setShowAddresses(!showAddresses)}
+            aria-expanded={showAddresses}
             className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
           >
             <ChevronDown

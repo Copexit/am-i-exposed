@@ -97,6 +97,7 @@ export function TxBreakdownPanel({
             >
               <button
                 onClick={() => setExpandedTx(isExpanded ? null : item.txid)}
+                aria-expanded={isExpanded}
                 className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-elevated/50 transition-colors cursor-pointer"
               >
                 {/* Grade badge */}

@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { Clock, X } from "lucide-react";
 import type { RecentScan } from "@/hooks/useRecentScans";
 import { useTranslation } from "react-i18next";
+import { formatTimeAgo } from "@/lib/i18n/format";
 
 interface RecentScansProps {
   scans: RecentScan[];
@@ -19,19 +20,10 @@ const GRADE_COLORS: Record<string, string> = {
   F: "text-severity-critical",
 };
 
-function timeAgo(timestamp: number): string {
-  const seconds = Math.floor((Date.now() - timestamp) / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
 export function RecentScans({ scans, onSelect, onClear }: RecentScansProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language ?? "en";
+  const timeAgo = (ms: number) => formatTimeAgo(Math.floor(ms / 1000), locale);
 
   if (scans.length === 0) return null;
 

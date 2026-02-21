@@ -23,14 +23,16 @@ export const analyzeFees: TxHeuristic = (tx) => {
   // Check for exact integer fee rate (common in some wallets)
   // Exclude low rates (1-5 sat/vB) since these are common during low-fee periods
   // and being in a large cohort is actually privacy-neutral
-  if (feeRate === Math.floor(feeRate) && feeRate > 5) {
+  // Check if fee rate is close to an integer (vsize ceiling can cause slight deviation)
+  const roundedFeeRate = Math.round(feeRate);
+  if (Math.abs(feeRate - roundedFeeRate) < 0.05 && roundedFeeRate > 5) {
     findings.push({
       id: "h6-round-fee-rate",
       severity: "low",
-      title: `Exact fee rate: ${feeRate} sat/vB`,
-      params: { feeRate },
+      title: `Exact fee rate: ${roundedFeeRate} sat/vB`,
+      params: { feeRate: roundedFeeRate },
       description:
-        `This transaction uses an exact integer fee rate of ${feeRate} sat/vB. ` +
+        `This transaction uses an exact integer fee rate of ${roundedFeeRate} sat/vB. ` +
         "Some wallet software uses round fee rates rather than precise estimates, " +
         "which can help identify the wallet used.",
       recommendation:

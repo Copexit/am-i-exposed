@@ -13,7 +13,7 @@ import type { TxHeuristic } from "./types";
  * - Nakamoto, 2008 (Section 10)
  * - Meiklejohn et al., 2013
  *
- * Impact: -3 to -15
+ * Impact: -3 to -45
  */
 export const analyzeCioh: TxHeuristic = (tx) => {
   const uniqueInputAddresses = new Set<string>();
@@ -43,13 +43,19 @@ export const analyzeCioh: TxHeuristic = (tx) => {
   }
 
   const count = uniqueInputAddresses.size;
-  const impact = Math.min(count * 3, 15);
+  // Tiered scaling: larger consolidations are exponentially worse for privacy
+  let impact: number;
+  if (count >= 50) impact = 45;
+  else if (count >= 20) impact = 35;
+  else if (count >= 10) impact = 25;
+  else if (count >= 5) impact = 15;
+  else impact = count * 3;
 
   return {
     findings: [
       {
         id: "h3-cioh",
-        severity: impact >= 12 ? "high" : "medium",
+        severity: impact >= 25 ? "critical" : impact >= 12 ? "high" : "medium",
         title: `${count} input addresses linked by CIOH`,
         params: { count },
         description:

@@ -5,7 +5,6 @@ import type { Finding } from "@/lib/types";
 const WHIRLPOOL_DENOMS = [
   50_000, // 0.0005 BTC
   100_000, // 0.001 BTC
-  500_000, // 0.005 BTC (historical pool)
   1_000_000, // 0.01 BTC
   5_000_000, // 0.05 BTC
   50_000_000, // 0.5 BTC (retired 2023)
@@ -47,7 +46,9 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
 
   // Check for WabiSabi / Wasabi pattern (many inputs, many outputs)
   // WabiSabi rounds can have as few as ~10 participants
-  const isWabiSabi = tx.vin.length > 10 && tx.vout.length > 10;
+  // WabiSabi rounds typically have 50+ participants; use >= 20 to avoid
+  // false positives from exchange batched withdrawals (commonly 15-30 outputs)
+  const isWabiSabi = tx.vin.length >= 20 && tx.vout.length >= 20;
 
   // Check for generic equal-output CoinJoin
   const equalOutput = detectEqualOutputs(tx.vout.map((o) => o.value));
@@ -62,7 +63,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
     const groups = [...counts.entries()].filter(([, c]) => c >= 2);
     const totalEqual = groups.reduce((sum, [, c]) => sum + c, 0);
 
-    if (totalEqual >= 5 && groups.length >= 2) {
+    if (totalEqual >= 10 && groups.length >= 3) {
       const impact = totalEqual >= 20 ? 25 : totalEqual >= 10 ? 20 : 15;
       findings.push({
         id: "h4-coinjoin",

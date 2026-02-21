@@ -24,7 +24,9 @@ const MAX_INPUT_LENGTH = 512;
 
 /** Clean user input, extracting from URLs if needed. */
 export function cleanInput(input: string): string {
-  const trimmed = input.trim().slice(0, MAX_INPUT_LENGTH);
+  // Strip control characters, zero-width joiners, and Unicode directional overrides
+  const stripped = input.replace(/[\x00-\x1f\x7f-\x9f\u200b-\u200f\u2028-\u202f\u2060-\u206f]/g, "");
+  const trimmed = stripped.trim().slice(0, MAX_INPUT_LENGTH);
   return extractFromUrl(trimmed) ?? trimmed;
 }
 

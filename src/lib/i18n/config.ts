@@ -37,6 +37,8 @@ i18n
       caches: ["localStorage"],
     },
     interpolation: {
+      // React handles XSS escaping via JSX textContent, so i18next HTML escaping
+      // is redundant. IMPORTANT: Never use t() output in dangerouslySetInnerHTML.
       escapeValue: false,
     },
     react: {

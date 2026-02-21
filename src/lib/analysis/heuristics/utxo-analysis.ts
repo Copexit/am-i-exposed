@@ -31,7 +31,7 @@ export const analyzeUtxos: AddressHeuristic = (_address, utxos) => {
       params: { dustCount: dustUtxos.length, totalDust, threshold: DUST_THRESHOLD },
       description:
         `Found ${dustUtxos.length} UTXO${dustUtxos.length > 1 ? "s" : ""} below ${DUST_THRESHOLD} sats (total: ${totalDust} sats). ` +
-        `Tiny unsolicited UTXOs are often "dusting attacks" -- surveillance entities send small amounts to track your spending. ` +
+        `Tiny unsolicited UTXOs are often "dusting attacks" - surveillance entities send small amounts to track your spending. ` +
         `When you spend dust alongside other UTXOs, it links those UTXOs together via the common-input-ownership heuristic.`,
       recommendation:
         "Do NOT spend these dust UTXOs. Freeze them in your wallet's coin control feature. If your wallet does not support coin control, consider switching to one that does (Sparrow, Bitcoin Core).",
@@ -59,7 +59,7 @@ export const analyzeUtxos: AddressHeuristic = (_address, utxos) => {
       title: `${utxos.length} UTXOs on this address`,
       params: { utxoCount: utxos.length },
       description:
-        `This address has ${utxos.length} UTXOs. Be mindful when spending -- combining UTXOs in a single transaction reveals common ownership.`,
+        `This address has ${utxos.length} UTXOs. Be mindful when spending - combining UTXOs in a single transaction reveals common ownership.`,
       recommendation:
         "Use coin control to select specific UTXOs when sending. Avoid auto-selection that combines all UTXOs.",
       scoreImpact: -2,

@@ -51,6 +51,7 @@ export function TipJar() {
     >
       <button
         onClick={() => setExpanded(!expanded)}
+        aria-expanded={expanded}
         className="w-full flex items-center gap-3 px-4 py-3 text-left cursor-pointer group"
       >
         <Heart

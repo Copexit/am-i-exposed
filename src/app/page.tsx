@@ -197,11 +197,11 @@ export default function Home() {
 
   const handleSubmit = (input: string) => {
     if (mode === "check") {
-      window.location.hash = `check=${input}`;
+      window.location.hash = `check=${encodeURIComponent(input)}`;
       checkDestination(input);
     } else {
       const prefix = input.length === 64 ? "tx" : "addr";
-      window.location.hash = `${prefix}=${input}`;
+      window.location.hash = `${prefix}=${encodeURIComponent(input)}`;
       analyze(input);
     }
   };

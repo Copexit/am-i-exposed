@@ -63,6 +63,8 @@ export function ConnectionBadge() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setShowTip((v) => !v)}
+        onFocus={() => setShowTip(true)}
+        onBlur={() => setShowTip(false)}
         className="inline-flex items-center gap-1.5 text-xs cursor-pointer py-2 min-h-[44px]"
         aria-label={config.tip}
       >

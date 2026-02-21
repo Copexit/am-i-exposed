@@ -5,6 +5,16 @@ import type {
   MempoolUtxo,
 } from "./types";
 
+const TXID_RE = /^[a-fA-F0-9]{64}$/;
+const ADDR_RE = /^[a-zA-Z0-9]{25,90}$/;
+
+function assertTxid(txid: string): void {
+  if (!TXID_RE.test(txid)) throw new ApiError("INVALID_INPUT", "Invalid txid format");
+}
+function assertAddress(address: string): void {
+  if (!ADDR_RE.test(address)) throw new ApiError("INVALID_INPUT", "Invalid address format");
+}
+
 export function createEsploraClient(baseUrl: string, signal?: AbortSignal) {
   async function get<T>(path: string): Promise<T> {
     const res = await fetchWithRetry(`${baseUrl}${path}`, { signal });
@@ -22,18 +32,22 @@ export function createEsploraClient(baseUrl: string, signal?: AbortSignal) {
 
   return {
     getTransaction(txid: string): Promise<MempoolTransaction> {
+      assertTxid(txid);
       return get(`/tx/${txid}`);
     },
 
     getTxHex(txid: string): Promise<string> {
+      assertTxid(txid);
       return getText(`/tx/${txid}/hex`);
     },
 
     getAddress(address: string): Promise<MempoolAddress> {
+      assertAddress(address);
       return get(`/address/${address}`);
     },
 
     async getAddressTxs(address: string, maxPages = 4): Promise<MempoolTransaction[]> {
+      assertAddress(address);
       const allTxs: MempoolTransaction[] = [];
 
       const firstPage = await get<MempoolTransaction[]>(`/address/${address}/txs`);
@@ -55,6 +69,7 @@ export function createEsploraClient(baseUrl: string, signal?: AbortSignal) {
     },
 
     getAddressUtxos(address: string): Promise<MempoolUtxo[]> {
+      assertAddress(address);
       return get(`/address/${address}/utxo`);
     },
   };

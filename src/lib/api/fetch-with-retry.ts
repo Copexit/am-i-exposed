@@ -1,6 +1,6 @@
 export class ApiError extends Error {
   constructor(
-    public code: "NOT_FOUND" | "RATE_LIMITED" | "API_UNAVAILABLE" | "NETWORK_ERROR",
+    public code: "NOT_FOUND" | "RATE_LIMITED" | "API_UNAVAILABLE" | "NETWORK_ERROR" | "INVALID_INPUT",
     message?: string,
   ) {
     super(message ?? code);

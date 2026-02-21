@@ -6,7 +6,6 @@ import type { Finding, Severity } from "@/lib/types";
  *
  * Analyzes raw transaction metadata to identify wallet software:
  * - nLockTime: Bitcoin Core sets to current block height, most others use 0
- * - nVersion: 1 (legacy) vs 2 (BIP68 relative locktime)
  * - nSequence: 0xfffffffd (RBF), 0xfffffffe (no-RBF), 0xffffffff (legacy)
  * - BIP69: Lexicographic input/output ordering (Electrum pattern)
  * - Low-R signatures: Bitcoin Core since 0.17 grinds for 32-byte R values
@@ -58,8 +57,8 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
   // Require at least 2 on each side and at least one side >= 3 to reduce false positives.
   // 1-input + 3-output has ~16.7% chance of random BIP69 compliance (too noisy).
   // 2-input + 3-output: ~8.3% false positive rate (acceptable).
-  if (tx.vin.length >= 2 && tx.vout.length >= 2 &&
-      (tx.vin.length >= 3 || tx.vout.length >= 3)) {
+  // Require both sides >= 3 to reduce false positive rate to ~2.8% (1/36)
+  if (tx.vin.length >= 3 && tx.vout.length >= 3) {
     const isBip69 = checkBip69(tx);
     if (isBip69) {
       // Whirlpool/Samourai also use BIP69 - check for CoinJoin patterns
@@ -131,7 +130,7 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
 };
 
 /** Whirlpool pool denominations (in sats). */
-const WHIRLPOOL_DENOMS = [50_000, 100_000, 500_000, 1_000_000, 5_000_000, 50_000_000];
+const WHIRLPOOL_DENOMS = [50_000, 100_000, 1_000_000, 5_000_000, 50_000_000];
 
 /** Detect Whirlpool CoinJoin pattern: 5 equal outputs at known denominations (5-8 total outputs). */
 function detectWhirlpoolPattern(

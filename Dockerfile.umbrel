@@ -25,4 +25,6 @@ COPY umbrel/nginx.conf.template /etc/nginx/templates/default.conf.template
 # Copy static export from build stage
 COPY --from=builder /app/out /usr/share/nginx/html
 
+HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://localhost:8080/health || exit 1
+
 EXPOSE 8080

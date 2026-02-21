@@ -98,11 +98,13 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
         id: "h5-entropy",
         severity: impact >= 10 ? "good" : impact >= 5 ? "low" : "medium",
         title: `Transaction entropy: ${roundedEntropy} bits`,
-        params: { entropy: roundedEntropy, method, interpretations: Math.round(Math.pow(2, displayEntropy)) },
+        params: { entropy: roundedEntropy, method, interpretations: displayEntropy > 40 ? 0 : Math.round(Math.pow(2, displayEntropy)) },
         description:
           `This transaction has ${roundedEntropy} bits of entropy (via ${method}), meaning there are ` +
           (method === "structural upper bound" ? "up to " : "") +
-          `~${Math.round(Math.pow(2, displayEntropy)).toLocaleString()} ` +
+          (displayEntropy > 40
+            ? `~2^${Math.round(displayEntropy)} `
+            : `~${Math.round(Math.pow(2, displayEntropy)).toLocaleString()} `) +
           (method === "structural upper bound" ? "possible" : "valid") +
           " interpretations of the fund flow. Higher entropy makes chain analysis less reliable.",
         recommendation:
@@ -186,15 +188,18 @@ function estimateEntropy(inputs: number[], outputs: number[]): number {
     if (count > maxGroupSize) maxGroupSize = count;
   }
 
-  // Entropy estimate: equal outputs create ambiguity because each equal output
-  // could plausibly map to any input capable of funding it.
-  // n equal outputs among m inputs gives roughly n * log2(m) bits
-  // (each equal output has m possible source inputs)
+  // Entropy estimate using permutation entropy: equal outputs create ambiguity
+  // because each equal output could map to any input capable of funding it.
+  // Upper bound: log2(k!) where k = min(equalOutputs, inputs)
+  // This is tighter than n * log2(m) which ignores subset-sum constraints.
   if (maxGroupSize >= 2) {
     const n = maxGroupSize;
     const m = inputs.length;
     if (m <= 1) return 0;
-    return n * Math.log2(m);
+    const k = Math.min(n, m);
+    let logFactorial = 0;
+    for (let i = 2; i <= k; i++) logFactorial += Math.log2(i);
+    return logFactorial;
   }
 
   // All unique outputs: entropy from input-output pairing ambiguity

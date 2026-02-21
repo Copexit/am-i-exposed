@@ -6,3 +6,9 @@ screenshots
 *.md
 !README.md
 .claude
+test-results
+workers
+.env*
+.github
+docker-compose*.yml
+Dockerfile*

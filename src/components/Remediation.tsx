@@ -271,6 +271,7 @@ export function Remediation({ findings, grade }: RemediationProps) {
     <div className="w-full">
       <button
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
         className="inline-flex items-center gap-1.5 text-sm text-bitcoin/70 hover:text-bitcoin transition-colors cursor-pointer bg-bitcoin/10 rounded-lg px-3 py-3"
       >
         <Lightbulb size={16} />

@@ -66,6 +66,7 @@ export function FindingCard({ finding, index }: FindingCardProps) {
     >
       <button
         onClick={() => setExpanded(!expanded)}
+        aria-expanded={expanded}
         className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-elevated/50 transition-colors cursor-pointer"
       >
         <span className={`w-2 h-2 rounded-full shrink-0 ${style.dot}`} />

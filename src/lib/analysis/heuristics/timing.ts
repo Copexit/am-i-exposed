@@ -58,8 +58,9 @@ export const analyzeTiming: TxHeuristic = (tx) => {
     // Only flag if locktime is significantly different from block height
     else if (status.confirmed && status.block_height) {
       const diff = status.block_height - tx.locktime;
-      // If locktime is more than 100 blocks before confirmation, it may be stale or intentional delay
-      if (diff > 100) {
+      // Bitcoin Core randomly subtracts 0-10 from current height for anti-fee-sniping.
+      // Anything beyond ~20 blocks (~3 hours) suggests delayed broadcast.
+      if (diff > 20) {
         findings.push({
           id: "timing-stale-locktime",
           severity: "low",

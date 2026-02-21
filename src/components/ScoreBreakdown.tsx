@@ -43,6 +43,7 @@ export function ScoreBreakdown({ findings, finalScore }: ScoreBreakdownProps) {
     <div className="w-full">
       <button
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
         className="inline-flex items-center gap-1.5 text-xs text-foreground hover:text-foreground transition-colors cursor-pointer px-1 min-h-[44px]"
       >
         <BarChart3 size={14} />
@@ -76,8 +77,8 @@ export function ScoreBreakdown({ findings, finalScore }: ScoreBreakdownProps) {
 
                 return (
                   <div key={f.id} className="flex items-center gap-2 text-sm">
-                    <span className="flex-1 text-muted truncate" title={f.title}>
-                      {f.title}
+                    <span className="flex-1 text-muted truncate" title={t(`finding.${f.id}.title`, { ...f.params, defaultValue: f.title })}>
+                      {t(`finding.${f.id}.title`, { ...f.params, defaultValue: f.title })}
                     </span>
                     <div className="w-20 h-2 bg-surface-elevated rounded-full overflow-hidden">
                       <div

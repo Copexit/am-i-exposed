@@ -167,6 +167,8 @@ export function ApiSettings() {
         }}
         className="relative inline-flex items-center gap-1.5 text-muted hover:text-foreground transition-colors cursor-pointer p-2 rounded-lg border border-card-border bg-surface-elevated hover:bg-surface-inset"
         aria-label={t("settings.ariaLabel", { defaultValue: "Settings" })}
+        aria-expanded={open}
+        aria-haspopup="dialog"
         title={t("settings.title", { defaultValue: "Settings" })}
       >
         <Settings size={18} />
@@ -185,7 +187,7 @@ export function ApiSettings() {
           onClick={() => setOpen(false)}
           aria-hidden="true"
         />
-        <div className="fixed inset-x-0 top-[60px] mx-3 sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mx-0 sm:mt-2 sm:w-96 bg-surface-elevated border border-card-border rounded-xl shadow-xl z-50 p-4 space-y-4 max-h-[80vh] overflow-y-auto">
+        <div role="dialog" aria-modal="true" aria-label={t("settings.ariaLabel", { defaultValue: "Settings" })} className="fixed inset-x-0 top-[60px] mx-3 sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mx-0 sm:mt-2 sm:w-96 bg-surface-elevated border border-card-border rounded-xl shadow-xl z-50 p-4 space-y-4 max-h-[80vh] overflow-y-auto">
 
           {/* Network & Language row */}
           <div className="flex items-center gap-3">
@@ -347,6 +349,7 @@ export function ApiSettings() {
           <div className="border-t border-card-border pt-2">
             <button
               onClick={() => setHelpOpen(!helpOpen)}
+              aria-expanded={helpOpen}
               className="flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer w-full"
             >
               {helpOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}

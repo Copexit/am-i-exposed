@@ -14,7 +14,7 @@ const agent = new SocksProxyAgent(
   `socks5h://${TOR_PROXY_IP}:${TOR_PROXY_PORT}`
 );
 
-const ADDR_RE = /^\/chainalysis\/address\/([a-zA-Z0-9]+)$/;
+const ADDR_RE = /^\/chainalysis\/address\/([13][a-km-zA-HJ-NP-Z1-9]{25,34}|bc1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{39,87})$/;
 const REQUEST_TIMEOUT_MS = 30_000;
 
 function fetchViaAgent(url) {
@@ -83,7 +83,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(body);
   } catch (err) {
-    console.error(`Tor proxy error for ${address}: ${err.message}`);
+    console.error(`Tor proxy error: ${err.message}`);
     res.writeHead(502, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ error: "Tor proxy upstream request failed" }));
   }

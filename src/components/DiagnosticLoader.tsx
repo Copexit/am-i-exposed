@@ -66,7 +66,14 @@ export function DiagnosticLoader({ steps, phase }: DiagnosticLoaderProps) {
 
       {/* Progress bar */}
       {phase === "analyzing" && steps.length > 0 && (
-        <div className="w-full h-0.5 bg-surface-inset rounded-full overflow-hidden">
+        <div
+          className="w-full h-0.5 bg-surface-inset rounded-full overflow-hidden"
+          role="progressbar"
+          aria-valuenow={doneCount}
+          aria-valuemin={0}
+          aria-valuemax={steps.length}
+          aria-label={t("loader.progress", { done: doneCount, total: steps.length, defaultValue: "{{done}} of {{total}} checks complete" })}
+        >
           <motion.div
             className="h-full bg-bitcoin/60 rounded-full"
             initial={{ width: 0 }}

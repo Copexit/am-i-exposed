@@ -66,7 +66,7 @@ function jsonResponse(data, env) {
 
 function corsHeaders(env) {
   return {
-    "Access-Control-Allow-Origin": env.ALLOWED_ORIGIN || "*",
+    "Access-Control-Allow-Origin": env.ALLOWED_ORIGIN || "https://am-i.exposed",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Max-Age": "86400",

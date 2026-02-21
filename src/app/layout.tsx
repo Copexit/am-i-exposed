@@ -72,7 +72,7 @@ export default function RootLayout({
       <head>
         <meta
           httpEquiv="Content-Security-Policy"
-          content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src *; img-src 'self' data:"
+          content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src https: http://localhost:* http://127.0.0.1:* http://[::1]:*; img-src 'self' data:; base-uri 'self'; form-action 'self'; object-src 'none'"
         />
         <meta name="referrer" content="no-referrer" />
         <meta name="theme-color" content="#0a0a0a" />

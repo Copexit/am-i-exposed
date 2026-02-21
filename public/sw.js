@@ -33,6 +33,10 @@ self.addEventListener("fetch", (event) => {
   // Skip cross-origin requests (API calls, custom endpoints, etc.)
   if (url.origin !== self.location.origin) return;
 
+  // Never cache API responses - they contain blockchain data (privacy)
+  // and caching stale probe responses causes false-positive local API detection
+  if (url.pathname.startsWith("/api/")) return;
+
   // Content-hashed assets (_next/static/*) are immutable - cache-first is safe
   if (url.pathname.startsWith("/_next/static/")) {
     event.respondWith(
