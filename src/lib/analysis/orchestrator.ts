@@ -22,6 +22,7 @@ import {
   analyzeScriptTypeMix,
   analyzeSpendingPattern,
   analyzeDustOutputs,
+  analyzeCoinbase,
 } from "./heuristics";
 import { calculateScore } from "@/lib/scoring/score";
 import { checkOfac } from "./cex-risk/ofac-check";
@@ -37,6 +38,7 @@ export interface HeuristicStep {
 // --- Transaction heuristics ---
 
 const TX_HEURISTICS = [
+  { id: "coinbase", label: "Coinbase detection", fn: analyzeCoinbase },
   { id: "h1", label: "Round amounts", fn: analyzeRoundAmounts },
   { id: "h2", label: "Change detection", fn: analyzeChangeDetection },
   { id: "h3", label: "Common input ownership", fn: analyzeCioh },
@@ -169,7 +171,7 @@ export async function analyzeAddress(
 function applyCrossHeuristicRules(findings: Finding[]): void {
   const isCoinJoin = findings.some(
     (f) =>
-      (f.id === "h4-whirlpool" || f.id === "h4-coinjoin") &&
+      (f.id === "h4-whirlpool" || f.id === "h4-coinjoin" || f.id === "h4-joinmarket") &&
       f.scoreImpact > 0,
   );
 

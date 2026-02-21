@@ -30,9 +30,10 @@ interface CexRiskPanelProps {
   query: string;
   inputType: InputType;
   txData: MempoolTransaction | null;
+  isCoinJoin?: boolean;
 }
 
-export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
+export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPanelProps) {
   const { t } = useTranslation();
   const { localApiStatus } = useNetwork();
   const isUmbrel = localApiStatus === "available";
@@ -427,7 +428,9 @@ export function CexRiskPanel({ query, inputType, txData }: CexRiskPanelProps) {
 
               {/* Disclaimer */}
               <p className="text-xs text-muted leading-relaxed border-t border-card-border pt-3">
-                {t("cex.disclaimer", { defaultValue: "These checks cover sanctions screening only. Exchanges may flag addresses for other reasons (mixer usage, high-risk jurisdiction, etc.) that are not detectable with public tools." })}
+                {isCoinJoin
+                  ? t("cex.disclaimerCoinJoin", { defaultValue: "This transaction was identified as a CoinJoin. Multiple centralized exchanges are documented to flag, freeze, or close accounts for CoinJoin-associated deposits - even months or years after the transaction. These checks cover sanctions screening only and cannot predict exchange compliance decisions." })
+                  : t("cex.disclaimer", { defaultValue: "These checks cover sanctions screening only. Exchanges may flag addresses for other reasons (mixer usage, high-risk jurisdiction, etc.) that are not detectable with public tools." })}
               </p>
             </div>
           </motion.div>

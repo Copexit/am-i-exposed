@@ -2,8 +2,11 @@ import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 
 const EXCHANGE_WARNING =
-  "Note: some centralized exchanges flag or block CoinJoin transactions. " +
-  "CoinJoin-associated UTXOs may trigger compliance reviews or account freezes when deposited to an exchange.";
+  "Centralized exchanges including Binance, Coinbase, Gemini, Bitstamp, Swan Bitcoin, BitVavo, Bitfinex, and BitMEX " +
+  "have been documented flagging, freezing, or closing accounts for CoinJoin-associated deposits. " +
+  "This list is not exhaustive - other exchanges may have similar policies. " +
+  "Some exchanges retroactively flag CoinJoin activity months or years after the transaction. " +
+  "For safe off-ramping, consider decentralized alternatives like Bisq, RoboSats, or Hodl Hodl that do not apply chain surveillance.";
 
 // Whirlpool pool denominations (in sats)
 const WHIRLPOOL_DENOMS = [
@@ -121,6 +124,52 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
     });
   }
 
+  // Check for JoinMarket pattern: small-scale CoinJoin with maker/taker model
+  // Only check if no other CoinJoin was detected
+  if (findings.length === 0) {
+    const joinmarket = detectJoinMarket(tx.vin, spendableOutputs);
+    if (joinmarket) {
+      findings.push({
+        id: "h4-joinmarket",
+        severity: "good",
+        title: `Likely JoinMarket CoinJoin: ${joinmarket.equalCount} equal outputs of ${formatBtc(joinmarket.denomination)}`,
+        params: { count: joinmarket.equalCount, denomination: formatBtc(joinmarket.denomination), vin: tx.vin.length, vout: spendableOutputs.length },
+        description:
+          `This transaction has ${tx.vin.length} inputs from ${joinmarket.distinctInputAddresses} distinct addresses and ` +
+          `${joinmarket.equalCount} outputs with the same value (${formatBtc(joinmarket.denomination)}), ` +
+          "consistent with a JoinMarket CoinJoin using the maker/taker model. " +
+          "JoinMarket provides privacy by combining inputs from multiple participants into a single transaction, " +
+          "making it difficult to determine which input funded which output.",
+        recommendation:
+          "JoinMarket provides good privacy through its decentralized maker/taker model. " +
+          "For stronger privacy, consider multiple rounds of mixing. " +
+          EXCHANGE_WARNING,
+        scoreImpact: 15,
+      });
+    }
+  }
+
+  // If any CoinJoin was detected, add an informational warning about exchange flagging risks
+  if (findings.length > 0) {
+    findings.push({
+      id: "h4-exchange-flagging",
+      severity: "low",
+      title: "Exchanges may flag this transaction",
+      description:
+        "Multiple centralized exchanges are documented to flag or freeze accounts associated with CoinJoin transactions. " +
+        "Some exchanges retroactively flag CoinJoin usage months or years after the fact. " +
+        "In documented cases, Bitstamp flagged CoinJoins years later, BitMEX flagged accounts months after withdrawal to a mixer, " +
+        "and BlockFi closed a user's collateral loan because the deposited coins had CoinJoin history from a previous owner " +
+        "(the user had never mixed coins themselves). " +
+        "This is based on publicly documented incidents and is not an exhaustive list of exchange behavior.",
+      recommendation:
+        "Do not deposit CoinJoin outputs directly to a centralized exchange. " +
+        "Use decentralized, non-custodial exchanges (Bisq, RoboSats, Hodl Hodl) that do not apply chain surveillance. " +
+        "Maintain strict separation between privacy wallets and exchange wallets.",
+      scoreImpact: 0,
+    });
+  }
+
   return { findings };
 };
 
@@ -165,6 +214,57 @@ function detectEqualOutputs(
     count: bestCount,
     denomination: bestValue,
     total: values.length,
+  };
+}
+
+function detectJoinMarket(
+  vin: Parameters<typeof analyzeCoinJoin>[0]["vin"],
+  spendableOutputs: { value: number; scriptpubkey_address?: string }[],
+): { equalCount: number; denomination: number; distinctInputAddresses: number } | null {
+  // JoinMarket: maker/taker model with 2-10 inputs, 3-8 spendable outputs
+  if (vin.length < 2 || vin.length > 10) return null;
+  if (spendableOutputs.length < 3 || spendableOutputs.length > 8) return null;
+
+  // Require inputs from at least 2 distinct addresses (multi-party evidence)
+  const inputAddresses = new Set<string>();
+  for (const v of vin) {
+    if (v.prevout?.scriptpubkey_address) {
+      inputAddresses.add(v.prevout.scriptpubkey_address);
+    }
+  }
+  if (inputAddresses.size < 2) return null;
+
+  // Count output values - look for 2-4 equal-valued outputs
+  const counts = new Map<number, number>();
+  for (const o of spendableOutputs) {
+    counts.set(o.value, (counts.get(o.value) ?? 0) + 1);
+  }
+
+  // Find equal output groups with 2-4 occurrences
+  let bestValue = 0;
+  let bestCount = 0;
+  for (const [value, count] of counts) {
+    if (count >= 2 && count <= 4 && count > bestCount) {
+      // Skip if the value matches a Whirlpool denomination (would be caught earlier)
+      if (WHIRLPOOL_DENOMS.includes(value)) continue;
+      bestCount = count;
+      bestValue = value;
+    }
+  }
+
+  // Need at least 2 equal outputs
+  if (bestCount < 2) return null;
+
+  // The equal outputs should not be the only outputs (need change outputs too)
+  if (bestCount === spendableOutputs.length) return null;
+
+  // Require that the equal output value is a meaningful amount (not dust)
+  if (bestValue < 10_000) return null;
+
+  return {
+    equalCount: bestCount,
+    denomination: bestValue,
+    distinctInputAddresses: inputAddresses.size,
   };
 }
 

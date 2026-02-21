@@ -13,6 +13,7 @@ import { ExportButton } from "./ExportButton";
 import { ScoreBreakdown } from "./ScoreBreakdown";
 import { Remediation } from "./Remediation";
 import { CexRiskPanel } from "./CexRiskPanel";
+import { ExchangeWarningPanel } from "./ExchangeWarningPanel";
 import { TxBreakdownPanel } from "./TxBreakdownPanel";
 import { ClusterPanel } from "./ClusterPanel";
 import { TipJar } from "./TipJar";
@@ -280,7 +281,19 @@ export function ResultsPanel({
       <Remediation findings={result.findings} grade={result.grade} />
 
       {/* Exchange Risk Check */}
-      <CexRiskPanel query={query} inputType={inputType} txData={txData} />
+      <CexRiskPanel
+        query={query}
+        inputType={inputType}
+        txData={txData}
+        isCoinJoin={result.findings.some(
+          (f) => (f.id === "h4-whirlpool" || f.id === "h4-coinjoin" || f.id === "h4-joinmarket") && f.scoreImpact > 0,
+        )}
+      />
+
+      {/* Exchange CoinJoin Policy Panel (only for CoinJoin transactions) */}
+      {result.findings.some(
+        (f) => (f.id === "h4-whirlpool" || f.id === "h4-coinjoin" || f.id === "h4-joinmarket") && f.scoreImpact > 0,
+      ) && <ExchangeWarningPanel />}
 
       {/* Score breakdown & how scoring works */}
       <ScoreBreakdown findings={result.findings} finalScore={result.score} />

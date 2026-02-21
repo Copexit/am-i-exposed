@@ -84,21 +84,33 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
     });
   }
 
-  // CoinJoin detected (positive - encourage more)
+  // CoinJoin detected - encourage continuing and warn about exchange risks
   const coinJoinFound = findings.some(
     (f) =>
-      (f.id === "h4-whirlpool" || f.id === "h4-coinjoin") && f.scoreImpact > 0,
+      (f.id === "h4-whirlpool" || f.id === "h4-coinjoin" || f.id === "h4-joinmarket") && f.scoreImpact > 0,
   );
-  if (coinJoinFound && grade === "A+") {
+  if (coinJoinFound) {
+    if (grade === "A+") {
+      actions.push({
+        priority: 5,
+        textKey: "remediation.continueCoinJoin",
+        textDefault: "Excellent! Continue using CoinJoin",
+        detailKey: "remediation.continueCoinJoinDetail",
+        detailDefault:
+          "Your CoinJoin transaction provides strong privacy. Continue using Whirlpool " +
+          "or Wasabi for future transactions. Avoid consolidating CoinJoin " +
+          "outputs with non-CoinJoin UTXOs.",
+      });
+    }
     actions.push({
-      priority: 5,
-      textKey: "remediation.continueCoinJoin",
-      textDefault: "Excellent! Continue using CoinJoin",
-      detailKey: "remediation.continueCoinJoinDetail",
+      priority: 4,
+      textKey: "remediation.useDecentralizedExchanges",
+      textDefault: "Use decentralized exchanges for CoinJoin outputs",
+      detailKey: "remediation.useDecentralizedExchangesDetail",
       detailDefault:
-        "Your CoinJoin transaction provides strong privacy. Continue using Whirlpool " +
-        "or Wasabi for future transactions. Avoid consolidating CoinJoin " +
-        "outputs with non-CoinJoin UTXOs.",
+        "Centralized exchanges (Binance, Coinbase, Gemini, Bitstamp, Swan, and others) " +
+        "have been documented flagging and freezing accounts for CoinJoin-associated deposits. " +
+        "This list is not exhaustive. Use decentralized, non-custodial alternatives that do not apply chain surveillance.",
     });
   }
 
