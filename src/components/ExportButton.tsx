@@ -83,7 +83,7 @@ export function ExportButton({ targetId, query, result, inputType }: ExportButto
       // Share URL (clean, without dev server artifacts)
       const shareBase = window.location.origin + window.location.pathname;
       const prefix = inputType === "txid" ? "tx" : "addr";
-      const shareUrl = query ? `${shareBase}#${prefix}=${query}` : url;
+      const shareUrl = query ? `${shareBase}#${prefix}=${encodeURIComponent(query)}` : url;
 
       lines.push(`─── ${t("export.link", { defaultValue: "Link" })} ───`);
       lines.push(shareUrl);

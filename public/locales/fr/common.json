@@ -427,7 +427,7 @@
   "settings.optionADesc": "Redirigez votre noeud vers localhost pour éviter le blocage de contenu mixte :",
   "settings.optionAEnter": "Puis entrez",
   "settings.optionB": "Option B : Proxy inverse HTTPS",
-  "settings.optionBDesc": "Configurez HTTPS sur votre noeud avec Caddy ou nginx + Let",
+  "settings.optionBDesc": "Configurez HTTPS sur votre noeud avec Caddy ou nginx + Let's Encrypt, ajoutez les en-têtes CORS, puis utilisez votre URL HTTPS.",
   "settings.optionC": "Option C : Navigateur Tor + .onion",
   "settings.optionCDesc": "Si ce site a un miroir .onion, utilisez le navigateur Tor pour le visiter et entrez l'adresse .onion de votre mempool",
   "settings.resetToDefault": "Réinitialiser par défaut",

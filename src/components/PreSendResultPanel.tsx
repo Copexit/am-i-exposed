@@ -87,7 +87,7 @@ export function PreSendResultPanel({
     : t("presend.viewOnMempool", { defaultValue: "View on mempool.space" });
 
   const handleCopy = async () => {
-    const shareUrl = `${window.location.origin}${window.location.pathname}#check=${query}`;
+    const shareUrl = `${window.location.origin}${window.location.pathname}#check=${encodeURIComponent(query)}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
       setShareStatus("copied");

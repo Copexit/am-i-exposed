@@ -96,7 +96,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
     findings: [
       {
         id: "h5-entropy",
-        severity: impact >= 10 ? "good" : impact >= 5 ? "low" : "medium",
+        severity: impact >= 10 ? "good" : impact >= 5 ? "low" : impact > 0 ? "low" : "medium",
         title: `Transaction entropy: ${roundedEntropy} bits`,
         params: { entropy: roundedEntropy, method, interpretations: displayEntropy > 40 ? 0 : Math.round(Math.pow(2, displayEntropy)) },
         description:
