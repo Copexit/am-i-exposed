@@ -13,7 +13,7 @@ export default function Error({
   const { t } = useTranslation();
 
   useEffect(() => {
-    console.error("am-i.exposed error boundary caught:", error);
+    console.error("am-i.exposed error boundary caught:", error.name);
   }, [error]);
 
   return (

@@ -136,10 +136,11 @@ const WHIRLPOOL_DENOMS = [50_000, 100_000, 1_000_000, 5_000_000, 50_000_000];
 function detectWhirlpoolPattern(
   tx: { vin: Array<{ txid: string; vout: number }>; vout: Array<{ value: number; scriptpubkey: string }> },
 ): boolean {
-  // Whirlpool txs have 5-8 outputs (5 equal + optional coordinator fees)
-  if (tx.vout.length < 5 || tx.vout.length > 8) return false;
+  // Filter to spendable outputs (exclude OP_RETURN)
+  const spendable = tx.vout.filter((o) => !o.scriptpubkey.startsWith("6a"));
+  if (spendable.length < 5 || spendable.length > 8) return false;
   for (const denom of WHIRLPOOL_DENOMS) {
-    if (tx.vout.filter((o) => o.value === denom).length === 5) return true;
+    if (spendable.filter((o) => o.value === denom).length === 5) return true;
   }
   return false;
 }

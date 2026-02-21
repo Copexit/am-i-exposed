@@ -429,7 +429,7 @@
   "settings.optionB": "Opção B: Proxy reverso HTTPS",
   "settings.optionBDesc": "Configure HTTPS no seu nó com Caddy ou nginx + Let's Encrypt, adicione os cabeçalhos CORS e use sua URL HTTPS.",
   "settings.optionC": "Opção C: Tor Browser + .onion",
-  "settings.optionCDesc": "Se este site tiver um espelho .onion, use o Tor Browser para visitá-lo e insira o endereço .onion do seu mempool",
+  "settings.optionCDesc": "Se este site tiver um espelho .onion, use o Tor Browser para visitá-lo e insira o endereço .onion do seu mempool. Ambos são HTTP, então não há bloqueio de conteúdo misto.",
   "settings.resetToDefault": "Restaurar padrão",
   "settings.language": "Idioma",
   "settings.network": "Rede",

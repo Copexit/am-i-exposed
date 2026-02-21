@@ -21,6 +21,9 @@ const EXTREME_DUST_THRESHOLD = 600; // below typical minimum relay fee
 export const analyzeDustOutputs: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
 
+  // Coinbase transactions can have small outputs (fees); not a dust attack
+  if (tx.vin.length === 1 && tx.vin[0].is_coinbase) return { findings };
+
   const dustOutputs = tx.vout.filter(
     (out) =>
       out.value > 0 &&
