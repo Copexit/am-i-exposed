@@ -11,7 +11,7 @@ function extractFromUrl(input: string): string | null {
     const txMatch = path.match(/\/tx\/([a-fA-F0-9]{64})/);
     if (txMatch) return txMatch[1];
 
-    const addrMatch = path.match(/\/address\/([a-zA-Z0-9]+)/);
+    const addrMatch = path.match(/\/address\/([a-zA-Z0-9]{25,90})/);
     if (addrMatch) return addrMatch[1];
   } catch {
     // Not a URL

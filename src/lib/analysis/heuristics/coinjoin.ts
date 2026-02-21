@@ -27,7 +27,9 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
   if (tx.vin.length < 2 || tx.vout.length < 2) return { findings };
 
   // Check for Whirlpool pattern first (most specific)
-  const whirlpool = detectWhirlpool(tx.vout.map((o) => o.value));
+  // Filter to spendable outputs (exclude OP_RETURN) for pattern matching
+  const spendableOutputs = tx.vout.filter((o) => o.scriptpubkey_type !== "op_return");
+  const whirlpool = detectWhirlpool(spendableOutputs.map((o) => o.value));
   if (whirlpool) {
     findings.push({
       id: "h4-whirlpool",
@@ -51,7 +53,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
   const isWabiSabi = tx.vin.length >= 20 && tx.vout.length >= 20;
 
   // Check for generic equal-output CoinJoin
-  const equalOutput = detectEqualOutputs(tx.vout.map((o) => o.value));
+  const equalOutput = detectEqualOutputs(spendableOutputs.map((o) => o.value));
 
   // WabiSabi multi-tier detection: if the structure looks like WabiSabi (many in/out)
   // but no single denomination has 5+ outputs, check for multiple denomination groups
@@ -64,7 +66,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
     const totalEqual = groups.reduce((sum, [, c]) => sum + c, 0);
 
     if (totalEqual >= 10 && groups.length >= 3) {
-      const impact = totalEqual >= 20 ? 25 : totalEqual >= 10 ? 20 : 15;
+      const impact = totalEqual >= 20 ? 25 : 20;
       findings.push({
         id: "h4-coinjoin",
         severity: "good",

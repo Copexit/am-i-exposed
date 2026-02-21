@@ -145,7 +145,7 @@ export function ResultsPanel({
     : t("results.viewOnMempool", { defaultValue: "View on mempool.space" });
 
   const handleShare = async () => {
-    const shareUrl = `${window.location.origin}${window.location.pathname}#${inputType === "txid" ? "tx" : "addr"}=${query}`;
+    const shareUrl = `${window.location.origin}${window.location.pathname}#${inputType === "txid" ? "tx" : "addr"}=${encodeURIComponent(query)}`;
     try {
       await navigator.clipboard.writeText(shareUrl);
       setShareStatus("copied");

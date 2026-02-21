@@ -427,7 +427,7 @@
   "settings.optionADesc": "Leite deinen Node zu localhost weiter, um Mixed-Content-Blockierung zu vermeiden:",
   "settings.optionAEnter": "Dann gib",
   "settings.optionB": "Option B: HTTPS-Reverse-Proxy",
-  "settings.optionBDesc": "Richte HTTPS auf deinem Node ein mit Caddy oder nginx + Let",
+  "settings.optionBDesc": "Richte HTTPS auf deinem Node ein mit Caddy oder nginx + Let's Encrypt, füge CORS-Header hinzu und verwende dann deine HTTPS-URL.",
   "settings.optionC": "Option C: Tor Browser + .onion",
   "settings.optionCDesc": "Wenn diese Seite einen .onion-Mirror hat, besuche sie mit dem Tor Browser und gib die mempool",
   "settings.resetToDefault": "Auf Standard zurücksetzen",

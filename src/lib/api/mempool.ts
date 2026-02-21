@@ -58,6 +58,7 @@ export function createMempoolClient(baseUrl: string, signal?: AbortSignal) {
       let page = 1;
       while (firstPage.length === 25 && page < maxPages && allTxs.length < 200 && !signal?.aborted) {
         const lastTxid = allTxs[allTxs.length - 1].txid;
+        assertTxid(lastTxid);
         const nextPage = await get<MempoolTransaction[]>(
           `/address/${address}/txs/chain/${lastTxid}`,
         );
