@@ -14,7 +14,8 @@ const agent = new SocksProxyAgent(
   `socks5h://${TOR_PROXY_IP}:${TOR_PROXY_PORT}`
 );
 
-const ADDR_RE = /^\/chainalysis\/address\/([13][a-km-zA-HJ-NP-Z1-9]{25,34}|bc1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{39,87})$/;
+// Supports mainnet (1/3/bc1), testnet/signet (m/n/2/tb1)
+const ADDR_RE = /^\/chainalysis\/address\/([13mn2][a-km-zA-HJ-NP-Z1-9]{25,34}|(bc1|tb1)[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{39,87})$/;
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RESPONSE_BYTES = 1024 * 1024; // 1 MB limit to prevent memory exhaustion
 

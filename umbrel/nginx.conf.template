@@ -1,5 +1,6 @@
-# Rate limit for Tor proxy endpoint (1 req/sec per client IP, burst of 5)
-limit_req_zone $binary_remote_addr zone=tor_proxy:1m rate=1r/s;
+# Rate limit for Tor proxy endpoint (2 req/sec per client IP, burst of 25)
+# Must accommodate up to 20 sequential Chainalysis address checks
+limit_req_zone $binary_remote_addr zone=tor_proxy:1m rate=2r/s;
 
 server {
     listen 8080;
@@ -58,7 +59,7 @@ server {
 
     # Reverse proxy: forward /tor-proxy/* to the Tor proxy sidecar
     location /tor-proxy/ {
-        limit_req zone=tor_proxy burst=5 nodelay;
+        limit_req zone=tor_proxy burst=25 nodelay;
         proxy_pass http://${APP_TOR_PROXY_IP}:${APP_TOR_PROXY_PORT}/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
