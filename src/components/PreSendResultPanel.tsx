@@ -200,7 +200,7 @@ export function PreSendResultPanel({
       {/* Footer links */}
       <div className="w-full flex flex-wrap items-center justify-center gap-4 pt-2 pb-4 text-sm">
         <a
-          href={`${config.explorerUrl}/address/${query}`}
+          href={`${config.explorerUrl}/address/${encodeURIComponent(query)}`}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 text-bitcoin hover:text-bitcoin-hover transition-colors"

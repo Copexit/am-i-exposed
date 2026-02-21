@@ -44,6 +44,7 @@ export function RecentScans({ scans, onSelect, onClear }: RecentScansProps) {
             onClick={onClear}
             className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer p-2 -m-2"
             title={t("recent.clearHistory", { defaultValue: "Clear scan history" })}
+            aria-label={t("recent.clearHistory", { defaultValue: "Clear scan history" })}
           >
             <X size={14} />
             {t("recent.clear", { defaultValue: "Clear" })}

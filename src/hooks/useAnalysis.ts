@@ -231,7 +231,8 @@ export function useAnalysis() {
               break;
           }
         } else if (err instanceof Error) {
-          message = err.message;
+          console.error("Analysis error:", err.name);
+          message = t("errors.unexpected", { defaultValue: "An unexpected error occurred. Please try again." });
         }
         setState((prev) => ({
           ...prev,
@@ -444,7 +445,8 @@ export function useAnalysis() {
               break;
           }
         } else if (err instanceof Error) {
-          message = err.message;
+          console.error("Check error:", err.name);
+          message = t("errors.unexpected", { defaultValue: "An unexpected error occurred. Please try again." });
         }
         setState((prev) => ({ ...prev, phase: "error", error: message }));
       }

@@ -101,6 +101,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
             <button
               type="button"
               onClick={() => onModeChange("scan")}
+              aria-pressed={!isCheck}
               className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                 !isCheck
                   ? "bg-bitcoin/15 text-bitcoin shadow-sm"
@@ -113,6 +114,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
             <button
               type="button"
               onClick={() => onModeChange("check")}
+              aria-pressed={isCheck}
               className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                 isCheck
                   ? "bg-bitcoin/15 text-bitcoin shadow-sm"

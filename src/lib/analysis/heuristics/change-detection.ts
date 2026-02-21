@@ -9,13 +9,11 @@ import { getAddressType } from "@/lib/bitcoin/address-type";
  * Identifies the likely change output using multiple sub-heuristics:
  * 1. Address type mismatch: change usually matches input address type
  * 2. Round payment: the non-round output is likely change
- * 3. Script type reuse: change often matches the input script type
- * 4. Largest/smallest output heuristic
  *
  * When change is identifiable, the payment amount and direction are revealed.
  *
  * Reference: Meiklejohn et al., 2013
- * Impact: -5 to -15
+ * Impact: -5 to -10
  */
 export const analyzeChangeDetection: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
@@ -46,9 +44,6 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
   // Sub-heuristic 2: Round amount
   checkRoundAmount(spendableOutputs, changeIndices, signals);
 
-  // Sub-heuristic 3: Script type reuse
-  checkScriptTypeReuse(tx.vin, spendableOutputs, changeIndices, signals);
-
   if (signals.length === 0) return { findings };
 
   // Check if signals agree on which output is change
@@ -57,23 +52,14 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
     changeIndices.get(1) ?? 0,
   );
 
-  const confidence =
-    signals.length >= 3
-      ? "high"
-      : signals.length >= 2
-        ? "medium"
-        : "low";
+  // Confidence based on agreement, not just signal count
+  const confidence = maxSignals >= 2 ? "medium" : "low";
 
-  const impact = confidence === "high" ? -15 : confidence === "medium" ? -10 : -5;
+  const impact = confidence === "medium" ? -10 : -5;
 
   findings.push({
     id: "h2-change-detected",
-    severity:
-      confidence === "high"
-        ? "high"
-        : confidence === "medium"
-          ? "medium"
-          : "low",
+    severity: confidence === "medium" ? "medium" : "low",
     title: `Change output likely identifiable (${confidence} confidence)`,
     params: { signalCount: signals.length, confidence },
     description:
@@ -149,36 +135,6 @@ function checkRoundAmount(
   } else if (round1 && !round0) {
     changeIndices.set(0, (changeIndices.get(0) ?? 0) + 1);
     signals.push("non-round output is likely change");
-  }
-}
-
-function checkScriptTypeReuse(
-  vin: MempoolVin[],
-  vout: MempoolVout[],
-  changeIndices: Map<number, number>,
-  signals: string[],
-) {
-  // Collect input script types
-  const inputScriptTypes = new Set<string>();
-  for (const v of vin) {
-    if (v.prevout?.scriptpubkey_type) {
-      inputScriptTypes.add(v.prevout.scriptpubkey_type);
-    }
-  }
-
-  if (inputScriptTypes.size !== 1) return;
-
-  const inputScriptType = [...inputScriptTypes][0];
-
-  const match0 = vout[0].scriptpubkey_type === inputScriptType;
-  const match1 = vout[1].scriptpubkey_type === inputScriptType;
-
-  if (match0 && !match1) {
-    changeIndices.set(0, (changeIndices.get(0) ?? 0) + 1);
-    signals.push("change reuses input script type");
-  } else if (match1 && !match0) {
-    changeIndices.set(1, (changeIndices.get(1) ?? 0) + 1);
-    signals.push("change reuses input script type");
   }
 }
 

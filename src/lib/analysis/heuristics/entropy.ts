@@ -61,7 +61,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
     method = truncated ? "lower-bound estimate" : "exact enumeration";
   } else {
     entropyBits = estimateEntropy(inputs, outputs);
-    method = "structural upper bound";
+    method = "structural estimate";
   }
 
   // Cap displayed entropy to avoid misleadingly large values from estimation.
@@ -101,11 +101,11 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
         params: { entropy: roundedEntropy, method, interpretations: displayEntropy > 40 ? 0 : Math.round(Math.pow(2, displayEntropy)) },
         description:
           `This transaction has ${roundedEntropy} bits of entropy (via ${method}), meaning there are ` +
-          (method === "structural upper bound" ? "up to " : "") +
+          (method === "structural estimate" ? "approximately " : "") +
           (displayEntropy > 40
             ? `~2^${Math.round(displayEntropy)} `
             : `~${Math.round(Math.pow(2, displayEntropy)).toLocaleString()} `) +
-          (method === "structural upper bound" ? "possible" : "valid") +
+          (method === "structural estimate" ? "possible" : "valid") +
           " interpretations of the fund flow. Higher entropy makes chain analysis less reliable.",
         recommendation:
           entropyBits >= 4

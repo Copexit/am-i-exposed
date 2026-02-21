@@ -31,11 +31,11 @@ export function ExportButton({ targetId, query, result, inputType }: ExportButto
       lines.push("");
 
       if (query) {
-        lines.push(`${t("export.query", { defaultValue: "Query" })}: ${query}`);
+        lines.push(t("export.query", { query, defaultValue: "Query: {{query}}" }));
       }
 
       if (result) {
-        lines.push(`${t("export.grade", { defaultValue: "Grade" })}: ${result.grade} (${result.score}/100)`);
+        lines.push(t("export.grade", { grade: result.grade, score: result.score, defaultValue: "Grade: {{grade}} ({{score}}/100)" }));
         lines.push("");
 
         // Score breakdown
@@ -77,7 +77,7 @@ export function ExportButton({ targetId, query, result, inputType }: ExportButto
         const scoreEl = element?.querySelector("[data-score]");
         const score = scoreEl?.getAttribute("data-score") ?? "?";
         const grade = scoreEl?.getAttribute("data-grade") ?? "?";
-        lines.push(`${t("export.grade", { defaultValue: "Grade" })}: ${grade} (${score}/100)`);
+        lines.push(t("export.grade", { grade, score, defaultValue: "Grade: {{grade}} ({{score}}/100)" }));
       }
 
       // Share URL (clean, without dev server artifacts)

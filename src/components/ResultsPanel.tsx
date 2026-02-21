@@ -139,7 +139,7 @@ export function ResultsPanel({
   const { t } = useTranslation();
   const [shareStatus, setShareStatus] = useState<"idle" | "copied" | "failed">("idle");
 
-  const explorerUrl = `${config.explorerUrl}/${inputType === "txid" ? "tx" : "address"}/${query}`;
+  const explorerUrl = `${config.explorerUrl}/${inputType === "txid" ? "tx" : "address"}/${encodeURIComponent(query)}`;
   const explorerLabel = customApiUrl
     ? t("results.viewOnCustom", { hostname: new URL(config.explorerUrl).hostname, defaultValue: "View on {{hostname}}" })
     : t("results.viewOnMempool", { defaultValue: "View on mempool.space" });

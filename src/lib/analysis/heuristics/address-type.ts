@@ -4,7 +4,7 @@ import { getAddressType } from "@/lib/bitcoin/address-type";
 /**
  * H10: Address Type Analysis
  *
- * P2TR (Taproot) offers the best privacy -- all spends look identical
+ * P2TR (Taproot) offers the best privacy - all spends look identical
  * regardless of underlying script complexity. P2WPKH (native SegWit) is
  * the next best. P2SH and P2PKH are worse for privacy.
  *
