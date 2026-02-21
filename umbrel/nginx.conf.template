@@ -4,6 +4,7 @@ limit_req_zone $binary_remote_addr zone=tor_proxy:1m rate=1r/s;
 server {
     listen 8080;
     server_name _;
+    server_tokens off;
 
     root /usr/share/nginx/html;
     index index.html;

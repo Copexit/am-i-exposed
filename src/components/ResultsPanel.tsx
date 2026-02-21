@@ -28,6 +28,7 @@ function ScoringExplainer() {
     <div className="w-full">
       <button
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
         className="inline-flex items-center gap-1.5 text-xs text-foreground hover:text-foreground transition-colors cursor-pointer px-1 min-h-[44px]"
       >
         <Info size={12} />
@@ -100,7 +101,7 @@ function FindingSummary({ findings }: { findings: ScoringResult["findings"] }) {
   return (
     <div className="flex items-center gap-3 text-sm text-muted">
       {issues > 0 && (
-        <span className="text-severity-high">{t("results.issueCount", { count: issues, defaultValue: "{{count}} issue", defaultValue_plural: "{{count}} issues" })}</span>
+        <span className="text-severity-high">{t("results.issueCount", { count: issues, defaultValue: "{{count}} issue", defaultValue_other: "{{count}} issues" })}</span>
       )}
       {good > 0 && (
         <span className="text-severity-good">{t("results.positiveCount", { count: good, defaultValue: "{{count}} positive" })}</span>
