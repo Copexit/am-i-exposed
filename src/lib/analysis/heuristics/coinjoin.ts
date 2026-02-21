@@ -1,6 +1,10 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 
+const EXCHANGE_WARNING =
+  "Note: some centralized exchanges flag or block CoinJoin transactions. " +
+  "CoinJoin-associated UTXOs may trigger compliance reviews or account freezes when deposited to an exchange.";
+
 // Whirlpool pool denominations (in sats)
 const WHIRLPOOL_DENOMS = [
   50_000, // 0.0005 BTC
@@ -40,7 +44,8 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
         "This transaction matches the Whirlpool CoinJoin pattern: 5 equal outputs at a standard denomination. " +
         "Whirlpool provides strong forward-looking privacy by breaking deterministic transaction links.",
       recommendation:
-        "Whirlpool is one of the strongest CoinJoin implementations. Make sure to also remix (multiple rounds) for maximum privacy.",
+        "Whirlpool is one of the strongest CoinJoin implementations. Make sure to also remix (multiple rounds) for maximum privacy. " +
+        EXCHANGE_WARNING,
       scoreImpact: 30,
     });
     return { findings };
@@ -77,7 +82,8 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
           "consistent with a WabiSabi (Wasabi Wallet 2.0) CoinJoin using multiple denomination tiers. " +
           "This pattern breaks the link between inputs and outputs, significantly improving privacy.",
         recommendation:
-          "WabiSabi CoinJoins provide excellent privacy through large anonymity sets and multiple denomination tiers. Continue using CoinJoin for maximum privacy.",
+          "WabiSabi CoinJoins provide excellent privacy through large anonymity sets and multiple denomination tiers. Continue using CoinJoin for maximum privacy. " +
+          EXCHANGE_WARNING,
         scoreImpact: impact,
       });
       return { findings };
@@ -107,9 +113,10 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
         "This pattern is characteristic of collaborative CoinJoin transactions that break the " +
         "link between inputs and outputs, significantly improving privacy.",
       recommendation:
-        isWabiSabi
-          ? "WabiSabi CoinJoins provide excellent privacy through large anonymity sets and multiple denomination tiers. Continue using CoinJoin for maximum privacy."
-          : "CoinJoin is a strong privacy technique. For maximum benefit, ensure you are using a reputable CoinJoin coordinator and consider multiple rounds.",
+        (isWabiSabi
+          ? "WabiSabi CoinJoins provide excellent privacy through large anonymity sets and multiple denomination tiers. Continue using CoinJoin for maximum privacy. "
+          : "CoinJoin is a strong privacy technique. For maximum benefit, ensure you are using a reputable CoinJoin coordinator and consider multiple rounds. ") +
+        EXCHANGE_WARNING,
       scoreImpact: impact,
     });
   }

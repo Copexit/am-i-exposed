@@ -135,14 +135,16 @@ export function ResultsPanel({
   onScan,
   durationMs,
 }: ResultsPanelProps) {
-  const { config, customApiUrl } = useNetwork();
+  const { config, customApiUrl, localApiStatus } = useNetwork();
   const { t } = useTranslation();
   const [shareStatus, setShareStatus] = useState<"idle" | "copied" | "failed">("idle");
 
   const explorerUrl = `${config.explorerUrl}/${inputType === "txid" ? "tx" : "address"}/${encodeURIComponent(query)}`;
   const explorerLabel = customApiUrl
     ? t("results.viewOnCustom", { hostname: new URL(config.explorerUrl).hostname, defaultValue: "View on {{hostname}}" })
-    : t("results.viewOnMempool", { defaultValue: "View on mempool.space" });
+    : localApiStatus === "available"
+      ? t("results.viewOnLocal", { defaultValue: "View on local mempool" })
+      : t("results.viewOnMempool", { defaultValue: "View on mempool.space" });
 
   const handleShare = async () => {
     const shareUrl = `${window.location.origin}${window.location.pathname}#${inputType === "txid" ? "tx" : "addr"}=${encodeURIComponent(query)}`;

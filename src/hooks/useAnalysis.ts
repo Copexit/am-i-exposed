@@ -282,6 +282,7 @@ export function useAnalysis() {
             {
               id: "h13-presend-check",
               severity: "critical",
+              params: { riskLevel: "CRITICAL" },
               title: t("finding.h13-presend-check.title", { riskLevel: "CRITICAL", defaultValue: "Destination risk: CRITICAL" }),
               description: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
               recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),

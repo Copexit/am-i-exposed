@@ -60,6 +60,7 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
         ...baseConfig,
         mempoolBaseUrl: "/api",
         esploraBaseUrl: "/api", // Disable external fallback
+        explorerUrl: "", // same-origin: links to /tx/... and /address/... on local instance
       };
     }
     // Priority 3: Tor detected and onion URL available - use it as primary

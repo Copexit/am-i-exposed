@@ -66,6 +66,37 @@ const EXAMPLES = [
   },
 ];
 
+const PRESEND_EXAMPLES = [
+  {
+    labelKey: "page.presend_fresh",
+    labelDefault: "Fresh address",
+    hint: "Low",
+    hintColor: "text-severity-good",
+    input: "bc1pes5mfje89xdr6uh4qu6p4m0r8d6nz3tvgagtwgv99yalqwzyhdzqrl3mnu",
+  },
+  {
+    labelKey: "page.presend_reused",
+    labelDefault: "Reused address",
+    hint: "Medium",
+    hintColor: "text-severity-medium",
+    input: "bc1q0ht9tyks4vh7p5p904t340cr9nvahy7u3re7zg",
+  },
+  {
+    labelKey: "page.presend_exchange",
+    labelDefault: "Exchange deposit",
+    hint: "Critical",
+    hintColor: "text-severity-critical",
+    input: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
+  },
+  {
+    labelKey: "page.presend_sanctioned",
+    labelDefault: "OFAC sanctioned",
+    hint: "Critical",
+    hintColor: "text-severity-critical",
+    input: "12QtD5BFwRsdNsAZY76UVE1xyCGNTojH9h",
+  },
+];
+
 export default function Home() {
   const {
     phase,
@@ -260,29 +291,50 @@ export default function Home() {
             {scans.length === 0 && (
               <div className="w-full max-w-3xl">
                 <div className="flex items-center gap-1.5 text-base text-muted mb-2 px-1">
-                  <span>{t("page.try_example", { defaultValue: "Try an example" })}</span>
+                  <span>
+                    {mode === "scan"
+                      ? t("page.try_example", { defaultValue: "Try an example" })
+                      : t("page.try_presend_example", { defaultValue: "Try an example check" })}
+                  </span>
                 </div>
                 <div className="flex flex-wrap gap-2 justify-center">
-                  {EXAMPLES.map((ex) => (
-                    <button
-                      key={ex.input}
-                      onClick={() => handleSubmit(ex.input)}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-elevated/50
-                        border border-card-border hover:border-bitcoin/40 hover:bg-surface-elevated
-                        transition-all text-sm cursor-pointer group"
-                    >
-                      <span className="text-muted group-hover:text-foreground transition-colors">
-                        {t(ex.labelKey, { defaultValue: ex.labelDefault })}
-                      </span>
-                      <span className={`text-xs font-bold ${
-                        ex.hint === "A+" ? "text-severity-good" :
-                        ex.hint === "F" ? "text-severity-critical" :
-                        "text-severity-medium"
-                      }`}>
-                        {ex.hint}
-                      </span>
-                    </button>
-                  ))}
+                  {mode === "scan"
+                    ? EXAMPLES.map((ex) => (
+                        <button
+                          key={ex.input}
+                          onClick={() => handleSubmit(ex.input)}
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-elevated/50
+                            border border-card-border hover:border-bitcoin/40 hover:bg-surface-elevated
+                            transition-all text-sm cursor-pointer group"
+                        >
+                          <span className="text-muted group-hover:text-foreground transition-colors">
+                            {t(ex.labelKey, { defaultValue: ex.labelDefault })}
+                          </span>
+                          <span className={`text-xs font-bold ${
+                            ex.hint === "A+" ? "text-severity-good" :
+                            ex.hint === "F" ? "text-severity-critical" :
+                            "text-severity-medium"
+                          }`}>
+                            {ex.hint}
+                          </span>
+                        </button>
+                      ))
+                    : PRESEND_EXAMPLES.map((ex) => (
+                        <button
+                          key={ex.input}
+                          onClick={() => handleSubmit(ex.input)}
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-elevated/50
+                            border border-card-border hover:border-bitcoin/40 hover:bg-surface-elevated
+                            transition-all text-sm cursor-pointer group"
+                        >
+                          <span className="text-muted group-hover:text-foreground transition-colors">
+                            {t(ex.labelKey, { defaultValue: ex.labelDefault })}
+                          </span>
+                          <span className={`text-xs font-bold ${ex.hintColor}`}>
+                            {ex.hint}
+                          </span>
+                        </button>
+                      ))}
                 </div>
               </div>
             )}

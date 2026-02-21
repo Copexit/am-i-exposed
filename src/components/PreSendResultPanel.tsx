@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { FindingCard } from "./FindingCard";
 import { AddressSummary } from "./AddressSummary";
+import { formatSats } from "@/lib/format";
 import type { PreSendResult } from "@/lib/analysis/orchestrator";
 import type { MempoolAddress } from "@/lib/api/types";
 
@@ -66,9 +67,6 @@ const RISK_CONFIG = {
   },
 } as const;
 
-function formatBtc(sats: number): string {
-  return `${(sats / 100_000_000).toFixed(8)} BTC`;
-}
 
 export function PreSendResultPanel({
   query,
@@ -77,14 +75,16 @@ export function PreSendResultPanel({
   onBack,
   durationMs,
 }: PreSendResultPanelProps) {
-  const { config, customApiUrl } = useNetwork();
-  const { t } = useTranslation();
+  const { config, customApiUrl, localApiStatus } = useNetwork();
+  const { t, i18n } = useTranslation();
   const [shareStatus, setShareStatus] = useState<"idle" | "copied">("idle");
   const risk = RISK_CONFIG[preSendResult.riskLevel];
   const RiskIcon = risk.icon;
   const explorerLabel = customApiUrl
     ? t("presend.viewOnCustom", { hostname: new URL(config.explorerUrl).hostname, defaultValue: "View on {{hostname}}" })
-    : t("presend.viewOnMempool", { defaultValue: "View on mempool.space" });
+    : localApiStatus === "available"
+      ? t("presend.viewOnLocal", { defaultValue: "View on local mempool" })
+      : t("presend.viewOnMempool", { defaultValue: "View on mempool.space" });
 
   const handleCopy = async () => {
     const shareUrl = `${window.location.origin}${window.location.pathname}#check=${encodeURIComponent(query)}`;
@@ -146,19 +146,19 @@ export function PreSendResultPanel({
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
             <p className="text-lg font-semibold text-foreground">
-              {preSendResult.txCount}
+              {preSendResult.txCount.toLocaleString(i18n.language)}
             </p>
             <p className="text-sm text-muted">{t("presend.transactions", { defaultValue: "Transactions" })}</p>
           </div>
           <div>
             <p className="text-lg font-semibold text-foreground">
-              {preSendResult.timesReceived}
+              {preSendResult.timesReceived.toLocaleString(i18n.language)}
             </p>
             <p className="text-sm text-muted">{t("presend.timesReceived", { defaultValue: "Times received" })}</p>
           </div>
           <div>
             <p className="text-lg font-semibold text-foreground truncate">
-              {formatBtc(preSendResult.totalReceived)}
+              {formatSats(preSendResult.totalReceived, i18n.language)}
             </p>
             <p className="text-sm text-muted">{t("presend.totalReceived", { defaultValue: "Total received" })}</p>
           </div>

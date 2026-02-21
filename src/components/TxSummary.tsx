@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import { ArrowRight, Search } from "lucide-react";
 import type { MempoolTransaction } from "@/lib/api/types";
 import { formatTimeAgo } from "@/lib/i18n/format";
+import { formatSats } from "@/lib/format";
 
 interface TxSummaryProps {
   tx: MempoolTransaction;
@@ -20,8 +21,19 @@ interface TxSummaryProps {
  */
 export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddress }: TxSummaryProps) {
   const { t, i18n } = useTranslation();
-  // Lightweight change detection for visual hint (only 2-output txs)
-  const likelyChangeIdx = changeOutputIndex ?? detectLikelyChange(tx);
+  // Address-reuse change detection: output address matches any input address
+  const inputAddresses = new Set(
+    tx.vin.map((v) => v.prevout?.scriptpubkey_address).filter(Boolean) as string[],
+  );
+  const reuseChangeIndices = new Set<number>();
+  for (let idx = 0; idx < tx.vout.length; idx++) {
+    const outAddr = tx.vout[idx].scriptpubkey_address;
+    if (outAddr && inputAddresses.has(outAddr)) reuseChangeIndices.add(idx);
+  }
+  // Heuristic change detection for 2-output txs (only when no address-reuse detected)
+  const likelyChangeIdx = reuseChangeIndices.size > 0
+    ? -1
+    : (changeOutputIndex ?? detectLikelyChange(tx));
   // Calculate anonymity sets (output value -> count)
   const valueCounts = new Map<number, number>();
   for (const out of tx.vout) {
@@ -147,6 +159,11 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
                     [{anonSet}x]
                   </span>
                 )}
+                {reuseChangeIndices.has(i) && (
+                  <span className="ml-1 text-severity-high text-xs font-semibold">
+                    {t("tx.changeConfirmed", { defaultValue: "change" })}
+                  </span>
+                )}
                 {i === likelyChangeIdx && (
                   <span className="ml-1 text-severity-medium text-xs">
                     {t("tx.changeHint", { defaultValue: "change?" })}
@@ -247,21 +264,6 @@ function truncateAddr(addr: string): string {
   return `${addr.slice(0, 8)}...${addr.slice(-6)}`;
 }
 
-function formatSats(sats: number, locale?: string): string {
-  if (sats >= 1_000_000_000) {
-    return `${(sats / 100_000_000).toFixed(2)} BTC`;
-  }
-  if (sats >= 100_000_000) {
-    return `${(sats / 100_000_000).toFixed(4)} BTC`;
-  }
-  if (sats >= 1_000_000) {
-    return `${(sats / 100_000_000).toFixed(4)} BTC`;
-  }
-  if (sats >= 10_000) {
-    return `${(sats / 1000).toFixed(1)}k`;
-  }
-  return `${sats.toLocaleString(locale)}`;
-}
 
 function feeRate(tx: MempoolTransaction): string {
   const vsize = Math.ceil(tx.weight / 4);

@@ -108,9 +108,19 @@ export function TxBreakdownPanel({
                 </span>
 
                 {/* Txid */}
-                <span className="flex-1 font-mono text-sm text-foreground truncate">
-                  {item.txid.slice(0, 8)}...{item.txid.slice(-6)}
-                </span>
+                {onScan ? (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onScan(item.txid); }}
+                    className="flex-1 font-mono text-sm text-foreground truncate hover:text-bitcoin transition-colors text-left cursor-pointer"
+                    title={t("breakdown.analyzeTx", { defaultValue: "Analyze this transaction" })}
+                  >
+                    {item.txid.slice(0, 8)}...{item.txid.slice(-6)}
+                  </button>
+                ) : (
+                  <span className="flex-1 font-mono text-sm text-foreground truncate">
+                    {item.txid.slice(0, 8)}...{item.txid.slice(-6)}
+                  </span>
+                )}
 
                 {/* Role */}
                 <span className={`inline-flex items-center gap-1 text-xs ${role.color}`}>

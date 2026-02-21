@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { ArrowDownLeft, ArrowUpRight, Wallet } from "lucide-react";
 import type { MempoolAddress } from "@/lib/api/types";
+import { formatSats } from "@/lib/format";
 
 interface AddressSummaryProps {
   address: MempoolAddress;
@@ -38,17 +39,17 @@ export function AddressSummary({ address: addr }: AddressSummaryProps) {
         <Stat
           icon={<Wallet size={14} className="text-bitcoin" />}
           label={t("address.balance", { defaultValue: "Balance" })}
-          value={formatBtc(balance, i18n.language)}
+          value={formatSats(balance, i18n.language)}
         />
         <Stat
           icon={<ArrowDownLeft size={14} className="text-severity-good" />}
           label={t("address.received", { defaultValue: "Received" })}
-          value={formatBtc(totalReceived, i18n.language)}
+          value={formatSats(totalReceived, i18n.language)}
         />
         <Stat
           icon={<ArrowUpRight size={14} className="text-severity-high" />}
           label={t("address.sent", { defaultValue: "Sent" })}
-          value={formatBtc(totalSent, i18n.language)}
+          value={formatSats(totalSent, i18n.language)}
         />
         <Stat
           label={t("address.transactions", { defaultValue: "Transactions" })}
@@ -83,10 +84,3 @@ function Stat({
   );
 }
 
-function formatBtc(sats: number, locale?: string): string {
-  if (sats === 0) return "0 BTC";
-  const btc = sats / 100_000_000;
-  if (btc >= 1) return `${btc.toFixed(4)} BTC`;
-  if (btc >= 0.001) return `${btc.toFixed(6)} BTC`;
-  return `${sats.toLocaleString(locale)} sats`;
-}

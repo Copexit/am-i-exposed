@@ -4,9 +4,10 @@ import { getAddressType } from "@/lib/bitcoin/address-type";
 /**
  * H10: Address Type Analysis
  *
- * P2TR (Taproot) offers the best privacy - all spends look identical
- * regardless of underlying script complexity. P2WPKH (native SegWit) is
- * the next best. P2SH and P2PKH are worse for privacy.
+ * P2TR (Taproot) hides script complexity - single-sig, multisig, and
+ * timelocks all look identical. Ideal for multisig/contracts.
+ * P2WPKH (native SegWit) has the largest anonymity set - excellent for
+ * single-sig. P2SH and P2PKH are worse for privacy.
  *
  * Impact: -5 to +5
  */
@@ -22,9 +23,10 @@ export const analyzeAddressType: AddressHeuristic = (address) => {
             severity: "good",
             title: "Taproot address (P2TR)",
             description:
-              "Taproot addresses provide the best on-chain privacy. When using key-path spends (the common case), all spend conditions - single-sig, multisig, timelocks - look identical on-chain, making transactions indistinguishable from each other.",
+              "Taproot hides script complexity - single-sig, multisig, and timelocks all look identical on-chain via key-path spends. " +
+              "This is especially valuable for multisig and complex scripts. However, Taproot adoption is still growing, so its anonymity set is currently smaller than P2WPKH.",
             recommendation:
-              "You are using the most private address type available. Encourage others to adopt Taproot to grow the anonymity set.",
+              "Taproot is ideal for multisig and complex scripts where it hides the underlying conditions. For single-sig, both P2TR and P2WPKH provide strong privacy.",
             scoreImpact: 5,
           },
         ],
@@ -35,12 +37,13 @@ export const analyzeAddressType: AddressHeuristic = (address) => {
         findings: [
           {
             id: "h10-p2wpkh",
-            severity: "low",
+            severity: "good",
             title: "Native SegWit address (P2WPKH)",
             description:
-              "P2WPKH is a good choice with a large anonymity set, but Taproot (P2TR) offers stronger privacy because all spend types look identical.",
+              "P2WPKH (native SegWit) has the largest anonymity set of any address type, making single-sig transactions highly private. " +
+              "While it reveals the script type on spend, for single-sig this is not a privacy concern since the vast majority of P2WPKH users are single-sig.",
             recommendation:
-              "Consider upgrading to a Taproot-capable wallet for improved privacy.",
+              "P2WPKH is an excellent choice for single-sig. If you use multisig or complex scripts, consider Taproot (P2TR) to hide the script details.",
             scoreImpact: 0,
           },
         ],
