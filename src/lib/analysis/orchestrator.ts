@@ -240,7 +240,7 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
       }
       // No anonymity set finding: CoinJoin structure itself provides privacy
       // beyond simple output value matching, so the penalty is unwarranted
-      if (f.id === "anon-set-none") {
+      if (f.id === "anon-set-none" || f.id === "anon-set-moderate") {
         f.severity = "low";
         f.title = `${f.title} (CoinJoin - structural privacy)`;
         f.params = { ...f.params, coinjoinContext: "structural_privacy" };

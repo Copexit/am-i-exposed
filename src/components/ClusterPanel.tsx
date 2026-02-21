@@ -203,7 +203,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
                         <button
                           onClick={() => onAddressClick(addr)}
                           className="inline-flex items-center gap-1 hover:text-bitcoin transition-colors cursor-pointer text-left w-full truncate group/addr"
-                          title={`Scan ${addr}`}
+                          title={t("tx.scanAddress", { defaultValue: "Scan {{address}}", address: addr })}
                         >
                           <span className="truncate">
                             {addr}
@@ -214,7 +214,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
                       ) : (
                         <>
                           {addr}
-                          {addr === targetAddress && " (target)"}
+                          {addr === targetAddress && ` (${t("cluster.targetLabel", { defaultValue: "target" })})`}
                         </>
                       )}
                     </div>

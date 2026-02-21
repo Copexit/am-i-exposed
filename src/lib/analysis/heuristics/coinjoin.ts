@@ -50,7 +50,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
   // WabiSabi rounds can have as few as ~10 participants
   // WabiSabi rounds typically have 50+ participants; use >= 20 to avoid
   // false positives from exchange batched withdrawals (commonly 15-30 outputs)
-  const isWabiSabi = tx.vin.length >= 20 && tx.vout.length >= 20;
+  const isWabiSabi = tx.vin.length >= 20 && spendableOutputs.length >= 20;
 
   // Check for generic equal-output CoinJoin
   const equalOutput = detectEqualOutputs(spendableOutputs.map((o) => o.value));
@@ -70,10 +70,10 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
       findings.push({
         id: "h4-coinjoin",
         severity: "good",
-        title: `WabiSabi CoinJoin: ${groups.length} denomination tiers, ${totalEqual} equal outputs across ${tx.vout.length} total`,
-        params: { groups: groups.length, totalEqual, vout: tx.vout.length, vin: tx.vin.length, isWabiSabi: 1 },
+        title: `WabiSabi CoinJoin: ${groups.length} denomination tiers, ${totalEqual} equal outputs across ${spendableOutputs.length} total`,
+        params: { groups: groups.length, totalEqual, vout: spendableOutputs.length, vin: tx.vin.length, isWabiSabi: 1 },
         description:
-          `This transaction has ${tx.vin.length} inputs and ${tx.vout.length} outputs with ${groups.length} groups of equal-value outputs, ` +
+          `This transaction has ${tx.vin.length} inputs and ${spendableOutputs.length} outputs with ${groups.length} groups of equal-value outputs, ` +
           "consistent with a WabiSabi (Wasabi Wallet 2.0) CoinJoin using multiple denomination tiers. " +
           "This pattern breaks the link between inputs and outputs, significantly improving privacy.",
         recommendation:

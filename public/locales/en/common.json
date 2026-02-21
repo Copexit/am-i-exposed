@@ -65,6 +65,8 @@
   "common.connectionChecking": "Checking connection type...",
   "common.connectionClearnet": "Not using Tor - mempool.space can see your IP address",
   "common.connectionTor": "Connected via Tor - your IP is hidden from API providers",
+  "common.connectionLocal": "Connected to local mempool instance - all queries stay on your network",
+  "common.local": "Local",
   "common.connectionUnknown": "Connection privacy status could not be determined",
   "common.copied": "Copied",
   "common.copy": "Copy",

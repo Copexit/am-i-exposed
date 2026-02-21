@@ -86,7 +86,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
                   <button
                     onClick={() => onAddressClick(addr)}
                     className="inline-flex items-center gap-1 hover:text-bitcoin transition-colors cursor-pointer py-2 group/addr"
-                    title={`Scan ${addr}`}
+                    title={t("tx.scanAddress", { defaultValue: "Scan {{address}}", address: addr })}
                   >
                     {truncateAddr(addr)}
                     <Search size={12} className="shrink-0 opacity-0 group-hover/addr:opacity-100 transition-opacity" />
@@ -131,7 +131,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
                   <button
                     onClick={() => onAddressClick(outAddr)}
                     className="inline-flex items-center gap-1 hover:text-bitcoin transition-colors cursor-pointer py-2 group/addr"
-                    title={`Scan ${outAddr}`}
+                    title={t("tx.scanAddress", { defaultValue: "Scan {{address}}", address: outAddr })}
                   >
                     {truncateAddr(outAddr)}
                     <Search size={12} className="shrink-0 opacity-0 group-hover/addr:opacity-100 transition-opacity" />
@@ -166,7 +166,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
       {/* Fee + size */}
       <div className="flex items-center justify-between text-sm text-muted border-t border-card-border pt-2">
         <span>
-          {t("tx.fee", { defaultValue: "Fee:" })} {formatSats(tx.fee, i18n.language)} ({feeRate(tx)} sat/vB)
+          {t("tx.fee", { amount: formatSats(tx.fee, i18n.language), rate: feeRate(tx), defaultValue: "Fee: {{amount}} ({{rate}} sat/vB)" })}
         </span>
         <span>
           {tx.weight.toLocaleString(i18n.language)} WU / {Math.ceil(tx.weight / 4).toLocaleString(i18n.language)} vB
