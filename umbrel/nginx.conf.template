@@ -78,6 +78,14 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
+    # Expose mempool connection info so the frontend can build explorer links
+    # Returns the internal port which matches the external app_proxy port on Umbrel
+    location = /api/local-info {
+        access_log off;
+        default_type application/json;
+        return 200 '{"mempoolPort":"${APP_MEMPOOL_PORT}"}';
+    }
+
     # Health check endpoint
     location = /health {
         access_log off;
