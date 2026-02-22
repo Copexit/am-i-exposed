@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Lightbulb, ChevronDown, ExternalLink, AlertCircle, Clock, Wrench } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { getSummarySentiment } from "@/lib/scoring/score";
 import type { Finding, Grade, Remediation as RemediationType } from "@/lib/types";
 
 interface RemediationProps {
@@ -263,8 +264,12 @@ function StructuredRemediation({ remediation, findingId, findingTitle }: { remed
 
 export function Remediation({ findings, grade }: RemediationProps) {
   const { t } = useTranslation();
-  // Auto-open for poor grades where remediation is most important
-  const [open, setOpen] = useState(grade === "C" || grade === "D" || grade === "F");
+  // Auto-open for poor grades where remediation is most important,
+  // but not when all findings are positive (no negative impacts).
+  const sentiment = getSummarySentiment(grade, findings);
+  const [open, setOpen] = useState(
+    sentiment !== "positive" && (grade === "C" || grade === "D" || grade === "F"),
+  );
 
   // Collect structured remediations from findings (sorted by urgency)
   const structuredRemediations = findings

@@ -74,7 +74,7 @@ export const analyzeUtxos: AddressHeuristic = (_address, utxos) => {
       description:
         "No dust UTXOs detected and the UTXO count is manageable. This is a healthy state for privacy.",
       recommendation: "Continue practicing good UTXO management.",
-      scoreImpact: 0,
+      scoreImpact: 2,
     });
   }
 

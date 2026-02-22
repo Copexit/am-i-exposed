@@ -545,6 +545,7 @@
   "score.gradeAPlus": "Excelentes prácticas de privacidad",
   "score.gradeB": "Buena privacidad, preocupaciones menores",
   "score.gradeC": "Privacidad aceptable, problemas notables encontrados",
+  "score.gradeCPositive": "Buenas practicas de privacidad",
   "score.gradeD": "Privacidad deficiente, exposición significativa",
   "score.gradeF": "Fallos críticos de privacidad detectados",
   "settings.active": "Activo: {{url}}",

@@ -35,7 +35,7 @@ export const analyzeAddressReuse: AddressHeuristic = (address) => {
           description:
             "This address has only received funds once. Single-use addresses are a core Bitcoin privacy practice.",
           recommendation: "Keep using fresh addresses for every receive.",
-          scoreImpact: 0,
+          scoreImpact: 3,
         },
       ],
     };

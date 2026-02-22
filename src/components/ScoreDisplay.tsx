@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import type { Grade } from "@/lib/types";
+import type { Finding, Grade } from "@/lib/types";
+import { getSummarySentiment } from "@/lib/scoring/score";
 import { useTranslation } from "react-i18next";
 
 interface ScoreDisplayProps {
   score: number;
   grade: Grade;
+  findings?: Finding[];
 }
 
 const GRADE_COLORS: Record<Grade, string> = {
@@ -26,7 +28,7 @@ const BAR_COLORS: Record<Grade, string> = {
   F: "bg-severity-critical",
 };
 
-export function ScoreDisplay({ score, grade }: ScoreDisplayProps) {
+export function ScoreDisplay({ score, grade, findings }: ScoreDisplayProps) {
   const { t } = useTranslation();
   const [displayScore, setDisplayScore] = useState(0);
 
@@ -120,7 +122,9 @@ export function ScoreDisplay({ score, grade }: ScoreDisplayProps) {
           : grade === "B"
             ? t("score.gradeB", { defaultValue: "Good privacy, minor concerns" })
             : grade === "C"
-              ? t("score.gradeC", { defaultValue: "Fair privacy, notable issues found" })
+              ? findings && getSummarySentiment(grade, findings) === "positive"
+                ? t("score.gradeCPositive", { defaultValue: "Good privacy practices" })
+                : t("score.gradeC", { defaultValue: "Fair privacy, notable issues found" })
               : grade === "D"
                 ? t("score.gradeD", { defaultValue: "Poor privacy, significant exposure" })
                 : t("score.gradeF", { defaultValue: "Critical privacy failures detected" })}

@@ -19,6 +19,7 @@ import { ClusterPanel } from "./ClusterPanel";
 import { TipJar } from "./TipJar";
 import { CrossPromo } from "./CrossPromo";
 import { copyToClipboard } from "@/lib/clipboard";
+import { getSummarySentiment } from "@/lib/scoring/score";
 import type { ScoringResult, InputType, TxAnalysisResult } from "@/lib/types";
 import type { MempoolTransaction, MempoolAddress } from "@/lib/api/types";
 
@@ -207,7 +208,7 @@ export function ResultsPanel({
         </div>
 
         <div className="border-t border-card-border pt-6">
-          <ScoreDisplay score={result.score} grade={result.grade} />
+          <ScoreDisplay score={result.score} grade={result.grade} findings={result.findings} />
         </div>
       </div>
 
@@ -248,29 +249,27 @@ export function ResultsPanel({
       )}
 
       {/* Summary card */}
-      {result.grade !== "F" && (
-        <div className={`w-full rounded-xl border px-4 py-3 ${
-          result.grade === "A+" || result.grade === "B"
-            ? "border-severity-good/30 bg-severity-good/5"
-            : result.grade === "C"
-              ? "border-severity-medium/30 bg-severity-medium/5"
-              : "border-severity-high/30 bg-severity-high/5"
-        }`}>
-          <p className={`text-base font-medium ${
-            result.grade === "A+" || result.grade === "B"
-              ? "text-severity-good"
-              : result.grade === "C"
-                ? "text-severity-medium"
-                : "text-severity-high"
-          }`}>
-            {result.grade === "A+" || result.grade === "B"
-              ? t("results.summaryGood", { defaultValue: "No significant privacy concerns detected." })
-              : result.grade === "C"
-                ? t("results.summaryFair", { defaultValue: "Some privacy concerns detected. Review the findings below." })
-                : t("results.summaryPoor", { defaultValue: "Significant privacy exposure detected. Remediation recommended." })}
-          </p>
-        </div>
-      )}
+      {result.grade !== "F" && (() => {
+        const sentiment = getSummarySentiment(result.grade, result.findings);
+        const colorMap = {
+          positive: { border: "border-severity-good/30 bg-severity-good/5", text: "text-severity-good" },
+          cautious: { border: "border-severity-medium/30 bg-severity-medium/5", text: "text-severity-medium" },
+          warning: { border: "border-severity-high/30 bg-severity-high/5", text: "text-severity-high" },
+          danger: { border: "border-severity-critical/30 bg-severity-critical/5", text: "text-severity-critical" },
+        };
+        const colors = colorMap[sentiment];
+        return (
+          <div className={`w-full rounded-xl border px-4 py-3 ${colors.border}`}>
+            <p className={`text-base font-medium ${colors.text}`}>
+              {sentiment === "positive"
+                ? t("results.summaryGood", { defaultValue: "No significant privacy concerns detected." })
+                : sentiment === "cautious"
+                  ? t("results.summaryFair", { defaultValue: "Some privacy concerns detected. Review the findings below." })
+                  : t("results.summaryPoor", { defaultValue: "Significant privacy exposure detected. Remediation recommended." })}
+            </p>
+          </div>
+        );
+      })()}
 
       {/* Findings */}
       {result.findings.length > 0 && (

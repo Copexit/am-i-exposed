@@ -38,6 +38,31 @@ function scoreToGrade(score: number): Grade {
   return "F";
 }
 
+export type SummarySentiment = "positive" | "cautious" | "warning" | "danger";
+
+/**
+ * Derive the summary sentiment from the grade and findings.
+ *
+ * If no finding has a negative scoreImpact the sentiment is always "positive",
+ * regardless of the numeric grade.  This prevents all-green results from
+ * showing a scary amber/orange banner.
+ */
+export function getSummarySentiment(
+  grade: Grade,
+  findings: Finding[],
+): SummarySentiment {
+  if (grade === "F") return "danger";
+
+  const hasNegative = findings.some((f) => f.scoreImpact < 0);
+
+  if (!hasNegative) return "positive";
+
+  if (grade === "A+" || grade === "B") return "positive";
+  if (grade === "C") return "cautious";
+  // D with negative findings
+  return "warning";
+}
+
 function severityOrder(s: string): number {
   switch (s) {
     case "critical":
