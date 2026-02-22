@@ -40,7 +40,8 @@ const NetworkContext = createContext<NetworkContextValue>({
 export function NetworkProvider({ children }: { children: ReactNode }) {
   const { network, setNetwork } = useUrlState();
   const { customUrl, setCustomUrl } = useCustomApi();
-  const localApiStatus = useLocalApi();
+  const localApi = useLocalApi();
+  const localApiStatus = localApi.status;
   const torStatus = useTorDetection(localApiStatus === "available");
   const baseConfig = NETWORK_CONFIG[network];
 
@@ -56,11 +57,17 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
     }
     // Priority 2: Same-origin API proxy detected (Umbrel mode)
     if (localApiStatus === "available") {
+      // Build explorer URL pointing to the local mempool UI
+      // Uses the mempool port from /api/local-info, falling back to same-origin
+      let explorerUrl = "";
+      if (localApi.mempoolPort && typeof window !== "undefined") {
+        explorerUrl = `${window.location.protocol}//${window.location.hostname}:${localApi.mempoolPort}`;
+      }
       return {
         ...baseConfig,
         mempoolBaseUrl: "/api",
         esploraBaseUrl: "/api", // Disable external fallback
-        explorerUrl: "", // same-origin: links to /tx/... and /address/... on local instance
+        explorerUrl,
       };
     }
     // Priority 3: Tor detected and onion URL available - use it as primary
@@ -75,7 +82,7 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
     }
     // Priority 4: Hardcoded defaults
     return baseConfig;
-  }, [baseConfig, customUrl, localApiStatus, torStatus]);
+  }, [baseConfig, customUrl, localApiStatus, localApi.mempoolPort, torStatus]);
 
   const value = useMemo(
     () => ({
