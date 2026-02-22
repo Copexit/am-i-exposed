@@ -79,11 +79,12 @@ server {
     }
 
     # Expose mempool connection info so the frontend can build explorer links
-    # Returns the internal port which matches the external app_proxy port on Umbrel
+    # mempoolPort: matches the external app_proxy port on Umbrel (typically 3006)
+    # mempoolOnion: mempool's .onion hostname for Tor users (from mempool's exports.sh)
     location = /api/local-info {
         access_log off;
         default_type application/json;
-        return 200 '{"mempoolPort":"${APP_MEMPOOL_PORT}"}';
+        return 200 '{"mempoolPort":"${APP_MEMPOOL_PORT}","mempoolOnion":"${APP_MEMPOOL_HIDDEN_SERVICE}"}';
     }
 
     # Health check endpoint

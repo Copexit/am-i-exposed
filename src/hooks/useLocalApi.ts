@@ -7,6 +7,7 @@ export type LocalApiStatus = "checking" | "available" | "unavailable";
 interface LocalApiResult {
   status: LocalApiStatus;
   mempoolPort: string | null;
+  mempoolOnion: string | null;
 }
 
 const PROBE_TIMEOUT_MS = 3_000;
@@ -26,14 +27,15 @@ async function probeLocalApi(signal: AbortSignal): Promise<LocalApiResult> {
     const res = await fetch("/api/blocks/tip/height", {
       signal: AbortSignal.any([signal, AbortSignal.timeout(PROBE_TIMEOUT_MS)]),
     });
-    if (!res.ok) return { status: "unavailable", mempoolPort: null };
+    if (!res.ok) return { status: "unavailable", mempoolPort: null, mempoolOnion: null };
     const text = await res.text();
     // A valid mempool API returns a block height (positive integer)
     const height = parseInt(text, 10);
-    if (isNaN(height) || height <= 0) return { status: "unavailable", mempoolPort: null };
+    if (isNaN(height) || height <= 0) return { status: "unavailable", mempoolPort: null, mempoolOnion: null };
 
     // Fetch mempool connection info for explorer links
     let mempoolPort: string | null = null;
+    let mempoolOnion: string | null = null;
     try {
       const infoRes = await fetch("/api/local-info", {
         signal: AbortSignal.any([signal, AbortSignal.timeout(PROBE_TIMEOUT_MS)]),
@@ -41,14 +43,15 @@ async function probeLocalApi(signal: AbortSignal): Promise<LocalApiResult> {
       if (infoRes.ok) {
         const info = await infoRes.json();
         if (info.mempoolPort) mempoolPort = info.mempoolPort;
+        if (info.mempoolOnion && info.mempoolOnion.endsWith(".onion")) mempoolOnion = info.mempoolOnion;
       }
     } catch {
       // Non-critical - explorer links will fall back to same-origin
     }
 
-    return { status: "available", mempoolPort };
+    return { status: "available", mempoolPort, mempoolOnion };
   } catch {
-    return { status: "unavailable", mempoolPort: null };
+    return { status: "unavailable", mempoolPort: null, mempoolOnion: null };
   }
 }
 
@@ -60,7 +63,7 @@ async function probeLocalApi(signal: AbortSignal): Promise<LocalApiResult> {
  */
 export function useLocalApi(): LocalApiResult {
   const [result, setResult] = useState<LocalApiResult>(
-    () => cachedResult ?? { status: "checking", mempoolPort: null },
+    () => cachedResult ?? { status: "checking", mempoolPort: null, mempoolOnion: null },
   );
 
   useEffect(() => {

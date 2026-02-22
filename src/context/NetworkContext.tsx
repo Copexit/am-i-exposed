@@ -58,10 +58,16 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
     // Priority 2: Same-origin API proxy detected (Umbrel mode)
     if (localApiStatus === "available") {
       // Build explorer URL pointing to the local mempool UI
-      // Uses the mempool port from /api/local-info, falling back to same-origin
       let explorerUrl = "";
-      if (localApi.mempoolPort && typeof window !== "undefined") {
-        explorerUrl = `${window.location.protocol}//${window.location.hostname}:${localApi.mempoolPort}`;
+      if (typeof window !== "undefined") {
+        const isOnion = window.location.hostname.endsWith(".onion");
+        if (isOnion && localApi.mempoolOnion) {
+          // Tor: use mempool's .onion hostname (from Umbrel's exports.sh)
+          explorerUrl = `http://${localApi.mempoolOnion.trim()}`;
+        } else if (localApi.mempoolPort) {
+          // LAN: use same hostname with mempool's port
+          explorerUrl = `${window.location.protocol}//${window.location.hostname}:${localApi.mempoolPort}`;
+        }
       }
       return {
         ...baseConfig,
@@ -82,7 +88,7 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
     }
     // Priority 4: Hardcoded defaults
     return baseConfig;
-  }, [baseConfig, customUrl, localApiStatus, localApi.mempoolPort, torStatus]);
+  }, [baseConfig, customUrl, localApiStatus, localApi.mempoolPort, localApi.mempoolOnion, torStatus]);
 
   const value = useMemo(
     () => ({
