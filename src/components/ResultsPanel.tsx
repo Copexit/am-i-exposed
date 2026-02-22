@@ -18,6 +18,7 @@ import { TxBreakdownPanel } from "./TxBreakdownPanel";
 import { ClusterPanel } from "./ClusterPanel";
 import { TipJar } from "./TipJar";
 import { CrossPromo } from "./CrossPromo";
+import { copyToClipboard } from "@/lib/clipboard";
 import type { ScoringResult, InputType, TxAnalysisResult } from "@/lib/types";
 import type { MempoolTransaction, MempoolAddress } from "@/lib/api/types";
 
@@ -149,14 +150,9 @@ export function ResultsPanel({
 
   const handleShare = async () => {
     const shareUrl = `${window.location.origin}${window.location.pathname}#${inputType === "txid" ? "tx" : "addr"}=${encodeURIComponent(query)}`;
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setShareStatus("copied");
-      setTimeout(() => setShareStatus("idle"), 2000);
-    } catch {
-      setShareStatus("failed");
-      setTimeout(() => setShareStatus("idle"), 2000);
-    }
+    const ok = await copyToClipboard(shareUrl);
+    setShareStatus(ok ? "copied" : "failed");
+    setTimeout(() => setShareStatus("idle"), 2000);
   };
 
   return (
@@ -201,7 +197,7 @@ export function ResultsPanel({
             )}
           </div>
           <button
-            onClick={() => navigator.clipboard.writeText(query).catch(() => {})}
+            onClick={() => copyToClipboard(query)}
             className="inline-flex items-start gap-2 font-mono text-sm text-foreground/90 break-all leading-relaxed text-left hover:text-foreground transition-colors cursor-pointer group/copy"
             title={t("common.copy", { defaultValue: "Copy" })}
           >
@@ -251,6 +247,31 @@ export function ResultsPanel({
         />
       )}
 
+      {/* Summary card */}
+      {result.grade !== "F" && (
+        <div className={`w-full rounded-xl border px-4 py-3 ${
+          result.grade === "A+" || result.grade === "B"
+            ? "border-severity-good/30 bg-severity-good/5"
+            : result.grade === "C"
+              ? "border-severity-medium/30 bg-severity-medium/5"
+              : "border-severity-high/30 bg-severity-high/5"
+        }`}>
+          <p className={`text-base font-medium ${
+            result.grade === "A+" || result.grade === "B"
+              ? "text-severity-good"
+              : result.grade === "C"
+                ? "text-severity-medium"
+                : "text-severity-high"
+          }`}>
+            {result.grade === "A+" || result.grade === "B"
+              ? t("results.summaryGood", { defaultValue: "No significant privacy concerns detected." })
+              : result.grade === "C"
+                ? t("results.summaryFair", { defaultValue: "Some privacy concerns detected. Review the findings below." })
+                : t("results.summaryPoor", { defaultValue: "Significant privacy exposure detected. Remediation recommended." })}
+          </p>
+        </div>
+      )}
+
       {/* Findings */}
       {result.findings.length > 0 && (
         <div className="w-full space-y-4">
@@ -262,7 +283,12 @@ export function ResultsPanel({
           </div>
           <div className="space-y-3">
             {result.findings.map((finding, i) => (
-              <FindingCard key={finding.id} finding={finding} index={i} />
+              <FindingCard
+                key={finding.id}
+                finding={finding}
+                index={i}
+                defaultExpanded={result.grade === "F" && (finding.severity === "critical" || finding.severity === "high")}
+              />
             ))}
           </div>
         </div>

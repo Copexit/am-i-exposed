@@ -5,6 +5,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { motion, AnimatePresence } from "motion/react";
 import { Heart, ChevronDown, X, Copy, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { copyToClipboard } from "@/lib/clipboard";
 
 const LN_ADDRESS = "woozycuticle72@walletofsatoshi.com";
 const DISMISS_KEY = "ami-tip-dismissed";
@@ -35,11 +36,11 @@ export function TipJar() {
   if (dismissed) return null;
 
   const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(LN_ADDRESS);
+    const ok = await copyToClipboard(LN_ADDRESS);
+    if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {}
+    }
   };
 
   return (

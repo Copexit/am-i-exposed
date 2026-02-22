@@ -9,6 +9,7 @@ import type { Finding, Severity } from "@/lib/types";
 interface FindingCardProps {
   finding: Finding;
   index: number;
+  defaultExpanded?: boolean;
 }
 
 const SEVERITY_STYLES: Record<
@@ -47,11 +48,9 @@ const SEVERITY_STYLES: Record<
   },
 };
 
-export function FindingCard({ finding, index }: FindingCardProps) {
+export function FindingCard({ finding, index, defaultExpanded = false }: FindingCardProps) {
   const { t } = useTranslation();
-  const [expanded, setExpanded] = useState(
-    finding.severity === "critical" || finding.severity === "high",
-  );
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const style = SEVERITY_STYLES[finding.severity];
   const severityLabel = t(`common.severity.${finding.severity}`, { defaultValue: style.label });
 
@@ -92,7 +91,7 @@ export function FindingCard({ finding, index }: FindingCardProps) {
             className="overflow-hidden"
           >
             <div className="px-5 pb-5 space-y-3 border-t border-card-border pt-3">
-              <p className="text-sm text-foreground leading-relaxed">
+              <p className="text-base text-foreground leading-relaxed">
                 {t(`finding.${finding.id}.description`, { ...finding.params, defaultValue: finding.description })}
               </p>
               {finding.recommendation && (
@@ -100,7 +99,7 @@ export function FindingCard({ finding, index }: FindingCardProps) {
                   <p className="text-xs font-medium text-muted mb-1">
                     {t("finding.recommendationLabel", { defaultValue: "Recommendation" })}
                   </p>
-                  <p className="text-sm text-foreground/90 leading-relaxed">
+                  <p className="text-base text-foreground/90 leading-relaxed">
                     {t(`finding.${finding.id}.recommendation`, { ...finding.params, defaultValue: finding.recommendation })}
                   </p>
                 </div>

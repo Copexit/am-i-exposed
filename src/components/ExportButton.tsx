@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { ClipboardCopy, Check } from "lucide-react";
+import { copyToClipboard } from "@/lib/clipboard";
 import type { ScoringResult, InputType } from "@/lib/types";
 
 interface ExportButtonProps {
@@ -90,8 +91,8 @@ export function ExportButton({ targetId, query, result, inputType }: ExportButto
       lines.push("");
       lines.push(t("export.scannedWith", { defaultValue: "Scanned with am-i.exposed" }));
 
-      await navigator.clipboard.writeText(lines.join("\n"));
-      setStatus("done");
+      const ok = await copyToClipboard(lines.join("\n"));
+      setStatus(ok ? "done" : "failed");
       setTimeout(() => setStatus("idle"), 2000);
     } catch {
       setStatus("failed");
