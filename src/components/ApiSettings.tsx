@@ -19,7 +19,8 @@ const NETWORKS: { value: BitcoinNetwork; label: string; dot: string }[] = [
 
 export function ApiSettings() {
   const { t, i18n } = useTranslation();
-  const { network, setNetwork, customApiUrl, setCustomApiUrl } = useNetwork();
+  const { network, setNetwork, customApiUrl, setCustomApiUrl, localApiStatus } = useNetwork();
+  const isUmbrel = localApiStatus === "available";
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState(customApiUrl ?? "");
   const [health, setHealth] = useState<HealthStatus>("idle");
@@ -192,7 +193,8 @@ export function ApiSettings() {
 
           {/* Network & Language row */}
           <div className="flex items-center gap-3">
-            {/* Network selector */}
+            {/* Network selector - hidden on Umbrel (network is preconfigured) */}
+            {!isUmbrel && (
             <div className="flex-1">
               <label className="text-xs font-medium text-muted uppercase tracking-wider block mb-1.5">
                 {t("settings.network", { defaultValue: "Network" })}
@@ -219,6 +221,7 @@ export function ApiSettings() {
                 />
               </div>
             </div>
+            )}
 
             {/* Language selector */}
             <div className="flex-1">
@@ -246,7 +249,9 @@ export function ApiSettings() {
             </div>
           </div>
 
-          {/* Advanced toggle */}
+          {/* Advanced toggle - hidden on Umbrel (API is preconfigured) */}
+          {!isUmbrel && (
+          <>
           <div className="border-t border-card-border pt-1">
             <button
               onClick={() => setAdvancedOpen(!advancedOpen)}
@@ -431,6 +436,8 @@ export function ApiSettings() {
               </div>
             )}
           </div>
+          </>
+          )}
           </>
           )}
         </div>
