@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
-import { ShieldCheck, AlertCircle, Scan, Fingerprint, Shield, Eye } from "lucide-react";
+import { ShieldCheck, AlertCircle } from "lucide-react";
 import { AddressInput } from "@/components/AddressInput";
 import { DiagnosticLoader } from "@/components/DiagnosticLoader";
 import { ResultsPanel } from "@/components/ResultsPanel";
@@ -16,28 +16,6 @@ import { useRecentScans } from "@/hooks/useRecentScans";
 import { useKeyboardNav } from "@/hooks/useKeyboardNav";
 import { TipToast } from "@/components/TipToast";
 import type { AnalysisMode } from "@/lib/types";
-
-const PRIVACY_TIP_KEYS = [
-  "tips.0",
-  "tips.1",
-  "tips.2",
-  "tips.3",
-  "tips.4",
-  "tips.5",
-  "tips.6",
-  "tips.7",
-];
-
-const PRIVACY_TIPS_EN = [
-  "Never reuse a Bitcoin address. HD wallets generate a new address for each receive automatically.",
-  "CoinJoin breaks the common-input-ownership heuristic, making chain analysis significantly harder.",
-  "Use Tor when broadcasting transactions. Your IP can be correlated with your on-chain activity.",
-  "Round payment amounts (e.g., 0.01 BTC) reveal which output is the payment and which is change.",
-  "Taproot (bc1p...) addresses make all transaction types look identical on-chain.",
-  "Dust outputs (< 1000 sats) may be surveillance dust. Freeze them in your wallet's coin control.",
-  "Wallet software can be identified through nLockTime, nSequence, and signature patterns.",
-  "PayJoin has the receiver contribute an input, breaking the assumption that all inputs belong to the sender.",
-];
 
 const EXAMPLES = [
   {
@@ -120,9 +98,6 @@ export default function Home() {
   const { t } = useTranslation();
   const { scans, addScan, clearScans } = useRecentScans();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [tipIndex, setTipIndex] = useState(
-    () => Math.floor(Math.random() * PRIVACY_TIP_KEYS.length),
-  );
   const [mode, setMode] = useState<AnalysisMode>("scan");
 
   // Keep latest function refs for hashchange listener (avoids stale closures)
@@ -338,40 +313,6 @@ export default function Home() {
                 </div>
               </div>
             )}
-
-            <p className="text-muted text-sm sm:text-base max-w-xl mx-auto">
-              {t("page.description", { defaultValue: "Find out what the blockchain knows about you. Paste a Bitcoin address or transaction ID to get a privacy score with actionable findings." })}
-            </p>
-
-            <h2 className="sr-only">{t("page.featuresHeading", { defaultValue: "Features" })}</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 w-full max-w-3xl">
-              {[
-                { icon: Scan, label: t("page.feat_heuristics", { defaultValue: "16 heuristics" }), desc: t("page.feat_heuristics_desc", { defaultValue: "Score 0-100" }) },
-                { icon: Fingerprint, label: t("page.feat_wallet", { defaultValue: "Wallet ID" }), desc: t("page.feat_wallet_desc", { defaultValue: "Fingerprinting" }) },
-                { icon: Shield, label: "CoinJoin", desc: t("page.feat_coinjoin_desc", { defaultValue: "Whirlpool & Wasabi" }) },
-                { icon: Eye, label: t("page.feat_dust", { defaultValue: "Dust attacks" }), desc: t("page.feat_dust_desc", { defaultValue: "Don't spend it" }) },
-              ].map((feat) => (
-                <div
-                  key={feat.label}
-                  className="flex flex-col items-center gap-1 py-2.5 rounded-lg bg-surface-elevated/30 border border-card-border"
-                >
-                  <feat.icon size={20} className="text-bitcoin/50" />
-                  <span className="text-sm font-medium text-foreground">{feat.label}</span>
-                  <span className="text-sm text-muted">{feat.desc}</span>
-                </div>
-              ))}
-            </div>
-
-            <h2 className="sr-only">{t("page.tipsHeading", { defaultValue: "Privacy Tips" })}</h2>
-            <button
-              onClick={() => setTipIndex((i) => (i + 1) % PRIVACY_TIP_KEYS.length)}
-              className="w-full max-w-lg mx-auto text-center cursor-pointer group"
-            >
-              <p className="text-sm text-muted mb-1">{t("page.privacy_tip", { defaultValue: "Privacy tip" })}</p>
-              <p suppressHydrationWarning className="text-sm text-muted leading-relaxed group-hover:text-muted transition-colors">
-                {t(PRIVACY_TIP_KEYS[tipIndex], { defaultValue: PRIVACY_TIPS_EN[tipIndex] })}
-              </p>
-            </button>
 
             <div className="flex flex-wrap items-center justify-center gap-4 text-base text-muted">
               <span className="inline-flex items-center gap-1.5">

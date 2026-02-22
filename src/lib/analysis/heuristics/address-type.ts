@@ -43,7 +43,7 @@ export const analyzeAddressType: AddressHeuristic = (address) => {
               "P2WPKH (native SegWit) has the largest anonymity set of any address type, making single-sig transactions highly private. " +
               "While it reveals the script type on spend, for single-sig this is not a privacy concern since the vast majority of P2WPKH users are single-sig.",
             recommendation:
-              "P2WPKH is an excellent choice for single-sig. If you use multisig or complex scripts, consider Taproot (P2TR) to hide the script details.",
+              "P2WPKH has the largest anonymity set for single-sig transactions. No change needed.",
             scoreImpact: 0,
           },
         ],

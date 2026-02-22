@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { FindingCard } from "./FindingCard";
 import { AddressSummary } from "./AddressSummary";
+import { copyToClipboard } from "@/lib/clipboard";
 import { formatSats } from "@/lib/format";
 import type { PreSendResult } from "@/lib/analysis/orchestrator";
 import type { MempoolAddress } from "@/lib/api/types";
@@ -88,11 +89,11 @@ export function PreSendResultPanel({
 
   const handleCopy = async () => {
     const shareUrl = `${window.location.origin}${window.location.pathname}#check=${encodeURIComponent(query)}`;
-    try {
-      await navigator.clipboard.writeText(shareUrl);
+    const ok = await copyToClipboard(shareUrl);
+    if (ok) {
       setShareStatus("copied");
       setTimeout(() => setShareStatus("idle"), 2000);
-    } catch { /* noop */ }
+    }
   };
 
   return (

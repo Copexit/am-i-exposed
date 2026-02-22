@@ -235,8 +235,8 @@ function StructuredRemediation({ remediation, findingId, findingTitle }: { remed
 
       <ol className="space-y-1.5 pl-4">
         {remediation.steps.map((step, i) => (
-          <li key={i} className="text-sm text-muted leading-relaxed list-decimal">
-            {step}
+          <li key={i} className="text-base text-muted leading-relaxed list-decimal">
+            {t(`remediation.${findingId}.step${i + 1}`, { defaultValue: step })}
           </li>
         ))}
       </ol>
@@ -249,9 +249,9 @@ function StructuredRemediation({ remediation, findingId, findingTitle }: { remed
               href={tool.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-sm text-bitcoin/70 hover:text-bitcoin transition-colors"
+              className="inline-flex items-center gap-1 text-base text-bitcoin/70 hover:text-bitcoin transition-colors"
             >
-              {tool.name}
+              {t(`remediation.${findingId}.tool_${tool.name.toLowerCase().replace(/\s+/g, "_")}`, { defaultValue: tool.name })}
               <ExternalLink size={14} />
             </a>
           ))}
@@ -329,10 +329,10 @@ export function Remediation({ findings, grade }: RemediationProps) {
                       {i + 1}.
                     </span>
                     <div>
-                      <p className="text-sm font-medium text-foreground/90">
+                      <p className="text-base font-medium text-foreground/90">
                         {t(action.textKey, { defaultValue: action.textDefault })}
                       </p>
-                      <p className="text-sm text-muted mt-1 leading-relaxed">
+                      <p className="text-base text-muted mt-1 leading-relaxed">
                         {t(action.detailKey, { defaultValue: action.detailDefault })}
                       </p>
                     </div>

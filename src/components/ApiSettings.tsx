@@ -24,6 +24,7 @@ export function ApiSettings() {
   const [inputValue, setInputValue] = useState(customApiUrl ?? "");
   const [health, setHealth] = useState<HealthStatus>("idle");
   const [errorHint, setErrorHint] = useState("");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -245,9 +246,24 @@ export function ApiSettings() {
             </div>
           </div>
 
-          {/* Divider */}
-          <div className="border-t border-card-border" />
+          {/* Advanced toggle */}
+          <div className="border-t border-card-border pt-1">
+            <button
+              onClick={() => setAdvancedOpen(!advancedOpen)}
+              className="flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors cursor-pointer w-full py-1"
+            >
+              {advancedOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              {t("settings.advanced", { defaultValue: "Advanced" })}
+              {customApiUrl && (
+                <span className="ml-auto text-xs text-bitcoin">
+                  {t("settings.customActive", { defaultValue: "Custom API active" })}
+                </span>
+              )}
+            </button>
+          </div>
 
+          {advancedOpen && (
+          <>
           {/* API endpoint section */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -415,6 +431,8 @@ export function ApiSettings() {
               </div>
             )}
           </div>
+          </>
+          )}
         </div>
         </>
       )}
