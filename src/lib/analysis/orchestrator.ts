@@ -171,7 +171,7 @@ export async function analyzeAddress(
 function applyCrossHeuristicRules(findings: Finding[]): void {
   const isCoinJoin = findings.some(
     (f) =>
-      (f.id === "h4-whirlpool" || f.id === "h4-coinjoin" || f.id === "h4-joinmarket") &&
+      (f.id === "h4-whirlpool" || f.id === "h4-coinjoin" || f.id === "h4-joinmarket" || f.id === "h4-stonewall") &&
       f.scoreImpact > 0,
   );
 
@@ -180,20 +180,13 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
       // CIOH is expected in CoinJoin (each input = different participant)
       if (f.id === "h3-cioh") {
         f.severity = "low";
-        f.title = `${f.title} (CoinJoin - expected)`;
-        f.params = { ...f.params, coinjoinContext: "expected" };
-        f.description =
-          "Multiple input addresses are linked, but this is expected in a CoinJoin transaction. " +
-          "In CoinJoins, each input typically belongs to a different participant, so CIOH does not apply.";
+        f.params = { ...f.params, context: "coinjoin" };
         f.scoreImpact = 0;
       }
       // Round amounts in CoinJoin are the denomination, not a privacy leak
       if (f.id === "h1-round-amount") {
         f.severity = "low";
-        f.title = `${f.title} (CoinJoin denomination)`;
-        f.params = { ...f.params, coinjoinContext: "denomination" };
-        f.description =
-          "Equal round outputs are expected in CoinJoin transactions - they are the denomination, not a privacy leak.";
+        f.params = { ...f.params, context: "coinjoin" };
         f.scoreImpact = 0;
       }
       // Change detection in CoinJoin is less reliable
@@ -201,53 +194,62 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
       // input address is a privacy failure even in CoinJoin context
       if (f.id === "h2-change-detected") {
         f.severity = "low";
-        f.title = `${f.title} (CoinJoin - unreliable)`;
-        f.params = { ...f.params, coinjoinContext: "unreliable" };
+        f.params = { ...f.params, context: "coinjoin" };
         f.scoreImpact = 0;
       }
       // Script type mixing is expected in CoinJoin (participants use different wallets)
       if (f.id === "script-mixed") {
         f.severity = "low";
-        f.title = `${f.title} (CoinJoin - expected)`;
-        f.params = { ...f.params, coinjoinContext: "expected" };
-        f.description =
-          "Mixed script types are expected in CoinJoin transactions since participants use different wallet software.";
+        f.params = { ...f.params, context: "coinjoin" };
         f.scoreImpact = 0;
       }
-      // Wallet fingerprint is irrelevant for CoinJoin (the link is already broken)
+      // Wallet fingerprint is less relevant for CoinJoin - but we can infer the wallet
+      // from the CoinJoin type detected by H4
       if (f.id === "h11-wallet-fingerprint") {
         f.severity = "low";
-        f.title = `${f.title} (CoinJoin - less relevant)`;
-        f.params = { ...f.params, coinjoinContext: "less_relevant" };
+        // Infer wallet from CoinJoin type if not already identified
+        if (!f.params?.walletGuess) {
+          const isWabiSabi = findings.some(
+            (x) => x.id === "h4-coinjoin" && x.params?.isWabiSabi === 1,
+          );
+          const isWhirlpool = findings.some((x) => x.id === "h4-whirlpool");
+          if (isWabiSabi) {
+            f.params = { ...f.params, walletGuess: "Wasabi Wallet" };
+          } else if (isWhirlpool) {
+            f.params = { ...f.params, walletGuess: "Samourai/Sparrow" };
+          }
+        }
+        // Compose context: identified (if wallet known) or signals variant + coinjoin
+        const hasWallet = !!f.params?.walletGuess;
+        const base = hasWallet
+          ? "identified"
+          : ((f.params?.context as string) ?? "signals_other");
+        f.params = { ...f.params, context: `${base}_coinjoin` };
         f.scoreImpact = 0;
       }
       // Dust outputs in CoinJoin may be coordinator fees (e.g. Whirlpool)
       if (f.id === "dust-attack" || f.id === "dust-outputs") {
         f.severity = "low";
-        f.title = `${f.title} (CoinJoin - likely coordinator fee)`;
-        f.params = { ...f.params, coinjoinContext: "coordinator_fee" };
+        f.params = { ...f.params, context: "coinjoin" };
         f.scoreImpact = 0;
       }
       // Timing analysis is meaningless for CoinJoin (participants broadcast together)
       if (f.id === "timing-unconfirmed") {
         f.severity = "low";
-        f.title = `${f.title} (CoinJoin - expected)`;
-        f.params = { ...f.params, coinjoinContext: "expected" };
+        f.params = { ...f.params, context: "coinjoin" };
         f.scoreImpact = 0;
       }
       // Fee fingerprinting reveals the coordinator, not the participant's wallet
       if (f.id === "h6-round-fee-rate" || f.id === "h6-rbf-signaled") {
         f.severity = "low";
-        f.title = `${f.title} (CoinJoin - coordinator fee)`;
-        f.params = { ...f.params, coinjoinContext: "coordinator_fee" };
+        f.params = { ...f.params, context: "coinjoin" };
         f.scoreImpact = 0;
       }
       // No anonymity set finding: CoinJoin structure itself provides privacy
       // beyond simple output value matching, so the penalty is unwarranted
       if (f.id === "anon-set-none" || f.id === "anon-set-moderate") {
         f.severity = "low";
-        f.title = `${f.title} (CoinJoin - structural privacy)`;
-        f.params = { ...f.params, coinjoinContext: "structural_privacy" };
+        f.params = { ...f.params, context: "coinjoin" };
         f.scoreImpact = 0;
       }
     }
@@ -308,6 +310,7 @@ export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 export interface PreSendResult {
   riskLevel: RiskLevel;
   summary: string;
+  summaryKey: string;
   findings: Finding[];
   txCount: number;
   timesReceived: number;
@@ -350,32 +353,36 @@ export async function analyzeDestination(
   // as a secondary signal to avoid false "Low Risk" assessments.
   let riskLevel: RiskLevel;
   let summary: string;
+  let summaryKey: string;
 
   if (reuseCount >= 100) {
     riskLevel = "CRITICAL";
+    summaryKey = "presend.summaryCritical";
     summary = `This address has received funds ${reuseCount} times. It is almost certainly a service or exchange deposit address - sending here will link your transaction to a known entity.`;
   } else if (reuseCount >= 10) {
     riskLevel = "HIGH";
+    summaryKey = "presend.summaryHigh";
     summary = `This address has received funds ${reuseCount} times. All senders to this address are trivially linkable. Ask the recipient for a fresh address.`;
   } else if (reuseCount >= 2) {
     riskLevel = "MEDIUM";
+    summaryKey = "presend.summaryMediumReused";
     summary = `This address has received funds ${reuseCount} times (${txCount} total transactions). There is reuse, which means your payment will be linkable to previous transactions to this address.`;
   } else if (reuseCount === 1) {
     riskLevel = "MEDIUM";
+    summaryKey = "presend.summaryMediumReceivedOnce";
     summary = "This address has already received funds once. Sending here will create address reuse, linking your transaction to the previous one on-chain.";
   } else if (txCount > 0) {
     // funded_txo_count is 0 but tx_count > 0 - the address has transaction
     // activity that the backend didn't fully index (common on self-hosted
     // mempool with romanz/electrs). Err on the side of caution.
     riskLevel = "MEDIUM";
+    summaryKey = "presend.summaryMediumDataUnavailable";
     summary = `This address shows ${txCount} transaction(s) but receive data is unavailable. The address is not unused - verify with the recipient before sending.`;
   } else {
     riskLevel = "LOW";
+    summaryKey = "presend.summaryLow";
     summary = "This address appears unused. No significant privacy concerns detected for the recipient.";
   }
-
-  // Store params for i18n translation at the display layer
-  const preSendParams = { reuseCount, txCount };
 
   // Escalate risk level if heuristic findings show high/critical severity
   const hasHighSeverityFinding = allFindings.some(
@@ -384,6 +391,7 @@ export async function analyzeDestination(
   if (hasHighSeverityFinding && riskLevel === "LOW") {
     riskLevel = "MEDIUM";
     summary += " However, heuristic analysis identified concerning patterns.";
+    summaryKey = "presend.summaryEscalated";
   }
 
   // Run local OFAC sanctions check (no network requests - bundled list)
@@ -414,7 +422,7 @@ export async function analyzeDestination(
     id: "h13-presend-check",
     severity: preSendSeverity,
     title: `Destination risk: ${riskLevel}`,
-    params: { ...preSendParams, riskLevel },
+    params: { reuseCount, txCount, riskLevel },
     description: summary,
     recommendation:
       riskLevel === "LOW"
@@ -426,6 +434,7 @@ export async function analyzeDestination(
   return {
     riskLevel,
     summary,
+    summaryKey,
     findings: allFindings,
     txCount,
     timesReceived,

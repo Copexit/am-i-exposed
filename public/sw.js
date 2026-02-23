@@ -54,9 +54,11 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // HTML and everything else: network-first, fall back to cache
+  // HTML and everything else: network-first, fall back to cache.
+  // cache: "no-cache" forces revalidation with the server (304 if unchanged),
+  // ensuring users get fresh HTML after deployments instead of stale cached pages.
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: "no-cache" })
       .then((response) => {
         if (response.ok) {
           const clone = response.clone();

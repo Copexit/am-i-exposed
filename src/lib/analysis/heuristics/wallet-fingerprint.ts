@@ -64,7 +64,7 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
     if (isBip69) {
       // Whirlpool/Samourai also use BIP69 - check for CoinJoin patterns
       const isWhirlpoolPattern = detectWhirlpoolPattern(tx);
-      const isLargeCoinJoin = tx.vin.length > 20 && tx.vout.length > 20;
+      const isLargeCoinJoin = tx.vin.length >= 20 && tx.vout.length >= 20;
       if (isWhirlpoolPattern) {
         signals.push("BIP69 ordering + Whirlpool pattern (Samourai/Sparrow)");
         walletGuess = "Samourai/Sparrow";
@@ -112,22 +112,35 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
     impact = -2;
   }
 
+  // Use i18next context param for variant key selection:
+  // walletGuess present -> context: "identified" -> title_identified
+  // no walletGuess, 1 signal -> context: "signals_one" -> title_signals_one
+  // no walletGuess, >1 signals -> context: "signals_other" -> title_signals_other
+  const context = walletGuess
+    ? "identified"
+    : signals.length === 1
+      ? "signals_one"
+      : "signals_other";
+
   const title = walletGuess
     ? `Wallet fingerprint: likely ${walletGuess}`
     : `${signals.length} wallet fingerprinting signal${signals.length > 1 ? "s" : ""} detected`;
+
+  const description = walletGuess
+    ? `Transaction metadata reveals wallet characteristics: ${signals.join("; ")}. These signals are consistent with ${walletGuess}. Wallet identification helps chain analysts narrow down the software used, which combined with other data can aid in deanonymization.`
+    : `Transaction metadata reveals wallet characteristics: ${signals.join("; ")}. Wallet identification helps chain analysts narrow down the software used, which combined with other data can aid in deanonymization.`;
 
   findings.push({
     id: "h11-wallet-fingerprint",
     severity,
     title,
-    params: { ...(walletGuess ? { walletGuess } : {}), signalCount: signals.length, signals: signals.join("; ") },
-    description:
-      `Transaction metadata reveals wallet characteristics: ${signals.join("; ")}. ` +
-      (walletGuess
-        ? `These signals are consistent with ${walletGuess}. `
-        : "") +
-      "Wallet identification helps chain analysts narrow down the software used, " +
-      "which combined with other data can aid in deanonymization.",
+    params: {
+      ...(walletGuess ? { walletGuess } : {}),
+      signalCount: signals.length,
+      signals: signals.join("; "),
+      context,
+    },
+    description,
     recommendation:
       "Wallet fingerprinting is difficult to avoid without modifying wallet software. " +
       "Taproot (P2TR) transactions help because key-path spends all look identical. " +

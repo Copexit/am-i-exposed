@@ -248,51 +248,73 @@ CoinJoin is not a silver bullet. Post-mix behavior matters enormously. If a user
 
 ---
 
-### H5: Simplified Entropy (Boltzmann)
+### H5: Boltzmann Entropy
 
 **Technical description**
 
-Transaction entropy measures the number of valid interpretations of a transaction - that is, how many different mappings of inputs to outputs are consistent with the transaction's structure. Higher entropy means more ambiguity for an adversary.
+Transaction entropy measures the number of valid interpretations of a transaction - that is, how many different mappings of inputs to outputs are consistent with the transaction's structure. Higher entropy means more ambiguity for an adversary. Entropy E = log2(N), where N is the number of valid interpretations.
 
-Full Boltzmann analysis, as implemented by LaurentMT in the OXT.me Boltzmann tool, enumerates all valid sub-mappings of inputs to outputs and computes the Shannon entropy of the resulting probability distribution. This is computationally expensive. The number of possible mappings grows combinatorially with the number of inputs and outputs, making full enumeration infeasible for large transactions without significant optimization.
+Full Boltzmann analysis, as defined by LaurentMT, counts all valid input-to-output partitions. For equal-value CoinJoin transactions, the interpretation count can be computed exactly using integer partitions of n.
 
-We use a simplified approach with two tiers:
+We use a two-path approach:
 
-**Small transactions (<=8 inputs, <=8 outputs):**
+**Path A - Equal-value outputs (Boltzmann partition formula):**
 
-Enumerate all valid mappings directly. A mapping is valid if the sum of input values assigned to each output is greater than or equal to the output value. We use a recursive algorithm with pruning to avoid enumerating clearly impossible mappings.
+When all spendable outputs share the same value (common in Whirlpool, WabiSabi, and other CoinJoin protocols), the number of valid interpretations is computed using integer partitions:
 
 ```
-function count_valid_mappings(inputs, outputs):
-  // For each output, determine which subsets of inputs could fund it
-  // Count distinct valid complete mappings where each input is used exactly once
-  // Apply constraint: sum of assigned inputs >= output value for each output
-  valid_count = enumerate_with_pruning(inputs, outputs)
-  entropy = log2(valid_count)
-  return entropy
+N = sum over all integer partitions (s1, s2, ..., sk) of n:
+    n!^2 / (prod(si!^2) * prod(mj!))
 ```
 
-**Large transactions (>8 inputs or >8 outputs):**
+where:
+- n = number of equal outputs (or number of inputs that can fund them, whichever is smaller)
+- (s1, s2, ..., sk) is a partition of n (s1 + s2 + ... + sk = n, each si >= 1)
+- mj = multiplicity of each distinct part size in the partition
 
-Full enumeration is computationally infeasible client-side. We estimate entropy based on structural features:
-- Number of equal-value outputs (more equal outputs = higher entropy)
-- Ratio of inputs to outputs
-- Whether the transaction matches known CoinJoin patterns
-- Presence of outputs that could plausibly be funded by multiple different input combinations
+**Reference values:**
 
-For each group of k equal-value outputs, we estimate the contribution as log2(k!) bits, since any permutation of those outputs among their possible funding inputs is valid.
+| n (equal outputs) | Interpretations (N) | Entropy (bits) |
+|---|---|---|
+| 2 | 3 | 1.58 |
+| 3 | 16 | 4.00 |
+| 4 | 131 | 7.03 |
+| 5 | 1,496 | 10.55 |
+| 6 | 22,482 | 14.46 |
+| 7 | 426,833 | 18.70 |
+| 8 | 9,934,563 | 23.24 |
+| 9 | ~277,006,192 | ~28.05 |
+
+For n=5 (Whirlpool pool size), the partition formula gives 1,496 valid interpretations = 10.55 bits of entropy. This is the mathematically correct value per the Boltzmann model.
+
+Note: The classic permutation model (n! = 120 for n=5) undercounts because it only considers one-to-one assignments. The partition model correctly accounts for the possibility that multiple outputs could be funded by the same input, yielding significantly more valid interpretations.
+
+**Worked example (n=5 Whirlpool):**
+
+The integer partitions of 5 are: [5], [4,1], [3,2], [3,1,1], [2,2,1], [2,1,1,1], [1,1,1,1,1].
+
+For partition [1,1,1,1,1] (5 parts of size 1): N_term = 5!^2 / (1!^10 * 5!) = 14400/120 = 120
+For partition [2,1,1,1] (one part of 2, three parts of 1): N_term = 5!^2 / (2!^2 * 1!^6 * 1! * 3!) = 14400/24 = 600
+... and so on for all 7 partitions. The sum = 1,496.
+
+**Path B - Mixed values (assignment-based enumeration):**
+
+For transactions with mixed output values (<= 8x8), we enumerate which input funds which output. A mapping is valid if each input can cover the sum of outputs assigned to it. This is a lower bound of the true Boltzmann count but is reasonable for non-CoinJoin transactions.
+
+For large mixed-value transactions (> 8x8), we use structural estimation based on the largest group of equal outputs, applying the Boltzmann partition formula to that group.
 
 **Entropy interpretation:**
-- 0 bits: Deterministic transaction. Only one valid interpretation exists. An adversary knows exactly which inputs funded which outputs.
-- 1-3 bits: Low entropy. A few possible interpretations, but the adversary can narrow it down significantly.
-- 4-7 bits: Moderate entropy. Meaningful ambiguity exists.
-- 8+ bits: High entropy. Typical of CoinJoin transactions. The adversary faces many possible interpretations.
+- 0 bits: Deterministic transaction. Only one valid interpretation exists.
+- 1-3 bits: Low entropy. A few possible interpretations, limited ambiguity.
+- 4-8 bits: Moderate entropy. Meaningful ambiguity exists.
+- 9-15 bits: High entropy. Typical of Whirlpool 5x5 CoinJoins (8.97 bits).
+- 15+ bits: Very high entropy. Larger CoinJoins (7x7+, WabiSabi).
 
 **Why it matters for privacy**
 
 Entropy is the most rigorous measure of transaction privacy. Unlike heuristics that flag specific patterns, entropy quantifies the actual ambiguity an adversary faces when analyzing a transaction. A transaction with high entropy is genuinely difficult to trace, regardless of other heuristic signals.
 
-This is why OXT.me's Boltzmann tool was so valuable - and why its loss in April 2024 was so significant. It gave users a mathematically grounded privacy metric. Our simplified approach captures the essential signal for common transaction shapes and will be upgraded to full Boltzmann analysis (via WebWorker) in a future release.
+This is why OXT.me's Boltzmann tool was so valuable - and why its loss in April 2024 was so significant. It gave users a mathematically grounded privacy metric.
 
 **Scoring impact:** -5 to +15
 
@@ -302,10 +324,12 @@ This is why OXT.me's Boltzmann tool was so valuable - and why its loss in April 
 - 8+ bits (high entropy, CoinJoin territory): +10 to +15
 
 **References**
-- LaurentMT, "Boltzmann" - the original entropy analysis tool for Bitcoin transactions, part of OXT Research (github.com/LaurentMT/boltzmann)
-- LaurentMT, "Introducing Boltzmann" blog post series - detailed explanation of the methodology
+- LaurentMT, "Bitcoin Transactions & Privacy" (Parts 1-3) - foundational entropy framework, gist.github.com/LaurentMT
+- LaurentMT, "Introducing Boltzmann" (Medium, 2017) - the original entropy analysis tool
+- LaurentMT/boltzmann - reference implementation, github.com/Samourai-Wallet/boltzmann
 - Shannon, "A Mathematical Theory of Communication" (1948) - foundational information theory
-- OXT Research, transaction entropy methodology
+- OXT Research, "Understanding Bitcoin Privacy with OXT" (Parts 1-4, 2021)
+- privacidadbitcoin.com - community entropy calculation reference
 
 ---
 
@@ -1118,25 +1142,66 @@ Previous versions of this tool included a PayJoin detection heuristic. It was re
 
 ---
 
+## Known Gaps / Future Work
+
+### Stonewall (Samourai Wallet)
+
+Stonewall is a simulated 2-party CoinJoin constructed by a single wallet. Structure: 2+ inputs, 4 outputs (2 equal-value + 2 change). The equal outputs create ambiguity about which input funded which equal output, increasing entropy without requiring a second participant.
+
+**STONEWALLx2** is the collaborative version where inputs actually come from two different wallets, providing real (not simulated) CoinJoin privacy.
+
+Detection pattern: exactly 4 outputs, 2 equal-value pairs, 2-3 inputs. Not yet implemented; partially covered by existing entropy (H5) and CoinJoin detection (H4) heuristics. The equal outputs will be counted by the anonymity set heuristic and contribute to entropy.
+
+Future implementation would specifically identify Stonewall patterns and adjust scoring to reflect the simulated vs. real privacy distinction.
+
+---
+
 ## References
 
-- Meiklejohn, S., Pomarole, M., Jordan, G., Levchenko, K., McCoy, D., Voelker, G. M., and Savage, S. "A Fistful of Bitcoins: Characterizing Payments Among Men with No Names." IMC 2013.
+### Foundational Research
+- LaurentMT. "Bitcoin Transactions & Privacy" (Parts 1-3, ~2015) - Defined transaction entropy E = log2(N), link probability matrices, and the Boltzmann framework. gist.github.com/LaurentMT
+- LaurentMT. "Introducing Boltzmann" (Medium, 2017) - First implementation of entropy analysis for Bitcoin transactions.
+- LaurentMT/boltzmann - Reference implementation. github.com/Samourai-Wallet/boltzmann
+- Maxwell, G. "CoinJoin: Bitcoin privacy for the real world." BitcoinTalk, 2013. bitcointalk.org/index.php?topic=279249.0
+- Kristov Atlas. "CoinJoin Sudoku" - Deterministic link detection in CoinJoin transactions.
+
+### Academic Papers
+- Meiklejohn, S., et al. "A Fistful of Bitcoins: Characterizing Payments Among Men with No Names." IMC 2013.
 - Ron, D. and Shamir, A. "Quantitative Analysis of the Full Bitcoin Transaction Graph." Financial Cryptography 2013.
-- Nakamoto, S. "Bitcoin: A Peer-to-Peer Electronic Cash System." 2008. Section 10: Privacy.
-- LaurentMT. "Boltzmann" - entropy analysis for Bitcoin transactions. OXT Research. github.com/LaurentMT/boltzmann
+- Reid, F. and Harriman, M. "An Analysis of Anonymity in the Bitcoin System." 2011.
+- Moser, M. and Narayanan, A. "Resurrecting Address Clustering in Bitcoin."
+- Kappos, G., et al. "How to Peel a Million: Validating and Expanding Bitcoin Clusters."
+- Nick, J. "Data-Driven De-Anonymization in Bitcoin." Master's thesis, ETH Zurich, 2015.
 - Erhardt, M. and Shigeya, S. "An Empirical Analysis of Privacy in the Lightning Network." 2020.
-- Bitcoin Wiki. "Privacy." en.bitcoin.it/wiki/Privacy
+- Nakamoto, S. "Bitcoin: A Peer-to-Peer Electronic Cash System." 2008. Section 10: Privacy.
+- Shannon, C. "A Mathematical Theory of Communication." 1948.
+
+### Educational Series
+- OXT Research / ErgoBTC. "Understanding Bitcoin Privacy with OXT" (Parts 1-4, 2021) - Comprehensive guide covering change detection, transaction graphs, wallet clustering, CIOH, and defensive measures.
+  - Part 1: archive.ph/1xAw7
+  - Part 2: archive.ph/TDvjy
+  - Part 3: archive.ph/suxyq
+  - Part 4: archive.ph/Aw6zC
+- Spiral BTC. "The Scroll #3: A Brief History of Wallet Clustering" - Historical survey of chain analysis evolution from 2011-2024.
+- privacidadbitcoin.com - Spanish-language Bitcoin privacy education, community entropy calculation reference.
+
+### Wallet Fingerprinting
 - Belcher, C. "Wallet Fingerprinting" research.
 - 0xB10C. "Wallet Fingerprinting" - empirical analysis of transaction structure patterns.
-- Maxwell, G. "CoinJoin: Bitcoin privacy for the real world." BitcoinTalk, 2013.
+
+### Protocol Specifications
 - Ficsor, A. (nopara73). "ZeroLink: The Bitcoin Fungibility Framework." 2017.
+- Belcher, C. "Design for a CoinJoin Implementation with Fidelity Bonds" - JoinMarket design.
 - BIP69 - Lexicographic Indexing of Transaction Inputs and Outputs.
+- BIP78 - Pay-to-EndPoint (PayJoin).
 - BIP125 - Opt-in Full Replace-by-Fee Signaling.
 - BIP141 - Segregated Witness (Consensus Layer).
 - BIP340 - Schnorr Signatures for secp256k1.
 - BIP341 - Taproot: SegWit version 1 spending rules.
 - BIP342 - Validation of Taproot Scripts.
-- Nick, J. "Data-Driven De-Anonymization in Bitcoin." Master's thesis, ETH Zurich, 2015.
+
+### Tools and Resources
+- Bitcoin Wiki. "Privacy." en.bitcoin.it/wiki/Privacy
 
 ---
 

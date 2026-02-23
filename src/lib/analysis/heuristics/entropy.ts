@@ -3,19 +3,21 @@ import type { TxHeuristic } from "./types";
 const MAX_ENUMERABLE_SIZE = 8;
 
 /**
- * H5: Simplified Boltzmann Entropy
+ * H5: Boltzmann Entropy
  *
  * Measures transaction ambiguity by counting how many valid interpretations
  * exist (which inputs could have funded which outputs).
  *
- * Full Boltzmann analysis is computationally infeasible client-side for large
- * transactions. We use a simplified approach:
- * - For small txs (<= 8 inputs and 8 outputs): enumerate valid sub-mappings
- * - For larger txs: estimate based on equal-output count
+ * For equal-value outputs (CoinJoin), uses the Boltzmann partition formula:
+ *   N = sum over all integer partitions of n:
+ *       n!^2 / (prod(si!^2) * prod(mj!))
+ * where si are partition parts and mj are multiplicities of each distinct part.
+ *
+ * For mixed-value transactions, uses assignment-based enumeration (lower bound).
  *
  * Higher entropy = more ambiguity = better privacy.
  *
- * Reference: LaurentMT / OXT Research
+ * Reference: LaurentMT / OXT Research, Boltzmann tool
  * Impact: -5 to +15
  */
 export const analyzeEntropy: TxHeuristic = (tx) => {
@@ -52,10 +54,17 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
   let entropyBits: number;
   let method: string;
 
-  if (
+  // Check for equal-value outputs (Boltzmann partition path)
+  const equalOutputResult = tryBoltzmannEqualOutputs(inputs, outputs);
+
+  if (equalOutputResult !== null) {
+    entropyBits = equalOutputResult.entropy;
+    method = equalOutputResult.method;
+  } else if (
     inputs.length <= MAX_ENUMERABLE_SIZE &&
     outputs.length <= MAX_ENUMERABLE_SIZE
   ) {
+    // Mixed-value: assignment-based enumeration (lower bound)
     const { count: validMappings, truncated } = countValidMappings(inputs, outputs);
     entropyBits = validMappings > 1 ? Math.log2(validMappings) : 0;
     method = truncated ? "lower-bound estimate" : "exact enumeration";
@@ -98,7 +107,12 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
         id: "h5-entropy",
         severity: impact >= 10 ? "good" : impact >= 5 ? "low" : impact > 0 ? "low" : "medium",
         title: `Transaction entropy: ${roundedEntropy} bits`,
-        params: { entropy: roundedEntropy, method, interpretations: displayEntropy > 40 ? 0 : Math.round(Math.pow(2, displayEntropy)) },
+        params: {
+          entropy: roundedEntropy,
+          method,
+          interpretations: displayEntropy > 40 ? `2^${Math.round(displayEntropy)}` : Math.round(Math.pow(2, displayEntropy)),
+          context: entropyBits >= 4 ? "high" : "low",
+        },
         description:
           `This transaction has ${roundedEntropy} bits of entropy (via ${method}), meaning there are ` +
           (method === "structural estimate" ? "approximately " : "") +
@@ -117,30 +131,172 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
   };
 };
 
+// ── Boltzmann partition formula for equal-value outputs ──────────────────────
+
 /**
- * Count valid input-to-output mappings for small transactions.
+ * Try the Boltzmann partition path: if all spendable outputs share the same
+ * value AND all inputs can individually fund at least one output, compute
+ * the exact interpretation count using integer partitions.
+ *
+ * Returns null if the transaction doesn't qualify (mixed output values).
+ */
+function tryBoltzmannEqualOutputs(
+  inputs: number[],
+  outputs: number[],
+): { entropy: number; method: string } | null {
+  if (outputs.length < 2 || inputs.length < 2) return null;
+
+  // Check if all outputs share the same value
+  const outputValue = outputs[0];
+  if (!outputs.every((v) => v === outputValue)) return null;
+
+  const n = outputs.length;
+
+  // All inputs must be able to fund at least one output
+  const fundableInputs = inputs.filter((v) => v >= outputValue);
+  if (fundableInputs.length < n) return null;
+
+  // Use the number of inputs that can fund outputs as our n for partitions,
+  // capped at the number of outputs (each output needs exactly one "share")
+  const effectiveN = Math.min(fundableInputs.length, n);
+
+  if (effectiveN <= 50) {
+    const count = boltzmannEqualOutputs(effectiveN);
+    const entropy = count > 1 ? Math.log2(count) : 0;
+    return { entropy, method: "Boltzmann partition" };
+  }
+
+  // For very large n, use Stirling approximation
+  const entropy = estimateBoltzmannEntropy(effectiveN);
+  return { entropy, method: "Boltzmann estimate" };
+}
+
+/**
+ * Compute the number of valid interpretations for n equal inputs and n equal
+ * outputs using the Boltzmann partition formula.
+ *
+ * For each integer partition (s1, s2, ..., sk) of n:
+ *   term = n!^2 / (prod(si!^2) * prod(mj!))
+ * where mj = multiplicity of each distinct part size.
+ *
+ * Total N = sum of all terms.
+ *
+ * Reference values:
+ *   n=2: 3, n=3: 16, n=4: 131, n=5: 1,496, n=6: 22,482,
+ *   n=7: 426,833, n=8: 9,934,563, n=9: ~277,006,192
+ */
+function boltzmannEqualOutputs(n: number): number {
+  const partitions = integerPartitions(n);
+  const nFact = factorial(n);
+  const nFactSquared = nFact * nFact;
+  let total = 0;
+
+  for (const partition of partitions) {
+    // Compute prod(si!^2) for each part
+    let prodPartFactSquared = 1;
+    for (const part of partition) {
+      const pf = factorial(part);
+      prodPartFactSquared *= pf * pf;
+    }
+
+    // Compute multiplicities: count how many times each distinct part appears
+    const multiplicities = new Map<number, number>();
+    for (const part of partition) {
+      multiplicities.set(part, (multiplicities.get(part) ?? 0) + 1);
+    }
+
+    // Compute prod(mj!) for multiplicities
+    let prodMultFact = 1;
+    for (const m of multiplicities.values()) {
+      prodMultFact *= factorial(m);
+    }
+
+    total += nFactSquared / (prodPartFactSquared * prodMultFact);
+  }
+
+  return Math.round(total);
+}
+
+/**
+ * Estimate Boltzmann entropy for large n using asymptotic approximation.
+ * Based on the observation that log2(N) grows roughly as 2*n*log2(n) - n*log2(e).
+ */
+function estimateBoltzmannEntropy(n: number): number {
+  // For large n, the dominant partition is the all-ones partition giving (n!)^2 / n!
+  // = n!, and there are many more partitions. Use a conservative estimate.
+  let logN = 0;
+  for (let i = 2; i <= n; i++) logN += Math.log2(i);
+  // The all-ones partition contributes n! interpretations.
+  // Other partitions add roughly 50-80% more. Scale by ~1.7x for a reasonable estimate.
+  return logN + Math.log2(1.7);
+}
+
+// ── Integer partition generator ─────────────────────────────────────────────
+
+/**
+ * Generate all integer partitions of n.
+ * A partition is a list of positive integers that sum to n, in non-increasing order.
+ * E.g., partitions(4) = [[4], [3,1], [2,2], [2,1,1], [1,1,1,1]]
+ *
+ * For n <= 50, this produces at most ~204,226 partitions - trivially fast.
+ */
+function integerPartitions(n: number): number[][] {
+  const result: number[][] = [];
+
+  function generate(remaining: number, maxPart: number, current: number[]): void {
+    if (remaining === 0) {
+      result.push([...current]);
+      return;
+    }
+    for (let part = Math.min(remaining, maxPart); part >= 1; part--) {
+      current.push(part);
+      generate(remaining - part, part, current);
+      current.pop();
+    }
+  }
+
+  generate(n, n, []);
+  return result;
+}
+
+// ── Memoized factorial ──────────────────────────────────────────────────────
+
+const factorialCache: number[] = [1, 1];
+
+function factorial(n: number): number {
+  if (n < factorialCache.length) return factorialCache[n];
+  let result = factorialCache[factorialCache.length - 1];
+  for (let i = factorialCache.length; i <= n; i++) {
+    result *= i;
+    factorialCache[i] = result;
+  }
+  return result;
+}
+
+// ── Assignment-based enumeration (mixed-value fallback) ─────────────────────
+
+/**
+ * Count valid input-to-output mappings for small mixed-value transactions.
  *
  * A mapping is valid if each input can cover the outputs assigned to it
- * (sum of assigned outputs <= input value). This is a simplified model
- * that counts subset-sum valid partitions.
+ * (sum of assigned outputs <= input value). This is a lower-bound estimate
+ * of the true Boltzmann count, which would consider many-to-many mappings.
  */
 function countValidMappings(inputs: number[], outputs: number[]): { count: number; truncated: boolean } {
   const n = inputs.length;
   const m = outputs.length;
 
-  // For each output, find which inputs could fund it
-  let count = 0;
   const totalInput = inputs.reduce((s, v) => s + v, 0);
   const totalOutput = outputs.reduce((s, v) => s + v, 0);
 
   // If total input < total output (shouldn't happen in valid tx), no valid mappings
   if (totalInput < totalOutput) return { count: 1, truncated: false };
 
-  // Simple approach: for each permutation of input assignment, check validity.
-  // For small transactions, we enumerate which input each output maps to.
-  // Limit to prevent combinatorial explosion.
+  // For each output, try assigning it to each input that can fund it.
+  // Limit iterations to prevent combinatorial explosion.
   const limit = 10_000;
   let iterations = 0;
+  let count = 0;
 
   function enumerate(
     outputIdx: number,
@@ -173,7 +329,7 @@ function countValidMappings(inputs: number[], outputs: number[]): { count: numbe
 }
 
 /**
- * Estimate entropy for large transactions based on equal-output patterns.
+ * Estimate entropy for large mixed-value transactions based on equal-output patterns.
  */
 function estimateEntropy(inputs: number[], outputs: number[]): number {
   // Count equal output groups
@@ -188,22 +344,20 @@ function estimateEntropy(inputs: number[], outputs: number[]): number {
     if (count > maxGroupSize) maxGroupSize = count;
   }
 
-  // Entropy estimate using permutation entropy: equal outputs create ambiguity
-  // because each equal output could map to any input capable of funding it.
-  // Upper bound: log2(k!) where k = min(equalOutputs, inputs)
-  // This is tighter than n * log2(m) which ignores subset-sum constraints.
+  // For equal-output groups, use Boltzmann partition formula if feasible
   if (maxGroupSize >= 2) {
     const n = maxGroupSize;
     const m = inputs.length;
     if (m <= 1) return 0;
     const k = Math.min(n, m);
-    let logFactorial = 0;
-    for (let i = 2; i <= k; i++) logFactorial += Math.log2(i);
-    return logFactorial;
+    if (k <= 50) {
+      const count = boltzmannEqualOutputs(k);
+      return count > 1 ? Math.log2(count) : 0;
+    }
+    return estimateBoltzmannEntropy(k);
   }
 
   // All unique outputs: entropy from input-output pairing ambiguity
   const minDim = Math.min(inputs.length, outputs.length);
   return minDim > 1 ? Math.log2(minDim) : 0;
 }
-

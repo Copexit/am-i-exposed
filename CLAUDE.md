@@ -45,3 +45,14 @@ Use these consistently for findings:
 - `medium` - amber (#eab308)
 - `low` - blue (#3b82f6)
 - `good` - green (#28d065)
+
+## Documentation
+
+Project documentation lives in `docs/`. Before tackling new tasks, explore this folder for context. Key references:
+
+- **`docs/privacy-engine.md`** - Canonical heuristic reference (H1-H12), scoring model, threat model
+- **`docs/development-guide.md`** - Architecture, components, state machine, API endpoints
+- **`docs/testing-reference.md`** - Example transactions/addresses with expected grades
+- **`docs/research-boltzmann-entropy.md`** - Entropy math and implementation notes
+
+See `docs/README.md` for the full index including research, deployment guides, and feature specs.

@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Standalone Node.js sidecar (CommonJS, not part of Next.js app)
     "umbrel/tor-proxy/**",
+    // Archived research articles (third-party HTML/JS, not our code)
+    "docs/archive/**",
   ]),
 ]);
 

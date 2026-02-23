@@ -14,7 +14,7 @@ In April 2024, [OXT.me](https://oxt.me) and [KYCP.org](https://kycp.org) went of
 
 As of today, there is no publicly available tool that combines entropy estimation, wallet fingerprinting detection, CoinJoin pattern recognition, and dust attack warnings in a single interface. **am-i.exposed** fills that gap.
 
-For the full technical deep-dive  - every heuristic, scoring weight, academic reference, threat model, and competitor analysis  - see [`privacy_engine.md`](./privacy_engine.md).
+For the full technical deep-dive  - every heuristic, scoring weight, academic reference, threat model, and competitor analysis  - see [`privacy-engine.md`](./docs/privacy-engine.md).
 
 ## How it works
 
@@ -32,7 +32,7 @@ For stronger privacy:
 - Use a **trusted, no-log VPN**
 - **Wait** before querying a recent transaction (timing correlation is a real risk)
 
-There is no am-i.exposed backend. No analytics. No cookies. No tracking. The static site is served from GitHub Pages and has zero visibility into what you analyze. See the [Operational Security Concerns](./privacy_engine.md#operational-security-concerns) section of the privacy engine docs for the full threat model.
+There is no am-i.exposed backend. No analytics. No cookies. No tracking. The static site is served from GitHub Pages and has zero visibility into what you analyze. See the [Operational Security Concerns](./docs/privacy-engine.md#operational-security-concerns) section of the privacy engine docs for the full threat model.
 
 ## Privacy score
 
@@ -56,7 +56,7 @@ Scoring starts at a base of 70. Each heuristic applies a positive or negative mo
 | **Change detection** | Address type mismatch, unnecessary inputs, round-amount change, output ordering |
 | **Common input ownership (CIOH)** | Multi-input txs that link all your addresses to the same entity |
 | **CoinJoin detection** | Whirlpool, Wasabi/WabiSabi, and JoinMarket patterns  - the only positive signal |
-| **Entropy estimation** | Simplified Boltzmann  - how many valid input-output mappings exist |
+| **Entropy (Boltzmann)** | Partition-based Boltzmann entropy  - how many valid interpretations exist |
 | **Fee analysis** | Round fee rates and RBF signaling that narrow wallet identification |
 | **OP_RETURN metadata** | Permanent embedded data (Omni, OpenTimestamps, Runes, ASCII text) |
 | **Wallet fingerprinting** | nLockTime, nVersion, nSequence, BIP69 ordering, low-R signatures  - identifies wallet software |
@@ -105,7 +105,32 @@ Build (static export to `out/`):
 pnpm build
 ```
 
-See [`testing.md`](./testing.md) for example transactions and expected scores.
+See [`testing-reference.md`](./docs/testing-reference.md) for example transactions and expected scores.
+
+## Research & Acknowledgments
+
+The privacy engine is built on foundational research by the Bitcoin privacy community:
+
+- **LaurentMT** - Creator of the Boltzmann entropy framework for Bitcoin transactions. His research series "Bitcoin Transactions & Privacy" (Parts 1-3, ~2015) defined transaction entropy E = log2(N), link probability matrices, and the mathematical tools that underpin all modern transaction privacy analysis. His [Boltzmann tool](https://github.com/Samourai-Wallet/boltzmann) was the first implementation to compute these metrics. Our entropy heuristic (H5) is a direct implementation of his work.
+
+- **Greg Maxwell** - Inventor of [CoinJoin](https://bitcointalk.org/index.php?topic=279249.0) (2013). The original CoinJoin proposal inspired the entire ecosystem of collaborative transactions and directly motivated the entropy framework. Our CIOH (H3), CoinJoin detection (H4), and entropy (H5) heuristics all trace back to concepts he introduced.
+
+- **OXT Research / ErgoBTC** - "Understanding Bitcoin Privacy with OXT" 4-part series (2021). Comprehensive educational guide covering change detection, transaction graphs, wallet clustering, CIOH, and defensive measures. Directly informed our heuristic implementations and user-facing explanations. Archived at: [Part 1](https://archive.ph/1xAw7), [Part 2](https://archive.ph/TDvjy), [Part 3](https://archive.ph/suxyq), [Part 4](https://archive.ph/Aw6zC).
+
+- **Kristov Atlas** - CoinJoin Sudoku research, referenced by LaurentMT as foundational for deterministic link detection.
+
+- **Spiral BTC** - "The Scroll #3: A Brief History of Wallet Clustering"  - historical survey of chain analysis from 2011-2024, covering the evolution from naive CIOH to wallet fingerprinting with ML.
+
+- **Academic researchers**: Meiklejohn et al. ("A Fistful of Bitcoins"), Moser & Narayanan ("Resurrecting Address Clustering"), Kappos et al. ("How to Peel a Million"), Reid & Harriman (2011), Ron & Shamir (2012).
+
+- **privacidadbitcoin.com** - Spanish-language Bitcoin privacy education. Community entropy calculation reference that helped identify a counting error in our original implementation.
+
+See [`research-boltzmann-entropy.md`](./docs/research-boltzmann-entropy.md) for the full research reference and [`privacy-engine.md`](./docs/privacy-engine.md) for the technical documentation.
+
+## Authors
+
+- **Copexit** - Development & Architecture
+- **Arkad** ([@multicripto](https://x.com/multicripto)) - Co-author (Research & UX)
 
 ## License
 

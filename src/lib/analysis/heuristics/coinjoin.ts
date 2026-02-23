@@ -149,6 +149,33 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
     }
   }
 
+  // Check for Stonewall pattern: steganographic CoinJoin (Samourai Wallet)
+  // Only check if no other CoinJoin was detected
+  if (findings.length === 0) {
+    const stonewall = detectStonewall(tx.vin, spendableOutputs);
+    if (stonewall) {
+      findings.push({
+        id: "h4-stonewall",
+        severity: "good",
+        title: `Possible Stonewall: 2 equal outputs of ${formatBtc(stonewall.denomination)}`,
+        params: {
+          denomination: formatBtc(stonewall.denomination),
+          distinctAddresses: stonewall.distinctInputAddresses,
+        },
+        description:
+          `This transaction matches the Stonewall pattern: ${tx.vin.length} inputs from ${stonewall.distinctInputAddresses} distinct address${stonewall.distinctInputAddresses > 1 ? "es" : ""}, ` +
+          `4 outputs with 2 equal values (${formatBtc(stonewall.denomination)}). ` +
+          "Stonewall is a steganographic transaction designed to look like a normal payment while creating ambiguity about the fund flow. " +
+          "It is impossible to distinguish a Stonewall (single wallet) from a STONEWALLx2 (collaborative, two wallets) on-chain - this ambiguity is the point.",
+        recommendation:
+          "Stonewall transactions provide plausible deniability by making it unclear whether this is a simple payment or a collaborative CoinJoin. " +
+          "For stronger privacy, combine with Whirlpool mixing before spending. " +
+          EXCHANGE_WARNING,
+        scoreImpact: 10,
+      });
+    }
+  }
+
   // If any CoinJoin was detected, add an informational warning about exchange flagging risks
   if (findings.length > 0) {
     findings.push({
@@ -264,6 +291,51 @@ function detectJoinMarket(
   return {
     equalCount: bestCount,
     denomination: bestValue,
+    distinctInputAddresses: inputAddresses.size,
+  };
+}
+
+function detectStonewall(
+  vin: Parameters<typeof analyzeCoinJoin>[0]["vin"],
+  spendableOutputs: { value: number; scriptpubkey_address?: string }[],
+): { denomination: number; distinctInputAddresses: number } | null {
+  // Stonewall: 2-3 inputs, exactly 4 spendable outputs (2 equal + 2 change)
+  // This is a steganographic transaction designed to look like a normal payment.
+  if (vin.length < 2 || vin.length > 3) return null;
+  if (spendableOutputs.length !== 4) return null;
+
+  // Count output values
+  const counts = new Map<number, number>();
+  for (const o of spendableOutputs) {
+    counts.set(o.value, (counts.get(o.value) ?? 0) + 1);
+  }
+
+  // Need exactly 1 pair of equal outputs + 2 distinct change outputs
+  // counts.size === 3 means: one value twice, two other values once each
+  if (counts.size !== 3) return null;
+
+  let equalValue = 0;
+  for (const [value, count] of counts) {
+    if (count === 2) equalValue = value;
+  }
+  if (equalValue === 0) return null;
+
+  // Skip Whirlpool denominations (would be caught by Whirlpool detection)
+  if (WHIRLPOOL_DENOMS.includes(equalValue)) return null;
+
+  // Skip dust amounts
+  if (equalValue < 10_000) return null;
+
+  // Count distinct input addresses
+  const inputAddresses = new Set<string>();
+  for (const v of vin) {
+    if (v.prevout?.scriptpubkey_address) {
+      inputAddresses.add(v.prevout.scriptpubkey_address);
+    }
+  }
+
+  return {
+    denomination: equalValue,
     distinctInputAddresses: inputAddresses.size,
   };
 }

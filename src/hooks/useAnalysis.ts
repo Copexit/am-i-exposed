@@ -331,6 +331,7 @@ export function useAnalysis() {
       if (ofacResult.sanctioned) {
         const preSendResult: PreSendResult = {
           riskLevel: "CRITICAL",
+          summaryKey: "presend.adviceCritical",
           summary: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
           findings: [
             {
@@ -422,6 +423,7 @@ export function useAnalysis() {
         if (ofacResult.sanctioned) {
           const preSendResult: PreSendResult = {
             riskLevel: "CRITICAL",
+            summaryKey: "presend.summaryCritical",
             summary:
               "This address appears on the OFAC sanctions list. " +
               "Sending funds to this address may violate sanctions law.",
