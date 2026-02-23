@@ -20,7 +20,7 @@ function getImpactColor(impact: string): string {
 
 const HEURISTIC_IDS = [
   { id: "H1", titleKey: "methodology.heuristic_h1_title", descKey: "methodology.heuristic_h1_description", impact: "-5 to -15" },
-  { id: "H2", titleKey: "methodology.heuristic_h2_title", descKey: "methodology.heuristic_h2_description", impact: "-5 to -15" },
+  { id: "H2", titleKey: "methodology.heuristic_h2_title", descKey: "methodology.heuristic_h2_description", impact: "-5 to -30" },
   { id: "H3", titleKey: "methodology.heuristic_h3_title", descKey: "methodology.heuristic_h3_description", impact: "-3 to -15" },
   { id: "H4", titleKey: "methodology.heuristic_h4_title", descKey: "methodology.heuristic_h4_description", impact: "+15 to +30" },
   { id: "H5", titleKey: "methodology.heuristic_h5_title", descKey: "methodology.heuristic_h5_description", impact: "-5 to +15" },

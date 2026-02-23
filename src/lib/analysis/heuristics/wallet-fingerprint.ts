@@ -28,8 +28,9 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
   // Only flag the positive signal: block-height locktime (Bitcoin Core anti-fee-sniping).
   if (tx.locktime > 0 && tx.locktime < 500_000_000) {
     // Looks like a block height - Bitcoin Core anti-fee-sniping
-    signals.push("nLockTime set to block height (Bitcoin Core pattern)");
-    walletGuess = "Bitcoin Core";
+    // Sparrow also uses the same pattern (based on bitcoinj/Bitcoin Core signing)
+    signals.push("nLockTime set to block height (Bitcoin Core / Sparrow pattern)");
+    walletGuess = "Bitcoin Core / Sparrow";
   }
 
   // nVersion is too generic to be a useful fingerprint: nearly all modern
@@ -81,6 +82,7 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
   if (rawHex) {
     const hasLowR = detectLowRSignatures(rawHex, tx.vin.length);
     if (hasLowR) {
+      // Low-R grinding is specific to Bitcoin Core (since 0.17) - Sparrow does not do this
       signals.push("Low-R signatures (Bitcoin Core >= 0.17)");
       walletGuess = "Bitcoin Core";
     }
@@ -92,7 +94,14 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
   let severity: Severity;
   let impact: number;
 
-  if (walletGuess) {
+  if (walletGuess === "Bitcoin Core / Sparrow") {
+    // Bitcoin Core and Sparrow share nLockTime and nSequence patterns.
+    // This large combined user base means the fingerprint is less
+    // identifying - reduced severity. (Low-R grinding narrows to Bitcoin
+    // Core specifically, which is handled by the walletGuess branch below.)
+    severity = "low";
+    impact = -3;
+  } else if (walletGuess) {
     severity = "medium";
     impact = -6;
   } else if (signals.length >= 3) {
@@ -122,7 +131,8 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
     recommendation:
       "Wallet fingerprinting is difficult to avoid without modifying wallet software. " +
       "Taproot (P2TR) transactions help because key-path spends all look identical. " +
-      "Using popular wallets with large user bases reduces the identifying power of fingerprints.",
+      "Using popular wallets with large user bases reduces the identifying power of fingerprints. " +
+      "Bitcoin Core and Sparrow share the same signing patterns, so their combined user base makes this fingerprint less unique.",
     scoreImpact: impact,
   });
 

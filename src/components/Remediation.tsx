@@ -45,7 +45,8 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
         detailKey: "remediation.stopReusingAddressDetail",
         detailDefault:
           "Generate a new address for every receive. Most wallets do this automatically. " +
-          "Send remaining funds to a fresh wallet using a CoinJoin or intermediate address.",
+          "Send remaining funds to a fresh wallet using coin control. When possible, spend exact amounts to avoid change. " +
+          "For stronger unlinking, use CoinJoin - but note that some exchanges may flag CoinJoin deposits.",
       });
     } else {
       actions.push({
@@ -59,6 +60,20 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
     }
   }
 
+  // Self-send (change back to input address) - critical priority
+  if (ids.has("h2-self-send")) {
+    actions.push({
+      priority: 1,
+      textKey: "remediation.switchWalletSelfSend",
+      textDefault: "Switch wallets - yours sends change back to the same address",
+      detailKey: "remediation.switchWalletSelfSendDetail",
+      detailDefault:
+        "Your wallet is sending change back to the same address you spent from. " +
+        "This destroys your privacy by revealing your exact balance and linking all your transactions. " +
+        "Switch to Sparrow Wallet, Bitcoin Core, or any HD wallet that generates fresh change addresses automatically.",
+    });
+  }
+
   // Dust attack
   if (ids.has("dust-attack")) {
     actions.push({
@@ -68,7 +83,7 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
       detailKey: "remediation.doNotSpendDustDetail",
       detailDefault:
         "Freeze this UTXO in your wallet's coin control. Spending it will link your addresses. " +
-        "If you must clean it up, send it through a CoinJoin first.",
+        "If you must clean it up, send it to a new address separately. For stronger unlinking, use CoinJoin - but note that some exchanges may flag CoinJoin deposits.",
     });
   }
 
@@ -180,9 +195,9 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
       textDefault: "Minimize multi-input transactions",
       detailKey: "remediation.minimizeMultiInputDetail",
       detailDefault:
-        "Consolidating UTXOs links your addresses together. Use coin control to avoid " +
-        "spending from multiple addresses in one transaction. If you must consolidate, " +
-        "do it through a CoinJoin.",
+        "Consolidating UTXOs links your addresses together. Use coin control to select specific UTXOs when spending. " +
+        "When possible, spend exact amounts to avoid creating change. If you must consolidate, " +
+        "consider CoinJoin - but note that some exchanges may flag CoinJoin deposits.",
     });
   }
 
@@ -195,7 +210,7 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
       detailKey: "remediation.usePayJoinDetail",
       detailDefault:
         "Simple 1-in/2-out transactions have low entropy, making analysis straightforward. " +
-        "PayJoin (BIP78) adds inputs from the receiver to break common analysis heuristics.",
+        "When possible, spend exact amounts to avoid change outputs. PayJoin (BIP78) adds inputs from the receiver to break common analysis heuristics.",
     });
   }
 
@@ -207,9 +222,9 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
       textDefault: "Consider a fresh start with better privacy practices",
       detailKey: "remediation.freshStartDetail",
       detailDefault:
-        "Use a privacy-focused wallet (Sparrow, Wasabi), generate a new seed, and send " +
-        "funds through a CoinJoin before depositing to the new wallet. Use Tor for all " +
-        "Bitcoin network activity.",
+        "Use a privacy-focused wallet (Sparrow, Wasabi), generate a new seed, and use coin control when sending. " +
+        "When possible, spend exact amounts to avoid change. For stronger privacy, use CoinJoin before depositing " +
+        "to the new wallet - but note that some exchanges may flag CoinJoin deposits. Use Tor for all Bitcoin network activity.",
     });
   }
 

@@ -49,7 +49,7 @@ export const analyzeSpendingPattern: AddressHeuristic = (address, _utxos, txs) =
         "This is characteristic of cold storage, which is good for security. " +
         "Since no spend transactions exist, no on-chain spending patterns can be analyzed.",
       recommendation:
-        "When you do spend from this address, use coin control and consider CoinJoin.",
+        "When you do spend from this address, use coin control to select specific UTXOs. When possible, spend exact amounts to avoid change outputs. For stronger privacy, consider CoinJoin - but note that some exchanges may flag CoinJoin deposits.",
       scoreImpact: 2,
     });
   }

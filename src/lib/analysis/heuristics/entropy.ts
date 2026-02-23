@@ -42,7 +42,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
           description:
             "This transaction has a single input and single output, meaning there is only one possible interpretation. No ambiguity exists about the flow of funds.",
           recommendation:
-            "Transactions with more inputs and outputs naturally have higher entropy. CoinJoin transactions maximize entropy.",
+            "Transactions with more inputs and outputs naturally have higher entropy. When possible, spend exact amounts to avoid change outputs. CoinJoin transactions maximize entropy but may be flagged by some exchanges.",
           scoreImpact: -5,
         },
       ],
@@ -82,7 +82,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
             `This transaction has near-zero entropy (${roundedEntropy} bits, via ${method}). ` +
             "There is essentially only one valid interpretation of the fund flow, making it trivial to trace.",
           recommendation:
-            "Higher entropy transactions are harder to trace. Consider using CoinJoin to maximize transaction ambiguity.",
+            "Higher entropy transactions are harder to trace. When possible, spend exact amounts to avoid change. Consider using CoinJoin to maximize ambiguity - but note that some exchanges may flag CoinJoin deposits.",
           scoreImpact: -3,
         },
       ],
@@ -109,8 +109,8 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
           " interpretations of the fund flow. Higher entropy makes chain analysis less reliable.",
         recommendation:
           entropyBits >= 4
-            ? "Good entropy level. CoinJoin transactions can achieve even higher entropy."
-            : "Consider using CoinJoin to significantly increase transaction entropy.",
+            ? "Good entropy level. Spending exact amounts (no change) further improves privacy."
+            : "When possible, spend exact amounts to avoid change outputs. For significantly higher entropy, consider CoinJoin - but note that some exchanges may flag CoinJoin deposits.",
         scoreImpact: impact,
       },
     ],

@@ -149,7 +149,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
           {result.size >= 20
             ? t("cluster.severityLarge", { count: result.size, defaultValue: "Large cluster: {{count}} addresses are linked through common inputs. A chain analysis firm can see all of them as belonging to the same entity." })
             : result.size >= 5
-              ? t("cluster.severityNotable", { count: result.size, defaultValue: "Notable cluster: {{count}} addresses linked. Consider using CoinJoin before consolidating UTXOs." })
+              ? t("cluster.severityNotable", { count: result.size, defaultValue: "Notable cluster: {{count}} addresses linked. Use coin control to avoid further linking. When possible, spend exact amounts to avoid change. For stronger unlinking, consider CoinJoin before consolidating." })
               : t("cluster.severitySmall", { count: result.size, defaultValue: "Small cluster: {{count}} addresses linked through common inputs." })}
         </div>
       )}

@@ -7,13 +7,14 @@ import { getAddressType } from "@/lib/bitcoin/address-type";
  * H2: Change Detection
  *
  * Identifies the likely change output using multiple sub-heuristics:
- * 1. Address type mismatch: change usually matches input address type
- * 2. Round payment: the non-round output is likely change
+ * 1. Self-send: output address matches an input address (critical)
+ * 2. Address type mismatch: change usually matches input address type
+ * 3. Round payment: the non-round output is likely change
  *
  * When change is identifiable, the payment amount and direction are revealed.
  *
  * Reference: Meiklejohn et al., 2013
- * Impact: -5 to -10
+ * Impact: -5 to -30
  */
 export const analyzeChangeDetection: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
@@ -23,6 +24,66 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
     (out) => out.scriptpubkey_type !== "op_return" && out.scriptpubkey_address,
   );
 
+  // Skip coinbase
+  if (tx.vin.some((v) => v.is_coinbase)) return { findings };
+
+  // ── Self-send detection: output address matches input address ──────
+  // The most severe form of change detection. When change goes back to the
+  // same address it was spent from, the change output is trivially identified
+  // and the sender's balance is fully revealed on-chain.
+  const inputAddresses = new Set<string>();
+  for (const vin of tx.vin) {
+    if (vin.prevout?.scriptpubkey_address) {
+      inputAddresses.add(vin.prevout.scriptpubkey_address);
+    }
+  }
+
+  if (inputAddresses.size > 0 && spendableOutputs.length > 0) {
+    const matchingOutputs = spendableOutputs.filter(
+      (out) => inputAddresses.has(out.scriptpubkey_address!),
+    );
+
+    if (matchingOutputs.length > 0) {
+      const allMatch = matchingOutputs.length === spendableOutputs.length;
+      const matchCount = matchingOutputs.length;
+      const totalSpendable = spendableOutputs.length;
+      const impact = allMatch ? -30 : -25;
+
+      findings.push({
+        id: "h2-self-send",
+        severity: "critical",
+        title: allMatch
+          ? "All outputs return to input address"
+          : `${matchCount} of ${totalSpendable} outputs sent back to input address`,
+        params: { matchCount, totalSpendable, allMatch: allMatch ? 1 : 0 },
+        description: allMatch
+          ? "Every spendable output in this transaction goes back to an address that was also an input. " +
+            "This reveals the sender's exact balance and creates a trivial on-chain link. " +
+            "A chain observer can see this is a self-transfer with no external recipient."
+          : `${matchCount} of ${totalSpendable} spendable outputs go back to an address that was also an input. ` +
+            "This is a severe privacy failure - it reveals which output is the change (the one returning to the sender) " +
+            "and therefore the exact payment amount. Some wallets like TrustWallet are known to exhibit this behavior.",
+        recommendation:
+          "Use a wallet that generates a new change address for every transaction (HD wallets). " +
+          "Never send change back to the same address. Sparrow, Wasabi, and Bitcoin Core all handle this correctly.",
+        scoreImpact: impact,
+        remediation: {
+          steps: [
+            "Switch to a wallet that uses HD (hierarchical deterministic) key generation - it automatically creates a new change address for every transaction.",
+            "Never manually set the change address to your sending address.",
+            "If your wallet does not support automatic change addresses, consider Sparrow Wallet or Bitcoin Core.",
+            "For funds already exposed by this pattern, consider using CoinJoin to break the linkability.",
+          ],
+          tools: [
+            { name: "Sparrow Wallet", url: "https://sparrowwallet.com" },
+            { name: "Bitcoin Core", url: "https://bitcoincore.org" },
+          ],
+          urgency: "immediate",
+        },
+      });
+    }
+  }
+
   // Only applies to transactions with exactly 2 spendable outputs
   // (more complex transactions need graph analysis)
   if (spendableOutputs.length !== 2) return { findings };
@@ -31,9 +92,6 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
   if (!spendableOutputs[0].scriptpubkey_address || !spendableOutputs[1].scriptpubkey_address) {
     return { findings };
   }
-
-  // Skip coinbase
-  if (tx.vin.some((v) => v.is_coinbase)) return { findings };
 
   const signals: string[] = [];
   const changeIndices = new Map<number, number>(); // output index -> signal count

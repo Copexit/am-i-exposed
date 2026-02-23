@@ -197,6 +197,8 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
         f.scoreImpact = 0;
       }
       // Change detection in CoinJoin is less reliable
+      // NOTE: h2-self-send is NOT suppressed - sending back to your own
+      // input address is a privacy failure even in CoinJoin context
       if (f.id === "h2-change-detected") {
         f.severity = "low";
         f.title = `${f.title} (CoinJoin - unreliable)`;
@@ -342,7 +344,10 @@ export async function analyzeDestination(
   const timesReceived = reuseCount;
   const totalReceived = chain_stats.funded_txo_sum + mempool_stats.funded_txo_sum;
 
-  // Determine risk level based on how many times the address received funds
+  // Determine risk level based on how many times the address received funds.
+  // Self-hosted mempool instances (e.g., Umbrel with romanz/electrs) may return
+  // funded_txo_count=0 even when the address has activity. Fall back to tx_count
+  // as a secondary signal to avoid false "Low Risk" assessments.
   let riskLevel: RiskLevel;
   let summary: string;
 
@@ -358,6 +363,12 @@ export async function analyzeDestination(
   } else if (reuseCount === 1) {
     riskLevel = "MEDIUM";
     summary = "This address has already received funds once. Sending here will create address reuse, linking your transaction to the previous one on-chain.";
+  } else if (txCount > 0) {
+    // funded_txo_count is 0 but tx_count > 0 - the address has transaction
+    // activity that the backend didn't fully index (common on self-hosted
+    // mempool with romanz/electrs). Err on the side of caution.
+    riskLevel = "MEDIUM";
+    summary = `This address shows ${txCount} transaction(s) but receive data is unavailable. The address is not unused - verify with the recipient before sending.`;
   } else {
     riskLevel = "LOW";
     summary = "This address appears unused. No significant privacy concerns detected for the recipient.";

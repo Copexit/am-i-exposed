@@ -49,7 +49,8 @@ export const analyzeUtxos: AddressHeuristic = (_address, utxos) => {
       description:
         `This address holds ${utxos.length} UTXOs. Spending multiple UTXOs in a single transaction links them together via CIOH, reducing privacy. Large UTXO sets also increase transaction fees.`,
       recommendation:
-        "Consider consolidating UTXOs during low-fee periods using coin control, or run them through a CoinJoin to break linkability before consolidation.",
+        "Use coin control to select specific UTXOs when spending. When possible, spend exact amounts to avoid change. " +
+        "Consider consolidating during low-fee periods. For stronger privacy, run UTXOs through a CoinJoin before consolidation - but note that some exchanges may flag CoinJoin deposits.",
       scoreImpact: -3,
     });
   } else if (utxos.length >= 5) {

@@ -18,6 +18,7 @@ import {
   type PreSendResult,
 } from "@/lib/analysis/orchestrator";
 import { checkOfac } from "@/lib/analysis/cex-risk/ofac-check";
+import { needsEnrichment, enrichPrevouts, countNullPrevouts } from "@/lib/api/enrich-prevouts";
 import type { ScoringResult, InputType, TxAnalysisResult } from "@/lib/types";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { HeuristicTranslator } from "@/lib/analysis/heuristics/types";
@@ -121,6 +122,14 @@ export function useAnalysis() {
             api.getTxHex(input).catch(() => undefined),
           ]);
 
+          // Enrich missing prevout data for self-hosted mempool backends
+          if (needsEnrichment([tx])) {
+            await enrichPrevouts([tx], {
+              getTransaction: (txid) => api.getTransaction(txid),
+              signal: controller.signal,
+            });
+          }
+
           setState((prev) => ({
             ...prev,
             phase: "analyzing",
@@ -148,6 +157,23 @@ export function useAnalysis() {
             }));
           });
 
+          // If prevout data is still missing after enrichment, warn the user
+          const remainingNulls = countNullPrevouts([tx]);
+          if (remainingNulls > 0) {
+            result.findings.push({
+              id: "api-incomplete-prevout",
+              severity: "low",
+              title: `${remainingNulls} input${remainingNulls > 1 ? "s" : ""} missing data`,
+              description:
+                `Could not retrieve full data for ${remainingNulls} transaction input${remainingNulls > 1 ? "s" : ""}. ` +
+                "Some heuristics (CIOH, entropy, change detection, script type analysis) may be incomplete. " +
+                "This typically happens with self-hosted mempool instances.",
+              recommendation:
+                "For complete analysis, try using the public mempool.space API or upgrade your self-hosted instance to mempool/electrs.",
+              scoreImpact: 0,
+            });
+          }
+
           setState((prev) => ({
             ...prev,
             phase: "complete",
@@ -162,6 +188,15 @@ export function useAnalysis() {
             api.getAddressUtxos(input).catch(() => [] as import("@/lib/api/types").MempoolUtxo[]),
             api.getAddressTxs(input).catch(() => [] as import("@/lib/api/types").MempoolTransaction[]),
           ]);
+
+          // Enrich missing prevout data for self-hosted mempool backends
+          if (txs.length > 0 && needsEnrichment(txs)) {
+            await enrichPrevouts(txs, {
+              getTransaction: (txid) => api.getTransaction(txid),
+              signal: controller.signal,
+              maxParentTxids: 50,
+            });
+          }
 
           setState((prev) => ({ ...prev, phase: "analyzing", addressData: address }));
 
@@ -192,6 +227,25 @@ export function useAnalysis() {
           const txBreakdown = txs.length > 0
             ? await analyzeTransactionsForAddress(input, txs)
             : null;
+
+          // If prevout data is still missing after enrichment, warn the user
+          if (txs.length > 0) {
+            const remainingNulls = countNullPrevouts(txs);
+            if (remainingNulls > 0) {
+              result.findings.push({
+                id: "api-incomplete-prevout",
+                severity: "low",
+                title: `${remainingNulls} input${remainingNulls > 1 ? "s" : ""} missing data across transactions`,
+                description:
+                  `Could not retrieve full data for ${remainingNulls} transaction input${remainingNulls > 1 ? "s" : ""}. ` +
+                  "Some heuristics (CIOH, entropy, change detection, script type analysis) may be incomplete. " +
+                  "This typically happens with self-hosted mempool instances.",
+                recommendation:
+                  "For complete analysis, try using the public mempool.space API or upgrade your self-hosted instance to mempool/electrs.",
+                scoreImpact: 0,
+              });
+            }
+          }
 
           setState((prev) => ({
             ...prev,

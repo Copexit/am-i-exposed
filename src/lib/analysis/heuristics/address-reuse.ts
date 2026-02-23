@@ -26,6 +26,29 @@ export const analyzeAddressReuse: AddressHeuristic = (address) => {
     chain_stats.funded_txo_count + mempool_stats.funded_txo_count;
 
   if (totalFunded <= 1) {
+    // Safety check: the backend may not report funded data correctly (common
+    // with self-hosted mempool using romanz/electrs). Two anomalous cases:
+    // 1. funded_txo_count=0 but tx_count>0: address has txs but no funded data
+    // 2. funded_txo_count<=1 but tx_count>2: more activity than a single receive+spend
+    if ((totalFunded === 0 && txCount > 0) || txCount > 2) {
+      return {
+        findings: [
+          {
+            id: "h8-reuse-uncertain",
+            severity: "low",
+            title: "Address reuse data incomplete",
+            params: { txCount, totalFunded },
+            description:
+              `This address has ${txCount} transactions but the receive count (${totalFunded}) appears incomplete. ` +
+              "The API backend may not fully index funded outputs. Address reuse cannot be confirmed or ruled out.",
+            recommendation:
+              "Try analyzing this address using the public mempool.space API for more complete data.",
+            scoreImpact: 0,
+          },
+        ],
+      };
+    }
+
     return {
       findings: [
         {
@@ -101,14 +124,15 @@ export const analyzeAddressReuse: AddressHeuristic = (address) => {
           `This address appears in ${txCount} transactions. Every transaction to and from this address is now trivially linkable by chain analysis. ` +
           `Address reuse is the single most damaging privacy practice in Bitcoin.`,
         recommendation:
-          "Use a wallet that generates a new address for every receive (HD wallets). Never share the same address twice. Consider consolidating funds to a new address via CoinJoin.",
+          "Use a wallet that generates a new address for every receive (HD wallets). Never share the same address twice. " +
+          "Send remaining funds to a new address using coin control. For stronger unlinking, use CoinJoin - but note that some exchanges may flag CoinJoin transactions.",
         scoreImpact: impact,
         remediation: {
           steps: [
             "Stop using this address immediately - do not share it again for any future receives.",
             "Generate a fresh receive address in your wallet (HD wallets do this automatically).",
-            "Move remaining funds from this address through a CoinJoin to break the link to your transaction history.",
-            "If CoinJoin is not an option, send funds to a new wallet through an intermediate address with a time delay.",
+            "Move remaining funds to a new address using coin control. When possible, spend exact amounts to avoid creating change outputs.",
+            "For stronger unlinking, use CoinJoin to break the link to your transaction history - but note that some exchanges may flag CoinJoin deposits.",
           ],
           tools: [
             { name: "Sparrow Wallet", url: "https://sparrowwallet.com" },
