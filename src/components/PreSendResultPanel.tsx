@@ -139,7 +139,7 @@ export function PreSendResultPanel({
             {t(risk.labelKey, { defaultValue: risk.labelDefault })}
           </span>
           <p className="text-sm text-center text-foreground max-w-md">
-            {preSendResult.summary}
+            {t(preSendResult.summaryKey, { reuseCount: preSendResult.timesReceived, txCount: preSendResult.txCount, defaultValue: preSendResult.summary })}
           </p>
         </div>
 

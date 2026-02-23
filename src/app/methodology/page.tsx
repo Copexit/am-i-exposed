@@ -323,12 +323,12 @@ export default function MethodologyPage() {
         {/* Full technical reference link */}
         <div className="flex items-center justify-center py-4">
           <a
-            href="https://github.com/Copexit/am-i-exposed/blob/main/privacy_engine.md"
+            href="https://github.com/Copexit/am-i-exposed/blob/main/docs/privacy-engine.md"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-bitcoin/10 border border-bitcoin/20 hover:border-bitcoin/40 text-bitcoin/80 hover:text-bitcoin transition-all text-sm"
           >
-            {t("methodology.tech_ref_link", { defaultValue: "Full technical reference (privacy_engine.md)" })}
+            {t("methodology.tech_ref_link", { defaultValue: "Full technical reference (privacy-engine.md)" })}
             <ExternalLink size={14} />
           </a>
         </div>

@@ -1,6 +1,6 @@
 # Advanced Features Roadmap
 
-Future features derived from research in bithypha.md, entity_labels.md, and exchange_history.md.
+Future features derived from research in research-bithypha-competitive-analysis.md, research-entity-labels.md, and research-exchange-coinjoin-blocking.md.
 These require multi-day implementation effort and are tracked here for future sprints.
 
 ## 1. Bloom Filter Infrastructure for Exchange Detection
