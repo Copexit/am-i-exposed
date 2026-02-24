@@ -185,11 +185,16 @@ export function ApiSettings() {
         <>
         {/* Mobile backdrop */}
         <div
-          className="fixed inset-0 bg-black/40 z-40 sm:hidden"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 sm:hidden"
           onClick={() => setOpen(false)}
           aria-hidden="true"
         />
-        <div role="dialog" aria-modal="true" aria-label={t("settings.ariaLabel", { defaultValue: "Settings" })} className="fixed inset-x-0 top-[60px] mx-3 sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mx-0 sm:mt-2 sm:w-96 bg-surface-elevated border border-card-border rounded-xl shadow-xl z-50 p-4 space-y-4 max-h-[80vh] overflow-y-auto">
+        <div role="dialog" aria-modal="true" aria-label={t("settings.ariaLabel", { defaultValue: "Settings" })} className="fixed inset-x-0 bottom-0 sm:bottom-auto sm:top-full rounded-t-2xl sm:rounded-xl mx-0 sm:absolute sm:inset-x-auto sm:right-0 sm:mx-0 sm:mt-2 sm:w-96 glass z-50 p-4 space-y-4 max-h-[80vh] overflow-y-auto">
+
+          {/* Mobile drag handle */}
+          <div className="flex justify-center sm:hidden pb-2">
+            <div className="w-10 h-1 rounded-full bg-muted/30" />
+          </div>
 
           {/* Network & Language row */}
           <div className="flex items-center gap-3">

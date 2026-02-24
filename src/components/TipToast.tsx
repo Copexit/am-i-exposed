@@ -69,7 +69,7 @@ export function TipToast() {
           transition={{ duration: 0.3 }}
           className="fixed bottom-20 right-4 left-4 sm:left-auto max-w-sm z-50"
         >
-          <div className="relative bg-surface-elevated border border-bitcoin/30 rounded-xl shadow-xl overflow-hidden">
+          <div className="relative glass border-bitcoin/30 rounded-xl overflow-hidden">
             {/* Collapsed row */}
             <button
               onClick={() => setExpanded(!expanded)}

@@ -67,7 +67,7 @@ export function DiagnosticLoader({ steps, phase }: DiagnosticLoaderProps) {
       {/* Progress bar */}
       {phase === "analyzing" && steps.length > 0 && (
         <div
-          className="w-full h-0.5 bg-surface-inset rounded-full overflow-hidden"
+          className="w-full h-1 bg-surface-inset rounded-full overflow-hidden"
           role="progressbar"
           aria-valuenow={doneCount}
           aria-valuemin={0}
@@ -75,11 +75,16 @@ export function DiagnosticLoader({ steps, phase }: DiagnosticLoaderProps) {
           aria-label={t("loader.progress", { done: doneCount, total: steps.length, defaultValue: "{{done}} of {{total}} checks complete" })}
         >
           <motion.div
-            className="h-full bg-bitcoin/60 rounded-full"
+            className="h-full bg-bitcoin/60 rounded-full relative overflow-hidden"
             initial={{ width: 0 }}
             animate={{ width: `${(doneCount / steps.length) * 100}%` }}
             transition={{ duration: 0.3 }}
-          />
+          >
+            <div
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+              style={{ animation: "shimmer 1.5s infinite" }}
+            />
+          </motion.div>
         </div>
       )}
 
@@ -87,10 +92,12 @@ export function DiagnosticLoader({ steps, phase }: DiagnosticLoaderProps) {
         {steps.map((step, i) => (
           <motion.div
             key={step.id}
-            initial={{ opacity: 0, x: -8 }}
+            initial={{ opacity: 0, x: -12 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: i * 0.05, duration: 0.2 }}
-            className="flex items-center gap-2.5 text-sm"
+            transition={{ delay: i * 0.04, type: "spring", stiffness: 200, damping: 20 }}
+            className={`flex items-center gap-2.5 text-sm rounded-md px-1.5 py-0.5 ${
+              step.status === "running" ? "bg-bitcoin/5" : ""
+            }`}
           >
             <StepIcon status={step.status} />
             <span

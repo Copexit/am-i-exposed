@@ -201,7 +201,7 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="mt-3 bg-card-bg border border-card-border rounded-xl p-5 space-y-4">
+            <div className="mt-3 glass rounded-xl p-5 space-y-4">
               <p className="text-sm text-muted">
                 {inputType === "txid"
                   ? t("cex.willFlagTx", { defaultValue: "Will exchanges flag this transaction?" })

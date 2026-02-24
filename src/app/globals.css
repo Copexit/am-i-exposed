@@ -19,6 +19,13 @@
   --severity-medium: #eab308;
   --severity-low: #3b82f6;
   --severity-good: #28d065;
+  --glass-bg: rgba(28, 28, 32, 0.60);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-blur: 16px;
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --severity-critical-glow: rgba(239, 68, 68, 0.15);
+  --severity-high-glow: rgba(249, 115, 22, 0.12);
+  --bitcoin-gradient: linear-gradient(135deg, #f7931a 0%, #e8850f 50%, #d4790a 100%);
 }
 
 @theme inline {
@@ -49,7 +56,7 @@ html {
 }
 
 [id] {
-  scroll-margin-top: 80px;
+  scroll-margin-top: 96px;
 }
 
 body {
@@ -104,6 +111,91 @@ select:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+@property --border-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes border-rotate {
+  to {
+    --border-angle: 360deg;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Noise texture overlay for premium film-grain effect */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+/* Gradient divider */
+.gradient-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(139,92,246,0.4) 30%, rgba(247,147,26,0.4) 70%, transparent);
+}
+
+/* Sliding underline hover */
+.link-underline {
+  position: relative;
+}
+.link-underline::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.3s ease;
+}
+.link-underline:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+/* Gradient text utility */
+.gradient-text {
+  background: linear-gradient(135deg, #f7931a, #ef4444);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-gradient {
+  background: linear-gradient(135deg, #ef4444, #f97316, #ef4444);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -112,5 +204,9 @@ select:focus-visible {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  body::after {
+    display: none;
   }
 }

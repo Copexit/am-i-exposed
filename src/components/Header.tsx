@@ -9,8 +9,15 @@ export function Header() {
   const { t } = useTranslation();
 
   return (
-    <header className="sticky top-0 z-50 border-b border-card-border bg-background/80 backdrop-blur-md">
-      <div className="flex items-center justify-between px-4 sm:px-6 py-4 max-w-6xl mx-auto w-full">
+    <header
+      className="fixed top-0 w-full sm:top-3 sm:left-1/2 sm:-translate-x-1/2 sm:max-w-4xl sm:w-[calc(100%-2rem)] sm:rounded-2xl z-50 border-b sm:border-b-0 border-glass-border glass"
+      style={{
+        backdropFilter: "blur(16px) saturate(180%)",
+        WebkitBackdropFilter: "blur(16px) saturate(180%)",
+        borderTop: "1px solid rgba(255,255,255,0.1)",
+      }}
+    >
+      <div className="flex items-center justify-between px-4 sm:px-6 py-4">
         <div className="flex items-center">
           <button
             onClick={() => {
@@ -24,7 +31,7 @@ export function Header() {
             className="flex items-center gap-2 group hover:opacity-80 transition-opacity cursor-pointer"
           >
             <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground select-none whitespace-nowrap">
-              am-i.<span className="text-danger">exposed</span>
+              am-i.<span className="gradient-text">exposed</span>
             </span>
           </button>
           <nav className="hidden sm:flex items-center gap-1 ml-4" aria-label="Main navigation">

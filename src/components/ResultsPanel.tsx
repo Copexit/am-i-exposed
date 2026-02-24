@@ -18,6 +18,7 @@ import { TxBreakdownPanel } from "./TxBreakdownPanel";
 import { ClusterPanel } from "./ClusterPanel";
 import { TipJar } from "./TipJar";
 import { CrossPromo } from "./CrossPromo";
+import { GlowCard } from "./ui/GlowCard";
 import { copyToClipboard } from "@/lib/clipboard";
 import { getSummarySentiment } from "@/lib/scoring/score";
 import type { ScoringResult, InputType, TxAnalysisResult } from "@/lib/types";
@@ -162,23 +163,23 @@ export function ResultsPanel({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
       id="results-panel"
-      className="flex flex-col items-center gap-8 w-full max-w-3xl"
+      className="flex flex-col items-center gap-6 sm:gap-8 w-full max-w-3xl"
     >
       {/* Top bar */}
       <div className="w-full flex items-center justify-between">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer py-2 min-h-[44px]"
+          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer px-3 py-2 min-h-[44px] rounded-lg border border-card-border hover:border-muted/50 bg-surface-elevated/50"
         >
           <ArrowLeft size={16} />
           {t("results.newScan", { defaultValue: "New scan" })}
         </button>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <ExportButton targetId="results-panel" query={query} result={result} inputType={inputType} />
           <button
             onClick={handleShare}
-            className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer py-2 min-h-[44px]"
+            className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer px-3 py-2 min-h-[44px] rounded-lg border border-card-border hover:border-muted/50 bg-surface-elevated/50"
           >
             {shareStatus === "copied" ? <Check size={14} /> : <Copy size={14} />}
             {shareStatus === "copied" ? t("results.copied", { defaultValue: "Copied" }) : shareStatus === "failed" ? t("results.failed", { defaultValue: "Failed" }) : t("results.share", { defaultValue: "Share" })}
@@ -187,7 +188,7 @@ export function ResultsPanel({
       </div>
 
       {/* Query + Score */}
-      <div className="w-full bg-card-bg border border-card-border rounded-xl p-7 space-y-6">
+      <GlowCard className="w-full p-7 space-y-6">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-muted uppercase tracking-wider">
@@ -210,14 +211,15 @@ export function ResultsPanel({
         <div className="border-t border-card-border pt-6">
           <ScoreDisplay score={result.score} grade={result.grade} findings={result.findings} />
         </div>
-      </div>
+      </GlowCard>
 
       {/* Danger zone warning for F grade */}
       {result.grade === "F" && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 1.5, duration: 0.3 }}
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.4 }}
           className="w-full bg-severity-critical/10 border border-severity-critical/30 rounded-xl p-4 flex items-start gap-3"
         >
           <AlertTriangle size={18} className="text-severity-critical shrink-0 mt-0.5" />
@@ -235,17 +237,27 @@ export function ResultsPanel({
       )}
 
       {/* Data visualization */}
-      {txData && <TxSummary tx={txData} onAddressClick={onScan} />}
-      {addressData && <AddressSummary address={addressData} />}
+      {txData && (
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full">
+          <TxSummary tx={txData} onAddressClick={onScan} />
+        </motion.div>
+      )}
+      {addressData && (
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full">
+          <AddressSummary address={addressData} />
+        </motion.div>
+      )}
 
       {/* Per-transaction breakdown (address analysis only) */}
       {txBreakdown && txBreakdown.length > 0 && addressData && (
-        <TxBreakdownPanel
-          breakdown={txBreakdown}
-          targetAddress={query}
-          totalTxCount={addressData.chain_stats.tx_count + addressData.mempool_stats.tx_count}
-          onScan={onScan}
-        />
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full">
+          <TxBreakdownPanel
+            breakdown={txBreakdown}
+            targetAddress={query}
+            totalTxCount={addressData.chain_stats.tx_count + addressData.mempool_stats.tx_count}
+            onScan={onScan}
+          />
+        </motion.div>
       )}
 
       {/* Summary card */}
@@ -259,7 +271,7 @@ export function ResultsPanel({
         };
         const colors = colorMap[sentiment];
         return (
-          <div className={`w-full rounded-xl border px-4 py-3 ${colors.border}`}>
+          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className={`w-full rounded-xl border px-4 py-3 ${colors.border}`}>
             <p className={`text-base font-medium ${colors.text}`}>
               {sentiment === "positive"
                 ? t("results.summaryGood", { defaultValue: "No significant privacy concerns detected." })
@@ -267,13 +279,13 @@ export function ResultsPanel({
                   ? t("results.summaryFair", { defaultValue: "Some privacy concerns detected. Review the findings below." })
                   : t("results.summaryPoor", { defaultValue: "Significant privacy exposure detected. Remediation recommended." })}
             </p>
-          </div>
+          </motion.div>
         );
       })()}
 
       {/* Findings */}
       {result.findings.length > 0 && (
-        <div className="w-full space-y-4">
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full space-y-4">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-base font-medium text-muted uppercase tracking-wider">
               {t("results.findingsHeading", { count: result.findings.length, defaultValue: "Findings ({{count}})" })}
@@ -290,43 +302,57 @@ export function ResultsPanel({
               />
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Cluster Analysis (address only, opt-in) */}
       {inputType === "address" && addressTxs && addressTxs.length > 0 && (
-        <ClusterPanel
-          targetAddress={query}
-          txs={addressTxs}
-          onAddressClick={onScan}
-        />
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full">
+          <ClusterPanel
+            targetAddress={query}
+            txs={addressTxs}
+            onAddressClick={onScan}
+          />
+        </motion.div>
       )}
 
       {/* Remediation */}
-      <Remediation findings={result.findings} grade={result.grade} />
+      <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full">
+        <Remediation findings={result.findings} grade={result.grade} />
+      </motion.div>
 
       {/* Exchange Risk Check */}
-      <CexRiskPanel
-        query={query}
-        inputType={inputType}
-        txData={txData}
-        isCoinJoin={result.findings.some(
-          (f) => (f.id === "h4-whirlpool" || f.id === "h4-coinjoin" || f.id === "h4-joinmarket") && f.scoreImpact > 0,
-        )}
-      />
+      <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full">
+        <CexRiskPanel
+          query={query}
+          inputType={inputType}
+          txData={txData}
+          isCoinJoin={result.findings.some(
+            (f) => (f.id === "h4-whirlpool" || f.id === "h4-coinjoin" || f.id === "h4-joinmarket") && f.scoreImpact > 0,
+          )}
+        />
+      </motion.div>
 
       {/* Exchange CoinJoin Policy Panel (only for CoinJoin transactions) */}
       {result.findings.some(
         (f) => (f.id === "h4-whirlpool" || f.id === "h4-coinjoin" || f.id === "h4-joinmarket") && f.scoreImpact > 0,
-      ) && <ExchangeWarningPanel />}
+      ) && (
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full">
+          <ExchangeWarningPanel />
+        </motion.div>
+      )}
 
       {/* Score breakdown & how scoring works */}
-      <ScoreBreakdown findings={result.findings} finalScore={result.score} />
-      <ScoringExplainer />
+      <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full">
+        <ScoreBreakdown findings={result.findings} finalScore={result.score} />
+        <ScoringExplainer />
+      </motion.div>
 
       {/* TipJar + CrossPromo */}
-      <TipJar />
-      {inputType === "txid" && <CrossPromo />}
+      <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full">
+        <TipJar />
+        {inputType === "txid" && <CrossPromo />}
+      </motion.div>
 
       {/* Footer */}
       <div className="w-full flex flex-wrap items-center justify-center gap-4 pt-2 pb-4 text-sm">
@@ -334,7 +360,7 @@ export function ResultsPanel({
           href={explorerUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-bitcoin hover:text-bitcoin-hover transition-colors"
+          className="inline-flex items-center gap-1.5 text-bitcoin hover:text-bitcoin-hover transition-colors px-4 py-2 rounded-lg border border-bitcoin/20 hover:border-bitcoin/40 bg-bitcoin/5"
         >
           {explorerLabel}
           <ExternalLink size={13} />
@@ -342,7 +368,7 @@ export function ResultsPanel({
       </div>
 
       {/* Disclaimer */}
-      <div className="w-full bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed">
+      <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed">
         {t("results.disclaimerStats", {
           findingCount: result.findings.length,
           heuristicCount: inputType === "txid" ? "12" : "4",
@@ -360,7 +386,7 @@ export function ResultsPanel({
           defaultValue: "API queries were sent to {{hostname}}.",
         })}{" "}
         {t("results.disclaimerHeuristic", { defaultValue: "Scores are heuristic-based estimates, not definitive privacy assessments." })}
-      </div>
+      </motion.div>
 
       <div className="text-xs text-muted pb-4 hidden sm:block">
         {t("results.pressEsc", { defaultValue: "Press" })} <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted font-mono">Esc</kbd> {t("results.forNewScan", { defaultValue: "for new scan" })}

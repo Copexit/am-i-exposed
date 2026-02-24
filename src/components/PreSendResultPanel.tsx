@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { FindingCard } from "./FindingCard";
 import { AddressSummary } from "./AddressSummary";
+import { GlowCard } from "./ui/GlowCard";
 import { copyToClipboard } from "@/lib/clipboard";
 import { formatSats } from "@/lib/format";
 import type { PreSendResult } from "@/lib/analysis/orchestrator";
@@ -107,14 +108,14 @@ export function PreSendResultPanel({
       <div className="w-full flex items-center justify-between">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer py-2 min-h-[44px]"
+          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer px-3 py-2 min-h-[44px] rounded-lg border border-card-border hover:border-muted/50 bg-surface-elevated/50"
         >
           <ArrowLeft size={16} />
           {t("presend.newCheck", { defaultValue: "New check" })}
         </button>
         <button
           onClick={handleCopy}
-          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer py-2 min-h-[44px]"
+          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer px-3 py-2 min-h-[44px] rounded-lg border border-card-border hover:border-muted/50 bg-surface-elevated/50"
         >
           {shareStatus === "copied" ? <Check size={14} /> : <Copy size={14} />}
           {shareStatus === "copied" ? t("presend.copied", { defaultValue: "Copied" }) : t("presend.share", { defaultValue: "Share" })}
@@ -122,7 +123,7 @@ export function PreSendResultPanel({
       </div>
 
       {/* Destination + Risk Level */}
-      <div className="w-full bg-card-bg border border-card-border rounded-xl p-7 space-y-6">
+      <GlowCard className="w-full p-7 space-y-6">
         <div className="space-y-1">
           <span className="text-sm font-medium text-muted uppercase tracking-wider">
             {t("presend.destinationCheck", { defaultValue: "Pre-Send Destination Check" })}
@@ -133,7 +134,13 @@ export function PreSendResultPanel({
         </div>
 
         {/* Big risk badge */}
-        <div className={`rounded-xl border p-6 ${risk.bg} flex flex-col items-center gap-3`}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.4 }}
+          className={`rounded-xl border p-6 ${risk.bg} flex flex-col items-center gap-3`}
+        >
           <RiskIcon size={40} className={risk.color} />
           <span className={`text-2xl font-bold ${risk.color}`}>
             {t(risk.labelKey, { defaultValue: risk.labelDefault })}
@@ -141,7 +148,7 @@ export function PreSendResultPanel({
           <p className="text-sm text-center text-foreground max-w-md">
             {t(preSendResult.summaryKey, { reuseCount: preSendResult.timesReceived, txCount: preSendResult.txCount, defaultValue: preSendResult.summary })}
           </p>
-        </div>
+        </motion.div>
 
         {/* Quick stats */}
         <div className="grid grid-cols-3 gap-4 text-center">
@@ -164,11 +171,15 @@ export function PreSendResultPanel({
             <p className="text-sm text-muted">{t("presend.totalReceived", { defaultValue: "Total received" })}</p>
           </div>
         </div>
-      </div>
+      </GlowCard>
 
       {/* Advice box */}
-      <div className={`w-full rounded-xl border p-4 flex items-start gap-3 ${risk.bg}`}>
-        <AlertTriangle size={18} className={`${risk.color} shrink-0 mt-0.5`} />
+      <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className={`w-full rounded-xl border p-4 flex items-start gap-3 ${risk.bg}`}>
+        {preSendResult.riskLevel === "LOW" ? (
+          <ShieldCheck size={18} className={`${risk.color} shrink-0 mt-0.5`} />
+        ) : (
+          <AlertTriangle size={18} className={`${risk.color} shrink-0 mt-0.5`} />
+        )}
         <div>
           <p className={`text-sm font-medium ${risk.color}`}>
             {t(risk.adviceKey, { defaultValue: risk.adviceDefault })}
@@ -179,14 +190,18 @@ export function PreSendResultPanel({
             </p>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {/* Address data if available */}
-      {addressData && <AddressSummary address={addressData} />}
+      {addressData && (
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full">
+          <AddressSummary address={addressData} />
+        </motion.div>
+      )}
 
       {/* Findings */}
       {preSendResult.findings.length > 0 && (
-        <div className="w-full space-y-3">
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full space-y-3">
           <h2 className="text-base font-medium text-muted uppercase tracking-wider px-1">
             {t("presend.findingsHeading", { count: preSendResult.findings.length, defaultValue: "Findings ({{count}})" })}
           </h2>
@@ -195,7 +210,7 @@ export function PreSendResultPanel({
               <FindingCard key={finding.id} finding={finding} index={i} />
             ))}
           </div>
-        </div>
+        </motion.div>
       )}
 
       {/* Footer links */}
@@ -204,7 +219,7 @@ export function PreSendResultPanel({
           href={`${config.explorerUrl}/address/${encodeURIComponent(query)}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-bitcoin hover:text-bitcoin-hover transition-colors"
+          className="inline-flex items-center gap-1.5 text-bitcoin hover:text-bitcoin-hover transition-colors px-4 py-2 rounded-lg border border-bitcoin/20 hover:border-bitcoin/40 bg-bitcoin/5"
         >
           {explorerLabel}
           <ExternalLink size={13} />
@@ -212,10 +227,10 @@ export function PreSendResultPanel({
       </div>
 
       {/* Disclaimer */}
-      <div className="w-full bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed">
+      <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed">
         {t("presend.disclaimerCompleted", { defaultValue: "Pre-send check completed" })}{durationMs ? t("presend.disclaimerDuration", { duration: (durationMs / 1000).toFixed(1), defaultValue: " in {{duration}}s" }) : ""}.
         {" "}{t("presend.disclaimerBrowser", { defaultValue: "Analysis ran entirely in your browser. This is a heuristic-based assessment - always verify independently." })}
-      </div>
+      </motion.div>
     </motion.div>
   );
 }

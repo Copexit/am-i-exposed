@@ -93,7 +93,7 @@ export function TxBreakdownPanel({
           return (
             <div
               key={item.txid}
-              className="border border-card-border rounded-lg overflow-hidden"
+              className="glass rounded-lg overflow-hidden"
             >
               <button
                 onClick={() => setExpandedTx(isExpanded ? null : item.txid)}
@@ -183,7 +183,7 @@ export function TxBreakdownPanel({
       {visibleCount < sorted.length && (
         <button
           onClick={() => setVisibleCount((prev) => Math.min(prev + 10, sorted.length))}
-          className="w-full inline-flex items-center justify-center gap-1.5 py-3 min-h-[44px] text-sm text-muted hover:text-foreground border border-card-border rounded-lg transition-colors cursor-pointer"
+          className="w-full inline-flex items-center justify-center gap-1.5 py-3 min-h-[44px] text-sm text-muted hover:text-foreground glass rounded-lg transition-colors cursor-pointer"
         >
           <ChevronDown size={14} />
           {t("breakdown.showMore", { count: sorted.length - visibleCount, defaultValue: "Show more ({{count}} remaining)" })}

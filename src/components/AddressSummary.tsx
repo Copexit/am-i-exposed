@@ -33,7 +33,7 @@ export function AddressSummary({ address: addr }: AddressSummaryProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ delay: 0.1 }}
-      className="w-full bg-card-bg border border-card-border rounded-xl p-6"
+      className="w-full glass rounded-xl p-6"
     >
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Stat

@@ -20,6 +20,14 @@ const GRADE_COLORS: Record<Grade, string> = {
   F: "text-severity-critical",
 };
 
+const GRADE_GLOW_COLORS: Record<Grade, string> = {
+  "A+": "rgba(40, 208, 101, 0.3)",
+  B: "rgba(59, 130, 246, 0.25)",
+  C: "rgba(234, 179, 8, 0.25)",
+  D: "rgba(249, 115, 22, 0.25)",
+  F: "rgba(239, 68, 68, 0.3)",
+};
+
 const BAR_COLORS: Record<Grade, string> = {
   "A+": "bg-severity-good",
   B: "bg-severity-low",
@@ -74,14 +82,41 @@ export function ScoreDisplay({ score, grade, findings }: ScoreDisplayProps) {
       )}
 
       <div className="flex items-baseline gap-3">
-        <motion.span
-          initial={{ scale: 0.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-          className={`text-6xl font-bold tabular-nums ${GRADE_COLORS[grade]}`}
-        >
-          {grade}
-        </motion.span>
+        <div className="relative">
+          {/* Glow burst behind grade */}
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 2, opacity: [0.6, 0] }}
+            transition={{ delay: 0.3, duration: 1, ease: "easeOut" }}
+            className="absolute inset-0 -z-10 rounded-full"
+            style={{
+              background: `radial-gradient(circle, ${GRADE_GLOW_COLORS[grade]} 0%, transparent 70%)`,
+            }}
+          />
+          <motion.span
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={grade === "A+" ? {
+              scale: 1,
+              opacity: 1,
+              textShadow: [
+                `0 0 20px rgba(40, 208, 101, 0.3)`,
+                `0 0 35px rgba(40, 208, 101, 0.5)`,
+                `0 0 20px rgba(40, 208, 101, 0.3)`,
+              ],
+            } : { scale: 1, opacity: 1 }}
+            transition={grade === "A+" ? {
+              scale: { delay: 0.2, type: "spring", stiffness: 200 },
+              opacity: { delay: 0.2, type: "spring", stiffness: 200 },
+              textShadow: { duration: 3, repeat: Infinity, ease: "easeInOut" },
+            } : { delay: 0.2, type: "spring", stiffness: 200 }}
+            className={`text-6xl font-bold tabular-nums ${GRADE_COLORS[grade]}`}
+            style={{
+              textShadow: grade !== "A+" ? undefined : `0 0 20px ${GRADE_GLOW_COLORS["A+"]}`,
+            }}
+          >
+            {grade}
+          </motion.span>
+        </div>
         <span className="text-2xl text-muted tabular-nums">
           {displayScore}
           <span className="text-muted">/100</span>
@@ -95,24 +130,35 @@ export function ScoreDisplay({ score, grade, findings }: ScoreDisplayProps) {
             initial={{ width: 0 }}
             animate={{ width: `${Math.max(score, 2)}%` }}
             transition={{ duration: 1.2, ease: [0.4, 0, 0.2, 1] }}
-            className={`h-full rounded-full ${BAR_COLORS[grade]}`}
-          />
-        </div>
-        <div className="relative h-3 mt-0.5">
-          {[25, 50, 75, 90].map((threshold) => (
+            className={`h-full rounded-full ${BAR_COLORS[grade]} relative overflow-hidden`}
+          >
+            {/* Shimmer overlay */}
             <div
-              key={threshold}
-              className="absolute top-0 w-px h-1.5 bg-muted/60"
-              style={{ left: `${threshold}%` }}
+              className="absolute inset-0 opacity-30"
+              style={{
+                background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)",
+                animation: "shimmer 2s infinite",
+              }}
             />
+          </motion.div>
+        </div>
+        <div className="relative mt-0.5" style={{ height: 20 }}>
+          {[
+            { pos: 0, label: "F" },
+            { pos: 25, label: "D" },
+            { pos: 50, label: "C" },
+            { pos: 75, label: "B" },
+            { pos: 90, label: "A+" },
+          ].map(({ pos, label }) => (
+            <div
+              key={label}
+              className="absolute flex flex-col items-center"
+              style={{ left: `${pos}%`, transform: "translateX(-50%)" }}
+            >
+              <div className="w-px h-1.5 bg-muted/60" />
+              <span className="text-xs text-muted mt-0.5 leading-none">{label}</span>
+            </div>
           ))}
-          <div className="flex justify-between text-xs text-muted mt-1">
-            <span>F</span>
-            <span style={{ position: "absolute", left: "25%", transform: "translateX(-50%)" }}>D</span>
-            <span style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}>C</span>
-            <span style={{ position: "absolute", left: "75%", transform: "translateX(-50%)" }}>B</span>
-            <span style={{ position: "absolute", left: "90%", transform: "translateX(-50%)" }}>A+</span>
-          </div>
         </div>
       </div>
 

@@ -103,7 +103,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="w-full bg-card-bg border border-card-border rounded-xl p-6 space-y-4"
+      className="w-full glass rounded-xl p-6 space-y-4"
     >
       <div className="flex items-center gap-2">
         <Network size={16} className="text-bitcoin" />

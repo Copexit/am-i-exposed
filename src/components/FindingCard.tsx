@@ -14,19 +14,21 @@ interface FindingCardProps {
 
 const SEVERITY_STYLES: Record<
   Severity,
-  { dot: string; label: string; text: string; border: string }
+  { dot: string; label: string; text: string; border: string; glow?: string }
 > = {
   critical: {
     dot: "bg-severity-critical",
     label: "Critical",
     text: "text-severity-critical",
     border: "border-l-severity-critical",
+    glow: "shadow-[inset_4px_0_12px_-4px_rgba(239,68,68,0.15)]",
   },
   high: {
     dot: "bg-severity-high",
     label: "High",
     text: "text-severity-high",
     border: "border-l-severity-high",
+    glow: "shadow-[inset_4px_0_12px_-4px_rgba(249,115,22,0.12)]",
   },
   medium: {
     dot: "bg-severity-medium",
@@ -57,16 +59,17 @@ export function FindingCard({ finding, index, defaultExpanded = false }: Finding
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-50px" }}
       transition={{ delay: index * 0.05, duration: 0.25 }}
-      className={`border border-card-border rounded-lg overflow-hidden border-l-2 ${style.border}`}
+      className={`glass rounded-lg overflow-hidden border-l-2 ${style.border} ${style.glow ?? ""}`}
       role="article"
       aria-label={`${severityLabel} finding: ${t(`finding.${finding.id}.title`, { ...finding.params, defaultValue: finding.title })}`}
     >
       <button
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-elevated/50 transition-colors cursor-pointer"
+        className="w-full flex items-center gap-3 px-4 py-3 min-h-[48px] text-left hover:bg-surface-elevated/50 transition-colors cursor-pointer"
       >
         <span className={`w-2 h-2 rounded-full shrink-0 ${style.dot}`} />
         <span className="flex-1 text-sm font-medium text-foreground">

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { motion, useMotionValue, useSpring } from "motion/react";
 import { Radar, SendHorizontal } from "lucide-react";
 import { useNetwork } from "@/context/NetworkContext";
 import { detectInputType, cleanInput } from "@/lib/analysis/detect-input";
@@ -42,6 +43,29 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
   const internalRef = useRef<HTMLInputElement>(null);
   const inputRef = externalRef ?? internalRef;
   const { network } = useNetwork();
+
+  // Magnetic button effect
+  const magnetX = useMotionValue(0);
+  const magnetY = useMotionValue(0);
+  const springX = useSpring(magnetX, { stiffness: 150, damping: 15 });
+  const springY = useSpring(magnetY, { stiffness: 150, damping: 15 });
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  const handleButtonMouseMove = useCallback((e: React.MouseEvent) => {
+    // Only on pointer devices (not touch)
+    if (!window.matchMedia("(pointer: fine)").matches) return;
+    const rect = buttonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    magnetX.set((e.clientX - centerX) * 0.2);
+    magnetY.set((e.clientY - centerY) * 0.2);
+  }, [magnetX, magnetY]);
+
+  const handleButtonMouseLeave = useCallback(() => {
+    magnetX.set(0);
+    magnetY.set(0);
+  }, [magnetX, magnetY]);
 
   const submit = useCallback(
     (raw: string) => {
@@ -104,7 +128,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
               aria-pressed={!isCheck}
               className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                 !isCheck
-                  ? "bg-bitcoin/15 text-bitcoin shadow-sm"
+                  ? "bg-bitcoin/15 text-bitcoin shadow-sm shadow-[0_0_12px_rgba(247,147,26,0.15)]"
                   : "text-muted hover:text-foreground"
               }`}
             >
@@ -117,7 +141,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
               aria-pressed={isCheck}
               className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                 isCheck
-                  ? "bg-bitcoin/15 text-bitcoin shadow-sm"
+                  ? "bg-bitcoin/15 text-bitcoin shadow-sm shadow-[0_0_12px_rgba(247,147,26,0.15)]"
                   : "text-muted hover:text-foreground"
               }`}
             >
@@ -134,43 +158,64 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
       )}
 
       <div className="relative group">
-        <div className="absolute -inset-1 bg-bitcoin/5 rounded-2xl blur-xl group-focus-within:bg-bitcoin/10 transition-all duration-300 pointer-events-none" />
-        <input
-          id="main-input"
-          ref={inputRef}
-          type="text"
-          value={value}
-          onChange={(e) => {
-            setValue(e.target.value);
-            setError(null);
+        {/* Ambient glow behind input */}
+        <div
+          className="absolute -inset-2 rounded-2xl opacity-30 group-focus-within:opacity-60 transition-opacity duration-500 pointer-events-none blur-2xl"
+          style={{
+            background: "conic-gradient(from var(--border-angle, 0deg), rgba(139,92,246,0.3), rgba(247,147,26,0.3), rgba(59,130,246,0.3), rgba(139,92,246,0.3))",
+            animation: "border-rotate 4s linear infinite",
           }}
-          onPaste={handlePaste}
-          placeholder={placeholder}
-          spellCheck={false}
-          autoComplete="off"
-          autoFocus
-          aria-label={placeholder}
-          aria-describedby={error ? "input-error" : undefined}
-          className={`relative w-full bg-card-bg border rounded-xl pl-4 pr-24 sm:pl-5 sm:pr-20 py-4
-            font-mono text-sm sm:text-base text-foreground placeholder:text-muted/70
-            focus:border-bitcoin focus:ring-2 focus:ring-bitcoin/20
-            focus:shadow-[0_0_20px_rgba(247,147,26,0.15)]
-            transition-all duration-200
-            ${pasteSuccess ? "border-success ring-2 ring-success/20" : "border-card-border"}`}
         />
-        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+        {/* Animated border wrapper */}
+        <div
+          className="relative rounded-xl p-px overflow-hidden"
+          style={{
+            background: pasteSuccess
+              ? "var(--success)"
+              : "conic-gradient(from var(--border-angle, 0deg), rgba(68,68,80,0.6), rgba(247,147,26,0.4), rgba(139,92,246,0.3), rgba(59,130,246,0.3), rgba(68,68,80,0.6))",
+            animation: "border-rotate 4s linear infinite",
+          }}
+        >
+          <input
+            id="main-input"
+            ref={inputRef}
+            type="text"
+            value={value}
+            onChange={(e) => {
+              setValue(e.target.value);
+              setError(null);
+            }}
+            onPaste={handlePaste}
+            placeholder={placeholder}
+            spellCheck={false}
+            autoComplete="off"
+            autoFocus
+            aria-label={placeholder}
+            aria-describedby={error ? "input-error" : undefined}
+            className="relative w-full glass rounded-[11px] pl-4 pr-24 sm:pl-5 sm:pr-20 py-4
+              font-mono text-sm sm:text-base text-foreground placeholder:text-muted/70
+              focus:shadow-[0_0_20px_rgba(247,147,26,0.15)]
+              transition-all duration-200 border-0 outline-none
+              focus-visible:outline-none focus-visible:ring-0"
+          />
+        </div>
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10">
           {isLoading ? (
             <Spinner />
           ) : (
-            <button
+            <motion.button
+              ref={buttonRef}
               type="submit"
               disabled={!value.trim()}
-              className="px-5 py-2 bg-bitcoin text-black font-semibold text-sm sm:text-base rounded-lg
-                hover:bg-bitcoin-hover transition-all duration-150 disabled:opacity-30
+              onMouseMove={handleButtonMouseMove}
+              onMouseLeave={handleButtonMouseLeave}
+              style={{ background: "var(--bitcoin-gradient)", x: springX, y: springY }}
+              className="px-5 py-2 text-black font-semibold text-sm sm:text-base rounded-lg
+                hover:brightness-110 transition-[filter] duration-150 disabled:opacity-30
                 disabled:cursor-not-allowed cursor-pointer"
             >
               {buttonLabel}
-            </button>
+            </motion.button>
           )}
         </div>
       </div>

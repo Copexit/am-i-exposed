@@ -68,7 +68,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ delay: 0.1 }}
-      className="w-full bg-card-bg border border-card-border rounded-xl p-6 space-y-4"
+      className="w-full glass rounded-xl p-6 space-y-4"
     >
       <div className="flex items-center justify-between text-sm text-muted uppercase tracking-wider">
         <span>

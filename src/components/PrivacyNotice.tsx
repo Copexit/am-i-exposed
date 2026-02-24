@@ -44,7 +44,7 @@ export function PrivacyNotice() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.3 }}
-          className="bg-surface-elevated border border-card-border rounded-lg px-3 py-2 mx-4 mb-3 max-w-6xl sm:mx-auto w-auto"
+          className="glass rounded-lg px-3 py-2 mx-4 mb-3 max-w-6xl sm:mx-auto w-auto"
         >
           <div className="flex items-center gap-2">
             <ShieldAlert size={16} className="text-warning shrink-0" />

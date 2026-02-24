@@ -6,6 +6,7 @@ import { LangAttributeSync } from "@/lib/i18n/LangAttributeSync";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { PrivacyNotice } from "@/components/PrivacyNotice";
+import { AmbientBackground } from "@/components/AmbientBackground";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -101,12 +102,13 @@ export default function RootLayout({
             }),
           }}
         />
+        <AmbientBackground />
         <I18nProvider>
           <LangAttributeSync />
           <NetworkProvider>
             <Header />
             <PrivacyNotice />
-            <main className="flex-1 flex flex-col">{children}</main>
+            <main className="flex-1 flex flex-col pt-[72px] sm:pt-[80px]">{children}</main>
             <Footer />
           </NetworkProvider>
         </I18nProvider>

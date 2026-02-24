@@ -70,7 +70,7 @@ export function ExchangeWarningPanel() {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="mt-3 bg-card-bg border border-card-border rounded-xl p-5 space-y-4">
+            <div className="mt-3 glass rounded-xl p-5 space-y-4">
               {/* Dated disclaimer */}
               <div className="bg-severity-medium/5 border border-severity-medium/20 rounded-lg p-3">
                 <p className="text-xs text-severity-medium leading-relaxed">

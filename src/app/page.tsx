@@ -10,6 +10,7 @@ import { ResultsPanel } from "@/components/ResultsPanel";
 import { PreSendResultPanel } from "@/components/PreSendResultPanel";
 import { RecentScans } from "@/components/RecentScans";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { GlowCard } from "@/components/ui/GlowCard";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useNetwork } from "@/context/NetworkContext";
 import { useRecentScans } from "@/hooks/useRecentScans";
@@ -231,7 +232,7 @@ export default function Home() {
             : "";
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center px-4 py-6">
+    <div className="flex-1 flex flex-col items-center justify-center px-3 sm:px-4 py-4 sm:py-6">
       <div className="sr-only" role="status" aria-live="polite">{ariaStatus}</div>
       <AnimatePresence mode="wait">
         {phase === "idle" && (
@@ -239,27 +240,44 @@ export default function Home() {
             key="hero"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0, y: -10 }}
+            exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
             transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
             className="flex flex-col items-center gap-8 text-center w-full"
           >
-            <div className="space-y-3">
-              <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-tight">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1, type: "spring", stiffness: 120, damping: 20 }}
+              className="space-y-3"
+            >
+              <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold tracking-tight leading-tight">
                 <span className="text-foreground">{t("page.hero_prefix", { defaultValue: "Am I " })}</span>
-                <span className="text-danger">{t("page.hero_suffix", { defaultValue: "exposed?" })}</span>
+                <span className="tracking-wide gradient-text">{t("page.hero_suffix", { defaultValue: "exposed?" })}</span>
               </h1>
-              <p className="text-muted text-lg sm:text-xl max-w-xl mx-auto">
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3, duration: 0.5 }}
+                className="text-muted text-lg sm:text-xl max-w-xl mx-auto"
+              >
                 {t("page.tagline", { defaultValue: "The Bitcoin privacy scanner you were afraid to run." })}
-              </p>
-            </div>
+              </motion.p>
+            </motion.div>
 
-            <AddressInput
-              onSubmit={handleSubmit}
-              isLoading={false}
-              inputRef={inputRef}
-              mode={mode}
-              onModeChange={setMode}
-            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.4, type: "spring", stiffness: 150, damping: 20 }}
+              className="w-full flex justify-center"
+            >
+              <AddressInput
+                onSubmit={handleSubmit}
+                isLoading={false}
+                inputRef={inputRef}
+                mode={mode}
+                onModeChange={setMode}
+              />
+            </motion.div>
 
             <RecentScans scans={scans} onSelect={handleSubmit} onClear={clearScans} />
 
@@ -278,7 +296,7 @@ export default function Home() {
                         <button
                           key={ex.input}
                           onClick={() => handleSubmit(ex.input)}
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-elevated/50
+                          className="inline-flex items-center gap-2 px-4 py-3 sm:py-2 rounded-lg bg-surface-elevated/50
                             border border-card-border hover:border-bitcoin/40 hover:bg-surface-elevated
                             transition-all text-sm cursor-pointer group"
                         >
@@ -298,7 +316,7 @@ export default function Home() {
                         <button
                           key={ex.input}
                           onClick={() => handleSubmit(ex.input)}
-                          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-elevated/50
+                          className="inline-flex items-center gap-2 px-4 py-3 sm:py-2 rounded-lg bg-surface-elevated/50
                             border border-card-border hover:border-bitcoin/40 hover:bg-surface-elevated
                             transition-all text-sm cursor-pointer group"
                         >
@@ -314,14 +332,19 @@ export default function Home() {
               </div>
             )}
 
-            <div className="flex flex-wrap items-center justify-center gap-4 text-base text-muted">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6, duration: 0.5 }}
+              className="flex flex-wrap items-center justify-center gap-4 text-base text-muted"
+            >
               <span className="inline-flex items-center gap-1.5">
                 <ShieldCheck size={16} className="text-success/50" />
                 {t("page.trust_client", { defaultValue: "100% client-side" })}
               </span>
               <span>{t("page.trust_tracking", { defaultValue: "No tracking" })}</span>
               <a href="https://github.com/Copexit/am-i-exposed" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">{t("page.trust_opensource", { defaultValue: "Open source" })}</a>
-            </div>
+            </motion.div>
 
           </motion.div>
         )}
@@ -329,13 +352,13 @@ export default function Home() {
         {(phase === "fetching" || phase === "analyzing") && (
           <motion.div
             key="loading"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: 10, filter: "blur(4px)" }}
             transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
             className="flex flex-col items-center gap-6 w-full max-w-3xl"
           >
-            <div className="w-full bg-card-bg border border-card-border rounded-xl p-8 space-y-6">
+            <GlowCard className="w-full p-8 space-y-6">
               <div className="space-y-1">
                 <span className="text-xs font-medium text-muted uppercase tracking-wider">
                   {mode === "check" ? t("page.label_presend", { defaultValue: "Pre-send destination check" }) : inputType === "txid" ? t("page.label_transaction", { defaultValue: "Transaction" }) : t("page.label_address", { defaultValue: "Address" })}
@@ -347,7 +370,7 @@ export default function Home() {
               <div className="border-t border-card-border pt-6">
                 <DiagnosticLoader steps={steps} phase={phase} />
               </div>
-            </div>
+            </GlowCard>
           </motion.div>
         )}
 
@@ -381,13 +404,13 @@ export default function Home() {
         {phase === "error" && (
           <motion.div
             key="error"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: 10, filter: "blur(4px)" }}
             transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
             className="flex flex-col items-center gap-6 w-full max-w-xl mt-8 sm:mt-0"
           >
-            <div className="bg-card-bg border border-severity-critical/30 rounded-xl p-8 w-full space-y-4 text-center">
+            <div className="glass border-severity-critical/30 rounded-xl p-8 w-full space-y-4 text-center">
               <AlertCircle size={32} className="text-severity-critical mx-auto" />
               <div className="space-y-2">
                 <h2 className="text-lg font-semibold text-foreground">

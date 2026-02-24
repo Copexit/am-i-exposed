@@ -103,7 +103,7 @@ export function ExportButton({ targetId, query, result, inputType }: ExportButto
   return (
     <button
       onClick={handleExport}
-      className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer py-2 min-h-[44px]"
+      className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer px-3 py-2 min-h-[44px] rounded-lg border border-card-border hover:border-muted/50 bg-surface-elevated/50"
       title={t("export.copyToClipboard", { defaultValue: "Copy report to clipboard" })}
     >
       {status === "done" ? <Check size={14} /> : <ClipboardCopy size={14} />}
