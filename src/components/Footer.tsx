@@ -12,7 +12,16 @@ export function Footer() {
       <span className="font-medium text-foreground">am-i.exposed</span>
       <span className="text-muted">{t("common.tagline", { defaultValue: "Your privacy. Diagnosed." })}</span>
       <span className="text-xs text-muted/60">
-        by Copexit &{" "}
+        by{" "}
+        <a
+          href="https://github.com/copexit"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-foreground transition-colors"
+        >
+          Copexit
+        </a>
+        {" "}&{" "}
         <a
           href="https://x.com/multicripto"
           target="_blank"

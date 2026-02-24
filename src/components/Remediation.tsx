@@ -234,7 +234,7 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
   return actions.slice(0, 3);
 }
 
-function StructuredRemediation({ remediation, findingId, findingTitle }: { remediation: RemediationType; findingId: string; findingTitle: string }) {
+function StructuredRemediation({ remediation, findingId, findingTitle, findingParams }: { remediation: RemediationType; findingId: string; findingTitle: string; findingParams?: Record<string, unknown> }) {
   const { t } = useTranslation();
   const urgency = URGENCY_CONFIG[remediation.urgency];
   const UrgencyIcon = urgency.icon;
@@ -242,7 +242,7 @@ function StructuredRemediation({ remediation, findingId, findingTitle }: { remed
   return (
     <div className="bg-surface-inset rounded-lg px-4 py-3 border-l-2 border-l-bitcoin/50 space-y-2.5">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-foreground/90">{t(`finding.${findingId}.title`, { defaultValue: findingTitle })}</p>
+        <p className="text-sm font-medium text-foreground/90">{t(`finding.${findingId}.title`, { ...findingParams, defaultValue: findingTitle })}</p>
         <span className={`inline-flex items-center gap-1 text-xs ${urgency.color}`}>
           <UrgencyIcon size={14} />
           {t(urgency.labelKey, { defaultValue: urgency.labelDefault })}
@@ -335,6 +335,7 @@ export function Remediation({ findings, grade }: RemediationProps) {
                   remediation={f.remediation!}
                   findingId={f.id}
                   findingTitle={f.title}
+                  findingParams={f.params}
                 />
               ))}
 

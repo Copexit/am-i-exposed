@@ -53,11 +53,10 @@ export const analyzeFees: TxHeuristic = (tx) => {
       title: "RBF (Replace-by-Fee) signaled",
       description:
         "This transaction signals RBF replaceability (nSequence < 0xfffffffe). " +
-        "While RBF itself is not a privacy concern, it reveals that the sender's wallet supports fee bumping, " +
-        "which narrows down the wallet software used.",
+        "RBF is now standard across virtually all modern wallet software and is no longer a meaningful fingerprinting signal.",
       recommendation:
-        "RBF is generally recommended for fee management. As more wallets adopt it, this signal becomes less identifying.",
-      scoreImpact: -1,
+        "RBF is standard practice. Nearly all wallets signal RBF by default, so this reveals very little about the sender.",
+      scoreImpact: 0,
     });
   }
 

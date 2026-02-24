@@ -165,13 +165,13 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
         description:
           `This transaction matches the Stonewall pattern: ${tx.vin.length} inputs from ${stonewall.distinctInputAddresses} distinct address${stonewall.distinctInputAddresses > 1 ? "es" : ""}, ` +
           `4 outputs with 2 equal values (${formatBtc(stonewall.denomination)}). ` +
-          "Stonewall is a steganographic transaction designed to look like a normal payment while creating ambiguity about the fund flow. " +
-          "It is impossible to distinguish a Stonewall (single wallet) from a STONEWALLx2 (collaborative, two wallets) on-chain - this ambiguity is the point.",
+          "Stonewall creates genuine ambiguity: an observer cannot tell if this is a single-wallet Stonewall or a two-wallet STONEWALLx2. " +
+          "The 2 equal outputs make the payment amount ambiguous, and each change output could belong to either party.",
         recommendation:
-          "Stonewall transactions provide plausible deniability by making it unclear whether this is a simple payment or a collaborative CoinJoin. " +
+          "Stonewall transactions provide real privacy by creating doubt about the payment amount and fund ownership. " +
           "For stronger privacy, combine with Whirlpool mixing before spending. " +
           EXCHANGE_WARNING,
-        scoreImpact: 10,
+        scoreImpact: 15,
       });
     }
   }
