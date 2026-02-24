@@ -107,8 +107,10 @@ export default function RootLayout({
           <LangAttributeSync />
           <NetworkProvider>
             <Header />
-            <PrivacyNotice />
-            <main className="flex-1 flex flex-col pt-[72px] sm:pt-[80px]">{children}</main>
+            <main className="flex-1 flex flex-col pt-[72px] sm:pt-[80px]">
+              <PrivacyNotice />
+              {children}
+            </main>
             <Footer />
           </NetworkProvider>
         </I18nProvider>
