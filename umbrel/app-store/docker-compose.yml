@@ -1,0 +1,16 @@
+version: "3.7"
+
+services:
+  app_proxy:
+    environment:
+      APP_HOST: am-i-exposed_web_1
+      APP_PORT: 8080
+      PROXY_AUTH_ADD: "false"
+
+  web:
+    image: ghcr.io/copexit/am-i-exposed-umbrel:v0.10.0
+    restart: on-failure
+    stop_grace_period: 1m
+    environment:
+      APP_MEMPOOL_IP: ${APP_MEMPOOL_API_IP}
+      APP_MEMPOOL_PORT: ${APP_MEMPOOL_API_PORT}

@@ -1,0 +1,61 @@
+manifestVersion: 1
+id: am-i-exposed
+category: bitcoin
+name: Am I Exposed?
+version: "0.10.0"
+tagline: Bitcoin privacy scanner - find out what the blockchain reveals about your transactions
+description: >-
+  Am I Exposed? is a free, client-side Bitcoin privacy analysis tool that
+  grades your transactions and addresses using 16 chain analysis heuristics -
+  the same techniques used by surveillance firms like Chainalysis and Elliptic.
+
+
+  Paste any Bitcoin address or transaction ID and get a privacy score from
+  0 to 100 with a letter grade (A+ to F) and specific, actionable findings.
+
+
+  When running on Umbrel, all blockchain API requests are routed through your
+  local mempool instance - no third-party APIs, no data leaks, maximum privacy.
+
+
+  Features:
+
+  - 12 transaction-level and 4 address-level privacy heuristics
+
+  - CoinJoin detection (Whirlpool, WabiSabi, JoinMarket)
+
+  - Boltzmann entropy estimation
+
+  - Wallet fingerprinting and change detection
+
+  - Dust attack identification
+
+  - Privacy grades from A+ (excellent) to F (poor)
+
+  - Support for mainnet, testnet4, and signet
+
+  - 100% client-side analysis in your browser
+
+  - Available in 5 languages (EN, ES, DE, FR, PT)
+releaseNotes: >-
+  Growth update: FAQ, About, and Glossary pages with full i18n (5 languages).
+  Animated navbar with active page indicator and mobile hamburger menu.
+  Social sharing (Twitter/X, Nostr, copy link) with canvas-generated share cards.
+  Bookmark and scan history. Enhanced SEO with JSON-LD schemas and IndexNow.
+  NIP-05 Nostr verification. Trust badges on homepage.
+developer: Copexit
+website: https://am-i.exposed
+dependencies:
+  - mempool
+repo: https://github.com/Copexit/am-i-exposed
+support: https://github.com/Copexit/am-i-exposed/issues
+port: 4120
+gallery:
+  - 1.jpg
+  - 2.jpg
+  - 3.jpg
+path: ""
+defaultUsername: ""
+defaultPassword: ""
+submitter: Copexit
+submission: https://github.com/getumbrel/umbrel-apps/pull/XXXX
