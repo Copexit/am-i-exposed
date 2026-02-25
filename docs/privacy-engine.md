@@ -4,7 +4,7 @@
 
 This document describes the privacy analysis engine behind **am-i.exposed**, an open-source, client-side Bitcoin privacy scanner. It is intended for cypherpunks, privacy researchers, wallet developers, and anyone who wants to understand exactly how their Bitcoin transactions are being analyzed - by us, and by adversaries.
 
-The engine implements 12 heuristics (H1-H12) that evaluate the on-chain privacy of Bitcoin addresses and transactions. These are the same techniques - sometimes simplified, sometimes extended - that chain surveillance firms use to cluster addresses, trace fund flows, and deanonymize users.
+The engine implements 16 heuristics (H1-H16) that evaluate the on-chain privacy of Bitcoin addresses and transactions. These are the same techniques - sometimes simplified, sometimes extended - that chain surveillance firms use to cluster addresses, trace fund flows, and deanonymize users.
 
 **Why this tool exists now.** In April 2024, OXT.me and KYCP.org ("Know Your Coin Privacy") went offline following the arrest of the Samourai Wallet developers. OXT.me was the gold standard for Boltzmann entropy analysis of Bitcoin transactions, created by LaurentMT as part of OXT Research. KYCP.org provided CoinJoin analysis and entropy calculations accessible to ordinary users. Both are gone. As of today, there is no publicly available tool that combines Boltzmann entropy estimation, wallet fingerprinting detection, and multi-transaction graph analysis in a single interface. am-i.exposed fills that gap.
 
@@ -128,11 +128,11 @@ Some wallet software consistently places the change output in a specific positio
 
 Change detection is the backbone of transaction tracing. If an adversary can identify which output is change, they know which output returns to the sender's wallet. They can then follow that change output into subsequent transactions, building a chain of custody. Break change detection, and you break most tracing.
 
-**Scoring impact:** -5 to -15
+**Scoring impact:** -5 to -30
 
-- High-confidence change detection (multiple sub-heuristics agree on the same output): -15
-- Medium confidence (one sub-heuristic matches clearly): -10
-- Ambiguous (sub-heuristics disagree or CoinJoin-like structure): -5
+- Self-send detected (all outputs return to sender, all inputs match): -30 or -25
+- Medium confidence change detection (one sub-heuristic matches clearly): -10
+- Low confidence: -5
 
 **References**
 - Meiklejohn et al., "A Fistful of Bitcoins: Characterizing Payments Among Men with No Names" (2013) - foundational change detection heuristics
@@ -167,11 +167,14 @@ This heuristic is applied transitively. If address A appears in a multi-input tr
 
 CIOH alone enables the majority of address clustering. A single multi-input transaction can link dozens of addresses to the same entity. Combined with a single KYC anchor point, an entire wallet's history can be deanonymized. Users who consolidate UTXOs are especially vulnerable - they are voluntarily linking all of their addresses in a single transaction.
 
-**Scoring impact:** -3 to -15
+**Scoring impact:** -3 to -45
 
 - Single-input transaction: 0 (no CIOH exposure)
-- 2-input transaction with 2 unique addresses: -3 to -8 depending on other factors
-- 3+ input transaction with 3+ unique addresses: -8 to -15
+- 2-4 unique input addresses: -3 per address (up to -12)
+- 5-9 unique input addresses: -15
+- 10-19 unique input addresses: -25
+- 20-49 unique input addresses: -35
+- 50+ unique input addresses: -45
 - Exception: CoinJoin pattern detected (H4): 0 (suppressed)
 
 **References**
@@ -365,11 +368,10 @@ If the fee rate is significantly higher or lower than the prevailing mempool fee
 
 Fee analysis alone is a weak signal. But combined with other wallet fingerprinting data (H11), it narrows the set of possible wallet software significantly. Knowing the wallet software can reveal the user's technical sophistication, preferred privacy tools, and even geographic region (some wallets are popular in specific communities).
 
-**Scoring impact:** -2 to -5
+**Scoring impact:** -2
 
-- Round fee rate detected: -2
-- RBF signaling that contributes to wallet fingerprinting: -2
-- Both round fee rate and identifiable RBF pattern: -5
+- Round fee rate detected (exact sat/vB integer): -2
+- RBF signaling: 0 (informational only)
 
 **References**
 - BIP125 - Opt-in Full Replace-by-Fee Signaling
@@ -414,11 +416,10 @@ for output in tx.outputs:
 
 OP_RETURN data is a permanent, public annotation on a transaction. It may contain identifying information - a protocol marker that reveals the purpose of the transaction, a message, a hash that can be correlated with off-chain data, or metadata that narrows the universe of possible senders. Even when the data itself is not directly identifying, it reduces the anonymity set by distinguishing the transaction from ordinary payments.
 
-**Scoring impact:** -5 to -10
+**Scoring impact:** -5 to -8
 
-- OP_RETURN with known protocol marker: -5 (reveals transaction purpose)
-- OP_RETURN with unknown binary data: -5
-- OP_RETURN containing readable ASCII text: -10 (may contain identifying information)
+- OP_RETURN with known protocol marker (Omni, OpenTimestamps, etc.): -8
+- OP_RETURN with unknown data: -5
 
 **References**
 - Bitcoin Core documentation on OP_RETURN
@@ -457,12 +458,15 @@ Address reuse:
 
 Many wallets handle this correctly by generating a new address for each receive using HD key derivation. But some users manually share the same address multiple times, and some poorly designed software defaults to showing a static receive address.
 
-**Scoring impact:** -20 to -35
+**Scoring impact:** -24 to -70
 
-- Address used in 2 transactions (first reuse): -20
-- Address used in 3-5 transactions: -25
-- Address used in 6-10 transactions: -30
-- Address used in 11+ transactions: -35
+- Address used in 2 transactions (first reuse): -24
+- 3-4 transactions: -32
+- 5-9 transactions: -45
+- 10-49 transactions: -50
+- 50-99 transactions: -58
+- 100-999 transactions: -65
+- 1000+ transactions: -70
 
 This is intentionally the harshest penalty in the scoring model. Address reuse is the most damaging privacy behavior, and it is entirely avoidable.
 
@@ -509,12 +513,12 @@ If a user has many UTXOs and decides to consolidate them into one, the consolida
 
 The UTXO set is a snapshot of the user's current on-chain state. Dust UTXOs represent active threats - landmines that will detonate when spent carelessly. A large UTXO count represents potential future privacy damage if consolidation is performed without coin control. Understanding the UTXO set helps users make informed decisions about coin selection and spending strategy.
 
-**Scoring impact:** -3 to -10
+**Scoring impact:** -8 to +2
 
-- Clean UTXO set (no dust, reasonable count): 0
-- Dust UTXOs detected (< 1000 sats): -5 to -10 depending on count and value
-- Large UTXO count (>20 on a single address): -3 (consolidation risk)
-- Very large UTXO count (>50): -5
+- Clean UTXO set (no dust, reasonable count): +2
+- Dust UTXOs detected (3+): -8; fewer: -5
+- Large UTXO count (>50 on a single address): -3 (consolidation risk)
+- Moderate UTXO count (>20): -2
 
 **References**
 - BitMEX Research, "Dust Attacks" analysis
@@ -644,12 +648,12 @@ Wallet fingerprinting reduces the anonymity set. If an adversary can determine t
 
 Research shows approximately 45% of transactions carry enough structural signals to be attributed to specific wallet software with reasonable confidence. For privacy-conscious users, this is a reminder that the choice of wallet software has privacy implications beyond its feature set.
 
-**Scoring impact:** -2 to -8
+**Scoring impact:** -2 to -6
 
-- Wallet software confidently identified (3+ signals agree): -8
-- Wallet software narrowed to 2-3 candidates (2 signals): -5
-- Weak fingerprinting signals only (1 signal): -2
-- Signals are contradictory or ambiguous: -1
+- Wallet software confidently identified (3+ signals agree): -6
+- Wallet software narrowed to 2-3 candidates (2 signals): -4
+- Single fingerprinting signal only: -3
+- Weak or contradictory signals: -2
 
 **References**
 - 0xB10C, "Wallet Fingerprinting" research - empirical analysis of transaction structure patterns
@@ -701,12 +705,12 @@ Dusting attacks are cheap to execute (a few hundred sats per target) and devasta
 
 The recommended response is to never spend dust UTXOs. Most privacy-aware wallets (Sparrow, Wasabi) support coin control - the ability to manually select which UTXOs to include in a transaction. Dust UTXOs should be frozen (excluded from automatic coin selection) or spent in isolation through a CoinJoin.
 
-**Scoring impact:** -3 to -10
+**Scoring impact:** -3 to -8
 
-- No dust UTXOs: 0
-- 1 dust UTXO (< 1000 sats): -3
-- 2-5 dust UTXOs: -5
-- 5+ dust UTXOs or sub-546-sat dust: -10
+- No dust outputs: 0
+- Surveillance dust pattern (single tiny output to unrelated address): -8
+- Small outputs below 1000 sats (sub-546 extreme dust): -5
+- Small outputs below 1000 sats: -3
 
 **References**
 - BitMEX Research, "Dusting Attacks" analysis
@@ -714,7 +718,7 @@ The recommended response is to never spend dust UTXOs. Most privacy-aware wallet
 
 ---
 
-### Anonymity Set Analysis
+### H13: Anonymity Set Analysis
 
 **Technical description**
 
@@ -740,7 +744,7 @@ else:
 
 ---
 
-### Script Type Mix Analysis
+### H15: Script Type Mix Analysis
 
 **Technical description**
 
@@ -772,7 +776,7 @@ This heuristic is suppressed (impact set to 0) for CoinJoin transactions, where 
 
 ---
 
-### Timing Analysis
+### H14: Timing Analysis
 
 **Technical description**
 
@@ -794,7 +798,7 @@ elif confirmed and (block_height - nLockTime) > 100:
 
 ---
 
-### Spending Pattern Analysis (Address-level)
+### H16: Spending Pattern Analysis (Address-level)
 
 **Technical description**
 
@@ -983,9 +987,9 @@ We take the following measures to minimize the privacy risks of using this tool:
 
 ---
 
-## Additional Heuristics (Implemented)
+## Additional Features
 
-### H13: Address Check (Pre-Send Destination Analysis)
+### Pre-Send Destination Check
 
 **Status:** Implemented
 
@@ -997,7 +1001,7 @@ Before sending bitcoin to an address, a user pastes the destination address into
 2. **Total received/spent** - Volume of activity on this address. High volume on a single address suggests an exchange deposit address, a merchant, or a careless user.
 3. **Associated transaction count** - How many transactions involve this address.
 4. **Known entity detection** - If the address appears in known databases (exchange hot wallets, mining pools, sanctioned addresses), flag it.
-5. **First-degree cluster size** (see H14) - How many other addresses are linked to this one through CIOH.
+5. **First-degree cluster size** (see Cluster Analysis below) - How many other addresses are linked to this one through CIOH.
 
 ```
 destination = user_input_address
@@ -1029,7 +1033,7 @@ No wallet currently warns users about destination address privacy. Sparrow flags
 
 ---
 
-### H14: First-Degree Cluster Analysis (CIOH Graph Walk)
+### First-Degree Cluster Analysis (CIOH Graph Walk)
 
 **Status:** Implemented
 
@@ -1101,7 +1105,7 @@ This is Phase 3+ territory. For now, one-hop gives users more information than a
 
 Cluster analysis is THE core technique of chain surveillance. Showing users their cluster size - even a lower-bound estimate - makes the abstract threat concrete. "Your address belongs to a cluster of 47 addresses" is far more impactful than "you used multiple inputs once."
 
-Combined with H13 (Address Check), users can see not just their own exposure but the exposure of addresses they're about to send to. "The address you're sending to belongs to a cluster of 200+ addresses - this is likely an exchange or service."
+Combined with the Pre-Send Destination Check, users can see not just their own exposure but the exposure of addresses they're about to send to. "The address you're sending to belongs to a cluster of 200+ addresses - this is likely an exchange or service."
 
 **Scoring impact:** Informational in Phase 2 (displayed but not scored). In future phases, cluster size could modify the privacy score:
 - Cluster size 1 (no CIOH exposure): +0

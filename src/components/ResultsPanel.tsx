@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowLeft, ExternalLink, Copy, Check, Info, AlertTriangle } from "lucide-react";
+import { ArrowLeft, ExternalLink, Copy, Info, AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
@@ -18,6 +18,9 @@ import { TxBreakdownPanel } from "./TxBreakdownPanel";
 import { ClusterPanel } from "./ClusterPanel";
 import { TipJar } from "./TipJar";
 import { CrossPromo } from "./CrossPromo";
+import { ShareButtons } from "./ShareButtons";
+import { ShareCardButton } from "./ShareCardButton";
+import { BookmarkButton } from "./BookmarkButton";
 import { GlowCard } from "./ui/GlowCard";
 import { copyToClipboard } from "@/lib/clipboard";
 import { getSummarySentiment } from "@/lib/scoring/score";
@@ -141,21 +144,12 @@ export function ResultsPanel({
 }: ResultsPanelProps) {
   const { config, customApiUrl, localApiStatus } = useNetwork();
   const { t } = useTranslation();
-  const [shareStatus, setShareStatus] = useState<"idle" | "copied" | "failed">("idle");
-
   const explorerUrl = `${config.explorerUrl}/${inputType === "txid" ? "tx" : "address"}/${encodeURIComponent(query)}`;
   const explorerLabel = customApiUrl
     ? t("results.viewOnCustom", { hostname: new URL(config.explorerUrl).hostname, defaultValue: "View on {{hostname}}" })
     : localApiStatus === "available"
       ? t("results.viewOnLocal", { defaultValue: "View on local mempool" })
       : t("results.viewOnMempool", { defaultValue: "View on mempool.space" });
-
-  const handleShare = async () => {
-    const shareUrl = `${window.location.origin}${window.location.pathname}#${inputType === "txid" ? "tx" : "addr"}=${encodeURIComponent(query)}`;
-    const ok = await copyToClipboard(shareUrl);
-    setShareStatus(ok ? "copied" : "failed");
-    setTimeout(() => setShareStatus("idle"), 2000);
-  };
 
   return (
     <motion.div
@@ -176,14 +170,22 @@ export function ResultsPanel({
         </button>
 
         <div className="flex items-center gap-2">
+          <BookmarkButton query={query} inputType={inputType} grade={result.grade} score={result.score} />
           <ExportButton targetId="results-panel" query={query} result={result} inputType={inputType} />
-          <button
-            onClick={handleShare}
-            className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer px-3 py-2 min-h-[44px] rounded-lg border border-card-border hover:border-muted/50 bg-surface-elevated/50"
-          >
-            {shareStatus === "copied" ? <Check size={14} /> : <Copy size={14} />}
-            {shareStatus === "copied" ? t("results.copied", { defaultValue: "Copied" }) : shareStatus === "failed" ? t("results.failed", { defaultValue: "Failed" }) : t("results.share", { defaultValue: "Share" })}
-          </button>
+          <ShareCardButton
+            grade={result.grade}
+            score={result.score}
+            query={query}
+            inputType={inputType as "txid" | "address"}
+            findingCount={result.findings.length}
+          />
+          <ShareButtons
+            grade={result.grade}
+            score={result.score}
+            query={query}
+            inputType={inputType as "txid" | "address"}
+            findingCount={result.findings.length}
+          />
         </div>
       </div>
 
@@ -217,9 +219,8 @@ export function ResultsPanel({
       {result.grade === "F" && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-60px" }}
-          transition={{ duration: 0.4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
           className="w-full bg-severity-critical/10 border border-severity-critical/30 rounded-xl p-4 flex items-start gap-3"
         >
           <AlertTriangle size={18} className="text-severity-critical shrink-0 mt-0.5" />
@@ -236,21 +237,60 @@ export function ResultsPanel({
         </motion.div>
       )}
 
+      {/* Share prompt for notable scores */}
+      {(result.grade === "F" || result.grade === "D" || result.grade === "A+" || result.grade === "B") && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.15 }}
+          className="w-full rounded-xl border border-dashed border-card-border px-5 py-4 text-center"
+        >
+          <p className="text-sm text-muted">
+            {result.grade === "D" || result.grade === "F"
+              ? t("sharePrompt.bad", { defaultValue: "This transaction has serious privacy issues. Share it as a cautionary tale." })
+              : t("sharePrompt.good", { defaultValue: "Strong privacy practices here. Share it as an example of how it should be done." })}
+          </p>
+          <button
+            onClick={() => {
+              const isBad = result.grade === "D" || result.grade === "F";
+              const text = isBad
+                ? t("sharePrompt.tweetBad", {
+                    defaultValue: "Privacy score: {{grade}} ({{score}}/100). This is what happens when you ignore coin control and reuse addresses. Chain analysis firms feast on transactions like this.",
+                    grade: result.grade, score: result.score,
+                  })
+                : t("sharePrompt.tweetGood", {
+                    defaultValue: "Privacy score: {{grade}} ({{score}}/100). This is what proper Bitcoin privacy hygiene looks like.",
+                    grade: result.grade, score: result.score,
+                  });
+              const shareUrl = `https://am-i.exposed/#${inputType === "txid" ? "tx" : "addr"}=${encodeURIComponent(query)}`;
+              window.open(
+                `https://x.com/intent/tweet?text=${encodeURIComponent(`${text}\n\n${shareUrl}`)}`,
+                "_blank",
+                "noopener,noreferrer",
+              );
+            }}
+            className="mt-2 text-sm text-bitcoin hover:text-bitcoin-hover transition-colors cursor-pointer"
+          >
+            {t("sharePrompt.shareOnX", { defaultValue: "Share on X" })}
+          </button>
+        </motion.div>
+      )}
+
       {/* Data visualization */}
       {txData && (
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }} className="w-full">
           <TxSummary tx={txData} onAddressClick={onScan} />
         </motion.div>
       )}
       {addressData && (
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }} className="w-full">
           <AddressSummary address={addressData} />
         </motion.div>
       )}
 
       {/* Per-transaction breakdown (address analysis only) */}
       {txBreakdown && txBreakdown.length > 0 && addressData && (
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.25 }} className="w-full">
           <TxBreakdownPanel
             breakdown={txBreakdown}
             targetAddress={query}
@@ -271,7 +311,7 @@ export function ResultsPanel({
         };
         const colors = colorMap[sentiment];
         return (
-          <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className={`w-full rounded-xl border px-4 py-3 ${colors.border}`}>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.3 }} className={`w-full rounded-xl border px-4 py-3 ${colors.border}`}>
             <p className={`text-base font-medium ${colors.text}`}>
               {sentiment === "positive"
                 ? t("results.summaryGood", { defaultValue: "No significant privacy concerns detected." })
@@ -285,7 +325,7 @@ export function ResultsPanel({
 
       {/* Findings */}
       {result.findings.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full space-y-4">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.35 }} className="w-full space-y-4">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-base font-medium text-muted uppercase tracking-wider">
               {t("results.findingsHeading", { count: result.findings.length, defaultValue: "Findings ({{count}})" })}
@@ -307,7 +347,7 @@ export function ResultsPanel({
 
       {/* Cluster Analysis (address only, opt-in) */}
       {inputType === "address" && addressTxs && addressTxs.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.4 }} className="w-full">
           <ClusterPanel
             targetAddress={query}
             txs={addressTxs}
@@ -317,12 +357,12 @@ export function ResultsPanel({
       )}
 
       {/* Remediation */}
-      <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.4 }} className="w-full">
         <Remediation findings={result.findings} grade={result.grade} />
       </motion.div>
 
       {/* Exchange Risk Check */}
-      <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.45 }} className="w-full">
         <CexRiskPanel
           query={query}
           inputType={inputType}
@@ -337,19 +377,19 @@ export function ResultsPanel({
       {result.findings.some(
         (f) => (f.id === "h4-whirlpool" || f.id === "h4-coinjoin" || f.id === "h4-joinmarket") && f.scoreImpact > 0,
       ) && (
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.5 }} className="w-full">
           <ExchangeWarningPanel />
         </motion.div>
       )}
 
       {/* Score breakdown & how scoring works */}
-      <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.5 }} className="w-full">
         <ScoreBreakdown findings={result.findings} finalScore={result.score} />
         <ScoringExplainer />
       </motion.div>
 
       {/* TipJar + CrossPromo */}
-      <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.55 }} className="w-full">
         <TipJar />
         {inputType === "txid" && <CrossPromo />}
       </motion.div>
@@ -368,7 +408,7 @@ export function ResultsPanel({
       </div>
 
       {/* Disclaimer */}
-      <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-60px" }} transition={{ duration: 0.4 }} className="w-full bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.6 }} className="w-full bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed">
         {t("results.disclaimerStats", {
           findingCount: result.findings.length,
           heuristicCount: inputType === "txid" ? "12" : "4",

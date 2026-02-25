@@ -3,17 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
-import { ShieldCheck, AlertCircle } from "lucide-react";
+import { ShieldCheck, AlertCircle, EyeOff, Github } from "lucide-react";
 import { AddressInput } from "@/components/AddressInput";
 import { DiagnosticLoader } from "@/components/DiagnosticLoader";
 import { ResultsPanel } from "@/components/ResultsPanel";
 import { PreSendResultPanel } from "@/components/PreSendResultPanel";
-import { RecentScans } from "@/components/RecentScans";
+import { ScanHistory } from "@/components/ScanHistory";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useNetwork } from "@/context/NetworkContext";
 import { useRecentScans } from "@/hooks/useRecentScans";
+import { useBookmarks } from "@/hooks/useBookmarks";
 import { useKeyboardNav } from "@/hooks/useKeyboardNav";
 import { TipToast } from "@/components/TipToast";
 import type { AnalysisMode } from "@/lib/types";
@@ -40,7 +41,7 @@ const EXAMPLES = [
   {
     labelKey: "page.example_opreturn",
     labelDefault: "OP_RETURN data",
-    hint: "C",
+    hint: "D",
     input: "8bae12b5f4c088d940733dcd1455efc6a3a69cf9340e17a981286d3778615684",
   },
 ];
@@ -98,6 +99,7 @@ export default function Home() {
 
   const { t } = useTranslation();
   const { scans, addScan, clearScans } = useRecentScans();
+  const { bookmarks, removeBookmark, clearBookmarks } = useBookmarks();
   const inputRef = useRef<HTMLInputElement>(null);
   const [mode, setMode] = useState<AnalysisMode>("scan");
 
@@ -279,9 +281,16 @@ export default function Home() {
               />
             </motion.div>
 
-            <RecentScans scans={scans} onSelect={handleSubmit} onClear={clearScans} />
+            <ScanHistory
+              scans={scans}
+              bookmarks={bookmarks}
+              onSelect={handleSubmit}
+              onClearScans={clearScans}
+              onRemoveBookmark={removeBookmark}
+              onClearBookmarks={clearBookmarks}
+            />
 
-            {scans.length === 0 && (
+            {scans.length === 0 && bookmarks.length === 0 && (
               <div className="w-full max-w-3xl">
                 <div className="flex items-center gap-1.5 text-base text-muted mb-2 px-1">
                   <span>
@@ -306,6 +315,7 @@ export default function Home() {
                           <span className={`text-xs font-bold ${
                             ex.hint === "A+" ? "text-severity-good" :
                             ex.hint === "F" ? "text-severity-critical" :
+                            ex.hint === "D" ? "text-severity-high" :
                             "text-severity-medium"
                           }`}>
                             {ex.hint}
@@ -336,14 +346,22 @@ export default function Home() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.6, duration: 0.5 }}
-              className="flex flex-wrap items-center justify-center gap-4 text-base text-muted"
+              className="inline-flex flex-wrap items-center justify-center gap-3 px-4 py-2 rounded-full border border-card-border bg-surface-elevated/30 text-sm text-muted"
             >
               <span className="inline-flex items-center gap-1.5">
-                <ShieldCheck size={16} className="text-success/50" />
+                <ShieldCheck size={14} className="text-success/60" />
                 {t("page.trust_client", { defaultValue: "100% client-side" })}
               </span>
-              <span>{t("page.trust_tracking", { defaultValue: "No tracking" })}</span>
-              <a href="https://github.com/Copexit/am-i-exposed" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">{t("page.trust_opensource", { defaultValue: "Open source" })}</a>
+              <span className="text-card-border">|</span>
+              <span className="inline-flex items-center gap-1.5">
+                <EyeOff size={14} className="text-info/60" />
+                {t("page.trust_tracking", { defaultValue: "No tracking" })}
+              </span>
+              <span className="text-card-border">|</span>
+              <a href="https://github.com/Copexit/am-i-exposed" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors">
+                <Github size={14} className="text-muted/60" />
+                {t("page.trust_opensource", { defaultValue: "Open source" })}
+              </a>
             </motion.div>
 
           </motion.div>

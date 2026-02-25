@@ -20,6 +20,14 @@ Use a regular hyphen with spaces instead: ` - `
 
 This applies to all strings, comments, UI text, metadata, test descriptions, and documentation within `src/`.
 
+### Voice and tone in UI text
+
+- **Never use "we", "us", or "our"** in UI copy, metadata, FAQ answers, or any user-facing text. This tool is not a person, company, or group.
+- Use **passive voice** or refer to the tool by name ("am-i.exposed").
+- Data is never "transmitted to us" - say "transmitted to anyone" or specify the actual recipient (e.g., "mempool.space for blockchain data").
+- Correct: "Your addresses and transactions are never logged, stored, or transmitted to anyone except the mempool.space API (or your own instance)."
+- Wrong: "We don't store your data." / "Your data is never transmitted to us."
+
 ### General
 
 - TypeScript strict mode, no `any` types

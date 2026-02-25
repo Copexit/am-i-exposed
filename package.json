@@ -5,7 +5,7 @@
   "packageManager": "pnpm@10.26.1",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/generate-sitemap.mjs && next build",
     "start": "next start",
     "lint": "eslint",
     "type-check": "tsc --noEmit"

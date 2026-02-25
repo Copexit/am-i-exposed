@@ -10,6 +10,7 @@ interface RecentScansProps {
   scans: RecentScan[];
   onSelect: (input: string) => void;
   onClear?: () => void;
+  hideHeader?: boolean;
 }
 
 const GRADE_COLORS: Record<string, string> = {
@@ -20,7 +21,7 @@ const GRADE_COLORS: Record<string, string> = {
   F: "text-severity-critical",
 };
 
-export function RecentScans({ scans, onSelect, onClear }: RecentScansProps) {
+export function RecentScans({ scans, onSelect, onClear, hideHeader }: RecentScansProps) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language ?? "en";
   const timeAgo = (ms: number) => formatTimeAgo(Math.floor(ms / 1000), locale);
@@ -34,23 +35,25 @@ export function RecentScans({ scans, onSelect, onClear }: RecentScansProps) {
       transition={{ delay: 0.3 }}
       className="w-full max-w-2xl"
     >
-      <div className="flex items-center justify-between mb-2 px-1">
-        <div className="flex items-center gap-1.5 text-xs text-muted">
-          <Clock size={14} />
-          <span>{t("recent.title", { defaultValue: "Recent scans" })}</span>
+      {!hideHeader && (
+        <div className="flex items-center justify-between mb-2 px-1">
+          <div className="flex items-center gap-1.5 text-xs text-muted">
+            <Clock size={14} />
+            <span>{t("recent.title", { defaultValue: "Recent scans" })}</span>
+          </div>
+          {onClear && (
+            <button
+              onClick={onClear}
+              className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer p-2 -m-2"
+              title={t("recent.clearHistory", { defaultValue: "Clear scan history" })}
+              aria-label={t("recent.clearHistory", { defaultValue: "Clear scan history" })}
+            >
+              <X size={14} />
+              {t("recent.clear", { defaultValue: "Clear" })}
+            </button>
+          )}
         </div>
-        {onClear && (
-          <button
-            onClick={onClear}
-            className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer p-2 -m-2"
-            title={t("recent.clearHistory", { defaultValue: "Clear scan history" })}
-            aria-label={t("recent.clearHistory", { defaultValue: "Clear scan history" })}
-          >
-            <X size={14} />
-            {t("recent.clear", { defaultValue: "Clear" })}
-          </button>
-        )}
-      </div>
+      )}
       <div className="flex flex-wrap gap-2">
         {scans.map((scan) => (
           <button

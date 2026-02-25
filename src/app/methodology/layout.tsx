@@ -16,6 +16,14 @@ export const metadata: Metadata = {
   ],
   alternates: {
     canonical: "https://am-i.exposed/methodology/",
+    languages: {
+      en: "https://am-i.exposed/methodology/",
+      es: "https://am-i.exposed/methodology/",
+      de: "https://am-i.exposed/methodology/",
+      fr: "https://am-i.exposed/methodology/",
+      pt: "https://am-i.exposed/methodology/",
+      "x-default": "https://am-i.exposed/methodology/",
+    },
   },
   openGraph: {
     title: "Methodology - How Bitcoin Privacy is Scored | am-i.exposed",

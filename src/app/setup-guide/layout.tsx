@@ -15,6 +15,14 @@ export const metadata: Metadata = {
   ],
   alternates: {
     canonical: "https://am-i.exposed/setup-guide/",
+    languages: {
+      en: "https://am-i.exposed/setup-guide/",
+      es: "https://am-i.exposed/setup-guide/",
+      de: "https://am-i.exposed/setup-guide/",
+      fr: "https://am-i.exposed/setup-guide/",
+      pt: "https://am-i.exposed/setup-guide/",
+      "x-default": "https://am-i.exposed/setup-guide/",
+    },
   },
   openGraph: {
     title: "Connect Your Node - Setup Guide | am-i.exposed",

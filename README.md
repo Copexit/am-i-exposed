@@ -1,10 +1,16 @@
 # Am I Exposed?
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub stars](https://img.shields.io/github/stars/Copexit/am-i-exposed.svg)](https://github.com/Copexit/am-i-exposed/stargazers)
+[![GitHub last commit](https://img.shields.io/github/last-commit/Copexit/am-i-exposed.svg)](https://github.com/Copexit/am-i-exposed/commits/main)
+
 **The on-chain privacy scanner you were afraid to run.**
 
 Paste a Bitcoin address or transaction ID. Get a privacy score 0-100. Find out what the blockchain knows about you.
 
 *Because Chainalysis already checked.*
+
+[Live Site](https://am-i.exposed) | [Methodology](https://am-i.exposed/methodology/) | [Setup Guide](https://am-i.exposed/setup-guide/) | [Contributing](CONTRIBUTING.md)
 
 ---
 

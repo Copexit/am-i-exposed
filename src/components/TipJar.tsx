@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { motion, AnimatePresence } from "motion/react";
-import { Heart, ChevronDown, Copy, Check } from "lucide-react";
+import { Heart, ChevronDown, Copy, Check, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { copyToClipboard } from "@/lib/clipboard";
 
@@ -91,7 +91,17 @@ export function TipJar() {
                     {copied ? t("common.copied", { defaultValue: "Copied" }) : t("common.copy", { defaultValue: "Copy" })}
                   </button>
                 </div>
+                <a
+                  href="nostr:npub1copexit"
+                  className="inline-flex items-center gap-1.5 text-xs text-purple-400/80 hover:text-purple-400 transition-colors mt-1"
+                >
+                  <Zap size={12} />
+                  {t("common.zapNostr", { defaultValue: "Zap via Nostr" })}
+                </a>
               </div>
+              <p className="text-center text-xs text-muted/50">
+                {t("common.v4v", { defaultValue: "Powered by Value4Value - no ads, no subscriptions, just voluntary support" })}
+              </p>
             </div>
           </motion.div>
         )}
