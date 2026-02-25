@@ -48,7 +48,8 @@ export function TipJar() {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: 0.5 }}
-      className="w-full relative rounded-xl glass overflow-hidden"
+      className="w-full relative rounded-xl overflow-hidden border border-glass-border"
+      style={{ background: "var(--card-bg)", boxShadow: "var(--glass-shadow)" }}
     >
       <button
         onClick={() => setExpanded(!expanded)}

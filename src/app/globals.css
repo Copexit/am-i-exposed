@@ -19,7 +19,7 @@
   --severity-medium: #eab308;
   --severity-low: #3b82f6;
   --severity-good: #28d065;
-  --glass-bg: rgba(28, 28, 32, 0.60);
+  --glass-bg: rgba(28, 28, 32, 0.75);
   --glass-border: rgba(255, 255, 255, 0.06);
   --glass-blur: 16px;
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);

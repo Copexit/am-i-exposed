@@ -24,17 +24,17 @@ export function GlowCard({ children, className = "" }: GlowCardProps) {
   return (
     <div
       ref={cardRef}
-      className={`relative glass rounded-xl overflow-hidden ${className}`}
+      className={`relative glass rounded-xl ${className}`}
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Cursor glow overlay */}
       <div
-        className="pointer-events-none absolute inset-0 z-10 transition-opacity duration-300"
+        className="pointer-events-none absolute inset-0 z-10 rounded-xl transition-opacity duration-300"
         style={{
           opacity: isHovered ? 1 : 0,
-          background: `radial-gradient(600px circle at ${mousePos.x}px ${mousePos.y}px, rgba(247,147,26,0.06), transparent 40%)`,
+          background: `radial-gradient(800px circle at ${mousePos.x}px ${mousePos.y}px, rgba(247,147,26,0.07), transparent 70%)`,
         }}
       />
       {children}
