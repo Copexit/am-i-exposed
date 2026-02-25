@@ -3,37 +3,18 @@
 import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { motion, AnimatePresence } from "motion/react";
-import { Heart, ChevronDown, X, Copy, Check } from "lucide-react";
+import { Heart, ChevronDown, Copy, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { copyToClipboard } from "@/lib/clipboard";
 
 const LN_ADDRESS = "woozycuticle72@walletofsatoshi.com";
-const DISMISS_KEY = "ami-tip-dismissed";
-
-function isDismissedInSession(): boolean {
-  try {
-    return sessionStorage.getItem(DISMISS_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function persistDismiss(): void {
-  try {
-    sessionStorage.setItem(DISMISS_KEY, "1");
-  } catch {}
-}
-
 export function TipJar() {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.matchMedia("(min-width: 1024px)").matches;
   });
-  const [dismissed, setDismissed] = useState(isDismissedInSession);
   const [copied, setCopied] = useState(false);
-
-  if (dismissed) return null;
 
   const handleCopy = async () => {
     const ok = await copyToClipboard(LN_ADDRESS);
@@ -69,18 +50,6 @@ export function TipJar() {
             expanded ? "rotate-180" : ""
           }`}
         />
-      </button>
-
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          persistDismiss();
-          setDismissed(true);
-        }}
-        className="absolute top-3 right-3 text-muted hover:text-foreground transition-colors cursor-pointer p-3"
-        aria-label="Dismiss tip jar"
-      >
-        <X size={16} />
       </button>
 
       <AnimatePresence>

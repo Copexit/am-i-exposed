@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ChevronDown, ArrowUpRight, ArrowDownLeft, ArrowLeftRight, ArrowUpDown } from "lucide-react";
+import { ChevronDown, ArrowUpRight, ArrowDownLeft, ArrowLeftRight, ArrowUpDown, Radar } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { TxSummary } from "./TxSummary";
 import { FindingCard } from "./FindingCard";
@@ -108,19 +108,9 @@ export function TxBreakdownPanel({
                 </span>
 
                 {/* Txid */}
-                {onScan ? (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onScan(item.txid); }}
-                    className="flex-1 font-mono text-sm text-foreground truncate hover:text-bitcoin transition-colors text-left cursor-pointer"
-                    title={t("breakdown.analyzeTx", { defaultValue: "Analyze this transaction" })}
-                  >
-                    {item.txid.slice(0, 8)}...{item.txid.slice(-6)}
-                  </button>
-                ) : (
-                  <span className="flex-1 font-mono text-sm text-foreground truncate">
-                    {item.txid.slice(0, 8)}...{item.txid.slice(-6)}
-                  </span>
-                )}
+                <span className="flex-1 font-mono text-sm text-foreground truncate">
+                  {item.txid.slice(0, 8)}...{item.txid.slice(-6)}
+                </span>
 
                 {/* Role */}
                 <span className={`inline-flex items-center gap-1 text-xs ${role.color}`}>
@@ -170,6 +160,16 @@ export function TxBreakdownPanel({
                             />
                           ))}
                         </div>
+                      )}
+
+                      {onScan && (
+                        <button
+                          onClick={() => onScan(item.txid)}
+                          className="inline-flex items-center gap-1.5 text-xs text-bitcoin hover:text-bitcoin-hover transition-colors cursor-pointer"
+                        >
+                          <Radar size={12} />
+                          {t("breakdown.fullScan", { defaultValue: "Full scan of this transaction" })}
+                        </button>
                       )}
                     </div>
                   </motion.div>
