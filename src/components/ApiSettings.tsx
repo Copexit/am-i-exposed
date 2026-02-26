@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Settings, Check, X, Loader2, RotateCcw, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -28,6 +29,7 @@ export function ApiSettings() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const currentNetwork = NETWORKS.find((n) => n.value === network) ?? NETWORKS[0];
@@ -44,11 +46,15 @@ export function ApiSettings() {
     return diagnoseUrl(trimmed);
   }, [inputValue]);
 
-  // Close on click outside
+  // Close on click outside (check both panel and button since portal moves panel out of DOM tree)
   useEffect(() => {
     if (!open) return;
     function handleClick(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        panelRef.current && !panelRef.current.contains(target) &&
+        buttonRef.current && !buttonRef.current.contains(target)
+      ) {
         setOpen(false);
       }
     }
@@ -156,8 +162,9 @@ export function ApiSettings() {
   };
 
   return (
-    <div ref={panelRef} className="relative">
+    <div className="relative">
       <button
+        ref={buttonRef}
         onClick={() => {
           if (!open) {
             setInputValue(customApiUrl ?? "");
@@ -181,15 +188,15 @@ export function ApiSettings() {
         )}
       </button>
 
-      {open && (
+      {open && createPortal(
         <>
         {/* Mobile backdrop */}
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 sm:hidden"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] sm:hidden"
           onClick={() => setOpen(false)}
           aria-hidden="true"
         />
-        <div role="dialog" aria-modal="true" aria-label={t("settings.ariaLabel", { defaultValue: "Settings" })} className="fixed inset-x-0 bottom-0 sm:bottom-auto sm:top-full rounded-t-2xl sm:rounded-xl mx-0 sm:absolute sm:inset-x-auto sm:right-0 sm:mx-0 sm:mt-2 sm:w-96 glass z-50 p-4 space-y-4 max-h-[80vh] overflow-y-auto">
+        <div ref={panelRef} role="dialog" aria-modal="true" aria-label={t("settings.ariaLabel", { defaultValue: "Settings" })} className="fixed inset-x-0 bottom-0 sm:bottom-auto sm:top-[72px] rounded-t-2xl sm:rounded-xl mx-0 sm:absolute sm:inset-x-auto sm:right-4 sm:mx-0 sm:mt-2 sm:w-96 z-[60] p-4 space-y-4 max-h-[70dvh] sm:max-h-[80vh] overflow-y-auto border border-glass-border" style={{ background: "var(--card-bg)", boxShadow: "var(--glass-shadow)" }}>
 
           {/* Mobile drag handle */}
           <div className="flex justify-center sm:hidden pb-2">
@@ -446,7 +453,8 @@ export function ApiSettings() {
           </>
           )}
         </div>
-        </>
+        </>,
+        document.body,
       )}
     </div>
   );

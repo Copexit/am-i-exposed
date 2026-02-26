@@ -81,7 +81,8 @@ export function InstallPrompt() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 20 }}
-        className="fixed bottom-4 left-4 right-4 max-w-sm mx-auto glass rounded-lg p-4 z-50"
+        className="fixed bottom-4 left-4 right-4 max-w-sm mx-auto rounded-xl overflow-hidden border border-glass-border p-4 z-50"
+        style={{ background: "var(--card-bg)", boxShadow: "var(--glass-shadow)" }}
       >
         <div className="flex items-start gap-3">
           <Download size={18} className="text-bitcoin shrink-0 mt-0.5" />
