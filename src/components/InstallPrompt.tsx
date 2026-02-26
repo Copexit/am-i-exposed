@@ -4,6 +4,7 @@ import { useState, useEffect, useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Download, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useNetwork } from "@/context/NetworkContext";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -31,6 +32,8 @@ function subscribeStandalone(callback: () => void) {
  */
 export function InstallPrompt() {
   const { t } = useTranslation();
+  const { localApiStatus } = useNetwork();
+  const isUmbrel = localApiStatus === "available";
   const isStandalone = useSyncExternalStore(
     subscribeStandalone,
     getIsStandalone,
@@ -40,13 +43,12 @@ export function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(false);
-  const [shouldShow] = useState(() => {
-    if (typeof window === "undefined") return false;
+  const [visitCount] = useState(() => {
+    if (typeof window === "undefined") return 0;
     const key = "ami-visit-count";
     const count = parseInt(localStorage.getItem(key) ?? "0", 10) + 1;
     localStorage.setItem(key, String(count));
-    // Show on first load, then every 3 loads (1, 4, 7, 10...)
-    return count === 1 || (count - 1) % 3 === 0;
+    return count;
   });
 
   useEffect(() => {
@@ -73,6 +75,12 @@ export function InstallPrompt() {
   const handleDismiss = () => {
     setDismissed(true);
   };
+
+  // Umbrel: show on first load, then every 3 loads (1, 4, 7, 10...)
+  // GitHub Pages: show after 5 visits
+  const shouldShow = isUmbrel
+    ? visitCount === 1 || (visitCount - 1) % 3 === 0
+    : visitCount >= 5;
 
   if (isStandalone || dismissed || !deferredPrompt || !shouldShow) return null;
 
