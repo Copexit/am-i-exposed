@@ -92,7 +92,7 @@ export function TipJar() {
                   </button>
                 </div>
                 <a
-                  href="nostr:npub1copexit"
+                  href="nostr:npub14n4e3dnxcumh7kexfgunp86dzhtjcfewe40g4qm6yfl3kf9ute2q5jqr48"
                   className="inline-flex items-center gap-1.5 text-xs text-purple-400/80 hover:text-purple-400 transition-colors mt-1"
                 >
                   <Zap size={12} />
