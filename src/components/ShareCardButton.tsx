@@ -74,7 +74,7 @@ export function ShareCardButton({
       className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer px-3 py-2 min-h-[44px] rounded-lg border border-card-border hover:border-muted/50 bg-surface-elevated/50 disabled:opacity-50 disabled:cursor-wait"
     >
       {generating ? <Loader2 size={14} className="animate-spin" /> : <ImageIcon size={14} />}
-      {t("share.scoreCard", { defaultValue: "Score card" })}
+      <span className="hidden sm:inline">{t("share.scoreCard", { defaultValue: "Score card" })}</span>
     </button>
   );
 }

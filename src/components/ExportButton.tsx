@@ -107,11 +107,13 @@ export function ExportButton({ targetId, query, result, inputType }: ExportButto
       title={t("export.copyToClipboard", { defaultValue: "Copy report to clipboard" })}
     >
       {status === "done" ? <Check size={14} /> : <ClipboardCopy size={14} />}
-      {status === "done"
-        ? t("export.copied", { defaultValue: "Copied" })
-        : status === "failed"
-          ? t("export.failed", { defaultValue: "Failed" })
-          : t("export.copyReport", { defaultValue: "Copy report" })}
+      <span className="hidden sm:inline">
+        {status === "done"
+          ? t("export.copied", { defaultValue: "Copied" })
+          : status === "failed"
+            ? t("export.failed", { defaultValue: "Failed" })
+            : t("export.copyReport", { defaultValue: "Copy report" })}
+      </span>
     </button>
   );
 }

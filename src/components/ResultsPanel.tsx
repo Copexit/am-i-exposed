@@ -160,7 +160,7 @@ export function ResultsPanel({
       className="flex flex-col items-center gap-6 sm:gap-8 w-full max-w-3xl"
     >
       {/* Top bar */}
-      <div className="w-full flex items-center justify-between">
+      <div className="w-full flex flex-wrap items-center gap-2">
         <button
           onClick={onBack}
           className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer px-3 py-2 min-h-[44px] rounded-lg border border-card-border hover:border-muted/50 bg-surface-elevated/50"
@@ -169,24 +169,24 @@ export function ResultsPanel({
           {t("results.newScan", { defaultValue: "New scan" })}
         </button>
 
-        <div className="flex items-center gap-2">
-          <BookmarkButton query={query} inputType={inputType} grade={result.grade} score={result.score} />
-          <ExportButton targetId="results-panel" query={query} result={result} inputType={inputType} />
-          <ShareCardButton
-            grade={result.grade}
-            score={result.score}
-            query={query}
-            inputType={inputType as "txid" | "address"}
-            findingCount={result.findings.length}
-          />
-          <ShareButtons
-            grade={result.grade}
-            score={result.score}
-            query={query}
-            inputType={inputType as "txid" | "address"}
-            findingCount={result.findings.length}
-          />
-        </div>
+        <div className="flex-1" />
+
+        <BookmarkButton query={query} inputType={inputType} grade={result.grade} score={result.score} />
+        <ExportButton targetId="results-panel" query={query} result={result} inputType={inputType} />
+        <ShareCardButton
+          grade={result.grade}
+          score={result.score}
+          query={query}
+          inputType={inputType as "txid" | "address"}
+          findingCount={result.findings.length}
+        />
+        <ShareButtons
+          grade={result.grade}
+          score={result.score}
+          query={query}
+          inputType={inputType as "txid" | "address"}
+          findingCount={result.findings.length}
+        />
       </div>
 
       {/* Query + Score */}

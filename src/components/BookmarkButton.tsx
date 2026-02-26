@@ -93,7 +93,7 @@ export function BookmarkButton({ query, inputType, grade, score }: BookmarkButto
           size={16}
           className={saved ? "text-bitcoin fill-bitcoin" : "text-muted"}
         />
-        <span className={saved ? "text-bitcoin" : "text-muted"}>
+        <span className={`hidden sm:inline ${saved ? "text-bitcoin" : "text-muted"}`}>
           {saved
             ? t("bookmark.saved", { defaultValue: "Saved" })
             : t("bookmark.save", { defaultValue: "Save" })}
