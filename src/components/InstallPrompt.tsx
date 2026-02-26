@@ -40,12 +40,13 @@ export function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(false);
-  const [enoughVisits] = useState(() => {
+  const [shouldShow] = useState(() => {
     if (typeof window === "undefined") return false;
     const key = "ami-visit-count";
     const count = parseInt(localStorage.getItem(key) ?? "0", 10) + 1;
     localStorage.setItem(key, String(count));
-    return count >= 5;
+    // Show on first load, then every 3 loads (1, 4, 7, 10...)
+    return count === 1 || (count - 1) % 3 === 0;
   });
 
   useEffect(() => {
@@ -73,7 +74,7 @@ export function InstallPrompt() {
     setDismissed(true);
   };
 
-  if (isStandalone || dismissed || !deferredPrompt || !enoughVisits) return null;
+  if (isStandalone || dismissed || !deferredPrompt || !shouldShow) return null;
 
   return (
     <AnimatePresence>
