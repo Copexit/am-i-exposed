@@ -24,9 +24,10 @@ export const analyzeAddressType: AddressHeuristic = (address) => {
             title: "Taproot address (P2TR)",
             description:
               "Taproot hides script complexity - single-sig, multisig, and timelocks all look identical on-chain via key-path spends. " +
-              "This is especially valuable for multisig and complex scripts. However, Taproot adoption is still growing, so its anonymity set is currently smaller than P2WPKH.",
+              "This is especially valuable for multisig and complex scripts. For single-sig, P2TR's anonymity set is currently smaller " +
+              "than P2WPKH (native SegWit), which remains the most common address type.",
             recommendation:
-              "Taproot is ideal for multisig and complex scripts where it hides the underlying conditions. For single-sig, both P2TR and P2WPKH provide strong privacy.",
+              "Taproot is ideal for multisig and complex scripts. For single-sig wallets, P2WPKH (bc1q) currently offers a larger anonymity set. Both are strong choices.",
             scoreImpact: 5,
           },
         ],
@@ -75,7 +76,7 @@ export const analyzeAddressType: AddressHeuristic = (address) => {
             description:
               "P2SH addresses reveal their script type on spend, reducing privacy. They also have a smaller anonymity set than native SegWit or Taproot addresses.",
             recommendation:
-              "Upgrade to a native SegWit (bc1q) or Taproot (bc1p) wallet.",
+              "Upgrade to a Native SegWit (bc1q) wallet for the best anonymity set and lower fees.",
             scoreImpact: -3,
           },
         ],
@@ -91,7 +92,7 @@ export const analyzeAddressType: AddressHeuristic = (address) => {
             description:
               "Legacy P2PKH addresses reveal the public key when spent, and have higher fees. While they have a large historical anonymity set, modern privacy tools and CoinJoin protocols primarily use newer address types.",
             recommendation:
-              "Upgrade to a native SegWit (bc1q) or Taproot (bc1p) wallet for better privacy and lower fees.",
+              "Upgrade to a Native SegWit (bc1q) wallet for the best anonymity set and lower fees.",
             scoreImpact: -5,
           },
         ],

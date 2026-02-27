@@ -136,7 +136,7 @@ export async function analyzeAddress(
   const totalOnChain = address.chain_stats.tx_count + address.mempool_stats.tx_count;
   if (txs.length === 0 && totalOnChain > 0) {
     allFindings.push({
-      id: "partial-history",
+      id: "partial-history-unavailable",
       severity: "medium",
       title: "Transaction history unavailable",
       params: { totalOnChain },
@@ -149,7 +149,7 @@ export async function analyzeAddress(
     });
   } else if (txs.length > 0 && totalOnChain > txs.length) {
     allFindings.push({
-      id: "partial-history",
+      id: "partial-history-partial",
       severity: "low",
       title: `Partial history analyzed (${txs.length} of ${totalOnChain.toLocaleString()} transactions)`,
       params: { totalOnChain, txsAnalyzed: txs.length },
@@ -371,10 +371,11 @@ export async function analyzeDestination(
   } else if (txCount > 0) {
     // funded_txo_count is 0 but tx_count > 0 - the address has transaction
     // activity that the backend didn't fully index (common on self-hosted
-    // mempool with romanz/electrs). Err on the side of caution.
-    riskLevel = "MEDIUM";
-    summaryKey = "presend.summaryMediumDataUnavailable";
-    summary = `This address shows ${txCount} transaction(s) but receive data is unavailable. The address is not unused - verify with the recipient before sending.`;
+    // mempool with romanz/electrs). Any activity means the address has been
+    // used. The presend is a reuse verifier - if it's used, don't send.
+    riskLevel = "HIGH";
+    summaryKey = "presend.summaryHighDataUnavailable";
+    summary = `This address has ${txCount} transaction(s) on-chain. Even without detailed receive data, this address has been used before. Do NOT send to this address - ask the recipient for a fresh, unused address.`;
   } else {
     riskLevel = "LOW";
     summaryKey = "presend.summaryLow";
@@ -420,7 +421,7 @@ export async function analyzeDestination(
     severity: preSendSeverity,
     title: `Destination risk: ${riskLevel}`,
     params: { reuseCount, txCount, riskLevel },
-    description: summary,
+    description: "Destination address was checked for reuse, sanctions, and other privacy risks.",
     recommendation:
       riskLevel === "LOW"
         ? "This destination looks clean. You can proceed with your transaction."

@@ -48,6 +48,11 @@ const FAQ_ITEMS = [
     aKey: "faq.a_address_reuse",
   },
   {
+    id: "change-detection",
+    qKey: "faq.q_change_detection",
+    aKey: "faq.a_change_detection",
+  },
+  {
     id: "scoring",
     qKey: "faq.q_scoring",
     aKey: "faq.a_scoring",
@@ -86,6 +91,8 @@ const DEFAULTS: Record<string, string> = {
   "faq.a_dust_attack": "A dust attack sends tiny amounts of Bitcoin (dust) to your addresses. If you later spend that dust alongside your other UTXOs, you link those addresses together - giving the attacker a map of your wallet. am-i.exposed detects dust outputs and warns you not to spend them.",
   "faq.q_address_reuse": "Why is address reuse bad for Bitcoin privacy?",
   "faq.a_address_reuse": "Address reuse creates deterministic, irrefutable links between all transactions using that address. It carries the harshest penalty in privacy scoring. Most modern wallets generate a new address for each receive to avoid this. If you are reusing addresses, switch to a wallet that supports HD key derivation.",
+  "faq.q_change_detection": "What is the change detection heuristic?",
+  "faq.a_change_detection": "When you send Bitcoin, the leftover amount (change) is sent back to your own wallet. Chain analysis firms use several techniques to identify which output is the change: (1) Address type mismatch - if inputs are all bc1q but one output is a different type, the matching output is likely change. (2) Round amounts - a round payment (e.g. 0.01 BTC) next to a non-round output reveals which is the payment and which is change. (3) Unnecessary inputs - spending more inputs than needed can expose your wallet's total balance. (4) Peel chains - repeated small payments from a single source create a traceable chain of decreasing outputs. (5) nLockTime and nVersion fingerprinting - different wallets sign with different version values, so if the change output was created by a different wallet than the payment output, the mismatch reveals which is change. (6) Output ordering (BIP 69) - some wallets used to place change in a fixed position, making it trivially identifiable. (7) Script type mismatch - paying from native SegWit to a multisig address makes the type difference obvious. Change detection combined with address reuse are the two most devastating heuristics for privacy - together they allow an observer to trace the full flow of funds. To protect yourself: use a wallet that sends change to the same address type (Sparrow, Ashigaru), avoid round payment amounts, use coin control to select specific UTXOs, and consider Stonewall or PayJoin transactions which break the change heuristic entirely.",
   "faq.q_scoring": "How does Bitcoin privacy scoring work?",
   "faq.a_scoring": "Every analysis starts from a base score of 70. Each of the 16 heuristics applies a positive or negative modifier based on what it detects. The sum is clamped to 0-100. Only CoinJoin participation, Taproot usage, and high entropy can raise the score. Everything else can only lower it. Grades: A+ (90-100), B (75-89), C (50-74), D (25-49), F (0-24).",
   "faq.q_tor": "Can I use am-i.exposed with Tor?",

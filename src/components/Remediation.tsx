@@ -71,7 +71,7 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
       detailDefault:
         "Your wallet is sending change back to the same address you spent from. " +
         "This destroys your privacy by revealing your exact balance and linking all your transactions. " +
-        "Switch to Sparrow Wallet, Bitcoin Core, or any HD wallet that generates fresh change addresses automatically.",
+        "Switch to Sparrow Wallet, Ashigaru, Bitcoin Core, or any HD wallet that generates fresh change addresses automatically.",
     });
   }
 
@@ -96,8 +96,9 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
       textDefault: "Use wallets with better change handling",
       detailKey: "remediation.betterChangeHandlingDetail",
       detailDefault:
-        "Switch to a wallet that uses the same address type for change as for payments. " +
-        "Taproot (P2TR) wallets like Sparrow or Blue Wallet help with this.",
+        "Use a wallet that sends change to the same address type as the payment (e.g., all bc1q). " +
+        "Sparrow Wallet and Ashigaru both handle this correctly. For stronger protection, use Stonewall " +
+        "or PayJoin transactions which break the change detection heuristic entirely.",
     });
   }
 
@@ -132,13 +133,13 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
   if (ids.has("h10-p2pkh") || ids.has("h10-p2sh")) {
     actions.push({
       priority: 4,
-      textKey: "remediation.upgradeTaproot",
-      textDefault: "Upgrade to a Taproot (P2TR) wallet",
-      detailKey: "remediation.upgradeTaprootDetail",
+      textKey: "remediation.upgradeNativeSegwit",
+      textDefault: "Upgrade to a Native SegWit (bc1q) wallet",
+      detailKey: "remediation.upgradeNativeSegwitDetail",
       detailDefault:
-        "Taproot addresses (bc1p...) provide the best privacy by making all transactions " +
-        "look identical on-chain. They also have lower fees. Sparrow, Blue Wallet, and " +
-        "Bitcoin Core all support Taproot.",
+        "Native SegWit (P2WPKH, bc1q) addresses have the largest anonymity set of any address type, " +
+        "making transactions blend in with the majority of Bitcoin activity. They also have lower fees " +
+        "than legacy addresses. Sparrow Wallet, Ashigaru, and Bitcoin Core all default to Native SegWit.",
     });
   }
 
@@ -177,7 +178,7 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
       detailKey: "remediation.walletFingerprintDetail",
       detailDefault:
         "Your wallet software can be identified through transaction patterns. " +
-        "Bitcoin Core, Sparrow, and Wasabi have the best fingerprint resistance.",
+        "Bitcoin Core, Sparrow, Ashigaru, and Wasabi have the best fingerprint resistance.",
     });
   }
 
@@ -220,7 +221,7 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
       textDefault: "Consider a fresh start with better privacy practices",
       detailKey: "remediation.freshStartDetail",
       detailDefault:
-        "Use a privacy-focused wallet (Sparrow, Wasabi), generate a new seed, and use coin control when sending. " +
+        "Use a privacy-focused wallet (Sparrow, Ashigaru, Wasabi), generate a new seed, and use coin control when sending. " +
         "When possible, spend exact amounts to avoid change. For stronger privacy, use CoinJoin before depositing " +
         "to the new wallet - but note that some exchanges may flag CoinJoin deposits. Use Tor for all Bitcoin network activity.",
     });
