@@ -100,7 +100,9 @@ export function InstallPrompt() {
               {t("install.title", { defaultValue: "Install am-i.exposed" })}
             </p>
             <p className="text-sm text-muted">
-              {t("install.description", { defaultValue: "Install as an app for faster access. No app store needed." })}
+              {isUmbrel
+                ? t("install.descriptionUmbrel", { defaultValue: "Add this local Umbrel app to your desktop or phone for quick access." })
+                : t("install.description", { defaultValue: "Install as an app for faster access. No app store needed." })}
             </p>
             <button
               onClick={handleInstall}
