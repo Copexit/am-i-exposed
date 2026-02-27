@@ -349,17 +349,17 @@ export default function Home() {
               className="inline-flex flex-wrap items-center justify-center gap-3 px-4 py-2 rounded-full border border-card-border bg-surface-elevated/30 text-sm text-muted"
             >
               <span className="inline-flex items-center gap-1.5">
-                <ShieldCheck size={14} className="text-success/60" />
+                <ShieldCheck size={14} className="text-success/80" />
                 {t("page.trust_client", { defaultValue: "100% client-side" })}
               </span>
               <span className="text-card-border">|</span>
               <span className="inline-flex items-center gap-1.5">
-                <EyeOff size={14} className="text-info/60" />
+                <EyeOff size={14} className="text-info/80" />
                 {t("page.trust_tracking", { defaultValue: "No tracking" })}
               </span>
               <span className="text-card-border">|</span>
               <a href="https://github.com/Copexit/am-i-exposed" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors">
-                <Github size={14} className="text-muted/60" />
+                <Github size={14} className="text-muted/80" />
                 {t("page.trust_opensource", { defaultValue: "Open source" })}
               </a>
             </motion.div>
@@ -435,7 +435,7 @@ export default function Home() {
                   {t("page.error_title", { defaultValue: "Analysis failed" })}
                 </h2>
                 {query && (
-                  <p className="font-mono text-sm text-muted break-all">
+                  <p className="font-mono text-sm text-muted break-all text-left mx-auto max-w-sm">
                     {query}
                   </p>
                 )}
@@ -446,7 +446,7 @@ export default function Home() {
               <div className="flex items-center justify-center gap-4">
                 {query && error && errorCode !== "not-retryable" && (
                   <button
-                    onClick={() => analyze(query)}
+                    onClick={() => mode === "check" ? checkDestination(query) : analyze(query)}
                     className="px-4 py-1.5 bg-bitcoin text-black font-semibold text-sm rounded-lg
                       hover:bg-bitcoin-hover transition-all duration-150 cursor-pointer"
                   >

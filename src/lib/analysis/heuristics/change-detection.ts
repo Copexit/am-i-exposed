@@ -21,7 +21,7 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
 
   // Filter out OP_RETURN outputs before analysis (they are data-only, not payments)
   const spendableOutputs = tx.vout.filter(
-    (out) => out.scriptpubkey_type !== "op_return" && out.scriptpubkey_address,
+    (out) => out.scriptpubkey_type !== "op_return" && out.scriptpubkey_address && out.value > 0,
   );
 
   // Skip coinbase
@@ -47,22 +47,32 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
       const allMatch = matchingOutputs.length === spendableOutputs.length;
       const matchCount = matchingOutputs.length;
       const totalSpendable = spendableOutputs.length;
-      const impact = allMatch ? -30 : -25;
+
+      // 1-output consolidation to an input address: primarily a CIOH + address reuse issue.
+      // H3 and H8 already penalize those aspects. Apply a reduced self-transfer penalty.
+      const isConsolidation = allMatch && spendableOutputs.length === 1;
+      const impact = isConsolidation ? -15 : allMatch ? -25 : -20;
+      const severity = isConsolidation ? "high" as const : "critical" as const;
 
       findings.push({
         id: "h2-self-send",
-        severity: "critical",
-        title: allMatch
-          ? "All outputs return to input address"
-          : `${matchCount} of ${totalSpendable} outputs sent back to input address`,
+        severity,
+        title: isConsolidation
+          ? "Self-transfer to input address (consolidation)"
+          : allMatch
+            ? "All outputs return to input address"
+            : `${matchCount} of ${totalSpendable} outputs sent back to input address`,
         params: { matchCount, totalSpendable, allMatch: allMatch ? 1 : 0 },
-        description: allMatch
-          ? "Every spendable output in this transaction goes back to an address that was also an input. " +
-            "This reveals the sender's exact balance and creates a trivial on-chain link. " +
-            "A chain observer can see this is a self-transfer with no external recipient."
-          : `${matchCount} of ${totalSpendable} spendable outputs go back to an address that was also an input. ` +
-            "This is a severe privacy failure - it reveals which output is the change (the one returning to the sender) " +
-            "and therefore the exact payment amount. Some wallets like TrustWallet are known to exhibit this behavior.",
+        description: isConsolidation
+          ? "This consolidation sends funds back to an address that was also an input. " +
+            "Combined with multiple inputs, this links all input UTXOs together and confirms address ownership."
+          : allMatch
+            ? "Every spendable output in this transaction goes back to an address that was also an input. " +
+              "This creates a trivial on-chain link between all inputs and outputs. " +
+              "A chain observer can see this is a self-transfer with no external recipient."
+            : `${matchCount} of ${totalSpendable} spendable outputs go back to an address that was also an input. ` +
+              "This is a severe privacy failure - it reveals which output is the change (the one returning to the sender) " +
+              "and therefore the exact payment amount. Some wallets like TrustWallet are known to exhibit this behavior.",
         recommendation:
           "Use a wallet that generates a new change address for every transaction (HD wallets). " +
           "Never send change back to the same address. Sparrow, Wasabi, and Bitcoin Core all handle this correctly.",
@@ -81,6 +91,9 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
           urgency: "immediate",
         },
       });
+
+      // Self-send subsumes change detection - no further analysis needed
+      return { findings };
     }
   }
 

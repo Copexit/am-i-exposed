@@ -7,14 +7,7 @@ import { useTranslation } from "react-i18next";
 import { RecentScans } from "./RecentScans";
 import type { RecentScan } from "@/hooks/useRecentScans";
 import type { Bookmark } from "@/hooks/useBookmarks";
-
-const GRADE_COLORS: Record<string, string> = {
-  "A+": "text-severity-good",
-  B: "text-severity-low",
-  C: "text-severity-medium",
-  D: "text-severity-high",
-  F: "text-severity-critical",
-};
+import { gradeColor, truncateId } from "@/lib/constants";
 
 interface ScanHistoryProps {
   scans: RecentScan[];
@@ -134,14 +127,14 @@ export function ScanHistory({
                   onClick={() => onSelect(bm.input)}
                   className="inline-flex items-center gap-2 cursor-pointer"
                 >
-                  <span className={`font-bold ${GRADE_COLORS[bm.grade] ?? "text-muted"}`}>
+                  <span className={`font-bold ${gradeColor(bm.grade)}`}>
                     {bm.grade}
                   </span>
                   {bm.label ? (
                     <span className="text-foreground truncate max-w-32">{bm.label}</span>
                   ) : (
                     <span className="font-mono text-muted group-hover:text-foreground transition-colors truncate max-w-32">
-                      {truncate(bm.input)}
+                      {truncateId(bm.input)}
                     </span>
                   )}
                 </button>
@@ -165,7 +158,3 @@ export function ScanHistory({
   );
 }
 
-function truncate(s: string): string {
-  if (s.length <= 16) return s;
-  return `${s.slice(0, 8)}...${s.slice(-4)}`;
-}

@@ -18,8 +18,8 @@ export function DiagnosticLoader({ steps, phase }: DiagnosticLoaderProps) {
   useEffect(() => {
     const start = Date.now();
     const timer = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - start) / 100) / 10);
-    }, 100);
+      setElapsed(Math.round((Date.now() - start) / 1000));
+    }, 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -59,7 +59,7 @@ export function DiagnosticLoader({ steps, phase }: DiagnosticLoaderProps) {
             </motion.span>
           )}
           <span className="text-sm text-muted tabular-nums">
-            {elapsed.toFixed(1)}s
+            {elapsed}s
           </span>
         </div>
       </div>

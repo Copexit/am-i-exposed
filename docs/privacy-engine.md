@@ -89,7 +89,7 @@ We also check for "nearly round" amounts where the fee was subtracted from the p
 
 **Technical description**
 
-Change detection attempts to identify which output in a transaction returns funds to the sender. This is one of the most consequential heuristics because correctly identifying change allows an adversary to follow the money through multiple hops. We implement four sub-heuristics:
+Change detection attempts to identify which output in a transaction returns funds to the sender. This is one of the most consequential heuristics because correctly identifying change allows an adversary to follow the money through multiple hops. Two sub-heuristics are implemented, with two more planned:
 
 **Sub-heuristic 2a: Address type mismatch**
 
@@ -108,7 +108,7 @@ for each output:
 
 If one output is a round amount and the other is not, the non-round output is likely change. This overlaps with H1 but is scored here in the context of change identification specifically.
 
-**Sub-heuristic 2c: Unnecessary input heuristic**
+**Sub-heuristic 2c: Unnecessary input heuristic** *(not yet implemented)*
 
 If a transaction has multiple inputs and a single input alone would have been sufficient to fund the payment output (plus fee), then the additional inputs are likely from the same wallet. This heuristic relies on the assumption that wallets select UTXOs automatically and sometimes include more than strictly necessary. The output that could have been funded by one input alone is likely the payment; the other output is likely change.
 
@@ -120,7 +120,7 @@ for each output:
     // The other inputs were unnecessary - they are from the same wallet.
 ```
 
-**Sub-heuristic 2d: Output ordering**
+**Sub-heuristic 2d: Output ordering** *(not yet implemented)*
 
 Some wallet software consistently places the change output in a specific position. Historically, many wallets placed change last (index 1 in a 2-output transaction). BIP69-compliant wallets sort outputs lexicographically, which randomizes position based on value and script. Bitcoin Core randomizes output order. A wallet that always puts change at the same index leaks information.
 
@@ -215,7 +215,7 @@ if len(tx.outputs) == 5:
 - Post-2.0 Wasabi uses the WabiSabi protocol allowing variable denominations and multiple equal-output groups
 
 ```
-if len(tx.inputs) >= 10 and len(tx.outputs) >= 10:
+if len(tx.inputs) >= 20 and len(tx.outputs) >= 20:
   value_counts = Counter(o.value for o in tx.outputs)
   most_common_value, count = value_counts.most_common(1)[0]
   if count >= 5 and count / len(tx.outputs) > 0.3:
@@ -310,7 +310,7 @@ For large mixed-value transactions (> 8x8), we use structural estimation based o
 - 0 bits: Deterministic transaction. Only one valid interpretation exists.
 - 1-3 bits: Low entropy. A few possible interpretations, limited ambiguity.
 - 4-8 bits: Moderate entropy. Meaningful ambiguity exists.
-- 9-15 bits: High entropy. Typical of Whirlpool 5x5 CoinJoins (8.97 bits).
+- 9-15 bits: High entropy. Typical of Whirlpool 5x5 CoinJoins (10.55 bits).
 - 15+ bits: Very high entropy. Larger CoinJoins (7x7+, WabiSabi).
 
 **Why it matters for privacy**
@@ -559,8 +559,9 @@ Address type also contributes to change detection (H2). If a transaction spends 
 **Scoring impact:** -5 to +5
 
 - P2TR (Taproot): +5
-- P2WPKH (Native SegWit): +2
-- P2SH (Wrapped SegWit or other): -2
+- P2WPKH (Native SegWit): 0
+- P2WSH (Native SegWit multisig): -2
+- P2SH (Wrapped SegWit or other): -3
 - P2PKH (Legacy): -5
 - Mixed types across inputs: additional -3 (cross-type spending is unusual and distinguishing)
 
@@ -1154,9 +1155,7 @@ Stonewall is a simulated 2-party CoinJoin constructed by a single wallet. Struct
 
 **STONEWALLx2** is the collaborative version where inputs actually come from two different wallets, providing real (not simulated) CoinJoin privacy.
 
-Detection pattern: exactly 4 outputs, 2 equal-value pairs, 2-3 inputs. Not yet implemented; partially covered by existing entropy (H5) and CoinJoin detection (H4) heuristics. The equal outputs will be counted by the anonymity set heuristic and contribute to entropy.
-
-Future implementation would specifically identify Stonewall patterns and adjust scoring to reflect the simulated vs. real privacy distinction.
+Detection pattern: exactly 4 outputs, 2 equal-value pairs going to distinct addresses, 2-3 inputs. **Implemented** in `coinjoin.ts` as `detectStonewall()`. The finding (`h4-stonewall`) reports the number of distinct input addresses so users can assess whether it is likely a single-wallet Stonewall or a collaborative STONEWALLx2. Score impact: +4.
 
 ---
 

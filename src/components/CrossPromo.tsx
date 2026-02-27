@@ -41,7 +41,7 @@ export function CrossPromo() {
         className="group block w-full rounded-lg border border-dashed border-card-border px-4 py-3 transition-all duration-200 hover:border-bitcoin/30 hover:bg-bitcoin/[0.02]"
       >
         <p className="flex items-center gap-2 text-sm text-muted group-hover:text-muted transition-colors duration-200">
-          <Wrench size={14} className="shrink-0 text-muted group-hover:text-bitcoin/60 transition-colors duration-200" />
+          <Wrench size={14} className="shrink-0 text-muted group-hover:text-bitcoin/80 transition-colors duration-200" />
           {t("crosspromo.stuckTx", { defaultValue: "Transaction stuck or slow? Unstick it in 3 clicks." })}
         </p>
         <p className="mt-0.5 ml-[22px] text-xs text-muted group-hover:text-muted transition-colors duration-200">

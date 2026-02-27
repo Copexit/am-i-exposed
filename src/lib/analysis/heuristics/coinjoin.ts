@@ -1,5 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
+import { WHIRLPOOL_DENOMS } from "@/lib/constants";
 
 const EXCHANGE_WARNING =
   "Centralized exchanges including Binance, Coinbase, Gemini, Bitstamp, Swan Bitcoin, BitVavo, Bitfinex, and BitMEX " +
@@ -8,14 +9,6 @@ const EXCHANGE_WARNING =
   "Some exchanges retroactively flag CoinJoin activity months or years after the transaction. " +
   "For safe off-ramping, consider decentralized alternatives like Bisq, RoboSats, or Hodl Hodl that do not apply chain surveillance.";
 
-// Whirlpool pool denominations (in sats)
-const WHIRLPOOL_DENOMS = [
-  50_000, // 0.0005 BTC
-  100_000, // 0.001 BTC
-  1_000_000, // 0.01 BTC
-  5_000_000, // 0.05 BTC
-  50_000_000, // 0.5 BTC (retired 2023)
-];
 
 /**
  * H4: CoinJoin Detection
@@ -200,10 +193,21 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
   return { findings };
 };
 
+/** Set of finding IDs that identify CoinJoin transactions. */
+const COINJOIN_FINDING_IDS = new Set([
+  "h4-whirlpool", "h4-coinjoin", "h4-joinmarket", "h4-stonewall",
+]);
+
+/** Check if a finding indicates a positive CoinJoin detection. */
+export function isCoinJoinFinding(f: Finding): boolean {
+  return COINJOIN_FINDING_IDS.has(f.id) && f.scoreImpact > 0;
+}
+
 function detectWhirlpool(values: number[]): { denomination: number } | null {
-  // Whirlpool: exactly 5 equal outputs at a known denomination
-  // Whirlpool txs typically have 5-8 outputs (5 equal + optional coordinator fees)
-  if (values.length < 5 || values.length > 8) return null;
+  // Whirlpool mix txs have exactly 5 equal outputs at a known denomination.
+  // Allow up to 6 total to account for a possible OP_RETURN marker.
+  // (Coordinator fees are in the separate TX0 premix transaction, not in the mix.)
+  if (values.length < 5 || values.length > 6) return null;
 
   for (const denom of WHIRLPOOL_DENOMS) {
     const matchCount = values.filter((v) => v === denom).length;
@@ -288,6 +292,16 @@ function detectJoinMarket(
   // Require that the equal output value is a meaningful amount (not dust)
   if (bestValue < 10_000) return null;
 
+  // Equal-valued outputs must go to distinct addresses (multi-party evidence).
+  // If they go to the same address, this is not a CoinJoin.
+  const equalAddresses = new Set<string>();
+  for (const o of spendableOutputs) {
+    if (o.value === bestValue && o.scriptpubkey_address) {
+      equalAddresses.add(o.scriptpubkey_address);
+    }
+  }
+  if (equalAddresses.size < bestCount) return null;
+
   return {
     equalCount: bestCount,
     denomination: bestValue,
@@ -325,6 +339,15 @@ function detectStonewall(
 
   // Skip dust amounts
   if (equalValue < 10_000) return null;
+
+  // Equal-valued outputs must go to distinct addresses (multi-party evidence)
+  const equalAddresses = new Set<string>();
+  for (const o of spendableOutputs) {
+    if (o.value === equalValue && o.scriptpubkey_address) {
+      equalAddresses.add(o.scriptpubkey_address);
+    }
+  }
+  if (equalAddresses.size < 2) return null;
 
   // Count distinct input addresses
   const inputAddresses = new Set<string>();

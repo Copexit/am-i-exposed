@@ -3,17 +3,18 @@
 import Link from "next/link";
 import { ArrowLeft, AlertTriangle, Terminal, Shield, Globe, Copy } from "lucide-react";
 import { useState } from "react";
+import { copyToClipboard } from "@/lib/clipboard";
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
       onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(text);
+        const ok = await copyToClipboard(text);
+        if (ok) {
           setCopied(true);
           setTimeout(() => setCopied(false), 2000);
-        } catch {}
+        }
       }}
       className="absolute top-2 right-2 text-muted hover:text-foreground transition-colors cursor-pointer p-1 rounded bg-surface-elevated/50"
       aria-label="Copy to clipboard"
@@ -173,7 +174,7 @@ export default function SetupGuidePage() {
           </h2>
           <p className="text-muted leading-relaxed">
             For Start9, Docker, bare-metal, or if you prefer using the{" "}
-            <a href="https://am-i.exposed" target="_blank" rel="noopener noreferrer" className="text-bitcoin underline hover:text-bitcoin/80">am-i.exposed</a>{" "}
+            <a href="https://am-i.exposed" target="_blank" rel="noopener noreferrer" className="text-bitcoin underline hover:text-bitcoin-hover">am-i.exposed</a>{" "}
             website with your own node instead of the Umbrel app.
           </p>
 
@@ -274,7 +275,7 @@ export default function SetupGuidePage() {
           <div className="bg-card-bg border border-card-border rounded-xl p-6 space-y-5">
             <p className="text-muted leading-relaxed">
               If you prefer using the{" "}
-              <a href="https://am-i.exposed" target="_blank" rel="noopener noreferrer" className="text-bitcoin underline hover:text-bitcoin/80">am-i.exposed</a>{" "}
+              <a href="https://am-i.exposed" target="_blank" rel="noopener noreferrer" className="text-bitcoin underline hover:text-bitcoin-hover">am-i.exposed</a>{" "}
               website instead of the Umbrel app, you can point it at your Umbrel&apos;s mempool instance.
               The mempool app listens on <span className="text-foreground font-medium">port 3006</span> via
               Umbrel&apos;s <code className="text-foreground text-xs">app_proxy</code> container.
@@ -400,7 +401,7 @@ vi /etc/nginx/conf.d/nginx-mempool.conf`}</pre>
                 href="https://github.com/mempool/mempool"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-bitcoin underline hover:text-bitcoin/80"
+                className="text-bitcoin underline hover:text-bitcoin-hover"
               >
                 mempool/mempool
               </a>{" "}
@@ -462,7 +463,7 @@ docker run -v $(pwd)/nginx-mempool.conf:/etc/nginx/conf.d/nginx-mempool.conf ...
                   href="https://caddyserver.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-bitcoin underline hover:text-bitcoin/80"
+                  className="text-bitcoin underline hover:text-bitcoin-hover"
                 >
                   Caddy
                 </a>{" "}
@@ -552,7 +553,7 @@ docker run -v $(pwd)/nginx-mempool.conf:/etc/nginx/conf.d/nginx-mempool.conf ...
                 className="bg-card-bg border border-card-border rounded-xl p-5 space-y-2 hover:border-bitcoin/20 transition-colors"
               >
                 <h3 className="text-sm font-semibold text-foreground">{item.error}</h3>
-                <p className="text-xs text-muted/70">
+                <p className="text-xs text-muted">
                   <span className="text-warning font-medium">Cause:</span> {item.cause}
                 </p>
                 <p className="text-sm text-muted leading-relaxed">{item.fix}</p>
@@ -590,7 +591,7 @@ docker run -v $(pwd)/nginx-mempool.conf:/etc/nginx/conf.d/nginx-mempool.conf ...
         <div className="flex items-center justify-center py-4">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-bitcoin/10 border border-bitcoin/20 hover:border-bitcoin/40 text-bitcoin/80 hover:text-bitcoin transition-all text-sm"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-bitcoin/10 border border-bitcoin/20 hover:border-bitcoin/40 text-bitcoin hover:text-bitcoin-hover transition-all text-sm"
           >
             <ArrowLeft size={14} />
             Back to scanner

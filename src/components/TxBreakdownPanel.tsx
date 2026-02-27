@@ -6,7 +6,8 @@ import { ChevronDown, ArrowUpRight, ArrowDownLeft, ArrowLeftRight, ArrowUpDown, 
 import { useTranslation } from "react-i18next";
 import { TxSummary } from "./TxSummary";
 import { FindingCard } from "./FindingCard";
-import type { TxAnalysisResult, Grade } from "@/lib/types";
+import type { TxAnalysisResult } from "@/lib/types";
+import { GRADE_BADGE_COLORS } from "@/lib/constants";
 
 interface TxBreakdownPanelProps {
   breakdown: TxAnalysisResult[];
@@ -14,14 +15,6 @@ interface TxBreakdownPanelProps {
   totalTxCount: number;
   onScan?: (input: string) => void;
 }
-
-const GRADE_COLORS: Record<Grade, string> = {
-  "A+": "bg-severity-good/20 text-severity-good",
-  B: "bg-severity-low/20 text-severity-low",
-  C: "bg-severity-medium/20 text-severity-medium",
-  D: "bg-severity-high/20 text-severity-high",
-  F: "bg-severity-critical/20 text-severity-critical",
-};
 
 const ROLE_CONFIG = {
   sender: { labelKey: "breakdown.roleSent", labelDefault: "Sent", icon: ArrowUpRight, color: "text-severity-high" },
@@ -102,7 +95,7 @@ export function TxBreakdownPanel({
               >
                 {/* Grade badge */}
                 <span
-                  className={`text-xs font-bold px-1.5 py-0.5 rounded ${GRADE_COLORS[item.grade]}`}
+                  className={`text-xs font-bold px-1.5 py-0.5 rounded ${GRADE_BADGE_COLORS[item.grade]}`}
                 >
                   {item.grade}
                 </span>

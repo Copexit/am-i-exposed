@@ -48,7 +48,7 @@ export async function fetchWithRetry(
         const delay = !isNaN(parsed)
           ? Math.min(parsed * 1000, 10_000)
           : RETRY_DELAYS[attempt];
-        await sleep(delay, options?.signal as AbortSignal | undefined);
+        await sleep(delay, options?.signal ?? undefined);
         continue;
       }
       if (response.status === 429) {
@@ -57,7 +57,7 @@ export async function fetchWithRetry(
 
       // 5xx: retry
       if (response.status >= 500 && attempt < MAX_RETRIES) {
-        await sleep(RETRY_DELAYS[attempt], options?.signal as AbortSignal | undefined);
+        await sleep(RETRY_DELAYS[attempt], options?.signal ?? undefined);
         continue;
       }
 
@@ -67,7 +67,7 @@ export async function fetchWithRetry(
       if (error instanceof DOMException && error.name === "AbortError") throw error;
 
       if (attempt < MAX_RETRIES) {
-        await sleep(RETRY_DELAYS[attempt], options?.signal as AbortSignal | undefined);
+        await sleep(RETRY_DELAYS[attempt], options?.signal ?? undefined);
         continue;
       }
     }

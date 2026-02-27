@@ -145,7 +145,7 @@ body::after {
   content: '';
   position: fixed;
   inset: 0;
-  z-index: 9999;
+  z-index: 200;
   pointer-events: none;
   opacity: 0.06;
   mix-blend-mode: overlay;
@@ -189,12 +189,6 @@ body::after {
   background-clip: text;
 }
 
-.hero-gradient {
-  background: linear-gradient(135deg, #ef4444, #f97316, #ef4444);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
 
 @media (prefers-reduced-motion: reduce) {
   *,

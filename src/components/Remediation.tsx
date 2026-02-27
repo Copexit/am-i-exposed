@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Lightbulb, ChevronDown, ExternalLink, AlertCircle, Clock, Wrench } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getSummarySentiment } from "@/lib/scoring/score";
+import { isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
 import type { Finding, Grade, Remediation as RemediationType } from "@/lib/types";
 
 interface RemediationProps {
@@ -101,10 +102,7 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
   }
 
   // CoinJoin detected - encourage continuing and warn about exchange risks
-  const coinJoinFound = findings.some(
-    (f) =>
-      (f.id === "h4-whirlpool" || f.id === "h4-coinjoin" || f.id === "h4-joinmarket") && f.scoreImpact > 0,
-  );
+  const coinJoinFound = findings.some(isCoinJoinFinding);
   if (coinJoinFound) {
     if (grade === "A+") {
       actions.push({
@@ -265,7 +263,7 @@ function StructuredRemediation({ remediation, findingId, findingTitle, findingPa
               href={tool.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-base text-bitcoin/70 hover:text-bitcoin transition-colors"
+              className="inline-flex items-center gap-1 text-base text-bitcoin hover:text-bitcoin-hover transition-colors"
             >
               {t(`remediation.${findingId}.tool_${tool.name.toLowerCase().replace(/\s+/g, "_")}`, { defaultValue: tool.name })}
               <ExternalLink size={14} />
@@ -304,7 +302,7 @@ export function Remediation({ findings, grade }: RemediationProps) {
       <button
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        className="inline-flex items-center gap-1.5 text-sm text-bitcoin/70 hover:text-bitcoin transition-colors cursor-pointer bg-bitcoin/10 rounded-lg px-3 py-3"
+        className="inline-flex items-center gap-1.5 text-sm text-bitcoin/80 hover:text-bitcoin transition-colors cursor-pointer bg-bitcoin/10 rounded-lg px-3 py-3"
       >
         <Lightbulb size={16} />
         {t("remediation.whatToDoNext", { defaultValue: "What to do next" })}
@@ -346,7 +344,7 @@ export function Remediation({ findings, grade }: RemediationProps) {
                   className="bg-surface-inset rounded-lg px-4 py-3 border-l-2 border-l-bitcoin/50"
                 >
                   <div className="flex items-start gap-2">
-                    <span className="text-bitcoin/60 text-xs font-bold mt-0.5 shrink-0">
+                    <span className="text-bitcoin/80 text-xs font-bold mt-0.5 shrink-0">
                       {i + 1}.
                     </span>
                     <div>

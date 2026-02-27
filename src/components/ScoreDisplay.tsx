@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import type { Finding, Grade } from "@/lib/types";
 import { getSummarySentiment } from "@/lib/scoring/score";
 import { useTranslation } from "react-i18next";
+import { GRADE_COLORS, GRADE_HEX } from "@/lib/constants";
 
 interface ScoreDisplayProps {
   score: number;
@@ -12,20 +13,21 @@ interface ScoreDisplayProps {
   findings?: Finding[];
 }
 
-const GRADE_COLORS: Record<Grade, string> = {
-  "A+": "text-severity-good",
-  B: "text-severity-low",
-  C: "text-severity-medium",
-  D: "text-severity-high",
-  F: "text-severity-critical",
-};
+/** Convert hex color to rgba string with given opacity. */
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
+/** Glow colors derived from GRADE_HEX with grade-specific opacity. */
 const GRADE_GLOW_COLORS: Record<Grade, string> = {
-  "A+": "rgba(40, 208, 101, 0.3)",
-  B: "rgba(59, 130, 246, 0.25)",
-  C: "rgba(234, 179, 8, 0.25)",
-  D: "rgba(249, 115, 22, 0.25)",
-  F: "rgba(239, 68, 68, 0.3)",
+  "A+": hexToRgba(GRADE_HEX["A+"], 0.3),
+  B: hexToRgba(GRADE_HEX.B, 0.25),
+  C: hexToRgba(GRADE_HEX.C, 0.25),
+  D: hexToRgba(GRADE_HEX.D, 0.25),
+  F: hexToRgba(GRADE_HEX.F, 0.3),
 };
 
 const BAR_COLORS: Record<Grade, string> = {

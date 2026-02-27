@@ -129,14 +129,16 @@ export default function MethodologyPage() {
             {t("methodology.threat_model_heading", { defaultValue: "Threat Model" })}
           </h2>
           <div className="bg-card-bg border border-card-border rounded-xl p-6 space-y-4">
-            <p
-              className="text-muted leading-relaxed"
-              dangerouslySetInnerHTML={{
-                __html: t("methodology.threat_model_intro", {
-                  defaultValue: 'The analysis models the capabilities of <b>chain surveillance firms</b> (Chainalysis, Elliptic, CipherTrace) and <b>KYC-linked exchanges</b>. These adversaries:',
-                }),
-              }}
-            />
+            <p className="text-muted leading-relaxed">
+              {t("methodology.threat_model_intro_prefix", {
+                defaultValue: "The analysis models the capabilities of",
+              })}{" "}
+              <strong className="text-foreground">{t("methodology.threat_model_surveillance", { defaultValue: "chain surveillance firms" })}</strong>{" "}
+              {t("methodology.threat_model_firms", { defaultValue: "(Chainalysis, Elliptic, CipherTrace)" })}{" "}
+              {t("methodology.threat_model_and", { defaultValue: "and" })}{" "}
+              <strong className="text-foreground">{t("methodology.threat_model_exchanges", { defaultValue: "KYC-linked exchanges" })}</strong>.{" "}
+              {t("methodology.threat_model_suffix", { defaultValue: "These adversaries:" })}
+            </p>
             <ul className="space-y-2 text-muted leading-relaxed">
               {THREAT_MODEL_ITEMS.map((item) => (
                 <li key={item.num} className="flex gap-2">
@@ -198,14 +200,15 @@ export default function MethodologyPage() {
               <h3 className="text-lg font-semibold text-foreground">
                 {t("methodology.calculation_heading", { defaultValue: "Calculation" })}
               </h3>
-              <p
-                className="text-muted leading-relaxed"
-                dangerouslySetInnerHTML={{
-                  __html: t("methodology.calculation_text", {
-                    defaultValue: 'Every analysis starts from a <b>base score of 70</b> - representing a typical Bitcoin transaction with no obviously good or bad characteristics. The base is above 50 because most transactions are not catastrophically bad; they carry the normal, baseline exposure of a transparent public blockchain.',
-                  }),
-                }}
-              />
+              <p className="text-muted leading-relaxed">
+                {t("methodology.calculation_text_prefix", {
+                  defaultValue: "Every analysis starts from a",
+                })}{" "}
+                <strong className="text-foreground">{t("methodology.calculation_base_score", { defaultValue: "base score of 70" })}</strong>{" "}
+                {t("methodology.calculation_text_suffix", {
+                  defaultValue: "- representing a typical Bitcoin transaction with no obviously good or bad characteristics. The base is above 50 because most transactions are not catastrophically bad; they carry the normal, baseline exposure of a transparent public blockchain.",
+                })}
+              </p>
               <div className="bg-surface-inset rounded-lg p-4 font-mono text-sm text-foreground">
                 {t("methodology.calculation_formula", { defaultValue: "final_score = clamp(70 + sum(all_heuristic_impacts), 0, 100)" })}
               </div>

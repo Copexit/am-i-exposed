@@ -117,7 +117,7 @@ export function ExchangeWarningPanel() {
                       const statusInfo = STATUS_LABEL[e.status];
                       return (
                         <div key={e.name} className="flex items-center gap-2 text-xs text-muted px-3 py-1">
-                          <span className="font-medium text-foreground/60">{e.name}</span>
+                          <span className="font-medium text-foreground/80">{e.name}</span>
                           <span className="text-muted">-</span>
                           <span>{t(statusInfo.key, { defaultValue: statusInfo.default })}</span>
                           <span className="text-muted">-</span>

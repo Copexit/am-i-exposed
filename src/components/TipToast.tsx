@@ -5,8 +5,8 @@ import { QRCodeSVG } from "qrcode.react";
 import { motion, AnimatePresence } from "motion/react";
 import { Heart, X, Copy, Check, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
-
-const LN_ADDRESS = "woozycuticle72@walletofsatoshi.com";
+import { copyToClipboard } from "@/lib/clipboard";
+import { LN_ADDRESS } from "@/lib/constants";
 const DISMISS_KEY = "ami-tip-toast-dismissed";
 const INLINE_DISMISS_KEY = "ami-tip-dismissed";
 
@@ -46,11 +46,11 @@ export function TipToast() {
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    try {
-      await navigator.clipboard.writeText(LN_ADDRESS);
+    const ok = await copyToClipboard(LN_ADDRESS);
+    if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {}
+    }
   };
 
   const handleDismiss = (e: React.MouseEvent) => {
@@ -67,7 +67,7 @@ export function TipToast() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
           transition={{ duration: 0.3 }}
-          className="fixed bottom-20 right-4 left-4 sm:left-auto max-w-sm z-50"
+          className="fixed bottom-4 sm:bottom-20 right-4 left-4 sm:left-auto max-w-sm z-50"
         >
           <div className="relative rounded-xl overflow-hidden border border-bitcoin/30" style={{ background: "var(--card-bg)", boxShadow: "var(--glass-shadow)" }}>
             {/* Collapsed row */}
@@ -136,13 +136,13 @@ export function TipToast() {
                       </div>
                       <a
                         href="nostr:npub14n4e3dnxcumh7kexfgunp86dzhtjcfewe40g4qm6yfl3kf9ute2q5jqr48"
-                        className="inline-flex items-center gap-1.5 text-xs text-purple-400/80 hover:text-purple-400 transition-colors mt-1"
+                        className="inline-flex items-center gap-1.5 text-xs text-purple-400 hover:text-purple-300 transition-colors mt-1"
                       >
                         <Zap size={12} />
                         {t("common.zapNostr", { defaultValue: "Zap via Nostr" })}
                       </a>
                     </div>
-                    <p className="text-center text-xs text-muted/50">
+                    <p className="text-center text-xs text-muted">
                       {t("common.v4v", { defaultValue: "Powered by Value4Value - no ads, no subscriptions, just voluntary support" })}
                     </p>
                   </div>

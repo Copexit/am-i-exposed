@@ -6,8 +6,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Heart, ChevronDown, Copy, Check, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { copyToClipboard } from "@/lib/clipboard";
-
-const LN_ADDRESS = "woozycuticle72@walletofsatoshi.com";
+import { LN_ADDRESS } from "@/lib/constants";
 export function TipJar() {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(() => {
@@ -93,13 +92,13 @@ export function TipJar() {
                 </div>
                 <a
                   href="nostr:npub14n4e3dnxcumh7kexfgunp86dzhtjcfewe40g4qm6yfl3kf9ute2q5jqr48"
-                  className="inline-flex items-center gap-1.5 text-xs text-purple-400/80 hover:text-purple-400 transition-colors mt-1"
+                  className="inline-flex items-center gap-1.5 text-xs text-purple-400 hover:text-purple-300 transition-colors mt-1"
                 >
                   <Zap size={12} />
                   {t("common.zapNostr", { defaultValue: "Zap via Nostr" })}
                 </a>
               </div>
-              <p className="text-center text-xs text-muted/50">
+              <p className="text-center text-xs text-muted">
                 {t("common.v4v", { defaultValue: "Powered by Value4Value - no ads, no subscriptions, just voluntary support" })}
               </p>
             </div>

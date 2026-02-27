@@ -142,20 +142,20 @@ export function BookmarkButton({ query, inputType, grade, score }: BookmarkButto
               placeholder="e.g. Whirlpool test"
               maxLength={40}
               className="w-full px-2 py-1.5 rounded border border-card-border bg-surface-inset text-sm text-foreground
-                placeholder:text-muted/50 focus:outline-none focus:border-bitcoin/50"
+                placeholder:text-muted/50 focus:border-bitcoin/50 focus-visible:outline-2 focus-visible:outline-bitcoin/50"
             />
             <div className="flex justify-end gap-2 mt-2">
               <button
                 onClick={handleLabelSkip}
                 className="text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
               >
-                Skip
+                {t("bookmark.skip", { defaultValue: "Skip" })}
               </button>
               <button
                 onClick={handleLabelConfirm}
                 className="text-xs text-bitcoin hover:text-bitcoin-hover transition-colors cursor-pointer font-medium"
               >
-                Save
+                {t("bookmark.save", { defaultValue: "Save" })}
               </button>
             </div>
           </motion.div>

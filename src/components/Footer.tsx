@@ -13,13 +13,13 @@ export function Footer() {
       <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 px-4 py-4 text-sm text-muted">
         <span className="font-medium text-foreground">am-i.<span className="gradient-text">exposed</span></span>
         <span className="text-muted">{t("common.tagline", { defaultValue: "Your privacy. Diagnosed." })}</span>
-        <span className="text-xs text-muted/60">
+        <span className="text-xs text-muted">
           by{" "}
           <a
             href="https://github.com/copexit"
             target="_blank"
             rel="noopener noreferrer"
-            className="hover:text-foreground transition-colors link-underline"
+            className="hover:text-foreground transition-colors link-underline py-2 inline-block"
           >
             Copexit
           </a>
@@ -28,14 +28,14 @@ export function Footer() {
             href="https://x.com/multicripto"
             target="_blank"
             rel="noopener noreferrer"
-            className="hover:text-foreground transition-colors link-underline"
+            className="hover:text-foreground transition-colors link-underline py-2 inline-block"
           >
             Arkad
           </a>
         </span>
         <Link
           href="/setup-guide"
-          className="text-muted hover:text-foreground transition-colors link-underline"
+          className="text-muted hover:text-foreground transition-colors link-underline py-2 inline-block"
         >
           {t("common.setupGuide", { defaultValue: "Setup Guide" })}
         </Link>
@@ -43,7 +43,7 @@ export function Footer() {
           href="https://github.com/Copexit/am-i-exposed"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-muted hover:text-foreground transition-colors link-underline"
+          className="inline-flex items-center gap-1 text-muted hover:text-foreground transition-colors link-underline py-2"
         >
           <Github size={16} />
           GitHub

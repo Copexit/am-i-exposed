@@ -1,12 +1,5 @@
 import type { Grade } from "@/lib/types";
-
-const GRADE_COLORS: Record<Grade, string> = {
-  "A+": "#28d065",
-  B: "#3b82f6",
-  C: "#eab308",
-  D: "#f97316",
-  F: "#ef4444",
-};
+import { GRADE_HEX } from "@/lib/constants";
 
 export interface ShareCardLabels {
   privacyGrade: string;
@@ -34,7 +27,8 @@ export async function generateShareCard(options: {
   const canvas = document.createElement("canvas");
   canvas.width = 1200;
   canvas.height = 630;
-  const ctx = canvas.getContext("2d")!;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas 2D context not available");
 
   // Background
   ctx.fillStyle = "#0c0c0e";
@@ -70,7 +64,7 @@ export async function generateShareCard(options: {
   ctx.fillText(labels.privacyGrade, 80, 160);
 
   // Grade (large)
-  const gradeColor = GRADE_COLORS[options.grade] ?? "#f0f0f2";
+  const gradeColor = GRADE_HEX[options.grade] ?? "#f0f0f2";
   ctx.font = "bold 180px system-ui, -apple-system, sans-serif";
   ctx.fillStyle = gradeColor;
   ctx.fillText(options.grade, 70, 350);
@@ -132,7 +126,10 @@ export async function generateShareCard(options: {
   ctx.fillText(labels.footerRight, 1120, 570);
   ctx.textAlign = "left";
 
-  return new Promise((resolve) => {
-    canvas.toBlob((blob) => resolve(blob!), "image/png");
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Failed to generate share card image"));
+    }, "image/png");
   });
 }

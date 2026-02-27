@@ -76,7 +76,7 @@ export function ShareButtons({
 
   return (
     <>
-      <button onClick={handleTwitterShare} className={btnClass}>
+      <button onClick={handleTwitterShare} className={btnClass} aria-label={t("share.twitter", { defaultValue: "Share" })}>
         <svg
           viewBox="0 0 24 24"
           className="w-4 h-4 fill-current"
@@ -87,7 +87,7 @@ export function ShareButtons({
         <span className="hidden sm:inline">{t("share.twitter", { defaultValue: "Share" })}</span>
       </button>
 
-      <button onClick={handleCopyLink} className={btnClass}>
+      <button onClick={handleCopyLink} className={btnClass} aria-label={t("share.copyLink", { defaultValue: "Copy link" })}>
         {linkCopied ? <Check size={14} /> : <Copy size={14} />}
         <span className="hidden sm:inline">
           {linkCopied

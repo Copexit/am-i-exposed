@@ -1,7 +1,7 @@
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { ApiClient } from "@/lib/api/client";
 import { createRateLimiter } from "@/lib/api/rate-limiter";
-import { analyzeCoinJoin } from "../heuristics/coinjoin";
+import { analyzeCoinJoin, isCoinJoinFinding } from "../heuristics/coinjoin";
 import { analyzeChangeDetection } from "../heuristics/change-detection";
 import { getAddressType } from "@/lib/bitcoin/address-type";
 
@@ -55,9 +55,7 @@ export async function buildFirstDegreeCluster(
 
     // Check if this is a CoinJoin - skip CIOH if so
     const coinJoinResult = analyzeCoinJoin(tx);
-    const isCoinJoin = coinJoinResult.findings.some(
-      (f) => (f.id === "h4-whirlpool" || f.id === "h4-coinjoin") && f.scoreImpact > 0,
-    );
+    const isCoinJoin = coinJoinResult.findings.some(isCoinJoinFinding);
     if (isCoinJoin) {
       coinJoinTxCount++;
       continue;
@@ -134,9 +132,7 @@ export async function buildFirstDegreeCluster(
 
         // Skip CoinJoins
         const cjResult = analyzeCoinJoin(ctx);
-        const isCJ = cjResult.findings.some(
-          (f) => (f.id === "h4-whirlpool" || f.id === "h4-coinjoin") && f.scoreImpact > 0,
-        );
+        const isCJ = cjResult.findings.some(isCoinJoinFinding);
         if (isCJ) {
           coinJoinTxCount++;
           continue;

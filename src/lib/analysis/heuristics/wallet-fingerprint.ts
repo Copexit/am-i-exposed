@@ -1,5 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding, Severity } from "@/lib/types";
+import { WHIRLPOOL_DENOMS } from "@/lib/constants";
 
 /**
  * H11: Wallet Fingerprinting
@@ -152,8 +153,6 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
   return { findings };
 };
 
-/** Whirlpool pool denominations (in sats). */
-const WHIRLPOOL_DENOMS = [50_000, 100_000, 1_000_000, 5_000_000, 50_000_000];
 
 /** Detect Whirlpool CoinJoin pattern: 5 equal outputs at known denominations (5-8 total outputs). */
 function detectWhirlpoolPattern(
@@ -161,7 +160,7 @@ function detectWhirlpoolPattern(
 ): boolean {
   // Filter to spendable outputs (exclude OP_RETURN)
   const spendable = tx.vout.filter((o) => !o.scriptpubkey.startsWith("6a"));
-  if (spendable.length < 5 || spendable.length > 8) return false;
+  if (spendable.length < 5 || spendable.length > 6) return false;
   for (const denom of WHIRLPOOL_DENOMS) {
     if (spendable.filter((o) => o.value === denom).length === 5) return true;
   }
