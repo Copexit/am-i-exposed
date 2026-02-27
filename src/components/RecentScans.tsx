@@ -5,6 +5,7 @@ import { Clock, X } from "lucide-react";
 import type { RecentScan } from "@/hooks/useRecentScans";
 import { useTranslation } from "react-i18next";
 import { formatTimeAgo } from "@/lib/i18n/format";
+import { gradeColor, truncateId } from "@/lib/constants";
 
 interface RecentScansProps {
   scans: RecentScan[];
@@ -12,14 +13,6 @@ interface RecentScansProps {
   onClear?: () => void;
   hideHeader?: boolean;
 }
-
-const GRADE_COLORS: Record<string, string> = {
-  "A+": "text-severity-good",
-  B: "text-severity-low",
-  C: "text-severity-medium",
-  D: "text-severity-high",
-  F: "text-severity-critical",
-};
 
 export function RecentScans({ scans, onSelect, onClear, hideHeader }: RecentScansProps) {
   const { t, i18n } = useTranslation();
@@ -64,11 +57,11 @@ export function RecentScans({ scans, onSelect, onClear, hideHeader }: RecentScan
               transition-all text-xs cursor-pointer group"
             title={`${scan.type === "txid" ? t("recent.transaction", { defaultValue: "Transaction" }) : t("recent.address", { defaultValue: "Address" })} · ${timeAgo(scan.timestamp)}`}
           >
-            <span className={`font-bold ${GRADE_COLORS[scan.grade] ?? "text-muted"}`}>
+            <span className={`font-bold ${gradeColor(scan.grade)}`}>
               {scan.grade}
             </span>
             <span className="font-mono text-muted group-hover:text-foreground transition-colors truncate max-w-32">
-              {truncate(scan.input)}
+              {truncateId(scan.input)}
             </span>
             <span className="text-muted text-xs">{timeAgo(scan.timestamp)}</span>
           </button>
@@ -78,7 +71,3 @@ export function RecentScans({ scans, onSelect, onClear, hideHeader }: RecentScan
   );
 }
 
-function truncate(s: string): string {
-  if (s.length <= 16) return s;
-  return `${s.slice(0, 8)}...${s.slice(-4)}`;
-}

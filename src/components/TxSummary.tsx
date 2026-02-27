@@ -6,6 +6,7 @@ import { ArrowRight, Search } from "lucide-react";
 import type { MempoolTransaction } from "@/lib/api/types";
 import { formatTimeAgo } from "@/lib/i18n/format";
 import { formatSats } from "@/lib/format";
+import { truncateId } from "@/lib/constants";
 
 interface TxSummaryProps {
   tx: MempoolTransaction;
@@ -100,11 +101,11 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
                     className="inline-flex items-center gap-1 hover:text-bitcoin transition-colors cursor-pointer py-2 group/addr"
                     title={t("tx.scanAddress", { defaultValue: "Scan {{address}}", address: addr })}
                   >
-                    {truncateAddr(addr)}
+                    {truncateId(addr, 6)}
                     <Search size={12} className="shrink-0 opacity-0 group-hover/addr:opacity-100 transition-opacity" />
                   </button>
                 ) : (
-                  truncateAddr(addr ?? "?")
+                  truncateId(addr ?? "?", 6)
                 )}
                 {vin.prevout && !vin.is_coinbase && (
                   <span className="text-muted ml-1">
@@ -145,7 +146,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
                     className="inline-flex items-center gap-1 hover:text-bitcoin transition-colors cursor-pointer py-2 group/addr"
                     title={t("tx.scanAddress", { defaultValue: "Scan {{address}}", address: outAddr })}
                   >
-                    {truncateAddr(outAddr)}
+                    {truncateId(outAddr, 6)}
                     <Search size={12} className="shrink-0 opacity-0 group-hover/addr:opacity-100 transition-opacity" />
                   </button>
                 ) : (
@@ -247,7 +248,7 @@ function detectLikelyChange(tx: MempoolTransaction): number {
 
 function formatOutputAddr(vout: { scriptpubkey_address?: string; scriptpubkey_type: string }): string {
   if (vout.scriptpubkey_type === "op_return") return "OP_RETURN";
-  if (vout.scriptpubkey_address) return truncateAddr(vout.scriptpubkey_address);
+  if (vout.scriptpubkey_address) return truncateId(vout.scriptpubkey_address, 6);
   // Non-standard output types without a decoded address
   const typeLabels: Record<string, string> = {
     multisig: "Multisig",
@@ -259,10 +260,6 @@ function formatOutputAddr(vout: { scriptpubkey_address?: string; scriptpubkey_ty
   return typeLabels[vout.scriptpubkey_type] ?? vout.scriptpubkey_type;
 }
 
-function truncateAddr(addr: string): string {
-  if (addr.length <= 16) return addr;
-  return `${addr.slice(0, 8)}...${addr.slice(-6)}`;
-}
 
 
 function feeRate(tx: MempoolTransaction): string {

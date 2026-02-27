@@ -195,8 +195,8 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
             className="relative w-full glass rounded-[11px] pl-4 pr-24 sm:pl-5 sm:pr-20 py-4
               font-mono text-sm sm:text-base text-foreground placeholder:text-muted/70
               focus:shadow-[0_0_20px_rgba(247,147,26,0.15)]
-              transition-all duration-200 border-0 outline-none
-              focus-visible:outline-none focus-visible:ring-0"
+              transition-all duration-200 border-0
+              focus-visible:outline-2 focus-visible:outline-bitcoin/50"
           />
         </div>
         <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10">

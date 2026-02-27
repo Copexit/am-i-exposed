@@ -75,6 +75,25 @@ export function useAnalysis() {
     [t],
   );
 
+  /** Shared step-update callback for diagnostic loader progress. */
+  const onStep = useCallback((stepId: string, impact?: number) => {
+    setState((prev) => ({
+      ...prev,
+      steps: prev.steps.map((s) => {
+        if (s.id === stepId) {
+          if (impact !== undefined) {
+            return { ...s, status: "done" as const, impact };
+          }
+          return { ...s, status: "running" as const };
+        }
+        if (s.status === "running") {
+          return { ...s, status: "done" as const };
+        }
+        return s;
+      }),
+    }));
+  }, []);
+
   const isCustomApi =
     config.mempoolBaseUrl !== NETWORK_CONFIG[network].mempoolBaseUrl;
 
@@ -136,26 +155,7 @@ export function useAnalysis() {
             txData: tx,
           }));
 
-          const result = await analyzeTransaction(tx, rawHex, (stepId, impact) => {
-            setState((prev) => ({
-              ...prev,
-              steps: prev.steps.map((s) => {
-                if (s.id === stepId) {
-                  // If impact is provided, mark as done with impact
-                  if (impact !== undefined) {
-                    return { ...s, status: "done" as const, impact };
-                  }
-                  // Otherwise mark as running
-                  return { ...s, status: "running" as const };
-                }
-                // Previous running step becomes done (if no impact was set yet)
-                if (s.status === "running") {
-                  return { ...s, status: "done" as const };
-                }
-                return s;
-              }),
-            }));
-          });
+          const result = await analyzeTransaction(tx, rawHex, onStep);
 
           // If prevout data is still missing after enrichment, warn the user
           const remainingNulls = countNullPrevouts([tx]);
@@ -200,28 +200,7 @@ export function useAnalysis() {
 
           setState((prev) => ({ ...prev, phase: "analyzing", addressData: address }));
 
-          const result = await analyzeAddress(
-            address,
-            utxos,
-            txs,
-            (stepId, impact) => {
-              setState((prev) => ({
-                ...prev,
-                steps: prev.steps.map((s) => {
-                  if (s.id === stepId) {
-                    if (impact !== undefined) {
-                      return { ...s, status: "done" as const, impact };
-                    }
-                    return { ...s, status: "running" as const };
-                  }
-                  if (s.status === "running") {
-                    return { ...s, status: "done" as const };
-                  }
-                  return s;
-                }),
-              }));
-            },
-          );
+          const result = await analyzeAddress(address, utxos, txs, onStep);
 
           // Run per-tx heuristic breakdown for address analysis
           const txBreakdown = txs.length > 0
@@ -298,7 +277,7 @@ export function useAnalysis() {
         }));
       }
     },
-    [network, config, isCustomApi, t, ht],
+    [network, config, isCustomApi, t, ht, onStep],
   );
 
   const checkDestination = useCallback(
@@ -389,23 +368,7 @@ export function useAnalysis() {
           address,
           utxos,
           txs,
-          (stepId, impact) => {
-            setState((prev) => ({
-              ...prev,
-              steps: prev.steps.map((s) => {
-                if (s.id === stepId) {
-                  if (impact !== undefined) {
-                    return { ...s, status: "done" as const, impact };
-                  }
-                  return { ...s, status: "running" as const };
-                }
-                if (s.status === "running") {
-                  return { ...s, status: "done" as const };
-                }
-                return s;
-              }),
-            }));
-          },
+          onStep,
         );
 
         setState((prev) => ({
@@ -423,31 +386,24 @@ export function useAnalysis() {
         if (ofacResult.sanctioned) {
           const preSendResult: PreSendResult = {
             riskLevel: "CRITICAL",
-            summaryKey: "presend.summaryCritical",
-            summary:
-              "This address appears on the OFAC sanctions list. " +
-              "Sending funds to this address may violate sanctions law.",
+            summaryKey: "presend.adviceCritical",
+            summary: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
             findings: [
               {
                 id: "h13-presend-check",
                 severity: "critical",
-                title: "Destination risk: CRITICAL",
-                description:
-                  "This address appears on the OFAC sanctions list. " +
-                  "Sending funds to this address may violate sanctions law.",
-                recommendation:
-                  "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address.",
+                params: { riskLevel: "CRITICAL" },
+                title: t("finding.h13-presend-check.title", { riskLevel: "CRITICAL", defaultValue: "Destination risk: CRITICAL" }),
+                description: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
+                recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),
                 scoreImpact: 0,
               },
               {
                 id: "h13-ofac-match",
                 severity: "critical",
-                title: "OFAC sanctioned address",
-                description:
-                  "This address matches an entry on the U.S. Treasury OFAC Specially Designated Nationals (SDN) list. " +
-                  "Transacting with sanctioned addresses may have serious legal consequences.",
-                recommendation:
-                  "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address.",
+                title: t("finding.h13-ofac-match.title", { defaultValue: "OFAC sanctioned address" }),
+                description: t("finding.h13-ofac-match.description", { defaultValue: "This address matches an entry on the U.S. Treasury OFAC Specially Designated Nationals (SDN) list. Transacting with sanctioned addresses may have serious legal consequences." }),
+                recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),
                 scoreImpact: -100,
               },
             ],
@@ -497,7 +453,7 @@ export function useAnalysis() {
         setState((prev) => ({ ...prev, phase: "error", error: message, errorCode }));
       }
     },
-    [network, config, isCustomApi, t, ht],
+    [network, config, isCustomApi, t, ht, onStep],
   );
 
   const reset = useCallback(() => {

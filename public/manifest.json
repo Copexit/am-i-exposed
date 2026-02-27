@@ -8,6 +8,9 @@
   "orientation": "any",
   "theme_color": "#0a0a0a",
   "background_color": "#0a0a0a",
+  "lang": "en",
+  "dir": "ltr",
+  "id": "/",
   "categories": ["finance", "security", "utilities"],
   "icons": [
     {
@@ -35,6 +38,5 @@
       "purpose": "maskable"
     }
   ],
-  "screenshots": [],
   "prefer_related_applications": false
 }

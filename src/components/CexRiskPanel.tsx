@@ -180,7 +180,7 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
           {t("cex.exchangeRiskCheck", { defaultValue: "Exchange Risk Check" })}
         </span>
         {hasSanction && (
-          <span className="text-xs font-medium text-severity-critical bg-severity-critical/10 px-1.5 py-0.5 rounded">
+          <span className="text-xs font-medium text-severity-critical bg-severity-critical/15 px-1.5 py-0.5 rounded">
             {t("cex.flagged", { defaultValue: "FLAGGED" })}
           </span>
         )}
@@ -225,7 +225,7 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
                     <span
                       className={`text-xs font-medium px-1.5 py-0.5 rounded ${
                         ofacResult.sanctioned
-                          ? "bg-severity-critical/10 text-severity-critical"
+                          ? "bg-severity-critical/15 text-severity-critical"
                           : "bg-severity-good/10 text-severity-good"
                       }`}
                     >
@@ -291,7 +291,7 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
                         <span
                           className={`text-xs font-medium px-1.5 py-0.5 rounded ${
                             chainalysis.sanctioned
-                              ? "bg-severity-critical/10 text-severity-critical"
+                              ? "bg-severity-critical/15 text-severity-critical"
                               : "bg-severity-good/10 text-severity-good"
                           }`}
                         >

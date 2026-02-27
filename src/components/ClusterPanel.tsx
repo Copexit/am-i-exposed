@@ -23,7 +23,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
       <div className="w-full bg-surface-inset rounded-xl p-5 space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Network size={16} className="text-bitcoin/60" />
+            <Network size={16} className="text-bitcoin/80" />
             <span className="text-sm font-medium text-foreground/90">
               {t("cluster.title", { defaultValue: "Cluster Analysis" })}
             </span>

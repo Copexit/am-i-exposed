@@ -156,19 +156,40 @@ function tryBoltzmannEqualOutputs(
   const fundableInputs = inputs.filter((v) => v >= outputValue);
   if (fundableInputs.length < n) return null;
 
-  // Use the number of inputs that can fund outputs as our n for partitions,
-  // capped at the number of outputs (each output needs exactly one "share")
-  const effectiveN = Math.min(fundableInputs.length, n);
+  // Use output count as the base partition size
+  const effectiveN = n;
+
+  // When there are more fundable inputs than outputs, additional inputs
+  // create more valid assignments (some inputs can be "idle"). Add a
+  // correction factor of log2(C(k, n)) for choosing which n of k inputs
+  // are active.
+  const k = fundableInputs.length;
+  let extraInputCorrection = 0;
+  if (k > n) {
+    extraInputCorrection = log2Binomial(k, n);
+  }
 
   if (effectiveN <= 50) {
     const count = boltzmannEqualOutputs(effectiveN);
-    const entropy = count > 1 ? Math.log2(count) : 0;
-    return { entropy, method: "Boltzmann partition" };
+    const baseEntropy = count > 1 ? Math.log2(count) : 0;
+    return { entropy: baseEntropy + extraInputCorrection, method: "Boltzmann partition" };
   }
 
   // For very large n, use Stirling approximation
-  const entropy = estimateBoltzmannEntropy(effectiveN);
-  return { entropy, method: "Boltzmann estimate" };
+  const baseEntropy = estimateBoltzmannEntropy(effectiveN);
+  return { entropy: baseEntropy + extraInputCorrection, method: "Boltzmann estimate" };
+}
+
+/** Compute log2 of the binomial coefficient C(n, k) using log-sum of factorials. */
+function log2Binomial(n: number, k: number): number {
+  if (k > n || k < 0) return 0;
+  if (k === 0 || k === n) return 0;
+  // log2(C(n,k)) = sum(log2(i), i=k+1..n) - sum(log2(i), i=1..n-k)
+  let result = 0;
+  for (let i = 1; i <= n - k; i++) {
+    result += Math.log2(k + i) - Math.log2(i);
+  }
+  return result;
 }
 
 /**
@@ -325,6 +346,23 @@ function countValidMappings(inputs: number[], outputs: number[]): { count: numbe
   }
 
   count = enumerate(0, [...inputs]);
+
+  // Deduplicate by identical input values: swapping indistinguishable inputs
+  // doesn't create a new interpretation from an adversary's perspective.
+  const inputValueCounts = new Map<number, number>();
+  for (const v of inputs) {
+    inputValueCounts.set(v, (inputValueCounts.get(v) ?? 0) + 1);
+  }
+  let duplicateFactor = 1;
+  for (const c of inputValueCounts.values()) {
+    if (c > 1) {
+      let f = 1;
+      for (let i = 2; i <= c; i++) f *= i;
+      duplicateFactor *= f;
+    }
+  }
+  count = Math.round(count / duplicateFactor);
+
   return { count: Math.max(count, 1), truncated: iterations > limit };
 }
 

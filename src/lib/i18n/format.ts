@@ -16,7 +16,3 @@ export function formatTimeAgo(unixTimestamp: number, locale: string): string {
   return rtf.format(-Math.floor(diff / 31536000), "year");
 }
 
-/** Locale-aware number formatting. */
-export function formatNumber(n: number, locale: string): string {
-  return n.toLocaleString(locale);
-}

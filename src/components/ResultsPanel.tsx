@@ -5,6 +5,7 @@ import { ArrowLeft, ExternalLink, Copy, Info, AlertTriangle } from "lucide-react
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
+import { isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
 import { ScoreDisplay } from "./ScoreDisplay";
 import { FindingCard } from "./FindingCard";
 import { TxSummary } from "./TxSummary";
@@ -368,14 +369,14 @@ export function ResultsPanel({
           inputType={inputType}
           txData={txData}
           isCoinJoin={result.findings.some(
-            (f) => (f.id === "h4-whirlpool" || f.id === "h4-coinjoin" || f.id === "h4-joinmarket") && f.scoreImpact > 0,
+            isCoinJoinFinding,
           )}
         />
       </motion.div>
 
       {/* Exchange CoinJoin Policy Panel (only for CoinJoin transactions) */}
       {result.findings.some(
-        (f) => (f.id === "h4-whirlpool" || f.id === "h4-coinjoin" || f.id === "h4-joinmarket") && f.scoreImpact > 0,
+        isCoinJoinFinding,
       ) && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.5 }} className="w-full">
           <ExchangeWarningPanel />
@@ -411,7 +412,7 @@ export function ResultsPanel({
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.6 }} className="w-full bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed">
         {t("results.disclaimerStats", {
           findingCount: result.findings.length,
-          heuristicCount: inputType === "txid" ? "12" : "4",
+          heuristicCount: inputType === "txid" ? "13" : "4",
           defaultValue: "{{findingCount}} findings from {{heuristicCount}} heuristics",
         })}
         {txBreakdown ? t("results.disclaimerTxAnalyzed", { count: txBreakdown.length, defaultValue: " + {{count}} transactions analyzed" }) : ""}

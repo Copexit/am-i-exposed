@@ -1,4 +1,5 @@
 import type { TxHeuristic } from "./types";
+import type { Finding } from "@/lib/types";
 
 /**
  * Script Type Mix Analysis
@@ -13,7 +14,7 @@ import type { TxHeuristic } from "./types";
  * Impact: -8 to +2
  */
 export const analyzeScriptTypeMix: TxHeuristic = (tx) => {
-  const findings: import("@/lib/types").Finding[] = [];
+  const findings: Finding[] = [];
 
   // Skip coinbase transactions (no meaningful input scripts)
   if (tx.vin.some((v) => v.is_coinbase)) return { findings };

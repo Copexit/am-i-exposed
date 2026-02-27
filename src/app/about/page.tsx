@@ -91,7 +91,7 @@ export default function AboutPage() {
           <h2 className="text-2xl font-semibold text-foreground">
             {t("about.principles_heading", { defaultValue: "Design Principles" })}
           </h2>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 [&>*:last-child:nth-child(odd)]:sm:col-span-2">
             {PRINCIPLES.map((p) => (
               <div
                 key={p.titleKey}

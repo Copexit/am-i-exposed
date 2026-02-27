@@ -10,6 +10,7 @@ import {
   analyzeChangeDetection,
   analyzeCioh,
   analyzeCoinJoin,
+  isCoinJoinFinding,
   analyzeEntropy,
   analyzeFees,
   analyzeOpReturn,
@@ -169,11 +170,7 @@ export async function analyzeAddress(
  * between different heuristics. This runs after all heuristics complete.
  */
 function applyCrossHeuristicRules(findings: Finding[]): void {
-  const isCoinJoin = findings.some(
-    (f) =>
-      (f.id === "h4-whirlpool" || f.id === "h4-coinjoin" || f.id === "h4-joinmarket" || f.id === "h4-stonewall") &&
-      f.scoreImpact > 0,
-  );
+  const isCoinJoin = findings.some(isCoinJoinFinding);
 
   if (isCoinJoin) {
     for (const f of findings) {

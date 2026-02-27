@@ -1,7 +1,7 @@
 export { analyzeRoundAmounts } from "./round-amount";
 export { analyzeChangeDetection } from "./change-detection";
 export { analyzeCioh } from "./cioh";
-export { analyzeCoinJoin } from "./coinjoin";
+export { analyzeCoinJoin, isCoinJoinFinding } from "./coinjoin";
 export { analyzeEntropy } from "./entropy";
 export { analyzeFees } from "./fee-analysis";
 export { analyzeOpReturn } from "./op-return";

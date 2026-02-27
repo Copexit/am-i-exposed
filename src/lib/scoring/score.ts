@@ -1,4 +1,4 @@
-import type { Finding, Grade, ScoringResult } from "@/lib/types";
+import type { Finding, Grade, Severity, ScoringResult } from "@/lib/types";
 
 const BASE_SCORE = 70;
 const MIN_SCORE = 0;
@@ -63,7 +63,7 @@ export function getSummarySentiment(
   return "warning";
 }
 
-function severityOrder(s: string): number {
+function severityOrder(s: Severity): number {
   switch (s) {
     case "critical":
       return 0;
