@@ -44,22 +44,27 @@ export function detectInputType(
   // txid: 64 hex chars (network-agnostic)
   if (/^[a-fA-F0-9]{64}$/.test(trimmed)) return "txid";
 
-  if (network === "mainnet") {
-    // Bech32/bech32m mainnet (bc1q for P2WPKH/P2WSH, bc1p for P2TR)
-    // Bech32 charset: qpzry9x8gf2tvdw0s3jn54khce6mua7l
-    if (/^bc1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{39,87}$/.test(trimmed.toLowerCase())) return "address";
-    // Legacy P2PKH (1...)
-    if (/^1[a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(trimmed)) return "address";
-    // P2SH (3...)
-    if (/^3[a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(trimmed)) return "address";
-  } else {
-    // Bech32/bech32m testnet/signet (tb1q for P2WPKH/P2WSH, tb1p for P2TR)
-    if (/^tb1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{39,87}$/.test(trimmed.toLowerCase())) return "address";
-    // Testnet P2PKH (m... or n...)
-    if (/^[mn][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(trimmed)) return "address";
-    // Testnet P2SH (2...)
-    if (/^2[a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(trimmed)) return "address";
-  }
+  const lower = trimmed.toLowerCase();
+
+  // Bech32/bech32m mainnet (bc1q for P2WPKH/P2WSH, bc1p for P2TR)
+  // Bech32 charset: qpzry9x8gf2tvdw0s3jn54khce6mua7l
+  if (/^bc1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{39,87}$/.test(lower)) return "address";
+  // Legacy P2PKH (1...)
+  if (/^1[a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(trimmed)) return "address";
+  // P2SH (3...)
+  if (/^3[a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(trimmed)) return "address";
+
+  // Bech32/bech32m testnet/signet (tb1q for P2WPKH/P2WSH, tb1p for P2TR)
+  if (/^tb1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{39,87}$/.test(lower)) return "address";
+  // Testnet P2PKH (m... or n...)
+  if (/^[mn][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(trimmed)) return "address";
+  // Testnet P2SH (2...)
+  if (/^2[a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(trimmed)) return "address";
+
+  // Network parameter kept for API compatibility but validation is
+  // permissive - on Umbrel the local mempool determines the network,
+  // not the frontend selector, so all address formats are accepted.
+  void network;
 
   return "invalid";
 }
