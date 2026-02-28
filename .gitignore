@@ -11,6 +11,8 @@
 # testing
 /coverage
 /test-results
+/playwright-report
+/blob-report
 
 # next.js
 /.next/
@@ -48,5 +50,6 @@ docs/research-exchange-coinjoin-blocking.md
 docs/research-entity-labels.md
 docs/research-bithypha-competitive-analysis.md
 docs/feedback-*.md
+docs/feedback/
 docs/growth-plan.md
 docs/marketing/

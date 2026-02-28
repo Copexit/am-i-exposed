@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { Check, Loader2, Circle } from "lucide-react";
+import { useNetwork } from "@/context/NetworkContext";
 import type { HeuristicStep } from "@/lib/analysis/orchestrator";
 
 interface DiagnosticLoaderProps {
@@ -13,6 +14,8 @@ interface DiagnosticLoaderProps {
 
 export function DiagnosticLoader({ steps, phase }: DiagnosticLoaderProps) {
   const { t } = useTranslation();
+  const { localApiStatus } = useNetwork();
+  const isLocalApi = localApiStatus === "available";
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
@@ -37,7 +40,9 @@ export function DiagnosticLoader({ steps, phase }: DiagnosticLoaderProps) {
           <Loader2 size={14} className="animate-spin text-bitcoin" />
           <span>
             {phase === "fetching"
-              ? t("loader.fetching", { defaultValue: "Fetching data from mempool.space..." })
+              ? isLocalApi
+                ? t("loader.fetching_local", { defaultValue: "Fetching data from your mempool instance..." })
+                : t("loader.fetching", { defaultValue: "Fetching data from mempool.space..." })
               : t("loader.diagnosing", { defaultValue: "Diagnosing your privacy..." })}
           </span>
         </div>

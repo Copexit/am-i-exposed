@@ -25,8 +25,10 @@ import { BookmarkButton } from "./BookmarkButton";
 import { GlowCard } from "./ui/GlowCard";
 import { copyToClipboard } from "@/lib/clipboard";
 import { getSummarySentiment } from "@/lib/scoring/score";
+import { DestinationAlert } from "./DestinationAlert";
 import type { ScoringResult, InputType, TxAnalysisResult } from "@/lib/types";
 import type { MempoolTransaction, MempoolAddress } from "@/lib/api/types";
+import type { PreSendResult } from "@/lib/analysis/orchestrator";
 
 function ScoringExplainer() {
   const [open, setOpen] = useState(false);
@@ -126,6 +128,7 @@ interface ResultsPanelProps {
   addressData: MempoolAddress | null;
   addressTxs: MempoolTransaction[] | null;
   txBreakdown: TxAnalysisResult[] | null;
+  preSendResult?: PreSendResult | null;
   onBack: () => void;
   onScan?: (input: string) => void;
   durationMs?: number | null;
@@ -139,6 +142,7 @@ export function ResultsPanel({
   addressData,
   addressTxs,
   txBreakdown,
+  preSendResult,
   onBack,
   onScan,
   durationMs,
@@ -154,6 +158,7 @@ export function ResultsPanel({
 
   return (
     <motion.div
+      data-testid="results-panel"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
@@ -215,6 +220,11 @@ export function ResultsPanel({
           <ScoreDisplay score={result.score} grade={result.grade} findings={result.findings} />
         </div>
       </GlowCard>
+
+      {/* Destination risk alert (address analysis only) */}
+      {inputType === "address" && preSendResult && (
+        <DestinationAlert preSendResult={preSendResult} />
+      )}
 
       {/* Danger zone warning for F grade */}
       {result.grade === "F" && (

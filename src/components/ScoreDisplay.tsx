@@ -69,6 +69,7 @@ export function ScoreDisplay({ score, grade, findings }: ScoreDisplayProps) {
   return (
     <div
       className={`flex flex-col items-center gap-4 ${isDanger ? "relative" : ""}`}
+      data-testid="score-display"
       data-score={score}
       data-grade={grade}
       role="status"

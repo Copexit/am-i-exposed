@@ -182,6 +182,48 @@ export function useAnalysis() {
             durationMs: Date.now() - startTime,
           }));
         } else {
+          // OFAC pre-flight check (no network needed)
+          const ofacResult = checkOfac([input]);
+          if (ofacResult.sanctioned) {
+            const preSendResult: PreSendResult = {
+              riskLevel: "CRITICAL",
+              summaryKey: "presend.adviceCritical",
+              summary: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
+              findings: [
+                {
+                  id: "h13-presend-check",
+                  severity: "critical",
+                  params: { riskLevel: "CRITICAL" },
+                  title: t("finding.h13-presend-check.title", { riskLevel: "CRITICAL", defaultValue: "Destination risk: CRITICAL" }),
+                  description: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
+                  recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),
+                  scoreImpact: 0,
+                },
+                {
+                  id: "h13-ofac-match",
+                  severity: "critical",
+                  title: t("finding.h13-ofac-match.title", { defaultValue: "OFAC sanctioned address" }),
+                  description: t("finding.h13-ofac-match.description", { defaultValue: "This address matches an entry on the U.S. Treasury OFAC Specially Designated Nationals (SDN) list. Transacting with sanctioned addresses may have serious legal consequences." }),
+                  recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),
+                  scoreImpact: -100,
+                },
+              ],
+              txCount: 0,
+              timesReceived: 0,
+              totalReceived: 0,
+            };
+            setState({
+              ...INITIAL_STATE,
+              phase: "complete",
+              query: input,
+              inputType: "address",
+              steps: steps.map((s) => ({ ...s, status: "done" as const })),
+              preSendResult,
+              durationMs: Date.now() - startTime,
+            });
+            return;
+          }
+
           // Fetch address data - UTXOs may fail for addresses with >500 UTXOs
           const [address, utxos, txs] = await Promise.all([
             api.getAddress(input),
@@ -200,45 +242,108 @@ export function useAnalysis() {
 
           setState((prev) => ({ ...prev, phase: "analyzing", addressData: address }));
 
-          const result = await analyzeAddress(address, utxos, txs, onStep);
+          const totalTxCount = address.chain_stats.tx_count + address.mempool_stats.tx_count;
+          const isFreshAddress = totalTxCount === 0;
 
-          // Run per-tx heuristic breakdown for address analysis
-          const txBreakdown = txs.length > 0
-            ? await analyzeTransactionsForAddress(input, txs)
-            : null;
+          // Fresh address: no transactions, nothing to score - only run destination check
+          if (isFreshAddress) {
+            const preSendResult = await analyzeDestination(address, utxos, txs, onStep);
 
-          // If prevout data is still missing after enrichment, warn the user
-          if (txs.length > 0) {
-            const remainingNulls = countNullPrevouts(txs);
-            if (remainingNulls > 0) {
-              result.findings.push({
-                id: "api-incomplete-prevout",
-                severity: "low",
-                title: `${remainingNulls} input${remainingNulls > 1 ? "s" : ""} missing data across transactions`,
-                description:
-                  `Could not retrieve full data for ${remainingNulls} transaction input${remainingNulls > 1 ? "s" : ""}. ` +
-                  "Some heuristics (CIOH, entropy, change detection, script type analysis) may be incomplete. " +
-                  "This typically happens with self-hosted mempool instances.",
-                recommendation:
-                  "For complete analysis, try using the public mempool.space API or upgrade your self-hosted instance to mempool/electrs.",
-                scoreImpact: 0,
-              });
+            setState((prev) => ({
+              ...prev,
+              phase: "complete",
+              steps: prev.steps.map((s) => ({ ...s, status: "done" as const })),
+              preSendResult,
+              durationMs: Date.now() - startTime,
+            }));
+          } else {
+            // Run both address analysis AND destination check on the same data
+            const [result, preSendResult] = await Promise.all([
+              analyzeAddress(address, utxos, txs, onStep),
+              analyzeDestination(address, utxos, txs),
+            ]);
+
+            // Run per-tx heuristic breakdown for address analysis
+            const txBreakdown = txs.length > 0
+              ? await analyzeTransactionsForAddress(input, txs)
+              : null;
+
+            // If prevout data is still missing after enrichment, warn the user
+            if (txs.length > 0) {
+              const remainingNulls = countNullPrevouts(txs);
+              if (remainingNulls > 0) {
+                result.findings.push({
+                  id: "api-incomplete-prevout",
+                  severity: "low",
+                  title: `${remainingNulls} input${remainingNulls > 1 ? "s" : ""} missing data across transactions`,
+                  description:
+                    `Could not retrieve full data for ${remainingNulls} transaction input${remainingNulls > 1 ? "s" : ""}. ` +
+                    "Some heuristics (CIOH, entropy, change detection, script type analysis) may be incomplete. " +
+                    "This typically happens with self-hosted mempool instances.",
+                  recommendation:
+                    "For complete analysis, try using the public mempool.space API or upgrade your self-hosted instance to mempool/electrs.",
+                  scoreImpact: 0,
+                });
+              }
             }
-          }
 
-          setState((prev) => ({
-            ...prev,
-            phase: "complete",
-            steps: prev.steps.map((s) => ({ ...s, status: "done" as const })),
-            result,
-            addressTxs: txs.length > 0 ? txs : null,
-            txBreakdown,
-            durationMs: Date.now() - startTime,
-          }));
+            setState((prev) => ({
+              ...prev,
+              phase: "complete",
+              steps: prev.steps.map((s) => ({ ...s, status: "done" as const })),
+              result,
+              preSendResult,
+              addressTxs: txs.length > 0 ? txs : null,
+              txBreakdown,
+              durationMs: Date.now() - startTime,
+            }));
+          }
         }
       } catch (err) {
         // Ignore aborted requests (user started a new analysis)
         if (controller.signal.aborted) return;
+
+        // For address queries, even when API fails, check OFAC locally
+        if (inputType === "address") {
+          const fallbackOfac = checkOfac([input]);
+          if (fallbackOfac.sanctioned) {
+            const preSendResult: PreSendResult = {
+              riskLevel: "CRITICAL",
+              summaryKey: "presend.adviceCritical",
+              summary: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
+              findings: [
+                {
+                  id: "h13-presend-check",
+                  severity: "critical",
+                  params: { riskLevel: "CRITICAL" },
+                  title: t("finding.h13-presend-check.title", { riskLevel: "CRITICAL", defaultValue: "Destination risk: CRITICAL" }),
+                  description: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
+                  recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),
+                  scoreImpact: 0,
+                },
+                {
+                  id: "h13-ofac-match",
+                  severity: "critical",
+                  title: t("finding.h13-ofac-match.title", { defaultValue: "OFAC sanctioned address" }),
+                  description: t("finding.h13-ofac-match.description", { defaultValue: "This address matches an entry on the U.S. Treasury OFAC Specially Designated Nationals (SDN) list. Transacting with sanctioned addresses may have serious legal consequences." }),
+                  recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),
+                  scoreImpact: -100,
+                },
+              ],
+              txCount: 0,
+              timesReceived: 0,
+              totalReceived: 0,
+            };
+            setState((prev) => ({
+              ...prev,
+              phase: "complete",
+              steps: prev.steps.map((s) => ({ ...s, status: "done" as const })),
+              preSendResult,
+              durationMs: Date.now() - startTime,
+            }));
+            return;
+          }
+        }
 
         let message = t("errors.unexpected", { defaultValue: "An unexpected error occurred." });
         let errorCode: "retryable" | "not-retryable" = "retryable";
@@ -280,187 +385,11 @@ export function useAnalysis() {
     [network, config, isCustomApi, t, ht, onStep],
   );
 
-  const checkDestination = useCallback(
-    async (input: string) => {
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
-      const inputType = detectInputType(input, network);
-
-      if (inputType !== "address") {
-        setState({
-          ...INITIAL_STATE,
-          phase: "error",
-          query: input,
-          inputType: inputType === "txid" ? "txid" : "invalid",
-          error: inputType === "txid"
-            ? t("errors.presend_txid", { defaultValue: "Pre-send check only works with addresses, not transaction IDs." })
-            : t("errors.invalid_address", { defaultValue: "Invalid Bitcoin address." }),
-          errorCode: "not-retryable",
-        });
-        return;
-      }
-
-      const api = createApiClient(config, controller.signal);
-      const steps = getAddressHeuristicSteps(ht);
-      const startTime = Date.now();
-
-      // Run local OFAC check first - no network needed
-      const ofacResult = checkOfac([input]);
-      if (ofacResult.sanctioned) {
-        const preSendResult: PreSendResult = {
-          riskLevel: "CRITICAL",
-          summaryKey: "presend.adviceCritical",
-          summary: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
-          findings: [
-            {
-              id: "h13-presend-check",
-              severity: "critical",
-              params: { riskLevel: "CRITICAL" },
-              title: t("finding.h13-presend-check.title", { riskLevel: "CRITICAL", defaultValue: "Destination risk: CRITICAL" }),
-              description: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
-              recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),
-              scoreImpact: 0,
-            },
-            {
-              id: "h13-ofac-match",
-              severity: "critical",
-              title: t("finding.h13-ofac-match.title", { defaultValue: "OFAC sanctioned address" }),
-              description: t("finding.h13-ofac-match.description", { defaultValue: "This address matches an entry on the U.S. Treasury OFAC Specially Designated Nationals (SDN) list. Transacting with sanctioned addresses may have serious legal consequences." }),
-              recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),
-              scoreImpact: -100,
-            },
-          ],
-          txCount: 0,
-          timesReceived: 0,
-          totalReceived: 0,
-        };
-        setState({
-          ...INITIAL_STATE,
-          phase: "complete",
-          query: input,
-          inputType: "address",
-          steps: steps.map((s) => ({ ...s, status: "done" as const })),
-          preSendResult,
-          durationMs: Date.now() - startTime,
-        });
-        return;
-      }
-
-      setState({
-        ...INITIAL_STATE,
-        phase: "fetching",
-        query: input,
-        inputType: "address",
-        steps,
-      });
-
-      try {
-        const [address, utxos, txs] = await Promise.all([
-          api.getAddress(input),
-          api.getAddressUtxos(input).catch(() => [] as import("@/lib/api/types").MempoolUtxo[]),
-          api.getAddressTxs(input).catch(() => [] as import("@/lib/api/types").MempoolTransaction[]),
-        ]);
-
-        setState((prev) => ({ ...prev, phase: "analyzing", addressData: address }));
-
-        const preSendResult = await analyzeDestination(
-          address,
-          utxos,
-          txs,
-          onStep,
-        );
-
-        setState((prev) => ({
-          ...prev,
-          phase: "complete",
-          steps: prev.steps.map((s) => ({ ...s, status: "done" as const })),
-          preSendResult,
-          durationMs: Date.now() - startTime,
-        }));
-      } catch (err) {
-        if (controller.signal.aborted) return;
-
-        // Even when the API fails, run the local OFAC check - it needs no API data
-        const ofacResult = checkOfac([input]);
-        if (ofacResult.sanctioned) {
-          const preSendResult: PreSendResult = {
-            riskLevel: "CRITICAL",
-            summaryKey: "presend.adviceCritical",
-            summary: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
-            findings: [
-              {
-                id: "h13-presend-check",
-                severity: "critical",
-                params: { riskLevel: "CRITICAL" },
-                title: t("finding.h13-presend-check.title", { riskLevel: "CRITICAL", defaultValue: "Destination risk: CRITICAL" }),
-                description: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
-                recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),
-                scoreImpact: 0,
-              },
-              {
-                id: "h13-ofac-match",
-                severity: "critical",
-                title: t("finding.h13-ofac-match.title", { defaultValue: "OFAC sanctioned address" }),
-                description: t("finding.h13-ofac-match.description", { defaultValue: "This address matches an entry on the U.S. Treasury OFAC Specially Designated Nationals (SDN) list. Transacting with sanctioned addresses may have serious legal consequences." }),
-                recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),
-                scoreImpact: -100,
-              },
-            ],
-            txCount: 0,
-            timesReceived: 0,
-            totalReceived: 0,
-          };
-          setState((prev) => ({
-            ...prev,
-            phase: "complete",
-            steps: prev.steps.map((s) => ({ ...s, status: "done" as const })),
-            preSendResult,
-            durationMs: Date.now() - startTime,
-          }));
-          return;
-        }
-
-        let message = t("errors.unexpected", { defaultValue: "An unexpected error occurred." });
-        let errorCode: "retryable" | "not-retryable" = "retryable";
-        if (err instanceof ApiError) {
-          switch (err.code) {
-            case "NOT_FOUND":
-              message = t("errors.address_not_found", { defaultValue: "Address not found. Check that it's correct and exists on the selected network." });
-              errorCode = "not-retryable";
-              break;
-            case "INVALID_INPUT":
-              errorCode = "not-retryable";
-              break;
-            case "RATE_LIMITED":
-              message = t("errors.rate_limited_short", { defaultValue: "Rate limited. Please wait a moment and try again." });
-              break;
-            case "NETWORK_ERROR":
-              message = isCustomApi
-                ? t("errors.network_custom", { defaultValue: "Connection to your custom endpoint failed. Open API settings to troubleshoot." })
-                : t("errors.network_short", { defaultValue: "Network error. Check your internet connection." });
-              break;
-            case "API_UNAVAILABLE":
-              message = isCustomApi
-                ? t("errors.api_custom", { defaultValue: "Your custom API endpoint returned an error. Check that it is running." })
-                : t("errors.api_unavailable_short", { defaultValue: "API temporarily unavailable. Try again later." });
-              break;
-          }
-        } else if (err instanceof Error) {
-          console.error("Check error:", err.name);
-          message = t("errors.unexpected", { defaultValue: "An unexpected error occurred. Please try again." });
-        }
-        setState((prev) => ({ ...prev, phase: "error", error: message, errorCode }));
-      }
-    },
-    [network, config, isCustomApi, t, ht, onStep],
-  );
-
   const reset = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
     setState(INITIAL_STATE);
   }, []);
 
-  return { ...state, analyze, checkDestination, reset };
+  return { ...state, analyze, reset };
 }

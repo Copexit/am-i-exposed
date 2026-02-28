@@ -3,7 +3,6 @@
 import { useState, useRef, useCallback, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, useMotionValue, useSpring } from "motion/react";
-import { Radar, SendHorizontal } from "lucide-react";
 import { useNetwork } from "@/context/NetworkContext";
 import { detectInputType, cleanInput } from "@/lib/analysis/detect-input";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
@@ -25,17 +24,13 @@ function InputTypeHint({ value, network }: { value: string; network: BitcoinNetw
   );
 }
 
-type AnalysisMode = "scan" | "check";
-
 interface AddressInputProps {
   onSubmit: (input: string) => void;
   isLoading: boolean;
   inputRef?: React.RefObject<HTMLInputElement | null>;
-  mode?: AnalysisMode;
-  onModeChange?: (mode: AnalysisMode) => void;
 }
 
-export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode = "scan", onModeChange }: AddressInputProps) {
+export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: AddressInputProps) {
   const { t } = useTranslation();
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -108,55 +103,11 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
     }
   };
 
-  const isCheck = mode === "check";
-  const placeholder = isCheck
-    ? t("input.placeholderCheck", { defaultValue: "Paste destination address to check" })
-    : t("input.placeholderScan", { defaultValue: "Paste a Bitcoin address or transaction ID" });
-  const buttonLabel = isCheck
-    ? t("input.buttonCheck", { defaultValue: "Check" })
-    : t("input.buttonScan", { defaultValue: "Scan" });
+  const placeholder = t("input.placeholderScan", { defaultValue: "Paste a Bitcoin address or transaction ID" });
+  const buttonLabel = t("input.buttonScan", { defaultValue: "Scan" });
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-3xl">
-      {/* Mode toggle */}
-      {onModeChange && (
-        <div className="flex flex-col items-center gap-1.5 mb-4">
-          <div className="inline-flex items-center gap-1 bg-surface-elevated/50 border border-card-border rounded-xl p-1">
-            <button
-              type="button"
-              onClick={() => onModeChange("scan")}
-              aria-pressed={!isCheck}
-              className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
-                !isCheck
-                  ? "bg-bitcoin/15 text-bitcoin shadow-sm shadow-[0_0_12px_rgba(247,147,26,0.15)]"
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              <Radar size={14} />
-              {t("input.modeScan", { defaultValue: "Scan" })}
-            </button>
-            <button
-              type="button"
-              onClick={() => onModeChange("check")}
-              aria-pressed={isCheck}
-              className={`inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
-                isCheck
-                  ? "bg-bitcoin/15 text-bitcoin shadow-sm shadow-[0_0_12px_rgba(247,147,26,0.15)]"
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              <SendHorizontal size={14} />
-              {t("input.modeCheck", { defaultValue: "Pre-send check" })}
-            </button>
-          </div>
-          <p className="text-sm text-muted">
-            {isCheck
-              ? t("input.descriptionCheck", { defaultValue: "Check a destination address before you send bitcoin to it" })
-              : t("input.descriptionScan", { defaultValue: "Analyze your address or transaction for privacy leaks" })}
-          </p>
-        </div>
-      )}
-
       <div className="relative group">
         {/* Ambient glow behind input */}
         <div
@@ -177,6 +128,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
           }}
         >
           <input
+            data-testid="address-input"
             id="main-input"
             ref={inputRef}
             type="text"
@@ -204,6 +156,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
             <Spinner />
           ) : (
             <motion.button
+              data-testid="scan-button"
               ref={buttonRef}
               type="submit"
               disabled={!value.trim()}
@@ -220,7 +173,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, mode 
         </div>
       </div>
       {error && (
-        <p id="input-error" className="text-danger text-sm mt-2 text-center">
+        <p data-testid="input-error" id="input-error" className="text-danger text-sm mt-2 text-center">
           {error}
         </p>
       )}

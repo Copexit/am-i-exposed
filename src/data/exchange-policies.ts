@@ -80,8 +80,8 @@ export const EXCHANGE_POLICIES: ExchangePolicy[] = [
   },
   {
     name: "Boltz Exchange",
-    policy: "blocks",
-    detail: "Blocked and refunded swaps involving recently mixed funds.",
+    policy: "flags",
+    detail: "OFAC-compliant. Reports of blocking swaps involving recently mixed funds are unverified.",
     status: "operating",
   },
   {

@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
-import { ShieldCheck, AlertCircle, EyeOff, Github } from "lucide-react";
+import { ShieldCheck, ShieldX, AlertCircle, ArrowLeft, EyeOff, Github } from "lucide-react";
 import { AddressInput } from "@/components/AddressInput";
 import { DiagnosticLoader } from "@/components/DiagnosticLoader";
 import { ResultsPanel } from "@/components/ResultsPanel";
-import { PreSendResultPanel } from "@/components/PreSendResultPanel";
 import { ScanHistory } from "@/components/ScanHistory";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { GlowCard } from "@/components/ui/GlowCard";
@@ -17,56 +16,138 @@ import { useRecentScans } from "@/hooks/useRecentScans";
 import { useBookmarks } from "@/hooks/useBookmarks";
 import { useKeyboardNav } from "@/hooks/useKeyboardNav";
 import { TipToast } from "@/components/TipToast";
-import type { AnalysisMode } from "@/lib/types";
+import { FindingCard } from "@/components/FindingCard";
+import type { PreSendResult } from "@/lib/analysis/orchestrator";
+
+const DESTINATION_ONLY_CONFIG = {
+  LOW: {
+    icon: ShieldCheck,
+    color: "text-severity-good",
+    bg: "bg-severity-good/10 border-severity-good/30",
+    labelKey: "presend.riskLow",
+    labelDefault: "Low Risk",
+  },
+  MEDIUM: {
+    icon: ShieldCheck,
+    color: "text-severity-medium",
+    bg: "bg-severity-medium/10 border-severity-medium/30",
+    labelKey: "presend.riskMedium",
+    labelDefault: "Medium Risk",
+  },
+  HIGH: {
+    icon: ShieldX,
+    color: "text-severity-high",
+    bg: "bg-severity-high/10 border-severity-high/30",
+    labelKey: "presend.riskHigh",
+    labelDefault: "High Risk",
+  },
+  CRITICAL: {
+    icon: ShieldX,
+    color: "text-severity-critical",
+    bg: "bg-severity-critical/10 border-severity-critical/30",
+    labelKey: "presend.riskCritical",
+    labelDefault: "Critical Risk",
+  },
+} as const;
+
+function DestinationOnlyResult({ query, preSendResult, onBack, durationMs }: {
+  query: string;
+  preSendResult: PreSendResult;
+  onBack: () => void;
+  durationMs?: number | null;
+}) {
+  const { t } = useTranslation();
+  const risk = DESTINATION_ONLY_CONFIG[preSendResult.riskLevel];
+  const RiskIcon = risk.icon;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+      className="flex flex-col items-center gap-8 w-full max-w-3xl"
+    >
+      <div className="w-full flex items-center">
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer px-3 py-2 min-h-[44px] rounded-lg border border-card-border hover:border-muted/50 bg-surface-elevated/50"
+        >
+          <ArrowLeft size={16} />
+          {t("results.newScan", { defaultValue: "New scan" })}
+        </button>
+      </div>
+
+      <GlowCard className="w-full p-7 space-y-6">
+        <div className="space-y-1">
+          <span className="text-sm font-medium text-muted uppercase tracking-wider">
+            {t("results.address", { defaultValue: "Address" })}
+          </span>
+          <p className="font-mono text-sm text-foreground/90 break-all leading-relaxed">{query}</p>
+        </div>
+        <div className={`rounded-xl border p-6 ${risk.bg} flex flex-col items-center gap-3`}>
+          <RiskIcon size={40} className={risk.color} />
+          <span className={`text-2xl font-bold ${risk.color}`}>
+            {t(risk.labelKey, { defaultValue: risk.labelDefault })}
+          </span>
+          <p className="text-sm text-center text-foreground max-w-md">
+            {t(preSendResult.summaryKey, {
+              reuseCount: preSendResult.timesReceived,
+              txCount: preSendResult.txCount,
+              defaultValue: preSendResult.summary,
+            })}
+          </p>
+        </div>
+      </GlowCard>
+
+      {preSendResult.findings.length > 0 && (
+        <div className="w-full space-y-3">
+          <h2 className="text-base font-medium text-muted uppercase tracking-wider px-1">
+            {t("results.findingsHeading", { count: preSendResult.findings.length, defaultValue: "Findings ({{count}})" })}
+          </h2>
+          <div className="space-y-2">
+            {preSendResult.findings.map((finding, i) => (
+              <FindingCard key={finding.id} finding={finding} index={i} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="w-full bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed">
+        {t("presend.disclaimerCompleted", { defaultValue: "Pre-send check completed" })}{durationMs ? t("presend.disclaimerDuration", { duration: (durationMs / 1000).toFixed(1), defaultValue: " in {{duration}}s" }) : ""}.
+        {" "}{t("presend.disclaimerBrowser", { defaultValue: "Analysis ran entirely in your browser. This is a heuristic-based assessment - always verify independently." })}
+      </div>
+    </motion.div>
+  );
+}
 
 const EXAMPLES = [
   {
     labelKey: "page.example_whirlpool",
     labelDefault: "Whirlpool CoinJoin",
     hint: "A+",
+    hintColor: "text-severity-good",
     input: "323df21f0b0756f98336437aa3d2fb87e02b59f1946b714a7b09df04d429dec2",
   },
   {
     labelKey: "page.example_wabisabi",
     labelDefault: "WabiSabi CoinJoin",
     hint: "A+",
+    hintColor: "text-severity-good",
     input: "fb596c9f675471019c60e984b569f9020dac3b2822b16396042b50c890b45e5e",
   },
   {
     labelKey: "page.example_satoshi",
     labelDefault: "Satoshi's address",
     hint: "F",
+    hintColor: "text-severity-critical",
     input: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
   },
   {
     labelKey: "page.example_opreturn",
     labelDefault: "OP_RETURN data",
     hint: "D",
+    hintColor: "text-severity-high",
     input: "8bae12b5f4c088d940733dcd1455efc6a3a69cf9340e17a981286d3778615684",
-  },
-];
-
-const PRESEND_EXAMPLES = [
-  {
-    labelKey: "page.presend_fresh",
-    labelDefault: "Fresh address",
-    hint: "Low",
-    hintColor: "text-severity-good",
-    input: "bc1pes5mfje89xdr6uh4qu6p4m0r8d6nz3tvgagtwgv99yalqwzyhdzqrl3mnu",
-  },
-  {
-    labelKey: "page.presend_reused",
-    labelDefault: "Reused address",
-    hint: "Medium",
-    hintColor: "text-severity-medium",
-    input: "bc1q0ht9tyks4vh7p5p904t340cr9nvahy7u3re7zg",
-  },
-  {
-    labelKey: "page.presend_exchange",
-    labelDefault: "Exchange deposit",
-    hint: "Critical",
-    hintColor: "text-severity-critical",
-    input: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
   },
   {
     labelKey: "page.presend_sanctioned",
@@ -74,6 +155,13 @@ const PRESEND_EXAMPLES = [
     hint: "Critical",
     hintColor: "text-severity-critical",
     input: "12QtD5BFwRsdNsAZY76UVE1xyCGNTojH9h",
+  },
+  {
+    labelKey: "page.presend_fresh",
+    labelDefault: "Fresh address",
+    hint: "A",
+    hintColor: "text-severity-good",
+    input: "bc1pes5mfje89xdr6uh4qu6p4m0r8d6nz3tvgagtwgv99yalqwzyhdzqrl3mnu",
   },
 ];
 
@@ -93,7 +181,6 @@ export default function Home() {
     errorCode,
     durationMs,
     analyze,
-    checkDestination,
     reset,
   } = useAnalysis();
 
@@ -101,15 +188,12 @@ export default function Home() {
   const { scans, addScan, clearScans } = useRecentScans();
   const { bookmarks, removeBookmark, clearBookmarks } = useBookmarks();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [mode, setMode] = useState<AnalysisMode>("scan");
 
   // Keep latest function refs for hashchange listener (avoids stale closures)
   const analyzeRef = useRef(analyze);
-  const checkDestinationRef = useRef(checkDestination);
   const resetRef = useRef(reset);
   useEffect(() => {
     analyzeRef.current = analyze;
-    checkDestinationRef.current = checkDestination;
     resetRef.current = reset;
   });
 
@@ -124,16 +208,17 @@ export default function Home() {
 
   // Dynamic page title
   useEffect(() => {
-    if (phase === "complete" && preSendResult && mode === "check") {
-      document.title = `${preSendResult.riskLevel} ${t("page.title_risk", { defaultValue: "Risk" })} - am-i.exposed`;
-    } else if (phase === "complete" && result) {
+    if (phase === "complete" && result) {
       document.title = `${result.grade} (${result.score}/100) - am-i.exposed`;
+    } else if (phase === "complete" && preSendResult && !result) {
+      // OFAC-only result (no score)
+      document.title = `${preSendResult.riskLevel} ${t("page.title_risk", { defaultValue: "Risk" })} - am-i.exposed`;
     } else if (phase === "fetching" || phase === "analyzing") {
-      document.title = `${mode === "check" ? t("page.title_checking", { defaultValue: "Checking" }) : t("page.title_scanning", { defaultValue: "Scanning" })}... - am-i.exposed`;
+      document.title = `${t("page.title_scanning", { defaultValue: "Scanning" })}... - am-i.exposed`;
     } else {
       document.title = `am-i.exposed - ${t("page.title_default", { defaultValue: "Bitcoin Privacy Scanner" })}`;
     }
-  }, [phase, result, preSendResult, mode, t]);
+  }, [phase, result, preSendResult, t]);
 
   // Save completed scan to recent history
   useEffect(() => {
@@ -166,15 +251,10 @@ export default function Home() {
       const addr = params.get("addr");
       const check = params.get("check");
 
-      if (check) {
-        setMode("check");
-        checkDestinationRef.current(check);
-      } else {
-        const input = txid ?? addr;
-        if (input) {
-          setMode("scan");
-          analyzeRef.current(input);
-        }
+      // #check=X is treated as #addr=X (unified flow)
+      const input = txid ?? addr ?? check;
+      if (input) {
+        analyzeRef.current(input);
       }
     }
 
@@ -206,14 +286,9 @@ export default function Home() {
   });
 
   const handleSubmit = (input: string) => {
-    if (mode === "check") {
-      window.location.hash = `check=${encodeURIComponent(input)}`;
-      checkDestination(input);
-    } else {
-      const prefix = input.length === 64 ? "tx" : "addr";
-      window.location.hash = `${prefix}=${encodeURIComponent(input)}`;
-      analyze(input);
-    }
+    const prefix = input.length === 64 ? "tx" : "addr";
+    window.location.hash = `${prefix}=${encodeURIComponent(input)}`;
+    analyze(input);
   };
 
   const handleBack = () => {
@@ -224,14 +299,12 @@ export default function Home() {
   // Aria-live announcements for screen readers during phase transitions
   const ariaStatus =
     phase === "fetching" || phase === "analyzing"
-      ? t("page.aria_scanning", { defaultValue: `${mode === "check" ? "Checking destination" : "Scanning"}. Please wait.` })
-      : phase === "complete" && result && mode === "scan"
+      ? t("page.aria_scanning", { defaultValue: "Scanning. Please wait." })
+      : phase === "complete" && result
         ? t("page.aria_complete", { grade: result.grade, score: result.score, defaultValue: `Scan complete. Grade ${result.grade}, score ${result.score} out of 100.` })
-        : phase === "complete" && preSendResult && mode === "check"
-          ? t("page.aria_check_complete", { riskLevel: preSendResult.riskLevel, defaultValue: `Check complete. Risk level: ${preSendResult.riskLevel}.` })
-          : phase === "error"
-            ? t("page.aria_error", { error: error ?? "", defaultValue: `Analysis failed. ${error ?? ""}` })
-            : "";
+        : phase === "error"
+          ? t("page.aria_error", { error: error ?? "", defaultValue: `Analysis failed. ${error ?? ""}` })
+          : "";
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-3 sm:px-4 py-4 sm:py-6">
@@ -276,8 +349,6 @@ export default function Home() {
                 onSubmit={handleSubmit}
                 isLoading={false}
                 inputRef={inputRef}
-                mode={mode}
-                onModeChange={setMode}
               />
             </motion.div>
 
@@ -294,50 +365,26 @@ export default function Home() {
               <div className="w-full max-w-3xl">
                 <div className="flex items-center gap-1.5 text-base text-muted mb-2 px-1">
                   <span>
-                    {mode === "scan"
-                      ? t("page.try_example", { defaultValue: "Try an example" })
-                      : t("page.try_presend_example", { defaultValue: "Try an example check" })}
+                    {t("page.try_example", { defaultValue: "Try an example" })}
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-2 justify-center">
-                  {mode === "scan"
-                    ? EXAMPLES.map((ex) => (
-                        <button
-                          key={ex.input}
-                          onClick={() => handleSubmit(ex.input)}
-                          className="inline-flex items-center gap-2 px-4 py-3 sm:py-2 rounded-lg bg-surface-elevated/50
-                            border border-card-border hover:border-bitcoin/40 hover:bg-surface-elevated
-                            transition-all text-sm cursor-pointer group"
-                        >
-                          <span className="text-muted group-hover:text-foreground transition-colors">
-                            {t(ex.labelKey, { defaultValue: ex.labelDefault })}
-                          </span>
-                          <span className={`text-xs font-bold ${
-                            ex.hint === "A+" ? "text-severity-good" :
-                            ex.hint === "F" ? "text-severity-critical" :
-                            ex.hint === "D" ? "text-severity-high" :
-                            "text-severity-medium"
-                          }`}>
-                            {ex.hint}
-                          </span>
-                        </button>
-                      ))
-                    : PRESEND_EXAMPLES.map((ex) => (
-                        <button
-                          key={ex.input}
-                          onClick={() => handleSubmit(ex.input)}
-                          className="inline-flex items-center gap-2 px-4 py-3 sm:py-2 rounded-lg bg-surface-elevated/50
-                            border border-card-border hover:border-bitcoin/40 hover:bg-surface-elevated
-                            transition-all text-sm cursor-pointer group"
-                        >
-                          <span className="text-muted group-hover:text-foreground transition-colors">
-                            {t(ex.labelKey, { defaultValue: ex.labelDefault })}
-                          </span>
-                          <span className={`text-xs font-bold ${ex.hintColor}`}>
-                            {ex.hint}
-                          </span>
-                        </button>
-                      ))}
+                  {EXAMPLES.map((ex) => (
+                    <button
+                      key={ex.input}
+                      onClick={() => handleSubmit(ex.input)}
+                      className="inline-flex items-center gap-2 px-4 py-3 sm:py-2 rounded-lg bg-surface-elevated/50
+                        border border-card-border hover:border-bitcoin/40 hover:bg-surface-elevated
+                        transition-all text-sm cursor-pointer group"
+                    >
+                      <span className="text-muted group-hover:text-foreground transition-colors">
+                        {t(ex.labelKey, { defaultValue: ex.labelDefault })}
+                      </span>
+                      <span className={`text-xs font-bold ${ex.hintColor}`}>
+                        {ex.hint}
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
             )}
@@ -374,12 +421,13 @@ export default function Home() {
             animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
             exit={{ opacity: 0, y: 10, filter: "blur(4px)" }}
             transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+            data-testid="diagnostic-loader"
             className="flex flex-col items-center gap-6 w-full max-w-3xl"
           >
             <GlowCard className="w-full p-8 space-y-6">
               <div className="space-y-1">
                 <span className="text-xs font-medium text-muted uppercase tracking-wider">
-                  {mode === "check" ? t("page.label_presend", { defaultValue: "Pre-send destination check" }) : inputType === "txid" ? t("page.label_transaction", { defaultValue: "Transaction" }) : t("page.label_address", { defaultValue: "Address" })}
+                  {inputType === "txid" ? t("page.label_transaction", { defaultValue: "Transaction" }) : t("page.label_address", { defaultValue: "Address" })}
                 </span>
                 <p className="font-mono text-sm text-foreground/90 break-all leading-relaxed">
                   {query}
@@ -392,7 +440,7 @@ export default function Home() {
           </motion.div>
         )}
 
-        {phase === "complete" && query && inputType && result && mode === "scan" && (
+        {phase === "complete" && query && inputType && result && (
           <ResultsPanel
             key="results"
             query={query}
@@ -402,18 +450,17 @@ export default function Home() {
             addressData={addressData}
             addressTxs={addressTxs}
             txBreakdown={txBreakdown}
+            preSendResult={preSendResult}
             onBack={handleBack}
             onScan={handleSubmit}
             durationMs={durationMs}
           />
         )}
 
-        {phase === "complete" && query && preSendResult && mode === "check" && (
-          <PreSendResultPanel
-            key="presend"
+        {phase === "complete" && query && preSendResult && !result && (
+          <DestinationOnlyResult
             query={query}
             preSendResult={preSendResult}
-            addressData={addressData}
             onBack={handleBack}
             durationMs={durationMs}
           />
@@ -428,7 +475,7 @@ export default function Home() {
             transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
             className="flex flex-col items-center gap-6 w-full max-w-xl mt-8 sm:mt-0"
           >
-            <div className="glass border-severity-critical/30 rounded-xl p-8 w-full space-y-4 text-center">
+            <div data-testid="error-message" className="glass border-severity-critical/30 rounded-xl p-8 w-full space-y-4 text-center">
               <AlertCircle size={32} className="text-severity-critical mx-auto" />
               <div className="space-y-2">
                 <h2 className="text-lg font-semibold text-foreground">
@@ -446,7 +493,7 @@ export default function Home() {
               <div className="flex items-center justify-center gap-4">
                 {query && error && errorCode !== "not-retryable" && (
                   <button
-                    onClick={() => mode === "check" ? checkDestination(query) : analyze(query)}
+                    onClick={() => analyze(query)}
                     className="px-4 py-1.5 bg-bitcoin text-black font-semibold text-sm rounded-lg
                       hover:bg-bitcoin-hover transition-all duration-150 cursor-pointer"
                   >

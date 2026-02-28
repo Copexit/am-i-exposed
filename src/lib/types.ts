@@ -1,7 +1,5 @@
 export type InputType = "txid" | "address" | "invalid";
 
-export type AnalysisMode = "scan" | "check";
-
 export type AddressType = "p2pkh" | "p2sh" | "p2wpkh" | "p2wsh" | "p2tr" | "unknown";
 
 export type Severity = "critical" | "high" | "medium" | "low" | "good";

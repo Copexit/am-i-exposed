@@ -97,8 +97,8 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
       detailKey: "remediation.betterChangeHandlingDetail",
       detailDefault:
         "Use a wallet that sends change to the same address type as the payment (e.g., all bc1q). " +
-        "Sparrow Wallet and Ashigaru both handle this correctly. For stronger protection, use Stonewall " +
-        "or PayJoin transactions which break the change detection heuristic entirely.",
+        "Ashigaru handles this automatically. Sparrow Wallet warns about type mismatches but does not correct them. " +
+        "For stronger protection, use Stonewall or PayJoin transactions which break the change detection heuristic entirely.",
     });
   }
 

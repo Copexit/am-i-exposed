@@ -161,8 +161,10 @@ export default function FaqPage() {
                     transition={{ duration: 0.2 }}
                     className="overflow-hidden"
                   >
-                    <div className="px-5 pb-4 text-sm text-muted leading-relaxed">
-                      {t(item.aKey, { defaultValue: DEFAULTS[item.aKey] })}
+                    <div className="px-5 pb-4 text-sm text-muted leading-relaxed space-y-3">
+                      {t(item.aKey, { defaultValue: DEFAULTS[item.aKey] }).split("\n\n").map((para: string, i: number) => (
+                        <p key={i}>{para}</p>
+                      ))}
                     </div>
                   </motion.div>
                 )}
