@@ -121,10 +121,10 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
       setChainalysis((prev) => ({
         ...prev,
         status: "error",
-        error: "Request failed",
+        error: t("cex.requestFailed", { defaultValue: "Request failed. Check your internet connection and try again." }),
       }));
     }
-  }, [addresses, isUmbrel]);
+  }, [addresses, isUmbrel, t]);
 
   const runChainalysisDirect = useCallback(async () => {
     abortRef.current?.abort();
@@ -151,10 +151,10 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
       setChainalysis((prev) => ({
         ...prev,
         status: "error",
-        error: "Request failed",
+        error: t("cex.errorDirectFallback", { defaultValue: "Both Tor and direct connections failed. Try restarting the app or check your internet connection." }),
       }));
     }
-  }, [addresses]);
+  }, [addresses, t]);
 
   if (addresses.length === 0) return null;
 

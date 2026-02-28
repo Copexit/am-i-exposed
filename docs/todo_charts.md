@@ -28,6 +28,21 @@ Horizontal stacked bar showing count of findings by severity level (critical/hig
 ### 8. Privacy Timeline
 For addresses with multiple transactions: chart showing how the privacy situation evolved over time. Score or risk level per transaction.
 
+### 9. Cluster Growth via CIOH + Change Following
+From Arkad's course: tx1 (D1,D2,D3 -> Pago,D4) -> tx2 (D4,D5,D6 -> Pago,D7) -> tx3 (D7,D8,D9 -> Pago,D10) -> tx4 (D10,D11,D12 -> Pago,D13). Each transaction adds the change address plus new inputs to the cluster. Shows how CIOH + change detection link an ever-growing set of addresses to a single entity.
+
+### 10. Coin Control UTXO Selection
+From Arkad's course: "El control de monedas soluciona:" - 4 scenarios of paying 0.01 BTC from a wallet with UTXOs of 0.001, 0.004, 0.005, 0.01, 0.02, 1.00. Scenarios: (1) amount leak (X), (2) change address leak (X), (3) multi-input CIOH leak (X), (4) exact UTXO match - no change, no extra inputs (checkmark). Shows coin control as the ultimate privacy tool.
+
+### 11. Multiple Sweeps Strategy
+From Arkad's course: "Etapas de la estrategia de barridos multiples" - addresses with UTXOs -> individual sweeps (B1-B5) to new addresses -> network change -> consolidation to 1M sats -> spend via mobile. A complex but effective privacy workflow for moving funds between wallets.
+
+### 12. Stowaway/PayJoin Pre-Cycles
+From Arkad's course: Two STOWAWAY (PayJoin) transactions with multiple participants contributing inputs, creating ambiguity about fund ownership, leading to a final BARRIDO (sweep). Shows how interactive PayJoin breaks the common input ownership heuristic across multiple rounds.
+
+### 13. Stonewall Fund Distribution
+From Arkad's course: Using STONEWALL to distribute funds across outputs. Bob ends up with 3 coins in intermediate wallet. "Las monedas de baja denominacion PUEDE mantenerlas bloqueadas y DEBE utilizarlas individualmente." Low-denomination coins should be kept locked and spent individually to avoid unnecessary CIOH exposure.
+
 ## Implementation Approach
 
 - React components with inline SVG - no external chart library needed

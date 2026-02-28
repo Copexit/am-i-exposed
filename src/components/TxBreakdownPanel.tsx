@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ChevronDown, ArrowUpRight, ArrowDownLeft, ArrowLeftRight, ArrowUpDown, Radar } from "lucide-react";
+import { ChevronDown, ArrowUpRight, ArrowDownLeft, ArrowLeftRight, ArrowUpDown, Radar, Copy, Check, ExternalLink } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { TxSummary } from "./TxSummary";
 import { FindingCard } from "./FindingCard";
@@ -32,6 +32,7 @@ export function TxBreakdownPanel({
   const [expandedTx, setExpandedTx] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"grade" | "time">("grade");
   const [visibleCount, setVisibleCount] = useState(10);
+  const [copiedTxid, setCopiedTxid] = useState<string | null>(null);
 
   const sorted = [...breakdown].sort((a, b) => {
     if (sortBy === "grade") return a.score - b.score; // worst first
@@ -48,9 +49,14 @@ export function TxBreakdownPanel({
       className="w-full space-y-3"
     >
       <div className="flex items-center justify-between px-1">
-        <h2 className="text-base font-medium text-muted uppercase tracking-wider">
-          {t("breakdown.heading", { count: breakdown.length, defaultValue: "Transaction History ({{count}})" })}
-        </h2>
+        <div className="space-y-1">
+          <h2 className="text-base font-medium text-muted uppercase tracking-wider">
+            {t("breakdown.heading", { count: breakdown.length, defaultValue: "Transaction History ({{count}})" })}
+          </h2>
+          <p className="text-xs text-foreground/40">
+            {t("breakdown.scoreNote", { defaultValue: "Transaction grades reflect individual transaction privacy. The address grade reflects overall address hygiene." })}
+          </p>
+        </div>
         <div className="flex items-center gap-3">
           {issues > 0 && (
             <span className="text-xs text-severity-high">
@@ -100,9 +106,56 @@ export function TxBreakdownPanel({
                   {item.grade}
                 </span>
 
-                {/* Txid */}
-                <span className="flex-1 font-mono text-sm text-foreground truncate">
-                  {item.txid.slice(0, 8)}...{item.txid.slice(-6)}
+                {/* Txid - clickable to scan, with copy button */}
+                <span className="flex-1 flex items-center gap-1.5 min-w-0">
+                  {onScan ? (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onScan(item.txid);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { e.stopPropagation(); onScan(item.txid); }
+                      }}
+                      title={t("breakdown.scanTx", { defaultValue: "Scan this transaction" })}
+                      className="font-mono text-sm text-foreground hover:text-bitcoin transition-colors cursor-pointer truncate group/txid inline-flex items-center gap-1"
+                    >
+                      {item.txid.slice(0, 8)}...{item.txid.slice(-6)}
+                      <ExternalLink size={10} className="shrink-0 opacity-0 group-hover/txid:opacity-100 transition-opacity" />
+                    </span>
+                  ) : (
+                    <span className="font-mono text-sm text-foreground truncate">
+                      {item.txid.slice(0, 8)}...{item.txid.slice(-6)}
+                    </span>
+                  )}
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigator.clipboard.writeText(item.txid);
+                      setCopiedTxid(item.txid);
+                      setTimeout(() => setCopiedTxid(null), 1500);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.stopPropagation();
+                        navigator.clipboard.writeText(item.txid);
+                        setCopiedTxid(item.txid);
+                        setTimeout(() => setCopiedTxid(null), 1500);
+                      }
+                    }}
+                    title={t("breakdown.copyTxid", { defaultValue: "Copy transaction ID" })}
+                    className="shrink-0 text-muted hover:text-foreground transition-colors cursor-pointer p-0.5"
+                  >
+                    {copiedTxid === item.txid ? (
+                      <Check size={12} className="text-severity-good" />
+                    ) : (
+                      <Copy size={12} />
+                    )}
+                  </span>
                 </span>
 
                 {/* Role */}
