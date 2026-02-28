@@ -9,7 +9,7 @@ import { getAddressType } from "@/lib/bitcoin/address-type";
  * P2WPKH (native SegWit) has the largest anonymity set - excellent for
  * single-sig. P2SH and P2PKH are worse for privacy.
  *
- * Impact: -5 to +5
+ * Impact: -5 to 0
  */
 export const analyzeAddressType: AddressHeuristic = (address) => {
   const type = getAddressType(address.address);
@@ -27,8 +27,8 @@ export const analyzeAddressType: AddressHeuristic = (address) => {
               "This is especially valuable for multisig and complex scripts. For single-sig, P2TR's anonymity set is currently smaller " +
               "than P2WPKH (native SegWit), which remains the most common address type.",
             recommendation:
-              "Taproot is ideal for multisig and complex scripts. For single-sig wallets, P2WPKH (bc1q) currently offers a larger anonymity set. Both are strong choices.",
-            scoreImpact: 5,
+              "Taproot is ideal for multisig and complex scripts. For single-sig wallets, P2WPKH (bc1q) currently offers a larger anonymity set. Both are acceptable choices.",
+            scoreImpact: 0,
           },
         ],
       };

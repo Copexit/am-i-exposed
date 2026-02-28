@@ -79,13 +79,15 @@
 
 | Scenario | Expected Grade | Score | Key Heuristics |
 |----------|---------------|-------|----------------|
-| Whirlpool 5x5 | A+ | 100 | H4 (+30), H5 (+15), anon (+5), cross-heuristic suppression |
-| WabiSabi 300+ | A+ | 100 | H4 (+25), H5 (+15), anon (+10), cross-heuristic suppression |
-| Satoshi's address | F | 0 | H8 (-70), H10 (-5), spending (-2) |
+| Whirlpool 5x5 | A+ | 100 | H4 (+30), H5 (+15), anon (+5), script (+2) |
+| WabiSabi 300+ | A+ | 100 | H4 (+25), H5 (+15), anon (+5) |
+| Satoshi's address | F | 0 | H8 (-70), H10 (-5), spending (-3), spending (+2) |
 | SegWit reused 88x | F | 12 | H8 (-40), H9 dust (-8), spending (-5) |
-| Simple legacy P2PKH | C | 61 | H11 (-5), H2 (-5), script (+2) |
-| Taproot + OP_RETURN | D | 48 | H7 (-10), H5 (-5), H11 (-5), H1 (-5), script (-3) |
-| JoinMarket 2x equal | C | 58 | H3 (-6), H5 (-5), H11 (-6), anon (+5) |
-| Dust attack 555 sats | C | 52 | dust (-8), H5 (-5), H11 (-5), anon (-2) |
-| Batch withdrawal 143 | D | 44 | H1 (-15), H5 (-5), H11 (-5), script (-3) |
-| Taproot script-path | C | 53 | H3 (-6), H5 (-5), H11 (-5), H6 (-2) |
+| Simple legacy P2PKH | C | 65 | H5 (-3), H11 (-3), anon (-1), script (+2) |
+| Taproot + OP_RETURN | C | 57 | H5 (-5), H7 (-5), H11 (-2), script (-1) |
+| JoinMarket 2x equal | B | 84 | H5 (-3), H4 (+15), script (+2) |
+| Bare multisig | F | 19 | H2 (-20), script-multisig (-8), H1 (-10), H3 (-6), H5 (-3), H11 (-2), anon (-1), script (-1) |
+| OP_RETURN charley | D | 45 | H2 (-15), H5 (-5), H7 (-5), H11 (-2), script (+2) |
+| Dust attack 555 sats | D | 37 | H2 (-20), dust (-8), H5 (-3), H11 (-3), anon (-1), script (+2) |
+| Batch withdrawal 143 | C | 63 | H5 (-3), script (-3), H11 (-2), anon (+1) |
+| Taproot script-path | C | 56 | H3 (-6), H5 (-3), H6 (-2), H11 (-3) |
