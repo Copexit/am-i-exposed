@@ -9,15 +9,16 @@ import { useTranslation } from "react-i18next";
 interface ScoreBreakdownProps {
   findings: Finding[];
   finalScore: number;
+  baseScore?: number;
 }
 
-const BASE_SCORE = 70;
+const DEFAULT_BASE_SCORE = 70;
 
 /**
  * Visual waterfall showing how each finding contributes to the final score.
- * Starts at base 70, shows each positive/negative impact as a bar segment.
+ * Starts at base score, shows each positive/negative impact as a bar segment.
  */
-export function ScoreBreakdown({ findings, finalScore }: ScoreBreakdownProps) {
+export function ScoreBreakdown({ findings, finalScore, baseScore = DEFAULT_BASE_SCORE }: ScoreBreakdownProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
@@ -62,7 +63,7 @@ export function ScoreBreakdown({ findings, finalScore }: ScoreBreakdownProps) {
               {/* Base score */}
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted">{t("score.baseScore", { defaultValue: "Base score" })}</span>
-                <span className="text-foreground font-mono tabular-nums">{BASE_SCORE}</span>
+                <span className="text-foreground font-mono tabular-nums">{baseScore}</span>
               </div>
 
               {/* Waterfall items */}

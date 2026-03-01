@@ -77,17 +77,18 @@
 
 ## Score Validation Matrix
 
-| Scenario | Expected Grade | Score | Key Heuristics |
-|----------|---------------|-------|----------------|
-| Whirlpool 5x5 | A+ | 100 | H4 (+30), H5 (+15), anon (+5), script (+2) |
-| WabiSabi 300+ | A+ | 100 | H4 (+25), H5 (+15), anon (+5) |
-| Satoshi's address | F | 0 | H8 (-70), H10 (-5), spending (-3), spending (+2) |
-| SegWit reused 88x | F | 12 | H8 (-40), H9 dust (-8), spending (-5) |
-| Simple legacy P2PKH | C | 65 | H5 (-3), H11 (-3), anon (-1), script (+2) |
-| Taproot + OP_RETURN | C | 57 | H5 (-5), H7 (-5), H11 (-2), script (-1) |
-| JoinMarket 2x equal | B | 84 | H5 (-3), H4 (+15), script (+2) |
-| Bare multisig | F | 19 | H2 (-20), script-multisig (-8), H1 (-10), H3 (-6), H5 (-3), H11 (-2), anon (-1), script (-1) |
-| OP_RETURN charley | D | 45 | H2 (-15), H5 (-5), H7 (-5), H11 (-2), script (+2) |
-| Dust attack 555 sats | D | 37 | H2 (-20), dust (-8), H5 (-3), H11 (-3), anon (-1), script (+2) |
-| Batch withdrawal 143 | C | 63 | H5 (-3), script (-3), H11 (-2), anon (+1) |
-| Taproot script-path | C | 56 | H3 (-6), H5 (-3), H6 (-2), H11 (-3) |
+| Scenario | Type | Base | Expected Grade | Score | Key Heuristics |
+|----------|------|------|---------------|-------|----------------|
+| Whirlpool 5x5 | tx | 70 | A+ | 100 | H4 (+30), H5 (+15), anon (+5), script (+2) |
+| WabiSabi 300+ | tx | 70 | A+ | 100 | H4 (+25), H5 (+15), anon (+5) |
+| Simple legacy P2PKH | tx | 70 | C | 65 | H5 (-3), H11 (-3), anon (-1), script (+2) |
+| Taproot + OP_RETURN | tx | 70 | C | 57 | H5 (-5), H7 (-5), H11 (-2), script (-1) |
+| JoinMarket 2x equal | tx | 70 | B | 84 | H5 (-3), H4 (+15), script (+2) |
+| Bare multisig | tx | 70 | F | 19 | H2 (-20), script-multisig (-8), H1 (-10), H3 (-6), H5 (-3), H11 (-2), anon (-1), script (-1) |
+| OP_RETURN charley | tx | 70 | D | 45 | H2 (-15), H5 (-5), H7 (-5), H11 (-2), script (+2) |
+| Dust attack 555 sats | tx | 70 | D | 37 | H2 (-20), dust (-8), H5 (-3), H11 (-3), anon (-1), script (+2) |
+| Batch withdrawal 143 | tx | 70 | C | 63 | H5 (-3), script (-3), H11 (-2), anon (+1) |
+| Taproot script-path | tx | 70 | C | 56 | H3 (-6), H5 (-3), H6 (-2), H11 (-3) |
+| Satoshi's address | addr | 93 | F | 0 | H8 (-93), H10 (-5), H9 dust (-8), spending (-5), cold (+2) |
+| SegWit reused 88x | addr | 93 | F | 0 | H8 (-90), H9 dust (-8), H9 utxo (-3), spending (-5) |
+| Fresh Taproot (no reuse) | addr | 93 | A+ | 100 | H8 (+3), H10 (0), H9 (+2), cold (+2) |

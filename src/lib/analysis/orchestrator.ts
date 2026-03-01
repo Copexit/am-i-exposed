@@ -162,7 +162,7 @@ export async function analyzeAddress(
     });
   }
 
-  return calculateScore(allFindings);
+  return calculateScore(allFindings, "address");
 }
 
 /**

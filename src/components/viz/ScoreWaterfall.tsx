@@ -16,10 +16,11 @@ interface ScoreWaterfallProps {
   findings: Finding[];
   finalScore: number;
   grade: Grade;
+  baseScore?: number;
   onFindingClick?: (findingId: string) => void;
 }
 
-const BASE_SCORE = 70;
+const DEFAULT_BASE_SCORE = 70;
 const MARGIN = { top: 24, right: 16, bottom: 80, left: 40 };
 const MIN_HEIGHT = 260;
 
@@ -73,6 +74,7 @@ function WaterfallChart({
   findings,
   finalScore,
   grade,
+  baseScore = DEFAULT_BASE_SCORE,
   onFindingClick,
 }: ScoreWaterfallProps & { width: number; height: number }) {
   const { t } = useTranslation();
@@ -91,15 +93,15 @@ function WaterfallChart({
     });
 
     const segs: WaterfallSegment[] = [];
-    let running = BASE_SCORE;
+    let running = baseScore;
 
     // Base column
     segs.push({
       key: "base",
       label: t("viz.waterfall.base", { defaultValue: "Base" }),
-      value: BASE_SCORE,
+      value: baseScore,
       runningStart: 0,
-      runningEnd: BASE_SCORE,
+      runningEnd: baseScore,
       color: SVG_COLORS.muted,
     });
 
@@ -130,7 +132,7 @@ function WaterfallChart({
     });
 
     return segs;
-  }, [findings, finalScore, grade, t]);
+  }, [findings, finalScore, grade, baseScore, t]);
 
   const innerWidth = width - MARGIN.left - MARGIN.right;
   const innerHeight = height - MARGIN.top - MARGIN.bottom;
@@ -321,7 +323,7 @@ function WaterfallChart({
                     fontFamily="var(--font-geist-mono), monospace"
                     fill={seg.key === "final" ? seg.color : SVG_COLORS.foreground}
                   >
-                    {seg.key === "base" ? BASE_SCORE : finalScore}
+                    {seg.key === "base" ? baseScore : finalScore}
                   </Text>
                 )}
               </Group>
@@ -399,7 +401,7 @@ function WaterfallChart({
   );
 }
 
-export function ScoreWaterfall({ findings, finalScore, grade, onFindingClick }: ScoreWaterfallProps) {
+export function ScoreWaterfall({ findings, finalScore, grade, baseScore, onFindingClick }: ScoreWaterfallProps) {
   const { t } = useTranslation();
   const impactFindings = findings.filter((f) => f.scoreImpact !== 0);
   if (impactFindings.length === 0) return null;
@@ -418,6 +420,7 @@ export function ScoreWaterfall({ findings, finalScore, grade, onFindingClick }: 
               findings={findings}
               finalScore={finalScore}
               grade={grade}
+              baseScore={baseScore}
               onFindingClick={onFindingClick}
             />
           )}

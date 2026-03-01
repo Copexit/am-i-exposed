@@ -14,7 +14,7 @@ import type { AddressHeuristic } from "./types";
  * Severity scales using tx_count (total transaction involvement including
  * spends) for a broader picture of linkability exposure.
  *
- * Impact: -24 to -70
+ * Impact: -70 to -93
  */
 export const analyzeAddressReuse: AddressHeuristic = (address, _utxos, txs) => {
   const { chain_stats, mempool_stats } = address;
@@ -106,26 +106,27 @@ export const analyzeAddressReuse: AddressHeuristic = (address, _utxos, txs) => {
   let severity: "critical" | "high" | "medium";
 
   if (effectiveTxCount >= 1000) {
-    impact = -70;
+    impact = -93;
     severity = "critical";
   } else if (effectiveTxCount >= 100) {
-    impact = -65;
+    impact = -92;
     severity = "critical";
   } else if (effectiveTxCount >= 50) {
-    impact = -58;
+    impact = -90;
     severity = "critical";
   } else if (effectiveTxCount >= 10) {
-    impact = -50;
+    impact = -88;
     severity = "critical";
   } else if (effectiveTxCount >= 5) {
-    impact = -45;
+    impact = -84;
     severity = "critical";
   } else if (effectiveTxCount >= 3) {
-    impact = -32;
+    impact = -78;
     severity = "critical";
   } else {
-    impact = -24;
-    severity = "high";
+    // First reuse (2 txs) - already catastrophic
+    impact = -70;
+    severity = "critical";
   }
 
   return {

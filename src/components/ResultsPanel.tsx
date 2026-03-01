@@ -12,6 +12,7 @@ import { AddressSummary } from "./AddressSummary";
 import { ExportButton } from "./ExportButton";
 import { ScoreBreakdown } from "./ScoreBreakdown";
 import { ScoreWaterfall } from "./viz/ScoreWaterfall";
+import { TX_BASE_SCORE, ADDRESS_BASE_SCORE } from "@/lib/scoring/score";
 import { SeverityRing } from "./viz/SeverityRing";
 import { TxFlowDiagram } from "./viz/TxFlowDiagram";
 import { UtxoBubbleChart } from "./viz/UtxoBubbleChart";
@@ -402,6 +403,7 @@ export function ResultsPanel({
               findings={result.findings}
               finalScore={result.score}
               grade={result.grade}
+              baseScore={addressData ? ADDRESS_BASE_SCORE : TX_BASE_SCORE}
               onFindingClick={(findingId) => {
                 const el = document.querySelector(`[data-finding-id="${findingId}"]`);
                 if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -410,7 +412,7 @@ export function ResultsPanel({
           </motion.div>
         )}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.6 }} className="w-full">
-          <ScoreBreakdown findings={result.findings} finalScore={result.score} />
+          <ScoreBreakdown findings={result.findings} finalScore={result.score} baseScore={addressData ? ADDRESS_BASE_SCORE : TX_BASE_SCORE} />
           <ScoringExplainer />
         </motion.div>
       </div>
