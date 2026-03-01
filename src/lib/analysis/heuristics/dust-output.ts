@@ -24,20 +24,21 @@ export const analyzeDustOutputs: TxHeuristic = (tx) => {
   // Coinbase transactions can have small outputs (fees); not a dust attack
   if (tx.vin.length === 1 && tx.vin[0].is_coinbase) return { findings };
 
-  const dustOutputs = tx.vout.filter(
-    (out) =>
-      out.value > 0 &&
-      out.value < DUST_THRESHOLD &&
-      out.scriptpubkey_type !== "op_return",
-  );
+  // Collect dust outputs with their vout indices
+  const dustEntries: { index: number; value: number }[] = [];
+  for (let i = 0; i < tx.vout.length; i++) {
+    const out = tx.vout[i];
+    if (out.value > 0 && out.value < DUST_THRESHOLD && out.scriptpubkey_type !== "op_return") {
+      dustEntries.push({ index: i, value: out.value });
+    }
+  }
 
-  if (dustOutputs.length === 0) return { findings };
+  if (dustEntries.length === 0) return { findings };
 
-  const extremeDust = dustOutputs.filter(
-    (out) => out.value < EXTREME_DUST_THRESHOLD,
-  );
-
-  const totalDustValue = dustOutputs.reduce((sum, out) => sum + out.value, 0);
+  const dustOutputs = dustEntries;
+  const extremeDust = dustEntries.filter((d) => d.value < EXTREME_DUST_THRESHOLD);
+  const totalDustValue = dustEntries.reduce((sum, d) => sum + d.value, 0);
+  const dustIndicesStr = dustEntries.map((d) => d.index).join(",");
 
   // Check if this looks like a dust attack:
   // - Classic: 1 input, 2 outputs, 1 dust (attacker sends dust + change)
@@ -51,7 +52,7 @@ export const analyzeDustOutputs: TxHeuristic = (tx) => {
       id: "dust-attack",
       severity: "high",
       title: `Possible dust attack (${totalDustValue} sats)`,
-      params: { totalDustValue },
+      params: { totalDustValue, dustIndices: dustIndicesStr },
       description:
         `This transaction sends a tiny amount (${totalDustValue} sats) which is a common ` +
         "pattern in dust attacks. Attackers send small amounts to target addresses to track " +
@@ -80,7 +81,7 @@ export const analyzeDustOutputs: TxHeuristic = (tx) => {
       id: "dust-outputs",
       severity,
       title: `${dustOutputs.length} dust output${dustOutputs.length > 1 ? "s" : ""} detected (< ${DUST_THRESHOLD} sats)`,
-      params: { dustCount: dustOutputs.length, threshold: DUST_THRESHOLD, totalDustValue, extremeCount: extremeDust.length },
+      params: { dustCount: dustOutputs.length, threshold: DUST_THRESHOLD, totalDustValue, extremeCount: extremeDust.length, dustIndices: dustIndicesStr },
       description:
         `This transaction contains ${dustOutputs.length} output${dustOutputs.length > 1 ? "s" : ""} ` +
         `below ${DUST_THRESHOLD} sats (total: ${totalDustValue} sats). ` +

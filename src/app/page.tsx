@@ -176,6 +176,7 @@ export default function Home() {
     addressData,
     txBreakdown,
     addressTxs,
+    addressUtxos,
     preSendResult,
     error,
     errorCode,
@@ -449,6 +450,7 @@ export default function Home() {
             txData={txData}
             addressData={addressData}
             addressTxs={addressTxs}
+            addressUtxos={addressUtxos}
             txBreakdown={txBreakdown}
             preSendResult={preSendResult}
             onBack={handleBack}

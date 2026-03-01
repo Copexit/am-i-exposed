@@ -112,7 +112,7 @@ export function ScoreDisplay({ score, grade, findings }: ScoreDisplayProps) {
               opacity: { delay: 0.2, type: "spring", stiffness: 200 },
               textShadow: { duration: 3, repeat: Infinity, ease: "easeInOut" },
             } : { delay: 0.2, type: "spring", stiffness: 200 }}
-            className={`text-6xl font-bold tabular-nums ${GRADE_COLORS[grade]}`}
+            className={`text-6xl lg:text-7xl font-bold tabular-nums ${GRADE_COLORS[grade]}`}
             style={{
               textShadow: grade !== "A+" ? undefined : `0 0 20px ${GRADE_GLOW_COLORS["A+"]}`,
             }}
@@ -120,14 +120,14 @@ export function ScoreDisplay({ score, grade, findings }: ScoreDisplayProps) {
             {grade}
           </motion.span>
         </div>
-        <span className="text-2xl text-muted tabular-nums">
+        <span className="text-3xl text-muted tabular-nums">
           {displayScore}
-          <span className="text-muted">/100</span>
+          <span className="text-xl text-muted/60">/100</span>
         </span>
       </div>
 
       {/* Score bar with grade markers */}
-      <div className="w-full max-w-xs">
+      <div className="w-full max-w-sm">
         <div className="relative h-2 bg-surface-inset rounded-full overflow-hidden">
           <motion.div
             initial={{ width: 0 }}
@@ -165,7 +165,7 @@ export function ScoreDisplay({ score, grade, findings }: ScoreDisplayProps) {
         </div>
       </div>
 
-      <p className="text-sm text-muted">
+      <p className="text-base text-muted">
         {grade === "A+"
           ? t("score.gradeAPlus", { defaultValue: "Excellent privacy practices" })
           : grade === "B"

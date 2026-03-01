@@ -63,6 +63,7 @@ export function FindingCard({ finding, index, defaultExpanded = false }: Finding
       viewport={{ once: true, margin: "-50px" }}
       transition={{ delay: index * 0.05, duration: 0.25 }}
       className={`glass rounded-lg overflow-hidden border-l-2 ${style.border} ${style.glow ?? ""}`}
+      data-finding-id={finding.id}
       role="article"
       aria-label={`${severityLabel} finding: ${t(`finding.${finding.id}.title`, { ...finding.params, defaultValue: finding.title })}`}
     >
