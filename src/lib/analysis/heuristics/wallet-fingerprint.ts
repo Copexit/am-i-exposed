@@ -144,8 +144,8 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
     description,
     recommendation:
       "Wallet fingerprinting is difficult to avoid without modifying wallet software. " +
-      "Taproot (P2TR) transactions help because key-path spends all look identical. " +
       "Using popular wallets with large user bases reduces the identifying power of fingerprints. " +
+      "The larger the anonymity set for your address type, the harder it is to narrow down your wallet. " +
       "Bitcoin Core and Sparrow share the same signing patterns, so their combined user base makes this fingerprint less unique.",
     scoreImpact: impact,
   });

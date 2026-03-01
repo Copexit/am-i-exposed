@@ -8,10 +8,15 @@ import { useNetwork } from "@/context/NetworkContext";
 import { isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
 import { ScoreDisplay } from "./ScoreDisplay";
 import { FindingCard } from "./FindingCard";
-import { TxSummary } from "./TxSummary";
 import { AddressSummary } from "./AddressSummary";
 import { ExportButton } from "./ExportButton";
 import { ScoreBreakdown } from "./ScoreBreakdown";
+import { ScoreWaterfall } from "./viz/ScoreWaterfall";
+import { SeverityRing } from "./viz/SeverityRing";
+import { TxFlowDiagram } from "./viz/TxFlowDiagram";
+import { UtxoBubbleChart } from "./viz/UtxoBubbleChart";
+import { PrivacyTimeline } from "./viz/PrivacyTimeline";
+import { CoinJoinStructure } from "./viz/CoinJoinStructure";
 import { Remediation } from "./Remediation";
 import { CexRiskPanel } from "./CexRiskPanel";
 import { ExchangeWarningPanel } from "./ExchangeWarningPanel";
@@ -27,7 +32,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { getSummarySentiment } from "@/lib/scoring/score";
 import { DestinationAlert } from "./DestinationAlert";
 import type { ScoringResult, InputType, TxAnalysisResult } from "@/lib/types";
-import type { MempoolTransaction, MempoolAddress } from "@/lib/api/types";
+import type { MempoolTransaction, MempoolAddress, MempoolUtxo } from "@/lib/api/types";
 import type { PreSendResult } from "@/lib/analysis/orchestrator";
 
 function ScoringExplainer() {
@@ -91,7 +96,7 @@ function AddressTypeBadge({ address }: { address: string }) {
     color = "bg-severity-medium/20 text-severity-medium border-severity-medium/30";
   } else if (address.startsWith("1") || address.startsWith("m") || address.startsWith("n")) {
     typeKey = "Legacy";
-    color = "bg-severity-high/20 text-severity-high border-severity-high/30";
+    color = "bg-muted/15 text-muted border-muted/30";
   } else {
     return null;
   }
@@ -127,6 +132,7 @@ interface ResultsPanelProps {
   txData: MempoolTransaction | null;
   addressData: MempoolAddress | null;
   addressTxs: MempoolTransaction[] | null;
+  addressUtxos?: MempoolUtxo[] | null;
   txBreakdown: TxAnalysisResult[] | null;
   preSendResult?: PreSendResult | null;
   onBack: () => void;
@@ -142,6 +148,7 @@ export function ResultsPanel({
   addressData,
   addressTxs,
   txBreakdown,
+  addressUtxos,
   preSendResult,
   onBack,
   onScan,
@@ -149,12 +156,34 @@ export function ResultsPanel({
 }: ResultsPanelProps) {
   const { config, customApiUrl, localApiStatus } = useNetwork();
   const { t } = useTranslation();
+  const isCoinJoin = result.findings.some(isCoinJoinFinding);
   const explorerUrl = `${config.explorerUrl}/${inputType === "txid" ? "tx" : "address"}/${encodeURIComponent(query)}`;
   const explorerLabel = customApiUrl
     ? t("results.viewOnCustom", { hostname: new URL(config.explorerUrl).hostname, defaultValue: "View on {{hostname}}" })
     : localApiStatus === "available"
       ? t("results.viewOnLocal", { defaultValue: "View on local mempool" })
       : t("results.viewOnMempool", { defaultValue: "View on mempool.space" });
+
+  const findingsBlock = result.findings.length > 0 && (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.3 }} className="w-full space-y-4">
+      <div className="flex items-center justify-between px-1">
+        <h2 className="text-base font-medium text-muted uppercase tracking-wider">
+          {t("results.findingsHeading", { count: result.findings.length, defaultValue: "Findings ({{count}})" })}
+        </h2>
+        <FindingSummary findings={result.findings} />
+      </div>
+      <div className="space-y-3">
+        {result.findings.map((finding, i) => (
+          <FindingCard
+            key={finding.id}
+            finding={finding}
+            index={i}
+            defaultExpanded={finding.severity === "critical" || (result.grade === "F" && finding.severity === "high")}
+          />
+        ))}
+      </div>
+    </motion.div>
+  );
 
   return (
     <motion.div
@@ -163,9 +192,9 @@ export function ResultsPanel({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
       id="results-panel"
-      className="flex flex-col items-center gap-6 sm:gap-8 w-full max-w-3xl"
+      className="flex flex-col items-center gap-10 sm:gap-12 w-full max-w-3xl lg:max-w-5xl"
     >
-      {/* Top bar */}
+      {/* ZONE 1: Navigation */}
       <div className="w-full flex flex-wrap items-center gap-2">
         <button
           onClick={onBack}
@@ -195,7 +224,7 @@ export function ResultsPanel({
         />
       </div>
 
-      {/* Query + Score */}
+      {/* ZONE 2: Hero Score */}
       <GlowCard className="w-full p-7 space-y-6">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
@@ -217,230 +246,257 @@ export function ResultsPanel({
         </div>
 
         <div className="border-t border-card-border pt-6">
-          <ScoreDisplay score={result.score} grade={result.grade} findings={result.findings} />
+          <div className="flex items-center justify-center gap-6">
+            <ScoreDisplay score={result.score} grade={result.grade} findings={result.findings} />
+            {result.findings.length > 3 && (
+              <SeverityRing findings={result.findings} size={120} />
+            )}
+          </div>
         </div>
       </GlowCard>
 
-      {/* Destination risk alert (address analysis only) */}
-      {inputType === "address" && preSendResult && (
-        <DestinationAlert preSendResult={preSendResult} />
+      {/* ZONE 3: Alerts + Context */}
+      {(result.grade === "F" || result.findings.length > 0 || (inputType === "address" && preSendResult)) && (
+        <div className="w-full flex flex-col gap-3 sm:gap-4">
+          {result.grade === "F" && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.05 }}
+              className="w-full bg-severity-critical/10 border border-severity-critical/30 rounded-xl p-4 flex items-start gap-3"
+            >
+              <AlertTriangle size={18} className="text-severity-critical shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-severity-critical">
+                  {t("results.highExposureRisk", { defaultValue: "High exposure risk" })}
+                </p>
+                <p className="text-xs text-foreground mt-1 leading-relaxed">
+                  {inputType === "txid"
+                    ? t("results.fGradeWarningTx", { defaultValue: "This transaction has severe privacy issues. On-chain surveillance can likely identify the owner and trace fund flows. Immediate remediation steps are recommended below." })
+                    : t("results.fGradeWarningAddr", { defaultValue: "This address has severe privacy issues. On-chain surveillance can likely identify the owner and trace fund flows. Immediate remediation steps are recommended below." })}
+                </p>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Summary sentiment (moved up from after findings) */}
+          {result.grade !== "F" && (() => {
+            const sentiment = getSummarySentiment(result.grade, result.findings);
+            const colorMap = {
+              positive: { border: "border-severity-good/30 bg-severity-good/5", text: "text-severity-good" },
+              cautious: { border: "border-severity-medium/30 bg-severity-medium/5", text: "text-severity-medium" },
+              warning: { border: "border-severity-high/30 bg-severity-high/5", text: "text-severity-high" },
+              danger: { border: "border-severity-critical/30 bg-severity-critical/5", text: "text-severity-critical" },
+            };
+            const colors = colorMap[sentiment];
+            return (
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.05 }} className={`w-full rounded-xl border px-4 py-3 ${colors.border}`}>
+                <p className={`text-base font-medium ${colors.text}`}>
+                  {sentiment === "positive"
+                    ? t("results.summaryGood", { defaultValue: "No significant privacy concerns detected." })
+                    : sentiment === "cautious"
+                      ? t("results.summaryFair", { defaultValue: "Some privacy concerns detected. Review the findings below." })
+                      : t("results.summaryPoor", { defaultValue: "Significant privacy exposure detected. Remediation recommended." })}
+                </p>
+              </motion.div>
+            );
+          })()}
+
+          {inputType === "address" && preSendResult && (
+            <DestinationAlert preSendResult={preSendResult} />
+          )}
+        </div>
       )}
 
-      {/* Danger zone warning for F grade */}
-      {result.grade === "F" && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-          className="w-full bg-severity-critical/10 border border-severity-critical/30 rounded-xl p-4 flex items-start gap-3"
-        >
-          <AlertTriangle size={18} className="text-severity-critical shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-medium text-severity-critical">
-              {t("results.highExposureRisk", { defaultValue: "High exposure risk" })}
-            </p>
-            <p className="text-xs text-foreground mt-1 leading-relaxed">
-              {inputType === "txid"
-                ? t("results.fGradeWarningTx", { defaultValue: "This transaction has severe privacy issues. On-chain surveillance can likely identify the owner and trace fund flows. Immediate remediation steps are recommended below." })
-                : t("results.fGradeWarningAddr", { defaultValue: "This address has severe privacy issues. On-chain surveillance can likely identify the owner and trace fund flows. Immediate remediation steps are recommended below." })}
-            </p>
-          </div>
-        </motion.div>
-      )}
-
-      {/* Share prompt for notable scores */}
-      {(result.grade === "F" || result.grade === "D" || result.grade === "A+" || result.grade === "B") && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.15 }}
-          className="w-full rounded-xl border border-dashed border-card-border px-5 py-4 text-center"
-        >
-          <p className="text-sm text-muted">
-            {result.grade === "D" || result.grade === "F"
-              ? t("sharePrompt.bad", { defaultValue: "This transaction has serious privacy issues. Share it as a cautionary tale." })
-              : t("sharePrompt.good", { defaultValue: "Strong privacy practices here. Share it as an example of how it should be done." })}
-          </p>
-          <button
-            onClick={() => {
-              const isBad = result.grade === "D" || result.grade === "F";
-              const text = isBad
-                ? t("sharePrompt.tweetBad", {
-                    defaultValue: "Privacy score: {{grade}} ({{score}}/100). This is what happens when you ignore coin control and reuse addresses. Chain analysis firms feast on transactions like this.",
-                    grade: result.grade, score: result.score,
-                  })
-                : t("sharePrompt.tweetGood", {
-                    defaultValue: "Privacy score: {{grade}} ({{score}}/100). This is what proper Bitcoin privacy hygiene looks like.",
-                    grade: result.grade, score: result.score,
-                  });
-              const shareUrl = `https://am-i.exposed/#${inputType === "txid" ? "tx" : "addr"}=${encodeURIComponent(query)}`;
-              window.open(
-                `https://x.com/intent/tweet?text=${encodeURIComponent(`${text}\n\n${shareUrl}`)}`,
-                "_blank",
-                "noopener,noreferrer",
-              );
-            }}
-            className="mt-2 text-sm text-bitcoin hover:text-bitcoin-hover transition-colors cursor-pointer"
-          >
-            {t("sharePrompt.shareOnX", { defaultValue: "Share on X" })}
-          </button>
-        </motion.div>
-      )}
-
-      {/* Data visualization */}
+      {/* ZONE 5: Transaction Structure (full width) */}
       {txData && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }} className="w-full">
-          <TxSummary tx={txData} onAddressClick={onScan} />
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }} className="w-full">
+          {result.findings.some((f) => f.id.startsWith("h4-")) ? (
+            <CoinJoinStructure tx={txData} findings={result.findings} onAddressClick={onScan} />
+          ) : (
+            <TxFlowDiagram tx={txData} findings={result.findings} onAddressClick={onScan} />
+          )}
         </motion.div>
       )}
+
+      {/* ZONE 6: Analysis */}
       {addressData && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }} className="w-full">
           <AddressSummary address={addressData} />
         </motion.div>
       )}
-
-      {/* Per-transaction breakdown (address analysis only) */}
-      {txBreakdown && txBreakdown.length > 0 && addressData && (
+      {addressUtxos && addressUtxos.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.25 }} className="w-full">
-          <TxBreakdownPanel
-            breakdown={txBreakdown}
-            targetAddress={query}
-            totalTxCount={addressData.chain_stats.tx_count + addressData.mempool_stats.tx_count}
-            onScan={onScan}
-          />
+          <UtxoBubbleChart utxos={addressUtxos} />
         </motion.div>
       )}
+      {findingsBlock}
 
-      {/* Summary card */}
-      {result.grade !== "F" && (() => {
-        const sentiment = getSummarySentiment(result.grade, result.findings);
-        const colorMap = {
-          positive: { border: "border-severity-good/30 bg-severity-good/5", text: "text-severity-good" },
-          cautious: { border: "border-severity-medium/30 bg-severity-medium/5", text: "text-severity-medium" },
-          warning: { border: "border-severity-high/30 bg-severity-high/5", text: "text-severity-high" },
-          danger: { border: "border-severity-critical/30 bg-severity-critical/5", text: "text-severity-critical" },
-        };
-        const colors = colorMap[sentiment];
-        return (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.3 }} className={`w-full rounded-xl border px-4 py-3 ${colors.border}`}>
-            <p className={`text-base font-medium ${colors.text}`}>
-              {sentiment === "positive"
-                ? t("results.summaryGood", { defaultValue: "No significant privacy concerns detected." })
-                : sentiment === "cautious"
-                  ? t("results.summaryFair", { defaultValue: "Some privacy concerns detected. Review the findings below." })
-                  : t("results.summaryPoor", { defaultValue: "Significant privacy exposure detected. Remediation recommended." })}
-            </p>
-          </motion.div>
-        );
-      })()}
-
-      {/* Findings */}
-      {result.findings.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.35 }} className="w-full space-y-4">
-          <div className="flex items-center justify-between px-1">
-            <h2 className="text-base font-medium text-muted uppercase tracking-wider">
-              {t("results.findingsHeading", { count: result.findings.length, defaultValue: "Findings ({{count}})" })}
-            </h2>
-            <FindingSummary findings={result.findings} />
-          </div>
-          <div className="space-y-3">
-            {result.findings.map((finding, i) => (
-              <FindingCard
-                key={finding.id}
-                finding={finding}
-                index={i}
-                defaultExpanded={result.grade === "F" && (finding.severity === "critical" || finding.severity === "high")}
+      {/* ZONE 7: Actionable */}
+      <div className="w-full flex flex-col gap-3 sm:gap-4">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.35 }} className="w-full">
+          <Remediation findings={result.findings} grade={result.grade} />
+        </motion.div>
+        {isCoinJoin && (
+          <>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.4 }} className="w-full">
+              <CexRiskPanel
+                query={query}
+                inputType={inputType}
+                txData={txData}
+                isCoinJoin={isCoinJoin}
               />
-            ))}
-          </div>
-        </motion.div>
-      )}
-
-      {/* Cluster Analysis (address only, opt-in) */}
-      {inputType === "address" && addressTxs && addressTxs.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.4 }} className="w-full">
-          <ClusterPanel
-            targetAddress={query}
-            txs={addressTxs}
-            onAddressClick={onScan}
-          />
-        </motion.div>
-      )}
-
-      {/* Remediation */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.4 }} className="w-full">
-        <Remediation findings={result.findings} grade={result.grade} />
-      </motion.div>
-
-      {/* Exchange Risk Check */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.45 }} className="w-full">
-        <CexRiskPanel
-          query={query}
-          inputType={inputType}
-          txData={txData}
-          isCoinJoin={result.findings.some(
-            isCoinJoinFinding,
-          )}
-        />
-      </motion.div>
-
-      {/* Exchange CoinJoin Policy Panel (only for CoinJoin transactions) */}
-      {result.findings.some(
-        isCoinJoinFinding,
-      ) && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.5 }} className="w-full">
-          <ExchangeWarningPanel />
-        </motion.div>
-      )}
-
-      {/* Score breakdown & how scoring works */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.5 }} className="w-full">
-        <ScoreBreakdown findings={result.findings} finalScore={result.score} />
-        <ScoringExplainer />
-      </motion.div>
-
-      {/* TipJar + CrossPromo */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.55 }} className="w-full">
-        <TipJar />
-        {inputType === "txid" && <CrossPromo />}
-      </motion.div>
-
-      {/* Footer */}
-      <div className="w-full flex flex-wrap items-center justify-center gap-4 pt-2 pb-4 text-sm">
-        <a
-          href={explorerUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-bitcoin hover:text-bitcoin-hover transition-colors px-4 py-2 rounded-lg border border-bitcoin/20 hover:border-bitcoin/40 bg-bitcoin/5"
-        >
-          {explorerLabel}
-          <ExternalLink size={13} />
-        </a>
+            </motion.div>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.45 }} className="w-full">
+              <ExchangeWarningPanel />
+            </motion.div>
+          </>
+        )}
       </div>
 
-      {/* Disclaimer */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.6 }} className="w-full bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed">
-        {t("results.disclaimerStats", {
-          findingCount: result.findings.length,
-          heuristicCount: inputType === "txid" ? "13" : "4",
-          defaultValue: "{{findingCount}} findings from {{heuristicCount}} heuristics",
-        })}
-        {txBreakdown ? t("results.disclaimerTxAnalyzed", { count: txBreakdown.length, defaultValue: " + {{count}} transactions analyzed" }) : ""}
-        {durationMs ? t("results.disclaimerDuration", { duration: (durationMs / 1000).toFixed(1), defaultValue: " in {{duration}}s" }) : ""}.
-        {" "}{t("results.disclaimerBrowser", { defaultValue: "Analysis ran entirely in your browser." })}{" "}
-        {t("results.disclaimerApi", {
-          hostname: config.mempoolBaseUrl.startsWith("/")
-            ? "local API"
-            : config.mempoolBaseUrl.includes("mempool.space")
-              ? "mempool.space"
-              : new URL(config.mempoolBaseUrl).hostname,
-          defaultValue: "API queries were sent to {{hostname}}.",
-        })}{" "}
-        {t("results.disclaimerHeuristic", { defaultValue: "Scores are heuristic-based estimates, not definitive privacy assessments." })}
-      </motion.div>
+      {/* ZONE 8: Address Deep-Dive (address only) */}
+      {inputType === "address" && (
+        <>
+          {txBreakdown && txBreakdown.length >= 2 && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.4 }} className="w-full">
+              <PrivacyTimeline breakdown={txBreakdown} onScan={onScan ? (txid) => onScan(txid) : undefined} />
+            </motion.div>
+          )}
+          {txBreakdown && txBreakdown.length > 0 && addressData && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.45 }} className="w-full">
+              <TxBreakdownPanel
+                breakdown={txBreakdown}
+                targetAddress={query}
+                totalTxCount={addressData.chain_stats.tx_count + addressData.mempool_stats.tx_count}
+                onScan={onScan}
+              />
+            </motion.div>
+          )}
+          {addressTxs && addressTxs.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.5 }} className="w-full">
+              <ClusterPanel
+                targetAddress={query}
+                txs={addressTxs}
+                onAddressClick={onScan}
+              />
+            </motion.div>
+          )}
+        </>
+      )}
 
-      <div className="text-xs text-muted pb-4 hidden sm:block">
-        {t("results.pressEsc", { defaultValue: "Press" })} <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted font-mono">Esc</kbd> {t("results.forNewScan", { defaultValue: "for new scan" })}
+      {/* ZONE 9: Diagnostics */}
+      <div className="w-full flex flex-col gap-3 sm:gap-4">
+        {!isCoinJoin && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.5 }} className="w-full">
+            <CexRiskPanel
+              query={query}
+              inputType={inputType}
+              txData={txData}
+              isCoinJoin={false}
+            />
+          </motion.div>
+        )}
+        {result.findings.some((f) => f.scoreImpact !== 0) && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.55 }} className="w-full">
+            <ScoreWaterfall
+              findings={result.findings}
+              finalScore={result.score}
+              grade={result.grade}
+              onFindingClick={(findingId) => {
+                const el = document.querySelector(`[data-finding-id="${findingId}"]`);
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+              }}
+            />
+          </motion.div>
+        )}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.6 }} className="w-full">
+          <ScoreBreakdown findings={result.findings} finalScore={result.score} />
+          <ScoringExplainer />
+        </motion.div>
+      </div>
+
+      {/* ZONE 10: Promotional */}
+      <div className="w-full flex flex-col gap-3 sm:gap-4">
+        {(result.grade === "F" || result.grade === "D" || result.grade === "A+" || result.grade === "B") && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.55 }}
+            className="w-full rounded-xl border border-dashed border-card-border px-5 py-4 text-center"
+          >
+            <p className="text-sm text-muted">
+              {result.grade === "D" || result.grade === "F"
+                ? t("sharePrompt.bad", { defaultValue: "This transaction has serious privacy issues. Share it as a cautionary tale." })
+                : t("sharePrompt.good", { defaultValue: "Strong privacy practices here. Share it as an example of how it should be done." })}
+            </p>
+            <button
+              onClick={() => {
+                const isBad = result.grade === "D" || result.grade === "F";
+                const text = isBad
+                  ? t("sharePrompt.tweetBad", {
+                      defaultValue: "Privacy score: {{grade}} ({{score}}/100). This is what happens when you ignore coin control and reuse addresses. Chain analysis firms feast on transactions like this.",
+                      grade: result.grade, score: result.score,
+                    })
+                  : t("sharePrompt.tweetGood", {
+                      defaultValue: "Privacy score: {{grade}} ({{score}}/100). This is what proper Bitcoin privacy hygiene looks like.",
+                      grade: result.grade, score: result.score,
+                    });
+                const shareUrl = `https://am-i.exposed/#${inputType === "txid" ? "tx" : "addr"}=${encodeURIComponent(query)}`;
+                window.open(
+                  `https://x.com/intent/tweet?text=${encodeURIComponent(`${text}\n\n${shareUrl}`)}`,
+                  "_blank",
+                  "noopener,noreferrer",
+                );
+              }}
+              className="mt-2 inline-flex items-center gap-1.5 text-sm text-bitcoin hover:text-bitcoin-hover px-4 py-2 rounded-lg border border-bitcoin/20 hover:border-bitcoin/40 bg-bitcoin/5 transition-colors cursor-pointer"
+            >
+              {t("sharePrompt.shareOnX", { defaultValue: "Share on X" })}
+            </button>
+          </motion.div>
+        )}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.6 }} className="w-full">
+          <TipJar />
+          {inputType === "txid" && <CrossPromo />}
+        </motion.div>
+      </div>
+
+      {/* ZONE 11: Footer */}
+      <div className="w-full flex flex-col items-center gap-4">
+        <div className="w-full flex flex-wrap items-center justify-center gap-4 pt-2 pb-4 text-sm">
+          <a
+            href={explorerUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-bitcoin hover:text-bitcoin-hover transition-colors px-4 py-2 rounded-lg border border-bitcoin/20 hover:border-bitcoin/40 bg-bitcoin/5"
+          >
+            {explorerLabel}
+            <ExternalLink size={13} />
+          </a>
+        </div>
+
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.65 }} className="w-full bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed">
+          {t("results.disclaimerStats", {
+            findingCount: result.findings.length,
+            heuristicCount: inputType === "txid" ? "13" : "4",
+            defaultValue: "{{findingCount}} findings from {{heuristicCount}} heuristics",
+          })}
+          {txBreakdown ? t("results.disclaimerTxAnalyzed", { count: txBreakdown.length, defaultValue: " + {{count}} transactions analyzed" }) : ""}
+          {durationMs ? t("results.disclaimerDuration", { duration: (durationMs / 1000).toFixed(1), defaultValue: " in {{duration}}s" }) : ""}.
+          {" "}{t("results.disclaimerBrowser", { defaultValue: "Analysis ran entirely in your browser." })}{" "}
+          {t("results.disclaimerApi", {
+            hostname: config.mempoolBaseUrl.startsWith("/")
+              ? "local API"
+              : config.mempoolBaseUrl.includes("mempool.space")
+                ? "mempool.space"
+                : new URL(config.mempoolBaseUrl).hostname,
+            defaultValue: "API queries were sent to {{hostname}}.",
+          })}{" "}
+          {t("results.disclaimerHeuristic", { defaultValue: "Scores are heuristic-based estimates, not definitive privacy assessments." })}
+        </motion.div>
+
+        <div className="text-xs text-muted pb-4 hidden sm:block">
+          {t("results.pressEsc", { defaultValue: "Press" })} <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted font-mono">Esc</kbd> {t("results.forNewScan", { defaultValue: "for new scan" })}
+        </div>
       </div>
     </motion.div>
   );

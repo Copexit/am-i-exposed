@@ -48,6 +48,15 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
       const matchCount = matchingOutputs.length;
       const totalSpendable = spendableOutputs.length;
 
+      // Map matching outputs to their vout indices for the diagram
+      const selfSendIndices: number[] = [];
+      for (let i = 0; i < tx.vout.length; i++) {
+        const addr = tx.vout[i].scriptpubkey_address;
+        if (addr && inputAddresses.has(addr)) {
+          selfSendIndices.push(i);
+        }
+      }
+
       // 1-output consolidation to an input address: primarily a CIOH + address reuse issue.
       // H3 and H8 already penalize those aspects. Apply a reduced self-transfer penalty.
       const isConsolidation = allMatch && spendableOutputs.length === 1;
@@ -62,7 +71,12 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
           : allMatch
             ? "All outputs return to input address"
             : `${matchCount} of ${totalSpendable} outputs sent back to input address`,
-        params: { matchCount, totalSpendable, allMatch: allMatch ? 1 : 0 },
+        params: {
+          matchCount,
+          totalSpendable,
+          allMatch: allMatch ? 1 : 0,
+          selfSendIndices: selfSendIndices.join(","),
+        },
         description: isConsolidation
           ? "This consolidation sends funds back to an address that was also an input. " +
             "Combined with multiple inputs, this links all input UTXOs together and confirms address ownership."
@@ -118,21 +132,42 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
   if (signals.length === 0) return { findings };
 
   // Check if signals agree on which output is change
-  const maxSignals = Math.max(
-    changeIndices.get(0) ?? 0,
-    changeIndices.get(1) ?? 0,
-  );
+  const signals0 = changeIndices.get(0) ?? 0;
+  const signals1 = changeIndices.get(1) ?? 0;
+  const maxSignals = Math.max(signals0, signals1);
 
   // Confidence based on agreement, not just signal count
   const confidence = maxSignals >= 2 ? "medium" : "low";
 
   const impact = confidence === "medium" ? -10 : -5;
 
+  // Identify which output index the heuristic thinks is change.
+  // Map indices into full tx.vout space (skip OP_RETURN / zero-value outputs).
+  const changeSpendableIdx = signals0 > signals1 ? 0 : signals1 > signals0 ? 1 : -1;
+  let changeVoutIdx: number | undefined;
+  if (changeSpendableIdx >= 0) {
+    let spendableCount = 0;
+    for (let i = 0; i < tx.vout.length; i++) {
+      const out = tx.vout[i];
+      if (out.scriptpubkey_type !== "op_return" && out.scriptpubkey_address && out.value > 0) {
+        if (spendableCount === changeSpendableIdx) {
+          changeVoutIdx = i;
+          break;
+        }
+        spendableCount++;
+      }
+    }
+  }
+
   findings.push({
     id: "h2-change-detected",
     severity: confidence === "medium" ? "medium" : "low",
     title: `Change output likely identifiable (${confidence} confidence)`,
-    params: { signalCount: signals.length, confidence },
+    params: {
+      signalCount: signals.length,
+      confidence,
+      ...(changeVoutIdx !== undefined ? { changeIndex: changeVoutIdx } : {}),
+    },
     description:
       `${signals.length} sub-heuristic${signals.length > 1 ? "s" : ""} point to a likely change output: ${signals.join("; ")}. ` +
       (maxSignals >= 2
@@ -142,12 +177,12 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
           : "") +
       "When the change output is known, the exact payment amount and recipient are revealed.",
     recommendation:
-      "Use wallets with change output randomization. Avoid round payment amounts. Consider using the same address type for all outputs (Taproot makes this easier).",
+      "Use wallets with change output randomization. Avoid round payment amounts. Use the same address type for all outputs to eliminate the address-type-mismatch signal.",
     scoreImpact: impact,
     remediation: {
       steps: [
         "Avoid sending round BTC amounts (e.g., 0.01 BTC) - use exact amounts or add randomness to make both outputs look similar.",
-        "Use a Taproot (bc1p) wallet so all outputs use the same script type, removing the address-type-mismatch signal.",
+        "Use a wallet that keeps the same address format for all outputs, removing the address-type-mismatch signal.",
         "Use coin control to spend the change output in isolation, avoiding further linkage.",
         "Consider PayJoin for your next payment - it adds receiver inputs that break change analysis.",
       ],

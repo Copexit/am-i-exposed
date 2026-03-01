@@ -39,6 +39,7 @@ export interface AnalysisState {
   txData: MempoolTransaction | null;
   addressData: import("@/lib/api/types").MempoolAddress | null;
   addressTxs: MempoolTransaction[] | null;
+  addressUtxos: import("@/lib/api/types").MempoolUtxo[] | null;
   txBreakdown: TxAnalysisResult[] | null;
   preSendResult: PreSendResult | null;
   error: string | null;
@@ -56,6 +57,7 @@ const INITIAL_STATE: AnalysisState = {
   txData: null,
   addressData: null,
   addressTxs: null,
+  addressUtxos: null,
   txBreakdown: null,
   preSendResult: null,
   error: null,
@@ -294,6 +296,7 @@ export function useAnalysis() {
               result,
               preSendResult,
               addressTxs: txs.length > 0 ? txs : null,
+              addressUtxos: utxos.length > 0 ? utxos : null,
               txBreakdown,
               durationMs: Date.now() - startTime,
             }));

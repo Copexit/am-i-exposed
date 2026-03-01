@@ -36,7 +36,7 @@ export function Header() {
   return (
     <>
       <header
-        className="fixed top-0 w-full sm:top-3 sm:left-1/2 sm:-translate-x-1/2 sm:max-w-4xl sm:w-[calc(100%-2rem)] sm:rounded-2xl z-50 border-b sm:border-b-0 border-glass-border glass"
+        className="fixed top-0 w-full sm:top-3 sm:left-1/2 sm:-translate-x-1/2 sm:max-w-5xl sm:w-[calc(100%-2rem)] sm:rounded-2xl z-50 border-b sm:border-b-0 border-glass-border glass"
         style={{
           backdropFilter: "blur(16px) saturate(180%)",
           WebkitBackdropFilter: "blur(16px) saturate(180%)",
