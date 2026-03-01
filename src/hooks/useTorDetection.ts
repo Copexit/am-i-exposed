@@ -116,13 +116,15 @@ export function useTorDetection(skip?: boolean): TorStatus {
 
   useEffect(() => {
     // Local API available (Umbrel) - skip all external Tor checks.
-    // The useState initializer already returned "clearnet" when skip was
-    // true at mount time. If skip transitions to true after mount
-    // (localApiStatus resolved), the early return prevents firing checks.
-    if (skip) return;
+    // When skip transitions to true after mount (localApiStatus resolved),
+    // abort any in-flight checks and discard their results.
+    if (skip) {
+      // Null out inflight so no stale promise can set cachedStatus
+      if (inflight) inflight = null;
+      return;
+    }
 
     // Already resolved from a previous render / page load
-    // (initial state handles this via the useState initializer)
     if (cachedStatus) return;
 
     const controller = new AbortController();
@@ -130,7 +132,9 @@ export function useTorDetection(skip?: boolean): TorStatus {
     // Deduplicate concurrent calls (e.g. StrictMode double-mount)
     if (!inflight) {
       inflight = checkTor(controller.signal).then((result) => {
-        cachedStatus = result;
+        if (!controller.signal.aborted) {
+          cachedStatus = result;
+        }
         inflight = null;
         return result;
       });

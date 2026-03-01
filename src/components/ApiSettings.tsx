@@ -452,6 +452,13 @@ export function ApiSettings() {
           )}
           </>
           )}
+
+          {/* Version */}
+          <div className="border-t border-card-border pt-2 text-center">
+            <span className="text-[10px] text-muted/50 font-mono tabular-nums select-all">
+              v{process.env.NEXT_PUBLIC_APP_VERSION}
+            </span>
+          </div>
         </div>
         </>,
         document.body,

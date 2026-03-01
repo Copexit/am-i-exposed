@@ -83,9 +83,9 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
   if (rawHex) {
     const hasLowR = detectLowRSignatures(rawHex, tx.vin.length);
     if (hasLowR) {
-      // Low-R grinding is specific to Bitcoin Core (since 0.17) - Sparrow does not do this
-      signals.push("Low-R signatures (Bitcoin Core >= 0.17)");
-      walletGuess = "Bitcoin Core";
+      // Low-R grinding via libsecp256k1 - used by Bitcoin Core (>= 0.17), Sparrow, and others
+      signals.push("Low-R signatures (Bitcoin Core / Sparrow / libsecp256k1)");
+      walletGuess = walletGuess ?? "Bitcoin Core / Sparrow";
     }
   }
 

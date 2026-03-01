@@ -2,27 +2,30 @@
 
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Clock, Star, X } from "lucide-react";
+import { Clock, Star, Lightbulb, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { RecentScans } from "./RecentScans";
 import type { RecentScan } from "@/hooks/useRecentScans";
 import type { Bookmark } from "@/hooks/useBookmarks";
+import type { ExampleItem } from "@/lib/constants";
 import { gradeColor, truncateId } from "@/lib/constants";
 
 interface ScanHistoryProps {
   scans: RecentScan[];
   bookmarks: Bookmark[];
+  examples?: ExampleItem[];
   onSelect: (input: string) => void;
   onClearScans?: () => void;
   onRemoveBookmark: (input: string) => void;
   onClearBookmarks: () => void;
 }
 
-type Tab = "recent" | "bookmarks";
+type Tab = "recent" | "bookmarks" | "examples";
 
 export function ScanHistory({
   scans,
   bookmarks,
+  examples = [],
   onSelect,
   onClearScans,
   onRemoveBookmark,
@@ -30,12 +33,14 @@ export function ScanHistory({
 }: ScanHistoryProps) {
   const { t } = useTranslation();
 
-  // Default tab: bookmarks if scans empty but bookmarks exist
-  const defaultTab: Tab = scans.length === 0 && bookmarks.length > 0 ? "bookmarks" : "recent";
+  // Default tab: examples when no recents/bookmarks, else recent
+  const defaultTab: Tab =
+    scans.length === 0 && bookmarks.length === 0
+      ? "examples"
+      : scans.length === 0 && bookmarks.length > 0
+        ? "bookmarks"
+        : "recent";
   const [tab, setTab] = useState<Tab>(defaultTab);
-
-  // If both empty, render nothing
-  if (scans.length === 0 && bookmarks.length === 0) return null;
 
   const handleClear = () => {
     if (tab === "recent" && onClearScans) {
@@ -45,7 +50,7 @@ export function ScanHistory({
     }
   };
 
-  const showClear = tab === "recent" ? scans.length > 0 && onClearScans : bookmarks.length > 0;
+  const showClear = tab === "recent" ? scans.length > 0 && onClearScans : tab === "bookmarks" ? bookmarks.length > 0 : false;
 
   return (
     <motion.div
@@ -85,6 +90,19 @@ export function ScanHistory({
               <span className="text-muted">({bookmarks.length})</span>
             )}
           </button>
+          {examples.length > 0 && (
+            <button
+              onClick={() => setTab("examples")}
+              className={`inline-flex items-center gap-1.5 text-xs transition-colors cursor-pointer pb-1 ${
+                tab === "examples"
+                  ? "text-foreground border-b border-foreground"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              <Lightbulb size={14} />
+              {t("history.examples", { defaultValue: "Examples" })}
+            </button>
+          )}
         </div>
 
         {showClear && (
@@ -106,7 +124,13 @@ export function ScanHistory({
 
       {/* Tab content */}
       {tab === "recent" && (
-        <RecentScans scans={scans} onSelect={onSelect} hideHeader />
+        scans.length === 0 ? (
+          <p className="text-xs text-muted px-1">
+            {t("history.noRecent", { defaultValue: "No recent scans yet. Try an example to get started." })}
+          </p>
+        ) : (
+          <RecentScans scans={scans} onSelect={onSelect} hideHeader />
+        )
       )}
 
       {tab === "bookmarks" && (
@@ -154,7 +178,27 @@ export function ScanHistory({
           </div>
         )
       )}
+
+      {tab === "examples" && (
+        <div className="flex flex-wrap gap-2 justify-center">
+          {examples.map((ex) => (
+            <button
+              key={ex.input}
+              onClick={() => onSelect(ex.input)}
+              className="inline-flex items-center gap-2 px-4 py-3 sm:py-2 rounded-lg bg-surface-elevated/50
+                border border-card-border hover:border-bitcoin/40 hover:bg-surface-elevated
+                transition-all text-sm cursor-pointer group"
+            >
+              <span className="text-muted group-hover:text-foreground transition-colors">
+                {t(ex.labelKey, { defaultValue: ex.labelDefault })}
+              </span>
+              <span className={`text-xs font-bold ${ex.hintColor}`}>
+                {ex.hint}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
     </motion.div>
   );
 }
-

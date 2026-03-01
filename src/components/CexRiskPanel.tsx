@@ -100,9 +100,15 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
             torErr.name === "AbortError"
           )
             return;
-          // Tor proxy failed - ask user before falling back to direct
-          setChainalysis((prev) => ({ ...prev, status: "idle" }));
-          setShowFallbackConfirm(true);
+          // Tor proxy failed on Umbrel - show sidecar-specific error
+          // (direct fallback would fail due to CORS on local origins)
+          setChainalysis((prev) => ({
+            ...prev,
+            status: "error",
+            error: t("cex.errorUmbrelSidecar", {
+              defaultValue: "Tor proxy sidecar unavailable. Ensure the sidecar container is running, or restart the am-i.exposed app from your Umbrel dashboard.",
+            }),
+          }));
           return;
         }
       }

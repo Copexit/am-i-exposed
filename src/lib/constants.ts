@@ -49,6 +49,60 @@ export function gradeBadgeColor(grade: string, fallback = "text-muted"): string 
   return GRADE_BADGE_COLORS[grade as Grade] ?? fallback;
 }
 
+/** Example transactions/addresses for the home page and ScanHistory examples tab. */
+export interface ExampleItem {
+  labelKey: string;
+  labelDefault: string;
+  hint: string;
+  hintColor: string;
+  input: string;
+}
+
+export const EXAMPLES: ExampleItem[] = [
+  {
+    labelKey: "page.example_whirlpool",
+    labelDefault: "Whirlpool CoinJoin",
+    hint: "A+",
+    hintColor: "text-severity-good",
+    input: "323df21f0b0756f98336437aa3d2fb87e02b59f1946b714a7b09df04d429dec2",
+  },
+  {
+    labelKey: "page.example_wabisabi",
+    labelDefault: "WabiSabi CoinJoin",
+    hint: "A+",
+    hintColor: "text-severity-good",
+    input: "fb596c9f675471019c60e984b569f9020dac3b2822b16396042b50c890b45e5e",
+  },
+  {
+    labelKey: "page.example_satoshi",
+    labelDefault: "Satoshi's address",
+    hint: "F",
+    hintColor: "text-severity-critical",
+    input: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
+  },
+  {
+    labelKey: "page.example_opreturn",
+    labelDefault: "OP_RETURN data",
+    hint: "D",
+    hintColor: "text-severity-high",
+    input: "8bae12b5f4c088d940733dcd1455efc6a3a69cf9340e17a981286d3778615684",
+  },
+  {
+    labelKey: "page.presend_sanctioned",
+    labelDefault: "OFAC sanctioned",
+    hint: "Critical",
+    hintColor: "text-severity-critical",
+    input: "12QtD5BFwRsdNsAZY76UVE1xyCGNTojH9h",
+  },
+  {
+    labelKey: "page.presend_fresh",
+    labelDefault: "Fresh address",
+    hint: "A",
+    hintColor: "text-severity-good",
+    input: "bc1pes5mfje89xdr6uh4qu6p4m0r8d6nz3tvgagtwgv99yalqwzyhdzqrl3mnu",
+  },
+];
+
 /** Truncate a string showing first 8 and last `tailLen` characters. */
 export function truncateId(s: string, tailLen = 4): string {
   if (s.length <= 8 + tailLen + 3) return s;

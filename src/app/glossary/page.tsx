@@ -77,6 +77,11 @@ const GLOSSARY_ITEMS = [
     defKey: "glossary.def_paynym",
   },
   {
+    id: "peel-chain",
+    termKey: "glossary.term_peel_chain",
+    defKey: "glossary.def_peel_chain",
+  },
+  {
     id: "privacy-score",
     termKey: "glossary.term_privacy_score",
     defKey: "glossary.def_privacy_score",
@@ -152,6 +157,8 @@ const DEFAULTS: Record<string, string> = {
   "glossary.def_op_return": "A Bitcoin script opcode that embeds arbitrary data in the blockchain. Can leak metadata like timestamps, protocol identifiers, or messages that fingerprint the transaction.",
   "glossary.term_paynym": "PayNym",
   "glossary.def_paynym": "A user-friendly identity layer built on BIP47 reusable payment codes. Allows receiving Bitcoin without revealing addresses publicly. Used by Samourai and Sparrow wallets.",
+  "glossary.term_peel_chain": "Peel Chain",
+  "glossary.def_peel_chain": "A pattern where a large UTXO is repeatedly spent, peeling off small payments and returning the remainder as change. Creates a traceable chain of decreasing outputs (e.g. 2.0 BTC -> pay 0.1, change 1.9 -> pay 0.2, change 1.7). Chain analysts use this to track funds across many transactions.",
   "glossary.term_privacy_score": "Privacy Score",
   "glossary.def_privacy_score": "A 0-100 rating computed by am-i.exposed based on 16 heuristics. Starts at 70, adjusted by findings. Only CoinJoin, Taproot, and high entropy can raise it. Grades: A+ (90-100), B (75-89), C (50-74), D (25-49), F (0-24).",
   "glossary.term_round_amount": "Round Amount Detection",

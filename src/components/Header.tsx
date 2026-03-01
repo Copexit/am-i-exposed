@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Menu, X, BookOpen, HelpCircle, FileText, Info } from "lucide-react";
 import { ConnectionBadge } from "./ConnectionBadge";
 import { ApiSettings } from "./ApiSettings";
+import { useDevMode } from "@/hooks/useDevMode";
 
 const NAV_ITEMS = [
   { href: "/methodology/", labelKey: "common.methodology", labelDefault: "Methodology", icon: FileText },
@@ -20,6 +21,9 @@ export function Header() {
   const { t } = useTranslation();
   const currentPath = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { devMode, toggleDevMode } = useDevMode();
+  const clickCount = useRef(0);
+  const clickTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Prevent body scroll when mobile menu is open
   useEffect(() => {
@@ -47,11 +51,21 @@ export function Header() {
           <div className="flex items-center">
             <button
               onClick={() => {
-                if (window.location.pathname !== "/") {
-                  window.location.href = "/";
+                // Track rapid clicks for dev mode toggle (5 clicks within 2s)
+                clickCount.current++;
+                if (clickCount.current >= 5) {
+                  toggleDevMode();
+                  clickCount.current = 0;
                 } else {
-                  window.location.hash = "";
+                  // Normal navigation on non-5th clicks
+                  if (window.location.pathname !== "/") {
+                    window.location.href = "/";
+                  } else {
+                    window.location.hash = "";
+                  }
                 }
+                clearTimeout(clickTimer.current);
+                clickTimer.current = setTimeout(() => { clickCount.current = 0; }, 2000);
               }}
               aria-label="am-i.exposed home"
               className="flex items-center gap-2 group hover:opacity-80 transition-opacity cursor-pointer"
@@ -59,6 +73,11 @@ export function Header() {
               <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground select-none whitespace-nowrap">
                 am-i.<span className="gradient-text">exposed</span>
               </span>
+              {devMode && (
+                <span className="text-[10px] font-bold text-severity-medium bg-severity-medium/15 px-1.5 py-0.5 rounded">
+                  DEV
+                </span>
+              )}
             </button>
 
             {/* Desktop nav */}

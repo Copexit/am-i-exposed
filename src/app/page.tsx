@@ -14,9 +14,12 @@ import { useAnalysis } from "@/hooks/useAnalysis";
 import { useNetwork } from "@/context/NetworkContext";
 import { useRecentScans } from "@/hooks/useRecentScans";
 import { useBookmarks } from "@/hooks/useBookmarks";
+import { EXAMPLES } from "@/lib/constants";
 import { useKeyboardNav } from "@/hooks/useKeyboardNav";
+import { useDevMode } from "@/hooks/useDevMode";
 import { TipToast } from "@/components/TipToast";
 import { FindingCard } from "@/components/FindingCard";
+import { DevChainalysisPanel } from "@/components/DevChainalysisPanel";
 import type { PreSendResult } from "@/lib/analysis/orchestrator";
 
 const DESTINATION_ONLY_CONFIG = {
@@ -120,51 +123,6 @@ function DestinationOnlyResult({ query, preSendResult, onBack, durationMs }: {
   );
 }
 
-const EXAMPLES = [
-  {
-    labelKey: "page.example_whirlpool",
-    labelDefault: "Whirlpool CoinJoin",
-    hint: "A+",
-    hintColor: "text-severity-good",
-    input: "323df21f0b0756f98336437aa3d2fb87e02b59f1946b714a7b09df04d429dec2",
-  },
-  {
-    labelKey: "page.example_wabisabi",
-    labelDefault: "WabiSabi CoinJoin",
-    hint: "A+",
-    hintColor: "text-severity-good",
-    input: "fb596c9f675471019c60e984b569f9020dac3b2822b16396042b50c890b45e5e",
-  },
-  {
-    labelKey: "page.example_satoshi",
-    labelDefault: "Satoshi's address",
-    hint: "F",
-    hintColor: "text-severity-critical",
-    input: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
-  },
-  {
-    labelKey: "page.example_opreturn",
-    labelDefault: "OP_RETURN data",
-    hint: "D",
-    hintColor: "text-severity-high",
-    input: "8bae12b5f4c088d940733dcd1455efc6a3a69cf9340e17a981286d3778615684",
-  },
-  {
-    labelKey: "page.presend_sanctioned",
-    labelDefault: "OFAC sanctioned",
-    hint: "Critical",
-    hintColor: "text-severity-critical",
-    input: "12QtD5BFwRsdNsAZY76UVE1xyCGNTojH9h",
-  },
-  {
-    labelKey: "page.presend_fresh",
-    labelDefault: "Fresh address",
-    hint: "A",
-    hintColor: "text-severity-good",
-    input: "bc1pes5mfje89xdr6uh4qu6p4m0r8d6nz3tvgagtwgv99yalqwzyhdzqrl3mnu",
-  },
-];
-
 export default function Home() {
   const {
     phase,
@@ -188,6 +146,7 @@ export default function Home() {
   const { t } = useTranslation();
   const { scans, addScan, clearScans } = useRecentScans();
   const { bookmarks, removeBookmark, clearBookmarks } = useBookmarks();
+  const { devMode } = useDevMode();
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Keep latest function refs for hashchange listener (avoids stale closures)
@@ -356,38 +315,15 @@ export default function Home() {
             <ScanHistory
               scans={scans}
               bookmarks={bookmarks}
+              examples={EXAMPLES}
               onSelect={handleSubmit}
               onClearScans={clearScans}
               onRemoveBookmark={removeBookmark}
               onClearBookmarks={clearBookmarks}
             />
 
-            {scans.length === 0 && bookmarks.length === 0 && (
-              <div className="w-full max-w-3xl">
-                <div className="flex items-center gap-1.5 text-base text-muted mb-2 px-1">
-                  <span>
-                    {t("page.try_example", { defaultValue: "Try an example" })}
-                  </span>
-                </div>
-                <div className="flex flex-wrap gap-2 justify-center">
-                  {EXAMPLES.map((ex) => (
-                    <button
-                      key={ex.input}
-                      onClick={() => handleSubmit(ex.input)}
-                      className="inline-flex items-center gap-2 px-4 py-3 sm:py-2 rounded-lg bg-surface-elevated/50
-                        border border-card-border hover:border-bitcoin/40 hover:bg-surface-elevated
-                        transition-all text-sm cursor-pointer group"
-                    >
-                      <span className="text-muted group-hover:text-foreground transition-colors">
-                        {t(ex.labelKey, { defaultValue: ex.labelDefault })}
-                      </span>
-                      <span className={`text-xs font-bold ${ex.hintColor}`}>
-                        {ex.hint}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {devMode && (
+              <DevChainalysisPanel />
             )}
 
             <motion.div
