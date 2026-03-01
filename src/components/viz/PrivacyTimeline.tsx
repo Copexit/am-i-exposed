@@ -2,7 +2,7 @@
 
 import { useMemo, useRef } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { LinePath } from "@visx/shape";
+import { AreaClosed } from "@visx/shape";
 import { Group } from "@visx/group";
 import { scaleLinear, scalePoint } from "@visx/scale";
 import { Text } from "@visx/text";
@@ -10,6 +10,7 @@ import { ParentSize } from "@visx/responsive";
 import { curveMonotoneX } from "d3-shape";
 import { useTranslation } from "react-i18next";
 import { SVG_COLORS, GRADE_BANDS, GRADE_HEX_SVG, ANIMATION_DEFAULTS } from "./shared/svgConstants";
+import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import { truncateId } from "@/lib/constants";
 import type { TxAnalysisResult, Grade } from "@/lib/types";
@@ -72,6 +73,7 @@ function TimelineChart({
           defaultValue: `Privacy score timeline across ${points.length} transactions`,
         })}
       >
+        <ChartDefs />
         <Group top={MARGIN.top} left={MARGIN.left}>
           {/* Grade band backgrounds */}
           {GRADE_BANDS.map((band) => (
@@ -82,7 +84,7 @@ function TimelineChart({
               width={innerWidth}
               height={yScale(band.min) - yScale(band.max + 1)}
               fill={band.color}
-              fillOpacity={0.04}
+              fillOpacity={0.06}
             />
           ))}
 
@@ -128,16 +130,43 @@ function TimelineChart({
             </Text>
           ))}
 
-          {/* Connecting line */}
-          <LinePath
+          {/* Area fill under line */}
+          <AreaClosed
             data={points}
             x={(_, i) => xScale(i) ?? 0}
             y={(d) => yScale(d.score)}
+            yScale={yScale}
             curve={curveMonotoneX}
-            stroke={SVG_COLORS.muted}
-            strokeWidth={1.5}
-            strokeOpacity={0.4}
+            fill="url(#grad-timeline-area)"
           />
+
+          {/* Per-segment gradient lines */}
+          <defs>
+            {points.slice(0, -1).map((p, i) => {
+              const nextP = points[i + 1];
+              return (
+                <linearGradient key={`tl-seg-${i}`} id={`tl-seg-${i}`}>
+                  <stop offset="0%" stopColor={GRADE_HEX_SVG[p.grade]} />
+                  <stop offset="100%" stopColor={GRADE_HEX_SVG[nextP.grade]} />
+                </linearGradient>
+              );
+            })}
+          </defs>
+          {points.slice(0, -1).map((p, i) => {
+            const nextP = points[i + 1];
+            return (
+              <line
+                key={`seg-${i}`}
+                x1={xScale(i) ?? 0}
+                y1={yScale(p.score)}
+                x2={xScale(i + 1) ?? 0}
+                y2={yScale(nextP.score)}
+                stroke={`url(#tl-seg-${i})`}
+                strokeWidth={2}
+                strokeOpacity={0.7}
+              />
+            );
+          })}
 
           {/* Data points */}
           {points.map((point, i) => {
@@ -153,12 +182,13 @@ function TimelineChart({
                 <motion.circle
                   cx={cx}
                   cy={cy}
-                  r={POINT_RADIUS}
+                  r={i === points.length - 1 ? POINT_RADIUS + 2 : POINT_RADIUS + 1}
                   fill={color}
                   stroke={SVG_COLORS.background}
                   strokeWidth={2}
+                  filter={i === points.length - 1 ? "url(#glow-medium)" : "url(#glow-subtle)"}
                   initial={reducedMotion ? false : { r: 0 }}
-                  animate={{ r: POINT_RADIUS }}
+                  animate={{ r: i === points.length - 1 ? POINT_RADIUS + 2 : POINT_RADIUS + 1 }}
                   transition={{
                     delay: i * ANIMATION_DEFAULTS.stagger,
                     duration: ANIMATION_DEFAULTS.duration,

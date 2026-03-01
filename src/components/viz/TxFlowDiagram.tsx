@@ -8,6 +8,7 @@ import { Text } from "@visx/text";
 import { ParentSize } from "@visx/responsive";
 import { useTranslation } from "react-i18next";
 import { SVG_COLORS, SEVERITY_HEX, DUST_THRESHOLD, ANIMATION_DEFAULTS } from "./shared/svgConstants";
+import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import { formatSats } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
@@ -59,6 +60,32 @@ const ANON_COLORS = [
   SVG_COLORS.medium,
   SVG_COLORS.high,
 ];
+
+/** Get the flat hex color for a node (used for link gradient endpoints). */
+function getNodeHex(n: NodeDatum): string {
+  if (n.side === "input") return "#60a5fa";
+  if (n.side === "fee") return "#6b7280";
+  if (n.annotationColor === SEVERITY_HEX.critical) return "#ef4444"; // dust
+  if (n.annotation) return "#f97316"; // change
+  if (n.anonColor) return n.anonColor;
+  return "#f7931a"; // default output
+}
+
+/** Get gradient fill + optional glow filter for a node. */
+function getNodeStyle(n: NodeDatum, isHovered: boolean): { fill: string; filter?: string } {
+  if (n.side === "input") return { fill: "url(#grad-input)" };
+  if (n.side === "fee") return { fill: "url(#grad-fee)" };
+  if (n.annotationColor === SEVERITY_HEX.critical) {
+    return { fill: "url(#grad-dust)", filter: "url(#glow-medium)" };
+  }
+  if (n.annotation) {
+    return { fill: "url(#grad-change)", filter: "url(#glow-subtle)" };
+  }
+  if (n.anonColor) {
+    return { fill: n.anonColor, filter: isHovered ? "url(#glow-medium)" : "url(#glow-subtle)" };
+  }
+  return { fill: "url(#grad-output)", filter: isHovered ? "url(#glow-medium)" : undefined };
+}
 
 function FlowChart({
   width,
@@ -293,6 +320,7 @@ function FlowChart({
           defaultValue: `Transaction flow diagram: ${tx.vin.length} inputs to ${tx.vout.length} outputs`,
         })}
       >
+        <ChartDefs />
         <Sankey<NodeDatum, LinkDatum>
           root={graph}
           size={[innerWidth, innerHeight]}
@@ -301,8 +329,32 @@ function FlowChart({
           nodeId={(d) => d.id}
           iterations={32}
         >
-          {({ graph: computed, createPath }) => (
+          {({ graph: computed, createPath }) => {
+            // Build node lookup for link gradient colors
+            const nodeMap = new Map<string, NodeDatum>();
+            for (const node of (computed.nodes ?? [])) {
+              const n = node as unknown as NodeDatum;
+              nodeMap.set(n.id, n);
+            }
+
+            return (
             <Group top={MARGIN.top} left={MARGIN.left}>
+              {/* Dynamic per-link gradients */}
+              <defs>
+                {(computed.links ?? []).map((link, i) => {
+                  const srcNode = nodeMap.get((link.source as unknown as { id: string }).id);
+                  const tgtNode = nodeMap.get((link.target as unknown as { id: string }).id);
+                  const srcColor = srcNode ? getNodeHex(srcNode) : "#f7931a";
+                  const tgtColor = tgtNode ? getNodeHex(tgtNode) : "#f7931a";
+                  return (
+                    <linearGradient key={`flow-link-${i}`} id={`flow-link-${i}`}>
+                      <stop offset="0%" stopColor={srcColor} />
+                      <stop offset="100%" stopColor={tgtColor} />
+                    </linearGradient>
+                  );
+                })}
+              </defs>
+
               {/* Links */}
               {(computed.links ?? []).map((link, i) => {
                 const sourceNode = link.source as unknown as { id: string };
@@ -316,9 +368,9 @@ function FlowChart({
                     key={`link-${i}`}
                     d={pathD}
                     fill="none"
-                    stroke={SVG_COLORS.bitcoin}
+                    stroke={`url(#flow-link-${i})`}
                     strokeWidth={Math.max(1, (link as unknown as { width: number }).width ?? 1)}
-                    strokeOpacity={isHighlighted ? 0.3 : 0.06}
+                    strokeOpacity={isHighlighted ? 0.5 : 0.08}
                     initial={reducedMotion ? false : { pathLength: 0 }}
                     animate={{ pathLength: 1 }}
                     transition={{ delay: 0.15 + i * 0.01, duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
@@ -332,13 +384,9 @@ function FlowChart({
                 const nw = n.x1 - n.x0;
                 const nh = Math.max(2, n.y1 - n.y0);
                 const isInput = n.side === "input";
-                const isFee = n.side === "fee";
                 const isClickable = !!n.fullAddress && !!onAddressClick;
 
-                let fillColor: string = SVG_COLORS.bitcoin;
-                if (isFee) fillColor = SVG_COLORS.muted;
-                if (n.anonColor) fillColor = n.anonColor;
-                if (n.annotationColor === SEVERITY_HEX.critical) fillColor = SEVERITY_HEX.critical;
+                const nodeStyle = getNodeStyle(n, hoveredNode === n.id);
 
                 // Label outside the sankey area
                 const labelX = isInput ? n.x0 - 8 : n.x1 + 8;
@@ -351,7 +399,8 @@ function FlowChart({
                       y={n.y0}
                       width={nw}
                       height={nh}
-                      fill={fillColor}
+                      fill={nodeStyle.fill}
+                      filter={nodeStyle.filter}
                       rx={2}
                       initial={reducedMotion ? false : { opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -439,7 +488,8 @@ function FlowChart({
                 );
               })}
             </Group>
-          )}
+            );
+          }}
         </Sankey>
       </svg>
 

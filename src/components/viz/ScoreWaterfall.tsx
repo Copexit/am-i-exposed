@@ -7,7 +7,8 @@ import { scaleBand, scaleLinear } from "@visx/scale";
 import { ParentSize } from "@visx/responsive";
 import { Text } from "@visx/text";
 import { useTranslation } from "react-i18next";
-import { SVG_COLORS, SEVERITY_HEX, GRADE_HEX_SVG, ANIMATION_DEFAULTS } from "./shared/svgConstants";
+import { SVG_COLORS, SEVERITY_HEX, GRADE_HEX_SVG, ANIMATION_DEFAULTS, WATERFALL_GRADIENT_IDS } from "./shared/svgConstants";
+import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import type { Finding, Grade } from "@/lib/types";
 
@@ -19,7 +20,7 @@ interface ScoreWaterfallProps {
 }
 
 const BASE_SCORE = 70;
-const MARGIN = { top: 24, right: 16, bottom: 64, left: 40 };
+const MARGIN = { top: 24, right: 16, bottom: 80, left: 40 };
 const MIN_HEIGHT = 260;
 
 interface WaterfallSegment {
@@ -38,6 +39,32 @@ interface TooltipData {
   impact: number;
   severity?: string;
   description?: string;
+}
+
+/** Map grade to severity key for gradient lookup. */
+const GRADE_TO_SEV: Record<Grade, string> = {
+  "A+": "good",
+  B: "low",
+  C: "medium",
+  D: "high",
+  F: "critical",
+};
+
+/** Resolve bar fill for a waterfall segment. Subtle gradients, no glow. */
+function getBarStyle(seg: WaterfallSegment, grade: Grade): { fill: string; fillOpacity?: number } {
+  if (seg.key === "base") {
+    return { fill: `url(#${WATERFALL_GRADIENT_IDS.base})`, fillOpacity: 0.6 };
+  }
+  if (seg.key === "final") {
+    const sevKey = GRADE_TO_SEV[grade];
+    return { fill: `url(#${WATERFALL_GRADIENT_IDS[sevKey] ?? WATERFALL_GRADIENT_IDS.good})` };
+  }
+  if (seg.value > 0) {
+    return { fill: `url(#${WATERFALL_GRADIENT_IDS.positive})` };
+  }
+  // Negative impact - use severity gradient
+  const sevId = WATERFALL_GRADIENT_IDS[seg.severity ?? "high"] ?? WATERFALL_GRADIENT_IDS.high;
+  return { fill: `url(#${sevId})` };
 }
 
 function WaterfallChart({
@@ -133,6 +160,7 @@ function WaterfallChart({
           defaultValue: `Score waterfall chart. Base score 70 adjusted to final score ${finalScore}, grade ${grade}.`,
         })}
       >
+        <ChartDefs />
         <Group top={MARGIN.top} left={MARGIN.left}>
           {/* Y-axis gridlines */}
           {[0, 25, 50, 75, 100].map((tick) => (
@@ -191,6 +219,7 @@ function WaterfallChart({
             const barY = yScale(seg.runningEnd);
             const barHeight = Math.max(1, yScale(seg.runningStart) - yScale(seg.runningEnd));
             const isClickable = !!seg.findingId;
+            const barStyle = getBarStyle(seg, grade);
 
             return (
               <Group key={seg.key}>
@@ -199,7 +228,8 @@ function WaterfallChart({
                   y={barY}
                   width={barWidth}
                   height={barHeight}
-                  fill={seg.color}
+                  fill={barStyle.fill}
+                  fillOpacity={barStyle.fillOpacity}
                   rx={3}
                   initial={reducedMotion ? false : { scaleY: 0 }}
                   animate={{ scaleY: 1 }}
@@ -303,26 +333,42 @@ function WaterfallChart({
             const barX = xScale(seg.key) ?? 0;
             const barWidth = xScale.bandwidth();
             const isSpecial = seg.key === "base" || seg.key === "final";
-            const showLabel = isSpecial || barWidth >= 16;
-            const rotated = !isSpecial && barWidth < 28;
-            const truncLen = barWidth < 28 ? 8 : 14;
-            const labelText = isSpecial
-              ? seg.label
-              : seg.label.length > truncLen ? `${seg.label.slice(0, truncLen - 2)}...` : seg.label;
 
-            if (!showLabel) return null;
+            if (!isSpecial && barWidth < 12) return null;
+
+            // Special labels (Base/Final): always horizontal, centered
+            if (isSpecial) {
+              return (
+                <Text
+                  key={`label-${seg.key}`}
+                  x={barX + barWidth / 2}
+                  y={innerHeight + 18}
+                  textAnchor="middle"
+                  fontSize={11}
+                  fill={SVG_COLORS.foreground}
+                  fontWeight="600"
+                >
+                  {seg.label}
+                </Text>
+              );
+            }
+
+            // Finding labels: always rotated -45deg for readability
+            const truncLen = Math.max(12, Math.min(24, Math.floor(barWidth * 0.6)));
+            const labelText = seg.label.length > truncLen
+              ? `${seg.label.slice(0, truncLen - 1)}...`
+              : seg.label;
 
             return (
               <Text
                 key={`label-${seg.key}`}
                 x={barX + barWidth / 2}
-                y={innerHeight + (rotated ? 14 : 18)}
-                textAnchor={rotated ? "end" : "middle"}
-                fontSize={11}
-                fill={isSpecial ? SVG_COLORS.foreground : SVG_COLORS.muted}
-                fontWeight={isSpecial ? "600" : "normal"}
-                width={rotated ? 80 : barWidth + 8}
-                angle={rotated ? -45 : 0}
+                y={innerHeight + 10}
+                textAnchor="end"
+                fontSize={10}
+                fill={SVG_COLORS.muted}
+                angle={-45}
+                width={120}
               >
                 {labelText}
               </Text>

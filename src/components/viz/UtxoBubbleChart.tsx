@@ -9,6 +9,7 @@ import { ParentSize } from "@visx/responsive";
 import { hierarchy } from "d3-hierarchy";
 import { useTranslation } from "react-i18next";
 import { SVG_COLORS, DUST_THRESHOLD, ANIMATION_DEFAULTS } from "./shared/svgConstants";
+import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import { formatSats } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
@@ -115,6 +116,7 @@ function BubbleChart({ width, height, utxos }: UtxoBubbleChartProps & { width: n
           defaultValue: `UTXO bubble chart: ${utxos.length} unspent outputs`,
         })}
       >
+        <ChartDefs />
         <Pack<HierarchyDatum | UtxoNode>
           root={root}
           size={[size, size]}
@@ -128,16 +130,28 @@ function BubbleChart({ width, height, utxos }: UtxoBubbleChartProps & { width: n
                   const d = circle.data as UtxoNode;
                   if (!d.id) return null;
 
-                  let fillColor: string = SVG_COLORS.foreground;
-                  let fillOpacity = 0.15;
+                  let gradientFill: string;
+                  let strokeColor: string;
+                  let glowFilter: string | undefined;
 
                   if (d.isDust) {
-                    fillColor = SVG_COLORS.critical;
-                    fillOpacity = 0.3;
+                    gradientFill = "url(#grad-bubble-dust)";
+                    strokeColor = "#ef4444";
                   } else if (!d.confirmed) {
-                    fillColor = SVG_COLORS.bitcoin;
-                    fillOpacity = 0.25;
+                    gradientFill = "url(#grad-bubble-unconf)";
+                    strokeColor = "#f7931a";
+                  } else {
+                    gradientFill = "url(#grad-bubble-normal)";
+                    strokeColor = "#3b82f6";
                   }
+
+                  // Size-based glow
+                  if (circle.r > 50) glowFilter = "url(#glow-medium)";
+                  else if (circle.r > 30) glowFilter = "url(#glow-subtle)";
+
+                  // Dust cluster emphasis
+                  const isDustCluster = !!d.dustCount;
+                  if (isDustCluster) glowFilter = "url(#glow-medium)";
 
                   const showLabel = circle.r > 25;
 
@@ -147,11 +161,12 @@ function BubbleChart({ width, height, utxos }: UtxoBubbleChartProps & { width: n
                         cx={circle.x}
                         cy={circle.y}
                         r={circle.r}
-                        fill={fillColor}
-                        fillOpacity={fillOpacity}
-                        stroke={fillColor}
+                        fill={gradientFill}
+                        stroke={strokeColor}
                         strokeOpacity={0.4}
-                        strokeWidth={1}
+                        strokeWidth={isDustCluster ? 2 : 1}
+                        strokeDasharray={isDustCluster ? "4,2" : undefined}
+                        filter={glowFilter}
                         initial={reducedMotion ? false : { r: 0 }}
                         animate={{ r: circle.r }}
                         transition={{

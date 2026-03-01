@@ -169,7 +169,9 @@ export function ScoreDisplay({ score, grade, findings }: ScoreDisplayProps) {
         {grade === "A+"
           ? t("score.gradeAPlus", { defaultValue: "Excellent privacy practices" })
           : grade === "B"
-            ? t("score.gradeB", { defaultValue: "Good privacy, minor concerns" })
+            ? findings && !findings.some((f) => f.scoreImpact < 0)
+              ? t("score.gradeBPositive", { defaultValue: "Good privacy practices" })
+              : t("score.gradeB", { defaultValue: "Good privacy, minor concerns" })
             : grade === "C"
               ? findings && getSummarySentiment(grade, findings) === "positive"
                 ? t("score.gradeCPositive", { defaultValue: "Good privacy practices" })

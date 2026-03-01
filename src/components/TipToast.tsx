@@ -44,6 +44,16 @@ export function TipToast() {
     return () => clearTimeout(timer);
   }, [dismissed]);
 
+  // Auto-dismiss on mobile after 15 seconds (don't persist - show again next session)
+  useEffect(() => {
+    if (!visible || dismissed || expanded) return;
+    const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+    if (!isMobile) return;
+
+    const timer = setTimeout(() => setVisible(false), 15000);
+    return () => clearTimeout(timer);
+  }, [visible, dismissed, expanded]);
+
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const ok = await copyToClipboard(LN_ADDRESS);

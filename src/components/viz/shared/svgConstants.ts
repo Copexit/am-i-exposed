@@ -57,5 +57,39 @@ export const ANIMATION_DEFAULTS = {
   spring: { type: "spring" as const, stiffness: 200, damping: 25 },
 };
 
+/** Gradient color palette for semantic meaning in charts. */
+export const GRADIENT_COLORS = {
+  // Cool (privacy-positive)
+  inputLight: "#60a5fa",
+  inputDark: "#3b82f6",
+  mixerLight: "#28d065",
+  mixerDark: "#059669",
+
+  // Warm (exposure)
+  outputLight: "#f7931a",
+  outputDark: "#e8850f",
+  changeLight: "#f97316",
+  changeDark: "#dc2626",
+  dustLight: "#ef4444",
+  dustDark: "#991b1b",
+
+  // Neutral
+  feeLight: "#6b7280",
+  feeDark: "#4b5563",
+  baseLight: "#9ca3af",
+  baseDark: "#6b7280",
+} as const;
+
+/** Lookup from waterfall bar type to gradient ID. */
+export const WATERFALL_GRADIENT_IDS: Record<string, string> = {
+  base: "grad-wf-base",
+  positive: "grad-wf-positive",
+  critical: "grad-wf-critical",
+  high: "grad-wf-high",
+  medium: "grad-wf-medium",
+  low: "grad-wf-low",
+  good: "grad-wf-good",
+} as const;
+
 /** Dust threshold in satoshis - matches dust-output.ts heuristic. */
 export const DUST_THRESHOLD = 1000;

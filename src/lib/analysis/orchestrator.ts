@@ -361,13 +361,13 @@ export async function analyzeDestination(
     summaryKey = "presend.summaryHigh";
     summary = `This address has received funds ${reuseCount} times. All senders to this address are trivially linkable. Ask the recipient for a fresh address.`;
   } else if (reuseCount >= 2) {
-    riskLevel = "MEDIUM";
-    summaryKey = "presend.summaryMediumReused";
-    summary = `This address has received funds ${reuseCount} times (${txCount} total transactions). There is reuse, which means your payment will be linkable to previous transactions to this address.`;
+    riskLevel = "HIGH";
+    summaryKey = "presend.summaryHighReused";
+    summary = `This address has received funds ${reuseCount} times (${txCount} total transactions). Do NOT send here - your payment will be linkable to all previous transactions to this address. Ask the recipient for a fresh address.`;
   } else if (reuseCount === 1) {
-    riskLevel = "MEDIUM";
-    summaryKey = "presend.summaryMediumReceivedOnce";
-    summary = "This address has already received funds once. Sending here will create address reuse, linking your transaction to the previous one on-chain.";
+    riskLevel = "HIGH";
+    summaryKey = "presend.summaryHighReceivedOnce";
+    summary = "This address has already received funds once. Do NOT send here - it will create address reuse, linking your transaction to the previous one on-chain. Ask the recipient for a fresh address.";
   } else if (txCount > 0) {
     // funded_txo_count is 0 but tx_count > 0 - the address has transaction
     // activity that the backend didn't fully index (common on self-hosted

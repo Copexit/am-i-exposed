@@ -6,6 +6,7 @@ import { Pie } from "@visx/shape";
 import { Group } from "@visx/group";
 import { useTranslation } from "react-i18next";
 import { SEVERITY_HEX, ANIMATION_DEFAULTS } from "./shared/svgConstants";
+import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import type { Finding, Severity } from "@/lib/types";
 
@@ -75,6 +76,7 @@ export function SeverityRing({ findings, size = 120 }: SeverityRingProps) {
         })}
       >
         <svg width={size} height={size}>
+          <ChartDefs />
           <Group top={radius} left={radius}>
             <Pie<SeveritySlice>
               data={slices}
@@ -92,7 +94,7 @@ export function SeverityRing({ findings, size = 120 }: SeverityRingProps) {
                     <motion.path
                       key={arc.data.severity}
                       d={path}
-                      fill={arc.data.color}
+                      fill={`url(#grad-sev-${arc.data.severity})`}
                       fillOpacity={0.85}
                       initial={reducedMotion ? false : { pathLength: 0, opacity: 0 }}
                       animate={{ pathLength: 1, opacity: 1 }}

@@ -8,6 +8,7 @@ import { Text } from "@visx/text";
 import { ParentSize } from "@visx/responsive";
 import { useTranslation } from "react-i18next";
 import { SVG_COLORS, ANIMATION_DEFAULTS } from "./shared/svgConstants";
+import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import { formatSats } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
@@ -236,12 +237,7 @@ function CoinJoinChart({
           defaultValue: `CoinJoin structure: ${tx.vin.length} inputs mixed into ${tx.vout.length} outputs`,
         })}
       >
-        {/* Hatched pattern for mixing zone */}
-        <defs>
-          <pattern id="mixer-pattern" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="6" stroke={SVG_COLORS.bitcoin} strokeWidth="1" strokeOpacity="0.12" />
-          </pattern>
-        </defs>
+        <ChartDefs />
 
         <Sankey<NodeDatum, LinkDatum>
           root={graph}
@@ -258,16 +254,23 @@ function CoinJoinChart({
                 const path = createPath(link);
                 const pathD = path ?? "";
                 const sourceNode = link.source as unknown as NodeDatum & { id: string };
-                const isMixerLink = sourceNode.id === "mixer" || (link.target as unknown as NodeDatum & { id: string }).id === "mixer";
+                const targetNode = link.target as unknown as NodeDatum & { id: string };
+                const intoMixer = targetNode.id === "mixer";
+                const outOfMixer = sourceNode.id === "mixer";
+                const linkStroke = intoMixer
+                  ? "url(#grad-cj-link-in)"
+                  : outOfMixer
+                    ? "url(#grad-cj-link-out)"
+                    : SVG_COLORS.muted;
 
                 return (
                   <motion.path
                     key={`link-${i}`}
                     d={pathD}
                     fill="none"
-                    stroke={isMixerLink ? SVG_COLORS.bitcoin : SVG_COLORS.muted}
+                    stroke={linkStroke}
                     strokeWidth={Math.max(1, (link as unknown as { width: number }).width ?? 1)}
-                    strokeOpacity={0.15}
+                    strokeOpacity={0.25}
                     initial={reducedMotion ? false : { pathLength: 0 }}
                     animate={{ pathLength: 1 }}
                     transition={{
@@ -290,9 +293,22 @@ function CoinJoinChart({
                 const isInput = n.side === "input";
                 const isClickable = !!n.fullAddress && !!onAddressClick;
 
-                let fillColor: string = SVG_COLORS.bitcoin;
-                if (isMixer) fillColor = "url(#mixer-pattern)";
-                if (n.id === "fee") fillColor = SVG_COLORS.muted;
+                const isTier = !!n.tierCount;
+                let fillColor: string;
+                let glowFilter: string | undefined;
+                if (isMixer) {
+                  fillColor = "url(#grad-mixer)";
+                  glowFilter = "url(#glow-medium)";
+                } else if (isInput) {
+                  fillColor = "url(#grad-input)";
+                } else if (n.id === "fee") {
+                  fillColor = "url(#grad-fee)";
+                } else if (isTier) {
+                  fillColor = "url(#grad-mixer)";
+                  glowFilter = "url(#glow-subtle)";
+                } else {
+                  fillColor = "url(#grad-output)";
+                }
 
                 const labelX = isInput ? n.x0 - 6 : n.x1 + 6;
                 const labelAnchor = isInput ? "end" : "start";
@@ -303,12 +319,13 @@ function CoinJoinChart({
                     <motion.rect
                       x={n.x0}
                       y={n.y0}
-                      width={isMixer ? nodeWidth : nodeWidth}
+                      width={nodeWidth}
                       height={nodeHeight}
                       fill={fillColor}
+                      filter={glowFilter}
                       rx={isMixer ? 0 : 3}
-                      stroke={isMixer ? SVG_COLORS.bitcoin : undefined}
-                      strokeOpacity={isMixer ? 0.3 : undefined}
+                      stroke={isMixer ? "#28d065" : undefined}
+                      strokeOpacity={isMixer ? 0.5 : undefined}
                       strokeWidth={isMixer ? 1 : undefined}
                       initial={reducedMotion ? false : { opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -317,8 +334,18 @@ function CoinJoinChart({
                         duration: ANIMATION_DEFAULTS.duration,
                       }}
                       cursor={isClickable ? "pointer" : "default"}
+                      tabIndex={isClickable ? 0 : undefined}
+                      role={isClickable ? "button" : undefined}
+                      aria-label={isClickable ? `Scan ${n.fullAddress}` : undefined}
+                      className={isClickable ? "outline-none focus-visible:outline-2 focus-visible:outline-bitcoin" : ""}
                       onClick={() => {
                         if (n.fullAddress && onAddressClick) onAddressClick(n.fullAddress);
+                      }}
+                      onKeyDown={(e: React.KeyboardEvent) => {
+                        if ((e.key === "Enter" || e.key === " ") && n.fullAddress && onAddressClick) {
+                          e.preventDefault();
+                          onAddressClick(n.fullAddress);
+                        }
                       }}
                       onMouseEnter={(e: React.MouseEvent) => {
                         const container = containerRef.current;
@@ -339,6 +366,17 @@ function CoinJoinChart({
                       onMouseLeave={() => hideTooltip()}
                     />
 
+                    {/* Mixer pattern overlay */}
+                    {isMixer && (
+                      <rect
+                        x={n.x0}
+                        y={n.y0}
+                        width={nodeWidth}
+                        height={nodeHeight}
+                        fill="url(#mixer-pattern-v2)"
+                      />
+                    )}
+
                     {/* Mixer label */}
                     {isMixer && (
                       <Text
@@ -347,7 +385,8 @@ function CoinJoinChart({
                         textAnchor="middle"
                         verticalAnchor="middle"
                         fontSize={13}
-                        fill={SVG_COLORS.bitcoin}
+                        fill="#f0f0f2"
+                        fillOpacity={0.9}
                         angle={-90}
                       >
                         {t("viz.coinjoin.mixingZone", { defaultValue: "Mixing" })}

@@ -85,7 +85,7 @@ export const analyzeScriptTypeMix: TxHeuristic = (tx) => {
       `This transaction uses ${allTypes.size} different script types (${[...allTypes].join(", ")}). ` +
       "Mixing script types makes change detection easier and can fingerprint the wallet software.",
     recommendation:
-      "Use a wallet that sends change to the same address type as the inputs. Taproot (P2TR) unifies all script types.",
+      "Use a wallet that keeps the same address format for all outputs. Consistent formats eliminate this signal.",
     scoreImpact: impact,
   });
 
