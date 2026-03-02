@@ -61,10 +61,24 @@ export interface ExampleItem {
 export const EXAMPLES: ExampleItem[] = [
   {
     labelKey: "page.example_whirlpool",
-    labelDefault: "Whirlpool CoinJoin",
+    labelDefault: "Whirlpool 5x5",
     hint: "A+",
     hintColor: "text-severity-good",
     input: "323df21f0b0756f98336437aa3d2fb87e02b59f1946b714a7b09df04d429dec2",
+  },
+  {
+    labelKey: "page.example_whirlpool_8x8",
+    labelDefault: "Whirlpool 8x8",
+    hint: "A+",
+    hintColor: "text-severity-good",
+    input: "f82fa771e355ef46e9744da2407f677ea4372d85b61b4a4d735d88a85798dfc4",
+  },
+  {
+    labelKey: "page.example_whirlpool_9x9",
+    labelDefault: "Whirlpool 9x9",
+    hint: "A+",
+    hintColor: "text-severity-good",
+    input: "f540e8d8636bd706cb9c2f5733d26ccfdb151b76d663b2d346785e62c352b282",
   },
   {
     labelKey: "page.example_wabisabi",
