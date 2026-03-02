@@ -207,6 +207,10 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
         f.params = { ...f.params, context: "coinjoin" };
         f.scoreImpact = 0;
       }
+      // Entropy recommendation should reflect CoinJoin context
+      if (f.id === "h5-entropy") {
+        f.params = { ...f.params, context: "coinjoin" };
+      }
       // Wallet fingerprint is less relevant for CoinJoin - but we can infer the wallet
       // from the CoinJoin type detected by H4
       if (f.id === "h11-wallet-fingerprint") {
