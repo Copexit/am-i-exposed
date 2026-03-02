@@ -75,10 +75,16 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
     // equal-value outputs still create real ambiguity. Fall back to
     // equal-output permutation entropy as a conservative lower bound.
     if (entropyBits <= 0) {
-      const permEntropy = equalOutputPermutationEntropy(outputs);
-      if (permEntropy > 0) {
-        entropyBits = permEntropy;
-        method = "equal-output permutation";
+      const counts = new Map<number, number>();
+      for (const v of outputs) counts.set(v, (counts.get(v) ?? 0) + 1);
+      let maxGroup = 0;
+      for (const c of counts.values()) if (c > maxGroup) maxGroup = c;
+      if (maxGroup >= 2) {
+        const count = boltzmannEqualOutputs(maxGroup);
+        if (count > 1) {
+          entropyBits = Math.log2(count);
+          method = "Boltzmann partition";
+        }
       }
     }
   } else {
@@ -112,7 +118,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
   }
 
   // Conservative scaling: low entropy gets modest impact, high entropy rewarded more
-  const impact = entropyBits < 1 ? 0 : Math.min(Math.floor(entropyBits * 2), 15);
+  const impact = entropyBits < 1 ? 0 : entropyBits < 2 ? 2 : Math.min(Math.floor(entropyBits * 2), 15);
 
   return {
     findings: [
@@ -125,6 +131,8 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
           method,
           interpretations: displayEntropy > 40 ? `2^${Math.round(displayEntropy)}` : Math.round(Math.pow(2, displayEntropy)),
           context: entropyBits >= 4 ? "high" : "low",
+          entropyPerUtxo: Math.round((entropyBits / (inputs.length + outputs.length)) * 1000) / 1000,
+          nUtxos: inputs.length + outputs.length,
         },
         description:
           `This transaction has ${roundedEntropy} bits of entropy (via ${method}), meaning there are ` +
@@ -133,7 +141,8 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
             ? `~2^${Math.round(displayEntropy)} `
             : `~${Math.round(Math.pow(2, displayEntropy)).toLocaleString()} `) +
           (method === "structural estimate" ? "possible" : "valid") +
-          " interpretations of the fund flow. Higher entropy makes chain analysis less reliable.",
+          " interpretations of the fund flow. Higher entropy makes chain analysis less reliable." +
+          ` Entropy per UTXO: ${Math.round((entropyBits / (inputs.length + outputs.length)) * 1000) / 1000} bits (${inputs.length + outputs.length} UTXOs).`,
         recommendation:
           entropyBits >= 4
             ? "Good entropy level. Spending exact amounts (no change) further improves privacy."
@@ -377,24 +386,6 @@ function countValidMappings(inputs: number[], outputs: number[]): { count: numbe
   count = Math.round(count / duplicateFactor);
 
   return { count: Math.max(count, 1), truncated: iterations > limit };
-}
-
-/**
- * Compute entropy from equal-output permutations as a lower bound.
- * If outputs contain groups of equal values, swapping them creates
- * indistinguishable interpretations: log2(k!) for the largest group of k.
- */
-function equalOutputPermutationEntropy(outputs: number[]): number {
-  const counts = new Map<number, number>();
-  for (const v of outputs) {
-    counts.set(v, (counts.get(v) ?? 0) + 1);
-  }
-  let maxGroup = 0;
-  for (const c of counts.values()) {
-    if (c > maxGroup) maxGroup = c;
-  }
-  if (maxGroup < 2) return 0;
-  return Math.log2(factorial(maxGroup));
 }
 
 /**

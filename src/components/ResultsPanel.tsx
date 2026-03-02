@@ -155,13 +155,13 @@ export function ResultsPanel({
   onScan,
   durationMs,
 }: ResultsPanelProps) {
-  const { config, customApiUrl, localApiStatus } = useNetwork();
+  const { config, customApiUrl, isUmbrel } = useNetwork();
   const { t } = useTranslation();
   const isCoinJoin = result.findings.some(isCoinJoinFinding);
   const explorerUrl = `${config.explorerUrl}/${inputType === "txid" ? "tx" : "address"}/${encodeURIComponent(query)}`;
   const explorerLabel = customApiUrl
     ? t("results.viewOnCustom", { hostname: new URL(config.explorerUrl).hostname, defaultValue: "View on {{hostname}}" })
-    : localApiStatus === "available"
+    : isUmbrel
       ? t("results.viewOnLocal", { defaultValue: "View on local mempool" })
       : t("results.viewOnMempool", { defaultValue: "View on mempool.space" });
 

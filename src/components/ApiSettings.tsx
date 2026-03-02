@@ -20,8 +20,7 @@ const NETWORKS: { value: BitcoinNetwork; label: string; dot: string }[] = [
 
 export function ApiSettings() {
   const { t, i18n } = useTranslation();
-  const { network, setNetwork, customApiUrl, setCustomApiUrl, localApiStatus } = useNetwork();
-  const isUmbrel = localApiStatus === "available";
+  const { network, setNetwork, customApiUrl, setCustomApiUrl, isUmbrel } = useNetwork();
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState(customApiUrl ?? "");
   const [health, setHealth] = useState<HealthStatus>("idle");

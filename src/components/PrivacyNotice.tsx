@@ -23,7 +23,7 @@ function getServerSnapshot(): boolean {
 
 export function PrivacyNotice() {
   const { t } = useTranslation();
-  const { torStatus, localApiStatus } = useNetwork();
+  const { torStatus, isUmbrel } = useNetwork();
   const dismissed = useSyncExternalStore(
     subscribe,
     getSnapshot,
@@ -38,7 +38,7 @@ export function PrivacyNotice() {
 
   return (
     <AnimatePresence>
-      {!dismissed && torStatus === "clearnet" && localApiStatus !== "available" && (
+      {!dismissed && torStatus === "clearnet" && !isUmbrel && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}

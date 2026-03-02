@@ -39,7 +39,7 @@ describe("analyzeEntropy", () => {
 
   it("detects positive entropy with Boltzmann path (2 equal outputs)", () => {
     // 2 equal inputs, 2 equal outputs -> Boltzmann: n=2, count=3, entropy=log2(3)~1.58
-    // impact = floor(1.58*2) = 3
+    // impact = 2 (capped: entropy < 2 bits -> fixed +2)
     const tx = makeTx({
       vin: [
         makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qa1", value: 100_000 } }),
@@ -53,8 +53,10 @@ describe("analyzeEntropy", () => {
     const { findings } = analyzeEntropy(tx);
     expect(findings).toHaveLength(1);
     expect(findings[0].id).toBe("h5-entropy");
-    expect(findings[0].scoreImpact).toBe(3);
+    expect(findings[0].scoreImpact).toBe(2);
     expect(findings[0].params?.entropy).toBeCloseTo(1.58, 1);
+    expect(findings[0].params?.entropyPerUtxo).toBeCloseTo(0.396, 2);
+    expect(findings[0].params?.nUtxos).toBe(4);
   });
 
   it("detects high entropy (5 equal outputs), impact capped at 15", () => {

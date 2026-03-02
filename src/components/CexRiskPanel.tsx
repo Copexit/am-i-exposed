@@ -35,8 +35,7 @@ interface CexRiskPanelProps {
 
 export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPanelProps) {
   const { t } = useTranslation();
-  const { localApiStatus } = useNetwork();
-  const isUmbrel = localApiStatus === "available";
+  const { isUmbrel } = useNetwork();
   const [open, setOpen] = useState(true);
 
   // Derive addresses to check

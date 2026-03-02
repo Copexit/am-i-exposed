@@ -25,6 +25,8 @@ interface NetworkContextValue {
   setCustomApiUrl: (url: string | null) => void;
   torStatus: TorStatus;
   localApiStatus: LocalApiStatus;
+  /** Whether the app is running on the Umbrel Docker backend */
+  isUmbrel: boolean;
 }
 
 const NetworkContext = createContext<NetworkContextValue>({
@@ -35,14 +37,16 @@ const NetworkContext = createContext<NetworkContextValue>({
   setCustomApiUrl: () => {},
   torStatus: "checking",
   localApiStatus: "checking",
+  isUmbrel: false,
 });
 
 export function NetworkProvider({ children }: { children: ReactNode }) {
   const { network, setNetwork } = useUrlState();
   const { customUrl, setCustomUrl } = useCustomApi();
   const localApi = useLocalApi();
+  const { isUmbrel } = localApi;
   const localApiStatus = localApi.status;
-  const torStatus = useTorDetection(localApiStatus === "available");
+  const torStatus = useTorDetection(isUmbrel);
   const baseConfig = NETWORK_CONFIG[network];
 
   const config = useMemo(() => {
@@ -55,8 +59,9 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
         explorerUrl: customUrl.replace(/\/api\/?$/, ""),
       };
     }
-    // Priority 2: Same-origin API proxy detected (Umbrel mode)
-    if (localApiStatus === "available") {
+    // Priority 2: Umbrel detected - always route through /api
+    // (regardless of mempool health - if mempool is down, scans fail with clear error)
+    if (isUmbrel) {
       // Build explorer URL pointing to the local mempool UI
       let explorerUrl = "";
       if (typeof window !== "undefined") {
@@ -88,7 +93,7 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
     }
     // Priority 4: Hardcoded defaults
     return baseConfig;
-  }, [baseConfig, customUrl, localApiStatus, localApi.mempoolPort, localApi.mempoolOnion, torStatus]);
+  }, [baseConfig, customUrl, isUmbrel, localApi.mempoolPort, localApi.mempoolOnion, torStatus]);
 
   const value = useMemo(
     () => ({
@@ -99,8 +104,9 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
       setCustomApiUrl: setCustomUrl,
       torStatus,
       localApiStatus,
+      isUmbrel,
     }),
-    [network, setNetwork, config, customUrl, setCustomUrl, torStatus, localApiStatus],
+    [network, setNetwork, config, customUrl, setCustomUrl, torStatus, localApiStatus, isUmbrel],
   );
 
   return (

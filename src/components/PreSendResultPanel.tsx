@@ -77,14 +77,14 @@ export function PreSendResultPanel({
   onBack,
   durationMs,
 }: PreSendResultPanelProps) {
-  const { config, customApiUrl, localApiStatus } = useNetwork();
+  const { config, customApiUrl, isUmbrel } = useNetwork();
   const { t, i18n } = useTranslation();
   const [shareStatus, setShareStatus] = useState<"idle" | "copied">("idle");
   const risk = RISK_CONFIG[preSendResult.riskLevel];
   const RiskIcon = risk.icon;
   const explorerLabel = customApiUrl
     ? t("presend.viewOnCustom", { hostname: new URL(config.explorerUrl).hostname, defaultValue: "View on {{hostname}}" })
-    : localApiStatus === "available"
+    : isUmbrel
       ? t("presend.viewOnLocal", { defaultValue: "View on local mempool" })
       : t("presend.viewOnMempool", { defaultValue: "View on mempool.space" });
 

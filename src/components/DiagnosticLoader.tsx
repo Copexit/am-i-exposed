@@ -14,8 +14,8 @@ interface DiagnosticLoaderProps {
 
 export function DiagnosticLoader({ steps, phase }: DiagnosticLoaderProps) {
   const { t } = useTranslation();
-  const { localApiStatus } = useNetwork();
-  const isLocalApi = localApiStatus === "available";
+  const { isUmbrel } = useNetwork();
+  const isLocalApi = isUmbrel;
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {

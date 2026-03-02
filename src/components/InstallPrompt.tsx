@@ -32,8 +32,7 @@ function subscribeStandalone(callback: () => void) {
  */
 export function InstallPrompt() {
   const { t } = useTranslation();
-  const { localApiStatus } = useNetwork();
-  const isUmbrel = localApiStatus === "available";
+  const { isUmbrel } = useNetwork();
   const isStandalone = useSyncExternalStore(
     subscribeStandalone,
     getIsStandalone,

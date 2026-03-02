@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
  */
 export function ConnectionBadge() {
   const { t } = useTranslation();
-  const { torStatus, localApiStatus } = useNetwork();
+  const { torStatus, localApiStatus, isUmbrel } = useNetwork();
   const [showTip, setShowTip] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -27,15 +27,19 @@ export function ConnectionBadge() {
     return () => document.removeEventListener("click", handleClick, true);
   }, [showTip]);
 
-  // Local API (Umbrel) takes display priority - it's the most private option
-  const isLocal = localApiStatus === "available";
-
-  const config = isLocal
-    ? {
-        icon: <ShieldCheck size={16} className="text-success" />,
-        label: <span className="text-success text-xs hidden sm:inline">{t("common.local", { defaultValue: "Local" })}</span>,
-        tip: t("common.connectionLocal", { defaultValue: "Connected to local mempool instance - all queries stay on your network" }),
-      }
+  // Umbrel detected - show "Local" badge with health-dependent styling
+  const config = isUmbrel
+    ? localApiStatus === "unavailable"
+      ? {
+          icon: <ShieldAlert size={16} className="text-warning" />,
+          label: <span className="text-warning text-xs hidden sm:inline">{t("common.local", { defaultValue: "Local" })}</span>,
+          tip: t("common.connectionLocalDown", { defaultValue: "Local mempool is unreachable - try restarting mempool from your Umbrel dashboard" }),
+        }
+      : {
+          icon: <ShieldCheck size={16} className="text-success" />,
+          label: <span className="text-success text-xs hidden sm:inline">{t("common.local", { defaultValue: "Local" })}</span>,
+          tip: t("common.connectionLocal", { defaultValue: "Connected to local mempool instance - all queries stay on your network" }),
+        }
     : {
         checking: {
           icon: <Shield size={16} className="text-muted animate-pulse" />,
