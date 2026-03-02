@@ -307,7 +307,7 @@
   "finding.h4-whirlpool.description": "Cette transaction correspond au schéma Whirlpool CoinJoin : 5 outputs égaux à une dénomination standard. Whirlpool offre une forte confidentialité prospective en brisant les liens déterministes entre transactions.",
   "finding.h4-whirlpool.recommendation": "Whirlpool est l'une des implémentations CoinJoin les plus robustes. Assurez-vous aussi de remixer (plusieurs tours) pour une confidentialité maximale.",
   "finding.h4-whirlpool.title": "Whirlpool CoinJoin détecté (pool {{denom}})",
-  "finding.h5-entropy.description": "Cette transaction a {{entropy}} bits d'entropie (via {{method}}), ce qui signifie qu'il y a environ {{interpretations}} interprétations valides du flux de fonds. Une entropie plus élevée rend l'analyse de chaîne moins fiable.",
+  "finding.h5-entropy.description": "Cette transaction a {{entropy}} bits d'entropie (via {{method}}), ce qui signifie qu'il y a environ {{interpretations}} interprétations valides du flux de fonds. Une entropie plus élevée rend l'analyse de chaîne moins fiable. Entropie par UTXO : {{entropyPerUtxo}} bits ({{nUtxos}} UTXOs).",
   "finding.h5-entropy.recommendation_high": "Bon niveau d'entropie. Les transactions CoinJoin peuvent atteindre une entropie encore plus élevée.",
   "finding.h5-entropy.recommendation_low": "Envisagez d'utiliser CoinJoin pour augmenter significativement l'entropie des transactions.",
   "finding.h5-entropy.title": "Entropie de transaction : {{entropy}} bits",

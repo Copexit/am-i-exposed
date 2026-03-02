@@ -307,7 +307,7 @@
   "finding.h4-whirlpool.description": "This matches a Whirlpool CoinJoin pattern: 5 equal outputs at a standard amount. Whirlpool breaks the connection between your inputs and outputs, giving strong privacy.",
   "finding.h4-whirlpool.recommendation": "Whirlpool is one of the strongest CoinJoin implementations. Make sure to also remix (multiple rounds) for maximum privacy.",
   "finding.h4-whirlpool.title": "Whirlpool CoinJoin detected ({{denom}} pool)",
-  "finding.h5-entropy.description": "This transaction has {{entropy}} bits of entropy, meaning there are ~{{interpretations}} possible ways the funds could have flowed. More possibilities = harder to trace.",
+  "finding.h5-entropy.description": "This transaction has {{entropy}} bits of entropy, meaning there are ~{{interpretations}} possible ways the funds could have flowed. More possibilities = harder to trace. Entropy per UTXO: {{entropyPerUtxo}} bits ({{nUtxos}} UTXOs).",
   "finding.h5-entropy.recommendation_high": "Good entropy level. CoinJoin transactions can achieve even higher entropy.",
   "finding.h5-entropy.recommendation_low": "Consider using CoinJoin to make your transactions harder to trace.",
   "finding.h5-entropy.title": "Transaction entropy: {{entropy}} bits",
