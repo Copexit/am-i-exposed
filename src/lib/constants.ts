@@ -81,6 +81,20 @@ export const EXAMPLES: ExampleItem[] = [
     input: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
   },
   {
+    labelKey: "page.example_stonewall",
+    labelDefault: "Stonewall",
+    hint: "B",
+    hintColor: "text-severity-low",
+    input: "19a79be39c05a0956c7d1f9f28ee6f1091096247b0906b6a8536dd7f400f2358",
+  },
+  {
+    labelKey: "page.example_joinmarket",
+    labelDefault: "JoinMarket CoinJoin",
+    hint: "A+",
+    hintColor: "text-severity-good",
+    input: "6cb2433f28177a3b07073a0eb34a527ba6d7dd7483cccb394f88321373c0ed20",
+  },
+  {
     labelKey: "page.example_opreturn",
     labelDefault: "OP_RETURN data",
     hint: "D",

@@ -72,6 +72,11 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
       } else if (isLargeCoinJoin) {
         signals.push("BIP69 ordering + large CoinJoin pattern (Wasabi/WabiSabi)");
         walletGuess = "Wasabi Wallet";
+      } else if (allMax && tx.locktime === 0) {
+        // BIP69 + nSequence=0xffffffff + locktime=0: Samourai Wallet pattern.
+        // Modern Electrum uses nSequence=0xfffffffd (RBF) and non-zero locktime.
+        signals.push("BIP69 ordering + legacy sequence + no locktime (Samourai)");
+        walletGuess = "Samourai";
       } else {
         signals.push("BIP69 lexicographic ordering (Electrum/Samourai)");
         walletGuess = walletGuess ?? "Electrum";

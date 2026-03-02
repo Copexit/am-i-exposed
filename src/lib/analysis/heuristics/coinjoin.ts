@@ -117,33 +117,10 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
     });
   }
 
-  // Check for JoinMarket pattern: small-scale CoinJoin with maker/taker model
-  // Only check if no other CoinJoin was detected
-  if (findings.length === 0) {
-    const joinmarket = detectJoinMarket(tx.vin, spendableOutputs);
-    if (joinmarket) {
-      findings.push({
-        id: "h4-joinmarket",
-        severity: "good",
-        title: `Likely JoinMarket CoinJoin: ${joinmarket.equalCount} equal outputs of ${formatBtc(joinmarket.denomination)}`,
-        params: { count: joinmarket.equalCount, denomination: formatBtc(joinmarket.denomination), vin: tx.vin.length, vout: spendableOutputs.length },
-        description:
-          `This transaction has ${tx.vin.length} inputs from ${joinmarket.distinctInputAddresses} distinct addresses and ` +
-          `${joinmarket.equalCount} outputs with the same value (${formatBtc(joinmarket.denomination)}), ` +
-          "consistent with a JoinMarket CoinJoin using the maker/taker model. " +
-          "JoinMarket provides privacy by combining inputs from multiple participants into a single transaction, " +
-          "making it difficult to determine which input funded which output.",
-        recommendation:
-          "JoinMarket provides good privacy through its decentralized maker/taker model. " +
-          "For stronger privacy, consider multiple rounds of mixing. " +
-          EXCHANGE_WARNING,
-        scoreImpact: 15,
-      });
-    }
-  }
-
-  // Check for Stonewall pattern: steganographic CoinJoin (Samourai Wallet)
-  // Only check if no other CoinJoin was detected
+  // Check for Stonewall pattern first: steganographic CoinJoin (Samourai Wallet)
+  // Stonewall is the most specific small CoinJoin pattern (exactly 4 outputs,
+  // 2-3 inputs, 1 equal pair + 2 distinct change) and must be checked before
+  // JoinMarket to avoid misattribution.
   if (findings.length === 0) {
     const stonewall = detectStonewall(tx.vin, spendableOutputs);
     if (stonewall) {
@@ -163,6 +140,31 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
         recommendation:
           "Stonewall transactions provide real privacy by creating doubt about the payment amount and fund ownership. " +
           "For stronger privacy, combine with Whirlpool mixing before spending. " +
+          EXCHANGE_WARNING,
+        scoreImpact: 15,
+      });
+    }
+  }
+
+  // Check for JoinMarket pattern: small-scale CoinJoin with maker/taker model
+  // Only check if no other CoinJoin was detected (Stonewall already checked above)
+  if (findings.length === 0) {
+    const joinmarket = detectJoinMarket(tx.vin, spendableOutputs);
+    if (joinmarket) {
+      findings.push({
+        id: "h4-joinmarket",
+        severity: "good",
+        title: `Likely JoinMarket CoinJoin: ${joinmarket.equalCount} equal outputs of ${formatBtc(joinmarket.denomination)}`,
+        params: { count: joinmarket.equalCount, denomination: formatBtc(joinmarket.denomination), vin: tx.vin.length, vout: spendableOutputs.length },
+        description:
+          `This transaction has ${tx.vin.length} inputs from ${joinmarket.distinctInputAddresses} distinct addresses and ` +
+          `${joinmarket.equalCount} outputs with the same value (${formatBtc(joinmarket.denomination)}), ` +
+          "consistent with a JoinMarket CoinJoin using the maker/taker model. " +
+          "JoinMarket provides privacy by combining inputs from multiple participants into a single transaction, " +
+          "making it difficult to determine which input funded which output.",
+        recommendation:
+          "JoinMarket provides good privacy through its decentralized maker/taker model. " +
+          "For stronger privacy, consider multiple rounds of mixing. " +
           EXCHANGE_WARNING,
         scoreImpact: 15,
       });
