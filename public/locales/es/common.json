@@ -307,7 +307,7 @@
   "finding.h4-whirlpool.description": "Esto coincide con un patron de Whirlpool CoinJoin: 5 salidas iguales en una cantidad estandar. Whirlpool rompe la conexion entre tus entradas y salidas, dando fuerte privacidad.",
   "finding.h4-whirlpool.recommendation": "Whirlpool es una de las implementaciones más fuertes de CoinJoin. Asegúrate de también remezclar (múltiples rondas) para máxima privacidad.",
   "finding.h4-whirlpool.title": "Whirlpool CoinJoin detectado (pool {{denom}})",
-  "finding.h5-entropy.description": "Esta transaccion tiene {{entropy}} bits de entropia, lo que significa que hay ~{{interpretations}} formas posibles en que los fondos pudieron fluir. Mas posibilidades = mas dificil de rastrear.",
+  "finding.h5-entropy.description": "Esta transaccion tiene {{entropy}} bits de entropia, lo que significa que hay ~{{interpretations}} formas posibles en que los fondos pudieron fluir. Mas posibilidades = mas dificil de rastrear. Entropia por UTXO: {{entropyPerUtxo}} bits ({{nUtxos}} UTXOs).",
   "finding.h5-entropy.recommendation_high": "Buen nivel de entropía. Las transacciones CoinJoin pueden lograr entropía aún mayor.",
   "finding.h5-entropy.recommendation_low": "Considera usar CoinJoin para hacer tus transacciones mas dificiles de rastrear.",
   "finding.h5-entropy.title": "Entropía de transacción: {{entropy}} bits",

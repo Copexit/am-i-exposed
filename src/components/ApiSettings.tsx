@@ -195,7 +195,7 @@ export function ApiSettings() {
           onClick={() => setOpen(false)}
           aria-hidden="true"
         />
-        <div ref={panelRef} role="dialog" aria-modal="true" aria-label={t("settings.ariaLabel", { defaultValue: "Settings" })} className="fixed inset-x-0 bottom-0 sm:bottom-auto sm:top-[72px] rounded-t-2xl sm:rounded-xl mx-0 sm:absolute sm:inset-x-auto sm:right-4 sm:mx-0 sm:mt-2 sm:w-96 z-[60] p-4 space-y-4 max-h-[70dvh] sm:max-h-[80vh] overflow-y-auto border border-glass-border" style={{ background: "var(--card-bg)", boxShadow: "var(--glass-shadow)" }}>
+        <div ref={panelRef} role="dialog" aria-modal="true" aria-label={t("settings.ariaLabel", { defaultValue: "Settings" })} className="fixed inset-x-0 bottom-0 sm:bottom-auto sm:top-[72px] rounded-t-2xl sm:rounded-xl mx-0 sm:inset-x-auto sm:right-4 sm:mx-0 sm:mt-2 sm:w-96 z-[60] p-4 space-y-4 max-h-[70dvh] sm:max-h-[80vh] overflow-y-auto border border-glass-border" style={{ background: "var(--card-bg)", boxShadow: "var(--glass-shadow)" }}>
 
           {/* Mobile drag handle */}
           <div className="flex justify-center sm:hidden pb-2">
