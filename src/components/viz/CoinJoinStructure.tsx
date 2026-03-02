@@ -47,7 +47,7 @@ interface TooltipData {
 
 const NODE_WIDTH = 14;
 const NODE_PADDING = 10;
-const MAX_DISPLAY = 10;
+const MAX_DISPLAY = 50;
 
 export function CoinJoinStructure({ tx, findings, onAddressClick }: CoinJoinStructureProps) {
   const { t } = useTranslation();

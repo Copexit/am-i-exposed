@@ -44,7 +44,7 @@ describe("analyzeTransaction", () => {
 
     const wf = result.findings.find((f) => f.id === "h11-wallet-fingerprint");
     expect(wf).toBeDefined();
-    expect(wf!.params?.walletGuess).toBe("Bitcoin Core");
+    expect(wf!.params?.walletGuess).toBe("Bitcoin Core / Sparrow");
   });
 });
 

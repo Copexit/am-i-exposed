@@ -68,6 +68,19 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
     const { count: validMappings, truncated } = countValidMappings(inputs, outputs);
     entropyBits = validMappings > 1 ? Math.log2(validMappings) : 0;
     method = truncated ? "lower-bound estimate" : "exact enumeration";
+
+    // The one-to-one assignment model can return 0 when no single input can
+    // cover an output alone (e.g., Stonewall: 3 inputs, 2 equal outputs at
+    // 104k sats but no input >= 104k*2). In the many-to-many Boltzmann model,
+    // equal-value outputs still create real ambiguity. Fall back to
+    // equal-output permutation entropy as a conservative lower bound.
+    if (entropyBits <= 0) {
+      const permEntropy = equalOutputPermutationEntropy(outputs);
+      if (permEntropy > 0) {
+        entropyBits = permEntropy;
+        method = "equal-output permutation";
+      }
+    }
   } else {
     entropyBits = estimateEntropy(inputs, outputs);
     method = "structural estimate";
@@ -364,6 +377,24 @@ function countValidMappings(inputs: number[], outputs: number[]): { count: numbe
   count = Math.round(count / duplicateFactor);
 
   return { count: Math.max(count, 1), truncated: iterations > limit };
+}
+
+/**
+ * Compute entropy from equal-output permutations as a lower bound.
+ * If outputs contain groups of equal values, swapping them creates
+ * indistinguishable interpretations: log2(k!) for the largest group of k.
+ */
+function equalOutputPermutationEntropy(outputs: number[]): number {
+  const counts = new Map<number, number>();
+  for (const v of outputs) {
+    counts.set(v, (counts.get(v) ?? 0) + 1);
+  }
+  let maxGroup = 0;
+  for (const c of counts.values()) {
+    if (c > maxGroup) maxGroup = c;
+  }
+  if (maxGroup < 2) return 0;
+  return Math.log2(factorial(maxGroup));
 }
 
 /**

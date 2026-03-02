@@ -15,10 +15,10 @@ describe("analyzeWalletFingerprint", () => {
     expect(f!.params?.walletGuess).toBe("Bitcoin Core / Sparrow");
   });
 
-  it("detects BIP69 ordering with >= 3 in/out -> Electrum, impact -6", () => {
-    // BIP69: inputs sorted by txid asc then vout asc, outputs sorted by value asc then scriptpubkey asc
+  it("detects BIP69 + allMax + locktime=0 -> Samourai, impact -6", () => {
+    // BIP69 + nSequence=0xffffffff + locktime=0 is the Samourai Wallet pattern
     const tx = makeTx({
-      locktime: 0, // no nLockTime signal
+      locktime: 0,
       vin: [
         makeVin({ txid: "a".repeat(64), vout: 0, sequence: 0xffffffff }),
         makeVin({ txid: "b".repeat(64), vout: 0, sequence: 0xffffffff }),
@@ -33,11 +33,34 @@ describe("analyzeWalletFingerprint", () => {
     const { findings } = analyzeWalletFingerprint(tx);
     const f = findings.find((f) => f.id === "h11-wallet-fingerprint");
     expect(f).toBeDefined();
+    expect(f!.params?.walletGuess).toBe("Samourai");
+    expect(f!.scoreImpact).toBe(-6);
+  });
+
+  it("detects BIP69 + non-legacy sequence -> Electrum, impact -6", () => {
+    // BIP69 with RBF sequence (0xfffffffd) and locktime=0 falls through to Electrum
+    // (the Samourai branch requires allMax=true i.e. 0xffffffff)
+    const tx = makeTx({
+      locktime: 0,
+      vin: [
+        makeVin({ txid: "a".repeat(64), vout: 0, sequence: 0xfffffffd }),
+        makeVin({ txid: "b".repeat(64), vout: 0, sequence: 0xfffffffd }),
+        makeVin({ txid: "c".repeat(64), vout: 0, sequence: 0xfffffffd }),
+      ],
+      vout: [
+        makeVout({ value: 10_000, scriptpubkey: "0014" + "a".repeat(40) }),
+        makeVout({ value: 20_000, scriptpubkey: "0014" + "b".repeat(40) }),
+        makeVout({ value: 30_000, scriptpubkey: "0014" + "c".repeat(40) }),
+      ],
+    });
+    const { findings } = analyzeWalletFingerprint(tx);
+    const f = findings.find((f) => f.id === "h11-wallet-fingerprint");
+    expect(f).toBeDefined();
     expect(f!.params?.walletGuess).toBe("Electrum");
     expect(f!.scoreImpact).toBe(-6);
   });
 
-  it("detects Low-R signatures from rawHex -> Bitcoin Core, impact -6", () => {
+  it("detects Low-R signatures from rawHex -> Bitcoin Core / Sparrow, impact -3", () => {
     // Build a rawHex with DER sigs where R-length = 0x20 (32 bytes) for all inputs
     // DER: 30 [total-len] 02 20 [32-byte-R] 02 [slen] [S]
     const rBytes = "00".repeat(32);
@@ -54,8 +77,8 @@ describe("analyzeWalletFingerprint", () => {
     const { findings } = analyzeWalletFingerprint(tx, rawHex);
     const f = findings.find((f) => f.id === "h11-wallet-fingerprint");
     expect(f).toBeDefined();
-    expect(f!.params?.walletGuess).toBe("Bitcoin Core");
-    expect(f!.scoreImpact).toBe(-6);
+    expect(f!.params?.walletGuess).toBe("Bitcoin Core / Sparrow");
+    expect(f!.scoreImpact).toBe(-3);
   });
 
   it("returns impact -4 for 3+ signals without wallet guess", () => {

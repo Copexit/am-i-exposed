@@ -124,13 +124,15 @@ describe("analyzeCoinJoin", () => {
   // ── JoinMarket ───────────────────────────────────────────────────────
 
   it("detects JoinMarket (2-4 equal, distinct addrs, 2-10 vin, 3-8 vout), impact +15", () => {
+    // Use 5 outputs to avoid Stonewall pattern (which requires exactly 4 outputs)
     const tx = makeTx({
-      vin: makeDistinctVins(3),
+      vin: makeDistinctVins(4),
       vout: [
         makeVout({ value: 500_000, scriptpubkey_address: "bc1qjm1_0000000000000000000000000000000000" }),
         makeVout({ value: 500_000, scriptpubkey_address: "bc1qjm2_0000000000000000000000000000000000" }),
         makeVout({ value: 300_000 }), // change 1
         makeVout({ value: 200_000 }), // change 2
+        makeVout({ value: 100_000 }), // change 3
       ],
     });
     const { findings } = analyzeCoinJoin(tx);

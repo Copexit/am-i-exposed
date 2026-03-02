@@ -200,21 +200,29 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
         f.params = { ...f.params, context: "coinjoin" };
         f.scoreImpact = 0;
       }
+      // Low entropy is unreliable for CoinJoin structures - the one-to-one
+      // assignment model doesn't capture many-to-many Boltzmann ambiguity
+      if (f.id === "h5-low-entropy") {
+        f.severity = "low";
+        f.params = { ...f.params, context: "coinjoin" };
+        f.scoreImpact = 0;
+      }
       // Wallet fingerprint is less relevant for CoinJoin - but we can infer the wallet
       // from the CoinJoin type detected by H4
       if (f.id === "h11-wallet-fingerprint") {
         f.severity = "low";
-        // Infer wallet from CoinJoin type if not already identified
-        if (!f.params?.walletGuess) {
-          const isWabiSabi = findings.some(
-            (x) => x.id === "h4-coinjoin" && x.params?.isWabiSabi === 1,
-          );
-          const isWhirlpool = findings.some((x) => x.id === "h4-whirlpool");
-          if (isWabiSabi) {
-            f.params = { ...f.params, walletGuess: "Wasabi Wallet" };
-          } else if (isWhirlpool) {
-            f.params = { ...f.params, walletGuess: "Samourai/Sparrow" };
-          }
+        // Infer wallet from CoinJoin type
+        const isWabiSabi = findings.some(
+          (x) => x.id === "h4-coinjoin" && x.params?.isWabiSabi === 1,
+        );
+        const isWhirlpool = findings.some((x) => x.id === "h4-whirlpool");
+        const isStonewall = findings.some((x) => x.id === "h4-stonewall");
+        if (isWabiSabi) {
+          f.params = { ...f.params, walletGuess: "Wasabi Wallet" };
+        } else if (isWhirlpool) {
+          f.params = { ...f.params, walletGuess: "Samourai/Sparrow" };
+        } else if (isStonewall) {
+          f.params = { ...f.params, walletGuess: "Samourai" };
         }
         // Compose context: identified (if wallet known) or signals variant + coinjoin
         const hasWallet = !!f.params?.walletGuess;

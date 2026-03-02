@@ -49,7 +49,7 @@ interface TooltipData {
 }
 
 // Margins are computed per-render based on width (see FlowChart)
-const MAX_DISPLAY = 8;
+const MAX_DISPLAY = 50;
 const NODE_WIDTH = 10;
 const NODE_PADDING = 14;
 
