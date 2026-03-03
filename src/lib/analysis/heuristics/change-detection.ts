@@ -278,8 +278,8 @@ function checkValueDisparity(
   const v1 = vout[1].value;
   const ratio = Math.max(v0, v1) / Math.min(v0, v1);
 
-  // 10x+ difference: larger output is likely change (sender's remaining funds)
-  if (ratio < 10) return;
+  // 100x+ difference: larger output is likely change (sender's remaining funds)
+  if (ratio < 100) return;
 
   if (v0 > v1) {
     changeIndices.set(0, (changeIndices.get(0) ?? 0) + 1);

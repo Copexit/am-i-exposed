@@ -122,11 +122,11 @@ for each output:
 
 **Sub-heuristic 2d: Value disparity**
 
-In a 2-output transaction, if one output is 10x or more larger than the other, the larger output is likely change (payments are typically smaller than the sender's total holdings). This complements round-amount detection and catches cases where neither output is round but the magnitude difference is telling.
+In a 2-output transaction, if one output is 100x or more larger than the other, the larger output is likely change (payments are typically smaller than the sender's total holdings). This complements round-amount detection and catches cases where neither output is round but the magnitude difference is telling.
 
 ```
 ratio = max(output[0].value, output[1].value) / min(output[0].value, output[1].value)
-if ratio >= 10:
+if ratio >= 100:
   // The larger output is likely change; the smaller is likely payment.
 ```
 
