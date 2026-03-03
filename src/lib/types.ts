@@ -5,6 +5,7 @@ export type AddressType = "p2pkh" | "p2sh" | "p2wpkh" | "p2wsh" | "p2tr" | "unkn
 export type Severity = "critical" | "high" | "medium" | "low" | "good";
 
 export interface Remediation {
+  qualifier?: string;
   steps: string[];
   tools?: { name: string; url: string }[];
   urgency: "immediate" | "soon" | "when-convenient";

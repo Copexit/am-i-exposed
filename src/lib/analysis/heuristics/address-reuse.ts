@@ -144,11 +144,12 @@ export const analyzeAddressReuse: AddressHeuristic = (address, _utxos, txs) => {
           "Send remaining funds to a new address using coin control. For stronger unlinking, use CoinJoin - but note that some exchanges may flag CoinJoin transactions.",
         scoreImpact: impact,
         remediation: {
+          qualifier: "If you are the owner of this address:",
           steps: [
             "Stop using this address immediately - do not share it again for any future receives.",
             "Generate a fresh receive address in your wallet (HD wallets do this automatically).",
-            "Move remaining funds to a new address using coin control. When possible, spend exact amounts to avoid creating change outputs.",
-            "For stronger unlinking, use CoinJoin to break the link to your transaction history - but note that some exchanges may flag CoinJoin deposits.",
+            "Spend remaining UTXOs individually - do not consolidate them into one transaction, as that creates additional linkage.",
+            "Existing transaction history on a reused address cannot be unlinked. For future privacy, use CoinJoin before spending to break forward-tracing - but note that some exchanges may flag CoinJoin deposits.",
           ],
           tools: [
             { name: "Sparrow Wallet", url: "https://sparrowwallet.com" },

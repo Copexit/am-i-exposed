@@ -177,7 +177,7 @@ function CoinJoinChart({
       const vout = tx.vout.find((v) => v.value === val);
       outputNodes.push({
         id: `other-${i}`,
-        label: vout?.scriptpubkey_address ? truncateId(vout.scriptpubkey_address, 5) : formatSats(val, i18n.language),
+        label: vout?.scriptpubkey_address ? truncateId(vout.scriptpubkey_address, 5) : (vout?.scriptpubkey_type === "op_return" ? "OP_RETURN" : formatSats(val, i18n.language)),
         fullAddress: vout?.scriptpubkey_address,
         value: Math.max(val, 1),
         side: "output",
@@ -312,7 +312,8 @@ function CoinJoinChart({
 
                 const labelX = isInput ? n.x0 - 6 : n.x1 + 6;
                 const labelAnchor = isInput ? "end" : "start";
-                const labelMaxWidth = isInput ? n.x0 - 4 : innerWidth - n.x1 - 4;
+                // Labels render in the margin area, so use margin width (not node position)
+                const labelMaxWidth = isInput ? MARGIN.left - 8 : MARGIN.right - 8;
 
                 return (
                   <Group key={n.id}>
@@ -397,7 +398,7 @@ function CoinJoinChart({
                     {!isMixer && labelMaxWidth > 30 && (
                       <Text
                         x={labelX}
-                        y={n.y0 + nodeHeight / 2}
+                        y={n.y0 + nodeHeight / 2 - (nodeHeight > 14 && !isTier ? 6 : 0)}
                         textAnchor={labelAnchor}
                         verticalAnchor="middle"
                         fontSize={11}
@@ -408,6 +409,22 @@ function CoinJoinChart({
                         onClick={() => { if (n.fullAddress && onAddressClick) onAddressClick(n.fullAddress); }}
                       >
                         {n.label}
+                      </Text>
+                    )}
+
+                    {/* Value label below address for inputs and non-tier outputs */}
+                    {!isMixer && !isTier && nodeHeight > 14 && labelMaxWidth > 30 && (
+                      <Text
+                        x={labelX}
+                        y={n.y0 + nodeHeight / 2 + 8}
+                        textAnchor={labelAnchor}
+                        verticalAnchor="middle"
+                        fontSize={10}
+                        fill={SVG_COLORS.muted}
+                        style={{ cursor: isClickable ? "pointer" : "default" }}
+                        onClick={() => { if (n.fullAddress && onAddressClick) onAddressClick(n.fullAddress); }}
+                      >
+                        {formatSats(n.value, i18n.language)}
                       </Text>
                     )}
                   </Group>

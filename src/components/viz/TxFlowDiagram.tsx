@@ -30,6 +30,8 @@ interface NodeDatum extends SankeyExtraProperties {
   side: "input" | "output" | "fee";
   annotation?: string;
   annotationColor?: string;
+  annotationReason?: string;
+  annotationFindingId?: string;
   anonSet?: number;
   anonColor?: string;
 }
@@ -45,6 +47,7 @@ interface TooltipData {
   value: number;
   side: string;
   annotation?: string;
+  annotationReason?: string;
   lang: string;
 }
 
@@ -104,37 +107,54 @@ function FlowChart({
     useChartTooltip<TooltipData>();
 
   // Change detection: findings-driven, self-address fallback
-  const changeOutputIndices = useMemo(() => {
-    const indices = new Set<number>();
+  // Maps vout index -> { findingId, reason } for annotation rendering
+  const changeOutputMap = useMemo(() => {
+    const map = new Map<number, { findingId: string; reason: string }>();
 
     if (findings) {
       for (const f of findings) {
         // H2 heuristic-detected change (address type mismatch, round amounts)
         if (f.id === "h2-change-detected" && f.params?.["changeIndex"] != null) {
-          indices.add(Number(f.params["changeIndex"]));
+          // Use signalKeys param for locale-aware reason text
+          const signalKeyMap: Record<string, string> = {
+            address_type: t("viz.flow.changeAddressType", { defaultValue: "address type match" }),
+            round_amount: t("viz.flow.changeRoundAmount", { defaultValue: "round amount" }),
+            value_disparity: t("viz.flow.changeValueDisparity", { defaultValue: "value disparity" }),
+            unnecessary_input: t("viz.flow.changeUnnecessaryInput", { defaultValue: "unnecessary inputs" }),
+          };
+          const keys = String(f.params["signalKeys"] ?? "").split(",").filter(Boolean);
+          const reason = keys.map((k) => signalKeyMap[k] ?? k).join(", ")
+            || t("viz.flow.changeAddressType", { defaultValue: "address type match" });
+          map.set(Number(f.params["changeIndex"]), { findingId: f.id, reason });
         }
         // Self-send detection: outputs going back to input addresses
         if (f.id === "h2-self-send" && f.params?.["selfSendIndices"]) {
+          const reason = t("viz.flow.changeSelfSend", { defaultValue: "sent to input address" });
           for (const idx of String(f.params["selfSendIndices"]).split(",")) {
-            indices.add(Number(idx));
+            map.set(Number(idx), { findingId: f.id, reason });
           }
         }
       }
     }
 
     // Fallback: self-address matching (for when no H2 findings exist)
-    if (indices.size === 0) {
+    if (map.size === 0) {
       const inputAddrs = new Set(
         tx.vin.map((v) => v.prevout?.scriptpubkey_address).filter(Boolean) as string[],
       );
       for (let i = 0; i < tx.vout.length; i++) {
         const a = tx.vout[i].scriptpubkey_address;
-        if (a && inputAddrs.has(a)) indices.add(i);
+        if (a && inputAddrs.has(a)) {
+          map.set(i, {
+            findingId: "h2-self-send",
+            reason: t("viz.flow.changeSelfSend", { defaultValue: "sent to input address" }),
+          });
+        }
       }
     }
 
-    return indices;
-  }, [tx, findings]);
+    return map;
+  }, [tx, findings, t]);
 
   // Anon set computation
   const anonSets = useMemo(() => {
@@ -215,10 +235,15 @@ function FlowChart({
 
       let annotation: string | undefined;
       let annotationColor: string | undefined;
+      let annotationReason: string | undefined;
+      let annotationFindingId: string | undefined;
 
-      if (changeOutputIndices.has(i)) {
+      const changeInfo = changeOutputMap.get(i);
+      if (changeInfo) {
         annotation = t("viz.flow.change", { defaultValue: "change" });
         annotationColor = SEVERITY_HEX.high;
+        annotationReason = changeInfo.reason;
+        annotationFindingId = changeInfo.findingId;
       } else if (dustOutputIndices.has(i)) {
         annotation = t("viz.flow.dust", { defaultValue: "dust" });
         annotationColor = SEVERITY_HEX.critical;
@@ -234,6 +259,8 @@ function FlowChart({
         side: "output",
         annotation,
         annotationColor,
+        annotationReason,
+        annotationFindingId,
         anonSet: anonCount >= 2 ? anonCount : undefined,
         anonColor,
       });
@@ -281,7 +308,7 @@ function FlowChart({
 
     const g: SankeyGraph<NodeDatum, LinkDatum> = { nodes, links };
     return { graph: g, hiddenInputCount: hiddenIn, hiddenOutputCount: hiddenOut };
-  }, [tx, showAllInputs, showAllOutputs, changeOutputIndices, dustOutputIndices, anonSets, t]);
+  }, [tx, showAllInputs, showAllOutputs, changeOutputMap, dustOutputIndices, anonSets, t]);
 
   const marginH = width < 500 ? 80 : 130;
   const MARGIN = { top: 8, right: marginH, bottom: 8, left: marginH };
@@ -301,6 +328,7 @@ function FlowChart({
         value: n.value,
         side: n.side,
         annotation: n.annotation,
+        annotationReason: n.annotationReason,
         lang: i18n.language,
       },
       tooltipLeft: elemRect.left - containerRect.left + elemRect.width / 2,
@@ -427,7 +455,7 @@ function FlowChart({
                     {/* Address label - clickable when address exists */}
                     <Text
                       x={labelX}
-                      y={n.y0 + nh / 2 - (nh > 20 ? 6 : 0)}
+                      y={n.y0 + nh / 2 - (nh > 10 ? 6 : 0)}
                       textAnchor={labelAnchor}
                       verticalAnchor="middle"
                       fontSize={11}
@@ -440,7 +468,7 @@ function FlowChart({
                     </Text>
 
                     {/* Value label */}
-                    {nh > 20 && (
+                    {nh > 10 && (
                       <Text
                         x={labelX}
                         y={n.y0 + nh / 2 + 8}
@@ -455,16 +483,23 @@ function FlowChart({
                       </Text>
                     )}
 
-                    {/* Annotation badge (change, dust) */}
+                    {/* Annotation badge (change, dust) - clickable to scroll to finding */}
                     {n.annotation && !isInput && (
                       <Text
                         x={labelX}
-                        y={n.y0 + nh / 2 + (nh > 20 ? 20 : 10)}
+                        y={n.y0 + nh / 2 + (nh > 10 ? 20 : 10)}
                         textAnchor={labelAnchor}
                         verticalAnchor="middle"
                         fontSize={9}
                         fontWeight="bold"
                         fill={n.annotationColor ?? SVG_COLORS.high}
+                        style={{ cursor: n.annotationFindingId ? "pointer" : "default" }}
+                        onClick={() => {
+                          if (n.annotationFindingId) {
+                            const el = document.querySelector(`[data-finding-id="${n.annotationFindingId}"]`);
+                            if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                          }
+                        }}
                       >
                         {n.annotation}
                       </Text>
@@ -474,7 +509,7 @@ function FlowChart({
                     {!isInput && n.anonSet && n.anonSet >= 2 && !n.annotation && (
                       <Text
                         x={labelX}
-                        y={n.y0 + nh / 2 + (nh > 20 ? 20 : 10)}
+                        y={n.y0 + nh / 2 + (nh > 10 ? 20 : 10)}
                         textAnchor={labelAnchor}
                         verticalAnchor="middle"
                         fontSize={10}
@@ -505,6 +540,11 @@ function FlowChart({
             {tooltipData.annotation && (
               <p className="text-xs font-bold" style={{ color: SVG_COLORS.high }}>
                 {tooltipData.annotation}
+                {tooltipData.annotationReason && (
+                  <span className="font-normal" style={{ color: SVG_COLORS.muted }}>
+                    {" - "}{tooltipData.annotationReason}
+                  </span>
+                )}
               </p>
             )}
           </div>

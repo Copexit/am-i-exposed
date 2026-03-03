@@ -178,7 +178,8 @@ describe("analyzeCoinJoin", () => {
     const sw = findings.find((f) => f.id === "h4-stonewall");
     expect(sw).toBeDefined();
     expect(sw!.scoreImpact).toBe(15);
-    expect(findings.find((f) => f.id === "h4-exchange-flagging")).toBeDefined();
+    // Stonewall is steganographic - no exchange flagging warning
+    expect(findings.find((f) => f.id === "h4-exchange-flagging")).toBeUndefined();
   });
 
   it("does not detect Stonewall when equal pair goes to same address", () => {

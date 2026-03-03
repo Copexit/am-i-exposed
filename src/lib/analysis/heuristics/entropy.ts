@@ -89,7 +89,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
     }
   } else {
     entropyBits = estimateEntropy(inputs, outputs);
-    method = "structural estimate";
+    method = "multi-tier permutation estimate";
   }
 
   // Cap displayed entropy to avoid misleadingly large values from estimation.
@@ -136,11 +136,11 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
         },
         description:
           `This transaction has ${roundedEntropy} bits of entropy (via ${method}), meaning there are ` +
-          (method === "structural estimate" ? "approximately " : "") +
+          (method.includes("estimate") ? "approximately " : "") +
           (displayEntropy > 40
             ? `~2^${Math.round(displayEntropy)} `
             : `~${Math.round(Math.pow(2, displayEntropy)).toLocaleString()} `) +
-          (method === "structural estimate" ? "possible" : "valid") +
+          (method.includes("estimate") ? "possible" : "valid") +
           " interpretations of the fund flow. Higher entropy makes chain analysis less reliable." +
           ` Entropy per UTXO: ${Math.round((entropyBits / (inputs.length + outputs.length)) * 1000) / 1000} bits (${inputs.length + outputs.length} UTXOs).`,
         recommendation:
@@ -389,33 +389,55 @@ function countValidMappings(inputs: number[], outputs: number[]): { count: numbe
 }
 
 /**
- * Estimate entropy for large mixed-value transactions based on equal-output patterns.
+ * Estimate per-participant entropy for large multi-denomination transactions
+ * (e.g., WabiSabi CoinJoins) using weighted-average permutation entropy.
+ *
+ * Each denomination tier (group of k equal-value outputs) is treated as a
+ * mini-CoinJoin. Within a tier, k! permutations are valid (swapping equal-
+ * valued columns preserves the flow matrix). This gives log2(k!) bits of
+ * per-tier entropy.
+ *
+ * The weighted average across tiers (weighted by tier size) represents the
+ * expected entropy for a randomly chosen participant. This is consistent
+ * with what Boltzmann computes for single-tier CoinJoins like Whirlpool:
+ * per-participant entropy, not total transaction entropy.
+ *
+ * Only inputs with value >= the denomination are eligible to fund a tier.
+ * The effective k is min(output_count, eligible_inputs).
+ *
+ * The exact multi-denomination entropy is NP-hard (constrained subset sum).
+ * See Gavenda et al., "Analysis of Input-Output Mappings in CoinJoin
+ * Transactions with Arbitrary Values" (ESORICS 2025).
  */
 function estimateEntropy(inputs: number[], outputs: number[]): number {
-  // Count equal output groups
+  const m = inputs.length;
+  if (m <= 1) return 0;
+
+  // Count equal output groups (denomination tiers)
   const outputCounts = new Map<number, number>();
   for (const v of outputs) {
     outputCounts.set(v, (outputCounts.get(v) ?? 0) + 1);
   }
 
-  // Find largest group of equal outputs
-  let maxGroupSize = 0;
-  for (const count of outputCounts.values()) {
-    if (count > maxGroupSize) maxGroupSize = count;
+  // Compute per-tier permutation entropy, then weighted average.
+  // Weight by tier size: larger tiers contain more participants, so they
+  // contribute proportionally more to the "expected participant entropy."
+  let weightedSum = 0;
+  let totalWeight = 0;
+
+  for (const [denomination, count] of outputCounts) {
+    if (count < 2) continue;
+    const eligible = inputs.filter((v) => v >= denomination).length;
+    const k = Math.min(count, eligible, m);
+    if (k >= 2) {
+      let logFact = 0;
+      for (let i = 2; i <= k; i++) logFact += Math.log2(i);
+      weightedSum += count * logFact;
+      totalWeight += count;
+    }
   }
 
-  // For equal-output groups, use Boltzmann partition formula if feasible
-  if (maxGroupSize >= 2) {
-    const n = maxGroupSize;
-    const m = inputs.length;
-    if (m <= 1) return 0;
-    const k = Math.min(n, m);
-    if (k <= 50) {
-      const count = boltzmannEqualOutputs(k);
-      return count > 1 ? Math.log2(count) : 0;
-    }
-    return estimateBoltzmannEntropy(k);
-  }
+  if (totalWeight > 0) return weightedSum / totalWeight;
 
   // All unique outputs: entropy from input-output pairing ambiguity
   const minDim = Math.min(inputs.length, outputs.length);

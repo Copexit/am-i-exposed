@@ -10,6 +10,8 @@ import { getAddressType } from "@/lib/bitcoin/address-type";
  * 1. Self-send: output address matches an input address (critical)
  * 2. Address type mismatch: change usually matches input address type
  * 3. Round payment: the non-round output is likely change
+ * 4. Value disparity: if one output is 10x+ larger, larger is likely change
+ * 5. Unnecessary input: if one input alone could fund a payment, extra inputs reveal change
  *
  * When change is identifiable, the payment amount and direction are revealed.
  *
@@ -129,6 +131,12 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
   // Sub-heuristic 2: Round amount
   checkRoundAmount(spendableOutputs, changeIndices, signals);
 
+  // Sub-heuristic 3: Value disparity (10x+ difference)
+  checkValueDisparity(spendableOutputs, changeIndices, signals);
+
+  // Sub-heuristic 4: Unnecessary input (one input could fund payment alone)
+  checkUnnecessaryInput(tx.vin, spendableOutputs, tx.fee, changeIndices, signals);
+
   if (signals.length === 0) return { findings };
 
   // Check if signals agree on which output is change
@@ -167,6 +175,13 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
       signalCount: signals.length,
       confidence,
       ...(changeVoutIdx !== undefined ? { changeIndex: changeVoutIdx } : {}),
+      signalKeys: signals.map((s) =>
+        s.includes("address type") ? "address_type"
+          : s.includes("round") ? "round_amount"
+          : s.includes("disparity") ? "value_disparity"
+          : s.includes("unnecessary") ? "unnecessary_input"
+          : "unknown",
+      ).join(","),
     },
     description:
       `${signals.length} sub-heuristic${signals.length > 1 ? "s" : ""} point to a likely change output: ${signals.join("; ")}. ` +
@@ -252,4 +267,57 @@ function isRound(sats: number): boolean {
   if (sats % 100_000 === 0) return true;
   if (sats % 10_000 === 0) return true;
   return false;
+}
+
+function checkValueDisparity(
+  vout: MempoolVout[],
+  changeIndices: Map<number, number>,
+  signals: string[],
+) {
+  const v0 = vout[0].value;
+  const v1 = vout[1].value;
+  const ratio = Math.max(v0, v1) / Math.min(v0, v1);
+
+  // 10x+ difference: larger output is likely change (sender's remaining funds)
+  if (ratio < 10) return;
+
+  if (v0 > v1) {
+    changeIndices.set(0, (changeIndices.get(0) ?? 0) + 1);
+    signals.push("large value disparity between outputs");
+  } else {
+    changeIndices.set(1, (changeIndices.get(1) ?? 0) + 1);
+    signals.push("large value disparity between outputs");
+  }
+}
+
+function checkUnnecessaryInput(
+  vin: MempoolVin[],
+  vout: MempoolVout[],
+  fee: number,
+  changeIndices: Map<number, number>,
+  signals: string[],
+) {
+  // Need multiple inputs for this heuristic
+  if (vin.length < 2) return;
+
+  let largestInput = 0;
+  for (const v of vin) {
+    const val = v.prevout?.value ?? 0;
+    if (val > largestInput) largestInput = val;
+  }
+
+  // Check if each output could have been funded by the largest input alone
+  const out0Fundable = vout[0].value + fee <= largestInput;
+  const out1Fundable = vout[1].value + fee <= largestInput;
+
+  // If exactly one output is fundable by a single input, it's likely the payment
+  // (the wallet didn't need the extra inputs for that output)
+  if (out0Fundable && !out1Fundable) {
+    // Output 0 could be paid by one input; output 1 needed extras -> output 1 is change
+    changeIndices.set(1, (changeIndices.get(1) ?? 0) + 1);
+    signals.push("unnecessary inputs suggest change");
+  } else if (out1Fundable && !out0Fundable) {
+    changeIndices.set(0, (changeIndices.get(0) ?? 0) + 1);
+    signals.push("unnecessary inputs suggest change");
+  }
 }

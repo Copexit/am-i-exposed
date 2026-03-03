@@ -248,6 +248,12 @@ function StructuredRemediation({ remediation, findingId, findingTitle, findingPa
         </span>
       </div>
 
+      {remediation.qualifier && (
+        <p className="text-sm text-foreground/70 italic">
+          {t(`remediation.${findingId}.qualifier`, { defaultValue: remediation.qualifier })}
+        </p>
+      )}
+
       <ol className="space-y-1.5 pl-4">
         {remediation.steps.map((step, i) => (
           <li key={i} className="text-base text-muted leading-relaxed list-decimal">

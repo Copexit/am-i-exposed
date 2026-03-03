@@ -60,7 +60,7 @@ describe("golden test cases - transactions", () => {
     ["Taproot + OP_RETURN", taprootOpReturnTx, "C", 57],
     ["Bare multisig", bareMultisigTx, "F", 19],
     ["OP_RETURN charley loves heidi", opReturnCharleyTx, "D", 45],
-    ["Simple legacy P2PKH", simpleLegacyTx, "C", 65],
+    ["Simple legacy P2PKH", simpleLegacyTx, "C", 60],
     ["Batch withdrawal 143 outputs", batchWithdrawalTx, "C", 63],
     ["Dust attack 555 sats", dustAttackTx, "D", 37],
     ["Taproot script-path spend", taprootScriptPathTx, "C", 56],

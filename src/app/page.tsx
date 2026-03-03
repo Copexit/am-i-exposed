@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import { ShieldCheck, ShieldX, AlertCircle, ArrowLeft, EyeOff, Github } from "lucide-react";
@@ -198,10 +198,20 @@ export default function Home() {
   const { localApiStatus } = useNetwork();
   const initialHashProcessed = useRef(false);
 
+  // Detect if initial URL has a hash so we can suppress the landing flash
+  const [pendingHash, setPendingHash] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const hash = window.location.hash.slice(1);
+    if (!hash) return false;
+    const params = new URLSearchParams(hash);
+    return !!(params.get("tx") ?? params.get("addr") ?? params.get("check"));
+  });
+
   useEffect(() => {
     function handleHash() {
       const hash = window.location.hash.slice(1);
       if (!hash) {
+        setPendingHash(false);
         resetRef.current();
         return;
       }
@@ -215,6 +225,7 @@ export default function Home() {
       const input = txid ?? addr ?? check;
       if (input) {
         analyzeRef.current(input);
+        setPendingHash(false);
       }
     }
 
@@ -270,7 +281,7 @@ export default function Home() {
     <div className="flex-1 flex flex-col items-center justify-center px-3 sm:px-4 py-4 sm:py-6">
       <div className="sr-only" role="status" aria-live="polite">{ariaStatus}</div>
       <AnimatePresence mode="wait">
-        {phase === "idle" && (
+        {phase === "idle" && !pendingHash && (
           <motion.div
             key="hero"
             initial={{ opacity: 0 }}

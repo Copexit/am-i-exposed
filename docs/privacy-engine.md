@@ -108,7 +108,7 @@ for each output:
 
 If one output is a round amount and the other is not, the non-round output is likely change. This overlaps with H1 but is scored here in the context of change identification specifically.
 
-**Sub-heuristic 2c: Unnecessary input heuristic** *(not yet implemented)*
+**Sub-heuristic 2c: Unnecessary input heuristic**
 
 If a transaction has multiple inputs and a single input alone would have been sufficient to fund the payment output (plus fee), then the additional inputs are likely from the same wallet. This heuristic relies on the assumption that wallets select UTXOs automatically and sometimes include more than strictly necessary. The output that could have been funded by one input alone is likely the payment; the other output is likely change.
 
@@ -120,7 +120,17 @@ for each output:
     // The other inputs were unnecessary - they are from the same wallet.
 ```
 
-**Sub-heuristic 2d: Output ordering** *(not yet implemented)*
+**Sub-heuristic 2d: Value disparity**
+
+In a 2-output transaction, if one output is 10x or more larger than the other, the larger output is likely change (payments are typically smaller than the sender's total holdings). This complements round-amount detection and catches cases where neither output is round but the magnitude difference is telling.
+
+```
+ratio = max(output[0].value, output[1].value) / min(output[0].value, output[1].value)
+if ratio >= 10:
+  // The larger output is likely change; the smaller is likely payment.
+```
+
+**Sub-heuristic 2e: Output ordering** *(not yet implemented)*
 
 Some wallet software consistently places the change output in a specific position. Historically, many wallets placed change last (index 1 in a 2-output transaction). BIP69-compliant wallets sort outputs lexicographically, which randomizes position based on value and script. Bitcoin Core randomizes output order. A wallet that always puts change at the same index leaks information.
 

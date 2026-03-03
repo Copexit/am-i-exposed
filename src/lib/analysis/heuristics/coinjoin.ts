@@ -139,8 +139,9 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
           "The 2 equal outputs make the payment amount ambiguous, and each change output could belong to either party.",
         recommendation:
           "Stonewall transactions provide real privacy by creating doubt about the payment amount and fund ownership. " +
-          "For stronger privacy, combine with Whirlpool mixing before spending. " +
-          EXCHANGE_WARNING,
+          "Do not consolidate the change outputs together or with the equal-valued outputs. " +
+          "Spend them independently to maintain the ambiguity this transaction created. " +
+          "For stronger privacy, combine with Whirlpool mixing before spending.",
         scoreImpact: 15,
       });
     }
@@ -171,8 +172,11 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
     }
   }
 
-  // If any CoinJoin was detected, add an informational warning about exchange flagging risks
-  if (findings.length > 0) {
+  // If any CoinJoin was detected, add an informational warning about exchange flagging risks.
+  // Skip for Stonewall-only: Stonewall is steganographic (designed to look like a normal payment),
+  // so exchange flagging is unlikely and the warning would be misleading.
+  const isStonewallOnly = findings.length === 1 && findings[0].id === "h4-stonewall";
+  if (findings.length > 0 && !isStonewallOnly) {
     findings.push({
       id: "h4-exchange-flagging",
       severity: "low",

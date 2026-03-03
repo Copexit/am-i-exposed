@@ -120,6 +120,76 @@ For mixed-value transactions (non-CoinJoin), we use assignment-based enumeration
 
 ---
 
+## Multi-Denomination CoinJoin Entropy (WabiSabi)
+
+### The Problem
+
+The Boltzmann partition formula assumes ALL outputs share one value. WabiSabi CoinJoins have 30+ denomination tiers (e.g., 20 outputs at 2M sats, 19 at 33M sats, 15 at 5M sats, etc.). Applying Boltzmann to just the largest tier ignores the other 29 tiers entirely.
+
+Community feedback from Arkad (March 2026) correctly identified this flaw: per-UTXO entropy for WabiSabi was reported as lower than JoinMarket because only 20 of 279 outputs contributed to the entropy calculation.
+
+### Why Exact Computation is Infeasible
+
+The exact multi-denomination entropy computation is NP-hard (constrained subset sum problem). The definitive work is Gavenda et al., "Analysis of Input-Output Mappings in CoinJoin Transactions with Arbitrary Values" (ESORICS 2025, arXiv 2510.17284):
+
+- Their approach uses constrained subset sum with "numeric mappings" (grouping by denomination class)
+- Execution times on real Wasabi CoinJoins: 0.07 seconds to 4.4 hours
+- Even their parallelized C++ implementation cannot handle median-sized CoinJoins
+- Found 10-50% anonymity set reduction vs. naive independence assumptions
+
+Client-side computation in a browser is out of the question.
+
+### Why boltzmannEqualOutputs(k) Cannot Be Used Per-Tier
+
+A tempting approach: compute `boltzmannEqualOutputs(k)` for each denomination tier independently and sum the entropies. This is mathematically wrong for two reasons:
+
+1. **`boltzmannEqualOutputs(k)` assumes all k inputs have the same value as the outputs.** In a multi-tier transaction, inputs have heterogeneous values. Most many-to-many flows that inflate the Boltzmann count beyond k! are physically impossible (an input of 50,000 sats cannot split to partially fund two 2,097,152-sat outputs).
+
+2. **Entropy subadditivity:** H(X,Y) <= H(X) + H(Y). Treating tiers as independent and summing their entropies gives an upper bound, not a lower bound. Cross-tier input sharing creates constraints that reduce joint entropy.
+
+The overcount ratio of `boltzmannEqualOutputs(k)` vs `k!` grows explosively:
+- k=5: 1,496 vs 120 (12.5x)
+- k=10: ~9 billion vs ~3.6 million (2,504x)
+- k=20: ~9.3 * 10^27 vs ~2.4 * 10^18 (~3.8 billion x)
+
+### Our Approach: Weighted-Average Per-Tier Permutation Entropy
+
+The key insight: entropy should measure **per-participant** privacy, not total transaction ambiguity. For Whirlpool (single tier), Boltzmann already gives per-participant entropy because all participants share one pool. For WabiSabi (multiple tiers), we need an aggregate that answers the same question: "how much entropy does a typical participant get?"
+
+**Per-tier computation:** Each denomination tier of k equal-valued outputs is treated as a mini-CoinJoin. Within a tier, k! permutations are valid (swapping equal-valued columns preserves the flow matrix), giving `log2(k!)` bits of per-tier entropy.
+
+**Eligible-input constraint:** Only inputs with value >= the denomination can fund a tier one-to-one. The effective k is `min(output_count, eligible_inputs)`.
+
+**Weighted average:** The per-tier entropies are averaged, weighted by tier size (number of outputs). Larger tiers contain more participants, so they contribute proportionally more to the expected participant entropy.
+
+```
+For each tier i with k_i >= 2 equal outputs:
+  eligible_i = count of inputs with value >= denomination_i
+  effective_k_i = min(k_i, eligible_i)
+  tier_entropy_i = log2(effective_k_i!)
+
+weighted_entropy = sum(k_i * tier_entropy_i) / sum(k_i)
+```
+
+**Why not sum?** Summing across tiers answers "how hard is it to deanonymize ALL participants simultaneously?" - a useless question. No single participant benefits from all 30 tiers. An adversary targets one participant, not the whole transaction.
+
+**Why not min?** Taking the minimum (weakest tier) is too conservative. Small 2-output tiers may be coordinator change or edge cases. The weighted average represents expected privacy for a randomly chosen participant.
+
+This is labeled "multi-tier permutation estimate" in the output.
+
+### Alternative Considered: Wasabi's Anonymity Score
+
+Wasabi 2.0 replaced Boltzmann with a per-UTXO "anonymity score" based on k-anonymity counting per denomination tier. This requires client knowledge of which inputs/outputs belong to "you" - an external observer cannot compute it. Since am-i.exposed is an observer tool (not a wallet), this approach is not applicable as a primary metric. The anonymity-set heuristic already reports per-tier k-anonymity separately.
+
+### References
+
+- Gavenda et al., "Analysis of Input-Output Mappings in CoinJoin Transactions with Arbitrary Values" (ESORICS 2025, arXiv 2510.17284)
+- Wasabi Wallet Blog, "Anonymity Set vs Anonymity Score"
+- Maurer et al., "Anonymous CoinJoin Transactions with Arbitrary Values" (IEEE TrustCom 2017)
+- Ficsor et al., "WabiSabi: Centrally Coordinated CoinJoins with Variable Amounts" (2021, ePrint 2021/206)
+
+---
+
 ## Deterministic Links
 
 A deterministic link exists when an output can only be funded by one specific input (or set of inputs). CoinJoin Sudoku (Kristov Atlas) showed that even in CoinJoin transactions, some input-output links may have probability 1.0, meaning the CoinJoin provides zero privacy for those specific participants.
