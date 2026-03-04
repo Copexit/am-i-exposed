@@ -8,7 +8,7 @@ import type {
 /** Translation function passed from React layer to analysis code. */
 export type HeuristicTranslator = (key: string, options?: Record<string, unknown>) => string;
 
-export interface HeuristicResult {
+interface HeuristicResult {
   findings: Finding[];
 }
 

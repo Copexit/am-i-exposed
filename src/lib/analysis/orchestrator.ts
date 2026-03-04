@@ -321,8 +321,12 @@ export async function analyzeTransactionsForAddress(
     const allFindings: Finding[] = [];
 
     for (const heuristic of TX_HEURISTICS) {
-      const result = heuristic.fn(tx);
-      allFindings.push(...result.findings);
+      try {
+        const result = heuristic.fn(tx);
+        allFindings.push(...result.findings);
+      } catch (err) {
+        console.error(`[analyzeTransactionsForAddress] ${heuristic.id} failed:`, err);
+      }
     }
 
     applyCrossHeuristicRules(allFindings);
@@ -350,7 +354,7 @@ export async function analyzeTransactionsForAddress(
 
 // ── Pre-send destination check (H13) ────────────────────────────────────────
 
-export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
 export interface PreSendResult {
   riskLevel: RiskLevel;
@@ -377,10 +381,15 @@ export async function analyzeDestination(
   for (const heuristic of ADDRESS_HEURISTICS) {
     onStep?.(heuristic.id);
     await tick();
-    const result = heuristic.fn(address, utxos, txs);
-    allFindings.push(...result.findings);
-    const stepImpact = result.findings.reduce((s, f) => s + f.scoreImpact, 0);
-    onStep?.(heuristic.id, stepImpact);
+    try {
+      const result = heuristic.fn(address, utxos, txs);
+      allFindings.push(...result.findings);
+      const stepImpact = result.findings.reduce((s, f) => s + f.scoreImpact, 0);
+      onStep?.(heuristic.id, stepImpact);
+    } catch (err) {
+      console.error(`[analyzeDestination] ${heuristic.id} failed:`, err);
+      onStep?.(heuristic.id, 0);
+    }
   }
 
   const { chain_stats, mempool_stats } = address;

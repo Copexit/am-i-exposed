@@ -10,7 +10,7 @@
 
 export type PolicyStatus = "blocks" | "flags" | "retroactive" | "no-known-restrictions" | "defunct";
 
-export interface ExchangePolicy {
+interface ExchangePolicy {
   name: string;
   policy: PolicyStatus;
   detail: string;

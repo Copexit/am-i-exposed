@@ -22,6 +22,10 @@ export class ChartErrorBoundary extends Component<Props, State> {
     return { hasError: true };
   }
 
+  componentDidCatch(error: Error) {
+    console.error("[ChartErrorBoundary]", error);
+  }
+
   render() {
     if (this.state.hasError) {
       return this.props.fallback ?? (
