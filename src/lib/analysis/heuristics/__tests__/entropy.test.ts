@@ -85,6 +85,24 @@ describe("analyzeEntropy", () => {
     expect(findings[0].id).toBe("h5-zero-entropy");
   });
 
+  it("detects N-in-1-out sweep as zero entropy with sweep label, impact -3", () => {
+    const tx = makeTx({
+      vin: [
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qaddr1", value: 50_000 } }),
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qaddr2", value: 30_000 } }),
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qaddr3", value: 20_000 } }),
+      ],
+      vout: [makeVout({ value: 99_500 })],
+    });
+    const { findings } = analyzeEntropy(tx);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].id).toBe("h5-zero-entropy");
+    expect(findings[0].scoreImpact).toBe(-3);
+    expect(findings[0].title).toContain("sweep");
+    expect(findings[0].params?.inputCount).toBe(3);
+    expect(findings[0].remediation).toBeDefined();
+  });
+
   it("returns empty for coinbase transactions", () => {
     const tx = makeTx({
       vin: [makeCoinbaseVin()],

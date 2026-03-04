@@ -51,6 +51,41 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
     };
   }
 
+  // N-in-1-out sweep/consolidation: zero entropy, all inputs provably linked
+  if (outputs.length === 1 && inputs.length >= 2) {
+    return {
+      findings: [
+        {
+          id: "h5-zero-entropy",
+          severity: inputs.length >= 5 ? "high" : "medium",
+          title: `Zero entropy: ${inputs.length}-input sweep/consolidation`,
+          params: { inputCount: inputs.length },
+          description:
+            `This transaction consolidates ${inputs.length} inputs into a single output. ` +
+            "There is only one possible interpretation of the fund flow. " +
+            "All input addresses are now provably linked.",
+          recommendation:
+            "Consolidation transactions have zero ambiguity. For future consolidations, " +
+            "run UTXOs through a CoinJoin first to break ownership links before combining them.",
+          scoreImpact: -3,
+          remediation: {
+            steps: [
+              "The address linkage from this consolidation cannot be undone - all input addresses are now provably controlled by the same entity.",
+              "Going forward, use coin control to select specific UTXOs rather than auto-selecting.",
+              "If you need to consolidate in the future, run UTXOs through a CoinJoin first.",
+              "Consider Lightning Network for smaller payments to reduce on-chain UTXO accumulation.",
+            ],
+            tools: [
+              { name: "Sparrow Wallet (Coin Control)", url: "https://sparrowwallet.com" },
+              { name: "Wasabi Wallet (CoinJoin)", url: "https://wasabiwallet.io" },
+            ],
+            urgency: inputs.length >= 10 ? "soon" as const : "when-convenient" as const,
+          },
+        },
+      ],
+    };
+  }
+
   let entropyBits: number;
   let method: string;
 

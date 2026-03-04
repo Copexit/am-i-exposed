@@ -27,6 +27,10 @@ export interface MempoolVin {
   witness?: string[];
   is_coinbase: boolean;
   sequence: number;
+  /** ASM of the P2SH redeem script (present when spending P2SH) */
+  inner_redeemscript_asm?: string;
+  /** ASM of the P2WSH witness script (present when spending P2WSH/P2SH-P2WSH) */
+  inner_witnessscript_asm?: string;
 }
 
 export interface MempoolVout {

@@ -92,3 +92,44 @@
 | Satoshi's address | addr | 93 | F | 0 | H8 (-93), H10 (-5), H9 dust (-8), spending (-5), cold (+2) |
 | SegWit reused 88x | addr | 93 | F | 0 | H8 (-90), H9 dust (-8), H9 utxo (-3), spending (-5) |
 | Fresh Taproot (no reuse) | addr | 93 | A+ | 100 | H8 (+3), H10 (0), H9 (+2), cold (+2) |
+
+## Research References
+
+Community-provided example transactions for future heuristic development. These document on-chain patterns of P2P exchanges, sweeps, and wallet fingerprinting. Provided by community reviewer (March 2026).
+
+### 12. HodlHodl Escrow (2-of-3 Multisig)
+- **TXID:** `7723b1bba65cfe805e9dc19fd3981791bdd0984afd5d144bf78abc3bdd522577`
+- **Pattern:** P2SH (2-of-3 multisig) spend to 2 P2WPKH outputs (85,829 + 696 sats)
+- **Identifiable by:** 2-of-3 multisig structure visible in witness data when escrow is spent
+- **Privacy lesson:** Multisig escrow pattern is identifiable on-chain, links trade participants
+- https://mempool.space/tx/7723b1bba65cfe805e9dc19fd3981791bdd0984afd5d144bf78abc3bdd522577
+
+### 13. HodlHodl Escrow Release
+- **TXID:** `6a3dd5ef3972c83395499ed5128b5f62d10af35ac00c9acc74bedc5a1da53a9d`
+- **Pattern:** P2SH (2-of-3 multisig) spend to 3 P2WPKH outputs (1,100,275 + 8,959 + 995 sats)
+- **Critical:** Output address `bc1qqmmzt02nu4rqxe03se2zqpw63k0khnwq959zxq` appears in BOTH this tx and the escrow tx above - fee address reuse links independent trades
+- **Privacy lesson:** Platform fee addresses create cross-trade linkability even on non-custodial exchanges
+- https://mempool.space/tx/6a3dd5ef3972c83395499ed5128b5f62d10af35ac00c9acc74bedc5a1da53a9d
+
+### 14. Sweep / Wallet Hop (Different nLockTime)
+- **TXID:** `d41bdca5474d5405153fe9cd57163eea72f16534ea0ac0ad3fd8d46aed2e3a09`
+- **Pattern:** 1 P2WPKH input -> 1 P2WPKH output (973,702 -> 971,677 sats)
+- **Identifiable by:** Zero entropy (1-in-1-out), trivially traceable. Different nLockTime/nVersion from prior tx suggests wallet software change ("wallet hop")
+- **Privacy lesson:** Wallet hops (sending to yourself in a different wallet) provide zero unlinkability - chain analysts follow 1-in-1-out hops without difficulty
+- https://mempool.space/tx/d41bdca5474d5405153fe9cd57163eea72f16534ea0ac0ad3fd8d46aed2e3a09
+
+### Bisq Fee Addresses (Known DAO Addresses)
+- **Taker fee:** `bc1qwxsnvnt7724gg02q624q2pknaqjaaj0vff36vr` (~2,238 txs, extreme reuse, expected F)
+- **Maker fee:** `bc1qfy0hw3txwtkr6xrhk965vjkqqcdn5vx2lrt64a` (~417 txs, significant reuse, expected F)
+- **Identifiable by:** Any tx sending to these addresses is identifiable as a Bisq trade fee payment
+- **Two independent fingerprinting signals:** Known DAO fee addresses + 2-of-2 multisig escrow pattern
+- **Privacy lesson:** Decentralized exchanges have better privacy than centralized ones, but their on-chain escrow patterns are still identifiable
+
+### Future Research Areas
+
+These require either multi-transaction graph analysis (architectural change) or more sample data:
+
+- **Bisq fingerprinting:** 2-of-2 multisig escrow + known DAO fee addresses = two independent detection signals. Community reviewer to provide more samples.
+- **HodlHodl fingerprinting:** 2-of-3 multisig + reused fee collection address. Two example txs captured above.
+- **Wallet hop detection:** Cross-tx nLockTime/nVersion changes indicating wallet software switch. Requires multi-tx graph analysis.
+- **P2SH/P2WSH script unwrapping:** Extracting M-of-N from witness data to distinguish escrow from cold storage multisig.

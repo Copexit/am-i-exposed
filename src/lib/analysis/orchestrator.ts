@@ -24,6 +24,7 @@ import {
   analyzeSpendingPattern,
   analyzeDustOutputs,
   analyzeCoinbase,
+  analyzeMultisigDetection,
 } from "./heuristics";
 import { calculateScore } from "@/lib/scoring/score";
 import { checkOfac } from "./cex-risk/ofac-check";
@@ -52,6 +53,7 @@ const TX_HEURISTICS = [
   { id: "timing", label: "Timing analysis", fn: analyzeTiming },
   { id: "script", label: "Script type analysis", fn: analyzeScriptTypeMix },
   { id: "dust", label: "Dust output detection", fn: analyzeDustOutputs },
+  { id: "h17", label: "Multisig/escrow detection", fn: analyzeMultisigDetection },
 ] as const;
 
 const ADDRESS_HEURISTICS = [

@@ -142,4 +142,70 @@ describe("analyzeChangeDetection", () => {
     const { findings } = analyzeChangeDetection(tx);
     expect(findings).toHaveLength(0);
   });
+
+  // ── Wallet hop detection ──────────────────────────────────────────────
+
+  it("detects wallet hop (P2PKH -> P2WPKH script type upgrade), impact 0", () => {
+    const tx = makeTx({
+      vin: [
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "p2pkh", scriptpubkey_address: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", value: 50_000 } }),
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "p2pkh", scriptpubkey_address: "1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2", value: 30_000 } }),
+      ],
+      vout: [makeVout({ value: 79_000, scriptpubkey_address: "bc1qout1a0000000000000000000000000000000000" })],
+    });
+    const { findings } = analyzeChangeDetection(tx);
+    const f = findings.find((f) => f.id === "h2-wallet-hop");
+    expect(f).toBeDefined();
+    expect(f!.scoreImpact).toBe(0);
+    expect(f!.severity).toBe("low");
+    expect(f!.params?.fromTypes).toContain("p2pkh");
+    expect(f!.params?.toType).toBe("v0_p2wpkh");
+  });
+
+  it("detects wallet hop (P2WPKH -> P2TR script type upgrade)", () => {
+    const tx = makeTx({
+      vin: [
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qinput0000000000000000000000000000000000", value: 80_000 } }),
+      ],
+      vout: [makeVout({
+        value: 79_000,
+        scriptpubkey_type: "v1_p2tr",
+        scriptpubkey_address: "bc1pout00000000000000000000000000000000000000000000000000",
+      })],
+    });
+    const { findings } = analyzeChangeDetection(tx);
+    const f = findings.find((f) => f.id === "h2-wallet-hop");
+    expect(f).toBeDefined();
+    expect(f!.params?.toType).toBe("v1_p2tr");
+  });
+
+  it("does NOT detect wallet hop when same script type (no upgrade)", () => {
+    const tx = makeTx({
+      vin: [
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qinput0000000000000000000000000000000000", value: 80_000 } }),
+      ],
+      vout: [makeVout({ value: 79_000, scriptpubkey_address: "bc1qout1a0000000000000000000000000000000000" })],
+    });
+    const { findings } = analyzeChangeDetection(tx);
+    const f = findings.find((f) => f.id === "h2-wallet-hop");
+    expect(f).toBeUndefined();
+  });
+
+  it("does NOT detect wallet hop for downgrades (P2TR -> P2PKH)", () => {
+    const tx = makeTx({
+      vin: [
+        makeVin({
+          prevout: {
+            scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v1_p2tr",
+            scriptpubkey_address: "bc1pout00000000000000000000000000000000000000000000000000",
+            value: 80_000,
+          },
+        }),
+      ],
+      vout: [makeVout({ value: 79_000, scriptpubkey_type: "p2pkh", scriptpubkey_address: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa" })],
+    });
+    const { findings } = analyzeChangeDetection(tx);
+    const f = findings.find((f) => f.id === "h2-wallet-hop");
+    expect(f).toBeUndefined();
+  });
 });

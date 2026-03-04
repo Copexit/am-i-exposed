@@ -71,7 +71,7 @@ function ScoringExplainer() {
                 <strong className="text-severity-critical">F (&lt;25)</strong>
               </p>
               <p>
-                {t("results.scoringExplainerP3", { defaultValue: "The engine runs 16 heuristics based on published chain analysis research. Scores are clamped to 0-100. CoinJoin transactions receive adjusted scoring that accounts for their privacy-enhancing properties." })}
+                {t("results.scoringExplainerP3", { defaultValue: "The engine runs 17 heuristics based on published chain analysis research. Scores are clamped to 0-100. CoinJoin transactions receive adjusted scoring that accounts for their privacy-enhancing properties." })}
               </p>
             </div>
           </motion.div>
@@ -479,7 +479,7 @@ export function ResultsPanel({
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.65 }} className="w-full bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed">
           {t("results.disclaimerStats", {
             findingCount: result.findings.length,
-            heuristicCount: inputType === "txid" ? "13" : "4",
+            heuristicCount: inputType === "txid" ? "14" : "4",
             defaultValue: "{{findingCount}} findings from {{heuristicCount}} heuristics",
           })}
           {txBreakdown ? t("results.disclaimerTxAnalyzed", { count: txBreakdown.length, defaultValue: " + {{count}} transactions analyzed" }) : ""}

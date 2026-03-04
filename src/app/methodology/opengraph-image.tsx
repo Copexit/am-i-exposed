@@ -67,7 +67,7 @@ export default function Image() {
             marginTop: 16,
           }}
         >
-          16 heuristics. Scoring model. Threat model. All documented.
+          17 heuristics. Scoring model. Threat model. All documented.
         </div>
       </div>
     ),
