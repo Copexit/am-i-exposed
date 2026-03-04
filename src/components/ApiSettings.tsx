@@ -131,22 +131,24 @@ export function ApiSettings() {
         const diag = diagnoseUrl(trimmed);
         if (diag.isMixedContent) {
           setErrorHint(
-            "Blocked: your browser prevents HTTP requests from this HTTPS page. " +
-            "Use SSH port forwarding to localhost, or set up HTTPS on your node."
+            t("settings.mixedContent", {
+              defaultValue: "Blocked: your browser prevents HTTP requests from this HTTPS page. Use SSH port forwarding to localhost, or set up HTTPS on your node.",
+            })
           );
         } else if (err instanceof TypeError && err.message.includes("fetch")) {
           setErrorHint(
-            "Connection failed. Your node likely needs CORS headers. " +
-            "See the setup guide below."
+            t("settings.corsError", {
+              defaultValue: "Connection failed. Your node likely needs CORS headers. See the setup guide below.",
+            })
           );
         } else if (err instanceof DOMException && err.name === "AbortError") {
-          setErrorHint("Timeout (10s)");
+          setErrorHint(t("settings.timeout", { defaultValue: "Timeout (10s)" }));
         } else {
-          setErrorHint("Connection failed");
+          setErrorHint(t("settings.connectionFailed", { defaultValue: "Connection failed" }));
         }
       }
     },
-    [setCustomApiUrl],
+    [setCustomApiUrl, t],
   );
 
   const handleReset = useCallback(() => {
