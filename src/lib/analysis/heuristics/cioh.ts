@@ -68,7 +68,7 @@ export const analyzeCioh: TxHeuristic = (tx) => {
       {
         id: "h3-cioh",
         severity: impact >= 25 ? "critical" : impact >= 12 ? "high" : "medium",
-        title: `${count} input addresses linked by CIOH`,
+        title: `${count} input addresses clustered via CIOH`,
         params: { count },
         description:
           `This transaction combines inputs from ${count} different addresses. ` +

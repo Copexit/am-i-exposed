@@ -97,7 +97,7 @@ export const analyzeAnonymitySet: TxHeuristic = (tx) => {
         `which is typical for standard transactions.`,
       recommendation:
         "This is normal for most transactions. CoinJoin creates larger anonymity sets for improved privacy.",
-      scoreImpact: -1,
+      scoreImpact: 0,
     });
   }
 

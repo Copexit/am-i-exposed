@@ -38,7 +38,7 @@ describe("analyzeAnonymitySet", () => {
     const { findings } = analyzeAnonymitySet(tx);
     expect(findings).toHaveLength(1);
     expect(findings[0].id).toBe("anon-set-none");
-    expect(findings[0].scoreImpact).toBe(-1);
+    expect(findings[0].scoreImpact).toBe(0);
     expect(findings[0].severity).toBe("low");
   });
 

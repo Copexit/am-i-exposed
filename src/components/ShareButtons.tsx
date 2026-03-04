@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Copy, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { copyToClipboard } from "@/lib/clipboard";
+import { ACTION_BTN_CLASS } from "@/lib/constants";
 import type { Grade } from "@/lib/types";
 
 interface ShareButtonsProps {
@@ -44,8 +45,7 @@ function getShareText(
   }
 }
 
-const btnClass =
-  "inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer px-3 py-2 min-h-[44px] rounded-lg border border-card-border hover:border-muted/50 bg-surface-elevated/50";
+const btnClass = ACTION_BTN_CLASS;
 
 export function ShareButtons({
   grade,

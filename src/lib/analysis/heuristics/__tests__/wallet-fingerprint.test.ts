@@ -15,8 +15,8 @@ describe("analyzeWalletFingerprint", () => {
     expect(f!.params?.walletGuess).toBe("Bitcoin Core / Sparrow");
   });
 
-  it("detects BIP69 + allMax + locktime=0 -> Samourai, impact -6", () => {
-    // BIP69 + nSequence=0xffffffff + locktime=0 is the Samourai Wallet pattern
+  it("detects BIP69 + allMax + locktime=0 -> Ashigaru/Samourai, impact -6", () => {
+    // BIP69 + nSequence=0xffffffff + locktime=0 is the Ashigaru/Samourai pattern
     const tx = makeTx({
       locktime: 0,
       vin: [
@@ -33,7 +33,7 @@ describe("analyzeWalletFingerprint", () => {
     const { findings } = analyzeWalletFingerprint(tx);
     const f = findings.find((f) => f.id === "h11-wallet-fingerprint");
     expect(f).toBeDefined();
-    expect(f!.params?.walletGuess).toBe("Samourai");
+    expect(f!.params?.walletGuess).toBe("Ashigaru/Samourai");
     expect(f!.scoreImpact).toBe(-6);
   });
 

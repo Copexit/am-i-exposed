@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { ClipboardCopy, Check } from "lucide-react";
 import { copyToClipboard } from "@/lib/clipboard";
 import { TX_BASE_SCORE, ADDRESS_BASE_SCORE } from "@/lib/scoring/score";
+import { ACTION_BTN_CLASS } from "@/lib/constants";
 import type { ScoringResult, InputType } from "@/lib/types";
 
 interface ExportButtonProps {
@@ -109,7 +110,7 @@ export function ExportButton({ targetId, query, result, inputType }: ExportButto
   return (
     <button
       onClick={handleExport}
-      className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer px-3 py-2 min-h-[44px] rounded-lg border border-card-border hover:border-muted/50 bg-surface-elevated/50"
+      className={ACTION_BTN_CLASS}
       title={t("export.copyToClipboard", { defaultValue: "Copy report to clipboard" })}
       aria-label={t("export.copyToClipboard", { defaultValue: "Copy report to clipboard" })}
     >

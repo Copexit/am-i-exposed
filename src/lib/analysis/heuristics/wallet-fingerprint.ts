@@ -67,16 +67,16 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
       const isWhirlpoolPattern = detectWhirlpoolPattern(tx);
       const isLargeCoinJoin = tx.vin.length >= 20 && tx.vout.length >= 20;
       if (isWhirlpoolPattern) {
-        signals.push("BIP69 ordering + Whirlpool pattern (Samourai/Sparrow)");
-        walletGuess = "Samourai/Sparrow";
+        signals.push("BIP69 ordering + Whirlpool pattern (Ashigaru/Sparrow)");
+        walletGuess = "Ashigaru/Sparrow";
       } else if (isLargeCoinJoin) {
         signals.push("BIP69 ordering + large CoinJoin pattern (Wasabi/WabiSabi)");
         walletGuess = "Wasabi Wallet";
       } else if (allMax && tx.locktime === 0) {
-        // BIP69 + nSequence=0xffffffff + locktime=0: Samourai Wallet pattern.
+        // BIP69 + nSequence=0xffffffff + locktime=0: Samourai/Ashigaru pattern.
         // Modern Electrum uses nSequence=0xfffffffd (RBF) and non-zero locktime.
-        signals.push("BIP69 ordering + legacy sequence + no locktime (Samourai)");
-        walletGuess = "Samourai";
+        signals.push("BIP69 ordering + legacy sequence + no locktime (Ashigaru/Samourai)");
+        walletGuess = "Ashigaru/Samourai";
       } else {
         signals.push("BIP69 lexicographic ordering (Electrum/BIP69-compatible)");
         walletGuess = walletGuess ?? "Electrum (or BIP69-compatible)";

@@ -14,6 +14,7 @@ import { ExportButton } from "./ExportButton";
 import { ScoreBreakdown } from "./ScoreBreakdown";
 import { getShareUrl } from "./ShareButtons";
 import { TX_BASE_SCORE, ADDRESS_BASE_SCORE } from "@/lib/scoring/score";
+import { ACTION_BTN_CLASS } from "@/lib/constants";
 
 // Lazy-load heavy visx/d3 chart components - only needed after analysis completes
 const ScoreWaterfall = lazy(() => import("./viz/ScoreWaterfall").then(m => ({ default: m.ScoreWaterfall })));
@@ -207,7 +208,7 @@ export const ResultsPanel = memo(function ResultsPanel({
       <div className="w-full flex flex-wrap items-center gap-2">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer px-3 py-2 min-h-[44px] rounded-lg border border-card-border hover:border-muted/50 bg-surface-elevated/50"
+          className={ACTION_BTN_CLASS}
         >
           <ArrowLeft size={16} />
           {t("results.newScan", { defaultValue: "New scan" })}

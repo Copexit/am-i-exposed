@@ -14,7 +14,7 @@ import { useAnalysis } from "@/hooks/useAnalysis";
 import { useNetwork } from "@/context/NetworkContext";
 import { useRecentScans } from "@/hooks/useRecentScans";
 import { useBookmarks } from "@/hooks/useBookmarks";
-import { EXAMPLES } from "@/lib/constants";
+import { EXAMPLES, ACTION_BTN_CLASS } from "@/lib/constants";
 import { useKeyboardNav } from "@/hooks/useKeyboardNav";
 import { useDevMode } from "@/hooks/useDevMode";
 const TipToast = lazy(() => import("@/components/TipToast").then(m => ({ default: m.TipToast })));
@@ -73,7 +73,7 @@ function DestinationOnlyResult({ query, preSendResult, onBack, durationMs }: {
       <div className="w-full flex items-center">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer px-3 py-2 min-h-[44px] rounded-lg border border-card-border hover:border-muted/50 bg-surface-elevated/50"
+          className={ACTION_BTN_CLASS}
         >
           <ArrowLeft size={16} />
           {t("results.newScan", { defaultValue: "New scan" })}
@@ -473,7 +473,7 @@ export default function Home() {
       </AnimatePresence>
 
       <InstallPrompt />
-      {phase === "complete" && <TipToast />}
+      {phase === "complete" && <Suspense fallback={null}><TipToast /></Suspense>}
     </div>
   );
 }

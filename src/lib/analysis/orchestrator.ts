@@ -235,9 +235,9 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
         if (isWabiSabi) {
           f.params = { ...f.params, walletGuess: "Wasabi Wallet" };
         } else if (isWhirlpool) {
-          f.params = { ...f.params, walletGuess: "Samourai/Sparrow" };
+          f.params = { ...f.params, walletGuess: "Ashigaru/Sparrow" };
         } else if (isStonewall) {
-          f.params = { ...f.params, walletGuess: "Samourai" };
+          f.params = { ...f.params, walletGuess: "Ashigaru" };
         }
         // Compose context: identified (if wallet known) or signals variant + coinjoin
         const hasWallet = !!f.params?.walletGuess;

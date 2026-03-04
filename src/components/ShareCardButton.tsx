@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { ImageIcon, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { ACTION_BTN_CLASS } from "@/lib/constants";
 import type { Grade } from "@/lib/types";
 
 interface ShareCardButtonProps {
@@ -82,7 +83,7 @@ export function ShareCardButton({
       onClick={handleGenerate}
       disabled={generating}
       aria-label={t("share.scoreCard", { defaultValue: "Score card" })}
-      className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer px-3 py-2 min-h-[44px] rounded-lg border border-card-border hover:border-muted/50 bg-surface-elevated/50 disabled:opacity-50 disabled:cursor-wait"
+      className={`${ACTION_BTN_CLASS} disabled:opacity-50 disabled:cursor-wait`}
     >
       {generating ? <Loader2 size={14} className="animate-spin" /> : failed ? <ImageIcon size={14} className="text-severity-critical" /> : <ImageIcon size={14} />}
       <span className="hidden sm:inline">{t("share.scoreCard", { defaultValue: "Score card" })}</span>

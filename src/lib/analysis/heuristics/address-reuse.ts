@@ -43,7 +43,7 @@ export const analyzeAddressReuse: AddressHeuristic = (address, _utxos, txs) => {
     // for reused addresses. If the backend reports 0 but there are multiple txs,
     // flag as uncertain. When totalFunded >= 1 the API is working correctly
     // and we trust it (extra txs are just spends, not additional receives).
-    if (totalFunded === 0 && txCount > 1) {
+    if (totalFunded === 0 && txCount > 2) {
       return {
         findings: [
           {
