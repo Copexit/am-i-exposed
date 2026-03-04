@@ -37,56 +37,51 @@ src/
     ├── analysis/
     │   ├── detect-input.ts # Input type detection + URL extraction
     │   ├── orchestrator.ts # Runs all heuristics with cross-heuristic intelligence
-    │   └── heuristics/     # 17 heuristic modules
+    │   └── heuristics/     # 18 heuristic modules
     ├── api/
-    │   ├── client.ts       # Unified client with mempool -> esplora fallback
+    │   ├── client.ts       # Unified client with mempool -> blockstream fallback
     │   ├── mempool.ts      # mempool.space API
-    │   ├── esplora.ts      # Blockstream.info fallback (mainnet only)
     │   ├── fetch-with-retry.ts # Retry logic, ApiError types
-    │   ├── networks.ts     # Network configs
+    │   ├── rate-limiter.ts # API rate limiting
+    │   ├── url-diagnostics.ts # Custom endpoint validation
+    │   ├── enrich-prevouts.ts # Prevout data enrichment
     │   └── types.ts        # API response types
     ├── scoring/
-    │   └── score.ts        # Base 70, sum impacts, clamp 0-100, grade
+    │   └── score.ts        # Base 70/93, sum impacts, clamp 0-100, grade
     └── types.ts            # Finding, ScoringResult, Grade types
 ```
 
-## Heuristics (17 total)
+## Heuristics (18 total)
 
-### Transaction heuristics (13)
+### Transaction heuristics (14)
 | ID | Module | Impact | Description |
 |----|--------|--------|-------------|
+| coinbase | coinbase-detection.ts | 0 | Coinbase transaction detection |
 | H1 | round-amount.ts | -5 to -15 | Round BTC/sat amounts in outputs |
-| H2 | change-detection.ts | -5 to -15 | Address type mismatch, round amount, script reuse |
-| H3 | cioh.ts | -3 to -15 | Common Input Ownership Heuristic |
-| H4 | coinjoin.ts | +15 to +30 | Whirlpool, WabiSabi, JoinMarket detection |
+| H2 | change-detection.ts | -5 to -25 | Address type mismatch, round amount, self-send |
+| H3 | cioh.ts | -6 to -45 | Common Input Ownership Heuristic |
+| H4 | coinjoin.ts | +15 to +30 | Whirlpool, WabiSabi, JoinMarket, Stonewall |
 | H5 | entropy.ts | -5 to +15 | Simplified Boltzmann (capped at 8x8) |
-| H6 | fee-analysis.ts | -2 to -5 | Round fee rate, RBF signaling |
-| H7 | op-return.ts | -5 to -10 | OP_RETURN metadata, protocol detection |
-| H11 | wallet-fingerprint.ts | -2 to -8 | nLockTime, nVersion, BIP69, wallet ID |
-| anon | anonymity-set.ts | -2 to +10 | Equal-value output group analysis |
-| pj | payjoin.ts | +5 to +8 | BIP78 PayJoin detection |
-| timing | timing.ts | -2 to -3 | Mempool/off-hours timing analysis |
-| script | script-type-mix.ts | -3 to +2 | Script uniformity, bare multisig detection |
+| H6 | fee-analysis.ts | 0 to -2 | Round fee rate, RBF signaling |
+| H7 | op-return.ts | -5 to -8 | OP_RETURN metadata, protocol detection (stacks) |
+| H11 | wallet-fingerprint.ts | -2 to -6 | nLockTime, Low-R signatures, BIP69, wallet ID |
+| H17 | multisig-detection.ts | 0 to -3 | Multisig/escrow detection |
+| anon | anonymity-set.ts | -1 to +5 | Equal-value output group analysis |
+| timing | timing.ts | -1 to -3 | Mempool/off-hours timing analysis |
+| script | script-type-mix.ts | -8 to +2 | Script uniformity, bare multisig detection |
 | dust | dust-output.ts | -3 to -8 | Dust attack / tiny output detection |
 
 ### Address heuristics (4)
 | ID | Module | Impact | Description |
 |----|--------|--------|-------------|
-| H8 | address-reuse.ts | -20 to -70 | Address reuse count with severity scaling |
-| H9 | utxo-analysis.ts | -3 to -10 | UTXO count, dust UTXOs |
-| H10 | address-type.ts | -5 to +5 | P2TR > P2WPKH > P2SH > P2PKH |
-| spending | spending-analysis.ts | -2 to +3 | Counterparty diversity |
-
-## Cross-Heuristic Intelligence
-
-The orchestrator runs a post-processing pass after all heuristics:
-- **CoinJoin detected**: Suppresses CIOH penalty and round-amount penalty
-- CIOH finding: severity → "low", title += "(CoinJoin - expected)", scoreImpact = 0
-- Round amount finding: similarly suppressed as denomination
+| H8 | address-reuse.ts | +3 to -93 | Address reuse count with severity scaling |
+| H9 | utxo-analysis.ts | +2 to -11 | UTXO count, dust UTXOs |
+| H10 | address-type.ts | -5 to 0 | P2TR/P2WPKH (0) > P2WSH (-2) > P2SH (-3) > P2PKH (-5) |
+| spending | spending-analysis.ts | -5 to +2 | Counterparty diversity, cold storage |
 
 ## Scoring Model
 
-- **Base**: 70/100
+- **Base**: 70/100 (transactions), 93/100 (addresses)
 - **Sum**: All finding `scoreImpact` values added
 - **Clamp**: Result clamped to 0-100
 - **Grades**: A+ >= 90, B >= 75, C >= 50, D >= 25, F < 25
@@ -94,10 +89,9 @@ The orchestrator runs a post-processing pass after all heuristics:
 ## Cross-Heuristic Intelligence
 
 The orchestrator runs a post-processing pass after all heuristics:
-- **CoinJoin detected**: Suppresses CIOH penalty, round-amount penalty, and change detection
-- **PayJoin detected**: Suppresses CIOH penalty (PayJoin deliberately breaks CIOH)
+- **CoinJoin detected**: Suppresses CIOH, round-amount, change detection, script-mixed, low-entropy, wallet fingerprint, dust, timing, fee, anonymity-set, and multisig/escrow findings
 - CIOH finding: severity → "low", title += context note, scoreImpact = 0
-- Round amount finding: similarly suppressed as denomination
+- Round amount finding: suppressed as denomination
 - Change detection: suppressed as unreliable in CoinJoin context
 
 ## Key Design Decisions
@@ -144,7 +138,7 @@ All colors defined as CSS custom properties in `globals.css`:
 ## Common Gotchas
 
 1. **OP_RETURN duplicate IDs**: Finding IDs must be unique. Appends index when >1 OP_RETURN.
-2. **Whirlpool vs WabiSabi**: Whirlpool = exactly 5 equal outputs at known denominations, ≤8 outputs. WabiSabi = 20+ inputs/outputs.
+2. **Whirlpool vs WabiSabi**: Whirlpool = 5+ equal outputs at known denominations, 5-10 total outputs. WabiSabi = 20+ inputs/outputs.
 3. **ROADMAP.md was .gitignored**: Use `git add -f` to override.
 4. **CSP**: Set via `<meta>` tag since static export can't use server headers.
 

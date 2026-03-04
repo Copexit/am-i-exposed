@@ -4,7 +4,7 @@
 
 This document describes the privacy analysis engine behind **am-i.exposed**, an open-source, client-side Bitcoin privacy scanner. It is intended for cypherpunks, privacy researchers, wallet developers, and anyone who wants to understand exactly how their Bitcoin transactions are being analyzed - by this tool, and by adversaries.
 
-The engine implements 17 heuristics (H1-H17) that evaluate the on-chain privacy of Bitcoin addresses and transactions. These are the same techniques - sometimes simplified, sometimes extended - that chain surveillance firms use to cluster addresses, trace fund flows, and deanonymize users.
+The engine implements 18 heuristics (14 transaction-level, 4 address-level) that evaluate the on-chain privacy of Bitcoin addresses and transactions. These are the same techniques - sometimes simplified, sometimes extended - that chain surveillance firms use to cluster addresses, trace fund flows, and deanonymize users.
 
 **Why this tool exists now.** In April 2024, OXT.me and KYCP.org ("Know Your Coin Privacy") went offline following the arrest of the Samourai Wallet developers. OXT.me was the gold standard for Boltzmann entropy analysis of Bitcoin transactions, created by LaurentMT as part of OXT Research. KYCP.org provided CoinJoin analysis and entropy calculations accessible to ordinary users. Both are gone. As of today, there is no publicly available tool that combines Boltzmann entropy estimation, wallet fingerprinting detection, and multi-transaction graph analysis in a single interface. am-i.exposed fills that gap.
 
@@ -46,9 +46,9 @@ Each heuristic is described with its technical mechanism, privacy implications, 
 
 **Technical description**
 
-A transaction output is flagged as a "round amount" if its value matches common round BTC denominations or round satoshi values. We check for:
+A transaction output is flagged as a "round amount" if its value matches common round BTC denominations or round satoshi values. The tool checks for:
 
-- Round BTC values: 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0 BTC and other powers and multiples
+- Round BTC values: 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0 BTC
 - Round satoshi multiples: 10,000, 100,000, 1,000,000, 10,000,000 sats (values below 10,000 sats are excluded as too common to be meaningful)
 - Any output value where `value % multiple == 0` for the above multiples
 
@@ -75,9 +75,9 @@ Only exact round amounts are detected. "Nearly round" amounts (e.g., a "send max
 
 **Scoring impact:** -5 to -15
 
-- Single round output in a 2-output transaction: -15 (payment direction is obvious)
-- Round output in a multi-output transaction (3+ outputs): -5 (less certain which is change)
-- Multiple round outputs (ambiguity preserved to some degree): -10
+- 1 round output: -5
+- 2 round outputs: -10
+- 3+ round outputs: -15 (capped)
 
 **References**
 - Meiklejohn et al., "A Fistful of Bitcoins: Characterizing Payments Among Men with No Names" (2013) - identifies round amounts as a payment indicator
