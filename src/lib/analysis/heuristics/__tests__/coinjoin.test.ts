@@ -181,7 +181,7 @@ describe("analyzeCoinJoin", () => {
 
   // ── Stonewall ────────────────────────────────────────────────────────
 
-  it("detects Stonewall (2-3 vin, 4 vout, 1 equal pair at distinct addrs), impact +15", () => {
+  it("detects Stonewall (2-4 vin, 4 vout, 1 equal pair at distinct addrs), impact +15", () => {
     // Use same input address so JoinMarket rejects (requires >= 2 distinct input addrs)
     const sameInputAddr = "bc1qinput000000000000000000000000000000000";
     const tx = makeTx({
@@ -330,7 +330,7 @@ describe("analyzeCoinJoin", () => {
     expect(findings.find((f) => f.id === "h4-joinmarket")).toBeUndefined();
   });
 
-  it("detects Stonewall with 3 inputs (max)", () => {
+  it("detects Stonewall with 3 inputs", () => {
     const sameInputAddr = "bc1qinput000000000000000000000000000000000";
     const tx = makeTx({
       vin: [
@@ -343,6 +343,27 @@ describe("analyzeCoinJoin", () => {
         makeVout({ value: 200_000, scriptpubkey_address: "bc1qsw2_0000000000000000000000000000000000" }),
         makeVout({ value: 150_000 }),
         makeVout({ value: 100_000 }),
+      ],
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    const sw = findings.find((f) => f.id === "h4-stonewall");
+    expect(sw).toBeDefined();
+    expect(sw!.scoreImpact).toBe(15);
+  });
+
+  it("detects STONEWALLx2 with 4 inputs (2 from each party)", () => {
+    const tx = makeTx({
+      vin: [
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qpartyA_0000000000000000000000000000000", value: 500_000 } }),
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qpartyA_0000000000000000000000000000000", value: 500_000 } }),
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qpartyB_0000000000000000000000000000000", value: 300_000 } }),
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qpartyB_0000000000000000000000000000000", value: 300_000 } }),
+      ],
+      vout: [
+        makeVout({ value: 400_000, scriptpubkey_address: "bc1qsw1_0000000000000000000000000000000000" }),
+        makeVout({ value: 400_000, scriptpubkey_address: "bc1qsw2_0000000000000000000000000000000000" }),
+        makeVout({ value: 250_000 }),
+        makeVout({ value: 200_000 }),
       ],
     });
     const { findings } = analyzeCoinJoin(tx);

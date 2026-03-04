@@ -42,7 +42,7 @@ export const analyzeAddressReuse: AddressHeuristic = (address, _utxos, txs) => {
     // Safety check: the backend may not report funded data correctly AND we
     // may not have all txs fetched. If tx_count indicates more activity than
     // what we can see, flag as uncertain.
-    if ((totalFunded === 0 && txCount > 0) || txCount > 2) {
+    if ((totalFunded === 0 && txCount > 1) || txCount > 2) {
       return {
         findings: [
           {
