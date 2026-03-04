@@ -379,7 +379,6 @@
   "finding.partial-history-unavailable.recommendation": "Versuche es später erneut oder verwende einen benutzerdefinierten API-Endpunkt mit höheren Ratelimits.",
   "finding.partial-history-unavailable.title": "Transaktionsverlauf nicht verfügbar",
   "finding.recommendationLabel": "Empfehlung",
-  "finding.recommendation_label": "Empfehlung",
   "finding.scoreImpactLabel": "Score-Auswirkung:",
   "finding.score_impact": "Score-Auswirkung: {{impact}}",
   "finding.script-mixed.description": "Diese Transaktion verwendet {{typeCount}} verschiedene Script-Typen ({{types}}). Das Mischen von Script-Typen erleichtert die Wechselgeld-Erkennung und kann die Wallet-Software identifizieren.",

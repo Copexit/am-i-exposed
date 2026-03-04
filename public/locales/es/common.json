@@ -379,7 +379,6 @@
   "finding.partial-history-unavailable.recommendation": "Intenta de nuevo mas tarde, o usa un endpoint API personalizado con limites de tasa mas altos.",
   "finding.partial-history-unavailable.title": "Historial de transacciones no disponible",
   "finding.recommendationLabel": "Recomendación",
-  "finding.recommendation_label": "Recomendación",
   "finding.scoreImpactLabel": "Impacto en puntuación:",
   "finding.score_impact": "Impacto en puntuación: {{impact}}",
   "finding.script-mixed.description": "Esta transaccion usa {{typeCount}} formatos de direccion diferentes ({{types}}). Mezclar formatos facilita identificar tu salida de cambio.",

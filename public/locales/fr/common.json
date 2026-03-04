@@ -379,7 +379,6 @@
   "finding.partial-history-unavailable.recommendation": "Réessayez plus tard, ou utilisez un point d'accès API personnalisé avec des limites de requêtes plus élevées.",
   "finding.partial-history-unavailable.title": "Historique des transactions indisponible",
   "finding.recommendationLabel": "Recommandation",
-  "finding.recommendation_label": "Recommandation",
   "finding.scoreImpactLabel": "Impact sur le score :",
   "finding.score_impact": "Impact sur le score : {{impact}}",
   "finding.script-mixed.description": "Cette transaction utilise {{typeCount}} types de scripts différents ({{types}}). Mélanger les types de scripts facilite la détection du change et peut identifier le logiciel du portefeuille.",

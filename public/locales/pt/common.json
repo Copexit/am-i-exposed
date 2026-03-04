@@ -379,7 +379,6 @@
   "finding.partial-history-unavailable.recommendation": "Tente novamente mais tarde, ou use um endpoint de API personalizado com limites de taxa mais altos.",
   "finding.partial-history-unavailable.title": "Histórico de transações indisponível",
   "finding.recommendationLabel": "Recomendação",
-  "finding.recommendation_label": "Recomendação",
   "finding.scoreImpactLabel": "Impacto na pontuação:",
   "finding.score_impact": "Impacto na pontuação: {{impact}}",
   "finding.script-mixed.description": "Esta transação usa {{typeCount}} tipos de script diferentes ({{types}}). Misturar tipos de script facilita a detecção de troco e pode identificar o software da carteira.",
