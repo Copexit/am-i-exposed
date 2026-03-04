@@ -19,7 +19,7 @@
   "about.principles_heading": "Princípios de Design",
   "about.story_heading": "A Lacuna",
   "about.story_p1": "Em abril de 2024, o OXT.me e o KYCP.org ficaram offline.",
-  "about.story_p2": "O am-i.exposed foi construído para preencher essa lacuna.",
+  "about.story_p2": "Empresas de vigilância de cadeia como Chainalysis, Elliptic e Crystal ainda têm suas ferramentas. Elas analisam cada transação na blockchain do Bitcoin. Agrupam endereços, rastreiam fluxos de fundos e sinalizam carteiras.",
   "about.story_p3": "Mas a partir daquele momento, os usuários comuns de Bitcoin não tinham como ver o que essas empresas poderiam inferir sobre suas próprias transações. A assimetria era total: elas podiam ver tudo sobre você, e você não podia ver nada sobre você mesmo.",
   "about.story_p4": "am-i.exposed foi construído para fechar essa lacuna.",
   "about.subtitle": "As ferramentas de privacidade Bitcoin nas quais a comunidade confiava desapareceram. Este é o substituto.",
