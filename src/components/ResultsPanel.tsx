@@ -6,11 +6,13 @@ import { useState, useCallback, lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
+import { getAddressType } from "@/lib/bitcoin/address-type";
 import { ScoreDisplay } from "./ScoreDisplay";
 import { FindingCard } from "./FindingCard";
 import { AddressSummary } from "./AddressSummary";
 import { ExportButton } from "./ExportButton";
 import { ScoreBreakdown } from "./ScoreBreakdown";
+import { getShareUrl } from "./ShareButtons";
 import { TX_BASE_SCORE, ADDRESS_BASE_SCORE } from "@/lib/scoring/score";
 
 // Lazy-load heavy visx/d3 chart components - only needed after analysis completes
@@ -84,30 +86,23 @@ function ScoringExplainer() {
   );
 }
 
+const ADDRESS_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
+  p2tr:    { label: "Taproot",  color: "bg-severity-good/20 text-severity-good border-severity-good/30" },
+  p2wpkh:  { label: "SegWit",   color: "bg-severity-low/20 text-severity-low border-severity-low/30" },
+  p2wsh:   { label: "SegWit",   color: "bg-severity-low/20 text-severity-low border-severity-low/30" },
+  p2sh:    { label: "P2SH",     color: "bg-severity-medium/20 text-severity-medium border-severity-medium/30" },
+  p2pkh:   { label: "Legacy",   color: "bg-muted/15 text-muted border-muted/30" },
+};
+
 function AddressTypeBadge({ address }: { address: string }) {
   const { t } = useTranslation();
-  let typeKey: string;
-  let color: string;
-
-  if (address.startsWith("bc1p") || address.startsWith("tb1p")) {
-    typeKey = "Taproot";
-    color = "bg-severity-good/20 text-severity-good border-severity-good/30";
-  } else if (address.startsWith("bc1q") || address.startsWith("tb1q")) {
-    typeKey = "SegWit";
-    color = "bg-severity-low/20 text-severity-low border-severity-low/30";
-  } else if (address.startsWith("3") || address.startsWith("2")) {
-    typeKey = "P2SH";
-    color = "bg-severity-medium/20 text-severity-medium border-severity-medium/30";
-  } else if (address.startsWith("1") || address.startsWith("m") || address.startsWith("n")) {
-    typeKey = "Legacy";
-    color = "bg-muted/15 text-muted border-muted/30";
-  } else {
-    return null;
-  }
+  const addrType = getAddressType(address);
+  const config = ADDRESS_TYPE_CONFIG[addrType];
+  if (!config) return null;
 
   return (
-    <span className={`text-xs font-medium px-1.5 py-0.5 rounded border ${color}`}>
-      {t(`results.addressType.${typeKey}`, { defaultValue: typeKey })}
+    <span className={`text-xs font-medium px-1.5 py-0.5 rounded border ${config.color}`}>
+      {t(`results.addressType.${config.label}`, { defaultValue: config.label })}
     </span>
   );
 }
@@ -452,7 +447,7 @@ export function ResultsPanel({
                       defaultValue: "Privacy score: {{grade}} ({{score}}/100). This is what proper Bitcoin privacy hygiene looks like.",
                       grade: result.grade, score: result.score,
                     });
-                const shareUrl = `https://am-i.exposed/#${inputType === "txid" ? "tx" : "addr"}=${encodeURIComponent(query)}`;
+                const shareUrl = getShareUrl(query, inputType as "txid" | "address");
                 window.open(
                   `https://x.com/intent/tweet?text=${encodeURIComponent(`${text}\n\n${shareUrl}`)}`,
                   "_blank",
