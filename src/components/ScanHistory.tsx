@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, memo } from "react";
+import { useState, useCallback, useMemo, useRef, memo } from "react";
 import { motion } from "motion/react";
 import { Clock, Star, Lightbulb, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -52,6 +52,24 @@ export const ScanHistory = memo(function ScanHistory({
 
   const showClear = tab === "recent" ? scans.length > 0 && onClearScans : tab === "bookmarks" ? bookmarks.length > 0 : false;
 
+  const tabListRef = useRef<HTMLDivElement>(null);
+  const availableTabs = useMemo<Tab[]>(() => examples.length > 0 ? ["recent", "bookmarks", "examples"] : ["recent", "bookmarks"], [examples.length]);
+
+  const handleTabKeyDown = useCallback((e: React.KeyboardEvent) => {
+    const idx = availableTabs.indexOf(tab);
+    let next: number | null = null;
+    if (e.key === "ArrowRight") next = (idx + 1) % availableTabs.length;
+    else if (e.key === "ArrowLeft") next = (idx - 1 + availableTabs.length) % availableTabs.length;
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = availableTabs.length - 1;
+    if (next !== null) {
+      e.preventDefault();
+      const nextTab = availableTabs[next];
+      setTab(nextTab);
+      tabListRef.current?.querySelector<HTMLElement>(`#tab-${nextTab}`)?.focus();
+    }
+  }, [tab, availableTabs]);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -61,12 +79,13 @@ export const ScanHistory = memo(function ScanHistory({
     >
       {/* Tab bar */}
       <div className="flex items-center justify-between mb-2 px-1">
-        <div className="flex items-center gap-3" role="tablist" aria-label={t("history.tabs", { defaultValue: "Scan history tabs" })}>
+        <div ref={tabListRef} className="flex items-center gap-3" role="tablist" aria-label={t("history.tabs", { defaultValue: "Scan history tabs" })} onKeyDown={handleTabKeyDown}>
           <button
             id="tab-recent"
             role="tab"
             aria-selected={tab === "recent"}
             aria-controls="panel-recent"
+            tabIndex={tab === "recent" ? 0 : -1}
             onClick={() => setTab("recent")}
             className={`inline-flex items-center gap-1.5 text-xs transition-colors cursor-pointer pb-1 ${
               tab === "recent"
@@ -74,7 +93,7 @@ export const ScanHistory = memo(function ScanHistory({
                 : "text-muted hover:text-foreground"
             }`}
           >
-            <Clock size={14} />
+            <Clock size={14} aria-hidden="true" />
             {t("history.recent", { defaultValue: "Recent" })}
             {scans.length > 0 && (
               <span className="text-muted">({scans.length})</span>
@@ -85,6 +104,7 @@ export const ScanHistory = memo(function ScanHistory({
             role="tab"
             aria-selected={tab === "bookmarks"}
             aria-controls="panel-bookmarks"
+            tabIndex={tab === "bookmarks" ? 0 : -1}
             onClick={() => setTab("bookmarks")}
             className={`inline-flex items-center gap-1.5 text-xs transition-colors cursor-pointer pb-1 ${
               tab === "bookmarks"
@@ -92,7 +112,7 @@ export const ScanHistory = memo(function ScanHistory({
                 : "text-muted hover:text-foreground"
             }`}
           >
-            <Star size={14} />
+            <Star size={14} aria-hidden="true" />
             {t("history.bookmarks", { defaultValue: "Bookmarks" })}
             {bookmarks.length > 0 && (
               <span className="text-muted">({bookmarks.length})</span>
@@ -104,6 +124,7 @@ export const ScanHistory = memo(function ScanHistory({
               role="tab"
               aria-selected={tab === "examples"}
               aria-controls="panel-examples"
+              tabIndex={tab === "examples" ? 0 : -1}
               onClick={() => setTab("examples")}
               className={`inline-flex items-center gap-1.5 text-xs transition-colors cursor-pointer pb-1 ${
                 tab === "examples"
@@ -111,7 +132,7 @@ export const ScanHistory = memo(function ScanHistory({
                   : "text-muted hover:text-foreground"
               }`}
             >
-              <Lightbulb size={14} />
+              <Lightbulb size={14} aria-hidden="true" />
               {t("history.examples", { defaultValue: "Examples" })}
             </button>
           )}
