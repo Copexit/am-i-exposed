@@ -104,6 +104,7 @@ function BubbleChart({ width, height, utxos }: UtxoBubbleChartProps & { width: n
   if (processedData.length === 0) return null;
 
   const size = Math.min(width, height);
+  if (size < 1) return null;
 
   return (
     <div className="relative flex justify-center" ref={containerRef} onTouchStart={handleTouch}>
