@@ -65,6 +65,28 @@ describe("analyzeCoinJoin", () => {
     expect(findings[0].scoreImpact).toBe(30);
   });
 
+  it("detects Whirlpool 8x8 (8 equal outputs at known denom)", () => {
+    const denom = WHIRLPOOL_DENOMS[2]; // 1_000_000 sats
+    const tx = makeTx({
+      vin: makeDistinctVins(8),
+      vout: Array.from({ length: 8 }, () => makeVout({ value: denom })),
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    expect(findings[0].id).toBe("h4-whirlpool");
+    expect(findings[0].scoreImpact).toBe(30);
+  });
+
+  it("detects Whirlpool 9x9 (9 equal outputs at known denom)", () => {
+    const denom = WHIRLPOOL_DENOMS[0]; // 50_000 sats
+    const tx = makeTx({
+      vin: makeDistinctVins(9),
+      vout: Array.from({ length: 9 }, () => makeVout({ value: denom })),
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    expect(findings[0].id).toBe("h4-whirlpool");
+    expect(findings[0].scoreImpact).toBe(30);
+  });
+
   // ── WabiSabi multi-tier ──────────────────────────────────────────────
 
   it("detects WabiSabi multi-tier (20+ in/out, 3+ groups, 10+ equal total)", () => {

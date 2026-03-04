@@ -233,14 +233,17 @@ export function isCoinJoinFinding(f: Finding): boolean {
 }
 
 function detectWhirlpool(values: number[]): { denomination: number } | null {
-  // Whirlpool mix txs have exactly 5 equal outputs at a known denomination.
-  // Allow up to 6 total to account for a possible OP_RETURN marker.
-  // (Coordinator fees are in the separate TX0 premix transaction, not in the mix.)
-  if (values.length < 5 || values.length > 6) return null;
+  // Whirlpool mix txs have 5+ equal outputs at a known denomination.
+  // Classic: exactly 5 equal outputs (5-6 total with optional OP_RETURN).
+  // Post-Sparrow 1.7.6: 8 or 9 equal outputs at the same denominations.
+  // Coordinator fees are in the separate TX0 premix transaction, not in the mix.
+  if (values.length < 5 || values.length > 10) return null;
 
   for (const denom of WHIRLPOOL_DENOMS) {
     const matchCount = values.filter((v) => v === denom).length;
-    if (matchCount === 5) {
+    // Accept 5, 8, or 9 equal outputs at a Whirlpool denomination.
+    // Non-matching outputs (if any) must be OP_RETURN zero-value markers.
+    if (matchCount >= 5 && values.length - matchCount <= 1) {
       return { denomination: denom };
     }
   }

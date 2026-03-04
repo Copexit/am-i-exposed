@@ -75,9 +75,10 @@ export async function buildFirstDegreeCluster(
 
     // Detect change output for follow-up
     const changeResult = analyzeChangeDetection(tx);
-    const changeDetected = changeResult.findings.some(
-      (f) => f.id === "h2-change-detected",
+    const changeFinding = changeResult.findings.find(
+      (f) => f.id === "h2-change-detected" && f.params?.confidence === "medium",
     );
+    const changeDetected = !!changeFinding;
     const spendableOutputs = tx.vout.filter(
       (v) => v.scriptpubkey_type !== "op_return" && v.scriptpubkey_address,
     );
