@@ -444,7 +444,7 @@ function CoinJoinChart({
             <p className="text-xs" style={{ color: SVG_COLORS.muted }}>
               {formatSats(tooltipData.value, tooltipData.lang)}
             </p>
-            {tooltipData.tierCount && (
+            {tooltipData.tierCount != null && tooltipData.tierCount > 0 && (
               <p className="text-xs" style={{ color: SVG_COLORS.bitcoin }}>
                 {t("viz.coinjoin.tier", { count: tooltipData.tierCount, defaultValue: `${tooltipData.tierCount} equal outputs` })}
               </p>

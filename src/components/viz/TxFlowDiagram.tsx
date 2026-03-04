@@ -7,7 +7,7 @@ import { Group } from "@visx/group";
 import { Text } from "@visx/text";
 import { ParentSize } from "@visx/responsive";
 import { useTranslation } from "react-i18next";
-import { SVG_COLORS, SEVERITY_HEX, DUST_THRESHOLD, ANIMATION_DEFAULTS } from "./shared/svgConstants";
+import { SVG_COLORS, SEVERITY_HEX, GRADIENT_COLORS, DUST_THRESHOLD, ANIMATION_DEFAULTS } from "./shared/svgConstants";
 import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import { formatSats } from "@/lib/format";
@@ -59,19 +59,19 @@ const NODE_PADDING = 14;
 const ANON_COLORS = [
   SVG_COLORS.good,
   SVG_COLORS.bitcoin,
-  "#60a5fa",
+  GRADIENT_COLORS.inputLight,
   SVG_COLORS.medium,
   SVG_COLORS.high,
 ];
 
 /** Get the flat hex color for a node (used for link gradient endpoints). */
 function getNodeHex(n: NodeDatum): string {
-  if (n.side === "input") return "#60a5fa";
-  if (n.side === "fee") return "#6b7280";
-  if (n.annotationColor === SEVERITY_HEX.critical) return "#ef4444"; // dust
-  if (n.annotation) return "#f97316"; // change
+  if (n.side === "input") return GRADIENT_COLORS.inputLight;
+  if (n.side === "fee") return GRADIENT_COLORS.feeLight;
+  if (n.annotationColor === SEVERITY_HEX.critical) return SVG_COLORS.critical; // dust
+  if (n.annotation) return SVG_COLORS.high; // change
   if (n.anonColor) return n.anonColor;
-  return "#f7931a"; // default output
+  return SVG_COLORS.bitcoin; // default output
 }
 
 /** Get gradient fill + optional glow filter for a node. */
@@ -372,8 +372,8 @@ function FlowChart({
                 {(computed.links ?? []).map((link, i) => {
                   const srcNode = nodeMap.get((link.source as unknown as { id: string }).id);
                   const tgtNode = nodeMap.get((link.target as unknown as { id: string }).id);
-                  const srcColor = srcNode ? getNodeHex(srcNode) : "#f7931a";
-                  const tgtColor = tgtNode ? getNodeHex(tgtNode) : "#f7931a";
+                  const srcColor = srcNode ? getNodeHex(srcNode) : SVG_COLORS.bitcoin;
+                  const tgtColor = tgtNode ? getNodeHex(tgtNode) : SVG_COLORS.bitcoin;
                   return (
                     <linearGradient key={`flow-link-${i}`} id={`flow-link-${i}`}>
                       <stop offset="0%" stopColor={srcColor} />
