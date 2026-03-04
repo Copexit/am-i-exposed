@@ -390,7 +390,7 @@ function CoinJoinChart({
                         fillOpacity={0.9}
                         angle={-90}
                       >
-                        {t("viz.coinjoin.mixingZone", { defaultValue: "Mixing" })}
+                        {t("viz.coinjoin.mixingZone", { defaultValue: "Mixing zone" })}
                       </Text>
                     )}
 

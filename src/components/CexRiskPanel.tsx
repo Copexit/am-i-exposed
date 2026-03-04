@@ -417,7 +417,7 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
                   {chainalysis.status === "error" && (
                     <div className="mt-1 space-y-1">
                       <p className="text-xs text-severity-high">
-                        {chainalysis.error || t("cex.requestFailed", { defaultValue: "Request failed" })}
+                        {chainalysis.error || t("cex.requestFailed", { defaultValue: "Request failed. Check your internet connection and try again." })}
                       </p>
                       <button
                         onClick={runChainalysis}

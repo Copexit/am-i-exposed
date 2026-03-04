@@ -253,6 +253,104 @@ describe("analyzeCoinJoin", () => {
     expect(findings).toHaveLength(0);
   });
 
+  // ── Boundary tests ──────────────────────────────────────────────────
+
+  it("does not detect equal-output CoinJoin with only 4 equal outputs", () => {
+    const tx = makeTx({
+      vin: makeDistinctVins(4),
+      vout: [
+        ...Array.from({ length: 4 }, () => makeVout({ value: 75_000 })),
+        makeVout({ value: 10_000 }),
+      ],
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    // 4 equal outputs should NOT trigger equal-output CoinJoin (requires 5+)
+    expect(findings.find((f) => f.id === "h4-coinjoin")).toBeUndefined();
+  });
+
+  it("rejects Whirlpool with 11 outputs at known denom", () => {
+    const denom = WHIRLPOOL_DENOMS[2];
+    const tx = makeTx({
+      vin: makeDistinctVins(11),
+      vout: Array.from({ length: 11 }, () => makeVout({ value: denom })),
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    // 11 outputs exceeds the max of 10 for Whirlpool detection
+    expect(findings.find((f) => f.id === "h4-whirlpool")).toBeUndefined();
+  });
+
+  it("detects Whirlpool with exactly 10 outputs at known denom", () => {
+    const denom = WHIRLPOOL_DENOMS[1]; // 100_000 sats
+    const tx = makeTx({
+      vin: makeDistinctVins(10),
+      vout: Array.from({ length: 10 }, () => makeVout({ value: denom })),
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    expect(findings[0].id).toBe("h4-whirlpool");
+  });
+
+  it("does not detect JoinMarket with 11 inputs", () => {
+    const tx = makeTx({
+      vin: makeDistinctVins(11),
+      vout: [
+        makeVout({ value: 500_000, scriptpubkey_address: "bc1qjm1_0000000000000000000000000000000000" }),
+        makeVout({ value: 500_000, scriptpubkey_address: "bc1qjm2_0000000000000000000000000000000000" }),
+        makeVout({ value: 300_000 }),
+      ],
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    expect(findings.find((f) => f.id === "h4-joinmarket")).toBeUndefined();
+  });
+
+  it("does not detect JoinMarket with 9 outputs", () => {
+    const tx = makeTx({
+      vin: makeDistinctVins(4),
+      vout: [
+        makeVout({ value: 500_000, scriptpubkey_address: "bc1qjm1_0000000000000000000000000000000000" }),
+        makeVout({ value: 500_000, scriptpubkey_address: "bc1qjm2_0000000000000000000000000000000000" }),
+        ...Array.from({ length: 7 }, (_, i) => makeVout({ value: 100_000 + i * 10_000 })),
+      ],
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    expect(findings.find((f) => f.id === "h4-joinmarket")).toBeUndefined();
+  });
+
+  it("does not detect JoinMarket with equal outputs below 10k sats", () => {
+    const tx = makeTx({
+      vin: makeDistinctVins(3),
+      vout: [
+        makeVout({ value: 9_999, scriptpubkey_address: "bc1qjm1_0000000000000000000000000000000000" }),
+        makeVout({ value: 9_999, scriptpubkey_address: "bc1qjm2_0000000000000000000000000000000000" }),
+        makeVout({ value: 300_000 }),
+        makeVout({ value: 200_000 }),
+        makeVout({ value: 100_000 }),
+      ],
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    expect(findings.find((f) => f.id === "h4-joinmarket")).toBeUndefined();
+  });
+
+  it("detects Stonewall with 3 inputs (max)", () => {
+    const sameInputAddr = "bc1qinput000000000000000000000000000000000";
+    const tx = makeTx({
+      vin: [
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: sameInputAddr, value: 1_000_000 } }),
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: sameInputAddr, value: 500_000 } }),
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: sameInputAddr, value: 500_000 } }),
+      ],
+      vout: [
+        makeVout({ value: 200_000, scriptpubkey_address: "bc1qsw1_0000000000000000000000000000000000" }),
+        makeVout({ value: 200_000, scriptpubkey_address: "bc1qsw2_0000000000000000000000000000000000" }),
+        makeVout({ value: 150_000 }),
+        makeVout({ value: 100_000 }),
+      ],
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    const sw = findings.find((f) => f.id === "h4-stonewall");
+    expect(sw).toBeDefined();
+    expect(sw!.scoreImpact).toBe(15);
+  });
+
   // ── isCoinJoinFinding ────────────────────────────────────────────────
 
   it("isCoinJoinFinding returns true for positive CoinJoin findings", () => {

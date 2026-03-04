@@ -409,7 +409,7 @@ export function ScoreWaterfall({ findings, finalScore, grade, baseScore, onFindi
   return (
     <div className="w-full glass rounded-xl p-4 sm:p-6">
       <h3 className="text-sm font-medium text-muted uppercase tracking-wider mb-3">
-        {t("viz.waterfall.title", { defaultValue: "Score breakdown" })}
+        {t("viz.waterfall.title", { defaultValue: "Score impact" })}
       </h3>
       <div style={{ minHeight: MIN_HEIGHT }}>
         <ParentSize>

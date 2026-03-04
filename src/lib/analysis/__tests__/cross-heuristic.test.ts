@@ -49,6 +49,7 @@ describe("cross-heuristic intelligence", () => {
       "h1-round-amount",
       "h2-change-detected",
       "script-mixed",
+      "h5-low-entropy",
       "h11-wallet-fingerprint",
       "dust-attack",
       "dust-outputs",
@@ -57,6 +58,10 @@ describe("cross-heuristic intelligence", () => {
       "h6-rbf-signaled",
       "anon-set-none",
       "anon-set-moderate",
+      "h17-multisig-info",
+      "h17-hodlhodl",
+      "h17-escrow-2of3",
+      "h17-escrow-2of2",
     ];
 
     for (const id of suppressedIds) {
