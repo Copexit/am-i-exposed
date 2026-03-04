@@ -30,7 +30,7 @@ export function needsEnrichment(txs: MempoolTransaction[]): boolean {
   return false;
 }
 
-export interface EnrichOptions {
+interface EnrichOptions {
   /** Function to fetch a transaction by txid (typically api.getTransaction) */
   getTransaction: (txid: string) => Promise<MempoolTransaction>;
   /** AbortSignal for cancellation */

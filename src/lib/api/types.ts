@@ -41,7 +41,7 @@ export interface MempoolVout {
   value: number;
 }
 
-export interface TxStatus {
+interface TxStatus {
   confirmed: boolean;
   block_height?: number;
   block_hash?: string;

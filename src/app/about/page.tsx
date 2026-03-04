@@ -150,6 +150,27 @@ export default function AboutPage() {
             </div>
           </div>
         </section>
+
+        {/* CTA */}
+        <div className="text-center space-y-2">
+          <p className="text-sm text-muted">
+            {t("about.cta", { defaultValue: "Ready to check your privacy? Scan a transaction or address to see what chain analysis can infer." })}
+          </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Link
+              href="/methodology"
+              className="text-sm px-4 py-2.5 rounded-lg bg-surface-elevated border border-card-border text-foreground hover:border-bitcoin/30 transition-all"
+            >
+              {t("common.methodology", { defaultValue: "Methodology" })}
+            </Link>
+            <Link
+              href="/"
+              className="text-sm px-4 py-2.5 rounded-lg bg-bitcoin text-black font-semibold hover:bg-bitcoin-hover transition-all"
+            >
+              {t("about.scanNow", { defaultValue: "Scan now" })}
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );
