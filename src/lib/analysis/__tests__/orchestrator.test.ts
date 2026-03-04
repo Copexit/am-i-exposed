@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   analyzeTransaction,
   analyzeAddress,
+  analyzeTransactionsForAddress,
+  analyzeDestination,
   getTxHeuristicSteps,
   getAddressHeuristicSteps,
 } from "../orchestrator";
@@ -90,6 +92,134 @@ describe("analyzeAddress", () => {
 
     const pw = result.findings.find((f) => f.id === "partial-history-partial");
     expect(pw).toBeDefined();
+  });
+});
+
+describe("analyzeTransactionsForAddress", () => {
+  it("returns scored results with correct role for sender", async () => {
+    const targetAddr = "bc1qsender00000000000000000000000000000001";
+    const tx = makeTx({
+      vin: [makeVin({ prevout: { scriptpubkey_address: targetAddr, scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", value: 100_000 } })],
+    });
+
+    const results = await analyzeTransactionsForAddress(targetAddr, [tx]);
+    expect(results).toHaveLength(1);
+    expect(results[0].role).toBe("sender");
+    expect(results[0].score).toBeGreaterThanOrEqual(0);
+    expect(results[0].grade).toBeDefined();
+  });
+
+  it("returns correct role for receiver", async () => {
+    const targetAddr = "bc1qrecvr000000000000000000000000000000001";
+    const tx = makeTx({
+      vout: [{ scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: targetAddr, value: 50_000 }],
+    });
+
+    const results = await analyzeTransactionsForAddress(targetAddr, [tx]);
+    expect(results).toHaveLength(1);
+    expect(results[0].role).toBe("receiver");
+  });
+
+  it("returns 'both' when target is in vin and vout", async () => {
+    const targetAddr = "bc1qboth0000000000000000000000000000000001";
+    const tx = makeTx({
+      vin: [makeVin({ prevout: { scriptpubkey_address: targetAddr, scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", value: 100_000 } })],
+      vout: [{ scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: targetAddr, value: 50_000 }],
+    });
+
+    const results = await analyzeTransactionsForAddress(targetAddr, [tx]);
+    expect(results).toHaveLength(1);
+    expect(results[0].role).toBe("both");
+  });
+
+  it("caps at 50 transactions", async () => {
+    const txs = Array.from({ length: 60 }, () => makeTx());
+    const resultPromise = analyzeTransactionsForAddress("bc1qtest", txs);
+    // tick() uses setTimeout(0) every 10 txs - run all pending timers
+    await vi.runAllTimersAsync();
+    const results = await resultPromise;
+    expect(results).toHaveLength(50);
+  });
+
+  it("continues when a heuristic throws", async () => {
+    // A transaction with minimal data should still produce results
+    const tx = makeTx();
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const results = await analyzeTransactionsForAddress("bc1qtest", [tx]);
+    expect(results).toHaveLength(1);
+    expect(results[0].score).toBeGreaterThanOrEqual(0);
+    consoleSpy.mockRestore();
+  });
+});
+
+describe("analyzeDestination", () => {
+  it("returns LOW risk for unused address", async () => {
+    const addr = makeAddress({
+      chain_stats: { funded_txo_count: 0, funded_txo_sum: 0, spent_txo_count: 0, spent_txo_sum: 0, tx_count: 0 },
+      mempool_stats: { funded_txo_count: 0, funded_txo_sum: 0, spent_txo_count: 0, spent_txo_sum: 0, tx_count: 0 },
+    });
+    const onStep = vi.fn();
+
+    const resultPromise = analyzeDestination(addr, [], [], onStep);
+    await vi.advanceTimersByTimeAsync(4 * 100);
+    const result = await resultPromise;
+
+    expect(result.riskLevel).toBe("LOW");
+    expect(result.txCount).toBe(0);
+    expect(result.timesReceived).toBe(0);
+  });
+
+  it("returns HIGH risk for address received once (reuse)", async () => {
+    const addr = makeAddress({
+      chain_stats: { funded_txo_count: 1, funded_txo_sum: 100_000, spent_txo_count: 0, spent_txo_sum: 0, tx_count: 1 },
+      mempool_stats: { funded_txo_count: 0, funded_txo_sum: 0, spent_txo_count: 0, spent_txo_sum: 0, tx_count: 0 },
+    });
+
+    const resultPromise = analyzeDestination(addr, [], []);
+    await vi.advanceTimersByTimeAsync(4 * 100);
+    const result = await resultPromise;
+
+    expect(result.riskLevel).toBe("HIGH");
+    expect(result.timesReceived).toBe(1);
+  });
+
+  it("returns CRITICAL risk for heavily reused address (100+)", async () => {
+    const addr = makeAddress({
+      chain_stats: { funded_txo_count: 150, funded_txo_sum: 50_000_000, spent_txo_count: 100, spent_txo_sum: 40_000_000, tx_count: 250 },
+      mempool_stats: { funded_txo_count: 0, funded_txo_sum: 0, spent_txo_count: 0, spent_txo_sum: 0, tx_count: 0 },
+    });
+
+    const resultPromise = analyzeDestination(addr, [], []);
+    await vi.advanceTimersByTimeAsync(4 * 100);
+    const result = await resultPromise;
+
+    expect(result.riskLevel).toBe("CRITICAL");
+    expect(result.timesReceived).toBe(150);
+  });
+
+  it("returns HIGH risk when funded_txo_count=0 but tx_count>0 (electrs fallback)", async () => {
+    const addr = makeAddress({
+      chain_stats: { funded_txo_count: 0, funded_txo_sum: 0, spent_txo_count: 0, spent_txo_sum: 0, tx_count: 5 },
+      mempool_stats: { funded_txo_count: 0, funded_txo_sum: 0, spent_txo_count: 0, spent_txo_sum: 0, tx_count: 0 },
+    });
+
+    const resultPromise = analyzeDestination(addr, [], []);
+    await vi.advanceTimersByTimeAsync(4 * 100);
+    const result = await resultPromise;
+
+    expect(result.riskLevel).toBe("HIGH");
+    expect(result.summaryKey).toBe("presend.summaryHighDataUnavailable");
+  });
+
+  it("includes h13-presend-check finding in results", async () => {
+    const addr = makeAddress();
+
+    const resultPromise = analyzeDestination(addr, [], []);
+    await vi.advanceTimersByTimeAsync(4 * 100);
+    const result = await resultPromise;
+
+    const presend = result.findings.find((f) => f.id === "h13-presend-check");
+    expect(presend).toBeDefined();
   });
 });
 
