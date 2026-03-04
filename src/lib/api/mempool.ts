@@ -1,12 +1,10 @@
 import { fetchWithRetry, ApiError } from "./fetch-with-retry";
+import { ADDR_RE, TXID_RE } from "@/lib/constants";
 import type {
   MempoolTransaction,
   MempoolAddress,
   MempoolUtxo,
 } from "./types";
-
-const TXID_RE = /^[a-fA-F0-9]{64}$/;
-const ADDR_RE = /^[a-zA-Z0-9]{25,90}$/;
 
 function assertTxid(txid: string): void {
   if (!TXID_RE.test(txid)) throw new ApiError("INVALID_INPUT", "Invalid txid format");

@@ -3,6 +3,12 @@ import type { Grade } from "@/lib/types";
 /** Lightning address for tips / Value4Value. */
 export const LN_ADDRESS = "woozycuticle72@walletofsatoshi.com";
 
+/** Basic format validation for Bitcoin addresses (all networks). */
+export const ADDR_RE = /^[a-zA-Z0-9]{25,90}$/;
+
+/** Format validation for transaction IDs (64 hex chars). */
+export const TXID_RE = /^[a-fA-F0-9]{64}$/;
+
 /** Dust threshold in satoshis - outputs below this are flagged as potential dust. */
 export const DUST_THRESHOLD = 1000;
 

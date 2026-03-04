@@ -1,4 +1,4 @@
-import { abortSignalAny, abortSignalTimeout } from "@/lib/abort-signal";
+import { abortSignalAny, abortSignalTimeout, abortableSleep } from "@/lib/abort-signal";
 
 export class ApiError extends Error {
   constructor(
@@ -15,16 +15,7 @@ const RETRY_DELAYS = [1000, 2000, 4000];
 /** Per-request timeout - prevents individual fetch attempts hanging on Tor */
 const REQUEST_TIMEOUT_MS = 15_000;
 
-function sleep(ms: number, signal?: AbortSignal) {
-  return new Promise<void>((resolve, reject) => {
-    if (signal?.aborted) { reject(signal.reason); return; }
-    const timer = setTimeout(resolve, ms);
-    signal?.addEventListener("abort", () => {
-      clearTimeout(timer);
-      reject(signal.reason);
-    }, { once: true });
-  });
-}
+const sleep = abortableSleep;
 
 export async function fetchWithRetry(
   url: string,

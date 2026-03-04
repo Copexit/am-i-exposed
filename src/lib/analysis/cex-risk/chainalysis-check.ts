@@ -11,9 +11,10 @@ const PROXY_BASE =
 // Local Tor proxy route (Umbrel mode - routes through Tor SOCKS5)
 const TOR_PROXY_BASE = "/tor-proxy/chainalysis/address";
 
+import { ADDR_RE } from "@/lib/constants";
+
 const MAX_ADDRESSES = 20;
 const TOR_TIMEOUT_MS = 30_000;
-const ADDR_RE = /^[a-zA-Z0-9]{25,90}$/;
 
 function assertAddress(addr: string): void {
   if (!ADDR_RE.test(addr)) throw new Error("Invalid address format");
