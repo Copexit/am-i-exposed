@@ -78,7 +78,7 @@ export default function AboutPage() {
           </h2>
           <div className="space-y-4 text-muted leading-relaxed">
             <p>
-              {t("about.what_p1", { defaultValue: "Paste any Bitcoin address or transaction ID. The tool runs 16 heuristics against it - the same techniques chain analysis firms use - and shows you exactly what they can infer." })}
+              {t("about.what_p1", { defaultValue: "Paste any Bitcoin address or transaction ID. The tool runs 17 heuristics against it - the same techniques chain analysis firms use - and shows you exactly what they can infer." })}
             </p>
             <p>
               {t("about.what_p2", { defaultValue: "You get a privacy score from 0 to 100, a letter grade, and specific findings with actionable recommendations. Not just 'your privacy is bad' but 'here is why, and here is what to do about it.'" })}

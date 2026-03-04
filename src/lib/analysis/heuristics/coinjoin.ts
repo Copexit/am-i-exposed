@@ -124,6 +124,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
   if (findings.length === 0) {
     const stonewall = detectStonewall(tx.vin, spendableOutputs);
     if (stonewall) {
+      const isSolo = stonewall.distinctInputAddresses === 1;
       findings.push({
         id: "h4-stonewall",
         severity: "good",
@@ -138,11 +139,33 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
           "Stonewall creates genuine ambiguity: an observer cannot tell if this is a single-wallet Stonewall or a two-wallet STONEWALLx2. " +
           "The 2 equal outputs make the payment amount ambiguous, and each change output could belong to either party.",
         recommendation:
-          "Stonewall transactions provide real privacy by creating doubt about the payment amount and fund ownership. " +
-          "Do not consolidate the change outputs together or with the equal-valued outputs. " +
-          "Spend them independently to maintain the ambiguity this transaction created. " +
-          "For stronger privacy, combine with Whirlpool mixing before spending.",
+          "Stonewall provides real privacy by creating ambiguity. " +
+          "The critical post-transaction rule: never spend two outputs from this transaction together. " +
+          "Treat each output as belonging to a separate wallet.",
         scoreImpact: 15,
+        remediation: {
+          qualifier: isSolo
+            ? "Likely solo Stonewall: all inputs appear to come from one wallet. The sender controls 3 of 4 outputs (1 decoy + 2 change)."
+            : "STONEWALLx2: inputs came from 2+ wallets. Each party must manage their outputs independently.",
+          steps: isSolo
+            ? [
+                "Never spend two outputs from this transaction together - doing so reveals that you control both, breaking Stonewall ambiguity.",
+                "Use coin control to label each output and track them separately.",
+                "When spending change outputs, avoid co-spending with other UTXOs linked to this transaction's inputs.",
+                "For stronger forward privacy, mix change outputs through Whirlpool before spending.",
+              ]
+            : [
+                "Never spend two outputs from this transaction together - the sender's change and the collaborator's outputs must remain independent.",
+                "If you are the collaborator, keep your equal-valued output and change output strictly separated. Spending them together reveals which equal-valued output is the real payment.",
+                "Use coin control to label and isolate each output from this transaction.",
+                "For stronger forward privacy, mix change outputs through Whirlpool before spending.",
+              ],
+          tools: [
+            { name: "Ashigaru (Stonewall/STONEWALLx2)", url: "https://ashigaru.rs" },
+            { name: "Sparrow Wallet (Coin Control)", url: "https://sparrowwallet.com" },
+          ],
+          urgency: "when-convenient" as const,
+        },
       });
     }
   }

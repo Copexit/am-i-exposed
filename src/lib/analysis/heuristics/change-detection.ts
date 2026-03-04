@@ -29,6 +29,44 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
   // Skip coinbase
   if (tx.vin.some((v) => v.is_coinbase)) return { findings };
 
+  // ── Wallet hop detection (N-in, 1-out, script type upgrade) ──────
+  // Full sweep to a NEW address with a different (upgraded) script type
+  // suggests a wallet migration. Informational only (0 impact).
+  if (spendableOutputs.length === 1 && spendableOutputs[0].scriptpubkey_address) {
+    const inputScriptTypes = new Set<string>();
+    for (const v of tx.vin) {
+      if (v.prevout?.scriptpubkey_type) inputScriptTypes.add(v.prevout.scriptpubkey_type);
+    }
+    const outputType = spendableOutputs[0].scriptpubkey_type;
+
+    if (inputScriptTypes.size > 0 && !inputScriptTypes.has(outputType)) {
+      const isUpgrade =
+        (inputScriptTypes.has("p2pkh") && (outputType === "v0_p2wpkh" || outputType === "v1_p2tr")) ||
+        (inputScriptTypes.has("p2sh") && (outputType === "v0_p2wpkh" || outputType === "v1_p2tr")) ||
+        (inputScriptTypes.has("v0_p2wpkh") && outputType === "v1_p2tr");
+
+      if (isUpgrade) {
+        findings.push({
+          id: "h2-wallet-hop",
+          severity: "low",
+          title: "Address type upgrade detected (possible wallet migration)",
+          params: {
+            fromTypes: [...inputScriptTypes].join(", "),
+            toType: outputType,
+          },
+          description:
+            `Input script type${inputScriptTypes.size > 1 ? "s" : ""} (${[...inputScriptTypes].join(", ")}) ` +
+            `differ from the output type (${outputType}), suggesting a wallet migration or address ` +
+            "type upgrade. This pattern is consistent with moving funds from an older wallet to a newer one.",
+          recommendation:
+            "Wallet migrations are fine for operational reasons, but the full-sweep pattern " +
+            "links all inputs together. Consider using CoinJoin before consolidating to break linkability.",
+          scoreImpact: 0,
+        });
+      }
+    }
+  }
+
   // ── Self-send detection: output address matches input address ──────
   // The most severe form of change detection. When change goes back to the
   // same address it was spent from, the change output is trivially identified

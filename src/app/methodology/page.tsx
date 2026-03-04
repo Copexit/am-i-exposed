@@ -35,6 +35,7 @@ const HEURISTIC_IDS = [
   { id: "H14", titleKey: "methodology.heuristic_h14_title", descKey: "methodology.heuristic_h14_description", impact: "-1 to -3" },
   { id: "H15", titleKey: "methodology.heuristic_h15_title", descKey: "methodology.heuristic_h15_description", impact: "-8 to +2" },
   { id: "H16", titleKey: "methodology.heuristic_h16_title", descKey: "methodology.heuristic_h16_description", impact: "-3 to +2" },
+  { id: "H17", titleKey: "methodology.heuristic_h17_title", descKey: "methodology.heuristic_h17_description", impact: "0 to -3" },
 ];
 
 const GRADE_IDS = [
@@ -162,7 +163,7 @@ export default function MethodologyPage() {
             {t("methodology.heuristics_heading", { defaultValue: "Heuristics" })}
           </h2>
           <p className="text-muted leading-relaxed">
-            {t("methodology.heuristics_intro", { defaultValue: "The engine implements 16 heuristics that evaluate on-chain privacy - 12 at the transaction level and 4 at the address level. Each produces a score impact applied to a base score of 70." })}
+            {t("methodology.heuristics_intro", { defaultValue: "The engine implements 17 heuristics that evaluate on-chain privacy - 13 at the transaction level and 4 at the address level. Each produces a score impact applied to a base score of 70." })}
           </p>
           <div className="space-y-3">
             {HEURISTIC_IDS.map((h) => (
