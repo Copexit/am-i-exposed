@@ -115,6 +115,19 @@ describe("calculateScore", () => {
     expect(result.grade).toBe("B");
   });
 
+  it("handles empty findings array", () => {
+    const result = calculateScore([]);
+    expect(result.score).toBe(70);
+    expect(result.grade).toBe("C");
+    expect(result.findings).toHaveLength(0);
+  });
+
+  it("handles empty findings in address mode", () => {
+    const result = calculateScore([], "address");
+    expect(result.score).toBe(93);
+    expect(result.grade).toBe("A+");
+  });
+
   it("sorts findings by severity (critical first, good last)", () => {
     const findings = [
       makeFinding({ id: "good", severity: "good", scoreImpact: 5 }),
