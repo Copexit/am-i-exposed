@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ImageIcon, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Grade } from "@/lib/types";
@@ -23,6 +23,8 @@ export function ShareCardButton({
   const { t } = useTranslation();
   const [generating, setGenerating] = useState(false);
   const [failed, setFailed] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -68,7 +70,8 @@ export function ShareCardButton({
       // User cancellation of share sheet is not an error
       if (err instanceof DOMException && err.name === "AbortError") return;
       setFailed(true);
-      setTimeout(() => setFailed(false), 2000);
+      clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setFailed(false), 2000);
     } finally {
       setGenerating(false);
     }

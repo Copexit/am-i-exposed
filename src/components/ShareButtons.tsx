@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Copy, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { copyToClipboard } from "@/lib/clipboard";
@@ -56,6 +56,8 @@ export function ShareButtons({
 }: ShareButtonsProps) {
   const { t } = useTranslation();
   const [linkCopied, setLinkCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
 
   const shareUrl = getShareUrl(query, inputType);
   const shareText = getShareText(grade, score, findingCount, t);
@@ -70,7 +72,8 @@ export function ShareButtons({
     const ok = await copyToClipboard(shareUrl);
     if (ok) {
       setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
+      clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setLinkCopied(false), 2000);
     }
   };
 

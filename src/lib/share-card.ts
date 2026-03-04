@@ -1,7 +1,7 @@
 import type { Grade } from "@/lib/types";
 import { GRADE_HEX } from "@/lib/constants";
 
-export interface ShareCardLabels {
+interface ShareCardLabels {
   privacyGrade: string;
   findingsAnalyzed: string;
   footerLeft: string;

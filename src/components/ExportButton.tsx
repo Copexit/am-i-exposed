@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { ClipboardCopy, Check } from "lucide-react";
 import { copyToClipboard } from "@/lib/clipboard";
@@ -21,6 +21,8 @@ interface ExportButtonProps {
 export function ExportButton({ targetId, query, result, inputType }: ExportButtonProps) {
   const { t } = useTranslation();
   const [status, setStatus] = useState<"idle" | "done" | "failed">("idle");
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
 
   const handleExport = useCallback(async () => {
     try {
@@ -95,10 +97,12 @@ export function ExportButton({ targetId, query, result, inputType }: ExportButto
 
       const ok = await copyToClipboard(lines.join("\n"));
       setStatus(ok ? "done" : "failed");
-      setTimeout(() => setStatus("idle"), 2000);
+      clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setStatus("idle"), 2000);
     } catch {
       setStatus("failed");
-      setTimeout(() => setStatus("idle"), 2000);
+      clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setStatus("idle"), 2000);
     }
   }, [targetId, query, result, inputType, t]);
 

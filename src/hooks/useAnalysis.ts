@@ -81,6 +81,39 @@ function makeIncompletePrevoutFinding(remainingNulls: number, isAddress = false)
   };
 }
 
+/** Build the PreSendResult for an OFAC-sanctioned address. */
+function makeOfacPreSendResult(
+  t: (key: string, opts?: Record<string, unknown>) => string,
+): PreSendResult {
+  return {
+    riskLevel: "CRITICAL",
+    summaryKey: "presend.adviceCritical",
+    summary: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
+    findings: [
+      {
+        id: "h13-presend-check",
+        severity: "critical",
+        params: { riskLevel: "CRITICAL" },
+        title: t("finding.h13-presend-check.title", { riskLevel: "CRITICAL", defaultValue: "Destination risk: CRITICAL" }),
+        description: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
+        recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),
+        scoreImpact: 0,
+      },
+      {
+        id: "h13-ofac-match",
+        severity: "critical",
+        title: t("finding.h13-ofac-match.title", { defaultValue: "OFAC sanctioned address" }),
+        description: t("finding.h13-ofac-match.description", { defaultValue: "This address matches an entry on the U.S. Treasury OFAC Specially Designated Nationals (SDN) list. Transacting with sanctioned addresses may have serious legal consequences." }),
+        recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),
+        scoreImpact: -100,
+      },
+    ],
+    txCount: 0,
+    timesReceived: 0,
+    totalReceived: 0,
+  };
+}
+
 /** Mark all heuristic steps as done (used when analysis completes or errors). */
 function markAllDone(steps: HeuristicStep[]): HeuristicStep[] {
   return steps.map((s) => ({ ...s, status: "done" as const }));
@@ -197,40 +230,13 @@ export function useAnalysis() {
           // OFAC pre-flight check (no network needed)
           const ofacResult = checkOfac([input]);
           if (ofacResult.sanctioned) {
-            const preSendResult: PreSendResult = {
-              riskLevel: "CRITICAL",
-              summaryKey: "presend.adviceCritical",
-              summary: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
-              findings: [
-                {
-                  id: "h13-presend-check",
-                  severity: "critical",
-                  params: { riskLevel: "CRITICAL" },
-                  title: t("finding.h13-presend-check.title", { riskLevel: "CRITICAL", defaultValue: "Destination risk: CRITICAL" }),
-                  description: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
-                  recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),
-                  scoreImpact: 0,
-                },
-                {
-                  id: "h13-ofac-match",
-                  severity: "critical",
-                  title: t("finding.h13-ofac-match.title", { defaultValue: "OFAC sanctioned address" }),
-                  description: t("finding.h13-ofac-match.description", { defaultValue: "This address matches an entry on the U.S. Treasury OFAC Specially Designated Nationals (SDN) list. Transacting with sanctioned addresses may have serious legal consequences." }),
-                  recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),
-                  scoreImpact: -100,
-                },
-              ],
-              txCount: 0,
-              timesReceived: 0,
-              totalReceived: 0,
-            };
             setState({
               ...INITIAL_STATE,
               phase: "complete",
               query: input,
               inputType: "address",
               steps: steps.map((s) => ({ ...s, status: "done" as const })),
-              preSendResult,
+              preSendResult: makeOfacPreSendResult(t),
               durationMs: Date.now() - startTime,
             });
             return;
@@ -309,38 +315,11 @@ export function useAnalysis() {
         if (inputType === "address") {
           const fallbackOfac = checkOfac([input]);
           if (fallbackOfac.sanctioned) {
-            const preSendResult: PreSendResult = {
-              riskLevel: "CRITICAL",
-              summaryKey: "presend.adviceCritical",
-              summary: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
-              findings: [
-                {
-                  id: "h13-presend-check",
-                  severity: "critical",
-                  params: { riskLevel: "CRITICAL" },
-                  title: t("finding.h13-presend-check.title", { riskLevel: "CRITICAL", defaultValue: "Destination risk: CRITICAL" }),
-                  description: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
-                  recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),
-                  scoreImpact: 0,
-                },
-                {
-                  id: "h13-ofac-match",
-                  severity: "critical",
-                  title: t("finding.h13-ofac-match.title", { defaultValue: "OFAC sanctioned address" }),
-                  description: t("finding.h13-ofac-match.description", { defaultValue: "This address matches an entry on the U.S. Treasury OFAC Specially Designated Nationals (SDN) list. Transacting with sanctioned addresses may have serious legal consequences." }),
-                  recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),
-                  scoreImpact: -100,
-                },
-              ],
-              txCount: 0,
-              timesReceived: 0,
-              totalReceived: 0,
-            };
             setState((prev) => ({
               ...prev,
               phase: "complete",
               steps: markAllDone(prev.steps),
-              preSendResult,
+              preSendResult: makeOfacPreSendResult(t),
               durationMs: Date.now() - startTime,
             }));
             return;

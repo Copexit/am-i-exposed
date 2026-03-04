@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { ArrowLeft, Search } from "lucide-react";
+import { ArrowLeft, Search, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 const GLOSSARY_ITEMS = [
@@ -223,7 +223,7 @@ const DEFAULTS: Record<string, string> = {
   "glossary.term_self_send": "Self-send (Self-transfer)",
   "glossary.def_self_send": "A transaction where one or more outputs return to an address that was also an input. This trivially identifies the change output, revealing the sender's remaining balance and the exact payment amount. HD wallets avoid this by generating a fresh change address for every transaction.",
   "glossary.term_stonewall": "Stonewall",
-  "glossary.def_stonewall": "A steganographic transaction format from Samourai Wallet (now Ashigaru) that mimics a CoinJoin. Has 2-3 inputs and exactly 4 outputs: 2 equal-valued outputs (one real payment, one decoy) and 2 change outputs. Solo Stonewall uses only the sender's UTXOs. STONEWALLx2 involves a collaborator contributing an input, making it indistinguishable from a genuine 2-party CoinJoin.",
+  "glossary.def_stonewall": "A steganographic transaction format from Samourai Wallet (now Ashigaru) that mimics a CoinJoin. Has 2-4 inputs and exactly 4 outputs: 2 equal-valued outputs (one real payment, one decoy) and 2 change outputs. Solo Stonewall uses only the sender's UTXOs. STONEWALLx2 involves a collaborator contributing inputs, making it indistinguishable from a genuine 2-party CoinJoin.",
   "glossary.term_sweep": "Sweep",
   "glossary.def_sweep": "A transaction that sends the entire balance of one or more addresses to a single output with no change. Common when migrating wallets or claiming funds. A single-input sweep (1-in-1-out) has zero entropy. A multi-input sweep additionally links all input addresses via the Common Input Ownership Heuristic. Provides zero unlinkability.",
   "glossary.term_script_type": "Script Type",
@@ -246,14 +246,28 @@ export default function GlossaryPage() {
   const { t } = useTranslation();
   const [filter, setFilter] = useState("");
 
-  const filtered = useMemo(() => {
-    if (!filter.trim()) return GLOSSARY_ITEMS;
-    const q = filter.toLowerCase();
-    return GLOSSARY_ITEMS.filter((item) => {
-      const term = t(item.termKey, { defaultValue: DEFAULTS[item.termKey] }).toLowerCase();
-      const def = t(item.defKey, { defaultValue: DEFAULTS[item.defKey] }).toLowerCase();
-      return term.includes(q) || def.includes(q);
-    });
+  const grouped = useMemo(() => {
+    const items = filter.trim()
+      ? GLOSSARY_ITEMS.filter((item) => {
+          const q = filter.toLowerCase();
+          const term = t(item.termKey, { defaultValue: DEFAULTS[item.termKey] }).toLowerCase();
+          const def = t(item.defKey, { defaultValue: DEFAULTS[item.defKey] }).toLowerCase();
+          return term.includes(q) || def.includes(q);
+        })
+      : GLOSSARY_ITEMS;
+
+    const groups: { letter: string; items: typeof GLOSSARY_ITEMS }[] = [];
+    let currentLetter = "";
+    for (const item of items) {
+      const term = t(item.termKey, { defaultValue: DEFAULTS[item.termKey] });
+      const letter = term.charAt(0).toUpperCase();
+      if (letter !== currentLetter) {
+        currentLetter = letter;
+        groups.push({ letter, items: [] });
+      }
+      groups[groups.length - 1].items.push(item);
+    }
+    return groups;
   }, [filter, t]);
 
   return (
@@ -288,33 +302,60 @@ export default function GlossaryPage() {
               onChange={(e) => setFilter(e.target.value)}
               placeholder={t("glossary.search", { defaultValue: "Filter terms..." })}
               aria-label={t("glossary.search", { defaultValue: "Filter terms..." })}
-              className="w-full pl-9 pr-4 py-2.5 text-sm bg-surface-elevated/50 border border-card-border rounded-lg text-foreground placeholder:text-muted/60 focus:border-bitcoin/30 focus-visible:outline-2 focus-visible:outline-bitcoin/50 transition-colors"
+              className={`w-full pl-9 ${filter ? "pr-8" : "pr-4"} py-2.5 text-sm bg-surface-elevated/50 border border-card-border rounded-lg text-foreground placeholder:text-muted/60 focus:border-bitcoin/30 focus-visible:outline-2 focus-visible:outline-bitcoin/50 transition-colors`}
             />
+            {filter && (
+              <button
+                onClick={() => setFilter("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-foreground transition-colors cursor-pointer"
+                aria-label={t("glossary.clearFilter", { defaultValue: "Clear filter" })}
+              >
+                <X size={14} />
+              </button>
+            )}
           </div>
         </div>
 
         {/* Terms */}
-        <dl className="space-y-3">
-          {filtered.length === 0 && (
-            <p className="text-sm text-muted py-8 text-center">
-              {t("glossary.noResults", { defaultValue: "No matching terms found." })}
-            </p>
-          )}
-          {filtered.map((item) => (
-            <div
-              key={item.id}
-              id={item.id}
-              className="rounded-xl border border-card-border bg-surface-elevated/50 px-5 py-4 space-y-1.5"
-            >
-              <dt className="text-sm font-semibold text-foreground">
-                {t(item.termKey, { defaultValue: DEFAULTS[item.termKey] })}
-              </dt>
-              <dd className="text-sm text-muted leading-relaxed">
-                {t(item.defKey, { defaultValue: DEFAULTS[item.defKey] })}
-              </dd>
+        <div className="space-y-8">
+          {grouped.length === 0 && (
+            <div className="text-center py-12 space-y-2">
+              <p className="text-sm text-muted">
+                {t("glossary.noResults", { defaultValue: "No matching terms found." })}
+              </p>
+              <button
+                onClick={() => setFilter("")}
+                className="text-sm text-bitcoin hover:text-bitcoin/80 transition-colors cursor-pointer"
+              >
+                {t("glossary.clearFilter", { defaultValue: "Clear filter" })}
+              </button>
             </div>
+          )}
+          {grouped.map(({ letter, items }) => (
+            <section key={letter} aria-label={`Terms starting with ${letter}`}>
+              <h2 className="text-sm font-bold text-muted/80 uppercase tracking-widest mb-3 ml-1 flex items-center gap-3">
+                {letter}
+                <span className="flex-1 h-px bg-card-border" />
+              </h2>
+              <dl className="space-y-3">
+                {items.map((item) => (
+                  <div
+                    key={item.id}
+                    id={item.id}
+                    className="rounded-xl border border-card-border bg-surface-elevated/50 px-5 py-4 space-y-1.5 hover:border-card-border/80 hover:bg-surface-elevated/70 transition-colors"
+                  >
+                    <dt className="text-sm font-semibold text-foreground">
+                      {t(item.termKey, { defaultValue: DEFAULTS[item.termKey] })}
+                    </dt>
+                    <dd className="text-sm text-muted leading-relaxed">
+                      {t(item.defKey, { defaultValue: DEFAULTS[item.defKey] })}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
           ))}
-        </dl>
+        </div>
 
         {/* CTA */}
         <div className="text-center space-y-2">
@@ -330,7 +371,7 @@ export default function GlossaryPage() {
             </Link>
             <Link
               href="/"
-              className="text-sm px-4 py-2.5 rounded-lg bg-bitcoin/10 border border-bitcoin/20 text-bitcoin hover:border-bitcoin/40 transition-all"
+              className="text-sm px-4 py-2.5 rounded-lg bg-bitcoin text-bg hover:bg-bitcoin/90 transition-all"
             >
               {t("glossary.scanNow", { defaultValue: "Scan now" })}
             </Link>
