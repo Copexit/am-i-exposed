@@ -249,6 +249,7 @@ export function ResultsPanel({
             onClick={() => copyToClipboard(query)}
             className="inline-flex items-start gap-2 font-mono text-sm text-foreground/90 break-all leading-relaxed text-left hover:text-foreground transition-colors cursor-pointer group/copy"
             title={t("common.copy", { defaultValue: "Copy" })}
+            aria-label={t("common.copyToClipboard", { defaultValue: "Copy to clipboard" })}
           >
             <span className="break-all">{query}</span>
             <Copy size={14} className="shrink-0 mt-1 text-muted opacity-0 group-hover/copy:opacity-100 transition-opacity" />

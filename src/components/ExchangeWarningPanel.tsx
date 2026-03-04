@@ -166,28 +166,28 @@ export function ExchangeWarningPanel() {
                 <h3 className="text-sm font-medium text-foreground/90 mb-2">
                   {t("exchange.recommendationsTitle", { defaultValue: "Recommendations" })}
                 </h3>
-                <ul className="space-y-1.5 text-xs text-muted leading-relaxed">
+                <ol className="space-y-1.5 text-xs text-muted leading-relaxed list-none">
                   <li className="flex gap-2">
-                    <span className="text-bitcoin shrink-0">1.</span>
+                    <span className="text-bitcoin shrink-0" aria-hidden="true">1.</span>
                     {t("exchange.rec1", { defaultValue: "Do not deposit CoinJoin outputs directly to a centralized exchange." })}
                   </li>
                   <li className="flex gap-2">
-                    <span className="text-bitcoin shrink-0">2.</span>
+                    <span className="text-bitcoin shrink-0" aria-hidden="true">2.</span>
                     {t("exchange.rec2", { defaultValue: "Maintain strict separation between privacy wallets and exchange wallets." })}
                   </li>
                   <li className="flex gap-2">
-                    <span className="text-bitcoin shrink-0">3.</span>
+                    <span className="text-bitcoin shrink-0" aria-hidden="true">3.</span>
                     {t("exchange.rec3", { defaultValue: "Never mix coins after withdrawing from a KYC exchange - exchanges monitor where withdrawals go." })}
                   </li>
                   <li className="flex gap-2">
-                    <span className="text-bitcoin shrink-0">4.</span>
+                    <span className="text-bitcoin shrink-0" aria-hidden="true">4.</span>
                     {t("exchange.rec4", { defaultValue: "Use decentralized exchanges (Bisq, RoboSats, Hodl Hodl) for converting CoinJoin outputs." })}
                   </li>
                   <li className="flex gap-2">
-                    <span className="text-bitcoin shrink-0">5.</span>
+                    <span className="text-bitcoin shrink-0" aria-hidden="true">5.</span>
                     {t("exchange.rec5", { defaultValue: "Be aware of retroactive risk - exchanges can re-scan historical transactions at any time." })}
                   </li>
-                </ul>
+                </ol>
               </div>
             </div>
           </motion.div>

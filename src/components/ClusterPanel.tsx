@@ -65,7 +65,14 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
               </span>
               <span>{progress.current} / {progress.total}</span>
             </div>
-            <div className="w-full bg-card-border rounded-full h-1.5 overflow-hidden">
+            <div
+              className="w-full bg-card-border rounded-full h-1.5 overflow-hidden"
+              role="progressbar"
+              aria-valuenow={progress.current}
+              aria-valuemin={0}
+              aria-valuemax={progress.total}
+              aria-label={t("cluster.progressLabel", { defaultValue: "Cluster analysis progress" })}
+            >
               <div
                 className="bg-bitcoin h-full rounded-full transition-all duration-300"
                 style={{ width: `${(progress.current / progress.total) * 100}%` }}

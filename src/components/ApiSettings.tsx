@@ -270,6 +270,7 @@ export function ApiSettings() {
           <div className="border-t border-card-border pt-1">
             <button
               onClick={() => setAdvancedOpen(!advancedOpen)}
+              aria-expanded={advancedOpen}
               className="flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors cursor-pointer w-full py-1"
             >
               {advancedOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
@@ -319,6 +320,7 @@ export function ApiSettings() {
                   setErrorHint("");
                 }}
                 placeholder="https://mempool.space/api"
+                aria-label={t("settings.apiInputLabel", { defaultValue: "Custom mempool API URL" })}
                 className="flex-1 bg-surface-inset border border-card-border rounded-lg px-3 py-2.5 text-sm text-foreground font-mono placeholder:text-muted/70 focus-visible:border-bitcoin/50"
               />
               <button
