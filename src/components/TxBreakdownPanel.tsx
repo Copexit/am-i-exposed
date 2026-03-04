@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronDown, ArrowUpRight, ArrowDownLeft, ArrowLeftRight, ArrowUpDown, Radar, Copy, Check, ExternalLink } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -34,6 +34,8 @@ export function TxBreakdownPanel({
   const [sortBy, setSortBy] = useState<"grade" | "time">("grade");
   const [visibleCount, setVisibleCount] = useState(10);
   const [copiedTxid, setCopiedTxid] = useState<string | null>(null);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(copyTimerRef.current), []);
 
   const sorted = useMemo(() => [...breakdown].sort((a, b) => {
     if (sortBy === "grade") return a.score - b.score; // worst first
@@ -138,14 +140,16 @@ export function TxBreakdownPanel({
                       e.stopPropagation();
                       copyToClipboard(item.txid);
                       setCopiedTxid(item.txid);
-                      setTimeout(() => setCopiedTxid(null), 1500);
+                      clearTimeout(copyTimerRef.current);
+                      copyTimerRef.current = setTimeout(() => setCopiedTxid(null), 1500);
                     }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.stopPropagation();
                         copyToClipboard(item.txid);
                         setCopiedTxid(item.txid);
-                        setTimeout(() => setCopiedTxid(null), 1500);
+                        clearTimeout(copyTimerRef.current);
+                        copyTimerRef.current = setTimeout(() => setCopiedTxid(null), 1500);
                       }
                     }}
                     aria-label={t("breakdown.copyTxid", { defaultValue: "Copy transaction ID" })}

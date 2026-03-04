@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, type FormEvent } from "react";
+import { useState, useRef, useCallback, useEffect, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, useMotionValue, useSpring } from "motion/react";
 import { useNetwork } from "@/context/NetworkContext";
@@ -35,6 +35,8 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pasteSuccess, setPasteSuccess] = useState(false);
+  const pasteTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(pasteTimerRef.current), []);
   const internalRef = useRef<HTMLInputElement>(null);
   const inputRef = externalRef ?? internalRef;
   const { network } = useNetwork();
@@ -95,7 +97,8 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
         e.preventDefault();
         setValue(cleaned);
         setPasteSuccess(true);
-        setTimeout(() => {
+        clearTimeout(pasteTimerRef.current);
+        pasteTimerRef.current = setTimeout(() => {
           setPasteSuccess(false);
           submit(cleaned);
         }, 300);

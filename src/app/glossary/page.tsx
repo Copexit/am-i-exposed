@@ -333,7 +333,7 @@ export default function GlossaryPage() {
           )}
           {grouped.map(({ letter, items }) => (
             <section key={letter} aria-label={`Terms starting with ${letter}`}>
-              <h2 className="text-sm font-bold text-muted/80 uppercase tracking-widest mb-3 ml-1 flex items-center gap-3">
+              <h2 className="text-sm font-bold text-muted uppercase tracking-widest mb-3 ml-1 flex items-center gap-3">
                 {letter}
                 <span className="flex-1 h-px bg-card-border" />
               </h2>
