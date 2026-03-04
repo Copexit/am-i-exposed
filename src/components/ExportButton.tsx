@@ -110,7 +110,7 @@ export function ExportButton({ targetId, query, result, inputType }: ExportButto
       aria-label={t("export.copyToClipboard", { defaultValue: "Copy report to clipboard" })}
     >
       {status === "done" ? <Check size={14} /> : <ClipboardCopy size={14} />}
-      <span className="hidden sm:inline">
+      <span className="hidden sm:inline" aria-live="polite">
         {status === "done"
           ? t("export.copied", { defaultValue: "Copied" })
           : status === "failed"
