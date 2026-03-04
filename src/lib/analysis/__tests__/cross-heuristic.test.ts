@@ -35,7 +35,7 @@ describe("cross-heuristic intelligence", () => {
     const tx = makeWhirlpoolTx();
     const resultPromise = analyzeTransaction(tx);
     // Advance through all tick() delays (13 heuristics * 2 calls = 26, each 50ms)
-    await vi.advanceTimersByTimeAsync(13 * 100);
+    await vi.advanceTimersByTimeAsync(14 * 100);
     const result = await resultPromise;
 
     // Whirlpool should be detected
@@ -106,7 +106,7 @@ describe("cross-heuristic intelligence", () => {
     });
 
     const resultPromise = analyzeTransaction(tx);
-    await vi.advanceTimersByTimeAsync(13 * 100);
+    await vi.advanceTimersByTimeAsync(14 * 100);
     const result = await resultPromise;
 
     // h2-self-send should NOT be suppressed (but it might not trigger depending
@@ -146,7 +146,7 @@ describe("cross-heuristic intelligence", () => {
     });
 
     const resultPromise = analyzeTransaction(tx);
-    await vi.advanceTimersByTimeAsync(13 * 100);
+    await vi.advanceTimersByTimeAsync(14 * 100);
     const result = await resultPromise;
 
     const wf = result.findings.find((f) => f.id === "h11-wallet-fingerprint");
@@ -170,7 +170,7 @@ describe("cross-heuristic intelligence", () => {
     });
 
     const resultPromise = analyzeTransaction(tx);
-    await vi.advanceTimersByTimeAsync(13 * 100);
+    await vi.advanceTimersByTimeAsync(14 * 100);
     const result = await resultPromise;
 
     // CIOH should have non-zero impact (2 addresses -> -6)

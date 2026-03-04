@@ -63,7 +63,7 @@ export const analyzeRoundAmounts: TxHeuristic = (tx) => {
   return { findings };
 };
 
-function isRoundAmount(sats: number): boolean {
+export function isRoundAmount(sats: number): boolean {
   // Check against known round BTC values
   if (ROUND_BTC_VALUES.includes(sats)) return true;
 

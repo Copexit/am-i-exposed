@@ -112,7 +112,7 @@ export default function MethodologyPage() {
         </div>
 
         {/* Table of contents */}
-        <nav className="flex gap-2 text-sm overflow-x-auto pb-1" aria-label="Page sections">
+        <nav className="flex gap-2 text-sm overflow-x-auto pb-1 [mask-image:linear-gradient(to_right,black_85%,transparent_100%)] sm:[mask-image:none]" aria-label="Page sections">
           {TOC_ITEMS.map((s) => (
             <a
               key={s.id}
@@ -335,6 +335,22 @@ export default function MethodologyPage() {
             {t("methodology.tech_ref_link", { defaultValue: "Full technical reference (privacy-engine.md)" })}
             <ExternalLink size={14} />
           </a>
+        </div>
+
+        {/* Bottom CTA */}
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-2 pb-4">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-bitcoin text-background font-medium text-sm hover:bg-bitcoin/90 transition-colors"
+          >
+            {t("common.scanNow", { defaultValue: "Scan now" })}
+          </Link>
+          <Link
+            href="/faq"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-surface-elevated border border-card-border text-muted hover:text-foreground hover:border-bitcoin/30 transition-all text-sm"
+          >
+            {t("nav.faq", { defaultValue: "FAQ" })}
+          </Link>
         </div>
       </div>
     </div>

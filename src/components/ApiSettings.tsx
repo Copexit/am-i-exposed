@@ -203,6 +203,9 @@ export function ApiSettings() {
             <div className="w-10 h-1 rounded-full bg-muted/30" />
           </div>
 
+          {/* Settings heading (mobile only) */}
+          <h2 className="text-sm font-semibold text-foreground sm:hidden">{t("settings.title", { defaultValue: "Settings" })}</h2>
+
           {/* Network & Language row */}
           <div className="flex items-center gap-3">
             {/* Network selector - hidden on Umbrel (network is preconfigured) */}

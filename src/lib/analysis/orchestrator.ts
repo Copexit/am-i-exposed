@@ -263,6 +263,13 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
         f.params = { ...f.params, context: "coinjoin" };
         f.scoreImpact = 0;
       }
+      // Multisig/escrow detection is misleading in CoinJoin context -
+      // multisig inputs may belong to different participants
+      if (f.id.startsWith("h17-")) {
+        f.severity = "low";
+        f.params = { ...f.params, context: "coinjoin" };
+        f.scoreImpact = 0;
+      }
     }
   }
 

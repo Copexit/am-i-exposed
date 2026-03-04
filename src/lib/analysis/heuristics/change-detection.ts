@@ -2,6 +2,7 @@ import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import type { MempoolVin, MempoolVout } from "@/lib/api/types";
 import { getAddressType } from "@/lib/bitcoin/address-type";
+import { isRoundAmount } from "./round-amount";
 
 /**
  * H2: Change Detection
@@ -287,8 +288,8 @@ function checkRoundAmount(
   changeIndices: Map<number, number>,
   signals: string[],
 ) {
-  const round0 = isRound(vout[0].value);
-  const round1 = isRound(vout[1].value);
+  const round0 = isRoundAmount(vout[0].value);
+  const round1 = isRoundAmount(vout[1].value);
 
   // If exactly one output is round, the other is likely change
   if (round0 && !round1) {
@@ -300,12 +301,6 @@ function checkRoundAmount(
   }
 }
 
-function isRound(sats: number): boolean {
-  if (sats % 1_000_000 === 0) return true;
-  if (sats % 100_000 === 0) return true;
-  if (sats % 10_000 === 0) return true;
-  return false;
-}
 
 function checkValueDisparity(
   vout: MempoolVout[],

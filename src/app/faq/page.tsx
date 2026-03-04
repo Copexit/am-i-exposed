@@ -142,7 +142,7 @@ export default function FaqPage() {
               <button
                 onClick={() => toggle(item.id)}
                 aria-expanded={open === item.id}
-                className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left cursor-pointer min-h-[44px] rounded-lg hover:bg-surface-elevated/30 transition-colors"
+                className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left cursor-pointer min-h-[44px] rounded-lg hover:bg-bitcoin/5 hover:border-bitcoin/20 transition-colors"
               >
                 <span className="text-sm font-medium text-foreground leading-relaxed">
                   {t(item.qKey, { defaultValue: DEFAULTS[item.qKey] })}
