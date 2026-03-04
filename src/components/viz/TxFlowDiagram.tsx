@@ -584,6 +584,7 @@ export function TxFlowDiagram({ tx, findings, onAddressClick }: TxFlowDiagramPro
       <div style={{ minHeight: 160 }}>
         <ParentSize>
           {({ width }) => {
+            if (width < 1) return null;
             const maxSide = Math.max(Math.min(tx.vin.length, MAX_DISPLAY), Math.min(tx.vout.length, MAX_DISPLAY) + (tx.fee > 0 ? 1 : 0));
             const h = Math.max(160, Math.min(450, maxSide * 40 + 40));
             return (

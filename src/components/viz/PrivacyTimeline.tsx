@@ -294,7 +294,7 @@ export function PrivacyTimeline({ breakdown, onScan }: PrivacyTimelineProps) {
       >
         <div style={{ minHeight: 200, width: scrollWidth }}>
           <ParentSize>
-            {({ width }) => (
+            {({ width }) => (scrollWidth ?? width) < 1 ? null : (
               <TimelineChart
                 width={scrollWidth ?? width}
                 height={Math.max(200, Math.min(300, (scrollWidth ?? width) * 0.4))}

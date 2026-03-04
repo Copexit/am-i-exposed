@@ -412,7 +412,7 @@ export function ScoreWaterfall({ findings, finalScore, grade, baseScore, onFindi
       </h3>
       <div style={{ minHeight: MIN_HEIGHT }}>
         <ParentSize>
-          {({ width }) => (
+          {({ width }) => width < 1 ? null : (
             <WaterfallChart
               width={width}
               height={Math.max(MIN_HEIGHT, Math.min(280, width * 0.5))}

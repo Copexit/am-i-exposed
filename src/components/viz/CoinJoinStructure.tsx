@@ -73,6 +73,7 @@ export function CoinJoinStructure({ tx, findings, onAddressClick }: CoinJoinStru
       <div style={{ minHeight: 240 }}>
         <ParentSize>
           {({ width }) => {
+            if (width < 1) return null;
             const nodeCount = Math.min(tx.vin.length, MAX_DISPLAY) + Math.min(tx.vout.length, MAX_DISPLAY);
             const h = Math.max(240, Math.min(500, nodeCount * 22 + 60));
             return (
