@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft, ExternalLink, Copy, Check, Info, AlertTriangle } from "lucide-react";
-import { useState, useCallback, useRef, useEffect, lazy, Suspense } from "react";
+import { useState, useCallback, useRef, useEffect, lazy, Suspense, memo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
@@ -28,8 +28,8 @@ import { CexRiskPanel } from "./CexRiskPanel";
 import { ExchangeWarningPanel } from "./ExchangeWarningPanel";
 import { TxBreakdownPanel } from "./TxBreakdownPanel";
 import { ClusterPanel } from "./ClusterPanel";
-import { TipJar } from "./TipJar";
-import { CrossPromo } from "./CrossPromo";
+const TipJar = lazy(() => import("./TipJar").then(m => ({ default: m.TipJar })));
+const CrossPromo = lazy(() => import("./CrossPromo").then(m => ({ default: m.CrossPromo })));
 import { ShareButtons } from "./ShareButtons";
 import { ShareCardButton } from "./ShareCardButton";
 import { BookmarkButton } from "./BookmarkButton";
@@ -139,7 +139,7 @@ interface ResultsPanelProps {
   durationMs?: number | null;
 }
 
-export function ResultsPanel({
+export const ResultsPanel = memo(function ResultsPanel({
   query,
   inputType,
   result,
@@ -525,4 +525,4 @@ export function ResultsPanel({
     </motion.div>
     </Suspense>
   );
-}
+});

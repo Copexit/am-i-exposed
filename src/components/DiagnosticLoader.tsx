@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { Check, Loader2, Circle } from "lucide-react";
@@ -28,13 +28,13 @@ export function DiagnosticLoader({ steps, phase, inputType }: DiagnosticLoaderPr
     return () => clearInterval(timer);
   }, []);
 
-  const doneCount = steps.filter((s) => s.status === "done").length;
+  const doneCount = useMemo(() => steps.filter((s) => s.status === "done").length, [steps]);
 
   // Running score tally
   const baseScore = inputType === "address" ? ADDRESS_BASE_SCORE : TX_BASE_SCORE;
-  const totalImpact = steps.reduce((sum, s) => sum + (s.impact ?? 0), 0);
+  const totalImpact = useMemo(() => steps.reduce((sum, s) => sum + (s.impact ?? 0), 0), [steps]);
   const runningScore = Math.max(0, Math.min(100, baseScore + totalImpact));
-  const hasImpact = steps.some((s) => s.impact !== undefined);
+  const hasImpact = useMemo(() => steps.some((s) => s.impact !== undefined), [steps]);
 
   return (
     <div className="w-full space-y-4">

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { truncateId, gradeColor, gradeBadgeColor } from "../constants";
+import { truncateId, gradeColor } from "../constants";
 
 describe("truncateId", () => {
   it("truncates long strings with ellipsis", () => {
@@ -37,16 +37,5 @@ describe("gradeColor", () => {
   it("returns fallback for unknown grades", () => {
     expect(gradeColor("Z")).toBe("text-muted");
     expect(gradeColor("Z", "text-red")).toBe("text-red");
-  });
-});
-
-describe("gradeBadgeColor", () => {
-  it("returns correct badge color for known grades", () => {
-    expect(gradeBadgeColor("A+")).toContain("bg-severity-good");
-    expect(gradeBadgeColor("D")).toContain("bg-severity-high");
-  });
-
-  it("returns fallback for unknown grades", () => {
-    expect(gradeBadgeColor("X")).toBe("text-muted");
   });
 });

@@ -17,7 +17,7 @@ import { useBookmarks } from "@/hooks/useBookmarks";
 import { EXAMPLES } from "@/lib/constants";
 import { useKeyboardNav } from "@/hooks/useKeyboardNav";
 import { useDevMode } from "@/hooks/useDevMode";
-import { TipToast } from "@/components/TipToast";
+const TipToast = lazy(() => import("@/components/TipToast").then(m => ({ default: m.TipToast })));
 import { FindingCard } from "@/components/FindingCard";
 const DevChainalysisPanel = lazy(() => import("@/components/DevChainalysisPanel").then(m => ({ default: m.DevChainalysisPanel })));
 import type { PreSendResult } from "@/lib/analysis/orchestrator";

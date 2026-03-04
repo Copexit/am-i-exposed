@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Methodology - How Bitcoin Privacy is Scored | am-i.exposed",
   description:
-    "17 heuristics, scoring model, and threat model behind am-i.exposed. Learn how chain surveillance firms analyze Bitcoin transactions and how your privacy score is calculated.",
+    "17 heuristics, scoring model, and threat model behind am-i.exposed. See how chain surveillance firms analyze your Bitcoin transactions.",
   keywords: [
     "bitcoin privacy methodology",
     "bitcoin chain analysis heuristics",

@@ -18,7 +18,7 @@ export const SVG_COLORS = {
   // Surfaces
   background: "#0c0c0e",
   foreground: "#f0f0f2",
-  muted: "#c8c8d0",
+  muted: "#d4d4dc",
   cardBg: "#1c1c20",
   cardBorder: "#444450",
   surfaceInset: "#151518",

@@ -53,10 +53,6 @@ export function gradeColor(grade: string, fallback = "text-muted"): string {
   return GRADE_COLORS[grade as Grade] ?? fallback;
 }
 
-/** Look up grade badge color, returning fallback for unknown grades. */
-export function gradeBadgeColor(grade: string, fallback = "text-muted"): string {
-  return GRADE_BADGE_COLORS[grade as Grade] ?? fallback;
-}
 
 /** Example transactions/addresses for the home page and ScanHistory examples tab. */
 export interface ExampleItem {
