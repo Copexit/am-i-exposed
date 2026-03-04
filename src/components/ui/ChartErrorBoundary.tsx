@@ -1,6 +1,7 @@
 "use client";
 
 import { Component, type ReactNode } from "react";
+import i18n from "@/lib/i18n/config";
 
 interface Props {
   children: ReactNode;
@@ -30,7 +31,7 @@ export class ChartErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return this.props.fallback ?? (
         <div className="w-full text-center py-4 text-xs text-muted">
-          Visualization could not be rendered.
+          {i18n.t("common.vizError", { defaultValue: "Visualization could not be rendered." })}
         </div>
       );
     }

@@ -14,7 +14,7 @@ export function Footer() {
         <span className="font-medium text-foreground">am-i.<span className="gradient-text">exposed</span></span>
         <span className="text-muted">{t("common.tagline", { defaultValue: "Your privacy. Diagnosed." })}</span>
         <span className="text-sm text-muted">
-          by{" "}
+          {t("common.by", { defaultValue: "by" })}{" "}
           <a
             href="https://github.com/copexit"
             target="_blank"
@@ -34,31 +34,31 @@ export function Footer() {
           </a>
         </span>
         <Link
-          href="/methodology"
+          href="/methodology/"
           className="text-muted hover:text-foreground transition-colors link-underline py-2 inline-block"
         >
           {t("nav.methodology", { defaultValue: "Methodology" })}
         </Link>
         <Link
-          href="/faq"
+          href="/faq/"
           className="text-muted hover:text-foreground transition-colors link-underline py-2 inline-block"
         >
           {t("nav.faq", { defaultValue: "FAQ" })}
         </Link>
         <Link
-          href="/glossary"
+          href="/glossary/"
           className="text-muted hover:text-foreground transition-colors link-underline py-2 inline-block"
         >
           {t("nav.glossary", { defaultValue: "Glossary" })}
         </Link>
         <Link
-          href="/about"
+          href="/about/"
           className="text-muted hover:text-foreground transition-colors link-underline py-2 inline-block"
         >
           {t("nav.about", { defaultValue: "About" })}
         </Link>
         <Link
-          href="/setup-guide"
+          href="/setup-guide/"
           className="text-muted hover:text-foreground transition-colors link-underline py-2 inline-block"
         >
           {t("common.setupGuide", { defaultValue: "Setup Guide" })}

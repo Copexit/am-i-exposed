@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "am-i.exposed - Bitcoin Privacy Scanner",
     description:
-      "Find out what the blockchain knows about you. Free, client-side Bitcoin privacy analysis.",
+      "Is your Bitcoin traceable? Paste an address or txid - get a privacy score with 17 chain analysis heuristics. Free, client-side, no tracking.",
     url: "https://am-i.exposed/",
     siteName: "am-i.exposed",
     type: "website",
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "am-i.exposed - Bitcoin Privacy Scanner",
     description:
-      "The Bitcoin privacy scanner you were afraid to run. Paste a Bitcoin address or txid. Get a score.",
+      "Is your Bitcoin traceable? Paste an address or txid - get a privacy score with 17 chain analysis heuristics. Free, client-side, no tracking.",
   },
   icons: {
     icon: [

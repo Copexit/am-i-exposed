@@ -58,7 +58,7 @@ export function PrivacyNotice() {
             <button
               onClick={handleDismiss}
               className="text-muted hover:text-foreground transition-colors shrink-0 cursor-pointer p-3 -m-1.5 rounded-lg"
-              aria-label="Dismiss notice"
+              aria-label={t("common.dismiss", { defaultValue: "Dismiss" })}
             >
               <X size={16} />
             </button>

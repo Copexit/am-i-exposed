@@ -80,7 +80,7 @@ export function Header() {
                 clearTimeout(clickTimer.current);
                 clickTimer.current = setTimeout(() => { clickCount.current = 0; }, 2000);
               }}
-              aria-label="am-i.exposed home"
+              aria-label={t("common.homeLink", { defaultValue: "am-i.exposed home" })}
               className="flex items-center gap-2 group hover:opacity-80 transition-opacity cursor-pointer"
             >
               <span className="text-xl sm:text-2xl font-bold tracking-tight text-foreground select-none whitespace-nowrap">
