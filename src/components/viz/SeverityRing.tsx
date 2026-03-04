@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { Pie } from "@visx/shape";
 import { Group } from "@visx/group";
 import { useTranslation } from "react-i18next";
-import { SEVERITY_HEX, ANIMATION_DEFAULTS } from "./shared/svgConstants";
+import { SVG_COLORS, SEVERITY_HEX, ANIMATION_DEFAULTS } from "./shared/svgConstants";
 import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import type { Finding, Severity } from "@/lib/types";
@@ -126,7 +126,7 @@ export function SeverityRing({ findings, size = 120 }: SeverityRingProps) {
             <text
               textAnchor="middle"
               dy="-0.15em"
-              fill="#f0f0f2"
+              fill={SVG_COLORS.foreground}
               fontSize={size >= 120 ? 26 : size >= 100 ? 22 : 18}
               fontWeight="bold"
               fontFamily="var(--font-geist-mono), monospace"
@@ -136,7 +136,7 @@ export function SeverityRing({ findings, size = 120 }: SeverityRingProps) {
             <text
               textAnchor="middle"
               dy="1.5em"
-              fill="#c8c8d0"
+              fill={SVG_COLORS.muted}
               fontSize={size >= 120 ? 12 : 10}
             >
               {t("viz.ring.findings", { defaultValue: "findings" })}
@@ -151,10 +151,10 @@ export function SeverityRing({ findings, size = 120 }: SeverityRingProps) {
                 className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
                 style={{ backgroundColor: tooltipData.color }}
               />
-              <span className="text-xs font-medium" style={{ color: "#f0f0f2" }}>
+              <span className="text-xs font-medium" style={{ color: SVG_COLORS.foreground }}>
                 {tooltipData.severity}
               </span>
-              <span className="text-xs font-mono tabular-nums" style={{ color: "#c8c8d0" }}>
+              <span className="text-xs font-mono tabular-nums" style={{ color: SVG_COLORS.muted }}>
                 {tooltipData.count}
               </span>
             </div>

@@ -136,13 +136,13 @@ function BubbleChart({ width, height, utxos }: UtxoBubbleChartProps & { width: n
 
                   if (d.isDust) {
                     gradientFill = "url(#grad-bubble-dust)";
-                    strokeColor = "#ef4444";
+                    strokeColor = SVG_COLORS.critical;
                   } else if (!d.confirmed) {
                     gradientFill = "url(#grad-bubble-unconf)";
-                    strokeColor = "#f7931a";
+                    strokeColor = SVG_COLORS.bitcoin;
                   } else {
                     gradientFill = "url(#grad-bubble-normal)";
-                    strokeColor = "#3b82f6";
+                    strokeColor = SVG_COLORS.low;
                   }
 
                   // Size-based glow

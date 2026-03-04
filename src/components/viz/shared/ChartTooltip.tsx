@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { SVG_COLORS } from "./svgConstants";
 
 interface TooltipState<T> {
   tooltipOpen: boolean;
@@ -32,7 +33,7 @@ export function ChartTooltip({ top, left, children }: ChartTooltipProps) {
         borderRadius: 8,
         padding: "8px 12px",
         fontSize: 13,
-        color: "#f0f0f2",
+        color: SVG_COLORS.foreground,
         boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
         backdropFilter: "blur(16px)",
         pointerEvents: "none",

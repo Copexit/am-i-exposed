@@ -286,7 +286,7 @@ function WaterfallChart({
                   } else if (barHeight >= 24) {
                     // Negative, tall bar: inside bar, white text
                     labelY = barY + barHeight / 2 + 4;
-                    labelColor = "#f0f0f2";
+                    labelColor = SVG_COLORS.foreground;
                   } else if (spaceBelow >= 32) {
                     // Negative, short bar, room below: below bar
                     labelY = barY + barHeight + 14;
@@ -391,7 +391,7 @@ function WaterfallChart({
               }}
             >
               {tooltipData.impact > 0 ? "+" : ""}
-              {tooltipData.impact} pts
+              {tooltipData.impact} {t("viz.waterfall.pts", { defaultValue: "pts" })}
             </p>
           </div>
         </ChartTooltip>
