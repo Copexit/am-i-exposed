@@ -17,15 +17,27 @@ import type { TxHeuristic } from "./types";
  */
 export const analyzeCioh: TxHeuristic = (tx) => {
   const uniqueInputAddresses = new Set<string>();
+  let nonCoinbaseCount = 0;
 
   for (const vin of tx.vin) {
     if (vin.is_coinbase) continue;
+    nonCoinbaseCount++;
     if (vin.prevout?.scriptpubkey_address) {
       uniqueInputAddresses.add(vin.prevout.scriptpubkey_address);
     }
   }
 
-  // Single input or coinbase - no CIOH concern
+  // Coinbase transaction - CIOH is not applicable
+  if (nonCoinbaseCount === 0) {
+    return { findings: [] };
+  }
+
+  // All prevouts missing (self-hosted backend without prevout data) - cannot evaluate CIOH
+  if (uniqueInputAddresses.size === 0 && nonCoinbaseCount > 0) {
+    return { findings: [] };
+  }
+
+  // Single input address - no CIOH concern
   if (uniqueInputAddresses.size <= 1) {
     return {
       findings: [
@@ -43,13 +55,13 @@ export const analyzeCioh: TxHeuristic = (tx) => {
   }
 
   const count = uniqueInputAddresses.size;
-  // Tiered scaling: larger consolidations are exponentially worse for privacy
+  // Tiered scaling: larger consolidations are worse for privacy
   let impact: number;
   if (count >= 50) impact = 45;
   else if (count >= 20) impact = 35;
   else if (count >= 10) impact = 25;
   else if (count >= 5) impact = 15;
-  else impact = count * 3;
+  else impact = count * 3; // 2=6, 3=9, 4=12
 
   return {
     findings: [

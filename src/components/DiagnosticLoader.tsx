@@ -5,14 +5,16 @@ import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { Check, Loader2, Circle } from "lucide-react";
 import { useNetwork } from "@/context/NetworkContext";
+import { TX_BASE_SCORE, ADDRESS_BASE_SCORE } from "@/lib/scoring/score";
 import type { HeuristicStep } from "@/lib/analysis/orchestrator";
 
 interface DiagnosticLoaderProps {
   steps: HeuristicStep[];
   phase: "fetching" | "analyzing";
+  inputType?: string;
 }
 
-export function DiagnosticLoader({ steps, phase }: DiagnosticLoaderProps) {
+export function DiagnosticLoader({ steps, phase, inputType }: DiagnosticLoaderProps) {
   const { t } = useTranslation();
   const { isUmbrel } = useNetwork();
   const isLocalApi = isUmbrel;
@@ -29,8 +31,9 @@ export function DiagnosticLoader({ steps, phase }: DiagnosticLoaderProps) {
   const doneCount = steps.filter((s) => s.status === "done").length;
 
   // Running score tally
+  const baseScore = inputType === "address" ? ADDRESS_BASE_SCORE : TX_BASE_SCORE;
   const totalImpact = steps.reduce((sum, s) => sum + (s.impact ?? 0), 0);
-  const runningScore = Math.max(0, Math.min(100, 70 + totalImpact));
+  const runningScore = Math.max(0, Math.min(100, baseScore + totalImpact));
   const hasImpact = steps.some((s) => s.impact !== undefined);
 
   return (

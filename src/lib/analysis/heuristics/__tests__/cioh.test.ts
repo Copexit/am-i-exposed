@@ -93,13 +93,13 @@ describe("analyzeCioh", () => {
     expect(findings[0].scoreImpact).toBe(0);
   });
 
-  it("skips coinbase inputs when counting addresses", () => {
+  it("returns no findings for coinbase transactions", () => {
     const tx = makeTx({
       vin: [makeCoinbaseVin()],
       vout: [makeVout({ value: 625_000_000 })],
     });
     const { findings } = analyzeCioh(tx);
-    // Coinbase has no address -> uniqueInputAddresses.size = 0 -> <= 1 -> h3-single-input
-    expect(findings[0].id).toBe("h3-single-input");
+    // Coinbase has no real inputs - CIOH is not applicable
+    expect(findings).toHaveLength(0);
   });
 });

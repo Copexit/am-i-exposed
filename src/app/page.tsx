@@ -258,8 +258,14 @@ export default function Home() {
 
   const handleSubmit = (input: string) => {
     const prefix = input.length === 64 ? "tx" : "addr";
-    window.location.hash = `${prefix}=${encodeURIComponent(input)}`;
-    analyze(input);
+    const newHash = `${prefix}=${encodeURIComponent(input)}`;
+    const oldHash = window.location.hash.slice(1);
+    window.location.hash = newHash;
+    // If hash didn't change (re-scan same input), hashchange won't fire, so call analyze directly
+    if (oldHash === newHash) {
+      analyze(input);
+    }
+    // Otherwise, the hashchange listener calls analyze()
   };
 
   const handleBack = () => {
@@ -382,7 +388,7 @@ export default function Home() {
                 </p>
               </div>
               <div className="border-t border-card-border pt-6">
-                <DiagnosticLoader steps={steps} phase={phase} />
+                <DiagnosticLoader steps={steps} phase={phase} inputType={inputType ?? undefined} />
               </div>
             </GlowCard>
           </motion.div>

@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { ClipboardCopy, Check } from "lucide-react";
 import { copyToClipboard } from "@/lib/clipboard";
+import { TX_BASE_SCORE, ADDRESS_BASE_SCORE } from "@/lib/scoring/score";
 import type { ScoringResult, InputType } from "@/lib/types";
 
 interface ExportButtonProps {
@@ -43,7 +44,8 @@ export function ExportButton({ targetId, query, result, inputType }: ExportButto
         const negFindings = result.findings.filter((f) => f.scoreImpact < 0);
         const posFindings = result.findings.filter((f) => f.scoreImpact > 0);
         lines.push(`─── ${t("export.scoreBreakdown", { defaultValue: "Score Breakdown" })} ───`);
-        lines.push(`  ${t("export.baseScore", { defaultValue: "Base score" })}:    70`);
+        const baseScore = inputType === "address" ? ADDRESS_BASE_SCORE : TX_BASE_SCORE;
+        lines.push(`  ${t("export.baseScore", { defaultValue: "Base score" })}:    ${baseScore}`);
         for (const f of negFindings) {
           lines.push(`  ${f.title}: ${f.scoreImpact}`);
         }

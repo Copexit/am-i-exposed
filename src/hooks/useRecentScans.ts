@@ -30,7 +30,8 @@ function getSnapshot(): RecentScan[] {
     const stored = sessionStorage.getItem(STORAGE_KEY) ?? "";
     if (stored === cachedJson) return cachedScans;
     cachedJson = stored;
-    cachedScans = stored ? JSON.parse(stored) : [];
+    const parsed = stored ? JSON.parse(stored) : [];
+    cachedScans = Array.isArray(parsed) ? parsed : [];
     return cachedScans;
   } catch {
     return EMPTY;

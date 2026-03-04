@@ -16,8 +16,10 @@ function readNetwork(): BitcoinNetwork {
   const fromUrl = params.get("network");
   if (fromUrl && isValidNetwork(fromUrl)) return fromUrl;
   // Fall back to localStorage
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored && isValidNetwork(stored)) return stored;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored && isValidNetwork(stored)) return stored;
+  } catch { /* private browsing */ }
   return DEFAULT_NETWORK;
 }
 

@@ -115,9 +115,9 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
       let maxGroup = 0;
       for (const c of counts.values()) if (c > maxGroup) maxGroup = c;
       if (maxGroup >= 2) {
-        const count = factorial(maxGroup);
-        if (count > 1) {
-          entropyBits = Math.log2(count);
+        const logBits = log2Factorial(maxGroup);
+        if (logBits > 0) {
+          entropyBits = logBits;
           method = "Boltzmann partition";
         }
       }
@@ -330,8 +330,11 @@ function boltzmannLog2(n: number, partitions: number[][]): number {
     logTerms.push(log2nFactSquared - log2Denom);
   }
 
-  // Log-sum-exp for numerical stability
-  const maxLog = Math.max(...logTerms);
+  // Log-sum-exp for numerical stability (loop-based max to avoid stack overflow with large arrays)
+  let maxLog = -Infinity;
+  for (const lt of logTerms) {
+    if (lt > maxLog) maxLog = lt;
+  }
   let sumExp = 0;
   for (const lt of logTerms) {
     sumExp += Math.pow(2, lt - maxLog);

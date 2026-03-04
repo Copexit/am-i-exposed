@@ -28,7 +28,8 @@ function getSnapshot(): Bookmark[] {
     const stored = localStorage.getItem(STORAGE_KEY) ?? "";
     if (stored === cachedJson) return cachedBookmarks;
     cachedJson = stored;
-    cachedBookmarks = stored ? JSON.parse(stored) : [];
+    const parsed = stored ? JSON.parse(stored) : [];
+    cachedBookmarks = Array.isArray(parsed) ? parsed : [];
     return cachedBookmarks;
   } catch {
     return EMPTY;

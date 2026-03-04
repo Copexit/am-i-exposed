@@ -158,15 +158,16 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
 };
 
 
-/** Detect Whirlpool CoinJoin pattern: 5 equal outputs at known denominations (5-8 total outputs). */
+/** Detect Whirlpool CoinJoin pattern: 5+ equal outputs at known denominations (5-10 total outputs). */
 function detectWhirlpoolPattern(
   tx: { vin: Array<{ txid: string; vout: number }>; vout: Array<{ value: number; scriptpubkey: string }> },
 ): boolean {
   // Filter to spendable outputs (exclude OP_RETURN)
   const spendable = tx.vout.filter((o) => !o.scriptpubkey.startsWith("6a"));
-  if (spendable.length < 5 || spendable.length > 6) return false;
+  if (spendable.length < 5 || spendable.length > 10) return false;
   for (const denom of WHIRLPOOL_DENOMS) {
-    if (spendable.filter((o) => o.value === denom).length === 5) return true;
+    const matchCount = spendable.filter((o) => o.value === denom).length;
+    if (matchCount >= 5 && spendable.length - matchCount <= 1) return true;
   }
   return false;
 }
