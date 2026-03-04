@@ -23,8 +23,6 @@
   --glass-border: rgba(255, 255, 255, 0.06);
   --glass-blur: 16px;
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  --severity-critical-glow: rgba(239, 68, 68, 0.15);
-  --severity-high-glow: rgba(249, 115, 22, 0.12);
   --bitcoin-gradient: linear-gradient(135deg, #f7931a 0%, #e8850f 50%, #d4790a 100%);
 }
 
