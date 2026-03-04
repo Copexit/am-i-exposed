@@ -1,19 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { motion } from "motion/react";
 import { Wrench, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 const DISMISS_KEY = "ami-crosspromo-dismissed";
 
-function isDismissedInSession(): boolean {
+function getDismissed(): boolean {
   try {
     return sessionStorage.getItem(DISMISS_KEY) === "1";
   } catch {
     return false;
   }
 }
+
+const subscribeNoop = () => () => {};
 
 function persistDismiss(): void {
   try {
@@ -23,7 +25,9 @@ function persistDismiss(): void {
 
 export function CrossPromo() {
   const { t } = useTranslation();
-  const [dismissed, setDismissed] = useState(isDismissedInSession);
+  const sessionDismissed = useSyncExternalStore(subscribeNoop, getDismissed, () => false);
+  const [localDismissed, setLocalDismissed] = useState(false);
+  const dismissed = sessionDismissed || localDismissed;
 
   if (dismissed) return null;
 
@@ -54,10 +58,10 @@ export function CrossPromo() {
           e.preventDefault();
           e.stopPropagation();
           persistDismiss();
-          setDismissed(true);
+          setLocalDismissed(true);
         }}
         className="absolute top-2.5 right-2.5 text-muted hover:text-foreground transition-colors cursor-pointer p-3"
-        aria-label="Dismiss"
+        aria-label={t("common.dismiss", { defaultValue: "Dismiss" })}
       >
         <X size={16} />
       </button>

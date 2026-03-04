@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { motion, AnimatePresence } from "motion/react";
 import { Heart, X, Copy, Check, Zap } from "lucide-react";
@@ -10,7 +10,7 @@ import { LN_ADDRESS } from "@/lib/constants";
 const DISMISS_KEY = "ami-tip-toast-dismissed";
 const INLINE_DISMISS_KEY = "ami-tip-dismissed";
 
-function isDismissed(): boolean {
+function getDismissed(): boolean {
   try {
     return (
       sessionStorage.getItem(DISMISS_KEY) === "1" ||
@@ -21,6 +21,8 @@ function isDismissed(): boolean {
   }
 }
 
+const subscribeNoop = () => () => {};
+
 function persistDismiss(): void {
   try {
     sessionStorage.setItem(DISMISS_KEY, "1");
@@ -30,7 +32,9 @@ function persistDismiss(): void {
 export function TipToast() {
   const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
-  const [dismissed, setDismissed] = useState(isDismissed);
+  const sessionDismissed = useSyncExternalStore(subscribeNoop, getDismissed, () => false);
+  const [localDismissed, setLocalDismissed] = useState(false);
+  const dismissed = sessionDismissed || localDismissed;
   const [expanded, setExpanded] = useState(false);
   // Hide on lg+ where the inline TipJar is visible to avoid duplicate QR codes
   const [isLargeScreen, setIsLargeScreen] = useState(() => {
@@ -78,7 +82,7 @@ export function TipToast() {
   const handleDismiss = (e: React.MouseEvent) => {
     e.stopPropagation();
     persistDismiss();
-    setDismissed(true);
+    setLocalDismissed(true);
   };
 
   return (
@@ -111,7 +115,7 @@ export function TipToast() {
             <button
               onClick={handleDismiss}
               className="absolute top-3 right-3 text-muted hover:text-foreground transition-colors cursor-pointer p-3"
-              aria-label="Dismiss"
+              aria-label={t("common.dismiss", { defaultValue: "Dismiss" })}
             >
               <X size={16} />
             </button>
@@ -137,7 +141,7 @@ export function TipToast() {
                           level="M"
                           includeMargin={false}
                           role="img"
-                          aria-label="Lightning payment QR code"
+                          aria-label={t("common.qrLabel", { defaultValue: "Lightning payment QR code" })}
                         />
                       </div>
                     </div>

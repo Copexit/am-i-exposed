@@ -183,7 +183,7 @@ body::after {
 
 /* Gradient text utility */
 .gradient-text {
-  background: linear-gradient(135deg, #f7931a, #ef4444);
+  background: linear-gradient(135deg, var(--bitcoin), var(--severity-critical));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

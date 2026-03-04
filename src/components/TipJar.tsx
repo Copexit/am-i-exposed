@@ -74,7 +74,7 @@ export function TipJar() {
                     level="M"
                     includeMargin={false}
                     role="img"
-                    aria-label="Lightning payment QR code"
+                    aria-label={t("common.qrLabel", { defaultValue: "Lightning payment QR code" })}
                   />
                 </div>
               </div>
