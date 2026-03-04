@@ -19,7 +19,7 @@
   "about.principles_heading": "Principes de conception",
   "about.story_heading": "Le vide",
   "about.story_p1": "En avril 2024, OXT.me et KYCP.org sont passés hors ligne.",
-  "about.story_p2": "am-i.exposed a été conçu pour combler ce vide.",
+  "about.story_p2": "Les entreprises de surveillance de chaîne comme Chainalysis, Elliptic et Crystal disposent toujours de leurs outils. Elles analysent chaque transaction sur la blockchain Bitcoin. Elles regroupent les adresses, tracent les flux de fonds et signalent les portefeuilles.",
   "about.story_p3": "Mais à partir de ce moment, les utilisateurs ordinaires de Bitcoin n'avaient aucun moyen de voir ce que ces entreprises pouvaient déduire de leurs propres transactions. L'asymétrie était totale: elles pouvaient tout voir sur toi, et tu ne pouvais rien voir sur toi-même.",
   "about.story_p4": "am-i.exposed a été construit pour combler ce fossé.",
   "about.subtitle": "Les outils de confidentialité Bitcoin sur lesquels la communauté s'appuyait ont disparu. Voici le remplaçant.",
