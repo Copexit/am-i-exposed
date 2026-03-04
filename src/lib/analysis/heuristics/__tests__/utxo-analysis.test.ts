@@ -59,6 +59,20 @@ describe("analyzeUtxos", () => {
     expect(findings).toHaveLength(0);
   });
 
+  it("UTXO at exactly 1000 sats (dust threshold) is not dust", () => {
+    const utxos = [makeUtxo({ value: 1000 })];
+    const { findings } = analyzeUtxos(addr, utxos, []);
+    expect(findings.find((f) => f.id === "h9-dust-detected")).toBeUndefined();
+  });
+
+  it("UTXO at 999 sats (just below threshold) is dust", () => {
+    const utxos = [makeUtxo({ value: 999 })];
+    const { findings } = analyzeUtxos(addr, utxos, []);
+    const f = findings.find((f) => f.id === "h9-dust-detected");
+    expect(f).toBeDefined();
+    expect(f!.severity).toBe("medium");
+  });
+
   it("stacks dust + many-utxos findings", () => {
     const utxos = [
       ...Array.from({ length: 3 }, () => makeUtxo({ value: 500 })),

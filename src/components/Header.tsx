@@ -31,6 +31,16 @@ export function Header() {
     return () => { document.body.style.overflow = ""; };
   }, [mobileOpen]);
 
+  // Close mobile menu on Escape key
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [mobileOpen]);
+
   const isActive = (href: string) => {
     const normalized = currentPath.replace(/\/$/, "") || "/";
     const target = href.replace(/\/$/, "") || "/";

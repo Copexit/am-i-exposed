@@ -196,7 +196,7 @@ function BubbleChart({ width, height, utxos }: UtxoBubbleChartProps & { width: n
                       />
 
                       {/* Pulsing effect for unconfirmed */}
-                      {!d.confirmed && !d.isDust && (
+                      {!d.confirmed && !d.isDust && !reducedMotion && (
                         <motion.circle
                           cx={circle.x}
                           cy={circle.y}
@@ -211,7 +211,7 @@ function BubbleChart({ width, height, utxos }: UtxoBubbleChartProps & { width: n
                       )}
 
                       {/* Pulsing for dust */}
-                      {d.isDust && !d.dustCount && (
+                      {d.isDust && !d.dustCount && !reducedMotion && (
                         <motion.circle
                           cx={circle.x}
                           cy={circle.y}

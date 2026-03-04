@@ -8,6 +8,7 @@ import { TxSummary } from "./TxSummary";
 import { FindingCard } from "./FindingCard";
 import type { TxAnalysisResult } from "@/lib/types";
 import { GRADE_BADGE_COLORS } from "@/lib/constants";
+import { copyToClipboard } from "@/lib/clipboard";
 
 interface TxBreakdownPanelProps {
   breakdown: TxAnalysisResult[];
@@ -53,7 +54,7 @@ export function TxBreakdownPanel({
           <h2 className="text-base font-medium text-muted uppercase tracking-wider">
             {t("breakdown.heading", { count: breakdown.length, defaultValue: "Transaction History ({{count}})" })}
           </h2>
-          <p className="text-xs text-foreground/40">
+          <p className="text-xs text-muted">
             {t("breakdown.scoreNote", { defaultValue: "Transaction grades reflect individual transaction privacy. The address grade reflects overall address hygiene." })}
           </p>
         </div>
@@ -135,18 +136,19 @@ export function TxBreakdownPanel({
                     tabIndex={0}
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigator.clipboard.writeText(item.txid);
+                      copyToClipboard(item.txid);
                       setCopiedTxid(item.txid);
                       setTimeout(() => setCopiedTxid(null), 1500);
                     }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.stopPropagation();
-                        navigator.clipboard.writeText(item.txid);
+                        copyToClipboard(item.txid);
                         setCopiedTxid(item.txid);
                         setTimeout(() => setCopiedTxid(null), 1500);
                       }
                     }}
+                    aria-label={t("breakdown.copyTxid", { defaultValue: "Copy transaction ID" })}
                     title={t("breakdown.copyTxid", { defaultValue: "Copy transaction ID" })}
                     className="shrink-0 text-muted hover:text-foreground transition-colors cursor-pointer p-0.5"
                   >

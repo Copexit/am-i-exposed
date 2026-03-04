@@ -14,7 +14,11 @@ function subscribe(callback: () => void) {
 }
 
 function getSnapshot(): boolean {
-  return localStorage.getItem(STORAGE_KEY) === "1";
+  try {
+    return localStorage.getItem(STORAGE_KEY) === "1";
+  } catch {
+    return false; // localStorage unavailable (private browsing)
+  }
 }
 
 function getServerSnapshot(): boolean {

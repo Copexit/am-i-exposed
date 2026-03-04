@@ -90,6 +90,31 @@ describe("calculateScore", () => {
     expect(result.grade).toBe("F");
   });
 
+  // Address mode tests
+  it("returns base score 93 for address mode with no impacts", () => {
+    const result = calculateScore([makeFinding({ scoreImpact: 0 })], "address");
+    expect(result.score).toBe(93);
+    expect(result.grade).toBe("A+");
+  });
+
+  it("address mode sums negative impacts from base 93", () => {
+    const result = calculateScore([makeFinding({ scoreImpact: -70 })], "address");
+    expect(result.score).toBe(23);
+    expect(result.grade).toBe("F");
+  });
+
+  it("address mode clamps at 100", () => {
+    const result = calculateScore([makeFinding({ scoreImpact: 20 })], "address");
+    expect(result.score).toBe(100);
+    expect(result.grade).toBe("A+");
+  });
+
+  it("address mode grades B at 75", () => {
+    const result = calculateScore([makeFinding({ scoreImpact: -18 })], "address");
+    expect(result.score).toBe(75);
+    expect(result.grade).toBe("B");
+  });
+
   it("sorts findings by severity (critical first, good last)", () => {
     const findings = [
       makeFinding({ id: "good", severity: "good", scoreImpact: 5 }),

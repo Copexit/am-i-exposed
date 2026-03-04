@@ -1,4 +1,5 @@
 import type { Grade, Severity } from "@/lib/types";
+export { DUST_THRESHOLD } from "@/lib/constants";
 
 /** Hex colors matching CSS custom properties for use in SVG fills/strokes. */
 export const SVG_COLORS = {
@@ -90,6 +91,3 @@ export const WATERFALL_GRADIENT_IDS: Record<string, string> = {
   low: "grad-wf-low",
   good: "grad-wf-good",
 } as const;
-
-/** Dust threshold in satoshis - matches dust-output.ts heuristic. */
-export const DUST_THRESHOLD = 1000;

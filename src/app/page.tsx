@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
-import { ShieldCheck, ShieldX, AlertCircle, ArrowLeft, EyeOff, Github } from "lucide-react";
+import { ShieldCheck, ShieldAlert, ShieldX, AlertCircle, ArrowLeft, EyeOff, Github } from "lucide-react";
 import { AddressInput } from "@/components/AddressInput";
 import { DiagnosticLoader } from "@/components/DiagnosticLoader";
 import { ResultsPanel } from "@/components/ResultsPanel";
@@ -31,14 +31,14 @@ const DESTINATION_ONLY_CONFIG = {
     labelDefault: "Low Risk",
   },
   MEDIUM: {
-    icon: ShieldCheck,
+    icon: ShieldAlert,
     color: "text-severity-medium",
     bg: "bg-severity-medium/10 border-severity-medium/30",
     labelKey: "presend.riskMedium",
     labelDefault: "Medium Risk",
   },
   HIGH: {
-    icon: ShieldX,
+    icon: ShieldAlert,
     color: "text-severity-high",
     bg: "bg-severity-high/10 border-severity-high/30",
     labelKey: "presend.riskHigh",
