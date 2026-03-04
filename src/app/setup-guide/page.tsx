@@ -83,7 +83,7 @@ export default function SetupGuidePage() {
             <a
               key={s.id}
               href={`#${s.id}`}
-              className="px-2.5 py-1.5 rounded-lg bg-surface-elevated/50 border border-card-border/50 text-muted hover:text-foreground hover:border-bitcoin/30 transition-all"
+              className="px-2.5 py-2.5 rounded-lg bg-surface-elevated/50 border border-card-border/50 text-muted hover:text-foreground hover:border-bitcoin/30 transition-all"
             >
               {s.label}
             </a>
