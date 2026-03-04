@@ -98,12 +98,17 @@ export async function analyzeTransaction(
     // Small delay to let the UI update and create the diagnostic effect
     await tick();
 
-    const result = heuristic.fn(tx, rawHex);
-    allFindings.push(...result.findings);
+    try {
+      const result = heuristic.fn(tx, rawHex);
+      allFindings.push(...result.findings);
 
-    // Report cumulative impact so the UI can show a running score
-    const stepImpact = result.findings.reduce((s, f) => s + f.scoreImpact, 0);
-    onStep?.(heuristic.id, stepImpact);
+      // Report cumulative impact so the UI can show a running score
+      const stepImpact = result.findings.reduce((s, f) => s + f.scoreImpact, 0);
+      onStep?.(heuristic.id, stepImpact);
+    } catch {
+      // A single heuristic failure should not crash the entire analysis
+      onStep?.(heuristic.id, 0);
+    }
   }
 
   // Cross-heuristic intelligence
@@ -127,11 +132,15 @@ export async function analyzeAddress(
     onStep?.(heuristic.id);
     await tick();
 
-    const result = heuristic.fn(address, utxos, txs);
-    allFindings.push(...result.findings);
+    try {
+      const result = heuristic.fn(address, utxos, txs);
+      allFindings.push(...result.findings);
 
-    const stepImpact = result.findings.reduce((s, f) => s + f.scoreImpact, 0);
-    onStep?.(heuristic.id, stepImpact);
+      const stepImpact = result.findings.reduce((s, f) => s + f.scoreImpact, 0);
+      onStep?.(heuristic.id, stepImpact);
+    } catch {
+      onStep?.(heuristic.id, 0);
+    }
   }
 
   // Warn if we couldn't fetch all transactions for this address

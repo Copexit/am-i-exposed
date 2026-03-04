@@ -325,7 +325,7 @@ function CoinJoinChart({
                       fill={fillColor}
                       filter={glowFilter}
                       rx={isMixer ? 0 : 3}
-                      stroke={isMixer ? "#28d065" : undefined}
+                      stroke={isMixer ? SVG_COLORS.good : undefined}
                       strokeOpacity={isMixer ? 0.5 : undefined}
                       strokeWidth={isMixer ? 1 : undefined}
                       initial={reducedMotion ? false : { opacity: 0 }}
@@ -337,7 +337,7 @@ function CoinJoinChart({
                       cursor={isClickable ? "pointer" : "default"}
                       tabIndex={isClickable ? 0 : undefined}
                       role={isClickable ? "button" : undefined}
-                      aria-label={isClickable ? `Scan ${n.fullAddress}` : undefined}
+                      aria-label={isClickable ? t("viz.cj.scanAddress", { address: n.fullAddress, defaultValue: `Scan ${n.fullAddress}` }) : undefined}
                       className={isClickable ? "outline-none focus-visible:outline-2 focus-visible:outline-bitcoin" : ""}
                       onClick={() => {
                         if (n.fullAddress && onAddressClick) onAddressClick(n.fullAddress);
@@ -386,7 +386,7 @@ function CoinJoinChart({
                         textAnchor="middle"
                         verticalAnchor="middle"
                         fontSize={13}
-                        fill="#f0f0f2"
+                        fill={SVG_COLORS.foreground}
                         fillOpacity={0.9}
                         angle={-90}
                       >

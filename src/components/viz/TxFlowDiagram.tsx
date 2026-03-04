@@ -436,7 +436,7 @@ function FlowChart({
                       cursor={isClickable ? "pointer" : "default"}
                       tabIndex={isClickable ? 0 : undefined}
                       role={isClickable ? "button" : undefined}
-                      aria-label={isClickable ? `Scan ${n.fullAddress}` : undefined}
+                      aria-label={isClickable ? t("viz.flow.scanAddress", { address: n.fullAddress, defaultValue: `Scan ${n.fullAddress}` }) : undefined}
                       className={isClickable ? "outline-none focus-visible:outline-2 focus-visible:outline-bitcoin" : ""}
                       onMouseEnter={(e: React.MouseEvent) => {
                         setHoveredNode(n.id);
@@ -529,7 +529,7 @@ function FlowChart({
       </svg>
 
       {tooltipOpen && tooltipData && (
-        <ChartTooltip top={tooltipTop} left={tooltipLeft}>
+        <ChartTooltip top={tooltipTop ?? 0} left={tooltipLeft ?? 0}>
           <div className="space-y-0.5">
             <p className="font-mono text-xs" style={{ color: SVG_COLORS.foreground }}>
               {tooltipData.label}

@@ -23,14 +23,6 @@ export function ChartDefs() {
           <feMergeNode in="SourceGraphic" />
         </feMerge>
       </filter>
-      <filter id="glow-strong" x="-50%" y="-50%" width="200%" height="200%">
-        <feGaussianBlur stdDeviation="5" result="blur" />
-        <feMerge>
-          <feMergeNode in="blur" />
-          <feMergeNode in="SourceGraphic" />
-        </feMerge>
-      </filter>
-
       {/* === Horizontal Linear Gradients (nodes) === */}
       <linearGradient id="grad-input">
         <stop offset="0%" stopColor={GRADIENT_COLORS.inputLight} />
