@@ -31,7 +31,9 @@ export function TipToast() {
   const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
   const [dismissed, setDismissed] = useState(isDismissed);
-  const [expanded, setExpanded] = useState(() => {
+  const [expanded, setExpanded] = useState(false);
+  // Hide on lg+ where the inline TipJar is visible to avoid duplicate QR codes
+  const [isLargeScreen, setIsLargeScreen] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.matchMedia("(min-width: 1024px)").matches;
   });
@@ -40,11 +42,18 @@ export function TipToast() {
   useEffect(() => () => clearTimeout(copyTimerRef.current), []);
 
   useEffect(() => {
-    if (dismissed) return;
+    const mql = window.matchMedia("(min-width: 1024px)");
+    const handler = (e: MediaQueryListEvent) => setIsLargeScreen(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, []);
+
+  useEffect(() => {
+    if (dismissed || isLargeScreen) return;
 
     const timer = setTimeout(() => setVisible(true), 3000);
     return () => clearTimeout(timer);
-  }, [dismissed]);
+  }, [dismissed, isLargeScreen]);
 
   // Auto-dismiss on mobile after 8 seconds (don't persist - show again next session)
   useEffect(() => {
@@ -74,7 +83,7 @@ export function TipToast() {
 
   return (
     <AnimatePresence>
-      {visible && !dismissed && (
+      {visible && !dismissed && !isLargeScreen && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
