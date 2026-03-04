@@ -41,7 +41,7 @@ export interface EnrichOptions {
   concurrency?: number;
 }
 
-export interface EnrichResult {
+interface EnrichResult {
   /** Number of vin[].prevout fields successfully reconstructed */
   enrichedCount: number;
   /** Number of parent transaction fetches that failed */

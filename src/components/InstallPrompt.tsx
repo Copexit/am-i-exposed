@@ -16,7 +16,7 @@ function getIsStandalone(): boolean {
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
     ("standalone" in window.navigator &&
-      (window.navigator as unknown as { standalone: boolean }).standalone)
+      (window.navigator as { standalone?: boolean }).standalone === true)
   );
 }
 
