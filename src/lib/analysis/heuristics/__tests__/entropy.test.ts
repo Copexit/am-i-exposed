@@ -63,8 +63,8 @@ describe("analyzeEntropy", () => {
     // 5 equal inputs, 5 equal outputs -> Boltzmann: n=5, count=1496, entropy=log2(1496)~10.55
     // impact = min(floor(10.55*2), 15) = 15
     const tx = makeTx({
-      vin: Array.from({ length: 5 }, () =>
-        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1q" + Math.random().toString(16).slice(2, 40).padEnd(38, "0"), value: 100_000 } }),
+      vin: Array.from({ length: 5 }, (_, i) =>
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: `bc1q${"abcde"[i]}${"0".repeat(37)}`, value: 100_000 } }),
       ),
       vout: Array.from({ length: 5 }, () => makeVout({ value: 50_000 })),
     });

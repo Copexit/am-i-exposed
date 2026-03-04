@@ -81,15 +81,9 @@ describe("analyzeWalletFingerprint", () => {
     expect(f!.scoreImpact).toBe(-3);
   });
 
-  it("returns impact -4 for 3+ signals without wallet guess", () => {
-    // nLockTime + nSequence + BIP69 can happen, but nLockTime gives Core/Sparrow guess
-    // Hard to get 3 signals with no wallet guess since BIP69 always assigns a guess.
-    // Use: nSequence=0xfffffffd + nSequence=0xfffffffe mixed (no pattern) + nothing else
-    // Actually, let's just test with what the code produces.
-    // 3 signals = e.g., nLockTime + nSequence + BIP69 - but those always assign a walletGuess.
-    // Skip this edge case; the code path exists but is hard to trigger naturally.
-    // Instead, verify the generic signal path with < 3 signals.
-    expect(true).toBe(true); // placeholder - covered by other tests
+  it.skip("returns impact -4 for 3+ signals without wallet guess (hard to trigger: BIP69/nLockTime always assign a guess)", () => {
+    // This code path exists but every combination of 3+ signals
+    // includes one that assigns a walletGuess, making it unreachable.
   });
 
   it("returns impact -2 for single nSequence signal (no wallet guess)", () => {
