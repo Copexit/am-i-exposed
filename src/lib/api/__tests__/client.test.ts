@@ -15,14 +15,14 @@ const MAINNET_CONFIG: NetworkConfig = {
   label: "Mainnet",
   mempoolBaseUrl: "https://mempool.space/api",
   esploraBaseUrl: "https://blockstream.info/api",
-  addressPrefix: "bc1",
+  explorerUrl: "https://mempool.space",
 };
 
 const TESTNET_CONFIG: NetworkConfig = {
   label: "Testnet",
   mempoolBaseUrl: "https://mempool.space/testnet4/api",
   esploraBaseUrl: "https://mempool.space/testnet4/api",
-  addressPrefix: "tb1",
+  explorerUrl: "https://mempool.space/testnet4",
 };
 
 function makeMockClient(overrides: Record<string, unknown> = {}) {
