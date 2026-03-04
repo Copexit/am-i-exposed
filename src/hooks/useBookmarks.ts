@@ -57,7 +57,7 @@ export function useBookmarks() {
       // Remove duplicate if exists
       const filtered = existing.filter((b) => b.input !== bookmark.input);
       const updated = [{ ...bookmark, savedAt: Date.now() }, ...filtered];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch { /* storage full / private browsing */ }
       window.dispatchEvent(new StorageEvent("storage"));
     },
     [],
@@ -66,7 +66,7 @@ export function useBookmarks() {
   const removeBookmark = useCallback((input: string) => {
     const existing = getSnapshot();
     const updated = existing.filter((b) => b.input !== input);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch { /* storage full / private browsing */ }
     window.dispatchEvent(new StorageEvent("storage"));
   }, []);
 
@@ -75,12 +75,12 @@ export function useBookmarks() {
     const updated = existing.map((b) =>
       b.input === input ? { ...b, label: label || undefined } : b,
     );
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch { /* storage full / private browsing */ }
     window.dispatchEvent(new StorageEvent("storage"));
   }, []);
 
   const clearBookmarks = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
+    try { localStorage.removeItem(STORAGE_KEY); } catch { /* private browsing */ }
     cachedJson = "";
     cachedBookmarks = [];
     window.dispatchEvent(new StorageEvent("storage"));

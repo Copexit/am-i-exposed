@@ -19,66 +19,66 @@ function getImpactColor(impact: string): string {
 }
 
 const HEURISTIC_IDS = [
-  { id: "H1", titleKey: "methodology.heuristic_h1_title", descKey: "methodology.heuristic_h1_description", impact: "-5 to -15" },
-  { id: "H2", titleKey: "methodology.heuristic_h2_title", descKey: "methodology.heuristic_h2_description", impact: "-5 to -30" },
-  { id: "H3", titleKey: "methodology.heuristic_h3_title", descKey: "methodology.heuristic_h3_description", impact: "-3 to -45" },
-  { id: "H4", titleKey: "methodology.heuristic_h4_title", descKey: "methodology.heuristic_h4_description", impact: "+15 to +30" },
-  { id: "H5", titleKey: "methodology.heuristic_h5_title", descKey: "methodology.heuristic_h5_description", impact: "-5 to +15" },
-  { id: "H6", titleKey: "methodology.heuristic_h6_title", descKey: "methodology.heuristic_h6_description", impact: "-2" },
-  { id: "H7", titleKey: "methodology.heuristic_h7_title", descKey: "methodology.heuristic_h7_description", impact: "-5 to -8" },
-  { id: "H8", titleKey: "methodology.heuristic_h8_title", descKey: "methodology.heuristic_h8_description", impact: "-24 to -70" },
-  { id: "H9", titleKey: "methodology.heuristic_h9_title", descKey: "methodology.heuristic_h9_description", impact: "-8 to +2" },
-  { id: "H10", titleKey: "methodology.heuristic_h10_title", descKey: "methodology.heuristic_h10_description", impact: "-5 to +5" },
-  { id: "H11", titleKey: "methodology.heuristic_h11_title", descKey: "methodology.heuristic_h11_description", impact: "-2 to -6" },
-  { id: "H12", titleKey: "methodology.heuristic_h12_title", descKey: "methodology.heuristic_h12_description", impact: "-3 to -8" },
-  { id: "H13", titleKey: "methodology.heuristic_h13_title", descKey: "methodology.heuristic_h13_description", impact: "-1 to +5" },
-  { id: "H14", titleKey: "methodology.heuristic_h14_title", descKey: "methodology.heuristic_h14_description", impact: "-1 to -3" },
-  { id: "H15", titleKey: "methodology.heuristic_h15_title", descKey: "methodology.heuristic_h15_description", impact: "-8 to +2" },
-  { id: "H16", titleKey: "methodology.heuristic_h16_title", descKey: "methodology.heuristic_h16_description", impact: "-3 to +2" },
-  { id: "H17", titleKey: "methodology.heuristic_h17_title", descKey: "methodology.heuristic_h17_description", impact: "0 to -3" },
+  { id: "H1", titleKey: "methodology.heuristic_h1_title", title: "Round Amount Detection", descKey: "methodology.heuristic_h1_description", desc: "Identifies round-number outputs that suggest intentional payment amounts.", impact: "-5 to -15" },
+  { id: "H2", titleKey: "methodology.heuristic_h2_title", title: "Change Detection", descKey: "methodology.heuristic_h2_description", desc: "Identifies likely change outputs using script type, value, and spending patterns.", impact: "-5 to -30" },
+  { id: "H3", titleKey: "methodology.heuristic_h3_title", title: "Common Input Ownership (CIOH)", descKey: "methodology.heuristic_h3_description", desc: "Evaluates whether all inputs belong to the same entity.", impact: "-3 to -45" },
+  { id: "H4", titleKey: "methodology.heuristic_h4_title", title: "CoinJoin Detection", descKey: "methodology.heuristic_h4_description", desc: "Detects Whirlpool, WabiSabi, and JoinMarket CoinJoin transactions.", impact: "+15 to +30" },
+  { id: "H5", titleKey: "methodology.heuristic_h5_title", title: "Boltzmann Entropy", descKey: "methodology.heuristic_h5_description", desc: "Measures transaction ambiguity using entropy analysis.", impact: "-5 to +15" },
+  { id: "H6", titleKey: "methodology.heuristic_h6_title", title: "Script Type Mixing", descKey: "methodology.heuristic_h6_description", desc: "Flags transactions that mix different address formats.", impact: "-2" },
+  { id: "H7", titleKey: "methodology.heuristic_h7_title", title: "OP_RETURN Data Leak", descKey: "methodology.heuristic_h7_description", desc: "Detects metadata embedded in OP_RETURN outputs.", impact: "-5 to -8" },
+  { id: "H8", titleKey: "methodology.heuristic_h8_title", title: "Address Reuse", descKey: "methodology.heuristic_h8_description", desc: "Identifies address reuse, which deterministically links transactions.", impact: "-24 to -70" },
+  { id: "H9", titleKey: "methodology.heuristic_h9_title", title: "UTXO Set Analysis", descKey: "methodology.heuristic_h9_description", desc: "Analyzes UTXO set for dust, consolidation risk, and hygiene.", impact: "-8 to +2" },
+  { id: "H10", titleKey: "methodology.heuristic_h10_title", title: "Timing Analysis", descKey: "methodology.heuristic_h10_description", desc: "Evaluates transaction timing patterns for privacy implications.", impact: "-5 to +5" },
+  { id: "H11", titleKey: "methodology.heuristic_h11_title", title: "Wallet Fingerprinting", descKey: "methodology.heuristic_h11_description", desc: "Identifies wallet software from transaction metadata.", impact: "-2 to -6" },
+  { id: "H12", titleKey: "methodology.heuristic_h12_title", title: "Spending Pattern Analysis", descKey: "methodology.heuristic_h12_description", desc: "Analyzes spending behavior for privacy-reducing patterns.", impact: "-3 to -8" },
+  { id: "H13", titleKey: "methodology.heuristic_h13_title", title: "Anonymity Set Analysis", descKey: "methodology.heuristic_h13_description", desc: "Evaluates the anonymity set size and mixing history.", impact: "-1 to +5" },
+  { id: "H14", titleKey: "methodology.heuristic_h14_title", title: "Coinbase Transaction Detection", descKey: "methodology.heuristic_h14_description", desc: "Identifies mining rewards and their privacy implications.", impact: "-1 to -3" },
+  { id: "H15", titleKey: "methodology.heuristic_h15_title", title: "Dust Output Detection", descKey: "methodology.heuristic_h15_description", desc: "Flags dust-sized outputs that may be tracking attempts.", impact: "-8 to +2" },
+  { id: "H16", titleKey: "methodology.heuristic_h16_title", title: "Address Type Heuristic", descKey: "methodology.heuristic_h16_description", desc: "Evaluates address type for privacy properties.", impact: "-3 to +2" },
+  { id: "H17", titleKey: "methodology.heuristic_h17_title", title: "Multisig/Escrow Detection", descKey: "methodology.heuristic_h17_description", desc: "Identifies multisig and escrow transaction patterns.", impact: "0 to -3" },
 ];
 
 const GRADE_IDS = [
-  { grade: "A+", range: ">= 90", color: "text-severity-good", descKey: "methodology.grade_aplus_description", detailKey: "methodology.grade_aplus_detail" },
-  { grade: "B", range: ">= 75", color: "text-severity-good", descKey: "methodology.grade_b_description", detailKey: "methodology.grade_b_detail" },
-  { grade: "C", range: ">= 50", color: "text-severity-medium", descKey: "methodology.grade_c_description", detailKey: "methodology.grade_c_detail" },
-  { grade: "D", range: ">= 25", color: "text-severity-high", descKey: "methodology.grade_d_description", detailKey: "methodology.grade_d_detail" },
-  { grade: "F", range: "< 25", color: "text-severity-critical", descKey: "methodology.grade_f_description", detailKey: "methodology.grade_f_detail" },
+  { grade: "A+", range: ">= 90", color: "text-severity-good", descKey: "methodology.grade_aplus_description", desc: "Excellent privacy - CoinJoin participation, no reuse, high entropy", detailKey: "methodology.grade_aplus_detail", detail: "Uses advanced privacy techniques like CoinJoin that break deterministic transaction links. Minimal metadata exposure and strong anonymity sets make chain analysis unreliable." },
+  { grade: "B", range: ">= 75", color: "text-severity-good", descKey: "methodology.grade_b_description", desc: "Good - minor issues, no critical exposure", detailKey: "methodology.grade_b_detail", detail: "No major privacy leaks detected. Minor issues like wallet fingerprinting or non-round change amounts may exist but do not enable confident tracing." },
+  { grade: "C", range: ">= 50", color: "text-severity-medium", descKey: "methodology.grade_c_description", desc: "Fair - notable concerns, moderate tracing risk", detailKey: "methodology.grade_c_detail", detail: "Some privacy concerns detected. An analyst could identify patterns like address reuse or change output detection, but the overall picture is still somewhat ambiguous." },
+  { grade: "D", range: ">= 25", color: "text-severity-high", descKey: "methodology.grade_d_description", desc: "Poor - significant exposure, confident clustering likely", detailKey: "methodology.grade_d_detail", detail: "Significant privacy failures. Chain surveillance can likely cluster addresses and trace fund flows with moderate to high confidence." },
+  { grade: "F", range: "< 25", color: "text-severity-critical", descKey: "methodology.grade_f_description", desc: "Critical - severe failures, trivial to trace", detailKey: "methodology.grade_f_detail", detail: "Severe privacy failures that make tracing trivial. Issues like heavy address reuse, round amounts, and identifiable wallet patterns create a clear picture for any observer." },
 ];
 
 const CROSS_RULES = [
-  { labelKey: "methodology.cross_rule_1_label", textKey: "methodology.cross_rule_1_text" },
-  { labelKey: "methodology.cross_rule_2_label", textKey: "methodology.cross_rule_2_text" },
-  { labelKey: "methodology.cross_rule_3_label", textKey: "methodology.cross_rule_3_text" },
-  { labelKey: "methodology.cross_rule_4_label", textKey: "methodology.cross_rule_4_text" },
-  { labelKey: "methodology.cross_rule_5_label", textKey: "methodology.cross_rule_5_text" },
-  { labelKey: "methodology.cross_rule_6_label", textKey: "methodology.cross_rule_6_text" },
-  { labelKey: "methodology.cross_rule_7_label", textKey: "methodology.cross_rule_7_text" },
-  { labelKey: "methodology.cross_rule_8_label", textKey: "methodology.cross_rule_8_text" },
-  { labelKey: "methodology.cross_rule_9_label", textKey: "methodology.cross_rule_9_text" },
+  { labelKey: "methodology.cross_rule_1_label", label: "CoinJoin suppresses CIOH", textKey: "methodology.cross_rule_1_text", text: "multiple input addresses in a CoinJoin belong to different participants, so the CIOH penalty is zeroed out" },
+  { labelKey: "methodology.cross_rule_2_label", label: "CoinJoin suppresses round amounts", textKey: "methodology.cross_rule_2_text", text: "equal outputs in a CoinJoin are the denomination, not a privacy leak" },
+  { labelKey: "methodology.cross_rule_3_label", label: "CoinJoin suppresses change detection", textKey: "methodology.cross_rule_3_text", text: "change identification in CoinJoin transactions is unreliable and penalizing it would be misleading" },
+  { labelKey: "methodology.cross_rule_4_label", label: "CoinJoin suppresses script type mix", textKey: "methodology.cross_rule_4_text", text: "mixed script types are expected when participants use different wallet software" },
+  { labelKey: "methodology.cross_rule_5_label", label: "CoinJoin suppresses wallet fingerprinting", textKey: "methodology.cross_rule_5_text", text: "wallet identification is less relevant when the CoinJoin already breaks transaction graph linkability" },
+  { labelKey: "methodology.cross_rule_6_label", label: "CoinJoin suppresses dust detection", textKey: "methodology.cross_rule_6_text", text: "small outputs in CoinJoin transactions are typically coordinator fees, not dusting attacks" },
+  { labelKey: "methodology.cross_rule_7_label", label: "CoinJoin suppresses timing analysis", textKey: "methodology.cross_rule_7_text", text: "broadcast timing in CoinJoin is coordinated and does not reveal individual participant behavior" },
+  { labelKey: "methodology.cross_rule_8_label", label: "CoinJoin suppresses fee fingerprinting", textKey: "methodology.cross_rule_8_text", text: "fee rate and RBF signals in CoinJoin reveal the coordinator, not the participant's wallet" },
+  { labelKey: "methodology.cross_rule_9_label", label: "CoinJoin suppresses no-anonymity-set penalty", textKey: "methodology.cross_rule_9_text", text: "CoinJoin structure provides privacy beyond simple output value matching" },
 ];
 
 const THREAT_MODEL_ITEMS = [
-  { num: "1", labelKey: "methodology.threat_1_label", textKey: "methodology.threat_1_text" },
-  { num: "2", labelKey: "methodology.threat_2_label", textKey: "methodology.threat_2_text" },
-  { num: "3", labelKey: "methodology.threat_3_label", textKey: "methodology.threat_3_text" },
-  { num: "4", labelKey: "methodology.threat_4_label", textKey: "methodology.threat_4_text" },
+  { num: "1", labelKey: "methodology.threat_1_label", label: "Cluster addresses", textKey: "methodology.threat_1_text", text: "group addresses controlled by the same entity using CIOH, change detection, and address reuse" },
+  { num: "2", labelKey: "methodology.threat_2_label", label: "Link identities", textKey: "methodology.threat_2_text", text: "connect clusters to real people via KYC anchor points (exchange deposits, merchant payments)" },
+  { num: "3", labelKey: "methodology.threat_3_label", label: "Trace fund flows", textKey: "methodology.threat_3_text", text: "follow bitcoin through multiple hops using change detection and temporal analysis" },
+  { num: "4", labelKey: "methodology.threat_4_label", label: "Profile behavior", textKey: "methodology.threat_4_text", text: "identify spending patterns, wallet software, timing, and financial activity" },
 ];
 
-const LIMITATION_KEYS = [
-  "methodology.limitation_1",
-  "methodology.limitation_2",
-  "methodology.limitation_3",
-  "methodology.limitation_4",
+const LIMITATIONS = [
+  { key: "methodology.limitation_1", text: "Entropy calculation is simplified. Full Boltzmann analysis requires expensive enumeration that is impractical client-side for large transactions." },
+  { key: "methodology.limitation_2", text: "Only on-chain data is analyzed. Off-chain intelligence (IP correlations, exchange records, human intelligence) that surveillance firms use is not modeled." },
+  { key: "methodology.limitation_3", text: "Wallet fingerprinting covers major wallets but cannot identify all software. Novel or obscure wallets may not be detected." },
+  { key: "methodology.limitation_4", text: "Some privacy techniques (like PayJoin) are deliberately undetectable on-chain. A good privacy score does not guarantee privacy, and the absence of detected issues does not mean none exist." },
 ];
 
 const TOC_ITEMS = [
-  { labelKey: "methodology.toc_threat_model", id: "threat-model" },
-  { labelKey: "methodology.toc_heuristics", id: "heuristics" },
-  { labelKey: "methodology.toc_scoring", id: "scoring" },
-  { labelKey: "methodology.toc_grades", id: "grades" },
-  { labelKey: "methodology.toc_cross_heuristic", id: "cross-heuristic" },
-  { labelKey: "methodology.toc_limitations", id: "limitations" },
+  { labelKey: "methodology.toc_threat_model", label: "Threat Model", id: "threat-model" },
+  { labelKey: "methodology.toc_heuristics", label: "Heuristics", id: "heuristics" },
+  { labelKey: "methodology.toc_scoring", label: "Scoring", id: "scoring" },
+  { labelKey: "methodology.toc_grades", label: "Grades", id: "grades" },
+  { labelKey: "methodology.toc_cross_heuristic", label: "Cross-Heuristic", id: "cross-heuristic" },
+  { labelKey: "methodology.toc_limitations", label: "Limitations", id: "limitations" },
 ];
 
 export default function MethodologyPage() {
@@ -119,7 +119,7 @@ export default function MethodologyPage() {
               href={`#${s.id}`}
               className="px-3 py-2.5 rounded-lg bg-surface-elevated border border-card-border text-muted hover:text-foreground hover:border-bitcoin/30 transition-all whitespace-nowrap"
             >
-              {t(s.labelKey, { defaultValue: s.labelKey })}
+              {t(s.labelKey, { defaultValue: s.label })}
             </a>
           ))}
         </nav>
@@ -146,10 +146,10 @@ export default function MethodologyPage() {
                   <span className="text-bitcoin shrink-0">{item.num}.</span>
                   <span>
                     <span className="text-foreground">
-                      {t(item.labelKey, { defaultValue: item.labelKey })}
+                      {t(item.labelKey, { defaultValue: item.label })}
                     </span>
                     {" - "}
-                    {t(item.textKey, { defaultValue: item.textKey })}
+                    {t(item.textKey, { defaultValue: item.text })}
                   </span>
                 </li>
               ))}
@@ -177,14 +177,14 @@ export default function MethodologyPage() {
                     {h.id}
                   </span>
                   <h3 className="text-lg font-semibold text-foreground flex-1 min-w-0">
-                    {t(h.titleKey, { defaultValue: h.titleKey })}
+                    {t(h.titleKey, { defaultValue: h.title })}
                   </h3>
                   <span className={`text-sm font-mono shrink-0 ${getImpactColor(h.impact)}`}>
                     {h.impact}
                   </span>
                 </div>
                 <p className="text-muted text-base leading-relaxed">
-                  {t(h.descKey, { defaultValue: h.descKey })}
+                  {t(h.descKey, { defaultValue: h.desc })}
                 </p>
               </div>
             ))}
@@ -249,7 +249,7 @@ export default function MethodologyPage() {
                       aria-expanded={expandedGrade === g.grade}
                     >
                       <span className="flex-1">
-                        {t(g.descKey, { defaultValue: g.descKey })}
+                        {t(g.descKey, { defaultValue: g.desc })}
                       </span>
                       <motion.span
                         className="shrink-0 mt-0.5 text-muted group-hover:text-foreground transition-colors"
@@ -269,7 +269,7 @@ export default function MethodologyPage() {
                           className="overflow-hidden"
                         >
                           <p className="mt-2 pt-2 border-t border-card-border text-sm text-muted/80 leading-relaxed">
-                            {t(g.detailKey, { defaultValue: g.detailKey })}
+                            {t(g.detailKey, { defaultValue: g.detail })}
                           </p>
                         </motion.div>
                       )}
@@ -296,10 +296,10 @@ export default function MethodologyPage() {
                   <span className="text-bitcoin shrink-0">&bull;</span>
                   <span>
                     <span className="text-foreground font-medium">
-                      {t(rule.labelKey, { defaultValue: rule.labelKey })}
+                      {t(rule.labelKey, { defaultValue: rule.label })}
                     </span>
                     {" - "}
-                    {t(rule.textKey, { defaultValue: rule.textKey })}
+                    {t(rule.textKey, { defaultValue: rule.text })}
                   </span>
                 </li>
               ))}
@@ -314,10 +314,10 @@ export default function MethodologyPage() {
           </h2>
           <div className="bg-card-bg border border-card-border rounded-xl p-6 space-y-3">
             <ul className="space-y-2 text-muted text-base leading-relaxed">
-              {LIMITATION_KEYS.map((key, idx) => (
+              {LIMITATIONS.map((lim, idx) => (
                 <li key={idx} className="flex gap-2">
                   <span className="text-severity-medium shrink-0">&bull;</span>
-                  <span>{t(key, { defaultValue: key })}</span>
+                  <span>{t(lim.key, { defaultValue: lim.text })}</span>
                 </li>
               ))}
             </ul>

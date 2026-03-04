@@ -60,14 +60,14 @@ export function useRecentScans() {
         ...filtered,
       ].slice(0, MAX_RECENT);
 
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch { /* storage full / private browsing */ }
       window.dispatchEvent(new StorageEvent("storage"));
     },
     [],
   );
 
   const clearScans = useCallback(() => {
-    sessionStorage.removeItem(STORAGE_KEY);
+    try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* private browsing */ }
     cachedJson = "";
     cachedScans = [];
     window.dispatchEvent(new StorageEvent("storage"));

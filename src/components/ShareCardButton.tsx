@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { ImageIcon, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { generateShareCard } from "@/lib/share-card";
 import type { Grade } from "@/lib/types";
 
 interface ShareCardButtonProps {
@@ -29,6 +28,7 @@ export function ShareCardButton({
     setGenerating(true);
     setFailed(false);
     try {
+      const { generateShareCard } = await import("@/lib/share-card");
       const blob = await generateShareCard({
         grade,
         score,

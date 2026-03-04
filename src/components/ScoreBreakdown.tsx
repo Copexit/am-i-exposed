@@ -67,11 +67,12 @@ export function ScoreBreakdown({ findings, finalScore, baseScore = DEFAULT_BASE_
               </div>
 
               {/* Waterfall items */}
-              {sorted.map((f) => {
+              {(() => {
                 const maxMagnitude = Math.max(
                   ...impactFindings.map((x) => Math.abs(x.scoreImpact)),
                   1,
                 );
+                return sorted.map((f) => {
                 const barWidth = Math.round(
                   (Math.abs(f.scoreImpact) / maxMagnitude) * 100,
                 );
@@ -103,7 +104,8 @@ export function ScoreBreakdown({ findings, finalScore, baseScore = DEFAULT_BASE_
                     </div>
                   </div>
                 );
-              })}
+              });
+              })()}
 
               {/* Divider */}
               <div className="border-t border-card-border my-1" />

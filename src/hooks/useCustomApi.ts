@@ -46,13 +46,15 @@ export function useCustomApi() {
   );
 
   const setCustomUrl = useCallback((url: string | null) => {
-    if (url) {
-      localStorage.setItem(STORAGE_KEY, url);
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
-    }
+    try {
+      if (url) {
+        localStorage.setItem(STORAGE_KEY, url);
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    } catch { /* storage full / private browsing */ }
     cachedRaw = url ?? "";
-    cachedUrl = url;
+    cachedUrl = url && isValidApiUrl(url) ? url : null;
     window.dispatchEvent(new StorageEvent("storage"));
   }, []);
 

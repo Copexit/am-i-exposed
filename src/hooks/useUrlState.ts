@@ -76,7 +76,7 @@ export function useUrlState() {
 
   const setNetwork = useCallback((n: BitcoinNetwork) => {
     cachedNetwork = n;
-    localStorage.setItem(STORAGE_KEY, n);
+    try { localStorage.setItem(STORAGE_KEY, n); } catch { /* storage full / private browsing */ }
     const params = new URLSearchParams(window.location.search);
     if (n === DEFAULT_NETWORK) {
       params.delete("network");

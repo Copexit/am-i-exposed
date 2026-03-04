@@ -30,7 +30,7 @@ export function useDevMode() {
 
   const toggleDevMode = useCallback(() => {
     const next = !getSnapshot();
-    localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
+    try { localStorage.setItem(STORAGE_KEY, next ? "1" : "0"); } catch { /* private browsing */ }
     window.dispatchEvent(new StorageEvent("storage"));
   }, []);
 

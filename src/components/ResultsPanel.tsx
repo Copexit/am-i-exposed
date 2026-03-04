@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft, ExternalLink, Copy, Info, AlertTriangle } from "lucide-react";
-import { useState } from "react";
+import { useState, useCallback, lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
@@ -11,13 +11,15 @@ import { FindingCard } from "./FindingCard";
 import { AddressSummary } from "./AddressSummary";
 import { ExportButton } from "./ExportButton";
 import { ScoreBreakdown } from "./ScoreBreakdown";
-import { ScoreWaterfall } from "./viz/ScoreWaterfall";
 import { TX_BASE_SCORE, ADDRESS_BASE_SCORE } from "@/lib/scoring/score";
-import { SeverityRing } from "./viz/SeverityRing";
-import { TxFlowDiagram } from "./viz/TxFlowDiagram";
-import { UtxoBubbleChart } from "./viz/UtxoBubbleChart";
-import { PrivacyTimeline } from "./viz/PrivacyTimeline";
-import { CoinJoinStructure } from "./viz/CoinJoinStructure";
+
+// Lazy-load heavy visx/d3 chart components - only needed after analysis completes
+const ScoreWaterfall = lazy(() => import("./viz/ScoreWaterfall").then(m => ({ default: m.ScoreWaterfall })));
+const SeverityRing = lazy(() => import("./viz/SeverityRing").then(m => ({ default: m.SeverityRing })));
+const TxFlowDiagram = lazy(() => import("./viz/TxFlowDiagram").then(m => ({ default: m.TxFlowDiagram })));
+const UtxoBubbleChart = lazy(() => import("./viz/UtxoBubbleChart").then(m => ({ default: m.UtxoBubbleChart })));
+const PrivacyTimeline = lazy(() => import("./viz/PrivacyTimeline").then(m => ({ default: m.PrivacyTimeline })));
+const CoinJoinStructure = lazy(() => import("./viz/CoinJoinStructure").then(m => ({ default: m.CoinJoinStructure })));
 import { Remediation } from "./Remediation";
 import { CexRiskPanel } from "./CexRiskPanel";
 import { ExchangeWarningPanel } from "./ExchangeWarningPanel";
@@ -158,6 +160,12 @@ export function ResultsPanel({
   const { config, customApiUrl, isUmbrel } = useNetwork();
   const { t } = useTranslation();
   const isCoinJoin = result.findings.some(isCoinJoinFinding);
+
+  const handleFindingClick = useCallback((findingId: string) => {
+    const el = document.querySelector(`[data-finding-id="${findingId}"]`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, []);
+
   const explorerUrl = `${config.explorerUrl}/${inputType === "txid" ? "tx" : "address"}/${encodeURIComponent(query)}`;
   const explorerLabel = customApiUrl
     ? t("results.viewOnCustom", { hostname: new URL(config.explorerUrl).hostname, defaultValue: "View on {{hostname}}" })
@@ -187,6 +195,7 @@ export function ResultsPanel({
   );
 
   return (
+    <Suspense fallback={null}>
     <motion.div
       data-testid="results-panel"
       initial={{ opacity: 0, y: 10 }}
@@ -360,7 +369,7 @@ export function ResultsPanel({
         <>
           {txBreakdown && txBreakdown.length >= 2 && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.4 }} className="w-full">
-              <PrivacyTimeline breakdown={txBreakdown} onScan={onScan ? (txid) => onScan(txid) : undefined} />
+              <PrivacyTimeline breakdown={txBreakdown} onScan={onScan} />
             </motion.div>
           )}
           {txBreakdown && txBreakdown.length > 0 && addressData && (
@@ -404,10 +413,7 @@ export function ResultsPanel({
               finalScore={result.score}
               grade={result.grade}
               baseScore={addressData ? ADDRESS_BASE_SCORE : TX_BASE_SCORE}
-              onFindingClick={(findingId) => {
-                const el = document.querySelector(`[data-finding-id="${findingId}"]`);
-                if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-              }}
+              onFindingClick={handleFindingClick}
             />
           </motion.div>
         )}
@@ -504,5 +510,6 @@ export function ResultsPanel({
         </div>
       </div>
     </motion.div>
+    </Suspense>
   );
 }
