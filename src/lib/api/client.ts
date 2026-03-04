@@ -1,5 +1,4 @@
 import { createMempoolClient, type MempoolClient } from "./mempool";
-import { createEsploraClient, type EsploraClient } from "./esplora";
 import { ApiError } from "./fetch-with-retry";
 import type { NetworkConfig } from "@/lib/bitcoin/networks";
 import type {
@@ -11,19 +10,22 @@ import type {
 /**
  * Unified API client that tries the primary API (mempool.space) first,
  * then falls back to Esplora (blockstream.info) on mainnet.
+ *
+ * Both mempool.space and blockstream.info implement the same Esplora REST API,
+ * so both use createMempoolClient with different base URLs.
  */
 export function createApiClient(config: NetworkConfig, signal?: AbortSignal) {
   const mempool = createMempoolClient(config.mempoolBaseUrl, signal);
 
-  // Esplora fallback only available on mainnet
-  const esplora: EsploraClient | null =
+  // Esplora fallback only available on mainnet (same API, different host)
+  const esplora: MempoolClient | null =
     config.esploraBaseUrl !== config.mempoolBaseUrl
-      ? createEsploraClient(config.esploraBaseUrl, signal)
+      ? createMempoolClient(config.esploraBaseUrl, signal)
       : null;
 
   async function withFallback<T>(
     primary: (client: MempoolClient) => Promise<T>,
-    fallback?: (client: EsploraClient) => Promise<T>,
+    fallback?: (client: MempoolClient) => Promise<T>,
   ): Promise<T> {
     try {
       return await primary(mempool);
