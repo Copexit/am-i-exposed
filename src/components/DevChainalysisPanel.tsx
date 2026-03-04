@@ -70,6 +70,7 @@ export function DevChainalysisPanel() {
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             placeholder="Mainnet Bitcoin address"
+            aria-label="Mainnet Bitcoin address"
             className="flex-1 px-3 py-2 text-sm font-mono bg-surface-inset border border-card-border rounded-lg text-foreground placeholder:text-muted/50 focus:border-severity-medium/40 focus-visible:outline-2 focus-visible:outline-severity-medium/50 transition-colors"
           />
           <button
@@ -79,7 +80,7 @@ export function DevChainalysisPanel() {
           >
             {status === "loading" ? (
               <span className="inline-flex items-center gap-1.5">
-                <Loader2 size={14} className="animate-spin" />
+                <Loader2 size={14} className="animate-spin" aria-hidden="true" />
                 Testing...
               </span>
             ) : (

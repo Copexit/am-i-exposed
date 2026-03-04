@@ -17,7 +17,7 @@ import { isRoundAmount } from "./round-amount";
  * When change is identifiable, the payment amount and direction are revealed.
  *
  * Reference: Meiklejohn et al., 2013
- * Impact: -5 to -30
+ * Impact: -5 to -25
  */
 export const analyzeChangeDetection: TxHeuristic = (tx) => {
   const findings: Finding[] = [];

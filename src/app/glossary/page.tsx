@@ -287,13 +287,14 @@ export default function GlossaryPage() {
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder={t("glossary.search", { defaultValue: "Filter terms..." })}
+              aria-label={t("glossary.search", { defaultValue: "Filter terms..." })}
               className="w-full pl-9 pr-4 py-2.5 text-sm bg-surface-elevated/50 border border-card-border rounded-lg text-foreground placeholder:text-muted/60 focus:border-bitcoin/30 focus-visible:outline-2 focus-visible:outline-bitcoin/50 transition-colors"
             />
           </div>
         </div>
 
         {/* Terms */}
-        <div className="space-y-3">
+        <dl className="space-y-3">
           {filtered.length === 0 && (
             <p className="text-sm text-muted py-8 text-center">
               {t("glossary.noResults", { defaultValue: "No matching terms found." })}
@@ -313,7 +314,7 @@ export default function GlossaryPage() {
               </dd>
             </div>
           ))}
-        </div>
+        </dl>
 
         {/* CTA */}
         <div className="text-center space-y-2">

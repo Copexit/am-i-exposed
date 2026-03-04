@@ -580,7 +580,6 @@ Address type also contributes to change detection (H2). If a transaction spends 
 - P2WSH (Native SegWit multisig): -2
 - P2SH (Wrapped SegWit or other): -3
 - P2PKH (Legacy): -5
-- Mixed types across inputs: additional -3 (cross-type spending is unusual and distinguishing)
 
 **References**
 - BIP341/342 - Taproot (Schnorr + MAST)

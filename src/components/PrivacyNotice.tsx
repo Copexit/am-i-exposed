@@ -51,7 +51,7 @@ export function PrivacyNotice() {
           className="glass rounded-lg px-3 py-2 mx-4 mb-3 max-w-6xl sm:mx-auto w-auto"
         >
           <div className="flex items-center gap-2">
-            <ShieldAlert size={16} className="text-warning shrink-0" />
+            <ShieldAlert size={16} className="text-warning shrink-0" aria-hidden="true" />
             <p className="text-sm text-muted flex-1">
               {t("common.privacyNotice", { defaultValue: "Queries are sent to mempool.space - your IP is visible. Use Tor or a VPN for stronger privacy." })}
             </p>

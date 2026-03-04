@@ -70,6 +70,8 @@ export function TipJar() {
                     size={160}
                     level="M"
                     includeMargin={false}
+                    role="img"
+                    aria-label="Lightning payment QR code"
                   />
                 </div>
               </div>

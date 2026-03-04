@@ -148,6 +148,7 @@ export function Header() {
             <div
               className="absolute inset-0 bg-black/60"
               onClick={() => setMobileOpen(false)}
+              aria-hidden="true"
             />
             {/* Menu panel */}
             <motion.nav

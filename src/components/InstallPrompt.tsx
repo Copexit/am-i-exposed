@@ -97,7 +97,7 @@ export function InstallPrompt() {
         style={{ background: "var(--card-bg)", boxShadow: "var(--glass-shadow)" }}
       >
         <div className="flex items-start gap-3">
-          <Download size={18} className="text-bitcoin shrink-0 mt-0.5" />
+          <Download size={18} className="text-bitcoin shrink-0 mt-0.5" aria-hidden="true" />
           <div className="flex-1 space-y-2">
             <p className="text-sm font-medium text-foreground">
               {t("install.title", { defaultValue: "Install am-i.exposed" })}

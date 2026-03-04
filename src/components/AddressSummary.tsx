@@ -37,17 +37,17 @@ export function AddressSummary({ address: addr }: AddressSummaryProps) {
     >
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Stat
-          icon={<Wallet size={14} className="text-bitcoin" />}
+          icon={<Wallet size={14} className="text-bitcoin" aria-hidden="true" />}
           label={t("address.balance", { defaultValue: "Balance" })}
           value={formatSats(balance, i18n.language)}
         />
         <Stat
-          icon={<ArrowDownLeft size={14} className="text-severity-good" />}
+          icon={<ArrowDownLeft size={14} className="text-severity-good" aria-hidden="true" />}
           label={t("address.received", { defaultValue: "Received" })}
           value={formatSats(totalReceived, i18n.language)}
         />
         <Stat
-          icon={<ArrowUpRight size={14} className="text-severity-high" />}
+          icon={<ArrowUpRight size={14} className="text-severity-high" aria-hidden="true" />}
           label={t("address.sent", { defaultValue: "Sent" })}
           value={formatSats(totalSent, i18n.language)}
         />

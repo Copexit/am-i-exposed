@@ -149,8 +149,9 @@ export function ExchangeWarningPanel() {
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1 text-xs text-bitcoin/70 hover:text-bitcoin transition-colors"
+                              aria-label={`Visit ${e.name}`}
                             >
-                              <ExternalLink size={10} />
+                              <ExternalLink size={10} aria-hidden="true" />
                             </a>
                           )}
                         </div>

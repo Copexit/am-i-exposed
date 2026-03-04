@@ -124,6 +124,8 @@ export function TipToast() {
                           size={140}
                           level="M"
                           includeMargin={false}
+                          role="img"
+                          aria-label="Lightning payment QR code"
                         />
                       </div>
                     </div>

@@ -107,12 +107,16 @@ export function BookmarkButton({ query, inputType, grade, score }: BookmarkButto
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             className="absolute right-0 top-full mt-2 z-50 w-64 rounded-lg border border-card-border bg-surface-elevated p-3 shadow-lg"
+            role="dialog"
+            aria-label={t("bookmark.privacyNote", { defaultValue: "Bookmarks persist in local storage. Clear anytime." })}
+            onKeyDown={(e) => { if (e.key === "Escape") handlePrivacyDismiss(); }}
           >
             <p className="text-xs text-muted leading-relaxed mb-2">
               {t("bookmark.privacyNote", { defaultValue: "Bookmarks persist in local storage. Clear anytime." })}
             </p>
             <button
               onClick={handlePrivacyDismiss}
+              autoFocus
               className="text-xs text-bitcoin hover:text-bitcoin-hover transition-colors cursor-pointer font-medium"
             >
               {t("bookmark.understand", { defaultValue: "Got it" })}
@@ -127,10 +131,11 @@ export function BookmarkButton({ query, inputType, grade, score }: BookmarkButto
             exit={{ opacity: 0, y: -4 }}
             className="absolute right-0 top-full mt-2 z-50 w-64 rounded-lg border border-card-border bg-surface-elevated p-3 shadow-lg"
           >
-            <label className="text-xs text-muted block mb-1">
+            <label htmlFor="bookmark-label-input" className="text-xs text-muted block mb-1">
               {t("bookmark.addLabel", { defaultValue: "Add a label (optional)" })}
             </label>
             <input
+              id="bookmark-label-input"
               ref={labelRef}
               type="text"
               value={labelValue}

@@ -81,9 +81,9 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
         </span>
       </div>
 
-      <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-start overflow-hidden">
+      <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-start overflow-hidden" role="group" aria-label="Transaction inputs and outputs">
         {/* Inputs */}
-        <div className="space-y-2 min-w-0">
+        <div className="space-y-2 min-w-0" role="list" aria-label="Inputs">
           {inputsToShow.map((vin, i) => {
             const addr = vin.prevout?.scriptpubkey_address;
             const isHighlighted = highlightAddress && addr === highlightAddress;
@@ -123,12 +123,12 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
         </div>
 
         {/* Arrow column */}
-        <div className="flex items-center justify-center pt-1">
+        <div className="flex items-center justify-center pt-1" aria-hidden="true">
           <ArrowRight size={14} className="text-muted" />
         </div>
 
         {/* Outputs */}
-        <div className="space-y-2 min-w-0">
+        <div className="space-y-2 min-w-0" role="list" aria-label="Outputs">
           {outputsToShow.map((vout, i) => {
             const anonSet = valueCounts.get(vout.value) ?? 1;
             const color = groupColors.get(vout.value);

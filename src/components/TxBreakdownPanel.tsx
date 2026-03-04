@@ -150,7 +150,7 @@ export function TxBreakdownPanel({
                     }}
                     aria-label={t("breakdown.copyTxid", { defaultValue: "Copy transaction ID" })}
                     title={t("breakdown.copyTxid", { defaultValue: "Copy transaction ID" })}
-                    className="shrink-0 text-muted hover:text-foreground transition-colors cursor-pointer p-0.5"
+                    className="shrink-0 text-muted hover:text-foreground transition-colors cursor-pointer p-2"
                   >
                     {copiedTxid === item.txid ? (
                       <Check size={12} className="text-severity-good" />

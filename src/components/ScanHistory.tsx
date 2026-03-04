@@ -182,7 +182,7 @@ export function ScanHistory({
                     e.stopPropagation();
                     onRemoveBookmark(bm.input);
                   }}
-                  className="text-muted hover:text-foreground transition-colors cursor-pointer p-0.5 -mr-1"
+                  className="text-muted hover:text-foreground transition-colors cursor-pointer p-2 -mr-2"
                   title={t("history.remove", { defaultValue: "Remove bookmark" })}
                   aria-label={t("history.remove", { defaultValue: "Remove bookmark" })}
                 >
