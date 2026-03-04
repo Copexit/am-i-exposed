@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Lightbulb, ChevronDown, ExternalLink, AlertCircle, Clock, Wrench } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -292,15 +292,15 @@ export function Remediation({ findings, grade }: RemediationProps) {
   );
 
   // Collect structured remediations from findings (sorted by urgency)
-  const structuredRemediations = findings
+  const structuredRemediations = useMemo(() => findings
     .filter((f) => f.remediation)
     .sort((a, b) => {
       const order = { immediate: 0, soon: 1, "when-convenient": 2 };
       return (order[a.remediation!.urgency] ?? 2) - (order[b.remediation!.urgency] ?? 2);
-    });
+    }), [findings]);
 
   // Fallback actions for findings without structured remediation
-  const actions = generateActions(findings, grade);
+  const actions = useMemo(() => generateActions(findings, grade), [findings, grade]);
 
   if (structuredRemediations.length === 0 && actions.length === 0) return null;
 
@@ -312,7 +312,7 @@ export function Remediation({ findings, grade }: RemediationProps) {
         aria-controls="remediation-panel"
         className="inline-flex items-center gap-1.5 text-sm text-bitcoin/80 hover:text-bitcoin transition-colors cursor-pointer bg-bitcoin/10 rounded-lg px-3 py-3"
       >
-        <Lightbulb size={16} />
+        <Lightbulb size={16} aria-hidden="true" />
         {t("remediation.whatToDoNext", { defaultValue: "What to do next" })}
         {structuredRemediations.length > 0 && (
           <span className="text-xs text-bitcoin/80">
@@ -322,6 +322,7 @@ export function Remediation({ findings, grade }: RemediationProps) {
         <ChevronDown
           size={16}
           className={`transition-transform ${open ? "rotate-180" : ""}`}
+          aria-hidden="true"
         />
       </button>
       <AnimatePresence>

@@ -170,6 +170,7 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
       <button
         onClick={() => setOpen(!open)}
         aria-expanded={open}
+        aria-controls="cex-risk-panel"
         className="w-full flex items-center gap-2 text-left cursor-pointer group px-1 py-3 min-h-[44px]"
       >
         {hasSanction ? (
@@ -206,7 +207,7 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="mt-3 glass rounded-xl p-5 space-y-4">
+            <div id="cex-risk-panel" className="mt-3 glass rounded-xl p-5 space-y-4">
               <p className="text-sm text-muted">
                 {inputType === "txid"
                   ? t("cex.willFlagTx", { defaultValue: "Will exchanges flag this transaction?" })

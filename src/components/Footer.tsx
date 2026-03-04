@@ -69,7 +69,7 @@ export function Footer() {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 text-muted hover:text-foreground transition-colors link-underline py-2"
         >
-          <Github size={16} />
+          <Github size={16} aria-hidden="true" />
           GitHub
         </a>
       </nav>

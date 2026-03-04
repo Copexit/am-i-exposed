@@ -51,9 +51,10 @@ function ScoringExplainer() {
       <button
         onClick={() => setOpen(!open)}
         aria-expanded={open}
+        aria-controls="scoring-explainer-panel"
         className="inline-flex items-center gap-1.5 text-xs text-foreground hover:text-foreground transition-colors cursor-pointer px-1 min-h-[44px]"
       >
-        <Info size={12} />
+        <Info size={12} aria-hidden="true" />
         {t("results.howScoringWorks", { defaultValue: "How scoring works" })}
       </button>
       <AnimatePresence>
@@ -65,7 +66,7 @@ function ScoringExplainer() {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="mt-2 bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed space-y-2">
+            <div id="scoring-explainer-panel" className="mt-2 bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed space-y-2">
               <p>
                 {t("results.scoringExplainerP1", { defaultValue: "Scores start at " })}<strong className="text-foreground">70/100</strong>{t("results.scoringExplainerP1b", { defaultValue: " (baseline) and are adjusted by each heuristic finding. Negative findings (address reuse, change detection, round amounts) lower the score. Positive findings (CoinJoin, high entropy, anonymity sets) raise it." })}
               </p>

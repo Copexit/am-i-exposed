@@ -179,6 +179,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
           <button
             onClick={() => setShowAddresses(!showAddresses)}
             aria-expanded={showAddresses}
+            aria-controls="cluster-address-list"
             className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
           >
             <ChevronDown
@@ -196,7 +197,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
                 transition={{ duration: 0.2 }}
                 className="overflow-hidden"
               >
-                <div className="mt-2 space-y-1 max-h-64 overflow-y-auto">
+                <div id="cluster-address-list" className="mt-2 space-y-1 max-h-64 overflow-y-auto">
                   {result.addresses.map((addr) => (
                     <div
                       key={addr}
