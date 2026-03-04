@@ -145,7 +145,7 @@ export default function Home() {
 
   const { t } = useTranslation();
   const { scans, addScan, clearScans } = useRecentScans();
-  const { bookmarks, removeBookmark, clearBookmarks } = useBookmarks();
+  const { bookmarks, removeBookmark, clearBookmarks, exportBookmarks, importBookmarks } = useBookmarks();
   const { devMode } = useDevMode();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -337,6 +337,8 @@ export default function Home() {
               onClearScans={clearScans}
               onRemoveBookmark={removeBookmark}
               onClearBookmarks={clearBookmarks}
+              onExportBookmarks={exportBookmarks}
+              onImportBookmarks={importBookmarks}
             />
 
             {devMode && (

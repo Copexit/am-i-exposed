@@ -34,30 +34,6 @@ export function Footer() {
           </a>
         </span>
         <Link
-          href="/methodology/"
-          className="text-muted hover:text-foreground transition-colors link-underline py-2 inline-block"
-        >
-          {t("nav.methodology", { defaultValue: "Methodology" })}
-        </Link>
-        <Link
-          href="/faq/"
-          className="text-muted hover:text-foreground transition-colors link-underline py-2 inline-block"
-        >
-          {t("nav.faq", { defaultValue: "FAQ" })}
-        </Link>
-        <Link
-          href="/glossary/"
-          className="text-muted hover:text-foreground transition-colors link-underline py-2 inline-block"
-        >
-          {t("nav.glossary", { defaultValue: "Glossary" })}
-        </Link>
-        <Link
-          href="/about/"
-          className="text-muted hover:text-foreground transition-colors link-underline py-2 inline-block"
-        >
-          {t("nav.about", { defaultValue: "About" })}
-        </Link>
-        <Link
           href="/setup-guide/"
           className="text-muted hover:text-foreground transition-colors link-underline py-2 inline-block"
         >

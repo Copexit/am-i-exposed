@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useRef, memo } from "react";
 import { motion } from "motion/react";
-import { Clock, Star, Lightbulb, X } from "lucide-react";
+import { Clock, Star, Lightbulb, X, Download, Upload } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { RecentScans } from "./RecentScans";
 import type { RecentScan } from "@/hooks/useRecentScans";
@@ -18,6 +18,8 @@ interface ScanHistoryProps {
   onClearScans?: () => void;
   onRemoveBookmark: (input: string) => void;
   onClearBookmarks: () => void;
+  onExportBookmarks?: () => void;
+  onImportBookmarks?: (json: string) => { imported: number; error?: string };
 }
 
 type Tab = "recent" | "bookmarks" | "examples";
@@ -30,6 +32,8 @@ export const ScanHistory = memo(function ScanHistory({
   onClearScans,
   onRemoveBookmark,
   onClearBookmarks,
+  onExportBookmarks,
+  onImportBookmarks,
 }: ScanHistoryProps) {
   const { t } = useTranslation();
 
@@ -41,6 +45,27 @@ export const ScanHistory = memo(function ScanHistory({
         ? "bookmarks"
         : "recent";
   const [tab, setTab] = useState<Tab>(defaultTab);
+
+  const [importFeedback, setImportFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onImportBookmarks) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = onImportBookmarks(reader.result as string);
+      if (result.error) {
+        setImportFeedback({ type: "error", message: t("history.importError", { defaultValue: "Invalid bookmark file" }) });
+      } else {
+        setImportFeedback({ type: "success", message: t("history.importSuccess", { defaultValue: "{{count}} bookmarks imported", count: result.imported }) });
+      }
+      setTimeout(() => setImportFeedback(null), 3000);
+    };
+    reader.readAsText(file);
+    // Reset so same file can be re-imported
+    e.target.value = "";
+  }, [onImportBookmarks, t]);
 
   const handleClear = () => {
     if (tab === "recent" && onClearScans) {
@@ -70,6 +95,16 @@ export const ScanHistory = memo(function ScanHistory({
     }
   }, [tab, availableTabs]);
 
+  // Shuffle examples once on mount so Whirlpool variants don't cluster together
+  const [shuffledExamples] = useState(() => {
+    const arr = [...examples];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  });
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -78,7 +113,7 @@ export const ScanHistory = memo(function ScanHistory({
       className="w-full max-w-2xl"
     >
       {/* Tab bar */}
-      <div className="flex items-center justify-between mb-2 px-1">
+      <div className="flex items-center justify-between gap-2 mb-2 px-1">
         <div ref={tabListRef} className="flex items-center gap-3" role="tablist" aria-label={t("history.tabs", { defaultValue: "Scan history tabs" })} onKeyDown={handleTabKeyDown}>
           <button
             id="tab-recent"
@@ -138,21 +173,55 @@ export const ScanHistory = memo(function ScanHistory({
           )}
         </div>
 
-        {showClear && (
-          <button
-            onClick={handleClear}
-            className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer p-2 -m-2"
-            title={tab === "recent"
-              ? t("history.clearRecent", { defaultValue: "Clear recent scans" })
-              : t("history.clearBookmarks", { defaultValue: "Clear bookmarks" })}
-            aria-label={tab === "recent"
-              ? t("history.clearRecent", { defaultValue: "Clear recent scans" })
-              : t("history.clearBookmarks", { defaultValue: "Clear bookmarks" })}
-          >
-            <X size={14} />
-            {t("history.clear", { defaultValue: "Clear" })}
-          </button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {tab === "bookmarks" && onImportBookmarks && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleImportFile}
+                className="hidden"
+                aria-hidden="true"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer p-1"
+                title={t("history.importBookmarks", { defaultValue: "Import bookmarks from JSON" })}
+                aria-label={t("history.importBookmarks", { defaultValue: "Import bookmarks from JSON" })}
+              >
+                <Upload size={14} />
+                <span className="hidden sm:inline">{t("history.import", { defaultValue: "Import" })}</span>
+              </button>
+            </>
+          )}
+          {tab === "bookmarks" && bookmarks.length > 0 && onExportBookmarks && (
+            <button
+              onClick={onExportBookmarks}
+              className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer p-1"
+              title={t("history.exportBookmarks", { defaultValue: "Export bookmarks as JSON" })}
+              aria-label={t("history.exportBookmarks", { defaultValue: "Export bookmarks as JSON" })}
+            >
+              <Download size={14} />
+              <span className="hidden sm:inline">{t("history.export", { defaultValue: "Export" })}</span>
+            </button>
+          )}
+          {showClear && (
+            <button
+              onClick={handleClear}
+              className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer p-1"
+              title={tab === "recent"
+                ? t("history.clearRecent", { defaultValue: "Clear recent scans" })
+                : t("history.clearBookmarks", { defaultValue: "Clear bookmarks" })}
+              aria-label={tab === "recent"
+                ? t("history.clearRecent", { defaultValue: "Clear recent scans" })
+                : t("history.clearBookmarks", { defaultValue: "Clear bookmarks" })}
+            >
+              <X size={14} />
+              <span className="hidden sm:inline">{t("history.clear", { defaultValue: "Clear" })}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Tab content */}
@@ -170,6 +239,11 @@ export const ScanHistory = memo(function ScanHistory({
 
       {tab === "bookmarks" && (
         <div role="tabpanel" id="panel-bookmarks" aria-labelledby="tab-bookmarks">
+        {importFeedback && (
+          <p className={`text-xs mb-2 px-1 ${importFeedback.type === "error" ? "text-red-400" : "text-green-400"}`} role="status">
+            {importFeedback.message}
+          </p>
+        )}
         {bookmarks.length === 0 ? (
           <p className="text-xs text-muted px-1">
             {t("history.noBookmarks", { defaultValue: "No bookmarks yet. Save interesting scans from the results page." })}
@@ -217,23 +291,26 @@ export const ScanHistory = memo(function ScanHistory({
       )}
 
       {tab === "examples" && (
-        <div role="tabpanel" id="panel-examples" aria-labelledby="tab-examples" className="flex flex-wrap gap-2 justify-center">
-          {examples.map((ex) => (
-            <button
-              key={ex.input}
-              onClick={() => onSelect(ex.input)}
-              className="inline-flex items-center gap-2 px-4 py-3 sm:py-2 rounded-lg bg-surface-elevated/50
-                border border-card-border hover:border-bitcoin/40 hover:bg-surface-elevated
-                transition-all text-sm cursor-pointer group"
-            >
-              <span className="text-muted group-hover:text-foreground transition-colors">
-                {t(ex.labelKey, { defaultValue: ex.labelDefault })}
-              </span>
-              <span className={`text-xs font-bold ${ex.hintColor}`}>
-                {ex.hint}
-              </span>
-            </button>
-          ))}
+        <div role="tabpanel" id="panel-examples" aria-labelledby="tab-examples" className="relative">
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {shuffledExamples.map((ex) => (
+              <button
+                key={ex.input}
+                onClick={() => onSelect(ex.input)}
+                className="inline-flex items-center gap-2 px-4 py-3 sm:py-2 rounded-lg bg-surface-elevated/50
+                  border border-card-border hover:border-bitcoin/40 hover:bg-surface-elevated
+                  transition-all text-sm cursor-pointer group shrink-0"
+              >
+                <span className="text-muted group-hover:text-foreground transition-colors whitespace-nowrap">
+                  {t(ex.labelKey, { defaultValue: ex.labelDefault })}
+                </span>
+                <span className={`text-xs font-bold ${ex.hintColor}`}>
+                  {ex.hint}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-background to-transparent" />
         </div>
       )}
     </motion.div>
