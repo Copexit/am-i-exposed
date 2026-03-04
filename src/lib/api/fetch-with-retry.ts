@@ -1,3 +1,5 @@
+import { abortSignalAny, abortSignalTimeout } from "@/lib/abort-signal";
+
 export class ApiError extends Error {
   constructor(
     public code: "NOT_FOUND" | "RATE_LIMITED" | "API_UNAVAILABLE" | "NETWORK_ERROR" | "INVALID_INPUT",
@@ -30,9 +32,9 @@ export async function fetchWithRetry(
 ): Promise<Response> {
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const timeoutSignal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+      const timeoutSignal = abortSignalTimeout(REQUEST_TIMEOUT_MS);
       const fetchSignal = options?.signal
-        ? AbortSignal.any([options.signal, timeoutSignal])
+        ? abortSignalAny([options.signal, timeoutSignal])
         : timeoutSignal;
       const response = await fetch(url, { ...options, signal: fetchSignal });
 
@@ -64,7 +66,7 @@ export async function fetchWithRetry(
       throw new ApiError("API_UNAVAILABLE", `HTTP ${response.status}`);
     } catch (error) {
       if (error instanceof ApiError) throw error;
-      if (error instanceof DOMException && error.name === "AbortError") throw error;
+      if (error instanceof DOMException && (error.name === "AbortError" || error.name === "TimeoutError")) throw error;
 
       if (attempt < MAX_RETRIES) {
         await sleep(RETRY_DELAYS[attempt], options?.signal ?? undefined);

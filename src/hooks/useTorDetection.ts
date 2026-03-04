@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { abortSignalAny, abortSignalTimeout } from "@/lib/abort-signal";
 
 export type TorStatus = "checking" | "tor" | "clearnet" | "unknown";
 
@@ -48,7 +49,7 @@ function detectTorBrowserLocally(): boolean {
 async function checkWorker(signal: AbortSignal): Promise<TorStatus> {
   try {
     const res = await fetch(TOR_CHECK_URL, {
-      signal: AbortSignal.any([signal, AbortSignal.timeout(WORKER_TIMEOUT_MS)]),
+      signal: abortSignalAny([signal, abortSignalTimeout(WORKER_TIMEOUT_MS)]),
     });
     if (!res.ok) return "unknown";
     const data: TorCheckResponse = await res.json();
@@ -67,7 +68,7 @@ async function checkWorker(signal: AbortSignal): Promise<TorStatus> {
 async function probeOnion(signal: AbortSignal): Promise<boolean> {
   try {
     await fetch(ONION_PROBE_URL, {
-      signal: AbortSignal.any([signal, AbortSignal.timeout(ONION_PROBE_TIMEOUT_MS)]),
+      signal: abortSignalAny([signal, abortSignalTimeout(ONION_PROBE_TIMEOUT_MS)]),
     });
     return true;
   } catch {

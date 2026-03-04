@@ -44,10 +44,14 @@ export function InstallPrompt() {
   const [dismissed, setDismissed] = useState(false);
   const [visitCount] = useState(() => {
     if (typeof window === "undefined") return 0;
-    const key = "ami-visit-count";
-    const count = parseInt(localStorage.getItem(key) ?? "0", 10) + 1;
-    localStorage.setItem(key, String(count));
-    return count;
+    try {
+      const key = "ami-visit-count";
+      const count = parseInt(localStorage.getItem(key) ?? "0", 10) + 1;
+      localStorage.setItem(key, String(count));
+      return count;
+    } catch {
+      return 0; // localStorage unavailable (private browsing)
+    }
   });
 
   useEffect(() => {

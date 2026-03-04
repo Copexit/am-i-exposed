@@ -7,6 +7,7 @@ import { Settings, Check, X, Loader2, RotateCcw, ChevronDown, ChevronUp, AlertTr
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { diagnoseUrl } from "@/lib/api/url-diagnostics";
+import { abortSignalTimeout } from "@/lib/abort-signal";
 import { type BitcoinNetwork } from "@/lib/bitcoin/networks";
 import { LANGUAGE_OPTIONS } from "@/lib/i18n/config";
 
@@ -115,7 +116,7 @@ export function ApiSettings() {
 
       try {
         const res = await fetch(`${trimmed}/blocks/tip/height`, {
-          signal: AbortSignal.timeout(10000),
+          signal: abortSignalTimeout(10000),
         });
         if (res.ok) {
           setHealth("ok");

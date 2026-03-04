@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { abortSignalAny, abortSignalTimeout } from "@/lib/abort-signal";
 
 export type LocalApiStatus = "checking" | "available" | "unavailable";
 
@@ -30,7 +31,7 @@ async function probeLocalInfo(
 ): Promise<{ mempoolPort: string | null; mempoolOnion: string | null } | null> {
   try {
     const res = await fetch("/api/local-info", {
-      signal: AbortSignal.any([signal, AbortSignal.timeout(LOCAL_INFO_TIMEOUT_MS)]),
+      signal: abortSignalAny([signal, abortSignalTimeout(LOCAL_INFO_TIMEOUT_MS)]),
     });
     if (!res.ok) return null;
     const info = await res.json();
@@ -55,7 +56,7 @@ async function probeLocalInfo(
 async function probeMempool(signal: AbortSignal): Promise<boolean> {
   try {
     const res = await fetch("/api/blocks/tip/height", {
-      signal: AbortSignal.any([signal, AbortSignal.timeout(MEMPOOL_TIMEOUT_MS)]),
+      signal: abortSignalAny([signal, abortSignalTimeout(MEMPOOL_TIMEOUT_MS)]),
     });
     if (!res.ok) return false;
     const text = await res.text();

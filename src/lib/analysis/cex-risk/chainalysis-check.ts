@@ -1,3 +1,4 @@
+import { abortSignalAny, abortSignalTimeout } from "@/lib/abort-signal";
 import type { ChainalysisIdentification } from "./types";
 
 // Cloudflare Worker proxy - avoids CORS and keeps API key server-side.
@@ -41,10 +42,10 @@ async function checkSingleAddress(
 
   const signals: AbortSignal[] = [];
   if (signal) signals.push(signal);
-  if (timeoutMs) signals.push(AbortSignal.timeout(timeoutMs));
+  if (timeoutMs) signals.push(abortSignalTimeout(timeoutMs));
 
   const combinedSignal =
-    signals.length > 0 ? AbortSignal.any(signals) : undefined;
+    signals.length > 0 ? abortSignalAny(signals) : undefined;
 
   const res = await fetch(`${baseUrl}/${address}`, {
     headers: { Accept: "application/json" },
