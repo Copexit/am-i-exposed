@@ -24,6 +24,18 @@ export function abortSignalAny(signals: AbortSignal[]): AbortSignal {
   return controller.signal;
 }
 
+/** Sleep that respects an AbortSignal - rejects if signal fires during wait. */
+export function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) { reject(signal.reason); return; }
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener("abort", () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    }, { once: true });
+  });
+}
+
 /** Create an AbortSignal that times out after the given milliseconds. */
 export function abortSignalTimeout(ms: number): AbortSignal {
   if (typeof AbortSignal.timeout === "function") {
