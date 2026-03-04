@@ -34,6 +34,10 @@ const FAQ_ITEMS = [
     a: "Address reuse creates deterministic, irrefutable links between all transactions using that address. It carries the harshest penalty in privacy scoring. Most modern wallets generate a new address for each receive to avoid this. If you are reusing addresses, switch to a wallet that supports HD key derivation.",
   },
   {
+    q: "What is change detection in Bitcoin?",
+    a: "Most Bitcoin transactions produce a change output - the leftover coins returned to the sender. Chain analysis firms identify change outputs using heuristics: address type matching, round payment amounts, value disparity, and unnecessary inputs. When change is identified, the payment amount and direction are revealed. Using CoinJoin or avoiding round-amount payments makes change detection harder.",
+  },
+  {
     q: "How does Bitcoin privacy scoring work?",
     a: "Every analysis starts from a base score of 70. Each of the 17 heuristics applies a positive or negative modifier based on what it detects. The sum is clamped to 0-100. Only CoinJoin participation, Taproot usage, and high entropy can raise the score. Everything else can only lower it. Grades: A+ (90-100), B (75-89), C (50-74), D (25-49), F (0-24).",
   },

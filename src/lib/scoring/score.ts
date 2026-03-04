@@ -1,6 +1,6 @@
 import type { Finding, Grade, Severity, ScoringResult } from "@/lib/types";
 
-/** Base score for transaction analysis (13 heuristics, impacts up to +30). */
+/** Base score for transaction analysis (14 heuristics, impacts up to +30). */
 export const TX_BASE_SCORE = 70;
 /** Base score for address analysis (4 heuristics, max positive +7). */
 export const ADDRESS_BASE_SCORE = 93;

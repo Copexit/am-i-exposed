@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://am-i.exposed"),
   title: "am-i.exposed - Bitcoin Privacy Scanner",
   description:
-    "Is your Bitcoin traceable? Paste an address or txid - get a privacy score with 16 chain analysis heuristics. Free, client-side, no tracking.",
+    "Is your Bitcoin traceable? Paste an address or txid - get a privacy score with 17 chain analysis heuristics. Free, client-side, no tracking.",
   keywords: [
     "bitcoin transaction privacy",
     "check bitcoin privacy",
@@ -115,7 +115,7 @@ export default function RootLayout({
               datePublished: "2025-04-01",
               screenshot: "https://am-i.exposed/opengraph-image",
               featureList: [
-                "16 Bitcoin privacy heuristics",
+                "17 Bitcoin privacy heuristics",
                 "Transaction and address analysis",
                 "CoinJoin detection (Whirlpool, WabiSabi, JoinMarket)",
                 "Boltzmann entropy estimation",

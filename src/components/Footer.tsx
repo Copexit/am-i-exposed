@@ -13,7 +13,7 @@ export function Footer() {
       <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 px-4 py-4 text-sm text-muted">
         <span className="font-medium text-foreground">am-i.<span className="gradient-text">exposed</span></span>
         <span className="text-muted">{t("common.tagline", { defaultValue: "Your privacy. Diagnosed." })}</span>
-        <span className="text-xs text-muted">
+        <span className="text-sm text-muted">
           by{" "}
           <a
             href="https://github.com/copexit"
@@ -33,6 +33,30 @@ export function Footer() {
             Arkad
           </a>
         </span>
+        <Link
+          href="/methodology"
+          className="text-muted hover:text-foreground transition-colors link-underline py-2 inline-block"
+        >
+          {t("nav.methodology", { defaultValue: "Methodology" })}
+        </Link>
+        <Link
+          href="/faq"
+          className="text-muted hover:text-foreground transition-colors link-underline py-2 inline-block"
+        >
+          {t("nav.faq", { defaultValue: "FAQ" })}
+        </Link>
+        <Link
+          href="/glossary"
+          className="text-muted hover:text-foreground transition-colors link-underline py-2 inline-block"
+        >
+          {t("nav.glossary", { defaultValue: "Glossary" })}
+        </Link>
+        <Link
+          href="/about"
+          className="text-muted hover:text-foreground transition-colors link-underline py-2 inline-block"
+        >
+          {t("nav.about", { defaultValue: "About" })}
+        </Link>
         <Link
           href="/setup-guide"
           className="text-muted hover:text-foreground transition-colors link-underline py-2 inline-block"

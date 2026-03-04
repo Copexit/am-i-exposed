@@ -115,7 +115,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
       let maxGroup = 0;
       for (const c of counts.values()) if (c > maxGroup) maxGroup = c;
       if (maxGroup >= 2) {
-        const count = boltzmannEqualOutputs(maxGroup);
+        const count = factorial(maxGroup);
         if (count > 1) {
           entropyBits = Math.log2(count);
           method = "Boltzmann partition";

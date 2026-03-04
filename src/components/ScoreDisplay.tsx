@@ -7,6 +7,14 @@ import { getSummarySentiment } from "@/lib/scoring/score";
 import { useTranslation } from "react-i18next";
 import { GRADE_COLORS, GRADE_HEX } from "@/lib/constants";
 
+const GRADE_MARKERS = [
+  { pos: 0, label: "F" },
+  { pos: 25, label: "D" },
+  { pos: 50, label: "C" },
+  { pos: 75, label: "B" },
+  { pos: 90, label: "A+" },
+] as const;
+
 interface ScoreDisplayProps {
   score: number;
   grade: Grade;
@@ -145,14 +153,8 @@ export function ScoreDisplay({ score, grade, findings }: ScoreDisplayProps) {
             />
           </motion.div>
         </div>
-        <div className="relative mt-0.5" style={{ height: 20 }}>
-          {[
-            { pos: 0, label: "F" },
-            { pos: 25, label: "D" },
-            { pos: 50, label: "C" },
-            { pos: 75, label: "B" },
-            { pos: 90, label: "A+" },
-          ].map(({ pos, label }) => (
+        <div className="relative mt-0.5" style={{ height: 20 }} aria-hidden="true">
+          {GRADE_MARKERS.map(({ pos, label }) => (
             <div
               key={label}
               className="absolute flex flex-col items-center"

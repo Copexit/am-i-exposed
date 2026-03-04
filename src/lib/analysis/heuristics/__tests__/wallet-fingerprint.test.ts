@@ -60,7 +60,7 @@ describe("analyzeWalletFingerprint", () => {
     expect(f!.scoreImpact).toBe(-6);
   });
 
-  it("detects Low-R signatures from rawHex -> Bitcoin Core / Sparrow, impact -3", () => {
+  it("detects Low-R signatures from rawHex -> Bitcoin Core, impact -3", () => {
     // Build a rawHex with DER sigs where R-length = 0x20 (32 bytes) for all inputs
     // DER: 30 [total-len] 02 20 [32-byte-R] 02 [slen] [S]
     const rBytes = "00".repeat(32);
@@ -77,7 +77,7 @@ describe("analyzeWalletFingerprint", () => {
     const { findings } = analyzeWalletFingerprint(tx, rawHex);
     const f = findings.find((f) => f.id === "h11-wallet-fingerprint");
     expect(f).toBeDefined();
-    expect(f!.params?.walletGuess).toBe("Bitcoin Core / Sparrow");
+    expect(f!.params?.walletGuess).toBe("Bitcoin Core");
     expect(f!.scoreImpact).toBe(-3);
   });
 

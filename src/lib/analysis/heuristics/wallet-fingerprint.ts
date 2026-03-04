@@ -88,9 +88,9 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
   if (rawHex) {
     const hasLowR = detectLowRSignatures(rawHex, tx.vin.length);
     if (hasLowR) {
-      // Low-R grinding via libsecp256k1 - used by Bitcoin Core (>= 0.17), Sparrow, and others
-      signals.push("Low-R signatures (Bitcoin Core / Sparrow / libsecp256k1)");
-      walletGuess = walletGuess ?? "Bitcoin Core / Sparrow";
+      // Low-R grinding - Bitcoin Core >= 0.17 (PR #13666). Sparrow does NOT grind nonces.
+      signals.push("Low-R signatures (Bitcoin Core >= 0.17)");
+      walletGuess = walletGuess ?? "Bitcoin Core";
     }
   }
 
@@ -100,11 +100,10 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
   let severity: Severity;
   let impact: number;
 
-  if (walletGuess === "Bitcoin Core / Sparrow") {
-    // Bitcoin Core and Sparrow share nLockTime and nSequence patterns.
+  if (walletGuess === "Bitcoin Core / Sparrow" || walletGuess === "Bitcoin Core") {
+    // Bitcoin Core (and Sparrow for nLockTime/nSequence) share broad patterns.
     // This large combined user base means the fingerprint is less
-    // identifying - reduced severity. (Low-R grinding narrows to Bitcoin
-    // Core specifically, which is handled by the walletGuess branch below.)
+    // identifying - reduced severity.
     severity = "low";
     impact = -3;
   } else if (walletGuess) {
@@ -151,7 +150,7 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
       "Wallet fingerprinting is difficult to avoid without modifying wallet software. " +
       "Using popular wallets with large user bases reduces the identifying power of fingerprints. " +
       "The larger the anonymity set for your address type, the harder it is to narrow down your wallet. " +
-      "Bitcoin Core and Sparrow share the same signing patterns, so their combined user base makes this fingerprint less unique.",
+      "Bitcoin Core has the largest user base, making its fingerprint less unique.",
     scoreImpact: impact,
   });
 

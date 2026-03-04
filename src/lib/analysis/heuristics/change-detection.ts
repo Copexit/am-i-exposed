@@ -10,7 +10,7 @@ import { getAddressType } from "@/lib/bitcoin/address-type";
  * 1. Self-send: output address matches an input address (critical)
  * 2. Address type mismatch: change usually matches input address type
  * 3. Round payment: the non-round output is likely change
- * 4. Value disparity: if one output is 10x+ larger, larger is likely change
+ * 4. Value disparity: if one output is 100x+ larger, larger is likely change
  * 5. Unnecessary input: if one input alone could fund a payment, extra inputs reveal change
  *
  * When change is identifiable, the payment amount and direction are revealed.
@@ -169,7 +169,7 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
   // Sub-heuristic 2: Round amount
   checkRoundAmount(spendableOutputs, changeIndices, signals);
 
-  // Sub-heuristic 3: Value disparity (10x+ difference)
+  // Sub-heuristic 3: Value disparity (100x+ difference)
   checkValueDisparity(spendableOutputs, changeIndices, signals);
 
   // Sub-heuristic 4: Unnecessary input (one input could fund payment alone)
