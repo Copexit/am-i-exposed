@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronDown } from "lucide-react";
@@ -50,7 +50,7 @@ const SEVERITY_STYLES: Record<
   },
 };
 
-export function FindingCard({ finding, index, defaultExpanded = false }: FindingCardProps) {
+export const FindingCard = memo(function FindingCard({ finding, index, defaultExpanded = false }: FindingCardProps) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(defaultExpanded);
   const style = SEVERITY_STYLES[finding.severity];
@@ -129,4 +129,4 @@ export function FindingCard({ finding, index, defaultExpanded = false }: Finding
       </AnimatePresence>
     </motion.div>
   );
-}
+});

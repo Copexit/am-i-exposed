@@ -20,6 +20,7 @@ const TxFlowDiagram = lazy(() => import("./viz/TxFlowDiagram").then(m => ({ defa
 const UtxoBubbleChart = lazy(() => import("./viz/UtxoBubbleChart").then(m => ({ default: m.UtxoBubbleChart })));
 const PrivacyTimeline = lazy(() => import("./viz/PrivacyTimeline").then(m => ({ default: m.PrivacyTimeline })));
 const CoinJoinStructure = lazy(() => import("./viz/CoinJoinStructure").then(m => ({ default: m.CoinJoinStructure })));
+import { ChartErrorBoundary } from "./ui/ChartErrorBoundary";
 import { Remediation } from "./Remediation";
 import { CexRiskPanel } from "./CexRiskPanel";
 import { ExchangeWarningPanel } from "./ExchangeWarningPanel";
@@ -195,6 +196,7 @@ export function ResultsPanel({
   );
 
   return (
+    <ChartErrorBoundary>
     <Suspense fallback={null}>
     <motion.div
       data-testid="results-panel"
@@ -512,5 +514,6 @@ export function ResultsPanel({
       </div>
     </motion.div>
     </Suspense>
+    </ChartErrorBoundary>
   );
 }

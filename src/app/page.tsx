@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, lazy, Suspense, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import { ShieldCheck, ShieldAlert, ShieldX, AlertCircle, ArrowLeft, EyeOff, Github } from "lucide-react";
@@ -19,7 +19,7 @@ import { useKeyboardNav } from "@/hooks/useKeyboardNav";
 import { useDevMode } from "@/hooks/useDevMode";
 import { TipToast } from "@/components/TipToast";
 import { FindingCard } from "@/components/FindingCard";
-import { DevChainalysisPanel } from "@/components/DevChainalysisPanel";
+const DevChainalysisPanel = lazy(() => import("@/components/DevChainalysisPanel").then(m => ({ default: m.DevChainalysisPanel })));
 import type { PreSendResult } from "@/lib/analysis/orchestrator";
 
 const DESTINATION_ONLY_CONFIG = {
@@ -256,7 +256,7 @@ export default function Home() {
     },
   });
 
-  const handleSubmit = (input: string) => {
+  const handleSubmit = useCallback((input: string) => {
     const prefix = input.length === 64 ? "tx" : "addr";
     const newHash = `${prefix}=${encodeURIComponent(input)}`;
     const oldHash = window.location.hash.slice(1);
@@ -266,12 +266,12 @@ export default function Home() {
       analyze(input);
     }
     // Otherwise, the hashchange listener calls analyze()
-  };
+  }, [analyze]);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     window.location.hash = "";
     reset();
-  };
+  }, [reset]);
 
   // Aria-live announcements for screen readers during phase transitions
   const ariaStatus =
@@ -340,7 +340,9 @@ export default function Home() {
             />
 
             {devMode && (
-              <DevChainalysisPanel />
+              <Suspense fallback={null}>
+                <DevChainalysisPanel />
+              </Suspense>
             )}
 
             <motion.div

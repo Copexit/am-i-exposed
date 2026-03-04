@@ -48,11 +48,11 @@ export function PrivacyNotice() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.3 }}
-          className="glass rounded-lg px-3 py-2 mx-4 mb-3 max-w-6xl sm:mx-auto w-auto"
+          className="glass rounded-lg px-3 py-1.5 sm:py-2 mx-4 mb-2 sm:mb-3 max-w-6xl sm:mx-auto w-auto"
         >
           <div className="flex items-center gap-2">
             <ShieldAlert size={16} className="text-warning shrink-0" aria-hidden="true" />
-            <p className="text-sm text-muted flex-1">
+            <p className="text-xs sm:text-sm text-muted flex-1">
               {t("common.privacyNotice", { defaultValue: "Queries are sent to mempool.space - your IP is visible. Use Tor or a VPN for stronger privacy." })}
             </p>
             <button

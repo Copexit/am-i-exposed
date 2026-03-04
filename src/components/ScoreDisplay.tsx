@@ -50,26 +50,25 @@ export function ScoreDisplay({ score, grade, findings }: ScoreDisplayProps) {
   const { t } = useTranslation();
   const [displayScore, setDisplayScore] = useState(0);
 
-  // Animated count-up
+  // Animated count-up using requestAnimationFrame for smooth rendering
   useEffect(() => {
     const duration = 1200;
-    const steps = 60;
-    const increment = score / steps;
-    let current = 0;
-    let frame = 0;
+    let startTime: number | null = null;
+    let rafId: number;
 
-    const timer = setInterval(() => {
-      frame++;
-      current = Math.min(score, Math.round(increment * frame));
-      setDisplayScore(current);
+    const animate = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const elapsed = timestamp - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      setDisplayScore(Math.round(progress * score));
 
-      if (frame >= steps) {
-        setDisplayScore(score);
-        clearInterval(timer);
+      if (progress < 1) {
+        rafId = requestAnimationFrame(animate);
       }
-    }, duration / steps);
+    };
 
-    return () => clearInterval(timer);
+    rafId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafId);
   }, [score]);
 
   const isDanger = grade === "F";
