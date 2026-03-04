@@ -2,20 +2,23 @@
 
 import Link from "next/link";
 import { ArrowLeft, AlertTriangle, Terminal, Shield, Globe, Copy } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { copyToClipboard } from "@/lib/clipboard";
 
 function CopyButton({ text }: { text: string }) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
   return (
     <button
       onClick={async () => {
         const ok = await copyToClipboard(text);
         if (ok) {
           setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
+          clearTimeout(timerRef.current);
+          timerRef.current = setTimeout(() => setCopied(false), 2000);
         }
       }}
       className="absolute top-2 right-2 text-muted hover:text-foreground transition-colors cursor-pointer p-1 rounded bg-surface-elevated/50"

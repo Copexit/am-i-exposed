@@ -266,9 +266,9 @@ function log2Binomial(n: number, k: number): number {
 function boltzmannEqualOutputs(n: number): number {
   const partitions = integerPartitions(n);
 
-  // For n <= 18, factorial(n) fits in Number.MAX_SAFE_INTEGER.
-  // For n > 18, use log-space arithmetic to avoid overflow.
-  if (n <= 18) {
+  // boltzmannExact computes (n!)^2 which exceeds MAX_SAFE_INTEGER for n > 12.
+  // Use exact arithmetic only for small n; log-space avoids precision loss.
+  if (n <= 13) {
     return boltzmannExact(n, partitions);
   }
   // Return 2^(log2 result) for larger n
@@ -276,7 +276,7 @@ function boltzmannEqualOutputs(n: number): number {
   return Math.pow(2, log2Total);
 }
 
-/** Exact Boltzmann partition count for small n (n <= 18). */
+/** Exact Boltzmann partition count for small n (n <= 13). */
 function boltzmannExact(n: number, partitions: number[][]): number {
   const nFact = factorial(n);
   const nFactSquared = nFact * nFact;

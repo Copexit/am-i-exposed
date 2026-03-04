@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { motion, AnimatePresence } from "motion/react";
 import { Heart, X, Copy, Check, Zap } from "lucide-react";
@@ -36,6 +36,8 @@ export function TipToast() {
     return window.matchMedia("(min-width: 1024px)").matches;
   });
   const [copied, setCopied] = useState(false);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(copyTimerRef.current), []);
 
   useEffect(() => {
     if (dismissed) return;
@@ -59,7 +61,8 @@ export function TipToast() {
     const ok = await copyToClipboard(LN_ADDRESS);
     if (ok) {
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopied(false), 2000);
     }
   };
 

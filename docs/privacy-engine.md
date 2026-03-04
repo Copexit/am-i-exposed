@@ -1236,7 +1236,7 @@ Stonewall is a simulated 2-party CoinJoin constructed by a single wallet. Struct
 
 **STONEWALLx2** is the collaborative version where inputs actually come from two different wallets, providing real (not simulated) CoinJoin privacy.
 
-Detection pattern: exactly 4 outputs, 2 equal-value pairs going to distinct addresses, 2-3 inputs. **Implemented** in `coinjoin.ts` as `detectStonewall()`. The finding (`h4-stonewall`) reports the number of distinct input addresses so users can assess whether it is likely a single-wallet Stonewall or a collaborative STONEWALLx2. Score impact: +15.
+Detection pattern: exactly 4 outputs, 2 equal-value pairs going to distinct addresses, 2-4 inputs. **Implemented** in `coinjoin.ts` as `detectStonewall()`. The finding (`h4-stonewall`) reports the number of distinct input addresses so users can assess whether it is likely a single-wallet Stonewall or a collaborative STONEWALLx2. Score impact: +15.
 
 ---
 
