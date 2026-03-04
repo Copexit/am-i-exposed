@@ -101,6 +101,7 @@ export function Header() {
                   <Link
                     key={item.href}
                     href={item.href}
+                    aria-current={active ? "page" : undefined}
                     className={`relative text-sm px-3 py-2 rounded-lg transition-colors ${
                       active
                         ? "text-foreground"
@@ -129,6 +130,8 @@ export function Header() {
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label={mobileOpen ? t("common.closeMenu", { defaultValue: "Close menu" }) : t("common.openMenu", { defaultValue: "Open menu" })}
+              aria-expanded={mobileOpen}
+              aria-controls="mobile-nav"
               className="sm:hidden flex items-center justify-center w-11 h-11 rounded-lg text-muted hover:text-foreground transition-colors cursor-pointer"
             >
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
@@ -155,6 +158,7 @@ export function Header() {
             />
             {/* Menu panel */}
             <motion.nav
+              id="mobile-nav"
               initial={{ y: -10, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -10, opacity: 0 }}
@@ -175,6 +179,7 @@ export function Header() {
                     key={item.href}
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
+                    aria-current={active ? "page" : undefined}
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-colors ${
                       active
                         ? "text-bitcoin bg-bitcoin/10"

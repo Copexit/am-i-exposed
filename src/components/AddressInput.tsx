@@ -176,7 +176,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
         </div>
       </div>
       {error && (
-        <p data-testid="input-error" id="input-error" className="text-danger text-sm mt-2 text-center">
+        <p data-testid="input-error" id="input-error" role="alert" className="text-danger text-sm mt-2 text-center">
           {error}
         </p>
       )}

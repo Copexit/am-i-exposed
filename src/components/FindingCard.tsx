@@ -2,7 +2,7 @@
 
 import { useState, memo } from "react";
 import { useTranslation } from "react-i18next";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { ChevronDown } from "lucide-react";
 import type { Finding, Severity } from "@/lib/types";
 
@@ -53,12 +53,13 @@ const SEVERITY_STYLES: Record<
 export const FindingCard = memo(function FindingCard({ finding, index, defaultExpanded = false }: FindingCardProps) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const reducedMotion = useReducedMotion();
   const style = SEVERITY_STYLES[finding.severity];
   const severityLabel = t(`common.severity.${finding.severity}`, { defaultValue: style.label });
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={reducedMotion ? false : { opacity: 0, y: 8 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-50px" }}
       transition={{ delay: index * 0.05, duration: 0.25 }}

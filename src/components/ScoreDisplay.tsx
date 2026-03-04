@@ -79,9 +79,14 @@ export function ScoreDisplay({ score, grade, findings }: ScoreDisplayProps) {
       data-testid="score-display"
       data-score={score}
       data-grade={grade}
-      role="status"
       aria-label={t("score.ariaLabel", { score, grade, defaultValue: "Privacy score: {{score}} out of 100, grade {{grade}}" })}
     >
+      {/* Announce final score once, not during animation */}
+      {displayScore === score && (
+        <span className="sr-only" role="status">
+          {t("score.ariaLabel", { score, grade, defaultValue: "Privacy score: {{score}} out of 100, grade {{grade}}" })}
+        </span>
+      )}
       {isDanger && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -127,7 +132,7 @@ export function ScoreDisplay({ score, grade, findings }: ScoreDisplayProps) {
             {grade}
           </motion.span>
         </div>
-        <span className="text-3xl text-muted tabular-nums">
+        <span className="text-3xl text-muted tabular-nums" aria-hidden="true">
           {displayScore}
           <span className="text-xl text-muted/60">/100</span>
         </span>

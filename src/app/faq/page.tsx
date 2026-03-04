@@ -142,6 +142,7 @@ export default function FaqPage() {
               <button
                 onClick={() => toggle(item.id)}
                 aria-expanded={open === item.id}
+                aria-controls={`faq-panel-${item.id}`}
                 className="w-full flex items-center justify-between gap-4 px-5 py-4 text-left cursor-pointer min-h-[44px] rounded-lg hover:bg-surface-elevated transition-colors"
               >
                 <span className="text-sm font-medium text-foreground leading-relaxed">
@@ -161,7 +162,7 @@ export default function FaqPage() {
                     transition={{ duration: 0.2 }}
                     className="overflow-hidden"
                   >
-                    <div className="px-5 pb-4 text-sm text-muted leading-relaxed space-y-3">
+                    <div id={`faq-panel-${item.id}`} className="px-5 pb-4 text-sm text-muted leading-relaxed space-y-3">
                       {t(item.aKey, { defaultValue: DEFAULTS[item.aKey] }).split("\n\n").map((para: string, i: number) => (
                         <p key={i}>{para}</p>
                       ))}

@@ -71,12 +71,13 @@ export function ConnectionBadge() {
         onBlur={() => setShowTip(false)}
         className="inline-flex items-center gap-1.5 text-xs cursor-pointer py-2 min-h-[44px]"
         aria-label={config.tip}
+        aria-describedby={showTip ? "connection-tooltip" : undefined}
       >
         {config.icon}
         {config.label}
       </button>
       {showTip && (
-        <div role="tooltip" className="absolute top-full right-0 mt-1 w-56 glass rounded-lg px-3 py-2 z-50 text-xs text-muted leading-relaxed">
+        <div id="connection-tooltip" role="tooltip" className="absolute top-full right-0 mt-1 w-56 glass rounded-lg px-3 py-2 z-50 text-xs text-muted leading-relaxed">
           {config.tip}
         </div>
       )}

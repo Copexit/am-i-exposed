@@ -42,6 +42,7 @@ export function TipJar() {
         <Heart
           size={16}
           className="text-bitcoin shrink-0 group-hover:text-bitcoin/80 transition-colors"
+          aria-hidden="true"
         />
         <span className="text-sm text-muted group-hover:text-foreground transition-colors flex-1">
           {t("common.tipMessage", { defaultValue: "am-i.exposed is free and open source. If it helped you, consider a tip." })}
@@ -51,6 +52,7 @@ export function TipJar() {
           className={`text-muted shrink-0 transition-transform duration-200 ${
             expanded ? "rotate-180" : ""
           }`}
+          aria-hidden="true"
         />
       </button>
 
