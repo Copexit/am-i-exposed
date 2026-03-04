@@ -27,10 +27,21 @@ describe("analyzeAddressReuse", () => {
     expect(findings[0].severity).toBe("good");
   });
 
-  it("detects uncertain when funded=0 but txCount > 0 -> h8-reuse-uncertain, impact 0", () => {
+  it("treats funded=0, txCount=1 as no reuse (common on romanz/electrs backends)", () => {
     const address = makeAddress({
       address: ADDR,
       chain_stats: { funded_txo_count: 0, funded_txo_sum: 0, spent_txo_count: 0, spent_txo_sum: 0, tx_count: 1 },
+    });
+    const { findings } = analyzeAddressReuse(address, [], []);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].id).toBe("h8-no-reuse");
+    expect(findings[0].scoreImpact).toBe(3);
+  });
+
+  it("detects uncertain when funded=0 but txCount > 1 -> h8-reuse-uncertain, impact 0", () => {
+    const address = makeAddress({
+      address: ADDR,
+      chain_stats: { funded_txo_count: 0, funded_txo_sum: 0, spent_txo_count: 0, spent_txo_sum: 0, tx_count: 2 },
     });
     const { findings } = analyzeAddressReuse(address, [], []);
     expect(findings).toHaveLength(1);

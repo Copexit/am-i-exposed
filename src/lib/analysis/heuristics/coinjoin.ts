@@ -119,7 +119,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
 
   // Check for Stonewall pattern first: steganographic CoinJoin (Samourai Wallet)
   // Stonewall is the most specific small CoinJoin pattern (exactly 4 outputs,
-  // 2-3 inputs, 1 equal pair + 2 distinct change) and must be checked before
+  // 2-4 inputs, 1 equal pair + 2 distinct change) and must be checked before
   // JoinMarket to avoid misattribution.
   if (findings.length === 0) {
     const stonewall = detectStonewall(tx.vin, spendableOutputs);
@@ -345,9 +345,10 @@ function detectStonewall(
   vin: Parameters<typeof analyzeCoinJoin>[0]["vin"],
   spendableOutputs: { value: number; scriptpubkey_address?: string }[],
 ): { denomination: number; distinctInputAddresses: number } | null {
-  // Stonewall: 2-3 inputs, exactly 4 spendable outputs (2 equal + 2 change)
-  // This is a steganographic transaction designed to look like a normal payment.
-  if (vin.length < 2 || vin.length > 3) return null;
+  // Stonewall: 2-4 inputs, exactly 4 spendable outputs (2 equal + 2 change)
+  // Solo Stonewall typically has 2-3 inputs from one wallet.
+  // STONEWALLx2 can have up to 4 inputs (2 from each party).
+  if (vin.length < 2 || vin.length > 4) return null;
   if (spendableOutputs.length !== 4) return null;
 
   // Count output values
