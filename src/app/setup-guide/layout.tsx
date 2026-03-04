@@ -30,8 +30,11 @@ export const metadata: Metadata = {
       "Point am-i.exposed at your own mempool instance. Guides for Umbrel, Start9, Docker, and Tor.",
     url: "https://am-i.exposed/setup-guide/",
     type: "article",
+    siteName: "am-i.exposed",
+    locale: "en_US",
   },
   twitter: {
+    card: "summary_large_image",
     title: "Connect Your Node - Setup Guide | am-i.exposed",
     description:
       "Point am-i.exposed at your own mempool instance. Guides for Umbrel, Start9, Docker, and Tor.",

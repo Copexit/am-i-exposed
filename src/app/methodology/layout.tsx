@@ -31,8 +31,11 @@ export const metadata: Metadata = {
       "17 heuristics that evaluate your Bitcoin transaction privacy. The same techniques chain surveillance firms use - documented and explained.",
     url: "https://am-i.exposed/methodology/",
     type: "article",
+    siteName: "am-i.exposed",
+    locale: "en_US",
   },
   twitter: {
+    card: "summary_large_image",
     title: "Methodology - How Bitcoin Privacy is Scored | am-i.exposed",
     description:
       "17 heuristics that evaluate your Bitcoin transaction privacy. Every penalty explained.",

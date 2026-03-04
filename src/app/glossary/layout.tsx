@@ -26,7 +26,7 @@ const TERMS = [
   { term: "Round Amount Detection", definition: "A heuristic that identifies round-number outputs (e.g., 0.1 BTC, 1,000,000 sats) as likely payments, with the non-round output being change." },
   { term: "Script Type", definition: "The address format used in a transaction (P2PKH, P2SH, P2WPKH, P2TR). Mixing script types can fingerprint change outputs since the change usually matches the sender's address type." },
   { term: "Self-send (Self-transfer)", definition: "A transaction where one or more outputs return to an address that was also an input. This trivially identifies the change output, revealing the sender's remaining balance." },
-  { term: "Stonewall", definition: "A steganographic transaction format from Samourai Wallet (now Ashigaru) that mimics a CoinJoin. Has 2-3 inputs and exactly 4 outputs: 2 equal-valued outputs and 2 change outputs." },
+  { term: "Stonewall", definition: "A steganographic transaction format from Samourai Wallet (now Ashigaru) that mimics a CoinJoin. Has 2-4 inputs and exactly 4 outputs: 2 equal-valued outputs and 2 change outputs. STONEWALLx2 involves two wallets, each contributing up to 2 inputs." },
   { term: "Sweep", definition: "A transaction that sends the entire balance of one or more addresses to a single output with no change. A single-input sweep has zero entropy." },
   { term: "Taproot", definition: "A Bitcoin upgrade (activated 2021) that makes complex transactions look like simple ones on-chain, improving privacy and efficiency." },
   { term: "Tor", definition: "An anonymity network that routes internet traffic through multiple relays. am-i.exposed auto-detects Tor Browser and routes API requests through the mempool.space .onion endpoint." },
@@ -67,8 +67,11 @@ export const metadata: Metadata = {
       "Essential Bitcoin privacy terms explained: CoinJoin, chain analysis, dust attacks, Taproot, and more.",
     url: "https://am-i.exposed/glossary/",
     type: "article",
+    siteName: "am-i.exposed",
+    locale: "en_US",
   },
   twitter: {
+    card: "summary_large_image",
     title: "Bitcoin Privacy Glossary | am-i.exposed",
     description:
       "Essential Bitcoin privacy terms explained: CoinJoin, chain analysis, dust attacks, Taproot, and more.",

@@ -73,7 +73,7 @@ export function useAnalysis() {
 
   // Wrap t as HeuristicTranslator for passing into analysis layer
   const ht: HeuristicTranslator = useCallback(
-    (key: string, options?: Record<string, unknown>) => t(key, options as Record<string, string>),
+    (key: string, options?: Record<string, unknown>) => t(key, options),
     [t],
   );
 

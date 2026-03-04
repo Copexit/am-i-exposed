@@ -8,7 +8,7 @@ export interface ShareCardLabels {
   footerRight: string;
 }
 
-export const defaultShareCardLabels: ShareCardLabels = {
+const defaultShareCardLabels: ShareCardLabels = {
   privacyGrade: "PRIVACY GRADE",
   findingsAnalyzed: "findings analyzed",
   footerLeft: "am-i.exposed - Bitcoin Privacy Scanner",

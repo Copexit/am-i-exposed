@@ -113,6 +113,7 @@ export default function RootLayout({
                 url: "https://github.com/Copexit",
               },
               datePublished: "2025-04-01",
+              dateModified: "2026-03-04",
               screenshot: "https://am-i.exposed/opengraph-image",
               featureList: [
                 "17 Bitcoin privacy heuristics",

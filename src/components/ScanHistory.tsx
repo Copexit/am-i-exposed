@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import { motion } from "motion/react";
 import { Clock, Star, Lightbulb, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -22,7 +22,7 @@ interface ScanHistoryProps {
 
 type Tab = "recent" | "bookmarks" | "examples";
 
-export function ScanHistory({
+export const ScanHistory = memo(function ScanHistory({
   scans,
   bookmarks,
   examples = [],
@@ -217,4 +217,4 @@ export function ScanHistory({
       )}
     </motion.div>
   );
-}
+});

@@ -1,4 +1,5 @@
 import type { Grade, Severity } from "@/lib/types";
+import { GRADE_HEX } from "@/lib/constants";
 export { DUST_THRESHOLD } from "@/lib/constants";
 
 /** Hex colors matching CSS custom properties for use in SVG fills/strokes. */
@@ -33,22 +34,16 @@ export const SEVERITY_HEX: Record<Severity, string> = {
   good: SVG_COLORS.good,
 };
 
-/** Grade hex colors for SVG (mirrors GRADE_HEX from constants). */
-export const GRADE_HEX_SVG: Record<Grade, string> = {
-  "A+": "#28d065",
-  B: "#3b82f6",
-  C: "#eab308",
-  D: "#f97316",
-  F: "#ef4444",
-};
+/** Grade hex colors for SVG (re-exported from constants for convenience). */
+export const GRADE_HEX_SVG: Record<Grade, string> = GRADE_HEX;
 
 /** Grade band thresholds for PrivacyTimeline background. */
 export const GRADE_BANDS: { min: number; max: number; grade: Grade; color: string }[] = [
-  { min: 90, max: 100, grade: "A+", color: "#28d065" },
-  { min: 75, max: 89, grade: "B", color: "#3b82f6" },
-  { min: 50, max: 74, grade: "C", color: "#eab308" },
-  { min: 25, max: 49, grade: "D", color: "#f97316" },
-  { min: 0, max: 24, grade: "F", color: "#ef4444" },
+  { min: 90, max: 100, grade: "A+", color: GRADE_HEX["A+"] },
+  { min: 75, max: 89, grade: "B", color: GRADE_HEX.B },
+  { min: 50, max: 74, grade: "C", color: GRADE_HEX.C },
+  { min: 25, max: 49, grade: "D", color: GRADE_HEX.D },
+  { min: 0, max: 24, grade: "F", color: GRADE_HEX.F },
 ];
 
 /** Default motion animation config. */

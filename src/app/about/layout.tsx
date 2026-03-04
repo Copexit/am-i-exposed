@@ -28,8 +28,11 @@ export const metadata: Metadata = {
       "When OXT.me and KYCP.org went offline, the Bitcoin community lost its privacy analysis tools. am-i.exposed fills that gap.",
     url: "https://am-i.exposed/about/",
     type: "article",
+    siteName: "am-i.exposed",
+    locale: "en_US",
   },
   twitter: {
+    card: "summary_large_image",
     title: "About - Why am-i.exposed Exists | Bitcoin Privacy Scanner",
     description:
       "When OXT.me and KYCP.org went offline, the Bitcoin community lost its privacy analysis tools. am-i.exposed fills that gap.",

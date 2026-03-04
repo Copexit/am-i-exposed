@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { BarChart3 } from "lucide-react";
 import type { Finding } from "@/lib/types";
+import { TX_BASE_SCORE } from "@/lib/scoring/score";
 import { useTranslation } from "react-i18next";
 
 interface ScoreBreakdownProps {
@@ -12,13 +13,11 @@ interface ScoreBreakdownProps {
   baseScore?: number;
 }
 
-const DEFAULT_BASE_SCORE = 70;
-
 /**
  * Visual waterfall showing how each finding contributes to the final score.
  * Starts at base score, shows each positive/negative impact as a bar segment.
  */
-export function ScoreBreakdown({ findings, finalScore, baseScore = DEFAULT_BASE_SCORE }: ScoreBreakdownProps) {
+export function ScoreBreakdown({ findings, finalScore, baseScore = TX_BASE_SCORE }: ScoreBreakdownProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 

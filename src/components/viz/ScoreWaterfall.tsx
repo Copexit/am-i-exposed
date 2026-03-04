@@ -11,6 +11,7 @@ import { SVG_COLORS, SEVERITY_HEX, GRADE_HEX_SVG, ANIMATION_DEFAULTS, WATERFALL_
 import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import type { Finding, Grade } from "@/lib/types";
+import { TX_BASE_SCORE } from "@/lib/scoring/score";
 
 interface ScoreWaterfallProps {
   findings: Finding[];
@@ -19,8 +20,6 @@ interface ScoreWaterfallProps {
   baseScore?: number;
   onFindingClick?: (findingId: string) => void;
 }
-
-const DEFAULT_BASE_SCORE = 70;
 const MARGIN = { top: 24, right: 16, bottom: 80, left: 40 };
 const MIN_HEIGHT = 260;
 
@@ -74,7 +73,7 @@ function WaterfallChart({
   findings,
   finalScore,
   grade,
-  baseScore = DEFAULT_BASE_SCORE,
+  baseScore = TX_BASE_SCORE,
   onFindingClick,
 }: ScoreWaterfallProps & { width: number; height: number }) {
   const { t } = useTranslation();

@@ -86,8 +86,11 @@ export const metadata: Metadata = {
       "Answers to common Bitcoin privacy questions. Is Bitcoin traceable? What is CoinJoin? How does privacy scoring work?",
     url: "https://am-i.exposed/faq/",
     type: "article",
+    siteName: "am-i.exposed",
+    locale: "en_US",
   },
   twitter: {
+    card: "summary_large_image",
     title: "FAQ - Bitcoin Privacy Questions Answered | am-i.exposed",
     description:
       "Answers to common Bitcoin privacy questions. Is Bitcoin traceable? What is CoinJoin? How does privacy scoring work?",
