@@ -70,6 +70,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
       <button
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
+        aria-controls={`finding-detail-${finding.id}`}
         className="w-full flex items-center gap-3 px-4 py-3 min-h-[48px] text-left hover:bg-surface-elevated/50 transition-colors cursor-pointer"
       >
         <span className={`w-2 h-2 rounded-full shrink-0 ${style.dot}`} aria-hidden="true" />
@@ -94,7 +95,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="px-5 pb-5 space-y-3 border-t border-card-border pt-3">
+            <div id={`finding-detail-${finding.id}`} className="px-5 pb-5 space-y-3 border-t border-card-border pt-3">
               <p className="text-base text-foreground leading-relaxed">
                 {t(`finding.${finding.id}.description`, { ...finding.params, defaultValue: finding.description })}
               </p>

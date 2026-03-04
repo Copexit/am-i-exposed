@@ -85,8 +85,8 @@
 | Taproot + OP_RETURN | tx | 70 | C | 57 | H5 (-5), H7 (-5), H11 (-2), script (-1) |
 | JoinMarket 2x equal | tx | 70 | B | 89 | H4 (+15), H5 (+2), anon (+1), script (+2), timing (-1) |
 | Bare multisig | tx | 70 | F | 19 | H2 (-20), script-multisig (-8), H1 (-10), H3 (-6), H5 (-3), H11 (-2), anon (-1), script (-1) |
-| OP_RETURN charley | tx | 70 | D | 45 | H2 (-15), H5 (-5), H7 (-5), H11 (-2), script (+2) |
-| Dust attack 555 sats | tx | 70 | D | 37 | H2 (-20), dust (-8), H5 (-3), H11 (-3), anon (-1), script (+2) |
+| OP_RETURN charley | tx | 70 | C | 50 | H2 (-15), H7 (-5), H11 (-2), script (+2) |
+| Dust attack 555 sats | tx | 70 | D | 38 | H2 (-20), dust (-8), H5 (-3), H11 (-3), script (+2) |
 | Batch withdrawal 143 | tx | 70 | C | 63 | H5 (-3), script (-3), H11 (-2), anon (+1) |
 | Taproot script-path | tx | 70 | C | 56 | H3 (-6), H5 (-3), H6 (-2), H11 (-3) |
 | Satoshi's address | addr | 93 | F | 0 | H8 (-93), H10 (-5), H9 dust (-8), spending (-5), cold (+2) |

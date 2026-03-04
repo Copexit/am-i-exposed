@@ -59,10 +59,10 @@ describe("golden test cases - transactions", () => {
     ["JoinMarket CoinJoin", joinmarketTx, "B", 89],
     ["Taproot + OP_RETURN", taprootOpReturnTx, "C", 57],
     ["Bare multisig", bareMultisigTx, "F", 19],
-    ["OP_RETURN charley loves heidi", opReturnCharleyTx, "D", 45],
+    ["OP_RETURN charley loves heidi", opReturnCharleyTx, "C", 50],
     ["Simple legacy P2PKH", simpleLegacyTx, "C", 60],
     ["Batch withdrawal 143 outputs", batchWithdrawalTx, "C", 63],
-    ["Dust attack 555 sats", dustAttackTx, "D", 37],
+    ["Dust attack 555 sats", dustAttackTx, "D", 38],
     ["Taproot script-path spend", taprootScriptPathTx, "C", 56],
   ] as const)(
     "%s -> grade %s, score %i",

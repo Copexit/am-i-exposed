@@ -270,9 +270,27 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
         f.params = { ...f.params, context: "coinjoin" };
         f.scoreImpact = 0;
       }
+      // OP_RETURN is intentionally NOT suppressed - protocol markers in CoinJoin
+      // are additional metadata that may fingerprint the coordinator or participants.
+      // Whirlpool uses OP_RETURN for pool-pairing; WabiSabi does not.
     }
   }
 
+  // Consolidation triple-penalty reduction: when h2-self-send fires as a
+  // consolidation (N-in, 1-out to self), zero-entropy (h5) is inherent and
+  // adds no information beyond what CIOH already captures. Suppress it.
+  const isConsolidationSelfSend = findings.some(
+    (f) => f.id === "h2-self-send" && f.params?.allMatch === 1 && f.params?.totalSpendable === 1,
+  );
+  if (isConsolidationSelfSend) {
+    for (const f of findings) {
+      if (f.id === "h5-zero-entropy") {
+        f.severity = "low";
+        f.params = { ...f.params, context: "consolidation" };
+        f.scoreImpact = 0;
+      }
+    }
+  }
 }
 
 /**

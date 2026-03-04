@@ -144,7 +144,7 @@ export function BookmarkButton({ query, inputType, grade, score }: BookmarkButto
                 if (e.key === "Enter") handleLabelConfirm();
                 if (e.key === "Escape") handleLabelSkip();
               }}
-              placeholder="e.g. Whirlpool test"
+              placeholder={t("bookmark.labelPlaceholder", { defaultValue: "e.g. Whirlpool test" })}
               maxLength={40}
               className="w-full px-2 py-1.5 rounded border border-card-border bg-surface-inset text-sm text-foreground
                 placeholder:text-muted/50 focus:border-bitcoin/50 focus-visible:outline-2 focus-visible:outline-bitcoin/50"

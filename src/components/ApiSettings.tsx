@@ -370,7 +370,7 @@ export function ApiSettings() {
             {health === "error" && (
               <div className="flex items-start gap-1.5 text-xs text-severity-high">
                 <X size={14} className="shrink-0 mt-0.5" />
-                <span>{errorHint || "Connection failed"}</span>
+                <span>{errorHint || t("settings.connectionFailed", { defaultValue: "Connection failed" })}</span>
               </div>
             )}
             {customApiUrl && health !== "checking" && (

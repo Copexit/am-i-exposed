@@ -56,4 +56,36 @@ describe("analyzeAnonymitySet", () => {
     const { findings } = analyzeAnonymitySet(tx);
     expect(findings).toHaveLength(0);
   });
+
+  it("excludes dust outputs from anonymity set calculation", () => {
+    // Two equal dust outputs (< 1000 sats) should not count as an anonymity set
+    const tx = makeTx({
+      vout: [
+        makeVout({ value: 500 }),
+        makeVout({ value: 500 }),
+        makeVout({ value: 50_000 }),
+        makeVout({ value: 30_000 }),
+      ],
+    });
+    const { findings } = analyzeAnonymitySet(tx);
+    // Only 50k and 30k are non-dust, both unique -> anon-set-none
+    expect(findings).toHaveLength(1);
+    expect(findings[0].id).toBe("anon-set-none");
+  });
+
+  it("does not inflate anonymity set with dust matching real outputs", () => {
+    // A dust output matching a real output value shouldn't inflate the set
+    const tx = makeTx({
+      vout: [
+        makeVout({ value: 50_000 }),
+        makeVout({ value: 50_000 }),
+        makeVout({ value: 999 }), // dust, should be excluded
+      ],
+    });
+    const { findings } = analyzeAnonymitySet(tx);
+    // Two equal 50k outputs = moderate anonymity set
+    expect(findings).toHaveLength(1);
+    expect(findings[0].id).toBe("anon-set-moderate");
+    expect(findings[0].params?.count).toBe(2);
+  });
 });

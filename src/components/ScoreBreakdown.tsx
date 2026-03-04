@@ -44,6 +44,7 @@ export function ScoreBreakdown({ findings, finalScore, baseScore = TX_BASE_SCORE
       <button
         onClick={() => setOpen(!open)}
         aria-expanded={open}
+        aria-controls="score-breakdown-panel"
         className="inline-flex items-center gap-1.5 text-xs text-foreground hover:text-foreground transition-colors cursor-pointer px-1 min-h-[44px]"
       >
         <BarChart3 size={14} />
@@ -58,7 +59,7 @@ export function ScoreBreakdown({ findings, finalScore, baseScore = TX_BASE_SCORE
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="mt-2 bg-surface-inset rounded-lg px-4 py-3 space-y-2">
+            <div id="score-breakdown-panel" className="mt-2 bg-surface-inset rounded-lg px-4 py-3 space-y-2">
               {/* Base score */}
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted">{t("score.baseScore", { defaultValue: "Base score" })}</span>

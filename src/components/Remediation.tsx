@@ -309,6 +309,7 @@ export function Remediation({ findings, grade }: RemediationProps) {
       <button
         onClick={() => setOpen(!open)}
         aria-expanded={open}
+        aria-controls="remediation-panel"
         className="inline-flex items-center gap-1.5 text-sm text-bitcoin/80 hover:text-bitcoin transition-colors cursor-pointer bg-bitcoin/10 rounded-lg px-3 py-3"
       >
         <Lightbulb size={16} />
@@ -332,7 +333,7 @@ export function Remediation({ findings, grade }: RemediationProps) {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="mt-2 space-y-2">
+            <div id="remediation-panel" className="mt-2 space-y-2">
               {/* Structured remediations first */}
               {structuredRemediations.map((f) => (
                 <StructuredRemediation

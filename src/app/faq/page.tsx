@@ -187,7 +187,7 @@ export default function FaqPage() {
             </Link>
             <Link
               href="/"
-              className="text-sm px-4 py-2.5 rounded-lg bg-bitcoin/10 border border-bitcoin/20 text-bitcoin hover:border-bitcoin/40 transition-all"
+              className="text-sm px-4 py-2.5 rounded-lg bg-bitcoin text-black font-semibold hover:bg-bitcoin-hover transition-all"
             >
               {t("faq.scanNow", { defaultValue: "Scan now" })}
             </Link>

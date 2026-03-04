@@ -78,8 +78,8 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
         signals.push("BIP69 ordering + legacy sequence + no locktime (Samourai)");
         walletGuess = "Samourai";
       } else {
-        signals.push("BIP69 lexicographic ordering (Electrum/Samourai)");
-        walletGuess = walletGuess ?? "Electrum";
+        signals.push("BIP69 lexicographic ordering (Electrum/BIP69-compatible)");
+        walletGuess = walletGuess ?? "Electrum (or BIP69-compatible)";
       }
     }
   }

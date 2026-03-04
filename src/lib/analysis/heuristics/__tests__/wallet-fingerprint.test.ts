@@ -56,7 +56,7 @@ describe("analyzeWalletFingerprint", () => {
     const { findings } = analyzeWalletFingerprint(tx);
     const f = findings.find((f) => f.id === "h11-wallet-fingerprint");
     expect(f).toBeDefined();
-    expect(f!.params?.walletGuess).toBe("Electrum");
+    expect(f!.params?.walletGuess).toBe("Electrum (or BIP69-compatible)");
     expect(f!.scoreImpact).toBe(-6);
   });
 
