@@ -24,7 +24,11 @@ export class ChartErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
-      return this.props.fallback ?? null;
+      return this.props.fallback ?? (
+        <div className="w-full text-center py-4 text-xs text-muted">
+          Visualization could not be rendered.
+        </div>
+      );
     }
     return this.props.children;
   }

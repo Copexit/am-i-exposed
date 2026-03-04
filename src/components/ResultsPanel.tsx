@@ -1,8 +1,8 @@
 "use client";
 
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowLeft, ExternalLink, Copy, Info, AlertTriangle } from "lucide-react";
-import { useState, useCallback, lazy, Suspense } from "react";
+import { ArrowLeft, ExternalLink, Copy, Check, Info, AlertTriangle } from "lucide-react";
+import { useState, useCallback, useRef, useEffect, lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
@@ -156,6 +156,9 @@ export function ResultsPanel({
   const { config, customApiUrl, isUmbrel } = useNetwork();
   const { t } = useTranslation();
   const isCoinJoin = result.findings.some(isCoinJoinFinding);
+  const [queryCopied, setQueryCopied] = useState(false);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(copyTimerRef.current), []);
 
   const handleFindingClick = useCallback((findingId: string) => {
     const el = document.querySelector(`[data-finding-id="${findingId}"]`);
@@ -191,7 +194,6 @@ export function ResultsPanel({
   );
 
   return (
-    <ChartErrorBoundary>
     <Suspense fallback={null}>
     <motion.div
       data-testid="results-panel"
@@ -243,13 +245,22 @@ export function ResultsPanel({
             )}
           </div>
           <button
-            onClick={() => copyToClipboard(query)}
+            onClick={() => {
+              copyToClipboard(query);
+              setQueryCopied(true);
+              clearTimeout(copyTimerRef.current);
+              copyTimerRef.current = setTimeout(() => setQueryCopied(false), 2000);
+            }}
             className="inline-flex items-start gap-2 font-mono text-sm text-foreground/90 break-all leading-relaxed text-left hover:text-foreground transition-colors cursor-pointer group/copy"
             title={t("common.copy", { defaultValue: "Copy" })}
             aria-label={t("common.copyToClipboard", { defaultValue: "Copy to clipboard" })}
           >
             <span className="break-all">{query}</span>
-            <Copy size={14} className="shrink-0 mt-1 text-muted opacity-0 group-hover/copy:opacity-100 transition-opacity" />
+            {queryCopied ? (
+              <Check size={14} className="shrink-0 mt-1 text-severity-good" />
+            ) : (
+              <Copy size={14} className="shrink-0 mt-1 text-muted opacity-0 group-hover/copy:opacity-100 transition-opacity" />
+            )}
           </button>
         </div>
 
@@ -257,7 +268,7 @@ export function ResultsPanel({
           <div className="flex items-center justify-center gap-6">
             <ScoreDisplay score={result.score} grade={result.grade} findings={result.findings} />
             {result.findings.length > 3 && (
-              <SeverityRing findings={result.findings} size={120} />
+              <ChartErrorBoundary><SeverityRing findings={result.findings} size={120} /></ChartErrorBoundary>
             )}
           </div>
         </div>
@@ -319,11 +330,13 @@ export function ResultsPanel({
       {/* ZONE 5: Transaction Structure (full width) */}
       {txData && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }} className="w-full">
-          {result.findings.some((f) => f.id.startsWith("h4-")) ? (
-            <CoinJoinStructure tx={txData} findings={result.findings} onAddressClick={onScan} />
-          ) : (
-            <TxFlowDiagram tx={txData} findings={result.findings} onAddressClick={onScan} />
-          )}
+          <ChartErrorBoundary>
+            {result.findings.some((f) => f.id.startsWith("h4-")) ? (
+              <CoinJoinStructure tx={txData} findings={result.findings} onAddressClick={onScan} />
+            ) : (
+              <TxFlowDiagram tx={txData} findings={result.findings} onAddressClick={onScan} />
+            )}
+          </ChartErrorBoundary>
         </motion.div>
       )}
 
@@ -335,7 +348,7 @@ export function ResultsPanel({
       )}
       {addressUtxos && addressUtxos.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.25 }} className="w-full">
-          <UtxoBubbleChart utxos={addressUtxos} />
+          <ChartErrorBoundary><UtxoBubbleChart utxos={addressUtxos} /></ChartErrorBoundary>
         </motion.div>
       )}
       {findingsBlock}
@@ -367,7 +380,7 @@ export function ResultsPanel({
         <>
           {txBreakdown && txBreakdown.length >= 2 && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.4 }} className="w-full">
-              <PrivacyTimeline breakdown={txBreakdown} onScan={onScan} />
+              <ChartErrorBoundary><PrivacyTimeline breakdown={txBreakdown} onScan={onScan} /></ChartErrorBoundary>
             </motion.div>
           )}
           {txBreakdown && txBreakdown.length > 0 && addressData && (
@@ -406,13 +419,15 @@ export function ResultsPanel({
         )}
         {result.findings.some((f) => f.scoreImpact !== 0) && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.55 }} className="w-full">
-            <ScoreWaterfall
-              findings={result.findings}
-              finalScore={result.score}
-              grade={result.grade}
-              baseScore={addressData ? ADDRESS_BASE_SCORE : TX_BASE_SCORE}
-              onFindingClick={handleFindingClick}
-            />
+            <ChartErrorBoundary>
+              <ScoreWaterfall
+                findings={result.findings}
+                finalScore={result.score}
+                grade={result.grade}
+                baseScore={addressData ? ADDRESS_BASE_SCORE : TX_BASE_SCORE}
+                onFindingClick={handleFindingClick}
+              />
+            </ChartErrorBoundary>
           </motion.div>
         )}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.6 }} className="w-full">
@@ -509,6 +524,5 @@ export function ResultsPanel({
       </div>
     </motion.div>
     </Suspense>
-    </ChartErrorBoundary>
   );
 }

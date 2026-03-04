@@ -141,7 +141,7 @@ export function TxBreakdownPanel({
                       copyToClipboard(item.txid);
                       setCopiedTxid(item.txid);
                       clearTimeout(copyTimerRef.current);
-                      copyTimerRef.current = setTimeout(() => setCopiedTxid(null), 1500);
+                      copyTimerRef.current = setTimeout(() => setCopiedTxid(null), 2000);
                     }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
@@ -149,7 +149,7 @@ export function TxBreakdownPanel({
                         copyToClipboard(item.txid);
                         setCopiedTxid(item.txid);
                         clearTimeout(copyTimerRef.current);
-                        copyTimerRef.current = setTimeout(() => setCopiedTxid(null), 1500);
+                        copyTimerRef.current = setTimeout(() => setCopiedTxid(null), 2000);
                       }
                     }}
                     aria-label={t("breakdown.copyTxid", { defaultValue: "Copy transaction ID" })}

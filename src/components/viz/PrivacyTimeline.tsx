@@ -231,6 +231,7 @@ function TimelineChart({
                   textAnchor="middle"
                   fontSize={10}
                   fill={SVG_COLORS.muted}
+                  aria-hidden="true"
                 >
                   {roleArrow}
                 </Text>

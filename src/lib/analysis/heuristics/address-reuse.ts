@@ -39,10 +39,11 @@ export const analyzeAddressReuse: AddressHeuristic = (address, _utxos, txs) => {
   const effectiveFunded = Math.max(totalFunded, actualReceives);
 
   if (effectiveFunded <= 1) {
-    // Safety check: the backend may not report funded data correctly AND we
-    // may not have all txs fetched. If tx_count indicates more activity than
-    // what we can see, flag as uncertain.
-    if ((totalFunded === 0 && txCount > 1) || txCount > 2) {
+    // Safety check: romanz/electrs (Umbrel) reports funded_txo_count=0 even
+    // for reused addresses. If the backend reports 0 but there are multiple txs,
+    // flag as uncertain. When totalFunded >= 1 the API is working correctly
+    // and we trust it (extra txs are just spends, not additional receives).
+    if (totalFunded === 0 && txCount > 1) {
       return {
         findings: [
           {

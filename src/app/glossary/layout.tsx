@@ -52,14 +52,6 @@ export const metadata: Metadata = {
   ],
   alternates: {
     canonical: "https://am-i.exposed/glossary/",
-    languages: {
-      en: "https://am-i.exposed/glossary/",
-      es: "https://am-i.exposed/glossary/",
-      de: "https://am-i.exposed/glossary/",
-      fr: "https://am-i.exposed/glossary/",
-      pt: "https://am-i.exposed/glossary/",
-      "x-default": "https://am-i.exposed/glossary/",
-    },
   },
   openGraph: {
     title: "Bitcoin Privacy Glossary | am-i.exposed",

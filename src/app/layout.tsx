@@ -36,14 +36,6 @@ export const metadata: Metadata = {
   ],
   alternates: {
     canonical: "https://am-i.exposed/",
-    languages: {
-      en: "https://am-i.exposed/",
-      es: "https://am-i.exposed/",
-      de: "https://am-i.exposed/",
-      fr: "https://am-i.exposed/",
-      pt: "https://am-i.exposed/",
-      "x-default": "https://am-i.exposed/",
-    },
   },
   openGraph: {
     title: "am-i.exposed - Bitcoin Privacy Scanner",
@@ -85,6 +77,8 @@ export default function RootLayout({
         />
         <meta name="referrer" content="no-referrer" />
         <meta name="theme-color" content="#0a0a0a" />
+        <link rel="preconnect" href="https://mempool.space" />
+        <link rel="dns-prefetch" href="https://mempool.space" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}

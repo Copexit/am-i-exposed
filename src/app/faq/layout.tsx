@@ -71,14 +71,6 @@ export const metadata: Metadata = {
   ],
   alternates: {
     canonical: "https://am-i.exposed/faq/",
-    languages: {
-      en: "https://am-i.exposed/faq/",
-      es: "https://am-i.exposed/faq/",
-      de: "https://am-i.exposed/faq/",
-      fr: "https://am-i.exposed/faq/",
-      pt: "https://am-i.exposed/faq/",
-      "x-default": "https://am-i.exposed/faq/",
-    },
   },
   openGraph: {
     title: "FAQ - Bitcoin Privacy Questions Answered | am-i.exposed",

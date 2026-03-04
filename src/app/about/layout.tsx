@@ -13,14 +13,6 @@ export const metadata: Metadata = {
   ],
   alternates: {
     canonical: "https://am-i.exposed/about/",
-    languages: {
-      en: "https://am-i.exposed/about/",
-      es: "https://am-i.exposed/about/",
-      de: "https://am-i.exposed/about/",
-      fr: "https://am-i.exposed/about/",
-      pt: "https://am-i.exposed/about/",
-      "x-default": "https://am-i.exposed/about/",
-    },
   },
   openGraph: {
     title: "About - Why am-i.exposed Exists | Bitcoin Privacy Scanner",
