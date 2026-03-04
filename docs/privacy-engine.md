@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the privacy analysis engine behind **am-i.exposed**, an open-source, client-side Bitcoin privacy scanner. It is intended for cypherpunks, privacy researchers, wallet developers, and anyone who wants to understand exactly how their Bitcoin transactions are being analyzed - by us, and by adversaries.
+This document describes the privacy analysis engine behind **am-i.exposed**, an open-source, client-side Bitcoin privacy scanner. It is intended for cypherpunks, privacy researchers, wallet developers, and anyone who wants to understand exactly how their Bitcoin transactions are being analyzed - by this tool, and by adversaries.
 
 The engine implements 17 heuristics (H1-H17) that evaluate the on-chain privacy of Bitcoin addresses and transactions. These are the same techniques - sometimes simplified, sometimes extended - that chain surveillance firms use to cluster addresses, trace fund flows, and deanonymize users.
 
@@ -49,8 +49,8 @@ Each heuristic is described with its technical mechanism, privacy implications, 
 A transaction output is flagged as a "round amount" if its value matches common round BTC denominations or round satoshi values. We check for:
 
 - Round BTC values: 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 5.0, 10.0 BTC and other powers and multiples
-- Round satoshi amounts: 1000, 5000, 10000, 50000, 100000, 500000, 1000000, 5000000, 10000000, 50000000, 100000000 sats
-- Any output value where `value % 10000 == 0` (multiples of 10,000 sats)
+- Round satoshi multiples: 10,000, 100,000, 1,000,000, 10,000,000 sats (values below 10,000 sats are excluded as too common to be meaningful)
+- Any output value where `value % multiple == 0` for the above multiples
 
 The check is performed against all transaction outputs.
 
@@ -71,7 +71,7 @@ For each output in the transaction:
     flag as round amount
 ```
 
-We also check for "nearly round" amounts where the fee was subtracted from the payment (e.g., a "send max" that produces slightly less than 0.1 BTC).
+Only exact round amounts are detected. "Nearly round" amounts (e.g., a "send max" producing slightly less than 0.1 BTC) are not currently flagged to avoid false positives.
 
 **Scoring impact:** -5 to -15
 
@@ -138,11 +138,12 @@ Some wallet software consistently places the change output in a specific positio
 
 Change detection is the backbone of transaction tracing. If an adversary can identify which output is change, they know which output returns to the sender's wallet. They can then follow that change output into subsequent transactions, building a chain of custody. Break change detection, and you break most tracing.
 
-**Scoring impact:** -5 to -30
+**Scoring impact:** 0 to -25
 
-- Self-send detected (all outputs return to sender, all inputs match): -30 or -25
+- Self-send detected (all outputs return to sender): -25; consolidation to input address: -15; partial self-send: -20
 - Medium confidence change detection (one sub-heuristic matches clearly): -10
 - Low confidence: -5
+- Wallet hop (address type upgrade): 0
 
 **References**
 - Meiklejohn et al., "A Fistful of Bitcoins: Characterizing Payments Among Men with No Names" (2013) - foundational change detection heuristics
@@ -204,7 +205,7 @@ We detect three major CoinJoin implementations:
 
 **Whirlpool (Samourai / Sparrow)**
 
-- Exactly 5 inputs and 5 outputs (Whirlpool uses fixed participant counts)
+- Exactly 5 equal outputs (5-6 total including possible OP_RETURN marker) at known denominations. Input count is not constrained.
 - All 5 outputs have equal value
 - Standard pool denominations: 50,000 sats (0.0005 BTC), 100,000 sats (0.001 BTC), 1,000,000 sats (0.01 BTC), 5,000,000 sats (0.05 BTC), 50,000,000 sats (0.5 BTC)
 - No toxic change in the CoinJoin transaction itself (change is handled in a separate TX0 premix transaction)
@@ -228,7 +229,7 @@ if len(tx.outputs) == 5:
 if len(tx.inputs) >= 20 and len(tx.outputs) >= 20:
   value_counts = Counter(o.value for o in tx.outputs)
   most_common_value, count = value_counts.most_common(1)[0]
-  if count >= 5 and count / len(tx.outputs) > 0.3:
+  if count >= 5:
     flag as probable Wasabi CoinJoin
 ```
 
@@ -468,17 +469,17 @@ Address reuse:
 
 Many wallets handle this correctly by generating a new address for each receive using HD key derivation. But some users manually share the same address multiple times, and some poorly designed software defaults to showing a static receive address.
 
-**Scoring impact:** -24 to -70
+**Scoring impact:** -70 to -93
 
-- Address used in 2 transactions (first reuse): -24
-- 3-4 transactions: -32
-- 5-9 transactions: -45
-- 10-49 transactions: -50
-- 50-99 transactions: -58
-- 100-999 transactions: -65
-- 1000+ transactions: -70
+- Address used in 2 transactions (first reuse): -70
+- 3-4 transactions: -78
+- 5-9 transactions: -84
+- 10-49 transactions: -88
+- 50-99 transactions: -90
+- 100-999 transactions: -92
+- 1000+ transactions: -93
 
-This is intentionally the harshest penalty in the scoring model. Address reuse is the most damaging privacy behavior, and it is entirely avoidable.
+All address reuse findings are severity "critical". This is intentionally the harshest penalty in the scoring model. Address reuse is the most damaging privacy behavior, and it is entirely avoidable.
 
 **References**
 - Nakamoto, "Bitcoin: A Peer-to-Peer Electronic Cash System" (2008), Section 10 - recommends using a new key pair for each transaction
@@ -523,12 +524,12 @@ If a user has many UTXOs and decides to consolidate them into one, the consolida
 
 The UTXO set is a snapshot of the user's current on-chain state. Dust UTXOs represent active threats - landmines that will detonate when spent carelessly. A large UTXO count represents potential future privacy damage if consolidation is performed without coin control. Understanding the UTXO set helps users make informed decisions about coin selection and spending strategy.
 
-**Scoring impact:** -8 to +2
+**Scoring impact:** -11 to +2 (dust and UTXO count findings can stack)
 
 - Clean UTXO set (no dust, reasonable count): +2
 - Dust UTXOs detected (3+): -8; fewer: -5
-- Large UTXO count (>50 on a single address): -3 (consolidation risk)
-- Moderate UTXO count (>20): -2
+- Large UTXO count (>=20 on a single address): -3 (consolidation risk)
+- Moderate UTXO count (>=5): -2
 
 **References**
 - BitMEX Research, "Dust Attacks" analysis
@@ -566,9 +567,9 @@ The address type determines the ceiling of on-chain privacy. A user on Taproot b
 
 Address type also contributes to change detection (H2). If a transaction spends from P2WPKH inputs and creates one P2WPKH output and one P2TR output, the P2WPKH output is likely change (returning to the sender's wallet) and the P2TR output is likely the payment (going to the recipient's newer wallet).
 
-**Scoring impact:** -5 to +5
+**Scoring impact:** -5 to 0
 
-- P2TR (Taproot): +5
+- P2TR (Taproot): 0 (smaller anonymity set than P2WPKH for single-sig)
 - P2WPKH (Native SegWit): 0
 - P2WSH (Native SegWit multisig): -2
 - P2SH (Wrapped SegWit or other): -3
@@ -729,7 +730,7 @@ The recommended response is to never spend dust UTXOs. Most privacy-aware wallet
 
 ---
 
-### H13: Anonymity Set Analysis
+### Anonymity Set Analysis
 
 **Technical description**
 
@@ -801,7 +802,7 @@ if transaction is unconfirmed:
 
 if nLockTime >= 500,000,000:
   "UNIX timestamp locktime - reveals creation time" (-3, medium)
-elif confirmed and (block_height - nLockTime) > 100:
+elif confirmed and (block_height - nLockTime) > 20:
   "Stale locktime - delayed broadcast" (-1, low)
 ```
 
@@ -830,7 +831,7 @@ if unique_counterparties >= 20:
   "Wide exposure surface" (-2, medium)
 ```
 
-**Scoring impact:** -3 to +2
+**Scoring impact:** -5 to +2 (high volume -3 and wide exposure -2 can stack)
 
 ---
 
@@ -900,7 +901,9 @@ For all escrow findings, recommend migration to Taproot-based multisig (MuSig2 o
 
 ### Base Score
 
-Every analysis begins with a base score of **70**. This represents a "typical" Bitcoin transaction or address with no obviously good or bad privacy characteristics. The base score is set above the midpoint (50) because most transactions do not have catastrophic privacy failures - they have the normal, baseline level of exposure inherent in using a transparent public blockchain.
+Every transaction analysis begins with a base score of **70**. This represents a "typical" Bitcoin transaction with no obviously good or bad privacy characteristics. The base score is set above the midpoint (50) because most transactions do not have catastrophic privacy failures - they have the normal, baseline level of exposure inherent in using a transparent public blockchain.
+
+For address-level analysis, the base score is **93**, reflecting the smaller number of heuristics (4) and their limited positive impact range (max +7).
 
 ### Score Calculation
 
@@ -926,26 +929,26 @@ All heuristic impacts are summed. Negative impacts indicate privacy weaknesses. 
 | ID | Heuristic | Level | Min Impact | Max Impact |
 |----|-----------|-------|------------|------------|
 | H1 | Round Amount Detection | TX | -5 | -15 |
-| H2 | Change Detection | TX | -5 | -15 |
-| H3 | Common Input Ownership (CIOH) | TX | -3 | -15 |
+| H2 | Change Detection | TX | -5 | -25 |
+| H3 | Common Input Ownership (CIOH) | TX | -3 | -45 |
 | H4 | CoinJoin Detection | TX | +15 | +30 |
 | H5 | Simplified Entropy (Boltzmann) | TX | -5 | +15 |
-| H6 | Fee Analysis | TX | -2 | -5 |
-| H7 | OP_RETURN Detection | TX | -5 | -10 |
-| H8 | Address Reuse | Addr | -20 | -70 |
-| H9 | UTXO Analysis | Addr | -3 | -10 |
-| H10 | Address Type Analysis | Addr | -5 | +5 |
-| H11 | Wallet Fingerprinting | TX | -2 | -8 |
-| H12 | Dust Detection (within H9) | Addr | -3 | -10 |
+| H6 | Fee Analysis | TX | 0 | -2 |
+| H7 | OP_RETURN Detection | TX | -5 | -8 (stacks) |
+| H8 | Address Reuse | Addr | -70 | -93 |
+| H9 | UTXO Analysis | Addr | +2 | -11 |
+| H10 | Address Type Analysis | Addr | -5 | 0 |
+| H11 | Wallet Fingerprinting | TX | -2 | -6 |
+| H12 | Dust Detection | TX | -3 | -8 |
 | - | Anonymity Set Analysis | TX | -1 | +5 |
 | - | Script Type Mix Analysis | TX | -8 | +2 |
 | - | Timing Analysis | TX | -3 | -1 |
 | H17 | Multisig/Escrow Detection | TX | 0 | -3 |
-| - | Spending Pattern Analysis | Addr | -3 | +2 |
+| - | Spending Pattern Analysis | Addr | -5 | +2 |
 
 ### Score Design Properties
 
-- A single critical failure (e.g., extensive address reuse at -35) can drop the grade from B to D by itself
+- A single critical failure (e.g., any address reuse at -70 or worse) drops the grade to F by itself
 - Multiple minor issues compound to produce meaningful score reductions
 - CoinJoin participation provides a substantial boost but does not erase other issues
 - The theoretical maximum (100) requires: CoinJoin participation, Taproot address, no address reuse, high entropy, no dust, no OP_RETURN, clean wallet fingerprint
@@ -991,15 +994,15 @@ If mempool.space or any intermediary CDN employs browser fingerprinting (or is c
 
 **Mitigation:** Use Tor Browser, which standardizes the browser fingerprint across all users. If not using Tor, use a privacy-focused browser with fingerprinting resistance (Firefox with `privacy.resistFingerprinting` enabled, or Brave with aggressive fingerprinting protection).
 
-### Our Mitigations
+### Mitigations
 
-We take the following measures to minimize the privacy risks of using this tool:
+The following measures minimize the privacy risks of using this tool:
 
 - **All analysis runs client-side.** Your browser fetches raw data from the blockchain API and runs all heuristics locally. No server ever receives your query and your analysis results together. There is no am-i.exposed backend that processes or logs what you are analyzing.
 - **Tor .onion endpoint auto-detection.** When the tool detects that it is running in Tor Browser, it automatically routes API requests to the mempool.space .onion address, keeping your queries within the Tor network.
-- **Strict Referrer-Policy headers.** We set `Referrer-Policy: no-referrer` to prevent the browser from sending the page URL (which may contain your queried address in the hash) in the Referer header when making API requests.
+- **Strict Referrer-Policy headers.** am-i.exposed sets `Referrer-Policy: no-referrer` to prevent the browser from sending the page URL (which may contain your queried address in the hash) in the Referer header when making API requests.
 - **Content Security Policy.** CSP headers restrict which domains the page can connect to, preventing exfiltration of data to unauthorized endpoints. Only explicitly listed API endpoints are allowed.
-- **No analytics, no tracking, no cookies.** We do not use Google Analytics, Plausible, or any analytics platform. We do not set cookies. Recent scan history is stored in sessionStorage (cleared automatically when the browser tab closes). No addresses or transaction IDs persist between sessions.
+- **No analytics, no tracking, no cookies.** am-i.exposed does not use Google Analytics, Plausible, or any analytics platform. No cookies are set. Recent scan history is stored in sessionStorage (cleared automatically when the browser tab closes). No addresses or transaction IDs persist between sessions.
 
 ---
 
@@ -1023,7 +1026,7 @@ We take the following measures to minimize the privacy risks of using this tool:
 - The Boltzmann tool was open source and academically rigorous
 - **Shut down following the arrest of Samourai Wallet developers in April 2024**
 - The source code exists on GitHub but the hosted service is offline with no indication of return
-- Our tool fills this gap with a simplified but functional entropy estimation, with plans for full Boltzmann in a future release
+- am-i.exposed fills this gap with a simplified but functional entropy estimation, with plans for full Boltzmann in a future release
 
 ### KYCP.org (OFFLINE since April 2024)
 
@@ -1033,7 +1036,7 @@ We take the following measures to minimize the privacy risks of using this tool:
 - Clean, accessible interface that made privacy analysis approachable for non-technical users
 - **Also shut down after the Samourai arrests**
 - No replacement exists in the public ecosystem
-- Our tool incorporates KYCP-style CoinJoin detection and privacy assessment
+- am-i.exposed incorporates KYCP-style CoinJoin detection and privacy assessment
 
 ### Sparrow Wallet
 
@@ -1041,23 +1044,23 @@ We take the following measures to minimize the privacy risks of using this tool:
 - **No post-hoc analysis** of existing transactions - it helps you build private transactions, not analyze arbitrary existing ones
 - Desktop only (no web interface)
 - Cannot analyze transactions or addresses that are not part of your own wallet
-- Complementary to our tool rather than competitive - use Sparrow to construct transactions, use am-i.exposed to verify the result from the outside
+- Complementary to am-i.exposed rather than competitive - use Sparrow to construct transactions, use am-i.exposed to verify the result from the outside
 
 ---
 
-## What Makes Us Different
+## What Makes am-i.exposed Different
 
 1. **Open source, client-side analysis.** Every heuristic is documented in this file and implemented in publicly auditable TypeScript. No black boxes. No proprietary algorithms. Fork the code and verify the scoring yourself.
 
-2. **No server ever sees your query and results together.** API calls go directly from your browser to the blockchain data source. Our static hosting infrastructure serves files and has no visibility into what you are analyzing. There is nothing to subpoena.
+2. **No server ever sees your query and results together.** API calls go directly from your browser to the blockchain data source. The static hosting infrastructure serves files and has no visibility into what is being analyzed. There is nothing to subpoena.
 
 3. **Wallet fingerprinting detection.** No other consumer-facing privacy tool currently offers transaction-level wallet fingerprinting. This is a heuristic that chain surveillance firms use routinely, but that has never been exposed to end users in an accessible format until now.
 
-4. **Dust attack detection.** We flag potential dusting attacks on addresses, alerting users to active surveillance threats before they accidentally compromise their privacy by spending dust UTXOs through careless automatic coin selection.
+4. **Dust attack detection.** Potential dusting attacks on addresses are flagged, alerting users to active surveillance threats before they accidentally compromise their privacy by spending dust UTXOs through careless automatic coin selection.
 
-5. **Honest about operational security limitations.** We document the privacy risks of using our own tool. We tell you about IP disclosure, timing correlation, DNS leakage, and browser fingerprinting. We provide specific mitigations. Most tools pretend these risks do not exist.
+5. **Honest about operational security limitations.** am-i.exposed documents the privacy risks of using it. The documentation covers IP disclosure, timing correlation, DNS leakage, and browser fingerprinting with specific mitigations. Most tools pretend these risks do not exist.
 
-6. **Fills the gap left by OXT.me and KYCP.org.** Since April 2024, there has been no publicly available tool combining entropy analysis, CoinJoin detection, wallet fingerprinting, and multi-heuristic privacy assessment. We are building what was lost.
+6. **Fills the gap left by OXT.me and KYCP.org.** Since April 2024, there has been no publicly available tool combining entropy analysis, CoinJoin detection, wallet fingerprinting, and multi-heuristic privacy assessment. am-i.exposed is building what was lost.
 
 ---
 
@@ -1228,7 +1231,7 @@ Stonewall is a simulated 2-party CoinJoin constructed by a single wallet. Struct
 
 **STONEWALLx2** is the collaborative version where inputs actually come from two different wallets, providing real (not simulated) CoinJoin privacy.
 
-Detection pattern: exactly 4 outputs, 2 equal-value pairs going to distinct addresses, 2-3 inputs. **Implemented** in `coinjoin.ts` as `detectStonewall()`. The finding (`h4-stonewall`) reports the number of distinct input addresses so users can assess whether it is likely a single-wallet Stonewall or a collaborative STONEWALLx2. Score impact: +4.
+Detection pattern: exactly 4 outputs, 2 equal-value pairs going to distinct addresses, 2-3 inputs. **Implemented** in `coinjoin.ts` as `detectStonewall()`. The finding (`h4-stonewall`) reports the number of distinct input addresses so users can assess whether it is likely a single-wallet Stonewall or a collaborative STONEWALLx2. Score impact: +15.
 
 ---
 

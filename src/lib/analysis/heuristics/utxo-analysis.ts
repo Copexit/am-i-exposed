@@ -1,7 +1,6 @@
 import type { AddressHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
-
-const DUST_THRESHOLD = 1000; // sats
+import { DUST_THRESHOLD } from "@/lib/constants";
 
 /**
  * H9: UTXO Set Analysis + H12: Dust Detection

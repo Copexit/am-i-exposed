@@ -3,6 +3,9 @@ import type { Grade } from "@/lib/types";
 /** Lightning address for tips / Value4Value. */
 export const LN_ADDRESS = "woozycuticle72@walletofsatoshi.com";
 
+/** Dust threshold in satoshis - outputs below this are flagged as potential dust. */
+export const DUST_THRESHOLD = 1000;
+
 /** Whirlpool pool denominations in satoshis. */
 export const WHIRLPOOL_DENOMS = [
   50_000, // 0.0005 BTC

@@ -1,5 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
+import { DUST_THRESHOLD } from "@/lib/constants";
 
 /**
  * Dust Output Detection (transaction level)
@@ -14,8 +15,6 @@ import type { Finding } from "@/lib/types";
  *
  * Impact: -3 to -8
  */
-
-const DUST_THRESHOLD = 1000; // sats
 const EXTREME_DUST_THRESHOLD = 600; // below typical minimum relay fee
 
 export const analyzeDustOutputs: TxHeuristic = (tx) => {
