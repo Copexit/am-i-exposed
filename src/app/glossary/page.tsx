@@ -302,7 +302,7 @@ export default function GlossaryPage() {
               onChange={(e) => setFilter(e.target.value)}
               placeholder={t("glossary.search", { defaultValue: "Filter terms..." })}
               aria-label={t("glossary.search", { defaultValue: "Filter terms..." })}
-              className={`w-full pl-9 ${filter ? "pr-8" : "pr-4"} py-2.5 text-sm bg-surface-elevated/50 border border-card-border rounded-lg text-foreground placeholder:text-muted/60 focus:border-bitcoin/30 focus-visible:outline-2 focus-visible:outline-bitcoin/50 transition-colors`}
+              className={`w-full pl-9 ${filter ? "pr-8" : "pr-4"} py-2.5 text-sm bg-surface-elevated/50 border border-card-border rounded-lg text-foreground placeholder:text-muted/70 focus:border-bitcoin/30 focus-visible:outline-2 focus-visible:outline-bitcoin/50 transition-colors`}
             />
             {filter && (
               <button

@@ -31,6 +31,9 @@ export function Header() {
     return () => { document.body.style.overflow = ""; };
   }, [mobileOpen]);
 
+  // Clear dev-mode click timer on unmount
+  useEffect(() => () => clearTimeout(clickTimer.current), []);
+
   // Close mobile menu on Escape key
   useEffect(() => {
     if (!mobileOpen) return;

@@ -112,7 +112,7 @@ export default function MethodologyPage() {
         </div>
 
         {/* Table of contents */}
-        <nav className="flex gap-2 text-sm overflow-x-auto pb-1 [mask-image:linear-gradient(to_right,black_85%,transparent_100%)] sm:[mask-image:none]" aria-label="Page sections">
+        <nav className="flex flex-wrap sm:flex-nowrap gap-2 text-sm sm:overflow-x-auto pb-1 sm:[mask-image:linear-gradient(to_right,black_85%,transparent_100%)] [mask-image:none]" aria-label="Page sections">
           {TOC_ITEMS.map((s) => (
             <a
               key={s.id}

@@ -21,7 +21,7 @@ function CopyButton({ text }: { text: string }) {
           timerRef.current = setTimeout(() => setCopied(false), 2000);
         }
       }}
-      className="absolute top-1 right-1 text-muted hover:text-foreground transition-colors cursor-pointer p-3 rounded bg-surface-elevated/50"
+      className="absolute top-1 right-1 text-muted hover:text-foreground transition-colors cursor-pointer p-4 rounded bg-surface-elevated/50"
       aria-label={t("common.copy", { defaultValue: "Copy" })}
     >
       <Copy size={12} />
