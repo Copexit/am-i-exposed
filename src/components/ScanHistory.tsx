@@ -61,8 +61,12 @@ export function ScanHistory({
     >
       {/* Tab bar */}
       <div className="flex items-center justify-between mb-2 px-1">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3" role="tablist" aria-label={t("history.tabs", { defaultValue: "Scan history tabs" })}>
           <button
+            id="tab-recent"
+            role="tab"
+            aria-selected={tab === "recent"}
+            aria-controls="panel-recent"
             onClick={() => setTab("recent")}
             className={`inline-flex items-center gap-1.5 text-xs transition-colors cursor-pointer pb-1 ${
               tab === "recent"
@@ -77,6 +81,10 @@ export function ScanHistory({
             )}
           </button>
           <button
+            id="tab-bookmarks"
+            role="tab"
+            aria-selected={tab === "bookmarks"}
+            aria-controls="panel-bookmarks"
             onClick={() => setTab("bookmarks")}
             className={`inline-flex items-center gap-1.5 text-xs transition-colors cursor-pointer pb-1 ${
               tab === "bookmarks"
@@ -92,6 +100,10 @@ export function ScanHistory({
           </button>
           {examples.length > 0 && (
             <button
+              id="tab-examples"
+              role="tab"
+              aria-selected={tab === "examples"}
+              aria-controls="panel-examples"
               onClick={() => setTab("examples")}
               className={`inline-flex items-center gap-1.5 text-xs transition-colors cursor-pointer pb-1 ${
                 tab === "examples"
@@ -124,17 +136,20 @@ export function ScanHistory({
 
       {/* Tab content */}
       {tab === "recent" && (
-        scans.length === 0 ? (
+        <div role="tabpanel" id="panel-recent" aria-labelledby="tab-recent">
+        {scans.length === 0 ? (
           <p className="text-xs text-muted px-1">
             {t("history.noRecent", { defaultValue: "No recent scans yet. Try an example to get started." })}
           </p>
         ) : (
           <RecentScans scans={scans} onSelect={onSelect} hideHeader />
-        )
+        )}
+        </div>
       )}
 
       {tab === "bookmarks" && (
-        bookmarks.length === 0 ? (
+        <div role="tabpanel" id="panel-bookmarks" aria-labelledby="tab-bookmarks">
+        {bookmarks.length === 0 ? (
           <p className="text-xs text-muted px-1">
             {t("history.noBookmarks", { defaultValue: "No bookmarks yet. Save interesting scans from the results page." })}
           </p>
@@ -176,11 +191,12 @@ export function ScanHistory({
               </div>
             ))}
           </div>
-        )
+        )}
+        </div>
       )}
 
       {tab === "examples" && (
-        <div className="flex flex-wrap gap-2 justify-center">
+        <div role="tabpanel" id="panel-examples" aria-labelledby="tab-examples" className="flex flex-wrap gap-2 justify-center">
           {examples.map((ex) => (
             <button
               key={ex.input}
