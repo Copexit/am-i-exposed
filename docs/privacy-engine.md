@@ -205,16 +205,17 @@ We detect three major CoinJoin implementations:
 
 **Whirlpool (Samourai / Sparrow)**
 
-- Exactly 5 equal outputs (5-6 total including possible OP_RETURN marker) at known denominations. Input count is not constrained.
-- All 5 outputs have equal value
+- 5 to 10 spendable outputs at known denominations (classic: 5, post-Sparrow 1.7.6: 8 or 9). Input count is not constrained.
+- 5 or more outputs have equal value at a known denomination, with at most 1 non-matching output
 - Standard pool denominations: 50,000 sats (0.0005 BTC), 100,000 sats (0.001 BTC), 1,000,000 sats (0.01 BTC), 5,000,000 sats (0.05 BTC), 50,000,000 sats (0.5 BTC)
 - No toxic change in the CoinJoin transaction itself (change is handled in a separate TX0 premix transaction)
 
 ```
-if len(tx.outputs) == 5:
-  output_values = [o.value for o in tx.outputs]
-  if len(set(output_values)) == 1:  // all equal
-    if output_values[0] in WHIRLPOOL_DENOMINATIONS:
+spendable = [o for o in tx.outputs if not o.is_op_return]
+if 5 <= len(spendable) <= 10:
+  for denom in WHIRLPOOL_DENOMINATIONS:
+    match_count = sum(1 for o in spendable if o.value == denom)
+    if match_count >= 5 and len(spendable) - match_count <= 1:
       flag as Whirlpool CoinJoin
 ```
 
@@ -249,10 +250,11 @@ CoinJoin is not a silver bullet. Post-mix behavior matters enormously. If a user
 
 **Scoring impact:** +15 to +30
 
-- Whirlpool-pattern CoinJoin detected: +25 to +30
-- Wasabi/WabiSabi-pattern CoinJoin detected: +20 to +25
-- JoinMarket-pattern CoinJoin detected: +15 to +20
-- Possible CoinJoin (ambiguous but suggestive pattern): +10 to +15
+- Whirlpool-pattern CoinJoin detected: +30
+- Wasabi/WabiSabi multi-tier CoinJoin detected: +20 to +25
+- Equal-output generic CoinJoin (5+ equal): +15 to +25
+- Stonewall pattern: +15
+- JoinMarket-pattern CoinJoin detected: +15
 
 **References**
 - Maxwell, "CoinJoin: Bitcoin privacy for the real world" (2013) - original proposal on bitcointalk
@@ -332,10 +334,14 @@ This is why OXT.me's Boltzmann tool was so valuable - and why its loss in April 
 
 **Scoring impact:** -5 to +15
 
-- 0 bits entropy (deterministic, no ambiguity): -5
-- 1-3 bits (some ambiguity, but limited): 0
-- 4-7 bits (moderate ambiguity): +5 to +10
-- 8+ bits (high entropy, CoinJoin territory): +10 to +15
+- 0 bits (1-in-1-out): -5
+- 0 bits (N-in-1-out sweep/consolidation): -3
+- Near-zero entropy (rounded to 0): -3
+- Less than 1 bit: 0
+- 1-2 bits: +2
+- 2-3 bits: +4 to +5
+- 4-7 bits: +8 to +14
+- 8+ bits (CoinJoin territory): +15 (capped)
 
 **References**
 - LaurentMT, "Bitcoin Transactions & Privacy" (Parts 1-3) - foundational entropy framework, gist.github.com/LaurentMT
@@ -662,10 +668,10 @@ Research shows approximately 45% of transactions carry enough structural signals
 
 **Scoring impact:** -2 to -6
 
-- Wallet software confidently identified (3+ signals agree): -6
-- Wallet software narrowed to 2-3 candidates (2 signals): -4
-- Single fingerprinting signal only: -3
-- Weak or contradictory signals: -2
+- Bitcoin Core / Sparrow identified: -3 (large user base reduces identifying power)
+- Other wallet identified: -6
+- No wallet identified, 3+ signals: -4
+- Weak signals (1-2, no wallet ID): -2
 
 **References**
 - 0xB10C, "Wallet Fingerprinting" research - empirical analysis of transaction structure patterns
@@ -912,7 +918,7 @@ final_score = base_score + sum(all heuristic impacts)
 final_score = clamp(final_score, 0, 100)
 ```
 
-All heuristic impacts are summed. Negative impacts indicate privacy weaknesses. Positive impacts indicate privacy-enhancing features. Currently, only CoinJoin detection (H4), Taproot usage (H10), and high entropy (H5) can produce positive impacts.
+All heuristic impacts are summed. Negative impacts indicate privacy weaknesses. Positive impacts indicate privacy-enhancing features. Heuristics that can produce positive impacts: CoinJoin detection (H4), high entropy (H5), no address reuse (H8, +3), clean UTXO set (H9, +2), strong anonymity sets (+1 to +5), uniform script types (+2), and cold storage patterns (+2).
 
 ### Grade Thresholds
 
@@ -930,12 +936,12 @@ All heuristic impacts are summed. Negative impacts indicate privacy weaknesses. 
 |----|-----------|-------|------------|------------|
 | H1 | Round Amount Detection | TX | -5 | -15 |
 | H2 | Change Detection | TX | -5 | -25 |
-| H3 | Common Input Ownership (CIOH) | TX | -3 | -45 |
+| H3 | Common Input Ownership (CIOH) | TX | -6 | -45 |
 | H4 | CoinJoin Detection | TX | +15 | +30 |
 | H5 | Simplified Entropy (Boltzmann) | TX | -5 | +15 |
 | H6 | Fee Analysis | TX | 0 | -2 |
 | H7 | OP_RETURN Detection | TX | -5 | -8 (stacks) |
-| H8 | Address Reuse | Addr | -70 | -93 |
+| H8 | Address Reuse | Addr | +3 | -93 |
 | H9 | UTXO Analysis | Addr | +2 | -11 |
 | H10 | Address Type Analysis | Addr | -5 | 0 |
 | H11 | Wallet Fingerprinting | TX | -2 | -6 |
