@@ -5,7 +5,7 @@
  * actionable guidance instead of generic "connection failed".
  */
 
-export interface UrlDiagnostic {
+interface UrlDiagnostic {
   /** HTTPS page trying to fetch from HTTP non-localhost URL */
   isMixedContent: boolean;
   /** Target host is a .onion Tor hidden service */

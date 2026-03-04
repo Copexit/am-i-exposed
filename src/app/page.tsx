@@ -400,7 +400,7 @@ export default function Home() {
           <ResultsPanel
             key="results"
             query={query}
-            inputType={inputType}
+            inputType={inputType as "txid" | "address"}
             result={result}
             txData={txData}
             addressData={addressData}

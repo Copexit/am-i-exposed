@@ -10,9 +10,9 @@ import {
 } from "@/lib/analysis/cluster/build-cluster";
 import type { MempoolTransaction } from "@/lib/api/types";
 
-export type ClusterPhase = "idle" | "analyzing" | "complete" | "error";
+type ClusterPhase = "idle" | "analyzing" | "complete" | "error";
 
-export interface ClusterState {
+interface ClusterState {
   phase: ClusterPhase;
   progress: ClusterProgress | null;
   result: ClusterResult | null;

@@ -23,14 +23,14 @@ import type { ScoringResult, InputType, TxAnalysisResult, Finding } from "@/lib/
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { HeuristicTranslator } from "@/lib/analysis/heuristics/types";
 
-export type AnalysisPhase =
+type AnalysisPhase =
   | "idle"
   | "fetching"
   | "analyzing"
   | "complete"
   | "error";
 
-export interface AnalysisState {
+interface AnalysisState {
   phase: AnalysisPhase;
   query: string | null;
   inputType: InputType | null;

@@ -5,7 +5,7 @@ import { abortSignalAny, abortSignalTimeout } from "@/lib/abort-signal";
 
 export type LocalApiStatus = "checking" | "available" | "unavailable";
 
-export interface LocalApiResult {
+interface LocalApiResult {
   /** Whether the app is running on the Umbrel Docker backend (detected via /api/local-info) */
   isUmbrel: boolean;
   /** Mempool API health: "checking" while probing, "available" if responsive, "unavailable" if down */

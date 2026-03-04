@@ -7,7 +7,7 @@ export const ADDRESS_BASE_SCORE = 93;
 const MIN_SCORE = 0;
 const MAX_SCORE = 100;
 
-export type AnalysisMode = "tx" | "address";
+type AnalysisMode = "tx" | "address";
 
 /**
  * Calculate a privacy score from a set of findings.

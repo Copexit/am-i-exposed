@@ -37,7 +37,7 @@ import { GlowCard } from "./ui/GlowCard";
 import { copyToClipboard } from "@/lib/clipboard";
 import { getSummarySentiment } from "@/lib/scoring/score";
 import { DestinationAlert } from "./DestinationAlert";
-import type { ScoringResult, InputType, TxAnalysisResult } from "@/lib/types";
+import type { ScoringResult, TxAnalysisResult } from "@/lib/types";
 import type { MempoolTransaction, MempoolAddress, MempoolUtxo } from "@/lib/api/types";
 import type { PreSendResult } from "@/lib/analysis/orchestrator";
 
@@ -126,7 +126,7 @@ function FindingSummary({ findings }: { findings: ScoringResult["findings"] }) {
 
 interface ResultsPanelProps {
   query: string;
-  inputType: InputType;
+  inputType: "txid" | "address";
   result: ScoringResult;
   txData: MempoolTransaction | null;
   addressData: MempoolAddress | null;
@@ -219,14 +219,14 @@ export function ResultsPanel({
           grade={result.grade}
           score={result.score}
           query={query}
-          inputType={inputType as "txid" | "address"}
+          inputType={inputType}
           findingCount={result.findings.length}
         />
         <ShareButtons
           grade={result.grade}
           score={result.score}
           query={query}
-          inputType={inputType as "txid" | "address"}
+          inputType={inputType}
           findingCount={result.findings.length}
         />
       </div>
@@ -447,7 +447,7 @@ export function ResultsPanel({
                       defaultValue: "Privacy score: {{grade}} ({{score}}/100). This is what proper Bitcoin privacy hygiene looks like.",
                       grade: result.grade, score: result.score,
                     });
-                const shareUrl = getShareUrl(query, inputType as "txid" | "address");
+                const shareUrl = getShareUrl(query, inputType);
                 window.open(
                   `https://x.com/intent/tweet?text=${encodeURIComponent(`${text}\n\n${shareUrl}`)}`,
                   "_blank",
