@@ -19,7 +19,7 @@ import {
 } from "@/lib/analysis/orchestrator";
 import { checkOfac } from "@/lib/analysis/cex-risk/ofac-check";
 import { needsEnrichment, enrichPrevouts, countNullPrevouts } from "@/lib/api/enrich-prevouts";
-import type { ScoringResult, InputType, TxAnalysisResult } from "@/lib/types";
+import type { ScoringResult, InputType, TxAnalysisResult, Finding } from "@/lib/types";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { HeuristicTranslator } from "@/lib/analysis/heuristics/types";
 
@@ -64,6 +64,27 @@ const INITIAL_STATE: AnalysisState = {
   errorCode: null,
   durationMs: null,
 };
+
+/** Build a finding for missing prevout data after enrichment. */
+function makeIncompletePrevoutFinding(remainingNulls: number, isAddress = false): Finding {
+  return {
+    id: "api-incomplete-prevout",
+    severity: "low",
+    title: `${remainingNulls} input${remainingNulls > 1 ? "s" : ""} missing data${isAddress ? " across transactions" : ""}`,
+    description:
+      `Could not retrieve full data for ${remainingNulls} transaction input${remainingNulls > 1 ? "s" : ""}. ` +
+      "Some heuristics (CIOH, entropy, change detection, script type analysis) may be incomplete. " +
+      "This typically happens with self-hosted mempool instances.",
+    recommendation:
+      "For complete analysis, try using the public mempool.space API or upgrade your self-hosted instance to mempool/electrs.",
+    scoreImpact: 0,
+  };
+}
+
+/** Mark all heuristic steps as done (used when analysis completes or errors). */
+function markAllDone(steps: HeuristicStep[]): HeuristicStep[] {
+  return steps.map((s) => ({ ...s, status: "done" as const }));
+}
 
 export function useAnalysis() {
   const [state, setState] = useState<AnalysisState>(INITIAL_STATE);
@@ -162,24 +183,13 @@ export function useAnalysis() {
           // If prevout data is still missing after enrichment, warn the user
           const remainingNulls = countNullPrevouts([tx]);
           if (remainingNulls > 0) {
-            result.findings.push({
-              id: "api-incomplete-prevout",
-              severity: "low",
-              title: `${remainingNulls} input${remainingNulls > 1 ? "s" : ""} missing data`,
-              description:
-                `Could not retrieve full data for ${remainingNulls} transaction input${remainingNulls > 1 ? "s" : ""}. ` +
-                "Some heuristics (CIOH, entropy, change detection, script type analysis) may be incomplete. " +
-                "This typically happens with self-hosted mempool instances.",
-              recommendation:
-                "For complete analysis, try using the public mempool.space API or upgrade your self-hosted instance to mempool/electrs.",
-              scoreImpact: 0,
-            });
+            result.findings.push(makeIncompletePrevoutFinding(remainingNulls));
           }
 
           setState((prev) => ({
             ...prev,
             phase: "complete",
-            steps: prev.steps.map((s) => ({ ...s, status: "done" as const })),
+            steps: markAllDone(prev.steps),
             result,
             durationMs: Date.now() - startTime,
           }));
@@ -254,7 +264,7 @@ export function useAnalysis() {
             setState((prev) => ({
               ...prev,
               phase: "complete",
-              steps: prev.steps.map((s) => ({ ...s, status: "done" as const })),
+              steps: markAllDone(prev.steps),
               preSendResult,
               durationMs: Date.now() - startTime,
             }));
@@ -274,25 +284,14 @@ export function useAnalysis() {
             if (txs.length > 0) {
               const remainingNulls = countNullPrevouts(txs);
               if (remainingNulls > 0) {
-                result.findings.push({
-                  id: "api-incomplete-prevout",
-                  severity: "low",
-                  title: `${remainingNulls} input${remainingNulls > 1 ? "s" : ""} missing data across transactions`,
-                  description:
-                    `Could not retrieve full data for ${remainingNulls} transaction input${remainingNulls > 1 ? "s" : ""}. ` +
-                    "Some heuristics (CIOH, entropy, change detection, script type analysis) may be incomplete. " +
-                    "This typically happens with self-hosted mempool instances.",
-                  recommendation:
-                    "For complete analysis, try using the public mempool.space API or upgrade your self-hosted instance to mempool/electrs.",
-                  scoreImpact: 0,
-                });
+                result.findings.push(makeIncompletePrevoutFinding(remainingNulls, true));
               }
             }
 
             setState((prev) => ({
               ...prev,
               phase: "complete",
-              steps: prev.steps.map((s) => ({ ...s, status: "done" as const })),
+              steps: markAllDone(prev.steps),
               result,
               preSendResult,
               addressTxs: txs.length > 0 ? txs : null,
@@ -340,7 +339,7 @@ export function useAnalysis() {
             setState((prev) => ({
               ...prev,
               phase: "complete",
-              steps: prev.steps.map((s) => ({ ...s, status: "done" as const })),
+              steps: markAllDone(prev.steps),
               preSendResult,
               durationMs: Date.now() - startTime,
             }));
