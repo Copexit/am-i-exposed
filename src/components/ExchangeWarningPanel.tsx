@@ -47,6 +47,7 @@ export function ExchangeWarningPanel() {
       <button
         onClick={() => setOpen(!open)}
         aria-expanded={open}
+        aria-controls="exchange-policy-panel"
         className="w-full flex items-center gap-2 text-left cursor-pointer group px-1 py-3 min-h-[44px]"
       >
         <AlertTriangle size={14} className="text-severity-medium shrink-0" />
@@ -70,7 +71,7 @@ export function ExchangeWarningPanel() {
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="mt-3 glass rounded-xl p-5 space-y-4">
+            <div id="exchange-policy-panel" className="mt-3 glass rounded-xl p-5 space-y-4">
               {/* Dated disclaimer */}
               <div className="bg-severity-medium/5 border border-severity-medium/20 rounded-lg p-3">
                 <p className="text-xs text-severity-medium leading-relaxed">
