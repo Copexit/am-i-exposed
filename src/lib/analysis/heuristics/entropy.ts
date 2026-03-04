@@ -265,25 +265,35 @@ function log2Binomial(n: number, k: number): number {
  */
 function boltzmannEqualOutputs(n: number): number {
   const partitions = integerPartitions(n);
+
+  // For n <= 18, factorial(n) fits in Number.MAX_SAFE_INTEGER.
+  // For n > 18, use log-space arithmetic to avoid overflow.
+  if (n <= 18) {
+    return boltzmannExact(n, partitions);
+  }
+  // Return 2^(log2 result) for larger n
+  const log2Total = boltzmannLog2(n, partitions);
+  return Math.pow(2, log2Total);
+}
+
+/** Exact Boltzmann partition count for small n (n <= 18). */
+function boltzmannExact(n: number, partitions: number[][]): number {
   const nFact = factorial(n);
   const nFactSquared = nFact * nFact;
   let total = 0;
 
   for (const partition of partitions) {
-    // Compute prod(si!^2) for each part
     let prodPartFactSquared = 1;
     for (const part of partition) {
       const pf = factorial(part);
       prodPartFactSquared *= pf * pf;
     }
 
-    // Compute multiplicities: count how many times each distinct part appears
     const multiplicities = new Map<number, number>();
     for (const part of partition) {
       multiplicities.set(part, (multiplicities.get(part) ?? 0) + 1);
     }
 
-    // Compute prod(mj!) for multiplicities
     let prodMultFact = 1;
     for (const m of multiplicities.values()) {
       prodMultFact *= factorial(m);
@@ -293,6 +303,47 @@ function boltzmannEqualOutputs(n: number): number {
   }
 
   return Math.round(total);
+}
+
+/** Log2 of Boltzmann partition count for large n (n > 18). Uses log-space to avoid factorial overflow. */
+function boltzmannLog2(n: number, partitions: number[][]): number {
+  const log2nFact = log2Factorial(n);
+  const log2nFactSquared = 2 * log2nFact;
+
+  // Use log-sum-exp: log2(sum(2^xi)) = max(xi) + log2(sum(2^(xi - max)))
+  const logTerms: number[] = [];
+
+  for (const partition of partitions) {
+    let log2Denom = 0;
+    for (const part of partition) {
+      log2Denom += 2 * log2Factorial(part);
+    }
+
+    const multiplicities = new Map<number, number>();
+    for (const part of partition) {
+      multiplicities.set(part, (multiplicities.get(part) ?? 0) + 1);
+    }
+    for (const m of multiplicities.values()) {
+      log2Denom += log2Factorial(m);
+    }
+
+    logTerms.push(log2nFactSquared - log2Denom);
+  }
+
+  // Log-sum-exp for numerical stability
+  const maxLog = Math.max(...logTerms);
+  let sumExp = 0;
+  for (const lt of logTerms) {
+    sumExp += Math.pow(2, lt - maxLog);
+  }
+  return maxLog + Math.log2(sumExp);
+}
+
+/** Compute log2(n!) using sum of logs (overflow-safe). */
+function log2Factorial(n: number): number {
+  let result = 0;
+  for (let i = 2; i <= n; i++) result += Math.log2(i);
+  return result;
 }
 
 /**

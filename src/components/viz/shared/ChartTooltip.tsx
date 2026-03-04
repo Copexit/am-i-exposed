@@ -68,15 +68,15 @@ export function useChartTooltip<T>() {
     setState((prev) => ({ ...prev, tooltipOpen: false }));
   }, []);
 
-  const handleTouch = useCallback(
-    (e: React.TouchEvent) => {
-      if (state.tooltipOpen) {
+  const handleTouch = useCallback((e: React.TouchEvent) => {
+    setState((prev) => {
+      if (prev.tooltipOpen) {
         e.preventDefault();
-        setState((prev) => ({ ...prev, tooltipOpen: false }));
+        return { ...prev, tooltipOpen: false };
       }
-    },
-    [state.tooltipOpen],
-  );
+      return prev;
+    });
+  }, []);
 
   return { ...state, showTooltip, hideTooltip, handleTouch };
 }

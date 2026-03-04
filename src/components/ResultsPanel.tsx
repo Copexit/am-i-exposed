@@ -499,7 +499,7 @@ export function ResultsPanel({
               ? "local API"
               : config.mempoolBaseUrl.includes("mempool.space")
                 ? "mempool.space"
-                : new URL(config.mempoolBaseUrl).hostname,
+                : (() => { try { return new URL(config.mempoolBaseUrl).hostname; } catch { return "custom API"; } })(),
             defaultValue: "API queries were sent to {{hostname}}.",
           })}{" "}
           {t("results.disclaimerHeuristic", { defaultValue: "Scores are heuristic-based estimates, not definitive privacy assessments." })}
