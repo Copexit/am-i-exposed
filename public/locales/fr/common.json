@@ -805,6 +805,7 @@
   "results.summaryGood": "Aucune préoccupation significative de confidentialité détectée.",
   "results.summaryPoor": "Exposition significative de la confidentialité détectée. Remédiation recommandée.",
   "results.transaction": "Transaction",
+  "results.usdAtTime": "~{{amount}} USD au moment de la transaction",
   "results.viewOnCustom": "Voir sur {{hostname}}",
   "results.viewOnLocal": "Afficher sur le mempool local",
   "results.viewOnMempool": "Voir sur mempool.space",

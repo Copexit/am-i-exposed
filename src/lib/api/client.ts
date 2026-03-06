@@ -77,6 +77,11 @@ export function createApiClient(config: NetworkConfig, signal?: AbortSignal) {
         (c) => c.getAddressUtxos(address),
       );
     },
+
+    getHistoricalPrice(timestamp: number): Promise<number | null> {
+      // Price API is mempool.space-specific, no Esplora fallback
+      return mempool.getHistoricalPrice(timestamp);
+    },
   };
 }
 

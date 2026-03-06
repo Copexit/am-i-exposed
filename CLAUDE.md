@@ -54,6 +54,11 @@ Use these consistently for findings:
 - `low` - blue (#3b82f6)
 - `good` - green (#28d065)
 
+## Release Process
+
+- After removing or adding dependencies, always run `pnpm install` to sync `pnpm-lock.yaml`. CI uses `--frozen-lockfile` and will fail on mismatches.
+- When releasing to Umbrel (see `docs/deploy-umbrel.md`), **wait for CI to finish building Docker images** before pushing the app store update. The main image takes 5-10 min for arm64 cross-compilation. Pushing the app store first causes Umbrel instances to pull a tag that doesn't exist yet, breaking updates.
+
 ## Documentation
 
 Project documentation lives in `docs/`. Before tackling new tasks, explore this folder for context. Key references:

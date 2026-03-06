@@ -208,4 +208,37 @@ describe("analyzeChangeDetection", () => {
     const f = findings.find((f) => f.id === "h2-wallet-hop");
     expect(f).toBeUndefined();
   });
+
+  // ── Round USD change detection ──────────────────────────────────────
+
+  it("detects change via round USD amount (low confidence), impact -5", () => {
+    // At $50,000/BTC, $100 = 200,000 sats. One output is exactly $100, other is not.
+    const tx = makeTx({
+      vin: [makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qinput0000000000000000000000000000000000", value: 300_000 } })],
+      vout: [
+        makeVout({ value: 200_000, scriptpubkey_address: "bc1qout1a0000000000000000000000000000000000" }),
+        makeVout({ value: 99_000, scriptpubkey_address: "bc1qout2a0000000000000000000000000000000000" }),
+      ],
+    });
+    const { findings } = analyzeChangeDetection(tx, undefined, { usdPrice: 50_000 });
+    const f = findings.find((f) => f.id === "h2-change-detected");
+    expect(f).toBeDefined();
+    expect(f!.params?.signalKeys).toContain("round_usd_amount");
+  });
+
+  it("does NOT use round USD signal when no usdPrice in context", () => {
+    const tx = makeTx({
+      vin: [makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qinput0000000000000000000000000000000000", value: 300_000 } })],
+      vout: [
+        makeVout({ value: 200_000, scriptpubkey_address: "bc1qout1a0000000000000000000000000000000000" }),
+        makeVout({ value: 99_000, scriptpubkey_address: "bc1qout2a0000000000000000000000000000000000" }),
+      ],
+    });
+    const { findings } = analyzeChangeDetection(tx);
+    const f = findings.find((f) => f.id === "h2-change-detected");
+    // May or may not have findings from other sub-heuristics, but should NOT have round_usd_amount
+    if (f) {
+      expect(f.params?.signalKeys).not.toContain("round_usd_amount");
+    }
+  });
 });

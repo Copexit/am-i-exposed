@@ -2,7 +2,7 @@ import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import type { MempoolVin, MempoolVout } from "@/lib/api/types";
 import { getAddressType } from "@/lib/bitcoin/address-type";
-import { isRoundAmount } from "./round-amount";
+import { isRoundAmount, isRoundUsdAmount } from "./round-amount";
 
 /**
  * H2: Change Detection
@@ -19,7 +19,7 @@ import { isRoundAmount } from "./round-amount";
  * Reference: Meiklejohn et al., 2013
  * Impact: -5 to -25
  */
-export const analyzeChangeDetection: TxHeuristic = (tx) => {
+export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
   const findings: Finding[] = [];
 
   // Filter out OP_RETURN outputs before analysis (they are data-only, not payments)
@@ -176,6 +176,11 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
   // Sub-heuristic 4: Unnecessary input (one input could fund payment alone)
   checkUnnecessaryInput(tx.vin, spendableOutputs, tx.fee, changeIndices, signals);
 
+  // Sub-heuristic 5: Round USD amount (requires historical price)
+  if (ctx?.usdPrice) {
+    checkRoundUsdAmount(spendableOutputs, ctx.usdPrice, changeIndices, signals);
+  }
+
   if (signals.length === 0) return { findings };
 
   // Check if signals agree on which output is change
@@ -216,6 +221,7 @@ export const analyzeChangeDetection: TxHeuristic = (tx) => {
       ...(changeVoutIdx !== undefined ? { changeIndex: changeVoutIdx } : {}),
       signalKeys: signals.map((s) =>
         s.includes("address type") ? "address_type"
+          : s.includes("round USD") ? "round_usd_amount"
           : s.includes("round") ? "round_amount"
           : s.includes("disparity") ? "value_disparity"
           : s.includes("unnecessary") ? "unnecessary_input"
@@ -352,5 +358,24 @@ function checkUnnecessaryInput(
   } else if (out1Fundable && !out0Fundable) {
     changeIndices.set(0, (changeIndices.get(0) ?? 0) + 1);
     signals.push("unnecessary inputs suggest change");
+  }
+}
+
+function checkRoundUsdAmount(
+  vout: MempoolVout[],
+  usdPerBtc: number,
+  changeIndices: Map<number, number>,
+  signals: string[],
+) {
+  const round0 = isRoundUsdAmount(vout[0].value, usdPerBtc);
+  const round1 = isRoundUsdAmount(vout[1].value, usdPerBtc);
+
+  // If exactly one output is a round USD amount, the other is likely change
+  if (round0 && !round1) {
+    changeIndices.set(1, (changeIndices.get(1) ?? 0) + 1);
+    signals.push("round USD amount output is likely payment");
+  } else if (round1 && !round0) {
+    changeIndices.set(0, (changeIndices.get(0) ?? 0) + 1);
+    signals.push("round USD amount output is likely payment");
   }
 }

@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { SVG_COLORS, ANIMATION_DEFAULTS } from "./shared/svgConstants";
 import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
-import { formatSats } from "@/lib/format";
+import { formatSats, formatUsdValue } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
@@ -20,6 +20,8 @@ interface CoinJoinStructureProps {
   tx: MempoolTransaction;
   findings: Finding[];
   onAddressClick?: (address: string) => void;
+  /** USD per BTC at the time the transaction was confirmed (mainnet only). */
+  usdPrice?: number | null;
 }
 
 interface NodeDatum extends SankeyExtraProperties {
@@ -49,7 +51,7 @@ const NODE_WIDTH = 14;
 const NODE_PADDING = 10;
 const MAX_DISPLAY = 50;
 
-export function CoinJoinStructure({ tx, findings, onAddressClick }: CoinJoinStructureProps) {
+export function CoinJoinStructure({ tx, findings, onAddressClick, usdPrice }: CoinJoinStructureProps) {
   const { t } = useTranslation();
 
   // Only render for CoinJoin txs
@@ -82,6 +84,7 @@ export function CoinJoinStructure({ tx, findings, onAddressClick }: CoinJoinStru
                 height={h}
                 tx={tx}
                 onAddressClick={onAddressClick}
+                usdPrice={usdPrice}
               />
             );
           }}
@@ -96,6 +99,7 @@ function CoinJoinChart({
   height,
   tx,
   onAddressClick,
+  usdPrice,
 }: Omit<CoinJoinStructureProps, "findings"> & { width: number; height: number }) {
   const { t, i18n } = useTranslation();
   const reducedMotion = useReducedMotion();
@@ -425,7 +429,7 @@ function CoinJoinChart({
                         style={{ cursor: isClickable ? "pointer" : "default" }}
                         onClick={() => { if (n.fullAddress && onAddressClick) onAddressClick(n.fullAddress); }}
                       >
-                        {formatSats(n.value, i18n.language)}
+                        {usdPrice != null ? `${formatSats(n.value, i18n.language)} (${formatUsdValue(n.value, usdPrice)})` : formatSats(n.value, i18n.language)}
                       </Text>
                     )}
                   </Group>
@@ -444,6 +448,7 @@ function CoinJoinChart({
             </p>
             <p className="text-xs" style={{ color: SVG_COLORS.muted }}>
               {formatSats(tooltipData.value, tooltipData.lang)}
+              {usdPrice != null && ` (${formatUsdValue(tooltipData.value, usdPrice)})`}
             </p>
             {tooltipData.tierCount != null && tooltipData.tierCount > 0 && (
               <p className="text-xs" style={{ color: SVG_COLORS.bitcoin }}>

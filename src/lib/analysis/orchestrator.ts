@@ -4,7 +4,7 @@ import type {
   MempoolAddress,
   MempoolUtxo,
 } from "@/lib/api/types";
-import type { HeuristicTranslator } from "./heuristics/types";
+import type { HeuristicTranslator, TxContext } from "./heuristics/types";
 import {
   analyzeRoundAmounts,
   analyzeChangeDetection,
@@ -89,6 +89,7 @@ export async function analyzeTransaction(
   tx: MempoolTransaction,
   rawHex?: string,
   onStep?: (stepId: string, impact?: number) => void,
+  ctx?: TxContext,
 ): Promise<ScoringResult> {
   const allFindings: Finding[] = [];
 
@@ -99,7 +100,7 @@ export async function analyzeTransaction(
     await tick();
 
     try {
-      const result = heuristic.fn(tx, rawHex);
+      const result = heuristic.fn(tx, rawHex, ctx);
       allFindings.push(...result.findings);
 
       // Report cumulative impact so the UI can show a running score

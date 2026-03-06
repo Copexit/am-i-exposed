@@ -805,6 +805,7 @@
   "results.summaryGood": "Nenhuma preocupação significativa de privacidade detectada.",
   "results.summaryPoor": "Exposição significativa de privacidade detectada. Remediação recomendada.",
   "results.transaction": "Transação",
+  "results.usdAtTime": "~{{amount}} USD no momento da transação",
   "results.viewOnCustom": "Ver em {{hostname}}",
   "results.viewOnLocal": "Exibir no mempool local",
   "results.viewOnMempool": "Ver no mempool.space",
