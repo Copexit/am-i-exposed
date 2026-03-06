@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { SVG_COLORS, SEVERITY_HEX, GRADIENT_COLORS, DUST_THRESHOLD, ANIMATION_DEFAULTS } from "./shared/svgConstants";
 import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
-import { formatSats } from "@/lib/format";
+import { formatSats, formatUsdValue } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
@@ -20,6 +20,8 @@ interface TxFlowDiagramProps {
   tx: MempoolTransaction;
   findings?: Finding[];
   onAddressClick?: (address: string) => void;
+  /** USD per BTC at the time the transaction was confirmed (mainnet only). */
+  usdPrice?: number | null;
 }
 
 interface NodeDatum extends SankeyExtraProperties {
@@ -96,6 +98,7 @@ function FlowChart({
   tx,
   findings,
   onAddressClick,
+  usdPrice,
 }: TxFlowDiagramProps & { width: number; height: number }) {
   const { t, i18n } = useTranslation();
   const reducedMotion = useReducedMotion();
@@ -479,7 +482,7 @@ function FlowChart({
                         style={{ cursor: isClickable ? "pointer" : "default" }}
                         onClick={() => { if (n.fullAddress && onAddressClick) onAddressClick(n.fullAddress); }}
                       >
-                        {formatSats(n.value, i18n.language)}
+                        {usdPrice != null ? `${formatSats(n.value, i18n.language)} (${formatUsdValue(n.value, usdPrice)})` : formatSats(n.value, i18n.language)}
                       </Text>
                     )}
 
@@ -536,6 +539,7 @@ function FlowChart({
             </p>
             <p className="text-xs" style={{ color: SVG_COLORS.muted }}>
               {formatSats(tooltipData.value, tooltipData.lang)}
+              {usdPrice != null && ` (${formatUsdValue(tooltipData.value, usdPrice)})`}
             </p>
             {tooltipData.annotation && (
               <p className="text-xs font-bold" style={{ color: SVG_COLORS.high }}>
@@ -570,7 +574,7 @@ function FlowChart({
   );
 }
 
-export function TxFlowDiagram({ tx, findings, onAddressClick }: TxFlowDiagramProps) {
+export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice }: TxFlowDiagramProps) {
   const { t, i18n } = useTranslation();
 
   return (
@@ -588,7 +592,7 @@ export function TxFlowDiagram({ tx, findings, onAddressClick }: TxFlowDiagramPro
             const maxSide = Math.max(Math.min(tx.vin.length, MAX_DISPLAY), Math.min(tx.vout.length, MAX_DISPLAY) + (tx.fee > 0 ? 1 : 0));
             const h = Math.max(160, Math.min(450, maxSide * 40 + 40));
             return (
-              <FlowChart width={width} height={h} tx={tx} findings={findings} onAddressClick={onAddressClick} />
+              <FlowChart width={width} height={h} tx={tx} findings={findings} onAddressClick={onAddressClick} usdPrice={usdPrice} />
             );
           }}
         </ParentSize>

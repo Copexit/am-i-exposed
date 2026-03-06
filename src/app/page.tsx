@@ -139,6 +139,7 @@ export default function Home() {
     error,
     errorCode,
     durationMs,
+    usdPrice,
     analyze,
     reset,
   } = useAnalysis();
@@ -413,6 +414,7 @@ export default function Home() {
             onBack={handleBack}
             onScan={handleSubmit}
             durationMs={durationMs}
+            usdPrice={usdPrice}
           />
         )}
 

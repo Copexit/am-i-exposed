@@ -32,6 +32,7 @@ function makeMockClient(overrides: Record<string, unknown> = {}) {
     getAddress: vi.fn().mockResolvedValue({ address: "bc1q..." }),
     getAddressTxs: vi.fn().mockResolvedValue([]),
     getAddressUtxos: vi.fn().mockResolvedValue([]),
+    getHistoricalPrice: vi.fn().mockResolvedValue(50_000),
     ...overrides,
   };
 }
@@ -126,7 +127,7 @@ describe("createApiClient", () => {
     expect(fallback.getAddress).not.toHaveBeenCalled();
   });
 
-  it("exposes all five methods", () => {
+  it("exposes all six methods", () => {
     mockCreateClient.mockReturnValue(makeMockClient() as ReturnType<typeof createMempoolClient>);
     const client = createApiClient(MAINNET_CONFIG);
     expect(client.getTransaction).toBeDefined();
@@ -134,5 +135,21 @@ describe("createApiClient", () => {
     expect(client.getAddress).toBeDefined();
     expect(client.getAddressTxs).toBeDefined();
     expect(client.getAddressUtxos).toBeDefined();
+    expect(client.getHistoricalPrice).toBeDefined();
+  });
+
+  it("getHistoricalPrice calls mempool directly (no esplora fallback)", async () => {
+    const primary = makeMockClient({
+      getHistoricalPrice: vi.fn().mockResolvedValue(67_500),
+    });
+    const fallback = makeMockClient();
+    mockCreateClient
+      .mockReturnValueOnce(primary as ReturnType<typeof createMempoolClient>)
+      .mockReturnValueOnce(fallback as ReturnType<typeof createMempoolClient>);
+
+    const client = createApiClient(MAINNET_CONFIG);
+    const price = await client.getHistoricalPrice(1700000000);
+    expect(price).toBe(67_500);
+    expect(primary.getHistoricalPrice).toHaveBeenCalledWith(1700000000);
   });
 });

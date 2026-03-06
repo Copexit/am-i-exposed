@@ -3,6 +3,11 @@ import type { Finding } from "@/lib/types";
 
 const SATS_PER_BTC = 100_000_000;
 
+// Round USD values people commonly send
+const ROUND_USD_VALUES = [
+  1, 2, 5, 10, 20, 50, 100, 200, 500, 1_000, 2_000, 5_000, 10_000, 25_000, 50_000, 100_000,
+];
+
 // Round BTC values (in sats) to check against
 const ROUND_BTC_VALUES = [
   0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.25, 0.5, 1, 2, 5, 10,
@@ -20,7 +25,7 @@ const ROUND_SAT_MULTIPLES = [10_000, 100_000, 1_000_000, 10_000_000];
  *
  * Impact: -5 to -15
  */
-export const analyzeRoundAmounts: TxHeuristic = (tx) => {
+export const analyzeRoundAmounts: TxHeuristic = (tx, _rawHex?, ctx?) => {
   const findings: Finding[] = [];
   // Filter to spendable outputs (exclude OP_RETURN and other non-spendable)
   const outputs = tx.vout.filter(
@@ -60,6 +65,42 @@ export const analyzeRoundAmounts: TxHeuristic = (tx) => {
     });
   }
 
+  // Round USD amount detection (requires historical price)
+  if (ctx?.usdPrice) {
+    const roundUsdOutputs: Array<{ index: number; usd: number }> = [];
+    for (let i = 0; i < outputs.length; i++) {
+      const usdMatch = getMatchingRoundUsd(outputs[i].value, ctx.usdPrice);
+      if (usdMatch !== null) {
+        roundUsdOutputs.push({ index: i, usd: usdMatch });
+      }
+    }
+
+    // Only flag if some (but not all) outputs are round USD
+    if (roundUsdOutputs.length > 0 && roundUsdOutputs.length < outputs.length) {
+      const impact = Math.min(roundUsdOutputs.length * 5, 15);
+      const usdValues = roundUsdOutputs.map((o) => `$${o.usd.toLocaleString("en-US")}`).join(", ");
+      findings.push({
+        id: "h1-round-usd-amount",
+        severity: impact >= 10 ? "medium" : "low",
+        title: `${roundUsdOutputs.length} round USD amount output${roundUsdOutputs.length > 1 ? "s" : ""} detected`,
+        params: {
+          count: roundUsdOutputs.length,
+          total: outputs.length,
+          usdValues,
+          usdPrice: Math.round(ctx.usdPrice),
+        },
+        description:
+          `${roundUsdOutputs.length} of ${outputs.length} outputs correspond to round USD amounts (${usdValues}) ` +
+          `at the BTC price when this transaction was confirmed (~$${Math.round(ctx.usdPrice).toLocaleString("en-US")}/BTC). ` +
+          `People commonly send round fiat amounts, making these outputs likely payments and the rest change.`,
+        recommendation:
+          "Avoid sending exact dollar amounts. When buying BTC, withdraw the full amount rather than a round fiat value. " +
+          "Add a random offset to the payment amount to obscure fiat-denominated rounding.",
+        scoreImpact: -impact,
+      });
+    }
+  }
+
   return { findings };
 };
 
@@ -73,4 +114,24 @@ export function isRoundAmount(sats: number): boolean {
   }
 
   return false;
+}
+
+/**
+ * Check if a satoshi value corresponds to a round USD amount at the given price.
+ * Returns the matching round USD value, or null if no match.
+ * Allows 0.5% tolerance to account for fee adjustments and rounding.
+ */
+export function getMatchingRoundUsd(sats: number, usdPerBtc: number): number | null {
+  const usdValue = (sats / SATS_PER_BTC) * usdPerBtc;
+  for (const roundUsd of ROUND_USD_VALUES) {
+    // Skip tiny amounts (< $5) - too common and noisy
+    if (roundUsd < 5) continue;
+    const tolerance = roundUsd * 0.005; // 0.5%
+    if (Math.abs(usdValue - roundUsd) <= tolerance) return roundUsd;
+  }
+  return null;
+}
+
+export function isRoundUsdAmount(sats: number, usdPerBtc: number): boolean {
+  return getMatchingRoundUsd(sats, usdPerBtc) !== null;
 }

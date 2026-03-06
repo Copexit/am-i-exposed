@@ -15,6 +15,7 @@ import { ScoreBreakdown } from "./ScoreBreakdown";
 import { getShareUrl } from "./ShareButtons";
 import { TX_BASE_SCORE, ADDRESS_BASE_SCORE } from "@/lib/scoring/score";
 import { ACTION_BTN_CLASS } from "@/lib/constants";
+import { formatUsdValue } from "@/lib/format";
 
 // Lazy-load heavy visx/d3 chart components - only needed after analysis completes
 const ScoreWaterfall = lazy(() => import("./viz/ScoreWaterfall").then(m => ({ default: m.ScoreWaterfall })));
@@ -139,6 +140,8 @@ interface ResultsPanelProps {
   onBack: () => void;
   onScan?: (input: string) => void;
   durationMs?: number | null;
+  /** USD per BTC at the time the transaction was confirmed (mainnet only). */
+  usdPrice?: number | null;
 }
 
 export const ResultsPanel = memo(function ResultsPanel({
@@ -154,6 +157,7 @@ export const ResultsPanel = memo(function ResultsPanel({
   onBack,
   onScan,
   durationMs,
+  usdPrice,
 }: ResultsPanelProps) {
   const { config, customApiUrl, isUmbrel } = useNetwork();
   const { t } = useTranslation();
@@ -264,6 +268,14 @@ export const ResultsPanel = memo(function ResultsPanel({
               <Copy size={14} className="shrink-0 mt-1 text-muted opacity-0 group-hover/copy:opacity-100 transition-opacity" />
             )}
           </button>
+          {usdPrice != null && txData && (
+            <p className="text-xs text-muted mt-1">
+              {t("results.usdAtTime", {
+                amount: formatUsdValue(txData.vout.reduce((sum, o) => sum + o.value, 0), usdPrice),
+                defaultValue: "~{{amount}} USD at time of transaction",
+              })}
+            </p>
+          )}
         </div>
 
         <div className="border-t border-card-border pt-6">
@@ -334,9 +346,9 @@ export const ResultsPanel = memo(function ResultsPanel({
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }} className="w-full">
           <ChartErrorBoundary>
             {result.findings.some((f) => f.id.startsWith("h4-")) ? (
-              <CoinJoinStructure tx={txData} findings={result.findings} onAddressClick={onScan} />
+              <CoinJoinStructure tx={txData} findings={result.findings} onAddressClick={onScan} usdPrice={usdPrice} />
             ) : (
-              <TxFlowDiagram tx={txData} findings={result.findings} onAddressClick={onScan} />
+              <TxFlowDiagram tx={txData} findings={result.findings} onAddressClick={onScan} usdPrice={usdPrice} />
             )}
           </ChartErrorBoundary>
         </motion.div>

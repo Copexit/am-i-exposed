@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { analyzeRoundAmounts } from "../round-amount";
+import { analyzeRoundAmounts, getMatchingRoundUsd, isRoundUsdAmount } from "../round-amount";
 import { makeTx, makeCoinbaseVin, makeVout, makeOpReturnVout, resetAddrCounter } from "./fixtures/tx-factory";
 
 beforeEach(() => resetAddrCounter());
@@ -82,5 +82,78 @@ describe("analyzeRoundAmounts", () => {
     });
     const { findings } = analyzeRoundAmounts(tx);
     expect(findings).toHaveLength(0);
+  });
+
+  // ── Round USD amount detection ───────────────────────────────────────
+
+  it("flags round USD output when usdPrice context is provided", () => {
+    // At $50,000/BTC, $100 = 200,000 sats
+    const tx = makeTx({
+      vout: [makeVout({ value: 200_000 }), makeVout({ value: 48_723 })],
+    });
+    const { findings } = analyzeRoundAmounts(tx, undefined, { usdPrice: 50_000 });
+    const usdFinding = findings.find((f) => f.id === "h1-round-usd-amount");
+    expect(usdFinding).toBeDefined();
+    expect(usdFinding!.scoreImpact).toBe(-5);
+    expect(usdFinding!.params?.usdValues).toContain("$100");
+  });
+
+  it("does NOT flag round USD when usdPrice is not provided", () => {
+    const tx = makeTx({
+      vout: [makeVout({ value: 200_000 }), makeVout({ value: 48_723 })],
+    });
+    const { findings } = analyzeRoundAmounts(tx);
+    const usdFinding = findings.find((f) => f.id === "h1-round-usd-amount");
+    expect(usdFinding).toBeUndefined();
+  });
+
+  it("does NOT flag round USD for values under $5", () => {
+    // At $50,000/BTC, $2 = 4,000 sats
+    const tx = makeTx({
+      vout: [makeVout({ value: 4_000 }), makeVout({ value: 48_723 })],
+    });
+    const { findings } = analyzeRoundAmounts(tx, undefined, { usdPrice: 50_000 });
+    const usdFinding = findings.find((f) => f.id === "h1-round-usd-amount");
+    expect(usdFinding).toBeUndefined();
+  });
+});
+
+describe("getMatchingRoundUsd", () => {
+  it("matches $100 at $50,000/BTC (200,000 sats)", () => {
+    expect(getMatchingRoundUsd(200_000, 50_000)).toBe(100);
+  });
+
+  it("matches $1,000 at $100,000/BTC (1,000,000 sats)", () => {
+    expect(getMatchingRoundUsd(1_000_000, 100_000)).toBe(1_000);
+  });
+
+  it("allows 0.5% tolerance", () => {
+    // $100 at $50,000/BTC = 200,000 sats. 0.5% = 1,000 sats tolerance
+    expect(getMatchingRoundUsd(200_500, 50_000)).toBe(100);
+    expect(getMatchingRoundUsd(199_500, 50_000)).toBe(100);
+  });
+
+  it("rejects outside tolerance", () => {
+    // 0.5% of $100 = $0.50 -> 1,000 sats. 202,000 is too far.
+    expect(getMatchingRoundUsd(202_000, 50_000)).toBeNull();
+  });
+
+  it("skips amounts under $5", () => {
+    // $2 at $50,000/BTC = 4,000 sats
+    expect(getMatchingRoundUsd(4_000, 50_000)).toBeNull();
+  });
+
+  it("matches $10,000 at $25,000/BTC (40,000,000 sats)", () => {
+    expect(getMatchingRoundUsd(40_000_000, 25_000)).toBe(10_000);
+  });
+});
+
+describe("isRoundUsdAmount", () => {
+  it("returns true for matching round USD values", () => {
+    expect(isRoundUsdAmount(200_000, 50_000)).toBe(true);
+  });
+
+  it("returns false for non-round USD values", () => {
+    expect(isRoundUsdAmount(123_456, 50_000)).toBe(false);
   });
 });

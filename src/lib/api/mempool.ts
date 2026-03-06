@@ -73,6 +73,19 @@ export function createMempoolClient(baseUrl: string, signal?: AbortSignal) {
       assertAddress(address);
       return get(`/address/${address}/utxo`);
     },
+
+    async getHistoricalPrice(timestamp: number): Promise<number | null> {
+      try {
+        const data = await get<{ prices: Array<{ time: number; USD: number }> }>(
+          `/v1/historical-price?currency=USD&timestamp=${Math.floor(timestamp)}`,
+        );
+        const usd = data.prices?.[0]?.USD;
+        // API returns 0 for timestamps before price data existed
+        return usd && usd > 0 ? usd : null;
+      } catch {
+        return null;
+      }
+    },
   };
 }
 

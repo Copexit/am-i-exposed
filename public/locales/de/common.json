@@ -805,6 +805,7 @@
   "results.summaryGood": "Keine wesentlichen Privatsphäre-Bedenken erkannt.",
   "results.summaryPoor": "Erhebliche Privatsphäre-Exposition erkannt. Gegenmaßnahmen empfohlen.",
   "results.transaction": "Transaktion",
+  "results.usdAtTime": "~{{amount}} USD zum Zeitpunkt der Transaktion",
   "results.viewOnCustom": "Auf {{hostname}} ansehen",
   "results.viewOnLocal": "In lokalem Mempool anzeigen",
   "results.viewOnMempool": "Auf mempool.space ansehen",

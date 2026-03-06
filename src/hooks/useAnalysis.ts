@@ -46,6 +46,8 @@ interface AnalysisState {
   /** Error classification for UI logic (e.g. hide retry on non-retryable errors) */
   errorCode: "retryable" | "not-retryable" | null;
   durationMs: number | null;
+  /** USD per BTC at the time the transaction was confirmed (mainnet only). */
+  usdPrice: number | null;
 }
 
 const INITIAL_STATE: AnalysisState = {
@@ -63,6 +65,7 @@ const INITIAL_STATE: AnalysisState = {
   error: null,
   errorCode: null,
   durationMs: null,
+  usdPrice: null,
 };
 
 /** Build a finding for missing prevout data after enrichment. */
@@ -205,13 +208,21 @@ export function useAnalysis() {
             });
           }
 
+          // Fetch historical USD price for confirmed mainnet txs
+          let usdPrice: number | null = null;
+          if (network === "mainnet" && tx.status?.block_time) {
+            usdPrice = await api.getHistoricalPrice(tx.status.block_time).catch(() => null);
+          }
+
           setState((prev) => ({
             ...prev,
             phase: "analyzing",
             txData: tx,
+            usdPrice,
           }));
 
-          const result = await analyzeTransaction(tx, rawHex, onStep);
+          const ctx = usdPrice ? { usdPrice } : undefined;
+          const result = await analyzeTransaction(tx, rawHex, onStep, ctx);
 
           // If prevout data is still missing after enrichment, warn the user
           const remainingNulls = countNullPrevouts([tx]);
