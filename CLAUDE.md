@@ -56,6 +56,7 @@ Use these consistently for findings:
 
 ## Release Process
 
+- **Always run `pnpm test && pnpm lint && pnpm build` before pushing.** CI runs type-check and will fail on type errors that `pnpm test` alone does not catch. Do not push without verifying the build passes locally.
 - After removing or adding dependencies, always run `pnpm install` to sync `pnpm-lock.yaml`. CI uses `--frozen-lockfile` and will fail on mismatches.
 - When releasing to Umbrel (see `docs/deploy-umbrel.md`), **wait for CI to finish building Docker images** before pushing the app store update. The main image takes 5-10 min for arm64 cross-compilation. Pushing the app store first causes Umbrel instances to pull a tag that doesn't exist yet, breaking updates.
 
