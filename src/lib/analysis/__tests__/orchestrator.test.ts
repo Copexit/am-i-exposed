@@ -6,6 +6,7 @@ import {
   analyzeDestination,
   getTxHeuristicSteps,
   getAddressHeuristicSteps,
+  classifyTransactionType,
 } from "../orchestrator";
 import { makeTx, makeVin, makeAddress, makeUtxo, resetAddrCounter } from "../heuristics/__tests__/fixtures/tx-factory";
 
@@ -14,13 +15,13 @@ beforeEach(() => resetAddrCounter());
 vi.useFakeTimers();
 
 describe("analyzeTransaction", () => {
-  it("runs all 14 TX heuristics and returns a scored result", async () => {
+  it("runs all 24 TX heuristics and returns a scored result", async () => {
     const tx = makeTx();
     const stepIds: string[] = [];
     const onStep = vi.fn((id: string) => stepIds.push(id));
 
     const resultPromise = analyzeTransaction(tx, undefined, onStep);
-    await vi.advanceTimersByTimeAsync(14 * 100);
+    await vi.advanceTimersByTimeAsync(24 * 100);
     const result = await resultPromise;
 
     expect(result.score).toBeGreaterThanOrEqual(0);
@@ -28,20 +29,21 @@ describe("analyzeTransaction", () => {
     expect(result.grade).toBeDefined();
     expect(result.findings.length).toBeGreaterThan(0);
 
-    // onStep called twice per heuristic (start + done) = 28 calls
-    expect(onStep).toHaveBeenCalledTimes(28);
+    // onStep called twice per heuristic (start + done) = 48 calls
+    expect(onStep).toHaveBeenCalledTimes(48);
   });
 
   it("passes rawHex to wallet-fingerprint heuristic", async () => {
     const tx = makeTx({
-      vin: [makeVin({ sequence: 0xffffffff }), makeVin({ sequence: 0xffffffff })],
+      locktime: 800_000, // block-height locktime (anti-fee-sniping)
+      vin: [makeVin({ sequence: 0xfffffffd }), makeVin({ sequence: 0xfffffffd })],
     });
     // Build rawHex with Low-R signatures
     const sig = "3044022020" + "00".repeat(32) + "0220" + "00".repeat(32);
     const rawHex = sig + sig;
 
     const resultPromise = analyzeTransaction(tx, rawHex);
-    await vi.advanceTimersByTimeAsync(14 * 100);
+    await vi.advanceTimersByTimeAsync(24 * 100);
     const result = await resultPromise;
 
     const wf = result.findings.find((f) => f.id === "h11-wallet-fingerprint");
@@ -51,20 +53,20 @@ describe("analyzeTransaction", () => {
 });
 
 describe("analyzeAddress", () => {
-  it("runs all 4 address heuristics and returns a scored result", async () => {
+  it("runs all 6 address heuristics and returns a scored result", async () => {
     const addr = makeAddress();
     const utxos = [makeUtxo()];
     const onStep = vi.fn();
 
     const resultPromise = analyzeAddress(addr, utxos, [], onStep);
-    await vi.advanceTimersByTimeAsync(4 * 100);
+    await vi.advanceTimersByTimeAsync(6 * 100);
     const result = await resultPromise;
 
     expect(result.score).toBeGreaterThanOrEqual(0);
     expect(result.score).toBeLessThanOrEqual(100);
     expect(result.grade).toBeDefined();
-    // onStep called twice per heuristic = 8 calls
-    expect(onStep).toHaveBeenCalledTimes(8);
+    // onStep called twice per heuristic = 12 calls
+    expect(onStep).toHaveBeenCalledTimes(12);
   });
 
   it("adds partial-history warning when no txs but txCount > 0", async () => {
@@ -73,7 +75,7 @@ describe("analyzeAddress", () => {
     });
 
     const resultPromise = analyzeAddress(addr, [], []);
-    await vi.advanceTimersByTimeAsync(4 * 100);
+    await vi.advanceTimersByTimeAsync(6 * 100);
     const result = await resultPromise;
 
     const pw = result.findings.find((f) => f.id === "partial-history-unavailable");
@@ -87,7 +89,7 @@ describe("analyzeAddress", () => {
     const txs = Array.from({ length: 10 }, () => makeTx());
 
     const resultPromise = analyzeAddress(addr, [], txs);
-    await vi.advanceTimersByTimeAsync(4 * 100);
+    await vi.advanceTimersByTimeAsync(6 * 100);
     const result = await resultPromise;
 
     const pw = result.findings.find((f) => f.id === "partial-history-partial");
@@ -161,7 +163,7 @@ describe("analyzeDestination", () => {
     const onStep = vi.fn();
 
     const resultPromise = analyzeDestination(addr, [], [], onStep);
-    await vi.advanceTimersByTimeAsync(4 * 100);
+    await vi.advanceTimersByTimeAsync(6 * 100);
     const result = await resultPromise;
 
     expect(result.riskLevel).toBe("LOW");
@@ -176,7 +178,7 @@ describe("analyzeDestination", () => {
     });
 
     const resultPromise = analyzeDestination(addr, [], []);
-    await vi.advanceTimersByTimeAsync(4 * 100);
+    await vi.advanceTimersByTimeAsync(6 * 100);
     const result = await resultPromise;
 
     expect(result.riskLevel).toBe("HIGH");
@@ -190,7 +192,7 @@ describe("analyzeDestination", () => {
     });
 
     const resultPromise = analyzeDestination(addr, [], []);
-    await vi.advanceTimersByTimeAsync(4 * 100);
+    await vi.advanceTimersByTimeAsync(6 * 100);
     const result = await resultPromise;
 
     expect(result.riskLevel).toBe("CRITICAL");
@@ -204,7 +206,7 @@ describe("analyzeDestination", () => {
     });
 
     const resultPromise = analyzeDestination(addr, [], []);
-    await vi.advanceTimersByTimeAsync(4 * 100);
+    await vi.advanceTimersByTimeAsync(6 * 100);
     const result = await resultPromise;
 
     expect(result.riskLevel).toBe("HIGH");
@@ -215,7 +217,7 @@ describe("analyzeDestination", () => {
     const addr = makeAddress();
 
     const resultPromise = analyzeDestination(addr, [], []);
-    await vi.advanceTimersByTimeAsync(4 * 100);
+    await vi.advanceTimersByTimeAsync(6 * 100);
     const result = await resultPromise;
 
     const presend = result.findings.find((f) => f.id === "h13-presend-check");
@@ -224,11 +226,80 @@ describe("analyzeDestination", () => {
 });
 
 describe("heuristic step lists", () => {
-  it("getTxHeuristicSteps returns 14 steps", () => {
-    expect(getTxHeuristicSteps()).toHaveLength(14);
+  it("getTxHeuristicSteps returns 24 steps", () => {
+    expect(getTxHeuristicSteps()).toHaveLength(24);
   });
 
-  it("getAddressHeuristicSteps returns 4 steps", () => {
-    expect(getAddressHeuristicSteps()).toHaveLength(4);
+  it("getAddressHeuristicSteps returns 6 steps", () => {
+    expect(getAddressHeuristicSteps()).toHaveLength(6);
+  });
+});
+
+describe("classifyTransactionType", () => {
+  it("classifies Whirlpool CoinJoin", () => {
+    expect(classifyTransactionType([
+      { id: "h4-whirlpool", severity: "good", title: "", description: "", recommendation: "", scoreImpact: 30 },
+    ])).toBe("whirlpool-coinjoin");
+  });
+
+  it("classifies WabiSabi CoinJoin via isWabiSabi param", () => {
+    expect(classifyTransactionType([
+      { id: "h4-coinjoin", severity: "good", title: "", description: "", recommendation: "", scoreImpact: 25, params: { isWabiSabi: 1 } },
+    ])).toBe("wabisabi-coinjoin");
+  });
+
+  it("classifies generic CoinJoin (non-WabiSabi h4-coinjoin)", () => {
+    expect(classifyTransactionType([
+      { id: "h4-coinjoin", severity: "good", title: "", description: "", recommendation: "", scoreImpact: 20, params: { isWabiSabi: 0 } },
+    ])).toBe("generic-coinjoin");
+  });
+
+  it("classifies JoinMarket CoinJoin", () => {
+    expect(classifyTransactionType([
+      { id: "h4-joinmarket", severity: "good", title: "", description: "", recommendation: "", scoreImpact: 15 },
+    ])).toBe("joinmarket-coinjoin");
+  });
+
+  it("classifies PayJoin", () => {
+    expect(classifyTransactionType([
+      { id: "h4-payjoin", severity: "good", title: "", description: "", recommendation: "", scoreImpact: 8 },
+    ])).toBe("payjoin");
+  });
+
+  it("classifies tx0 premix", () => {
+    expect(classifyTransactionType([
+      { id: "tx0-premix", severity: "good", title: "", description: "", recommendation: "", scoreImpact: 5 },
+    ])).toBe("tx0-premix");
+  });
+
+  it("classifies self-transfer", () => {
+    expect(classifyTransactionType([
+      { id: "h2-self-send", severity: "high", title: "", description: "", recommendation: "", scoreImpact: -15 },
+    ])).toBe("self-transfer");
+  });
+
+  it("classifies consolidation", () => {
+    expect(classifyTransactionType([
+      { id: "consolidation-fan-in", severity: "high", title: "", description: "", recommendation: "", scoreImpact: -5 },
+    ])).toBe("consolidation");
+  });
+
+  it("classifies batch payment", () => {
+    expect(classifyTransactionType([
+      { id: "consolidation-fan-out", severity: "low", title: "", description: "", recommendation: "", scoreImpact: -2 },
+    ])).toBe("batch-payment");
+  });
+
+  it("defaults to simple-payment", () => {
+    expect(classifyTransactionType([
+      { id: "h3-cioh", severity: "medium", title: "", description: "", recommendation: "", scoreImpact: -6 },
+    ])).toBe("simple-payment");
+  });
+
+  it("prioritizes CoinJoin over structural patterns", () => {
+    expect(classifyTransactionType([
+      { id: "h4-whirlpool", severity: "good", title: "", description: "", recommendation: "", scoreImpact: 30 },
+      { id: "consolidation-fan-in", severity: "high", title: "", description: "", recommendation: "", scoreImpact: 0 },
+    ])).toBe("whirlpool-coinjoin");
   });
 });

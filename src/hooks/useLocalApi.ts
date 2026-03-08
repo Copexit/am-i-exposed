@@ -147,7 +147,11 @@ export function useLocalApi(): LocalApiResult {
       }
     });
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      // Allow StrictMode remount to start a fresh probe
+      if (!cachedResult) inflight = null;
+    };
   }, []);
 
   return result;

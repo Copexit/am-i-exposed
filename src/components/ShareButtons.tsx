@@ -27,12 +27,12 @@ function getShareText(
   findingCount: number,
   t: (key: string, opts: { defaultValue: string; grade?: string; score?: number; count?: number }) => string,
 ): string {
-  if (score <= 30) {
+  if (score < 25) {
     return t("share.textBad", {
       defaultValue: "Privacy score: {{grade}} ({{score}}/100) - {{count}} issues found. Address reuse, no coin control, zero privacy hygiene. This is what chain analysis firms love to see.",
       grade, score, count: findingCount,
     });
-  } else if (score <= 60) {
+  } else if (score < 50) {
     return t("share.textMedium", {
       defaultValue: "Privacy score: {{grade}} ({{score}}/100) - {{count}} issues. Some effort, but chain analysis can still connect the dots. Bitcoin privacy is hard.",
       grade, score, count: findingCount,

@@ -139,6 +139,11 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
             onChange={(e) => {
               setValue(e.target.value);
               setError(null);
+              // Cancel any pending paste-to-submit timer if user edits the input
+              if (pasteTimerRef.current) {
+                clearTimeout(pasteTimerRef.current);
+                setPasteSuccess(false);
+              }
             }}
             onPaste={handlePaste}
             placeholder={placeholder}

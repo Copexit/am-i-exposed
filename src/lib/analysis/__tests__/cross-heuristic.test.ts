@@ -35,7 +35,7 @@ describe("cross-heuristic intelligence", () => {
     const tx = makeWhirlpoolTx();
     const resultPromise = analyzeTransaction(tx);
     // Advance through all tick() delays (13 heuristics * 2 calls = 26, each 50ms)
-    await vi.advanceTimersByTimeAsync(14 * 100);
+    await vi.advanceTimersByTimeAsync(22 * 100);
     const result = await resultPromise;
 
     // Whirlpool should be detected
@@ -111,7 +111,7 @@ describe("cross-heuristic intelligence", () => {
     });
 
     const resultPromise = analyzeTransaction(tx);
-    await vi.advanceTimersByTimeAsync(14 * 100);
+    await vi.advanceTimersByTimeAsync(22 * 100);
     const result = await resultPromise;
 
     // h2-self-send should NOT be suppressed (but it might not trigger depending
@@ -151,13 +151,48 @@ describe("cross-heuristic intelligence", () => {
     });
 
     const resultPromise = analyzeTransaction(tx);
-    await vi.advanceTimersByTimeAsync(14 * 100);
+    await vi.advanceTimersByTimeAsync(22 * 100);
     const result = await resultPromise;
 
     const wf = result.findings.find((f) => f.id === "h11-wallet-fingerprint");
     if (wf) {
       expect(wf.scoreImpact).toBe(0);
       expect(wf.params?.walletGuess).toBe("Wasabi Wallet");
+    }
+  });
+
+  it("softens script-mixed penalty when multisig is detected", async () => {
+    // Multisig input (P2SH wrapping 2-of-3) spending to P2WPKH outputs
+    // The script type mix is inherent to multisig, not a privacy leak
+    const pubkey = "02" + "ab".repeat(32);
+    const tx = makeTx({
+      vin: [
+        makeVin({
+          prevout: {
+            scriptpubkey: "a914" + "a".repeat(40) + "87",
+            scriptpubkey_asm: "OP_HASH160 OP_PUSHBYTES_20 " + "a".repeat(40) + " OP_EQUAL",
+            scriptpubkey_type: "p2sh",
+            scriptpubkey_address: "3" + "A".repeat(33),
+            value: 200_000,
+          },
+          inner_redeemscript_asm: `OP_PUSHNUM_2 OP_PUSHBYTES_33 ${pubkey} OP_PUSHBYTES_33 ${pubkey} OP_PUSHBYTES_33 ${pubkey} OP_PUSHNUM_3 OP_CHECKMULTISIG`,
+        }),
+      ],
+      vout: [
+        makeVout({ value: 100_000 }),
+        makeVout({ value: 90_000 }),
+      ],
+    });
+
+    const resultPromise = analyzeTransaction(tx);
+    await vi.advanceTimersByTimeAsync(22 * 100);
+    const result = await resultPromise;
+
+    // If script-mixed fired, it should be softened to impact 0
+    const scriptMixed = result.findings.find((f) => f.id === "script-mixed");
+    if (scriptMixed) {
+      expect(scriptMixed.scoreImpact).toBe(0);
+      expect(scriptMixed.params?.context).toBe("multisig");
     }
   });
 
@@ -175,7 +210,7 @@ describe("cross-heuristic intelligence", () => {
     });
 
     const resultPromise = analyzeTransaction(tx);
-    await vi.advanceTimersByTimeAsync(14 * 100);
+    await vi.advanceTimersByTimeAsync(22 * 100);
     const result = await resultPromise;
 
     // CIOH should have non-zero impact (2 addresses -> -6)

@@ -6,13 +6,13 @@ import { ClipboardCopy, Check } from "lucide-react";
 import { copyToClipboard } from "@/lib/clipboard";
 import { TX_BASE_SCORE, ADDRESS_BASE_SCORE } from "@/lib/scoring/score";
 import { ACTION_BTN_CLASS } from "@/lib/constants";
-import type { ScoringResult, InputType } from "@/lib/types";
+import type { ScoringResult } from "@/lib/types";
 
 interface ExportButtonProps {
   targetId: string;
   query?: string;
   result?: ScoringResult;
-  inputType?: InputType;
+  inputType?: "txid" | "address";
 }
 
 /**
@@ -86,8 +86,8 @@ export function ExportButton({ targetId, query, result, inputType }: ExportButto
         lines.push(t("export.grade", { grade, score, defaultValue: "Grade: {{grade}} ({{score}}/100)" }));
       }
 
-      // Share URL (clean, without dev server artifacts)
-      const shareBase = window.location.origin + window.location.pathname;
+      // Share URL (always use canonical production URL)
+      const shareBase = "https://am-i.exposed/";
       const prefix = inputType === "txid" ? "tx" : "addr";
       const shareUrl = query ? `${shareBase}#${prefix}=${encodeURIComponent(query)}` : url;
 

@@ -67,7 +67,7 @@ export default function Image() {
             marginTop: 16,
           }}
         >
-          Bitcoin privacy questions answered. 12 common questions.
+          Bitcoin privacy questions answered. 13 common questions.
         </div>
       </div>
     ),

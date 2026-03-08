@@ -60,6 +60,7 @@ export const analyzeAnonymitySet: TxHeuristic = (tx) => {
     findings.push({
       id: "anon-set-strong",
       severity: "good",
+      confidence: "deterministic",
       title: `Largest anonymity set: ${maxSet.count} outputs`,
       params: { count: maxSet.count, value: formatSats(maxSet.value) },
       description:
@@ -75,6 +76,7 @@ export const analyzeAnonymitySet: TxHeuristic = (tx) => {
     findings.push({
       id: "anon-set-moderate",
       severity: "low",
+      confidence: "deterministic",
       title: `Anonymity set: ${maxSet.count} equal outputs`,
       params: { count: maxSet.count, value: formatSats(maxSet.value) },
       description:
@@ -90,6 +92,7 @@ export const analyzeAnonymitySet: TxHeuristic = (tx) => {
     findings.push({
       id: "anon-set-none",
       severity: "low",
+      confidence: "deterministic",
       title: "No anonymity set (all outputs unique)",
       params: { outputCount: outputs.length },
       description:

@@ -53,3 +53,8 @@ docs/feedback-*.md
 docs/feedback/
 docs/growth-plan.md
 docs/marketing/
+docs/audit/
+polish/
+presentation/
+scripts/audit15-*.mjs
+scripts/glossary-capture.mjs

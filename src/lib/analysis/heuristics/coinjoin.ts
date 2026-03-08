@@ -34,6 +34,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
     findings.push({
       id: "h4-whirlpool",
       severity: "good",
+      confidence: "deterministic",
       title: `Whirlpool CoinJoin detected (${formatBtc(whirlpool.denomination)} pool)`,
       params: { denom: formatBtc(whirlpool.denomination) },
       description:
@@ -48,10 +49,10 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
   }
 
   // Check for WabiSabi / Wasabi pattern (many inputs, many outputs)
-  // WabiSabi rounds can have as few as ~10 participants
-  // WabiSabi rounds typically have 50+ participants; use >= 20 to avoid
-  // false positives from exchange batched withdrawals (commonly 15-30 outputs)
-  const isWabiSabi = tx.vin.length >= 20 && spendableOutputs.length >= 20;
+  // WabiSabi rounds can have as few as ~10 participants; requiring both
+  // inputs >= 10 AND outputs >= 10 avoids exchange batch withdrawal false
+  // positives (those typically have 1-3 inputs with many outputs)
+  const isWabiSabi = tx.vin.length >= 10 && spendableOutputs.length >= 10;
 
   // Check for generic equal-output CoinJoin
   const equalOutput = detectEqualOutputs(spendableOutputs.map((o) => o.value));
@@ -71,6 +72,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
       findings.push({
         id: "h4-coinjoin",
         severity: "good",
+        confidence: "high",
         title: `WabiSabi CoinJoin: ${groups.length} denomination tiers, ${totalEqual} equal outputs across ${spendableOutputs.length} total`,
         params: { groups: groups.length, totalEqual, vout: spendableOutputs.length, vin: tx.vin.length, isWabiSabi: 1 },
         description:
@@ -99,6 +101,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
     findings.push({
       id: "h4-coinjoin",
       severity: "good",
+      confidence: "high",
       title: label,
       params: { count, denomination: formatBtc(denomination), total, vin: tx.vin.length, isWabiSabi: isWabiSabi ? 1 : 0 },
       description:
@@ -117,10 +120,12 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
     });
   }
 
-  // Check for Stonewall pattern first: steganographic CoinJoin (Samourai Wallet)
+  // Check for Stonewall pattern: steganographic CoinJoin (Samourai/Ashigaru Wallet)
   // Stonewall is the most specific small CoinJoin pattern (exactly 4 outputs,
   // 2-4 inputs, 1 equal pair + 2 distinct change) and must be checked before
   // JoinMarket to avoid misattribution.
+  // NOTE: Solo Stonewall vs STONEWALLx2 cannot be reliably distinguished on-chain.
+  // That ambiguity IS the privacy feature. We report a single finding.
   if (findings.length === 0) {
     const stonewall = detectStonewall(tx.vin, spendableOutputs);
     if (stonewall) {
@@ -128,6 +133,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
       findings.push({
         id: "h4-stonewall",
         severity: "good",
+        confidence: "medium",
         title: `Possible Stonewall: 2 equal outputs of ${formatBtc(stonewall.denomination)}`,
         params: {
           denomination: formatBtc(stonewall.denomination),
@@ -146,7 +152,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
         remediation: {
           qualifier: isSolo
             ? "Likely solo Stonewall: all inputs appear to come from one wallet. The sender controls 3 of 4 outputs (1 decoy + 2 change)."
-            : "STONEWALLx2: inputs came from 2+ wallets. Each party must manage their outputs independently.",
+            : "Possible STONEWALLx2: inputs came from 2+ addresses. Each party must manage their outputs independently.",
           steps: isSolo
             ? [
                 "Never spend two outputs from this transaction together - doing so reveals that you control both, breaking Stonewall ambiguity.",
@@ -170,6 +176,43 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
     }
   }
 
+  // Check for simplified Stonewall: 3 outputs where 2 have equal value + 1 change.
+  // Manual version when full STONEWALL conditions aren't met.
+  if (findings.length === 0) {
+    const simplified = detectSimplifiedStonewall(tx.vin, spendableOutputs);
+    if (simplified) {
+      findings.push({
+        id: "h4-simplified-stonewall",
+        severity: "good",
+        confidence: "medium",
+        title: `Simplified Stonewall: 2 equal outputs of ${formatBtc(simplified.denomination)} + change`,
+        params: {
+          denomination: formatBtc(simplified.denomination),
+        },
+        description:
+          `This transaction has 3 outputs: 2 equal-value outputs (${formatBtc(simplified.denomination)}) and 1 change output. ` +
+          "This is a simplified Stonewall - a manual decoy technique where the sender creates " +
+          "a second output of the same amount to create ambiguity about which is the real payment.",
+        recommendation:
+          "Simplified Stonewall provides basic ambiguity but is weaker than a full Stonewall. " +
+          "When possible, use Ashigaru's built-in Stonewall for stronger privacy guarantees.",
+        scoreImpact: 5,
+        remediation: {
+          steps: [
+            "Never spend the decoy output alongside other UTXOs linked to this transaction's inputs.",
+            "Use coin control to label the decoy and change outputs separately.",
+            "Consider using Ashigaru's full Stonewall feature for stronger privacy in future transactions.",
+          ],
+          tools: [
+            { name: "Ashigaru (Stonewall)", url: "https://ashigaru.rs" },
+            { name: "Sparrow Wallet (Coin Control)", url: "https://sparrowwallet.com" },
+          ],
+          urgency: "when-convenient" as const,
+        },
+      });
+    }
+  }
+
   // Check for JoinMarket pattern: small-scale CoinJoin with maker/taker model
   // Only check if no other CoinJoin was detected (Stonewall already checked above)
   if (findings.length === 0) {
@@ -178,6 +221,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
       findings.push({
         id: "h4-joinmarket",
         severity: "good",
+        confidence: "medium",
         title: `Likely JoinMarket CoinJoin: ${joinmarket.equalCount} equal outputs of ${formatBtc(joinmarket.denomination)}`,
         params: { count: joinmarket.equalCount, denomination: formatBtc(joinmarket.denomination), vin: tx.vin.length, vout: spendableOutputs.length },
         description:
@@ -198,11 +242,17 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
   // If any CoinJoin was detected, add an informational warning about exchange flagging risks.
   // Skip for Stonewall-only: Stonewall is steganographic (designed to look like a normal payment),
   // so exchange flagging is unlikely and the warning would be misleading.
-  const isStonewallOnly = findings.length === 1 && findings[0].id === "h4-stonewall";
+  // Stonewall is steganographic (designed to look like a normal payment),
+  // so exchange flagging warnings would be misleading.
+  const isStonewallOnly = findings.length === 1 && (
+    findings[0].id === "h4-stonewall" ||
+    findings[0].id === "h4-simplified-stonewall"
+  );
   if (findings.length > 0 && !isStonewallOnly) {
     findings.push({
       id: "h4-exchange-flagging",
       severity: "low",
+      confidence: "medium",
       title: "Exchanges may flag this transaction",
       description:
         "Multiple centralized exchanges are documented to flag or freeze accounts associated with CoinJoin transactions. " +
@@ -224,7 +274,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
 
 /** Set of finding IDs that identify CoinJoin transactions. */
 const COINJOIN_FINDING_IDS = new Set([
-  "h4-whirlpool", "h4-coinjoin", "h4-joinmarket", "h4-stonewall",
+  "h4-whirlpool", "h4-coinjoin", "h4-joinmarket", "h4-stonewall", "h4-simplified-stonewall",
 ]);
 
 /** Check if a finding indicates a positive CoinJoin detection. */
@@ -394,6 +444,46 @@ function detectStonewall(
     denomination: equalValue,
     distinctInputAddresses: inputAddresses.size,
   };
+}
+
+function detectSimplifiedStonewall(
+  vin: Parameters<typeof analyzeCoinJoin>[0]["vin"],
+  spendableOutputs: { value: number; scriptpubkey_address?: string }[],
+): { denomination: number } | null {
+  // Simplified Stonewall: 1+ inputs, exactly 3 spendable outputs
+  // 2 outputs with equal value (payment + decoy) + 1 change
+  if (spendableOutputs.length !== 3) return null;
+  if (vin.length < 1) return null;
+
+  // Count output values - need exactly 1 pair
+  const counts = new Map<number, number>();
+  for (const o of spendableOutputs) {
+    counts.set(o.value, (counts.get(o.value) ?? 0) + 1);
+  }
+
+  // counts.size === 2 means: one value twice + one value once
+  if (counts.size !== 2) return null;
+
+  let equalValue = 0;
+  for (const [value, count] of counts) {
+    if (count === 2) equalValue = value;
+  }
+  if (equalValue === 0) return null;
+
+  // Skip dust amounts and Whirlpool denominations
+  if (equalValue < 10_000) return null;
+  if (WHIRLPOOL_DENOMS.includes(equalValue)) return null;
+
+  // Equal-valued outputs must go to distinct addresses
+  const equalAddresses = new Set<string>();
+  for (const o of spendableOutputs) {
+    if (o.value === equalValue && o.scriptpubkey_address) {
+      equalAddresses.add(o.scriptpubkey_address);
+    }
+  }
+  if (equalAddresses.size < 2) return null;
+
+  return { denomination: equalValue };
 }
 
 function formatBtc(sats: number): string {

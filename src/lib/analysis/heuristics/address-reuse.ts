@@ -49,6 +49,7 @@ export const analyzeAddressReuse: AddressHeuristic = (address, _utxos, txs) => {
           {
             id: "h8-reuse-uncertain",
             severity: "low",
+            confidence: "low",
             title: "Address reuse data incomplete",
             params: { txCount, totalFunded },
             description:
@@ -67,6 +68,7 @@ export const analyzeAddressReuse: AddressHeuristic = (address, _utxos, txs) => {
         {
           id: "h8-no-reuse",
           severity: "good",
+          confidence: "deterministic",
           title: "No address reuse detected",
           description:
             "This address has only received funds once. Single-use addresses are a core Bitcoin privacy practice.",
@@ -86,6 +88,7 @@ export const analyzeAddressReuse: AddressHeuristic = (address, _utxos, txs) => {
         {
           id: "h8-batch-receive",
           severity: "low",
+          confidence: "deterministic",
           title: `Multiple UTXOs from a single transaction (batch payment)`,
           params: { totalFunded: effectiveFunded },
           description:
@@ -135,6 +138,7 @@ export const analyzeAddressReuse: AddressHeuristic = (address, _utxos, txs) => {
       {
         id: "h8-address-reuse",
         severity,
+        confidence: "deterministic",
         title: `Address reused across ${effectiveTxCount} transactions`,
         params: { txCount: effectiveTxCount },
         description:

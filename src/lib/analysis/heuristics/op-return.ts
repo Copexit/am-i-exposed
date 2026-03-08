@@ -43,6 +43,7 @@ export const analyzeOpReturn: TxHeuristic = (tx) => {
     findings.push({
       id: `h7-op-return${opReturnOutputs.length > 1 ? `-${idx}` : ""}`,
       severity: protocol ? "medium" : "low",
+      confidence: "deterministic",
       title: protocol
         ? `OP_RETURN: ${protocol} data embedded`
         : "OP_RETURN data embedded in transaction",

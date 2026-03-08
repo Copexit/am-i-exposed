@@ -26,6 +26,7 @@ export const analyzeUtxos: AddressHeuristic = (_address, utxos) => {
     findings.push({
       id: "h9-dust-detected",
       severity: dustUtxos.length >= 3 ? "high" : "medium",
+      confidence: "high",
       title: `${dustUtxos.length} potential dust UTXO${dustUtxos.length > 1 ? "s" : ""} detected`,
       params: { dustCount: dustUtxos.length, totalDust, threshold: DUST_THRESHOLD },
       description:
@@ -43,6 +44,7 @@ export const analyzeUtxos: AddressHeuristic = (_address, utxos) => {
     findings.push({
       id: "h9-many-utxos",
       severity: "medium",
+      confidence: "deterministic",
       title: `Large UTXO set (${utxos.length} UTXOs)`,
       params: { utxoCount: utxos.length },
       description:
@@ -56,6 +58,7 @@ export const analyzeUtxos: AddressHeuristic = (_address, utxos) => {
     findings.push({
       id: "h9-moderate-utxos",
       severity: "low",
+      confidence: "deterministic",
       title: `${utxos.length} UTXOs on this address`,
       params: { utxoCount: utxos.length },
       description:
@@ -70,6 +73,7 @@ export const analyzeUtxos: AddressHeuristic = (_address, utxos) => {
     findings.push({
       id: "h9-clean",
       severity: "good",
+      confidence: "deterministic",
       title: "Clean UTXO set",
       description:
         "No dust UTXOs detected and the UTXO count is manageable. This is a healthy state for privacy.",

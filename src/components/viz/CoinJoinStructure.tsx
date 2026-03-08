@@ -12,7 +12,7 @@ import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import { formatSats, formatUsdValue } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
-import type { MempoolTransaction } from "@/lib/api/types";
+import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import type { SankeyExtraProperties, SankeyGraph } from "d3-sankey";
 
@@ -22,6 +22,8 @@ interface CoinJoinStructureProps {
   onAddressClick?: (address: string) => void;
   /** USD per BTC at the time the transaction was confirmed (mainnet only). */
   usdPrice?: number | null;
+  /** Per-output spend status. */
+  outspends?: MempoolOutspend[] | null;
 }
 
 interface NodeDatum extends SankeyExtraProperties {
@@ -45,18 +47,29 @@ interface TooltipData {
   value: number;
   tierCount?: number;
   lang: string;
+  spentCount?: number;
+  unspentCount?: number;
 }
 
 const NODE_WIDTH = 14;
 const NODE_PADDING = 10;
 const MAX_DISPLAY = 50;
+const MAX_OUTPUT_NODES = 20;
 
-export function CoinJoinStructure({ tx, findings, onAddressClick, usdPrice }: CoinJoinStructureProps) {
+export function CoinJoinStructure({ tx, findings, onAddressClick, usdPrice, outspends }: CoinJoinStructureProps) {
   const { t } = useTranslation();
+  const [showAllInputs, setShowAllInputs] = useState(false);
 
   // Only render for CoinJoin txs
   const isCoinJoin = findings.some((f) => f.id.startsWith("h4-"));
   if (!isCoinJoin) return null;
+
+  // For very large CoinJoins (50+ inputs), aggregate inputs into a summary node
+  const aggregateInputs = tx.vin.length > MAX_DISPLAY;
+  const displayInCount = aggregateInputs ? 1 : (showAllInputs ? tx.vin.length : Math.min(tx.vin.length, MAX_DISPLAY));
+  const estimatedOutputNodes = Math.min(MAX_OUTPUT_NODES + 2, tx.vout.length + 2);
+  const nodeCount = displayInCount + estimatedOutputNodes;
+  const chartHeight = Math.max(240, Math.min(500, nodeCount * 22 + 60));
 
   return (
     <div className="w-full glass rounded-xl p-4 sm:p-6 space-y-3">
@@ -76,15 +89,17 @@ export function CoinJoinStructure({ tx, findings, onAddressClick, usdPrice }: Co
         <ParentSize>
           {({ width }) => {
             if (width < 1) return null;
-            const nodeCount = Math.min(tx.vin.length, MAX_DISPLAY) + Math.min(tx.vout.length, MAX_DISPLAY);
-            const h = Math.max(240, Math.min(500, nodeCount * 22 + 60));
             return (
               <CoinJoinChart
                 width={width}
-                height={h}
+                height={chartHeight}
                 tx={tx}
                 onAddressClick={onAddressClick}
                 usdPrice={usdPrice}
+                outspends={outspends}
+                showAllInputs={showAllInputs}
+                onToggleShowAllInputs={() => setShowAllInputs(true)}
+                aggregateInputs={aggregateInputs}
               />
             );
           }}
@@ -94,18 +109,28 @@ export function CoinJoinStructure({ tx, findings, onAddressClick, usdPrice }: Co
   );
 }
 
+interface CoinJoinChartProps extends Omit<CoinJoinStructureProps, "findings"> {
+  width: number;
+  height: number;
+  showAllInputs: boolean;
+  onToggleShowAllInputs: () => void;
+  aggregateInputs: boolean;
+}
+
 function CoinJoinChart({
   width,
   height,
   tx,
   onAddressClick,
   usdPrice,
-}: Omit<CoinJoinStructureProps, "findings"> & { width: number; height: number }) {
+  outspends,
+  showAllInputs,
+  onToggleShowAllInputs,
+  aggregateInputs,
+}: CoinJoinChartProps) {
   const { t, i18n } = useTranslation();
   const reducedMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
-  const [showAllInputs, setShowAllInputs] = useState(false);
-  const [showAllOutputs, setShowAllOutputs] = useState(false);
   const { tooltipOpen, tooltipData, tooltipLeft, tooltipTop, showTooltip, hideTooltip, handleTouch } =
     useChartTooltip<TooltipData>();
 
@@ -130,39 +155,56 @@ function CoinJoinChart({
   }, [tx.vout]);
 
   const { graph, hiddenInputCount, hiddenOutputCount } = useMemo(() => {
-    const displayInputs = showAllInputs ? tx.vin : tx.vin.slice(0, MAX_DISPLAY);
-    const hiddenIn = tx.vin.length - displayInputs.length;
-
     const nodes: NodeDatum[] = [];
     const links: LinkDatum[] = [];
+    let hiddenIn = 0;
 
-    // Input nodes
-    for (let i = 0; i < displayInputs.length; i++) {
-      const vin = displayInputs[i];
-      const addr = vin.prevout?.scriptpubkey_address;
-      const val = vin.prevout?.value ?? 0;
+    const totalInputValue = tx.vin.reduce((s, v) => s + (v.prevout?.value ?? 0), 0);
+
+    if (aggregateInputs) {
+      // Single summary node for all inputs
       nodes.push({
-        id: `in-${i}`,
-        label: truncateId(addr ?? "?", 5),
-        fullAddress: addr,
-        value: Math.max(val, 1),
+        id: "in-agg",
+        label: t("viz.coinjoin.inputSummary", {
+          count: tx.vin.length,
+          defaultValue: `${tx.vin.length} participants`,
+        }),
+        value: Math.max(totalInputValue, 1),
         side: "input",
       });
-    }
+    } else {
+      const displayInputs = showAllInputs ? tx.vin : tx.vin.slice(0, MAX_DISPLAY);
+      hiddenIn = tx.vin.length - displayInputs.length;
 
-    // Mixing zone node
-    const totalInputValue = displayInputs.reduce((s, v) => s + (v.prevout?.value ?? 0), 0);
+      for (let i = 0; i < displayInputs.length; i++) {
+        const vin = displayInputs[i];
+        const addr = vin.prevout?.scriptpubkey_address;
+        const val = vin.prevout?.value ?? 0;
+        nodes.push({
+          id: `in-${i}`,
+          label: truncateId(addr ?? "?", 5),
+          fullAddress: addr,
+          value: Math.max(val, 1),
+          side: "input",
+        });
+      }
+    }
     nodes.push({
       id: "mixer",
       label: t("viz.coinjoin.mixingZone", { defaultValue: "Mixing zone" }),
       value: Math.max(totalInputValue, 1),
       side: "mixer",
     });
-    // Output nodes: group by denomination tier
+    // Output nodes: group by denomination tier, capped for readability
     const outputNodes: NodeDatum[] = [];
     let hiddenOut = 0;
 
-    for (const tier of denomGroups.tiers) {
+    // Sort tiers by count (largest anonymity set first)
+    const sortedTiers = [...denomGroups.tiers].sort((a, b) => b.count - a.count);
+    const displayTiers = sortedTiers.slice(0, MAX_OUTPUT_NODES - 1); // reserve 1 for summary
+    const remainingTiers = sortedTiers.slice(MAX_OUTPUT_NODES - 1);
+
+    for (const tier of displayTiers) {
       outputNodes.push({
         id: `tier-${tier.value}`,
         label: `${tier.count}x ${formatSats(tier.value, i18n.language)}`,
@@ -173,20 +215,25 @@ function CoinJoinChart({
       });
     }
 
-    // "Other" outputs (change, coordinator fee, etc.)
-    const displayOthers = showAllOutputs ? denomGroups.otherValues : denomGroups.otherValues.slice(0, 3);
-    hiddenOut = denomGroups.otherValues.length - displayOthers.length;
+    // Aggregate remaining tiers + "other" unique outputs into a single summary
+    const remainingTierOutputCount = remainingTiers.reduce((s, tier) => s + tier.count, 0);
+    const remainingTierValue = remainingTiers.reduce((s, tier) => s + tier.value * tier.count, 0);
+    const otherTotalValue = denomGroups.otherValues.reduce((s, v) => s + v, 0);
+    const otherCount = denomGroups.otherValues.length;
+    const aggregatedCount = remainingTierOutputCount + otherCount;
+    const aggregatedValue = remainingTierValue + otherTotalValue;
 
-    for (let i = 0; i < displayOthers.length; i++) {
-      const val = displayOthers[i];
-      const vout = tx.vout.find((v) => v.value === val);
+    if (aggregatedCount > 0) {
       outputNodes.push({
-        id: `other-${i}`,
-        label: vout?.scriptpubkey_address ? truncateId(vout.scriptpubkey_address, 5) : (vout?.scriptpubkey_type === "op_return" ? "OP_RETURN" : formatSats(val, i18n.language)),
-        fullAddress: vout?.scriptpubkey_address,
-        value: Math.max(val, 1),
+        id: "other-agg",
+        label: t("viz.coinjoin.otherOutputs", {
+          count: aggregatedCount,
+          defaultValue: `${aggregatedCount} other outputs`,
+        }),
+        value: Math.max(aggregatedValue, 1),
         side: "output",
       });
+      hiddenOut = aggregatedCount;
     }
 
     // Fee
@@ -201,13 +248,22 @@ function CoinJoinChart({
 
     nodes.push(...outputNodes);
 
-    // Links: all inputs -> mixer (use string IDs)
-    for (let i = 0; i < displayInputs.length; i++) {
+    // Links: all inputs -> mixer
+    if (aggregateInputs) {
       links.push({
-        source: `in-${i}`,
+        source: "in-agg",
         target: "mixer",
-        value: Math.max(1, displayInputs[i].prevout?.value ?? 1),
+        value: Math.max(1, totalInputValue),
       });
+    } else {
+      const linkInputs = showAllInputs ? tx.vin : tx.vin.slice(0, MAX_DISPLAY);
+      for (let i = 0; i < linkInputs.length; i++) {
+        links.push({
+          source: `in-${i}`,
+          target: "mixer",
+          value: Math.max(1, linkInputs[i].prevout?.value ?? 1),
+        });
+      }
     }
 
     // Links: mixer -> outputs (use string IDs)
@@ -221,9 +277,9 @@ function CoinJoinChart({
 
     const g: SankeyGraph<NodeDatum, LinkDatum> = { nodes, links };
     return { graph: g, hiddenInputCount: hiddenIn, hiddenOutputCount: hiddenOut };
-  }, [tx, showAllInputs, showAllOutputs, denomGroups, t, i18n]);
+  }, [tx, showAllInputs, denomGroups, aggregateInputs, t, i18n]);
 
-  const marginH = width < 500 ? 60 : 120;
+  const marginH = width < 500 ? 80 : 150;
   const MARGIN = { top: 12, right: marginH, bottom: 24, left: marginH };
   const innerWidth = width - MARGIN.left - MARGIN.right;
   const innerHeight = height - MARGIN.top - MARGIN.bottom;
@@ -320,8 +376,74 @@ function CoinJoinChart({
                 // Labels render in the margin area, so use margin width (not node position)
                 const labelMaxWidth = isInput ? MARGIN.left - 8 : MARGIN.right - 8;
 
+                // Expand hitbox for easier hover/touch
+                const hitboxPad = 70;
+                const hitboxX = isInput ? n.x0 - hitboxPad : n.x0;
+                const hitboxW = nodeWidth + hitboxPad;
+                const hitboxH = Math.max(nodeHeight, 18);
+                const hitboxY = n.y0 - (hitboxH - nodeHeight) / 2;
+
+                const showNodeTooltip = (e: React.MouseEvent) => {
+                  const container = containerRef.current;
+                  if (!container) return;
+                  const containerRect = container.getBoundingClientRect();
+                  const elemRect = (e.currentTarget as Element).getBoundingClientRect();
+                  // Compute spent/unspent counts for tier nodes
+                  let spentCount: number | undefined;
+                  let unspentCount: number | undefined;
+                  if (outspends && n.tierValue != null) {
+                    let s = 0, u = 0;
+                    for (let oi = 0; oi < tx.vout.length; oi++) {
+                      if (tx.vout[oi].value === n.tierValue) {
+                        if (outspends[oi]?.spent) s++; else u++;
+                      }
+                    }
+                    spentCount = s;
+                    unspentCount = u;
+                  }
+                  showTooltip({
+                    tooltipData: {
+                      label: n.fullAddress ?? n.label,
+                      value: n.value,
+                      tierCount: n.tierCount,
+                      lang: i18n.language,
+                      spentCount,
+                      unspentCount,
+                    },
+                    tooltipLeft: elemRect.left - containerRect.left + elemRect.width / 2,
+                    tooltipTop: elemRect.top - containerRect.top,
+                  });
+                };
+
                 return (
                   <Group key={n.id}>
+                    {/* Invisible expanded hitbox for hover/touch */}
+                    {!isMixer && (
+                      <rect
+                        x={hitboxX}
+                        y={hitboxY}
+                        width={hitboxW}
+                        height={hitboxH}
+                        fill="transparent"
+                        cursor={isClickable ? "pointer" : "default"}
+                        tabIndex={isClickable ? 0 : undefined}
+                        role={isClickable ? "button" : undefined}
+                        aria-label={isClickable ? t("viz.cj.scanAddress", { address: n.fullAddress, defaultValue: `Scan ${n.fullAddress}` }) : undefined}
+                        className={isClickable ? "outline-none focus-visible:outline-2 focus-visible:outline-bitcoin" : ""}
+                        onClick={() => {
+                          if (n.fullAddress && onAddressClick) onAddressClick(n.fullAddress);
+                        }}
+                        onKeyDown={(e: React.KeyboardEvent) => {
+                          if ((e.key === "Enter" || e.key === " ") && n.fullAddress && onAddressClick) {
+                            e.preventDefault();
+                            onAddressClick(n.fullAddress);
+                          }
+                        }}
+                        onMouseEnter={showNodeTooltip}
+                        onMouseLeave={() => hideTooltip()}
+                      />
+                    )}
+
                     <motion.rect
                       x={n.x0}
                       y={n.y0}
@@ -339,37 +461,9 @@ function CoinJoinChart({
                         delay: i * ANIMATION_DEFAULTS.stagger,
                         duration: ANIMATION_DEFAULTS.duration,
                       }}
-                      cursor={isClickable ? "pointer" : "default"}
-                      tabIndex={isClickable ? 0 : undefined}
-                      role={isClickable ? "button" : undefined}
-                      aria-label={isClickable ? t("viz.cj.scanAddress", { address: n.fullAddress, defaultValue: `Scan ${n.fullAddress}` }) : undefined}
-                      className={isClickable ? "outline-none focus-visible:outline-2 focus-visible:outline-bitcoin" : ""}
-                      onClick={() => {
-                        if (n.fullAddress && onAddressClick) onAddressClick(n.fullAddress);
-                      }}
-                      onKeyDown={(e: React.KeyboardEvent) => {
-                        if ((e.key === "Enter" || e.key === " ") && n.fullAddress && onAddressClick) {
-                          e.preventDefault();
-                          onAddressClick(n.fullAddress);
-                        }
-                      }}
-                      onMouseEnter={(e: React.MouseEvent) => {
-                        const container = containerRef.current;
-                        if (!container) return;
-                        const containerRect = container.getBoundingClientRect();
-                        const elemRect = (e.currentTarget as Element).getBoundingClientRect();
-                        showTooltip({
-                          tooltipData: {
-                            label: n.fullAddress ?? n.label,
-                            value: n.value,
-                            tierCount: n.tierCount,
-                            lang: i18n.language,
-                          },
-                          tooltipLeft: elemRect.left - containerRect.left + elemRect.width / 2,
-                          tooltipTop: elemRect.top - containerRect.top,
-                        });
-                      }}
-                      onMouseLeave={() => hideTooltip()}
+                      style={isMixer ? undefined : { pointerEvents: "none" as const }}
+                      onMouseEnter={isMixer ? showNodeTooltip : undefined}
+                      onMouseLeave={isMixer ? () => hideTooltip() : undefined}
                     />
 
                     {/* Mixer pattern overlay */}
@@ -403,22 +497,21 @@ function CoinJoinChart({
                     {!isMixer && labelMaxWidth > 30 && (
                       <Text
                         x={labelX}
-                        y={n.y0 + nodeHeight / 2 - (nodeHeight > 14 && !isTier ? 6 : 0)}
+                        y={n.y0 + nodeHeight / 2 - (!isTier ? 6 : 0)}
                         textAnchor={labelAnchor}
                         verticalAnchor="middle"
                         fontSize={11}
                         fontFamily="var(--font-geist-mono), monospace"
                         fill={isClickable ? SVG_COLORS.bitcoin : n.tierCount ? SVG_COLORS.bitcoin : SVG_COLORS.foreground}
-                        style={{ cursor: isClickable ? "pointer" : "default", textDecoration: isClickable ? "underline" : "none" }}
+                        style={{ cursor: isClickable ? "pointer" : "default", textDecoration: isClickable ? "underline" : "none", pointerEvents: "none" as const }}
                         width={Math.min(labelMaxWidth, 140)}
-                        onClick={() => { if (n.fullAddress && onAddressClick) onAddressClick(n.fullAddress); }}
                       >
                         {n.label}
                       </Text>
                     )}
 
                     {/* Value label below address for inputs and non-tier outputs */}
-                    {!isMixer && !isTier && nodeHeight > 14 && labelMaxWidth > 30 && (
+                    {!isMixer && !isTier && labelMaxWidth > 30 && (
                       <Text
                         x={labelX}
                         y={n.y0 + nodeHeight / 2 + 8}
@@ -426,10 +519,24 @@ function CoinJoinChart({
                         verticalAnchor="middle"
                         fontSize={10}
                         fill={SVG_COLORS.muted}
-                        style={{ cursor: isClickable ? "pointer" : "default" }}
-                        onClick={() => { if (n.fullAddress && onAddressClick) onAddressClick(n.fullAddress); }}
+                        style={{ pointerEvents: "none" as const }}
                       >
                         {usdPrice != null ? `${formatSats(n.value, i18n.language)} (${formatUsdValue(n.value, usdPrice)})` : formatSats(n.value, i18n.language)}
+                      </Text>
+                    )}
+
+                    {/* USD value for tier outputs */}
+                    {!isMixer && isTier && usdPrice != null && labelMaxWidth > 30 && (
+                      <Text
+                        x={labelX}
+                        y={n.y0 + nodeHeight / 2 + 8}
+                        textAnchor={labelAnchor}
+                        verticalAnchor="middle"
+                        fontSize={9}
+                        fill={SVG_COLORS.muted}
+                        style={{ pointerEvents: "none" as const }}
+                      >
+                        {`${formatUsdValue(n.tierValue ?? n.value, usdPrice)}${n.tierCount ? "/ea" : ""}`}
                       </Text>
                     )}
                   </Group>
@@ -455,6 +562,13 @@ function CoinJoinChart({
                 {t("viz.coinjoin.tier", { count: tooltipData.tierCount, defaultValue: `${tooltipData.tierCount} equal outputs` })}
               </p>
             )}
+            {tooltipData.spentCount != null && tooltipData.unspentCount != null && (
+              <p className="text-xs" style={{ color: SVG_COLORS.muted }}>
+                <span style={{ color: SVG_COLORS.good }}>{tooltipData.unspentCount} {t("viz.flow.unspentShort", { defaultValue: "unspent" })}</span>
+                {" / "}
+                <span style={{ color: SVG_COLORS.critical }}>{tooltipData.spentCount} {t("viz.flow.spentShort", { defaultValue: "spent" })}</span>
+              </p>
+            )}
           </div>
         </ChartTooltip>
       )}
@@ -463,7 +577,7 @@ function CoinJoinChart({
       <div className="flex justify-between px-2 mt-1">
         {hiddenInputCount > 0 && (
           <button
-            onClick={() => setShowAllInputs(true)}
+            onClick={onToggleShowAllInputs}
             className="text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
           >
             {t("tx.moreItems", { count: hiddenInputCount, defaultValue: `+${hiddenInputCount} more` })}
@@ -471,12 +585,9 @@ function CoinJoinChart({
         )}
         <div className="flex-1" />
         {hiddenOutputCount > 0 && (
-          <button
-            onClick={() => setShowAllOutputs(true)}
-            className="text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
-          >
+          <span className="text-xs text-muted">
             {t("tx.moreItems", { count: hiddenOutputCount, defaultValue: `+${hiddenOutputCount} more` })}
-          </button>
+          </span>
         )}
       </div>
     </div>

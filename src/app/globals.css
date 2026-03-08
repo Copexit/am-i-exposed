@@ -45,6 +45,8 @@
   --color-severity-medium: var(--severity-medium);
   --color-severity-low: var(--severity-low);
   --color-severity-good: var(--severity-good);
+  --color-glass-bg: var(--glass-bg);
+  --color-glass-border: var(--glass-border);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -146,7 +148,7 @@ body::after {
   content: '';
   position: fixed;
   inset: 0;
-  z-index: 200;
+  z-index: 60;
   pointer-events: none;
   opacity: 0.06;
   mix-blend-mode: overlay;

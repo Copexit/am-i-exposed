@@ -42,7 +42,7 @@ export function TxBreakdownPanel({
     return 0; // keep API order (most recent first)
   }), [breakdown, sortBy]);
 
-  const issues = breakdown.filter((t) => t.score < 50).length;
+  const issues = breakdown.filter((item) => item.score < 50).length;
 
   return (
     <motion.div

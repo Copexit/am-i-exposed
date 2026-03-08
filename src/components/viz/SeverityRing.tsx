@@ -96,8 +96,8 @@ export function SeverityRing({ findings, size = 120 }: SeverityRingProps) {
                       d={path}
                       fill={`url(#grad-sev-${arc.data.severity})`}
                       fillOpacity={0.85}
-                      initial={reducedMotion ? false : { pathLength: 0, opacity: 0 }}
-                      animate={{ pathLength: 1, opacity: 1 }}
+                      initial={reducedMotion ? false : { opacity: 0 }}
+                      animate={{ opacity: 1 }}
                       transition={{
                         delay: i * ANIMATION_DEFAULTS.stagger,
                         duration: ANIMATION_DEFAULTS.duration,

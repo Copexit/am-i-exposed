@@ -239,7 +239,7 @@ function WaterfallChart({
                     duration: ANIMATION_DEFAULTS.duration,
                     ease: [0.4, 0, 0.2, 1],
                   }}
-                  style={{ originX: `${barX + barWidth / 2}px`, originY: `${barY + barHeight}px`, transformBox: "fill-box", transformOrigin: "bottom" }}
+                  style={{ transformBox: "fill-box", transformOrigin: "bottom" }}
                   cursor={isClickable ? "pointer" : "default"}
                   tabIndex={isClickable ? 0 : undefined}
                   role={isClickable ? "button" : undefined}

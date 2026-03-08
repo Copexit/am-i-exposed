@@ -56,6 +56,32 @@ describe("detectInputType", () => {
     expect(detectInputType("https://mempool.space/address/bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4")).toBe("address");
   });
 
+  // xpub / descriptor inputs
+  it("detects xpub as xpub type", () => {
+    expect(detectInputType(
+      "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8",
+    )).toBe("xpub");
+  });
+
+  it("detects zpub as xpub type", () => {
+    expect(detectInputType(
+      "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs",
+    )).toBe("xpub");
+  });
+
+  it("detects wpkh descriptor as xpub type", () => {
+    expect(detectInputType("wpkh(xpub6CUG/0/*)")).toBe("xpub");
+  });
+
+  // PSBT inputs
+  it("detects base64 PSBT", () => {
+    expect(detectInputType("cHNidP8BAFICAAAAAQEBAQEBAQEBx")).toBe("psbt");
+  });
+
+  it("detects hex PSBT", () => {
+    expect(detectInputType("70736274ff0100520200000001")).toBe("psbt");
+  });
+
   // Invalid inputs
   it("returns invalid for short hex", () => {
     expect(detectInputType("abc123")).toBe("invalid");

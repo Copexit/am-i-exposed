@@ -5,6 +5,7 @@ import type {
   MempoolTransaction,
   MempoolAddress,
   MempoolUtxo,
+  MempoolOutspend,
 } from "./types";
 
 /**
@@ -78,9 +79,20 @@ export function createApiClient(config: NetworkConfig, signal?: AbortSignal) {
       );
     },
 
+    getTxOutspends(txid: string): Promise<MempoolOutspend[]> {
+      return withFallback(
+        (c) => c.getTxOutspends(txid),
+        (c) => c.getTxOutspends(txid),
+      );
+    },
+
     getHistoricalPrice(timestamp: number): Promise<number | null> {
       // Price API is mempool.space-specific, no Esplora fallback
       return mempool.getHistoricalPrice(timestamp);
+    },
+
+    getHistoricalEurPrice(timestamp: number): Promise<number | null> {
+      return mempool.getHistoricalEurPrice(timestamp);
     },
   };
 }

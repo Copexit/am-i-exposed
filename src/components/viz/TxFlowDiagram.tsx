@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { Sankey } from "@visx/sankey";
 import { Group } from "@visx/group";
@@ -12,7 +12,7 @@ import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import { formatSats, formatUsdValue } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
-import type { MempoolTransaction } from "@/lib/api/types";
+import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import type { SankeyExtraProperties, SankeyGraph } from "d3-sankey";
 
@@ -22,6 +22,8 @@ interface TxFlowDiagramProps {
   onAddressClick?: (address: string) => void;
   /** USD per BTC at the time the transaction was confirmed (mainnet only). */
   usdPrice?: number | null;
+  /** Per-output spend status. */
+  outspends?: MempoolOutspend[] | null;
 }
 
 interface NodeDatum extends SankeyExtraProperties {
@@ -36,6 +38,8 @@ interface NodeDatum extends SankeyExtraProperties {
   annotationFindingId?: string;
   anonSet?: number;
   anonColor?: string;
+  /** Whether this output has been spent (null = unknown). */
+  spent?: boolean | null;
 }
 
 interface LinkDatum extends SankeyExtraProperties {
@@ -51,6 +55,7 @@ interface TooltipData {
   annotation?: string;
   annotationReason?: string;
   lang: string;
+  spent?: boolean | null;
 }
 
 // Margins are computed per-render based on width (see FlowChart)
@@ -92,6 +97,15 @@ function getNodeStyle(n: NodeDatum, isHovered: boolean): { fill: string; filter?
   return { fill: "url(#grad-output)", filter: isHovered ? "url(#glow-medium)" : undefined };
 }
 
+interface FlowChartProps extends TxFlowDiagramProps {
+  width: number;
+  height: number;
+  showAllInputs: boolean;
+  showAllOutputs: boolean;
+  onToggleShowAllInputs: () => void;
+  onToggleShowAllOutputs: () => void;
+}
+
 function FlowChart({
   width,
   height,
@@ -99,13 +113,16 @@ function FlowChart({
   findings,
   onAddressClick,
   usdPrice,
-}: TxFlowDiagramProps & { width: number; height: number }) {
+  outspends,
+  showAllInputs,
+  showAllOutputs,
+  onToggleShowAllInputs,
+  onToggleShowAllOutputs,
+}: FlowChartProps) {
   const { t, i18n } = useTranslation();
   const reducedMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
-  const [showAllInputs, setShowAllInputs] = useState(false);
-  const [showAllOutputs, setShowAllOutputs] = useState(false);
   const { tooltipOpen, tooltipData, tooltipLeft, tooltipTop, showTooltip, hideTooltip, handleTouch } =
     useChartTooltip<TooltipData>();
 
@@ -266,6 +283,7 @@ function FlowChart({
         annotationFindingId,
         anonSet: anonCount >= 2 ? anonCount : undefined,
         anonColor,
+        spent: outspends?.[i]?.spent ?? null,
       });
     }
 
@@ -311,7 +329,7 @@ function FlowChart({
 
     const g: SankeyGraph<NodeDatum, LinkDatum> = { nodes, links };
     return { graph: g, hiddenInputCount: hiddenIn, hiddenOutputCount: hiddenOut };
-  }, [tx, showAllInputs, showAllOutputs, changeOutputMap, dustOutputIndices, anonSets, t]);
+  }, [tx, showAllInputs, showAllOutputs, changeOutputMap, dustOutputIndices, anonSets, outspends, t]);
 
   const marginH = width < 500 ? 80 : 130;
   const MARGIN = { top: 8, right: marginH, bottom: 8, left: marginH };
@@ -333,6 +351,7 @@ function FlowChart({
         annotation: n.annotation,
         annotationReason: n.annotationReason,
         lang: i18n.language,
+        spent: n.spent,
       },
       tooltipLeft: elemRect.left - containerRect.left + elemRect.width / 2,
       tooltipTop: elemRect.top - containerRect.top,
@@ -386,12 +405,20 @@ function FlowChart({
                 })}
               </defs>
 
-              {/* Links */}
+              {/* Links - filter out ghost bands (near-zero width links) */}
               {(computed.links ?? []).map((link, i) => {
-                const sourceNode = link.source as unknown as { id: string };
-                const targetNode = link.target as unknown as { id: string };
+                const rawLinkWidth = (link as unknown as { width: number }).width ?? 0;
+                // Give OP_RETURN and other tiny outputs a minimum visible band
+                const targetNode = nodeMap.get((link.target as unknown as { id: string }).id);
+                const isOpReturn = targetNode?.label === "OP_RETURN";
+                const linkWidth = isOpReturn ? Math.max(rawLinkWidth, 2) : rawLinkWidth;
+                // Skip links with negligible width to prevent ghost bands
+                if (linkWidth < 0.5) return null;
+
+                const sourceNodeId = (link.source as unknown as { id: string }).id;
+                const targetNodeId = (link.target as unknown as { id: string }).id;
                 const isHighlighted =
-                  !hoveredNode || sourceNode.id === hoveredNode || targetNode.id === hoveredNode;
+                  !hoveredNode || sourceNodeId === hoveredNode || targetNodeId === hoveredNode;
                 const pathD = createPath(link) ?? "";
 
                 return (
@@ -400,7 +427,7 @@ function FlowChart({
                     d={pathD}
                     fill="none"
                     stroke={`url(#flow-link-${i})`}
-                    strokeWidth={Math.max(1, (link as unknown as { width: number }).width ?? 1)}
+                    strokeWidth={Math.max(1, linkWidth)}
                     strokeOpacity={isHighlighted ? 0.5 : 0.08}
                     initial={reducedMotion ? false : { pathLength: 0 }}
                     animate={{ pathLength: 1 }}
@@ -423,19 +450,22 @@ function FlowChart({
                 const labelX = isInput ? n.x0 - 8 : n.x1 + 8;
                 const labelAnchor = isInput ? "end" as const : "start" as const;
 
+                // Expand hitbox: extend into the label area for easier hover/touch
+                const hitboxPad = 80;
+                const hitboxX = isInput ? n.x0 - hitboxPad : n.x0;
+                const hitboxW = nw + hitboxPad;
+                const hitboxH = Math.max(nh, 20);
+                const hitboxY = n.y0 - (hitboxH - nh) / 2;
+
                 return (
                   <Group key={n.id}>
-                    <motion.rect
-                      x={n.x0}
-                      y={n.y0}
-                      width={nw}
-                      height={nh}
-                      fill={nodeStyle.fill}
-                      filter={nodeStyle.filter}
-                      rx={2}
-                      initial={reducedMotion ? false : { opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: i * ANIMATION_DEFAULTS.stagger, duration: ANIMATION_DEFAULTS.duration }}
+                    {/* Invisible expanded hitbox for hover/touch */}
+                    <rect
+                      x={hitboxX}
+                      y={hitboxY}
+                      width={hitboxW}
+                      height={hitboxH}
+                      fill="transparent"
                       cursor={isClickable ? "pointer" : "default"}
                       tabIndex={isClickable ? 0 : undefined}
                       role={isClickable ? "button" : undefined}
@@ -455,7 +485,21 @@ function FlowChart({
                       }}
                     />
 
-                    {/* Address label - clickable when address exists */}
+                    <motion.rect
+                      x={n.x0}
+                      y={n.y0}
+                      width={nw}
+                      height={nh}
+                      fill={nodeStyle.fill}
+                      filter={nodeStyle.filter}
+                      rx={2}
+                      initial={reducedMotion ? false : { opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: i * ANIMATION_DEFAULTS.stagger, duration: ANIMATION_DEFAULTS.duration }}
+                      style={{ pointerEvents: "none" }}
+                    />
+
+                    {/* Address label */}
                     <Text
                       x={labelX}
                       y={n.y0 + nh / 2 - (nh > 10 ? 6 : 0)}
@@ -464,27 +508,23 @@ function FlowChart({
                       fontSize={11}
                       fontFamily="var(--font-geist-mono), monospace"
                       fill={isClickable ? SVG_COLORS.bitcoin : SVG_COLORS.foreground}
-                      style={{ cursor: isClickable ? "pointer" : "default", textDecoration: isClickable ? "underline" : "none" }}
-                      onClick={() => { if (n.fullAddress && onAddressClick) onAddressClick(n.fullAddress); }}
+                      style={{ pointerEvents: "none" as const, textDecoration: isClickable ? "underline" : "none" }}
                     >
                       {n.label}
                     </Text>
 
-                    {/* Value label */}
-                    {nh > 10 && (
-                      <Text
-                        x={labelX}
-                        y={n.y0 + nh / 2 + 8}
-                        textAnchor={labelAnchor}
-                        verticalAnchor="middle"
-                        fontSize={10}
-                        fill={SVG_COLORS.muted}
-                        style={{ cursor: isClickable ? "pointer" : "default" }}
-                        onClick={() => { if (n.fullAddress && onAddressClick) onAddressClick(n.fullAddress); }}
-                      >
-                        {usdPrice != null ? `${formatSats(n.value, i18n.language)} (${formatUsdValue(n.value, usdPrice)})` : formatSats(n.value, i18n.language)}
-                      </Text>
-                    )}
+                    {/* Value label - always shown inline */}
+                    <Text
+                      x={labelX}
+                      y={n.y0 + nh / 2 + (nh > 10 ? 8 : 12)}
+                      textAnchor={labelAnchor}
+                      verticalAnchor="middle"
+                      fontSize={nh > 10 ? 10 : 9}
+                      fill={SVG_COLORS.muted}
+                      style={{ pointerEvents: "none" as const }}
+                    >
+                      {usdPrice != null ? `${formatSats(n.value, i18n.language)} (${formatUsdValue(n.value, usdPrice)})` : formatSats(n.value, i18n.language)}
+                    </Text>
 
                     {/* Annotation badge (change, dust) - clickable to scroll to finding */}
                     {n.annotation && !isInput && (
@@ -522,6 +562,18 @@ function FlowChart({
                         {`[${n.anonSet}x]`}
                       </Text>
                     )}
+
+                    {/* Spent/unspent indicator dot */}
+                    {!isInput && n.side === "output" && n.spent != null && (
+                      <circle
+                        cx={n.x1 + 3}
+                        cy={n.y0 + nh / 2}
+                        r={3}
+                        fill={n.spent ? SVG_COLORS.critical : SVG_COLORS.good}
+                        fillOpacity={0.8}
+                        style={{ pointerEvents: "none" }}
+                      />
+                    )}
                   </Group>
                 );
               })}
@@ -551,6 +603,13 @@ function FlowChart({
                 )}
               </p>
             )}
+            {tooltipData.spent != null && tooltipData.side === "output" && (
+              <p className="text-xs" style={{ color: tooltipData.spent ? SVG_COLORS.critical : SVG_COLORS.good }}>
+                {tooltipData.spent
+                  ? t("viz.flow.spent", { defaultValue: "Spent" })
+                  : t("viz.flow.unspent", { defaultValue: "Unspent (UTXO)" })}
+              </p>
+            )}
           </div>
         </ChartTooltip>
       )}
@@ -559,12 +618,12 @@ function FlowChart({
       {(hiddenInputCount > 0 || hiddenOutputCount > 0) && (
         <div className="flex justify-between px-2 mt-1">
           {hiddenInputCount > 0 ? (
-            <button onClick={() => setShowAllInputs(true)} className="text-xs text-muted hover:text-foreground transition-colors cursor-pointer">
+            <button onClick={onToggleShowAllInputs} className="text-xs text-muted hover:text-foreground transition-colors cursor-pointer">
               {t("tx.moreItems", { count: hiddenInputCount, defaultValue: `+${hiddenInputCount} more` })}
             </button>
           ) : <div />}
           {hiddenOutputCount > 0 ? (
-            <button onClick={() => setShowAllOutputs(true)} className="text-xs text-muted hover:text-foreground transition-colors cursor-pointer">
+            <button onClick={onToggleShowAllOutputs} className="text-xs text-muted hover:text-foreground transition-colors cursor-pointer">
               {t("tx.moreItems", { count: hiddenOutputCount, defaultValue: `+${hiddenOutputCount} more` })}
             </button>
           ) : <div />}
@@ -574,42 +633,145 @@ function FlowChart({
   );
 }
 
-export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice }: TxFlowDiagramProps) {
+export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspends }: TxFlowDiagramProps) {
   const { t, i18n } = useTranslation();
+  const [showAllInputs, setShowAllInputs] = useState(false);
+  const [showAllOutputs, setShowAllOutputs] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const isLargeTx = tx.vin.length + tx.vout.length > 10;
+
+  const displayInCount = showAllInputs ? tx.vin.length : Math.min(tx.vin.length, MAX_DISPLAY);
+  const displayOutCount = showAllOutputs ? tx.vout.length : Math.min(tx.vout.length, MAX_DISPLAY);
+  const maxSide = Math.max(displayInCount, displayOutCount + (tx.fee > 0 ? 1 : 0));
+  const chartHeight = Math.max(160, Math.min(450, maxSide * 40 + 40));
+
+  // Close on Escape key
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Escape") setIsExpanded(false);
+  }, []);
+
+  useEffect(() => {
+    if (isExpanded) {
+      document.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.removeEventListener("keydown", handleKeyDown);
+        document.body.style.overflow = "";
+      };
+    }
+  }, [isExpanded, handleKeyDown]);
 
   return (
-    <div className="w-full glass rounded-xl p-4 sm:p-6 space-y-3">
-      <div className="flex items-center justify-between text-sm text-muted uppercase tracking-wider">
-        <span>{t("tx.inputCount", { count: tx.vin.length, defaultValue: `${tx.vin.length} inputs` })}</span>
-        <span className="text-xs">{t("viz.flow.title", { defaultValue: "Transaction flow" })}</span>
-        <span>{t("tx.outputCount", { count: tx.vout.length, defaultValue: `${tx.vout.length} outputs` })}</span>
+    <>
+      <div className="w-full glass rounded-xl p-4 sm:p-6 space-y-3">
+        <div className="flex items-center justify-between text-sm text-muted uppercase tracking-wider">
+          <span>{t("tx.inputCount", { count: tx.vin.length, defaultValue: `${tx.vin.length} inputs` })}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs">{t("viz.flow.title", { defaultValue: "Transaction flow" })}</span>
+            {isLargeTx && (
+              <button
+                onClick={() => { setShowAllInputs(true); setShowAllOutputs(true); setIsExpanded(true); }}
+                className="text-muted hover:text-foreground transition-colors p-0.5 rounded"
+                title={t("viz.flow.expand", { defaultValue: "Expand to full view" })}
+                aria-label={t("viz.flow.expand", { defaultValue: "Expand to full view" })}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
+              </button>
+            )}
+          </div>
+          <span>{t("tx.outputCount", { count: tx.vout.length, defaultValue: `${tx.vout.length} outputs` })}</span>
+        </div>
+
+        <div style={{ minHeight: 160 }}>
+          <ParentSize>
+            {({ width }) => {
+              if (width < 1) return null;
+              return (
+                <FlowChart
+                  width={width}
+                  height={chartHeight}
+                  tx={tx}
+                  findings={findings}
+                  onAddressClick={onAddressClick}
+                  usdPrice={usdPrice}
+                  outspends={outspends}
+                  showAllInputs={showAllInputs}
+                  showAllOutputs={showAllOutputs}
+                  onToggleShowAllInputs={() => setShowAllInputs(true)}
+                  onToggleShowAllOutputs={() => setShowAllOutputs(true)}
+                />
+              );
+            }}
+          </ParentSize>
+        </div>
+
+        {/* Fee + size info */}
+        <div className="flex items-center justify-between text-sm text-muted border-t border-card-border pt-2">
+          <span>
+            {t("tx.fee", {
+              amount: formatSats(tx.fee, i18n.language),
+              rate: feeRate(tx),
+              defaultValue: `Fee: ${formatSats(tx.fee, i18n.language)} (${feeRate(tx)} sat/vB)`,
+            })}
+          </span>
+          <span>{tx.weight.toLocaleString(i18n.language)} WU</span>
+        </div>
       </div>
 
-      <div style={{ minHeight: 160 }}>
-        <ParentSize>
-          {({ width }) => {
-            if (width < 1) return null;
-            const maxSide = Math.max(Math.min(tx.vin.length, MAX_DISPLAY), Math.min(tx.vout.length, MAX_DISPLAY) + (tx.fee > 0 ? 1 : 0));
-            const h = Math.max(160, Math.min(450, maxSide * 40 + 40));
-            return (
-              <FlowChart width={width} height={h} tx={tx} findings={findings} onAddressClick={onAddressClick} usdPrice={usdPrice} />
-            );
-          }}
-        </ParentSize>
-      </div>
-
-      {/* Fee + size info */}
-      <div className="flex items-center justify-between text-sm text-muted border-t border-card-border pt-2">
-        <span>
-          {t("tx.fee", {
-            amount: formatSats(tx.fee, i18n.language),
-            rate: feeRate(tx),
-            defaultValue: `Fee: ${formatSats(tx.fee, i18n.language)} (${feeRate(tx)} sat/vB)`,
-          })}
-        </span>
-        <span>{tx.weight.toLocaleString(i18n.language)} WU</span>
-      </div>
-    </div>
+      {/* Fullscreen modal overlay */}
+      {isExpanded && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("viz.flow.fullscreen", { defaultValue: "Transaction flow fullscreen" })}
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col"
+          onClick={(e) => { if (e.target === e.currentTarget) setIsExpanded(false); }}
+        >
+          <div className="flex items-center justify-between p-4 text-sm text-muted">
+            <span>{t("tx.inputCount", { count: tx.vin.length, defaultValue: `${tx.vin.length} inputs` })}</span>
+            <span className="text-xs uppercase tracking-wider">{t("viz.flow.title", { defaultValue: "Transaction flow" })}</span>
+            <div className="flex items-center gap-3">
+              <span>{t("tx.outputCount", { count: tx.vout.length, defaultValue: `${tx.vout.length} outputs` })}</span>
+              <button
+                onClick={() => setIsExpanded(false)}
+                className="text-muted hover:text-foreground transition-colors p-1.5 rounded-lg hover:bg-surface-inset"
+                aria-label={t("common.close", { defaultValue: "Close" })}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-auto px-4 pb-4">
+            <ParentSize>
+              {({ width }) => {
+                if (width < 1) return null;
+                const expandedMaxSide = Math.max(
+                  tx.vin.length,
+                  tx.vout.length + (tx.fee > 0 ? 1 : 0),
+                );
+                const expandedHeight = Math.max(400, expandedMaxSide * 40 + 40);
+                return (
+                  <FlowChart
+                    width={width}
+                    height={expandedHeight}
+                    tx={tx}
+                    findings={findings}
+                    onAddressClick={onAddressClick}
+                    usdPrice={usdPrice}
+                    outspends={outspends}
+                    showAllInputs={true}
+                    showAllOutputs={true}
+                    onToggleShowAllInputs={() => {}}
+                    onToggleShowAllOutputs={() => {}}
+                  />
+                );
+              }}
+            </ParentSize>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

@@ -6,12 +6,14 @@ import { WHIRLPOOL_DENOMS } from "@/lib/constants";
  * H11: Wallet Fingerprinting
  *
  * Analyzes raw transaction metadata to identify wallet software:
- * - nLockTime: Bitcoin Core sets to current block height, most others use 0
- * - nSequence: 0xfffffffd (RBF), 0xfffffffe (no-RBF), 0xffffffff (legacy)
- * - BIP69: Lexicographic input/output ordering (Electrum pattern)
- * - Low-R signatures: Bitcoin Core since 0.17 grinds for 32-byte R values
+ * - nVersion: 1 (legacy/Wasabi) vs 2 (BIP68-compliant)
+ * - nLockTime: 0, block height (exact / randomized / +1)
+ * - nSequence: per-input analysis + mixed detection
+ * - BIP69: Lexicographic input/output ordering
+ * - Low-R signatures: Bitcoin Core >= 0.17 grinds for 32-byte R values
  *
- * Research shows ~45% of transactions are identifiable by wallet.
+ * Uses a multi-signal decision tree for accurate wallet identification
+ * instead of single-signal labeling.
  *
  * Impact: -2 to -8
  */
@@ -22,105 +24,245 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
   if (tx.vin.some((v) => v.is_coinbase)) return { findings };
 
   const signals: string[] = [];
-  let walletGuess: string | null = null;
 
-  // --- nLockTime analysis ---
-  // nLockTime=0 is too common (~40-50% of all txs) to be a useful fingerprint.
-  // Only flag the positive signal: block-height locktime (Bitcoin Core anti-fee-sniping).
-  if (tx.locktime > 0 && tx.locktime < 500_000_000) {
-    // Looks like a block height - Bitcoin Core anti-fee-sniping
-    // Sparrow also uses the same pattern (based on bitcoinj/Bitcoin Core signing)
-    signals.push("nLockTime set to block height (Bitcoin Core / Sparrow pattern)");
-    walletGuess = "Bitcoin Core / Sparrow";
+  // ── Collect raw signal flags ──────────────────────────────────────────────
+
+  const isVersion1 = tx.version === 1;
+
+  // nLockTime categories
+  const locktimeZero = tx.locktime === 0;
+  let locktimeBlockExact = false;
+  let locktimeBlockRandomized = false;
+  let locktimeBlockPlus1 = false;
+  let locktimeBlockGeneral = false; // set to block height but can't determine delta
+
+  if (!locktimeZero && tx.locktime > 0 && tx.locktime < 500_000_000) {
+    if (tx.status.confirmed && tx.status.block_height) {
+      const delta = tx.status.block_height - tx.locktime;
+      if (delta === 0 || delta === 1) {
+        locktimeBlockExact = true;
+      } else if (delta >= 2 && delta <= 100) {
+        locktimeBlockRandomized = true;
+      } else if (delta === -1) {
+        locktimeBlockPlus1 = true;
+      } else {
+        locktimeBlockGeneral = true;
+      }
+    } else {
+      // Unconfirmed or no block_height available
+      locktimeBlockGeneral = true;
+    }
   }
 
-  // nVersion is too generic to be a useful fingerprint: nearly all modern
-  // wallets use version 2 (BIP68), and version 1 just means older software.
-  // Neither value narrows wallet identification meaningfully.
-
-  // --- nSequence analysis ---
-  const sequences = tx.vin
-    .filter((v) => !v.is_coinbase)
-    .map((v) => v.sequence);
+  // nSequence analysis
+  const nonCoinbaseVin = tx.vin.filter((v) => !v.is_coinbase);
+  const sequences = nonCoinbaseVin.map((v) => v.sequence);
+  const uniqueSequences = new Set(sequences);
+  const mixedSequence = uniqueSequences.size > 1;
 
   const allMaxMinus1 = sequences.every((s) => s === 0xfffffffe);
   const allMaxMinus2 = sequences.every((s) => s === 0xfffffffd);
   const allMax = sequences.every((s) => s === 0xffffffff);
+  const allZero = sequences.length > 0 && sequences.every((s) => s === 0);
 
-  if (allMaxMinus2) {
-    signals.push("nSequence=0xfffffffd (RBF enabled, Core/Electrum pattern)");
+  // BIP69 check (require >= 3 on each side to reduce false positives)
+  let isBip69 = false;
+  if (tx.vin.length >= 3 && tx.vout.length >= 3) {
+    isBip69 = checkBip69(tx);
+  }
+
+  // Low-R signature detection
+  let hasLowR = false;
+  if (rawHex) {
+    hasLowR = detectLowRSignatures(rawHex, nonCoinbaseVin.length);
+  }
+
+  // ── Build human-readable signal list ──────────────────────────────────────
+  // Note: nVersion=1 and nLockTime=0 are NOT counted as main signals because
+  // they're too common in old transactions to be useful fingerprints. They're
+  // surfaced as separate informational sub-findings (h11-legacy-version,
+  // h11-no-locktime) and used in the wallet identification decision tree.
+
+  if (locktimeBlockRandomized) {
+    signals.push("nLockTime randomized (Bitcoin Core >= 0.11 anti-fee-sniping)");
+  } else if (locktimeBlockPlus1) {
+    signals.push("nLockTime=block_height+1 (unusual pattern)");
+  } else if (locktimeBlockExact || locktimeBlockGeneral) {
+    signals.push("nLockTime set to block height (anti-fee-sniping)");
+  }
+
+  if (mixedSequence) {
+    signals.push("Mixed nSequence across inputs (fingerprint leak)");
+  } else if (allZero) {
+    signals.push("nSequence=0x00000000 (very conspicuous, almost nobody uses this)");
+  } else if (allMaxMinus2) {
+    signals.push("nSequence=0xfffffffd (RBF enabled)");
   } else if (allMaxMinus1) {
     signals.push("nSequence=0xfffffffe (RBF disabled, anti-fee-sniping)");
   } else if (allMax) {
     signals.push("nSequence=0xffffffff (legacy, no locktime/RBF)");
   }
 
-  // --- BIP69 lexicographic ordering check ---
-  // Require at least 2 on each side and at least one side >= 3 to reduce false positives.
-  // 1-input + 3-output has ~16.7% chance of random BIP69 compliance (too noisy).
-  // 2-input + 3-output: ~8.3% false positive rate (acceptable).
-  // Require both sides >= 3 to reduce false positive rate to ~2.8% (1/36)
-  if (tx.vin.length >= 3 && tx.vout.length >= 3) {
-    const isBip69 = checkBip69(tx);
-    if (isBip69) {
-      // Whirlpool/Samourai also use BIP69 - check for CoinJoin patterns
-      const isWhirlpoolPattern = detectWhirlpoolPattern(tx);
-      const isLargeCoinJoin = tx.vin.length >= 20 && tx.vout.length >= 20;
-      if (isWhirlpoolPattern) {
-        signals.push("BIP69 ordering + Whirlpool pattern (Ashigaru/Sparrow)");
-        walletGuess = "Ashigaru/Sparrow";
-      } else if (isLargeCoinJoin) {
-        signals.push("BIP69 ordering + large CoinJoin pattern (Wasabi/WabiSabi)");
-        walletGuess = "Wasabi Wallet";
-      } else if (allMax && tx.locktime === 0) {
-        // BIP69 + nSequence=0xffffffff + locktime=0: Samourai/Ashigaru pattern.
-        // Modern Electrum uses nSequence=0xfffffffd (RBF) and non-zero locktime.
-        signals.push("BIP69 ordering + legacy sequence + no locktime (Ashigaru/Samourai)");
-        walletGuess = "Ashigaru/Samourai";
-      } else {
-        signals.push("BIP69 lexicographic ordering (Electrum/BIP69-compatible)");
-        walletGuess = walletGuess ?? "Electrum (or BIP69-compatible)";
-      }
+  if (isBip69) {
+    signals.push("BIP69 lexicographic ordering");
+  }
+
+  if (hasLowR) {
+    signals.push("Low-R signatures (Bitcoin Core >= 0.17)");
+  }
+
+  // ── Wallet identification decision tree ───────────────────────────────────
+
+  let walletGuess: string | null = null;
+
+  // Check CoinJoin patterns first (most specific)
+  if (isBip69) {
+    const isWhirlpoolPattern = detectWhirlpoolPattern(tx);
+    const isLargeCoinJoin = tx.vin.length >= 20 && tx.vout.length >= 20;
+
+    if (isWhirlpoolPattern) {
+      walletGuess = "Ashigaru/Sparrow (Whirlpool)";
+    } else if (isLargeCoinJoin) {
+      walletGuess = "Wasabi Wallet (WabiSabi)";
+    } else if (allMax && locktimeZero) {
+      // BIP69 + nSequence=0xffffffff + locktime=0: Samourai/Ashigaru non-CoinJoin
+      walletGuess = "Ashigaru/Samourai";
+    } else if (allMaxMinus2) {
+      // BIP69 + RBF: Electrum pattern
+      walletGuess = "Electrum";
+    } else if (allMaxMinus1) {
+      // BIP69 + no-RBF: Sparrow/Ashigaru
+      walletGuess = "Sparrow/Ashigaru";
+    } else {
+      walletGuess = "Electrum (or BIP69-compatible)";
     }
   }
 
-  // --- Low-R signature detection (from raw hex) ---
-  if (rawHex) {
-    const hasLowR = detectLowRSignatures(rawHex, tx.vin.length);
-    if (hasLowR) {
-      // Low-R grinding - Bitcoin Core >= 0.17 (PR #13666). Sparrow does NOT grind nonces.
-      signals.push("Low-R signatures (Bitcoin Core >= 0.17)");
-      walletGuess = walletGuess ?? "Bitcoin Core";
+  // nVersion=1 + nLockTime=0 + nSequence=0xffffffff is consistent with Wasabi Wallet
+  // non-CoinJoin spends, BUT also matches all pre-BIP68 legacy transactions.
+  // Cannot distinguish reliably - do not assign wallet guess.
+  // Wasabi CoinJoins are detected via the BIP69 + large CoinJoin branch above.
+
+  // Bitcoin Core high confidence: randomized locktime + Low-R
+  if (!walletGuess && locktimeBlockRandomized && hasLowR) {
+    walletGuess = "Bitcoin Core";
+  }
+
+  // Bitcoin Core medium confidence: block height locktime + Low-R + NOT BIP69
+  if (!walletGuess && (locktimeBlockExact || locktimeBlockGeneral) && hasLowR && !isBip69) {
+    walletGuess = "Bitcoin Core";
+  }
+
+  // Ambiguous: block height locktime + no Low-R + no BIP69
+  // Many wallets match: Core, Sparrow, Electrum, Ashigaru, Trezor...
+  // Only label when we have a distinguishing signal
+  if (!walletGuess && (locktimeBlockExact || locktimeBlockGeneral || locktimeBlockRandomized)) {
+    if (allMaxMinus2 && !isBip69) {
+      // RBF + locktime + no BIP69: could be Core, Sparrow, or Electrum
+      // Too ambiguous to label a single wallet
+      walletGuess = null;
+    } else if (allMaxMinus1 && !isBip69) {
+      // no-RBF + locktime: could be Core (older), Sparrow, Trezor
+      walletGuess = null;
     }
+  }
+
+  // ── Sub-findings for specific field values ────────────────────────────────
+
+  // nVersion=1 is a standalone privacy signal (narrows to Wasabi/legacy)
+  // Impact is 0 because the main h11-wallet-fingerprint finding already accounts for it
+  if (isVersion1) {
+    findings.push({
+      id: "h11-legacy-version",
+      severity: "low",
+      confidence: "deterministic",
+      title: "Legacy transaction version (nVersion=1)",
+      description:
+        "This transaction uses nVersion=1, which is uncommon in modern wallets. " +
+        "This narrows identification to legacy software or Wasabi Wallet.",
+      recommendation:
+        "Use a wallet that creates nVersion=2 transactions (BIP68-compliant). " +
+        "Most modern wallets (Bitcoin Core, Sparrow, Electrum, Ashigaru) use nVersion=2.",
+      scoreImpact: 0,
+    });
+  }
+
+  // nLockTime=0 is a standalone privacy signal (no anti-fee-sniping)
+  // Impact is 0 because the main h11-wallet-fingerprint finding already accounts for it
+  if (locktimeZero) {
+    findings.push({
+      id: "h11-no-locktime",
+      severity: "low",
+      confidence: "deterministic",
+      title: "No anti-fee-sniping protection (nLockTime=0)",
+      description:
+        "This transaction has nLockTime=0, meaning it lacks anti-fee-sniping protection. " +
+        "Most modern wallets set nLockTime to the current block height. " +
+        "Not using it fingerprints the wallet and slightly weakens network security.",
+      recommendation:
+        "Use a wallet that sets nLockTime to the current block height " +
+        "(Bitcoin Core, Sparrow, Electrum, and Ashigaru all do this).",
+      scoreImpact: 0,
+    });
+  }
+
+  // Mixed nSequence is a clear fingerprint leak
+  // Impact is 0 because the main h11-wallet-fingerprint finding already accounts for it
+  if (mixedSequence) {
+    findings.push({
+      id: "h11-mixed-sequence",
+      severity: "low",
+      confidence: "deterministic",
+      title: "Mixed nSequence values across inputs",
+      description:
+        "This transaction uses different nSequence values across its inputs. " +
+        "Consistent nSequence values are expected from a single wallet. Mixed values " +
+        "may indicate coin control with manual overrides or multi-party construction.",
+      recommendation:
+        "Standard wallets use uniform nSequence across all inputs. " +
+        "If using coin control, ensure sequence values are consistent.",
+      scoreImpact: 0,
+    });
   }
 
   if (signals.length === 0) return { findings };
 
-  // Determine severity based on identifiability
+  // ── Main fingerprint finding ──────────────────────────────────────────────
+
   let severity: Severity;
   let impact: number;
 
-  if (walletGuess === "Bitcoin Core / Sparrow" || walletGuess === "Bitcoin Core") {
-    // Bitcoin Core (and Sparrow for nLockTime/nSequence) share broad patterns.
-    // This large combined user base means the fingerprint is less
-    // identifying - reduced severity.
+  if (walletGuess === "Bitcoin Core") {
+    // Large anonymity set (~40% of network) - still identifiable but common
     severity = "low";
-    impact = -3;
-  } else if (walletGuess) {
+    impact = -5;
+  } else if (walletGuess === "Electrum" || walletGuess === "Electrum (or BIP69-compatible)") {
+    // Moderate anonymity set - BIP69 ordering is a strong fingerprint
     severity = "medium";
     impact = -6;
+  } else if (walletGuess === "Ashigaru/Samourai" || walletGuess === "Ashigaru/Sparrow (Whirlpool)" || walletGuess === "Sparrow/Ashigaru") {
+    // Niche privacy wallets - small anonymity set narrows identification
+    severity = "medium";
+    impact = -7;
+  } else if (walletGuess === "Wasabi Wallet" || walletGuess === "Wasabi Wallet (WabiSabi)") {
+    // Wasabi's nVersion=1 pattern is very distinctive - small anonymity set
+    severity = "medium";
+    impact = -7;
+  } else if (walletGuess) {
+    // Unknown/rare wallet - very small anonymity set
+    severity = "medium";
+    impact = -8;
   } else if (signals.length >= 3) {
+    // Multiple signals but no wallet match - still narrows identification
     severity = "low";
-    impact = -4;
+    impact = -5;
   } else {
+    // Minimal fingerprint signals
     severity = "low";
-    impact = -2;
+    impact = -3;
   }
 
-  // Use i18next context param for variant key selection:
-  // walletGuess present -> context: "identified" -> title_identified
-  // no walletGuess, 1 signal -> context: "signals_one" -> title_signals_one
-  // no walletGuess, >1 signals -> context: "signals_other" -> title_signals_other
+  // i18next context for variant key selection
   const context = walletGuess
     ? "identified"
     : signals.length === 1
@@ -131,13 +273,20 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
     ? `Wallet fingerprint: likely ${walletGuess}`
     : `${signals.length} wallet fingerprinting signal${signals.length > 1 ? "s" : ""} detected`;
 
+  // Anonymity set context for the description
+  const anonSetNote = getAnonymitySetNote(walletGuess);
+
   const description = walletGuess
-    ? `Transaction metadata reveals wallet characteristics: ${signals.join("; ")}. These signals are consistent with ${walletGuess}. Wallet identification helps chain analysts narrow down the software used, which combined with other data can aid in deanonymization.`
-    : `Transaction metadata reveals wallet characteristics: ${signals.join("; ")}. Wallet identification helps chain analysts narrow down the software used, which combined with other data can aid in deanonymization.`;
+    ? `Transaction metadata reveals wallet characteristics: ${signals.join("; ")}. ` +
+      `These signals are consistent with ${walletGuess}. ${anonSetNote}`
+    : `Transaction metadata reveals wallet characteristics: ${signals.join("; ")}. ` +
+      `Wallet identification helps chain analysts narrow down the software used, ` +
+      `which combined with other data can aid in deanonymization.`;
 
   findings.push({
     id: "h11-wallet-fingerprint",
     severity,
+    confidence: "medium",
     title,
     params: {
       ...(walletGuess ? { walletGuess } : {}),
@@ -147,15 +296,56 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
     },
     description,
     recommendation:
-      "Wallet fingerprinting is difficult to avoid without modifying wallet software. " +
-      "Using popular wallets with large user bases reduces the identifying power of fingerprints. " +
-      "The larger the anonymity set for your address type, the harder it is to narrow down your wallet. " +
-      "Bitcoin Core has the largest user base, making its fingerprint less unique.",
+      "Every wallet leaves a fingerprint - the goal is not invisibility but blending in. " +
+      "Wallets with millions of users (Bitcoin Core, Sparrow, Electrum) create large anonymity sets " +
+      "where your transaction looks like millions of others. Niche wallets create small sets that " +
+      "narrow identification. The fingerprint itself is unavoidable; what matters is how many " +
+      "people share it.",
     scoreImpact: impact,
   });
 
   return { findings };
 };
+
+/** Provide anonymity set context for each wallet family. */
+function getAnonymitySetNote(walletGuess: string | null): string {
+  if (!walletGuess) return "";
+
+  if (walletGuess === "Bitcoin Core") {
+    return (
+      "Bitcoin Core has the largest user base - this fingerprint is shared by millions of " +
+      "transactions, making it one of the least identifying patterns."
+    );
+  }
+  if (walletGuess.startsWith("Electrum")) {
+    return (
+      "Electrum has a moderate user base. Its BIP69 ordering creates a recognizable " +
+      "but not uncommon pattern."
+    );
+  }
+  if (walletGuess.includes("Wasabi")) {
+    return (
+      "Wasabi's nVersion=1 + nLockTime=0 combination is distinctive and shared by " +
+      "fewer transactions, making it more identifying."
+    );
+  }
+  if (walletGuess.includes("Ashigaru") || walletGuess.includes("Samourai")) {
+    return (
+      "The Samourai/Ashigaru fingerprint pattern narrows identification to a " +
+      "privacy-focused but smaller user base."
+    );
+  }
+  if (walletGuess.includes("Sparrow")) {
+    return (
+      "Sparrow shares many fingerprint traits with Bitcoin Core, giving it a " +
+      "relatively large combined anonymity set."
+    );
+  }
+  return (
+    "Wallet identification helps chain analysts narrow down the software used, " +
+    "which combined with other data can aid in deanonymization."
+  );
+}
 
 
 /** Detect Whirlpool CoinJoin pattern: 5+ equal outputs at known denominations (5-10 total outputs). */

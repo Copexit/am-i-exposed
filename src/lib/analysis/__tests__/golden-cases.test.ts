@@ -35,8 +35,8 @@ afterEach(() => {
 /** Run analyzeTransaction with fake timer advancement */
 async function runTxAnalysis(tx: MempoolTransaction) {
   const promise = analyzeTransaction(tx);
-  // 13 heuristics * 50ms tick each = 650ms needed
-  await vi.advanceTimersByTimeAsync(1000);
+  // 24 heuristics * 50ms tick each = 1200ms needed
+  await vi.advanceTimersByTimeAsync(10000);
   return promise;
 }
 
@@ -47,8 +47,8 @@ async function runAddrAnalysis(
   txs: MempoolTransaction[],
 ) {
   const promise = analyzeAddress(addr, utxos, txs);
-  // 4 address heuristics * 50ms tick = 200ms needed
-  await vi.advanceTimersByTimeAsync(500);
+  // 6 address heuristics * 50ms tick = 300ms needed
+  await vi.advanceTimersByTimeAsync(600);
   return promise;
 }
 
@@ -56,14 +56,14 @@ describe("golden test cases - transactions", () => {
   it.each([
     ["Whirlpool CoinJoin", whirlpoolTx, "A+", 100],
     ["WabiSabi CoinJoin", wabisabiTx, "A+", 100],
-    ["JoinMarket CoinJoin", joinmarketTx, "B", 89],
-    ["Taproot + OP_RETURN", taprootOpReturnTx, "C", 57],
-    ["Bare multisig", bareMultisigTx, "F", 20],
-    ["OP_RETURN charley loves heidi", opReturnCharleyTx, "C", 50],
-    ["Simple legacy P2PKH", simpleLegacyTx, "C", 61],
-    ["Batch withdrawal 143 outputs", batchWithdrawalTx, "C", 63],
-    ["Dust attack 555 sats", dustAttackTx, "D", 38],
-    ["Taproot script-path spend", taprootScriptPathTx, "C", 56],
+    ["JoinMarket CoinJoin", joinmarketTx, "B", 81],
+    ["Taproot + OP_RETURN", taprootOpReturnTx, "D", 49],
+    ["Bare multisig", bareMultisigTx, "F", 8],
+    ["OP_RETURN charley loves heidi", opReturnCharleyTx, "D", 49],
+    ["Simple legacy P2PKH", simpleLegacyTx, "C", 52],
+    ["Batch withdrawal 143 outputs", batchWithdrawalTx, "C", 56],
+    ["Dust attack 555 sats", dustAttackTx, "F", 24],
+    ["Taproot script-path spend", taprootScriptPathTx, "C", 58],
   ] as const)(
     "%s -> grade %s, score %i",
     async (_name, tx, expectedGrade, expectedScore) => {

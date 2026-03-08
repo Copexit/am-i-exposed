@@ -23,6 +23,7 @@ export const analyzeTiming: TxHeuristic = (tx) => {
     findings.push({
       id: "timing-unconfirmed",
       severity: "low",
+      confidence: "deterministic",
       title: "Transaction is unconfirmed (mempool visible)",
       description:
         "This transaction has not yet been confirmed in a block. " +
@@ -45,6 +46,7 @@ export const analyzeTiming: TxHeuristic = (tx) => {
       findings.push({
         id: "timing-locktime-timestamp",
         severity: "medium",
+        confidence: "deterministic",
         title: `nLockTime set to timestamp (${locktimeDate.toISOString().slice(0, 10)})`,
         params: { date: locktimeDate.toISOString().slice(0, 10), locktime: tx.locktime },
         description:
@@ -68,6 +70,7 @@ export const analyzeTiming: TxHeuristic = (tx) => {
         findings.push({
           id: "timing-stale-locktime",
           severity: "low",
+          confidence: "medium",
           title: `Transaction held for ~${diff} blocks before confirmation`,
           params: { diff, locktime: tx.locktime, blockHeight: status.block_height },
           description:

@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://am-i.exposed"),
   title: "am-i.exposed - Bitcoin Privacy Scanner",
   description:
-    "Is your Bitcoin traceable? Paste an address or txid - get a privacy score with 17 chain analysis heuristics. Free, client-side, no tracking.",
+    "Is your Bitcoin traceable? Paste an address or txid - get a privacy score with 30 chain analysis heuristics. Free, client-side, no tracking.",
   keywords: [
     "bitcoin transaction privacy",
     "check bitcoin privacy",
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "am-i.exposed - Bitcoin Privacy Scanner",
     description:
-      "Is your Bitcoin traceable? Paste an address or txid - get a privacy score with 17 chain analysis heuristics. Free, client-side, no tracking.",
+      "Is your Bitcoin traceable? Paste an address or txid - get a privacy score with 30 chain analysis heuristics. Free, client-side, no tracking.",
     url: "https://am-i.exposed/",
     siteName: "am-i.exposed",
     type: "website",
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "am-i.exposed - Bitcoin Privacy Scanner",
     description:
-      "Is your Bitcoin traceable? Paste an address or txid - get a privacy score with 17 chain analysis heuristics. Free, client-side, no tracking.",
+      "Is your Bitcoin traceable? Paste an address or txid - get a privacy score with 30 chain analysis heuristics. Free, client-side, no tracking.",
   },
   icons: {
     icon: [
@@ -107,10 +107,10 @@ export default function RootLayout({
                 url: "https://github.com/Copexit",
               },
               datePublished: "2025-04-01",
-              dateModified: "2026-03-04",
+              dateModified: "2026-03-07",
               screenshot: "https://am-i.exposed/opengraph-image",
               featureList: [
-                "17 Bitcoin privacy heuristics",
+                "30 Bitcoin privacy heuristics",
                 "Transaction and address analysis",
                 "CoinJoin detection (Whirlpool, WabiSabi, JoinMarket)",
                 "Boltzmann entropy estimation",

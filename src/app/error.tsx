@@ -27,7 +27,7 @@ export default function Error({
         </p>
         <button
           onClick={reset}
-          className="px-5 py-2.5 bg-bitcoin text-black font-semibold text-sm rounded-lg
+          className="px-5 py-2.5 bg-bitcoin text-background font-semibold text-sm rounded-lg
             hover:bg-bitcoin-hover transition-colors cursor-pointer"
         >
           {t("errors.try_again", { defaultValue: "Try again" })}

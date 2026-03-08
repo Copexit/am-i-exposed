@@ -17,6 +17,7 @@ export const analyzeCoinbase: TxHeuristic = (tx) => {
         {
           id: "coinbase-transaction",
           severity: "low",
+          confidence: "deterministic",
           title: "Coinbase transaction (block reward)",
           description:
             "This is a coinbase transaction that creates new coins as a block reward. " +

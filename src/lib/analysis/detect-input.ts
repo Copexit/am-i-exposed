@@ -1,5 +1,7 @@
 import type { InputType } from "@/lib/types";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
+import { isXpubOrDescriptor } from "@/lib/bitcoin/descriptor";
+import { isPSBT } from "@/lib/bitcoin/psbt";
 
 /** Extract a txid or address from a mempool.space / blockstream URL. */
 function extractFromUrl(input: string): string | null {
@@ -44,22 +46,28 @@ export function detectInputType(
   // txid: 64 hex chars (network-agnostic)
   if (/^[a-fA-F0-9]{64}$/.test(trimmed)) return "txid";
 
+  // PSBT (must be checked before xpub since both can be long base64-ish strings)
+  if (isPSBT(trimmed)) return "psbt";
+
+  // xpub / output descriptor (must be checked before address patterns)
+  if (isXpubOrDescriptor(trimmed)) return "xpub";
+
   const lower = trimmed.toLowerCase();
 
   // Bech32/bech32m mainnet (bc1q for P2WPKH/P2WSH, bc1p for P2TR)
   // Bech32 charset: qpzry9x8gf2tvdw0s3jn54khce6mua7l
   if (/^bc1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{39,87}$/.test(lower)) return "address";
-  // Legacy P2PKH (1...)
-  if (/^1[a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(trimmed)) return "address";
-  // P2SH (3...)
-  if (/^3[a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(trimmed)) return "address";
+  // Legacy P2PKH (1...) - total 25-34 chars
+  if (/^1[a-km-zA-HJ-NP-Z1-9]{24,33}$/.test(trimmed)) return "address";
+  // P2SH (3...) - total 25-34 chars
+  if (/^3[a-km-zA-HJ-NP-Z1-9]{24,33}$/.test(trimmed)) return "address";
 
   // Bech32/bech32m testnet/signet (tb1q for P2WPKH/P2WSH, tb1p for P2TR)
   if (/^tb1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{39,87}$/.test(lower)) return "address";
-  // Testnet P2PKH (m... or n...)
-  if (/^[mn][a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(trimmed)) return "address";
-  // Testnet P2SH (2...)
-  if (/^2[a-km-zA-HJ-NP-Z1-9]{25,34}$/.test(trimmed)) return "address";
+  // Testnet P2PKH (m... or n...) - total 25-34 chars
+  if (/^[mn][a-km-zA-HJ-NP-Z1-9]{24,33}$/.test(trimmed)) return "address";
+  // Testnet P2SH (2...) - version 0xC4 can encode up to 35 chars total
+  if (/^2[a-km-zA-HJ-NP-Z1-9]{24,34}$/.test(trimmed)) return "address";
 
   // Network parameter kept for API compatibility but validation is
   // permissive - on Umbrel the local mempool determines the network,

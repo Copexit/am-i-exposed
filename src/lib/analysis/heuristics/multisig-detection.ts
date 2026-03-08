@@ -7,6 +7,12 @@ const HODLHODL_FEE_ADDRESSES = new Set([
   "bc1qqmmzt02nu4rqxe03se2zqpw63k0khnwq959zxq",
 ]);
 
+/** Known Bisq fee collection addresses (mainnet). */
+const BISQ_FEE_ADDRESSES = new Set([
+  "bc1qwxsnvnt7724gg02q624q2pknaqjaaj0vff36vr", // taker fee
+  "bc1qfy0hw3txwtkr6xrhk965vjkqqcdn5vx2lrt64a", // maker fee
+]);
+
 /**
  * H17: Multisig/Escrow Detection
  *
@@ -55,6 +61,7 @@ export const analyzeMultisigDetection: TxHeuristic = (tx) => {
       findings.push({
         id: "h17-hodlhodl",
         severity: "high",
+        confidence: "high",
         title: "Likely HodlHodl escrow release (2-of-3 multisig)",
         params: {
           m: 2,
@@ -104,6 +111,7 @@ export const analyzeMultisigDetection: TxHeuristic = (tx) => {
     findings.push({
       id: "h17-escrow-2of3",
       severity: "medium",
+      confidence: "high",
       title: "2-of-3 multisig escrow detected",
       params: {
         m: 2,
@@ -133,6 +141,59 @@ export const analyzeMultisigDetection: TxHeuristic = (tx) => {
     return { findings };
   }
 
+  // ── Bisq 2-of-2 escrow detection (specific, check before generic 2-of-2) ──
+  // Pattern: 2-of-2 multisig input with output to known Bisq fee address
+  if (
+    multisigInputs.some((mi) => mi.info.m === 2 && mi.info.n === 2) &&
+    spendableOutputs.length >= 2 &&
+    spendableOutputs.length <= 3
+  ) {
+    const feeOutput = tx.vout.find(
+      (o) => o.scriptpubkey_address && BISQ_FEE_ADDRESSES.has(o.scriptpubkey_address),
+    );
+
+    if (feeOutput) {
+      const bisqInput = multisigInputs.find((mi) => mi.info.m === 2 && mi.info.n === 2)!;
+      findings.push({
+        id: "h17-bisq",
+        severity: "high",
+        confidence: "high",
+        title: "Likely Bisq escrow release (2-of-2 multisig)",
+        params: {
+          m: 2,
+          n: 2,
+          scriptType: bisqInput.info.scriptType,
+          feeAddress: feeOutput.scriptpubkey_address ?? "",
+          feeAmount: feeOutput.value,
+        },
+        description:
+          "This transaction matches the Bisq P2P exchange pattern: a 2-of-2 multisig input " +
+          "with an output to a known Bisq fee address. Both buyer and seller deposit collateral " +
+          "into the escrow, and this transaction releases the funds upon trade completion. " +
+          "The 2-of-2 multisig structure and fee address reveal this as a Bisq trade.",
+        recommendation:
+          "Bisq escrow transactions are identifiable on-chain due to the 2-of-2 multisig structure " +
+          "and reused fee address. Bisq v2 aims to use Taproot-based escrow which would eliminate " +
+          "this fingerprint. Use CoinJoin after receiving from Bisq to break the link.",
+        scoreImpact: -3,
+        remediation: {
+          steps: [
+            "The 2-of-2 multisig structure and fee address pattern cannot be undone for this transaction.",
+            "Use CoinJoin after receiving from Bisq to break the link between the trade and your other UTXOs.",
+            "For future trades, consider Lightning-based P2P exchanges (RoboSats) which leave no on-chain escrow footprint.",
+            "Bisq v2 is migrating toward Taproot-based escrow which will reduce on-chain fingerprinting.",
+          ],
+          tools: [
+            { name: "RoboSats (Lightning P2P)", url: "https://learn.robosats.com" },
+            { name: "Sparrow Wallet (CoinJoin)", url: "https://sparrowwallet.com" },
+          ],
+          urgency: "when-convenient",
+        },
+      });
+      return { findings };
+    }
+  }
+
   // ── 2-of-2 escrow detection ──────────────────────────────────────────
   // Pattern: single 2-of-2 multisig input, exactly 2 outputs
   // Could be: P2P exchange payout (Bisq), Lightning channel close, or custom escrow
@@ -155,6 +216,7 @@ export const analyzeMultisigDetection: TxHeuristic = (tx) => {
     findings.push({
       id: "h17-escrow-2of2",
       severity: "medium",
+      confidence: "high",
       title: "2-of-2 multisig escrow detected",
       params: {
         m: 2,
@@ -196,6 +258,7 @@ export const analyzeMultisigDetection: TxHeuristic = (tx) => {
   findings.push({
     id: "h17-multisig-info",
     severity: "low",
+    confidence: "deterministic",
     title: `Wrapped multisig detected: ${typeList}`,
     params: {
       m: first.m,

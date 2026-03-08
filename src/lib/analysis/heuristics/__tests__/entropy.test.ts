@@ -103,6 +103,37 @@ describe("analyzeEntropy", () => {
     expect(findings[0].remediation).toBeDefined();
   });
 
+  it("computes Boltzmann entropy when only a subset of inputs can fund equal outputs (k < n)", () => {
+    // 5 equal outputs of 100k sats, but only 3 of 5 inputs can fund them
+    // (2 inputs are too small). Previously this returned null and fell
+    // through to mixed-value enumeration, underestimating entropy.
+    //
+    // With the fix: k=3 fundable inputs, n=5 equal outputs
+    // boltzmannEqualOutputs(3) = 16, log2(16) = 4.0 bits
+    // C(5,3) = 10, log2(10) ~ 3.32 bits
+    // Total entropy ~ 7.32 bits
+    // impact = min(floor(7.32*2), 15) = 14
+    const tx = makeTx({
+      vin: [
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qa1", value: 200_000 } }),
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qa2", value: 200_000 } }),
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qa3", value: 200_000 } }),
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qa4", value: 50_000 } }),
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qa5", value: 50_000 } }),
+      ],
+      vout: Array.from({ length: 5 }, () => makeVout({ value: 100_000 })),
+    });
+    const { findings } = analyzeEntropy(tx);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].id).toBe("h5-entropy");
+    // boltzmannEqualOutputs(3) = 16 -> log2(16) = 4.0
+    // C(5,3) = 10 -> log2(10) ~ 3.3219
+    // total ~ 7.32 bits
+    expect(findings[0].params?.entropy).toBeCloseTo(7.32, 1);
+    expect(findings[0].params?.method).toBe("Boltzmann partition");
+    expect(findings[0].scoreImpact).toBe(14);
+  });
+
   it("returns empty for coinbase transactions", () => {
     const tx = makeTx({
       vin: [makeCoinbaseVin()],

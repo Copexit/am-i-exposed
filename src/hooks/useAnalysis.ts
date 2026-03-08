@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { createApiClient } from "@/lib/api/client";
@@ -19,6 +19,7 @@ import {
 } from "@/lib/analysis/orchestrator";
 import { checkOfac } from "@/lib/analysis/cex-risk/ofac-check";
 import { needsEnrichment, enrichPrevouts, countNullPrevouts } from "@/lib/api/enrich-prevouts";
+import { parsePSBT, type PSBTParseResult } from "@/lib/bitcoin/psbt";
 import type { ScoringResult, InputType, TxAnalysisResult, Finding } from "@/lib/types";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { HeuristicTranslator } from "@/lib/analysis/heuristics/types";
@@ -48,6 +49,10 @@ interface AnalysisState {
   durationMs: number | null;
   /** USD per BTC at the time the transaction was confirmed (mainnet only). */
   usdPrice: number | null;
+  /** Per-output spend status (null = not fetched yet). */
+  outspends: import("@/lib/api/types").MempoolOutspend[] | null;
+  /** Parsed PSBT metadata (only set when input is a PSBT). */
+  psbtData: PSBTParseResult | null;
 }
 
 const INITIAL_STATE: AnalysisState = {
@@ -66,6 +71,8 @@ const INITIAL_STATE: AnalysisState = {
   errorCode: null,
   durationMs: null,
   usdPrice: null,
+  outspends: null,
+  psbtData: null,
 };
 
 /** Build a finding for missing prevout data after enrichment. */
@@ -176,6 +183,59 @@ export function useAnalysis() {
         return;
       }
 
+      // xpub/descriptor inputs are handled by useWalletAnalysis, not here
+      if (inputType === "xpub") {
+        setState({
+          ...INITIAL_STATE,
+          phase: "error",
+          query: input,
+          inputType: "xpub",
+          error: "xpub",
+          errorCode: "not-retryable",
+        });
+        return;
+      }
+
+      // PSBT: parse locally and run tx heuristics without API calls
+      if (inputType === "psbt") {
+        const steps = getTxHeuristicSteps(ht);
+        const startTime = Date.now();
+        setState({
+          ...INITIAL_STATE,
+          phase: "analyzing",
+          query: input.slice(0, 32) + "...",
+          inputType: "psbt",
+          steps,
+        });
+
+        try {
+          const psbtResult = parsePSBT(input);
+          const result = await analyzeTransaction(psbtResult.tx, undefined, onStep);
+          if (controller.signal.aborted) return;
+
+          setState((prev) => ({
+            ...prev,
+            phase: "complete",
+            steps: markAllDone(prev.steps),
+            result,
+            txData: psbtResult.tx,
+            psbtData: psbtResult,
+            durationMs: Date.now() - startTime,
+          }));
+        } catch (err) {
+          if (controller.signal.aborted) return;
+          setState((prev) => ({
+            ...prev,
+            phase: "error",
+            error: err instanceof Error
+              ? t("errors.psbt_parse", { defaultValue: `Failed to parse PSBT: ${err.message}` })
+              : t("errors.unexpected", { defaultValue: "An unexpected error occurred." }),
+            errorCode: "not-retryable",
+          }));
+        }
+        return;
+      }
+
       const api = createApiClient(config, controller.signal);
 
       const steps =
@@ -208,10 +268,61 @@ export function useAnalysis() {
             });
           }
 
-          // Fetch historical USD price for confirmed mainnet txs
+          // Fetch historical fiat prices + outspend data for confirmed txs
+          // Also pre-fetch parent tx for peel chain detection (only for 1-input txs)
           let usdPrice: number | null = null;
+          let eurPrice: number | null = null;
+          let outspends: import("@/lib/api/types").MempoolOutspend[] | null = null;
+          let parentTx: MempoolTransaction | null = null;
+          const isPeelCandidate = tx.vin.length === 1 && !tx.vin[0].is_coinbase;
+          const parentTxPromise = isPeelCandidate
+            ? api.getTransaction(tx.vin[0].txid).catch(() => null)
+            : Promise.resolve(null);
+
           if (network === "mainnet" && tx.status?.block_time) {
-            usdPrice = await api.getHistoricalPrice(tx.status.block_time).catch(() => null);
+            [usdPrice, eurPrice, outspends, parentTx] = await Promise.all([
+              api.getHistoricalPrice(tx.status.block_time).catch(() => null),
+              api.getHistoricalEurPrice(tx.status.block_time).catch(() => null),
+              api.getTxOutspends(input).catch(() => null),
+              parentTxPromise,
+            ]);
+          } else if (tx.status?.confirmed) {
+            [outspends, parentTx] = await Promise.all([
+              api.getTxOutspends(input).catch(() => null),
+              parentTxPromise,
+            ]);
+          } else {
+            parentTx = await parentTxPromise;
+          }
+
+          // Fetch child tx for peel chain detection: if one of our outputs was
+          // spent, fetch the spending tx to check if it continues the peel pattern
+          let childTx: MempoolTransaction | null = null;
+          if (outspends && isPeelCandidate) {
+            const spentEntry = outspends.find((o) => o.spent && o.txid);
+            if (spentEntry?.txid) {
+              childTx = await api.getTransaction(spentEntry.txid).catch(() => null);
+            }
+          }
+
+          // Pre-fetch output address tx counts for fresh address change detection (H2 sub-heuristic 8)
+          // Only for 2-output txs (the change detection heuristic only applies to these)
+          let outputTxCounts: Map<string, number> | undefined;
+          const spendableOuts = tx.vout.filter(
+            (v) => v.scriptpubkey_type !== "op_return" && v.scriptpubkey_address && v.value > 0,
+          );
+          if (spendableOuts.length === 2) {
+            const addrs = spendableOuts.map((v) => v.scriptpubkey_address!);
+            const counts = await Promise.all(
+              addrs.map((addr) =>
+                api.getAddress(addr)
+                  .then((a) => a.chain_stats.tx_count + a.mempool_stats.tx_count)
+                  .catch(() => -1),
+              ),
+            );
+            if (counts.every((c) => c >= 0)) {
+              outputTxCounts = new Map(addrs.map((a, i) => [a, counts[i]]));
+            }
           }
 
           setState((prev) => ({
@@ -219,10 +330,19 @@ export function useAnalysis() {
             phase: "analyzing",
             txData: tx,
             usdPrice,
+            outspends,
           }));
 
-          const ctx = usdPrice ? { usdPrice } : undefined;
+          const ctx: import("@/lib/analysis/heuristics/types").TxContext = {
+            ...(usdPrice ? { usdPrice } : {}),
+            ...(eurPrice ? { eurPrice } : {}),
+            isCustomApi,
+            ...(parentTx ? { parentTx } : {}),
+            ...(childTx ? { childTx } : {}),
+            ...(outputTxCounts ? { outputTxCounts } : {}),
+          };
           const result = await analyzeTransaction(tx, rawHex, onStep, ctx);
+          if (controller.signal.aborted) return;
 
           // If prevout data is still missing after enrichment, warn the user
           const remainingNulls = countNullPrevouts([tx]);
@@ -291,11 +411,13 @@ export function useAnalysis() {
               analyzeAddress(address, utxos, txs, onStep),
               analyzeDestination(address, utxos, txs),
             ]);
+            if (controller.signal.aborted) return;
 
             // Run per-tx heuristic breakdown for address analysis
             const txBreakdown = txs.length > 0
               ? await analyzeTransactionsForAddress(input, txs)
               : null;
+            if (controller.signal.aborted) return;
 
             // If prevout data is still missing after enrichment, warn the user
             if (txs.length > 0) {
@@ -364,7 +486,7 @@ export function useAnalysis() {
           }
         } else if (err instanceof Error) {
           console.error("Analysis error:", err.name);
-          message = t("errors.unexpected", { defaultValue: "An unexpected error occurred. Please try again." });
+          message = t("errors.unexpected", { defaultValue: "An unexpected error occurred." });
         }
         setState((prev) => ({
           ...prev,
@@ -381,6 +503,11 @@ export function useAnalysis() {
     abortRef.current?.abort();
     abortRef.current = null;
     setState(INITIAL_STATE);
+  }, []);
+
+  // Abort in-flight requests on unmount
+  useEffect(() => {
+    return () => { abortRef.current?.abort(); };
   }, []);
 
   return { ...state, analyze, reset };

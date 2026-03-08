@@ -19,23 +19,37 @@ function getImpactColor(impact: string): string {
 }
 
 const HEURISTIC_IDS = [
-  { id: "H1", titleKey: "methodology.heuristic_h1_title", title: "Round Amount Detection", descKey: "methodology.heuristic_h1_description", desc: "Identifies round-number outputs that suggest intentional payment amounts.", impact: "-5 to -15" },
-  { id: "H2", titleKey: "methodology.heuristic_h2_title", title: "Change Detection", descKey: "methodology.heuristic_h2_description", desc: "Identifies likely change outputs using script type, value, and spending patterns.", impact: "-5 to -25" },
-  { id: "H3", titleKey: "methodology.heuristic_h3_title", title: "Common Input Ownership (CIOH)", descKey: "methodology.heuristic_h3_description", desc: "Evaluates whether all inputs belong to the same entity.", impact: "-6 to -45" },
-  { id: "H4", titleKey: "methodology.heuristic_h4_title", title: "CoinJoin Detection", descKey: "methodology.heuristic_h4_description", desc: "Detects Whirlpool, WabiSabi, and JoinMarket CoinJoin transactions.", impact: "+15 to +30" },
-  { id: "H5", titleKey: "methodology.heuristic_h5_title", title: "Boltzmann Entropy", descKey: "methodology.heuristic_h5_description", desc: "Measures transaction ambiguity using entropy analysis.", impact: "-5 to +15" },
-  { id: "H6", titleKey: "methodology.heuristic_h6_title", title: "Script Type Mixing", descKey: "methodology.heuristic_h6_description", desc: "Flags transactions that mix different address formats.", impact: "-8 to +2" },
-  { id: "H7", titleKey: "methodology.heuristic_h7_title", title: "OP_RETURN Data Leak", descKey: "methodology.heuristic_h7_description", desc: "Detects metadata embedded in OP_RETURN outputs.", impact: "-5 to -8" },
-  { id: "H8", titleKey: "methodology.heuristic_h8_title", title: "Address Reuse", descKey: "methodology.heuristic_h8_description", desc: "Identifies address reuse, which deterministically links transactions.", impact: "+3 to -93" },
+  // --- Transaction-level heuristics ---
+  { id: "H1", titleKey: "methodology.heuristic_h1_title", title: "Round Amount Detection", descKey: "methodology.heuristic_h1_description", desc: "Identifies round-number outputs that suggest intentional payment amounts, including round BTC and round USD/EUR equivalents.", impact: "-5 to -15" },
+  { id: "H2", titleKey: "methodology.heuristic_h2_title", title: "Change Detection", descKey: "methodology.heuristic_h2_description", desc: "Identifies likely change outputs using script type matching, value analysis, and the unnecessary input heuristic.", impact: "-5 to -25" },
+  { id: "H3", titleKey: "methodology.heuristic_h3_title", title: "Common Input Ownership (CIOH)", descKey: "methodology.heuristic_h3_description", desc: "Evaluates whether all inputs belong to the same entity based on the common input ownership assumption.", impact: "-6 to -45" },
+  { id: "H4", titleKey: "methodology.heuristic_h4_title", title: "CoinJoin and PayJoin Detection", descKey: "methodology.heuristic_h4_description", desc: "Detects Whirlpool, WabiSabi, JoinMarket CoinJoin, Stonewall, and PayJoin transactions.", impact: "-3 to +30" },
+  { id: "H5", titleKey: "methodology.heuristic_h5_title", title: "Boltzmann Entropy", descKey: "methodology.heuristic_h5_description", desc: "Measures transaction ambiguity using entropy analysis of possible input-output linkage combinations.", impact: "-5 to +15" },
+  { id: "H6", titleKey: "methodology.heuristic_h6_title", title: "Fee Analysis", descKey: "methodology.heuristic_h6_description", desc: "Analyzes fee rate precision and RBF signaling to fingerprint wallet software and user behavior.", impact: "-2" },
+  { id: "H7", titleKey: "methodology.heuristic_h7_title", title: "OP_RETURN Data Leak", descKey: "methodology.heuristic_h7_description", desc: "Detects metadata embedded in OP_RETURN outputs that may reveal protocols or services used.", impact: "-5 to -8" },
+  { id: "H11", titleKey: "methodology.heuristic_h11_title", title: "Wallet Fingerprinting", descKey: "methodology.heuristic_h11_description", desc: "Identifies wallet software from transaction structure, script patterns, and metadata signals.", impact: "-2 to -6" },
+  { id: "H12", titleKey: "methodology.heuristic_h12_title", title: "Dust Detection", descKey: "methodology.heuristic_h12_description", desc: "Flags dust-sized outputs that may be tracking attempts by chain surveillance firms.", impact: "-3 to -8" },
+  { id: "H14", titleKey: "methodology.heuristic_h14_title", title: "Timing Analysis", descKey: "methodology.heuristic_h14_description", desc: "Evaluates mempool visibility, nLockTime values, and broadcast timing for privacy implications.", impact: "-1 to -3" },
+  { id: "H15", titleKey: "methodology.heuristic_h15_title", title: "Script Type Mix Analysis", descKey: "methodology.heuristic_h15_description", desc: "Flags transactions mixing different address formats (P2PKH, P2SH, P2WPKH, P2TR), which aids change detection.", impact: "-8 to +2" },
+  { id: "H17", titleKey: "methodology.heuristic_h17_title", title: "Multisig/Escrow Detection", descKey: "methodology.heuristic_h17_description", desc: "Parses multisig inputs to determine M-of-N configuration and detect escrow patterns.", impact: "0 to -3" },
+  { id: "CB", titleKey: "methodology.heuristic_cb_title", title: "Coinbase Transaction Detection", descKey: "methodology.heuristic_cb_description", desc: "Identifies mining reward transactions and their privacy implications for the recipient.", impact: "0" },
+  { id: "ANON", titleKey: "methodology.heuristic_anon_title", title: "Anonymity Set Analysis", descKey: "methodology.heuristic_anon_description", desc: "Evaluates whether the transaction has meaningful equal-value output groups that provide plausible deniability.", impact: "-1 to +5" },
+  { id: "PEEL", titleKey: "methodology.heuristic_peel_title", title: "Peel Chain Detection", descKey: "methodology.heuristic_peel_description", desc: "Detects peel chains where small amounts are repeatedly peeled off a large UTXO across multiple hops.", impact: "-3 to -5" },
+  { id: "CONS", titleKey: "methodology.heuristic_cons_title", title: "Consolidation Detection", descKey: "methodology.heuristic_cons_description", desc: "Identifies UTXO consolidation transactions that link multiple addresses to the same wallet.", impact: "-2 to -5" },
+  { id: "UI", titleKey: "methodology.heuristic_ui_title", title: "Unnecessary Input Detection", descKey: "methodology.heuristic_ui_description", desc: "Flags transactions where a single input could have funded the payment, revealing additional wallet UTXOs.", impact: "-2 to -3" },
+  { id: "TX0", titleKey: "methodology.heuristic_tx0_title", title: "CoinJoin Premix (tx0) Detection", descKey: "methodology.heuristic_tx0_description", desc: "Identifies Whirlpool tx0 premix transactions that prepare UTXOs for CoinJoin rounds.", impact: "-2 to +2" },
+  { id: "BIP69", titleKey: "methodology.heuristic_bip69_title", title: "BIP69 Ordering Detection", descKey: "methodology.heuristic_bip69_description", desc: "Detects lexicographic input/output ordering (BIP69) which narrows wallet identification.", impact: "-1" },
+  { id: "BIP47", titleKey: "methodology.heuristic_bip47_title", title: "BIP47 Notification Detection", descKey: "methodology.heuristic_bip47_description", desc: "Identifies BIP47 payment code notification transactions.", impact: "0" },
+  { id: "XCHG", titleKey: "methodology.heuristic_xchg_title", title: "Exchange Pattern Detection", descKey: "methodology.heuristic_xchg_description", desc: "Identifies patterns typical of exchange deposits and withdrawals.", impact: "-2 to -5" },
+  { id: "CSEL", titleKey: "methodology.heuristic_csel_title", title: "Coin Selection Analysis", descKey: "methodology.heuristic_csel_description", desc: "Identifies coin selection algorithms (knapsack, branch-and-bound, FIFO) that fingerprint wallet software.", impact: "-1 to -2" },
+  { id: "WIT", titleKey: "methodology.heuristic_wit_title", title: "Witness Data Analysis", descKey: "methodology.heuristic_wit_description", desc: "Analyzes witness stack structure, signature types, and depth patterns for wallet fingerprinting.", impact: "-1 to -3" },
+  // --- Address-level heuristics ---
+  { id: "H8", titleKey: "methodology.heuristic_h8_title", title: "Address Reuse", descKey: "methodology.heuristic_h8_description", desc: "Identifies address reuse, which deterministically links transactions to the same entity.", impact: "+3 to -93" },
   { id: "H9", titleKey: "methodology.heuristic_h9_title", title: "UTXO Set Analysis", descKey: "methodology.heuristic_h9_description", desc: "Analyzes UTXO set for dust, consolidation risk, and hygiene.", impact: "+2 to -11" },
-  { id: "H10", titleKey: "methodology.heuristic_h10_title", title: "Timing Analysis", descKey: "methodology.heuristic_h10_description", desc: "Evaluates transaction timing patterns for privacy implications.", impact: "-1 to -3" },
-  { id: "H11", titleKey: "methodology.heuristic_h11_title", title: "Wallet Fingerprinting", descKey: "methodology.heuristic_h11_description", desc: "Identifies wallet software from transaction metadata.", impact: "-2 to -6" },
-  { id: "H12", titleKey: "methodology.heuristic_h12_title", title: "Spending Pattern Analysis", descKey: "methodology.heuristic_h12_description", desc: "Analyzes spending behavior for privacy-reducing patterns.", impact: "-5 to +2" },
-  { id: "H13", titleKey: "methodology.heuristic_h13_title", title: "Anonymity Set Analysis", descKey: "methodology.heuristic_h13_description", desc: "Evaluates the anonymity set size and mixing history.", impact: "-1 to +5" },
-  { id: "H14", titleKey: "methodology.heuristic_h14_title", title: "Coinbase Transaction Detection", descKey: "methodology.heuristic_h14_description", desc: "Identifies mining rewards and their privacy implications.", impact: "0" },
-  { id: "H15", titleKey: "methodology.heuristic_h15_title", title: "Dust Output Detection", descKey: "methodology.heuristic_h15_description", desc: "Flags dust-sized outputs that may be tracking attempts.", impact: "-3 to -8" },
-  { id: "H16", titleKey: "methodology.heuristic_h16_title", title: "Address Type Heuristic", descKey: "methodology.heuristic_h16_description", desc: "Evaluates address type for privacy properties.", impact: "-5 to 0" },
-  { id: "H17", titleKey: "methodology.heuristic_h17_title", title: "Multisig/Escrow Detection", descKey: "methodology.heuristic_h17_description", desc: "Identifies multisig and escrow transaction patterns.", impact: "0 to -3" },
+  { id: "H10", titleKey: "methodology.heuristic_h10_title", title: "Address Type Analysis", descKey: "methodology.heuristic_h10_description", desc: "Evaluates address type (P2PKH, P2SH, P2WPKH, P2TR) for privacy properties and anonymity set size.", impact: "-5 to 0" },
+  { id: "H16", titleKey: "methodology.heuristic_h16_title", title: "Spending Pattern Analysis", descKey: "methodology.heuristic_h16_description", desc: "Analyzes spending volume, cold storage patterns, and counterparty exposure at the address level.", impact: "-5 to +2" },
+  { id: "REC", titleKey: "methodology.heuristic_rec_title", title: "Recurring Payment Detection", descKey: "methodology.heuristic_rec_description", desc: "Detects recurring payment patterns that reveal regular financial relationships.", impact: "-1 to -3" },
+  { id: "HIGH", titleKey: "methodology.heuristic_high_title", title: "High Activity Detection", descKey: "methodology.heuristic_high_description", desc: "Flags addresses with unusually high transaction counts that increase surveillance exposure.", impact: "-2 to -5" },
 ];
 
 const GRADE_IDS = [
@@ -163,7 +177,7 @@ export default function MethodologyPage() {
             {t("methodology.heuristics_heading", { defaultValue: "Heuristics" })}
           </h2>
           <p className="text-muted leading-relaxed">
-            {t("methodology.heuristics_intro", { defaultValue: "The engine implements 17 heuristics that evaluate on-chain privacy - 13 at the transaction level and 4 at the address level. Each produces a score impact applied to a base score of 70." })}
+            {t("methodology.heuristics_intro", { defaultValue: "The engine implements 30 heuristics that evaluate on-chain privacy - 24 at the transaction level and 6 at the address level. Each produces a score impact applied to a base score of 70." })}
           </p>
           <div className="space-y-3">
             {HEURISTIC_IDS.map((h) => (

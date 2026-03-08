@@ -26,6 +26,7 @@ export const analyzeSpendingPattern: AddressHeuristic = (address, _utxos, txs) =
     findings.push({
       id: "spending-high-volume",
       severity: "medium",
+      confidence: "deterministic",
       title: `High transaction volume (${totalTxs.toLocaleString()} transactions)`,
       params: { totalTxs },
       description:
@@ -43,6 +44,7 @@ export const analyzeSpendingPattern: AddressHeuristic = (address, _utxos, txs) =
     findings.push({
       id: "spending-never-spent",
       severity: "good",
+      confidence: "deterministic",
       title: "Address has never spent (cold storage)",
       description:
         "This address has received funds but never spent them. " +
@@ -115,6 +117,7 @@ export const analyzeSpendingPattern: AddressHeuristic = (address, _utxos, txs) =
       findings.push({
         id: "spending-many-counterparties",
         severity: "medium",
+        confidence: "medium",
         title: `Transacted with ${counterparties.size}+ counterparties`,
         params: { counterpartyCount: counterparties.size },
         description:

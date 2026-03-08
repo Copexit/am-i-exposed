@@ -17,6 +17,7 @@ function makeApi(overrides: Partial<ApiClient> = {}): ApiClient {
     getAddressTxs: vi.fn().mockResolvedValue([]),
     getAddressUtxos: vi.fn().mockRejectedValue(new Error("not mocked")),
     getHistoricalPrice: vi.fn().mockResolvedValue(null),
+    getHistoricalEurPrice: vi.fn().mockResolvedValue(null),
     ...overrides,
   };
 }
@@ -55,6 +56,14 @@ describe("buildFirstDegreeCluster", () => {
     expect(result.addresses).toContain(ADDR_A);
     expect(result.addresses).toContain(ADDR_B);
     expect(result.size).toBe(3);
+    // Edges should connect target to co-inputs
+    expect(result.edges.length).toBe(2);
+    expect(result.edges).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ source: TARGET, target: ADDR_A }),
+        expect.objectContaining({ source: TARGET, target: ADDR_B }),
+      ]),
+    );
   });
 
   it("skips transactions where target is not an input", async () => {

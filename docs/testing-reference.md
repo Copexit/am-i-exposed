@@ -58,7 +58,7 @@
 ### 10. Dust Attack (555 sats)
 - **TXID:** `655c533bf059721cec9d3d70b3171a07997991a02fedfa1c9b593abc645e1cc5`
 - **Pattern:** Sends 555 sats (dust) to target address for tracking
-- **Expected score:** C-D
+- **Expected score:** F (deterministic address reuse in I/O triggers compound cap)
 - https://mempool.space/tx/655c533bf059721cec9d3d70b3171a07997991a02fedfa1c9b593abc645e1cc5
 
 ### 11. First Taproot Script-Path Spend (achow101, block 709635)
@@ -81,13 +81,13 @@
 |----------|------|------|---------------|-------|----------------|
 | Whirlpool 5x5 | tx | 70 | A+ | 100 | H4 (+30), H5 (+15), anon (+5), script (+2) |
 | WabiSabi 300+ | tx | 70 | A+ | 100 | H4 (+25), H5 (+15), anon (+5) |
-| Simple legacy P2PKH | tx | 70 | C | 60 | H5 (-5), H11 (-3), anon (-1), script (-1) |
+| Simple legacy P2PKH | tx | 70 | C | 53 | H2 (-10, compound -4), H11 (-3), anon (-1), script (-1) |
 | Taproot + OP_RETURN | tx | 70 | C | 57 | H5 (-5), H7 (-5), H11 (-2), script (-1) |
-| JoinMarket 2x equal | tx | 70 | B | 89 | H4 (+15), H5 (+2), anon (+1), script (+2), timing (-1) |
+| JoinMarket 2x equal | tx | 70 | B | 86 | H4 (+12 STONEWALLx2), H5 (+2), anon (+1), script (+2), timing (-1) |
 | Bare multisig | tx | 70 | F | 19 | H2 (-20), script-multisig (-8), H1 (-10), H3 (-6), H5 (-3), H11 (-2), anon (-1), script (-1) |
 | OP_RETURN charley | tx | 70 | C | 50 | H2 (-15), H7 (-5), H11 (-2), script (+2) |
-| Dust attack 555 sats | tx | 70 | D | 38 | H2 (-20), dust (-8), H5 (-3), H11 (-3), script (+2) |
-| Batch withdrawal 143 | tx | 70 | C | 63 | H5 (-3), script (-3), H11 (-2), anon (+1) |
+| Dust attack 555 sats | tx | 70 | F | 24 | H2 (-20), dust (-8), H5 (-3), H11 (0), script (+2), compound-cap (-15) |
+| Batch withdrawal 143 | tx | 70 | C | 57 | H5 (-3), script (-3), H11 (-2), anon (+1), fan-out (-3), exchange (-3) |
 | Taproot script-path | tx | 70 | C | 56 | H3 (-6), H5 (-3), H6 (-2), H11 (-3) |
 | Satoshi's address | addr | 93 | F | 0 | H8 (-93), H10 (-5), H9 dust (-8), spending (-5), cold (+2) |
 | SegWit reused 88x | addr | 93 | F | 0 | H8 (-90), H9 dust (-8), H9 utxo (-3), spending (-5) |

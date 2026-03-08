@@ -44,6 +44,7 @@ export const analyzeCioh: TxHeuristic = (tx) => {
         {
           id: "h3-single-input",
           severity: "good",
+          confidence: "deterministic",
           title: "Single input address",
           description:
             "This transaction uses a single input address, so the common-input-ownership heuristic does not apply. No address clustering is possible from inputs alone.",
@@ -68,6 +69,7 @@ export const analyzeCioh: TxHeuristic = (tx) => {
       {
         id: "h3-cioh",
         severity: impact >= 25 ? "critical" : impact >= 12 ? "high" : "medium",
+        confidence: "high",
         title: `${count} input addresses clustered via CIOH`,
         params: { count },
         description:

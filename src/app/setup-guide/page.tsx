@@ -260,7 +260,7 @@ export default function SetupGuidePage() {
         </section>
 
         {/* Umbrel manual */}
-        <section className="space-y-4">
+        <section id="umbrel-manual" className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground flex items-center gap-2">
             <Terminal size={22} />
             {t("setup.umbrel_manual_title", { defaultValue: "Umbrel (Manual)" })}
@@ -384,7 +384,7 @@ vi /etc/nginx/conf.d/nginx-mempool.conf`}</pre>
             </p>
 
             <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-foreground">Docker</h3>
+              <h3 className="text-lg font-semibold text-foreground">{t("setup.docker_section_title", { defaultValue: "Docker" })}</h3>
               <p className="text-muted leading-relaxed">
                 {t("setup.docker_setup_desc", { defaultValue: "The default Docker setup maps the frontend nginx to port 80 (or whichever port you configured). To persist CORS headers, mount a custom nginx config:" })}
               </p>
