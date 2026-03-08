@@ -100,6 +100,17 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
         "Ashigaru handles this automatically. Sparrow Wallet warns about type mismatches but does not correct them. " +
         "For stronger protection, use Stonewall or PayJoin transactions which break the change detection heuristic entirely.",
     });
+    // Small change disposal (4.6)
+    actions.push({
+      priority: 4,
+      textKey: "remediation.smallChangeDisposal",
+      textDefault: "Dispose of small change safely",
+      detailKey: "remediation.smallChangeDisposalDetail",
+      detailDefault:
+        "Small change outputs are toxic - they link future transactions back to this one. " +
+        "Options: send to a Monero atomic swap (UnstoppableSwap), open a Lightning channel with the change, " +
+        "or use a submarine swap service (LN <-> on-chain). Avoid letting small change sit in your wallet.",
+    });
   }
 
   // CoinJoin detected - encourage continuing and warn about exchange risks
@@ -174,11 +185,24 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
     actions.push({
       priority: 5,
       textKey: "remediation.walletFingerprint",
-      textDefault: "Consider wallet software with better fingerprint resistance",
+      textDefault: "Use a wallet with a large anonymity set",
       detailKey: "remediation.walletFingerprintDetail",
       detailDefault:
-        "Your wallet software can be identified through transaction patterns. " +
-        "Bitcoin Core, Sparrow, Ashigaru, and Wasabi have the best fingerprint resistance.",
+        "Every wallet leaves a fingerprint - the goal is not invisibility but blending in with millions. " +
+        "Bitcoin Core, Sparrow, and Electrum have the largest user bases, making their fingerprints the least identifying. " +
+        "Wallets like Exodus or Trust Wallet have small, distinctive fingerprints that reveal poor privacy practices.",
+    });
+    // Fingerprint randomization guidance (6.6)
+    actions.push({
+      priority: 6,
+      textKey: "remediation.fingerprintRandomization",
+      textDefault: "Randomize your wallet fingerprint between transactions",
+      detailKey: "remediation.fingerprintRandomizationDetail",
+      detailDefault:
+        "Sparrow Wallet allows manually changing nVersion and nLockTime before signing " +
+        "(Headers > Version and Absolute Locktime fields). Alternating between nVersion=1/2 " +
+        "and different nLockTime values makes consecutive transactions look like they come " +
+        "from different wallets, breaking the fingerprint chain.",
     });
   }
 
@@ -198,6 +222,17 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
         "When possible, spend exact amounts to avoid creating change. If you must consolidate, " +
         "consider CoinJoin - but note that some exchanges may flag CoinJoin deposits.",
     });
+    // Segregated spending guidance (6.7)
+    actions.push({
+      priority: 3,
+      textKey: "remediation.segregatedSpending",
+      textDefault: "Never mix KYC and non-KYC UTXOs",
+      detailKey: "remediation.segregatedSpendingDetail",
+      detailDefault:
+        "Use coin control to spend one UTXO at a time. Never combine inputs from different sources " +
+        "(exchange withdrawals, P2P purchases, CoinJoin outputs) in the same transaction. " +
+        "Label each UTXO with its source, risk level, and amount to make informed spending decisions.",
+    });
   }
 
   // Low-entropy simple transactions
@@ -210,6 +245,21 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
       detailDefault:
         "Simple 1-in/2-out transactions have low entropy, making analysis straightforward. " +
         "When possible, spend exact amounts to avoid change outputs. PayJoin (BIP78) adds inputs from the receiver to break common analysis heuristics.",
+    });
+  }
+
+  // Connection privacy (6.8) - show for any poor grade
+  if (grade === "C" || grade === "D" || grade === "F") {
+    actions.push({
+      priority: 6,
+      textKey: "remediation.connectionPrivacy",
+      textDefault: "Protect your network connection",
+      detailKey: "remediation.connectionPrivacyDetail",
+      detailDefault:
+        "Your wallet's network connection reveals your IP and all addresses to the server. " +
+        "Basic: clearnet public server (for small amounts). " +
+        "Intermediate: connect via Tor to mask your IP. " +
+        "Advanced: run your own node with Tor for full sovereignty - the server never sees your queries.",
     });
   }
 
@@ -230,7 +280,7 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
   // Sort by priority (lowest number = highest priority)
   actions.sort((a, b) => a.priority - b.priority);
 
-  return actions.slice(0, 3);
+  return actions.slice(0, 5);
 }
 
 function StructuredRemediation({ remediation, findingId, findingTitle, findingParams }: { remediation: RemediationType; findingId: string; findingTitle: string; findingParams?: Record<string, unknown> }) {
@@ -346,8 +396,8 @@ export function Remediation({ findings, grade }: RemediationProps) {
                 />
               ))}
 
-              {/* Then fallback actions for findings without structured data */}
-              {structuredRemediations.length === 0 && actions.map((action, i) => (
+              {/* General actions for all findings */}
+              {actions.map((action, i) => (
                 <div
                   key={i}
                   className="bg-surface-inset rounded-lg px-4 py-3 border-l-2 border-l-bitcoin/50"

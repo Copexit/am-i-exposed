@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useNetwork } from "@/context/NetworkContext";
 import { createApiClient } from "@/lib/api/client";
 import {
@@ -71,6 +71,11 @@ export function useClusterAnalysis() {
     abortRef.current?.abort();
     abortRef.current = null;
     setState(INITIAL);
+  }, []);
+
+  // Abort in-flight requests on unmount
+  useEffect(() => {
+    return () => { abortRef.current?.abort(); };
   }, []);
 
   return { ...state, analyze, reset };

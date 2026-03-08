@@ -3,7 +3,7 @@ import { renderHook, act } from "@testing-library/react";
 import { useRecentScans } from "../useRecentScans";
 
 beforeEach(() => {
-  sessionStorage.clear();
+  localStorage.clear();
   vi.resetModules();
 });
 
@@ -57,13 +57,12 @@ describe("useRecentScans", () => {
     expect(result.current.scans).toHaveLength(0);
   });
 
-  it("uses sessionStorage (not localStorage)", () => {
+  it("uses localStorage for cross-tab sync", () => {
     const { result } = renderHook(() => useRecentScans());
     act(() => {
       result.current.addScan({ input: "tx1", type: "txid", grade: "B", score: 80 });
     });
-    expect(sessionStorage.getItem("recent-scans")).toBeTruthy();
-    expect(localStorage.getItem("recent-scans")).toBeNull();
+    expect(localStorage.getItem("recent-scans")).toBeTruthy();
   });
 
   it("deduplicates on re-add", () => {

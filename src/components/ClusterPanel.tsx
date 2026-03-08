@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Network, Loader2, ChevronDown, AlertTriangle, GitBranch, RotateCw, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useClusterAnalysis } from "@/hooks/useClusterAnalysis";
+import { ChartErrorBoundary } from "./ui/ChartErrorBoundary";
 import type { MempoolTransaction } from "@/lib/api/types";
+
+const EntityGraph = lazy(() => import("./viz/EntityGraph").then(m => ({ default: m.EntityGraph })));
 
 interface ClusterPanelProps {
   targetAddress: string;
@@ -143,6 +146,13 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
           <p className="text-xs text-muted">{t("cluster.coinJoinTxs", { defaultValue: "CoinJoin txs" })}</p>
         </div>
       </div>
+
+      {/* Entity graph */}
+      <ChartErrorBoundary>
+        <Suspense fallback={null}>
+          <EntityGraph result={result} targetAddress={targetAddress} onAddressClick={onAddressClick} />
+        </Suspense>
+      </ChartErrorBoundary>
 
       {/* Severity message */}
       {result.size > 1 && (

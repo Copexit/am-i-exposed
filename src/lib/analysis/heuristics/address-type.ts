@@ -21,6 +21,7 @@ export const analyzeAddressType: AddressHeuristic = (address) => {
           {
             id: "h10-p2tr",
             severity: "good",
+            confidence: "deterministic",
             title: "Taproot address (P2TR)",
             description:
               "Taproot hides script complexity - single-sig, multisig, and timelocks all look identical on-chain via key-path spends. " +
@@ -39,6 +40,7 @@ export const analyzeAddressType: AddressHeuristic = (address) => {
           {
             id: "h10-p2wpkh",
             severity: "good",
+            confidence: "deterministic",
             title: "Native SegWit address (P2WPKH)",
             description:
               "P2WPKH (native SegWit) has the largest anonymity set of any address type, making single-sig transactions highly private. " +
@@ -56,6 +58,7 @@ export const analyzeAddressType: AddressHeuristic = (address) => {
           {
             id: "h10-p2wsh",
             severity: "low",
+            confidence: "deterministic",
             title: "Native SegWit multisig address (P2WSH)",
             description:
               "P2WSH is used for native SegWit multisig and complex scripts. The spending script is revealed on-chain when spent, which reduces privacy compared to Taproot where key-path spends hide the script.",
@@ -72,6 +75,7 @@ export const analyzeAddressType: AddressHeuristic = (address) => {
           {
             id: "h10-p2sh",
             severity: "medium",
+            confidence: "deterministic",
             title: "Pay-to-Script-Hash address (P2SH)",
             description:
               "P2SH addresses reveal their script type on spend, reducing privacy. They also have a smaller anonymity set than native SegWit or Taproot addresses.",
@@ -88,6 +92,7 @@ export const analyzeAddressType: AddressHeuristic = (address) => {
           {
             id: "h10-p2pkh",
             severity: "medium",
+            confidence: "deterministic",
             title: "Legacy address (P2PKH)",
             description:
               "Legacy P2PKH addresses reveal the public key when spent, and have higher fees. While they have a large historical anonymity set, modern privacy tools and CoinJoin protocols primarily use newer address types.",

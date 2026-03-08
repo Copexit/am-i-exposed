@@ -70,4 +70,35 @@ describe("analyzeFees", () => {
     expect(findings.find((f) => f.id === "h6-round-fee-rate")).toBeDefined();
     expect(findings.find((f) => f.id === "h6-rbf-signaled")).toBeDefined();
   });
+
+  it("detects fee-in-amount when output + fee = round BTC amount", () => {
+    // Output of 999,000 sats + fee 1,000 = 1,000,000 (0.01 BTC - round)
+    const tx = makeTx({
+      vin: [makeVin({ prevout: { scriptpubkey: "0014aaa", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qtest", value: 1_500_000 } })],
+      vout: [
+        { scriptpubkey: "0014bbb", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qpay", value: 999_000 },
+        { scriptpubkey: "0014ccc", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qchange", value: 500_000 },
+      ],
+      fee: 1_000,
+    });
+    const { findings } = analyzeFees(tx);
+    const f = findings.find((f) => f.id === "h6-fee-in-amount");
+    expect(f).toBeDefined();
+    expect(f!.scoreImpact).toBe(-1);
+  });
+
+  it("does not flag fee-in-amount when no output + fee = round", () => {
+    // Both outputs are arbitrary amounts; neither + fee yields a round BTC denomination
+    const tx = makeTx({
+      vin: [makeVin({ prevout: { scriptpubkey: "0014aaa", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qtest", value: 850_000 } })],
+      vout: [
+        { scriptpubkey: "0014bbb", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qpay", value: 543_210 },
+        { scriptpubkey: "0014ccc", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qchange", value: 305_290 },
+      ],
+      fee: 1_500,
+    });
+    const { findings } = analyzeFees(tx);
+    // 543,210 + 1,500 = 544,710 (not round); 305,290 + 1,500 = 306,790 (not round)
+    expect(findings.find((f) => f.id === "h6-fee-in-amount")).toBeUndefined();
+  });
 });

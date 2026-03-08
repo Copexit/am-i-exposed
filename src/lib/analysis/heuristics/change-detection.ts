@@ -2,7 +2,7 @@ import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import type { MempoolVin, MempoolVout } from "@/lib/api/types";
 import { getAddressType } from "@/lib/bitcoin/address-type";
-import { isRoundAmount, isRoundUsdAmount } from "./round-amount";
+import { isRoundAmount, isRoundUsdAmount, isRoundEurAmount, ROUND_USD_TOLERANCE_DEFAULT, ROUND_USD_TOLERANCE_SELF_HOSTED } from "./round-amount";
 
 /**
  * H2: Change Detection
@@ -30,6 +30,63 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
   // Skip coinbase
   if (tx.vin.some((v) => v.is_coinbase)) return { findings };
 
+  // ── Sweep detection (1-in, 1-out, no change) ─────────────────────
+  // Exactly 1 input + 1 output (no OP_RETURN or other extras) = full spend / sweep.
+  // Entropy is 0 bits. The link between input and output is 100% deterministic.
+  // Note: txs with OP_RETURN + 1 spendable output are data-attachment payments, not sweeps.
+  const isSweep = tx.vin.length === 1 && tx.vout.length === 1;
+  if (isSweep) {
+    const inputAddr = tx.vin[0].prevout?.scriptpubkey_address;
+    const outputAddr = spendableOutputs[0].scriptpubkey_address;
+    // Skip if it's sending to the same address (consolidation, already caught by self-send)
+    if (inputAddr !== outputAddr) {
+      findings.push({
+        id: "h2-sweep",
+        severity: "critical",
+        confidence: "deterministic",
+        title: "Sweep transaction - 100% deterministic link",
+        params: {
+          inputAddress: inputAddr ?? "",
+          outputAddress: outputAddr ?? "",
+        },
+        description:
+          "This transaction has exactly 1 input and 1 output (plus fee). " +
+          "There is no change output, meaning the entire input is sent to the output. " +
+          "Entropy is 0 bits - the link between sender and receiver is completely deterministic.",
+        recommendation:
+          "Avoid full-sweep transactions when privacy is needed. Consider splitting funds " +
+          "across multiple transactions or using CoinJoin before sweeping.",
+        scoreImpact: -20,
+      });
+    }
+  }
+
+  // ── Data-attachment payment (1 spendable + OP_RETURN) ──────────
+  // A tx with 1 spendable output and OP_RETURN data carrier (e.g. Omni, OpenTimestamps)
+  // has a deterministic input-to-output link, similar to a sweep.
+  const hasOpReturn = tx.vout.some((o) => o.scriptpubkey.startsWith("6a"));
+  if (!isSweep && spendableOutputs.length === 1 && hasOpReturn && tx.vin.length >= 1) {
+    // Check if the single output goes back to an input address (self-send with data)
+    const outputAddr = spendableOutputs[0].scriptpubkey_address;
+    const inAddrs = new Set(tx.vin.map((v) => v.prevout?.scriptpubkey_address).filter(Boolean));
+    const isSelfData = outputAddr && inAddrs.has(outputAddr);
+    if (!isSelfData) {
+      findings.push({
+        id: "h2-data-payment",
+        severity: "medium",
+        confidence: "deterministic",
+        title: "Data-attachment payment - deterministic link",
+        description:
+          "This transaction has 1 spendable output plus an OP_RETURN data carrier. " +
+          "The link between sender and receiver is fully deterministic.",
+        recommendation:
+          "When attaching data to a transaction, consider adding a dummy change " +
+          "output to create ambiguity about the payment amount.",
+        scoreImpact: -5,
+      });
+    }
+  }
+
   // ── Wallet hop detection (N-in, 1-out, script type upgrade) ──────
   // Full sweep to a NEW address with a different (upgraded) script type
   // suggests a wallet migration. Informational only (0 impact).
@@ -50,6 +107,7 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
         findings.push({
           id: "h2-wallet-hop",
           severity: "low",
+          confidence: "high",
           title: "Address type upgrade detected (possible wallet migration)",
           params: {
             fromTypes: [...inputScriptTypes].join(", "),
@@ -68,10 +126,9 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
     }
   }
 
-  // ── Self-send detection: output address matches input address ──────
-  // The most severe form of change detection. When change goes back to the
-  // same address it was spent from, the change output is trivially identified
-  // and the sender's balance is fully revealed on-chain.
+  // ── Same-address-in-input-and-output detection (deterministic) ─────
+  // When the exact same address appears in both inputs and outputs, the change
+  // output is 100% identifiable. This is the strongest possible change signal.
   const inputAddresses = new Set<string>();
   for (const vin of tx.vin) {
     if (vin.prevout?.scriptpubkey_address) {
@@ -104,14 +161,19 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
       const impact = isConsolidation ? -15 : allMatch ? -25 : -20;
       const severity = isConsolidation ? "high" as const : "critical" as const;
 
+      // Use h2-same-address-io for partial matches (where change is deterministically revealed)
+      // and h2-self-send for all-match / consolidation patterns
+      const findingId = !allMatch ? "h2-same-address-io" : "h2-self-send";
+
       findings.push({
-        id: "h2-self-send",
+        id: findingId,
         severity,
+        confidence: "deterministic",
         title: isConsolidation
           ? "Self-transfer to input address (consolidation)"
           : allMatch
             ? "All outputs return to input address"
-            : `${matchCount} of ${totalSpendable} outputs sent back to input address`,
+            : `Same address in input and output - change revealed (${matchCount} of ${totalSpendable} outputs)`,
         params: {
           matchCount,
           totalSpendable,
@@ -126,8 +188,8 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
               "This creates a trivial on-chain link between all inputs and outputs. " +
               "A chain observer can see this is a self-transfer with no external recipient."
             : `${matchCount} of ${totalSpendable} spendable outputs go back to an address that was also an input. ` +
-              "This is a severe privacy failure - it reveals which output is the change (the one returning to the sender) " +
-              "and therefore the exact payment amount. Some wallets like TrustWallet are known to exhibit this behavior.",
+              "This is a 100% deterministic link - the output to this address is certainly change, " +
+              "revealing which other outputs are payments and the exact payment amount.",
         recommendation:
           "Use a wallet that generates a new change address for every transaction (HD wallets). " +
           "Never send change back to the same address. Sparrow, Wasabi, and Bitcoin Core all handle this correctly.",
@@ -147,7 +209,7 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
         },
       });
 
-      // Self-send subsumes change detection - no further analysis needed
+      // Self-send / same-address-IO subsumes change detection - no further analysis needed
       return { findings };
     }
   }
@@ -176,9 +238,24 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
   // Sub-heuristic 4: Unnecessary input (one input could fund payment alone)
   checkUnnecessaryInput(tx.vin, spendableOutputs, tx.fee, changeIndices, signals);
 
-  // Sub-heuristic 5: Round USD amount (requires historical price)
+  // Sub-heuristic 5: Optimal change (one output ≈ total input - fee)
+  checkOptimalChange(tx.vin, spendableOutputs, tx.fee, changeIndices, signals);
+
+  // Sub-heuristic 6: Shadow change (one output much smaller than any input)
+  checkShadowChange(tx.vin, spendableOutputs, changeIndices, signals);
+
+  // Sub-heuristic 7: Round fiat amount (USD + EUR, requires historical price)
+  const tol = ctx?.isCustomApi ? ROUND_USD_TOLERANCE_SELF_HOSTED : ROUND_USD_TOLERANCE_DEFAULT;
   if (ctx?.usdPrice) {
-    checkRoundUsdAmount(spendableOutputs, ctx.usdPrice, changeIndices, signals);
+    checkRoundFiatAmount(spendableOutputs, ctx.usdPrice, "usd", changeIndices, signals, tol);
+  }
+  if (ctx?.eurPrice) {
+    checkRoundFiatAmount(spendableOutputs, ctx.eurPrice, "eur", changeIndices, signals, tol);
+  }
+
+  // Sub-heuristic 8: Fresh address vs reused address (requires pre-fetched tx counts)
+  if (ctx?.outputTxCounts) {
+    checkFreshAddress(spendableOutputs, ctx.outputTxCounts, changeIndices, signals);
   }
 
   if (signals.length === 0) return { findings };
@@ -191,7 +268,26 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
   // Confidence based on agreement, not just signal count
   const confidence = maxSignals >= 2 ? "medium" : "low";
 
-  const impact = confidence === "medium" ? -10 : -5;
+  // Boost impact when a round amount signal confirms change detection
+  const signalKeys = signals.map((s) =>
+    s.includes("address type") ? "address_type"
+      : s.includes("round USD") ? "round_usd_amount"
+      : s.includes("round EUR") ? "round_eur_amount"
+      : s.includes("round") ? "round_amount"
+      : s.includes("disparity") ? "value_disparity"
+      : s.includes("unnecessary") ? "unnecessary_input"
+      : s.includes("optimal") ? "optimal_change"
+      : s.includes("shadow") ? "shadow_change"
+      : s.includes("fresh") ? "fresh_address"
+      : "unknown",
+  );
+  const hasRoundSignal = signalKeys.includes("round_amount")
+    || signalKeys.includes("round_usd_amount")
+    || signalKeys.includes("round_eur_amount");
+
+  const impact = confidence === "medium"
+    ? (hasRoundSignal ? -15 : -10)
+    : -5;
 
   // Identify which output index the heuristic thinks is change.
   // Map indices into full tx.vout space (skip OP_RETURN / zero-value outputs).
@@ -214,19 +310,13 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
   findings.push({
     id: "h2-change-detected",
     severity: confidence === "medium" ? "medium" : "low",
+    confidence: confidence === "medium" ? "high" : "medium",
     title: `Change output likely identifiable (${confidence} confidence)`,
     params: {
       signalCount: signals.length,
       confidence,
       ...(changeVoutIdx !== undefined ? { changeIndex: changeVoutIdx } : {}),
-      signalKeys: signals.map((s) =>
-        s.includes("address type") ? "address_type"
-          : s.includes("round USD") ? "round_usd_amount"
-          : s.includes("round") ? "round_amount"
-          : s.includes("disparity") ? "value_disparity"
-          : s.includes("unnecessary") ? "unnecessary_input"
-          : "unknown",
-      ).join(","),
+      signalKeys: signalKeys.join(","),
     },
     description:
       `${signals.length} sub-heuristic${signals.length > 1 ? "s" : ""} point to a likely change output: ${signals.join("; ")}. ` +
@@ -279,12 +369,14 @@ function checkAddressTypeMismatch(
   const out0Type = getAddressType(vout[0].scriptpubkey_address!);
   const out1Type = getAddressType(vout[1].scriptpubkey_address!);
 
-  // If one output matches input type and the other doesn't
+  // If one output matches input type and the other doesn't.
+  // Weight is 2 because address type mismatch is one of the strongest change
+  // detection signals - alone it should produce "medium confidence".
   if (out0Type === inputType && out1Type !== inputType) {
-    changeIndices.set(0, (changeIndices.get(0) ?? 0) + 1);
+    changeIndices.set(0, (changeIndices.get(0) ?? 0) + 2);
     signals.push("change matches input address type");
   } else if (out1Type === inputType && out0Type !== inputType) {
-    changeIndices.set(1, (changeIndices.get(1) ?? 0) + 1);
+    changeIndices.set(1, (changeIndices.get(1) ?? 0) + 2);
     signals.push("change matches input address type");
   }
 }
@@ -361,21 +453,135 @@ function checkUnnecessaryInput(
   }
 }
 
-function checkRoundUsdAmount(
+function checkRoundFiatAmount(
   vout: MempoolVout[],
-  usdPerBtc: number,
+  fiatPerBtc: number,
+  currency: "usd" | "eur",
+  changeIndices: Map<number, number>,
+  signals: string[],
+  tolerancePct: number = ROUND_USD_TOLERANCE_DEFAULT,
+) {
+  const isRound = currency === "usd" ? isRoundUsdAmount : isRoundEurAmount;
+  const round0 = isRound(vout[0].value, fiatPerBtc, tolerancePct);
+  const round1 = isRound(vout[1].value, fiatPerBtc, tolerancePct);
+  const label = currency.toUpperCase();
+
+  // If exactly one output is a round fiat amount, the other is likely change
+  if (round0 && !round1) {
+    changeIndices.set(1, (changeIndices.get(1) ?? 0) + 1);
+    signals.push(`round ${label} amount output is likely payment`);
+  } else if (round1 && !round0) {
+    changeIndices.set(0, (changeIndices.get(0) ?? 0) + 1);
+    signals.push(`round ${label} amount output is likely payment`);
+  }
+}
+
+/**
+ * Sub-heuristic: Optimal change
+ *
+ * If one output accounts for > 90% of the total input value (minus fee),
+ * it is very likely the change output. The sender spent only a small
+ * fraction of their input, returning the rest as change.
+ */
+function checkOptimalChange(
+  vin: MempoolVin[],
+  vout: MempoolVout[],
+  fee: number,
   changeIndices: Map<number, number>,
   signals: string[],
 ) {
-  const round0 = isRoundUsdAmount(vout[0].value, usdPerBtc);
-  const round1 = isRoundUsdAmount(vout[1].value, usdPerBtc);
+  let totalInput = 0;
+  for (const v of vin) {
+    totalInput += v.prevout?.value ?? 0;
+  }
+  if (totalInput === 0) return;
 
-  // If exactly one output is a round USD amount, the other is likely change
-  if (round0 && !round1) {
-    changeIndices.set(1, (changeIndices.get(1) ?? 0) + 1);
-    signals.push("round USD amount output is likely payment");
-  } else if (round1 && !round0) {
+  const totalSpendable = totalInput - fee;
+  if (totalSpendable <= 0) return;
+
+  const ratio0 = vout[0].value / totalSpendable;
+  const ratio1 = vout[1].value / totalSpendable;
+
+  // One output gets > 90% of input value - it's almost certainly change
+  if (ratio0 > 0.9 && ratio1 <= 0.9) {
     changeIndices.set(0, (changeIndices.get(0) ?? 0) + 1);
-    signals.push("round USD amount output is likely payment");
+    signals.push("optimal change: output receives >90% of input value");
+  } else if (ratio1 > 0.9 && ratio0 <= 0.9) {
+    changeIndices.set(1, (changeIndices.get(1) ?? 0) + 1);
+    signals.push("optimal change: output receives >90% of input value");
+  }
+}
+
+/**
+ * Sub-heuristic: Shadow change
+ *
+ * When one output is significantly smaller than the smallest input,
+ * it is likely a small change leftover. The sender spent most of their
+ * funds and the "shadow" is the tiny remainder.
+ */
+function checkShadowChange(
+  vin: MempoolVin[],
+  vout: MempoolVout[],
+  changeIndices: Map<number, number>,
+  signals: string[],
+) {
+  // Find smallest input value
+  let smallestInput = Infinity;
+  for (const v of vin) {
+    const val = v.prevout?.value ?? 0;
+    if (val > 0 && val < smallestInput) smallestInput = val;
+  }
+  if (smallestInput === Infinity) return;
+
+  const v0 = vout[0].value;
+  const v1 = vout[1].value;
+
+  // If one output is < 10% of the smallest input, it's likely shadow change
+  const threshold = smallestInput * 0.1;
+  if (v0 < threshold && v1 >= threshold) {
+    changeIndices.set(0, (changeIndices.get(0) ?? 0) + 1);
+    signals.push("shadow change: output much smaller than smallest input");
+  } else if (v1 < threshold && v0 >= threshold) {
+    changeIndices.set(1, (changeIndices.get(1) ?? 0) + 1);
+    signals.push("shadow change: output much smaller than smallest input");
+  }
+}
+
+/**
+ * Sub-heuristic: Fresh address vs reused address
+ *
+ * Wallets generate fresh (never-seen) addresses for change. If one output
+ * goes to a fresh address (0 prior txs) and the other goes to an address
+ * that has been seen before, the fresh address is almost certainly change.
+ *
+ * Reference: Blockchair 100-indicator PDF, category 4
+ */
+function checkFreshAddress(
+  vout: MempoolVout[],
+  outputTxCounts: Map<string, number>,
+  changeIndices: Map<number, number>,
+  signals: string[],
+) {
+  const addr0 = vout[0].scriptpubkey_address!;
+  const addr1 = vout[1].scriptpubkey_address!;
+  const count0 = outputTxCounts.get(addr0);
+  const count1 = outputTxCounts.get(addr1);
+
+  // Need data for both outputs
+  if (count0 === undefined || count1 === undefined) return;
+
+  // "Fresh" means this tx is the only time the address has appeared (tx_count <= 1).
+  // The current tx itself may already be counted, so <= 1 is fresh.
+  const fresh0 = count0 <= 1;
+  const fresh1 = count1 <= 1;
+
+  // If exactly one is fresh and the other is reused, the fresh one is likely change.
+  // Weight is 2 because this is a strong change signal.
+  if (fresh0 && !fresh1) {
+    changeIndices.set(0, (changeIndices.get(0) ?? 0) + 2);
+    signals.push("fresh address is likely change (reused address is likely payment)");
+  } else if (fresh1 && !fresh0) {
+    changeIndices.set(1, (changeIndices.get(1) ?? 0) + 2);
+    signals.push("fresh address is likely change (reused address is likely payment)");
   }
 }

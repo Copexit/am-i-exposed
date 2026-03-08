@@ -8,14 +8,31 @@ import { DUST_THRESHOLD } from "@/lib/constants";
  * Flags suspiciously tiny outputs (< 1000 sats) that may be:
  * - Surveillance dust sent to track address clusters
  * - Uneconomical outputs that cost more in fees to spend than they're worth
+ * - Wallet deficiency (can't calculate change properly)
  *
- * Dust attacks are a common chain analysis technique where tiny amounts
- * are sent to target addresses, then the attacker monitors when the dust
- * is spent (revealing which UTXOs belong to the same wallet).
+ * Uses script-type-aware Bitcoin Core dust thresholds:
+ * - P2PKH / P2SH: 546 sats
+ * - P2WPKH: 294 sats
+ * - P2WSH / P2TR: 330 sats
  *
  * Impact: -3 to -8
  */
-const EXTREME_DUST_THRESHOLD = 600; // below typical minimum relay fee
+
+/** Bitcoin Core dust threshold by output script type (at 3 sat/vbyte relay fee). */
+export function getDustThreshold(scriptType: string): number {
+  switch (scriptType) {
+    case "p2pkh":
+    case "p2sh":
+      return 546;
+    case "v0_p2wpkh":
+      return 294;
+    case "v0_p2wsh":
+    case "v1_p2tr":
+      return 330;
+    default:
+      return 546; // conservative default
+  }
+}
 
 export const analyzeDustOutputs: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
@@ -23,19 +40,20 @@ export const analyzeDustOutputs: TxHeuristic = (tx) => {
   // Coinbase transactions can have small outputs (fees); not a dust attack
   if (tx.vin.length === 1 && tx.vin[0].is_coinbase) return { findings };
 
-  // Collect dust outputs with their vout indices
-  const dustEntries: { index: number; value: number }[] = [];
+  // Collect dust outputs with their vout indices, using per-script-type thresholds
+  const dustEntries: { index: number; value: number; belowEconThreshold: boolean }[] = [];
   for (let i = 0; i < tx.vout.length; i++) {
     const out = tx.vout[i];
     if (out.value > 0 && out.value < DUST_THRESHOLD && out.scriptpubkey_type !== "op_return") {
-      dustEntries.push({ index: i, value: out.value });
+      const econThreshold = getDustThreshold(out.scriptpubkey_type);
+      dustEntries.push({ index: i, value: out.value, belowEconThreshold: out.value < econThreshold });
     }
   }
 
   if (dustEntries.length === 0) return { findings };
 
   const dustOutputs = dustEntries;
-  const extremeDust = dustEntries.filter((d) => d.value < EXTREME_DUST_THRESHOLD);
+  const econDustCount = dustEntries.filter((d) => d.belowEconThreshold).length;
   const totalDustValue = dustEntries.reduce((sum, d) => sum + d.value, 0);
   const dustIndicesStr = dustEntries.map((d) => d.index).join(",");
 
@@ -50,6 +68,7 @@ export const analyzeDustOutputs: TxHeuristic = (tx) => {
     findings.push({
       id: "dust-attack",
       severity: "high",
+      confidence: "medium",
       title: `Possible dust attack (${totalDustValue} sats)`,
       params: { totalDustValue, dustIndices: dustIndicesStr },
       description:
@@ -75,23 +94,27 @@ export const analyzeDustOutputs: TxHeuristic = (tx) => {
       },
     });
   } else {
-    const severity = extremeDust.length > 0 ? "medium" : "low";
+    // Severity: medium if any output is below its script-type Bitcoin Core dust threshold,
+    // or below the general extreme threshold (600 sats). Low otherwise.
+    const severity = econDustCount > 0 || dustEntries.some((d) => d.value < 600) ? "medium" : "low";
+    const walletDeficiency = econDustCount > 0
+      ? ` ${econDustCount} output${econDustCount > 1 ? "s are" : " is"} below the Bitcoin Core dust threshold for ${econDustCount > 1 ? "their" : "its"} script type, indicating a wallet that cannot calculate change properly or a fee miscalculation.`
+      : "";
     findings.push({
       id: "dust-outputs",
       severity,
+      confidence: "high",
       title: `${dustOutputs.length} dust output${dustOutputs.length > 1 ? "s" : ""} detected (< ${DUST_THRESHOLD} sats)`,
-      params: { dustCount: dustOutputs.length, threshold: DUST_THRESHOLD, totalDustValue, extremeCount: extremeDust.length, dustIndices: dustIndicesStr },
+      params: { dustCount: dustOutputs.length, threshold: DUST_THRESHOLD, totalDustValue, econDustCount, dustIndices: dustIndicesStr },
       description:
         `This transaction contains ${dustOutputs.length} output${dustOutputs.length > 1 ? "s" : ""} ` +
         `below ${DUST_THRESHOLD} sats (total: ${totalDustValue} sats). ` +
-        "Tiny outputs are uneconomical to spend and may indicate dust for tracking purposes. " +
-        (extremeDust.length > 0
-          ? `${extremeDust.length} output${extremeDust.length > 1 ? "s are" : " is"} below the typical minimum relay fee threshold.`
-          : ""),
+        "Tiny outputs are uneconomical to spend and may indicate dust for tracking purposes or a wallet deficiency." +
+        walletDeficiency,
       recommendation:
         "Be cautious when spending dust UTXOs. Use coin control to avoid mixing them " +
         "with your main UTXOs, which could link your addresses together.",
-      scoreImpact: extremeDust.length > 0 ? -5 : -3,
+      scoreImpact: econDustCount > 0 || dustEntries.some((d) => d.value < 600) ? -5 : -3,
     });
   }
 

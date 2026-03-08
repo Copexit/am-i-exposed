@@ -54,11 +54,27 @@ Use these consistently for findings:
 - `low` - blue (#3b82f6)
 - `good` - green (#28d065)
 
+## Deployment Rules
+
+- **NEVER deploy without explicit user permission.** Always ask first.
+- **NEVER edit code directly on the VPS.** All changes happen locally, then commit, push, pull on server.
+- **NEVER commit feedback files** or any file containing real names of testers/collaborators. Use `.gitignore`.
+- **NEVER expose tester identities** in commit messages, code comments, or any pushed file.
+
 ## Release Process
 
 - **Always run `pnpm test && pnpm lint && pnpm build` before pushing.** CI runs type-check and will fail on type errors that `pnpm test` alone does not catch. Do not push without verifying the build passes locally.
 - After removing or adding dependencies, always run `pnpm install` to sync `pnpm-lock.yaml`. CI uses `--frozen-lockfile` and will fail on mismatches.
 - When releasing to Umbrel (see `docs/deploy-umbrel.md`), **wait for CI to finish building Docker images** before pushing the app store update. The main image takes 5-10 min for arm64 cross-compilation. Pushing the app store first causes Umbrel instances to pull a tag that doesn't exist yet, breaking updates.
+- Use `/deploy` command for the full pipeline: type-check, build, bump version, commit, push, GH Pages, Umbrel release.
+
+## Slash Commands
+
+- `/deploy [patch|minor|major]` - Full deploy pipeline
+- `/devserver [port]` - Kill and restart dev server (default: 3000)
+- `/feedback <folder>` - Parse feedback screenshots/audio into actionable markdown
+- `/audit-loop <end-time>` - Run expert audit + fix loop until specified time
+- `/translate [lang]` - Sync all i18n locale files
 
 ## Documentation
 

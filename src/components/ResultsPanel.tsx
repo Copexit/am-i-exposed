@@ -11,7 +11,6 @@ import { ScoreDisplay } from "./ScoreDisplay";
 import { FindingCard } from "./FindingCard";
 import { AddressSummary } from "./AddressSummary";
 import { ExportButton } from "./ExportButton";
-import { ScoreBreakdown } from "./ScoreBreakdown";
 import { getShareUrl } from "./ShareButtons";
 import { TX_BASE_SCORE, ADDRESS_BASE_SCORE } from "@/lib/scoring/score";
 import { ACTION_BTN_CLASS } from "@/lib/constants";
@@ -24,8 +23,13 @@ const TxFlowDiagram = lazy(() => import("./viz/TxFlowDiagram").then(m => ({ defa
 const UtxoBubbleChart = lazy(() => import("./viz/UtxoBubbleChart").then(m => ({ default: m.UtxoBubbleChart })));
 const PrivacyTimeline = lazy(() => import("./viz/PrivacyTimeline").then(m => ({ default: m.PrivacyTimeline })));
 const CoinJoinStructure = lazy(() => import("./viz/CoinJoinStructure").then(m => ({ default: m.CoinJoinStructure })));
+const FingerprintTimeline = lazy(() => import("./viz/FingerprintTimeline").then(m => ({ default: m.FingerprintTimeline })));
 import { ChartErrorBoundary } from "./ui/ChartErrorBoundary";
 import { Remediation } from "./Remediation";
+import { WalletGuide } from "./WalletGuide";
+import { RecoveryFlow } from "./RecoveryFlow";
+import { CommonMistakes } from "./CommonMistakes";
+import { AnalystView } from "./AnalystView";
 import { CexRiskPanel } from "./CexRiskPanel";
 import { ExchangeWarningPanel } from "./ExchangeWarningPanel";
 import { TxBreakdownPanel } from "./TxBreakdownPanel";
@@ -43,9 +47,10 @@ import type { ScoringResult, TxAnalysisResult } from "@/lib/types";
 import type { MempoolTransaction, MempoolAddress, MempoolUtxo } from "@/lib/api/types";
 import type { PreSendResult } from "@/lib/analysis/orchestrator";
 
-function ScoringExplainer() {
+function ScoringExplainer({ isAddress }: { isAddress?: boolean }) {
   const [open, setOpen] = useState(false);
   const { t } = useTranslation();
+  const baseScore = isAddress ? "93" : "70";
 
   return (
     <div className="w-full">
@@ -69,7 +74,7 @@ function ScoringExplainer() {
           >
             <div id="scoring-explainer-panel" className="mt-2 bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed space-y-2">
               <p>
-                {t("results.scoringExplainerP1", { defaultValue: "Scores start at " })}<strong className="text-foreground">70/100</strong>{t("results.scoringExplainerP1b", { defaultValue: " (baseline) and are adjusted by each heuristic finding. Negative findings (address reuse, change detection, round amounts) lower the score. Positive findings (CoinJoin, high entropy, anonymity sets) raise it." })}
+                {t("results.scoringExplainerP1", { defaultValue: "Scores start at " })}<strong className="text-foreground">{baseScore}/100</strong>{t("results.scoringExplainerP1b", { defaultValue: " (baseline) and are adjusted by each heuristic finding. Negative findings (address reuse, change detection, round amounts) lower the score. Positive findings (CoinJoin, high entropy, anonymity sets) raise it." })}
               </p>
               <p>
                 <strong className="text-severity-good">A+ (90+)</strong>{" "}
@@ -79,7 +84,7 @@ function ScoringExplainer() {
                 <strong className="text-severity-critical">F (&lt;25)</strong>
               </p>
               <p>
-                {t("results.scoringExplainerP3", { defaultValue: "The engine runs 17 heuristics based on published chain analysis research. Scores are clamped to 0-100. CoinJoin transactions receive adjusted scoring that accounts for their privacy-enhancing properties." })}
+                {t("results.scoringExplainerP3", { defaultValue: "The engine runs 30 heuristics based on published chain analysis research. Scores are clamped to 0-100. CoinJoin transactions receive adjusted scoring that accounts for their privacy-enhancing properties." })}
               </p>
             </div>
           </motion.div>
@@ -88,7 +93,6 @@ function ScoringExplainer() {
     </div>
   );
 }
-
 const ADDRESS_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
   p2tr:    { label: "Taproot",  color: "bg-severity-good/20 text-severity-good border-severity-good/30" },
   p2wpkh:  { label: "SegWit",   color: "bg-severity-low/20 text-severity-low border-severity-low/30" },
@@ -142,6 +146,8 @@ interface ResultsPanelProps {
   durationMs?: number | null;
   /** USD per BTC at the time the transaction was confirmed (mainnet only). */
   usdPrice?: number | null;
+  /** Per-output spend status from the API. */
+  outspends?: import("@/lib/api/types").MempoolOutspend[] | null;
 }
 
 export const ResultsPanel = memo(function ResultsPanel({
@@ -158,10 +164,16 @@ export const ResultsPanel = memo(function ResultsPanel({
   onScan,
   durationMs,
   usdPrice,
+  outspends,
 }: ResultsPanelProps) {
   const { config, customApiUrl, isUmbrel } = useNetwork();
   const { t } = useTranslation();
   const isCoinJoin = result.findings.some(isCoinJoinFinding);
+  const fingerprintFinding = result.findings.find((f) => f.id === "h11-wallet-fingerprint");
+  const detectedWallet = fingerprintFinding?.params?.walletGuess as string | undefined;
+  const walletCanCoinJoin = detectedWallet
+    ? /sparrow|ashigaru|wasabi/i.test(detectedWallet)
+    : undefined;
   const [queryCopied, setQueryCopied] = useState(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(copyTimerRef.current), []);
@@ -178,16 +190,21 @@ export const ResultsPanel = memo(function ResultsPanel({
       ? t("results.viewOnLocal", { defaultValue: "View on local mempool" })
       : t("results.viewOnMempool", { defaultValue: "View on mempool.space" });
 
-  const findingsBlock = result.findings.length > 0 && (
+  // Hide findings that were suppressed for CoinJoin context (scoreImpact=0, context=coinjoin)
+  const visibleFindings = result.findings.filter(
+    (f) => !(f.scoreImpact === 0 && String(f.params?.context ?? "").includes("coinjoin")),
+  );
+
+  const findingsBlock = visibleFindings.length > 0 && (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.3 }} className="w-full space-y-4">
       <div className="flex items-center justify-between px-1">
         <h2 className="text-base font-medium text-muted uppercase tracking-wider">
-          {t("results.findingsHeading", { count: result.findings.length, defaultValue: "Findings ({{count}})" })}
+          {t("results.findingsHeading", { count: visibleFindings.length, defaultValue: "Findings ({{count}})" })}
         </h2>
-        <FindingSummary findings={result.findings} />
+        <FindingSummary findings={visibleFindings} />
       </div>
       <div className="space-y-3">
-        {result.findings.map((finding, i) => (
+        {visibleFindings.map((finding, i) => (
           <FindingCard
             key={finding.id}
             finding={finding}
@@ -346,9 +363,9 @@ export const ResultsPanel = memo(function ResultsPanel({
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }} className="w-full">
           <ChartErrorBoundary>
             {result.findings.some((f) => f.id.startsWith("h4-")) ? (
-              <CoinJoinStructure tx={txData} findings={result.findings} onAddressClick={onScan} usdPrice={usdPrice} />
+              <CoinJoinStructure tx={txData} findings={result.findings} onAddressClick={onScan} usdPrice={usdPrice} outspends={outspends} />
             ) : (
-              <TxFlowDiagram tx={txData} findings={result.findings} onAddressClick={onScan} usdPrice={usdPrice} />
+              <TxFlowDiagram tx={txData} findings={result.findings} onAddressClick={onScan} usdPrice={usdPrice} outspends={outspends} />
             )}
           </ChartErrorBoundary>
         </motion.div>
@@ -372,6 +389,17 @@ export const ResultsPanel = memo(function ResultsPanel({
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.35 }} className="w-full">
           <Remediation findings={result.findings} grade={result.grade} />
         </motion.div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.36 }} className="w-full">
+          <CommonMistakes findings={result.findings} grade={result.grade} />
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.37 }} className="w-full">
+          <RecoveryFlow grade={result.grade} />
+        </motion.div>
+        {inputType === "txid" && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.38 }} className="w-full">
+            <WalletGuide detectedWallet={detectedWallet ?? null} canCoinJoin={walletCanCoinJoin} />
+          </motion.div>
+        )}
         {isCoinJoin && (
           <>
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.4 }} className="w-full">
@@ -395,6 +423,15 @@ export const ResultsPanel = memo(function ResultsPanel({
           {txBreakdown && txBreakdown.length >= 2 && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.4 }} className="w-full">
               <ChartErrorBoundary><PrivacyTimeline breakdown={txBreakdown} onScan={onScan} /></ChartErrorBoundary>
+            </motion.div>
+          )}
+          {addressTxs && addressTxs.length >= 3 && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.42 }} className="w-full">
+              <GlowCard className="p-5 sm:p-6">
+                <Suspense fallback={null}>
+                  <ChartErrorBoundary><FingerprintTimeline address={query} txs={addressTxs} onScan={onScan} /></ChartErrorBoundary>
+                </Suspense>
+              </GlowCard>
             </motion.div>
           )}
           {txBreakdown && txBreakdown.length > 0 && addressData && (
@@ -421,6 +458,11 @@ export const ResultsPanel = memo(function ResultsPanel({
 
       {/* ZONE 9: Diagnostics */}
       <div className="w-full flex flex-col gap-3 sm:gap-4">
+        {inputType === "txid" && result.findings.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.48 }} className="w-full">
+            <AnalystView findings={result.findings} grade={result.grade} />
+          </motion.div>
+        )}
         {!isCoinJoin && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.5 }} className="w-full">
             <CexRiskPanel
@@ -445,14 +487,13 @@ export const ResultsPanel = memo(function ResultsPanel({
           </motion.div>
         )}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.6 }} className="w-full">
-          <ScoreBreakdown findings={result.findings} finalScore={result.score} baseScore={addressData ? ADDRESS_BASE_SCORE : TX_BASE_SCORE} />
-          <ScoringExplainer />
+          <ScoringExplainer isAddress={inputType === "address"} />
         </motion.div>
       </div>
 
       {/* ZONE 10: Promotional */}
       <div className="w-full flex flex-col gap-3 sm:gap-4">
-        {(result.grade === "F" || result.grade === "D" || result.grade === "A+" || result.grade === "B") && (
+        {(result.grade === "F" || result.grade === "D" || result.grade === "C" || result.grade === "A+" || result.grade === "B") && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -462,7 +503,9 @@ export const ResultsPanel = memo(function ResultsPanel({
             <p className="text-sm text-muted">
               {result.grade === "D" || result.grade === "F"
                 ? t("sharePrompt.bad", { defaultValue: "This transaction has serious privacy issues. Share it as a cautionary tale." })
-                : t("sharePrompt.good", { defaultValue: "Strong privacy practices here. Share it as an example of how it should be done." })}
+                : result.grade === "C"
+                  ? t("sharePrompt.medium", { defaultValue: "Average privacy - some good practices, some issues. Share it as an educational example." })
+                  : t("sharePrompt.good", { defaultValue: "Strong privacy practices here. Share it as an example of how it should be done." })}
             </p>
             <button
               onClick={() => {
@@ -515,7 +558,7 @@ export const ResultsPanel = memo(function ResultsPanel({
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.65 }} className="w-full bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed">
           {t("results.disclaimerStats", {
             findingCount: result.findings.length,
-            heuristicCount: inputType === "txid" ? "14" : "4",
+            heuristicCount: inputType === "txid" ? "24" : "6",
             defaultValue: "{{findingCount}} findings from {{heuristicCount}} heuristics",
           })}
           {txBreakdown ? t("results.disclaimerTxAnalyzed", { count: txBreakdown.length, defaultValue: " + {{count}} transactions analyzed" }) : ""}

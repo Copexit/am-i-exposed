@@ -4,7 +4,19 @@ import { useState, memo } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { ChevronDown } from "lucide-react";
-import type { Finding, Severity } from "@/lib/types";
+import { BookOpen } from "lucide-react";
+import type { Finding, Severity, ConfidenceLevel } from "@/lib/types";
+
+/** Map finding IDs to relevant FAQ section anchors */
+const FINDING_LEARN_MORE: Record<string, { faqId: string; labelKey: string; labelDefault: string }> = {
+  "h8-address-reuse": { faqId: "address-reuse", labelKey: "learnMore.addressReuse", labelDefault: "Why address reuse is dangerous" },
+  "h2-change-detected": { faqId: "change-detection", labelKey: "learnMore.changeDetection", labelDefault: "How change detection works" },
+  "h2-self-send": { faqId: "change-detection", labelKey: "learnMore.selfSend", labelDefault: "Change detection explained" },
+  "h3-cioh": { faqId: "cioh", labelKey: "learnMore.cioh", labelDefault: "Common input ownership heuristic" },
+  "dust-attack": { faqId: "dust-attack", labelKey: "learnMore.dustAttack", labelDefault: "What is a dust attack?" },
+  "h5-entropy": { faqId: "coinjoin", labelKey: "learnMore.coinjoin", labelDefault: "How CoinJoin improves privacy" },
+  "h5-low-entropy": { faqId: "coinjoin", labelKey: "learnMore.entropy", labelDefault: "Transaction entropy explained" },
+};
 
 interface FindingCardProps {
   finding: Finding;
@@ -50,12 +62,21 @@ const SEVERITY_STYLES: Record<
   },
 };
 
+const CONFIDENCE_STYLES: Record<ConfidenceLevel, { label: string; className: string }> = {
+  deterministic: { label: "Definite", className: "bg-severity-critical/20 text-severity-critical border-severity-critical" },
+  high: { label: "Likely", className: "bg-severity-high/15 text-severity-high border-severity-high" },
+  medium: { label: "Possible", className: "bg-severity-medium/15 text-severity-medium border-severity-medium" },
+  low: { label: "Hint", className: "bg-severity-low/15 text-severity-low border-severity-low" },
+};
+
 export const FindingCard = memo(function FindingCard({ finding, index, defaultExpanded = false }: FindingCardProps) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(defaultExpanded);
   const reducedMotion = useReducedMotion();
   const style = SEVERITY_STYLES[finding.severity];
   const severityLabel = t(`common.severity.${finding.severity}`, { defaultValue: style.label });
+  const confidence = finding.confidence;
+  const confidenceStyle = confidence ? CONFIDENCE_STYLES[confidence] : null;
 
   return (
     <motion.div
@@ -78,6 +99,11 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
         <span className="flex-1 text-sm font-medium text-foreground">
           {t(`finding.${finding.id}.title`, { ...finding.params, defaultValue: finding.title })}
         </span>
+        {confidenceStyle && (
+          <span className={`text-[10px] px-1.5 py-0.5 rounded border ${confidenceStyle.className}`}>
+            {t(`common.confidence.${confidence}`, { defaultValue: confidenceStyle.label })}
+          </span>
+        )}
         <span className={`text-xs font-medium ${style.text}`}>
           {severityLabel}
         </span>
@@ -110,21 +136,32 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
                   </p>
                 </div>
               )}
-              {finding.scoreImpact !== 0 && (
-                <p className="text-xs text-muted">
-                  {t("finding.scoreImpactLabel", { defaultValue: "Score impact:" })}{" "}
-                  <span
-                    className={
-                      finding.scoreImpact > 0
-                        ? "text-severity-good"
-                        : "text-severity-high"
-                    }
+              <div className="flex items-center justify-between">
+                {finding.scoreImpact !== 0 && (
+                  <p className="text-xs text-muted">
+                    {t("finding.scoreImpactLabel", { defaultValue: "Score impact:" })}{" "}
+                    <span
+                      className={
+                        finding.scoreImpact > 0
+                          ? "text-severity-good"
+                          : "text-severity-high"
+                      }
+                    >
+                      {finding.scoreImpact > 0 ? "+" : ""}
+                      {finding.scoreImpact}
+                    </span>
+                  </p>
+                )}
+                {FINDING_LEARN_MORE[finding.id] && (
+                  <a
+                    href={`/faq/#${FINDING_LEARN_MORE[finding.id].faqId}`}
+                    className="inline-flex items-center gap-1 text-xs text-bitcoin hover:text-bitcoin-hover transition-colors"
                   >
-                    {finding.scoreImpact > 0 ? "+" : ""}
-                    {finding.scoreImpact}
-                  </span>
-                </p>
-              )}
+                    <BookOpen size={12} />
+                    {t(FINDING_LEARN_MORE[finding.id].labelKey, { defaultValue: FINDING_LEARN_MORE[finding.id].labelDefault })}
+                  </a>
+                )}
+              </div>
             </div>
           </motion.div>
         )}

@@ -4,6 +4,7 @@ import type {
   MempoolTransaction,
   MempoolAddress,
   MempoolUtxo,
+  MempoolOutspend,
 } from "./types";
 
 function assertTxid(txid: string): void {
@@ -74,6 +75,11 @@ export function createMempoolClient(baseUrl: string, signal?: AbortSignal) {
       return get(`/address/${address}/utxo`);
     },
 
+    getTxOutspends(txid: string): Promise<MempoolOutspend[]> {
+      assertTxid(txid);
+      return get(`/tx/${txid}/outspends`);
+    },
+
     async getHistoricalPrice(timestamp: number): Promise<number | null> {
       try {
         const data = await get<{ prices: Array<{ time: number; USD: number }> }>(
@@ -82,6 +88,18 @@ export function createMempoolClient(baseUrl: string, signal?: AbortSignal) {
         const usd = data.prices?.[0]?.USD;
         // API returns 0 for timestamps before price data existed
         return usd && usd > 0 ? usd : null;
+      } catch {
+        return null;
+      }
+    },
+
+    async getHistoricalEurPrice(timestamp: number): Promise<number | null> {
+      try {
+        const data = await get<{ prices: Array<{ time: number; EUR: number }> }>(
+          `/v1/historical-price?currency=EUR&timestamp=${Math.floor(timestamp)}`,
+        );
+        const eur = data.prices?.[0]?.EUR;
+        return eur && eur > 0 ? eur : null;
       } catch {
         return null;
       }

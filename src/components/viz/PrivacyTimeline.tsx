@@ -80,9 +80,9 @@ function TimelineChart({
             <rect
               key={band.grade}
               x={0}
-              y={yScale(band.max + 1)}
+              y={yScale(Math.min(band.max + 1, 100))}
               width={innerWidth}
-              height={yScale(band.min) - yScale(band.max + 1)}
+              height={yScale(band.min) - yScale(Math.min(band.max + 1, 100))}
               fill={band.color}
               fillOpacity={0.06}
             />

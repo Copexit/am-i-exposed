@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { analyzeDustOutputs } from "../dust-output";
+import { analyzeDustOutputs, getDustThreshold } from "../dust-output";
 import { makeTx, makeVin, makeCoinbaseVin, makeVout, resetAddrCounter } from "./fixtures/tx-factory";
 
 beforeEach(() => resetAddrCounter());
@@ -76,4 +76,46 @@ describe("analyzeDustOutputs", () => {
     const { findings } = analyzeDustOutputs(tx);
     expect(findings).toHaveLength(0);
   });
+
+  it("flags P2PKH output below 546 sats as economic dust (wallet deficiency)", () => {
+    const tx = makeTx({
+      vin: [makeVin(), makeVin()],
+      vout: [
+        makeVout({ value: 500, scriptpubkey_type: "p2pkh" }),
+        makeVout({ value: 50_000 }),
+        makeVout({ value: 49_500 }),
+      ],
+    });
+    const { findings } = analyzeDustOutputs(tx);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].id).toBe("dust-outputs");
+    expect(findings[0].severity).toBe("medium");
+    expect(findings[0].scoreImpact).toBe(-5);
+    expect(findings[0].description).toContain("wallet");
+  });
+
+  it("flags P2TR output at 300 sats as economic dust (below 330 threshold)", () => {
+    const tx = makeTx({
+      vin: [makeVin(), makeVin()],
+      vout: [
+        makeVout({ value: 300, scriptpubkey_type: "v1_p2tr" }),
+        makeVout({ value: 50_000 }),
+        makeVout({ value: 49_700 }),
+      ],
+    });
+    const { findings } = analyzeDustOutputs(tx);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].id).toBe("dust-outputs");
+    expect(findings[0].severity).toBe("medium");
+    expect(findings[0].params?.econDustCount).toBe(1);
+  });
+});
+
+describe("getDustThreshold", () => {
+  it("returns 546 for P2PKH", () => expect(getDustThreshold("p2pkh")).toBe(546));
+  it("returns 546 for P2SH", () => expect(getDustThreshold("p2sh")).toBe(546));
+  it("returns 294 for P2WPKH", () => expect(getDustThreshold("v0_p2wpkh")).toBe(294));
+  it("returns 330 for P2WSH", () => expect(getDustThreshold("v0_p2wsh")).toBe(330));
+  it("returns 330 for P2TR", () => expect(getDustThreshold("v1_p2tr")).toBe(330));
+  it("returns 546 for unknown types", () => expect(getDustThreshold("unknown")).toBe(546));
 });

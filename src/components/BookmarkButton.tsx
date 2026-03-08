@@ -130,6 +130,9 @@ export function BookmarkButton({ query, inputType, grade, score }: BookmarkButto
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             className="absolute right-0 top-full mt-2 z-50 w-64 rounded-lg border border-card-border bg-surface-elevated p-3 shadow-lg"
+            role="dialog"
+            aria-label={t("bookmark.addLabel", { defaultValue: "Add a label (optional)" })}
+            onKeyDown={(e) => { if (e.key === "Escape") handleLabelSkip(); }}
           >
             <label htmlFor="bookmark-label-input" className="text-xs text-muted block mb-1">
               {t("bookmark.addLabel", { defaultValue: "Add a label (optional)" })}

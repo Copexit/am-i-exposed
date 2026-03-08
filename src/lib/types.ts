@@ -1,4 +1,4 @@
-export type InputType = "txid" | "address" | "invalid";
+export type InputType = "txid" | "address" | "xpub" | "psbt" | "invalid";
 
 export type AddressType = "p2pkh" | "p2sh" | "p2wpkh" | "p2wsh" | "p2tr" | "unknown";
 
@@ -11,6 +11,8 @@ export interface Remediation {
   urgency: "immediate" | "soon" | "when-convenient";
 }
 
+export type ConfidenceLevel = "deterministic" | "high" | "medium" | "low";
+
 export interface Finding {
   id: string;
   severity: Severity;
@@ -21,12 +23,35 @@ export interface Finding {
   /** Interpolation values for i18n translation of title/description/recommendation */
   params?: Record<string, string | number>;
   remediation?: Remediation;
+  /** How certain is this finding? Deterministic = 100%, heuristic = probabilistic. */
+  confidence?: ConfidenceLevel;
 }
+
+export type TxType =
+  | "whirlpool-coinjoin"
+  | "wabisabi-coinjoin"
+  | "joinmarket-coinjoin"
+  | "generic-coinjoin"
+  | "stonewall"
+  | "simplified-stonewall"
+  | "payjoin"
+  | "tx0-premix"
+  | "bip47-notification"
+  | "consolidation"
+  | "exchange-withdrawal"
+  | "batch-payment"
+  | "self-transfer"
+  | "peel-chain"
+  | "coinbase"
+  | "simple-payment"
+  | "unknown";
 
 export interface ScoringResult {
   score: number;
   grade: Grade;
   findings: Finding[];
+  /** Classified transaction type based on detected patterns */
+  txType?: TxType;
 }
 
 export type Grade = "A+" | "B" | "C" | "D" | "F";

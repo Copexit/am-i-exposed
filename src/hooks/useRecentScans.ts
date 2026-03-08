@@ -25,9 +25,7 @@ function subscribe(callback: () => void) {
 
 function getSnapshot(): RecentScan[] {
   try {
-    // Use sessionStorage instead of localStorage for privacy - data is
-    // cleared when the tab closes, preventing address/txid persistence
-    const stored = sessionStorage.getItem(STORAGE_KEY) ?? "";
+    const stored = localStorage.getItem(STORAGE_KEY) ?? "";
     if (stored === cachedJson) return cachedScans;
     cachedJson = stored;
     const parsed = stored ? JSON.parse(stored) : [];
@@ -61,14 +59,14 @@ export function useRecentScans() {
         ...filtered,
       ].slice(0, MAX_RECENT);
 
-      try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch { /* storage full / private browsing */ }
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch { /* storage full / private browsing */ }
       window.dispatchEvent(new StorageEvent("storage"));
     },
     [],
   );
 
   const clearScans = useCallback(() => {
-    try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* private browsing */ }
+    try { localStorage.removeItem(STORAGE_KEY); } catch { /* private browsing */ }
     cachedJson = "";
     cachedScans = [];
     window.dispatchEvent(new StorageEvent("storage"));

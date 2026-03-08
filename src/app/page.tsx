@@ -11,6 +11,9 @@ import { ScanHistory } from "@/components/ScanHistory";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { useAnalysis } from "@/hooks/useAnalysis";
+import { useWalletAnalysis } from "@/hooks/useWalletAnalysis";
+import { isXpubOrDescriptor } from "@/lib/bitcoin/descriptor";
+import { isPSBT } from "@/lib/bitcoin/psbt";
 import { useNetwork } from "@/context/NetworkContext";
 import { useRecentScans } from "@/hooks/useRecentScans";
 import { useBookmarks } from "@/hooks/useBookmarks";
@@ -20,6 +23,7 @@ import { useDevMode } from "@/hooks/useDevMode";
 const TipToast = lazy(() => import("@/components/TipToast").then(m => ({ default: m.TipToast })));
 import { FindingCard } from "@/components/FindingCard";
 const DevChainalysisPanel = lazy(() => import("@/components/DevChainalysisPanel").then(m => ({ default: m.DevChainalysisPanel })));
+const WalletAuditResults = lazy(() => import("@/components/wallet/WalletAuditResults").then(m => ({ default: m.WalletAuditResults })));
 import type { PreSendResult } from "@/lib/analysis/orchestrator";
 
 const DESTINATION_ONLY_CONFIG = {
@@ -140,9 +144,13 @@ export default function Home() {
     errorCode,
     durationMs,
     usdPrice,
+    outspends,
+    psbtData,
     analyze,
     reset,
   } = useAnalysis();
+
+  const wallet = useWalletAnalysis();
 
   const { t } = useTranslation();
   const { scans, addScan, clearScans } = useRecentScans();
@@ -152,10 +160,14 @@ export default function Home() {
 
   // Keep latest function refs for hashchange listener (avoids stale closures)
   const analyzeRef = useRef(analyze);
+  const walletAnalyzeRef = useRef(wallet.analyze);
   const resetRef = useRef(reset);
+  const walletResetRef = useRef(wallet.reset);
   useEffect(() => {
     analyzeRef.current = analyze;
+    walletAnalyzeRef.current = wallet.analyze;
     resetRef.current = reset;
+    walletResetRef.current = wallet.reset;
   });
 
   // Register service worker
@@ -186,7 +198,7 @@ export default function Home() {
     if (phase === "complete" && query && inputType && result) {
       addScan({
         input: query,
-        type: inputType === "txid" ? "txid" : "address",
+        type: inputType === "txid" || inputType === "psbt" ? "txid" : "address",
         grade: result.grade,
         score: result.score,
       });
@@ -205,7 +217,7 @@ export default function Home() {
     const hash = window.location.hash.slice(1);
     if (!hash) return false;
     const params = new URLSearchParams(hash);
-    return !!(params.get("tx") ?? params.get("addr") ?? params.get("check"));
+    return !!(params.get("tx") ?? params.get("addr") ?? params.get("check") ?? params.get("xpub"));
   });
 
   useEffect(() => {
@@ -214,6 +226,7 @@ export default function Home() {
       if (!hash) {
         setPendingHash(false);
         resetRef.current();
+        walletResetRef.current();
         return;
       }
 
@@ -221,10 +234,20 @@ export default function Home() {
       const txid = params.get("tx");
       const addr = params.get("addr");
       const check = params.get("check");
+      const xpub = params.get("xpub");
+
+      // Handle xpub/descriptor via wallet analysis flow
+      if (xpub) {
+        resetRef.current();
+        walletAnalyzeRef.current(xpub);
+        setPendingHash(false);
+        return;
+      }
 
       // #check=X is treated as #addr=X (unified flow)
       const input = txid ?? addr ?? check;
       if (input) {
+        walletResetRef.current();
         analyzeRef.current(input);
         setPendingHash(false);
       }
@@ -258,37 +281,65 @@ export default function Home() {
   });
 
   const handleSubmit = useCallback((input: string) => {
+    // Detect xpub/descriptor and route to wallet analysis
+    if (isXpubOrDescriptor(input)) {
+      const newHash = `xpub=${encodeURIComponent(input)}`;
+      const oldHash = window.location.hash.slice(1);
+      window.location.hash = newHash;
+      if (oldHash === newHash) {
+        reset();
+        wallet.analyze(input);
+      }
+      return;
+    }
+
+    // PSBT: analyze directly (no hash routing for large base64 blobs)
+    if (isPSBT(input)) {
+      wallet.reset();
+      analyze(input);
+      return;
+    }
+
     const prefix = input.length === 64 ? "tx" : "addr";
     const newHash = `${prefix}=${encodeURIComponent(input)}`;
     const oldHash = window.location.hash.slice(1);
     window.location.hash = newHash;
     // If hash didn't change (re-scan same input), hashchange won't fire, so call analyze directly
     if (oldHash === newHash) {
+      wallet.reset();
       analyze(input);
     }
     // Otherwise, the hashchange listener calls analyze()
-  }, [analyze]);
+  }, [analyze, reset, wallet]);
 
   const handleBack = useCallback(() => {
     window.location.hash = "";
     reset();
-  }, [reset]);
+    wallet.reset();
+  }, [reset, wallet]);
+
+  // Determine if wallet analysis is active (takes precedence when in non-idle state)
+  const walletActive = wallet.phase !== "idle";
 
   // Aria-live announcements for screen readers during phase transitions
   const ariaStatus =
-    phase === "fetching" || phase === "analyzing"
+    walletActive && wallet.phase !== "complete" && wallet.phase !== "error"
       ? t("page.aria_scanning", { defaultValue: "Scanning. Please wait." })
-      : phase === "complete" && result
-        ? t("page.aria_complete", { grade: result.grade, score: result.score, defaultValue: `Scan complete. Grade ${result.grade}, score ${result.score} out of 100.` })
-        : phase === "error"
-          ? t("page.aria_error", { error: error ?? "", defaultValue: `Analysis failed. ${error ?? ""}` })
-          : "";
+      : walletActive && wallet.phase === "complete" && wallet.result
+        ? t("page.aria_complete", { grade: wallet.result.grade, score: wallet.result.score, defaultValue: `Scan complete. Grade ${wallet.result.grade}, score ${wallet.result.score} out of 100.` })
+        : phase === "fetching" || phase === "analyzing"
+          ? t("page.aria_scanning", { defaultValue: "Scanning. Please wait." })
+          : phase === "complete" && result
+            ? t("page.aria_complete", { grade: result.grade, score: result.score, defaultValue: `Scan complete. Grade ${result.grade}, score ${result.score} out of 100.` })
+            : phase === "error"
+              ? t("page.aria_error", { error: error ?? "", defaultValue: `Analysis failed. ${error ?? ""}` })
+              : "";
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-3 sm:px-4 py-4 sm:py-6">
       <div className="sr-only" role="status" aria-live="polite">{ariaStatus}</div>
       <AnimatePresence mode="wait">
-        {phase === "idle" && !pendingHash && (
+        {phase === "idle" && !pendingHash && !walletActive && (
           <motion.div
             key="hero"
             initial={{ opacity: 0 }}
@@ -400,22 +451,67 @@ export default function Home() {
         )}
 
         {phase === "complete" && query && inputType && result && (
-          <ResultsPanel
-            key="results"
-            query={query}
-            inputType={inputType as "txid" | "address"}
-            result={result}
-            txData={txData}
-            addressData={addressData}
-            addressTxs={addressTxs}
-            addressUtxos={addressUtxos}
-            txBreakdown={txBreakdown}
-            preSendResult={preSendResult}
-            onBack={handleBack}
-            onScan={handleSubmit}
-            durationMs={durationMs}
-            usdPrice={usdPrice}
-          />
+          <>
+            {psbtData && (
+              <motion.div
+                key="psbt-banner"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="w-full max-w-3xl mb-4"
+              >
+                <div className="rounded-xl border border-bitcoin/30 bg-bitcoin/5 px-5 py-4 space-y-2">
+                  <div className="flex items-center gap-2 text-bitcoin font-semibold text-sm">
+                    <ShieldAlert size={16} />
+                    {t("psbt.banner", { defaultValue: "Pre-broadcast privacy analysis (PSBT)" })}
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-muted">
+                    <div>
+                      <span className="block text-foreground font-medium">{psbtData.inputCount}</span>
+                      {t("psbt.inputs", { defaultValue: "Inputs" })}
+                    </div>
+                    <div>
+                      <span className="block text-foreground font-medium">{psbtData.outputCount}</span>
+                      {t("psbt.outputs", { defaultValue: "Outputs" })}
+                    </div>
+                    <div>
+                      <span className="block text-foreground font-medium">
+                        {psbtData.fee > 0 ? `${psbtData.fee.toLocaleString()} sats` : "N/A"}
+                      </span>
+                      {t("psbt.fee", { defaultValue: "Fee" })}
+                    </div>
+                    <div>
+                      <span className="block text-foreground font-medium">
+                        {psbtData.feeRate > 0 ? `${psbtData.feeRate} sat/vB` : "N/A"}
+                      </span>
+                      {t("psbt.feeRate", { defaultValue: "Fee rate" })}
+                    </div>
+                  </div>
+                  {!psbtData.complete && (
+                    <p className="text-xs text-severity-medium">
+                      {t("psbt.incomplete", { defaultValue: "Some inputs are missing UTXO data. Fee calculation may be incomplete." })}
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            )}
+            <ResultsPanel
+              key="results"
+              query={query}
+              inputType={inputType === "psbt" ? "txid" : inputType as "txid" | "address"}
+              result={result}
+              txData={txData}
+              addressData={addressData}
+              addressTxs={addressTxs}
+              addressUtxos={addressUtxos}
+              txBreakdown={txBreakdown}
+              preSendResult={preSendResult}
+              onBack={handleBack}
+              onScan={handleSubmit}
+              durationMs={durationMs}
+              usdPrice={usdPrice}
+              outspends={outspends}
+            />
+          </>
         )}
 
         {phase === "complete" && query && preSendResult && !result && (
@@ -427,7 +523,7 @@ export default function Home() {
           />
         )}
 
-        {phase === "error" && (
+        {phase === "error" && error !== "xpub" && (
           <motion.div
             key="error"
             initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
@@ -455,7 +551,7 @@ export default function Home() {
                 {query && error && errorCode !== "not-retryable" && (
                   <button
                     onClick={() => analyze(query)}
-                    className="px-4 py-1.5 bg-bitcoin text-black font-semibold text-sm rounded-lg
+                    className="px-4 py-1.5 bg-bitcoin text-background font-semibold text-sm rounded-lg
                       hover:bg-bitcoin-hover transition-all duration-150 cursor-pointer"
                   >
                     {t("page.retry", { defaultValue: "Retry" })}
@@ -471,6 +567,91 @@ export default function Home() {
             </div>
             <div className="text-xs text-muted hidden sm:block">
               {t("page.kbd_back", { defaultValue: "Press" })} <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted font-mono">Esc</kbd> {t("page.kbd_back_suffix", { defaultValue: "to go back" })}
+            </div>
+          </motion.div>
+        )}
+        {/* Wallet analysis: loading states */}
+        {walletActive && wallet.phase !== "complete" && wallet.phase !== "error" && (
+          <motion.div
+            key="wallet-loading"
+            initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: 10, filter: "blur(4px)" }}
+            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+            className="flex flex-col items-center gap-6 w-full max-w-3xl"
+          >
+            <GlowCard className="w-full p-8 space-y-6">
+              <div className="space-y-1">
+                <span className="text-xs font-medium text-muted uppercase tracking-wider">
+                  {t("wallet.auditTitle", { defaultValue: "Wallet Privacy Audit" })}
+                </span>
+                <p className="font-mono text-xs text-foreground/90 break-all leading-relaxed">
+                  {wallet.query}
+                </p>
+              </div>
+              <div className="border-t border-card-border pt-6 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-2 w-2 rounded-full bg-bitcoin animate-pulse" />
+                  <span className="text-sm text-muted">
+                    {wallet.phase === "deriving"
+                      ? t("wallet.deriving", { defaultValue: "Deriving addresses..." })
+                      : wallet.phase === "fetching"
+                        ? `${t("wallet.fetching", { defaultValue: "Fetching transaction history..." })} (${wallet.progress.fetched}/${wallet.progress.total})`
+                        : t("wallet.analyzing", { defaultValue: "Analyzing wallet privacy..." })}
+                  </span>
+                </div>
+                {wallet.phase === "fetching" && wallet.progress.total > 0 && (
+                  <div className="w-full bg-surface-elevated rounded-full h-1.5">
+                    <div
+                      className="bg-bitcoin h-1.5 rounded-full transition-all duration-300"
+                      style={{ width: `${Math.round((wallet.progress.fetched / wallet.progress.total) * 100)}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            </GlowCard>
+          </motion.div>
+        )}
+
+        {/* Wallet analysis: results */}
+        {wallet.phase === "complete" && wallet.descriptor && wallet.result && (
+          <Suspense fallback={null}>
+            <WalletAuditResults
+              descriptor={wallet.descriptor}
+              result={wallet.result}
+              addressInfos={wallet.addressInfos}
+              onBack={handleBack}
+              durationMs={wallet.durationMs}
+            />
+          </Suspense>
+        )}
+
+        {/* Wallet analysis: error */}
+        {wallet.phase === "error" && (
+          <motion.div
+            key="wallet-error"
+            initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: 10, filter: "blur(4px)" }}
+            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+            className="flex flex-col items-center gap-6 w-full max-w-xl mt-8 sm:mt-0"
+          >
+            <div className="glass border-severity-critical/30 rounded-xl p-8 w-full space-y-4 text-center">
+              <AlertCircle size={32} className="text-severity-critical mx-auto" />
+              <div className="space-y-2">
+                <h2 className="text-lg font-semibold text-foreground">
+                  {t("page.error_title", { defaultValue: "Analysis failed" })}
+                </h2>
+                <p className="text-sm text-muted leading-relaxed">
+                  {wallet.error}
+                </p>
+              </div>
+              <button
+                onClick={handleBack}
+                className="text-sm text-muted hover:text-foreground transition-colors cursor-pointer"
+              >
+                {t("page.new_scan", { defaultValue: "New scan" })}
+              </button>
             </div>
           </motion.div>
         )}

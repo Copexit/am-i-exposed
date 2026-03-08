@@ -115,7 +115,7 @@ export function ExchangeWarningPanel() {
                   </h3>
                   <div className="space-y-1">
                     {defunctExchanges.map((e) => {
-                      const statusInfo = STATUS_LABEL[e.status];
+                      const statusInfo = STATUS_LABEL[e.status] ?? { key: "exchange.statusUnknown", default: e.status };
                       return (
                         <div key={e.name} className="flex items-center gap-2 text-xs text-muted px-3 py-1">
                           <span className="font-medium text-foreground/80">{e.name}</span>

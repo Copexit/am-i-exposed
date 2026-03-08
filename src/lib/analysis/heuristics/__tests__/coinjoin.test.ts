@@ -181,7 +181,7 @@ describe("analyzeCoinJoin", () => {
 
   // ── Stonewall ────────────────────────────────────────────────────────
 
-  it("detects Stonewall (2-4 vin, 4 vout, 1 equal pair at distinct addrs), impact +15", () => {
+  it("detects solo Stonewall (2 vin same addr, 4 vout, 1 equal pair at distinct addrs), impact +8", () => {
     // Use same input address so JoinMarket rejects (requires >= 2 distinct input addrs)
     const sameInputAddr = "bc1qinput000000000000000000000000000000000";
     const tx = makeTx({
@@ -330,7 +330,7 @@ describe("analyzeCoinJoin", () => {
     expect(findings.find((f) => f.id === "h4-joinmarket")).toBeUndefined();
   });
 
-  it("detects Stonewall with 3 inputs", () => {
+  it("detects Stonewall with same-address inputs, impact +15", () => {
     const sameInputAddr = "bc1qinput000000000000000000000000000000000";
     const tx = makeTx({
       vin: [
@@ -351,7 +351,7 @@ describe("analyzeCoinJoin", () => {
     expect(sw!.scoreImpact).toBe(15);
   });
 
-  it("detects STONEWALLx2 with 4 inputs (2 from each party)", () => {
+  it("detects Stonewall with multi-address inputs (cannot distinguish from STONEWALLx2), impact +15", () => {
     const tx = makeTx({
       vin: [
         makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qpartyA_0000000000000000000000000000000", value: 500_000 } }),
@@ -367,6 +367,7 @@ describe("analyzeCoinJoin", () => {
       ],
     });
     const { findings } = analyzeCoinJoin(tx);
+    // Both solo and x2 get the same finding - the ambiguity IS the privacy
     const sw = findings.find((f) => f.id === "h4-stonewall");
     expect(sw).toBeDefined();
     expect(sw!.scoreImpact).toBe(15);
@@ -379,6 +380,7 @@ describe("analyzeCoinJoin", () => {
     expect(isCoinJoinFinding({ id: "h4-coinjoin", scoreImpact: 25, severity: "good", title: "", description: "", recommendation: "" })).toBe(true);
     expect(isCoinJoinFinding({ id: "h4-joinmarket", scoreImpact: 15, severity: "good", title: "", description: "", recommendation: "" })).toBe(true);
     expect(isCoinJoinFinding({ id: "h4-stonewall", scoreImpact: 15, severity: "good", title: "", description: "", recommendation: "" })).toBe(true);
+    expect(isCoinJoinFinding({ id: "h4-simplified-stonewall", scoreImpact: 5, severity: "good", title: "", description: "", recommendation: "" })).toBe(true);
   });
 
   it("isCoinJoinFinding returns false for exchange-flagging (impact 0)", () => {

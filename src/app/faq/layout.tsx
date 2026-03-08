@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 const FAQ_ITEMS = [
   {
     q: "Is my Bitcoin transaction traceable?",
-    a: "Most Bitcoin transactions are partially traceable. Chain analysis firms use heuristics like common-input-ownership, change detection, and address reuse to trace fund flows. am-i.exposed runs 17 of these heuristics client-side to show you exactly what surveillance firms can infer about your transactions.",
+    a: "Most Bitcoin transactions are partially traceable. Chain analysis firms use heuristics like common-input-ownership, change detection, and address reuse to trace fund flows. am-i.exposed runs 30 of these heuristics client-side to show you exactly what surveillance firms can infer about your transactions.",
   },
   {
     q: "Can Bitcoin be traced back to me?",
@@ -11,7 +11,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "How can I check my Bitcoin privacy?",
-    a: "Paste your Bitcoin address or transaction ID into am-i.exposed. The tool analyzes it using 17 heuristics - the same techniques chain analysis firms use - and gives you a privacy score from 0 to 100 with a letter grade (A+ to F) and specific actionable findings. Everything runs in your browser with no tracking.",
+    a: "Paste your Bitcoin address or transaction ID into am-i.exposed. The tool analyzes it using 30 heuristics - the same techniques chain analysis firms use - and gives you a privacy score from 0 to 100 with a letter grade (A+ to F) and specific actionable findings. Everything runs in your browser with no tracking.",
   },
   {
     q: "Is am-i.exposed safe to use?",
@@ -39,7 +39,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "How does Bitcoin privacy scoring work?",
-    a: "Every analysis starts from a base score of 70. Each of the 17 heuristics applies a positive or negative modifier based on what it detects. The sum is clamped to 0-100. Only CoinJoin participation, Taproot usage, and high entropy can raise the score. Everything else can only lower it. Grades: A+ (90-100), B (75-89), C (50-74), D (25-49), F (0-24).",
+    a: "Every analysis starts from a base score of 70. Each of the 30 heuristics applies a positive or negative modifier based on what it detects. The sum is clamped to 0-100. Only CoinJoin participation, Taproot usage, and high entropy can raise the score. Everything else can only lower it. Grades: A+ (90-100), B (75-89), C (50-74), D (25-49), F (0-24).",
   },
   {
     q: "Can I use am-i.exposed with Tor?",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useRef, memo } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect, memo } from "react";
 import { motion } from "motion/react";
 import { Clock, Star, Lightbulb, X, Download, Upload } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -48,6 +48,8 @@ export const ScanHistory = memo(function ScanHistory({
 
   const [importFeedback, setImportFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(feedbackTimerRef.current), []);
 
   const handleImportFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -60,7 +62,8 @@ export const ScanHistory = memo(function ScanHistory({
       } else {
         setImportFeedback({ type: "success", message: t("history.importSuccess", { defaultValue: "{{count}} bookmarks imported", count: result.imported }) });
       }
-      setTimeout(() => setImportFeedback(null), 3000);
+      clearTimeout(feedbackTimerRef.current);
+      feedbackTimerRef.current = setTimeout(() => setImportFeedback(null), 3000);
     };
     reader.readAsText(file);
     // Reset so same file can be re-imported

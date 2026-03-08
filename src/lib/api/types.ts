@@ -48,6 +48,15 @@ interface TxStatus {
   block_time?: number;
 }
 
+// ── Outspend ────────────────────────────────────────────────────────────────
+
+export interface MempoolOutspend {
+  spent: boolean;
+  txid?: string;
+  vin?: number;
+  status?: TxStatus;
+}
+
 // ── Address ─────────────────────────────────────────────────────────────────
 
 export interface MempoolAddress {

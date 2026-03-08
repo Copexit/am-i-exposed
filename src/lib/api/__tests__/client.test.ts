@@ -33,6 +33,7 @@ function makeMockClient(overrides: Record<string, unknown> = {}) {
     getAddressTxs: vi.fn().mockResolvedValue([]),
     getAddressUtxos: vi.fn().mockResolvedValue([]),
     getHistoricalPrice: vi.fn().mockResolvedValue(50_000),
+    getHistoricalEurPrice: vi.fn().mockResolvedValue(45_000),
     ...overrides,
   };
 }

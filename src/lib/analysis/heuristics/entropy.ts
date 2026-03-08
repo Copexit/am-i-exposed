@@ -40,6 +40,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
         {
           id: "h5-zero-entropy",
           severity: "low",
+          confidence: "deterministic",
           title: "Zero transaction entropy",
           description:
             "This transaction has a single input and single output, meaning there is only one possible interpretation. No ambiguity exists about the flow of funds.",
@@ -58,6 +59,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
         {
           id: "h5-zero-entropy",
           severity: inputs.length >= 5 ? "high" : "medium",
+          confidence: "deterministic",
           title: `Zero entropy: ${inputs.length}-input sweep/consolidation`,
           params: { inputCount: inputs.length },
           description:
@@ -112,14 +114,27 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
     if (entropyBits <= 0) {
       const counts = new Map<number, number>();
       for (const v of outputs) counts.set(v, (counts.get(v) ?? 0) + 1);
-      let maxGroup = 0;
-      for (const c of counts.values()) if (c > maxGroup) maxGroup = c;
-      if (maxGroup >= 2) {
-        const logBits = log2Factorial(maxGroup);
-        if (logBits > 0) {
-          entropyBits = logBits;
-          method = "Boltzmann partition";
+      // Count total permutations from all equal-output groups
+      let totalPerms = 1;
+      let totalGrouped = 0;
+      for (const c of counts.values()) {
+        if (c >= 2) {
+          let f = 1;
+          for (let i = 2; i <= c; i++) f *= i;
+          totalPerms *= f;
+          totalGrouped += c;
         }
+      }
+      // Unique (non-grouped) outputs add cross-group ambiguity: each pair
+      // of unique outputs can be redistributed between input groups (the
+      // "which change belongs to whom" ambiguity in Stonewall-like txs).
+      const uniqueOutputs = outputs.length - totalGrouped;
+      if (uniqueOutputs >= 2 && totalPerms >= 2) {
+        totalPerms += Math.floor(uniqueOutputs / 2);
+      }
+      if (totalPerms >= 2) {
+        entropyBits = Math.log2(totalPerms);
+        method = "Boltzmann partition";
       }
     }
   } else {
@@ -139,6 +154,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
         {
           id: "h5-low-entropy",
           severity: "medium",
+          confidence: "medium",
           title: "Very low transaction entropy",
           params: { entropy: roundedEntropy, method },
           description:
@@ -160,6 +176,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
       {
         id: "h5-entropy",
         severity: impact >= 10 ? "good" : impact >= 5 ? "low" : impact > 0 ? "low" : "medium",
+        confidence: "medium",
         title: `Transaction entropy: ${roundedEntropy} bits`,
         params: {
           entropy: roundedEntropy,
@@ -192,10 +209,17 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
 
 /**
  * Try the Boltzmann partition path: if all spendable outputs share the same
- * value AND all inputs can individually fund at least one output, compute
- * the exact interpretation count using integer partitions.
+ * value, compute the exact interpretation count using integer partitions.
  *
- * Returns null if the transaction doesn't qualify (mixed output values).
+ * When k inputs can each independently fund one equal output:
+ * - If k >= n (all outputs coverable): boltzmannEqualOutputs(n) * C(k, n)
+ * - If 2 <= k < n (partial coverage): boltzmannEqualOutputs(k) * C(n, k)
+ *   The k fundable inputs create k! (or more, via many-to-many) valid
+ *   assignments among k chosen outputs, and C(n, k) ways to choose which
+ *   k of the n outputs they fund.
+ *
+ * Returns null if the transaction doesn't qualify (mixed output values,
+ * or fewer than 2 fundable inputs).
  */
 function tryBoltzmannEqualOutputs(
   inputs: number[],
@@ -209,32 +233,41 @@ function tryBoltzmannEqualOutputs(
 
   const n = outputs.length;
 
-  // All inputs must be able to fund at least one output
+  // Count inputs that can individually fund at least one output
   const fundableInputs = inputs.filter((v) => v >= outputValue);
-  if (fundableInputs.length < n) return null;
-
-  // Use output count as the base partition size
-  const effectiveN = n;
-
-  // When there are more fundable inputs than outputs, additional inputs
-  // create more valid assignments (some inputs can be "idle"). Add a
-  // correction factor of log2(C(k, n)) for choosing which n of k inputs
-  // are active.
   const k = fundableInputs.length;
-  let extraInputCorrection = 0;
-  if (k > n) {
-    extraInputCorrection = log2Binomial(k, n);
+
+  // Need at least 2 fundable inputs for any meaningful entropy
+  if (k < 2) return null;
+
+  if (k >= n) {
+    // All outputs can be covered: use n as the Boltzmann base size
+    // When k > n, add C(k, n) for choosing which n of k inputs are active
+    const extraInputCorrection = k > n ? log2Binomial(k, n) : 0;
+
+    if (n <= 50) {
+      const count = boltzmannEqualOutputs(n);
+      const baseEntropy = count > 1 ? Math.log2(count) : 0;
+      return { entropy: baseEntropy + extraInputCorrection, method: "Boltzmann partition" };
+    }
+
+    const baseEntropy = estimateBoltzmannEntropy(n);
+    return { entropy: baseEntropy + extraInputCorrection, method: "Boltzmann estimate" };
   }
 
-  if (effectiveN <= 50) {
-    const count = boltzmannEqualOutputs(effectiveN);
+  // Partial coverage: k fundable inputs, n equal outputs (k < n)
+  // The k inputs create boltzmannEqualOutputs(k) valid mappings among
+  // whichever k outputs they fund, and C(n, k) ways to choose those outputs.
+  const outputChoiceCorrection = log2Binomial(n, k);
+
+  if (k <= 50) {
+    const count = boltzmannEqualOutputs(k);
     const baseEntropy = count > 1 ? Math.log2(count) : 0;
-    return { entropy: baseEntropy + extraInputCorrection, method: "Boltzmann partition" };
+    return { entropy: baseEntropy + outputChoiceCorrection, method: "Boltzmann partition" };
   }
 
-  // For very large n, use Stirling approximation
-  const baseEntropy = estimateBoltzmannEntropy(effectiveN);
-  return { entropy: baseEntropy + extraInputCorrection, method: "Boltzmann estimate" };
+  const baseEntropy = estimateBoltzmannEntropy(k);
+  return { entropy: baseEntropy + outputChoiceCorrection, method: "Boltzmann estimate" };
 }
 
 /** Compute log2 of the binomial coefficient C(n, k) using log-sum of factorials. */
@@ -268,7 +301,7 @@ function boltzmannEqualOutputs(n: number): number {
 
   // boltzmannExact computes (n!)^2 which exceeds MAX_SAFE_INTEGER for n > 12.
   // Use exact arithmetic only for small n; log-space avoids precision loss.
-  if (n <= 13) {
+  if (n <= 12) {
     return boltzmannExact(n, partitions);
   }
   // Return 2^(log2 result) for larger n

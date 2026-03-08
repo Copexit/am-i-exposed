@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Methodology - How Bitcoin Privacy is Scored | am-i.exposed",
   description:
-    "17 heuristics, scoring model, and threat model behind am-i.exposed. See how chain surveillance firms analyze your Bitcoin transactions.",
+    "30 heuristics, scoring model, and threat model behind am-i.exposed. See how chain surveillance firms analyze your Bitcoin transactions.",
   keywords: [
     "bitcoin privacy methodology",
     "bitcoin chain analysis heuristics",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Methodology - How Bitcoin Privacy is Scored | am-i.exposed",
     description:
-      "17 heuristics that evaluate your Bitcoin transaction privacy. The same techniques chain surveillance firms use - documented and explained.",
+      "30 heuristics that evaluate your Bitcoin transaction privacy. The same techniques chain surveillance firms use - documented and explained.",
     url: "https://am-i.exposed/methodology/",
     type: "article",
     siteName: "am-i.exposed",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Methodology - How Bitcoin Privacy is Scored | am-i.exposed",
     description:
-      "17 heuristics that evaluate your Bitcoin transaction privacy. Every penalty explained.",
+      "30 heuristics that evaluate your Bitcoin transaction privacy. Every penalty explained.",
   },
 };
 
@@ -108,7 +108,7 @@ export default function MethodologyLayout({
                 name: "What Bitcoin privacy heuristics does am-i.exposed check?",
                 acceptedAnswer: {
                   "@type": "Answer",
-                  text: "am-i.exposed checks 17 heuristics across two categories: 13 transaction-level (round amounts, change detection, CIOH, CoinJoin, entropy, fee analysis, OP_RETURN, address reuse, script types, wallet fingerprinting, timing, dust outputs) and 4 address-level (address reuse frequency, UTXO analysis, spending patterns, anonymity set).",
+                  text: "am-i.exposed checks 30 heuristics across two categories: 24 transaction-level (round amounts, change detection, CIOH, CoinJoin/PayJoin, entropy, fee analysis, OP_RETURN, wallet fingerprinting, dust detection, timing analysis, script type mixing, multisig/escrow, anonymity sets, peel chain, consolidation, unnecessary inputs, premix tx0, BIP69 ordering, BIP47 notification, exchange patterns, coin selection, witness analysis, coinbase detection) and 6 address-level (address reuse, UTXO analysis, address type, spending patterns, recurring payments, high activity detection).",
                 },
               },
             ],

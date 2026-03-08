@@ -201,7 +201,7 @@ const DEFAULTS: Record<string, string> = {
   "glossary.term_hodlhodl": "Hodl Hodl",
   "glossary.def_hodlhodl": "A non-custodial, peer-to-peer Bitcoin trading platform that uses 2-of-3 multisig escrow with the platform as a key-holding arbitrator. The platform never takes custody of funds. Trades create P2SH or P2WSH multisig outputs on-chain, with the multisig structure revealed when the escrow is spent.",
   "glossary.term_heuristic": "Heuristic",
-  "glossary.def_heuristic": "A rule-of-thumb used to infer information about a Bitcoin transaction. am-i.exposed applies 17 heuristics to estimate what surveillance firms can deduce about any transaction or address.",
+  "glossary.def_heuristic": "A rule-of-thumb used to infer information about a Bitcoin transaction. am-i.exposed applies 30 heuristics to estimate what surveillance firms can deduce about any transaction or address.",
   "glossary.term_joinmarket": "JoinMarket",
   "glossary.def_joinmarket": "A decentralized CoinJoin implementation using a maker-taker model. Makers offer liquidity and earn fees; takers pay for privacy. Creates transactions with varied input/output counts.",
   "glossary.term_multisig": "Multisig (Multi-Signature)",
@@ -217,7 +217,7 @@ const DEFAULTS: Record<string, string> = {
   "glossary.term_peel_chain": "Peel Chain",
   "glossary.def_peel_chain": "A pattern where a large UTXO is repeatedly spent, peeling off small payments and returning the remainder as change. Creates a traceable chain of decreasing outputs (e.g. 2.0 BTC -> pay 0.1, change 1.9 -> pay 0.2, change 1.7). Chain analysts use this to track funds across many transactions.",
   "glossary.term_privacy_score": "Privacy Score",
-  "glossary.def_privacy_score": "A 0-100 rating computed by am-i.exposed based on 17 heuristics. Starts at 70, adjusted by findings. Only CoinJoin, Taproot, and high entropy can raise it. Grades: A+ (90-100), B (75-89), C (50-74), D (25-49), F (0-24).",
+  "glossary.def_privacy_score": "A 0-100 rating computed by am-i.exposed based on 30 heuristics. Starts at 70, adjusted by findings. Only CoinJoin, Taproot, and high entropy can raise it. Grades: A+ (90-100), B (75-89), C (50-74), D (25-49), F (0-24).",
   "glossary.term_round_amount": "Round Amount Detection",
   "glossary.def_round_amount": "A heuristic that identifies round-number outputs (e.g., 0.1 BTC, 1,000,000 sats) as likely payments, with the non-round output being change. Reveals spending patterns.",
   "glossary.term_self_send": "Self-send (Self-transfer)",
@@ -332,7 +332,7 @@ export default function GlossaryPage() {
             </div>
           )}
           {grouped.map(({ letter, items }) => (
-            <section key={letter} aria-label={`Terms starting with ${letter}`}>
+            <section key={letter} aria-label={t("glossary.sectionLabel", { letter, defaultValue: "Terms starting with {{letter}}" })}>
               <h2 className="text-sm font-bold text-muted uppercase tracking-widest mb-3 ml-1 flex items-center gap-3">
                 {letter}
                 <span className="flex-1 h-px bg-card-border" />
@@ -371,7 +371,7 @@ export default function GlossaryPage() {
             </Link>
             <Link
               href="/"
-              className="text-sm px-4 py-2.5 rounded-lg bg-bitcoin text-black font-semibold hover:bg-bitcoin-hover transition-all"
+              className="text-sm px-4 py-2.5 rounded-lg bg-bitcoin text-background font-semibold hover:bg-bitcoin-hover transition-all"
             >
               {t("glossary.scanNow", { defaultValue: "Scan now" })}
             </Link>

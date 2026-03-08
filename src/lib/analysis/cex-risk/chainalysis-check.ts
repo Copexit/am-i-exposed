@@ -78,11 +78,13 @@ async function checkAddresses(
   const allIdentifications: ChainalysisIdentification[] = [];
   const matchedAddresses: string[] = [];
 
-  for (const addr of toCheck) {
+  for (let i = 0; i < toCheck.length; i++) {
     signal?.throwIfAborted();
-    const result = await checkSingleAddress(addr, baseUrl, signal, timeoutMs);
+    // Small delay between requests to avoid rate limiting
+    if (i > 0) await new Promise((r) => setTimeout(r, 100));
+    const result = await checkSingleAddress(toCheck[i], baseUrl, signal, timeoutMs);
     if (result.sanctioned) {
-      matchedAddresses.push(addr);
+      matchedAddresses.push(toCheck[i]);
       allIdentifications.push(...result.identifications);
     }
   }

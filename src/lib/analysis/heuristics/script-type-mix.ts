@@ -27,6 +27,7 @@ export const analyzeScriptTypeMix: TxHeuristic = (tx) => {
     findings.push({
       id: "script-multisig",
       severity: "high",
+      confidence: "deterministic",
       title: `Bare multisig output${multisigOutputs.length > 1 ? "s" : ""} detected`,
       params: { count: multisigOutputs.length },
       description:
@@ -63,6 +64,7 @@ export const analyzeScriptTypeMix: TxHeuristic = (tx) => {
     findings.push({
       id: "script-uniform",
       severity: "good",
+      confidence: "deterministic",
       title: "Uniform script types",
       description:
         "All inputs and outputs use the same script type, making change detection harder. " +
@@ -79,6 +81,7 @@ export const analyzeScriptTypeMix: TxHeuristic = (tx) => {
   findings.push({
     id: "script-mixed",
     severity: allTypes.size >= 3 ? "medium" : "low",
+    confidence: "deterministic",
     title: `${allTypes.size} different script types in transaction`,
     params: { typeCount: allTypes.size, types: [...allTypes].join(", ") },
     description:
