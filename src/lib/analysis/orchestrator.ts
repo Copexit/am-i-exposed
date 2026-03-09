@@ -37,11 +37,15 @@ import {
   analyzeCoinSelection,
   analyzeWitnessData,
   analyzeHighActivityAddress,
+  analyzePostMix,
+  analyzeEntityDetection,
 } from "./heuristics";
 import { analyzeTemporalCorrelation } from "./chain/temporal";
 import { analyzeFingerprintEvolution } from "./chain/prospective";
 import { calculateScore } from "@/lib/scoring/score";
 import { checkOfac } from "./cex-risk/ofac-check";
+import { matchEntitySync } from "./entity-filter/entity-match";
+import { getEntity } from "./entities";
 
 export interface HeuristicStep {
   id: string;
@@ -77,6 +81,8 @@ const TX_HEURISTICS = [
   { id: "exchange", label: "Exchange pattern detection", fn: analyzeExchangePattern },
   { id: "coinsel", label: "Coin selection patterns", fn: analyzeCoinSelection },
   { id: "witness", label: "Witness data analysis", fn: analyzeWitnessData },
+  { id: "postmix", label: "Post-mix consolidation", fn: analyzePostMix },
+  { id: "entity", label: "Known entity detection", fn: analyzeEntityDetection },
 ] as const;
 
 const ADDRESS_HEURISTICS = [
@@ -171,6 +177,39 @@ export async function analyzeAddress(
     }
   }
 
+  // Entity identification: check the target address against entity databases
+  const entityMatch = matchEntitySync(address.address);
+  if (entityMatch) {
+    const entityInfo = getEntity(entityMatch.entityName);
+    const isOfac = entityMatch.ofac || (entityInfo?.ofac ?? false);
+    allFindings.unshift({
+      id: "address-entity-identified",
+      severity: isOfac ? "critical" : "medium",
+      confidence: entityMatch.confidence,
+      title: isOfac
+        ? `OFAC sanctioned entity: ${entityMatch.entityName}`
+        : `Identified entity: ${entityMatch.entityName}`,
+      params: {
+        entityName: entityMatch.entityName,
+        category: entityInfo?.category ?? entityMatch.category,
+        country: entityInfo?.country ?? "Unknown",
+        status: entityInfo?.status ?? "unknown",
+        ofac: isOfac ? 1 : 0,
+      },
+      description: isOfac
+        ? `This address belongs to ${entityMatch.entityName}, an OFAC-sanctioned entity. ` +
+          "Transacting with sanctioned addresses may have legal consequences depending on jurisdiction."
+        : `This address belongs to ${entityMatch.entityName}` +
+          (entityInfo ? ` (${entityInfo.category}${entityInfo.country !== "Unknown" ? ", " + entityInfo.country : ""})` : "") +
+          ". Transactions involving known entities are traceable by chain analysis firms.",
+      recommendation: isOfac
+        ? "Exercise extreme caution. Consult legal counsel before transacting with this address."
+        : "Be aware that this entity can link your transactions to your identity. " +
+          "For privacy, use intermediate hops, CoinJoin, or Lightning Network before interacting with known entities.",
+      scoreImpact: isOfac ? -20 : -3,
+    });
+  }
+
   // Temporal correlation analysis (uses tx history)
   if (txs.length >= 3) {
     const temporalFindings = analyzeTemporalCorrelation(txs);
@@ -225,25 +264,33 @@ export async function analyzeAddress(
  */
 function applyCrossHeuristicRules(findings: Finding[]): void {
   const isCoinJoin = findings.some(isCoinJoinFinding);
-  // Stonewall cannot be reliably distinguished as solo vs x2 on-chain.
-  // Since we can't tell, keep CIOH findings for Stonewall (it may be solo).
-  const isSoloStonewall = findings.some(
+  const isStonewall = findings.some(
     (f) => (f.id === "h4-stonewall" || f.id === "h4-simplified-stonewall") && f.scoreImpact > 0,
   );
 
   if (isCoinJoin) {
     for (const f of findings) {
-      // CIOH is expected in multi-party CoinJoin (each input = different participant)
-      // but NOT in solo Stonewall where all inputs belong to one wallet
-      if (f.id === "h3-cioh" && !isSoloStonewall) {
-        f.severity = "low";
-        f.params = { ...f.params, context: "coinjoin" };
-        f.scoreImpact = 0;
+      // CIOH suppression for ALL CoinJoin types including Stonewall.
+      // Even solo Stonewall is designed to create CIOH ambiguity - the multiple
+      // inputs are intentional to make the tx look like a multi-party CoinJoin.
+      // For Stonewall: reduce to -3 (not 0, since all inputs ARE one wallet,
+      // but the ambiguity is the feature). For other CoinJoins: fully suppress.
+      if (f.id === "h3-cioh") {
+        if (isStonewall) {
+          f.severity = "low";
+          f.params = { ...f.params, context: "stonewall" };
+          f.scoreImpact = -3;
+        } else {
+          f.severity = "low";
+          f.params = { ...f.params, context: "coinjoin" };
+          f.scoreImpact = 0;
+        }
       }
-      // Round amounts in CoinJoin are the denomination, not a privacy leak
+      // Round amounts in CoinJoin are the denomination, not a privacy leak.
+      // In Stonewall specifically, round amounts are hidden behind the equal-value pair structure.
       if (f.id === "h1-round-amount" || f.id === "h1-round-usd-amount" || f.id === "h1-round-eur-amount") {
         f.severity = "low";
-        f.params = { ...f.params, context: "coinjoin" };
+        f.params = { ...f.params, context: isStonewall ? "stonewall" : "coinjoin" };
         f.scoreImpact = 0;
       }
       // Change detection in CoinJoin is less reliable
@@ -267,12 +314,25 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
         f.params = { ...f.params, context: "coinjoin" };
         f.scoreImpact = 0;
       }
-      // Entropy recommendation should reflect CoinJoin context
+      // Entropy recommendation should reflect CoinJoin context.
+      // For Stonewall: the two pairs of equal outputs create more ambiguity
+      // than a normal 2-output payment (which has 0 bits entropy).
       if (f.id === "h5-entropy") {
-        f.params = { ...f.params, context: "coinjoin" };
+        if (isStonewall) {
+          f.params = { ...f.params, context: "stonewall" };
+          // Enhance description to explain Stonewall's structural ambiguity
+          f.description =
+            f.description +
+            " In this Stonewall transaction, the two equal-value outputs create ambiguity about which is the real payment." +
+            " A normal 2-output payment has 0 bits (fully deterministic), so this entropy is a meaningful improvement.";
+        } else {
+          f.params = { ...f.params, context: "coinjoin" };
+        }
       }
       // Wallet fingerprint is less relevant for CoinJoin - but we can infer the wallet
-      // from the CoinJoin type detected by H4
+      // from the CoinJoin type detected by H4.
+      // For Stonewall specifically, nVersion=1 is INTENTIONAL fingerprint disruption
+      // by Samourai/Ashigaru - it should not be penalized.
       if (f.id === "h11-wallet-fingerprint") {
         f.severity = "low";
         // Infer wallet from CoinJoin type
@@ -280,13 +340,12 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
           (x) => x.id === "h4-coinjoin" && x.params?.isWabiSabi === 1,
         );
         const isWhirlpool = findings.some((x) => x.id === "h4-whirlpool");
-        const isStonewall = findings.some((x) => x.id === "h4-stonewall");
         if (isWabiSabi) {
           f.params = { ...f.params, walletGuess: "Wasabi Wallet" };
         } else if (isWhirlpool) {
           f.params = { ...f.params, walletGuess: "Ashigaru/Sparrow" };
         } else if (isStonewall) {
-          f.params = { ...f.params, walletGuess: "Ashigaru" };
+          f.params = { ...f.params, walletGuess: "Ashigaru", intentionalFingerprint: 1 };
         }
         // Compose context: identified (if wallet known) or signals variant + coinjoin
         const hasWallet = !!f.params?.walletGuess;
@@ -315,10 +374,22 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
         f.scoreImpact = 0;
       }
       // No anonymity set finding: CoinJoin structure itself provides privacy
-      // beyond simple output value matching, so the penalty is unwarranted
+      // beyond simple output value matching, so the penalty is unwarranted.
+      // For Stonewall: the 2 equal outputs plus 2 distinct change outputs create
+      // higher effective ambiguity than the raw anonymity set of 2 suggests,
+      // because each change output could belong to either party.
       if (f.id === "anon-set-none" || f.id === "anon-set-moderate") {
         f.severity = "low";
-        f.params = { ...f.params, context: "coinjoin" };
+        if (isStonewall && f.id === "anon-set-moderate") {
+          f.params = { ...f.params, context: "stonewall" };
+          f.description =
+            f.description +
+            " In Stonewall, the 2 equal outputs plus 2 distinct change outputs create structural ambiguity:" +
+            " an observer cannot determine which change belongs to which equal-value output," +
+            " effectively raising the ambiguity beyond what the raw anonymity set of 2 suggests.";
+        } else {
+          f.params = { ...f.params, context: "coinjoin" };
+        }
         f.scoreImpact = 0;
       }
       // Multisig/escrow detection is misleading in CoinJoin context -
@@ -438,6 +509,37 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
         h2Finding.severity = "medium";
         h2Finding.confidence = "high";
       }
+    }
+  }
+
+  // Post-mix to known entity: when post-mix consolidation is detected AND
+  // outputs match known entity addresses, escalate severity. This catches
+  // items 8.4: "Send to known exchange from post-mix" and
+  // "Consolidation + exchange send in same tx".
+  const hasPostMixConsolidation = findings.some(
+    (f) => f.id === "post-mix-consolidation" || f.id === "chain-post-coinjoin-consolidation",
+  );
+  const hasEntityOutput = findings.some((f) => f.id === "entity-known-output");
+  const hasPostMixDirectSpend = findings.some((f) => f.id === "chain-post-coinjoin-direct-spend");
+
+  if (hasEntityOutput && (hasPostMixConsolidation || hasPostMixDirectSpend)) {
+    const entityFinding = findings.find((f) => f.id === "entity-known-output");
+    if (entityFinding) {
+      entityFinding.severity = "critical";
+      entityFinding.scoreImpact = -10;
+      entityFinding.title = "Post-mix funds sent to known entity";
+      entityFinding.description =
+        "This transaction sends CoinJoin/post-mix outputs to a known exchange or service. " +
+        "The receiving entity can identify that funds came from a CoinJoin, which may trigger " +
+        "compliance flags and source-of-funds requests. The entity can also attempt to trace " +
+        "backward through the CoinJoin to de-anonymize the sender.";
+      entityFinding.recommendation =
+        "Never send directly from post-mix to KYC exchanges. Add intermediate hops, use P2P " +
+        "platforms (Bisq, RoboSats, HodlHodl), or route through Lightning Network.";
+      entityFinding.params = {
+        ...entityFinding.params,
+        context: hasPostMixConsolidation ? "postmix-consolidation-to-entity" : "postmix-direct-to-entity",
+      };
     }
   }
 

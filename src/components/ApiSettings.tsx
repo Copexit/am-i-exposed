@@ -3,13 +3,21 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Settings, Check, X, Loader2, RotateCcw, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
+import { Settings, Check, X, Loader2, RotateCcw, ChevronDown, ChevronUp, AlertTriangle, Sliders, Database } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
+import { useAnalysisSettings } from "@/hooks/useAnalysisSettings";
 import { diagnoseUrl } from "@/lib/api/url-diagnostics";
 import { abortSignalTimeout } from "@/lib/abort-signal";
 import { type BitcoinNetwork } from "@/lib/bitcoin/networks";
 import { LANGUAGE_OPTIONS } from "@/lib/i18n/config";
+import {
+  getFilterStatus,
+  getFullFilterStatus,
+  isFullFilterLoaded,
+  getFilter,
+  loadFullEntityFilter,
+} from "@/lib/analysis/entity-filter";
 
 type HealthStatus = "idle" | "checking" | "ok" | "error";
 
@@ -22,11 +30,13 @@ const NETWORKS: { value: BitcoinNetwork; label: string; dot: string }[] = [
 export function ApiSettings() {
   const { t, i18n } = useTranslation();
   const { network, setNetwork, customApiUrl, setCustomApiUrl, isUmbrel } = useNetwork();
+  const { settings: analysisSettings, update: updateAnalysis, reset: resetAnalysis, DEFAULTS: ANALYSIS_DEFAULTS } = useAnalysisSettings();
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState(customApiUrl ?? "");
   const [health, setHealth] = useState<HealthStatus>("idle");
   const [errorHint, setErrorHint] = useState("");
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [analysisOpen, setAnalysisOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -460,6 +470,143 @@ export function ApiSettings() {
           </>
           )}
 
+          {/* Analysis settings toggle */}
+          <div className="border-t border-card-border pt-1">
+            <button
+              onClick={() => setAnalysisOpen(!analysisOpen)}
+              aria-expanded={analysisOpen}
+              className="flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors cursor-pointer w-full py-1"
+            >
+              <Sliders size={12} />
+              {analysisOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+              {t("settings.analysis", { defaultValue: "Analysis" })}
+              {(analysisSettings.maxDepth !== ANALYSIS_DEFAULTS.maxDepth ||
+                analysisSettings.minSats !== ANALYSIS_DEFAULTS.minSats ||
+                analysisSettings.skipLargeClusters !== ANALYSIS_DEFAULTS.skipLargeClusters ||
+                analysisSettings.skipCoinJoins !== ANALYSIS_DEFAULTS.skipCoinJoins) && (
+                <span className="ml-auto text-xs text-bitcoin">
+                  {t("settings.customized", { defaultValue: "Customized" })}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {analysisOpen && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-foreground uppercase tracking-wider">
+                  {t("settings.analysisSettings", { defaultValue: "Analysis Settings" })}
+                </span>
+                <button
+                  onClick={resetAnalysis}
+                  className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <RotateCcw size={12} />
+                  {t("settings.resetDefaults", { defaultValue: "Reset" })}
+                </button>
+              </div>
+
+              {/* Max depth slider */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label htmlFor="analysis-depth" className="text-xs text-muted">
+                    {t("settings.maxDepth", { defaultValue: "Chain depth (hops)" })}
+                  </label>
+                  <span className="text-xs font-mono text-foreground tabular-nums">{analysisSettings.maxDepth}</span>
+                </div>
+                <input
+                  id="analysis-depth"
+                  type="range"
+                  min={1}
+                  max={50}
+                  step={1}
+                  value={analysisSettings.maxDepth}
+                  onChange={(e) => updateAnalysis({ maxDepth: Number(e.target.value) })}
+                  className="w-full h-1.5 bg-surface-inset rounded-full appearance-none cursor-pointer accent-bitcoin"
+                />
+                <div className="flex justify-between text-[10px] text-muted/60 mt-0.5">
+                  <span>1</span>
+                  <span>25</span>
+                  <span>50</span>
+                </div>
+              </div>
+
+              {/* Min sats threshold */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label htmlFor="analysis-minsats" className="text-xs text-muted">
+                    {t("settings.minSats", { defaultValue: "Min sats to trace" })}
+                  </label>
+                  <span className="text-xs font-mono text-foreground tabular-nums">{analysisSettings.minSats.toLocaleString()}</span>
+                </div>
+                <input
+                  id="analysis-minsats"
+                  type="range"
+                  min={100}
+                  max={100000}
+                  step={100}
+                  value={analysisSettings.minSats}
+                  onChange={(e) => updateAnalysis({ minSats: Number(e.target.value) })}
+                  className="w-full h-1.5 bg-surface-inset rounded-full appearance-none cursor-pointer accent-bitcoin"
+                />
+                <div className="flex justify-between text-[10px] text-muted/60 mt-0.5">
+                  <span>100</span>
+                  <span>1,000</span>
+                  <span>100,000</span>
+                </div>
+              </div>
+
+              {/* Toggle: Skip large clusters */}
+              <label className="flex items-center justify-between gap-2 cursor-pointer group">
+                <span className="text-xs text-muted group-hover:text-foreground transition-colors">
+                  {t("settings.skipLargeClusters", { defaultValue: "Skip large clusters" })}
+                </span>
+                <button
+                  role="switch"
+                  aria-checked={analysisSettings.skipLargeClusters}
+                  onClick={() => updateAnalysis({ skipLargeClusters: !analysisSettings.skipLargeClusters })}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                    analysisSettings.skipLargeClusters ? "bg-bitcoin" : "bg-surface-inset"
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                      analysisSettings.skipLargeClusters ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </label>
+
+              {/* Toggle: Skip CoinJoins/batching */}
+              <label className="flex items-center justify-between gap-2 cursor-pointer group">
+                <span className="text-xs text-muted group-hover:text-foreground transition-colors">
+                  {t("settings.skipCoinJoins", { defaultValue: "Skip CoinJoins in chain tracing" })}
+                </span>
+                <button
+                  role="switch"
+                  aria-checked={analysisSettings.skipCoinJoins}
+                  onClick={() => updateAnalysis({ skipCoinJoins: !analysisSettings.skipCoinJoins })}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                    analysisSettings.skipCoinJoins ? "bg-bitcoin" : "bg-surface-inset"
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                      analysisSettings.skipCoinJoins ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </label>
+
+              <p className="text-[10px] text-muted/60">
+                {t("settings.analysisNote", { defaultValue: "Settings apply to the next analysis. Changes are saved automatically." })}
+              </p>
+            </div>
+          )}
+
+          {/* Entity filter status */}
+          <EntityFilterStatus t={t} />
+
           {/* Version */}
           <div className="border-t border-card-border pt-2 text-center">
             <span className="text-[10px] text-muted/70 font-mono tabular-nums select-all">
@@ -469,6 +616,122 @@ export function ApiSettings() {
         </div>
         </>,
         document.body,
+      )}
+    </div>
+  );
+}
+
+/** Entity filter status and loader UI. */
+function EntityFilterStatus({ t }: { t: (key: string, opts?: Record<string, unknown>) => string }) {
+  const [, forceUpdate] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<{ loaded: number; total: number } | null>(null);
+
+  const coreStatus = getFilterStatus();
+  const fullStatus = getFullFilterStatus();
+  const fullLoaded = isFullFilterLoaded();
+  const filter = getFilter();
+  const addressCount = filter?.meta.addressCount ?? 0;
+  const buildDate = filter?.meta.buildDate ?? "";
+
+  const handleLoadFull = useCallback(async () => {
+    setLoading(true);
+    setProgress({ loaded: 0, total: 0 });
+    try {
+      await loadFullEntityFilter((loaded, total) => {
+        setProgress({ loaded, total });
+      });
+    } catch {
+      // silently fail - filter is optional
+    }
+    setLoading(false);
+    setProgress(null);
+    forceUpdate((n) => n + 1);
+  }, []);
+
+  // Don't show if no core filter available
+  if (coreStatus === "unavailable" || coreStatus === "error") return null;
+
+  const statusColor =
+    coreStatus === "ready" ? "text-success" : coreStatus === "loading" ? "text-bitcoin" : "text-muted";
+
+  const isDownloading = loading || fullStatus === "loading";
+  const pct = progress && progress.total > 0
+    ? Math.min(100, Math.round((progress.loaded / progress.total) * 100))
+    : null;
+  const loadedMB = progress ? (progress.loaded / 1_048_576).toFixed(1) : null;
+  const totalMB = progress && progress.total > 0 ? (progress.total / 1_048_576).toFixed(0) : null;
+
+  return (
+    <div className="border-t border-card-border pt-2 space-y-2">
+      <div className="flex items-center gap-1.5 text-xs text-muted">
+        <Database size={12} />
+        <span>{t("settings.entityFilter", { defaultValue: "Entity Database" })}</span>
+        <span className={`ml-auto text-[10px] ${statusColor}`}>
+          {coreStatus === "ready"
+            ? fullLoaded
+              ? t("settings.entityFull", { defaultValue: "Full" })
+              : t("settings.entityCore", { defaultValue: "Core" })
+            : coreStatus === "loading"
+              ? t("settings.entityLoading", { defaultValue: "Loading..." })
+              : t("settings.entityIdle", { defaultValue: "Idle" })}
+        </span>
+      </div>
+
+      {coreStatus === "ready" && (
+        <div className="space-y-2">
+          <p className="text-[10px] text-muted/60">
+            {addressCount.toLocaleString()} {t("settings.entityAddresses", { defaultValue: "addresses" })}
+            {buildDate ? ` - ${buildDate.slice(0, 10)}` : ""}
+          </p>
+
+          <p className="text-[10px] text-muted/50 leading-relaxed">
+            {t("settings.entityExplainer", {
+              defaultValue: "Every address in your transactions is cross-referenced locally against a database of known exchanges, services, and sanctioned entities. Nothing leaves your browser.",
+            })}
+          </p>
+
+          {!fullLoaded && fullStatus !== "unavailable" && !isDownloading && (
+            <button
+              onClick={handleLoadFull}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-xs font-medium rounded-lg bg-bitcoin/10 text-bitcoin border border-bitcoin/20 hover:bg-bitcoin/20 hover:border-bitcoin/40 transition-all cursor-pointer"
+            >
+              <Database size={14} />
+              {t("settings.entityLoadFull", { defaultValue: "Load full database (30M+ addresses)" })}
+            </button>
+          )}
+
+          {isDownloading && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[10px]">
+                <span className="text-bitcoin flex items-center gap-1.5">
+                  <Loader2 size={10} className="animate-spin" />
+                  {t("settings.entityDownloading", { defaultValue: "Downloading..." })}
+                </span>
+                <span className="text-muted tabular-nums">
+                  {pct !== null
+                    ? `${loadedMB} / ${totalMB} MB (${pct}%)`
+                    : loadedMB
+                      ? `${loadedMB} MB`
+                      : ""}
+                </span>
+              </div>
+              <div className="w-full h-1.5 bg-surface-inset rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-bitcoin rounded-full transition-all duration-300 ease-out"
+                  style={{ width: pct !== null ? `${pct}%` : "30%", animation: pct === null ? "pulse 2s ease-in-out infinite" : undefined }}
+                />
+              </div>
+            </div>
+          )}
+
+          {fullLoaded && (
+            <div className="flex items-center gap-1.5 text-[10px] text-success/80">
+              <Check size={12} />
+              {t("settings.entityFullLoaded", { defaultValue: "Full entity database loaded" })}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

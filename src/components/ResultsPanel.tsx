@@ -29,6 +29,7 @@ import { Remediation } from "./Remediation";
 import { WalletGuide } from "./WalletGuide";
 import { RecoveryFlow } from "./RecoveryFlow";
 import { CommonMistakes } from "./CommonMistakes";
+import { PrivacyPathways } from "./PrivacyPathways";
 import { AnalystView } from "./AnalystView";
 import { CexRiskPanel } from "./CexRiskPanel";
 import { ExchangeWarningPanel } from "./ExchangeWarningPanel";
@@ -43,9 +44,27 @@ import { GlowCard } from "./ui/GlowCard";
 import { copyToClipboard } from "@/lib/clipboard";
 import { getSummarySentiment } from "@/lib/scoring/score";
 import { DestinationAlert } from "./DestinationAlert";
-import type { ScoringResult, TxAnalysisResult } from "@/lib/types";
+import type { ScoringResult, TxAnalysisResult, TxType } from "@/lib/types";
 import type { MempoolTransaction, MempoolAddress, MempoolUtxo } from "@/lib/api/types";
 import type { PreSendResult } from "@/lib/analysis/orchestrator";
+
+const TX_TYPE_LABELS: Partial<Record<TxType, string>> = {
+  "whirlpool-coinjoin": "Whirlpool",
+  "wabisabi-coinjoin": "WabiSabi",
+  "joinmarket-coinjoin": "JoinMarket",
+  "generic-coinjoin": "CoinJoin",
+  "stonewall": "Stonewall",
+  "simplified-stonewall": "Simplified Stonewall",
+  "payjoin": "PayJoin",
+  "tx0-premix": "TX0 Premix",
+  "bip47-notification": "BIP47 Notification",
+  "consolidation": "Consolidation",
+  "exchange-withdrawal": "Exchange Withdrawal",
+  "batch-payment": "Batch Payment",
+  "self-transfer": "Self-transfer",
+  "peel-chain": "Peel Chain",
+  "coinbase": "Coinbase",
+};
 
 function ScoringExplainer({ isAddress }: { isAddress?: boolean }) {
   const [open, setOpen] = useState(false);
@@ -217,7 +236,6 @@ export const ResultsPanel = memo(function ResultsPanel({
   );
 
   return (
-    <Suspense fallback={null}>
     <motion.div
       data-testid="results-panel"
       initial={{ opacity: 0, y: 10 }}
@@ -259,12 +277,17 @@ export const ResultsPanel = memo(function ResultsPanel({
       {/* ZONE 2: Hero Score */}
       <GlowCard className="w-full p-7 space-y-6">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-medium text-muted uppercase tracking-wider">
               {inputType === "txid" ? t("results.transaction", { defaultValue: "Transaction" }) : t("results.address", { defaultValue: "Address" })}
             </span>
             {inputType === "address" && (
               <AddressTypeBadge address={query} />
+            )}
+            {inputType === "txid" && result.txType && result.txType !== "simple-payment" && result.txType !== "unknown" && (
+              <span className="text-xs font-medium px-1.5 py-0.5 rounded border border-card-border bg-surface-elevated text-muted">
+                {TX_TYPE_LABELS[result.txType] ?? result.txType.replace(/-/g, " ")}
+              </span>
             )}
           </div>
           <button
@@ -299,7 +322,7 @@ export const ResultsPanel = memo(function ResultsPanel({
           <div className="flex items-center justify-center gap-6">
             <ScoreDisplay score={result.score} grade={result.grade} findings={result.findings} />
             {result.findings.length > 3 && (
-              <ChartErrorBoundary><SeverityRing findings={result.findings} size={120} /></ChartErrorBoundary>
+              <ChartErrorBoundary><Suspense fallback={null}><SeverityRing findings={result.findings} size={120} /></Suspense></ChartErrorBoundary>
             )}
           </div>
         </div>
@@ -362,11 +385,13 @@ export const ResultsPanel = memo(function ResultsPanel({
       {txData && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }} className="w-full">
           <ChartErrorBoundary>
-            {result.findings.some((f) => f.id.startsWith("h4-")) ? (
-              <CoinJoinStructure tx={txData} findings={result.findings} onAddressClick={onScan} usdPrice={usdPrice} outspends={outspends} />
-            ) : (
-              <TxFlowDiagram tx={txData} findings={result.findings} onAddressClick={onScan} usdPrice={usdPrice} outspends={outspends} />
-            )}
+            <Suspense fallback={null}>
+              {result.findings.some((f) => f.id.startsWith("h4-")) ? (
+                <CoinJoinStructure tx={txData} findings={result.findings} onAddressClick={onScan} usdPrice={usdPrice} outspends={outspends} />
+              ) : (
+                <TxFlowDiagram tx={txData} findings={result.findings} onAddressClick={onScan} onTxClick={onScan} usdPrice={usdPrice} outspends={outspends} />
+              )}
+            </Suspense>
           </ChartErrorBoundary>
         </motion.div>
       )}
@@ -374,12 +399,12 @@ export const ResultsPanel = memo(function ResultsPanel({
       {/* ZONE 6: Analysis */}
       {addressData && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }} className="w-full">
-          <AddressSummary address={addressData} />
+          <AddressSummary address={addressData} findings={result?.findings} />
         </motion.div>
       )}
       {addressUtxos && addressUtxos.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.25 }} className="w-full">
-          <ChartErrorBoundary><UtxoBubbleChart utxos={addressUtxos} /></ChartErrorBoundary>
+          <ChartErrorBoundary><Suspense fallback={null}><UtxoBubbleChart utxos={addressUtxos} /></Suspense></ChartErrorBoundary>
         </motion.div>
       )}
       {findingsBlock}
@@ -391,6 +416,9 @@ export const ResultsPanel = memo(function ResultsPanel({
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.36 }} className="w-full">
           <CommonMistakes findings={result.findings} grade={result.grade} />
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.365 }} className="w-full">
+          <PrivacyPathways grade={result.grade} />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.37 }} className="w-full">
           <RecoveryFlow grade={result.grade} />
@@ -422,7 +450,7 @@ export const ResultsPanel = memo(function ResultsPanel({
         <>
           {txBreakdown && txBreakdown.length >= 2 && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.4 }} className="w-full">
-              <ChartErrorBoundary><PrivacyTimeline breakdown={txBreakdown} onScan={onScan} /></ChartErrorBoundary>
+              <ChartErrorBoundary><Suspense fallback={null}><PrivacyTimeline breakdown={txBreakdown} onScan={onScan} /></Suspense></ChartErrorBoundary>
             </motion.div>
           )}
           {addressTxs && addressTxs.length >= 3 && (
@@ -476,13 +504,15 @@ export const ResultsPanel = memo(function ResultsPanel({
         {result.findings.some((f) => f.scoreImpact !== 0) && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.55 }} className="w-full">
             <ChartErrorBoundary>
-              <ScoreWaterfall
-                findings={result.findings}
-                finalScore={result.score}
-                grade={result.grade}
-                baseScore={addressData ? ADDRESS_BASE_SCORE : TX_BASE_SCORE}
-                onFindingClick={handleFindingClick}
-              />
+              <Suspense fallback={null}>
+                <ScoreWaterfall
+                  findings={result.findings}
+                  finalScore={result.score}
+                  grade={result.grade}
+                  baseScore={addressData ? ADDRESS_BASE_SCORE : TX_BASE_SCORE}
+                  onFindingClick={handleFindingClick}
+                />
+              </Suspense>
             </ChartErrorBoundary>
           </motion.div>
         )}
@@ -536,8 +566,10 @@ export const ResultsPanel = memo(function ResultsPanel({
           </motion.div>
         )}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.6 }} className="w-full">
-          <TipJar />
-          {inputType === "txid" && <CrossPromo />}
+          <Suspense fallback={null}>
+            <TipJar />
+            {inputType === "txid" && <CrossPromo />}
+          </Suspense>
         </motion.div>
       </div>
 
@@ -580,6 +612,5 @@ export const ResultsPanel = memo(function ResultsPanel({
         </div>
       </div>
     </motion.div>
-    </Suspense>
   );
 });
