@@ -28,8 +28,15 @@ const FULL_BLOOM_PATH = "/data/entity-filter-full.bin";
 
 // ───────────────── Entity name index ─────────────────
 
+/** Category byte -> EntityCategory string. Must match build script CATEGORY_BYTE. */
+const CATEGORY_FROM_BYTE = [
+  "exchange", "darknet", "scam", "gambling",
+  "payment", "mining", "mixer", "p2p", "unknown",
+] as const;
+
 interface EntityIndex {
   names: string[];
+  categories: string[];
   hashes: Uint32Array;
   entityIds: Uint16Array;
   hashSeed: number;
@@ -175,10 +182,12 @@ function parseBloomFilter(
 // ───────────────── Entity index parser ─────────────────
 
 /**
- * Parse an entity name index binary (format v1).
+ * Parse an entity name index binary (format v1 or v2).
  *
  * Header (20 bytes): magic("EIDX",4) version(4) entryCount(4) nameCount(2) hashSeed(4) reserved(2)
- * Name table: for each name: length(1) + UTF-8 bytes
+ * Name table:
+ *   v1: for each name: length(1) + UTF-8 bytes
+ *   v2: for each name: length(1) + UTF-8 bytes + category(1)
  * Sorted index: for each entry: hash(4,LE) + entityId(2,LE)
  */
 function parseEntityIndex(buffer: ArrayBuffer): EntityIndex | null {
@@ -191,7 +200,7 @@ function parseEntityIndex(buffer: ArrayBuffer): EntityIndex | null {
   if (bytes[0] !== 0x45 || bytes[1] !== 0x49 || bytes[2] !== 0x44 || bytes[3] !== 0x58) return null;
 
   const version = view.getUint32(4, true);
-  if (version !== 1) return null;
+  if (version !== 1 && version !== 2) return null;
 
   const entryCount = view.getUint32(8, true);
   const nameCount = view.getUint16(12, true);
@@ -199,6 +208,7 @@ function parseEntityIndex(buffer: ArrayBuffer): EntityIndex | null {
 
   // Parse name table
   const names: string[] = [];
+  const categories: string[] = [];
   const decoder = new TextDecoder();
   let offset = 20;
   for (let i = 0; i < nameCount; i++) {
@@ -207,6 +217,14 @@ function parseEntityIndex(buffer: ArrayBuffer): EntityIndex | null {
     offset++;
     names.push(decoder.decode(bytes.slice(offset, offset + len)));
     offset += len;
+    if (version >= 2) {
+      // v2: category byte follows the name
+      const catByte = bytes[offset] ?? 0;
+      categories.push(CATEGORY_FROM_BYTE[catByte] ?? "exchange");
+      offset++;
+    } else {
+      categories.push("exchange"); // v1 fallback
+    }
   }
 
   // Parse sorted index entries into typed arrays for fast binary search
@@ -218,7 +236,30 @@ function parseEntityIndex(buffer: ArrayBuffer): EntityIndex | null {
     offset += 6;
   }
 
-  return { names, hashes, entityIds, hashSeed };
+  return { names, categories, hashes, entityIds, hashSeed };
+}
+
+/**
+ * Binary search the entity index for a given address hash.
+ * Returns the entity ID index, or -1 if not found.
+ */
+function searchEntityIndex(address: string): number {
+  if (!entityIndexInstance) return -1;
+
+  const { hashes, entityIds, hashSeed } = entityIndexInstance;
+  const hash = fnv1a(normalizeAddress(address), hashSeed);
+
+  let lo = 0;
+  let hi = hashes.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >>> 1;
+    const midHash = hashes[mid];
+    if (midHash === hash) return entityIds[mid];
+    if (midHash < hash) lo = mid + 1;
+    else hi = mid - 1;
+  }
+
+  return -1;
 }
 
 /**
@@ -226,26 +267,19 @@ function parseEntityIndex(buffer: ArrayBuffer): EntityIndex | null {
  * Returns the canonical entity name, or null if not found or index not loaded.
  */
 export function lookupEntityName(address: string): string | null {
-  if (!entityIndexInstance) return null;
+  const eid = searchEntityIndex(address);
+  if (eid < 0 || !entityIndexInstance) return null;
+  return eid < entityIndexInstance.names.length ? entityIndexInstance.names[eid] : null;
+}
 
-  const { names, hashes, entityIds, hashSeed } = entityIndexInstance;
-  const hash = fnv1a(normalizeAddress(address), hashSeed);
-
-  // Binary search the sorted hash array
-  let lo = 0;
-  let hi = hashes.length - 1;
-  while (lo <= hi) {
-    const mid = (lo + hi) >>> 1;
-    const midHash = hashes[mid];
-    if (midHash === hash) {
-      const eid = entityIds[mid];
-      return eid < names.length ? names[eid] : null;
-    }
-    if (midHash < hash) lo = mid + 1;
-    else hi = mid - 1;
-  }
-
-  return null;
+/**
+ * Look up the category for a given address using the entity index.
+ * Returns "exchange", "mining", "gambling", etc., or null if not found.
+ */
+export function lookupEntityCategory(address: string): string | null {
+  const eid = searchEntityIndex(address);
+  if (eid < 0 || !entityIndexInstance) return null;
+  return eid < entityIndexInstance.categories.length ? entityIndexInstance.categories[eid] : null;
 }
 
 // ───────────────── Index-backed filter ─────────────────

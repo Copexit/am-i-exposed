@@ -8,6 +8,7 @@ export {
   getFullFilterStatus,
   isFullFilterLoaded,
   lookupEntityName,
+  lookupEntityCategory,
 } from "./filter-loader";
 export type { ProgressCallback } from "./filter-loader";
 export type { EntityMatch, FilterMeta, AddressFilter, FilterStatus } from "./types";

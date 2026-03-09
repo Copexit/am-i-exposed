@@ -395,7 +395,7 @@ async function streamCsvIntoFilter(filePath, category, sourceName, filter, stats
             let eid = stats.entityNameMap.get(resolvedName);
             if (eid === undefined) {
               eid = stats.entityNameTable.length;
-              stats.entityNameTable.push(resolvedName);
+              stats.entityNameTable.push({ name: resolvedName, category });
               stats.entityNameMap.set(resolvedName, eid);
             }
             stats.entityIndex.push({ hash: fnv1aHash(address, FNV_SEED_1), entityId: eid });
@@ -534,25 +534,36 @@ async function streamWalletExplorerIntoFilter(entities, filter, stats) {
 
 // ───────────────── Entity index writer ─────────────────
 
+// Category string -> byte encoding for the binary format
+const CATEGORY_BYTE = {
+  exchange: 0, darknet: 1, scam: 2, gambling: 3,
+  payment: 4, mining: 5, mixer: 6, p2p: 7, unknown: 8,
+  historical: 4, // historical -> payment (closest match)
+  sanctioned: 0,  // sanctioned -> exchange (OFAC handles the flag)
+};
+
 /**
  * Write the entity name index binary.
  *
- * Format v1:
+ * Format v2:
  *   Header (20 bytes): magic("EIDX",4) version(4) entryCount(4) nameCount(2) hashSeed(4) reserved(2)
- *   Name table: for each name: length(1) + UTF-8 bytes
+ *   Name table: for each name: length(1) + UTF-8 bytes + category(1)
  *   Sorted index: for each entry: hash(4,LE) + entityId(2,LE)
  */
 function writeEntityIndex(outputPath, entityNameTable, entityIndex) {
   // Sort entries by hash for binary search at runtime
   entityIndex.sort((a, b) => a.hash - b.hash);
 
-  // Build name table bytes
+  // Build name table bytes (v2: includes category byte per name)
   const encoder = new TextEncoder();
-  const nameBuffers = entityNameTable.map((name) => {
-    const bytes = encoder.encode(name);
-    const buf = new Uint8Array(1 + bytes.length);
-    buf[0] = bytes.length;
-    buf.set(bytes, 1);
+  const nameBuffers = entityNameTable.map((entry) => {
+    const name = typeof entry === "string" ? entry : entry.name;
+    const category = typeof entry === "string" ? "exchange" : entry.category;
+    const nameBytes = encoder.encode(name);
+    const buf = new Uint8Array(1 + nameBytes.length + 1);
+    buf[0] = nameBytes.length;
+    buf.set(nameBytes, 1);
+    buf[1 + nameBytes.length] = CATEGORY_BYTE[category] ?? 0;
     return buf;
   });
   const nameTableSize = nameBuffers.reduce((s, b) => s + b.length, 0);
@@ -567,7 +578,7 @@ function writeEntityIndex(outputPath, entityNameTable, entityIndex) {
 
   // Header
   bytes[0] = 0x45; bytes[1] = 0x49; bytes[2] = 0x44; bytes[3] = 0x58; // "EIDX"
-  view.setUint32(4, 1, true);                         // version
+  view.setUint32(4, 2, true);                         // version (v2: name table includes category)
   view.setUint32(8, entityIndex.length, true);         // entryCount
   view.setUint16(12, entityNameTable.length, true);    // nameCount
   view.setUint32(14, FNV_SEED_1, true);                // hashSeed

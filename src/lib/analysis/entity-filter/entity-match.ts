@@ -1,6 +1,6 @@
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { EntityMatch } from "./types";
-import { getFilter, loadEntityFilter, lookupEntityName } from "./filter-loader";
+import { getFilter, loadEntityFilter, lookupEntityName, lookupEntityCategory } from "./filter-loader";
 import { checkOfac } from "../cex-risk/ofac-check";
 import { extractTxAddresses } from "../cex-risk/extract-addresses";
 import { getEntity } from "../entities";
@@ -49,7 +49,7 @@ export async function matchEntities(
         matches.push({
           address: addr,
           entityName: resolvedName ?? "Known entity",
-          category: entity?.category ?? "exchange",
+          category: entity?.category ?? lookupEntityCategory(addr) as EntityMatch["category"] ?? "exchange",
           ofac: entity?.ofac ?? false,
           confidence: resolvedName ? "high" : "medium",
         });
@@ -85,7 +85,7 @@ export function matchEntitySync(address: string): EntityMatch | null {
     return {
       address,
       entityName: resolvedName ?? "Known entity",
-      category: entity?.category ?? "exchange",
+      category: entity?.category ?? lookupEntityCategory(address) as EntityMatch["category"] ?? "exchange",
       ofac: entity?.ofac ?? false,
       confidence: resolvedName ? "high" : "medium",
     };
