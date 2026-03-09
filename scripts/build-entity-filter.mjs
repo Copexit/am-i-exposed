@@ -781,7 +781,23 @@ Output: public/data/
   }
 
   if (!opts.ofacOnly) {
-    // Source 2: Maru92 CSVs (sorted by priority)
+    // Source 2: Custom CSVs (high priority - curated vanity addresses, etc.)
+    for (const csvPath of customCsvs) {
+      if (opts.maxAddresses > 0 && stats.unique >= opts.maxAddresses) break;
+      const fname = basename(csvPath, ".csv");
+      const category = getCategoryFromFilename(fname);
+      console.log(`  [Custom] ${fname} (${category || "custom"})`);
+      const added = await streamCsvIntoFilter(
+        csvPath,
+        category || "unknown",
+        "custom",
+        filter,
+        stats,
+      );
+      console.log(`    ${added.toLocaleString()} new\n`);
+    }
+
+    // Source 3: Maru92 CSVs (sorted by priority)
     for (const csvPath of maru92Csvs) {
       if (opts.maxAddresses > 0 && stats.unique >= opts.maxAddresses) break;
 
@@ -832,21 +848,6 @@ Output: public/data/
         csvPath,
         "unknown",
         "temporal",
-        filter,
-        stats,
-      );
-      console.log(`    ${added.toLocaleString()} new\n`);
-    }
-
-    // Source 4: Custom CSVs
-    for (const csvPath of customCsvs) {
-      if (opts.maxAddresses > 0 && stats.unique >= opts.maxAddresses) break;
-      const fname = basename(csvPath, ".csv");
-      console.log(`  [Custom] ${fname}`);
-      const added = await streamCsvIntoFilter(
-        csvPath,
-        "unknown",
-        "custom",
         filter,
         stats,
       );

@@ -3,7 +3,7 @@ import type { Finding } from "@/lib/types";
 import { WHIRLPOOL_DENOMS } from "@/lib/constants";
 
 const EXCHANGE_WARNING =
-  "Centralized exchanges including Binance, Coinbase, Gemini, Bitstamp, Swan Bitcoin, BitVavo, Bitfinex, and BitMEX " +
+  "Centralized exchanges including Binance, Coinbase, Gemini, Bitstamp, Swan Bitcoin, Bitvavo, Bitfinex, and BitMEX " +
   "have been documented flagging, freezing, or closing accounts for CoinJoin-associated deposits. " +
   "This list is not exhaustive - other exchanges may have similar policies. " +
   "Some exchanges retroactively flag CoinJoin activity months or years after the transaction. " +
@@ -39,7 +39,9 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
       params: { denom: formatBtc(whirlpool.denomination) },
       description:
         "This transaction matches the Whirlpool CoinJoin pattern: 5 equal outputs at a standard denomination. " +
-        "Whirlpool provides strong forward-looking privacy by breaking deterministic transaction links.",
+        "Whirlpool provides strong forward-looking privacy by breaking deterministic transaction links. " +
+        "Note: since the Samourai Wallet seizure (April 2024), Whirlpool no longer uses a centralized coordinator. " +
+        "Ashigaru implements decentralized Whirlpool coordination.",
       recommendation:
         "Whirlpool is one of the strongest CoinJoin implementations. Make sure to also remix (multiple rounds) for maximum privacy. " +
         EXCHANGE_WARNING,
@@ -130,25 +132,51 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
     const stonewall = detectStonewall(tx.vin, spendableOutputs);
     if (stonewall) {
       const isSolo = stonewall.distinctInputAddresses === 1;
+      const whirlpoolBonus = stonewall.whirlpoolOrigin ? 10 : 0;
+      const whirlpoolContext = stonewall.whirlpoolOrigin
+        ? ` All ${tx.vin.length} inputs are Whirlpool pool outputs, indicating this is a post-CoinJoin spend - the ideal pattern for forward privacy.`
+        : "";
+
+      // Historical context: Samourai Wallet was seized April 24, 2024.
+      // Sparrow supported Stonewall before the seizure but removed it after.
+      // After April 2024, Stonewall txs are almost certainly from Ashigaru.
+      const SAMOURAI_SEIZURE_TS = 1713916800; // 2024-04-24T00:00:00Z
+      const txTime = tx.status?.block_time;
+      const isPostSeizure = txTime ? txTime >= SAMOURAI_SEIZURE_TS : false;
+      const historicalNote = txTime
+        ? isPostSeizure
+          ? " This transaction was confirmed after the Samourai Wallet seizure (April 2024). " +
+            "Sparrow removed Stonewall support after that date, so this was likely created with Ashigaru."
+          : " This transaction predates the Samourai seizure (April 2024), so it could have been created " +
+            "with Samourai Wallet, Sparrow, or another compatible wallet."
+        : "";
       findings.push({
         id: "h4-stonewall",
         severity: "good",
-        confidence: "medium",
-        title: `Possible Stonewall: 2 equal outputs of ${formatBtc(stonewall.denomination)}`,
+        confidence: stonewall.whirlpoolOrigin ? "high" : "medium",
+        title: stonewall.whirlpoolOrigin
+          ? `Stonewall from Whirlpool: ${tx.vin.length} mixed inputs, 2 equal outputs of ${formatBtc(stonewall.denomination)}`
+          : `Possible Stonewall: 2 equal outputs of ${formatBtc(stonewall.denomination)}`,
         params: {
           denomination: formatBtc(stonewall.denomination),
           distinctAddresses: stonewall.distinctInputAddresses,
+          whirlpoolOrigin: stonewall.whirlpoolOrigin ? 1 : 0,
         },
         description:
           `This transaction matches the Stonewall pattern: ${tx.vin.length} inputs from ${stonewall.distinctInputAddresses} distinct address${stonewall.distinctInputAddresses > 1 ? "es" : ""}, ` +
           `4 outputs with 2 equal values (${formatBtc(stonewall.denomination)}). ` +
           "Stonewall creates genuine ambiguity: an observer cannot tell if this is a single-wallet Stonewall or a two-wallet STONEWALLx2. " +
-          "The 2 equal outputs make the payment amount ambiguous, and each change output could belong to either party.",
+          "The 2 equal outputs make the payment amount ambiguous, and each change output could belong to either party." +
+          whirlpoolContext +
+          historicalNote,
         recommendation:
-          "Stonewall provides real privacy by creating ambiguity. " +
-          "The critical post-transaction rule: never spend two outputs from this transaction together. " +
-          "Treat each output as belonging to a separate wallet.",
-        scoreImpact: 15,
+          stonewall.whirlpoolOrigin
+            ? "Excellent spending pattern: Stonewall from Whirlpool provides strong forward privacy. " +
+              "The critical post-transaction rule: never spend two outputs from this transaction together."
+            : "Stonewall provides real privacy by creating ambiguity. " +
+              "The critical post-transaction rule: never spend two outputs from this transaction together. " +
+              "Treat each output as belonging to a separate wallet.",
+        scoreImpact: 15 + whirlpoolBonus,
         remediation: {
           qualifier: isSolo
             ? "Likely solo Stonewall: all inputs appear to come from one wallet. The sender controls 3 of 4 outputs (1 decoy + 2 change)."
@@ -218,23 +246,44 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
   if (findings.length === 0) {
     const joinmarket = detectJoinMarket(tx.vin, spendableOutputs);
     if (joinmarket) {
+      // Identify taker's change output: non-equal-value outputs that don't match the denomination
+      const takerChangeOutputs = spendableOutputs.filter((o) => o.value !== joinmarket.denomination);
+      const takerChangeCount = takerChangeOutputs.length;
+      const isChangeless = takerChangeCount === 0;
+      const takerNote = isChangeless
+        ? " This is a changeless JoinMarket CoinJoin - the taker's change is not identifiable, providing stronger privacy."
+        : ` The ${takerChangeCount} non-equal output${takerChangeCount > 1 ? "s are" : " is"} likely the taker's change, which is linked to the taker's identity.`;
+
       findings.push({
         id: "h4-joinmarket",
         severity: "good",
         confidence: "medium",
         title: `Likely JoinMarket CoinJoin: ${joinmarket.equalCount} equal outputs of ${formatBtc(joinmarket.denomination)}`,
-        params: { count: joinmarket.equalCount, denomination: formatBtc(joinmarket.denomination), vin: tx.vin.length, vout: spendableOutputs.length },
+        params: {
+          count: joinmarket.equalCount,
+          denomination: formatBtc(joinmarket.denomination),
+          vin: tx.vin.length,
+          vout: spendableOutputs.length,
+          takerChangeIdentifiable: isChangeless ? 0 : 1,
+          takerChangeCount,
+        },
         description:
           `This transaction has ${tx.vin.length} inputs from ${joinmarket.distinctInputAddresses} distinct addresses and ` +
           `${joinmarket.equalCount} outputs with the same value (${formatBtc(joinmarket.denomination)}), ` +
           "consistent with a JoinMarket CoinJoin using the maker/taker model. " +
           "JoinMarket provides privacy by combining inputs from multiple participants into a single transaction, " +
-          "making it difficult to determine which input funded which output.",
+          "making it difficult to determine which input funded which output." +
+          takerNote,
         recommendation:
           "JoinMarket provides good privacy through its decentralized maker/taker model. " +
+          (isChangeless
+            ? "This changeless CoinJoin is the ideal pattern. "
+            : "The taker's change output should be managed carefully - never consolidate it with other mixed outputs. ") +
           "For stronger privacy, consider multiple rounds of mixing. " +
+          "Note: JoinMarket's web UI can be challenging to use. For a more accessible CoinJoin option, consider Wasabi Wallet (WabiSabi) or Ashigaru (Whirlpool). " +
+          "Historical note: KYCP.org (Know Your Coin Privacy) was a CoinJoin transaction analyzer supporting Whirlpool, WabiSabi, and JoinMarket, but has been offline since April 2024 following the Samourai Wallet seizure. " +
           EXCHANGE_WARNING,
-        scoreImpact: 15,
+        scoreImpact: isChangeless ? 20 : 15,
       });
     }
   }
@@ -394,12 +443,24 @@ function detectJoinMarket(
 function detectStonewall(
   vin: Parameters<typeof analyzeCoinJoin>[0]["vin"],
   spendableOutputs: { value: number; scriptpubkey_address?: string }[],
-): { denomination: number; distinctInputAddresses: number } | null {
-  // Stonewall: 2-4 inputs, exactly 4 spendable outputs (2 equal + 2 change)
+): { denomination: number; distinctInputAddresses: number; whirlpoolOrigin: boolean } | null {
+  // Stonewall: typically 2-4 inputs, exactly 4 spendable outputs (2 equal + 2 change)
   // Solo Stonewall typically has 2-3 inputs from one wallet.
   // STONEWALLx2 can have up to 4 inputs (2 from each party).
-  if (vin.length < 2 || vin.length > 4) return null;
+  // Exception: Stonewall from Whirlpool can have many more inputs (all at the
+  // same Whirlpool denomination), e.g. 12 inputs at 0.5 BTC each.
+  if (vin.length < 2) return null;
   if (spendableOutputs.length !== 4) return null;
+
+  // Check if all inputs share a Whirlpool denomination (Stonewall from Whirlpool).
+  // Only flag as Whirlpool-origin when there are 5+ inputs at the same Whirlpool
+  // denomination - with 2-4 inputs, coincidental matches are possible.
+  const inputValues = vin.map((v) => v.prevout?.value).filter((v): v is number => v != null);
+  const allSameValue = inputValues.length >= 2 && inputValues.every((v) => v === inputValues[0]);
+  const isWhirlpoolOrigin = allSameValue && inputValues.length >= 5 && WHIRLPOOL_DENOMS.includes(inputValues[0]);
+
+  // Standard Stonewall: 2-4 inputs. Allow more only for Whirlpool-origin.
+  if (vin.length > 4 && !isWhirlpoolOrigin) return null;
 
   // Count output values
   const counts = new Map<number, number>();
@@ -443,6 +504,7 @@ function detectStonewall(
   return {
     denomination: equalValue,
     distinctInputAddresses: inputAddresses.size,
+    whirlpoolOrigin: isWhirlpoolOrigin,
   };
 }
 

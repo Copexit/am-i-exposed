@@ -1,0 +1,2547 @@
+{
+  "lastUpdated": "2026-03-08",
+  "source": "Curated from public sources: OFAC SDN list, CryptoScamDB, WalletExplorer, public reporting",
+  "entities": [
+    {
+      "name": "Binance",
+      "category": "exchange",
+      "status": "active",
+      "country": "Cayman Islands",
+      "ofac": false
+    },
+    {
+      "name": "Coinbase",
+      "category": "exchange",
+      "status": "active",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "Kraken",
+      "category": "exchange",
+      "status": "active",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "Bitfinex",
+      "category": "exchange",
+      "status": "active",
+      "country": "BVI",
+      "ofac": false
+    },
+    {
+      "name": "Bitstamp",
+      "category": "exchange",
+      "status": "active",
+      "country": "Luxembourg",
+      "ofac": false
+    },
+    {
+      "name": "Gemini",
+      "category": "exchange",
+      "status": "active",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "BitMEX",
+      "category": "exchange",
+      "status": "active",
+      "country": "Seychelles",
+      "ofac": false
+    },
+    {
+      "name": "OKX",
+      "category": "exchange",
+      "status": "active",
+      "country": "Seychelles",
+      "ofac": false
+    },
+    {
+      "name": "Bybit",
+      "category": "exchange",
+      "status": "active",
+      "country": "Dubai",
+      "ofac": false
+    },
+    {
+      "name": "KuCoin",
+      "category": "exchange",
+      "status": "active",
+      "country": "Seychelles",
+      "ofac": false
+    },
+    {
+      "name": "Gate.io",
+      "category": "exchange",
+      "status": "active",
+      "country": "Cayman Islands",
+      "ofac": false
+    },
+    {
+      "name": "Huobi (HTX)",
+      "category": "exchange",
+      "status": "active",
+      "country": "Seychelles",
+      "ofac": false
+    },
+    {
+      "name": "Bittrex",
+      "category": "exchange",
+      "status": "closed",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "Poloniex",
+      "category": "exchange",
+      "status": "active",
+      "country": "Seychelles",
+      "ofac": false
+    },
+    {
+      "name": "FTX",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Bahamas",
+      "ofac": false
+    },
+    {
+      "name": "Celsius",
+      "category": "exchange",
+      "status": "closed",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "BlockFi",
+      "category": "exchange",
+      "status": "closed",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "Voyager",
+      "category": "exchange",
+      "status": "closed",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "Swan Bitcoin",
+      "category": "exchange",
+      "status": "active",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "River Financial",
+      "category": "exchange",
+      "status": "active",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "Cash App",
+      "category": "exchange",
+      "status": "active",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "Strike",
+      "category": "exchange",
+      "status": "active",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "Paxos",
+      "category": "exchange",
+      "status": "active",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "Crypto.com",
+      "category": "exchange",
+      "status": "active",
+      "country": "Singapore",
+      "ofac": false
+    },
+    {
+      "name": "Upbit",
+      "category": "exchange",
+      "status": "active",
+      "country": "South Korea",
+      "ofac": false
+    },
+    {
+      "name": "Bithumb",
+      "category": "exchange",
+      "status": "active",
+      "country": "South Korea",
+      "ofac": false
+    },
+    {
+      "name": "Bitso",
+      "category": "exchange",
+      "status": "active",
+      "country": "Mexico",
+      "ofac": false
+    },
+    {
+      "name": "Mercado Bitcoin",
+      "category": "exchange",
+      "status": "active",
+      "country": "Brazil",
+      "ofac": false
+    },
+    {
+      "name": "Luno",
+      "category": "exchange",
+      "status": "active",
+      "country": "UK",
+      "ofac": false
+    },
+    {
+      "name": "Paxful",
+      "category": "exchange",
+      "status": "closed",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "LocalBitcoins",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Finland",
+      "ofac": false
+    },
+    {
+      "name": "WazirX",
+      "category": "exchange",
+      "status": "active",
+      "country": "India",
+      "ofac": false
+    },
+    {
+      "name": "CoinDCX",
+      "category": "exchange",
+      "status": "active",
+      "country": "India",
+      "ofac": false
+    },
+    {
+      "name": "Bitget",
+      "category": "exchange",
+      "status": "active",
+      "country": "Singapore",
+      "ofac": false
+    },
+    {
+      "name": "MEXC",
+      "category": "exchange",
+      "status": "active",
+      "country": "Singapore",
+      "ofac": false
+    },
+    {
+      "name": "Phemex",
+      "category": "exchange",
+      "status": "active",
+      "country": "Singapore",
+      "ofac": false
+    },
+    {
+      "name": "AscendEX",
+      "category": "exchange",
+      "status": "active",
+      "country": "Singapore",
+      "ofac": false
+    },
+    {
+      "name": "Liquid (exchange)",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Japan",
+      "ofac": false
+    },
+    {
+      "name": "Coincheck",
+      "category": "exchange",
+      "status": "active",
+      "country": "Japan",
+      "ofac": false
+    },
+    {
+      "name": "BitFlyer",
+      "category": "exchange",
+      "status": "active",
+      "country": "Japan",
+      "ofac": false
+    },
+    {
+      "name": "Zaif",
+      "category": "exchange",
+      "status": "active",
+      "country": "Japan",
+      "ofac": false
+    },
+    {
+      "name": "Independent Reserve",
+      "category": "exchange",
+      "status": "active",
+      "country": "Australia",
+      "ofac": false
+    },
+    {
+      "name": "CoinSpot",
+      "category": "exchange",
+      "status": "active",
+      "country": "Australia",
+      "ofac": false
+    },
+    {
+      "name": "Bull Bitcoin",
+      "category": "exchange",
+      "status": "active",
+      "country": "Canada",
+      "ofac": false
+    },
+    {
+      "name": "Shakepay",
+      "category": "exchange",
+      "status": "active",
+      "country": "Canada",
+      "ofac": false
+    },
+    {
+      "name": "Relai",
+      "category": "exchange",
+      "status": "active",
+      "country": "Switzerland",
+      "ofac": false
+    },
+    {
+      "name": "Pocket Bitcoin",
+      "category": "exchange",
+      "status": "active",
+      "country": "Switzerland",
+      "ofac": false
+    },
+    {
+      "name": "Coinkite",
+      "category": "exchange",
+      "status": "active",
+      "country": "Canada",
+      "ofac": false
+    },
+    {
+      "name": "Mt. Gox",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Japan",
+      "ofac": false
+    },
+    {
+      "name": "QuadrigaCX",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Canada",
+      "ofac": false
+    },
+    {
+      "name": "Cryptopia",
+      "category": "exchange",
+      "status": "closed",
+      "country": "New Zealand",
+      "ofac": false
+    },
+    {
+      "name": "Bitmex Insurance Fund",
+      "category": "exchange",
+      "status": "active",
+      "country": "Seychelles",
+      "ofac": false
+    },
+    {
+      "name": "Bitpanda",
+      "category": "exchange",
+      "status": "active",
+      "country": "Austria",
+      "ofac": false
+    },
+    {
+      "name": "Blockchain.com",
+      "category": "exchange",
+      "status": "active",
+      "country": "UK",
+      "ofac": false
+    },
+    {
+      "name": "CEX.IO",
+      "category": "exchange",
+      "status": "active",
+      "country": "UK",
+      "ofac": false
+    },
+    {
+      "name": "ChangeNOW",
+      "category": "exchange",
+      "status": "active",
+      "country": "Seychelles",
+      "ofac": false
+    },
+    {
+      "name": "CoinEx",
+      "category": "exchange",
+      "status": "active",
+      "country": "Hong Kong",
+      "ofac": false
+    },
+    {
+      "name": "DODO",
+      "category": "exchange",
+      "status": "active",
+      "country": "Singapore",
+      "ofac": false
+    },
+    {
+      "name": "eToro",
+      "category": "exchange",
+      "status": "active",
+      "country": "Israel",
+      "ofac": false
+    },
+    {
+      "name": "LBank",
+      "category": "exchange",
+      "status": "active",
+      "country": "Hong Kong",
+      "ofac": false
+    },
+    {
+      "name": "BTC Markets",
+      "category": "exchange",
+      "status": "active",
+      "country": "Australia",
+      "ofac": false
+    },
+    {
+      "name": "Bitvavo",
+      "category": "exchange",
+      "status": "active",
+      "country": "Netherlands",
+      "ofac": false
+    },
+    {
+      "name": "Korbit",
+      "category": "exchange",
+      "status": "active",
+      "country": "South Korea",
+      "ofac": false
+    },
+    {
+      "name": "ProBit",
+      "category": "exchange",
+      "status": "active",
+      "country": "South Korea",
+      "ofac": false
+    },
+    {
+      "name": "FixedFloat",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "SideShift",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "TradeOgre",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Nexo",
+      "category": "exchange",
+      "status": "active",
+      "country": "Bulgaria",
+      "ofac": false
+    },
+    {
+      "name": "Ledn",
+      "category": "exchange",
+      "status": "active",
+      "country": "Canada",
+      "ofac": false
+    },
+    {
+      "name": "Silk Road",
+      "category": "darknet",
+      "status": "closed",
+      "country": "US",
+      "ofac": true
+    },
+    {
+      "name": "Silk Road 2.0",
+      "category": "darknet",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "AlphaBay",
+      "category": "darknet",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": true
+    },
+    {
+      "name": "Hydra",
+      "category": "darknet",
+      "status": "closed",
+      "country": "Russia",
+      "ofac": true
+    },
+    {
+      "name": "Hansa",
+      "category": "darknet",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Dream Market",
+      "category": "darknet",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Wall Street Market",
+      "category": "darknet",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Evolution",
+      "category": "darknet",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Agora",
+      "category": "darknet",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Dark0de",
+      "category": "darknet",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Versus Market",
+      "category": "darknet",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "White House Market",
+      "category": "darknet",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BreachForums",
+      "category": "darknet",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Bohemia Market",
+      "category": "darknet",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Incognito Market",
+      "category": "darknet",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Kingdom Market",
+      "category": "darknet",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Archetyp",
+      "category": "darknet",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BitBazaar",
+      "category": "scam",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "OneCoin",
+      "category": "scam",
+      "status": "closed",
+      "country": "Bulgaria",
+      "ofac": false
+    },
+    {
+      "name": "BitConnect",
+      "category": "scam",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "PlusToken",
+      "category": "scam",
+      "status": "closed",
+      "country": "China",
+      "ofac": false
+    },
+    {
+      "name": "WoToken",
+      "category": "scam",
+      "status": "closed",
+      "country": "China",
+      "ofac": false
+    },
+    {
+      "name": "Finiko",
+      "category": "scam",
+      "status": "closed",
+      "country": "Russia",
+      "ofac": false
+    },
+    {
+      "name": "Mining City",
+      "category": "scam",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Mirror Trading International",
+      "category": "scam",
+      "status": "closed",
+      "country": "South Africa",
+      "ofac": false
+    },
+    {
+      "name": "Africrypt",
+      "category": "scam",
+      "status": "closed",
+      "country": "South Africa",
+      "ofac": false
+    },
+    {
+      "name": "Save The Kids Token",
+      "category": "scam",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Thodex",
+      "category": "scam",
+      "status": "closed",
+      "country": "Turkey",
+      "ofac": false
+    },
+    {
+      "name": "Bitzlato",
+      "category": "scam",
+      "status": "closed",
+      "country": "Russia",
+      "ofac": true
+    },
+    {
+      "name": "HyperFund",
+      "category": "scam",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Satoshi Dice",
+      "category": "gambling",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BetCoin",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BitStarz",
+      "category": "gambling",
+      "status": "active",
+      "country": "Curacao",
+      "ofac": false
+    },
+    {
+      "name": "Cloudbet",
+      "category": "gambling",
+      "status": "active",
+      "country": "Curacao",
+      "ofac": false
+    },
+    {
+      "name": "mBit Casino",
+      "category": "gambling",
+      "status": "active",
+      "country": "Curacao",
+      "ofac": false
+    },
+    {
+      "name": "FortuneJack",
+      "category": "gambling",
+      "status": "active",
+      "country": "Curacao",
+      "ofac": false
+    },
+    {
+      "name": "Stake.com",
+      "category": "gambling",
+      "status": "active",
+      "country": "Curacao",
+      "ofac": false
+    },
+    {
+      "name": "BitKong",
+      "category": "gambling",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Primedice",
+      "category": "gambling",
+      "status": "active",
+      "country": "Curacao",
+      "ofac": false
+    },
+    {
+      "name": "Nitrogen Sports",
+      "category": "gambling",
+      "status": "active",
+      "country": "Costa Rica",
+      "ofac": false
+    },
+    {
+      "name": "1xBit",
+      "category": "gambling",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BetFury",
+      "category": "gambling",
+      "status": "active",
+      "country": "Curacao",
+      "ofac": false
+    },
+    {
+      "name": "BitPay",
+      "category": "payment",
+      "status": "active",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "BTCPay Server",
+      "category": "payment",
+      "status": "active",
+      "country": "Decentralized",
+      "ofac": false
+    },
+    {
+      "name": "OpenNode",
+      "category": "payment",
+      "status": "active",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "CoinGate",
+      "category": "payment",
+      "status": "active",
+      "country": "Lithuania",
+      "ofac": false
+    },
+    {
+      "name": "Blockonomics",
+      "category": "payment",
+      "status": "active",
+      "country": "India",
+      "ofac": false
+    },
+    {
+      "name": "CoinPayments",
+      "category": "payment",
+      "status": "active",
+      "country": "Canada",
+      "ofac": false
+    },
+    {
+      "name": "GoURL",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "NOWPayments",
+      "category": "payment",
+      "status": "active",
+      "country": "Netherlands",
+      "ofac": false
+    },
+    {
+      "name": "Speed (payment processor)",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Confirmo",
+      "category": "payment",
+      "status": "active",
+      "country": "Czech Republic",
+      "ofac": false
+    },
+    {
+      "name": "Zaprite",
+      "category": "payment",
+      "status": "active",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "Voltage",
+      "category": "payment",
+      "status": "active",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "Antpool",
+      "category": "mining",
+      "status": "active",
+      "country": "China",
+      "ofac": false
+    },
+    {
+      "name": "F2Pool",
+      "category": "mining",
+      "status": "active",
+      "country": "China",
+      "ofac": false
+    },
+    {
+      "name": "Foundry USA",
+      "category": "mining",
+      "status": "active",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "ViaBTC",
+      "category": "mining",
+      "status": "active",
+      "country": "China",
+      "ofac": false
+    },
+    {
+      "name": "Braiins Pool",
+      "category": "mining",
+      "status": "active",
+      "country": "Czech Republic",
+      "ofac": false
+    },
+    {
+      "name": "MARA Pool",
+      "category": "mining",
+      "status": "active",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "Luxor",
+      "category": "mining",
+      "status": "active",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "SBI Crypto",
+      "category": "mining",
+      "status": "active",
+      "country": "Japan",
+      "ofac": false
+    },
+    {
+      "name": "SpiderPool",
+      "category": "mining",
+      "status": "active",
+      "country": "China",
+      "ofac": false
+    },
+    {
+      "name": "Ocean Mining",
+      "category": "mining",
+      "status": "active",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "Wasabi Wallet (coordinator)",
+      "category": "mixer",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Whirlpool (coordinator)",
+      "category": "mixer",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "JoinMarket",
+      "category": "mixer",
+      "status": "active",
+      "country": "Decentralized",
+      "ofac": false
+    },
+    {
+      "name": "Chipmixer",
+      "category": "mixer",
+      "status": "closed",
+      "country": "Vietnam",
+      "ofac": true
+    },
+    {
+      "name": "Tornado Cash",
+      "category": "mixer",
+      "status": "closed",
+      "country": "Decentralized",
+      "ofac": true
+    },
+    {
+      "name": "Sinbad",
+      "category": "mixer",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": true
+    },
+    {
+      "name": "Blender.io",
+      "category": "mixer",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": true
+    },
+    {
+      "name": "Bisq",
+      "category": "p2p",
+      "status": "active",
+      "country": "Decentralized",
+      "ofac": false
+    },
+    {
+      "name": "HodlHodl",
+      "category": "p2p",
+      "status": "active",
+      "country": "Latvia",
+      "ofac": false
+    },
+    {
+      "name": "RoboSats",
+      "category": "p2p",
+      "status": "active",
+      "country": "Decentralized",
+      "ofac": false
+    },
+    {
+      "name": "Peach Bitcoin",
+      "category": "p2p",
+      "status": "active",
+      "country": "Switzerland",
+      "ofac": false
+    },
+    {
+      "name": "Haveno",
+      "category": "p2p",
+      "status": "active",
+      "country": "Decentralized",
+      "ofac": false
+    },
+    {
+      "name": "Garantex",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Russia",
+      "ofac": true
+    },
+    {
+      "name": "Suex",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Russia",
+      "ofac": true
+    },
+    {
+      "name": "Chatex",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Latvia",
+      "ofac": true
+    },
+    {
+      "name": "BTC-e",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Russia",
+      "ofac": true
+    },
+    {
+      "name": "BLNK Financial",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": true
+    },
+    {
+      "name": "Lazarus Group",
+      "category": "scam",
+      "status": "active",
+      "country": "North Korea",
+      "ofac": true
+    },
+    {
+      "name": "Conti Ransomware",
+      "category": "scam",
+      "status": "closed",
+      "country": "Russia",
+      "ofac": true
+    },
+    {
+      "name": "DarkSide Ransomware",
+      "category": "scam",
+      "status": "closed",
+      "country": "Russia",
+      "ofac": false
+    },
+    {
+      "name": "REvil Ransomware",
+      "category": "scam",
+      "status": "closed",
+      "country": "Russia",
+      "ofac": false
+    },
+    {
+      "name": "Bitpapa",
+      "category": "p2p",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "AgoraDesk",
+      "category": "p2p",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Noones",
+      "category": "p2p",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BloFin",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Cryptomus",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "New Liberty Standard",
+      "category": "payment",
+      "status": "closed",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "Remitano",
+      "category": "p2p",
+      "status": "active",
+      "country": "Seychelles",
+      "ofac": false
+    },
+    {
+      "name": "Coins.ph",
+      "category": "payment",
+      "status": "active",
+      "country": "Philippines",
+      "ofac": false
+    },
+    {
+      "name": "Deriv.com",
+      "category": "payment",
+      "status": "active",
+      "country": "Malta",
+      "ofac": false
+    },
+    {
+      "name": "MoonPay",
+      "category": "payment",
+      "status": "active",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "CoinCola",
+      "category": "p2p",
+      "status": "active",
+      "country": "Hong Kong",
+      "ofac": false
+    },
+    {
+      "name": "Cubits",
+      "category": "payment",
+      "status": "closed",
+      "country": "UK",
+      "ofac": false
+    },
+    {
+      "name": "Xapo Bank",
+      "category": "exchange",
+      "status": "active",
+      "country": "Gibraltar",
+      "ofac": false
+    },
+    {
+      "name": "Robinhood",
+      "category": "payment",
+      "status": "active",
+      "country": "US",
+      "ofac": false
+    },
+    {
+      "name": "PayPal",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Uphold",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Roqqu",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BtcTurk",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Nucleus Market",
+      "category": "darknet",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Cryptonator",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Cryptsy",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Bitcoin.de",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BTCTrade.com",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BTCC",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BX.in.th",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "MAX Exchange",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BitMart",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BleuTrade",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Hashnest",
+      "category": "mining",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Unocoin",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Patricia",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "LuckyB.it",
+      "category": "gambling",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Finst",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Indodax",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Roobet",
+      "category": "gambling",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Coinmotion",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Coinhako",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "MATBEA",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "CoinsBank",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "VirWoX",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Bitcoin Fog",
+      "category": "mixer",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Bixin",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "CoinCorner",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "LiteBit",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "SpectroCoin",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "C-CEX.com",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Nobitex",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "CoinExchange",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Black Market Reloaded",
+      "category": "darknet",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Hotbit",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "HugosWay",
+      "category": "scam",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "KOT4X",
+      "category": "scam",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "LockBit",
+      "category": "scam",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Zondacrypto",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "FX Trading Corp",
+      "category": "scam",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Circle",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BitoEX",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "CoinsPaid",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Totalcoin",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Cobo.com",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Cloud Token",
+      "category": "scam",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "WebMoney",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Bitfoliex",
+      "category": "scam",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BitZillions",
+      "category": "scam",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "EOBot",
+      "category": "scam",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "GoArbit",
+      "category": "scam",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "AltCoinTrader.co.za",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "3XCapital",
+      "category": "scam",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "999Dice",
+      "category": "gambling",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Yolo Group",
+      "category": "gambling",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Coinone",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Wirex",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "VALR",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Payeer",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Cryptopay",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BinaryCent",
+      "category": "scam",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Liqui.io",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Galaxy Digital",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Blue Sky Market",
+      "category": "darknet",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Hyperunit",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "YoBit",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "n.exchange",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "MyBitcoin",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "DeadBolt",
+      "category": "scam",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Bitmain",
+      "category": "mining",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "HelixMixer",
+      "category": "mixer",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "ZB.com",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "GoCoin",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Binance US",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "ShapeShift",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "NiceHash",
+      "category": "mining",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "1xBet",
+      "category": "gambling",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Rollbit",
+      "category": "gambling",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Abacus Market",
+      "category": "darknet",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Infinity Exchanger",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Zebpay",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Apollon Market",
+      "category": "darknet",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "ASAP Market",
+      "category": "darknet",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Avalanche",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "EXMO",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Lava.xyz",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "CaVirtEx",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "CryptoMixer.io",
+      "category": "mixer",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Innopolis Tech",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Shitcoins.Club",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Silkkitie",
+      "category": "darknet",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Abraxas Market",
+      "category": "darknet",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Pandora Open Market",
+      "category": "darknet",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "WhiteBIT",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "HitBTC",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Vip72",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Inputs.io",
+      "category": "mixer",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "SatoshiMines.com",
+      "category": "gambling",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Bitaroo",
+      "category": "payment",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "CoinJar",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Bitkub",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Sheep Marketplace",
+      "category": "darknet",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Black Bank Market",
+      "category": "darknet",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Bitmynt.no",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Bitmymoney",
+      "category": "exchange",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "PocketDice.io",
+      "category": "gambling",
+      "status": "active",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "AnxPro",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BitBay",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BitBargain.co.uk",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Coinmate",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BX",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "FYBSG",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Vaultoro",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "OKCoin",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Bit-x",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "TheRockTrading",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BitKonan",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Bter",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "HappyCoins",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "ChBtc",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BlockTrades.us",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BtcTrade",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "LakeBTC",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "CoinCafe",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "MaiCoin",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Gatecoin",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Coingi",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "SimpleCoin.cz",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "CoinTrader",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Coinbroker",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Vircurex",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Indacoin",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "1Coin",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Igot",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "CleverCoin",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "FoxBit",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "EmpoEX",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "UseCryptos",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "MeXBT",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Banx",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Coinomat",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Zyado",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Coinimal",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "ExchangeMyCoins",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "OrderBook",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "796",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Btc38",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Ccedk",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "CoinChimp",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "CoinArch",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Coins-e",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Cryptonit",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Exchanging.ir",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Bitcurex",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BTradeAustralia",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BitVC",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "C-Cex",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Exchange-Credit.ru",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "CampBX",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BitcoinVietnam.com.vn",
+      "category": "exchange",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Kano.is",
+      "category": "mining",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "SlushPool",
+      "category": "mining",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Telco214",
+      "category": "mining",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Eligius",
+      "category": "mining",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "EclipseMC",
+      "category": "mining",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "GHash",
+      "category": "mining",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BW",
+      "category": "mining",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Bitfury",
+      "category": "mining",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "KnCMiner",
+      "category": "mining",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BitMinter",
+      "category": "mining",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BTCCPool",
+      "category": "mining",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "CoinGaming",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BitZino",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "AnoniBet",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Betcoin.tm",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Coinroll",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "PocketDice",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Peerbet",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "777Coin",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "JetWin",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "SwCPoker",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "FairProof",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "MineField.BitcoinLab",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Satoshi-Karoshi",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BetMoose",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "SecondsTrade",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "Coinichiwa",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BTCOracle",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "CoinRoyale",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "SafeDice",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "SatoshiRoulette",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "SatoshiMines",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "BitcoinVideoCasino",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    },
+    {
+      "name": "YABTCL",
+      "category": "gambling",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false
+    }
+  ]
+}

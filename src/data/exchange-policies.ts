@@ -61,7 +61,7 @@ export const EXCHANGE_POLICIES: ExchangePolicy[] = [
     status: "operating",
   },
   {
-    name: "BitVavo",
+    name: "Bitvavo",
     policy: "blocks",
     detail: "Closed user accounts upon Wasabi Wallet withdrawals.",
     status: "operating",

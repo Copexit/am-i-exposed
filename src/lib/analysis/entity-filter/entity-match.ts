@@ -4,6 +4,7 @@ import { getFilter, loadEntityFilter, lookupEntityName, lookupEntityCategory } f
 import { checkOfac } from "../cex-risk/ofac-check";
 import { extractTxAddresses } from "../cex-risk/extract-addresses";
 import { getEntity } from "../entities";
+import { WHIRLPOOL_DENOMS } from "@/lib/constants";
 
 /**
  * Check all addresses in a transaction against known entity databases.
@@ -109,6 +110,12 @@ export function matchEntitySync(address: string): EntityMatch | null {
 export function detectEntityBehavior(
   tx: MempoolTransaction,
 ): { type: string; confidence: "high" | "medium" } | null {
+  // Coinbase spend (mining pool payout or miner) - check first to avoid
+  // misclassifying coinbase txs with many outputs as exchange-batch
+  if (tx.vin.some((v) => v.is_coinbase)) {
+    return { type: "mining", confidence: "high" };
+  }
+
   // Exchange batch withdrawal pattern
   const nonCoinbase = tx.vin.filter((v) => !v.is_coinbase);
   if (nonCoinbase.length <= 2 && tx.vout.length >= 10) {
@@ -119,15 +126,10 @@ export function detectEntityBehavior(
     }
   }
 
-  // Coinbase spend (mining pool payout or miner)
-  if (tx.vin.some((v) => v.is_coinbase)) {
-    return { type: "mining", confidence: "high" };
-  }
-
   // Darknet market pattern: CoinJoin-like structure but with non-standard
   // denominations, often P2PKH/P2SH heavy (legacy scripts), and relatively
   // high input/output counts without matching known CoinJoin denominations.
-  const WHIRLPOOL_DENOMS = [50_000, 100_000, 1_000_000, 5_000_000, 50_000_000];
+  // Use canonical WHIRLPOOL_DENOMS from constants (imported at top)
   if (tx.vin.length >= 5 && tx.vout.length >= 5) {
     const spendable = tx.vout.filter((o) => o.scriptpubkey_type !== "op_return");
     const equalGroups = new Map<number, number>();
