@@ -1,5 +1,6 @@
 import type { AddressHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
+import { fmtN } from "@/lib/format";
 
 /**
  * High Transaction Count Address Detection
@@ -24,10 +25,10 @@ export const analyzeHighActivityAddress: AddressHeuristic = (address) => {
       id: "high-activity-exchange",
       severity: "critical",
       confidence: "high",
-      title: `Extremely high activity address (${totalTxCount.toLocaleString()} transactions)`,
+      title: `Extremely high activity address (${fmtN(totalTxCount)} transactions)`,
       description:
-        `This address has ${totalTxCount.toLocaleString()} transactions and has received ` +
-        `funds ${timesReceived.toLocaleString()} times. This volume is consistent with ` +
+        `This address has ${fmtN(totalTxCount)} transactions and has received ` +
+        `funds ${fmtN(timesReceived)} times. This volume is consistent with ` +
         "a centralized exchange deposit address, payment processor, or major service. " +
         "All senders to this address are trivially linkable to the same entity.",
       recommendation:
@@ -42,10 +43,10 @@ export const analyzeHighActivityAddress: AddressHeuristic = (address) => {
       id: "high-activity-service",
       severity: "high",
       confidence: "high",
-      title: `High activity address (${totalTxCount.toLocaleString()} transactions)`,
+      title: `High activity address (${fmtN(totalTxCount)} transactions)`,
       description:
-        `This address has ${totalTxCount.toLocaleString()} transactions and has received ` +
-        `funds ${timesReceived.toLocaleString()} times. This level of activity suggests ` +
+        `This address has ${fmtN(totalTxCount)} transactions and has received ` +
+        `funds ${fmtN(timesReceived)} times. This level of activity suggests ` +
         "a service, merchant, or frequently-used deposit address. " +
         "Multiple senders to this address can be linked to the same entity.",
       recommendation:

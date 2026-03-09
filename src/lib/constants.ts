@@ -9,7 +9,14 @@ export const ADDR_RE = /^[a-zA-Z0-9]{25,90}$/;
 /** Format validation for transaction IDs (64 hex chars). */
 export const TXID_RE = /^[a-fA-F0-9]{64}$/;
 
-/** Dust threshold in satoshis - outputs below this are flagged as potential dust. */
+/**
+ * Small output threshold in satoshis for anonymity set estimation and general
+ * "tiny output" filtering. This is deliberately broader than the Bitcoin protocol
+ * dust limit (294 sats for P2WPKH, 546 for P2PKH) because outputs under 1000 sats
+ * are economically negligible and unlikely to be real payments - they add noise
+ * to anonymity set calculations. The per-type protocol dust limits are enforced
+ * separately in the dust-output heuristic (dust-output.ts).
+ */
 export const DUST_THRESHOLD = 1000;
 
 /** Whirlpool pool denominations in satoshis. */

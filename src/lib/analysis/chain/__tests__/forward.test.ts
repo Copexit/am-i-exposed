@@ -7,7 +7,7 @@ import type { MempoolOutspend } from "@/lib/api/types";
 beforeEach(() => resetAddrCounter());
 
 function makeOutspend(overrides: Partial<MempoolOutspend> = {}): MempoolOutspend {
-  return { spent: false, txid: null, vin: null, status: null, ...overrides };
+  return { spent: false, txid: undefined, vin: undefined, status: undefined, ...overrides };
 }
 
 describe("analyzeForward", () => {

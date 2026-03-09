@@ -1,5 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
+import { fmtN } from "@/lib/format";
 
 /**
  * PayJoin / Stowaway Detection
@@ -121,9 +122,9 @@ export const analyzePayJoin: TxHeuristic = (tx) => {
     description:
       `This transaction has ${tx.vin.length} inputs from ${distinctAddresses} distinct addresses and 2 outputs, ` +
       "consistent with a PayJoin (Stowaway) pattern where the receiver contributes an input. " +
-      `A chain analyst would assume a payment of ${probableAmount.toLocaleString()} sats, ` +
-      `but the real amount is likely ~${realAmountEstimate.toLocaleString()} sats ` +
-      `(receiver contributed ${receiverTotal.toLocaleString()} sats). ` +
+      `A chain analyst would assume a payment of ${fmtN(probableAmount)} sats, ` +
+      `but the real amount is likely ~${fmtN(realAmountEstimate)} sats ` +
+      `(receiver contributed ${fmtN(receiverTotal)} sats). ` +
       "PayJoin breaks all standard change detection heuristics.",
     recommendation:
       "PayJoin is one of the strongest privacy techniques available. " +

@@ -116,9 +116,12 @@ export function buildLinkabilityMatrix(
     // Use raw min(input, output) as link strength; row normalization below
     // converts to probabilities (consistent with the exact-enumeration path)
     totalInterpretations = 1;
+    // For 5-8 inputs, Bitcoin's value granularity means many subsets can sum
+    // to the same value. Apply a conservative discount to reduce overestimate.
+    const granularityDiscount = nIn <= 8 ? 0.7 : 1.0;
     for (let i = 0; i < nIn; i++) {
       for (let j = 0; j < nOut; j++) {
-        linkCounts[i][j] = Math.min(inputValues[i], outputValues[j]);
+        linkCounts[i][j] = Math.min(inputValues[i], outputValues[j]) * granularityDiscount;
       }
     }
   }

@@ -1,6 +1,7 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { WHIRLPOOL_DENOMS } from "@/lib/constants";
+import { fmtN } from "@/lib/format";
 
 /**
  * CoinJoin Premix (tx0) Detection
@@ -78,9 +79,9 @@ export const analyzeCoinJoinPremix: TxHeuristic = (tx) => {
         `This transaction is a Whirlpool tx0 (premix): it splits funds into ${denomOutputs.length} equal outputs ` +
         `of ${denomBtc} BTC ready for CoinJoin mixing. ` +
         (toxicChange
-          ? `The toxic change output (${toxicChange.value.toLocaleString()} sats) is NOT mixed and must be handled carefully. `
+          ? `The toxic change output (${fmtN(toxicChange.value)} sats) is NOT mixed and must be handled carefully. `
           : "") +
-        `Coordinator fee: ${feeCandidate.value.toLocaleString()} sats.`,
+        `Coordinator fee: ${fmtN(feeCandidate.value)} sats.`,
       recommendation:
         "This is the first step of a CoinJoin mix - positive for privacy. " +
         (toxicChange
@@ -91,7 +92,7 @@ export const analyzeCoinJoinPremix: TxHeuristic = (tx) => {
       scoreImpact: 5,
       remediation: {
         qualifier: toxicChange
-          ? `Toxic change: ${toxicChange.value.toLocaleString()} sats. This output is NOT mixed and must be isolated.`
+          ? `Toxic change: ${fmtN(toxicChange.value)} sats. This output is NOT mixed and must be isolated.`
           : "No toxic change output - clean premix.",
         steps: toxicChange
           ? [

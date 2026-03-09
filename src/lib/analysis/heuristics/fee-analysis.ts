@@ -1,5 +1,6 @@
-import type { TxHeuristic } from "./types";
+import type { TxHeuristic, TxContext } from "./types";
 import type { Finding } from "@/lib/types";
+import { fmtN } from "@/lib/format";
 
 /**
  * H6: Fee Analysis
@@ -8,10 +9,11 @@ import type { Finding } from "@/lib/types";
  * - Round fee rates (exact sat/vB) suggest specific wallet implementations
  * - RBF signaling reveals replaceability intent
  * - Very high or very low fees can indicate specific behaviors
+ * - CPFP detection: child tx spending parent's change at elevated fee rate
  *
  * Impact: -2 to -5
  */
-export const analyzeFees: TxHeuristic = (tx) => {
+export const analyzeFees: TxHeuristic = (tx, _rawHex?, ctx?) => {
   const findings: Finding[] = [];
 
   if (tx.fee === 0 || tx.weight === 0) return { findings };
@@ -57,7 +59,7 @@ export const analyzeFees: TxHeuristic = (tx) => {
         "This transaction signals RBF replaceability (nSequence < 0xfffffffe). " +
         "RBF is now standard across virtually all modern wallet software and is no longer a meaningful fingerprinting signal.",
       recommendation:
-        "RBF is standard practice. Nearly all wallets signal RBF by default, so this reveals very little about the sender.",
+        "RBF is standard practice and reveals little about the sender. Note: if fee-bumped via RBF, comparing original and replacement transactions can reveal which output decreased (the change). For maximum privacy, set an adequate fee upfront to avoid the need for fee bumping.",
       scoreImpact: 0,
     });
   }
@@ -122,8 +124,8 @@ export const analyzeFees: TxHeuristic = (tx) => {
             severity: "low",
             title: "Fee appears subtracted from output amount",
             description:
-              `An output of ${out.value.toLocaleString()} sats plus the fee ` +
-              `(${tx.fee.toLocaleString()} sats) equals ${amountPlusFee.toLocaleString()} sats, ` +
+              `An output of ${fmtN(out.value)} sats plus the fee ` +
+              `(${fmtN(tx.fee)} sats) equals ${fmtN(amountPlusFee)} sats, ` +
               "which is a round amount. This suggests the wallet subtracted the fee from the " +
               "intended send amount rather than adding it on top.",
             recommendation:
@@ -143,8 +145,75 @@ export const analyzeFees: TxHeuristic = (tx) => {
     }
   }
 
+  // CPFP detection: single-input child spending parent's non-largest output at elevated fee rate
+  detectCpfp(tx, ctx, findings);
+
   return { findings };
 };
+
+/** Detect CPFP fee bumping pattern. */
+function detectCpfp(tx: Parameters<TxHeuristic>[0], ctx: TxContext | undefined, findings: Finding[]): void {
+  if (!ctx?.parentTx) return;
+  if (tx.vin.length !== 1) return;
+  if (tx.vin[0].is_coinbase) return;
+
+  const parentTx = ctx.parentTx;
+
+  // Both must be confirmed, and child must be in the same block or the next block
+  const childHeight = tx.status?.block_height;
+  const parentHeight = parentTx.status?.block_height;
+  if (!childHeight || !parentHeight) return;
+  if (childHeight < parentHeight || childHeight > parentHeight + 1) return;
+
+  // Fee rate comparison: child >= 2x parent
+  const childVsize = Math.ceil(tx.weight / 4);
+  const parentVsize = Math.ceil(parentTx.weight / 4);
+  if (childVsize === 0 || parentVsize === 0) return;
+  const childFeeRate = tx.fee / childVsize;
+  const parentFeeRate = parentTx.fee / parentVsize;
+  if (parentFeeRate <= 0 || childFeeRate < parentFeeRate * 2) return;
+
+  // The spent output must NOT be the largest parent output (CPFP spends change, not payment)
+  const spentOutputIndex = tx.vin[0].vout;
+  const spentOutput = parentTx.vout[spentOutputIndex];
+  if (!spentOutput) return;
+  const largestValue = Math.max(...parentTx.vout.map((o) => o.value));
+  if (spentOutput.value === largestValue) return;
+
+  // Check if parent had RBF signaled
+  const parentHadRbf = parentTx.vin.some(
+    (v) => !v.is_coinbase && v.sequence < 0xfffffffe,
+  );
+
+  const description =
+    `This transaction appears to be a CPFP (Child-Pays-For-Parent) fee bump. ` +
+    `It spends output #${spentOutputIndex} of the parent transaction at ${Math.round(childFeeRate)} sat/vB ` +
+    `(parent: ${Math.round(parentFeeRate)} sat/vB). The spent output is likely change, ` +
+    `confirming which parent output was the payment.` +
+    (parentHadRbf
+      ? " The parent had RBF signaled but CPFP was used instead. Note that CPFP also reveals change by spending it as a child input."
+      : "");
+
+  findings.push({
+    id: "h6-cpfp-detected",
+    severity: "low",
+    confidence: "medium",
+    title: "CPFP fee bump detected",
+    description,
+    recommendation:
+      "CPFP reveals which parent output is change by spending it as a child input. " +
+      "RBF reveals change by showing which output value decreased in the replacement. " +
+      "For privacy-sensitive transactions, set an adequate fee upfront to avoid fee bumping entirely.",
+    scoreImpact: 0,
+    params: {
+      parentTxid: parentTx.txid,
+      spentOutputIndex,
+      parentFeeRate: Math.round(parentFeeRate * 10) / 10,
+      childFeeRate: Math.round(childFeeRate * 10) / 10,
+      parentHadRbf: parentHadRbf ? 1 : 0,
+    },
+  });
+}
 
 /** Check if a sat amount is "round" (divisible by common BTC denominations) */
 function isRoundSatAmount(sats: number): boolean {

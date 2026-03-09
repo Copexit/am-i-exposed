@@ -213,6 +213,46 @@ export const analyzeMultisigDetection: TxHeuristic = (tx) => {
     // Lightning cooperative closes typically use locktime = block height and nSequence != max
     const likelyLN = tx.locktime > 0 && tx.vin[0].sequence !== 0xffffffff;
 
+    if (likelyLN) {
+      findings.push({
+        id: "lightning-channel-legacy",
+        severity: "medium",
+        confidence: "medium",  // anti-fee-sniping (BIP-339) can produce false positives
+        title: "Likely legacy Lightning channel close",
+        params: {
+          m: 2,
+          n: 2,
+          scriptType: multisigInputs[0].info.scriptType,
+          signals: signals.join("; "),
+          likelyLN: 1,
+        },
+        description:
+          "This transaction matches the pattern of a legacy P2WSH Lightning channel close: " +
+          "2-of-2 multisig input with nLockTime > 0 and non-max nSequence. " +
+          "The 2-of-2 P2WSH multisig funding output is identifiable by chain analysis as a Lightning channel. " +
+          "Note: this pattern can also match 2-of-2 multisig spends using anti-fee-sniping (BIP-339).",
+        recommendation:
+          "Upgrade to Taproot channels (LND simple-taproot-channels, CLN) which use MuSig2 key aggregation. " +
+          "Taproot channel opens and cooperative closes are indistinguishable from regular Taproot spends, " +
+          "eliminating the Lightning channel fingerprint entirely.",
+        scoreImpact: -3,
+        remediation: {
+          steps: [
+            "The legacy P2WSH channel close is already on-chain and cannot be undone.",
+            "For future channels, upgrade to Taproot channels (LND simple-taproot-channels).",
+            "Taproot channels are indistinguishable from regular single-sig Taproot spends.",
+          ],
+          tools: [
+            { name: "LND (Taproot Channels)", url: "https://lightning.engineering" },
+            { name: "CLN (Core Lightning)", url: "https://corelightning.org" },
+          ],
+          urgency: "when-convenient" as const,
+        },
+      });
+      return { findings };
+    }
+
+    // Non-Lightning 2-of-2 escrow
     findings.push({
       id: "h17-escrow-2of2",
       severity: "medium",
@@ -223,21 +263,17 @@ export const analyzeMultisigDetection: TxHeuristic = (tx) => {
         n: 2,
         scriptType: multisigInputs[0].info.scriptType,
         signals: signals.join("; "),
-        likelyLN: likelyLN ? 1 : 0,
+        likelyLN: 0,
       },
       description:
         "This transaction spends from a 2-of-2 multisig input to exactly 2 outputs, " +
-        "a pattern consistent with P2P exchange escrow releases (Bisq) or Lightning Network " +
-        "cooperative channel closes. " +
-        (likelyLN
-          ? "The transaction metadata (nLockTime, nSequence) is consistent with a Lightning channel close."
-          : signals.length >= 2
-            ? "The transaction metadata (" + signals.join(", ") + ") is consistent with a P2P exchange escrow release."
-            : "The 2-of-2 structure reveals that two parties had to sign."),
+        "a pattern consistent with P2P exchange escrow releases (Bisq) or custom escrow. " +
+        (signals.length >= 2
+          ? "The transaction metadata (" + signals.join(", ") + ") is consistent with a P2P exchange escrow release."
+          : "The 2-of-2 structure reveals that two parties had to sign."),
       recommendation:
         "2-of-2 multisig escrow reveals multi-party involvement on-chain. For future P2P trades, " +
-        "consider protocols using Taproot MuSig that hides the multisig structure. " +
-        "For Lightning, cooperative closes are normal and expected.",
+        "consider protocols using Taproot MuSig that hides the multisig structure.",
       scoreImpact: -2,
     });
     return { findings };

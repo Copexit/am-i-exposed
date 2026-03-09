@@ -4,6 +4,8 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ExternalLink, Shield, ShieldAlert, ShieldCheck, ShieldX } from "lucide-react";
+import { WalletIcon } from "@/components/ui/WalletIcon";
+import { getWalletIconId } from "@/lib/wallet-icons";
 
 // ── Wallet recommendation data ──────────────────────────────────────────────
 
@@ -13,6 +15,8 @@ interface WalletEntry {
   nSequence: "good" | "bad";
   antiFeeSniping: boolean;
   coinJoin: boolean;
+  payJoin: boolean | "v1-only";
+  silentPayments: boolean | "send-only";
   ownNode: boolean | "partial" | "is-node";
   tor: boolean | "partial" | "native";
   url: string;
@@ -25,6 +29,8 @@ const RECOMMENDED_WALLETS: WalletEntry[] = [
     nSequence: "good",
     antiFeeSniping: true,
     coinJoin: true,
+    payJoin: "v1-only",
+    silentPayments: false,
     ownNode: true,
     tor: true,
     url: "https://sparrowwallet.com",
@@ -35,6 +41,8 @@ const RECOMMENDED_WALLETS: WalletEntry[] = [
     nSequence: "good",
     antiFeeSniping: true,
     coinJoin: false,
+    payJoin: false,
+    silentPayments: true,
     ownNode: "is-node",
     tor: true,
     url: "https://bitcoincore.org",
@@ -45,6 +53,8 @@ const RECOMMENDED_WALLETS: WalletEntry[] = [
     nSequence: "good",
     antiFeeSniping: true,
     coinJoin: false,
+    payJoin: false,
+    silentPayments: false,
     ownNode: true,
     tor: true,
     url: "https://electrum.org",
@@ -55,6 +65,8 @@ const RECOMMENDED_WALLETS: WalletEntry[] = [
     nSequence: "good",
     antiFeeSniping: true,
     coinJoin: true,
+    payJoin: false,
+    silentPayments: false,
     ownNode: true,
     tor: "native",
     url: "https://ashigaru.rs",
@@ -65,6 +77,8 @@ const RECOMMENDED_WALLETS: WalletEntry[] = [
     nSequence: "good",
     antiFeeSniping: true,
     coinJoin: false,
+    payJoin: false,
+    silentPayments: false,
     ownNode: true,
     tor: "partial",
     url: "https://trezor.io/trezor-suite",
@@ -75,6 +89,8 @@ const RECOMMENDED_WALLETS: WalletEntry[] = [
     nSequence: "good",
     antiFeeSniping: true,
     coinJoin: false,
+    payJoin: false,
+    silentPayments: false,
     ownNode: true,
     tor: true,
     url: "https://blockstream.com/jade",
@@ -85,9 +101,59 @@ const RECOMMENDED_WALLETS: WalletEntry[] = [
     nSequence: "good",
     antiFeeSniping: true,
     coinJoin: false,
+    payJoin: false,
+    silentPayments: true,
     ownNode: true,
     tor: "partial",
     url: "https://nunchuk.io",
+  },
+  {
+    name: "Wasabi",
+    type: "desktop",
+    nSequence: "bad",
+    antiFeeSniping: false,
+    coinJoin: true,
+    payJoin: false,
+    silentPayments: "send-only",
+    ownNode: true,
+    tor: "native",
+    url: "https://wasabiwallet.io",
+  },
+  {
+    name: "Cake Wallet",
+    type: "mobile",
+    nSequence: "good",
+    antiFeeSniping: true,
+    coinJoin: false,
+    payJoin: true,
+    silentPayments: true,
+    ownNode: false,
+    tor: true,
+    url: "https://cakewallet.com",
+  },
+  {
+    name: "Bull Bitcoin",
+    type: "mobile",
+    nSequence: "good",
+    antiFeeSniping: true,
+    coinJoin: false,
+    payJoin: true,
+    silentPayments: false,
+    ownNode: false,
+    tor: false,
+    url: "https://bullbitcoin.com",
+  },
+  {
+    name: "Blue Wallet",
+    type: "mobile",
+    nSequence: "good",
+    antiFeeSniping: true,
+    coinJoin: false,
+    payJoin: false,
+    silentPayments: false,
+    ownNode: true,
+    tor: false,
+    url: "https://bluewallet.io",
   },
 ];
 
@@ -154,12 +220,14 @@ const CRITERIA: CriteriaRow[] = [
 
 // ── Helper components ───────────────────────────────────────────────────────
 
-function BoolCell({ value }: { value: boolean | "partial" | "native" | "is-node" }) {
+function BoolCell({ value }: { value: boolean | "partial" | "native" | "is-node" | "v1-only" | "send-only" }) {
   const { t } = useTranslation();
   if (value === true) return <span className="text-severity-good">&#10003;</span>;
   if (value === false) return <span className="text-muted">&#10007;</span>;
   if (value === "is-node") return <span className="text-severity-good text-xs">{t("walletGuide.isNode", { defaultValue: "Is the node" })}</span>;
   if (value === "native") return <span className="text-severity-good text-xs">{t("walletGuide.native", { defaultValue: "Native" })}</span>;
+  if (value === "v1-only") return <span className="text-severity-medium text-xs">{t("walletGuide.v1Only", { defaultValue: "v1 only" })}</span>;
+  if (value === "send-only") return <span className="text-severity-medium text-xs">{t("walletGuide.sendOnly", { defaultValue: "Send only" })}</span>;
   return <span className="text-severity-medium text-xs">{t("walletGuide.partial", { defaultValue: "Partial" })}</span>;
 }
 
@@ -237,6 +305,7 @@ export function WalletGuide({ detectedWallet, canCoinJoin }: WalletGuideProps) {
                 }`}>
                   {isAvoided ? (
                     <div className="flex items-start gap-2">
+                      <WalletIcon walletName={detectedWallet} size="lg" />
                       <ShieldX size={16} className="shrink-0 mt-0.5" />
                       <span>{t("walletGuide.detectedBad", {
                         wallet: detectedWallet,
@@ -245,6 +314,7 @@ export function WalletGuide({ detectedWallet, canCoinJoin }: WalletGuideProps) {
                     </div>
                   ) : isRecommended ? (
                     <div className="flex items-start gap-2">
+                      <WalletIcon walletName={detectedWallet} size="lg" />
                       <ShieldCheck size={16} className="shrink-0 mt-0.5" />
                       <span>{t("walletGuide.detectedGood", {
                         wallet: detectedWallet,
@@ -253,6 +323,7 @@ export function WalletGuide({ detectedWallet, canCoinJoin }: WalletGuideProps) {
                     </div>
                   ) : (
                     <div className="flex items-start gap-2">
+                      <WalletIcon walletName={detectedWallet} size="lg" />
                       <ShieldAlert size={16} className="shrink-0 mt-0.5" />
                       <span>{t("walletGuide.detectedUnknown", {
                         wallet: detectedWallet,
@@ -294,6 +365,8 @@ export function WalletGuide({ detectedWallet, canCoinJoin }: WalletGuideProps) {
                         <th className="text-center px-2 py-2 font-medium whitespace-nowrap">nSeq</th>
                         <th className="text-center px-2 py-2 font-medium whitespace-nowrap">{t("walletGuide.colAntiFeeSniping", { defaultValue: "Anti-snip" })}</th>
                         <th className="text-center px-2 py-2 font-medium">CoinJoin</th>
+                        <th className="text-center px-2 py-2 font-medium whitespace-nowrap">{t("walletGuide.colPayJoin", { defaultValue: "PayJoin" })}</th>
+                        <th className="text-center px-2 py-2 font-medium whitespace-nowrap" title="Silent Payments (BIP352)">{t("walletGuide.colSilentPay", { defaultValue: "SP" })}</th>
                         <th className="text-center px-2 py-2 font-medium">{t("walletGuide.colOwnNode", { defaultValue: "Own Node" })}</th>
                         <th className="text-center px-2 py-2 font-medium">Tor</th>
                       </tr>
@@ -313,8 +386,9 @@ export function WalletGuide({ detectedWallet, canCoinJoin }: WalletGuideProps) {
                               href={w.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-bitcoin hover:text-bitcoin-hover transition-colors"
+                              className="inline-flex items-center gap-1.5 text-bitcoin hover:text-bitcoin-hover transition-colors"
                             >
+                              <WalletIcon walletName={w.name} size="md" />
                               {w.name}
                               <ExternalLink size={12} />
                             </a>
@@ -323,6 +397,8 @@ export function WalletGuide({ detectedWallet, canCoinJoin }: WalletGuideProps) {
                           <td className="text-center px-2 py-2"><BoolCell value={w.nSequence === "good"} /></td>
                           <td className="text-center px-2 py-2"><BoolCell value={w.antiFeeSniping} /></td>
                           <td className="text-center px-2 py-2"><BoolCell value={w.coinJoin} /></td>
+                          <td className="text-center px-2 py-2"><BoolCell value={w.payJoin} /></td>
+                          <td className="text-center px-2 py-2"><BoolCell value={w.silentPayments} /></td>
                           <td className="text-center px-2 py-2"><BoolCell value={w.ownNode} /></td>
                           <td className="text-center px-2 py-2"><BoolCell value={w.tor} /></td>
                         </tr>
@@ -340,6 +416,7 @@ export function WalletGuide({ detectedWallet, canCoinJoin }: WalletGuideProps) {
                 <ul className="space-y-1.5">
                   {WALLETS_TO_AVOID.map((w) => (
                     <li key={w.name} className="flex items-start gap-2 text-sm text-muted">
+                      <WalletIcon walletName={w.name} size="sm" className="mt-0.5" />
                       <ShieldX size={14} className="text-severity-critical shrink-0 mt-0.5" />
                       <span>
                         <strong className="text-foreground/90">{w.name}</strong>

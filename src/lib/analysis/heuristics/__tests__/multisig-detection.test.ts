@@ -181,7 +181,7 @@ describe("analyzeMultisigDetection", () => {
 
     const { findings } = analyzeMultisigDetection(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h17-escrow-2of2");
+    expect(findings[0].id).toBe("lightning-channel-legacy");
     expect(findings[0].params?.likelyLN).toBe(1);
   });
 

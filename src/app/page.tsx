@@ -146,6 +146,7 @@ export default function Home() {
     usdPrice,
     outspends,
     psbtData,
+    fetchProgress,
     analyze,
     reset,
   } = useAnalysis();
@@ -444,7 +445,7 @@ export default function Home() {
                 </p>
               </div>
               <div className="border-t border-card-border pt-6">
-                <DiagnosticLoader steps={steps} phase={phase} inputType={inputType ?? undefined} />
+                <DiagnosticLoader steps={steps} phase={phase} inputType={inputType ?? undefined} fetchProgress={fetchProgress} />
               </div>
             </GlowCard>
           </motion.div>

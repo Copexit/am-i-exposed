@@ -1,4 +1,5 @@
 import type { TxHeuristic } from "./types";
+import { fmtN } from "@/lib/format";
 
 const MAX_ENUMERABLE_SIZE = 8;
 
@@ -191,7 +192,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
           (method.includes("estimate") ? "approximately " : "") +
           (displayEntropy > 40
             ? `~2^${Math.round(displayEntropy)} `
-            : `~${Math.round(Math.pow(2, displayEntropy)).toLocaleString()} `) +
+            : `~${fmtN(Math.round(Math.pow(2, displayEntropy)))} `) +
           (method.includes("estimate") ? "possible" : "valid") +
           " interpretations of the fund flow. Higher entropy makes chain analysis less reliable." +
           ` Entropy per UTXO: ${Math.round((entropyBits / (inputs.length + outputs.length)) * 1000) / 1000} bits (${inputs.length + outputs.length} UTXOs).`,

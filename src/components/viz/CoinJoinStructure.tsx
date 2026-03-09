@@ -57,7 +57,7 @@ const MAX_DISPLAY = 50;
 const MAX_OUTPUT_NODES = 20;
 
 export function CoinJoinStructure({ tx, findings, onAddressClick, usdPrice, outspends }: CoinJoinStructureProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [showAllInputs, setShowAllInputs] = useState(false);
 
   // Only render for CoinJoin txs
@@ -104,6 +104,18 @@ export function CoinJoinStructure({ tx, findings, onAddressClick, usdPrice, outs
             );
           }}
         </ParentSize>
+      </div>
+
+      {/* Fee + size info */}
+      <div className="flex items-center justify-between text-sm text-muted border-t border-card-border pt-2">
+        <span>
+          {t("tx.fee", {
+            amount: formatSats(tx.fee, i18n.language),
+            rate: cjFeeRate(tx),
+            defaultValue: `Fee: ${formatSats(tx.fee, i18n.language)} (${cjFeeRate(tx)} sat/vB)`,
+          })}
+        </span>
+        <span>{tx.weight.toLocaleString(i18n.language)} WU</span>
       </div>
     </div>
   );
@@ -154,7 +166,7 @@ function CoinJoinChart({
     return { tiers, otherValues: others };
   }, [tx.vout]);
 
-  const { graph, hiddenInputCount, hiddenOutputCount } = useMemo(() => {
+  const { graph, hiddenInputCount } = useMemo(() => {
     const nodes: NodeDatum[] = [];
     const links: LinkDatum[] = [];
     let hiddenIn = 0;
@@ -197,7 +209,6 @@ function CoinJoinChart({
     });
     // Output nodes: group by denomination tier, capped for readability
     const outputNodes: NodeDatum[] = [];
-    let hiddenOut = 0;
 
     // Sort tiers by count (largest anonymity set first)
     const sortedTiers = [...denomGroups.tiers].sort((a, b) => b.count - a.count);
@@ -233,17 +244,7 @@ function CoinJoinChart({
         value: Math.max(aggregatedValue, 1),
         side: "output",
       });
-      hiddenOut = aggregatedCount;
-    }
-
-    // Fee
-    if (tx.fee > 0) {
-      outputNodes.push({
-        id: "fee",
-        label: t("viz.flow.fee", { defaultValue: "Fee" }),
-        value: tx.fee,
-        side: "output",
-      });
+      // These outputs are represented in the aggregate node, not hidden
     }
 
     nodes.push(...outputNodes);
@@ -276,7 +277,7 @@ function CoinJoinChart({
     }
 
     const g: SankeyGraph<NodeDatum, LinkDatum> = { nodes, links };
-    return { graph: g, hiddenInputCount: hiddenIn, hiddenOutputCount: hiddenOut };
+    return { graph: g, hiddenInputCount: hiddenIn };
   }, [tx, showAllInputs, denomGroups, aggregateInputs, t, i18n]);
 
   const marginH = width < 500 ? 80 : 150;
@@ -362,8 +363,6 @@ function CoinJoinChart({
                   glowFilter = "url(#glow-medium)";
                 } else if (isInput) {
                   fillColor = "url(#grad-input)";
-                } else if (n.id === "fee") {
-                  fillColor = "url(#grad-fee)";
                 } else if (isTier) {
                   fillColor = "url(#grad-mixer)";
                   glowFilter = "url(#glow-subtle)";
@@ -573,23 +572,23 @@ function CoinJoinChart({
         </ChartTooltip>
       )}
 
-      {/* Expand buttons */}
-      <div className="flex justify-between px-2 mt-1">
-        {hiddenInputCount > 0 && (
+      {/* Expand button for hidden inputs only */}
+      {hiddenInputCount > 0 && (
+        <div className="px-2 mt-1">
           <button
             onClick={onToggleShowAllInputs}
             className="text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
           >
             {t("tx.moreItems", { count: hiddenInputCount, defaultValue: `+${hiddenInputCount} more` })}
           </button>
-        )}
-        <div className="flex-1" />
-        {hiddenOutputCount > 0 && (
-          <span className="text-xs text-muted">
-            {t("tx.moreItems", { count: hiddenOutputCount, defaultValue: `+${hiddenOutputCount} more` })}
-          </span>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function cjFeeRate(tx: MempoolTransaction): string {
+  const vsize = Math.ceil(tx.weight / 4);
+  if (vsize === 0) return "0";
+  return (tx.fee / vsize).toFixed(1);
 }

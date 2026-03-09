@@ -47,6 +47,32 @@ const MISTAKES: MistakeEntry[] = [
     descKey: "mistakes.torOnlyDesc",
     descDefault: "Tor protects your IP address, not your blockchain footprint. If your transactions still have round amounts, address reuse, and identifiable fingerprints, Tor alone does not help.",
   },
+  {
+    titleKey: "mistakes.lnFromExchange",
+    titleDefault: "Open Lightning channel directly from exchange withdrawal",
+    descKey: "mistakes.lnFromExchangeDesc",
+    descDefault: "This links your Lightning identity to your exchange account. CoinJoin the withdrawal first, then open the channel with mixed outputs.",
+  },
+  {
+    titleKey: "mistakes.singleLsp",
+    titleDefault: "Rely on a single Lightning channel with one LSP",
+    descKey: "mistakes.singleLspDesc",
+    descDefault: "If your Lightning wallet has only one channel (e.g., Phoenix with ACINQ), the LSP knows every payment destination, amount, and timing. Mitigate by running your own node or maintaining multiple channels with different peers.",
+  },
+  {
+    titleKey: "mistakes.rbfChangeReveal",
+    titleDefault: "Fee bump a privacy-sensitive transaction",
+    descKey: "mistakes.rbfChangeRevealDesc",
+    descDefault: "Both RBF and CPFP reveal information about change outputs. RBF replacement shows which output value decreased (change), while CPFP reveals change by spending it as a child input. For privacy-sensitive transactions, set an adequate fee upfront to avoid fee bumping entirely.",
+    triggerFinding: "h6-rbf-signaled",
+  },
+  {
+    titleKey: "mistakes.crossContextConsolidation",
+    titleDefault: "Consolidate UTXOs from different privacy contexts",
+    descKey: "mistakes.crossContextConsolidationDesc",
+    descDefault: "Merging KYC exchange withdrawals with P2P or CoinJoin outputs links all those identities via CIOH. Only consolidate UTXOs from the same privacy category.",
+    triggerFinding: "consolidation-fan-in",
+  },
 ];
 
 interface CommonMistakesProps {
@@ -58,8 +84,8 @@ export function CommonMistakes({ findings, grade }: CommonMistakesProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
-  // Only show for poor grades
-  if (grade !== "C" && grade !== "D" && grade !== "F") return null;
+  // Show for B and below - B-grade users benefit from anti-pattern awareness
+  if (grade !== "B" && grade !== "C" && grade !== "D" && grade !== "F") return null;
 
   const ids = new Set(findings.map((f) => f.id));
   const visibleMistakes = MISTAKES.filter(

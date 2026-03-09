@@ -58,3 +58,8 @@ polish/
 presentation/
 scripts/audit15-*.mjs
 scripts/glossary-capture.mjs
+
+# entity filter data (large binaries)
+.cache/
+public/data/entity-filter-full.bin
+public/data/entity-index-full.bin

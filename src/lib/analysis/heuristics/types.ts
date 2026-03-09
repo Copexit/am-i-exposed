@@ -22,6 +22,8 @@ export interface TxContext {
   isCustomApi?: boolean;
   /** The transaction that created vin[0] (pre-fetched for peel chain detection). */
   parentTx?: MempoolTransaction;
+  /** All parent transactions keyed by txid (for post-mix and entity detection). */
+  parentTxs?: Map<string, MempoolTransaction>;
   /** A child transaction that spends one of our outputs (pre-fetched for peel chain detection). */
   childTx?: MempoolTransaction;
   /** Map of output address → total on-chain tx count (for fresh address change detection). */

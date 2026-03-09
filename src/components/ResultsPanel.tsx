@@ -24,12 +24,16 @@ const UtxoBubbleChart = lazy(() => import("./viz/UtxoBubbleChart").then(m => ({ 
 const PrivacyTimeline = lazy(() => import("./viz/PrivacyTimeline").then(m => ({ default: m.PrivacyTimeline })));
 const CoinJoinStructure = lazy(() => import("./viz/CoinJoinStructure").then(m => ({ default: m.CoinJoinStructure })));
 const FingerprintTimeline = lazy(() => import("./viz/FingerprintTimeline").then(m => ({ default: m.FingerprintTimeline })));
+const ChainAnalysisPanel = lazy(() => import("./ChainAnalysisPanel").then(m => ({ default: m.ChainAnalysisPanel })));
+const GraphExplorerPanel = lazy(() => import("./GraphExplorerPanel").then(m => ({ default: m.GraphExplorerPanel })));
+const TaintPathDiagram = lazy(() => import("./viz/TaintPathDiagram").then(m => ({ default: m.TaintPathDiagram })));
 import { ChartErrorBoundary } from "./ui/ChartErrorBoundary";
 import { Remediation } from "./Remediation";
 import { WalletGuide } from "./WalletGuide";
 import { RecoveryFlow } from "./RecoveryFlow";
 import { CommonMistakes } from "./CommonMistakes";
 import { PrivacyPathways } from "./PrivacyPathways";
+import { MaintenanceGuide } from "./MaintenanceGuide";
 import { AnalystView } from "./AnalystView";
 import { CexRiskPanel } from "./CexRiskPanel";
 import { ExchangeWarningPanel } from "./ExchangeWarningPanel";
@@ -389,8 +393,39 @@ export const ResultsPanel = memo(function ResultsPanel({
               {result.findings.some((f) => f.id.startsWith("h4-")) ? (
                 <CoinJoinStructure tx={txData} findings={result.findings} onAddressClick={onScan} usdPrice={usdPrice} outspends={outspends} />
               ) : (
-                <TxFlowDiagram tx={txData} findings={result.findings} onAddressClick={onScan} onTxClick={onScan} usdPrice={usdPrice} outspends={outspends} />
+                <TxFlowDiagram tx={txData} findings={result.findings} onAddressClick={onScan} usdPrice={usdPrice} outspends={outspends} />
               )}
+            </Suspense>
+          </ChartErrorBoundary>
+        </motion.div>
+      )}
+
+      {/* Chain Analysis (txid only - panel self-hides when no chain findings) */}
+      {inputType === "txid" && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.16 }} className="w-full">
+          <Suspense fallback={null}>
+            <ChainAnalysisPanel findings={result.findings} />
+          </Suspense>
+        </motion.div>
+      )}
+
+      {/* Taint Path Diagram - visualizes taint flow across hops */}
+      {inputType === "txid" && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.17 }} className="w-full">
+          <ChartErrorBoundary>
+            <Suspense fallback={null}>
+              <TaintPathDiagram findings={result.findings} onTxClick={onScan} />
+            </Suspense>
+          </ChartErrorBoundary>
+        </motion.div>
+      )}
+
+      {/* Graph Explorer - interactive tx DAG with (+) expand buttons */}
+      {txData && inputType === "txid" && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.18 }} className="w-full">
+          <ChartErrorBoundary>
+            <Suspense fallback={null}>
+              <GraphExplorerPanel tx={txData} findings={result.findings} onTxClick={onScan} />
             </Suspense>
           </ChartErrorBoundary>
         </motion.div>
@@ -414,11 +449,14 @@ export const ResultsPanel = memo(function ResultsPanel({
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.35 }} className="w-full">
           <Remediation findings={result.findings} grade={result.grade} />
         </motion.div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.355 }} className="w-full">
+          <MaintenanceGuide grade={result.grade} findings={result.findings} />
+        </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.36 }} className="w-full">
           <CommonMistakes findings={result.findings} grade={result.grade} />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.365 }} className="w-full">
-          <PrivacyPathways grade={result.grade} />
+          <PrivacyPathways grade={result.grade} findings={result.findings} />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.37 }} className="w-full">
           <RecoveryFlow grade={result.grade} />
@@ -590,7 +628,7 @@ export const ResultsPanel = memo(function ResultsPanel({
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.65 }} className="w-full bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed">
           {t("results.disclaimerStats", {
             findingCount: result.findings.length,
-            heuristicCount: inputType === "txid" ? "24" : "6",
+            heuristicCount: inputType === "txid" ? "32" : "6",
             defaultValue: "{{findingCount}} findings from {{heuristicCount}} heuristics",
           })}
           {txBreakdown ? t("results.disclaimerTxAnalyzed", { count: txBreakdown.length, defaultValue: " + {{count}} transactions analyzed" }) : ""}

@@ -6,6 +6,11 @@ export function formatSats(sats: number, locale?: string): string {
   return `${sats.toLocaleString(locale)} sats`;
 }
 
+/** Format a number with en-US locale for consistent display in analysis findings. */
+export function fmtN(n: number): string {
+  return n.toLocaleString("en-US");
+}
+
 const SATS_PER_BTC = 100_000_000;
 
 /** Format a satoshi value as a USD string using the given BTC price. */

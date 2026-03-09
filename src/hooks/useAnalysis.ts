@@ -20,6 +20,16 @@ import {
 import { checkOfac } from "@/lib/analysis/cex-risk/ofac-check";
 import { needsEnrichment, enrichPrevouts, countNullPrevouts } from "@/lib/api/enrich-prevouts";
 import { parsePSBT, type PSBTParseResult } from "@/lib/bitcoin/psbt";
+import { traceBackward, traceForward, type TraceLayer } from "@/lib/analysis/chain/recursive-trace";
+import { analyzeEntityProximity } from "@/lib/analysis/chain/entity-proximity";
+import { analyzeBackwardTaint } from "@/lib/analysis/chain/taint";
+import { analyzeBackward } from "@/lib/analysis/chain/backward";
+import { analyzeForward } from "@/lib/analysis/chain/forward";
+import { buildCluster } from "@/lib/analysis/chain/clustering";
+import { analyzeSpendingPatterns } from "@/lib/analysis/chain/spending-patterns";
+import { getAnalysisSettings } from "@/hooks/useAnalysisSettings";
+import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
+import { loadEntityFilter } from "@/lib/analysis/entity-filter";
 import type { ScoringResult, InputType, TxAnalysisResult, Finding } from "@/lib/types";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { HeuristicTranslator } from "@/lib/analysis/heuristics/types";
@@ -30,6 +40,14 @@ type AnalysisPhase =
   | "analyzing"
   | "complete"
   | "error";
+
+export interface FetchProgress {
+  status: "fetching-tx" | "tracing-backward" | "tracing-forward" | "done";
+  timeoutSec: number;
+  currentDepth: number;
+  maxDepth: number;
+  txsFetched: number;
+}
 
 interface AnalysisState {
   phase: AnalysisPhase;
@@ -53,6 +71,12 @@ interface AnalysisState {
   outspends: import("@/lib/api/types").MempoolOutspend[] | null;
   /** Parsed PSBT metadata (only set when input is a PSBT). */
   psbtData: PSBTParseResult | null;
+  /** Progress during fetch/trace phase. */
+  fetchProgress: FetchProgress | null;
+  /** Backward trace layers from recursive tracing. */
+  backwardLayers: TraceLayer[] | null;
+  /** Forward trace layers from recursive tracing. */
+  forwardLayers: TraceLayer[] | null;
 }
 
 const INITIAL_STATE: AnalysisState = {
@@ -73,6 +97,9 @@ const INITIAL_STATE: AnalysisState = {
   usdPrice: null,
   outspends: null,
   psbtData: null,
+  fetchProgress: null,
+  backwardLayers: null,
+  forwardLayers: null,
 };
 
 /** Build a finding for missing prevout data after enrichment. */
@@ -134,6 +161,9 @@ export function useAnalysis() {
   const { network, config } = useNetwork();
   const { t } = useTranslation();
   const abortRef = useRef<AbortController | null>(null);
+
+  // Auto-load core entity filter on mount
+  useEffect(() => { loadEntityFilter(); }, []);
 
   // Wrap t as HeuristicTranslator for passing into analysis layer
   const ht: HeuristicTranslator = useCallback(
@@ -212,6 +242,10 @@ export function useAnalysis() {
           const psbtResult = parsePSBT(input);
           const result = await analyzeTransaction(psbtResult.tx, undefined, onStep);
           if (controller.signal.aborted) return;
+          // No trace data for PSBTs - mark all chain steps as done
+          for (const cid of ["chain-backward", "chain-forward", "chain-cluster", "chain-spending", "chain-entity", "chain-taint"]) {
+            onStep(cid); onStep(cid, 0);
+          }
 
           setState((prev) => ({
             ...prev,
@@ -325,12 +359,129 @@ export function useAnalysis() {
             }
           }
 
+          // --- Recursive tracing (chain analysis) ---
+          const analysisSettings = getAnalysisSettings();
+          let backwardLayers: TraceLayer[] = [];
+          let forwardLayers: TraceLayer[] = [];
+          const totalMaxDepth = analysisSettings.maxDepth * 2; // backward + forward
+
+          if (analysisSettings.maxDepth >= 1 && !controller.signal.aborted) {
+            const traceAbort = new AbortController();
+            const onParentAbort = () => traceAbort.abort();
+            controller.signal.addEventListener("abort", onParentAbort);
+            const traceTimer = setTimeout(
+              () => traceAbort.abort(),
+              analysisSettings.timeout * 1000,
+            );
+
+            // Debounced progress updater (only on depth change or every 500ms)
+            let lastProgressUpdate = 0;
+            let lastDepth = 0;
+            const updateFetchProgress = (
+              status: FetchProgress["status"],
+              currentDepth: number,
+              txsFetched: number,
+            ) => {
+              const now = Date.now();
+              if (currentDepth !== lastDepth || now - lastProgressUpdate >= 500) {
+                lastDepth = currentDepth;
+                lastProgressUpdate = now;
+                setState((prev) => ({
+                  ...prev,
+                  fetchProgress: {
+                    status,
+                    timeoutSec: analysisSettings.timeout,
+                    currentDepth,
+                    maxDepth: totalMaxDepth,
+                    txsFetched,
+                  },
+                }));
+              }
+            };
+
+            // Build existing data maps to avoid re-fetching depth-1
+            const existingParents = new Map<string, MempoolTransaction>();
+            if (parentTx) existingParents.set(parentTx.txid, parentTx);
+            const existingChildren = new Map<string, MempoolTransaction>();
+            if (childTx) existingChildren.set(childTx.txid, childTx);
+
+            const traceFetcher = {
+              getTransaction: (txid: string) => api.getTransaction(txid),
+              getTxOutspends: (txid: string) => api.getTxOutspends(txid),
+            };
+
+            try {
+              setState((prev) => ({
+                ...prev,
+                fetchProgress: {
+                  status: "tracing-backward",
+                  timeoutSec: analysisSettings.timeout,
+                  currentDepth: 0,
+                  maxDepth: totalMaxDepth,
+                  txsFetched: 0,
+                },
+              }));
+
+              const backResult = await traceBackward(
+                tx,
+                analysisSettings.maxDepth,
+                analysisSettings.minSats,
+                traceFetcher,
+                traceAbort.signal,
+                (p) => updateFetchProgress("tracing-backward", p.currentDepth, p.txsFetched),
+                existingParents,
+              );
+              backwardLayers = backResult.layers;
+
+              if (!traceAbort.signal.aborted) {
+                // Forward depths continue from where backward left off
+                const depthOffset = analysisSettings.maxDepth;
+                setState((prev) => ({
+                  ...prev,
+                  fetchProgress: {
+                    status: "tracing-forward",
+                    timeoutSec: analysisSettings.timeout,
+                    currentDepth: depthOffset,
+                    maxDepth: totalMaxDepth,
+                    txsFetched: backResult.fetchCount,
+                  },
+                }));
+
+                const fwdResult = await traceForward(
+                  tx,
+                  analysisSettings.maxDepth,
+                  analysisSettings.minSats,
+                  traceFetcher,
+                  traceAbort.signal,
+                  (p) => updateFetchProgress(
+                    "tracing-forward",
+                    depthOffset + p.currentDepth,
+                    p.txsFetched + backResult.fetchCount,
+                  ),
+                  existingChildren,
+                  outspends ?? undefined,
+                );
+                forwardLayers = fwdResult.layers;
+              }
+            } catch {
+              // Tracing failed or timed out - proceed with whatever was collected
+            }
+
+            clearTimeout(traceTimer);
+            controller.signal.removeEventListener("abort", onParentAbort);
+          }
+
+          if (controller.signal.aborted) return;
+
           setState((prev) => ({
             ...prev,
             phase: "analyzing",
             txData: tx,
             usdPrice,
             outspends,
+            fetchProgress: { status: "done", timeoutSec: 0, currentDepth: 0, maxDepth: 0, txsFetched: 0 },
+            backwardLayers: backwardLayers.length > 0 ? backwardLayers : null,
+            forwardLayers: forwardLayers.length > 0 ? forwardLayers : null,
           }));
 
           const ctx: import("@/lib/analysis/heuristics/types").TxContext = {
@@ -343,6 +494,152 @@ export function useAnalysis() {
           };
           const result = await analyzeTransaction(tx, rawHex, onStep, ctx);
           if (controller.signal.aborted) return;
+
+          // --- Chain analysis from trace layers ---
+          const tick50 = () => new Promise<void>((r) => setTimeout(r, 50));
+          const hasTraceLayers = backwardLayers.length > 0 || forwardLayers.length > 0;
+
+          // Build parentTxsByIdx (input index -> parent tx) from depth-1 backward layer
+          const parentTxsByIdx = new Map<number, MempoolTransaction>();
+          if (backwardLayers.length > 0) {
+            const depth1 = backwardLayers[0];
+            for (let i = 0; i < tx.vin.length; i++) {
+              if (tx.vin[i].is_coinbase) continue;
+              const ptx = depth1.txs.get(tx.vin[i].txid);
+              if (ptx) parentTxsByIdx.set(i, ptx);
+            }
+          }
+          // Also use the pre-fetched single parentTx if we have it
+          if (parentTx && tx.vin.length === 1 && !parentTxsByIdx.has(0)) {
+            parentTxsByIdx.set(0, parentTx);
+          }
+
+          // Build childTxsByIdx (output index -> child tx) from depth-1 forward layer
+          const childTxsByIdx = new Map<number, MempoolTransaction>();
+          if (forwardLayers.length > 0 && outspends) {
+            const depth1 = forwardLayers[0];
+            for (let i = 0; i < outspends.length; i++) {
+              const os = outspends[i];
+              if (os?.spent && os.txid) {
+                const ctxn = depth1.txs.get(os.txid);
+                if (ctxn) childTxsByIdx.set(i, ctxn);
+              }
+            }
+          }
+          // Also use the pre-fetched single childTx
+          if (childTx && outspends) {
+            for (let i = 0; i < outspends.length; i++) {
+              if (outspends[i]?.txid === childTx.txid && !childTxsByIdx.has(i)) {
+                childTxsByIdx.set(i, childTx);
+              }
+            }
+          }
+
+          // 1. Backward analysis (input provenance)
+          let coinJoinInputIndices: number[] = [];
+          onStep("chain-backward");
+          await tick50();
+          if (parentTxsByIdx.size > 0) {
+            const backwardResult = analyzeBackward(tx, parentTxsByIdx);
+            result.findings.push(...backwardResult.findings);
+            coinJoinInputIndices = backwardResult.coinJoinInputs;
+            onStep("chain-backward", backwardResult.findings.reduce((s, f) => s + f.scoreImpact, 0));
+          } else {
+            onStep("chain-backward", 0);
+          }
+
+          // 2. Forward analysis (output destinations)
+          onStep("chain-forward");
+          await tick50();
+          if (childTxsByIdx.size > 0 && outspends) {
+            const forwardResult = analyzeForward(tx, outspends, childTxsByIdx);
+            result.findings.push(...forwardResult.findings);
+            onStep("chain-forward", forwardResult.findings.reduce((s, f) => s + f.scoreImpact, 0));
+          } else {
+            onStep("chain-forward", 0);
+          }
+
+          // 3. Address clustering
+          onStep("chain-cluster");
+          await tick50();
+          if (hasTraceLayers) {
+            // Build txsByAddress from all traced txs
+            const txsByAddress = new Map<string, MempoolTransaction[]>();
+            const addTxToMap = (atx: MempoolTransaction) => {
+              for (const vin of atx.vin) {
+                const addr = vin.prevout?.scriptpubkey_address;
+                if (addr) {
+                  const arr = txsByAddress.get(addr) ?? [];
+                  arr.push(atx);
+                  txsByAddress.set(addr, arr);
+                }
+              }
+              for (const vout of atx.vout) {
+                const addr = vout.scriptpubkey_address;
+                if (addr && vout.scriptpubkey_type !== "op_return") {
+                  const arr = txsByAddress.get(addr) ?? [];
+                  arr.push(atx);
+                  txsByAddress.set(addr, arr);
+                }
+              }
+            };
+            addTxToMap(tx);
+            for (const layer of [...backwardLayers, ...forwardLayers]) {
+              for (const [, ltx] of layer.txs) addTxToMap(ltx);
+            }
+            // Use first input address as seed
+            const seedAddr = tx.vin[0]?.prevout?.scriptpubkey_address;
+            if (seedAddr) {
+              const clusterResult = buildCluster(seedAddr, txsByAddress);
+              result.findings.push(...clusterResult.findings);
+              onStep("chain-cluster", clusterResult.findings.reduce((s, f) => s + f.scoreImpact, 0));
+            } else {
+              onStep("chain-cluster", 0);
+            }
+          } else {
+            onStep("chain-cluster", 0);
+          }
+
+          // 4. Spending patterns
+          onStep("chain-spending");
+          await tick50();
+          {
+            const spResult = analyzeSpendingPatterns(
+              tx,
+              parentTxsByIdx,
+              coinJoinInputIndices,
+              outspends,
+              childTxsByIdx,
+            );
+            result.findings.push(...spResult.findings);
+            onStep("chain-spending", spResult.findings.reduce((s, f) => s + f.scoreImpact, 0));
+          }
+
+          // 5. Entity proximity scan
+          onStep("chain-entity");
+          await tick50();
+          if (hasTraceLayers) {
+            const proximityResult = analyzeEntityProximity(tx, backwardLayers, forwardLayers);
+            result.findings.push(...proximityResult.findings);
+            onStep("chain-entity", proximityResult.findings.reduce((s, f) => s + f.scoreImpact, 0));
+          } else {
+            onStep("chain-entity", 0);
+          }
+
+          // 6. Taint flow analysis
+          onStep("chain-taint");
+          await tick50();
+          if (backwardLayers.length > 0) {
+            const entityChecker = (addr: string) => {
+              const match = matchEntitySync(addr);
+              return match ? { category: match.category, entityName: match.entityName } : null;
+            };
+            const taintResult = analyzeBackwardTaint(tx, backwardLayers, entityChecker);
+            result.findings.push(...taintResult.findings);
+            onStep("chain-taint", taintResult.findings.reduce((s, f) => s + f.scoreImpact, 0));
+          } else {
+            onStep("chain-taint", 0);
+          }
 
           // If prevout data is still missing after enrichment, warn the user
           const remainingNulls = countNullPrevouts([tx]);

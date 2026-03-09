@@ -24,10 +24,16 @@ export async function matchEntities(
   // Layer 1: OFAC exact match (always available, zero FPR)
   const ofacResult = checkOfac(addresses);
   for (const addr of ofacResult.matchedAddresses) {
+    // Try to resolve the actual entity name and category from the entity index/filter
+    const resolvedName = lookupEntityName(addr);
+    const entity = resolvedName ? getEntity(resolvedName) : null;
+    const resolvedCategory = entity?.category
+      ?? lookupEntityCategory(addr) as EntityMatch["category"]
+      ?? "exchange";
     matches.push({
       address: addr,
-      entityName: "OFAC Sanctioned",
-      category: "exchange", // OFAC can be any category
+      entityName: resolvedName ?? "OFAC Sanctioned",
+      category: resolvedCategory,
       ofac: true,
       confidence: "high",
     });
@@ -69,10 +75,15 @@ export function matchEntitySync(address: string): EntityMatch | null {
   // OFAC check (always available)
   const ofacResult = checkOfac([address]);
   if (ofacResult.sanctioned) {
+    const resolvedName = lookupEntityName(address);
+    const entity = resolvedName ? getEntity(resolvedName) : null;
+    const resolvedCategory = entity?.category
+      ?? lookupEntityCategory(address) as EntityMatch["category"]
+      ?? "exchange";
     return {
       address,
-      entityName: "OFAC Sanctioned",
-      category: "exchange",
+      entityName: resolvedName ?? "OFAC Sanctioned",
+      category: resolvedCategory,
       ofac: true,
       confidence: "high",
     };

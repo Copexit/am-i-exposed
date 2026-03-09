@@ -15,13 +15,13 @@ beforeEach(() => resetAddrCounter());
 vi.useFakeTimers();
 
 describe("analyzeTransaction", () => {
-  it("runs all 24 TX heuristics and returns a scored result", async () => {
+  it("runs all 26 TX heuristics and returns a scored result", async () => {
     const tx = makeTx();
     const stepIds: string[] = [];
     const onStep = vi.fn((id: string) => stepIds.push(id));
 
     const resultPromise = analyzeTransaction(tx, undefined, onStep);
-    await vi.advanceTimersByTimeAsync(24 * 100);
+    await vi.advanceTimersByTimeAsync(26 * 100);
     const result = await resultPromise;
 
     expect(result.score).toBeGreaterThanOrEqual(0);
@@ -29,8 +29,8 @@ describe("analyzeTransaction", () => {
     expect(result.grade).toBeDefined();
     expect(result.findings.length).toBeGreaterThan(0);
 
-    // onStep called twice per heuristic (start + done) = 48 calls
-    expect(onStep).toHaveBeenCalledTimes(48);
+    // onStep called twice per heuristic (start + done) = 52 calls
+    expect(onStep).toHaveBeenCalledTimes(52);
   });
 
   it("passes rawHex to wallet-fingerprint heuristic", async () => {
@@ -226,8 +226,8 @@ describe("analyzeDestination", () => {
 });
 
 describe("heuristic step lists", () => {
-  it("getTxHeuristicSteps returns 24 steps", () => {
-    expect(getTxHeuristicSteps()).toHaveLength(24);
+  it("getTxHeuristicSteps returns 32 steps (26 heuristics + 6 chain)", () => {
+    expect(getTxHeuristicSteps()).toHaveLength(32);
   });
 
   it("getAddressHeuristicSteps returns 6 steps", () => {

@@ -1,5 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
+import { fmtN } from "@/lib/format";
 
 /**
  * BIP47 Notification Transaction Detection
@@ -39,6 +40,15 @@ export const analyzeBip47Notification: TxHeuristic = (tx) => {
 
   // BIP47 payment code is exactly 80 bytes = 160 hex characters
   if (dataHex.length !== 160) return { findings };
+
+  // Negative check: known non-BIP47 OP_RETURN protocols with 80-byte payloads
+  const lowerData = dataHex.toLowerCase();
+  if (lowerData.startsWith("6f6d6e69") ||              // Omni Layer ("omni")
+      lowerData.startsWith("434e545250525459") ||       // Counterparty ("CNTRPRTY")
+      lowerData.startsWith("53504b") ||                 // Stacks ("SPK")
+      lowerData.startsWith("567266")) {                 // Veriblock ("Vrf")
+    return { findings };
+  }
 
   // The first byte of the payment code data should be 0x01 (version 1)
   // or 0x02 (version 2) after decryption. Since it's encrypted, we can't
@@ -80,7 +90,7 @@ export const analyzeBip47Notification: TxHeuristic = (tx) => {
         ? `A small notification output of ${notificationOutput.value} sats was sent to the receiver's notification address. `
         : "") +
       (hasChange
-        ? `The change output (${changeValue.toLocaleString()} sats) is toxic - it permanently links the sender's identity to this PayNym connection.`
+        ? `The change output (${fmtN(changeValue)} sats) is toxic - it permanently links the sender's identity to this PayNym connection.`
         : "No change output detected."),
     recommendation:
       "BIP47 reusable payment codes improve privacy for recurring payments. " +
@@ -93,7 +103,7 @@ export const analyzeBip47Notification: TxHeuristic = (tx) => {
     scoreImpact: 3,
     remediation: hasChange
       ? {
-          qualifier: `Toxic change: ${changeValue.toLocaleString()} sats. This output links your wallet to the PayNym connection.`,
+          qualifier: `Toxic change: ${fmtN(changeValue)} sats. This output links your wallet to the PayNym connection.`,
           steps: [
             "Immediately freeze the change output in your wallet's coin control.",
             "Never spend this change with post-mix or regular UTXOs.",

@@ -18,6 +18,7 @@
 
 import type { MempoolUtxo } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
+import { fmtN } from "@/lib/format";
 
 // ---------- Types ----------
 
@@ -218,9 +219,9 @@ function generateFindings(result: CoinSelectionResult): Finding[] {
       id: "coin-select-toxic-change",
       severity: "high",
       confidence: "deterministic",
-      title: `Small change: ${result.changeAmount.toLocaleString()} sats`,
+      title: `Small change: ${fmtN(result.changeAmount)} sats`,
       description:
-        `This selection would create a change output of only ${result.changeAmount.toLocaleString()} sats. ` +
+        `This selection would create a change output of only ${fmtN(result.changeAmount)} sats. ` +
         "Small change outputs are uneconomical to spend and can link future transactions.",
       recommendation:
         "Consider absorbing the change into the fee, or select different UTXOs. " +

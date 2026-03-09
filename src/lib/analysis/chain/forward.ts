@@ -64,7 +64,9 @@ export function analyzeForward(
 
   // Item 3: Toxic change merged with post-mix UTXOs
   // Check if any child tx combines a tx0 toxic change with CoinJoin outputs
-  // tx0 detection: OP_RETURN + multiple equal-value outputs (premix denomination)
+  // tx0 detection: OP_RETURN + multiple equal-value outputs (premix denomination).
+  // The OP_RETURN requirement prevents false-positives on exchange batch withdrawals,
+  // which may have equal outputs but never include OP_RETURN data.
   const hasOpReturn = tx.vout.some((o) => o.scriptpubkey.startsWith("6a"));
   const spendableVout = tx.vout.filter((o) => !o.scriptpubkey.startsWith("6a"));
   const valueCounts = new Map<number, number>();

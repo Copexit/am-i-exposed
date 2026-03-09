@@ -287,35 +287,16 @@ function FlowChart({
       });
     }
 
-    // Fee node
-    if (tx.fee > 0) {
-      nodes.push({
-        id: "fee",
-        label: t("viz.flow.fee", { defaultValue: "Fee" }),
-        value: tx.fee,
-        side: "fee",
-      });
-    }
-
-    // Links
-    const hasFee = tx.fee > 0;
-    const totalTarget = totalOutputValue + (hasFee ? tx.fee : 0);
-
+    // Links - fee is shown separately at the bottom, not as a Sankey node
     for (let i = 0; i < displayInputs.length; i++) {
       const inputVal = displayInputs[i].prevout?.value ?? 0;
       if (inputVal === 0) continue;
 
       for (let j = 0; j < displayOutputs.length; j++) {
         const outVal = displayOutputs[j].value;
-        const proportion = totalTarget > 0 ? outVal / totalTarget : 1 / displayOutputs.length;
+        const proportion = totalOutputValue > 0 ? outVal / totalOutputValue : 1 / displayOutputs.length;
         const linkVal = Math.max(1, Math.round(inputVal * proportion));
         links.push({ source: `in-${i}`, target: `out-${j}`, value: linkVal });
-      }
-
-      if (hasFee) {
-        const feeProportion = totalTarget > 0 ? tx.fee / totalTarget : 0;
-        const linkVal = Math.max(1, Math.round(inputVal * feeProportion));
-        links.push({ source: `in-${i}`, target: "fee", value: linkVal });
       }
     }
 
@@ -643,7 +624,7 @@ export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspend
 
   const displayInCount = showAllInputs ? tx.vin.length : Math.min(tx.vin.length, MAX_DISPLAY);
   const displayOutCount = showAllOutputs ? tx.vout.length : Math.min(tx.vout.length, MAX_DISPLAY);
-  const maxSide = Math.max(displayInCount, displayOutCount + (tx.fee > 0 ? 1 : 0));
+  const maxSide = Math.max(displayInCount, displayOutCount);
   const chartHeight = Math.max(160, Math.min(450, maxSide * 40 + 40));
 
   // Close on Escape key
@@ -748,7 +729,7 @@ export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspend
                 if (width < 1) return null;
                 const expandedMaxSide = Math.max(
                   tx.vin.length,
-                  tx.vout.length + (tx.fee > 0 ? 1 : 0),
+                  tx.vout.length,
                 );
                 const expandedHeight = Math.max(400, expandedMaxSide * 40 + 40);
                 return (

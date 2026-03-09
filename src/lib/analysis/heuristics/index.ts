@@ -28,4 +28,6 @@ export { analyzeRecurringPayment } from "./recurring-payment";
 export { analyzeCoinSelection } from "./coin-selection";
 export { analyzeWitnessData } from "./witness-analysis";
 export { analyzeHighActivityAddress } from "./high-activity-address";
+export { analyzeEntityDetection } from "./entity-detection";
+export { analyzePostMix } from "./post-mix";
 export type { TxHeuristic, AddressHeuristic, HeuristicTranslator } from "./types";

@@ -16,6 +16,7 @@ import {
   getFullFilterStatus,
   isFullFilterLoaded,
   getFilter,
+  loadEntityFilter,
   loadFullEntityFilter,
 } from "@/lib/analysis/entity-filter";
 
@@ -626,6 +627,9 @@ function EntityFilterStatus({ t }: { t: (key: string, opts?: Record<string, unkn
   const [, forceUpdate] = useState(0);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<{ loaded: number; total: number } | null>(null);
+
+  // Auto-load core entity filter when settings panel renders
+  useEffect(() => { loadEntityFilter().then(() => forceUpdate((n) => n + 1)); }, []);
 
   const coreStatus = getFilterStatus();
   const fullStatus = getFullFilterStatus();

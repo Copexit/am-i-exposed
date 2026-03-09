@@ -6,6 +6,7 @@ import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { ChevronDown } from "lucide-react";
 import { BookOpen } from "lucide-react";
 import type { Finding, Severity, ConfidenceLevel } from "@/lib/types";
+import { WalletIcon } from "@/components/ui/WalletIcon";
 
 /** Map finding IDs to relevant FAQ section anchors */
 const FINDING_LEARN_MORE: Record<string, { faqId: string; labelKey: string; labelDefault: string }> = {
@@ -96,6 +97,9 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
         className="w-full flex items-center gap-3 px-4 py-3 min-h-[48px] text-left hover:bg-surface-elevated/50 transition-colors cursor-pointer"
       >
         <span className={`w-2 h-2 rounded-full shrink-0 ${style.dot}`} aria-hidden="true" />
+        {finding.id === "h11-wallet-fingerprint" && finding.params?.walletGuess && (
+          <WalletIcon walletName={String(finding.params.walletGuess)} size="sm" />
+        )}
         <span className="flex-1 text-sm font-medium text-foreground">
           {t(`finding.${finding.id}.title`, { ...finding.params, defaultValue: finding.title })}
         </span>

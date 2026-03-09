@@ -1,5 +1,6 @@
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
+import { fmtN } from "@/lib/format";
 import { analyzeCoinJoin, isCoinJoinFinding } from "../heuristics/coinjoin";
 
 /**
@@ -43,7 +44,7 @@ export function detectPartialSpendWarning(
       severity: "low",
       title: "Near-exact spend with tiny change output",
       description:
-        `Change output (${smaller.toLocaleString()} sats) is less than 5% of the total ` +
+        `Change output (${fmtN(smaller)} sats) is less than 5% of the total ` +
         `input value. This small change creates a traceable link back to this transaction. ` +
         "Consider absorbing change into the miner fee or selecting a UTXO that matches " +
         "the payment amount more closely.",

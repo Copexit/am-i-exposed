@@ -512,10 +512,11 @@ function detectSimplifiedStonewall(
   vin: Parameters<typeof analyzeCoinJoin>[0]["vin"],
   spendableOutputs: { value: number; scriptpubkey_address?: string }[],
 ): { denomination: number } | null {
-  // Simplified Stonewall: 1+ inputs, exactly 3 spendable outputs
+  // Simplified Stonewall: 2+ inputs, exactly 3 spendable outputs
   // 2 outputs with equal value (payment + decoy) + 1 change
+  // Real Stonewall always has 2+ inputs (wallet constructs a self-spend structure)
   if (spendableOutputs.length !== 3) return null;
-  if (vin.length < 1) return null;
+  if (vin.length < 2) return null;
 
   // Count output values - need exactly 1 pair
   const counts = new Map<number, number>();

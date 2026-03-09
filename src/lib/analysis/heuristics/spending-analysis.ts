@@ -1,5 +1,6 @@
 import type { AddressHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
+import { fmtN } from "@/lib/format";
 import { analyzeCoinJoin, isCoinJoinFinding } from "./coinjoin";
 import { getAddressType } from "@/lib/bitcoin/address-type";
 
@@ -27,10 +28,10 @@ export const analyzeSpendingPattern: AddressHeuristic = (address, _utxos, txs) =
       id: "spending-high-volume",
       severity: "medium",
       confidence: "deterministic",
-      title: `High transaction volume (${totalTxs.toLocaleString()} transactions)`,
+      title: `High transaction volume (${fmtN(totalTxs)} transactions)`,
       params: { totalTxs },
       description:
-        `This address has been involved in ${totalTxs.toLocaleString()} transactions. ` +
+        `This address has been involved in ${fmtN(totalTxs)} transactions. ` +
         "High-volume addresses are more likely to be monitored by chain analysis firms " +
         "and may be associated with services, exchanges, or businesses.",
       recommendation:

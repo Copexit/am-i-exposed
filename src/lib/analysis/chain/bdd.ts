@@ -1,5 +1,6 @@
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
+import { fmtN } from "@/lib/format";
 
 /**
  * Bitcoin Days Destroyed (BDD)
@@ -85,9 +86,9 @@ export function calculateBdd(
       id: "bdd-very-high",
       severity: "medium",
       confidence: "deterministic",
-      title: `Very high Bitcoin Days Destroyed: ${totalBdd.toLocaleString()} BDD`,
+      title: `Very high Bitcoin Days Destroyed: ${fmtN(totalBdd)} BDD`,
       description:
-        `This transaction destroys ${totalBdd.toLocaleString()} Bitcoin Days. ` +
+        `This transaction destroys ${fmtN(totalBdd)} Bitcoin Days. ` +
         "This indicates long-held coins are being moved, which is a significant on-chain " +
         "event. Chain analysis firms and whale-watching services flag high-BDD transactions " +
         "for manual review, making this transaction more likely to attract attention.",
@@ -103,9 +104,9 @@ export function calculateBdd(
       id: "bdd-high",
       severity: "low",
       confidence: "deterministic",
-      title: `High Bitcoin Days Destroyed: ${totalBdd.toLocaleString()} BDD`,
+      title: `High Bitcoin Days Destroyed: ${fmtN(totalBdd)} BDD`,
       description:
-        `This transaction destroys ${totalBdd.toLocaleString()} Bitcoin Days, ` +
+        `This transaction destroys ${fmtN(totalBdd)} Bitcoin Days, ` +
         "indicating coins held for a notable period are being moved. This moderate BDD " +
         "may appear on chain analysis dashboards that monitor coin age distribution.",
       recommendation:
@@ -119,9 +120,9 @@ export function calculateBdd(
       id: "bdd-low",
       severity: "good",
       confidence: "deterministic",
-      title: `Low Bitcoin Days Destroyed: ${totalBdd.toLocaleString()} BDD`,
+      title: `Low Bitcoin Days Destroyed: ${fmtN(totalBdd)} BDD`,
       description:
-        `This transaction destroys only ${totalBdd.toLocaleString()} Bitcoin Days, ` +
+        `This transaction destroys only ${fmtN(totalBdd)} Bitcoin Days, ` +
         "indicating recently received coins are being spent. Low-BDD transactions are " +
         "routine and attract less attention from chain surveillance.",
       recommendation:

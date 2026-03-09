@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ArrowDown, ExternalLink } from "lucide-react";
+import { WalletIcon } from "@/components/ui/WalletIcon";
 
 interface Step {
   titleKey: string;
@@ -160,8 +161,9 @@ export function RecoveryFlow({ grade }: RecoveryFlowProps) {
                     href={tool.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-sm text-bitcoin hover:text-bitcoin-hover transition-colors px-3 py-1.5 rounded-lg border border-bitcoin/20 hover:border-bitcoin/40 bg-bitcoin/5"
+                    className="inline-flex items-center gap-1.5 text-sm text-bitcoin hover:text-bitcoin-hover transition-colors px-3 py-1.5 rounded-lg border border-bitcoin/20 hover:border-bitcoin/40 bg-bitcoin/5"
                   >
+                    <WalletIcon walletName={tool.name} size="sm" />
                     {tool.name}
                     <ExternalLink size={12} />
                   </a>

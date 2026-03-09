@@ -54,6 +54,10 @@ Use these consistently for findings:
 - `low` - blue (#3b82f6)
 - `good` - green (#28d065)
 
+## Session Safety
+
+- **Always commit work before ending a session.** Uncommitted changes to tracked files can be lost between sessions (IDE auto-revert, git hooks, other processes). If work is in progress and not ready to commit to main, commit to a WIP branch. Never leave substantial uncommitted changes across a session boundary.
+
 ## Deployment Rules
 
 - **NEVER deploy without explicit user permission.** Always ask first.

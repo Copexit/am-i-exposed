@@ -1,5 +1,6 @@
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
+import { fmtN } from "@/lib/format";
 
 /**
  * Multi-hop Peel Chain Tracing
@@ -158,11 +159,11 @@ export function tracePeelChain(
       id: "peel-chain-trace",
       severity: hops.length >= 6 ? "critical" : "high",
       confidence: "high",
-      title: `Peel chain: ${hops.length} hops traced, ${totalPeeled.toLocaleString()} sats peeled`,
+      title: `Peel chain: ${hops.length} hops traced, ${fmtN(totalPeeled)} sats peeled`,
       description:
         `A peel chain of ${hops.length} hops was traced from this transaction. ` +
-        `Total of ${totalPeeled.toLocaleString()} sats were "peeled off" as payments, ` +
-        `leaving ${remainingBalance.toLocaleString()} sats remaining. ` +
+        `Total of ${fmtN(totalPeeled)} sats were "peeled off" as payments, ` +
+        `leaving ${fmtN(remainingBalance)} sats remaining. ` +
         (reusedCount > 0
           ? `${reusedCount} hop(s) reused change addresses, further weakening privacy. `
           : "") +

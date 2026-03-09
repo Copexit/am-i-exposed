@@ -1,5 +1,6 @@
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
+import { fmtN } from "@/lib/format";
 
 /**
  * JoinMarket Advanced Analysis
@@ -135,7 +136,7 @@ export function subsetSumAttack(tx: MempoolTransaction): SubsetSumResult {
               title: `Subset-sum attack: taker inputs likely identified (${indices.length} of ${inputValues.length})`,
               description:
                 `Input subset [${indices.map((i) => i + 1).join(", ")}] sums to exactly the taker's expected total ` +
-                `(change ${changeOut.value.toLocaleString()} + ${takerDenoms} x denomination ${denomination.toLocaleString()} + fee ${fee.toLocaleString()} sats). ` +
+                `(change ${fmtN(changeOut.value)} + ${takerDenoms} x denomination ${fmtN(denomination)} + fee ${fmtN(fee)} sats). ` +
                 "Research on JoinMarket transactions shows this subset-sum attack succeeds ~76% of the time. " +
                 "This means the taker's inputs (and therefore their identity link) are revealed with high probability.",
               recommendation:
@@ -240,11 +241,11 @@ export function identifyTakerMaker(tx: MempoolTransaction): TakerMakerResult | n
     id: "joinmarket-taker-maker",
     severity: "medium",
     confidence: "medium",
-    title: `Taker/maker analysis: smallest change (${takerChange.value.toLocaleString()} sats) likely belongs to taker`,
+    title: `Taker/maker analysis: smallest change (${fmtN(takerChange.value)} sats) likely belongs to taker`,
     description:
-      `In JoinMarket, the taker pays the full mining fee (${tx.fee.toLocaleString()} sats) while makers ` +
+      `In JoinMarket, the taker pays the full mining fee (${fmtN(tx.fee)} sats) while makers ` +
       "earn tiny fee income. This means the taker's change output is the smallest. " +
-      `The output at index ${takerChange.index} (${takerChange.value.toLocaleString()} sats) is the ` +
+      `The output at index ${takerChange.index} (${fmtN(takerChange.value)} sats) is the ` +
       "most likely taker change. The taker's privacy is structurally weaker than the makers' privacy.",
     recommendation:
       "If you are the taker, your change output is more identifiable. " +
@@ -269,6 +270,28 @@ export function identifyTakerMaker(tx: MempoolTransaction): TakerMakerResult | n
 }
 
 /**
+ * Estimate the effective anonymity set for a JoinMarket CoinJoin.
+ *
+ * JoinMarket change outputs link rounds, so multi-round anonymity
+ * is ADDITIVE, not multiplicative:
+ *   effectiveAnonSet = participants + chainedRounds * (participants - 1)
+ *
+ * For a single round with no chaining, effectiveAnonSet = participants.
+ * This is weaker than Whirlpool (where rounds are fully unlinkable and
+ * the set grows multiplicatively).
+ */
+export function estimateJoinMarketAnonSet(
+  participants: number,
+  chainedRounds: number = 0,
+): number {
+  if (participants < 2) return 1;
+  // Additive formula: each chained round adds (participants - 1) new
+  // possible sources, not a full multiplicative factor, because change
+  // outputs create a traceable link between rounds.
+  return participants + chainedRounds * (participants - 1);
+}
+
+/**
  * Run the full JoinMarket analysis suite on a transaction.
  * Only meaningful for JoinMarket-style CoinJoin transactions.
  */
@@ -285,6 +308,47 @@ export function analyzeJoinMarket(tx: MempoolTransaction): Finding[] {
     if (tmResult) {
       findings.push(...tmResult.findings);
     }
+  }
+
+  // Estimate effective anonymity set for this single round.
+  // Count equal-value outputs as participants (each gets one denomination output).
+  const spendable = tx.vout.filter((o) => o.scriptpubkey_type !== "op_return");
+  const valueCounts = new Map<number, number>();
+  for (const o of spendable) {
+    valueCounts.set(o.value, (valueCounts.get(o.value) ?? 0) + 1);
+  }
+  let participants = 0;
+  for (const [, count] of valueCounts) {
+    if (count >= 2 && count > participants) {
+      participants = count;
+    }
+  }
+
+  if (participants >= 2) {
+    // Single round: chainedRounds = 0, so effectiveAnonSet = participants
+    const effectiveAnonSet = estimateJoinMarketAnonSet(participants, 0);
+    findings.push({
+      id: "joinmarket-anon-set",
+      severity: effectiveAnonSet >= 4 ? "good" : "medium",
+      confidence: "medium",
+      title: `JoinMarket anonymity set: ${effectiveAnonSet} participants`,
+      description:
+        `This JoinMarket round has ${participants} equal-output participants, ` +
+        `giving an effective anonymity set of ${effectiveAnonSet}. ` +
+        "JoinMarket's change outputs link rounds, so multi-round anonymity grows " +
+        "additively (participants + chainedRounds * (participants - 1)), not " +
+        "multiplicatively. For stronger privacy, use more participants per round " +
+        "rather than relying on many rounds.",
+      recommendation:
+        "For maximum JoinMarket privacy, prefer rounds with more makers (larger anonymity set per round). " +
+        "Whirlpool provides multiplicative anonymity set growth across rounds because it has no change outputs.",
+      scoreImpact: 0, // Informational - CoinJoin impact is scored by h4-joinmarket
+      params: {
+        participants,
+        effectiveAnonSet,
+        chainedRounds: 0,
+      },
+    });
   }
 
   return findings;

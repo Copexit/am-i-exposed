@@ -13,6 +13,7 @@
  */
 
 import type { Finding, Severity, Grade } from "@/lib/types";
+import { fmtN } from "@/lib/format";
 import type { MempoolAddress, MempoolTransaction, MempoolUtxo } from "@/lib/api/types";
 import type { DerivedAddress } from "@/lib/bitcoin/descriptor";
 
@@ -119,7 +120,7 @@ function checkUtxoHygiene(addresses: WalletAddressInfo[]): Finding[] {
       id: "wallet-dust-utxos",
       severity: dustCount > 5 ? "high" : "medium",
       confidence: "deterministic",
-      title: `${dustCount} dust UTXO${dustCount > 1 ? "s" : ""} (${dustValue.toLocaleString()} sats)`,
+      title: `${dustCount} dust UTXO${dustCount > 1 ? "s" : ""} (${fmtN(dustValue)} sats)`,
       description:
         `The wallet contains ${dustCount} UTXO${dustCount > 1 ? "s" : ""} below the dust threshold (${DUST_THRESHOLD} sats). ` +
         "Dust UTXOs are uneconomical to spend and can be used in dust attacks to track wallet activity.",

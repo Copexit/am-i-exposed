@@ -1,6 +1,7 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { DUST_THRESHOLD } from "@/lib/constants";
+import { fmtN } from "@/lib/format";
 
 /**
  * Anonymity Set Analysis
@@ -111,7 +112,7 @@ function formatSats(sats: number): string {
   if (sats >= 100_000_000) {
     return `${(sats / 100_000_000).toFixed(8).replace(/\.?0+$/, "")} BTC`;
   }
-  return `${sats.toLocaleString()} sats`;
+  return `${fmtN(sats)} sats`;
 }
 
 function buildSetSummary(sets: { value: number; count: number }[]): string {

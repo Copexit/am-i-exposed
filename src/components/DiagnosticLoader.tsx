@@ -7,14 +7,16 @@ import { Check, Loader2, Circle } from "lucide-react";
 import { useNetwork } from "@/context/NetworkContext";
 import { TX_BASE_SCORE, ADDRESS_BASE_SCORE } from "@/lib/scoring/score";
 import type { HeuristicStep } from "@/lib/analysis/orchestrator";
+import type { FetchProgress } from "@/hooks/useAnalysis";
 
 interface DiagnosticLoaderProps {
   steps: HeuristicStep[];
   phase: "fetching" | "analyzing";
   inputType?: string;
+  fetchProgress?: FetchProgress | null;
 }
 
-export function DiagnosticLoader({ steps, phase, inputType }: DiagnosticLoaderProps) {
+export function DiagnosticLoader({ steps, phase, inputType, fetchProgress }: DiagnosticLoaderProps) {
   const { t } = useTranslation();
   const { isUmbrel } = useNetwork();
   const isLocalApi = isUmbrel;
@@ -36,17 +38,35 @@ export function DiagnosticLoader({ steps, phase, inputType }: DiagnosticLoaderPr
   const runningScore = Math.max(0, Math.min(100, baseScore + totalImpact));
   const hasImpact = useMemo(() => steps.some((s) => s.impact !== undefined), [steps]);
 
+  // Fetch progress calculations
+  const isTracing = phase === "fetching" && fetchProgress && fetchProgress.status !== "fetching-tx" && fetchProgress.status !== "done";
+  const timePercent = isTracing && fetchProgress
+    ? Math.min(100, (elapsed / fetchProgress.timeoutSec) * 100)
+    : 0;
+  const depthPercent = isTracing && fetchProgress && fetchProgress.maxDepth > 0
+    ? Math.min(100, (fetchProgress.currentDepth / fetchProgress.maxDepth) * 100)
+    : 0;
+  const traceProgressPercent = Math.max(timePercent, depthPercent);
+
+  const traceLabel = isTracing && fetchProgress
+    ? fetchProgress.status === "tracing-backward"
+      ? t("loader.tracingBackward", { defaultValue: "Tracing input provenance..." })
+      : t("loader.tracingForward", { defaultValue: "Tracing output destinations..." })
+    : null;
+
   return (
     <div className="w-full space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-muted">
           <Loader2 size={14} className="animate-spin text-bitcoin" />
           <span>
-            {phase === "fetching"
-              ? isLocalApi
-                ? t("loader.fetching_local", { defaultValue: "Fetching data from your mempool instance..." })
-                : t("loader.fetching", { defaultValue: "Fetching data from mempool.space..." })
-              : t("loader.diagnosing", { defaultValue: "Diagnosing your privacy..." })}
+            {isTracing && traceLabel
+              ? traceLabel
+              : phase === "fetching"
+                ? isLocalApi
+                  ? t("loader.fetching_local", { defaultValue: "Fetching data from your mempool instance..." })
+                  : t("loader.fetching", { defaultValue: "Fetching data from mempool.space..." })
+                : t("loader.diagnosing", { defaultValue: "Diagnosing your privacy..." })}
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -67,12 +87,55 @@ export function DiagnosticLoader({ steps, phase, inputType }: DiagnosticLoaderPr
             </motion.span>
           )}
           <span className="text-sm text-muted tabular-nums">
-            {elapsed}s
+            {isTracing && fetchProgress
+              ? `${elapsed}s / ${fetchProgress.timeoutSec}s`
+              : `${elapsed}s`}
           </span>
         </div>
       </div>
 
-      {/* Progress bar */}
+      {/* Trace progress bar (fetching phase) */}
+      {isTracing && fetchProgress && (
+        <div className="space-y-2">
+          <div
+            className="w-full h-1 bg-surface-inset rounded-full overflow-hidden"
+            role="progressbar"
+            aria-valuenow={Math.round(traceProgressPercent)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={t("loader.traceProgress", { defaultValue: "Tracing progress" })}
+          >
+            <motion.div
+              className="h-full bg-bitcoin/60 rounded-full relative overflow-hidden"
+              initial={{ width: 0 }}
+              animate={{ width: `${traceProgressPercent}%` }}
+              transition={{ duration: 0.3 }}
+            >
+              <div
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                style={{ animation: "shimmer 1.5s infinite" }}
+              />
+            </motion.div>
+          </div>
+          <div className="flex items-center justify-between text-xs text-muted tabular-nums">
+            <span>
+              {t("loader.traceDepth", {
+                current: fetchProgress.currentDepth,
+                max: fetchProgress.maxDepth,
+                defaultValue: "depth {{current}}/{{max}}",
+              })}
+            </span>
+            <span>
+              {t("loader.traceTxsFetched", {
+                count: fetchProgress.txsFetched,
+                defaultValue: "{{count}} txs fetched",
+              })}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Analysis progress bar */}
       {phase === "analyzing" && steps.length > 0 && (
         <div
           className="w-full h-1 bg-surface-inset rounded-full overflow-hidden"

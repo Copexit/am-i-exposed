@@ -1,4 +1,5 @@
 import type { Finding, TxAnalysisResult, Severity, TxType, ScoringResult } from "@/lib/types";
+import { fmtN } from "@/lib/format";
 import type {
   MempoolTransaction,
   MempoolAddress,
@@ -94,12 +95,28 @@ const ADDRESS_HEURISTICS = [
   { id: "highactivity", label: "High activity detection", fn: analyzeHighActivityAddress },
 ] as const;
 
+const CHAIN_STEPS = [
+  { id: "chain-backward", label: "Input provenance analysis" },
+  { id: "chain-forward", label: "Output destination analysis" },
+  { id: "chain-cluster", label: "Address clustering" },
+  { id: "chain-spending", label: "Spending pattern analysis" },
+  { id: "chain-entity", label: "Entity proximity scan" },
+  { id: "chain-taint", label: "Taint flow analysis" },
+] as const;
+
 export function getTxHeuristicSteps(t?: HeuristicTranslator): HeuristicStep[] {
-  return TX_HEURISTICS.map((h) => ({
-    id: h.id,
-    label: t ? t(`step.${h.id}.label`, { defaultValue: h.label }) : h.label,
-    status: "pending" as const,
-  }));
+  return [
+    ...TX_HEURISTICS.map((h) => ({
+      id: h.id,
+      label: t ? t(`step.${h.id}.label`, { defaultValue: h.label }) : h.label,
+      status: "pending" as const,
+    })),
+    ...CHAIN_STEPS.map((h) => ({
+      id: h.id,
+      label: t ? t(`step.${h.id}.label`, { defaultValue: h.label }) : h.label,
+      status: "pending" as const,
+    })),
+  ];
 }
 
 export function getAddressHeuristicSteps(t?: HeuristicTranslator): HeuristicStep[] {
@@ -234,7 +251,7 @@ export async function analyzeAddress(
       title: "Transaction history unavailable",
       params: { totalOnChain },
       description:
-        `This address has ${totalOnChain.toLocaleString()} transactions but transaction history could not be fetched. ` +
+        `This address has ${fmtN(totalOnChain)} transactions but transaction history could not be fetched. ` +
         "Spending pattern analysis could not be performed, so the score may be incomplete.",
       recommendation:
         "Try again later, or use a custom API endpoint with higher rate limits.",
@@ -244,10 +261,10 @@ export async function analyzeAddress(
     allFindings.push({
       id: "partial-history-partial",
       severity: "low",
-      title: `Partial history analyzed (${txs.length} of ${totalOnChain.toLocaleString()} transactions)`,
+      title: `Partial history analyzed (${txs.length} of ${fmtN(totalOnChain)} transactions)`,
       params: { totalOnChain, txsAnalyzed: txs.length },
       description:
-        `This address has ${totalOnChain.toLocaleString()} total transactions but only the most recent ${txs.length} were analyzed. ` +
+        `This address has ${fmtN(totalOnChain)} total transactions but only the most recent ${txs.length} were analyzed. ` +
         "Older transactions may contain additional privacy-relevant patterns not reflected in these results.",
       recommendation:
         "For a complete analysis of high-activity addresses, consider running a full node with a local Electrum server.",
@@ -368,7 +385,7 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
         f.scoreImpact = 0;
       }
       // Fee fingerprinting reveals the coordinator, not the participant's wallet
-      if (f.id === "h6-round-fee-rate" || f.id === "h6-rbf-signaled") {
+      if (f.id === "h6-round-fee-rate" || f.id === "h6-rbf-signaled" || f.id === "h6-cpfp-detected") {
         f.severity = "low";
         f.params = { ...f.params, context: "coinjoin" };
         f.scoreImpact = 0;
@@ -430,6 +447,11 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
     }
   }
 
+  // Note: exchange-withdrawal-pattern is NOT suppressed for CoinJoin because
+  // it structurally cannot overlap: exchange withdrawals require <= 2 inputs
+  // while all CoinJoin types (Whirlpool, WabiSabi, JoinMarket, Stonewall)
+  // require 3+ inputs. Explicit suppression is unnecessary.
+
   // PayJoin suppression: PayJoin breaks change detection by design.
   // If a PayJoin is detected, suppress change detection and unnecessary input findings.
   const isPayJoin = findings.some((f) => f.id === "h4-payjoin" && f.scoreImpact > 0);
@@ -459,6 +481,24 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
     }
   }
 
+  // CIOH + consolidation + unnecessary input dedup: when CIOH fires on a
+  // non-CoinJoin, non-PayJoin tx, the consolidation and unnecessary-input
+  // findings are redundant (they describe the same multi-input problem).
+  const ciohFinding = findings.find((f) => f.id === "h3-cioh" && f.scoreImpact < 0);
+  if (ciohFinding && !isCoinJoin && !isPayJoin) {
+    for (const f of findings) {
+      if (f.id === "unnecessary-input") {
+        f.severity = "low";
+        f.params = { ...f.params, context: "cioh-covers" };
+        f.scoreImpact = 0;
+      }
+      if (f.id.startsWith("consolidation-") && f.scoreImpact < -2) {
+        f.params = { ...f.params, context: "cioh-covers" };
+        f.scoreImpact = -2;
+      }
+    }
+  }
+
   // Consolidation triple-penalty reduction: when h2-self-send fires as a
   // consolidation (N-in, 1-out to self), zero-entropy (h5) is inherent and
   // adds no information beyond what CIOH already captures. Suppress it.
@@ -473,6 +513,23 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
         f.scoreImpact = 0;
       }
     }
+  }
+
+  // RBF x Change detection: RBF confirms which output is change. When both
+  // h6-rbf-signaled and h2-change-detected fire, boost change confidence and
+  // add compound note. RBF replacement reduces the change output value,
+  // proving to any observer which output is change.
+  const h6Rbf = findings.find((f) => f.id === "h6-rbf-signaled");
+  const h2ChangeForRbf = findings.find((f) => f.id === "h2-change-detected" && f.scoreImpact < 0);
+  if (h6Rbf && h2ChangeForRbf) {
+    h2ChangeForRbf.confidence = "high";
+    h2ChangeForRbf.scoreImpact += -2;
+    h2ChangeForRbf.description +=
+      " RBF is signaled on this transaction. If fee-bumped via RBF, the change output value will decrease, confirming which output is change.";
+    h2ChangeForRbf.params = {
+      ...h2ChangeForRbf.params,
+      rbfCompound: 1,
+    };
   }
 
   // Compound confidence boost: when change detection is corroborated by
@@ -540,6 +597,18 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
         ...entityFinding.params,
         context: hasPostMixConsolidation ? "postmix-consolidation-to-entity" : "postmix-direct-to-entity",
       };
+    }
+  }
+
+  // Post-mix + backward CoinJoin dedup: when post-mix consolidation negates
+  // mixing benefit, zero backward's positive CJ-input finding to avoid
+  // conflicting signals (post-mix says bad, backward says good).
+  if (hasPostMixConsolidation) {
+    for (const f of findings) {
+      if (f.id === "chain-coinjoin-input" && f.scoreImpact > 0) {
+        f.scoreImpact = 0;
+        f.params = { ...f.params, context: "negated-by-consolidation" };
+      }
     }
   }
 

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, Eye, ShieldCheck, ShieldAlert } from "lucide-react";
 import type { Finding, Grade } from "@/lib/types";
+import { WalletIcon } from "@/components/ui/WalletIcon";
 
 interface AnalystViewProps {
   findings: Finding[];
@@ -248,6 +249,11 @@ export function AnalystView({ findings, grade }: AnalystViewProps) {
                   <span className={`shrink-0 mt-0.5 text-xs font-bold ${insight.good ? "text-severity-good" : "text-severity-critical"}`}>
                     {insight.good ? "+" : "-"}
                   </span>
+                  {insight.textKey === "analyst.walletIdentified" && (() => {
+                    const f = findings.find((item) => item.id === "h11-wallet-fingerprint");
+                    const wallet = f?.params?.walletGuess;
+                    return wallet ? <WalletIcon walletName={String(wallet)} size="sm" className="mt-0.5" /> : null;
+                  })()}
                   <span>{t(insight.textKey, { defaultValue: insight.text, ...findParamsForInsight(insight, findings) })}</span>
                 </div>
               ))}
