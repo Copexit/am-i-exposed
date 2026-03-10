@@ -91,6 +91,7 @@ export const analyzeCoinJoinPremix: TxHeuristic = (tx) => {
           : "No toxic change detected - all funds are allocated to mixing denominations."),
       scoreImpact: 5,
       remediation: {
+        keyPrefix: toxicChange ? "tx0-premix-toxic" : "tx0-premix-clean",
         qualifier: toxicChange
           ? `Toxic change: ${fmtN(toxicChange.value)} sats. This output is NOT mixed and must be isolated.`
           : "No toxic change output - clean premix.",

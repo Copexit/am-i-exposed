@@ -19,7 +19,6 @@ export { analyzeMultisigDetection } from "./multisig-detection";
 export { analyzePeelChain } from "./peel-chain";
 export { analyzeConsolidation } from "./consolidation";
 export { analyzeUnnecessaryInput } from "./unnecessary-input";
-export { analyzePayJoin } from "./payjoin";
 export { analyzeCoinJoinPremix } from "./coinjoin-premix";
 export { analyzeBip69 } from "./bip69";
 export { analyzeBip47Notification } from "./bip47-notification";

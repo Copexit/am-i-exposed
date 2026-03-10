@@ -178,20 +178,6 @@ export function applyCrossHeuristicRules(findings: Finding[]): void {
   // while all CoinJoin types (Whirlpool, WabiSabi, JoinMarket, Stonewall)
   // require 3+ inputs. Explicit suppression is unnecessary.
 
-  // PayJoin suppression: PayJoin breaks change detection by design.
-  // If a PayJoin is detected, suppress change detection and unnecessary input findings.
-  const isPayJoin = findings.some((f) => f.id === "h4-payjoin" && f.scoreImpact > 0);
-  if (isPayJoin) {
-    for (const f of findings) {
-      if (f.id === "h2-change-detected" || f.id === "unnecessary-input" || f.id === "h3-cioh"
-        || f.id.startsWith("consolidation-")) {
-        f.severity = "low";
-        f.params = { ...f.params, context: "payjoin" };
-        f.scoreImpact = 0;
-      }
-    }
-  }
-
   // Multisig script-type adjustment: multisig inputs inherently use different
   // script types (P2SH/P2WSH) from single-sig outputs. The "script-mixed"
   // penalty is misleading in this context - it's not a privacy leak but a
@@ -208,10 +194,10 @@ export function applyCrossHeuristicRules(findings: Finding[]): void {
   }
 
   // CIOH + consolidation + unnecessary input dedup: when CIOH fires on a
-  // non-CoinJoin, non-PayJoin tx, the consolidation and unnecessary-input
-  // findings are redundant (they describe the same multi-input problem).
+  // non-CoinJoin tx, the consolidation and unnecessary-input findings are
+  // redundant (they describe the same multi-input problem).
   const ciohFinding = findings.find((f) => f.id === "h3-cioh" && f.scoreImpact < 0);
-  if (ciohFinding && !isCoinJoin && !isPayJoin) {
+  if (ciohFinding && !isCoinJoin) {
     for (const f of findings) {
       if (f.id === "unnecessary-input") {
         f.severity = "low";
@@ -425,7 +411,6 @@ export function classifyTransactionType(findings: Finding[]): TxType {
   // Samourai/Ashigaru specific patterns
   if (hasAny("h4-stonewall")) return "stonewall";
   if (hasAny("h4-simplified-stonewall")) return "simplified-stonewall";
-  if (hasAny("h4-payjoin")) return "payjoin";
   if (hasAny("tx0-premix")) return "tx0-premix";
   if (hasAny("bip47-notification")) return "bip47-notification";
 

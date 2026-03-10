@@ -11,7 +11,6 @@ import { ScoreDisplay } from "./ScoreDisplay";
 import { FindingCard } from "./FindingCard";
 import { AddressSummary } from "./AddressSummary";
 import { ExportButton } from "./ExportButton";
-import { getShareUrl } from "./ShareButtons";
 import { TX_BASE_SCORE, ADDRESS_BASE_SCORE } from "@/lib/scoring/score";
 import { ACTION_BTN_CLASS } from "@/lib/constants";
 import { formatUsdValue } from "@/lib/format";
@@ -60,7 +59,6 @@ const TX_TYPE_LABELS: Partial<Record<TxType, string>> = {
   "generic-coinjoin": "CoinJoin",
   "stonewall": "Stonewall",
   "simplified-stonewall": "Simplified Stonewall",
-  "payjoin": "PayJoin",
   "tx0-premix": "TX0 Premix",
   "bip47-notification": "BIP47 Notification",
   "consolidation": "Consolidation",
@@ -645,48 +643,6 @@ export const ResultsPanel = memo(function ResultsPanel({
 
       {/* ZONE 10: Promotional */}
       <div className="w-full flex flex-col gap-3 sm:gap-4">
-        {(result.grade === "F" || result.grade === "D" || result.grade === "C" || result.grade === "A+" || result.grade === "B") && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.55 }}
-            className="w-full rounded-xl border border-dashed border-card-border px-5 py-4 text-center"
-          >
-            <p className="text-sm text-muted">
-              {result.grade === "D" || result.grade === "F"
-                ? t("sharePrompt.bad", { defaultValue: "This transaction has serious privacy issues. Share it as a cautionary tale." })
-                : result.grade === "C"
-                  ? t("sharePrompt.medium", { defaultValue: "Average privacy - some good practices, some issues. Share it as an educational example." })
-                  : t("sharePrompt.good", { defaultValue: "Strong privacy practices here. Share it as an example of how it should be done." })}
-            </p>
-            <button
-              onClick={() => {
-                const isBad = result.grade === "D" || result.grade === "F";
-                const text = isBad
-                  ? t("sharePrompt.tweetBad", {
-                      defaultValue: "Privacy score: {{grade}} ({{score}}/100). This is what happens when you ignore coin control and reuse addresses. Chain analysis firms feast on transactions like this.",
-                      grade: result.grade, score: result.score,
-                    })
-                  : t("sharePrompt.tweetGood", {
-                      defaultValue: "Privacy score: {{grade}} ({{score}}/100). This is what proper Bitcoin privacy hygiene looks like.",
-                      grade: result.grade, score: result.score,
-                    });
-                const shareUrl = getShareUrl(query, inputType);
-                window.open(
-                  `https://x.com/intent/tweet?text=${encodeURIComponent(`${text}\n\n${shareUrl}`)}`,
-                  "_blank",
-                  "noopener,noreferrer",
-                );
-              }}
-              className="mt-2 inline-flex items-center gap-1.5 text-sm text-bitcoin hover:text-bitcoin-hover px-4 py-2 rounded-lg border border-bitcoin/20 hover:border-bitcoin/40 bg-bitcoin/5 transition-colors cursor-pointer"
-            >
-              <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current" aria-hidden="true">
-                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-              </svg>
-              {t("sharePrompt.shareOnX", { defaultValue: "Share on X" })}
-            </button>
-          </motion.div>
-        )}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.6 }} className="w-full">
           <Suspense fallback={null}>
             <TipJar />
@@ -712,7 +668,7 @@ export const ResultsPanel = memo(function ResultsPanel({
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.65 }} className="w-full bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed">
           {t("results.disclaimerStats", {
             findingCount: result.findings.length,
-            heuristicCount: inputType === "txid" ? "32" : "6",
+            heuristicCount: inputType === "txid" ? "31" : "6",
             defaultValue: "{{findingCount}} findings from {{heuristicCount}} heuristics",
           })}
           {txBreakdown ? t("results.disclaimerTxAnalyzed", { count: txBreakdown.length, defaultValue: " + {{count}} transactions analyzed" }) : ""}

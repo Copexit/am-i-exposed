@@ -336,7 +336,7 @@ function GraphCanvas({
               })()}
 
               {/* Expand right button (forward) - find first unexpanded output */}
-              {node.depth >= 0 && (() => {
+              {(() => {
                 const idx = node.tx.vout.findIndex((_, i) =>
                   !Array.from(nodes.values()).some((n) => n.parentEdge?.fromTxid === node.txid && n.parentEdge?.outputIndex === i)
                 );

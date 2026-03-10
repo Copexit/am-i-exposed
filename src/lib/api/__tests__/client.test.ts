@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createApiClient } from "../client";
-import { ApiError } from "../fetch-with-retry";
 import type { NetworkConfig } from "@/lib/bitcoin/networks";
 
 // Mock the mempool module
@@ -14,14 +13,12 @@ const mockCreateClient = vi.mocked(createMempoolClient);
 const MAINNET_CONFIG: NetworkConfig = {
   label: "Mainnet",
   mempoolBaseUrl: "https://mempool.space/api",
-  esploraBaseUrl: "https://blockstream.info/api",
   explorerUrl: "https://mempool.space",
 };
 
 const TESTNET_CONFIG: NetworkConfig = {
   label: "Testnet",
   mempoolBaseUrl: "https://mempool.space/testnet4/api",
-  esploraBaseUrl: "https://mempool.space/testnet4/api",
   explorerUrl: "https://mempool.space/testnet4",
 };
 
@@ -44,110 +41,22 @@ beforeEach(() => {
 });
 
 describe("createApiClient", () => {
-  it("uses primary client for successful requests", async () => {
-    const primary = makeMockClient();
-    mockCreateClient.mockReturnValueOnce(primary as ReturnType<typeof createMempoolClient>);
-    // No fallback since same URL for testnet
-    const client = createApiClient(TESTNET_CONFIG);
-    const result = await client.getTransaction("abc123def456abc123def456abc123def456abc123def456abc123def456abc12345");
-    expect(primary.getTransaction).toHaveBeenCalled();
-    expect(result).toEqual({ txid: "abc" });
+  it("creates a client using the configured mempool URL", () => {
+    mockCreateClient.mockReturnValue(makeMockClient() as ReturnType<typeof createMempoolClient>);
+    createApiClient(MAINNET_CONFIG);
+    expect(mockCreateClient).toHaveBeenCalledWith("https://mempool.space/api", undefined);
+    expect(mockCreateClient).toHaveBeenCalledTimes(1);
   });
 
-  it("falls back to esplora on API_UNAVAILABLE for mainnet", async () => {
-    const primary = makeMockClient({
-      getTransaction: vi.fn().mockRejectedValue(new ApiError("API_UNAVAILABLE", "503")),
-    });
-    const fallback = makeMockClient({
-      getTransaction: vi.fn().mockResolvedValue({ txid: "from-fallback" }),
-    });
-    mockCreateClient
-      .mockReturnValueOnce(primary as ReturnType<typeof createMempoolClient>)
-      .mockReturnValueOnce(fallback as ReturnType<typeof createMempoolClient>);
-
-    const client = createApiClient(MAINNET_CONFIG);
-    const result = await client.getTransaction("abc123def456abc123def456abc123def456abc123def456abc123def456abc12345");
-    expect(primary.getTransaction).toHaveBeenCalled();
-    expect(fallback.getTransaction).toHaveBeenCalled();
-    expect(result).toEqual({ txid: "from-fallback" });
+  it("passes abort signal to underlying client", () => {
+    const abortController = new AbortController();
+    mockCreateClient.mockReturnValue(makeMockClient() as ReturnType<typeof createMempoolClient>);
+    createApiClient(MAINNET_CONFIG, abortController.signal);
+    expect(mockCreateClient).toHaveBeenCalledWith("https://mempool.space/api", abortController.signal);
+    expect(mockCreateClient).toHaveBeenCalledTimes(1);
   });
 
-  it("falls back to esplora on NETWORK_ERROR for mainnet", async () => {
-    const primary = makeMockClient({
-      getTxHex: vi.fn().mockRejectedValue(new ApiError("NETWORK_ERROR", "fetch failed")),
-    });
-    const fallback = makeMockClient({
-      getTxHex: vi.fn().mockResolvedValue("deadbeef"),
-    });
-    mockCreateClient
-      .mockReturnValueOnce(primary as ReturnType<typeof createMempoolClient>)
-      .mockReturnValueOnce(fallback as ReturnType<typeof createMempoolClient>);
-
-    const client = createApiClient(MAINNET_CONFIG);
-    const result = await client.getTxHex("abc123def456abc123def456abc123def456abc123def456abc123def456abc12345");
-    expect(result).toBe("deadbeef");
-  });
-
-  it("falls back to esplora on NOT_FOUND for mainnet", async () => {
-    const primary = makeMockClient({
-      getTransaction: vi.fn().mockRejectedValue(new ApiError("NOT_FOUND", "not found")),
-    });
-    const fallback = makeMockClient({
-      getTransaction: vi.fn().mockResolvedValue({ txid: "found-on-fallback" }),
-    });
-    mockCreateClient
-      .mockReturnValueOnce(primary as ReturnType<typeof createMempoolClient>)
-      .mockReturnValueOnce(fallback as ReturnType<typeof createMempoolClient>);
-
-    const client = createApiClient(MAINNET_CONFIG);
-    const result = await client.getTransaction("abc123def456abc123def456abc123def456abc123def456abc123def456abc12345");
-    expect(primary.getTransaction).toHaveBeenCalled();
-    expect(fallback.getTransaction).toHaveBeenCalled();
-    expect(result).toEqual({ txid: "found-on-fallback" });
-  });
-
-  it("does not fall back for non-retryable errors like RATE_LIMITED", async () => {
-    const primary = makeMockClient({
-      getTransaction: vi.fn().mockRejectedValue(new ApiError("RATE_LIMITED", "rate limited")),
-    });
-    const fallback = makeMockClient();
-    mockCreateClient
-      .mockReturnValueOnce(primary as ReturnType<typeof createMempoolClient>)
-      .mockReturnValueOnce(fallback as ReturnType<typeof createMempoolClient>);
-
-    const client = createApiClient(MAINNET_CONFIG);
-    await expect(client.getTransaction("abc123def456abc123def456abc123def456abc123def456abc123def456abc12345"))
-      .rejects.toThrow("rate limited");
-    expect(fallback.getTransaction).not.toHaveBeenCalled();
-  });
-
-  it("does not fall back on testnet (same base URLs)", async () => {
-    const primary = makeMockClient({
-      getTransaction: vi.fn().mockRejectedValue(new ApiError("API_UNAVAILABLE", "503")),
-    });
-    mockCreateClient.mockReturnValueOnce(primary as ReturnType<typeof createMempoolClient>);
-
-    const client = createApiClient(TESTNET_CONFIG);
-    await expect(client.getTransaction("abc123def456abc123def456abc123def456abc123def456abc123def456abc12345"))
-      .rejects.toThrow("503");
-  });
-
-  it("throws non-ApiError errors without fallback", async () => {
-    const primary = makeMockClient({
-      getAddress: vi.fn().mockRejectedValue(new TypeError("unexpected")),
-    });
-    const fallback = makeMockClient();
-    mockCreateClient
-      .mockReturnValueOnce(primary as ReturnType<typeof createMempoolClient>)
-      .mockReturnValueOnce(fallback as ReturnType<typeof createMempoolClient>);
-
-    const client = createApiClient(MAINNET_CONFIG);
-    await expect(client.getAddress("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"))
-      .rejects.toThrow("unexpected");
-    expect(fallback.getAddress).not.toHaveBeenCalled();
-  });
-
-  it("exposes all six methods", () => {
+  it("returns all API methods", () => {
     mockCreateClient.mockReturnValue(makeMockClient() as ReturnType<typeof createMempoolClient>);
     const client = createApiClient(MAINNET_CONFIG);
     expect(client.getTransaction).toBeDefined();
@@ -155,61 +64,48 @@ describe("createApiClient", () => {
     expect(client.getAddress).toBeDefined();
     expect(client.getAddressTxs).toBeDefined();
     expect(client.getAddressUtxos).toBeDefined();
+    expect(client.getTxOutspends).toBeDefined();
     expect(client.getHistoricalPrice).toBeDefined();
+    expect(client.getHistoricalEurPrice).toBeDefined();
   });
 
-  it("getHistoricalPrice calls mempool directly (no esplora fallback)", async () => {
-    const primary = makeMockClient({
+  it("delegates calls to the mempool client", async () => {
+    const mock = makeMockClient();
+    mockCreateClient.mockReturnValue(mock as ReturnType<typeof createMempoolClient>);
+    const client = createApiClient(MAINNET_CONFIG);
+    const result = await client.getTransaction("abc123def456abc123def456abc123def456abc123def456abc123def456abc12345");
+    expect(mock.getTransaction).toHaveBeenCalled();
+    expect(result).toEqual({ txid: "abc" });
+  });
+
+  it("works with testnet config", async () => {
+    const mock = makeMockClient();
+    mockCreateClient.mockReturnValue(mock as ReturnType<typeof createMempoolClient>);
+    const client = createApiClient(TESTNET_CONFIG);
+    expect(mockCreateClient).toHaveBeenCalledWith("https://mempool.space/testnet4/api", undefined);
+    const result = await client.getTransaction("abc123def456abc123def456abc123def456abc123def456abc123def456abc12345");
+    expect(result).toEqual({ txid: "abc" });
+  });
+
+  it("getHistoricalPrice returns price data", async () => {
+    const mock = makeMockClient({
       getHistoricalPrice: vi.fn().mockResolvedValue(67_500),
     });
-    const fallback = makeMockClient();
-    mockCreateClient
-      .mockReturnValueOnce(primary as ReturnType<typeof createMempoolClient>)
-      .mockReturnValueOnce(fallback as ReturnType<typeof createMempoolClient>);
-
+    mockCreateClient.mockReturnValue(mock as ReturnType<typeof createMempoolClient>);
     const client = createApiClient(MAINNET_CONFIG);
     const price = await client.getHistoricalPrice(1700000000);
     expect(price).toBe(67_500);
-    expect(primary.getHistoricalPrice).toHaveBeenCalledWith(1700000000);
+    expect(mock.getHistoricalPrice).toHaveBeenCalledWith(1700000000);
   });
 
-  it("throws when both primary and fallback fail", async () => {
-    const primary = makeMockClient({
-      getTransaction: vi.fn().mockRejectedValue(new ApiError("API_UNAVAILABLE", "primary down")),
-    });
-    const fallback = makeMockClient({
-      getTransaction: vi.fn().mockRejectedValue(new ApiError("API_UNAVAILABLE", "fallback down")),
-    });
-    mockCreateClient
-      .mockReturnValueOnce(primary as ReturnType<typeof createMempoolClient>)
-      .mockReturnValueOnce(fallback as ReturnType<typeof createMempoolClient>);
-
-    const client = createApiClient(MAINNET_CONFIG);
-    await expect(client.getTransaction("abc123def456abc123def456abc123def456abc123def456abc123def456abc12345"))
-      .rejects.toThrow("fallback down");
-    expect(primary.getTransaction).toHaveBeenCalled();
-    expect(fallback.getTransaction).toHaveBeenCalled();
-  });
-
-  it("passes abort signal to underlying clients", () => {
-    const abortController = new AbortController();
-    mockCreateClient.mockReturnValue(makeMockClient() as ReturnType<typeof createMempoolClient>);
-
-    createApiClient(MAINNET_CONFIG, abortController.signal);
-    // Signal is passed to both primary and fallback createMempoolClient calls
-    expect(mockCreateClient).toHaveBeenCalledWith(MAINNET_CONFIG.mempoolBaseUrl, abortController.signal);
-    expect(mockCreateClient).toHaveBeenCalledWith(MAINNET_CONFIG.esploraBaseUrl, abortController.signal);
-  });
-
-  it("getHistoricalEurPrice calls mempool directly", async () => {
-    const primary = makeMockClient({
+  it("getHistoricalEurPrice returns EUR price data", async () => {
+    const mock = makeMockClient({
       getHistoricalEurPrice: vi.fn().mockResolvedValue(62_000),
     });
-    mockCreateClient.mockReturnValue(primary as ReturnType<typeof createMempoolClient>);
-
+    mockCreateClient.mockReturnValue(mock as ReturnType<typeof createMempoolClient>);
     const client = createApiClient(MAINNET_CONFIG);
     const price = await client.getHistoricalEurPrice(1700000000);
     expect(price).toBe(62_000);
-    expect(primary.getHistoricalEurPrice).toHaveBeenCalledWith(1700000000);
+    expect(mock.getHistoricalEurPrice).toHaveBeenCalledWith(1700000000);
   });
 });

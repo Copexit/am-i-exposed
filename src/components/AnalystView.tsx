@@ -39,14 +39,6 @@ function deriveInsights(findings: Finding[]): AnalystInsight[] {
     });
   }
 
-  if (findings.some((f) => f.id === "h4-payjoin" && f.scoreImpact > 0)) {
-    insights.push({
-      text: "PayJoin detected - the real payment amount is hidden",
-      textKey: "analyst.payjoinHidden",
-      good: true,
-    });
-  }
-
   if (findings.some((f) => f.id === "h4-stonewall" && f.scoreImpact > 0)) {
     insights.push({
       text: "STONEWALL creates ambiguity about which outputs belong to which party",

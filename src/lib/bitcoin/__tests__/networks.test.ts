@@ -40,7 +40,6 @@ describe("NETWORK_CONFIG", () => {
     for (const [, config] of Object.entries(NETWORK_CONFIG)) {
       expect(config.label).toBeTruthy();
       expect(config.mempoolBaseUrl).toMatch(/^https:\/\//);
-      expect(config.esploraBaseUrl).toMatch(/^https:\/\//);
       expect(config.explorerUrl).toMatch(/^https:\/\//);
     }
   });

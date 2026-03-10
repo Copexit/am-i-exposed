@@ -180,6 +180,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
               "Treat each output as belonging to a separate wallet.",
         scoreImpact: 15 + whirlpoolBonus,
         remediation: {
+          keyPrefix: isSolo ? "h4-stonewall-solo" : "h4-stonewall-x2",
           qualifier: isSolo
             ? "Likely solo Stonewall: all inputs appear to come from one wallet. The sender controls 3 of 4 outputs (1 decoy + 2 change)."
             : "Possible STONEWALLx2: inputs came from 2+ addresses. Each party must manage their outputs independently.",

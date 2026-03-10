@@ -15,13 +15,13 @@ beforeEach(() => resetAddrCounter());
 vi.useFakeTimers();
 
 describe("analyzeTransaction", () => {
-  it("runs all 26 TX heuristics and returns a scored result", async () => {
+  it("runs all 25 TX heuristics and returns a scored result", async () => {
     const tx = makeTx();
     const stepIds: string[] = [];
     const onStep = vi.fn((id: string) => stepIds.push(id));
 
     const resultPromise = analyzeTransaction(tx, undefined, onStep);
-    await vi.advanceTimersByTimeAsync(26 * 100);
+    await vi.advanceTimersByTimeAsync(25 * 100);
     const result = await resultPromise;
 
     expect(result.score).toBeGreaterThanOrEqual(0);
@@ -29,8 +29,8 @@ describe("analyzeTransaction", () => {
     expect(result.grade).toBeDefined();
     expect(result.findings.length).toBeGreaterThan(0);
 
-    // onStep called twice per heuristic (start + done) = 52 calls
-    expect(onStep).toHaveBeenCalledTimes(52);
+    // onStep called twice per heuristic (start + done) = 50 calls
+    expect(onStep).toHaveBeenCalledTimes(50);
   });
 
   it("passes rawHex to wallet-fingerprint heuristic", async () => {
@@ -226,8 +226,8 @@ describe("analyzeDestination", () => {
 });
 
 describe("heuristic step lists", () => {
-  it("getTxHeuristicSteps returns 32 steps (26 heuristics + 6 chain)", () => {
-    expect(getTxHeuristicSteps()).toHaveLength(32);
+  it("getTxHeuristicSteps returns 31 steps (25 heuristics + 6 chain)", () => {
+    expect(getTxHeuristicSteps()).toHaveLength(31);
   });
 
   it("getAddressHeuristicSteps returns 6 steps", () => {
@@ -598,117 +598,6 @@ describe("cross-heuristic: deterministic cap enforcement", () => {
   });
 });
 
-describe("cross-heuristic: PayJoin suppression", () => {
-  it("suppresses change detection, unnecessary-input, CIOH, and consolidation when PayJoin is detected", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
-
-    const findings: import("@/lib/types").Finding[] = [
-      {
-        id: "h4-payjoin",
-        severity: "good",
-        title: "PayJoin detected",
-        description: "",
-        recommendation: "",
-        scoreImpact: 8,
-      },
-      {
-        id: "h2-change-detected",
-        severity: "medium",
-        title: "Change output detected",
-        description: "",
-        recommendation: "",
-        scoreImpact: -5,
-      },
-      {
-        id: "unnecessary-input",
-        severity: "medium",
-        title: "Unnecessary input",
-        description: "",
-        recommendation: "",
-        scoreImpact: -3,
-      },
-      {
-        id: "h3-cioh",
-        severity: "high",
-        title: "Common input ownership heuristic",
-        description: "",
-        recommendation: "",
-        scoreImpact: -8,
-      },
-      {
-        id: "consolidation-fan-in",
-        severity: "high",
-        title: "Consolidation fan-in",
-        description: "",
-        recommendation: "",
-        scoreImpact: -5,
-      },
-    ];
-
-    applyCrossHeuristicRulesForTest(findings);
-
-    const change = findings.find((f) => f.id === "h2-change-detected")!;
-    expect(change.scoreImpact).toBe(0);
-    expect(change.severity).toBe("low");
-    expect(change.params?.context).toBe("payjoin");
-
-    const unnecessary = findings.find((f) => f.id === "unnecessary-input")!;
-    expect(unnecessary.scoreImpact).toBe(0);
-    expect(unnecessary.severity).toBe("low");
-    expect(unnecessary.params?.context).toBe("payjoin");
-
-    const cioh = findings.find((f) => f.id === "h3-cioh")!;
-    expect(cioh.scoreImpact).toBe(0);
-    expect(cioh.severity).toBe("low");
-    expect(cioh.params?.context).toBe("payjoin");
-
-    const consolidation = findings.find((f) => f.id === "consolidation-fan-in")!;
-    expect(consolidation.scoreImpact).toBe(0);
-    expect(consolidation.severity).toBe("low");
-    expect(consolidation.params?.context).toBe("payjoin");
-  });
-
-  it("does NOT suppress PayJoin findings when PayJoin has non-positive scoreImpact", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
-
-    const findings: import("@/lib/types").Finding[] = [
-      {
-        id: "h4-payjoin",
-        severity: "low",
-        title: "Possible PayJoin",
-        description: "",
-        recommendation: "",
-        scoreImpact: 0,
-      },
-      {
-        id: "h2-change-detected",
-        severity: "medium",
-        title: "Change output detected",
-        description: "",
-        recommendation: "",
-        scoreImpact: -5,
-      },
-      {
-        id: "unnecessary-input",
-        severity: "medium",
-        title: "Unnecessary input",
-        description: "",
-        recommendation: "",
-        scoreImpact: -3,
-      },
-    ];
-
-    applyCrossHeuristicRulesForTest(findings);
-
-    // PayJoin not confirmed (scoreImpact=0), so change and unnecessary-input stay
-    const change = findings.find((f) => f.id === "h2-change-detected")!;
-    expect(change.scoreImpact).toBe(-5);
-
-    const unnecessary = findings.find((f) => f.id === "unnecessary-input")!;
-    expect(unnecessary.scoreImpact).toBe(-3);
-  });
-});
-
 describe("cross-heuristic: post-mix consolidation + entity escalation", () => {
   it("escalates entity-known-output to critical with -10 impact when post-mix consolidation is present", async () => {
     const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
@@ -878,12 +767,6 @@ describe("classifyTransactionType", () => {
     expect(classifyTransactionType([
       { id: "h4-joinmarket", severity: "good", title: "", description: "", recommendation: "", scoreImpact: 15 },
     ])).toBe("joinmarket-coinjoin");
-  });
-
-  it("classifies PayJoin", () => {
-    expect(classifyTransactionType([
-      { id: "h4-payjoin", severity: "good", title: "", description: "", recommendation: "", scoreImpact: 8 },
-    ])).toBe("payjoin");
   });
 
   it("classifies tx0 premix", () => {

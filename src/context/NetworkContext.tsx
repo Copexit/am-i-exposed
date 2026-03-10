@@ -55,7 +55,6 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
       return {
         ...baseConfig,
         mempoolBaseUrl: customUrl,
-        esploraBaseUrl: customUrl, // Disable fallback when custom URL is active
         explorerUrl: customUrl.replace(/\/api\/?$/, ""),
       };
     }
@@ -77,17 +76,14 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
       return {
         ...baseConfig,
         mempoolBaseUrl: "/api",
-        esploraBaseUrl: "/api", // Disable external fallback
         explorerUrl,
       };
     }
-    // Priority 3: Tor detected and onion URL available - use it as primary
-    // with clearnet mempool as fallback (still routed through Tor exit nodes)
+    // Priority 3: Tor detected and onion URL available - use onion endpoint
     if (torStatus === "tor" && baseConfig.mempoolOnionUrl) {
       return {
         ...baseConfig,
         mempoolBaseUrl: baseConfig.mempoolOnionUrl,
-        esploraBaseUrl: baseConfig.mempoolBaseUrl, // clearnet fallback via Tor
         explorerUrl: baseConfig.mempoolOnionUrl.replace(/\/api\/?$/, ""),
       };
     }

@@ -79,8 +79,8 @@ src/
     │       ├── entity-match.ts    # Address-to-entity lookup
     │       └── entity-loader.ts   # Binary index loader
     ├── api/
-    │   ├── client.ts          # Unified client with mempool -> esplora fallback
-    │   ├── mempool.ts         # mempool.space/Esplora REST API
+    │   ├── client.ts          # API client (mempool.space only, no fallback)
+    │   ├── mempool.ts         # mempool.space REST API implementation
     │   ├── fetch-with-retry.ts # Retry logic, ApiError types
     │   ├── queue.ts           # Priority-based API request queue
     │   ├── cache.ts           # Request caching
@@ -226,12 +226,11 @@ The `cross-heuristic.ts` module runs a post-processing pass after all heuristics
 
 Base URLs:
 - Mainnet: `https://mempool.space/api`
-- Fallback: `https://blockstream.info/api` (mainnet only, same Esplora API)
 - Testnet4: `https://mempool.space/testnet4/api`
 - Signet: `https://mempool.space/signet/api`
 - Tor: `http://mempoolhqx4isw62xs7abwphsq7ldayuidyx2v2oethdhhj6mlo2r6ad.onion/api`
 
-The `client.ts` uses a single `withFallback()` function that tries the primary API, then falls back to Esplora on `API_UNAVAILABLE`, `NETWORK_ERROR`, or `NOT_FOUND` errors. Price endpoints are mempool.space-specific with no fallback.
+All API queries go to a single provider (mempool.space by default, or user-configured endpoint). No secondary/fallback APIs are used. For wallet scans, hosted APIs are automatically throttled (3 addresses/batch, 500ms delay) to avoid rate limiting.
 
 ## CSS Tokens
 
