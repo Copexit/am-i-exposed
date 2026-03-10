@@ -24,7 +24,9 @@ export class ChartErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error) {
-    console.error("[ChartErrorBoundary]", error);
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[ChartErrorBoundary]", error);
+    }
   }
 
   render() {

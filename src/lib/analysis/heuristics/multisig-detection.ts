@@ -1,6 +1,7 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { parseMultisigFromInput, type MultisigInfo } from "@/lib/bitcoin/multisig";
+import { getSpendableOutputs } from "./tx-utils";
 
 /** Known HodlHodl fee collection addresses (mainnet). */
 const HODLHODL_FEE_ADDRESSES = new Set([
@@ -39,9 +40,7 @@ export const analyzeMultisigDetection: TxHeuristic = (tx) => {
 
   if (multisigInputs.length === 0) return { findings };
 
-  const spendableOutputs = tx.vout.filter(
-    (out) => out.scriptpubkey_type !== "op_return",
-  );
+  const spendableOutputs = getSpendableOutputs(tx.vout);
 
   // ── HodlHodl detection (most specific, check first) ─────────────────
   // Pattern: single 2-of-3 multisig input, 2-3 outputs, one to known fee address

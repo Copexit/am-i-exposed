@@ -13,7 +13,9 @@ export default function Error({
   const { t } = useTranslation();
 
   useEffect(() => {
-    console.error("am-i.exposed error boundary caught:", error.name);
+    if (process.env.NODE_ENV !== "production") {
+      console.error("am-i.exposed error boundary caught:", error.name);
+    }
   }, [error]);
 
   return (

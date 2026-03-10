@@ -1,6 +1,7 @@
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import { fmtN } from "@/lib/format";
+import { getSpendableOutputs } from "../heuristics/tx-utils";
 
 /**
  * JoinMarket Advanced Analysis
@@ -66,7 +67,7 @@ export function subsetSumAttack(tx: MempoolTransaction): SubsetSumResult {
     return emptyResult;
   }
 
-  const spendable = tx.vout.filter((o) => o.scriptpubkey_type !== "op_return");
+  const spendable = getSpendableOutputs(tx.vout);
   if (spendable.length < 3) return emptyResult;
 
   // Identify equal-value outputs (the denomination)
@@ -196,7 +197,7 @@ export function subsetSumAttack(tx: MempoolTransaction): SubsetSumResult {
  * This analysis works with the denomination and change output values.
  */
 export function identifyTakerMaker(tx: MempoolTransaction): TakerMakerResult | null {
-  const spendable = tx.vout.filter((o) => o.scriptpubkey_type !== "op_return");
+  const spendable = getSpendableOutputs(tx.vout);
   if (spendable.length < 3) return null;
 
   // Identify denomination
@@ -312,7 +313,7 @@ export function analyzeJoinMarket(tx: MempoolTransaction): Finding[] {
 
   // Estimate effective anonymity set for this single round.
   // Count equal-value outputs as participants (each gets one denomination output).
-  const spendable = tx.vout.filter((o) => o.scriptpubkey_type !== "op_return");
+  const spendable = getSpendableOutputs(tx.vout);
   const valueCounts = new Map<number, number>();
   for (const o of spendable) {
     valueCounts.set(o.value, (valueCounts.get(o.value) ?? 0) + 1);

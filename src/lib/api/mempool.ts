@@ -15,8 +15,9 @@ function assertAddress(address: string): void {
 }
 
 export function createMempoolClient(baseUrl: string, signal?: AbortSignal) {
+  const base = baseUrl.replace(/\/+$/, "");
   async function get<T>(path: string): Promise<T> {
-    const res = await fetchWithRetry(`${baseUrl}${path}`, { signal });
+    const res = await fetchWithRetry(`${base}${path}`, { signal });
     try {
       return await res.json();
     } catch {
@@ -25,7 +26,7 @@ export function createMempoolClient(baseUrl: string, signal?: AbortSignal) {
   }
 
   async function getText(path: string): Promise<string> {
-    const res = await fetchWithRetry(`${baseUrl}${path}`, { signal });
+    const res = await fetchWithRetry(`${base}${path}`, { signal });
     return res.text();
   }
 
