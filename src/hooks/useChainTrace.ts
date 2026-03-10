@@ -32,6 +32,8 @@ export interface ChainTraceParams {
 export interface ChainTraceResult {
   backwardLayers: TraceLayer[];
   forwardLayers: TraceLayer[];
+  backwardFailed: boolean;
+  forwardFailed: boolean;
 }
 
 /**
