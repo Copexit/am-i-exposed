@@ -15,7 +15,11 @@ function InputTypeHint({ value, network }: { value: string; network: BitcoinNetw
 
   const label = type === "txid"
     ? t("input.detectedTxid", { defaultValue: "Transaction ID" })
-    : t("input.detectedAddress", { defaultValue: "Bitcoin address" });
+    : type === "xpub"
+      ? t("input.detectedXpub", { defaultValue: "Extended public key (wallet)" })
+      : type === "psbt"
+        ? t("input.detectedPsbt", { defaultValue: "PSBT (unsigned transaction)" })
+        : t("input.detectedAddress", { defaultValue: "Bitcoin address" });
   return (
     <p className="text-muted text-sm mt-1.5 text-center">
       {t("input.detected", { defaultValue: "Detected:" })}{" "}

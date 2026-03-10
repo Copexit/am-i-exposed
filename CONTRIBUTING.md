@@ -31,7 +31,7 @@ src/
     analysis/
       heuristics/         # 16 privacy heuristics (H1-H12 tx, H13-H16 addr)
       orchestrator.ts     # Runs heuristics, manages scoring
-    api/                  # mempool.space / blockstream.info clients
+    api/                  # mempool.space API client
     bitcoin/              # Address type detection, validation
     i18n/                 # Internationalization (en, es, de, fr, pt)
     scoring/              # Score calculation, grade assignment

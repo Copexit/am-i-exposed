@@ -3,10 +3,13 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
-import { createApiClient } from "@/lib/api/client";
+import { createMempoolClient } from "@/lib/api/mempool";
+import { isLocalInstance } from "@/lib/api/queue";
 import { parseAndDerive, type DescriptorParseResult, type ScriptType } from "@/lib/bitcoin/descriptor";
 import { auditWallet, type WalletAuditResult, type WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import type { MempoolAddress, MempoolTransaction, MempoolUtxo } from "@/lib/api/types";
+import type { DerivedAddress } from "@/lib/bitcoin/descriptor";
+import type { MempoolClient } from "@/lib/api/mempool";
 
 // ---------- Types ----------
 
@@ -50,6 +53,31 @@ const INITIAL_STATE: WalletAnalysisState = {
 /** Default gap limit for address derivation. */
 const GAP_LIMIT = 20;
 
+// ---------- Fetch helpers ----------
+
+/** Fetch all 3 endpoints for a single address (no throttling). */
+async function fetchAddress(
+  api: MempoolClient,
+  derived: DerivedAddress,
+): Promise<WalletAddressInfo> {
+  const [addressData, utxos, txs] = await Promise.all([
+    api.getAddress(derived.address).catch(() => null),
+    api.getAddressUtxos(derived.address).catch(() => [] as MempoolUtxo[]),
+    api.getAddressTxs(derived.address).catch(() => [] as MempoolTransaction[]),
+  ]);
+  return { derived, addressData, utxos, txs };
+}
+
+/** Delay that can be cancelled via AbortSignal. */
+function abortableDelay(ms: number, abortSignal: AbortSignal): Promise<void> {
+  if (ms <= 0) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    const onAbort = () => { clearTimeout(timer); reject(new DOMException("Aborted", "AbortError")); };
+    abortSignal.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
 // ---------- Hook ----------
 
 export function useWalletAnalysis() {
@@ -83,48 +111,56 @@ export function useWalletAnalysis() {
           progress: { fetched: 0, total: allAddresses.length },
         }));
 
-        // Step 2: Fetch address data, UTXOs, and txs for each derived address
-        const api = createApiClient(config, controller.signal);
+        // Step 2: Fetch address data.
+        // Hosted (mempool.space): strictly sequential, one address at a time
+        // with a 1.5s pause between each. Conservative rate to avoid 429s
+        // and not overwhelm the public API. ~40 addresses takes ~60s.
+        // Local/Umbrel/custom: all addresses in parallel, no delays.
+        const api = createMempoolClient(config.mempoolBaseUrl, controller.signal);
+        const localApi = isLocalInstance(config.mempoolBaseUrl);
         const addressInfos: WalletAddressInfo[] = [];
-        let fetched = 0;
 
-        // Fetch in batches of 5 to avoid rate limiting
-        const BATCH_SIZE = 5;
-        for (let i = 0; i < allAddresses.length; i += BATCH_SIZE) {
-          if (controller.signal.aborted) return;
-
-          const batch = allAddresses.slice(i, i + BATCH_SIZE);
-          const batchResults = await Promise.allSettled(
-            batch.map(async (derived) => {
-              const [addressData, utxos, txs] = await Promise.all([
-                api.getAddress(derived.address).catch(() => null),
-                api.getAddressUtxos(derived.address).catch(() => [] as MempoolUtxo[]),
-                api.getAddressTxs(derived.address).catch(() => [] as MempoolTransaction[]),
-              ]);
-              return { derived, addressData, utxos, txs };
-            }),
-          );
-
-          for (let j = 0; j < batchResults.length; j++) {
-            const result = batchResults[j];
-            if (result.status === "fulfilled") {
-              addressInfos.push(result.value as WalletAddressInfo);
-            } else {
-              // Still include the address, just without data
-              addressInfos.push({
-                derived: batch[j],
+        if (localApi) {
+          // Local: fire all in parallel - no rate limits
+          let completed = 0;
+          const promises = allAddresses.map(async (derived) => {
+            const info = await fetchAddress(api, derived)
+              .catch((): WalletAddressInfo => ({
+                derived,
                 addressData: null as unknown as MempoolAddress,
                 txs: [],
                 utxos: [],
-              });
+              }));
+            completed++;
+            setState(prev => ({
+              ...prev,
+              progress: { fetched: completed, total: allAddresses.length },
+            }));
+            return info;
+          });
+          addressInfos.push(...await Promise.all(promises));
+        } else {
+          // Hosted: one address at a time, 500ms gap between addresses
+          for (let i = 0; i < allAddresses.length; i++) {
+            if (controller.signal.aborted) return;
+            const derived = allAddresses[i];
+            const info = await fetchAddress(api, derived)
+              .catch((): WalletAddressInfo => ({
+                derived,
+                addressData: null as unknown as MempoolAddress,
+                txs: [],
+                utxos: [],
+              }));
+            addressInfos.push(info);
+            setState(prev => ({
+              ...prev,
+              progress: { fetched: i + 1, total: allAddresses.length },
+            }));
+            // Wait between addresses (skip after the last one)
+            if (i < allAddresses.length - 1) {
+              await abortableDelay(1500, controller.signal).catch(() => {});
             }
           }
-
-          fetched += batch.length;
-          setState(prev => ({
-            ...prev,
-            progress: { fetched, total: allAddresses.length },
-          }));
         }
 
         if (controller.signal.aborted) return;

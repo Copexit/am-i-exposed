@@ -5,6 +5,7 @@ export type AddressType = "p2pkh" | "p2sh" | "p2wpkh" | "p2wsh" | "p2tr" | "unkn
 export type Severity = "critical" | "high" | "medium" | "low" | "good";
 
 export interface Remediation {
+  keyPrefix?: string;
   qualifier?: string;
   steps: string[];
   tools?: { name: string; url: string }[];
@@ -34,7 +35,6 @@ export type TxType =
   | "generic-coinjoin"
   | "stonewall"
   | "simplified-stonewall"
-  | "payjoin"
   | "tx0-premix"
   | "bip47-notification"
   | "consolidation"

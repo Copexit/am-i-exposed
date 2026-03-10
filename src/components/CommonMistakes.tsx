@@ -24,9 +24,9 @@ const MISTAKES: MistakeEntry[] = [
   },
   {
     titleKey: "mistakes.exchangeDirect",
-    titleDefault: "Send directly from exchange to final destination",
+    titleDefault: "Mix or redirect KYC exchange funds",
     descKey: "mistakes.exchangeDirectDesc",
-    descDefault: "Exchange withdrawal addresses are in chain analysis databases. Sending directly to your destination links the receiver to your exchange account.",
+    descDefault: "Exchange withdrawal addresses are in chain analysis databases. Exchanges now require signing or declaring destination addresses. Keep KYC funds in a clean lifecycle: exchange to cold wallet to exchange when selling. Mixing breaks the trace but not the history - the exchange still has your KYC record and could trigger compliance issues.",
   },
   {
     titleKey: "mistakes.wasabiThenSend",
@@ -51,7 +51,7 @@ const MISTAKES: MistakeEntry[] = [
     titleKey: "mistakes.lnFromExchange",
     titleDefault: "Open Lightning channel directly from exchange withdrawal",
     descKey: "mistakes.lnFromExchangeDesc",
-    descDefault: "This links your Lightning identity to your exchange account. CoinJoin the withdrawal first, then open the channel with mixed outputs.",
+    descDefault: "This links your Lightning identity to your exchange account. Keep KYC funds separate - send to cold storage only. If you need Lightning for private spending, fund channels from non-KYC sources (P2P, ATM, mining, earning).",
   },
   {
     titleKey: "mistakes.singleLsp",
@@ -72,6 +72,12 @@ const MISTAKES: MistakeEntry[] = [
     descKey: "mistakes.crossContextConsolidationDesc",
     descDefault: "Merging KYC exchange withdrawals with P2P or CoinJoin outputs links all those identities via CIOH. Only consolidate UTXOs from the same privacy category.",
     triggerFinding: "consolidation-fan-in",
+  },
+  {
+    titleKey: "mistakes.sameSwapService",
+    titleDefault: "Use the same swap service for both entry and exit",
+    descKey: "mistakes.sameSwapServiceDesc",
+    descDefault: "Using the same service (e.g., Boltz) for both Liquid peg-in and peg-out, or for both BTC-to-XMR and XMR-to-BTC swaps, gives that service full visibility of your flow. Use different services for each direction.",
   },
 ];
 

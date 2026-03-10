@@ -87,7 +87,7 @@ The engine doesn't run heuristics in isolation. CoinJoin detection suppresses CI
 
 - **Next.js 16** static export  - no server, hosted on GitHub Pages
 - **Client-side analysis**  - heuristics run in your browser, not on a server
-- **mempool.space API** primary, **Blockstream Esplora** fallback (mainnet only)
+- **mempool.space API** only - no secondary APIs, your queries stay with one provider
 - **Tor-aware**  - auto-detects `.onion` and routes API requests through Tor
 - **TypeScript** throughout
 - **Tailwind CSS 4**  - dark theme

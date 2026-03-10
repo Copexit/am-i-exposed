@@ -98,7 +98,10 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
       detailDefault:
         "Use a wallet that sends change to the same address type as the payment (e.g., all bc1q). " +
         "Ashigaru handles this automatically. Sparrow Wallet warns about type mismatches but does not correct them. " +
-        "For stronger protection, use Stonewall or PayJoin transactions which break the change detection heuristic entirely.",
+        "For stronger protection: Stonewall creates a same-value decoy output that increases ambiguity " +
+        "(the change is still present but which output is the payment becomes unclear). " +
+        "PayJoin breaks the common input ownership heuristic by having the receiver contribute an input, " +
+        "making it harder to identify participants.",
     });
     // Small change disposal (4.6)
     actions.push({
@@ -108,8 +111,12 @@ function generateActions(findings: Finding[], grade: Grade): Action[] {
       detailKey: "remediation.smallChangeDisposalDetail",
       detailDefault:
         "Small change outputs are toxic - they link future transactions back to this one. " +
-        "Options: send to a Monero atomic swap (UnstoppableSwap), open a Lightning channel with the change, " +
-        "or use a submarine swap service (LN <-> on-chain). Avoid letting small change sit in your wallet.",
+        "Options: (1) increase the mining fee to consume the change entirely (e.g., 1000 sats of change becomes part of the fee), " +
+        "(2) use a submarine swap to send it to Lightning (Boltz, Phoenix), " +
+        "(3) swap to Liquid via atomic path (SideSwap, Boltz), " +
+        "(4) swap to Monero - atomic swaps (UnstoppableSwap, Bisq) can cost over 2%, " +
+        "for small amounts Unstoppable Wallet offers cheaper non-atomic swaps, " +
+        "(5) accumulate small amounts via Lightning over time, then consolidate to a single UTXO after a delay.",
     });
   }
 
@@ -287,6 +294,7 @@ function StructuredRemediation({ remediation, findingId, findingTitle, findingPa
   const { t } = useTranslation();
   const urgency = URGENCY_CONFIG[remediation.urgency];
   const UrgencyIcon = urgency.icon;
+  const prefix = remediation.keyPrefix ?? findingId;
 
   return (
     <div className="bg-surface-inset rounded-lg px-4 py-3 border-l-2 border-l-bitcoin/50 space-y-2.5">
@@ -300,14 +308,14 @@ function StructuredRemediation({ remediation, findingId, findingTitle, findingPa
 
       {remediation.qualifier && (
         <p className="text-sm text-foreground/70 italic">
-          {t(`remediation.${findingId}.qualifier`, { defaultValue: remediation.qualifier })}
+          {t(`remediation.${prefix}.qualifier`, { defaultValue: remediation.qualifier })}
         </p>
       )}
 
       <ol className="space-y-1.5 pl-4">
         {remediation.steps.map((step, i) => (
           <li key={i} className="text-base text-muted leading-relaxed list-decimal">
-            {t(`remediation.${findingId}.step${i + 1}`, { defaultValue: step })}
+            {t(`remediation.${prefix}.step${i + 1}`, { defaultValue: step })}
           </li>
         ))}
       </ol>
@@ -322,7 +330,7 @@ function StructuredRemediation({ remediation, findingId, findingTitle, findingPa
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-base text-bitcoin hover:text-bitcoin-hover transition-colors"
             >
-              {t(`remediation.${findingId}.tool_${tool.name.toLowerCase().replace(/\s+/g, "_")}`, { defaultValue: tool.name })}
+              {t(`remediation.${prefix}.tool_${tool.name.toLowerCase().replace(/\s+/g, "_")}`, { defaultValue: tool.name })}
               <ExternalLink size={14} />
             </a>
           ))}
@@ -350,7 +358,13 @@ export function Remediation({ findings, grade }: RemediationProps) {
     }), [findings]);
 
   // Fallback actions for findings without structured remediation
-  const actions = useMemo(() => generateActions(findings, grade), [findings, grade]);
+  // Skip generic actions when all negative findings have structured remediation
+  const actions = useMemo(() => {
+    const coveredIds = new Set(structuredRemediations.map((f) => f.id));
+    const uncovered = findings.filter((f) => f.scoreImpact < 0 && !coveredIds.has(f.id));
+    if (uncovered.length === 0) return [];
+    return generateActions(findings, grade);
+  }, [findings, grade, structuredRemediations]);
 
   if (structuredRemediations.length === 0 && actions.length === 0) return null;
 

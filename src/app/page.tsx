@@ -12,7 +12,7 @@ import { InstallPrompt } from "@/components/InstallPrompt";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useWalletAnalysis } from "@/hooks/useWalletAnalysis";
-import { isXpubOrDescriptor } from "@/lib/bitcoin/descriptor";
+import { isXpubOrDescriptor, parseAndDerive } from "@/lib/bitcoin/descriptor";
 import { isPSBT } from "@/lib/bitcoin/psbt";
 import { useNetwork } from "@/context/NetworkContext";
 import { useRecentScans } from "@/hooks/useRecentScans";
@@ -20,6 +20,7 @@ import { useBookmarks } from "@/hooks/useBookmarks";
 import { EXAMPLES, ACTION_BTN_CLASS } from "@/lib/constants";
 import { useKeyboardNav } from "@/hooks/useKeyboardNav";
 import { useDevMode } from "@/hooks/useDevMode";
+import { XpubPrivacyWarning, isXpubPrivacyAcked } from "@/components/wallet/XpubPrivacyWarning";
 const TipToast = lazy(() => import("@/components/TipToast").then(m => ({ default: m.TipToast })));
 import { FindingCard } from "@/components/FindingCard";
 const DevChainalysisPanel = lazy(() => import("@/components/DevChainalysisPanel").then(m => ({ default: m.DevChainalysisPanel })));
@@ -160,17 +161,26 @@ export default function Home() {
   const { bookmarks, removeBookmark, clearBookmarks, exportBookmarks, importBookmarks } = useBookmarks();
   const { devMode } = useDevMode();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [pendingXpub, setPendingXpub] = useState<string | null>(null);
+
+  // Detect third-party API (not Umbrel and no custom API)
+  const { customApiUrl, isUmbrel, config, localApiStatus } = useNetwork();
+  const isThirdPartyApi = !isUmbrel && !customApiUrl;
 
   // Keep latest function refs for hashchange listener (avoids stale closures)
   const analyzeRef = useRef(analyze);
   const walletAnalyzeRef = useRef(wallet.analyze);
   const resetRef = useRef(reset);
   const walletResetRef = useRef(wallet.reset);
+  const isThirdPartyRef = useRef(isThirdPartyApi);
+  const setPendingXpubRef = useRef(setPendingXpub);
   useEffect(() => {
     analyzeRef.current = analyze;
     walletAnalyzeRef.current = wallet.analyze;
     resetRef.current = reset;
     walletResetRef.current = wallet.reset;
+    isThirdPartyRef.current = isThirdPartyApi;
+    setPendingXpubRef.current = setPendingXpub;
   });
 
   // Register service worker
@@ -211,7 +221,6 @@ export default function Home() {
   // Wait for API status to settle before processing initial hash URL.
   // This prevents firing requests to mempool.space on Umbrel where the
   // local API probe hasn't resolved yet.
-  const { localApiStatus } = useNetwork();
   const initialHashProcessed = useRef(false);
 
   // Detect if initial URL has a hash so we can suppress the landing flash
@@ -241,6 +250,12 @@ export default function Home() {
 
       // Handle xpub/descriptor via wallet analysis flow
       if (xpub) {
+        // Guard: show privacy warning if using a third-party API
+        if (isThirdPartyRef.current && !isXpubPrivacyAcked()) {
+          setPendingXpubRef.current(xpub);
+          setPendingHash(false);
+          return;
+        }
         resetRef.current();
         walletAnalyzeRef.current(xpub);
         setPendingHash(false);
@@ -283,16 +298,37 @@ export default function Home() {
     },
   });
 
+  /** Proceed with an xpub scan (after any privacy warning). */
+  const startXpubScan = useCallback((input: string) => {
+    const newHash = `xpub=${encodeURIComponent(input)}`;
+    const oldHash = window.location.hash.slice(1);
+    window.location.hash = newHash;
+    if (oldHash === newHash) {
+      reset();
+      wallet.analyze(input);
+    }
+  }, [reset, wallet]);
+
+  const handleXpubConfirm = useCallback(() => {
+    if (pendingXpub) {
+      startXpubScan(pendingXpub);
+      setPendingXpub(null);
+    }
+  }, [pendingXpub, startXpubScan]);
+
+  const handleXpubCancel = useCallback(() => {
+    setPendingXpub(null);
+  }, []);
+
   const handleSubmit = useCallback((input: string) => {
     // Detect xpub/descriptor and route to wallet analysis
     if (isXpubOrDescriptor(input)) {
-      const newHash = `xpub=${encodeURIComponent(input)}`;
-      const oldHash = window.location.hash.slice(1);
-      window.location.hash = newHash;
-      if (oldHash === newHash) {
-        reset();
-        wallet.analyze(input);
+      // Guard: show privacy warning if using a third-party API
+      if (isThirdPartyApi && !isXpubPrivacyAcked()) {
+        setPendingXpub(input);
+        return;
       }
+      startXpubScan(input);
       return;
     }
 
@@ -313,7 +349,7 @@ export default function Home() {
       analyze(input);
     }
     // Otherwise, the hashchange listener calls analyze()
-  }, [analyze, reset, wallet]);
+  }, [analyze, isThirdPartyApi, startXpubScan, wallet]);
 
   const handleBack = useCallback(() => {
     window.location.hash = "";
@@ -594,6 +630,12 @@ export default function Home() {
                   {wallet.query}
                 </p>
               </div>
+              {(isUmbrel || customApiUrl) && (
+                <div className="flex items-center gap-2 text-xs text-severity-good">
+                  <ShieldCheck size={14} />
+                  {t("wallet.localApiBanner", { defaultValue: "Local API - address queries stay private" })}
+                </div>
+              )}
               <div className="border-t border-card-border pt-6 space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="h-2 w-2 rounded-full bg-bitcoin animate-pulse" />
@@ -626,6 +668,7 @@ export default function Home() {
               result={wallet.result}
               addressInfos={wallet.addressInfos}
               onBack={handleBack}
+              onScan={handleSubmit}
               durationMs={wallet.durationMs}
             />
           </Suspense>
@@ -664,6 +707,23 @@ export default function Home() {
 
       <InstallPrompt />
       {phase === "complete" && <Suspense fallback={null}><TipToast /></Suspense>}
+
+      {/* Xpub privacy warning dialog */}
+      {pendingXpub && (
+        <XpubPrivacyWarning
+          addressCount={(() => {
+            try {
+              const d = parseAndDerive(pendingXpub, 20);
+              return d.receiveAddresses.length + d.changeAddresses.length;
+            } catch {
+              return 40;
+            }
+          })()}
+          apiEndpoint={config.mempoolBaseUrl.replace(/^https?:\/\//, "").replace(/\/api\/?$/, "")}
+          onConfirm={handleXpubConfirm}
+          onCancel={handleXpubCancel}
+        />
+      )}
     </div>
   );
 }

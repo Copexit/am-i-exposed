@@ -288,13 +288,25 @@ function FlowChart({
     }
 
     // Links - fee is shown separately at the bottom, not as a Sankey node
+    // Use square-root scaling when output ratio exceeds 10x to prevent
+    // small outputs from becoming invisible slivers
+    const outputValues = displayOutputs.map((o) => o.value);
+    const maxOut = Math.max(...outputValues, 1);
+    const minPositive = Math.min(...outputValues.filter((v) => v > 0), maxOut);
+    const useCompression = maxOut / minPositive > 10;
+
     for (let i = 0; i < displayInputs.length; i++) {
       const inputVal = displayInputs[i].prevout?.value ?? 0;
       if (inputVal === 0) continue;
 
+      const scaledTotal = useCompression
+        ? displayOutputs.reduce((s, o) => s + Math.sqrt(o.value), 0)
+        : totalOutputValue;
+
       for (let j = 0; j < displayOutputs.length; j++) {
         const outVal = displayOutputs[j].value;
-        const proportion = totalOutputValue > 0 ? outVal / totalOutputValue : 1 / displayOutputs.length;
+        const scaledOut = useCompression ? Math.sqrt(outVal) : outVal;
+        const proportion = scaledTotal > 0 ? scaledOut / scaledTotal : 1 / displayOutputs.length;
         const linkVal = Math.max(1, Math.round(inputVal * proportion));
         links.push({ source: `in-${i}`, target: `out-${j}`, value: linkVal });
       }

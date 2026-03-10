@@ -147,6 +147,13 @@ export const EXAMPLES: ExampleItem[] = [
     hintColor: "text-severity-good",
     input: "bc1pes5mfje89xdr6uh4qu6p4m0r8d6nz3tvgagtwgv99yalqwzyhdzqrl3mnu",
   },
+  {
+    labelKey: "page.example_wallet",
+    labelDefault: "Wallet audit (zpub)",
+    hint: "Wallet",
+    hintColor: "text-bitcoin",
+    input: "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs",
+  },
 ];
 
 /** Truncate a string showing first 8 and last `tailLen` characters. */

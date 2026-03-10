@@ -42,7 +42,7 @@ This applies to all strings, comments, UI text, metadata, test descriptions, and
 
 - Support all mempool.space networks: mainnet, testnet4, signet
 - Address validation must be network-aware (bc1 for mainnet, tb1 for testnet/signet)
-- Primary API: mempool.space, fallback: blockstream.info (mainnet only)
+- API: mempool.space only (no secondary/fallback APIs)
 - Never log or persist user addresses/txids
 
 ### Severity levels

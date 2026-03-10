@@ -22,6 +22,7 @@ import { matchPathways } from "@/lib/recommendations/pathway-matcher";
 
 interface Pathway {
   id: string;
+  category: "on-chain" | "off-chain";
   titleKey: string;
   titleDefault: string;
   icon: React.ReactNode;
@@ -36,6 +37,7 @@ interface Pathway {
 const PATHWAYS: Pathway[] = [
   {
     id: "lightning",
+    category: "off-chain",
     titleKey: "pathways.ln.title",
     titleDefault: "Lightning Network",
     icon: <Zap size={14} />,
@@ -54,21 +56,31 @@ const PATHWAYS: Pathway[] = [
       { key: "pathways.ln.con4", default: "Single-channel LSP dependency: if your wallet has only one channel, the LSP sees all payment amounts and destinations" },
       { key: "pathways.ln.con5", default: "Public channels advertise capacity and peers to the routing gossip. Use private (unannounced) channels when not routing for others." },
       { key: "pathways.ln.con6", default: "Path selection favors short, cheap routes with small anonymity sets. Timing analysis and amount correlation can deanonymize payments across hops." },
+      { key: "pathways.ln.con7", default: "Your node's public key is a persistent identifier. Anyone who knows it can track your channel opens, capacity changes, and routing behavior - similar to reusing a static address." },
     ],
     tools: ["Phoenix", "Breez", "Zeus"],
     warnings: [
       {
         key: "pathways.ln.warn1",
-        default: "Open channels with CoinJoin outputs for maximum privacy. Avoid opening from exchange withdrawal addresses.",
+        default: "Open channels with non-KYC UTXOs for maximum privacy. Avoid opening from exchange withdrawal addresses - this links your Lightning identity to your exchange account.",
       },
       {
         key: "pathways.ln.warn2",
         default: "For maximum privacy, use Zeus connected to your own Lightning node. Phoenix and Breez route through single LSPs that can observe your payment activity.",
       },
+      {
+        key: "pathways.ln.warn3",
+        default: "Best practice: open a channel and keep it open long-term. Manage funds via swap-in/swap-out (submarine swaps) instead of closing and reopening. If closing is necessary, leave a minimal balance on your side so the resulting on-chain UTXO is small, then dispose of it (add to mining fee, swap to LN, or donate).",
+      },
+      {
+        key: "pathways.ln.warn4",
+        default: "When paying centralized exchanges via Lightning, never connect your channel directly to the exchange node. Route payments through intermediate hops. Exchanges can flag CoinJoin-origin deposits on-chain but cannot trace Lightning payment routes.",
+      },
     ],
   },
   {
     id: "monero",
+    category: "off-chain",
     titleKey: "pathways.xmr.title",
     titleDefault: "Monero Atomic Swaps",
     icon: <ArrowRightLeft size={14} />,
@@ -85,16 +97,25 @@ const PATHWAYS: Pathway[] = [
       { key: "pathways.xmr.con2", default: "Liquidity limitations on DEX platforms" },
       { key: "pathways.xmr.con3", default: "Slower than Lightning (on-chain settlement on both chains)" },
     ],
-    tools: ["Haveno (DEX)", "UnstoppableSwap"],
+    tools: ["Haveno (DEX)", "UnstoppableSwap", "Unstoppable Wallet"],
     warnings: [
       {
         key: "pathways.xmr.warn1",
         default: "Regulatory risk: some jurisdictions restrict Monero. Research local regulations before using.",
       },
+      {
+        key: "pathways.xmr.warn2",
+        default: "Use different services for the BTC-to-XMR and XMR-to-BTC legs. Avoid swapping similar amounts. Timing analysis can correlate entry and exit if both happen through the same platform.",
+      },
+      {
+        key: "pathways.xmr.warn3",
+        default: "Prefer non-custodial atomic swaps (UnstoppableSwap, Haveno) over custodial exchange services. Custodial services can freeze funds and comply with chain analysis requests. For small amounts, Unstoppable Wallet offers cheaper non-atomic swaps with exchange providers.",
+      },
     ],
   },
   {
     id: "liquid",
+    category: "off-chain",
     titleKey: "pathways.liquid.title",
     titleDefault: "Liquid Network",
     icon: <Layers size={14} />,
@@ -108,14 +129,25 @@ const PATHWAYS: Pathway[] = [
     ],
     cons: [
       { key: "pathways.liquid.con1", default: "Federated sidechain - requires trusting the Liquid federation members" },
-      { key: "pathways.liquid.con2", default: "Peg-in and peg-out transactions are visible on Bitcoin's chain - privacy applies only between these bridge points" },
+      { key: "pathways.liquid.con2", default: "Peg-in and peg-out can be correlated by amount and timing. If the same service (e.g., Boltz) handles both directions, that service sees your complete flow." },
       { key: "pathways.liquid.con3", default: "Smaller user base limits anonymity set" },
       { key: "pathways.liquid.con4", default: "Federated consensus (11-of-15 functionaries) introduces trust assumptions different from Bitcoin's trustless model" },
     ],
     tools: ["Blockstream Green", "Boltz Exchange", "SideSwap"],
+    warnings: [
+      {
+        key: "pathways.liquid.warn1",
+        default: "Use different services for entry and exit (e.g., Boltz for peg-in, SideSwap for peg-out, or vice versa). Avoid entering and exiting with similar amounts within a short time window. If services collude or share data, privacy can be undone.",
+      },
+      {
+        key: "pathways.liquid.warn2",
+        default: "Liquid and Lightning can be used to receive change from on-chain transactions, accumulate small amounts off-chain over time, then consolidate to a single UTXO after a delay.",
+      },
+    ],
   },
   {
     id: "payjoin-v2",
+    category: "off-chain",
     titleKey: "pathways.pj2.title",
     titleDefault: "PayJoin v2 (BIP77)",
     icon: <ArrowRightLeft size={14} />,
@@ -132,9 +164,16 @@ const PATHWAYS: Pathway[] = [
       { key: "pathways.pj2.con2", default: "Adoption is still growing - limited counterparties" },
     ],
     tools: ["Cake Wallet", "Bull Bitcoin", "BTCPay Server"],
+    warnings: [
+      {
+        key: "pathways.pj2.warn1",
+        default: "Both parties reveal information: the receiver contributes an input (potentially exposing a large UTXO to the payer), and the payer reveals a change output. Use coin control on both sides to select appropriately-sized inputs.",
+      },
+    ],
   },
   {
     id: "silent-payments",
+    category: "off-chain",
     titleKey: "pathways.sp.title",
     titleDefault: "Silent Payments (BIP352)",
     icon: <Lock size={14} />,
@@ -154,6 +193,7 @@ const PATHWAYS: Pathway[] = [
   },
   {
     id: "coin-control",
+    category: "on-chain",
     titleKey: "pathways.cc.title",
     titleDefault: "Coin Control & UTXO Hygiene",
     icon: <Coins size={14} />,
@@ -173,6 +213,7 @@ const PATHWAYS: Pathway[] = [
   },
   {
     id: "stonewall",
+    category: "on-chain",
     titleKey: "pathways.stonewall.title",
     titleDefault: "Stonewall / Spending Privately",
     icon: <Shield size={14} />,
@@ -193,6 +234,7 @@ const PATHWAYS: Pathway[] = [
   },
   {
     id: "batch-spending",
+    category: "on-chain",
     titleKey: "pathways.batch.title",
     titleDefault: "Batch Spending",
     icon: <Layers size={14} />,
@@ -212,12 +254,13 @@ const PATHWAYS: Pathway[] = [
   },
   {
     id: "bnb-coin-selection",
+    category: "on-chain",
     titleKey: "pathways.bnb.title",
     titleDefault: "Exact Amount Spending (BnB)",
     icon: <Target size={14} />,
     descKey: "pathways.bnb.desc",
     descDefault:
-      "Use Branch-and-Bound coin selection to find UTXO combinations that exactly match the payment plus fee, eliminating the change output entirely.",
+      "If a single UTXO covers the exact payment plus fee, spend it alone - no change output is created. Bitcoin Core automates this via Branch-and-Bound coin selection. Any wallet with coin control can achieve this manually.",
     pros: [
       { key: "pathways.bnb.pro1", default: "No change output means change detection heuristic cannot fire" },
       { key: "pathways.bnb.pro2", default: "Bitcoin Core uses BnB by default" },
@@ -226,8 +269,15 @@ const PATHWAYS: Pathway[] = [
     cons: [
       { key: "pathways.bnb.con1", default: "Only works when a UTXO combination matches the exact amount needed" },
       { key: "pathways.bnb.con2", default: "May require multiple UTXOs as inputs, triggering CIOH" },
+      { key: "pathways.bnb.con3", default: "When exact match is impossible and consolidation is needed, prioritize combining UTXOs from the same entity (e.g., multiple withdrawals from the same exchange) rather than mixing coins from different sources." },
     ],
-    tools: ["Bitcoin Core (default)", "Sparrow Wallet"],
+    tools: ["Bitcoin Core (default)", "Sparrow Wallet", "Electrum"],
+    warnings: [
+      {
+        key: "pathways.bnb.warn1",
+        default: "If left with small change (e.g., around 1000 sats), increase the mining fee to consume it entirely rather than creating a toxic change output.",
+      },
+    ],
   },
 ];
 
@@ -249,7 +299,7 @@ const COMBINED_PATHWAYS: CombinedPathway[] = [
     stepsKey: "pathways.combo.cjln.steps",
     stepsDefault: "Mix UTXOs with CoinJoin, then open Lightning channels with mixed outputs. Payments through LN are off-chain.",
     strengthKey: "pathways.combo.cjln.strength",
-    strengthDefault: "On-chain mixing + off-chain spending. Channel opens are linked to CoinJoin outputs (which have high anonymity sets), not to your original funds.",
+    strengthDefault: "On-chain mixing + off-chain spending. Channel opens are linked to CoinJoin outputs (which have high anonymity sets), not to your original funds. When paying exchanges via LN, route through intermediate hops - never connect your channel directly to the exchange node.",
   },
   {
     id: "coinjoin-liquid",
@@ -258,7 +308,7 @@ const COMBINED_PATHWAYS: CombinedPathway[] = [
     stepsKey: "pathways.combo.cjliq.steps",
     stepsDefault: "Mix first with CoinJoin, then peg into Liquid for confidential transactions.",
     strengthKey: "pathways.combo.cjliq.strength",
-    strengthDefault: "Combines CoinJoin anonymity set with Liquid's amount privacy. The peg-in links to a CoinJoin output, not your original identity.",
+    strengthDefault: "Combines CoinJoin anonymity set with Liquid's amount privacy. The peg-in links to a CoinJoin output, not your original identity. Note: after CoinJoin, history is already broken - Liquid peg-in adds optional amount privacy, not a required next step. Post-CoinJoin spending tools (Stonewall, PayJoin, coin control) are sufficient for most cases.",
   },
   {
     id: "btc-xmr-btc",
@@ -274,27 +324,27 @@ const COMBINED_PATHWAYS: CombinedPathway[] = [
     titleKey: "pathways.combo.excjln.title",
     titleDefault: "Exchange -> CoinJoin -> Lightning/Liquid",
     stepsKey: "pathways.combo.excjln.steps",
-    stepsDefault: "Withdraw from exchange, CoinJoin the KYC-tainted UTXOs, then move to Lightning or Liquid for spending.",
+    stepsDefault: "Not recommended. This breaks the on-chain trace but NOT the KYC history - the exchange still has your identity record. Better approach: keep KYC UTXOs in a separate lifecycle (exchange to cold storage, back to exchange when selling, respecting tax obligations). For private spending, acquire Bitcoin without KYC (P2P, ATMs, mining, earning).",
     strengthKey: "pathways.combo.excjln.strength",
-    strengthDefault: "For KYC-sourced funds. CoinJoin breaks the link from exchange, then LN/Liquid adds another layer before final use.",
+    strengthDefault: "CoinJoin breaks the trace but not the history. The exchange can be compelled to share your KYC record. This pathway adds chain-level deniability but does not protect against legal or regulatory inquiries tied to the original purchase.",
   },
   {
     id: "ln-liquid-btc",
     titleKey: "pathways.combo.lnliq.title",
     titleDefault: "Lightning -> Liquid -> BTC",
     stepsKey: "pathways.combo.lnliq.steps",
-    stepsDefault: "Send via Lightning to Boltz Exchange, receive L-BTC on Liquid, then peg out to Bitcoin mainchain.",
+    stepsDefault: "Can go directly Lightning to Bitcoin via submarine swap (Boltz). The swap service does not know the origin of LN funds but sees the destination address. If multiple swaps are made and outputs later consolidated, the service can link them to one entity. For high-fee periods: swap LN to Liquid (e.g., Boltz), accumulate, then peg out to Bitcoin via a different service (e.g., SideSwap). Non-custodial atomic paths preserve self-custody.",
     strengthKey: "pathways.combo.lnliq.strength",
-    strengthDefault: "Breaks the on-chain trail with two intermediate steps. The final BTC appears to come from the Liquid federation, not your original channel.",
+    strengthDefault: "Breaks the on-chain trail. The swap service sees the destination but not the origin. Use different services for the LN-to-Liquid and Liquid-to-BTC legs. Avoid consolidating multiple swap outputs to prevent linking them.",
   },
   {
     id: "coinjoin-p2p",
     titleKey: "pathways.combo.cjp2p.title",
-    titleDefault: "CoinJoin -> Intermediate Hop -> P2P",
+    titleDefault: "CoinJoin -> P2P",
     stepsKey: "pathways.combo.cjp2p.steps",
-    stepsDefault: "Mix with CoinJoin, send through an intermediate address, then use for P2P purchase on Bisq, Peach Bitcoin, HodlHodl, or RoboSats.",
+    stepsDefault: "After CoinJoin, spend directly to the P2P counterparty on Bisq, Peach Bitcoin, HodlHodl, or RoboSats. The CoinJoin already breaks the history - the buyer cannot trace past the mix. An intermediate hop is not necessary since the counterparty has no prior chain analysis context.",
     strengthKey: "pathways.combo.cjp2p.strength",
-    strengthDefault: "The intermediate hop prevents the P2P counterparty from seeing the CoinJoin directly. Multiple hops make tracing prohibitively difficult.",
+    strengthDefault: "CoinJoin provides sufficient history break. The P2P buyer sees only a CoinJoin output (high anonymity set), not your original funds. Direct spending from post-mix is standard practice.",
   },
   {
     id: "atm-coinjoin-ln",
@@ -315,6 +365,84 @@ const COMBINED_PATHWAYS: CombinedPathway[] = [
     strengthDefault: "Complete chain break - no on-chain link between the P2P purchase and the resulting BTC.",
   },
 ];
+
+function PathwayCard({ pathway, expandedPathway, setExpandedPathway, matchedIds, t }: {
+  pathway: Pathway;
+  expandedPathway: string | null;
+  setExpandedPathway: (id: string | null) => void;
+  matchedIds: Set<string>;
+  t: (key: string, opts?: Record<string, unknown>) => string;
+}) {
+  return (
+    <div className="bg-surface-inset border border-card-border rounded-lg overflow-hidden">
+      <button
+        onClick={() => setExpandedPathway(expandedPathway === pathway.id ? null : pathway.id)}
+        aria-expanded={expandedPathway === pathway.id}
+        className="flex items-center gap-2 w-full px-4 py-3 text-left cursor-pointer hover:bg-surface-elevated/50 transition-colors"
+      >
+        <span className="text-bitcoin">{pathway.icon}</span>
+        <span className="text-sm font-medium text-foreground/90 flex-1">
+          {t(pathway.titleKey, { defaultValue: pathway.titleDefault })}
+          {matchedIds.has(pathway.id) && (
+            <span className="ml-2 text-[10px] font-normal px-1.5 py-0.5 rounded bg-bitcoin/15 text-bitcoin border border-bitcoin/20">
+              {t("pathways.matchBadge", { defaultValue: "Recommended for your findings" })}
+            </span>
+          )}
+        </span>
+        <ChevronDown
+          size={14}
+          className={`text-muted transition-transform ${expandedPathway === pathway.id ? "rotate-180" : ""}`}
+        />
+      </button>
+      <AnimatePresence>
+        {expandedPathway === pathway.id && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-3 space-y-2.5">
+              <p className="text-sm text-muted leading-relaxed">
+                {t(pathway.descKey, { defaultValue: pathway.descDefault })}
+              </p>
+              <div className="space-y-1">
+                {pathway.pros.map((pro, i) => (
+                  <div key={i} className="flex items-start gap-1.5">
+                    <CheckCircle2 size={12} className="text-severity-good shrink-0 mt-0.5" />
+                    <span className="text-xs text-foreground/80">{t(pro.key, { defaultValue: pro.default })}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-1">
+                {pathway.cons.map((con, i) => (
+                  <div key={i} className="flex items-start gap-1.5">
+                    <AlertTriangle size={12} className="text-severity-medium shrink-0 mt-0.5" />
+                    <span className="text-xs text-foreground/80">{t(con.key, { defaultValue: con.default })}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {pathway.tools.map((tool) => (
+                  <span key={tool} className="text-[11px] font-mono px-2 py-0.5 rounded bg-card-bg border border-card-border text-muted">
+                    {tool}
+                  </span>
+                ))}
+              </div>
+              {pathway.warnings?.map((warn, i) => (
+                <div key={i} className="flex items-start gap-1.5 bg-severity-medium/10 rounded-lg px-3 py-2">
+                  <Info size={12} className="text-severity-medium shrink-0 mt-0.5" />
+                  <span className="text-xs text-foreground/80">{t(warn.key, { defaultValue: warn.default })}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 interface PrivacyPathwaysProps {
   grade: string;
@@ -356,7 +484,7 @@ export function PrivacyPathways({ grade, findings = [] }: PrivacyPathwaysProps) 
         className="inline-flex items-center gap-1.5 text-sm text-bitcoin/80 hover:text-bitcoin transition-colors cursor-pointer bg-bitcoin/10 rounded-lg px-3 py-3"
       >
         <Shield size={16} aria-hidden="true" />
-        {t("pathways.title", { defaultValue: "Privacy pathways beyond on-chain" })}
+        {t("pathways.title", { defaultValue: "Privacy techniques and pathways" })}
         <ChevronDown
           size={16}
           className={`transition-transform ${open ? "rotate-180" : ""}`}
@@ -380,109 +508,24 @@ export function PrivacyPathways({ grade, findings = [] }: PrivacyPathwaysProps) 
                 })}
               </p>
 
-              {/* Individual pathways */}
-              {primaryPathways.map((pathway) => (
-                <div
-                  key={pathway.id}
-                  className="bg-surface-inset border border-card-border rounded-lg overflow-hidden"
-                >
-                  <button
-                    onClick={() =>
-                      setExpandedPathway(
-                        expandedPathway === pathway.id ? null : pathway.id,
-                      )
-                    }
-                    aria-expanded={expandedPathway === pathway.id}
-                    className="flex items-center gap-2 w-full px-4 py-3 text-left cursor-pointer hover:bg-surface-elevated/50 transition-colors"
-                  >
-                    <span className="text-bitcoin">{pathway.icon}</span>
-                    <span className="text-sm font-medium text-foreground/90 flex-1">
-                      {t(pathway.titleKey, { defaultValue: pathway.titleDefault })}
-                      {matchedIds.has(pathway.id) && (
-                        <span className="ml-2 text-[10px] font-normal px-1.5 py-0.5 rounded bg-bitcoin/15 text-bitcoin border border-bitcoin/20">
-                          {t("pathways.matchBadge", { defaultValue: "Recommended for your findings" })}
-                        </span>
-                      )}
-                    </span>
-                    <ChevronDown
-                      size={14}
-                      className={`text-muted transition-transform ${expandedPathway === pathway.id ? "rotate-180" : ""}`}
-                    />
-                  </button>
-                  <AnimatePresence>
-                    {expandedPathway === pathway.id && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.15 }}
-                        className="overflow-hidden"
-                      >
-                        <div className="px-4 pb-3 space-y-2.5">
-                          <p className="text-sm text-muted leading-relaxed">
-                            {t(pathway.descKey, {
-                              defaultValue: pathway.descDefault,
-                            })}
-                          </p>
-                          {/* Pros */}
-                          <div className="space-y-1">
-                            {pathway.pros.map((pro, i) => (
-                              <div key={i} className="flex items-start gap-1.5">
-                                <CheckCircle2
-                                  size={12}
-                                  className="text-severity-good shrink-0 mt-0.5"
-                                />
-                                <span className="text-xs text-foreground/80">
-                                  {t(pro.key, { defaultValue: pro.default })}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                          {/* Cons */}
-                          <div className="space-y-1">
-                            {pathway.cons.map((con, i) => (
-                              <div key={i} className="flex items-start gap-1.5">
-                                <AlertTriangle
-                                  size={12}
-                                  className="text-severity-medium shrink-0 mt-0.5"
-                                />
-                                <span className="text-xs text-foreground/80">
-                                  {t(con.key, { defaultValue: con.default })}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                          {/* Tools */}
-                          <div className="flex flex-wrap gap-1.5 pt-1">
-                            {pathway.tools.map((tool) => (
-                              <span
-                                key={tool}
-                                className="text-[11px] font-mono px-2 py-0.5 rounded bg-card-bg border border-card-border text-muted"
-                              >
-                                {tool}
-                              </span>
-                            ))}
-                          </div>
-                          {/* Warnings */}
-                          {pathway.warnings?.map((warn, i) => (
-                            <div
-                              key={i}
-                              className="flex items-start gap-1.5 bg-severity-medium/10 rounded-lg px-3 py-2"
-                            >
-                              <Info
-                                size={12}
-                                className="text-severity-medium shrink-0 mt-0.5"
-                              />
-                              <span className="text-xs text-foreground/80">
-                                {t(warn.key, { defaultValue: warn.default })}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
+              {/* On-chain spending techniques */}
+              {primaryPathways.some((p) => p.category === "on-chain") && (
+                <p className="text-xs font-medium text-foreground/70 uppercase tracking-wide pt-1">
+                  {t("pathways.onchainTitle", { defaultValue: "On-chain spending techniques" })}
+                </p>
+              )}
+              {primaryPathways.filter((p) => p.category === "on-chain").map((pathway) => (
+                <PathwayCard key={pathway.id} pathway={pathway} expandedPathway={expandedPathway} setExpandedPathway={setExpandedPathway} matchedIds={matchedIds} t={t} />
+              ))}
+
+              {/* Off-chain and cross-chain pathways */}
+              {primaryPathways.some((p) => p.category === "off-chain") && (
+                <p className="text-xs font-medium text-foreground/70 uppercase tracking-wide pt-2">
+                  {t("pathways.offchainTitle", { defaultValue: "Off-chain and cross-chain pathways" })}
+                </p>
+              )}
+              {primaryPathways.filter((p) => p.category === "off-chain").map((pathway) => (
+                <PathwayCard key={pathway.id} pathway={pathway} expandedPathway={expandedPathway} setExpandedPathway={setExpandedPathway} matchedIds={matchedIds} t={t} />
               ))}
 
               {/* Show all pathways toggle */}

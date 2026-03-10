@@ -26,7 +26,7 @@ Let advanced users point the tool at their own mempool.space instance (local or 
 - `http://mempoolhqx4isw62xs7abwphsq7ldvnlk5.onion/api`  - Tor
 
 ## CSP consideration
-The current CSP only allows `connect-src` to mempool.space and blockstream.info. A custom URL needs to either:
+The current CSP allows `connect-src` to mempool.space. A custom URL needs to either:
 1. Relax CSP when custom URL is set (via JS, not meta tag  - meta tags are static)
 2. Or remove the connect-src restriction entirely and rely on the user's judgment
 
