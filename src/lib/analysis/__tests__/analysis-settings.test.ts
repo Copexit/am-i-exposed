@@ -10,12 +10,14 @@ describe("AnalysisSettings defaults", () => {
       skipLargeClusters: false,
       skipCoinJoins: false,
       timeout: 10,
+      walletGapLimit: 5,
     };
     expect(defaults.maxDepth).toBe(6);
     expect(defaults.minSats).toBe(1000);
     expect(defaults.skipLargeClusters).toBe(false);
     expect(defaults.skipCoinJoins).toBe(false);
     expect(defaults.timeout).toBe(10);
+    expect(defaults.walletGapLimit).toBe(5);
   });
 
   it("settings can be serialized to JSON", () => {
@@ -25,6 +27,7 @@ describe("AnalysisSettings defaults", () => {
       skipLargeClusters: true,
       skipCoinJoins: true,
       timeout: 120,
+      walletGapLimit: 20,
     };
     const json = JSON.stringify(settings);
     const parsed = JSON.parse(json) as AnalysisSettings;
@@ -38,6 +41,7 @@ describe("AnalysisSettings defaults", () => {
       skipLargeClusters: false,
       skipCoinJoins: false,
       timeout: 10,
+      walletGapLimit: 5,
     };
     const partial = { maxDepth: 10 };
     const merged = { ...defaults, ...partial };

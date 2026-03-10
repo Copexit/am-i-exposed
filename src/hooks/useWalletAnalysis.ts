@@ -5,7 +5,14 @@ import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { createMempoolClient } from "@/lib/api/mempool";
 import { isLocalInstance } from "@/lib/api/queue";
-import { parseAndDerive, type DescriptorParseResult, type ScriptType } from "@/lib/bitcoin/descriptor";
+import { getAnalysisSettings } from "@/hooks/useAnalysisSettings";
+import {
+  parseXpub,
+  deriveOneAddress,
+  type DescriptorParseResult,
+  type ScriptType,
+  type ParsedXpub,
+} from "@/lib/bitcoin/descriptor";
 import { auditWallet, type WalletAuditResult, type WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import type { MempoolAddress, MempoolTransaction, MempoolUtxo } from "@/lib/api/types";
 import type { DerivedAddress } from "@/lib/bitcoin/descriptor";
@@ -31,7 +38,7 @@ export interface WalletAnalysisState {
   result: WalletAuditResult | null;
   /** Per-address info (for detail views) */
   addressInfos: WalletAddressInfo[];
-  /** Progress: addresses fetched so far / total */
+  /** Progress: addresses fetched so far / total (0 = unknown) */
   progress: { fetched: number; total: number };
   /** Error message */
   error: string | null;
@@ -50,12 +57,12 @@ const INITIAL_STATE: WalletAnalysisState = {
   durationMs: null,
 };
 
-/** Default gap limit for address derivation. */
-const GAP_LIMIT = 20;
+/** Default gap limit if settings unavailable. */
+const DEFAULT_GAP_LIMIT = 5;
 
 // ---------- Fetch helpers ----------
 
-/** Fetch all 3 endpoints for a single address (no throttling). */
+/** Fetch all 3 endpoints for a single address. */
 async function fetchAddress(
   api: MempoolClient,
   derived: DerivedAddress,
@@ -68,6 +75,16 @@ async function fetchAddress(
   return { derived, addressData, utxos, txs };
 }
 
+/** Returns true if address has any on-chain activity. */
+function isUsed(info: WalletAddressInfo): boolean {
+  if (info.txs.length > 0) return true;
+  if (info.addressData && typeof info.addressData === "object") {
+    const stats = info.addressData.chain_stats;
+    if (stats && (stats.tx_count > 0 || stats.funded_txo_count > 0)) return true;
+  }
+  return false;
+}
+
 /** Delay that can be cancelled via AbortSignal. */
 function abortableDelay(ms: number, abortSignal: AbortSignal): Promise<void> {
   if (ms <= 0) return Promise.resolve();
@@ -76,6 +93,66 @@ function abortableDelay(ms: number, abortSignal: AbortSignal): Promise<void> {
     const onAbort = () => { clearTimeout(timer); reject(new DOMException("Aborted", "AbortError")); };
     abortSignal.addEventListener("abort", onAbort, { once: true });
   });
+}
+
+/**
+ * Scan one chain (receive=0 or change=1) incrementally.
+ * Derives + fetches one address at a time, stops after gapLimit (configurable)
+ * consecutive unused addresses.
+ */
+async function scanChain(
+  parsed: ParsedXpub,
+  chain: 0 | 1,
+  api: MempoolClient,
+  signal: AbortSignal,
+  isLocal: boolean,
+  gapLimit: number,
+  onProgress: (info: WalletAddressInfo) => void,
+): Promise<WalletAddressInfo[]> {
+  const results: WalletAddressInfo[] = [];
+  let consecutiveUnused = 0;
+  let index = 0;
+  /** Addresses in the initial token bucket (20 tokens / 3 per addr). */
+  const BURST_SIZE = 6;
+  /** Delay between addresses after burst for hosted APIs. */
+  const SUSTAIN_DELAY_MS = 9000;
+  /** Small gap between burst addresses. */
+  const BURST_GAP_MS = 300;
+  /** Track how many addresses have been fetched across this chain for burst logic. */
+  let fetchCount = 0;
+
+  while (consecutiveUnused < gapLimit) {
+    if (signal.aborted) return results;
+
+    const derived = deriveOneAddress(parsed, chain, index);
+    const info = await fetchAddress(api, derived)
+      .catch((): WalletAddressInfo => ({
+        derived,
+        addressData: null as unknown as MempoolAddress,
+        txs: [],
+        utxos: [],
+      }));
+
+    results.push(info);
+    onProgress(info);
+    fetchCount++;
+
+    if (isUsed(info)) {
+      consecutiveUnused = 0;
+    } else {
+      consecutiveUnused++;
+    }
+
+    index++;
+
+    // Rate limit for hosted APIs (skip delay after last address if gap limit reached)
+    if (!isLocal && consecutiveUnused < gapLimit) {
+      const delayMs = fetchCount <= BURST_SIZE ? BURST_GAP_MS : SUSTAIN_DELAY_MS;
+      await abortableDelay(delayMs, signal).catch(() => {});
+    }
+  }
+
+  return results;
 }
 
 // ---------- Hook ----------
@@ -100,94 +177,85 @@ export function useWalletAnalysis() {
       });
 
       try {
-        // Step 1: Parse descriptor and derive addresses
-        const descriptor = parseAndDerive(input, GAP_LIMIT, scriptTypeOverride);
-        const allAddresses = [...descriptor.receiveAddresses, ...descriptor.changeAddresses];
+        // Step 1: Parse xpub/descriptor (no address derivation yet)
+        const parsed = parseXpub(input, scriptTypeOverride);
 
         setState(prev => ({
           ...prev,
           phase: "fetching",
-          descriptor,
-          progress: { fetched: 0, total: allAddresses.length },
+          descriptor: {
+            scriptType: parsed.scriptType,
+            network: parsed.network,
+            receiveAddresses: [],
+            changeAddresses: [],
+            xpub: parsed.xpub,
+          },
+          progress: { fetched: 0, total: 0 },
         }));
 
-        // Step 2: Fetch address data.
-        // Rate limit strategy based on reverse-engineering mempool.space's
-        // token bucket: ~20 token capacity, refills ~1 token every 3s.
-        // Each address = 3 requests (address, utxos, txs) fired together.
-        //
-        // Hosted: burst first 6 addresses (18 tokens from the 20 bucket),
-        // then 9s between each remaining address (3 tokens refill in 9s).
-        // Total for 40 addresses: ~6s burst + 34*9s = ~5 minutes.
-        //
-        // Local/Umbrel/custom: all in parallel, no delays.
+        // Step 2: Incrementally derive + fetch addresses.
+        // Uses configurable gap limit (default 5): scans until N consecutive
+        // unused addresses per chain. Hosted API: sequential with rate limiting.
+        // Local/Umbrel/custom: no delays.
         const api = createMempoolClient(config.mempoolBaseUrl, controller.signal);
         const localApi = isLocalInstance(config.mempoolBaseUrl);
-        const addressInfos: WalletAddressInfo[] = [];
+        const { walletGapLimit = DEFAULT_GAP_LIMIT } = getAnalysisSettings();
+        const allInfos: WalletAddressInfo[] = [];
+        let fetched = 0;
 
-        /** Addresses that fit in the initial token bucket (20 tokens / 3 per addr). */
-        const BURST_SIZE = 6;
-        /** Seconds between addresses after burst is exhausted. */
-        const SUSTAIN_DELAY_MS = 9000;
-        /** Small gap between burst addresses to avoid overwhelming the server. */
-        const BURST_GAP_MS = 300;
+        const onProgress = (info: WalletAddressInfo) => {
+          allInfos.push(info);
+          fetched++;
+          setState(prev => ({
+            ...prev,
+            progress: { fetched, total: 0 },
+          }));
+        };
 
-        if (localApi) {
-          // Local: fire all in parallel - no rate limits
-          let completed = 0;
-          const promises = allAddresses.map(async (derived) => {
-            const info = await fetchAddress(api, derived)
-              .catch((): WalletAddressInfo => ({
-                derived,
-                addressData: null as unknown as MempoolAddress,
-                txs: [],
-                utxos: [],
-              }));
-            completed++;
-            setState(prev => ({
-              ...prev,
-              progress: { fetched: completed, total: allAddresses.length },
-            }));
-            return info;
-          });
-          addressInfos.push(...await Promise.all(promises));
-        } else {
-          // Hosted: burst phase then sustained phase
-          for (let i = 0; i < allAddresses.length; i++) {
-            if (controller.signal.aborted) return;
-            const derived = allAddresses[i];
-            const info = await fetchAddress(api, derived)
-              .catch((): WalletAddressInfo => ({
-                derived,
-                addressData: null as unknown as MempoolAddress,
-                txs: [],
-                utxos: [],
-              }));
-            addressInfos.push(info);
-            setState(prev => ({
-              ...prev,
-              progress: { fetched: i + 1, total: allAddresses.length },
-            }));
-            // Delay before next address (skip after the last one)
-            if (i < allAddresses.length - 1) {
-              const delayMs = i < BURST_SIZE - 1 ? BURST_GAP_MS : SUSTAIN_DELAY_MS;
-              await abortableDelay(delayMs, controller.signal).catch(() => {});
-            }
-          }
+        // Scan receive chain (0) then change chain (1)
+        const chains: (0 | 1)[] =
+          parsed.singleChain !== undefined
+            ? [parsed.singleChain as 0 | 1]
+            : [0, 1];
+
+        for (const chain of chains) {
+          if (controller.signal.aborted) return;
+          await scanChain(parsed, chain, api, controller.signal, localApi, walletGapLimit, onProgress);
         }
 
         if (controller.signal.aborted) return;
 
-        // Step 3: Run wallet audit
-        setState(prev => ({ ...prev, phase: "analyzing" }));
+        // Build final descriptor result from discovered addresses
+        const receiveAddresses = allInfos
+          .filter(i => !i.derived.isChange)
+          .map(i => i.derived);
+        const changeAddresses = allInfos
+          .filter(i => i.derived.isChange)
+          .map(i => i.derived);
 
-        const result = auditWallet(addressInfos);
+        const descriptor: DescriptorParseResult = {
+          scriptType: parsed.scriptType,
+          network: parsed.network,
+          receiveAddresses,
+          changeAddresses,
+          xpub: parsed.xpub,
+        };
+
+        // Step 3: Run wallet audit
+        setState(prev => ({
+          ...prev,
+          phase: "analyzing",
+          descriptor,
+          progress: { fetched, total: fetched },
+        }));
+
+        const result = auditWallet(allInfos);
 
         setState(prev => ({
           ...prev,
           phase: "complete",
           result,
-          addressInfos,
+          addressInfos: allInfos,
           durationMs: Date.now() - startTime,
         }));
       } catch (err) {

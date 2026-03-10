@@ -247,6 +247,80 @@ export function isXpubOrDescriptor(input: string): boolean {
 }
 
 /**
+ * Parsed xpub/descriptor ready for incremental derivation.
+ * Use with `deriveOneAddress()` for on-demand address derivation.
+ */
+export interface ParsedXpub {
+  hdKey: HDKey;
+  scriptType: ScriptType;
+  network: "mainnet" | "testnet";
+  xpub: string;
+  /** If set, only derive this chain (0=receive, 1=change). */
+  singleChain?: number;
+}
+
+/**
+ * Parse an xpub/descriptor without deriving any addresses.
+ * Returns an object that can be passed to `deriveOneAddress()`.
+ */
+export function parseXpub(
+  input: string,
+  scriptTypeOverride?: ScriptType,
+): ParsedXpub {
+  let xpubStr: string;
+  let scriptType: ScriptType;
+  let network: "mainnet" | "testnet";
+  let singleChain: number | undefined;
+  let publicVersion: number;
+  let privateVersion: number;
+
+  const desc = parseDescriptor(input);
+  if (desc) {
+    xpubStr = desc.xpub;
+    scriptType = desc.scriptType;
+    singleChain = desc.chainIndex;
+    const version = detectXpubVersion(desc.xpub);
+    network = version.network;
+    publicVersion = version.publicVersion;
+    privateVersion = version.privateVersion;
+  } else if (isExtendedPubkey(input)) {
+    xpubStr = input;
+    const version = detectXpubVersion(input);
+    network = version.network;
+    scriptType = scriptTypeOverride ?? version.scriptType;
+    publicVersion = version.publicVersion;
+    privateVersion = version.privateVersion;
+  } else {
+    throw new Error("Invalid xpub or descriptor format");
+  }
+
+  const hdKey = HDKey.fromExtendedKey(xpubStr, {
+    public: publicVersion,
+    private: privateVersion,
+  });
+
+  return { hdKey, scriptType, network, xpub: xpubStr, singleChain };
+}
+
+/**
+ * Derive a single address at the given chain (0=receive, 1=change) and index.
+ */
+export function deriveOneAddress(
+  parsed: ParsedXpub,
+  chain: 0 | 1,
+  index: number,
+): DerivedAddress {
+  const child = parsed.hdKey.deriveChild(chain).deriveChild(index);
+  if (!child.publicKey) throw new Error(`Failed to derive key at ${chain}/${index}`);
+  return {
+    path: `${chain}/${index}`,
+    address: pubkeyToAddress(child.publicKey, parsed.scriptType, parsed.network === "testnet"),
+    isChange: chain === 1,
+    index,
+  };
+}
+
+/**
  * Parse an xpub string or output descriptor and derive addresses.
  *
  * @param input - xpub/ypub/zpub/tpub/upub/vpub string, or output descriptor

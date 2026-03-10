@@ -13,6 +13,8 @@ export interface AnalysisSettings {
   skipCoinJoins: boolean;
   /** Analysis timeout in seconds (1-600, default 10) */
   timeout: number;
+  /** Wallet scan gap limit: consecutive unused addresses before stopping (1-100, default 5) */
+  walletGapLimit: number;
 }
 
 const STORAGE_KEY = "analysis-settings";
@@ -23,6 +25,7 @@ const DEFAULTS: AnalysisSettings = {
   skipLargeClusters: false,
   skipCoinJoins: false,
   timeout: 10,
+  walletGapLimit: 5,
 };
 
 // Module-level cache for referential stability (useSyncExternalStore requirement)

@@ -643,17 +643,22 @@ export default function Home() {
                     {wallet.phase === "deriving"
                       ? t("wallet.deriving", { defaultValue: "Deriving addresses..." })
                       : wallet.phase === "fetching"
-                        ? `${t("wallet.fetching", { defaultValue: "Fetching transaction history..." })} (${wallet.progress.fetched}/${wallet.progress.total})`
+                        ? `${t("wallet.fetching", { defaultValue: "Fetching transaction history..." })} (${wallet.progress.fetched})`
                         : t("wallet.analyzing", { defaultValue: "Analyzing wallet privacy..." })}
                   </span>
                 </div>
-                {wallet.phase === "fetching" && wallet.progress.total > 0 && (
+                {wallet.phase === "fetching" && wallet.progress.fetched > 0 && (
                   <div className="w-full bg-surface-elevated rounded-full h-1.5">
                     <div
-                      className="bg-bitcoin h-1.5 rounded-full transition-all duration-300"
-                      style={{ width: `${Math.round((wallet.progress.fetched / wallet.progress.total) * 100)}%` }}
+                      className="bg-bitcoin h-1.5 rounded-full transition-all duration-300 animate-pulse"
+                      style={{ width: "100%" }}
                     />
                   </div>
+                )}
+                {wallet.phase === "fetching" && isThirdPartyApi && (
+                  <p className="text-xs text-muted/70">
+                    {t("wallet.hostedSlowNote", { defaultValue: "Using the public API - this may take several minutes. For faster scans, connect a personal mempool instance." })}
+                  </p>
                 )}
               </div>
             </GlowCard>

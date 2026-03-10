@@ -123,10 +123,11 @@ export function XpubPrivacyWarning({
             {/* Body */}
             <div id="xpub-warn-desc" className="space-y-4 text-sm text-foreground/90 leading-relaxed">
               <p>
-                Scanning this extended public key will query approximately{" "}
-                <strong className="text-foreground">{addressCount}</strong> derived
+                Scanning this extended public key will query{" "}
+                <strong className="text-foreground">{addressCount}+</strong> derived
                 addresses through{" "}
                 <strong className="text-foreground">{apiEndpoint}</strong>.
+                Active wallets may require more.
               </p>
 
               <div className="space-y-2">

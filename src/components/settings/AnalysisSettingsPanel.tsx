@@ -15,7 +15,8 @@ export function AnalysisSettingsPanel() {
     analysisSettings.minSats !== ANALYSIS_DEFAULTS.minSats ||
     analysisSettings.timeout !== ANALYSIS_DEFAULTS.timeout ||
     analysisSettings.skipLargeClusters !== ANALYSIS_DEFAULTS.skipLargeClusters ||
-    analysisSettings.skipCoinJoins !== ANALYSIS_DEFAULTS.skipCoinJoins;
+    analysisSettings.skipCoinJoins !== ANALYSIS_DEFAULTS.skipCoinJoins ||
+    analysisSettings.walletGapLimit !== ANALYSIS_DEFAULTS.walletGapLimit;
 
   return (
     <>
@@ -124,6 +125,31 @@ export function AnalysisSettingsPanel() {
               <span>1s</span>
               <span>300s</span>
               <span>600s</span>
+            </div>
+          </div>
+
+          {/* Wallet gap limit */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label htmlFor="analysis-gaplimit" className="text-xs text-muted">
+                {t("settings.walletGapLimit", { defaultValue: "Wallet scan gap limit" })}
+              </label>
+              <span className="text-xs font-mono text-foreground tabular-nums">{analysisSettings.walletGapLimit}</span>
+            </div>
+            <input
+              id="analysis-gaplimit"
+              type="range"
+              min={1}
+              max={100}
+              step={1}
+              value={analysisSettings.walletGapLimit}
+              onChange={(e) => updateAnalysis({ walletGapLimit: Number(e.target.value) })}
+              className="w-full h-1.5 bg-surface-inset rounded-full appearance-none cursor-pointer accent-bitcoin"
+            />
+            <div className="flex justify-between text-[10px] text-muted/60 mt-0.5">
+              <span>1</span>
+              <span>50</span>
+              <span>100</span>
             </div>
           </div>
 
