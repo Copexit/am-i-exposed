@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ExternalLink, Shield, ShieldAlert, ShieldCheck, ShieldX } from "lucide-react";
 import { WalletIcon } from "@/components/ui/WalletIcon";
-import { getWalletIconId } from "@/lib/wallet-icons";
+
 
 // ── Wallet recommendation data ──────────────────────────────────────────────
 

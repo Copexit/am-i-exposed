@@ -805,7 +805,6 @@ Output: public/data/
       const category = getCategoryFromFilename(fname);
       console.log(`  [Maru92] ${fname} (${category})`);
 
-      const prevUnique = stats.unique;
       const added = await streamCsvIntoFilter(
         csvPath,
         category,

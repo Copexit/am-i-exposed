@@ -39,6 +39,7 @@ export function WalletIcon({ walletId, walletName, size = "md", className = "" }
   }
 
   return (
+    // eslint-disable-next-line @next/next/no-img-element -- static export, next/image requires a server
     <img
       src={`/wallets/${resolvedId}.webp`}
       alt={walletName}
