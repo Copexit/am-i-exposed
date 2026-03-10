@@ -1,8 +1,8 @@
 "use client";
 
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowLeft, ExternalLink, Copy, Check, Info, AlertTriangle } from "lucide-react";
-import { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspense, memo } from "react";
+import { ArrowLeft, ExternalLink, Copy, Check, Info, AlertTriangle, Search } from "lucide-react";
+import { useState, useCallback, useRef, useEffect, lazy, Suspense, memo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
@@ -46,6 +46,7 @@ import { ShareCardButton } from "./ShareCardButton";
 import { BookmarkButton } from "./BookmarkButton";
 import { GlowCard } from "./ui/GlowCard";
 import { copyToClipboard } from "@/lib/clipboard";
+import { detectInputType, cleanInput } from "@/lib/analysis/detect-input";
 import { getSummarySentiment } from "@/lib/scoring/score";
 import { DestinationAlert } from "./DestinationAlert";
 import type { ScoringResult, TxAnalysisResult, TxType } from "@/lib/types";
@@ -154,6 +155,75 @@ function FindingSummary({ findings }: { findings: ScoringResult["findings"] }) {
   );
 }
 
+function InlineSearchBar({ onScan, initialValue }: { onScan: (input: string) => void; initialValue?: string }) {
+  const { t } = useTranslation();
+  const { network } = useNetwork();
+  const [value, setValue] = useState(initialValue ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleSubmit = useCallback((e: React.FormEvent) => {
+    e.preventDefault();
+    const cleaned = cleanInput(value);
+    if (!cleaned) return;
+    const type = detectInputType(cleaned, network);
+    if (type === "invalid") {
+      setError(t("input.errorInvalid", { defaultValue: "Invalid address or txid" }));
+      return;
+    }
+    setError(null);
+    onScan(cleaned);
+  }, [value, network, onScan, t]);
+
+  const handlePaste = useCallback((e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pasted = e.clipboardData.getData("text");
+    if (!pasted) return;
+    const cleaned = cleanInput(pasted.trim());
+    if (!cleaned) return;
+    const type = detectInputType(cleaned, network);
+    if (type !== "invalid") {
+      e.preventDefault();
+      setValue("");
+      setError(null);
+      onScan(cleaned);
+    }
+  }, [network, onScan]);
+
+  return (
+    <form onSubmit={handleSubmit} className="w-full">
+      <div className="relative flex items-center">
+        <Search size={14} className="absolute left-3 text-muted/60 pointer-events-none" />
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={(e) => { setValue(e.target.value); setError(null); }}
+          onPaste={handlePaste}
+          placeholder={t("input.placeholderScan", { defaultValue: "Paste a Bitcoin address or transaction ID" })}
+          spellCheck={false}
+          autoComplete="off"
+          aria-label={t("input.placeholderScan", { defaultValue: "Paste a Bitcoin address or transaction ID" })}
+          className="w-full rounded-lg border border-card-border bg-surface-elevated/50 pl-8 pr-16 py-2
+            font-mono text-sm text-foreground placeholder:text-muted/50
+            focus:border-bitcoin/40 focus:shadow-[0_0_8px_rgba(247,147,26,0.1)]
+            focus-visible:outline-2 focus-visible:outline-bitcoin/50
+            transition-all duration-150"
+        />
+        <button
+          type="submit"
+          disabled={!value.trim()}
+          className="absolute right-1.5 px-3 py-1 text-xs font-semibold rounded-md
+            bg-bitcoin/80 text-black hover:bg-bitcoin transition-colors
+            disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+        >
+          {t("input.buttonScan", { defaultValue: "Scan" })}
+        </button>
+      </div>
+      {error && <p className="text-danger text-xs mt-1">{error}</p>}
+    </form>
+  );
+}
+
 interface ResultsPanelProps {
   query: string;
   inputType: "txid" | "address";
@@ -219,33 +289,7 @@ export const ResultsPanel = memo(function ResultsPanel({
       ? t("results.viewOnLocal", { defaultValue: "View on local mempool" })
       : t("results.viewOnMempool", { defaultValue: "View on mempool.space" });
 
-  // Build parent/child tx maps from trace layers for graph explorer pre-population
-  const { parentTxMap, childTxMap } = useMemo(() => {
-    if (!txData) return { parentTxMap: null, childTxMap: null };
-
-    const parents = new Map<string, MempoolTransaction>();
-    if (backwardLayers && backwardLayers.length > 0) {
-      for (const [txid, ptx] of backwardLayers[0].txs) {
-        parents.set(txid, ptx);
-      }
-    }
-
-    const children = new Map<number, MempoolTransaction>();
-    if (forwardLayers && forwardLayers.length > 0 && outspends) {
-      for (let i = 0; i < outspends.length; i++) {
-        const os = outspends[i];
-        if (os?.spent && os.txid) {
-          const ctxn = forwardLayers[0].txs.get(os.txid);
-          if (ctxn) children.set(i, ctxn);
-        }
-      }
-    }
-
-    return {
-      parentTxMap: parents.size > 0 ? parents : null,
-      childTxMap: children.size > 0 ? children : null,
-    };
-  }, [txData, backwardLayers, forwardLayers, outspends]);
+  // Trace layers are passed directly to GraphExplorerPanel for multi-hop pre-population
 
   // Hide findings that were suppressed for CoinJoin context (scoreImpact=0, context=coinjoin)
   // Also hide chain-trace-summary (metadata-only for TaintPathDiagram)
@@ -284,34 +328,38 @@ export const ResultsPanel = memo(function ResultsPanel({
       id="results-panel"
       className="flex flex-col items-center gap-10 sm:gap-12 w-full max-w-3xl lg:max-w-5xl"
     >
-      {/* ZONE 1: Navigation */}
-      <div className="w-full flex flex-wrap items-center gap-2">
-        <button
-          onClick={onBack}
-          className={ACTION_BTN_CLASS}
-        >
-          <ArrowLeft size={16} />
-          {t("results.newScan", { defaultValue: "New scan" })}
-        </button>
+      {/* ZONE 1: Inline Search + Navigation */}
+      <div className="w-full space-y-3">
+        {onScan && <InlineSearchBar onScan={onScan} initialValue={query} />}
 
-        <div className="flex-1" />
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={onBack}
+            className={ACTION_BTN_CLASS}
+          >
+            <ArrowLeft size={16} />
+            {t("results.newScan", { defaultValue: "New scan" })}
+          </button>
 
-        <BookmarkButton query={query} inputType={inputType} grade={result.grade} score={result.score} />
-        <ExportButton targetId="results-panel" query={query} result={result} inputType={inputType} />
-        <ShareCardButton
-          grade={result.grade}
-          score={result.score}
-          query={query}
-          inputType={inputType}
-          findingCount={result.findings.length}
-        />
-        <ShareButtons
-          grade={result.grade}
-          score={result.score}
-          query={query}
-          inputType={inputType}
-          findingCount={result.findings.length}
-        />
+          <div className="flex-1" />
+
+          <BookmarkButton query={query} inputType={inputType} grade={result.grade} score={result.score} />
+          <ExportButton targetId="results-panel" query={query} result={result} inputType={inputType} />
+          <ShareCardButton
+            grade={result.grade}
+            score={result.score}
+            query={query}
+            inputType={inputType}
+            findingCount={result.findings.length}
+          />
+          <ShareButtons
+            grade={result.grade}
+            score={result.score}
+            query={query}
+            inputType={inputType}
+            findingCount={result.findings.length}
+          />
+        </div>
       </div>
 
       {/* ZONE 2: Hero Score */}
@@ -461,7 +509,7 @@ export const ResultsPanel = memo(function ResultsPanel({
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.18 }} className="w-full">
           <ChartErrorBoundary>
             <Suspense fallback={null}>
-              <GraphExplorerPanel tx={txData} findings={result.findings} onTxClick={onScan} parentTxMap={parentTxMap} childTxMap={childTxMap} />
+              <GraphExplorerPanel tx={txData} findings={result.findings} onTxClick={onScan} backwardLayers={backwardLayers} forwardLayers={forwardLayers} outspends={outspends} />
             </Suspense>
           </ChartErrorBoundary>
         </motion.div>

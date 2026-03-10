@@ -1535,6 +1535,7 @@
   "step.witness.label": "Witness data analysis",
   "taintFlow.analyzedTx": "Analyzed TX",
   "taintFlow.cleanPath": "Clean path",
+  "taintFlow.clickToAnalyze": "Click to analyze",
   "taintFlow.hopsFromTarget": "{{count}} hop from target",
   "taintFlow.hopsFromTarget_other": "{{count}} hops from target",
   "taintFlow.knownEntity": "Known Entity",

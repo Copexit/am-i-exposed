@@ -132,6 +132,8 @@ export function analyzeEntityProximity(
         category: nearestBackward.category,
         hops,
         direction: "backward",
+        entityTxid: nearestBackward.txid,
+        entityAddress: nearestBackward.address,
       },
     });
   }
@@ -174,6 +176,8 @@ export function analyzeEntityProximity(
         category: nearestForward.category,
         hops,
         direction: "forward",
+        entityTxid: nearestForward.txid,
+        entityAddress: nearestForward.address,
       },
     });
   }

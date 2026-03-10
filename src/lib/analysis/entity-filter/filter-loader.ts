@@ -421,12 +421,31 @@ export async function loadFullEntityFilter(
   fullFilterStatus = "loading";
 
   try {
-    // Phase 1: Download full entity index (with progress)
-    // Report total=0 during file 1 so UI shows pulse animation instead of
-    // a percentage that would jump backwards when file 2 starts.
-    const indexBuffer = await fetchArrayBuffer(FULL_INDEX_PATH, (loaded) => {
-      onProgress?.(loaded, 0);
-    });
+    // Download both files concurrently with merged progress
+    let indexLoaded = 0, indexTotal = 0;
+    let bloomLoaded = 0, bloomTotal = 0;
+
+    const reportProgress = () => {
+      // Only report a real total when both content-lengths are known
+      const totalKnown = indexTotal > 0 && bloomTotal > 0;
+      onProgress?.(
+        indexLoaded + bloomLoaded,
+        totalKnown ? indexTotal + bloomTotal : 0,
+      );
+    };
+
+    const [indexBuffer, bloomBuffer] = await Promise.all([
+      fetchArrayBuffer(FULL_INDEX_PATH, (loaded, total) => {
+        indexLoaded = loaded;
+        indexTotal = total;
+        reportProgress();
+      }),
+      fetchArrayBuffer(FULL_BLOOM_PATH, (loaded, total) => {
+        bloomLoaded = loaded;
+        bloomTotal = total;
+        reportProgress();
+      }),
+    ]);
 
     if (!indexBuffer) {
       fullFilterStatus = "unavailable";
@@ -439,15 +458,8 @@ export async function loadFullEntityFilter(
       return null;
     }
 
-    const indexSize = indexBuffer.byteLength;
-
-    // Phase 2: Download overflow Bloom filter (with accumulated progress)
+    // Parse overflow Bloom filter
     let overflowBloom: AddressFilter | undefined;
-
-    const bloomBuffer = await fetchArrayBuffer(FULL_BLOOM_PATH, (loaded, total) => {
-      onProgress?.(indexSize + loaded, indexSize + total);
-    });
-
     if (bloomBuffer) {
       const parsed = parseHeader(bloomBuffer);
       if (parsed && parsed.version === 2) {

@@ -11,7 +11,7 @@ export interface AnalysisSettings {
   skipLargeClusters: boolean;
   /** Skip batching/CoinJoin transactions during chain tracing */
   skipCoinJoins: boolean;
-  /** Analysis timeout in seconds (1-600, default 30) */
+  /** Analysis timeout in seconds (1-600, default 10) */
   timeout: number;
 }
 
@@ -22,7 +22,7 @@ const DEFAULTS: AnalysisSettings = {
   minSats: 1000,
   skipLargeClusters: false,
   skipCoinJoins: false,
-  timeout: 30,
+  timeout: 10,
 };
 
 // Module-level cache for referential stability (useSyncExternalStore requirement)

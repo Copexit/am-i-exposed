@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useRef } from "react";
 import { Group } from "@visx/group";
 import { Text } from "@visx/text";
 import { ParentSize } from "@visx/responsive";
@@ -34,6 +34,8 @@ interface TaintNode {
   taintPct: number;
   entityName?: string;
   category?: string;
+  /** Address or txid to navigate to when clicked */
+  clickTarget?: string;
 }
 
 interface TaintEdge {
@@ -50,6 +52,7 @@ interface TooltipData {
   entityName?: string;
   category?: string;
   hops?: number;
+  clickTarget?: string;
 }
 
 const NODE_RADIUS = 16;
@@ -98,6 +101,8 @@ function buildTaintGraph(findings: Finding[]): { nodes: TaintNode[]; edges: Tain
     const hops = (backwardEntity.params?.hops as number) ?? 1;
     const entityName = (backwardEntity.params?.entityName as string) ?? "Unknown";
     const category = (backwardEntity.params?.category as string) ?? "unknown";
+    const entityTxid = (backwardEntity.params?.entityTxid as string) ?? undefined;
+    const entityAddress = (backwardEntity.params?.entityAddress as string) ?? undefined;
 
     // Add intermediate nodes
     for (let d = 1; d < hops; d++) {
@@ -109,12 +114,14 @@ function buildTaintGraph(findings: Finding[]): { nodes: TaintNode[]; edges: Tain
         y: 0,
         type: "regular",
         taintPct: Math.max(0, taintPct * (1 - d / hops)),
+        // Intermediate hops link to the entity's tx (closest navigable context)
+        clickTarget: entityTxid,
       });
       const prevId = d === 1 ? "root" : `bw-${d - 1}`;
       edges.push({ source: nodeId, target: prevId, taintPct: 80, value: 0 });
     }
 
-    // Add entity node
+    // Add entity node - clicking navigates to entity address
     const entityNodeId = `bw-entity-${entityName}`;
     nodes.push({
       id: entityNodeId,
@@ -125,6 +132,7 @@ function buildTaintGraph(findings: Finding[]): { nodes: TaintNode[]; edges: Tain
       taintPct: 100,
       entityName,
       category,
+      clickTarget: entityAddress ?? entityTxid,
     });
     const prevId = hops === 1 ? "root" : `bw-${hops - 1}`;
     edges.push({ source: entityNodeId, target: prevId, taintPct: 100, value: 0 });
@@ -170,6 +178,8 @@ function buildTaintGraph(findings: Finding[]): { nodes: TaintNode[]; edges: Tain
     const hops = (forwardEntity.params?.hops as number) ?? 1;
     const entityName = (forwardEntity.params?.entityName as string) ?? "Unknown";
     const category = (forwardEntity.params?.category as string) ?? "unknown";
+    const entityTxid = (forwardEntity.params?.entityTxid as string) ?? undefined;
+    const entityAddress = (forwardEntity.params?.entityAddress as string) ?? undefined;
 
     for (let d = 1; d < hops; d++) {
       const nodeId = `fw-${d}`;
@@ -180,6 +190,7 @@ function buildTaintGraph(findings: Finding[]): { nodes: TaintNode[]; edges: Tain
         y: 0,
         type: "regular",
         taintPct: Math.max(0, taintPct * (1 - d / hops)),
+        clickTarget: entityTxid,
       });
       const prevId = d === 1 ? "root" : `fw-${d - 1}`;
       edges.push({ source: prevId, target: nodeId, taintPct: 60, value: 0 });
@@ -195,6 +206,7 @@ function buildTaintGraph(findings: Finding[]): { nodes: TaintNode[]; edges: Tain
       taintPct: 0,
       entityName,
       category,
+      clickTarget: entityAddress ?? entityTxid,
     });
     const prevId = hops === 1 ? "root" : `fw-${hops - 1}`;
     edges.push({ source: prevId, target: entityNodeId, taintPct: 50, value: 0 });
@@ -249,9 +261,8 @@ function buildTaintGraph(findings: Finding[]): { nodes: TaintNode[]; edges: Tain
   return { nodes, edges };
 }
 
-function TaintPath({ width, findings, onTxClick, t }: { width: number; findings: Finding[]; onTxClick?: (txid: string) => void; t: (key: string, opts?: Record<string, unknown>) => string }) {
+function TaintPath({ width, findings, onTxClick, t, tooltip, containerRef }: { width: number; findings: Finding[]; onTxClick?: (txid: string) => void; t: (key: string, opts?: Record<string, unknown>) => string; tooltip: ReturnType<typeof useChartTooltip<TooltipData>>; containerRef: React.RefObject<HTMLDivElement | null> }) {
   const { nodes, edges } = useMemo(() => buildTaintGraph(findings), [findings]);
-  const tooltip = useChartTooltip<TooltipData>();
 
   const depths = nodes.map((n) => n.depth);
   const minDepth = Math.min(...depths);
@@ -364,8 +375,13 @@ function TaintPath({ width, findings, onTxClick, t }: { width: number; findings:
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.3, delay: 0.1 + i * 0.05 }}
-                style={{ cursor: onTxClick ? "pointer" : "default" }}
-                onMouseEnter={() => {
+                style={{ cursor: node.clickTarget && onTxClick ? "pointer" : "default" }}
+                onClick={() => {
+                  if (node.clickTarget && onTxClick) onTxClick(node.clickTarget);
+                }}
+                onMouseEnter={(e: React.MouseEvent) => {
+                  const rect = containerRef.current?.getBoundingClientRect();
+                  if (!rect) return;
                   tooltip.showTooltip({
                     tooltipData: {
                       label: node.label,
@@ -374,9 +390,10 @@ function TaintPath({ width, findings, onTxClick, t }: { width: number; findings:
                       entityName: node.entityName,
                       category: node.category,
                       hops: Math.abs(node.depth),
+                      clickTarget: node.clickTarget,
                     },
-                    tooltipLeft: cx,
-                    tooltipTop: cy - NODE_RADIUS - 8,
+                    tooltipLeft: e.clientX - rect.left,
+                    tooltipTop: e.clientY - rect.top - 8,
                   });
                 }}
                 onMouseLeave={tooltip.hideTooltip}
@@ -457,35 +474,14 @@ function TaintPath({ width, findings, onTxClick, t }: { width: number; findings:
           })}
         </Group>
       </svg>
-
-      {tooltip.tooltipOpen && tooltip.tooltipData && (
-        <ChartTooltip top={tooltip.tooltipTop} left={tooltip.tooltipLeft}>
-          <div className="space-y-1">
-            <div className="font-medium">{tooltip.tooltipData.label}</div>
-            {tooltip.tooltipData.entityName && (
-              <div className="text-xs" style={{ color: SVG_COLORS.high }}>
-                {tooltip.tooltipData.entityName} ({tooltip.tooltipData.category})
-              </div>
-            )}
-            {tooltip.tooltipData.hops !== undefined && tooltip.tooltipData.hops > 0 && (
-              <div className="text-xs" style={{ color: SVG_COLORS.muted }}>
-                {t("taintFlow.hopsFromTarget", { count: tooltip.tooltipData.hops, defaultValue: "{{count}} hop from target" })}
-              </div>
-            )}
-            {tooltip.tooltipData.taintPct > 0 && (
-              <div className="text-xs" style={{ color: SVG_COLORS.critical }}>
-                {t("taintFlow.taintPct", { pct: tooltip.tooltipData.taintPct, defaultValue: "Taint: {{pct}}%" })}
-              </div>
-            )}
-          </div>
-        </ChartTooltip>
-      )}
     </div>
   );
 }
 
 export function TaintPathDiagram({ findings, onTxClick }: TaintPathDiagramProps) {
   const { t } = useTranslation();
+  const tooltip = useChartTooltip<TooltipData>();
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Only render if we have relevant chain analysis findings
   const hasChainData = findings.some((f) =>
@@ -539,10 +535,41 @@ export function TaintPathDiagram({ findings, onTxClick }: TaintPathDiagramProps)
         </span>
       </div>
 
-      <div className="overflow-x-auto -mx-4 px-4">
-        <ParentSize debounceTime={100}>
-          {({ width }) => width > 0 ? <TaintPath width={Math.max(width, 400)} findings={findings} onTxClick={onTxClick} t={t} /> : null}
-        </ParentSize>
+      <div className="relative" ref={containerRef}>
+        <div className="overflow-x-auto -mx-4 px-4">
+          <ParentSize debounceTime={100}>
+            {({ width }) => width > 0 ? <TaintPath width={Math.max(width, 400)} findings={findings} onTxClick={onTxClick} t={t} tooltip={tooltip} containerRef={containerRef} /> : null}
+          </ParentSize>
+        </div>
+
+        {/* Tooltip rendered outside the scroll container to prevent clipping */}
+        {tooltip.tooltipOpen && tooltip.tooltipData && (
+          <ChartTooltip top={tooltip.tooltipTop} left={tooltip.tooltipLeft}>
+            <div className="space-y-1">
+              <div className="font-medium">{tooltip.tooltipData.label}</div>
+              {tooltip.tooltipData.entityName && (
+                <div className="text-xs" style={{ color: SVG_COLORS.high }}>
+                  {tooltip.tooltipData.entityName} ({tooltip.tooltipData.category})
+                </div>
+              )}
+              {tooltip.tooltipData.hops !== undefined && tooltip.tooltipData.hops > 0 && (
+                <div className="text-xs" style={{ color: SVG_COLORS.muted }}>
+                  {t("taintFlow.hopsFromTarget", { count: tooltip.tooltipData.hops, defaultValue: "{{count}} hop from target" })}
+                </div>
+              )}
+              {tooltip.tooltipData.taintPct > 0 && (
+                <div className="text-xs" style={{ color: SVG_COLORS.critical }}>
+                  {t("taintFlow.taintPct", { pct: tooltip.tooltipData.taintPct, defaultValue: "Taint: {{pct}}%" })}
+                </div>
+              )}
+              {tooltip.tooltipData.clickTarget && (
+                <div className="text-xs" style={{ color: SVG_COLORS.bitcoin }}>
+                  {t("taintFlow.clickToAnalyze", { defaultValue: "Click to analyze" })}
+                </div>
+              )}
+            </div>
+          </ChartTooltip>
+        )}
       </div>
     </motion.div>
   );

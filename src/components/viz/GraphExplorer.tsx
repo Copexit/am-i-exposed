@@ -414,37 +414,39 @@ export function GraphExplorer(props: GraphExplorerProps) {
         {t("graphExplorer.instructions", { defaultValue: "Click + buttons on nodes to expand the graph. Click node to analyze." })}
       </div>
 
-      <div className="overflow-x-auto -mx-4 px-4">
-        <ParentSize debounceTime={100}>
-          {({ width }) => width > 0 ? (
-            <GraphCanvas {...props} containerWidth={width} tooltip={tooltip} />
-          ) : null}
-        </ParentSize>
-      </div>
+      <div className="relative">
+        <div className="overflow-x-auto -mx-4 px-4">
+          <ParentSize debounceTime={100}>
+            {({ width }) => width > 0 ? (
+              <GraphCanvas {...props} containerWidth={width} tooltip={tooltip} />
+            ) : null}
+          </ParentSize>
+        </div>
 
-      {/* Tooltip rendered outside the scroll container to prevent clipping */}
-      {tooltip.tooltipOpen && tooltip.tooltipData && (
-        <ChartTooltip top={tooltip.tooltipTop} left={tooltip.tooltipLeft}>
-          <div className="space-y-1">
-            <div className="font-mono text-xs">{truncateId(tooltip.tooltipData.txid, 24)}</div>
-            <div className="text-xs" style={{ color: SVG_COLORS.muted }}>
-              {tooltip.tooltipData.inputCount} {t("graphExplorer.inputs", { defaultValue: "inputs" })}, {tooltip.tooltipData.outputCount} {t("graphExplorer.outputs", { defaultValue: "outputs" })}
+        {/* Tooltip rendered outside the scroll container but inside relative wrapper */}
+        {tooltip.tooltipOpen && tooltip.tooltipData && (
+          <ChartTooltip top={tooltip.tooltipTop} left={tooltip.tooltipLeft}>
+            <div className="space-y-1">
+              <div className="font-mono text-xs">{truncateId(tooltip.tooltipData.txid, 24)}</div>
+              <div className="text-xs" style={{ color: SVG_COLORS.muted }}>
+                {tooltip.tooltipData.inputCount} {t("graphExplorer.inputs", { defaultValue: "inputs" })}, {tooltip.tooltipData.outputCount} {t("graphExplorer.outputs", { defaultValue: "outputs" })}
+              </div>
+              <div className="text-xs" style={{ color: SVG_COLORS.bitcoin }}>
+                {formatSats(tooltip.tooltipData.totalValue)}
+              </div>
+              {tooltip.tooltipData.isCoinJoin && (
+                <div className="text-xs" style={{ color: SVG_COLORS.good }}>CoinJoin</div>
+              )}
+              {tooltip.tooltipData.entityLabel && (
+                <div className="text-xs" style={{ color: SVG_COLORS.high }}>{tooltip.tooltipData.entityLabel}</div>
+              )}
+              <div className="text-xs" style={{ color: SVG_COLORS.muted }}>
+                {t("graphExplorer.depth", { depth: tooltip.tooltipData.depth > 0 ? `+${tooltip.tooltipData.depth}` : tooltip.tooltipData.depth, defaultValue: "Depth: {{depth}}" })}
+              </div>
             </div>
-            <div className="text-xs" style={{ color: SVG_COLORS.bitcoin }}>
-              {formatSats(tooltip.tooltipData.totalValue)}
-            </div>
-            {tooltip.tooltipData.isCoinJoin && (
-              <div className="text-xs" style={{ color: SVG_COLORS.good }}>CoinJoin</div>
-            )}
-            {tooltip.tooltipData.entityLabel && (
-              <div className="text-xs" style={{ color: SVG_COLORS.high }}>{tooltip.tooltipData.entityLabel}</div>
-            )}
-            <div className="text-xs" style={{ color: SVG_COLORS.muted }}>
-              {t("graphExplorer.depth", { depth: tooltip.tooltipData.depth > 0 ? `+${tooltip.tooltipData.depth}` : tooltip.tooltipData.depth, defaultValue: "Depth: {{depth}}" })}
-            </div>
-          </div>
-        </ChartTooltip>
-      )}
+          </ChartTooltip>
+        )}
+      </div>
 
       {/* Loading indicators */}
       {props.loading.size > 0 && (

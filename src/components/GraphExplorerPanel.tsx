@@ -5,7 +5,8 @@ import { useNetwork } from "@/context/NetworkContext";
 import { createApiClient } from "@/lib/api/client";
 import { useGraphExpansion } from "@/hooks/useGraphExpansion";
 import { ChartErrorBoundary } from "./ui/ChartErrorBoundary";
-import type { MempoolTransaction } from "@/lib/api/types";
+import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
+import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 import type { Finding } from "@/lib/types";
 
 const GraphExplorer = lazy(() => import("./viz/GraphExplorer").then(m => ({ default: m.GraphExplorer })));
@@ -14,21 +15,24 @@ interface GraphExplorerPanelProps {
   tx: MempoolTransaction;
   findings?: Finding[];
   onTxClick?: (txid: string) => void;
-  /** Pre-fetched parent transactions (from analysis) to pre-populate the graph. */
-  parentTxMap?: Map<string, MempoolTransaction> | null;
-  /** Pre-fetched child transactions by output index (from analysis). */
-  childTxMap?: Map<number, MempoolTransaction> | null;
+  /** Backward trace layers from chain analysis (multi-hop). */
+  backwardLayers?: TraceLayer[] | null;
+  /** Forward trace layers from chain analysis (multi-hop). */
+  forwardLayers?: TraceLayer[] | null;
+  /** Per-output spend status (needed for forward edge resolution). */
+  outspends?: MempoolOutspend[] | null;
 }
 
 /**
  * Self-contained graph explorer that manages its own API calls
  * and expansion state. Wraps the GraphExplorer visualization.
+ *
+ * When trace layers are provided, auto-expands up to 2 hops in each direction.
  */
-export function GraphExplorerPanel({ tx, findings, onTxClick, parentTxMap, childTxMap }: GraphExplorerPanelProps) {
+export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, forwardLayers, outspends }: GraphExplorerPanelProps) {
   const { config } = useNetwork();
 
   // Create API client with an AbortController that aborts on config change / unmount.
-  // useMemo for stable reference; useEffect for cleanup.
   const { fetcher, controller } = useMemo(() => {
     const ac = new AbortController();
     return { fetcher: createApiClient(config, ac.signal), controller: ac };
@@ -44,7 +48,7 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, parentTxMap, child
     maxNodes,
     canUndo,
     setRoot,
-    setRootWithNeighbors,
+    setRootWithLayers,
     expandInput,
     expandOutput,
     collapse,
@@ -53,20 +57,21 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, parentTxMap, child
   } = useGraphExpansion(fetcher);
 
   // Set root tx on mount or when tx changes.
-  // If pre-fetched neighbors are available, pre-populate the graph.
+  // If trace layers are available, pre-populate up to 2 hops in each direction.
   useEffect(() => {
-    const hasParents = parentTxMap && parentTxMap.size > 0;
-    const hasChildren = childTxMap && childTxMap.size > 0;
-    if (hasParents || hasChildren) {
-      setRootWithNeighbors(
+    const hasBw = backwardLayers && backwardLayers.length > 0;
+    const hasFw = forwardLayers && forwardLayers.length > 0;
+    if (hasBw || hasFw) {
+      setRootWithLayers(
         tx,
-        parentTxMap ?? new Map(),
-        childTxMap ?? new Map(),
+        backwardLayers ?? [],
+        forwardLayers ?? [],
+        outspends ?? undefined,
       );
     } else {
       setRoot(tx);
     }
-  }, [tx.txid, setRoot, setRootWithNeighbors, tx, parentTxMap, childTxMap]);
+  }, [tx.txid, setRoot, setRootWithLayers, tx, backwardLayers, forwardLayers, outspends]);
 
   if (!rootTxid) return null;
 

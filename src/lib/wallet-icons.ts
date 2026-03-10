@@ -20,6 +20,11 @@ const WALLET_ICON_MAP: [substring: string, iconId: string][] = [
   ["green", "green"],
   ["muun", "muun"],
   ["bitkit", "bitkit"],
+  ["nunchuk", "nunchuk"],
+  ["cake wallet", "cake-wallet"],
+  ["cake", "cake-wallet"],
+  ["bull bitcoin", "bull-bitcoin"],
+  ["bull", "bull-bitcoin"],
 ];
 
 /** Resolve a wallet display name to an icon file stem, or null if no match. */

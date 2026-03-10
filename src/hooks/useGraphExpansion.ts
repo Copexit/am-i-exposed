@@ -2,6 +2,7 @@
 
 import { useCallback, useReducer, useRef } from "react";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
+import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 
 /**
  * Interactive graph expansion hook (OXT-style click-to-expand).
@@ -33,6 +34,7 @@ interface GraphState {
 type GraphAction =
   | { type: "SET_ROOT"; tx: MempoolTransaction }
   | { type: "SET_ROOT_WITH_NEIGHBORS"; root: MempoolTransaction; parents: Map<string, MempoolTransaction>; children: Map<number, MempoolTransaction> }
+  | { type: "SET_ROOT_WITH_LAYERS"; root: MempoolTransaction; backwardLayers: TraceLayer[]; forwardLayers: TraceLayer[]; outspends?: MempoolOutspend[] }
   | { type: "ADD_NODE"; node: GraphNode }
   | { type: "REMOVE_NODE"; txid: string }
   | { type: "SET_LOADING"; txid: string; loading: boolean }
@@ -40,7 +42,7 @@ type GraphAction =
   | { type: "RESET" }
   | { type: "UNDO" };
 
-const MAX_NODES = 20;
+const MAX_NODES = 50;
 
 function graphReducer(state: GraphState, action: GraphAction): GraphState {
   switch (action.type) {
@@ -92,6 +94,87 @@ function graphReducer(state: GraphState, action: GraphAction): GraphState {
           parentEdge: { fromTxid: rootTxid, outputIndex: outputIdx },
         });
         history.push(ctx.txid);
+      }
+
+      return { nodes, rootTxid, history, loading: new Set(), errors: new Map() };
+    }
+
+    case "SET_ROOT_WITH_LAYERS": {
+      const rootTxid = action.root.txid;
+      const nodes = new Map<string, GraphNode>();
+      nodes.set(rootTxid, { txid: rootTxid, tx: action.root, depth: 0 });
+      const history: string[] = [];
+
+      // Build backward hops from trace layers (depth -1, -2, ...)
+      const bwLayers = action.backwardLayers;
+      for (let layerIdx = 0; layerIdx < Math.min(bwLayers.length, 2); layerIdx++) {
+        const hopDepth = -(layerIdx + 1);
+        const layer = bwLayers[layerIdx];
+        for (const [txid, ltx] of layer.txs) {
+          if (nodes.size >= MAX_NODES) break;
+          if (nodes.has(txid)) continue;
+          // Find which already-placed node this tx feeds into
+          const childDepth = hopDepth + 1;
+          let childEdge: GraphNode["childEdge"] | undefined;
+          for (const [existingTxid, existingNode] of nodes) {
+            if (existingNode.depth !== childDepth) continue;
+            const inputIdx = existingNode.tx.vin.findIndex((v) => v.txid === txid);
+            if (inputIdx >= 0) {
+              childEdge = { toTxid: existingTxid, inputIndex: inputIdx };
+              break;
+            }
+          }
+          if (!childEdge && layerIdx > 0) continue; // depth-2+ must connect to an existing node
+          if (!childEdge) {
+            // depth-1: connect to root
+            const inputIdx = action.root.vin.findIndex((v) => v.txid === txid);
+            if (inputIdx === -1) continue;
+            childEdge = { toTxid: rootTxid, inputIndex: inputIdx };
+          }
+          nodes.set(txid, { txid, tx: ltx, depth: hopDepth, childEdge });
+          history.push(txid);
+        }
+      }
+
+      // Build forward hops from trace layers (depth +1, +2, ...)
+      const fwLayers = action.forwardLayers;
+      for (let layerIdx = 0; layerIdx < Math.min(fwLayers.length, 2); layerIdx++) {
+        const hopDepth = layerIdx + 1;
+        const layer = fwLayers[layerIdx];
+        for (const [txid, ltx] of layer.txs) {
+          if (nodes.size >= MAX_NODES) break;
+          if (nodes.has(txid)) continue;
+          // Find which already-placed node this tx spends from
+          const parentDepth = hopDepth - 1;
+          let parentEdge: GraphNode["parentEdge"] | undefined;
+          for (const [existingTxid, existingNode] of nodes) {
+            if (existingNode.depth !== parentDepth) continue;
+            // Check if this tx has an input spending from the existing node
+            for (let vi = 0; vi < ltx.vin.length; vi++) {
+              if (ltx.vin[vi].txid === existingTxid) {
+                // Find the output index being spent
+                const outputIdx = ltx.vin[vi].vout ?? 0;
+                parentEdge = { fromTxid: existingTxid, outputIndex: outputIdx };
+                break;
+              }
+            }
+            if (parentEdge) break;
+          }
+          if (!parentEdge && layerIdx > 0) continue; // depth-2+ must connect
+          if (!parentEdge && action.outspends) {
+            // depth-1: find via outspends
+            for (let oi = 0; oi < action.outspends.length; oi++) {
+              const os = action.outspends[oi];
+              if (os?.spent && os.txid === txid) {
+                parentEdge = { fromTxid: rootTxid, outputIndex: oi };
+                break;
+              }
+            }
+          }
+          if (!parentEdge) continue;
+          nodes.set(txid, { txid, tx: ltx, depth: hopDepth, parentEdge });
+          history.push(txid);
+        }
       }
 
       return { nodes, rootTxid, history, loading: new Set(), errors: new Map() };
@@ -193,6 +276,16 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null) {
     children: Map<number, MempoolTransaction>,
   ) => {
     dispatch({ type: "SET_ROOT_WITH_NEIGHBORS", root, parents, children });
+  }, []);
+
+  /** Initialize graph with root + multi-hop trace layers (auto-expands up to 2 hops). */
+  const setRootWithLayers = useCallback((
+    root: MempoolTransaction,
+    backwardLayers: TraceLayer[],
+    forwardLayers: TraceLayer[],
+    outspends?: MempoolOutspend[],
+  ) => {
+    dispatch({ type: "SET_ROOT_WITH_LAYERS", root, backwardLayers, forwardLayers, outspends });
   }, []);
 
   /** Expand backward: fetch the parent tx that created the given input */
@@ -303,6 +396,7 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null) {
     canUndo: state.history.length > 0,
     setRoot,
     setRootWithNeighbors,
+    setRootWithLayers,
     expandInput,
     expandOutput,
     collapse,
