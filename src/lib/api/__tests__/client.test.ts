@@ -172,4 +172,44 @@ describe("createApiClient", () => {
     expect(price).toBe(67_500);
     expect(primary.getHistoricalPrice).toHaveBeenCalledWith(1700000000);
   });
+
+  it("throws when both primary and fallback fail", async () => {
+    const primary = makeMockClient({
+      getTransaction: vi.fn().mockRejectedValue(new ApiError("API_UNAVAILABLE", "primary down")),
+    });
+    const fallback = makeMockClient({
+      getTransaction: vi.fn().mockRejectedValue(new ApiError("API_UNAVAILABLE", "fallback down")),
+    });
+    mockCreateClient
+      .mockReturnValueOnce(primary as ReturnType<typeof createMempoolClient>)
+      .mockReturnValueOnce(fallback as ReturnType<typeof createMempoolClient>);
+
+    const client = createApiClient(MAINNET_CONFIG);
+    await expect(client.getTransaction("abc123def456abc123def456abc123def456abc123def456abc123def456abc12345"))
+      .rejects.toThrow("fallback down");
+    expect(primary.getTransaction).toHaveBeenCalled();
+    expect(fallback.getTransaction).toHaveBeenCalled();
+  });
+
+  it("passes abort signal to underlying clients", () => {
+    const abortController = new AbortController();
+    mockCreateClient.mockReturnValue(makeMockClient() as ReturnType<typeof createMempoolClient>);
+
+    createApiClient(MAINNET_CONFIG, abortController.signal);
+    // Signal is passed to both primary and fallback createMempoolClient calls
+    expect(mockCreateClient).toHaveBeenCalledWith(MAINNET_CONFIG.mempoolBaseUrl, abortController.signal);
+    expect(mockCreateClient).toHaveBeenCalledWith(MAINNET_CONFIG.esploraBaseUrl, abortController.signal);
+  });
+
+  it("getHistoricalEurPrice calls mempool directly", async () => {
+    const primary = makeMockClient({
+      getHistoricalEurPrice: vi.fn().mockResolvedValue(62_000),
+    });
+    mockCreateClient.mockReturnValue(primary as ReturnType<typeof createMempoolClient>);
+
+    const client = createApiClient(MAINNET_CONFIG);
+    const price = await client.getHistoricalEurPrice(1700000000);
+    expect(price).toBe(62_000);
+    expect(primary.getHistoricalEurPrice).toHaveBeenCalledWith(1700000000);
+  });
 });
