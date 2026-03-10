@@ -11,11 +11,12 @@ import { WalletIcon } from "@/components/ui/WalletIcon";
 
 interface WalletEntry {
   name: string;
-  type: "desktop" | "mobile" | "hardware";
+  type: ("desktop" | "mobile" | "hardware")[];
   nSequence: "good" | "bad";
   antiFeeSniping: boolean;
   coinJoin: boolean;
-  payJoin: boolean | "v1-only";
+  payJoin: boolean | "v1-only" | "stowaway";
+  bip47: boolean;
   silentPayments: boolean | "send-only";
   ownNode: boolean | "partial" | "is-node";
   tor: boolean | "partial" | "native";
@@ -25,11 +26,12 @@ interface WalletEntry {
 const RECOMMENDED_WALLETS: WalletEntry[] = [
   {
     name: "Sparrow",
-    type: "desktop",
+    type: ["desktop"],
     nSequence: "good",
     antiFeeSniping: true,
     coinJoin: true,
     payJoin: "v1-only",
+    bip47: true,
     silentPayments: false,
     ownNode: true,
     tor: true,
@@ -37,11 +39,12 @@ const RECOMMENDED_WALLETS: WalletEntry[] = [
   },
   {
     name: "Bitcoin Core",
-    type: "desktop",
+    type: ["desktop"],
     nSequence: "good",
     antiFeeSniping: true,
     coinJoin: false,
     payJoin: false,
+    bip47: false,
     silentPayments: true,
     ownNode: "is-node",
     tor: true,
@@ -49,11 +52,12 @@ const RECOMMENDED_WALLETS: WalletEntry[] = [
   },
   {
     name: "Electrum",
-    type: "desktop",
+    type: ["desktop", "mobile"],
     nSequence: "good",
     antiFeeSniping: true,
     coinJoin: false,
     payJoin: false,
+    bip47: false,
     silentPayments: false,
     ownNode: true,
     tor: true,
@@ -61,11 +65,12 @@ const RECOMMENDED_WALLETS: WalletEntry[] = [
   },
   {
     name: "Ashigaru",
-    type: "mobile",
+    type: ["mobile"],
     nSequence: "good",
     antiFeeSniping: true,
     coinJoin: true,
-    payJoin: false,
+    payJoin: "stowaway",
+    bip47: true,
     silentPayments: false,
     ownNode: true,
     tor: "native",
@@ -73,35 +78,38 @@ const RECOMMENDED_WALLETS: WalletEntry[] = [
   },
   {
     name: "Trezor Suite",
-    type: "hardware",
+    type: ["hardware"],
     nSequence: "good",
     antiFeeSniping: true,
     coinJoin: false,
     payJoin: false,
+    bip47: false,
     silentPayments: false,
     ownNode: true,
     tor: "partial",
     url: "https://trezor.io/trezor-suite",
   },
   {
-    name: "Blockstream Jade",
-    type: "hardware",
+    name: "Blockstream Green",
+    type: ["desktop", "mobile"],
     nSequence: "good",
     antiFeeSniping: true,
     coinJoin: false,
     payJoin: false,
-    silentPayments: false,
+    bip47: false,
+    silentPayments: "send-only",
     ownNode: true,
     tor: true,
-    url: "https://blockstream.com/jade",
+    url: "https://blockstream.com/green",
   },
   {
     name: "Nunchuk",
-    type: "desktop",
+    type: ["desktop", "mobile"],
     nSequence: "good",
     antiFeeSniping: true,
     coinJoin: false,
     payJoin: false,
+    bip47: false,
     silentPayments: true,
     ownNode: true,
     tor: "partial",
@@ -109,11 +117,12 @@ const RECOMMENDED_WALLETS: WalletEntry[] = [
   },
   {
     name: "Wasabi",
-    type: "desktop",
+    type: ["desktop"],
     nSequence: "bad",
     antiFeeSniping: false,
     coinJoin: true,
     payJoin: false,
+    bip47: false,
     silentPayments: "send-only",
     ownNode: true,
     tor: "native",
@@ -121,11 +130,12 @@ const RECOMMENDED_WALLETS: WalletEntry[] = [
   },
   {
     name: "Cake Wallet",
-    type: "mobile",
+    type: ["mobile"],
     nSequence: "good",
     antiFeeSniping: true,
     coinJoin: false,
     payJoin: true,
+    bip47: false,
     silentPayments: true,
     ownNode: false,
     tor: true,
@@ -133,24 +143,26 @@ const RECOMMENDED_WALLETS: WalletEntry[] = [
   },
   {
     name: "Bull Bitcoin",
-    type: "mobile",
+    type: ["mobile"],
     nSequence: "good",
     antiFeeSniping: true,
     coinJoin: false,
     payJoin: true,
+    bip47: false,
     silentPayments: false,
-    ownNode: false,
-    tor: false,
+    ownNode: true,
+    tor: "partial",
     url: "https://bullbitcoin.com",
   },
   {
     name: "Blue Wallet",
-    type: "mobile",
+    type: ["desktop", "mobile"],
     nSequence: "good",
     antiFeeSniping: true,
     coinJoin: false,
     payJoin: false,
-    silentPayments: false,
+    bip47: true,
+    silentPayments: "send-only",
     ownNode: true,
     tor: false,
     url: "https://bluewallet.io",
@@ -220,7 +232,7 @@ const CRITERIA: CriteriaRow[] = [
 
 // ── Helper components ───────────────────────────────────────────────────────
 
-function BoolCell({ value }: { value: boolean | "partial" | "native" | "is-node" | "v1-only" | "send-only" }) {
+function BoolCell({ value }: { value: boolean | "partial" | "native" | "is-node" | "v1-only" | "send-only" | "stowaway" }) {
   const { t } = useTranslation();
   if (value === true) return <span className="text-severity-good">&#10003;</span>;
   if (value === false) return <span className="text-muted">&#10007;</span>;
@@ -228,6 +240,7 @@ function BoolCell({ value }: { value: boolean | "partial" | "native" | "is-node"
   if (value === "native") return <span className="text-severity-good text-xs">{t("walletGuide.native", { defaultValue: "Native" })}</span>;
   if (value === "v1-only") return <span className="text-severity-medium text-xs">{t("walletGuide.v1Only", { defaultValue: "v1 only" })}</span>;
   if (value === "send-only") return <span className="text-severity-medium text-xs">{t("walletGuide.sendOnly", { defaultValue: "Send only" })}</span>;
+  if (value === "stowaway") return <span className="text-severity-medium text-xs">{t("walletGuide.stowaway", { defaultValue: "Stowaway" })}</span>;
   return <span className="text-severity-medium text-xs">{t("walletGuide.partial", { defaultValue: "Partial" })}</span>;
 }
 
@@ -238,8 +251,14 @@ function TypeBadge({ type }: { type: WalletEntry["type"] }) {
     mobile: { label: t("walletGuide.typeMobile", { defaultValue: "Mobile" }), cls: "bg-severity-good/15 text-severity-good" },
     hardware: { label: t("walletGuide.typeHardware", { defaultValue: "Hardware" }), cls: "bg-severity-medium/15 text-severity-medium" },
   };
-  const c = config[type];
-  return <span className={`text-xs px-1.5 py-0.5 rounded ${c.cls}`}>{c.label}</span>;
+  return (
+    <span className="inline-flex gap-1 flex-wrap justify-center">
+      {type.map((t) => {
+        const c = config[t];
+        return <span key={t} className={`text-xs px-1.5 py-0.5 rounded ${c.cls}`}>{c.label}</span>;
+      })}
+    </span>
+  );
 }
 
 // ── Main component ──────────────────────────────────────────────────────────
@@ -366,6 +385,7 @@ export function WalletGuide({ detectedWallet, canCoinJoin }: WalletGuideProps) {
                         <th className="text-center px-2 py-2 font-medium whitespace-nowrap">{t("walletGuide.colAntiFeeSniping", { defaultValue: "Anti-snip" })}</th>
                         <th className="text-center px-2 py-2 font-medium">CoinJoin</th>
                         <th className="text-center px-2 py-2 font-medium whitespace-nowrap">{t("walletGuide.colPayJoin", { defaultValue: "PayJoin" })}</th>
+                        <th className="text-center px-2 py-2 font-medium whitespace-nowrap" title="BIP47 / Paynym">{t("walletGuide.colBip47", { defaultValue: "BIP47" })}</th>
                         <th className="text-center px-2 py-2 font-medium whitespace-nowrap" title="Silent Payments (BIP352)">{t("walletGuide.colSilentPay", { defaultValue: "SP" })}</th>
                         <th className="text-center px-2 py-2 font-medium">{t("walletGuide.colOwnNode", { defaultValue: "Own Node" })}</th>
                         <th className="text-center px-2 py-2 font-medium">Tor</th>
@@ -398,6 +418,7 @@ export function WalletGuide({ detectedWallet, canCoinJoin }: WalletGuideProps) {
                           <td className="text-center px-2 py-2"><BoolCell value={w.antiFeeSniping} /></td>
                           <td className="text-center px-2 py-2"><BoolCell value={w.coinJoin} /></td>
                           <td className="text-center px-2 py-2"><BoolCell value={w.payJoin} /></td>
+                          <td className="text-center px-2 py-2"><BoolCell value={w.bip47} /></td>
                           <td className="text-center px-2 py-2"><BoolCell value={w.silentPayments} /></td>
                           <td className="text-center px-2 py-2"><BoolCell value={w.ownNode} /></td>
                           <td className="text-center px-2 py-2"><BoolCell value={w.tor} /></td>

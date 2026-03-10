@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import { Check, Loader2, Circle } from "lucide-react";
 import { useNetwork } from "@/context/NetworkContext";
 import { TX_BASE_SCORE, ADDRESS_BASE_SCORE } from "@/lib/scoring/score";
@@ -21,6 +21,7 @@ export function DiagnosticLoader({ steps, phase, inputType, fetchProgress }: Dia
   const { isUmbrel } = useNetwork();
   const isLocalApi = isUmbrel;
   const [elapsed, setElapsed] = useState(0);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     const start = Date.now();
@@ -159,42 +160,94 @@ export function DiagnosticLoader({ steps, phase, inputType, fetchProgress }: Dia
         </div>
       )}
 
-      <div className="space-y-2.5" role="status" aria-live="polite">
-        {steps.map((step, i) => (
+      {expanded ? (
+        <div className="space-y-2.5" role="status" aria-live="polite">
+          {steps.map((step, i) => (
+            <StepRow key={step.id} step={step} delay={i * 0.04} />
+          ))}
+        </div>
+      ) : (
+        <CompactStepList steps={steps} t={t} />
+      )}
+
+      {steps.length > 6 && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="text-xs text-muted hover:text-foreground transition-colors mt-1 px-1.5"
+        >
+          {expanded
+            ? t("loader.showLess", { defaultValue: "Show less" })
+            : t("loader.showAll", { count: steps.length, defaultValue: "Show all {{count}} checks" })}
+        </button>
+      )}
+    </div>
+  );
+}
+
+const VISIBLE_DONE = 2;
+
+function CompactStepList({ steps, t }: { steps: HeuristicStep[]; t: (key: string, opts?: Record<string, unknown>) => string }) {
+  const doneSteps = steps.filter((s) => s.status === "done");
+  const runningStep = steps.find((s) => s.status === "running");
+  const hiddenDoneCount = Math.max(0, doneSteps.length - VISIBLE_DONE);
+  const recentDone = doneSteps.slice(-VISIBLE_DONE);
+
+  const compactSteps = [
+    ...recentDone,
+    ...(runningStep ? [runningStep] : []),
+  ];
+
+  return (
+    <div className="space-y-2" role="status" aria-live="polite">
+      {hiddenDoneCount > 0 && (
+        <div className="flex items-center gap-2.5 text-sm text-muted px-1.5 py-0.5">
+          <Check size={14} className="text-success shrink-0" />
+          <span>{t("loader.checksPassed", { count: hiddenDoneCount, defaultValue: "{{count}} checks passed" })}</span>
+        </div>
+      )}
+
+      <AnimatePresence mode="popLayout" initial={false}>
+        {compactSteps.map((step) => (
           <motion.div
             key={step.id}
+            layout
             initial={{ opacity: 0, x: -12 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: i * 0.04, type: "spring", stiffness: 200, damping: 20 }}
-            className={`flex items-center gap-2.5 text-sm rounded-md px-1.5 py-0.5 ${
-              step.status === "running" ? "bg-bitcoin/5" : ""
-            }`}
+            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+            transition={{ type: "spring", stiffness: 200, damping: 25 }}
           >
-            <StepIcon status={step.status} />
-            <span
-              className={`flex-1 ${
-                step.status === "done"
-                  ? "text-foreground"
-                  : step.status === "running"
-                    ? "text-foreground"
-                    : "text-muted"
-              }`}
-            >
-              {step.label}
-            </span>
-            {step.status === "done" && step.impact !== undefined && step.impact !== 0 && (
-              <span
-                className={`text-xs tabular-nums ${
-                  step.impact > 0 ? "text-severity-good" : "text-severity-critical/70"
-                }`}
-              >
-                {step.impact > 0 ? "+" : ""}{step.impact}
-              </span>
-            )}
+            <StepRow step={step} />
           </motion.div>
         ))}
-      </div>
+      </AnimatePresence>
     </div>
+  );
+}
+
+function StepRow({ step, delay }: { step: HeuristicStep; delay?: number }) {
+  return (
+    <motion.div
+      initial={delay !== undefined ? { opacity: 0, x: -12 } : undefined}
+      animate={{ opacity: 1, x: 0 }}
+      transition={delay !== undefined ? { delay, type: "spring", stiffness: 200, damping: 20 } : undefined}
+      className={`flex items-center gap-2.5 text-sm rounded-md px-1.5 py-0.5 ${
+        step.status === "running" ? "bg-bitcoin/5" : ""
+      }`}
+    >
+      <StepIcon status={step.status} />
+      <span className={`flex-1 ${step.status === "pending" ? "text-muted" : "text-foreground"}`}>
+        {step.label}
+      </span>
+      {step.status === "done" && step.impact !== undefined && step.impact !== 0 && (
+        <span
+          className={`text-xs tabular-nums ${
+            step.impact > 0 ? "text-severity-good" : "text-severity-critical/70"
+          }`}
+        >
+          {step.impact > 0 ? "+" : ""}{step.impact}
+        </span>
+      )}
+    </motion.div>
   );
 }
 
