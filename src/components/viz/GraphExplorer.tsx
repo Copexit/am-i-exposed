@@ -324,28 +324,29 @@ function GraphCanvas({
                 </Text>
               )}
 
-              {/* Expand left button (backward) */}
-              {!node.isRoot && node.depth <= 0 && (
-                <g style={{ cursor: "pointer" }} onClick={() => {
-                  // Expand first non-coinbase input
-                  const idx = node.tx.vin.findIndex((v) => !v.is_coinbase);
-                  if (idx >= 0) onExpandInput(node.txid, idx);
-                }}>
-                  <circle cx={node.x - 4} cy={node.y + NODE_H / 2} r={8} fill={SVG_COLORS.surfaceElevated} stroke={color} strokeWidth={1} />
-                  <Text x={node.x - 4} y={node.y + NODE_H / 2 + 4} fontSize={12} textAnchor="middle" fill={color}>+</Text>
-                </g>
-              )}
+              {/* Expand left button (backward) - find first unexpanded input */}
+              {!node.isRoot && node.depth <= 0 && (() => {
+                const idx = node.tx.vin.findIndex((v) => !v.is_coinbase && !nodes.has(v.txid));
+                return idx >= 0 ? (
+                  <g style={{ cursor: "pointer" }} onClick={() => onExpandInput(node.txid, idx)}>
+                    <circle cx={node.x - 4} cy={node.y + NODE_H / 2} r={8} fill={SVG_COLORS.surfaceElevated} stroke={color} strokeWidth={1} />
+                    <Text x={node.x - 4} y={node.y + NODE_H / 2 + 4} fontSize={12} textAnchor="middle" fill={color}>+</Text>
+                  </g>
+                ) : null;
+              })()}
 
-              {/* Expand right button (forward) */}
-              {node.depth >= 0 && (
-                <g style={{ cursor: "pointer" }} onClick={() => {
-                  // Expand first output
-                  onExpandOutput(node.txid, 0);
-                }}>
-                  <circle cx={node.x + node.width + 4} cy={node.y + NODE_H / 2} r={8} fill={SVG_COLORS.surfaceElevated} stroke={color} strokeWidth={1} />
-                  <Text x={node.x + node.width + 4} y={node.y + NODE_H / 2 + 4} fontSize={12} textAnchor="middle" fill={color}>+</Text>
-                </g>
-              )}
+              {/* Expand right button (forward) - find first unexpanded output */}
+              {node.depth >= 0 && (() => {
+                const idx = node.tx.vout.findIndex((_, i) =>
+                  !Array.from(nodes.values()).some((n) => n.parentEdge?.fromTxid === node.txid && n.parentEdge?.outputIndex === i)
+                );
+                return idx >= 0 ? (
+                  <g style={{ cursor: "pointer" }} onClick={() => onExpandOutput(node.txid, idx)}>
+                    <circle cx={node.x + node.width + 4} cy={node.y + NODE_H / 2} r={8} fill={SVG_COLORS.surfaceElevated} stroke={color} strokeWidth={1} />
+                    <Text x={node.x + node.width + 4} y={node.y + NODE_H / 2 + 4} fontSize={12} textAnchor="middle" fill={color}>+</Text>
+                  </g>
+                ) : null;
+              })()}
 
               {/* Collapse button for non-root nodes */}
               {!node.isRoot && (

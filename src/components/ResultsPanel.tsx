@@ -474,7 +474,7 @@ export const ResultsPanel = memo(function ResultsPanel({
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }} className="w-full">
           <ChartErrorBoundary>
             <Suspense fallback={null}>
-              {result.findings.some((f) => f.id.startsWith("h4-")) ? (
+              {result.findings.some((f) => isCoinJoinFinding(f) && f.scoreImpact >= 15) ? (
                 <CoinJoinStructure tx={txData} findings={result.findings} onAddressClick={onScan} usdPrice={usdPrice} outspends={outspends} />
               ) : (
                 <TxFlowDiagram tx={txData} findings={result.findings} onAddressClick={onScan} usdPrice={usdPrice} outspends={outspends} />
