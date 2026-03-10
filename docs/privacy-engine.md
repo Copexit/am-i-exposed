@@ -1007,7 +1007,7 @@ The following measures minimize the privacy risks of using this tool:
 - **Tor .onion endpoint auto-detection.** When the tool detects that it is running in Tor Browser, it automatically routes API requests to the mempool.space .onion address, keeping your queries within the Tor network.
 - **Strict Referrer-Policy headers.** am-i.exposed sets `Referrer-Policy: no-referrer` to prevent the browser from sending the page URL (which may contain your queried address in the hash) in the Referer header when making API requests.
 - **Content Security Policy.** CSP headers restrict which domains the page can connect to, preventing exfiltration of data to unauthorized endpoints. Only explicitly listed API endpoints are allowed.
-- **No analytics, no tracking, no cookies.** am-i.exposed does not use Google Analytics, Plausible, or any analytics platform. No cookies are set. Recent scan history is stored in sessionStorage (cleared automatically when the browser tab closes). No addresses or transaction IDs persist between sessions.
+- **No analytics, no tracking, no cookies.** am-i.exposed does not use Google Analytics, Plausible, or any analytics platform. No cookies are set. Recent scan history is stored in localStorage. API responses are cached in IndexedDB for faster repeat analysis. Both can be cleared from Settings. No data is transmitted to any server beyond mempool.space.
 
 ---
 

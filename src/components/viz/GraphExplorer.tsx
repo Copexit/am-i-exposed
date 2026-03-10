@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef, useEffect } from "react";
 import { motion } from "motion/react";
 import { Text } from "@visx/text";
 import { ParentSize } from "@visx/responsive";
@@ -187,6 +187,7 @@ function getNodeColor(node: LayoutNode): string {
 interface GraphCanvasProps extends GraphExplorerProps {
   containerWidth: number;
   tooltip: ReturnType<typeof useChartTooltip<TooltipData>>;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
 }
 
 function GraphCanvas({
@@ -198,6 +199,7 @@ function GraphCanvas({
   onTxClick,
   containerWidth,
   tooltip,
+  scrollRef,
 }: GraphCanvasProps) {
   const { layoutNodes, edges, width, height } = useMemo(
     () => layoutGraph(nodes, rootTxid),
@@ -206,6 +208,16 @@ function GraphCanvas({
 
   const svgWidth = Math.max(containerWidth, width);
   const svgHeight = Math.max(height, 150);
+
+  // Auto-scroll to center the root transaction node
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const rootNode = layoutNodes.find((n) => n.isRoot);
+    if (!rootNode) return;
+    const rootCenterX = rootNode.x + rootNode.width / 2;
+    el.scrollLeft = rootCenterX - el.clientWidth / 2;
+  }, [layoutNodes, scrollRef]);
 
   return (
     <div className="relative" style={{ minWidth: svgWidth }}>
@@ -367,6 +379,7 @@ function GraphCanvas({
 export function GraphExplorer(props: GraphExplorerProps) {
   const { t } = useTranslation();
   const tooltip = useChartTooltip<TooltipData>();
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   if (props.nodes.size === 0) return null;
 
@@ -416,10 +429,10 @@ export function GraphExplorer(props: GraphExplorerProps) {
       </div>
 
       <div className="relative">
-        <div className="overflow-x-auto -mx-4 px-4">
+        <div ref={scrollRef} className="overflow-x-auto -mx-4 px-4">
           <ParentSize debounceTime={100}>
             {({ width }) => width > 0 ? (
-              <GraphCanvas {...props} containerWidth={width} tooltip={tooltip} />
+              <GraphCanvas {...props} containerWidth={width} tooltip={tooltip} scrollRef={scrollRef} />
             ) : null}
           </ParentSize>
         </div>

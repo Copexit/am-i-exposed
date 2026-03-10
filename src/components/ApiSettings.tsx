@@ -16,6 +16,7 @@ import {
 } from "@/lib/analysis/entity-filter";
 import { NetworkSettings } from "@/components/settings/NetworkSettings";
 import { AnalysisSettingsPanel } from "@/components/settings/AnalysisSettingsPanel";
+import { CacheSettingsPanel } from "@/components/settings/CacheSettingsPanel";
 import { LocaleSelector } from "@/components/settings/LocaleSelector";
 
 const NETWORKS: { value: BitcoinNetwork; label: string; dot: string }[] = [
@@ -168,6 +169,9 @@ export function ApiSettings() {
 
           {/* Analysis settings */}
           <AnalysisSettingsPanel />
+
+          {/* Cache settings */}
+          <CacheSettingsPanel />
 
           {/* Entity filter status */}
           <EntityFilterStatus t={t} />

@@ -62,7 +62,7 @@ export function WalletTxList({ addressInfos, onScan }: WalletTxListProps) {
         const fee = tx.fee ?? 0;
         const date = tx.status.block_time
           ? new Date(tx.status.block_time * 1000).toLocaleDateString()
-          : "Unconfirmed";
+          : t("wallet.unconfirmed", { defaultValue: "Unconfirmed" });
 
         return (
           <div key={tx.txid} className="rounded-lg border border-card-border overflow-hidden">
@@ -88,13 +88,13 @@ export function WalletTxList({ addressInfos, onScan }: WalletTxListProps) {
 
               {/* In/out count */}
               <span className="text-xs text-muted flex-shrink-0">
-                {tx.vin.length}in/{tx.vout.length}out
+                {t("wallet.tx_inOut", { inputs: tx.vin.length, outputs: tx.vout.length, defaultValue: "{{inputs}}in/{{outputs}}out" })}
               </span>
 
               {/* Fee */}
               {fee > 0 && (
                 <span className="text-xs text-muted flex-shrink-0 hidden sm:inline">
-                  {fee.toLocaleString("en-US")} sats fee
+                  {t("wallet.tx_satsFee", { fee: fee.toLocaleString("en-US"), defaultValue: "{{fee}} sats fee" })}
                 </span>
               )}
 

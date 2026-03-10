@@ -15,6 +15,8 @@ export interface AnalysisSettings {
   timeout: number;
   /** Wallet scan gap limit: consecutive unused addresses before stopping (1-100, default 5) */
   walletGapLimit: number;
+  /** Persist API cache in IndexedDB across sessions (default true) */
+  enableCache: boolean;
 }
 
 const STORAGE_KEY = "analysis-settings";
@@ -26,6 +28,7 @@ const DEFAULTS: AnalysisSettings = {
   skipCoinJoins: false,
   timeout: 10,
   walletGapLimit: 5,
+  enableCache: true,
 };
 
 // Module-level cache for referential stability (useSyncExternalStore requirement)

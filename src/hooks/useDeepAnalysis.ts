@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { createApiQueue, isLocalInstance, type QueuePriority } from "@/lib/api/queue";
-import { withCache } from "@/lib/api/cache";
 import type { ApiClient } from "@/lib/api/client";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 
@@ -95,7 +94,7 @@ export function useDeepAnalysis({ client, baseUrl }: UseDeepAnalysisOptions) {
     const parentPromises = nonCoinbase.map((vin) => {
       const inputIdx = tx.vin.indexOf(vin);
       return queue.enqueue(
-        () => withCache(`tx:${vin.txid}`, () => client.getTransaction(vin.txid)),
+        () => client.getTransaction(vin.txid),
         1 as QueuePriority,
         signal,
       ).then((parentTx) => {
@@ -106,7 +105,7 @@ export function useDeepAnalysis({ client, baseUrl }: UseDeepAnalysisOptions) {
 
     // Fetch outspends (priority 1)
     const outspendPromise = queue.enqueue(
-      () => withCache(`outspend:${tx.txid}`, () => client.getTxOutspends(tx.txid)),
+      () => client.getTxOutspends(tx.txid),
       1 as QueuePriority,
       signal,
     ).then((result) => {
@@ -140,7 +139,7 @@ export function useDeepAnalysis({ client, baseUrl }: UseDeepAnalysisOptions) {
     const childPromises = level1Outspends.map((outspend, outputIdx) => {
       if (!outspend.spent || !outspend.txid) return Promise.resolve();
       return queue.enqueue(
-        () => withCache(`tx:${outspend.txid}`, () => client.getTransaction(outspend.txid!)),
+        () => client.getTransaction(outspend.txid!),
         2 as QueuePriority,
         signal,
       ).then((childTx) => {
@@ -153,7 +152,7 @@ export function useDeepAnalysis({ client, baseUrl }: UseDeepAnalysisOptions) {
     const grandparentPromises = Array.from(level1ParentTxs.values()).flatMap((ptx) =>
       ptx.vin.filter((v) => !v.is_coinbase).map((vin) =>
         queue.enqueue(
-          () => withCache(`tx:${vin.txid}`, () => client.getTransaction(vin.txid)),
+          () => client.getTransaction(vin.txid),
           2 as QueuePriority,
           signal,
         ).then(() => tick()),
