@@ -53,6 +53,7 @@ const PATHWAYS: Pathway[] = [
       { key: "pathways.ln.con3", default: "Routing privacy depends on network path and node connectivity" },
       { key: "pathways.ln.con4", default: "Single-channel LSP dependency: if your wallet has only one channel, the LSP sees all payment amounts and destinations" },
       { key: "pathways.ln.con5", default: "Public channels advertise capacity and peers to the routing gossip. Use private (unannounced) channels when not routing for others." },
+      { key: "pathways.ln.con6", default: "Path selection favors short, cheap routes with small anonymity sets. Timing analysis and amount correlation can deanonymize payments across hops." },
     ],
     tools: ["Phoenix", "Breez", "Zeus"],
     warnings: [
@@ -107,8 +108,9 @@ const PATHWAYS: Pathway[] = [
     ],
     cons: [
       { key: "pathways.liquid.con1", default: "Federated sidechain - requires trusting the Liquid federation members" },
-      { key: "pathways.liquid.con2", default: "Peg-in and peg-out transactions are visible on the Bitcoin mainchain" },
+      { key: "pathways.liquid.con2", default: "Peg-in and peg-out transactions are visible on Bitcoin's chain - privacy applies only between these bridge points" },
       { key: "pathways.liquid.con3", default: "Smaller user base limits anonymity set" },
+      { key: "pathways.liquid.con4", default: "Federated consensus (11-of-15 functionaries) introduces trust assumptions different from Bitcoin's trustless model" },
     ],
     tools: ["Blockstream Green", "Boltz Exchange", "SideSwap"],
   },
@@ -166,6 +168,45 @@ const PATHWAYS: Pathway[] = [
     cons: [
       { key: "pathways.cc.con1", default: "Requires manual effort and discipline for every transaction" },
       { key: "pathways.cc.con2", default: "Not all wallets support coin control" },
+    ],
+    tools: ["Sparrow Wallet", "Bitcoin Core", "Electrum"],
+  },
+  {
+    id: "stonewall",
+    titleKey: "pathways.stonewall.title",
+    titleDefault: "Stonewall / Spending Privately",
+    icon: <Shield size={14} />,
+    descKey: "pathways.stonewall.desc",
+    descDefault:
+      "Single-user transaction that mimics a 2-person CoinJoin. Creates 4 outputs: payment, same-value decoy (back to sender), and two change outputs. Breaks CIOH and increases Boltzmann entropy without requiring coordination.",
+    pros: [
+      { key: "pathways.stonewall.pro1", default: "Breaks CIOH assumption (looks like 2 participants)" },
+      { key: "pathways.stonewall.pro2", default: "Increases tx entropy measured by Boltzmann" },
+      { key: "pathways.stonewall.pro3", default: "Available in Sparrow without external coordination" },
+    ],
+    cons: [
+      { key: "pathways.stonewall.con1", default: "Requires multiple UTXOs of appropriate sizes" },
+      { key: "pathways.stonewall.con2", default: "Uses more block space (4 outputs vs 2)" },
+      { key: "pathways.stonewall.con3", default: "Analyst with enough context may distinguish from a real CoinJoin" },
+    ],
+    tools: ["Sparrow Wallet"],
+  },
+  {
+    id: "batch-spending",
+    titleKey: "pathways.batch.title",
+    titleDefault: "Batch Spending",
+    icon: <Layers size={14} />,
+    descKey: "pathways.batch.desc",
+    descDefault:
+      "Combine multiple payments into a single transaction. Multiple outputs increase ambiguity for change detection since observers cannot determine which outputs are payments vs change.",
+    pros: [
+      { key: "pathways.batch.pro1", default: "Makes change detection harder (more candidate outputs)" },
+      { key: "pathways.batch.pro2", default: "Reduces on-chain footprint and total fees" },
+      { key: "pathways.batch.pro3", default: "Each additional output increases the Boltzmann entropy" },
+    ],
+    cons: [
+      { key: "pathways.batch.con1", default: "All recipients can see each other's output amounts" },
+      { key: "pathways.batch.con2", default: "Primarily useful when making multiple simultaneous payments" },
     ],
     tools: ["Sparrow Wallet", "Bitcoin Core", "Electrum"],
   },
@@ -251,9 +292,27 @@ const COMBINED_PATHWAYS: CombinedPathway[] = [
     titleKey: "pathways.combo.cjp2p.title",
     titleDefault: "CoinJoin -> Intermediate Hop -> P2P",
     stepsKey: "pathways.combo.cjp2p.steps",
-    stepsDefault: "Mix with CoinJoin, send through an intermediate address, then use for P2P purchase on Bisq or HodlHodl.",
+    stepsDefault: "Mix with CoinJoin, send through an intermediate address, then use for P2P purchase on Bisq, Peach Bitcoin, HodlHodl, or RoboSats.",
     strengthKey: "pathways.combo.cjp2p.strength",
     strengthDefault: "The intermediate hop prevents the P2P counterparty from seeing the CoinJoin directly. Multiple hops make tracing prohibitively difficult.",
+  },
+  {
+    id: "atm-coinjoin-ln",
+    titleKey: "pathways.combo.atmcjln.title",
+    titleDefault: "No-KYC ATM -> CoinJoin -> Lightning",
+    stepsKey: "pathways.combo.atmcjln.steps",
+    stepsDefault: "Buy BTC at a no-KYC ATM (sub-$1000 in most jurisdictions), CoinJoin the output, then open a Lightning channel with the mixed UTXO.",
+    strengthKey: "pathways.combo.atmcjln.strength",
+    strengthDefault: "Breaks the link between physical purchase and spending identity. The ATM sees your face but not your spending, Lightning peers see your channel but not the ATM.",
+  },
+  {
+    id: "p2p-monero-btc",
+    titleKey: "pathways.combo.p2pxmr.title",
+    titleDefault: "P2P -> Monero -> BTC",
+    stepsKey: "pathways.combo.p2pxmr.steps",
+    stepsDefault: "Buy Monero via P2P (Haveno, cash trade), then atomic swap XMR back to BTC.",
+    strengthKey: "pathways.combo.p2pxmr.strength",
+    strengthDefault: "Complete chain break - no on-chain link between the P2P purchase and the resulting BTC.",
   },
 ];
 

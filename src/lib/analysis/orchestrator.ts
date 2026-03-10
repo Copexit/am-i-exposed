@@ -612,6 +612,38 @@ function applyCrossHeuristicRules(findings: Finding[]): void {
     }
   }
 
+  // Wasabi fingerprint + address reuse paradox: Wasabi is designed to prevent
+  // address reuse, so detecting both signals is a contradiction worth flagging.
+  const hasWasabiFingerprint = findings.some(
+    (f) =>
+      f.id === "h11-wallet-fingerprint" &&
+      typeof f.params?.walletGuess === "string" &&
+      (f.params.walletGuess as string).toLowerCase().includes("wasabi"),
+  );
+  const hasAddressReuse = findings.some(
+    (f) => f.id === "h8-address-reuse" && f.scoreImpact < 0,
+  );
+
+  if (hasWasabiFingerprint && hasAddressReuse) {
+    findings.push({
+      id: "cross-wasabi-reuse-paradox",
+      severity: "high",
+      confidence: "high",
+      title: "Wasabi wallet fingerprint detected with address reuse",
+      description:
+        "This transaction shows a Wasabi Wallet fingerprint (nVersion=1, nLockTime=0) " +
+        "but the address has been reused. Wasabi is designed to prevent address reuse, " +
+        "making this a contradiction. Either the fingerprint is coincidental (false positive) " +
+        "or recommended Wasabi practices are not being followed, severely undermining " +
+        "any privacy benefit from CoinJoin mixing.",
+      recommendation:
+        "If using Wasabi, enable automatic address generation and never manually reuse addresses. " +
+        "Address reuse undoes the unlinkability that CoinJoin provides.",
+      scoreImpact: 0,
+      params: { context: "wasabi-reuse-paradox" },
+    });
+  }
+
   // Compound stacking: when a deterministic (100% certain) finding is present,
   // ensure the score is capped at F (grade F = score < 25, meaning total impact
   // from base 70 must be at least -46). Deterministic findings make all other
@@ -844,6 +876,9 @@ export async function analyzeDestination(
     totalReceived,
   };
 }
+
+/** Exposed for unit tests only. */
+export const applyCrossHeuristicRulesForTest = applyCrossHeuristicRules;
 
 /** Yield to the event loop so the UI can update. */
 function tick(): Promise<void> {

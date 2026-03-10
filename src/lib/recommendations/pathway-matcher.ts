@@ -13,14 +13,14 @@ export interface RelevantPathway {
  * Based on the research-privacy-pathways.md heuristic-to-technique matrix.
  */
 const FINDING_TO_PATHWAYS: Record<string, string[]> = {
-  // Change detection -> PayJoin, BnB, exact amount spending
-  "h2-change-detected": ["payjoin-v2", "bnb-coin-selection", "lightning"],
-  // Round amounts -> BnB, exact amount spending
-  "h1-round-amount": ["bnb-coin-selection", "payjoin-v2"],
+  // Change detection -> PayJoin, BnB, exact amount spending, Stonewall, batch spending
+  "h2-change-detected": ["payjoin-v2", "bnb-coin-selection", "lightning", "stonewall", "batch-spending"],
+  // Round amounts -> BnB, exact amount spending, batch spending
+  "h1-round-amount": ["bnb-coin-selection", "payjoin-v2", "batch-spending"],
   "h1-round-usd-amount": ["bnb-coin-selection"],
   "h1-round-eur-amount": ["bnb-coin-selection"],
-  // CIOH / consolidation -> Coin control, PayJoin
-  "h3-cioh": ["coin-control", "payjoin-v2"],
+  // CIOH / consolidation -> Coin control, PayJoin, Stonewall
+  "h3-cioh": ["coin-control", "payjoin-v2", "stonewall"],
   "consolidation-fan-in": ["coin-control"],
   "unnecessary-input": ["coin-control", "bnb-coin-selection"],
   // Address reuse -> Silent Payments, HD wallet
@@ -40,8 +40,8 @@ const FINDING_TO_PATHWAYS: Record<string, string[]> = {
   "peel-chain": ["lightning", "liquid"],
   // Script mixing -> wallet consistency
   "script-mixed": ["coin-control"],
-  // Low entropy -> PayJoin, CoinJoin pipeline
-  "h5-low-entropy": ["payjoin-v2", "coinjoin-ln"],
+  // Low entropy -> PayJoin, CoinJoin pipeline, Stonewall
+  "h5-low-entropy": ["payjoin-v2", "coinjoin-ln", "stonewall"],
   "h5-zero-entropy": ["payjoin-v2", "coinjoin-ln"],
   // Lightning channel detection -> Taproot channels
   "lightning-channel-legacy": ["lightning"],
@@ -56,6 +56,8 @@ const ALL_PATHWAY_IDS = new Set([
   "lightning",
   "monero",
   "liquid",
+  "stonewall",
+  "batch-spending",
   "coinjoin-ln",
   "coinjoin-p2p",
   "exchange-coinjoin-ln",

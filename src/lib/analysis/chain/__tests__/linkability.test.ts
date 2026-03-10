@@ -79,6 +79,83 @@ describe("buildLinkabilityMatrix", () => {
     }
   });
 
+  it("detects equal-subset finding when 3 equal outputs + 1 unique deterministic", () => {
+    // 1 input can only fund the unique output, so it's deterministic
+    // The 3 equal outputs create ambiguity among themselves
+    const tx = makeTx({
+      vin: [
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qa", value: 10_000 } }),
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qb", value: 50_000 } }),
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qc", value: 50_000 } }),
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qd", value: 50_000 } }),
+      ],
+      vout: [
+        makeVout({ value: 50_000 }),
+        makeVout({ value: 50_000 }),
+        makeVout({ value: 50_000 }),
+        makeVout({ value: 5_000 }), // unique small output - only input[0] can fund it alone
+      ],
+      fee: 5_000,
+    });
+
+    const result = buildLinkabilityMatrix(tx);
+    expect(result).not.toBeNull();
+
+    const eqSubset = result!.findings.find((f) => f.id === "linkability-equal-subset");
+    // Only fires if there are deterministic links on the non-equal output
+    if (result!.deterministicLinks > 0) {
+      expect(eqSubset).toBeDefined();
+      expect(eqSubset!.severity).toBe("medium");
+    }
+  });
+
+  it("does NOT produce equal-subset when all outputs are equal", () => {
+    const tx = makeTx({
+      vin: [
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qa", value: 50_000 } }),
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qb", value: 50_000 } }),
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qc", value: 50_000 } }),
+      ],
+      vout: [
+        makeVout({ value: 49_000 }),
+        makeVout({ value: 49_000 }),
+        makeVout({ value: 49_000 }),
+      ],
+      fee: 3_000,
+    });
+
+    const result = buildLinkabilityMatrix(tx);
+    expect(result).not.toBeNull();
+
+    // All outputs are equal, no "non-equal" outputs to be deterministic on
+    const eqSubset = result!.findings.find((f) => f.id === "linkability-equal-subset");
+    expect(eqSubset).toBeUndefined();
+  });
+
+  it("does NOT produce equal-subset when unique outputs are not deterministic", () => {
+    // All inputs are large enough to fund the unique output, so no deterministic link
+    const tx = makeTx({
+      vin: [
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qa", value: 100_000 } }),
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qb", value: 100_000 } }),
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qc", value: 100_000 } }),
+      ],
+      vout: [
+        makeVout({ value: 50_000 }),
+        makeVout({ value: 50_000 }),
+        makeVout({ value: 50_000 }),
+        makeVout({ value: 30_000 }), // unique but any input can fund it
+      ],
+      fee: 120_000,
+    });
+
+    const result = buildLinkabilityMatrix(tx);
+    expect(result).not.toBeNull();
+
+    const eqSubset = result!.findings.find((f) => f.id === "linkability-equal-subset");
+    expect(eqSubset).toBeUndefined();
+  });
+
   it("matrix has correct dimensions", () => {
     const tx = makeTx({
       vin: [

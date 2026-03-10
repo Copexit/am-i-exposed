@@ -194,5 +194,63 @@ export function buildLinkabilityMatrix(
     });
   }
 
+  // Equal-output subset analysis: if there are groups of 3+ equal outputs
+  // but some non-equal outputs have deterministic links, flag the contradiction
+  if (deterministicLinks > 0) {
+    const equalGroups = findEqualOutputGroups(outputValues);
+    if (equalGroups.length > 0) {
+      // Find deterministic links on non-equal outputs
+      const equalIndices = new Set(equalGroups.flat());
+      const deterministicNonEqual: Array<{ input: number; output: number }> = [];
+
+      for (let i = 0; i < nIn; i++) {
+        for (let j = 0; j < nOut; j++) {
+          if (!equalIndices.has(j) && matrix[i][j].deterministic) {
+            deterministicNonEqual.push({ input: i, output: j });
+          }
+        }
+      }
+
+      if (deterministicNonEqual.length > 0) {
+        const pairDesc = deterministicNonEqual
+          .map((p) => `input[${p.input}] -> output[${p.output}]`)
+          .join(", ");
+        const equalCount = equalGroups.reduce((s, g) => s + g.length, 0);
+        findings.push({
+          id: "linkability-equal-subset",
+          severity: "medium",
+          confidence: "high",
+          title: `Equal-output ambiguity undermined by ${deterministicNonEqual.length} deterministic non-equal link(s)`,
+          description:
+            `Despite ${equalCount} equal-value outputs providing ambiguity, ` +
+            `${deterministicNonEqual.length} non-equal output(s) are deterministically linked: ${pairDesc}. ` +
+            "An analyst can identify these specific connections with high confidence.",
+          recommendation:
+            "Use CoinJoin with all equal outputs (Whirlpool, WabiSabi) to prevent any deterministic links. " +
+            "When equal outputs are mixed with unique-value outputs, the unique ones become easy targets.",
+          scoreImpact: -2 * Math.min(deterministicNonEqual.length, 3),
+          params: {
+            equalOutputCount: equalCount,
+            deterministicNonEqualCount: deterministicNonEqual.length,
+          },
+        });
+      }
+    }
+  }
+
   return { matrix, deterministicLinks, averageAmbiguity, totalInterpretations, findings };
+}
+
+/**
+ * Find groups of 3+ outputs with equal values.
+ * Returns arrays of output indices that share the same value.
+ */
+function findEqualOutputGroups(values: number[]): number[][] {
+  const byValue = new Map<number, number[]>();
+  for (let i = 0; i < values.length; i++) {
+    const arr = byValue.get(values[i]) ?? [];
+    arr.push(i);
+    byValue.set(values[i], arr);
+  }
+  return [...byValue.values()].filter((group) => group.length >= 3);
 }

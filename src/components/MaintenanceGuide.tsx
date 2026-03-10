@@ -21,6 +21,7 @@ const SECTIONS: MaintenanceSection[] = [
       { key: "maintenance.utxoHygiene2", default: "Segregate KYC-sourced UTXOs from non-KYC. Treat them as separate wallets with separate spending strategies." },
       { key: "maintenance.utxoHygiene3", default: "Freeze dust outputs (under 1,000 sats). Spending them costs more in fees than they are worth and can link your addresses." },
       { key: "maintenance.utxoHygiene4", default: "If consolidation is necessary within a privacy category, time it during low-fee periods (under 5-10 sat/vB, often weekend nights UTC). Ensure resulting UTXOs are at least 1,000,000 sats to remain economically viable during fee spikes." },
+      { key: "maintenance.utxoHygiene5", default: "Label every UTXO by source (e.g., 'KYC-exchange', 'P2P-cash', 'CoinJoin-mixed'). Use BIP329 label export when migrating wallets. Labels prevent accidental cross-contamination of privacy contexts." },
     ],
   },
   {

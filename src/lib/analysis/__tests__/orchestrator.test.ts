@@ -235,6 +235,78 @@ describe("heuristic step lists", () => {
   });
 });
 
+describe("cross-heuristic: Wasabi + address reuse paradox", () => {
+  it("emits cross-wasabi-reuse-paradox when Wasabi fingerprint + address reuse", async () => {
+    const tx = makeTx({
+      version: 1,
+      locktime: 0,
+      vin: [makeVin(), makeVin()],
+    });
+    const resultPromise = analyzeTransaction(tx);
+    await vi.advanceTimersByTimeAsync(26 * 100);
+    const result = await resultPromise;
+
+    // Manually inject the two prerequisite findings and re-run cross-heuristic
+    // (since we can't easily construct a tx that triggers both naturally)
+    result.findings.push(
+      {
+        id: "h11-wallet-fingerprint",
+        severity: "medium",
+        title: "Wallet fingerprint",
+        description: "",
+        recommendation: "",
+        scoreImpact: -5,
+        params: { walletGuess: "Wasabi 2.x" },
+      },
+      {
+        id: "h8-address-reuse",
+        severity: "high",
+        title: "Address reuse",
+        description: "",
+        recommendation: "",
+        scoreImpact: -70,
+      },
+    );
+
+    // Import and re-run the cross-heuristic rules
+    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
+    applyCrossHeuristicRulesForTest(result.findings);
+
+    const paradox = result.findings.find((f) => f.id === "cross-wasabi-reuse-paradox");
+    expect(paradox).toBeDefined();
+    expect(paradox!.severity).toBe("high");
+    expect(paradox!.scoreImpact).toBe(0);
+  });
+
+  it("does NOT emit paradox for non-Wasabi wallet + address reuse", async () => {
+    const findings: import("@/lib/types").Finding[] = [
+      {
+        id: "h11-wallet-fingerprint",
+        severity: "medium",
+        title: "Wallet fingerprint",
+        description: "",
+        recommendation: "",
+        scoreImpact: -5,
+        params: { walletGuess: "Sparrow" },
+      },
+      {
+        id: "h8-address-reuse",
+        severity: "high",
+        title: "Address reuse",
+        description: "",
+        recommendation: "",
+        scoreImpact: -70,
+      },
+    ];
+
+    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
+    applyCrossHeuristicRulesForTest(findings);
+
+    const paradox = findings.find((f) => f.id === "cross-wasabi-reuse-paradox");
+    expect(paradox).toBeUndefined();
+  });
+});
+
 describe("classifyTransactionType", () => {
   it("classifies Whirlpool CoinJoin", () => {
     expect(classifyTransactionType([

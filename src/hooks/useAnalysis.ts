@@ -27,6 +27,7 @@ import { analyzeBackward } from "@/lib/analysis/chain/backward";
 import { analyzeForward } from "@/lib/analysis/chain/forward";
 import { buildCluster } from "@/lib/analysis/chain/clustering";
 import { analyzeSpendingPatterns } from "@/lib/analysis/chain/spending-patterns";
+import { buildLinkabilityMatrix } from "@/lib/analysis/chain/linkability";
 import { getAnalysisSettings } from "@/hooks/useAnalysisSettings";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
 import { loadEntityFilter } from "@/lib/analysis/entity-filter";
@@ -656,6 +657,14 @@ export function useAnalysis() {
             onStep("chain-taint", taintResult.findings.reduce((s, f) => s + f.scoreImpact, 0));
           } else {
             onStep("chain-taint", 0);
+          }
+
+          // Linkability matrix analysis (pure computation, no API calls)
+          {
+            const linkResult = buildLinkabilityMatrix(tx);
+            if (linkResult) {
+              result.findings.push(...linkResult.findings);
+            }
           }
 
           // Emit trace summary so TaintPathDiagram can show hops even without entity findings
