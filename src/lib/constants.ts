@@ -51,7 +51,7 @@ export const GRADE_BADGE_COLORS: Record<Grade, string> = {
 /** Grade-to-hex color mapping for Canvas/non-CSS contexts (share cards, glow effects). */
 export const GRADE_HEX: Record<Grade, string> = {
   "A+": "#28d065",
-  B: "#3b82f6",
+  B: "#60a5fa",
   C: "#eab308",
   D: "#f97316",
   F: "#ef4444",
