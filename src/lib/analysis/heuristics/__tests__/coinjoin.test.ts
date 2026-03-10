@@ -279,14 +279,25 @@ describe("analyzeCoinJoin", () => {
     expect(findings.find((f) => f.id === "h4-whirlpool")).toBeUndefined();
   });
 
-  it("detects Whirlpool with exactly 10 outputs at known denom", () => {
+  it("detects Whirlpool with exactly 9 outputs at known denom", () => {
+    const denom = WHIRLPOOL_DENOMS[1]; // 100_000 sats
+    const tx = makeTx({
+      vin: makeDistinctVins(9),
+      vout: Array.from({ length: 9 }, () => makeVout({ value: denom })),
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    expect(findings[0].id).toBe("h4-whirlpool");
+  });
+
+  it("rejects 10 equal outputs at Whirlpool denom as generic CoinJoin (not Whirlpool)", () => {
     const denom = WHIRLPOOL_DENOMS[1]; // 100_000 sats
     const tx = makeTx({
       vin: makeDistinctVins(10),
       vout: Array.from({ length: 10 }, () => makeVout({ value: denom })),
     });
     const { findings } = analyzeCoinJoin(tx);
-    expect(findings[0].id).toBe("h4-whirlpool");
+    expect(findings.find((f) => f.id === "h4-whirlpool")).toBeUndefined();
+    expect(findings[0].id).toBe("h4-coinjoin");
   });
 
   it("does not detect JoinMarket with 11 inputs", () => {

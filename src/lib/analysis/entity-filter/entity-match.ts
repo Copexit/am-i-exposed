@@ -58,7 +58,7 @@ export async function matchEntities(
         matches.push({
           address: addr,
           entityName: resolvedName,
-          category: entity?.category ?? lookupEntityCategory(addr) as EntityMatch["category"] ?? "exchange",
+          category: entity?.category ?? lookupEntityCategory(addr) as EntityMatch["category"] ?? "unknown",
           ofac: entity?.ofac ?? false,
           confidence: "high",
         });
@@ -101,7 +101,7 @@ export function matchEntitySync(address: string): EntityMatch | null {
     return {
       address,
       entityName: resolvedName,
-      category: entity?.category ?? lookupEntityCategory(address) as EntityMatch["category"] ?? "exchange",
+      category: entity?.category ?? lookupEntityCategory(address) as EntityMatch["category"] ?? "unknown",
       ofac: entity?.ofac ?? false,
       confidence: "high",
     };

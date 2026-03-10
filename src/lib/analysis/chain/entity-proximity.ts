@@ -236,7 +236,7 @@ function scanTxForEntity(
       // Only report named entities - skip unnamed Bloom filter matches (possible false positives)
       const entityName = lookupEntityName(addr);
       if (!entityName) continue;
-      const category = lookupEntityCategory(addr) ?? "exchange";
+      const category = lookupEntityCategory(addr) ?? "unknown";
       return { entityName, category, address: addr, hops: depth, txid: layerTx.txid, direction };
     }
   }
@@ -248,7 +248,7 @@ function scanTxForEntity(
     if (filter.has(addr)) {
       const entityName = lookupEntityName(addr);
       if (!entityName) continue;
-      const category = lookupEntityCategory(addr) ?? "exchange";
+      const category = lookupEntityCategory(addr) ?? "unknown";
       return { entityName, category, address: addr, hops: depth, txid: layerTx.txid, direction };
     }
   }

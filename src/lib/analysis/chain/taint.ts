@@ -148,7 +148,8 @@ export function analyzeBackwardTaint(
 
   // Generate findings
   if (totalTaintFraction > 0) {
-    const pct = Math.round(totalTaintFraction * 100);
+    const clampedTaint = Math.min(totalTaintFraction, 1.0);
+    const pct = Math.round(clampedTaint * 100);
     const topSources = [...aggregatedTaint.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3);

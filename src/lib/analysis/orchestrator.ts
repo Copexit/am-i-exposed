@@ -226,9 +226,9 @@ export async function analyzeAddress(
         ofac: isOfac ? 1 : 0,
       },
       description: isOfac
-        ? `This address belongs to ${entityMatch.entityName}, an OFAC-sanctioned entity. ` +
+        ? `This address is associated with ${entityMatch.entityName}, an OFAC-sanctioned entity. ` +
           "Transacting with sanctioned addresses may have legal consequences depending on jurisdiction."
-        : `This address belongs to ${entityMatch.entityName}` +
+        : `This address is associated with ${entityMatch.entityName}` +
           ` (${entityInfo?.category ?? entityMatch.category}${(entityInfo?.country ?? "Unknown") !== "Unknown" ? ", " + entityInfo?.country : ""})` +
           ". Transactions involving known entities are traceable by chain analysis firms.",
       recommendation: isOfac

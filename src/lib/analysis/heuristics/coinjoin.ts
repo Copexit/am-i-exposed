@@ -40,7 +40,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
       title: `Whirlpool CoinJoin detected (${formatBtc(whirlpool.denomination)} pool)`,
       params: { denom: formatBtc(whirlpool.denomination) },
       description:
-        "This transaction matches the Whirlpool CoinJoin pattern: 5 equal outputs at a standard denomination. " +
+        "This transaction matches the Whirlpool CoinJoin pattern: 5, 8, or 9 equal outputs at a standard denomination. " +
         "Whirlpool provides strong forward-looking privacy by breaking deterministic transaction links. " +
         "Note: since the Samourai Wallet seizure (April 2024), Whirlpool no longer uses a centralized coordinator. " +
         "Ashigaru implements decentralized Whirlpool coordination.",
@@ -344,7 +344,7 @@ function detectWhirlpool(values: number[]): { denomination: number } | null {
     const matchCount = values.filter((v) => v === denom).length;
     // Accept 5, 8, or 9 equal outputs at a Whirlpool denomination.
     // Non-matching outputs (if any) must be OP_RETURN zero-value markers.
-    if (matchCount >= 5 && values.length - matchCount <= 1) {
+    if ((matchCount === 5 || matchCount === 8 || matchCount === 9) && values.length - matchCount <= 1) {
       return { denomination: denom };
     }
   }

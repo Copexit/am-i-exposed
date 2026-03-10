@@ -1,6 +1,7 @@
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import { analyzeCoinJoin, isCoinJoinFinding } from "../heuristics/coinjoin";
+import { WHIRLPOOL_DENOMS } from "@/lib/constants";
 
 /**
  * Forward chain analysis: examine what happened to outputs after this tx.
@@ -71,8 +72,10 @@ export function analyzeForward(
   const spendableVout = tx.vout.filter((o) => !o.scriptpubkey.startsWith("6a"));
   const valueCounts = new Map<number, number>();
   for (const o of spendableVout) valueCounts.set(o.value, (valueCounts.get(o.value) ?? 0) + 1);
-  const hasEqualOutputs = [...valueCounts.values()].some((c) => c >= 2);
-  const isTx0 = hasOpReturn && hasEqualOutputs && spendableVout.length >= 3;
+  const hasEqualOutputsAtDenom = [...valueCounts.entries()].some(
+    ([value, count]) => count >= 2 && WHIRLPOOL_DENOMS.includes(value),
+  );
+  const isTx0 = hasOpReturn && hasEqualOutputsAtDenom && spendableVout.length >= 3;
   if (isTx0) {
     for (const [outputIdx, childTx] of childTxs.entries()) {
       if (!childTx || childTx.vin.length < 2) continue;

@@ -74,7 +74,7 @@ export const analyzeBip47Notification: TxHeuristic = (tx) => {
 
   findings.push({
     id: "bip47-notification",
-    severity: "medium",
+    severity: "good",
     confidence: "high",
     title: "BIP47 notification transaction (PayNym)",
     params: {
