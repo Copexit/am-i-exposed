@@ -112,13 +112,25 @@ export function useWalletAnalysis() {
         }));
 
         // Step 2: Fetch address data.
-        // Hosted (mempool.space): strictly sequential, one address at a time
-        // with a 1.5s pause between each. Conservative rate to avoid 429s
-        // and not overwhelm the public API. ~40 addresses takes ~60s.
-        // Local/Umbrel/custom: all addresses in parallel, no delays.
+        // Rate limit strategy based on reverse-engineering mempool.space's
+        // token bucket: ~20 token capacity, refills ~1 token every 3s.
+        // Each address = 3 requests (address, utxos, txs) fired together.
+        //
+        // Hosted: burst first 6 addresses (18 tokens from the 20 bucket),
+        // then 9s between each remaining address (3 tokens refill in 9s).
+        // Total for 40 addresses: ~6s burst + 34*9s = ~5 minutes.
+        //
+        // Local/Umbrel/custom: all in parallel, no delays.
         const api = createMempoolClient(config.mempoolBaseUrl, controller.signal);
         const localApi = isLocalInstance(config.mempoolBaseUrl);
         const addressInfos: WalletAddressInfo[] = [];
+
+        /** Addresses that fit in the initial token bucket (20 tokens / 3 per addr). */
+        const BURST_SIZE = 6;
+        /** Seconds between addresses after burst is exhausted. */
+        const SUSTAIN_DELAY_MS = 9000;
+        /** Small gap between burst addresses to avoid overwhelming the server. */
+        const BURST_GAP_MS = 300;
 
         if (localApi) {
           // Local: fire all in parallel - no rate limits
@@ -140,7 +152,7 @@ export function useWalletAnalysis() {
           });
           addressInfos.push(...await Promise.all(promises));
         } else {
-          // Hosted: one address at a time, 500ms gap between addresses
+          // Hosted: burst phase then sustained phase
           for (let i = 0; i < allAddresses.length; i++) {
             if (controller.signal.aborted) return;
             const derived = allAddresses[i];
@@ -156,9 +168,10 @@ export function useWalletAnalysis() {
               ...prev,
               progress: { fetched: i + 1, total: allAddresses.length },
             }));
-            // Wait between addresses (skip after the last one)
+            // Delay before next address (skip after the last one)
             if (i < allAddresses.length - 1) {
-              await abortableDelay(1500, controller.signal).catch(() => {});
+              const delayMs = i < BURST_SIZE - 1 ? BURST_GAP_MS : SUSTAIN_DELAY_MS;
+              await abortableDelay(delayMs, controller.signal).catch(() => {});
             }
           }
         }
