@@ -43,10 +43,12 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
 
   let backwardLayers: TraceLayer[] = [];
   let forwardLayers: TraceLayer[] = [];
+  let backwardFailed = false;
+  let forwardFailed = false;
   const totalMaxDepth = settings.maxDepth * 2; // backward + forward
 
   if (settings.maxDepth < 1 || controller.signal.aborted) {
-    return { backwardLayers, forwardLayers };
+    return { backwardLayers, forwardLayers, backwardFailed, forwardFailed };
   }
 
   // Split timeout into two phases so forward tracing always gets a chance
@@ -118,7 +120,7 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
       );
       backwardLayers = backResult.layers;
     } catch {
-      // Tracing failed or timed out - proceed with whatever was collected
+      backwardFailed = true;
     }
 
     clearTimeout(backwardTimer);
@@ -163,14 +165,14 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
       );
       forwardLayers = fwdResult.layers;
     } catch {
-      // Tracing failed or timed out - proceed with whatever was collected
+      forwardFailed = true;
     }
 
     clearTimeout(forwardTimer);
     controller.signal.removeEventListener("abort", onParentAbort);
   }
 
-  return { backwardLayers, forwardLayers };
+  return { backwardLayers, forwardLayers, backwardFailed, forwardFailed };
 }
 
 /** Parameters for chain analysis (post-trace heuristic phase). */
