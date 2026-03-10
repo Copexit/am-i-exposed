@@ -8,7 +8,7 @@ export const SVG_COLORS = {
   critical: "#ef4444",
   high: "#f97316",
   medium: "#eab308",
-  low: "#3b82f6",
+  low: "#60a5fa",
   good: "#28d065",
 
   // Brand
