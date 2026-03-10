@@ -1,6 +1,8 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { WHIRLPOOL_DENOMS } from "@/lib/constants";
+import { formatBtc } from "@/lib/format";
+import { getSpendableOutputs } from "./tx-utils";
 
 const EXCHANGE_WARNING =
   "Centralized exchanges including Binance, Coinbase, Gemini, Bitstamp, Swan Bitcoin, Bitvavo, Bitfinex, and BitMEX " +
@@ -28,7 +30,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
 
   // Check for Whirlpool pattern first (most specific)
   // Filter to spendable outputs (exclude OP_RETURN) for pattern matching
-  const spendableOutputs = tx.vout.filter((o) => o.scriptpubkey_type !== "op_return");
+  const spendableOutputs = getSpendableOutputs(tx.vout);
   const whirlpool = detectWhirlpool(spendableOutputs.map((o) => o.value));
   if (whirlpool) {
     findings.push({
@@ -549,6 +551,3 @@ function detectSimplifiedStonewall(
   return { denomination: equalValue };
 }
 
-function formatBtc(sats: number): string {
-  return `${(sats / 100_000_000).toFixed(8).replace(/\.?0+$/, "")} BTC`;
-}

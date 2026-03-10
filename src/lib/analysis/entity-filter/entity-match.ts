@@ -5,6 +5,7 @@ import { checkOfac } from "../cex-risk/ofac-check";
 import { extractTxAddresses } from "../cex-risk/extract-addresses";
 import { getEntity } from "../entities";
 import { WHIRLPOOL_DENOMS } from "@/lib/constants";
+import { getSpendableOutputs } from "../heuristics/tx-utils";
 
 /**
  * Check all addresses in a transaction against known entity databases.
@@ -145,7 +146,7 @@ export function detectEntityBehavior(
   // high input/output counts without matching known CoinJoin denominations.
   // Use canonical WHIRLPOOL_DENOMS from constants (imported at top)
   if (tx.vin.length >= 5 && tx.vout.length >= 5) {
-    const spendable = tx.vout.filter((o) => o.scriptpubkey_type !== "op_return");
+    const spendable = getSpendableOutputs(tx.vout);
     const equalGroups = new Map<number, number>();
     for (const o of spendable) equalGroups.set(o.value, (equalGroups.get(o.value) ?? 0) + 1);
     const hasEqualOutputs = [...equalGroups.entries()].some(([, c]) => c >= 3);

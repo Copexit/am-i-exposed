@@ -1,6 +1,7 @@
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import type { TraceLayer } from "./recursive-trace";
+import { getSpendableOutputs } from "../heuristics/tx-utils";
 
 /**
  * Taint Analysis
@@ -129,7 +130,7 @@ export function analyzeBackwardTaint(
   }
 
   // Propagate taint to outputs (proportional / haircut method)
-  const spendable = tx.vout.filter((o) => o.scriptpubkey_type !== "op_return");
+  const spendable = getSpendableOutputs(tx.vout);
   const totalOutputValue = spendable.reduce((sum, o) => sum + o.value, 0);
 
   if (totalOutputValue > 0 && aggregatedTaint.size > 0) {

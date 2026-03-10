@@ -13,6 +13,11 @@ export function fmtN(n: number): string {
 
 const SATS_PER_BTC = 100_000_000;
 
+/** Format satoshis as a human-readable BTC string (e.g. "0.001 BTC"). */
+export function formatBtc(sats: number): string {
+  return `${(sats / SATS_PER_BTC).toFixed(8).replace(/\.?0+$/, "")} BTC`;
+}
+
 /** Format a satoshi value as a USD string using the given BTC price. */
 export function formatUsdValue(sats: number, usdPerBtc: number): string {
   const usd = (sats / SATS_PER_BTC) * usdPerBtc;

@@ -1,5 +1,6 @@
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
+import { getSpendableOutputs } from "../heuristics/tx-utils";
 
 /**
  * Simplified Linkability Matrix
@@ -53,7 +54,7 @@ export function buildLinkabilityMatrix(
   if (tx.vin.length > 8 || tx.vout.length > 8) return null;
   if (tx.vin.length < 1 || tx.vout.length < 1) return null;
 
-  const spendable = tx.vout.filter((o) => o.scriptpubkey_type !== "op_return");
+  const spendable = getSpendableOutputs(tx.vout);
   if (spendable.length < 1) return null;
 
   const inputValues = tx.vin.map((v) => v.prevout?.value ?? 0);

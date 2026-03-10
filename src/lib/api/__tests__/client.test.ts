@@ -88,9 +88,27 @@ describe("createApiClient", () => {
     expect(result).toBe("deadbeef");
   });
 
-  it("does not fall back for non-retryable errors", async () => {
+  it("falls back to esplora on NOT_FOUND for mainnet", async () => {
     const primary = makeMockClient({
       getTransaction: vi.fn().mockRejectedValue(new ApiError("NOT_FOUND", "not found")),
+    });
+    const fallback = makeMockClient({
+      getTransaction: vi.fn().mockResolvedValue({ txid: "found-on-fallback" }),
+    });
+    mockCreateClient
+      .mockReturnValueOnce(primary as ReturnType<typeof createMempoolClient>)
+      .mockReturnValueOnce(fallback as ReturnType<typeof createMempoolClient>);
+
+    const client = createApiClient(MAINNET_CONFIG);
+    const result = await client.getTransaction("abc123def456abc123def456abc123def456abc123def456abc123def456abc12345");
+    expect(primary.getTransaction).toHaveBeenCalled();
+    expect(fallback.getTransaction).toHaveBeenCalled();
+    expect(result).toEqual({ txid: "found-on-fallback" });
+  });
+
+  it("does not fall back for non-retryable errors like RATE_LIMITED", async () => {
+    const primary = makeMockClient({
+      getTransaction: vi.fn().mockRejectedValue(new ApiError("RATE_LIMITED", "rate limited")),
     });
     const fallback = makeMockClient();
     mockCreateClient
@@ -99,7 +117,7 @@ describe("createApiClient", () => {
 
     const client = createApiClient(MAINNET_CONFIG);
     await expect(client.getTransaction("abc123def456abc123def456abc123def456abc123def456abc123def456abc12345"))
-      .rejects.toThrow("not found");
+      .rejects.toThrow("rate limited");
     expect(fallback.getTransaction).not.toHaveBeenCalled();
   });
 

@@ -25,19 +25,17 @@ export function createApiClient(config: NetworkConfig, signal?: AbortSignal) {
       : null;
 
   async function withFallback<T>(
-    primary: (client: MempoolClient) => Promise<T>,
-    fallback?: (client: MempoolClient) => Promise<T>,
+    fn: (client: MempoolClient) => Promise<T>,
   ): Promise<T> {
     try {
-      return await primary(mempool);
+      return await fn(mempool);
     } catch (error) {
       if (
         esplora &&
-        fallback &&
         error instanceof ApiError &&
-        (error.code === "API_UNAVAILABLE" || error.code === "NETWORK_ERROR")
+        (error.code === "API_UNAVAILABLE" || error.code === "NETWORK_ERROR" || error.code === "NOT_FOUND")
       ) {
-        return fallback(esplora);
+        return fn(esplora);
       }
       throw error;
     }
@@ -45,45 +43,27 @@ export function createApiClient(config: NetworkConfig, signal?: AbortSignal) {
 
   return {
     getTransaction(txid: string): Promise<MempoolTransaction> {
-      return withFallback(
-        (c) => c.getTransaction(txid),
-        (c) => c.getTransaction(txid),
-      );
+      return withFallback((c) => c.getTransaction(txid));
     },
 
     getTxHex(txid: string): Promise<string> {
-      return withFallback(
-        (c) => c.getTxHex(txid),
-        (c) => c.getTxHex(txid),
-      );
+      return withFallback((c) => c.getTxHex(txid));
     },
 
     getAddress(address: string): Promise<MempoolAddress> {
-      return withFallback(
-        (c) => c.getAddress(address),
-        (c) => c.getAddress(address),
-      );
+      return withFallback((c) => c.getAddress(address));
     },
 
     getAddressTxs(address: string): Promise<MempoolTransaction[]> {
-      return withFallback(
-        (c) => c.getAddressTxs(address),
-        (c) => c.getAddressTxs(address),
-      );
+      return withFallback((c) => c.getAddressTxs(address));
     },
 
     getAddressUtxos(address: string): Promise<MempoolUtxo[]> {
-      return withFallback(
-        (c) => c.getAddressUtxos(address),
-        (c) => c.getAddressUtxos(address),
-      );
+      return withFallback((c) => c.getAddressUtxos(address));
     },
 
     getTxOutspends(txid: string): Promise<MempoolOutspend[]> {
-      return withFallback(
-        (c) => c.getTxOutspends(txid),
-        (c) => c.getTxOutspends(txid),
-      );
+      return withFallback((c) => c.getTxOutspends(txid));
     },
 
     getHistoricalPrice(timestamp: number): Promise<number | null> {
