@@ -98,6 +98,7 @@ export function buildCluster(
       params: {
         clusterSize: cluster.size,
         riskTier,
+        _variant: "clustered",
       },
       confidence: "high",
     });
@@ -117,6 +118,7 @@ export function buildCluster(
       params: {
         clusterSize: 1,
         riskTier: "single",
+        _variant: "single",
       },
       confidence: "high",
     });

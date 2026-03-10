@@ -366,13 +366,8 @@ export function useAnalysis() {
           const totalMaxDepth = analysisSettings.maxDepth * 2; // backward + forward
 
           if (analysisSettings.maxDepth >= 1 && !controller.signal.aborted) {
-            const traceAbort = new AbortController();
-            const onParentAbort = () => traceAbort.abort();
-            controller.signal.addEventListener("abort", onParentAbort);
-            const traceTimer = setTimeout(
-              () => traceAbort.abort(),
-              analysisSettings.timeout * 1000,
-            );
+            // Split timeout into two phases so forward tracing always gets a chance
+            const halfTimeout = Math.max(analysisSettings.timeout * 500, 2000); // ms, at least 2s each
 
             // Debounced progress updater (only on depth change or every 500ms)
             let lastProgressUpdate = 0;
@@ -410,32 +405,54 @@ export function useAnalysis() {
               getTxOutspends: (txid: string) => api.getTxOutspends(txid),
             };
 
-            try {
-              setState((prev) => ({
-                ...prev,
-                fetchProgress: {
-                  status: "tracing-backward",
-                  timeoutSec: analysisSettings.timeout,
-                  currentDepth: 0,
-                  maxDepth: totalMaxDepth,
-                  txsFetched: 0,
-                },
-              }));
+            // --- Phase 1: Backward tracing (first half of timeout) ---
+            {
+              const backwardAbort = new AbortController();
+              const onParentAbort = () => backwardAbort.abort();
+              controller.signal.addEventListener("abort", onParentAbort);
+              const backwardTimer = setTimeout(() => backwardAbort.abort(), halfTimeout);
 
-              const backResult = await traceBackward(
-                tx,
-                analysisSettings.maxDepth,
-                analysisSettings.minSats,
-                traceFetcher,
-                traceAbort.signal,
-                (p) => updateFetchProgress("tracing-backward", p.currentDepth, p.txsFetched),
-                existingParents,
-              );
-              backwardLayers = backResult.layers;
+              try {
+                setState((prev) => ({
+                  ...prev,
+                  fetchProgress: {
+                    status: "tracing-backward",
+                    timeoutSec: analysisSettings.timeout,
+                    currentDepth: 0,
+                    maxDepth: totalMaxDepth,
+                    txsFetched: 0,
+                  },
+                }));
 
-              if (!traceAbort.signal.aborted) {
-                // Forward depths continue from where backward left off
+                const backResult = await traceBackward(
+                  tx,
+                  analysisSettings.maxDepth,
+                  analysisSettings.minSats,
+                  traceFetcher,
+                  backwardAbort.signal,
+                  (p) => updateFetchProgress("tracing-backward", p.currentDepth, p.txsFetched),
+                  existingParents,
+                );
+                backwardLayers = backResult.layers;
+              } catch {
+                // Tracing failed or timed out - proceed with whatever was collected
+              }
+
+              clearTimeout(backwardTimer);
+              controller.signal.removeEventListener("abort", onParentAbort);
+            }
+
+            // --- Phase 2: Forward tracing (second half of timeout) ---
+            if (!controller.signal.aborted) {
+              const forwardAbort = new AbortController();
+              const onParentAbort = () => forwardAbort.abort();
+              controller.signal.addEventListener("abort", onParentAbort);
+              const forwardTimer = setTimeout(() => forwardAbort.abort(), halfTimeout);
+
+              try {
                 const depthOffset = analysisSettings.maxDepth;
+                const backFetchCount = backwardLayers.reduce((s, l) => s + l.txs.size, 0);
+
                 setState((prev) => ({
                   ...prev,
                   fetchProgress: {
@@ -443,7 +460,7 @@ export function useAnalysis() {
                     timeoutSec: analysisSettings.timeout,
                     currentDepth: depthOffset,
                     maxDepth: totalMaxDepth,
-                    txsFetched: backResult.fetchCount,
+                    txsFetched: backFetchCount,
                   },
                 }));
 
@@ -452,23 +469,23 @@ export function useAnalysis() {
                   analysisSettings.maxDepth,
                   analysisSettings.minSats,
                   traceFetcher,
-                  traceAbort.signal,
+                  forwardAbort.signal,
                   (p) => updateFetchProgress(
                     "tracing-forward",
                     depthOffset + p.currentDepth,
-                    p.txsFetched + backResult.fetchCount,
+                    p.txsFetched + backFetchCount,
                   ),
                   existingChildren,
                   outspends ?? undefined,
                 );
                 forwardLayers = fwdResult.layers;
+              } catch {
+                // Tracing failed or timed out - proceed with whatever was collected
               }
-            } catch {
-              // Tracing failed or timed out - proceed with whatever was collected
-            }
 
-            clearTimeout(traceTimer);
-            controller.signal.removeEventListener("abort", onParentAbort);
+              clearTimeout(forwardTimer);
+              controller.signal.removeEventListener("abort", onParentAbort);
+            }
           }
 
           if (controller.signal.aborted) return;
@@ -639,6 +656,23 @@ export function useAnalysis() {
             onStep("chain-taint", taintResult.findings.reduce((s, f) => s + f.scoreImpact, 0));
           } else {
             onStep("chain-taint", 0);
+          }
+
+          // Emit trace summary so TaintPathDiagram can show hops even without entity findings
+          if (hasTraceLayers) {
+            result.findings.push({
+              id: "chain-trace-summary",
+              severity: "good",
+              confidence: "high",
+              title: `Chain traced ${backwardLayers.length} hops backward, ${forwardLayers.length} hops forward`,
+              description: "",
+              recommendation: "",
+              scoreImpact: 0,
+              params: {
+                backwardDepth: backwardLayers.length,
+                forwardDepth: forwardLayers.length,
+              },
+            });
           }
 
           // If prevout data is still missing after enrichment, warn the user

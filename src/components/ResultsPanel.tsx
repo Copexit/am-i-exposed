@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft, ExternalLink, Copy, Check, Info, AlertTriangle } from "lucide-react";
-import { useState, useCallback, useRef, useEffect, lazy, Suspense, memo } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo, lazy, Suspense, memo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
@@ -171,6 +171,10 @@ interface ResultsPanelProps {
   usdPrice?: number | null;
   /** Per-output spend status from the API. */
   outspends?: import("@/lib/api/types").MempoolOutspend[] | null;
+  /** Backward trace layers from chain analysis. */
+  backwardLayers?: import("@/lib/analysis/chain/recursive-trace").TraceLayer[] | null;
+  /** Forward trace layers from chain analysis. */
+  forwardLayers?: import("@/lib/analysis/chain/recursive-trace").TraceLayer[] | null;
 }
 
 export const ResultsPanel = memo(function ResultsPanel({
@@ -188,6 +192,8 @@ export const ResultsPanel = memo(function ResultsPanel({
   durationMs,
   usdPrice,
   outspends,
+  backwardLayers,
+  forwardLayers,
 }: ResultsPanelProps) {
   const { config, customApiUrl, isUmbrel } = useNetwork();
   const { t } = useTranslation();
@@ -213,9 +219,39 @@ export const ResultsPanel = memo(function ResultsPanel({
       ? t("results.viewOnLocal", { defaultValue: "View on local mempool" })
       : t("results.viewOnMempool", { defaultValue: "View on mempool.space" });
 
+  // Build parent/child tx maps from trace layers for graph explorer pre-population
+  const { parentTxMap, childTxMap } = useMemo(() => {
+    if (!txData) return { parentTxMap: null, childTxMap: null };
+
+    const parents = new Map<string, MempoolTransaction>();
+    if (backwardLayers && backwardLayers.length > 0) {
+      for (const [txid, ptx] of backwardLayers[0].txs) {
+        parents.set(txid, ptx);
+      }
+    }
+
+    const children = new Map<number, MempoolTransaction>();
+    if (forwardLayers && forwardLayers.length > 0 && outspends) {
+      for (let i = 0; i < outspends.length; i++) {
+        const os = outspends[i];
+        if (os?.spent && os.txid) {
+          const ctxn = forwardLayers[0].txs.get(os.txid);
+          if (ctxn) children.set(i, ctxn);
+        }
+      }
+    }
+
+    return {
+      parentTxMap: parents.size > 0 ? parents : null,
+      childTxMap: children.size > 0 ? children : null,
+    };
+  }, [txData, backwardLayers, forwardLayers, outspends]);
+
   // Hide findings that were suppressed for CoinJoin context (scoreImpact=0, context=coinjoin)
+  // Also hide chain-trace-summary (metadata-only for TaintPathDiagram)
   const visibleFindings = result.findings.filter(
-    (f) => !(f.scoreImpact === 0 && String(f.params?.context ?? "").includes("coinjoin")),
+    (f) => !(f.scoreImpact === 0 && String(f.params?.context ?? "").includes("coinjoin"))
+      && f.id !== "chain-trace-summary",
   );
 
   const findingsBlock = visibleFindings.length > 0 && (
@@ -425,7 +461,7 @@ export const ResultsPanel = memo(function ResultsPanel({
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.18 }} className="w-full">
           <ChartErrorBoundary>
             <Suspense fallback={null}>
-              <GraphExplorerPanel tx={txData} findings={result.findings} onTxClick={onScan} />
+              <GraphExplorerPanel tx={txData} findings={result.findings} onTxClick={onScan} parentTxMap={parentTxMap} childTxMap={childTxMap} />
             </Suspense>
           </ChartErrorBoundary>
         </motion.div>

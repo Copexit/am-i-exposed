@@ -200,6 +200,7 @@ export function evaluateCoinJoinQuality(
         qualityScore,
         goodCount: goodChecks.length,
         badCount: 0,
+        _variant: "good",
       },
       confidence: "high",
     });
@@ -225,6 +226,7 @@ export function evaluateCoinJoinQuality(
         qualityScore,
         goodCount: goodChecks.length,
         badCount: badChecks.length,
+        _variant: allBad ? "critical" : "bad",
       },
       confidence: "high",
     });

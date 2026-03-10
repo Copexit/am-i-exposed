@@ -421,7 +421,7 @@ export function WalletGuide({ detectedWallet, canCoinJoin }: WalletGuideProps) {
                       <span>
                         <strong className="text-foreground/90">{w.name}</strong>
                         {" - "}
-                        {t(w.reason, { defaultValue: defaultAvoidReason(w.name) })}
+                        {defaultAvoidReason(t, w.name)}
                       </span>
                     </li>
                   ))}
@@ -494,12 +494,12 @@ export function WalletGuide({ detectedWallet, canCoinJoin }: WalletGuideProps) {
   );
 }
 
-function defaultAvoidReason(name: string): string {
+function defaultAvoidReason(t: (key: string, opts?: Record<string, unknown>) => string, name: string): string {
   switch (name) {
-    case "Exodus": return "Clear fingerprint (nVersion=1, nLockTime=0), no coin control, no Tor, centralized servers";
-    case "Trust Wallet": return "No coin control, no Tor support, sends all queries through centralized infrastructure";
-    case "Coinbase Wallet": return "Integrated with Coinbase exchange, queries go through Coinbase servers, no privacy features";
-    case "Exchange wallets": return "Custodial - the exchange controls your keys and sees all your transactions";
-    default: return "Poor privacy practices";
+    case "Exodus": return t("walletGuide.avoidExodus", { defaultValue: "Clear fingerprint (nVersion=1, nLockTime=0), no coin control, no Tor, centralized servers" });
+    case "Trust Wallet": return t("walletGuide.avoidTrustWallet", { defaultValue: "No coin control, no Tor support, sends all queries through centralized infrastructure" });
+    case "Coinbase Wallet": return t("walletGuide.avoidCoinbaseWallet", { defaultValue: "Integrated with Coinbase exchange, queries go through Coinbase servers, no privacy features" });
+    case "Exchange wallets": return t("walletGuide.avoidExchangeWallets", { defaultValue: "Custodial - the exchange controls your keys and sees all your transactions" });
+    default: return t("walletGuide.avoidDefault", { defaultValue: "Poor privacy practices" });
   }
 }

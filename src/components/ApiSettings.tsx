@@ -483,6 +483,7 @@ export function ApiSettings() {
               {t("settings.analysis", { defaultValue: "Analysis" })}
               {(analysisSettings.maxDepth !== ANALYSIS_DEFAULTS.maxDepth ||
                 analysisSettings.minSats !== ANALYSIS_DEFAULTS.minSats ||
+                analysisSettings.timeout !== ANALYSIS_DEFAULTS.timeout ||
                 analysisSettings.skipLargeClusters !== ANALYSIS_DEFAULTS.skipLargeClusters ||
                 analysisSettings.skipCoinJoins !== ANALYSIS_DEFAULTS.skipCoinJoins) && (
                 <span className="ml-auto text-xs text-bitcoin">
@@ -554,6 +555,31 @@ export function ApiSettings() {
                   <span>100</span>
                   <span>1,000</span>
                   <span>100,000</span>
+                </div>
+              </div>
+
+              {/* Timeout slider */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label htmlFor="analysis-timeout" className="text-xs text-muted">
+                    {t("settings.analysisTimeout", { defaultValue: "Timeout (seconds)" })}
+                  </label>
+                  <span className="text-xs font-mono text-foreground tabular-nums">{analysisSettings.timeout}s</span>
+                </div>
+                <input
+                  id="analysis-timeout"
+                  type="range"
+                  min={1}
+                  max={600}
+                  step={1}
+                  value={analysisSettings.timeout}
+                  onChange={(e) => updateAnalysis({ timeout: Number(e.target.value) })}
+                  className="w-full h-1.5 bg-surface-inset rounded-full appearance-none cursor-pointer accent-bitcoin"
+                />
+                <div className="flex justify-between text-[10px] text-muted/60 mt-0.5">
+                  <span>1s</span>
+                  <span>300s</span>
+                  <span>600s</span>
                 </div>
               </div>
 

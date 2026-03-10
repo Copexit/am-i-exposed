@@ -229,8 +229,10 @@ function scanTxForEntity(
     const addr = vin.prevout?.scriptpubkey_address;
     if (!addr) continue;
     if (filter.has(addr)) {
-      const entityName = lookupEntityName(addr) ?? "Unknown entity";
-      const category = lookupEntityCategory(addr) ?? "unknown";
+      // Only report named entities - skip unnamed Bloom filter matches (possible false positives)
+      const entityName = lookupEntityName(addr);
+      if (!entityName) continue;
+      const category = lookupEntityCategory(addr) ?? "exchange";
       return { entityName, category, address: addr, hops: depth, txid: layerTx.txid, direction };
     }
   }
@@ -240,8 +242,9 @@ function scanTxForEntity(
     const addr = vout.scriptpubkey_address;
     if (!addr || vout.scriptpubkey_type === "op_return") continue;
     if (filter.has(addr)) {
-      const entityName = lookupEntityName(addr) ?? "Unknown entity";
-      const category = lookupEntityCategory(addr) ?? "unknown";
+      const entityName = lookupEntityName(addr);
+      if (!entityName) continue;
+      const category = lookupEntityCategory(addr) ?? "exchange";
       return { entityName, category, address: addr, hops: depth, txid: layerTx.txid, direction };
     }
   }

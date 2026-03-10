@@ -2,7 +2,14 @@
 
 import { useMemo } from "react";
 import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
 import type { Finding } from "@/lib/types";
+
+/** Build i18n key for a finding field, appending _variant if present in params. */
+function findingKey(id: string, field: string, params?: Record<string, unknown>): string {
+  const variant = params?._variant;
+  return variant ? `finding.${id}.${field}.${variant}` : `finding.${id}.${field}`;
+}
 
 interface ChainAnalysisPanelProps {
   findings: Finding[];
@@ -67,6 +74,7 @@ const SEVERITY_BG: Record<string, string> = {
 };
 
 export function ChainAnalysisPanel({ findings }: ChainAnalysisPanelProps) {
+  const { t } = useTranslation();
   const chainFindings = useMemo(
     () => findings.filter((f) => CHAIN_FINDING_IDS.has(f.id)),
     [findings],
@@ -106,26 +114,26 @@ export function ChainAnalysisPanel({ findings }: ChainAnalysisPanelProps) {
           <path d="M2 8h4m4 0h4M8 2v4m0 4v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
         </svg>
-        Chain Analysis
+        {t("chainAnalysis.title", { defaultValue: "Chain Analysis" })}
       </div>
 
       {backward.length > 0 && (
-        <ChainSection title="Input Provenance" findings={backward} />
+        <ChainSection title={t("chainAnalysis.inputProvenance", { defaultValue: "Input Provenance" })} findings={backward} t={t} />
       )}
       {forward.length > 0 && (
-        <ChainSection title="Output Destinations" findings={forward} />
+        <ChainSection title={t("chainAnalysis.outputDestinations", { defaultValue: "Output Destinations" })} findings={forward} t={t} />
       )}
       {structural.length > 0 && (
-        <ChainSection title="Structural Analysis" findings={structural} />
+        <ChainSection title={t("chainAnalysis.structuralAnalysis", { defaultValue: "Structural Analysis" })} findings={structural} t={t} />
       )}
       {spending.length > 0 && (
-        <ChainSection title="Spending Patterns" findings={spending} />
+        <ChainSection title={t("chainAnalysis.spendingPatterns", { defaultValue: "Spending Patterns" })} findings={spending} t={t} />
       )}
     </motion.div>
   );
 }
 
-function ChainSection({ title, findings }: { title: string; findings: Finding[] }) {
+function ChainSection({ title, findings, t }: { title: string; findings: Finding[]; t: (key: string, opts?: Record<string, unknown>) => string }) {
   return (
     <div className="space-y-2">
       <div className="text-xs font-medium text-white/40 uppercase tracking-wider">
@@ -139,7 +147,7 @@ function ChainSection({ title, findings }: { title: string; findings: Finding[] 
           >
             <div className="flex items-start justify-between gap-2">
               <span className={`font-medium ${SEVERITY_COLORS[f.severity] ?? "text-white/80"}`}>
-                {f.title}
+                {t(findingKey(f.id, "title", f.params), { ...f.params, defaultValue: f.title })}
               </span>
               {f.scoreImpact !== 0 && (
                 <span className={`text-xs font-mono shrink-0 ${f.scoreImpact > 0 ? "text-green-400" : "text-red-400"}`}>
@@ -149,7 +157,7 @@ function ChainSection({ title, findings }: { title: string; findings: Finding[] 
             </div>
             {f.params?.hops !== undefined && (
               <div className="mt-1 text-xs text-white/50">
-                {f.params.hops} hop{Number(f.params.hops) !== 1 ? "s" : ""} away
+                {t("chainAnalysis.hopsAway", { count: Number(f.params.hops), defaultValue: "{{count}} hop away" })}
               </div>
             )}
           </div>
