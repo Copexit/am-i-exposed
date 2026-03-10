@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
-import { createMempoolClient } from "@/lib/api/mempool";
+import { createApiClient } from "@/lib/api/client";
 import { isLocalInstance } from "@/lib/api/queue";
 import { getAnalysisSettings } from "@/hooks/useAnalysisSettings";
 import {
@@ -125,6 +125,7 @@ async function scanChain(
     if (signal.aborted) return results;
 
     const derived = deriveOneAddress(parsed, chain, index);
+    const t0 = performance.now();
     const info = await fetchAddress(api, derived)
       .catch((): WalletAddressInfo => ({
         derived,
@@ -132,10 +133,11 @@ async function scanChain(
         txs: [],
         utxos: [],
       }));
+    const wasCacheHit = performance.now() - t0 < 100;
 
     results.push(info);
     onProgress(info);
-    fetchCount++;
+    if (!wasCacheHit) fetchCount++;
 
     if (isUsed(info)) {
       consecutiveUnused = 0;
@@ -145,8 +147,8 @@ async function scanChain(
 
     index++;
 
-    // Rate limit for hosted APIs (skip delay after last address if gap limit reached)
-    if (!isLocal && consecutiveUnused < gapLimit) {
+    // Rate limit for hosted APIs - skip delay on cache hits (IDB reads < 10ms)
+    if (!isLocal && !wasCacheHit && consecutiveUnused < gapLimit) {
       const delayMs = fetchCount <= BURST_SIZE ? BURST_GAP_MS : SUSTAIN_DELAY_MS;
       await abortableDelay(delayMs, signal).catch(() => {});
     }
@@ -197,7 +199,7 @@ export function useWalletAnalysis() {
         // Uses configurable gap limit (default 5): scans until N consecutive
         // unused addresses per chain. Hosted API: sequential with rate limiting.
         // Local/Umbrel/custom: no delays.
-        const api = createMempoolClient(config.mempoolBaseUrl, controller.signal);
+        const api = createApiClient(config, controller.signal);
         const localApi = isLocalInstance(config.mempoolBaseUrl);
         const { walletGapLimit = DEFAULT_GAP_LIMIT } = getAnalysisSettings();
         const allInfos: WalletAddressInfo[] = [];

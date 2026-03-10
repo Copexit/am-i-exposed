@@ -16,7 +16,8 @@ export function AnalysisSettingsPanel() {
     analysisSettings.timeout !== ANALYSIS_DEFAULTS.timeout ||
     analysisSettings.skipLargeClusters !== ANALYSIS_DEFAULTS.skipLargeClusters ||
     analysisSettings.skipCoinJoins !== ANALYSIS_DEFAULTS.skipCoinJoins ||
-    analysisSettings.walletGapLimit !== ANALYSIS_DEFAULTS.walletGapLimit;
+    analysisSettings.walletGapLimit !== ANALYSIS_DEFAULTS.walletGapLimit ||
+    analysisSettings.enableCache !== ANALYSIS_DEFAULTS.enableCache;
 
   return (
     <>

@@ -1,12 +1,12 @@
-import { createMempoolClient } from "./mempool";
+import { createCachedMempoolClient } from "./cached-client";
 import type { NetworkConfig } from "@/lib/bitcoin/networks";
 
 /**
  * API client backed by a single mempool.space-compatible endpoint.
- * No secondary fallback - all queries go to the configured API only.
+ * All responses are transparently cached in IndexedDB for cross-session reuse.
  */
 export function createApiClient(config: NetworkConfig, signal?: AbortSignal) {
-  return createMempoolClient(config.mempoolBaseUrl, signal);
+  return createCachedMempoolClient(config.mempoolBaseUrl, undefined, signal);
 }
 
 export type ApiClient = ReturnType<typeof createApiClient>;

@@ -222,8 +222,10 @@ export default function Home() {
   // This prevents firing requests to mempool.space on Umbrel where the
   // local API probe hasn't resolved yet.
   const initialHashProcessed = useRef(false);
+  /** Skip the next hashchange handler (set when startXpubScan changes the hash programmatically). */
+  const skipNextHashChange = useRef(false);
 
-  // Detect if initial URL has a hash so we can suppress the landing flash
+  // Detect if initial URL has a hash so we can suppress the landing flash.
   const [pendingHash, setPendingHash] = useState(() => {
     if (typeof window === "undefined") return false;
     const hash = window.location.hash.slice(1);
@@ -234,6 +236,13 @@ export default function Home() {
 
   useEffect(() => {
     function handleHash() {
+      // Skip when hash was changed programmatically by startXpubScan
+      if (skipNextHashChange.current) {
+        skipNextHashChange.current = false;
+        setPendingHash(false);
+        return;
+      }
+
       const hash = window.location.hash.slice(1);
       if (!hash) {
         setPendingHash(false);
@@ -302,11 +311,11 @@ export default function Home() {
   const startXpubScan = useCallback((input: string) => {
     const newHash = `xpub=${encodeURIComponent(input)}`;
     const oldHash = window.location.hash.slice(1);
+    // Suppress hashchange handler - we call analyze directly below
+    if (oldHash !== newHash) skipNextHashChange.current = true;
     window.location.hash = newHash;
-    if (oldHash === newHash) {
-      reset();
-      wallet.analyze(input);
-    }
+    reset();
+    wallet.analyze(input);
   }, [reset, wallet]);
 
   const handleXpubConfirm = useCallback(() => {

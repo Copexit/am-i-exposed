@@ -51,7 +51,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Does am-i.exposed store my data?",
-    a: "No. There is no server, no database, and no analytics. The static site is served from GitHub Pages. Your addresses and transactions are never logged, stored, or transmitted to anyone. The only external requests go to mempool.space for blockchain data (or your own instance if configured).",
+    a: "No data is sent to any server beyond the mempool.space API for blockchain data. Fetched data is stored locally in your browser (IndexedDB) to avoid repeated requests, which further improves both privacy and performance of analysis. This cache can be cleared or disabled from Settings at any time. No analytics, no cookies, no tracking.",
   },
 ];
 

@@ -11,6 +11,7 @@ describe("AnalysisSettings defaults", () => {
       skipCoinJoins: false,
       timeout: 10,
       walletGapLimit: 5,
+      enableCache: true,
     };
     expect(defaults.maxDepth).toBe(6);
     expect(defaults.minSats).toBe(1000);
@@ -28,6 +29,7 @@ describe("AnalysisSettings defaults", () => {
       skipCoinJoins: true,
       timeout: 120,
       walletGapLimit: 20,
+      enableCache: false,
     };
     const json = JSON.stringify(settings);
     const parsed = JSON.parse(json) as AnalysisSettings;
@@ -42,6 +44,7 @@ describe("AnalysisSettings defaults", () => {
       skipCoinJoins: false,
       timeout: 10,
       walletGapLimit: 5,
+      enableCache: true,
     };
     const partial = { maxDepth: 10 };
     const merged = { ...defaults, ...partial };

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import { ShieldAlert, X } from "lucide-react";
 
@@ -20,6 +21,7 @@ export function XpubPrivacyWarning({
   onConfirm,
   onCancel,
 }: XpubPrivacyWarningProps) {
+  const { t } = useTranslation();
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const prevFocusRef = useRef<Element | null>(null);
@@ -104,7 +106,7 @@ export function XpubPrivacyWarning({
           <button
             onClick={onCancel}
             className="absolute top-4 right-4 text-muted hover:text-foreground transition-colors cursor-pointer"
-            aria-label="Close"
+            aria-label={t("common.close", { defaultValue: "Close" })}
           >
             <X size={18} />
           </button>
@@ -116,43 +118,46 @@ export function XpubPrivacyWarning({
                 <ShieldAlert size={24} className="text-severity-critical" />
               </div>
               <h2 id="xpub-warn-title" className="text-lg font-semibold text-foreground">
-                Privacy Warning - Wallet Scan
+                {t("wallet.xpub_warning_title", { defaultValue: "Privacy Warning - Wallet Scan" })}
               </h2>
             </div>
 
             {/* Body */}
             <div id="xpub-warn-desc" className="space-y-4 text-sm text-foreground/90 leading-relaxed">
               <p>
-                Scanning this extended public key will query{" "}
-                <strong className="text-foreground">{addressCount}+</strong> derived
-                addresses through{" "}
-                <strong className="text-foreground">{apiEndpoint}</strong>.
-                Active wallets may require more.
+                {t("wallet.xpub_warning_scanning", {
+                  addressCount,
+                  apiEndpoint,
+                  defaultValue: "Scanning this extended public key will query {{addressCount}}+ derived addresses through {{apiEndpoint}}. Active wallets may require more.",
+                })}
               </p>
 
               <div className="space-y-2">
                 <p className="text-muted">
-                  This reveals to the API operator that all queried addresses belong
-                  to the same wallet. A third party observing these queries could:
+                  {t("wallet.xpub_warning_reveals", {
+                    defaultValue: "This reveals to the API operator that all queried addresses belong to the same wallet. A third party observing these queries could:",
+                  })}
                 </p>
                 <ul className="space-y-1.5 ml-4">
                   <li className="flex items-start gap-2">
                     <span className="text-severity-critical mt-0.5">&#x2022;</span>
-                    <span>Link all addresses and transactions to a single identity</span>
+                    <span>{t("wallet.xpub_warning_link", { defaultValue: "Link all addresses and transactions to a single identity" })}</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-severity-critical mt-0.5">&#x2022;</span>
-                    <span>Calculate total wallet balance and spending history</span>
+                    <span>{t("wallet.xpub_warning_calculate", { defaultValue: "Calculate total wallet balance and spending history" })}</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-severity-critical mt-0.5">&#x2022;</span>
-                    <span>Monitor future activity across all derived addresses</span>
+                    <span>{t("wallet.xpub_warning_monitor", { defaultValue: "Monitor future activity across all derived addresses" })}</span>
                   </li>
                 </ul>
               </div>
 
               <div className="bg-surface-inset rounded-lg px-4 py-3 text-xs text-muted">
-                For maximum privacy, connect to a personal mempool instance or use the Umbrel app.
+                {t("wallet.xpub_warning_privacy", {
+                  defaultValue: "For maximum privacy, connect to a personal mempool instance or use the Umbrel app.",
+                })}
               </div>
             </div>
 
@@ -164,7 +169,7 @@ export function XpubPrivacyWarning({
                 onChange={e => setDontShowAgain(e.target.checked)}
                 className="rounded border-card-border bg-surface-elevated accent-bitcoin"
               />
-              Don&apos;t show again this session
+              {t("wallet.xpub_warning_dontShow", { defaultValue: "Don't show again this session" })}
             </label>
 
             {/* Actions */}
@@ -173,13 +178,13 @@ export function XpubPrivacyWarning({
                 onClick={handleConfirm}
                 className="px-4 py-2 bg-severity-critical/90 hover:bg-severity-critical text-white font-semibold text-sm rounded-lg transition-all duration-150 cursor-pointer"
               >
-                I understand the risk, proceed
+                {t("wallet.xpub_warning_proceed", { defaultValue: "I understand the risk, proceed" })}
               </button>
               <button
                 onClick={onCancel}
                 className="px-4 py-2 text-sm text-muted hover:text-foreground transition-colors cursor-pointer"
               >
-                Cancel
+                {t("wallet.xpub_warning_cancel", { defaultValue: "Cancel" })}
               </button>
             </div>
           </div>
@@ -197,4 +202,11 @@ export function isXpubPrivacyAcked(): boolean {
   } catch {
     return false;
   }
+}
+
+/** Mark the xpub privacy warning as acknowledged for this session. */
+export function ackXpubPrivacy(): void {
+  try {
+    sessionStorage.setItem(SESSION_KEY, "1");
+  } catch { /* SSR / private browsing */ }
 }

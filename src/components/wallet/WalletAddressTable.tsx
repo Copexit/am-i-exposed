@@ -20,12 +20,20 @@ interface ScoredAddress {
   fundedCount: number;
 }
 
-const STATUS_BADGE: Record<string, { label: string; className: string }> = {
-  reused: { label: "Reused", className: "bg-severity-critical/15 text-severity-critical" },
-  dust: { label: "Dust", className: "bg-severity-medium/15 text-severity-medium" },
-  toxic: { label: "Toxic change", className: "bg-severity-high/15 text-severity-high" },
-  clean: { label: "Clean", className: "bg-severity-good/15 text-severity-good" },
-  unused: { label: "Unused", className: "bg-surface-elevated text-muted" },
+const STATUS_CLASS: Record<string, string> = {
+  reused: "bg-severity-critical/15 text-severity-critical",
+  dust: "bg-severity-medium/15 text-severity-medium",
+  toxic: "bg-severity-high/15 text-severity-high",
+  clean: "bg-severity-good/15 text-severity-good",
+  unused: "bg-surface-elevated text-muted",
+};
+
+const STATUS_KEY: Record<string, { key: string; defaultValue: string }> = {
+  reused: { key: "wallet.status_reused", defaultValue: "Reused" },
+  dust: { key: "wallet.status_dust", defaultValue: "Dust" },
+  toxic: { key: "wallet.status_toxic", defaultValue: "Toxic change" },
+  clean: { key: "wallet.status_clean", defaultValue: "Clean" },
+  unused: { key: "wallet.status_unused", defaultValue: "Unused" },
 };
 
 function scoreAddress(info: WalletAddressInfo): ScoredAddress {
@@ -88,7 +96,8 @@ export function WalletAddressTable({ addressInfos, onScan }: WalletAddressTableP
       {scored.map((item, idx) => {
         const addr = item.info.derived.address;
         const isExpanded = expandedIdx === idx;
-        const badge = STATUS_BADGE[item.status];
+        const statusMeta = STATUS_KEY[item.status];
+        const statusClass = STATUS_CLASS[item.status];
 
         return (
           <div key={addr} className="rounded-lg border border-card-border overflow-hidden">
@@ -134,8 +143,8 @@ export function WalletAddressTable({ addressInfos, onScan }: WalletAddressTableP
               )}
 
               {/* Status badge */}
-              <span className={`text-[10px] px-1.5 py-0.5 rounded flex-shrink-0 ${badge.className}`}>
-                {badge.label}
+              <span className={`text-[10px] px-1.5 py-0.5 rounded flex-shrink-0 ${statusClass}`}>
+                {t(statusMeta.key, { defaultValue: statusMeta.defaultValue })}
               </span>
             </button>
 
@@ -240,7 +249,7 @@ export function WalletAddressTable({ addressInfos, onScan }: WalletAddressTableP
                                     {new Date(tx.status.block_time * 1000).toLocaleDateString()}
                                   </span>
                                 )}
-                                <span className="text-muted">{tx.vin.length}in/{tx.vout.length}out</span>
+                                <span className="text-muted">{t("wallet.tx_inOut", { inputs: tx.vin.length, outputs: tx.vout.length, defaultValue: "{{inputs}}in/{{outputs}}out" })}</span>
                               </div>
                             </div>
                           ))}

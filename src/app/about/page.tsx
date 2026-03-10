@@ -14,9 +14,9 @@ const PRINCIPLES = [
 
 const DEFAULTS: Record<string, string> = {
   "about.principle_client_title": "100% Client-Side",
-  "about.principle_client_desc": "All analysis runs in your browser. No server processes your data. No backend stores your queries.",
+  "about.principle_client_desc": "All analysis runs in your browser. No server processes or stores your data.",
   "about.principle_no_tracking_title": "No Tracking",
-  "about.principle_no_tracking_desc": "No analytics, no cookies, no fingerprinting. What you scan is never visible to anyone.",
+  "about.principle_no_tracking_desc": "No analytics, no cookies, no fingerprinting. What you scan is never sent to any analytics or tracking service.",
   "about.principle_open_source_title": "Open Source",
   "about.principle_open_source_desc": "Every line of code is auditable. MIT licensed. Fork it, self-host it, improve it.",
   "about.principle_free_title": "Free Forever",
