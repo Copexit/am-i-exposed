@@ -159,7 +159,7 @@ export function DiagnosticLoader({ steps, phase, inputType, fetchProgress }: Dia
         </div>
       )}
 
-      <div className="space-y-2.5">
+      <div className="space-y-2.5" role="status" aria-live="polite">
         {steps.map((step, i) => (
           <motion.div
             key={step.id}

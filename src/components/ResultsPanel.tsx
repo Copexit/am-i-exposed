@@ -108,7 +108,7 @@ function ScoringExplainer({ isAddress }: { isAddress?: boolean }) {
                 <strong className="text-severity-critical">F (&lt;25)</strong>
               </p>
               <p>
-                {t("results.scoringExplainerP3", { defaultValue: "The engine runs 30 heuristics based on published chain analysis research. Scores are clamped to 0-100. CoinJoin transactions receive adjusted scoring that accounts for their privacy-enhancing properties." })}
+                {t("results.scoringExplainerP3", { defaultValue: "The engine runs 32 heuristics based on published chain analysis research. Scores are clamped to 0-100. CoinJoin transactions receive adjusted scoring that accounts for their privacy-enhancing properties." })}
               </p>
             </div>
           </motion.div>

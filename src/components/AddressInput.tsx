@@ -173,7 +173,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
               style={{ background: "var(--bitcoin-gradient)", x: springX, y: springY }}
               className="px-5 py-2 text-black font-semibold text-sm sm:text-base rounded-lg
                 hover:brightness-110 transition-[filter] duration-150 disabled:opacity-30
-                disabled:cursor-not-allowed cursor-pointer"
+                disabled:cursor-not-allowed cursor-pointer focus-visible:ring-2 focus-visible:ring-bitcoin focus-visible:outline-none"
             >
               {buttonLabel}
             </motion.button>

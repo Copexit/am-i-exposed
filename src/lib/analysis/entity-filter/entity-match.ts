@@ -30,7 +30,7 @@ export async function matchEntities(
     const entity = resolvedName ? getEntity(resolvedName) : null;
     const resolvedCategory = entity?.category
       ?? lookupEntityCategory(addr) as EntityMatch["category"]
-      ?? "exchange";
+      ?? "unknown";
     matches.push({
       address: addr,
       entityName: resolvedName ?? "OFAC Sanctioned",
@@ -81,7 +81,7 @@ export function matchEntitySync(address: string): EntityMatch | null {
     const entity = resolvedName ? getEntity(resolvedName) : null;
     const resolvedCategory = entity?.category
       ?? lookupEntityCategory(address) as EntityMatch["category"]
-      ?? "exchange";
+      ?? "unknown";
     return {
       address,
       entityName: resolvedName ?? "OFAC Sanctioned",

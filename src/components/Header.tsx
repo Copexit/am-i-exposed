@@ -22,6 +22,7 @@ export function Header() {
   const currentPath = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { devMode, toggleDevMode } = useDevMode();
+  const mobileToggleRef = useRef<HTMLButtonElement>(null);
   const clickCount = useRef(0);
   const clickTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -38,7 +39,10 @@ export function Header() {
   useEffect(() => {
     if (!mobileOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMobileOpen(false);
+      if (e.key === "Escape") {
+        setMobileOpen(false);
+        mobileToggleRef.current?.focus();
+      }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
@@ -128,6 +132,7 @@ export function Header() {
             <ApiSettings />
             {/* Mobile hamburger */}
             <button
+              ref={mobileToggleRef}
               onClick={() => setMobileOpen(!mobileOpen)}
               aria-label={mobileOpen ? t("common.closeMenu", { defaultValue: "Close menu" }) : t("common.openMenu", { defaultValue: "Open menu" })}
               aria-expanded={mobileOpen}

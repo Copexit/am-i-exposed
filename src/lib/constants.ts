@@ -17,7 +17,9 @@ export const TXID_RE = /^[a-fA-F0-9]{64}$/;
  * to anonymity set calculations. The per-type protocol dust limits are enforced
  * separately in the dust-output heuristic (dust-output.ts).
  */
-export const DUST_THRESHOLD = 1000;
+export const SMALL_OUTPUT_THRESHOLD = 1000;
+/** @deprecated Use SMALL_OUTPUT_THRESHOLD. Kept for backward compatibility. */
+export const DUST_THRESHOLD = SMALL_OUTPUT_THRESHOLD;
 
 /** Whirlpool pool denominations in satoshis. */
 export const WHIRLPOOL_DENOMS = [
@@ -63,7 +65,7 @@ export function gradeColor(grade: string, fallback = "text-muted"): string {
 
 /** Shared Tailwind class for ghost-style action buttons (share, export, bookmark, etc.). */
 export const ACTION_BTN_CLASS =
-  "inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer px-3 py-2 min-h-[44px] rounded-lg border border-card-border hover:border-muted/50 bg-surface-elevated/50";
+  "inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer px-3 py-2 min-h-[44px] rounded-lg border border-card-border hover:border-muted/50 bg-surface-elevated/50 focus-visible:ring-2 focus-visible:ring-bitcoin focus-visible:outline-none";
 
 /** Example transactions/addresses for the home page and ScanHistory examples tab. */
 export interface ExampleItem {
