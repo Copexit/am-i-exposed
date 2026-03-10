@@ -5,13 +5,13 @@ import { getAnalysisSettings } from "@/hooks/useAnalysisSettings";
 describe("AnalysisSettings defaults", () => {
   it("default shape has all required fields", () => {
     const defaults: AnalysisSettings = {
-      maxDepth: 1,
+      maxDepth: 6,
       minSats: 1000,
       skipLargeClusters: false,
       skipCoinJoins: false,
       timeout: 30,
     };
-    expect(defaults.maxDepth).toBe(1);
+    expect(defaults.maxDepth).toBe(6);
     expect(defaults.minSats).toBe(1000);
     expect(defaults.skipLargeClusters).toBe(false);
     expect(defaults.skipCoinJoins).toBe(false);
@@ -33,7 +33,7 @@ describe("AnalysisSettings defaults", () => {
 
   it("partial settings merge with defaults correctly", () => {
     const defaults: AnalysisSettings = {
-      maxDepth: 1,
+      maxDepth: 6,
       minSats: 1000,
       skipLargeClusters: false,
       skipCoinJoins: false,
@@ -49,7 +49,7 @@ describe("AnalysisSettings defaults", () => {
 
   it("getAnalysisSettings returns defaults when no localStorage", () => {
     const settings = getAnalysisSettings();
-    expect(settings.maxDepth).toBe(1);
+    expect(settings.maxDepth).toBe(6);
     expect(settings.minSats).toBe(1000);
     expect(settings.skipLargeClusters).toBe(false);
     expect(settings.skipCoinJoins).toBe(false);

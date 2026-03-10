@@ -5,6 +5,7 @@ import { Group } from "@visx/group";
 import { Text } from "@visx/text";
 import { ParentSize } from "@visx/responsive";
 import { motion } from "motion/react";
+import { useTranslation } from "react-i18next";
 import { SVG_COLORS } from "./shared/svgConstants";
 import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
@@ -143,6 +144,26 @@ function buildTaintGraph(findings: Finding[]): { nodes: TaintNode[]; edges: Tain
     });
   }
 
+  // Show clean backward hops from trace summary when no entity/taint/coinjoin was found backward
+  const traceSummary = findings.find((f) => f.id === "chain-trace-summary");
+  if (!backwardEntity && !cjAncestry && traceSummary) {
+    const bwDepth = (traceSummary.params?.backwardDepth as number) ?? 0;
+    for (let d = 1; d <= bwDepth; d++) {
+      const nodeId = `bw-${d}`;
+      if (nodes.some((n) => n.id === nodeId)) continue;
+      nodes.push({
+        id: nodeId,
+        label: `Hop -${d}`,
+        depth: -d,
+        y: 0,
+        type: "regular",
+        taintPct: 0,
+      });
+      const prevId = d === 1 ? "root" : `bw-${d - 1}`;
+      edges.push({ source: nodeId, target: prevId, taintPct: 0, value: 0 });
+    }
+  }
+
   // Entity proximity findings - forward
   const forwardEntity = findings.find((f) => f.id === "chain-entity-proximity-forward");
   if (forwardEntity) {
@@ -193,6 +214,25 @@ function buildTaintGraph(findings: Finding[]): { nodes: TaintNode[]; edges: Tain
     });
   }
 
+  // Show clean forward hops from trace summary when no entity/coinjoin was found forward
+  if (!forwardEntity && !cjDescendancy && traceSummary) {
+    const fwDepth = (traceSummary.params?.forwardDepth as number) ?? 0;
+    for (let d = 1; d <= fwDepth; d++) {
+      const nodeId = `fw-${d}`;
+      if (nodes.some((n) => n.id === nodeId)) continue;
+      nodes.push({
+        id: nodeId,
+        label: `Hop +${d}`,
+        depth: d,
+        y: 0,
+        type: "regular",
+        taintPct: 0,
+      });
+      const prevId = d === 1 ? "root" : `fw-${d - 1}`;
+      edges.push({ source: prevId, target: nodeId, taintPct: 0, value: 0 });
+    }
+  }
+
   // Assign y positions per depth column
   const depthGroups = new Map<number, TaintNode[]>();
   for (const node of nodes) {
@@ -209,7 +249,7 @@ function buildTaintGraph(findings: Finding[]): { nodes: TaintNode[]; edges: Tain
   return { nodes, edges };
 }
 
-function TaintPath({ width, findings, onTxClick }: { width: number; findings: Finding[]; onTxClick?: (txid: string) => void }) {
+function TaintPath({ width, findings, onTxClick, t }: { width: number; findings: Finding[]; onTxClick?: (txid: string) => void; t: (key: string, opts?: Record<string, unknown>) => string }) {
   const { nodes, edges } = useMemo(() => buildTaintGraph(findings), [findings]);
   const tooltip = useChartTooltip<TooltipData>();
 
@@ -276,7 +316,7 @@ function TaintPath({ width, findings, onTxClick }: { width: number; findings: Fi
               textAnchor="middle"
               fontWeight={d === 0 ? 600 : 400}
             >
-              {d === 0 ? "Target" : d < 0 ? `Hop ${d}` : `Hop +${d}`}
+              {d === 0 ? t("taintFlow.target", { defaultValue: "Target" }) : d < 0 ? `Hop ${d}` : `Hop +${d}`}
             </Text>
           ))}
 
@@ -391,7 +431,12 @@ function TaintPath({ width, findings, onTxClick }: { width: number; findings: Fi
                   textAnchor="middle"
                   width={COL_WIDTH - 20}
                 >
-                  {node.label.length > 16 ? node.label.slice(0, 14) + "..." : node.label}
+                  {(() => {
+                  const label = node.label === "Analyzed TX"
+                    ? t("taintFlow.analyzedTx", { defaultValue: "Analyzed TX" })
+                    : node.label;
+                  return label.length > 16 ? label.slice(0, 14) + "..." : label;
+                })()}
                 </Text>
 
                 {/* Category badge for entities */}
@@ -424,12 +469,12 @@ function TaintPath({ width, findings, onTxClick }: { width: number; findings: Fi
             )}
             {tooltip.tooltipData.hops !== undefined && tooltip.tooltipData.hops > 0 && (
               <div className="text-xs" style={{ color: SVG_COLORS.muted }}>
-                {tooltip.tooltipData.hops} hop{tooltip.tooltipData.hops > 1 ? "s" : ""} from target
+                {t("taintFlow.hopsFromTarget", { count: tooltip.tooltipData.hops, defaultValue: "{{count}} hop from target" })}
               </div>
             )}
             {tooltip.tooltipData.taintPct > 0 && (
               <div className="text-xs" style={{ color: SVG_COLORS.critical }}>
-                Taint: {tooltip.tooltipData.taintPct}%
+                {t("taintFlow.taintPct", { pct: tooltip.tooltipData.taintPct, defaultValue: "Taint: {{pct}}%" })}
               </div>
             )}
           </div>
@@ -440,13 +485,16 @@ function TaintPath({ width, findings, onTxClick }: { width: number; findings: Fi
 }
 
 export function TaintPathDiagram({ findings, onTxClick }: TaintPathDiagramProps) {
+  const { t } = useTranslation();
+
   // Only render if we have relevant chain analysis findings
   const hasChainData = findings.some((f) =>
     f.id === "chain-taint-backward" ||
     f.id === "chain-entity-proximity-backward" ||
     f.id === "chain-entity-proximity-forward" ||
     f.id === "chain-coinjoin-ancestry" ||
-    f.id === "chain-coinjoin-descendancy"
+    f.id === "chain-coinjoin-descendancy" ||
+    f.id === "chain-trace-summary"
   );
 
   if (!hasChainData) return null;
@@ -462,18 +510,18 @@ export function TaintPathDiagram({ findings, onTxClick }: TaintPathDiagramProps)
         <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
           <path d="M1 8h14M4 4l-3 4 3 4M12 4l3 4-3 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        Taint Flow
+        {t("taintFlow.title", { defaultValue: "Taint Flow" })}
       </div>
 
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-4 text-xs text-white/50">
         <span className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-full border-2" style={{ borderColor: SVG_COLORS.bitcoin, background: `${SVG_COLORS.bitcoin}22` }} />
-          Target TX
+          {t("taintFlow.targetTx", { defaultValue: "Target TX" })}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded border-2" style={{ borderColor: SVG_COLORS.high, background: `${SVG_COLORS.high}22` }} />
-          Known Entity
+          {t("taintFlow.knownEntity", { defaultValue: "Known Entity" })}
         </span>
         <span className="flex items-center gap-1.5">
           <svg width="12" height="12" viewBox="0 0 12 12">
@@ -483,17 +531,17 @@ export function TaintPathDiagram({ findings, onTxClick }: TaintPathDiagramProps)
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-6 border-t-2" style={{ borderColor: SVG_COLORS.high }} />
-          Tainted path
+          {t("taintFlow.taintedPath", { defaultValue: "Tainted path" })}
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-6 border-t-2 border-dashed" style={{ borderColor: SVG_COLORS.muted }} />
-          Clean path
+          {t("taintFlow.cleanPath", { defaultValue: "Clean path" })}
         </span>
       </div>
 
       <div className="overflow-x-auto -mx-4 px-4">
         <ParentSize debounceTime={100}>
-          {({ width }) => width > 0 ? <TaintPath width={Math.max(width, 400)} findings={findings} onTxClick={onTxClick} /> : null}
+          {({ width }) => width > 0 ? <TaintPath width={Math.max(width, 400)} findings={findings} onTxClick={onTxClick} t={t} /> : null}
         </ParentSize>
       </div>
     </motion.div>

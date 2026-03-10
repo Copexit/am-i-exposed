@@ -410,8 +410,8 @@ function FlowChart({
                     stroke={`url(#flow-link-${i})`}
                     strokeWidth={Math.max(1, linkWidth)}
                     strokeOpacity={isHighlighted ? 0.5 : 0.08}
-                    initial={reducedMotion ? false : { pathLength: 0 }}
-                    animate={{ pathLength: 1 }}
+                    initial={reducedMotion ? false : { opacity: 0 }}
+                    animate={{ opacity: 1 }}
                     transition={{ delay: 0.15 + i * 0.01, duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
                   />
                 );

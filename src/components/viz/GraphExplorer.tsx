@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { motion } from "motion/react";
 import { Text } from "@visx/text";
 import { ParentSize } from "@visx/responsive";
+import { useTranslation } from "react-i18next";
 import { SVG_COLORS } from "./shared/svgConstants";
 import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
@@ -183,6 +184,11 @@ function getNodeColor(node: LayoutNode): string {
   return SVG_COLORS.low;
 }
 
+interface GraphCanvasProps extends GraphExplorerProps {
+  containerWidth: number;
+  tooltip: ReturnType<typeof useChartTooltip<TooltipData>>;
+}
+
 function GraphCanvas({
   nodes,
   rootTxid,
@@ -191,8 +197,8 @@ function GraphCanvas({
   onCollapse,
   onTxClick,
   containerWidth,
-}: GraphExplorerProps & { containerWidth: number }) {
-  const tooltip = useChartTooltip<TooltipData>();
+  tooltip,
+}: GraphCanvasProps) {
   const { layoutNodes, edges, width, height } = useMemo(
     () => layoutGraph(nodes, rootTxid),
     [nodes, rootTxid],
@@ -202,7 +208,7 @@ function GraphCanvas({
   const svgHeight = Math.max(height, 150);
 
   return (
-    <div className="relative overflow-x-auto -mx-4 px-4" style={{ position: "relative" }}>
+    <div className="relative" style={{ minWidth: svgWidth }}>
       <svg width={svgWidth} height={svgHeight} className="overflow-visible">
         <ChartDefs />
         <defs>
@@ -353,12 +359,76 @@ function GraphCanvas({
         })}
       </svg>
 
+    </div>
+  );
+}
+
+export function GraphExplorer(props: GraphExplorerProps) {
+  const { t } = useTranslation();
+  const tooltip = useChartTooltip<TooltipData>();
+
+  if (props.nodes.size === 0) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.3 }}
+      className="relative rounded-xl border border-white/5 bg-surface-inset p-4 space-y-3"
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm font-medium text-white/70">
+          <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
+            <circle cx="4" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
+            <circle cx="12" cy="4" r="2" stroke="currentColor" strokeWidth="1.5" />
+            <circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M6 7l4-2M6 9l4 2" stroke="currentColor" strokeWidth="1" strokeOpacity="0.5" />
+          </svg>
+          {t("graphExplorer.title", { defaultValue: "Transaction Graph" })}
+          <span className="text-xs text-white/40 font-normal">
+            {t("graphExplorer.nodeCount", { count: props.nodeCount, max: props.maxNodes, defaultValue: "({{count}}/{{max}} nodes)" })}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {props.canUndo && (
+            <button
+              onClick={props.onUndo}
+              className="text-xs text-white/50 hover:text-white/80 transition-colors px-2 py-1 rounded border border-white/10 cursor-pointer"
+            >
+              {t("common.undo", { defaultValue: "Undo" })}
+            </button>
+          )}
+          {props.nodeCount > 1 && (
+            <button
+              onClick={props.onReset}
+              className="text-xs text-white/50 hover:text-white/80 transition-colors px-2 py-1 rounded border border-white/10 cursor-pointer"
+            >
+              {t("common.reset", { defaultValue: "Reset" })}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="text-xs text-white/40">
+        {t("graphExplorer.instructions", { defaultValue: "Click + buttons on nodes to expand the graph. Click node to analyze." })}
+      </div>
+
+      <div className="overflow-x-auto -mx-4 px-4">
+        <ParentSize debounceTime={100}>
+          {({ width }) => width > 0 ? (
+            <GraphCanvas {...props} containerWidth={width} tooltip={tooltip} />
+          ) : null}
+        </ParentSize>
+      </div>
+
+      {/* Tooltip rendered outside the scroll container to prevent clipping */}
       {tooltip.tooltipOpen && tooltip.tooltipData && (
         <ChartTooltip top={tooltip.tooltipTop} left={tooltip.tooltipLeft}>
           <div className="space-y-1">
             <div className="font-mono text-xs">{truncateId(tooltip.tooltipData.txid, 24)}</div>
             <div className="text-xs" style={{ color: SVG_COLORS.muted }}>
-              {tooltip.tooltipData.inputCount} inputs, {tooltip.tooltipData.outputCount} outputs
+              {tooltip.tooltipData.inputCount} {t("graphExplorer.inputs", { defaultValue: "inputs" })}, {tooltip.tooltipData.outputCount} {t("graphExplorer.outputs", { defaultValue: "outputs" })}
             </div>
             <div className="text-xs" style={{ color: SVG_COLORS.bitcoin }}>
               {formatSats(tooltip.tooltipData.totalValue)}
@@ -370,75 +440,16 @@ function GraphCanvas({
               <div className="text-xs" style={{ color: SVG_COLORS.high }}>{tooltip.tooltipData.entityLabel}</div>
             )}
             <div className="text-xs" style={{ color: SVG_COLORS.muted }}>
-              Depth: {tooltip.tooltipData.depth > 0 ? `+${tooltip.tooltipData.depth}` : tooltip.tooltipData.depth}
+              {t("graphExplorer.depth", { depth: tooltip.tooltipData.depth > 0 ? `+${tooltip.tooltipData.depth}` : tooltip.tooltipData.depth, defaultValue: "Depth: {{depth}}" })}
             </div>
           </div>
         </ChartTooltip>
       )}
-    </div>
-  );
-}
-
-export function GraphExplorer(props: GraphExplorerProps) {
-  if (props.nodes.size === 0) return null;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.3 }}
-      className="rounded-xl border border-white/5 bg-surface-inset p-4 space-y-3"
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-medium text-white/70">
-          <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
-            <circle cx="4" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
-            <circle cx="12" cy="4" r="2" stroke="currentColor" strokeWidth="1.5" />
-            <circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M6 7l4-2M6 9l4 2" stroke="currentColor" strokeWidth="1" strokeOpacity="0.5" />
-          </svg>
-          Transaction Graph
-          <span className="text-xs text-white/40 font-normal">
-            ({props.nodeCount}/{props.maxNodes} nodes)
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {props.canUndo && (
-            <button
-              onClick={props.onUndo}
-              className="text-xs text-white/50 hover:text-white/80 transition-colors px-2 py-1 rounded border border-white/10 cursor-pointer"
-            >
-              Undo
-            </button>
-          )}
-          {props.nodeCount > 1 && (
-            <button
-              onClick={props.onReset}
-              className="text-xs text-white/50 hover:text-white/80 transition-colors px-2 py-1 rounded border border-white/10 cursor-pointer"
-            >
-              Reset
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="text-xs text-white/40">
-        Click + buttons on nodes to expand the graph. Click node to analyze.
-      </div>
-
-      <div className="overflow-x-auto -mx-4 px-4">
-        <ParentSize debounceTime={100}>
-          {({ width }) => width > 0 ? (
-            <GraphCanvas {...props} containerWidth={width} />
-          ) : null}
-        </ParentSize>
-      </div>
 
       {/* Loading indicators */}
       {props.loading.size > 0 && (
         <div className="text-xs text-white/40 animate-pulse">
-          Fetching transactions...
+          {t("graphExplorer.fetching", { defaultValue: "Fetching transactions..." })}
         </div>
       )}
     </motion.div>

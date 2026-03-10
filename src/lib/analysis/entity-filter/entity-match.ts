@@ -52,13 +52,14 @@ export async function matchEntities(
 
       if (filter.has(addr)) {
         const resolvedName = lookupEntityName(addr);
-        const entity = resolvedName ? getEntity(resolvedName) : null;
+        if (!resolvedName) continue; // Skip unnamed Bloom filter matches
+        const entity = getEntity(resolvedName);
         matches.push({
           address: addr,
-          entityName: resolvedName ?? "Known entity",
+          entityName: resolvedName,
           category: entity?.category ?? lookupEntityCategory(addr) as EntityMatch["category"] ?? "exchange",
           ofac: entity?.ofac ?? false,
-          confidence: resolvedName ? "high" : "medium",
+          confidence: "high",
         });
       }
     }
@@ -90,16 +91,18 @@ export function matchEntitySync(address: string): EntityMatch | null {
   }
 
   // Entity filter (only if already loaded)
+  // Skip unnamed matches (possible Bloom filter false positives)
   const filter = getFilter();
   if (filter?.has(address)) {
     const resolvedName = lookupEntityName(address);
-    const entity = resolvedName ? getEntity(resolvedName) : null;
+    if (!resolvedName) return null;
+    const entity = getEntity(resolvedName);
     return {
       address,
-      entityName: resolvedName ?? "Known entity",
+      entityName: resolvedName,
       category: entity?.category ?? lookupEntityCategory(address) as EntityMatch["category"] ?? "exchange",
       ofac: entity?.ofac ?? false,
-      confidence: resolvedName ? "high" : "medium",
+      confidence: "high",
     };
   }
 

@@ -147,6 +147,8 @@ export default function Home() {
     outspends,
     psbtData,
     fetchProgress,
+    backwardLayers,
+    forwardLayers,
     analyze,
     reset,
   } = useAnalysis();
@@ -511,6 +513,8 @@ export default function Home() {
               durationMs={durationMs}
               usdPrice={usdPrice}
               outspends={outspends}
+              backwardLayers={backwardLayers}
+              forwardLayers={forwardLayers}
             />
           </>
         )}

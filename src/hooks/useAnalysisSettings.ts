@@ -3,7 +3,7 @@
 import { useSyncExternalStore, useCallback } from "react";
 
 export interface AnalysisSettings {
-  /** Maximum chain analysis depth in hops (1-50, default 1) */
+  /** Maximum chain analysis depth in hops (1-50, default 6) */
   maxDepth: number;
   /** Minimum satoshi threshold to stop tracing (default 1000) */
   minSats: number;
@@ -11,14 +11,14 @@ export interface AnalysisSettings {
   skipLargeClusters: boolean;
   /** Skip batching/CoinJoin transactions during chain tracing */
   skipCoinJoins: boolean;
-  /** Analysis timeout in seconds (10-600, default 30) */
+  /** Analysis timeout in seconds (1-600, default 30) */
   timeout: number;
 }
 
 const STORAGE_KEY = "analysis-settings";
 
 const DEFAULTS: AnalysisSettings = {
-  maxDepth: 1,
+  maxDepth: 6,
   minSats: 1000,
   skipLargeClusters: false,
   skipCoinJoins: false,

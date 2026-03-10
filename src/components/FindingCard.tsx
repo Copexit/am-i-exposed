@@ -19,6 +19,12 @@ const FINDING_LEARN_MORE: Record<string, { faqId: string; labelKey: string; labe
   "h5-low-entropy": { faqId: "coinjoin", labelKey: "learnMore.entropy", labelDefault: "Transaction entropy explained" },
 };
 
+/** Build i18n key for a finding field, appending _variant if present in params. */
+function findingKey(id: string, field: string, params?: Record<string, unknown>): string {
+  const variant = params?._variant;
+  return variant ? `finding.${id}.${field}.${variant}` : `finding.${id}.${field}`;
+}
+
 interface FindingCardProps {
   finding: Finding;
   index: number;
@@ -88,7 +94,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
       className={`glass rounded-lg overflow-hidden border-l-2 ${style.border} ${style.glow ?? ""}`}
       data-finding-id={finding.id}
       role="article"
-      aria-label={`${severityLabel} finding: ${t(`finding.${finding.id}.title`, { ...finding.params, defaultValue: finding.title })}`}
+      aria-label={`${severityLabel} finding: ${t(findingKey(finding.id, "title", finding.params), { ...finding.params, defaultValue: finding.title })}`}
     >
       <button
         onClick={() => setExpanded(!expanded)}
@@ -101,7 +107,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
           <WalletIcon walletName={String(finding.params.walletGuess)} size="sm" />
         )}
         <span className="flex-1 text-sm font-medium text-foreground">
-          {t(`finding.${finding.id}.title`, { ...finding.params, defaultValue: finding.title })}
+          {t(findingKey(finding.id, "title", finding.params), { ...finding.params, defaultValue: finding.title })}
         </span>
         {confidenceStyle && (
           <span className={`text-[10px] px-1.5 py-0.5 rounded border ${confidenceStyle.className}`}>
@@ -128,7 +134,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
           >
             <div id={`finding-detail-${finding.id}`} className="px-5 pb-5 space-y-3 border-t border-card-border pt-3">
               <p className="text-base text-foreground leading-relaxed">
-                {t(`finding.${finding.id}.description`, { ...finding.params, defaultValue: finding.description })}
+                {t(findingKey(finding.id, "description", finding.params), { ...finding.params, defaultValue: finding.description })}
               </p>
               {finding.recommendation && (
                 <div className="bg-surface-inset rounded-md px-3 py-2">
@@ -136,7 +142,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
                     {t("finding.recommendationLabel", { defaultValue: "Recommendation" })}
                   </p>
                   <p className="text-base text-foreground/90 leading-relaxed">
-                    {t(`finding.${finding.id}.recommendation`, { ...finding.params, defaultValue: finding.recommendation })}
+                    {t(findingKey(finding.id, "recommendation", finding.params), { ...finding.params, defaultValue: finding.recommendation })}
                   </p>
                 </div>
               )}
