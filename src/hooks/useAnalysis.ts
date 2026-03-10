@@ -241,7 +241,7 @@ export function useAnalysis() {
 
           // --- Recursive tracing (chain analysis) ---
           const analysisSettings = getAnalysisSettings();
-          const { backwardLayers, forwardLayers } = await runChainTrace({
+          const { backwardLayers, forwardLayers, backwardFailed, forwardFailed } = await runChainTrace({
             tx,
             settings: analysisSettings,
             api: {
@@ -291,6 +291,24 @@ export function useAnalysis() {
             outspends,
             onStep,
           });
+
+          // Warn if chain tracing failed or timed out
+          if (backwardFailed || forwardFailed) {
+            const direction = backwardFailed && forwardFailed ? "backward and forward"
+              : backwardFailed ? "backward" : "forward";
+            result.findings.push({
+              id: "chain-trace-partial",
+              severity: "low",
+              confidence: "high",
+              title: `Chain tracing incomplete (${direction})`,
+              description:
+                `${direction.charAt(0).toUpperCase() + direction.slice(1)} tracing failed or timed out. ` +
+                "Chain analysis results may be incomplete. This typically happens with rate-limited APIs or deep trace depths.",
+              recommendation:
+                "Try again with a shorter chain depth or longer timeout in Analysis settings.",
+              scoreImpact: 0,
+            });
+          }
 
           // If prevout data is still missing after enrichment, warn the user
           const remainingNulls = countNullPrevouts([tx]);
