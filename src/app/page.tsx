@@ -259,6 +259,7 @@ export default function Home() {
 
       // Handle xpub/descriptor via wallet analysis flow
       if (xpub) {
+        initialHashProcessed.current = true;
         // Guard: show privacy warning if using a third-party API
         if (isThirdPartyRef.current && !isXpubPrivacyAcked()) {
           setPendingXpubRef.current(xpub);
@@ -274,6 +275,8 @@ export default function Home() {
       // #check=X is treated as #addr=X (unified flow)
       const input = txid ?? addr ?? check;
       if (input) {
+        // Mark as processed so the localApiStatus settle doesn't re-trigger
+        initialHashProcessed.current = true;
         walletResetRef.current();
         analyzeRef.current(input);
         setPendingHash(false);

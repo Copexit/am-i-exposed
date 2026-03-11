@@ -53,14 +53,16 @@ export async function matchEntities(
 
       if (filter.has(addr)) {
         const resolvedName = lookupEntityName(addr);
-        if (!resolvedName) continue; // Skip unnamed Bloom filter matches
-        const entity = getEntity(resolvedName);
+        const entity = resolvedName ? getEntity(resolvedName) : null;
+        const resolvedCategory = entity?.category
+          ?? lookupEntityCategory(addr) as EntityMatch["category"]
+          ?? "unknown";
         matches.push({
           address: addr,
-          entityName: resolvedName,
-          category: entity?.category ?? lookupEntityCategory(addr) as EntityMatch["category"] ?? "unknown",
+          entityName: resolvedName ?? "Known Entity",
+          category: resolvedCategory,
           ofac: entity?.ofac ?? false,
-          confidence: "high",
+          confidence: resolvedName ? "high" : "medium",
         });
       }
     }
@@ -92,18 +94,19 @@ export function matchEntitySync(address: string): EntityMatch | null {
   }
 
   // Entity filter (only if already loaded)
-  // Skip unnamed matches (possible Bloom filter false positives)
   const filter = getFilter();
   if (filter?.has(address)) {
     const resolvedName = lookupEntityName(address);
-    if (!resolvedName) return null;
-    const entity = getEntity(resolvedName);
+    const entity = resolvedName ? getEntity(resolvedName) : null;
+    const resolvedCategory = entity?.category
+      ?? lookupEntityCategory(address) as EntityMatch["category"]
+      ?? "unknown";
     return {
       address,
-      entityName: resolvedName,
-      category: entity?.category ?? lookupEntityCategory(address) as EntityMatch["category"] ?? "unknown",
+      entityName: resolvedName ?? "Known Entity",
+      category: resolvedCategory,
       ofac: entity?.ofac ?? false,
-      confidence: "high",
+      confidence: resolvedName ? "high" : "medium",
     };
   }
 

@@ -174,13 +174,17 @@ function parseArgs() {
     const arg = args.find((a) => a.startsWith(`${name}=`));
     return arg ? arg.split("=")[1] : undefined;
   };
+  const core = getFlag("--core");
+  const full = getFlag("--full");
   return {
     download: getFlag("--download"),
     ofacOnly: getFlag("--ofac-only"),
     walletexplorer: getFlag("--walletexplorer"),
-    full: getFlag("--full"),
+    core,
+    full,
     fpr: parseFloat(getValue("--fpr") || "0.001"),
-    maxAddresses: parseInt(getValue("--max") || "0") || 0,
+    // Core mode defaults to 1M budget; full mode is unlimited (bloom handles overflow)
+    maxAddresses: core ? 1_000_000 : (parseInt(getValue("--max") || "0") || 0),
     indexMax: parseInt(getValue("--index-max") || "10000000") || 10_000_000,
     output: getValue("--output") || "entity-filter.bin",
     help: getFlag("--help") || getFlag("-h"),
@@ -312,8 +316,12 @@ async function streamCsvIntoFilter(filePath, category, sourceName, filter, stats
   let added = 0;
 
   for await (const rawLine of rl) {
-    // Check max limit
-    if (stats.maxAddresses > 0 && stats.unique >= stats.maxAddresses) break;
+    // Budget mode: stop when all budgets exhausted; else use max limit
+    if (stats.budgetMap) {
+      if (stats.totalAllocated >= stats.totalBudget) break;
+    } else if (stats.maxAddresses > 0 && stats.unique >= stats.maxAddresses) {
+      break;
+    }
 
     lineNum++;
     const line = rawLine.trim();
@@ -373,36 +381,57 @@ async function streamCsvIntoFilter(filePath, category, sourceName, filter, stats
 
     if (!isValidAddress(address)) continue;
 
-    // Dedup using the filter itself (probabilistic but memory-efficient)
-    if (!filter.has(address)) {
-      filter.add(address);
-      added++;
-      stats.unique++;
-
-      // In full mode: addresses beyond indexMax go into overflow Bloom only
-      const pastIndexLimit = stats.indexMax > 0 && stats.unique > stats.indexMax;
-
-      if (pastIndexLimit && stats.overflowFilter) {
-        // Overflow: add to overflow Bloom (no name resolution)
-        stats.overflowFilter.add(address);
-        stats.overflowCount = (stats.overflowCount || 0) + 1;
-      } else {
-        // Within index limit: record entity mapping for the name index
-        if (entityIdx >= 0 && entityIdx < parts.length) {
-          const rawEntityName = parts[entityIdx];
-          if (rawEntityName && rawEntityName.toLowerCase() !== "unknown") {
-            const resolvedName = resolveEntityName(rawEntityName, stats.entityLookup);
-            let eid = stats.entityNameMap.get(resolvedName);
-            if (eid === undefined) {
-              eid = stats.entityNameTable.length;
-              stats.entityNameTable.push({ name: resolvedName, category });
-              stats.entityNameMap.set(resolvedName, eid);
-            }
-            stats.entityIndex.push({ hash: fnv1aHash(address, FNV_SEED_1), entityId: eid });
-          }
-        }
+    // Resolve entity name first (before bloom/budget decisions)
+    let resolvedName = null;
+    if (entityIdx >= 0 && entityIdx < parts.length) {
+      const rawEntityName = parts[entityIdx];
+      if (rawEntityName && rawEntityName.toLowerCase() !== "unknown") {
+        resolvedName = resolveEntityName(rawEntityName, stats.entityLookup);
       }
     }
+
+    // Check per-entity budget (if budget system active)
+    let withinBudget = true;
+    if (stats.budgetMap && resolvedName) {
+      const budget = stats.budgetMap.get(resolvedName) || 0;
+      const allocated = stats.entityAllocated.get(resolvedName) || 0;
+      withinBudget = allocated < budget;
+    } else if (!stats.budgetMap && stats.indexMax > 0 && resolvedName) {
+      // Legacy fallback: global index limit (no budget system)
+      withinBudget = stats.entityIndex.length < stats.indexMax;
+    }
+
+    if (withinBudget) {
+      // Dedup via bloom, then add to bloom + index
+      if (!filter.has(address)) {
+        filter.add(address);
+        added++;
+        stats.unique++;
+
+        if (resolvedName) {
+          let eid = stats.entityNameMap.get(resolvedName);
+          if (eid === undefined) {
+            eid = stats.entityNameTable.length;
+            stats.entityNameTable.push({ name: resolvedName, category });
+            stats.entityNameMap.set(resolvedName, eid);
+          }
+          stats.entityIndex.push({ hash: fnv1aHash(address, FNV_SEED_1), entityId: eid });
+          if (stats.entityAllocated) {
+            stats.entityAllocated.set(resolvedName, (stats.entityAllocated.get(resolvedName) || 0) + 1);
+          }
+          stats.totalAllocated++;
+        }
+      }
+    } else if (stats.overflowFilter) {
+      // Full mode: over budget -> add to main bloom + overflow Bloom
+      if (!filter.has(address)) {
+        filter.add(address);
+        stats.unique++;
+        stats.overflowFilter.add(address);
+        stats.overflowCount = (stats.overflowCount || 0) + 1;
+      }
+    }
+    // Core mode + over budget + no overflow: skip entirely
     stats.total++;
 
     // Track entity name for cross-referencing
@@ -428,6 +457,129 @@ async function streamCsvIntoFilter(filePath, category, sourceName, filter, stats
 
   if (lineNum > 1_000_000) process.stdout.write("\n");
   return added;
+}
+
+// ───────────────── Pre-scan for entity counts ─────────────────
+
+/**
+ * Stream all CSV files to count addresses per resolved entity name.
+ * Fast pass: no hashing or dedup, just counting (~30s for 30M lines).
+ */
+async function prescanEntityCounts(csvFiles, entityLookup) {
+  const counts = new Map();
+  let totalLines = 0;
+
+  for (const { path: csvPath } of csvFiles) {
+    const stream = createReadStream(csvPath, "utf-8");
+    const rl = createInterface({ input: stream, crlfDelay: Infinity });
+    let headerDetected = false;
+    let entityIdx = -1;
+
+    for await (const rawLine of rl) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith("#")) continue;
+      const parts = line.split(",").map((p) => p.trim().replace(/^"|"$/g, ""));
+
+      if (!headerDetected) {
+        headerDetected = true;
+        const lower = parts.map((c) => c.toLowerCase());
+        const hasHeader = lower.some((c) =>
+          ["hashadd", "address", "addr", "exchange", "gambling",
+           "mining", "service", "historic", "entity", "label"].includes(c),
+        );
+        if (hasHeader) {
+          entityIdx = lower.findIndex((c) =>
+            ["entity", "label", "name", "wallet", "owner", "exchange",
+             "gambling", "mining", "service", "historic"].includes(c),
+          );
+          continue;
+        }
+      }
+
+      if (entityIdx >= 0 && entityIdx < parts.length) {
+        const rawName = parts[entityIdx];
+        if (rawName && rawName.toLowerCase() !== "unknown") {
+          const resolved = resolveEntityName(rawName, entityLookup);
+          counts.set(resolved, (counts.get(resolved) || 0) + 1);
+        }
+      }
+
+      totalLines++;
+      if (totalLines % 5_000_000 === 0) {
+        process.stdout.write(
+          `    ${(totalLines / 1_000_000).toFixed(0)}M lines scanned...\r`,
+        );
+      }
+    }
+  }
+
+  if (totalLines > 1_000_000) process.stdout.write("\n");
+  return counts;
+}
+
+// Priority overrides for resolved names that don't match entities.json directly
+const PRIORITY_OVERRIDES = new Map([
+  ["Xapo", 2], // xapo.com resolves to "Xapo", entities.json has "Xapo Bank"
+  ["ePay", 1], // epay.info fallback
+]);
+
+/**
+ * Compute per-entity budget allocation for the named index.
+ * Weight formula: priority * log2(1 + addressCount)
+ * Higher priority entities get proportionally more named index slots.
+ */
+function computeEntityBudgets(entityCounts, priorityMap, totalSlots) {
+  // Cap any single entity at 3% of total budget to ensure diversity
+  const maxPerEntity = Math.floor(totalSlots * 0.03);
+
+  const entries = [];
+  let totalWeight = 0;
+
+  for (const [name, count] of entityCounts) {
+    const priority =
+      priorityMap.get(name) ?? PRIORITY_OVERRIDES.get(name) ?? 3;
+    const weight = priority * Math.log2(1 + count);
+    entries.push({ name, count, priority, weight });
+    totalWeight += weight;
+  }
+
+  entries.sort((a, b) => b.weight - a.weight);
+
+  const budgets = new Map();
+  let allocated = 0;
+
+  for (const entry of entries) {
+    const share = Math.floor((totalSlots * entry.weight) / totalWeight);
+    const budget = Math.min(entry.count, share, maxPerEntity);
+    budgets.set(entry.name, budget);
+    allocated += budget;
+  }
+
+  // Fill remaining slots greedily from highest-weight entities (still respecting cap)
+  let remaining = totalSlots - allocated;
+  for (const entry of entries) {
+    if (remaining <= 0) break;
+    const current = budgets.get(entry.name);
+    const headroom = Math.min(entry.count, maxPerEntity) - current;
+    const extra = Math.min(remaining, headroom);
+    if (extra > 0) {
+      budgets.set(entry.name, current + extra);
+      remaining -= extra;
+    }
+  }
+
+  return { budgets, entries };
+}
+
+/**
+ * Build a map of entity name -> priority from entities.json.
+ */
+function buildEntityPriorityMap(entitiesJson) {
+  const map = new Map();
+  for (const e of entitiesJson.entities || []) {
+    map.set(e.name, e.priority ?? 3);
+  }
+  return map;
 }
 
 // ───────────────── Download ─────────────────
@@ -612,22 +764,23 @@ async function main() {
 Usage: node scripts/build-entity-filter.mjs [options]
 
 Options:
+  --core            Core build: 1M budget-allocated named index + Bloom
+  --full            Full build: 10M named index + overflow Bloom
   --download        Download Maru92 dataset before building
   --ofac-only       Build filter from OFAC addresses only
   --walletexplorer  Query WalletExplorer API (slow, rate-limited)
-  --full            Full build: 10M named index + overflow Bloom
   --fpr=0.001       False positive rate (default: 0.001 = 0.1%)
-  --max=N           Limit total addresses (0 = unlimited)
+  --max=N           Limit total addresses (0 = unlimited, overridden by --core)
   --index-max=N     Addresses in full index (default: 10000000)
   --output=NAME     Output filename (default: entity-filter.bin)
   --help, -h        Show this help
 
 Build modes:
-  # Core (1M addresses, index only)
-  node scripts/build-entity-filter.mjs --max=1000000
+  # Core (1M budget-allocated, priority-weighted across all categories)
+  node scripts/build-entity-filter.mjs --core
 
   # Full (10M index + 20M overflow Bloom)
-  node scripts/build-entity-filter.mjs --full --index-max=10000000
+  node scripts/build-entity-filter.mjs --full
 
 Data sources are cached in .cache/entity-data/.
 Output: public/data/
@@ -660,20 +813,7 @@ Output: public/data/
   const maru92Dir = join(CACHE_DIR, "maru92");
   const maru92Csvs = !opts.ofacOnly ? findCsvFiles(maru92Dir) : [];
   if (maru92Csvs.length > 0) {
-    // Sort: exchanges first (most valuable for privacy analysis)
-    maru92Csvs.sort((a, b) => {
-      const catA = getCategoryFromFilename(basename(a));
-      const catB = getCategoryFromFilename(basename(b));
-      const priority = {
-        exchange: 0,
-        mining: 1,
-        gambling: 2,
-        payment: 3,
-        historical: 4,
-      };
-      return (priority[catA] ?? 5) - (priority[catB] ?? 5);
-    });
-
+    // No category-based sorting: per-entity budgets handle allocation fairly
     for (const csv of maru92Csvs) {
       const lines = countLines(csv);
       estimatedTotal += lines;
@@ -696,6 +836,15 @@ Output: public/data/
   const customDir = join(CACHE_DIR, "custom");
   const customCsvs = !opts.ofacOnly ? findCsvFiles(customDir) : [];
   for (const csv of customCsvs) {
+    const lines = countLines(csv);
+    estimatedTotal += lines;
+    console.log(`  ${basename(csv)}: ~${lines.toLocaleString()} lines`);
+  }
+
+  // Curated (modern exchange addresses)
+  const curatedDir = join(CACHE_DIR, "curated");
+  const curatedCsvs = !opts.ofacOnly ? findCsvFiles(curatedDir) : [];
+  for (const csv of curatedCsvs) {
     const lines = countLines(csv);
     estimatedTotal += lines;
     console.log(`  ${basename(csv)}: ~${lines.toLocaleString()} lines`);
@@ -729,6 +878,74 @@ Output: public/data/
   const entitiesJsonEarly = JSON.parse(readFileSync(ENTITIES_PATH, "utf-8"));
   const entityLookupEarly = buildEntityLookup(entitiesJsonEarly);
 
+  // ── Phase 2.5: Pre-scan and budget allocation ──
+  let budgetMap = null;
+  let entityAllocated = null;
+  const budgetSlots = opts.full ? opts.indexMax : (opts.maxAddresses || 0);
+
+  if (budgetSlots > 0 && !opts.ofacOnly) {
+    console.log("[2.5/6] Pre-scanning for priority-based budget allocation...\n");
+
+    // Collect all CSV paths for prescan
+    const allCsvFiles = [];
+    for (const csv of customCsvs) {
+      allCsvFiles.push({
+        path: csv,
+        category: getCategoryFromFilename(basename(csv, ".csv")),
+      });
+    }
+    for (const csv of maru92Csvs) {
+      allCsvFiles.push({
+        path: csv,
+        category: getCategoryFromFilename(basename(csv, ".csv")),
+      });
+    }
+    for (const csv of temporalCsvs) {
+      allCsvFiles.push({ path: csv, category: "unknown" });
+    }
+    for (const csv of curatedCsvs) {
+      allCsvFiles.push({
+        path: csv,
+        category: getCategoryFromFilename(basename(csv, ".csv")),
+      });
+    }
+
+    console.log(`  Scanning ${allCsvFiles.length} CSV files...`);
+    const entityCounts = await prescanEntityCounts(allCsvFiles, entityLookupEarly);
+    const priorityMap = buildEntityPriorityMap(entitiesJsonEarly);
+    const { budgets, entries } = computeEntityBudgets(
+      entityCounts,
+      priorityMap,
+      budgetSlots,
+    );
+
+    budgetMap = budgets;
+    entityAllocated = new Map();
+
+    // Print top-30 entity budget allocations
+    const totalBudget = [...budgets.values()].reduce((s, v) => s + v, 0);
+    console.log(
+      `  Entity budget allocation (${budgetSlots.toLocaleString()} slots):`,
+    );
+    for (const entry of entries.slice(0, 30)) {
+      const budget = budgets.get(entry.name);
+      const pct = ((budget / entry.count) * 100).toFixed(0);
+      const nameStr = entry.name.padEnd(22);
+      const pStr = `(p${entry.priority})`.padEnd(6);
+      const budgetStr = budget.toLocaleString().padStart(12);
+      const countStr = entry.count.toLocaleString().padStart(12);
+      console.log(
+        `    ${nameStr} ${pStr}: ${budgetStr} / ${countStr}  (${pct}%)`,
+      );
+    }
+    if (entries.length > 30) {
+      console.log(`    ... and ${entries.length - 30} more entities`);
+    }
+    console.log(
+      `    Total: ${totalBudget.toLocaleString()} slots allocated across ${entries.length} entities\n`,
+    );
+  }
+
   // In --full mode, create an overflow Bloom for addresses beyond indexMax
   let overflowFilter = null;
   if (opts.full) {
@@ -750,11 +967,16 @@ Output: public/data/
     categories: {},
     sources: {},
     sampleAddresses: [], // small sample for verification
-    // Entity name index (Phase 1: address -> entity name mapping)
+    // Entity name index
     entityLookup: entityLookupEarly,
     entityIndex: [],       // Array<{ hash: number, entityId: number }>
     entityNameTable: [],   // Canonical entity names (index = ID)
     entityNameMap: new Map(), // resolvedName -> entityId
+    // Priority-based budget system
+    budgetMap,             // Map<resolvedName, maxSlots> or null
+    entityAllocated,       // Map<resolvedName, allocatedCount> or null
+    totalBudget: budgetMap ? [...budgetMap.values()].reduce((s, v) => s + v, 0) : 0,
+    totalAllocated: 0,
   };
 
   // Source 1: OFAC (highest priority)
@@ -783,7 +1005,8 @@ Output: public/data/
   if (!opts.ofacOnly) {
     // Source 2: Custom CSVs (high priority - curated vanity addresses, etc.)
     for (const csvPath of customCsvs) {
-      if (opts.maxAddresses > 0 && stats.unique >= opts.maxAddresses) break;
+      if (stats.budgetMap && stats.totalAllocated >= stats.totalBudget) break;
+      if (!stats.budgetMap && opts.maxAddresses > 0 && stats.unique >= opts.maxAddresses) break;
       const fname = basename(csvPath, ".csv");
       const category = getCategoryFromFilename(fname);
       console.log(`  [Custom] ${fname} (${category || "custom"})`);
@@ -797,9 +1020,27 @@ Output: public/data/
       console.log(`    ${added.toLocaleString()} new\n`);
     }
 
-    // Source 3: Maru92 CSVs (sorted by priority)
+    // Source 2b: Curated CSVs (modern exchange addresses)
+    for (const csvPath of curatedCsvs) {
+      if (stats.budgetMap && stats.totalAllocated >= stats.totalBudget) break;
+      if (!stats.budgetMap && opts.maxAddresses > 0 && stats.unique >= opts.maxAddresses) break;
+      const fname = basename(csvPath, ".csv");
+      const category = getCategoryFromFilename(fname);
+      console.log(`  [Curated] ${fname} (${category || "exchange"})`);
+      const added = await streamCsvIntoFilter(
+        csvPath,
+        category || "exchange",
+        "curated",
+        filter,
+        stats,
+      );
+      console.log(`    ${added.toLocaleString()} new\n`);
+    }
+
+    // Source 3: Maru92 CSVs
     for (const csvPath of maru92Csvs) {
-      if (opts.maxAddresses > 0 && stats.unique >= opts.maxAddresses) break;
+      if (stats.budgetMap && stats.totalAllocated >= stats.totalBudget) break;
+      if (!stats.budgetMap && opts.maxAddresses > 0 && stats.unique >= opts.maxAddresses) break;
 
       const fname = basename(csvPath, ".csv");
       const category = getCategoryFromFilename(fname);
@@ -840,7 +1081,8 @@ Output: public/data/
 
     // Source 3: BitcoinTemporalGraph
     for (const csvPath of temporalCsvs) {
-      if (opts.maxAddresses > 0 && stats.unique >= opts.maxAddresses) break;
+      if (stats.budgetMap && stats.totalAllocated >= stats.totalBudget) break;
+      if (!stats.budgetMap && opts.maxAddresses > 0 && stats.unique >= opts.maxAddresses) break;
       const fname = basename(csvPath, ".csv");
       console.log(`  [Temporal] ${fname}`);
       const added = await streamCsvIntoFilter(

@@ -19,6 +19,7 @@ import { checkOfac } from "@/lib/analysis/cex-risk/ofac-check";
 import { needsEnrichment, enrichPrevouts, countNullPrevouts } from "@/lib/api/enrich-prevouts";
 import { parsePSBT } from "@/lib/bitcoin/psbt";
 import { getAnalysisSettings } from "@/hooks/useAnalysisSettings";
+import { getCachedResult, putCachedResult } from "@/lib/api/analysis-cache";
 import { loadEntityFilter } from "@/lib/analysis/entity-filter";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { HeuristicTranslator } from "@/lib/analysis/heuristics/types";
@@ -147,6 +148,38 @@ export function useAnalysis() {
             errorCode: "not-retryable",
           }));
         }
+        return;
+      }
+
+      // Check analysis result cache before making API calls
+      const analysisSettingsForCache = getAnalysisSettings();
+      const cached = await getCachedResult(network, input, analysisSettingsForCache);
+      if (cached && !controller.signal.aborted) {
+        const cachedSteps = (inputType === "txid"
+          ? getTxHeuristicSteps(ht)
+          : getAddressHeuristicSteps(ht)
+        ).map((s) => ({ ...s, status: "done" as const }));
+
+        setState({
+          ...INITIAL_STATE,
+          phase: "complete",
+          query: input,
+          inputType,
+          steps: cachedSteps,
+          result: cached.result,
+          txData: cached.txData,
+          addressData: cached.addressData,
+          addressTxs: cached.addressTxs,
+          addressUtxos: cached.addressUtxos,
+          txBreakdown: cached.txBreakdown,
+          preSendResult: cached.preSendResult,
+          durationMs: 0,
+          usdPrice: cached.usdPrice,
+          outspends: cached.outspends,
+          backwardLayers: cached.backwardLayers,
+          forwardLayers: cached.forwardLayers,
+          fromCache: true,
+        });
         return;
       }
 
@@ -316,13 +349,18 @@ export function useAnalysis() {
             result.findings.push(makeIncompletePrevoutFinding(remainingNulls));
           }
 
-          setState((prev) => ({
-            ...prev,
-            phase: "complete",
-            steps: markAllDone(prev.steps),
-            result,
-            durationMs: Date.now() - startTime,
-          }));
+          setState((prev) => {
+            const completeState = {
+              ...prev,
+              phase: "complete" as const,
+              steps: markAllDone(prev.steps),
+              result,
+              durationMs: Date.now() - startTime,
+            };
+            // Fire-and-forget cache write
+            putCachedResult(network, input, analysisSettingsForCache, completeState).catch(() => {});
+            return completeState;
+          });
         } else {
           // OFAC pre-flight check (no network needed)
           const ofacResult = checkOfac([input]);
@@ -393,17 +431,22 @@ export function useAnalysis() {
               }
             }
 
-            setState((prev) => ({
-              ...prev,
-              phase: "complete",
-              steps: markAllDone(prev.steps),
-              result,
-              preSendResult,
-              addressTxs: txs.length > 0 ? txs : null,
-              addressUtxos: utxos.length > 0 ? utxos : null,
-              txBreakdown,
-              durationMs: Date.now() - startTime,
-            }));
+            setState((prev) => {
+              const completeState = {
+                ...prev,
+                phase: "complete" as const,
+                steps: markAllDone(prev.steps),
+                result,
+                preSendResult,
+                addressTxs: txs.length > 0 ? txs : null,
+                addressUtxos: utxos.length > 0 ? utxos : null,
+                txBreakdown,
+                durationMs: Date.now() - startTime,
+              };
+              // Fire-and-forget cache write
+              putCachedResult(network, input, analysisSettingsForCache, completeState).catch(() => {});
+              return completeState;
+            });
           }
         }
       } catch (err) {

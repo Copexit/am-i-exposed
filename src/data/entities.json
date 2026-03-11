@@ -7,2541 +7,2912 @@
       "category": "exchange",
       "status": "active",
       "country": "Cayman Islands",
-      "ofac": false
+      "ofac": false,
+      "priority": 7
     },
     {
       "name": "Coinbase",
       "category": "exchange",
       "status": "active",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 7
     },
     {
       "name": "Kraken",
       "category": "exchange",
       "status": "active",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 7
     },
     {
       "name": "Bitfinex",
       "category": "exchange",
       "status": "active",
       "country": "BVI",
-      "ofac": false
+      "ofac": false,
+      "priority": 7
     },
     {
       "name": "Bitstamp",
       "category": "exchange",
       "status": "active",
       "country": "Luxembourg",
-      "ofac": false
+      "ofac": false,
+      "priority": 5
     },
     {
       "name": "Gemini",
       "category": "exchange",
       "status": "active",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 5
     },
     {
       "name": "BitMEX",
       "category": "exchange",
       "status": "active",
       "country": "Seychelles",
-      "ofac": false
+      "ofac": false,
+      "priority": 5
     },
     {
       "name": "OKX",
       "category": "exchange",
       "status": "active",
       "country": "Seychelles",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "Bybit",
       "category": "exchange",
       "status": "active",
       "country": "Dubai",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "KuCoin",
       "category": "exchange",
       "status": "active",
       "country": "Seychelles",
-      "ofac": false
+      "ofac": false,
+      "priority": 5
     },
     {
       "name": "Gate.io",
       "category": "exchange",
       "status": "active",
       "country": "Cayman Islands",
-      "ofac": false
+      "ofac": false,
+      "priority": 5
     },
     {
       "name": "Huobi (HTX)",
       "category": "exchange",
       "status": "active",
       "country": "Seychelles",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "Bittrex",
       "category": "exchange",
       "status": "closed",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Poloniex",
       "category": "exchange",
       "status": "active",
       "country": "Seychelles",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "FTX",
       "category": "exchange",
       "status": "closed",
       "country": "Bahamas",
-      "ofac": false
+      "ofac": false,
+      "priority": 7
     },
     {
       "name": "Celsius",
       "category": "exchange",
       "status": "closed",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "BlockFi",
       "category": "exchange",
       "status": "closed",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "Voyager",
       "category": "exchange",
       "status": "closed",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "Swan Bitcoin",
       "category": "exchange",
       "status": "active",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "River Financial",
       "category": "exchange",
       "status": "active",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Cash App",
       "category": "exchange",
       "status": "active",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Strike",
       "category": "exchange",
       "status": "active",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Paxos",
       "category": "exchange",
       "status": "active",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Crypto.com",
       "category": "exchange",
       "status": "active",
       "country": "Singapore",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "Upbit",
       "category": "exchange",
       "status": "active",
       "country": "South Korea",
-      "ofac": false
+      "ofac": false,
+      "priority": 5
     },
     {
       "name": "Bithumb",
       "category": "exchange",
       "status": "active",
       "country": "South Korea",
-      "ofac": false
+      "ofac": false,
+      "priority": 5
     },
     {
       "name": "Bitso",
       "category": "exchange",
       "status": "active",
       "country": "Mexico",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Mercado Bitcoin",
       "category": "exchange",
       "status": "active",
       "country": "Brazil",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Luno",
       "category": "exchange",
       "status": "active",
       "country": "UK",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Paxful",
       "category": "exchange",
       "status": "closed",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 5
     },
     {
       "name": "LocalBitcoins",
       "category": "exchange",
       "status": "closed",
       "country": "Finland",
-      "ofac": false
+      "ofac": false,
+      "priority": 5
     },
     {
       "name": "WazirX",
       "category": "exchange",
       "status": "active",
       "country": "India",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "CoinDCX",
       "category": "exchange",
       "status": "active",
       "country": "India",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Bitget",
       "category": "exchange",
       "status": "active",
       "country": "Singapore",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "MEXC",
       "category": "exchange",
       "status": "active",
       "country": "Singapore",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Phemex",
       "category": "exchange",
       "status": "active",
       "country": "Singapore",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "AscendEX",
       "category": "exchange",
       "status": "active",
       "country": "Singapore",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Liquid (exchange)",
       "category": "exchange",
       "status": "closed",
       "country": "Japan",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Coincheck",
       "category": "exchange",
       "status": "active",
       "country": "Japan",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "BitFlyer",
       "category": "exchange",
       "status": "active",
       "country": "Japan",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Zaif",
       "category": "exchange",
       "status": "active",
       "country": "Japan",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Independent Reserve",
       "category": "exchange",
       "status": "active",
       "country": "Australia",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "CoinSpot",
       "category": "exchange",
       "status": "active",
       "country": "Australia",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Bull Bitcoin",
       "category": "exchange",
       "status": "active",
       "country": "Canada",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Shakepay",
       "category": "exchange",
       "status": "active",
       "country": "Canada",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Relai",
       "category": "exchange",
       "status": "active",
       "country": "Switzerland",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Pocket Bitcoin",
       "category": "exchange",
       "status": "active",
       "country": "Switzerland",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Coinkite",
       "category": "exchange",
       "status": "active",
       "country": "Canada",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Mt. Gox",
       "category": "exchange",
       "status": "closed",
       "country": "Japan",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "QuadrigaCX",
       "category": "exchange",
       "status": "closed",
       "country": "Canada",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "Cryptopia",
       "category": "exchange",
       "status": "closed",
       "country": "New Zealand",
-      "ofac": false
+      "ofac": false,
+      "priority": 5
     },
     {
       "name": "Bitmex Insurance Fund",
       "category": "exchange",
       "status": "active",
       "country": "Seychelles",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Bitpanda",
       "category": "exchange",
       "status": "active",
       "country": "Austria",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Blockchain.com",
       "category": "exchange",
       "status": "active",
       "country": "UK",
-      "ofac": false
+      "ofac": false,
+      "priority": 5
     },
     {
       "name": "CEX.IO",
       "category": "exchange",
       "status": "active",
       "country": "UK",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "ChangeNOW",
       "category": "exchange",
       "status": "active",
       "country": "Seychelles",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "CoinEx",
       "category": "exchange",
       "status": "active",
       "country": "Hong Kong",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "DODO",
       "category": "exchange",
       "status": "active",
       "country": "Singapore",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "eToro",
       "category": "exchange",
       "status": "active",
       "country": "Israel",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "LBank",
       "category": "exchange",
       "status": "active",
       "country": "Hong Kong",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "BTC Markets",
       "category": "exchange",
       "status": "active",
       "country": "Australia",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Bitvavo",
       "category": "exchange",
       "status": "active",
       "country": "Netherlands",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Korbit",
       "category": "exchange",
       "status": "active",
       "country": "South Korea",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "ProBit",
       "category": "exchange",
       "status": "active",
       "country": "South Korea",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "FixedFloat",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "SideShift",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "TradeOgre",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Nexo",
       "category": "exchange",
       "status": "active",
       "country": "Bulgaria",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Ledn",
       "category": "exchange",
       "status": "active",
       "country": "Canada",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Silk Road",
       "category": "darknet",
       "status": "closed",
       "country": "US",
-      "ofac": true
+      "ofac": true,
+      "priority": 10
     },
     {
       "name": "Silk Road 2.0",
       "category": "darknet",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "AlphaBay",
       "category": "darknet",
       "status": "closed",
       "country": "Unknown",
-      "ofac": true
+      "ofac": true,
+      "priority": 9
     },
     {
       "name": "Hydra",
       "category": "darknet",
       "status": "closed",
       "country": "Russia",
-      "ofac": true
+      "ofac": true,
+      "priority": 10
     },
     {
       "name": "Hansa",
       "category": "darknet",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "Dream Market",
       "category": "darknet",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "Wall Street Market",
       "category": "darknet",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "Evolution",
       "category": "darknet",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 9
     },
     {
       "name": "Agora",
       "category": "darknet",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 9
     },
     {
       "name": "Dark0de",
       "category": "darknet",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "Versus Market",
       "category": "darknet",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "White House Market",
       "category": "darknet",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "BreachForums",
       "category": "darknet",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "Bohemia Market",
       "category": "darknet",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "Incognito Market",
       "category": "darknet",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "Kingdom Market",
       "category": "darknet",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "Archetyp",
       "category": "darknet",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "BitBazaar",
       "category": "scam",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 5
     },
     {
       "name": "OneCoin",
       "category": "scam",
       "status": "closed",
       "country": "Bulgaria",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "BitConnect",
       "category": "scam",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "PlusToken",
       "category": "scam",
       "status": "closed",
       "country": "China",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "WoToken",
       "category": "scam",
       "status": "closed",
       "country": "China",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "Finiko",
       "category": "scam",
       "status": "closed",
       "country": "Russia",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "Mining City",
       "category": "scam",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 5
     },
     {
       "name": "Mirror Trading International",
       "category": "scam",
       "status": "closed",
       "country": "South Africa",
-      "ofac": false
+      "ofac": false,
+      "priority": 5
     },
     {
       "name": "Africrypt",
       "category": "scam",
       "status": "closed",
       "country": "South Africa",
-      "ofac": false
+      "ofac": false,
+      "priority": 5
     },
     {
       "name": "Save The Kids Token",
       "category": "scam",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 5
     },
     {
       "name": "Thodex",
       "category": "scam",
       "status": "closed",
       "country": "Turkey",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "Bitzlato",
       "category": "scam",
       "status": "closed",
       "country": "Russia",
-      "ofac": true
+      "ofac": true,
+      "priority": 9
     },
     {
       "name": "HyperFund",
       "category": "scam",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "Satoshi Dice",
       "category": "gambling",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "BetCoin",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "BitStarz",
       "category": "gambling",
       "status": "active",
       "country": "Curacao",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Cloudbet",
       "category": "gambling",
       "status": "active",
       "country": "Curacao",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "mBit Casino",
       "category": "gambling",
       "status": "active",
       "country": "Curacao",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "FortuneJack",
       "category": "gambling",
       "status": "active",
       "country": "Curacao",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Stake.com",
       "category": "gambling",
       "status": "active",
       "country": "Curacao",
-      "ofac": false
+      "ofac": false,
+      "priority": 5
     },
     {
       "name": "BitKong",
       "category": "gambling",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Primedice",
       "category": "gambling",
       "status": "active",
       "country": "Curacao",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Nitrogen Sports",
       "category": "gambling",
       "status": "active",
       "country": "Costa Rica",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "1xBit",
       "category": "gambling",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "BetFury",
       "category": "gambling",
       "status": "active",
       "country": "Curacao",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "BitPay",
       "category": "payment",
       "status": "active",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "BTCPay Server",
       "category": "payment",
       "status": "active",
       "country": "Decentralized",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "OpenNode",
       "category": "payment",
       "status": "active",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "CoinGate",
       "category": "payment",
       "status": "active",
       "country": "Lithuania",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Blockonomics",
       "category": "payment",
       "status": "active",
       "country": "India",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "CoinPayments",
       "category": "payment",
       "status": "active",
       "country": "Canada",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "GoURL",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "NOWPayments",
       "category": "payment",
       "status": "active",
       "country": "Netherlands",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Speed (payment processor)",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Confirmo",
       "category": "payment",
       "status": "active",
       "country": "Czech Republic",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Zaprite",
       "category": "payment",
       "status": "active",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Voltage",
       "category": "payment",
       "status": "active",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Antpool",
       "category": "mining",
       "status": "active",
       "country": "China",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "F2Pool",
       "category": "mining",
       "status": "active",
       "country": "China",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Foundry USA",
       "category": "mining",
       "status": "active",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "ViaBTC",
       "category": "mining",
       "status": "active",
       "country": "China",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Braiins Pool",
       "category": "mining",
       "status": "active",
       "country": "Czech Republic",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "MARA Pool",
       "category": "mining",
       "status": "active",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Luxor",
       "category": "mining",
       "status": "active",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "SBI Crypto",
       "category": "mining",
       "status": "active",
       "country": "Japan",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "SpiderPool",
       "category": "mining",
       "status": "active",
       "country": "China",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Ocean Mining",
       "category": "mining",
       "status": "active",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Wasabi Wallet (coordinator)",
       "category": "mixer",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "Whirlpool (coordinator)",
       "category": "mixer",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "JoinMarket",
       "category": "mixer",
       "status": "active",
       "country": "Decentralized",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "Chipmixer",
       "category": "mixer",
       "status": "closed",
       "country": "Vietnam",
-      "ofac": true
+      "ofac": true,
+      "priority": 10
     },
     {
       "name": "Tornado Cash",
       "category": "mixer",
       "status": "closed",
       "country": "Decentralized",
-      "ofac": true
+      "ofac": true,
+      "priority": 10
     },
     {
       "name": "Sinbad",
       "category": "mixer",
       "status": "closed",
       "country": "Unknown",
-      "ofac": true
+      "ofac": true,
+      "priority": 9
     },
     {
       "name": "Blender.io",
       "category": "mixer",
       "status": "closed",
       "country": "Unknown",
-      "ofac": true
+      "ofac": true,
+      "priority": 9
     },
     {
       "name": "Bisq",
       "category": "p2p",
       "status": "active",
       "country": "Decentralized",
-      "ofac": false
+      "ofac": false,
+      "priority": 5
     },
     {
       "name": "HodlHodl",
       "category": "p2p",
       "status": "active",
       "country": "Latvia",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "RoboSats",
       "category": "p2p",
       "status": "active",
       "country": "Decentralized",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Peach Bitcoin",
       "category": "p2p",
       "status": "active",
       "country": "Switzerland",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Haveno",
       "category": "p2p",
       "status": "active",
       "country": "Decentralized",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Garantex",
       "category": "exchange",
       "status": "closed",
       "country": "Russia",
-      "ofac": true
+      "ofac": true,
+      "priority": 9
     },
     {
       "name": "Suex",
       "category": "exchange",
       "status": "closed",
       "country": "Russia",
-      "ofac": true
+      "ofac": true,
+      "priority": 9
     },
     {
       "name": "Chatex",
       "category": "exchange",
       "status": "closed",
       "country": "Latvia",
-      "ofac": true
+      "ofac": true,
+      "priority": 8
     },
     {
       "name": "BTC-e",
       "category": "exchange",
       "status": "closed",
       "country": "Russia",
-      "ofac": true
+      "ofac": true,
+      "priority": 9
     },
     {
       "name": "BLNK Financial",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": true
+      "ofac": true,
+      "priority": 8
     },
     {
       "name": "Lazarus Group",
       "category": "scam",
       "status": "active",
       "country": "North Korea",
-      "ofac": true
+      "ofac": true,
+      "priority": 10
     },
     {
       "name": "Conti Ransomware",
       "category": "scam",
       "status": "closed",
       "country": "Russia",
-      "ofac": true
+      "ofac": true,
+      "priority": 9
     },
     {
       "name": "DarkSide Ransomware",
       "category": "scam",
       "status": "closed",
       "country": "Russia",
-      "ofac": false
+      "ofac": false,
+      "priority": 9
     },
     {
       "name": "REvil Ransomware",
       "category": "scam",
       "status": "closed",
       "country": "Russia",
-      "ofac": false
+      "ofac": false,
+      "priority": 9
     },
     {
       "name": "Bitpapa",
       "category": "p2p",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "AgoraDesk",
       "category": "p2p",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "Noones",
       "category": "p2p",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "BloFin",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Cryptomus",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "New Liberty Standard",
       "category": "payment",
       "status": "closed",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "Remitano",
       "category": "p2p",
       "status": "active",
       "country": "Seychelles",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Coins.ph",
       "category": "payment",
       "status": "active",
       "country": "Philippines",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Deriv.com",
       "category": "payment",
       "status": "active",
       "country": "Malta",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "MoonPay",
       "category": "payment",
       "status": "active",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "CoinCola",
       "category": "p2p",
       "status": "active",
       "country": "Hong Kong",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Cubits",
       "category": "payment",
       "status": "closed",
       "country": "UK",
-      "ofac": false
+      "ofac": false,
+      "priority": 1
     },
     {
       "name": "Xapo Bank",
       "category": "exchange",
       "status": "active",
       "country": "Gibraltar",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "Robinhood",
       "category": "payment",
       "status": "active",
       "country": "US",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "PayPal",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Uphold",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Roqqu",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "BtcTurk",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Nucleus Market",
       "category": "darknet",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "Cryptonator",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Cryptsy",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Bitcoin.de",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "BTCTrade.com",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "BTCC",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "BX.in.th",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "MAX Exchange",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "BitMart",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "BleuTrade",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Hashnest",
       "category": "mining",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Unocoin",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Patricia",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "LuckyB.it",
       "category": "gambling",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Finst",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Indodax",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Roobet",
       "category": "gambling",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Coinmotion",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Coinhako",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "MATBEA",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "CoinsBank",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "VirWoX",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Bitcoin Fog",
       "category": "mixer",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 9
     },
     {
       "name": "Bixin",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "CoinCorner",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "LiteBit",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "SpectroCoin",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "C-CEX.com",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Nobitex",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "CoinExchange",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Black Market Reloaded",
       "category": "darknet",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "Hotbit",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "HugosWay",
       "category": "scam",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "KOT4X",
       "category": "scam",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "LockBit",
       "category": "scam",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "Zondacrypto",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "FX Trading Corp",
       "category": "scam",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "Circle",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "BitoEX",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "CoinsPaid",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Totalcoin",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Cobo.com",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Cloud Token",
       "category": "scam",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "WebMoney",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Bitfoliex",
       "category": "scam",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "BitZillions",
       "category": "scam",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "EOBot",
       "category": "scam",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "GoArbit",
       "category": "scam",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "AltCoinTrader.co.za",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "3XCapital",
       "category": "scam",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "999Dice",
       "category": "gambling",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 1
     },
     {
       "name": "Yolo Group",
       "category": "gambling",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Coinone",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Wirex",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "VALR",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Payeer",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Cryptopay",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "BinaryCent",
       "category": "scam",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "Liqui.io",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Galaxy Digital",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Blue Sky Market",
       "category": "darknet",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "Hyperunit",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "YoBit",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "n.exchange",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "MyBitcoin",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "DeadBolt",
       "category": "scam",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 6
     },
     {
       "name": "Bitmain",
       "category": "mining",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "HelixMixer",
       "category": "mixer",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 7
     },
     {
       "name": "ZB.com",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "GoCoin",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Binance US",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 7
     },
     {
       "name": "ShapeShift",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 5
     },
     {
       "name": "NiceHash",
       "category": "mining",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 5
     },
     {
       "name": "1xBet",
       "category": "gambling",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Rollbit",
       "category": "gambling",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Abacus Market",
       "category": "darknet",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "Infinity Exchanger",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Zebpay",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Apollon Market",
       "category": "darknet",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "ASAP Market",
       "category": "darknet",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "Avalanche",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "EXMO",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Lava.xyz",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "CaVirtEx",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "CryptoMixer.io",
       "category": "mixer",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 7
     },
     {
       "name": "Innopolis Tech",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Shitcoins.Club",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Silkkitie",
       "category": "darknet",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "Abraxas Market",
       "category": "darknet",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "Pandora Open Market",
       "category": "darknet",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "WhiteBIT",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "HitBTC",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Vip72",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Inputs.io",
       "category": "mixer",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 7
     },
     {
       "name": "SatoshiMines.com",
       "category": "gambling",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Bitaroo",
       "category": "payment",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "CoinJar",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Bitkub",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Sheep Marketplace",
       "category": "darknet",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "Black Bank Market",
       "category": "darknet",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 8
     },
     {
       "name": "Bitmynt.no",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "Bitmymoney",
       "category": "exchange",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 4
     },
     {
       "name": "PocketDice.io",
       "category": "gambling",
       "status": "active",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "AnxPro",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "BitBay",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "BitBargain.co.uk",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Coinmate",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "BX",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "FYBSG",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Vaultoro",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "OKCoin",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Bit-x",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "TheRockTrading",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "BitKonan",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Bter",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "HappyCoins",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "ChBtc",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "BlockTrades.us",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "BtcTrade",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "LakeBTC",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "CoinCafe",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "MaiCoin",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Gatecoin",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Coingi",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "SimpleCoin.cz",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "CoinTrader",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 1
     },
     {
       "name": "Coinbroker",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Vircurex",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Indacoin",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "1Coin",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Igot",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "CleverCoin",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "FoxBit",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "EmpoEX",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "UseCryptos",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "MeXBT",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Banx",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Coinomat",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Zyado",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Coinimal",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "ExchangeMyCoins",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "OrderBook",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "796",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Btc38",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Ccedk",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "CoinChimp",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "CoinArch",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Coins-e",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Cryptonit",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Exchanging.ir",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Bitcurex",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "BTradeAustralia",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "BitVC",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "C-Cex",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Exchange-Credit.ru",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "CampBX",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "BitcoinVietnam.com.vn",
       "category": "exchange",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Kano.is",
       "category": "mining",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "SlushPool",
       "category": "mining",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Telco214",
       "category": "mining",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Eligius",
       "category": "mining",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "EclipseMC",
       "category": "mining",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "GHash",
       "category": "mining",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "BW",
       "category": "mining",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "Bitfury",
       "category": "mining",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "KnCMiner",
       "category": "mining",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "BitMinter",
       "category": "mining",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "BTCCPool",
       "category": "mining",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 3
     },
     {
       "name": "CoinGaming",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "BitZino",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "AnoniBet",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "Betcoin.tm",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "Coinroll",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "PocketDice",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "Peerbet",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "777Coin",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "JetWin",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "SwCPoker",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "FairProof",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "MineField.BitcoinLab",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "Satoshi-Karoshi",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "BetMoose",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "SecondsTrade",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "Coinichiwa",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "BTCOracle",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "CoinRoyale",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "SafeDice",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "SatoshiRoulette",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "SatoshiMines",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "BitcoinVideoCasino",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
     },
     {
       "name": "YABTCL",
       "category": "gambling",
       "status": "closed",
       "country": "Unknown",
-      "ofac": false
+      "ofac": false,
+      "priority": 2
+    },
+    {
+      "name": "ePay.info",
+      "category": "payment",
+      "status": "closed",
+      "country": "Unknown",
+      "ofac": false,
+      "priority": 1
     }
   ]
 }

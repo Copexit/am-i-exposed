@@ -16,6 +16,7 @@ export interface Entity {
   status: "active" | "closed";
   country: string;
   ofac: boolean;
+  priority?: number; // 1-10, default 3. Higher = more named index budget
 }
 
 /** All entities indexed by name (lowercase) for fast lookup. */

@@ -47,6 +47,8 @@ export interface AnalysisState {
   backwardLayers: TraceLayer[] | null;
   /** Forward trace layers from recursive tracing. */
   forwardLayers: TraceLayer[] | null;
+  /** Whether this result was loaded from the analysis result cache. */
+  fromCache?: boolean;
 }
 
 export const INITIAL_STATE: AnalysisState = {

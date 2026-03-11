@@ -191,10 +191,7 @@ for (const bh of bithyphaData) {
       existing.country = bhCountry;
       changed = true;
     }
-    if (bh.ofac_sanctioned === true && existing.ofac !== true) {
-      existing.ofac = true;
-      changed = true;
-    }
+    // Note: OFAC flags are now managed exclusively by update-ofac.mjs
     if (changed) updatedCount++;
   } else {
     // New entity from bithypha
@@ -203,7 +200,7 @@ for (const bh of bithyphaData) {
       category: mapCategory(bh.category),
       status: mapStatus(bh.status),
       country: mapCountry(bh.country),
-      ofac: bh.ofac_sanctioned === true,
+      ofac: false,  // OFAC flags managed exclusively by update-ofac.mjs
     };
     entities.push(newEntity);
     nameMap.set(bhNameLower, newEntity);

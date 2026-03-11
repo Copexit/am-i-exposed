@@ -21,11 +21,11 @@ export function applyCrossHeuristicRules(findings: Finding[]): void {
       if (f.id === "h3-cioh") {
         if (isStonewall) {
           f.severity = "low";
-          f.params = { ...f.params, context: "stonewall" };
+          f.params = { ...f.params, context: "stonewall", _variant: "stonewall" };
           f.scoreImpact = -3;
         } else {
           f.severity = "low";
-          f.params = { ...f.params, context: "coinjoin" };
+          f.params = { ...f.params, context: "coinjoin", _variant: "coinjoin" };
           f.scoreImpact = 0;
         }
       }

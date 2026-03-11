@@ -6,6 +6,7 @@ import { LangAttributeSync } from "@/lib/i18n/LangAttributeSync";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { PrivacyNotice } from "@/components/PrivacyNotice";
+import { MempoolDownDialog } from "@/components/MempoolDownDialog";
 import { AmbientBackground } from "@/components/AmbientBackground";
 import "./globals.css";
 
@@ -139,6 +140,7 @@ export default function RootLayout({
               {children}
             </main>
             <Footer />
+            <MempoolDownDialog />
           </NetworkProvider>
         </I18nProvider>
       </body>

@@ -15,6 +15,8 @@ import {
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { checkOfac } from "@/lib/analysis/cex-risk/ofac-check";
+import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
+import { getEntity } from "@/lib/analysis/entities";
 import {
   checkChainalysis,
   checkChainalysisViaTor,
@@ -33,6 +35,25 @@ interface CexRiskPanelProps {
   isCoinJoin?: boolean;
 }
 
+const CATEGORY_LABELS: Record<string, string> = {
+  exchange: "Exchange",
+  darknet: "Darknet Market",
+  scam: "Scam",
+  gambling: "Gambling",
+  payment: "Payment Processor",
+  mining: "Mining Pool",
+  mixer: "Mixer",
+  p2p: "P2P Platform",
+};
+
+interface OfacEntityMatch {
+  address: string;
+  entityName: string | null;
+  category: string | null;
+  country: string | null;
+  status: string | null;
+}
+
 export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPanelProps) {
   const { t } = useTranslation();
   const { isUmbrel } = useNetwork();
@@ -45,8 +66,33 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
     return [];
   }, [query, inputType, txData]);
 
-  // OFAC check runs immediately (local, no privacy cost)
-  const ofacResult = useMemo(() => checkOfac(addresses), [addresses]);
+  // OFAC: keep checkOfac only for lastUpdated date
+  const ofacLastUpdated = useMemo(() => checkOfac([]).lastUpdated, []);
+
+  // Use matchEntitySync for comprehensive OFAC check (SDN + entity-level flags)
+  const ofacMatches = useMemo(() => {
+    const matches: OfacEntityMatch[] = [];
+    const seen = new Set<string>();
+    for (const addr of addresses) {
+      const match = matchEntitySync(addr);
+      if (match?.ofac) {
+        // Deduplicate by address
+        if (seen.has(addr)) continue;
+        seen.add(addr);
+        const entity = match.entityName ? getEntity(match.entityName) : null;
+        matches.push({
+          address: addr,
+          entityName: match.entityName !== "OFAC Sanctioned" ? match.entityName : null,
+          category: entity?.category ?? match.category ?? null,
+          country: entity?.country ?? null,
+          status: entity?.status ?? null,
+        });
+      }
+    }
+    return matches;
+  }, [addresses]);
+
+  const ofacSanctioned = ofacMatches.length > 0;
 
   // Chainalysis is opt-in (routed through Cloudflare Worker proxy)
   const [chainalysis, setChainalysis] = useState<ChainalysisCheckResult>({
@@ -163,7 +209,7 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
 
   if (addresses.length === 0) return null;
 
-  const hasSanction = ofacResult.sanctioned || chainalysis.sanctioned;
+  const hasSanction = ofacSanctioned || chainalysis.sanctioned;
 
   return (
     <div className="w-full">
@@ -217,7 +263,7 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
               {/* OFAC row */}
               <div className="flex items-start gap-3">
                 <div className="mt-0.5">
-                  {ofacResult.sanctioned ? (
+                  {ofacSanctioned ? (
                     <ShieldX size={16} className="text-severity-critical" />
                   ) : (
                     <ShieldCheck size={16} className="text-severity-good" />
@@ -230,29 +276,54 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
                     </span>
                     <span
                       className={`text-xs font-medium px-1.5 py-0.5 rounded ${
-                        ofacResult.sanctioned
+                        ofacSanctioned
                           ? "bg-severity-critical/15 text-severity-critical"
                           : "bg-severity-good/10 text-severity-good"
                       }`}
                     >
-                      {ofacResult.sanctioned ? t("cex.flagged", { defaultValue: "FLAGGED" }) : t("cex.clear", { defaultValue: "Clear" })}
+                      {ofacSanctioned ? t("cex.flagged", { defaultValue: "FLAGGED" }) : t("cex.clear", { defaultValue: "Clear" })}
                     </span>
                   </div>
-                  {ofacResult.sanctioned ? (
-                    <div className="mt-1 space-y-1">
+                  {ofacSanctioned ? (
+                    <div className="mt-1 space-y-2">
                       <p className="text-xs text-severity-critical">
-                        {ofacResult.matchedAddresses.length > 1
-                          ? t("cex.ofacFlaggedPlural", { count: ofacResult.matchedAddresses.length, defaultValue: "{{count}} sanctioned addresses found. Exchanges will likely freeze funds associated with these addresses." })
+                        {ofacMatches.length > 1
+                          ? t("cex.ofacFlaggedPlural", { count: ofacMatches.length, defaultValue: "{{count}} sanctioned addresses found. Exchanges will likely freeze funds associated with these addresses." })
                           : t("cex.ofacFlaggedSingular", { defaultValue: "1 sanctioned address found. Exchanges will likely freeze funds associated with this address." })}
                       </p>
-                      <div className="space-y-0.5">
-                        {ofacResult.matchedAddresses.map((addr) => (
-                          <code
-                            key={addr}
-                            className="block text-xs font-mono text-severity-critical/80 break-all"
+                      <div className="space-y-1.5">
+                        {ofacMatches.map((m) => (
+                          <div
+                            key={m.address}
+                            className="bg-severity-critical/5 rounded-lg px-3 py-2 space-y-1"
                           >
-                            {addr}
-                          </code>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {m.entityName && (
+                                <span className="text-xs font-medium text-severity-critical">
+                                  {m.entityName}
+                                </span>
+                              )}
+                              {m.category && (
+                                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-severity-critical/15 text-severity-critical/80">
+                                  {CATEGORY_LABELS[m.category] ?? m.category}
+                                </span>
+                              )}
+                              <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-severity-critical/20 text-severity-critical font-semibold">
+                                OFAC
+                              </span>
+                              {m.status === "closed" && (
+                                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-surface-inset text-muted">
+                                  Closed
+                                </span>
+                              )}
+                              {m.country && m.country !== "Unknown" && (
+                                <span className="text-[10px] text-muted">{m.country}</span>
+                              )}
+                            </div>
+                            <code className="block text-xs font-mono text-severity-critical/70 break-all">
+                              {m.address}
+                            </code>
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -262,7 +333,7 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
                     </p>
                   )}
                   <p className="text-xs text-muted mt-1">
-                    {t("cex.lastUpdated", { date: ofacResult.lastUpdated, defaultValue: "Last updated: {{date}}" })}
+                    {t("cex.lastUpdated", { date: ofacLastUpdated, defaultValue: "Last updated: {{date}}" })}
                   </p>
                 </div>
               </div>
