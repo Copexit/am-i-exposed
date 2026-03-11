@@ -13,7 +13,7 @@
  * - Address data/UTXOs/txs: adaptive TTL (10 min to 12h based on activity)
  */
 
-import { createMempoolClient, type MempoolClient } from "./mempool";
+import { createMempoolClient, type MempoolClient, type MempoolClientOptions } from "./mempool";
 import { idbGet, idbPut } from "./idb-cache";
 import { getAnalysisSettings } from "@/hooks/useAnalysisSettings";
 import type { MempoolTransaction } from "./types";
@@ -64,9 +64,9 @@ function computeAddressTxsTtl(txs: MempoolTransaction[]): number {
 export function createCachedMempoolClient(
   baseUrl: string,
   network?: string,
-  signal?: AbortSignal,
+  options?: MempoolClientOptions,
 ): MempoolClient {
-  const inner = createMempoolClient(baseUrl, signal);
+  const inner = createMempoolClient(baseUrl, options);
   const net = network ?? networkFromUrl(baseUrl);
 
   return {

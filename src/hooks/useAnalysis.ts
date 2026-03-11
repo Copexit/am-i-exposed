@@ -39,7 +39,7 @@ export type { PreSendResult } from "@/lib/analysis/orchestrator";
 
 export function useAnalysis() {
   const [state, setState] = useState<AnalysisState>(INITIAL_STATE);
-  const { network, config } = useNetwork();
+  const { network, config, isUmbrel } = useNetwork();
   const { t } = useTranslation();
   const abortRef = useRef<AbortController | null>(null);
 
@@ -483,14 +483,18 @@ export function useAnalysis() {
               message = t("errors.rate_limited", { defaultValue: "Rate limited by mempool.space. Please wait a moment and try again." });
               break;
             case "NETWORK_ERROR":
-              message = isCustomApi
-                ? t("errors.network_custom", { defaultValue: "Connection to your custom endpoint failed. Open API settings to troubleshoot." })
-                : t("errors.network", { defaultValue: "Network error. Check your internet connection or try again later." });
+              message = isUmbrel
+                ? t("errors.network_umbrel", { defaultValue: "Connection to local mempool failed. Try restarting mempool from your Umbrel dashboard." })
+                : isCustomApi
+                  ? t("errors.network_custom", { defaultValue: "Connection to your custom endpoint failed. Open API settings to troubleshoot." })
+                  : t("errors.network", { defaultValue: "Network error. Check your internet connection or try again later." });
               break;
             case "API_UNAVAILABLE":
-              message = isCustomApi
-                ? t("errors.api_custom", { defaultValue: "Your custom API endpoint returned an error. Check that it is running." })
-                : t("errors.api_unavailable", { defaultValue: "The API is temporarily unavailable. Please try again later." });
+              message = isUmbrel
+                ? t("errors.api_umbrel", { defaultValue: "Local mempool returned an error. This address may have too many transactions for the Electrum backend to handle. Try restarting mempool or analyzing a different address." })
+                : isCustomApi
+                  ? t("errors.api_custom", { defaultValue: "Your custom API endpoint returned an error. Check that it is running." })
+                  : t("errors.api_unavailable", { defaultValue: "The API is temporarily unavailable. Please try again later." });
               break;
           }
         } else if (err instanceof Error) {
@@ -505,7 +509,7 @@ export function useAnalysis() {
         }));
       }
     },
-    [network, config, isCustomApi, t, ht, onStep],
+    [network, config, isCustomApi, isUmbrel, t, ht, onStep],
   );
 
   const reset = useCallback(() => {

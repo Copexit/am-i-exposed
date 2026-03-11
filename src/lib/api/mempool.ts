@@ -14,10 +14,19 @@ function assertAddress(address: string): void {
   if (!ADDR_RE.test(address)) throw new ApiError("INVALID_INPUT", "Invalid address format");
 }
 
-export function createMempoolClient(baseUrl: string, signal?: AbortSignal) {
+export interface MempoolClientOptions {
+  signal?: AbortSignal;
+  /** Per-request timeout in ms. Defaults to 15s. Use longer for local Electrs backends. */
+  timeoutMs?: number;
+}
+
+export function createMempoolClient(baseUrl: string, options?: MempoolClientOptions) {
   const base = baseUrl.replace(/\/+$/, "");
+  const signal = options?.signal;
+  const timeoutMs = options?.timeoutMs;
+
   async function get<T>(path: string): Promise<T> {
-    const res = await fetchWithRetry(`${base}${path}`, { signal });
+    const res = await fetchWithRetry(`${base}${path}`, { signal, timeoutMs });
     try {
       return await res.json();
     } catch {
@@ -26,7 +35,7 @@ export function createMempoolClient(baseUrl: string, signal?: AbortSignal) {
   }
 
   async function getText(path: string): Promise<string> {
-    const res = await fetchWithRetry(`${base}${path}`, { signal });
+    const res = await fetchWithRetry(`${base}${path}`, { signal, timeoutMs });
     return res.text();
   }
 

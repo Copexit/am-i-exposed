@@ -44,7 +44,7 @@ describe("createApiClient", () => {
   it("creates a client using the configured mempool URL", () => {
     mockCreateClient.mockReturnValue(makeMockClient() as ReturnType<typeof createMempoolClient>);
     createApiClient(MAINNET_CONFIG);
-    expect(mockCreateClient).toHaveBeenCalledWith("https://mempool.space/api", undefined);
+    expect(mockCreateClient).toHaveBeenCalledWith("https://mempool.space/api", expect.objectContaining({ timeoutMs: 15_000 }));
     expect(mockCreateClient).toHaveBeenCalledTimes(1);
   });
 
@@ -52,7 +52,7 @@ describe("createApiClient", () => {
     const abortController = new AbortController();
     mockCreateClient.mockReturnValue(makeMockClient() as ReturnType<typeof createMempoolClient>);
     createApiClient(MAINNET_CONFIG, abortController.signal);
-    expect(mockCreateClient).toHaveBeenCalledWith("https://mempool.space/api", abortController.signal);
+    expect(mockCreateClient).toHaveBeenCalledWith("https://mempool.space/api", expect.objectContaining({ signal: abortController.signal }));
     expect(mockCreateClient).toHaveBeenCalledTimes(1);
   });
 
@@ -82,7 +82,7 @@ describe("createApiClient", () => {
     const mock = makeMockClient();
     mockCreateClient.mockReturnValue(mock as ReturnType<typeof createMempoolClient>);
     const client = createApiClient(TESTNET_CONFIG);
-    expect(mockCreateClient).toHaveBeenCalledWith("https://mempool.space/testnet4/api", undefined);
+    expect(mockCreateClient).toHaveBeenCalledWith("https://mempool.space/testnet4/api", expect.objectContaining({ timeoutMs: 15_000 }));
     const result = await client.getTransaction("abc123def456abc123def456abc123def456abc123def456abc123def456abc12345");
     expect(result).toEqual({ txid: "abc" });
   });

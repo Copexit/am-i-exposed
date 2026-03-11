@@ -134,7 +134,7 @@ describe("createMempoolClient", () => {
       const controller = new AbortController();
       controller.abort();
 
-      const client = createMempoolClient(BASE, controller.signal);
+      const client = createMempoolClient(BASE, { signal: controller.signal });
       const result = await client.getAddressTxs(VALID_ADDR);
       // Should return first page but not attempt pagination (signal aborted)
       expect(result).toHaveLength(25);

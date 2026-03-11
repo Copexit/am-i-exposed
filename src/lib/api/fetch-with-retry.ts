@@ -15,15 +15,22 @@ const RETRY_DELAYS = [1000, 2000, 4000];
 /** Per-request timeout - prevents individual fetch attempts hanging on Tor */
 const REQUEST_TIMEOUT_MS = 15_000;
 
+export interface FetchRetryOptions extends RequestInit {
+  /** Per-attempt timeout in ms. Defaults to 15_000. */
+  timeoutMs?: number;
+}
+
 const sleep = abortableSleep;
 
 export async function fetchWithRetry(
   url: string,
-  options?: RequestInit,
+  options?: FetchRetryOptions,
 ): Promise<Response> {
+  const perAttemptTimeout = options?.timeoutMs ?? REQUEST_TIMEOUT_MS;
+
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const timeoutSignal = abortSignalTimeout(REQUEST_TIMEOUT_MS);
+      const timeoutSignal = abortSignalTimeout(perAttemptTimeout);
       const fetchSignal = options?.signal
         ? abortSignalAny([options.signal, timeoutSignal])
         : timeoutSignal;
