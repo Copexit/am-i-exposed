@@ -219,12 +219,20 @@ export function applyCrossHeuristicRules(findings: Finding[]): void {
   );
   if (isConsolidationSelfSend) {
     for (const f of findings) {
-      if (f.id === "h5-zero-entropy") {
+      if (f.id === "h5-zero-entropy" || f.id === "h5-zero-entropy-sweep") {
         f.severity = "low";
         f.params = { ...f.params, context: "consolidation" };
         f.scoreImpact = 0;
       }
     }
+  }
+
+  // Entropy sweep is fully redundant when consolidation-fan-in already exists.
+  // Both say "N inputs consolidated into 1 output, all linked." Remove it
+  // entirely so the findings list stays focused.
+  if (findings.some((f) => f.id === "consolidation-fan-in")) {
+    const idx = findings.findIndex((f) => f.id === "h5-zero-entropy-sweep");
+    if (idx !== -1) findings.splice(idx, 1);
   }
 
   // RBF x Change detection: RBF confirms which output is change. When both
@@ -259,7 +267,7 @@ export function applyCrossHeuristicRules(findings: Finding[]): void {
       boostCount++;
     }
     // Low entropy confirms identifiability
-    if (findings.some((f) => (f.id === "h5-low-entropy" || f.id === "h5-zero-entropy") && f.scoreImpact < 0)) {
+    if (findings.some((f) => (f.id === "h5-low-entropy" || f.id === "h5-zero-entropy" || f.id === "h5-zero-entropy-sweep") && f.scoreImpact < 0)) {
       boostCount++;
     }
 

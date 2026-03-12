@@ -262,8 +262,8 @@ describe("useGraphExpansion", () => {
 
   describe("MAX_NODES cap", () => {
     it("does not exceed the maximum node count via ADD_NODE", () => {
-      // Build a root with 60 inputs so we can attempt to add 60 parents
-      const parentIds = Array.from({ length: 60 }, (_, i) => `p-${String(i).padStart(3, "0")}`);
+      // Build a root with 110 inputs so we can attempt to add 110 parents
+      const parentIds = Array.from({ length: 110 }, (_, i) => `p-${String(i).padStart(3, "0")}`);
       const rootTx = makeTx({
         txid: "root-cap",
         vin: parentIds.map((pid) => makeVin(pid, 0)),
@@ -286,16 +286,16 @@ describe("useGraphExpansion", () => {
         result.current.setRootWithNeighbors(rootTx, parents, children);
       });
 
-      // maxNodes is 50, so the graph should have at most 50 nodes
+      // maxNodes is 100, so the graph should have at most 100 nodes
       expect(result.current.nodes.size).toBeLessThanOrEqual(result.current.maxNodes);
-      expect(result.current.maxNodes).toBe(50);
-      // Root + 49 parents = 50 max
-      expect(result.current.nodes.size).toBe(50);
+      expect(result.current.maxNodes).toBe(100);
+      // Root + 99 parents = 100 max
+      expect(result.current.nodes.size).toBe(100);
     });
 
     it("expandInput is a no-op when graph is already at MAX_NODES", async () => {
       // Create a root with many inputs
-      const parentIds = Array.from({ length: 55 }, (_, i) => `cap-${i}`);
+      const parentIds = Array.from({ length: 105 }, (_, i) => `cap-${i}`);
       const rootTx = makeTx({
         txid: "root-full",
         vin: parentIds.map((pid) => makeVin(pid, 0)),
@@ -318,14 +318,14 @@ describe("useGraphExpansion", () => {
         result.current.setRootWithNeighbors(rootTx, parents, children);
       });
 
-      expect(result.current.nodes.size).toBe(50);
+      expect(result.current.nodes.size).toBe(100);
 
       // Try expanding - should not add anything
       await act(async () => {
-        await result.current.expandInput("root-full", 50);
+        await result.current.expandInput("root-full", 100);
       });
 
-      expect(result.current.nodes.size).toBe(50);
+      expect(result.current.nodes.size).toBe(100);
       // Fetcher should not have been called since we bail early
       expect(fetcher.getTransaction).not.toHaveBeenCalled();
     });
@@ -555,9 +555,9 @@ describe("useGraphExpansion", () => {
       expect(result.current.nodeCount).toBe(1);
     });
 
-    it("maxNodes is 50", () => {
+    it("maxNodes is 100", () => {
       const { result } = renderHook(() => useGraphExpansion(null));
-      expect(result.current.maxNodes).toBe(50);
+      expect(result.current.maxNodes).toBe(100);
     });
   });
 });

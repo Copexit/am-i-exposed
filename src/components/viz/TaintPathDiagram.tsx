@@ -313,6 +313,9 @@ function TaintPath({ width, findings, onTxClick, t, tooltip, containerRef }: { w
           <marker id="arrow-taint" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
             <path d="M0,0 L6,3 L0,6" fill={SVG_COLORS.high} fillOpacity={0.6} />
           </marker>
+          <marker id="arrow-clean" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6" fill={SVG_COLORS.muted} fillOpacity={0.5} />
+          </marker>
         </defs>
 
         <Group>
@@ -352,9 +355,9 @@ function TaintPath({ width, findings, onTxClick, t, tooltip, containerRef }: { w
                 fill="none"
                 stroke={isTainted ? SVG_COLORS.high : SVG_COLORS.muted}
                 strokeWidth={isTainted ? 2.5 : 1.5}
-                strokeOpacity={isTainted ? 0.7 : 0.25}
+                strokeOpacity={isTainted ? 0.7 : 0.4}
                 strokeDasharray={isTainted ? undefined : "4,4"}
-                markerEnd="url(#arrow-taint)"
+                markerEnd={isTainted ? "url(#arrow-taint)" : "url(#arrow-clean)"}
                 initial={{ pathLength: 0, opacity: 0 }}
                 animate={{ pathLength: 1, opacity: 1 }}
                 transition={{ duration: 0.6, delay: 0.2 + i * 0.1 }}

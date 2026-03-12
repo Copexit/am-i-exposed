@@ -39,12 +39,9 @@ export function useKeyboardNav({
         target.tagName === "TEXTAREA" ||
         target.isContentEditable;
 
-      // Escape: always go back
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onBackRef.current?.();
-        return;
-      }
+      // Escape is NOT handled here - reserved for component-level actions
+      // (e.g. closing fullscreen overlays) to avoid conflicts.
+      if (e.key === "Escape") return;
 
       // Don't interfere with typing in inputs
       if (isInput) {

@@ -398,30 +398,38 @@ function FlowChart({
                 })}
               </defs>
 
-              {/* Links - filter out ghost bands (near-zero width links) */}
+              {/* Links - rendered as filled band shapes instead of stroked center
+                  lines. d3-sankey relaxation can assign width=0 to valid links,
+                  and createPath produces a zero-area path for those. Filled bands
+                  with a minimum thickness guarantee every link is visible. */}
               {(computed.links ?? []).map((link, i) => {
-                const rawLinkWidth = (link as unknown as { width: number }).width ?? 0;
-                // Give OP_RETURN and other tiny outputs a minimum visible band
-                const targetNode = nodeMap.get((link.target as unknown as { id: string }).id);
-                const isOpReturn = targetNode?.label === "OP_RETURN";
-                const linkWidth = isOpReturn ? Math.max(rawLinkWidth, 2) : rawLinkWidth;
-                // Skip links with negligible width to prevent ghost bands
-                if (linkWidth < 0.5) return null;
+                const linkObj = link as unknown as { width: number; value: number; y0: number; y1: number };
+                if ((linkObj.value ?? 0) <= 0) return null;
 
-                const sourceNodeId = (link.source as unknown as { id: string }).id;
-                const targetNodeId = (link.target as unknown as { id: string }).id;
+                const src = link.source as unknown as { x1: number; y0: number; y1: number; id: string };
+                const tgt = link.target as unknown as { x0: number; y0: number; y1: number; id: string };
+                const w = Math.max(linkObj.width ?? 0, 2);
+                const y0 = isFinite(linkObj.y0) ? linkObj.y0 : (src.y0 + src.y1) / 2;
+                const y1 = isFinite(linkObj.y1) ? linkObj.y1 : (tgt.y0 + tgt.y1) / 2;
+                const midX = (src.x1 + tgt.x0) / 2;
+
+                // Filled band: top edge curve -> bottom edge curve -> close
+                const pathD =
+                  `M${src.x1},${y0 - w / 2}` +
+                  `C${midX},${y0 - w / 2} ${midX},${y1 - w / 2} ${tgt.x0},${y1 - w / 2}` +
+                  `L${tgt.x0},${y1 + w / 2}` +
+                  `C${midX},${y1 + w / 2} ${midX},${y0 + w / 2} ${src.x1},${y0 + w / 2}Z`;
+
                 const isHighlighted =
-                  !hoveredNode || sourceNodeId === hoveredNode || targetNodeId === hoveredNode;
-                const pathD = createPath(link) ?? "";
+                  !hoveredNode || src.id === hoveredNode || tgt.id === hoveredNode;
 
                 return (
                   <motion.path
                     key={`link-${i}`}
                     d={pathD}
-                    fill="none"
-                    stroke={`url(#flow-link-${i})`}
-                    strokeWidth={Math.max(1, linkWidth)}
-                    strokeOpacity={isHighlighted ? 0.5 : 0.08}
+                    fill={`url(#flow-link-${i})`}
+                    fillOpacity={isHighlighted ? 0.5 : 0.08}
+                    stroke="none"
                     initial={reducedMotion ? false : { opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.15 + i * 0.01, duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
@@ -632,8 +640,6 @@ export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspend
   const [showAllOutputs, setShowAllOutputs] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const isLargeTx = tx.vin.length + tx.vout.length > 10;
-
   const displayInCount = showAllInputs ? tx.vin.length : Math.min(tx.vin.length, MAX_DISPLAY);
   const displayOutCount = showAllOutputs ? tx.vout.length : Math.min(tx.vout.length, MAX_DISPLAY);
   const maxSide = Math.max(displayInCount, displayOutCount);
@@ -662,16 +668,14 @@ export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspend
           <span>{t("tx.inputCount", { count: tx.vin.length, defaultValue: `${tx.vin.length} inputs` })}</span>
           <div className="flex items-center gap-2">
             <span className="text-xs">{t("viz.flow.title", { defaultValue: "Transaction flow" })}</span>
-            {isLargeTx && (
-              <button
-                onClick={() => { setShowAllInputs(true); setShowAllOutputs(true); setIsExpanded(true); }}
-                className="text-muted hover:text-foreground transition-colors p-0.5 rounded"
-                title={t("viz.flow.expand", { defaultValue: "Expand to full view" })}
-                aria-label={t("viz.flow.expand", { defaultValue: "Expand to full view" })}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
-              </button>
-            )}
+            <button
+              onClick={() => { setShowAllInputs(true); setShowAllOutputs(true); setIsExpanded(true); }}
+              className="text-muted hover:text-foreground transition-colors p-0.5 rounded cursor-pointer"
+              title={t("viz.flow.expand", { defaultValue: "Expand to full view" })}
+              aria-label={t("viz.flow.expand", { defaultValue: "Expand to full view" })}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></svg>
+            </button>
           </div>
           <span>{t("tx.outputCount", { count: tx.vout.length, defaultValue: `${tx.vout.length} outputs` })}</span>
         </div>

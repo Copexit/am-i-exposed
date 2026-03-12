@@ -685,9 +685,7 @@ export const ResultsPanel = memo(function ResultsPanel({
           {t("results.disclaimerHeuristic", { defaultValue: "Scores are heuristic-based estimates, not definitive privacy assessments." })}
         </motion.div>
 
-        <div className="text-xs text-muted pb-4 hidden sm:block">
-          {t("results.pressEsc", { defaultValue: "Press" })} <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted font-mono">Esc</kbd> {t("results.forNewScan", { defaultValue: "for new scan" })}
-        </div>
+        <div className="pb-4" />
       </div>
     </motion.div>
   );

@@ -96,7 +96,7 @@ describe("analyzeEntropy", () => {
     });
     const { findings } = analyzeEntropy(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h5-zero-entropy");
+    expect(findings[0].id).toBe("h5-zero-entropy-sweep");
     expect(findings[0].scoreImpact).toBe(-3);
     expect(findings[0].title).toContain("sweep");
     expect(findings[0].params?.inputCount).toBe(3);

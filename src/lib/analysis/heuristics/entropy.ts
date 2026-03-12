@@ -58,7 +58,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
     return {
       findings: [
         {
-          id: "h5-zero-entropy",
+          id: "h5-zero-entropy-sweep",
           severity: inputs.length >= 5 ? "high" : "medium",
           confidence: "deterministic",
           title: `Zero entropy: ${inputs.length}-input sweep/consolidation`,

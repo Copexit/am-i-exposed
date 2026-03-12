@@ -370,7 +370,7 @@ function CoinJoinChart({
                   fillColor = "url(#grad-output)";
                 }
 
-                const labelX = isInput ? n.x0 - 6 : n.x1 + 6;
+                const labelX = isInput ? n.x0 - 8 : n.x1 + 10;
                 const labelAnchor = isInput ? "end" : "start";
                 // Labels render in the margin area, so use margin width (not node position)
                 const labelMaxWidth = isInput ? MARGIN.left - 8 : MARGIN.right - 8;
@@ -496,7 +496,7 @@ function CoinJoinChart({
                     {!isMixer && labelMaxWidth > 30 && (
                       <Text
                         x={labelX}
-                        y={n.y0 + nodeHeight / 2 - (!isTier ? 6 : 0)}
+                        y={n.y0 + nodeHeight / 2 - (isTier ? 4 : 6)}
                         textAnchor={labelAnchor}
                         verticalAnchor="middle"
                         fontSize={11}
@@ -513,7 +513,7 @@ function CoinJoinChart({
                     {!isMixer && !isTier && labelMaxWidth > 30 && (
                       <Text
                         x={labelX}
-                        y={n.y0 + nodeHeight / 2 + 8}
+                        y={n.y0 + nodeHeight / 2 + 10}
                         textAnchor={labelAnchor}
                         verticalAnchor="middle"
                         fontSize={10}
@@ -528,7 +528,7 @@ function CoinJoinChart({
                     {!isMixer && isTier && usdPrice != null && labelMaxWidth > 30 && (
                       <Text
                         x={labelX}
-                        y={n.y0 + nodeHeight / 2 + 8}
+                        y={n.y0 + nodeHeight / 2 + 10}
                         textAnchor={labelAnchor}
                         verticalAnchor="middle"
                         fontSize={9}

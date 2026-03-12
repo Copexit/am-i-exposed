@@ -62,6 +62,8 @@ interface LayoutEdge {
   y1: number;
   x2: number;
   y2: number;
+  /** True when this edge was created by a backward expansion (new node at lower depth). */
+  isBackward: boolean;
 }
 
 interface TooltipData {
@@ -146,6 +148,7 @@ function layoutGraph(
           y1: fromPos.y + NODE_H / 2,
           x2: toPos.x,
           y2: toPos.y + NODE_H / 2,
+          isBackward: false,
         });
       }
     }
@@ -160,6 +163,7 @@ function layoutGraph(
           y1: fromPos.y + NODE_H / 2,
           x2: toPos.x,
           y2: toPos.y + NODE_H / 2,
+          isBackward: true,
         });
       }
     }
@@ -193,6 +197,8 @@ interface GraphCanvasProps extends GraphExplorerProps {
 function GraphCanvas({
   nodes,
   rootTxid,
+  nodeCount,
+  maxNodes,
   onExpandInput,
   onExpandOutput,
   onCollapse,
@@ -201,6 +207,7 @@ function GraphCanvas({
   tooltip,
   scrollRef,
 }: GraphCanvasProps) {
+  const atCapacity = nodeCount >= maxNodes;
   const { layoutNodes, edges, width, height } = useMemo(
     () => layoutGraph(nodes, rootTxid),
     [nodes, rootTxid],
@@ -224,23 +231,38 @@ function GraphCanvas({
       <svg width={svgWidth} height={svgHeight} className="overflow-visible">
         <ChartDefs />
         <defs>
+          {/* Arrow at path end (forward edges, left-to-right) */}
           <marker id="arrow-graph" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
             <path d="M0,0 L8,3 L0,6" fill={SVG_COLORS.muted} fillOpacity={0.5} />
           </marker>
+          {/* Arrow at path start (backward edges, reversed path draws right-to-left) */}
+          <marker id="arrow-graph-start" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto-start-reverse">
+            <path d="M0,0 L8,3 L0,6" fill={SVG_COLORS.muted} fillOpacity={0.5} />
+          </marker>
         </defs>
+        <style>{`
+          .graph-btn circle { transition: fill-opacity 0.15s, stroke-width 0.15s, filter 0.15s; }
+          .graph-btn:hover circle { fill-opacity: 1; stroke-width: 2.5; filter: brightness(1.4); }
+          .graph-btn:hover text { fill-opacity: 1; }
+        `}</style>
 
         {/* Edges */}
         {edges.map((edge) => {
           const midX = (edge.x1 + edge.x2) / 2;
+          // Backward edges: reverse path so pathLength animates right-to-left
+          const d = edge.isBackward
+            ? `M${edge.x2},${edge.y2} C${midX},${edge.y2} ${midX},${edge.y1} ${edge.x1},${edge.y1}`
+            : `M${edge.x1},${edge.y1} C${midX},${edge.y1} ${midX},${edge.y2} ${edge.x2},${edge.y2}`;
           return (
             <motion.path
               key={`e-${edge.fromTxid}-${edge.toTxid}`}
-              d={`M${edge.x1},${edge.y1} C${midX},${edge.y1} ${midX},${edge.y2} ${edge.x2},${edge.y2}`}
+              d={d}
               fill="none"
               stroke={SVG_COLORS.muted}
               strokeWidth={1.5}
               strokeOpacity={0.35}
-              markerEnd="url(#arrow-graph)"
+              markerEnd={edge.isBackward ? undefined : "url(#arrow-graph)"}
+              markerStart={edge.isBackward ? "url(#arrow-graph-start)" : undefined}
               initial={{ pathLength: 0 }}
               animate={{ pathLength: 1 }}
               transition={{ duration: 0.4 }}
@@ -259,6 +281,8 @@ function GraphCanvas({
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.3 }}
               onMouseEnter={() => {
+                const scrollX = scrollRef.current?.scrollLeft ?? 0;
+                const scrollY = scrollRef.current?.scrollTop ?? 0;
                 tooltip.showTooltip({
                   tooltipData: {
                     txid: node.txid,
@@ -269,8 +293,8 @@ function GraphCanvas({
                     entityLabel: node.entityLabel,
                     depth: node.depth,
                   },
-                  tooltipLeft: node.x + node.width / 2,
-                  tooltipTop: node.y - 8,
+                  tooltipLeft: node.x + node.width / 2 - scrollX,
+                  tooltipTop: node.y - 8 - scrollY,
                 });
               }}
               onMouseLeave={tooltip.hideTooltip}
@@ -310,7 +334,7 @@ function GraphCanvas({
                 fontWeight={600}
                 fontFamily="monospace"
               >
-                {truncateId(node.txid, 16)}
+                {truncateId(node.txid, 8)}
               </Text>
 
               {/* Summary line */}
@@ -336,35 +360,37 @@ function GraphCanvas({
                 </Text>
               )}
 
-              {/* Expand left button (backward) - find first unexpanded input */}
-              {!node.isRoot && node.depth <= 0 && (() => {
+              {/* Expand left button (backward) - hide at capacity or when all inputs already expanded */}
+              {!atCapacity && node.depth <= 0 && (() => {
                 const idx = node.tx.vin.findIndex((v) => !v.is_coinbase && !nodes.has(v.txid));
                 return idx >= 0 ? (
-                  <g style={{ cursor: "pointer" }} onClick={() => onExpandInput(node.txid, idx)}>
-                    <circle cx={node.x - 4} cy={node.y + NODE_H / 2} r={8} fill={SVG_COLORS.surfaceElevated} stroke={color} strokeWidth={1} />
-                    <Text x={node.x - 4} y={node.y + NODE_H / 2 + 4} fontSize={12} textAnchor="middle" fill={color}>+</Text>
+                  <g className="graph-btn" style={{ cursor: "pointer" }} onClick={() => onExpandInput(node.txid, idx)}>
+                    <circle cx={node.x - 6} cy={node.y + NODE_H / 2} r={11} fill={SVG_COLORS.surfaceElevated} stroke={color} strokeWidth={1.5} />
+                    <Text x={node.x - 6} y={node.y + NODE_H / 2 + 5} fontSize={16} fontWeight={700} textAnchor="middle" fill={color}>+</Text>
                   </g>
                 ) : null;
               })()}
 
-              {/* Expand right button (forward) - find first unexpanded output */}
-              {(() => {
+              {/* Expand right button (forward) - hide at capacity or when node already has a child */}
+              {!atCapacity && (() => {
+                const hasChild = Array.from(nodes.values()).some((n) => n.parentEdge?.fromTxid === node.txid);
+                if (hasChild) return null;
                 const idx = node.tx.vout.findIndex((_, i) =>
                   !Array.from(nodes.values()).some((n) => n.parentEdge?.fromTxid === node.txid && n.parentEdge?.outputIndex === i)
                 );
                 return idx >= 0 ? (
-                  <g style={{ cursor: "pointer" }} onClick={() => onExpandOutput(node.txid, idx)}>
-                    <circle cx={node.x + node.width + 4} cy={node.y + NODE_H / 2} r={8} fill={SVG_COLORS.surfaceElevated} stroke={color} strokeWidth={1} />
-                    <Text x={node.x + node.width + 4} y={node.y + NODE_H / 2 + 4} fontSize={12} textAnchor="middle" fill={color}>+</Text>
+                  <g className="graph-btn" style={{ cursor: "pointer" }} onClick={() => onExpandOutput(node.txid, idx)}>
+                    <circle cx={node.x + node.width + 6} cy={node.y + NODE_H / 2} r={11} fill={SVG_COLORS.surfaceElevated} stroke={color} strokeWidth={1.5} />
+                    <Text x={node.x + node.width + 6} y={node.y + NODE_H / 2 + 5} fontSize={16} fontWeight={700} textAnchor="middle" fill={color}>+</Text>
                   </g>
                 ) : null;
               })()}
 
               {/* Collapse button for non-root nodes */}
               {!node.isRoot && (
-                <g style={{ cursor: "pointer" }} onClick={() => onCollapse(node.txid)}>
-                  <circle cx={node.x + node.width - 8} cy={node.y + NODE_H - 8} r={6} fill={SVG_COLORS.surfaceInset} stroke={SVG_COLORS.muted} strokeWidth={0.5} />
-                  <Text x={node.x + node.width - 8} y={node.y + NODE_H - 5} fontSize={9} textAnchor="middle" fill={SVG_COLORS.muted}>x</Text>
+                <g className="graph-btn" style={{ cursor: "pointer" }} onClick={() => onCollapse(node.txid)}>
+                  <circle cx={node.x + node.width - 8} cy={node.y + NODE_H - 6} r={9} fill={SVG_COLORS.surfaceInset} stroke={SVG_COLORS.muted} strokeWidth={1} />
+                  <Text x={node.x + node.width - 8} y={node.y + NODE_H - 2} fontSize={12} fontWeight={700} textAnchor="middle" fill={SVG_COLORS.muted}>x</Text>
                 </g>
               )}
             </motion.g>
@@ -428,8 +454,28 @@ export function GraphExplorer(props: GraphExplorerProps) {
         {t("graphExplorer.instructions", { defaultValue: "Click + buttons on nodes to expand the graph. Click node to analyze." })}
       </div>
 
+      {/* Legend */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/40">
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-2.5 h-2.5 rounded-sm border-2" style={{ borderColor: SVG_COLORS.bitcoin, background: "transparent" }} />
+          {t("graphExplorer.legendRoot", { defaultValue: "Analyzed tx" })}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: SVG_COLORS.good }} />
+          {t("graphExplorer.legendCoinJoin", { defaultValue: "CoinJoin" })}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: SVG_COLORS.high }} />
+          {t("graphExplorer.legendEntity", { defaultValue: "Known entity" })}
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: SVG_COLORS.low }} />
+          {t("graphExplorer.legendDefault", { defaultValue: "Standard tx" })}
+        </span>
+      </div>
+
       <div className="relative">
-        <div ref={scrollRef} className="overflow-x-auto -mx-4 px-4">
+        <div ref={scrollRef} className="overflow-auto max-h-[600px] -mx-4 px-4">
           <ParentSize debounceTime={100}>
             {({ width }) => width > 0 ? (
               <GraphCanvas {...props} containerWidth={width} tooltip={tooltip} scrollRef={scrollRef} />
@@ -441,7 +487,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
         {tooltip.tooltipOpen && tooltip.tooltipData && (
           <ChartTooltip top={tooltip.tooltipTop} left={tooltip.tooltipLeft}>
             <div className="space-y-1">
-              <div className="font-mono text-xs">{truncateId(tooltip.tooltipData.txid, 24)}</div>
+              <div className="font-mono text-xs">{truncateId(tooltip.tooltipData.txid, 8)}</div>
               <div className="text-xs" style={{ color: SVG_COLORS.muted }}>
                 {tooltip.tooltipData.inputCount} {t("graphExplorer.inputs", { defaultValue: "inputs" })}, {tooltip.tooltipData.outputCount} {t("graphExplorer.outputs", { defaultValue: "outputs" })}
               </div>

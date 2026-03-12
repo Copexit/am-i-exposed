@@ -42,7 +42,7 @@ type GraphAction =
   | { type: "RESET" }
   | { type: "UNDO" };
 
-const MAX_NODES = 50;
+const MAX_NODES = 100;
 
 function graphReducer(state: GraphState, action: GraphAction): GraphState {
   switch (action.type) {

@@ -618,9 +618,7 @@ export default function Home() {
                 </button>
               </div>
             </div>
-            <div className="text-xs text-muted hidden sm:block">
-              {t("page.kbd_back", { defaultValue: "Press" })} <kbd className="px-1.5 py-0.5 rounded bg-surface-elevated border border-card-border text-muted font-mono">Esc</kbd> {t("page.kbd_back_suffix", { defaultValue: "to go back" })}
-            </div>
+            <div className="pb-2" />
           </motion.div>
         )}
         {/* Wallet analysis: loading states */}
