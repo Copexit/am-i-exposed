@@ -842,7 +842,7 @@ function GraphCanvas({
   return (
     <div
       className="relative"
-      style={{ minWidth: svgWidth }}
+      style={{ minWidth: svgWidth, ...(viewTransform ? { touchAction: "none" } : {}) }}
       tabIndex={0}
       onKeyDown={handleKeyDown}
     >
@@ -874,12 +874,16 @@ function GraphCanvas({
           .graph-btn:hover text { fill-opacity: 1; }
         `}</style>
 
-        {/* Pan target: transparent background rect (fullscreen transform mode) */}
+        {/* Pan target: full-coverage background rect (fullscreen transform mode).
+            Uses fillOpacity=0 instead of fill="transparent" because some mobile
+            browsers skip transparent fills for touch hit-testing. */}
         {viewTransform && (
           <rect
             width={containerWidth}
             height={containerHeight ?? svgHeight}
-            fill="transparent"
+            fill="black"
+            fillOpacity={0}
+            pointerEvents="all"
             onMouseDown={handlePanStart}
           />
         )}
@@ -1743,8 +1747,8 @@ export function GraphExplorer(props: GraphExplorerProps) {
           </div>
 
           {/* Fullscreen graph area */}
-          <div className="flex-1 min-h-0 relative px-4 pb-4">
-            <div ref={scrollRef} className="overflow-hidden h-full">
+          <div className="flex-1 min-h-0 relative px-4 pb-4" style={{ touchAction: "none" }}>
+            <div ref={scrollRef} className="overflow-hidden h-full" style={{ touchAction: "none" }}>
               <ParentSize debounceTime={100}>
                 {({ width, height: parentH }) => width > 0 ? (
                   <GraphCanvas
