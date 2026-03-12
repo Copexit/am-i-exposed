@@ -525,6 +525,7 @@ function GraphCanvas({
 }: GraphCanvasProps) {
   const atCapacity = nodeCount >= maxNodes;
   const svgRef = useRef<SVGSVGElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const panRef = useRef({ active: false, startX: 0, startY: 0, vtX: 0, vtY: 0, scale: 1 });
   const pinchRef = useRef({ active: false, startDist: 0, startScale: 1, midX: 0, midY: 0 });
   const viewTransformRef = useRef(viewTransform);
@@ -753,9 +754,11 @@ function GraphCanvas({
   }, [!!viewTransform, onViewTransformChange]);
 
   // Touch gestures: single-finger pan, two-finger pinch-to-zoom
+  // Attached to the wrapper div (not SVG) because mobile browsers have
+  // unreliable touch hit-testing on SVG backgrounds/empty space.
   useEffect(() => {
     if (!viewTransform || !onViewTransformChange) return;
-    const el = svgRef.current;
+    const el = wrapperRef.current;
     if (!el) return;
 
     const dist = (a: Touch, b: Touch) =>
@@ -841,6 +844,7 @@ function GraphCanvas({
 
   return (
     <div
+      ref={wrapperRef}
       className="relative"
       style={{ minWidth: svgWidth, ...(viewTransform ? { touchAction: "none" } : {}) }}
       tabIndex={0}
