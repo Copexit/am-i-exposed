@@ -1,4 +1,4 @@
-import { traceBackward, traceForward, type TraceLayer } from "@/lib/analysis/chain/recursive-trace";
+import { traceBackward, traceForward, type TraceLayer, type EntityBarrierCheck } from "@/lib/analysis/chain/recursive-trace";
 import { analyzeEntityProximity } from "@/lib/analysis/chain/entity-proximity";
 import { analyzeBackwardTaint } from "@/lib/analysis/chain/taint";
 import { analyzeBackward } from "@/lib/analysis/chain/backward";
@@ -92,6 +92,20 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
     getTxOutspends: (txid: string) => api.getTxOutspends(txid),
   };
 
+  // Entity barrier: stop tracing through known custodial entities (exchanges, etc.)
+  // because they break chain of custody - no link between deposits and withdrawals.
+  const entityBarrier: EntityBarrierCheck = (btx) => {
+    for (const vin of btx.vin) {
+      const addr = vin.prevout?.scriptpubkey_address;
+      if (addr && matchEntitySync(addr)) return true;
+    }
+    for (const vout of btx.vout) {
+      const addr = vout.scriptpubkey_address;
+      if (addr && matchEntitySync(addr)) return true;
+    }
+    return false;
+  };
+
   // --- Phase 1: Backward tracing (first half of timeout) ---
   {
     const backwardAbort = new AbortController();
@@ -119,6 +133,7 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
         backwardAbort.signal,
         (p) => updateFetchProgress("tracing-backward", p.currentDepth, p.txsFetched),
         existingParents,
+        entityBarrier,
       );
       backwardLayers = backResult.layers;
     } catch {
@@ -164,6 +179,7 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
         ),
         existingChildren,
         outspends ?? undefined,
+        entityBarrier,
       );
       forwardLayers = fwdResult.layers;
     } catch {

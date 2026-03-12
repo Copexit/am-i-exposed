@@ -31,6 +31,8 @@ interface NodeDatum extends SankeyExtraProperties {
   label: string;
   fullAddress?: string;
   value: number;
+  /** Original sats value for display (Sankey may overwrite `value` with link totals). */
+  displayValue: number;
   side: "input" | "output" | "fee";
   annotation?: string;
   annotationColor?: string;
@@ -241,6 +243,7 @@ function FlowChart({
         label: vin.is_coinbase ? "coinbase" : truncateId(addr ?? "?", 5),
         fullAddress: addr,
         value: Math.max(val, 1),
+        displayValue: val,
         side: "input",
       });
     }
@@ -276,6 +279,7 @@ function FlowChart({
           : truncateId(addr ?? vout.scriptpubkey_type, 5),
         fullAddress: addr,
         value: Math.max(val, 1),
+        displayValue: val,
         side: "output",
         annotation,
         annotationColor,
@@ -317,7 +321,10 @@ function FlowChart({
       for (let j = 0; j < displayOutputs.length; j++) {
         links.push({ source: "in-0", target: `out-${j}`, value: Math.max(1, displayOutputs[j].value) });
       }
-      if (nodes[0]) nodes[0].value = totalOutputValue + tx.fee;
+      if (nodes[0]) {
+        nodes[0].value = totalOutputValue + tx.fee;
+        nodes[0].displayValue = totalOutputValue + tx.fee;
+      }
     }
 
     const g: SankeyGraph<NodeDatum, LinkDatum> = { nodes, links };
@@ -339,7 +346,7 @@ function FlowChart({
     showTooltip({
       tooltipData: {
         label: n.fullAddress ?? n.label,
-        value: n.value,
+        value: n.displayValue,
         side: n.side,
         annotation: n.annotation,
         annotationReason: n.annotationReason,
@@ -524,7 +531,7 @@ function FlowChart({
                       fill={SVG_COLORS.muted}
                       style={{ pointerEvents: "none" as const }}
                     >
-                      {usdPrice != null ? `${formatSats(n.value, i18n.language)} (${formatUsdValue(n.value, usdPrice)})` : formatSats(n.value, i18n.language)}
+                      {usdPrice != null ? `${formatSats(n.displayValue, i18n.language)} (${formatUsdValue(n.displayValue, usdPrice)})` : formatSats(n.displayValue, i18n.language)}
                     </Text>
 
                     {/* Annotation badge (change, dust) - clickable to scroll to finding */}

@@ -41,6 +41,13 @@ interface TraceFetcher {
 }
 
 /**
+ * Check if a transaction contains a known entity address (inputs or outputs).
+ * Used as a barrier: tracing stops at known entities because custodial services
+ * break the chain of custody (no link between deposits and withdrawals).
+ */
+export type EntityBarrierCheck = (tx: MempoolTransaction) => boolean;
+
+/**
  * Trace backward from a transaction, fetching parent txs up to `maxDepth` hops.
  *
  * At each hop, fetches parent transactions for all non-coinbase inputs
@@ -61,6 +68,7 @@ export async function traceBackward(
   signal?: AbortSignal,
   onProgress?: TraceProgressCallback,
   existingParents?: Map<string, MempoolTransaction>,
+  entityBarrier?: EntityBarrierCheck,
 ): Promise<TraceResult> {
   const allTxs = new Map<string, MempoolTransaction>();
   const visited = new Set<string>([tx.txid]);
@@ -75,6 +83,9 @@ export async function traceBackward(
 
     onProgress?.({ currentDepth: d + 1, maxDepth, txsFetched: fetchCount });
 
+    // layerTxs = all txs discovered at this depth (including barrier txs)
+    // nextFrontier = only non-barrier txs (expanded in next hop)
+    const layerTxs = new Map<string, MempoolTransaction>();
     const nextFrontier = new Map<string, MempoolTransaction>();
 
     for (const [, ftx] of frontier) {
@@ -91,8 +102,12 @@ export async function traceBackward(
         // Check existing parents first (depth 1 optimization)
         if (d === 0 && existingParents?.has(vin.txid)) {
           const cached = existingParents.get(vin.txid)!;
-          nextFrontier.set(vin.txid, cached);
           allTxs.set(vin.txid, cached);
+          layerTxs.set(vin.txid, cached);
+          // Entity barrier: don't expand through custodial entities
+          if (!entityBarrier || !entityBarrier(cached)) {
+            nextFrontier.set(vin.txid, cached);
+          }
           continue;
         }
 
@@ -100,20 +115,26 @@ export async function traceBackward(
           if (signal?.aborted) break;
           const parent = await fetcher.getTransaction(vin.txid);
           fetchCount++;
-          nextFrontier.set(vin.txid, parent);
           allTxs.set(vin.txid, parent);
+          layerTxs.set(vin.txid, parent);
+          // Entity barrier: don't expand through custodial entities
+          if (!entityBarrier || !entityBarrier(parent)) {
+            nextFrontier.set(vin.txid, parent);
+          }
           onProgress?.({ currentDepth: d + 1, maxDepth, txsFetched: fetchCount });
-          if (nextFrontier.size >= MAX_FANOUT_PER_LAYER) break;
+          if (layerTxs.size >= MAX_FANOUT_PER_LAYER) break;
         } catch {
           // Failed to fetch - skip this branch
         }
       }
-      if (nextFrontier.size >= MAX_FANOUT_PER_LAYER) break;
+      if (layerTxs.size >= MAX_FANOUT_PER_LAYER) break;
     }
 
-    if (nextFrontier.size === 0) break;
-    layers.push({ depth: d + 1, txs: new Map(nextFrontier) });
+    if (layerTxs.size === 0) break;
+    layers.push({ depth: d + 1, txs: new Map(layerTxs) });
 
+    // Only expand non-barrier txs in the next hop
+    if (nextFrontier.size === 0) break;
     frontier = nextFrontier;
   }
 
@@ -143,6 +164,7 @@ export async function traceForward(
   onProgress?: TraceProgressCallback,
   existingChildren?: Map<string, MempoolTransaction>,
   existingOutspends?: MempoolOutspend[],
+  entityBarrier?: EntityBarrierCheck,
 ): Promise<TraceResult> {
   const allTxs = new Map<string, MempoolTransaction>();
   const visited = new Set<string>([tx.txid]);
@@ -162,6 +184,9 @@ export async function traceForward(
 
     onProgress?.({ currentDepth: d + 1, maxDepth, txsFetched: fetchCount });
 
+    // layerTxs = all txs discovered at this depth (including barrier txs)
+    // nextFrontier = only non-barrier txs (expanded in next hop)
+    const layerTxs = new Map<string, MempoolTransaction>();
     const nextFrontier = new Map<string, MempoolTransaction>();
     const nextOutspends = new Map<string, MempoolOutspend[]>();
 
@@ -193,8 +218,12 @@ export async function traceForward(
         // Check existing children first
         if (d === 0 && existingChildren?.has(os.txid)) {
           const cached = existingChildren.get(os.txid)!;
-          nextFrontier.set(os.txid, cached);
           allTxs.set(os.txid, cached);
+          layerTxs.set(os.txid, cached);
+          // Entity barrier: don't expand through custodial entities
+          if (!entityBarrier || !entityBarrier(cached)) {
+            nextFrontier.set(os.txid, cached);
+          }
           continue;
         }
 
@@ -202,20 +231,26 @@ export async function traceForward(
           if (signal?.aborted) break;
           const child = await fetcher.getTransaction(os.txid);
           fetchCount++;
-          nextFrontier.set(os.txid, child);
           allTxs.set(os.txid, child);
+          layerTxs.set(os.txid, child);
+          // Entity barrier: don't expand through custodial entities
+          if (!entityBarrier || !entityBarrier(child)) {
+            nextFrontier.set(os.txid, child);
+          }
           onProgress?.({ currentDepth: d + 1, maxDepth, txsFetched: fetchCount });
-          if (nextFrontier.size >= MAX_FANOUT_PER_LAYER) break;
+          if (layerTxs.size >= MAX_FANOUT_PER_LAYER) break;
         } catch {
           // Failed to fetch - skip this branch
         }
       }
-      if (nextFrontier.size >= MAX_FANOUT_PER_LAYER) break;
+      if (layerTxs.size >= MAX_FANOUT_PER_LAYER) break;
     }
 
-    if (nextFrontier.size === 0) break;
-    layers.push({ depth: d + 1, txs: new Map(nextFrontier) });
+    if (layerTxs.size === 0) break;
+    layers.push({ depth: d + 1, txs: new Map(layerTxs) });
 
+    // Only expand non-barrier txs in the next hop
+    if (nextFrontier.size === 0) break;
     frontier = nextFrontier;
     frontierOutspends = nextOutspends;
   }
