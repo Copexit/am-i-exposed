@@ -32,18 +32,16 @@ interface GraphExplorerPanelProps {
 export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, forwardLayers, outspends }: GraphExplorerPanelProps) {
   const { config } = useNetwork();
 
-  // Create API client with an AbortController that aborts on config change / unmount.
-  const { fetcher, controller } = useMemo(() => {
-    const ac = new AbortController();
-    return { fetcher: createApiClient(config, ac.signal), controller: ac };
-  }, [config]);
-
-  useEffect(() => () => { controller.abort(); }, [controller]);
+  // No AbortController signal: the graph is long-lived and expansion requests
+  // don't need abort-on-unmount. The previous useMemo+effect-cleanup pattern
+  // broke under React Strict Mode (double-mount aborts the signal permanently).
+  const fetcher = useMemo(() => createApiClient(config), [config]);
 
   const {
     nodes,
     rootTxid,
     loading,
+    errors,
     nodeCount,
     maxNodes,
     canUndo,
@@ -83,6 +81,7 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, fo
           rootTxid={rootTxid}
           findings={findings}
           loading={loading}
+          errors={errors}
           nodeCount={nodeCount}
           maxNodes={maxNodes}
           canUndo={canUndo}

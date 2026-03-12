@@ -20,11 +20,14 @@ export interface GraphNode {
   childEdge?: { toTxid: string; inputIndex: number };
 }
 
+/** Max number of undo snapshots to keep. */
+const MAX_UNDO = 50;
+
 interface GraphState {
   nodes: Map<string, GraphNode>;
   rootTxid: string;
-  /** History of expansion actions for undo support */
-  history: string[];
+  /** Stack of previous node snapshots for undo (most recent last). */
+  undoStack: Map<string, GraphNode>[];
   /** Loading state per txid */
   loading: Set<string>;
   /** Error messages per txid */
@@ -56,7 +59,7 @@ function graphReducer(state: GraphState, action: GraphAction): GraphState {
       return {
         nodes,
         rootTxid: action.tx.txid,
-        history: [],
+        undoStack: [],
         loading: new Set(),
         errors: new Map(),
       };
@@ -66,7 +69,6 @@ function graphReducer(state: GraphState, action: GraphAction): GraphState {
       const rootTxid = action.root.txid;
       const nodes = new Map<string, GraphNode>();
       nodes.set(rootTxid, { txid: rootTxid, tx: action.root, depth: 0 });
-      const history: string[] = [];
 
       // Add parent txs (depth -1)
       for (const [txid, ptx] of action.parents) {
@@ -80,7 +82,6 @@ function graphReducer(state: GraphState, action: GraphAction): GraphState {
           depth: -1,
           childEdge: { toTxid: rootTxid, inputIndex: inputIdx },
         });
-        history.push(txid);
       }
 
       // Add child txs (depth +1)
@@ -93,17 +94,15 @@ function graphReducer(state: GraphState, action: GraphAction): GraphState {
           depth: 1,
           parentEdge: { fromTxid: rootTxid, outputIndex: outputIdx },
         });
-        history.push(ctx.txid);
       }
 
-      return { nodes, rootTxid, history, loading: new Set(), errors: new Map() };
+      return { nodes, rootTxid, undoStack: [], loading: new Set(), errors: new Map() };
     }
 
     case "SET_ROOT_WITH_LAYERS": {
       const rootTxid = action.root.txid;
       const nodes = new Map<string, GraphNode>();
       nodes.set(rootTxid, { txid: rootTxid, tx: action.root, depth: 0 });
-      const history: string[] = [];
 
       // Build backward hops from trace layers (depth -1, -2, ...)
       const bwLayers = action.backwardLayers;
@@ -132,7 +131,6 @@ function graphReducer(state: GraphState, action: GraphAction): GraphState {
             childEdge = { toTxid: rootTxid, inputIndex: inputIdx };
           }
           nodes.set(txid, { txid, tx: ltx, depth: hopDepth, childEdge });
-          history.push(txid);
         }
       }
 
@@ -173,11 +171,10 @@ function graphReducer(state: GraphState, action: GraphAction): GraphState {
           }
           if (!parentEdge) continue;
           nodes.set(txid, { txid, tx: ltx, depth: hopDepth, parentEdge });
-          history.push(txid);
         }
       }
 
-      return { nodes, rootTxid, history, loading: new Set(), errors: new Map() };
+      return { nodes, rootTxid, undoStack: [], loading: new Set(), errors: new Map() };
     }
 
     case "ADD_NODE": {
@@ -185,22 +182,19 @@ function graphReducer(state: GraphState, action: GraphAction): GraphState {
       if (state.nodes.has(action.node.txid)) return state;
       const nodes = new Map(state.nodes);
       nodes.set(action.node.txid, action.node);
-      return {
-        ...state,
-        nodes,
-        history: [...state.history, action.node.txid],
-      };
+      const undoStack = [...state.undoStack, new Map(state.nodes)];
+      if (undoStack.length > MAX_UNDO) undoStack.shift();
+      return { ...state, nodes, undoStack };
     }
 
     case "REMOVE_NODE": {
       if (action.txid === state.rootTxid) return state;
+      if (!state.nodes.has(action.txid)) return state;
       const nodes = new Map(state.nodes);
       nodes.delete(action.txid);
-      return {
-        ...state,
-        nodes,
-        history: state.history.filter((id) => id !== action.txid),
-      };
+      const undoStack = [...state.undoStack, new Map(state.nodes)];
+      if (undoStack.length > MAX_UNDO) undoStack.shift();
+      return { ...state, nodes, undoStack };
     }
 
     case "SET_LOADING": {
@@ -224,21 +218,19 @@ function graphReducer(state: GraphState, action: GraphAction): GraphState {
       return {
         ...state,
         nodes,
-        history: [],
+        undoStack: [],
         loading: new Set(),
         errors: new Map(),
       };
     }
 
     case "UNDO": {
-      if (state.history.length === 0) return state;
-      const lastTxid = state.history[state.history.length - 1];
-      const nodes = new Map(state.nodes);
-      nodes.delete(lastTxid);
+      if (state.undoStack.length === 0) return state;
+      const nodes = state.undoStack[state.undoStack.length - 1];
       return {
         ...state,
         nodes,
-        history: state.history.slice(0, -1),
+        undoStack: state.undoStack.slice(0, -1),
       };
     }
 
@@ -255,7 +247,7 @@ interface GraphExpansionFetcher {
 const INITIAL_STATE: GraphState = {
   nodes: new Map(),
   rootTxid: "",
-  history: [],
+  undoStack: [],
   loading: new Set(),
   errors: new Map(),
 };
@@ -327,7 +319,8 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null) {
     }
   }, [state.nodes]);
 
-  /** Expand forward: fetch the child tx that spends the given output */
+  /** Expand forward: fetch the child tx that spends the given output.
+   *  Scans all outputs starting from the hint index to find an expandable one. */
   const expandOutput = useCallback(async (currentTxid: string, outputIndex: number) => {
     const client = fetcherRef.current;
     if (!client) return;
@@ -336,40 +329,48 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null) {
     if (!node) return;
     if (state.nodes.size >= MAX_NODES) return;
 
-    dispatch({ type: "SET_LOADING", txid: `${currentTxid}:${outputIndex}`, loading: true });
+    const loadKey = `${currentTxid}:out`;
+    dispatch({ type: "SET_LOADING", txid: loadKey, loading: true });
 
     try {
       const outspends = await client.getTxOutspends(currentTxid);
-      const os = outspends[outputIndex];
-      if (!os?.spent || !os.txid) {
-        dispatch({ type: "SET_LOADING", txid: `${currentTxid}:${outputIndex}`, loading: false });
+
+      // Scan outputs starting from the hint, wrapping around to find an expandable one
+      const total = outspends.length;
+      for (let offset = 0; offset < total; offset++) {
+        const oi = (outputIndex + offset) % total;
+        const os = outspends[oi];
+        if (!os?.spent || !os.txid) continue;
+        if (state.nodes.has(os.txid)) continue;
+
+        const childTx = await client.getTransaction(os.txid);
+        dispatch({
+          type: "ADD_NODE",
+          node: {
+            txid: os.txid,
+            tx: childTx,
+            depth: node.depth + 1,
+            parentEdge: { fromTxid: currentTxid, outputIndex: oi },
+          },
+        });
         return;
       }
 
-      const childTxid = os.txid;
-      if (state.nodes.has(childTxid)) {
-        dispatch({ type: "SET_LOADING", txid: `${currentTxid}:${outputIndex}`, loading: false });
-        return;
-      }
-
-      const childTx = await client.getTransaction(childTxid);
+      // No expandable output found
+      const allUnspent = outspends.every((os) => !os?.spent);
       dispatch({
-        type: "ADD_NODE",
-        node: {
-          txid: childTxid,
-          tx: childTx,
-          depth: node.depth + 1,
-          parentEdge: { fromTxid: currentTxid, outputIndex },
-        },
+        type: "SET_ERROR",
+        txid: loadKey,
+        error: allUnspent ? "Output not yet spent" : "All spent outputs already in graph",
       });
     } catch (err) {
       dispatch({
         type: "SET_ERROR",
-        txid: `${currentTxid}:${outputIndex}`,
+        txid: loadKey,
         error: err instanceof Error ? err.message : "Failed to fetch",
       });
     } finally {
-      dispatch({ type: "SET_LOADING", txid: `${currentTxid}:${outputIndex}`, loading: false });
+      dispatch({ type: "SET_LOADING", txid: loadKey, loading: false });
     }
   }, [state.nodes]);
 
@@ -388,12 +389,11 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null) {
   return {
     nodes: state.nodes,
     rootTxid: state.rootTxid,
-    history: state.history,
     loading: state.loading,
     errors: state.errors,
     nodeCount: state.nodes.size,
     maxNodes: MAX_NODES,
-    canUndo: state.history.length > 0,
+    canUndo: state.undoStack.length > 0,
     setRoot,
     setRootWithNeighbors,
     setRootWithLayers,

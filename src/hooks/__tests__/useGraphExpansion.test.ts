@@ -76,7 +76,6 @@ describe("useGraphExpansion", () => {
       expect(rootNode).toBeDefined();
       expect(rootNode!.depth).toBe(0);
       expect(rootNode!.tx.txid).toBe("root-aaa");
-      expect(result.current.history).toHaveLength(0);
       expect(result.current.canUndo).toBe(false);
     });
 
@@ -114,9 +113,8 @@ describe("useGraphExpansion", () => {
       expect(cNode!.depth).toBe(1);
       expect(cNode!.parentEdge).toEqual({ fromTxid: "root-bbb", outputIndex: 0 });
 
-      // History should contain the non-root txids
-      expect(result.current.history).toContain("parent-111");
-      expect(result.current.history).toContain("child-222");
+      // setRootWithNeighbors is an initialization, not undoable
+      expect(result.current.canUndo).toBe(false);
     });
   });
 
@@ -153,7 +151,7 @@ describe("useGraphExpansion", () => {
       expect(pNode).toBeDefined();
       expect(pNode!.depth).toBe(-1);
       expect(pNode!.childEdge).toEqual({ toTxid: "root-ccc", inputIndex: 0 });
-      expect(result.current.history).toContain("parent-333");
+      expect(result.current.canUndo).toBe(true);
     });
 
     it("expandOutput fetches a child tx and adds it at depth +1", async () => {
@@ -368,7 +366,7 @@ describe("useGraphExpansion", () => {
       expect(result.current.canUndo).toBe(false);
     });
 
-    it("undoes multiple expansions in reverse order", () => {
+    it("undoes multiple expansions in reverse order", async () => {
       const rootTx = makeTx({
         txid: "root-multi",
         vin: [makeVin("p1"), makeVin("p2"), makeVin("p3")],
@@ -377,18 +375,40 @@ describe("useGraphExpansion", () => {
       const p2 = makeTx({ txid: "p2" });
       const p3 = makeTx({ txid: "p3" });
 
-      const parents = new Map([["p1", p1], ["p2", p2], ["p3", p3]]);
-      const children = new Map<number, MempoolTransaction>();
+      let callCount = 0;
+      const fetcher = {
+        getTransaction: vi.fn().mockImplementation(() => {
+          callCount++;
+          if (callCount === 1) return Promise.resolve(p1);
+          if (callCount === 2) return Promise.resolve(p2);
+          return Promise.resolve(p3);
+        }),
+        getTxOutspends: vi.fn().mockResolvedValue([]),
+      };
 
-      const { result } = renderHook(() => useGraphExpansion(null));
+      const { result } = renderHook(() => useGraphExpansion(fetcher));
 
       act(() => {
-        result.current.setRootWithNeighbors(rootTx, parents, children);
+        result.current.setRoot(rootTx);
       });
 
+      // Expand 3 parents one by one (each creates an undo snapshot)
+      await act(async () => {
+        await result.current.expandInput("root-multi", 0);
+      });
+      expect(result.current.nodes.size).toBe(2);
+
+      await act(async () => {
+        await result.current.expandInput("root-multi", 1);
+      });
+      expect(result.current.nodes.size).toBe(3);
+
+      await act(async () => {
+        await result.current.expandInput("root-multi", 2);
+      });
       expect(result.current.nodes.size).toBe(4);
 
-      // Undo last added
+      // Undo in reverse order
       act(() => {
         result.current.undo();
       });
@@ -459,7 +479,6 @@ describe("useGraphExpansion", () => {
       expect(result.current.nodes.size).toBe(1);
       expect(result.current.nodes.has("root-rst")).toBe(true);
       expect(result.current.nodes.has("parent-rst")).toBe(false);
-      expect(result.current.history).toHaveLength(0);
       expect(result.current.canUndo).toBe(false);
       expect(result.current.loading.size).toBe(0);
       expect(result.current.errors.size).toBe(0);
@@ -489,7 +508,7 @@ describe("useGraphExpansion", () => {
 
       expect(result.current.nodes.size).toBe(1);
       expect(result.current.rootTxid).toBe("root-rst2");
-      expect(result.current.history).toHaveLength(0);
+      expect(result.current.canUndo).toBe(false);
     });
   });
 
