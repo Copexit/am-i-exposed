@@ -526,6 +526,7 @@ function GraphCanvas({
   const atCapacity = nodeCount >= maxNodes;
   const svgRef = useRef<SVGSVGElement>(null);
   const panRef = useRef({ active: false, startX: 0, startY: 0, vtX: 0, vtY: 0, scale: 1 });
+  const pinchRef = useRef({ active: false, startDist: 0, startScale: 1, midX: 0, midY: 0 });
   const viewTransformRef = useRef(viewTransform);
   viewTransformRef.current = viewTransform;
   const [isPanning, setIsPanning] = useState(false);
@@ -751,6 +752,93 @@ function GraphCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!viewTransform, onViewTransformChange]);
 
+  // Touch gestures: single-finger pan, two-finger pinch-to-zoom
+  useEffect(() => {
+    if (!viewTransform || !onViewTransformChange) return;
+    const el = svgRef.current;
+    if (!el) return;
+
+    const dist = (a: Touch, b: Touch) =>
+      Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        // Pinch start
+        e.preventDefault();
+        const vt = viewTransformRef.current;
+        if (!vt) return;
+        const t0 = e.touches[0], t1 = e.touches[1];
+        const rect = el.getBoundingClientRect();
+        pinchRef.current = {
+          active: true,
+          startDist: dist(t0, t1),
+          startScale: vt.scale,
+          midX: (t0.clientX + t1.clientX) / 2 - rect.left,
+          midY: (t0.clientY + t1.clientY) / 2 - rect.top,
+        };
+        panRef.current.active = false;
+      } else if (e.touches.length === 1) {
+        // Pan start
+        e.preventDefault();
+        const vt = viewTransformRef.current;
+        if (!vt) return;
+        const t = e.touches[0];
+        panRef.current = { active: true, startX: t.clientX, startY: t.clientY, vtX: vt.x, vtY: vt.y, scale: vt.scale };
+        pinchRef.current.active = false;
+        setIsPanning(true);
+        setSelectedNode(null);
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (pinchRef.current.active && e.touches.length === 2) {
+        e.preventDefault();
+        const vt = viewTransformRef.current;
+        if (!vt) return;
+        const t0 = e.touches[0], t1 = e.touches[1];
+        const curDist = dist(t0, t1);
+        const ratio = curDist / pinchRef.current.startDist;
+        const ns = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, pinchRef.current.startScale * ratio));
+        const { midX, midY } = pinchRef.current;
+        // Zoom toward the original midpoint
+        const gx = (midX - vt.x) / vt.scale;
+        const gy = (midY - vt.y) / vt.scale;
+        onViewTransformChange({ x: midX - gx * ns, y: midY - gy * ns, scale: ns });
+      } else if (panRef.current.active && e.touches.length === 1) {
+        e.preventDefault();
+        const t = e.touches[0];
+        const dx = t.clientX - panRef.current.startX;
+        const dy = t.clientY - panRef.current.startY;
+        onViewTransformChange({ scale: panRef.current.scale, x: panRef.current.vtX + dx, y: panRef.current.vtY + dy });
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) pinchRef.current.active = false;
+      if (e.touches.length === 0) {
+        panRef.current.active = false;
+        setIsPanning(false);
+      }
+      // If going from 2 fingers to 1, start a new pan from the remaining finger
+      if (e.touches.length === 1 && pinchRef.current.active === false) {
+        const vt = viewTransformRef.current;
+        if (!vt) return;
+        const t = e.touches[0];
+        panRef.current = { active: true, startX: t.clientX, startY: t.clientY, vtX: vt.x, vtY: vt.y, scale: vt.scale };
+      }
+    };
+
+    el.addEventListener("touchstart", handleTouchStart, { passive: false });
+    el.addEventListener("touchmove", handleTouchMove, { passive: false });
+    el.addEventListener("touchend", handleTouchEnd, { passive: false });
+    return () => {
+      el.removeEventListener("touchstart", handleTouchStart);
+      el.removeEventListener("touchmove", handleTouchMove);
+      el.removeEventListener("touchend", handleTouchEnd);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!viewTransform, onViewTransformChange]);
+
   return (
     <div
       className="relative"
@@ -763,7 +851,7 @@ function GraphCanvas({
         width={viewTransform ? containerWidth : svgWidth}
         height={viewTransform ? (containerHeight ?? svgHeight) : svgHeight}
         className="overflow-visible"
-        style={viewTransform ? { cursor: isPanning ? "grabbing" : "grab" } : undefined}
+        style={viewTransform ? { cursor: isPanning ? "grabbing" : "grab", touchAction: "none" } : undefined}
         onClick={(e) => {
           // Close analysis panel when clicking SVG background (not a node)
           if (e.target === e.currentTarget) setSelectedNode(null);
