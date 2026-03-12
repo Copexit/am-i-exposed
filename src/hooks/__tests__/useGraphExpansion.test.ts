@@ -579,4 +579,227 @@ describe("useGraphExpansion", () => {
       expect(result.current.maxNodes).toBe(100);
     });
   });
+
+  // ── Multi-root ──────────────────────────────────────────────────────
+
+  describe("multi-root", () => {
+    it("setMultiRoot creates all roots at depth 0 with correct rootTxids", () => {
+      const tx1 = makeTx({ txid: "root-mr1" });
+      const tx2 = makeTx({ txid: "root-mr2" });
+      const tx3 = makeTx({ txid: "root-mr3" });
+
+      const txs = new Map([
+        ["root-mr1", tx1],
+        ["root-mr2", tx2],
+        ["root-mr3", tx3],
+      ]);
+
+      const { result } = renderHook(() => useGraphExpansion(null));
+
+      act(() => {
+        result.current.setMultiRoot(txs);
+      });
+
+      expect(result.current.nodes.size).toBe(3);
+      expect(result.current.rootTxid).toBe("root-mr1");
+      expect(result.current.rootTxids.size).toBe(3);
+      expect(result.current.rootTxids.has("root-mr1")).toBe(true);
+      expect(result.current.rootTxids.has("root-mr2")).toBe(true);
+      expect(result.current.rootTxids.has("root-mr3")).toBe(true);
+
+      for (const [, node] of result.current.nodes) {
+        expect(node.depth).toBe(0);
+      }
+    });
+
+    it("setMultiRootWithLayers places roots + expanded trace nodes", () => {
+      // Root1 has a backward parent
+      const parent1 = makeTx({ txid: "mr-parent1" });
+      const root1 = makeTx({
+        txid: "mr-root1",
+        vin: [makeVin("mr-parent1", 0)],
+        vout: [makeVout(50000)],
+      });
+
+      // Root2 has no layers
+      const root2 = makeTx({ txid: "mr-root2", vout: [makeVout(30000)] });
+
+      const roots = new Map([
+        ["mr-root1", {
+          tx: root1,
+          backward: [{ depth: 1, txs: new Map([["mr-parent1", parent1]]) }],
+          forward: [],
+        }],
+        ["mr-root2", { tx: root2 }],
+      ]);
+
+      const { result } = renderHook(() => useGraphExpansion(null));
+
+      act(() => {
+        result.current.setMultiRootWithLayers(roots);
+      });
+
+      expect(result.current.nodes.size).toBe(3);
+      expect(result.current.rootTxids.size).toBe(2);
+      expect(result.current.rootTxids.has("mr-root1")).toBe(true);
+      expect(result.current.rootTxids.has("mr-root2")).toBe(true);
+
+      // Root1 at depth 0
+      expect(result.current.nodes.get("mr-root1")!.depth).toBe(0);
+      // Root2 at depth 0
+      expect(result.current.nodes.get("mr-root2")!.depth).toBe(0);
+      // Parent at depth -1
+      const parentNode = result.current.nodes.get("mr-parent1");
+      expect(parentNode).toBeDefined();
+      expect(parentNode!.depth).toBe(-1);
+      expect(parentNode!.childEdge).toEqual({ toTxid: "mr-root1", inputIndex: 0 });
+    });
+
+    it("cannot collapse any root in multi-root mode", () => {
+      const tx1 = makeTx({ txid: "mr-protect1" });
+      const tx2 = makeTx({ txid: "mr-protect2" });
+
+      const txs = new Map([
+        ["mr-protect1", tx1],
+        ["mr-protect2", tx2],
+      ]);
+
+      const { result } = renderHook(() => useGraphExpansion(null));
+
+      act(() => {
+        result.current.setMultiRoot(txs);
+      });
+
+      act(() => {
+        result.current.collapse("mr-protect1");
+      });
+      expect(result.current.nodes.has("mr-protect1")).toBe(true);
+
+      act(() => {
+        result.current.collapse("mr-protect2");
+      });
+      expect(result.current.nodes.has("mr-protect2")).toBe(true);
+      expect(result.current.nodes.size).toBe(2);
+    });
+
+    it("reset returns to all root nodes in multi-root mode", async () => {
+      const parent = makeTx({ txid: "mr-rst-parent" });
+      const root1 = makeTx({
+        txid: "mr-rst1",
+        vin: [makeVin("mr-rst-parent", 0)],
+      });
+      const root2 = makeTx({ txid: "mr-rst2" });
+
+      const fetcher = {
+        getTransaction: vi.fn().mockResolvedValue(parent),
+        getTxOutspends: vi.fn().mockResolvedValue([]),
+      };
+
+      const { result } = renderHook(() => useGraphExpansion(fetcher));
+
+      act(() => {
+        result.current.setMultiRoot(new Map([
+          ["mr-rst1", root1],
+          ["mr-rst2", root2],
+        ]));
+      });
+      expect(result.current.nodes.size).toBe(2);
+
+      // Expand a parent from root1
+      await act(async () => {
+        await result.current.expandInput("mr-rst1", 0);
+      });
+      expect(result.current.nodes.size).toBe(3);
+
+      // Reset should return to both roots
+      act(() => {
+        result.current.reset();
+      });
+      expect(result.current.nodes.size).toBe(2);
+      expect(result.current.nodes.has("mr-rst1")).toBe(true);
+      expect(result.current.nodes.has("mr-rst2")).toBe(true);
+      expect(result.current.nodes.has("mr-rst-parent")).toBe(false);
+    });
+
+    it("expand works from any root in multi-root mode", async () => {
+      const parent = makeTx({ txid: "mr-exp-parent" });
+      const root1 = makeTx({ txid: "mr-exp1" });
+      const root2 = makeTx({
+        txid: "mr-exp2",
+        vin: [makeVin("mr-exp-parent", 0)],
+      });
+
+      const fetcher = {
+        getTransaction: vi.fn().mockResolvedValue(parent),
+        getTxOutspends: vi.fn().mockResolvedValue([]),
+      };
+
+      const { result } = renderHook(() => useGraphExpansion(fetcher));
+
+      act(() => {
+        result.current.setMultiRoot(new Map([
+          ["mr-exp1", root1],
+          ["mr-exp2", root2],
+        ]));
+      });
+
+      // Expand from root2 (not the primary root)
+      await act(async () => {
+        await result.current.expandInput("mr-exp2", 0);
+      });
+
+      expect(result.current.nodes.size).toBe(3);
+      expect(result.current.nodes.has("mr-exp-parent")).toBe(true);
+      expect(result.current.nodes.get("mr-exp-parent")!.depth).toBe(-1);
+    });
+
+    it("MAX_NODES respected when trace nodes overflow capacity", () => {
+      // Create 95 roots to nearly fill the graph
+      const txs = new Map<string, MempoolTransaction>();
+      for (let i = 0; i < 95; i++) {
+        const txid = `mr-cap-${String(i).padStart(3, "0")}`;
+        txs.set(txid, makeTx({ txid }));
+      }
+
+      const { result } = renderHook(() => useGraphExpansion(null));
+
+      act(() => {
+        result.current.setMultiRoot(txs);
+      });
+
+      expect(result.current.nodes.size).toBe(95);
+
+      // setMultiRootWithLayers with roots that have many trace nodes
+      const roots = new Map<string, { tx: MempoolTransaction; backward?: { depth: number; txs: Map<string, MempoolTransaction> }[] }>();
+      for (let i = 0; i < 95; i++) {
+        const txid = `mr-cap2-${String(i).padStart(3, "0")}`;
+        const parentTxid = `mr-cap2-parent-${i}`;
+        roots.set(txid, {
+          tx: makeTx({ txid, vin: [makeVin(parentTxid, 0)] }),
+          backward: [{ depth: 1, txs: new Map([[parentTxid, makeTx({ txid: parentTxid })]]) }],
+        });
+      }
+
+      act(() => {
+        result.current.setMultiRootWithLayers(roots);
+      });
+
+      // Should not exceed MAX_NODES (100)
+      expect(result.current.nodes.size).toBeLessThanOrEqual(100);
+      // All 95 roots should be present (roots placed first)
+      expect(result.current.rootTxids.size).toBe(95);
+    });
+
+    it("single-root actions still populate rootTxids correctly", () => {
+      const rootTx = makeTx({ txid: "sr-check" });
+      const { result } = renderHook(() => useGraphExpansion(null));
+
+      act(() => {
+        result.current.setRoot(rootTx);
+      });
+
+      expect(result.current.rootTxids.size).toBe(1);
+      expect(result.current.rootTxids.has("sr-check")).toBe(true);
+    });
+  });
 });

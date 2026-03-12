@@ -14,7 +14,9 @@ import {
   type ParsedXpub,
 } from "@/lib/bitcoin/descriptor";
 import { auditWallet, type WalletAuditResult, type WalletAddressInfo } from "@/lib/analysis/wallet-audit";
-import type { MempoolAddress, MempoolTransaction, MempoolUtxo } from "@/lib/api/types";
+import { traceBackward, traceForward } from "@/lib/analysis/chain/recursive-trace";
+import type { MempoolAddress, MempoolTransaction, MempoolUtxo, MempoolOutspend } from "@/lib/api/types";
+import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 import type { DerivedAddress } from "@/lib/bitcoin/descriptor";
 import type { MempoolClient } from "@/lib/api/mempool";
 
@@ -24,9 +26,17 @@ export type WalletPhase =
   | "idle"
   | "deriving"
   | "fetching"
+  | "tracing"
   | "analyzing"
   | "complete"
   | "error";
+
+export interface UtxoTraceResult {
+  tx: MempoolTransaction;
+  backward: TraceLayer[];
+  forward: TraceLayer[];
+  outspends: MempoolOutspend[];
+}
 
 export interface WalletAnalysisState {
   phase: WalletPhase;
@@ -38,8 +48,12 @@ export interface WalletAnalysisState {
   result: WalletAuditResult | null;
   /** Per-address info (for detail views) */
   addressInfos: WalletAddressInfo[];
+  /** Pre-fetched UTXO trace data for graph visualization */
+  utxoTraces: Map<string, UtxoTraceResult> | null;
   /** Progress: addresses fetched so far / total (0 = unknown) */
   progress: { fetched: number; total: number };
+  /** Tracing progress */
+  traceProgress: { traced: number; total: number } | null;
   /** Error message */
   error: string | null;
   /** Duration in ms */
@@ -52,13 +66,21 @@ const INITIAL_STATE: WalletAnalysisState = {
   descriptor: null,
   result: null,
   addressInfos: [],
+  utxoTraces: null,
   progress: { fetched: 0, total: 0 },
+  traceProgress: null,
   error: null,
   durationMs: null,
 };
 
 /** Default gap limit if settings unavailable. */
 const DEFAULT_GAP_LIMIT = 5;
+
+/** Max UTXO txids to trace (prevents explosion on large wallets). */
+const MAX_UTXO_TRACES = 50;
+
+/** Trace depth for UTXO provenance. */
+const UTXO_TRACE_DEPTH = 3;
 
 // ---------- Fetch helpers ----------
 
@@ -157,6 +179,46 @@ async function scanChain(
   return results;
 }
 
+/**
+ * Collect unique transactions that have outputs belonging to the wallet.
+ * Includes both spent and unspent outputs. Sorted by wallet output value descending.
+ */
+function collectWalletTxs(
+  allInfos: WalletAddressInfo[],
+): Map<string, MempoolTransaction> {
+  // Build set of all wallet addresses for output matching
+  const walletAddresses = new Set<string>();
+  for (const info of allInfos) {
+    walletAddresses.add(info.derived.address);
+  }
+
+  const txMap = new Map<string, MempoolTransaction>();
+  const valueMap = new Map<string, number>();
+
+  for (const info of allInfos) {
+    for (const tx of info.txs) {
+      if (txMap.has(tx.txid)) continue;
+      // Sum outputs belonging to the wallet
+      let walletValue = 0;
+      for (const vout of tx.vout) {
+        if (vout.scriptpubkey_address && walletAddresses.has(vout.scriptpubkey_address)) {
+          walletValue += vout.value;
+        }
+      }
+      if (walletValue === 0) continue; // Skip txs where wallet has no outputs
+      txMap.set(tx.txid, tx);
+      valueMap.set(tx.txid, walletValue);
+    }
+  }
+
+  // Sort by wallet output value descending and cap
+  const sorted = [...txMap.entries()]
+    .sort((a, b) => (valueMap.get(b[0]) ?? 0) - (valueMap.get(a[0]) ?? 0))
+    .slice(0, MAX_UTXO_TRACES);
+
+  return new Map(sorted);
+}
+
 // ---------- Hook ----------
 
 export function useWalletAnalysis() {
@@ -201,7 +263,7 @@ export function useWalletAnalysis() {
         // Local/Umbrel/custom: no delays.
         const api = createApiClient(config, controller.signal);
         const localApi = isLocalInstance(config.mempoolBaseUrl);
-        const { walletGapLimit = DEFAULT_GAP_LIMIT } = getAnalysisSettings();
+        const { walletGapLimit = DEFAULT_GAP_LIMIT, minSats = 5000 } = getAnalysisSettings();
         const allInfos: WalletAddressInfo[] = [];
         let fetched = 0;
 
@@ -243,6 +305,56 @@ export function useWalletAnalysis() {
           xpub: parsed.xpub,
         };
 
+        // Step 2.5: Trace wallet tx provenance concurrently
+        const utxoTxs = collectWalletTxs(allInfos);
+        let utxoTraces: Map<string, UtxoTraceResult> | null = null;
+
+        if (utxoTxs.size > 0) {
+          setState(prev => ({
+            ...prev,
+            phase: "tracing",
+            descriptor,
+            progress: { fetched, total: fetched },
+            traceProgress: { traced: 0, total: utxoTxs.size },
+          }));
+
+          let tracedCount = 0;
+          const traceResults = new Map<string, UtxoTraceResult>();
+
+          const { maxDepth = UTXO_TRACE_DEPTH } = getAnalysisSettings();
+          const traceDepth = Math.min(UTXO_TRACE_DEPTH, maxDepth);
+
+          const tracePromises = [...utxoTxs.entries()].map(async ([txid, tx]) => {
+            try {
+              const [bwResult, fwResult, outspends] = await Promise.all([
+                traceBackward(tx, traceDepth, minSats, api, controller.signal),
+                traceForward(tx, traceDepth, minSats, api, controller.signal),
+                api.getTxOutspends(txid).catch(() => [] as MempoolOutspend[]),
+              ]);
+
+              traceResults.set(txid, {
+                tx,
+                backward: bwResult.layers,
+                forward: fwResult.layers,
+                outspends,
+              });
+            } catch {
+              // Failed trace - root will appear without pre-expansion
+            }
+
+            tracedCount++;
+            setState(prev => ({
+              ...prev,
+              traceProgress: { traced: tracedCount, total: utxoTxs.size },
+            }));
+          });
+
+          await Promise.all(tracePromises);
+          if (controller.signal.aborted) return;
+
+          utxoTraces = traceResults.size > 0 ? traceResults : null;
+        }
+
         // Step 3: Run wallet audit
         setState(prev => ({
           ...prev,
@@ -258,6 +370,7 @@ export function useWalletAnalysis() {
           phase: "complete",
           result,
           addressInfos: allInfos,
+          utxoTraces,
           durationMs: Date.now() - startTime,
         }));
       } catch (err) {

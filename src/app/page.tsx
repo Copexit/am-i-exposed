@@ -654,10 +654,18 @@ export default function Home() {
                       ? t("wallet.deriving", { defaultValue: "Deriving addresses..." })
                       : wallet.phase === "fetching"
                         ? `${t("wallet.fetching", { defaultValue: "Fetching transaction history..." })} (${wallet.progress.fetched})`
-                        : t("wallet.analyzing", { defaultValue: "Analyzing wallet privacy..." })}
+                        : wallet.phase === "tracing"
+                          ? wallet.traceProgress
+                            ? t("wallet.tracing", {
+                                traced: wallet.traceProgress.traced,
+                                total: wallet.traceProgress.total,
+                                defaultValue: "Tracing UTXO provenance ({{traced}}/{{total}} txs)",
+                              })
+                            : t("wallet.tracingGeneric", { defaultValue: "Tracing UTXO provenance..." })
+                          : t("wallet.analyzing", { defaultValue: "Analyzing wallet privacy..." })}
                   </span>
                 </div>
-                {wallet.phase === "fetching" && wallet.progress.fetched > 0 && (
+                {(wallet.phase === "fetching" || wallet.phase === "tracing") && wallet.progress.fetched > 0 && (
                   <div className="w-full bg-surface-elevated rounded-full h-1.5">
                     <div
                       className="bg-bitcoin h-1.5 rounded-full transition-all duration-300 animate-pulse"
@@ -682,6 +690,7 @@ export default function Home() {
               descriptor={wallet.descriptor}
               result={wallet.result}
               addressInfos={wallet.addressInfos}
+              utxoTraces={wallet.utxoTraces}
               onBack={handleBack}
               onScan={handleSubmit}
               durationMs={wallet.durationMs}

@@ -49,6 +49,10 @@ function analyzeSync(tx: MempoolTransaction): ScoringResult {
 interface GraphExplorerProps {
   nodes: Map<string, GraphNode>;
   rootTxid: string;
+  /** Multi-root highlight set (wallet UTXO graph). */
+  rootTxids?: Set<string>;
+  /** Txid -> vout indices for UTXO badges on root nodes. */
+  walletUtxos?: Map<string, Set<number>>;
   findings?: Finding[];
   loading: Set<string>;
   errors: Map<string, string>;
@@ -185,6 +189,7 @@ function layoutGraph(
   graphNodes: Map<string, GraphNode>,
   rootTxid: string,
   filter: NodeFilter,
+  rootTxids?: Set<string>,
 ): { layoutNodes: LayoutNode[]; edges: LayoutEdge[]; width: number; height: number } {
   const layoutNodes: LayoutNode[] = [];
   const edges: LayoutEdge[] = [];
@@ -215,7 +220,7 @@ function layoutGraph(
       const isCJ = cjResult.findings.some(isCoinJoinFinding);
       const coinJoinType = isCJ ? getCoinJoinType(cjResult.findings) : undefined;
       const entityMatch = getBestEntityMatch(node.tx);
-      const isRoot = node.txid === rootTxid;
+      const isRoot = rootTxids ? rootTxids.has(node.txid) : node.txid === rootTxid;
 
       // Apply filter (never filter root)
       if (!isRoot) {
@@ -318,6 +323,25 @@ function getNodeColor(node: LayoutNode, heatScore?: number): string {
   return SVG_COLORS.low;
 }
 
+// ─── View Transform (fullscreen pan/zoom) ────────────────────
+
+interface ViewTransform {
+  x: number;
+  y: number;
+  scale: number;
+}
+
+const MIN_ZOOM = 0.15;
+const MAX_ZOOM = 3;
+
+function computeFitTransform(
+  graphW: number, graphH: number, containerW: number, containerH: number,
+): ViewTransform {
+  if (graphW <= 0 || graphH <= 0) return { x: 0, y: 0, scale: 1 };
+  const s = Math.min(containerW / graphW, containerH / graphH, 1.5);
+  return { x: (containerW - graphW * s) / 2, y: (containerH - graphH * s) / 2, scale: s };
+}
+
 // ─── Minimap ───────────────────────────────────────────────────
 
 interface MinimapProps {
@@ -350,34 +374,59 @@ function Minimap({
   heatMap,
   heatMapActive,
 }: MinimapProps) {
-  if (layoutNodes.length <= 1) return null;
+  const mmSvgRef = useRef<SVGSVGElement>(null);
+  const [dragging, setDragging] = useState(false);
 
-  const scaleX = MINIMAP_W / Math.max(graphWidth, 1);
-  const scaleY = MINIMAP_H / Math.max(graphHeight, 1);
-  const scale = Math.min(scaleX, scaleY, 1);
+  const scale = useMemo(() => {
+    const sX = MINIMAP_W / Math.max(graphWidth, 1);
+    const sY = MINIMAP_H / Math.max(graphHeight, 1);
+    return Math.min(sX, sY, 1);
+  }, [graphWidth, graphHeight]);
+
+  const getGraphPos = useCallback((clientX: number, clientY: number) => {
+    const r = mmSvgRef.current?.getBoundingClientRect();
+    if (!r) return null;
+    return { x: (clientX - r.left) / scale, y: (clientY - r.top) / scale };
+  }, [scale]);
+
+  // Document-level drag handlers for smooth minimap dragging
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e: MouseEvent) => {
+      const pos = getGraphPos(e.clientX, e.clientY);
+      if (pos) onMinimapClick(pos.x, pos.y);
+    };
+    const onUp = () => setDragging(false);
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    return () => { document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); };
+  }, [dragging, getGraphPos, onMinimapClick]);
+
+  if (layoutNodes.length <= 1) return null;
 
   const vpW = Math.min(viewportWidth * scale, MINIMAP_W);
   const vpH = Math.min(viewportHeight * scale, MINIMAP_H);
   const vpX = scrollLeft * scale;
   const vpY = scrollTop * scale;
 
-  const handleClick = (e: React.MouseEvent<SVGSVGElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / scale;
-    const y = (e.clientY - rect.top) / scale;
-    onMinimapClick(x, y);
+  const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
+    e.preventDefault();
+    setDragging(true);
+    const pos = getGraphPos(e.clientX, e.clientY);
+    if (pos) onMinimapClick(pos.x, pos.y);
   };
 
   return (
     <div
-      className="absolute bottom-2 right-2 rounded border border-white/10 bg-black/60 backdrop-blur-sm overflow-hidden"
+      className="fixed bottom-4 right-4 z-[60] rounded border border-white/10 bg-black/60 backdrop-blur-sm overflow-hidden"
       style={{ width: MINIMAP_W, height: MINIMAP_H }}
     >
       <svg
+        ref={mmSvgRef}
         width={MINIMAP_W}
         height={MINIMAP_H}
-        style={{ cursor: "crosshair" }}
-        onClick={handleClick}
+        style={{ cursor: dragging ? "grabbing" : "crosshair" }}
+        onMouseDown={handleMouseDown}
       >
         {/* Edges */}
         {edges.map((e) => (
@@ -442,11 +491,15 @@ interface GraphCanvasProps extends GraphExplorerProps {
   heatMap: Map<string, ScoringResult>;
   heatMapActive: boolean;
   isFullscreen?: boolean;
+  viewTransform?: ViewTransform;
+  onViewTransformChange?: (vt: ViewTransform) => void;
 }
 
 function GraphCanvas({
   nodes,
   rootTxid,
+  rootTxids,
+  walletUtxos,
   nodeCount,
   maxNodes,
   loading,
@@ -467,11 +520,28 @@ function GraphCanvas({
   heatMap,
   heatMapActive,
   isFullscreen,
+  viewTransform,
+  onViewTransformChange,
 }: GraphCanvasProps) {
   const atCapacity = nodeCount >= maxNodes;
+  const svgRef = useRef<SVGSVGElement>(null);
+  const panRef = useRef({ active: false, startX: 0, startY: 0, vtX: 0, vtY: 0, scale: 1 });
+  const viewTransformRef = useRef(viewTransform);
+  viewTransformRef.current = viewTransform;
+  const [isPanning, setIsPanning] = useState(false);
+
+  // Convert graph coordinates to screen coordinates (accounts for scroll or view transform)
+  const toScreen = useCallback((gx: number, gy: number) => {
+    if (viewTransform) {
+      return { x: gx * viewTransform.scale + viewTransform.x, y: gy * viewTransform.scale + viewTransform.y };
+    }
+    const sx = scrollRef.current?.scrollLeft ?? 0;
+    const sy = scrollRef.current?.scrollTop ?? 0;
+    return { x: gx - sx, y: gy - sy };
+  }, [viewTransform, scrollRef]);
   const { layoutNodes, edges, width, height } = useMemo(
-    () => layoutGraph(nodes, rootTxid, filter),
-    [nodes, rootTxid, filter],
+    () => layoutGraph(nodes, rootTxid, filter, rootTxids),
+    [nodes, rootTxid, filter, rootTxids],
   );
 
   const svgWidth = Math.max(containerWidth, width);
@@ -582,14 +652,17 @@ function GraphCanvas({
     }
   }, [focusedNode, layoutNodes, scrollRef]);
 
-  // Auto-scroll to center the root transaction node on first render
+  // Auto-scroll to center the root transaction node(s) on first render only
+  const hasCentered = useRef(false);
   useEffect(() => {
+    if (hasCentered.current) return;
     const el = scrollRef.current;
     if (!el) return;
-    const rootNode = layoutNodes.find((n) => n.isRoot);
-    if (!rootNode) return;
-    const rootCenterX = rootNode.x + rootNode.width / 2;
-    el.scrollLeft = rootCenterX - el.clientWidth / 2;
+    const rootNodes = layoutNodes.filter((n) => n.isRoot);
+    if (rootNodes.length === 0) return;
+    hasCentered.current = true;
+    const avgX = rootNodes.reduce((s, n) => s + n.x + n.width / 2, 0) / rootNodes.length;
+    el.scrollLeft = avgX - el.clientWidth / 2;
   }, [layoutNodes, scrollRef]);
 
   // Handle node click - toggle floating analysis panel
@@ -600,14 +673,13 @@ function GraphCanvas({
       return;
     }
     // Open for new node
-    const scrollX = scrollRef.current?.scrollLeft ?? 0;
-    const scrollY = scrollRef.current?.scrollTop ?? 0;
+    const pos = toScreen(node.x + node.width + 10, node.y);
     setSelectedNode({
       txid: node.txid,
-      x: node.x + node.width + 10 - scrollX,
-      y: node.y - scrollY,
+      x: pos.x,
+      y: pos.y,
     });
-  }, [setSelectedNode, scrollRef]);
+  }, [setSelectedNode, toScreen]);
 
   // Minimap scroll handler
   const [scrollPos, setScrollPos] = useState({ left: 0, top: 0 });
@@ -620,11 +692,64 @@ function GraphCanvas({
   }, [scrollRef]);
 
   const handleMinimapClick = useCallback((x: number, y: number) => {
+    if (viewTransform && onViewTransformChange) {
+      const cw = containerWidth;
+      const ch = containerHeight ?? 600;
+      onViewTransformChange({ ...viewTransform, x: cw / 2 - x * viewTransform.scale, y: ch / 2 - y * viewTransform.scale });
+      return;
+    }
     const el = scrollRef.current;
     if (!el) return;
     el.scrollLeft = x - el.clientWidth / 2;
     el.scrollTop = y - el.clientHeight / 2;
-  }, [scrollRef]);
+  }, [scrollRef, viewTransform, onViewTransformChange, containerWidth, containerHeight]);
+
+  // ─── Pan handlers (fullscreen transform mode) ────────────
+
+  const handlePanStart = useCallback((e: React.MouseEvent) => {
+    if (!viewTransform || !onViewTransformChange || e.button !== 0) return;
+    e.preventDefault();
+    panRef.current = { active: true, startX: e.clientX, startY: e.clientY, vtX: viewTransform.x, vtY: viewTransform.y, scale: viewTransform.scale };
+    setIsPanning(true);
+    setSelectedNode(null);
+  }, [viewTransform, onViewTransformChange, setSelectedNode]);
+
+  useEffect(() => {
+    if (!isPanning) return;
+    const onMove = (e: MouseEvent) => {
+      if (!panRef.current.active) return;
+      const dx = e.clientX - panRef.current.startX;
+      const dy = e.clientY - panRef.current.startY;
+      onViewTransformChange?.({ scale: panRef.current.scale, x: panRef.current.vtX + dx, y: panRef.current.vtY + dy });
+    };
+    const onUp = () => { panRef.current.active = false; setIsPanning(false); };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    return () => { document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); };
+  }, [isPanning, onViewTransformChange]);
+
+  // Wheel-to-zoom (fullscreen transform mode)
+  useEffect(() => {
+    if (!viewTransform || !onViewTransformChange) return;
+    const el = svgRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      const vt = viewTransformRef.current;
+      if (!vt) return;
+      const rect = el.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      const gx = (cx - vt.x) / vt.scale;
+      const gy = (cy - vt.y) / vt.scale;
+      const factor = e.deltaY > 0 ? 0.9 : 1.1;
+      const ns = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, vt.scale * factor));
+      onViewTransformChange({ x: cx - gx * ns, y: cy - gy * ns, scale: ns });
+    };
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!viewTransform, onViewTransformChange]);
 
   return (
     <div
@@ -634,9 +759,11 @@ function GraphCanvas({
       onKeyDown={handleKeyDown}
     >
       <svg
-        width={svgWidth}
-        height={svgHeight}
+        ref={svgRef}
+        width={viewTransform ? containerWidth : svgWidth}
+        height={viewTransform ? (containerHeight ?? svgHeight) : svgHeight}
         className="overflow-visible"
+        style={viewTransform ? { cursor: isPanning ? "grabbing" : "grab" } : undefined}
         onClick={(e) => {
           // Close analysis panel when clicking SVG background (not a node)
           if (e.target === e.currentTarget) setSelectedNode(null);
@@ -658,6 +785,18 @@ function GraphCanvas({
           .graph-btn:hover circle { fill-opacity: 1; stroke-width: 2.5; filter: brightness(1.4); }
           .graph-btn:hover text { fill-opacity: 1; }
         `}</style>
+
+        {/* Pan target: transparent background rect (fullscreen transform mode) */}
+        {viewTransform && (
+          <rect
+            width={containerWidth}
+            height={containerHeight ?? svgHeight}
+            fill="transparent"
+            onMouseDown={handlePanStart}
+          />
+        )}
+
+        <g transform={viewTransform ? `translate(${viewTransform.x},${viewTransform.y}) scale(${viewTransform.scale})` : undefined}>
 
         {/* Edges */}
         {edges.map((edge) => {
@@ -724,8 +863,7 @@ function GraphCanvas({
               style={{ cursor: "pointer" }}
               onMouseEnter={() => {
                 setHoveredNode(node.txid);
-                const scrollX = scrollRef.current?.scrollLeft ?? 0;
-                const scrollY = scrollRef.current?.scrollTop ?? 0;
+                const pos = toScreen(node.x + node.width / 2, node.y - 8);
                 tooltip.showTooltip({
                   tooltipData: {
                     txid: node.txid,
@@ -743,8 +881,8 @@ function GraphCanvas({
                     feeRate: node.feeRate,
                     confirmed: node.confirmed,
                   },
-                  tooltipLeft: node.x + node.width / 2 - scrollX,
-                  tooltipTop: node.y - 8 - scrollY,
+                  tooltipLeft: pos.x,
+                  tooltipTop: pos.y,
                 });
               }}
               onMouseLeave={() => {
@@ -871,6 +1009,38 @@ function GraphCanvas({
                 </>
               )}
 
+              {/* Wallet UTXO badge */}
+              {walletUtxos?.has(node.txid) && (() => {
+                const vouts = walletUtxos.get(node.txid)!;
+                const utxoSats = [...vouts].reduce((sum, vi) => sum + (node.tx.vout[vi]?.value ?? 0), 0);
+                return (
+                  <g>
+                    <rect
+                      x={node.x}
+                      y={node.y + node.height + 2}
+                      width={node.width}
+                      height={18}
+                      rx={4}
+                      fill={SVG_COLORS.bitcoin}
+                      fillOpacity={0.15}
+                      stroke={SVG_COLORS.bitcoin}
+                      strokeWidth={0.5}
+                      strokeOpacity={0.4}
+                    />
+                    <Text
+                      x={node.x + node.width / 2}
+                      y={node.y + node.height + 14}
+                      fontSize={9}
+                      fill={SVG_COLORS.bitcoin}
+                      textAnchor="middle"
+                      fontWeight={600}
+                    >
+                      {vouts.size === 1 ? `Wallet: ${formatSats(utxoSats)}` : `${vouts.size} outputs: ${formatSats(utxoSats)}`}
+                    </Text>
+                  </g>
+                );
+              })()}
+
               {/* Expand left button (backward) */}
               {!atCapacity && node.depth <= 0 && (() => {
                 const idx = node.tx.vin.findIndex((v) => !v.is_coinbase && !nodes.has(v.txid));
@@ -921,22 +1091,25 @@ function GraphCanvas({
             </motion.g>
           );
         })}
+        </g>
       </svg>
 
-      {/* Minimap */}
-      <Minimap
-        layoutNodes={layoutNodes}
-        edges={edges}
-        graphWidth={width}
-        graphHeight={height}
-        viewportWidth={containerWidth}
-        viewportHeight={isFullscreen ? (containerHeight ?? 600) : 600}
-        scrollLeft={scrollPos.left}
-        scrollTop={scrollPos.top}
-        onMinimapClick={handleMinimapClick}
-        heatMap={heatMap}
-        heatMapActive={heatMapActive}
-      />
+      {/* Minimap - only in fullscreen */}
+      {isFullscreen && (
+        <Minimap
+          layoutNodes={layoutNodes}
+          edges={edges}
+          graphWidth={width}
+          graphHeight={height}
+          viewportWidth={viewTransform ? containerWidth / viewTransform.scale : containerWidth}
+          viewportHeight={viewTransform ? (containerHeight ?? 600) / viewTransform.scale : (containerHeight ?? 600)}
+          scrollLeft={viewTransform ? -viewTransform.x / viewTransform.scale : scrollPos.left}
+          scrollTop={viewTransform ? -viewTransform.y / viewTransform.scale : scrollPos.top}
+          onMinimapClick={handleMinimapClick}
+          heatMap={heatMap}
+          heatMapActive={heatMapActive}
+        />
+      )}
     </div>
   );
 }
@@ -982,10 +1155,26 @@ export function GraphExplorer(props: GraphExplorerProps) {
   const [focusedNode, setFocusedNode] = useState<string | null>(null);
   const [filter, setFilter] = useState<NodeFilter>({ showCoinJoin: true, showEntity: true, showStandard: true });
 
+  // View transform for fullscreen pan/zoom
+  const [viewTransform, setViewTransform] = useState<ViewTransform | undefined>(undefined);
+
   // Heat map state
   const [heatMapActive, setHeatMapActive] = useState(false);
   const [heatMap, setHeatMap] = useState<Map<string, ScoringResult>>(new Map());
   const [heatProgress, setHeatProgress] = useState(0);
+
+  // Zoom toward center helper
+  const zoomBy = useCallback((factor: number) => {
+    if (!viewTransform) return;
+    const cw = window.innerWidth - 32;
+    const ch = window.innerHeight - 160;
+    const cx = cw / 2;
+    const cy = ch / 2;
+    const gx = (cx - viewTransform.x) / viewTransform.scale;
+    const gy = (cy - viewTransform.y) / viewTransform.scale;
+    const s = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, viewTransform.scale * factor));
+    setViewTransform({ x: cx - gx * s, y: cy - gy * s, scale: s });
+  }, [viewTransform]);
 
   // Fullscreen Escape handler
   useEffect(() => {
@@ -994,6 +1183,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
       if (e.key === "Escape") {
         setIsExpanded(false);
         setSelectedNode(null);
+        setViewTransform(undefined);
       }
     };
     document.addEventListener("keydown", handler);
@@ -1034,9 +1224,10 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
   // Count hidden nodes
   const totalNodes = props.nodeCount;
+  const atCapacity = props.nodeCount >= props.maxNodes;
   const visibleCount = useMemo(() => {
-    return layoutGraph(props.nodes, props.rootTxid, filter).layoutNodes.length;
-  }, [props.nodes, props.rootTxid, filter]);
+    return layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids).layoutNodes.length;
+  }, [props.nodes, props.rootTxid, filter, props.rootTxids]);
   const hiddenCount = totalNodes - visibleCount;
 
   if (props.nodes.size === 0) return null;
@@ -1049,16 +1240,16 @@ export function GraphExplorer(props: GraphExplorerProps) {
   // ─── Toolbar ───────────────────────────────────────────
 
   const toolbar = (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2 text-sm font-medium text-white/70">
-        <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
+    <div className="flex flex-wrap items-center justify-between gap-y-2">
+      <div className="flex items-center gap-2 text-sm font-medium text-white/70 min-w-0">
+        <svg className="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none">
           <circle cx="4" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
           <circle cx="12" cy="4" r="2" stroke="currentColor" strokeWidth="1.5" />
           <circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth="1.5" />
           <path d="M6 7l4-2M6 9l4 2" stroke="currentColor" strokeWidth="1" strokeOpacity="0.5" />
         </svg>
-        {t("graphExplorer.title", { defaultValue: "Transaction Graph" })}
-        <span className="text-xs text-white/40 font-normal">
+        <span className="truncate">{t("graphExplorer.title", { defaultValue: "Transaction Graph" })}</span>
+        <span className={`text-xs font-normal hidden sm:inline ${atCapacity ? "text-amber-400" : "text-white/40"}`}>
           {t("graphExplorer.nodeCount", { count: props.nodeCount, max: props.maxNodes, defaultValue: "({{count}}/{{max}} nodes)" })}
           {hiddenCount > 0 && (
             <span className="ml-1 text-white/30">
@@ -1068,7 +1259,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
         </span>
       </div>
 
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 shrink-0">
         {/* Heat map toggle */}
         <button
           onClick={() => setHeatMapActive(!heatMapActive)}
@@ -1081,9 +1272,11 @@ export function GraphExplorer(props: GraphExplorerProps) {
         >
           <span className="flex items-center gap-1">
             <HeatIcon />
-            {heatMapActive && heatProgress < 100
-              ? `${heatProgress}%`
-              : t("graphExplorer.heatMap", { defaultValue: "Heat Map" })}
+            <span className="hidden sm:inline">
+              {heatMapActive && heatProgress < 100
+                ? `${heatProgress}%`
+                : t("graphExplorer.heatMap", { defaultValue: "Heat Map" })}
+            </span>
           </span>
         </button>
 
@@ -1112,7 +1305,21 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
         {/* Fullscreen toggle */}
         <button
-          onClick={() => setIsExpanded(true)}
+          onClick={() => {
+            setIsExpanded(true);
+            // Center on root node(s) at 1:1 scale
+            const { layoutNodes: ln } = layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids);
+            const roots = ln.filter((n) => n.isRoot);
+            const cw = window.innerWidth - 32;
+            const ch = window.innerHeight - 160;
+            if (roots.length > 0) {
+              const avgX = roots.reduce((s, n) => s + n.x + n.width / 2, 0) / roots.length;
+              const avgY = roots.reduce((s, n) => s + n.y + n.height / 2, 0) / roots.length;
+              setViewTransform({ x: cw / 2 - avgX, y: ch / 2 - avgY, scale: 1 });
+            } else {
+              setViewTransform({ x: 0, y: 0, scale: 1 });
+            }
+          }}
           className="text-white/50 hover:text-white/80 transition-colors p-1 rounded border border-white/10 cursor-pointer"
           title={t("graphExplorer.fullscreen", { defaultValue: "Fullscreen" })}
         >
@@ -1159,6 +1366,12 @@ export function GraphExplorer(props: GraphExplorerProps) {
         <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: SVG_COLORS.low }} />
         {t("graphExplorer.legendDefault", { defaultValue: "Standard tx" })}
       </button>
+      {props.walletUtxos && (
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: SVG_COLORS.bitcoin, opacity: 0.3 }} />
+          {t("graphExplorer.legendWalletOutput", { defaultValue: "Wallet output" })}
+        </span>
+      )}
       {/* Entity category sub-legend */}
       {filter.showEntity && (
         <>
@@ -1203,6 +1416,12 @@ export function GraphExplorer(props: GraphExplorerProps) {
     setFocusedNode,
     heatMap,
     heatMapActive,
+  };
+
+  const fullscreenCanvasProps = {
+    ...canvasProps,
+    viewTransform,
+    onViewTransformChange: setViewTransform,
   };
 
   // ─── Tooltip content ──────────────────────────────────
@@ -1320,6 +1539,16 @@ export function GraphExplorer(props: GraphExplorerProps) {
           </div>
         )}
 
+        {/* Capacity warning */}
+        {props.nodeCount >= props.maxNodes && (
+          <div className="text-xs text-amber-400/80 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-1.5">
+            {t("graphExplorer.maxNodesReached", {
+              max: props.maxNodes,
+              defaultValue: "Maximum number of nodes reached ({{max}}). Remove some nodes before expanding further.",
+            })}
+          </div>
+        )}
+
         {/* Loading indicators */}
         {props.loading.size > 0 && (
           <div className="text-xs text-white/40 animate-pulse">
@@ -1342,24 +1571,24 @@ export function GraphExplorer(props: GraphExplorerProps) {
           aria-modal="true"
           aria-label={t("graphExplorer.fullscreenLabel", { defaultValue: "Transaction graph fullscreen" })}
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col"
-          onClick={(e) => { if (e.target === e.currentTarget) setIsExpanded(false); }}
+          onClick={(e) => { if (e.target === e.currentTarget) { setIsExpanded(false); setViewTransform(undefined); } }}
         >
           {/* Fullscreen header */}
           <div className="p-4 space-y-2 shrink-0">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-medium text-white/70">
-                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
+            <div className="flex flex-wrap items-center justify-between gap-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-white/70 min-w-0">
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none">
                   <circle cx="4" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
                   <circle cx="12" cy="4" r="2" stroke="currentColor" strokeWidth="1.5" />
                   <circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth="1.5" />
                   <path d="M6 7l4-2M6 9l4 2" stroke="currentColor" strokeWidth="1" strokeOpacity="0.5" />
                 </svg>
-                {t("graphExplorer.title", { defaultValue: "Transaction Graph" })}
-                <span className="text-xs text-white/40 font-normal">
+                <span className="truncate">{t("graphExplorer.title", { defaultValue: "Transaction Graph" })}</span>
+                <span className={`text-xs font-normal hidden sm:inline ${atCapacity ? "text-amber-400" : "text-white/40"}`}>
                   {t("graphExplorer.nodeCount", { count: props.nodeCount, max: props.maxNodes, defaultValue: "({{count}}/{{max}} nodes)" })}
                 </span>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 shrink-0">
                 {/* Heat map */}
                 <button
                   onClick={() => setHeatMapActive(!heatMapActive)}
@@ -1369,7 +1598,9 @@ export function GraphExplorer(props: GraphExplorerProps) {
                 >
                   <span className="flex items-center gap-1">
                     <HeatIcon />
-                    {heatMapActive && heatProgress < 100 ? `${heatProgress}%` : t("graphExplorer.heatMap", { defaultValue: "Heat Map" })}
+                    <span className="hidden sm:inline">
+                      {heatMapActive && heatProgress < 100 ? `${heatProgress}%` : t("graphExplorer.heatMap", { defaultValue: "Heat Map" })}
+                    </span>
                   </span>
                 </button>
                 <button
@@ -1388,8 +1619,30 @@ export function GraphExplorer(props: GraphExplorerProps) {
                     {t("common.reset", { defaultValue: "Reset" })}
                   </button>
                 )}
+                {/* Zoom controls */}
+                <span className="text-white/20 hidden sm:inline">|</span>
                 <button
-                  onClick={() => setIsExpanded(false)}
+                  onClick={() => zoomBy(1.25)}
+                  className="text-xs text-white/50 hover:text-white/80 transition-colors px-1.5 py-1 rounded border border-white/10 cursor-pointer"
+                  title="Zoom in"
+                >+</button>
+                <button
+                  onClick={() => zoomBy(1 / 1.25)}
+                  className="text-xs text-white/50 hover:text-white/80 transition-colors px-1.5 py-1 rounded border border-white/10 cursor-pointer"
+                  title="Zoom out"
+                >-</button>
+                <button
+                  onClick={() => {
+                    const { width: gw, height: gh } = layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids);
+                    const cw = window.innerWidth - 32;
+                    const ch = window.innerHeight - 160;
+                    setViewTransform(computeFitTransform(gw, gh, cw, ch));
+                  }}
+                  className="text-xs text-white/50 hover:text-white/80 transition-colors px-2 py-1 rounded border border-white/10 cursor-pointer"
+                  title="Fit to view"
+                >{t("graphExplorer.fit", { defaultValue: "Fit" })}</button>
+                <button
+                  onClick={() => { setIsExpanded(false); setViewTransform(undefined); }}
                   className="text-white/50 hover:text-white/80 transition-colors p-1.5 rounded-lg hover:bg-surface-inset cursor-pointer"
                   aria-label={t("common.close", { defaultValue: "Close" })}
                 >
@@ -1403,11 +1656,11 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
           {/* Fullscreen graph area */}
           <div className="flex-1 min-h-0 relative px-4 pb-4">
-            <div ref={scrollRef} className="overflow-auto h-full">
+            <div ref={scrollRef} className="overflow-hidden h-full">
               <ParentSize debounceTime={100}>
                 {({ width, height: parentH }) => width > 0 ? (
                   <GraphCanvas
-                    {...canvasProps}
+                    {...fullscreenCanvasProps}
                     containerWidth={width}
                     containerHeight={parentH}
                     isFullscreen

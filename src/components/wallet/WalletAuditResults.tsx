@@ -3,17 +3,19 @@
 import { useState, useMemo, lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
-import { ArrowLeft, Wallet, ShieldCheck, ShieldAlert, ShieldX, AlertCircle, List, Hash } from "lucide-react";
+import { ArrowLeft, Wallet, ShieldCheck, ShieldAlert, ShieldX, AlertCircle, List, Hash, Network } from "lucide-react";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { FindingCard } from "@/components/FindingCard";
 import { CoinSelector } from "./CoinSelector";
 import { ACTION_BTN_CLASS } from "@/lib/constants";
 import type { WalletAuditResult, WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import type { DescriptorParseResult } from "@/lib/bitcoin/descriptor";
+import type { UtxoTraceResult } from "@/hooks/useWalletAnalysis";
 import type { Grade } from "@/lib/types";
 
 const WalletAddressTable = lazy(() => import("./WalletAddressTable").then(m => ({ default: m.WalletAddressTable })));
 const WalletTxList = lazy(() => import("./WalletTxList").then(m => ({ default: m.WalletTxList })));
+const WalletGraphExplorerPanel = lazy(() => import("./WalletGraphExplorerPanel").then(m => ({ default: m.WalletGraphExplorerPanel })));
 
 const GRADE_CONFIG: Record<Grade, { icon: typeof ShieldCheck; color: string; bg: string }> = {
   "A+": { icon: ShieldCheck, color: "text-severity-good", bg: "bg-severity-good/10 border-severity-good/30" },
@@ -27,6 +29,7 @@ interface WalletAuditResultsProps {
   descriptor: DescriptorParseResult;
   result: WalletAuditResult;
   addressInfos: WalletAddressInfo[];
+  utxoTraces: Map<string, UtxoTraceResult> | null;
   onBack: () => void;
   onScan: (input: string) => void;
   durationMs: number | null;
@@ -59,6 +62,7 @@ export function WalletAuditResults({
   descriptor,
   result,
   addressInfos,
+  utxoTraces,
   onBack,
   onScan,
   durationMs,
@@ -190,6 +194,25 @@ export function WalletAuditResults({
               <FindingCard key={finding.id} finding={finding} index={i} />
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Transaction Graph */}
+      {totalTxs > 0 && (
+        <div className="w-full space-y-3">
+          <div className="flex items-center gap-2 text-base font-medium text-muted uppercase tracking-wider px-1">
+            <Network size={16} />
+            {t("wallet.txGraph", {
+              defaultValue: "Transaction Graph",
+            })}
+          </div>
+          <Suspense fallback={<div className="text-sm text-muted text-center py-4">Loading...</div>}>
+            <WalletGraphExplorerPanel
+              addressInfos={addressInfos}
+              utxoTraces={utxoTraces}
+              onTxClick={onScan}
+            />
+          </Suspense>
         </div>
       )}
 
