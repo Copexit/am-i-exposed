@@ -20,27 +20,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Rust toolchain + wasm-pack for Boltzmann WASM build
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
-
-      - name: Cache Rust dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            boltzmann-rs/target
-          key: rust-wasm-${{ hashFiles('boltzmann-rs/Cargo.lock') }}
-          restore-keys: rust-wasm-
-
-      - name: Install wasm-pack
-        uses: jetli/wasm-pack-action@v0.4.0
-
-      - name: Build Boltzmann WASM
-        run: pnpm build:wasm
-
       - uses: pnpm/action-setup@v4
 
       - uses: actions/setup-node@v4
