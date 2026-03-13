@@ -167,6 +167,28 @@ export function applyCrossHeuristicRules(findings: Finding[]): void {
         f.params = { ...f.params, context: "coinjoin" };
         f.scoreImpact = 0;
       }
+      // Linkability recommendations should not suggest CoinJoin when already CoinJoin.
+      // The findings themselves are valid (ambiguity is good), but the recommendation
+      // text needs to reflect post-mix best practices instead.
+      if (f.id === "linkability-ambiguous") {
+        f.recommendation =
+          "Good transaction privacy. To preserve this ambiguity, spend post-mix outputs " +
+          "one at a time and avoid consolidating them with non-CoinJoin UTXOs.";
+        f.params = { ...f.params, context: "coinjoin" };
+      }
+      if (f.id === "linkability-deterministic") {
+        f.recommendation =
+          "Deterministic links reduce CoinJoin effectiveness. Avoid consolidating " +
+          "mixed outputs with unmixed UTXOs. Spend post-mix outputs individually.";
+        f.params = { ...f.params, context: "coinjoin" };
+      }
+      if (f.id === "linkability-equal-subset") {
+        f.recommendation =
+          "Non-equal outputs in this CoinJoin are deterministically linked. " +
+          "This is expected for change/fee outputs. Spend mixed equal-value outputs " +
+          "individually to preserve the ambiguity set.";
+        f.params = { ...f.params, context: "coinjoin" };
+      }
       // OP_RETURN is intentionally NOT suppressed - protocol markers in CoinJoin
       // are additional metadata that may fingerprint the coordinator or participants.
       // Whirlpool uses OP_RETURN for pool-pairing; WabiSabi does not.

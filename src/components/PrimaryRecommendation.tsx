@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, AlertTriangle, Clock, CheckCircle } from "lucide-react";
+import { ExternalLink, AlertTriangle, Clock, CheckCircle, ArrowRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GlowCard } from "./ui/GlowCard";
 import { selectRecommendations, type PrimaryRec } from "@/lib/recommendations/primary-recommendation";
@@ -59,17 +59,28 @@ function RecCard({ rec }: { rec: PrimaryRec }) {
           <p className="text-sm text-muted mt-1 leading-relaxed">
             {t(rec.detailKey, { defaultValue: rec.detailDefault })}
           </p>
-          {rec.tool && (
-            <a
-              href={rec.tool.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm text-accent hover:text-accent/80 transition-colors mt-2"
-            >
-              {rec.tool.name}
-              <ExternalLink size={13} aria-hidden="true" />
-            </a>
-          )}
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
+            {rec.tool && (
+              <a
+                href={rec.tool.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm text-accent hover:text-accent/80 transition-colors"
+              >
+                {rec.tool.name}
+                <ExternalLink size={13} aria-hidden="true" />
+              </a>
+            )}
+            {rec.guideLink && (
+              <a
+                href={rec.guideLink}
+                className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors"
+              >
+                {t("primaryRec.learnMore", { defaultValue: "Learn more in the privacy guide" })}
+                <ArrowRight size={12} />
+              </a>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -91,26 +102,6 @@ export function PrimaryRecommendation({ findings, grade, walletGuess }: PrimaryR
           <hr className="border-border/50 my-4" />
           <RecCard rec={secondary} />
         </>
-      )}
-      {(primary.guideLink || secondary?.guideLink) && (
-        <div className="mt-4 pt-3 border-t border-border/30 flex flex-wrap gap-x-4 gap-y-1">
-          {primary.guideLink && (
-            <a
-              href={primary.guideLink}
-              className="text-xs text-muted hover:text-foreground transition-colors"
-            >
-              {t("primaryRec.learnMore", { defaultValue: "Learn more in the privacy guide" })} &rarr;
-            </a>
-          )}
-          {secondary?.guideLink && secondary.guideLink !== primary.guideLink && (
-            <a
-              href={secondary.guideLink}
-              className="text-xs text-muted hover:text-foreground transition-colors"
-            >
-              {t("primaryRec.learnMore", { defaultValue: "Learn more in the privacy guide" })} &rarr;
-            </a>
-          )}
-        </div>
       )}
     </GlowCard>
   );

@@ -10,6 +10,8 @@ import { SVG_COLORS } from "./shared/svgConstants";
 import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import type { Finding } from "@/lib/types";
+import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
+import { analyzeCoinJoin, isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
 
 /**
  * Bithypha-style taint path visualization.
@@ -17,10 +19,18 @@ import type { Finding } from "@/lib/types";
  * Shows how taint flows through the transaction graph across multiple hops.
  * Each column represents a hop depth, nodes are transactions,
  * and edges show value flow with taint coloring.
+ *
+ * When backwardLayers/forwardLayers are provided, uses real trace data
+ * (actual transactions at each depth). Falls back to findings-based
+ * approximation when trace layers are unavailable.
  */
 
 interface TaintPathDiagramProps {
   findings: Finding[];
+  /** Backward trace layers from chain analysis. */
+  backwardLayers?: TraceLayer[] | null;
+  /** Forward trace layers from chain analysis. */
+  forwardLayers?: TraceLayer[] | null;
   /** Callback when a transaction node is clicked */
   onTxClick?: (txid: string) => void;
 }
@@ -59,6 +69,7 @@ const NODE_RADIUS = 16;
 const COL_WIDTH = 140;
 const ROW_HEIGHT = 60;
 const MARGIN = { top: 40, right: 30, bottom: 20, left: 30 };
+const MAX_INDIVIDUAL = 3;
 
 const TYPE_COLORS: Record<string, string> = {
   root: SVG_COLORS.bitcoin,
@@ -74,28 +85,133 @@ const TYPE_SHAPES: Record<string, string> = {
   regular: "circle",
 };
 
-function buildTaintGraph(findings: Finding[]): { nodes: TaintNode[]; edges: TaintEdge[] } {
-  const nodes: TaintNode[] = [];
-  const edges: TaintEdge[] = [];
+// ── Layer-based graph building (real trace data) ───────────────────────
 
-  // Root node (the analyzed tx)
-  nodes.push({
-    id: "root",
-    label: "Analyzed TX",
-    depth: 0,
-    y: 0,
-    type: "root",
-    taintPct: 0,
-  });
+/** Classify and add nodes from a single trace layer. */
+function addLayerNodes(
+  layer: TraceLayer,
+  direction: "backward" | "forward",
+  nodes: TaintNode[],
+  entityByTxid: Map<string, { name: string; category: string; address?: string }>,
+) {
+  if (layer.txs.size === 0) return;
 
-  // Extract taint data from findings
-  const taintFinding = findings.find((f) => f.id === "chain-taint-backward");
-  const taintPct = (taintFinding?.params?.taintPct as number) ?? 0;
-  if (taintPct > 0) {
-    nodes[0].taintPct = taintPct;
+  const depth = direction === "backward" ? -layer.depth : layer.depth;
+  const prefix = direction === "backward" ? "bw" : "fw";
+
+  const entityTxs: { txid: string; entity: { name: string; category: string; address?: string } }[] = [];
+  const cjTxids: string[] = [];
+  const regularTxids: string[] = [];
+
+  for (const [txid, tx] of layer.txs) {
+    const entity = entityByTxid.get(txid);
+    if (entity) {
+      entityTxs.push({ txid, entity });
+    } else {
+      const cjResult = analyzeCoinJoin(tx);
+      if (cjResult.findings.some(isCoinJoinFinding)) {
+        cjTxids.push(txid);
+      } else {
+        regularTxids.push(txid);
+      }
+    }
   }
 
-  // Entity proximity findings - backward
+  // Entity nodes (always shown individually)
+  for (const { txid, entity } of entityTxs) {
+    nodes.push({
+      id: `${prefix}-entity-${txid.slice(0, 8)}`,
+      label: entity.name,
+      depth,
+      y: 0,
+      type: "entity",
+      taintPct: 100,
+      entityName: entity.name,
+      category: entity.category,
+      clickTarget: entity.address ?? txid,
+    });
+  }
+
+  // CoinJoin nodes (grouped per depth)
+  if (cjTxids.length > 0) {
+    nodes.push({
+      id: `${prefix}-cj-${layer.depth}`,
+      label: cjTxids.length === 1 ? "CoinJoin" : `${cjTxids.length} CoinJoins`,
+      depth,
+      y: 0,
+      type: "coinjoin",
+      taintPct: 0,
+      clickTarget: cjTxids[0],
+    });
+  }
+
+  // Regular nodes (individual if few, grouped otherwise)
+  if (regularTxids.length > 0) {
+    if (regularTxids.length <= MAX_INDIVIDUAL) {
+      for (const txid of regularTxids) {
+        nodes.push({
+          id: `${prefix}-${txid.slice(0, 8)}`,
+          label: `${txid.slice(0, 6)}...`,
+          depth,
+          y: 0,
+          type: "regular",
+          taintPct: 0,
+          clickTarget: txid,
+        });
+      }
+    } else {
+      nodes.push({
+        id: `${prefix}-group-${layer.depth}`,
+        label: `${regularTxids.length} txs`,
+        depth,
+        y: 0,
+        type: "regular",
+        taintPct: 0,
+        clickTarget: regularTxids[0],
+      });
+    }
+  }
+}
+
+/** Create tree edges: each node connects to a primary parent at the adjacent depth toward root. */
+function createTreeEdges(nodes: TaintNode[], edges: TaintEdge[]) {
+  const depthGroups = new Map<number, TaintNode[]>();
+  for (const node of nodes) {
+    const g = depthGroups.get(node.depth) ?? [];
+    g.push(node);
+    depthGroups.set(node.depth, g);
+  }
+
+  for (const [depth, group] of depthGroups) {
+    if (depth === 0) continue;
+
+    const parentDepth = depth > 0 ? depth - 1 : depth + 1;
+    const parents = depthGroups.get(parentDepth);
+    if (!parents || parents.length === 0) continue;
+
+    // Pick primary parent: entity > coinjoin > root > first
+    const primary = parents.find(n => n.type === "entity")
+      ?? parents.find(n => n.type === "coinjoin")
+      ?? parents.find(n => n.type === "root")
+      ?? parents[0];
+
+    for (const node of group) {
+      const hasTaint = node.type === "entity" || primary.type === "entity" || node.taintPct > 50;
+      if (depth < 0) {
+        // Backward: arrow from deeper node toward root
+        edges.push({ source: node.id, target: primary.id, taintPct: hasTaint ? 70 : 0, value: 0 });
+      } else {
+        // Forward: arrow from root outward
+        edges.push({ source: primary.id, target: node.id, taintPct: hasTaint ? 70 : 0, value: 0 });
+      }
+    }
+  }
+}
+
+// ── Findings-based graph building (legacy fallback) ────────────────────
+
+function buildFromFindings(findings: Finding[], nodes: TaintNode[], edges: TaintEdge[], taintPct: number) {
+  // Entity proximity - backward
   const backwardEntity = findings.find((f) => f.id === "chain-entity-proximity-backward");
   if (backwardEntity) {
     const hops = (backwardEntity.params?.hops as number) ?? 1;
@@ -104,35 +220,20 @@ function buildTaintGraph(findings: Finding[]): { nodes: TaintNode[]; edges: Tain
     const entityTxid = (backwardEntity.params?.entityTxid as string) ?? undefined;
     const entityAddress = (backwardEntity.params?.entityAddress as string) ?? undefined;
 
-    // Add intermediate nodes
     for (let d = 1; d < hops; d++) {
       const nodeId = `bw-${d}`;
       nodes.push({
-        id: nodeId,
-        label: `Hop -${d}`,
-        depth: -d,
-        y: 0,
-        type: "regular",
-        taintPct: Math.max(0, taintPct * (1 - d / hops)),
-        // Intermediate hops link to the entity's tx (closest navigable context)
-        clickTarget: entityTxid,
+        id: nodeId, label: `Hop -${d}`, depth: -d, y: 0, type: "regular",
+        taintPct: Math.max(0, taintPct * (1 - d / hops)), clickTarget: entityTxid,
       });
       const prevId = d === 1 ? "root" : `bw-${d - 1}`;
       edges.push({ source: nodeId, target: prevId, taintPct: 80, value: 0 });
     }
 
-    // Add entity node - clicking navigates to entity address
     const entityNodeId = `bw-entity-${entityName}`;
     nodes.push({
-      id: entityNodeId,
-      label: entityName,
-      depth: -hops,
-      y: 0,
-      type: "entity",
-      taintPct: 100,
-      entityName,
-      category,
-      clickTarget: entityAddress ?? entityTxid,
+      id: entityNodeId, label: entityName, depth: -hops, y: 0, type: "entity",
+      taintPct: 100, entityName, category, clickTarget: entityAddress ?? entityTxid,
     });
     const prevId = hops === 1 ? "root" : `bw-${hops - 1}`;
     edges.push({ source: entityNodeId, target: prevId, taintPct: 100, value: 0 });
@@ -141,38 +242,31 @@ function buildTaintGraph(findings: Finding[]): { nodes: TaintNode[]; edges: Tain
   // CoinJoin in ancestry
   const cjAncestry = findings.find((f) => f.id === "chain-coinjoin-ancestry");
   if (cjAncestry) {
-    const depth = backwardEntity ? -(((backwardEntity.params?.hops as number) ?? 1) + 1) : -2;
+    const depth = backwardEntity ? -(((backwardEntity.params?.hops as number) ?? 1) + 1) : -1;
     nodes.push({
-      id: "bw-coinjoin",
-      label: "CoinJoin",
-      depth,
+      id: "bw-coinjoin", label: "CoinJoin", depth,
       y: nodes.filter((n) => n.depth === depth).length,
-      type: "coinjoin",
-      taintPct: 0,
+      type: "coinjoin", taintPct: 0,
     });
+    const prevDepth = depth + 1;
+    const prevNode = nodes.find((n) => n.depth === prevDepth);
+    edges.push({ source: "bw-coinjoin", target: prevNode?.id ?? "root", taintPct: 0, value: 0 });
   }
 
-  // Show clean backward hops from trace summary when no entity/taint/coinjoin was found backward
+  // Clean backward hops from trace summary
   const traceSummary = findings.find((f) => f.id === "chain-trace-summary");
   if (!backwardEntity && !cjAncestry && traceSummary) {
     const bwDepth = (traceSummary.params?.backwardDepth as number) ?? 0;
     for (let d = 1; d <= bwDepth; d++) {
       const nodeId = `bw-${d}`;
       if (nodes.some((n) => n.id === nodeId)) continue;
-      nodes.push({
-        id: nodeId,
-        label: `Hop -${d}`,
-        depth: -d,
-        y: 0,
-        type: "regular",
-        taintPct: 0,
-      });
+      nodes.push({ id: nodeId, label: `Hop -${d}`, depth: -d, y: 0, type: "regular", taintPct: 0 });
       const prevId = d === 1 ? "root" : `bw-${d - 1}`;
       edges.push({ source: nodeId, target: prevId, taintPct: 0, value: 0 });
     }
   }
 
-  // Entity proximity findings - forward
+  // Entity proximity - forward
   const forwardEntity = findings.find((f) => f.id === "chain-entity-proximity-forward");
   if (forwardEntity) {
     const hops = (forwardEntity.params?.hops as number) ?? 1;
@@ -184,13 +278,8 @@ function buildTaintGraph(findings: Finding[]): { nodes: TaintNode[]; edges: Tain
     for (let d = 1; d < hops; d++) {
       const nodeId = `fw-${d}`;
       nodes.push({
-        id: nodeId,
-        label: `Hop +${d}`,
-        depth: d,
-        y: 0,
-        type: "regular",
-        taintPct: Math.max(0, taintPct * (1 - d / hops)),
-        clickTarget: entityTxid,
+        id: nodeId, label: `Hop +${d}`, depth: d, y: 0, type: "regular",
+        taintPct: Math.max(0, taintPct * (1 - d / hops)), clickTarget: entityTxid,
       });
       const prevId = d === 1 ? "root" : `fw-${d - 1}`;
       edges.push({ source: prevId, target: nodeId, taintPct: 60, value: 0 });
@@ -198,15 +287,8 @@ function buildTaintGraph(findings: Finding[]): { nodes: TaintNode[]; edges: Tain
 
     const entityNodeId = `fw-entity-${entityName}`;
     nodes.push({
-      id: entityNodeId,
-      label: entityName,
-      depth: hops,
-      y: 0,
-      type: "entity",
-      taintPct: 0,
-      entityName,
-      category,
-      clickTarget: entityAddress ?? entityTxid,
+      id: entityNodeId, label: entityName, depth: hops, y: 0, type: "entity",
+      taintPct: 0, entityName, category, clickTarget: entityAddress ?? entityTxid,
     });
     const prevId = hops === 1 ? "root" : `fw-${hops - 1}`;
     edges.push({ source: prevId, target: entityNodeId, taintPct: 50, value: 0 });
@@ -215,54 +297,117 @@ function buildTaintGraph(findings: Finding[]): { nodes: TaintNode[]; edges: Tain
   // CoinJoin in descendancy
   const cjDescendancy = findings.find((f) => f.id === "chain-coinjoin-descendancy");
   if (cjDescendancy) {
-    const depth = forwardEntity ? ((forwardEntity.params?.hops as number) ?? 1) + 1 : 2;
+    const depth = forwardEntity ? ((forwardEntity.params?.hops as number) ?? 1) + 1 : 1;
     nodes.push({
-      id: "fw-coinjoin",
-      label: "CoinJoin",
-      depth,
+      id: "fw-coinjoin", label: "CoinJoin", depth,
       y: nodes.filter((n) => n.depth === depth).length,
-      type: "coinjoin",
-      taintPct: 0,
+      type: "coinjoin", taintPct: 0,
     });
+    const prevDepth = depth - 1;
+    const prevNode = nodes.find((n) => n.depth === prevDepth);
+    edges.push({ source: prevNode?.id ?? "root", target: "fw-coinjoin", taintPct: 0, value: 0 });
   }
 
-  // Show clean forward hops from trace summary when no entity/coinjoin was found forward
+  // Clean forward hops from trace summary
   if (!forwardEntity && !cjDescendancy && traceSummary) {
     const fwDepth = (traceSummary.params?.forwardDepth as number) ?? 0;
     for (let d = 1; d <= fwDepth; d++) {
       const nodeId = `fw-${d}`;
       if (nodes.some((n) => n.id === nodeId)) continue;
-      nodes.push({
-        id: nodeId,
-        label: `Hop +${d}`,
-        depth: d,
-        y: 0,
-        type: "regular",
-        taintPct: 0,
-      });
+      nodes.push({ id: nodeId, label: `Hop +${d}`, depth: d, y: 0, type: "regular", taintPct: 0 });
       const prevId = d === 1 ? "root" : `fw-${d - 1}`;
       edges.push({ source: prevId, target: nodeId, taintPct: 0, value: 0 });
     }
+  }
+}
+
+// ── Main graph builder ──────────────────────────────────────────────────
+
+function buildTaintGraph(
+  findings: Finding[],
+  backwardLayers?: TraceLayer[] | null,
+  forwardLayers?: TraceLayer[] | null,
+): { nodes: TaintNode[]; edges: TaintEdge[] } {
+  const nodes: TaintNode[] = [];
+  const edges: TaintEdge[] = [];
+
+  const isTargetCJ = findings.some(isCoinJoinFinding);
+  const taintPct = (findings.find(f => f.id === "chain-taint-backward")?.params?.taintPct as number) ?? 0;
+
+  // Root node (the analyzed transaction)
+  nodes.push({
+    id: "root",
+    label: "Analyzed TX",
+    depth: 0,
+    y: 0,
+    type: isTargetCJ ? "coinjoin" : "root",
+    taintPct,
+  });
+
+  const hasLayers = (backwardLayers && backwardLayers.length > 0) || (forwardLayers && forwardLayers.length > 0);
+
+  if (hasLayers) {
+    // Build entity lookup from findings (entity-proximity stores txid of the matched tx)
+    const entityByTxid = new Map<string, { name: string; category: string; address?: string }>();
+    for (const f of findings) {
+      if (f.id === "chain-entity-proximity-backward" || f.id === "chain-entity-proximity-forward") {
+        const txid = f.params?.entityTxid as string | undefined;
+        if (txid) entityByTxid.set(txid, {
+          name: (f.params?.entityName as string) ?? "Unknown",
+          category: (f.params?.category as string) ?? "unknown",
+          address: f.params?.entityAddress as string | undefined,
+        });
+      }
+    }
+
+    // Build nodes from real trace layer data
+    for (const layer of backwardLayers ?? []) addLayerNodes(layer, "backward", nodes, entityByTxid);
+    for (const layer of forwardLayers ?? []) addLayerNodes(layer, "forward", nodes, entityByTxid);
+    createTreeEdges(nodes, edges);
+  } else {
+    // Fallback: approximate from findings when trace layers unavailable
+    buildFromFindings(findings, nodes, edges, taintPct);
   }
 
   // Assign y positions per depth column
   const depthGroups = new Map<number, TaintNode[]>();
   for (const node of nodes) {
-    const group = depthGroups.get(node.depth) ?? [];
-    group.push(node);
-    depthGroups.set(node.depth, group);
+    const g = depthGroups.get(node.depth) ?? [];
+    g.push(node);
+    depthGroups.set(node.depth, g);
   }
-  for (const group of depthGroups.values()) {
-    group.forEach((node, i) => {
-      node.y = i;
-    });
+  for (const g of depthGroups.values()) {
+    g.forEach((n, i) => { n.y = i; });
   }
 
   return { nodes, edges };
 }
 
-function TaintPath({ width, findings, onTxClick, t, tooltip, containerRef }: { width: number; findings: Finding[]; onTxClick?: (txid: string) => void; t: (key: string, opts?: Record<string, unknown>) => string; tooltip: ReturnType<typeof useChartTooltip<TooltipData>>; containerRef: React.RefObject<HTMLDivElement | null> }) {
-  const { nodes, edges } = useMemo(() => buildTaintGraph(findings), [findings]);
+// ── SVG Rendering ───────────────────────────────────────────────────────
+
+function TaintPath({
+  width,
+  findings,
+  backwardLayers,
+  forwardLayers,
+  onTxClick,
+  t,
+  tooltip,
+  containerRef,
+}: {
+  width: number;
+  findings: Finding[];
+  backwardLayers?: TraceLayer[] | null;
+  forwardLayers?: TraceLayer[] | null;
+  onTxClick?: (txid: string) => void;
+  t: (key: string, opts?: Record<string, unknown>) => string;
+  tooltip: ReturnType<typeof useChartTooltip<TooltipData>>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const { nodes, edges } = useMemo(
+    () => buildTaintGraph(findings, backwardLayers, forwardLayers),
+    [findings, backwardLayers, forwardLayers],
+  );
 
   const depths = nodes.map((n) => n.depth);
   const minDepth = Math.min(...depths);
@@ -314,7 +459,7 @@ function TaintPath({ width, findings, onTxClick, t, tooltip, containerRef }: { w
             <path d="M0,0 L6,3 L0,6" fill={SVG_COLORS.high} fillOpacity={0.6} />
           </marker>
           <marker id="arrow-clean" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-            <path d="M0,0 L6,3 L0,6" fill={SVG_COLORS.muted} fillOpacity={0.5} />
+            <path d="M0,0 L6,3 L0,6" fill={SVG_COLORS.foreground} fillOpacity={0.6} />
           </marker>
         </defs>
 
@@ -353,9 +498,9 @@ function TaintPath({ width, findings, onTxClick, t, tooltip, containerRef }: { w
                 key={`edge-${i}`}
                 d={`M${x1},${y1} C${midX},${y1} ${midX},${y2} ${x2},${y2}`}
                 fill="none"
-                stroke={isTainted ? SVG_COLORS.high : SVG_COLORS.muted}
+                stroke={isTainted ? SVG_COLORS.high : SVG_COLORS.foreground}
                 strokeWidth={isTainted ? 2.5 : 1.5}
-                strokeOpacity={isTainted ? 0.7 : 0.4}
+                strokeOpacity={isTainted ? 0.7 : 0.6}
                 strokeDasharray={isTainted ? undefined : "4,4"}
                 markerEnd={isTainted ? "url(#arrow-taint)" : "url(#arrow-clean)"}
                 initial={{ pathLength: 0, opacity: 0 }}
@@ -481,20 +626,22 @@ function TaintPath({ width, findings, onTxClick, t, tooltip, containerRef }: { w
   );
 }
 
-export function TaintPathDiagram({ findings, onTxClick }: TaintPathDiagramProps) {
+export function TaintPathDiagram({ findings, backwardLayers, forwardLayers, onTxClick }: TaintPathDiagramProps) {
   const { t } = useTranslation();
   const tooltip = useChartTooltip<TooltipData>();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Only render if we have relevant chain analysis findings
-  const hasChainData = findings.some((f) =>
-    f.id === "chain-taint-backward" ||
-    f.id === "chain-entity-proximity-backward" ||
-    f.id === "chain-entity-proximity-forward" ||
-    f.id === "chain-coinjoin-ancestry" ||
-    f.id === "chain-coinjoin-descendancy" ||
-    f.id === "chain-trace-summary"
-  );
+  // Render if we have trace layers OR relevant chain analysis findings
+  const hasChainData = (backwardLayers && backwardLayers.length > 0)
+    || (forwardLayers && forwardLayers.length > 0)
+    || findings.some((f) =>
+      f.id === "chain-taint-backward" ||
+      f.id === "chain-entity-proximity-backward" ||
+      f.id === "chain-entity-proximity-forward" ||
+      f.id === "chain-coinjoin-ancestry" ||
+      f.id === "chain-coinjoin-descendancy" ||
+      f.id === "chain-trace-summary"
+    );
 
   if (!hasChainData) return null;
 
@@ -533,7 +680,7 @@ export function TaintPathDiagram({ findings, onTxClick }: TaintPathDiagramProps)
           {t("taintFlow.taintedPath", { defaultValue: "Tainted path" })}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-6 border-t-2 border-dashed" style={{ borderColor: SVG_COLORS.muted }} />
+          <span className="w-6 border-t-2 border-dashed" style={{ borderColor: SVG_COLORS.foreground }} />
           {t("taintFlow.cleanPath", { defaultValue: "Clean path" })}
         </span>
       </div>
@@ -541,7 +688,18 @@ export function TaintPathDiagram({ findings, onTxClick }: TaintPathDiagramProps)
       <div className="relative" ref={containerRef}>
         <div className="overflow-x-auto -mx-4 px-4">
           <ParentSize debounceTime={100}>
-            {({ width }) => width > 0 ? <TaintPath width={Math.max(width, 400)} findings={findings} onTxClick={onTxClick} t={t} tooltip={tooltip} containerRef={containerRef} /> : null}
+            {({ width }) => width > 0 ? (
+              <TaintPath
+                width={Math.max(width, 400)}
+                findings={findings}
+                backwardLayers={backwardLayers}
+                forwardLayers={forwardLayers}
+                onTxClick={onTxClick}
+                t={t}
+                tooltip={tooltip}
+                containerRef={containerRef}
+              />
+            ) : null}
           </ParentSize>
         </div>
 
@@ -550,6 +708,9 @@ export function TaintPathDiagram({ findings, onTxClick }: TaintPathDiagramProps)
           <ChartTooltip top={tooltip.tooltipTop} left={tooltip.tooltipLeft}>
             <div className="space-y-1">
               <div className="font-medium">{tooltip.tooltipData.label}</div>
+              <div className="text-xs" style={{ color: TYPE_COLORS[tooltip.tooltipData.type] ?? SVG_COLORS.muted }}>
+                {{ root: "Target transaction", entity: "Known entity", coinjoin: "CoinJoin transaction", regular: "Transaction" }[tooltip.tooltipData.type] ?? tooltip.tooltipData.type}
+              </div>
               {tooltip.tooltipData.entityName && (
                 <div className="text-xs" style={{ color: SVG_COLORS.high }}>
                   {tooltip.tooltipData.entityName} ({tooltip.tooltipData.category})

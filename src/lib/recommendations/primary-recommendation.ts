@@ -284,7 +284,12 @@ export function selectRecommendations(
     }
   }
 
-  if (ids.has("h1-round-amount") || ids.has("h1-round-usd-amount") || ids.has("h1-round-eur-amount")) {
+  // Round amount recommendation is irrelevant for CoinJoin/Stonewall - pool
+  // denominations are intentionally round. Only show for non-CoinJoin txs.
+  if (
+    !hasCoinJoin &&
+    (ids.has("h1-round-amount") || ids.has("h1-round-usd-amount") || ids.has("h1-round-eur-amount"))
+  ) {
     return [
       {
         id: "rec-round-amount",
