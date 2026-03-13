@@ -50,18 +50,17 @@ export function analyzeEntityProximity(
 
   let nearestBackward: EntityHit | null = null;
   let nearestForward: EntityHit | null = null;
-  let coinJoinInAncestry = false;
-  let coinJoinInDescendancy = false;
+  // Track which depths have CoinJoin transactions (for CoinJoin barrier logic)
+  const cjDepthsBackward = new Set<number>();
+  const cjDepthsForward = new Set<number>();
 
   // Scan backward layers (input provenance)
   for (const layer of backwardLayers) {
     for (const [, layerTx] of layer.txs) {
-      // Check for CoinJoin in ancestry
-      if (!coinJoinInAncestry) {
-        const cjResult = analyzeCoinJoin(layerTx);
-        if (cjResult.findings.some(isCoinJoinFinding)) {
-          coinJoinInAncestry = true;
-        }
+      // Check for CoinJoin in ancestry - track the depth
+      const cjResult = analyzeCoinJoin(layerTx);
+      if (cjResult.findings.some(isCoinJoinFinding)) {
+        cjDepthsBackward.add(layer.depth);
       }
 
       // Check addresses for entity matches
@@ -75,12 +74,10 @@ export function analyzeEntityProximity(
   // Scan forward layers (output destinations)
   for (const layer of forwardLayers) {
     for (const [, layerTx] of layer.txs) {
-      // Check for CoinJoin in descendancy
-      if (!coinJoinInDescendancy) {
-        const cjResult = analyzeCoinJoin(layerTx);
-        if (cjResult.findings.some(isCoinJoinFinding)) {
-          coinJoinInDescendancy = true;
-        }
+      // Check for CoinJoin in descendancy - track the depth
+      const cjResult = analyzeCoinJoin(layerTx);
+      if (cjResult.findings.some(isCoinJoinFinding)) {
+        cjDepthsForward.add(layer.depth);
       }
 
       // Check addresses for entity matches
@@ -91,95 +88,163 @@ export function analyzeEntityProximity(
     }
   }
 
+  const coinJoinInAncestry = cjDepthsBackward.size > 0;
+  const coinJoinInDescendancy = cjDepthsForward.size > 0;
+
   // Generate findings
 
   if (nearestBackward) {
     const entity = getEntity(nearestBackward.entityName);
     const isOfac = entity?.ofac ?? false;
     const hops = nearestBackward.hops;
-    const severity = isOfac
-      ? (hops <= 1 ? "critical" as const : hops <= 2 ? "high" as const : "medium" as const)
-      : hops === 1 ? "high" as const
-      : hops === 2 ? "medium" as const
-      : "low" as const;
-    const impact = isOfac
-      ? (hops <= 1 ? -10 : hops <= 2 ? -5 : -2)
-      : hops === 1 ? -4
-      : hops === 2 ? -2
-      : -1;
 
-    findings.push({
-      id: "chain-entity-proximity-backward",
-      severity,
-      confidence: "high",
-      title: `${hops} hop${hops > 1 ? "s" : ""} from ${nearestBackward.entityName} (${nearestBackward.category})`,
-      description:
-        `Input funds can be traced ${hops} hop${hops > 1 ? "s" : ""} back to ` +
-        `${nearestBackward.entityName}, a known ${nearestBackward.category}. ` +
-        (hops === 1
-          ? "Direct connection - the entity can trivially link this transaction to its records."
-          : `At ${hops} hops, chain analysis firms can still establish the connection ` +
-            "through transaction graph traversal.") +
-        (isOfac ? " This entity is on the OFAC sanctions list." : ""),
-      recommendation: hops <= 2
-        ? "Use CoinJoin to break the on-chain trail from known entities before spending. " +
-          "Each CoinJoin round adds ambiguity that makes tracing more expensive."
-        : "The distance provides some privacy, but determined analysts can still trace through. " +
-          "Consider additional mixing if the source entity is privacy-sensitive.",
-      scoreImpact: impact,
-      params: {
-        entityName: nearestBackward.entityName,
-        category: nearestBackward.category,
-        hops,
-        direction: "backward",
-        entityTxid: nearestBackward.txid,
-        entityAddress: nearestBackward.address,
-      },
-    });
+    // CoinJoin barrier: CoinJoins between target and entity break deterministic tracing.
+    // Count CoinJoins at depths closer to target than the entity (depth < entity hops).
+    const cjsBetween = [...cjDepthsBackward].filter(d => d < hops).length;
+    const barrierSuppressed = !isOfac && isCoinJoinBarrier(hops, cjsBetween);
+
+    if (barrierSuppressed) {
+      // Entity is behind a CoinJoin barrier - report as informational only
+      findings.push({
+        id: "chain-entity-proximity-backward",
+        severity: "low",
+        confidence: "low",
+        title: `${nearestBackward.entityName} detected ${hops} hops back (behind CoinJoin)`,
+        description:
+          `${nearestBackward.entityName} (${nearestBackward.category}) was found ${hops} hop${hops > 1 ? "s" : ""} back, ` +
+          `but ${cjsBetween} CoinJoin round${cjsBetween > 1 ? "s" : ""} between this transaction and the entity ` +
+          "break deterministic tracing. Chain analysis cannot reliably link the funds through CoinJoin.",
+        recommendation:
+          "The CoinJoin barrier provides strong privacy from backward tracing to this entity. " +
+          "Continue using CoinJoin before spending from known sources.",
+        scoreImpact: 0,
+        params: {
+          entityName: nearestBackward.entityName,
+          category: nearestBackward.category,
+          hops,
+          direction: "backward",
+          entityTxid: nearestBackward.txid,
+          entityAddress: nearestBackward.address,
+          cjBarrier: cjsBetween,
+        },
+      });
+    } else {
+      const severity = isOfac
+        ? (hops <= 1 ? "critical" as const : hops <= 2 ? "high" as const : "medium" as const)
+        : hops === 1 ? "high" as const
+        : hops === 2 ? "medium" as const
+        : "low" as const;
+      const impact = isOfac
+        ? (hops <= 1 ? -10 : hops <= 2 ? -5 : -2)
+        : hops === 1 ? -4
+        : hops === 2 ? -2
+        : -1;
+
+      findings.push({
+        id: "chain-entity-proximity-backward",
+        severity,
+        confidence: "high",
+        title: `${hops} hop${hops > 1 ? "s" : ""} from ${nearestBackward.entityName} (${nearestBackward.category})`,
+        description:
+          `Input funds can be traced ${hops} hop${hops > 1 ? "s" : ""} back to ` +
+          `${nearestBackward.entityName}, a known ${nearestBackward.category}. ` +
+          (hops === 1
+            ? "Direct connection - the entity can trivially link this transaction to its records."
+            : `At ${hops} hops, chain analysis firms can still establish the connection ` +
+              "through transaction graph traversal.") +
+          (isOfac ? " This entity is on the OFAC sanctions list." : ""),
+        recommendation: hops <= 2
+          ? "Use CoinJoin to break the on-chain trail from known entities before spending. " +
+            "Each CoinJoin round adds ambiguity that makes tracing more expensive."
+          : "The distance provides some privacy, but determined analysts can still trace through. " +
+            "Consider additional mixing if the source entity is privacy-sensitive.",
+        scoreImpact: impact,
+        params: {
+          entityName: nearestBackward.entityName,
+          category: nearestBackward.category,
+          hops,
+          direction: "backward",
+          entityTxid: nearestBackward.txid,
+          entityAddress: nearestBackward.address,
+        },
+      });
+    }
   }
 
   if (nearestForward) {
     const entity = getEntity(nearestForward.entityName);
     const isOfac = entity?.ofac ?? false;
     const hops = nearestForward.hops;
-    const severity = isOfac
-      ? (hops <= 1 ? "critical" as const : hops <= 2 ? "high" as const : "medium" as const)
-      : hops === 1 ? "high" as const
-      : hops === 2 ? "medium" as const
-      : "low" as const;
-    const impact = isOfac
-      ? (hops <= 1 ? -10 : hops <= 2 ? -5 : -2)
-      : hops === 1 ? -4
-      : hops === 2 ? -2
-      : -1;
 
-    findings.push({
-      id: "chain-entity-proximity-forward",
-      severity,
-      confidence: "high",
-      title: `Funds reach ${nearestForward.entityName} in ${hops} hop${hops > 1 ? "s" : ""}`,
-      description:
-        `Output funds reach ${nearestForward.entityName} (${nearestForward.category}) ` +
-        `within ${hops} hop${hops > 1 ? "s" : ""}. ` +
-        (hops === 1
-          ? "Direct deposit to a known entity - they can see exactly where the funds came from."
-          : `The entity can trace backward through ${hops} hops to reach this transaction.`) +
-        (isOfac ? " This entity is on the OFAC sanctions list." : ""),
-      recommendation: hops === 1
-        ? "Add intermediate hops between your transaction and known entities. Use P2P " +
-          "platforms (Bisq, RoboSats) instead of KYC services, or route through Lightning."
-        : "Consider whether the forward connection to this entity poses a privacy concern. " +
-          "Additional intermediate hops or CoinJoin can increase the tracing cost.",
-      scoreImpact: impact,
-      params: {
-        entityName: nearestForward.entityName,
-        category: nearestForward.category,
-        hops,
-        direction: "forward",
-        entityTxid: nearestForward.txid,
-        entityAddress: nearestForward.address,
-      },
-    });
+    // CoinJoin barrier: CoinJoins between target and entity break deterministic tracing.
+    const cjsBetween = [...cjDepthsForward].filter(d => d < hops).length;
+    const barrierSuppressed = !isOfac && isCoinJoinBarrier(hops, cjsBetween);
+
+    if (barrierSuppressed) {
+      findings.push({
+        id: "chain-entity-proximity-forward",
+        severity: "low",
+        confidence: "low",
+        title: `${nearestForward.entityName} detected ${hops} hops forward (behind CoinJoin)`,
+        description:
+          `Funds eventually reach ${nearestForward.entityName} (${nearestForward.category}) ` +
+          `in ${hops} hop${hops > 1 ? "s" : ""}, but ${cjsBetween} CoinJoin round${cjsBetween > 1 ? "s" : ""} ` +
+          "in between break deterministic forward tracing. " +
+          "Chain analysis cannot reliably link this transaction to the entity.",
+        recommendation:
+          "The CoinJoin barrier provides strong forward privacy. " +
+          "The entity cannot trace backward through CoinJoin to reach this transaction.",
+        scoreImpact: 0,
+        params: {
+          entityName: nearestForward.entityName,
+          category: nearestForward.category,
+          hops,
+          direction: "forward",
+          entityTxid: nearestForward.txid,
+          entityAddress: nearestForward.address,
+          cjBarrier: cjsBetween,
+        },
+      });
+    } else {
+      const severity = isOfac
+        ? (hops <= 1 ? "critical" as const : hops <= 2 ? "high" as const : "medium" as const)
+        : hops === 1 ? "high" as const
+        : hops === 2 ? "medium" as const
+        : "low" as const;
+      const impact = isOfac
+        ? (hops <= 1 ? -10 : hops <= 2 ? -5 : -2)
+        : hops === 1 ? -4
+        : hops === 2 ? -2
+        : -1;
+
+      findings.push({
+        id: "chain-entity-proximity-forward",
+        severity,
+        confidence: "high",
+        title: `Funds reach ${nearestForward.entityName} in ${hops} hop${hops > 1 ? "s" : ""}`,
+        description:
+          `Output funds reach ${nearestForward.entityName} (${nearestForward.category}) ` +
+          `within ${hops} hop${hops > 1 ? "s" : ""}. ` +
+          (hops === 1
+            ? "Direct deposit to a known entity - they can see exactly where the funds came from."
+            : `The entity can trace backward through ${hops} hops to reach this transaction.`) +
+          (isOfac ? " This entity is on the OFAC sanctions list." : ""),
+        recommendation: hops === 1
+          ? "Add intermediate hops between your transaction and known entities. Use P2P " +
+            "platforms (Bisq, RoboSats) instead of KYC services, or route through Lightning."
+          : "Consider whether the forward connection to this entity poses a privacy concern. " +
+            "Additional intermediate hops or CoinJoin can increase the tracing cost.",
+        scoreImpact: impact,
+        params: {
+          entityName: nearestForward.entityName,
+          category: nearestForward.category,
+          hops,
+          direction: "forward",
+          entityTxid: nearestForward.txid,
+          entityAddress: nearestForward.address,
+        },
+      });
+    }
   }
 
   if (coinJoinInAncestry) {
@@ -219,6 +284,22 @@ export function analyzeEntityProximity(
   }
 
   return { findings, nearestBackward, nearestForward, coinJoinInAncestry, coinJoinInDescendancy };
+}
+
+/**
+ * CoinJoin barrier: determines whether CoinJoin rounds between the target
+ * transaction and a detected entity break the deterministic tracing chain.
+ *
+ * Rules (OFAC entities are never suppressed - checked by caller):
+ * - 2+ CoinJoin rounds between target and entity: suppress (strong barrier)
+ * - 1 CoinJoin round AND entity >= 3 hops away: suppress (distance + barrier)
+ * - 1 CoinJoin round AND entity < 3 hops: do NOT suppress (close enough to trace around)
+ * - 0 CoinJoin rounds: do NOT suppress
+ */
+function isCoinJoinBarrier(entityHops: number, cjCountBetween: number): boolean {
+  if (cjCountBetween >= 2) return true;
+  if (cjCountBetween >= 1 && entityHops >= 3) return true;
+  return false;
 }
 
 /** Scan a transaction's addresses for entity filter matches */

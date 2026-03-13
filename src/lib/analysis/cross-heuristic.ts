@@ -14,20 +14,12 @@ export function applyCrossHeuristicRules(findings: Finding[]): void {
   if (isCoinJoin) {
     for (const f of findings) {
       // CIOH suppression for ALL CoinJoin types including Stonewall.
-      // Even solo Stonewall is designed to create CIOH ambiguity - the multiple
-      // inputs are intentional to make the tx look like a multi-party CoinJoin.
-      // For Stonewall: reduce to -3 (not 0, since all inputs ARE one wallet,
-      // but the ambiguity is the feature). For other CoinJoins: fully suppress.
+      // Stonewall intentionally consolidates inputs to create the appearance
+      // of a multi-party CoinJoin - CIOH is the expected structure, not a leak.
       if (f.id === "h3-cioh") {
-        if (isStonewall) {
-          f.severity = "low";
-          f.params = { ...f.params, context: "stonewall", _variant: "stonewall" };
-          f.scoreImpact = -3;
-        } else {
-          f.severity = "low";
-          f.params = { ...f.params, context: "coinjoin", _variant: "coinjoin" };
-          f.scoreImpact = 0;
-        }
+        f.severity = "low";
+        f.params = { ...f.params, context: isStonewall ? "stonewall" : "coinjoin", _variant: isStonewall ? "stonewall" : "coinjoin" };
+        f.scoreImpact = 0;
       }
       // Round amounts in CoinJoin are the denomination, not a privacy leak.
       // In Stonewall specifically, round amounts are hidden behind the equal-value pair structure.

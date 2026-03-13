@@ -309,6 +309,26 @@ export function selectRecommendations(
 
   // --- Tier 4: Positive / low-impact (when-convenient) ---
 
+  // Stonewall/STONEWALLx2 already provides strong privacy - don't suggest "consider CoinJoin"
+  const hasStonewall = ids.has("h4-stonewall") || ids.has("h4-simplified-stonewall");
+  if (hasStonewall && (ctx.grade === "A+" || ctx.grade === "B")) {
+    return [
+      {
+        id: "rec-stonewall",
+        urgency: "when-convenient",
+        headlineKey: "primaryRec.stonewall.headline",
+        headlineDefault: "Good Stonewall privacy - spend outputs carefully",
+        detailKey: "primaryRec.stonewall.detail",
+        detailDefault:
+          "Stonewall creates ambiguity about which outputs belong to which party. " +
+          "To preserve this, spend outputs individually and avoid consolidating them " +
+          "with non-Stonewall UTXOs.",
+        guideLink: "/guide#stonewall",
+      },
+      null,
+    ];
+  }
+
   if (ctx.grade === "A+" && hasCoinJoin) {
     return [
       {
