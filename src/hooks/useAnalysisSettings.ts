@@ -17,6 +17,8 @@ export interface AnalysisSettings {
   walletGapLimit: number;
   /** Persist API cache in IndexedDB across sessions (default true) */
   enableCache: boolean;
+  /** Boltzmann WASM computation timeout in seconds (1-120, default 30) */
+  boltzmannTimeout: number;
 }
 
 const STORAGE_KEY = "analysis-settings";
@@ -29,6 +31,7 @@ const DEFAULTS: AnalysisSettings = {
   timeout: 30,
   walletGapLimit: 5,
   enableCache: true,
+  boltzmannTimeout: 30,
 };
 
 // Module-level cache for referential stability (useSyncExternalStore requirement)

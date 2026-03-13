@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     "umbrel/tor-proxy/**",
     // Archived research articles (third-party HTML/JS, not our code)
     "docs/archive/**",
+    // Generated WASM glue code
+    "public/wasm/**",
   ]),
 ]);
 

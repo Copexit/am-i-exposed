@@ -1,7 +1,8 @@
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import { analyzeCoinJoin, isCoinJoinFinding } from "../heuristics/coinjoin";
-import { WHIRLPOOL_DENOMS } from "@/lib/constants";
+import { WHIRLPOOL_DENOMS, truncateId } from "@/lib/constants";
+import { fmtN } from "@/lib/format";
 
 /**
  * Forward chain analysis: examine what happened to outputs after this tx.
@@ -33,6 +34,9 @@ export function analyzeForward(
 
   const txIsCoinJoin = analyzeCoinJoin(tx).findings.some(isCoinJoinFinding);
 
+  // Track consolidation groups: which child tx consumed which outputs
+  const consolidationGroups = new Map<string, number[]>();
+
   // Check each spent output
   for (const [outputIdx, childTx] of childTxs.entries()) {
     if (!childTx) continue;
@@ -45,6 +49,10 @@ export function analyzeForward(
       const sameParentInputs = childTx.vin.filter((vin) => vin.txid === tx.txid);
       if (sameParentInputs.length >= 2) {
         consolidatedCoinJoinOutputs.push(outputIdx);
+        // Group by child tx for detailed reporting
+        const group = consolidationGroups.get(childTx.txid) ?? [];
+        group.push(outputIdx);
+        consolidationGroups.set(childTx.txid, group);
       }
     }
 
@@ -92,19 +100,44 @@ export function analyzeForward(
   // Generate findings
 
   if (consolidatedCoinJoinOutputs.length > 0) {
+    // Build detailed description showing which outputs were consolidated and where
+    const groupDetails: string[] = [];
+    for (const [childTxid, indices] of consolidationGroups) {
+      const outputList = indices.map((i) => {
+        const value = tx.vout[i]?.value ?? 0;
+        return `#${i} (${fmtN(value)} sats)`;
+      }).join(", ");
+      groupDetails.push(
+        `Outputs ${outputList} were spent together in tx ${truncateId(childTxid, 6)}`,
+      );
+    }
+
+    // Serialize consolidation groups for structured display in the finding card
+    const serializedGroups: { childTxid: string; outputs: { index: number; value: number }[] }[] = [];
+    for (const [childTxid, indices] of consolidationGroups) {
+      serializedGroups.push({
+        childTxid,
+        outputs: indices.map((i) => ({ index: i, value: tx.vout[i]?.value ?? 0 })),
+      });
+    }
+
     findings.push({
       id: "chain-post-coinjoin-consolidation",
       severity: "critical",
       title: "CoinJoin outputs were consolidated after mixing",
       description:
-        "Multiple CoinJoin outputs from this transaction were spent together in a subsequent " +
-        "transaction. This re-links them via common input ownership, completely undoing the " +
-        "privacy benefit of the CoinJoin. This is the most common privacy mistake.",
+        "Multiple CoinJoin outputs were spent together, re-linking them via common input " +
+        "ownership and undoing the mixing. " + groupDetails.join(". ") + ".",
       recommendation:
         "Never consolidate CoinJoin outputs. Spend each post-mix UTXO individually in separate " +
         "transactions. Use coin control to select a single UTXO per payment.",
       scoreImpact: -15,
-      params: { consolidatedCount: consolidatedCoinJoinOutputs.length },
+      params: {
+        consolidatedCount: consolidatedCoinJoinOutputs.length,
+        consolidatedIndices: consolidatedCoinJoinOutputs.join(","),
+        childTxid: [...consolidationGroups.keys()][0] ?? "",
+        _consolidationGroups: JSON.stringify(serializedGroups),
+      },
       confidence: "deterministic",
     });
   }

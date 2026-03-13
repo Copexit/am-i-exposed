@@ -14,9 +14,11 @@ interface FindingsTierProps {
   defaultOpen: boolean;
   grade: Grade;
   delay: number;
+  /** Callback when user clicks a txid link inside a finding card. */
+  onTxClick?: (txid: string) => void;
 }
 
-export function FindingsTier({ findings, label, defaultOpen, grade, delay }: FindingsTierProps) {
+export function FindingsTier({ findings, label, defaultOpen, grade, delay, onTxClick }: FindingsTierProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(defaultOpen);
 
@@ -57,6 +59,7 @@ export function FindingsTier({ findings, label, defaultOpen, grade, delay }: Fin
                   index={i}
                   defaultExpanded={false}
                   badge={CHAIN_FINDING_IDS.has(finding.id) ? t("results.chainBadge", { defaultValue: "Chain" }) : undefined}
+                  onTxClick={onTxClick}
                 />
               ))}
             </div>

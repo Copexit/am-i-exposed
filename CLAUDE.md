@@ -54,6 +54,35 @@ Use these consistently for findings:
 - `low` - blue (#3b82f6)
 - `good` - green (#28d065)
 
+## Boltzmann WASM
+
+The real Boltzmann Link Probability Matrix is implemented in Rust, compiled to WASM, and runs in a Web Worker.
+
+- **Rust crate**: `boltzmann-rs/` - 4-phase algorithm (subset sum, input decomposition, DFS enumeration, matrix finalization)
+- **Pre-built WASM**: `public/wasm/boltzmann/` - ~70KB `.wasm` + JS glue, committed to git
+- **Worker**: `public/workers/boltzmann.worker.js` - plain JS (not TypeScript), loads WASM via fetch+blob URL
+- **Hook**: `src/hooks/useBoltzmann.ts` - singleton worker, auto-compute for <=8x8 txs
+- **UI**: `src/components/viz/LinkabilityHeatmap.tsx` - heat map in Zone 11 of ResultsPanel
+
+### Rebuilding WASM
+
+Requires `rustup target add wasm32-unknown-unknown` and `cargo install wasm-pack`.
+
+```bash
+pnpm build:wasm          # Runs scripts/build-boltzmann-wasm.sh
+cd boltzmann-rs && cargo test   # Run Rust tests (23 test vectors)
+```
+
+After rebuilding, commit the updated files in `public/wasm/boltzmann/`. The worker JS in `public/workers/` is hand-written, not generated.
+
+### Key gotchas
+
+- Worker must be plain `.js` in `public/` - Next.js static export doesn't bundle `.ts` workers correctly
+- WASM JS glue uses `import.meta.url` internally but our worker overrides with explicit fetch+blob URL
+- `serde_wasm_bindgen` returns u64 as BigInt - worker converts to Number via `toNum()`
+- Matrix dimensions: `[nOut][nIn]` (outputs as rows, inputs as columns), sorted by value descending
+- CI builds WASM from source via `wasm-pack` (Rust deps cached)
+
 ## Session Safety
 
 - **Always commit work before ending a session.** Uncommitted changes to tracked files can be lost between sessions (IDE auto-revert, git hooks, other processes). If work is in progress and not ready to commit to main, commit to a WIP branch. Never leave substantial uncommitted changes across a session boundary.

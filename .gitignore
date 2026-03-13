@@ -63,3 +63,7 @@ scripts/glossary-capture.mjs
 .cache/
 public/data/entity-filter-full.bin
 public/data/entity-index-full.bin
+
+# Rust build artifacts (pre-built WASM binaries in public/wasm/ are committed)
+boltzmann-rs/target/
+boltzmann-rs/pkg/

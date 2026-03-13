@@ -34,12 +34,24 @@ interface NodeDatum extends SankeyExtraProperties {
   side: "input" | "output" | "mixer";
   tierValue?: number;
   tierCount?: number;
+  /** Number of outputs in this tier that were consolidated (spent together post-mix). */
+  consolidatedCount?: number;
+  /** Parent txid shared with other inputs (input-side consolidation). */
+  sharedParentTxid?: string;
+  /** How many inputs share this parent txid. */
+  sharedParentCount?: number;
 }
 
 interface LinkDatum extends SankeyExtraProperties {
   source: string;
   target: string;
   value: number;
+}
+
+/** A group of outputs that were consolidated (spent in the same child tx). */
+interface ConsolidationGroup {
+  childTxid: string;
+  outputIndices: number[];
 }
 
 interface TooltipData {
@@ -49,16 +61,24 @@ interface TooltipData {
   lang: string;
   spentCount?: number;
   unspentCount?: number;
+  consolidatedCount?: number;
+  /** Per-child-tx groups of consolidated output indices for this tier. */
+  consolidationGroups?: ConsolidationGroup[];
+  /** Parent txid shared with other inputs (input-side). */
+  sharedParentTxid?: string;
+  /** How many inputs share this parent. */
+  sharedParentCount?: number;
 }
 
 const NODE_WIDTH = 14;
 const NODE_PADDING = 10;
 const MAX_DISPLAY = 50;
-const MAX_OUTPUT_NODES = 20;
+const MIN_NODE_SPACING = 30; // min px per output node for readable labels
 
 export function CoinJoinStructure({ tx, findings, onAddressClick, usdPrice, outspends }: CoinJoinStructureProps) {
   const { t, i18n } = useTranslation();
   const [showAllInputs, setShowAllInputs] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   // Only render for CoinJoin txs
   const isCoinJoin = findings.some((f) => f.id.startsWith("h4-"));
@@ -67,9 +87,17 @@ export function CoinJoinStructure({ tx, findings, onAddressClick, usdPrice, outs
   // For very large CoinJoins (50+ inputs), aggregate inputs into a summary node
   const aggregateInputs = tx.vin.length > MAX_DISPLAY;
   const displayInCount = aggregateInputs ? 1 : (showAllInputs ? tx.vin.length : Math.min(tx.vin.length, MAX_DISPLAY));
-  const estimatedOutputNodes = Math.min(MAX_OUTPUT_NODES + 2, tx.vout.length + 2);
-  const nodeCount = displayInCount + estimatedOutputNodes;
-  const chartHeight = Math.max(240, Math.min(500, nodeCount * 22 + 60));
+
+  // Dynamic output node limit based on available height
+  const baseMaxHeight = expanded ? 900 : 500;
+  const maxOutputNodes = Math.max(6, Math.floor((baseMaxHeight - 60) / MIN_NODE_SPACING) - 2);
+  const estimatedOutputNodes = Math.min(maxOutputNodes + 1, tx.vout.length + 1);
+  const nodeCount = displayInCount + 1 + estimatedOutputNodes;
+  const chartHeight = Math.max(240, Math.min(baseMaxHeight, nodeCount * MIN_NODE_SPACING + 60));
+
+  // Show expand button when there are more output tiers than the default can show
+  const uniqueOutputValues = new Set(tx.vout.map((o) => o.value));
+  const canExpand = aggregateInputs && uniqueOutputValues.size > maxOutputNodes && !expanded;
 
   return (
     <div className="w-full glass rounded-xl p-4 sm:p-6 space-y-3">
@@ -100,6 +128,7 @@ export function CoinJoinStructure({ tx, findings, onAddressClick, usdPrice, outs
                 showAllInputs={showAllInputs}
                 onToggleShowAllInputs={() => setShowAllInputs(true)}
                 aggregateInputs={aggregateInputs}
+                maxOutputNodes={maxOutputNodes}
               />
             );
           }}
@@ -115,7 +144,19 @@ export function CoinJoinStructure({ tx, findings, onAddressClick, usdPrice, outs
             defaultValue: `Fee: ${formatSats(tx.fee, i18n.language)} (${cjFeeRate(tx)} sat/vB)`,
           })}
         </span>
-        <span>{tx.weight.toLocaleString(i18n.language)} WU</span>
+        <div className="flex items-center gap-3">
+          {(canExpand || expanded) && (
+            <button
+              onClick={() => setExpanded((e) => !e)}
+              className="text-xs text-bitcoin/70 hover:text-bitcoin transition-colors cursor-pointer"
+            >
+              {expanded
+                ? t("viz.coinjoin.collapse", { defaultValue: "Show less" })
+                : t("viz.coinjoin.expand", { defaultValue: "Show all tiers" })}
+            </button>
+          )}
+          <span>{tx.weight.toLocaleString(i18n.language)} WU</span>
+        </div>
       </div>
     </div>
   );
@@ -127,6 +168,7 @@ interface CoinJoinChartProps extends Omit<CoinJoinStructureProps, "findings"> {
   showAllInputs: boolean;
   onToggleShowAllInputs: () => void;
   aggregateInputs: boolean;
+  maxOutputNodes: number;
 }
 
 function CoinJoinChart({
@@ -139,6 +181,7 @@ function CoinJoinChart({
   showAllInputs,
   onToggleShowAllInputs,
   aggregateInputs,
+  maxOutputNodes,
 }: CoinJoinChartProps) {
   const { t, i18n } = useTranslation();
   const reducedMotion = useReducedMotion();
@@ -166,6 +209,73 @@ function CoinJoinChart({
     return { tiers, otherValues: others };
   }, [tx.vout]);
 
+  // Detect post-mix consolidation: outputs spent together in the same child tx
+  const consolidationData = useMemo(() => {
+    const empty = { counts: new Map<number, number>(), groups: new Map<number, ConsolidationGroup[]>() };
+    if (!outspends) return empty;
+
+    // Group output indices by spending txid
+    const byChild = new Map<string, number[]>();
+    for (let i = 0; i < outspends.length; i++) {
+      const os = outspends[i];
+      if (os?.spent && os.txid) {
+        const group = byChild.get(os.txid) ?? [];
+        group.push(i);
+        byChild.set(os.txid, group);
+      }
+    }
+
+    // Find groups where 2+ outputs share a spending tx
+    const consolidatedGroups: ConsolidationGroup[] = [];
+    const consolidated = new Set<number>();
+    for (const [childTxid, indices] of byChild) {
+      if (indices.length >= 2) {
+        consolidatedGroups.push({ childTxid, outputIndices: indices });
+        for (const idx of indices) consolidated.add(idx);
+      }
+    }
+
+    // Aggregate per tier value
+    const counts = new Map<number, number>();
+    const groups = new Map<number, ConsolidationGroup[]>();
+    for (const idx of consolidated) {
+      const val = tx.vout[idx]?.value;
+      if (val != null) counts.set(val, (counts.get(val) ?? 0) + 1);
+    }
+    for (const group of consolidatedGroups) {
+      // Assign this group to all tier values it touches
+      const tierValues = new Set(group.outputIndices.map((i) => tx.vout[i]?.value).filter((v): v is number => v != null));
+      for (const tv of tierValues) {
+        const list = groups.get(tv) ?? [];
+        list.push(group);
+        groups.set(tv, list);
+      }
+    }
+    return { counts, groups };
+  }, [outspends, tx.vout]);
+
+  // Detect input-side consolidation: inputs from the same parent tx
+  const inputConsolidation = useMemo(() => {
+    const byParent = new Map<string, number[]>();
+    for (let i = 0; i < tx.vin.length; i++) {
+      const parentTxid = tx.vin[i]?.txid;
+      if (!parentTxid) continue;
+      const group = byParent.get(parentTxid) ?? [];
+      group.push(i);
+      byParent.set(parentTxid, group);
+    }
+    // Map: inputIndex -> { parentTxid, groupSize } for groups with 2+ inputs
+    const result = new Map<number, { parentTxid: string; count: number }>();
+    for (const [parentTxid, indices] of byParent) {
+      if (indices.length >= 2) {
+        for (const idx of indices) {
+          result.set(idx, { parentTxid, count: indices.length });
+        }
+      }
+    }
+    return result;
+  }, [tx.vin]);
+
   const { graph, hiddenInputCount } = useMemo(() => {
     const nodes: NodeDatum[] = [];
     const links: LinkDatum[] = [];
@@ -175,6 +285,7 @@ function CoinJoinChart({
 
     if (aggregateInputs) {
       // Single summary node for all inputs
+      const aggConsolidated = inputConsolidation.size;
       nodes.push({
         id: "in-agg",
         label: t("viz.coinjoin.inputSummary", {
@@ -183,6 +294,7 @@ function CoinJoinChart({
         }),
         value: Math.max(totalInputValue, 1),
         side: "input",
+        consolidatedCount: aggConsolidated > 0 ? aggConsolidated : undefined,
       });
     } else {
       const displayInputs = showAllInputs ? tx.vin : tx.vin.slice(0, MAX_DISPLAY);
@@ -192,12 +304,15 @@ function CoinJoinChart({
         const vin = displayInputs[i];
         const addr = vin.prevout?.scriptpubkey_address;
         const val = vin.prevout?.value ?? 0;
+        const ic = inputConsolidation.get(i);
         nodes.push({
           id: `in-${i}`,
           label: truncateId(addr ?? "?", 5),
           fullAddress: addr,
           value: Math.max(val, 1),
           side: "input",
+          sharedParentTxid: ic?.parentTxid,
+          sharedParentCount: ic?.count,
         });
       }
     }
@@ -212,10 +327,11 @@ function CoinJoinChart({
 
     // Sort tiers by count (largest anonymity set first)
     const sortedTiers = [...denomGroups.tiers].sort((a, b) => b.count - a.count);
-    const displayTiers = sortedTiers.slice(0, MAX_OUTPUT_NODES - 1); // reserve 1 for summary
-    const remainingTiers = sortedTiers.slice(MAX_OUTPUT_NODES - 1);
+    const displayTiers = sortedTiers.slice(0, maxOutputNodes - 1); // reserve 1 for summary
+    const remainingTiers = sortedTiers.slice(maxOutputNodes - 1);
 
     for (const tier of displayTiers) {
+      const cc = consolidationData.counts.get(tier.value) ?? 0;
       outputNodes.push({
         id: `tier-${tier.value}`,
         label: `${tier.count}x ${formatSats(tier.value, i18n.language)}`,
@@ -223,6 +339,7 @@ function CoinJoinChart({
         side: "output",
         tierValue: tier.value,
         tierCount: tier.count,
+        consolidatedCount: cc > 0 ? cc : undefined,
       });
     }
 
@@ -278,7 +395,7 @@ function CoinJoinChart({
 
     const g: SankeyGraph<NodeDatum, LinkDatum> = { nodes, links };
     return { graph: g, hiddenInputCount: hiddenIn };
-  }, [tx, showAllInputs, denomGroups, aggregateInputs, t, i18n]);
+  }, [tx, showAllInputs, denomGroups, consolidationData, inputConsolidation, aggregateInputs, maxOutputNodes, t, i18n]);
 
   const marginH = width < 500 ? 80 : 150;
   const MARGIN = { top: 12, right: marginH, bottom: 24, left: marginH };
@@ -325,6 +442,10 @@ function CoinJoinChart({
                     ? "url(#grad-cj-link-out)"
                     : SVG_COLORS.muted;
 
+                // Single aggregated input link is very wide - needs higher opacity to be visible
+                const isAggInputLink = aggregateInputs && intoMixer;
+                const linkOpacity = isAggInputLink ? 0.45 : 0.25;
+
                 return (
                   <motion.path
                     key={`link-${i}`}
@@ -332,7 +453,7 @@ function CoinJoinChart({
                     fill="none"
                     stroke={linkStroke}
                     strokeWidth={Math.max(1, (link as unknown as { width: number }).width ?? 1)}
-                    strokeOpacity={0.25}
+                    strokeOpacity={linkOpacity}
                     initial={reducedMotion ? false : { pathLength: 0 }}
                     animate={{ pathLength: 1 }}
                     transition={{
@@ -356,6 +477,12 @@ function CoinJoinChart({
                 const isClickable = !!n.fullAddress && !!onAddressClick;
 
                 const isTier = !!n.tierCount;
+                const isConsolidated = (n.consolidatedCount ?? 0) > 0;
+                const isInputConsolidated = isInput && !!n.sharedParentTxid;
+                // Check available vertical space to avoid label overlap
+                const hasLabelSpace = nodeHeight >= 14;
+                const hasSubLabelSpace = nodeHeight >= 24;
+
                 let fillColor: string;
                 let glowFilter: string | undefined;
                 if (isMixer) {
@@ -400,6 +527,11 @@ function CoinJoinChart({
                     spentCount = s;
                     unspentCount = u;
                   }
+                  // Get consolidation group details for this tier
+                  const tierGroups = n.tierValue != null
+                    ? consolidationData.groups.get(n.tierValue)
+                    : undefined;
+
                   showTooltip({
                     tooltipData: {
                       label: n.fullAddress ?? n.label,
@@ -408,6 +540,10 @@ function CoinJoinChart({
                       lang: i18n.language,
                       spentCount,
                       unspentCount,
+                      consolidatedCount: n.consolidatedCount,
+                      consolidationGroups: tierGroups,
+                      sharedParentTxid: n.sharedParentTxid,
+                      sharedParentCount: n.sharedParentCount,
                     },
                     tooltipLeft: elemRect.left - containerRect.left + elemRect.width / 2,
                     tooltipTop: elemRect.top - containerRect.top,
@@ -451,9 +587,9 @@ function CoinJoinChart({
                       fill={fillColor}
                       filter={glowFilter}
                       rx={isMixer ? 0 : 3}
-                      stroke={isMixer ? SVG_COLORS.good : undefined}
-                      strokeOpacity={isMixer ? 0.5 : undefined}
-                      strokeWidth={isMixer ? 1 : undefined}
+                      stroke={isMixer ? SVG_COLORS.good : (isConsolidated || isInputConsolidated) ? SVG_COLORS.critical : undefined}
+                      strokeOpacity={isMixer ? 0.5 : (isConsolidated || isInputConsolidated) ? 0.8 : undefined}
+                      strokeWidth={isMixer ? 1 : (isConsolidated || isInputConsolidated) ? 1.5 : undefined}
                       initial={reducedMotion ? false : { opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{
@@ -464,6 +600,20 @@ function CoinJoinChart({
                       onMouseEnter={isMixer ? showNodeTooltip : undefined}
                       onMouseLeave={isMixer ? () => hideTooltip() : undefined}
                     />
+
+                    {/* Red damage bar overlay for consolidated tiers */}
+                    {isConsolidated && isTier && n.tierCount && (
+                      <rect
+                        x={n.x0 + 1}
+                        y={n.y1 - Math.max(2, nodeHeight * (n.consolidatedCount! / n.tierCount))}
+                        width={nodeWidth - 2}
+                        height={Math.max(2, nodeHeight * (n.consolidatedCount! / n.tierCount))}
+                        fill={SVG_COLORS.critical}
+                        fillOpacity={0.4}
+                        rx={2}
+                        style={{ pointerEvents: "none" as const }}
+                      />
+                    )}
 
                     {/* Mixer pattern overlay */}
                     {isMixer && (
@@ -493,10 +643,10 @@ function CoinJoinChart({
                     )}
 
                     {/* Label - clickable for addresses */}
-                    {!isMixer && labelMaxWidth > 30 && (
+                    {!isMixer && labelMaxWidth > 30 && hasLabelSpace && (
                       <Text
                         x={labelX}
-                        y={n.y0 + nodeHeight / 2 - (isTier ? 4 : 6)}
+                        y={n.y0 + nodeHeight / 2 - (hasSubLabelSpace ? 4 : 0)}
                         textAnchor={labelAnchor}
                         verticalAnchor="middle"
                         fontSize={11}
@@ -509,34 +659,64 @@ function CoinJoinChart({
                       </Text>
                     )}
 
-                    {/* Value label below address for inputs and non-tier outputs */}
-                    {!isMixer && !isTier && labelMaxWidth > 30 && (
-                      <Text
-                        x={labelX}
-                        y={n.y0 + nodeHeight / 2 + 10}
-                        textAnchor={labelAnchor}
-                        verticalAnchor="middle"
-                        fontSize={10}
-                        fill={SVG_COLORS.muted}
-                        style={{ pointerEvents: "none" as const }}
-                      >
-                        {usdPrice != null ? `${formatSats(n.value, i18n.language)} (${formatUsdValue(n.value, usdPrice)})` : formatSats(n.value, i18n.language)}
-                      </Text>
+                    {/* Value label or consolidation warning below address for inputs and non-tier outputs */}
+                    {!isMixer && !isTier && labelMaxWidth > 30 && hasSubLabelSpace && (
+                      isInputConsolidated ? (
+                        <Text
+                          x={labelX}
+                          y={n.y0 + nodeHeight / 2 + 10}
+                          textAnchor={labelAnchor}
+                          verticalAnchor="middle"
+                          fontSize={9}
+                          fontWeight={600}
+                          fill={SVG_COLORS.critical}
+                          style={{ pointerEvents: "none" as const }}
+                        >
+                          {`${n.sharedParentCount} from ${truncateId(n.sharedParentTxid!, 5)}`}
+                        </Text>
+                      ) : (
+                        <Text
+                          x={labelX}
+                          y={n.y0 + nodeHeight / 2 + 10}
+                          textAnchor={labelAnchor}
+                          verticalAnchor="middle"
+                          fontSize={10}
+                          fill={SVG_COLORS.muted}
+                          style={{ pointerEvents: "none" as const }}
+                        >
+                          {usdPrice != null ? `${formatSats(n.value, i18n.language)} (${formatUsdValue(n.value, usdPrice)})` : formatSats(n.value, i18n.language)}
+                        </Text>
+                      )
                     )}
 
-                    {/* USD value for tier outputs */}
-                    {!isMixer && isTier && usdPrice != null && labelMaxWidth > 30 && (
-                      <Text
-                        x={labelX}
-                        y={n.y0 + nodeHeight / 2 + 10}
-                        textAnchor={labelAnchor}
-                        verticalAnchor="middle"
-                        fontSize={9}
-                        fill={SVG_COLORS.muted}
-                        style={{ pointerEvents: "none" as const }}
-                      >
-                        {`${formatUsdValue(n.tierValue ?? n.value, usdPrice)}${n.tierCount ? "/ea" : ""}`}
-                      </Text>
+                    {/* USD value or consolidation warning for tier outputs */}
+                    {!isMixer && isTier && labelMaxWidth > 30 && hasSubLabelSpace && (
+                      isConsolidated ? (
+                        <Text
+                          x={labelX}
+                          y={n.y0 + nodeHeight / 2 + 10}
+                          textAnchor={labelAnchor}
+                          verticalAnchor="middle"
+                          fontSize={9}
+                          fontWeight={600}
+                          fill={SVG_COLORS.critical}
+                          style={{ pointerEvents: "none" as const }}
+                        >
+                          {`${n.consolidatedCount} of ${n.tierCount} re-linked`}
+                        </Text>
+                      ) : usdPrice != null ? (
+                        <Text
+                          x={labelX}
+                          y={n.y0 + nodeHeight / 2 + 10}
+                          textAnchor={labelAnchor}
+                          verticalAnchor="middle"
+                          fontSize={9}
+                          fill={SVG_COLORS.muted}
+                          style={{ pointerEvents: "none" as const }}
+                        >
+                          {`${formatUsdValue(n.tierValue ?? n.value, usdPrice)}${n.tierCount ? "/ea" : ""}`}
+                        </Text>
+                      ) : null
                     )}
                   </Group>
                 );
@@ -566,6 +746,23 @@ function CoinJoinChart({
                 <span style={{ color: SVG_COLORS.good }}>{tooltipData.unspentCount} {t("viz.flow.unspentShort", { defaultValue: "unspent" })}</span>
                 {" / "}
                 <span style={{ color: SVG_COLORS.critical }}>{tooltipData.spentCount} {t("viz.flow.spentShort", { defaultValue: "spent" })}</span>
+              </p>
+            )}
+            {tooltipData.consolidationGroups && tooltipData.consolidationGroups.length > 0 && (
+              <div className="border-t border-white/10 pt-1 mt-1 space-y-0.5">
+                <p className="text-xs font-semibold" style={{ color: SVG_COLORS.critical }}>
+                  {tooltipData.consolidatedCount} of {tooltipData.tierCount} re-linked:
+                </p>
+                {tooltipData.consolidationGroups.map((g) => (
+                  <p key={g.childTxid} className="text-xs font-mono" style={{ color: SVG_COLORS.critical }}>
+                    #{g.outputIndices.join(", #")} {"\u2192"} {truncateId(g.childTxid, 6)}
+                  </p>
+                ))}
+              </div>
+            )}
+            {tooltipData.sharedParentTxid && (
+              <p className="text-xs font-semibold border-t border-white/10 pt-1 mt-1" style={{ color: SVG_COLORS.critical }}>
+                {tooltipData.sharedParentCount} inputs from {truncateId(tooltipData.sharedParentTxid, 6)}
               </p>
             )}
           </div>

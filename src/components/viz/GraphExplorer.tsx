@@ -98,6 +98,8 @@ interface LayoutEdge {
   y2: number;
   /** True when this edge was created by a backward expansion (new node at lower depth). */
   isBackward: boolean;
+  /** Number of outputs from `fromTxid` consumed by `toTxid`. >= 2 means consolidation. */
+  consolidationCount: number;
 }
 
 interface TooltipData {
@@ -131,7 +133,7 @@ const MARGIN = { top: 50, right: 40, bottom: 20, left: 40 };
 
 /** Category-specific colors for entity nodes. */
 const ENTITY_CATEGORY_COLORS: Record<EntityCategory | "unknown", string> = {
-  exchange: "#60a5fa",   // blue
+  exchange: "#06b6d4",   // teal (distinct from standard-tx blue and root-tx orange)
   darknet: "#ef4444",    // red
   scam: "#ef4444",       // red
   mixer: "#28d065",      // green
@@ -261,11 +263,19 @@ function layoutGraph(
   }
 
   // Build edges from parent/child relationships
+  // Track edges to avoid duplicates (both parentEdge and childEdge can create the same pair)
+  const edgeSet = new Set<string>();
+
   for (const [, node] of graphNodes) {
     if (node.parentEdge) {
+      const eKey = `${node.parentEdge.fromTxid}->${node.txid}`;
+      if (edgeSet.has(eKey)) continue;
+      edgeSet.add(eKey);
       const fromPos = nodePositions.get(node.parentEdge.fromTxid);
       const toPos = nodePositions.get(node.txid);
       if (fromPos && toPos) {
+        // Count how many inputs of this child come from the parent tx
+        const cc = node.tx.vin.filter((v) => v.txid === node.parentEdge!.fromTxid).length;
         edges.push({
           fromTxid: node.parentEdge.fromTxid,
           toTxid: node.txid,
@@ -274,13 +284,22 @@ function layoutGraph(
           x2: toPos.x,
           y2: toPos.y + NODE_H / 2,
           isBackward: false,
+          consolidationCount: cc,
         });
       }
     }
     if (node.childEdge) {
+      const eKey = `${node.txid}->${node.childEdge.toTxid}`;
+      if (edgeSet.has(eKey)) continue;
+      edgeSet.add(eKey);
       const fromPos = nodePositions.get(node.txid);
       const toPos = nodePositions.get(node.childEdge.toTxid);
       if (fromPos && toPos) {
+        // Count how many inputs of the child come from this parent tx
+        const childNode = graphNodes.get(node.childEdge.toTxid);
+        const cc = childNode
+          ? childNode.tx.vin.filter((v) => v.txid === node.txid).length
+          : 1;
         edges.push({
           fromTxid: node.txid,
           toTxid: node.childEdge.toTxid,
@@ -289,6 +308,7 @@ function layoutGraph(
           x2: toPos.x,
           y2: toPos.y + NODE_H / 2,
           isBackward: true,
+          consolidationCount: cc,
         });
       }
     }
@@ -441,9 +461,9 @@ function Minimap({
             y1={e.y1 * scale}
             x2={e.x2 * scale}
             y2={e.y2 * scale}
-            stroke={SVG_COLORS.muted}
-            strokeWidth={0.5}
-            strokeOpacity={0.3}
+            stroke={e.consolidationCount >= 2 ? SVG_COLORS.critical : SVG_COLORS.muted}
+            strokeWidth={e.consolidationCount >= 2 ? 1 : 0.5}
+            strokeOpacity={e.consolidationCount >= 2 ? 0.6 : 0.3}
           />
         ))}
         {/* Nodes */}
@@ -896,6 +916,13 @@ function GraphCanvas({
           <marker id="arrow-graph-start" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto-start-reverse">
             <path d="M0,0 L8,3 L0,6" fill={SVG_COLORS.muted} fillOpacity={0.5} />
           </marker>
+          {/* Red arrows for consolidation edges */}
+          <marker id="arrow-graph-consolidation" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <path d="M0,0 L8,3 L0,6" fill={SVG_COLORS.critical} fillOpacity={0.7} />
+          </marker>
+          <marker id="arrow-graph-consolidation-start" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto-start-reverse">
+            <path d="M0,0 L8,3 L0,6" fill={SVG_COLORS.critical} fillOpacity={0.7} />
+          </marker>
         </defs>
         <style>{`
           .graph-btn circle { transition: fill-opacity 0.15s, stroke-width 0.15s, filter 0.15s; }
@@ -929,31 +956,58 @@ function GraphCanvas({
 
           const isHovered = hoveredEdges?.has(edgeKey);
           const isDimmedByHover = hoveredNode && !isHovered;
+          const isConsolidation = edge.consolidationCount >= 2;
 
-          let strokeOpacity = 0.35;
-          let strokeWidth = 1.5;
+          const strokeColor = isConsolidation ? SVG_COLORS.critical : SVG_COLORS.muted;
+          let strokeOpacity = isConsolidation ? 0.6 : 0.35;
+          let strokeWidth = isConsolidation ? 2.5 : 1.5;
 
           if (isHovered) {
-            strokeOpacity = 0.7;
-            strokeWidth = 2.5;
+            strokeOpacity = isConsolidation ? 0.9 : 0.7;
+            strokeWidth = isConsolidation ? 3.5 : 2.5;
           }
-          if (isDimmedByHover) strokeOpacity = 0.1;
+          if (isDimmedByHover) strokeOpacity = isConsolidation ? 0.2 : 0.1;
+
+          // Select appropriate arrow markers
+          let markerEnd: string | undefined;
+          let markerStart: string | undefined;
+          if (edge.isBackward) {
+            markerStart = isConsolidation ? "url(#arrow-graph-consolidation-start)" : "url(#arrow-graph-start)";
+          } else {
+            markerEnd = isConsolidation ? "url(#arrow-graph-consolidation)" : "url(#arrow-graph)";
+          }
 
           return (
-            <motion.path
-              key={edgeKey}
-              d={d}
-              fill="none"
-              stroke={SVG_COLORS.muted}
-              strokeWidth={strokeWidth}
-              strokeOpacity={strokeOpacity}
-              strokeDasharray={edge.isBackward ? "6 4" : undefined}
-              markerEnd={edge.isBackward ? undefined : "url(#arrow-graph)"}
-              markerStart={edge.isBackward ? "url(#arrow-graph-start)" : undefined}
-              initial={{ pathLength: 0 }}
-              animate={{ pathLength: 1 }}
-              transition={{ duration: 0.4 }}
-            />
+            <g key={edgeKey}>
+              <motion.path
+                d={d}
+                fill="none"
+                stroke={strokeColor}
+                strokeWidth={strokeWidth}
+                strokeOpacity={strokeOpacity}
+                strokeDasharray={edge.isBackward ? "6 4" : undefined}
+                markerEnd={markerEnd}
+                markerStart={markerStart}
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: 0.4 }}
+              />
+              {/* Consolidation count label on the edge */}
+              {isConsolidation && (
+                <Text
+                  x={midX}
+                  y={(edge.y1 + edge.y2) / 2 - 6}
+                  textAnchor="middle"
+                  fontSize={9}
+                  fontWeight={700}
+                  fill={SVG_COLORS.critical}
+                  fillOpacity={isDimmedByHover ? 0.15 : 0.85}
+                  style={{ pointerEvents: "none" as const }}
+                >
+                  {`${edge.consolidationCount} outputs`}
+                </Text>
+              )}
+            </g>
           );
         })}
 
@@ -1475,13 +1529,6 @@ export function GraphExplorer(props: GraphExplorerProps) {
         {t("graphExplorer.legendCoinJoin", { defaultValue: "CoinJoin" })}
       </button>
       <button
-        onClick={() => toggleFilter("showEntity")}
-        className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${filter.showEntity ? "opacity-100" : "opacity-40 line-through"}`}
-      >
-        <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: SVG_COLORS.high }} />
-        {t("graphExplorer.legendEntity", { defaultValue: "Known entity" })}
-      </button>
-      <button
         onClick={() => toggleFilter("showStandard")}
         className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${filter.showStandard ? "opacity-100" : "opacity-40 line-through"}`}
       >
@@ -1494,32 +1541,29 @@ export function GraphExplorer(props: GraphExplorerProps) {
           {t("graphExplorer.legendWalletOutput", { defaultValue: "Wallet output" })}
         </span>
       )}
-      {/* Entity category sub-legend */}
-      {filter.showEntity && (
-        <>
-          <span className="text-white/20">|</span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: ENTITY_CATEGORY_COLORS.exchange }} />
-            <span className="text-white/30">Exchange</span>
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: ENTITY_CATEGORY_COLORS.darknet }} />
-            <span className="text-white/30">Darknet</span>
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: ENTITY_CATEGORY_COLORS.mixer }} />
-            <span className="text-white/30">Mixer</span>
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: ENTITY_CATEGORY_COLORS.gambling }} />
-            <span className="text-white/30">Gambling</span>
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: ENTITY_CATEGORY_COLORS.mining }} />
-            <span className="text-white/30">Mining</span>
-          </span>
-        </>
-      )}
+      {/* Entity category legend - each dot is colored per category, whole group toggles entity filter */}
+      <span className="text-white/20">|</span>
+      {([
+        ["exchange", "Exchange"],
+        ["darknet", "Darknet"],
+        ["mixer", "Mixer"],
+        ["gambling", "Gambling"],
+        ["mining", "Mining"],
+      ] as const).map(([cat, label]) => (
+        <button
+          key={cat}
+          onClick={() => toggleFilter("showEntity")}
+          className={`flex items-center gap-1 cursor-pointer transition-opacity ${filter.showEntity ? "opacity-100" : "opacity-40 line-through"}`}
+        >
+          <span className="inline-block w-2 h-2 rounded-full" style={{ background: ENTITY_CATEGORY_COLORS[cat] }} />
+          <span className="text-white/40">{label}</span>
+        </button>
+      ))}
+      <span className="text-white/20">|</span>
+      <span className="flex items-center gap-1.5">
+        <span className="inline-block w-4 h-0.5 rounded" style={{ background: SVG_COLORS.critical, opacity: 0.7 }} />
+        <span className="text-white/40">{t("graphExplorer.legendConsolidation", { defaultValue: "Consolidation" })}</span>
+      </span>
     </div>
   );
 

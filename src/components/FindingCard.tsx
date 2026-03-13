@@ -5,9 +5,12 @@ import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { ChevronDown } from "lucide-react";
 import { BookOpen } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import type { Finding, Severity, ConfidenceLevel } from "@/lib/types";
 import { WalletIcon } from "@/components/ui/WalletIcon";
 import { Tooltip } from "@/components/ui/Tooltip";
+import { truncateId } from "@/lib/constants";
+import { formatSats } from "@/lib/format";
 
 /** Map finding IDs to relevant FAQ section anchors */
 const FINDING_LEARN_MORE: Record<string, { faqId: string; labelKey: string; labelDefault: string }> = {
@@ -32,6 +35,8 @@ interface FindingCardProps {
   defaultExpanded?: boolean;
   /** Optional badge label (e.g., "Chain") shown next to severity. */
   badge?: string;
+  /** Callback when user clicks a txid link (e.g., to analyze a child tx). */
+  onTxClick?: (txid: string) => void;
 }
 
 const SEVERITY_STYLES: Record<
@@ -87,8 +92,8 @@ const SEVERITY_TOOLTIPS: Record<Severity, string> = {
   good: "Positive privacy property - helps protect your privacy",
 };
 
-export const FindingCard = memo(function FindingCard({ finding, index, defaultExpanded = false, badge }: FindingCardProps) {
-  const { t } = useTranslation();
+export const FindingCard = memo(function FindingCard({ finding, index, defaultExpanded = false, badge, onTxClick }: FindingCardProps) {
+  const { t, i18n } = useTranslation();
   const [expanded, setExpanded] = useState(defaultExpanded);
   const reducedMotion = useReducedMotion();
   const style = SEVERITY_STYLES[finding.severity];
@@ -102,7 +107,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-50px" }}
       transition={{ delay: index * 0.05, duration: 0.25 }}
-      className={`glass rounded-lg overflow-hidden border-l-2 ${style.border} ${style.glow ?? ""}`}
+      className={`glass rounded-lg border-l-2 ${style.border} ${style.glow ?? ""}`}
       data-finding-id={finding.id}
       role="article"
       aria-label={`${severityLabel} finding: ${t(findingKey(finding.id, "title", finding.params), { ...finding.params, defaultValue: finding.title })}`}
@@ -168,6 +173,14 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
                   </p>
                 </div>
               )}
+              {/* Consolidation group table for chain-post-coinjoin-consolidation */}
+              {finding.id === "chain-post-coinjoin-consolidation" && finding.params?._consolidationGroups && (
+                <ConsolidationTable
+                  groupsJson={String(finding.params._consolidationGroups)}
+                  lang={i18n.language}
+                  onTxClick={onTxClick}
+                />
+              )}
               <div className="flex items-center justify-between">
                 {FINDING_LEARN_MORE[finding.id] && (
                   <a
@@ -203,3 +216,71 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
     </motion.div>
   );
 });
+
+// ─── Consolidation detail table ─────────────────────────────────────────
+
+interface ConsolidationGroup {
+  childTxid: string;
+  outputs: { index: number; value: number }[];
+}
+
+function ConsolidationTable({
+  groupsJson,
+  lang,
+  onTxClick,
+}: {
+  groupsJson: string;
+  lang: string;
+  onTxClick?: (txid: string) => void;
+}) {
+  const { t } = useTranslation();
+  let groups: ConsolidationGroup[];
+  try {
+    groups = JSON.parse(groupsJson) as ConsolidationGroup[];
+  } catch {
+    return null;
+  }
+  if (groups.length === 0) return null;
+
+  return (
+    <div className="rounded-md border border-severity-critical/20 overflow-hidden">
+      <div className="px-3 py-1.5 bg-severity-critical/8 border-b border-severity-critical/15">
+        <p className="text-xs font-semibold text-severity-critical">
+          {t("finding.consolidationDetail", { defaultValue: "Re-linked outputs" })}
+        </p>
+      </div>
+      <div className="divide-y divide-card-border">
+        {groups.map((g) => (
+          <div key={g.childTxid} className="px-3 py-2 space-y-1.5">
+            {/* Child tx link */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] uppercase tracking-wider text-muted">
+                {t("finding.spentIn", { defaultValue: "Spent together in" })}
+              </span>
+              {onTxClick ? (
+                <button
+                  onClick={() => onTxClick(g.childTxid)}
+                  className="font-mono text-xs text-bitcoin hover:text-bitcoin-hover transition-colors cursor-pointer inline-flex items-center gap-1"
+                >
+                  {truncateId(g.childTxid, 8)}
+                  <ExternalLink size={10} className="opacity-50" />
+                </button>
+              ) : (
+                <span className="font-mono text-xs text-foreground/70">{truncateId(g.childTxid, 8)}</span>
+              )}
+            </div>
+            {/* Output list */}
+            <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs">
+              {g.outputs.map((o) => (
+                <div key={o.index} className="contents">
+                  <span className="font-mono text-severity-critical/80">#{o.index}</span>
+                  <span className="text-muted">{formatSats(o.value, lang)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

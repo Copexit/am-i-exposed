@@ -17,7 +17,8 @@ export function AnalysisSettingsPanel() {
     analysisSettings.skipLargeClusters !== ANALYSIS_DEFAULTS.skipLargeClusters ||
     analysisSettings.skipCoinJoins !== ANALYSIS_DEFAULTS.skipCoinJoins ||
     analysisSettings.walletGapLimit !== ANALYSIS_DEFAULTS.walletGapLimit ||
-    analysisSettings.enableCache !== ANALYSIS_DEFAULTS.enableCache;
+    analysisSettings.enableCache !== ANALYSIS_DEFAULTS.enableCache ||
+    analysisSettings.boltzmannTimeout !== ANALYSIS_DEFAULTS.boltzmannTimeout;
 
   return (
     <>
@@ -151,6 +152,31 @@ export function AnalysisSettingsPanel() {
               <span>1</span>
               <span>50</span>
               <span>100</span>
+            </div>
+          </div>
+
+          {/* Boltzmann timeout slider */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label htmlFor="analysis-boltzmann-timeout" className="text-xs text-muted">
+                {t("settings.boltzmannTimeout", { defaultValue: "Boltzmann timeout (seconds)" })}
+              </label>
+              <span className="text-xs font-mono text-foreground tabular-nums">{analysisSettings.boltzmannTimeout}s</span>
+            </div>
+            <input
+              id="analysis-boltzmann-timeout"
+              type="range"
+              min={5}
+              max={120}
+              step={5}
+              value={analysisSettings.boltzmannTimeout}
+              onChange={(e) => updateAnalysis({ boltzmannTimeout: Number(e.target.value) })}
+              className="w-full h-1.5 bg-surface-inset rounded-full appearance-none cursor-pointer accent-bitcoin"
+            />
+            <div className="flex justify-between text-[10px] text-muted/60 mt-0.5">
+              <span>5s</span>
+              <span>60s</span>
+              <span>120s</span>
             </div>
           </div>
 

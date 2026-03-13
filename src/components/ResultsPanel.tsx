@@ -25,6 +25,7 @@ const CoinJoinStructure = lazy(() => import("./viz/CoinJoinStructure").then(m =>
 const FingerprintTimeline = lazy(() => import("./viz/FingerprintTimeline").then(m => ({ default: m.FingerprintTimeline })));
 const GraphExplorerPanel = lazy(() => import("./GraphExplorerPanel").then(m => ({ default: m.GraphExplorerPanel })));
 const TaintPathDiagram = lazy(() => import("./viz/TaintPathDiagram").then(m => ({ default: m.TaintPathDiagram })));
+const LinkabilityHeatmap = lazy(() => import("./viz/LinkabilityHeatmap").then(m => ({ default: m.LinkabilityHeatmap })));
 import { CHAIN_FINDING_IDS } from "./ChainAnalysisPanel";
 import { FindingsTier } from "./FindingsTier";
 import { ChartErrorBoundary } from "./ui/ChartErrorBoundary";
@@ -570,6 +571,7 @@ export const ResultsPanel = memo(function ResultsPanel({
                 index={i}
                 defaultExpanded={finding.severity === "critical" || (result.grade === "F" && finding.severity === "high")}
                 badge={CHAIN_FINDING_IDS.has(finding.id) ? t("results.chainBadge", { defaultValue: "Chain" }) : undefined}
+                onTxClick={onScan}
               />
             ))}
           </div>
@@ -584,6 +586,7 @@ export const ResultsPanel = memo(function ResultsPanel({
           defaultOpen={issues.length === 0}
           grade={result.grade}
           delay={0.25}
+          onTxClick={onScan}
         />
       )}
 
@@ -595,6 +598,7 @@ export const ResultsPanel = memo(function ResultsPanel({
           defaultOpen={issues.length === 0 && details.length === 0}
           grade={result.grade}
           delay={0.3}
+          onTxClick={onScan}
         />
       )}
 
@@ -621,7 +625,16 @@ export const ResultsPanel = memo(function ResultsPanel({
             </ChartErrorBoundary>
           </motion.div>
           {txData && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.44 }} className="w-full">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.43 }} className="w-full">
+              <ChartErrorBoundary>
+                <Suspense fallback={null}>
+                  <LinkabilityHeatmap tx={txData} />
+                </Suspense>
+              </ChartErrorBoundary>
+            </motion.div>
+          )}
+          {txData && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.45 }} className="w-full">
               <ChartErrorBoundary>
                 <Suspense fallback={null}>
                   <GraphExplorerPanel tx={txData} findings={result.findings} onTxClick={onScan} backwardLayers={backwardLayers} forwardLayers={forwardLayers} outspends={outspends} />

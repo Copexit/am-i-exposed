@@ -1,5 +1,7 @@
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
+import { truncateId } from "@/lib/constants";
+import { fmtN } from "@/lib/format";
 
 /**
  * CoinJoin break detection - evaluate post-mix spending quality.
@@ -54,13 +56,22 @@ export function evaluateCoinJoinQuality(
 
   // Check 1: Single UTXO per transaction (no consolidation of CJ outputs)
   const multipleCjInputs = coinJoinInputIndices.length > 1;
-  const sameCjParent = checkSameCoinJoinParent(tx, coinJoinInputIndices);
-  if (multipleCjInputs && sameCjParent) {
+  const consolidationGroups = findConsolidationGroups(tx, coinJoinInputIndices);
+  if (multipleCjInputs && consolidationGroups.size > 0) {
+    // Build detailed description showing which inputs come from which parent CoinJoin
+    const groupDetails: string[] = [];
+    for (const [parentTxid, indices] of consolidationGroups) {
+      const inputList = indices.map((i) => {
+        const value = tx.vin[i]?.prevout?.value ?? 0;
+        return `#${i} (${fmtN(value)} sats)`;
+      }).join(", ");
+      groupDetails.push(`inputs ${inputList} from CoinJoin ${truncateId(parentTxid, 6)}`);
+    }
     checks.push({
       id: "no-consolidation",
       passed: false,
       weight: -15,
-      description: "Multiple CoinJoin outputs from the same mix were consolidated",
+      description: "CoinJoin outputs from the same mix were consolidated: " + groupDetails.join("; "),
     });
   } else if (coinJoinInputIndices.length === 1) {
     checks.push({
@@ -241,18 +252,32 @@ export function evaluateCoinJoinQuality(
 }
 
 /**
- * Check if multiple CoinJoin inputs came from the same CoinJoin transaction.
- * This is the worst case - consolidating outputs from the same mix.
+ * Find groups of CoinJoin inputs that come from the same parent transaction.
+ * Any parent contributing 2+ inputs represents consolidation of CoinJoin outputs.
+ * Returns Map<parentTxid, inputIndices[]> for groups with 2+ inputs.
  */
-function checkSameCoinJoinParent(
+function findConsolidationGroups(
   tx: MempoolTransaction,
   coinJoinInputIndices: number[],
-): boolean {
-  if (coinJoinInputIndices.length < 2) return false;
+): Map<string, number[]> {
+  if (coinJoinInputIndices.length < 2) return new Map();
 
-  const parentTxids = coinJoinInputIndices.map((idx) => tx.vin[idx]?.txid).filter(Boolean);
-  const uniqueParents = new Set(parentTxids);
+  // Group CoinJoin inputs by parent txid
+  const groups = new Map<string, number[]>();
+  for (const idx of coinJoinInputIndices) {
+    const parentTxid = tx.vin[idx]?.txid;
+    if (!parentTxid) continue;
+    const group = groups.get(parentTxid) ?? [];
+    group.push(idx);
+    groups.set(parentTxid, group);
+  }
 
-  // If all CoinJoin inputs come from the same parent, it's consolidation
-  return uniqueParents.size === 1 && parentTxids.length >= 2;
+  // Filter to parents with 2+ inputs (actual consolidation)
+  const consolidated = new Map<string, number[]>();
+  for (const [txid, indices] of groups) {
+    if (indices.length >= 2) {
+      consolidated.set(txid, indices);
+    }
+  }
+  return consolidated;
 }

@@ -95,33 +95,89 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
   if (equalOutput) {
     const { count, denomination, total } = equalOutput;
 
-    // Higher confidence with more equal outputs
-    const impact = count >= 10 ? 25 : count >= 5 ? 20 : 15;
+    // Count denomination tiers (groups with 2+ equal outputs) to distinguish
+    // JoinMarket (single tier + change) from WabiSabi (multiple tiers).
+    const allOutputCounts = new Map<number, number>();
+    for (const o of spendableOutputs) {
+      allOutputCounts.set(o.value, (allOutputCounts.get(o.value) ?? 0) + 1);
+    }
+    const denomTiers = [...allOutputCounts.entries()].filter(([, c]) => c >= 2);
+    const isSingleDenom = denomTiers.length === 1;
 
-    const label = isWabiSabi
-      ? `WabiSabi CoinJoin: ${count} equal outputs across ${total} total`
-      : `Likely CoinJoin: ${count} equal outputs of ${formatBtc(denomination)}`;
+    if (isSingleDenom && isWabiSabi && count < total) {
+      // Large JoinMarket CoinJoin: 10+ in/out, single denomination + change outputs.
+      // JoinMarket uses one denomination for all mixing participants.
+      // WabiSabi uses multiple denomination tiers - that path is handled below.
+      // Require count < total so all-equal-output CoinJoins stay generic.
+      const changeCount = spendableOutputs.filter((o) => o.value !== denomination).length;
+      const isChangeless = changeCount === 0;
 
-    findings.push({
-      id: "h4-coinjoin",
-      severity: "good",
-      confidence: "high",
-      title: label,
-      params: { count, denomination: formatBtc(denomination), total, vin: tx.vin.length, isWabiSabi: isWabiSabi ? 1 : 0 },
-      description:
-        (isWabiSabi
-          ? `This transaction has ${tx.vin.length} inputs and ${total} outputs, consistent with a WabiSabi (Wasabi Wallet 2.0) CoinJoin. `
-          : "") +
-        `${count} of ${total} outputs have the same value (${formatBtc(denomination)}). ` +
-        "This pattern is characteristic of collaborative CoinJoin transactions that break the " +
-        "link between inputs and outputs, significantly improving privacy.",
-      recommendation:
-        (isWabiSabi
-          ? "WabiSabi CoinJoins provide excellent privacy through large anonymity sets and multiple denomination tiers. Continue using CoinJoin for maximum privacy. "
-          : "CoinJoin is a strong privacy technique. For maximum benefit, ensure you are using a reputable CoinJoin coordinator and consider multiple rounds. ") +
-        EXCHANGE_WARNING,
-      scoreImpact: impact,
-    });
+      // Verify equal outputs go to distinct addresses
+      const equalAddresses = new Set<string>();
+      for (const o of spendableOutputs) {
+        if (o.value === denomination && o.scriptpubkey_address) {
+          equalAddresses.add(o.scriptpubkey_address);
+        }
+      }
+
+      findings.push({
+        id: "h4-joinmarket",
+        severity: "good",
+        confidence: equalAddresses.size >= count ? "high" : "medium",
+        title: `JoinMarket CoinJoin: ${count} equal outputs of ${formatBtc(denomination)}`,
+        params: {
+          count,
+          denomination: formatBtc(denomination),
+          vin: tx.vin.length,
+          vout: total,
+          takerChangeIdentifiable: isChangeless ? 0 : 1,
+          takerChangeCount: changeCount,
+        },
+        description:
+          `This transaction has ${tx.vin.length} inputs and ${total} outputs with ${count} outputs at the same value (${formatBtc(denomination)}), ` +
+          "consistent with a JoinMarket CoinJoin. JoinMarket uses a single denomination for all mixing " +
+          "participants, with separate change outputs for each maker and the taker. " +
+          (isChangeless
+            ? "This is a changeless CoinJoin - no participant change is identifiable, providing stronger privacy."
+            : `The ${changeCount} non-equal output${changeCount > 1 ? "s are" : " is"} likely maker/taker change, linking participants to specific inputs.`),
+        recommendation:
+          "JoinMarket provides good privacy through its decentralized maker/taker model. " +
+          (isChangeless
+            ? "This changeless CoinJoin is the ideal pattern. "
+            : "Change outputs should be managed carefully - never consolidate them with other mixed outputs. ") +
+          "For stronger privacy, consider multiple rounds of mixing. " +
+          EXCHANGE_WARNING,
+        scoreImpact: count >= 10 ? 25 : 20,
+      });
+    } else {
+      // Multiple denomination tiers = WabiSabi, or non-large generic CoinJoin
+      const impact = count >= 10 ? 25 : count >= 5 ? 20 : 15;
+
+      const label = isWabiSabi
+        ? `WabiSabi CoinJoin: ${count} equal outputs across ${total} total`
+        : `Likely CoinJoin: ${count} equal outputs of ${formatBtc(denomination)}`;
+
+      findings.push({
+        id: "h4-coinjoin",
+        severity: "good",
+        confidence: "high",
+        title: label,
+        params: { count, denomination: formatBtc(denomination), total, vin: tx.vin.length, isWabiSabi: isWabiSabi ? 1 : 0 },
+        description:
+          (isWabiSabi
+            ? `This transaction has ${tx.vin.length} inputs and ${total} outputs, consistent with a WabiSabi (Wasabi Wallet 2.0) CoinJoin. `
+            : "") +
+          `${count} of ${total} outputs have the same value (${formatBtc(denomination)}). ` +
+          "This pattern is characteristic of collaborative CoinJoin transactions that break the " +
+          "link between inputs and outputs, significantly improving privacy.",
+        recommendation:
+          (isWabiSabi
+            ? "WabiSabi CoinJoins provide excellent privacy through large anonymity sets and multiple denomination tiers. Continue using CoinJoin for maximum privacy. "
+            : "CoinJoin is a strong privacy technique. For maximum benefit, ensure you are using a reputable CoinJoin coordinator and consider multiple rounds. ") +
+          EXCHANGE_WARNING,
+        scoreImpact: impact,
+      });
+    }
   }
 
   // Check for Stonewall pattern: steganographic CoinJoin (Samourai/Ashigaru Wallet)

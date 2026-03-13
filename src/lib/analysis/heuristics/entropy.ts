@@ -142,8 +142,18 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
       }
     }
   } else {
-    entropyBits = estimateEntropy(inputs, outputs);
-    method = "multi-tier permutation estimate";
+    // Large mixed-value transaction.
+    // Check for single-denomination CoinJoin (JoinMarket) before multi-tier estimate.
+    // JoinMarket has one group of equal outputs + unique change outputs.
+    // Use Boltzmann on just the equal outputs (change doesn't contribute to mixing entropy).
+    const singleDenomResult = trySingleDenominationBoltzmann(outputs);
+    if (singleDenomResult !== null) {
+      entropyBits = singleDenomResult.entropy;
+      method = singleDenomResult.method;
+    } else {
+      entropyBits = estimateEntropy(inputs, outputs);
+      method = "multi-tier permutation estimate";
+    }
   }
 
   // Cap displayed entropy to avoid misleadingly large values from estimation.
@@ -512,6 +522,58 @@ function countValidMappings(inputs: number[], outputs: number[]): { count: numbe
   count = Math.round(count / duplicateFactor);
 
   return { count: Math.max(count, 1), truncated: iterations > limit };
+}
+
+/**
+ * Single-denomination Boltzmann for JoinMarket-style CoinJoins.
+ *
+ * If outputs have one dominant group of equal values (5+) plus unique change
+ * outputs, compute Boltzmann entropy using only the equal-valued outputs.
+ *
+ * In JoinMarket, each participant contributes one or more inputs to fund one
+ * equal output. The number of mixing participants = number of equal outputs = n.
+ * Change outputs belong to individual makers/taker and don't contribute to
+ * the mixing ambiguity.
+ *
+ * Returns null if the pattern doesn't match (multiple tiers = WabiSabi).
+ */
+function trySingleDenominationBoltzmann(
+  outputs: number[],
+): { entropy: number; method: string } | null {
+  if (outputs.length < 5) return null;
+
+  const counts = new Map<number, number>();
+  for (const v of outputs) {
+    counts.set(v, (counts.get(v) ?? 0) + 1);
+  }
+
+  // Find the dominant denomination (most common value with 5+ occurrences)
+  let bestValue = 0;
+  let bestCount = 0;
+  for (const [value, count] of counts) {
+    if (count >= 5 && count > bestCount) {
+      bestCount = count;
+      bestValue = value;
+    }
+  }
+
+  if (bestCount < 5 || bestValue === 0) return null;
+
+  // Must be the ONLY tier - all other outputs are unique (change)
+  const otherTiers = [...counts.entries()].filter(([v, c]) => v !== bestValue && c >= 2);
+  if (otherTiers.length > 0) return null; // Multiple tiers = WabiSabi
+
+  // Single denomination with n equal outputs: use Boltzmann partition
+  const n = bestCount;
+
+  if (n <= 50) {
+    const count = boltzmannEqualOutputs(n);
+    const entropy = count > 1 ? Math.log2(count) : 0;
+    return { entropy, method: "Boltzmann partition" };
+  }
+
+  const entropy = estimateBoltzmannEntropy(n);
+  return { entropy, method: "Boltzmann estimate" };
 }
 
 /**

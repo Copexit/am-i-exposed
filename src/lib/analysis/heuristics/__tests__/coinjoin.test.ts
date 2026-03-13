@@ -129,7 +129,7 @@ describe("analyzeCoinJoin", () => {
     expect(findings.find((f) => f.id === "h4-exchange-flagging")).toBeDefined();
   });
 
-  it("detects equal-output CoinJoin with 10+ equal outputs, impact +25", () => {
+  it("detects large single-denomination CoinJoin as JoinMarket, impact +25", () => {
     const tx = makeTx({
       vin: makeDistinctVins(10),
       vout: [
@@ -138,9 +138,10 @@ describe("analyzeCoinJoin", () => {
       ],
     });
     const { findings } = analyzeCoinJoin(tx);
-    const cj = findings.find((f) => f.id === "h4-coinjoin");
-    expect(cj).toBeDefined();
-    expect(cj!.scoreImpact).toBe(25);
+    // Single denomination (10 equal) + 1 change output = JoinMarket pattern
+    const jm = findings.find((f) => f.id === "h4-joinmarket");
+    expect(jm).toBeDefined();
+    expect(jm!.scoreImpact).toBe(25);
   });
 
   // ── JoinMarket ───────────────────────────────────────────────────────
