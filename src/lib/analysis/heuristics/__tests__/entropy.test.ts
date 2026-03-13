@@ -5,7 +5,7 @@ import { makeTx, makeVin, makeCoinbaseVin, makeVout, makeOpReturnVout, resetAddr
 beforeEach(() => resetAddrCounter());
 
 describe("analyzeEntropy", () => {
-  it("detects 1-in-1-out as zero entropy, impact -5", () => {
+  it("detects 1-in-1-out as zero entropy, impact 0 (normal sweep)", () => {
     const tx = makeTx({
       vin: [makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qtest1", value: 50_000 } })],
       vout: [makeVout({ value: 49_000 })],
@@ -13,7 +13,7 @@ describe("analyzeEntropy", () => {
     const { findings } = analyzeEntropy(tx);
     expect(findings).toHaveLength(1);
     expect(findings[0].id).toBe("h5-zero-entropy");
-    expect(findings[0].scoreImpact).toBe(-5);
+    expect(findings[0].scoreImpact).toBe(0);
     expect(findings[0].severity).toBe("low");
   });
 

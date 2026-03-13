@@ -5,12 +5,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
-import { Menu, X, BookOpen, HelpCircle, FileText, Info } from "lucide-react";
+import { Menu, X, BookOpen, HelpCircle, FileText, Info, Shield } from "lucide-react";
 import { ConnectionBadge } from "./ConnectionBadge";
 import { ApiSettings } from "./ApiSettings";
 import { useDevMode } from "@/hooks/useDevMode";
 
 const NAV_ITEMS = [
+  { href: "/guide/", labelKey: "common.guide", labelDefault: "Guide", icon: Shield },
   { href: "/methodology/", labelKey: "common.methodology", labelDefault: "Methodology", icon: FileText },
   { href: "/faq/", labelKey: "common.faq", labelDefault: "FAQ", icon: HelpCircle },
   { href: "/glossary/", labelKey: "common.glossary", labelDefault: "Glossary", icon: BookOpen },

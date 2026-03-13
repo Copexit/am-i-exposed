@@ -5,72 +5,21 @@ import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ArrowDown, ExternalLink } from "lucide-react";
 import { WalletIcon } from "@/components/ui/WalletIcon";
+import { RECOVERY_STEPS, RECOVERY_TOOLS } from "@/data/guide/recovery";
 
-interface Step {
-  titleKey: string;
-  titleDefault: string;
-  descKey: string;
-  descDefault: string;
-  severity: "critical" | "high" | "medium" | "good";
-}
-
-const RECOVERY_STEPS: Step[] = [
-  {
-    titleKey: "recoveryFlow.step1Title",
-    titleDefault: "Move funds to a privacy-focused wallet",
-    descKey: "recoveryFlow.step1Desc",
-    descDefault: "Transfer your compromised UTXOs to Sparrow Wallet or Ashigaru. These wallets give you coin control and proper change address management.",
-    severity: "critical",
-  },
-  {
-    titleKey: "recoveryFlow.step2Title",
-    titleDefault: "CoinJoin your UTXOs",
-    descKey: "recoveryFlow.step2Desc",
-    descDefault: "Run your funds through Whirlpool (Sparrow/Ashigaru) or JoinMarket to break the transaction graph. Each CoinJoin cycle adds anonymity set members.",
-    severity: "high",
-  },
-  {
-    titleKey: "recoveryFlow.step3Title",
-    titleDefault: "Wait several blocks before spending",
-    descKey: "recoveryFlow.step3Desc",
-    descDefault: "After CoinJoin, let the outputs sit for at least 10-20 blocks. Spending immediately after mixing is a timing correlation signal that weakens your privacy.",
-    severity: "medium",
-  },
-  {
-    titleKey: "recoveryFlow.step4Title",
-    titleDefault: "Spend with coin control - one UTXO per transaction",
-    descKey: "recoveryFlow.step4Desc",
-    descDefault: "Select individual UTXOs for each payment using coin control. Never combine multiple post-mix UTXOs in a single transaction - that undoes the CoinJoin.",
-    severity: "medium",
-  },
-  {
-    titleKey: "recoveryFlow.step5Title",
-    titleDefault: "Send to a fresh address",
-    descKey: "recoveryFlow.step5Desc",
-    descDefault: "Always send to a fresh, never-used address from the receiver. If you control the receiving wallet, generate a new address for each receive.",
-    severity: "good",
-  },
-];
-
-const SEVERITY_COLORS = {
+const SEVERITY_COLORS: Record<string, string> = {
   critical: "border-severity-critical/40 bg-severity-critical/5",
   high: "border-severity-high/40 bg-severity-high/5",
   medium: "border-severity-medium/40 bg-severity-medium/5",
   good: "border-severity-good/40 bg-severity-good/5",
 };
 
-const SEVERITY_DOT = {
+const SEVERITY_DOT: Record<string, string> = {
   critical: "bg-severity-critical",
   high: "bg-severity-high",
   medium: "bg-severity-medium",
   good: "bg-severity-good",
 };
-
-const TOOLS = [
-  { name: "Sparrow Wallet", url: "https://sparrowwallet.com" },
-  { name: "Ashigaru", url: "https://ashigaru.rs" },
-  { name: "UnstoppableSwap", url: "https://unstoppableswap.net" },
-];
 
 interface RecoveryFlowProps {
   /** Only show for poor grades */
@@ -155,7 +104,7 @@ export function RecoveryFlow({ grade }: RecoveryFlowProps) {
 
               {/* Tools */}
               <div className="flex flex-wrap gap-2 pt-2">
-                {TOOLS.map((tool) => (
+                {RECOVERY_TOOLS.map((tool) => (
                   <a
                     key={tool.name}
                     href={tool.url}

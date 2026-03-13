@@ -543,29 +543,24 @@ describe("cross-heuristic: deterministic cap enforcement", () => {
     expect(totalImpact).toBe(-46);
   });
 
-  it("adds compound-deterministic-cap when h2-sweep fires", async () => {
+  it("does NOT add compound-deterministic-cap for h2-sweep (sweeps are normal practice)", async () => {
     const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
 
     const findings: import("@/lib/types").Finding[] = [
       {
         id: "h2-sweep",
-        severity: "critical",
+        severity: "low",
         title: "Sweep transaction",
         description: "",
         recommendation: "",
-        scoreImpact: -10,
+        scoreImpact: 0,
       },
     ];
 
     applyCrossHeuristicRulesForTest(findings);
 
     const cap = findings.find((f) => f.id === "compound-deterministic-cap");
-    expect(cap).toBeDefined();
-    // -10 existing + cap should = -46
-    expect(cap!.scoreImpact).toBe(-36);
-
-    const totalImpact = findings.reduce((sum, f) => sum + f.scoreImpact, 0);
-    expect(totalImpact).toBe(-46);
+    expect(cap).toBeUndefined();
   });
 
   it("does NOT add cap finding when total impact already exceeds -46", async () => {

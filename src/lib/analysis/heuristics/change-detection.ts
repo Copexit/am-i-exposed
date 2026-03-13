@@ -40,23 +40,25 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
     const outputAddr = spendableOutputs[0].scriptpubkey_address;
     // Skip if it's sending to the same address (consolidation, already caught by self-send)
     if (inputAddr !== outputAddr) {
+      // Sweep = 1-in, 1-out. No consolidation (single input), no change output.
+      // This is good practice for: wallet migration (UTXO to UTXO), exact-amount
+      // payments without change, selling/swapping a complete UTXO.
       findings.push({
         id: "h2-sweep",
-        severity: "critical",
+        severity: "low",
         confidence: "deterministic",
-        title: "Sweep transaction - 100% deterministic link",
+        title: "Sweep transaction - single UTXO fully spent",
         params: {
           inputAddress: inputAddr ?? "",
           outputAddress: outputAddr ?? "",
         },
         description:
-          "This transaction has exactly 1 input and 1 output (plus fee). " +
-          "There is no change output, meaning the entire input is sent to the output. " +
-          "Entropy is 0 bits - the link between sender and receiver is completely deterministic.",
+          "This transaction spends a single input entirely to one output (plus fee). " +
+          "No coins are consolidated and no change is created. " +
+          "This is standard practice for wallet migration, exact-amount payments, or UTXO swaps.",
         recommendation:
-          "Avoid full-sweep transactions when privacy is needed. Consider splitting funds " +
-          "across multiple transactions or using CoinJoin before sweeping.",
-        scoreImpact: -20,
+          "Sweep transactions are a normal spending pattern. No privacy action needed.",
+        scoreImpact: 0,
       });
     }
   }
