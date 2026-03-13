@@ -34,7 +34,8 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
   // Coinbase transactions have no privacy implications
   if (inputs.length === 0) return { findings: [] };
 
-  // Simple 1-in-1-out: zero entropy
+  // Simple 1-in-1-out: zero entropy, but this is a normal sweep/exact payment
+  // No consolidation, no change - not a privacy concern per se.
   if (inputs.length === 1 && outputs.length === 1) {
     return {
       findings: [
@@ -44,10 +45,12 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
           confidence: "deterministic",
           title: "Zero transaction entropy",
           description:
-            "This transaction has a single input and single output, meaning there is only one possible interpretation. No ambiguity exists about the flow of funds.",
+            "This transaction has a single input and single output, meaning there is only one possible interpretation. " +
+            "This is typical of sweep transactions, exact-amount payments, or wallet migrations.",
           recommendation:
-            "Transactions with more inputs and outputs naturally have higher entropy. When possible, spend exact amounts to avoid change outputs. CoinJoin transactions maximize entropy but may be flagged by some exchanges.",
-          scoreImpact: -5,
+            "Single-input, single-output transactions are a normal spending pattern. " +
+            "For future payments, collaborative transactions (PayJoin/Stowaway) or batch payments increase entropy.",
+          scoreImpact: 0,
         },
       ],
     };

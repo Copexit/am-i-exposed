@@ -27,12 +27,10 @@ const ChainAnalysisPanel = lazy(() => import("./ChainAnalysisPanel").then(m => (
 const GraphExplorerPanel = lazy(() => import("./GraphExplorerPanel").then(m => ({ default: m.GraphExplorerPanel })));
 const TaintPathDiagram = lazy(() => import("./viz/TaintPathDiagram").then(m => ({ default: m.TaintPathDiagram })));
 import { ChartErrorBoundary } from "./ui/ChartErrorBoundary";
+import { PrimaryRecommendation } from "./PrimaryRecommendation";
 import { Remediation } from "./Remediation";
-import { WalletGuide } from "./WalletGuide";
 import { RecoveryFlow } from "./RecoveryFlow";
 import { CommonMistakes } from "./CommonMistakes";
-import { PrivacyPathways } from "./PrivacyPathways";
-import { MaintenanceGuide } from "./MaintenanceGuide";
 import { AnalystView } from "./AnalystView";
 import { CexRiskPanel } from "./CexRiskPanel";
 import { ExchangeWarningPanel } from "./ExchangeWarningPanel";
@@ -268,9 +266,6 @@ export const ResultsPanel = memo(function ResultsPanel({
   const isCoinJoin = result.findings.some(isCoinJoinFinding);
   const fingerprintFinding = result.findings.find((f) => f.id === "h11-wallet-fingerprint");
   const detectedWallet = fingerprintFinding?.params?.walletGuess as string | undefined;
-  const walletCanCoinJoin = detectedWallet
-    ? /sparrow|ashigaru|wasabi/i.test(detectedWallet)
-    : undefined;
   const [queryCopied, setQueryCopied] = useState(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(copyTimerRef.current), []);
@@ -526,26 +521,24 @@ export const ResultsPanel = memo(function ResultsPanel({
       )}
       {findingsBlock}
 
-      {/* ZONE 7: Actionable */}
+      {/* ZONE 7: Actionable (scan-specific only - see docs/adr-recommendations.md) */}
       <div className="w-full flex flex-col gap-3 sm:gap-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.35 }} className="w-full">
-          <Remediation findings={result.findings} grade={result.grade} />
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.355 }} className="w-full">
-          <MaintenanceGuide grade={result.grade} findings={result.findings} />
+          <PrimaryRecommendation
+            findings={result.findings}
+            grade={result.grade}
+            walletGuess={detectedWallet ?? null}
+          />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.36 }} className="w-full">
-          <CommonMistakes findings={result.findings} grade={result.grade} />
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.365 }} className="w-full">
-          <PrivacyPathways grade={result.grade} findings={result.findings} />
+          <Remediation findings={result.findings} grade={result.grade} />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.37 }} className="w-full">
-          <RecoveryFlow grade={result.grade} />
+          <CommonMistakes findings={result.findings} grade={result.grade} />
         </motion.div>
-        {inputType === "txid" && (
+        {(result.grade === "D" || result.grade === "F") && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.38 }} className="w-full">
-            <WalletGuide detectedWallet={detectedWallet ?? null} canCoinJoin={walletCanCoinJoin} />
+            <RecoveryFlow grade={result.grade} />
           </motion.div>
         )}
         {isCoinJoin && (

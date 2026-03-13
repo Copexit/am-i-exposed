@@ -57,7 +57,7 @@ describe("golden test cases - transactions", () => {
     ["Whirlpool CoinJoin", whirlpoolTx, "A+", 100],
     ["WabiSabi CoinJoin", wabisabiTx, "A+", 100],
     ["JoinMarket CoinJoin", joinmarketTx, "B", 84],
-    ["Taproot + OP_RETURN", taprootOpReturnTx, "D", 49],
+    ["Taproot + OP_RETURN", taprootOpReturnTx, "C", 54],
     ["Bare multisig", bareMultisigTx, "F", 12],
     ["OP_RETURN charley loves heidi", opReturnCharleyTx, "D", 49],
     ["Simple legacy P2PKH", simpleLegacyTx, "C", 52],

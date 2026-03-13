@@ -184,7 +184,7 @@ describe("analyzeChangeDetection", () => {
 
   // ── Sweep detection ──────────────────────────────────────────────────
 
-  it("detects sweep (1-in, 1-out) with impact -20, severity critical", () => {
+  it("detects sweep (1-in, 1-out) with impact 0, severity low (normal practice)", () => {
     const tx = makeTx({
       vin: [makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qinput0000000000000000000000000000000000", value: 100_000 } })],
       vout: [makeVout({ value: 99_000, scriptpubkey_address: "bc1qout1a0000000000000000000000000000000000" })],
@@ -192,8 +192,8 @@ describe("analyzeChangeDetection", () => {
     const { findings } = analyzeChangeDetection(tx);
     const f = findings.find((f) => f.id === "h2-sweep");
     expect(f).toBeDefined();
-    expect(f!.scoreImpact).toBe(-20);
-    expect(f!.severity).toBe("critical");
+    expect(f!.scoreImpact).toBe(0);
+    expect(f!.severity).toBe("low");
   });
 
   it("does NOT detect sweep when input and output share the same address (self-transfer)", () => {

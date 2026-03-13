@@ -160,7 +160,7 @@ export const analyzeAddressReuse: AddressHeuristic = (address, _utxos, txs) => {
             { name: "Sparrow Wallet", url: "https://sparrowwallet.com" },
             { name: "Wasabi Wallet", url: "https://wasabiwallet.io" },
           ],
-          urgency: effectiveTxCount >= 10 ? "immediate" : "soon",
+          urgency: "immediate",
         },
       },
     ],

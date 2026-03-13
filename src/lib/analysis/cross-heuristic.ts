@@ -374,7 +374,8 @@ export function applyCrossHeuristicRules(findings: Finding[]): void {
   // leak and are already heavily penalized (-15 to -25).
   const DETERMINISTIC_FINDING_IDS = new Set([
     "h2-same-address-io",    // Same address in input and output (partial - change revealed)
-    "h2-sweep",              // 1-in, 1-out sweep (0 entropy, fully deterministic)
+    // h2-sweep removed: 1-in-1-out sweeps are normal practice (wallet migration,
+    // exact-amount payment, UTXO swap). No consolidation, no change = no privacy loss.
   ]);
 
   const hasDeterministicFinding = findings.some(
