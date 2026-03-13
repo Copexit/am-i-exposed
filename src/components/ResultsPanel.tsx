@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowLeft, ExternalLink, Copy, Check, Info, AlertTriangle, Search } from "lucide-react";
+import { ArrowLeft, ExternalLink, Copy, Check, Info, AlertTriangle, Search, ChevronRight } from "lucide-react";
 import { useState, useCallback, useRef, useEffect, lazy, Suspense, memo } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
@@ -23,9 +23,10 @@ const UtxoBubbleChart = lazy(() => import("./viz/UtxoBubbleChart").then(m => ({ 
 const PrivacyTimeline = lazy(() => import("./viz/PrivacyTimeline").then(m => ({ default: m.PrivacyTimeline })));
 const CoinJoinStructure = lazy(() => import("./viz/CoinJoinStructure").then(m => ({ default: m.CoinJoinStructure })));
 const FingerprintTimeline = lazy(() => import("./viz/FingerprintTimeline").then(m => ({ default: m.FingerprintTimeline })));
-const ChainAnalysisPanel = lazy(() => import("./ChainAnalysisPanel").then(m => ({ default: m.ChainAnalysisPanel })));
 const GraphExplorerPanel = lazy(() => import("./GraphExplorerPanel").then(m => ({ default: m.GraphExplorerPanel })));
 const TaintPathDiagram = lazy(() => import("./viz/TaintPathDiagram").then(m => ({ default: m.TaintPathDiagram })));
+import { CHAIN_FINDING_IDS } from "./ChainAnalysisPanel";
+import { FindingsTier } from "./FindingsTier";
 import { ChartErrorBoundary } from "./ui/ChartErrorBoundary";
 import { PrimaryRecommendation } from "./PrimaryRecommendation";
 import { Remediation } from "./Remediation";
@@ -37,7 +38,6 @@ import { ExchangeWarningPanel } from "./ExchangeWarningPanel";
 import { TxBreakdownPanel } from "./TxBreakdownPanel";
 import { ClusterPanel } from "./ClusterPanel";
 const TipJar = lazy(() => import("./TipJar").then(m => ({ default: m.TipJar })));
-const CrossPromo = lazy(() => import("./CrossPromo").then(m => ({ default: m.CrossPromo })));
 import { ShareButtons } from "./ShareButtons";
 import { ShareCardButton } from "./ShareCardButton";
 import { BookmarkButton } from "./BookmarkButton";
@@ -73,12 +73,12 @@ function ScoringExplainer({ isAddress }: { isAddress?: boolean }) {
   const baseScore = isAddress ? "93" : "70";
 
   return (
-    <div className="w-full">
+    <>
       <button
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         aria-controls="scoring-explainer-panel"
-        className="inline-flex items-center gap-1.5 text-xs text-foreground hover:text-foreground transition-colors cursor-pointer px-1 min-h-[44px]"
+        className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
       >
         <Info size={12} aria-hidden="true" />
         {t("results.howScoringWorks", { defaultValue: "How scoring works" })}
@@ -90,9 +90,9 @@ function ScoringExplainer({ isAddress }: { isAddress?: boolean }) {
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="overflow-hidden"
+            className="overflow-hidden col-span-full"
           >
-            <div id="scoring-explainer-panel" className="mt-2 bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed space-y-2">
+            <div id="scoring-explainer-panel" className="bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed space-y-2 mt-2">
               <p>
                 {t("results.scoringExplainerP1", { defaultValue: "Scores start at " })}<strong className="text-foreground">{baseScore}/100</strong>{t("results.scoringExplainerP1b", { defaultValue: " (baseline) and are adjusted by each heuristic finding. Negative findings (address reuse, change detection, round amounts) lower the score. Positive findings (CoinJoin, high entropy, anonymity sets) raise it." })}
               </p>
@@ -110,7 +110,7 @@ function ScoringExplainer({ isAddress }: { isAddress?: boolean }) {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </>
   );
 }
 const ADDRESS_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
@@ -148,6 +148,73 @@ function FindingSummary({ findings }: { findings: ScoringResult["findings"] }) {
         <span className="text-severity-good">{t("results.positiveCount", { count: good, defaultValue: "{{count}} positive" })}</span>
       )}
     </div>
+  );
+}
+
+function ScoreWaterfallCollapsible({
+  findings,
+  score,
+  grade,
+  baseScore,
+  onFindingClick,
+  delay,
+}: {
+  findings: ScoringResult["findings"];
+  score: number;
+  grade: ScoringResult["grade"];
+  baseScore: number;
+  onFindingClick: (id: string) => void;
+  delay: number;
+}) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay }}
+      className="w-full"
+    >
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-2 px-1 py-2 text-left group cursor-pointer"
+        aria-expanded={open}
+      >
+        <ChevronRight
+          size={14}
+          className={`text-muted transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+        />
+        <span className="text-sm font-medium text-muted uppercase tracking-wider">
+          {t("results.scoreImpact", { defaultValue: "Score impact" })}
+        </span>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="overflow-hidden"
+          >
+            <div className="pt-1">
+              <ChartErrorBoundary>
+                <Suspense fallback={null}>
+                  <ScoreWaterfall
+                    findings={findings}
+                    finalScore={score}
+                    grade={grade}
+                    baseScore={baseScore}
+                    onFindingClick={onFindingClick}
+                  />
+                </Suspense>
+              </ChartErrorBoundary>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 
@@ -291,26 +358,10 @@ export const ResultsPanel = memo(function ResultsPanel({
       && f.id !== "chain-trace-summary",
   );
 
-  const findingsBlock = visibleFindings.length > 0 && (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.3 }} className="w-full space-y-4">
-      <div className="flex items-center justify-between px-1">
-        <h2 className="text-base font-medium text-muted uppercase tracking-wider">
-          {t("results.findingsHeading", { count: visibleFindings.length, defaultValue: "Findings ({{count}})" })}
-        </h2>
-        <FindingSummary findings={visibleFindings} />
-      </div>
-      <div className="space-y-3">
-        {visibleFindings.map((finding, i) => (
-          <FindingCard
-            key={finding.id}
-            finding={finding}
-            index={i}
-            defaultExpanded={finding.severity === "critical" || (result.grade === "F" && finding.severity === "high")}
-          />
-        ))}
-      </div>
-    </motion.div>
-  );
+  // Split findings into three severity tiers for progressive disclosure
+  const issues = visibleFindings.filter((f) => f.severity === "critical" || f.severity === "high");
+  const details = visibleFindings.filter((f) => f.severity === "medium" || f.severity === "low");
+  const strengths = visibleFindings.filter((f) => f.severity === "good");
 
   return (
     <motion.div
@@ -319,7 +370,7 @@ export const ResultsPanel = memo(function ResultsPanel({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
       id="results-panel"
-      className="flex flex-col items-center gap-10 sm:gap-12 w-full max-w-3xl lg:max-w-5xl"
+      className="flex flex-col items-center gap-5 sm:gap-6 w-full max-w-3xl lg:max-w-5xl"
     >
       {/* ZONE 1: Inline Search + Navigation */}
       <div className="w-full space-y-3">
@@ -433,7 +484,6 @@ export const ResultsPanel = memo(function ResultsPanel({
             </motion.div>
           )}
 
-          {/* Summary sentiment (moved up from after findings) */}
           {result.grade !== "F" && (() => {
             const sentiment = getSummarySentiment(result.grade, result.findings);
             const colorMap = {
@@ -462,9 +512,28 @@ export const ResultsPanel = memo(function ResultsPanel({
         </div>
       )}
 
+      {/* ZONE 4: Recommendations (before tx structure for all grades) */}
+      <div className="w-full flex flex-col gap-3 sm:gap-4">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }} className="w-full">
+          <PrimaryRecommendation
+            findings={result.findings}
+            grade={result.grade}
+            walletGuess={detectedWallet ?? null}
+          />
+        </motion.div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.12 }} className="w-full">
+          <Remediation findings={result.findings} grade={result.grade} />
+        </motion.div>
+        {(result.grade === "D" || result.grade === "F") && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.14 }} className="w-full">
+            <RecoveryFlow grade={result.grade} />
+          </motion.div>
+        )}
+      </div>
+
       {/* ZONE 5: Transaction Structure (full width) */}
       {txData && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }} className="w-full">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.16 }} className="w-full">
           <ChartErrorBoundary>
             <Suspense fallback={null}>
               {result.findings.some((f) => isCoinJoinFinding(f) && f.scoreImpact >= 15) ? (
@@ -477,97 +546,107 @@ export const ResultsPanel = memo(function ResultsPanel({
         </motion.div>
       )}
 
-      {/* Chain Analysis (txid only - panel self-hides when no chain findings) */}
-      {inputType === "txid" && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.16 }} className="w-full">
-          <Suspense fallback={null}>
-            <ChainAnalysisPanel findings={result.findings} />
-          </Suspense>
-        </motion.div>
-      )}
-
-      {/* Taint Path Diagram - visualizes taint flow across hops */}
-      {inputType === "txid" && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.17 }} className="w-full">
-          <ChartErrorBoundary>
-            <Suspense fallback={null}>
-              <TaintPathDiagram findings={result.findings} onTxClick={onScan} />
-            </Suspense>
-          </ChartErrorBoundary>
-        </motion.div>
-      )}
-
-      {/* Graph Explorer - interactive tx DAG with (+) expand buttons */}
-      {txData && inputType === "txid" && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.18 }} className="w-full">
-          <ChartErrorBoundary>
-            <Suspense fallback={null}>
-              <GraphExplorerPanel tx={txData} findings={result.findings} onTxClick={onScan} backwardLayers={backwardLayers} forwardLayers={forwardLayers} outspends={outspends} />
-            </Suspense>
-          </ChartErrorBoundary>
-        </motion.div>
-      )}
-
-      {/* ZONE 6: Analysis */}
+      {/* Address summary (address only) */}
       {addressData && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }} className="w-full">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.16 }} className="w-full">
           <AddressSummary address={addressData} findings={result?.findings} />
         </motion.div>
       )}
-      {addressUtxos && addressUtxos.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.25 }} className="w-full">
-          <ChartErrorBoundary><Suspense fallback={null}><UtxoBubbleChart utxos={addressUtxos} /></Suspense></ChartErrorBoundary>
+
+      {/* ZONE 6: Issues (critical + high findings) */}
+      {issues.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }} className="w-full space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-base font-medium text-muted uppercase tracking-wider">
+              {t("results.findingsHeading", { count: visibleFindings.length, defaultValue: "Findings ({{count}})" })}
+            </h2>
+            <FindingSummary findings={visibleFindings} />
+          </div>
+          <div className="space-y-3">
+            {issues.map((finding, i) => (
+              <FindingCard
+                key={finding.id}
+                finding={finding}
+                index={i}
+                defaultExpanded={finding.severity === "critical" || (result.grade === "F" && finding.severity === "high")}
+                badge={CHAIN_FINDING_IDS.has(finding.id) ? t("results.chainBadge", { defaultValue: "Chain" }) : undefined}
+              />
+            ))}
+          </div>
         </motion.div>
       )}
-      {findingsBlock}
 
-      {/* ZONE 7: Actionable (scan-specific only - see docs/adr-recommendations.md) */}
-      <div className="w-full flex flex-col gap-3 sm:gap-4">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.35 }} className="w-full">
-          <PrimaryRecommendation
-            findings={result.findings}
-            grade={result.grade}
-            walletGuess={detectedWallet ?? null}
-          />
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.36 }} className="w-full">
-          <Remediation findings={result.findings} grade={result.grade} />
-        </motion.div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.37 }} className="w-full">
-          <CommonMistakes findings={result.findings} grade={result.grade} />
-        </motion.div>
-        {(result.grade === "D" || result.grade === "F") && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.38 }} className="w-full">
-            <RecoveryFlow grade={result.grade} />
+      {/* ZONE 7: Additional findings (medium + low, collapsed) */}
+      {details.length > 0 && (
+        <FindingsTier
+          findings={details}
+          label={t("results.additionalFindings", { count: details.length, defaultValue: "Additional findings ({{count}})" })}
+          defaultOpen={issues.length === 0}
+          grade={result.grade}
+          delay={0.25}
+        />
+      )}
+
+      {/* ZONE 8: Privacy strengths (good findings, collapsed) */}
+      {strengths.length > 0 && (
+        <FindingsTier
+          findings={strengths}
+          label={t("results.privacyStrengths", { count: strengths.length, defaultValue: "Privacy strengths ({{count}})" })}
+          defaultOpen={issues.length === 0 && details.length === 0}
+          grade={result.grade}
+          delay={0.3}
+        />
+      )}
+
+      {/* ZONE 9: Score Waterfall (collapsed by default, right after findings) */}
+      {result.findings.some((f) => f.scoreImpact !== 0) && (
+        <ScoreWaterfallCollapsible
+          findings={result.findings}
+          score={result.score}
+          grade={result.grade}
+          baseScore={addressData ? ADDRESS_BASE_SCORE : TX_BASE_SCORE}
+          onFindingClick={handleFindingClick}
+          delay={0.35}
+        />
+      )}
+
+      {/* ZONE 11: Deep Analysis (txid only) */}
+      {inputType === "txid" && (
+        <>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.42 }} className="w-full">
+            <ChartErrorBoundary>
+              <Suspense fallback={null}>
+                <TaintPathDiagram findings={result.findings} backwardLayers={backwardLayers} forwardLayers={forwardLayers} onTxClick={onScan} />
+              </Suspense>
+            </ChartErrorBoundary>
           </motion.div>
-        )}
-        {isCoinJoin && (
-          <>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.4 }} className="w-full">
-              <CexRiskPanel
-                query={query}
-                inputType={inputType}
-                txData={txData}
-                isCoinJoin={isCoinJoin}
-              />
+          {txData && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.44 }} className="w-full">
+              <ChartErrorBoundary>
+                <Suspense fallback={null}>
+                  <GraphExplorerPanel tx={txData} findings={result.findings} onTxClick={onScan} backwardLayers={backwardLayers} forwardLayers={forwardLayers} outspends={outspends} />
+                </Suspense>
+              </ChartErrorBoundary>
             </motion.div>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.45 }} className="w-full">
-              <ExchangeWarningPanel />
-            </motion.div>
-          </>
-        )}
-      </div>
+          )}
+        </>
+      )}
 
-      {/* ZONE 8: Address Deep-Dive (address only) */}
+      {/* ZONE 12: Address Deep-Dive (address only) */}
       {inputType === "address" && (
         <>
+          {addressUtxos && addressUtxos.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.42 }} className="w-full">
+              <ChartErrorBoundary><Suspense fallback={null}><UtxoBubbleChart utxos={addressUtxos} /></Suspense></ChartErrorBoundary>
+            </motion.div>
+          )}
           {txBreakdown && txBreakdown.length >= 2 && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.4 }} className="w-full">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.44 }} className="w-full">
               <ChartErrorBoundary><Suspense fallback={null}><PrivacyTimeline breakdown={txBreakdown} onScan={onScan} /></Suspense></ChartErrorBoundary>
             </motion.div>
           )}
           {addressTxs && addressTxs.length >= 3 && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.42 }} className="w-full">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.46 }} className="w-full">
               <GlowCard className="p-5 sm:p-6">
                 <Suspense fallback={null}>
                   <ChartErrorBoundary><FingerprintTimeline address={query} txs={addressTxs} onScan={onScan} /></ChartErrorBoundary>
@@ -576,7 +655,7 @@ export const ResultsPanel = memo(function ResultsPanel({
             </motion.div>
           )}
           {txBreakdown && txBreakdown.length > 0 && addressData && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.45 }} className="w-full">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.48 }} className="w-full">
               <TxBreakdownPanel
                 breakdown={txBreakdown}
                 targetAddress={query}
@@ -597,68 +676,56 @@ export const ResultsPanel = memo(function ResultsPanel({
         </>
       )}
 
-      {/* ZONE 9: Diagnostics */}
+      {/* ZONE 13: Contextual Warnings */}
       <div className="w-full flex flex-col gap-3 sm:gap-4">
-        {inputType === "txid" && result.findings.length > 0 && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.48 }} className="w-full">
-            <AnalystView findings={result.findings} grade={result.grade} />
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.52 }} className="w-full">
+          <CexRiskPanel
+            query={query}
+            inputType={inputType}
+            txData={txData}
+            isCoinJoin={isCoinJoin}
+          />
+        </motion.div>
+        {isCoinJoin && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.54 }} className="w-full">
+            <ExchangeWarningPanel />
           </motion.div>
         )}
-        {!isCoinJoin && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.5 }} className="w-full">
-            <CexRiskPanel
-              query={query}
-              inputType={inputType}
-              txData={txData}
-              isCoinJoin={false}
-            />
-          </motion.div>
-        )}
-        {result.findings.some((f) => f.scoreImpact !== 0) && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.55 }} className="w-full">
-            <ChartErrorBoundary>
-              <Suspense fallback={null}>
-                <ScoreWaterfall
-                  findings={result.findings}
-                  finalScore={result.score}
-                  grade={result.grade}
-                  baseScore={addressData ? ADDRESS_BASE_SCORE : TX_BASE_SCORE}
-                  onFindingClick={handleFindingClick}
-                />
-              </Suspense>
-            </ChartErrorBoundary>
-          </motion.div>
-        )}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.6 }} className="w-full">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.56 }} className="w-full">
+          <CommonMistakes findings={result.findings} grade={result.grade} />
+        </motion.div>
+      </div>
+
+      {/* ZONE 14: Diagnostics */}
+      {inputType === "txid" && result.findings.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.58 }} className="w-full">
+          <AnalystView findings={result.findings} grade={result.grade} />
+        </motion.div>
+      )}
+
+      {/* ZONE 15: Tip jar */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.62 }} className="w-full">
+        <Suspense fallback={null}>
+          <TipJar />
+        </Suspense>
+      </motion.div>
+
+      {/* ZONE 16: Footer */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.65 }} className="w-full space-y-2 pb-4">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <ScoringExplainer isAddress={inputType === "address"} />
-        </motion.div>
-      </div>
-
-      {/* ZONE 10: Promotional */}
-      <div className="w-full flex flex-col gap-3 sm:gap-4">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.6 }} className="w-full">
-          <Suspense fallback={null}>
-            <TipJar />
-            {inputType === "txid" && <CrossPromo />}
-          </Suspense>
-        </motion.div>
-      </div>
-
-      {/* ZONE 11: Footer */}
-      <div className="w-full flex flex-col items-center gap-4">
-        <div className="w-full flex flex-wrap items-center justify-center gap-4 pt-2 pb-4 text-sm">
           <a
             href={explorerUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-bitcoin hover:text-bitcoin-hover transition-colors px-4 py-2 rounded-lg border border-bitcoin/20 hover:border-bitcoin/40 bg-bitcoin/5"
+            className="inline-flex items-center gap-1.5 text-xs text-bitcoin hover:text-bitcoin-hover transition-colors"
           >
             {explorerLabel}
-            <ExternalLink size={13} />
+            <ExternalLink size={12} />
           </a>
         </div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.65 }} className="w-full bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed">
+        <p className="text-xs text-muted/70 leading-relaxed">
           {t("results.disclaimerStats", {
             findingCount: result.findings.length,
             heuristicCount: inputType === "txid" ? "31" : "6",
@@ -676,10 +743,8 @@ export const ResultsPanel = memo(function ResultsPanel({
             defaultValue: "API queries were sent to {{hostname}}.",
           })}{" "}
           {t("results.disclaimerHeuristic", { defaultValue: "Scores are heuristic-based estimates, not definitive privacy assessments." })}
-        </motion.div>
-
-        <div className="pb-4" />
-      </div>
+        </p>
+      </motion.div>
     </motion.div>
   );
 });

@@ -349,9 +349,11 @@ export function Remediation({ findings, grade }: RemediationProps) {
     sentiment !== "positive" && (grade === "C" || grade === "D" || grade === "F"),
   );
 
-  // Collect structured remediations from findings (sorted by urgency)
+  // Collect structured remediations from findings (sorted by urgency).
+  // Exclude findings with scoreImpact=0 (suppressed by cross-heuristic rules,
+  // e.g. CIOH on CoinJoin) since their remediation is no longer relevant.
   const structuredRemediations = useMemo(() => findings
-    .filter((f) => f.remediation)
+    .filter((f) => f.remediation && f.scoreImpact !== 0)
     .sort((a, b) => {
       const order = { immediate: 0, soon: 1, "when-convenient": 2 };
       return (order[a.remediation!.urgency] ?? 2) - (order[b.remediation!.urgency] ?? 2);

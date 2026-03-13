@@ -7,6 +7,7 @@ import { ChevronDown } from "lucide-react";
 import { BookOpen } from "lucide-react";
 import type { Finding, Severity, ConfidenceLevel } from "@/lib/types";
 import { WalletIcon } from "@/components/ui/WalletIcon";
+import { Tooltip } from "@/components/ui/Tooltip";
 
 /** Map finding IDs to relevant FAQ section anchors */
 const FINDING_LEARN_MORE: Record<string, { faqId: string; labelKey: string; labelDefault: string }> = {
@@ -29,6 +30,8 @@ interface FindingCardProps {
   finding: Finding;
   index: number;
   defaultExpanded?: boolean;
+  /** Optional badge label (e.g., "Chain") shown next to severity. */
+  badge?: string;
 }
 
 const SEVERITY_STYLES: Record<
@@ -69,14 +72,22 @@ const SEVERITY_STYLES: Record<
   },
 };
 
-const CONFIDENCE_STYLES: Record<ConfidenceLevel, { label: string; className: string }> = {
-  deterministic: { label: "Definite", className: "bg-severity-critical/20 text-severity-critical border-severity-critical" },
-  high: { label: "Likely", className: "bg-severity-high/15 text-severity-high border-severity-high" },
-  medium: { label: "Possible", className: "bg-severity-medium/15 text-severity-medium border-severity-medium" },
-  low: { label: "Hint", className: "bg-severity-low/15 text-severity-low border-severity-low" },
+const CONFIDENCE_STYLES: Record<ConfidenceLevel, { label: string; className: string; tooltip: string }> = {
+  deterministic: { label: "Definite", className: "bg-severity-critical/20 text-severity-critical border-severity-critical", tooltip: "This finding is mathematically certain - no ambiguity" },
+  high: { label: "Likely", className: "bg-severity-high/15 text-severity-high border-severity-high", tooltip: "Strong evidence supports this finding, but not absolute certainty" },
+  medium: { label: "Possible", className: "bg-severity-medium/15 text-severity-medium border-severity-medium", tooltip: "Moderate evidence - this pattern is suggestive but could have other explanations" },
+  low: { label: "Hint", className: "bg-severity-low/15 text-severity-low border-severity-low", tooltip: "Weak signal - may indicate a pattern but could easily be coincidence" },
 };
 
-export const FindingCard = memo(function FindingCard({ finding, index, defaultExpanded = false }: FindingCardProps) {
+const SEVERITY_TOOLTIPS: Record<Severity, string> = {
+  critical: "Severe privacy failure - immediate action recommended",
+  high: "Significant privacy concern - should be addressed",
+  medium: "Notable privacy issue - worth improving",
+  low: "Minor privacy signal - low risk but worth noting",
+  good: "Positive privacy property - helps protect your privacy",
+};
+
+export const FindingCard = memo(function FindingCard({ finding, index, defaultExpanded = false, badge }: FindingCardProps) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(defaultExpanded);
   const reducedMotion = useReducedMotion();
@@ -110,13 +121,24 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
           {t(findingKey(finding.id, "title", finding.params), { ...finding.params, defaultValue: finding.title })}
         </span>
         {confidenceStyle && (
-          <span className={`text-[10px] px-1.5 py-0.5 rounded border ${confidenceStyle.className}`}>
-            {t(`common.confidence.${confidence}`, { defaultValue: confidenceStyle.label })}
-          </span>
+          <Tooltip content={t(`common.confidenceTooltip.${confidence}`, { defaultValue: confidenceStyle.tooltip })}>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded border ${confidenceStyle.className}`}>
+              {t(`common.confidence.${confidence}`, { defaultValue: confidenceStyle.label })}
+            </span>
+          </Tooltip>
         )}
-        <span className={`text-xs font-medium ${style.text}`}>
-          {severityLabel}
-        </span>
+        {badge && (
+          <Tooltip content={t("results.chainBadgeTooltip", { defaultValue: "Based on backward and forward analysis of the inputs and outputs to this transaction" })}>
+            <span className="text-[10px] px-1.5 py-0.5 rounded border border-white/10 bg-surface-inset text-muted">
+              {badge}
+            </span>
+          </Tooltip>
+        )}
+        <Tooltip content={t(`common.severityTooltip.${finding.severity}`, { defaultValue: SEVERITY_TOOLTIPS[finding.severity] })}>
+          <span className={`text-xs font-medium ${style.text}`}>
+            {severityLabel}
+          </span>
+        </Tooltip>
         <ChevronDown
           size={14}
           className={`text-muted transition-transform ${expanded ? "rotate-180" : ""}`}
@@ -147,9 +169,20 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
                 </div>
               )}
               <div className="flex items-center justify-between">
+                {FINDING_LEARN_MORE[finding.id] && (
+                  <a
+                    href={`/faq/#${FINDING_LEARN_MORE[finding.id].faqId}`}
+                    className="inline-flex items-center gap-1 text-xs text-bitcoin hover:text-bitcoin-hover transition-colors"
+                  >
+                    <BookOpen size={12} />
+                    {t(FINDING_LEARN_MORE[finding.id].labelKey, { defaultValue: FINDING_LEARN_MORE[finding.id].labelDefault })}
+                  </a>
+                )}
                 {finding.scoreImpact !== 0 && (
-                  <p className="text-xs text-muted">
-                    {t("finding.scoreImpactLabel", { defaultValue: "Score impact:" })}{" "}
+                  <details className="text-xs text-muted">
+                    <summary className="cursor-pointer select-none hover:text-foreground transition-colors">
+                      {t("finding.showScoreImpact", { defaultValue: "Score impact" })}
+                    </summary>
                     <span
                       className={
                         finding.scoreImpact > 0
@@ -160,16 +193,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
                       {finding.scoreImpact > 0 ? "+" : ""}
                       {finding.scoreImpact}
                     </span>
-                  </p>
-                )}
-                {FINDING_LEARN_MORE[finding.id] && (
-                  <a
-                    href={`/faq/#${FINDING_LEARN_MORE[finding.id].faqId}`}
-                    className="inline-flex items-center gap-1 text-xs text-bitcoin hover:text-bitcoin-hover transition-colors"
-                  >
-                    <BookOpen size={12} />
-                    {t(FINDING_LEARN_MORE[finding.id].labelKey, { defaultValue: FINDING_LEARN_MORE[finding.id].labelDefault })}
-                  </a>
+                  </details>
                 )}
               </div>
             </div>

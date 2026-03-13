@@ -29,10 +29,12 @@ export function calculateScore(findings: Finding[], mode: AnalysisMode = "tx"): 
   const score = Math.max(MIN_SCORE, Math.min(MAX_SCORE, rawScore));
   const grade = scoreToGrade(score);
 
-  // Sort findings by severity (most severe first)
-  const sortedFindings = [...findings].sort(
-    (a, b) => severityOrder(a.severity) - severityOrder(b.severity),
-  );
+  // Sort findings by severity (most severe first), then by absolute impact within tier
+  const sortedFindings = [...findings].sort((a, b) => {
+    const sev = severityOrder(a.severity) - severityOrder(b.severity);
+    if (sev !== 0) return sev;
+    return Math.abs(b.scoreImpact) - Math.abs(a.scoreImpact);
+  });
 
   return { score, grade, findings: sortedFindings };
 }

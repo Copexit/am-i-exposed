@@ -6,6 +6,7 @@ import { motion } from "motion/react";
 import { ArrowLeft, Wallet, ShieldCheck, ShieldAlert, ShieldX, AlertCircle, List, Hash, Network } from "lucide-react";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { FindingCard } from "@/components/FindingCard";
+import { FindingsTier } from "@/components/FindingsTier";
 import { CoinSelector } from "./CoinSelector";
 import { ACTION_BTN_CLASS } from "@/lib/constants";
 import type { WalletAuditResult, WalletAddressInfo } from "@/lib/analysis/wallet-audit";
@@ -180,22 +181,55 @@ export function WalletAuditResults({
         </button>
       )}
 
-      {/* Findings */}
-      {result.findings.length > 0 && (
-        <div className="w-full space-y-3">
-          <h2 className="text-base font-medium text-muted uppercase tracking-wider px-1">
-            {t("results.findingsHeading", {
-              count: result.findings.length,
-              defaultValue: "Findings ({{count}})",
-            })}
-          </h2>
-          <div className="space-y-2">
-            {result.findings.map((finding, i) => (
-              <FindingCard key={finding.id} finding={finding} index={i} />
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Findings - 3-tier progressive disclosure */}
+      {(() => {
+        const issues = result.findings.filter(f => f.severity === "critical" || f.severity === "high");
+        const details = result.findings.filter(f => f.severity === "medium" || f.severity === "low");
+        const strengths = result.findings.filter(f => f.severity === "good");
+
+        return (
+          <>
+            {issues.length > 0 && (
+              <div className="w-full space-y-3">
+                <h2 className="text-base font-medium text-muted uppercase tracking-wider px-1">
+                  {t("results.findingsHeading", {
+                    count: result.findings.length,
+                    defaultValue: "Findings ({{count}})",
+                  })}
+                </h2>
+                <div className="space-y-2">
+                  {issues.map((finding, i) => (
+                    <FindingCard
+                      key={finding.id}
+                      finding={finding}
+                      index={i}
+                      defaultExpanded={finding.severity === "critical" || (result.grade === "F" && finding.severity === "high")}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            {details.length > 0 && (
+              <FindingsTier
+                findings={details}
+                label={t("results.additionalFindings", { count: details.length, defaultValue: "Additional findings ({{count}})" })}
+                defaultOpen={issues.length === 0}
+                grade={result.grade}
+                delay={0.15}
+              />
+            )}
+            {strengths.length > 0 && (
+              <FindingsTier
+                findings={strengths}
+                label={t("results.privacyStrengths", { count: strengths.length, defaultValue: "Privacy strengths ({{count}})" })}
+                defaultOpen={issues.length === 0 && details.length === 0}
+                grade={result.grade}
+                delay={0.2}
+              />
+            )}
+          </>
+        );
+      })()}
 
       {/* Transaction Graph */}
       {totalTxs > 0 && (

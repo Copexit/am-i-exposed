@@ -73,7 +73,10 @@ function deriveInsights(findings: Finding[]): AnalystInsight[] {
     });
   }
 
-  if (ids.has("h1-round-amount") || ids.has("h1-round-usd-amount") || ids.has("h1-round-eur-amount")) {
+  if (
+    (ids.has("h1-round-amount") || ids.has("h1-round-usd-amount") || ids.has("h1-round-eur-amount")) &&
+    findings.some((item) => (item.id === "h1-round-amount" || item.id === "h1-round-usd-amount" || item.id === "h1-round-eur-amount") && item.scoreImpact !== 0)
+  ) {
     insights.push({
       text: "Round payment amount reveals which output is the payment and which is change",
       textKey: "analyst.roundAmount",

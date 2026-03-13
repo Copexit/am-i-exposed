@@ -16,7 +16,7 @@ interface ChainAnalysisPanelProps {
 }
 
 /** Chain analysis finding IDs that this panel highlights */
-const CHAIN_FINDING_IDS = new Set([
+export const CHAIN_FINDING_IDS = new Set([
   // Backward (input provenance)
   "chain-coinjoin-input",
   "chain-exchange-input",
