@@ -404,10 +404,15 @@ function Minimap({
 
   if (layoutNodes.length <= 1) return null;
 
-  const vpW = Math.min(viewportWidth * scale, MINIMAP_W);
-  const vpH = Math.min(viewportHeight * scale, MINIMAP_H);
-  const vpX = scrollLeft * scale;
-  const vpY = scrollTop * scale;
+  // Clamp viewport rect to minimap bounds so it stays visible
+  const rawVpX = scrollLeft * scale;
+  const rawVpY = scrollTop * scale;
+  const rawVpW = Math.min(viewportWidth * scale, MINIMAP_W);
+  const rawVpH = Math.min(viewportHeight * scale, MINIMAP_H);
+  const vpX = Math.max(0, rawVpX);
+  const vpY = Math.max(0, rawVpY);
+  const vpW = Math.max(4, Math.min(rawVpW + Math.min(rawVpX, 0), MINIMAP_W - vpX));
+  const vpH = Math.max(4, Math.min(rawVpH + Math.min(rawVpY, 0), MINIMAP_H - vpY));
 
   const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
     e.preventDefault();
@@ -756,18 +761,25 @@ function GraphCanvas({
   // Touch gestures: single-finger pan, two-finger pinch-to-zoom
   // Attached to the wrapper div (not SVG) because mobile browsers have
   // unreliable touch hit-testing on SVG backgrounds/empty space.
+  // Uses a move threshold (PAN_THRESHOLD) so taps on buttons/nodes still fire
+  // as clicks - panning only activates after the finger moves enough pixels.
   useEffect(() => {
     if (!viewTransform || !onViewTransformChange) return;
     const el = wrapperRef.current;
     if (!el) return;
 
+    const PAN_THRESHOLD = 8; // px - must move this far before pan activates
     const dist = (a: Touch, b: Touch) =>
       Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 
+    // "pending" = finger is down but hasn't moved enough to be a pan yet
+    let pendingPan: { startX: number; startY: number; vtX: number; vtY: number; scale: number } | null = null;
+
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
-        // Pinch start
+        // Pinch start - always immediate, unambiguous gesture
         e.preventDefault();
+        pendingPan = null;
         const vt = viewTransformRef.current;
         if (!vt) return;
         const t0 = e.touches[0], t1 = e.touches[1];
@@ -781,15 +793,13 @@ function GraphCanvas({
         };
         panRef.current.active = false;
       } else if (e.touches.length === 1) {
-        // Pan start
-        e.preventDefault();
+        // Record start position but DON'T activate pan yet.
+        // Let the browser generate click events for taps on buttons/nodes.
         const vt = viewTransformRef.current;
         if (!vt) return;
         const t = e.touches[0];
-        panRef.current = { active: true, startX: t.clientX, startY: t.clientY, vtX: vt.x, vtY: vt.y, scale: vt.scale };
+        pendingPan = { startX: t.clientX, startY: t.clientY, vtX: vt.x, vtY: vt.y, scale: vt.scale };
         pinchRef.current.active = false;
-        setIsPanning(true);
-        setSelectedNode(null);
       }
     };
 
@@ -803,31 +813,46 @@ function GraphCanvas({
         const ratio = curDist / pinchRef.current.startDist;
         const ns = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, pinchRef.current.startScale * ratio));
         const { midX, midY } = pinchRef.current;
-        // Zoom toward the original midpoint
         const gx = (midX - vt.x) / vt.scale;
         const gy = (midY - vt.y) / vt.scale;
         onViewTransformChange({ x: midX - gx * ns, y: midY - gy * ns, scale: ns });
-      } else if (panRef.current.active && e.touches.length === 1) {
-        e.preventDefault();
+      } else if (e.touches.length === 1) {
         const t = e.touches[0];
-        const dx = t.clientX - panRef.current.startX;
-        const dy = t.clientY - panRef.current.startY;
-        onViewTransformChange({ scale: panRef.current.scale, x: panRef.current.vtX + dx, y: panRef.current.vtY + dy });
+
+        // Check if pending pan should activate (moved past threshold)
+        if (pendingPan && !panRef.current.active) {
+          const moved = Math.hypot(t.clientX - pendingPan.startX, t.clientY - pendingPan.startY);
+          if (moved >= PAN_THRESHOLD) {
+            // Activate pan
+            panRef.current = { active: true, startX: pendingPan.startX, startY: pendingPan.startY, vtX: pendingPan.vtX, vtY: pendingPan.vtY, scale: pendingPan.scale };
+            pendingPan = null;
+            setIsPanning(true);
+            setSelectedNode(null);
+          }
+        }
+
+        if (panRef.current.active) {
+          e.preventDefault();
+          const dx = t.clientX - panRef.current.startX;
+          const dy = t.clientY - panRef.current.startY;
+          onViewTransformChange({ scale: panRef.current.scale, x: panRef.current.vtX + dx, y: panRef.current.vtY + dy });
+        }
       }
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
+      pendingPan = null;
       if (e.touches.length < 2) pinchRef.current.active = false;
       if (e.touches.length === 0) {
         panRef.current.active = false;
         setIsPanning(false);
       }
-      // If going from 2 fingers to 1, start a new pan from the remaining finger
-      if (e.touches.length === 1 && pinchRef.current.active === false) {
+      // If going from 2 fingers to 1, record as pending pan
+      if (e.touches.length === 1 && !pinchRef.current.active) {
         const vt = viewTransformRef.current;
         if (!vt) return;
         const t = e.touches[0];
-        panRef.current = { active: true, startX: t.clientX, startY: t.clientY, vtX: vt.x, vtY: vt.y, scale: vt.scale };
+        pendingPan = { startX: t.clientX, startY: t.clientY, vtX: vt.x, vtY: vt.y, scale: vt.scale };
       }
     };
 
@@ -922,6 +947,7 @@ function GraphCanvas({
               stroke={SVG_COLORS.muted}
               strokeWidth={strokeWidth}
               strokeOpacity={strokeOpacity}
+              strokeDasharray={edge.isBackward ? "6 4" : undefined}
               markerEnd={edge.isBackward ? undefined : "url(#arrow-graph)"}
               markerStart={edge.isBackward ? "url(#arrow-graph-start)" : undefined}
               initial={{ pathLength: 0 }}
@@ -1150,21 +1176,21 @@ function GraphCanvas({
 
               {/* Expand right button (forward) */}
               {!atCapacity && (() => {
-                // Build set of output indices already consumed by nodes in the graph
+                // Build set of output indices already consumed by nodes in the graph.
+                // Check ALL nodes' inputs to see if they spend from this tx.
                 const consumedOutputs = new Set<number>();
                 for (const [, n] of nodes) {
-                  if (n.parentEdge?.fromTxid === node.txid) {
-                    consumedOutputs.add(n.parentEdge.outputIndex);
+                  for (const vin of n.tx.vin) {
+                    if (vin.txid === node.txid && vin.vout !== undefined) {
+                      consumedOutputs.add(vin.vout);
+                    }
                   }
                 }
-                // Also check childEdge: if this node was expanded backward,
-                // its output is consumed by the child it was expanded from
-                const rawNode = nodes.get(node.txid);
-                if (rawNode?.childEdge) {
-                  const childGn = nodes.get(rawNode.childEdge.toTxid);
-                  if (childGn) {
-                    const consumedIdx = childGn.tx.vin[rawNode.childEdge.inputIndex]?.vout;
-                    if (consumedIdx !== undefined) consumedOutputs.add(consumedIdx);
+                // Also count unspendable outputs (OP_RETURN, 0-value)
+                for (let i = 0; i < node.tx.vout.length; i++) {
+                  const out = node.tx.vout[i];
+                  if (out.scriptpubkey_type === "op_return" || out.value === 0) {
+                    consumedOutputs.add(i);
                   }
                 }
                 if (consumedOutputs.size >= node.tx.vout.length) return null;
@@ -1669,8 +1695,17 @@ export function GraphExplorer(props: GraphExplorerProps) {
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col"
           onClick={(e) => { if (e.target === e.currentTarget) { setIsExpanded(false); setViewTransform(undefined); } }}
         >
+          {/* Close button - always fixed top-right */}
+          <button
+            onClick={() => { setIsExpanded(false); setViewTransform(undefined); }}
+            className="fixed top-3 right-3 z-[60] text-white/60 hover:text-white transition-colors p-2 rounded-lg bg-black/60 hover:bg-surface-inset backdrop-blur-sm cursor-pointer"
+            aria-label={t("common.close", { defaultValue: "Close" })}
+          >
+            <CloseIcon />
+          </button>
+
           {/* Fullscreen header */}
-          <div className="p-4 space-y-2 shrink-0">
+          <div className="p-4 pr-14 space-y-2 shrink-0">
             <div className="flex flex-wrap items-center justify-between gap-y-2">
               <div className="flex items-center gap-2 text-sm font-medium text-white/70 min-w-0">
                 <svg className="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none">
@@ -1737,13 +1772,6 @@ export function GraphExplorer(props: GraphExplorerProps) {
                   className="text-xs text-white/50 hover:text-white/80 transition-colors px-2 py-1 rounded border border-white/10 cursor-pointer"
                   title="Fit to view"
                 >{t("graphExplorer.fit", { defaultValue: "Fit" })}</button>
-                <button
-                  onClick={() => { setIsExpanded(false); setViewTransform(undefined); }}
-                  className="text-white/50 hover:text-white/80 transition-colors p-1.5 rounded-lg hover:bg-surface-inset cursor-pointer"
-                  aria-label={t("common.close", { defaultValue: "Close" })}
-                >
-                  <CloseIcon />
-                </button>
               </div>
             </div>
             {instructions}

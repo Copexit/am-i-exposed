@@ -22,11 +22,11 @@ export interface AnalysisSettings {
 const STORAGE_KEY = "analysis-settings";
 
 const DEFAULTS: AnalysisSettings = {
-  maxDepth: 6,
+  maxDepth: 4,
   minSats: 1000,
   skipLargeClusters: false,
   skipCoinJoins: false,
-  timeout: 10,
+  timeout: 30,
   walletGapLimit: 5,
   enableCache: true,
 };
