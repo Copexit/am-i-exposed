@@ -310,6 +310,8 @@ interface ResultsPanelProps {
   backwardLayers?: import("@/lib/analysis/chain/recursive-trace").TraceLayer[] | null;
   /** Forward trace layers from chain analysis. */
   forwardLayers?: import("@/lib/analysis/chain/recursive-trace").TraceLayer[] | null;
+  /** Boltzmann link probability result. */
+  boltzmannResult?: import("@/hooks/useBoltzmann").BoltzmannWorkerResult | null;
 }
 
 export const ResultsPanel = memo(function ResultsPanel({
@@ -329,6 +331,7 @@ export const ResultsPanel = memo(function ResultsPanel({
   outspends,
   backwardLayers,
   forwardLayers,
+  boltzmannResult,
 }: ResultsPanelProps) {
   const { config, customApiUrl, isUmbrel } = useNetwork();
   const { t } = useTranslation();
@@ -337,8 +340,11 @@ export const ResultsPanel = memo(function ResultsPanel({
   const fingerprintFinding = result.findings.find((f) => f.id === "h11-wallet-fingerprint");
   const detectedWallet = fingerprintFinding?.params?.walletGuess as string | undefined;
   const [queryCopied, setQueryCopied] = useState(false);
+  const [cjLinkabilityView, setCjLinkabilityView] = useState(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(copyTimerRef.current), []);
+  // Reset CJ linkability view when query changes
+  useEffect(() => { const t = setTimeout(() => setCjLinkabilityView(false), 0); return () => clearTimeout(t); }, [query]);
 
   const handleFindingClick = useCallback((findingId: string) => {
     const el = document.querySelector(`[data-finding-id="${findingId}"]`);
@@ -541,10 +547,16 @@ export const ResultsPanel = memo(function ResultsPanel({
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.16 }} className="w-full">
           <ChartErrorBoundary>
             <Suspense fallback={null}>
-              {result.findings.some((f) => isCoinJoinFinding(f) && f.scoreImpact >= 15) ? (
-                <CoinJoinStructure tx={txData} findings={result.findings} onAddressClick={onScan} usdPrice={usdPrice} outspends={outspends} />
+              {result.findings.some((f) => isCoinJoinFinding(f) && f.scoreImpact >= 15) && !cjLinkabilityView ? (
+                <CoinJoinStructure tx={txData} findings={result.findings} onAddressClick={onScan} usdPrice={usdPrice} outspends={outspends}
+                  linkabilityAvailable={boltzmannResult != null}
+                  onToggleLinkability={() => setCjLinkabilityView(true)}
+                />
               ) : (
-                <TxFlowDiagram tx={txData} findings={result.findings} onAddressClick={onScan} usdPrice={usdPrice} outspends={outspends} />
+                <TxFlowDiagram tx={txData} findings={result.findings} onAddressClick={onScan} usdPrice={usdPrice} outspends={outspends} boltzmannResult={boltzmannResult}
+                  isCoinJoinOverride={cjLinkabilityView}
+                  onExitLinkability={() => setCjLinkabilityView(false)}
+                />
               )}
             </Suspense>
           </ChartErrorBoundary>
@@ -632,7 +644,7 @@ export const ResultsPanel = memo(function ResultsPanel({
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.43 }} className="w-full">
               <ChartErrorBoundary>
                 <Suspense fallback={null}>
-                  <LinkabilityHeatmap tx={txData} />
+                  <LinkabilityHeatmap tx={txData} boltzmannResult={boltzmannResult} />
                 </Suspense>
               </ChartErrorBoundary>
             </motion.div>
@@ -641,7 +653,7 @@ export const ResultsPanel = memo(function ResultsPanel({
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.45 }} className="w-full">
               <ChartErrorBoundary>
                 <Suspense fallback={null}>
-                  <GraphExplorerPanel tx={txData} findings={result.findings} onTxClick={onScan} backwardLayers={backwardLayers} forwardLayers={forwardLayers} outspends={outspends} />
+                  <GraphExplorerPanel tx={txData} findings={result.findings} onTxClick={onScan} backwardLayers={backwardLayers} forwardLayers={forwardLayers} outspends={outspends} boltzmannResult={boltzmannResult} />
                 </Suspense>
               </ChartErrorBoundary>
             </motion.div>

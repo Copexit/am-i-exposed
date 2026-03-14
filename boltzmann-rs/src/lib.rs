@@ -221,7 +221,7 @@ pub fn prepare_boltzmann_ranged(
     let n_in = sorted_inputs.len();
     let n_out = sorted_outputs.len();
 
-    if n_in <= 1 || n_out == 0 {
+    if n_in == 0 || n_out == 0 {
         let degenerate = LinkerResult::new_degenerate(n_out.max(1), n_in.max(1));
         let prep = PreparedAnalysis {
             sorted_inputs,
@@ -544,3 +544,70 @@ pub fn compute_boltzmann_joinmarket(
 // Re-export for native (non-WASM) testing
 #[cfg(not(target_arch = "wasm32"))]
 pub use analyze::analyze as analyze_native;
+
+/// Test helper: exercise the chunked DFS path (same as WASM prepare_boltzmann + dfs_step + dfs_finalize)
+/// but without wasm_bindgen. Returns the BoltzmannResult.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn test_chunked_analyze(
+    input_values: &[i64],
+    output_values: &[i64],
+    fee: i64,
+    max_cj_intrafees_ratio: f64,
+) -> types::BoltzmannResult {
+    let start = time::now_ms();
+
+    let prepared = match analyze::prepare_analysis(input_values, output_values, fee, max_cj_intrafees_ratio) {
+        Some(p) => p,
+        None => {
+            let n_in = input_values.len();
+            let n_out = output_values.iter().filter(|&&v| v > 0).count();
+            let degenerate = types::LinkerResult::new_degenerate(n_out.max(1), n_in.max(1));
+            return analyze::finalize_result(&degenerate, n_in.max(1), n_out.max(1), fee, 0, 0, start);
+        }
+    };
+
+    let has_dual_run = prepared.fees_maker > 0;
+
+    // Run 0: no intrafees
+    let run0_result = match analyze::run_phases_1_2(&prepared.in_agg, &prepared.out_agg, prepared.fees, 0, 0) {
+        Some((matches, mat_in_agg_cmbn)) => {
+            let dfs = backtrack::DfsState::new(&prepared.in_agg, &prepared.out_agg, matches, mat_in_agg_cmbn);
+            // Run to completion (no deadline)
+            let mut dfs = dfs;
+            while !dfs.step(f64::MAX, f64::MAX) {}
+            dfs.finalize(&prepared.in_agg, &prepared.out_agg)
+        }
+        None => types::LinkerResult::new_degenerate(prepared.n_out, prepared.n_in),
+    };
+
+    // Run 1: with intrafees (if applicable)
+    let (final_result, intrafees_won) = if has_dual_run && !run0_result.timed_out {
+        match analyze::run_phases_1_2(
+            &prepared.in_agg, &prepared.out_agg, prepared.fees,
+            prepared.fees_maker, prepared.fees_taker,
+        ) {
+            Some((matches, mat_in_agg_cmbn)) => {
+                let dfs = backtrack::DfsState::new(&prepared.in_agg, &prepared.out_agg, matches, mat_in_agg_cmbn);
+                let mut dfs = dfs;
+                while !dfs.step(f64::MAX, f64::MAX) {}
+                let result = dfs.finalize(&prepared.in_agg, &prepared.out_agg);
+                if result.nb_cmbn > run0_result.nb_cmbn {
+                    (result, true)
+                } else {
+                    (run0_result, false)
+                }
+            }
+            None => (run0_result, false),
+        }
+    } else {
+        (run0_result, false)
+    };
+
+    let (actual_fm, actual_ft) = if intrafees_won {
+        (prepared.fees_maker, prepared.fees_taker)
+    } else {
+        (0, 0)
+    };
+
+    analyze::finalize_result(&final_result, prepared.n_in, prepared.n_out, prepared.fees, actual_fm, actual_ft, start)
+}

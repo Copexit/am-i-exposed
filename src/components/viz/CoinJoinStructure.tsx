@@ -24,6 +24,10 @@ interface CoinJoinStructureProps {
   usdPrice?: number | null;
   /** Per-output spend status. */
   outspends?: MempoolOutspend[] | null;
+  /** Whether Boltzmann linkability data is available for this CoinJoin. */
+  linkabilityAvailable?: boolean;
+  /** Callback to switch to TxFlowDiagram with linkability coloring. */
+  onToggleLinkability?: () => void;
 }
 
 interface NodeDatum extends SankeyExtraProperties {
@@ -75,7 +79,7 @@ const NODE_PADDING = 10;
 const MAX_DISPLAY = 50;
 const MIN_NODE_SPACING = 30; // min px per output node for readable labels
 
-export function CoinJoinStructure({ tx, findings, onAddressClick, usdPrice, outspends }: CoinJoinStructureProps) {
+export function CoinJoinStructure({ tx, findings, onAddressClick, usdPrice, outspends, linkabilityAvailable, onToggleLinkability }: CoinJoinStructureProps) {
   const { t, i18n } = useTranslation();
   const [showAllInputs, setShowAllInputs] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -105,8 +109,20 @@ export function CoinJoinStructure({ tx, findings, onAddressClick, usdPrice, outs
         <span>
           {t("tx.inputCount", { count: tx.vin.length, defaultValue: `${tx.vin.length} inputs` })}
         </span>
-        <span className="text-xs text-bitcoin">
-          {t("viz.coinjoin.title", { defaultValue: "CoinJoin structure" })}
+        <span className="flex items-center gap-2">
+          <span className="text-xs text-bitcoin">
+            {t("viz.coinjoin.title", { defaultValue: "CoinJoin structure" })}
+          </span>
+          {linkabilityAvailable && onToggleLinkability && (
+            <button
+              onClick={onToggleLinkability}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors cursor-pointer"
+              title="Switch to linkability view"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+              Linkability
+            </button>
+          )}
         </span>
         <span>
           {t("tx.outputCount", { count: tx.vout.length, defaultValue: `${tx.vout.length} outputs` })}
@@ -727,7 +743,7 @@ function CoinJoinChart({
       </svg>
 
       {tooltipOpen && tooltipData && (
-        <ChartTooltip top={tooltipTop ?? 0} left={tooltipLeft ?? 0}>
+        <ChartTooltip top={tooltipTop ?? 0} left={tooltipLeft ?? 0} containerRef={containerRef}>
           <div className="space-y-0.5">
             <p className="font-mono text-xs" style={{ color: SVG_COLORS.foreground }}>
               {tooltipData.label}

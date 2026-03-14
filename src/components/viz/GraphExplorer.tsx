@@ -6,6 +6,7 @@ import { Text } from "@visx/text";
 import { ParentSize } from "@visx/responsive";
 import { useTranslation } from "react-i18next";
 import { SVG_COLORS, GRADE_HEX_SVG } from "./shared/svgConstants";
+import { probColor } from "./shared/linkabilityColors";
 import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import { formatSats } from "@/lib/format";
@@ -65,6 +66,8 @@ interface GraphExplorerProps {
   onUndo: () => void;
   onReset: () => void;
   onTxClick?: (txid: string) => void;
+  /** Boltzmann result for the root transaction (linkability edge coloring). */
+  rootBoltzmannResult?: import("@/hooks/useBoltzmann").BoltzmannWorkerResult | null;
 }
 
 interface LayoutNode {
@@ -100,6 +103,8 @@ interface LayoutEdge {
   isBackward: boolean;
   /** Number of outputs from `fromTxid` consumed by `toTxid`. >= 2 means consolidation. */
   consolidationCount: number;
+  /** Which output indices of `fromTxid` are consumed by `toTxid`. */
+  outputIndices?: number[];
 }
 
 interface TooltipData {
@@ -117,6 +122,8 @@ interface TooltipData {
   fee: number;
   feeRate: string;
   confirmed: boolean;
+  /** Linkability probability for edge hover tooltip. */
+  linkProb?: number;
 }
 
 type NodeFilter = {
@@ -275,7 +282,8 @@ function layoutGraph(
       const toPos = nodePositions.get(node.txid);
       if (fromPos && toPos) {
         // Count how many inputs of this child come from the parent tx
-        const cc = node.tx.vin.filter((v) => v.txid === node.parentEdge!.fromTxid).length;
+        const parentVins = node.tx.vin.filter((v) => v.txid === node.parentEdge!.fromTxid);
+        const cc = parentVins.length;
         edges.push({
           fromTxid: node.parentEdge.fromTxid,
           toTxid: node.txid,
@@ -285,6 +293,7 @@ function layoutGraph(
           y2: toPos.y + NODE_H / 2,
           isBackward: false,
           consolidationCount: cc,
+          outputIndices: parentVins.map((v) => v.vout),
         });
       }
     }
@@ -297,9 +306,10 @@ function layoutGraph(
       if (fromPos && toPos) {
         // Count how many inputs of the child come from this parent tx
         const childNode = graphNodes.get(node.childEdge.toTxid);
-        const cc = childNode
-          ? childNode.tx.vin.filter((v) => v.txid === node.txid).length
-          : 1;
+        const childVins = childNode
+          ? childNode.tx.vin.filter((v) => v.txid === node.txid)
+          : [];
+        const cc = childVins.length || 1;
         edges.push({
           fromTxid: node.txid,
           toTxid: node.childEdge.toTxid,
@@ -309,6 +319,7 @@ function layoutGraph(
           y2: toPos.y + NODE_H / 2,
           isBackward: true,
           consolidationCount: cc,
+          outputIndices: childVins.length > 0 ? childVins.map((v) => v.vout) : undefined,
         });
       }
     }
@@ -518,6 +529,7 @@ interface GraphCanvasProps extends GraphExplorerProps {
   isFullscreen?: boolean;
   viewTransform?: ViewTransform;
   onViewTransformChange?: (vt: ViewTransform) => void;
+  linkabilityEdgeMode?: boolean;
 }
 
 function GraphCanvas({
@@ -547,8 +559,11 @@ function GraphCanvas({
   isFullscreen,
   viewTransform,
   onViewTransformChange,
+  linkabilityEdgeMode,
+  rootBoltzmannResult,
 }: GraphCanvasProps) {
   const atCapacity = nodeCount >= maxNodes;
+  const [hoveredEdgeKey, setHoveredEdgeKey] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const panRef = useRef({ active: false, startX: 0, startY: 0, vtX: 0, vtY: 0, scale: 1 });
@@ -954,15 +969,38 @@ function GraphCanvas({
             ? `M${edge.x2},${edge.y2} C${midX},${edge.y2} ${midX},${edge.y1} ${edge.x1},${edge.y1}`
             : `M${edge.x1},${edge.y1} C${midX},${edge.y1} ${midX},${edge.y2} ${edge.x2},${edge.y2}`;
 
-          const isHovered = hoveredEdges?.has(edgeKey);
-          const isDimmedByHover = hoveredNode && !isHovered;
+          const isHoveredViaNode = hoveredEdges?.has(edgeKey);
+          const isHoveredDirect = hoveredEdgeKey === edgeKey;
+          const isHovered = isHoveredViaNode || isHoveredDirect;
+          const isDimmedByHover = hoveredNode && !isHoveredViaNode;
           const isConsolidation = edge.consolidationCount >= 2;
 
-          const strokeColor = isConsolidation ? SVG_COLORS.critical : SVG_COLORS.muted;
-          let strokeOpacity = isConsolidation ? 0.6 : 0.35;
-          let strokeWidth = isConsolidation ? 2.5 : 1.5;
+          // Linkability edge coloring: only for root tx edges with Boltzmann data
+          let linkabilityColor: string | null = null;
+          let linkabilityMaxProb = -1;
+          if (linkabilityEdgeMode && rootBoltzmannResult && edge.fromTxid === rootTxid && edge.outputIndices?.length) {
+            const mat = rootBoltzmannResult.matLnkProbabilities;
+            if (mat && mat.length > 0) {
+              let maxProb = 0;
+              for (const outIdx of edge.outputIndices) {
+                if (outIdx < mat.length) {
+                  const row = mat[outIdx];
+                  for (let i = 0; i < row.length; i++) {
+                    if (row[i] > maxProb) maxProb = row[i];
+                  }
+                }
+              }
+              linkabilityMaxProb = maxProb;
+              if (maxProb <= 0) return null; // Skip 0% linkability edges entirely
+              linkabilityColor = probColor(maxProb);
+            }
+          }
 
-          if (isHovered) {
+          const strokeColor = linkabilityColor ?? (isConsolidation ? SVG_COLORS.critical : SVG_COLORS.muted);
+          let strokeOpacity = linkabilityColor ? (0.3 + linkabilityMaxProb * 0.7) : (isConsolidation ? 0.6 : 0.35);
+          let strokeWidth = linkabilityColor ? 2.5 : (isConsolidation ? 2.5 : 1.5);
+
+          if (isHovered && !linkabilityColor) {
             strokeOpacity = isConsolidation ? 0.9 : 0.7;
             strokeWidth = isConsolidation ? 3.5 : 2.5;
           }
@@ -977,8 +1015,38 @@ function GraphCanvas({
             markerEnd = isConsolidation ? "url(#arrow-graph-consolidation)" : "url(#arrow-graph)";
           }
 
+          // Edge tooltip prob: reuse already-computed linkability max prob
+          const edgeMaxProb = linkabilityMaxProb >= 0 ? linkabilityMaxProb : undefined;
+
           return (
             <g key={edgeKey}>
+              {/* Invisible wider hit target for edge hover */}
+              {edgeMaxProb !== undefined && (
+                <path
+                  d={d}
+                  fill="none"
+                  stroke="transparent"
+                  strokeWidth={12}
+                  style={{ cursor: "default" }}
+                  onMouseMove={(e: React.MouseEvent) => {
+                    setHoveredEdgeKey(edgeKey);
+                    const svgEl = svgRef.current;
+                    if (!svgEl) return;
+                    const svgRect = svgEl.getBoundingClientRect();
+                    tooltip.showTooltip({
+                      tooltipData: {
+                        txid: edge.fromTxid,
+                        inputCount: 0, outputCount: 0, totalValue: 0,
+                        isCoinJoin: false, depth: 0, fee: 0, feeRate: "",
+                        confirmed: true, linkProb: edgeMaxProb,
+                      },
+                      tooltipLeft: e.clientX - svgRect.left,
+                      tooltipTop: e.clientY - svgRect.top - 8,
+                    });
+                  }}
+                  onMouseLeave={() => { setHoveredEdgeKey(null); tooltip.hideTooltip(); }}
+                />
+              )}
               <motion.path
                 d={d}
                 fill="none"
@@ -991,6 +1059,7 @@ function GraphCanvas({
                 initial={{ pathLength: 0 }}
                 animate={{ pathLength: 1 }}
                 transition={{ duration: 0.4 }}
+                style={{ pointerEvents: "none" }}
               />
               {/* Consolidation count label on the edge */}
               {isConsolidation && (
@@ -1010,6 +1079,37 @@ function GraphCanvas({
             </g>
           );
         })}
+
+        {/* Hover overlay: re-render hovered linkability edge on top of all edges */}
+        {hoveredEdgeKey && linkabilityEdgeMode && rootBoltzmannResult && (() => {
+          const edge = edges.find((e) => `e-${e.fromTxid}-${e.toTxid}` === hoveredEdgeKey);
+          if (!edge || edge.fromTxid !== rootTxid || !edge.outputIndices?.length) return null;
+          const mat = rootBoltzmannResult.matLnkProbabilities;
+          if (!mat?.length) return null;
+          let maxProb = 0;
+          for (const outIdx of edge.outputIndices) {
+            if (outIdx < mat.length) {
+              for (let i = 0; i < mat[outIdx].length; i++) {
+                if (mat[outIdx][i] > maxProb) maxProb = mat[outIdx][i];
+              }
+            }
+          }
+          if (maxProb <= 0) return null;
+          const midX = (edge.x1 + edge.x2) / 2;
+          const d = edge.isBackward
+            ? `M${edge.x2},${edge.y2} C${midX},${edge.y2} ${midX},${edge.y1} ${edge.x1},${edge.y1}`
+            : `M${edge.x1},${edge.y1} C${midX},${edge.y1} ${midX},${edge.y2} ${edge.x2},${edge.y2}`;
+          const color = probColor(maxProb);
+          return (
+            <g style={{ pointerEvents: "none" }}>
+              {/* Glow aura */}
+              <path d={d} fill="none" stroke={color} strokeWidth={6.5} strokeOpacity={0.4} filter="url(#glow-medium)" />
+              {/* Solid edge at full opacity */}
+              <path d={d} fill="none" stroke={color} strokeWidth={2.5} strokeOpacity={1.0}
+                strokeDasharray={edge.isBackward ? "6 4" : undefined} />
+            </g>
+          );
+        })()}
 
         {/* Nodes */}
         {layoutNodes.map((node) => {
@@ -1346,6 +1446,10 @@ export function GraphExplorer(props: GraphExplorerProps) {
   // View transform for fullscreen pan/zoom
   const [viewTransform, setViewTransform] = useState<ViewTransform | undefined>(undefined);
 
+  // Linkability edge mode
+  const [linkabilityEdgeMode, setLinkabilityEdgeMode] = useState(false);
+  const hasLinkability = !!props.rootBoltzmannResult;
+
   // Heat map state
   const [heatMapActive, setHeatMapActive] = useState(false);
   const [heatMap, setHeatMap] = useState<Map<string, ScoringResult>>(new Map());
@@ -1467,6 +1571,24 @@ export function GraphExplorer(props: GraphExplorerProps) {
             </span>
           </span>
         </button>
+
+        {/* Linkability edge mode toggle */}
+        {hasLinkability && (
+          <button
+            onClick={() => setLinkabilityEdgeMode(!linkabilityEdgeMode)}
+            className={`text-xs transition-colors px-2 py-1 rounded border cursor-pointer ${
+              linkabilityEdgeMode
+                ? "text-bitcoin border-bitcoin/30 bg-bitcoin/10"
+                : "text-white/50 hover:text-white/80 border-white/10"
+            }`}
+            title={t("graphExplorer.linkability", { defaultValue: "Color edges by linkability" })}
+          >
+            <span className="flex items-center gap-1">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+              <span className="hidden sm:inline">{t("graphExplorer.linkability", { defaultValue: "Linkability" })}</span>
+            </span>
+          </button>
+        )}
 
         {/* Undo */}
         <button
@@ -1594,6 +1716,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
     setFocusedNode,
     heatMap,
     heatMapActive,
+    linkabilityEdgeMode,
   };
 
   const fullscreenCanvasProps = {
@@ -1606,6 +1729,17 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
   const tooltipContent = tooltip.tooltipOpen && tooltip.tooltipData && (
     <ChartTooltip top={tooltip.tooltipTop} left={tooltip.tooltipLeft} containerRef={scrollRef}>
+      {tooltip.tooltipData.linkProb !== undefined ? (
+        <div className="space-y-0.5">
+          <div className="text-xs font-medium flex items-center gap-1.5">
+            <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: probColor(tooltip.tooltipData.linkProb), display: "inline-block", flexShrink: 0 }} />
+            <span style={{ color: SVG_COLORS.foreground }}>{Math.round(tooltip.tooltipData.linkProb * 100)}% linkability</span>
+          </div>
+          <div className="text-xs" style={{ color: SVG_COLORS.muted }}>
+            {t("graphExplorer.linkability", { defaultValue: "Max output linkability" })}
+          </div>
+        </div>
+      ) : (
       <div className="space-y-1">
         <div className="font-mono text-xs">{truncateId(tooltip.tooltipData.txid, 8)}</div>
         <div className="text-xs" style={{ color: SVG_COLORS.muted }}>
@@ -1671,6 +1805,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
           {t("graphExplorer.depth", { depth: tooltip.tooltipData.depth > 0 ? `+${tooltip.tooltipData.depth}` : tooltip.tooltipData.depth, defaultValue: "Depth: {{depth}}" })}
         </div>
       </div>
+      )}
     </ChartTooltip>
   );
 

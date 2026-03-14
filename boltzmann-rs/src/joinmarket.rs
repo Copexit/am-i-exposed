@@ -128,7 +128,7 @@ pub fn analyze_joinmarket(
 
     let n_out = sorted_outputs.len();
 
-    if n_in <= 1 || n_out == 0 {
+    if n_in == 0 || n_out == 0 {
         if n_out > 18 {
             let degenerate = crate::types::LinkerResult::new_degenerate(n_out.max(1), n_in.max(1));
             return finalize_result(&degenerate, n_in.max(1), n_out.max(1), fees, 0, 0, start);
@@ -267,23 +267,40 @@ pub fn analyze_joinmarket(
             (result_no_intra, 0, 0)
         };
 
-    // Extract cell value from row 0 (all rows identical for equal outputs)
-    let cj_cell = if !reduced_result.mat_lnk.is_empty() && !reduced_result.mat_lnk[0].is_empty() {
-        reduced_result.mat_lnk[0][0]
-    } else {
-        1
-    };
-
     let nb_cmbn = reduced_result.nb_cmbn;
     let timed_out = reduced_result.timed_out;
+
+    // Extract per-input cell values from row 0 (all CJ rows identical by symmetry
+    // of equal outputs, but different inputs may have different cell values).
+    let empty_row: Vec<u64> = vec![];
+    let reduced_cj_row = if !reduced_result.mat_lnk.is_empty() {
+        &reduced_result.mat_lnk[0]
+    } else {
+        &empty_row
+    };
+    // Fallback uniform value if DFS row is empty
+    let cj_cell_fallback = if !reduced_cj_row.is_empty() { reduced_cj_row[0] } else { 1 };
+
+    // Maker CJ cell: each matched maker funded exactly 1 of n_cj identical outputs.
+    // By symmetry, prob = 1/n_cj. Cell value = nb_cmbn / n_cj.
+    let maker_cj_cell = if n_cj > 0 { nb_cmbn / n_cj as u64 } else { nb_cmbn };
 
     // Step 4: Expand to full matrix (u64 path)
     let mut full_mat = vec![vec![0u64; n_in]; n_out];
 
-    // CJ output rows: uniform cell value for all inputs
+    // CJ output rows: per-input cell values from DFS, differentiated by maker/taker
     for &full_out in &jm.cj_output_indices {
-        for cell in full_mat[full_out].iter_mut() {
-            *cell = cj_cell;
+        for full_in in 0..n_in {
+            if jm.input_to_change[full_in].is_some() {
+                // Matched maker: exactly 1/n_cj probability (exact)
+                full_mat[full_out][full_in] = maker_cj_cell;
+            } else if !reduced_cj_row.is_empty() {
+                // Taker input: use per-input DFS cell value
+                let reduced_in = full_to_reduced_in[full_in];
+                full_mat[full_out][full_in] = reduced_cj_row[reduced_in];
+            } else {
+                full_mat[full_out][full_in] = cj_cell_fallback;
+            }
         }
     }
 
@@ -294,7 +311,7 @@ pub fn analyze_joinmarket(
         }
     }
 
-    // Unmatched change rows: use CJ cell value (ambiguous, not deterministic).
+    // Unmatched change rows: use per-input DFS cell value (ambiguous, not deterministic).
     // Setting 100% would be wrong: a single input can't fund multiple unmatched
     // changes simultaneously, and we don't have DFS data for these specific links.
     if !jm.unmatched_change_indices.is_empty() {
@@ -304,7 +321,12 @@ pub fn analyze_joinmarket(
         if !unmatched_inputs.is_empty() {
             for &change_out in &jm.unmatched_change_indices {
                 for &ui in &unmatched_inputs {
-                    full_mat[change_out][ui] = cj_cell;
+                    if !reduced_cj_row.is_empty() {
+                        let reduced_in = full_to_reduced_in[ui];
+                        full_mat[change_out][ui] = reduced_cj_row[reduced_in];
+                    } else {
+                        full_mat[change_out][ui] = cj_cell_fallback;
+                    }
                 }
             }
         }
@@ -337,11 +359,22 @@ fn build_u64_result(
     fees: i64,
     start: f64,
 ) -> BoltzmannResult {
+    let n_cj = jm.cj_output_indices.len() as u64;
+    // Maker CJ cell: each matched maker funded exactly 1 of n_cj identical outputs.
+    // By symmetry, prob = 1/n_cj. Cell value = nb_cmbn / n_cj.
+    let maker_cj_cell = if n_cj > 0 { nb_cmbn / n_cj } else { nb_cmbn };
+
     let mut full_mat = vec![vec![0u64; n_in]; n_out];
 
     for &full_out in &jm.cj_output_indices {
-        for cell in full_mat[full_out].iter_mut() {
-            *cell = cj_cell;
+        for i in 0..n_in {
+            if jm.input_to_change[i].is_some() {
+                // Matched maker: exact 1/n_cj
+                full_mat[full_out][i] = maker_cj_cell;
+            } else {
+                // Taker/unmatched: partition formula (approximate)
+                full_mat[full_out][i] = cj_cell;
+            }
         }
     }
 
@@ -383,6 +416,7 @@ fn build_f64_result(
     fees: i64,
     start: f64,
 ) -> BoltzmannResult {
+    let n_cj = jm.cj_output_indices.len();
     // For the combinations matrix, use a scaled denominator so tooltip count/total is meaningful
     let scale = if nb_cmbn_f64 <= 1e15 {
         nb_cmbn_f64.round().max(1.0) as u64
@@ -391,14 +425,26 @@ fn build_f64_result(
     };
     let cj_cell_comb = (cj_cell_prob * scale as f64).round() as u64;
 
+    // Maker CJ probability: each matched maker funded exactly 1 of n_cj identical
+    // outputs. By combinatorial symmetry, prob = 1/n_cj (exact).
+    let maker_cj_prob = if n_cj > 0 { 1.0 / n_cj as f64 } else { 1.0 };
+    let maker_cj_comb = (maker_cj_prob * scale as f64).round() as u64;
+
     let mut mat_comb = vec![vec![0u64; n_in]; n_out];
     let mut mat_prob = vec![vec![0.0f64; n_in]; n_out];
 
-    // CJ output rows: uniform probability
+    // CJ output rows: differentiate matched maker vs taker inputs
     for &full_out in &jm.cj_output_indices {
         for i in 0..n_in {
-            mat_comb[full_out][i] = cj_cell_comb;
-            mat_prob[full_out][i] = cj_cell_prob;
+            if jm.input_to_change[i].is_some() {
+                // Matched maker: exact 1/n_cj
+                mat_comb[full_out][i] = maker_cj_comb;
+                mat_prob[full_out][i] = maker_cj_prob;
+            } else {
+                // Taker/unmatched: partition formula (approximate)
+                mat_comb[full_out][i] = cj_cell_comb;
+                mat_prob[full_out][i] = cj_cell_prob;
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 import type { ScoringResult, InputType, TxAnalysisResult, Finding } from "@/lib/types";
 import type { MempoolTransaction, MempoolAddress, MempoolUtxo, MempoolOutspend } from "@/lib/api/types";
+import type { BoltzmannWorkerResult } from "@/hooks/useBoltzmann";
 import type { HeuristicStep, PreSendResult } from "@/lib/analysis/orchestrator";
 import type { PSBTParseResult } from "@/lib/bitcoin/psbt";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
@@ -49,6 +50,10 @@ export interface AnalysisState {
   forwardLayers: TraceLayer[] | null;
   /** Whether this result was loaded from the analysis result cache. */
   fromCache?: boolean;
+  /** Boltzmann link probability result (null = not computed yet or unsupported). */
+  boltzmannResult: BoltzmannWorkerResult | null;
+  /** Boltzmann computation status. */
+  boltzmannStatus: "idle" | "computing" | "complete" | "error" | "unsupported" | null;
 }
 
 export const INITIAL_STATE: AnalysisState = {
@@ -72,6 +77,8 @@ export const INITIAL_STATE: AnalysisState = {
   fetchProgress: null,
   backwardLayers: null,
   forwardLayers: null,
+  boltzmannResult: null,
+  boltzmannStatus: null,
 };
 
 /** Build a finding for missing prevout data after enrichment. */

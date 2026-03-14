@@ -22,6 +22,7 @@ import type {
 import type { PreSendResult } from "@/lib/analysis/orchestrator";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 import type { AnalysisState } from "@/hooks/useAnalysisState";
+import type { BoltzmannWorkerResult } from "@/hooks/useBoltzmann";
 
 export const TTL_24_HOURS = 24 * 60 * 60 * 1000;
 
@@ -48,6 +49,7 @@ interface StoredAnalysisResult {
   outspends: MempoolOutspend[] | null;
   backwardLayers: StoredTraceLayer[] | null;
   forwardLayers: StoredTraceLayer[] | null;
+  boltzmannResult: BoltzmannWorkerResult | null;
 }
 
 /** Deserialized analysis result returned from getCachedResult. */
@@ -67,18 +69,25 @@ export interface CachedAnalysisResult {
   outspends: MempoolOutspend[] | null;
   backwardLayers: TraceLayer[] | null;
   forwardLayers: TraceLayer[] | null;
+  boltzmannResult: BoltzmannWorkerResult | null;
 }
 
 /**
+ * Cache version - bump when computation logic changes (WASM rebuild, heuristic
+ * updates, scoring changes) to invalidate stale cached results.
+ */
+const CACHE_VERSION = 2;
+
+/**
  * Build a cache key that embeds the analysis settings affecting results.
- * Format: result:{network}:{query}:{maxDepth}:{minSats}:{skipCoinJoins}:{skipLargeClusters}
+ * Format: result:v{CACHE_VERSION}:{network}:{query}:{maxDepth}:{minSats}:{skipCoinJoins}:{skipLargeClusters}
  */
 export function buildResultCacheKey(
   network: string,
   query: string,
   settings: AnalysisSettings,
 ): string {
-  return `result:${network}:${query}:${settings.maxDepth}:${settings.minSats}:${settings.skipCoinJoins ? 1 : 0}:${settings.skipLargeClusters ? 1 : 0}`;
+  return `result:v${CACHE_VERSION}:${network}:${query}:${settings.maxDepth}:${settings.minSats}:${settings.skipCoinJoins ? 1 : 0}:${settings.skipLargeClusters ? 1 : 0}`;
 }
 
 /** Convert TraceLayer[] to stored form (Map -> Record). */
@@ -120,6 +129,7 @@ export async function getCachedResult(
     forwardLayers: stored.forwardLayers
       ? deserializeLayers(stored.forwardLayers)
       : null,
+    boltzmannResult: stored.boltzmannResult ?? null,
   };
 }
 
@@ -157,6 +167,7 @@ export async function putCachedResult(
     forwardLayers: state.forwardLayers
       ? serializeLayers(state.forwardLayers)
       : null,
+    boltzmannResult: state.boltzmannResult ?? null,
   };
 
   await idbPut(key, stored, TTL_24_HOURS);
