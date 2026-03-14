@@ -95,6 +95,25 @@ fn bench_8x8_perfect_cj(c: &mut Criterion) {
     group.finish();
 }
 
+/// 9x9 perfect CoinJoin: 277,006,192 combinations (very heavy)
+fn bench_9x9_perfect_cj(c: &mut Criterion) {
+    let mut group = c.benchmark_group("very_heavy");
+    group.sample_size(10);
+    group.measurement_time(std::time::Duration::from_secs(30));
+    group.bench_function("9x9_perfect_cj", |b| {
+        b.iter(|| {
+            analyze(
+                black_box(&[5, 5, 5, 5, 5, 5, 5, 5, 5]),
+                black_box(&[5, 5, 5, 5, 5, 5, 5, 5, 5]),
+                black_box(0),
+                black_box(0.0),
+                black_box(600_000),
+            )
+        });
+    });
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_consolidation,
@@ -103,5 +122,6 @@ criterion_group!(
     bench_7x7_perfect_cj,
     bench_9in_4out_mixed,
     bench_8x8_perfect_cj,
+    bench_9x9_perfect_cj,
 );
 criterion_main!(benches);

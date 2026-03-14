@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft, ExternalLink, Copy, Check, Info, AlertTriangle, Search, ChevronRight } from "lucide-react";
 import { useState, useCallback, useRef, useEffect, lazy, Suspense, memo } from "react";
+import { useDevMode } from "@/hooks/useDevMode";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
@@ -331,6 +332,7 @@ export const ResultsPanel = memo(function ResultsPanel({
 }: ResultsPanelProps) {
   const { config, customApiUrl, isUmbrel } = useNetwork();
   const { t } = useTranslation();
+  const { devMode } = useDevMode();
   const isCoinJoin = result.findings.some(isCoinJoinFinding);
   const fingerprintFinding = result.findings.find((f) => f.id === "h11-wallet-fingerprint");
   const detectedWallet = fingerprintFinding?.params?.walletGuess as string | undefined;
@@ -522,10 +524,12 @@ export const ResultsPanel = memo(function ResultsPanel({
             walletGuess={detectedWallet ?? null}
           />
         </motion.div>
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.12 }} className="w-full">
-          <Remediation findings={result.findings} grade={result.grade} />
-        </motion.div>
-        {(result.grade === "D" || result.grade === "F") && (
+        {devMode && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.12 }} className="w-full">
+            <Remediation findings={result.findings} grade={result.grade} />
+          </motion.div>
+        )}
+        {devMode && (result.grade === "D" || result.grade === "F") && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.14 }} className="w-full">
             <RecoveryFlow grade={result.grade} />
           </motion.div>

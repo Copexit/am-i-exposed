@@ -76,6 +76,34 @@ export function prepare_boltzmann(input_values, output_values, fee, max_cj_intra
     return ret;
 }
 
+/**
+ * Prepare a ranged Boltzmann computation for multi-worker parallelism.
+ *
+ * Each worker calls this with its `worker_index` (0-based) and `total_workers`.
+ * Phase 1+2 run internally, then a `DfsState` is created restricted to the
+ * worker's assigned slice of root branches.
+ *
+ * `fees_maker` and `fees_taker` are provided explicitly (not computed from ratio)
+ * so each worker can independently handle both dual-run passes.
+ * @param {BigInt64Array} input_values
+ * @param {BigInt64Array} output_values
+ * @param {bigint} fee
+ * @param {bigint} fees_maker
+ * @param {bigint} fees_taker
+ * @param {number} timeout_ms
+ * @param {number} worker_index
+ * @param {number} total_workers
+ * @returns {any}
+ */
+export function prepare_boltzmann_ranged(input_values, output_values, fee, fees_maker, fees_taker, timeout_ms, worker_index, total_workers) {
+    const ptr0 = passArray64ToWasm0(input_values, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArray64ToWasm0(output_values, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.prepare_boltzmann_ranged(ptr0, len0, ptr1, len1, fee, fees_maker, fees_taker, timeout_ms, worker_index, total_workers);
+    return ret;
+}
+
 function __wbg_get_imports() {
     const import0 = {
         __proto__: null,

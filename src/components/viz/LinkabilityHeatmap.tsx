@@ -291,7 +291,7 @@ export function LinkabilityHeatmap({ tx }: Props) {
                     className="inline-flex items-center gap-1.5 bg-surface-inset rounded-full px-2.5 py-1 text-xs text-muted"
                   >
                     <Hash size={11} />
-                    {t("boltzmann.interpretations", {
+                    {result.timedOut ? `${result.nbCmbn.toLocaleString()}+ interpretations (partial)` : t("boltzmann.interpretations", {
                       defaultValue: "{{num}} interpretations",
                       num: result.nbCmbn.toLocaleString(),
                     })}
@@ -303,10 +303,12 @@ export function LinkabilityHeatmap({ tx }: Props) {
                     className="inline-flex items-center gap-1.5 bg-surface-inset rounded-full px-2.5 py-1 text-xs text-muted"
                   >
                     <Grid3X3 size={11} />
-                    {t("boltzmann.entropy", {
-                      defaultValue: "{{bits}} bits entropy",
-                      bits: result.entropy.toFixed(2),
-                    })}
+                    {result.timedOut
+                      ? `${result.entropy.toFixed(2)}+ bits entropy (partial)`
+                      : t("boltzmann.entropy", {
+                          defaultValue: "{{bits}} bits entropy",
+                          bits: result.entropy.toFixed(2),
+                        })}
                   </motion.span>
                   <motion.span
                     initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }}
@@ -315,10 +317,12 @@ export function LinkabilityHeatmap({ tx }: Props) {
                     className="inline-flex items-center gap-1.5 bg-surface-inset rounded-full px-2.5 py-1 text-xs text-muted"
                   >
                     <Grid3X3 size={11} />
-                    {t("boltzmann.entropyPerUtxo", {
-                      defaultValue: "{{bits}} bits/UTXO",
-                      bits: (result.entropy / (nIn + nOut)).toFixed(2),
-                    })}
+                    {result.timedOut
+                      ? `${(result.entropy / (nIn + nOut)).toFixed(2)}+ bits/UTXO (partial)`
+                      : t("boltzmann.entropyPerUtxo", {
+                          defaultValue: "{{bits}} bits/UTXO",
+                          bits: (result.entropy / (nIn + nOut)).toFixed(2),
+                        })}
                   </motion.span>
                   {result.deterministicLinks.length > 0 && (
                     <motion.span
@@ -352,7 +356,7 @@ export function LinkabilityHeatmap({ tx }: Props) {
                   <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-400/10 rounded-lg px-3 py-2">
                     <AlertTriangle size={14} />
                     {t("boltzmann.timedOut", {
-                      defaultValue: "Partial results - computation timed out. The matrix may be incomplete.",
+                      defaultValue: "Computation timed out. Only deterministic links (100%) and zero-probability cells are reliable. Other cells are shown as N/A.",
                     })}
                   </div>
                 )}
@@ -425,11 +429,14 @@ export function LinkabilityHeatmap({ tx }: Props) {
                             const prob = result.matLnkProbabilities[o]?.[i] ?? 0;
                             const count = result.matLnkCombinations[o]?.[i] ?? 0;
                             const isDeterministic = prob >= 1.0;
+                            // When timed out, only deterministic (100%) and zero (0%) cells are reliable
+                            const isUnreliable = result.timedOut && prob > 0 && prob < 1.0;
+                            const displayProb = isUnreliable ? 0 : prob;
                             const isHovered = hoveredCell?.row === i && hoveredCell?.col === o;
                             const inCrosshair = hoveredCell !== null
                               && (hoveredCell.row === i || hoveredCell.col === o);
                             const dimmed = hoveredCell !== null && !inCrosshair;
-                            const color = probColor(prob);
+                            const color = isUnreliable ? "rgb(30, 30, 40)" : probColor(displayProb);
 
                             return (
                               <motion.div
@@ -449,17 +456,19 @@ export function LinkabilityHeatmap({ tx }: Props) {
                                 } ${isHovered ? "z-10" : ""}`}
                                 style={{
                                   backgroundColor: color,
-                                  boxShadow: cellGlow(prob),
+                                  boxShadow: isUnreliable ? "none" : cellGlow(displayProb),
                                 }}
                                 onMouseEnter={(e) =>
-                                  handleCellHover(e, i, o, prob, count, result.nbCmbn)
+                                  handleCellHover(e, i, o, isUnreliable ? -1 : prob, count, result.nbCmbn)
                                 }
                                 onMouseLeave={handleCellLeave}
                               >
                                 <span
-                                  className={`text-xs font-mono tabular-nums ${probTextColor(prob)}`}
+                                  className={`text-xs font-mono tabular-nums ${
+                                    isUnreliable ? "text-white/20 italic" : probTextColor(displayProb)
+                                  }`}
                                 >
-                                  {prob === 0 ? "-" : `${(prob * 100).toFixed(0)}%`}
+                                  {isUnreliable ? "N/A" : prob === 0 ? "-" : `${(prob * 100).toFixed(0)}%`}
                                 </span>
                               </motion.div>
                             );
@@ -501,26 +510,34 @@ export function LinkabilityHeatmap({ tx }: Props) {
                           <div className="text-[11px] font-mono text-muted">
                             {truncAddr(tooltipData.inAddr, 6)} &rarr; {truncAddr(tooltipData.outAddr, 6)}
                           </div>
-                          <div className="text-sm font-semibold text-foreground">
-                            {(tooltipData.prob * 100).toFixed(1)}%
-                            <span className="text-xs font-normal text-muted ml-1.5">
-                              ({tooltipData.count}/{tooltipData.total})
-                            </span>
-                          </div>
-                          <div
-                            className="text-[10px] font-medium"
-                            style={{ color: probColor(tooltipData.prob) }}
-                          >
-                            {probLabel(tooltipData.prob)}
-                          </div>
+                          {tooltipData.prob < 0 ? (
+                            <div className="text-sm font-semibold text-muted/50 italic">
+                              N/A - partial result (timed out)
+                            </div>
+                          ) : (
+                            <>
+                              <div className="text-sm font-semibold text-foreground">
+                                {(tooltipData.prob * 100).toFixed(1)}%
+                                <span className="text-xs font-normal text-muted ml-1.5">
+                                  ({tooltipData.count}/{tooltipData.total})
+                                </span>
+                              </div>
+                              <div
+                                className="text-[10px] font-medium"
+                                style={{ color: probColor(tooltipData.prob) }}
+                              >
+                                {probLabel(tooltipData.prob)}
+                              </div>
+                            </>
+                          )}
                         </div>
                       </ChartTooltip>
                     )}
                   </div>
                 </div>
 
-                {/* Efficiency bar */}
-                {result.efficiency > 0 && (
+                {/* Efficiency bar - hidden when timed out since partial data is meaningless */}
+                {result.efficiency > 0 && !result.timedOut && (
                   <motion.div
                     initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}

@@ -9,6 +9,15 @@ pub struct PrepareResult {
     pub has_dual_run: bool,
 }
 
+/// Metadata returned by `prepare_boltzmann_ranged` for the multi-worker API.
+#[derive(Debug, Clone, Serialize)]
+pub struct PrepareRangedResult {
+    /// Number of root branches assigned to this worker.
+    pub assigned_branches: u32,
+    /// Total root branches across all workers.
+    pub total_root_branches: u32,
+}
+
 /// Progress returned by each `dfs_step` call.
 #[derive(Debug, Clone, Serialize)]
 pub struct StepResult {

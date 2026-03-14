@@ -47,6 +47,79 @@ const CHUNK_MS = 100;
 
 self.onmessage = async (e) => {
   const msg = e.data;
+
+  if (msg.type === "compute-range") {
+    // --- Multi-worker ranged DFS path ---
+    try {
+      const t0 = performance.now();
+      await initWasm();
+      const t1 = performance.now();
+
+      const inputValues = new BigInt64Array(msg.inputValues.map(v => BigInt(v)));
+      const outputValues = new BigInt64Array(msg.outputValues.map(v => BigInt(v)));
+
+      const prepRaw = wasmExports.prepare_boltzmann_ranged(
+        inputValues, outputValues,
+        BigInt(msg.fee),
+        BigInt(msg.feesMaker),
+        BigInt(msg.feesTaker),
+        msg.timeoutMs,
+        msg.workerIndex,
+        msg.totalWorkers,
+      );
+      const t2 = performance.now();
+
+      const assignedBranches = toNum(prepRaw.assigned_branches);
+      const totalBranches = toNum(prepRaw.total_root_branches);
+      console.log(`[boltzmann w${msg.workerIndex}] init=${(t1-t0).toFixed(0)}ms phase1+2=${(t2-t1).toFixed(0)}ms branches=${assignedBranches}/${totalBranches}`);
+
+      // If no DFS needed (degenerate), finalize immediately
+      if (assignedBranches === 0) {
+        const raw = wasmExports.dfs_finalize();
+        self.postMessage({
+          ...buildResultMessage(raw, msg.id),
+          workerIndex: msg.workerIndex,
+        });
+        return;
+      }
+
+      const startTime = performance.now();
+
+      // Chunked DFS loop
+      let stepResult;
+      do {
+        stepResult = wasmExports.dfs_step(CHUNK_MS);
+        const completed = toNum(stepResult.completed_branches);
+        const total = toNum(stepResult.total_branches);
+        const fraction = total > 0 ? completed / total : 0;
+
+        self.postMessage({
+          type: "progress",
+          id: msg.id,
+          fraction,
+          elapsedMs: performance.now() - startTime,
+          workerIndex: msg.workerIndex,
+        });
+
+        await new Promise(r => setTimeout(r, 0));
+      } while (!stepResult.done && !stepResult.timed_out);
+
+      const raw = wasmExports.dfs_finalize();
+      self.postMessage({
+        ...buildResultMessage(raw, msg.id),
+        workerIndex: msg.workerIndex,
+      });
+    } catch (err) {
+      self.postMessage({
+        type: "error",
+        id: msg.id,
+        workerIndex: msg.workerIndex,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return;
+  }
+
   if (msg.type !== "compute") return;
 
   try {

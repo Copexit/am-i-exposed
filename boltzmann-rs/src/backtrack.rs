@@ -3,6 +3,41 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::subset_sum::{AggregateMatches, Aggregates};
 use crate::types::LinkerResult;
 
+/// Sparse map for d_out inner entries: stores (key, [nb_parents, nb_children]) pairs.
+/// Optimized for small number of entries (typically 1-10) with linear scan.
+type DOutInner = Vec<(usize, [u64; 2])>;
+
+/// d_out: Vec indexed by output_remaining mask. Each entry is None or a small
+/// vec of (left_output_mask, [nb_parents, nb_children]) pairs.
+type DOut = Vec<Option<DOutInner>>;
+
+/// Create an empty d_out with capacity for all output masks.
+#[inline(always)]
+fn new_d_out(out_size: usize) -> DOut {
+    vec![None; out_size]
+}
+
+/// Look up an entry in d_out inner by key.
+#[inline(always)]
+fn d_out_inner_get(inner: &DOutInner, key: usize) -> Option<&[u64; 2]> {
+    for &(k, ref v) in inner {
+        if k == key {
+            return Some(v);
+        }
+    }
+    None
+}
+
+/// d_links: Vec indexed by input mask, each entry is a Vec indexed by output mask.
+/// Lazily initialized per input mask.
+type DLinks = Vec<Option<Vec<u64>>>;
+
+/// Create an empty d_links with capacity for all input masks.
+#[inline(always)]
+fn new_d_links(in_size: usize) -> DLinks {
+    vec![None; in_size]
+}
+
 /// A task on the DFS stack.
 /// Mirrors ComputeLinkMatrixTask from the TS reference.
 struct Task {
@@ -14,7 +49,9 @@ struct Task {
     ir: usize,
     /// Output combination state:
     /// d_out[output_remaining][left_output] = [nb_parents, nb_children]
-    d_out: HashMap<usize, HashMap<usize, [u64; 2]>>,
+    d_out: DOut,
+    /// Indices in d_out that have non-None entries (for efficient iteration).
+    active: Vec<usize>,
 }
 
 /// Resumable DFS state for the chunked API.
@@ -23,17 +60,31 @@ struct Task {
 /// yielding between chunks so the worker can post progress.
 pub struct DfsState {
     matches: AggregateMatches,
-    mat_in_agg_cmbn: HashMap<usize, Vec<(usize, usize)>>,
+    mat_in_agg_cmbn: Vec<Vec<(usize, usize)>>,
     stack: Vec<Task>,
-    d_links: HashMap<usize, HashMap<usize, u64>>,
+    d_links: DLinks,
     nb_tx_cmbn: u64,
     timed_out: bool,
     it_gt: usize,
     ot_gt: usize,
+    out_size: usize,
     /// Number of completed top-level (root) branches.
     pub completed_root_branches: u32,
     /// Total number of root branches in this run.
     pub total_root_branches: u32,
+    /// Exclusive upper bound for root-level iteration (for ranged DFS).
+    branch_end: usize,
+}
+
+/// Convert a HashMap<usize, Vec<(usize, usize)>> to a Vec indexed by key.
+fn hashmap_to_vec(map: HashMap<usize, Vec<(usize, usize)>>, size: usize) -> Vec<Vec<(usize, usize)>> {
+    let mut v = vec![Vec::new(); size];
+    for (k, val) in map {
+        if k < size {
+            v[k] = val;
+        }
+    }
+    v
 }
 
 impl DfsState {
@@ -48,36 +99,57 @@ impl DfsState {
         mat_in_agg_cmbn: HashMap<usize, Vec<(usize, usize)>>,
     ) -> Self {
         let it_gt = in_agg.full_mask();
-        let ot_gt = out_agg.full_mask();
-
-        let total_root_branches = mat_in_agg_cmbn
+        let total = mat_in_agg_cmbn
             .get(&it_gt)
-            .map_or(0, |v| v.len() as u32);
+            .map_or(0, |v| v.len());
+        Self::new_ranged(in_agg, out_agg, matches, mat_in_agg_cmbn, 0, total)
+    }
+
+    /// Create a DFS state restricted to a range of root-level branches.
+    ///
+    /// Used for multi-worker parallelism: each worker gets a disjoint
+    /// `[branch_start .. branch_start + branch_count)` slice of the
+    /// root decomposition list (`mat_in_agg_cmbn[it_gt]`).
+    pub fn new_ranged(
+        in_agg: &Aggregates,
+        out_agg: &Aggregates,
+        matches: AggregateMatches,
+        mat_in_agg_cmbn: HashMap<usize, Vec<(usize, usize)>>,
+        branch_start: usize,
+        branch_count: usize,
+    ) -> Self {
+        let it_gt = in_agg.full_mask();
+        let ot_gt = out_agg.full_mask();
+        let out_size = ot_gt + 1;
+        let in_size = it_gt + 1;
 
         // Initialize root task d_out: {otGt: {0: [1, 0]}}
-        let mut root_d_out: HashMap<usize, HashMap<usize, [u64; 2]>> = HashMap::default();
-        let mut inner = HashMap::default();
-        inner.insert(0usize, [1u64, 0u64]);
-        root_d_out.insert(ot_gt, inner);
+        let mut root_d_out = new_d_out(out_size);
+        root_d_out[ot_gt] = Some(vec![(0usize, [1u64, 0u64])]);
 
         let root_task = Task {
-            idx_il: 0,
+            idx_il: branch_start,
             il: 0,
             ir: it_gt,
             d_out: root_d_out,
+            active: vec![ot_gt],
         };
+
+        let mat_vec = hashmap_to_vec(mat_in_agg_cmbn, in_size);
 
         Self {
             matches,
-            mat_in_agg_cmbn,
+            mat_in_agg_cmbn: mat_vec,
             stack: vec![root_task],
-            d_links: HashMap::default(),
+            d_links: new_d_links(in_size),
             nb_tx_cmbn: 0,
             timed_out: false,
             it_gt,
             ot_gt,
+            out_size,
             completed_root_branches: 0,
-            total_root_branches,
+            total_root_branches: branch_count as u32,
+            branch_end: branch_start + branch_count,
         }
     }
 
@@ -101,24 +173,32 @@ impl DfsState {
             let t = &mut self.stack[stack_len - 1];
             let mut n_idx_il = t.idx_il;
 
-            let ircs = self.mat_in_agg_cmbn.get(&t.ir);
-            let len_ircs = ircs.map_or(0, |v| v.len());
+            let ircs = &self.mat_in_agg_cmbn[t.ir];
+            let len_ircs = ircs.len();
+
+            // Cap root-level iteration at branch_end for ranged DFS
+            let effective_len = if stack_len == 1 {
+                len_ircs.min(self.branch_end)
+            } else {
+                len_ircs
+            };
 
             let mut pushed = false;
 
-            for i in t.idx_il..len_ircs {
+            for i in t.idx_il..effective_len {
                 n_idx_il = i;
-                let ircs_vec = ircs.unwrap();
-                let n_il = ircs_vec[i].1; // smaller child
-                let n_ir = ircs_vec[i].0; // bigger child
+                let n_il = ircs[i].1; // smaller child
+                let n_ir = ircs[i].0; // bigger child
 
                 if n_il > t.il {
-                    let nd_out = run_task(
+                    let (nd_out, nd_active) = run_task(
                         n_il,
                         n_ir,
                         &self.matches,
                         self.ot_gt,
+                        self.out_size,
                         &t.d_out,
+                        &t.active,
                     );
 
                     t.idx_il = i + 1;
@@ -128,27 +208,33 @@ impl DfsState {
                         il: n_il,
                         ir: n_ir,
                         d_out: nd_out,
+                        active: nd_active,
                     });
 
                     pushed = true;
                     break;
                 } else {
-                    n_idx_il = len_ircs;
+                    n_idx_il = effective_len;
                     break;
                 }
             }
 
-            if !pushed && n_idx_il >= len_ircs {
+            if !pushed && n_idx_il >= effective_len {
                 let t = self.stack.pop().unwrap();
                 if self.stack.is_empty() {
                     // Root task completed: extract nb_tx_cmbn
-                    if let Some(root_d) = t.d_out.get(&self.ot_gt) {
-                        if let Some(entry) = root_d.get(&0) {
+                    if let Some(ref root_d) = t.d_out[self.ot_gt] {
+                        if let Some(entry) = d_out_inner_get(root_d, 0) {
                             self.nb_tx_cmbn = entry[1];
                         }
                     }
                 } else {
-                    on_task_completed(&t, self.stack.last_mut().unwrap(), &mut self.d_links);
+                    on_task_completed(
+                        &t,
+                        self.stack.last_mut().unwrap(),
+                        &mut self.d_links,
+                        self.out_size,
+                    );
                     // Track root branch completion: if only root remains after pop
                     if self.stack.len() == 1 {
                         self.completed_root_branches += 1;
@@ -194,23 +280,36 @@ pub fn compute_link_matrix(
 ) -> LinkerResult {
     let it_gt = in_agg.full_mask();
     let ot_gt = out_agg.full_mask();
+    let out_size = ot_gt + 1;
+    let in_size = it_gt + 1;
 
     let mut nb_tx_cmbn: u64 = 0;
 
-    // Initialize dLinks accumulator: key0 -> (key1 -> multiplier)
-    let mut d_links: HashMap<usize, HashMap<usize, u64>> = HashMap::default();
+    // Initialize dLinks accumulator
+    let mut d_links: DLinks = new_d_links(in_size);
+
+    // Build a Vec of slices for direct indexing from the HashMap
+    let empty_vec: Vec<(usize, usize)> = Vec::new();
+    let mat_vec: Vec<&[(usize, usize)]> = {
+        let mut v: Vec<&[(usize, usize)]> = vec![&empty_vec; in_size];
+        for (k, val) in mat_in_agg_cmbn {
+            if *k < in_size {
+                v[*k] = val.as_slice();
+            }
+        }
+        v
+    };
 
     // Initialize root task d_out: {otGt: {0: [1, 0]}}
-    let mut root_d_out: HashMap<usize, HashMap<usize, [u64; 2]>> = HashMap::default();
-    let mut inner = HashMap::default();
-    inner.insert(0usize, [1u64, 0u64]);
-    root_d_out.insert(ot_gt, inner);
+    let mut root_d_out = new_d_out(out_size);
+    root_d_out[ot_gt] = Some(vec![(0usize, [1u64, 0u64])]);
 
     let root_task = Task {
         idx_il: 0,
         il: 0,
         ir: it_gt,
         d_out: root_d_out,
+        active: vec![ot_gt],
     };
 
     let mut stack: Vec<Task> = vec![root_task];
@@ -231,28 +330,26 @@ pub fn compute_link_matrix(
         let t = &mut stack[stack_len - 1];
         let mut n_idx_il = t.idx_il;
 
-        let ircs = mat_in_agg_cmbn.get(&t.ir);
-        let len_ircs = ircs.map_or(0, |v| v.len());
+        let ircs = mat_vec[t.ir];
+        let len_ircs = ircs.len();
 
         let mut pushed = false;
 
         for i in t.idx_il..len_ircs {
             n_idx_il = i;
-            let ircs_vec = ircs.unwrap();
-            // In the reference: ircs[i] = [bigger, smaller] = (i_val, j_val)
-            // nIl = ircs[i][1] = smaller child (j)
-            // nIr = ircs[i][0] = bigger child (i)
-            let n_il = ircs_vec[i].1; // smaller child
-            let n_ir = ircs_vec[i].0; // bigger child
+            let n_il = ircs[i].1; // smaller child
+            let n_ir = ircs[i].0; // bigger child
 
             if n_il > t.il {
                 // Valid decomposition found
-                let nd_out = run_task(
+                let (nd_out, nd_active) = run_task(
                     n_il,
                     n_ir,
                     matches,
                     ot_gt,
+                    out_size,
                     &t.d_out,
+                    &t.active,
                 );
 
                 t.idx_il = i + 1;
@@ -262,12 +359,13 @@ pub fn compute_link_matrix(
                     il: n_il,
                     ir: n_ir,
                     d_out: nd_out,
+                    active: nd_active,
                 });
 
                 pushed = true;
                 break;
             } else {
-                // n_il <= t.il: skip rest (the reference sets nIdxIl = ircs.length and breaks)
+                // n_il <= t.il: skip rest
                 n_idx_il = len_ircs;
                 break;
             }
@@ -278,14 +376,14 @@ pub fn compute_link_matrix(
             let t = stack.pop().unwrap();
             if stack.is_empty() {
                 // Root task completed: extract nb_tx_cmbn from d_out
-                if let Some(root_d) = t.d_out.get(&ot_gt) {
-                    if let Some(entry) = root_d.get(&0) {
+                if let Some(ref root_d) = t.d_out[ot_gt] {
+                    if let Some(entry) = d_out_inner_get(root_d, 0) {
                         nb_tx_cmbn = entry[1]; // [1] = nb_children
                     }
                 }
             } else {
                 // Non-root: back-propagate to parent
-                on_task_completed(&t, stack.last_mut().unwrap(), &mut d_links);
+                on_task_completed(&t, stack.last_mut().unwrap(), &mut d_links, out_size);
             }
         }
     }
@@ -299,36 +397,36 @@ pub fn compute_link_matrix(
 /// Find compatible output splits for a given input decomposition.
 ///
 /// Mirrors TxosAggregator.runTask() from the TS reference.
+/// Returns (d_out, active_indices).
 fn run_task(
     n_il: usize,
     n_ir: usize,
     matches: &AggregateMatches,
     ot_gt: usize,
-    parent_d_out: &HashMap<usize, HashMap<usize, [u64; 2]>>,
-) -> HashMap<usize, HashMap<usize, [u64; 2]>> {
-    let mut nd_out: HashMap<usize, HashMap<usize, [u64; 2]>> = HashMap::default();
+    out_size: usize,
+    parent_d_out: &DOut,
+    parent_active: &[usize],
+) -> (DOut, Vec<usize>) {
+    let mut nd_out = new_d_out(out_size);
+    let mut nd_active = Vec::new();
 
-    // Hoist lookups that are constant across all o_r iterations
-    let val_il = match matches.match_in_agg_to_val.get(&n_il) {
-        Some(&v) => v,
-        None => return nd_out,
+    // Hoist lookups via pre-resolved indices (no HashMap lookups)
+    let il_idx = match matches.mask_to_out_list_idx[n_il] {
+        Some(idx) => idx,
+        None => return (nd_out, nd_active),
     };
-    let out_aggs_il = match matches.val_to_match_out_agg.get(&val_il) {
-        Some(v) => v,
-        None => return nd_out,
+    let ir_idx = match matches.mask_to_out_list_idx[n_ir] {
+        Some(idx) => idx,
+        None => return (nd_out, nd_active),
     };
-    let val_ir = match matches.match_in_agg_to_val.get(&n_ir) {
-        Some(&v) => v,
-        None => return nd_out,
-    };
-    let out_aggs_ir_set = match matches.val_to_match_out_agg_set.get(&val_ir) {
-        Some(v) => v,
-        None => return nd_out,
-    };
+    let out_aggs_il = &matches.out_agg_lists[il_idx];
+    let out_aggs_ir_set = &matches.out_agg_sets[ir_idx];
 
-    for (&o_r, ol_map) in parent_d_out {
+    // Iterate only active (non-None) entries in parent d_out
+    for &o_r in parent_active {
+        let ol_map = parent_d_out[o_r].as_ref().unwrap();
         let sol = ot_gt - o_r; // already-assigned output bits
-        let nb_prt: u64 = ol_map.values().map(|v| v[0]).sum();
+        let nb_prt: u64 = ol_map.iter().map(|&(_, v)| v[0]).sum();
 
         for &n_ol in out_aggs_il {
             // n_ol must not overlap with already-assigned outputs
@@ -339,16 +437,17 @@ fn run_task(
             let n_sol = sol + n_ol;
             let n_or = ot_gt - n_sol; // remaining outputs for right input
 
-            if (n_sol & n_or) == 0 && out_aggs_ir_set.contains(&n_or) {
-                nd_out
-                    .entry(n_or)
-                    .or_default()
-                    .insert(n_ol, [nb_prt, 0]);
+            if (n_sol & n_or) == 0 && out_aggs_ir_set[n_or] {
+                if nd_out[n_or].is_none() {
+                    nd_out[n_or] = Some(Vec::new());
+                    nd_active.push(n_or);
+                }
+                nd_out[n_or].as_mut().unwrap().push((n_ol, [nb_prt, 0]));
             }
         }
     }
 
-    nd_out
+    (nd_out, nd_active)
 }
 
 /// Back-propagate results when a child task completes.
@@ -357,27 +456,38 @@ fn run_task(
 fn on_task_completed(
     t: &Task,
     pt: &mut Task,
-    d_links: &mut HashMap<usize, HashMap<usize, u64>>,
+    d_links: &mut DLinks,
+    out_size: usize,
 ) {
     let il = t.il;
     let ir = t.ir;
 
-    for (&o_r, l_ol) in &t.d_out {
-        for (&ol, entry) in l_ol {
+    // Pre-ensure d_links entries exist for ir and il to avoid repeated checks
+    if d_links[ir].is_none() {
+        d_links[ir] = Some(vec![0u64; out_size]);
+    }
+    if d_links[il].is_none() {
+        d_links[il] = Some(vec![0u64; out_size]);
+    }
+
+    // Iterate only active entries
+    for &o_r in &t.active {
+        let l_ol = t.d_out[o_r].as_ref().unwrap();
+        for &(ol, entry) in l_ol {
             let nb_prnt = entry[0];
             let nb_chld = entry[1];
             let nb_occur = nb_chld + 1;
 
             // Add dLink: [ir, or] += nb_prnt
-            *d_links.entry(ir).or_default().entry(o_r).or_insert(0) += nb_prnt;
+            d_links[ir].as_mut().unwrap()[o_r] += nb_prnt;
 
             // Add dLink: [il, ol] += nb_prnt * nb_occur
-            *d_links.entry(il).or_default().entry(ol).or_insert(0) += nb_prnt * nb_occur;
+            d_links[il].as_mut().unwrap()[ol] += nb_prnt * nb_occur;
 
             // Update parent's d_out: at p_or = ol + or, increment all child counts
             let p_or = ol + o_r;
-            if let Some(p_ol_map) = pt.d_out.get_mut(&p_or) {
-                for (_p_ol, p_entry) in p_ol_map.iter_mut() {
+            if let Some(ref mut p_ol_vec) = pt.d_out[p_or] {
+                for (_p_ol, p_entry) in p_ol_vec.iter_mut() {
                     p_entry[1] += nb_occur; // increment nb_children
                 }
             }
@@ -393,7 +503,7 @@ fn finalize_link_matrix(
     out_agg: &Aggregates,
     it_gt: usize,
     ot_gt: usize,
-    d_links: &HashMap<usize, HashMap<usize, u64>>,
+    d_links: &DLinks,
     mut nb_tx_cmbn: u64,
     timed_out: bool,
 ) -> LinkerResult {
@@ -406,9 +516,16 @@ fn finalize_link_matrix(
     nb_tx_cmbn += 1;
 
     // Add contributions from dLinks (directly, without temporary matrix)
-    for (&key0, sub_map) in d_links {
+    for (key0, slot) in d_links.iter().enumerate() {
+        let sub_vec = match slot {
+            Some(ref v) => v,
+            None => continue,
+        };
         let in_indexes = &in_agg.all_agg_indexes[key0];
-        for (&key1, &mult) in sub_map {
+        for (key1, &mult) in sub_vec.iter().enumerate() {
+            if mult == 0 {
+                continue;
+            }
             let out_indexes = &out_agg.all_agg_indexes[key1];
             for &out_idx in out_indexes {
                 for &in_idx in in_indexes {

@@ -1,4 +1,4 @@
-use rustc_hash::{FxHashMap as HashMap, FxHashSet};
+use rustc_hash::FxHashMap as HashMap;
 
 /// Precomputed aggregates: for each bitmask (subset of indexes), its value sum
 /// and the list of individual indexes in that subset.
@@ -47,12 +47,15 @@ impl Aggregates {
 pub struct AggregateMatches {
     /// All matched input aggregate masks (sorted, includes 0 as first element).
     pub all_match_in_agg: Vec<usize>,
-    /// For each matched input aggregate mask, the value it maps to (its sum).
-    pub match_in_agg_to_val: HashMap<usize, i64>,
-    /// For each value, the list of matching output aggregate masks.
-    pub val_to_match_out_agg: HashMap<i64, Vec<usize>>,
-    /// Same as val_to_match_out_agg but as FxHashSets for O(1) contains().
-    pub val_to_match_out_agg_set: HashMap<i64, FxHashSet<usize>>,
+    /// For each input bitmask, the index into the shared out_agg_lists / out_agg_sets
+    /// arrays. None if this input mask is not matched.
+    /// This replaces match_in_agg_to_val + val_to_match_out_agg + val_to_match_out_agg_set
+    /// with direct O(1) indexing.
+    pub mask_to_out_list_idx: Vec<Option<usize>>,
+    /// Shared output aggregate lists (one per unique matched input value).
+    pub out_agg_lists: Vec<Vec<usize>>,
+    /// Shared output aggregate sets (bitmask-indexed bool vecs) for O(1) contains().
+    pub out_agg_sets: Vec<Vec<bool>>,
 }
 
 /// Phase 1: Match input and output aggregates by value, accounting for fees.
@@ -69,6 +72,9 @@ pub fn match_agg_by_val(
     let effective_fees_taker = if has_intrafees { fees + fees_taker } else { 0 };
     let effective_fees_maker = if has_intrafees { -fees_maker } else { 0 };
 
+    let in_size = in_agg.all_agg_val.len();
+    let out_size = out_agg.all_agg_val.len();
+
     // Collect unique input aggregate values (sorted, including index 0 = empty set)
     let mut unique_in_vals: Vec<i64> = in_agg.all_agg_val.to_vec();
     unique_in_vals.sort();
@@ -80,10 +86,14 @@ pub fn match_agg_by_val(
     unique_out_vals.dedup();
 
     let mut all_match_in_agg: Vec<usize> = Vec::new();
-    let mut all_match_in_agg_seen: FxHashSet<usize> = FxHashSet::default();
-    let mut match_in_agg_to_val: HashMap<usize, i64> = HashMap::default();
-    let mut val_to_match_out_agg: HashMap<i64, Vec<usize>> = HashMap::default();
-    let mut out_mask_seen: HashMap<i64, FxHashSet<usize>> = HashMap::default();
+    let mut all_match_in_agg_seen: Vec<bool> = vec![false; in_size];
+    // Map input value -> index into out_agg_lists/out_agg_sets
+    let mut val_to_list_idx: HashMap<i64, usize> = HashMap::default();
+    let mut out_agg_lists: Vec<Vec<usize>> = Vec::new();
+    // Temporary: per-value seen set for deduplication
+    let mut out_mask_seen: Vec<Vec<bool>> = Vec::new();
+    // Per input mask: which list index it maps to
+    let mut mask_to_val: Vec<Option<i64>> = vec![None; in_size];
 
     for &in_agg_val in &unique_in_vals {
         for &out_agg_val in &unique_out_vals {
@@ -101,19 +111,27 @@ pub fn match_agg_by_val(
             if cond_no_intrafees || cond_intrafees {
                 // Register all input masks with this sum value
                 for (in_idx, &val) in in_agg.all_agg_val.iter().enumerate() {
-                    if val == in_agg_val && all_match_in_agg_seen.insert(in_idx) {
+                    if val == in_agg_val && !all_match_in_agg_seen[in_idx] {
+                        all_match_in_agg_seen[in_idx] = true;
                         all_match_in_agg.push(in_idx);
-                        match_in_agg_to_val.insert(in_idx, in_agg_val);
+                        mask_to_val[in_idx] = Some(in_agg_val);
                     }
                 }
 
-                // Register matching output masks under the input value key
-                let out_masks = val_to_match_out_agg
-                    .entry(in_agg_val)
-                    .or_default();
-                let seen = out_mask_seen.entry(in_agg_val).or_default();
+                // Ensure we have a list for this value
+                let list_idx = *val_to_list_idx.entry(in_agg_val).or_insert_with(|| {
+                    let idx = out_agg_lists.len();
+                    out_agg_lists.push(Vec::new());
+                    out_mask_seen.push(vec![false; out_size]);
+                    idx
+                });
+
+                // Register matching output masks
+                let out_masks = &mut out_agg_lists[list_idx];
+                let seen = &mut out_mask_seen[list_idx];
                 for (out_idx, &val) in out_agg.all_agg_val.iter().enumerate() {
-                    if val == out_agg_val && seen.insert(out_idx) {
+                    if val == out_agg_val && !seen[out_idx] {
+                        seen[out_idx] = true;
                         out_masks.push(out_idx);
                     }
                 }
@@ -121,17 +139,29 @@ pub fn match_agg_by_val(
         }
     }
 
-    // Build HashSet version for O(1) lookups in run_task
-    let val_to_match_out_agg_set: HashMap<i64, FxHashSet<usize>> = val_to_match_out_agg
+    // Build out_agg_sets (bitmask-indexed bool vecs) from out_agg_lists
+    let out_agg_sets: Vec<Vec<bool>> = out_agg_lists
         .iter()
-        .map(|(&k, v)| (k, v.iter().copied().collect()))
+        .map(|list| {
+            let mut bools = vec![false; out_size];
+            for &mask in list {
+                bools[mask] = true;
+            }
+            bools
+        })
+        .collect();
+
+    // Build mask_to_out_list_idx: for each input mask, resolve value -> list index
+    let mask_to_out_list_idx: Vec<Option<usize>> = mask_to_val
+        .iter()
+        .map(|opt_val| opt_val.and_then(|v| val_to_list_idx.get(&v).copied()))
         .collect();
 
     AggregateMatches {
         all_match_in_agg,
-        match_in_agg_to_val,
-        val_to_match_out_agg,
-        val_to_match_out_agg_set,
+        mask_to_out_list_idx,
+        out_agg_lists,
+        out_agg_sets,
     }
 }
 
@@ -164,15 +194,20 @@ pub fn compute_in_agg_cmbn(
     let tgt = *aggs.last().unwrap();
     aggs.pop(); // Remove the last (largest) element
 
-    let agg_set: FxHashSet<usize> = aggs.iter().copied().collect();
+    let mut agg_set_vec: Vec<bool> = vec![false; tgt + 1];
+    for &a in &aggs {
+        if a <= tgt {
+            agg_set_vec[a] = true;
+        }
+    }
 
     for i in 0..=tgt {
-        if !agg_set.contains(&i) {
+        if !agg_set_vec[i] {
             continue;
         }
         let j_max = std::cmp::min(i, tgt - i + 1);
         for j in 0..j_max {
-            if (i & j) == 0 && agg_set.contains(&j) {
+            if (i & j) == 0 && agg_set_vec[j] {
                 mat.entry(i + j).or_default().push((i, j));
             }
         }

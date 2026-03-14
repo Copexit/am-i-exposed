@@ -102,9 +102,13 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
       allOutputCounts.set(o.value, (allOutputCounts.get(o.value) ?? 0) + 1);
     }
     const denomTiers = [...allOutputCounts.entries()].filter(([, c]) => c >= 2);
-    const isSingleDenom = denomTiers.length === 1;
+    // JoinMarket: one dominant denomination tier. Secondary tiers from coincidental
+    // equal change amounts don't disqualify - only the primary tier matters.
+    // WabiSabi has many tiers of intentionally similar size.
+    const isDominantSingleDenom = denomTiers.length === 1 ||
+      (denomTiers.length >= 2 && count >= 2 * denomTiers.filter(([v]) => v !== denomination).reduce((sum, [, c]) => sum + c, 0));
 
-    if (isSingleDenom && isWabiSabi && count < total) {
+    if (isDominantSingleDenom && isWabiSabi && count < total) {
       // Large JoinMarket CoinJoin: 10+ in/out, single denomination + change outputs.
       // JoinMarket uses one denomination for all mixing participants.
       // WabiSabi uses multiple denomination tiers - that path is handled below.
@@ -135,17 +139,20 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
         },
         description:
           `This transaction has ${tx.vin.length} inputs and ${total} outputs with ${count} outputs at the same value (${formatBtc(denomination)}), ` +
-          "consistent with a JoinMarket CoinJoin. JoinMarket uses a single denomination for all mixing " +
-          "participants, with separate change outputs for each maker and the taker. " +
+          "consistent with a JoinMarket CoinJoin. Unlike Whirlpool (fixed pool sizes) or WabiSabi (multiple denomination tiers), " +
+          "JoinMarket uses a single arbitrary denomination chosen by the taker, with separate change outputs for each maker and the taker. " +
           (isChangeless
-            ? "This is a changeless CoinJoin - no participant change is identifiable, providing stronger privacy."
-            : `The ${changeCount} non-equal output${changeCount > 1 ? "s are" : " is"} likely maker/taker change, linking participants to specific inputs.`),
+            ? "This is a changeless CoinJoin - no participant change is identifiable, providing stronger privacy. "
+            : `The ${changeCount} change output${changeCount > 1 ? "s are" : " is"} trivially linkable to specific inputs via subset-sum analysis, ` +
+              "since the taker pays an on-chain fee to makers. An observer can match each change to its corresponding input by finding which input subsets produce the denomination plus change. ") +
+          `The anonymity set is ${count} (the number of equal outputs), which is lower than typical Whirlpool (5 per round) or WabiSabi (50+) CoinJoins.`,
         recommendation:
-          "JoinMarket provides good privacy through its decentralized maker/taker model. " +
+          "JoinMarket provides privacy through its decentralized maker/taker model, but has known weaknesses: " +
+          "change outputs are vulnerable to subset-sum analysis (CoinJoin Sudoku), and the single denomination makes the transaction pattern identifiable. " +
           (isChangeless
-            ? "This changeless CoinJoin is the ideal pattern. "
-            : "Change outputs should be managed carefully - never consolidate them with other mixed outputs. ") +
-          "For stronger privacy, consider multiple rounds of mixing. " +
+            ? "This changeless CoinJoin avoids subset-sum linkage - the ideal pattern. "
+            : "Never consolidate change outputs with mixed outputs - this undoes the mixing. ") +
+          "For stronger privacy, consider multiple rounds of mixing or using Whirlpool/WabiSabi which avoid on-chain fee leakage. " +
           EXCHANGE_WARNING,
         scoreImpact: count >= 10 ? 25 : 20,
       });
@@ -330,17 +337,17 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
           `This transaction has ${tx.vin.length} inputs from ${joinmarket.distinctInputAddresses} distinct addresses and ` +
           `${joinmarket.equalCount} outputs with the same value (${formatBtc(joinmarket.denomination)}), ` +
           "consistent with a JoinMarket CoinJoin using the maker/taker model. " +
-          "JoinMarket provides privacy by combining inputs from multiple participants into a single transaction, " +
-          "making it difficult to determine which input funded which output." +
-          takerNote,
+          "Unlike Whirlpool or WabiSabi, JoinMarket uses a single arbitrary denomination chosen by the taker, " +
+          "and the taker pays an on-chain fee to makers - making change outputs vulnerable to subset-sum analysis (CoinJoin Sudoku)." +
+          takerNote +
+          ` The anonymity set is ${joinmarket.equalCount} (the number of equal outputs).`,
         recommendation:
-          "JoinMarket provides good privacy through its decentralized maker/taker model. " +
+          "JoinMarket provides privacy through its decentralized maker/taker model, but has known weaknesses: " +
+          "change outputs are vulnerable to subset-sum analysis, and the single denomination makes the pattern identifiable. " +
           (isChangeless
-            ? "This changeless CoinJoin is the ideal pattern. "
+            ? "This changeless CoinJoin avoids subset-sum linkage - the ideal pattern. "
             : "The taker's change output should be managed carefully - never consolidate it with other mixed outputs. ") +
-          "For stronger privacy, consider multiple rounds of mixing. " +
-          "Note: JoinMarket's web UI can be challenging to use. For a more accessible CoinJoin option, consider Wasabi Wallet (WabiSabi) or Ashigaru (Whirlpool). " +
-          "Historical note: KYCP.org (Know Your Coin Privacy) was a CoinJoin transaction analyzer supporting Whirlpool, WabiSabi, and JoinMarket, but has been offline since April 2024 following the Samourai Wallet seizure. " +
+          "For stronger privacy, consider multiple rounds of mixing or protocols that avoid on-chain fee leakage (Whirlpool, WabiSabi). " +
           EXCHANGE_WARNING,
         scoreImpact: isChangeless ? 20 : 15,
       });

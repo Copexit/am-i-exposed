@@ -1217,6 +1217,18 @@ function GraphCanvas({
                 );
               })()}
 
+              {/* Transparent click overlay - captures clicks on text/badges inside the node */}
+              <rect
+                x={node.x}
+                y={node.y}
+                width={node.width}
+                height={node.height}
+                rx={8}
+                fill="transparent"
+                style={{ cursor: "pointer" }}
+                onClick={() => handleNodeClick(node, selectedNode?.txid ?? null)}
+              />
+
               {/* Expand left button (backward) */}
               {!atCapacity && node.depth <= 0 && (() => {
                 const idx = node.tx.vin.findIndex((v) => !v.is_coinbase && !nodes.has(v.txid));

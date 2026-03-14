@@ -42,6 +42,18 @@ export function dfs_step(chunk_ms: number): any;
  */
 export function prepare_boltzmann(input_values: BigInt64Array, output_values: BigInt64Array, fee: bigint, max_cj_intrafees_ratio: number, timeout_ms: number): any;
 
+/**
+ * Prepare a ranged Boltzmann computation for multi-worker parallelism.
+ *
+ * Each worker calls this with its `worker_index` (0-based) and `total_workers`.
+ * Phase 1+2 run internally, then a `DfsState` is created restricted to the
+ * worker's assigned slice of root branches.
+ *
+ * `fees_maker` and `fees_taker` are provided explicitly (not computed from ratio)
+ * so each worker can independently handle both dual-run passes.
+ */
+export function prepare_boltzmann_ranged(input_values: BigInt64Array, output_values: BigInt64Array, fee: bigint, fees_maker: bigint, fees_taker: bigint, timeout_ms: number, worker_index: number, total_workers: number): any;
+
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
@@ -50,6 +62,7 @@ export interface InitOutput {
     readonly dfs_finalize: () => any;
     readonly dfs_step: (a: number) => any;
     readonly prepare_boltzmann: (a: number, b: number, c: number, d: number, e: bigint, f: number, g: number) => any;
+    readonly prepare_boltzmann_ranged: (a: number, b: number, c: number, d: number, e: bigint, f: bigint, g: bigint, h: number, i: number, j: number) => any;
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_start: () => void;

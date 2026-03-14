@@ -133,7 +133,7 @@ pub fn analyze(
 }
 
 /// Run the full linker pipeline (phases 1-4).
-fn run_linker(
+pub(crate) fn run_linker(
     inputs: &[i64],
     outputs: &[i64],
     fees: i64,
@@ -164,7 +164,7 @@ fn run_linker(
 /// Detect CoinJoin pattern and compute intrafees.
 ///
 /// Mirrors TxProcessor.checkCoinjoinPattern() + computeCoinjoinIntrafees().
-fn compute_intrafees(outputs: &[i64], max_ratio: f64) -> (i64, i64) {
+pub(crate) fn compute_intrafees(outputs: &[i64], max_ratio: f64) -> (i64, i64) {
     // Find the most common output value with count >= 2
     let mut value_counts: HashMap<i64, usize> = HashMap::default();
     for &v in outputs {

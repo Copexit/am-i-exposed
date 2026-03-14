@@ -11,7 +11,7 @@ use wasm_bindgen::prelude::*;
 
 use crate::analyze::{finalize_result, prepare_analysis, run_phases_1_2, PreparedAnalysis};
 use crate::backtrack::DfsState;
-use crate::types::{LinkerResult, PrepareResult, StepResult};
+use crate::types::{LinkerResult, PrepareRangedResult, PrepareResult, StepResult};
 
 /// Module-level state for the chunked DFS API.
 struct ChunkedState {
@@ -172,6 +172,128 @@ pub fn prepare_boltzmann(
     let result = PrepareResult {
         total_root_branches,
         has_dual_run,
+    };
+    serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
+}
+
+/// Prepare a ranged Boltzmann computation for multi-worker parallelism.
+///
+/// Each worker calls this with its `worker_index` (0-based) and `total_workers`.
+/// Phase 1+2 run internally, then a `DfsState` is created restricted to the
+/// worker's assigned slice of root branches.
+///
+/// `fees_maker` and `fees_taker` are provided explicitly (not computed from ratio)
+/// so each worker can independently handle both dual-run passes.
+#[wasm_bindgen]
+pub fn prepare_boltzmann_ranged(
+    input_values: &[i64],
+    output_values: &[i64],
+    fee: i64,
+    fees_maker: i64,
+    fees_taker: i64,
+    timeout_ms: u32,
+    worker_index: u32,
+    total_workers: u32,
+) -> JsValue {
+    let start = time::now_ms();
+    let deadline = start + timeout_ms as f64;
+
+    // Sort and filter (same as prepare_analysis but with explicit fees)
+    let mut sorted_inputs: Vec<i64> = input_values.to_vec();
+    sorted_inputs.sort_by(|a, b| b.cmp(a));
+    let mut sorted_outputs: Vec<i64> = output_values.to_vec();
+    sorted_outputs.sort_by(|a, b| b.cmp(a));
+    sorted_outputs.retain(|&v| v > 0);
+
+    let n_in = sorted_inputs.len();
+    let n_out = sorted_outputs.len();
+
+    if n_in <= 1 || n_out == 0 {
+        let degenerate = LinkerResult::new_degenerate(n_out.max(1), n_in.max(1));
+        let prep = PreparedAnalysis {
+            sorted_inputs,
+            sorted_outputs,
+            fees: fee,
+            fees_maker: 0,
+            fees_taker: 0,
+            in_agg: subset_sum::Aggregates::new(if input_values.is_empty() { &[0] } else { input_values }),
+            out_agg: subset_sum::Aggregates::new(if output_values.is_empty() { &[0] } else { output_values }),
+            n_in: n_in.max(1),
+            n_out: n_out.max(1),
+        };
+        STATE.with(|s| {
+            *s.borrow_mut() = Some(ChunkedState {
+                prepared: prep,
+                deadline,
+                start,
+                dfs: None,
+                run_index: 0,
+                has_dual_run: false,
+                run0_result: None,
+                degenerate_result: Some(degenerate),
+            });
+        });
+        let result = PrepareRangedResult { assigned_branches: 0, total_root_branches: 0 };
+        return serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL);
+    }
+
+    let in_agg = subset_sum::Aggregates::new(&sorted_inputs);
+    let out_agg = subset_sum::Aggregates::new(&sorted_outputs);
+
+    let (total_branches, assigned, dfs) =
+        match run_phases_1_2(&in_agg, &out_agg, fee, fees_maker, fees_taker) {
+            Some((matches, mat_in_agg_cmbn)) => {
+                let it_gt = in_agg.full_mask();
+                let total = mat_in_agg_cmbn.get(&it_gt).map_or(0, |v| v.len());
+                let n = total_workers as usize;
+                let idx = worker_index as usize;
+                let branch_start = idx * total / n;
+                let branch_end = ((idx + 1) * total / n).min(total);
+                let count = branch_end - branch_start;
+
+                let dfs = DfsState::new_ranged(
+                    &in_agg, &out_agg, matches, mat_in_agg_cmbn,
+                    branch_start, count,
+                );
+                (total as u32, count as u32, Some(dfs))
+            }
+            None => (0, 0, None),
+        };
+
+    let degenerate_result = if dfs.is_none() {
+        Some(LinkerResult::new_degenerate(n_out, n_in))
+    } else {
+        None
+    };
+
+    let prep = PreparedAnalysis {
+        sorted_inputs,
+        sorted_outputs,
+        fees: fee,
+        fees_maker,
+        fees_taker,
+        in_agg,
+        out_agg,
+        n_in,
+        n_out,
+    };
+
+    STATE.with(|s| {
+        *s.borrow_mut() = Some(ChunkedState {
+            prepared: prep,
+            deadline,
+            start,
+            dfs,
+            run_index: 0,
+            has_dual_run: false, // ranged API handles runs externally
+            run0_result: None,
+            degenerate_result,
+        });
+    });
+
+    let result = PrepareRangedResult {
+        assigned_branches: assigned,
+        total_root_branches: total_branches,
     };
     serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
 }
