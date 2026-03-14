@@ -140,9 +140,45 @@ function FlowChart({
   const reducedMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
-  const [hoveredLink, setHoveredLink] = useState<number | null>(null);
   const { tooltipOpen, tooltipData, tooltipLeft, tooltipTop, showTooltip, hideTooltip, handleTouch } =
     useChartTooltip<TooltipData>();
+
+  // Imperative link hover - avoids React re-renders that destabilize scroll containers
+  const overlayGlowRef = useRef<SVGPathElement>(null);
+  const overlayPathRef = useRef<SVGPathElement>(null);
+  const linkTooltipRef = useRef<HTMLDivElement>(null);
+  const ttDotRef = useRef<HTMLSpanElement>(null);
+  const ttProbRef = useRef<HTMLSpanElement>(null);
+  const ttRouteRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    const div = document.createElement("div");
+    Object.assign(div.style, {
+      position: "fixed", display: "none", pointerEvents: "none", zIndex: "9999",
+      backgroundColor: "rgba(28, 28, 32, 0.95)", border: "1px solid rgba(255, 255, 255, 0.1)",
+      borderRadius: "8px", padding: "8px 12px", fontSize: "13px",
+      color: SVG_COLORS.foreground, boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
+      backdropFilter: "blur(16px)", whiteSpace: "nowrap", transform: "translate(-50%, -100%)",
+    });
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;align-items:center;gap:6px";
+    const dot = document.createElement("span");
+    Object.assign(dot.style, { width: "8px", height: "8px", borderRadius: "50%", display: "inline-block", flexShrink: "0" });
+    const prob = document.createElement("span");
+    Object.assign(prob.style, { fontSize: "12px", fontWeight: "500", color: SVG_COLORS.foreground });
+    const route = document.createElement("p");
+    Object.assign(route.style, { fontSize: "12px", marginTop: "2px", color: SVG_COLORS.muted });
+    row.appendChild(dot);
+    row.appendChild(prob);
+    div.appendChild(row);
+    div.appendChild(route);
+    document.body.appendChild(div);
+    linkTooltipRef.current = div;
+    ttDotRef.current = dot;
+    ttProbRef.current = prob;
+    ttRouteRef.current = route;
+    return () => { document.body.removeChild(div); };
+  }, []);
 
   // Change detection: findings-driven, self-address fallback
   // Maps vout index -> { findingId, reason } for annotation rendering
@@ -476,6 +512,7 @@ function FlowChart({
                   lines. d3-sankey relaxation can assign width=0 to valid links,
                   and createPath produces a zero-area path for those. Filled bands
                   with a minimum thickness guarantee every link is visible. */}
+              {/* Scale animation timing: cap total stagger window at ~1.5s regardless of link count */}
               {(computed.links ?? []).map((link, i) => {
                 const linkObj = link as unknown as { width: number; value: number; y0: number; y1: number };
                 if ((linkObj.value ?? 0) <= 0) return null;
@@ -539,25 +576,31 @@ function FlowChart({
                   <g
                     key={`link-${i}`}
                     onMouseMove={linkProb !== undefined ? (e: React.MouseEvent) => {
-                      setHoveredLink(i);
-                      const container = containerRef.current;
-                      if (!container) return;
-                      const containerRect = container.getBoundingClientRect();
-                      showTooltip({
-                        tooltipData: {
-                          label: `${linkFromLabel} \u2192 ${linkToLabel}`,
-                          value: linkObj.value,
-                          side: "link",
-                          lang: i18n.language,
-                          linkProb,
-                          linkFromLabel,
-                          linkToLabel,
-                        },
-                        tooltipLeft: e.clientX - containerRect.left,
-                        tooltipTop: e.clientY - containerRect.top - 8,
-                      });
+                      // Imperative hover: update overlay + tooltip directly, no React state changes
+                      if (overlayGlowRef.current) {
+                        overlayGlowRef.current.setAttribute("d", pathD);
+                        overlayGlowRef.current.setAttribute("fill", `url(#flow-link-${i})`);
+                        overlayGlowRef.current.removeAttribute("display");
+                      }
+                      if (overlayPathRef.current) {
+                        overlayPathRef.current.setAttribute("d", pathD);
+                        overlayPathRef.current.setAttribute("fill", `url(#flow-link-${i})`);
+                        overlayPathRef.current.removeAttribute("display");
+                      }
+                      if (linkTooltipRef.current) {
+                        linkTooltipRef.current.style.display = "block";
+                        linkTooltipRef.current.style.left = `${e.clientX}px`;
+                        linkTooltipRef.current.style.top = `${e.clientY - 16}px`;
+                      }
+                      if (ttDotRef.current) ttDotRef.current.style.backgroundColor = probColor(linkProb!);
+                      if (ttProbRef.current) ttProbRef.current.textContent = `${Math.round(linkProb! * 100)}% linkability`;
+                      if (ttRouteRef.current) ttRouteRef.current.textContent = `${linkFromLabel} \u2192 ${linkToLabel}`;
                     } : undefined}
-                    onMouseLeave={linkProb !== undefined ? () => { setHoveredLink(null); hideTooltip(); } : undefined}
+                    onMouseLeave={linkProb !== undefined ? () => {
+                      if (overlayGlowRef.current) overlayGlowRef.current.setAttribute("display", "none");
+                      if (overlayPathRef.current) overlayPathRef.current.setAttribute("display", "none");
+                      if (linkTooltipRef.current) linkTooltipRef.current.style.display = "none";
+                    } : undefined}
                   >
                     <motion.path
                       d={pathD}
@@ -567,49 +610,21 @@ function FlowChart({
                       style={{ pointerEvents: linkProb !== undefined ? "fill" : "none" }}
                       initial={reducedMotion ? false : { opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      transition={{ delay: 0.15 + i * 0.01, duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+                      transition={{
+                        delay: 0.15 + i * Math.min(0.01, 1.5 / Math.max(1, (computed.links ?? []).length)),
+                        duration: Math.max(0.15, 0.5 - (computed.links ?? []).length * 0.001),
+                        ease: [0.4, 0, 0.2, 1],
+                      }}
                     />
                   </g>
                 );
               })}
 
-              {/* Hover overlay: re-render hovered link on top of all links with full opacity + glow */}
-              {hoveredLink !== null && boltzmannLookup && (() => {
-                const link = (computed.links ?? [])[hoveredLink];
-                if (!link) return null;
-                const linkObj = link as unknown as { width: number; value: number; y0: number; y1: number };
-                if ((linkObj.value ?? 0) <= 0) return null;
-                const src = link.source as unknown as { x1: number; y0: number; y1: number; id: string };
-                const tgt = link.target as unknown as { x0: number; y0: number; y1: number; id: string };
-                const w = Math.max(linkObj.width ?? 0, 2);
-                const oy0 = isFinite(linkObj.y0) ? linkObj.y0 : (src.y0 + src.y1) / 2;
-                const oy1 = isFinite(linkObj.y1) ? linkObj.y1 : (tgt.y0 + tgt.y1) / 2;
-                const midX = (src.x1 + tgt.x0) / 2;
-                const pathD =
-                  `M${src.x1},${oy0 - w / 2}` +
-                  `C${midX},${oy0 - w / 2} ${midX},${oy1 - w / 2} ${tgt.x0},${oy1 - w / 2}` +
-                  `L${tgt.x0},${oy1 + w / 2}` +
-                  `C${midX},${oy1 + w / 2} ${midX},${oy0 + w / 2} ${src.x1},${oy0 + w / 2}Z`;
-                return (
-                  <g style={{ pointerEvents: "none" }}>
-                    {/* Glow aura */}
-                    <path
-                      d={pathD}
-                      fill={`url(#flow-link-${hoveredLink})`}
-                      fillOpacity={0.6}
-                      stroke="none"
-                      filter="url(#glow-medium)"
-                    />
-                    {/* Solid link at full opacity */}
-                    <path
-                      d={pathD}
-                      fill={`url(#flow-link-${hoveredLink})`}
-                      fillOpacity={1.0}
-                      stroke="none"
-                    />
-                  </g>
-                );
-              })()}
+              {/* Imperative hover overlay: paths updated via refs, no React state changes */}
+              <g style={{ pointerEvents: "none" }}>
+                <path ref={overlayGlowRef} display="none" fillOpacity={0.6} stroke="none" filter="url(#glow-medium)" />
+                <path ref={overlayPathRef} display="none" fillOpacity={1.0} stroke="none" />
+              </g>
 
               {/* Nodes */}
               {(computed.nodes ?? []).map((node, i) => {

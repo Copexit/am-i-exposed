@@ -249,7 +249,7 @@ function ConsolidationTable({
           {t("finding.consolidationDetail", { defaultValue: "Re-linked outputs" })}
         </p>
       </div>
-      <div className="divide-y divide-card-border">
+      <div className="divide-y divide-card-border overflow-y-auto" style={{ maxHeight: 320 }}>
         {groups.map((g) => (
           <div key={g.childTxid} className="px-3 py-2 space-y-1.5">
             {/* Child tx link */}
