@@ -48,6 +48,31 @@ const CHUNK_MS = 100;
 self.onmessage = async (e) => {
   const msg = e.data;
 
+  if (msg.type === "compute-jm") {
+    // --- JoinMarket turbo mode: synchronous, always fast ---
+    try {
+      await initWasm();
+      const inputValues = new BigInt64Array(msg.inputValues.map(v => BigInt(v)));
+      const outputValues = new BigInt64Array(msg.outputValues.map(v => BigInt(v)));
+      const raw = wasmExports.compute_boltzmann_joinmarket(
+        inputValues, outputValues,
+        BigInt(msg.fee), BigInt(msg.denomination),
+        msg.maxCjIntrafeesRatio, msg.timeoutMs,
+      );
+      if (!raw || !raw.mat_lnk_combinations) {
+        throw new Error("WASM returned null result");
+      }
+      self.postMessage(buildResultMessage(raw, msg.id));
+    } catch (err) {
+      self.postMessage({
+        type: "error",
+        id: msg.id,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return;
+  }
+
   if (msg.type === "compute-range") {
     // --- Multi-worker ranged DFS path ---
     try {

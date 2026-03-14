@@ -17,6 +17,15 @@
 export function compute_boltzmann(input_values: BigInt64Array, output_values: BigInt64Array, fee: bigint, max_cj_intrafees_ratio: number, timeout_ms: number): any;
 
 /**
+ * Compute the Boltzmann LPM using JoinMarket turbo mode.
+ *
+ * Exploits JoinMarket's maker structure to deterministically match inputs
+ * to change outputs, reducing the problem to inputs vs equal-denomination
+ * CJ outputs. Falls back to standard Boltzmann if matching fails.
+ */
+export function compute_boltzmann_joinmarket(input_values: BigInt64Array, output_values: BigInt64Array, fee: bigint, denomination: bigint, max_cj_intrafees_ratio: number, timeout_ms: number): any;
+
+/**
  * Finalize the chunked Boltzmann analysis and return the full result.
  *
  * Must be called after `dfs_step` returns `done: true`.
@@ -59,6 +68,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly compute_boltzmann: (a: number, b: number, c: number, d: number, e: bigint, f: number, g: number) => any;
+    readonly compute_boltzmann_joinmarket: (a: number, b: number, c: number, d: number, e: bigint, f: bigint, g: number, h: number) => any;
     readonly dfs_finalize: () => any;
     readonly dfs_step: (a: number) => any;
     readonly prepare_boltzmann: (a: number, b: number, c: number, d: number, e: bigint, f: number, g: number) => any;

@@ -29,6 +29,29 @@ export function compute_boltzmann(input_values, output_values, fee, max_cj_intra
 }
 
 /**
+ * Compute the Boltzmann LPM using JoinMarket turbo mode.
+ *
+ * Exploits JoinMarket's maker structure to deterministically match inputs
+ * to change outputs, reducing the problem to inputs vs equal-denomination
+ * CJ outputs. Falls back to standard Boltzmann if matching fails.
+ * @param {BigInt64Array} input_values
+ * @param {BigInt64Array} output_values
+ * @param {bigint} fee
+ * @param {bigint} denomination
+ * @param {number} max_cj_intrafees_ratio
+ * @param {number} timeout_ms
+ * @returns {any}
+ */
+export function compute_boltzmann_joinmarket(input_values, output_values, fee, denomination, max_cj_intrafees_ratio, timeout_ms) {
+    const ptr0 = passArray64ToWasm0(input_values, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArray64ToWasm0(output_values, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.compute_boltzmann_joinmarket(ptr0, len0, ptr1, len1, fee, denomination, max_cj_intrafees_ratio, timeout_ms);
+    return ret;
+}
+
+/**
  * Finalize the chunked Boltzmann analysis and return the full result.
  *
  * Must be called after `dfs_step` returns `done: true`.

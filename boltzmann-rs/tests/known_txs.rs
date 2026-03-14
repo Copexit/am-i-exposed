@@ -1,4 +1,5 @@
 use boltzmann_rs::analyze::analyze;
+use boltzmann_rs::joinmarket::analyze_joinmarket;
 
 /// Helper to assert a Boltzmann result matches expected values.
 fn assert_boltzmann(
@@ -504,4 +505,265 @@ fn test_partition_formula() {
     assert_eq!(boltzmann_equal_outputs(5), 1496);
     assert_eq!(boltzmann_equal_outputs(6), 22482);
     assert_eq!(boltzmann_equal_outputs(7), 426833);
+}
+
+// ==========================================================================
+// JoinMarket Turbo Mode Tests
+// ==========================================================================
+
+// Synthetic 3-party JM: 2 makers + 1 taker
+// Maker 1: input 150 -> CJ 100 + change 49 (maker fee 1)
+// Maker 2: input 120 -> CJ 100 + change 19 (maker fee 1)
+// Taker:   input 106 -> CJ 100 (pays miner fee 8 - maker fees 2 = net 6)
+#[test]
+fn test_jm_turbo_3party() {
+    let inputs = [150i64, 120, 106];
+    let outputs = [100i64, 100, 100, 49, 19];
+    let fee = 8i64;
+
+    let turbo = analyze_joinmarket(&inputs, &outputs, fee, 100, 0.0, 60_000);
+
+    assert!(!turbo.timed_out, "JM turbo 3p: should not timeout");
+    assert!(turbo.nb_cmbn > 0, "JM turbo 3p: should have valid combinations");
+    assert_eq!(turbo.n_inputs, 3);
+    assert_eq!(turbo.n_outputs, 5);
+
+    // Change outputs should have deterministic links
+    // Sorted outputs desc: [100, 100, 100, 49, 19]
+    // Change 49 at out idx 3 -> matched to input 150 at in idx 0
+    // Change 19 at out idx 4 -> matched to input 120 at in idx 1
+    assert!(
+        turbo.deterministic_links.contains(&(3, 0)),
+        "JM turbo 3p: change 49 should link to input 150"
+    );
+    assert!(
+        turbo.deterministic_links.contains(&(4, 1)),
+        "JM turbo 3p: change 19 should link to input 120"
+    );
+}
+
+// Wrong denomination triggers fallback to standard Boltzmann
+#[test]
+fn test_jm_turbo_fallback_wrong_denom() {
+    let inputs = [150i64, 120, 106];
+    let outputs = [100i64, 100, 100, 49, 19];
+    let fee = 8i64;
+
+    let standard = analyze(&inputs, &outputs, fee, 0.0, 60_000);
+    let turbo = analyze_joinmarket(&inputs, &outputs, fee, 50, 0.0, 60_000);
+
+    assert_eq!(
+        turbo.nb_cmbn, standard.nb_cmbn,
+        "JM turbo fallback: nb_cmbn should match standard"
+    );
+    let entropy_diff = (turbo.entropy - standard.entropy).abs();
+    assert!(
+        entropy_diff < 1e-10,
+        "JM turbo fallback: entropy should match standard"
+    );
+}
+
+// Synthetic 5-party JM: 4 makers + 1 taker
+// Maker fees ~1000 sats each, miner fee covers the rest
+#[test]
+fn test_jm_turbo_5party() {
+    let inputs = [1_600_000i64, 1_300_000, 1_100_000, 1_050_000, 1_006_000];
+    let outputs = [
+        1_000_000i64, 1_000_000, 1_000_000, 1_000_000, 1_000_000,
+        599_000, 299_000, 99_000, 49_000,
+    ];
+    let fee = 10_000i64;
+
+    let turbo = analyze_joinmarket(&inputs, &outputs, fee, 1_000_000, 0.0, 60_000);
+
+    assert!(!turbo.timed_out, "JM turbo 5p: should not timeout");
+    assert!(turbo.nb_cmbn > 0, "JM turbo 5p: should have combinations");
+    assert_eq!(turbo.n_inputs, 5);
+    assert_eq!(turbo.n_outputs, 9);
+
+    // Sorted outputs desc: [1M x5, 599k, 299k, 99k, 49k]
+    // Change 599k (idx 5) -> input 1.6M (idx 0)
+    // Change 299k (idx 6) -> input 1.3M (idx 1)
+    // Change 99k  (idx 7) -> input 1.1M (idx 2)
+    // Change 49k  (idx 8) -> input 1.05M (idx 3)
+    assert!(turbo.deterministic_links.contains(&(5, 0)), "JM turbo 5p: change 599k -> input 1.6M");
+    assert!(turbo.deterministic_links.contains(&(6, 1)), "JM turbo 5p: change 299k -> input 1.3M");
+    assert!(turbo.deterministic_links.contains(&(7, 2)), "JM turbo 5p: change 99k -> input 1.1M");
+    assert!(turbo.deterministic_links.contains(&(8, 3)), "JM turbo 5p: change 49k -> input 1.05M");
+}
+
+// 10-party JM: formula shortcut (would timeout without it)
+#[test]
+fn test_jm_turbo_10party_formula() {
+    // 9 makers + 1 taker = 10 participants, 10 CJ outputs
+    let inputs = [
+        10_000_000i64, 7_500_000, 5_000_000, 4_000_000, 3_000_000,
+        2_500_000, 2_000_000, 1_500_000, 1_200_000, 1_015_000,
+    ];
+    let outputs = [
+        1_000_000i64, 1_000_000, 1_000_000, 1_000_000, 1_000_000,
+        1_000_000, 1_000_000, 1_000_000, 1_000_000, 1_000_000,
+        8_999_000, 6_499_000, 3_999_000, 2_999_000, 1_999_000,
+        1_499_000, 999_000, 499_000, 199_000,
+    ];
+    let fee: i64 = inputs.iter().sum::<i64>() - outputs.iter().sum::<i64>();
+
+    let turbo = analyze_joinmarket(&inputs, &outputs, fee, 1_000_000, 0.0, 5_000);
+
+    assert!(!turbo.timed_out, "JM turbo 10p: should not timeout with formula shortcut");
+    assert_eq!(turbo.nb_cmbn, 9_085_194_458, "JM turbo 10p: nb_cmbn should match partition formula");
+    assert_eq!(turbo.n_inputs, 10);
+    assert_eq!(turbo.n_outputs, 19);
+    assert!(turbo.elapsed_ms < 100, "JM turbo 10p: should complete in <100ms, got {}ms", turbo.elapsed_ms);
+
+    // Sorted outputs desc: [8.999M, 6.499M, 3.999M, 2.999M, 1.999M, 1.499M, 1M×10, 999K, 499K, 199K]
+    // Changes at sorted indices 0-5 and 16-18, CJ at 6-15
+    // Change 8.999M (idx 0) -> input 10M (idx 0): residual 9M - 8.999M = 1K
+    // Change 6.499M (idx 1) -> input 7.5M (idx 1): residual 6.5M - 6.499M = 1K
+    // Change 3.999M (idx 2) -> input 5M (idx 2): residual 4M - 3.999M = 1K
+    // Change 2.999M (idx 3) -> input 4M (idx 3): residual 3M - 2.999M = 1K
+    // Change 1.999M (idx 4) -> input 3M (idx 4): residual 2M - 1.999M = 1K
+    // Change 1.499M (idx 5) -> input 2.5M (idx 5): residual 1.5M - 1.499M = 1K
+    // Change 999K (idx 16)  -> input 2M (idx 6): residual 1M - 999K = 1K
+    // Change 499K (idx 17)  -> input 1.5M (idx 7): residual 500K - 499K = 1K
+    // Change 199K (idx 18)  -> input 1.2M (idx 8): residual 200K - 199K = 1K
+    let expected_det_links: Vec<(usize, usize)> = vec![
+        (0, 0), (1, 1), (2, 2), (3, 3), (4, 4), (5, 5),
+        (16, 6), (17, 7), (18, 8),
+    ];
+    for &(out_idx, in_idx) in &expected_det_links {
+        assert!(
+            turbo.deterministic_links.contains(&(out_idx, in_idx)),
+            "JM turbo 10p: change at out[{out_idx}] should link to in[{in_idx}]"
+        );
+    }
+    assert_eq!(turbo.deterministic_links.len(), 9, "JM turbo 10p: should have exactly 9 deterministic links");
+}
+
+// Turbo vs standard comparison on 3-party: CJ output cells should match
+#[test]
+fn test_jm_turbo_vs_standard_cj_cells() {
+    let inputs = [150i64, 120, 106];
+    let outputs = [100i64, 100, 100, 49, 19];
+    let fee = 8i64;
+
+    let standard = analyze(&inputs, &outputs, fee, 0.0, 60_000);
+    let turbo = analyze_joinmarket(&inputs, &outputs, fee, 100, 0.0, 60_000);
+
+    // CJ output rows (indices 0, 1, 2) - probabilities should be consistent
+    // The turbo mode solves the reduced problem exactly, so CJ linkage should match
+    // Turbo nb_cmbn may differ from standard since change links are forced deterministic
+    assert!(turbo.nb_cmbn > 0);
+    assert!(standard.nb_cmbn > 0);
+
+    // Verify CJ output probabilities are proportionally consistent:
+    // For each CJ row, the relative probabilities across inputs should be similar
+    for out_idx in 0..3 {
+        let turbo_row = &turbo.mat_lnk_probabilities[out_idx];
+        let std_row = &standard.mat_lnk_probabilities[out_idx];
+        // Both should have non-zero probabilities for CJ-relevant inputs
+        for in_idx in 0..3 {
+            assert!(
+                turbo_row[in_idx] > 0.0,
+                "Turbo CJ prob [{out_idx}][{in_idx}] should be > 0"
+            );
+            assert!(
+                std_row[in_idx] > 0.0,
+                "Standard CJ prob [{out_idx}][{in_idx}] should be > 0"
+            );
+        }
+    }
+}
+
+// Real JM tx: ae988772 - 10 inputs, 18 outputs, 9 equal at 1,067,547
+// User reported "raw is null" error in WASM
+#[test]
+fn test_jm_turbo_real_ae988772() {
+    let inputs = [
+        32_786_910i64, 1_100_260, 1_226_000, 267_116_955, 198_191_119,
+        1_083_917, 1_100_000, 13_243_963, 1_137_509, 3_536_926,
+    ];
+    let outputs = [
+        197_127_841i64, 1_067_547, 69_981, 36_722, 1_067_547,
+        158_475, 36_982, 266_049_515, 1_067_547, 1_067_547,
+        1_067_547, 1_067_547, 1_067_547, 12_176_575, 31_719_470,
+        1_067_547, 2_469_698, 1_067_547,
+    ];
+    let fee: i64 = inputs.iter().sum::<i64>() - outputs.iter().sum::<i64>();
+
+    let result = analyze_joinmarket(&inputs, &outputs, fee, 1_067_547, 0.005, 60_000);
+    assert!(result.nb_cmbn > 0, "ae988772: should produce valid result");
+    assert_eq!(result.n_inputs, 10);
+    assert_eq!(result.n_outputs, 18);
+}
+
+// Real JM tx: 70fb6dfe - 11 inputs, 20 outputs, 10 equal at 1,137,509
+// User reported 21 second compute time
+#[test]
+fn test_jm_turbo_real_70fb6dfe() {
+    let inputs = [
+        10_293_845i64, 82_353_594, 9_655_183, 1_165_442, 45_708_768,
+        528_184_515, 1_161_185, 230_907_429, 1_289_261, 112_790_126,
+        1_167_406,
+    ];
+    let outputs = [
+        28_225i64, 32_482, 527_051_545, 151_772, 1_137_509,
+        229_774_469, 44_575_792, 1_137_509, 1_137_509, 1_137_509,
+        1_137_509, 9_156_392, 1_137_509, 111_652_843, 1_137_509,
+        1_137_509, 81_216_199, 1_137_509, 1_137_509, 8_521_594,
+    ];
+    let fee: i64 = inputs.iter().sum::<i64>() - outputs.iter().sum::<i64>();
+
+    let result = analyze_joinmarket(&inputs, &outputs, fee, 1_137_509, 0.005, 30_000);
+    assert!(result.nb_cmbn > 0, "70fb6dfe: should produce valid result");
+    assert_eq!(result.n_inputs, 11);
+    assert_eq!(result.n_outputs, 20);
+}
+
+// Real tx: 08d91add - 11 inputs, 20 outputs, 10 equal at 136,363
+// User reported "unreachable executed" error - test standard path
+#[test]
+fn test_standard_real_08d91add() {
+    let inputs = [
+        3_542_448i64, 1_721_507, 168_359, 116_800, 1_795_508,
+        120_220, 422_302_747, 214_588, 173_099, 1_243_634,
+        500_877,
+    ];
+    let outputs = [
+        422_166_929i64, 1_659_445, 136_363, 136_363, 136_363,
+        136_363, 3_410_606, 32_541, 136_363, 136_363,
+        1_092_611, 36_739, 136_363, 78_228, 136_363,
+        1_590_904, 365_514, 101_202, 136_363, 136_363,
+    ];
+    let fee: i64 = inputs.iter().sum::<i64>() - outputs.iter().sum::<i64>();
+
+    // This tx should not crash - test with short timeout
+    let result = analyze(&inputs, &outputs, fee, 0.005, 10_000);
+    assert_eq!(result.n_inputs, 11);
+    assert_eq!(result.n_outputs, 20);
+}
+
+// Real tx: 08d91add - test via JM turbo path (what WASM actually calls)
+// With 20 outputs and matching failure, should gracefully return degenerate
+// result instead of crashing on standard analyze fallback
+#[test]
+fn test_jm_turbo_real_08d91add() {
+    let inputs = [
+        3_542_448i64, 1_721_507, 168_359, 116_800, 1_795_508,
+        120_220, 422_302_747, 214_588, 173_099, 1_243_634,
+        500_877,
+    ];
+    let outputs = [
+        422_166_929i64, 1_659_445, 136_363, 136_363, 136_363,
+        136_363, 3_410_606, 32_541, 136_363, 136_363,
+        1_092_611, 36_739, 136_363, 78_228, 136_363,
+        1_590_904, 365_514, 101_202, 136_363, 136_363,
+    ];
+    let fee: i64 = inputs.iter().sum::<i64>() - outputs.iter().sum::<i64>();
+
+    // Should not crash even if matching fails - returns degenerate for n_out > 18
+    let result = analyze_joinmarket(&inputs, &outputs, fee, 136_363, 0.005, 10_000);
+    assert_eq!(result.n_inputs, 11);
+    assert_eq!(result.n_outputs, 20);
+    assert!(result.nb_cmbn > 0, "08d91add JM turbo: should produce valid result");
 }

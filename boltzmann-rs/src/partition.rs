@@ -13,32 +13,72 @@ pub fn boltzmann_equal_outputs(n: usize) -> u64 {
         return 1;
     }
 
-    let n_fact_sq = factorial(n) * factorial(n);
     let partitions = integer_partitions(n);
     let mut total: u64 = 0;
 
     for partition in &partitions {
-        // Compute prod(si!^2)
-        let mut prod_si_fact_sq: u64 = 1;
-        for &s in partition {
-            let f = factorial(s);
-            prod_si_fact_sq *= f * f;
-        }
-
-        // Compute multiplicities and prod(mj!)
-        let mut mults: std::collections::HashMap<usize, usize> = std::collections::HashMap::new();
-        for &s in partition {
-            *mults.entry(s).or_insert(0) += 1;
-        }
-        let mut prod_mj_fact: u64 = 1;
-        for &m in mults.values() {
-            prod_mj_fact *= factorial(m);
-        }
-
-        total += n_fact_sq / (prod_si_fact_sq * prod_mj_fact);
+        total += partition_count(n, partition);
     }
 
     total
+}
+
+/// Compute the link matrix cell value for a perfect CoinJoin
+/// with n equal-value inputs and n equal-value outputs.
+///
+/// When all inputs and outputs are equal, every cell in the matrix has the
+/// same value (by symmetry). This value equals:
+///     [sum over partitions: count(partition) * sum(si^2)] / n^2
+///
+/// Each partition of n into groups (s1, ..., sk) creates sum(si^2) links
+/// (each group of size si connects si inputs to si outputs = si^2 links).
+pub fn cell_value_equal_outputs(n: usize) -> u64 {
+    if n <= 1 {
+        return 1;
+    }
+
+    let partitions = integer_partitions(n);
+    let mut total_links: u128 = 0;
+
+    for partition in &partitions {
+        let count = partition_count(n, partition) as u128;
+        let links_per: u128 = partition.iter().map(|&s| (s * s) as u128).sum();
+        total_links += count * links_per;
+    }
+
+    (total_links / (n as u128 * n as u128)) as u64
+}
+
+/// Count configurations for a single partition pattern.
+/// Uses u128 internally to avoid overflow for n >= 13 (where n!^2 > u64::MAX).
+fn partition_count(n: usize, partition: &[usize]) -> u64 {
+    let nf = factorial_u128(n);
+    let n_fact_sq = nf * nf;
+
+    let mut prod_si_fact_sq: u128 = 1;
+    for &s in partition {
+        let f = factorial_u128(s);
+        prod_si_fact_sq *= f * f;
+    }
+
+    let mut mults: std::collections::HashMap<usize, usize> = std::collections::HashMap::new();
+    for &s in partition {
+        *mults.entry(s).or_insert(0) += 1;
+    }
+    let mut prod_mj_fact: u128 = 1;
+    for &m in mults.values() {
+        prod_mj_fact *= factorial_u128(m);
+    }
+
+    (n_fact_sq / (prod_si_fact_sq * prod_mj_fact)) as u64
+}
+
+fn factorial_u128(n: usize) -> u128 {
+    let mut result: u128 = 1;
+    for i in 2..=n {
+        result *= i as u128;
+    }
+    result
 }
 
 /// Compute the number of combinations for a "perfect CoinJoin" with
@@ -108,14 +148,6 @@ fn generate_partitions(
     }
 }
 
-fn factorial(n: usize) -> u64 {
-    let mut result: u64 = 1;
-    for i in 2..=n {
-        result *= i as u64;
-    }
-    result
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -131,6 +163,24 @@ mod tests {
     }
 
     #[test]
+    fn test_cell_value_known_values() {
+        assert_eq!(cell_value_equal_outputs(2), 2);
+        assert_eq!(cell_value_equal_outputs(3), 8);
+        assert_eq!(cell_value_equal_outputs(4), 53);
+        assert_eq!(cell_value_equal_outputs(5), 512);
+        assert_eq!(cell_value_equal_outputs(6), 6697);
+        assert_eq!(cell_value_equal_outputs(7), 112925);
+        assert_eq!(cell_value_equal_outputs(8), 2369635);
+        assert_eq!(cell_value_equal_outputs(9), 60263712);
+        assert_eq!(cell_value_equal_outputs(10), 1819461473);
+        assert_eq!(cell_value_equal_outputs(11), 64142170793);
+        assert_eq!(cell_value_equal_outputs(12), 2604657560815);
+        assert_eq!(cell_value_equal_outputs(13), 120455319149093);
+        assert_eq!(cell_value_equal_outputs(14), 6283178968283583);
+        assert_eq!(cell_value_equal_outputs(15), 366614246986890869);
+    }
+
+    #[test]
     fn test_integer_partitions_5() {
         let parts = integer_partitions(5);
         assert_eq!(parts.len(), 7);
@@ -138,8 +188,8 @@ mod tests {
 
     #[test]
     fn test_factorial() {
-        assert_eq!(factorial(0), 1);
-        assert_eq!(factorial(1), 1);
-        assert_eq!(factorial(5), 120);
+        assert_eq!(factorial_u128(0), 1);
+        assert_eq!(factorial_u128(1), 1);
+        assert_eq!(factorial_u128(5), 120);
     }
 }

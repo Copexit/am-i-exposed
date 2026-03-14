@@ -68,7 +68,7 @@ const INITIAL_STATE: BoltzmannState = {
 const AUTO_COMPUTE_MAX_TOTAL = 20;
 
 /** Maximum supported total UTXOs (inputs + outputs). */
-const MAX_SUPPORTED_TOTAL = 50;
+const MAX_SUPPORTED_TOTAL = 80;
 
 /** Maximum number of parallel workers. */
 const MAX_WORKERS = 8;
@@ -128,6 +128,48 @@ function detectIntrafees(
   const feesMaker = Math.round(bestAmount * maxRatio);
   const feesTaker = feesMaker * (bestCount - 1);
   return { feesMaker, feesTaker, hasCjPattern: true };
+}
+
+/** Detect JoinMarket CoinJoin structure for turbo Boltzmann mode. */
+function detectJoinMarketForTurbo(
+  inputValues: number[],
+  outputValues: number[],
+): { isJoinMarket: boolean; denomination: number } {
+  // Find most common output value with count >= 2 (the CJ denomination)
+  const valueCounts = new Map<number, number>();
+  for (const v of outputValues) {
+    valueCounts.set(v, (valueCounts.get(v) ?? 0) + 1);
+  }
+
+  let bestAmount = 0;
+  let bestCount = 0;
+  for (const [val, count] of valueCounts) {
+    if (count >= 2 && (count > bestCount || (count === bestCount && val > bestAmount))) {
+      bestAmount = val;
+      bestCount = count;
+    }
+  }
+
+  if (bestCount < 2) return { isJoinMarket: false, denomination: 0 };
+
+  const equalCount = bestCount;
+  const denomination = bestAmount;
+
+  // Check outputs fit CJ + change structure
+  // Allow up to 5 extra outputs for multi-input taker changes
+  // The Rust-side matching validates definitively and falls back if needed
+  if (outputValues.length > 2 * equalCount + 5) return { isJoinMarket: false, denomination: 0 };
+
+  // Must have at least one change output (changeless CJs are already fast)
+  const changeCount = outputValues.length - equalCount;
+  if (changeCount === 0) return { isJoinMarket: false, denomination: 0 };
+
+  // Check enough inputs have value > denomination to cover most changes
+  // Allow up to 5 unmatched changes (multi-input taker with sub-denomination inputs)
+  const aboveDenom = inputValues.filter(v => v > denomination).length;
+  if (aboveDenom < changeCount - 5) return { isJoinMarket: false, denomination: 0 };
+
+  return { isJoinMarket: true, denomination };
 }
 
 /**
@@ -364,6 +406,47 @@ export function useBoltzmann(tx: MempoolTransaction | null) {
     const { feesMaker, feesTaker, hasCjPattern } = detectIntrafees(outputValues, 0.005);
     const maxCjIntrafeesRatio = hasCjPattern ? 0.005 : 0.0;
 
+    // Check for JoinMarket turbo mode (always fast, no parallelism needed)
+    const jmDetection = detectJoinMarketForTurbo(inputValues, outputValues);
+    if (jmDetection.isJoinMarket) {
+      const pool = getWorkerPool(1);
+      if (pool.length === 0) {
+        setState({ status: "unsupported", result: null, error: null, progress: null });
+        return;
+      }
+      const worker = pool[0];
+
+      worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
+        const msg = e.data;
+        if (msg.id !== id) return;
+        if (msg.type === "result") {
+          setState({ status: "complete", result: msg as BoltzmannWorkerResult, error: null, progress: null });
+        } else if (msg.type === "error") {
+          setState({ status: "error", result: null, error: msg.message, progress: null });
+        }
+      };
+
+      worker.onerror = (err) => {
+        if (requestIdRef.current !== id) return;
+        setState({ status: "error", result: null, error: err.message || "Worker error", progress: null });
+        terminatePool();
+      };
+
+      setState({ status: "computing", result: null, error: null, progress: null });
+
+      worker.postMessage({
+        type: "compute-jm",
+        id,
+        inputValues,
+        outputValues,
+        fee: tx.fee,
+        denomination: jmDetection.denomination,
+        maxCjIntrafeesRatio,
+        timeoutMs,
+      });
+      return;
+    }
+
     // Determine worker count
     const hwCores = typeof navigator !== "undefined" ? (navigator.hardwareConcurrency || 1) : 1;
     const numWorkers = Math.min(hwCores, MAX_WORKERS);
@@ -571,8 +654,15 @@ export function useBoltzmann(tx: MempoolTransaction | null) {
     if (nIn <= 1 || nOut === 0) return;
     if (nIn + nOut > MAX_SUPPORTED_TOTAL) return;
 
-    // Auto-compute for small txs (deferred to avoid setState-in-effect lint error)
-    if (nIn + nOut < AUTO_COMPUTE_MAX_TOTAL) {
+    // Auto-compute for small txs or JM-detected txs (always fast via turbo)
+    const isJmAutoDetect = (() => {
+      if (nIn <= 1 || nOut === 0) return false;
+      const iv = tx.vin.filter(v => !v.is_coinbase && v.prevout).map(v => v.prevout!.value);
+      const ov = tx.vout.filter(o => o.scriptpubkey_type !== "op_return" && o.value > 0).map(o => o.value);
+      return detectJoinMarketForTurbo(iv, ov).isJoinMarket;
+    })();
+
+    if (nIn + nOut < AUTO_COMPUTE_MAX_TOTAL || isJmAutoDetect) {
       const timer = setTimeout(compute, 0);
       return () => {
         clearTimeout(timer);
@@ -589,7 +679,11 @@ export function useBoltzmann(tx: MempoolTransaction | null) {
     ? (() => {
         const nIn = tx.vin.filter(v => !v.is_coinbase && v.prevout).length;
         const nOut = tx.vout.filter(o => o.scriptpubkey_type !== "op_return" && o.value > 0).length;
-        return nIn + nOut < AUTO_COMPUTE_MAX_TOTAL;
+        if (nIn + nOut < AUTO_COMPUTE_MAX_TOTAL) return true;
+        if (nIn <= 1 || nOut === 0) return false;
+        const iv = tx.vin.filter(v => !v.is_coinbase && v.prevout).map(v => v.prevout!.value);
+        const ov = tx.vout.filter(o => o.scriptpubkey_type !== "op_return" && o.value > 0).map(o => o.value);
+        return detectJoinMarketForTurbo(iv, ov).isJoinMarket;
       })()
     : false;
 

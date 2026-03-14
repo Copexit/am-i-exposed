@@ -1,5 +1,6 @@
 pub mod analyze;
 mod backtrack;
+pub mod joinmarket;
 pub mod partition;
 mod subset_sum;
 pub(crate) mod time;
@@ -502,6 +503,31 @@ pub fn dfs_finalize() -> JsValue {
     });
 
     result
+}
+
+/// Compute the Boltzmann LPM using JoinMarket turbo mode.
+///
+/// Exploits JoinMarket's maker structure to deterministically match inputs
+/// to change outputs, reducing the problem to inputs vs equal-denomination
+/// CJ outputs. Falls back to standard Boltzmann if matching fails.
+#[wasm_bindgen]
+pub fn compute_boltzmann_joinmarket(
+    input_values: &[i64],
+    output_values: &[i64],
+    fee: i64,
+    denomination: i64,
+    max_cj_intrafees_ratio: f64,
+    timeout_ms: u32,
+) -> JsValue {
+    let result = joinmarket::analyze_joinmarket(
+        input_values,
+        output_values,
+        fee,
+        denomination,
+        max_cj_intrafees_ratio,
+        timeout_ms,
+    );
+    serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
 }
 
 // Re-export for native (non-WASM) testing

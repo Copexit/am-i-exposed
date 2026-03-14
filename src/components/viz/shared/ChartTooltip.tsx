@@ -28,11 +28,15 @@ export function ChartTooltip({ top, left, children, containerRef }: ChartTooltip
   const [mounted, setMounted] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- SSR hydration guard
   useEffect(() => { setMounted(true); }, []);
 
   if (!mounted) return null;
 
-  // Convert container-local coords to viewport-fixed coords
+  // Convert container-local coords to viewport-fixed coords.
+  // Reading containerRef during render is intentional: tooltip position must
+  // be synchronous with the mouse event that triggered the render.
+  // eslint-disable-next-line react-hooks/refs -- DOM measurement for portal positioning
   const rect = containerRef?.current?.getBoundingClientRect();
   const fixedTop = rect ? rect.top + top : top;
   const fixedLeft = rect ? rect.left + left : left;
