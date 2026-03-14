@@ -254,7 +254,7 @@ function TimelineChart({
       </svg>
 
       {tooltipOpen && tooltipData && (
-        <ChartTooltip top={tooltipTop ?? 0} left={tooltipLeft ?? 0}>
+        <ChartTooltip top={tooltipTop ?? 0} left={tooltipLeft ?? 0} containerRef={containerRef}>
           <div className="space-y-0.5">
             <p className="font-mono text-xs" style={{ color: SVG_COLORS.foreground }}>
               {truncateId(tooltipData.txid, 4)}

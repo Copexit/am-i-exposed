@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { SVG_COLORS } from "./svgConstants";
 
 interface TooltipState<T> {
@@ -14,19 +15,35 @@ interface ChartTooltipProps {
   top: number;
   left: number;
   children: React.ReactNode;
+  /** The container element whose getBoundingClientRect maps the local coordinates to the viewport. */
+  containerRef?: React.RefObject<HTMLElement | null>;
 }
 
 /**
- * Simple absolute-positioned tooltip inside a `position: relative` container.
- * Uses transform to center horizontally and sit above the target point.
+ * Portal-based tooltip that renders at body level to avoid overflow clipping.
+ * Coordinates are local to the container; if containerRef is provided they are
+ * converted to viewport-fixed positioning via getBoundingClientRect.
  */
-export function ChartTooltip({ top, left, children }: ChartTooltipProps) {
-  return (
+export function ChartTooltip({ top, left, children, containerRef }: ChartTooltipProps) {
+  const [mounted, setMounted] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  if (!mounted) return null;
+
+  // Convert container-local coords to viewport-fixed coords
+  const rect = containerRef?.current?.getBoundingClientRect();
+  const fixedTop = rect ? rect.top + top : top;
+  const fixedLeft = rect ? rect.left + left : left;
+
+  return createPortal(
     <div
+      ref={tooltipRef}
       style={{
-        position: "absolute",
-        top,
-        left,
+        position: "fixed",
+        top: fixedTop,
+        left: fixedLeft,
         transform: "translate(-50%, -100%)",
         backgroundColor: "rgba(28, 28, 32, 0.95)",
         border: "1px solid rgba(255, 255, 255, 0.1)",
@@ -37,7 +54,7 @@ export function ChartTooltip({ top, left, children }: ChartTooltipProps) {
         boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
         backdropFilter: "blur(16px)",
         pointerEvents: "none",
-        zIndex: 50,
+        zIndex: 9999,
         whiteSpace: "nowrap",
         maxWidth: 320,
         overflow: "hidden",
@@ -45,7 +62,8 @@ export function ChartTooltip({ top, left, children }: ChartTooltipProps) {
       }}
     >
       {children}
-    </div>
+    </div>,
+    document.body,
   );
 }
 

@@ -1593,7 +1593,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
   // ─── Tooltip content ──────────────────────────────────
 
   const tooltipContent = tooltip.tooltipOpen && tooltip.tooltipData && (
-    <ChartTooltip top={tooltip.tooltipTop} left={tooltip.tooltipLeft}>
+    <ChartTooltip top={tooltip.tooltipTop} left={tooltip.tooltipLeft} containerRef={scrollRef}>
       <div className="space-y-1">
         <div className="font-mono text-xs">{truncateId(tooltip.tooltipData.txid, 8)}</div>
         <div className="text-xs" style={{ color: SVG_COLORS.muted }}>

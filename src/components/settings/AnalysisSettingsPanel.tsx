@@ -166,17 +166,17 @@ export function AnalysisSettingsPanel() {
             <input
               id="analysis-boltzmann-timeout"
               type="range"
-              min={5}
-              max={120}
-              step={5}
+              min={10}
+              max={600}
+              step={10}
               value={analysisSettings.boltzmannTimeout}
               onChange={(e) => updateAnalysis({ boltzmannTimeout: Number(e.target.value) })}
               className="w-full h-1.5 bg-surface-inset rounded-full appearance-none cursor-pointer accent-bitcoin"
             />
             <div className="flex justify-between text-[10px] text-muted/60 mt-0.5">
-              <span>5s</span>
-              <span>60s</span>
-              <span>120s</span>
+              <span>10s</span>
+              <span>5m</span>
+              <span>10m</span>
             </div>
           </div>
 
