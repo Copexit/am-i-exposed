@@ -900,3 +900,126 @@ fn test_jm_turbo_50_inputs() {
     let cj_prob = result.mat_lnk_probabilities[cj_row_start][0];
     assert!(cj_prob < 0.5, "50-input JM: CJ cell prob should be well below 50%, got {cj_prob}");
 }
+
+// ==========================================================================
+// Test: Stonewall transaction 19a79be3...
+// Tx: 19a79be39c05a0956c7d1f9f28ee6f1091096247b0906b6a8536dd7f400f2358
+// 3-in, 4-out Stonewall with 2 equal outputs (104,000 sats)
+// ==========================================================================
+#[test]
+fn test_stonewall_19a79be3() {
+    // Inputs: 205,000 + 100,000 + 46,834 = 351,834
+    // Outputs: 104,000 + 104,000 + 98,200 + 40,034 = 346,234
+    // Fee: 5,600
+    // 4 valid interpretations (verified by manual logical analysis)
+    let inputs = [205_000i64, 100_000, 46_834];
+    let outputs = [104_000i64, 104_000, 98_200, 40_034];
+    let fee = 5_600i64;
+
+    let result = analyze(&inputs, &outputs, fee, 0.0, 60_000);
+
+    assert_eq!(result.nb_cmbn, 4, "Stonewall should have exactly 4 interpretations");
+    assert!((result.entropy - 2.0).abs() < 0.001, "Entropy should be 2.0 bits");
+    assert_eq!(result.deterministic_links, vec![(3, 2)], "Out[3]=40034 deterministically linked to In[2]=46834");
+
+    // Verify exact matrix (sorted desc: inputs=[205k, 100k, 46834], outputs=[104k, 104k, 98200, 40034])
+    assert_eq!(result.mat_lnk_combinations, vec![
+        vec![3, 2, 3],  // out[0]=104000
+        vec![3, 2, 3],  // out[1]=104000
+        vec![3, 2, 1],  // out[2]=98200
+        vec![2, 3, 4],  // out[3]=40034 (deterministic: cell=nb_cmbn for in[2])
+    ]);
+}
+
+// Test: Stonewall WITH intrafees to compare
+#[test]
+fn test_stonewall_19a79be3_with_intrafees() {
+    let inputs = [205_000i64, 100_000, 46_834];
+    let outputs = [104_000i64, 104_000, 98_200, 40_034];
+    let fee = 5_600i64;
+
+    let result = analyze(&inputs, &outputs, fee, 0.005, 60_000);
+
+    println!("Stonewall 19a79be3 WITH intrafees:");
+    println!("  nb_cmbn = {}", result.nb_cmbn);
+    println!("  entropy = {:.6}", result.entropy);
+    println!("  intra_fees_maker = {}", result.intra_fees_maker);
+    println!("  intra_fees_taker = {}", result.intra_fees_taker);
+    println!("  deterministic_links = {:?}", result.deterministic_links);
+    println!("\n  mat_lnk_probabilities:");
+    for (o, row) in result.mat_lnk_probabilities.iter().enumerate() {
+        let formatted: Vec<String> = row.iter().map(|p| format!("{:.2}%", p * 100.0)).collect();
+        println!("    out[{o}]: {:?}", formatted);
+    }
+}
+
+// ==========================================================================
+// Test: Stonewall - compare analyze() with and without intrafees
+// Verifies no intrafees interference for this transaction
+// ==========================================================================
+#[test]
+fn test_stonewall_intrafees_comparison() {
+    let inputs = [205_000i64, 100_000, 46_834];
+    let outputs = [104_000i64, 104_000, 98_200, 40_034];
+    let fee = 5_600i64;
+
+    // Direct analyze (no intrafees)
+    let direct_no_intra = analyze(&inputs, &outputs, fee, 0.0, 60_000);
+    println!("DIRECT (no intra): nb_cmbn={}, entropy={:.6}", direct_no_intra.nb_cmbn, direct_no_intra.entropy);
+    for (o, row) in direct_no_intra.mat_lnk_combinations.iter().enumerate() {
+        println!("  mat[{o}]: {:?}", row);
+    }
+
+    // Direct analyze (with intrafees)
+    let direct_with_intra = analyze(&inputs, &outputs, fee, 0.005, 60_000);
+    println!("DIRECT (with intra): nb_cmbn={}, entropy={:.6}", direct_with_intra.nb_cmbn, direct_with_intra.entropy);
+    println!("  intra_fees_maker={}, intra_fees_taker={}", direct_with_intra.intra_fees_maker, direct_with_intra.intra_fees_taker);
+
+    for (o, row) in direct_with_intra.mat_lnk_combinations.iter().enumerate() {
+        println!("  mat_intra[{o}]: {:?}", row);
+    }
+
+    // Both should give 4 combinations
+    assert_eq!(direct_no_intra.nb_cmbn, 4, "No-intra should have 4 combinations");
+    assert_eq!(direct_with_intra.nb_cmbn, 4, "With-intra should have 4 combinations");
+
+    // Matrices should be identical (intrafees don't change result for this tx)
+    assert_eq!(
+        direct_no_intra.mat_lnk_combinations,
+        direct_with_intra.mat_lnk_combinations,
+        "Matrices should be identical"
+    );
+}
+
+// ==========================================================================
+// Test: Stonewall - exercise the chunked DFS API (same path as WASM)
+// to check for divergence from native analyze()
+// ==========================================================================
+#[test]
+fn test_stonewall_chunked_api() {
+    use boltzmann_rs::test_chunked_analyze;
+
+    let inputs = [205_000i64, 100_000, 46_834];
+    let outputs = [104_000i64, 104_000, 98_200, 40_034];
+    let fee = 5_600i64;
+
+    // Native result for reference
+    let native = analyze(&inputs, &outputs, fee, 0.005, 60_000);
+    println!("NATIVE: nb_cmbn={}, entropy={:.6}", native.nb_cmbn, native.entropy);
+    for (o, row) in native.mat_lnk_combinations.iter().enumerate() {
+        println!("  native mat[{o}]: {:?}", row);
+    }
+
+    // Chunked DFS path (mimics prepare_boltzmann + dfs_step loop + dfs_finalize)
+    let chunked = test_chunked_analyze(&inputs, &outputs, fee, 0.005);
+    println!("CHUNKED: nb_cmbn={}, entropy={:.6}", chunked.nb_cmbn, chunked.entropy);
+    for (o, row) in chunked.mat_lnk_combinations.iter().enumerate() {
+        println!("  chunked mat[{o}]: {:?}", row);
+    }
+
+    assert_eq!(chunked.nb_cmbn, native.nb_cmbn, "Chunked should match native nb_cmbn");
+    assert_eq!(
+        chunked.mat_lnk_combinations, native.mat_lnk_combinations,
+        "Chunked should match native matrix"
+    );
+}

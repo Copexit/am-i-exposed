@@ -21,7 +21,7 @@ pub fn analyze(
     let n_out = output_values.len();
 
     // Early exit: trivial transactions
-    if n_in <= 1 || n_out == 0 {
+    if n_in == 0 || n_out == 0 {
         return make_degenerate_result(input_values, output_values, fees, start);
     }
 
@@ -133,7 +133,7 @@ pub fn analyze(
 }
 
 /// Run the full linker pipeline (phases 1-4).
-pub(crate) fn run_linker(
+pub fn run_linker(
     inputs: &[i64],
     outputs: &[i64],
     fees: i64,
@@ -339,7 +339,7 @@ pub fn prepare_analysis(
     max_cj_intrafees_ratio: f64,
 ) -> Option<PreparedAnalysis> {
     let n_in = input_values.len();
-    if n_in <= 1 {
+    if n_in == 0 {
         return None;
     }
 

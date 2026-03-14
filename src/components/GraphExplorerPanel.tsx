@@ -7,6 +7,7 @@ import { useGraphExpansion } from "@/hooks/useGraphExpansion";
 import { ChartErrorBoundary } from "./ui/ChartErrorBoundary";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
+import type { BoltzmannWorkerResult } from "@/hooks/useBoltzmann";
 import type { Finding } from "@/lib/types";
 
 const GraphExplorer = lazy(() => import("./viz/GraphExplorer").then(m => ({ default: m.GraphExplorer })));
@@ -21,6 +22,8 @@ interface GraphExplorerPanelProps {
   forwardLayers?: TraceLayer[] | null;
   /** Per-output spend status (needed for forward edge resolution). */
   outspends?: MempoolOutspend[] | null;
+  /** Boltzmann result for the root transaction (linkability edge coloring). */
+  boltzmannResult?: BoltzmannWorkerResult | null;
 }
 
 /**
@@ -29,7 +32,7 @@ interface GraphExplorerPanelProps {
  *
  * When trace layers are provided, auto-expands up to 2 hops in each direction.
  */
-export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, forwardLayers, outspends }: GraphExplorerPanelProps) {
+export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, forwardLayers, outspends, boltzmannResult }: GraphExplorerPanelProps) {
   const { config } = useNetwork();
 
   // No AbortController signal: the graph is long-lived and expansion requests
@@ -91,6 +94,7 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, fo
           onUndo={undo}
           onReset={reset}
           onTxClick={onTxClick}
+          rootBoltzmannResult={boltzmannResult}
         />
       </Suspense>
     </ChartErrorBoundary>

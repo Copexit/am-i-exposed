@@ -10,9 +10,11 @@ import { useTranslation } from "react-i18next";
 import { SVG_COLORS, SEVERITY_HEX, GRADIENT_COLORS, DUST_THRESHOLD, ANIMATION_DEFAULTS } from "./shared/svgConstants";
 import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
+import { probColor, probColorRgba } from "./shared/linkabilityColors";
 import { formatSats, formatUsdValue } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
+import type { BoltzmannWorkerResult } from "@/hooks/useBoltzmann";
 import type { Finding } from "@/lib/types";
 import type { SankeyExtraProperties, SankeyGraph } from "d3-sankey";
 
@@ -24,6 +26,12 @@ interface TxFlowDiagramProps {
   usdPrice?: number | null;
   /** Per-output spend status. */
   outspends?: MempoolOutspend[] | null;
+  /** Boltzmann link probability matrix for linkability mode. */
+  boltzmannResult?: BoltzmannWorkerResult | null;
+  /** When true, this TxFlowDiagram is shown in place of CoinJoinStructure. */
+  isCoinJoinOverride?: boolean;
+  /** Callback to return to CoinJoinStructure view. */
+  onExitLinkability?: () => void;
 }
 
 interface NodeDatum extends SankeyExtraProperties {
@@ -58,6 +66,10 @@ interface TooltipData {
   annotationReason?: string;
   lang: string;
   spent?: boolean | null;
+  /** Linkability probability for link hover tooltip. */
+  linkProb?: number;
+  linkFromLabel?: string;
+  linkToLabel?: string;
 }
 
 // Margins are computed per-render based on width (see FlowChart)
@@ -106,6 +118,7 @@ interface FlowChartProps extends TxFlowDiagramProps {
   showAllOutputs: boolean;
   onToggleShowAllInputs: () => void;
   onToggleShowAllOutputs: () => void;
+  linkabilityMode: boolean;
 }
 
 function FlowChart({
@@ -116,15 +129,18 @@ function FlowChart({
   onAddressClick,
   usdPrice,
   outspends,
+  boltzmannResult,
   showAllInputs,
   showAllOutputs,
   onToggleShowAllInputs,
   onToggleShowAllOutputs,
+  linkabilityMode,
 }: FlowChartProps) {
   const { t, i18n } = useTranslation();
   const reducedMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [hoveredLink, setHoveredLink] = useState<number | null>(null);
   const { tooltipOpen, tooltipData, tooltipLeft, tooltipTop, showTooltip, hideTooltip, handleTouch } =
     useChartTooltip<TooltipData>();
 
@@ -221,6 +237,41 @@ function FlowChart({
 
     return indices;
   }, [tx.vout, findings]);
+
+  // Build mapping from display index to Boltzmann matrix index (filtered, no coinbase/OP_RETURN)
+  const boltzmannLookup = useMemo(() => {
+    if (!boltzmannResult || !linkabilityMode) return null;
+    const mat = boltzmannResult.matLnkProbabilities;
+    // Boltzmann filtered input indices (non-coinbase with prevout)
+    const inputMap: number[] = [];
+    let bi = 0;
+    for (let i = 0; i < tx.vin.length; i++) {
+      if (!tx.vin[i].is_coinbase && tx.vin[i].prevout) {
+        inputMap[i] = bi++;
+      } else {
+        inputMap[i] = -1;
+      }
+    }
+    // Boltzmann filtered output indices (non-OP_RETURN, value > 0)
+    const outputMap: number[] = [];
+    let bo = 0;
+    for (let i = 0; i < tx.vout.length; i++) {
+      if (tx.vout[i].scriptpubkey_type !== "op_return" && tx.vout[i].value > 0) {
+        outputMap[i] = bo++;
+      } else {
+        outputMap[i] = -1;
+      }
+    }
+    return {
+      getProb: (displayInIdx: number, displayOutIdx: number): number => {
+        const mi = inputMap[displayInIdx];
+        const mo = outputMap[displayOutIdx];
+        if (mi < 0 || mo < 0) return 0;
+        return mat[mo]?.[mi] ?? 0;
+      },
+      timedOut: boltzmannResult.timedOut,
+    };
+  }, [boltzmannResult, linkabilityMode, tx.vin, tx.vout]);
 
   const { graph, hiddenInputCount, hiddenOutputCount } = useMemo(() => {
     const displayInputs = showAllInputs ? tx.vin : tx.vin.slice(0, MAX_DISPLAY);
@@ -394,6 +445,22 @@ function FlowChart({
                 {(computed.links ?? []).map((link, i) => {
                   const srcNode = nodeMap.get((link.source as unknown as { id: string }).id);
                   const tgtNode = nodeMap.get((link.target as unknown as { id: string }).id);
+
+                  // Linkability mode: solid color from probability matrix
+                  if (boltzmannLookup && srcNode && tgtNode && srcNode.side === "input" && tgtNode.side === "output") {
+                    const inIdx = parseInt(srcNode.id.slice(3), 10);
+                    const outIdx = parseInt(tgtNode.id.slice(4), 10);
+                    const prob = boltzmannLookup.getProb(inIdx, outIdx);
+                    const isUnreliable = boltzmannLookup.timedOut && prob > 0 && prob < 1.0;
+                    const color = isUnreliable ? "rgb(30,30,40)" : probColor(prob);
+                    return (
+                      <linearGradient key={`flow-link-${i}`} id={`flow-link-${i}`}>
+                        <stop offset="0%" stopColor={color} />
+                        <stop offset="100%" stopColor={color} />
+                      </linearGradient>
+                    );
+                  }
+
                   const srcColor = srcNode ? getNodeHex(srcNode) : SVG_COLORS.bitcoin;
                   const tgtColor = tgtNode ? getNodeHex(tgtNode) : SVG_COLORS.bitcoin;
                   return (
@@ -430,19 +497,119 @@ function FlowChart({
                 const isHighlighted =
                   !hoveredNode || src.id === hoveredNode || tgt.id === hoveredNode;
 
+                // Linkability mode: opacity scales with probability
+                let linkOpacity = isHighlighted ? 0.5 : 0.08;
+                if (boltzmannLookup) {
+                  const srcNode = nodeMap.get(src.id);
+                  const tgtNode = nodeMap.get(tgt.id);
+                  if (srcNode?.side === "input" && tgtNode?.side === "output") {
+                    const inIdx = parseInt(src.id.slice(3), 10);
+                    const outIdx = parseInt(tgt.id.slice(4), 10);
+                    const prob = boltzmannLookup.getProb(inIdx, outIdx);
+                    const isUnreliable = boltzmannLookup.timedOut && prob > 0 && prob < 1.0;
+                    if (prob <= 0) {
+                      return null; // Remove 0% links entirely so they don't interfere with hover
+                    } else if (isUnreliable) {
+                      linkOpacity = 0.03;
+                    } else {
+                      // Proportional: 0% prob -> 30% opacity, 100% prob -> 100% opacity
+                      linkOpacity = 0.3 + prob * 0.7;
+                    }
+                    if (!isHighlighted) linkOpacity *= 0.3;
+                  }
+                }
+
+                // Compute linkability prob for hover tooltip
+                let linkProb: number | undefined;
+                let linkFromLabel: string | undefined;
+                let linkToLabel: string | undefined;
+                if (boltzmannLookup) {
+                  const srcNode = nodeMap.get(src.id);
+                  const tgtNode = nodeMap.get(tgt.id);
+                  if (srcNode?.side === "input" && tgtNode?.side === "output") {
+                    const inIdx = parseInt(src.id.slice(3), 10);
+                    const outIdx = parseInt(tgt.id.slice(4), 10);
+                    linkProb = boltzmannLookup.getProb(inIdx, outIdx);
+                    linkFromLabel = srcNode.label;
+                    linkToLabel = tgtNode.label;
+                  }
+                }
+
                 return (
-                  <motion.path
+                  <g
                     key={`link-${i}`}
-                    d={pathD}
-                    fill={`url(#flow-link-${i})`}
-                    fillOpacity={isHighlighted ? 0.5 : 0.08}
-                    stroke="none"
-                    initial={reducedMotion ? false : { opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.15 + i * 0.01, duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-                  />
+                    onMouseMove={linkProb !== undefined ? (e: React.MouseEvent) => {
+                      setHoveredLink(i);
+                      const container = containerRef.current;
+                      if (!container) return;
+                      const containerRect = container.getBoundingClientRect();
+                      showTooltip({
+                        tooltipData: {
+                          label: `${linkFromLabel} \u2192 ${linkToLabel}`,
+                          value: linkObj.value,
+                          side: "link",
+                          lang: i18n.language,
+                          linkProb,
+                          linkFromLabel,
+                          linkToLabel,
+                        },
+                        tooltipLeft: e.clientX - containerRect.left,
+                        tooltipTop: e.clientY - containerRect.top - 8,
+                      });
+                    } : undefined}
+                    onMouseLeave={linkProb !== undefined ? () => { setHoveredLink(null); hideTooltip(); } : undefined}
+                  >
+                    <motion.path
+                      d={pathD}
+                      fill={`url(#flow-link-${i})`}
+                      fillOpacity={linkOpacity}
+                      stroke="none"
+                      style={{ pointerEvents: linkProb !== undefined ? "fill" : "none" }}
+                      initial={reducedMotion ? false : { opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.15 + i * 0.01, duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+                    />
+                  </g>
                 );
               })}
+
+              {/* Hover overlay: re-render hovered link on top of all links with full opacity + glow */}
+              {hoveredLink !== null && boltzmannLookup && (() => {
+                const link = (computed.links ?? [])[hoveredLink];
+                if (!link) return null;
+                const linkObj = link as unknown as { width: number; value: number; y0: number; y1: number };
+                if ((linkObj.value ?? 0) <= 0) return null;
+                const src = link.source as unknown as { x1: number; y0: number; y1: number; id: string };
+                const tgt = link.target as unknown as { x0: number; y0: number; y1: number; id: string };
+                const w = Math.max(linkObj.width ?? 0, 2);
+                const oy0 = isFinite(linkObj.y0) ? linkObj.y0 : (src.y0 + src.y1) / 2;
+                const oy1 = isFinite(linkObj.y1) ? linkObj.y1 : (tgt.y0 + tgt.y1) / 2;
+                const midX = (src.x1 + tgt.x0) / 2;
+                const pathD =
+                  `M${src.x1},${oy0 - w / 2}` +
+                  `C${midX},${oy0 - w / 2} ${midX},${oy1 - w / 2} ${tgt.x0},${oy1 - w / 2}` +
+                  `L${tgt.x0},${oy1 + w / 2}` +
+                  `C${midX},${oy1 + w / 2} ${midX},${oy0 + w / 2} ${src.x1},${oy0 + w / 2}Z`;
+                return (
+                  <g style={{ pointerEvents: "none" }}>
+                    {/* Glow aura */}
+                    <path
+                      d={pathD}
+                      fill={`url(#flow-link-${hoveredLink})`}
+                      fillOpacity={0.6}
+                      stroke="none"
+                      filter="url(#glow-medium)"
+                    />
+                    {/* Solid link at full opacity */}
+                    <path
+                      d={pathD}
+                      fill={`url(#flow-link-${hoveredLink})`}
+                      fillOpacity={1.0}
+                      stroke="none"
+                    />
+                  </g>
+                );
+              })()}
 
               {/* Nodes */}
               {(computed.nodes ?? []).map((node, i) => {
@@ -592,8 +759,20 @@ function FlowChart({
       </svg>
 
       {tooltipOpen && tooltipData && (
-        <ChartTooltip top={tooltipTop ?? 0} left={tooltipLeft ?? 0}>
+        <ChartTooltip top={tooltipTop ?? 0} left={tooltipLeft ?? 0} containerRef={containerRef}>
           <div className="space-y-0.5">
+            {tooltipData.linkProb !== undefined ? (
+              <>
+                <p className="text-xs font-medium flex items-center gap-1.5">
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: probColor(tooltipData.linkProb), display: "inline-block", flexShrink: 0 }} />
+                  <span style={{ color: SVG_COLORS.foreground }}>{Math.round(tooltipData.linkProb * 100)}% linkability</span>
+                </p>
+                <p className="text-xs" style={{ color: SVG_COLORS.muted }}>
+                  {tooltipData.linkFromLabel} {"\u2192"} {tooltipData.linkToLabel}
+                </p>
+              </>
+            ) : (
+              <>
             <p className="font-mono text-xs" style={{ color: SVG_COLORS.foreground }}>
               {tooltipData.label}
             </p>
@@ -618,6 +797,8 @@ function FlowChart({
                   : t("viz.flow.unspent", { defaultValue: "Unspent (UTXO)" })}
               </p>
             )}
+              </>
+            )}
           </div>
         </ChartTooltip>
       )}
@@ -641,16 +822,20 @@ function FlowChart({
   );
 }
 
-export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspends }: TxFlowDiagramProps) {
+export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspends, boltzmannResult, isCoinJoinOverride, onExitLinkability }: TxFlowDiagramProps) {
   const { t, i18n } = useTranslation();
   const [showAllInputs, setShowAllInputs] = useState(false);
   const [showAllOutputs, setShowAllOutputs] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [linkabilityMode, setLinkabilityMode] = useState(!!isCoinJoinOverride);
+  const hasLinkability = !!boltzmannResult;
 
   const displayInCount = showAllInputs ? tx.vin.length : Math.min(tx.vin.length, MAX_DISPLAY);
   const displayOutCount = showAllOutputs ? tx.vout.length : Math.min(tx.vout.length, MAX_DISPLAY);
   const maxSide = Math.max(displayInCount, displayOutCount);
-  const chartHeight = Math.max(160, Math.min(450, maxSide * 40 + 40));
+  const chartHeight = Math.max(160, maxSide * 40 + 40);
+  const MAX_VISIBLE_HEIGHT = 500;
+  const needsScroll = chartHeight > MAX_VISIBLE_HEIGHT;
 
   // Close on Escape key
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -674,7 +859,34 @@ export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspend
         <div className="flex items-center justify-between text-sm text-muted uppercase tracking-wider">
           <span>{t("tx.inputCount", { count: tx.vin.length, defaultValue: `${tx.vin.length} inputs` })}</span>
           <div className="flex items-center gap-2">
-            <span className="text-xs">{t("viz.flow.title", { defaultValue: "Transaction flow" })}</span>
+            {hasLinkability && (
+              <button
+                onClick={() => setLinkabilityMode(prev => !prev)}
+                className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors cursor-pointer ${
+                  linkabilityMode
+                    ? "border-bitcoin/50 bg-bitcoin/10 text-bitcoin"
+                    : "border-card-border text-muted hover:text-foreground hover:border-muted"
+                }`}
+                title={t("viz.flow.linkabilityToggle", { defaultValue: "Color links by Boltzmann linkability probability" })}
+              >
+                <span className="flex items-center gap-1">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+                  {t("viz.flow.linkability", { defaultValue: "Linkability" })}
+                </span>
+              </button>
+            )}
+            <span className="flex items-center gap-2">
+              <span className="text-xs">{t("viz.flow.title", { defaultValue: "Transaction flow" })}</span>
+              {isCoinJoinOverride && onExitLinkability && (
+                <button
+                  onClick={onExitLinkability}
+                  className="text-[10px] px-2 py-0.5 rounded-full border border-card-border text-muted hover:text-foreground hover:border-muted transition-colors cursor-pointer"
+                  title="Back to CoinJoin structure"
+                >
+                  CJ view
+                </button>
+              )}
+            </span>
             <button
               onClick={() => { setShowAllInputs(true); setShowAllOutputs(true); setIsExpanded(true); }}
               className="text-muted hover:text-foreground transition-colors p-0.5 rounded cursor-pointer"
@@ -687,11 +899,16 @@ export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspend
           <span>{t("tx.outputCount", { count: tx.vout.length, defaultValue: `${tx.vout.length} outputs` })}</span>
         </div>
 
-        <div style={{ minHeight: 160 }}>
-          <ParentSize>
-            {({ width }) => {
-              if (width < 1) return null;
-              return (
+        <ParentSize style={{ height: "auto" }}>
+          {({ width }) => {
+            if (width < 1) return null;
+            return (
+              <div
+                style={{
+                  maxHeight: needsScroll ? MAX_VISIBLE_HEIGHT : undefined,
+                  overflowY: needsScroll ? "auto" : undefined,
+                }}
+              >
                 <FlowChart
                   width={width}
                   height={chartHeight}
@@ -700,15 +917,17 @@ export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspend
                   onAddressClick={onAddressClick}
                   usdPrice={usdPrice}
                   outspends={outspends}
+                  boltzmannResult={boltzmannResult}
                   showAllInputs={showAllInputs}
                   showAllOutputs={showAllOutputs}
                   onToggleShowAllInputs={() => setShowAllInputs(true)}
                   onToggleShowAllOutputs={() => setShowAllOutputs(true)}
+                  linkabilityMode={linkabilityMode}
                 />
-              );
-            }}
-          </ParentSize>
-        </div>
+              </div>
+            );
+          }}
+        </ParentSize>
 
         {/* Fee + size info */}
         <div className="flex items-center justify-between text-sm text-muted border-t border-card-border pt-2">
@@ -764,10 +983,12 @@ export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspend
                     onAddressClick={onAddressClick}
                     usdPrice={usdPrice}
                     outspends={outspends}
+                    boltzmannResult={boltzmannResult}
                     showAllInputs={true}
                     showAllOutputs={true}
                     onToggleShowAllInputs={() => {}}
                     onToggleShowAllOutputs={() => {}}
+                    linkabilityMode={linkabilityMode}
                   />
                 );
               }}

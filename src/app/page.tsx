@@ -150,6 +150,7 @@ export default function Home() {
     fetchProgress,
     backwardLayers,
     forwardLayers,
+    boltzmannResult,
     analyze,
     reset,
   } = useAnalysis();
@@ -563,6 +564,7 @@ export default function Home() {
               outspends={outspends}
               backwardLayers={backwardLayers}
               forwardLayers={forwardLayers}
+              boltzmannResult={boltzmannResult}
             />
           </>
         )}

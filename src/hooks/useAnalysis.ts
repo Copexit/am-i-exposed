@@ -21,6 +21,8 @@ import { parsePSBT } from "@/lib/bitcoin/psbt";
 import { getAnalysisSettings } from "@/hooks/useAnalysisSettings";
 import { getCachedResult, putCachedResult } from "@/lib/api/analysis-cache";
 import { loadEntityFilter } from "@/lib/analysis/entity-filter";
+import { computeBoltzmann, isAutoComputable, extractTxValues } from "@/lib/analysis/boltzmann-compute";
+import { enhanceEntropyFinding } from "@/lib/analysis/boltzmann-enhance";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { HeuristicTranslator } from "@/lib/analysis/heuristics/types";
 
@@ -178,6 +180,8 @@ export function useAnalysis() {
           outspends: cached.outspends,
           backwardLayers: cached.backwardLayers,
           forwardLayers: cached.forwardLayers,
+          boltzmannResult: cached.boltzmannResult ?? null,
+          boltzmannStatus: cached.boltzmannResult ? "complete" : null,
           fromCache: true,
         });
         return;
@@ -214,6 +218,16 @@ export function useAnalysis() {
               signal: controller.signal,
             });
           }
+
+          // Start Boltzmann computation early (in parallel with price/trace fetches)
+          const txValues = extractTxValues(tx);
+          const shouldAutoBoltzmann = isAutoComputable(txValues.inputValues, txValues.outputValues);
+          const boltzmannPromise = shouldAutoBoltzmann
+            ? computeBoltzmann(tx, {
+                timeoutMs: (analysisSettingsForCache.boltzmannTimeout ?? 300) * 1000,
+                signal: controller.signal,
+              }).catch(() => null)
+            : Promise.resolve(null);
 
           // Fetch historical fiat prices + outspend data for confirmed txs
           // Also pre-fetch parent tx for peel chain detection (only for 1-input txs)
@@ -349,12 +363,22 @@ export function useAnalysis() {
             result.findings.push(makeIncompletePrevoutFinding(remainingNulls));
           }
 
+          // Await Boltzmann result (started earlier in parallel)
+          const boltzmannResult = await boltzmannPromise;
+
+          // Enhance entropy finding with real WASM Boltzmann data
+          if (boltzmannResult && !boltzmannResult.timedOut) {
+            enhanceEntropyFinding(result.findings, boltzmannResult);
+          }
+
           setState((prev) => {
             const completeState = {
               ...prev,
               phase: "complete" as const,
               steps: markAllDone(prev.steps),
               result,
+              boltzmannResult: boltzmannResult ?? null,
+              boltzmannStatus: boltzmannResult ? "complete" as const : shouldAutoBoltzmann ? "error" as const : "idle" as const,
               durationMs: Date.now() - startTime,
             };
             // Fire-and-forget cache write
