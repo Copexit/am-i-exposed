@@ -768,6 +768,51 @@ fn test_jm_turbo_real_08d91add() {
     assert!(result.nb_cmbn > 0, "08d91add JM turbo: should produce valid result");
 }
 
+// Real JM tx: 89633a49 - 10 inputs, 15 outputs, 8 equal at 1,035,806
+// Regression: unmatched change outputs were showing 100% for all unmatched inputs,
+// but a single input can't fund multiple unmatched changes simultaneously.
+#[test]
+fn test_jm_turbo_real_89633a49_no_false_deterministic() {
+    let inputs = [
+        3_676_408i64, 3_252_191, 2_594_240, 1_301_613, 1_067_547,
+        1_063_910, 1_017_842, 995_265, 940_638, 273_847,
+    ];
+    let outputs = [
+        2_646_252i64, 2_216_695, 1_558_640, 1_035_806, 1_035_806,
+        1_035_806, 1_035_806, 1_035_806, 1_035_806, 1_035_806,
+        1_035_806, 981_443, 265_829, 184_140, 32_246,
+    ];
+    let fee: i64 = inputs.iter().sum::<i64>() - outputs.iter().sum::<i64>();
+
+    let result = analyze_joinmarket(&inputs, &outputs, fee, 1_035_806, 0.005, 60_000);
+
+    assert_eq!(result.n_inputs, 10);
+    assert_eq!(result.n_outputs, 15);
+    assert!(result.nb_cmbn > 1, "89633a49: should have multiple interpretations");
+
+    // Key regression check: unmatched change outputs (981,443 and 184,140)
+    // should NOT show 100% probability for all unmatched inputs.
+    // Sorted outputs: [2646252, 2216695, 1558640, 1035806x8, 981443, 265829, 184140, 32246]
+    // Output index 11 = 981,443, output index 13 = 184,140
+    // These are the unmatched changes that couldn't be matched to any input's residual.
+    for &change_out_idx in &[11usize, 13] {
+        let row = &result.mat_lnk_probabilities[change_out_idx];
+        let deterministic_count = row.iter().filter(|&&p| (p - 1.0).abs() < 1e-10).count();
+        assert!(
+            deterministic_count <= 1,
+            "89633a49: unmatched change output[{change_out_idx}] has {deterministic_count} cells at 100% \
+             (should be at most 1 - a single input can't fund multiple changes)"
+        );
+    }
+
+    // Matched change outputs SHOULD still be deterministic (1:1 maker match)
+    // Output 0 (2,646,252) -> input 0 (3,676,408), residual 1,030,602 ~ change
+    assert!(
+        result.deterministic_links.iter().any(|&(o, _)| o == 0),
+        "89633a49: matched change output 0 should have a deterministic link"
+    );
+}
+
 // Real JM tx: 14bf21be - 32 inputs, 33 outputs, 17 equal at 11,012,281
 // Large n_extra (15) triggers formula approximation path (DFS infeasible for 32 inputs)
 #[test]

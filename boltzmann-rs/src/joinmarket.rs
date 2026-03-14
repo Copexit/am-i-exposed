@@ -294,7 +294,9 @@ pub fn analyze_joinmarket(
         }
     }
 
-    // Unmatched taker change rows: link to all unmatched inputs equally
+    // Unmatched change rows: use CJ cell value (ambiguous, not deterministic).
+    // Setting 100% would be wrong: a single input can't fund multiple unmatched
+    // changes simultaneously, and we don't have DFS data for these specific links.
     if !jm.unmatched_change_indices.is_empty() {
         let unmatched_inputs: Vec<usize> = (0..n_in)
             .filter(|&i| jm.input_to_change[i].is_none())
@@ -302,7 +304,7 @@ pub fn analyze_joinmarket(
         if !unmatched_inputs.is_empty() {
             for &change_out in &jm.unmatched_change_indices {
                 for &ui in &unmatched_inputs {
-                    full_mat[change_out][ui] = nb_cmbn;
+                    full_mat[change_out][ui] = cj_cell;
                 }
             }
         }
@@ -349,13 +351,14 @@ fn build_u64_result(
         }
     }
 
+    // Unmatched changes: use CJ cell value (ambiguous)
     if !jm.unmatched_change_indices.is_empty() {
         let unmatched_inputs: Vec<usize> = (0..n_in)
             .filter(|&i| jm.input_to_change[i].is_none())
             .collect();
         for &change_out in &jm.unmatched_change_indices {
             for &ui in &unmatched_inputs {
-                full_mat[change_out][ui] = nb_cmbn;
+                full_mat[change_out][ui] = cj_cell;
             }
         }
     }
@@ -407,36 +410,24 @@ fn build_f64_result(
         }
     }
 
-    // Unmatched taker change rows: linked to all unmatched inputs
+    // Unmatched change rows: use CJ cell probability (ambiguous)
     if !jm.unmatched_change_indices.is_empty() {
         let unmatched_inputs: Vec<usize> = (0..n_in)
             .filter(|&i| jm.input_to_change[i].is_none())
             .collect();
         for &change_out in &jm.unmatched_change_indices {
             for &ui in &unmatched_inputs {
-                mat_comb[change_out][ui] = scale;
-                mat_prob[change_out][ui] = 1.0;
+                mat_comb[change_out][ui] = cj_cell_comb;
+                mat_prob[change_out][ui] = cj_cell_prob;
             }
         }
     }
 
-    // Deterministic links: change outputs matched to exactly one input
+    // Deterministic links: only matched change outputs (1:1 input-to-change)
     let mut deterministic_links = Vec::new();
     for (full_in, opt_change) in jm.input_to_change.iter().enumerate() {
         if let Some(&change_out) = opt_change.as_ref() {
             deterministic_links.push((change_out, full_in));
-        }
-    }
-    // Unmatched changes linked to all unmatched inputs are also "deterministic"
-    // (every interpretation has those links - taker consolidation)
-    if !jm.unmatched_change_indices.is_empty() {
-        let unmatched_inputs: Vec<usize> = (0..n_in)
-            .filter(|&i| jm.input_to_change[i].is_none())
-            .collect();
-        for &change_out in &jm.unmatched_change_indices {
-            for &ui in &unmatched_inputs {
-                deterministic_links.push((change_out, ui));
-            }
         }
     }
 
