@@ -767,3 +767,91 @@ fn test_jm_turbo_real_08d91add() {
     assert_eq!(result.n_outputs, 20);
     assert!(result.nb_cmbn > 0, "08d91add JM turbo: should produce valid result");
 }
+
+// Real JM tx: 14bf21be - 32 inputs, 33 outputs, 17 equal at 11,012,281
+// Large n_extra (15) triggers formula approximation path (DFS infeasible for 32 inputs)
+#[test]
+fn test_jm_turbo_real_14bf21be() {
+    let inputs = [
+        528_935_525i64, 65_048_511, 65_048_511, 25_966_292, 25_966_292,
+        16_087_041, 13_877_746, 12_694_620, 11_580_180, 11_114_766,
+        11_107_192, 10_408_828, 10_054_866, 9_643_199, 7_476_541,
+        7_323_478, 6_845_085, 5_009_708, 3_490_339, 2_368_635,
+        1_956_000, 1_594_247, 1_202_745, 991_664, 940_638,
+        825_071, 678_681, 354_248, 342_063, 221_657, 74_019, 70_803,
+    ];
+    let outputs = [
+        517_923_255i64, 54_037_215, 54_037_188, 14_955_112, 14_955_112,
+        11_012_281, 11_012_281, 11_012_281, 11_012_281, 11_012_281,
+        11_012_281, 11_012_281, 11_012_281, 11_012_281, 11_012_281,
+        11_012_281, 11_012_281, 11_012_281, 11_012_281, 11_012_281,
+        11_012_281, 11_012_281, 5_075_861, 3_788_839, 2_866_566,
+        1_682_669, 1_038_553, 821_180, 568_119, 102_738,
+        95_131, 81_019, 55_347,
+    ];
+    let fee: i64 = inputs.iter().sum::<i64>() - outputs.iter().sum::<i64>();
+
+    let result = analyze_joinmarket(&inputs, &outputs, fee, 11_012_281, 0.005, 60_000);
+
+    assert_eq!(result.n_inputs, 32);
+    assert_eq!(result.n_outputs, 33);
+    assert!(result.nb_cmbn > 1, "14bf21be: nb_cmbn should be > 1 (not degenerate)");
+    assert!(result.entropy > 0.0, "14bf21be: entropy should be positive");
+    assert!(!result.timed_out, "14bf21be: should not timeout");
+    assert!(result.elapsed_ms < 5000, "14bf21be: should complete quickly, got {}ms", result.elapsed_ms);
+
+    // CJ cell probabilities should be non-trivial (not 100% everywhere)
+    let cj_prob = result.mat_lnk_probabilities[5][0]; // First CJ output row, first input
+    assert!(cj_prob > 0.0, "14bf21be: CJ cell prob should be > 0");
+    assert!(cj_prob < 1.0, "14bf21be: CJ cell prob should be < 1 (not degenerate)");
+
+    // Should have deterministic change links (matched makers)
+    assert!(!result.deterministic_links.is_empty(), "14bf21be: should have deterministic change links");
+}
+
+// Stress test: very large synthetic JM (50 inputs, 25 CJ outputs)
+// Verifies the formula approximation path handles extreme sizes
+#[test]
+fn test_jm_turbo_50_inputs() {
+    let mut inputs = Vec::new();
+    // 24 makers with varied values above denomination
+    for i in 0..24 {
+        inputs.push(2_000_000i64 + (i as i64 + 1) * 50_000);
+    }
+    // 26 taker inputs (small values, collectively fund 1 CJ output)
+    for _ in 0..26 {
+        inputs.push(40_000);
+    }
+
+    let denomination = 1_000_000i64;
+    let mut outputs = Vec::new();
+    // 25 CJ denomination outputs
+    for _ in 0..25 {
+        outputs.push(denomination);
+    }
+    // 24 maker changes
+    for i in 0..24 {
+        outputs.push(inputs[i] - denomination - 500); // subtract maker fee
+    }
+    // 1 taker change
+    let taker_total: i64 = inputs[24..].iter().sum();
+    let total_fee = 5000i64;
+    outputs.push(taker_total - denomination - total_fee);
+
+    let fee: i64 = inputs.iter().sum::<i64>() - outputs.iter().sum::<i64>();
+
+    let result = analyze_joinmarket(&inputs, &outputs, fee, denomination, 0.005, 10_000);
+
+    assert_eq!(result.n_inputs, 50);
+    assert!(result.nb_cmbn > 1, "50-input JM: should not be degenerate");
+    assert!(result.entropy > 0.0, "50-input JM: should have positive entropy");
+    assert!(!result.timed_out, "50-input JM: should not timeout");
+    assert!(result.elapsed_ms < 5000, "50-input JM: should complete quickly");
+
+    // CJ cells should not be 100%
+    let cj_row_start = result.mat_lnk_probabilities.iter()
+        .position(|row| row.iter().any(|&p| p > 0.0 && p < 0.99))
+        .expect("Should have at least one CJ row with non-degenerate probabilities");
+    let cj_prob = result.mat_lnk_probabilities[cj_row_start][0];
+    assert!(cj_prob < 0.5, "50-input JM: CJ cell prob should be well below 50%, got {cj_prob}");
+}

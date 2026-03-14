@@ -5,7 +5,10 @@
 //! problem (inputs vs equal-denomination CJ outputs) which is exponentially smaller.
 
 use crate::analyze::{compute_intrafees, finalize_result, run_linker};
-use crate::partition::{boltzmann_equal_outputs, cell_value_equal_outputs};
+use crate::partition::{
+    boltzmann_equal_outputs, boltzmann_equal_outputs_f64,
+    cell_probability_equal_outputs, cell_value_equal_outputs,
+};
 use crate::types::BoltzmannResult;
 
 /// Result of matching JoinMarket inputs to their change outputs.
@@ -194,68 +197,87 @@ pub fn analyze_joinmarket(
 
     // Step 3: Solve reduced problem
     //
-    // Formula shortcut conditions:
-    // 1. n_in == n_cj: standard NxN perfect CoinJoin
-    // 2. n_in == n_cj + 1: (N+1)xN case - empirically boltzmann(n+1,n) = boltzmann(n+1,n+1)
+    // Three paths:
+    // A) Formula shortcut (n_extra <= 1, all adj >= denom): O(1) via partition formula
+    // B) DFS path (n_extra > 1, n_in <= 25): exact via subset sum enumeration
+    // C) Formula approximation (n_extra > 1, n_in > 25): approximate using n_cj-party model
     //
-    // Both cases require all adjusted inputs >= denomination and n_cj in [2,15].
+    // Path C is needed because DFS Aggregates::new allocates 2^n_in entries,
+    // which is infeasible for n_in > 25 (~32 million entries and growing).
     let min_adj = reduced_inputs.iter().copied().min().unwrap_or(0);
     // Allow 5% tolerance for adjusted inputs below denomination (rounding from fee splits)
     let denom_threshold = denomination - denomination / 20;
     let n_extra = if n_in > n_cj { n_in - n_cj } else { 0 };
     let use_formula = n_extra <= 1
         && min_adj >= denom_threshold
-        && n_cj >= 2
-        && n_in <= 15;
+        && n_cj >= 2;
 
-    let (nb_cmbn, cj_cell, timed_out, actual_fees_maker, actual_fees_taker) = if use_formula {
-        // Formula shortcut: O(1) computation via partition formula
-        // For n_in == n_cj: boltzmann(n, n)
-        // For n_in == n_cj + 1: boltzmann(n+1, n) = boltzmann(n+1, n+1) = boltzmann(n_in)
+    // DFS feasibility: Aggregates::new needs 1<<n_in entries
+    let dfs_feasible = n_in <= 25;
+
+    if use_formula {
+        // Path A: Formula shortcut for n_extra <= 1
         let formula_n = n_in;
-        let nb = boltzmann_equal_outputs(formula_n);
-        let cell = cell_value_equal_outputs(formula_n);
-        (nb, cell, false, 0i64, 0i64)
+        if formula_n <= 15 {
+            // Exact u64 path
+            let nb_cmbn = boltzmann_equal_outputs(formula_n);
+            let cj_cell = cell_value_equal_outputs(formula_n);
+            return build_u64_result(n_in, n_out, &jm, nb_cmbn, cj_cell, fees, start);
+        } else {
+            // f64 path for large n where u64 overflows
+            let nb_cmbn_f64 = boltzmann_equal_outputs_f64(formula_n);
+            let cj_prob = cell_probability_equal_outputs(formula_n);
+            return build_f64_result(n_in, n_out, &jm, nb_cmbn_f64, cj_prob, fees, start);
+        }
+    }
+
+    if !dfs_feasible {
+        // Path C: Formula approximation for large problems
+        // Treat the CJ part as an n_cj-party CoinJoin (each maker + taker collectively)
+        let nb_cmbn_f64 = boltzmann_equal_outputs_f64(n_cj);
+        let cj_prob = cell_probability_equal_outputs(n_cj);
+        return build_f64_result(n_in, n_out, &jm, nb_cmbn_f64, cj_prob, fees, start);
+    }
+
+    // Path B: DFS for non-uniform inputs with feasible n_in
+    let deadline = start + timeout_ms as f64;
+
+    let result_no_intra = run_linker(
+        &reduced_inputs, &reduced_outputs, reduced_fee, 0, 0, Some(deadline),
+    );
+
+    let (fees_maker, fees_taker) = if max_cj_intrafees_ratio > 0.0 {
+        compute_intrafees(&reduced_outputs, max_cj_intrafees_ratio)
     } else {
-        // DFS path for non-uniform inputs or n_in > n_cj + 1
-        let deadline = start + timeout_ms as f64;
-
-        let result_no_intra = run_linker(
-            &reduced_inputs, &reduced_outputs, reduced_fee, 0, 0, Some(deadline),
-        );
-
-        let (fees_maker, fees_taker) = if max_cj_intrafees_ratio > 0.0 {
-            compute_intrafees(&reduced_outputs, max_cj_intrafees_ratio)
-        } else {
-            (0, 0)
-        };
-
-        let (reduced_result, fm, ft) =
-            if fees_maker > 0 && !result_no_intra.timed_out {
-                let result_intra = run_linker(
-                    &reduced_inputs, &reduced_outputs, reduced_fee,
-                    fees_maker, fees_taker, Some(deadline),
-                );
-                if result_intra.nb_cmbn > result_no_intra.nb_cmbn {
-                    (result_intra, fees_maker, fees_taker)
-                } else {
-                    (result_no_intra, 0, 0)
-                }
-            } else {
-                (result_no_intra, 0, 0)
-            };
-
-        // Extract cell value from row 0 (all rows identical for equal outputs)
-        let cell = if !reduced_result.mat_lnk.is_empty() && !reduced_result.mat_lnk[0].is_empty() {
-            reduced_result.mat_lnk[0][0]
-        } else {
-            1
-        };
-
-        (reduced_result.nb_cmbn, cell, reduced_result.timed_out, fm, ft)
+        (0, 0)
     };
 
-    // Step 4: Expand to full matrix
+    let (reduced_result, actual_fees_maker, actual_fees_taker) =
+        if fees_maker > 0 && !result_no_intra.timed_out {
+            let result_intra = run_linker(
+                &reduced_inputs, &reduced_outputs, reduced_fee,
+                fees_maker, fees_taker, Some(deadline),
+            );
+            if result_intra.nb_cmbn > result_no_intra.nb_cmbn {
+                (result_intra, fees_maker, fees_taker)
+            } else {
+                (result_no_intra, 0, 0)
+            }
+        } else {
+            (result_no_intra, 0, 0)
+        };
+
+    // Extract cell value from row 0 (all rows identical for equal outputs)
+    let cj_cell = if !reduced_result.mat_lnk.is_empty() && !reduced_result.mat_lnk[0].is_empty() {
+        reduced_result.mat_lnk[0][0]
+    } else {
+        1
+    };
+
+    let nb_cmbn = reduced_result.nb_cmbn;
+    let timed_out = reduced_result.timed_out;
+
+    // Step 4: Expand to full matrix (u64 path)
     let mut full_mat = vec![vec![0u64; n_in]; n_out];
 
     // CJ output rows: uniform cell value for all inputs
@@ -273,7 +295,6 @@ pub fn analyze_joinmarket(
     }
 
     // Unmatched taker change rows: link to all unmatched inputs equally
-    // (the taker's change could come from any of their inputs)
     if !jm.unmatched_change_indices.is_empty() {
         let unmatched_inputs: Vec<usize> = (0..n_in)
             .filter(|&i| jm.input_to_change[i].is_none())
@@ -302,4 +323,141 @@ pub fn analyze_joinmarket(
         actual_fees_taker,
         start,
     )
+}
+
+/// Build a BoltzmannResult using u64 cell values (exact path for small n).
+fn build_u64_result(
+    n_in: usize,
+    n_out: usize,
+    jm: &JoinMarketMatch,
+    nb_cmbn: u64,
+    cj_cell: u64,
+    fees: i64,
+    start: f64,
+) -> BoltzmannResult {
+    let mut full_mat = vec![vec![0u64; n_in]; n_out];
+
+    for &full_out in &jm.cj_output_indices {
+        for cell in full_mat[full_out].iter_mut() {
+            *cell = cj_cell;
+        }
+    }
+
+    for (full_in, opt_change) in jm.input_to_change.iter().enumerate() {
+        if let Some(&change_out) = opt_change.as_ref() {
+            full_mat[change_out][full_in] = nb_cmbn;
+        }
+    }
+
+    if !jm.unmatched_change_indices.is_empty() {
+        let unmatched_inputs: Vec<usize> = (0..n_in)
+            .filter(|&i| jm.input_to_change[i].is_none())
+            .collect();
+        for &change_out in &jm.unmatched_change_indices {
+            for &ui in &unmatched_inputs {
+                full_mat[change_out][ui] = nb_cmbn;
+            }
+        }
+    }
+
+    let full_linker = crate::types::LinkerResult {
+        mat_lnk: full_mat,
+        nb_cmbn,
+        timed_out: false,
+    };
+
+    finalize_result(&full_linker, n_in, n_out, fees, 0, 0, start)
+}
+
+/// Build a BoltzmannResult using f64 probabilities (for large n where u64 overflows,
+/// or for the formula approximation path).
+fn build_f64_result(
+    n_in: usize,
+    n_out: usize,
+    jm: &JoinMarketMatch,
+    nb_cmbn_f64: f64,
+    cj_cell_prob: f64,
+    fees: i64,
+    start: f64,
+) -> BoltzmannResult {
+    // For the combinations matrix, use a scaled denominator so tooltip count/total is meaningful
+    let scale = if nb_cmbn_f64 <= 1e15 {
+        nb_cmbn_f64.round().max(1.0) as u64
+    } else {
+        1_000_000_000_000_000u64 // 10^15
+    };
+    let cj_cell_comb = (cj_cell_prob * scale as f64).round() as u64;
+
+    let mut mat_comb = vec![vec![0u64; n_in]; n_out];
+    let mut mat_prob = vec![vec![0.0f64; n_in]; n_out];
+
+    // CJ output rows: uniform probability
+    for &full_out in &jm.cj_output_indices {
+        for i in 0..n_in {
+            mat_comb[full_out][i] = cj_cell_comb;
+            mat_prob[full_out][i] = cj_cell_prob;
+        }
+    }
+
+    // Matched change output rows: deterministic
+    for (full_in, opt_change) in jm.input_to_change.iter().enumerate() {
+        if let Some(&change_out) = opt_change.as_ref() {
+            mat_comb[change_out][full_in] = scale;
+            mat_prob[change_out][full_in] = 1.0;
+        }
+    }
+
+    // Unmatched taker change rows: linked to all unmatched inputs
+    if !jm.unmatched_change_indices.is_empty() {
+        let unmatched_inputs: Vec<usize> = (0..n_in)
+            .filter(|&i| jm.input_to_change[i].is_none())
+            .collect();
+        for &change_out in &jm.unmatched_change_indices {
+            for &ui in &unmatched_inputs {
+                mat_comb[change_out][ui] = scale;
+                mat_prob[change_out][ui] = 1.0;
+            }
+        }
+    }
+
+    // Deterministic links: change outputs matched to exactly one input
+    let mut deterministic_links = Vec::new();
+    for (full_in, opt_change) in jm.input_to_change.iter().enumerate() {
+        if let Some(&change_out) = opt_change.as_ref() {
+            deterministic_links.push((change_out, full_in));
+        }
+    }
+    // Unmatched changes linked to all unmatched inputs are also "deterministic"
+    // (every interpretation has those links - taker consolidation)
+    if !jm.unmatched_change_indices.is_empty() {
+        let unmatched_inputs: Vec<usize> = (0..n_in)
+            .filter(|&i| jm.input_to_change[i].is_none())
+            .collect();
+        for &change_out in &jm.unmatched_change_indices {
+            for &ui in &unmatched_inputs {
+                deterministic_links.push((change_out, ui));
+            }
+        }
+    }
+
+    let entropy = if nb_cmbn_f64 > 1.0 { nb_cmbn_f64.log2() } else { 0.0 };
+    let nb_cmbn_u64 = if nb_cmbn_f64 > u64::MAX as f64 { u64::MAX } else { nb_cmbn_f64.round() as u64 };
+    let elapsed_ms = (crate::time::now_ms() - start) as u32;
+
+    BoltzmannResult {
+        mat_lnk_combinations: mat_comb,
+        mat_lnk_probabilities: mat_prob,
+        nb_cmbn: nb_cmbn_u64,
+        entropy,
+        efficiency: 0.0,
+        nb_cmbn_prfct_cj: 0,
+        deterministic_links,
+        timed_out: false,
+        elapsed_ms,
+        n_inputs: n_in,
+        n_outputs: n_out,
+        fees,
+        intra_fees_maker: 0,
+        intra_fees_taker: 0,
+    }
 }
