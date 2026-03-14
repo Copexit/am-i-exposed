@@ -27,7 +27,7 @@ const defaultSettings: AnalysisSettings = {
   timeout: 10,
   walletGapLimit: 5,
   enableCache: true,
-  boltzmannTimeout: 30,
+  boltzmannTimeout: 300,
 };
 
 function makeMinimalState(overrides: Partial<AnalysisState> = {}): AnalysisState {

@@ -12,7 +12,7 @@ describe("AnalysisSettings defaults", () => {
       timeout: 30,
       walletGapLimit: 5,
       enableCache: true,
-      boltzmannTimeout: 30,
+      boltzmannTimeout: 300,
     };
     expect(defaults.maxDepth).toBe(4);
     expect(defaults.minSats).toBe(1000);
@@ -47,7 +47,7 @@ describe("AnalysisSettings defaults", () => {
       timeout: 30,
       walletGapLimit: 5,
       enableCache: true,
-      boltzmannTimeout: 30,
+      boltzmannTimeout: 300,
     };
     const partial = { maxDepth: 10 };
     const merged = { ...defaults, ...partial };

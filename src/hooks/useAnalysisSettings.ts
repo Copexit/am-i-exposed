@@ -31,7 +31,7 @@ const DEFAULTS: AnalysisSettings = {
   timeout: 30,
   walletGapLimit: 5,
   enableCache: true,
-  boltzmannTimeout: 30,
+  boltzmannTimeout: 300,
 };
 
 // Module-level cache for referential stability (useSyncExternalStore requirement)

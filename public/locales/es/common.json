@@ -77,7 +77,7 @@
   "boltzmann.deterministicLinks": "{{num}} enlaces deterministas",
   "boltzmann.efficiency": "Eficiencia del wallet: {{pct}}% (vs. CoinJoin perfecto con {{prfct}} combinaciones)",
   "boltzmann.entropy": "{{bits}} bits de entropía",
-  "boltzmann.gridLabel": "Sal \\ Ent",
+  "boltzmann.gridLabel": "Ent \\ Sal",
   "boltzmann.interpretations": "{{num}} interpretaciones",
   "boltzmann.largeTxInfo": "Esta transacción tiene {{nIn}} entradas y {{nOut}} salidas. El cálculo puede tomar un momento.",
   "boltzmann.retry": "Reintentar",

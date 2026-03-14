@@ -705,7 +705,7 @@ export function TaintPathDiagram({ findings, backwardLayers, forwardLayers, onTx
 
         {/* Tooltip rendered outside the scroll container to prevent clipping */}
         {tooltip.tooltipOpen && tooltip.tooltipData && (
-          <ChartTooltip top={tooltip.tooltipTop} left={tooltip.tooltipLeft}>
+          <ChartTooltip top={tooltip.tooltipTop} left={tooltip.tooltipLeft} containerRef={containerRef}>
             <div className="space-y-1">
               <div className="font-medium">{tooltip.tooltipData.label}</div>
               <div className="text-xs" style={{ color: TYPE_COLORS[tooltip.tooltipData.type] ?? SVG_COLORS.muted }}>
