@@ -81,6 +81,77 @@ fn factorial_u128(n: usize) -> u128 {
     result
 }
 
+/// f64 version of boltzmann_equal_outputs for large n where u64 overflows.
+/// Valid for any n (f64 factorial works up to n ~ 170).
+pub fn boltzmann_equal_outputs_f64(n: usize) -> f64 {
+    if n <= 1 {
+        return 1.0;
+    }
+    let partitions = integer_partitions(n);
+    let mut total: f64 = 0.0;
+    for partition in &partitions {
+        total += partition_count_f64(n, partition);
+    }
+    total
+}
+
+/// f64 version of cell_value_equal_outputs for large n.
+pub fn cell_value_equal_outputs_f64(n: usize) -> f64 {
+    if n <= 1 {
+        return 1.0;
+    }
+    let partitions = integer_partitions(n);
+    let mut total_links: f64 = 0.0;
+    for partition in &partitions {
+        let count = partition_count_f64(n, partition);
+        let links_per: f64 = partition.iter().map(|&s| (s * s) as f64).sum();
+        total_links += count * links_per;
+    }
+    total_links / (n as f64 * n as f64)
+}
+
+/// Cell probability for equal outputs: cell_value / nb_cmbn.
+/// More numerically stable than computing both separately for large n.
+pub fn cell_probability_equal_outputs(n: usize) -> f64 {
+    if n <= 1 {
+        return 1.0;
+    }
+    if n <= 15 {
+        return cell_value_equal_outputs(n) as f64 / boltzmann_equal_outputs(n) as f64;
+    }
+    cell_value_equal_outputs_f64(n) / boltzmann_equal_outputs_f64(n)
+}
+
+fn partition_count_f64(n: usize, partition: &[usize]) -> f64 {
+    let nf = factorial_f64(n);
+    let n_fact_sq = nf * nf;
+
+    let mut prod_si_fact_sq: f64 = 1.0;
+    for &s in partition {
+        let f = factorial_f64(s);
+        prod_si_fact_sq *= f * f;
+    }
+
+    let mut mults: std::collections::HashMap<usize, usize> = std::collections::HashMap::new();
+    for &s in partition {
+        *mults.entry(s).or_insert(0) += 1;
+    }
+    let mut prod_mj_fact: f64 = 1.0;
+    for &m in mults.values() {
+        prod_mj_fact *= factorial_f64(m);
+    }
+
+    n_fact_sq / (prod_si_fact_sq * prod_mj_fact)
+}
+
+fn factorial_f64(n: usize) -> f64 {
+    let mut result: f64 = 1.0;
+    for i in 2..=n {
+        result *= i as f64;
+    }
+    result
+}
+
 /// Compute the number of combinations for a "perfect CoinJoin" with
 /// the given number of inputs and outputs.
 ///
@@ -191,5 +262,50 @@ mod tests {
         assert_eq!(factorial_u128(0), 1);
         assert_eq!(factorial_u128(1), 1);
         assert_eq!(factorial_u128(5), 120);
+    }
+
+    #[test]
+    fn test_f64_matches_u64_for_small_n() {
+        for n in 2..=15 {
+            let u64_val = boltzmann_equal_outputs(n) as f64;
+            let f64_val = boltzmann_equal_outputs_f64(n);
+            let rel_err = (u64_val - f64_val).abs() / u64_val;
+            assert!(rel_err < 1e-10, "boltzmann_f64 mismatch at n={n}: u64={u64_val}, f64={f64_val}");
+
+            let u64_cell = cell_value_equal_outputs(n) as f64;
+            let f64_cell = cell_value_equal_outputs_f64(n);
+            let rel_err_cell = (u64_cell - f64_cell).abs() / u64_cell;
+            assert!(rel_err_cell < 1e-10, "cell_value_f64 mismatch at n={n}: u64={u64_cell}, f64={f64_cell}");
+        }
+    }
+
+    #[test]
+    fn test_f64_large_n_does_not_panic() {
+        // n=17 overflows u64 but should work in f64
+        let nb = boltzmann_equal_outputs_f64(17);
+        assert!(nb > 0.0 && nb.is_finite(), "n=17 should produce finite result");
+
+        let cell = cell_value_equal_outputs_f64(17);
+        assert!(cell > 0.0 && cell.is_finite(), "n=17 cell should produce finite result");
+
+        let prob = cell_probability_equal_outputs(17);
+        assert!(prob > 0.0 && prob < 1.0, "n=17 cell probability should be in (0,1)");
+
+        // n=30 is a stress test
+        let nb30 = boltzmann_equal_outputs_f64(30);
+        assert!(nb30 > 0.0 && nb30.is_finite(), "n=30 should produce finite result");
+
+        let prob30 = cell_probability_equal_outputs(30);
+        assert!(prob30 > 0.0 && prob30 < 1.0, "n=30 cell probability should be in (0,1)");
+    }
+
+    #[test]
+    fn test_cell_probability_decreases_with_n() {
+        let mut prev = 1.0;
+        for n in 2..=20 {
+            let p = cell_probability_equal_outputs(n);
+            assert!(p < prev, "cell probability should decrease: n={n}, p={p}, prev={prev}");
+            prev = p;
+        }
     }
 }

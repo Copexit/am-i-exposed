@@ -8,11 +8,23 @@ pub mod types;
 
 use std::cell::RefCell;
 
+use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
 use crate::analyze::{finalize_result, prepare_analysis, run_phases_1_2, PreparedAnalysis};
 use crate::backtrack::DfsState;
 use crate::types::{LinkerResult, PrepareRangedResult, PrepareResult, StepResult};
+
+/// Serialize a value to JsValue, handling u64 values > MAX_SAFE_INTEGER as BigInt.
+///
+/// serde_wasm_bindgen's default serializer errors on u64 values that exceed
+/// Number.MAX_SAFE_INTEGER (2^53 - 1). This helper enables BigInt serialization
+/// for large numbers, which the JS worker's toNum() already handles.
+fn to_js<T: Serialize>(value: &T) -> JsValue {
+    let serializer = serde_wasm_bindgen::Serializer::new()
+        .serialize_large_number_types_as_bigints(true);
+    value.serialize(&serializer).unwrap_or(JsValue::NULL)
+}
 
 /// Module-level state for the chunked DFS API.
 struct ChunkedState {
@@ -57,7 +69,7 @@ pub fn compute_boltzmann(
         max_cj_intrafees_ratio,
         timeout_ms,
     );
-    serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
+    to_js(&result)
 }
 
 /// Prepare for chunked Boltzmann analysis.
@@ -127,7 +139,7 @@ pub fn prepare_boltzmann(
                 total_root_branches: 0,
                 has_dual_run: false,
             };
-            return serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL);
+            return to_js(&result);
         }
     };
 
@@ -174,7 +186,7 @@ pub fn prepare_boltzmann(
         total_root_branches,
         has_dual_run,
     };
-    serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
+    to_js(&result)
 }
 
 /// Prepare a ranged Boltzmann computation for multi-worker parallelism.
@@ -235,7 +247,7 @@ pub fn prepare_boltzmann_ranged(
             });
         });
         let result = PrepareRangedResult { assigned_branches: 0, total_root_branches: 0 };
-        return serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL);
+        return to_js(&result);
     }
 
     let in_agg = subset_sum::Aggregates::new(&sorted_inputs);
@@ -296,7 +308,7 @@ pub fn prepare_boltzmann_ranged(
         assigned_branches: assigned,
         total_root_branches: total_branches,
     };
-    serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
+    to_js(&result)
 }
 
 /// Run one chunk of the DFS computation.
@@ -422,7 +434,7 @@ pub fn dfs_step(chunk_ms: f64) -> JsValue {
         }
     });
 
-    serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
+    to_js(&result)
 }
 
 /// Finalize the chunked Boltzmann analysis and return the full result.
@@ -436,7 +448,7 @@ pub fn dfs_finalize() -> JsValue {
         match state {
             None => {
                 // No state - return a minimal error result
-                return serde_wasm_bindgen::to_value(
+                return to_js(
                     &types::BoltzmannResult {
                         mat_lnk_combinations: vec![],
                         mat_lnk_probabilities: vec![],
@@ -453,8 +465,7 @@ pub fn dfs_finalize() -> JsValue {
                         intra_fees_maker: 0,
                         intra_fees_taker: 0,
                     },
-                )
-                .unwrap_or(JsValue::NULL);
+                );
             }
             Some(state) => {
                 // Determine the final linker result and whether intrafees result won
@@ -497,7 +508,7 @@ pub fn dfs_finalize() -> JsValue {
                     state.start,
                 );
 
-                serde_wasm_bindgen::to_value(&boltzmann).unwrap_or(JsValue::NULL)
+                to_js(&boltzmann)
             }
         }
     });
@@ -527,7 +538,7 @@ pub fn compute_boltzmann_joinmarket(
         max_cj_intrafees_ratio,
         timeout_ms,
     );
-    serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
+    to_js(&result)
 }
 
 // Re-export for native (non-WASM) testing
