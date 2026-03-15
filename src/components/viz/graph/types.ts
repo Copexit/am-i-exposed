@@ -47,6 +47,8 @@ export interface GraphExplorerProps {
   autoTracing?: boolean;
   /** Auto-trace progress info. */
   autoTraceProgress?: { hop: number; txid: string; reason: string } | null;
+  /** Trigger compounding linkability trace from a specific output. */
+  onAutoTraceLinkability?: (txid: string, outputIndex: number) => void;
 }
 
 export interface LayoutNode {
