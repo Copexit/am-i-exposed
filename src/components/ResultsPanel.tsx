@@ -14,7 +14,7 @@ import { AddressSummary } from "./AddressSummary";
 import { ExportButton } from "./ExportButton";
 import { TX_BASE_SCORE, ADDRESS_BASE_SCORE } from "@/lib/scoring/score";
 import { ACTION_BTN_CLASS } from "@/lib/constants";
-import { formatUsdValue } from "@/lib/format";
+
 
 // Lazy-load heavy visx/d3 chart components - only needed after analysis completes
 const ScoreWaterfall = lazy(() => import("./viz/ScoreWaterfall").then(m => ({ default: m.ScoreWaterfall })));
@@ -379,58 +379,34 @@ export const ResultsPanel = memo(function ResultsPanel({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
       id="results-panel"
-      className="flex flex-col items-center gap-5 sm:gap-6 w-full max-w-3xl lg:max-w-5xl"
+      className="flex flex-col items-center gap-5 sm:gap-6 w-full max-w-3xl lg:max-w-5xl xl:max-w-7xl 2xl:max-w-[1800px]"
     >
-      {/* ZONE 1: Inline Search + Navigation */}
-      <div className="w-full space-y-3">
-        {onScan && <InlineSearchBar onScan={onScan} initialValue={query} />}
+      {/* ZONE 1: Inline Search */}
+      {onScan && <div className="w-full"><InlineSearchBar onScan={onScan} initialValue={query} /></div>}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={onBack}
-            className={ACTION_BTN_CLASS}
-          >
+      {/* ZONE 2: Hero Score (compact) */}
+      <GlowCard className="w-full p-4 sm:p-5 space-y-4">
+        {/* Header row: back button, tx type, actions */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button onClick={onBack} className={ACTION_BTN_CLASS}>
             <ArrowLeft size={16} />
             {t("results.newScan", { defaultValue: "New scan" })}
           </button>
-
+          {inputType === "txid" && result.txType && result.txType !== "simple-payment" && result.txType !== "unknown" && (
+            <span className="text-xs font-medium px-1.5 py-0.5 rounded border border-card-border bg-surface-elevated text-muted">
+              {TX_TYPE_LABELS[result.txType] ?? result.txType.replace(/-/g, " ")}
+            </span>
+          )}
+          {inputType === "address" && <AddressTypeBadge address={query} />}
           <div className="flex-1" />
-
           <BookmarkButton query={query} inputType={inputType} grade={result.grade} score={result.score} />
           <ExportButton targetId="results-panel" query={query} result={result} inputType={inputType} />
-          <ShareCardButton
-            grade={result.grade}
-            score={result.score}
-            query={query}
-            inputType={inputType}
-            findingCount={result.findings.length}
-          />
-          <ShareButtons
-            grade={result.grade}
-            score={result.score}
-            query={query}
-            inputType={inputType}
-            findingCount={result.findings.length}
-          />
+          <ShareCardButton grade={result.grade} score={result.score} query={query} inputType={inputType} findingCount={result.findings.length} />
+          <ShareButtons grade={result.grade} score={result.score} query={query} inputType={inputType} findingCount={result.findings.length} />
         </div>
-      </div>
 
-      {/* ZONE 2: Hero Score */}
-      <GlowCard className="w-full p-7 space-y-6">
+        {/* Txid/address + metadata */}
         <div className="space-y-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium text-muted uppercase tracking-wider">
-              {inputType === "txid" ? t("results.transaction", { defaultValue: "Transaction" }) : t("results.address", { defaultValue: "Address" })}
-            </span>
-            {inputType === "address" && (
-              <AddressTypeBadge address={query} />
-            )}
-            {inputType === "txid" && result.txType && result.txType !== "simple-payment" && result.txType !== "unknown" && (
-              <span className="text-xs font-medium px-1.5 py-0.5 rounded border border-card-border bg-surface-elevated text-muted">
-                {TX_TYPE_LABELS[result.txType] ?? result.txType.replace(/-/g, " ")}
-              </span>
-            )}
-          </div>
           <button
             onClick={() => {
               copyToClipboard(query);
@@ -449,17 +425,30 @@ export const ResultsPanel = memo(function ResultsPanel({
               <Copy size={14} className="shrink-0 mt-1 text-muted opacity-0 group-hover/copy:opacity-100 transition-opacity" />
             )}
           </button>
-          {usdPrice != null && txData && (
-            <p className="text-xs text-muted mt-1">
-              {t("results.usdAtTime", {
-                amount: formatUsdValue(txData.vout.reduce((sum, o) => sum + o.value, 0), usdPrice),
-                defaultValue: "~{{amount}} USD at time of transaction",
-              })}
+          {/* Block height + confirmation timestamp (Issue #1) */}
+          {inputType === "txid" && txData?.status?.confirmed && txData.status.block_height != null && (
+            <p className="text-xs text-muted flex items-center gap-2 flex-wrap">
+              <span>
+                {t("results.blockHeight", {
+                  height: txData.status.block_height.toLocaleString(),
+                  defaultValue: "Block #{{height}}",
+                })}
+              </span>
+              {txData.status.block_time != null && (
+                <>
+                  <span className="text-foreground/20">|</span>
+                  <span>{new Date(txData.status.block_time * 1000).toLocaleString()}</span>
+                </>
+              )}
             </p>
+          )}
+          {inputType === "txid" && txData && !txData.status?.confirmed && (
+            <p className="text-xs text-severity-medium">{t("results.unconfirmed", { defaultValue: "Unconfirmed (mempool)" })}</p>
           )}
         </div>
 
-        <div className="border-t border-card-border pt-6">
+        {/* Score display */}
+        <div className="border-t border-card-border pt-4">
           <div className="flex items-center justify-center gap-6">
             <ScoreDisplay score={result.score} grade={result.grade} findings={result.findings} />
             {result.findings.length > 3 && (
@@ -521,26 +510,11 @@ export const ResultsPanel = memo(function ResultsPanel({
         </div>
       )}
 
-      {/* ZONE 4: Recommendations (before tx structure for all grades) */}
-      <div className="w-full flex flex-col gap-3 sm:gap-4">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }} className="w-full">
-          <PrimaryRecommendation
-            findings={result.findings}
-            grade={result.grade}
-            walletGuess={detectedWallet ?? null}
-          />
-        </motion.div>
-        {devMode && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.12 }} className="w-full">
-            <Remediation findings={result.findings} grade={result.grade} />
-          </motion.div>
-        )}
-        {devMode && (result.grade === "D" || result.grade === "F") && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.14 }} className="w-full">
-            <RecoveryFlow grade={result.grade} />
-          </motion.div>
-        )}
-      </div>
+      {/* === TWO-COLUMN DASHBOARD (xl+: main + sidebar) === */}
+      <div className="w-full flex flex-col xl:flex-row xl:gap-8 xl:items-start gap-5 sm:gap-6">
+
+      {/* -- MAIN CONTENT COLUMN (first in DOM = left on desktop, top on mobile) -- */}
+      <div className="w-full xl:flex-1 xl:min-w-0 flex flex-col gap-5 sm:gap-6">
 
       {/* ZONE 5: Transaction Structure (full width) */}
       {txData && (
@@ -705,7 +679,33 @@ export const ResultsPanel = memo(function ResultsPanel({
         </>
       )}
 
-      {/* ZONE 13: Contextual Warnings */}
+      </div>{/* end main content column */}
+
+      {/* -- SIDEBAR (second in DOM = right on desktop, bottom on mobile) -- */}
+      <div className="w-full xl:w-[320px] 2xl:w-[380px] xl:shrink-0 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto flex flex-col gap-5 sm:gap-6">
+
+      {/* ZONE 4: Recommendations */}
+      <div className="w-full flex flex-col gap-3 sm:gap-4">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }} className="w-full">
+          <PrimaryRecommendation
+            findings={result.findings}
+            grade={result.grade}
+            walletGuess={detectedWallet ?? null}
+          />
+        </motion.div>
+        {devMode && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.12 }} className="w-full">
+            <Remediation findings={result.findings} grade={result.grade} />
+          </motion.div>
+        )}
+        {devMode && (result.grade === "D" || result.grade === "F") && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.14 }} className="w-full">
+            <RecoveryFlow grade={result.grade} />
+          </motion.div>
+        )}
+      </div>
+
+      {/* ZONE 13: Contextual Warnings (sidebar) */}
       <div className="w-full flex flex-col gap-3 sm:gap-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.52 }} className="w-full">
           <CexRiskPanel
@@ -725,19 +725,23 @@ export const ResultsPanel = memo(function ResultsPanel({
         </motion.div>
       </div>
 
-      {/* ZONE 14: Diagnostics */}
+      {/* ZONE 14: Diagnostics (sidebar) */}
       {inputType === "txid" && result.findings.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.58 }} className="w-full">
           <AnalystView findings={result.findings} grade={result.grade} />
         </motion.div>
       )}
 
-      {/* ZONE 15: Tip jar */}
+      {/* ZONE 15: Tip jar (sidebar) */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.62 }} className="w-full">
         <Suspense fallback={null}>
           <TipJar />
         </Suspense>
       </motion.div>
+
+      </div>{/* end sidebar */}
+
+      </div>{/* end two-column wrapper */}
 
       {/* ZONE 16: Footer */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.65 }} className="w-full space-y-2 pb-4">
