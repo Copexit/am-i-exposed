@@ -130,6 +130,9 @@ export function GraphCanvas({
 
   // Keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    // Don't capture keys when typing in an input element
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
     if (!focusedNode && layoutNodes.length > 0) {
       setFocusedNode(layoutNodes[0].txid);
       return;
@@ -141,8 +144,10 @@ export function GraphCanvas({
 
     const sameDepth = layoutNodes.filter((n) => n.depth === current.depth);
     const currentIdx = sameDepth.findIndex((n) => n.txid === focusedNode);
+    const gn = nodes.get(focusedNode);
 
     switch (e.key) {
+      // ─── Navigation ──────────────────────
       case "ArrowUp": {
         e.preventDefault();
         if (currentIdx > 0) setFocusedNode(sameDepth[currentIdx - 1].txid);
@@ -169,27 +174,66 @@ export function GraphCanvas({
         if (nextDepth) setFocusedNode(nextDepth.txid);
         break;
       }
+
+      // ─── Actions ─────────────────────────
       case "Enter": {
+        // Toggle expand/collapse UTXO ports on focused node
         e.preventDefault();
-        // Try to expand first available direction
-        const gn = nodes.get(focusedNode);
-        if (!gn) break;
+        if (onToggleExpand) onToggleExpand(focusedNode);
+        break;
+      }
+      case " ": {
+        // Space: same as Enter (expand ports)
+        e.preventDefault();
+        if (onToggleExpand) onToggleExpand(focusedNode);
+        break;
+      }
+      case "e": {
+        // Expand first available input (backward)
+        e.preventDefault();
+        if (!gn || atCapacity) break;
         const inputIdx = gn.tx.vin.findIndex((v) => !v.is_coinbase && !nodes.has(v.txid));
-        if (inputIdx >= 0 && !atCapacity) {
-          onExpandInput(focusedNode, inputIdx);
-        } else {
-          const hasChild = Array.from(nodes.values()).some((n) => n.parentEdge?.fromTxid === focusedNode);
-          if (!hasChild && !atCapacity) {
-            const outIdx = gn.tx.vout.findIndex((_, i) =>
-              !Array.from(nodes.values()).some((n) => n.parentEdge?.fromTxid === focusedNode && n.parentEdge?.outputIndex === i)
-            );
-            if (outIdx >= 0) onExpandOutput(focusedNode, outIdx);
+        if (inputIdx >= 0) onExpandInput(focusedNode, inputIdx);
+        break;
+      }
+      case "r": {
+        // Expand first available output (forward)
+        e.preventDefault();
+        if (!gn || atCapacity) break;
+        const consumedOutputs = new Set<number>();
+        for (const [, n] of nodes) {
+          for (const vin of n.tx.vin) {
+            if (vin.txid === focusedNode && vin.vout !== undefined) consumedOutputs.add(vin.vout);
+          }
+        }
+        const outIdx = gn.tx.vout.findIndex((v, i) =>
+          !consumedOutputs.has(i) && v.scriptpubkey_type !== "op_return" && v.value > 0,
+        );
+        if (outIdx >= 0) onExpandOutput(focusedNode, outIdx);
+        break;
+      }
+      case "d": {
+        // Double-expand: expand up to 5 in each direction
+        e.preventDefault();
+        if (!gn || atCapacity) break;
+        let dExpanded = 0;
+        for (let i = 0; i < gn.tx.vin.length && dExpanded < 5; i++) {
+          if (!gn.tx.vin[i].is_coinbase && !nodes.has(gn.tx.vin[i].txid)) {
+            onExpandInput(focusedNode, i); dExpanded++;
+          }
+        }
+        dExpanded = 0;
+        for (let i = 0; i < gn.tx.vout.length && dExpanded < 5; i++) {
+          if (gn.tx.vout[i].scriptpubkey_type !== "op_return" && gn.tx.vout[i].value > 0) {
+            onExpandOutput(focusedNode, i); dExpanded++;
           }
         }
         break;
       }
+      case "x":
       case "Delete":
       case "Backspace": {
+        // Collapse focused node
         e.preventDefault();
         if (focusedNode !== rootTxid) {
           onCollapse(focusedNode);
@@ -198,7 +242,7 @@ export function GraphCanvas({
         break;
       }
     }
-  }, [focusedNode, layoutNodes, nodes, rootTxid, atCapacity, onExpandInput, onExpandOutput, onCollapse, setFocusedNode]);
+  }, [focusedNode, layoutNodes, nodes, rootTxid, atCapacity, onExpandInput, onExpandOutput, onCollapse, setFocusedNode, onToggleExpand]);
 
   // Auto-scroll to keep focused node visible
   useEffect(() => {
