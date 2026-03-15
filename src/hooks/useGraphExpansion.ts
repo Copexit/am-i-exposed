@@ -623,20 +623,36 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
 
   /** Expand forward from a specific output port. The new node becomes expanded. */
   const expandPortOutput = useCallback(async (txid: string, outputIndex: number) => {
+    const sizeBefore = state.nodes.size;
     await expandOutput(txid, outputIndex);
-    // The newly added child node should become expanded.
-    // Find it by checking what was just added (has parentEdge from txid).
-    // We use a small delay to let the reducer update.
-    setTimeout(() => {
-      // Search current nodes for one that has parentEdge from txid:outputIndex
-      // This is a bit indirect but works because expandOutput adds exactly one node.
-    }, 0);
-  }, [expandOutput]);
-
-  /** Get cached outspends for a txid (undefined if not fetched yet). */
-  const getOutspends = useCallback((txid: string): MempoolOutspend[] | undefined => {
-    return outspendCacheRef.current.get(txid);
-  }, []);
+    // After expand, find the newly added child node and auto-expand it.
+    // We need a fresh read of state, so use a microtask to let reducer settle.
+    queueMicrotask(() => {
+      // Find the child tx by scanning for a node with parentEdge from txid
+      // that wasn't in the graph before.
+      // Since expandOutput adds exactly one node, look for the new one.
+      for (const [childTxid, childNode] of state.nodes) {
+        if (childNode.parentEdge?.fromTxid === txid) {
+          // Check if this is likely the new one (heuristic: match output index)
+          const matchesOutput = childNode.tx.vin.some(
+            (v) => v.txid === txid && v.vout === outputIndex,
+          );
+          if (matchesOutput) {
+            setExpandedNodeTxid(childTxid);
+            // Fetch outspends for the new node
+            const client = fetcherRef.current;
+            if (client && !outspendCacheRef.current.has(childTxid)) {
+              client.getTxOutspends(childTxid).then((os) => {
+                outspendCacheRef.current.set(childTxid, os);
+                setExpandedNodeTxid((prev) => prev === childTxid ? childTxid : prev);
+              }).catch(() => { /* not critical */ });
+            }
+            return;
+          }
+        }
+      }
+    });
+  }, [expandOutput, state.nodes]);
 
   return {
     nodes: state.nodes,
@@ -662,7 +678,6 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     toggleExpand,
     expandPortInput,
     expandPortOutput,
-    getOutspends,
     outspendCache: outspendCacheRef.current,
   };
 }

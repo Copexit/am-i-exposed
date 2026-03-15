@@ -89,12 +89,7 @@ export function layoutGraph(
   const colX = new Map<number, number>();
   let cumX = MARGIN.left;
   for (const depth of depths) {
-    const col = depth - minDepth;
-    if (col === 0) {
-      colX.set(depth, cumX);
-    } else {
-      colX.set(depth, cumX);
-    }
+    colX.set(depth, cumX);
     cumX += colWidths.get(depth)! + COL_GAP;
   }
 

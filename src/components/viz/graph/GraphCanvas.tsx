@@ -8,7 +8,7 @@ import { probColor } from "../shared/linkabilityColors";
 import { ChartDefs } from "../shared/ChartDefs";
 import { formatSats } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
-import { NODE_H, SCROLL_MARGIN_X, SCROLL_MARGIN_Y, MIN_ZOOM, MAX_ZOOM, ENTITY_CATEGORY_COLORS } from "./constants";
+import { SCROLL_MARGIN_X, SCROLL_MARGIN_Y, MIN_ZOOM, MAX_ZOOM, ENTITY_CATEGORY_COLORS } from "./constants";
 import { layoutGraph, getNodeColor } from "./layout";
 import { edgePath, getEdgeMaxProb, portAwareEdgePath } from "./edge-utils";
 import { getScriptTypeColor, getScriptTypeDash, getEdgeThickness, isTimestampLocktime, getLockTimeRx, hexagonPoints, getVersionFill } from "./scriptStyles";
@@ -46,6 +46,7 @@ export function GraphCanvas({
   onViewTransformChange,
   linkabilityEdgeMode,
   fingerprintMode,
+  changeOutputs,
   rootBoltzmannResult,
   expandedNodeTxid,
   onToggleExpand,
@@ -497,10 +498,15 @@ export function GraphCanvas({
           const scriptDash = scriptInfo ? getScriptTypeDash(scriptInfo.scriptType) : undefined;
           const scriptThickness = scriptInfo ? getEdgeThickness(scriptInfo.value, maxEdgeValue) : undefined;
 
+          // Check if any output index on this edge is change-marked
+          const isChangeMarked = changeOutputs && edge.outputIndices?.some(
+            (oi) => changeOutputs.has(`${edge.fromTxid}:${oi}`),
+          );
+
           const strokeColor = linkabilityColor
-            ?? (isConsolidation ? SVG_COLORS.critical : (scriptColor ?? SVG_COLORS.muted));
-          let strokeOpacity = linkabilityColor ? (0.3 + linkabilityMaxProb * 0.7) : (isConsolidation ? 0.6 : (scriptColor ? 0.55 : 0.35));
-          let strokeWidth = linkabilityColor ? 2.5 : (isConsolidation ? 2.5 : (scriptThickness ?? 1.5));
+            ?? (isChangeMarked ? "#f97316" : (isConsolidation ? SVG_COLORS.critical : (scriptColor ?? SVG_COLORS.muted)));
+          let strokeOpacity = linkabilityColor ? (0.3 + linkabilityMaxProb * 0.7) : (isChangeMarked ? 0.8 : (isConsolidation ? 0.6 : (scriptColor ? 0.55 : 0.35)));
+          let strokeWidth = linkabilityColor ? 2.5 : (isChangeMarked ? 3 : (isConsolidation ? 2.5 : (scriptThickness ?? 1.5)));
 
           if (isHovered && !linkabilityColor) {
             strokeOpacity = isConsolidation ? 0.9 : 0.7;
@@ -586,7 +592,10 @@ export function GraphCanvas({
           if (!mat?.length) return null;
           const maxProb = getEdgeMaxProb(mat, edge.outputIndices);
           if (maxProb <= 0) return null;
-          const d = edgePath(edge);
+          const hasPortRouting2 = expandedNodeTxid && (edge.fromTxid === expandedNodeTxid || edge.toTxid === expandedNodeTxid);
+          const d = hasPortRouting2
+            ? portAwareEdgePath(edge, portPositions, nodes as Map<string, { tx: { vin: Array<{ txid: string; vout: number }> } }>)
+            : edgePath(edge);
           const color = probColor(maxProb);
           return (
             <g style={{ pointerEvents: "none" }}>
@@ -767,7 +776,7 @@ export function GraphCanvas({
               {heatMapActive && heatScore !== undefined && (
                 <Text
                   x={node.x + node.width - 20}
-                  y={node.y + NODE_H / 2 + 6}
+                  y={node.y + node.height / 2 + 6}
                   fontSize={18}
                   fontWeight={800}
                   fill={color}
@@ -864,8 +873,8 @@ export function GraphCanvas({
                 const idx = node.tx.vin.findIndex((v) => !v.is_coinbase && !nodes.has(v.txid));
                 return idx >= 0 ? (
                   <g className="graph-btn" style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); onExpandInput(node.txid, idx); }}>
-                    <circle cx={node.x - 6} cy={node.y + NODE_H / 2} r={11} fill={SVG_COLORS.surfaceElevated} stroke={color} strokeWidth={1.5} />
-                    <Text x={node.x - 6} y={node.y + NODE_H / 2 + 5} fontSize={16} fontWeight={700} textAnchor="middle" fill={color}>+</Text>
+                    <circle cx={node.x - 6} cy={node.y + node.height / 2} r={11} fill={SVG_COLORS.surfaceElevated} stroke={color} strokeWidth={1.5} />
+                    <Text x={node.x - 6} y={node.y + node.height / 2 + 5} fontSize={16} fontWeight={700} textAnchor="middle" fill={color}>+</Text>
                   </g>
                 ) : null;
               })()}
@@ -890,8 +899,8 @@ export function GraphCanvas({
                 const idx = node.tx.vout.findIndex((_, i) => !consumedOutputs.has(i));
                 return idx >= 0 ? (
                   <g className="graph-btn" style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); onExpandOutput(node.txid, idx); }}>
-                    <circle cx={node.x + node.width + 6} cy={node.y + NODE_H / 2} r={11} fill={SVG_COLORS.surfaceElevated} stroke={color} strokeWidth={1.5} />
-                    <Text x={node.x + node.width + 6} y={node.y + NODE_H / 2 + 5} fontSize={16} fontWeight={700} textAnchor="middle" fill={color}>+</Text>
+                    <circle cx={node.x + node.width + 6} cy={node.y + node.height / 2} r={11} fill={SVG_COLORS.surfaceElevated} stroke={color} strokeWidth={1.5} />
+                    <Text x={node.x + node.width + 6} y={node.y + node.height / 2 + 5} fontSize={16} fontWeight={700} textAnchor="middle" fill={color}>+</Text>
                   </g>
                 ) : null;
               })()}
@@ -899,8 +908,8 @@ export function GraphCanvas({
               {/* Collapse button for non-root nodes */}
               {!node.isRoot && (
                 <g className="graph-btn" style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); onCollapse(node.txid); }}>
-                  <circle cx={node.x + node.width - 8} cy={node.y + NODE_H - 6} r={9} fill={SVG_COLORS.surfaceInset} stroke={SVG_COLORS.muted} strokeWidth={1} />
-                  <Text x={node.x + node.width - 8} y={node.y + NODE_H - 2} fontSize={12} fontWeight={700} textAnchor="middle" fill={SVG_COLORS.muted}>x</Text>
+                  <circle cx={node.x + node.width - 8} cy={node.y + node.height - 6} r={9} fill={SVG_COLORS.surfaceInset} stroke={SVG_COLORS.muted} strokeWidth={1} />
+                  <Text x={node.x + node.width - 8} y={node.y + node.height - 2} fontSize={12} fontWeight={700} textAnchor="middle" fill={SVG_COLORS.muted}>x</Text>
                 </g>
               )}
             </motion.g>

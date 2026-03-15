@@ -370,6 +370,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
     heatMapActive,
     linkabilityEdgeMode,
     fingerprintMode,
+    changeOutputs,
   };
 
   const fullscreenCanvasProps = {
@@ -591,6 +592,34 @@ export function GraphExplorer(props: GraphExplorerProps) {
                     </span>
                   </span>
                 </button>
+                {/* Fingerprint mode (fullscreen) */}
+                <button
+                  onClick={() => { setFingerprintMode(!fingerprintMode); if (!fingerprintMode) setHeatMapActive(false); }}
+                  className={`text-xs transition-colors px-2 py-1 rounded border cursor-pointer ${
+                    fingerprintMode ? "text-purple-400 border-purple-400/30 bg-purple-400/10" : "text-white/50 hover:text-white/80 border-white/10"
+                  }`}
+                  title="Fingerprint mode"
+                >
+                  <span className="flex items-center gap-1">
+                    <FingerprintIcon />
+                    <span className="hidden sm:inline">Fingerprint</span>
+                  </span>
+                </button>
+                {/* Linkability edges (fullscreen) */}
+                {hasLinkability && (
+                  <button
+                    onClick={() => setLinkabilityEdgeMode(!linkabilityEdgeMode)}
+                    className={`text-xs transition-colors px-2 py-1 rounded border cursor-pointer ${
+                      linkabilityEdgeMode ? "text-bitcoin border-bitcoin/30 bg-bitcoin/10" : "text-white/50 hover:text-white/80 border-white/10"
+                    }`}
+                    title="Color edges by linkability"
+                  >
+                    <span className="flex items-center gap-1">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+                      <span className="hidden sm:inline">Linkability</span>
+                    </span>
+                  </button>
+                )}
                 <button
                   onClick={props.onUndo}
                   disabled={!props.canUndo}

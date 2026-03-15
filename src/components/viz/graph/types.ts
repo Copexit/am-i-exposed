@@ -154,6 +154,8 @@ export interface GraphCanvasProps extends GraphExplorerProps {
   linkabilityEdgeMode?: boolean;
   /** Fingerprint mode: encode locktime (node shape) and version (node fill). */
   fingerprintMode?: boolean;
+  /** Change-marked output keys: "${txid}:${outputIndex}". Edges from these render orange. */
+  changeOutputs?: Set<string>;
 }
 
 export interface MinimapProps {

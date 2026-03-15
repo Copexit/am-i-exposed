@@ -8,29 +8,9 @@ import { truncateId } from "@/lib/constants";
 import { PORT_H, PORT_COL_W, MAX_VISIBLE_PORTS, EXPANDED_HEADER_H, EXPANDED_PAD_V } from "./constants";
 import { buildInputPorts, buildOutputPorts } from "./portLayout";
 import { getNodeColor } from "./layout";
+import { getScriptTypeColor } from "./scriptStyles";
 import type { LayoutNode, PortLayout, GraphNode } from "./types";
 import type { MempoolOutspend } from "@/lib/api/types";
-import type { ScoringResult } from "@/lib/types";
-
-/** Script type to color mapping for port indicator strips. */
-const SCRIPT_TYPE_PORT_COLORS: Record<string, string> = {
-  p2pkh: "#28d065",
-  p2pk: "#28d065",
-  v0_p2wpkh: "#60a5fa",
-  v0_p2wsh: "#06b6d4",
-  p2sh: "#f97316",
-  "p2sh-p2wpkh": "#f97316",
-  "p2sh-p2wsh": "#f97316",
-  v1_p2tr: "#a78bfa",
-  multisig: "#f97316",
-  op_return: "#eab308",
-  nonstandard: "#ec4899",
-  unknown: "#6b7280",
-};
-
-function getScriptColor(scriptType: string): string {
-  return SCRIPT_TYPE_PORT_COLORS[scriptType] ?? SCRIPT_TYPE_PORT_COLORS.unknown;
-}
 
 interface ExpandedNodeProps {
   node: LayoutNode;
@@ -70,7 +50,7 @@ function PortRow({
 }) {
   const portX = side === "input" ? x + 2 : x + nodeWidth - PORT_COL_W - 2;
   const portY = port.y - PORT_H / 2;
-  const typeColor = getScriptColor(port.scriptType);
+  const typeColor = getScriptTypeColor(port.scriptType);
   const isHovered = hoveredPort === portKey;
   const addr = port.address === "coinbase" ? "coinbase" : truncateId(port.address, 4);
   const isUnspent = side === "output" && port.spent === false;
