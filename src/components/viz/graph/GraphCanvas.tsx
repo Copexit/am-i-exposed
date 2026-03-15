@@ -56,11 +56,17 @@ export function GraphCanvas({
   outspendCache,
   onLayoutComplete,
   boltzmannCache,
-  highlightedNodes,
 }: GraphCanvasProps) {
   const atCapacity = nodeCount >= maxNodes;
   const [hoveredEdgeKey, setHoveredEdgeKey] = useState<string | null>(null);
   const [hoveredPort, setHoveredPort] = useState<string | null>(null);
+  // Suppress tooltips on touch devices (conflicts with tap-to-expand sidebar)
+  const isTouchRef = useRef(false);
+  useEffect(() => {
+    const onTouch = () => { isTouchRef.current = true; };
+    window.addEventListener("touchstart", onTouch, { once: true, passive: true });
+    return () => window.removeEventListener("touchstart", onTouch);
+  }, []);
   const svgRef = useRef<SVGSVGElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const panRef = useRef({ active: false, startX: 0, startY: 0, vtX: 0, vtY: 0, scale: 1 });
@@ -746,12 +752,9 @@ export function GraphCanvas({
           );
           const isLoading = loading.has(node.txid);
           const isExpandedNode = node.txid === expandedNodeTxid;
-          const isHighlighted = highlightedNodes?.has(node.txid);
 
           let nodeOpacity = 1;
-          if (isDimmedByHover && !isConnectedToHovered && !isHighlighted) nodeOpacity = 0.3;
-          // Dim non-highlighted nodes when search is active
-          if (highlightedNodes && !isHighlighted && !isHovered) nodeOpacity = Math.min(nodeOpacity, 0.35);
+          if (isDimmedByHover && !isConnectedToHovered) nodeOpacity = 0.3;
 
           // Render expanded node with UTXO ports
           if (isExpandedNode) {
@@ -791,6 +794,7 @@ export function GraphCanvas({
               transition={{ duration: 0.3 }}
               style={{ cursor: "pointer" }}
               onMouseEnter={() => {
+                if (isTouchRef.current) return; // suppress tooltip on touch devices
                 setHoveredNode(node.txid);
                 const pos = toScreen(node.x + node.width / 2, node.y - 8);
                 tooltip.showTooltip({
@@ -847,22 +851,6 @@ export function GraphCanvas({
                   strokeOpacity={isHovered || node.isRoot ? 1 : 0.6}
                   filter={node.isRoot ? "url(#glow-medium)" : (isHovered ? "url(#glow-subtle)" : undefined)}
                   onClick={() => handleNodeClick(node, selectedNode?.txid ?? null)}
-                />
-              )}
-
-              {/* Search highlight ring */}
-              {isHighlighted && (
-                <rect
-                  x={node.x - 3}
-                  y={node.y - 3}
-                  width={node.width + 6}
-                  height={node.height + 6}
-                  rx={10}
-                  fill="none"
-                  stroke={SVG_COLORS.bitcoin}
-                  strokeWidth={2}
-                  strokeOpacity={0.9}
-                  filter="url(#glow-medium)"
                 />
               )}
 
@@ -1083,21 +1071,27 @@ export function GraphCanvas({
       </svg>
 
       {/* Minimap - only in fullscreen */}
-      {isFullscreen && (
-        <GraphMinimap
-          layoutNodes={layoutNodes}
-          edges={edges}
-          graphWidth={width}
-          graphHeight={height}
-          viewportWidth={viewTransform ? containerWidth / viewTransform.scale : containerWidth}
-          viewportHeight={viewTransform ? (containerHeight ?? 600) / viewTransform.scale : (containerHeight ?? 600)}
-          scrollLeft={viewTransform ? -viewTransform.x / viewTransform.scale : scrollPos.left}
-          scrollTop={viewTransform ? -viewTransform.y / viewTransform.scale : scrollPos.top}
-          onMinimapClick={handleMinimapClick}
-          heatMap={heatMap}
-          heatMapActive={heatMapActive}
-        />
-      )}
+      {isFullscreen && (() => {
+        // Use actual SVG element dimensions for accurate viewport rect on mobile
+        const svgRect = svgRef.current?.getBoundingClientRect();
+        const actualW = svgRect?.width ?? containerWidth;
+        const actualH = svgRect?.height ?? (containerHeight ?? 600);
+        return (
+          <GraphMinimap
+            layoutNodes={layoutNodes}
+            edges={edges}
+            graphWidth={width}
+            graphHeight={height}
+            viewportWidth={viewTransform ? actualW / viewTransform.scale : actualW}
+            viewportHeight={viewTransform ? actualH / viewTransform.scale : actualH}
+            scrollLeft={viewTransform ? -viewTransform.x / viewTransform.scale : scrollPos.left}
+            scrollTop={viewTransform ? -viewTransform.y / viewTransform.scale : scrollPos.top}
+            onMinimapClick={handleMinimapClick}
+            heatMap={heatMap}
+            heatMapActive={heatMapActive}
+          />
+        );
+      })()}
     </div>
   );
 }

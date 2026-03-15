@@ -50,30 +50,6 @@ export function GraphExplorer(props: GraphExplorerProps) {
   const [focusedNode, setFocusedNode] = useState<string | null>(null);
   const [filter, setFilter] = useState<NodeFilter>({ showCoinJoin: true, showEntity: true, showStandard: true });
 
-  // Address search
-  const [addressSearch, setAddressSearch] = useState("");
-  const highlightedNodes = useMemo(() => {
-    const query = addressSearch.trim().toLowerCase();
-    if (query.length < 4) return undefined;
-    const matches = new Set<string>();
-    for (const [txid, node] of props.nodes) {
-      for (const vin of node.tx.vin) {
-        if (vin.prevout?.scriptpubkey_address?.toLowerCase().includes(query)) {
-          matches.add(txid);
-          break;
-        }
-      }
-      if (matches.has(txid)) continue;
-      for (const vout of node.tx.vout) {
-        if (vout.scriptpubkey_address?.toLowerCase().includes(query)) {
-          matches.add(txid);
-          break;
-        }
-      }
-    }
-    return matches.size > 0 ? matches : undefined;
-  }, [addressSearch, props.nodes]);
-
   // View transform for fullscreen pan/zoom
   const [viewTransform, setViewTransform] = useState<ViewTransform | undefined>(undefined);
 
@@ -482,12 +458,6 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
   // ─── Instructions ──────────────────────────────────────
 
-  const instructions = (
-    <div className="text-xs text-white/40">
-      {t("graphExplorer.instructions", { defaultValue: "Click + buttons on nodes to expand the graph. Click node to analyze." })}
-    </div>
-  );
-
   // ─── Legend (clickable filters) ────────────────────────
 
   const legend = (
@@ -604,7 +574,6 @@ export function GraphExplorer(props: GraphExplorerProps) {
     fingerprintMode,
     changeOutputs,
     onLayoutComplete: handleLayoutComplete,
-    highlightedNodes,
     boltzmannCache: boltzmannCacheRef.current,
   };
 
@@ -704,30 +673,6 @@ export function GraphExplorer(props: GraphExplorerProps) {
         className="relative rounded-xl border border-white/5 bg-surface-inset p-4 space-y-3"
       >
         {toolbar}
-        {instructions}
-        {/* Address search */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1 max-w-xs">
-            <input
-              type="text"
-              value={addressSearch}
-              onChange={(e) => setAddressSearch(e.target.value)}
-              placeholder="Search address in graph..."
-              className="w-full text-xs bg-white/5 border border-white/10 rounded px-2 py-1 text-white/70 placeholder:text-white/25 focus:outline-none focus:border-white/20"
-            />
-            {addressSearch && (
-              <button
-                onClick={() => setAddressSearch("")}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 cursor-pointer"
-              >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-              </button>
-            )}
-          </div>
-          {highlightedNodes && (
-            <span className="text-xs text-bitcoin/70">{highlightedNodes.size} match{highlightedNodes.size !== 1 ? "es" : ""}</span>
-          )}
-        </div>
         {legend}
 
         {/* Hide inline graph when fullscreen is active to avoid double tooltip */}
@@ -909,7 +854,6 @@ export function GraphExplorer(props: GraphExplorerProps) {
                 >{t("graphExplorer.fit", { defaultValue: "Fit" })}</button>
               </div>
             </div>
-            {instructions}
             {legend}
           </div>
 
