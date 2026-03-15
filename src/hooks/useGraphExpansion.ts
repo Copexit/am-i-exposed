@@ -785,6 +785,106 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     setAutoTraceProgress(null);
   }, []);
 
+  /** Auto-trace forward using compounding linkability. Stops when compound probability < threshold. */
+  const autoTraceLinkability = useCallback(async (
+    startTxid: string,
+    startOutputIndex: number,
+    opts?: { threshold?: number; maxHops?: number; boltzmannCache?: Map<string, import("@/lib/analysis/boltzmann-pool").BoltzmannWorkerResult> },
+  ) => {
+    const { identifyChangeOutput } = await import("@/components/viz/graph/autoTrace");
+    const { computeBoltzmann, extractTxValues } = await import("@/lib/analysis/boltzmann-compute");
+    const client = fetcherRef.current;
+    if (!client) return;
+
+    const threshold = opts?.threshold ?? 0.05;
+    const maxHops = opts?.maxHops ?? 30;
+    const cache = opts?.boltzmannCache;
+
+    autoTraceAbortRef.current?.abort();
+    const ac = new AbortController();
+    autoTraceAbortRef.current = ac;
+
+    setAutoTracing(true);
+    let compoundProb = 1.0;
+    let currentTxid = startTxid;
+    let currentOutputIndex = startOutputIndex;
+
+    try {
+      for (let hop = 0; hop < maxHops; hop++) {
+        if (ac.signal.aborted) break;
+        if (state.nodes.size >= state.maxNodes) break;
+
+        setAutoTraceProgress({ hop: hop + 1, txid: currentTxid, reason: `compound: ${Math.round(compoundProb * 100)}%` });
+
+        // Fetch outspends
+        let outspends: import("@/lib/api/types").MempoolOutspend[];
+        try { outspends = await client.getTxOutspends(currentTxid); } catch { break; }
+        if (ac.signal.aborted) break;
+
+        const os = outspends[currentOutputIndex];
+        if (!os?.spent || !os.txid) break;
+
+        const childTxid = os.txid;
+
+        // Expand child node if not in graph
+        if (!state.nodes.has(childTxid)) {
+          try {
+            const childTx = await client.getTransaction(childTxid);
+            dispatch({
+              type: "ADD_NODE",
+              node: { txid: childTxid, tx: childTx, depth: (state.nodes.get(currentTxid)?.depth ?? 0) + 1, parentEdge: { fromTxid: currentTxid, outputIndex: currentOutputIndex } },
+            });
+            await new Promise((r) => setTimeout(r, 80));
+          } catch { break; }
+        }
+        if (ac.signal.aborted) break;
+
+        const childNode = state.nodes.get(childTxid);
+        if (!childNode) break;
+
+        // Get or compute Boltzmann for this tx
+        let boltzResult = cache?.get(childTxid);
+        if (!boltzResult) {
+          const { inputValues, outputValues } = extractTxValues(childNode.tx);
+          if (inputValues.length >= 1 && outputValues.length >= 1 && inputValues.length + outputValues.length <= 80) {
+            try {
+              boltzResult = await computeBoltzmann(childNode.tx, { signal: ac.signal }) ?? undefined;
+            } catch { /* ok, treat as 100% */ }
+          }
+        }
+
+        // Find the change output
+        const changeResult = identifyChangeOutput(childNode.tx);
+        if (changeResult.changeOutputIndex === null) break;
+
+        // Compute linkability for the change output from the spending input
+        if (boltzResult?.matLnkProbabilities) {
+          const mat = boltzResult.matLnkProbabilities;
+          // Find which input of the child tx spends our output
+          const spendingInputIdx = childNode.tx.vin.findIndex(
+            (v) => v.txid === currentTxid && v.vout === currentOutputIndex,
+          );
+          if (spendingInputIdx >= 0 && mat[changeResult.changeOutputIndex]?.[spendingInputIdx] !== undefined) {
+            compoundProb *= mat[changeResult.changeOutputIndex][spendingInputIdx];
+          }
+          // If no specific link found, treat as 100% (worst case)
+        }
+
+        // Check threshold
+        if (compoundProb < threshold) {
+          setAutoTraceProgress({ hop: hop + 1, txid: childTxid, reason: `compound ${Math.round(compoundProb * 100)}% < ${Math.round(threshold * 100)}% threshold` });
+          break;
+        }
+
+        currentTxid = childTxid;
+        currentOutputIndex = changeResult.changeOutputIndex;
+      }
+    } finally {
+      setAutoTracing(false);
+      setAutoTraceProgress(null);
+    }
+  }, [state.nodes, state.maxNodes]);
+
   return {
     nodes: state.nodes,
     rootTxid: state.rootTxid,
@@ -815,5 +915,6 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     cancelAutoTrace,
     autoTracing,
     autoTraceProgress,
+    autoTraceLinkability,
   };
 }

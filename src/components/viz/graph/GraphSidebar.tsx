@@ -51,6 +51,8 @@ interface GraphSidebarProps {
   onComputeBoltzmann?: () => void;
   /** Trigger auto-trace from a specific output. */
   onAutoTrace?: (txid: string, outputIndex: number) => void;
+  /** Trigger compounding linkability trace. */
+  onAutoTraceLinkability?: (txid: string, outputIndex: number) => void;
   /** Whether auto-trace is in progress. */
   autoTracing?: boolean;
   /** Auto-trace progress info. */
@@ -93,6 +95,7 @@ export function GraphSidebar({
   boltzmannProgress,
   onComputeBoltzmann,
   onAutoTrace,
+  onAutoTraceLinkability,
   autoTracing,
   autoTraceProgress,
 }: GraphSidebarProps) {
@@ -182,6 +185,7 @@ export function GraphSidebar({
             boltzmannProgress={boltzmannProgress}
             onComputeBoltzmann={onComputeBoltzmann}
             onAutoTrace={onAutoTrace}
+            onAutoTraceLinkability={onAutoTraceLinkability}
             autoTracing={autoTracing}
             autoTraceProgress={autoTraceProgress}
           />
@@ -221,6 +225,7 @@ function IOTab({
   boltzmannProgress,
   onComputeBoltzmann,
   onAutoTrace,
+  onAutoTraceLinkability,
   autoTracing,
   autoTraceProgress,
 }: {
@@ -235,6 +240,7 @@ function IOTab({
   boltzmannProgress?: number;
   onComputeBoltzmann?: () => void;
   onAutoTrace?: (txid: string, outputIndex: number) => void;
+  onAutoTraceLinkability?: (txid: string, outputIndex: number) => void;
   autoTracing?: boolean;
   autoTraceProgress?: { hop: number; txid: string; reason: string } | null;
 }) {
@@ -549,6 +555,16 @@ function IOTab({
                     title="Auto-trace: follow change outputs forward"
                   >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M13 5l7 7-7 7" /><path d="M5 5l7 7-7 7" /></svg>
+                  </button>
+                )}
+                {/* Linkability trace: follow until compound probability drops below threshold */}
+                {onAutoTraceLinkability && !autoTracing && vout.scriptpubkey_type !== "op_return" && vout.value > 0 && (
+                  <button
+                    onClick={() => onAutoTraceLinkability(tx.txid, i)}
+                    className="opacity-0 group-hover:opacity-100 text-blue-400/50 hover:text-blue-400 transition-all cursor-pointer p-0.5"
+                    title="Linkability trace: follow until compound linkability < 5%"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07" /></svg>
                   </button>
                 )}
               </div>
