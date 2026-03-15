@@ -1,8 +1,31 @@
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
-import { analyzeCoinJoin, isCoinJoinFinding } from "../heuristics/coinjoin";
+import { isCoinJoinTx } from "../heuristics/coinjoin";
+import { getSpendableOutputs } from "../heuristics/tx-utils";
 import { WHIRLPOOL_DENOMS, truncateId } from "@/lib/constants";
 import { fmtN } from "@/lib/format";
+
+/**
+ * Permissive CoinJoin check for suppression only. Catches edge-case remixes
+ * that `isCoinJoinTx` misses (fewer participants, sub-10k denoms, etc.).
+ * Errs on the side of suppression to avoid false consolidation accusations.
+ */
+function isLikelyCoinJoinTx(tx: MempoolTransaction): boolean {
+  const spendable = getSpendableOutputs(tx.vout);
+  const distinctParents = new Set(tx.vin.map((v) => v.txid));
+
+  // Signal 1: 5+ distinct input sources + 5+ outputs = multi-party
+  if (distinctParents.size >= 5 && spendable.length >= 5) return true;
+
+  // Signal 2: 3+ distinct sources + equal-value output group
+  if (distinctParents.size >= 3 && spendable.length >= 3) {
+    const counts = new Map<number, number>();
+    for (const o of spendable) counts.set(o.value, (counts.get(o.value) ?? 0) + 1);
+    if ([...counts.values()].some((c) => c >= 2)) return true;
+  }
+
+  return false;
+}
 
 /**
  * Forward chain analysis: examine what happened to outputs after this tx.
@@ -32,7 +55,7 @@ export function analyzeForward(
   const peelChainOutputs: number[] = [];
   const toxicMergeOutputs: number[] = [];
 
-  const txIsCoinJoin = analyzeCoinJoin(tx).findings.some(isCoinJoinFinding);
+  const txIsCoinJoin = isCoinJoinTx(tx);
 
   // Track consolidation groups: which child tx consumed which outputs
   const consolidationGroups = new Map<string, number[]>();
@@ -48,8 +71,8 @@ export function analyzeForward(
       // Check if multiple CoinJoin outputs from this tx are consumed in the same child tx
       const sameParentInputs = childTx.vin.filter((vin) => vin.txid === tx.txid);
       if (sameParentInputs.length >= 2) {
-        // If the child tx is itself a CoinJoin, this is a remix - not consolidation
-        const childIsCoinJoin = analyzeCoinJoin(childTx).findings.some(isCoinJoinFinding);
+        // If the child tx is itself a CoinJoin (or likely one), this is a remix - not consolidation
+        const childIsCoinJoin = isCoinJoinTx(childTx) || isLikelyCoinJoinTx(childTx);
         if (!childIsCoinJoin) {
           consolidatedCoinJoinOutputs.push(outputIdx);
           // Group by child tx for detailed reporting
@@ -183,15 +206,4 @@ export function analyzeForward(
   }
 
   return { findings, consolidatedCoinJoinOutputs, peelChainOutputs, toxicMergeOutputs };
-}
-
-/**
- * Calculate output age in blocks for unspent output indicators.
- */
-export function getOutputAge(
-  tx: MempoolTransaction,
-  currentBlockHeight: number,
-): number | null {
-  if (!tx.status.confirmed || !tx.status.block_height) return null;
-  return currentBlockHeight - tx.status.block_height;
 }

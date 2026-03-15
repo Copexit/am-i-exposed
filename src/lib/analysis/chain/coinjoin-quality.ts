@@ -2,7 +2,7 @@ import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import { truncateId } from "@/lib/constants";
 import { fmtN } from "@/lib/format";
-import { analyzeCoinJoin, isCoinJoinFinding } from "../heuristics/coinjoin";
+import { isCoinJoinTx } from "../heuristics/coinjoin";
 
 /**
  * CoinJoin break detection - evaluate post-mix spending quality.
@@ -175,7 +175,7 @@ export function evaluateCoinJoinQuality(
       const hasOtherInput = childTx.vin.some((v) => v.txid !== tx.txid);
       if (hasThisTxInput && hasOtherInput) {
         // If the child tx is itself a CoinJoin, this is a remix - not a toxic merge
-        const childIsCoinJoin = analyzeCoinJoin(childTx).findings.some(isCoinJoinFinding);
+        const childIsCoinJoin = isCoinJoinTx(childTx);
         if (!childIsCoinJoin) {
           checks.push({
             id: `toxic-merge-${outputIdx}`,

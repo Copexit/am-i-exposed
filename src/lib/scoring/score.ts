@@ -1,5 +1,10 @@
 import type { Finding, Grade, Severity, ScoringResult } from "@/lib/types";
 
+/** Sum the scoreImpact of a list of findings. */
+export function sumImpact(findings: Finding[]): number {
+  return findings.reduce((sum, f) => sum + f.scoreImpact, 0);
+}
+
 /** Base score for transaction analysis (24 heuristics, impacts up to +30). */
 export const TX_BASE_SCORE = 70;
 /** Base score for address analysis (6 heuristics, max positive +7). */
@@ -24,7 +29,7 @@ type AnalysisMode = "tx" | "address";
  */
 export function calculateScore(findings: Finding[], mode: AnalysisMode = "tx"): ScoringResult {
   const baseScore = mode === "address" ? ADDRESS_BASE_SCORE : TX_BASE_SCORE;
-  const totalImpact = findings.reduce((sum, f) => sum + f.scoreImpact, 0);
+  const totalImpact = sumImpact(findings);
   const rawScore = baseScore + totalImpact;
   const score = Math.max(MIN_SCORE, Math.min(MAX_SCORE, rawScore));
   const grade = scoreToGrade(score);

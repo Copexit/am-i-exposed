@@ -8,20 +8,28 @@ const LOCAL_TIMEOUT_MS = 60_000;
 
 /**
  * Detect whether a base URL points to a local/self-hosted API
- * (Umbrel /api proxy, localhost, LAN IPs, .onion).
+ * (Umbrel /api proxy, localhost, LAN IPs, .onion, .local).
+ *
+ * Covers: relative paths, localhost, 127.0.0.1, ::1, RFC-1918
+ * private ranges (10.*, 172.16-31.*, 192.168.*), .local mDNS
+ * hostnames, and Tor .onion addresses.
  */
-function isLocalApi(url: string): boolean {
+export function isLocalApi(url: string): boolean {
   if (url.startsWith("/")) return true; // Umbrel /api proxy
   try {
     const host = new URL(url).hostname;
-    return (
+    if (
       host === "localhost" ||
       host === "127.0.0.1" ||
-      host.startsWith("192.168.") ||
-      host.startsWith("10.") ||
-      host.endsWith(".local") ||
-      host.endsWith(".onion")
-    );
+      host === "::1" ||
+      host === "[::1]"
+    ) return true;
+    // RFC-1918 private IP ranges
+    if (host.startsWith("192.168.") || host.startsWith("10.")) return true;
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(host)) return true;
+    // mDNS / Tor
+    if (host.endsWith(".local") || host.endsWith(".onion")) return true;
+    return false;
   } catch {
     return false;
   }

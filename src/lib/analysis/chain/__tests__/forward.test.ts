@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { analyzeForward, getOutputAge } from "../forward";
+import { analyzeForward } from "../forward";
 import { makeTx, makeVin, makeVout, resetAddrCounter } from "../../heuristics/__tests__/fixtures/tx-factory";
 import { WHIRLPOOL_DENOMS } from "@/lib/constants";
 import type { MempoolOutspend } from "@/lib/api/types";
@@ -79,6 +79,106 @@ describe("analyzeForward", () => {
     expect(findings.some((f) => f.id === "chain-post-coinjoin-consolidation")).toBe(false);
   });
 
+  it("suppresses consolidation when child has 5+ distinct input sources and 5+ outputs (likely remix)", () => {
+    const txid = "a".repeat(64);
+    const denom = WHIRLPOOL_DENOMS[0];
+
+    const coinJoinTx = makeTx({
+      txid,
+      vin: Array.from({ length: 5 }, () => makeVin()),
+      vout: Array.from({ length: 5 }, () => makeVout({ value: denom })),
+    });
+
+    // Child tx has 5 distinct parent txids and 5 outputs (atypical CoinJoin)
+    const childTx = makeTx({
+      vin: [
+        makeVin({ txid, vout: 0 }),
+        makeVin({ txid, vout: 1 }),
+        makeVin({ txid: "c".repeat(64) }),
+        makeVin({ txid: "d".repeat(64) }),
+        makeVin({ txid: "e".repeat(64) }),
+        makeVin({ txid: "f".repeat(64) }),
+      ],
+      vout: Array.from({ length: 5 }, () => makeVout({ value: 3000 })),
+    });
+
+    const outspends = Array.from({ length: 5 }, (_, i) =>
+      makeOutspend({ spent: i < 2, txid: childTx.txid, vin: i }),
+    );
+
+    const childTxs = new Map([[0, childTx]]);
+    const { findings, consolidatedCoinJoinOutputs } = analyzeForward(coinJoinTx, outspends, childTxs);
+
+    expect(consolidatedCoinJoinOutputs).toHaveLength(0);
+    expect(findings.some((f) => f.id === "chain-post-coinjoin-consolidation")).toBe(false);
+  });
+
+  it("suppresses consolidation when child has 3+ distinct sources and equal-value outputs (small remix)", () => {
+    const txid = "a".repeat(64);
+    const denom = WHIRLPOOL_DENOMS[0];
+
+    const coinJoinTx = makeTx({
+      txid,
+      vin: Array.from({ length: 5 }, () => makeVin()),
+      vout: Array.from({ length: 5 }, () => makeVout({ value: denom })),
+    });
+
+    // Child tx has 3 distinct parent txids and equal-value output pair
+    const childTx = makeTx({
+      vin: [
+        makeVin({ txid, vout: 0 }),
+        makeVin({ txid, vout: 1 }),
+        makeVin({ txid: "c".repeat(64) }),
+        makeVin({ txid: "d".repeat(64) }),
+      ],
+      vout: [
+        makeVout({ value: 5000 }),
+        makeVout({ value: 5000 }),
+        makeVout({ value: 2000 }),
+      ],
+    });
+
+    const outspends = Array.from({ length: 5 }, (_, i) =>
+      makeOutspend({ spent: i < 2, txid: childTx.txid, vin: i }),
+    );
+
+    const childTxs = new Map([[0, childTx]]);
+    const { findings, consolidatedCoinJoinOutputs } = analyzeForward(coinJoinTx, outspends, childTxs);
+
+    expect(consolidatedCoinJoinOutputs).toHaveLength(0);
+    expect(findings.some((f) => f.id === "chain-post-coinjoin-consolidation")).toBe(false);
+  });
+
+  it("still detects consolidation for simple 2-input spend from same parent", () => {
+    const txid = "a".repeat(64);
+    const denom = WHIRLPOOL_DENOMS[0];
+
+    const coinJoinTx = makeTx({
+      txid,
+      vin: Array.from({ length: 5 }, () => makeVin()),
+      vout: Array.from({ length: 5 }, () => makeVout({ value: denom })),
+    });
+
+    // Simple consolidation: 2 inputs from same CoinJoin, 1 output, no other parties
+    const childTx = makeTx({
+      vin: [
+        makeVin({ txid, vout: 0 }),
+        makeVin({ txid, vout: 1 }),
+      ],
+      vout: [makeVout({ value: denom * 2 - 1000 })],
+    });
+
+    const outspends = Array.from({ length: 5 }, (_, i) =>
+      makeOutspend({ spent: i < 2, txid: childTx.txid, vin: i }),
+    );
+
+    const childTxs = new Map([[0, childTx]]);
+    const { findings, consolidatedCoinJoinOutputs } = analyzeForward(coinJoinTx, outspends, childTxs);
+
+    expect(consolidatedCoinJoinOutputs.length).toBeGreaterThan(0);
+    expect(findings.some((f) => f.id === "chain-post-coinjoin-consolidation")).toBe(true);
+  });
+
   it("detects forward peel chain", () => {
     const txid = "b".repeat(64);
     const tx = makeTx({
@@ -115,27 +215,5 @@ describe("analyzeForward", () => {
     const { findings } = analyzeForward(tx, outspends, new Map());
 
     expect(findings).toHaveLength(0);
-  });
-});
-
-describe("getOutputAge", () => {
-  it("calculates block age for confirmed tx", () => {
-    const tx = makeTx({
-      vin: [makeVin()],
-      vout: [makeVout()],
-      status: { confirmed: true, block_height: 800_000, block_hash: "h", block_time: 0 },
-    });
-
-    expect(getOutputAge(tx, 800_100)).toBe(100);
-  });
-
-  it("returns null for unconfirmed tx", () => {
-    const tx = makeTx({
-      vin: [makeVin()],
-      vout: [makeVout()],
-      status: { confirmed: false },
-    });
-
-    expect(getOutputAge(tx, 800_100)).toBeNull();
   });
 });

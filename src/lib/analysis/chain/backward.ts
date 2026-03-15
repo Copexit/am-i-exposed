@@ -1,6 +1,6 @@
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
-import { analyzeCoinJoin, isCoinJoinFinding } from "../heuristics/coinjoin";
+import { isCoinJoinTx } from "../heuristics/coinjoin";
 
 /**
  * Backward chain analysis: examine parent transactions to determine
@@ -34,9 +34,7 @@ export function analyzeBackward(
     if (!vin || vin.is_coinbase) continue;
 
     // Check if parent tx is a CoinJoin
-    const parentFindings = analyzeCoinJoin(parentTx);
-    const parentIsCoinJoin = parentFindings.findings.some(isCoinJoinFinding);
-    if (parentIsCoinJoin) {
+    if (isCoinJoinTx(parentTx)) {
       coinJoinInputs.push(inputIdx);
     }
 

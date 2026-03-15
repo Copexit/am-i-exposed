@@ -13,6 +13,7 @@
  */
 
 import type { Finding, Severity, Grade } from "@/lib/types";
+import { sumImpact } from "@/lib/scoring/score";
 import { fmtN } from "@/lib/format";
 import type { MempoolAddress, MempoolTransaction, MempoolUtxo } from "@/lib/api/types";
 import type { DerivedAddress } from "@/lib/bitcoin/descriptor";
@@ -347,7 +348,7 @@ export function auditWallet(addresses: WalletAddressInfo[]): WalletAuditResult {
 
   // Score: start at 70, apply impacts, clamp 0-100
   const baseScore = 70;
-  const totalImpact = findings.reduce((sum, f) => sum + f.scoreImpact, 0);
+  const totalImpact = sumImpact(findings);
   const score = Math.max(0, Math.min(100, baseScore + totalImpact));
 
   return {

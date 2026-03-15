@@ -397,6 +397,53 @@ export function isCoinJoinFinding(f: Finding): boolean {
   return COINJOIN_FINDING_IDS.has(f.id) && f.scoreImpact > 0;
 }
 
+/**
+ * Lightweight structural CoinJoin check.
+ *
+ * Returns true if the transaction matches any CoinJoin pattern
+ * (Whirlpool, WabiSabi, JoinMarket, Stonewall) without constructing
+ * Finding objects. Use this in chain analysis modules that only need
+ * a boolean answer instead of the full `analyzeCoinJoin()`.
+ */
+export function isCoinJoinTx(tx: Parameters<typeof analyzeCoinJoin>[0]): boolean {
+  if (tx.vin.length < 2 || tx.vout.length < 2) return false;
+
+  const spendableOutputs = getSpendableOutputs(tx.vout);
+  const values = spendableOutputs.map((o) => o.value);
+
+  // Whirlpool
+  if (detectWhirlpool(values)) return true;
+
+  // WabiSabi multi-tier (many in/out, multiple equal groups)
+  const isWabiSabi = tx.vin.length >= 10 && spendableOutputs.length >= 10;
+
+  // Equal-output CoinJoin (5+ equal outputs)
+  const equalOutput = detectEqualOutputs(values);
+  if (equalOutput) return true;
+
+  // WabiSabi multi-tier without a single dominant denomination
+  if (isWabiSabi) {
+    const counts = new Map<number, number>();
+    for (const o of spendableOutputs) {
+      counts.set(o.value, (counts.get(o.value) ?? 0) + 1);
+    }
+    const groups = [...counts.entries()].filter(([, c]) => c >= 2);
+    const totalEqual = groups.reduce((sum, [, c]) => sum + c, 0);
+    if (totalEqual >= 10 && groups.length >= 3) return true;
+  }
+
+  // Stonewall (4 outputs, 2 equal + 2 distinct change)
+  if (detectStonewall(tx.vin, spendableOutputs)) return true;
+
+  // Simplified Stonewall (3 outputs, 2 equal + 1 change)
+  if (detectSimplifiedStonewall(tx.vin, spendableOutputs)) return true;
+
+  // JoinMarket (2-10 inputs, 3-8 outputs, 2-4 equal)
+  if (detectJoinMarket(tx.vin, spendableOutputs)) return true;
+
+  return false;
+}
+
 function detectWhirlpool(values: number[]): { denomination: number } | null {
   // Whirlpool mix txs have 5+ equal outputs at a known denomination.
   // Classic: exactly 5 equal outputs (5-6 total with optional OP_RETURN).

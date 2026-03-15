@@ -4,7 +4,7 @@ import type {
   MempoolAddress,
   MempoolUtxo,
 } from "@/lib/api/types";
-import { calculateScore } from "@/lib/scoring/score";
+import { calculateScore, sumImpact } from "@/lib/scoring/score";
 import { checkOfac } from "./cex-risk/ofac-check";
 import { applyCrossHeuristicRules } from "./cross-heuristic";
 import { TX_HEURISTICS, ADDRESS_HEURISTICS, tick } from "./orchestrator";
@@ -91,7 +91,7 @@ export async function analyzeDestination(
     try {
       const result = heuristic.fn(address, utxos, txs);
       allFindings.push(...result.findings);
-      const stepImpact = result.findings.reduce((s, f) => s + f.scoreImpact, 0);
+      const stepImpact = sumImpact(result.findings);
       onStep?.(heuristic.id, stepImpact);
     } catch (err) {
       console.error(`[analyzeDestination] ${heuristic.id} failed:`, err);

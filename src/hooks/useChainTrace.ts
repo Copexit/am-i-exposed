@@ -10,6 +10,7 @@ import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
 import type { AnalysisSettings } from "@/hooks/useAnalysisSettings";
 import type { FetchProgress, AnalysisState } from "@/hooks/useAnalysisState";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
+import { sumImpact } from "@/lib/scoring/score";
 import type { ScoringResult, Finding } from "@/lib/types";
 
 /** Parameters for the chain analysis phase. */
@@ -87,11 +88,6 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
   const existingChildren = new Map<string, MempoolTransaction>();
   if (childTx) existingChildren.set(childTx.txid, childTx);
 
-  const traceFetcher = {
-    getTransaction: (txid: string) => api.getTransaction(txid),
-    getTxOutspends: (txid: string) => api.getTxOutspends(txid),
-  };
-
   // Entity barrier: stop tracing through known custodial entities (exchanges, etc.)
   // because they break chain of custody - no link between deposits and withdrawals.
   const entityBarrier: EntityBarrierCheck = (btx) => {
@@ -129,7 +125,7 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
         tx,
         settings.maxDepth,
         settings.minSats,
-        traceFetcher,
+        api,
         backwardAbort.signal,
         (p) => updateFetchProgress("tracing-backward", p.currentDepth, p.txsFetched),
         existingParents,
@@ -170,7 +166,7 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
         tx,
         settings.maxDepth,
         settings.minSats,
-        traceFetcher,
+        api,
         forwardAbort.signal,
         (p) => updateFetchProgress(
           "tracing-forward",
@@ -259,7 +255,7 @@ export async function runChainAnalysis(params: ChainAnalysisParams): Promise<voi
     const backwardResult = analyzeBackward(tx, parentTxsByIdx);
     result.findings.push(...backwardResult.findings);
     coinJoinInputIndices = backwardResult.coinJoinInputs;
-    onStep("chain-backward", backwardResult.findings.reduce((s, f) => s + f.scoreImpact, 0));
+    onStep("chain-backward", sumImpact(backwardResult.findings));
   } else {
     onStep("chain-backward", 0);
   }
@@ -270,7 +266,7 @@ export async function runChainAnalysis(params: ChainAnalysisParams): Promise<voi
   if (childTxsByIdx.size > 0 && outspends) {
     const forwardResult = analyzeForward(tx, outspends, childTxsByIdx);
     result.findings.push(...forwardResult.findings);
-    onStep("chain-forward", forwardResult.findings.reduce((s, f) => s + f.scoreImpact, 0));
+    onStep("chain-forward", sumImpact(forwardResult.findings));
   } else {
     onStep("chain-forward", 0);
   }
@@ -308,7 +304,7 @@ export async function runChainAnalysis(params: ChainAnalysisParams): Promise<voi
     if (seedAddr) {
       const clusterResult = buildCluster(seedAddr, txsByAddress);
       result.findings.push(...clusterResult.findings);
-      onStep("chain-cluster", clusterResult.findings.reduce((s, f) => s + f.scoreImpact, 0));
+      onStep("chain-cluster", sumImpact(clusterResult.findings));
     } else {
       onStep("chain-cluster", 0);
     }
@@ -328,7 +324,7 @@ export async function runChainAnalysis(params: ChainAnalysisParams): Promise<voi
       childTxsByIdx,
     );
     result.findings.push(...spResult.findings);
-    onStep("chain-spending", spResult.findings.reduce((s, f) => s + f.scoreImpact, 0));
+    onStep("chain-spending", sumImpact(spResult.findings));
   }
 
   // 5. Entity proximity scan
@@ -337,7 +333,7 @@ export async function runChainAnalysis(params: ChainAnalysisParams): Promise<voi
   if (hasTraceLayers) {
     const proximityResult = analyzeEntityProximity(tx, backwardLayers, forwardLayers);
     result.findings.push(...proximityResult.findings);
-    onStep("chain-entity", proximityResult.findings.reduce((s, f) => s + f.scoreImpact, 0));
+    onStep("chain-entity", sumImpact(proximityResult.findings));
   } else {
     onStep("chain-entity", 0);
   }
@@ -352,7 +348,7 @@ export async function runChainAnalysis(params: ChainAnalysisParams): Promise<voi
     };
     const taintResult = analyzeBackwardTaint(tx, backwardLayers, entityChecker);
     result.findings.push(...taintResult.findings);
-    onStep("chain-taint", taintResult.findings.reduce((s, f) => s + f.scoreImpact, 0));
+    onStep("chain-taint", sumImpact(taintResult.findings));
   } else {
     onStep("chain-taint", 0);
   }

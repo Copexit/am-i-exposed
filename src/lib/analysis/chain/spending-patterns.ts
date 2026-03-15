@@ -1,7 +1,7 @@
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import { fmtN } from "@/lib/format";
-import { analyzeCoinJoin, isCoinJoinFinding } from "../heuristics/coinjoin";
+import { isCoinJoinTx } from "../heuristics/coinjoin";
 
 /**
  * Spending pattern analysis: detect partial spends, ricochet,
@@ -87,8 +87,7 @@ export function detectRicochet(
 
   if (firstParent && firstParent.txid !== tx.txid) {
     // Check if the parent is a CoinJoin (the origin)
-    const cjResult = analyzeCoinJoin(firstParent);
-    if (cjResult.findings.some(isCoinJoinFinding)) {
+    if (isCoinJoinTx(firstParent)) {
       originIsCoinJoin = true;
     } else {
       // Parent must also be 1-in-1-out sweep to count as a hop
@@ -223,8 +222,7 @@ export function detectKycConsolidationBeforeCJ(
     const outspend = outspends[outputIdx];
     if (!outspend?.spent) continue;
 
-    const cjResult = analyzeCoinJoin(childTx);
-    if (cjResult.findings.some(isCoinJoinFinding)) {
+    if (isCoinJoinTx(childTx)) {
       return {
         id: "chain-kyc-consolidation-before-cj",
         severity: "good",

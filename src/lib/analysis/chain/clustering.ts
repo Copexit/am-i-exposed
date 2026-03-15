@@ -1,6 +1,6 @@
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
-import { analyzeCoinJoin, isCoinJoinFinding } from "../heuristics/coinjoin";
+import { isCoinJoinTx } from "../heuristics/coinjoin";
 
 /**
  * Entity clustering via Common Input Ownership Heuristic (CIOH).
@@ -59,8 +59,7 @@ export function buildCluster(
 
       for (const tx of txs) {
         // Skip CoinJoin transactions - CIOH does not apply
-        const cjResult = analyzeCoinJoin(tx);
-        if (cjResult.findings.some(isCoinJoinFinding)) continue;
+        if (isCoinJoinTx(tx)) continue;
 
         // Check if this address appears as an input
         const addrIsInput = tx.vin.some(

@@ -41,7 +41,7 @@ import {
 } from "./heuristics";
 import { analyzeTemporalCorrelation } from "./chain/temporal";
 import { analyzeFingerprintEvolution } from "./chain/prospective";
-import { calculateScore } from "@/lib/scoring/score";
+import { calculateScore, sumImpact } from "@/lib/scoring/score";
 import { matchEntitySync } from "./entity-filter/entity-match";
 import { getEntity } from "./entities";
 import { applyCrossHeuristicRules, classifyTransactionType } from "./cross-heuristic";
@@ -162,7 +162,7 @@ export async function analyzeTransaction(
       allFindings.push(...result.findings);
 
       // Report cumulative impact so the UI can show a running score
-      const stepImpact = result.findings.reduce((s, f) => s + f.scoreImpact, 0);
+      const stepImpact = sumImpact(result.findings);
       onStep?.(heuristic.id, stepImpact);
     } catch {
       // A single heuristic failure should not crash the entire analysis
@@ -197,7 +197,7 @@ export async function analyzeAddress(
       const result = heuristic.fn(address, utxos, txs);
       allFindings.push(...result.findings);
 
-      const stepImpact = result.findings.reduce((s, f) => s + f.scoreImpact, 0);
+      const stepImpact = sumImpact(result.findings);
       onStep?.(heuristic.id, stepImpact);
     } catch {
       onStep?.(heuristic.id, 0);

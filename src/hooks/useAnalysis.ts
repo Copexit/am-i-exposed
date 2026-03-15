@@ -291,10 +291,7 @@ export function useAnalysis() {
           const { backwardLayers, forwardLayers, backwardFailed, forwardFailed } = await runChainTrace({
             tx,
             settings: analysisSettings,
-            api: {
-              getTransaction: (txid) => api.getTransaction(txid),
-              getTxOutspends: (txid) => api.getTxOutspends(txid),
-            },
+            api,
             controller,
             setState,
             onStep,

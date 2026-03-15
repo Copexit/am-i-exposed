@@ -5,6 +5,8 @@
  * actionable guidance instead of generic "connection failed".
  */
 
+import { isLocalApi } from "./client";
+
 interface UrlDiagnostic {
   /** HTTPS page trying to fetch from HTTP non-localhost URL */
   isMixedContent: boolean;
@@ -18,19 +20,8 @@ interface UrlDiagnostic {
   hint: string | null;
 }
 
-const PRIVATE_IP_RE =
-  /^(10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})$/;
-
 function isLocalhostHost(hostname: string): boolean {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
-}
-
-function isLocalNetworkHost(hostname: string): boolean {
-  return (
-    isLocalhostHost(hostname) ||
-    hostname.endsWith(".local") ||
-    PRIVATE_IP_RE.test(hostname)
-  );
 }
 
 export function diagnoseUrl(url: string): UrlDiagnostic {
@@ -55,7 +46,8 @@ export function diagnoseUrl(url: string): UrlDiagnostic {
     typeof window !== "undefined" && window.location.protocol === "https:";
 
   result.isOnion = hostname.endsWith(".onion");
-  result.isLocal = isLocalNetworkHost(hostname);
+  // Use the shared isLocalApi check but exclude .onion (tracked separately)
+  result.isLocal = !result.isOnion && isLocalApi(url);
 
   // Check if URL path ends with /api (required for mempool API calls)
   const pathname = parsed.pathname.replace(/\/+$/, "");

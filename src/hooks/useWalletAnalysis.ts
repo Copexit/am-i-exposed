@@ -3,8 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
-import { createApiClient } from "@/lib/api/client";
-import { isLocalInstance } from "@/lib/api/queue";
+import { createApiClient, isLocalApi } from "@/lib/api/client";
 import { getAnalysisSettings } from "@/hooks/useAnalysisSettings";
 import {
   parseXpub,
@@ -262,7 +261,7 @@ export function useWalletAnalysis() {
         // unused addresses per chain. Hosted API: sequential with rate limiting.
         // Local/Umbrel/custom: no delays.
         const api = createApiClient(config, controller.signal);
-        const localApi = isLocalInstance(config.mempoolBaseUrl);
+        const localApi = isLocalApi(config.mempoolBaseUrl);
         const { walletGapLimit = DEFAULT_GAP_LIMIT, minSats = 5000 } = getAnalysisSettings();
         const allInfos: WalletAddressInfo[] = [];
         let fetched = 0;
