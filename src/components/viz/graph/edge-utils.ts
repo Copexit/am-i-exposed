@@ -62,7 +62,6 @@ export function portAwareEdgePath(
     }
   }
 
-  const midX = (x1 + x2) / 2;
   const cpOffset = Math.max(Math.abs(x2 - x1) * 0.4, 40);
 
   if (edge.isBackward) {

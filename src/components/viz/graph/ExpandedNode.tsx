@@ -179,7 +179,7 @@ export function ExpandedNode({
   graphNodes,
   outspends,
   heatScore,
-  isHovered,
+  isHovered: _isHovered,
   isLoading,
   hoveredPort,
   onHoverPort,

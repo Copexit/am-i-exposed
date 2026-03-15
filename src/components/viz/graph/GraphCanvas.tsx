@@ -3,19 +3,19 @@
 import { useMemo, useRef, useEffect, useState, useCallback } from "react";
 import { motion } from "motion/react";
 import { Text } from "@visx/text";
-import { SVG_COLORS, GRADE_HEX_SVG } from "../shared/svgConstants";
+import { SVG_COLORS } from "../shared/svgConstants";
 import { probColor } from "../shared/linkabilityColors";
 import { ChartDefs } from "../shared/ChartDefs";
 import { formatSats } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
-import { NODE_W, NODE_H, SCROLL_MARGIN_X, SCROLL_MARGIN_Y, MIN_ZOOM, MAX_ZOOM, ENTITY_CATEGORY_COLORS } from "./constants";
+import { NODE_H, SCROLL_MARGIN_X, SCROLL_MARGIN_Y, MIN_ZOOM, MAX_ZOOM, ENTITY_CATEGORY_COLORS } from "./constants";
 import { layoutGraph, getNodeColor } from "./layout";
 import { edgePath, getEdgeMaxProb, portAwareEdgePath } from "./edge-utils";
+import { getScriptTypeColor, getScriptTypeDash, getEdgeThickness, isTimestampLocktime, getLockTimeRx, hexagonPoints, getVersionFill } from "./scriptStyles";
 import { buildPortPositionMap } from "./portLayout";
 import { GraphMinimap } from "./GraphMinimap";
 import { ExpandedNode } from "./ExpandedNode";
-import type { GraphCanvasProps, LayoutNode, ViewTransform } from "./types";
-import type { ScoringResult } from "@/lib/types";
+import type { GraphCanvasProps, LayoutNode } from "./types";
 
 export function GraphCanvas({
   nodes,
@@ -45,6 +45,7 @@ export function GraphCanvas({
   viewTransform,
   onViewTransformChange,
   linkabilityEdgeMode,
+  fingerprintMode,
   rootBoltzmannResult,
   expandedNodeTxid,
   onToggleExpand,
@@ -82,6 +83,25 @@ export function GraphCanvas({
     () => buildPortPositionMap(expandedNodeTxid ?? null, nodes, nodePositions),
     [expandedNodeTxid, nodes, nodePositions],
   );
+
+  // Compute max edge value for thickness scaling and resolve script types per edge
+  const { maxEdgeValue, edgeScriptInfo } = useMemo(() => {
+    let maxVal = 0;
+    const info = new Map<string, { scriptType: string; value: number }>();
+    for (const edge of edges) {
+      const sourceNode = nodes.get(edge.fromTxid);
+      if (!sourceNode || !edge.outputIndices?.length) continue;
+      const outIdx = edge.outputIndices[0];
+      const vout = sourceNode.tx.vout[outIdx];
+      if (vout) {
+        const val = vout.value;
+        if (val > maxVal) maxVal = val;
+        const key = `e-${edge.fromTxid}-${edge.toTxid}`;
+        info.set(key, { scriptType: vout.scriptpubkey_type, value: val });
+      }
+    }
+    return { maxEdgeValue: maxVal, edgeScriptInfo: info };
+  }, [edges, nodes]);
 
   const svgWidth = Math.max(containerWidth, width);
   const svgHeight = Math.max(isFullscreen ? (containerHeight ?? height) : height, 150);
@@ -471,9 +491,16 @@ export function GraphCanvas({
             }
           }
 
-          const strokeColor = linkabilityColor ?? (isConsolidation ? SVG_COLORS.critical : SVG_COLORS.muted);
-          let strokeOpacity = linkabilityColor ? (0.3 + linkabilityMaxProb * 0.7) : (isConsolidation ? 0.6 : 0.35);
-          let strokeWidth = linkabilityColor ? 2.5 : (isConsolidation ? 2.5 : 1.5);
+          // Script type encoding: color, dash, and thickness from UTXO data
+          const scriptInfo = edgeScriptInfo.get(edgeKey);
+          const scriptColor = scriptInfo ? getScriptTypeColor(scriptInfo.scriptType) : null;
+          const scriptDash = scriptInfo ? getScriptTypeDash(scriptInfo.scriptType) : undefined;
+          const scriptThickness = scriptInfo ? getEdgeThickness(scriptInfo.value, maxEdgeValue) : undefined;
+
+          const strokeColor = linkabilityColor
+            ?? (isConsolidation ? SVG_COLORS.critical : (scriptColor ?? SVG_COLORS.muted));
+          let strokeOpacity = linkabilityColor ? (0.3 + linkabilityMaxProb * 0.7) : (isConsolidation ? 0.6 : (scriptColor ? 0.55 : 0.35));
+          let strokeWidth = linkabilityColor ? 2.5 : (isConsolidation ? 2.5 : (scriptThickness ?? 1.5));
 
           if (isHovered && !linkabilityColor) {
             strokeOpacity = isConsolidation ? 0.9 : 0.7;
@@ -525,7 +552,7 @@ export function GraphCanvas({
                 stroke={strokeColor}
                 strokeWidth={strokeWidth}
                 strokeOpacity={strokeOpacity}
-                strokeDasharray={edge.isBackward ? "6 4" : undefined}
+                strokeDasharray={edge.isBackward ? "6 4" : (scriptDash ?? undefined)}
                 markerEnd={markerEnd}
                 markerStart={markerStart}
                 initial={{ pathLength: 0 }}
@@ -654,19 +681,35 @@ export function GraphCanvas({
               }}
             >
               {/* Node background */}
-              <rect
-                x={node.x}
-                y={node.y}
-                width={node.width}
-                height={node.height}
-                rx={8}
-                fill={heatMapActive && heatScore !== undefined ? `${color}20` : SVG_COLORS.surfaceElevated}
-                stroke={color}
-                strokeWidth={isHovered ? 2.5 : (node.isRoot ? 2.5 : 1.5)}
-                strokeOpacity={isHovered || node.isRoot ? 1 : 0.6}
-                filter={node.isRoot ? "url(#glow-medium)" : (isHovered ? "url(#glow-subtle)" : undefined)}
-                onClick={() => handleNodeClick(node, selectedNode?.txid ?? null)}
-              />
+              {fingerprintMode && isTimestampLocktime(node.tx.locktime) ? (
+                <polygon
+                  points={hexagonPoints(node.x, node.y, node.width, node.height)}
+                  fill={getVersionFill(node.tx.version)}
+                  stroke={color}
+                  strokeWidth={isHovered ? 2.5 : (node.isRoot ? 2.5 : 1.5)}
+                  strokeOpacity={isHovered || node.isRoot ? 1 : 0.6}
+                  filter={node.isRoot ? "url(#glow-medium)" : (isHovered ? "url(#glow-subtle)" : undefined)}
+                  onClick={() => handleNodeClick(node, selectedNode?.txid ?? null)}
+                />
+              ) : (
+                <rect
+                  x={node.x}
+                  y={node.y}
+                  width={node.width}
+                  height={node.height}
+                  rx={fingerprintMode ? getLockTimeRx(node.tx.locktime) : 8}
+                  fill={
+                    fingerprintMode ? getVersionFill(node.tx.version) :
+                    heatMapActive && heatScore !== undefined ? `${color}20` :
+                    SVG_COLORS.surfaceElevated
+                  }
+                  stroke={color}
+                  strokeWidth={isHovered ? 2.5 : (node.isRoot ? 2.5 : 1.5)}
+                  strokeOpacity={isHovered || node.isRoot ? 1 : 0.6}
+                  filter={node.isRoot ? "url(#glow-medium)" : (isHovered ? "url(#glow-subtle)" : undefined)}
+                  onClick={() => handleNodeClick(node, selectedNode?.txid ?? null)}
+                />
+              )}
 
               {/* Focused node indicator (dashed animated outline) */}
               {isFocused && (

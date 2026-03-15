@@ -104,7 +104,6 @@ export function layoutGraph(
   for (const depth of depths) {
     const group = depthGroups.get(depth)!;
     const x = colX.get(depth)!;
-    const colW = colWidths.get(depth)!;
     let yOffset = MARGIN.top;
 
     group.forEach((node) => {

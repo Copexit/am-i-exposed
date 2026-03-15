@@ -152,6 +152,8 @@ export interface GraphCanvasProps extends GraphExplorerProps {
   viewTransform?: ViewTransform;
   onViewTransformChange?: (vt: ViewTransform) => void;
   linkabilityEdgeMode?: boolean;
+  /** Fingerprint mode: encode locktime (node shape) and version (node fill). */
+  fingerprintMode?: boolean;
 }
 
 export interface MinimapProps {

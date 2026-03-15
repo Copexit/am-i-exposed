@@ -16,7 +16,8 @@ import { ENTITY_CATEGORY_COLORS, MAX_ZOOM, MIN_ZOOM } from "./graph/constants";
 import { layoutGraph } from "./graph/layout";
 import { computeFitTransform } from "./graph/edge-utils";
 import { GraphCanvas } from "./graph/GraphCanvas";
-import { ExpandIcon, CloseIcon, HeatIcon, GraphIcon } from "./graph/icons";
+import { ExpandIcon, CloseIcon, HeatIcon, FingerprintIcon, GraphIcon } from "./graph/icons";
+import { SCRIPT_TYPE_LEGEND } from "./graph/scriptStyles";
 import type { GraphExplorerProps, TooltipData, NodeFilter, ViewTransform } from "./graph/types";
 import type { ScoringResult } from "@/lib/types";
 
@@ -63,6 +64,9 @@ export function GraphExplorer(props: GraphExplorerProps) {
   const [heatMapActive, setHeatMapActive] = useState(false);
   const [heatMap, setHeatMap] = useState<Map<string, ScoringResult>>(new Map());
   const [heatProgress, setHeatProgress] = useState(0);
+
+  // Fingerprint mode (mutually exclusive with heat map)
+  const [fingerprintMode, setFingerprintMode] = useState(false);
 
   // Zoom toward center helper
   const zoomBy = useCallback((factor: number) => {
@@ -139,7 +143,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
       <div className="flex items-center gap-1.5 shrink-0">
         {/* Heat map toggle */}
         <button
-          onClick={() => setHeatMapActive(!heatMapActive)}
+          onClick={() => { setHeatMapActive(!heatMapActive); if (!heatMapActive) setFingerprintMode(false); }}
           className={`text-xs transition-colors px-2 py-1 rounded border cursor-pointer ${
             heatMapActive
               ? "text-bitcoin border-bitcoin/30 bg-bitcoin/10"
@@ -154,6 +158,22 @@ export function GraphExplorer(props: GraphExplorerProps) {
                 ? `${heatProgress}%`
                 : t("graphExplorer.heatMap", { defaultValue: "Heat Map" })}
             </span>
+          </span>
+        </button>
+
+        {/* Fingerprint mode toggle */}
+        <button
+          onClick={() => { setFingerprintMode(!fingerprintMode); if (!fingerprintMode) setHeatMapActive(false); }}
+          className={`text-xs transition-colors px-2 py-1 rounded border cursor-pointer ${
+            fingerprintMode
+              ? "text-purple-400 border-purple-400/30 bg-purple-400/10"
+              : "text-white/50 hover:text-white/80 border-white/10"
+          }`}
+          title="Fingerprint mode - encode locktime, version, and script types"
+        >
+          <span className="flex items-center gap-1">
+            <FingerprintIcon />
+            <span className="hidden sm:inline">Fingerprint</span>
           </span>
         </button>
 
@@ -281,6 +301,40 @@ export function GraphExplorer(props: GraphExplorerProps) {
         <span className="inline-block w-4 h-0.5 rounded" style={{ background: SVG_COLORS.critical, opacity: 0.7 }} />
         <span className="text-white/40">{t("graphExplorer.legendConsolidation", { defaultValue: "Consolidation" })}</span>
       </span>
+      {/* Script type edge colors (always shown - they're always active) */}
+      <span className="text-white/20">|</span>
+      {SCRIPT_TYPE_LEGEND.map((s) => (
+        <span key={s.type} className="flex items-center gap-1">
+          <span className="inline-block w-4 h-0.5 rounded" style={{
+            background: s.color,
+            opacity: 0.8,
+            ...(s.dash ? { borderBottom: `1.5px dashed ${s.color}`, background: "transparent" } : {}),
+          }} />
+          <span className="text-white/30">{s.label}</span>
+        </span>
+      ))}
+      {/* Fingerprint mode legend */}
+      {fingerprintMode && (
+        <>
+          <span className="text-white/20">|</span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: "#2a2a2e", border: "1px solid rgba(255,255,255,0.2)" }} />
+            <span className="text-white/30">v1</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: "#4a4a52", border: "1px solid rgba(255,255,255,0.2)" }} />
+            <span className="text-white/30">v2</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-2.5 h-2.5" style={{ background: "#4a4a52", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 0 }} />
+            <span className="text-white/30">block-ht lock</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-2.5 h-2.5" style={{ background: "#4a4a52", border: "1px solid rgba(255,255,255,0.2)", clipPath: "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)" }} />
+            <span className="text-white/30">timestamp lock</span>
+          </span>
+        </>
+      )}
     </div>
   );
 
@@ -300,6 +354,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
     heatMap,
     heatMapActive,
     linkabilityEdgeMode,
+    fingerprintMode,
   };
 
   const fullscreenCanvasProps = {
