@@ -871,9 +871,9 @@ export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspend
   return (
     <>
       <div className="w-full glass rounded-xl p-4 sm:p-6 space-y-3">
-        <div className="flex items-center justify-between text-sm text-muted uppercase tracking-wider">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm text-muted uppercase tracking-wider">
           <span>{t("tx.inputCount", { count: tx.vin.length, defaultValue: `${tx.vin.length} inputs` })}</span>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 order-last sm:order-none w-full sm:w-auto justify-center">
             {hasLinkability && (
               <button
                 onClick={() => setLinkabilityMode(prev => !prev)}

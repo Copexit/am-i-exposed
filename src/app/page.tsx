@@ -388,7 +388,7 @@ export default function Home() {
               : "";
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center px-3 sm:px-4 py-4 sm:py-6">
+    <div className="flex-1 flex flex-col items-center justify-center px-3 sm:px-4 xl:px-8 2xl:px-10 py-4 sm:py-6">
       <div className="sr-only" role="status" aria-live="polite">{ariaStatus}</div>
       <AnimatePresence mode="wait">
         {phase === "idle" && !pendingHash && !walletActive && (
