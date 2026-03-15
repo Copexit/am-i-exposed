@@ -381,31 +381,20 @@ export const ResultsPanel = memo(function ResultsPanel({
       id="results-panel"
       className="flex flex-col items-center gap-5 sm:gap-6 w-full max-w-3xl lg:max-w-5xl xl:max-w-7xl 2xl:max-w-[1800px]"
     >
-      {/* ZONE 1: Inline Search */}
-      {onScan && <div className="w-full"><InlineSearchBar onScan={onScan} initialValue={query} /></div>}
-
-      {/* ZONE 2: Hero Score (compact) */}
-      <GlowCard className="w-full p-4 sm:p-5 space-y-4">
-        {/* Header row: back button, tx type, actions */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <button onClick={onBack} className={ACTION_BTN_CLASS}>
-            <ArrowLeft size={16} />
-            {t("results.newScan", { defaultValue: "New scan" })}
-          </button>
-          {inputType === "txid" && result.txType && result.txType !== "simple-payment" && result.txType !== "unknown" && (
-            <span className="text-xs font-medium px-1.5 py-0.5 rounded border border-card-border bg-surface-elevated text-muted">
-              {TX_TYPE_LABELS[result.txType] ?? result.txType.replace(/-/g, " ")}
-            </span>
-          )}
-          {inputType === "address" && <AddressTypeBadge address={query} />}
-          <div className="flex-1" />
+      {/* ZONE 1: Search bar + action buttons (shared row on desktop) */}
+      <div className="w-full flex flex-col xl:flex-row xl:items-center gap-3">
+        {onScan && <div className="w-full xl:flex-1 xl:min-w-0"><InlineSearchBar onScan={onScan} initialValue={query} /></div>}
+        <div className="flex items-center gap-2 flex-wrap xl:shrink-0">
           <BookmarkButton query={query} inputType={inputType} grade={result.grade} score={result.score} />
           <ExportButton targetId="results-panel" query={query} result={result} inputType={inputType} />
           <ShareCardButton grade={result.grade} score={result.score} query={query} inputType={inputType} findingCount={result.findings.length} />
           <ShareButtons grade={result.grade} score={result.score} query={query} inputType={inputType} findingCount={result.findings.length} />
         </div>
+      </div>
 
-        {/* Txid/address + metadata */}
+      {/* ZONE 2: Hero info card */}
+      <GlowCard className="w-full p-4 sm:p-5 space-y-4">
+        {/* Txid/address + metadata + badges */}
         <div className="space-y-1">
           <button
             onClick={() => {
@@ -425,37 +414,35 @@ export const ResultsPanel = memo(function ResultsPanel({
               <Copy size={14} className="shrink-0 mt-1 text-muted opacity-0 group-hover/copy:opacity-100 transition-opacity" />
             )}
           </button>
-          {/* Block height + confirmation timestamp (Issue #1) */}
-          {inputType === "txid" && txData?.status?.confirmed && txData.status.block_height != null && (
-            <p className="text-xs text-muted flex items-center gap-2 flex-wrap">
-              <span>
-                {t("results.blockHeight", {
-                  height: txData.status.block_height.toLocaleString(),
-                  defaultValue: "Block #{{height}}",
-                })}
+          <div className="flex items-center gap-2 flex-wrap">
+            {inputType === "txid" && result.txType && result.txType !== "simple-payment" && result.txType !== "unknown" && (
+              <span className="text-xs font-medium px-1.5 py-0.5 rounded border border-card-border bg-surface-elevated text-muted">
+                {TX_TYPE_LABELS[result.txType] ?? result.txType.replace(/-/g, " ")}
               </span>
-              {txData.status.block_time != null && (
-                <>
-                  <span className="text-foreground/20">|</span>
-                  <span>{new Date(txData.status.block_time * 1000).toLocaleString()}</span>
-                </>
-              )}
-            </p>
-          )}
-          {inputType === "txid" && txData && !txData.status?.confirmed && (
-            <p className="text-xs text-severity-medium">{t("results.unconfirmed", { defaultValue: "Unconfirmed (mempool)" })}</p>
-          )}
-        </div>
-
-        {/* Score display */}
-        <div className="border-t border-card-border pt-4">
-          <div className="flex items-center justify-center gap-6">
-            <ScoreDisplay score={result.score} grade={result.grade} findings={result.findings} />
-            {result.findings.length > 3 && (
-              <ChartErrorBoundary><Suspense fallback={null}><SeverityRing findings={result.findings} size={120} /></Suspense></ChartErrorBoundary>
+            )}
+            {inputType === "address" && <AddressTypeBadge address={query} />}
+            {inputType === "txid" && txData?.status?.confirmed && txData.status.block_height != null && (
+              <span className="text-xs text-muted flex items-center gap-2">
+                <span>
+                  {t("results.blockHeight", {
+                    height: txData.status.block_height.toLocaleString(),
+                    defaultValue: "Block #{{height}}",
+                  })}
+                </span>
+                {txData.status.block_time != null && (
+                  <>
+                    <span className="text-foreground/20">|</span>
+                    <span>{new Date(txData.status.block_time * 1000).toLocaleString()}</span>
+                  </>
+                )}
+              </span>
+            )}
+            {inputType === "txid" && txData && !txData.status?.confirmed && (
+              <span className="text-xs text-severity-medium">{t("results.unconfirmed", { defaultValue: "Unconfirmed (mempool)" })}</span>
             )}
           </div>
         </div>
+
       </GlowCard>
 
       {/* ZONE 3: Alerts + Context */}
@@ -544,7 +531,7 @@ export const ResultsPanel = memo(function ResultsPanel({
         </motion.div>
       )}
 
-      {/* ZONE 6: Issues (critical + high findings) */}
+      {/* Findings */}
       {issues.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }} className="w-full space-y-4">
           <div className="flex items-center justify-between px-1">
@@ -568,31 +555,29 @@ export const ResultsPanel = memo(function ResultsPanel({
         </motion.div>
       )}
 
-      {/* ZONE 7: Additional findings (medium + low, collapsed) */}
       {details.length > 0 && (
         <FindingsTier
           findings={details}
           label={t("results.additionalFindings", { count: details.length, defaultValue: "Additional findings ({{count}})" })}
-          defaultOpen={issues.length === 0}
+          defaultOpen={false}
           grade={result.grade}
           delay={0.25}
           onTxClick={onScan}
         />
       )}
 
-      {/* ZONE 8: Privacy strengths (good findings, collapsed) */}
       {strengths.length > 0 && (
         <FindingsTier
           findings={strengths}
           label={t("results.privacyStrengths", { count: strengths.length, defaultValue: "Privacy strengths ({{count}})" })}
-          defaultOpen={issues.length === 0 && details.length === 0}
+          defaultOpen={false}
           grade={result.grade}
           delay={0.3}
           onTxClick={onScan}
         />
       )}
 
-      {/* ZONE 9: Score Waterfall (collapsed by default, right after findings) */}
+      {/* Score Waterfall (charts column) */}
       {result.findings.some((f) => f.scoreImpact !== 0) && (
         <ScoreWaterfallCollapsible
           findings={result.findings}
@@ -682,7 +667,17 @@ export const ResultsPanel = memo(function ResultsPanel({
       </div>{/* end main content column */}
 
       {/* -- SIDEBAR (second in DOM = right on desktop, bottom on mobile) -- */}
-      <div className="w-full xl:w-[320px] 2xl:w-[380px] xl:shrink-0 xl:sticky xl:top-24 xl:max-h-[calc(100vh-7rem)] xl:overflow-y-auto flex flex-col gap-5 sm:gap-6">
+      <div className="w-full xl:w-[380px] 2xl:w-[420px] xl:shrink-0 flex flex-col gap-5 sm:gap-6">
+
+      {/* Score display */}
+      <GlowCard className="w-full p-4 sm:p-5">
+        <div className="flex items-center justify-center gap-6">
+          <ScoreDisplay score={result.score} grade={result.grade} findings={result.findings} />
+          {result.findings.length > 3 && (
+            <ChartErrorBoundary><Suspense fallback={null}><SeverityRing findings={result.findings} size={120} /></Suspense></ChartErrorBoundary>
+          )}
+        </div>
+      </GlowCard>
 
       {/* ZONE 4: Recommendations */}
       <div className="w-full flex flex-col gap-3 sm:gap-4">
