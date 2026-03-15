@@ -48,11 +48,15 @@ export function analyzeForward(
       // Check if multiple CoinJoin outputs from this tx are consumed in the same child tx
       const sameParentInputs = childTx.vin.filter((vin) => vin.txid === tx.txid);
       if (sameParentInputs.length >= 2) {
-        consolidatedCoinJoinOutputs.push(outputIdx);
-        // Group by child tx for detailed reporting
-        const group = consolidationGroups.get(childTx.txid) ?? [];
-        group.push(outputIdx);
-        consolidationGroups.set(childTx.txid, group);
+        // If the child tx is itself a CoinJoin, this is a remix - not consolidation
+        const childIsCoinJoin = analyzeCoinJoin(childTx).findings.some(isCoinJoinFinding);
+        if (!childIsCoinJoin) {
+          consolidatedCoinJoinOutputs.push(outputIdx);
+          // Group by child tx for detailed reporting
+          const group = consolidationGroups.get(childTx.txid) ?? [];
+          group.push(outputIdx);
+          consolidationGroups.set(childTx.txid, group);
+        }
       }
     }
 

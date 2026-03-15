@@ -1,8 +1,30 @@
 "use client";
 
+import { Suspense, lazy } from "react";
 import Link from "next/link";
-import { ArrowLeft, Shield, Eye, Code, Globe, Zap } from "lucide-react";
+import {
+  ArrowLeft,
+  Shield,
+  Eye,
+  Code,
+  Globe,
+  Zap,
+  Search,
+  GitFork,
+  Database,
+  Cpu,
+  Wallet,
+  FileCheck,
+  BarChart3,
+  Languages,
+  Server,
+  BookOpen,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
+
+const TipJar = lazy(() =>
+  import("@/components/TipJar").then((m) => ({ default: m.TipJar }))
+);
 
 const PRINCIPLES = [
   { icon: Shield, titleKey: "about.principle_client_title", descKey: "about.principle_client_desc" },
@@ -25,12 +47,69 @@ const DEFAULTS: Record<string, string> = {
   "about.principle_v4v_desc": "If it provides value, send value back via Lightning. No pressure, no guilt, no accounts.",
 };
 
+const STATS = [
+  { value: "31", label: "Heuristics" },
+  { value: "14", label: "Chain modules" },
+  { value: "364", label: "Known entities" },
+  { value: "30M+", label: "Addresses indexed" },
+  { value: "844+", label: "Tests" },
+  { value: "5", label: "Languages" },
+];
+
+const CAPABILITIES = [
+  {
+    icon: Search,
+    title: "31 Privacy Heuristics",
+    desc: "Round amounts, change detection, CIOH, CoinJoin patterns (Whirlpool, WabiSabi, JoinMarket), wallet fingerprinting, script analysis, timing, and more.",
+  },
+  {
+    icon: GitFork,
+    title: "Multi-Hop Chain Tracing",
+    desc: "Backward and forward transaction tracing, entity proximity detection, taint analysis, UTXO clustering, peel chain tracing, and temporal pattern analysis.",
+  },
+  {
+    icon: Database,
+    title: "Entity Detection",
+    desc: "364 known entities across 30M+ addresses - exchanges, darknet markets, mixers, gambling, mining pools, scams, and payment services. OFAC-list coverage included.",
+  },
+  {
+    icon: Cpu,
+    title: "Boltzmann Entropy (WASM)",
+    desc: "Full link probability matrix computed on-device via Rust/WebAssembly. Real entropy calculation, not estimation - the same math OXT.me used, running locally using all threads, with turbo paths for JoinMarket and more.",
+  },
+  {
+    icon: Wallet,
+    title: "Wallet Audit",
+    desc: "Paste an xpub or output descriptor. BIP44/49/84/86 derivation. Aggregate privacy assessment across all derived addresses - reuse, UTXO hygiene, spending patterns.",
+  },
+  {
+    icon: FileCheck,
+    title: "PSBT Pre-Broadcast Check",
+    desc: "Analyze an unsigned transaction before signing. Catch round amounts, script mismatches, and fingerprinting issues while they can still be fixed.",
+  },
+  {
+    icon: BarChart3,
+    title: "Interactive Visualizations",
+    desc: "Transaction flow diagrams, Boltzmann heatmaps, interactive graph explorer, taint path diagrams, cluster timelines, CoinJoin structure breakdowns, and more.",
+  },
+  {
+    icon: Languages,
+    title: "5 Languages",
+    desc: "Full interface translation in English, Spanish, Portuguese, German, and French. Community contributions welcome.",
+  },
+  {
+    icon: Server,
+    title: "Self-Hostable",
+    desc: "Available as an Umbrel app connecting to your own Bitcoin node. Or point it at any custom mempool.space instance for zero third-party exposure.",
+  },
+];
+
 export default function AboutPage() {
   const { t } = useTranslation();
 
   return (
-    <div className="flex-1 flex flex-col items-center px-4 py-8">
-      <div className="w-full max-w-4xl space-y-10">
+    <div className="flex-1 flex flex-col items-center px-4 sm:px-6 lg:px-8 xl:px-10 py-8">
+      <div className="w-full max-w-7xl space-y-10">
         {/* Back nav */}
         <Link
           href="/"
@@ -45,7 +124,7 @@ export default function AboutPage() {
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
             {t("about.title", { defaultValue: "Why This Exists" })}
           </h1>
-          <p className="text-muted text-lg leading-relaxed max-w-2xl">
+          <p className="text-muted text-lg leading-relaxed max-w-3xl">
             {t("about.subtitle", { defaultValue: "The Bitcoin privacy tools the community relied on are gone. This is the replacement." })}
           </p>
         </div>
@@ -55,7 +134,7 @@ export default function AboutPage() {
           <h2 className="text-2xl font-semibold text-foreground">
             {t("about.story_heading", { defaultValue: "The Gap" })}
           </h2>
-          <div className="space-y-4 text-muted leading-relaxed">
+          <div className="space-y-4 text-muted leading-relaxed max-w-4xl">
             <p>
               {t("about.story_p1", { defaultValue: "In April 2024, OXT.me and KYCP.org went offline following the arrest of the Samourai Wallet developers. OXT was the gold standard for Boltzmann entropy analysis. KYCP made CoinJoin privacy assessment accessible to ordinary users. Both are gone." })}
             </p>
@@ -71,18 +150,42 @@ export default function AboutPage() {
           </div>
         </section>
 
+        {/* By the numbers */}
+        <section>
+          <div className="flex flex-wrap gap-3">
+            {STATS.map((s) => (
+              <div
+                key={s.label}
+                className="flex items-baseline gap-2 rounded-lg border border-card-border bg-surface-elevated/50 px-4 py-2.5"
+              >
+                <span className="text-xl font-bold text-bitcoin">{s.value}</span>
+                <span className="text-sm text-muted">{s.label}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* What it does */}
-        <section className="space-y-4">
+        <section className="space-y-6">
           <h2 className="text-2xl font-semibold text-foreground">
             {t("about.what_heading", { defaultValue: "What It Does" })}
           </h2>
-          <div className="space-y-4 text-muted leading-relaxed">
-            <p>
-              {t("about.what_p1", { defaultValue: "Paste any Bitcoin address or transaction ID. The tool runs 30 heuristics against it - the same techniques chain analysis firms use - and shows you exactly what they can infer." })}
-            </p>
-            <p>
-              {t("about.what_p2", { defaultValue: "You get a privacy score from 0 to 100, a letter grade, and specific findings with actionable recommendations. Not just 'your privacy is bad' but 'here is why, and here is what to do about it.'" })}
-            </p>
+          <p className="text-muted leading-relaxed max-w-4xl">
+            {t("about.what_intro", { defaultValue: "Paste any Bitcoin address, transaction ID, xpub/descriptor, or unsigned PSBT. The tool runs the same techniques chain analysis firms use and shows you exactly what they can infer - with a privacy score from 0 to 100, detailed findings, and actionable recommendations." })}
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {CAPABILITIES.map((c) => (
+              <div
+                key={c.title}
+                className="rounded-xl border border-card-border bg-surface-elevated/50 p-5 space-y-2"
+              >
+                <div className="flex items-center gap-2">
+                  <c.icon size={18} className="text-bitcoin shrink-0" />
+                  <h3 className="font-medium text-foreground">{c.title}</h3>
+                </div>
+                <p className="text-sm text-muted leading-relaxed">{c.desc}</p>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -91,7 +194,7 @@ export default function AboutPage() {
           <h2 className="text-2xl font-semibold text-foreground">
             {t("about.principles_heading", { defaultValue: "Design Principles" })}
           </h2>
-          <div className="grid gap-4 sm:grid-cols-2 [&>*:last-child:nth-child(odd)]:sm:col-span-2">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 [&>*:last-child:nth-child(3n+1)]:lg:col-span-3 [&>*:last-child:nth-child(odd)]:sm:max-lg:col-span-2">
             {PRINCIPLES.map((p) => (
               <div
                 key={p.titleKey}
@@ -111,12 +214,21 @@ export default function AboutPage() {
           </div>
         </section>
 
+        {/* Tip jar */}
+        <section className="flex justify-center">
+          <div className="w-full max-w-xl">
+            <Suspense fallback={null}>
+              <TipJar />
+            </Suspense>
+          </div>
+        </section>
+
         {/* Built by */}
         <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-foreground">
             {t("about.built_heading", { defaultValue: "Built By" })}
           </h2>
-          <p className="text-muted leading-relaxed">
+          <p className="text-muted leading-relaxed max-w-4xl">
             {t("about.built_p1", { defaultValue: "am-i.exposed is built and maintained by Copexit and Arkad (@multicripto). Privacy is a right, not a feature. This project has no VC funding, no token, and no business model beyond Value for Value." })}
           </p>
         </section>
@@ -146,6 +258,13 @@ export default function AboutPage() {
               >
                 <Shield size={16} />
                 {t("about.methodology_link", { defaultValue: "Read the Methodology" })}
+              </Link>
+              <Link
+                href="/guide"
+                className="inline-flex items-center gap-1.5 text-sm px-4 py-2.5 rounded-lg bg-surface-elevated border border-card-border text-foreground hover:border-bitcoin/30 transition-all"
+              >
+                <BookOpen size={16} />
+                {t("about.guide_link", { defaultValue: "Privacy Guide" })}
               </Link>
             </div>
           </div>

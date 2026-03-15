@@ -45,6 +45,40 @@ describe("analyzeForward", () => {
     expect(f.scoreImpact).toBe(-15);
   });
 
+  it("suppresses consolidation when child tx is a CoinJoin (remix)", () => {
+    const txid = "a".repeat(64);
+    const denom = WHIRLPOOL_DENOMS[0];
+
+    // Parent is a CoinJoin (5 equal outputs)
+    const coinJoinTx = makeTx({
+      txid,
+      vin: Array.from({ length: 5 }, () => makeVin()),
+      vout: Array.from({ length: 5 }, () => makeVout({ value: denom })),
+    });
+
+    // Child tx is ALSO a CoinJoin (Whirlpool remix: 5 equal outputs at same denom)
+    const childTx = makeTx({
+      vin: [
+        makeVin({ txid, vout: 0 }),
+        makeVin({ txid, vout: 1 }),
+        makeVin(),
+        makeVin(),
+        makeVin(),
+      ],
+      vout: Array.from({ length: 5 }, () => makeVout({ value: denom })),
+    });
+
+    const outspends = Array.from({ length: 5 }, (_, i) =>
+      makeOutspend({ spent: i < 2, txid: childTx.txid, vin: i }),
+    );
+
+    const childTxs = new Map([[0, childTx]]);
+    const { findings, consolidatedCoinJoinOutputs } = analyzeForward(coinJoinTx, outspends, childTxs);
+
+    expect(consolidatedCoinJoinOutputs).toHaveLength(0);
+    expect(findings.some((f) => f.id === "chain-post-coinjoin-consolidation")).toBe(false);
+  });
+
   it("detects forward peel chain", () => {
     const txid = "b".repeat(64);
     const tx = makeTx({
