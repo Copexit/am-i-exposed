@@ -88,7 +88,8 @@ export function GraphExplorer(props: GraphExplorerProps) {
   // ─── Boltzmann cache (on-demand computation for any node) ──────
   const boltzmannCacheRef = useRef<Map<string, BoltzmannWorkerResult>>(new Map());
   const [boltzmannVersion, setBoltzmannVersion] = useState(0);
-  const [computingBoltzmann, setComputingBoltzmann] = useState<Set<string>>(new Set());
+  const computingBoltzmannRef = useRef<Set<string>>(new Set());
+  const [computingBoltzmannVersion, setComputingBoltzmannVersion] = useState(0);
   const [boltzmannProgressMap, setBoltzmannProgressMap] = useState<Map<string, number>>(new Map());
 
   // Seed cache with root Boltzmann result if available
@@ -141,7 +142,8 @@ export function GraphExplorer(props: GraphExplorerProps) {
     // Too large for WASM
     if (inputValues.length + outputValues.length > 80) return;
 
-    setComputingBoltzmann((prev) => new Set(prev).add(txid));
+    computingBoltzmannRef.current.add(txid);
+    setComputingBoltzmannVersion((v) => v + 1);
     try {
       const result = await computeBoltzmann(tx, {
         onProgress: (p: BoltzmannProgress) => {
@@ -153,7 +155,8 @@ export function GraphExplorer(props: GraphExplorerProps) {
         setBoltzmannVersion((v) => v + 1);
       }
     } catch { /* computation failed - not critical */ }
-    setComputingBoltzmann((prev) => { const next = new Set(prev); next.delete(txid); return next; });
+    computingBoltzmannRef.current.delete(txid);
+    setComputingBoltzmannVersion((v) => v + 1);
     setBoltzmannProgressMap((prev) => { const next = new Map(prev); next.delete(txid); return next; });
   }, [props.nodes, buildSyntheticResult]);
 
@@ -179,7 +182,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
       for (const [txid, node] of props.nodes) {
         if (cancelled) break;
         if (boltzmannCacheRef.current.has(txid)) continue;
-        if (computingBoltzmann.has(txid)) continue;
+        if (computingBoltzmannRef.current.has(txid)) continue;
 
         const tx = node.tx;
         if (tx.vin.some((v) => v.is_coinbase)) continue;
@@ -198,7 +201,9 @@ export function GraphExplorer(props: GraphExplorerProps) {
     })();
 
     return () => { cancelled = true; };
-  }, [props.nodes, triggerBoltzmann, computingBoltzmann, buildSyntheticResult]);
+    // Only re-run when graph nodes change (not when computing state changes)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.nodes, buildSyntheticResult]);
 
   /** Get Boltzmann result for a txid (from cache or root result). */
   const getBoltzmannResult = useCallback((txid: string): BoltzmannWorkerResult | undefined => {
@@ -641,7 +646,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
                   changeOutputs={changeOutputs}
                   onToggleChange={toggleChange}
                   boltzmannResult={props.expandedNodeTxid ? getBoltzmannResult(props.expandedNodeTxid) : undefined}
-                  computingBoltzmann={props.expandedNodeTxid ? computingBoltzmann.has(props.expandedNodeTxid) : false}
+                  computingBoltzmann={props.expandedNodeTxid ? computingBoltzmannRef.current.has(props.expandedNodeTxid) : false}
                   boltzmannProgress={props.expandedNodeTxid ? boltzmannProgressMap.get(props.expandedNodeTxid) : undefined}
                   onComputeBoltzmann={props.expandedNodeTxid ? () => triggerBoltzmann(props.expandedNodeTxid!) : undefined}
                 />
@@ -822,7 +827,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
                   changeOutputs={changeOutputs}
                   onToggleChange={toggleChange}
                   boltzmannResult={props.expandedNodeTxid ? getBoltzmannResult(props.expandedNodeTxid) : undefined}
-                  computingBoltzmann={props.expandedNodeTxid ? computingBoltzmann.has(props.expandedNodeTxid) : false}
+                  computingBoltzmann={props.expandedNodeTxid ? computingBoltzmannRef.current.has(props.expandedNodeTxid) : false}
                   boltzmannProgress={props.expandedNodeTxid ? boltzmannProgressMap.get(props.expandedNodeTxid) : undefined}
                   onComputeBoltzmann={props.expandedNodeTxid ? () => triggerBoltzmann(props.expandedNodeTxid!) : undefined}
                 />
