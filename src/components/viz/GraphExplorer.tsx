@@ -60,9 +60,20 @@ export function GraphExplorer(props: GraphExplorerProps) {
   }, []);
   const { isExpanded, expand: expandFullscreen, collapse: collapseFullscreen } = useFullscreen(handleFullscreenExit);
 
-  // Linkability edge mode
-  const [linkabilityEdgeMode, setLinkabilityEdgeMode] = useState(false);
+  // Edge coloring mode: mutually exclusive. Only one active at a time.
+  type EdgeMode = "default" | "linkability" | "entropy";
+  const [edgeMode, setEdgeMode] = useState<EdgeMode>("default");
   const hasLinkability = !!props.rootBoltzmannResult;
+  const linkabilityEdgeMode = edgeMode === "linkability";
+  const entropyGradientMode = edgeMode === "entropy";
+
+  const cycleEdgeMode = useCallback(() => {
+    setEdgeMode((prev) => {
+      if (prev === "default") return hasLinkability ? "linkability" : "entropy";
+      if (prev === "linkability") return "entropy";
+      return "default";
+    });
+  }, [hasLinkability]);
 
   // Heat map state
   const [heatMapActive, setHeatMapActive] = useState(false);
@@ -71,7 +82,6 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
   // Fingerprint mode (mutually exclusive with heat map)
   const [fingerprintMode, setFingerprintMode] = useState(false);
-  const [entropyGradientMode, setEntropyGradientMode] = useState(false);
 
   // Change marking state - auto-populated from heuristics, user can toggle
   const [changeOutputs, setChangeOutputs] = useState<Set<string>>(new Set());
@@ -401,39 +411,33 @@ export function GraphExplorer(props: GraphExplorerProps) {
           </span>
         </button>
 
-        {/* Entropy gradient toggle */}
+        {/* Edge mode selector: cycles default -> linkability -> entropy -> default */}
         <button
-          onClick={() => setEntropyGradientMode(!entropyGradientMode)}
+          onClick={cycleEdgeMode}
           className={`text-xs transition-colors px-2 py-1 rounded border cursor-pointer ${
-            entropyGradientMode
-              ? "text-green-400 border-green-400/30 bg-green-400/10"
-              : "text-white/50 hover:text-white/80 border-white/10"
+            edgeMode === "linkability"
+              ? "text-bitcoin border-bitcoin/30 bg-bitcoin/10"
+              : edgeMode === "entropy"
+                ? "text-green-400 border-green-400/30 bg-green-400/10"
+                : "text-white/50 hover:text-white/80 border-white/10"
           }`}
-          title="Entropy gradient - color edges by effective privacy (bottleneck entropy across hops)"
+          title={edgeMode === "default"
+            ? "Edge colors: script type (click to cycle)"
+            : edgeMode === "linkability"
+              ? "Edge colors: linkability (click to cycle)"
+              : "Edge colors: entropy gradient (click to cycle)"}
         >
           <span className="flex items-center gap-1">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M2 20h20" /><path d="M5 20V10" /><path d="M9 20V4" /><path d="M13 20v-8" /><path d="M17 20v-4" /><path d="M21 20v-2" /></svg>
-            <span className="hidden sm:inline">Entropy</span>
+            {edgeMode === "entropy" ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M2 20h20" /><path d="M5 20V10" /><path d="M9 20V4" /><path d="M13 20v-8" /><path d="M17 20v-4" /><path d="M21 20v-2" /></svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+            )}
+            <span className="hidden sm:inline">
+              {edgeMode === "default" ? "Edges" : edgeMode === "linkability" ? "Linkability" : "Entropy"}
+            </span>
           </span>
         </button>
-
-        {/* Linkability edge mode toggle */}
-        {hasLinkability && (
-          <button
-            onClick={() => setLinkabilityEdgeMode(!linkabilityEdgeMode)}
-            className={`text-xs transition-colors px-2 py-1 rounded border cursor-pointer ${
-              linkabilityEdgeMode
-                ? "text-bitcoin border-bitcoin/30 bg-bitcoin/10"
-                : "text-white/50 hover:text-white/80 border-white/10"
-            }`}
-            title={t("graphExplorer.linkability", { defaultValue: "Color edges by linkability" })}
-          >
-            <span className="flex items-center gap-1">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
-              <span className="hidden sm:inline">{t("graphExplorer.linkability", { defaultValue: "Linkability" })}</span>
-            </span>
-          </button>
-        )}
 
         {/* Undo */}
         <button
@@ -487,8 +491,11 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
   // ─── Legend (clickable filters) ────────────────────────
 
+  const [showEdgeLegend, setShowEdgeLegend] = useState(false);
+
   const legend = (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/40">
+      {/* Node types - always shown */}
       <span className="flex items-center gap-1.5">
         <span className="inline-block w-2.5 h-2.5 rounded-sm border-2" style={{ borderColor: SVG_COLORS.bitcoin, background: "transparent" }} />
         {t("graphExplorer.legendRoot", { defaultValue: "Analyzed tx" })}
@@ -507,6 +514,14 @@ export function GraphExplorer(props: GraphExplorerProps) {
         <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: SVG_COLORS.low }} />
         {t("graphExplorer.legendDefault", { defaultValue: "Standard tx" })}
       </button>
+      {/* Single "Entity" item (collapsed from 5 categories) */}
+      <button
+        onClick={() => toggleFilter("showEntity")}
+        className={`flex items-center gap-1 cursor-pointer transition-opacity ${filter.showEntity ? "opacity-100" : "opacity-40 line-through"}`}
+      >
+        <span className="inline-block w-2 h-2 rounded-full" style={{ background: ENTITY_CATEGORY_COLORS.exchange }} />
+        <span className="text-white/40">Entity</span>
+      </button>
       {props.walletUtxos && (
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: SVG_COLORS.bitcoin, opacity: 0.3 }} />
@@ -514,30 +529,18 @@ export function GraphExplorer(props: GraphExplorerProps) {
         </span>
       )}
       <span className="text-white/20">|</span>
-      {([
-        ["exchange", "Exchange"],
-        ["darknet", "Darknet"],
-        ["mixer", "Mixer"],
-        ["gambling", "Gambling"],
-        ["mining", "Mining"],
-      ] as const).map(([cat, label]) => (
-        <button
-          key={cat}
-          onClick={() => toggleFilter("showEntity")}
-          className={`flex items-center gap-1 cursor-pointer transition-opacity ${filter.showEntity ? "opacity-100" : "opacity-40 line-through"}`}
-        >
-          <span className="inline-block w-2 h-2 rounded-full" style={{ background: ENTITY_CATEGORY_COLORS[cat] }} />
-          <span className="text-white/40">{label}</span>
-        </button>
-      ))}
-      <span className="text-white/20">|</span>
       <span className="flex items-center gap-1.5">
         <span className="inline-block w-4 h-0.5 rounded" style={{ background: SVG_COLORS.critical, opacity: 0.7 }} />
         <span className="text-white/40">{t("graphExplorer.legendConsolidation", { defaultValue: "Consolidation" })}</span>
       </span>
-      {/* Script type edge colors (always shown - they're always active) */}
-      <span className="text-white/20">|</span>
-      {SCRIPT_TYPE_LEGEND.map((s) => (
+      {/* Collapsible edge color legend */}
+      <button
+        onClick={() => setShowEdgeLegend(!showEdgeLegend)}
+        className="text-white/30 hover:text-white/50 cursor-pointer transition-colors"
+      >
+        Edge colors {showEdgeLegend ? "\u25B4" : "\u25BE"}
+      </button>
+      {showEdgeLegend && SCRIPT_TYPE_LEGEND.map((s) => (
         <span key={s.type} className="flex items-center gap-1">
           <span className="inline-block w-4 h-0.5 rounded" style={{
             background: s.color,
@@ -547,7 +550,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
           <span className="text-white/30">{s.label}</span>
         </span>
       ))}
-      {/* Fingerprint mode legend */}
+      {/* Conditional: fingerprint mode legend */}
       {fingerprintMode && (
         <>
           <span className="text-white/20">|</span>
@@ -559,22 +562,14 @@ export function GraphExplorer(props: GraphExplorerProps) {
             <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: "#4a4a52", border: "1px solid rgba(255,255,255,0.2)" }} />
             <span className="text-white/30">v2</span>
           </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-2.5 h-2.5" style={{ background: "#4a4a52", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 0 }} />
-            <span className="text-white/30">block-ht lock</span>
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-2.5 h-2.5" style={{ background: "#4a4a52", border: "1px solid rgba(255,255,255,0.2)", clipPath: "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)" }} />
-            <span className="text-white/30">timestamp lock</span>
-          </span>
         </>
       )}
-      {/* Change marking legend (shown when there are marked outputs) */}
+      {/* Conditional: change marking legend */}
       {changeOutputs.size > 0 && (
         <>
           <span className="text-white/20">|</span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-4 h-0.5 rounded" style={{ background: "#f97316", opacity: 0.8 }} />
+            <span className="inline-block w-4 h-0.5 rounded" style={{ background: "#d97706", opacity: 0.8 }} />
             <span className="text-white/40">Change</span>
           </span>
         </>
@@ -828,34 +823,29 @@ export function GraphExplorer(props: GraphExplorerProps) {
                     <span className="hidden sm:inline">Fingerprint</span>
                   </span>
                 </button>
-                {/* Entropy gradient (fullscreen) */}
+                {/* Edge mode selector (fullscreen) */}
                 <button
-                  onClick={() => setEntropyGradientMode(!entropyGradientMode)}
+                  onClick={cycleEdgeMode}
                   className={`text-xs transition-colors px-2 py-1 rounded border cursor-pointer ${
-                    entropyGradientMode ? "text-green-400 border-green-400/30 bg-green-400/10" : "text-white/50 hover:text-white/80 border-white/10"
+                    edgeMode === "linkability"
+                      ? "text-bitcoin border-bitcoin/30 bg-bitcoin/10"
+                      : edgeMode === "entropy"
+                        ? "text-green-400 border-green-400/30 bg-green-400/10"
+                        : "text-white/50 hover:text-white/80 border-white/10"
                   }`}
-                  title="Entropy gradient"
+                  title="Cycle edge coloring mode"
                 >
                   <span className="flex items-center gap-1">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M2 20h20" /><path d="M5 20V10" /><path d="M9 20V4" /><path d="M13 20v-8" /><path d="M17 20v-4" /><path d="M21 20v-2" /></svg>
-                    <span className="hidden sm:inline">Entropy</span>
+                    {edgeMode === "entropy" ? (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M2 20h20" /><path d="M5 20V10" /><path d="M9 20V4" /><path d="M13 20v-8" /><path d="M17 20v-4" /><path d="M21 20v-2" /></svg>
+                    ) : (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
+                    )}
+                    <span className="hidden sm:inline">
+                      {edgeMode === "default" ? "Edges" : edgeMode === "linkability" ? "Linkability" : "Entropy"}
+                    </span>
                   </span>
                 </button>
-                {/* Linkability edges (fullscreen) */}
-                {hasLinkability && (
-                  <button
-                    onClick={() => setLinkabilityEdgeMode(!linkabilityEdgeMode)}
-                    className={`text-xs transition-colors px-2 py-1 rounded border cursor-pointer ${
-                      linkabilityEdgeMode ? "text-bitcoin border-bitcoin/30 bg-bitcoin/10" : "text-white/50 hover:text-white/80 border-white/10"
-                    }`}
-                    title="Color edges by linkability"
-                  >
-                    <span className="flex items-center gap-1">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
-                      <span className="hidden sm:inline">Linkability</span>
-                    </span>
-                  </button>
-                )}
                 <button
                   onClick={props.onUndo}
                   disabled={!props.canUndo}

@@ -623,7 +623,7 @@ export function GraphCanvas({
 
           const strokeColor = entropyColorVal
             ?? linkabilityColor
-            ?? (isChangeMarked ? "#f97316" : (isConsolidation ? SVG_COLORS.critical : (scriptColor ?? SVG_COLORS.muted)));
+            ?? (isChangeMarked ? "#d97706" : (isConsolidation ? SVG_COLORS.critical : (scriptColor ?? SVG_COLORS.muted)));
           let strokeOpacity = entropyColorVal ? (0.4 + entropyEntry!.normalized * 0.5) : (linkabilityColor ? (0.3 + linkabilityMaxProb * 0.7) : (isChangeMarked ? 0.8 : (isConsolidation ? 0.6 : (scriptColor ? 0.55 : 0.35))));
           let strokeWidth = linkabilityColor ? 2.5 : (isChangeMarked ? 3 : (isConsolidation ? 2.5 : (scriptThickness ?? 1.5)));
           // Dust edges: very dim and thin
@@ -822,7 +822,6 @@ export function GraphCanvas({
                   graphNodes={nodes}
                   outspends={outspendCache?.get(node.txid)}
                   heatScore={heatScore}
-                  isHovered={isHovered}
                   isLoading={isLoading}
                   hoveredPort={hoveredPort}
                   onHoverPort={setHoveredPort}
@@ -1044,14 +1043,14 @@ export function GraphCanvas({
               >
                 {`${node.inputCount}in / ${node.outputCount}out - ${formatSats(totalValue)}`}
               </Text>
-              {/* Quick tx type label (compact, from structure) */}
-              {!node.entityLabel && !node.isCoinJoin && node.inputCount > 0 && (
+              {/* Quick tx type label - only on non-expanded nodes without entity/CJ labels */}
+              {!node.entityLabel && !node.isCoinJoin && node.inputCount > 0 && node.txid !== expandedNodeTxid && (
                 <Text
                   x={node.x + 10}
                   y={node.y + 50}
-                  fontSize={8}
+                  fontSize={9}
                   fill={SVG_COLORS.muted}
-                  fillOpacity={0.5}
+                  fillOpacity={0.6}
                 >
                   {node.inputCount === 1 && node.outputCount === 1 ? "sweep" :
                    node.inputCount === 1 && node.outputCount === 2 ? "simple send" :

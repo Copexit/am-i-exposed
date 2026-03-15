@@ -17,7 +17,6 @@ interface ExpandedNodeProps {
   graphNodes: Map<string, GraphNode>;
   outspends?: MempoolOutspend[];
   heatScore?: number;
-  isHovered: boolean;
   isLoading: boolean;
   hoveredPort: string | null;
   onHoverPort: (portKey: string | null) => void;
@@ -115,7 +114,7 @@ function PortRow({
 
       {/* Unspent diamond (outputs only) */}
       {isUnspent && (
-        <g transform={`translate(${portX + PORT_COL_W - 14}, ${port.y})`}>
+        <g transform={`translate(${portX + PORT_COL_W - 10}, ${port.y})`}>
           <polygon
             points="0,-4 4,0 0,4 -4,0"
             fill="none"
@@ -123,7 +122,6 @@ function PortRow({
             strokeWidth={1}
             strokeOpacity={0.8}
           />
-          <Text x={8} y={3} fontSize={7} fill={SVG_COLORS.muted} fillOpacity={0.6}>(U)</Text>
         </g>
       )}
 
@@ -159,7 +157,6 @@ export const ExpandedNode = memo(function ExpandedNode({
   graphNodes,
   outspends,
   heatScore,
-  isHovered: _isHovered,
   isLoading,
   hoveredPort,
   onHoverPort,

@@ -455,15 +455,46 @@ function IOTab({
       <div>
         <div className="flex items-center justify-between px-1 mb-1">
           <span className="text-xs font-medium text-white/50">Outputs ({tx.vout.length})</span>
-          {onExpandOutput && expandableOutputs.length > 0 && (
-            <button
-              onClick={() => { expandableOutputs.slice(0, 5).forEach((i) => onExpandOutput(tx.txid, i)); }}
-              className="text-xs text-white/30 hover:text-white/60 transition-colors cursor-pointer"
-              title="Expand first 5 unresolved outputs"
-            >
-              Expand all
-            </button>
-          )}
+          <div className="flex items-center gap-1.5">
+            {/* Auto-trace from identified change output (section-level action) */}
+            {onAutoTrace && !autoTracing && (
+              <button
+                onClick={() => {
+                  // Find the first change-marked output, or first expandable output
+                  const changeIdx = tx.vout.findIndex((_, i) => changeOutputs.has(`${tx.txid}:${i}`));
+                  const targetIdx = changeIdx >= 0 ? changeIdx : expandableOutputs[0];
+                  if (targetIdx !== undefined) onAutoTrace(tx.txid, targetIdx);
+                }}
+                className="text-xs text-orange-400/50 hover:text-orange-400 transition-colors cursor-pointer"
+                title="Auto-trace: follow change outputs forward"
+              >
+                Trace
+              </button>
+            )}
+            {/* Linkability trace (section-level action) */}
+            {onAutoTraceLinkability && !autoTracing && (
+              <button
+                onClick={() => {
+                  const changeIdx = tx.vout.findIndex((_, i) => changeOutputs.has(`${tx.txid}:${i}`));
+                  const targetIdx = changeIdx >= 0 ? changeIdx : expandableOutputs[0];
+                  if (targetIdx !== undefined) onAutoTraceLinkability(tx.txid, targetIdx);
+                }}
+                className="text-xs text-blue-400/50 hover:text-blue-400 transition-colors cursor-pointer"
+                title="Linkability trace: follow until compound linkability < 5%"
+              >
+                Link trace
+              </button>
+            )}
+            {onExpandOutput && expandableOutputs.length > 0 && (
+              <button
+                onClick={() => { expandableOutputs.slice(0, 5).forEach((i) => onExpandOutput(tx.txid, i)); }}
+                className="text-xs text-white/30 hover:text-white/60 transition-colors cursor-pointer"
+                title="Expand first 5 unresolved outputs"
+              >
+                Expand all
+              </button>
+            )}
+          </div>
         </div>
         <div className="space-y-0.5">
           {tx.vout.map((vout, i) => {
@@ -476,7 +507,7 @@ function IOTab({
               <div
                 key={i}
                 className={`flex items-center gap-1.5 px-1 py-1 rounded hover:bg-white/3 group ${
-                  isChange ? "ring-1 ring-orange-400/30 bg-orange-400/5" : ""
+                  isChange ? "ring-1 ring-amber-500/30 bg-amber-500/5" : ""
                 }`}
               >
                 <span
@@ -507,7 +538,7 @@ function IOTab({
                 <span className="text-xs text-bitcoin/80 shrink-0 tabular-nums">{formatSats(vout.value)}</span>
                 {/* Change badge */}
                 {isChange && (
-                  <span className="shrink-0 text-[9px] font-semibold px-1 py-px rounded bg-orange-400/20 text-orange-400 leading-tight">
+                  <span className="shrink-0 text-[9px] font-semibold px-1 py-px rounded bg-amber-500/20 text-amber-500 leading-tight">
                     change
                   </span>
                 )}
@@ -528,14 +559,14 @@ function IOTab({
                   onClick={() => onToggleChange(tx.txid, i)}
                   className={`shrink-0 w-3.5 h-3.5 rounded-sm border cursor-pointer transition-colors relative ${
                     isChange
-                      ? "bg-orange-400/40 border-orange-400/60"
+                      ? "bg-amber-500/40 border-amber-500/60"
                       : "border-white/15 hover:border-white/30"
                   }`}
                   title={isChange ? "Unmark as change" : (suggestedChangeIndices.has(i) ? "Suggested change output - click to mark" : "Mark as change")}
                 >
                   {/* Suggestion pulse dot */}
                   {!isChange && suggestedChangeIndices.has(i) && (
-                    <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
+                    <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                   )}
                 </button>
                 {onExpandOutput && vout.scriptpubkey_type !== "op_return" && vout.value > 0 && (
@@ -545,26 +576,6 @@ function IOTab({
                     title="Expand in graph"
                   >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-                  </button>
-                )}
-                {/* Auto-trace button: follow change outputs forward */}
-                {onAutoTrace && !autoTracing && vout.scriptpubkey_type !== "op_return" && vout.value > 0 && (
-                  <button
-                    onClick={() => onAutoTrace(tx.txid, i)}
-                    className="opacity-0 group-hover:opacity-100 text-orange-400/50 hover:text-orange-400 transition-all cursor-pointer p-0.5"
-                    title="Auto-trace: follow change outputs forward"
-                  >
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M13 5l7 7-7 7" /><path d="M5 5l7 7-7 7" /></svg>
-                  </button>
-                )}
-                {/* Linkability trace: follow until compound probability drops below threshold */}
-                {onAutoTraceLinkability && !autoTracing && vout.scriptpubkey_type !== "op_return" && vout.value > 0 && (
-                  <button
-                    onClick={() => onAutoTraceLinkability(tx.txid, i)}
-                    className="opacity-0 group-hover:opacity-100 text-blue-400/50 hover:text-blue-400 transition-all cursor-pointer p-0.5"
-                    title="Linkability trace: follow until compound linkability < 5%"
-                  >
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07" /></svg>
                   </button>
                 )}
               </div>
