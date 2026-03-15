@@ -3,7 +3,7 @@ import type { Finding } from "@/lib/types";
 import type { MempoolVin, MempoolVout } from "@/lib/api/types";
 import { getAddressType } from "@/lib/bitcoin/address-type";
 import { isRoundAmount, isRoundUsdAmount, isRoundEurAmount, ROUND_USD_TOLERANCE_DEFAULT, ROUND_USD_TOLERANCE_SELF_HOSTED } from "./round-amount";
-import { isCoinbase } from "./tx-utils";
+import { isCoinbase, getAddressedOutputs } from "./tx-utils";
 
 /**
  * H2: Change Detection
@@ -24,9 +24,7 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
   const findings: Finding[] = [];
 
   // Filter out OP_RETURN outputs before analysis (they are data-only, not payments)
-  const spendableOutputs = tx.vout.filter(
-    (out) => out.scriptpubkey_type !== "op_return" && out.scriptpubkey_address && out.value > 0,
-  );
+  const spendableOutputs = getAddressedOutputs(tx.vout);
 
   // Skip coinbase
   if (isCoinbase(tx)) return { findings };

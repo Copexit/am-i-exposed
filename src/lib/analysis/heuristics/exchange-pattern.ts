@@ -1,6 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
-import { isCoinbase } from "./tx-utils";
+import { isCoinbase, getValuedOutputs } from "./tx-utils";
 
 /**
  * Exchange UTXO Pattern Detection
@@ -23,9 +23,7 @@ export const analyzeExchangePattern: TxHeuristic = (tx) => {
 
   if (isCoinbase(tx)) return { findings };
 
-  const spendable = tx.vout.filter(
-    (o) => o.scriptpubkey_type !== "op_return" && o.value > 0,
-  );
+  const spendable = getValuedOutputs(tx.vout);
 
   // Exchange batch withdrawal: 1-2 inputs, 10+ outputs
   if (tx.vin.length > 2 || spendable.length < 10) return { findings };

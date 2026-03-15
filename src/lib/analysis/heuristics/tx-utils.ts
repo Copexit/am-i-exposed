@@ -9,3 +9,13 @@ export function isCoinbase(tx: MempoolTransaction): boolean {
 export function getSpendableOutputs(vout: MempoolVout[]): MempoolVout[] {
   return vout.filter((o) => o.scriptpubkey_type !== "op_return");
 }
+
+/** Spendable outputs with positive value (excludes OP_RETURN and zero-value). */
+export function getValuedOutputs(vout: MempoolVout[]): MempoolVout[] {
+  return vout.filter((o) => o.scriptpubkey_type !== "op_return" && o.value > 0);
+}
+
+/** Spendable outputs with positive value and an address. */
+export function getAddressedOutputs(vout: MempoolVout[]): MempoolVout[] {
+  return vout.filter((o) => o.scriptpubkey_type !== "op_return" && o.scriptpubkey_address && o.value > 0);
+}

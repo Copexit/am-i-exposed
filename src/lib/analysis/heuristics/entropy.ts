@@ -1,5 +1,6 @@
 import type { TxHeuristic } from "./types";
 import { fmtN } from "@/lib/format";
+import { getValuedOutputs } from "./tx-utils";
 
 const MAX_ENUMERABLE_SIZE = 8;
 
@@ -27,9 +28,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
     .map((v) => v.prevout?.value)
     .filter((v): v is number => v != null);
   // Filter to spendable outputs (exclude OP_RETURN and other non-spendable)
-  const outputs = tx.vout
-    .filter((o) => o.scriptpubkey_type !== "op_return" && o.value > 0)
-    .map((v) => v.value);
+  const outputs = getValuedOutputs(tx.vout).map((v) => v.value);
 
   // Coinbase transactions have no privacy implications
   if (inputs.length === 0) return { findings: [] };

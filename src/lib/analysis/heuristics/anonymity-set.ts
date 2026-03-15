@@ -1,7 +1,7 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
-import { DUST_THRESHOLD, SATS_PER_BTC } from "@/lib/constants";
-import { fmtN, formatBtc } from "@/lib/format";
+import { DUST_THRESHOLD } from "@/lib/constants";
+import { formatSatsOrBtc } from "@/lib/format";
 import { isCoinbase } from "./tx-utils";
 
 /**
@@ -108,13 +108,6 @@ export const analyzeAnonymitySet: TxHeuristic = (tx) => {
 
   return { findings };
 };
-
-function formatSatsOrBtc(sats: number): string {
-  if (sats >= SATS_PER_BTC) {
-    return formatBtc(sats);
-  }
-  return `${fmtN(sats)} sats`;
-}
 
 function buildSetSummary(sets: { value: number; count: number }[]): string {
   const grouped = sets.filter((s) => s.count >= 2);

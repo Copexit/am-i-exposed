@@ -1,6 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
-import { isCoinbase } from "./tx-utils";
+import { isCoinbase, getAddressedOutputs } from "./tx-utils";
 
 /**
  * Unnecessary Input Heuristic
@@ -43,9 +43,7 @@ export const analyzeUnnecessaryInput: TxHeuristic = (tx) => {
   // Only analyze 2-output transactions (standard payment + change).
   // For 1-output (sweep/consolidation) or 3+ outputs (batched sends),
   // the concept of "unnecessary" inputs is ambiguous.
-  const spendableOutputs = tx.vout.filter(
-    (o) => o.scriptpubkey_type !== "op_return" && o.scriptpubkey_address && o.value > 0,
-  );
+  const spendableOutputs = getAddressedOutputs(tx.vout);
   if (spendableOutputs.length !== 2) return { findings };
 
   // Sort inputs descending for greedy covering

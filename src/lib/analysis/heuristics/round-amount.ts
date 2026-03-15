@@ -1,6 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
-import { isCoinbase } from "./tx-utils";
+import { isCoinbase, getValuedOutputs } from "./tx-utils";
 import { SATS_PER_BTC } from "@/lib/constants";
 
 // Round fiat values people commonly send (same denominations for USD and EUR)
@@ -29,9 +29,7 @@ const ROUND_SAT_MULTIPLES = [10_000, 100_000, 1_000_000, 10_000_000];
 export const analyzeRoundAmounts: TxHeuristic = (tx, _rawHex?, ctx?) => {
   const findings: Finding[] = [];
   // Filter to spendable outputs (exclude OP_RETURN and other non-spendable)
-  const outputs = tx.vout.filter(
-    (o) => o.scriptpubkey_type !== "op_return" && o.value > 0,
-  );
+  const outputs = getValuedOutputs(tx.vout);
 
   // Skip coinbase transactions (block reward amounts are protocol-defined)
   if (isCoinbase(tx)) return { findings };

@@ -10,7 +10,7 @@
  */
 
 import { Transaction, NETWORK, TEST_NETWORK } from "@scure/btc-signer";
-import { base64 } from "@scure/base";
+import { base64, hex as hexCodec } from "@scure/base";
 import type { MempoolTransaction, MempoolVin, MempoolVout } from "@/lib/api/types";
 
 // ---------- Types ----------
@@ -43,9 +43,9 @@ export interface PSBTParseResult {
 function detectScriptType(scriptHex: string): string {
   if (!scriptHex) return "unknown";
   // P2PKH: OP_DUP OP_HASH160 <20> ... OP_EQUALVERIFY OP_CHECKSIG
-  if (scriptHex.startsWith("76a914") && scriptHex.endsWith("88ac")) return "v0_p2pkh";
+  if (scriptHex.startsWith("76a914") && scriptHex.endsWith("88ac")) return "p2pkh";
   // P2SH: OP_HASH160 <20> ... OP_EQUAL
-  if (scriptHex.startsWith("a914") && scriptHex.endsWith("87")) return "v0_p2sh";
+  if (scriptHex.startsWith("a914") && scriptHex.endsWith("87")) return "p2sh";
   // P2WPKH: OP_0 <20>
   if (scriptHex.startsWith("0014") && scriptHex.length === 44) return "v0_p2wpkh";
   // P2WSH: OP_0 <32>
@@ -56,7 +56,7 @@ function detectScriptType(scriptHex: string): string {
 }
 
 function bytesToHex(bytes: Uint8Array): string {
-  return Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
+  return hexCodec.encode(bytes);
 }
 
 // ---------- Public API ----------

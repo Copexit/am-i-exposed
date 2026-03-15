@@ -55,11 +55,6 @@ function toHex(bytes: Uint8Array): string {
   return hexCodec.encode(bytes);
 }
 
-/** Convert hex string to BigInt. */
-function hexToBigInt(h: string): bigint {
-  return BigInt("0x" + h);
-}
-
 // ---------- Version byte detection ----------
 
 /** Version bytes for extended public keys (4 bytes, big-endian). */
@@ -159,7 +154,7 @@ function pubkeyToP2TR(pubkey: Uint8Array, testnet: boolean): string {
   if (pubkey[0] === 0x03) {
     P = P.negate();
   }
-  const t = hexToBigInt(toHex(tweak));
+  const t = BigInt("0x" + toHex(tweak));
   const tG = secp256k1.Point.BASE.multiply(t);
   const Q = P.add(tG);
 
@@ -332,76 +327,30 @@ export function parseAndDerive(
   gapLimit = 20,
   scriptTypeOverride?: ScriptType,
 ): DescriptorParseResult {
-  let xpubStr: string;
-  let scriptType: ScriptType;
-  let network: "mainnet" | "testnet";
-  let singleChain: number | undefined;
-  let publicVersion: number;
-  let privateVersion: number;
-
-  // Try descriptor format first
-  const desc = parseDescriptor(input);
-  if (desc) {
-    xpubStr = desc.xpub;
-    scriptType = desc.scriptType;
-    singleChain = desc.chainIndex;
-    const version = detectXpubVersion(desc.xpub);
-    network = version.network;
-    publicVersion = version.publicVersion;
-    privateVersion = version.privateVersion;
-  } else if (isExtendedPubkey(input)) {
-    xpubStr = input;
-    const version = detectXpubVersion(input);
-    network = version.network;
-    scriptType = scriptTypeOverride ?? version.scriptType;
-    publicVersion = version.publicVersion;
-    privateVersion = version.privateVersion;
-  } else {
-    throw new Error("Invalid xpub or descriptor format");
-  }
-
-  const hdKey = HDKey.fromExtendedKey(xpubStr, {
-    public: publicVersion,
-    private: privateVersion,
-  });
-  const testnet = network === "testnet";
+  const parsed = parseXpub(input, scriptTypeOverride);
 
   const receiveAddresses: DerivedAddress[] = [];
   const changeAddresses: DerivedAddress[] = [];
 
   // Derive receive addresses (chain 0)
-  if (singleChain === undefined || singleChain === 0) {
+  if (parsed.singleChain === undefined || parsed.singleChain === 0) {
     for (let i = 0; i < gapLimit; i++) {
-      const child = hdKey.deriveChild(0).deriveChild(i);
-      if (!child.publicKey) throw new Error(`Failed to derive key at 0/${i}`);
-      receiveAddresses.push({
-        path: `0/${i}`,
-        address: pubkeyToAddress(child.publicKey, scriptType, testnet),
-        isChange: false,
-        index: i,
-      });
+      receiveAddresses.push(deriveOneAddress(parsed, 0, i));
     }
   }
 
   // Derive change addresses (chain 1)
-  if (singleChain === undefined || singleChain === 1) {
+  if (parsed.singleChain === undefined || parsed.singleChain === 1) {
     for (let i = 0; i < gapLimit; i++) {
-      const child = hdKey.deriveChild(1).deriveChild(i);
-      if (!child.publicKey) throw new Error(`Failed to derive key at 1/${i}`);
-      changeAddresses.push({
-        path: `1/${i}`,
-        address: pubkeyToAddress(child.publicKey, scriptType, testnet),
-        isChange: true,
-        index: i,
-      });
+      changeAddresses.push(deriveOneAddress(parsed, 1, i));
     }
   }
 
   return {
-    scriptType,
-    network,
+    scriptType: parsed.scriptType,
+    network: parsed.network,
     receiveAddresses,
     changeAddresses,
-    xpub: xpubStr,
+    xpub: parsed.xpub,
   };
 }

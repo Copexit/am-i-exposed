@@ -1,6 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
-import { isCoinbase } from "./tx-utils";
+import { isCoinbase, getAddressedOutputs } from "./tx-utils";
 
 /**
  * Consolidation and Batching Pattern Detection
@@ -30,9 +30,7 @@ export const analyzeConsolidation: TxHeuristic = (tx) => {
   // Skip coinbase
   if (isCoinbase(tx)) return { findings };
 
-  const spendableOutputs = tx.vout.filter(
-    (o) => o.scriptpubkey_type !== "op_return" && o.scriptpubkey_address && o.value > 0,
-  );
+  const spendableOutputs = getAddressedOutputs(tx.vout);
 
   const inputCount = tx.vin.length;
   const outputCount = spendableOutputs.length;

@@ -1,7 +1,7 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { fmtN } from "@/lib/format";
-import { isCoinbase } from "./tx-utils";
+import { isCoinbase, getValuedOutputs } from "./tx-utils";
 
 /**
  * BIP47 Notification Transaction Detection
@@ -56,9 +56,7 @@ export const analyzeBip47Notification: TxHeuristic = (tx) => {
   // check this directly, but we can check the overall structure.
 
   // Spendable outputs (excluding OP_RETURN)
-  const spendable = tx.vout.filter(
-    (o) => o.scriptpubkey_type !== "op_return" && o.value > 0,
-  );
+  const spendable = getValuedOutputs(tx.vout);
 
   // Need at least 1 spendable output (notification dust) and at most 3
   // (notification dust + change + possible extra)

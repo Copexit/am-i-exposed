@@ -5,7 +5,7 @@ import { checkOfac } from "../cex-risk/ofac-check";
 import { extractTxAddresses } from "../cex-risk/extract-addresses";
 import { getEntity } from "../entities";
 import { WHIRLPOOL_DENOMS } from "@/lib/constants";
-import { getSpendableOutputs } from "../heuristics/tx-utils";
+import { getSpendableOutputs, getValuedOutputs } from "../heuristics/tx-utils";
 
 /**
  * Check all addresses in a transaction against known entity databases.
@@ -172,9 +172,7 @@ export function detectEntityBehavior(
   // Few inputs (1-2), very many small outputs (20+), very low average value.
   // Requires strict thresholds to avoid false positives on normal batch payments.
   if (nonCoinbase.length <= 2 && tx.vout.length >= 20) {
-    const spendable = tx.vout.filter(
-      (o) => o.scriptpubkey_type !== "op_return" && o.value > 0,
-    );
+    const spendable = getValuedOutputs(tx.vout);
     const totalOut = spendable.reduce((s, o) => s + o.value, 0);
     const avgOut = totalOut / Math.max(1, spendable.length);
     // Very small average output (< 10k sats) with many outputs suggests gambling/faucet

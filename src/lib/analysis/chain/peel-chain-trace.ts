@@ -1,6 +1,7 @@
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import { fmtN } from "@/lib/format";
+import { getValuedOutputs } from "../heuristics/tx-utils";
 
 /**
  * Multi-hop Peel Chain Tracing
@@ -69,9 +70,7 @@ export function tracePeelChain(
   let totalPeeled = 0;
 
   for (let hopIndex = 0; hopIndex < maxHops; hopIndex++) {
-    const spendable = currentTx.vout.filter(
-      (o) => o.scriptpubkey_type !== "op_return" && o.value > 0,
-    );
+    const spendable = getValuedOutputs(currentTx.vout);
 
     // Peel chain hops must have exactly 2 significant outputs
     if (spendable.length !== 2) break;
@@ -134,9 +133,7 @@ export function tracePeelChain(
     }
 
     // Check if the child tx is a sweep (1 in, 1 out - no change)
-    const nextSpendable = nextTx.vout.filter(
-      (o) => o.scriptpubkey_type !== "op_return" && o.value > 0,
-    );
+    const nextSpendable = getValuedOutputs(nextTx.vout);
     if (nextTx.vin.length === 1 && nextSpendable.length === 1) {
       hops[hops.length - 1].chainBreak = true;
       hops[hops.length - 1].breakReason = "Sweep";

@@ -2,7 +2,7 @@ import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { WHIRLPOOL_DENOMS } from "@/lib/constants";
 import { fmtN, formatBtc } from "@/lib/format";
-import { isCoinbase } from "./tx-utils";
+import { isCoinbase, getValuedOutputs } from "./tx-utils";
 
 /**
  * CoinJoin Premix (tx0) Detection
@@ -29,9 +29,7 @@ export const analyzeCoinJoinPremix: TxHeuristic = (tx) => {
   if (tx.vin.length < 1 || tx.vin.length > 3) return { findings };
   if (isCoinbase(tx)) return { findings };
 
-  const spendable = tx.vout.filter(
-    (o) => o.scriptpubkey_type !== "op_return" && o.value > 0,
-  );
+  const spendable = getValuedOutputs(tx.vout);
 
   // Need at least 3 outputs: 2+ denomination outputs + fee/change
   if (spendable.length < 3) return { findings };
