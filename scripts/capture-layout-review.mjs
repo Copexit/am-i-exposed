@@ -95,7 +95,7 @@ async function capture(browser, name, hash, width, height, extraScrolls = false)
     const allDivs = document.querySelectorAll('div');
     let twoColContainer = null;
     let sidebar = null;
-    let mainCol = null;
+    let _mainCol = null;
 
     for (const div of allDivs) {
       const cls = div.className || '';

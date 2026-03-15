@@ -412,7 +412,7 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     } finally {
       dispatch({ type: "SET_LOADING", txid: parentTxid, loading: false });
     }
-  }, [state.nodes]);
+  }, [state.nodes, state.maxNodes]);
 
   /** Expand forward: fetch the child tx that spends the given output.
    *  Scans all outputs starting from the hint index to find an expandable one. */
@@ -467,7 +467,7 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     } finally {
       dispatch({ type: "SET_LOADING", txid: loadKey, loading: false });
     }
-  }, [state.nodes]);
+  }, [state.nodes, state.maxNodes]);
 
   const collapse = useCallback((txid: string) => {
     dispatch({ type: "REMOVE_NODE", txid });

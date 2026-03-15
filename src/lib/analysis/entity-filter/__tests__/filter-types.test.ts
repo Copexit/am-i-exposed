@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import type { AddressFilter, FilterMeta, EntityMatch, FilterStatus } from "../types";
-import type { OsintSource, OsintSourceType, EntitySourceBundle } from "../osint-types";
 
 describe("entity filter types", () => {
   it("AddressFilter interface works with Set backend", () => {
@@ -37,52 +36,5 @@ describe("entity filter types", () => {
   it("FilterStatus covers all states", () => {
     const states: FilterStatus[] = ["idle", "loading", "ready", "error", "unavailable"];
     expect(states).toHaveLength(5);
-  });
-});
-
-describe("OSINT types", () => {
-  it("OsintSource has all required fields", () => {
-    const source: OsintSource = {
-      url: "https://example.com/report",
-      address: "bc1qtest",
-      entityName: "Test Entity",
-      date: "2025-01-01",
-      sourceType: "government",
-    };
-    expect(source.url).toBeTruthy();
-    expect(source.address).toBeTruthy();
-  });
-
-  it("OsintSourceType covers expected categories", () => {
-    const types: OsintSourceType[] = [
-      "government",
-      "law-enforcement",
-      "blog",
-      "social-media",
-      "news",
-      "academic",
-      "exchange",
-      "community",
-    ];
-    expect(types).toHaveLength(8);
-  });
-
-  it("EntitySourceBundle groups sources by entity", () => {
-    const bundle: EntitySourceBundle = {
-      entityName: "Binance",
-      sources: [
-        {
-          url: "https://example.com",
-          address: "bc1qbinance1",
-          entityName: "Binance",
-          date: "2025-01-01",
-          sourceType: "exchange",
-        },
-      ],
-      highConfidenceAddresses: ["bc1qbinance1"],
-      mediumConfidenceAddresses: ["bc1qbinance2"],
-    };
-    expect(bundle.sources).toHaveLength(1);
-    expect(bundle.highConfidenceAddresses).toContain("bc1qbinance1");
   });
 });

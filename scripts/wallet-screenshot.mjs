@@ -140,7 +140,7 @@ async function main() {
         await page.screenshot({ path: `${OUT_DIR}/wallet-graph-full.png`, fullPage: true });
         break;
       }
-    } catch (e) {
+    } catch (_e) {
       // continue
     }
   }

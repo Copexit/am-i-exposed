@@ -16,7 +16,7 @@ const wasmBytes = await readFile(join(wasmDir, 'boltzmann_rs_bg.wasm'));
 
 // Create a module from the JS glue
 const blob = new Blob([jsGlue], { type: 'application/javascript' });
-const blobUrl = URL.createObjectURL(blob);
+const _blobUrl = URL.createObjectURL(blob);
 
 // We can't easily import the blob URL in Node, so use initSync directly
 const mod = await import(join(wasmDir, 'boltzmann_rs.js'));
@@ -33,7 +33,7 @@ function toNum(v) {
   return v;
 }
 
-function toNumMatrix(m) {
+function _toNumMatrix(m) {
   return m.map(row => row.map(toNum));
 }
 

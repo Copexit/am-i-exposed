@@ -16,7 +16,7 @@ interface ShareButtonsProps {
 }
 
 /** Always use the canonical production URL for social sharing - never localhost or custom API hosts. */
-export function getShareUrl(query: string, inputType: "txid" | "address"): string {
+function getShareUrl(query: string, inputType: "txid" | "address"): string {
   const prefix = inputType === "txid" ? "tx" : "addr";
   return `https://am-i.exposed/#${prefix}=${encodeURIComponent(query)}`;
 }

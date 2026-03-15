@@ -21,16 +21,8 @@ vi.mock("motion/react", () => {
   const forwardMotionElement = (tag: string) => {
     const Comp = React.forwardRef((props: Record<string, unknown>, ref) => {
       // Strip motion-specific props before passing through
-      const {
-        initial: _i,
-        animate: _a,
-        exit: _e,
-        transition: _t,
-        whileHover: _wh,
-        whileTap: _wt,
-        variants: _v,
-        ...rest
-      } = props;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { initial, animate, exit, transition, whileHover, whileTap, variants, ...rest } = props;
       return React.createElement(tag, { ...rest, ref });
     });
     Comp.displayName = `motion.${tag}`;

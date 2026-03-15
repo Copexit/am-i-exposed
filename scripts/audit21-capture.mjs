@@ -10,7 +10,7 @@ const WHIRLPOOL_TX = "323df21f0b0756f98336437aa3d2fb87e02b59f1946b714a7b09df04d4
 // Taproot with OP_RETURN: 1 input, 2 outputs - grade C, has findings
 const TAPROOT_TX = "0bf67b1f05326afbd613e11631a2b86466ac7e255499f6286e31b9d7d889cee7";
 // Batch withdrawal: 1 input, 143 outputs - extreme case
-const BATCH_TX = "3d81a6b95903dd457d45a2fc998acc42fe96f59ef01157bdcbc331fe451c8d9e";
+const _BATCH_TX = "3d81a6b95903dd457d45a2fc998acc42fe96f59ef01157bdcbc331fe451c8d9e";
 // Stonewall: 3 inputs, 4 outputs - moderate complexity
 const STONEWALL_TX = "19a79be39c05a0956c7d1f9f28ee6f1091096247b0906b6a8536dd7f400f2358";
 
