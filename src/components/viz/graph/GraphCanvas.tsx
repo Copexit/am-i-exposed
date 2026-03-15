@@ -157,6 +157,21 @@ export function GraphCanvas({
     return set;
   }, [hoveredNode, edges]);
 
+  // Focus spotlight: nodes/edges connected to the expanded (sidebar) node
+  const focusSpotlight = useMemo(() => {
+    if (!expandedNodeTxid) return null;
+    const connectedNodes = new Set<string>([expandedNodeTxid]);
+    const connectedEdges = new Set<string>();
+    for (const e of edges) {
+      if (e.fromTxid === expandedNodeTxid || e.toTxid === expandedNodeTxid) {
+        connectedNodes.add(e.fromTxid);
+        connectedNodes.add(e.toTxid);
+        connectedEdges.add(`e-${e.fromTxid}-${e.toTxid}`);
+      }
+    }
+    return { nodes: connectedNodes, edges: connectedEdges };
+  }, [expandedNodeTxid, edges]);
+
   // Keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     // Don't capture keys when typing in an input element
@@ -551,6 +566,10 @@ export function GraphCanvas({
       >
         <ChartDefs />
         <defs>
+          {/* Ambient dot grid pattern */}
+          <pattern id="grid-dots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+            <circle cx="12" cy="12" r="0.5" fill="white" fillOpacity={0.04} />
+          </pattern>
           <marker id="arrow-graph" markerWidth="12" markerHeight="8" refX="11" refY="4" orient="auto" markerUnits="userSpaceOnUse">
             <path d="M0,0 L12,4 L0,8" fill={SVG_COLORS.muted} fillOpacity={0.7} />
           </marker>
@@ -582,6 +601,16 @@ export function GraphCanvas({
         )}
 
         <g transform={viewTransform ? `translate(${viewTransform.x},${viewTransform.y}) scale(${viewTransform.scale})` : undefined}>
+
+        {/* Ambient dot grid background */}
+        <rect
+          x={-100}
+          y={-100}
+          width={width + 200}
+          height={height + 200}
+          fill="url(#grid-dots)"
+          pointerEvents="none"
+        />
 
         {/* Edges */}
         {edges.map((edge) => {
@@ -646,7 +675,9 @@ export function GraphCanvas({
             strokeOpacity = isConsolidation ? 0.9 : 0.7;
             strokeWidth = isConsolidation ? 3.5 : 2.5;
           }
-          if (isDimmedByHover) strokeOpacity = isConsolidation ? 0.2 : 0.1;
+          // Focus spotlight: dim edges not connected to expanded node
+          if (focusSpotlight && !focusSpotlight.edges.has(edgeKey)) strokeOpacity = 0.06;
+          else if (isDimmedByHover) strokeOpacity = isConsolidation ? 0.2 : 0.1;
 
           let markerEnd: string | undefined;
           let markerStart: string | undefined;
@@ -817,7 +848,9 @@ export function GraphCanvas({
           const isExpandedNode = node.txid === expandedNodeTxid;
 
           let nodeOpacity = 1;
-          if (isDimmedByHover && !isConnectedToHovered) nodeOpacity = 0.3;
+          // Focus spotlight: dim nodes not connected to the expanded node
+          if (focusSpotlight && !focusSpotlight.nodes.has(node.txid)) nodeOpacity = 0.15;
+          else if (isDimmedByHover && !isConnectedToHovered) nodeOpacity = 0.3;
 
           // Render expanded node with UTXO ports
           if (isExpandedNode) {
