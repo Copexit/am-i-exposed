@@ -210,6 +210,49 @@ describe("change detection auto-marking", () => {
       expect(idx).toBe(1);
     }
   });
+  it("detects same-address-in-output change (output returns to input address)", () => {
+    const sharedAddr = "bc1q_shared_address_test";
+    const tx = makeTx({
+      txid: "1".repeat(64),
+      vin: [makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: sharedAddr, value: 500000 } })],
+      vout: [
+        makeVout({ value: 100000, scriptpubkey_address: "bc1q_recipient" }),  // payment to new address
+        makeVout({ value: 398500, scriptpubkey_address: sharedAddr }),         // change back to input address
+      ],
+    });
+    const result = analyzeChangeDetection(tx);
+    const sameAddrFinding = result.findings.find((f) => f.id === "h2-same-address-io");
+
+    expect(sameAddrFinding).toBeDefined();
+    expect(sameAddrFinding?.confidence).toBe("deterministic");
+    if (sameAddrFinding?.params) {
+      const indices = (sameAddrFinding.params as Record<string, unknown>).selfSendIndices;
+      expect(typeof indices).toBe("string");
+      // Output index 1 should be the self-send (change) output
+      expect((indices as string).split(",").map(Number)).toContain(1);
+    }
+  });
+
+  it("detects all-self-send (every output returns to input addresses)", () => {
+    const addr1 = "bc1q_addr_1_test";
+    const tx = makeTx({
+      txid: "2".repeat(64),
+      vin: [makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: addr1, value: 500000 } })],
+      vout: [
+        makeVout({ value: 200000, scriptpubkey_address: addr1 }),
+        makeVout({ value: 298500, scriptpubkey_address: addr1 }),
+      ],
+    });
+    const result = analyzeChangeDetection(tx);
+    const selfSendFinding = result.findings.find((f) => f.id === "h2-self-send");
+
+    expect(selfSendFinding).toBeDefined();
+    if (selfSendFinding?.params) {
+      const indices = (selfSendFinding.params as Record<string, unknown>).selfSendIndices;
+      // Both outputs should be marked
+      expect((indices as string).split(",").map(Number).sort()).toEqual([0, 1]);
+    }
+  });
 });
 
 // ─── AbortController Behavior ───────────────────────────────────

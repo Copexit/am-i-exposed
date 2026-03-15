@@ -226,12 +226,26 @@ function IOTab({
   const [selectedInputIdx, setSelectedInputIdx] = useState<number | null>(null);
 
   // Change detection auto-suggestion
-  const suggestedChangeIdx = useMemo(() => {
+  // Collect all heuristic-suggested change output indices
+  const suggestedChangeIndices = useMemo(() => {
+    const indices = new Set<number>();
     const result = analyzeChangeDetection(tx);
-    const finding = result.findings.find((f) => f.id === "h2-change-detected");
-    if (!finding?.params) return null;
-    const idx = (finding.params as Record<string, unknown>).changeIndex;
-    return typeof idx === "number" ? idx : null;
+    for (const finding of result.findings) {
+      if (finding.id === "h2-change-detected" && finding.params) {
+        const idx = (finding.params as Record<string, unknown>).changeIndex;
+        if (typeof idx === "number") indices.add(idx);
+      }
+      if ((finding.id === "h2-same-address-io" || finding.id === "h2-self-send") && finding.params) {
+        const indicesStr = (finding.params as Record<string, unknown>).selfSendIndices;
+        if (typeof indicesStr === "string" && indicesStr.length > 0) {
+          for (const s of indicesStr.split(",")) {
+            const n = parseInt(s, 10);
+            if (!isNaN(n)) indices.add(n);
+          }
+        }
+      }
+    }
+    return indices;
   }, [tx]);
 
   // Count expandable inputs/outputs for bulk expand
@@ -471,10 +485,10 @@ function IOTab({
                       ? "bg-orange-400/40 border-orange-400/60"
                       : "border-white/15 hover:border-white/30"
                   }`}
-                  title={isChange ? "Unmark as change" : (suggestedChangeIdx === i ? "Suggested change output - click to mark" : "Mark as change")}
+                  title={isChange ? "Unmark as change" : (suggestedChangeIndices.has(i) ? "Suggested change output - click to mark" : "Mark as change")}
                 >
                   {/* Suggestion pulse dot */}
-                  {!isChange && suggestedChangeIdx === i && (
+                  {!isChange && suggestedChangeIndices.has(i) && (
                     <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
                   )}
                 </button>

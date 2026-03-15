@@ -90,11 +90,24 @@ export function GraphExplorer(props: GraphExplorerProps) {
     const autoMarked = new Set<string>();
     for (const [txid, node] of props.nodes) {
       const result = analyzeChangeDetection(node.tx);
-      const finding = result.findings.find((f) => f.id === "h2-change-detected");
-      if (finding?.params) {
-        const idx = finding.params.changeIndex;
-        if (typeof idx === "number") {
-          autoMarked.add(`${txid}:${idx}`);
+      for (const finding of result.findings) {
+        // h2-change-detected: sub-heuristic consensus (round amount, script match, etc.)
+        if (finding.id === "h2-change-detected" && finding.params) {
+          const idx = (finding.params as Record<string, unknown>).changeIndex;
+          if (typeof idx === "number") {
+            autoMarked.add(`${txid}:${idx}`);
+          }
+        }
+        // h2-same-address-io: output address matches an input address (deterministic change)
+        // h2-self-send: ALL outputs go back to input addresses
+        if ((finding.id === "h2-same-address-io" || finding.id === "h2-self-send") && finding.params) {
+          const indicesStr = (finding.params as Record<string, unknown>).selfSendIndices;
+          if (typeof indicesStr === "string" && indicesStr.length > 0) {
+            for (const idx of indicesStr.split(",")) {
+              const n = parseInt(idx, 10);
+              if (!isNaN(n)) autoMarked.add(`${txid}:${n}`);
+            }
+          }
         }
       }
     }
