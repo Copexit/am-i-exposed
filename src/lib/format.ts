@@ -26,6 +26,18 @@ export function formatSatsOrBtc(sats: number): string {
   return `${fmtN(sats)} sats`;
 }
 
+/** Calculate virtual size from transaction weight. */
+export function calcVsize(weight: number): number {
+  return Math.ceil(weight / 4);
+}
+
+/** Calculate fee rate in sat/vB as a formatted string. */
+export function calcFeeRate(tx: { fee: number; weight: number }): string {
+  const vsize = calcVsize(tx.weight);
+  if (vsize === 0) return "0";
+  return (tx.fee / vsize).toFixed(1);
+}
+
 /** Format a satoshi value as a USD string using the given BTC price. */
 export function formatUsdValue(sats: number, usdPerBtc: number): string {
   const usd = (sats / SATS_PER_BTC) * usdPerBtc;

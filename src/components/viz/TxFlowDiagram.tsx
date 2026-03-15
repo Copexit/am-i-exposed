@@ -11,7 +11,7 @@ import { SVG_COLORS, SEVERITY_HEX, GRADIENT_COLORS, DUST_THRESHOLD, ANIMATION_DE
 import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import { probColor, probColorRgba } from "./shared/linkabilityColors";
-import { formatSats, formatUsdValue } from "@/lib/format";
+import { formatSats, formatUsdValue, calcFeeRate, calcVsize } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { BoltzmannWorkerResult } from "@/hooks/useBoltzmann";
@@ -949,8 +949,8 @@ export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspend
           <span>
             {t("tx.fee", {
               amount: formatSats(tx.fee, i18n.language),
-              rate: feeRate(tx),
-              defaultValue: `Fee: ${formatSats(tx.fee, i18n.language)} (${feeRate(tx)} sat/vB)`,
+              rate: calcFeeRate(tx),
+              defaultValue: `Fee: ${formatSats(tx.fee, i18n.language)} (${calcFeeRate(tx)} sat/vB)`,
             })}
           </span>
           <span>{tx.weight.toLocaleString(i18n.language)} WU</span>
@@ -1015,8 +1015,3 @@ export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspend
   );
 }
 
-function feeRate(tx: MempoolTransaction): string {
-  const vsize = Math.ceil(tx.weight / 4);
-  if (vsize === 0) return "0";
-  return (tx.fee / vsize).toFixed(1);
-}

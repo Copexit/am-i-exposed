@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { SVG_COLORS, ANIMATION_DEFAULTS } from "./shared/svgConstants";
 import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
-import { formatSats, formatUsdValue } from "@/lib/format";
+import { formatSats, formatUsdValue, calcFeeRate } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
@@ -156,8 +156,8 @@ export function CoinJoinStructure({ tx, findings, onAddressClick, usdPrice, outs
         <span>
           {t("tx.fee", {
             amount: formatSats(tx.fee, i18n.language),
-            rate: cjFeeRate(tx),
-            defaultValue: `Fee: ${formatSats(tx.fee, i18n.language)} (${cjFeeRate(tx)} sat/vB)`,
+            rate: calcFeeRate(tx),
+            defaultValue: `Fee: ${formatSats(tx.fee, i18n.language)} (${calcFeeRate(tx)} sat/vB)`,
           })}
         </span>
         <div className="flex items-center gap-3">
@@ -800,8 +800,3 @@ function CoinJoinChart({
   );
 }
 
-function cjFeeRate(tx: MempoolTransaction): string {
-  const vsize = Math.ceil(tx.weight / 4);
-  if (vsize === 0) return "0";
-  return (tx.fee / vsize).toFixed(1);
-}

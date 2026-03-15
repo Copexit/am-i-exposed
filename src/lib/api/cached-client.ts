@@ -58,6 +58,33 @@ function computeAddressTxsTtl(txs: MempoolTransaction[]): number {
 }
 
 /**
+ * Cache-or-fetch helper. Checks IDB cache first (if caching is enabled),
+ * falls back to the fetch function, then stores the result with the given TTL.
+ * The ttlFn receives the fetched value so TTL can adapt to the data.
+ */
+async function withIdbCache<T>(
+  key: string,
+  fn: () => Promise<T>,
+  ttlFn?: (value: T) => number | undefined,
+): Promise<T> {
+  const { enableCache } = getAnalysisSettings();
+  if (enableCache) {
+    const cached = await idbGet<T>(key);
+    if (cached !== undefined) return cached;
+  }
+
+  const value = await fn();
+  if (enableCache) {
+    const ttl = ttlFn ? ttlFn(value) : undefined;
+    // Negative TTL signals "don't cache this result"
+    if (ttl === undefined || ttl >= 0) {
+      idbPut(key, value, ttl).catch(() => {});
+    }
+  }
+  return value;
+}
+
+/**
  * Create a MempoolClient with transparent IndexedDB caching.
  * All methods have the same signature as the base MempoolClient.
  */
@@ -70,141 +97,71 @@ export function createCachedMempoolClient(
   const net = network ?? networkFromUrl(baseUrl);
 
   return {
-    async getTransaction(txid: string) {
-      const key = `${net}:tx:${txid}`;
-      const { enableCache } = getAnalysisSettings();
-      if (enableCache) {
-        const cached = await idbGet<MempoolTransaction>(key);
-        if (cached !== undefined) return cached;
-      }
-
-      const tx = await inner.getTransaction(txid);
-      if (enableCache) {
-        // Confirmed txs get infinite TTL, unconfirmed get 10 min
-        const ttl = tx.status?.confirmed ? undefined : TTL_10_MIN;
-        idbPut(key, tx, ttl).catch(() => {});
-      }
-      return tx;
+    getTransaction(txid: string) {
+      return withIdbCache(
+        `${net}:tx:${txid}`,
+        () => inner.getTransaction(txid),
+        (tx) => tx.status?.confirmed ? undefined : TTL_10_MIN,
+      );
     },
 
-    async getTxHex(txid: string) {
-      const key = `${net}:txhex:${txid}`;
-      const { enableCache } = getAnalysisSettings();
-      if (enableCache) {
-        const cached = await idbGet<string>(key);
-        if (cached !== undefined) return cached;
-      }
-
-      const hex = await inner.getTxHex(txid);
-      if (enableCache) {
-        idbPut(key, hex).catch(() => {});
-      }
-      return hex;
+    getTxHex(txid: string) {
+      return withIdbCache(`${net}:txhex:${txid}`, () => inner.getTxHex(txid));
     },
 
-    async getAddress(address: string) {
-      const key = `${net}:addr:${address}`;
-      const { enableCache } = getAnalysisSettings();
-      if (enableCache) {
-        const cached = await idbGet<Awaited<ReturnType<MempoolClient["getAddress"]>>>(key);
-        if (cached !== undefined) return cached;
-      }
-
-      const data = await inner.getAddress(address);
-      if (enableCache) {
-        // Adaptive TTL: pending mempool txs -> 10 min, has chain txs -> 1 hour, unused -> 10 min
-        let ttl = TTL_10_MIN;
-        if (data.mempool_stats?.tx_count > 0) {
-          ttl = TTL_10_MIN;
-        } else if (data.chain_stats?.tx_count > 0) {
-          ttl = TTL_1_HOUR;
-        }
-        idbPut(key, data, ttl).catch(() => {});
-      }
-      return data;
+    getAddress(address: string) {
+      return withIdbCache(
+        `${net}:addr:${address}`,
+        () => inner.getAddress(address),
+        (data) => {
+          if (data.mempool_stats?.tx_count > 0) return TTL_10_MIN;
+          if (data.chain_stats?.tx_count > 0) return TTL_1_HOUR;
+          return TTL_10_MIN;
+        },
+      );
     },
 
-    async getAddressTxs(address: string, maxPages?: number) {
-      const key = `${net}:addrtxs:${address}:${maxPages ?? 4}`;
-      const { enableCache } = getAnalysisSettings();
-      if (enableCache) {
-        const cached = await idbGet<Awaited<ReturnType<MempoolClient["getAddressTxs"]>>>(key);
-        if (cached !== undefined) return cached;
-      }
-
-      const txs = await inner.getAddressTxs(address, maxPages);
-      if (enableCache) {
-        const ttl = computeAddressTxsTtl(txs);
-        idbPut(key, txs, ttl).catch(() => {});
-      }
-      return txs;
+    getAddressTxs(address: string, maxPages?: number) {
+      return withIdbCache(
+        `${net}:addrtxs:${address}:${maxPages ?? 4}`,
+        () => inner.getAddressTxs(address, maxPages),
+        (txs) => computeAddressTxsTtl(txs),
+      );
     },
 
-    async getAddressUtxos(address: string) {
-      const key = `${net}:utxo:${address}`;
-      const { enableCache } = getAnalysisSettings();
-      if (enableCache) {
-        const cached = await idbGet<Awaited<ReturnType<MempoolClient["getAddressUtxos"]>>>(key);
-        if (cached !== undefined) return cached;
-      }
-
-      const utxos = await inner.getAddressUtxos(address);
-      if (enableCache) {
-        // All confirmed and non-empty -> 1 hour, otherwise 10 min
-        const allConfirmed = utxos.length > 0 && utxos.every(u => u.status?.confirmed);
-        idbPut(key, utxos, allConfirmed ? TTL_1_HOUR : TTL_10_MIN).catch(() => {});
-      }
-      return utxos;
+    getAddressUtxos(address: string) {
+      return withIdbCache(
+        `${net}:utxo:${address}`,
+        () => inner.getAddressUtxos(address),
+        (utxos) => {
+          const allConfirmed = utxos.length > 0 && utxos.every(u => u.status?.confirmed);
+          return allConfirmed ? TTL_1_HOUR : TTL_10_MIN;
+        },
+      );
     },
 
-    async getTxOutspends(txid: string) {
-      const key = `${net}:outspend:${txid}`;
-      const { enableCache } = getAnalysisSettings();
-      if (enableCache) {
-        const cached = await idbGet<Awaited<ReturnType<MempoolClient["getTxOutspends"]>>>(key);
-        if (cached !== undefined) return cached;
-      }
-
-      const outspends = await inner.getTxOutspends(txid);
-      if (enableCache) {
-        idbPut(key, outspends, TTL_1_HOUR).catch(() => {});
-      }
-      return outspends;
+    getTxOutspends(txid: string) {
+      return withIdbCache(
+        `${net}:outspend:${txid}`,
+        () => inner.getTxOutspends(txid),
+        () => TTL_1_HOUR,
+      );
     },
 
-    async getHistoricalPrice(timestamp: number) {
-      const key = `${net}:price:usd:${Math.floor(timestamp)}`;
-      const { enableCache } = getAnalysisSettings();
-      if (enableCache) {
-        const cached = await idbGet<number | null>(key);
-        if (cached !== undefined) return cached;
-      }
-
-      const price = await inner.getHistoricalPrice(timestamp);
-      if (enableCache) {
-        // Only cache non-null results with infinite TTL
-        if (price !== null) {
-          idbPut(key, price).catch(() => {});
-        }
-      }
-      return price;
+    getHistoricalPrice(timestamp: number) {
+      return withIdbCache(
+        `${net}:price:usd:${Math.floor(timestamp)}`,
+        () => inner.getHistoricalPrice(timestamp),
+        (price) => price !== null ? undefined : -1,
+      );
     },
 
-    async getHistoricalEurPrice(timestamp: number) {
-      const key = `${net}:price:eur:${Math.floor(timestamp)}`;
-      const { enableCache } = getAnalysisSettings();
-      if (enableCache) {
-        const cached = await idbGet<number | null>(key);
-        if (cached !== undefined) return cached;
-      }
-
-      const price = await inner.getHistoricalEurPrice(timestamp);
-      if (enableCache) {
-        if (price !== null) {
-          idbPut(key, price).catch(() => {});
-        }
-      }
-      return price;
+    getHistoricalEurPrice(timestamp: number) {
+      return withIdbCache(
+        `${net}:price:eur:${Math.floor(timestamp)}`,
+        () => inner.getHistoricalEurPrice(timestamp),
+        (price) => price !== null ? undefined : -1,
+      );
     },
   };
 }
