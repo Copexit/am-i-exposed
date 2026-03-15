@@ -119,8 +119,11 @@ export function GraphExplorer(props: GraphExplorerProps) {
     };
   }, []);
 
+  // Abort controller for the current computation cycle
+  const boltzmannAbortRef = useRef<AbortController | null>(null);
+
   /** Compute Boltzmann for a specific txid (or generate synthetic for 1-input). */
-  const triggerBoltzmann = useCallback(async (txid: string) => {
+  const computeSingleBoltzmann = useCallback(async (txid: string, signal?: AbortSignal): Promise<void> => {
     if (boltzmannCacheRef.current.has(txid)) return;
     const node = props.nodes.get(txid);
     if (!node) return;
@@ -142,23 +145,37 @@ export function GraphExplorer(props: GraphExplorerProps) {
     // Too large for WASM
     if (inputValues.length + outputValues.length > 80) return;
 
+    if (signal?.aborted) return;
+
     computingBoltzmannRef.current.add(txid);
     setComputingBoltzmannVersion((v) => v + 1);
     try {
       const result = await computeBoltzmann(tx, {
+        signal,
         onProgress: (p: BoltzmannProgress) => {
-          setBoltzmannProgressMap((prev) => new Map(prev).set(txid, p.fraction));
+          if (!signal?.aborted) {
+            setBoltzmannProgressMap((prev) => new Map(prev).set(txid, p.fraction));
+          }
         },
       });
-      if (result) {
+      if (result && !signal?.aborted) {
         boltzmannCacheRef.current.set(txid, result);
         setBoltzmannVersion((v) => v + 1);
       }
-    } catch { /* computation failed - not critical */ }
+    } catch { /* computation failed or aborted - not critical */ }
     computingBoltzmannRef.current.delete(txid);
     setComputingBoltzmannVersion((v) => v + 1);
     setBoltzmannProgressMap((prev) => { const next = new Map(prev); next.delete(txid); return next; });
   }, [props.nodes, buildSyntheticResult]);
+
+  /** Manual trigger (sidebar button). Uses a fresh AbortController. */
+  const triggerBoltzmann = useCallback(async (txid: string) => {
+    // Abort any in-flight computation to free the worker pool
+    boltzmannAbortRef.current?.abort();
+    const ac = new AbortController();
+    boltzmannAbortRef.current = ac;
+    await computeSingleBoltzmann(txid, ac.signal);
+  }, [computeSingleBoltzmann]);
 
   // Eagerly compute Boltzmann for ALL nodes in the graph whenever the graph changes
   useEffect(() => {
@@ -177,33 +194,43 @@ export function GraphExplorer(props: GraphExplorerProps) {
     if (anyNew) setBoltzmannVersion((v) => v + 1);
 
     // Second pass: async compute for auto-computable multi-input txs (sequential)
-    let cancelled = false;
-    (async () => {
-      for (const [txid, node] of props.nodes) {
-        if (cancelled) break;
-        if (boltzmannCacheRef.current.has(txid)) continue;
-        if (computingBoltzmannRef.current.has(txid)) continue;
+    // Abort previous computation cycle before starting a new one
+    boltzmannAbortRef.current?.abort();
+    const ac = new AbortController();
+    boltzmannAbortRef.current = ac;
 
-        const tx = node.tx;
-        if (tx.vin.some((v) => v.is_coinbase)) continue;
+    // Build queue of eligible txids (snapshot - stable across the async loop)
+    const queue: Array<{ txid: string; tx: import("@/lib/api/types").MempoolTransaction }> = [];
+    for (const [txid, node] of props.nodes) {
+      if (boltzmannCacheRef.current.has(txid)) continue;
+      if (computingBoltzmannRef.current.has(txid)) continue;
 
-        const { inputValues, outputValues } = extractTxValues(tx);
-        if (inputValues.length < 2) continue;
-        const total = inputValues.length + outputValues.length;
-        // Auto-compute: <18 I/O always, <24 I/O if JoinMarket turbo-detectable
-        if (total >= 18) {
-          if (total >= 24) continue;
-          if (!detectJoinMarketForTurbo(inputValues, outputValues).isJoinMarket) continue;
-        }
+      const tx = node.tx;
+      if (tx.vin.some((v) => v.is_coinbase)) continue;
 
-        await triggerBoltzmann(txid);
+      const { inputValues, outputValues } = extractTxValues(tx);
+      if (inputValues.length < 2) continue;
+      const total = inputValues.length + outputValues.length;
+      if (total >= 18) {
+        if (total >= 24) continue;
+        if (!detectJoinMarketForTurbo(inputValues, outputValues).isJoinMarket) continue;
       }
-    })();
 
-    return () => { cancelled = true; };
-    // Only re-run when graph nodes change (not when computing state changes)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.nodes, buildSyntheticResult]);
+      queue.push({ txid, tx });
+    }
+
+    // Process queue sequentially with abort signal
+    if (queue.length > 0) {
+      (async () => {
+        for (const { txid } of queue) {
+          if (ac.signal.aborted) break;
+          await computeSingleBoltzmann(txid, ac.signal);
+        }
+      })();
+    }
+
+    return () => { ac.abort(); };
+  }, [props.nodes, buildSyntheticResult, computeSingleBoltzmann]);
 
   /** Get Boltzmann result for a txid (from cache or root result). */
   const getBoltzmannResult = useCallback((txid: string): BoltzmannWorkerResult | undefined => {
