@@ -168,6 +168,8 @@ export interface GraphCanvasProps extends GraphExplorerProps {
   onLayoutComplete?: (info: { visibleCount: number }) => void;
   /** Boltzmann results for any node (not just root). Keyed by txid. */
   boltzmannCache?: Map<string, BoltzmannWorkerResult>;
+  /** Set of txids to highlight (e.g. from address search). */
+  highlightedNodes?: Set<string>;
 }
 
 export interface MinimapProps {

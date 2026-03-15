@@ -55,6 +55,7 @@ export function GraphCanvas({
   outspendCache,
   onLayoutComplete,
   boltzmannCache,
+  highlightedNodes,
 }: GraphCanvasProps) {
   const atCapacity = nodeCount >= maxNodes;
   const [hoveredEdgeKey, setHoveredEdgeKey] = useState<string | null>(null);
@@ -692,9 +693,12 @@ export function GraphCanvas({
           );
           const isLoading = loading.has(node.txid);
           const isExpandedNode = node.txid === expandedNodeTxid;
+          const isHighlighted = highlightedNodes?.has(node.txid);
 
           let nodeOpacity = 1;
-          if (isDimmedByHover && !isConnectedToHovered) nodeOpacity = 0.3;
+          if (isDimmedByHover && !isConnectedToHovered && !isHighlighted) nodeOpacity = 0.3;
+          // Dim non-highlighted nodes when search is active
+          if (highlightedNodes && !isHighlighted && !isHovered) nodeOpacity = Math.min(nodeOpacity, 0.35);
 
           // Render expanded node with UTXO ports
           if (isExpandedNode) {
@@ -793,6 +797,22 @@ export function GraphCanvas({
                 />
               )}
 
+              {/* Search highlight ring */}
+              {isHighlighted && (
+                <rect
+                  x={node.x - 3}
+                  y={node.y - 3}
+                  width={node.width + 6}
+                  height={node.height + 6}
+                  rx={10}
+                  fill="none"
+                  stroke={SVG_COLORS.bitcoin}
+                  strokeWidth={2}
+                  strokeOpacity={0.9}
+                  filter="url(#glow-medium)"
+                />
+              )}
+
               {/* Focused node indicator (dashed animated outline) */}
               {isFocused && (
                 <rect
@@ -872,7 +892,7 @@ export function GraphCanvas({
                 {truncateId(node.txid, 8)}
               </Text>
 
-              {/* Summary line */}
+              {/* Summary line + tx type label */}
               <Text
                 x={node.x + 10}
                 y={node.y + 38}
@@ -881,6 +901,23 @@ export function GraphCanvas({
               >
                 {`${node.inputCount}in / ${node.outputCount}out - ${formatSats(totalValue)}`}
               </Text>
+              {/* Quick tx type label (compact, from structure) */}
+              {!node.entityLabel && !node.isCoinJoin && node.inputCount > 0 && (
+                <Text
+                  x={node.x + 10}
+                  y={node.y + 50}
+                  fontSize={8}
+                  fill={SVG_COLORS.muted}
+                  fillOpacity={0.5}
+                >
+                  {node.inputCount === 1 && node.outputCount === 1 ? "sweep" :
+                   node.inputCount === 1 && node.outputCount === 2 ? "simple send" :
+                   node.inputCount > 1 && node.outputCount === 1 ? "consolidation" :
+                   node.inputCount === 1 && node.outputCount > 3 ? "batch" :
+                   node.tx.vin[0]?.is_coinbase ? "coinbase" :
+                   null}
+                </Text>
+              )}
 
               {/* Entity label + category */}
               {node.entityLabel && (
