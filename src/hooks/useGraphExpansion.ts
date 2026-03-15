@@ -323,6 +323,8 @@ function graphReducer(state: GraphState, action: GraphAction): GraphState {
 interface GraphExpansionFetcher {
   getTransaction(txid: string): Promise<MempoolTransaction>;
   getTxOutspends(txid: string): Promise<MempoolOutspend[]>;
+  /** Optional: used as fallback when outspends endpoint is unavailable. */
+  getAddressTxs?(address: string): Promise<MempoolTransaction[]>;
 }
 
 function makeInitialState(maxNodes: number): GraphState {
@@ -414,8 +416,41 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     }
   }, [state.nodes, state.maxNodes]);
 
+  /** Try address-based fallback to find a child tx that spends a specific output.
+   *  Scans the output address's transaction history for one that references our txid:vout. */
+  const findChildViaAddress = useCallback(async (
+    client: GraphExpansionFetcher,
+    tx: MempoolTransaction,
+    currentTxid: string,
+    outputIndex: number,
+    existingNodes: Map<string, GraphNode>,
+  ): Promise<{ childTx: MempoolTransaction; outputIdx: number } | null> => {
+    if (!client.getAddressTxs) return null;
+
+    // Scan outputs starting from hint, wrapping around
+    const vout = tx.vout;
+    for (let offset = 0; offset < vout.length; offset++) {
+      const oi = (outputIndex + offset) % vout.length;
+      const addr = vout[oi].scriptpubkey_address;
+      if (!addr || vout[oi].value === 0) continue;
+
+      const addrTxs = await client.getAddressTxs(addr);
+      for (const atx of addrTxs) {
+        if (atx.txid === currentTxid) continue;
+        if (existingNodes.has(atx.txid)) continue;
+        // Check if this tx actually spends our output
+        const spendsOur = atx.vin.some(
+          (v) => v.txid === currentTxid && v.vout === oi,
+        );
+        if (spendsOur) return { childTx: atx, outputIdx: oi };
+      }
+    }
+    return null;
+  }, []);
+
   /** Expand forward: fetch the child tx that spends the given output.
-   *  Scans all outputs starting from the hint index to find an expandable one. */
+   *  Scans all outputs starting from the hint index to find an expandable one.
+   *  Falls back to address-based lookup if outspends endpoint is unavailable. */
   const expandOutput = useCallback(async (currentTxid: string, outputIndex: number) => {
     const client = fetcherRef.current;
     if (!client) return;
@@ -428,53 +463,85 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     dispatch({ type: "SET_LOADING", txid: loadKey, loading: true });
 
     try {
-      const outspends = await client.getTxOutspends(currentTxid);
+      let outspends: MempoolOutspend[] = [];
+      let outspendsFailed = false;
+      try {
+        outspends = await client.getTxOutspends(currentTxid);
+      } catch {
+        outspendsFailed = true;
+      }
 
-      // Scan outputs starting from the hint, wrapping around to find an expandable one
+      // Try outspends first (fast path)
       const total = outspends.length;
-      for (let offset = 0; offset < total; offset++) {
-        const oi = (outputIndex + offset) % total;
-        const os = outspends[oi];
-        if (!os?.spent || !os.txid) continue;
-        if (state.nodes.has(os.txid)) continue;
+      const needsFallback = outspendsFailed
+        || total === 0
+        || outspends.some((os) => os?.spent && !os.txid);
 
-        const childTx = await client.getTransaction(os.txid);
+      if (!needsFallback) {
+        for (let offset = 0; offset < total; offset++) {
+          const oi = (outputIndex + offset) % total;
+          const os = outspends[oi];
+          if (!os?.spent || !os.txid) continue;
+          if (state.nodes.has(os.txid)) continue;
+
+          const childTx = await client.getTransaction(os.txid);
+          dispatch({
+            type: "ADD_NODE",
+            node: {
+              txid: os.txid,
+              tx: childTx,
+              depth: node.depth + 1,
+              parentEdge: { fromTxid: currentTxid, outputIndex: oi },
+            },
+          });
+          return;
+        }
+
+        // Outspends worked but no expandable output found
+        const allUnspent = outspends.every((os) => !os?.spent);
         dispatch({
-          type: "ADD_NODE",
-          node: {
-            txid: os.txid,
-            tx: childTx,
-            depth: node.depth + 1,
-            parentEdge: { fromTxid: currentTxid, outputIndex: oi },
-          },
+          type: "SET_ERROR",
+          txid: loadKey,
+          error: allUnspent ? "Output not yet spent" : "All spent outputs already in graph",
         });
         return;
       }
 
-      // No expandable output found - determine the reason
-      let error: string;
-      if (total === 0) {
-        error = "Outspend data not available from this API";
-      } else if (outspends.every((os) => !os?.spent)) {
-        error = "Output not yet spent";
-      } else if (outspends.some((os) => os?.spent && !os.txid)) {
-        error = "Spending txids not available from this API";
-      } else {
-        error = "All spent outputs already in graph";
+      // Fallback: use address-based lookup
+      if (client.getAddressTxs) {
+        const result = await findChildViaAddress(client, node.tx, currentTxid, outputIndex, state.nodes);
+        if (result) {
+          dispatch({
+            type: "ADD_NODE",
+            node: {
+              txid: result.childTx.txid,
+              tx: result.childTx,
+              depth: node.depth + 1,
+              parentEdge: { fromTxid: currentTxid, outputIndex: result.outputIdx },
+            },
+          });
+          return;
+        }
       }
-      dispatch({ type: "SET_ERROR", txid: loadKey, error });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to fetch";
-      const isNotFound = msg.includes("404") || msg.includes("not found");
+
+      // Neither outspends nor address fallback found a child
       dispatch({
         type: "SET_ERROR",
         txid: loadKey,
-        error: isNotFound ? "Outspend endpoint not available from this API" : msg,
+        error: outspendsFailed
+          ? "Output not yet spent or address has no other transactions"
+          : "Output not yet spent",
+      });
+    } catch (err) {
+      dispatch({
+        type: "SET_ERROR",
+        txid: loadKey,
+        error: err instanceof Error ? err.message : "Failed to fetch",
       });
     } finally {
       dispatch({ type: "SET_LOADING", txid: loadKey, loading: false });
     }
-  }, [state.nodes, state.maxNodes]);
+  }, [state.nodes, state.maxNodes, findChildViaAddress]);
 
   const collapse = useCallback((txid: string) => {
     dispatch({ type: "REMOVE_NODE", txid });
