@@ -70,8 +70,6 @@ const ALL_PATHWAY_IDS = new Set([
  */
 export function matchPathways(
   findings: Finding[],
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _grade: string,
 ): { matched: RelevantPathway[]; unmatched: string[] } {
   const findingIds = new Set(findings.map((f) => f.id));
   const pathwayScores = new Map<string, { score: number; findings: string[] }>();

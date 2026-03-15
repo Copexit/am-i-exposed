@@ -12,6 +12,7 @@ import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import type { Finding } from "@/lib/types";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 import { analyzeCoinJoin, isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
+import { truncateId } from "@/lib/constants";
 
 /**
  * Bithypha-style taint path visualization.
@@ -151,7 +152,7 @@ function addLayerNodes(
       for (const txid of regularTxids) {
         nodes.push({
           id: `${prefix}-${txid.slice(0, 8)}`,
-          label: `${txid.slice(0, 6)}...`,
+          label: truncateId(txid, 4),
           depth,
           y: 0,
           type: "regular",

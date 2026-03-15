@@ -44,7 +44,7 @@ export function calculateScore(findings: Finding[], mode: AnalysisMode = "tx"): 
   return { score, grade, findings: sortedFindings };
 }
 
-function scoreToGrade(score: number): Grade {
+export function scoreToGrade(score: number): Grade {
   if (score >= 90) return "A+";
   if (score >= 75) return "B";
   if (score >= 50) return "C";

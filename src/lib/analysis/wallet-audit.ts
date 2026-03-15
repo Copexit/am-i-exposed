@@ -13,6 +13,7 @@
  */
 
 import type { Finding, Severity, Grade } from "@/lib/types";
+import { scoreToGrade } from "@/lib/scoring/score";
 import { sumImpact } from "@/lib/scoring/score";
 import { fmtN } from "@/lib/format";
 import type { MempoolAddress, MempoolTransaction, MempoolUtxo } from "@/lib/api/types";
@@ -292,15 +293,6 @@ function checkGoodPractices(addresses: WalletAddressInfo[]): Finding[] {
 }
 
 // ---------- Public API ----------
-
-/** Assign a grade from a numeric score (0-100). */
-function scoreToGrade(score: number): Grade {
-  if (score >= 90) return "A+";
-  if (score >= 75) return "B";
-  if (score >= 50) return "C";
-  if (score >= 25) return "D";
-  return "F";
-}
 
 /**
  * Run a full wallet-level privacy audit on derived addresses.

@@ -445,18 +445,17 @@ function PathwayCard({ pathway, expandedPathway, setExpandedPathway, matchedIds,
 }
 
 interface PrivacyPathwaysProps {
-  grade: string;
   findings?: Finding[];
 }
 
-export function PrivacyPathways({ grade, findings = [] }: PrivacyPathwaysProps) {
+export function PrivacyPathways({ findings = [] }: PrivacyPathwaysProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [expandedPathway, setExpandedPathway] = useState<string | null>(null);
   const [showCombined, setShowCombined] = useState(false);
   const [showAll, setShowAll] = useState(false);
 
-  const { matched } = matchPathways(findings, grade);
+  const { matched } = matchPathways(findings);
   const matchedIds = new Set(matched.map((m) => m.id));
 
   // Sort pathways: matched first (by relevance), then unmatched

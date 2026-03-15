@@ -5,7 +5,7 @@ import { motion } from "motion/react";
 import { ArrowRight, Search } from "lucide-react";
 import type { MempoolTransaction } from "@/lib/api/types";
 import { formatTimeAgo } from "@/lib/i18n/format";
-import { formatSats } from "@/lib/format";
+import { formatSats, calcFeeRate, calcVsize } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 
 interface TxSummaryProps {
@@ -184,10 +184,10 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
       {/* Fee + size */}
       <div className="flex items-center justify-between text-sm text-muted border-t border-card-border pt-2">
         <span>
-          {t("tx.fee", { amount: formatSats(tx.fee, i18n.language), rate: feeRate(tx), defaultValue: "Fee: {{amount}} ({{rate}} sat/vB)" })}
+          {t("tx.fee", { amount: formatSats(tx.fee, i18n.language), rate: calcFeeRate(tx), defaultValue: "Fee: {{amount}} ({{rate}} sat/vB)" })}
         </span>
         <span>
-          {tx.weight.toLocaleString(i18n.language)} WU / {Math.ceil(tx.weight / 4).toLocaleString(i18n.language)} vB
+          {tx.weight.toLocaleString(i18n.language)} WU / {calcVsize(tx.weight).toLocaleString(i18n.language)} vB
         </span>
       </div>
 
@@ -259,12 +259,3 @@ function formatOutputAddr(vout: { scriptpubkey_address?: string; scriptpubkey_ty
   };
   return typeLabels[vout.scriptpubkey_type] ?? vout.scriptpubkey_type;
 }
-
-
-
-function feeRate(tx: MempoolTransaction): string {
-  const vsize = Math.ceil(tx.weight / 4);
-  if (vsize === 0) return "0";
-  return (tx.fee / vsize).toFixed(1);
-}
-

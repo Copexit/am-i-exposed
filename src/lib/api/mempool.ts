@@ -20,6 +20,24 @@ export interface MempoolClientOptions {
   timeoutMs?: number;
 }
 
+/** Shared implementation for historical price fetching by currency. */
+async function getHistoricalCurrencyPrice(
+  get: <R>(path: string) => Promise<R>,
+  timestamp: number,
+  currency: string,
+): Promise<number | null> {
+  try {
+    const data = await get<{ prices: Array<Record<string, number>> }>(
+      `/v1/historical-price?currency=${currency}&timestamp=${Math.floor(timestamp)}`,
+    );
+    const price = data.prices?.[0]?.[currency];
+    // API returns 0 for timestamps before price data existed
+    return price && price > 0 ? price : null;
+  } catch {
+    return null;
+  }
+}
+
 export function createMempoolClient(baseUrl: string, options?: MempoolClientOptions) {
   const base = baseUrl.replace(/\/+$/, "");
   const signal = options?.signal;
@@ -91,28 +109,11 @@ export function createMempoolClient(baseUrl: string, options?: MempoolClientOpti
     },
 
     async getHistoricalPrice(timestamp: number): Promise<number | null> {
-      try {
-        const data = await get<{ prices: Array<{ time: number; USD: number }> }>(
-          `/v1/historical-price?currency=USD&timestamp=${Math.floor(timestamp)}`,
-        );
-        const usd = data.prices?.[0]?.USD;
-        // API returns 0 for timestamps before price data existed
-        return usd && usd > 0 ? usd : null;
-      } catch {
-        return null;
-      }
+      return getHistoricalCurrencyPrice(get, timestamp, "USD");
     },
 
     async getHistoricalEurPrice(timestamp: number): Promise<number | null> {
-      try {
-        const data = await get<{ prices: Array<{ time: number; EUR: number }> }>(
-          `/v1/historical-price?currency=EUR&timestamp=${Math.floor(timestamp)}`,
-        );
-        const eur = data.prices?.[0]?.EUR;
-        return eur && eur > 0 ? eur : null;
-      } catch {
-        return null;
-      }
+      return getHistoricalCurrencyPrice(get, timestamp, "EUR");
     },
   };
 }

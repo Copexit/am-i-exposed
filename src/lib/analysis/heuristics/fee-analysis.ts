@@ -1,6 +1,6 @@
 import type { TxHeuristic, TxContext } from "./types";
 import type { Finding } from "@/lib/types";
-import { fmtN } from "@/lib/format";
+import { fmtN, calcVsize } from "@/lib/format";
 
 /**
  * H6: Fee Analysis
@@ -19,7 +19,7 @@ export const analyzeFees: TxHeuristic = (tx, _rawHex?, ctx?) => {
   if (tx.fee === 0 || tx.weight === 0) return { findings };
 
   // Calculate fee rate in sat/vB
-  const vsize = Math.ceil(tx.weight / 4);
+  const vsize = calcVsize(tx.weight);
   const feeRate = tx.fee / vsize;
 
   // Check for exact integer fee rate (common in some wallets)
@@ -72,7 +72,7 @@ export const analyzeFees: TxHeuristic = (tx, _rawHex?, ctx?) => {
     // For SegWit txs, weight < size * 4. If fee appears calibrated to non-segwit,
     // the effective sat/vB would be higher than intended.
     const rawSize = tx.size;
-    const segwitVsize = Math.ceil(tx.weight / 4);
+    const segwitVsize = calcVsize(tx.weight);
     const nonSegwitFeeRate = tx.fee / rawSize;
     const segwitFeeRate = tx.fee / segwitVsize;
 
@@ -166,8 +166,8 @@ function detectCpfp(tx: Parameters<TxHeuristic>[0], ctx: TxContext | undefined, 
   if (childHeight < parentHeight || childHeight > parentHeight + 1) return;
 
   // Fee rate comparison: child >= 2x parent
-  const childVsize = Math.ceil(tx.weight / 4);
-  const parentVsize = Math.ceil(parentTx.weight / 4);
+  const childVsize = calcVsize(tx.weight);
+  const parentVsize = calcVsize(parentTx.weight);
   if (childVsize === 0 || parentVsize === 0) return;
   const childFeeRate = tx.fee / childVsize;
   const parentFeeRate = parentTx.fee / parentVsize;

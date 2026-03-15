@@ -11,7 +11,7 @@
  */
 
 import { idbGet, idbPut } from "./idb-cache";
-import { getAnalysisSettings, type AnalysisSettings } from "@/hooks/useAnalysisSettings";
+import type { AnalysisSettings } from "@/hooks/useAnalysisSettings";
 import type { ScoringResult, InputType, TxAnalysisResult } from "@/lib/types";
 import type {
   MempoolTransaction,
@@ -171,14 +171,4 @@ export async function putCachedResult(
   };
 
   await idbPut(key, stored, TTL_24_HOURS);
-}
-
-/**
- * Get cached result using current settings (convenience wrapper).
- */
-export async function getCachedResultWithCurrentSettings(
-  network: string,
-  query: string,
-): Promise<CachedAnalysisResult | undefined> {
-  return getCachedResult(network, query, getAnalysisSettings());
 }

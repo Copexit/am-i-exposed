@@ -9,7 +9,7 @@ import { SVG_COLORS, GRADE_HEX_SVG } from "./shared/svgConstants";
 import { probColor } from "./shared/linkabilityColors";
 import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
-import { formatSats } from "@/lib/format";
+import { formatSats, calcVsize } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
 import { analyzeCoinJoin, isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
@@ -228,7 +228,7 @@ function layoutGraph(
       visibleIdx++;
       nodePositions.set(node.txid, { x, y });
 
-      const vsize = Math.ceil(node.tx.weight / 4);
+      const vsize = calcVsize(node.tx.weight);
       const feeRate = vsize > 0 ? (node.tx.fee / vsize).toFixed(1) : "0";
 
       layoutNodes.push({
