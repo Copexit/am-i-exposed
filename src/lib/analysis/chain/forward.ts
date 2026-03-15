@@ -85,7 +85,9 @@ export function analyzeForward(
 
     // Item 2: Forward peel chain detection
     // Peel chain pattern: 1 input, 2 outputs, one much larger than the other
-    if (childTx.vin.length === 1 && childTx.vout.length === 2) {
+    // Skip when parent tx is a CoinJoin: post-mix outputs spent individually
+    // (1-in, 2-out) is normal and expected behavior, not a peel chain.
+    if (!txIsCoinJoin && childTx.vin.length === 1 && childTx.vout.length === 2) {
       const spendable = childTx.vout.filter((o) => !o.scriptpubkey.startsWith("6a"));
       if (spendable.length === 2) {
         const [v1, v2] = [spendable[0].value, spendable[1].value];

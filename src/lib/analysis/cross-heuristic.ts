@@ -181,6 +181,14 @@ export function applyCrossHeuristicRules(findings: Finding[]): void {
           "individually to preserve the ambiguity set.";
         f.params = { ...f.params, context: "coinjoin" };
       }
+      // Peel chain findings are false positives on CoinJoin: post-mix outputs
+      // spent individually (1-in, 2-out) is the expected spending pattern, not
+      // a peel chain. Both the tx-level and chain-level findings are suppressed.
+      if (f.id === "peel-chain" || f.id === "chain-forward-peel") {
+        f.severity = "low";
+        f.params = { ...f.params, context: "coinjoin" };
+        f.scoreImpact = 0;
+      }
       // OP_RETURN is intentionally NOT suppressed - protocol markers in CoinJoin
       // are additional metadata that may fingerprint the coordinator or participants.
       // Whirlpool uses OP_RETURN for pool-pairing; WabiSabi does not.
@@ -200,6 +208,18 @@ export function applyCrossHeuristicRules(findings: Finding[]): void {
   if (hasMultisig) {
     for (const f of findings) {
       if (f.id === "script-mixed") {
+        f.severity = "low";
+        f.params = { ...f.params, context: "multisig" };
+        f.scoreImpact = 0;
+      }
+      // Multisig inherently combines UTXOs from different signing participants.
+      // CIOH and consolidation findings are structural, not privacy leaks.
+      if (f.id === "h3-cioh") {
+        f.severity = "low";
+        f.params = { ...f.params, context: "multisig" };
+        f.scoreImpact = 0;
+      }
+      if (f.id.startsWith("consolidation-")) {
         f.severity = "low";
         f.params = { ...f.params, context: "multisig" };
         f.scoreImpact = 0;

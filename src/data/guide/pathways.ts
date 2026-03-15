@@ -210,7 +210,7 @@ export const PATHWAYS: PathwayData[] = [
       { key: "pathways.stonewall.con2", default: "Uses more block space (4 outputs vs 2)" },
       { key: "pathways.stonewall.con3", default: "Analyst with enough context may distinguish from a real CoinJoin" },
     ],
-    tools: ["Sparrow Wallet"],
+    tools: ["Ashigaru", "Sparrow Wallet"],
   },
   {
     id: "batch-spending",

@@ -176,7 +176,7 @@ export function selectRecommendations(
         headlineDefault: "Avoid combining UTXOs from different sources",
         detailKey: "primaryRec.cioh.detail",
         detailDefault:
-          "Every time you consolidate, you give extra information to those who sent you each coin. " +
+          "Every time you consolidate, you reveal additional information about your economic activity to everyone who sent you each coin joined in this transaction. " +
           "Choose a single UTXO that covers the payment. " +
           "If you must consolidate, do it with coins from the same origin.",
         tool: pickTool("coin-control", ctx.walletGuess),
@@ -197,7 +197,8 @@ export function selectRecommendations(
         detailDefault:
           "Making payments with change from previous payments links transactions in cascade, " +
           "leaving a clear trail of your economic activity. " +
-          "Use change by participating in PayJoin as a receiver to increase ambiguity.",
+          "Freeze the change and use a different UTXO for each payment. " +
+          "If you need to spend change, use it in collaborative transactions (PayJoin as a receiver, Stonewall) to increase ambiguity.",
         tool: pickTool("payjoin", ctx.walletGuess),
         guideLink: "/guide#payjoin-v2",
       },
@@ -348,7 +349,7 @@ export function selectRecommendations(
         headlineKey: "primaryRec.aPlusCJLn.headline",
         headlineDefault: "Consider Lightning for post-mix spending",
         detailKey: "primaryRec.aPlusCJLn.detail",
-        detailDefault: "Lightning payments are off-chain and invisible to chain analysis.",
+        detailDefault: "If spending post-mix UTXOs at a centralized exchange, consider doing it via Lightning. Lightning payments are off-chain and invisible to chain analysis.",
         guideLink: "/guide#lightning",
       },
     ];

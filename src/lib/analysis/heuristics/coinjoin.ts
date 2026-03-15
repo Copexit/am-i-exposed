@@ -108,7 +108,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
     const isDominantSingleDenom = denomTiers.length === 1 ||
       (denomTiers.length >= 2 && count >= 2 * denomTiers.filter(([v]) => v !== denomination).reduce((sum, [, c]) => sum + c, 0));
 
-    if (isDominantSingleDenom && isWabiSabi && count < total) {
+    if (isDominantSingleDenom && count < total) {
       // Large JoinMarket CoinJoin: 10+ in/out, single denomination + change outputs.
       // JoinMarket uses one denomination for all mixing participants.
       // WabiSabi uses multiple denomination tiers - that path is handled below.

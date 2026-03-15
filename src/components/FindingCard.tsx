@@ -7,7 +7,6 @@ import { ChevronDown, BookOpen, ExternalLink, Copy, Check } from "lucide-react";
 import type { Finding, Severity, ConfidenceLevel } from "@/lib/types";
 import { WalletIcon } from "@/components/ui/WalletIcon";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { useNetwork } from "@/context/NetworkContext";
 import { truncateId } from "@/lib/constants";
 import { formatSats } from "@/lib/format";
 import { copyToClipboard } from "@/lib/clipboard";
@@ -94,7 +93,6 @@ const SEVERITY_TOOLTIPS: Record<Severity, string> = {
 
 export const FindingCard = memo(function FindingCard({ finding, index, defaultExpanded = false, badge, onTxClick }: FindingCardProps) {
   const { t, i18n } = useTranslation();
-  const { config } = useNetwork();
   const [expanded, setExpanded] = useState(defaultExpanded);
   const reducedMotion = useReducedMotion();
   const style = SEVERITY_STYLES[finding.severity];
@@ -180,7 +178,6 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
                   groupsJson={String(finding.params._consolidationGroups)}
                   lang={i18n.language}
                   onTxClick={onTxClick}
-                  explorerUrl={config.explorerUrl}
                 />
               )}
               <div className="flex items-center justify-between">
@@ -230,12 +227,10 @@ function ConsolidationTable({
   groupsJson,
   lang,
   onTxClick,
-  explorerUrl,
 }: {
   groupsJson: string;
   lang: string;
   onTxClick?: (txid: string) => void;
-  explorerUrl: string;
 }) {
   const { t } = useTranslation();
   const [copiedTxid, setCopiedTxid] = useState<string | null>(null);
@@ -279,11 +274,11 @@ function ConsolidationTable({
                 <span className="font-mono text-xs text-foreground/70">{truncateId(g.childTxid, 8)}</span>
               )}
               <a
-                href={`${explorerUrl}/tx/${g.childTxid}`}
+                href={`/#tx=${g.childTxid}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted hover:text-foreground transition-colors"
-                title={t("common.openInExplorer", { defaultValue: "Open in block explorer" })}
+                title={t("common.openInNewTab", { defaultValue: "Open in new tab" })}
               >
                 <ExternalLink size={10} />
               </a>

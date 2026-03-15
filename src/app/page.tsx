@@ -239,7 +239,6 @@ export default function Home() {
         }
         resetRef.current();
         walletAnalyzeRef.current(xpub);
-        setPendingHash(false);
         return;
       }
 
@@ -250,7 +249,6 @@ export default function Home() {
         initialHashProcessed.current = true;
         walletResetRef.current();
         analyzeRef.current(input);
-        setPendingHash(false);
       }
     }
 
@@ -342,6 +340,13 @@ export default function Home() {
 
   // Determine if wallet analysis is active (takes precedence when in non-idle state)
   const walletActive = wallet.phase !== "idle";
+
+  // Clear pendingHash once analysis has actually started (phase left idle).
+  // Using a ref + synchronous check avoids a useEffect setState lint violation
+  // while still preventing the flash where phase=idle && !pendingHash.
+  if (pendingHash && (phase !== "idle" || walletActive)) {
+    setPendingHash(false);
+  }
 
   // Aria-live announcements for screen readers during phase transitions
   const ariaStatus =
