@@ -94,7 +94,7 @@ export function SeverityRing({ findings, size = 120 }: SeverityRingProps) {
                     <motion.path
                       key={arc.data.severity}
                       d={path}
-                      fill={`url(#grad-sev-${arc.data.severity})`}
+                      fill={arc.data.color}
                       fillOpacity={0.85}
                       initial={reducedMotion ? false : { opacity: 0 }}
                       animate={{ opacity: 1 }}

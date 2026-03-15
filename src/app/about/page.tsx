@@ -19,6 +19,7 @@ import {
   Languages,
   Server,
   BookOpen,
+  HardDrive,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -96,6 +97,11 @@ const CAPABILITIES = [
     icon: Languages,
     title: "5 Languages",
     desc: "Full interface translation in English, Spanish, Portuguese, German, and French. Community contributions welcome.",
+  },
+  {
+    icon: HardDrive,
+    title: "Smart Local Cache",
+    desc: "Confirmed transactions, outspends, and analysis results are cached in IndexedDB across sessions. Repeat scans are instant, API requests are minimized, and fewer queries leave your browser.",
   },
   {
     icon: Server,

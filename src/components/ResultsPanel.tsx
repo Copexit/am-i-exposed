@@ -268,7 +268,7 @@ function InlineSearchBar({ onScan, initialValue }: { onScan: (input: string) => 
           spellCheck={false}
           autoComplete="off"
           aria-label={t("input.placeholderScan", { defaultValue: "Paste a Bitcoin address or transaction ID" })}
-          className="w-full rounded-lg border border-card-border bg-surface-elevated/50 pl-8 pr-16 py-2
+          className="w-full rounded-lg border border-card-border bg-surface-elevated/50 pl-8 pr-16 py-2 min-h-[44px]
             font-mono text-sm text-foreground placeholder:text-muted/50
             focus:border-bitcoin/40 focus:shadow-[0_0_8px_rgba(247,147,26,0.1)]
             focus-visible:outline-2 focus-visible:outline-bitcoin/50
@@ -392,9 +392,14 @@ export const ResultsPanel = memo(function ResultsPanel({
         </div>
       </div>
 
-      {/* ZONE 2: Hero info card */}
+      {/* === TWO-COLUMN DASHBOARD (xl+: main + sidebar) === */}
+      <div className="w-full flex flex-col xl:flex-row xl:gap-8 xl:items-start gap-5 sm:gap-6">
+
+      {/* -- MAIN CONTENT COLUMN (first in DOM = left on desktop, top on mobile) -- */}
+      <div className="w-full xl:flex-1 xl:min-w-0 flex flex-col gap-5 sm:gap-6">
+
+      {/* Hero info card (in left column) */}
       <GlowCard className="w-full p-4 sm:p-5 space-y-4">
-        {/* Txid/address + metadata + badges */}
         <div className="space-y-1">
           <button
             onClick={() => {
@@ -443,67 +448,15 @@ export const ResultsPanel = memo(function ResultsPanel({
           </div>
         </div>
 
+        {/* Score display - mobile only (desktop shows in sidebar) */}
+        <div className="border-t border-card-border pt-4 xl:hidden">
+          <div className="flex items-center justify-center gap-6">
+            <ScoreDisplay score={result.score} grade={result.grade} findings={result.findings} />
+          </div>
+        </div>
       </GlowCard>
 
-      {/* ZONE 3: Alerts + Context */}
-      {(result.grade === "F" || result.findings.length > 0 || (inputType === "address" && preSendResult)) && (
-        <div className="w-full flex flex-col gap-3 sm:gap-4">
-          {result.grade === "F" && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.05 }}
-              className="w-full bg-severity-critical/10 border border-severity-critical/30 rounded-xl p-4 flex items-start gap-3"
-            >
-              <AlertTriangle size={18} className="text-severity-critical shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-severity-critical">
-                  {t("results.highExposureRisk", { defaultValue: "High exposure risk" })}
-                </p>
-                <p className="text-xs text-foreground mt-1 leading-relaxed">
-                  {inputType === "txid"
-                    ? t("results.fGradeWarningTx", { defaultValue: "This transaction has severe privacy issues. On-chain surveillance can likely identify the owner and trace fund flows. Immediate remediation steps are recommended below." })
-                    : t("results.fGradeWarningAddr", { defaultValue: "This address has severe privacy issues. On-chain surveillance can likely identify the owner and trace fund flows. Immediate remediation steps are recommended below." })}
-                </p>
-              </div>
-            </motion.div>
-          )}
-
-          {result.grade !== "F" && (() => {
-            const sentiment = getSummarySentiment(result.grade, result.findings);
-            const colorMap = {
-              positive: { border: "border-severity-good/30 bg-severity-good/5", text: "text-severity-good" },
-              cautious: { border: "border-severity-medium/30 bg-severity-medium/5", text: "text-severity-medium" },
-              warning: { border: "border-severity-high/30 bg-severity-high/5", text: "text-severity-high" },
-              danger: { border: "border-severity-critical/30 bg-severity-critical/5", text: "text-severity-critical" },
-            };
-            const colors = colorMap[sentiment];
-            return (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.05 }} className={`w-full rounded-xl border px-4 py-3 ${colors.border}`}>
-                <p className={`text-base font-medium ${colors.text}`}>
-                  {sentiment === "positive"
-                    ? t("results.summaryGood", { defaultValue: "No significant privacy concerns detected." })
-                    : sentiment === "cautious"
-                      ? t("results.summaryFair", { defaultValue: "Some privacy concerns detected. Review the findings below." })
-                      : t("results.summaryPoor", { defaultValue: "Significant privacy exposure detected. Remediation recommended." })}
-                </p>
-              </motion.div>
-            );
-          })()}
-
-          {inputType === "address" && preSendResult && (
-            <DestinationAlert preSendResult={preSendResult} />
-          )}
-        </div>
-      )}
-
-      {/* === TWO-COLUMN DASHBOARD (xl+: main + sidebar) === */}
-      <div className="w-full flex flex-col xl:flex-row xl:gap-8 xl:items-start gap-5 sm:gap-6">
-
-      {/* -- MAIN CONTENT COLUMN (first in DOM = left on desktop, top on mobile) -- */}
-      <div className="w-full xl:flex-1 xl:min-w-0 flex flex-col gap-5 sm:gap-6">
-
-      {/* ZONE 5: Transaction Structure (full width) */}
+      {/* Transaction Structure (full width) */}
       {txData && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.16 }} className="w-full">
           <ChartErrorBoundary>
@@ -546,7 +499,7 @@ export const ResultsPanel = memo(function ResultsPanel({
                 key={finding.id}
                 finding={finding}
                 index={i}
-                defaultExpanded={finding.severity === "critical" || (result.grade === "F" && finding.severity === "high")}
+                defaultExpanded={finding.severity === "critical" || (finding.severity === "high" && !issues.some(f => f.severity === "critical"))}
                 badge={CHAIN_FINDING_IDS.has(finding.id) ? t("results.chainBadge", { defaultValue: "Chain" }) : undefined}
                 onTxClick={onScan}
               />
@@ -555,41 +508,7 @@ export const ResultsPanel = memo(function ResultsPanel({
         </motion.div>
       )}
 
-      {details.length > 0 && (
-        <FindingsTier
-          findings={details}
-          label={t("results.additionalFindings", { count: details.length, defaultValue: "Additional findings ({{count}})" })}
-          defaultOpen={false}
-          grade={result.grade}
-          delay={0.25}
-          onTxClick={onScan}
-        />
-      )}
-
-      {strengths.length > 0 && (
-        <FindingsTier
-          findings={strengths}
-          label={t("results.privacyStrengths", { count: strengths.length, defaultValue: "Privacy strengths ({{count}})" })}
-          defaultOpen={false}
-          grade={result.grade}
-          delay={0.3}
-          onTxClick={onScan}
-        />
-      )}
-
-      {/* Score Waterfall (charts column) */}
-      {result.findings.some((f) => f.scoreImpact !== 0) && (
-        <ScoreWaterfallCollapsible
-          findings={result.findings}
-          score={result.score}
-          grade={result.grade}
-          baseScore={addressData ? ADDRESS_BASE_SCORE : TX_BASE_SCORE}
-          onFindingClick={handleFindingClick}
-          delay={0.35}
-        />
-      )}
-
-      {/* ZONE 11: Deep Analysis (txid only) */}
+      {/* Deep Analysis (txid only) */}
       {inputType === "txid" && (
         <>
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.42 }} className="w-full">
@@ -679,7 +598,59 @@ export const ResultsPanel = memo(function ResultsPanel({
         </div>
       </GlowCard>
 
-      {/* ZONE 4: Recommendations */}
+      {/* Alerts */}
+      {(result.grade === "F" || result.findings.length > 0 || (inputType === "address" && preSendResult)) && (
+        <div className="w-full flex flex-col gap-3 sm:gap-4">
+          {result.grade === "F" && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.05 }}
+              className="w-full bg-severity-critical/10 border border-severity-critical/30 rounded-xl p-4 flex items-start gap-3"
+            >
+              <AlertTriangle size={18} className="text-severity-critical shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-severity-critical">
+                  {t("results.highExposureRisk", { defaultValue: "High exposure risk" })}
+                </p>
+                <p className="text-xs text-foreground mt-1 leading-relaxed">
+                  {inputType === "txid"
+                    ? t("results.fGradeWarningTx", { defaultValue: "This transaction has severe privacy issues. On-chain surveillance can likely identify the owner and trace fund flows. Immediate remediation steps are recommended below." })
+                    : t("results.fGradeWarningAddr", { defaultValue: "This address has severe privacy issues. On-chain surveillance can likely identify the owner and trace fund flows. Immediate remediation steps are recommended below." })}
+                </p>
+              </div>
+            </motion.div>
+          )}
+
+          {result.grade !== "F" && (() => {
+            const sentiment = getSummarySentiment(result.grade, result.findings);
+            const colorMap = {
+              positive: { border: "border-severity-good/30 bg-severity-good/5", text: "text-severity-good" },
+              cautious: { border: "border-severity-medium/30 bg-severity-medium/5", text: "text-severity-medium" },
+              warning: { border: "border-severity-high/30 bg-severity-high/5", text: "text-severity-high" },
+              danger: { border: "border-severity-critical/30 bg-severity-critical/5", text: "text-severity-critical" },
+            };
+            const colors = colorMap[sentiment];
+            return (
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.05 }} className={`w-full rounded-xl border px-4 py-3 ${colors.border}`}>
+                <p className={`text-base font-medium ${colors.text}`}>
+                  {sentiment === "positive"
+                    ? t("results.summaryGood", { defaultValue: "No significant privacy concerns detected." })
+                    : sentiment === "cautious"
+                      ? t("results.summaryFair", { defaultValue: "Some privacy concerns detected. Review the findings below." })
+                      : t("results.summaryPoor", { defaultValue: "Significant privacy exposure detected. Remediation recommended." })}
+                </p>
+              </motion.div>
+            );
+          })()}
+
+          {inputType === "address" && preSendResult && (
+            <DestinationAlert preSendResult={preSendResult} />
+          )}
+        </div>
+      )}
+
+      {/* Recommendations */}
       <div className="w-full flex flex-col gap-3 sm:gap-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }} className="w-full">
           <PrimaryRecommendation
@@ -700,7 +671,41 @@ export const ResultsPanel = memo(function ResultsPanel({
         )}
       </div>
 
-      {/* ZONE 13: Contextual Warnings (sidebar) */}
+      {/* Additional findings, strengths, score waterfall (sidebar) */}
+      {details.length > 0 && (
+        <FindingsTier
+          findings={details}
+          label={t("results.additionalFindings", { count: details.length, defaultValue: "Additional findings ({{count}})" })}
+          defaultOpen={false}
+          grade={result.grade}
+          delay={0.25}
+          onTxClick={onScan}
+        />
+      )}
+
+      {strengths.length > 0 && (
+        <FindingsTier
+          findings={strengths}
+          label={t("results.privacyStrengths", { count: strengths.length, defaultValue: "Privacy strengths ({{count}})" })}
+          defaultOpen={false}
+          grade={result.grade}
+          delay={0.3}
+          onTxClick={onScan}
+        />
+      )}
+
+      {result.findings.some((f) => f.scoreImpact !== 0) && (
+        <ScoreWaterfallCollapsible
+          findings={result.findings}
+          score={result.score}
+          grade={result.grade}
+          baseScore={addressData ? ADDRESS_BASE_SCORE : TX_BASE_SCORE}
+          onFindingClick={handleFindingClick}
+          delay={0.35}
+        />
+      )}
+
+      {/* Contextual Warnings (sidebar) */}
       <div className="w-full flex flex-col gap-3 sm:gap-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.52 }} className="w-full">
           <CexRiskPanel
@@ -726,13 +731,6 @@ export const ResultsPanel = memo(function ResultsPanel({
           <AnalystView findings={result.findings} grade={result.grade} />
         </motion.div>
       )}
-
-      {/* ZONE 15: Tip jar (sidebar) */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.62 }} className="w-full">
-        <Suspense fallback={null}>
-          <TipJar />
-        </Suspense>
-      </motion.div>
 
       </div>{/* end sidebar */}
 

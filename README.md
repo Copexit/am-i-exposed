@@ -182,6 +182,7 @@ The engine doesn't run heuristics in isolation. CoinJoin detection suppresses CI
 - **Next.js 16** static export - no server, hosted on GitHub Pages
 - **Client-side analysis** - all heuristics, chain analysis, and entity matching run in your browser
 - **Boltzmann WASM** - Rust-compiled WebAssembly engine computing real link probability matrices on-device, using all threads, with turbo paths for JoinMarket and more
+- **IndexedDB cache** - confirmed transactions, outspends, and analysis results are cached locally across sessions. Repeat scans are instant, API requests are minimized, and fewer queries leave your browser
 - **mempool.space API** only - no secondary APIs, your queries stay with one provider
 - **Tor-aware** - auto-detects `.onion` and routes API requests through Tor
 - **TypeScript** strict mode throughout

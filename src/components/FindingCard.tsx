@@ -3,14 +3,14 @@
 import { useState, memo } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
-import { ChevronDown } from "lucide-react";
-import { BookOpen } from "lucide-react";
-import { ExternalLink } from "lucide-react";
+import { ChevronDown, BookOpen, ExternalLink, Copy, Check } from "lucide-react";
 import type { Finding, Severity, ConfidenceLevel } from "@/lib/types";
 import { WalletIcon } from "@/components/ui/WalletIcon";
 import { Tooltip } from "@/components/ui/Tooltip";
+import { useNetwork } from "@/context/NetworkContext";
 import { truncateId } from "@/lib/constants";
 import { formatSats } from "@/lib/format";
+import { copyToClipboard } from "@/lib/clipboard";
 
 /** Map finding IDs to relevant FAQ section anchors */
 const FINDING_LEARN_MORE: Record<string, { faqId: string; labelKey: string; labelDefault: string }> = {
@@ -94,6 +94,7 @@ const SEVERITY_TOOLTIPS: Record<Severity, string> = {
 
 export const FindingCard = memo(function FindingCard({ finding, index, defaultExpanded = false, badge, onTxClick }: FindingCardProps) {
   const { t, i18n } = useTranslation();
+  const { config } = useNetwork();
   const [expanded, setExpanded] = useState(defaultExpanded);
   const reducedMotion = useReducedMotion();
   const style = SEVERITY_STYLES[finding.severity];
@@ -179,6 +180,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
                   groupsJson={String(finding.params._consolidationGroups)}
                   lang={i18n.language}
                   onTxClick={onTxClick}
+                  explorerUrl={config.explorerUrl}
                 />
               )}
               <div className="flex items-center justify-between">
@@ -228,12 +230,15 @@ function ConsolidationTable({
   groupsJson,
   lang,
   onTxClick,
+  explorerUrl,
 }: {
   groupsJson: string;
   lang: string;
   onTxClick?: (txid: string) => void;
+  explorerUrl: string;
 }) {
   const { t } = useTranslation();
+  const [copiedTxid, setCopiedTxid] = useState<string | null>(null);
   let groups: ConsolidationGroup[];
   try {
     groups = JSON.parse(groupsJson) as ConsolidationGroup[];
@@ -241,6 +246,12 @@ function ConsolidationTable({
     return null;
   }
   if (groups.length === 0) return null;
+
+  const handleCopy = (txid: string) => {
+    copyToClipboard(txid);
+    setCopiedTxid(txid);
+    setTimeout(() => setCopiedTxid(null), 1500);
+  };
 
   return (
     <div className="rounded-md border border-severity-critical/20 overflow-hidden">
@@ -260,14 +271,29 @@ function ConsolidationTable({
               {onTxClick ? (
                 <button
                   onClick={() => onTxClick(g.childTxid)}
-                  className="font-mono text-xs text-bitcoin hover:text-bitcoin-hover transition-colors cursor-pointer inline-flex items-center gap-1"
+                  className="font-mono text-xs text-bitcoin hover:text-bitcoin-hover transition-colors cursor-pointer"
                 >
                   {truncateId(g.childTxid, 8)}
-                  <ExternalLink size={10} className="opacity-50" />
                 </button>
               ) : (
                 <span className="font-mono text-xs text-foreground/70">{truncateId(g.childTxid, 8)}</span>
               )}
+              <a
+                href={`${explorerUrl}/tx/${g.childTxid}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted hover:text-foreground transition-colors"
+                title={t("common.openInExplorer", { defaultValue: "Open in block explorer" })}
+              >
+                <ExternalLink size={10} />
+              </a>
+              <button
+                onClick={() => handleCopy(g.childTxid)}
+                className="text-muted hover:text-foreground transition-colors cursor-pointer"
+                title={t("common.copyTxid", { defaultValue: "Copy transaction ID" })}
+              >
+                {copiedTxid === g.childTxid ? <Check size={10} className="text-severity-good" /> : <Copy size={10} />}
+              </button>
             </div>
             {/* Output list */}
             <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs">
