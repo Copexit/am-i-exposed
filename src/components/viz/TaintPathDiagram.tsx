@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useCallback, useRef } from "react";
+import { useMemo, useCallback, useRef, useEffect } from "react";
 import { Group } from "@visx/group";
 import { Text } from "@visx/text";
 import { ParentSize } from "@visx/responsive";
@@ -630,6 +630,7 @@ export function TaintPathDiagram({ findings, backwardLayers, forwardLayers, onTx
   const { t } = useTranslation();
   const tooltip = useChartTooltip<TooltipData>();
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Render if we have trace layers OR relevant chain analysis findings
   const hasChainData = (backwardLayers && backwardLayers.length > 0)
@@ -642,6 +643,24 @@ export function TaintPathDiagram({ findings, backwardLayers, forwardLayers, onTx
       f.id === "chain-coinjoin-descendancy" ||
       f.id === "chain-trace-summary"
     );
+
+  // Count backward hops to calculate target TX column position for auto-scroll
+  const backwardHops = backwardLayers?.length ?? 0;
+
+  // Auto-scroll to center the target transaction (depth=0) in the scroll container
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || backwardHops === 0) return;
+    // Delay slightly to allow SVG to render and determine scrollWidth
+    const timer = setTimeout(() => {
+      const cols = backwardHops + 1 + (forwardLayers?.length ?? 0);
+      const targetColFraction = (backwardHops + 0.5) / cols;
+      const targetX = targetColFraction * el.scrollWidth;
+      const center = targetX - el.clientWidth / 2;
+      el.scrollLeft = Math.max(0, center);
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [backwardHops, forwardLayers?.length]);
 
   if (!hasChainData) return null;
 
@@ -686,7 +705,7 @@ export function TaintPathDiagram({ findings, backwardLayers, forwardLayers, onTx
       </div>
 
       <div className="relative" ref={containerRef}>
-        <div className="overflow-x-auto -mx-4 px-4">
+        <div ref={scrollRef} className="overflow-x-auto -mx-4 px-4">
           <ParentSize debounceTime={100}>
             {({ width }) => width > 0 ? (
               <TaintPath
