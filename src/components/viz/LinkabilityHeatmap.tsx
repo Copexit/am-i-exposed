@@ -10,6 +10,7 @@ import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import { formatSats } from "@/lib/format";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import { COLOR_STOPS, probColor, cellGlow, probTextColor, probLabel } from "./shared/linkabilityColors";
+import { isCoinJoinTx } from "@/lib/analysis/heuristics/coinjoin";
 import type { MempoolTransaction } from "@/lib/api/types";
 
 interface Props {
@@ -218,6 +219,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
           {/* Complete - results */}
           {state.status === "complete" && state.result && (() => {
             const result = state.result;
+            const showEfficiency = isCoinJoinTx(tx) && result.efficiency > 0 && !result.timedOut;
             const effPct = Math.min(result.efficiency, 1) * 100;
 
             return (
@@ -476,8 +478,8 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                   </div>
                 </div>
 
-                {/* Efficiency bar - hidden when timed out since partial data is meaningless */}
-                {result.efficiency > 0 && !result.timedOut && (
+                {/* Efficiency bar - only shown for CoinJoin txs (metric is CJ-specific) */}
+                {showEfficiency && (
                   <motion.div
                     initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}

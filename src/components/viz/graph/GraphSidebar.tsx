@@ -7,6 +7,7 @@ import { SVG_COLORS, GRADE_HEX_SVG } from "../shared/svgConstants";
 import { formatSats, calcVsize } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 import { analyzeTransactionSync } from "@/lib/analysis/analyze-sync";
+import { isCoinJoinTx } from "@/lib/analysis/heuristics/coinjoin";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
 import { getScriptTypeColor } from "./scriptStyles";
 import { probColor } from "../shared/linkabilityColors";
@@ -274,9 +275,11 @@ function IOTab({
           <span className="text-xs px-1.5 py-0.5 rounded bg-white/5 text-white/50">
             {boltzmannResult.entropy.toFixed(2)} bits
           </span>
-          <span className="text-xs px-1.5 py-0.5 rounded bg-white/5 text-white/50">
-            {Math.round(boltzmannResult.efficiency * 100)}% efficiency
-          </span>
+          {isCoinJoinTx(tx) && boltzmannResult.efficiency > 0 && (
+            <span className="text-xs px-1.5 py-0.5 rounded bg-white/5 text-white/50">
+              {Math.round(Math.min(boltzmannResult.efficiency, 1) * 100)}% efficiency
+            </span>
+          )}
           {boltzmannResult.deterministicLinks.length > 0 && (
             <span className="text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-400/80">
               {boltzmannResult.deterministicLinks.length} deterministic

@@ -5,6 +5,7 @@
 
 import type { Finding } from "@/lib/types";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
+import { isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
 import { fmtN, roundTo } from "@/lib/format";
 
 /** Finding IDs that should NOT be overridden (structurally deterministic). */
@@ -42,20 +43,27 @@ export function enhanceEntropyFinding(
     ? `~2^${Math.round(entropyBits)}`
     : fmtN(boltzmann.nbCmbn);
 
+  // Efficiency is only meaningful for CoinJoin transactions
+  const isCJ = findings.some(isCoinJoinFinding);
+
+  const params: Record<string, string | number> = {
+    entropy: roundedEntropy,
+    method: "WASM Boltzmann",
+    interpretations: boltzmann.nbCmbn,
+    context: entropyBits >= 4 ? "high" : "low",
+    entropyPerUtxo: roundTo(entropyBits / nUtxos),
+    nUtxos,
+    deterministicLinks: boltzmann.deterministicLinks.length,
+  };
+  if (isCJ && boltzmann.efficiency > 0) {
+    params.efficiency = roundTo(Math.min(boltzmann.efficiency, 1) * 100, 2);
+  }
+
   findings[idx] = {
     ...existing,
     severity: impact >= 10 ? "good" : impact >= 5 ? "low" : impact > 0 ? "low" : "medium",
     title: `Transaction entropy: ${roundedEntropy} bits`,
-    params: {
-      entropy: roundedEntropy,
-      method: "WASM Boltzmann",
-      interpretations: boltzmann.nbCmbn,
-      context: entropyBits >= 4 ? "high" : "low",
-      entropyPerUtxo: roundTo(entropyBits / nUtxos),
-      nUtxos,
-      deterministicLinks: boltzmann.deterministicLinks.length,
-      efficiency: roundTo(Math.min(boltzmann.efficiency, 1) * 100, 2),
-    },
+    params,
     description:
       `This transaction has ${roundedEntropy} bits of entropy (via WASM Boltzmann), meaning there are ` +
       `${interpretationsStr} valid interpretations of the fund flow. ` +
