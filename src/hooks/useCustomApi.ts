@@ -1,16 +1,7 @@
 "use client";
 
 import { useSyncExternalStore, useCallback } from "react";
-
-const STORAGE_KEY = "ami-custom-api-url";
-
-let cachedUrl: string | null = null;
-let cachedRaw = "";
-
-function subscribe(callback: () => void) {
-  window.addEventListener("storage", callback);
-  return () => window.removeEventListener("storage", callback);
-}
+import { createLocalStorageStore } from "./createLocalStorageStore";
 
 function isValidApiUrl(url: string): boolean {
   try {
@@ -21,41 +12,27 @@ function isValidApiUrl(url: string): boolean {
   }
 }
 
-function getSnapshot(): string | null {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY) ?? "";
-    if (stored === cachedRaw) return cachedUrl;
-    cachedRaw = stored;
-    // Validate protocol to prevent data:/javascript: URI injection from localStorage
-    cachedUrl = stored && isValidApiUrl(stored) ? stored : null;
-    return cachedUrl;
-  } catch {
-    return null;
-  }
-}
-
-function getServerSnapshot(): string | null {
-  return null;
-}
+const store = createLocalStorageStore<string | null>(
+  "ami-custom-api-url",
+  null,
+  // Validate protocol to prevent data:/javascript: URI injection from localStorage
+  (raw) => (raw && isValidApiUrl(raw) ? raw : null),
+  (val) => val ?? "",
+);
 
 export function useCustomApi() {
   const customUrl = useSyncExternalStore(
-    subscribe,
-    getSnapshot,
-    getServerSnapshot,
+    store.subscribe,
+    store.getSnapshot,
+    store.getServerSnapshot,
   );
 
   const setCustomUrl = useCallback((url: string | null) => {
-    try {
-      if (url) {
-        localStorage.setItem(STORAGE_KEY, url);
-      } else {
-        localStorage.removeItem(STORAGE_KEY);
-      }
-    } catch { /* storage full / private browsing */ }
-    cachedRaw = url ?? "";
-    cachedUrl = url && isValidApiUrl(url) ? url : null;
-    window.dispatchEvent(new StorageEvent("storage"));
+    if (url) {
+      store.set(isValidApiUrl(url) ? url : null);
+    } else {
+      store.remove();
+    }
   }, []);
 
   return { customUrl, setCustomUrl };

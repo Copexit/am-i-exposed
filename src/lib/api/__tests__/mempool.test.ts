@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createMempoolClient } from "../mempool";
+import { makeTx as _makeTx } from "@/lib/analysis/heuristics/__tests__/fixtures/tx-factory";
 
 const mockFetch = vi.fn<typeof globalThis.fetch>();
 vi.stubGlobal("fetch", mockFetch);
@@ -28,7 +29,7 @@ function hexTxid(n: number): string {
 }
 
 function makeTx(n: number) {
-  return { txid: hexTxid(n), vin: [], vout: [], size: 100, fee: 100, status: { confirmed: true } };
+  return _makeTx({ txid: hexTxid(n), vin: [], vout: [] });
 }
 
 const BASE = "https://mempool.space/api";

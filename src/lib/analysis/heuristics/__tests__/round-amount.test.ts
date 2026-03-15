@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { analyzeRoundAmounts, getMatchingRoundUsd, getMatchingRoundEur, isRoundUsdAmount, isRoundEurAmount, ROUND_USD_TOLERANCE_DEFAULT, ROUND_USD_TOLERANCE_SELF_HOSTED } from "../round-amount";
+import { analyzeRoundAmounts, getMatchingRoundFiat, ROUND_USD_TOLERANCE_DEFAULT, ROUND_USD_TOLERANCE_SELF_HOSTED } from "../round-amount";
 import { makeTx, makeCoinbaseVin, makeVout, makeOpReturnVout, resetAddrCounter } from "./fixtures/tx-factory";
 
 beforeEach(() => resetAddrCounter());
@@ -134,33 +134,33 @@ describe("analyzeRoundAmounts", () => {
   });
 });
 
-describe("getMatchingRoundUsd", () => {
+describe("getMatchingRoundFiat - USD", () => {
   it("matches $100 at $50,000/BTC (200,000 sats)", () => {
-    expect(getMatchingRoundUsd(200_000, 50_000)).toBe(100);
+    expect(getMatchingRoundFiat(200_000, 50_000)).toBe(100);
   });
 
   it("matches $1,000 at $100,000/BTC (1,000,000 sats)", () => {
-    expect(getMatchingRoundUsd(1_000_000, 100_000)).toBe(1_000);
+    expect(getMatchingRoundFiat(1_000_000, 100_000)).toBe(1_000);
   });
 
   it("allows 0.5% tolerance", () => {
     // $100 at $50,000/BTC = 200,000 sats. 0.5% = 1,000 sats tolerance
-    expect(getMatchingRoundUsd(200_500, 50_000)).toBe(100);
-    expect(getMatchingRoundUsd(199_500, 50_000)).toBe(100);
+    expect(getMatchingRoundFiat(200_500, 50_000)).toBe(100);
+    expect(getMatchingRoundFiat(199_500, 50_000)).toBe(100);
   });
 
   it("rejects outside tolerance", () => {
     // 0.5% of $100 = $0.50 -> 1,000 sats. 202,000 is too far.
-    expect(getMatchingRoundUsd(202_000, 50_000)).toBeNull();
+    expect(getMatchingRoundFiat(202_000, 50_000)).toBeNull();
   });
 
   it("skips amounts under $5", () => {
     // $2 at $50,000/BTC = 4,000 sats
-    expect(getMatchingRoundUsd(4_000, 50_000)).toBeNull();
+    expect(getMatchingRoundFiat(4_000, 50_000)).toBeNull();
   });
 
   it("matches $10,000 at $25,000/BTC (40,000,000 sats)", () => {
-    expect(getMatchingRoundUsd(40_000_000, 25_000)).toBe(10_000);
+    expect(getMatchingRoundFiat(40_000_000, 25_000)).toBe(10_000);
   });
 
   it("uses 0.5% default tolerance (ROUND_USD_TOLERANCE_DEFAULT)", () => {
@@ -173,64 +173,64 @@ describe("getMatchingRoundUsd", () => {
 
   it("rejects 0.8% deviation at default tolerance but accepts at self-hosted tolerance", () => {
     // $100 at $50,000/BTC = 200,000 sats. 0.8% off = 201,600 sats ($100.80)
-    expect(getMatchingRoundUsd(201_600, 50_000, ROUND_USD_TOLERANCE_DEFAULT)).toBeNull();
-    expect(getMatchingRoundUsd(201_600, 50_000, ROUND_USD_TOLERANCE_SELF_HOSTED)).toBe(100);
+    expect(getMatchingRoundFiat(201_600, 50_000, ROUND_USD_TOLERANCE_DEFAULT)).toBeNull();
+    expect(getMatchingRoundFiat(201_600, 50_000, ROUND_USD_TOLERANCE_SELF_HOSTED)).toBe(100);
   });
 
   it("accepts within 0.5% at default, within 1% at self-hosted", () => {
     // $100 at $50,000/BTC = 200,000 sats. 0.4% off = 200,800 sats
-    expect(getMatchingRoundUsd(200_800, 50_000, ROUND_USD_TOLERANCE_DEFAULT)).toBe(100);
-    expect(getMatchingRoundUsd(200_800, 50_000, ROUND_USD_TOLERANCE_SELF_HOSTED)).toBe(100);
+    expect(getMatchingRoundFiat(200_800, 50_000, ROUND_USD_TOLERANCE_DEFAULT)).toBe(100);
+    expect(getMatchingRoundFiat(200_800, 50_000, ROUND_USD_TOLERANCE_SELF_HOSTED)).toBe(100);
   });
 
   it("rejects beyond 1% even at self-hosted tolerance", () => {
     // $100 at $50,000/BTC = 200,000 sats. 1.2% off = 202,400 sats
-    expect(getMatchingRoundUsd(202_400, 50_000, ROUND_USD_TOLERANCE_SELF_HOSTED)).toBeNull();
+    expect(getMatchingRoundFiat(202_400, 50_000, ROUND_USD_TOLERANCE_SELF_HOSTED)).toBeNull();
   });
 });
 
-describe("isRoundUsdAmount", () => {
-  it("returns true for matching round USD values", () => {
-    expect(isRoundUsdAmount(200_000, 50_000)).toBe(true);
+describe("getMatchingRoundFiat - boolean equivalence (USD)", () => {
+  it("returns non-null for matching round USD values", () => {
+    expect(getMatchingRoundFiat(200_000, 50_000) !== null).toBe(true);
   });
 
-  it("returns false for non-round USD values", () => {
-    expect(isRoundUsdAmount(123_456, 50_000)).toBe(false);
+  it("returns null for non-round USD values", () => {
+    expect(getMatchingRoundFiat(123_456, 50_000) !== null).toBe(false);
   });
 });
 
 // ── EUR round amount detection ─────────────────────────────────────
 
-describe("getMatchingRoundEur", () => {
+describe("getMatchingRoundFiat - EUR", () => {
   it("matches EUR100 at EUR45,000/BTC", () => {
     // EUR100 at 45,000 EUR/BTC = 222,222 sats
     const sats = Math.round((100 / 45_000) * 100_000_000);
-    expect(getMatchingRoundEur(sats, 45_000)).toBe(100);
+    expect(getMatchingRoundFiat(sats, 45_000)).toBe(100);
   });
 
   it("matches EUR500 at EUR45,000/BTC", () => {
     const sats = Math.round((500 / 45_000) * 100_000_000);
-    expect(getMatchingRoundEur(sats, 45_000)).toBe(500);
+    expect(getMatchingRoundFiat(sats, 45_000)).toBe(500);
   });
 
   it("returns null for non-round EUR values", () => {
-    expect(getMatchingRoundEur(123_456, 45_000)).toBeNull();
+    expect(getMatchingRoundFiat(123_456, 45_000)).toBeNull();
   });
 
   it("skips amounts under EUR5", () => {
     const sats = Math.round((2 / 45_000) * 100_000_000);
-    expect(getMatchingRoundEur(sats, 45_000)).toBeNull();
+    expect(getMatchingRoundFiat(sats, 45_000)).toBeNull();
   });
 });
 
-describe("isRoundEurAmount", () => {
-  it("returns true for matching round EUR values", () => {
+describe("getMatchingRoundFiat - boolean equivalence (EUR)", () => {
+  it("returns non-null for matching round EUR values", () => {
     const sats = Math.round((200 / 45_000) * 100_000_000);
-    expect(isRoundEurAmount(sats, 45_000)).toBe(true);
+    expect(getMatchingRoundFiat(sats, 45_000) !== null).toBe(true);
   });
 
-  it("returns false for non-round EUR values", () => {
-    expect(isRoundEurAmount(123_456, 45_000)).toBe(false);
+  it("returns null for non-round EUR values", () => {
+    expect(getMatchingRoundFiat(123_456, 45_000) !== null).toBe(false);
   });
 });
 

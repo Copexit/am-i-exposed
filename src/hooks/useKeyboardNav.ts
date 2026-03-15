@@ -4,30 +4,25 @@ import { useEffect, useRef } from "react";
 
 interface KeyboardNavOptions {
   onBack?: () => void;
-  onSubmit?: () => void;
   onFocusSearch?: () => void;
 }
 
 /**
  * Global keyboard navigation:
- * - Escape / Backspace: go back to search
+ * - Backspace: go back to search
  * - / or Ctrl+K: focus search input
- * - j/k or Arrow Down/Up: scroll findings
  *
  * Uses refs to avoid re-attaching the event listener on every render.
  */
 export function useKeyboardNav({
   onBack,
-  onSubmit,
   onFocusSearch,
 }: KeyboardNavOptions) {
   const onBackRef = useRef(onBack);
-  const onSubmitRef = useRef(onSubmit);
   const onFocusSearchRef = useRef(onFocusSearch);
 
   useEffect(() => {
     onBackRef.current = onBack;
-    onSubmitRef.current = onSubmit;
     onFocusSearchRef.current = onFocusSearch;
   });
 
@@ -44,13 +39,7 @@ export function useKeyboardNav({
       if (e.key === "Escape") return;
 
       // Don't interfere with typing in inputs
-      if (isInput) {
-        // Enter in input: submit
-        if (e.key === "Enter") {
-          onSubmitRef.current?.();
-        }
-        return;
-      }
+      if (isInput) return;
 
       // / or Ctrl+K: focus search
       if (e.key === "/" || (e.key === "k" && (e.metaKey || e.ctrlKey))) {
