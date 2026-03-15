@@ -1,28 +1,21 @@
 ---
-name: Bug Report
-about: Something isn't working correctly
+name: Bug
+about: Something is wrong or broken
 labels: bug
 ---
 
-## Description
-A clear description of the bug.
+## What's wrong
+<!-- One or two sentences. -->
 
-## Steps to Reproduce
-1. Go to...
-2. Enter...
-3. Click...
 
-## Expected Behavior
-What should happen.
+## How to trigger it
+<!-- Paste the txid, address, or xpub. Or describe the action (e.g., "click Linkability toggle on a CoinJoin tx"). -->
 
-## Actual Behavior
-What actually happens.
 
-## Transaction/Address (if applicable)
-Paste the txid or address that triggered the bug (use testnet if possible):
+## What should happen instead
+<!-- Skip if obvious from the description. -->
 
-## Environment
-- Browser:
-- OS:
-- Network: mainnet / testnet4 / signet
-- Custom API endpoint: yes / no
+
+## Screenshot
+<!-- Paste screenshot if visual. Delete this section if not needed. -->
+
