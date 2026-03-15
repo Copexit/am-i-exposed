@@ -11,7 +11,8 @@ import { formatSats } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 import { useFullscreen } from "@/hooks/useFullscreen";
 import { analyzeTransactionSync } from "@/lib/analysis/analyze-sync";
-import { computeBoltzmann, isAutoComputable, extractTxValues } from "@/lib/analysis/boltzmann-compute";
+import { computeBoltzmann, extractTxValues } from "@/lib/analysis/boltzmann-compute";
+import { detectJoinMarketForTurbo } from "@/lib/analysis/boltzmann-pool";
 import type { BoltzmannWorkerResult, BoltzmannProgress } from "@/lib/analysis/boltzmann-pool";
 import { GraphSidebar, SIDEBAR_WIDTH } from "./graph/GraphSidebar";
 import { ENTITY_CATEGORY_COLORS, MAX_ZOOM, MIN_ZOOM } from "./graph/constants";
@@ -185,7 +186,12 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
         const { inputValues, outputValues } = extractTxValues(tx);
         if (inputValues.length < 2) continue;
-        if (!isAutoComputable(inputValues, outputValues)) continue;
+        const total = inputValues.length + outputValues.length;
+        // Auto-compute: <18 I/O always, <24 I/O if JoinMarket turbo-detectable
+        if (total >= 18) {
+          if (total >= 24) continue;
+          if (!detectJoinMarketForTurbo(inputValues, outputValues).isJoinMarket) continue;
+        }
 
         await triggerBoltzmann(txid);
       }
