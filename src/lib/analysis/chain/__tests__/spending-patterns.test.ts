@@ -230,6 +230,120 @@ describe("detectKycConsolidationBeforeCJ", () => {
   });
 });
 
+describe("detectPostMixConsolidation (via analyzeSpendingPatterns)", () => {
+  const denom = WHIRLPOOL_DENOMS[3]; // 5_000_000
+
+  function makeWhirlpoolParent(txid: string): MempoolTransaction {
+    return makeTx({
+      txid,
+      vin: Array.from({ length: 5 }, () => makeVin()),
+      vout: Array.from({ length: 5 }, () => makeVout({ value: denom })),
+    });
+  }
+
+  it("flags high severity when 2 inputs from different CoinJoins", () => {
+    const cj1 = makeWhirlpoolParent("c".repeat(64));
+    const cj2 = makeWhirlpoolParent("d".repeat(64));
+
+    const tx = makeTx({
+      vin: [
+        makeVin({ txid: cj1.txid, vout: 0, prevout: { scriptpubkey: "0014aa", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qa", value: denom } }),
+        makeVin({ txid: cj2.txid, vout: 1, prevout: { scriptpubkey: "0014bb", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qb", value: denom } }),
+      ],
+      vout: [makeVout({ value: 9_998_500 })],
+    });
+
+    const parentTxs = new Map<number, MempoolTransaction>([[0, cj1], [1, cj2]]);
+    const result = analyzeSpendingPatterns(tx, parentTxs, [0, 1], null, new Map());
+
+    const finding = result.findings.find((f) => f.id === "chain-post-mix-consolidation");
+    expect(finding).toBeDefined();
+    expect(finding!.severity).toBe("high");
+    expect(finding!.scoreImpact).toBe(-12);
+    expect(finding!.params?.distinctCoinJoins).toBe(2);
+  });
+
+  it("flags critical severity when 3+ inputs from CoinJoins", () => {
+    const cj1 = makeWhirlpoolParent("c".repeat(64));
+    const cj2 = makeWhirlpoolParent("d".repeat(64));
+    const cj3 = makeWhirlpoolParent("e".repeat(64));
+
+    const tx = makeTx({
+      vin: [
+        makeVin({ txid: cj1.txid, vout: 0, prevout: { scriptpubkey: "0014aa", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qa", value: denom } }),
+        makeVin({ txid: cj2.txid, vout: 1, prevout: { scriptpubkey: "0014bb", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qb", value: denom } }),
+        makeVin({ txid: cj3.txid, vout: 2, prevout: { scriptpubkey: "0014cc", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qc", value: denom } }),
+      ],
+      vout: [makeVout({ value: 14_997_500 })],
+    });
+
+    const parentTxs = new Map<number, MempoolTransaction>([[0, cj1], [1, cj2], [2, cj3]]);
+    const result = analyzeSpendingPatterns(tx, parentTxs, [0, 1, 2], null, new Map());
+
+    const finding = result.findings.find((f) => f.id === "chain-post-mix-consolidation");
+    expect(finding).toBeDefined();
+    expect(finding!.severity).toBe("critical");
+    expect(finding!.scoreImpact).toBe(-18);
+    expect(finding!.params?.distinctCoinJoins).toBe(3);
+  });
+
+  it("flags when 2 inputs from the same CoinJoin", () => {
+    const cj = makeWhirlpoolParent("c".repeat(64));
+
+    const tx = makeTx({
+      vin: [
+        makeVin({ txid: cj.txid, vout: 0, prevout: { scriptpubkey: "0014aa", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qa", value: denom } }),
+        makeVin({ txid: cj.txid, vout: 1, prevout: { scriptpubkey: "0014bb", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qb", value: denom } }),
+      ],
+      vout: [makeVout({ value: 9_998_500 })],
+    });
+
+    const parentTxs = new Map<number, MempoolTransaction>([[0, cj], [1, cj]]);
+    const result = analyzeSpendingPatterns(tx, parentTxs, [0, 1], null, new Map());
+
+    const finding = result.findings.find((f) => f.id === "chain-post-mix-consolidation");
+    expect(finding).toBeDefined();
+    expect(finding!.params?.distinctCoinJoins).toBe(1);
+  });
+
+  it("does NOT flag when only 1 CoinJoin input", () => {
+    const cj = makeWhirlpoolParent("c".repeat(64));
+
+    const tx = makeTx({
+      vin: [
+        makeVin({ txid: cj.txid, vout: 0 }),
+        makeVin(), // normal input
+      ],
+      vout: [makeVout({ value: 5_098_500 })],
+    });
+
+    const parentTxs = new Map<number, MempoolTransaction>([[0, cj]]);
+    const result = analyzeSpendingPatterns(tx, parentTxs, [0], null, new Map());
+
+    const finding = result.findings.find((f) => f.id === "chain-post-mix-consolidation");
+    expect(finding).toBeUndefined();
+  });
+
+  it("does NOT flag when current tx is a CoinJoin (remixing)", () => {
+    const cj1 = makeWhirlpoolParent("c".repeat(64));
+    const cj2 = makeWhirlpoolParent("d".repeat(64));
+
+    // Current tx is itself a Whirlpool CoinJoin
+    const tx = makeTx({
+      vin: Array.from({ length: 5 }, (_, i) =>
+        makeVin({ txid: i < 2 ? [cj1.txid, cj2.txid][i] : "a".repeat(64), vout: i }),
+      ),
+      vout: Array.from({ length: 5 }, () => makeVout({ value: denom })),
+    });
+
+    const parentTxs = new Map<number, MempoolTransaction>([[0, cj1], [1, cj2]]);
+    const result = analyzeSpendingPatterns(tx, parentTxs, [0, 1], null, new Map());
+
+    const finding = result.findings.find((f) => f.id === "chain-post-mix-consolidation");
+    expect(finding).toBeUndefined();
+  });
+});
+
 describe("analyzeSpendingPatterns", () => {
   it("combines all pattern detections", () => {
     const tx = makeTx({

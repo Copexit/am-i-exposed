@@ -47,6 +47,7 @@ export const CHAIN_FINDING_IDS = new Set([
   "chain-ricochet",
   "chain-sweep-chain",
   "chain-post-cj-partial-spend",
+  "chain-post-mix-consolidation",
   "chain-kyc-consolidation-before-cj",
   // JoinMarket
   "joinmarket-subset-sum",

@@ -328,7 +328,9 @@ export function applyCrossHeuristicRules(findings: Finding[]): void {
   // items 8.4: "Send to known exchange from post-mix" and
   // "Consolidation + exchange send in same tx".
   const hasPostMixConsolidation = findings.some(
-    (f) => f.id === "post-mix-consolidation" || f.id === "chain-post-coinjoin-consolidation",
+    (f) => f.id === "post-mix-consolidation"
+        || f.id === "chain-post-coinjoin-consolidation"
+        || f.id === "chain-post-mix-consolidation",
   );
   const hasEntityOutput = findings.some((f) => f.id === "entity-known-output");
   const hasPostMixDirectSpend = findings.some((f) => f.id === "chain-post-coinjoin-direct-spend");

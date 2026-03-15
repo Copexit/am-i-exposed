@@ -70,7 +70,7 @@ export function selectRecommendations(
 
   // --- Tier 1: Critical findings (immediate) ---
 
-  const hasPostMix = ids.has("post-mix-consolidation") || ids.has("chain-post-coinjoin-consolidation");
+  const hasPostMix = ids.has("post-mix-consolidation") || ids.has("chain-post-coinjoin-consolidation") || ids.has("chain-post-mix-consolidation");
   const hasEntityOutput = ids.has("entity-known-output");
 
   if (hasEntityOutput && hasPostMix) {
