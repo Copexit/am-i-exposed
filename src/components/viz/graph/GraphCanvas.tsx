@@ -551,17 +551,17 @@ export function GraphCanvas({
       >
         <ChartDefs />
         <defs>
-          <marker id="arrow-graph" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-            <path d="M0,0 L8,3 L0,6" fill={SVG_COLORS.muted} fillOpacity={0.5} />
+          <marker id="arrow-graph" markerWidth="12" markerHeight="8" refX="11" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+            <path d="M0,0 L12,4 L0,8" fill={SVG_COLORS.muted} fillOpacity={0.7} />
           </marker>
-          <marker id="arrow-graph-start" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto-start-reverse">
-            <path d="M0,0 L8,3 L0,6" fill={SVG_COLORS.muted} fillOpacity={0.5} />
+          <marker id="arrow-graph-start" markerWidth="12" markerHeight="8" refX="1" refY="4" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+            <path d="M0,0 L12,4 L0,8" fill={SVG_COLORS.muted} fillOpacity={0.7} />
           </marker>
-          <marker id="arrow-graph-consolidation" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
-            <path d="M0,0 L8,3 L0,6" fill={SVG_COLORS.critical} fillOpacity={0.7} />
+          <marker id="arrow-graph-consolidation" markerWidth="12" markerHeight="8" refX="11" refY="4" orient="auto" markerUnits="userSpaceOnUse">
+            <path d="M0,0 L12,4 L0,8" fill={SVG_COLORS.critical} fillOpacity={0.7} />
           </marker>
-          <marker id="arrow-graph-consolidation-start" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto-start-reverse">
-            <path d="M0,0 L8,3 L0,6" fill={SVG_COLORS.critical} fillOpacity={0.7} />
+          <marker id="arrow-graph-consolidation-start" markerWidth="12" markerHeight="8" refX="1" refY="4" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+            <path d="M0,0 L12,4 L0,8" fill={SVG_COLORS.critical} fillOpacity={0.7} />
           </marker>
         </defs>
         <style>{`
@@ -632,12 +632,14 @@ export function GraphCanvas({
           const strokeColor = entropyColorVal
             ?? linkabilityColor
             ?? (isChangeMarked ? "#d97706" : (isConsolidation ? SVG_COLORS.critical : (scriptColor ?? SVG_COLORS.muted)));
-          let strokeOpacity = entropyColorVal ? (0.4 + entropyEntry!.normalized * 0.5) : (linkabilityColor ? (0.3 + linkabilityMaxProb * 0.7) : (isChangeMarked ? 0.8 : (isConsolidation ? 0.6 : (scriptColor ? 0.55 : 0.35))));
+          let strokeOpacity = entropyColorVal ? (0.4 + entropyEntry!.normalized * 0.5) : (linkabilityColor ? (0.3 + linkabilityMaxProb * 0.7) : (isChangeMarked ? 0.8 : (isConsolidation ? 0.6 : (scriptColor ? 0.55 : 0.45))));
           let strokeWidth = linkabilityColor ? 2.5 : (isChangeMarked ? 3 : (isConsolidation ? 2.5 : (scriptThickness ?? 1.5)));
-          // Dust edges: very dim and thin
+          // Dust edges: visible but distinct (dashed, reduced opacity)
+          let dustDash: string | undefined;
           if (isDust && !linkabilityColor && !isChangeMarked) {
-            strokeOpacity = 0.15;
-            strokeWidth = Math.min(strokeWidth, 1);
+            strokeOpacity = 0.3;
+            strokeWidth = Math.min(strokeWidth, 1.5);
+            dustDash = "2 2";
           }
 
           if (isHovered && !linkabilityColor) {
@@ -665,11 +667,12 @@ export function GraphCanvas({
                   stroke="transparent"
                   strokeWidth={12}
                   style={{ cursor: "default" }}
-                  onMouseMove={(e: React.MouseEvent) => {
+                  onMouseMove={() => {
                     setHoveredEdgeKey(edgeKey);
-                    const svgEl = svgRef.current;
-                    if (!svgEl) return;
-                    const svgRect = svgEl.getBoundingClientRect();
+                    // Use edge midpoint + toScreen() for correct scroll-aware positioning
+                    const midX = (edge.x1 + edge.x2) / 2;
+                    const midY = (edge.y1 + edge.y2) / 2;
+                    const pos = toScreen(midX, midY - 12);
                     tooltip.showTooltip({
                       tooltipData: {
                         txid: edge.fromTxid,
@@ -677,8 +680,8 @@ export function GraphCanvas({
                         isCoinJoin: false, depth: 0, fee: 0, feeRate: "",
                         confirmed: true, linkProb: edgeMaxProb,
                       },
-                      tooltipLeft: e.clientX - svgRect.left,
-                      tooltipTop: e.clientY - svgRect.top - 8,
+                      tooltipLeft: pos.x,
+                      tooltipTop: pos.y,
                     });
                   }}
                   onMouseLeave={() => { setHoveredEdgeKey(null); tooltip.hideTooltip(); }}
@@ -690,7 +693,7 @@ export function GraphCanvas({
                 stroke={strokeColor}
                 strokeWidth={strokeWidth}
                 strokeOpacity={strokeOpacity}
-                strokeDasharray={scriptDash ?? undefined}
+                strokeDasharray={dustDash ?? scriptDash ?? undefined}
                 markerEnd={markerEnd}
                 markerStart={markerStart}
                 initial={{ pathLength: 0 }}
@@ -855,6 +858,8 @@ export function GraphCanvas({
               onMouseEnter={() => {
                 if (isTouchRef.current) return; // suppress tooltip on touch devices
                 setHoveredNode(node.txid);
+                // Suppress tooltip for the node whose sidebar is already open
+                if (expandedNodeTxid === node.txid) return;
                 const pos = toScreen(node.x + node.width / 2, node.y - 8);
                 tooltip.showTooltip({
                   tooltipData: {

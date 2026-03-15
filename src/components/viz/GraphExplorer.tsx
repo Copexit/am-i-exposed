@@ -550,75 +550,34 @@ export function GraphExplorer(props: GraphExplorerProps) {
   const tooltipContent = tooltip.tooltipOpen && tooltip.tooltipData && (
     <ChartTooltip top={tooltip.tooltipTop} left={tooltip.tooltipLeft} containerRef={scrollRef}>
       {tooltip.tooltipData.linkProb !== undefined ? (
-        <div className="space-y-0.5">
-          <div className="text-xs font-medium flex items-center gap-1.5">
-            <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: probColor(tooltip.tooltipData.linkProb), display: "inline-block", flexShrink: 0 }} />
-            <span style={{ color: SVG_COLORS.foreground }}>{Math.round(tooltip.tooltipData.linkProb * 100)}% linkability</span>
-          </div>
-          <div className="text-xs" style={{ color: SVG_COLORS.muted }}>
-            {t("graphExplorer.linkability", { defaultValue: "Max output linkability" })}
-          </div>
+        /* Edge hover: linkability probability chip */
+        <div className="flex items-center gap-1.5">
+          <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: probColor(tooltip.tooltipData.linkProb), display: "inline-block", flexShrink: 0 }} />
+          <span className="text-xs font-medium" style={{ color: SVG_COLORS.foreground }}>{Math.round(tooltip.tooltipData.linkProb * 100)}%</span>
         </div>
       ) : (
-      <div className="space-y-1">
-        <div className="font-mono text-xs">{truncateId(tooltip.tooltipData.txid, 8)}</div>
-        <div className="text-xs" style={{ color: SVG_COLORS.muted }}>
-          {tooltip.tooltipData.inputCount} {t("graphExplorer.inputs", { defaultValue: "inputs" })}, {tooltip.tooltipData.outputCount} {t("graphExplorer.outputs", { defaultValue: "outputs" })}
-        </div>
-        <div className="text-xs" style={{ color: SVG_COLORS.bitcoin }}>
-          {formatSats(tooltip.tooltipData.totalValue)}
-        </div>
-        <div className="text-xs" style={{ color: SVG_COLORS.muted }}>
-          {t("graphExplorer.fee", {
-            fee: formatSats(tooltip.tooltipData.fee),
-            rate: tooltip.tooltipData.feeRate,
-            defaultValue: "Fee: {{fee}} ({{rate}} sat/vB)",
-          })}
-        </div>
-        <div className="text-xs" style={{ color: tooltip.tooltipData.confirmed ? SVG_COLORS.good : SVG_COLORS.medium }}>
-          {tooltip.tooltipData.confirmed
-            ? t("graphExplorer.confirmed", { defaultValue: "Confirmed" })
-            : t("graphExplorer.unconfirmed", { defaultValue: "Unconfirmed" })}
-        </div>
-        {tooltip.tooltipData.isCoinJoin && (
-          <div className="text-xs flex items-center gap-1" style={{ color: SVG_COLORS.good }}>
-            <span>&#9670;</span>
+      /* Node hover: minimal chip - only data NOT already on the canvas label */
+      <div className="flex items-center gap-2">
+        <span className="font-mono text-xs" style={{ color: SVG_COLORS.muted }}>{truncateId(tooltip.tooltipData.txid, 6)}</span>
+        {tooltip.tooltipData.entityLabel ? (
+          <span className="text-xs font-medium" style={{ color: ENTITY_CATEGORY_COLORS[tooltip.tooltipData.entityCategory ?? "unknown"] }}>
+            {tooltip.tooltipData.entityLabel}
+            {tooltip.tooltipData.entityOfac && <span style={{ color: SVG_COLORS.critical }}> OFAC</span>}
+          </span>
+        ) : tooltip.tooltipData.isCoinJoin ? (
+          <span className="text-xs font-medium" style={{ color: SVG_COLORS.good }}>
             {tooltip.tooltipData.coinJoinType ?? "CoinJoin"}
-          </div>
-        )}
-        {tooltip.tooltipData.entityLabel && (
-          <div className="text-xs space-y-0.5">
-            <div className="flex items-center gap-1">
-              <span
-                className="inline-block w-1.5 h-1.5 rounded-full"
-                style={{ backgroundColor: ENTITY_CATEGORY_COLORS[tooltip.tooltipData.entityCategory ?? "unknown"] }}
-              />
-              <span style={{ color: ENTITY_CATEGORY_COLORS[tooltip.tooltipData.entityCategory ?? "unknown"] }}>
-                {tooltip.tooltipData.entityLabel}
-              </span>
-            </div>
-            <div style={{ color: SVG_COLORS.muted }}>
-              {tooltip.tooltipData.entityCategory}
-              {tooltip.tooltipData.entityConfidence && ` (${tooltip.tooltipData.entityConfidence})`}
-            </div>
-            {tooltip.tooltipData.entityOfac && (
-              <div style={{ color: SVG_COLORS.critical }} className="font-semibold">
-                OFAC Sanctioned
-              </div>
-            )}
-          </div>
+          </span>
+        ) : null}
+        <span className="text-xs" style={{ color: SVG_COLORS.muted }}>{tooltip.tooltipData.feeRate} sat/vB</span>
+        {!tooltip.tooltipData.confirmed && (
+          <span className="text-xs font-medium" style={{ color: SVG_COLORS.medium }}>Unconfirmed</span>
         )}
         {heatMapActive && heatMap.has(tooltip.tooltipData.txid) && (
-          <div className="text-xs font-semibold" style={{ color: GRADE_HEX_SVG[heatMap.get(tooltip.tooltipData.txid)!.grade] }}>
-            {t("graphExplorer.analysis.score", {
-              score: heatMap.get(tooltip.tooltipData.txid)!.score,
-              defaultValue: "Score: {{score}}/100",
-            })} ({heatMap.get(tooltip.tooltipData.txid)!.grade})
-          </div>
+          <span className="text-xs font-semibold" style={{ color: GRADE_HEX_SVG[heatMap.get(tooltip.tooltipData.txid)!.grade] }}>
+            {heatMap.get(tooltip.tooltipData.txid)!.grade}
+          </span>
         )}
-        <div className="text-xs" style={{ color: SVG_COLORS.muted }}>
-          {t("graphExplorer.depth", { depth: tooltip.tooltipData.depth > 0 ? `+${tooltip.tooltipData.depth}` : tooltip.tooltipData.depth, defaultValue: "Depth: {{depth}}" })}
-        </div>
       </div>
       )}
     </ChartTooltip>
