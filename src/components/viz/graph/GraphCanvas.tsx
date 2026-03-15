@@ -1,0 +1,887 @@
+"use client";
+
+import { useMemo, useRef, useEffect, useState, useCallback } from "react";
+import { motion } from "motion/react";
+import { Text } from "@visx/text";
+import { SVG_COLORS, GRADE_HEX_SVG } from "../shared/svgConstants";
+import { probColor } from "../shared/linkabilityColors";
+import { ChartDefs } from "../shared/ChartDefs";
+import { formatSats } from "@/lib/format";
+import { truncateId } from "@/lib/constants";
+import { NODE_W, NODE_H, SCROLL_MARGIN_X, SCROLL_MARGIN_Y, MIN_ZOOM, MAX_ZOOM, ENTITY_CATEGORY_COLORS } from "./constants";
+import { layoutGraph, getNodeColor } from "./layout";
+import { edgePath, getEdgeMaxProb, portAwareEdgePath } from "./edge-utils";
+import { buildPortPositionMap } from "./portLayout";
+import { GraphMinimap } from "./GraphMinimap";
+import { ExpandedNode } from "./ExpandedNode";
+import type { GraphCanvasProps, LayoutNode, ViewTransform } from "./types";
+import type { ScoringResult } from "@/lib/types";
+
+export function GraphCanvas({
+  nodes,
+  rootTxid,
+  rootTxids,
+  walletUtxos,
+  nodeCount,
+  maxNodes,
+  loading,
+  onExpandInput,
+  onExpandOutput,
+  onCollapse,
+  containerWidth,
+  containerHeight,
+  tooltip,
+  scrollRef,
+  filter,
+  hoveredNode,
+  setHoveredNode,
+  selectedNode,
+  setSelectedNode,
+  focusedNode,
+  setFocusedNode,
+  heatMap,
+  heatMapActive,
+  isFullscreen,
+  viewTransform,
+  onViewTransformChange,
+  linkabilityEdgeMode,
+  rootBoltzmannResult,
+  expandedNodeTxid,
+  onToggleExpand,
+  onExpandPortInput,
+  onExpandPortOutput,
+  outspendCache,
+}: GraphCanvasProps) {
+  const atCapacity = nodeCount >= maxNodes;
+  const [hoveredEdgeKey, setHoveredEdgeKey] = useState<string | null>(null);
+  const [hoveredPort, setHoveredPort] = useState<string | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const panRef = useRef({ active: false, startX: 0, startY: 0, vtX: 0, vtY: 0, scale: 1 });
+  const pinchRef = useRef({ active: false, startDist: 0, startScale: 1, midX: 0, midY: 0 });
+  const viewTransformRef = useRef(viewTransform);
+  viewTransformRef.current = viewTransform;
+  const [isPanning, setIsPanning] = useState(false);
+
+  // Convert graph coordinates to screen coordinates (accounts for scroll or view transform)
+  const toScreen = useCallback((gx: number, gy: number) => {
+    if (viewTransform) {
+      return { x: gx * viewTransform.scale + viewTransform.x, y: gy * viewTransform.scale + viewTransform.y };
+    }
+    const sx = scrollRef.current?.scrollLeft ?? 0;
+    const sy = scrollRef.current?.scrollTop ?? 0;
+    return { x: gx - sx, y: gy - sy };
+  }, [viewTransform, scrollRef]);
+  const { layoutNodes, edges, width, height, nodePositions } = useMemo(
+    () => layoutGraph(nodes, rootTxid, filter, rootTxids, expandedNodeTxid),
+    [nodes, rootTxid, filter, rootTxids, expandedNodeTxid],
+  );
+
+  // Build port position map for expanded node (used for edge routing)
+  const portPositions = useMemo(
+    () => buildPortPositionMap(expandedNodeTxid ?? null, nodes, nodePositions),
+    [expandedNodeTxid, nodes, nodePositions],
+  );
+
+  const svgWidth = Math.max(containerWidth, width);
+  const svgHeight = Math.max(isFullscreen ? (containerHeight ?? height) : height, 150);
+
+  // Edges connected to hovered node
+  const hoveredEdges = useMemo(() => {
+    if (!hoveredNode) return null;
+    const set = new Set<string>();
+    for (const e of edges) {
+      if (e.fromTxid === hoveredNode || e.toTxid === hoveredNode) {
+        set.add(`e-${e.fromTxid}-${e.toTxid}`);
+      }
+    }
+    return set;
+  }, [hoveredNode, edges]);
+
+  // Keyboard navigation
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (!focusedNode && layoutNodes.length > 0) {
+      setFocusedNode(layoutNodes[0].txid);
+      return;
+    }
+    if (!focusedNode) return;
+
+    const current = layoutNodes.find((n) => n.txid === focusedNode);
+    if (!current) return;
+
+    const sameDepth = layoutNodes.filter((n) => n.depth === current.depth);
+    const currentIdx = sameDepth.findIndex((n) => n.txid === focusedNode);
+
+    switch (e.key) {
+      case "ArrowUp": {
+        e.preventDefault();
+        if (currentIdx > 0) setFocusedNode(sameDepth[currentIdx - 1].txid);
+        break;
+      }
+      case "ArrowDown": {
+        e.preventDefault();
+        if (currentIdx < sameDepth.length - 1) setFocusedNode(sameDepth[currentIdx + 1].txid);
+        break;
+      }
+      case "ArrowLeft": {
+        e.preventDefault();
+        const prevDepth = layoutNodes
+          .filter((n) => n.depth < current.depth)
+          .sort((a, b) => b.depth - a.depth)[0];
+        if (prevDepth) setFocusedNode(prevDepth.txid);
+        break;
+      }
+      case "ArrowRight": {
+        e.preventDefault();
+        const nextDepth = layoutNodes
+          .filter((n) => n.depth > current.depth)
+          .sort((a, b) => a.depth - b.depth)[0];
+        if (nextDepth) setFocusedNode(nextDepth.txid);
+        break;
+      }
+      case "Enter": {
+        e.preventDefault();
+        // Try to expand first available direction
+        const gn = nodes.get(focusedNode);
+        if (!gn) break;
+        const inputIdx = gn.tx.vin.findIndex((v) => !v.is_coinbase && !nodes.has(v.txid));
+        if (inputIdx >= 0 && !atCapacity) {
+          onExpandInput(focusedNode, inputIdx);
+        } else {
+          const hasChild = Array.from(nodes.values()).some((n) => n.parentEdge?.fromTxid === focusedNode);
+          if (!hasChild && !atCapacity) {
+            const outIdx = gn.tx.vout.findIndex((_, i) =>
+              !Array.from(nodes.values()).some((n) => n.parentEdge?.fromTxid === focusedNode && n.parentEdge?.outputIndex === i)
+            );
+            if (outIdx >= 0) onExpandOutput(focusedNode, outIdx);
+          }
+        }
+        break;
+      }
+      case "Delete":
+      case "Backspace": {
+        e.preventDefault();
+        if (focusedNode !== rootTxid) {
+          onCollapse(focusedNode);
+          setFocusedNode(rootTxid);
+        }
+        break;
+      }
+    }
+  }, [focusedNode, layoutNodes, nodes, rootTxid, atCapacity, onExpandInput, onExpandOutput, onCollapse, setFocusedNode]);
+
+  // Auto-scroll to keep focused node visible
+  useEffect(() => {
+    if (!focusedNode || !scrollRef.current) return;
+    const node = layoutNodes.find((n) => n.txid === focusedNode);
+    if (!node) return;
+    const el = scrollRef.current;
+    const nodeCenter = node.x + node.width / 2;
+    const nodeMiddle = node.y + node.height / 2;
+    const viewLeft = el.scrollLeft;
+    const viewRight = viewLeft + el.clientWidth;
+    const viewTop = el.scrollTop;
+    const viewBottom = viewTop + el.clientHeight;
+
+    if (nodeCenter < viewLeft + SCROLL_MARGIN_X || nodeCenter > viewRight - SCROLL_MARGIN_X) {
+      el.scrollLeft = nodeCenter - el.clientWidth / 2;
+    }
+    if (nodeMiddle < viewTop + SCROLL_MARGIN_Y || nodeMiddle > viewBottom - SCROLL_MARGIN_Y) {
+      el.scrollTop = nodeMiddle - el.clientHeight / 2;
+    }
+  }, [focusedNode, layoutNodes, scrollRef]);
+
+  // Auto-scroll to center the root transaction node(s) on first render only
+  const hasCentered = useRef(false);
+  useEffect(() => {
+    if (hasCentered.current) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const rootNodes = layoutNodes.filter((n) => n.isRoot);
+    if (rootNodes.length === 0) return;
+    hasCentered.current = true;
+    const avgX = rootNodes.reduce((s, n) => s + n.x + n.width / 2, 0) / rootNodes.length;
+    el.scrollLeft = avgX - el.clientWidth / 2;
+  }, [layoutNodes, scrollRef]);
+
+  // Handle node click - toggle expansion (UTXO ports) or floating analysis panel
+  const handleNodeClick = useCallback((node: LayoutNode, currentSelected: string | null) => {
+    // If expansion is available, toggle the expanded UTXO port view
+    if (onToggleExpand) {
+      onToggleExpand(node.txid);
+      return;
+    }
+    // Fallback: toggle floating analysis panel
+    if (currentSelected === node.txid) {
+      setSelectedNode(null);
+      return;
+    }
+    const pos = toScreen(node.x + node.width / 2, node.y);
+    setSelectedNode({
+      txid: node.txid,
+      x: pos.x,
+      y: pos.y,
+    });
+  }, [setSelectedNode, toScreen, onToggleExpand]);
+
+  // Minimap scroll handler
+  const [scrollPos, setScrollPos] = useState({ left: 0, top: 0 });
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const handler = () => setScrollPos({ left: el.scrollLeft, top: el.scrollTop });
+    el.addEventListener("scroll", handler, { passive: true });
+    return () => el.removeEventListener("scroll", handler);
+  }, [scrollRef]);
+
+  const handleMinimapClick = useCallback((x: number, y: number) => {
+    if (viewTransform && onViewTransformChange) {
+      const cw = containerWidth;
+      const ch = containerHeight ?? 600;
+      onViewTransformChange({ ...viewTransform, x: cw / 2 - x * viewTransform.scale, y: ch / 2 - y * viewTransform.scale });
+      return;
+    }
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollLeft = x - el.clientWidth / 2;
+    el.scrollTop = y - el.clientHeight / 2;
+  }, [scrollRef, viewTransform, onViewTransformChange, containerWidth, containerHeight]);
+
+  // ─── Pan handlers (fullscreen transform mode) ────────────
+
+  const handlePanStart = useCallback((e: React.MouseEvent) => {
+    if (!viewTransform || !onViewTransformChange || e.button !== 0) return;
+    e.preventDefault();
+    panRef.current = { active: true, startX: e.clientX, startY: e.clientY, vtX: viewTransform.x, vtY: viewTransform.y, scale: viewTransform.scale };
+    setIsPanning(true);
+    setSelectedNode(null);
+  }, [viewTransform, onViewTransformChange, setSelectedNode]);
+
+  useEffect(() => {
+    if (!isPanning) return;
+    const onMove = (e: MouseEvent) => {
+      if (!panRef.current.active) return;
+      const dx = e.clientX - panRef.current.startX;
+      const dy = e.clientY - panRef.current.startY;
+      onViewTransformChange?.({ scale: panRef.current.scale, x: panRef.current.vtX + dx, y: panRef.current.vtY + dy });
+    };
+    const onUp = () => { panRef.current.active = false; setIsPanning(false); };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    return () => { document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); };
+  }, [isPanning, onViewTransformChange]);
+
+  // Wheel-to-zoom (fullscreen transform mode)
+  useEffect(() => {
+    if (!viewTransform || !onViewTransformChange) return;
+    const el = svgRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      const vt = viewTransformRef.current;
+      if (!vt) return;
+      const rect = el.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      const gx = (cx - vt.x) / vt.scale;
+      const gy = (cy - vt.y) / vt.scale;
+      const factor = e.deltaY > 0 ? 0.9 : 1.1;
+      const ns = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, vt.scale * factor));
+      onViewTransformChange({ x: cx - gx * ns, y: cy - gy * ns, scale: ns });
+    };
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!viewTransform, onViewTransformChange]);
+
+  // Touch gestures: single-finger pan, two-finger pinch-to-zoom
+  useEffect(() => {
+    if (!viewTransform || !onViewTransformChange) return;
+    const el = wrapperRef.current;
+    if (!el) return;
+
+    const PAN_THRESHOLD = 8;
+    const dist = (a: Touch, b: Touch) =>
+      Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+
+    let pendingPan: { startX: number; startY: number; vtX: number; vtY: number; scale: number } | null = null;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.preventDefault();
+        pendingPan = null;
+        const vt = viewTransformRef.current;
+        if (!vt) return;
+        const t0 = e.touches[0], t1 = e.touches[1];
+        const rect = el.getBoundingClientRect();
+        pinchRef.current = {
+          active: true,
+          startDist: dist(t0, t1),
+          startScale: vt.scale,
+          midX: (t0.clientX + t1.clientX) / 2 - rect.left,
+          midY: (t0.clientY + t1.clientY) / 2 - rect.top,
+        };
+        panRef.current.active = false;
+      } else if (e.touches.length === 1) {
+        const vt = viewTransformRef.current;
+        if (!vt) return;
+        const t = e.touches[0];
+        pendingPan = { startX: t.clientX, startY: t.clientY, vtX: vt.x, vtY: vt.y, scale: vt.scale };
+        pinchRef.current.active = false;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (pinchRef.current.active && e.touches.length === 2) {
+        e.preventDefault();
+        const vt = viewTransformRef.current;
+        if (!vt) return;
+        const t0 = e.touches[0], t1 = e.touches[1];
+        const curDist = dist(t0, t1);
+        const ratio = curDist / pinchRef.current.startDist;
+        const ns = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, pinchRef.current.startScale * ratio));
+        const { midX, midY } = pinchRef.current;
+        const gx = (midX - vt.x) / vt.scale;
+        const gy = (midY - vt.y) / vt.scale;
+        onViewTransformChange({ x: midX - gx * ns, y: midY - gy * ns, scale: ns });
+      } else if (e.touches.length === 1) {
+        const t = e.touches[0];
+
+        if (pendingPan && !panRef.current.active) {
+          const moved = Math.hypot(t.clientX - pendingPan.startX, t.clientY - pendingPan.startY);
+          if (moved >= PAN_THRESHOLD) {
+            panRef.current = { active: true, startX: pendingPan.startX, startY: pendingPan.startY, vtX: pendingPan.vtX, vtY: pendingPan.vtY, scale: pendingPan.scale };
+            pendingPan = null;
+            setIsPanning(true);
+            setSelectedNode(null);
+          }
+        }
+
+        if (panRef.current.active) {
+          e.preventDefault();
+          const dx = t.clientX - panRef.current.startX;
+          const dy = t.clientY - panRef.current.startY;
+          onViewTransformChange({ scale: panRef.current.scale, x: panRef.current.vtX + dx, y: panRef.current.vtY + dy });
+        }
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      pendingPan = null;
+      if (e.touches.length < 2) pinchRef.current.active = false;
+      if (e.touches.length === 0) {
+        panRef.current.active = false;
+        setIsPanning(false);
+      }
+      if (e.touches.length === 1 && !pinchRef.current.active) {
+        const vt = viewTransformRef.current;
+        if (!vt) return;
+        const t = e.touches[0];
+        pendingPan = { startX: t.clientX, startY: t.clientY, vtX: vt.x, vtY: vt.y, scale: vt.scale };
+      }
+    };
+
+    el.addEventListener("touchstart", handleTouchStart, { passive: false });
+    el.addEventListener("touchmove", handleTouchMove, { passive: false });
+    el.addEventListener("touchend", handleTouchEnd, { passive: false });
+    return () => {
+      el.removeEventListener("touchstart", handleTouchStart);
+      el.removeEventListener("touchmove", handleTouchMove);
+      el.removeEventListener("touchend", handleTouchEnd);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!viewTransform, onViewTransformChange]);
+
+  return (
+    <div
+      ref={wrapperRef}
+      className="relative"
+      style={{ minWidth: svgWidth, ...(viewTransform ? { touchAction: "none" } : {}) }}
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+    >
+      <svg
+        ref={svgRef}
+        width={viewTransform ? containerWidth : svgWidth}
+        height={viewTransform ? (containerHeight ?? svgHeight) : svgHeight}
+        className="overflow-visible"
+        style={viewTransform ? { cursor: isPanning ? "grabbing" : "grab", touchAction: "none" } : undefined}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setSelectedNode(null);
+        }}
+      >
+        <ChartDefs />
+        <defs>
+          <marker id="arrow-graph" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <path d="M0,0 L8,3 L0,6" fill={SVG_COLORS.muted} fillOpacity={0.5} />
+          </marker>
+          <marker id="arrow-graph-start" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto-start-reverse">
+            <path d="M0,0 L8,3 L0,6" fill={SVG_COLORS.muted} fillOpacity={0.5} />
+          </marker>
+          <marker id="arrow-graph-consolidation" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <path d="M0,0 L8,3 L0,6" fill={SVG_COLORS.critical} fillOpacity={0.7} />
+          </marker>
+          <marker id="arrow-graph-consolidation-start" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto-start-reverse">
+            <path d="M0,0 L8,3 L0,6" fill={SVG_COLORS.critical} fillOpacity={0.7} />
+          </marker>
+        </defs>
+        <style>{`
+          .graph-btn circle { transition: fill-opacity 0.15s, stroke-width 0.15s, filter 0.15s; }
+          .graph-btn:hover circle { fill-opacity: 1; stroke-width: 2.5; filter: brightness(1.4); }
+          .graph-btn:hover text { fill-opacity: 1; }
+        `}</style>
+
+        {viewTransform && (
+          <rect
+            width={containerWidth}
+            height={containerHeight ?? svgHeight}
+            fill="black"
+            fillOpacity={0}
+            pointerEvents="all"
+            onMouseDown={handlePanStart}
+          />
+        )}
+
+        <g transform={viewTransform ? `translate(${viewTransform.x},${viewTransform.y}) scale(${viewTransform.scale})` : undefined}>
+
+        {/* Edges */}
+        {edges.map((edge) => {
+          const edgeKey = `e-${edge.fromTxid}-${edge.toTxid}`;
+          const hasPortRouting = expandedNodeTxid && (edge.fromTxid === expandedNodeTxid || edge.toTxid === expandedNodeTxid);
+          const d = hasPortRouting
+            ? portAwareEdgePath(edge, portPositions, nodes as Map<string, { tx: { vin: Array<{ txid: string; vout: number }> } }>)
+            : edgePath(edge);
+          const midX = (edge.x1 + edge.x2) / 2;
+
+          const isHoveredViaNode = hoveredEdges?.has(edgeKey);
+          const isHoveredDirect = hoveredEdgeKey === edgeKey;
+          const isHovered = isHoveredViaNode || isHoveredDirect;
+          const isDimmedByHover = hoveredNode && !isHoveredViaNode;
+          const isConsolidation = edge.consolidationCount >= 2;
+
+          // Linkability edge coloring: only for root tx edges with Boltzmann data
+          let linkabilityColor: string | null = null;
+          let linkabilityMaxProb = -1;
+          if (linkabilityEdgeMode && rootBoltzmannResult && edge.fromTxid === rootTxid && edge.outputIndices?.length) {
+            const mat = rootBoltzmannResult.matLnkProbabilities;
+            if (mat && mat.length > 0) {
+              linkabilityMaxProb = getEdgeMaxProb(mat, edge.outputIndices);
+              if (linkabilityMaxProb <= 0) return null;
+              linkabilityColor = probColor(linkabilityMaxProb);
+            }
+          }
+
+          const strokeColor = linkabilityColor ?? (isConsolidation ? SVG_COLORS.critical : SVG_COLORS.muted);
+          let strokeOpacity = linkabilityColor ? (0.3 + linkabilityMaxProb * 0.7) : (isConsolidation ? 0.6 : 0.35);
+          let strokeWidth = linkabilityColor ? 2.5 : (isConsolidation ? 2.5 : 1.5);
+
+          if (isHovered && !linkabilityColor) {
+            strokeOpacity = isConsolidation ? 0.9 : 0.7;
+            strokeWidth = isConsolidation ? 3.5 : 2.5;
+          }
+          if (isDimmedByHover) strokeOpacity = isConsolidation ? 0.2 : 0.1;
+
+          let markerEnd: string | undefined;
+          let markerStart: string | undefined;
+          if (edge.isBackward) {
+            markerStart = isConsolidation ? "url(#arrow-graph-consolidation-start)" : "url(#arrow-graph-start)";
+          } else {
+            markerEnd = isConsolidation ? "url(#arrow-graph-consolidation)" : "url(#arrow-graph)";
+          }
+
+          const edgeMaxProb = linkabilityMaxProb >= 0 ? linkabilityMaxProb : undefined;
+
+          return (
+            <g key={edgeKey}>
+              {edgeMaxProb !== undefined && (
+                <path
+                  d={d}
+                  fill="none"
+                  stroke="transparent"
+                  strokeWidth={12}
+                  style={{ cursor: "default" }}
+                  onMouseMove={(e: React.MouseEvent) => {
+                    setHoveredEdgeKey(edgeKey);
+                    const svgEl = svgRef.current;
+                    if (!svgEl) return;
+                    const svgRect = svgEl.getBoundingClientRect();
+                    tooltip.showTooltip({
+                      tooltipData: {
+                        txid: edge.fromTxid,
+                        inputCount: 0, outputCount: 0, totalValue: 0,
+                        isCoinJoin: false, depth: 0, fee: 0, feeRate: "",
+                        confirmed: true, linkProb: edgeMaxProb,
+                      },
+                      tooltipLeft: e.clientX - svgRect.left,
+                      tooltipTop: e.clientY - svgRect.top - 8,
+                    });
+                  }}
+                  onMouseLeave={() => { setHoveredEdgeKey(null); tooltip.hideTooltip(); }}
+                />
+              )}
+              <motion.path
+                d={d}
+                fill="none"
+                stroke={strokeColor}
+                strokeWidth={strokeWidth}
+                strokeOpacity={strokeOpacity}
+                strokeDasharray={edge.isBackward ? "6 4" : undefined}
+                markerEnd={markerEnd}
+                markerStart={markerStart}
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: 0.4 }}
+                style={{ pointerEvents: "none" }}
+              />
+              {isConsolidation && (
+                <Text
+                  x={midX}
+                  y={(edge.y1 + edge.y2) / 2 - 6}
+                  textAnchor="middle"
+                  fontSize={9}
+                  fontWeight={700}
+                  fill={SVG_COLORS.critical}
+                  fillOpacity={isDimmedByHover ? 0.15 : 0.85}
+                  style={{ pointerEvents: "none" as const }}
+                >
+                  {`${edge.consolidationCount} outputs`}
+                </Text>
+              )}
+            </g>
+          );
+        })}
+
+        {/* Hover overlay: re-render hovered linkability edge on top of all edges */}
+        {hoveredEdgeKey && linkabilityEdgeMode && rootBoltzmannResult && (() => {
+          const edge = edges.find((e) => `e-${e.fromTxid}-${e.toTxid}` === hoveredEdgeKey);
+          if (!edge || edge.fromTxid !== rootTxid || !edge.outputIndices?.length) return null;
+          const mat = rootBoltzmannResult.matLnkProbabilities;
+          if (!mat?.length) return null;
+          const maxProb = getEdgeMaxProb(mat, edge.outputIndices);
+          if (maxProb <= 0) return null;
+          const d = edgePath(edge);
+          const color = probColor(maxProb);
+          return (
+            <g style={{ pointerEvents: "none" }}>
+              <path d={d} fill="none" stroke={color} strokeWidth={6.5} strokeOpacity={0.4} filter="url(#glow-medium)" />
+              <path d={d} fill="none" stroke={color} strokeWidth={2.5} strokeOpacity={1.0}
+                strokeDasharray={edge.isBackward ? "6 4" : undefined} />
+            </g>
+          );
+        })()}
+
+        {/* Nodes */}
+        {layoutNodes.map((node) => {
+          const heatScore = heatMapActive ? heatMap.get(node.txid)?.score : undefined;
+          const color = getNodeColor(node, heatScore);
+          const totalValue = node.tx.vout.reduce((s, o) => s + o.value, 0);
+          const isHovered = hoveredNode === node.txid;
+          const isFocused = focusedNode === node.txid;
+          const isDimmedByHover = hoveredNode && !isHovered && !hoveredEdges?.has(`e-${hoveredNode}-${node.txid}`) && !hoveredEdges?.has(`e-${node.txid}-${hoveredNode}`);
+          const isConnectedToHovered = hoveredNode && (
+            edges.some((e) => (e.fromTxid === hoveredNode && e.toTxid === node.txid) || (e.toTxid === hoveredNode && e.fromTxid === node.txid))
+          );
+          const isLoading = loading.has(node.txid);
+          const isExpandedNode = node.txid === expandedNodeTxid;
+
+          let nodeOpacity = 1;
+          if (isDimmedByHover && !isConnectedToHovered) nodeOpacity = 0.3;
+
+          // Render expanded node with UTXO ports
+          if (isExpandedNode) {
+            return (
+              <motion.g
+                key={node.txid}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: nodeOpacity, scale: 1 }}
+                transition={{ duration: 0.25 }}
+              >
+                <ExpandedNode
+                  node={node}
+                  graphNodes={nodes}
+                  outspends={outspendCache?.get(node.txid)}
+                  heatScore={heatScore}
+                  isHovered={isHovered}
+                  isLoading={isLoading}
+                  hoveredPort={hoveredPort}
+                  onHoverPort={setHoveredPort}
+                  onExpandInput={onExpandPortInput ?? onExpandInput}
+                  onExpandOutput={onExpandPortOutput ?? onExpandOutput}
+                  onNodeClick={() => handleNodeClick(node, selectedNode?.txid ?? null)}
+                  atCapacity={atCapacity}
+                />
+              </motion.g>
+            );
+          }
+
+          return (
+            <motion.g
+              key={node.txid}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{
+                opacity: nodeOpacity,
+                scale: 1,
+              }}
+              transition={{ duration: 0.3 }}
+              style={{ cursor: "pointer" }}
+              onMouseEnter={() => {
+                setHoveredNode(node.txid);
+                const pos = toScreen(node.x + node.width / 2, node.y - 8);
+                tooltip.showTooltip({
+                  tooltipData: {
+                    txid: node.txid,
+                    inputCount: node.inputCount,
+                    outputCount: node.outputCount,
+                    totalValue,
+                    isCoinJoin: node.isCoinJoin,
+                    coinJoinType: node.coinJoinType,
+                    entityLabel: node.entityLabel,
+                    entityCategory: node.entityCategory,
+                    entityOfac: node.entityOfac,
+                    entityConfidence: node.entityConfidence,
+                    depth: node.depth,
+                    fee: node.fee,
+                    feeRate: node.feeRate,
+                    confirmed: node.confirmed,
+                  },
+                  tooltipLeft: pos.x,
+                  tooltipTop: pos.y,
+                });
+              }}
+              onMouseLeave={() => {
+                setHoveredNode(null);
+                tooltip.hideTooltip();
+              }}
+            >
+              {/* Node background */}
+              <rect
+                x={node.x}
+                y={node.y}
+                width={node.width}
+                height={node.height}
+                rx={8}
+                fill={heatMapActive && heatScore !== undefined ? `${color}20` : SVG_COLORS.surfaceElevated}
+                stroke={color}
+                strokeWidth={isHovered ? 2.5 : (node.isRoot ? 2.5 : 1.5)}
+                strokeOpacity={isHovered || node.isRoot ? 1 : 0.6}
+                filter={node.isRoot ? "url(#glow-medium)" : (isHovered ? "url(#glow-subtle)" : undefined)}
+                onClick={() => handleNodeClick(node, selectedNode?.txid ?? null)}
+              />
+
+              {/* Focused node indicator (dashed animated outline) */}
+              {isFocused && (
+                <rect
+                  x={node.x - 3}
+                  y={node.y - 3}
+                  width={node.width + 6}
+                  height={node.height + 6}
+                  rx={10}
+                  fill="none"
+                  stroke={SVG_COLORS.bitcoin}
+                  strokeWidth={1.5}
+                  strokeDasharray="4 4"
+                  strokeOpacity={0.7}
+                >
+                  <animate attributeName="stroke-dashoffset" values="0;8" dur="0.8s" repeatCount="indefinite" />
+                </rect>
+              )}
+
+              {/* Loading pulse overlay */}
+              {isLoading && (
+                <rect
+                  x={node.x}
+                  y={node.y}
+                  width={node.width}
+                  height={node.height}
+                  rx={8}
+                  fill={color}
+                  fillOpacity={0.15}
+                >
+                  <animate attributeName="fill-opacity" values="0.05;0.2;0.05" dur="1.2s" repeatCount="indefinite" />
+                </rect>
+              )}
+
+              {/* CoinJoin diamond badge */}
+              {node.isCoinJoin && (
+                <polygon
+                  points={`${node.x + node.width - 12},${node.y + 4} ${node.x + node.width - 6},${node.y + 10} ${node.x + node.width - 12},${node.y + 16} ${node.x + node.width - 18},${node.y + 10}`}
+                  fill={SVG_COLORS.good}
+                  fillOpacity={0.3}
+                  stroke={SVG_COLORS.good}
+                  strokeWidth={1}
+                />
+              )}
+
+              {/* OFAC warning triangle */}
+              {node.entityOfac && (
+                <g transform={`translate(${node.x + node.width - 24}, ${node.y + 4})`}>
+                  <polygon points="6,0 12,10 0,10" fill={SVG_COLORS.critical} fillOpacity={0.8} />
+                  <text x="6" y="9" textAnchor="middle" fontSize="7" fontWeight="bold" fill="#0c0c0e">!</text>
+                </g>
+              )}
+
+              {/* Heat map score */}
+              {heatMapActive && heatScore !== undefined && (
+                <Text
+                  x={node.x + node.width - 20}
+                  y={node.y + NODE_H / 2 + 6}
+                  fontSize={18}
+                  fontWeight={800}
+                  fill={color}
+                  textAnchor="middle"
+                  opacity={0.9}
+                >
+                  {heatScore}
+                </Text>
+              )}
+
+              {/* Txid label */}
+              <Text
+                x={node.x + 10}
+                y={node.y + 20}
+                fontSize={11}
+                fill={color}
+                fontWeight={600}
+                fontFamily="monospace"
+              >
+                {truncateId(node.txid, 8)}
+              </Text>
+
+              {/* Summary line */}
+              <Text
+                x={node.x + 10}
+                y={node.y + 38}
+                fontSize={10}
+                fill={SVG_COLORS.muted}
+              >
+                {`${node.inputCount}in / ${node.outputCount}out - ${formatSats(totalValue)}`}
+              </Text>
+
+              {/* Entity label + category */}
+              {node.entityLabel && (
+                <>
+                  <Text
+                    x={node.x + 10}
+                    y={node.y + 50}
+                    fontSize={9}
+                    fill={ENTITY_CATEGORY_COLORS[node.entityCategory ?? "unknown"]}
+                    fontWeight={500}
+                  >
+                    {node.entityLabel}
+                  </Text>
+                </>
+              )}
+
+              {/* Wallet UTXO badge */}
+              {walletUtxos?.has(node.txid) && (() => {
+                const vouts = walletUtxos.get(node.txid)!;
+                const utxoSats = [...vouts].reduce((sum, vi) => sum + (node.tx.vout[vi]?.value ?? 0), 0);
+                return (
+                  <g>
+                    <rect
+                      x={node.x}
+                      y={node.y + node.height + 2}
+                      width={node.width}
+                      height={18}
+                      rx={4}
+                      fill={SVG_COLORS.bitcoin}
+                      fillOpacity={0.15}
+                      stroke={SVG_COLORS.bitcoin}
+                      strokeWidth={0.5}
+                      strokeOpacity={0.4}
+                    />
+                    <Text
+                      x={node.x + node.width / 2}
+                      y={node.y + node.height + 14}
+                      fontSize={9}
+                      fill={SVG_COLORS.bitcoin}
+                      textAnchor="middle"
+                      fontWeight={600}
+                    >
+                      {vouts.size === 1 ? `Wallet: ${formatSats(utxoSats)}` : `${vouts.size} outputs: ${formatSats(utxoSats)}`}
+                    </Text>
+                  </g>
+                );
+              })()}
+
+              {/* Transparent click overlay */}
+              <rect
+                x={node.x}
+                y={node.y}
+                width={node.width}
+                height={node.height}
+                rx={8}
+                fill="transparent"
+                style={{ cursor: "pointer" }}
+                onClick={() => handleNodeClick(node, selectedNode?.txid ?? null)}
+              />
+
+              {/* Expand left button (backward) */}
+              {!atCapacity && node.depth <= 0 && (() => {
+                const idx = node.tx.vin.findIndex((v) => !v.is_coinbase && !nodes.has(v.txid));
+                return idx >= 0 ? (
+                  <g className="graph-btn" style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); onExpandInput(node.txid, idx); }}>
+                    <circle cx={node.x - 6} cy={node.y + NODE_H / 2} r={11} fill={SVG_COLORS.surfaceElevated} stroke={color} strokeWidth={1.5} />
+                    <Text x={node.x - 6} y={node.y + NODE_H / 2 + 5} fontSize={16} fontWeight={700} textAnchor="middle" fill={color}>+</Text>
+                  </g>
+                ) : null;
+              })()}
+
+              {/* Expand right button (forward) */}
+              {!atCapacity && (() => {
+                const consumedOutputs = new Set<number>();
+                for (const [, n] of nodes) {
+                  for (const vin of n.tx.vin) {
+                    if (vin.txid === node.txid && vin.vout !== undefined) {
+                      consumedOutputs.add(vin.vout);
+                    }
+                  }
+                }
+                for (let i = 0; i < node.tx.vout.length; i++) {
+                  const out = node.tx.vout[i];
+                  if (out.scriptpubkey_type === "op_return" || out.value === 0) {
+                    consumedOutputs.add(i);
+                  }
+                }
+                if (consumedOutputs.size >= node.tx.vout.length) return null;
+                const idx = node.tx.vout.findIndex((_, i) => !consumedOutputs.has(i));
+                return idx >= 0 ? (
+                  <g className="graph-btn" style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); onExpandOutput(node.txid, idx); }}>
+                    <circle cx={node.x + node.width + 6} cy={node.y + NODE_H / 2} r={11} fill={SVG_COLORS.surfaceElevated} stroke={color} strokeWidth={1.5} />
+                    <Text x={node.x + node.width + 6} y={node.y + NODE_H / 2 + 5} fontSize={16} fontWeight={700} textAnchor="middle" fill={color}>+</Text>
+                  </g>
+                ) : null;
+              })()}
+
+              {/* Collapse button for non-root nodes */}
+              {!node.isRoot && (
+                <g className="graph-btn" style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); onCollapse(node.txid); }}>
+                  <circle cx={node.x + node.width - 8} cy={node.y + NODE_H - 6} r={9} fill={SVG_COLORS.surfaceInset} stroke={SVG_COLORS.muted} strokeWidth={1} />
+                  <Text x={node.x + node.width - 8} y={node.y + NODE_H - 2} fontSize={12} fontWeight={700} textAnchor="middle" fill={SVG_COLORS.muted}>x</Text>
+                </g>
+              )}
+            </motion.g>
+          );
+        })}
+        </g>
+      </svg>
+
+      {/* Minimap - only in fullscreen */}
+      {isFullscreen && (
+        <GraphMinimap
+          layoutNodes={layoutNodes}
+          edges={edges}
+          graphWidth={width}
+          graphHeight={height}
+          viewportWidth={viewTransform ? containerWidth / viewTransform.scale : containerWidth}
+          viewportHeight={viewTransform ? (containerHeight ?? 600) / viewTransform.scale : (containerHeight ?? 600)}
+          scrollLeft={viewTransform ? -viewTransform.x / viewTransform.scale : scrollPos.left}
+          scrollTop={viewTransform ? -viewTransform.y / viewTransform.scale : scrollPos.top}
+          onMinimapClick={handleMinimapClick}
+          heatMap={heatMap}
+          heatMapActive={heatMapActive}
+        />
+      )}
+    </div>
+  );
+}

@@ -55,6 +55,11 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, fo
     collapse,
     undo,
     reset,
+    expandedNodeTxid,
+    toggleExpand,
+    expandPortInput,
+    expandPortOutput,
+    outspendCache,
   } = useGraphExpansion(fetcher);
 
   // Set root tx on mount or when tx changes.
@@ -95,6 +100,11 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, fo
           onReset={reset}
           onTxClick={onTxClick}
           rootBoltzmannResult={boltzmannResult}
+          expandedNodeTxid={expandedNodeTxid}
+          onToggleExpand={toggleExpand}
+          onExpandPortInput={expandPortInput}
+          onExpandPortOutput={expandPortOutput}
+          outspendCache={outspendCache}
         />
       </Suspense>
     </ChartErrorBoundary>

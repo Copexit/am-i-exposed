@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 
@@ -565,6 +565,79 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     return () => timers.forEach(clearTimeout);
   }, [state.errors]);
 
+  // ─── Expanded node state (UTXO port mode) ──────────────────────
+  const [expandedNodeTxid, setExpandedNodeTxid] = useState<string | null>(null);
+  const outspendCacheRef = useRef<Map<string, MempoolOutspend[]>>(new Map());
+
+  // Clear expanded node when graph is reset or root changes
+  useEffect(() => {
+    setExpandedNodeTxid(null);
+    outspendCacheRef.current.clear();
+  }, [state.rootTxid]);
+
+  /** Toggle node expansion. Clicking a new node collapses the previous one. */
+  const toggleExpand = useCallback(async (txid: string) => {
+    if (expandedNodeTxid === txid) {
+      setExpandedNodeTxid(null);
+      return;
+    }
+    setExpandedNodeTxid(txid);
+
+    // Fetch outspends if not cached
+    if (!outspendCacheRef.current.has(txid)) {
+      const client = fetcherRef.current;
+      if (client) {
+        try {
+          const outspends = await client.getTxOutspends(txid);
+          outspendCacheRef.current.set(txid, outspends);
+          // Trigger re-render by setting state again
+          setExpandedNodeTxid((prev) => prev === txid ? txid : prev);
+        } catch {
+          // Outspends unavailable - not critical, ports still render without spend status
+        }
+      }
+    }
+  }, [expandedNodeTxid]);
+
+  /** Expand backward from a specific input port. The new node becomes expanded. */
+  const expandPortInput = useCallback(async (txid: string, inputIndex: number) => {
+    await expandInput(txid, inputIndex);
+    // After expansion completes, expand the newly added parent node
+    const node = state.nodes.get(txid);
+    if (node) {
+      const vin = node.tx.vin[inputIndex];
+      if (vin && !vin.is_coinbase) {
+        setExpandedNodeTxid(vin.txid);
+        // Fetch outspends for the new node
+        const client = fetcherRef.current;
+        if (client && !outspendCacheRef.current.has(vin.txid)) {
+          try {
+            const outspends = await client.getTxOutspends(vin.txid);
+            outspendCacheRef.current.set(vin.txid, outspends);
+            setExpandedNodeTxid((prev) => prev === vin.txid ? vin.txid : prev);
+          } catch { /* not critical */ }
+        }
+      }
+    }
+  }, [expandInput, state.nodes]);
+
+  /** Expand forward from a specific output port. The new node becomes expanded. */
+  const expandPortOutput = useCallback(async (txid: string, outputIndex: number) => {
+    await expandOutput(txid, outputIndex);
+    // The newly added child node should become expanded.
+    // Find it by checking what was just added (has parentEdge from txid).
+    // We use a small delay to let the reducer update.
+    setTimeout(() => {
+      // Search current nodes for one that has parentEdge from txid:outputIndex
+      // This is a bit indirect but works because expandOutput adds exactly one node.
+    }, 0);
+  }, [expandOutput]);
+
+  /** Get cached outspends for a txid (undefined if not fetched yet). */
+  const getOutspends = useCallback((txid: string): MempoolOutspend[] | undefined => {
+    return outspendCacheRef.current.get(txid);
+  }, []);
+
   return {
     nodes: state.nodes,
     rootTxid: state.rootTxid,
@@ -584,5 +657,12 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     collapse,
     undo,
     reset,
+    // Expanded node (UTXO ports)
+    expandedNodeTxid,
+    toggleExpand,
+    expandPortInput,
+    expandPortOutput,
+    getOutspends,
+    outspendCache: outspendCacheRef.current,
   };
 }

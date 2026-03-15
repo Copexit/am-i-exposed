@@ -53,6 +53,11 @@ export function WalletGraphExplorerPanel({
     collapse,
     undo,
     reset,
+    expandedNodeTxid,
+    toggleExpand,
+    expandPortInput,
+    expandPortOutput,
+    outspendCache,
   } = useGraphExpansion(fetcher, WALLET_MAX_NODES);
 
   // Build wallet output index: all txs with outputs belonging to wallet addresses
@@ -157,6 +162,11 @@ export function WalletGraphExplorerPanel({
             onUndo={undo}
             onReset={reset}
             onTxClick={onTxClick}
+            expandedNodeTxid={expandedNodeTxid}
+            onToggleExpand={toggleExpand}
+            onExpandPortInput={expandPortInput}
+            onExpandPortOutput={expandPortOutput}
+            outspendCache={outspendCache}
           />
         </Suspense>
       </ChartErrorBoundary>
