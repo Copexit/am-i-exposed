@@ -350,6 +350,16 @@ export function GraphExplorer(props: GraphExplorerProps) {
           </span>
         </>
       )}
+      {/* Change marking legend (shown when there are marked outputs) */}
+      {changeOutputs.size > 0 && (
+        <>
+          <span className="text-white/20">|</span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-4 h-0.5 rounded" style={{ background: "#f97316", opacity: 0.8 }} />
+            <span className="text-white/40">Change</span>
+          </span>
+        </>
+      )}
     </div>
   );
 
@@ -519,6 +529,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
                   onExpandOutput={props.onExpandPortOutput ?? props.onExpandOutput}
                   changeOutputs={changeOutputs}
                   onToggleChange={toggleChange}
+                  boltzmannResult={props.expandedNodeTxid === props.rootTxid ? props.rootBoltzmannResult : undefined}
                 />
               )}
             </AnimatePresence>
@@ -712,6 +723,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
                   onExpandOutput={props.onExpandPortOutput ?? props.onExpandOutput}
                   changeOutputs={changeOutputs}
                   onToggleChange={toggleChange}
+                  boltzmannResult={props.expandedNodeTxid === props.rootTxid ? props.rootBoltzmannResult : undefined}
                 />
               )}
             </AnimatePresence>

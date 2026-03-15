@@ -9,7 +9,9 @@ import { truncateId } from "@/lib/constants";
 import { analyzeTransactionSync } from "@/lib/analysis/analyze-sync";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
 import { getScriptTypeColor } from "./scriptStyles";
+import { probColor } from "../shared/linkabilityColors";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
+import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import type { ScoringResult, Finding } from "@/lib/types";
 
 export const SIDEBAR_WIDTH = 320;
@@ -37,6 +39,8 @@ interface GraphSidebarProps {
   /** Set of change-marked outputs: "${txid}:${outputIndex}". */
   changeOutputs: Set<string>;
   onToggleChange: (txid: string, outputIndex: number) => void;
+  /** Boltzmann result for this tx (if computed). */
+  boltzmannResult?: BoltzmannWorkerResult | null;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -70,6 +74,7 @@ export function GraphSidebar({
   onExpandOutput,
   changeOutputs,
   onToggleChange,
+  boltzmannResult,
 }: GraphSidebarProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>("io");
@@ -152,6 +157,7 @@ export function GraphSidebar({
             onExpandOutput={onExpandOutput}
             changeOutputs={changeOutputs}
             onToggleChange={onToggleChange}
+            boltzmannResult={boltzmannResult}
           />
         )}
         {activeTab === "analysis" && result && (
@@ -184,6 +190,7 @@ function IOTab({
   onExpandOutput,
   changeOutputs,
   onToggleChange,
+  boltzmannResult,
 }: {
   tx: MempoolTransaction;
   outspends?: MempoolOutspend[];
@@ -191,9 +198,33 @@ function IOTab({
   onExpandOutput?: (txid: string, outputIndex: number) => void;
   changeOutputs: Set<string>;
   onToggleChange: (txid: string, outputIndex: number) => void;
+  boltzmannResult?: BoltzmannWorkerResult | null;
 }) {
+  const mat = boltzmannResult?.matLnkProbabilities;
+  const detLinks = boltzmannResult?.deterministicLinks;
+
   return (
     <div className="p-2 space-y-3">
+      {/* Boltzmann summary (when available) */}
+      {boltzmannResult && (
+        <div className="flex flex-wrap gap-1.5 px-1">
+          <span className="text-xs px-1.5 py-0.5 rounded bg-white/5 text-white/50">
+            {boltzmannResult.entropy.toFixed(2)} bits
+          </span>
+          <span className="text-xs px-1.5 py-0.5 rounded bg-white/5 text-white/50">
+            {Math.round(boltzmannResult.efficiency * 100)}% efficiency
+          </span>
+          {boltzmannResult.deterministicLinks.length > 0 && (
+            <span className="text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-400/80">
+              {boltzmannResult.deterministicLinks.length} deterministic
+            </span>
+          )}
+          <span className="text-xs px-1.5 py-0.5 rounded bg-white/5 text-white/40">
+            {boltzmannResult.nbCmbn.toLocaleString("en-US")} interpretations
+          </span>
+        </div>
+      )}
+
       {/* Inputs */}
       <div>
         <div className="text-xs font-medium text-white/50 px-1 mb-1">
@@ -228,6 +259,22 @@ function IOTab({
                   )}
                 </div>
                 <span className="text-xs text-bitcoin/80 shrink-0 tabular-nums">{formatSats(value)}</span>
+                {/* Linkability indicator (max probability this input has with any output) */}
+                {mat && !vin.is_coinbase && (() => {
+                  let maxP = 0;
+                  for (let oi = 0; oi < mat.length; oi++) {
+                    if (mat[oi]?.[i] !== undefined && mat[oi][i] > maxP) maxP = mat[oi][i];
+                  }
+                  if (maxP <= 0) return null;
+                  const isDet = detLinks?.some(([, inIdx]) => inIdx === i);
+                  return (
+                    <span
+                      className="shrink-0 w-2 h-2 rounded-full"
+                      style={{ backgroundColor: probColor(maxP), opacity: isDet ? 1 : 0.7 }}
+                      title={`${Math.round(maxP * 100)}% max linkability${isDet ? " (deterministic)" : ""}`}
+                    />
+                  );
+                })()}
                 {onExpandInput && !vin.is_coinbase && (
                   <button
                     onClick={() => onExpandInput(tx.txid, i)}
