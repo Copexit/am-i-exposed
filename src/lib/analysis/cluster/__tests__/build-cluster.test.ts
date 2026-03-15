@@ -19,6 +19,7 @@ function makeApi(overrides: Partial<ApiClient> = {}): ApiClient {
     getTxOutspends: vi.fn().mockRejectedValue(new Error("not mocked")),
     getHistoricalPrice: vi.fn().mockResolvedValue(null),
     getHistoricalEurPrice: vi.fn().mockResolvedValue(null),
+    getAddressPrefix: vi.fn().mockResolvedValue([]),
     ...overrides,
   };
 }

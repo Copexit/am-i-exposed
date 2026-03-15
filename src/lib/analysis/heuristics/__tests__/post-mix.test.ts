@@ -5,6 +5,7 @@ import {
   makeVin,
   makeVout,
 } from "./fixtures/tx-factory";
+import type { MempoolTransaction } from "@/lib/api/types";
 
 function makeVinObj(txid: string, vout: number, addr: string, value: number) {
   return makeVin({
