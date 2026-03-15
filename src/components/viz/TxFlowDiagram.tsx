@@ -564,14 +564,14 @@ function FlowChart({
                 let linkFromLabel: string | undefined;
                 let linkToLabel: string | undefined;
                 if (boltzmannLookup) {
-                  const srcNode = nodeMap.get(src.id);
-                  const tgtNode = nodeMap.get(tgt.id);
-                  if (srcNode?.side === "input" && tgtNode?.side === "output") {
+                  const srcNode2 = nodeMap.get(src.id);
+                  const tgtNode2 = nodeMap.get(tgt.id);
+                  if (srcNode2?.side === "input" && tgtNode2?.side === "output") {
                     const inIdx = parseInt(src.id.slice(3), 10);
                     const outIdx = parseInt(tgt.id.slice(4), 10);
                     linkProb = boltzmannLookup.getProb(inIdx, outIdx);
-                    linkFromLabel = srcNode.label;
-                    linkToLabel = tgtNode.label;
+                    linkFromLabel = srcNode2.label;
+                    linkToLabel = tgtNode2.label;
                   }
                 }
 
@@ -610,7 +610,7 @@ function FlowChart({
                       fill={`url(#flow-link-${i})`}
                       fillOpacity={linkOpacity}
                       stroke="none"
-                      style={{ pointerEvents: linkProb !== undefined ? "fill" : "none" }}
+                      pointerEvents={linkProb !== undefined ? "fill" : "none"}
                       initial={reducedMotion ? false : { opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{

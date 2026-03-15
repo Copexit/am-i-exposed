@@ -103,9 +103,8 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
   return (
     <motion.div
       initial={reducedMotion ? false : { opacity: 0, y: 8 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-50px" }}
-      transition={{ delay: index * 0.05, duration: 0.25 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: Math.min(index, 8) * 0.05, duration: 0.25 }}
       className={`glass rounded-lg border-l-2 ${style.border} ${style.glow ?? ""}`}
       data-finding-id={finding.id}
       role="article"

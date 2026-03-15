@@ -143,7 +143,7 @@ export function SeverityRing({ findings, size = 120 }: SeverityRingProps) {
         </svg>
 
         {tooltipOpen && tooltipData && (
-          <ChartTooltip top={tooltipTop ?? 0} left={tooltipLeft ?? 0}>
+          <ChartTooltip top={tooltipTop ?? 0} left={tooltipLeft ?? 0} containerRef={containerRef}>
             <div className="flex items-center gap-2">
               <span
                 className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"

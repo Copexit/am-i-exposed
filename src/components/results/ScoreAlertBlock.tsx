@@ -29,7 +29,7 @@ export function ScoreAlertBlock({
     <>
       {/* Score display */}
       <GlowCard className="w-full p-4 sm:p-5">
-        <div className="flex items-center justify-center gap-6">
+        <div className="flex flex-wrap items-center justify-center gap-6">
           <ScoreDisplay score={result.score} grade={result.grade} findings={result.findings} />
           {result.findings.length > 3 && (
             <ChartErrorBoundary><Suspense fallback={null}><SeverityRing findings={result.findings} size={120} /></Suspense></ChartErrorBoundary>

@@ -199,7 +199,7 @@ The engine doesn't run heuristics in isolation. CoinJoin detection suppresses CI
 
 am-i.exposed is available as an Umbrel app, connecting directly to your own Bitcoin node and mempool.space instance for maximum privacy - no third-party API requests.
 
-See [`docs/deploy-umbrel.md`](./docs/deploy-umbrel.md) for setup instructions.
+See the [setup guide](https://am-i.exposed/setup-guide/#umbrel) for instructions.
 
 ### Custom mempool.space instance
 
