@@ -17,7 +17,8 @@ export function SidebarRecommendations({
 }) {
   return (
     <div className="w-full flex flex-col gap-3 sm:gap-4">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }} className="w-full">
+      {/* Hidden on mobile - shown inline in main column above TX flow chart */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }} className="hidden xl:block w-full">
         <PrimaryRecommendation
           findings={result.findings}
           grade={result.grade}
