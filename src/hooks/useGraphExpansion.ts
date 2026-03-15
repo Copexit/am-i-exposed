@@ -696,11 +696,12 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
 
     let currentTxid = startTxid;
     let currentOutputIndex = startOutputIndex;
+    let currentDepth = state.nodes.get(startTxid)?.depth ?? 0;
 
     try {
       for (let hop = 0; hop < maxHops; hop++) {
         if (ac.signal.aborted) break;
-        if (state.nodes.size >= state.maxNodes) {
+        if (state.nodes.size + hop >= state.maxNodes) {
           dispatch({ type: "SET_ERROR", txid: currentTxid, error: "Auto-trace stopped: max nodes reached" });
           break;
         }
@@ -726,41 +727,31 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
 
         const childTxid = os.txid;
 
-        // Fetch and add the child tx if not already in graph
-        if (!state.nodes.has(childTxid)) {
-          try {
-            const childTx = await client.getTransaction(childTxid);
-            dispatch({
-              type: "ADD_NODE",
-              node: {
-                txid: childTxid,
-                tx: childTx,
-                depth: (state.nodes.get(currentTxid)?.depth ?? 0) + 1,
-                parentEdge: { fromTxid: currentTxid, outputIndex: currentOutputIndex },
-              },
-            });
-            // Small delay to let React process the dispatch and show the node appearing
-            await new Promise((r) => setTimeout(r, 80));
-          } catch (err) {
-            dispatch({ type: "SET_ERROR", txid: childTxid, error: `Auto-trace: ${err instanceof Error ? err.message : "fetch failed"}` });
-            break;
-          }
+        // Always fetch the child tx (don't rely on stale state.nodes)
+        let childTx: MempoolTransaction;
+        try {
+          childTx = await client.getTransaction(childTxid);
+        } catch (err) {
+          dispatch({ type: "SET_ERROR", txid: childTxid, error: `Auto-trace: ${err instanceof Error ? err.message : "fetch failed"}` });
+          break;
         }
-
         if (ac.signal.aborted) break;
 
-        // Get the child node (may have just been added or was already there)
-        const childNode = state.nodes.get(childTxid);
-        if (!childNode) {
-          // Node was just dispatched but state hasn't updated yet - wait briefly
-          await new Promise((r) => setTimeout(r, 150));
-        }
-        // Re-read after potential delay - use the tx we fetched
-        const childNodeFinal = state.nodes.get(childTxid);
-        if (!childNodeFinal) break;
+        // Add to graph
+        currentDepth++;
+        dispatch({
+          type: "ADD_NODE",
+          node: {
+            txid: childTxid,
+            tx: childTx,
+            depth: currentDepth,
+            parentEdge: { fromTxid: currentTxid, outputIndex: currentOutputIndex },
+          },
+        });
+        await new Promise((r) => setTimeout(r, 80));
 
-        // Analyze: what is the most likely change output?
-        const changeResult = identifyChangeOutput(childNodeFinal.tx);
+        // Analyze the freshly fetched tx directly (not from stale state)
+        const changeResult = identifyChangeOutput(childTx);
         setAutoTraceProgress({ hop: hop + 1, txid: childTxid, reason: changeResult.reason });
 
         if (changeResult.changeOutputIndex === null) {
@@ -797,7 +788,7 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     if (!client) return;
 
     const threshold = opts?.threshold ?? 0.05;
-    const maxHops = opts?.maxHops ?? 30;
+    const maxHops = opts?.maxHops ?? 10;
     const cache = opts?.boltzmannCache;
 
     autoTraceAbortRef.current?.abort();
@@ -808,71 +799,86 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     let compoundProb = 1.0;
     let currentTxid = startTxid;
     let currentOutputIndex = startOutputIndex;
+    // Track depth from the starting node for ADD_NODE depth field
+    let currentDepth = state.nodes.get(startTxid)?.depth ?? 0;
 
     try {
       for (let hop = 0; hop < maxHops; hop++) {
         if (ac.signal.aborted) break;
-        if (state.nodes.size >= state.maxNodes) break;
 
         setAutoTraceProgress({ hop: hop + 1, txid: currentTxid, reason: `compound: ${Math.round(compoundProb * 100)}%` });
 
-        // Fetch outspends
+        // Fetch outspends for the current tx
         let outspends: import("@/lib/api/types").MempoolOutspend[];
         try { outspends = await client.getTxOutspends(currentTxid); } catch { break; }
         if (ac.signal.aborted) break;
 
         const os = outspends[currentOutputIndex];
-        if (!os?.spent || !os.txid) break;
+        if (!os?.spent || !os.txid) {
+          setAutoTraceProgress({ hop: hop + 1, txid: currentTxid, reason: "unspent" });
+          break;
+        }
 
         const childTxid = os.txid;
 
-        // Expand child node if not in graph
-        if (!state.nodes.has(childTxid)) {
-          try {
-            const childTx = await client.getTransaction(childTxid);
-            dispatch({
-              type: "ADD_NODE",
-              node: { txid: childTxid, tx: childTx, depth: (state.nodes.get(currentTxid)?.depth ?? 0) + 1, parentEdge: { fromTxid: currentTxid, outputIndex: currentOutputIndex } },
-            });
-            await new Promise((r) => setTimeout(r, 80));
-          } catch { break; }
+        // Fetch the child tx (always fetch fresh - don't rely on stale state.nodes)
+        let childTx: import("@/lib/api/types").MempoolTransaction;
+        try {
+          childTx = await client.getTransaction(childTxid);
+        } catch {
+          dispatch({ type: "SET_ERROR", txid: childTxid, error: "Linkability trace: failed to fetch tx" });
+          break;
         }
         if (ac.signal.aborted) break;
 
-        const childNode = state.nodes.get(childTxid);
-        if (!childNode) break;
+        // Add to graph if not already there
+        currentDepth++;
+        dispatch({
+          type: "ADD_NODE",
+          node: { txid: childTxid, tx: childTx, depth: currentDepth, parentEdge: { fromTxid: currentTxid, outputIndex: currentOutputIndex } },
+        });
+        // Small delay so the UI shows the node appearing
+        await new Promise((r) => setTimeout(r, 100));
+        if (ac.signal.aborted) break;
 
-        // Get or compute Boltzmann for this tx
+        // Compute Boltzmann for the child tx (use cache or compute fresh)
         let boltzResult = cache?.get(childTxid);
         if (!boltzResult) {
-          const { inputValues, outputValues } = extractTxValues(childNode.tx);
-          if (inputValues.length >= 1 && outputValues.length >= 1 && inputValues.length + outputValues.length <= 80) {
+          const { inputValues, outputValues } = extractTxValues(childTx);
+          if (inputValues.length === 1) {
+            // 1-input: synthetic 100% deterministic (no need for WASM)
+            compoundProb *= 1.0; // doesn't change compound
+          } else if (inputValues.length >= 2 && inputValues.length + outputValues.length <= 80) {
             try {
-              boltzResult = await computeBoltzmann(childNode.tx, { signal: ac.signal }) ?? undefined;
-            } catch { /* ok, treat as 100% */ }
+              boltzResult = await computeBoltzmann(childTx, { signal: ac.signal }) ?? undefined;
+            } catch { /* treat as 100% worst case */ }
           }
         }
+        if (ac.signal.aborted) break;
 
-        // Find the change output
-        const changeResult = identifyChangeOutput(childNode.tx);
-        if (changeResult.changeOutputIndex === null) break;
+        // Identify the change output for the next hop
+        const changeResult = identifyChangeOutput(childTx);
+        if (changeResult.changeOutputIndex === null) {
+          setAutoTraceProgress({ hop: hop + 1, txid: childTxid, reason: changeResult.reason });
+          break;
+        }
 
-        // Compute linkability for the change output from the spending input
+        // Compute the linkability: P(change output | spending input) for this hop
         if (boltzResult?.matLnkProbabilities) {
           const mat = boltzResult.matLnkProbabilities;
-          // Find which input of the child tx spends our output
-          const spendingInputIdx = childNode.tx.vin.findIndex(
+          const spendingInputIdx = childTx.vin.findIndex(
             (v) => v.txid === currentTxid && v.vout === currentOutputIndex,
           );
           if (spendingInputIdx >= 0 && mat[changeResult.changeOutputIndex]?.[spendingInputIdx] !== undefined) {
             compoundProb *= mat[changeResult.changeOutputIndex][spendingInputIdx];
           }
-          // If no specific link found, treat as 100% (worst case)
         }
+
+        setAutoTraceProgress({ hop: hop + 1, txid: childTxid, reason: `compound: ${Math.round(compoundProb * 100)}%` });
 
         // Check threshold
         if (compoundProb < threshold) {
-          setAutoTraceProgress({ hop: hop + 1, txid: childTxid, reason: `compound ${Math.round(compoundProb * 100)}% < ${Math.round(threshold * 100)}% threshold` });
+          setAutoTraceProgress({ hop: hop + 1, txid: childTxid, reason: `below ${Math.round(threshold * 100)}% threshold` });
           break;
         }
 
