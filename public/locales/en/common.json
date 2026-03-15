@@ -1939,7 +1939,7 @@
   "primaryRec.cioh.headline": "Avoid combining UTXOs from different sources",
   "primaryRec.cioh.detail": "Every time you consolidate, you reveal additional information about your economic activity to everyone who sent you each coin joined in this transaction. Choose a single UTXO that covers the payment. If you must consolidate, do it with coins from the same origin.",
   "primaryRec.ciohStonewall.headline": "Use Stonewall if consolidation is unavoidable",
-  "primaryRec.ciohStonewall.detail": "If you have no choice but to consolidate from different origins, use Stonewall to make analysis harder for observers.",
+  "primaryRec.ciohStonewall.detail": "If no single UTXO covers the amount and you cannot use UTXOs from the same origin, use Stonewall to create ambiguity about which output is the payment.",
   "primaryRec.peelChain.headline": "Break the payment chain - manage change individually",
   "primaryRec.peelChain.detail": "Making payments with change from previous payments links transactions in cascade, leaving a clear trail of your economic activity. Freeze the change and use a different UTXO for each payment. If you need to spend change, use it in collaborative transactions (PayJoin as a receiver, Stonewall) to increase ambiguity.",
   "primaryRec.changeCompound.headline": "Change is easily detectable - use collaborative transactions",

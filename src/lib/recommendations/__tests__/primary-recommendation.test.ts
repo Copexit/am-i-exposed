@@ -143,9 +143,18 @@ describe("Tier 2 - Structural issues", () => {
     expect(secondary!.id).toBe("rec-cioh-stonewall");
   });
 
-  it("h3-cioh with <10 inputs has no secondary", () => {
+  it("h3-cioh with 3+ inputs gets secondary Stonewall rec", () => {
     const [primary, secondary] = selectRecommendations(
       ctx([f("h3-cioh", { scoreImpact: -5, params: { inputCount: 4 } })]),
+    );
+    expect(primary.id).toBe("rec-cioh");
+    expect(secondary).not.toBeNull();
+    expect(secondary!.id).toBe("rec-cioh-stonewall");
+  });
+
+  it("h3-cioh with 2 inputs has no secondary", () => {
+    const [primary, secondary] = selectRecommendations(
+      ctx([f("h3-cioh", { scoreImpact: -3, params: { inputCount: 2 } })]),
     );
     expect(primary.id).toBe("rec-cioh");
     expect(secondary).toBeNull();

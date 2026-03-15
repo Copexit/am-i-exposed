@@ -155,7 +155,7 @@ export function selectRecommendations(
   );
   if (ciohFinding && !hasCoinJoin) {
     const inputCount = Number(ciohFinding.params?.inputCount ?? 0);
-    const secondary: PrimaryRec | null = inputCount >= 10
+    const secondary: PrimaryRec | null = inputCount >= 3
       ? {
           id: "rec-cioh-stonewall",
           urgency: "soon",
@@ -163,8 +163,8 @@ export function selectRecommendations(
           headlineDefault: "Use Stonewall if consolidation is unavoidable",
           detailKey: "primaryRec.ciohStonewall.detail",
           detailDefault:
-            "If you have no choice but to consolidate from different origins, " +
-            "use Stonewall to make analysis harder for observers.",
+            "If no single UTXO covers the amount and you cannot use UTXOs from the same origin, " +
+            "use Stonewall to create ambiguity about which output is the payment.",
           guideLink: "/guide#stonewall",
         }
       : null;
