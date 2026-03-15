@@ -270,8 +270,16 @@ export function GraphCanvas({
         }
         break;
       }
+      case "Escape": {
+        // Collapse expanded node ports
+        e.preventDefault();
+        if (expandedNodeTxid && onToggleExpand) {
+          onToggleExpand(expandedNodeTxid);
+        }
+        break;
+      }
     }
-  }, [focusedNode, layoutNodes, nodes, rootTxid, atCapacity, onExpandInput, onExpandOutput, onCollapse, setFocusedNode, onToggleExpand]);
+  }, [focusedNode, layoutNodes, nodes, rootTxid, atCapacity, onExpandInput, onExpandOutput, onCollapse, setFocusedNode, onToggleExpand, expandedNodeTxid]);
 
   // Auto-scroll to keep focused node visible
   useEffect(() => {
