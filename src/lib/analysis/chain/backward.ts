@@ -9,7 +9,7 @@ import { DUST_THRESHOLD } from "@/lib/constants";
  * the provenance of each input and adjust scoring accordingly.
  */
 
-export interface BackwardAnalysisResult {
+interface BackwardAnalysisResult {
   findings: Finding[];
   /** Inputs that came from CoinJoin (input indices) */
   coinJoinInputs: number[];

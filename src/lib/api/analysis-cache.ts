@@ -53,7 +53,7 @@ interface StoredAnalysisResult {
 }
 
 /** Deserialized analysis result returned from getCachedResult. */
-export interface CachedAnalysisResult {
+interface CachedAnalysisResult {
   phase: "complete";
   query: string;
   inputType: InputType;

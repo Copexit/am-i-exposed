@@ -18,7 +18,7 @@ export interface ClusterResult {
   riskTier: ClusterRiskTier;
 }
 
-export type ClusterRiskTier =
+type ClusterRiskTier =
   | "single"      // 1 address - ideal compartmentalization
   | "small"       // 2-3 addresses - good
   | "typical"     // 4-10 addresses - normal wallet usage

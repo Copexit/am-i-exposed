@@ -4,6 +4,9 @@ import { WHIRLPOOL_DENOMS } from "@/lib/constants";
 import { formatBtc } from "@/lib/format";
 import { getSpendableOutputs } from "./tx-utils";
 
+/** Minimum denomination for CoinJoin equal outputs (below this, likely noise/dust). */
+const MIN_COINJOIN_DENOM = 10_000;
+
 const EXCHANGE_WARNING =
   "Centralized exchanges including Binance, Coinbase, Gemini, Bitstamp, Swan Bitcoin, Bitvavo, Bitfinex, and BitMEX " +
   "have been documented flagging, freezing, or closing accounts for CoinJoin-associated deposits. " +
@@ -534,7 +537,7 @@ function detectJoinMarket(
   if (bestCount === spendableOutputs.length) return null;
 
   // Require that the equal output value is a meaningful amount (not dust)
-  if (bestValue < 10_000) return null;
+  if (bestValue < MIN_COINJOIN_DENOM) return null;
 
   // Equal-valued outputs must go to distinct addresses (multi-party evidence).
   // If they go to the same address, this is not a CoinJoin.
@@ -595,7 +598,7 @@ function detectStonewall(
   if (WHIRLPOOL_DENOMS.includes(equalValue)) return null;
 
   // Skip dust amounts
-  if (equalValue < 10_000) return null;
+  if (equalValue < MIN_COINJOIN_DENOM) return null;
 
   // Equal-valued outputs must go to distinct addresses (multi-party evidence)
   const equalAddresses = new Set<string>();
@@ -647,7 +650,7 @@ function detectSimplifiedStonewall(
   if (equalValue === 0) return null;
 
   // Skip dust amounts and Whirlpool denominations
-  if (equalValue < 10_000) return null;
+  if (equalValue < MIN_COINJOIN_DENOM) return null;
   if (WHIRLPOOL_DENOMS.includes(equalValue)) return null;
 
   // Equal-valued outputs must go to distinct addresses

@@ -32,7 +32,7 @@ function isLikelyCoinJoinTx(tx: MempoolTransaction): boolean {
  * Detects common privacy mistakes in post-spend behavior.
  */
 
-export interface ForwardAnalysisResult {
+interface ForwardAnalysisResult {
   findings: Finding[];
   /** Outputs that were consolidated post-CoinJoin (output indices) */
   consolidatedCoinJoinOutputs: number[];

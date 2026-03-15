@@ -5,7 +5,7 @@
 
 import type { Finding } from "@/lib/types";
 import type { BoltzmannWorkerResult } from "@/hooks/useBoltzmann";
-import { fmtN } from "@/lib/format";
+import { fmtN, roundTo } from "@/lib/format";
 
 /** Finding IDs that should NOT be overridden (structurally deterministic). */
 const SKIP_IDS = new Set([
@@ -51,16 +51,16 @@ export function enhanceEntropyFinding(
       method: "WASM Boltzmann",
       interpretations: boltzmann.nbCmbn,
       context: entropyBits >= 4 ? "high" : "low",
-      entropyPerUtxo: Math.round((entropyBits / nUtxos) * 1000) / 1000,
+      entropyPerUtxo: roundTo(entropyBits / nUtxos),
       nUtxos,
       deterministicLinks: boltzmann.deterministicLinks.length,
-      efficiency: Math.round(boltzmann.efficiency * 10000) / 100,
+      efficiency: roundTo(boltzmann.efficiency * 100, 2),
     },
     description:
       `This transaction has ${roundedEntropy} bits of entropy (via WASM Boltzmann), meaning there are ` +
       `${interpretationsStr} valid interpretations of the fund flow. ` +
       `Higher entropy makes chain analysis less reliable. ` +
-      `Entropy per UTXO: ${Math.round((entropyBits / nUtxos) * 1000) / 1000} bits (${nUtxos} UTXOs).` +
+      `Entropy per UTXO: ${roundTo(entropyBits / nUtxos)} bits (${nUtxos} UTXOs).` +
       (boltzmann.deterministicLinks.length > 0
         ? ` ${boltzmann.deterministicLinks.length} deterministic link${boltzmann.deterministicLinks.length > 1 ? "s" : ""} detected (100% probability).`
         : ""),

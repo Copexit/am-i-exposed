@@ -1,6 +1,7 @@
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import { getSpendableOutputs } from "../heuristics/tx-utils";
+import { roundTo } from "@/lib/format";
 
 /**
  * Simplified Linkability Matrix
@@ -17,7 +18,7 @@ import { getSpendableOutputs } from "../heuristics/tx-utils";
  * For performance, limits to txs with <= 8 inputs and <= 8 outputs.
  */
 
-export interface LinkabilityCell {
+interface LinkabilityCell {
   inputIndex: number;
   outputIndex: number;
   /** 0-1 probability of link */
@@ -26,7 +27,7 @@ export interface LinkabilityCell {
   deterministic: boolean;
 }
 
-export interface LinkabilityResult {
+interface LinkabilityResult {
   matrix: LinkabilityCell[][];
   /** Number of deterministic links found */
   deterministicLinks: number;
@@ -144,7 +145,7 @@ export function buildLinkabilityMatrix(
       row.push({
         inputIndex: i,
         outputIndex: j,
-        probability: Math.round(prob * 1000) / 1000,
+        probability: roundTo(prob),
         deterministic: isDeterministic,
       });
     }

@@ -15,7 +15,7 @@ const RETRY_DELAYS = [1000, 2000, 4000];
 /** Per-request timeout - prevents individual fetch attempts hanging on Tor */
 const REQUEST_TIMEOUT_MS = 15_000;
 
-export interface FetchRetryOptions extends RequestInit {
+interface FetchRetryOptions extends RequestInit {
   /** Per-attempt timeout in ms. Defaults to 15_000. */
   timeoutMs?: number;
 }

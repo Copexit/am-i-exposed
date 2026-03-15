@@ -38,6 +38,12 @@ export function calcFeeRate(tx: { fee: number; weight: number }): string {
   return (tx.fee / vsize).toFixed(1);
 }
 
+/** Round a number to `digits` decimal places (default 3). */
+export function roundTo(n: number, digits = 3): number {
+  const f = Math.pow(10, digits);
+  return Math.round(n * f) / f;
+}
+
 /** Format a satoshi value as a USD string using the given BTC price. */
 export function formatUsdValue(sats: number, usdPerBtc: number): string {
   const usd = (sats / SATS_PER_BTC) * usdPerBtc;

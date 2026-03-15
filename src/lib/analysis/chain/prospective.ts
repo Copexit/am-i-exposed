@@ -28,7 +28,7 @@ export interface FingerprintSnapshot {
   isSender: boolean;
 }
 
-export interface FingerprintEvolution {
+interface FingerprintEvolution {
   snapshots: FingerprintSnapshot[];
   findings: Finding[];
   /** Summary of detected wallet transitions */

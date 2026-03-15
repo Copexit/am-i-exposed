@@ -16,7 +16,7 @@ import type { TraceLayer } from "./recursive-trace";
  * a positive privacy signal.
  */
 
-export interface EntityProximityResult {
+interface EntityProximityResult {
   findings: Finding[];
   /** Nearest entity found backward (input provenance) */
   nearestBackward: EntityHit | null;
@@ -28,7 +28,7 @@ export interface EntityProximityResult {
   coinJoinInDescendancy: boolean;
 }
 
-export interface EntityHit {
+interface EntityHit {
   entityName: string;
   category: string;
   address: string;

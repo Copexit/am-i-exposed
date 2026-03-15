@@ -14,7 +14,7 @@ const MAX_ENTRIES = 10_000;
 /** Percentage of entries to evict when max is exceeded. */
 const EVICT_RATIO = 0.2;
 
-export interface CacheEntry {
+interface CacheEntry {
   key: string;
   value: unknown;
   storedAt: number;

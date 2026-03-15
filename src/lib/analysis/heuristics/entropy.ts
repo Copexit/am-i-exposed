@@ -1,8 +1,10 @@
 import type { TxHeuristic } from "./types";
-import { fmtN } from "@/lib/format";
+import { fmtN, roundTo } from "@/lib/format";
 import { getValuedOutputs } from "./tx-utils";
 
 const MAX_ENUMERABLE_SIZE = 8;
+/** Iteration budget for brute-force valid-mapping enumeration. */
+const MAPPING_ITERATION_LIMIT = 10_000;
 
 /**
  * H5: Boltzmann Entropy
@@ -196,7 +198,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
           method,
           interpretations: displayEntropy > 40 ? `2^${Math.round(displayEntropy)}` : Math.round(Math.pow(2, displayEntropy)),
           context: entropyBits >= 4 ? "high" : "low",
-          entropyPerUtxo: Math.round((entropyBits / (inputs.length + outputs.length)) * 1000) / 1000,
+          entropyPerUtxo: roundTo(entropyBits / (inputs.length + outputs.length)),
           nUtxos: inputs.length + outputs.length,
         },
         description:
@@ -207,7 +209,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
             : `~${fmtN(Math.round(Math.pow(2, displayEntropy)))} `) +
           (method.includes("estimate") ? "possible" : "valid") +
           " interpretations of the fund flow. Higher entropy makes chain analysis less reliable." +
-          ` Entropy per UTXO: ${Math.round((entropyBits / (inputs.length + outputs.length)) * 1000) / 1000} bits (${inputs.length + outputs.length} UTXOs).`,
+          ` Entropy per UTXO: ${roundTo(entropyBits / (inputs.length + outputs.length))} bits (${inputs.length + outputs.length} UTXOs).`,
         recommendation:
           entropyBits >= 4
             ? "Good entropy level. Spending exact amounts (no change) further improves privacy."
@@ -472,7 +474,7 @@ function countValidMappings(inputs: number[], outputs: number[]): { count: numbe
 
   // For each output, try assigning it to each input that can fund it.
   // Limit iterations to prevent combinatorial explosion.
-  const limit = 10_000;
+  const limit = MAPPING_ITERATION_LIMIT;
   let iterations = 0;
   let count = 0;
 

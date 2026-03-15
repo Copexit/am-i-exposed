@@ -12,7 +12,7 @@ import { getSpendableOutputs } from "../heuristics/tx-utils";
  * post-mix spending preserves or destroys the privacy gain.
  */
 
-export interface CoinJoinQualityResult {
+interface CoinJoinQualityResult {
   findings: Finding[];
   /** Overall quality score: -20 to +25 */
   qualityScore: number;

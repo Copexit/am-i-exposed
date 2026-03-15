@@ -281,7 +281,7 @@ export function identifyTakerMaker(tx: MempoolTransaction): TakerMakerResult | n
  * This is weaker than Whirlpool (where rounds are fully unlinkable and
  * the set grows multiplicatively).
  */
-export function estimateJoinMarketAnonSet(
+function estimateJoinMarketAnonSet(
   participants: number,
   chainedRounds: number = 0,
 ): number {
