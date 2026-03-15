@@ -60,6 +60,10 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, fo
     expandPortInput,
     expandPortOutput,
     outspendCache,
+    autoTrace,
+    cancelAutoTrace,
+    autoTracing,
+    autoTraceProgress,
   } = useGraphExpansion(fetcher);
 
   // Set root tx on mount or when tx changes.
@@ -105,6 +109,10 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, fo
           onExpandPortInput={expandPortInput}
           onExpandPortOutput={expandPortOutput}
           outspendCache={outspendCache}
+          onAutoTrace={autoTrace}
+          onCancelAutoTrace={cancelAutoTrace}
+          autoTracing={autoTracing}
+          autoTraceProgress={autoTraceProgress}
         />
       </Suspense>
     </ChartErrorBoundary>

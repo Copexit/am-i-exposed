@@ -49,6 +49,12 @@ interface GraphSidebarProps {
   boltzmannProgress?: number;
   /** Trigger Boltzmann computation for this tx. */
   onComputeBoltzmann?: () => void;
+  /** Trigger auto-trace from a specific output. */
+  onAutoTrace?: (txid: string, outputIndex: number) => void;
+  /** Whether auto-trace is in progress. */
+  autoTracing?: boolean;
+  /** Auto-trace progress info. */
+  autoTraceProgress?: { hop: number; txid: string; reason: string } | null;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -86,6 +92,9 @@ export function GraphSidebar({
   computingBoltzmann,
   boltzmannProgress,
   onComputeBoltzmann,
+  onAutoTrace,
+  autoTracing,
+  autoTraceProgress,
 }: GraphSidebarProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>("io");
@@ -172,6 +181,9 @@ export function GraphSidebar({
             computingBoltzmann={computingBoltzmann}
             boltzmannProgress={boltzmannProgress}
             onComputeBoltzmann={onComputeBoltzmann}
+            onAutoTrace={onAutoTrace}
+            autoTracing={autoTracing}
+            autoTraceProgress={autoTraceProgress}
           />
         )}
         {activeTab === "analysis" && result && (
@@ -208,6 +220,9 @@ function IOTab({
   computingBoltzmann,
   boltzmannProgress,
   onComputeBoltzmann,
+  onAutoTrace,
+  autoTracing,
+  autoTraceProgress,
 }: {
   tx: MempoolTransaction;
   outspends?: MempoolOutspend[];
@@ -219,6 +234,9 @@ function IOTab({
   computingBoltzmann?: boolean;
   boltzmannProgress?: number;
   onComputeBoltzmann?: () => void;
+  onAutoTrace?: (txid: string, outputIndex: number) => void;
+  autoTracing?: boolean;
+  autoTraceProgress?: { hop: number; txid: string; reason: string } | null;
 }) {
   const mat = boltzmannResult?.matLnkProbabilities;
   const detLinks = boltzmannResult?.deterministicLinks;
@@ -269,6 +287,19 @@ function IOTab({
 
   return (
     <div className="p-2 space-y-3">
+      {/* Auto-trace progress */}
+      {autoTracing && autoTraceProgress && (
+        <div className="flex items-center gap-2 px-1 py-1 rounded bg-orange-400/10 border border-orange-400/20">
+          <div className="w-3 h-3 border-2 border-orange-400/40 border-t-orange-400 rounded-full animate-spin shrink-0" />
+          <span className="text-xs text-orange-400/80">
+            Tracing hop {autoTraceProgress.hop}...
+            {autoTraceProgress.reason !== "expanding" && autoTraceProgress.reason !== "starting" && (
+              <span className="text-white/40 ml-1">({autoTraceProgress.reason})</span>
+            )}
+          </span>
+        </div>
+      )}
+
       {/* Boltzmann summary (when available) */}
       {boltzmannResult && (
         <div className="flex flex-wrap gap-1.5 px-1">
@@ -508,6 +539,16 @@ function IOTab({
                     title="Expand in graph"
                   >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                  </button>
+                )}
+                {/* Auto-trace button: follow change outputs forward */}
+                {onAutoTrace && !autoTracing && vout.scriptpubkey_type !== "op_return" && vout.value > 0 && (
+                  <button
+                    onClick={() => onAutoTrace(tx.txid, i)}
+                    className="opacity-0 group-hover:opacity-100 text-orange-400/50 hover:text-orange-400 transition-all cursor-pointer p-0.5"
+                    title="Auto-trace: follow change outputs forward"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M13 5l7 7-7 7" /><path d="M5 5l7 7-7 7" /></svg>
                   </button>
                 )}
               </div>

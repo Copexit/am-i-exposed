@@ -717,6 +717,9 @@ export function GraphExplorer(props: GraphExplorerProps) {
                   computingBoltzmann={props.expandedNodeTxid ? computingBoltzmannRef.current.has(props.expandedNodeTxid) : false}
                   boltzmannProgress={props.expandedNodeTxid ? boltzmannProgressMap.get(props.expandedNodeTxid) : undefined}
                   onComputeBoltzmann={props.expandedNodeTxid ? () => triggerBoltzmann(props.expandedNodeTxid!) : undefined}
+                  onAutoTrace={props.onAutoTrace}
+                  autoTracing={props.autoTracing}
+                  autoTraceProgress={props.autoTraceProgress}
                 />
               )}
             </AnimatePresence>
@@ -898,6 +901,9 @@ export function GraphExplorer(props: GraphExplorerProps) {
                   computingBoltzmann={props.expandedNodeTxid ? computingBoltzmannRef.current.has(props.expandedNodeTxid) : false}
                   boltzmannProgress={props.expandedNodeTxid ? boltzmannProgressMap.get(props.expandedNodeTxid) : undefined}
                   onComputeBoltzmann={props.expandedNodeTxid ? () => triggerBoltzmann(props.expandedNodeTxid!) : undefined}
+                  onAutoTrace={props.onAutoTrace}
+                  autoTracing={props.autoTracing}
+                  autoTraceProgress={props.autoTraceProgress}
                 />
               )}
             </AnimatePresence>

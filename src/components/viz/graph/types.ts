@@ -39,6 +39,14 @@ export interface GraphExplorerProps {
   onExpandPortOutput?: (txid: string, outputIndex: number) => void;
   /** Cached outspends per txid. */
   outspendCache?: Map<string, MempoolOutspend[]>;
+  /** Trigger auto-trace forward from a specific output. */
+  onAutoTrace?: (txid: string, outputIndex: number) => void;
+  /** Cancel in-progress auto-trace. */
+  onCancelAutoTrace?: () => void;
+  /** Whether auto-trace is currently running. */
+  autoTracing?: boolean;
+  /** Auto-trace progress info. */
+  autoTraceProgress?: { hop: number; txid: string; reason: string } | null;
 }
 
 export interface LayoutNode {

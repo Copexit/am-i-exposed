@@ -675,6 +675,116 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     }
   }, [pendingPortExpand, state.nodes]);
 
+  // ─── Auto-trace (peel chain following) ──────────────────────────
+  const autoTraceAbortRef = useRef<AbortController | null>(null);
+  const [autoTracing, setAutoTracing] = useState(false);
+  const [autoTraceProgress, setAutoTraceProgress] = useState<{ hop: number; txid: string; reason: string } | null>(null);
+
+  /** Auto-trace forward from a specific output, following the most likely change at each hop. */
+  const autoTrace = useCallback(async (startTxid: string, startOutputIndex: number, maxHops = 20) => {
+    const { identifyChangeOutput } = await import("@/components/viz/graph/autoTrace");
+    const client = fetcherRef.current;
+    if (!client) return;
+
+    // Abort any previous trace
+    autoTraceAbortRef.current?.abort();
+    const ac = new AbortController();
+    autoTraceAbortRef.current = ac;
+
+    setAutoTracing(true);
+    setAutoTraceProgress({ hop: 0, txid: startTxid, reason: "starting" });
+
+    let currentTxid = startTxid;
+    let currentOutputIndex = startOutputIndex;
+
+    try {
+      for (let hop = 0; hop < maxHops; hop++) {
+        if (ac.signal.aborted) break;
+        if (state.nodes.size >= state.maxNodes) {
+          dispatch({ type: "SET_ERROR", txid: currentTxid, error: "Auto-trace stopped: max nodes reached" });
+          break;
+        }
+
+        setAutoTraceProgress({ hop: hop + 1, txid: currentTxid, reason: "expanding" });
+
+        // Fetch outspends to find the spending tx for this output
+        let outspends: MempoolOutspend[];
+        try {
+          outspends = await client.getTxOutspends(currentTxid);
+        } catch {
+          dispatch({ type: "SET_ERROR", txid: currentTxid, error: "Auto-trace: failed to fetch outspends" });
+          break;
+        }
+
+        if (ac.signal.aborted) break;
+
+        const os = outspends[currentOutputIndex];
+        if (!os?.spent || !os.txid) {
+          setAutoTraceProgress({ hop: hop + 1, txid: currentTxid, reason: "unspent" });
+          break;
+        }
+
+        const childTxid = os.txid;
+
+        // Fetch and add the child tx if not already in graph
+        if (!state.nodes.has(childTxid)) {
+          try {
+            const childTx = await client.getTransaction(childTxid);
+            dispatch({
+              type: "ADD_NODE",
+              node: {
+                txid: childTxid,
+                tx: childTx,
+                depth: (state.nodes.get(currentTxid)?.depth ?? 0) + 1,
+                parentEdge: { fromTxid: currentTxid, outputIndex: currentOutputIndex },
+              },
+            });
+            // Small delay to let React process the dispatch and show the node appearing
+            await new Promise((r) => setTimeout(r, 80));
+          } catch (err) {
+            dispatch({ type: "SET_ERROR", txid: childTxid, error: `Auto-trace: ${err instanceof Error ? err.message : "fetch failed"}` });
+            break;
+          }
+        }
+
+        if (ac.signal.aborted) break;
+
+        // Get the child node (may have just been added or was already there)
+        const childNode = state.nodes.get(childTxid);
+        if (!childNode) {
+          // Node was just dispatched but state hasn't updated yet - wait briefly
+          await new Promise((r) => setTimeout(r, 150));
+        }
+        // Re-read after potential delay - use the tx we fetched
+        const childNodeFinal = state.nodes.get(childTxid);
+        if (!childNodeFinal) break;
+
+        // Analyze: what is the most likely change output?
+        const changeResult = identifyChangeOutput(childNodeFinal.tx);
+        setAutoTraceProgress({ hop: hop + 1, txid: childTxid, reason: changeResult.reason });
+
+        if (changeResult.changeOutputIndex === null) {
+          // Terminal condition reached
+          break;
+        }
+
+        // Continue tracing from the change output
+        currentTxid = childTxid;
+        currentOutputIndex = changeResult.changeOutputIndex;
+      }
+    } finally {
+      setAutoTracing(false);
+      setAutoTraceProgress(null);
+    }
+  }, [state.nodes, state.maxNodes]);
+
+  /** Cancel any in-progress auto-trace. */
+  const cancelAutoTrace = useCallback(() => {
+    autoTraceAbortRef.current?.abort();
+    setAutoTracing(false);
+    setAutoTraceProgress(null);
+  }, []);
+
   return {
     nodes: state.nodes,
     rootTxid: state.rootTxid,
@@ -700,5 +810,10 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     expandPortInput,
     expandPortOutput,
     outspendCache: outspendCacheRef.current,
+    // Auto-trace
+    autoTrace,
+    cancelAutoTrace,
+    autoTracing,
+    autoTraceProgress,
   };
 }
