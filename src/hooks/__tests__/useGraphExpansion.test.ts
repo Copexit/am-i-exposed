@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useGraphExpansion } from "../useGraphExpansion";
-import type { MempoolOutspend } from "@/lib/api/types";
+import type { MempoolOutspend, MempoolTransaction } from "@/lib/api/types";
 import {
   makeTx as _makeTx,
   makeVin as _makeVin,
