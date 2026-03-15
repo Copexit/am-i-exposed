@@ -15,8 +15,9 @@
 import { HDKey } from "@scure/bip32";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { ripemd160 } from "@noble/hashes/legacy.js";
-import { bech32, bech32m, createBase58check, hex as hexCodec } from "@scure/base";
+import { bech32, bech32m, createBase58check } from "@scure/base";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
+import { bytesToHex } from "./hex";
 
 const b58check = createBase58check(sha256);
 
@@ -48,13 +49,6 @@ export interface DescriptorParseResult {
   xpub: string;
 }
 
-// ---------- Helpers ----------
-
-/** Convert Uint8Array to hex string (browser-safe, no Buffer). */
-function toHex(bytes: Uint8Array): string {
-  return hexCodec.encode(bytes);
-}
-
 // ---------- Version byte detection ----------
 
 /** Version bytes for extended public keys (4 bytes, big-endian). */
@@ -82,7 +76,7 @@ function detectXpubVersion(xpubStr: string): {
   privateVersion: number;
 } {
   const decoded = b58check.decode(xpubStr);
-  const versionHex = toHex(decoded.slice(0, 4));
+  const versionHex = bytesToHex(decoded.slice(0, 4));
   const info = XPUB_VERSIONS[versionHex];
   if (!info) {
     throw new Error(`Unknown xpub version: 0x${versionHex}`);
@@ -150,11 +144,11 @@ function pubkeyToP2TR(pubkey: Uint8Array, testnet: boolean): string {
 
   // BIP341 requires even-y internal key for correct Taproot tweaking.
   // If the derived pubkey has odd y (03 prefix), negate it first.
-  let P = secp256k1.Point.fromHex(toHex(pubkey));
+  let P = secp256k1.Point.fromHex(bytesToHex(pubkey));
   if (pubkey[0] === 0x03) {
     P = P.negate();
   }
-  const t = BigInt("0x" + toHex(tweak));
+  const t = BigInt("0x" + bytesToHex(tweak));
   const tG = secp256k1.Point.BASE.multiply(t);
   const Q = P.add(tG);
 

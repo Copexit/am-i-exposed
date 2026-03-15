@@ -9,7 +9,7 @@ import { getSpendableOutputs } from "../heuristics/tx-utils";
  * post-CoinJoin spending mistakes, and KYC consolidation-before-CoinJoin.
  */
 
-export interface SpendingPatternResult {
+interface SpendingPatternResult {
   findings: Finding[];
   /** Whether a ricochet pattern was detected */
   isRicochet: boolean;

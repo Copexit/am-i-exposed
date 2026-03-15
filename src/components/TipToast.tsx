@@ -8,14 +8,10 @@ import { useTranslation } from "react-i18next";
 import { copyToClipboard } from "@/lib/clipboard";
 import { LN_ADDRESS } from "@/lib/constants";
 const DISMISS_KEY = "ami-tip-toast-dismissed";
-const INLINE_DISMISS_KEY = "ami-tip-dismissed";
 
 function getDismissed(): boolean {
   try {
-    return (
-      sessionStorage.getItem(DISMISS_KEY) === "1" ||
-      sessionStorage.getItem(INLINE_DISMISS_KEY) === "1"
-    );
+    return sessionStorage.getItem(DISMISS_KEY) === "1";
   } catch {
     return false;
   }
@@ -26,7 +22,7 @@ const subscribeNoop = () => () => {};
 function persistDismiss(): void {
   try {
     sessionStorage.setItem(DISMISS_KEY, "1");
-  } catch {}
+  } catch { /* sessionStorage unavailable */ }
 }
 
 export function TipToast() {

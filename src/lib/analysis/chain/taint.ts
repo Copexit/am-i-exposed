@@ -19,7 +19,7 @@ import { getSpendableOutputs } from "../heuristics/tx-utils";
  * - User-specified addresses (future feature)
  */
 
-export interface TaintResult {
+interface TaintResult {
   findings: Finding[];
   /** Per-output taint fractions for the analyzed tx (0-1, where 1 = fully tainted) */
   outputTaint: Map<number, TaintBreakdown>;
@@ -27,14 +27,14 @@ export interface TaintResult {
   inputSources: Map<number, TaintSource[]>;
 }
 
-export interface TaintBreakdown {
+interface TaintBreakdown {
   /** Total taint fraction (0-1) */
   total: number;
   /** Breakdown by source category */
   sources: Map<string, number>;
 }
 
-export interface TaintSource {
+interface TaintSource {
   category: string;
   entityName?: string;
   fraction: number;

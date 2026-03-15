@@ -204,9 +204,3 @@ export function isXpubPrivacyAcked(): boolean {
   }
 }
 
-/** Mark the xpub privacy warning as acknowledged for this session. */
-export function ackXpubPrivacy(): void {
-  try {
-    sessionStorage.setItem(SESSION_KEY, "1");
-  } catch { /* SSR / private browsing */ }
-}

@@ -1,6 +1,6 @@
 import type { Finding } from "@/lib/types";
 
-export interface RelevantPathway {
+interface RelevantPathway {
   id: string;
   /** Finding IDs this pathway addresses */
   addressesFindings: string[];

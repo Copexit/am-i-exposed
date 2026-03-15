@@ -37,7 +37,7 @@ export interface UtxoTraceResult {
   outspends: MempoolOutspend[];
 }
 
-export interface WalletAnalysisState {
+interface WalletAnalysisState {
   phase: WalletPhase;
   /** Original xpub/descriptor input */
   query: string | null;

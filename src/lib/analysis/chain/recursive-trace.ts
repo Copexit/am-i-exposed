@@ -16,7 +16,7 @@ export interface TraceLayer {
   txs: Map<string, MempoolTransaction>;
 }
 
-export interface TraceResult {
+interface TraceResult {
   /** Layers of ancestor/descendant transactions, indexed by depth */
   layers: TraceLayer[];
   /** All transactions discovered across all layers */

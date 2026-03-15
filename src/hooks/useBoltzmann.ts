@@ -33,7 +33,7 @@ export interface BoltzmannProgress {
   estimatedRemainingMs: number | null;
 }
 
-export interface BoltzmannState {
+interface BoltzmannState {
   status: "idle" | "loading" | "computing" | "complete" | "error" | "unsupported";
   result: BoltzmannWorkerResult | null;
   error: string | null;

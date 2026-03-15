@@ -18,7 +18,7 @@ import { getSpendableOutputs } from "../heuristics/tx-utils";
  * the h4-joinmarket finding in the main CoinJoin heuristic).
  */
 
-export interface SubsetSumResult {
+interface SubsetSumResult {
   found: boolean;
   /** Indices of inputs likely belonging to the taker */
   takerInputIndices: number[];
@@ -29,7 +29,7 @@ export interface SubsetSumResult {
   findings: Finding[];
 }
 
-export interface TakerMakerResult {
+interface TakerMakerResult {
   /** Index of the likely taker change output */
   takerChangeIndex: number;
   /** Indices of maker change outputs */

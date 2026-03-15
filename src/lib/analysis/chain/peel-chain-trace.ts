@@ -17,7 +17,7 @@ import { getValuedOutputs } from "../heuristics/tx-utils";
  * API calls - it operates on pre-fetched transaction data.
  */
 
-export interface PeelChainHop {
+interface PeelChainHop {
   txid: string;
   /** Block height (null if unconfirmed) */
   blockHeight: number | null;
@@ -37,7 +37,7 @@ export interface PeelChainHop {
   breakReason?: string;
 }
 
-export interface PeelChainTrace {
+interface PeelChainTrace {
   hops: PeelChainHop[];
   /** Total amount peeled off across all hops */
   totalPeeled: number;

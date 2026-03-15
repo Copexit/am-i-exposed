@@ -5,6 +5,8 @@ import Backend from "i18next-http-backend";
 const SUPPORTED_LANGUAGES = ["en", "es", "pt", "de", "fr"] as const;
 type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 
+const LANGUAGE_STORAGE_KEY = "ami-language";
+
 export const LANGUAGE_OPTIONS: {
   code: SupportedLanguage;
   flag: string;
@@ -24,7 +26,7 @@ export const LANGUAGE_OPTIONS: {
 function detectPreferredLanguage(): SupportedLanguage {
   if (typeof window === "undefined") return "en";
   try {
-    const stored = localStorage.getItem("ami-language");
+    const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
     if (stored && SUPPORTED_LANGUAGES.includes(stored as SupportedLanguage)) {
       return stored as SupportedLanguage;
     }
@@ -64,7 +66,7 @@ i18n
 // Persist language choice to localStorage (replaces LanguageDetector caching)
 i18n.on("languageChanged", (lng) => {
   try {
-    localStorage.setItem("ami-language", lng.split("-")[0]);
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, lng.split("-")[0]);
   } catch { /* localStorage unavailable */ }
 });
 

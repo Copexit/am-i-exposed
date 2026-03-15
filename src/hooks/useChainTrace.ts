@@ -14,7 +14,7 @@ import { sumImpact } from "@/lib/scoring/score";
 import type { ScoringResult, Finding } from "@/lib/types";
 
 /** Parameters for the chain analysis phase. */
-export interface ChainTraceParams {
+interface ChainTraceParams {
   tx: MempoolTransaction;
   settings: AnalysisSettings;
   api: {
@@ -30,7 +30,7 @@ export interface ChainTraceParams {
 }
 
 /** Result of the chain analysis phase. */
-export interface ChainTraceResult {
+interface ChainTraceResult {
   backwardLayers: TraceLayer[];
   forwardLayers: TraceLayer[];
   backwardFailed: boolean;
@@ -190,7 +190,7 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
 }
 
 /** Parameters for chain analysis (post-trace heuristic phase). */
-export interface ChainAnalysisParams {
+interface ChainAnalysisParams {
   tx: MempoolTransaction;
   result: ScoringResult;
   backwardLayers: TraceLayer[];

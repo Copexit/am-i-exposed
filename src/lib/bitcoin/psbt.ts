@@ -10,7 +10,8 @@
  */
 
 import { Transaction, NETWORK, TEST_NETWORK } from "@scure/btc-signer";
-import { base64, hex as hexCodec } from "@scure/base";
+import { base64 } from "@scure/base";
+import { bytesToHex } from "./hex";
 import type { MempoolTransaction, MempoolVin, MempoolVout } from "@/lib/api/types";
 
 // ---------- Types ----------
@@ -53,10 +54,6 @@ function detectScriptType(scriptHex: string): string {
   // P2TR: OP_1 <32>
   if (scriptHex.startsWith("5120") && scriptHex.length === 68) return "v1_p2tr";
   return "unknown";
-}
-
-function bytesToHex(bytes: Uint8Array): string {
-  return hexCodec.encode(bytes);
 }
 
 // ---------- Public API ----------
