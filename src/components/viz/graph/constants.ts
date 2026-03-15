@@ -30,8 +30,8 @@ export const ENTITY_CATEGORY_COLORS: Record<EntityCategory | "unknown", string> 
   gambling: SVG_COLORS.medium,
   mining: "#9ca3af",     // gray
   payment: "#a78bfa",    // purple
-  p2p: SVG_COLORS.high,
-  unknown: SVG_COLORS.high,
+  p2p: "#e879f9",       // fuchsia (distinct from P2SH orange)
+  unknown: "#9ca3af",   // gray (neutral, like mining)
 };
 
 // ─── Expanded node dimensions ───────────────────────────────────

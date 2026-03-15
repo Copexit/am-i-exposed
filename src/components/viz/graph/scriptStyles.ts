@@ -29,7 +29,7 @@ export const SCRIPT_TYPE_COLORS: Record<string, string> = {
   multisig: "#f97316",      // orange
 
   // Special
-  op_return: "#eab308",     // yellow
+  op_return: "#78716c",     // warm gray (data-only, not a payment)
   nonstandard: "#ec4899",   // pink
   unknown: "#6b7280",       // gray
 };
