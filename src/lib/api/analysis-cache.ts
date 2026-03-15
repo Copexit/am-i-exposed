@@ -22,7 +22,7 @@ import type {
 import type { PreSendResult } from "@/lib/analysis/orchestrator";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 import type { AnalysisState } from "@/hooks/useAnalysisState";
-import type { BoltzmannWorkerResult } from "@/hooks/useBoltzmann";
+import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 
 export const TTL_24_HOURS = 24 * 60 * 60 * 1000;
 

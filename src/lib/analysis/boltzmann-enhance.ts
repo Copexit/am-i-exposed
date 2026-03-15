@@ -4,7 +4,7 @@
  */
 
 import type { Finding } from "@/lib/types";
-import type { BoltzmannWorkerResult } from "@/hooks/useBoltzmann";
+import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import { fmtN, roundTo } from "@/lib/format";
 
 /** Finding IDs that should NOT be overridden (structurally deterministic). */

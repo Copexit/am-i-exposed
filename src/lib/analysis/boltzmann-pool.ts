@@ -3,10 +3,24 @@
  * Shared between the imperative computeBoltzmann() and the useBoltzmann hook.
  */
 
-import type { BoltzmannWorkerResult } from "@/hooks/useBoltzmann";
-
-// Re-export types for convenience
-export type { BoltzmannWorkerResult };
+export interface BoltzmannWorkerResult {
+  type: "result";
+  id: string;
+  matLnkCombinations: number[][];
+  matLnkProbabilities: number[][];
+  nbCmbn: number;
+  entropy: number;
+  efficiency: number;
+  nbCmbnPrfctCj: number;
+  deterministicLinks: [number, number][];
+  timedOut: boolean;
+  elapsedMs: number;
+  nInputs: number;
+  nOutputs: number;
+  fees: number;
+  intraFeesMaker: number;
+  intraFeesTaker: number;
+}
 
 export interface BoltzmannProgress {
   fraction: number;
@@ -255,9 +269,10 @@ export function runParallelPass(
         }
 
         if (msg.type === "result" && "workerIndex" in msg && msg.workerIndex !== undefined) {
-          partials[msg.workerIndex as number] = msg as BoltzmannWorkerResult;
+          const wi = msg.workerIndex;
+          partials[wi] = msg;
           completed++;
-          workerFractions[msg.workerIndex as number] = 1;
+          workerFractions[wi] = 1;
           const avg = workerFractions.reduce((a, b) => a + b, 0) / N;
           onProgress(avg, performance.now() - startTime);
 

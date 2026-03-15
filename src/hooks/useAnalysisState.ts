@@ -1,6 +1,6 @@
 import type { ScoringResult, InputType, TxAnalysisResult, Finding } from "@/lib/types";
 import type { MempoolTransaction, MempoolAddress, MempoolUtxo, MempoolOutspend } from "@/lib/api/types";
-import type { BoltzmannWorkerResult } from "@/hooks/useBoltzmann";
+import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import type { HeuristicStep, PreSendResult } from "@/lib/analysis/orchestrator";
 import type { PSBTParseResult } from "@/lib/bitcoin/psbt";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";

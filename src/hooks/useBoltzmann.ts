@@ -6,32 +6,11 @@ import { computeBoltzmann, isAutoComputable, extractTxValues } from "@/lib/analy
 import {
   MAX_SUPPORTED_TOTAL,
   terminatePool,
+  type BoltzmannWorkerResult,
+  type BoltzmannProgress,
 } from "@/lib/analysis/boltzmann-pool";
 
-export interface BoltzmannWorkerResult {
-  type: "result";
-  id: string;
-  matLnkCombinations: number[][];
-  matLnkProbabilities: number[][];
-  nbCmbn: number;
-  entropy: number;
-  efficiency: number;
-  nbCmbnPrfctCj: number;
-  deterministicLinks: [number, number][];
-  timedOut: boolean;
-  elapsedMs: number;
-  nInputs: number;
-  nOutputs: number;
-  fees: number;
-  intraFeesMaker: number;
-  intraFeesTaker: number;
-}
-
-export interface BoltzmannProgress {
-  fraction: number;
-  elapsedMs: number;
-  estimatedRemainingMs: number | null;
-}
+export type { BoltzmannWorkerResult, BoltzmannProgress };
 
 interface BoltzmannState {
   status: "idle" | "loading" | "computing" | "complete" | "error" | "unsupported";

@@ -21,6 +21,7 @@ import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding, ScoringResult } from "@/lib/types";
 import type { EntityMatch } from "@/lib/analysis/entity-filter/types";
 import type { EntityCategory } from "@/lib/analysis/entities";
+import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 
 /**
  * OXT-style interactive graph explorer.
@@ -54,7 +55,7 @@ interface GraphExplorerProps {
   onReset: () => void;
   onTxClick?: (txid: string) => void;
   /** Boltzmann result for the root transaction (linkability edge coloring). */
-  rootBoltzmannResult?: import("@/hooks/useBoltzmann").BoltzmannWorkerResult | null;
+  rootBoltzmannResult?: BoltzmannWorkerResult | null;
 }
 
 interface LayoutNode {
