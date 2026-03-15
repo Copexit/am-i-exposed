@@ -275,9 +275,14 @@ function detectPostMixConsolidation(
   }
 
   const fromDifferentMixes = coinJoinParentTxids.size >= 2;
-  const isCritical = coinJoinInputIndices.length >= 3;
-  const severity = isCritical ? "critical" as const : "high" as const;
-  const impact = isCritical ? -18 : -12;
+  const count = coinJoinInputIndices.length;
+
+  // Severity scales with count but this is a warning, not a harsh penalty.
+  // The real cost is the reduction of the CoinJoin bonus (handled in cross-heuristic.ts).
+  // 2-3 inputs: medium (sometimes necessary), 4-9: high, 10+: critical
+  const severity = count >= 10 ? "critical" as const
+    : count >= 4 ? "high" as const
+    : "medium" as const;
 
   const sourceDesc = fromDifferentMixes
     ? `from ${coinJoinParentTxids.size} different CoinJoin transactions`
@@ -287,33 +292,37 @@ function detectPostMixConsolidation(
     id: "chain-post-mix-consolidation",
     severity,
     confidence: "high",
-    title: `Post-mix consolidation: ${coinJoinInputIndices.length} CoinJoin outputs spent together`,
+    title: `Post-mix consolidation: ${count} CoinJoin outputs spent together`,
     params: {
-      postMixInputCount: coinJoinInputIndices.length,
+      postMixInputCount: count,
       totalInputs: tx.vin.length,
       distinctCoinJoins: coinJoinParentTxids.size,
     },
     description:
-      `This transaction spends ${coinJoinInputIndices.length} outputs ${sourceDesc} as inputs ` +
+      `This transaction spends ${count} outputs ${sourceDesc} as inputs ` +
       "in a single non-CoinJoin transaction. Common Input Ownership heuristic re-links these UTXOs, " +
-      "and amount correlation allows an observer to match the consolidated total to the exact amounts " +
-      "that entered the CoinJoin, effectively undoing the mix." +
+      "reducing the anonymity gained from mixing." +
+      (count >= 4
+        ? " Amount correlation allows an observer to match the consolidated total to the amounts " +
+          "that entered the CoinJoin."
+        : "") +
       (fromDifferentMixes
         ? " Because the inputs come from different CoinJoin rounds, activity across those rounds " +
           "can now be linked to the same entity."
-        : " Even though the inputs come from the same CoinJoin, spending them together reveals " +
-          "which outputs belonged to the same participant."),
+        : ""),
     recommendation:
-      "Never consolidate post-mix UTXOs. Spend each CoinJoin output individually in separate " +
-      "transactions. Use coin control (available in Sparrow, Ashigaru) to select exactly one " +
-      "post-mix UTXO per payment.",
-    scoreImpact: impact,
+      count >= 4
+        ? "Avoid consolidating this many post-mix UTXOs. Spend each CoinJoin output individually " +
+          "in separate transactions. Use coin control (available in Sparrow, Ashigaru)."
+        : "Try to spend post-mix UTXOs individually when possible. If consolidation is necessary, " +
+          "keep it to 2-3 outputs and consider re-mixing the result.",
+    scoreImpact: 0, // No direct penalty - the CoinJoin bonus is reduced instead
     remediation: {
       steps: [
-        "Stop: do not consolidate any more post-mix UTXOs.",
-        "Re-mix the consolidated output through CoinJoin to recover some privacy.",
-        "Going forward, use coin control to spend one post-mix UTXO per transaction.",
-        "Consider using Stonewall or Stowaway for post-mix spending to add structural ambiguity.",
+        "Avoid consolidating more post-mix UTXOs in the future.",
+        "Consider re-mixing the consolidated output through CoinJoin to recover privacy.",
+        "Use coin control to spend one post-mix UTXO per transaction when possible.",
+        "If consolidation is unavoidable, use Stonewall to add structural ambiguity.",
       ],
       tools: [
         { name: "Sparrow Wallet", url: "https://sparrowwallet.com" },

@@ -356,14 +356,30 @@ export function applyCrossHeuristicRules(findings: Finding[]): void {
     }
   }
 
-  // Post-mix + backward CoinJoin dedup: when post-mix consolidation negates
-  // mixing benefit, zero backward's positive CJ-input finding to avoid
-  // conflicting signals (post-mix says bad, backward says good).
+  // Post-mix + backward CoinJoin dedup: when post-mix consolidation reduces
+  // mixing benefit, scale down backward's positive CJ-input finding.
+  // For the chain-level detection (chain-post-mix-consolidation), scale the
+  // bonus based on consolidation count: 2-3 keeps most of the bonus, 4+ loses it.
+  // For heuristic-level detection (post-mix-consolidation, chain-post-coinjoin-consolidation),
+  // zero it completely since those represent more severe scenarios.
   if (hasPostMixConsolidation) {
+    const chainPostMix = findings.find((f) => f.id === "chain-post-mix-consolidation");
+    const postMixCount = chainPostMix ? Number(chainPostMix.params?.postMixInputCount ?? 0) : 0;
+    const isChainLevelOnly = chainPostMix && !findings.some(
+      (f) => f.id === "post-mix-consolidation" || f.id === "chain-post-coinjoin-consolidation",
+    );
+
     for (const f of findings) {
       if (f.id === "chain-coinjoin-input" && f.scoreImpact > 0) {
-        f.scoreImpact = 0;
-        f.params = { ...f.params, context: "negated-by-consolidation" };
+        if (isChainLevelOnly && postMixCount <= 3) {
+          // Light consolidation (2-3): keep half the bonus
+          f.scoreImpact = Math.round(f.scoreImpact * 0.5);
+          f.params = { ...f.params, context: "reduced-by-consolidation" };
+        } else {
+          // Heavy consolidation (4+) or heuristic-level detection: zero it
+          f.scoreImpact = 0;
+          f.params = { ...f.params, context: "negated-by-consolidation" };
+        }
       }
     }
   }
