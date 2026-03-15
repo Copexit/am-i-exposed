@@ -111,7 +111,8 @@ export function createMempoolClient(baseUrl: string, options?: MempoolClientOpti
     /** Search for addresses starting with the given prefix. Returns up to 10 matches.
      *  Bech32 prefixes are lowercased automatically. Fails silently on unsupported backends. */
     async getAddressPrefix(prefix: string): Promise<string[]> {
-      const normalized = prefix.toLowerCase();
+      // Only lowercase bech32 prefixes (bc1/tb1) - legacy addresses are case-sensitive
+      const normalized = /^(bc1|tb1)/i.test(prefix) ? prefix.toLowerCase() : prefix;
       if (normalized.length < 1) return [];
       try {
         return await get<string[]>(`/address-prefix/${normalized}`);

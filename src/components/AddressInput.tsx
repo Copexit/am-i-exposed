@@ -233,7 +233,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
                   submit(addr);
                 }}
                 onMouseEnter={() => selectIndex(i)}
-                className={`px-4 py-2.5 font-mono text-xs sm:text-sm cursor-pointer transition-colors
+                className={`px-4 py-2.5 font-mono text-xs sm:text-sm cursor-pointer transition-colors text-left
                   ${i === selectedIndex ? "bg-bitcoin/15 text-foreground" : "text-muted hover:bg-surface-inset hover:text-foreground"}`}
               >
                 <span className="text-bitcoin">{addr.slice(0, value.trim().length)}</span>
