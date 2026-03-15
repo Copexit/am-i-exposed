@@ -12,6 +12,7 @@ import { truncateId } from "@/lib/constants";
 import { useFullscreen } from "@/hooks/useFullscreen";
 import { analyzeTransactionSync } from "@/lib/analysis/analyze-sync";
 import { GraphNodeAnalysis } from "@/components/GraphNodeAnalysis";
+import { GraphSidebar, SIDEBAR_WIDTH } from "./graph/GraphSidebar";
 import { ENTITY_CATEGORY_COLORS, MAX_ZOOM, MIN_ZOOM } from "./graph/constants";
 import { layoutGraph } from "./graph/layout";
 import { computeFitTransform } from "./graph/edge-utils";
@@ -67,6 +68,20 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
   // Fingerprint mode (mutually exclusive with heat map)
   const [fingerprintMode, setFingerprintMode] = useState(false);
+
+  // Change marking state
+  const [changeOutputs, setChangeOutputs] = useState<Set<string>>(new Set());
+  const toggleChange = useCallback((txid: string, outputIndex: number) => {
+    setChangeOutputs((prev) => {
+      const key = `${txid}:${outputIndex}`;
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }, []);
+
+  // Sidebar visible when a node is expanded
+  const sidebarTx = props.expandedNodeTxid ? props.nodes.get(props.expandedNodeTxid)?.tx : undefined;
 
   // Zoom toward center helper
   const zoomBy = useCallback((factor: number) => {
@@ -458,27 +473,51 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
         {/* Hide inline graph when fullscreen is active to avoid double tooltip */}
         {!isExpanded && (
-          <div className="relative">
-            <div ref={scrollRef} className="overflow-auto max-h-[600px] -mx-4 px-4">
-              <ParentSize debounceTime={100}>
-                {({ width }) => width > 0 ? (
-                  <GraphCanvas {...canvasProps} containerWidth={width} />
-                ) : null}
-              </ParentSize>
-            </div>
-            {tooltipContent}
-            {/* Floating analysis panel - rendered outside scroll container to avoid clipping */}
-            <AnimatePresence>
-              {selectedNode && props.nodes.has(selectedNode.txid) && (
-                <GraphNodeAnalysis
-                  key={selectedNode.txid}
-                  tx={props.nodes.get(selectedNode.txid)!.tx}
-                  onClose={() => setSelectedNode(null)}
-                  onFullScan={(txid) => {
-                    setSelectedNode(null);
-                    props.onTxClick?.(txid);
+          <div className="relative flex">
+            {/* Graph area (shrinks when sidebar is open) */}
+            <div className="flex-1 min-w-0 relative">
+              <div ref={scrollRef} className="overflow-auto max-h-[600px] -mx-4 px-4">
+                <ParentSize debounceTime={100}>
+                  {({ width }) => {
+                    const adjustedWidth = sidebarTx ? Math.max(width - SIDEBAR_WIDTH, 200) : width;
+                    return adjustedWidth > 0 ? (
+                      <GraphCanvas {...canvasProps} containerWidth={adjustedWidth} />
+                    ) : null;
                   }}
-                  position={{ x: selectedNode.x, y: selectedNode.y }}
+                </ParentSize>
+              </div>
+              {tooltipContent}
+              {/* Floating analysis panel (fallback when no expansion support) */}
+              {!props.onToggleExpand && (
+                <AnimatePresence>
+                  {selectedNode && props.nodes.has(selectedNode.txid) && (
+                    <GraphNodeAnalysis
+                      key={selectedNode.txid}
+                      tx={props.nodes.get(selectedNode.txid)!.tx}
+                      onClose={() => setSelectedNode(null)}
+                      onFullScan={(txid) => {
+                        setSelectedNode(null);
+                        props.onTxClick?.(txid);
+                      }}
+                      position={{ x: selectedNode.x, y: selectedNode.y }}
+                    />
+                  )}
+                </AnimatePresence>
+              )}
+            </div>
+            {/* Transaction detail sidebar (when a node is expanded) */}
+            <AnimatePresence>
+              {sidebarTx && props.expandedNodeTxid && (
+                <GraphSidebar
+                  key={props.expandedNodeTxid}
+                  tx={sidebarTx}
+                  outspends={props.outspendCache?.get(props.expandedNodeTxid)}
+                  onClose={() => props.onToggleExpand?.(props.expandedNodeTxid!)}
+                  onFullScan={(txid) => props.onTxClick?.(txid)}
+                  onExpandInput={props.onExpandPortInput ?? props.onExpandInput}
+                  onExpandOutput={props.onExpandPortOutput ?? props.onExpandOutput}
+                  changeOutputs={changeOutputs}
+                  onToggleChange={toggleChange}
                 />
               )}
             </AnimatePresence>
@@ -596,31 +635,54 @@ export function GraphExplorer(props: GraphExplorerProps) {
           </div>
 
           {/* Fullscreen graph area */}
-          <div className="flex-1 min-h-0 relative px-4 pb-4" style={{ touchAction: "none" }}>
-            <div ref={scrollRef} className="overflow-hidden h-full" style={{ touchAction: "none" }}>
-              <ParentSize debounceTime={100}>
-                {({ width, height: parentH }) => width > 0 ? (
-                  <GraphCanvas
-                    {...fullscreenCanvasProps}
-                    containerWidth={width}
-                    containerHeight={parentH}
-                    isFullscreen
-                  />
-                ) : null}
-              </ParentSize>
-            </div>
-            {tooltipContent}
-            <AnimatePresence>
-              {selectedNode && props.nodes.has(selectedNode.txid) && (
-                <GraphNodeAnalysis
-                  key={selectedNode.txid}
-                  tx={props.nodes.get(selectedNode.txid)!.tx}
-                  onClose={() => setSelectedNode(null)}
-                  onFullScan={(txid) => {
-                    setSelectedNode(null);
-                    props.onTxClick?.(txid);
+          <div className="flex-1 min-h-0 relative px-4 pb-4 flex" style={{ touchAction: "none" }}>
+            <div className="flex-1 min-w-0 relative">
+              <div ref={scrollRef} className="overflow-hidden h-full" style={{ touchAction: "none" }}>
+                <ParentSize debounceTime={100}>
+                  {({ width, height: parentH }) => {
+                    const adjustedWidth = sidebarTx ? Math.max(width - SIDEBAR_WIDTH, 200) : width;
+                    return adjustedWidth > 0 ? (
+                      <GraphCanvas
+                        {...fullscreenCanvasProps}
+                        containerWidth={adjustedWidth}
+                        containerHeight={parentH}
+                        isFullscreen
+                      />
+                    ) : null;
                   }}
-                  position={{ x: selectedNode.x, y: selectedNode.y }}
+                </ParentSize>
+              </div>
+              {tooltipContent}
+              {!props.onToggleExpand && (
+                <AnimatePresence>
+                  {selectedNode && props.nodes.has(selectedNode.txid) && (
+                    <GraphNodeAnalysis
+                      key={selectedNode.txid}
+                      tx={props.nodes.get(selectedNode.txid)!.tx}
+                      onClose={() => setSelectedNode(null)}
+                      onFullScan={(txid) => {
+                        setSelectedNode(null);
+                        props.onTxClick?.(txid);
+                      }}
+                      position={{ x: selectedNode.x, y: selectedNode.y }}
+                    />
+                  )}
+                </AnimatePresence>
+              )}
+            </div>
+            {/* Fullscreen sidebar */}
+            <AnimatePresence>
+              {sidebarTx && props.expandedNodeTxid && (
+                <GraphSidebar
+                  key={`fs-${props.expandedNodeTxid}`}
+                  tx={sidebarTx}
+                  outspends={props.outspendCache?.get(props.expandedNodeTxid)}
+                  onClose={() => props.onToggleExpand?.(props.expandedNodeTxid!)}
+                  onFullScan={(txid) => props.onTxClick?.(txid)}
+                  onExpandInput={props.onExpandPortInput ?? props.onExpandInput}
+                  onExpandOutput={props.onExpandPortOutput ?? props.onExpandOutput}
+                  changeOutputs={changeOutputs}
+                  onToggleChange={toggleChange}
                 />
               )}
             </AnimatePresence>
