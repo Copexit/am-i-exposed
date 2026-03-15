@@ -380,17 +380,26 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
   /** Expand backward: fetch the parent tx that created the given input */
   const expandInput = useCallback(async (currentTxid: string, inputIndex: number) => {
     const client = fetcherRef.current;
-    if (!client) return;
+    if (!client) {
+      dispatch({ type: "SET_ERROR", txid: currentTxid, error: "No API client available" });
+      return;
+    }
 
     const node = state.nodes.get(currentTxid);
-    if (!node) return;
+    if (!node) {
+      dispatch({ type: "SET_ERROR", txid: currentTxid, error: "Transaction not found in graph" });
+      return;
+    }
 
     const vin = node.tx.vin[inputIndex];
     if (!vin || vin.is_coinbase) return;
 
     const parentTxid = vin.txid;
-    if (state.nodes.has(parentTxid)) return;
-    if (state.nodes.size >= state.maxNodes) return;
+    if (state.nodes.has(parentTxid)) return; // already in graph - not an error
+    if (state.nodes.size >= state.maxNodes) {
+      dispatch({ type: "SET_ERROR", txid: currentTxid, error: "Maximum nodes reached" });
+      return;
+    }
 
     dispatch({ type: "SET_LOADING", txid: parentTxid, loading: true });
 
@@ -453,11 +462,20 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
    *  Falls back to address-based lookup if outspends endpoint is unavailable. */
   const expandOutput = useCallback(async (currentTxid: string, outputIndex: number) => {
     const client = fetcherRef.current;
-    if (!client) return;
+    if (!client) {
+      dispatch({ type: "SET_ERROR", txid: currentTxid, error: "No API client available" });
+      return;
+    }
 
     const node = state.nodes.get(currentTxid);
-    if (!node) return;
-    if (state.nodes.size >= state.maxNodes) return;
+    if (!node) {
+      dispatch({ type: "SET_ERROR", txid: currentTxid, error: "Transaction not found in graph" });
+      return;
+    }
+    if (state.nodes.size >= state.maxNodes) {
+      dispatch({ type: "SET_ERROR", txid: `${currentTxid}:out`, error: "Maximum nodes reached" });
+      return;
+    }
 
     const loadKey = `${currentTxid}:out`;
     dispatch({ type: "SET_LOADING", txid: loadKey, loading: true });

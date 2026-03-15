@@ -298,7 +298,7 @@ function IOTab({
           <span className="text-xs font-medium text-white/50">Inputs ({tx.vin.length})</span>
           {onExpandInput && expandableInputs.length > 0 && (
             <button
-              onClick={() => expandableInputs.slice(0, 5).forEach((i) => onExpandInput(tx.txid, i))}
+              onClick={() => { expandableInputs.slice(0, 5).forEach((i) => onExpandInput(tx.txid, i)); }}
               className="text-xs text-white/30 hover:text-white/60 transition-colors cursor-pointer"
               title="Expand first 5 unresolved inputs"
             >
@@ -403,7 +403,7 @@ function IOTab({
           <span className="text-xs font-medium text-white/50">Outputs ({tx.vout.length})</span>
           {onExpandOutput && expandableOutputs.length > 0 && (
             <button
-              onClick={() => expandableOutputs.slice(0, 5).forEach((i) => onExpandOutput(tx.txid, i))}
+              onClick={() => { expandableOutputs.slice(0, 5).forEach((i) => onExpandOutput(tx.txid, i)); }}
               className="text-xs text-white/30 hover:text-white/60 transition-colors cursor-pointer"
               title="Expand first 5 unresolved outputs"
             >

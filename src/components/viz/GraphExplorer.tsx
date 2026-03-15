@@ -696,8 +696,8 @@ export function GraphExplorer(props: GraphExplorerProps) {
                   outspends={props.outspendCache?.get(props.expandedNodeTxid)}
                   onClose={() => props.onToggleExpand?.(props.expandedNodeTxid!)}
                   onFullScan={(txid) => props.onTxClick?.(txid)}
-                  onExpandInput={props.onExpandPortInput ?? props.onExpandInput}
-                  onExpandOutput={props.onExpandPortOutput ?? props.onExpandOutput}
+                  onExpandInput={props.onExpandInput}
+                  onExpandOutput={props.onExpandOutput}
                   changeOutputs={changeOutputs}
                   onToggleChange={toggleChange}
                   boltzmannResult={props.expandedNodeTxid ? getBoltzmannResult(props.expandedNodeTxid) : undefined}
@@ -877,8 +877,8 @@ export function GraphExplorer(props: GraphExplorerProps) {
                   outspends={props.outspendCache?.get(props.expandedNodeTxid)}
                   onClose={() => props.onToggleExpand?.(props.expandedNodeTxid!)}
                   onFullScan={(txid) => props.onTxClick?.(txid)}
-                  onExpandInput={props.onExpandPortInput ?? props.onExpandInput}
-                  onExpandOutput={props.onExpandPortOutput ?? props.onExpandOutput}
+                  onExpandInput={props.onExpandInput}
+                  onExpandOutput={props.onExpandOutput}
                   changeOutputs={changeOutputs}
                   onToggleChange={toggleChange}
                   boltzmannResult={props.expandedNodeTxid ? getBoltzmannResult(props.expandedNodeTxid) : undefined}
