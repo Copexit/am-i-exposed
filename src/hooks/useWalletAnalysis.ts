@@ -14,7 +14,7 @@ import {
 } from "@/lib/bitcoin/descriptor";
 import { auditWallet, type WalletAuditResult, type WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import { traceBackward, traceForward } from "@/lib/analysis/chain/recursive-trace";
-import type { MempoolAddress, MempoolTransaction, MempoolUtxo, MempoolOutspend } from "@/lib/api/types";
+import type { MempoolTransaction, MempoolUtxo, MempoolOutspend } from "@/lib/api/types";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 import type { DerivedAddress } from "@/lib/bitcoin/descriptor";
 import type { MempoolClient } from "@/lib/api/mempool";
@@ -150,7 +150,7 @@ async function scanChain(
     const info = await fetchAddress(api, derived)
       .catch((): WalletAddressInfo => ({
         derived,
-        addressData: null as unknown as MempoolAddress,
+        addressData: null,
         txs: [],
         utxos: [],
       }));

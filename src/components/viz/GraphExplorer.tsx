@@ -124,6 +124,9 @@ const NODE_H = 56;
 const COL_GAP = 100;
 const ROW_GAP = 24;
 const MARGIN = { top: 50, right: 40, bottom: 20, left: 40 };
+/** Horizontal/vertical scroll margin (px) before auto-scrolling to focused node. */
+const SCROLL_MARGIN_X = 100;
+const SCROLL_MARGIN_Y = 50;
 
 /** Category-specific colors for entity nodes. */
 const ENTITY_CATEGORY_COLORS: Record<EntityCategory | "unknown", string> = {
@@ -324,14 +327,22 @@ function layoutGraph(
   };
 }
 
+/** Heat map score thresholds and corresponding colors. */
+const HEAT_TIERS: readonly { min: number; color: string }[] = [
+  { min: 90, color: SVG_COLORS.good },
+  { min: 75, color: "#60a5fa" },   // blue-400
+  { min: 50, color: SVG_COLORS.medium },
+  { min: 25, color: SVG_COLORS.high },
+];
+const HEAT_FLOOR_COLOR = SVG_COLORS.critical;
+
 function getNodeColor(node: LayoutNode, heatScore?: number): string {
   // Heat map mode: color by score
   if (heatScore !== undefined) {
-    if (heatScore >= 90) return SVG_COLORS.good;
-    if (heatScore >= 75) return "#60a5fa";
-    if (heatScore >= 50) return SVG_COLORS.medium;
-    if (heatScore >= 25) return SVG_COLORS.high;
-    return SVG_COLORS.critical;
+    for (const tier of HEAT_TIERS) {
+      if (heatScore >= tier.min) return tier.color;
+    }
+    return HEAT_FLOOR_COLOR;
   }
   if (node.isRoot) return SVG_COLORS.bitcoin;
   if (node.isCoinJoin) return SVG_COLORS.good;
@@ -347,6 +358,31 @@ interface ViewTransform {
   x: number;
   y: number;
   scale: number;
+}
+
+/** Compute the max linkability probability across all output indices for an edge. */
+function getEdgeMaxProb(
+  mat: number[][],
+  outputIndices: number[],
+): number {
+  let maxProb = 0;
+  for (const outIdx of outputIndices) {
+    if (outIdx < mat.length) {
+      const row = mat[outIdx];
+      for (let i = 0; i < row.length; i++) {
+        if (row[i] > maxProb) maxProb = row[i];
+      }
+    }
+  }
+  return maxProb;
+}
+
+/** Build a cubic bezier SVG path for an edge. */
+function edgePath(edge: LayoutEdge): string {
+  const midX = (edge.x1 + edge.x2) / 2;
+  return edge.isBackward
+    ? `M${edge.x2},${edge.y2} C${midX},${edge.y2} ${midX},${edge.y1} ${edge.x1},${edge.y1}`
+    : `M${edge.x1},${edge.y1} C${midX},${edge.y1} ${midX},${edge.y2} ${edge.x2},${edge.y2}`;
 }
 
 const MIN_ZOOM = 0.15;
@@ -673,10 +709,10 @@ function GraphCanvas({
     const viewTop = el.scrollTop;
     const viewBottom = viewTop + el.clientHeight;
 
-    if (nodeCenter < viewLeft + 100 || nodeCenter > viewRight - 100) {
+    if (nodeCenter < viewLeft + SCROLL_MARGIN_X || nodeCenter > viewRight - SCROLL_MARGIN_X) {
       el.scrollLeft = nodeCenter - el.clientWidth / 2;
     }
-    if (nodeMiddle < viewTop + 50 || nodeMiddle > viewBottom - 50) {
+    if (nodeMiddle < viewTop + SCROLL_MARGIN_Y || nodeMiddle > viewBottom - SCROLL_MARGIN_Y) {
       el.scrollTop = nodeMiddle - el.clientHeight / 2;
     }
   }, [focusedNode, layoutNodes, scrollRef]);
@@ -951,10 +987,8 @@ function GraphCanvas({
         {/* Edges */}
         {edges.map((edge) => {
           const edgeKey = `e-${edge.fromTxid}-${edge.toTxid}`;
+          const d = edgePath(edge);
           const midX = (edge.x1 + edge.x2) / 2;
-          const d = edge.isBackward
-            ? `M${edge.x2},${edge.y2} C${midX},${edge.y2} ${midX},${edge.y1} ${edge.x1},${edge.y1}`
-            : `M${edge.x1},${edge.y1} C${midX},${edge.y1} ${midX},${edge.y2} ${edge.x2},${edge.y2}`;
 
           const isHoveredViaNode = hoveredEdges?.has(edgeKey);
           const isHoveredDirect = hoveredEdgeKey === edgeKey;
@@ -968,18 +1002,9 @@ function GraphCanvas({
           if (linkabilityEdgeMode && rootBoltzmannResult && edge.fromTxid === rootTxid && edge.outputIndices?.length) {
             const mat = rootBoltzmannResult.matLnkProbabilities;
             if (mat && mat.length > 0) {
-              let maxProb = 0;
-              for (const outIdx of edge.outputIndices) {
-                if (outIdx < mat.length) {
-                  const row = mat[outIdx];
-                  for (let i = 0; i < row.length; i++) {
-                    if (row[i] > maxProb) maxProb = row[i];
-                  }
-                }
-              }
-              linkabilityMaxProb = maxProb;
-              if (maxProb <= 0) return null; // Skip 0% linkability edges entirely
-              linkabilityColor = probColor(maxProb);
+              linkabilityMaxProb = getEdgeMaxProb(mat, edge.outputIndices);
+              if (linkabilityMaxProb <= 0) return null; // Skip 0% linkability edges entirely
+              linkabilityColor = probColor(linkabilityMaxProb);
             }
           }
 
@@ -1073,19 +1098,9 @@ function GraphCanvas({
           if (!edge || edge.fromTxid !== rootTxid || !edge.outputIndices?.length) return null;
           const mat = rootBoltzmannResult.matLnkProbabilities;
           if (!mat?.length) return null;
-          let maxProb = 0;
-          for (const outIdx of edge.outputIndices) {
-            if (outIdx < mat.length) {
-              for (let i = 0; i < mat[outIdx].length; i++) {
-                if (mat[outIdx][i] > maxProb) maxProb = mat[outIdx][i];
-              }
-            }
-          }
+          const maxProb = getEdgeMaxProb(mat, edge.outputIndices);
           if (maxProb <= 0) return null;
-          const midX = (edge.x1 + edge.x2) / 2;
-          const d = edge.isBackward
-            ? `M${edge.x2},${edge.y2} C${midX},${edge.y2} ${midX},${edge.y1} ${edge.x1},${edge.y1}`
-            : `M${edge.x1},${edge.y1} C${midX},${edge.y1} ${midX},${edge.y2} ${edge.x2},${edge.y2}`;
+          const d = edgePath(edge);
           const color = probColor(maxProb);
           return (
             <g style={{ pointerEvents: "none" }}>
@@ -1416,6 +1431,17 @@ function HeatIcon() {
   );
 }
 
+function GraphIcon() {
+  return (
+    <svg className="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none">
+      <circle cx="4" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="12" cy="4" r="2" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M6 7l4-2M6 9l4 2" stroke="currentColor" strokeWidth="1" strokeOpacity="0.5" />
+    </svg>
+  );
+}
+
 // ─── Main Component ────────────────────────────────────────────
 
 export function GraphExplorer(props: GraphExplorerProps) {
@@ -1509,12 +1535,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
   const toolbar = (
     <div className="flex flex-wrap items-center justify-between gap-y-2">
       <div className="flex items-center gap-2 text-sm font-medium text-white/70 min-w-0">
-        <svg className="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none">
-          <circle cx="4" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
-          <circle cx="12" cy="4" r="2" stroke="currentColor" strokeWidth="1.5" />
-          <circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth="1.5" />
-          <path d="M6 7l4-2M6 9l4 2" stroke="currentColor" strokeWidth="1" strokeOpacity="0.5" />
-        </svg>
+        <GraphIcon />
         <span className="truncate">{t("graphExplorer.title", { defaultValue: "Transaction Graph" })}</span>
         <span className={`text-xs font-normal hidden sm:inline ${atCapacity ? "text-amber-400" : "text-white/40"}`}>
           {t("graphExplorer.nodeCount", { count: props.nodeCount, max: props.maxNodes, defaultValue: "({{count}}/{{max}} nodes)" })}
@@ -1874,12 +1895,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
           <div className="p-4 pr-14 space-y-2 shrink-0">
             <div className="flex flex-wrap items-center justify-between gap-y-2">
               <div className="flex items-center gap-2 text-sm font-medium text-white/70 min-w-0">
-                <svg className="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="none">
-                  <circle cx="4" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
-                  <circle cx="12" cy="4" r="2" stroke="currentColor" strokeWidth="1.5" />
-                  <circle cx="12" cy="12" r="2" stroke="currentColor" strokeWidth="1.5" />
-                  <path d="M6 7l4-2M6 9l4 2" stroke="currentColor" strokeWidth="1" strokeOpacity="0.5" />
-                </svg>
+                <GraphIcon />
                 <span className="truncate">{t("graphExplorer.title", { defaultValue: "Transaction Graph" })}</span>
                 <span className={`text-xs font-normal hidden sm:inline ${atCapacity ? "text-amber-400" : "text-white/40"}`}>
                   {t("graphExplorer.nodeCount", { count: props.nodeCount, max: props.maxNodes, defaultValue: "({{count}}/{{max}} nodes)" })}

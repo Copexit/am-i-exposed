@@ -36,7 +36,7 @@ interface WorkerProgress {
 export type WorkerResponse = (BoltzmannWorkerResult & { workerIndex?: number }) | WorkerError | WorkerProgress;
 
 /** Auto-compute when total UTXOs (inputs + outputs) is under this threshold. */
-export const AUTO_COMPUTE_MAX_TOTAL = 20;
+const AUTO_COMPUTE_MAX_TOTAL = 20;
 
 /** Maximum supported total UTXOs (inputs + outputs). */
 export const MAX_SUPPORTED_TOTAL = 80;
@@ -47,7 +47,7 @@ export const MAX_WORKERS = 8;
 // --- Worker pool singleton ---
 let workerPool: Worker[] = [];
 
-export function createWorker(): Worker | null {
+function createWorker(): Worker | null {
   if (typeof Worker === "undefined") return null;
   try {
     return new Worker("/workers/boltzmann.worker.js", { type: "module" });
@@ -140,7 +140,7 @@ export function detectJoinMarketForTurbo(
  * Each worker's finalize_link_matrix adds a +1 base case to every cell and nb_cmbn.
  * For N workers, subtract (N-1) from each to correct.
  */
-export function mergePartialResults(
+function mergePartialResults(
   partials: BoltzmannWorkerResult[],
 ): BoltzmannWorkerResult {
   const N = partials.length;

@@ -43,9 +43,6 @@ export function getOfacEntities(): Entity[] {
 /** Total entity count. */
 export const ENTITY_COUNT = entityData.entities.length;
 
-/** Last updated date. */
-export const ENTITY_LAST_UPDATED = entityData.lastUpdated;
-
 /** Category counts. */
 export function getCategoryCounts(): Record<EntityCategory, number> {
   const counts = {} as Record<EntityCategory, number>;
