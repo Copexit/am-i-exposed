@@ -465,6 +465,12 @@ function IOTab({
                   )}
                 </span>
                 <span className="text-xs text-bitcoin/80 shrink-0 tabular-nums">{formatSats(vout.value)}</span>
+                {/* Change badge */}
+                {isChange && (
+                  <span className="shrink-0 text-[9px] font-semibold px-1 py-px rounded bg-orange-400/20 text-orange-400 leading-tight">
+                    change
+                  </span>
+                )}
                 {/* Per-output linkability from selected input */}
                 {selectedInputIdx !== null && mat && (() => {
                   const prob = mat[i]?.[selectedInputIdx] ?? 0;
