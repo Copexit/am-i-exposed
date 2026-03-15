@@ -13,7 +13,7 @@ export { analyzeAnonymitySet } from "./anonymity-set";
 export { analyzeTiming } from "./timing";
 export { analyzeScriptTypeMix } from "./script-type-mix";
 export { analyzeSpendingPattern } from "./spending-analysis";
-export { analyzeDustOutputs, getDustThreshold } from "./dust-output";
+export { analyzeDustOutputs } from "./dust-output";
 export { analyzeCoinbase } from "./coinbase-detection";
 export { analyzeMultisigDetection } from "./multisig-detection";
 export { analyzePeelChain } from "./peel-chain";
