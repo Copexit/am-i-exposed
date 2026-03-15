@@ -30,6 +30,7 @@ import { FindingsSection } from "./results/FindingsSection";
 import { DeepAnalysisTxid } from "./results/DeepAnalysisTxid";
 import { DeepAnalysisAddress } from "./results/DeepAnalysisAddress";
 import { SidebarRecommendations } from "./results/SidebarRecommendations";
+import { PrimaryRecommendation } from "./PrimaryRecommendation";
 import { SidebarWarnings } from "./results/SidebarWarnings";
 import { ScoreWaterfallCollapsible } from "./results/ScoreWaterfallCollapsible";
 import { ResultsFooter } from "./results/ResultsFooter";
@@ -145,9 +146,12 @@ export const ResultsPanel = memo(function ResultsPanel({
       {/* Hero info card */}
       <HeroInfoCard query={query} inputType={inputType} result={result} txData={txData} />
 
-      {/* Score + alerts - mobile only (desktop shows in sidebar) */}
+      {/* Score + alerts + top recommendation - mobile only (desktop shows in sidebar) */}
       <div className="xl:hidden flex flex-col gap-5">
         <ScoreAlertBlock result={result} inputType={inputType} preSendResult={preSendResult} />
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.12 }}>
+          <PrimaryRecommendation findings={result.findings} grade={result.grade} walletGuess={detectedWallet ?? null} />
+        </motion.div>
       </div>
 
       {/* Transaction Structure (full width) */}
