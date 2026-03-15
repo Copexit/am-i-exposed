@@ -53,6 +53,8 @@ export function GraphCanvas({
   onExpandPortInput,
   onExpandPortOutput,
   outspendCache,
+  onLayoutComplete,
+  boltzmannCache,
 }: GraphCanvasProps) {
   const atCapacity = nodeCount >= maxNodes;
   const [hoveredEdgeKey, setHoveredEdgeKey] = useState<string | null>(null);
@@ -78,6 +80,11 @@ export function GraphCanvas({
     () => layoutGraph(nodes, rootTxid, filter, rootTxids, expandedNodeTxid),
     [nodes, rootTxid, filter, rootTxids, expandedNodeTxid],
   );
+
+  // Report visible count to parent (eliminates redundant layout call)
+  useEffect(() => {
+    onLayoutComplete?.({ visibleCount: layoutNodes.length });
+  }, [layoutNodes.length, onLayoutComplete]);
 
   // Build port position map for expanded node (used for edge routing)
   const portPositions = useMemo(
@@ -224,6 +231,34 @@ export function GraphCanvas({
     const avgX = rootNodes.reduce((s, n) => s + n.x + n.width / 2, 0) / rootNodes.length;
     el.scrollLeft = avgX - el.clientWidth / 2;
   }, [layoutNodes, scrollRef]);
+
+  // Handle double-click: expand all connected UTXOs (up to 5 per direction)
+  const handleNodeDoubleClick = useCallback((node: LayoutNode) => {
+    if (atCapacity) return;
+    // Expand backward: first 5 non-coinbase inputs not already in graph
+    let expanded = 0;
+    for (let i = 0; i < node.tx.vin.length && expanded < 5; i++) {
+      const vin = node.tx.vin[i];
+      if (!vin.is_coinbase && !nodes.has(vin.txid)) {
+        onExpandInput(node.txid, i);
+        expanded++;
+      }
+    }
+    // Expand forward: first 5 spendable outputs not already consumed
+    expanded = 0;
+    const consumedOutputs = new Set<number>();
+    for (const [, n] of nodes) {
+      for (const vin of n.tx.vin) {
+        if (vin.txid === node.txid && vin.vout !== undefined) consumedOutputs.add(vin.vout);
+      }
+    }
+    for (let i = 0; i < node.tx.vout.length && expanded < 5; i++) {
+      if (consumedOutputs.has(i)) continue;
+      if (node.tx.vout[i].scriptpubkey_type === "op_return" || node.tx.vout[i].value === 0) continue;
+      onExpandOutput(node.txid, i);
+      expanded++;
+    }
+  }, [nodes, atCapacity, onExpandInput, onExpandOutput]);
 
   // Handle node click - toggle expansion (UTXO ports) or floating analysis panel
   const handleNodeClick = useCallback((node: LayoutNode, currentSelected: string | null) => {
@@ -480,11 +515,12 @@ export function GraphCanvas({
           const isDimmedByHover = hoveredNode && !isHoveredViaNode;
           const isConsolidation = edge.consolidationCount >= 2;
 
-          // Linkability edge coloring: only for root tx edges with Boltzmann data
+          // Linkability edge coloring: check boltzmannCache for ANY source tx
           let linkabilityColor: string | null = null;
           let linkabilityMaxProb = -1;
-          if (linkabilityEdgeMode && rootBoltzmannResult && edge.fromTxid === rootTxid && edge.outputIndices?.length) {
-            const mat = rootBoltzmannResult.matLnkProbabilities;
+          if (linkabilityEdgeMode && edge.outputIndices?.length) {
+            const cachedResult = boltzmannCache?.get(edge.fromTxid) ?? (edge.fromTxid === rootTxid ? rootBoltzmannResult : null);
+            const mat = cachedResult?.matLnkProbabilities;
             if (mat && mat.length > 0) {
               linkabilityMaxProb = getEdgeMaxProb(mat, edge.outputIndices);
               if (linkabilityMaxProb <= 0) return null;
@@ -558,7 +594,7 @@ export function GraphCanvas({
                 stroke={strokeColor}
                 strokeWidth={strokeWidth}
                 strokeOpacity={strokeOpacity}
-                strokeDasharray={edge.isBackward ? "6 4" : (scriptDash ?? undefined)}
+                strokeDasharray={scriptDash ?? undefined}
                 markerEnd={markerEnd}
                 markerStart={markerStart}
                 initial={{ pathLength: 0 }}
@@ -581,9 +617,11 @@ export function GraphCanvas({
                 </Text>
               )}
               {/* Deterministic link badge (100%) - only on root tx edges with Boltzmann data */}
-              {!isConsolidation && rootBoltzmannResult?.deterministicLinks && edge.fromTxid === rootTxid && edge.outputIndices?.length === 1 && (() => {
+              {!isConsolidation && edge.outputIndices?.length === 1 && (() => {
+                const edgeBoltz = boltzmannCache?.get(edge.fromTxid) ?? (edge.fromTxid === rootTxid ? rootBoltzmannResult : null);
+                if (!edgeBoltz?.deterministicLinks?.length) return null;
                 const outIdx = edge.outputIndices![0];
-                const isDeterministic = rootBoltzmannResult.deterministicLinks.some(
+                const isDeterministic = edgeBoltz.deterministicLinks.some(
                   ([oi]) => oi === outIdx,
                 );
                 if (!isDeterministic) return null;
@@ -636,7 +674,7 @@ export function GraphCanvas({
             <g style={{ pointerEvents: "none" }}>
               <path d={d} fill="none" stroke={color} strokeWidth={6.5} strokeOpacity={0.4} filter="url(#glow-medium)" />
               <path d={d} fill="none" stroke={color} strokeWidth={2.5} strokeOpacity={1.0}
-                strokeDasharray={edge.isBackward ? "6 4" : undefined} />
+                strokeDasharray={undefined} />
             </g>
           );
         })()}
@@ -891,7 +929,7 @@ export function GraphCanvas({
                 );
               })()}
 
-              {/* Transparent click overlay */}
+              {/* Transparent click overlay (single=expand ports, double=expand all UTXOs) */}
               <rect
                 x={node.x}
                 y={node.y}
@@ -901,6 +939,7 @@ export function GraphCanvas({
                 fill="transparent"
                 style={{ cursor: "pointer" }}
                 onClick={() => handleNodeClick(node, selectedNode?.txid ?? null)}
+                onDoubleClick={(e) => { e.stopPropagation(); handleNodeDoubleClick(node); }}
               />
 
               {/* Expand left button (backward) */}

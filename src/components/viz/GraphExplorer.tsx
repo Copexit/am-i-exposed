@@ -11,7 +11,8 @@ import { formatSats } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 import { useFullscreen } from "@/hooks/useFullscreen";
 import { analyzeTransactionSync } from "@/lib/analysis/analyze-sync";
-import { GraphNodeAnalysis } from "@/components/GraphNodeAnalysis";
+import { computeBoltzmann, isAutoComputable, extractTxValues } from "@/lib/analysis/boltzmann-compute";
+import type { BoltzmannWorkerResult, BoltzmannProgress } from "@/lib/analysis/boltzmann-pool";
 import { GraphSidebar, SIDEBAR_WIDTH } from "./graph/GraphSidebar";
 import { ENTITY_CATEGORY_COLORS, MAX_ZOOM, MIN_ZOOM } from "./graph/constants";
 import { layoutGraph } from "./graph/layout";
@@ -83,6 +84,102 @@ export function GraphExplorer(props: GraphExplorerProps) {
   // Sidebar visible when a node is expanded
   const sidebarTx = props.expandedNodeTxid ? props.nodes.get(props.expandedNodeTxid)?.tx : undefined;
 
+  // ─── Boltzmann cache (on-demand computation for any node) ──────
+  const boltzmannCacheRef = useRef<Map<string, BoltzmannWorkerResult>>(new Map());
+  const [boltzmannVersion, setBoltzmannVersion] = useState(0);
+  const [computingBoltzmann, setComputingBoltzmann] = useState<Set<string>>(new Set());
+  const [boltzmannProgressMap, setBoltzmannProgressMap] = useState<Map<string, number>>(new Map());
+
+  // Seed cache with root Boltzmann result if available
+  useEffect(() => {
+    if (props.rootBoltzmannResult && props.rootTxid) {
+      boltzmannCacheRef.current.set(props.rootTxid, props.rootBoltzmannResult);
+      setBoltzmannVersion((v) => v + 1);
+    }
+  }, [props.rootBoltzmannResult, props.rootTxid]);
+
+  /** Compute Boltzmann for a specific txid. */
+  const triggerBoltzmann = useCallback(async (txid: string) => {
+    if (boltzmannCacheRef.current.has(txid)) return;
+    const node = props.nodes.get(txid);
+    if (!node) return;
+
+    const tx = node.tx;
+    const isCoinbase = tx.vin.some((v) => v.is_coinbase);
+    if (isCoinbase) return;
+
+    const { inputValues, outputValues } = extractTxValues(tx);
+    if (inputValues.length < 2 || inputValues.length + outputValues.length > 80) return;
+
+    setComputingBoltzmann((prev) => new Set(prev).add(txid));
+    try {
+      const result = await computeBoltzmann(tx, {
+        onProgress: (p: BoltzmannProgress) => {
+          setBoltzmannProgressMap((prev) => new Map(prev).set(txid, p.fraction));
+        },
+      });
+      if (result) {
+        boltzmannCacheRef.current.set(txid, result);
+        setBoltzmannVersion((v) => v + 1);
+      }
+    } catch { /* computation failed - not critical */ }
+    setComputingBoltzmann((prev) => { const next = new Set(prev); next.delete(txid); return next; });
+    setBoltzmannProgressMap((prev) => { const next = new Map(prev); next.delete(txid); return next; });
+  }, [props.nodes]);
+
+  // Auto-compute Boltzmann for expanded node + neighbors when expansion changes
+  useEffect(() => {
+    if (!props.expandedNodeTxid) return;
+    const txid = props.expandedNodeTxid;
+    const node = props.nodes.get(txid);
+    if (!node) return;
+
+    // Collect expanded node + immediate neighbors
+    const candidates: string[] = [txid];
+    // Parents (backward neighbors)
+    for (const vin of node.tx.vin) {
+      if (!vin.is_coinbase && props.nodes.has(vin.txid)) {
+        candidates.push(vin.txid);
+      }
+    }
+    // Children (forward neighbors)
+    for (const [childTxid, childNode] of props.nodes) {
+      if (childNode.parentEdge?.fromTxid === txid) {
+        candidates.push(childTxid);
+      }
+    }
+
+    // Auto-compute for auto-computable candidates (sequential to avoid worker contention)
+    let cancelled = false;
+    (async () => {
+      for (const candidateTxid of candidates) {
+        if (cancelled) break;
+        if (boltzmannCacheRef.current.has(candidateTxid)) continue;
+        if (computingBoltzmann.has(candidateTxid)) continue;
+
+        const candidateNode = props.nodes.get(candidateTxid);
+        if (!candidateNode) continue;
+        const candidateTx = candidateNode.tx;
+        if (candidateTx.vin.some((v) => v.is_coinbase)) continue;
+
+        const { inputValues, outputValues } = extractTxValues(candidateTx);
+        if (inputValues.length < 2) continue;
+        if (!isAutoComputable(inputValues, outputValues)) continue;
+
+        await triggerBoltzmann(candidateTxid);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [props.expandedNodeTxid, props.nodes, triggerBoltzmann, computingBoltzmann]);
+
+  /** Get Boltzmann result for a txid (from cache or root result). */
+  const getBoltzmannResult = useCallback((txid: string): BoltzmannWorkerResult | undefined => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    boltzmannVersion; // depend on version to re-read cache after updates
+    return boltzmannCacheRef.current.get(txid);
+  }, [boltzmannVersion]);
+
   // Zoom toward center helper
   const zoomBy = useCallback((factor: number) => {
     if (!viewTransform) return;
@@ -126,9 +223,10 @@ export function GraphExplorer(props: GraphExplorerProps) {
   // Count hidden nodes
   const totalNodes = props.nodeCount;
   const atCapacity = props.nodeCount >= props.maxNodes;
-  const visibleCount = useMemo(() => {
-    return layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids).layoutNodes.length;
-  }, [props.nodes, props.rootTxid, filter, props.rootTxids]);
+  const [visibleCount, setVisibleCount] = useState(totalNodes);
+  const handleLayoutComplete = useCallback((info: { visibleCount: number }) => {
+    setVisibleCount(info.visibleCount);
+  }, []);
   const hiddenCount = totalNodes - visibleCount;
 
   if (props.nodes.size === 0) return null;
@@ -381,6 +479,8 @@ export function GraphExplorer(props: GraphExplorerProps) {
     linkabilityEdgeMode,
     fingerprintMode,
     changeOutputs,
+    onLayoutComplete: handleLayoutComplete,
+    boltzmannCache: boltzmannCacheRef.current,
   };
 
   const fullscreenCanvasProps = {
@@ -499,22 +599,6 @@ export function GraphExplorer(props: GraphExplorerProps) {
               </div>
               {tooltipContent}
               {/* Floating analysis panel (fallback when no expansion support) */}
-              {!props.onToggleExpand && (
-                <AnimatePresence>
-                  {selectedNode && props.nodes.has(selectedNode.txid) && (
-                    <GraphNodeAnalysis
-                      key={selectedNode.txid}
-                      tx={props.nodes.get(selectedNode.txid)!.tx}
-                      onClose={() => setSelectedNode(null)}
-                      onFullScan={(txid) => {
-                        setSelectedNode(null);
-                        props.onTxClick?.(txid);
-                      }}
-                      position={{ x: selectedNode.x, y: selectedNode.y }}
-                    />
-                  )}
-                </AnimatePresence>
-              )}
             </div>
             {/* Transaction detail sidebar (when a node is expanded) */}
             <AnimatePresence>
@@ -529,7 +613,10 @@ export function GraphExplorer(props: GraphExplorerProps) {
                   onExpandOutput={props.onExpandPortOutput ?? props.onExpandOutput}
                   changeOutputs={changeOutputs}
                   onToggleChange={toggleChange}
-                  boltzmannResult={props.expandedNodeTxid === props.rootTxid ? props.rootBoltzmannResult : undefined}
+                  boltzmannResult={props.expandedNodeTxid ? getBoltzmannResult(props.expandedNodeTxid) : undefined}
+                  computingBoltzmann={props.expandedNodeTxid ? computingBoltzmann.has(props.expandedNodeTxid) : false}
+                  boltzmannProgress={props.expandedNodeTxid ? boltzmannProgressMap.get(props.expandedNodeTxid) : undefined}
+                  onComputeBoltzmann={props.expandedNodeTxid ? () => triggerBoltzmann(props.expandedNodeTxid!) : undefined}
                 />
               )}
             </AnimatePresence>
@@ -693,22 +780,6 @@ export function GraphExplorer(props: GraphExplorerProps) {
                 </ParentSize>
               </div>
               {tooltipContent}
-              {!props.onToggleExpand && (
-                <AnimatePresence>
-                  {selectedNode && props.nodes.has(selectedNode.txid) && (
-                    <GraphNodeAnalysis
-                      key={selectedNode.txid}
-                      tx={props.nodes.get(selectedNode.txid)!.tx}
-                      onClose={() => setSelectedNode(null)}
-                      onFullScan={(txid) => {
-                        setSelectedNode(null);
-                        props.onTxClick?.(txid);
-                      }}
-                      position={{ x: selectedNode.x, y: selectedNode.y }}
-                    />
-                  )}
-                </AnimatePresence>
-              )}
             </div>
             {/* Fullscreen sidebar */}
             <AnimatePresence>
@@ -723,7 +794,10 @@ export function GraphExplorer(props: GraphExplorerProps) {
                   onExpandOutput={props.onExpandPortOutput ?? props.onExpandOutput}
                   changeOutputs={changeOutputs}
                   onToggleChange={toggleChange}
-                  boltzmannResult={props.expandedNodeTxid === props.rootTxid ? props.rootBoltzmannResult : undefined}
+                  boltzmannResult={props.expandedNodeTxid ? getBoltzmannResult(props.expandedNodeTxid) : undefined}
+                  computingBoltzmann={props.expandedNodeTxid ? computingBoltzmann.has(props.expandedNodeTxid) : false}
+                  boltzmannProgress={props.expandedNodeTxid ? boltzmannProgressMap.get(props.expandedNodeTxid) : undefined}
+                  onComputeBoltzmann={props.expandedNodeTxid ? () => triggerBoltzmann(props.expandedNodeTxid!) : undefined}
                 />
               )}
             </AnimatePresence>

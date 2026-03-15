@@ -10,6 +10,7 @@ import { analyzeTransactionSync } from "@/lib/analysis/analyze-sync";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
 import { getScriptTypeColor } from "./scriptStyles";
 import { probColor } from "../shared/linkabilityColors";
+import { analyzeChangeDetection } from "@/lib/analysis/heuristics/change-detection";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import type { ScoringResult, Finding } from "@/lib/types";
@@ -41,6 +42,12 @@ interface GraphSidebarProps {
   onToggleChange: (txid: string, outputIndex: number) => void;
   /** Boltzmann result for this tx (if computed). */
   boltzmannResult?: BoltzmannWorkerResult | null;
+  /** Whether Boltzmann is currently being computed for this tx. */
+  computingBoltzmann?: boolean;
+  /** Boltzmann computation progress (0-1). */
+  boltzmannProgress?: number;
+  /** Trigger Boltzmann computation for this tx. */
+  onComputeBoltzmann?: () => void;
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -75,6 +82,9 @@ export function GraphSidebar({
   changeOutputs,
   onToggleChange,
   boltzmannResult,
+  computingBoltzmann,
+  boltzmannProgress,
+  onComputeBoltzmann,
 }: GraphSidebarProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>("io");
@@ -158,6 +168,9 @@ export function GraphSidebar({
             changeOutputs={changeOutputs}
             onToggleChange={onToggleChange}
             boltzmannResult={boltzmannResult}
+            computingBoltzmann={computingBoltzmann}
+            boltzmannProgress={boltzmannProgress}
+            onComputeBoltzmann={onComputeBoltzmann}
           />
         )}
         {activeTab === "analysis" && result && (
@@ -191,6 +204,9 @@ function IOTab({
   changeOutputs,
   onToggleChange,
   boltzmannResult,
+  computingBoltzmann,
+  boltzmannProgress,
+  onComputeBoltzmann,
 }: {
   tx: MempoolTransaction;
   outspends?: MempoolOutspend[];
@@ -199,9 +215,42 @@ function IOTab({
   changeOutputs: Set<string>;
   onToggleChange: (txid: string, outputIndex: number) => void;
   boltzmannResult?: BoltzmannWorkerResult | null;
+  computingBoltzmann?: boolean;
+  boltzmannProgress?: number;
+  onComputeBoltzmann?: () => void;
 }) {
   const mat = boltzmannResult?.matLnkProbabilities;
   const detLinks = boltzmannResult?.deterministicLinks;
+
+  // Per-input-output probability drill-down
+  const [selectedInputIdx, setSelectedInputIdx] = useState<number | null>(null);
+
+  // Change detection auto-suggestion
+  const suggestedChangeIdx = useMemo(() => {
+    const result = analyzeChangeDetection(tx);
+    const finding = result.findings.find((f) => f.id === "h2-change-detected");
+    if (!finding?.params) return null;
+    const idx = (finding.params as Record<string, unknown>).changeIndex;
+    return typeof idx === "number" ? idx : null;
+  }, [tx]);
+
+  // Count expandable inputs/outputs for bulk expand
+  const expandableInputs = useMemo(() => {
+    return tx.vin.reduce((acc, v, i) => {
+      if (!v.is_coinbase) acc.push(i);
+      return acc;
+    }, [] as number[]);
+  }, [tx]);
+
+  const expandableOutputs = useMemo(() => {
+    return tx.vout.reduce((acc, v, i) => {
+      if (v.scriptpubkey_type !== "op_return" && v.value > 0) acc.push(i);
+      return acc;
+    }, [] as number[]);
+  }, [tx]);
+
+  const nonCoinbaseInputCount = tx.vin.filter((v) => !v.is_coinbase).length;
+  const canComputeBoltzmann = !boltzmannResult && !computingBoltzmann && nonCoinbaseInputCount >= 2;
 
   return (
     <div className="p-2 space-y-3">
@@ -224,11 +273,38 @@ function IOTab({
           </span>
         </div>
       )}
+      {/* Boltzmann computing indicator */}
+      {computingBoltzmann && (
+        <div className="flex items-center gap-2 px-1">
+          <div className="w-3 h-3 border-2 border-bitcoin/40 border-t-bitcoin rounded-full animate-spin" />
+          <span className="text-xs text-white/40">
+            Computing linkability{boltzmannProgress != null ? ` (${Math.round(boltzmannProgress * 100)}%)` : "..."}
+          </span>
+        </div>
+      )}
+      {/* Compute button for eligible non-auto txs */}
+      {canComputeBoltzmann && onComputeBoltzmann && (
+        <button
+          onClick={onComputeBoltzmann}
+          className="w-full text-xs text-center py-1.5 rounded border border-white/10 text-white/50 hover:text-white/80 hover:border-white/20 transition-colors cursor-pointer"
+        >
+          Compute Linkability ({nonCoinbaseInputCount}in / {tx.vout.length}out)
+        </button>
+      )}
 
       {/* Inputs */}
       <div>
-        <div className="text-xs font-medium text-white/50 px-1 mb-1">
-          Inputs ({tx.vin.length})
+        <div className="flex items-center justify-between px-1 mb-1">
+          <span className="text-xs font-medium text-white/50">Inputs ({tx.vin.length})</span>
+          {onExpandInput && expandableInputs.length > 0 && (
+            <button
+              onClick={() => expandableInputs.slice(0, 5).forEach((i) => onExpandInput(tx.txid, i))}
+              className="text-xs text-white/30 hover:text-white/60 transition-colors cursor-pointer"
+              title="Expand first 5 unresolved inputs"
+            >
+              Expand all
+            </button>
+          )}
         </div>
         <div className="space-y-0.5">
           {tx.vin.map((vin, i) => {
@@ -259,7 +335,7 @@ function IOTab({
                   )}
                 </div>
                 <span className="text-xs text-bitcoin/80 shrink-0 tabular-nums">{formatSats(value)}</span>
-                {/* Linkability indicator (max probability this input has with any output) */}
+                {/* Linkability indicator - clickable to show per-output breakdown */}
                 {mat && !vin.is_coinbase && (() => {
                   let maxP = 0;
                   for (let oi = 0; oi < mat.length; oi++) {
@@ -267,11 +343,13 @@ function IOTab({
                   }
                   if (maxP <= 0) return null;
                   const isDet = detLinks?.some(([, inIdx]) => inIdx === i);
+                  const isSelected = selectedInputIdx === i;
                   return (
-                    <span
-                      className="shrink-0 w-2 h-2 rounded-full"
+                    <button
+                      className={`shrink-0 w-2.5 h-2.5 rounded-full cursor-pointer transition-all ${isSelected ? "ring-2 ring-white/40 scale-125" : ""}`}
                       style={{ backgroundColor: probColor(maxP), opacity: isDet ? 1 : 0.7 }}
-                      title={`${Math.round(maxP * 100)}% max linkability${isDet ? " (deterministic)" : ""}`}
+                      title={`${Math.round(maxP * 100)}% max linkability${isDet ? " (deterministic)" : ""} - click to see per-output breakdown`}
+                      onClick={(e) => { e.stopPropagation(); setSelectedInputIdx(isSelected ? null : i); }}
                     />
                   );
                 })()}
@@ -290,10 +368,48 @@ function IOTab({
         </div>
       </div>
 
+      {/* Per-input linkability breakdown (shown when an input is selected) */}
+      {selectedInputIdx !== null && mat && (
+        <div className="mx-1 p-1.5 rounded bg-white/3 border border-white/5">
+          <div className="text-xs text-white/40 mb-1">
+            Input #{selectedInputIdx} linkability to each output:
+          </div>
+          <div className="space-y-0.5">
+            {tx.vout.map((vout, oi) => {
+              const prob = mat[oi]?.[selectedInputIdx] ?? 0;
+              const isDet = detLinks?.some(([o, inp]) => o === oi && inp === selectedInputIdx);
+              return (
+                <div key={oi} className="flex items-center gap-1.5 text-xs">
+                  <span className="text-white/30 w-4 text-right shrink-0">#{oi}</span>
+                  <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${prob * 100}%`, backgroundColor: probColor(prob) }}
+                    />
+                  </div>
+                  <span className={`w-8 text-right tabular-nums shrink-0 ${isDet ? "text-red-400 font-bold" : "text-white/50"}`}>
+                    {prob > 0 ? `${Math.round(prob * 100)}%` : "-"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Outputs */}
       <div>
-        <div className="text-xs font-medium text-white/50 px-1 mb-1">
-          Outputs ({tx.vout.length})
+        <div className="flex items-center justify-between px-1 mb-1">
+          <span className="text-xs font-medium text-white/50">Outputs ({tx.vout.length})</span>
+          {onExpandOutput && expandableOutputs.length > 0 && (
+            <button
+              onClick={() => expandableOutputs.slice(0, 5).forEach((i) => onExpandOutput(tx.txid, i))}
+              className="text-xs text-white/30 hover:text-white/60 transition-colors cursor-pointer"
+              title="Expand first 5 unresolved outputs"
+            >
+              Expand all
+            </button>
+          )}
         </div>
         <div className="space-y-0.5">
           {tx.vout.map((vout, i) => {
@@ -335,16 +451,33 @@ function IOTab({
                   )}
                 </span>
                 <span className="text-xs text-bitcoin/80 shrink-0 tabular-nums">{formatSats(vout.value)}</span>
-                {/* Change toggle */}
+                {/* Per-output linkability from selected input */}
+                {selectedInputIdx !== null && mat && (() => {
+                  const prob = mat[i]?.[selectedInputIdx] ?? 0;
+                  if (prob <= 0) return null;
+                  return (
+                    <span
+                      className="shrink-0 w-2 h-2 rounded-full"
+                      style={{ backgroundColor: probColor(prob) }}
+                      title={`${Math.round(prob * 100)}% from input #${selectedInputIdx}`}
+                    />
+                  );
+                })()}
+                {/* Change toggle + auto-suggestion */}
                 <button
                   onClick={() => onToggleChange(tx.txid, i)}
-                  className={`shrink-0 w-3.5 h-3.5 rounded-sm border cursor-pointer transition-colors ${
+                  className={`shrink-0 w-3.5 h-3.5 rounded-sm border cursor-pointer transition-colors relative ${
                     isChange
                       ? "bg-orange-400/40 border-orange-400/60"
                       : "border-white/15 hover:border-white/30"
                   }`}
-                  title={isChange ? "Unmark as change" : "Mark as change"}
-                />
+                  title={isChange ? "Unmark as change" : (suggestedChangeIdx === i ? "Suggested change output - click to mark" : "Mark as change")}
+                >
+                  {/* Suggestion pulse dot */}
+                  {!isChange && suggestedChangeIdx === i && (
+                    <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
+                  )}
+                </button>
                 {onExpandOutput && vout.scriptpubkey_type !== "op_return" && vout.value > 0 && (
                   <button
                     onClick={() => onExpandOutput(tx.txid, i)}

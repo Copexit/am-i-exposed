@@ -156,6 +156,10 @@ export interface GraphCanvasProps extends GraphExplorerProps {
   fingerprintMode?: boolean;
   /** Change-marked output keys: "${txid}:${outputIndex}". Edges from these render orange. */
   changeOutputs?: Set<string>;
+  /** Called after layout with visible node count (avoids redundant layout computation). */
+  onLayoutComplete?: (info: { visibleCount: number }) => void;
+  /** Boltzmann results for any node (not just root). Keyed by txid. */
+  boltzmannCache?: Map<string, BoltzmannWorkerResult>;
 }
 
 export interface MinimapProps {

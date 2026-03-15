@@ -621,38 +621,41 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     }
   }, [expandInput, state.nodes]);
 
+  /** Pending forward port expansion (resolved by useEffect when state.nodes updates). */
+  const [pendingPortExpand, setPendingPortExpand] = useState<{ txid: string; outputIndex: number } | null>(null);
+
   /** Expand forward from a specific output port. The new node becomes expanded. */
   const expandPortOutput = useCallback(async (txid: string, outputIndex: number) => {
-    const sizeBefore = state.nodes.size;
     await expandOutput(txid, outputIndex);
-    // After expand, find the newly added child node and auto-expand it.
-    // We need a fresh read of state, so use a microtask to let reducer settle.
-    queueMicrotask(() => {
-      // Find the child tx by scanning for a node with parentEdge from txid
-      // that wasn't in the graph before.
-      // Since expandOutput adds exactly one node, look for the new one.
-      for (const [childTxid, childNode] of state.nodes) {
-        if (childNode.parentEdge?.fromTxid === txid) {
-          // Check if this is likely the new one (heuristic: match output index)
-          const matchesOutput = childNode.tx.vin.some(
-            (v) => v.txid === txid && v.vout === outputIndex,
-          );
-          if (matchesOutput) {
-            setExpandedNodeTxid(childTxid);
-            // Fetch outspends for the new node
-            const client = fetcherRef.current;
-            if (client && !outspendCacheRef.current.has(childTxid)) {
-              client.getTxOutspends(childTxid).then((os) => {
-                outspendCacheRef.current.set(childTxid, os);
-                setExpandedNodeTxid((prev) => prev === childTxid ? childTxid : prev);
-              }).catch(() => { /* not critical */ });
-            }
-            return;
+    setPendingPortExpand({ txid, outputIndex });
+  }, [expandOutput]);
+
+  // Resolve pending port expansion after React processes the ADD_NODE dispatch
+  useEffect(() => {
+    if (!pendingPortExpand) return;
+    const { txid, outputIndex } = pendingPortExpand;
+
+    for (const [childTxid, childNode] of state.nodes) {
+      if (childNode.parentEdge?.fromTxid === txid) {
+        const matchesOutput = childNode.tx.vin.some(
+          (v) => v.txid === txid && v.vout === outputIndex,
+        );
+        if (matchesOutput) {
+          setExpandedNodeTxid(childTxid);
+          setPendingPortExpand(null);
+          // Fetch outspends for the new node
+          const client = fetcherRef.current;
+          if (client && !outspendCacheRef.current.has(childTxid)) {
+            client.getTxOutspends(childTxid).then((os) => {
+              outspendCacheRef.current.set(childTxid, os);
+              setExpandedNodeTxid((prev) => prev === childTxid ? childTxid : prev);
+            }).catch(() => { /* not critical */ });
           }
+          return;
         }
       }
-    });
-  }, [expandOutput, state.nodes]);
+    }
+  }, [pendingPortExpand, state.nodes]);
 
   return {
     nodes: state.nodes,
