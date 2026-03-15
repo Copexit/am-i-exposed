@@ -1,6 +1,6 @@
 /** Recovery flow data - shared between RecoveryFlow component and /guide page */
 
-export interface RecoveryStep {
+interface RecoveryStep {
   titleKey: string;
   titleDefault: string;
   descKey: string;

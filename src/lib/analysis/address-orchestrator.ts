@@ -11,7 +11,7 @@ import { TX_HEURISTICS, ADDRESS_HEURISTICS, tick } from "./orchestrator";
 
 // ── Pre-send destination check (H13) ────────────────────────────────────────
 
-export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
 export interface PreSendResult {
   riskLevel: RiskLevel;

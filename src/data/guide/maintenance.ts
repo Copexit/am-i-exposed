@@ -1,6 +1,6 @@
 /** Maintenance guide data used by the /guide page */
 
-export interface MaintenanceSection {
+interface MaintenanceSection {
   titleKey: string;
   titleDefault: string;
   tipsKeys: { key: string; default: string }[];

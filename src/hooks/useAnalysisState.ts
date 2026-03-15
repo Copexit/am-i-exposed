@@ -5,7 +5,7 @@ import type { HeuristicStep, PreSendResult } from "@/lib/analysis/orchestrator";
 import type { PSBTParseResult } from "@/lib/bitcoin/psbt";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 
-export type AnalysisPhase =
+type AnalysisPhase =
   | "idle"
   | "fetching"
   | "analyzing"

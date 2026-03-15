@@ -34,25 +34,6 @@ export function probColor(p: number): string {
   return `rgb(${COLOR_STOPS[COLOR_STOPS.length - 1][1].join(",")})`;
 }
 
-/** Return rgba color for SVG fill/stroke use. */
-export function probColorRgba(p: number, alpha: number): string {
-  if (p <= 0) return `rgba(${COLOR_STOPS[0][1].join(",")},${alpha})`;
-  if (p >= 1) return `rgba(${COLOR_STOPS[COLOR_STOPS.length - 1][1].join(",")},${alpha})`;
-
-  for (let s = 1; s < COLOR_STOPS.length; s++) {
-    if (p <= COLOR_STOPS[s][0]) {
-      const [p0, c0] = COLOR_STOPS[s - 1];
-      const [p1, c1] = COLOR_STOPS[s];
-      const t = (p - p0) / (p1 - p0);
-      const r = Math.round(c0[0] + (c1[0] - c0[0]) * t);
-      const g = Math.round(c0[1] + (c1[1] - c0[1]) * t);
-      const b = Math.round(c0[2] + (c1[2] - c0[2]) * t);
-      return `rgba(${r},${g},${b},${alpha})`;
-    }
-  }
-  return `rgba(${COLOR_STOPS[COLOR_STOPS.length - 1][1].join(",")},${alpha})`;
-}
-
 /** Inner (+ optional outer) glow for heat map cells. */
 export function cellGlow(p: number): string {
   if (p <= 0) return "none";

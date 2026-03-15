@@ -1,6 +1,6 @@
 /** Wallet data used by the /guide page */
 
-export interface WalletEntry {
+interface WalletEntry {
   name: string;
   type: ("desktop" | "mobile" | "hardware")[];
   nSequence: "good" | "bad";
@@ -167,7 +167,7 @@ export const WALLETS_TO_AVOID = [
   { name: "Exchange wallets", reasonKey: "walletGuide.avoidExchangeWallets", reasonDefault: "Custodial - the exchange controls your keys and sees all your transactions" },
 ];
 
-export interface CriteriaRow {
+interface CriteriaRow {
   criteria: string;
   criteriaKey: string;
   good: string;

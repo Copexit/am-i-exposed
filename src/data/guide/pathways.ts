@@ -261,7 +261,7 @@ export const PATHWAYS: PathwayData[] = [
   },
 ];
 
-export interface CombinedPathwayData {
+interface CombinedPathwayData {
   id: string;
   titleKey: string;
   titleDefault: string;

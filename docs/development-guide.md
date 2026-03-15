@@ -21,9 +21,7 @@ src/
 │   ├── GraphExplorerPanel.tsx # OXT-style interactive tx DAG expansion
 │   ├── Header.tsx            # Sticky header with logo, badge, network selector
 │   ├── InstallPrompt.tsx     # PWA install banner
-│   ├── MaintenanceGuide.tsx  # Ongoing privacy maintenance recommendations
 │   ├── PrivacyNotice.tsx     # One-time dismissible privacy banner
-│   ├── PrivacyPathways.tsx   # Personalized remediation pathways
 │   ├── Remediation.tsx       # "What to do next" prioritized action list
 │   ├── ResultsPanel.tsx      # Full results: score, findings, summaries, actions
 │   ├── ScoreDisplay.tsx      # Animated score count-up with grade badge
@@ -60,7 +58,7 @@ src/
     │   ├── address-orchestrator.ts # Address analysis + destination pre-send checks
     │   ├── heuristics/            # 32 tx-level + 6 address-level heuristic modules
     │   │   └── tx-utils.ts        # Shared utilities (getSpendableOutputs)
-    │   ├── chain/                 # 14 chain analysis modules
+    │   ├── chain/                 # 13 chain analysis modules
     │   │   ├── recursive-trace.ts # Multi-hop backward/forward tracing engine
     │   │   ├── backward.ts        # Input provenance analysis
     │   │   ├── forward.ts         # Output destination analysis
@@ -73,17 +71,19 @@ src/
     │   │   ├── coinjoin-quality.ts # CoinJoin quality assessment
     │   │   ├── peel-chain-trace.ts # Peel chain following
     │   │   ├── temporal.ts        # Temporal pattern analysis
-    │   │   ├── prospective.ts     # Prospective privacy assessment
-    │   │   └── bdd.ts             # Binary Decision Diagram for entropy
+    │   │   └── prospective.ts     # Prospective privacy assessment
     │   └── entity-filter/         # Entity matching (OFAC, exchanges, etc.)
     │       ├── entity-match.ts    # Address-to-entity lookup
-    │       └── entity-loader.ts   # Binary index loader
+    │       └── filter-loader.ts   # Binary index loader
     ├── api/
     │   ├── client.ts          # API client (mempool.space only, no fallback)
     │   ├── mempool.ts         # mempool.space REST API implementation
+    │   ├── cached-client.ts   # Cached API client wrapper
     │   ├── fetch-with-retry.ts # Retry logic, ApiError types
-    │   ├── queue.ts           # Priority-based API request queue
-    │   ├── cache.ts           # Request caching
+    │   ├── rate-limiter.ts    # Request rate limiter
+    │   ├── analysis-cache.ts  # Analysis result caching (IndexedDB)
+    │   ├── idb-cache.ts       # IndexedDB cache implementation
+    │   ├── url-diagnostics.ts # API URL validation and diagnostics
     │   ├── enrich-prevouts.ts # Prevout data enrichment for self-hosted backends
     │   └── types.ts           # API response types
     ├── bitcoin/
@@ -96,9 +96,9 @@ src/
     └── types.ts               # Finding, ScoringResult, Grade types
 ```
 
-## Heuristics (32 tx-level + 6 address-level + 6 chain analysis)
+## Heuristics (31 total: 25 tx-level + 6 address-level + 6 chain analysis)
 
-### Transaction heuristics (26 registered in orchestrator)
+### Transaction heuristics (25 registered in orchestrator)
 | ID | Module | Impact | Description |
 |----|--------|--------|-------------|
 | coinbase | coinbase-detection.ts | 0 | Coinbase transaction detection |
@@ -118,7 +118,6 @@ src/
 | peel | peel-chain.ts | -3 to -8 | Peel chain detection |
 | consolidation | consolidation.ts | -3 to -10 | Fan-in/fan-out consolidation patterns |
 | unnecessary | unnecessary-input.ts | -2 to -5 | Unnecessary input detection |
-| payjoin | payjoin.ts | +5 to +10 | PayJoin (P2EP) detection |
 | tx0 | coinjoin-premix.ts | 0 to +3 | CoinJoin premix (tx0) detection |
 | bip69 | bip69.ts | -1 to -2 | BIP69 lexicographic ordering |
 | bip47 | bip47-notification.ts | 0 to -3 | BIP47 notification transaction detection |
@@ -156,7 +155,6 @@ Additional chain modules (computed inline, no separate step):
 - `peel-chain-trace.ts` - Peel chain following across hops
 - `temporal.ts` - Temporal pattern analysis
 - `prospective.ts` - Prospective privacy assessment
-- `bdd.ts` - Binary Decision Diagram for entropy
 
 ## Scoring Model
 
@@ -171,11 +169,9 @@ The `cross-heuristic.ts` module runs a post-processing pass after all heuristics
 
 **CoinJoin suppression**: When a CoinJoin is detected, suppresses CIOH, round-amount, change detection, script-mixed, low-entropy, wallet fingerprint, dust, timing, fee, anonymity-set, multisig/escrow, consolidation, BIP69, witness analysis, and coin selection findings. Stonewall gets partial CIOH reduction (-3 instead of 0) since all inputs are one wallet.
 
-**PayJoin suppression**: Suppresses change detection, unnecessary input, CIOH, and consolidation.
-
 **Multisig adjustment**: Suppresses script-mixed penalty (structural, not a leak).
 
-**CIOH dedup**: When CIOH fires on non-CoinJoin/PayJoin tx, suppresses redundant unnecessary-input and caps consolidation at -2.
+**CIOH dedup**: When CIOH fires on non-CoinJoin tx, suppresses redundant unnecessary-input and caps consolidation at -2.
 
 **Consolidation triple-penalty**: When self-send consolidation detected, suppresses zero-entropy (inherent).
 
@@ -272,7 +268,6 @@ npx playwright screenshot --full-page --viewport-size=375,812 "http://localhost:
 
 ## Remaining Ideas
 
-- [ ] Full Boltzmann entropy via WebWorker (BDD-based)
 - [ ] PDF report export
 - [ ] Score comparison mode (before/after CoinJoin)
 - [ ] Browser extension for mempool.space integration

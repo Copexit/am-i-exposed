@@ -21,7 +21,7 @@ export const TX_TYPE_LABELS: Partial<Record<TxType, string>> = {
   "coinbase": "Coinbase",
 };
 
-export const ADDRESS_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
+const ADDRESS_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
   p2tr:    { label: "Taproot",  color: "bg-severity-good/20 text-severity-good border-severity-good/30" },
   p2wpkh:  { label: "SegWit",   color: "bg-severity-low/20 text-severity-low border-severity-low/30" },
   p2wsh:   { label: "SegWit",   color: "bg-severity-low/20 text-severity-low border-severity-low/30" },

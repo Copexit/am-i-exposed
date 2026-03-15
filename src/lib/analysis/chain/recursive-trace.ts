@@ -27,7 +27,7 @@ interface TraceResult {
   aborted: boolean;
 }
 
-export type TraceProgressCallback = (progress: {
+type TraceProgressCallback = (progress: {
   currentDepth: number;
   maxDepth: number;
   txsFetched: number;

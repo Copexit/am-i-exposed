@@ -21,7 +21,7 @@ import type { MempoolClient } from "@/lib/api/mempool";
 
 // ---------- Types ----------
 
-export type WalletPhase =
+type WalletPhase =
   | "idle"
   | "deriving"
   | "fetching"

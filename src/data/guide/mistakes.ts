@@ -1,6 +1,6 @@
 /** Common mistakes data - shared between CommonMistakes component and /guide page */
 
-export interface MistakeEntry {
+interface MistakeEntry {
   titleKey: string;
   titleDefault: string;
   descKey: string;
