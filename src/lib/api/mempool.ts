@@ -108,6 +108,18 @@ export function createMempoolClient(baseUrl: string, options?: MempoolClientOpti
       return get(`/tx/${txid}/outspends`);
     },
 
+    /** Search for addresses starting with the given prefix. Returns up to 10 matches.
+     *  Bech32 prefixes are lowercased automatically. Fails silently on unsupported backends. */
+    async getAddressPrefix(prefix: string): Promise<string[]> {
+      const normalized = prefix.toLowerCase();
+      if (normalized.length < 1) return [];
+      try {
+        return await get<string[]>(`/address-prefix/${normalized}`);
+      } catch {
+        return [];
+      }
+    },
+
     async getHistoricalPrice(timestamp: number): Promise<number | null> {
       return getHistoricalCurrencyPrice(get, timestamp, "USD");
     },

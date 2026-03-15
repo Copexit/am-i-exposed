@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { motion, useMotionValue, useSpring } from "motion/react";
 import { useNetwork } from "@/context/NetworkContext";
 import { detectInputType, cleanInput } from "@/lib/analysis/detect-input";
+import { useAddressAutocomplete } from "@/hooks/useAddressAutocomplete";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
 import { Spinner } from "./ui/Spinner";
 
@@ -44,6 +45,11 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
   const internalRef = useRef<HTMLInputElement>(null);
   const inputRef = externalRef ?? internalRef;
   const { network } = useNetwork();
+  const {
+    suggestions, selectedIndex, isOpen,
+    fetchSuggestions, close: closeSuggestions, selectIndex, moveSelection, getSelected,
+  } = useAddressAutocomplete();
+  const dropdownRef = useRef<HTMLUListElement>(null);
 
   // Magnetic button effect
   const magnetX = useMotionValue(0);
@@ -100,6 +106,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
       if (type !== "invalid") {
         e.preventDefault();
         setValue(cleaned);
+        closeSuggestions();
         setPasteSuccess(true);
         clearTimeout(pasteTimerRef.current);
         pasteTimerRef.current = setTimeout(() => {
@@ -141,21 +148,42 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
             type="text"
             value={value}
             onChange={(e) => {
-              setValue(e.target.value);
+              const v = e.target.value;
+              setValue(v);
               setError(null);
+              fetchSuggestions(v);
               // Cancel any pending paste-to-submit timer if user edits the input
               if (pasteTimerRef.current) {
                 clearTimeout(pasteTimerRef.current);
                 setPasteSuccess(false);
               }
             }}
+            onKeyDown={(e) => {
+              if (!isOpen) return;
+              if (e.key === "ArrowDown") { e.preventDefault(); moveSelection(1); }
+              else if (e.key === "ArrowUp") { e.preventDefault(); moveSelection(-1); }
+              else if (e.key === "Enter" && selectedIndex >= 0) {
+                e.preventDefault();
+                const addr = getSelected();
+                if (addr) { setValue(addr); closeSuggestions(); submit(addr); }
+              }
+              else if (e.key === "Escape") { closeSuggestions(); }
+            }}
+            onBlur={() => {
+              // Delay close so click on suggestion registers first
+              setTimeout(closeSuggestions, 150);
+            }}
             onPaste={handlePaste}
             placeholder={placeholder}
             spellCheck={false}
             autoComplete="off"
             autoFocus
+            role="combobox"
             aria-label={placeholder}
             aria-describedby={error ? "input-error" : undefined}
+            aria-expanded={isOpen}
+            aria-controls={isOpen ? "address-suggestions" : undefined}
+            aria-activedescendant={selectedIndex >= 0 ? `suggestion-${selectedIndex}` : undefined}
             className="relative w-full glass rounded-[11px] pl-4 pr-24 sm:pl-5 sm:pr-20 py-4
               font-mono text-sm sm:text-base text-foreground placeholder:text-muted/70
               focus:shadow-[0_0_20px_rgba(247,147,26,0.15)]
@@ -183,6 +211,37 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
             </motion.button>
           )}
         </div>
+        {/* Address autocomplete dropdown */}
+        {isOpen && suggestions.length > 0 && (
+          <ul
+            id="address-suggestions"
+            ref={dropdownRef}
+            role="listbox"
+            className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border border-card-border
+              bg-surface-elevated/95 backdrop-blur-lg shadow-xl overflow-hidden"
+          >
+            {suggestions.map((addr, i) => (
+              <li
+                key={addr}
+                id={`suggestion-${i}`}
+                role="option"
+                aria-selected={i === selectedIndex}
+                onMouseDown={(e) => {
+                  e.preventDefault(); // Prevent blur before click registers
+                  setValue(addr);
+                  closeSuggestions();
+                  submit(addr);
+                }}
+                onMouseEnter={() => selectIndex(i)}
+                className={`px-4 py-2.5 font-mono text-xs sm:text-sm cursor-pointer transition-colors
+                  ${i === selectedIndex ? "bg-bitcoin/15 text-foreground" : "text-muted hover:bg-surface-inset hover:text-foreground"}`}
+              >
+                <span className="text-bitcoin">{addr.slice(0, value.trim().length)}</span>
+                <span>{addr.slice(value.trim().length)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
       {error && (
         <p data-testid="input-error" id="input-error" role="alert" className="text-danger text-sm mt-2 text-center">

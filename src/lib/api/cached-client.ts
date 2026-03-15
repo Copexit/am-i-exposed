@@ -163,5 +163,9 @@ export function createCachedMempoolClient(
         (price) => price !== null ? undefined : -1,
       );
     },
+
+    getAddressPrefix(prefix: string) {
+      return inner.getAddressPrefix(prefix);
+    },
   };
 }
