@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import { Text } from "@visx/text";
 import { SVG_COLORS } from "../shared/svgConstants";
 import { formatSats } from "@/lib/format";
@@ -154,7 +154,7 @@ function PortRow({
   );
 }
 
-export function ExpandedNode({
+export const ExpandedNode = memo(function ExpandedNode({
   node,
   graphNodes,
   outspends,
@@ -317,4 +317,4 @@ export function ExpandedNode({
       />
     </g>
   );
-}
+});

@@ -580,6 +580,41 @@ export function GraphCanvas({
                   {`${edge.consolidationCount} outputs`}
                 </Text>
               )}
+              {/* Deterministic link badge (100%) - only on root tx edges with Boltzmann data */}
+              {!isConsolidation && rootBoltzmannResult?.deterministicLinks && edge.fromTxid === rootTxid && edge.outputIndices?.length === 1 && (() => {
+                const outIdx = edge.outputIndices![0];
+                const isDeterministic = rootBoltzmannResult.deterministicLinks.some(
+                  ([oi]) => oi === outIdx,
+                );
+                if (!isDeterministic) return null;
+                return (
+                  <g style={{ pointerEvents: "none" }}>
+                    <rect
+                      x={midX - 16}
+                      y={(edge.y1 + edge.y2) / 2 - 10}
+                      width={32}
+                      height={14}
+                      rx={3}
+                      fill="#0c0c0e"
+                      fillOpacity={0.8}
+                      stroke={SVG_COLORS.critical}
+                      strokeWidth={0.5}
+                      strokeOpacity={0.6}
+                    />
+                    <Text
+                      x={midX}
+                      y={(edge.y1 + edge.y2) / 2}
+                      textAnchor="middle"
+                      fontSize={8}
+                      fontWeight={700}
+                      fill={SVG_COLORS.critical}
+                      fillOpacity={isDimmedByHover ? 0.2 : 0.9}
+                    >
+                      100%
+                    </Text>
+                  </g>
+                );
+              })()}
             </g>
           );
         })}
