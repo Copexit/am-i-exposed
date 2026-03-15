@@ -9,6 +9,7 @@
 
 import type { GraphNode } from "@/hooks/useGraphExpansion";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
+import { getSpendingIndex } from "./portLayout";
 
 /** A single hop in a deterministic chain. */
 export interface DetChainHop {
@@ -41,6 +42,7 @@ export function computeDeterministicChains(
 ): DetChain[] {
   const chains: DetChain[] = [];
   const visited = new Set<string>(); // avoid duplicate chains
+  const spendingIdx = getSpendingIndex(nodes);
 
   for (const [txid, boltz] of boltzmannCache) {
     if (!boltz.deterministicLinks?.length) continue;
@@ -58,22 +60,10 @@ export function computeDeterministicChains(
 
       // Follow the chain forward
       while (true) {
-        // Find the child tx that spends this output
-        let childTxid: string | null = null;
-        let childInputIdx = -1;
-
-        for (const [candidateTxid, candidateNode] of nodes) {
-          if (candidateTxid === currentTxid) continue;
-          for (let i = 0; i < candidateNode.tx.vin.length; i++) {
-            const vin = candidateNode.tx.vin[i];
-            if (vin.txid === currentTxid && vin.vout === currentOutIdx) {
-              childTxid = candidateTxid;
-              childInputIdx = i;
-              break;
-            }
-          }
-          if (childTxid) break;
-        }
+        // O(1) lookup via spending index instead of O(n^2) scan
+        const spender = spendingIdx.get(`${currentTxid}:${currentOutIdx}`);
+        const childTxid = spender?.spenderTxid ?? null;
+        const childInputIdx = spender?.inputIdx ?? -1;
 
         if (!childTxid || childInputIdx < 0) break;
 

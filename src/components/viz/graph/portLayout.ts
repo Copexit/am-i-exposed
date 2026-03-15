@@ -2,6 +2,32 @@ import { PORT_H, PORT_GAP, EXPANDED_HEADER_H, EXPANDED_PAD_V, MAX_VISIBLE_PORTS 
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { GraphNode, PortLayout, PortPositionMap } from "./types";
 
+/**
+ * Pre-built spending index: maps "${txid}:${vout}" to the spender node info.
+ * Avoids O(n*m) scans when checking if an output is consumed by any node.
+ */
+export type SpendingIndex = Map<string, { spenderTxid: string; inputIdx: number }>;
+
+/** Cached spending index - invalidated when graph nodes identity changes. */
+let _spendingIndexNodes: Map<string, GraphNode> | null = null;
+let _spendingIndex: SpendingIndex = new Map();
+
+/** Build (or return cached) spending index from graph nodes. */
+export function getSpendingIndex(graphNodes: Map<string, GraphNode>): SpendingIndex {
+  if (_spendingIndexNodes === graphNodes) return _spendingIndex;
+  _spendingIndexNodes = graphNodes;
+  _spendingIndex = new Map();
+  for (const [txid, node] of graphNodes) {
+    for (let i = 0; i < node.tx.vin.length; i++) {
+      const vin = node.tx.vin[i];
+      if (vin.is_coinbase) continue;
+      const key = `${vin.txid}:${vin.vout}`;
+      _spendingIndex.set(key, { spenderTxid: txid, inputIdx: i });
+    }
+  }
+  return _spendingIndex;
+}
+
 /** Calculate the height of an expanded node based on its port count. */
 export function calcExpandedHeight(tx: MempoolTransaction): number {
   const portCount = Math.max(tx.vin.length, tx.vout.length);
@@ -63,15 +89,15 @@ export function buildOutputPorts(
   const ports: PortLayout[] = [];
   const count = Math.min(tx.vout.length, MAX_VISIBLE_PORTS);
 
+  const spendingIdx = getSpendingIndex(graphNodes);
+
   for (let i = 0; i < count; i++) {
     const vout = tx.vout[i];
     const os = outspends?.[i];
     const spentByTxid = os?.spent ? os.txid : undefined;
     const isInGraph = spentByTxid ? graphNodes.has(spentByTxid) : false;
-    // Check if any node in the graph has a parentEdge from this tx:output
-    const isConsumed = isInGraph || Array.from(graphNodes.values()).some(
-      (n) => n.tx.vin.some((v) => v.txid === tx.txid && v.vout === i),
-    );
+    // O(1) lookup instead of O(n*m) scan
+    const isConsumed = isInGraph || spendingIdx.has(`${tx.txid}:${i}`);
 
     ports.push({
       index: i,
