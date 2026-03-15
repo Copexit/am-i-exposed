@@ -420,6 +420,10 @@ function pickTool(
       if (w.includes("ashigaru")) return undefined;
       return { name: "Sparrow Wallet", url: "https://sparrowwallet.com" };
     case "payjoin":
+      // Recommend a PayJoin/Stowaway wallet the user doesn't already have
+      if (w.includes("cake")) return { name: "Bull Bitcoin", url: "https://www.bullbitcoin.com/wallet" };
+      if (w.includes("bull")) return { name: "Cake Wallet", url: "https://cakewallet.com" };
+      if (w.includes("ashigaru") || w.includes("samourai")) return { name: "Cake Wallet", url: "https://cakewallet.com" };
       return { name: "Cake Wallet", url: "https://cakewallet.com" };
     case "lightning":
       return { name: "Phoenix", url: "https://phoenix.acinq.co" };
