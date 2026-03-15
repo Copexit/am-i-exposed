@@ -451,18 +451,25 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
         return;
       }
 
-      // No expandable output found
-      const allUnspent = outspends.every((os) => !os?.spent);
-      dispatch({
-        type: "SET_ERROR",
-        txid: loadKey,
-        error: allUnspent ? "Output not yet spent" : "All spent outputs already in graph",
-      });
+      // No expandable output found - determine the reason
+      let error: string;
+      if (total === 0) {
+        error = "Outspend data not available from this API";
+      } else if (outspends.every((os) => !os?.spent)) {
+        error = "Output not yet spent";
+      } else if (outspends.some((os) => os?.spent && !os.txid)) {
+        error = "Spending txids not available from this API";
+      } else {
+        error = "All spent outputs already in graph";
+      }
+      dispatch({ type: "SET_ERROR", txid: loadKey, error });
     } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to fetch";
+      const isNotFound = msg.includes("404") || msg.includes("not found");
       dispatch({
         type: "SET_ERROR",
         txid: loadKey,
-        error: err instanceof Error ? err.message : "Failed to fetch",
+        error: isNotFound ? "Outspend endpoint not available from this API" : msg,
       });
     } finally {
       dispatch({ type: "SET_LOADING", txid: loadKey, loading: false });
