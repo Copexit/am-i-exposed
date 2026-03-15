@@ -54,7 +54,7 @@ export function enhanceEntropyFinding(
       entropyPerUtxo: roundTo(entropyBits / nUtxos),
       nUtxos,
       deterministicLinks: boltzmann.deterministicLinks.length,
-      efficiency: roundTo(boltzmann.efficiency * 100, 2),
+      efficiency: roundTo(Math.min(boltzmann.efficiency, 1) * 100, 2),
     },
     description:
       `This transaction has ${roundedEntropy} bits of entropy (via WASM Boltzmann), meaning there are ` +

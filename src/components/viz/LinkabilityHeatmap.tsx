@@ -218,7 +218,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
           {/* Complete - results */}
           {state.status === "complete" && state.result && (() => {
             const result = state.result;
-            const effPct = result.efficiency * 100;
+            const effPct = Math.min(result.efficiency, 1) * 100;
 
             return (
               <>

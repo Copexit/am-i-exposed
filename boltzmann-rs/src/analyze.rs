@@ -73,9 +73,10 @@ pub fn analyze(
     // Compute perfect CoinJoin combination count for efficiency
     let nb_cmbn_prfct_cj = compute_nb_cmbn_prfct_cj(n_out, n_in);
 
-    // Compute efficiency
+    // Compute efficiency (clamped to [0, 1] - can exceed 1.0 for non-CoinJoin
+    // transactions where the actual combinations exceed the "perfect CJ" baseline)
     let efficiency = if nb_cmbn_prfct_cj > 0 && final_result.nb_cmbn > 0 {
-        final_result.nb_cmbn as f64 / nb_cmbn_prfct_cj as f64
+        (final_result.nb_cmbn as f64 / nb_cmbn_prfct_cj as f64).min(1.0)
     } else {
         0.0
     };
@@ -415,7 +416,7 @@ pub fn finalize_result(
     let nb_cmbn_prfct_cj = compute_nb_cmbn_prfct_cj(n_out, n_in);
 
     let efficiency = if nb_cmbn_prfct_cj > 0 && result.nb_cmbn > 0 {
-        result.nb_cmbn as f64 / nb_cmbn_prfct_cj as f64
+        (result.nb_cmbn as f64 / nb_cmbn_prfct_cj as f64).min(1.0)
     } else {
         0.0
     };
