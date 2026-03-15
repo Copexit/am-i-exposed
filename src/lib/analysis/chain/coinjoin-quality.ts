@@ -3,6 +3,7 @@ import type { Finding } from "@/lib/types";
 import { truncateId } from "@/lib/constants";
 import { fmtN } from "@/lib/format";
 import { isCoinJoinTx } from "../heuristics/coinjoin";
+import { getSpendableOutputs } from "../heuristics/tx-utils";
 
 /**
  * CoinJoin break detection - evaluate post-mix spending quality.
@@ -142,7 +143,7 @@ export function evaluateCoinJoinQuality(
   }
 
   // Check 5: Change is small relative to payment (if 2 outputs)
-  const spendable = tx.vout.filter((o) => !o.scriptpubkey.startsWith("6a"));
+  const spendable = getSpendableOutputs(tx.vout);
   if (spendable.length === 2) {
     const [v1, v2] = [spendable[0].value, spendable[1].value];
     const smaller = Math.min(v1, v2);

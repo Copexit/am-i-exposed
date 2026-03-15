@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useRef, useEffect, useCallback } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { Sankey } from "@visx/sankey";
 import { Group } from "@visx/group";
@@ -10,9 +10,10 @@ import { useTranslation } from "react-i18next";
 import { SVG_COLORS, SEVERITY_HEX, GRADIENT_COLORS, DUST_THRESHOLD, ANIMATION_DEFAULTS } from "./shared/svgConstants";
 import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
-import { probColor, probColorRgba } from "./shared/linkabilityColors";
-import { formatSats, formatUsdValue, calcFeeRate, calcVsize } from "@/lib/format";
+import { probColor } from "./shared/linkabilityColors";
+import { formatSats, formatUsdValue, calcFeeRate } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
+import { useFullscreen } from "@/hooks/useFullscreen";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { BoltzmannWorkerResult } from "@/hooks/useBoltzmann";
 import type { Finding } from "@/lib/types";
@@ -466,7 +467,7 @@ function FlowChart({
           nodeId={(d) => d.id}
           iterations={32}
         >
-          {({ graph: computed, createPath }) => {
+          {({ graph: computed }) => {
             // Build node lookup for link gradient colors
             const nodeMap = new Map<string, NodeDatum>();
             for (const node of (computed.nodes ?? [])) {
@@ -510,8 +511,8 @@ function FlowChart({
 
               {/* Links - rendered as filled band shapes instead of stroked center
                   lines. d3-sankey relaxation can assign width=0 to valid links,
-                  and createPath produces a zero-area path for those. Filled bands
-                  with a minimum thickness guarantee every link is visible. */}
+                  producing zero-area paths. Filled bands with a minimum thickness
+                  guarantee every link is visible. */}
               {/* Scale animation timing: cap total stagger window at ~1.5s regardless of link count */}
               {(computed.links ?? []).map((link, i) => {
                 const linkObj = link as unknown as { width: number; value: number; y0: number; y1: number };
@@ -841,7 +842,7 @@ export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspend
   const { t, i18n } = useTranslation();
   const [showAllInputs, setShowAllInputs] = useState(false);
   const [showAllOutputs, setShowAllOutputs] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const { isExpanded, expand, collapse } = useFullscreen();
   const [linkabilityMode, setLinkabilityMode] = useState(!!isCoinJoinOverride);
   const hasLinkability = !!boltzmannResult;
 
@@ -851,22 +852,6 @@ export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspend
   const chartHeight = Math.max(160, maxSide * 40 + 40);
   const MAX_VISIBLE_HEIGHT = 500;
   const needsScroll = chartHeight > MAX_VISIBLE_HEIGHT;
-
-  // Close on Escape key
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === "Escape") setIsExpanded(false);
-  }, []);
-
-  useEffect(() => {
-    if (isExpanded) {
-      document.addEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.removeEventListener("keydown", handleKeyDown);
-        document.body.style.overflow = "";
-      };
-    }
-  }, [isExpanded, handleKeyDown]);
 
   return (
     <>
@@ -903,7 +888,7 @@ export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspend
               )}
             </span>
             <button
-              onClick={() => { setShowAllInputs(true); setShowAllOutputs(true); setIsExpanded(true); }}
+              onClick={() => { setShowAllInputs(true); setShowAllOutputs(true); expand(); }}
               className="text-muted hover:text-foreground transition-colors p-0.5 rounded cursor-pointer"
               title={t("viz.flow.expand", { defaultValue: "Expand to full view" })}
               aria-label={t("viz.flow.expand", { defaultValue: "Expand to full view" })}
@@ -964,7 +949,7 @@ export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspend
           aria-modal="true"
           aria-label={t("viz.flow.fullscreen", { defaultValue: "Transaction flow fullscreen" })}
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col"
-          onClick={(e) => { if (e.target === e.currentTarget) setIsExpanded(false); }}
+          onClick={(e) => { if (e.target === e.currentTarget) collapse(); }}
         >
           <div className="flex items-center justify-between p-4 text-sm text-muted">
             <span>{t("tx.inputCount", { count: tx.vin.length, defaultValue: `${tx.vin.length} inputs` })}</span>
@@ -972,7 +957,7 @@ export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspend
             <div className="flex items-center gap-3">
               <span>{t("tx.outputCount", { count: tx.vout.length, defaultValue: `${tx.vout.length} outputs` })}</span>
               <button
-                onClick={() => setIsExpanded(false)}
+                onClick={collapse}
                 className="text-muted hover:text-foreground transition-colors p-1.5 rounded-lg hover:bg-surface-inset"
                 aria-label={t("common.close", { defaultValue: "Close" })}
               >

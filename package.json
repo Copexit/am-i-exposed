@@ -35,7 +35,6 @@
     "d3-sankey": "^0.12.3",
     "d3-shape": "^3.2.0",
     "i18next": "^25.8.11",
-    "i18next-browser-languagedetector": "^8.2.1",
     "i18next-http-backend": "^3.0.2",
     "lucide-react": "^0.564.0",
     "motion": "^12.33.0",
