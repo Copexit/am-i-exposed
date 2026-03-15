@@ -164,6 +164,8 @@ export interface GraphCanvasProps extends GraphExplorerProps {
   linkabilityEdgeMode?: boolean;
   /** Fingerprint mode: encode locktime (node shape) and version (node fill). */
   fingerprintMode?: boolean;
+  /** Entropy gradient mode: color edges by effective (bottleneck) entropy across hops. */
+  entropyGradientMode?: boolean;
   /** Change-marked output keys: "${txid}:${outputIndex}". Edges from these render orange. */
   changeOutputs?: Set<string>;
   /** Called after layout with visible node count (avoids redundant layout computation). */

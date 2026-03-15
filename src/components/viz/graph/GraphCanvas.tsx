@@ -16,6 +16,9 @@ import { getScriptTypeColor, getScriptTypeDash, getEdgeThickness, isTimestampLoc
 import { buildPortPositionMap } from "./portLayout";
 import { GraphMinimap } from "./GraphMinimap";
 import { ExpandedNode } from "./ExpandedNode";
+import { computeDeterministicChains, buildDetChainEdgeSet } from "./deterministicChains";
+import { detectToxicMerges, buildToxicMergeSet } from "./toxicChange";
+import { computeEntropyPropagation, entropyColor } from "./privacyGradient";
 import type { GraphCanvasProps, LayoutNode } from "./types";
 
 export function GraphCanvas({
@@ -47,6 +50,7 @@ export function GraphCanvas({
   onViewTransformChange,
   linkabilityEdgeMode,
   fingerprintMode,
+  entropyGradientMode,
   changeOutputs,
   rootBoltzmannResult,
   expandedNodeTxid,
@@ -118,6 +122,25 @@ export function GraphCanvas({
     }
     return { maxEdgeValue: maxVal, edgeScriptInfo: info };
   }, [edges, nodes]);
+
+  // Compute deterministic link chains for overlay rendering
+  const detChainEdges = useMemo(() => {
+    if (!boltzmannCache || boltzmannCache.size === 0) return new Set<string>();
+    const chains = computeDeterministicChains(nodes, boltzmannCache);
+    return buildDetChainEdgeSet(chains);
+  }, [nodes, boltzmannCache]);
+
+  // Compute entropy propagation (effective entropy per edge)
+  const entropyEdges = useMemo(() => {
+    if (!entropyGradientMode || !boltzmannCache || boltzmannCache.size === 0) return null;
+    return computeEntropyPropagation(nodes, rootTxid, boltzmannCache);
+  }, [entropyGradientMode, nodes, rootTxid, boltzmannCache]);
+
+  // Detect toxic change merges (CoinJoin change spent with mixed output)
+  const toxicMergeNodes = useMemo(() => {
+    const merges = detectToxicMerges(nodes);
+    return buildToxicMergeSet(merges);
+  }, [nodes]);
 
   const svgWidth = Math.max(containerWidth, width);
   const svgHeight = Math.max(isFullscreen ? (containerHeight ?? height) : height, 150);
@@ -594,9 +617,14 @@ export function GraphCanvas({
           // Check if this edge carries dust-level value
           const isDust = scriptInfo && scriptInfo.value > 0 && scriptInfo.value <= DUST_THRESHOLD;
 
-          const strokeColor = linkabilityColor
+          // Entropy gradient mode: override edge color with effective entropy
+          const entropyEntry = entropyEdges?.get(edgeKey);
+          const entropyColorVal = entropyEntry ? entropyColor(entropyEntry.normalized) : null;
+
+          const strokeColor = entropyColorVal
+            ?? linkabilityColor
             ?? (isChangeMarked ? "#f97316" : (isConsolidation ? SVG_COLORS.critical : (scriptColor ?? SVG_COLORS.muted)));
-          let strokeOpacity = linkabilityColor ? (0.3 + linkabilityMaxProb * 0.7) : (isChangeMarked ? 0.8 : (isConsolidation ? 0.6 : (scriptColor ? 0.55 : 0.35)));
+          let strokeOpacity = entropyColorVal ? (0.4 + entropyEntry!.normalized * 0.5) : (linkabilityColor ? (0.3 + linkabilityMaxProb * 0.7) : (isChangeMarked ? 0.8 : (isConsolidation ? 0.6 : (scriptColor ? 0.55 : 0.35))));
           let strokeWidth = linkabilityColor ? 2.5 : (isChangeMarked ? 3 : (isConsolidation ? 2.5 : (scriptThickness ?? 1.5)));
           // Dust edges: very dim and thin
           if (isDust && !linkabilityColor && !isChangeMarked) {
@@ -738,6 +766,30 @@ export function GraphCanvas({
             </g>
           );
         })()}
+
+        {/* Deterministic chain overlay - bold red lines for multi-hop certainty traces */}
+        {detChainEdges.size > 0 && edges.filter((e) => detChainEdges.has(`e-${e.fromTxid}-${e.toTxid}`)).map((edge) => {
+          const edgeKey = `detchain-${edge.fromTxid}-${edge.toTxid}`;
+          const hasPortRouting = expandedNodeTxid && (edge.fromTxid === expandedNodeTxid || edge.toTxid === expandedNodeTxid);
+          const d = hasPortRouting
+            ? portAwareEdgePath(edge, portPositions, nodes as Map<string, { tx: { vin: Array<{ txid: string; vout: number }> } }>)
+            : edgePath(edge);
+          return (
+            <g key={edgeKey} style={{ pointerEvents: "none" }}>
+              <path d={d} fill="none" stroke={SVG_COLORS.critical} strokeWidth={5} strokeOpacity={0.15} filter="url(#glow-medium)" />
+              <motion.path
+                d={d}
+                fill="none"
+                stroke={SVG_COLORS.critical}
+                strokeWidth={2.5}
+                strokeOpacity={0.7}
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: 0.6 }}
+              />
+            </g>
+          );
+        })}
 
         {/* Nodes */}
         {layoutNodes.map((node) => {
@@ -905,6 +957,56 @@ export function GraphCanvas({
                   <text x="6" y="9" textAnchor="middle" fontSize="7" fontWeight="bold" fill="#0c0c0e">!</text>
                 </g>
               )}
+
+              {/* Toxic change merge badge */}
+              {toxicMergeNodes.has(node.txid) && (
+                <g transform={`translate(${node.x + node.width - (node.entityOfac ? 38 : 24)}, ${node.y + 4})`}>
+                  <rect width={16} height={12} rx={2} fill="#ef4444" fillOpacity={0.3} stroke="#ef4444" strokeWidth={0.5} strokeOpacity={0.6} />
+                  <text x={8} y={9} textAnchor="middle" fontSize="7" fontWeight="bold" fill="#ef4444" fillOpacity={0.9}>TX</text>
+                </g>
+              )}
+
+              {/* Privacy score sparkline (tiny severity bars) */}
+              {heatMapActive && heatMap.has(node.txid) && (() => {
+                const sr = heatMap.get(node.txid)!;
+                const sevCounts = { critical: 0, high: 0, medium: 0, low: 0, good: 0 };
+                for (const f of sr.findings) {
+                  if (f.severity in sevCounts) sevCounts[f.severity as keyof typeof sevCounts]++;
+                }
+                const bars = [
+                  { count: sevCounts.critical, color: SVG_COLORS.critical },
+                  { count: sevCounts.high, color: SVG_COLORS.high },
+                  { count: sevCounts.medium, color: SVG_COLORS.medium },
+                  { count: sevCounts.low, color: SVG_COLORS.low },
+                  { count: sevCounts.good, color: SVG_COLORS.good },
+                ].filter((b) => b.count > 0);
+                const maxCount = Math.max(...bars.map((b) => b.count), 1);
+                const barW = 3;
+                const barGap = 1;
+                const totalW = bars.length * (barW + barGap) - barGap;
+                const startX = node.x + node.width - totalW - 6;
+                const maxH = 16;
+                const baseY = node.y + node.height - 4;
+                return (
+                  <g style={{ pointerEvents: "none" }}>
+                    {bars.map((b, bi) => {
+                      const h = Math.max(2, (b.count / maxCount) * maxH);
+                      return (
+                        <rect
+                          key={bi}
+                          x={startX + bi * (barW + barGap)}
+                          y={baseY - h}
+                          width={barW}
+                          height={h}
+                          rx={0.5}
+                          fill={b.color}
+                          fillOpacity={0.6}
+                        />
+                      );
+                    })}
+                  </g>
+                );
+              })()}
 
               {/* Heat map score */}
               {heatMapActive && heatScore !== undefined && (
