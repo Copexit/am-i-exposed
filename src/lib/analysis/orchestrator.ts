@@ -46,8 +46,7 @@ import { matchEntitySync } from "./entity-filter/entity-match";
 import { getEntity } from "./entities";
 import { applyCrossHeuristicRules, classifyTransactionType } from "./cross-heuristic";
 
-// Re-export from split modules for backward compatibility
-export { applyCrossHeuristicRules, classifyTransactionType } from "./cross-heuristic";
+export { classifyTransactionType } from "./cross-heuristic";
 export { analyzeTransactionsForAddress, analyzeDestination } from "./address-orchestrator";
 export type { PreSendResult } from "./address-orchestrator";
 
@@ -164,8 +163,9 @@ export async function analyzeTransaction(
       // Report cumulative impact so the UI can show a running score
       const stepImpact = sumImpact(result.findings);
       onStep?.(heuristic.id, stepImpact);
-    } catch {
+    } catch (err) {
       // A single heuristic failure should not crash the entire analysis
+      console.error(`[analyzeTransaction] ${heuristic.id} failed:`, err);
       onStep?.(heuristic.id, 0);
     }
   }
@@ -199,7 +199,8 @@ export async function analyzeAddress(
 
       const stepImpact = sumImpact(result.findings);
       onStep?.(heuristic.id, stepImpact);
-    } catch {
+    } catch (err) {
+      console.error(`[analyzeAddress] ${heuristic.id} failed:`, err);
       onStep?.(heuristic.id, 0);
     }
   }

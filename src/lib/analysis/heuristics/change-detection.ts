@@ -2,7 +2,7 @@ import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import type { MempoolVin, MempoolVout } from "@/lib/api/types";
 import { getAddressType } from "@/lib/bitcoin/address-type";
-import { isRoundAmount, isRoundUsdAmount, isRoundEurAmount, ROUND_USD_TOLERANCE_DEFAULT, ROUND_USD_TOLERANCE_SELF_HOSTED } from "./round-amount";
+import { isRoundAmount, getMatchingRoundFiat, ROUND_USD_TOLERANCE_DEFAULT, ROUND_USD_TOLERANCE_SELF_HOSTED } from "./round-amount";
 import { isCoinbase, getAddressedOutputs } from "./tx-utils";
 
 /**
@@ -462,9 +462,8 @@ function checkRoundFiatAmount(
   signals: string[],
   tolerancePct: number = ROUND_USD_TOLERANCE_DEFAULT,
 ) {
-  const isRound = currency === "usd" ? isRoundUsdAmount : isRoundEurAmount;
-  const round0 = isRound(vout[0].value, fiatPerBtc, tolerancePct);
-  const round1 = isRound(vout[1].value, fiatPerBtc, tolerancePct);
+  const round0 = getMatchingRoundFiat(vout[0].value, fiatPerBtc, tolerancePct) !== null;
+  const round1 = getMatchingRoundFiat(vout[1].value, fiatPerBtc, tolerancePct) !== null;
   const label = currency.toUpperCase();
 
   // If exactly one output is a round fiat amount, the other is likely change

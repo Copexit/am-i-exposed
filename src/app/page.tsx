@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, lazy, Suspense, useCallback } from "react";
+import { useEffect, useRef, useState, lazy, Suspense, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import { ShieldCheck, ShieldAlert, AlertCircle, ArrowLeft, EyeOff, Github } from "lucide-react";
@@ -347,6 +347,17 @@ export default function Home() {
   if (pendingHash && (phase !== "idle" || walletActive)) {
     setPendingHash(false);
   }
+
+  // Compute xpub address count for the privacy warning dialog
+  const xpubAddressCount = useMemo(() => {
+    if (!pendingXpub) return 40;
+    try {
+      const d = parseAndDerive(pendingXpub, 20);
+      return d.receiveAddresses.length + d.changeAddresses.length;
+    } catch {
+      return 40;
+    }
+  }, [pendingXpub]);
 
   // Aria-live announcements for screen readers during phase transitions
   const ariaStatus =
@@ -712,14 +723,7 @@ export default function Home() {
       {/* Xpub privacy warning dialog */}
       {pendingXpub && (
         <XpubPrivacyWarning
-          addressCount={(() => {
-            try {
-              const d = parseAndDerive(pendingXpub, 20);
-              return d.receiveAddresses.length + d.changeAddresses.length;
-            } catch {
-              return 40;
-            }
-          })()}
+          addressCount={xpubAddressCount}
           apiEndpoint={config.mempoolBaseUrl.replace(/^https?:\/\//, "").replace(/\/api\/?$/, "")}
           onConfirm={handleXpubConfirm}
           onCancel={handleXpubCancel}

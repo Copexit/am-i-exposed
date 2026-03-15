@@ -92,7 +92,7 @@ export const analyzeRoundAmounts: TxHeuristic = (tx, _rawHex?, ctx?) => {
   const roundUsdOutputs: Array<{ index: number; usd: number }> = [];
   if (ctx?.usdPrice) {
     for (let i = 0; i < outputs.length; i++) {
-      const usdMatch = getMatchingRoundUsd(outputs[i].value, ctx.usdPrice, tol);
+      const usdMatch = getMatchingRoundFiat(outputs[i].value, ctx.usdPrice, tol);
       if (usdMatch !== null) {
         roundUsdOutputs.push({ index: i, usd: usdMatch });
         fiatMatchedIndices.add(i);
@@ -104,7 +104,7 @@ export const analyzeRoundAmounts: TxHeuristic = (tx, _rawHex?, ctx?) => {
   const roundEurOutputs: Array<{ index: number; eur: number }> = [];
   if (ctx?.eurPrice) {
     for (let i = 0; i < outputs.length; i++) {
-      const eurMatch = getMatchingRoundEur(outputs[i].value, ctx.eurPrice, tol);
+      const eurMatch = getMatchingRoundFiat(outputs[i].value, ctx.eurPrice, tol);
       if (eurMatch !== null) {
         roundEurOutputs.push({ index: i, eur: eurMatch });
         fiatMatchedIndices.add(i);
@@ -212,36 +212,3 @@ export function getMatchingRoundFiat(
   return null;
 }
 
-/** Check if a satoshi value corresponds to a round USD amount at the given price. */
-export function getMatchingRoundUsd(
-  sats: number,
-  usdPerBtc: number,
-  tolerancePct: number = ROUND_USD_TOLERANCE_DEFAULT,
-): number | null {
-  return getMatchingRoundFiat(sats, usdPerBtc, tolerancePct);
-}
-
-export function isRoundUsdAmount(
-  sats: number,
-  usdPerBtc: number,
-  tolerancePct: number = ROUND_USD_TOLERANCE_DEFAULT,
-): boolean {
-  return getMatchingRoundFiat(sats, usdPerBtc, tolerancePct) !== null;
-}
-
-/** Check if a satoshi value corresponds to a round EUR amount at the given price. */
-export function getMatchingRoundEur(
-  sats: number,
-  eurPerBtc: number,
-  tolerancePct: number = ROUND_USD_TOLERANCE_DEFAULT,
-): number | null {
-  return getMatchingRoundFiat(sats, eurPerBtc, tolerancePct);
-}
-
-export function isRoundEurAmount(
-  sats: number,
-  eurPerBtc: number,
-  tolerancePct: number = ROUND_USD_TOLERANCE_DEFAULT,
-): boolean {
-  return getMatchingRoundFiat(sats, eurPerBtc, tolerancePct) !== null;
-}

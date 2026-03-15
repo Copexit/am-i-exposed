@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore, useCallback } from "react";
+import { createLocalStorageStore } from "./createLocalStorageStore";
 
 export interface Bookmark {
   input: string;
@@ -11,40 +12,20 @@ export interface Bookmark {
   savedAt: number;
 }
 
-const STORAGE_KEY = "bookmarks";
-
-// Cache to ensure referential stability for useSyncExternalStore
-let cachedJson = "";
-let cachedBookmarks: Bookmark[] = [];
-const EMPTY: Bookmark[] = [];
-
-function subscribe(callback: () => void) {
-  window.addEventListener("storage", callback);
-  return () => window.removeEventListener("storage", callback);
-}
-
-function getSnapshot(): Bookmark[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY) ?? "";
-    if (stored === cachedJson) return cachedBookmarks;
-    cachedJson = stored;
-    const parsed = stored ? JSON.parse(stored) : [];
-    cachedBookmarks = Array.isArray(parsed) ? parsed : [];
-    return cachedBookmarks;
-  } catch {
-    return EMPTY;
-  }
-}
-
-function getServerSnapshot(): Bookmark[] {
-  return EMPTY;
-}
+const store = createLocalStorageStore<Bookmark[]>(
+  "bookmarks",
+  [],
+  (raw) => {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  },
+);
 
 export function useBookmarks() {
   const bookmarks = useSyncExternalStore(
-    subscribe,
-    getSnapshot,
-    getServerSnapshot,
+    store.subscribe,
+    store.getSnapshot,
+    store.getServerSnapshot,
   );
 
   const isBookmarked = useCallback(
@@ -54,41 +35,35 @@ export function useBookmarks() {
 
   const addBookmark = useCallback(
     (bookmark: Omit<Bookmark, "savedAt">) => {
-      const existing = getSnapshot();
+      const existing = store.getSnapshot();
       // Remove duplicate if exists
       const filtered = existing.filter((b) => b.input !== bookmark.input);
       const updated = [{ ...bookmark, savedAt: Date.now() }, ...filtered];
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch { /* storage full / private browsing */ }
-      window.dispatchEvent(new StorageEvent("storage"));
+      store.set(updated);
     },
     [],
   );
 
   const removeBookmark = useCallback((input: string) => {
-    const existing = getSnapshot();
+    const existing = store.getSnapshot();
     const updated = existing.filter((b) => b.input !== input);
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch { /* storage full / private browsing */ }
-    window.dispatchEvent(new StorageEvent("storage"));
+    store.set(updated);
   }, []);
 
   const updateLabel = useCallback((input: string, label: string) => {
-    const existing = getSnapshot();
+    const existing = store.getSnapshot();
     const updated = existing.map((b) =>
       b.input === input ? { ...b, label: label || undefined } : b,
     );
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch { /* storage full / private browsing */ }
-    window.dispatchEvent(new StorageEvent("storage"));
+    store.set(updated);
   }, []);
 
   const clearBookmarks = useCallback(() => {
-    try { localStorage.removeItem(STORAGE_KEY); } catch { /* private browsing */ }
-    cachedJson = "";
-    cachedBookmarks = [];
-    window.dispatchEvent(new StorageEvent("storage"));
+    store.remove();
   }, []);
 
   const exportBookmarks = useCallback(() => {
-    const data = getSnapshot();
+    const data = store.getSnapshot();
     const json = JSON.stringify(data, null, 2);
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -121,7 +96,7 @@ export function useBookmarks() {
       );
       if (valid.length === 0) return { imported: 0, error: "no_valid_entries" };
 
-      const existing = getSnapshot();
+      const existing = store.getSnapshot();
       const byInput = new Map(existing.map((b) => [b.input, b]));
       let importedCount = 0;
       for (const entry of valid) {
@@ -135,11 +110,10 @@ export function useBookmarks() {
         (a, b) => b.savedAt - a.savedAt,
       );
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+        store.set(merged);
       } catch {
         return { imported: 0, error: "storage_full" };
       }
-      window.dispatchEvent(new StorageEvent("storage"));
       return { imported: importedCount };
     },
     [],

@@ -1,32 +1,33 @@
 import { describe, it, expect } from "vitest";
 import { analyzePostMix } from "../post-mix";
-import type { MempoolTransaction } from "@/lib/api/types";
+import {
+  makeTx,
+  makeVin,
+  makeVout,
+} from "./fixtures/tx-factory";
 
-function makeTx(overrides: Partial<MempoolTransaction> = {}): MempoolTransaction {
-  return {
-    txid: "aaa",
-    version: 2,
-    locktime: 0,
-    size: 250,
-    weight: 800,
-    fee: 500,
-    vin: [],
-    vout: [],
-    status: { confirmed: true, block_height: 800000, block_hash: "abc", block_time: 1700000000 },
-    ...overrides,
-  } as MempoolTransaction;
+function makeVinObj(txid: string, vout: number, addr: string, value: number) {
+  return makeVin({
+    txid,
+    vout,
+    prevout: {
+      scriptpubkey: "0014aa",
+      scriptpubkey_asm: "",
+      scriptpubkey_type: "v0_p2wpkh",
+      scriptpubkey_address: addr,
+      value,
+    },
+  });
 }
 
-function makeVinObj(txid: string, vout: number, addr: string, value: number): MempoolTransaction["vin"][0] {
-  return {
-    txid, vout, is_coinbase: false,
-    prevout: { scriptpubkey: "0014aa", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: addr, value },
-    scriptsig: "", scriptsig_asm: "", witness: [], sequence: 0xfffffffd,
-  };
-}
-
-function makeVoutObj(addr: string, value: number): MempoolTransaction["vout"][0] {
-  return { scriptpubkey: "0014aa", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: addr, value };
+function makeVoutObj(addr: string, value: number) {
+  return makeVout({
+    scriptpubkey: "0014aa",
+    scriptpubkey_asm: "",
+    scriptpubkey_type: "v0_p2wpkh",
+    scriptpubkey_address: addr,
+    value,
+  });
 }
 
 // Helper: build a CoinJoin-like parent with 5+ equal outputs (Whirlpool style)

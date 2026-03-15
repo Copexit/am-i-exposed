@@ -10,6 +10,7 @@ export const SEVERITY_COLORS: Record<string, string> = {
   critical: "border-severity-critical/40 bg-severity-critical/5",
   high: "border-severity-high/40 bg-severity-high/5",
   medium: "border-severity-medium/40 bg-severity-medium/5",
+  low: "border-severity-low/40 bg-severity-low/5",
   good: "border-severity-good/40 bg-severity-good/5",
 };
 
@@ -18,6 +19,7 @@ export const SEVERITY_DOT: Record<string, string> = {
   critical: "bg-severity-critical",
   high: "bg-severity-high",
   medium: "bg-severity-medium",
+  low: "bg-severity-low",
   good: "bg-severity-good",
 };
 

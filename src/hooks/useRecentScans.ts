@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore, useCallback } from "react";
+import { createLocalStorageStore } from "./createLocalStorageStore";
 
 export interface RecentScan {
   input: string;
@@ -10,46 +11,27 @@ export interface RecentScan {
   timestamp: number;
 }
 
-const STORAGE_KEY = "recent-scans";
 const MAX_RECENT = 5;
 
-// Cache to ensure referential stability for useSyncExternalStore
-let cachedJson = "";
-let cachedScans: RecentScan[] = [];
-const EMPTY: RecentScan[] = [];
-
-function subscribe(callback: () => void) {
-  window.addEventListener("storage", callback);
-  return () => window.removeEventListener("storage", callback);
-}
-
-function getSnapshot(): RecentScan[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY) ?? "";
-    if (stored === cachedJson) return cachedScans;
-    cachedJson = stored;
-    const parsed = stored ? JSON.parse(stored) : [];
-    cachedScans = Array.isArray(parsed) ? parsed : [];
-    return cachedScans;
-  } catch {
-    return EMPTY;
-  }
-}
-
-function getServerSnapshot(): RecentScan[] {
-  return EMPTY;
-}
+const store = createLocalStorageStore<RecentScan[]>(
+  "recent-scans",
+  [],
+  (raw) => {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  },
+);
 
 export function useRecentScans() {
   const scans = useSyncExternalStore(
-    subscribe,
-    getSnapshot,
-    getServerSnapshot,
+    store.subscribe,
+    store.getSnapshot,
+    store.getServerSnapshot,
   );
 
   const addScan = useCallback(
     (scan: Omit<RecentScan, "timestamp">) => {
-      const existing = getSnapshot();
+      const existing = store.getSnapshot();
 
       // Remove duplicate if exists
       const filtered = existing.filter((s) => s.input !== scan.input);
@@ -59,17 +41,13 @@ export function useRecentScans() {
         ...filtered,
       ].slice(0, MAX_RECENT);
 
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch { /* storage full / private browsing */ }
-      window.dispatchEvent(new StorageEvent("storage"));
+      store.set(updated);
     },
     [],
   );
 
   const clearScans = useCallback(() => {
-    try { localStorage.removeItem(STORAGE_KEY); } catch { /* private browsing */ }
-    cachedJson = "";
-    cachedScans = [];
-    window.dispatchEvent(new StorageEvent("storage"));
+    store.remove();
   }, []);
 
   return { scans, addScan, clearScans };

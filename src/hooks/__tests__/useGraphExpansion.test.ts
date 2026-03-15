@@ -1,57 +1,27 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useGraphExpansion } from "../useGraphExpansion";
-import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
+import type { MempoolOutspend } from "@/lib/api/types";
+import {
+  makeTx as _makeTx,
+  makeVin as _makeVin,
+  makeVout as _makeVout,
+} from "@/lib/analysis/heuristics/__tests__/fixtures/tx-factory";
 
 // ---------------------------------------------------------------------------
-// Helpers - minimal MempoolTransaction factory
+// Thin wrappers to match original call-site signatures
 // ---------------------------------------------------------------------------
 
-let txCounter = 0;
-
-function makeTx(overrides: Partial<MempoolTransaction> & { txid: string }): MempoolTransaction {
-  txCounter++;
-  return {
-    version: 2,
-    locktime: 0,
-    size: 250,
-    weight: 660,
-    fee: 1000,
-    vin: [],
-    vout: [],
-    status: { confirmed: true, block_height: 800000 + txCounter, block_time: 1700000000 + txCounter },
-    ...overrides,
-  };
+function makeTx(overrides: Parameters<typeof _makeTx>[0] & { txid: string }) {
+  return _makeTx(overrides);
 }
 
 function makeVin(parentTxid: string, voutIndex = 0) {
-  return {
-    txid: parentTxid,
-    vout: voutIndex,
-    prevout: {
-      scriptpubkey: "0014aabbccdd",
-      scriptpubkey_asm: "OP_0 OP_PUSHBYTES_20 aabbccdd",
-      scriptpubkey_type: "v0_p2wpkh",
-      scriptpubkey_address: "bc1qtest",
-      value: 50000,
-    },
-    scriptsig: "",
-    scriptsig_asm: "",
-    witness: [],
-    is_coinbase: false,
-    sequence: 0xfffffffd,
-  };
+  return _makeVin({ txid: parentTxid, vout: voutIndex });
 }
 
-function makeVout(value: number, index?: number) {
-  void index; // unused but clarifies intent at call sites
-  return {
-    scriptpubkey: "0014eeff0011",
-    scriptpubkey_asm: "OP_0 OP_PUSHBYTES_20 eeff0011",
-    scriptpubkey_type: "v0_p2wpkh",
-    scriptpubkey_address: "bc1qout",
-    value,
-  };
+function makeVout(value: number) {
+  return _makeVout({ value });
 }
 
 // ---------------------------------------------------------------------------
