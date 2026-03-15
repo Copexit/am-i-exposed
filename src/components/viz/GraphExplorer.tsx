@@ -98,7 +98,26 @@ export function GraphExplorer(props: GraphExplorerProps) {
     }
   }, [props.rootBoltzmannResult, props.rootTxid]);
 
-  /** Compute Boltzmann for a specific txid. */
+  /** Build a synthetic Boltzmann result for 1-input txs (trivially 100% deterministic). */
+  const buildSyntheticResult = useCallback((tx: import("@/lib/api/types").MempoolTransaction): BoltzmannWorkerResult => {
+    const { inputValues, outputValues } = extractTxValues(tx);
+    const nIn = inputValues.length;
+    const nOut = outputValues.length;
+    // 1 input -> every output is 100% linked to it
+    const matProb = Array.from({ length: nOut }, () => Array.from({ length: nIn }, () => 1));
+    const matComb = Array.from({ length: nOut }, () => Array.from({ length: nIn }, () => 1));
+    const detLinks: [number, number][] = Array.from({ length: nOut }, (_, oi) => [oi, 0] as [number, number]);
+    return {
+      type: "result", id: tx.txid,
+      matLnkCombinations: matComb, matLnkProbabilities: matProb,
+      nbCmbn: 1, entropy: 0, efficiency: 0, nbCmbnPrfctCj: 1,
+      deterministicLinks: detLinks, timedOut: false, elapsedMs: 0,
+      nInputs: nIn, nOutputs: nOut,
+      fees: tx.fee, intraFeesMaker: 0, intraFeesTaker: 0,
+    };
+  }, []);
+
+  /** Compute Boltzmann for a specific txid (or generate synthetic for 1-input). */
   const triggerBoltzmann = useCallback(async (txid: string) => {
     if (boltzmannCacheRef.current.has(txid)) return;
     const node = props.nodes.get(txid);
@@ -109,7 +128,17 @@ export function GraphExplorer(props: GraphExplorerProps) {
     if (isCoinbase) return;
 
     const { inputValues, outputValues } = extractTxValues(tx);
-    if (inputValues.length < 2 || inputValues.length + outputValues.length > 80) return;
+    if (inputValues.length === 0 || outputValues.length === 0) return;
+
+    // 1-input txs: trivially 100% deterministic, no WASM needed
+    if (inputValues.length === 1) {
+      boltzmannCacheRef.current.set(txid, buildSyntheticResult(tx));
+      setBoltzmannVersion((v) => v + 1);
+      return;
+    }
+
+    // Too large for WASM
+    if (inputValues.length + outputValues.length > 80) return;
 
     setComputingBoltzmann((prev) => new Set(prev).add(txid));
     try {
@@ -125,53 +154,45 @@ export function GraphExplorer(props: GraphExplorerProps) {
     } catch { /* computation failed - not critical */ }
     setComputingBoltzmann((prev) => { const next = new Set(prev); next.delete(txid); return next; });
     setBoltzmannProgressMap((prev) => { const next = new Map(prev); next.delete(txid); return next; });
-  }, [props.nodes]);
+  }, [props.nodes, buildSyntheticResult]);
 
-  // Auto-compute Boltzmann for expanded node + neighbors when expansion changes
+  // Eagerly compute Boltzmann for ALL nodes in the graph whenever the graph changes
   useEffect(() => {
-    if (!props.expandedNodeTxid) return;
-    const txid = props.expandedNodeTxid;
-    const node = props.nodes.get(txid);
-    if (!node) return;
-
-    // Collect expanded node + immediate neighbors
-    const candidates: string[] = [txid];
-    // Parents (backward neighbors)
-    for (const vin of node.tx.vin) {
-      if (!vin.is_coinbase && props.nodes.has(vin.txid)) {
-        candidates.push(vin.txid);
+    // First pass: instantly fill synthetic results for all 1-input txs
+    let anyNew = false;
+    for (const [txid, node] of props.nodes) {
+      if (boltzmannCacheRef.current.has(txid)) continue;
+      const tx = node.tx;
+      if (tx.vin.some((v) => v.is_coinbase)) continue;
+      const { inputValues, outputValues } = extractTxValues(tx);
+      if (inputValues.length === 1 && outputValues.length > 0) {
+        boltzmannCacheRef.current.set(txid, buildSyntheticResult(tx));
+        anyNew = true;
       }
     }
-    // Children (forward neighbors)
-    for (const [childTxid, childNode] of props.nodes) {
-      if (childNode.parentEdge?.fromTxid === txid) {
-        candidates.push(childTxid);
-      }
-    }
+    if (anyNew) setBoltzmannVersion((v) => v + 1);
 
-    // Auto-compute for auto-computable candidates (sequential to avoid worker contention)
+    // Second pass: async compute for auto-computable multi-input txs (sequential)
     let cancelled = false;
     (async () => {
-      for (const candidateTxid of candidates) {
+      for (const [txid, node] of props.nodes) {
         if (cancelled) break;
-        if (boltzmannCacheRef.current.has(candidateTxid)) continue;
-        if (computingBoltzmann.has(candidateTxid)) continue;
+        if (boltzmannCacheRef.current.has(txid)) continue;
+        if (computingBoltzmann.has(txid)) continue;
 
-        const candidateNode = props.nodes.get(candidateTxid);
-        if (!candidateNode) continue;
-        const candidateTx = candidateNode.tx;
-        if (candidateTx.vin.some((v) => v.is_coinbase)) continue;
+        const tx = node.tx;
+        if (tx.vin.some((v) => v.is_coinbase)) continue;
 
-        const { inputValues, outputValues } = extractTxValues(candidateTx);
+        const { inputValues, outputValues } = extractTxValues(tx);
         if (inputValues.length < 2) continue;
         if (!isAutoComputable(inputValues, outputValues)) continue;
 
-        await triggerBoltzmann(candidateTxid);
+        await triggerBoltzmann(txid);
       }
     })();
 
     return () => { cancelled = true; };
-  }, [props.expandedNodeTxid, props.nodes, triggerBoltzmann, computingBoltzmann]);
+  }, [props.nodes, triggerBoltzmann, computingBoltzmann, buildSyntheticResult]);
 
   /** Get Boltzmann result for a txid (from cache or root result). */
   const getBoltzmannResult = useCallback((txid: string): BoltzmannWorkerResult | undefined => {
