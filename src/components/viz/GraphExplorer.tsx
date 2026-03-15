@@ -386,13 +386,6 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
   const [showEdgeLegend, setShowEdgeLegend] = useState(false);
 
-  if (props.nodes.size === 0) return null;
-
-  // Toggle filter helpers
-  const toggleFilter = (key: keyof NodeFilter) => {
-    setFilter((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
   // ─── Global keyboard shortcuts for graph modes ───────
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -413,6 +406,13 @@ export function GraphExplorer(props: GraphExplorerProps) {
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [handleToggleHeatMap, handleToggleFingerprint, cycleEdgeMode, isExpanded, collapseFullscreen, handleExpandFullscreen]);
+
+  if (props.nodes.size === 0) return null;
+
+  // Toggle filter helpers
+  const toggleFilter = (key: keyof NodeFilter) => {
+    setFilter((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const toolbarProps = {
     nodeCount: props.nodeCount,
