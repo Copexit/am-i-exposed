@@ -9,6 +9,7 @@ import { ChartDefs } from "../shared/ChartDefs";
 import { formatSats } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 import { SCROLL_MARGIN_X, SCROLL_MARGIN_Y, MIN_ZOOM, MAX_ZOOM, ENTITY_CATEGORY_COLORS } from "./constants";
+import { DUST_THRESHOLD } from "@/lib/constants";
 import { layoutGraph, getNodeColor } from "./layout";
 import { edgePath, getEdgeMaxProb, portAwareEdgePath } from "./edge-utils";
 import { getScriptTypeColor, getScriptTypeDash, getEdgeThickness, isTimestampLocktime, getLockTimeRx, hexagonPoints, getVersionFill } from "./scriptStyles";
@@ -540,10 +541,18 @@ export function GraphCanvas({
             (oi) => changeOutputs.has(`${edge.fromTxid}:${oi}`),
           );
 
+          // Check if this edge carries dust-level value
+          const isDust = scriptInfo && scriptInfo.value > 0 && scriptInfo.value <= DUST_THRESHOLD;
+
           const strokeColor = linkabilityColor
             ?? (isChangeMarked ? "#f97316" : (isConsolidation ? SVG_COLORS.critical : (scriptColor ?? SVG_COLORS.muted)));
           let strokeOpacity = linkabilityColor ? (0.3 + linkabilityMaxProb * 0.7) : (isChangeMarked ? 0.8 : (isConsolidation ? 0.6 : (scriptColor ? 0.55 : 0.35)));
           let strokeWidth = linkabilityColor ? 2.5 : (isChangeMarked ? 3 : (isConsolidation ? 2.5 : (scriptThickness ?? 1.5)));
+          // Dust edges: very dim and thin
+          if (isDust && !linkabilityColor && !isChangeMarked) {
+            strokeOpacity = 0.15;
+            strokeWidth = Math.min(strokeWidth, 1);
+          }
 
           if (isHovered && !linkabilityColor) {
             strokeOpacity = isConsolidation ? 0.9 : 0.7;
@@ -915,7 +924,7 @@ export function GraphCanvas({
                    node.inputCount > 1 && node.outputCount === 1 ? "consolidation" :
                    node.inputCount === 1 && node.outputCount > 3 ? "batch" :
                    node.tx.vin[0]?.is_coinbase ? "coinbase" :
-                   null}
+                   ""}
                 </Text>
               )}
 
