@@ -452,9 +452,54 @@ export const ResultsPanel = memo(function ResultsPanel({
         <div className="border-t border-card-border pt-4 xl:hidden">
           <div className="flex items-center justify-center gap-6">
             <ScoreDisplay score={result.score} grade={result.grade} findings={result.findings} />
+            {result.findings.length > 3 && (
+              <ChartErrorBoundary><Suspense fallback={null}><SeverityRing findings={result.findings} size={120} /></Suspense></ChartErrorBoundary>
+            )}
           </div>
         </div>
       </GlowCard>
+
+      {/* Alert banner - mobile only (desktop shows in sidebar) */}
+      {(result.grade === "F" || result.findings.length > 0) && (
+        <div className="w-full xl:hidden">
+          {result.grade === "F" && (
+            <div className="w-full bg-severity-critical/10 border border-severity-critical/30 rounded-xl p-4 flex items-start gap-3">
+              <AlertTriangle size={18} className="text-severity-critical shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-severity-critical">
+                  {t("results.highExposureRisk", { defaultValue: "High exposure risk" })}
+                </p>
+                <p className="text-xs text-foreground mt-1 leading-relaxed">
+                  {inputType === "txid"
+                    ? t("results.fGradeWarningTx", { defaultValue: "This transaction has severe privacy issues. On-chain surveillance can likely identify the owner and trace fund flows. Immediate remediation steps are recommended below." })
+                    : t("results.fGradeWarningAddr", { defaultValue: "This address has severe privacy issues. On-chain surveillance can likely identify the owner and trace fund flows. Immediate remediation steps are recommended below." })}
+                </p>
+              </div>
+            </div>
+          )}
+          {result.grade !== "F" && (() => {
+            const sentiment = getSummarySentiment(result.grade, result.findings);
+            const colorMap = {
+              positive: { border: "border-severity-good/30 bg-severity-good/5", text: "text-severity-good" },
+              cautious: { border: "border-severity-medium/30 bg-severity-medium/5", text: "text-severity-medium" },
+              warning: { border: "border-severity-high/30 bg-severity-high/5", text: "text-severity-high" },
+              danger: { border: "border-severity-critical/30 bg-severity-critical/5", text: "text-severity-critical" },
+            };
+            const colors = colorMap[sentiment];
+            return (
+              <div className={`w-full rounded-xl border px-4 py-3 ${colors.border}`}>
+                <p className={`text-base font-medium ${colors.text}`}>
+                  {sentiment === "positive"
+                    ? t("results.summaryGood", { defaultValue: "No significant privacy concerns detected." })
+                    : sentiment === "cautious"
+                      ? t("results.summaryFair", { defaultValue: "Some privacy concerns detected. Review the findings below." })
+                      : t("results.summaryPoor", { defaultValue: "Significant privacy exposure detected. Remediation recommended." })}
+                </p>
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {/* Transaction Structure (full width) */}
       {txData && (

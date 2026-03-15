@@ -6,7 +6,6 @@ import { Pie } from "@visx/shape";
 import { Group } from "@visx/group";
 import { useTranslation } from "react-i18next";
 import { SVG_COLORS, SEVERITY_HEX, ANIMATION_DEFAULTS } from "./shared/svgConstants";
-import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import type { Finding, Severity } from "@/lib/types";
 
@@ -76,7 +75,6 @@ export function SeverityRing({ findings, size = 120 }: SeverityRingProps) {
         })}
       >
         <svg width={size} height={size}>
-          <ChartDefs />
           <Group top={radius} left={radius}>
             <Pie<SeveritySlice>
               data={slices}
