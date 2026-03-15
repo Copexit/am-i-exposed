@@ -1,5 +1,8 @@
 import type { Grade } from "@/lib/types";
 
+/** Number of satoshis per bitcoin. */
+export const SATS_PER_BTC = 100_000_000;
+
 /** Lightning address for tips / Value4Value. */
 export const LN_ADDRESS = "woozycuticle72@walletofsatoshi.com";
 
@@ -17,9 +20,7 @@ export const TXID_RE = /^[a-fA-F0-9]{64}$/;
  * to anonymity set calculations. The per-type protocol dust limits are enforced
  * separately in the dust-output heuristic (dust-output.ts).
  */
-export const SMALL_OUTPUT_THRESHOLD = 1000;
-/** @deprecated Use SMALL_OUTPUT_THRESHOLD. Kept for backward compatibility. */
-export const DUST_THRESHOLD = SMALL_OUTPUT_THRESHOLD;
+export const DUST_THRESHOLD = 1000;
 
 /** Whirlpool pool denominations in satoshis. */
 export const WHIRLPOOL_DENOMS = [

@@ -5,13 +5,11 @@ import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { SVG_COLORS, GRADE_HEX_SVG } from "./viz/shared/svgConstants";
 import { formatSats } from "@/lib/format";
-import { TX_HEURISTICS } from "@/lib/analysis/orchestrator";
-import { applyCrossHeuristicRules, classifyTransactionType } from "@/lib/analysis/cross-heuristic";
-import { calculateScore } from "@/lib/scoring/score";
+import { analyzeTransactionSync } from "@/lib/analysis/analyze-sync";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
 import { extractTxAddresses } from "@/lib/analysis/cex-risk/extract-addresses";
 import type { MempoolTransaction } from "@/lib/api/types";
-import type { ScoringResult, Finding } from "@/lib/types";
+import type { ScoringResult } from "@/lib/types";
 
 interface GraphNodeAnalysisProps {
   tx: MempoolTransaction;
@@ -30,29 +28,6 @@ const SEV_DOT: Record<string, string> = {
   low: SVG_COLORS.low,
   good: SVG_COLORS.good,
 };
-
-/**
- * Run analysis synchronously (no ticks/delays) for instant in-graph results.
- * This is a stripped-down version of analyzeTransaction that skips the 50ms
- * tick between heuristics since we want instant results for the floating panel.
- */
-function analyzeTransactionSync(tx: MempoolTransaction): ScoringResult {
-  const allFindings: Finding[] = [];
-
-  for (const heuristic of TX_HEURISTICS) {
-    try {
-      const result = heuristic.fn(tx);
-      allFindings.push(...result.findings);
-    } catch {
-      // Skip failing heuristics
-    }
-  }
-
-  applyCrossHeuristicRules(allFindings);
-  const result = calculateScore(allFindings);
-  result.txType = classifyTransactionType(allFindings);
-  return result;
-}
 
 /**
  * Floating analysis card that appears when clicking a graph node.
@@ -83,7 +58,7 @@ export function GraphNodeAnalysis({
     .map((addr) => matchEntitySync(addr))
     .filter((m): m is NonNullable<typeof m> => m !== null);
 
-  // Position the panel
+  // Position the panel centered above the clicked node
   const left = position.x;
   const top = position.y;
 
@@ -108,6 +83,8 @@ export function GraphNodeAnalysis({
         left,
         top,
         width: 320,
+        transform: "translate(-50%, -100%)",
+        marginTop: -8,
         zIndex: 60,
         pointerEvents: "auto",
       }}

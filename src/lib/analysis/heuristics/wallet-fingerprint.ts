@@ -1,6 +1,7 @@
 import type { TxHeuristic } from "./types";
 import type { Finding, Severity } from "@/lib/types";
 import { WHIRLPOOL_DENOMS } from "@/lib/constants";
+import { isCoinbase } from "./tx-utils";
 
 /**
  * H11: Wallet Fingerprinting
@@ -21,7 +22,7 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
   const findings: Finding[] = [];
 
   // Skip coinbase transactions (mining pool software fingerprinting is not meaningful here)
-  if (tx.vin.some((v) => v.is_coinbase)) return { findings };
+  if (isCoinbase(tx)) return { findings };
 
   const signals: string[] = [];
 

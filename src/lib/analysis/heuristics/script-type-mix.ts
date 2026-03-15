@@ -1,5 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
+import { isCoinbase } from "./tx-utils";
 
 /**
  * Script Type Mix Analysis
@@ -17,7 +18,7 @@ export const analyzeScriptTypeMix: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
 
   // Skip coinbase transactions (no meaningful input scripts)
-  if (tx.vin.some((v) => v.is_coinbase)) return { findings };
+  if (isCoinbase(tx)) return { findings };
 
   // Check for bare multisig outputs (P2MS) - a serious privacy concern
   const multisigOutputs = tx.vout.filter(

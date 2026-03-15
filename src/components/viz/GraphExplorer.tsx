@@ -13,27 +13,13 @@ import { formatSats } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
 import { analyzeCoinJoin, isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
-import { TX_HEURISTICS } from "@/lib/analysis/orchestrator";
-import { applyCrossHeuristicRules, classifyTransactionType } from "@/lib/analysis/cross-heuristic";
-import { calculateScore } from "@/lib/scoring/score";
+import { analyzeTransactionSync } from "@/lib/analysis/analyze-sync";
 import { GraphNodeAnalysis } from "@/components/GraphNodeAnalysis";
 import type { GraphNode } from "@/hooks/useGraphExpansion";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding, ScoringResult } from "@/lib/types";
 import type { EntityMatch } from "@/lib/analysis/entity-filter/types";
 import type { EntityCategory } from "@/lib/analysis/entities";
-
-/** Run all tx heuristics synchronously (no tick delays) for instant results. */
-function analyzeSync(tx: MempoolTransaction): ScoringResult {
-  const allFindings: Finding[] = [];
-  for (const h of TX_HEURISTICS) {
-    try { allFindings.push(...h.fn(tx).findings); } catch { /* skip */ }
-  }
-  applyCrossHeuristicRules(allFindings);
-  const r = calculateScore(allFindings);
-  r.txType = classifyTransactionType(allFindings);
-  return r;
-}
 
 /**
  * OXT-style interactive graph explorer.
@@ -714,8 +700,8 @@ function GraphCanvas({
       setSelectedNode(null);
       return;
     }
-    // Open for new node
-    const pos = toScreen(node.x + node.width + 10, node.y);
+    // Open for new node - centered above
+    const pos = toScreen(node.x + node.width / 2, node.y);
     setSelectedNode({
       txid: node.txid,
       x: pos.x,
@@ -1489,7 +1475,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
   // Heat map computation
   useEffect(() => {
     if (!heatMapActive) return;
-    const analyze = analyzeSync;
+    const analyze = analyzeTransactionSync;
     const nodeEntries = Array.from(props.nodes.entries());
     const results = new Map<string, ScoringResult>();
     let idx = 0;

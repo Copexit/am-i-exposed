@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import type { Finding } from "@/lib/types";
+import { SEVERITY_TEXT, SEVERITY_BG } from "@/lib/severity";
 
 /** Build i18n key for a finding field, appending _variant if present in params. */
 function findingKey(id: string, field: string, params?: Record<string, unknown>): string {
@@ -57,21 +58,6 @@ export const CHAIN_FINDING_IDS = new Set([
   "peel-chain-trace-short",
 ]);
 
-const SEVERITY_COLORS: Record<string, string> = {
-  critical: "text-red-400",
-  high: "text-orange-400",
-  medium: "text-amber-400",
-  low: "text-blue-400",
-  good: "text-green-400",
-};
-
-const SEVERITY_BG: Record<string, string> = {
-  critical: "bg-red-500/10 border-red-500/20",
-  high: "bg-orange-500/10 border-orange-500/20",
-  medium: "bg-amber-500/10 border-amber-500/20",
-  low: "bg-blue-500/10 border-blue-500/20",
-  good: "bg-green-500/10 border-green-500/20",
-};
 
 export function ChainAnalysisPanel({ findings }: ChainAnalysisPanelProps) {
   const { t } = useTranslation();
@@ -146,7 +132,7 @@ function ChainSection({ title, findings, t }: { title: string; findings: Finding
             className={`rounded-lg border px-3 py-2 text-sm ${SEVERITY_BG[f.severity] ?? SEVERITY_BG.low}`}
           >
             <div className="flex items-start justify-between gap-2">
-              <span className={`font-medium ${SEVERITY_COLORS[f.severity] ?? "text-white/80"}`}>
+              <span className={`font-medium ${SEVERITY_TEXT[f.severity] ?? "text-white/80"}`}>
                 {t(findingKey(f.id, "title", f.params), { ...f.params, defaultValue: f.title })}
               </span>
               {f.scoreImpact !== 0 && (

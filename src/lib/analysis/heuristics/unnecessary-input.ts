@@ -1,5 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
+import { isCoinbase } from "./tx-utils";
 
 /**
  * Unnecessary Input Heuristic
@@ -29,7 +30,7 @@ export const analyzeUnnecessaryInput: TxHeuristic = (tx) => {
   if (tx.vin.length < 2) return { findings };
 
   // Skip coinbase
-  if (tx.vin.some((v) => v.is_coinbase)) return { findings };
+  if (isCoinbase(tx)) return { findings };
 
   // Collect input values
   const inputValues: number[] = [];

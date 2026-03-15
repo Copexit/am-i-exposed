@@ -1,6 +1,7 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { fmtN } from "@/lib/format";
+import { isCoinbase } from "./tx-utils";
 
 /**
  * BIP47 Notification Transaction Detection
@@ -22,7 +23,7 @@ import { fmtN } from "@/lib/format";
 export const analyzeBip47Notification: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
 
-  if (tx.vin.some((v) => v.is_coinbase)) return { findings };
+  if (isCoinbase(tx)) return { findings };
 
   // BIP47 notification tx typically has 1 input (the key used for ECDH)
   // Some implementations allow 2-3 inputs, but 1 is standard

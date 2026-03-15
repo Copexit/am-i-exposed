@@ -2,6 +2,7 @@ import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { matchEntitySync, detectEntityBehavior } from "../entity-filter/entity-match";
 import { getFilter, getFilterStatus } from "../entity-filter/filter-loader";
+import { isCoinbase } from "./tx-utils";
 
 /**
  * Entity Address Detection
@@ -25,7 +26,7 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
 
   // Skip coinbase transactions (mining reward, no entity concern)
-  if (tx.vin.some((v) => v.is_coinbase)) return { findings };
+  if (isCoinbase(tx)) return { findings };
 
   // Skip if filter is not ready (don't block analysis on filter loading)
   const filterReady = getFilterStatus() === "ready" || getFilter() !== null;

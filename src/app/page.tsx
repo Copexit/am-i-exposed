@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, lazy, Suspense, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
-import { ShieldCheck, ShieldAlert, ShieldX, AlertCircle, ArrowLeft, EyeOff, Github } from "lucide-react";
+import { ShieldCheck, ShieldAlert, AlertCircle, ArrowLeft, EyeOff, Github } from "lucide-react";
 import { AddressInput } from "@/components/AddressInput";
 import { DiagnosticLoader } from "@/components/DiagnosticLoader";
 import { ResultsPanel } from "@/components/ResultsPanel";
@@ -26,37 +26,7 @@ import { FindingCard } from "@/components/FindingCard";
 const DevChainalysisPanel = lazy(() => import("@/components/DevChainalysisPanel").then(m => ({ default: m.DevChainalysisPanel })));
 const WalletAuditResults = lazy(() => import("@/components/wallet/WalletAuditResults").then(m => ({ default: m.WalletAuditResults })));
 import type { PreSendResult } from "@/lib/analysis/orchestrator";
-
-const DESTINATION_ONLY_CONFIG = {
-  LOW: {
-    icon: ShieldCheck,
-    color: "text-severity-good",
-    bg: "bg-severity-good/10 border-severity-good/30",
-    labelKey: "presend.riskLow",
-    labelDefault: "Low Risk",
-  },
-  MEDIUM: {
-    icon: ShieldAlert,
-    color: "text-severity-medium",
-    bg: "bg-severity-medium/10 border-severity-medium/30",
-    labelKey: "presend.riskMedium",
-    labelDefault: "Medium Risk",
-  },
-  HIGH: {
-    icon: ShieldAlert,
-    color: "text-severity-high",
-    bg: "bg-severity-high/10 border-severity-high/30",
-    labelKey: "presend.riskHigh",
-    labelDefault: "High Risk",
-  },
-  CRITICAL: {
-    icon: ShieldX,
-    color: "text-severity-critical",
-    bg: "bg-severity-critical/10 border-severity-critical/30",
-    labelKey: "presend.riskCritical",
-    labelDefault: "Critical Risk",
-  },
-} as const;
+import { RISK_CONFIG } from "@/components/DestinationAlert";
 
 function DestinationOnlyResult({ query, preSendResult, onBack, durationMs }: {
   query: string;
@@ -65,7 +35,7 @@ function DestinationOnlyResult({ query, preSendResult, onBack, durationMs }: {
   durationMs?: number | null;
 }) {
   const { t } = useTranslation();
-  const risk = DESTINATION_ONLY_CONFIG[preSendResult.riskLevel];
+  const risk = RISK_CONFIG[preSendResult.riskLevel];
   const RiskIcon = risk.icon;
 
   return (

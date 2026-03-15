@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { TxSummary } from "./TxSummary";
 import { FindingCard } from "./FindingCard";
 import type { TxAnalysisResult } from "@/lib/types";
-import { GRADE_BADGE_COLORS } from "@/lib/constants";
+import { GRADE_BADGE_COLORS, truncateId } from "@/lib/constants";
 import { copyToClipboard } from "@/lib/clipboard";
 
 interface TxBreakdownPanelProps {
@@ -125,12 +125,12 @@ export function TxBreakdownPanel({
                       title={t("breakdown.scanTx", { defaultValue: "Scan this transaction" })}
                       className="font-mono text-sm text-foreground hover:text-bitcoin transition-colors cursor-pointer truncate group/txid inline-flex items-center gap-1"
                     >
-                      {item.txid.slice(0, 8)}...{item.txid.slice(-6)}
+                      {truncateId(item.txid, 6)}
                       <ExternalLink size={10} className="shrink-0 opacity-0 group-hover/txid:opacity-100 transition-opacity" />
                     </span>
                   ) : (
                     <span className="font-mono text-sm text-foreground truncate">
-                      {item.txid.slice(0, 8)}...{item.txid.slice(-6)}
+                      {truncateId(item.txid, 6)}
                     </span>
                   )}
                   <span

@@ -1,3 +1,5 @@
+import { SATS_PER_BTC } from "@/lib/constants";
+
 /**
  * Unified satoshi formatting for the entire app.
  * Always displays amounts in sats with locale-aware thousand separators.
@@ -10,8 +12,6 @@ export function formatSats(sats: number, locale?: string): string {
 export function fmtN(n: number): string {
   return n.toLocaleString("en-US");
 }
-
-const SATS_PER_BTC = 100_000_000;
 
 /** Format satoshis as a human-readable BTC string (e.g. "0.001 BTC"). */
 export function formatBtc(sats: number): string {

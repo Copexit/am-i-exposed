@@ -30,6 +30,7 @@ import { RECOMMENDED_WALLETS, WALLETS_TO_AVOID, WALLET_CRITERIA } from "@/data/g
 import { MAINTENANCE_SECTIONS } from "@/data/guide/maintenance";
 import { MISTAKES } from "@/data/guide/mistakes";
 import { RECOVERY_STEPS, RECOVERY_TOOLS } from "@/data/guide/recovery";
+import { SEVERITY_COLORS, SEVERITY_DOT } from "@/lib/severity";
 
 const ICON_MAP: Record<string, React.ReactNode> = {
   Zap: <Zap size={14} />,
@@ -39,19 +40,6 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   Shield: <Shield size={14} />,
   Coins: <Coins size={14} />,
   Target: <Target size={14} />,
-};
-
-const SEVERITY_COLORS: Record<string, string> = {
-  critical: "border-severity-critical/40 bg-severity-critical/5",
-  high: "border-severity-high/40 bg-severity-high/5",
-  medium: "border-severity-medium/40 bg-severity-medium/5",
-  good: "border-severity-good/40 bg-severity-good/5",
-};
-const SEVERITY_DOT: Record<string, string> = {
-  critical: "bg-severity-critical",
-  high: "bg-severity-high",
-  medium: "bg-severity-medium",
-  good: "bg-severity-good",
 };
 
 function BoolCell({ value }: { value: boolean | "partial" | "native" | "is-node" | "v1-only" | "send-only" | "stowaway" }) {

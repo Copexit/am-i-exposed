@@ -1,6 +1,7 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { analyzeCoinJoin, isCoinJoinFinding } from "./coinjoin";
+import { isCoinbase } from "./tx-utils";
 
 /**
  * Post-Mix Mistake Detection
@@ -27,7 +28,7 @@ export const analyzePostMix: TxHeuristic = (tx, _rawHex?, ctx?) => {
 
   // Need at least 2 inputs to consolidate
   if (tx.vin.length < 2) return { findings };
-  if (tx.vin.some((v) => v.is_coinbase)) return { findings };
+  if (isCoinbase(tx)) return { findings };
 
   // If this transaction is itself a CoinJoin, spending CoinJoin outputs as
   // inputs is normal (remixing). Only flag non-CoinJoin transactions.

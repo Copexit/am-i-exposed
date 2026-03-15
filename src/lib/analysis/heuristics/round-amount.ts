@@ -1,15 +1,13 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
-
-const SATS_PER_BTC = 100_000_000;
+import { isCoinbase } from "./tx-utils";
+import { SATS_PER_BTC } from "@/lib/constants";
 
 // Round fiat values people commonly send (same denominations for USD and EUR)
 const ROUND_FIAT_VALUES = [
   1, 2, 5, 10, 20, 50, 100, 200, 500, 1_000, 2_000, 5_000, 10_000, 25_000, 50_000, 100_000,
 ];
 
-// Keep backward-compatible alias
-const ROUND_USD_VALUES = ROUND_FIAT_VALUES;
 
 // Round BTC values (in sats) to check against
 const ROUND_BTC_VALUES = [
@@ -36,7 +34,7 @@ export const analyzeRoundAmounts: TxHeuristic = (tx, _rawHex?, ctx?) => {
   );
 
   // Skip coinbase transactions (block reward amounts are protocol-defined)
-  if (tx.vin.some((v) => v.is_coinbase)) return { findings };
+  if (isCoinbase(tx)) return { findings };
 
   // Skip single-output transactions (no change to distinguish)
   if (outputs.length < 2) return { findings };
@@ -194,26 +192,35 @@ export const ROUND_USD_TOLERANCE_DEFAULT = 0.005; // 0.5%
 export const ROUND_USD_TOLERANCE_SELF_HOSTED = 0.01; // 1%
 
 /**
- * Check if a satoshi value corresponds to a round USD amount at the given price.
- * Returns the matching round USD value, or null if no match.
+ * Check if a satoshi value corresponds to a round fiat amount at the given price.
+ * Returns the matching round fiat value, or null if no match.
  *
  * @param tolerancePct - fractional tolerance (0.005 = 0.5%, 0.01 = 1%).
  *   Use the tighter default for public mempool.space and the looser value
  *   for self-hosted instances where historical prices may vary.
  */
+export function getMatchingRoundFiat(
+  sats: number,
+  fiatPerBtc: number,
+  tolerancePct: number = ROUND_USD_TOLERANCE_DEFAULT,
+): number | null {
+  const fiatValue = (sats / SATS_PER_BTC) * fiatPerBtc;
+  for (const roundFiat of ROUND_FIAT_VALUES) {
+    // Skip tiny amounts (< 5) - too common and noisy
+    if (roundFiat < 5) continue;
+    const tolerance = roundFiat * tolerancePct;
+    if (Math.abs(fiatValue - roundFiat) <= tolerance) return roundFiat;
+  }
+  return null;
+}
+
+/** Check if a satoshi value corresponds to a round USD amount at the given price. */
 export function getMatchingRoundUsd(
   sats: number,
   usdPerBtc: number,
   tolerancePct: number = ROUND_USD_TOLERANCE_DEFAULT,
 ): number | null {
-  const usdValue = (sats / SATS_PER_BTC) * usdPerBtc;
-  for (const roundUsd of ROUND_USD_VALUES) {
-    // Skip tiny amounts (< $5) - too common and noisy
-    if (roundUsd < 5) continue;
-    const tolerance = roundUsd * tolerancePct;
-    if (Math.abs(usdValue - roundUsd) <= tolerance) return roundUsd;
-  }
-  return null;
+  return getMatchingRoundFiat(sats, usdPerBtc, tolerancePct);
 }
 
 export function isRoundUsdAmount(
@@ -221,25 +228,16 @@ export function isRoundUsdAmount(
   usdPerBtc: number,
   tolerancePct: number = ROUND_USD_TOLERANCE_DEFAULT,
 ): boolean {
-  return getMatchingRoundUsd(sats, usdPerBtc, tolerancePct) !== null;
+  return getMatchingRoundFiat(sats, usdPerBtc, tolerancePct) !== null;
 }
 
-/**
- * Check if a satoshi value corresponds to a round EUR amount at the given price.
- * Uses the same round denominations as USD (round numbers are round in any currency).
- */
+/** Check if a satoshi value corresponds to a round EUR amount at the given price. */
 export function getMatchingRoundEur(
   sats: number,
   eurPerBtc: number,
   tolerancePct: number = ROUND_USD_TOLERANCE_DEFAULT,
 ): number | null {
-  const eurValue = (sats / SATS_PER_BTC) * eurPerBtc;
-  for (const roundEur of ROUND_FIAT_VALUES) {
-    if (roundEur < 5) continue;
-    const tolerance = roundEur * tolerancePct;
-    if (Math.abs(eurValue - roundEur) <= tolerance) return roundEur;
-  }
-  return null;
+  return getMatchingRoundFiat(sats, eurPerBtc, tolerancePct);
 }
 
 export function isRoundEurAmount(
@@ -247,5 +245,5 @@ export function isRoundEurAmount(
   eurPerBtc: number,
   tolerancePct: number = ROUND_USD_TOLERANCE_DEFAULT,
 ): boolean {
-  return getMatchingRoundEur(sats, eurPerBtc, tolerancePct) !== null;
+  return getMatchingRoundFiat(sats, eurPerBtc, tolerancePct) !== null;
 }

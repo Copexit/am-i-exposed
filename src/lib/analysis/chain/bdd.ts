@@ -1,6 +1,7 @@
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import { fmtN } from "@/lib/format";
+import { SATS_PER_BTC } from "@/lib/constants";
 
 /**
  * Bitcoin Days Destroyed (BDD)
@@ -60,7 +61,7 @@ export function calculateBdd(
 
     const parentTime = parentTx.status.block_time;
     const daysHeld = Math.max(0, (txTime - parentTime) / 86400);
-    const valueBtc = vin.prevout.value / 1e8;
+    const valueBtc = vin.prevout.value / SATS_PER_BTC;
     const bdd = valueBtc * daysHeld;
 
     breakdown.push({

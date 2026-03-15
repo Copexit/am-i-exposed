@@ -5,7 +5,7 @@ import { motion } from "motion/react";
 import { ShieldCheck, ShieldAlert, ShieldX } from "lucide-react";
 import type { PreSendResult } from "@/lib/analysis/orchestrator";
 
-const RISK_CONFIG = {
+export const RISK_CONFIG = {
   LOW: {
     icon: ShieldCheck,
     color: "text-severity-good",

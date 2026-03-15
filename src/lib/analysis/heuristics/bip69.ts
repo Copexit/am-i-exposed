@@ -1,5 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
+import { isCoinbase } from "./tx-utils";
 
 /**
  * BIP69: Lexicographic Input/Output Ordering Detection
@@ -21,7 +22,7 @@ export const analyzeBip69: TxHeuristic = (tx) => {
 
   // Need at least 2 inputs or 2 outputs to detect ordering
   if (tx.vin.length < 2 && tx.vout.length < 2) return { findings };
-  if (tx.vin.some((v) => v.is_coinbase)) return { findings };
+  if (isCoinbase(tx)) return { findings };
 
   // Check input ordering: sorted by txid (ascending), then vout (ascending)
   let inputsSorted = true;

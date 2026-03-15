@@ -6,20 +6,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronDown, ArrowDown, ExternalLink } from "lucide-react";
 import { WalletIcon } from "@/components/ui/WalletIcon";
 import { RECOVERY_STEPS, RECOVERY_TOOLS } from "@/data/guide/recovery";
-
-const SEVERITY_COLORS: Record<string, string> = {
-  critical: "border-severity-critical/40 bg-severity-critical/5",
-  high: "border-severity-high/40 bg-severity-high/5",
-  medium: "border-severity-medium/40 bg-severity-medium/5",
-  good: "border-severity-good/40 bg-severity-good/5",
-};
-
-const SEVERITY_DOT: Record<string, string> = {
-  critical: "bg-severity-critical",
-  high: "bg-severity-high",
-  medium: "bg-severity-medium",
-  good: "bg-severity-good",
-};
+import { SEVERITY_COLORS, SEVERITY_DOT } from "@/lib/severity";
 
 interface RecoveryFlowProps {
   /** Only show for poor grades */

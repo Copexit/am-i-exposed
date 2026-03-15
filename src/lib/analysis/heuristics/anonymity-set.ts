@@ -1,7 +1,8 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
-import { DUST_THRESHOLD } from "@/lib/constants";
-import { fmtN } from "@/lib/format";
+import { DUST_THRESHOLD, SATS_PER_BTC } from "@/lib/constants";
+import { fmtN, formatBtc } from "@/lib/format";
+import { isCoinbase } from "./tx-utils";
 
 /**
  * Anonymity Set Analysis
@@ -28,7 +29,7 @@ export const analyzeAnonymitySet: TxHeuristic = (tx) => {
   );
 
   // Skip coinbase transactions
-  if (tx.vin.some((v) => v.is_coinbase)) return { findings };
+  if (isCoinbase(tx)) return { findings };
 
   if (outputs.length < 2) return { findings };
 
@@ -63,9 +64,9 @@ export const analyzeAnonymitySet: TxHeuristic = (tx) => {
       severity: "good",
       confidence: "deterministic",
       title: `Largest anonymity set: ${maxSet.count} outputs`,
-      params: { count: maxSet.count, value: formatSats(maxSet.value) },
+      params: { count: maxSet.count, value: formatSatsOrBtc(maxSet.value) },
       description:
-        `${maxSet.count} outputs share the value ${formatSats(maxSet.value)}, creating an anonymity set of ${maxSet.count}. ` +
+        `${maxSet.count} outputs share the value ${formatSatsOrBtc(maxSet.value)}, creating an anonymity set of ${maxSet.count}. ` +
         `An observer cannot distinguish which input funded which of these ${maxSet.count} equal outputs. ` +
         buildSetSummary(sets),
       recommendation:
@@ -79,9 +80,9 @@ export const analyzeAnonymitySet: TxHeuristic = (tx) => {
       severity: "low",
       confidence: "deterministic",
       title: `Anonymity set: ${maxSet.count} equal outputs`,
-      params: { count: maxSet.count, value: formatSats(maxSet.value) },
+      params: { count: maxSet.count, value: formatSatsOrBtc(maxSet.value) },
       description:
-        `${maxSet.count} outputs share the value ${formatSats(maxSet.value)}. ` +
+        `${maxSet.count} outputs share the value ${formatSatsOrBtc(maxSet.value)}. ` +
         `This provides limited ambiguity. ` +
         buildSetSummary(sets),
       recommendation:
@@ -108,9 +109,9 @@ export const analyzeAnonymitySet: TxHeuristic = (tx) => {
   return { findings };
 };
 
-function formatSats(sats: number): string {
-  if (sats >= 100_000_000) {
-    return `${(sats / 100_000_000).toFixed(8).replace(/\.?0+$/, "")} BTC`;
+function formatSatsOrBtc(sats: number): string {
+  if (sats >= SATS_PER_BTC) {
+    return formatBtc(sats);
   }
   return `${fmtN(sats)} sats`;
 }
@@ -121,7 +122,7 @@ function buildSetSummary(sets: { value: number; count: number }[]): string {
 
   const parts = grouped
     .slice(0, 3)
-    .map((s) => `${s.count}x ${formatSats(s.value)}`);
+    .map((s) => `${s.count}x ${formatSatsOrBtc(s.value)}`);
 
   const suffix = grouped.length > 3 ? ` and ${grouped.length - 3} more groups` : "";
   return `Equal-value groups: ${parts.join(", ")}${suffix}.`;

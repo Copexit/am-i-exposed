@@ -1,7 +1,7 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { parseMultisigFromInput, type MultisigInfo } from "@/lib/bitcoin/multisig";
-import { getSpendableOutputs } from "./tx-utils";
+import { getSpendableOutputs, isCoinbase } from "./tx-utils";
 
 /** Known HodlHodl fee collection addresses (mainnet). */
 const HODLHODL_FEE_ADDRESSES = new Set([
@@ -29,7 +29,7 @@ const BISQ_FEE_ADDRESSES = new Set([
 export const analyzeMultisigDetection: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
 
-  if (tx.vin.some((v) => v.is_coinbase)) return { findings };
+  if (isCoinbase(tx)) return { findings };
 
   // Parse all inputs for multisig
   const multisigInputs: { index: number; info: MultisigInfo }[] = [];

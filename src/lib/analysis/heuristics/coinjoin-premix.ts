@@ -1,7 +1,8 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { WHIRLPOOL_DENOMS } from "@/lib/constants";
-import { fmtN } from "@/lib/format";
+import { fmtN, formatBtc } from "@/lib/format";
+import { isCoinbase } from "./tx-utils";
 
 /**
  * CoinJoin Premix (tx0) Detection
@@ -26,7 +27,7 @@ export const analyzeCoinJoinPremix: TxHeuristic = (tx) => {
 
   // tx0 typically has 1-3 inputs
   if (tx.vin.length < 1 || tx.vin.length > 3) return { findings };
-  if (tx.vin.some((v) => v.is_coinbase)) return { findings };
+  if (isCoinbase(tx)) return { findings };
 
   const spendable = tx.vout.filter(
     (o) => o.scriptpubkey_type !== "op_return" && o.value > 0,
@@ -61,15 +62,15 @@ export const analyzeCoinJoinPremix: TxHeuristic = (tx) => {
       ? nonDenomOutputs.find((o) => o !== feeCandidate)
       : undefined;
 
-    const denomBtc = (denom / 100_000_000).toFixed(8).replace(/\.?0+$/, "");
+    const denomBtcLabel = formatBtc(denom);
 
     findings.push({
       id: "tx0-premix",
       severity: "good",
       confidence: "high",
-      title: `CoinJoin premix (tx0): ${denomOutputs.length} outputs at ${denomBtc} BTC`,
+      title: `CoinJoin premix (tx0): ${denomOutputs.length} outputs at ${denomBtcLabel}`,
       params: {
-        denomination: denomBtc,
+        denomination: denomBtcLabel.replace(/ BTC$/, ""),
         denomCount: denomOutputs.length,
         hasToxicChange: toxicChange ? 1 : 0,
         toxicChangeValue: toxicChange?.value ?? 0,
@@ -77,7 +78,7 @@ export const analyzeCoinJoinPremix: TxHeuristic = (tx) => {
       },
       description:
         `This transaction is a Whirlpool tx0 (premix): it splits funds into ${denomOutputs.length} equal outputs ` +
-        `of ${denomBtc} BTC ready for CoinJoin mixing. ` +
+        `of ${denomBtcLabel} ready for CoinJoin mixing. ` +
         (toxicChange
           ? `The toxic change output (${fmtN(toxicChange.value)} sats) is NOT mixed and must be handled carefully. `
           : "") +

@@ -3,6 +3,7 @@ import type { Finding } from "@/lib/types";
 import type { MempoolVin, MempoolVout } from "@/lib/api/types";
 import { getAddressType } from "@/lib/bitcoin/address-type";
 import { isRoundAmount, isRoundUsdAmount, isRoundEurAmount, ROUND_USD_TOLERANCE_DEFAULT, ROUND_USD_TOLERANCE_SELF_HOSTED } from "./round-amount";
+import { isCoinbase } from "./tx-utils";
 
 /**
  * H2: Change Detection
@@ -28,7 +29,7 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
   );
 
   // Skip coinbase
-  if (tx.vin.some((v) => v.is_coinbase)) return { findings };
+  if (isCoinbase(tx)) return { findings };
 
   // ── Sweep detection (1-in, 1-out, no change) ─────────────────────
   // Exactly 1 input + 1 output (no OP_RETURN or other extras) = full spend / sweep.

@@ -1,5 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
+import { isCoinbase } from "./tx-utils";
 
 /**
  * Witness Data Analysis
@@ -16,7 +17,7 @@ export const analyzeWitnessData: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
 
   // Skip coinbase
-  if (tx.vin.some((v) => v.is_coinbase)) return { findings };
+  if (isCoinbase(tx)) return { findings };
 
   const witnessInputs = tx.vin.filter((v) => v.witness && v.witness.length > 0);
   const nonWitnessInputs = tx.vin.filter(
