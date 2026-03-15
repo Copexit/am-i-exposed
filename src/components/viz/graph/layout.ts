@@ -52,6 +52,30 @@ export function getBestEntityMatch(tx: MempoolTransaction): EntityMatch | null {
   return best;
 }
 
+/** Per-txid cache for expensive CoinJoin + entity analysis (cleared when node map identity changes). */
+let _layoutCacheNodes: Map<string, GraphNode> | null = null;
+const _layoutCache = new Map<string, { isCJ: boolean; coinJoinType: string | undefined; entityMatch: EntityMatch | null }>();
+
+function getCachedAnalysis(graphNodes: Map<string, GraphNode>, tx: MempoolTransaction, txid: string) {
+  // Invalidate cache when the underlying map reference changes (new nodes added/removed)
+  if (_layoutCacheNodes !== graphNodes) {
+    _layoutCacheNodes = graphNodes;
+    _layoutCache.clear();
+  }
+  let cached = _layoutCache.get(txid);
+  if (!cached) {
+    const cjResult = analyzeCoinJoin(tx);
+    const isCJ = cjResult.findings.some(isCoinJoinFinding);
+    cached = {
+      isCJ,
+      coinJoinType: isCJ ? getCoinJoinType(cjResult.findings) : undefined,
+      entityMatch: getBestEntityMatch(tx),
+    };
+    _layoutCache.set(txid, cached);
+  }
+  return cached;
+}
+
 /** Lay out graph nodes in depth-based columns, build edges from parent/child relationships. */
 export function layoutGraph(
   graphNodes: Map<string, GraphNode>,
@@ -102,10 +126,7 @@ export function layoutGraph(
     let yOffset = MARGIN.top;
 
     group.forEach((node) => {
-      const cjResult = analyzeCoinJoin(node.tx);
-      const isCJ = cjResult.findings.some(isCoinJoinFinding);
-      const coinJoinType = isCJ ? getCoinJoinType(cjResult.findings) : undefined;
-      const entityMatch = getBestEntityMatch(node.tx);
+      const { isCJ, coinJoinType, entityMatch } = getCachedAnalysis(graphNodes, node.tx, node.txid);
       const isRoot = rootTxids ? rootTxids.has(node.txid) : node.txid === rootTxid;
 
       // Apply filter (never filter root, never filter expanded)

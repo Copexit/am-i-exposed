@@ -343,6 +343,9 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
   const [state, dispatch] = useReducer(graphReducer, maxNodes, makeInitialState);
   const fetcherRef = useRef(fetcher);
   fetcherRef.current = fetcher;
+  // Ref for auto-trace callbacks to read current state without stale closures
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   const setRoot = useCallback((tx: MempoolTransaction) => {
     dispatch({ type: "SET_ROOT", tx });
@@ -586,6 +589,8 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
   // ─── Expanded node state (UTXO port mode) ──────────────────────
   const [expandedNodeTxid, setExpandedNodeTxid] = useState<string | null>(null);
   const outspendCacheRef = useRef<Map<string, MempoolOutspend[]>>(new Map());
+  // Force re-render counter - used when outspend data arrives for an already-expanded node
+  const [, setOutspendTick] = useState(0);
 
   // Clear expanded node when graph is reset or root changes
   useEffect(() => {
@@ -608,8 +613,8 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
         try {
           const outspends = await client.getTxOutspends(txid);
           outspendCacheRef.current.set(txid, outspends);
-          // Trigger re-render by setting state again
-          setExpandedNodeTxid((prev) => prev === txid ? txid : prev);
+          // Force re-render so the expanded node picks up the outspend data
+          setOutspendTick((c) => c + 1);
         } catch {
           // Outspends unavailable - not critical, ports still render without spend status
         }
@@ -621,7 +626,7 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
   const expandPortInput = useCallback(async (txid: string, inputIndex: number) => {
     await expandInput(txid, inputIndex);
     // After expansion completes, expand the newly added parent node
-    const node = state.nodes.get(txid);
+    const node = stateRef.current.nodes.get(txid);
     if (node) {
       const vin = node.tx.vin[inputIndex];
       if (vin && !vin.is_coinbase) {
@@ -632,12 +637,12 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
           try {
             const outspends = await client.getTxOutspends(vin.txid);
             outspendCacheRef.current.set(vin.txid, outspends);
-            setExpandedNodeTxid((prev) => prev === vin.txid ? vin.txid : prev);
+            setOutspendTick((c) => c + 1);
           } catch { /* not critical */ }
         }
       }
     }
-  }, [expandInput, state.nodes]);
+  }, [expandInput]);
 
   /** Pending forward port expansion (resolved by useEffect when state.nodes updates). */
   const [pendingPortExpand, setPendingPortExpand] = useState<{ txid: string; outputIndex: number } | null>(null);
@@ -666,7 +671,7 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
           if (client && !outspendCacheRef.current.has(childTxid)) {
             client.getTxOutspends(childTxid).then((os) => {
               outspendCacheRef.current.set(childTxid, os);
-              setExpandedNodeTxid((prev) => prev === childTxid ? childTxid : prev);
+              setOutspendTick((c) => c + 1);
             }).catch(() => { /* not critical */ });
           }
           return;
@@ -696,12 +701,13 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
 
     let currentTxid = startTxid;
     let currentOutputIndex = startOutputIndex;
-    let currentDepth = state.nodes.get(startTxid)?.depth ?? 0;
+    let currentDepth = stateRef.current.nodes.get(startTxid)?.depth ?? 0;
+    let addedThisTrace = 0;
 
     try {
       for (let hop = 0; hop < maxHops; hop++) {
         if (ac.signal.aborted) break;
-        if (state.nodes.size + hop >= state.maxNodes) {
+        if (stateRef.current.nodes.size + addedThisTrace >= stateRef.current.maxNodes) {
           dispatch({ type: "SET_ERROR", txid: currentTxid, error: "Auto-trace stopped: max nodes reached" });
           break;
         }
@@ -748,6 +754,7 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
             parentEdge: { fromTxid: currentTxid, outputIndex: currentOutputIndex },
           },
         });
+        addedThisTrace++;
         await new Promise((r) => setTimeout(r, 80));
 
         // Analyze the freshly fetched tx directly (not from stale state)
@@ -767,7 +774,8 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
       setAutoTracing(false);
       setAutoTraceProgress(null);
     }
-  }, [state.nodes, state.maxNodes]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** Cancel any in-progress auto-trace. */
   const cancelAutoTrace = useCallback(() => {
@@ -800,11 +808,13 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     let currentTxid = startTxid;
     let currentOutputIndex = startOutputIndex;
     // Track depth from the starting node for ADD_NODE depth field
-    let currentDepth = state.nodes.get(startTxid)?.depth ?? 0;
+    let currentDepth = stateRef.current.nodes.get(startTxid)?.depth ?? 0;
+    let addedThisTrace = 0;
 
     try {
       for (let hop = 0; hop < maxHops; hop++) {
         if (ac.signal.aborted) break;
+        if (stateRef.current.nodes.size + addedThisTrace >= stateRef.current.maxNodes) break;
 
         setAutoTraceProgress({ hop: hop + 1, txid: currentTxid, reason: `compound: ${Math.round(compoundProb * 100)}%` });
 
@@ -837,6 +847,7 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
           type: "ADD_NODE",
           node: { txid: childTxid, tx: childTx, depth: currentDepth, parentEdge: { fromTxid: currentTxid, outputIndex: currentOutputIndex } },
         });
+        addedThisTrace++;
         // Small delay so the UI shows the node appearing
         await new Promise((r) => setTimeout(r, 100));
         if (ac.signal.aborted) break;
@@ -889,7 +900,8 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
       setAutoTracing(false);
       setAutoTraceProgress(null);
     }
-  }, [state.nodes, state.maxNodes]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return {
     nodes: state.nodes,

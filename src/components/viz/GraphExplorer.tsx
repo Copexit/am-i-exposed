@@ -86,39 +86,43 @@ export function GraphExplorer(props: GraphExplorerProps) {
     });
   }, []);
 
-  // Eagerly auto-mark change outputs using heuristics for all graph nodes
+  // Incrementally auto-mark change outputs using heuristics for newly added nodes only.
+  // Tracks which txids have been analyzed to avoid re-running heuristics on every graph update.
+  const analyzedChangeTxidsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    const autoMarked = new Set<string>();
+    const newKeys = new Set<string>();
+    let hasNew = false;
     for (const [txid, node] of props.nodes) {
+      if (analyzedChangeTxidsRef.current.has(txid)) continue;
+      analyzedChangeTxidsRef.current.add(txid);
+      hasNew = true;
       const result = analyzeChangeDetection(node.tx);
       for (const finding of result.findings) {
-        // h2-change-detected: sub-heuristic consensus (round amount, script match, etc.)
         if (finding.id === "h2-change-detected" && finding.params) {
           const idx = (finding.params as Record<string, unknown>).changeIndex;
-          if (typeof idx === "number") {
-            autoMarked.add(`${txid}:${idx}`);
-          }
+          if (typeof idx === "number") newKeys.add(`${txid}:${idx}`);
         }
-        // h2-same-address-io: output address matches an input address (deterministic change)
-        // h2-self-send: ALL outputs go back to input addresses
         if ((finding.id === "h2-same-address-io" || finding.id === "h2-self-send") && finding.params) {
           const indicesStr = (finding.params as Record<string, unknown>).selfSendIndices;
           if (typeof indicesStr === "string" && indicesStr.length > 0) {
             for (const idx of indicesStr.split(",")) {
               const n = parseInt(idx, 10);
-              if (!isNaN(n)) autoMarked.add(`${txid}:${n}`);
+              if (!isNaN(n)) newKeys.add(`${txid}:${n}`);
             }
           }
         }
       }
     }
-    // Merge: auto-marked + user-toggled (user overrides take precedence)
+    // Clean up analyzed set for removed nodes
+    for (const txid of analyzedChangeTxidsRef.current) {
+      if (!props.nodes.has(txid)) analyzedChangeTxidsRef.current.delete(txid);
+    }
+    if (!hasNew) return;
+    // Merge new auto-marks into existing set (user overrides take precedence)
     setChangeOutputs((prev) => {
-      const next = new Set(autoMarked);
-      for (const key of userToggledRef.current) {
-        // If user explicitly toggled it off, remove; if toggled on, add
-        if (prev.has(key) && !autoMarked.has(key)) next.add(key);
-        if (!prev.has(key) && autoMarked.has(key)) next.delete(key);
+      const next = new Set(prev);
+      for (const key of newKeys) {
+        if (!userToggledRef.current.has(key)) next.add(key);
       }
       return next;
     });
@@ -294,15 +298,18 @@ export function GraphExplorer(props: GraphExplorerProps) {
     setViewTransform({ x: cx - gx * s, y: cy - gy * s, scale: s });
   }, [viewTransform]);
 
-  // Heat map computation
+  // Heat map computation - uses rAF for chunking, updates state only on completion
+  const heatResultsRef = useRef<Map<string, ScoringResult>>(new Map());
   useEffect(() => {
     if (!heatMapActive) return;
     const analyze = analyzeTransactionSync;
     const nodeEntries = Array.from(props.nodes.entries());
-    const results = new Map<string, ScoringResult>();
+    const results = heatResultsRef.current;
     let idx = 0;
+    let cancelled = false;
 
     function processNext() {
+      if (cancelled) return;
       const start = performance.now();
       while (idx < nodeEntries.length && performance.now() - start < 16) {
         const [txid, gn] = nodeEntries[idx];
@@ -312,13 +319,16 @@ export function GraphExplorer(props: GraphExplorerProps) {
         idx++;
         setHeatProgress(Math.round((idx / nodeEntries.length) * 100));
       }
-      setHeatMap(new Map(results));
       if (idx < nodeEntries.length) {
         requestAnimationFrame(processNext);
+      } else {
+        // Single state update after all nodes processed
+        setHeatMap(new Map(results));
       }
     }
 
     processNext();
+    return () => { cancelled = true; };
   }, [heatMapActive, props.nodes]);
 
   // Count hidden nodes

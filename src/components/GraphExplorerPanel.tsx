@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, lazy, Suspense } from "react";
+import { useEffect, useRef, useMemo, lazy, Suspense } from "react";
 import { useNetwork } from "@/context/NetworkContext";
 import { createApiClient } from "@/lib/api/client";
 import { useGraphExpansion } from "@/hooks/useGraphExpansion";
@@ -69,7 +69,12 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, fo
 
   // Set root tx on mount or when tx changes.
   // If trace layers are available, pre-populate up to 2 hops in each direction.
+  // Depend only on tx.txid to avoid resetting the graph when parent re-renders
+  // with new object references for the same transaction.
+  const rootTxidRef = useRef<string>("");
   useEffect(() => {
+    if (rootTxidRef.current === tx.txid) return;
+    rootTxidRef.current = tx.txid;
     const hasBw = backwardLayers && backwardLayers.length > 0;
     const hasFw = forwardLayers && forwardLayers.length > 0;
     if (hasBw || hasFw) {
@@ -82,7 +87,8 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, fo
     } else {
       setRoot(tx);
     }
-  }, [tx.txid, setRoot, setRootWithLayers, tx, backwardLayers, forwardLayers, outspends]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tx.txid]);
 
   if (!rootTxid) return null;
 
