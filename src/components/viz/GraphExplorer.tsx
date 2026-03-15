@@ -71,6 +71,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
   // Fingerprint mode (mutually exclusive with heat map)
   const [fingerprintMode, setFingerprintMode] = useState(false);
+  const [entropyGradientMode, setEntropyGradientMode] = useState(false);
 
   // Change marking state - auto-populated from heuristics, user can toggle
   const [changeOutputs, setChangeOutputs] = useState<Set<string>>(new Set());
@@ -390,6 +391,22 @@ export function GraphExplorer(props: GraphExplorerProps) {
           </span>
         </button>
 
+        {/* Entropy gradient toggle */}
+        <button
+          onClick={() => setEntropyGradientMode(!entropyGradientMode)}
+          className={`text-xs transition-colors px-2 py-1 rounded border cursor-pointer ${
+            entropyGradientMode
+              ? "text-green-400 border-green-400/30 bg-green-400/10"
+              : "text-white/50 hover:text-white/80 border-white/10"
+          }`}
+          title="Entropy gradient - color edges by effective privacy (bottleneck entropy across hops)"
+        >
+          <span className="flex items-center gap-1">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M2 20h20" /><path d="M5 20V10" /><path d="M9 20V4" /><path d="M13 20v-8" /><path d="M17 20v-4" /><path d="M21 20v-2" /></svg>
+            <span className="hidden sm:inline">Entropy</span>
+          </span>
+        </button>
+
         {/* Linkability edge mode toggle */}
         {hasLinkability && (
           <button
@@ -572,6 +589,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
     heatMapActive,
     linkabilityEdgeMode,
     fingerprintMode,
+    entropyGradientMode,
     changeOutputs,
     onLayoutComplete: handleLayoutComplete,
     boltzmannCache: boltzmannCacheRef.current,
@@ -798,6 +816,19 @@ export function GraphExplorer(props: GraphExplorerProps) {
                   <span className="flex items-center gap-1">
                     <FingerprintIcon />
                     <span className="hidden sm:inline">Fingerprint</span>
+                  </span>
+                </button>
+                {/* Entropy gradient (fullscreen) */}
+                <button
+                  onClick={() => setEntropyGradientMode(!entropyGradientMode)}
+                  className={`text-xs transition-colors px-2 py-1 rounded border cursor-pointer ${
+                    entropyGradientMode ? "text-green-400 border-green-400/30 bg-green-400/10" : "text-white/50 hover:text-white/80 border-white/10"
+                  }`}
+                  title="Entropy gradient"
+                >
+                  <span className="flex items-center gap-1">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M2 20h20" /><path d="M5 20V10" /><path d="M9 20V4" /><path d="M13 20v-8" /><path d="M17 20v-4" /><path d="M21 20v-2" /></svg>
+                    <span className="hidden sm:inline">Entropy</span>
                   </span>
                 </button>
                 {/* Linkability edges (fullscreen) */}
