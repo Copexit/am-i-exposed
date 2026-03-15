@@ -1,6 +1,8 @@
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import { isCoinJoinTx } from "../heuristics/coinjoin";
+import { getSpendableOutputs } from "../heuristics/tx-utils";
+import { DUST_THRESHOLD } from "@/lib/constants";
 
 /**
  * Backward chain analysis: examine parent transactions to determine
@@ -47,7 +49,7 @@ export function analyzeBackward(
     // Check if the input is likely dust from an attack
     // (tiny value from a parent with many small outputs to diverse addresses)
     const inputValue = vin.prevout?.value ?? 0;
-    if (inputValue > 0 && inputValue <= 1000 && isDustAttackParent(parentTx)) {
+    if (inputValue > 0 && inputValue <= DUST_THRESHOLD && isDustAttackParent(parentTx)) {
       dustInputs.push(inputIdx);
     }
   }
@@ -125,7 +127,7 @@ export function analyzeBackward(
 /** Detect exchange batch withdrawal pattern (structural, no address database) */
 function isExchangeBatch(tx: MempoolTransaction): boolean {
   if (tx.vin.length > 2) return false;
-  const spendable = tx.vout.filter((o) => !o.scriptpubkey.startsWith("6a"));
+  const spendable = getSpendableOutputs(tx.vout);
   if (spendable.length < 10) return false;
 
   // Check for mixed script types (2+ types - exchanges serve diverse customers)
@@ -137,11 +139,11 @@ function isExchangeBatch(tx: MempoolTransaction): boolean {
 
 /** Detect dust attack parent: many small outputs to diverse addresses */
 function isDustAttackParent(tx: MempoolTransaction): boolean {
-  const spendable = tx.vout.filter((o) => !o.scriptpubkey.startsWith("6a"));
+  const spendable = getSpendableOutputs(tx.vout);
   if (spendable.length < 10) return false;
 
-  // Count small outputs (<= 1000 sats)
-  const smallOutputs = spendable.filter((o) => o.value <= 1000);
+  // Count small outputs (<= DUST_THRESHOLD sats)
+  const smallOutputs = spendable.filter((o) => o.value <= DUST_THRESHOLD);
   if (smallOutputs.length < 5) return false;
 
   // Check for diverse addresses

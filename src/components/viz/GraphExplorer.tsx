@@ -11,6 +11,7 @@ import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import { formatSats, calcVsize } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
+import { useFullscreen } from "@/hooks/useFullscreen";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
 import { analyzeCoinJoin, isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
 import { analyzeTransactionSync } from "@/lib/analysis/analyze-sync";
@@ -127,13 +128,13 @@ const MARGIN = { top: 50, right: 40, bottom: 20, left: 40 };
 /** Category-specific colors for entity nodes. */
 const ENTITY_CATEGORY_COLORS: Record<EntityCategory | "unknown", string> = {
   exchange: "#06b6d4",   // teal (distinct from standard-tx blue and root-tx orange)
-  darknet: "#ef4444",    // red
-  scam: "#ef4444",       // red
-  mixer: "#28d065",      // green
-  gambling: "#eab308",   // amber
+  darknet: SVG_COLORS.critical,
+  scam: SVG_COLORS.critical,
+  mixer: SVG_COLORS.good,
+  gambling: SVG_COLORS.medium,
   mining: "#9ca3af",     // gray
   payment: "#a78bfa",    // purple
-  p2p: "#f97316",        // orange
+  p2p: SVG_COLORS.high,
   unknown: SVG_COLORS.high,
 };
 
@@ -1423,7 +1424,6 @@ export function GraphExplorer(props: GraphExplorerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // State
-  const [isExpanded, setIsExpanded] = useState(false);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<{ txid: string; x: number; y: number } | null>(null);
   const [focusedNode, setFocusedNode] = useState<string | null>(null);
@@ -1431,6 +1431,13 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
   // View transform for fullscreen pan/zoom
   const [viewTransform, setViewTransform] = useState<ViewTransform | undefined>(undefined);
+
+  // Fullscreen toggle (onExit clears selection + view transform)
+  const handleFullscreenExit = useCallback(() => {
+    setSelectedNode(null);
+    setViewTransform(undefined);
+  }, []);
+  const { isExpanded, expand: expandFullscreen, collapse: collapseFullscreen } = useFullscreen(handleFullscreenExit);
 
   // Linkability edge mode
   const [linkabilityEdgeMode, setLinkabilityEdgeMode] = useState(false);
@@ -1453,24 +1460,6 @@ export function GraphExplorer(props: GraphExplorerProps) {
     const s = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, viewTransform.scale * factor));
     setViewTransform({ x: cx - gx * s, y: cy - gy * s, scale: s });
   }, [viewTransform]);
-
-  // Fullscreen Escape handler
-  useEffect(() => {
-    if (!isExpanded) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setIsExpanded(false);
-        setSelectedNode(null);
-        setViewTransform(undefined);
-      }
-    };
-    document.addEventListener("keydown", handler);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", handler);
-      document.body.style.overflow = "";
-    };
-  }, [isExpanded]);
 
   // Heat map computation
   useEffect(() => {
@@ -1602,7 +1591,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
         {/* Fullscreen toggle */}
         <button
           onClick={() => {
-            setIsExpanded(true);
+            expandFullscreen();
             // Center on root node(s) at 1:1 scale
             const { layoutNodes: ln } = layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids);
             const roots = ln.filter((n) => n.isRoot);
@@ -1870,11 +1859,11 @@ export function GraphExplorer(props: GraphExplorerProps) {
           aria-modal="true"
           aria-label={t("graphExplorer.fullscreenLabel", { defaultValue: "Transaction graph fullscreen" })}
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col"
-          onClick={(e) => { if (e.target === e.currentTarget) { setIsExpanded(false); setViewTransform(undefined); } }}
+          onClick={(e) => { if (e.target === e.currentTarget) collapseFullscreen(); }}
         >
           {/* Close button - always fixed top-right */}
           <button
-            onClick={() => { setIsExpanded(false); setViewTransform(undefined); }}
+            onClick={collapseFullscreen}
             className="fixed top-3 right-3 z-[60] text-white/60 hover:text-white transition-colors p-2 rounded-lg bg-black/60 hover:bg-surface-inset backdrop-blur-sm cursor-pointer"
             aria-label={t("common.close", { defaultValue: "Close" })}
           >

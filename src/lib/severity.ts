@@ -5,8 +5,10 @@
  * For SVG/Canvas contexts, use SVG_COLORS from viz/shared/svgConstants instead.
  */
 
+import type { Severity } from "@/lib/types";
+
 /** Severity-keyed border + background classes (for cards/panels with borders). */
-export const SEVERITY_COLORS: Record<string, string> = {
+export const SEVERITY_COLORS: Record<Severity, string> = {
   critical: "border-severity-critical/40 bg-severity-critical/5",
   high: "border-severity-high/40 bg-severity-high/5",
   medium: "border-severity-medium/40 bg-severity-medium/5",
@@ -15,7 +17,7 @@ export const SEVERITY_COLORS: Record<string, string> = {
 };
 
 /** Severity-keyed dot/indicator background classes. */
-export const SEVERITY_DOT: Record<string, string> = {
+export const SEVERITY_DOT: Record<Severity, string> = {
   critical: "bg-severity-critical",
   high: "bg-severity-high",
   medium: "bg-severity-medium",
@@ -24,7 +26,7 @@ export const SEVERITY_DOT: Record<string, string> = {
 };
 
 /** Severity-keyed text color classes. */
-export const SEVERITY_TEXT: Record<string, string> = {
+export const SEVERITY_TEXT: Record<Severity, string> = {
   critical: "text-severity-critical",
   high: "text-severity-high",
   medium: "text-severity-medium",
@@ -33,7 +35,7 @@ export const SEVERITY_TEXT: Record<string, string> = {
 };
 
 /** Severity-keyed background + border classes (for chain analysis cards). */
-export const SEVERITY_BG: Record<string, string> = {
+export const SEVERITY_BG: Record<Severity, string> = {
   critical: "bg-severity-critical/10 border-severity-critical/20",
   high: "bg-severity-high/10 border-severity-high/20",
   medium: "bg-severity-medium/10 border-severity-medium/20",

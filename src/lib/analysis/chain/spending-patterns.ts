@@ -2,6 +2,7 @@ import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import { fmtN } from "@/lib/format";
 import { isCoinJoinTx } from "../heuristics/coinjoin";
+import { getSpendableOutputs } from "../heuristics/tx-utils";
 
 /**
  * Spending pattern analysis: detect partial spends, ricochet,
@@ -27,7 +28,7 @@ export function detectPartialSpendWarning(
   tx: MempoolTransaction,
 ): Finding | null {
   // Need at least 2 outputs (payment + change) and non-coinbase inputs
-  const spendable = tx.vout.filter((o) => !o.scriptpubkey.startsWith("6a"));
+  const spendable = getSpendableOutputs(tx.vout);
   if (spendable.length !== 2) return null;
 
   const totalInput = tx.vin.reduce((s, v) => s + (v.prevout?.value ?? 0), 0);
@@ -77,7 +78,7 @@ export function detectRicochet(
   // Check if this tx is part of a chain of sweeps
   if (tx.vin.length !== 1 || tx.vin[0].is_coinbase) return null;
 
-  const spendable = tx.vout.filter((o) => !o.scriptpubkey.startsWith("6a"));
+  const spendable = getSpendableOutputs(tx.vout);
   if (spendable.length !== 1) return null;
 
   // Walk backward through parent chain counting consecutive sweeps
@@ -91,9 +92,7 @@ export function detectRicochet(
       originIsCoinJoin = true;
     } else {
       // Parent must also be 1-in-1-out sweep to count as a hop
-      const parentSpendable = firstParent.vout.filter(
-        (o) => !o.scriptpubkey.startsWith("6a"),
-      );
+      const parentSpendable = getSpendableOutputs(firstParent.vout);
       if (
         firstParent.vin.length === 1 &&
         parentSpendable.length === 1 &&
@@ -160,7 +159,7 @@ export function detectPostCoinJoinPartialSpend(
   if (coinJoinInputIndices.length === 0) return null;
 
   // Check if this tx creates change (2 outputs, one smaller)
-  const spendable = tx.vout.filter((o) => !o.scriptpubkey.startsWith("6a"));
+  const spendable = getSpendableOutputs(tx.vout);
   if (spendable.length < 2) return null; // full spend = good
 
   // If spending a single CoinJoin UTXO and creating change = bad
@@ -204,7 +203,7 @@ export function detectKycConsolidationBeforeCJ(
   childTxs: Map<number, MempoolTransaction>,
 ): Finding | null {
   // This tx should be a consolidation: many inputs, 1-2 outputs
-  const spendable = tx.vout.filter((o) => !o.scriptpubkey.startsWith("6a"));
+  const spendable = getSpendableOutputs(tx.vout);
   if (tx.vin.length < 2 || spendable.length > 2) return null;
 
   // Check if all inputs appear to come from similar sources
@@ -279,11 +278,11 @@ export function analyzeSpendingPatterns(
     findings.push(postCjPartial);
     // Track which output indices have the problematic change.
     // In a 1-in-2-out post-CJ partial spend, the smaller output is the change.
-    const spendableOuts = tx.vout.filter((o) => !o.scriptpubkey.startsWith("6a"));
+    const spendableOuts = getSpendableOutputs(tx.vout);
     if (spendableOuts.length >= 2) {
       const minVal = Math.min(...spendableOuts.map((o) => o.value));
       const changeIdx = tx.vout.findIndex(
-        (o) => o.value === minVal && !o.scriptpubkey.startsWith("6a"),
+        (o) => o.value === minVal && o.scriptpubkey_type !== "op_return",
       );
       if (changeIdx >= 0) postCjPartialSpends.push(changeIdx);
     }

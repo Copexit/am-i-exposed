@@ -28,7 +28,6 @@ export function ChartTooltip({ top, left, children, containerRef }: ChartTooltip
   const [mounted, setMounted] = useState(false);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- SSR hydration guard
   useEffect(() => { setMounted(true); }, []);
 
   if (!mounted) return null;

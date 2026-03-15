@@ -88,7 +88,7 @@ export function analyzeForward(
     // Skip when parent tx is a CoinJoin: post-mix outputs spent individually
     // (1-in, 2-out) is normal and expected behavior, not a peel chain.
     if (!txIsCoinJoin && childTx.vin.length === 1 && childTx.vout.length === 2) {
-      const spendable = childTx.vout.filter((o) => !o.scriptpubkey.startsWith("6a"));
+      const spendable = getSpendableOutputs(childTx.vout);
       if (spendable.length === 2) {
         const [v1, v2] = [spendable[0].value, spendable[1].value];
         const ratio = Math.min(v1, v2) / Math.max(v1, v2);
@@ -105,8 +105,8 @@ export function analyzeForward(
   // tx0 detection: OP_RETURN + multiple equal-value outputs (premix denomination).
   // The OP_RETURN requirement prevents false-positives on exchange batch withdrawals,
   // which may have equal outputs but never include OP_RETURN data.
-  const hasOpReturn = tx.vout.some((o) => o.scriptpubkey.startsWith("6a"));
-  const spendableVout = tx.vout.filter((o) => !o.scriptpubkey.startsWith("6a"));
+  const hasOpReturn = tx.vout.some((o) => o.scriptpubkey_type === "op_return");
+  const spendableVout = getSpendableOutputs(tx.vout);
   const valueCounts = new Map<number, number>();
   for (const o of spendableVout) valueCounts.set(o.value, (valueCounts.get(o.value) ?? 0) + 1);
   const hasEqualOutputsAtDenom = [...valueCounts.entries()].some(
