@@ -12,6 +12,7 @@ import { truncateId } from "@/lib/constants";
 import { useFullscreen } from "@/hooks/useFullscreen";
 import { analyzeTransactionSync } from "@/lib/analysis/analyze-sync";
 import { computeBoltzmann, extractTxValues } from "@/lib/analysis/boltzmann-compute";
+import { analyzeChangeDetection } from "@/lib/analysis/heuristics/change-detection";
 import { detectJoinMarketForTurbo } from "@/lib/analysis/boltzmann-pool";
 import type { BoltzmannWorkerResult, BoltzmannProgress } from "@/lib/analysis/boltzmann-pool";
 import { GraphSidebar, SIDEBAR_WIDTH } from "./graph/GraphSidebar";
@@ -71,16 +72,43 @@ export function GraphExplorer(props: GraphExplorerProps) {
   // Fingerprint mode (mutually exclusive with heat map)
   const [fingerprintMode, setFingerprintMode] = useState(false);
 
-  // Change marking state
+  // Change marking state - auto-populated from heuristics, user can toggle
   const [changeOutputs, setChangeOutputs] = useState<Set<string>>(new Set());
+  const userToggledRef = useRef<Set<string>>(new Set()); // tracks manual overrides
   const toggleChange = useCallback((txid: string, outputIndex: number) => {
+    const key = `${txid}:${outputIndex}`;
+    userToggledRef.current.add(key); // remember user explicitly toggled this
     setChangeOutputs((prev) => {
-      const key = `${txid}:${outputIndex}`;
       const next = new Set(prev);
       if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
   }, []);
+
+  // Eagerly auto-mark change outputs using heuristics for all graph nodes
+  useEffect(() => {
+    const autoMarked = new Set<string>();
+    for (const [txid, node] of props.nodes) {
+      const result = analyzeChangeDetection(node.tx);
+      const finding = result.findings.find((f) => f.id === "h2-change-detected");
+      if (finding?.params) {
+        const idx = finding.params.changeIndex;
+        if (typeof idx === "number") {
+          autoMarked.add(`${txid}:${idx}`);
+        }
+      }
+    }
+    // Merge: auto-marked + user-toggled (user overrides take precedence)
+    setChangeOutputs((prev) => {
+      const next = new Set(autoMarked);
+      for (const key of userToggledRef.current) {
+        // If user explicitly toggled it off, remove; if toggled on, add
+        if (prev.has(key) && !autoMarked.has(key)) next.add(key);
+        if (!prev.has(key) && autoMarked.has(key)) next.delete(key);
+      }
+      return next;
+    });
+  }, [props.nodes]);
 
   // Sidebar visible when a node is expanded
   const sidebarTx = props.expandedNodeTxid ? props.nodes.get(props.expandedNodeTxid)?.tx : undefined;

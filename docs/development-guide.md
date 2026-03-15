@@ -18,7 +18,7 @@ src/
 │   ├── DiagnosticLoader.tsx  # Step-by-step heuristic progress with timer
 │   ├── ExportButton.tsx      # Copy formatted report to clipboard
 │   ├── FindingCard.tsx       # Collapsible finding with severity border colors
-│   ├── GraphExplorerPanel.tsx # OXT-style interactive tx DAG expansion
+│   ├── GraphExplorerPanel.tsx # OXT-style graph wrapper (creates API client, wires hooks)
 │   ├── Header.tsx            # Sticky header with logo, badge, network selector
 │   ├── InstallPrompt.tsx     # PWA install banner
 │   ├── PrivacyNotice.tsx     # One-time dismissible privacy banner
@@ -33,7 +33,20 @@ src/
 │   │   └── NetworkSettings.tsx      # API URL, health check, diagnostics
 │   └── viz/
 │       ├── CoinJoinStructure.tsx  # CoinJoin input/output mapping diagram
-│       ├── GraphExplorer.tsx      # visx force-directed tx graph
+│       ├── GraphExplorer.tsx      # OXT-style graph orchestrator (toolbar, sidebar, canvas)
+│       ├── graph/                 # OXT-style graph sub-components (see docs/adr-oxt-graph.md)
+│       │   ├── types.ts           # All graph-related TypeScript interfaces
+│       │   ├── constants.ts       # Node/port dimensions, zoom limits, colors
+│       │   ├── layout.ts          # Column-based DAG layout algorithm
+│       │   ├── edge-utils.ts      # Edge path calculation + port-to-port routing
+│       │   ├── portLayout.ts      # UTXO port position math for expanded nodes
+│       │   ├── scriptStyles.ts    # Script type colors, dashes, thickness, fingerprint encoding
+│       │   ├── icons.tsx          # Toolbar icon components
+│       │   ├── GraphCanvas.tsx    # Main SVG canvas (nodes, edges, pan/zoom, gestures)
+│       │   ├── GraphMinimap.tsx   # Minimap overlay for fullscreen navigation
+│       │   ├── ExpandedNode.tsx   # Expanded node with input/output UTXO ports
+│       │   ├── GraphSidebar.tsx   # 320px right sidebar (I/O, Analysis, Technical tabs)
+│       │   └── index.ts           # Barrel exports
 │       ├── ScoreWaterfall.tsx     # Finding impact waterfall chart
 │       ├── TaintPathDiagram.tsx   # Bithypha-style taint flow visualization
 │       ├── TxFlowDiagram.tsx      # Transaction I/O flow Sankey diagram
