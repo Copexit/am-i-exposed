@@ -18,6 +18,7 @@ import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { BoltzmannWorkerResult } from "@/hooks/useBoltzmann";
 import type { Finding } from "@/lib/types";
 import type { SankeyExtraProperties, SankeyGraph } from "d3-sankey";
+import type { SankeyComputedNode, SankeyComputedLink } from "./shared/sankeyTypes";
 
 interface TxFlowDiagramProps {
   tx: MempoolTransaction;
@@ -469,9 +470,9 @@ function FlowChart({
         >
           {({ graph: computed }) => {
             // Build node lookup for link gradient colors
-            const nodeMap = new Map<string, NodeDatum>();
+            const nodeMap = new Map<string, SankeyComputedNode<NodeDatum>>();
             for (const node of (computed.nodes ?? [])) {
-              const n = node as unknown as NodeDatum;
+              const n = node as SankeyComputedNode<NodeDatum>;
               nodeMap.set(n.id, n);
             }
 
@@ -480,8 +481,9 @@ function FlowChart({
               {/* Dynamic per-link gradients */}
               <defs>
                 {(computed.links ?? []).map((link, i) => {
-                  const srcNode = nodeMap.get((link.source as unknown as { id: string }).id);
-                  const tgtNode = nodeMap.get((link.target as unknown as { id: string }).id);
+                  const cl = link as SankeyComputedLink<NodeDatum, LinkDatum>;
+                  const srcNode = nodeMap.get(cl.source.id);
+                  const tgtNode = nodeMap.get(cl.target.id);
 
                   // Linkability mode: solid color from probability matrix
                   if (boltzmannLookup && srcNode && tgtNode && srcNode.side === "input" && tgtNode.side === "output") {
@@ -515,14 +517,14 @@ function FlowChart({
                   guarantee every link is visible. */}
               {/* Scale animation timing: cap total stagger window at ~1.5s regardless of link count */}
               {(computed.links ?? []).map((link, i) => {
-                const linkObj = link as unknown as { width: number; value: number; y0: number; y1: number };
-                if ((linkObj.value ?? 0) <= 0) return null;
+                const cl = link as SankeyComputedLink<NodeDatum, LinkDatum>;
+                if ((cl.value ?? 0) <= 0) return null;
 
-                const src = link.source as unknown as { x1: number; y0: number; y1: number; id: string };
-                const tgt = link.target as unknown as { x0: number; y0: number; y1: number; id: string };
-                const w = Math.max(linkObj.width ?? 0, 2);
-                const y0 = isFinite(linkObj.y0) ? linkObj.y0 : (src.y0 + src.y1) / 2;
-                const y1 = isFinite(linkObj.y1) ? linkObj.y1 : (tgt.y0 + tgt.y1) / 2;
+                const src = cl.source;
+                const tgt = cl.target;
+                const w = Math.max(cl.width ?? 0, 2);
+                const y0 = isFinite(cl.y0) ? cl.y0 : (src.y0 + src.y1) / 2;
+                const y1 = isFinite(cl.y1) ? cl.y1 : (tgt.y0 + tgt.y1) / 2;
                 const midX = (src.x1 + tgt.x0) / 2;
 
                 // Filled band: top edge curve -> bottom edge curve -> close
@@ -629,7 +631,7 @@ function FlowChart({
 
               {/* Nodes */}
               {(computed.nodes ?? []).map((node, i) => {
-                const n = node as unknown as NodeDatum & { x0: number; x1: number; y0: number; y1: number };
+                const n = node as SankeyComputedNode<NodeDatum>;
                 const nw = n.x1 - n.x0;
                 const nh = Math.max(2, n.y1 - n.y0);
                 const isInput = n.side === "input";

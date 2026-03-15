@@ -15,6 +15,7 @@ import { truncateId } from "@/lib/constants";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import type { SankeyExtraProperties, SankeyGraph } from "d3-sankey";
+import type { SankeyComputedNode, SankeyComputedLink } from "./shared/sankeyTypes";
 
 interface CoinJoinStructureProps {
   tx: MempoolTransaction;
@@ -448,8 +449,9 @@ function CoinJoinChart({
               {(computed.links ?? []).map((link, i) => {
                 const path = createPath(link);
                 const pathD = path ?? "";
-                const sourceNode = link.source as unknown as NodeDatum & { id: string };
-                const targetNode = link.target as unknown as NodeDatum & { id: string };
+                const cl = link as SankeyComputedLink<NodeDatum, LinkDatum>;
+                const sourceNode = cl.source;
+                const targetNode = cl.target;
                 const intoMixer = targetNode.id === "mixer";
                 const outOfMixer = sourceNode.id === "mixer";
                 const linkStroke = intoMixer
@@ -468,7 +470,7 @@ function CoinJoinChart({
                     d={pathD}
                     fill="none"
                     stroke={linkStroke}
-                    strokeWidth={Math.max(1, (link as unknown as { width: number }).width ?? 1)}
+                    strokeWidth={Math.max(1, cl.width ?? 1)}
                     strokeOpacity={linkOpacity}
                     initial={reducedMotion ? false : { pathLength: 0 }}
                     animate={{ pathLength: 1 }}
@@ -483,9 +485,7 @@ function CoinJoinChart({
 
               {/* Nodes */}
               {(computed.nodes ?? []).map((node, i) => {
-                const n = node as unknown as NodeDatum & {
-                  x0: number; x1: number; y0: number; y1: number;
-                };
+                const n = node as SankeyComputedNode<NodeDatum>;
                 const nodeWidth = n.x1 - n.x0;
                 const nodeHeight = Math.max(2, n.y1 - n.y0);
                 const isMixer = n.side === "mixer";
