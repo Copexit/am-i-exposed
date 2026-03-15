@@ -1,4 +1,4 @@
-/** Wallet data - shared between WalletGuide component and /guide page */
+/** Wallet data used by the /guide page */
 
 export interface WalletEntry {
   name: string;

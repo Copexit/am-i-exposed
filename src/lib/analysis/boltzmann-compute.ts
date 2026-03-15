@@ -5,8 +5,7 @@
 
 import { getAnalysisSettings } from "@/hooks/useAnalysisSettings";
 import type { MempoolTransaction } from "@/lib/api/types";
-import type { BoltzmannWorkerResult } from "@/hooks/useBoltzmann";
-import type { BoltzmannProgress, WorkerResponse } from "./boltzmann-pool";
+import type { BoltzmannWorkerResult, BoltzmannProgress, WorkerResponse } from "./boltzmann-pool";
 import {
   MAX_SUPPORTED_TOTAL,
   MAX_WORKERS,

@@ -7,7 +7,7 @@ import { useGraphExpansion } from "@/hooks/useGraphExpansion";
 import { ChartErrorBoundary } from "./ui/ChartErrorBoundary";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
-import type { BoltzmannWorkerResult } from "@/hooks/useBoltzmann";
+import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import type { Finding } from "@/lib/types";
 
 const GraphExplorer = lazy(() => import("./viz/GraphExplorer").then(m => ({ default: m.GraphExplorer })));

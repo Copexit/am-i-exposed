@@ -1,4 +1,4 @@
-/** Privacy pathways data - shared between PrivacyPathways component and /guide page */
+/** Privacy pathways data used by the /guide page and PrivacyPathways results section */
 
 export interface PathwayData {
   id: string;

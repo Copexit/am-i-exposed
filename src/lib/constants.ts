@@ -63,7 +63,6 @@ export function gradeColor(grade: string, fallback = "text-muted"): string {
   return GRADE_COLORS[grade as Grade] ?? fallback;
 }
 
-
 /** Shared Tailwind class for ghost-style action buttons (share, export, bookmark, etc.). */
 export const ACTION_BTN_CLASS =
   "inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors cursor-pointer px-3 py-2 min-h-[44px] rounded-lg border border-card-border hover:border-muted/50 bg-surface-elevated/50 focus-visible:ring-2 focus-visible:ring-bitcoin focus-visible:outline-none";

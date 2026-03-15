@@ -1,4 +1,4 @@
-/** Maintenance guide data - shared between MaintenanceGuide component and /guide page */
+/** Maintenance guide data used by the /guide page */
 
 export interface MaintenanceSection {
   titleKey: string;

@@ -15,7 +15,7 @@ import { formatSats, formatUsdValue, calcFeeRate } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 import { useFullscreen } from "@/hooks/useFullscreen";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
-import type { BoltzmannWorkerResult } from "@/hooks/useBoltzmann";
+import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import type { Finding } from "@/lib/types";
 import type { SankeyExtraProperties, SankeyGraph } from "d3-sankey";
 import type { SankeyComputedNode, SankeyComputedLink } from "./shared/sankeyTypes";
