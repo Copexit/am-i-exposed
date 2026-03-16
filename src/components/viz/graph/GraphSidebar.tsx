@@ -578,6 +578,26 @@ function IOTab({
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
                   </button>
                 )}
+                {/* Per-output auto-trace */}
+                {onAutoTrace && !autoTracing && vout.scriptpubkey_type !== "op_return" && vout.value > 0 && (
+                  <button
+                    onClick={() => onAutoTrace(tx.txid, i)}
+                    className="opacity-0 group-hover:opacity-100 text-orange-400/50 hover:text-orange-400 transition-all cursor-pointer p-0.5"
+                    title="Auto-trace from this output"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M13 5l7 7-7 7" /><path d="M5 5l7 7-7 7" /></svg>
+                  </button>
+                )}
+                {/* Per-output linkability trace */}
+                {onAutoTraceLinkability && !autoTracing && vout.scriptpubkey_type !== "op_return" && vout.value > 0 && (
+                  <button
+                    onClick={() => onAutoTraceLinkability(tx.txid, i)}
+                    className="opacity-0 group-hover:opacity-100 text-blue-400/50 hover:text-blue-400 transition-all cursor-pointer p-0.5"
+                    title="Linkability trace from this output"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07" /></svg>
+                  </button>
+                )}
               </div>
             );
           })}

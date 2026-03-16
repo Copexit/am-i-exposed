@@ -738,6 +738,7 @@ export function GraphCanvas({
                         confirmed: true,
                         linkProb: edgeMaxProb,
                         entropyNormalized: entropyEntry?.normalized,
+                        entropyBits: entropyEntry?.effectiveEntropy,
                       },
                       tooltipLeft: pos.x,
                       tooltipTop: pos.y,
@@ -779,10 +780,12 @@ export function GraphCanvas({
                   {`${edge.consolidationCount} outputs`}
                 </Text>
               )}
-              {/* Deterministic link badge (100%) - only on root tx edges with Boltzmann data */}
+              {/* Deterministic link badge (100%) - only for multi-input txs where determinism is non-trivial */}
               {!isConsolidation && edge.outputIndices?.length === 1 && (() => {
                 const edgeBoltz = boltzmannCache?.get(edge.fromTxid) ?? (edge.fromTxid === rootTxid ? rootBoltzmannResult : null);
                 if (!edgeBoltz?.deterministicLinks?.length) return null;
+                // Skip 1-input txs: every link is trivially deterministic, badge adds no info
+                if (edgeBoltz.nInputs <= 1) return null;
                 const outIdx = edge.outputIndices![0];
                 const isDeterministic = edgeBoltz.deterministicLinks.some(
                   ([oi]) => oi === outIdx,
@@ -1052,23 +1055,25 @@ export function GraphCanvas({
                 </rect>
               )}
 
-              {/* Badge pills (horizontal row, top-right) */}
+              {/* Badge pills (horizontal row, bottom of node) */}
               {(() => {
                 const badges: Array<{ label: string; bg: string; fg: string }> = [];
                 if (node.isCoinJoin) badges.push({ label: node.coinJoinType ?? "CJ", bg: SVG_COLORS.good, fg: "#0c0c0e" });
                 if (node.entityOfac) badges.push({ label: "OFAC", bg: SVG_COLORS.critical, fg: "#fff" });
                 if (toxicMergeNodes.has(node.txid)) badges.push({ label: "TOXIC", bg: "#ef4444", fg: "#fff" });
                 if (badges.length === 0) return null;
-                let bx = node.x + node.width - 4;
+                let bx = node.x + 8;
+                const by = node.y + node.height - 16;
                 return (
                   <g style={{ pointerEvents: "none" }}>
                     {badges.map((b, bi) => {
                       const tw = b.label.length * 5.5 + 8;
-                      bx -= tw + (bi > 0 ? 3 : 0);
+                      const x = bx;
+                      bx += tw + 3;
                       return (
-                        <g key={b.label} transform={`translate(${bx}, ${node.y + 3})`}>
-                          <rect width={tw} height={14} rx={7} fill={b.bg} fillOpacity={0.25} stroke={b.bg} strokeWidth={0.5} strokeOpacity={0.5} />
-                          <text x={tw / 2} y={10} textAnchor="middle" fontSize="7" fontWeight="bold" fill={b.fg} fillOpacity={0.9}>{b.label}</text>
+                        <g key={b.label} transform={`translate(${x}, ${by})`}>
+                          <rect width={tw} height={13} rx={6.5} fill={b.bg} fillOpacity={0.2} stroke={b.bg} strokeWidth={0.5} strokeOpacity={0.4} />
+                          <text x={tw / 2} y={9.5} textAnchor="middle" fontSize="7" fontWeight="bold" fill={b.fg} fillOpacity={0.85}>{b.label}</text>
                         </g>
                       );
                     })}

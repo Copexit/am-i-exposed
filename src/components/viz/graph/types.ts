@@ -111,6 +111,8 @@ export interface TooltipData {
   linkProb?: number;
   /** Normalized effective entropy for edge hover tooltip (0-1). */
   entropyNormalized?: number;
+  /** Effective entropy in bits for edge hover tooltip. */
+  entropyBits?: number;
 }
 
 export type NodeFilter = {

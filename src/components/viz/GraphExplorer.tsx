@@ -24,7 +24,6 @@ import { CloseIcon } from "./graph/icons";
 import { GraphToolbar } from "./graph/GraphToolbar";
 import { SCRIPT_TYPE_LEGEND } from "./graph/scriptStyles";
 import { entropyColor } from "./graph/privacyGradient";
-import { playExpandSound, playCollapseSound } from "./graph/sounds";
 import type { GraphExplorerProps, TooltipData, NodeFilter, ViewTransform } from "./graph/types";
 import type { ScoringResult } from "@/lib/types";
 
@@ -388,21 +387,9 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
   const [legendOpen, setLegendOpen] = useState(false);
 
-  // Sound effects (opt-in)
-  const [soundEnabled, setSoundEnabled] = useState(false);
-
   // Time travel replay
   const [timeTravelPlaying, setTimeTravelPlaying] = useState(false);
   const timeTravelIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Sound effects on graph changes
-  const prevNodeCountRef = useRef(props.nodeCount);
-  useEffect(() => {
-    if (!soundEnabled) { prevNodeCountRef.current = props.nodeCount; return; }
-    if (props.nodeCount > prevNodeCountRef.current) playExpandSound();
-    else if (props.nodeCount < prevNodeCountRef.current) playCollapseSound();
-    prevNodeCountRef.current = props.nodeCount;
-  }, [props.nodeCount, soundEnabled]);
 
   // ─── Global keyboard shortcuts for graph modes ───────
   useEffect(() => {
@@ -446,8 +433,6 @@ export function GraphExplorer(props: GraphExplorerProps) {
     onCycleEdgeMode: cycleEdgeMode,
     onUndo: props.onUndo,
     onReset: props.onReset,
-    soundEnabled,
-    onToggleSound: () => setSoundEnabled((v) => !v),
   };
 
   // ─── Legend (clickable filters) ────────────────────────
@@ -581,7 +566,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
             <div className="flex items-center gap-1.5">
               <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: entropyColor(tooltip.tooltipData.entropyNormalized), display: "inline-block", flexShrink: 0 }} />
               <span className="text-xs font-medium" style={{ color: SVG_COLORS.foreground }}>
-                {(tooltip.tooltipData.entropyNormalized * 100).toFixed(0)}% effective entropy
+                {(tooltip.tooltipData.entropyBits ?? 0).toFixed(2)} bits effective entropy
               </span>
             </div>
           )}
