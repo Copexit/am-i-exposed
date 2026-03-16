@@ -433,6 +433,8 @@ export function GraphExplorer(props: GraphExplorerProps) {
     onCycleEdgeMode: cycleEdgeMode,
     onUndo: props.onUndo,
     onReset: props.onReset,
+    smartView: props.smartView,
+    onToggleSmartView: props.onToggleSmartView,
   };
 
   // ─── Legend (clickable filters) ────────────────────────
@@ -441,7 +443,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
     <div className="relative inline-block">
       <button
         onClick={() => setLegendOpen(!legendOpen)}
-        className="text-white/30 hover:text-white/60 transition-colors text-xs px-1.5 py-0.5 rounded border border-white/10 cursor-pointer flex items-center gap-1"
+        className="text-muted/50 hover:text-muted transition-colors text-xs px-1.5 py-0.5 rounded border border-card-border cursor-pointer flex items-center gap-1"
         title="Legend & Filters"
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
@@ -449,11 +451,11 @@ export function GraphExplorer(props: GraphExplorerProps) {
       </button>
       {legendOpen && (
         <div
-          className="absolute left-0 top-full mt-1 z-50 bg-[#1c1c20]/95 backdrop-blur-xl border border-white/10 rounded-lg p-3 shadow-2xl min-w-[240px]"
+          className="absolute left-0 top-full mt-1 z-50 bg-card-bg/95 backdrop-blur-xl border border-card-border rounded-lg p-3 shadow-2xl min-w-[240px]"
         >
-          <div className="space-y-2 text-xs text-white/50">
+          <div className="space-y-2 text-xs text-muted">
             {/* Node types (clickable filters) */}
-            <div className="font-medium text-white/30 uppercase tracking-wider text-[10px]">Nodes</div>
+            <div className="font-medium text-muted/50 uppercase tracking-wider text-[10px]">Nodes</div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
               <span className="flex items-center gap-1.5">
                 <span className="inline-block w-2.5 h-2.5 rounded-sm border-2 shrink-0" style={{ borderColor: SVG_COLORS.bitcoin, background: "transparent" }} />
@@ -470,7 +472,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
             </div>
 
             {/* Entity categories (clickable filter) */}
-            <div className="font-medium text-white/30 uppercase tracking-wider text-[10px] mt-2">Entities</div>
+            <div className="font-medium text-muted/50 uppercase tracking-wider text-[10px] mt-2">Entities</div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
               {([
                 ["exchange", "Exchange"],
@@ -488,13 +490,13 @@ export function GraphExplorer(props: GraphExplorerProps) {
                   className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${filter.showEntity ? "opacity-100" : "opacity-40 line-through"}`}
                 >
                   <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: ENTITY_CATEGORY_COLORS[cat] }} />
-                  <span className="text-white/40">{label}</span>
+                  <span className="text-muted">{label}</span>
                 </button>
               ))}
             </div>
 
             {/* Edge types */}
-            <div className="font-medium text-white/30 uppercase tracking-wider text-[10px] mt-2">Edges</div>
+            <div className="font-medium text-muted/50 uppercase tracking-wider text-[10px] mt-2">Edges</div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
               {SCRIPT_TYPE_LEGEND.map((s) => (
                 <span key={s.type} className="flex items-center gap-1.5">
@@ -502,17 +504,17 @@ export function GraphExplorer(props: GraphExplorerProps) {
                     background: s.color, opacity: 0.8,
                     ...(s.dash ? { borderBottom: `1.5px dashed ${s.color}`, background: "transparent" } : {}),
                   }} />
-                  <span className="text-white/40">{s.label}</span>
+                  <span className="text-muted">{s.label}</span>
                 </span>
               ))}
               <span className="flex items-center gap-1.5">
                 <span className="inline-block w-4 h-0.5 rounded shrink-0" style={{ background: SVG_COLORS.critical, opacity: 0.7 }} />
-                <span className="text-white/40">Consolidation</span>
+                <span className="text-muted">Consolidation</span>
               </span>
               {changeOutputs.size > 0 && (
                 <span className="flex items-center gap-1.5">
                   <span className="inline-block w-4 h-0.5 rounded shrink-0" style={{ background: "#d97706", opacity: 0.8 }} />
-                  <span className="text-white/40">Change</span>
+                  <span className="text-muted">Change</span>
                 </span>
               )}
             </div>
@@ -520,29 +522,29 @@ export function GraphExplorer(props: GraphExplorerProps) {
             {/* Fingerprint mode items */}
             {fingerprintMode && (
               <>
-                <div className="font-medium text-white/30 uppercase tracking-wider text-[10px] mt-2">Fingerprint</div>
+                <div className="font-medium text-muted/50 uppercase tracking-wider text-[10px] mt-2">Fingerprint</div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                   {/* Version fill */}
                   <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: "#2a2a2e", border: "1px solid rgba(255,255,255,0.2)" }} />
-                    <span className="text-white/30">v1</span>
+                    <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: "var(--surface-elevated)", border: "1px solid var(--overlay-border)" }} />
+                    <span className="text-muted/50">v1</span>
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: "#4a4a52", border: "1px solid rgba(255,255,255,0.2)" }} />
-                    <span className="text-white/30">v2</span>
+                    <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: "var(--card-border)", border: "1px solid var(--overlay-border)" }} />
+                    <span className="text-muted/50">v2</span>
                   </span>
                   {/* Locktime shapes */}
                   <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-2.5 h-2.5 shrink-0" style={{ background: "#4a4a52", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "4px" }} />
-                    <span className="text-white/30">No lock</span>
+                    <span className="inline-block w-2.5 h-2.5 shrink-0" style={{ background: "var(--card-border)", border: "1px solid var(--overlay-border)", borderRadius: "4px" }} />
+                    <span className="text-muted/50">No lock</span>
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-2.5 h-2.5 shrink-0" style={{ background: "#4a4a52", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 0 }} />
-                    <span className="text-white/30">Block height</span>
+                    <span className="inline-block w-2.5 h-2.5 shrink-0" style={{ background: "var(--card-border)", border: "1px solid var(--overlay-border)", borderRadius: 0 }} />
+                    <span className="text-muted/50">Block height</span>
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-2.5 h-2.5 shrink-0" style={{ background: "#4a4a52", border: "1px solid rgba(255,255,255,0.2)", clipPath: "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)" }} />
-                    <span className="text-white/30">Timestamp</span>
+                    <span className="inline-block w-2.5 h-2.5 shrink-0" style={{ background: "var(--card-border)", border: "1px solid var(--overlay-border)", clipPath: "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)" }} />
+                    <span className="text-muted/50">Timestamp</span>
                   </span>
                 </div>
               </>
@@ -640,7 +642,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="relative rounded-xl border border-white/5 bg-surface-inset p-4 space-y-3"
+        className="relative rounded-xl border border-card-border bg-surface-inset p-4 space-y-3"
       >
         <GraphToolbar {...toolbarProps} onExpandFullscreen={handleExpandFullscreen} />
         {legend}
@@ -715,7 +717,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
                   setTimeTravelPlaying(false);
                 }
               }}
-              className="text-white/40 hover:text-white/70 transition-colors cursor-pointer shrink-0"
+              className="text-muted hover:text-foreground/70 transition-colors cursor-pointer shrink-0"
               title={timeTravelPlaying ? "Pause" : "Replay expansion"}
             >
               {timeTravelPlaying ? (
@@ -733,10 +735,10 @@ export function GraphExplorer(props: GraphExplorerProps) {
                 const idx = parseInt(e.target.value, 10);
                 props.onGotoSnapshot?.(idx);
               }}
-              className="flex-1 h-1 appearance-none bg-white/10 rounded-full cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white/50"
+              className="flex-1 h-1 appearance-none bg-foreground/10 rounded-full cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-foreground/50"
               title="Scrub through expansion history"
             />
-            <span className="text-[10px] text-white/30 tabular-nums shrink-0">{props.undoStackLength} steps</span>
+            <span className="text-[10px] text-muted/50 tabular-nums shrink-0">{props.undoStackLength} steps</span>
           </div>
         )}
 
@@ -752,7 +754,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
         {/* Loading indicators */}
         {props.loading.size > 0 && (
-          <div className="text-xs text-white/40 animate-pulse">
+          <div className="text-xs text-muted animate-pulse">
             {t("graphExplorer.fetching", { defaultValue: "Fetching transactions..." })}
           </div>
         )}
@@ -771,13 +773,13 @@ export function GraphExplorer(props: GraphExplorerProps) {
           role="dialog"
           aria-modal="true"
           aria-label={t("graphExplorer.fullscreenLabel", { defaultValue: "Transaction graph fullscreen" })}
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col"
+          className="fixed inset-0 z-50 bg-card-bg/80 backdrop-blur-sm flex flex-col"
           onClick={(e) => { if (e.target === e.currentTarget) collapseFullscreen(); }}
         >
           {/* Close button */}
           <button
             onClick={collapseFullscreen}
-            className="fixed top-3 right-3 z-[60] text-white/60 hover:text-white transition-colors p-2 rounded-lg bg-black/60 hover:bg-surface-inset backdrop-blur-sm cursor-pointer"
+            className="fixed top-3 right-3 z-[60] text-muted hover:text-foreground transition-colors p-2 rounded-lg bg-card-bg/80 hover:bg-surface-inset backdrop-blur-sm cursor-pointer"
             aria-label={t("common.close", { defaultValue: "Close" })}
           >
             <CloseIcon />

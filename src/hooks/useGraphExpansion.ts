@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
+import { scoreNode, RELEVANCE_THRESHOLD } from "@/components/viz/graph/nodeRelevance";
+import { identifyChangeOutput } from "@/components/viz/graph/autoTrace";
 
 /**
  * Interactive graph expansion hook (OXT-style click-to-expand).
@@ -18,6 +20,10 @@ export interface GraphNode {
   depth: number; // negative = backward, 0 = root, positive = forward
   parentEdge?: { fromTxid: string; outputIndex: number };
   childEdge?: { toTxid: string; inputIndex: number };
+  /** Relevance score (0-100) from smart auto-population. Undefined for manually expanded nodes. */
+  relevanceScore?: number;
+  /** Why this node was auto-shown (for debugging/tooltips). */
+  relevanceReasons?: string[];
 }
 
 /** Max number of undo snapshots to keep. */
@@ -49,7 +55,7 @@ export interface MultiRootEntry {
 type GraphAction =
   | { type: "SET_ROOT"; tx: MempoolTransaction }
   | { type: "SET_ROOT_WITH_NEIGHBORS"; root: MempoolTransaction; parents: Map<string, MempoolTransaction>; children: Map<number, MempoolTransaction> }
-  | { type: "SET_ROOT_WITH_LAYERS"; root: MempoolTransaction; backwardLayers: TraceLayer[]; forwardLayers: TraceLayer[]; outspends?: MempoolOutspend[] }
+  | { type: "SET_ROOT_WITH_LAYERS"; root: MempoolTransaction; backwardLayers: TraceLayer[]; forwardLayers: TraceLayer[]; outspends?: MempoolOutspend[]; smartFilter?: boolean }
   | { type: "SET_MULTI_ROOT"; txs: Map<string, MempoolTransaction> }
   | { type: "SET_MULTI_ROOT_WITH_LAYERS"; roots: Map<string, MultiRootEntry>; preExpandBudget?: number }
   | { type: "ADD_NODE"; node: GraphNode }
@@ -76,7 +82,11 @@ function addLayersToNodes(
   backward?: TraceLayer[],
   forward?: TraceLayer[],
   outspends?: MempoolOutspend[],
+  smartFilter = true,
 ): void {
+  // Compute root's change output index for forward relevance scoring
+  const rootChangeIdx = smartFilter ? (identifyChangeOutput(rootTx).changeOutputIndex) : null;
+
   // Build backward hops from trace layers
   if (backward) {
     for (let layerIdx = 0; layerIdx < Math.min(backward.length, 2); layerIdx++) {
@@ -101,7 +111,14 @@ function addLayersToNodes(
           if (inputIdx === -1) continue;
           childEdge = { toTxid: rootTxid, inputIndex: inputIdx };
         }
-        nodes.set(txid, { txid, tx: ltx, depth: hopDepth, childEdge });
+        // Smart filter: skip low-relevance nodes
+        if (smartFilter) {
+          const ns = scoreNode(ltx, rootTx, "backward", layerIdx + 1, rootChangeIdx);
+          if (ns.score < RELEVANCE_THRESHOLD) continue;
+          nodes.set(txid, { txid, tx: ltx, depth: hopDepth, childEdge, relevanceScore: ns.score, relevanceReasons: ns.reasons });
+        } else {
+          nodes.set(txid, { txid, tx: ltx, depth: hopDepth, childEdge });
+        }
       }
     }
   }
@@ -138,7 +155,14 @@ function addLayersToNodes(
           }
         }
         if (!parentEdge) continue;
-        nodes.set(txid, { txid, tx: ltx, depth: hopDepth, parentEdge });
+        // Smart filter: skip low-relevance nodes
+        if (smartFilter) {
+          const ns = scoreNode(ltx, rootTx, "forward", layerIdx + 1, rootChangeIdx, parentEdge.outputIndex);
+          if (ns.score < RELEVANCE_THRESHOLD) continue;
+          nodes.set(txid, { txid, tx: ltx, depth: hopDepth, parentEdge, relevanceScore: ns.score, relevanceReasons: ns.reasons });
+        } else {
+          nodes.set(txid, { txid, tx: ltx, depth: hopDepth, parentEdge });
+        }
       }
     }
   }
@@ -203,7 +227,7 @@ function graphReducer(state: GraphState, action: GraphAction): GraphState {
       const nodes = new Map<string, GraphNode>();
       nodes.set(rootTxid, { txid: rootTxid, tx: action.root, depth: 0 });
 
-      addLayersToNodes(nodes, rootTxid, action.root, 0, state.maxNodes, action.backwardLayers, action.forwardLayers, action.outspends);
+      addLayersToNodes(nodes, rootTxid, action.root, 0, state.maxNodes, action.backwardLayers, action.forwardLayers, action.outspends, action.smartFilter ?? true);
 
       return { nodes, rootTxid, rootTxids: new Set([rootTxid]), maxNodes: state.maxNodes, undoStack: [], loading: new Set(), errors: new Map() };
     }
@@ -404,8 +428,9 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     backwardLayers: TraceLayer[],
     forwardLayers: TraceLayer[],
     outspends?: MempoolOutspend[],
+    smartFilter?: boolean,
   ) => {
-    dispatch({ type: "SET_ROOT_WITH_LAYERS", root, backwardLayers, forwardLayers, outspends });
+    dispatch({ type: "SET_ROOT_WITH_LAYERS", root, backwardLayers, forwardLayers, outspends, smartFilter });
   }, []);
 
   /** Initialize graph with multiple root transactions at depth 0. */

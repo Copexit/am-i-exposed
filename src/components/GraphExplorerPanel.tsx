@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useMemo, lazy, Suspense } from "react";
+import { useEffect, useRef, useMemo, useState, useCallback, lazy, Suspense } from "react";
 import { useNetwork } from "@/context/NetworkContext";
 import { createApiClient } from "@/lib/api/client";
 import { useGraphExpansion } from "@/hooks/useGraphExpansion";
@@ -69,28 +69,38 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, fo
     gotoSnapshot,
   } = useGraphExpansion(fetcher);
 
-  // Set root tx on mount or when tx changes.
-  // If trace layers are available, pre-populate up to 2 hops in each direction.
-  // Depend only on tx.txid to avoid resetting the graph when parent re-renders
-  // with new object references for the same transaction.
+  // Smart view: filter initial graph to only show relevant nodes
+  const [smartView, setSmartView] = useState(true);
+
+  // Set root tx on mount or when tx/smartView changes.
   const rootTxidRef = useRef<string>("");
-  useEffect(() => {
-    if (rootTxidRef.current === tx.txid) return;
-    rootTxidRef.current = tx.txid;
+  const smartViewRef = useRef(smartView);
+
+  const initGraph = useCallback(() => {
     const hasBw = backwardLayers && backwardLayers.length > 0;
     const hasFw = forwardLayers && forwardLayers.length > 0;
     if (hasBw || hasFw) {
-      setRootWithLayers(
-        tx,
-        backwardLayers ?? [],
-        forwardLayers ?? [],
-        outspends ?? undefined,
-      );
+      setRootWithLayers(tx, backwardLayers ?? [], forwardLayers ?? [], outspends ?? undefined, smartView);
     } else {
       setRoot(tx);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tx.txid]);
+  }, [tx.txid, smartView]);
+
+  useEffect(() => {
+    // Re-init on txid change
+    if (rootTxidRef.current !== tx.txid) {
+      rootTxidRef.current = tx.txid;
+      smartViewRef.current = smartView;
+      initGraph();
+      return;
+    }
+    // Re-init on smartView toggle (same txid)
+    if (smartViewRef.current !== smartView) {
+      smartViewRef.current = smartView;
+      initGraph();
+    }
+  }, [tx.txid, smartView, initGraph]);
 
   if (!rootTxid) return null;
 
@@ -125,6 +135,8 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, fo
           onAutoTraceLinkability={(txid, outputIndex) => autoTraceLinkability(txid, outputIndex, { boltzmannCache: undefined })}
           undoStackLength={undoStackLength}
           onGotoSnapshot={gotoSnapshot}
+          smartView={smartView}
+          onToggleSmartView={() => setSmartView((v) => !v)}
         />
       </Suspense>
     </ChartErrorBoundary>

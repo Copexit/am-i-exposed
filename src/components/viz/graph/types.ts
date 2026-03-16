@@ -53,6 +53,10 @@ export interface GraphExplorerProps {
   undoStackLength?: number;
   /** Jump to a specific snapshot in the undo stack. */
   onGotoSnapshot?: (index: number) => void;
+  /** Smart view mode: only auto-show relevant nodes. */
+  smartView?: boolean;
+  /** Toggle smart view on/off (re-initializes graph). */
+  onToggleSmartView?: () => void;
 }
 
 export interface LayoutNode {

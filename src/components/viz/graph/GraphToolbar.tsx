@@ -19,6 +19,9 @@ interface GraphToolbarProps {
   onCycleEdgeMode: () => void;
   onUndo: () => void;
   onReset: () => void;
+  /** Smart view toggle */
+  smartView?: boolean;
+  onToggleSmartView?: () => void;
   /** Fullscreen-specific: omitted in inline mode */
   onExpandFullscreen?: () => void;
   /** Fullscreen-specific zoom controls */
@@ -41,6 +44,8 @@ export function GraphToolbar({
   onCycleEdgeMode,
   onUndo,
   onReset,
+  smartView,
+  onToggleSmartView,
   onExpandFullscreen,
   onZoomIn,
   onZoomOut,
@@ -51,13 +56,13 @@ export function GraphToolbar({
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-y-2">
-      <div className="flex items-center gap-2 text-sm font-medium text-white/70 min-w-0">
+      <div className="flex items-center gap-2 text-sm font-medium text-foreground/70 min-w-0">
         <GraphIcon />
         <span className="truncate">{t("graphExplorer.title", { defaultValue: "Transaction Graph" })}</span>
-        <span className={`text-xs font-normal hidden sm:inline ${atCapacity ? "text-amber-400" : "text-white/40"}`}>
+        <span className={`text-xs font-normal hidden sm:inline ${atCapacity ? "text-amber-400" : "text-muted"}`}>
           {t("graphExplorer.nodeCount", { count: nodeCount, max: maxNodes, defaultValue: "({{count}}/{{max}} nodes)" })}
           {hiddenCount > 0 && (
-            <span className="ml-1 text-white/30">
+            <span className="ml-1 text-muted/50">
               ({hiddenCount} {t("graphExplorer.hidden", { defaultValue: "hidden" })})
             </span>
           )}
@@ -65,13 +70,31 @@ export function GraphToolbar({
       </div>
 
       <div className="flex items-center gap-1.5 shrink-0">
+        {/* Smart view toggle */}
+        {onToggleSmartView && (
+          <button
+            onClick={onToggleSmartView}
+            className={`text-xs transition-colors px-2 py-1 rounded border cursor-pointer ${
+              smartView
+                ? "text-green-400 border-green-400/30 bg-green-400/10"
+                : "text-white/50 hover:text-white/80 border-white/10"
+            }`}
+            title={smartView ? "Smart view: showing only relevant nodes" : "Showing all nodes"}
+          >
+            <span className="flex items-center gap-1">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></svg>
+              <span className="hidden sm:inline">{smartView ? "Smart" : "All"}</span>
+            </span>
+          </button>
+        )}
+
         {/* Heat map toggle */}
         <button
           onClick={onToggleHeatMap}
           className={`text-xs transition-colors px-2 py-1 rounded border cursor-pointer ${
             heatMapActive
               ? "text-bitcoin border-bitcoin/30 bg-bitcoin/10"
-              : "text-white/50 hover:text-white/80 border-white/10"
+              : "text-muted hover:text-foreground border-card-border"
           }`}
           title={t("graphExplorer.heatMap", { defaultValue: "Heat Map" })}
         >
@@ -91,7 +114,7 @@ export function GraphToolbar({
           className={`text-xs transition-colors px-2 py-1 rounded border cursor-pointer ${
             fingerprintMode
               ? "text-purple-400 border-purple-400/30 bg-purple-400/10"
-              : "text-white/50 hover:text-white/80 border-white/10"
+              : "text-muted hover:text-foreground border-card-border"
           }`}
           title="Fingerprint mode - encode locktime, version, and script types"
         >
@@ -109,7 +132,7 @@ export function GraphToolbar({
               ? "text-bitcoin border-bitcoin/30 bg-bitcoin/10"
               : edgeMode === "entropy"
                 ? "text-green-400 border-green-400/30 bg-green-400/10"
-                : "text-white/50 hover:text-white/80 border-white/10"
+                : "text-muted hover:text-foreground border-card-border"
           }`}
           title={edgeMode === "default"
             ? "Edge colors: script type (click to cycle)"
@@ -133,10 +156,10 @@ export function GraphToolbar({
         <button
           onClick={onUndo}
           disabled={!canUndo}
-          className={`text-xs transition-colors px-2 py-1 rounded border border-white/10 ${
+          className={`text-xs transition-colors px-2 py-1 rounded border border-card-border ${
             canUndo
-              ? "text-white/50 hover:text-white/80 cursor-pointer"
-              : "text-white/20 cursor-not-allowed"
+              ? "text-muted hover:text-foreground cursor-pointer"
+              : "text-muted/30 cursor-not-allowed"
           }`}
           title={t("common.undo", { defaultValue: "Undo" })}
         >
@@ -150,7 +173,7 @@ export function GraphToolbar({
         {nodeCount > 1 && (
           <button
             onClick={onReset}
-            className="text-xs text-white/50 hover:text-white/80 transition-colors px-2 py-1 rounded border border-white/10 cursor-pointer"
+            className="text-xs text-muted hover:text-foreground transition-colors px-2 py-1 rounded border border-card-border cursor-pointer"
             title={t("common.reset", { defaultValue: "Reset" })}
           >
             <span className="flex items-center gap-1">
@@ -163,15 +186,15 @@ export function GraphToolbar({
         {/* Fullscreen zoom controls */}
         {onZoomIn && onZoomOut && (
           <>
-            <span className="text-white/20 hidden sm:inline">|</span>
+            <span className="text-muted/30 hidden sm:inline">|</span>
             <button
               onClick={onZoomIn}
-              className="text-xs text-white/50 hover:text-white/80 transition-colors px-1.5 py-1 rounded border border-white/10 cursor-pointer"
+              className="text-xs text-muted hover:text-foreground transition-colors px-1.5 py-1 rounded border border-card-border cursor-pointer"
               title="Zoom in"
             >+</button>
             <button
               onClick={onZoomOut}
-              className="text-xs text-white/50 hover:text-white/80 transition-colors px-1.5 py-1 rounded border border-white/10 cursor-pointer"
+              className="text-xs text-muted hover:text-foreground transition-colors px-1.5 py-1 rounded border border-card-border cursor-pointer"
               title="Zoom out"
             >-</button>
           </>
@@ -179,7 +202,7 @@ export function GraphToolbar({
         {onFitView && (
           <button
             onClick={onFitView}
-            className="text-xs text-white/50 hover:text-white/80 transition-colors px-2 py-1 rounded border border-white/10 cursor-pointer"
+            className="text-xs text-muted hover:text-foreground transition-colors px-2 py-1 rounded border border-card-border cursor-pointer"
             title="Fit to view"
           >{t("graphExplorer.fit", { defaultValue: "Fit" })}</button>
         )}
@@ -188,7 +211,7 @@ export function GraphToolbar({
         {onExpandFullscreen && (
           <button
             onClick={onExpandFullscreen}
-            className="text-white/50 hover:text-white/80 transition-colors p-1 rounded border border-white/10 cursor-pointer"
+            className="text-muted hover:text-foreground transition-colors p-1 rounded border border-card-border cursor-pointer"
             title={t("graphExplorer.fullscreen", { defaultValue: "Fullscreen" })}
           >
             <ExpandIcon />
