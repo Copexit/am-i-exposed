@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, memo } from "react";
+import { motion } from "motion/react";
 import { Text } from "@visx/text";
 import { SVG_COLORS } from "../shared/svgConstants";
 import { formatSats } from "@/lib/format";
@@ -237,41 +238,53 @@ export const ExpandedNode = memo(function ExpandedNode({
         strokeWidth={0.5}
       />
 
-      {/* Input ports (left side) */}
-      {inputPorts.map((port) => {
+      {/* Input ports (left side) - staggered entry */}
+      {inputPorts.map((port, pi) => {
         const portKey = `${node.txid}:input:${port.index}`;
         return (
-          <PortRow
+          <motion.g
             key={portKey}
-            port={port}
-            side="input"
-            x={node.x}
-            nodeWidth={node.width}
-            hoveredPort={hoveredPort}
-            portKey={portKey}
-            onHover={onHoverPort}
-            onClick={() => onExpandInput(node.txid, port.index)}
-            canExpand={port.isExpandable && !atCapacity}
-          />
+            initial={{ opacity: 0, x: -6 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: pi * 0.03, duration: 0.2 }}
+          >
+            <PortRow
+              port={port}
+              side="input"
+              x={node.x}
+              nodeWidth={node.width}
+              hoveredPort={hoveredPort}
+              portKey={portKey}
+              onHover={onHoverPort}
+              onClick={() => onExpandInput(node.txid, port.index)}
+              canExpand={port.isExpandable && !atCapacity}
+            />
+          </motion.g>
         );
       })}
 
-      {/* Output ports (right side) */}
-      {outputPorts.map((port) => {
+      {/* Output ports (right side) - staggered entry */}
+      {outputPorts.map((port, pi) => {
         const portKey = `${node.txid}:output:${port.index}`;
         return (
-          <PortRow
+          <motion.g
             key={portKey}
-            port={port}
-            side="output"
-            x={node.x}
-            nodeWidth={node.width}
-            hoveredPort={hoveredPort}
-            portKey={portKey}
-            onHover={onHoverPort}
-            onClick={() => onExpandOutput(node.txid, port.index)}
-            canExpand={port.isExpandable && !atCapacity}
-          />
+            initial={{ opacity: 0, x: 6 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: pi * 0.03, duration: 0.2 }}
+          >
+            <PortRow
+              port={port}
+              side="output"
+              x={node.x}
+              nodeWidth={node.width}
+              hoveredPort={hoveredPort}
+              portKey={portKey}
+              onHover={onHoverPort}
+              onClick={() => onExpandOutput(node.txid, port.index)}
+              canExpand={port.isExpandable && !atCapacity}
+            />
+          </motion.g>
         );
       })}
 

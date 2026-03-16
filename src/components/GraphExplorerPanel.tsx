@@ -65,6 +65,8 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, fo
     autoTracing,
     autoTraceProgress,
     autoTraceLinkability,
+    undoStackLength,
+    gotoSnapshot,
   } = useGraphExpansion(fetcher);
 
   // Set root tx on mount or when tx changes.
@@ -121,6 +123,8 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, fo
           autoTracing={autoTracing}
           autoTraceProgress={autoTraceProgress}
           onAutoTraceLinkability={(txid, outputIndex) => autoTraceLinkability(txid, outputIndex, { boltzmannCache: undefined })}
+          undoStackLength={undoStackLength}
+          onGotoSnapshot={gotoSnapshot}
         />
       </Suspense>
     </ChartErrorBoundary>

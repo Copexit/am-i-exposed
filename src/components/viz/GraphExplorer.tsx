@@ -23,6 +23,7 @@ import { GraphCanvas } from "./graph/GraphCanvas";
 import { CloseIcon } from "./graph/icons";
 import { GraphToolbar } from "./graph/GraphToolbar";
 import { SCRIPT_TYPE_LEGEND } from "./graph/scriptStyles";
+import { playExpandSound, playCollapseSound } from "./graph/sounds";
 import type { GraphExplorerProps, TooltipData, NodeFilter, ViewTransform } from "./graph/types";
 import type { ScoringResult } from "@/lib/types";
 
@@ -386,6 +387,22 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
   const [legendOpen, setLegendOpen] = useState(false);
 
+  // Sound effects (opt-in)
+  const [soundEnabled, setSoundEnabled] = useState(false);
+
+  // Time travel replay
+  const [timeTravelPlaying, setTimeTravelPlaying] = useState(false);
+  const timeTravelIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Sound effects on graph changes
+  const prevNodeCountRef = useRef(props.nodeCount);
+  useEffect(() => {
+    if (!soundEnabled) { prevNodeCountRef.current = props.nodeCount; return; }
+    if (props.nodeCount > prevNodeCountRef.current) playExpandSound();
+    else if (props.nodeCount < prevNodeCountRef.current) playCollapseSound();
+    prevNodeCountRef.current = props.nodeCount;
+  }, [props.nodeCount, soundEnabled]);
+
   // ─── Global keyboard shortcuts for graph modes ───────
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -428,6 +445,8 @@ export function GraphExplorer(props: GraphExplorerProps) {
     onCycleEdgeMode: cycleEdgeMode,
     onUndo: props.onUndo,
     onReset: props.onReset,
+    soundEnabled,
+    onToggleSound: () => setSoundEnabled((v) => !v),
   };
 
   // ─── Legend (clickable filters) ────────────────────────
@@ -637,6 +656,56 @@ export function GraphExplorer(props: GraphExplorerProps) {
                 />
               )}
             </AnimatePresence>
+          </div>
+        )}
+
+        {/* Time travel slider */}
+        {(props.undoStackLength ?? 0) > 1 && (
+          <div className="flex items-center gap-2 px-1">
+            <button
+              onClick={() => {
+                if (!timeTravelPlaying) {
+                  setTimeTravelPlaying(true);
+                  // Auto-play forward through snapshots
+                  let step = 0;
+                  const iv = setInterval(() => {
+                    step++;
+                    if (step >= (props.undoStackLength ?? 0)) {
+                      clearInterval(iv);
+                      setTimeTravelPlaying(false);
+                      return;
+                    }
+                    props.onGotoSnapshot?.(step);
+                  }, 400);
+                  timeTravelIntervalRef.current = iv;
+                  props.onGotoSnapshot?.(0);
+                } else {
+                  if (timeTravelIntervalRef.current) clearInterval(timeTravelIntervalRef.current);
+                  setTimeTravelPlaying(false);
+                }
+              }}
+              className="text-white/40 hover:text-white/70 transition-colors cursor-pointer shrink-0"
+              title={timeTravelPlaying ? "Pause" : "Replay expansion"}
+            >
+              {timeTravelPlaying ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21" /></svg>
+              )}
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={(props.undoStackLength ?? 1) - 1}
+              value={props.undoStackLength ?? 0}
+              onChange={(e) => {
+                const idx = parseInt(e.target.value, 10);
+                props.onGotoSnapshot?.(idx);
+              }}
+              className="flex-1 h-1 appearance-none bg-white/10 rounded-full cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white/50"
+              title="Scrub through expansion history"
+            />
+            <span className="text-[10px] text-white/30 tabular-nums shrink-0">{props.undoStackLength} steps</span>
           </div>
         )}
 

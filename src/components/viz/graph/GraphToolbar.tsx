@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
-import { HeatIcon, FingerprintIcon, ExpandIcon, GraphIcon } from "./icons";
+import { HeatIcon, FingerprintIcon, ExpandIcon, GraphIcon, UndoIcon, ResetIcon } from "./icons";
 
 type EdgeMode = "default" | "linkability" | "entropy";
 
@@ -19,6 +19,9 @@ interface GraphToolbarProps {
   onCycleEdgeMode: () => void;
   onUndo: () => void;
   onReset: () => void;
+  /** Sound effects toggle */
+  soundEnabled?: boolean;
+  onToggleSound?: () => void;
   /** Fullscreen-specific: omitted in inline mode */
   onExpandFullscreen?: () => void;
   /** Fullscreen-specific zoom controls */
@@ -41,6 +44,8 @@ export function GraphToolbar({
   onCycleEdgeMode,
   onUndo,
   onReset,
+  soundEnabled,
+  onToggleSound,
   onExpandFullscreen,
   onZoomIn,
   onZoomOut,
@@ -129,6 +134,25 @@ export function GraphToolbar({
           </span>
         </button>
 
+        {/* Sound toggle */}
+        {onToggleSound && (
+          <button
+            onClick={onToggleSound}
+            className={`text-xs transition-colors px-1.5 py-1 rounded border cursor-pointer ${
+              soundEnabled
+                ? "text-bitcoin border-bitcoin/30 bg-bitcoin/10"
+                : "text-white/30 hover:text-white/50 border-white/10"
+            }`}
+            title={soundEnabled ? "Sound on" : "Sound off"}
+          >
+            {soundEnabled ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /></svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" /></svg>
+            )}
+          </button>
+        )}
+
         {/* Undo */}
         <button
           onClick={onUndo}
@@ -138,8 +162,12 @@ export function GraphToolbar({
               ? "text-white/50 hover:text-white/80 cursor-pointer"
               : "text-white/20 cursor-not-allowed"
           }`}
+          title={t("common.undo", { defaultValue: "Undo" })}
         >
-          {t("common.undo", { defaultValue: "Undo" })}
+          <span className="flex items-center gap-1">
+            <UndoIcon />
+            <span className="hidden sm:inline">{t("common.undo", { defaultValue: "Undo" })}</span>
+          </span>
         </button>
 
         {/* Reset */}
@@ -147,8 +175,12 @@ export function GraphToolbar({
           <button
             onClick={onReset}
             className="text-xs text-white/50 hover:text-white/80 transition-colors px-2 py-1 rounded border border-white/10 cursor-pointer"
+            title={t("common.reset", { defaultValue: "Reset" })}
           >
-            {t("common.reset", { defaultValue: "Reset" })}
+            <span className="flex items-center gap-1">
+              <ResetIcon />
+              <span className="hidden sm:inline">{t("common.reset", { defaultValue: "Reset" })}</span>
+            </span>
           </button>
         )}
 

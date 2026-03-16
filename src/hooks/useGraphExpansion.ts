@@ -58,7 +58,8 @@ type GraphAction =
   | { type: "SET_ERROR"; txid: string; error: string }
   | { type: "CLEAR_ERROR"; txid: string }
   | { type: "RESET" }
-  | { type: "UNDO" };
+  | { type: "UNDO" }
+  | { type: "GOTO_SNAPSHOT"; index: number };
 
 const DEFAULT_MAX_NODES = 100;
 
@@ -312,6 +313,16 @@ function graphReducer(state: GraphState, action: GraphAction): GraphState {
         ...state,
         nodes,
         undoStack: state.undoStack.slice(0, -1),
+      };
+    }
+
+    case "GOTO_SNAPSHOT": {
+      const idx = action.index;
+      if (idx < 0 || idx >= state.undoStack.length) return state;
+      return {
+        ...state,
+        nodes: state.undoStack[idx],
+        undoStack: state.undoStack.slice(0, idx),
       };
     }
 
@@ -912,6 +923,8 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     nodeCount: state.nodes.size,
     maxNodes: state.maxNodes,
     canUndo: state.undoStack.length > 0,
+    undoStackLength: state.undoStack.length,
+    gotoSnapshot: useCallback((index: number) => dispatch({ type: "GOTO_SNAPSHOT", index }), []),
     setRoot,
     setRootWithNeighbors,
     setRootWithLayers,
