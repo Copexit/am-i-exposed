@@ -468,10 +468,30 @@ export function GraphExplorer(props: GraphExplorerProps) {
                 <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: SVG_COLORS.low }} />
                 Standard
               </button>
-              <button onClick={() => toggleFilter("showEntity")} className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${filter.showEntity ? "opacity-100" : "opacity-40 line-through"}`}>
-                <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: ENTITY_CATEGORY_COLORS.exchange }} />
-                Entity
-              </button>
+            </div>
+
+            {/* Entity categories (clickable filter) */}
+            <div className="font-medium text-white/30 uppercase tracking-wider text-[10px] mt-2">Entities</div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+              {([
+                ["exchange", "Exchange"],
+                ["darknet", "Darknet"],
+                ["scam", "Scam"],
+                ["mixer", "Mixer"],
+                ["gambling", "Gambling"],
+                ["mining", "Mining"],
+                ["payment", "Payment"],
+                ["p2p", "P2P"],
+              ] as const).map(([cat, label]) => (
+                <button
+                  key={cat}
+                  onClick={() => toggleFilter("showEntity")}
+                  className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${filter.showEntity ? "opacity-100" : "opacity-40 line-through"}`}
+                >
+                  <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: ENTITY_CATEGORY_COLORS[cat] }} />
+                  <span className="text-white/40">{label}</span>
+                </button>
+              ))}
             </div>
 
             {/* Edge types */}

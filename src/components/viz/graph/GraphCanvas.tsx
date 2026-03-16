@@ -1055,25 +1055,24 @@ export function GraphCanvas({
                 </rect>
               )}
 
-              {/* Badge pills (horizontal row, bottom of node) */}
+              {/* Badge pills - right-aligned on the entity/type label line (y+44) */}
               {(() => {
                 const badges: Array<{ label: string; bg: string; fg: string }> = [];
                 if (node.isCoinJoin) badges.push({ label: node.coinJoinType ?? "CJ", bg: SVG_COLORS.good, fg: "#0c0c0e" });
                 if (node.entityOfac) badges.push({ label: "OFAC", bg: SVG_COLORS.critical, fg: "#fff" });
                 if (toxicMergeNodes.has(node.txid)) badges.push({ label: "TOXIC", bg: "#ef4444", fg: "#fff" });
                 if (badges.length === 0) return null;
-                let bx = node.x + 8;
-                const by = node.y + node.height - 16;
+                let bx = node.x + node.width - 4;
+                const by = node.y + 42;
                 return (
                   <g style={{ pointerEvents: "none" }}>
-                    {badges.map((b, bi) => {
+                    {badges.reverse().map((b) => {
                       const tw = b.label.length * 5.5 + 8;
-                      const x = bx;
-                      bx += tw + 3;
+                      bx -= tw + 2;
                       return (
-                        <g key={b.label} transform={`translate(${x}, ${by})`}>
-                          <rect width={tw} height={13} rx={6.5} fill={b.bg} fillOpacity={0.2} stroke={b.bg} strokeWidth={0.5} strokeOpacity={0.4} />
-                          <text x={tw / 2} y={9.5} textAnchor="middle" fontSize="7" fontWeight="bold" fill={b.fg} fillOpacity={0.85}>{b.label}</text>
+                        <g key={b.label} transform={`translate(${bx}, ${by})`}>
+                          <rect width={tw} height={12} rx={6} fill={b.bg} fillOpacity={0.2} stroke={b.bg} strokeWidth={0.5} strokeOpacity={0.4} />
+                          <text x={tw / 2} y={9} textAnchor="middle" fontSize="7" fontWeight="bold" fill={b.fg} fillOpacity={0.85}>{b.label}</text>
                         </g>
                       );
                     })}
