@@ -409,7 +409,10 @@ export function GraphCanvas({
     panRef.current = { active: true, startX: e.clientX, startY: e.clientY, vtX: viewTransform.x, vtY: viewTransform.y, scale: viewTransform.scale };
     setIsPanning(true);
     setSelectedNode(null);
-  }, [viewTransform, onViewTransformChange, setSelectedNode]);
+    tooltip.hideTooltip();
+    setHoveredNode(null);
+    setHoveredEdgeKey(null);
+  }, [viewTransform, onViewTransformChange, setSelectedNode, tooltip, setHoveredNode]);
 
   useEffect(() => {
     if (!isPanning) return;
@@ -442,6 +445,7 @@ export function GraphCanvas({
       const factor = e.deltaY > 0 ? 0.9 : 1.1;
       const ns = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, vt.scale * factor));
       onViewTransformChange({ x: cx - gx * ns, y: cy - gy * ns, scale: ns });
+      tooltip.hideTooltip();
     };
     el.addEventListener("wheel", handler, { passive: false });
     return () => el.removeEventListener("wheel", handler);

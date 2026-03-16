@@ -450,7 +450,6 @@ export function GraphExplorer(props: GraphExplorerProps) {
       {legendOpen && (
         <div
           className="absolute left-0 top-full mt-1 z-50 bg-[#1c1c20]/95 backdrop-blur-xl border border-white/10 rounded-lg p-3 shadow-2xl min-w-[240px]"
-          onMouseLeave={() => setLegendOpen(false)}
         >
           <div className="space-y-2 text-xs text-white/50">
             {/* Node types (clickable filters) */}
@@ -523,6 +522,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
               <>
                 <div className="font-medium text-white/30 uppercase tracking-wider text-[10px] mt-2">Fingerprint</div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                  {/* Version fill */}
                   <span className="flex items-center gap-1.5">
                     <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: "#2a2a2e", border: "1px solid rgba(255,255,255,0.2)" }} />
                     <span className="text-white/30">v1</span>
@@ -530,6 +530,19 @@ export function GraphExplorer(props: GraphExplorerProps) {
                   <span className="flex items-center gap-1.5">
                     <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: "#4a4a52", border: "1px solid rgba(255,255,255,0.2)" }} />
                     <span className="text-white/30">v2</span>
+                  </span>
+                  {/* Locktime shapes */}
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block w-2.5 h-2.5 shrink-0" style={{ background: "#4a4a52", border: "1px solid rgba(255,255,255,0.2)", borderRadius: "4px" }} />
+                    <span className="text-white/30">No lock</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block w-2.5 h-2.5 shrink-0" style={{ background: "#4a4a52", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 0 }} />
+                    <span className="text-white/30">Block height</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block w-2.5 h-2.5 shrink-0" style={{ background: "#4a4a52", border: "1px solid rgba(255,255,255,0.2)", clipPath: "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)" }} />
+                    <span className="text-white/30">Timestamp</span>
                   </span>
                 </div>
               </>

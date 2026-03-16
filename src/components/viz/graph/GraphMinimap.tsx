@@ -48,6 +48,8 @@ export function GraphMinimap({
   }, [dragging, getGraphPos, onMinimapClick]);
 
   if (layoutNodes.length <= 1) return null;
+  // Hide minimap when all elements fit within the viewport
+  if (graphWidth <= viewportWidth && graphHeight <= viewportHeight) return null;
 
   // Clamp viewport rect to minimap bounds so it stays visible
   const rawVpX = scrollLeft * scale;
@@ -68,7 +70,7 @@ export function GraphMinimap({
 
   return (
     <div
-      className="fixed bottom-4 right-4 z-[60] rounded border border-white/10 bg-black/60 backdrop-blur-sm overflow-hidden"
+      className="fixed bottom-4 left-4 z-[60] rounded border border-white/10 bg-black/60 backdrop-blur-sm overflow-hidden"
       style={{ width: MINIMAP_W, height: MINIMAP_H }}
     >
       <svg

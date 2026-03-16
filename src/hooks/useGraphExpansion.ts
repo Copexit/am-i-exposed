@@ -266,6 +266,33 @@ function graphReducer(state: GraphState, action: GraphAction): GraphState {
       if (!state.nodes.has(action.txid)) return state;
       const nodes = new Map(state.nodes);
       nodes.delete(action.txid);
+      // Cascade: remove nodes that become disconnected from any root.
+      // BFS from all roots to find reachable nodes, delete unreachable.
+      const reachable = new Set<string>();
+      const queue: string[] = [...state.rootTxids];
+      for (const rtxid of queue) reachable.add(rtxid);
+      while (queue.length > 0) {
+        const txid = queue.pop()!;
+        const node = nodes.get(txid);
+        if (!node) continue;
+        // Follow edges in both directions
+        for (const [otherTxid, otherNode] of nodes) {
+          if (reachable.has(otherTxid)) continue;
+          const connected =
+            otherNode.parentEdge?.fromTxid === txid ||
+            otherNode.childEdge?.toTxid === txid ||
+            node.parentEdge?.fromTxid === otherTxid ||
+            node.childEdge?.toTxid === otherTxid;
+          if (connected) {
+            reachable.add(otherTxid);
+            queue.push(otherTxid);
+          }
+        }
+      }
+      // Remove unreachable nodes
+      for (const txid of [...nodes.keys()]) {
+        if (!reachable.has(txid)) nodes.delete(txid);
+      }
       const undoStack = [...state.undoStack, new Map(state.nodes)];
       if (undoStack.length > MAX_UNDO) undoStack.shift();
       return { ...state, nodes, undoStack };
