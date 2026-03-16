@@ -53,7 +53,7 @@ export function scoreNode(
 
   // ─── CoinJoin detection (privacy boundary) ──────────────
   if (isCoinJoinTx(tx)) {
-    score += 30;
+    score += 10;
     reasons.push("CoinJoin");
   }
 
@@ -111,10 +111,11 @@ export function scoreNode(
     }
   }
 
-  // ─── Depth penalty ──────────────────────────────────────
+  // ─── Depth penalty (scales with distance) ────────────────
   if (depth >= 2) {
-    score -= 10;
-    if (depth >= 2) reasons.push(`Depth penalty (-10)`);
+    const penalty = (depth - 1) * 10; // depth 2 = -10, depth 3 = -20, depth 4 = -30...
+    score -= penalty;
+    reasons.push(`Depth penalty (-${penalty})`);
   }
 
   return { score, reasons };
