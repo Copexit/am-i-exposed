@@ -113,7 +113,7 @@ export function DiagnosticLoader({ steps, phase, inputType, fetchProgress }: Dia
               transition={{ duration: 0.3 }}
             >
               <div
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent"
                 style={{ animation: "shimmer 1.5s infinite" }}
               />
             </motion.div>
@@ -153,7 +153,7 @@ export function DiagnosticLoader({ steps, phase, inputType, fetchProgress }: Dia
             transition={{ duration: 0.3 }}
           >
             <div
-              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-foreground/10 to-transparent"
               style={{ animation: "shimmer 1.5s infinite" }}
             />
           </motion.div>

@@ -66,10 +66,10 @@ export function ScoreAlertBlock({
           {result.grade !== "F" && (() => {
             const sentiment = getSummarySentiment(result.grade, result.findings);
             const colorMap = {
-              positive: { border: "border-severity-good/30 bg-severity-good/5", text: "text-severity-good" },
-              cautious: { border: "border-severity-medium/30 bg-severity-medium/5", text: "text-severity-medium" },
-              warning: { border: "border-severity-high/30 bg-severity-high/5", text: "text-severity-high" },
-              danger: { border: "border-severity-critical/30 bg-severity-critical/5", text: "text-severity-critical" },
+              positive: { border: "border-severity-good/40 bg-severity-good/10", text: "text-severity-good" },
+              cautious: { border: "border-severity-medium/40 bg-severity-medium/10", text: "text-severity-medium" },
+              warning: { border: "border-severity-high/40 bg-severity-high/10", text: "text-severity-high" },
+              danger: { border: "border-severity-critical/40 bg-severity-critical/10", text: "text-severity-critical" },
             };
             const colors = colorMap[sentiment];
             return (

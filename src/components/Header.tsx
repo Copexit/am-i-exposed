@@ -63,7 +63,7 @@ export function Header() {
         style={{
           backdropFilter: "blur(16px) saturate(180%)",
           WebkitBackdropFilter: "blur(16px) saturate(180%)",
-          borderTop: "1px solid rgba(255,255,255,0.1)",
+          borderTop: "1px solid var(--subtle-border)",
         }}
       >
         <div className="flex items-center justify-between px-4 sm:px-6 py-4">

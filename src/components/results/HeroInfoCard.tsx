@@ -63,7 +63,7 @@ export function HeroInfoCard({
               </span>
               {txData.status.block_time != null && (
                 <>
-                  <span className="text-foreground/20">|</span>
+                  <span className="text-foreground/40">|</span>
                   <span>{new Date(txData.status.block_time * 1000).toLocaleString()}</span>
                 </>
               )}

@@ -222,11 +222,11 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
         {hasSanction ? (
           <ShieldX size={14} className="text-severity-critical shrink-0" />
         ) : (
-          <ShieldCheck size={14} className="text-muted group-hover:text-muted shrink-0" />
+          <ShieldCheck size={14} className="text-foreground/70 group-hover:text-foreground shrink-0" />
         )}
         <span
           className={`text-xs font-medium uppercase tracking-wider ${
-            hasSanction ? "text-severity-critical" : "text-muted group-hover:text-muted"
+            hasSanction ? "text-severity-critical" : "text-foreground/70 group-hover:text-foreground"
           }`}
         >
           {t("cex.exchangeRiskCheck", { defaultValue: "Exchange Risk Check" })}
@@ -271,14 +271,14 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-foreground/90">
+                    <span className="text-sm font-medium text-foreground">
                       {t("cex.ofacTitle", { defaultValue: "OFAC Sanctions List" })}
                     </span>
                     <span
                       className={`text-xs font-medium px-1.5 py-0.5 rounded ${
                         ofacSanctioned
                           ? "bg-severity-critical/15 text-severity-critical"
-                          : "bg-severity-good/10 text-severity-good"
+                          : "bg-severity-good/15 text-severity-good"
                       }`}
                     >
                       {ofacSanctioned ? t("cex.flagged", { defaultValue: "FLAGGED" }) : t("cex.clear", { defaultValue: "Clear" })}
@@ -295,7 +295,7 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
                         {ofacMatches.map((m) => (
                           <div
                             key={m.address}
-                            className="bg-severity-critical/5 rounded-lg px-3 py-2 space-y-1"
+                            className="bg-severity-critical/10 rounded-lg px-3 py-2 space-y-1"
                           >
                             <div className="flex items-center gap-1.5 flex-wrap">
                               {m.entityName && (
@@ -304,7 +304,7 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
                                 </span>
                               )}
                               {m.category && (
-                                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-severity-critical/15 text-severity-critical/80">
+                                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-severity-critical/15 text-severity-critical">
                                   {CATEGORY_LABELS[m.category] ?? m.category}
                                 </span>
                               )}
@@ -312,7 +312,7 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
                                 OFAC
                               </span>
                               {m.status === "closed" && (
-                                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-surface-inset text-muted">
+                                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-foreground/10 text-foreground/60">
                                   Closed
                                 </span>
                               )}
@@ -320,7 +320,7 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
                                 <span className="text-[10px] text-muted">{m.country}</span>
                               )}
                             </div>
-                            <code className="block text-xs font-mono text-severity-critical/70 break-all">
+                            <code className="block text-xs font-mono text-severity-critical/90 break-all">
                               {m.address}
                             </code>
                           </div>
@@ -360,7 +360,7 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-foreground/90">
+                    <span className="text-sm font-medium text-foreground">
                       {t("cex.chainalysisTitle", { defaultValue: "Chainalysis Screening" })}
                     </span>
                     {chainalysis.status === "done" && (

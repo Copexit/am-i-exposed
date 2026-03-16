@@ -70,16 +70,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <meta
           httpEquiv="Content-Security-Policy"
           content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; img-src 'self' data:; worker-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
         />
         <meta name="referrer" content="no-referrer" />
-        <meta name="theme-color" content="#0a0a0a" />
+        <meta name="theme-color" content="#0a0a0a" id="meta-theme-color" />
         <link rel="preconnect" href="https://mempool.space" />
         <link rel="dns-prefetch" href="https://mempool.space" />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{if(localStorage.getItem("ami-theme")==="light"){document.documentElement.dataset.theme="light";var m=document.getElementById("meta-theme-color");if(m)m.content="#f8fafc"}}catch(e){}})()` }} />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}

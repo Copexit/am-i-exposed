@@ -53,12 +53,12 @@ export function ChartDefs() {
 
       {/* === CoinJoin Link Gradients (horizontal with opacity) === */}
       <linearGradient id="grad-cj-link-in">
-        <stop offset="0%" stopColor="#f7931a" stopOpacity={0.3} />
-        <stop offset="100%" stopColor="#28d065" stopOpacity={0.2} />
+        <stop offset="0%" stopColor="#f7931a" stopOpacity={0.5} />
+        <stop offset="100%" stopColor="#28d065" stopOpacity={0.35} />
       </linearGradient>
       <linearGradient id="grad-cj-link-out">
-        <stop offset="0%" stopColor="#28d065" stopOpacity={0.2} />
-        <stop offset="100%" stopColor="#f7931a" stopOpacity={0.3} />
+        <stop offset="0%" stopColor="#28d065" stopOpacity={0.35} />
+        <stop offset="100%" stopColor="#f7931a" stopOpacity={0.5} />
       </linearGradient>
 
       {/* === Waterfall Bar Gradients (vertical, subtle top-to-bottom) === */}
@@ -115,27 +115,27 @@ export function ChartDefs() {
 
       {/* === Bubble Chart Radial Gradients (3D sphere lighting) === */}
       <radialGradient id="grad-bubble-normal" cx="35%" cy="35%" r="65%">
-        <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.35} />
-        <stop offset="100%" stopColor="#1e3a5f" stopOpacity={0.15} />
+        <stop offset="0%" stopColor="#60a5fa" stopOpacity={0.5} />
+        <stop offset="100%" stopColor="#93c5fd" stopOpacity={0.25} />
       </radialGradient>
       <radialGradient id="grad-bubble-dust" cx="35%" cy="35%" r="65%">
-        <stop offset="0%" stopColor="#f87171" stopOpacity={0.45} />
-        <stop offset="100%" stopColor="#7f1d1d" stopOpacity={0.2} />
+        <stop offset="0%" stopColor="#f87171" stopOpacity={0.55} />
+        <stop offset="100%" stopColor="#fca5a5" stopOpacity={0.3} />
       </radialGradient>
       <radialGradient id="grad-bubble-unconf" cx="35%" cy="35%" r="65%">
-        <stop offset="0%" stopColor="#fbbf24" stopOpacity={0.35} />
-        <stop offset="100%" stopColor="#78350f" stopOpacity={0.15} />
+        <stop offset="0%" stopColor="#fbbf24" stopOpacity={0.5} />
+        <stop offset="100%" stopColor="#fcd34d" stopOpacity={0.25} />
       </radialGradient>
 
       {/* === Timeline Area Gradient (vertical fade) === */}
       <linearGradient id="grad-timeline-area" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#f7931a" stopOpacity={0.12} />
+        <stop offset="0%" stopColor="#f7931a" stopOpacity={0.2} />
         <stop offset="100%" stopColor="#f7931a" stopOpacity={0} />
       </linearGradient>
 
       {/* === Enhanced Mixer Pattern === */}
       <pattern id="mixer-pattern-v2" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
-        <line x1="0" y1="0" x2="0" y2="8" stroke="#28d065" strokeWidth="1.5" strokeOpacity="0.15" />
+        <line x1="0" y1="0" x2="0" y2="8" stroke="#28d065" strokeWidth="1.5" strokeOpacity={0.25} />
       </pattern>
     </defs>
   );

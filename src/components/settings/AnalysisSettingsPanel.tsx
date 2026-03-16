@@ -194,7 +194,7 @@ export function AnalysisSettingsPanel() {
               }`}
             >
               <span
-                className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-foreground shadow-sm transition-transform ${
                   analysisSettings.skipLargeClusters ? "translate-x-4" : "translate-x-0"
                 }`}
               />
@@ -215,7 +215,7 @@ export function AnalysisSettingsPanel() {
               }`}
             >
               <span
-                className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-foreground shadow-sm transition-transform ${
                   analysisSettings.skipCoinJoins ? "translate-x-4" : "translate-x-0"
                 }`}
               />

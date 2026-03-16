@@ -251,7 +251,7 @@ export const ScanHistory = memo(function ScanHistory({
       {tab === "bookmarks" && (
         <div role="tabpanel" id="panel-bookmarks" aria-labelledby="tab-bookmarks">
         {importFeedback && (
-          <p className={`text-xs mb-2 px-1 ${importFeedback.type === "error" ? "text-red-400" : "text-green-400"}`} role="status">
+          <p className={`text-xs mb-2 px-1 ${importFeedback.type === "error" ? "text-severity-critical" : "text-severity-good"}`} role="status">
             {importFeedback.message}
           </p>
         )}

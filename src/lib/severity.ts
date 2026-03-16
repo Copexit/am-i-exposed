@@ -9,11 +9,11 @@ import type { Severity } from "@/lib/types";
 
 /** Severity-keyed border + background classes (for cards/panels with borders). */
 export const SEVERITY_COLORS: Record<Severity, string> = {
-  critical: "border-severity-critical/40 bg-severity-critical/5",
-  high: "border-severity-high/40 bg-severity-high/5",
-  medium: "border-severity-medium/40 bg-severity-medium/5",
-  low: "border-severity-low/40 bg-severity-low/5",
-  good: "border-severity-good/40 bg-severity-good/5",
+  critical: "border-severity-critical/40 bg-severity-critical/10",
+  high: "border-severity-high/40 bg-severity-high/10",
+  medium: "border-severity-medium/40 bg-severity-medium/10",
+  low: "border-severity-low/40 bg-severity-low/10",
+  good: "border-severity-good/40 bg-severity-good/10",
 };
 
 /** Severity-keyed dot/indicator background classes. */
@@ -36,9 +36,9 @@ export const SEVERITY_TEXT: Record<Severity, string> = {
 
 /** Severity-keyed background + border classes (for chain analysis cards). */
 export const SEVERITY_BG: Record<Severity, string> = {
-  critical: "bg-severity-critical/10 border-severity-critical/20",
-  high: "bg-severity-high/10 border-severity-high/20",
-  medium: "bg-severity-medium/10 border-severity-medium/20",
-  low: "bg-severity-low/10 border-severity-low/20",
-  good: "bg-severity-good/10 border-severity-good/20",
+  critical: "bg-severity-critical/15 border-severity-critical/30",
+  high: "bg-severity-high/15 border-severity-high/30",
+  medium: "bg-severity-medium/15 border-severity-medium/30",
+  low: "bg-severity-low/15 border-severity-low/30",
+  good: "bg-severity-good/15 border-severity-good/30",
 };

@@ -75,8 +75,8 @@ function PortRow({
         width={PORT_COL_W}
         height={PORT_H}
         rx={3}
-        fill={isHovered ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.02)"}
-        stroke={isHovered ? typeColor : "rgba(255,255,255,0.06)"}
+        fill={isHovered ? "var(--subtle-border)" : "var(--subtle-hover)"}
+        stroke={isHovered ? typeColor : "var(--subtle-border)"}
         strokeWidth={isHovered ? 1 : 0.5}
       />
 
@@ -234,7 +234,7 @@ export const ExpandedNode = memo(function ExpandedNode({
         y1={node.y + EXPANDED_HEADER_H - 2}
         x2={node.x + node.width - 8}
         y2={node.y + EXPANDED_HEADER_H - 2}
-        stroke="rgba(255,255,255,0.06)"
+        stroke="var(--subtle-border)"
         strokeWidth={0.5}
       />
 

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { Settings, Check, ChevronDown, Loader2, Database } from "lucide-react";
+import { Settings, Check, ChevronDown, Loader2, Database, Sun, Moon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { type BitcoinNetwork } from "@/lib/bitcoin/networks";
@@ -19,6 +19,7 @@ import { AnalysisSettingsPanel } from "@/components/settings/AnalysisSettingsPan
 import { CacheSettingsPanel } from "@/components/settings/CacheSettingsPanel";
 import { LocaleSelector } from "@/components/settings/LocaleSelector";
 import { useExperienceMode } from "@/hooks/useExperienceMode";
+import { useTheme } from "@/hooks/useTheme";
 
 const NETWORKS: { value: BitcoinNetwork; label: string; dot: string }[] = [
   { value: "mainnet", label: "Mainnet", dot: "bg-bitcoin" },
@@ -30,6 +31,7 @@ export function ApiSettings() {
   const { t } = useTranslation();
   const { network, setNetwork, customApiUrl, isUmbrel } = useNetwork();
   const { proMode } = useExperienceMode();
+  const { theme, toggleTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -162,6 +164,16 @@ export function ApiSettings() {
 
             {/* Language selector */}
             <LocaleSelector />
+
+            {/* Theme toggle */}
+            <button
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? t("settings.themeLight", { defaultValue: "Light" }) : t("settings.themeDark", { defaultValue: "Dark" })}
+              title={t("settings.theme", { defaultValue: "Theme" })}
+              className="flex items-center justify-center w-10 h-10 mt-5 rounded-lg text-muted hover:text-foreground transition-colors cursor-pointer border border-card-border bg-surface-inset hover:border-muted shrink-0"
+            >
+              {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
           </div>
 
           {/* Advanced API settings - hidden on Umbrel (API is preconfigured) */}

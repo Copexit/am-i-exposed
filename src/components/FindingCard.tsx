@@ -49,14 +49,14 @@ const SEVERITY_STYLES: Record<
     label: "Critical",
     text: "text-severity-critical",
     border: "border-l-severity-critical",
-    glow: "shadow-[inset_4px_0_12px_-4px_rgba(239,68,68,0.15)]",
+    glow: "shadow-[inset_4px_0_12px_-4px_rgba(239,68,68,0.25)]",
   },
   high: {
     dot: "bg-severity-high",
     label: "High",
     text: "text-severity-high",
     border: "border-l-severity-high",
-    glow: "shadow-[inset_4px_0_12px_-4px_rgba(249,115,22,0.12)]",
+    glow: "shadow-[inset_4px_0_12px_-4px_rgba(249,115,22,0.2)]",
   },
   medium: {
     dot: "bg-severity-medium",
@@ -79,10 +79,10 @@ const SEVERITY_STYLES: Record<
 };
 
 const CONFIDENCE_STYLES: Record<ConfidenceLevel, { label: string; className: string; tooltip: string }> = {
-  deterministic: { label: "Definite", className: "bg-severity-critical/20 text-severity-critical border-severity-critical", tooltip: "This finding is mathematically certain - no ambiguity" },
-  high: { label: "Likely", className: "bg-severity-high/15 text-severity-high border-severity-high", tooltip: "Strong evidence supports this finding, but not absolute certainty" },
-  medium: { label: "Possible", className: "bg-severity-medium/15 text-severity-medium border-severity-medium", tooltip: "Moderate evidence - this pattern is suggestive but could have other explanations" },
-  low: { label: "Hint", className: "bg-severity-low/15 text-severity-low border-severity-low", tooltip: "Weak signal - may indicate a pattern but could easily be coincidence" },
+  deterministic: { label: "Definite", className: "bg-severity-critical/25 text-severity-critical border-severity-critical", tooltip: "This finding is mathematically certain - no ambiguity" },
+  high: { label: "Likely", className: "bg-severity-high/20 text-severity-high border-severity-high", tooltip: "Strong evidence supports this finding, but not absolute certainty" },
+  medium: { label: "Possible", className: "bg-severity-medium/20 text-severity-medium border-severity-medium", tooltip: "Moderate evidence - this pattern is suggestive but could have other explanations" },
+  low: { label: "Hint", className: "bg-severity-low/20 text-severity-low border-severity-low", tooltip: "Weak signal - may indicate a pattern but could easily be coincidence" },
 };
 
 const SEVERITY_TOOLTIPS: Record<Severity, string> = {
@@ -134,7 +134,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
         )}
         {badge && (
           <Tooltip content={t("results.chainBadgeTooltip", { defaultValue: "Based on backward and forward analysis of the inputs and outputs to this transaction" })}>
-            <span className="text-[10px] px-1.5 py-0.5 rounded border border-white/10 bg-surface-inset text-muted">
+            <span className="text-[10px] px-1.5 py-0.5 rounded border border-card-border bg-surface-inset text-muted">
               {badge}
             </span>
           </Tooltip>

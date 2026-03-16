@@ -92,7 +92,7 @@ export function ScoreDisplay({ score, grade, findings }: ScoreDisplayProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: [0.3, 0.6, 0.3] }}
           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute -inset-4 rounded-xl bg-severity-critical/5 border border-severity-critical/20 -z-10"
+          className="absolute -inset-4 rounded-xl bg-severity-critical/8 border border-severity-critical/25 -z-10"
         />
       )}
 
@@ -151,7 +151,7 @@ export function ScoreDisplay({ score, grade, findings }: ScoreDisplayProps) {
             <div
               className="absolute inset-0 opacity-30"
               style={{
-                background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)",
+                background: "linear-gradient(90deg, transparent, var(--shimmer-color), transparent)",
                 animation: "shimmer 2s infinite",
               }}
             />

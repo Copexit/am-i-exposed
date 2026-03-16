@@ -99,7 +99,7 @@ export function TipJar() {
                 </div>
                 <a
                   href="nostr:npub14n4e3dnxcumh7kexfgunp86dzhtjcfewe40g4qm6yfl3kf9ute2q5jqr48"
-                  className="inline-flex items-center gap-1.5 text-xs text-purple-400 hover:text-purple-300 transition-colors mt-1"
+                  className="inline-flex items-center gap-1.5 text-xs text-purple-500 hover:text-purple-400 transition-colors mt-1"
                 >
                   <Zap size={12} />
                   {t("common.zapNostr", { defaultValue: "Zap via Nostr" })}

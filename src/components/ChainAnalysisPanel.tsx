@@ -94,9 +94,9 @@ export function ChainAnalysisPanel({ findings }: ChainAnalysisPanelProps) {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3 }}
-      className="rounded-xl border border-white/5 bg-surface-inset p-4 space-y-4"
+      className="rounded-xl border border-card-border bg-surface-inset p-4 space-y-4"
     >
-      <div className="flex items-center gap-2 text-sm font-medium text-white/70">
+      <div className="flex items-center gap-2 text-sm font-medium text-foreground/70">
         <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
           <path d="M2 8h4m4 0h4M8 2v4m0 4v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
@@ -123,7 +123,7 @@ export function ChainAnalysisPanel({ findings }: ChainAnalysisPanelProps) {
 function ChainSection({ title, findings, t }: { title: string; findings: Finding[]; t: (key: string, opts?: Record<string, unknown>) => string }) {
   return (
     <div className="space-y-2">
-      <div className="text-xs font-medium text-white/40 uppercase tracking-wider">
+      <div className="text-xs font-medium text-muted uppercase tracking-wider">
         {title}
       </div>
       <div className="space-y-1.5">
@@ -133,17 +133,17 @@ function ChainSection({ title, findings, t }: { title: string; findings: Finding
             className={`rounded-lg border px-3 py-2 text-sm ${SEVERITY_BG[f.severity] ?? SEVERITY_BG.low}`}
           >
             <div className="flex items-start justify-between gap-2">
-              <span className={`font-medium ${SEVERITY_TEXT[f.severity] ?? "text-white/80"}`}>
+              <span className={`font-medium ${SEVERITY_TEXT[f.severity] ?? "text-foreground"}`}>
                 {t(findingKey(f.id, "title", f.params), { ...f.params, defaultValue: f.title })}
               </span>
               {f.scoreImpact !== 0 && (
-                <span className={`text-xs font-mono shrink-0 ${f.scoreImpact > 0 ? "text-green-400" : "text-red-400"}`}>
+                <span className={`text-xs font-mono shrink-0 ${f.scoreImpact > 0 ? "text-severity-good" : "text-severity-critical"}`}>
                   {f.scoreImpact > 0 ? "+" : ""}{f.scoreImpact}
                 </span>
               )}
             </div>
             {f.params?.hops !== undefined && (
-              <div className="mt-1 text-xs text-white/50">
+              <div className="mt-1 text-xs text-muted">
                 {t("chainAnalysis.hopsAway", { count: Number(f.params.hops), defaultValue: "{{count}} hop away" })}
               </div>
             )}

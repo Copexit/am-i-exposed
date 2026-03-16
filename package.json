@@ -1,6 +1,6 @@
 {
   "name": "am-i-exposed",
-  "version": "0.31.1",
+  "version": "0.31.2",
   "private": true,
   "packageManager": "pnpm@10.26.1",
   "scripts": {
@@ -15,7 +15,8 @@
     "test:hooks": "vitest run --config vitest.config.hooks.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "build:wasm": "bash scripts/build-boltzmann-wasm.sh"
+    "build:wasm": "bash scripts/build-boltzmann-wasm.sh",
+    "fetch:osint": "node scripts/fetch-osint-sources.mjs"
   },
   "dependencies": {
     "@noble/curves": "^2.0.1",
