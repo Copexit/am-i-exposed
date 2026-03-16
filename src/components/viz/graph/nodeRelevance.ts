@@ -111,9 +111,10 @@ export function scoreNode(
     }
   }
 
-  // ─── Depth penalty (scales with distance) ────────────────
-  if (depth >= 2) {
-    const penalty = (depth - 1) * 10; // depth 2 = -10, depth 3 = -20, depth 4 = -30...
+  // ─── Depth penalty (scales with absolute distance from root) ────
+  const absDepth = Math.abs(depth);
+  if (absDepth >= 2) {
+    const penalty = (absDepth - 1) * 10; // depth +/-2 = -10, +/-3 = -20, +/-4 = -30...
     score -= penalty;
     reasons.push(`Depth penalty (-${penalty})`);
   }

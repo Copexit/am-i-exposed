@@ -7,11 +7,13 @@ import { Group } from "@visx/group";
 import { Text } from "@visx/text";
 import { ParentSize } from "@visx/responsive";
 import { useTranslation } from "react-i18next";
+import { useTheme } from "@/hooks/useTheme";
 import { SVG_COLORS, ANIMATION_DEFAULTS } from "./shared/svgConstants";
 import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import { formatSats, formatUsdValue, calcFeeRate } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
+import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import type { SankeyExtraProperties, SankeyGraph } from "d3-sankey";
@@ -45,6 +47,8 @@ interface NodeDatum extends SankeyExtraProperties {
   sharedParentTxid?: string;
   /** How many inputs share this parent txid. */
   sharedParentCount?: number;
+  /** Known entity name for this address. */
+  entityName?: string;
 }
 
 interface LinkDatum extends SankeyExtraProperties {
@@ -82,6 +86,7 @@ const MIN_NODE_SPACING = 30; // min px per output node for readable labels
 
 export function CoinJoinStructure({ tx, findings, onAddressClick, usdPrice, outspends, linkabilityAvailable, onToggleLinkability }: CoinJoinStructureProps) {
   const { t, i18n } = useTranslation();
+  useTheme(); // re-render on theme change for SVG_COLORS
   const [showAllInputs, setShowAllInputs] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
@@ -117,7 +122,7 @@ export function CoinJoinStructure({ tx, findings, onAddressClick, usdPrice, outs
           {linkabilityAvailable && onToggleLinkability && (
             <button
               onClick={onToggleLinkability}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/80 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-foreground/5 text-muted hover:bg-foreground/10 hover:text-foreground transition-colors cursor-pointer"
               title="Switch to linkability view"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
@@ -322,6 +327,7 @@ function CoinJoinChart({
         const addr = vin.prevout?.scriptpubkey_address;
         const val = vin.prevout?.value ?? 0;
         const ic = inputConsolidation.get(i);
+        const entity = addr ? matchEntitySync(addr) : null;
         nodes.push({
           id: `in-${i}`,
           label: truncateId(addr ?? "?", 5),
@@ -330,6 +336,7 @@ function CoinJoinChart({
           side: "input",
           sharedParentTxid: ic?.parentTxid,
           sharedParentCount: ic?.count,
+          entityName: entity?.entityName,
         });
       }
     }
@@ -675,7 +682,7 @@ function CoinJoinChart({
                       </Text>
                     )}
 
-                    {/* Value label or consolidation warning below address for inputs and non-tier outputs */}
+                    {/* Entity / value label or consolidation warning below address for inputs and non-tier outputs */}
                     {!isMixer && !isTier && labelMaxWidth > 30 && hasSubLabelSpace && (
                       isInputConsolidated ? (
                         <Text
@@ -690,6 +697,20 @@ function CoinJoinChart({
                         >
                           {`${n.sharedParentCount} from ${truncateId(n.sharedParentTxid!, 5)}`}
                         </Text>
+                      ) : n.entityName ? (
+                        <Text
+                          x={labelX}
+                          y={n.y0 + nodeHeight / 2 + 10}
+                          textAnchor={labelAnchor}
+                          verticalAnchor="middle"
+                          fontSize={9}
+                          fontWeight={700}
+                          fill={SVG_COLORS.critical}
+                          style={{ pointerEvents: "none" as const }}
+                          width={Math.min(labelMaxWidth, 140)}
+                        >
+                          {n.entityName}
+                        </Text>
                       ) : (
                         <Text
                           x={labelX}
@@ -700,39 +721,25 @@ function CoinJoinChart({
                           fill={SVG_COLORS.muted}
                           style={{ pointerEvents: "none" as const }}
                         >
-                          {usdPrice != null ? `${formatSats(n.value, i18n.language)} (${formatUsdValue(n.value, usdPrice)})` : formatSats(n.value, i18n.language)}
+                          {formatSats(n.value, i18n.language)}
                         </Text>
                       )
                     )}
 
-                    {/* USD value or consolidation warning for tier outputs */}
-                    {!isMixer && isTier && labelMaxWidth > 30 && hasSubLabelSpace && (
-                      isConsolidated ? (
-                        <Text
-                          x={labelX}
-                          y={n.y0 + nodeHeight / 2 + 10}
-                          textAnchor={labelAnchor}
-                          verticalAnchor="middle"
-                          fontSize={9}
-                          fontWeight={600}
-                          fill={SVG_COLORS.critical}
-                          style={{ pointerEvents: "none" as const }}
-                        >
-                          {`${n.consolidatedCount} of ${n.tierCount} re-linked`}
-                        </Text>
-                      ) : usdPrice != null ? (
-                        <Text
-                          x={labelX}
-                          y={n.y0 + nodeHeight / 2 + 10}
-                          textAnchor={labelAnchor}
-                          verticalAnchor="middle"
-                          fontSize={9}
-                          fill={SVG_COLORS.muted}
-                          style={{ pointerEvents: "none" as const }}
-                        >
-                          {`${formatUsdValue(n.tierValue ?? n.value, usdPrice)}${n.tierCount ? "/ea" : ""}`}
-                        </Text>
-                      ) : null
+                    {/* Consolidation warning for tier outputs */}
+                    {!isMixer && isTier && labelMaxWidth > 30 && hasSubLabelSpace && isConsolidated && (
+                      <Text
+                        x={labelX}
+                        y={n.y0 + nodeHeight / 2 + 10}
+                        textAnchor={labelAnchor}
+                        verticalAnchor="middle"
+                        fontSize={9}
+                        fontWeight={600}
+                        fill={SVG_COLORS.critical}
+                        style={{ pointerEvents: "none" as const }}
+                      >
+                        {`${n.consolidatedCount} of ${n.tierCount} re-linked`}
+                      </Text>
                     )}
                   </Group>
                 );
@@ -765,7 +772,7 @@ function CoinJoinChart({
               </p>
             )}
             {tooltipData.consolidationGroups && tooltipData.consolidationGroups.length > 0 && (
-              <div className="border-t border-white/10 pt-1 mt-1 space-y-0.5">
+              <div className="border-t border-card-border pt-1 mt-1 space-y-0.5">
                 <p className="text-xs font-semibold" style={{ color: SVG_COLORS.critical }}>
                   {tooltipData.consolidatedCount} of {tooltipData.tierCount} re-linked:
                 </p>
@@ -777,7 +784,7 @@ function CoinJoinChart({
               </div>
             )}
             {tooltipData.sharedParentTxid && (
-              <p className="text-xs font-semibold border-t border-white/10 pt-1 mt-1" style={{ color: SVG_COLORS.critical }}>
+              <p className="text-xs font-semibold border-t border-card-border pt-1 mt-1" style={{ color: SVG_COLORS.critical }}>
                 {tooltipData.sharedParentCount} inputs from {truncateId(tooltipData.sharedParentTxid, 6)}
               </p>
             )}

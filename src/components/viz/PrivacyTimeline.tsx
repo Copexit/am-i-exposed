@@ -9,6 +9,7 @@ import { Text } from "@visx/text";
 import { ParentSize } from "@visx/responsive";
 import { curveMonotoneX } from "d3-shape";
 import { useTranslation } from "react-i18next";
+import { useTheme } from "@/hooks/useTheme";
 import { SVG_COLORS, GRADE_BANDS, GRADE_HEX_SVG, ANIMATION_DEFAULTS } from "./shared/svgConstants";
 import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
@@ -278,6 +279,7 @@ function TimelineChart({
 
 export function PrivacyTimeline({ breakdown, onScan }: PrivacyTimelineProps) {
   const { t } = useTranslation();
+  useTheme(); // re-render on theme change for SVG_COLORS
 
   if (breakdown.length < 2) return null;
 

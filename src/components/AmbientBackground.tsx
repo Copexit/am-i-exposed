@@ -1,8 +1,9 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
+import { useTheme } from "@/hooks/useTheme";
 
-const orbs = [
+const darkOrbs = [
   {
     color: "rgba(139, 92, 246, 0.08)",
     mid: "rgba(139, 92, 246, 0.03)",
@@ -35,8 +36,44 @@ const orbs = [
   },
 ];
 
+const lightOrbs = [
+  {
+    color: "rgba(168, 139, 250, 0.06)",
+    mid: "rgba(168, 139, 250, 0.02)",
+    size: "60vw",
+    top: "-10%",
+    left: "0%",
+    dx: 40,
+    dy: 25,
+    duration: 20,
+  },
+  {
+    color: "rgba(251, 191, 36, 0.05)",
+    mid: "rgba(251, 191, 36, 0.015)",
+    size: "55vw",
+    top: "40%",
+    right: "-5%",
+    dx: -30,
+    dy: -35,
+    duration: 25,
+  },
+  {
+    color: "rgba(147, 197, 253, 0.06)",
+    mid: "rgba(147, 197, 253, 0.02)",
+    size: "50vw",
+    bottom: "-10%",
+    left: "25%",
+    dx: 25,
+    dy: -20,
+    duration: 22,
+  },
+];
+
 export function AmbientBackground() {
   const prefersReduced = useReducedMotion();
+  const { theme } = useTheme();
+
+  const orbs = theme === "light" ? lightOrbs : darkOrbs;
 
   return (
     <div

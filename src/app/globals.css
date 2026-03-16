@@ -24,6 +24,33 @@
   --glass-blur: 16px;
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   --bitcoin-gradient: linear-gradient(135deg, #f7931a 0%, #e8850f 50%, #d4790a 100%);
+  --overlay-bg: rgba(28, 28, 32, 0.95);
+  --overlay-border: rgba(255, 255, 255, 0.1);
+  --overlay-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --subtle-border: rgba(255, 255, 255, 0.06);
+  --subtle-hover: rgba(255, 255, 255, 0.02);
+  --shimmer-color: rgba(255, 255, 255, 0.4);
+  --glow-card-color: rgba(247, 147, 26, 0.07);
+}
+
+html[data-theme="light"] {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --muted: #475569;
+  --card-bg: #ffffff;
+  --card-border: #cbd5e1;
+  --surface-inset: #f1f5f9;
+  --surface-elevated: #ffffff;
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(0, 0, 0, 0.1);
+  --glass-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
+  --overlay-bg: rgba(255, 255, 255, 0.95);
+  --overlay-border: rgba(0, 0, 0, 0.1);
+  --overlay-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  --subtle-border: rgba(0, 0, 0, 0.1);
+  --subtle-hover: rgba(0, 0, 0, 0.04);
+  --shimmer-color: rgba(0, 0, 0, 0.12);
+  --glow-card-color: rgba(247, 147, 26, 0.15);
 }
 
 @theme inline {
@@ -91,6 +118,10 @@ body {
   color: #000;
 }
 
+html[data-theme="light"] ::selection {
+  color: #fff;
+}
+
 button:focus-visible,
 a:focus-visible,
 [tabindex]:focus-visible {
@@ -103,6 +134,11 @@ textarea:focus-visible {
   outline: 2px solid var(--bitcoin);
   outline-offset: 2px;
   box-shadow: 0 0 0 4px rgba(247, 147, 26, 0.1);
+}
+
+html[data-theme="light"] input:focus-visible,
+html[data-theme="light"] textarea:focus-visible {
+  box-shadow: 0 0 0 4px rgba(247, 147, 26, 0.2);
 }
 
 select:focus-visible {
@@ -157,10 +193,19 @@ body::after {
   background-size: 256px 256px;
 }
 
+html[data-theme="light"] body::after {
+  opacity: 0.03;
+  mix-blend-mode: multiply;
+}
+
 /* Gradient divider */
 .gradient-divider {
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(139,92,246,0.4) 30%, rgba(247,147,26,0.4) 70%, transparent);
+}
+
+html[data-theme="light"] .gradient-divider {
+  background: linear-gradient(90deg, transparent, rgba(139,92,246,0.35) 30%, rgba(247,147,26,0.35) 70%, transparent);
 }
 
 /* Sliding underline hover */

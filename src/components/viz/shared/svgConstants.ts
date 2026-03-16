@@ -2,20 +2,17 @@ import type { Grade, Severity } from "@/lib/types";
 import { GRADE_HEX } from "@/lib/constants";
 export { DUST_THRESHOLD } from "@/lib/constants";
 
-/** Hex colors matching CSS custom properties for use in SVG fills/strokes. */
-export const SVG_COLORS = {
-  // Severity levels
-  critical: "#ef4444",
-  high: "#f97316",
-  medium: "#eab308",
-  low: "#60a5fa",
-  good: "#28d065",
+interface SurfaceColors {
+  readonly background: string;
+  readonly foreground: string;
+  readonly muted: string;
+  readonly cardBg: string;
+  readonly cardBorder: string;
+  readonly surfaceInset: string;
+  readonly surfaceElevated: string;
+}
 
-  // Brand
-  bitcoin: "#f7931a",
-  bitcoinHover: "#e8850f",
-
-  // Surfaces
+const DARK_SURFACES: SurfaceColors = {
   background: "#0c0c0e",
   foreground: "#f0f0f2",
   muted: "#d4d4dc",
@@ -23,7 +20,69 @@ export const SVG_COLORS = {
   cardBorder: "#444450",
   surfaceInset: "#151518",
   surfaceElevated: "#222228",
-} as const;
+};
+
+const LIGHT_SURFACES: SurfaceColors = {
+  background: "#f8fafc",
+  foreground: "#0f172a",
+  muted: "#475569",
+  cardBg: "#ffffff",
+  cardBorder: "#cbd5e1",
+  surfaceInset: "#f1f5f9",
+  surfaceElevated: "#ffffff",
+};
+
+/** Returns surface colors matching the current theme. Safe to call at render time. */
+export function getSurfaceColors(): SurfaceColors {
+  if (typeof document === "undefined") return DARK_SURFACES;
+  return document.documentElement.dataset.theme === "light" ? LIGHT_SURFACES : DARK_SURFACES;
+}
+
+type SvgColorMap = {
+  readonly critical: string;
+  readonly high: string;
+  readonly medium: string;
+  readonly low: string;
+  readonly good: string;
+  readonly bitcoin: string;
+  readonly bitcoinHover: string;
+  readonly background: string;
+  readonly foreground: string;
+  readonly muted: string;
+  readonly cardBg: string;
+  readonly cardBorder: string;
+  readonly surfaceInset: string;
+  readonly surfaceElevated: string;
+};
+
+const STATIC_COLORS: Record<string, string> = {
+  critical: "#ef4444",
+  high: "#f97316",
+  medium: "#eab308",
+  low: "#60a5fa",
+  good: "#28d065",
+  bitcoin: "#f7931a",
+  bitcoinHover: "#e8850f",
+};
+
+const SURFACE_KEYS = new Set(Object.keys(DARK_SURFACES));
+
+/**
+ * Hex colors for SVG fills/strokes. Surface properties (background, foreground,
+ * muted, cardBg, cardBorder, surfaceInset, surfaceElevated) resolve dynamically
+ * based on the current theme. Severity and brand colors are static.
+ */
+export const SVG_COLORS: SvgColorMap = new Proxy(
+  { ...STATIC_COLORS, ...DARK_SURFACES } as unknown as SvgColorMap,
+  {
+    get(target, prop: string) {
+      if (SURFACE_KEYS.has(prop)) {
+        return getSurfaceColors()[prop as keyof typeof DARK_SURFACES];
+      }
+      return (target as unknown as Record<string, string>)[prop];
+    },
+  },
+);
 
 /** Map severity to hex color for SVG rendering. */
 export const SEVERITY_HEX: Record<Severity, string> = {

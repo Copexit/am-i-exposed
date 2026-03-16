@@ -3,13 +3,14 @@
 import { useState, useMemo, useRef, useCallback, useEffect, Fragment } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { useTranslation } from "react-i18next";
+import { useTheme } from "@/hooks/useTheme";
 import { Grid3X3, Clock, Link, Hash, AlertTriangle } from "lucide-react";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { useBoltzmann } from "@/hooks/useBoltzmann";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import { formatSats } from "@/lib/format";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
-import { COLOR_STOPS, probColor, cellGlow, probTextColor, probLabel } from "./shared/linkabilityColors";
+import { getColorStops, probColor, cellGlow, probTextColor, probLabel } from "./shared/linkabilityColors";
 import { isCoinJoinTx } from "@/lib/analysis/heuristics/coinjoin";
 import type { MempoolTransaction } from "@/lib/api/types";
 
@@ -44,6 +45,7 @@ interface TooltipData {
 
 export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) {
   const { t } = useTranslation();
+  useTheme(); // re-render on theme change for SVG_COLORS
   const { state, compute, autoComputed, isSupported } = useBoltzmann(tx, precomputed);
   const [hoveredCell, setHoveredCell] = useState<{ row: number; col: number } | null>(null);
   const [entered, setEntered] = useState(false);
@@ -199,7 +201,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
           {/* Error */}
           {state.status === "error" && (
             <div className="text-center py-6 space-y-3">
-              <p className="text-xs text-red-400">{state.error}</p>
+              <p className="text-xs text-severity-critical">{state.error}</p>
               <button
                 onClick={compute}
                 className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-muted border border-card-border rounded-lg hover:text-foreground transition-colors cursor-pointer"
@@ -271,7 +273,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                       initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: 0.15 }}
-                      className="inline-flex items-center gap-1.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-full px-2.5 py-1 text-xs"
+                      className="inline-flex items-center gap-1.5 bg-severity-critical/10 text-severity-critical border border-severity-critical/20 rounded-full px-2.5 py-1 text-xs"
                     >
                       <Link size={11} />
                       {t("boltzmann.deterministicLinks", {
@@ -295,7 +297,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
 
                 {/* Timed out warning */}
                 {result.timedOut && (
-                  <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-400/10 rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-2 text-xs text-severity-medium bg-severity-medium/10 rounded-lg px-3 py-2">
                     <AlertTriangle size={14} />
                     {t("boltzmann.timedOut", {
                       defaultValue: "Computation timed out. Only deterministic links (100%) and zero-probability cells are reliable. Other cells are shown as N/A.",
@@ -307,7 +309,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                 <div className="overflow-x-auto -mx-2 px-2">
                   <div
                     ref={gridRef}
-                    className="relative bg-surface-inset/40 rounded-lg p-3 border border-white/[0.04]"
+                    className="relative bg-surface-inset/40 rounded-lg p-3 border border-card-border/40"
                   >
                     <div
                       className="grid gap-px w-full"
@@ -317,7 +319,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                       }}
                     >
                       {/* Top-left corner */}
-                      <div className="text-[10px] text-muted/50 flex items-end justify-end pr-1 pb-0.5">
+                      <div className="text-[10px] text-muted/70 flex items-end justify-end pr-1 pb-0.5">
                         {t("boltzmann.gridLabel", { defaultValue: "In \\ Out" })}
                       </div>
 
@@ -327,7 +329,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                         return (
                           <div
                             key={`h-${o}`}
-                            className="text-center px-1 pb-1 border-b border-white/[0.04]"
+                            className="text-center px-1 pb-1 border-b border-card-border/40"
                           >
                             <button
                               onClick={() => out.address && (window.location.hash = `#addr=${out.address}`)}
@@ -378,7 +380,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                             const inCrosshair = hoveredCell !== null
                               && (hoveredCell.row === i || hoveredCell.col === o);
                             const dimmed = hoveredCell !== null && !inCrosshair;
-                            const color = isUnreliable ? "rgb(30, 30, 40)" : probColor(displayProb);
+                            const color = isUnreliable ? "var(--surface-inset)" : probColor(displayProb);
 
                             return (
                               <motion.div
@@ -407,7 +409,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                               >
                                 <span
                                   className={`text-xs font-mono tabular-nums ${
-                                    isUnreliable ? "text-white/20 italic" : probTextColor(displayProb)
+                                    isUnreliable ? "text-muted/30 italic" : probTextColor(displayProb)
                                   }`}
                                 >
                                   {isUnreliable ? "N/A" : prob === 0 ? "-" : `${(prob * 100).toFixed(0)}%`}
@@ -420,28 +422,28 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                     </div>
 
                     {/* Legend bar */}
-                    <div className="mt-3 pt-2 border-t border-white/[0.04]">
+                    <div className="mt-3 pt-2 border-t border-card-border/40">
                       <div
                         className="h-1 rounded-full w-full"
                         style={{
-                          background: `linear-gradient(to right, ${COLOR_STOPS.map(
+                          background: `linear-gradient(to right, ${getColorStops().map(
                             ([stop, rgb]) => `rgb(${rgb.join(",")}) ${stop * 100}%`,
                           ).join(", ")})`,
                         }}
                       />
                       <div className="flex justify-between mt-1">
-                        <span className="text-[9px] text-muted/50">0%</span>
-                        <span className="text-[9px] text-muted/50">25%</span>
-                        <span className="text-[9px] text-muted/50">50%</span>
-                        <span className="text-[9px] text-muted/50">75%</span>
-                        <span className="text-[9px] text-muted/50">100%</span>
+                        <span className="text-[9px] text-muted">0%</span>
+                        <span className="text-[9px] text-muted">25%</span>
+                        <span className="text-[9px] text-muted">50%</span>
+                        <span className="text-[9px] text-muted">75%</span>
+                        <span className="text-[9px] text-muted">100%</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-[8px] text-muted/40">No link</span>
-                        <span className="text-[8px] text-muted/40">Ambiguous</span>
-                        <span className="text-[8px] text-muted/40">Probable</span>
-                        <span className="text-[8px] text-muted/40">Likely</span>
-                        <span className="text-[8px] text-muted/40">Deterministic</span>
+                        <span className="text-[8px] text-muted/70">No link</span>
+                        <span className="text-[8px] text-muted/70">Ambiguous</span>
+                        <span className="text-[8px] text-muted/70">Probable</span>
+                        <span className="text-[8px] text-muted/70">Likely</span>
+                        <span className="text-[8px] text-muted/70">Deterministic</span>
                       </div>
                     </div>
 
@@ -453,7 +455,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                             {truncAddr(tooltipData.inAddr, 6)} &rarr; {truncAddr(tooltipData.outAddr, 6)}
                           </div>
                           {tooltipData.prob < 0 ? (
-                            <div className="text-sm font-semibold text-muted/50 italic">
+                            <div className="text-sm font-semibold text-muted italic">
                               N/A - partial result (timed out)
                             </div>
                           ) : (
@@ -490,7 +492,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                       {t("boltzmann.efficiencyLabel", { defaultValue: "Efficiency:" })}
                     </span>
                     <span className="font-mono">{effPct.toFixed(2)}%</span>
-                    <div className="flex-1 h-1 bg-white/[0.06] rounded-full overflow-hidden max-w-[120px]">
+                    <div className="flex-1 h-1 bg-foreground/[0.06] rounded-full overflow-hidden max-w-[120px]">
                       <div
                         className="h-full rounded-full transition-all"
                         style={{

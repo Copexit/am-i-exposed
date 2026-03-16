@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { useTranslation } from "react-i18next";
+import { useTheme } from "@/hooks/useTheme";
 import {
   analyzeFingerprintEvolution,
   type FingerprintSnapshot,
@@ -39,6 +40,7 @@ function locktimeLabel(lt: FingerprintSnapshot["locktimeType"]): string {
 
 export function FingerprintTimeline({ address, txs, onScan }: FingerprintTimelineProps) {
   const { t } = useTranslation();
+  useTheme(); // re-render on theme change for SVG_COLORS
   const reducedMotion = useReducedMotion();
 
   const evolution = useMemo(
@@ -123,10 +125,10 @@ export function FingerprintTimeline({ address, txs, onScan }: FingerprintTimelin
                   <span className="text-[10px] text-muted mt-1 font-mono">
                     {truncateId(snap.txid, 6)}
                   </span>
-                  <span className="text-[9px] text-muted/70">
+                  <span className="text-[9px] text-muted">
                     v{snap.nVersion} {locktimeLabel(snap.locktimeType)}
                   </span>
-                  <span className="text-[9px] text-muted/70">
+                  <span className="text-[9px] text-muted">
                     {snap.scriptTypes.join("+")}
                   </span>
                   {snap.hasRbf && (

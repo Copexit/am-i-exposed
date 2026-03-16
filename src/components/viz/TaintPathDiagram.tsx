@@ -6,6 +6,7 @@ import { Text } from "@visx/text";
 import { ParentSize } from "@visx/responsive";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
+import { useTheme } from "@/hooks/useTheme";
 import { SVG_COLORS } from "./shared/svgConstants";
 import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
@@ -629,6 +630,7 @@ function TaintPath({
 
 export function TaintPathDiagram({ findings, backwardLayers, forwardLayers, onTxClick }: TaintPathDiagramProps) {
   const { t } = useTranslation();
+  useTheme(); // re-render on theme change for SVG_COLORS
   const tooltip = useChartTooltip<TooltipData>();
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -670,9 +672,9 @@ export function TaintPathDiagram({ findings, backwardLayers, forwardLayers, onTx
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.4 }}
-      className="rounded-xl border border-white/5 bg-surface-inset p-4 space-y-3"
+      className="rounded-xl border border-card-border bg-surface-inset p-4 space-y-3"
     >
-      <div className="flex items-center gap-2 text-sm font-medium text-white/70">
+      <div className="flex items-center gap-2 text-sm font-medium text-foreground/70">
         <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none">
           <path d="M1 8h14M4 4l-3 4 3 4M12 4l3 4-3 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -680,7 +682,7 @@ export function TaintPathDiagram({ findings, backwardLayers, forwardLayers, onTx
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4 text-xs text-white/50">
+      <div className="flex flex-wrap items-center gap-4 text-xs text-muted">
         <span className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-full border-2" style={{ borderColor: SVG_COLORS.bitcoin, background: `${SVG_COLORS.bitcoin}22` }} />
           {t("taintFlow.targetTx", { defaultValue: "Target TX" })}

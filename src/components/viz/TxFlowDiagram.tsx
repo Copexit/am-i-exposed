@@ -7,6 +7,7 @@ import { Group } from "@visx/group";
 import { Text } from "@visx/text";
 import { ParentSize } from "@visx/responsive";
 import { useTranslation } from "react-i18next";
+import { useTheme } from "@/hooks/useTheme";
 import { SVG_COLORS, SEVERITY_HEX, GRADIENT_COLORS, DUST_THRESHOLD, ANIMATION_DEFAULTS } from "./shared/svgConstants";
 import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
@@ -14,6 +15,7 @@ import { probColor } from "./shared/linkabilityColors";
 import { formatSats, formatUsdValue, calcFeeRate } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 import { useFullscreen } from "@/hooks/useFullscreen";
+import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import type { Finding } from "@/lib/types";
@@ -52,6 +54,8 @@ interface NodeDatum extends SankeyExtraProperties {
   anonColor?: string;
   /** Whether this output has been spent (null = unknown). */
   spent?: boolean | null;
+  /** Known entity name for this address (exchange, darknet, etc.). */
+  entityName?: string;
 }
 
 interface LinkDatum extends SankeyExtraProperties {
@@ -157,9 +161,9 @@ function FlowChart({
     const div = document.createElement("div");
     Object.assign(div.style, {
       position: "fixed", display: "none", pointerEvents: "none", zIndex: "9999",
-      backgroundColor: "rgba(28, 28, 32, 0.95)", border: "1px solid rgba(255, 255, 255, 0.1)",
+      backgroundColor: "var(--overlay-bg)", border: "1px solid var(--overlay-border)",
       borderRadius: "8px", padding: "8px 12px", fontSize: "13px",
-      color: SVG_COLORS.foreground, boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
+      color: "var(--foreground)", boxShadow: "var(--overlay-shadow)",
       backdropFilter: "blur(16px)", whiteSpace: "nowrap", transform: "translate(-50%, -100%)",
     });
     const row = document.createElement("div");
@@ -167,9 +171,9 @@ function FlowChart({
     const dot = document.createElement("span");
     Object.assign(dot.style, { width: "8px", height: "8px", borderRadius: "50%", display: "inline-block", flexShrink: "0" });
     const prob = document.createElement("span");
-    Object.assign(prob.style, { fontSize: "12px", fontWeight: "500", color: SVG_COLORS.foreground });
+    Object.assign(prob.style, { fontSize: "12px", fontWeight: "500", color: "var(--foreground)" });
     const route = document.createElement("p");
-    Object.assign(route.style, { fontSize: "12px", marginTop: "2px", color: SVG_COLORS.muted });
+    Object.assign(route.style, { fontSize: "12px", marginTop: "2px", color: "var(--muted)" });
     row.appendChild(dot);
     row.appendChild(prob);
     div.appendChild(row);
@@ -327,6 +331,7 @@ function FlowChart({
       const vin = displayInputs[i];
       const addr = vin.prevout?.scriptpubkey_address;
       const val = vin.prevout?.value ?? 0;
+      const entity = addr ? matchEntitySync(addr) : null;
       nodes.push({
         id: `in-${i}`,
         label: vin.is_coinbase ? "coinbase" : truncateId(addr ?? "?", 5),
@@ -334,6 +339,7 @@ function FlowChart({
         value: Math.max(val, 1),
         displayValue: val,
         side: "input",
+        entityName: entity?.entityName,
       });
     }
 
@@ -361,6 +367,7 @@ function FlowChart({
         annotationColor = SEVERITY_HEX.critical;
       }
 
+      const outEntity = addr ? matchEntitySync(addr) : null;
       nodes.push({
         id: `out-${i}`,
         label: vout.scriptpubkey_type === "op_return"
@@ -377,6 +384,7 @@ function FlowChart({
         anonSet: anonCount >= 2 ? anonCount : undefined,
         anonColor,
         spent: outspends?.[i]?.spent ?? null,
+        entityName: outEntity?.entityName,
       });
     }
 
@@ -491,7 +499,7 @@ function FlowChart({
                     const outIdx = parseInt(tgtNode.id.slice(4), 10);
                     const prob = boltzmannLookup.getProb(inIdx, outIdx);
                     const isUnreliable = boltzmannLookup.timedOut && prob > 0 && prob < 1.0;
-                    const color = isUnreliable ? "rgb(30,30,40)" : probColor(prob);
+                    const color = isUnreliable ? SVG_COLORS.surfaceInset : probColor(prob);
                     return (
                       <linearGradient key={`flow-link-${i}`} id={`flow-link-${i}`}>
                         <stop offset="0%" stopColor={color} />
@@ -706,18 +714,34 @@ function FlowChart({
                       {n.label}
                     </Text>
 
-                    {/* Value label - always shown inline */}
-                    <Text
-                      x={labelX}
-                      y={n.y0 + nh / 2 + (nh > 10 ? 8 : 12)}
-                      textAnchor={labelAnchor}
-                      verticalAnchor="middle"
-                      fontSize={nh > 10 ? 10 : 9}
-                      fill={SVG_COLORS.muted}
-                      style={{ pointerEvents: "none" as const }}
-                    >
-                      {usdPrice != null ? `${formatSats(n.displayValue, i18n.language)} (${formatUsdValue(n.displayValue, usdPrice)})` : formatSats(n.displayValue, i18n.language)}
-                    </Text>
+                    {/* Entity label - shown in place of value when entity is known */}
+                    {n.entityName ? (
+                      <Text
+                        x={labelX}
+                        y={n.y0 + nh / 2 + (nh > 10 ? 8 : 12)}
+                        textAnchor={labelAnchor}
+                        verticalAnchor="middle"
+                        fontSize={nh > 10 ? 10 : 9}
+                        fontWeight={700}
+                        fill={SVG_COLORS.critical}
+                        style={{ pointerEvents: "none" as const }}
+                        width={Math.min(marginH - 10, 140)}
+                      >
+                        {n.entityName}
+                      </Text>
+                    ) : (
+                      <Text
+                        x={labelX}
+                        y={n.y0 + nh / 2 + (nh > 10 ? 8 : 12)}
+                        textAnchor={labelAnchor}
+                        verticalAnchor="middle"
+                        fontSize={nh > 10 ? 10 : 9}
+                        fill={SVG_COLORS.muted}
+                        style={{ pointerEvents: "none" as const }}
+                      >
+                        {formatSats(n.displayValue, i18n.language)}
+                      </Text>
+                    )}
 
                     {/* Annotation badge (change, dust) - clickable to scroll to finding */}
                     {n.annotation && !isInput && (
@@ -842,6 +866,7 @@ function FlowChart({
 
 export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspends, boltzmannResult, isCoinJoinOverride, onExitLinkability }: TxFlowDiagramProps) {
   const { t, i18n } = useTranslation();
+  useTheme(); // re-render on theme change for SVG_COLORS
   const [showAllInputs, setShowAllInputs] = useState(false);
   const [showAllOutputs, setShowAllOutputs] = useState(false);
   const { isExpanded, expand, collapse } = useFullscreen();
@@ -950,7 +975,7 @@ export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspend
           role="dialog"
           aria-modal="true"
           aria-label={t("viz.flow.fullscreen", { defaultValue: "Transaction flow fullscreen" })}
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col"
+          className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex flex-col"
           onClick={(e) => { if (e.target === e.currentTarget) collapse(); }}
         >
           <div className="flex items-center justify-between p-4 text-sm text-muted">

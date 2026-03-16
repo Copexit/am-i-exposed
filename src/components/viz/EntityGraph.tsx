@@ -5,6 +5,7 @@ import { Group } from "@visx/group";
 import { Graph } from "@visx/network";
 import { ParentSize } from "@visx/responsive";
 import { useTranslation } from "react-i18next";
+import { useTheme } from "@/hooks/useTheme";
 import { SVG_COLORS } from "./shared/svgConstants";
 import { truncateId } from "@/lib/constants";
 import type { ClusterResult, ClusterEdge } from "@/lib/analysis/cluster/build-cluster";
@@ -208,6 +209,7 @@ function EntityGraphChart({
 
 export function EntityGraph(props: EntityGraphProps) {
   const { t } = useTranslation();
+  useTheme(); // re-render on theme change for SVG_COLORS
 
   if (props.result.size < 2 || props.result.edges.length === 0) return null;
 

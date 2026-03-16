@@ -7,6 +7,7 @@ import { useNetwork } from "@/context/NetworkContext";
 import { detectInputType, cleanInput } from "@/lib/analysis/detect-input";
 import { useAddressAutocomplete } from "@/hooks/useAddressAutocomplete";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
+import { useTheme } from "@/hooks/useTheme";
 import { Spinner } from "./ui/Spinner";
 
 function InputTypeHint({ value, network }: { value: string; network: BitcoinNetwork }) {
@@ -45,6 +46,8 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
   const internalRef = useRef<HTMLInputElement>(null);
   const inputRef = externalRef ?? internalRef;
   const { network } = useNetwork();
+  const { theme } = useTheme();
+  const isLight = theme === "light";
   const {
     suggestions, selectedIndex, isOpen,
     fetchSuggestions, close: closeSuggestions, selectIndex, moveSelection, getSelected,
@@ -127,7 +130,9 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
         <div
           className="absolute -inset-2 rounded-2xl opacity-30 group-focus-within:opacity-60 transition-opacity duration-500 pointer-events-none blur-2xl"
           style={{
-            background: "conic-gradient(from var(--border-angle, 0deg), rgba(139,92,246,0.3), rgba(247,147,26,0.3), rgba(59,130,246,0.3), rgba(139,92,246,0.3))",
+            background: isLight
+              ? "conic-gradient(from var(--border-angle, 0deg), rgba(168,139,250,0.15), rgba(251,191,36,0.15), rgba(147,197,253,0.15), rgba(168,139,250,0.15))"
+              : "conic-gradient(from var(--border-angle, 0deg), rgba(139,92,246,0.3), rgba(247,147,26,0.3), rgba(59,130,246,0.3), rgba(139,92,246,0.3))",
             animation: "border-rotate 4s linear infinite",
           }}
         />
@@ -137,7 +142,9 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
           style={{
             background: pasteSuccess
               ? "var(--success)"
-              : "conic-gradient(from var(--border-angle, 0deg), rgba(68,68,80,0.6), rgba(247,147,26,0.4), rgba(139,92,246,0.3), rgba(59,130,246,0.3), rgba(68,68,80,0.6))",
+              : isLight
+                ? `conic-gradient(from var(--border-angle, 0deg), var(--card-border), rgba(251,191,36,0.3), rgba(168,139,250,0.25), rgba(147,197,253,0.25), var(--card-border))`
+                : `conic-gradient(from var(--border-angle, 0deg), var(--card-border), rgba(247,147,26,0.4), rgba(139,92,246,0.3), rgba(59,130,246,0.3), var(--card-border))`,
             animation: "border-rotate 4s linear infinite",
           }}
         >
@@ -186,7 +193,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
             aria-activedescendant={selectedIndex >= 0 ? `suggestion-${selectedIndex}` : undefined}
             className="relative w-full glass rounded-[11px] pl-4 pr-24 sm:pl-5 sm:pr-20 py-4
               font-mono text-sm sm:text-base text-foreground placeholder:text-muted/70
-              focus:shadow-[0_0_20px_rgba(247,147,26,0.15)]
+              focus:shadow-[0_0_20px_rgba(247,147,26,0.2)]
               transition-all duration-200 border-0
               focus-visible:outline-2 focus-visible:outline-bitcoin/50"
           />
@@ -202,7 +209,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
               disabled={!value.trim()}
               onMouseMove={handleButtonMouseMove}
               onMouseLeave={handleButtonMouseLeave}
-              style={{ background: "var(--bitcoin-gradient)", x: springX, y: springY }}
+              style={{ background: "var(--bitcoin-gradient)", x: springX, y: springY, boxShadow: isLight ? "0 2px 8px rgba(247, 147, 26, 0.3)" : undefined }}
               className="px-5 py-2 text-black font-semibold text-sm sm:text-base rounded-lg
                 hover:brightness-110 transition-[filter] duration-150 disabled:opacity-30
                 disabled:cursor-not-allowed cursor-pointer focus-visible:ring-2 focus-visible:ring-bitcoin focus-visible:outline-none"
@@ -211,7 +218,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
             </motion.button>
           )}
         </div>
-        {/* Address autocomplete dropdown */}
+        {/* Autocomplete dropdown (address prefix or entity name) */}
         {isOpen && suggestions.length > 0 && (
           <ul
             id="address-suggestions"
@@ -220,24 +227,38 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
             className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border border-card-border
               bg-surface-elevated/95 backdrop-blur-lg shadow-xl overflow-hidden"
           >
-            {suggestions.map((addr, i) => (
+            {suggestions.map((s, i) => (
               <li
-                key={addr}
+                key={`${s.value}-${i}`}
                 id={`suggestion-${i}`}
                 role="option"
                 aria-selected={i === selectedIndex}
                 onMouseDown={(e) => {
-                  e.preventDefault(); // Prevent blur before click registers
-                  setValue(addr);
+                  e.preventDefault();
+                  setValue(s.value);
                   closeSuggestions();
-                  submit(addr);
+                  submit(s.value);
                 }}
                 onMouseEnter={() => selectIndex(i)}
-                className={`px-4 py-2.5 font-mono text-xs sm:text-sm cursor-pointer transition-colors text-left
+                className={`px-4 py-2.5 cursor-pointer transition-colors text-left
                   ${i === selectedIndex ? "bg-bitcoin/15 text-foreground" : "text-muted hover:bg-surface-inset hover:text-foreground"}`}
               >
-                <span className="text-bitcoin">{addr.slice(0, value.trim().length)}</span>
-                <span>{addr.slice(value.trim().length)}</span>
+                {s.type === "entity" ? (
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-foreground font-semibold text-xs sm:text-sm">{s.entityName}</span>
+                      <span className="text-muted/60 text-[10px]">{s.category}</span>
+                    </div>
+                    <span className="font-mono text-[11px] text-muted/70 truncate">
+                      {s.value}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="font-mono text-xs sm:text-sm">
+                    <span className="text-bitcoin">{s.value.slice(0, value.trim().length)}</span>
+                    <span>{s.value.slice(value.trim().length)}</span>
+                  </span>
+                )}
               </li>
             ))}
           </ul>

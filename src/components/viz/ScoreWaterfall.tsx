@@ -7,6 +7,7 @@ import { scaleBand, scaleLinear } from "@visx/scale";
 import { ParentSize } from "@visx/responsive";
 import { Text } from "@visx/text";
 import { useTranslation } from "react-i18next";
+import { useTheme } from "@/hooks/useTheme";
 import { SVG_COLORS, SEVERITY_HEX, GRADE_HEX_SVG, ANIMATION_DEFAULTS, WATERFALL_GRADIENT_IDS } from "./shared/svgConstants";
 import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
@@ -402,6 +403,7 @@ function WaterfallChart({
 
 export function ScoreWaterfall({ findings, finalScore, grade, baseScore, onFindingClick }: ScoreWaterfallProps) {
   const { t } = useTranslation();
+  useTheme(); // re-render on theme change for SVG_COLORS
   const impactFindings = findings.filter((f) => f.scoreImpact !== 0);
   if (impactFindings.length === 0) return null;
 

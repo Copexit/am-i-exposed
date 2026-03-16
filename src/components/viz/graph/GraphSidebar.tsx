@@ -63,7 +63,7 @@ function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   return (
     <button
-      className="text-white/30 hover:text-white/60 transition-colors cursor-pointer"
+      className="text-muted/60 hover:text-foreground transition-colors cursor-pointer"
       onClick={(e) => {
         e.stopPropagation();
         navigator.clipboard.writeText(text);
@@ -111,8 +111,8 @@ export function GraphSidebar({
   const tabClass = (tab: Tab) =>
     `px-3 py-1.5 text-xs rounded-t transition-colors cursor-pointer ${
       activeTab === tab
-        ? "text-white/90 border-b-2 border-bitcoin"
-        : "text-white/40 hover:text-white/60"
+        ? "text-foreground border-b-2 border-bitcoin"
+        : "text-muted hover:text-foreground/70"
     }`;
 
   return (
@@ -121,17 +121,17 @@ export function GraphSidebar({
       animate={{ x: 0 }}
       exit={{ x: SIDEBAR_WIDTH }}
       transition={{ type: "spring", damping: 25, stiffness: 300 }}
-      className="w-80 h-full border-l border-white/10 bg-[#1c1c20]/95 backdrop-blur-xl flex flex-col overflow-hidden shrink-0"
+      className="w-80 h-full border-l border-card-border bg-card-bg/95 backdrop-blur-xl flex flex-col overflow-hidden shrink-0"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-white/5 shrink-0">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-card-border shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="font-mono text-xs text-white/60 truncate">{truncateId(tx.txid, 10)}</span>
+          <span className="font-mono text-xs text-foreground/70 truncate">{truncateId(tx.txid, 10)}</span>
           <CopyButton text={tx.txid} />
         </div>
         <button
           onClick={onClose}
-          className="text-white/40 hover:text-white/80 transition-colors p-0.5 cursor-pointer shrink-0"
+          className="text-muted hover:text-foreground transition-colors p-0.5 cursor-pointer shrink-0"
           aria-label={t("common.close", { defaultValue: "Close" })}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -142,7 +142,7 @@ export function GraphSidebar({
 
       {/* Score bar */}
       {result && (
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-white/5 shrink-0">
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-card-border shrink-0">
           <div
             className="flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold shrink-0"
             style={{
@@ -154,17 +154,17 @@ export function GraphSidebar({
             {result.grade}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-medium text-white/80">{result.score}/100</div>
+            <div className="text-xs font-medium text-foreground">{result.score}/100</div>
             {result.txType && result.txType !== "unknown" && (
-              <div className="text-xs text-white/40 truncate">{result.txType.replace(/-/g, " ")}</div>
+              <div className="text-xs text-muted truncate">{result.txType.replace(/-/g, " ")}</div>
             )}
           </div>
-          <div className="text-xs text-white/40 shrink-0">{formatSats(totalValue)}</div>
+          <div className="text-xs text-muted shrink-0">{formatSats(totalValue)}</div>
         </div>
       )}
 
       {/* Tabs */}
-      <div className="flex border-b border-white/5 shrink-0">
+      <div className="flex border-b border-card-border shrink-0">
         <button className={tabClass("io")} onClick={() => setActiveTab("io")}>I/O</button>
         <button className={tabClass("analysis")} onClick={() => setActiveTab("analysis")}>Analysis</button>
         <button className={tabClass("technical")} onClick={() => setActiveTab("technical")}>Technical</button>
@@ -199,10 +199,10 @@ export function GraphSidebar({
       </div>
 
       {/* Full scan button */}
-      <div className="px-3 py-2 border-t border-white/5 shrink-0">
+      <div className="px-3 py-2 border-t border-card-border shrink-0">
         <button
           onClick={() => onFullScan(tx.txid)}
-          className="w-full text-xs text-center py-2 rounded-lg border border-white/10 text-white/60 hover:text-white/90 hover:border-white/20 transition-colors cursor-pointer"
+          className="w-full text-xs text-center py-2 rounded-lg border border-card-border text-muted hover:text-foreground hover:border-muted transition-colors cursor-pointer"
         >
           {t("graphExplorer.analysis.fullScan", { defaultValue: "Full Scan" })}
         </button>
@@ -295,12 +295,12 @@ function IOTab({
     <div className="p-2 space-y-3">
       {/* Auto-trace progress */}
       {autoTracing && autoTraceProgress && (
-        <div className="flex items-center gap-2 px-1 py-1 rounded bg-orange-400/10 border border-orange-400/20">
-          <div className="w-3 h-3 border-2 border-orange-400/40 border-t-orange-400 rounded-full animate-spin shrink-0" />
-          <span className="text-xs text-orange-400/80">
+        <div className="flex items-center gap-2 px-1 py-1 rounded bg-bitcoin/10 border border-bitcoin/20">
+          <div className="w-3 h-3 border-2 border-bitcoin/40 border-t-bitcoin rounded-full animate-spin shrink-0" />
+          <span className="text-xs text-bitcoin">
             Tracing hop {autoTraceProgress.hop}...
             {autoTraceProgress.reason !== "expanding" && autoTraceProgress.reason !== "starting" && (
-              <span className="text-white/40 ml-1">({autoTraceProgress.reason})</span>
+              <span className="text-muted ml-1">({autoTraceProgress.reason})</span>
             )}
           </span>
         </div>
@@ -309,20 +309,20 @@ function IOTab({
       {/* Boltzmann summary (when available) */}
       {boltzmannResult && (
         <div className="flex flex-wrap gap-1.5 px-1">
-          <span className="text-xs px-1.5 py-0.5 rounded bg-white/5 text-white/50">
+          <span className="text-xs px-1.5 py-0.5 rounded bg-foreground/10 text-muted">
             {boltzmannResult.entropy.toFixed(2)} bits
           </span>
           {isCoinJoinTx(tx) && boltzmannResult.efficiency > 0 && (
-            <span className="text-xs px-1.5 py-0.5 rounded bg-white/5 text-white/50">
+            <span className="text-xs px-1.5 py-0.5 rounded bg-foreground/10 text-muted">
               {Math.round(Math.min(boltzmannResult.efficiency, 1) * 100)}% efficiency
             </span>
           )}
           {boltzmannResult.deterministicLinks.length > 0 && (
-            <span className="text-xs px-1.5 py-0.5 rounded bg-red-500/10 text-red-400/80">
+            <span className="text-xs px-1.5 py-0.5 rounded bg-severity-critical/15 text-severity-critical">
               {boltzmannResult.deterministicLinks.length} deterministic
             </span>
           )}
-          <span className="text-xs px-1.5 py-0.5 rounded bg-white/5 text-white/40">
+          <span className="text-xs px-1.5 py-0.5 rounded bg-foreground/10 text-muted">
             {boltzmannResult.nbCmbn.toLocaleString("en-US")} interpretations
           </span>
         </div>
@@ -331,7 +331,7 @@ function IOTab({
       {computingBoltzmann && (
         <div className="flex items-center gap-2 px-1">
           <div className="w-3 h-3 border-2 border-bitcoin/40 border-t-bitcoin rounded-full animate-spin" />
-          <span className="text-xs text-white/40">
+          <span className="text-xs text-muted">
             Computing linkability{boltzmannProgress != null ? ` (${Math.round(boltzmannProgress * 100)}%)` : "..."}
           </span>
         </div>
@@ -340,7 +340,7 @@ function IOTab({
       {canComputeBoltzmann && onComputeBoltzmann && (
         <button
           onClick={onComputeBoltzmann}
-          className="w-full text-xs text-center py-1.5 rounded border border-white/10 text-white/50 hover:text-white/80 hover:border-white/20 transition-colors cursor-pointer"
+          className="w-full text-xs text-center py-1.5 rounded border border-card-border text-muted hover:text-foreground hover:border-muted transition-colors cursor-pointer"
         >
           Compute Linkability ({nonCoinbaseInputCount}in / {tx.vout.length}out)
         </button>
@@ -349,11 +349,11 @@ function IOTab({
       {/* Inputs */}
       <div>
         <div className="flex items-center justify-between px-1 mb-1">
-          <span className="text-xs font-medium text-white/50">Inputs ({tx.vin.length})</span>
+          <span className="text-xs font-medium text-muted">Inputs ({tx.vin.length})</span>
           {onExpandInput && expandableInputs.length > 0 && (
             <button
               onClick={() => { expandableInputs.slice(0, 5).forEach((i) => onExpandInput(tx.txid, i)); }}
-              className="text-xs text-white/30 hover:text-white/60 transition-colors cursor-pointer"
+              className="text-xs text-muted/70 hover:text-foreground transition-colors cursor-pointer"
               title="Expand first 5 unresolved inputs"
             >
               Expand all
@@ -369,22 +369,22 @@ function IOTab({
               ? matchEntitySync(vin.prevout.scriptpubkey_address) : null;
 
             return (
-              <div key={i} className="flex items-center gap-1.5 px-1 py-1 rounded hover:bg-white/3 group">
+              <div key={i} className="flex items-center gap-1.5 px-1 py-1 rounded hover:bg-foreground/5 group">
                 <span
                   className="w-1.5 h-4 rounded-sm shrink-0"
                   style={{ background: getScriptTypeColor(scriptType), opacity: 0.7 }}
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1">
-                    <span className="font-mono text-xs text-white/60 truncate">
+                    <span className="font-mono text-xs text-foreground/70 truncate">
                       {vin.is_coinbase ? "coinbase" : truncateId(addr, 6)}
                     </span>
                     {!vin.is_coinbase && addr !== "unknown" && <CopyButton text={addr} />}
                   </div>
                   {entity && (
-                    <div className="text-xs text-white/40 truncate">
+                    <div className="text-xs text-muted truncate">
                       <span style={{ color: SVG_COLORS.high }}>{entity.entityName}</span>
-                      {entity.ofac && <span className="text-red-400 ml-1">OFAC</span>}
+                      {entity.ofac && <span className="text-severity-critical ml-1">OFAC</span>}
                     </div>
                   )}
                 </div>
@@ -400,7 +400,7 @@ function IOTab({
                   const isSelected = selectedInputIdx === i;
                   return (
                     <button
-                      className={`shrink-0 w-2.5 h-2.5 rounded-full cursor-pointer transition-all ${isSelected ? "ring-2 ring-white/40 scale-125" : ""}`}
+                      className={`shrink-0 w-2.5 h-2.5 rounded-full cursor-pointer transition-all ${isSelected ? "ring-2 ring-foreground/40 scale-125" : ""}`}
                       style={{ backgroundColor: probColor(maxP), opacity: isDet ? 1 : 0.7 }}
                       title={`${Math.round(maxP * 100)}% max linkability${isDet ? " (deterministic)" : ""} - click to see per-output breakdown`}
                       onClick={(e) => { e.stopPropagation(); setSelectedInputIdx(isSelected ? null : i); }}
@@ -410,7 +410,7 @@ function IOTab({
                 {onExpandInput && !vin.is_coinbase && (
                   <button
                     onClick={() => onExpandInput(tx.txid, i)}
-                    className="opacity-0 group-hover:opacity-100 text-white/30 hover:text-white/70 transition-all cursor-pointer p-0.5"
+                    className="opacity-0 group-hover:opacity-100 text-muted/60 hover:text-foreground transition-all cursor-pointer p-0.5"
                     title="Expand in graph"
                   >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
@@ -424,8 +424,8 @@ function IOTab({
 
       {/* Per-input linkability breakdown (shown when an input is selected) */}
       {selectedInputIdx !== null && mat && (
-        <div className="mx-1 p-1.5 rounded bg-white/3 border border-white/5">
-          <div className="text-xs text-white/40 mb-1">
+        <div className="mx-1 p-1.5 rounded bg-foreground/5 border border-card-border">
+          <div className="text-xs text-muted mb-1">
             Input #{selectedInputIdx} linkability to each output:
           </div>
           <div className="space-y-0.5">
@@ -434,14 +434,14 @@ function IOTab({
               const isDet = detLinks?.some(([o, inp]) => o === oi && inp === selectedInputIdx);
               return (
                 <div key={oi} className="flex items-center gap-1.5 text-xs">
-                  <span className="text-white/30 w-4 text-right shrink-0">#{oi}</span>
-                  <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
+                  <span className="text-muted/70 w-4 text-right shrink-0">#{oi}</span>
+                  <div className="flex-1 h-1.5 rounded-full bg-foreground/5 overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
                       style={{ width: `${prob * 100}%`, backgroundColor: probColor(prob) }}
                     />
                   </div>
-                  <span className={`w-8 text-right tabular-nums shrink-0 ${isDet ? "text-red-400 font-bold" : "text-white/50"}`}>
+                  <span className={`w-8 text-right tabular-nums shrink-0 ${isDet ? "text-severity-critical font-bold" : "text-muted"}`}>
                     {prob > 0 ? `${Math.round(prob * 100)}%` : "-"}
                   </span>
                 </div>
@@ -454,7 +454,7 @@ function IOTab({
       {/* Outputs */}
       <div>
         <div className="flex items-center justify-between px-1 mb-1">
-          <span className="text-xs font-medium text-white/50">Outputs ({tx.vout.length})</span>
+          <span className="text-xs font-medium text-muted">Outputs ({tx.vout.length})</span>
           <div className="flex items-center gap-1.5">
             {/* Auto-trace from identified change output (section-level action) */}
             {onAutoTrace && !autoTracing && (
@@ -465,7 +465,7 @@ function IOTab({
                   const targetIdx = changeIdx >= 0 ? changeIdx : expandableOutputs[0];
                   if (targetIdx !== undefined) onAutoTrace(tx.txid, targetIdx);
                 }}
-                className="text-xs text-orange-400/50 hover:text-orange-400 transition-colors cursor-pointer"
+                className="text-xs text-bitcoin/50 hover:text-bitcoin transition-colors cursor-pointer"
                 title="Auto-trace: follow change outputs forward"
               >
                 Trace
@@ -479,7 +479,7 @@ function IOTab({
                   const targetIdx = changeIdx >= 0 ? changeIdx : expandableOutputs[0];
                   if (targetIdx !== undefined) onAutoTraceLinkability(tx.txid, targetIdx);
                 }}
-                className="text-xs text-blue-400/50 hover:text-blue-400 transition-colors cursor-pointer"
+                className="text-xs text-severity-low/60 hover:text-severity-low transition-colors cursor-pointer"
                 title="Linkability trace: follow until compound linkability < 5%"
               >
                 Link trace
@@ -488,7 +488,7 @@ function IOTab({
             {onExpandOutput && expandableOutputs.length > 0 && (
               <button
                 onClick={() => { expandableOutputs.slice(0, 5).forEach((i) => onExpandOutput(tx.txid, i)); }}
-                className="text-xs text-white/30 hover:text-white/60 transition-colors cursor-pointer"
+                className="text-xs text-muted/70 hover:text-foreground transition-colors cursor-pointer"
                 title="Expand first 5 unresolved outputs"
               >
                 Expand all
@@ -506,7 +506,7 @@ function IOTab({
             return (
               <div
                 key={i}
-                className={`flex items-center gap-1.5 px-1 py-1 rounded hover:bg-white/3 group ${
+                className={`flex items-center gap-1.5 px-1 py-1 rounded hover:bg-foreground/5 group ${
                   isChange ? "ring-1 ring-amber-500/30 bg-amber-500/5" : ""
                 }`}
               >
@@ -516,13 +516,13 @@ function IOTab({
                 />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1">
-                    <span className="font-mono text-xs text-white/60 truncate">{truncateId(addr, 6)}</span>
+                    <span className="font-mono text-xs text-foreground/70 truncate">{truncateId(addr, 6)}</span>
                     {vout.scriptpubkey_address && <CopyButton text={vout.scriptpubkey_address} />}
                   </div>
                   {entity && (
-                    <div className="text-xs text-white/40 truncate">
+                    <div className="text-xs text-muted truncate">
                       <span style={{ color: SVG_COLORS.high }}>{entity.entityName}</span>
-                      {entity.ofac && <span className="text-red-400 ml-1">OFAC</span>}
+                      {entity.ofac && <span className="text-severity-critical ml-1">OFAC</span>}
                     </div>
                   )}
                 </div>
@@ -560,7 +560,7 @@ function IOTab({
                   className={`shrink-0 w-3.5 h-3.5 rounded-sm border cursor-pointer transition-colors relative ${
                     isChange
                       ? "bg-amber-500/40 border-amber-500/60"
-                      : "border-white/15 hover:border-white/30"
+                      : "border-card-border hover:border-muted"
                   }`}
                   title={isChange ? "Unmark as change" : (suggestedChangeIndices.has(i) ? "Suggested change output - click to mark" : "Mark as change")}
                 >
@@ -572,7 +572,7 @@ function IOTab({
                 {onExpandOutput && vout.scriptpubkey_type !== "op_return" && vout.value > 0 && (
                   <button
                     onClick={() => onExpandOutput(tx.txid, i)}
-                    className="opacity-0 group-hover:opacity-100 text-white/30 hover:text-white/70 transition-all cursor-pointer p-0.5"
+                    className="opacity-0 group-hover:opacity-100 text-muted/60 hover:text-foreground transition-all cursor-pointer p-0.5"
                     title="Expand in graph"
                   >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
@@ -582,7 +582,7 @@ function IOTab({
                 {onAutoTrace && !autoTracing && vout.scriptpubkey_type !== "op_return" && vout.value > 0 && (
                   <button
                     onClick={() => onAutoTrace(tx.txid, i)}
-                    className="opacity-0 group-hover:opacity-100 text-orange-400/50 hover:text-orange-400 transition-all cursor-pointer p-0.5"
+                    className="opacity-0 group-hover:opacity-100 text-bitcoin/50 hover:text-bitcoin transition-all cursor-pointer p-0.5"
                     title="Auto-trace from this output"
                   >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M13 5l7 7-7 7" /><path d="M5 5l7 7-7 7" /></svg>
@@ -592,7 +592,7 @@ function IOTab({
                 {onAutoTraceLinkability && !autoTracing && vout.scriptpubkey_type !== "op_return" && vout.value > 0 && (
                   <button
                     onClick={() => onAutoTraceLinkability(tx.txid, i)}
-                    className="opacity-0 group-hover:opacity-100 text-blue-400/50 hover:text-blue-400 transition-all cursor-pointer p-0.5"
+                    className="opacity-0 group-hover:opacity-100 text-severity-low/60 hover:text-severity-low transition-all cursor-pointer p-0.5"
                     title="Linkability trace from this output"
                   >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07" /></svg>
@@ -633,14 +633,14 @@ function AnalysisTab({ result, tx }: { result: ScoringResult; tx: MempoolTransac
       {/* Entity matches */}
       {entityMatches.length > 0 && (
         <div className="space-y-1">
-          <div className="text-xs font-medium text-white/50">Entities</div>
+          <div className="text-xs font-medium text-muted">Entities</div>
           {entityMatches.map((m) => (
             <div key={m.address} className="flex items-center gap-1.5 text-xs">
               {m.ofac && (
-                <span className="text-red-400 font-bold">!</span>
+                <span className="text-severity-critical font-bold">!</span>
               )}
               <span style={{ color: SVG_COLORS.high }} className="truncate">{m.entityName}</span>
-              <span className="text-white/30">({m.category})</span>
+              <span className="text-muted/70">({m.category})</span>
             </div>
           ))}
         </div>
@@ -649,14 +649,14 @@ function AnalysisTab({ result, tx }: { result: ScoringResult; tx: MempoolTransac
       {/* Problems */}
       {topFindings.length > 0 && (
         <div className="space-y-1">
-          <div className="text-xs font-medium text-white/50">Problems ({topFindings.length})</div>
+          <div className="text-xs font-medium text-muted">Problems ({topFindings.length})</div>
           {topFindings.map((f) => (
             <div key={f.id} className="flex items-start gap-1.5 text-xs py-0.5">
               <span
                 className="inline-block w-1.5 h-1.5 rounded-full mt-1 shrink-0"
                 style={{ backgroundColor: SEV_DOT[f.severity] ?? SEV_DOT.low }}
               />
-              <span className="text-white/70">{f.title}</span>
+              <span className="text-foreground/70">{f.title}</span>
             </div>
           ))}
         </div>
@@ -665,14 +665,14 @@ function AnalysisTab({ result, tx }: { result: ScoringResult; tx: MempoolTransac
       {/* Good findings */}
       {goodFindings.length > 0 && (
         <div className="space-y-1">
-          <div className="text-xs font-medium text-white/50">Positives ({goodFindings.length})</div>
+          <div className="text-xs font-medium text-muted">Positives ({goodFindings.length})</div>
           {goodFindings.map((f) => (
             <div key={f.id} className="flex items-start gap-1.5 text-xs py-0.5">
               <span
                 className="inline-block w-1.5 h-1.5 rounded-full mt-1 shrink-0"
                 style={{ backgroundColor: SVG_COLORS.good }}
               />
-              <span className="text-white/50">{f.title}</span>
+              <span className="text-muted">{f.title}</span>
             </div>
           ))}
         </div>
@@ -708,9 +708,9 @@ function TechnicalTab({ tx, feeRate, vsize }: { tx: MempoolTransaction; feeRate:
       <table className="w-full text-xs">
         <tbody>
           {rows.map((r) => (
-            <tr key={r.label} className="border-b border-white/3">
-              <td className="py-1.5 text-white/40 pr-3">{r.label}</td>
-              <td className={`py-1.5 font-mono ${r.highlight ? "text-amber-400/80" : "text-white/70"}`}>{r.value}</td>
+            <tr key={r.label} className="border-b border-foreground/5">
+              <td className="py-1.5 text-muted pr-3">{r.label}</td>
+              <td className={`py-1.5 font-mono ${r.highlight ? "text-severity-medium" : "text-foreground/70"}`}>{r.value}</td>
             </tr>
           ))}
         </tbody>

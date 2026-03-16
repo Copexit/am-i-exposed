@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { Pie } from "@visx/shape";
 import { Group } from "@visx/group";
 import { useTranslation } from "react-i18next";
+import { useTheme } from "@/hooks/useTheme";
 import { SVG_COLORS, SEVERITY_HEX, ANIMATION_DEFAULTS } from "./shared/svgConstants";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import type { Finding, Severity } from "@/lib/types";
@@ -38,6 +39,7 @@ const SEVERITY_LABELS: Record<Severity, string> = {
 
 export function SeverityRing({ findings, size = 120 }: SeverityRingProps) {
   const { t } = useTranslation();
+  useTheme(); // re-render on theme change for SVG_COLORS
   const reducedMotion = useReducedMotion();
   const containerRef = useRef<HTMLDivElement>(null);
   const { tooltipOpen, tooltipData, tooltipLeft, tooltipTop, showTooltip, hideTooltip, handleTouch } =

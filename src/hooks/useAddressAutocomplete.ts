@@ -3,18 +3,31 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useNetwork } from "@/context/NetworkContext";
 import { createApiClient } from "@/lib/api/client";
+import { searchEntitiesByPrefix } from "@/lib/analysis/entity-filter/entity-search";
 
-/** Minimum prefix length before querying (avoid overly broad searches). */
-const MIN_PREFIX_LENGTH = 6;
-/** Debounce delay in ms. */
+/** Minimum prefix length before querying the address API. */
+const MIN_PREFIX_LENGTH = 4;
+/** Minimum query length for entity name search. */
+const MIN_ENTITY_QUERY = 2;
+/** Debounce delay in ms for address API calls. */
 const DEBOUNCE_MS = 300;
 
 /** Regex for partial address prefixes worth autocompleting. */
 const ADDRESS_PREFIX_RE = /^(bc1|tb1|[13]|[mn2])/i;
 
+export interface AutocompleteSuggestion {
+  type: "address" | "entity";
+  /** The address to scan when selected. */
+  value: string;
+  /** Entity name (only for type "entity"). */
+  entityName?: string;
+  /** Entity category (only for type "entity"). */
+  category?: string;
+}
+
 export function useAddressAutocomplete() {
   const { config } = useNetwork();
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<AutocompleteSuggestion[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [isOpen, setIsOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -30,48 +43,76 @@ export function useAddressAutocomplete() {
   const fetchSuggestions = useCallback((prefix: string) => {
     clearTimeout(timerRef.current);
 
-    // Don't autocomplete txids (64 hex), xpubs, PSBTs, or short prefixes
     const trimmed = prefix.trim();
+
+    // Exclude txids (64 hex), xpubs, PSBTs
     if (
-      trimmed.length < MIN_PREFIX_LENGTH ||
       /^[0-9a-f]{20,}$/i.test(trimmed) ||
       trimmed.startsWith("xpub") ||
       trimmed.startsWith("ypub") ||
-      trimmed.startsWith("zpub") ||
-      !ADDRESS_PREFIX_RE.test(trimmed)
+      trimmed.startsWith("zpub")
     ) {
       setSuggestions([]);
       setIsOpen(false);
       return;
     }
 
-    const seq = ++seqRef.current;
+    const isAddressPrefix = ADDRESS_PREFIX_RE.test(trimmed);
 
-    timerRef.current = setTimeout(async () => {
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
+    // Path 1: Address prefix autocomplete (API call with debounce)
+    if (isAddressPrefix && trimmed.length >= MIN_PREFIX_LENGTH) {
+      const seq = ++seqRef.current;
 
-      try {
-        const client = createApiClient(config, controller.signal);
-        const results = await client.getAddressPrefix(trimmed);
-        // Only apply if this is still the latest request
-        if (seq === seqRef.current && results.length > 0) {
-          setSuggestions(results);
-          setSelectedIndex(-1);
-          setIsOpen(true);
-        } else if (seq === seqRef.current) {
-          setSuggestions([]);
-          setIsOpen(false);
+      timerRef.current = setTimeout(async () => {
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
+
+        try {
+          const client = createApiClient(config, controller.signal);
+          const results = await client.getAddressPrefix(trimmed);
+          if (seq === seqRef.current && results.length > 0) {
+            setSuggestions(results.map((addr) => ({ type: "address" as const, value: addr })));
+            setSelectedIndex(-1);
+            setIsOpen(true);
+          } else if (seq === seqRef.current) {
+            setSuggestions([]);
+            setIsOpen(false);
+          }
+        } catch {
+          if (seq === seqRef.current) {
+            setSuggestions([]);
+            setIsOpen(false);
+          }
         }
-      } catch {
-        // Silently fail (endpoint unavailable, aborted, etc.)
-        if (seq === seqRef.current) {
-          setSuggestions([]);
-          setIsOpen(false);
-        }
+      }, DEBOUNCE_MS);
+      return;
+    }
+
+    // Path 2: Entity name autocomplete (synchronous, no API call)
+    if (!isAddressPrefix && trimmed.length >= MIN_ENTITY_QUERY) {
+      const entityResults = searchEntitiesByPrefix(trimmed, 10);
+      if (entityResults.length > 0) {
+        setSuggestions(
+          entityResults.map((e) => ({
+            type: "entity" as const,
+            value: e.address,
+            entityName: e.entityName,
+            category: e.category,
+          })),
+        );
+        setSelectedIndex(-1);
+        setIsOpen(true);
+      } else {
+        setSuggestions([]);
+        setIsOpen(false);
       }
-    }, DEBOUNCE_MS);
+      return;
+    }
+
+    // Neither path matched
+    setSuggestions([]);
+    setIsOpen(false);
   }, [config]);
 
   const close = useCallback(() => {
@@ -96,7 +137,7 @@ export function useAddressAutocomplete() {
 
   const getSelected = useCallback((): string | null => {
     if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
-      return suggestions[selectedIndex];
+      return suggestions[selectedIndex].value;
     }
     return null;
   }, [selectedIndex, suggestions]);

@@ -8,6 +8,7 @@ import { Text } from "@visx/text";
 import { ParentSize } from "@visx/responsive";
 import { hierarchy } from "d3-hierarchy";
 import { useTranslation } from "react-i18next";
+import { useTheme } from "@/hooks/useTheme";
 import { SVG_COLORS, DUST_THRESHOLD, ANIMATION_DEFAULTS } from "./shared/svgConstants";
 import { ChartDefs } from "./shared/ChartDefs";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
@@ -295,6 +296,7 @@ function BubbleChart({ width, height, utxos }: UtxoBubbleChartProps & { width: n
 
 export function UtxoBubbleChart({ utxos }: UtxoBubbleChartProps) {
   const { t } = useTranslation();
+  useTheme(); // re-render on theme change for SVG_COLORS
 
   if (utxos.length === 0) return null;
 

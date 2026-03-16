@@ -3,6 +3,7 @@
 import { useMemo, useRef, useEffect, useState, useCallback } from "react";
 import { motion } from "motion/react";
 import { Text } from "@visx/text";
+import { useTheme } from "@/hooks/useTheme";
 import { SVG_COLORS } from "../shared/svgConstants";
 import { probColor } from "../shared/linkabilityColors";
 import { ChartDefs } from "../shared/ChartDefs";
@@ -61,6 +62,8 @@ export function GraphCanvas({
   onLayoutComplete,
   boltzmannCache,
 }: GraphCanvasProps) {
+  // Subscribe to theme changes so SVG_COLORS proxy resolves fresh values on re-render
+  useTheme();
   const atCapacity = nodeCount >= maxNodes;
   const [hoveredEdgeKey, setHoveredEdgeKey] = useState<string | null>(null);
   const [hoveredPort, setHoveredPort] = useState<string | null>(null);
@@ -572,7 +575,7 @@ export function GraphCanvas({
         <defs>
           {/* Ambient dot grid pattern */}
           <pattern id="grid-dots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
-            <circle cx="12" cy="12" r="0.5" fill="white" fillOpacity={0.04} />
+            <circle cx="12" cy="12" r="0.5" fill={SVG_COLORS.foreground} fillOpacity={0.04} />
           </pattern>
           <marker id="arrow-graph" markerWidth="12" markerHeight="8" refX="11" refY="4" orient="auto" markerUnits="userSpaceOnUse">
             <path d="M0,0 L12,4 L0,8" fill={SVG_COLORS.muted} fillOpacity={0.7} />
@@ -803,7 +806,7 @@ export function GraphCanvas({
                       width={32}
                       height={14}
                       rx={3}
-                      fill="#0c0c0e"
+                      fill={SVG_COLORS.background}
                       fillOpacity={0.8}
                       stroke={SVG_COLORS.critical}
                       strokeWidth={0.5}
@@ -1062,9 +1065,9 @@ export function GraphCanvas({
               {/* Badge pills - right-aligned on the entity/type label line (y+44) */}
               {(() => {
                 const badges: Array<{ label: string; bg: string; fg: string }> = [];
-                if (node.isCoinJoin) badges.push({ label: node.coinJoinType ?? "CJ", bg: SVG_COLORS.good, fg: "#0c0c0e" });
-                if (node.entityOfac) badges.push({ label: "OFAC", bg: SVG_COLORS.critical, fg: "#fff" });
-                if (toxicMergeNodes.has(node.txid)) badges.push({ label: "TOXIC", bg: "#ef4444", fg: "#fff" });
+                if (node.isCoinJoin) badges.push({ label: node.coinJoinType ?? "CJ", bg: SVG_COLORS.good, fg: SVG_COLORS.background });
+                if (node.entityOfac) badges.push({ label: "OFAC", bg: SVG_COLORS.critical, fg: SVG_COLORS.background });
+                if (toxicMergeNodes.has(node.txid)) badges.push({ label: "TOXIC", bg: "#ef4444", fg: SVG_COLORS.background });
                 if (badges.length === 0) return null;
                 let bx = node.x + node.width - 4;
                 const by = node.y + 42;
@@ -1075,7 +1078,7 @@ export function GraphCanvas({
                       bx -= tw + 2;
                       return (
                         <g key={b.label} transform={`translate(${bx}, ${by})`}>
-                          <rect width={tw} height={12} rx={6} fill={b.bg} fillOpacity={0.2} stroke={b.bg} strokeWidth={0.5} strokeOpacity={0.4} />
+                          <rect width={tw} height={12} rx={6} fill={b.bg} fillOpacity={0.3} stroke={b.bg} strokeWidth={0.5} strokeOpacity={0.6} />
                           <text x={tw / 2} y={9} textAnchor="middle" fontSize="7" fontWeight="bold" fill={b.fg} fillOpacity={0.85}>{b.label}</text>
                         </g>
                       );
