@@ -26,10 +26,72 @@ const BISQ_FEE_ADDRESSES = new Set([
  *
  * Impact: 0 to -3
  */
+/** HodlHodl fee-pattern bounds (combined buyer + seller fee as fraction of input). */
+const HODLHODL_FEE_MIN = 0.004; // 0.4%
+const HODLHODL_FEE_MAX = 0.012; // 1.2%
+const HODLHODL_FEE_ABS_MAX = 100_000; // sats - absolute cap to avoid coincidental ratio matches
+
 export const analyzeMultisigDetection: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
 
   if (isCoinbase(tx)) return { findings };
+
+  // ── Bisq deposit tx detection (before multisig input parsing) ─────
+  // Pattern: 2+ inputs, P2WSH/P2SH output + OP_RETURN with 20-byte contract hash
+  // The deposit tx inputs are regular P2WPKH (not multisig), so check this first.
+  if (tx.vin.length >= 2) {
+    const opReturnOutputs = tx.vout.filter((o) => o.scriptpubkey_type === "op_return");
+    const nonOpReturnOutputs = tx.vout.filter((o) => o.scriptpubkey_type !== "op_return");
+
+    if (opReturnOutputs.length === 1 && nonOpReturnOutputs.length >= 1 && nonOpReturnOutputs.length <= 2) {
+      // Check OP_RETURN data is exactly 20 bytes (SHA256+RIPEMD160 contract hash)
+      // scriptpubkey format: "6a14" (OP_RETURN OP_PUSH20) + 40 hex chars = 44 hex total
+      const opReturnHex = opReturnOutputs[0].scriptpubkey;
+      const hasContractHash = opReturnHex && opReturnHex.startsWith("6a14") && opReturnHex.length === 44;
+
+      // Check for P2WSH or P2SH output (the multisig escrow address)
+      const hasMultisigOutput = nonOpReturnOutputs.some(
+        (o) => o.scriptpubkey_type === "v0_p2wsh" || o.scriptpubkey_type === "p2sh",
+      );
+
+      if (hasContractHash && hasMultisigOutput) {
+        findings.push({
+          id: "h17-bisq-deposit",
+          severity: "high",
+          confidence: "high",
+          title: "Bisq escrow deposit detected (OP_RETURN contract hash)",
+          params: {
+            inputCount: tx.vin.length,
+            outputCount: tx.vout.length,
+            contractHash: opReturnHex.slice(4), // 40 hex chars
+          },
+          description:
+            "This transaction matches the Bisq P2P exchange deposit pattern: multiple inputs " +
+            "(from both traders) funding a 2-of-2 multisig escrow address, with a 20-byte " +
+            "OP_RETURN contract hash that cryptographically commits both parties to the trade. " +
+            "This pattern is highly specific to Bisq and is not used by other common services.",
+          recommendation:
+            "Bisq deposit transactions are identifiable on-chain due to the OP_RETURN contract " +
+            "hash and 2-of-2 multisig output. For more private P2P trading, consider protocols " +
+            "that do not leave distinctive on-chain fingerprints.",
+          scoreImpact: -3,
+          remediation: {
+            steps: [
+              "The Bisq deposit fingerprint (OP_RETURN + multisig) cannot be undone for this transaction.",
+              "Use CoinJoin before funding Bisq trades to reduce linkability to your other UTXOs.",
+              "For future trades, consider Lightning-based P2P exchanges (RoboSats) which leave no on-chain escrow footprint.",
+            ],
+            tools: [
+              { name: "RoboSats (Lightning P2P)", url: "https://learn.robosats.com" },
+              { name: "Sparrow Wallet (CoinJoin)", url: "https://sparrowwallet.com" },
+            ],
+            urgency: "when-convenient",
+          },
+        });
+        return { findings };
+      }
+    }
+  }
 
   // Parse all inputs for multisig
   const multisigInputs: { index: number; info: MultisigInfo }[] = [];
@@ -94,6 +156,63 @@ export const analyzeMultisigDetection: TxHeuristic = (tx) => {
         },
       });
       return { findings };
+    }
+
+    // ── HodlHodl fee-pattern fallback (no address match) ──────────────
+    // Pattern: exactly 2 spendable outputs, smaller is 0.4-1.2% of input (combined buyer+seller fee)
+    if (spendableOutputs.length === 2) {
+      const inputValue = tx.vin[0].prevout?.value ?? 0;
+      if (inputValue > 0) {
+        const [smaller, larger] = spendableOutputs[0].value <= spendableOutputs[1].value
+          ? [spendableOutputs[0], spendableOutputs[1]]
+          : [spendableOutputs[1], spendableOutputs[0]];
+        const feeRatio = smaller.value / inputValue;
+
+        if (
+          feeRatio >= HODLHODL_FEE_MIN &&
+          feeRatio <= HODLHODL_FEE_MAX &&
+          smaller.value < HODLHODL_FEE_ABS_MAX &&
+          larger.value > smaller.value * 10 // main payment dwarfs the fee
+        ) {
+          findings.push({
+            id: "h17-hodlhodl",
+            severity: "high",
+            confidence: "medium",
+            title: "Likely HodlHodl escrow release (2-of-3 multisig, fee pattern)",
+            params: {
+              m: 2,
+              n: 3,
+              scriptType: multisigInputs[0].info.scriptType,
+              feeAmount: smaller.value,
+              feeRatio: Math.round(feeRatio * 10000) / 100, // percentage with 2 decimals
+            },
+            description:
+              "This transaction matches the HodlHodl P2P exchange pattern: a 2-of-3 multisig input " +
+              "releasing to exactly 2 outputs, where the smaller output (" +
+              `${(feeRatio * 100).toFixed(2)}% of input) is consistent with HodlHodl's combined ` +
+              "buyer+seller platform fee (typically 0.9-1.0%). The 2-of-3 multisig structure " +
+              "indicates buyer, seller, and HodlHodl arbitrator shared custody.",
+            recommendation:
+              "HodlHodl escrow transactions are identifiable on-chain due to the 2-of-3 multisig structure " +
+              "and characteristic fee pattern. For more private P2P trading, consider protocols that use " +
+              "Taproot-based escrow or Lightning-based settlement (e.g., RoboSats).",
+            scoreImpact: -3,
+            remediation: {
+              steps: [
+                "The 2-of-3 multisig structure and fee pattern cannot be undone for this transaction.",
+                "For future P2P trades, consider Lightning-based exchanges (RoboSats) which leave no on-chain escrow footprint.",
+                "Use CoinJoin before or after trading to break the link between the escrow and your other UTXOs.",
+              ],
+              tools: [
+                { name: "RoboSats (Lightning P2P)", url: "https://learn.robosats.com" },
+                { name: "Sparrow Wallet (Coin Control)", url: "https://sparrowwallet.com" },
+              ],
+              urgency: "when-convenient",
+            },
+          });
+          return { findings };
+        }
+      }
     }
   }
 
