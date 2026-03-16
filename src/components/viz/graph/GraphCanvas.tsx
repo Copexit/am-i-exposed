@@ -13,7 +13,7 @@ import { SCROLL_MARGIN_X, SCROLL_MARGIN_Y, MIN_ZOOM, MAX_ZOOM, ENTITY_CATEGORY_C
 import { DUST_THRESHOLD } from "@/lib/constants";
 import { layoutGraph, getNodeColor } from "./layout";
 import { edgePath, getEdgeMaxProb, portAwareEdgePath } from "./edge-utils";
-import { getScriptTypeColor, getScriptTypeDash, getEdgeThickness, isTimestampLocktime, getLockTimeRx, hexagonPoints, getVersionFill } from "./scriptStyles";
+import { getScriptTypeColor, getScriptTypeDash, getEdgeThickness, getLockTimeRx, getVersionFill } from "./scriptStyles";
 import { buildPortPositionMap } from "./portLayout";
 import { GraphMinimap } from "./GraphMinimap";
 import { ExpandedNode } from "./ExpandedNode";
@@ -999,35 +999,23 @@ export function GraphCanvas({
               )}
 
               {/* Node background */}
-              {fingerprintMode && isTimestampLocktime(node.tx.locktime) ? (
-                <polygon
-                  points={hexagonPoints(node.x, node.y, node.width, node.height)}
-                  fill={getVersionFill(node.tx.version)}
-                  stroke={color}
-                  strokeWidth={isHovered ? 2.5 : (node.isRoot ? 2.5 : 1.5)}
-                  strokeOpacity={isHovered || node.isRoot ? 1 : 0.6}
-                  filter={node.isRoot ? "url(#glow-medium)" : (isHovered ? "url(#glow-subtle)" : undefined)}
-                  onClick={() => handleNodeClick(node, selectedNode?.txid ?? null)}
-                />
-              ) : (
-                <rect
-                  x={node.x}
-                  y={node.y}
-                  width={node.width}
-                  height={node.height}
-                  rx={fingerprintMode ? getLockTimeRx(node.tx.locktime) : 8}
-                  fill={
-                    fingerprintMode ? getVersionFill(node.tx.version) :
-                    heatMapActive && heatScore !== undefined ? `${color}20` :
-                    SVG_COLORS.surfaceElevated
-                  }
-                  stroke={color}
-                  strokeWidth={isHovered ? 2.5 : (node.isRoot ? 2.5 : 1.5)}
-                  strokeOpacity={isHovered || node.isRoot ? 1 : 0.6}
-                  filter={node.isRoot ? "url(#glow-medium)" : (isHovered ? "url(#glow-subtle)" : undefined)}
-                  onClick={() => handleNodeClick(node, selectedNode?.txid ?? null)}
-                />
-              )}
+              <rect
+                x={node.x}
+                y={node.y}
+                width={node.width}
+                height={node.height}
+                rx={fingerprintMode ? getLockTimeRx(node.tx.version) : 8}
+                fill={
+                  fingerprintMode ? getVersionFill(node.tx.locktime) :
+                  heatMapActive && heatScore !== undefined ? `${color}20` :
+                  SVG_COLORS.surfaceElevated
+                }
+                stroke={color}
+                strokeWidth={isHovered ? 2.5 : (node.isRoot ? 2.5 : 1.5)}
+                strokeOpacity={isHovered || node.isRoot ? 1 : 0.6}
+                filter={node.isRoot ? "url(#glow-medium)" : (isHovered ? "url(#glow-subtle)" : undefined)}
+                onClick={() => handleNodeClick(node, selectedNode?.txid ?? null)}
+              />
 
               {/* Focused node indicator (dashed animated outline) */}
               {isFocused && (

@@ -51,7 +51,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
   const [selectedNode, setSelectedNode] = useState<{ txid: string; x: number; y: number } | null>(null);
   const [focusedNode, setFocusedNode] = useState<string | null>(null);
   const [filter, setFilter] = useState<NodeFilter>({ showCoinJoin: true, showEntity: true, showStandard: true });
-  const [sidebarEnabled, setSidebarEnabled] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // View transform for fullscreen pan/zoom
   const [viewTransform, setViewTransform] = useState<ViewTransform | undefined>(undefined);
@@ -141,8 +141,9 @@ export function GraphExplorer(props: GraphExplorerProps) {
     });
   }, [props.nodes]);
 
-  // Sidebar visible when a node is expanded AND sidebar is enabled
-  const sidebarTx = sidebarEnabled && props.expandedNodeTxid ? props.nodes.get(props.expandedNodeTxid)?.tx : undefined;
+  // Sidebar tx data (available when a node is expanded, regardless of collapsed state)
+  const sidebarTx = props.expandedNodeTxid ? props.nodes.get(props.expandedNodeTxid)?.tx : undefined;
+  const showSidebar = !!sidebarTx && !sidebarCollapsed;
 
   // ─── Boltzmann cache (on-demand computation for any node) ──────
   const boltzmannCacheRef = useRef<Map<string, BoltzmannWorkerResult>>(new Map());
@@ -434,16 +435,6 @@ export function GraphExplorer(props: GraphExplorerProps) {
     onCycleEdgeMode: cycleEdgeMode,
     onUndo: props.onUndo,
     onReset: props.onReset,
-    sidebarEnabled,
-    onToggleSidebar: () => {
-      setSidebarEnabled((prev) => {
-        if (prev && props.expandedNodeTxid && props.onToggleExpand) {
-          // Closing sidebar: also collapse the expanded node
-          props.onToggleExpand(props.expandedNodeTxid);
-        }
-        return !prev;
-      });
-    },
   };
 
   // ─── Legend (clickable filters) ────────────────────────
@@ -537,27 +528,17 @@ export function GraphExplorer(props: GraphExplorerProps) {
             <>
               <div className="font-medium text-muted uppercase tracking-wider text-[9px] mt-1">Fingerprint</div>
               <div className="flex flex-col gap-0.5">
-                {/* Version fill */}
                 <span className="flex items-center gap-1.5">
-                  <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: "var(--surface-elevated)", border: "1px solid var(--overlay-border)" }} />
-                  <span className="text-muted">v1</span>
+                  <span className="inline-block w-2.5 h-2.5 rounded shrink-0" style={{ background: "var(--card-border)", border: "1px solid var(--overlay-border)" }} />
+                  <span className="text-muted">v2, lock!=0</span>
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: "var(--card-border)", border: "1px solid var(--overlay-border)" }} />
-                  <span className="text-muted">v2</span>
-                </span>
-                {/* Locktime shapes */}
-                <span className="flex items-center gap-1.5">
-                  <span className="inline-block w-2.5 h-2.5 shrink-0" style={{ background: "var(--card-border)", border: "1px solid var(--overlay-border)", borderRadius: "4px" }} />
-                  <span className="text-muted">No lock</span>
+                  <span className="inline-block w-2.5 h-2.5 rounded shrink-0" style={{ background: "var(--surface-elevated)", border: "1px solid var(--overlay-border)" }} />
+                  <span className="text-muted">v2, lock=0</span>
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="inline-block w-2.5 h-2.5 shrink-0" style={{ background: "var(--card-border)", border: "1px solid var(--overlay-border)", borderRadius: 0 }} />
-                  <span className="text-muted">Block height</span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="inline-block w-2.5 h-2.5 shrink-0" style={{ background: "var(--card-border)", border: "1px solid var(--overlay-border)", clipPath: "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)" }} />
-                  <span className="text-muted">Timestamp</span>
+                  <span className="inline-block w-2.5 h-2.5 shrink-0" style={{ background: "var(--surface-elevated)", border: "1px solid var(--overlay-border)", borderRadius: 0 }} />
+                  <span className="text-muted">v1, lock=0</span>
                 </span>
               </div>
             </>
@@ -571,8 +552,6 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
   const canvasProps = {
     ...props,
-    // When sidebar is disabled, suppress the toggle so clicking nodes doesn't open it
-    onToggleExpand: sidebarEnabled ? props.onToggleExpand : undefined,
     tooltip,
     scrollRef,
     filter,
@@ -662,14 +641,14 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
         {/* Hide inline graph when fullscreen is active to avoid double tooltip */}
         {!isExpanded && (
-          <div className="relative flex">
+          <div className="relative flex overflow-hidden rounded-lg">
             {/* Graph area (shrinks when sidebar is open) */}
             <div className="flex-1 min-w-0 relative">
               {legend}
               <div ref={scrollRef} className="overflow-auto max-h-[900px] -mx-4 px-4">
                 <ParentSize debounceTime={100}>
                   {({ width }) => {
-                    const adjustedWidth = sidebarTx ? Math.max(width - SIDEBAR_WIDTH, 200) : width;
+                    const adjustedWidth = showSidebar ? Math.max(width - SIDEBAR_WIDTH, 200) : width;
                     return adjustedWidth > 0 ? (
                       <GraphCanvas {...canvasProps} containerWidth={adjustedWidth} />
                     ) : null;
@@ -677,32 +656,42 @@ export function GraphExplorer(props: GraphExplorerProps) {
                 </ParentSize>
               </div>
               {tooltipContent}
-              {/* Floating analysis panel (fallback when no expansion support) */}
             </div>
-            {/* Transaction detail sidebar (when a node is expanded) */}
-            <AnimatePresence>
-              {sidebarTx && props.expandedNodeTxid && (
-                <GraphSidebar
-                  key={props.expandedNodeTxid}
-                  tx={sidebarTx}
-                  outspends={props.outspendCache?.get(props.expandedNodeTxid)}
-                  onClose={() => props.onToggleExpand?.(props.expandedNodeTxid!)}
-                  onFullScan={(txid) => props.onTxClick?.(txid)}
-                  onExpandInput={props.onExpandInput}
-                  onExpandOutput={props.onExpandOutput}
-                  changeOutputs={changeOutputs}
-                  onToggleChange={toggleChange}
-                  boltzmannResult={props.expandedNodeTxid ? getBoltzmannResult(props.expandedNodeTxid) : undefined}
-                  computingBoltzmann={props.expandedNodeTxid ? computingBoltzmannRef.current.has(props.expandedNodeTxid) : false}
-                  boltzmannProgress={props.expandedNodeTxid ? boltzmannProgressMap.get(props.expandedNodeTxid) : undefined}
-                  onComputeBoltzmann={props.expandedNodeTxid ? () => triggerBoltzmann(props.expandedNodeTxid!) : undefined}
-                  onAutoTrace={props.onAutoTrace}
-                  onAutoTraceLinkability={props.onAutoTraceLinkability}
-                  autoTracing={props.autoTracing}
-                  autoTraceProgress={props.autoTraceProgress}
-                />
-              )}
-            </AnimatePresence>
+            {/* Sidebar: expanded or collapsed tab */}
+            {sidebarTx && props.expandedNodeTxid && (
+              sidebarCollapsed ? (
+                <button
+                  onClick={() => setSidebarCollapsed(false)}
+                  className="absolute right-0 top-2 z-10 w-5 h-8 bg-card-bg/90 border border-card-border border-r-0 rounded-l transition-colors cursor-pointer flex items-center justify-center hover:bg-surface-inset"
+                  title="Show sidebar"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
+                </button>
+              ) : (
+                <AnimatePresence>
+                  <GraphSidebar
+                    key={props.expandedNodeTxid}
+                    tx={sidebarTx}
+                    outspends={props.outspendCache?.get(props.expandedNodeTxid)}
+                    onClose={() => props.onToggleExpand?.(props.expandedNodeTxid!)}
+                    onCollapse={() => setSidebarCollapsed(true)}
+                    onFullScan={(txid) => props.onTxClick?.(txid)}
+                    onExpandInput={props.onExpandInput}
+                    onExpandOutput={props.onExpandOutput}
+                    changeOutputs={changeOutputs}
+                    onToggleChange={toggleChange}
+                    boltzmannResult={props.expandedNodeTxid ? getBoltzmannResult(props.expandedNodeTxid) : undefined}
+                    computingBoltzmann={props.expandedNodeTxid ? computingBoltzmannRef.current.has(props.expandedNodeTxid) : false}
+                    boltzmannProgress={props.expandedNodeTxid ? boltzmannProgressMap.get(props.expandedNodeTxid) : undefined}
+                    onComputeBoltzmann={props.expandedNodeTxid ? () => triggerBoltzmann(props.expandedNodeTxid!) : undefined}
+                    onAutoTrace={props.onAutoTrace}
+                    onAutoTraceLinkability={props.onAutoTraceLinkability}
+                    autoTracing={props.autoTracing}
+                    autoTraceProgress={props.autoTraceProgress}
+                  />
+                </AnimatePresence>
+              )
+            )}
           </div>
         )}
 
@@ -816,7 +805,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
               <div ref={scrollRef} className="overflow-hidden h-full" style={{ touchAction: "none" }}>
                 <ParentSize debounceTime={100}>
                   {({ width, height: parentH }) => {
-                    const adjustedWidth = sidebarTx ? Math.max(width - SIDEBAR_WIDTH, 200) : width;
+                    const adjustedWidth = showSidebar ? Math.max(width - SIDEBAR_WIDTH, 200) : width;
                     return adjustedWidth > 0 ? (
                       <GraphCanvas
                         {...fullscreenCanvasProps}
@@ -830,30 +819,41 @@ export function GraphExplorer(props: GraphExplorerProps) {
               </div>
               {tooltipContent}
             </div>
-            {/* Fullscreen sidebar */}
-            <AnimatePresence>
-              {sidebarTx && props.expandedNodeTxid && (
-                <GraphSidebar
-                  key={`fs-${props.expandedNodeTxid}`}
-                  tx={sidebarTx}
-                  outspends={props.outspendCache?.get(props.expandedNodeTxid)}
-                  onClose={() => props.onToggleExpand?.(props.expandedNodeTxid!)}
-                  onFullScan={(txid) => props.onTxClick?.(txid)}
-                  onExpandInput={props.onExpandInput}
-                  onExpandOutput={props.onExpandOutput}
-                  changeOutputs={changeOutputs}
-                  onToggleChange={toggleChange}
-                  boltzmannResult={props.expandedNodeTxid ? getBoltzmannResult(props.expandedNodeTxid) : undefined}
-                  computingBoltzmann={props.expandedNodeTxid ? computingBoltzmannRef.current.has(props.expandedNodeTxid) : false}
-                  boltzmannProgress={props.expandedNodeTxid ? boltzmannProgressMap.get(props.expandedNodeTxid) : undefined}
-                  onComputeBoltzmann={props.expandedNodeTxid ? () => triggerBoltzmann(props.expandedNodeTxid!) : undefined}
-                  onAutoTrace={props.onAutoTrace}
-                  onAutoTraceLinkability={props.onAutoTraceLinkability}
-                  autoTracing={props.autoTracing}
-                  autoTraceProgress={props.autoTraceProgress}
-                />
-              )}
-            </AnimatePresence>
+            {/* Fullscreen sidebar: expanded or collapsed tab */}
+            {sidebarTx && props.expandedNodeTxid && (
+              sidebarCollapsed ? (
+                <button
+                  onClick={() => setSidebarCollapsed(false)}
+                  className="absolute right-0 top-2 z-10 w-5 h-8 bg-card-bg/90 border border-card-border border-r-0 rounded-l transition-colors cursor-pointer flex items-center justify-center hover:bg-surface-inset"
+                  title="Show sidebar"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
+                </button>
+              ) : (
+                <AnimatePresence>
+                  <GraphSidebar
+                    key={`fs-${props.expandedNodeTxid}`}
+                    tx={sidebarTx}
+                    outspends={props.outspendCache?.get(props.expandedNodeTxid)}
+                    onClose={() => props.onToggleExpand?.(props.expandedNodeTxid!)}
+                    onCollapse={() => setSidebarCollapsed(true)}
+                    onFullScan={(txid) => props.onTxClick?.(txid)}
+                    onExpandInput={props.onExpandInput}
+                    onExpandOutput={props.onExpandOutput}
+                    changeOutputs={changeOutputs}
+                    onToggleChange={toggleChange}
+                    boltzmannResult={props.expandedNodeTxid ? getBoltzmannResult(props.expandedNodeTxid) : undefined}
+                    computingBoltzmann={props.expandedNodeTxid ? computingBoltzmannRef.current.has(props.expandedNodeTxid) : false}
+                    boltzmannProgress={props.expandedNodeTxid ? boltzmannProgressMap.get(props.expandedNodeTxid) : undefined}
+                    onComputeBoltzmann={props.expandedNodeTxid ? () => triggerBoltzmann(props.expandedNodeTxid!) : undefined}
+                    onAutoTrace={props.onAutoTrace}
+                    onAutoTraceLinkability={props.onAutoTraceLinkability}
+                    autoTracing={props.autoTracing}
+                    autoTraceProgress={props.autoTraceProgress}
+                  />
+                </AnimatePresence>
+              )
+            )}
           </div>
         </div>
       )}

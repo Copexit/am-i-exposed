@@ -19,9 +19,6 @@ interface GraphToolbarProps {
   onCycleEdgeMode: () => void;
   onUndo: () => void;
   onReset: () => void;
-  /** Whether the detail sidebar is enabled. */
-  sidebarEnabled?: boolean;
-  onToggleSidebar?: () => void;
   /** Fullscreen-specific: omitted in inline mode */
   onExpandFullscreen?: () => void;
   /** Fullscreen-specific zoom controls */
@@ -44,8 +41,6 @@ export function GraphToolbar({
   onCycleEdgeMode,
   onUndo,
   onReset,
-  sidebarEnabled,
-  onToggleSidebar,
   onExpandFullscreen,
   onZoomIn,
   onZoomOut,
@@ -133,24 +128,6 @@ export function GraphToolbar({
             </span>
           </span>
         </button>
-
-        {/* Sidebar toggle */}
-        {onToggleSidebar && (
-          <button
-            onClick={onToggleSidebar}
-            className={`text-xs transition-colors px-2 py-1 rounded border cursor-pointer ${
-              sidebarEnabled
-                ? "text-muted hover:text-foreground border-card-border"
-                : "text-muted/50 border-card-border/50 bg-surface-inset line-through"
-            }`}
-            title={sidebarEnabled ? "Hide detail sidebar" : "Show detail sidebar"}
-          >
-            <span className="flex items-center gap-1">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M15 3v18" /></svg>
-              <span className="hidden sm:inline">Sidebar</span>
-            </span>
-          </button>
-        )}
 
         {/* Undo */}
         <button

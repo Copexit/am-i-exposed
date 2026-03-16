@@ -35,6 +35,8 @@ interface GraphSidebarProps {
   tx: MempoolTransaction;
   outspends?: MempoolOutspend[];
   onClose: () => void;
+  /** Collapse sidebar (hide it, but keep the node expanded). */
+  onCollapse?: () => void;
   onFullScan: (txid: string) => void;
   onExpandInput?: (txid: string, inputIndex: number) => void;
   onExpandOutput?: (txid: string, outputIndex: number) => void;
@@ -85,6 +87,7 @@ export function GraphSidebar({
   tx,
   outspends,
   onClose,
+  onCollapse,
   onFullScan,
   onExpandInput,
   onExpandOutput,
@@ -129,15 +132,26 @@ export function GraphSidebar({
           <span className="font-mono text-xs text-foreground/70 truncate">{truncateId(tx.txid, 10)}</span>
           <CopyButton text={tx.txid} />
         </div>
-        <button
-          onClick={onClose}
-          className="text-muted hover:text-foreground transition-colors p-0.5 cursor-pointer shrink-0"
-          aria-label={t("common.close", { defaultValue: "Close" })}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          {onCollapse && (
+            <button
+              onClick={onCollapse}
+              className="text-muted hover:text-foreground transition-colors p-0.5 cursor-pointer"
+              title="Collapse sidebar"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6" /></svg>
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="text-muted hover:text-foreground transition-colors p-0.5 cursor-pointer"
+            aria-label={t("common.close", { defaultValue: "Close" })}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Score bar */}

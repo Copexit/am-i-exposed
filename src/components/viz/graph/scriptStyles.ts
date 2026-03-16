@@ -5,6 +5,8 @@
  * and thickness encodes relative BTC amount (logarithmic scale).
  */
 
+import { getSurfaceColors } from "../shared/svgConstants";
+
 // ─── Script type colors ─────────────────────────────────────────
 
 /** Edge color by scriptpubkey_type (OXT conventions). */
@@ -66,37 +68,16 @@ export function getEdgeThickness(sats: number, maxSats: number): number {
 
 // ─── Fingerprint mode node encoding ─────────────────────────────
 
-/** Node border radius by locktime (encodes locktime type). */
-export function getLockTimeRx(locktime: number): number {
-  if (locktime === 0) return 8;            // rounded rect (no locktime)
-  if (locktime < 500_000_000) return 0;    // sharp rect (block height)
-  return 8;                                // hexagon handled separately
+/** Node border radius by version (encodes tx version). */
+export function getLockTimeRx(version: number): number {
+  return version >= 2 ? 8 : 0; // rounded = v2, angular = v1
 }
 
-/** Whether locktime is a timestamp (needs hexagon shape). */
-export function isTimestampLocktime(locktime: number): boolean {
-  return locktime >= 500_000_000;
-}
-
-/** Build hexagon polygon points for a node at (x, y) with given width and height. */
-export function hexagonPoints(x: number, y: number, w: number, h: number): string {
-  const cy = y + h / 2;
-  const indent = w * 0.15; // 15% indent on left/right for hexagon shape
-  return [
-    `${x + indent},${y}`,
-    `${x + w - indent},${y}`,
-    `${x + w},${cy}`,
-    `${x + w - indent},${y + h}`,
-    `${x + indent},${y + h}`,
-    `${x},${cy}`,
-  ].join(" ");
-}
-
-/** Node fill color by transaction version (fingerprint mode). */
-export function getVersionFill(version: number): string {
-  if (version === 1) return "#2a2a2e";   // dark grey
-  if (version === 2) return "#4a4a52";   // medium grey
-  return "#6a6a72";                      // light grey (v3+)
+/** Node fill color by locktime (fingerprint mode). Theme-aware.
+ *  Light = locktime 0 (stands out), dark = locktime != 0 (common/subdued). */
+export function getVersionFill(locktime: number): string {
+  const s = getSurfaceColors();
+  return locktime === 0 ? s.surfaceElevated : s.cardBorder;
 }
 
 // ─── Script type legend data ────────────────────────────────────
