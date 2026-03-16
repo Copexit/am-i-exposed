@@ -36,6 +36,8 @@ interface FindingCardProps {
   badge?: string;
   /** Callback when user clicks a txid link (e.g., to analyze a child tx). */
   onTxClick?: (txid: string) => void;
+  /** Pro mode: show confidence badges and score impact details. */
+  proMode?: boolean;
 }
 
 const SEVERITY_STYLES: Record<
@@ -91,7 +93,7 @@ const SEVERITY_TOOLTIPS: Record<Severity, string> = {
   good: "Positive privacy property - helps protect your privacy",
 };
 
-export const FindingCard = memo(function FindingCard({ finding, index, defaultExpanded = false, badge, onTxClick }: FindingCardProps) {
+export const FindingCard = memo(function FindingCard({ finding, index, defaultExpanded = false, badge, onTxClick, proMode = false }: FindingCardProps) {
   const { t, i18n } = useTranslation();
   const [expanded, setExpanded] = useState(defaultExpanded);
   const reducedMotion = useReducedMotion();
@@ -123,7 +125,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
         <span className="flex-1 text-sm font-medium text-foreground">
           {t(findingKey(finding.id, "title", finding.params), { ...finding.params, defaultValue: finding.title })}
         </span>
-        {confidenceStyle && (
+        {proMode && confidenceStyle && (
           <Tooltip content={t(`common.confidenceTooltip.${confidence}`, { defaultValue: confidenceStyle.tooltip })}>
             <span className={`text-[10px] px-1.5 py-0.5 rounded border ${confidenceStyle.className}`}>
               {t(`common.confidence.${confidence}`, { defaultValue: confidenceStyle.label })}
@@ -189,7 +191,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
                     {t(FINDING_LEARN_MORE[finding.id].labelKey, { defaultValue: FINDING_LEARN_MORE[finding.id].labelDefault })}
                   </a>
                 )}
-                {finding.scoreImpact !== 0 && (
+                {proMode && finding.scoreImpact !== 0 && (
                   <details className="text-xs text-muted">
                     <summary className="cursor-pointer select-none hover:text-foreground transition-colors">
                       {t("finding.showScoreImpact", { defaultValue: "Score impact" })}

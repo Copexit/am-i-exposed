@@ -18,6 +18,7 @@ import { NetworkSettings } from "@/components/settings/NetworkSettings";
 import { AnalysisSettingsPanel } from "@/components/settings/AnalysisSettingsPanel";
 import { CacheSettingsPanel } from "@/components/settings/CacheSettingsPanel";
 import { LocaleSelector } from "@/components/settings/LocaleSelector";
+import { useExperienceMode } from "@/hooks/useExperienceMode";
 
 const NETWORKS: { value: BitcoinNetwork; label: string; dot: string }[] = [
   { value: "mainnet", label: "Mainnet", dot: "bg-bitcoin" },
@@ -28,6 +29,7 @@ const NETWORKS: { value: BitcoinNetwork; label: string; dot: string }[] = [
 export function ApiSettings() {
   const { t } = useTranslation();
   const { network, setNetwork, customApiUrl, isUmbrel } = useNetwork();
+  const { proMode } = useExperienceMode();
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -167,14 +169,14 @@ export function ApiSettings() {
             <NetworkSettings onClosePanel={() => setOpen(false)} />
           )}
 
-          {/* Analysis settings */}
-          <AnalysisSettingsPanel />
+          {/* Analysis settings (Pro only) */}
+          {proMode && <AnalysisSettingsPanel />}
 
-          {/* Cache settings */}
-          <CacheSettingsPanel />
+          {/* Cache settings (Pro only) */}
+          {proMode && <CacheSettingsPanel />}
 
           {/* Entity filter status */}
-          <EntityFilterStatus t={t} />
+          <EntityFilterStatus t={t} proMode={proMode} />
 
           {/* Version */}
           <div className="border-t border-card-border pt-2 text-center">
@@ -191,7 +193,7 @@ export function ApiSettings() {
 }
 
 /** Entity filter status and loader UI. */
-function EntityFilterStatus({ t }: { t: (key: string, opts?: Record<string, unknown>) => string }) {
+function EntityFilterStatus({ t, proMode }: { t: (key: string, opts?: Record<string, unknown>) => string; proMode: boolean }) {
   const [, forceUpdate] = useState(0);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<{ loaded: number; total: number } | null>(null);
@@ -263,7 +265,7 @@ function EntityFilterStatus({ t }: { t: (key: string, opts?: Record<string, unkn
             })}
           </p>
 
-          {!fullLoaded && fullStatus !== "unavailable" && !isDownloading && (
+          {proMode && !fullLoaded && fullStatus !== "unavailable" && !isDownloading && (
             <button
               onClick={handleLoadFull}
               className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-xs font-medium rounded-lg bg-bitcoin/10 text-bitcoin border border-bitcoin/20 hover:bg-bitcoin/20 hover:border-bitcoin/40 transition-all cursor-pointer"

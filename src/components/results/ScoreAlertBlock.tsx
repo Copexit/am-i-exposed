@@ -18,10 +18,12 @@ export function ScoreAlertBlock({
   result,
   inputType,
   preSendResult,
+  proMode = false,
 }: {
   result: ScoringResult;
   inputType: "txid" | "address";
   preSendResult?: PreSendResult | null;
+  proMode?: boolean;
 }) {
   const { t } = useTranslation();
 
@@ -31,7 +33,7 @@ export function ScoreAlertBlock({
       <GlowCard className="w-full p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-center gap-6">
           <ScoreDisplay score={result.score} grade={result.grade} findings={result.findings} />
-          {result.findings.length > 3 && (
+          {proMode && result.findings.length > 3 && (
             <ChartErrorBoundary><Suspense fallback={null}><SeverityRing findings={result.findings} size={120} /></Suspense></ChartErrorBoundary>
           )}
         </div>

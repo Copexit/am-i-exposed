@@ -28,11 +28,13 @@ export function FindingsSection({
   visibleFindings,
   onTxClick,
   delay,
+  proMode = false,
 }: {
   issues: ScoringResult["findings"];
   visibleFindings: ScoringResult["findings"];
   onTxClick?: (input: string) => void;
   delay: number;
+  proMode?: boolean;
 }) {
   const { t } = useTranslation();
 
@@ -55,6 +57,7 @@ export function FindingsSection({
             defaultExpanded={finding.severity === "critical" || (finding.severity === "high" && !issues.some(f => f.severity === "critical"))}
             badge={CHAIN_FINDING_IDS.has(finding.id) ? t("results.chainBadge", { defaultValue: "Chain" }) : undefined}
             onTxClick={onTxClick}
+            proMode={proMode}
           />
         ))}
       </div>

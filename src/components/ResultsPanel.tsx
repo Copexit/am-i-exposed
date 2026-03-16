@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import { useState, useCallback, useEffect, lazy, Suspense, memo } from "react";
 import { useDevMode } from "@/hooks/useDevMode";
+import { useExperienceMode } from "@/hooks/useExperienceMode";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
@@ -20,6 +21,7 @@ import { BookmarkButton } from "./BookmarkButton";
 // Lazy-load heavy chart components
 const TxFlowDiagram = lazy(() => import("./viz/TxFlowDiagram").then(m => ({ default: m.TxFlowDiagram })));
 const CoinJoinStructure = lazy(() => import("./viz/CoinJoinStructure").then(m => ({ default: m.CoinJoinStructure })));
+const GraphExplorerPanel = lazy(() => import("./GraphExplorerPanel").then(m => ({ default: m.GraphExplorerPanel })));
 const TipJar = lazy(() => import("./TipJar").then(m => ({ default: m.TipJar })));
 
 // Extracted sub-components
@@ -86,12 +88,24 @@ export const ResultsPanel = memo(function ResultsPanel({
   const { config, customApiUrl, isUmbrel } = useNetwork();
   const { t } = useTranslation();
   const { devMode } = useDevMode();
+  const { proMode } = useExperienceMode();
   const isCoinJoin = result.findings.some(isCoinJoinFinding);
   const fingerprintFinding = result.findings.find((f) => f.id === "h11-wallet-fingerprint");
   const detectedWallet = fingerprintFinding?.params?.walletGuess as string | undefined;
   const [cjLinkabilityView, setCjLinkabilityView] = useState(false);
   // Reset CJ linkability view when query changes
   useEffect(() => { const t = setTimeout(() => setCjLinkabilityView(false), 0); return () => clearTimeout(t); }, [query]);
+  // Pro mode: auto-switch to linkability view when Boltzmann is computed
+  // Normie mode: always reset to normal view
+  useEffect(() => {
+    if (proMode && boltzmannResult != null) {
+      const t = setTimeout(() => setCjLinkabilityView(true), 0);
+      return () => clearTimeout(t);
+    } else if (!proMode) {
+      const t = setTimeout(() => setCjLinkabilityView(false), 0);
+      return () => clearTimeout(t);
+    }
+  }, [proMode, boltzmannResult]);
 
   const handleFindingClick = useCallback((findingId: string) => {
     const el = document.querySelector(`[data-finding-id="${findingId}"]`);
@@ -124,7 +138,7 @@ export const ResultsPanel = memo(function ResultsPanel({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
       id="results-panel"
-      className="flex flex-col items-center gap-5 sm:gap-6 w-full max-w-3xl lg:max-w-5xl xl:max-w-7xl 2xl:max-w-[1800px]"
+      className={`flex flex-col items-center gap-5 sm:gap-6 w-full ${proMode ? "max-w-3xl lg:max-w-5xl xl:max-w-7xl 2xl:max-w-[1800px]" : "max-w-3xl"}`}
     >
       {/* ZONE 1: Search bar + action buttons (shared row on desktop) */}
       <div className="w-full flex flex-col xl:flex-row xl:items-center gap-3">
@@ -137,18 +151,18 @@ export const ResultsPanel = memo(function ResultsPanel({
         </div>
       </div>
 
-      {/* === TWO-COLUMN DASHBOARD (xl+: main + sidebar) === */}
-      <div className="w-full flex flex-col xl:flex-row xl:gap-8 xl:items-start gap-5 sm:gap-6">
+      {/* === TWO-COLUMN DASHBOARD (xl+ in Pro, single-column in Simple) === */}
+      <div className={`w-full flex flex-col ${proMode ? "xl:flex-row xl:gap-8 xl:items-start" : ""} gap-5 sm:gap-6`}>
 
       {/* -- MAIN CONTENT COLUMN (first in DOM = left on desktop, top on mobile) -- */}
-      <div className="w-full xl:flex-1 xl:min-w-0 flex flex-col gap-5 sm:gap-6">
+      <div className={`w-full ${proMode ? "xl:flex-1 xl:min-w-0" : ""} flex flex-col gap-5 sm:gap-6`}>
 
       {/* Hero info card */}
       <HeroInfoCard query={query} inputType={inputType} result={result} txData={txData} />
 
-      {/* Score + alerts + top recommendation - mobile only (desktop shows in sidebar) */}
-      <div className="xl:hidden flex flex-col gap-5">
-        <ScoreAlertBlock result={result} inputType={inputType} preSendResult={preSendResult} />
+      {/* Score + alerts + top recommendation - inline in Simple, mobile-only in Pro (Pro desktop shows in sidebar) */}
+      <div className={`${proMode ? "xl:hidden" : ""} flex flex-col gap-5`}>
+        <ScoreAlertBlock result={result} inputType={inputType} preSendResult={preSendResult} proMode={proMode} />
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.12 }}>
           <PrimaryRecommendation findings={result.findings} grade={result.grade} walletGuess={detectedWallet ?? null} />
         </motion.div>
@@ -161,7 +175,7 @@ export const ResultsPanel = memo(function ResultsPanel({
             <Suspense fallback={null}>
               {result.findings.some((f) => isCoinJoinFinding(f) && f.scoreImpact >= 15) && !cjLinkabilityView ? (
                 <CoinJoinStructure tx={txData} findings={result.findings} onAddressClick={onScan} usdPrice={usdPrice} outspends={outspends}
-                  linkabilityAvailable={boltzmannResult != null}
+                  linkabilityAvailable={proMode && boltzmannResult != null}
                   onToggleLinkability={() => setCjLinkabilityView(true)}
                 />
               ) : (
@@ -175,6 +189,17 @@ export const ResultsPanel = memo(function ResultsPanel({
         </motion.div>
       )}
 
+      {/* Transaction Graph (cypherpunk only, right after tx flow chart) */}
+      {proMode && inputType === "txid" && txData && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.18 }} className="w-full">
+          <ChartErrorBoundary>
+            <Suspense fallback={null}>
+              <GraphExplorerPanel tx={txData} findings={result.findings} onTxClick={onScan} backwardLayers={backwardLayers} forwardLayers={forwardLayers} outspends={outspends} boltzmannResult={boltzmannResult} />
+            </Suspense>
+          </ChartErrorBoundary>
+        </motion.div>
+      )}
+
       {/* Address summary (address only) */}
       {addressData && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.16 }} className="w-full">
@@ -183,17 +208,16 @@ export const ResultsPanel = memo(function ResultsPanel({
       )}
 
       {/* Findings */}
-      <FindingsSection issues={issues} visibleFindings={visibleFindings} onTxClick={onScan} delay={0.2} />
+      <FindingsSection issues={issues} visibleFindings={visibleFindings} onTxClick={onScan} delay={0.2} proMode={proMode} />
 
-      {/* Deep Analysis (txid only) */}
-      {inputType === "txid" && (
+      {/* Deep Analysis - Taint + Linkability (cypherpunk only, no GraphExplorer - moved above) */}
+      {proMode && inputType === "txid" && (
         <DeepAnalysisTxid
           result={result}
           txData={txData}
           onScan={onScan}
           backwardLayers={backwardLayers}
           forwardLayers={forwardLayers}
-          outspends={outspends}
           boltzmannResult={boltzmannResult}
         />
       )}
@@ -207,46 +231,51 @@ export const ResultsPanel = memo(function ResultsPanel({
           addressTxs={addressTxs}
           addressData={addressData}
           onScan={onScan}
+          proMode={proMode}
         />
       )}
 
       </div>{/* end main content column */}
 
-      {/* -- SIDEBAR (second in DOM = right on desktop, bottom on mobile) -- */}
-      <div className="w-full xl:w-[380px] 2xl:w-[420px] xl:shrink-0 flex flex-col gap-5 sm:gap-6">
+      {/* -- SIDEBAR (second in DOM = right on desktop in Pro, flows below in Simple) -- */}
+      <div className={`w-full ${proMode ? "xl:w-[380px] 2xl:w-[420px] xl:shrink-0" : ""} flex flex-col gap-5 sm:gap-6`}>
 
-      {/* Score + alerts - desktop only (mobile shows above in main column) */}
-      <div className="hidden xl:flex flex-col gap-5">
-        <ScoreAlertBlock result={result} inputType={inputType} preSendResult={preSendResult} />
-      </div>
+      {/* Score + alerts - desktop sidebar only in Pro (Simple shows inline above) */}
+      {proMode && (
+        <div className="hidden xl:flex flex-col gap-5">
+          <ScoreAlertBlock result={result} inputType={inputType} preSendResult={preSendResult} proMode={proMode} />
+        </div>
+      )}
 
-      {/* Recommendations */}
-      <SidebarRecommendations result={result} detectedWallet={detectedWallet ?? null} devMode={devMode} />
+      {/* Recommendations - sidebar PrimaryRecommendation only in Pro (Simple shows inline above) */}
+      {proMode && <SidebarRecommendations result={result} detectedWallet={detectedWallet ?? null} devMode={devMode} />}
 
-      {/* Additional findings, strengths, score waterfall (sidebar) */}
-      {details.length > 0 && (
+      {/* Additional findings, strengths, score waterfall (sidebar, Pro only) */}
+      {proMode && details.length > 0 && (
         <FindingsTier
           findings={details}
           label={t("results.additionalFindings", { count: details.length, defaultValue: "Additional findings ({{count}})" })}
-          defaultOpen={false}
+          defaultOpen={true}
           grade={result.grade}
           delay={0.25}
           onTxClick={onScan}
+          proMode={proMode}
         />
       )}
 
-      {strengths.length > 0 && (
+      {proMode && strengths.length > 0 && (
         <FindingsTier
           findings={strengths}
           label={t("results.privacyStrengths", { count: strengths.length, defaultValue: "Privacy strengths ({{count}})" })}
-          defaultOpen={false}
+          defaultOpen={true}
           grade={result.grade}
           delay={0.3}
           onTxClick={onScan}
+          proMode={proMode}
         />
       )}
 
-      {result.findings.some((f) => f.scoreImpact !== 0) && (
+      {proMode && result.findings.some((f) => f.scoreImpact !== 0) && (
         <ScoreWaterfallCollapsible
           findings={result.findings}
           score={result.score}
@@ -282,7 +311,7 @@ export const ResultsPanel = memo(function ResultsPanel({
         inputType={inputType}
         result={result}
         txBreakdown={txBreakdown}
-        durationMs={durationMs}
+        durationMs={proMode ? durationMs : null}
         explorerUrl={explorerUrl}
         explorerLabel={explorerLabel}
         mempoolBaseUrl={config.mempoolBaseUrl}

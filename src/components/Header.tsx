@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Menu, X, BookOpen, HelpCircle, FileText, Info, Shield } from "lucide-react";
 import { ConnectionBadge } from "./ConnectionBadge";
 import { ApiSettings } from "./ApiSettings";
+import { ExperienceModeToggle } from "./ExperienceModeToggle";
 import { useDevMode } from "@/hooks/useDevMode";
 
 const NAV_ITEMS = [
@@ -130,6 +131,7 @@ export function Header() {
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <ConnectionBadge />
+            <ExperienceModeToggle />
             <ApiSettings />
             {/* Mobile hamburger */}
             <button

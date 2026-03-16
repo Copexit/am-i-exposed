@@ -617,7 +617,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
           <div className="relative flex">
             {/* Graph area (shrinks when sidebar is open) */}
             <div className="flex-1 min-w-0 relative">
-              <div ref={scrollRef} className="overflow-auto max-h-[600px] -mx-4 px-4">
+              <div ref={scrollRef} className="overflow-auto max-h-[900px] -mx-4 px-4">
                 <ParentSize debounceTime={100}>
                   {({ width }) => {
                     const adjustedWidth = sidebarTx ? Math.max(width - SIDEBAR_WIDTH, 200) : width;
