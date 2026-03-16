@@ -18,6 +18,10 @@ export interface RecommendationContext {
   grade: Grade;
   txType?: TxType;
   walletGuess: string | null;
+  /** Entity name if this tx originates from a known entity (exchange withdrawal, etc.) */
+  entityOrigin?: string | null;
+  /** Entity category (exchange, darknet, mixer, etc.) */
+  entityCategory?: string | null;
 }
 
 /**
@@ -35,6 +39,47 @@ export function selectRecommendations(
 ): [PrimaryRec, PrimaryRec | null] {
   const ids = new Set(ctx.findings.map((f) => f.id));
   const hasCoinJoin = ctx.findings.some(isCoinJoinFinding);
+
+  // --- Entity-origin detection ---
+  // If the tx has a known entity in inputs (exchange withdrawal, etc.),
+  // suppress construction advice and offer post-receipt guidance instead.
+  // Derive from findings if not explicitly provided.
+  // Only suppress for explicitly named entity matches (entity-known-input),
+  // not behavioral patterns (exchange-withdrawal-pattern) which already have their own recs.
+  const entityInputFinding = ctx.findings.find((f) => f.id === "entity-known-input");
+  const entityOrigin = ctx.entityOrigin
+    ?? (entityInputFinding?.params?.entityName as string | undefined)
+    ?? null;
+  const entityCategory = ctx.entityCategory
+    ?? (entityInputFinding?.params?.category as string | undefined)
+    ?? null;
+
+  if (entityOrigin && !hasCoinJoin) {
+    const entityName = ctx.entityOrigin;
+    const isExchange = ctx.entityCategory === "exchange" || ctx.entityCategory === "payment";
+    const detail = isExchange
+      ? `This transaction was constructed by ${entityName}. Privacy recommendations for transaction ` +
+        "construction do not apply - you did not choose the inputs, outputs, or structure. " +
+        "To protect your privacy after receiving these funds: keep them in a separate wallet from " +
+        "non-KYC coins, consider CoinJoin before spending, and avoid consolidating with other UTXOs."
+      : `This transaction was constructed by ${entityName} (${ctx.entityCategory ?? "known entity"}). ` +
+        "Privacy recommendations for transaction construction do not apply. " +
+        "To reduce exposure: spend received UTXOs individually, use CoinJoin to break the trail, " +
+        "and avoid linking these funds to your other addresses.";
+
+    return [
+      {
+        id: "rec-entity-origin",
+        urgency: "when-convenient",
+        headlineKey: "primaryRec.entityOrigin.headline",
+        headlineDefault: `Transaction constructed by ${entityName}`,
+        detailKey: "primaryRec.entityOrigin.detail",
+        detailDefault: detail,
+        guideLink: "/guide#coin-control",
+      },
+      null,
+    ];
+  }
 
   // --- Tier 0: Deterministic failures (immediate) ---
 

@@ -1968,5 +1968,8 @@
   "primaryRec.bGrade.detail": "Consider CoinJoin, PayJoin, or Lightning for stronger privacy.",
   "primaryRec.bGrade.detailCJ": "Good mix. Spend post-mix one UTXO at a time and avoid full consolidation.",
   "primaryRec.fallback.headline": "Review the findings above for specific improvements",
-  "primaryRec.fallback.detail": "Check each finding for targeted recommendations."
+  "primaryRec.fallback.detail": "Check each finding for targeted recommendations.",
+  "primaryRec.entityOrigin.headline": "Transaction constructed by {{entity}}",
+  "primaryRec.entityOrigin.detail.exchange": "This transaction was constructed by {{entity}}. Privacy recommendations for transaction construction do not apply - you did not choose the inputs, outputs, or structure. To protect your privacy after receiving these funds: keep them in a separate wallet from non-KYC coins, consider CoinJoin before spending, and avoid consolidating with other UTXOs.",
+  "primaryRec.entityOrigin.detail.other": "This transaction was constructed by {{entity}}. Privacy recommendations for transaction construction do not apply. To reduce exposure: spend received UTXOs individually, use CoinJoin to break the trail, and avoid linking these funds to your other addresses."
 }
