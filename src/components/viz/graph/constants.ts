@@ -35,7 +35,7 @@ export const ENTITY_CATEGORY_COLORS: Record<EntityCategory | "unknown", string> 
 };
 
 // ─── Expanded node dimensions ───────────────────────────────────
-export const EXPANDED_NODE_W = 360;
+export const EXPANDED_NODE_W = 300;
 export const PORT_H = 26;
 export const PORT_GAP = 2;
 export const EXPANDED_HEADER_H = 40;
@@ -43,7 +43,7 @@ export const EXPANDED_PAD_V = 8;
 /** Max ports per side before overflow. */
 export const MAX_VISIBLE_PORTS = 20;
 /** Width of each port column (input or output). */
-export const PORT_COL_W = 140;
+export const PORT_COL_W = 135;
 /** Width of the center info area in expanded node. */
 export const CENTER_COL_W = EXPANDED_NODE_W - PORT_COL_W * 2;
 
