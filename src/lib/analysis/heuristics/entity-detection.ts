@@ -46,8 +46,8 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
   }
 
   // Check each address against entity databases (synchronous - uses already-loaded filter)
-  const inputMatches: Array<{ address: string; entityName: string; ofac: boolean }> = [];
-  const outputMatches: Array<{ address: string; entityName: string; ofac: boolean }> = [];
+  const inputMatches: Array<{ address: string; entityName: string; ofac: boolean; category?: string }> = [];
+  const outputMatches: Array<{ address: string; entityName: string; ofac: boolean; category?: string }> = [];
 
   for (const addr of inputAddresses) {
     const match = matchEntitySync(addr);
@@ -101,6 +101,8 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
       params: {
         matchCount: entityInputs.length,
         addresses: entityInputs.map((m) => m.address).join(", "),
+        entityName: entityInputs[0].entityName,
+        category: entityInputs[0].category ?? "unknown",
         filterFpr: getFilter()?.meta.fpr ?? 0.001,
       },
       description:

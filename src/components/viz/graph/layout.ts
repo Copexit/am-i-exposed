@@ -2,6 +2,7 @@ import { SVG_COLORS } from "../shared/svgConstants";
 import { calcVsize } from "@/lib/format";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
 import { analyzeCoinJoin, isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
+import { analyzeMultisigDetection } from "@/lib/analysis/heuristics/multisig-detection";
 import { NODE_W, NODE_H, COL_GAP, ROW_GAP, MARGIN, ENTITY_CATEGORY_COLORS, HEAT_TIERS, HEAT_FLOOR_COLOR, EXPANDED_NODE_W } from "./constants";
 import { calcExpandedHeight } from "./portLayout";
 import type { GraphNode, LayoutNode, LayoutEdge, NodeFilter } from "./types";
@@ -25,6 +26,30 @@ export function getCoinJoinType(findings: Finding[]): string | undefined {
     return "CoinJoin";
   }
   return "CoinJoin";
+}
+
+/** Map heuristic finding IDs to entity-like labels for graph visualization. */
+const HEURISTIC_ENTITY_MAP: Record<string, { entityName: string; category: EntityMatch["category"] }> = {
+  "h17-hodlhodl": { entityName: "HodlHodl", category: "p2p" },
+  "h17-bisq": { entityName: "Bisq", category: "p2p" },
+};
+
+/** Derive an entity match from heuristic findings (e.g. multisig detection). */
+function entityFromHeuristics(tx: MempoolTransaction): EntityMatch | null {
+  const { findings } = analyzeMultisigDetection(tx);
+  for (const f of findings) {
+    const mapped = HEURISTIC_ENTITY_MAP[f.id];
+    if (mapped) {
+      return {
+        address: tx.txid,
+        entityName: mapped.entityName,
+        category: mapped.category,
+        ofac: false,
+        confidence: "high",
+      };
+    }
+  }
+  return null;
 }
 
 /** Get the best entity match from all tx addresses (inputs + outputs). */
@@ -69,7 +94,7 @@ function getCachedAnalysis(graphNodes: Map<string, GraphNode>, tx: MempoolTransa
     cached = {
       isCJ,
       coinJoinType: isCJ ? getCoinJoinType(cjResult.findings) : undefined,
-      entityMatch: getBestEntityMatch(tx),
+      entityMatch: getBestEntityMatch(tx) ?? entityFromHeuristics(tx),
     };
     _layoutCache.set(txid, cached);
   }

@@ -16,6 +16,7 @@ import { formatSats, formatUsdValue, calcFeeRate } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 import { useFullscreen } from "@/hooks/useFullscreen";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
+import { analyzeMultisigDetection } from "@/lib/analysis/heuristics/multisig-detection";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import type { Finding } from "@/lib/types";
@@ -323,6 +324,18 @@ function FlowChart({
 
     const totalOutputValue = displayOutputs.reduce((s, v) => s + v.value, 0);
 
+    // Heuristic entity detection (HodlHodl, Bisq) - labels fee addresses
+    const heuristicEntityMap: Record<string, string> = {};
+    const HEURISTIC_LABELS: Record<string, string> = { "h17-hodlhodl": "HodlHodl", "h17-bisq": "Bisq" };
+    const msResult = analyzeMultisigDetection(tx);
+    for (const f of msResult.findings) {
+      const label = HEURISTIC_LABELS[f.id];
+      if (label && f.params) {
+        const feeAddr = (f.params as Record<string, unknown>).feeAddress;
+        if (typeof feeAddr === "string") heuristicEntityMap[feeAddr] = label;
+      }
+    }
+
     const nodes: NodeDatum[] = [];
     const links: LinkDatum[] = [];
 
@@ -368,6 +381,7 @@ function FlowChart({
       }
 
       const outEntity = addr ? matchEntitySync(addr) : null;
+      const heuristicLabel = addr ? heuristicEntityMap[addr] : undefined;
       nodes.push({
         id: `out-${i}`,
         label: vout.scriptpubkey_type === "op_return"
@@ -384,7 +398,7 @@ function FlowChart({
         anonSet: anonCount >= 2 ? anonCount : undefined,
         anonColor,
         spent: outspends?.[i]?.spent ?? null,
-        entityName: outEntity?.entityName,
+        entityName: outEntity?.entityName ?? heuristicLabel,
       });
     }
 
