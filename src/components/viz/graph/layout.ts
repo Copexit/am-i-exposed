@@ -32,6 +32,7 @@ export function getCoinJoinType(findings: Finding[]): string | undefined {
 const HEURISTIC_ENTITY_MAP: Record<string, { entityName: string; category: EntityMatch["category"] }> = {
   "h17-hodlhodl": { entityName: "HodlHodl", category: "p2p" },
   "h17-bisq": { entityName: "Bisq", category: "p2p" },
+  "h17-bisq-deposit": { entityName: "Bisq", category: "p2p" },
 };
 
 /** Derive an entity match from heuristic findings (e.g. multisig detection). */
