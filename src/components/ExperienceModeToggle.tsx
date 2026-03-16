@@ -4,8 +4,8 @@ import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { useExperienceMode } from "@/hooks/useExperienceMode";
 
-/** Noob icon: simplified eye (basic view) */
-function NoobIcon({ className }: { className?: string }) {
+/** Normie icon: simplified eye */
+function NormieIcon({ className }: { className?: string }) {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <circle cx="12" cy="12" r="3" />
@@ -14,16 +14,13 @@ function NoobIcon({ className }: { className?: string }) {
   );
 }
 
-/** Pro icon: microscope / deep analysis */
-function ProIcon({ className }: { className?: string }) {
+/** Cypherpunk icon: lock with code brackets */
+function CypherpunkIcon({ className }: { className?: string }) {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M6 18h8" />
-      <path d="M3 22h18" />
-      <path d="M14 22a7 7 0 1 0 0-14h-1" />
-      <path d="M9 14h2" />
-      <path d="M9 12a2 2 0 0 1-2-2V6h6v4a2 2 0 0 1-2 2Z" />
-      <path d="M12 6V3a1 1 0 0 0-1-1H9a1 1 0 0 0-1 1v3" />
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      <circle cx="12" cy="16" r="1" />
     </svg>
   );
 }
@@ -54,9 +51,9 @@ export function ExperienceModeToggle() {
           />
         )}
         <span className="relative z-10 flex items-center gap-1">
-          <NoobIcon className="sm:hidden shrink-0" />
+          <NormieIcon className="sm:hidden shrink-0" />
           <span className="hidden sm:inline">
-            {t("settings.modeNoob", { defaultValue: "Noob" })}
+            {t("settings.modeNormie", { defaultValue: "Normie" })}
           </span>
         </span>
       </button>
@@ -65,20 +62,24 @@ export function ExperienceModeToggle() {
         aria-checked={proMode}
         onClick={() => setProMode(true)}
         className={`relative text-xs px-1.5 sm:px-3 py-1 rounded-full transition-colors cursor-pointer flex items-center gap-1 ${
-          proMode ? "text-bitcoin" : "text-muted hover:text-foreground"
+          proMode
+            ? "text-bitcoin"
+            : "text-bitcoin/80 hover:text-bitcoin animate-pulse"
         }`}
       >
-        {proMode && (
+        {proMode ? (
           <motion.span
             layoutId="exp-mode-pill"
             className="absolute inset-0 bg-bitcoin/15 border border-bitcoin/30 rounded-full"
             transition={{ type: "spring", stiffness: 380, damping: 30 }}
           />
+        ) : (
+          <span className="absolute inset-0 rounded-full bg-bitcoin/5 border border-bitcoin/20 shadow-[0_0_8px_rgba(247,147,26,0.3)]" />
         )}
         <span className="relative z-10 flex items-center gap-1">
-          <ProIcon className="sm:hidden shrink-0" />
+          <CypherpunkIcon className="sm:hidden shrink-0" />
           <span className="hidden sm:inline">
-            {t("settings.modePro", { defaultValue: "Pro" })}
+            {t("settings.modeCypherpunk", { defaultValue: "Cypherpunk" })}
           </span>
         </span>
       </button>

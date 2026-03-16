@@ -21,6 +21,7 @@ import { BookmarkButton } from "./BookmarkButton";
 // Lazy-load heavy chart components
 const TxFlowDiagram = lazy(() => import("./viz/TxFlowDiagram").then(m => ({ default: m.TxFlowDiagram })));
 const CoinJoinStructure = lazy(() => import("./viz/CoinJoinStructure").then(m => ({ default: m.CoinJoinStructure })));
+const GraphExplorerPanel = lazy(() => import("./GraphExplorerPanel").then(m => ({ default: m.GraphExplorerPanel })));
 const TipJar = lazy(() => import("./TipJar").then(m => ({ default: m.TipJar })));
 
 // Extracted sub-components
@@ -95,9 +96,13 @@ export const ResultsPanel = memo(function ResultsPanel({
   // Reset CJ linkability view when query changes
   useEffect(() => { const t = setTimeout(() => setCjLinkabilityView(false), 0); return () => clearTimeout(t); }, [query]);
   // Pro mode: auto-switch to linkability view when Boltzmann is computed
+  // Normie mode: always reset to normal view
   useEffect(() => {
     if (proMode && boltzmannResult != null) {
       const t = setTimeout(() => setCjLinkabilityView(true), 0);
+      return () => clearTimeout(t);
+    } else if (!proMode) {
+      const t = setTimeout(() => setCjLinkabilityView(false), 0);
       return () => clearTimeout(t);
     }
   }, [proMode, boltzmannResult]);
@@ -184,6 +189,17 @@ export const ResultsPanel = memo(function ResultsPanel({
         </motion.div>
       )}
 
+      {/* Transaction Graph (cypherpunk only, right after tx flow chart) */}
+      {proMode && inputType === "txid" && txData && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.18 }} className="w-full">
+          <ChartErrorBoundary>
+            <Suspense fallback={null}>
+              <GraphExplorerPanel tx={txData} findings={result.findings} onTxClick={onScan} backwardLayers={backwardLayers} forwardLayers={forwardLayers} outspends={outspends} boltzmannResult={boltzmannResult} />
+            </Suspense>
+          </ChartErrorBoundary>
+        </motion.div>
+      )}
+
       {/* Address summary (address only) */}
       {addressData && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.16 }} className="w-full">
@@ -194,7 +210,7 @@ export const ResultsPanel = memo(function ResultsPanel({
       {/* Findings */}
       <FindingsSection issues={issues} visibleFindings={visibleFindings} onTxClick={onScan} delay={0.2} proMode={proMode} />
 
-      {/* Deep Analysis (txid only, Pro mode) */}
+      {/* Deep Analysis - Taint + Linkability (cypherpunk only, no GraphExplorer - moved above) */}
       {proMode && inputType === "txid" && (
         <DeepAnalysisTxid
           result={result}
@@ -202,7 +218,6 @@ export const ResultsPanel = memo(function ResultsPanel({
           onScan={onScan}
           backwardLayers={backwardLayers}
           forwardLayers={forwardLayers}
-          outspends={outspends}
           boltzmannResult={boltzmannResult}
         />
       )}
