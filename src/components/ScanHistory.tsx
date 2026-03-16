@@ -108,7 +108,13 @@ export const ScanHistory = memo(function ScanHistory({
     return arr;
   });
   const [showAllExamples, setShowAllExamples] = useState(false);
-  const PREVIEW_COUNT = 4;
+  // Responsive: 2 on very small screens (<400px), 3 on mobile, 4 on desktop
+  const [previewCount] = useState(() => {
+    if (typeof window === "undefined") return 4;
+    if (window.innerWidth < 400) return 2;
+    if (window.innerWidth < 640) return 3;
+    return 4;
+  });
 
   return (
     <motion.div
@@ -298,7 +304,7 @@ export const ScanHistory = memo(function ScanHistory({
       {tab === "examples" && (
         <div role="tabpanel" id="panel-examples" aria-labelledby="tab-examples">
           <div className="flex flex-wrap gap-2">
-            {(showAllExamples ? shuffledExamples : shuffledExamples.slice(0, PREVIEW_COUNT)).map((ex) => (
+            {(showAllExamples ? shuffledExamples : shuffledExamples.slice(0, previewCount)).map((ex) => (
               <button
                 key={ex.input}
                 onClick={() => onSelect(ex.input)}
@@ -314,7 +320,7 @@ export const ScanHistory = memo(function ScanHistory({
                 </span>
               </button>
             ))}
-            {!showAllExamples && shuffledExamples.length > PREVIEW_COUNT && (
+            {!showAllExamples && shuffledExamples.length > previewCount && (
               <button
                 onClick={() => setShowAllExamples(true)}
                 className="self-center text-xs text-muted hover:text-foreground transition-colors cursor-pointer px-2 py-1"
