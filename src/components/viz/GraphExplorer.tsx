@@ -433,123 +433,124 @@ export function GraphExplorer(props: GraphExplorerProps) {
     onCycleEdgeMode: cycleEdgeMode,
     onUndo: props.onUndo,
     onReset: props.onReset,
-    smartView: props.smartView,
-    onToggleSmartView: props.onToggleSmartView,
   };
 
   // ─── Legend (clickable filters) ────────────────────────
 
   const legend = (
-    <div className="relative inline-block">
+    <div className="absolute top-0 left-0 z-20 w-[130px] rounded-lg border border-card-border bg-card-bg/95 backdrop-blur-xl overflow-hidden shadow-lg">
       <button
         onClick={() => setLegendOpen(!legendOpen)}
-        className="text-muted/50 hover:text-muted transition-colors text-xs px-1.5 py-0.5 rounded border border-card-border cursor-pointer flex items-center gap-1"
-        title="Legend & Filters"
+        className="w-full flex items-center justify-between px-2 py-1.5 text-[10px] text-muted hover:text-foreground transition-colors cursor-pointer"
       >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
-        Legend
+        <span className="flex items-center gap-1.5 font-medium">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+          Legend
+        </span>
+        <svg
+          width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+          className={`transition-transform duration-200 ${legendOpen ? "rotate-180" : ""}`}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
       </button>
       {legendOpen && (
-        <div
-          className="absolute left-0 top-full mt-1 z-50 bg-card-bg/95 backdrop-blur-xl border border-card-border rounded-lg p-3 shadow-2xl min-w-[240px]"
-        >
-          <div className="space-y-2 text-xs text-muted">
-            {/* Node types (clickable filters) */}
-            <div className="font-medium text-muted/50 uppercase tracking-wider text-[10px]">Nodes</div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block w-2.5 h-2.5 rounded-sm border-2 shrink-0" style={{ borderColor: SVG_COLORS.bitcoin, background: "transparent" }} />
-                Root tx
-              </span>
-              <button onClick={() => toggleFilter("showCoinJoin")} className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${filter.showCoinJoin ? "opacity-100" : "opacity-40 line-through"}`}>
-                <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: SVG_COLORS.good }} />
-                CoinJoin
+        <div className="px-2 pb-2 space-y-1.5 text-[10px] text-muted border-t border-card-border/50 pt-1.5">
+          {/* Node types (clickable filters) */}
+          <div className="font-medium text-muted uppercase tracking-wider text-[9px]">Nodes</div>
+          <div className="flex flex-col gap-0.5">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-2.5 h-2.5 rounded-sm border-2 shrink-0" style={{ borderColor: SVG_COLORS.bitcoin, background: "transparent" }} />
+              Root tx
+            </span>
+            <button onClick={() => toggleFilter("showCoinJoin")} className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${filter.showCoinJoin ? "opacity-100" : "opacity-40 line-through"}`}>
+              <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: SVG_COLORS.good }} />
+              CoinJoin
+            </button>
+            <button onClick={() => toggleFilter("showStandard")} className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${filter.showStandard ? "opacity-100" : "opacity-40 line-through"}`}>
+              <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: SVG_COLORS.low }} />
+              Standard
+            </button>
+          </div>
+
+          {/* Entity categories (clickable filter) */}
+          <div className="font-medium text-muted uppercase tracking-wider text-[9px] mt-1">Entities</div>
+          <div className="flex flex-col gap-0.5">
+            {([
+              ["exchange", "Exchange"],
+              ["darknet", "Darknet"],
+              ["scam", "Scam"],
+              ["mixer", "Mixer"],
+              ["gambling", "Gambling"],
+              ["mining", "Mining"],
+              ["payment", "Payment"],
+              ["p2p", "P2P"],
+            ] as const).map(([cat, label]) => (
+              <button
+                key={cat}
+                onClick={() => toggleFilter("showEntity")}
+                className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${filter.showEntity ? "opacity-100" : "opacity-40 line-through"}`}
+              >
+                <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: ENTITY_CATEGORY_COLORS[cat] }} />
+                <span className="text-muted">{label}</span>
               </button>
-              <button onClick={() => toggleFilter("showStandard")} className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${filter.showStandard ? "opacity-100" : "opacity-40 line-through"}`}>
-                <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: SVG_COLORS.low }} />
-                Standard
-              </button>
-            </div>
+            ))}
+          </div>
 
-            {/* Entity categories (clickable filter) */}
-            <div className="font-medium text-muted/50 uppercase tracking-wider text-[10px] mt-2">Entities</div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-              {([
-                ["exchange", "Exchange"],
-                ["darknet", "Darknet"],
-                ["scam", "Scam"],
-                ["mixer", "Mixer"],
-                ["gambling", "Gambling"],
-                ["mining", "Mining"],
-                ["payment", "Payment"],
-                ["p2p", "P2P"],
-              ] as const).map(([cat, label]) => (
-                <button
-                  key={cat}
-                  onClick={() => toggleFilter("showEntity")}
-                  className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${filter.showEntity ? "opacity-100" : "opacity-40 line-through"}`}
-                >
-                  <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: ENTITY_CATEGORY_COLORS[cat] }} />
-                  <span className="text-muted">{label}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* Edge types */}
-            <div className="font-medium text-muted/50 uppercase tracking-wider text-[10px] mt-2">Edges</div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-              {SCRIPT_TYPE_LEGEND.map((s) => (
-                <span key={s.type} className="flex items-center gap-1.5">
-                  <span className="inline-block w-4 h-0.5 rounded shrink-0" style={{
-                    background: s.color, opacity: 0.8,
-                    ...(s.dash ? { borderBottom: `1.5px dashed ${s.color}`, background: "transparent" } : {}),
-                  }} />
-                  <span className="text-muted">{s.label}</span>
-                </span>
-              ))}
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block w-4 h-0.5 rounded shrink-0" style={{ background: SVG_COLORS.critical, opacity: 0.7 }} />
-                <span className="text-muted">Consolidation</span>
+          {/* Edge types */}
+          <div className="font-medium text-muted uppercase tracking-wider text-[9px] mt-1">Edges</div>
+          <div className="flex flex-col gap-0.5">
+            {SCRIPT_TYPE_LEGEND.map((s) => (
+              <span key={s.type} className="flex items-center gap-1.5">
+                <span className="inline-block w-4 h-0.5 rounded shrink-0" style={{
+                  background: s.color, opacity: 0.8,
+                  ...(s.dash ? { borderBottom: `1.5px dashed ${s.color}`, background: "transparent" } : {}),
+                }} />
+                <span className="text-muted">{s.label}</span>
               </span>
-              {changeOutputs.size > 0 && (
-                <span className="flex items-center gap-1.5">
-                  <span className="inline-block w-4 h-0.5 rounded shrink-0" style={{ background: "#d97706", opacity: 0.8 }} />
-                  <span className="text-muted">Change</span>
-                </span>
-              )}
-            </div>
-
-            {/* Fingerprint mode items */}
-            {fingerprintMode && (
-              <>
-                <div className="font-medium text-muted/50 uppercase tracking-wider text-[10px] mt-2">Fingerprint</div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                  {/* Version fill */}
-                  <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: "var(--surface-elevated)", border: "1px solid var(--overlay-border)" }} />
-                    <span className="text-muted/50">v1</span>
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: "var(--card-border)", border: "1px solid var(--overlay-border)" }} />
-                    <span className="text-muted/50">v2</span>
-                  </span>
-                  {/* Locktime shapes */}
-                  <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-2.5 h-2.5 shrink-0" style={{ background: "var(--card-border)", border: "1px solid var(--overlay-border)", borderRadius: "4px" }} />
-                    <span className="text-muted/50">No lock</span>
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-2.5 h-2.5 shrink-0" style={{ background: "var(--card-border)", border: "1px solid var(--overlay-border)", borderRadius: 0 }} />
-                    <span className="text-muted/50">Block height</span>
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="inline-block w-2.5 h-2.5 shrink-0" style={{ background: "var(--card-border)", border: "1px solid var(--overlay-border)", clipPath: "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)" }} />
-                    <span className="text-muted/50">Timestamp</span>
-                  </span>
-                </div>
-              </>
+            ))}
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-4 h-0.5 rounded shrink-0" style={{ background: SVG_COLORS.critical, opacity: 0.7 }} />
+              <span className="text-muted">Consolidation</span>
+            </span>
+            {changeOutputs.size > 0 && (
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block w-4 h-0.5 rounded shrink-0" style={{ background: "#d97706", opacity: 0.8 }} />
+                <span className="text-muted">Change</span>
+              </span>
             )}
           </div>
+
+          {/* Fingerprint mode items */}
+          {fingerprintMode && (
+            <>
+              <div className="font-medium text-muted uppercase tracking-wider text-[9px] mt-1">Fingerprint</div>
+              <div className="flex flex-col gap-0.5">
+                {/* Version fill */}
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: "var(--surface-elevated)", border: "1px solid var(--overlay-border)" }} />
+                  <span className="text-muted">v1</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: "var(--card-border)", border: "1px solid var(--overlay-border)" }} />
+                  <span className="text-muted">v2</span>
+                </span>
+                {/* Locktime shapes */}
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block w-2.5 h-2.5 shrink-0" style={{ background: "var(--card-border)", border: "1px solid var(--overlay-border)", borderRadius: "4px" }} />
+                  <span className="text-muted">No lock</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block w-2.5 h-2.5 shrink-0" style={{ background: "var(--card-border)", border: "1px solid var(--overlay-border)", borderRadius: 0 }} />
+                  <span className="text-muted">Block height</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block w-2.5 h-2.5 shrink-0" style={{ background: "var(--card-border)", border: "1px solid var(--overlay-border)", clipPath: "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)" }} />
+                  <span className="text-muted">Timestamp</span>
+                </span>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -645,13 +646,13 @@ export function GraphExplorer(props: GraphExplorerProps) {
         className="relative rounded-xl border border-card-border bg-surface-inset p-4 space-y-3"
       >
         <GraphToolbar {...toolbarProps} onExpandFullscreen={handleExpandFullscreen} />
-        {legend}
 
         {/* Hide inline graph when fullscreen is active to avoid double tooltip */}
         {!isExpanded && (
           <div className="relative flex">
             {/* Graph area (shrinks when sidebar is open) */}
             <div className="flex-1 min-w-0 relative">
+              {legend}
               <div ref={scrollRef} className="overflow-auto max-h-[900px] -mx-4 px-4">
                 <ParentSize debounceTime={100}>
                   {({ width }) => {
@@ -738,13 +739,13 @@ export function GraphExplorer(props: GraphExplorerProps) {
               className="flex-1 h-1 appearance-none bg-foreground/10 rounded-full cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-foreground/50"
               title="Scrub through expansion history"
             />
-            <span className="text-[10px] text-muted/50 tabular-nums shrink-0">{props.undoStackLength} steps</span>
+            <span className="text-[10px] text-muted/70 tabular-nums shrink-0">{props.undoStackLength} steps</span>
           </div>
         )}
 
         {/* Capacity warning */}
         {props.nodeCount >= props.maxNodes && (
-          <div className="text-xs text-amber-400/80 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-1.5">
+          <div className="text-xs text-severity-medium bg-severity-medium/10 border border-severity-medium/20 rounded-lg px-3 py-1.5">
             {t("graphExplorer.maxNodesReached", {
               max: props.maxNodes,
               defaultValue: "Maximum number of nodes reached ({{max}}). Remove some nodes before expanding further.",
@@ -761,7 +762,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
         {/* Ephemeral error messages */}
         {props.errors.size > 0 && props.loading.size === 0 && (
-          <div className="text-xs text-amber-400/70">
+          <div className="text-xs text-severity-medium/80">
             {[...props.errors.values()].at(-1)}
           </div>
         )}
@@ -793,12 +794,12 @@ export function GraphExplorer(props: GraphExplorerProps) {
               onZoomOut={() => zoomBy(1 / 1.25)}
               onFitView={handleFitView}
             />
-            {legend}
           </div>
 
           {/* Fullscreen graph area */}
           <div className="flex-1 min-h-0 relative px-4 pb-4 flex" style={{ touchAction: "none" }}>
             <div className="flex-1 min-w-0 relative">
+              {legend}
               <div ref={scrollRef} className="overflow-hidden h-full" style={{ touchAction: "none" }}>
                 <ParentSize debounceTime={100}>
                   {({ width, height: parentH }) => {
