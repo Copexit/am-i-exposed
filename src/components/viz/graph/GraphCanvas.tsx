@@ -608,6 +608,10 @@ export function GraphCanvas({
             90% { opacity: 0.8; }
             100% { offset-distance: 100%; opacity: 0; }
           }
+          @keyframes entropy-pulse {
+            0%, 100% { stroke-opacity: var(--ep-min); }
+            50% { stroke-opacity: var(--ep-max); }
+          }
           .graph-btn:hover text { fill-opacity: 1; }
         `}</style>
 
@@ -749,10 +753,15 @@ export function GraphCanvas({
                 strokeDasharray={dustDash ?? scriptDash ?? undefined}
                 markerEnd={markerEnd}
                 markerStart={markerStart}
+                style={entropyColorVal ? {
+                  "--ep-min": String(Math.max(0.2, strokeOpacity - 0.15)),
+                  "--ep-max": String(Math.min(1, strokeOpacity + 0.15)),
+                  animation: `entropy-pulse ${1.5 + (1 - (entropyEntry?.normalized ?? 0.5)) * 2}s ease-in-out infinite`,
+                  pointerEvents: "none" as const,
+                } as React.CSSProperties : { pointerEvents: "none" as const }}
                 initial={{ pathLength: 0 }}
                 animate={{ pathLength: 1 }}
                 transition={{ duration: 0.4 }}
-                style={{ pointerEvents: "none" }}
               />
               {isConsolidation && (
                 <Text
@@ -898,14 +907,14 @@ export function GraphCanvas({
           if (focusSpotlight && !focusSpotlight.nodes.has(node.txid)) nodeOpacity = 0.15;
           else if (isDimmedByHover && !isConnectedToHovered) nodeOpacity = 0.3;
 
-          // Render expanded node with UTXO ports
+          // Render expanded node with UTXO ports (spring morph animation)
           if (isExpandedNode) {
             return (
               <motion.g
                 key={node.txid}
-                initial={{ opacity: 0, scale: 0.95 }}
+                initial={{ opacity: 0, scale: 0.92 }}
                 animate={{ opacity: nodeOpacity, scale: 1 }}
-                transition={{ duration: 0.25 }}
+                transition={{ type: "spring", stiffness: 300, damping: 25, mass: 0.8 }}
               >
                 <ExpandedNode
                   node={node}

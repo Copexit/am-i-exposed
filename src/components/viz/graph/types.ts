@@ -49,6 +49,10 @@ export interface GraphExplorerProps {
   autoTraceProgress?: { hop: number; txid: string; reason: string } | null;
   /** Trigger compounding linkability trace from a specific output. */
   onAutoTraceLinkability?: (txid: string, outputIndex: number) => void;
+  /** Number of snapshots in the undo stack (for time travel slider). */
+  undoStackLength?: number;
+  /** Jump to a specific snapshot in the undo stack. */
+  onGotoSnapshot?: (index: number) => void;
 }
 
 export interface LayoutNode {
