@@ -109,6 +109,8 @@ export interface TooltipData {
   confirmed: boolean;
   /** Linkability probability for edge hover tooltip. */
   linkProb?: number;
+  /** Normalized effective entropy for edge hover tooltip (0-1). */
+  entropyNormalized?: number;
 }
 
 export type NodeFilter = {

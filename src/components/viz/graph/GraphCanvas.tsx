@@ -714,10 +714,11 @@ export function GraphCanvas({
           }
 
           const edgeMaxProb = linkabilityMaxProb >= 0 ? linkabilityMaxProb : undefined;
+          const hasEdgeTooltip = edgeMaxProb !== undefined || entropyEntry != null;
 
           return (
             <g key={edgeKey}>
-              {edgeMaxProb !== undefined && (
+              {hasEdgeTooltip && (
                 <path
                   d={d}
                   fill="none"
@@ -726,16 +727,17 @@ export function GraphCanvas({
                   style={{ cursor: "default" }}
                   onMouseMove={() => {
                     setHoveredEdgeKey(edgeKey);
-                    // Use edge midpoint + toScreen() for correct scroll-aware positioning
-                    const midX = (edge.x1 + edge.x2) / 2;
-                    const midY = (edge.y1 + edge.y2) / 2;
-                    const pos = toScreen(midX, midY - 12);
+                    const eMidX = (edge.x1 + edge.x2) / 2;
+                    const eMidY = (edge.y1 + edge.y2) / 2;
+                    const pos = toScreen(eMidX, eMidY - 12);
                     tooltip.showTooltip({
                       tooltipData: {
                         txid: edge.fromTxid,
                         inputCount: 0, outputCount: 0, totalValue: 0,
                         isCoinJoin: false, depth: 0, fee: 0, feeRate: "",
-                        confirmed: true, linkProb: edgeMaxProb,
+                        confirmed: true,
+                        linkProb: edgeMaxProb,
+                        entropyNormalized: entropyEntry?.normalized,
                       },
                       tooltipLeft: pos.x,
                       tooltipTop: pos.y,

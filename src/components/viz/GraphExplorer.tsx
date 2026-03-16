@@ -23,6 +23,7 @@ import { GraphCanvas } from "./graph/GraphCanvas";
 import { CloseIcon } from "./graph/icons";
 import { GraphToolbar } from "./graph/GraphToolbar";
 import { SCRIPT_TYPE_LEGEND } from "./graph/scriptStyles";
+import { entropyColor } from "./graph/privacyGradient";
 import { playExpandSound, playCollapseSound } from "./graph/sounds";
 import type { GraphExplorerProps, TooltipData, NodeFilter, ViewTransform } from "./graph/types";
 import type { ScoringResult } from "@/lib/types";
@@ -567,11 +568,23 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
   const tooltipContent = tooltip.tooltipOpen && tooltip.tooltipData && (
     <ChartTooltip top={tooltip.tooltipTop} left={tooltip.tooltipLeft} containerRef={scrollRef}>
-      {tooltip.tooltipData.linkProb !== undefined ? (
-        /* Edge hover: linkability probability chip */
-        <div className="flex items-center gap-1.5">
-          <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: probColor(tooltip.tooltipData.linkProb), display: "inline-block", flexShrink: 0 }} />
-          <span className="text-xs font-medium" style={{ color: SVG_COLORS.foreground }}>{Math.round(tooltip.tooltipData.linkProb * 100)}%</span>
+      {tooltip.tooltipData.linkProb !== undefined || tooltip.tooltipData.entropyNormalized !== undefined ? (
+        /* Edge hover: linkability or entropy chip */
+        <div className="flex items-center gap-2">
+          {tooltip.tooltipData.linkProb !== undefined && (
+            <div className="flex items-center gap-1.5">
+              <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: probColor(tooltip.tooltipData.linkProb), display: "inline-block", flexShrink: 0 }} />
+              <span className="text-xs font-medium" style={{ color: SVG_COLORS.foreground }}>{Math.round(tooltip.tooltipData.linkProb * 100)}% linkability</span>
+            </div>
+          )}
+          {tooltip.tooltipData.entropyNormalized !== undefined && (
+            <div className="flex items-center gap-1.5">
+              <span style={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: entropyColor(tooltip.tooltipData.entropyNormalized), display: "inline-block", flexShrink: 0 }} />
+              <span className="text-xs font-medium" style={{ color: SVG_COLORS.foreground }}>
+                {(tooltip.tooltipData.entropyNormalized * 100).toFixed(0)}% effective entropy
+              </span>
+            </div>
+          )}
         </div>
       ) : (
       /* Node hover: minimal chip - only data NOT already on the canvas label */
