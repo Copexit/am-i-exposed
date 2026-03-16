@@ -582,10 +582,32 @@ export function GraphCanvas({
           <marker id="arrow-graph-consolidation-start" markerWidth="12" markerHeight="8" refX="1" refY="4" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
             <path d="M0,0 L12,4 L0,8" fill={SVG_COLORS.critical} fillOpacity={0.7} />
           </marker>
+          {/* Contextual glow auras */}
+          <filter id="aura-root" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3">
+              <animate attributeName="stdDeviation" values="2;4;2" dur="3s" repeatCount="indefinite" />
+            </feGaussianBlur>
+          </filter>
+          <filter id="aura-coinjoin" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3">
+              <animate attributeName="stdDeviation" values="2;3.5;2" dur="2.5s" repeatCount="indefinite" />
+            </feGaussianBlur>
+          </filter>
+          <filter id="aura-ofac" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3">
+              <animate attributeName="stdDeviation" values="1.5;4;1.5" dur="1.2s" repeatCount="indefinite" />
+            </feGaussianBlur>
+          </filter>
         </defs>
         <style>{`
           .graph-btn circle { transition: fill-opacity 0.15s, stroke-width 0.15s, filter 0.15s; }
           .graph-btn:hover circle { fill-opacity: 1; stroke-width: 2.5; filter: brightness(1.4); }
+          @keyframes flow-particle {
+            0% { offset-distance: 0%; opacity: 0; }
+            10% { opacity: 0.8; }
+            90% { opacity: 0.8; }
+            100% { offset-distance: 100%; opacity: 0; }
+          }
           .graph-btn:hover text { fill-opacity: 1; }
         `}</style>
 
@@ -833,6 +855,30 @@ export function GraphCanvas({
           );
         })}
 
+        {/* Edge flow particles (on focused/expanded node's edges) */}
+        {focusSpotlight && edges.filter((e) => focusSpotlight.edges.has(`e-${e.fromTxid}-${e.toTxid}`)).map((edge) => {
+          const d = (portPositions.size > 0)
+            ? portAwareEdgePath(edge, portPositions, nodes)
+            : edgePath(edge);
+          const edgeKey = `e-${edge.fromTxid}-${edge.toTxid}`;
+          const scriptInfo = edgeScriptInfo.get(edgeKey);
+          const particleColor = scriptInfo ? getScriptTypeColor(scriptInfo.scriptType) : SVG_COLORS.muted;
+          // 2-3 staggered particles per edge
+          return [0, 1, 2].map((pi) => (
+            <circle
+              key={`particle-${edgeKey}-${pi}`}
+              r={2}
+              fill={particleColor}
+              fillOpacity={0.8}
+              style={{
+                offsetPath: `path("${d}")`,
+                animation: `flow-particle ${2 + pi * 0.3}s linear ${pi * 0.7}s infinite`,
+                pointerEvents: "none" as const,
+              }}
+            />
+          ));
+        })}
+
         {/* Nodes */}
         {layoutNodes.map((node) => {
           const heatScore = heatMapActive ? heatMap.get(node.txid)?.score : undefined;
@@ -920,6 +966,17 @@ export function GraphCanvas({
                 tooltip.hideTooltip();
               }}
             >
+              {/* Contextual glow aura (behind node) */}
+              {node.isRoot && (
+                <rect x={node.x - 4} y={node.y - 4} width={node.width + 8} height={node.height + 8} rx={12} fill={SVG_COLORS.bitcoin} fillOpacity={0.12} filter="url(#aura-root)" style={{ pointerEvents: "none" }} />
+              )}
+              {node.isCoinJoin && !node.isRoot && (
+                <rect x={node.x - 3} y={node.y - 3} width={node.width + 6} height={node.height + 6} rx={11} fill={SVG_COLORS.good} fillOpacity={0.1} filter="url(#aura-coinjoin)" style={{ pointerEvents: "none" }} />
+              )}
+              {node.entityOfac && (
+                <rect x={node.x - 3} y={node.y - 3} width={node.width + 6} height={node.height + 6} rx={11} fill={SVG_COLORS.critical} fillOpacity={0.15} filter="url(#aura-ofac)" style={{ pointerEvents: "none" }} />
+              )}
+
               {/* Node background */}
               {fingerprintMode && isTimestampLocktime(node.tx.locktime) ? (
                 <polygon
@@ -984,32 +1041,29 @@ export function GraphCanvas({
                 </rect>
               )}
 
-              {/* CoinJoin diamond badge */}
-              {node.isCoinJoin && (
-                <polygon
-                  points={`${node.x + node.width - 12},${node.y + 4} ${node.x + node.width - 6},${node.y + 10} ${node.x + node.width - 12},${node.y + 16} ${node.x + node.width - 18},${node.y + 10}`}
-                  fill={SVG_COLORS.good}
-                  fillOpacity={0.3}
-                  stroke={SVG_COLORS.good}
-                  strokeWidth={1}
-                />
-              )}
-
-              {/* OFAC warning triangle */}
-              {node.entityOfac && (
-                <g transform={`translate(${node.x + node.width - 24}, ${node.y + 4})`}>
-                  <polygon points="6,0 12,10 0,10" fill={SVG_COLORS.critical} fillOpacity={0.8} />
-                  <text x="6" y="9" textAnchor="middle" fontSize="7" fontWeight="bold" fill="#0c0c0e">!</text>
-                </g>
-              )}
-
-              {/* Toxic change merge badge */}
-              {toxicMergeNodes.has(node.txid) && (
-                <g transform={`translate(${node.x + node.width - (node.entityOfac ? 38 : 24)}, ${node.y + 4})`}>
-                  <rect width={16} height={12} rx={2} fill="#ef4444" fillOpacity={0.3} stroke="#ef4444" strokeWidth={0.5} strokeOpacity={0.6} />
-                  <text x={8} y={9} textAnchor="middle" fontSize="7" fontWeight="bold" fill="#ef4444" fillOpacity={0.9}>TX</text>
-                </g>
-              )}
+              {/* Badge pills (horizontal row, top-right) */}
+              {(() => {
+                const badges: Array<{ label: string; bg: string; fg: string }> = [];
+                if (node.isCoinJoin) badges.push({ label: node.coinJoinType ?? "CJ", bg: SVG_COLORS.good, fg: "#0c0c0e" });
+                if (node.entityOfac) badges.push({ label: "OFAC", bg: SVG_COLORS.critical, fg: "#fff" });
+                if (toxicMergeNodes.has(node.txid)) badges.push({ label: "TOXIC", bg: "#ef4444", fg: "#fff" });
+                if (badges.length === 0) return null;
+                let bx = node.x + node.width - 4;
+                return (
+                  <g style={{ pointerEvents: "none" }}>
+                    {badges.map((b, bi) => {
+                      const tw = b.label.length * 5.5 + 8;
+                      bx -= tw + (bi > 0 ? 3 : 0);
+                      return (
+                        <g key={b.label} transform={`translate(${bx}, ${node.y + 3})`}>
+                          <rect width={tw} height={14} rx={7} fill={b.bg} fillOpacity={0.25} stroke={b.bg} strokeWidth={0.5} strokeOpacity={0.5} />
+                          <text x={tw / 2} y={10} textAnchor="middle" fontSize="7" fontWeight="bold" fill={b.fg} fillOpacity={0.9}>{b.label}</text>
+                        </g>
+                      );
+                    })}
+                  </g>
+                );
+              })()}
 
               {/* Privacy score sparkline (tiny severity bars) */}
               {heatMapActive && heatMap.has(node.txid) && (() => {

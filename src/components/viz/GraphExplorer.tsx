@@ -384,7 +384,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
     setViewTransform(computeFitTransform(gw, gh, cw, ch));
   }, [props.nodes, props.rootTxid, filter, props.rootTxids]);
 
-  const [showEdgeLegend, setShowEdgeLegend] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(false);
 
   // ─── Global keyboard shortcuts for graph modes ───────
   useEffect(() => {
@@ -433,85 +433,84 @@ export function GraphExplorer(props: GraphExplorerProps) {
   // ─── Legend (clickable filters) ────────────────────────
 
   const legend = (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/40">
-      {/* Node types - always shown */}
-      <span className="flex items-center gap-1.5">
-        <span className="inline-block w-2.5 h-2.5 rounded-sm border-2" style={{ borderColor: SVG_COLORS.bitcoin, background: "transparent" }} />
-        {t("graphExplorer.legendRoot", { defaultValue: "Analyzed tx" })}
-      </span>
+    <div className="relative inline-block">
       <button
-        onClick={() => toggleFilter("showCoinJoin")}
-        className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${filter.showCoinJoin ? "opacity-100" : "opacity-40 line-through"}`}
+        onClick={() => setLegendOpen(!legendOpen)}
+        className="text-white/30 hover:text-white/60 transition-colors text-xs px-1.5 py-0.5 rounded border border-white/10 cursor-pointer flex items-center gap-1"
+        title="Legend & Filters"
       >
-        <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: SVG_COLORS.good }} />
-        {t("graphExplorer.legendCoinJoin", { defaultValue: "CoinJoin" })}
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+        Legend
       </button>
-      <button
-        onClick={() => toggleFilter("showStandard")}
-        className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${filter.showStandard ? "opacity-100" : "opacity-40 line-through"}`}
-      >
-        <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: SVG_COLORS.low }} />
-        {t("graphExplorer.legendDefault", { defaultValue: "Standard tx" })}
-      </button>
-      {/* Single "Entity" item (collapsed from 5 categories) */}
-      <button
-        onClick={() => toggleFilter("showEntity")}
-        className={`flex items-center gap-1 cursor-pointer transition-opacity ${filter.showEntity ? "opacity-100" : "opacity-40 line-through"}`}
-      >
-        <span className="inline-block w-2 h-2 rounded-full" style={{ background: ENTITY_CATEGORY_COLORS.exchange }} />
-        <span className="text-white/40">Entity</span>
-      </button>
-      {props.walletUtxos && (
-        <span className="flex items-center gap-1.5">
-          <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: SVG_COLORS.bitcoin, opacity: 0.3 }} />
-          {t("graphExplorer.legendWalletOutput", { defaultValue: "Wallet output" })}
-        </span>
-      )}
-      <span className="text-white/20">|</span>
-      <span className="flex items-center gap-1.5">
-        <span className="inline-block w-4 h-0.5 rounded" style={{ background: SVG_COLORS.critical, opacity: 0.7 }} />
-        <span className="text-white/40">{t("graphExplorer.legendConsolidation", { defaultValue: "Consolidation" })}</span>
-      </span>
-      {/* Collapsible edge color legend */}
-      <button
-        onClick={() => setShowEdgeLegend(!showEdgeLegend)}
-        className="text-white/30 hover:text-white/50 cursor-pointer transition-colors"
-      >
-        Edge colors {showEdgeLegend ? "\u25B4" : "\u25BE"}
-      </button>
-      {showEdgeLegend && SCRIPT_TYPE_LEGEND.map((s) => (
-        <span key={s.type} className="flex items-center gap-1">
-          <span className="inline-block w-4 h-0.5 rounded" style={{
-            background: s.color,
-            opacity: 0.8,
-            ...(s.dash ? { borderBottom: `1.5px dashed ${s.color}`, background: "transparent" } : {}),
-          }} />
-          <span className="text-white/30">{s.label}</span>
-        </span>
-      ))}
-      {/* Conditional: fingerprint mode legend */}
-      {fingerprintMode && (
-        <>
-          <span className="text-white/20">|</span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: "#2a2a2e", border: "1px solid rgba(255,255,255,0.2)" }} />
-            <span className="text-white/30">v1</span>
-          </span>
-          <span className="flex items-center gap-1">
-            <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: "#4a4a52", border: "1px solid rgba(255,255,255,0.2)" }} />
-            <span className="text-white/30">v2</span>
-          </span>
-        </>
-      )}
-      {/* Conditional: change marking legend */}
-      {changeOutputs.size > 0 && (
-        <>
-          <span className="text-white/20">|</span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block w-4 h-0.5 rounded" style={{ background: "#d97706", opacity: 0.8 }} />
-            <span className="text-white/40">Change</span>
-          </span>
-        </>
+      {legendOpen && (
+        <div
+          className="absolute left-0 top-full mt-1 z-50 bg-[#1c1c20]/95 backdrop-blur-xl border border-white/10 rounded-lg p-3 shadow-2xl min-w-[240px]"
+          onMouseLeave={() => setLegendOpen(false)}
+        >
+          <div className="space-y-2 text-xs text-white/50">
+            {/* Node types (clickable filters) */}
+            <div className="font-medium text-white/30 uppercase tracking-wider text-[10px]">Nodes</div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block w-2.5 h-2.5 rounded-sm border-2 shrink-0" style={{ borderColor: SVG_COLORS.bitcoin, background: "transparent" }} />
+                Root tx
+              </span>
+              <button onClick={() => toggleFilter("showCoinJoin")} className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${filter.showCoinJoin ? "opacity-100" : "opacity-40 line-through"}`}>
+                <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: SVG_COLORS.good }} />
+                CoinJoin
+              </button>
+              <button onClick={() => toggleFilter("showStandard")} className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${filter.showStandard ? "opacity-100" : "opacity-40 line-through"}`}>
+                <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: SVG_COLORS.low }} />
+                Standard
+              </button>
+              <button onClick={() => toggleFilter("showEntity")} className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${filter.showEntity ? "opacity-100" : "opacity-40 line-through"}`}>
+                <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: ENTITY_CATEGORY_COLORS.exchange }} />
+                Entity
+              </button>
+            </div>
+
+            {/* Edge types */}
+            <div className="font-medium text-white/30 uppercase tracking-wider text-[10px] mt-2">Edges</div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+              {SCRIPT_TYPE_LEGEND.map((s) => (
+                <span key={s.type} className="flex items-center gap-1.5">
+                  <span className="inline-block w-4 h-0.5 rounded shrink-0" style={{
+                    background: s.color, opacity: 0.8,
+                    ...(s.dash ? { borderBottom: `1.5px dashed ${s.color}`, background: "transparent" } : {}),
+                  }} />
+                  <span className="text-white/40">{s.label}</span>
+                </span>
+              ))}
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block w-4 h-0.5 rounded shrink-0" style={{ background: SVG_COLORS.critical, opacity: 0.7 }} />
+                <span className="text-white/40">Consolidation</span>
+              </span>
+              {changeOutputs.size > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block w-4 h-0.5 rounded shrink-0" style={{ background: "#d97706", opacity: 0.8 }} />
+                  <span className="text-white/40">Change</span>
+                </span>
+              )}
+            </div>
+
+            {/* Fingerprint mode items */}
+            {fingerprintMode && (
+              <>
+                <div className="font-medium text-white/30 uppercase tracking-wider text-[10px] mt-2">Fingerprint</div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: "#2a2a2e", border: "1px solid rgba(255,255,255,0.2)" }} />
+                    <span className="text-white/30">v1</span>
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: "#4a4a52", border: "1px solid rgba(255,255,255,0.2)" }} />
+                    <span className="text-white/30">v2</span>
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
