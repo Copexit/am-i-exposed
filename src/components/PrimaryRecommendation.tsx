@@ -15,22 +15,22 @@ interface PrimaryRecommendationProps {
 const URGENCY_CONFIG = {
   immediate: {
     icon: AlertTriangle,
-    bgClass: "bg-red-500/10 border-red-500/30",
-    iconClass: "text-red-400",
+    bgClass: "bg-severity-critical/10 border-severity-critical/30",
+    iconClass: "text-severity-critical",
     labelKey: "primaryRec.urgency.immediate",
     labelDefault: "Act now",
   },
   soon: {
     icon: Clock,
-    iconClass: "text-amber-400",
-    bgClass: "bg-amber-500/10 border-amber-500/30",
+    iconClass: "text-severity-medium",
+    bgClass: "bg-severity-medium/10 border-severity-medium/30",
     labelKey: "primaryRec.urgency.soon",
     labelDefault: "Address soon",
   },
   "when-convenient": {
     icon: CheckCircle,
-    iconClass: "text-blue-400",
-    bgClass: "bg-blue-500/10 border-blue-500/30",
+    iconClass: "text-severity-low",
+    bgClass: "bg-severity-low/10 border-severity-low/30",
     labelKey: "primaryRec.urgency.whenConvenient",
     labelDefault: "When convenient",
   },
@@ -60,7 +60,19 @@ function RecCard({ rec }: { rec: PrimaryRec }) {
             {t(rec.detailKey, { defaultValue: rec.detailDefault })}
           </p>
           <div className="flex items-center gap-3 mt-2 flex-wrap">
-            {rec.tool && (
+            {rec.tools && rec.tools.map((tool) => (
+              <a
+                key={tool.name}
+                href={tool.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm text-accent hover:text-accent/80 transition-colors"
+              >
+                {tool.name}
+                <ExternalLink size={13} aria-hidden="true" />
+              </a>
+            ))}
+            {rec.tool && !rec.tools && (
               <a
                 href={rec.tool.url}
                 target="_blank"

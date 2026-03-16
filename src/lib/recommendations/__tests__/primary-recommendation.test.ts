@@ -352,11 +352,12 @@ describe("Wallet-aware tool selection (pickTool)", () => {
     expect(primary.tool?.name).toBe("Sparrow Wallet");
   });
 
-  it("payjoin: always recommends Cake Wallet", () => {
+  it("payjoin: recommends all three collaborative payment wallets", () => {
     const [primary] = selectRecommendations(
       ctx([f("peel-chain"), f("h2-change-detected")]),
     );
-    expect(primary.tool?.name).toBe("Cake Wallet");
+    expect(primary.tools).toHaveLength(3);
+    expect(primary.tools?.map((t) => t.name)).toEqual(["Cake Wallet", "Bull Bitcoin", "Ashigaru (Stowaway)"]);
   });
 
   it("lightning: always recommends Phoenix", () => {

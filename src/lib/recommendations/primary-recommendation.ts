@@ -9,6 +9,7 @@ export interface PrimaryRec {
   detailKey: string;
   detailDefault: string;
   tool?: { name: string; url: string };
+  tools?: { name: string; url: string }[];
   guideLink?: string;
 }
 
@@ -23,6 +24,12 @@ export interface RecommendationContext {
  * Deterministic cascade: walks tiers top-to-bottom, returns first match.
  * Mirrors chain analysis damage hierarchy (see docs/adr-recommendations.md).
  */
+const PAYJOIN_TOOLS = [
+  { name: "Cake Wallet", url: "https://cakewallet.com" },
+  { name: "Bull Bitcoin", url: "https://www.bullbitcoin.com/wallet" },
+  { name: "Ashigaru (Stowaway)", url: "https://ashigaru.rs" },
+];
+
 export function selectRecommendations(
   ctx: RecommendationContext,
 ): [PrimaryRec, PrimaryRec | null] {
@@ -199,7 +206,7 @@ export function selectRecommendations(
           "leaving a clear trail of your economic activity. " +
           "Freeze the change and use a different UTXO for each payment. " +
           "If you need to spend change, use it in collaborative transactions (PayJoin as a receiver, Stonewall) to increase ambiguity.",
-        tool: pickTool("payjoin", ctx.walletGuess),
+        tools: PAYJOIN_TOOLS,
         guideLink: "/guide#payjoin-v2",
       },
       null,
@@ -221,7 +228,7 @@ export function selectRecommendations(
           "In basic transactions, change is easily identifiable by heuristics. " +
           "Participate in collaborative transactions between sender and receiver " +
           "(PayJoin/Stowaway) to make external analysis significantly harder.",
-        tool: pickTool("payjoin", ctx.walletGuess),
+        tools: PAYJOIN_TOOLS,
         guideLink: "/guide#payjoin-v2",
       },
       null,
@@ -256,7 +263,7 @@ export function selectRecommendations(
         detailDefault:
           "Use change individually - spend it totally or use it in collaborative " +
           "transactions like PayJoin as a receiver to make analysis harder.",
-        tool: pickTool("payjoin", ctx.walletGuess),
+        tools: PAYJOIN_TOOLS,
         guideLink: "/guide#payjoin-v2",
       },
       null,
@@ -277,7 +284,7 @@ export function selectRecommendations(
           headlineDefault: "Increase transaction entropy with collaborative payments",
           detailKey: "primaryRec.lowEntropy.detail",
           detailDefault: "Add complexity with collaborative payments: PayJoin/Stowaway or Stonewall.",
-          tool: pickTool("payjoin", ctx.walletGuess),
+          tools: PAYJOIN_TOOLS,
           guideLink: "/guide#stonewall",
         },
         null,
@@ -420,10 +427,6 @@ function pickTool(
       if (w.includes("ashigaru")) return undefined;
       return { name: "Sparrow Wallet", url: "https://sparrowwallet.com" };
     case "payjoin":
-      // Recommend a PayJoin/Stowaway wallet the user doesn't already have
-      if (w.includes("cake")) return { name: "Bull Bitcoin", url: "https://www.bullbitcoin.com/wallet" };
-      if (w.includes("bull")) return { name: "Cake Wallet", url: "https://cakewallet.com" };
-      if (w.includes("ashigaru") || w.includes("samourai")) return { name: "Cake Wallet", url: "https://cakewallet.com" };
       return { name: "Cake Wallet", url: "https://cakewallet.com" };
     case "lightning":
       return { name: "Phoenix", url: "https://phoenix.acinq.co" };
