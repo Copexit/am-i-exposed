@@ -128,19 +128,19 @@ Click sounds on expand, whoosh on auto-trace hop, chime on completion. Web Audio
 
 ## 7. Implementation Priority
 
-| Priority | Item | Effort | Impact |
-|----------|------|--------|--------|
-| P0 (done) | Edge tooltip scroll fix | S | Critical |
-| P0 (done) | Tooltip-sidebar redundancy | S | High |
-| P0 (done) | Color conflicts | S | High |
-| P0 (done) | Edge/dust visibility | S | Medium |
-| P1 | Focus mode spotlight | M | Very High |
-| P1 | Node badge reorganization | S | Medium |
-| P1 | Ambient grid background | S | High (feel) |
-| P2 | Edge flow particles | M | High (wow) |
-| P2 | Node expand morphing | M | Medium |
-| P2 | Legend as popover | S | Medium |
-| P3 | Glow auras | M | Medium |
-| P3 | Time travel slider | L | Medium |
-| P3 | Privacy ripple animation | M | Medium |
-| P4 | Sound design | M | Low-Medium |
+| Priority | Item | Effort | Impact | Status |
+|----------|------|--------|--------|--------|
+| P0 | Edge tooltip scroll fix | S | Critical | DONE |
+| P0 | Tooltip-sidebar redundancy | S | High | DONE |
+| P0 | Color conflicts | S | High | DONE |
+| P0 | Edge/dust visibility | S | Medium | DONE |
+| P1 | Focus mode spotlight | M | Very High | DONE |
+| P1 | Node badge reorganization | S | Medium | DONE |
+| P1 | Ambient grid background | S | High (feel) | DONE |
+| P2 | Edge flow particles | M | High (wow) | DONE |
+| P2 | Node expand morphing | M | Medium | DONE |
+| P2 | Legend as popover | S | Medium | DONE |
+| P3 | Glow auras | M | Medium | DONE |
+| P3 | Time travel slider | L | Medium | DONE |
+| P3 | Privacy ripple animation | M | Medium | DONE |
+| P4 | Sound design | M | Low-Medium | DONE |
