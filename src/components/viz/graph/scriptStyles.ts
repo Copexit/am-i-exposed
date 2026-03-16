@@ -77,7 +77,7 @@ export function getLockTimeRx(version: number): number {
  *  Light = locktime 0 (stands out), dark = locktime != 0 (common/subdued). */
 export function getVersionFill(locktime: number): string {
   const s = getSurfaceColors();
-  return locktime === 0 ? s.surfaceElevated : s.cardBorder;
+  return locktime === 0 ? s.cardBorder : s.surfaceInset;
 }
 
 // ─── Script type legend data ────────────────────────────────────

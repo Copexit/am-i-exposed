@@ -529,15 +529,15 @@ export function GraphExplorer(props: GraphExplorerProps) {
               <div className="font-medium text-muted uppercase tracking-wider text-[9px] mt-1">Fingerprint</div>
               <div className="flex flex-col gap-0.5">
                 <span className="flex items-center gap-1.5">
-                  <span className="inline-block w-2.5 h-2.5 rounded shrink-0" style={{ background: "var(--card-border)", border: "1px solid var(--overlay-border)" }} />
-                  <span className="text-muted">v2, lock!=0</span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="inline-block w-2.5 h-2.5 rounded shrink-0" style={{ background: "var(--surface-elevated)", border: "1px solid var(--overlay-border)" }} />
+                  <span className="inline-block w-3.5 h-2.5 shrink-0" style={{ background: "var(--card-border)", border: "1.5px solid var(--muted)", borderRadius: 4 }} />
                   <span className="text-muted">v2, lock=0</span>
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="inline-block w-2.5 h-2.5 shrink-0" style={{ background: "var(--surface-elevated)", border: "1px solid var(--overlay-border)", borderRadius: 0 }} />
+                  <span className="inline-block w-3.5 h-2.5 shrink-0" style={{ background: "var(--surface-inset)", border: "1.5px solid var(--muted)", borderRadius: 4 }} />
+                  <span className="text-muted">v2, lock!=0</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block w-3.5 h-2.5 shrink-0" style={{ background: "var(--card-border)", border: "1.5px solid var(--muted)", borderRadius: 0 }} />
                   <span className="text-muted">v1, lock=0</span>
                 </span>
               </div>
