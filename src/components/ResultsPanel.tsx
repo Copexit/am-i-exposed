@@ -126,8 +126,10 @@ export const ResultsPanel = memo(function ResultsPanel({
       && f.id !== "chain-trace-summary",
   );
 
-  // Split findings into three severity tiers for progressive disclosure
-  const issues = visibleFindings.filter((f) => f.severity === "critical" || f.severity === "high");
+  // Split findings into severity tiers for progressive disclosure
+  const criticalFindings = visibleFindings.filter((f) => f.severity === "critical");
+  const highFindings = visibleFindings.filter((f) => f.severity === "high");
+  const issues = [...criticalFindings, ...highFindings];
   const details = visibleFindings.filter((f) => f.severity === "medium" || f.severity === "low");
   const strengths = visibleFindings.filter((f) => f.severity === "good");
 
@@ -189,6 +191,11 @@ export const ResultsPanel = memo(function ResultsPanel({
         </motion.div>
       )}
 
+      {/* Critical findings - immediately after the flow chart */}
+      {criticalFindings.length > 0 && (
+        <FindingsSection issues={criticalFindings} visibleFindings={visibleFindings} onTxClick={onScan} delay={0.17} proMode={proMode} />
+      )}
+
       {/* Transaction Graph (cypherpunk only, right after tx flow chart) */}
       {proMode && inputType === "txid" && txData && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.18 }} className="w-full">
@@ -207,8 +214,10 @@ export const ResultsPanel = memo(function ResultsPanel({
         </motion.div>
       )}
 
-      {/* Findings */}
-      <FindingsSection issues={issues} visibleFindings={visibleFindings} onTxClick={onScan} delay={0.2} proMode={proMode} />
+      {/* Remaining findings (high severity + below, critical already shown above flow chart) */}
+      {highFindings.length > 0 && (
+        <FindingsSection issues={highFindings} visibleFindings={visibleFindings} onTxClick={onScan} delay={0.2} proMode={proMode} />
+      )}
 
       {/* Deep Analysis - Taint + Linkability (cypherpunk only, no GraphExplorer - moved above) */}
       {proMode && inputType === "txid" && (
