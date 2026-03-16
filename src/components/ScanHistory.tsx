@@ -107,6 +107,8 @@ export const ScanHistory = memo(function ScanHistory({
     }
     return arr;
   });
+  const [showAllExamples, setShowAllExamples] = useState(false);
+  const PREVIEW_COUNT = 4;
 
   return (
     <motion.div
@@ -294,15 +296,15 @@ export const ScanHistory = memo(function ScanHistory({
       )}
 
       {tab === "examples" && (
-        <div role="tabpanel" id="panel-examples" aria-labelledby="tab-examples" className="relative">
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            {shuffledExamples.map((ex) => (
+        <div role="tabpanel" id="panel-examples" aria-labelledby="tab-examples">
+          <div className="flex flex-wrap gap-2">
+            {(showAllExamples ? shuffledExamples : shuffledExamples.slice(0, PREVIEW_COUNT)).map((ex) => (
               <button
                 key={ex.input}
                 onClick={() => onSelect(ex.input)}
-                className="inline-flex items-center gap-2 px-4 py-3 sm:py-2 rounded-lg bg-surface-elevated/50
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-surface-elevated/50
                   border border-card-border hover:border-bitcoin/40 hover:bg-surface-elevated
-                  transition-all text-sm cursor-pointer group shrink-0"
+                  transition-all text-sm cursor-pointer group"
               >
                 <span className="text-muted group-hover:text-foreground transition-colors whitespace-nowrap">
                   {t(ex.labelKey, { defaultValue: ex.labelDefault })}
@@ -312,8 +314,15 @@ export const ScanHistory = memo(function ScanHistory({
                 </span>
               </button>
             ))}
+            {!showAllExamples && shuffledExamples.length > PREVIEW_COUNT && (
+              <button
+                onClick={() => setShowAllExamples(true)}
+                className="self-center text-xs text-muted hover:text-foreground transition-colors cursor-pointer px-2 py-1"
+              >
+                Show all {shuffledExamples.length} examples
+              </button>
+            )}
           </div>
-          <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-background to-transparent" />
         </div>
       )}
     </motion.div>
