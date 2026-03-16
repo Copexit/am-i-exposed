@@ -19,9 +19,9 @@ interface GraphToolbarProps {
   onCycleEdgeMode: () => void;
   onUndo: () => void;
   onReset: () => void;
-  /** Smart view toggle */
-  smartView?: boolean;
-  onToggleSmartView?: () => void;
+  /** Whether the detail sidebar is enabled. */
+  sidebarEnabled?: boolean;
+  onToggleSidebar?: () => void;
   /** Fullscreen-specific: omitted in inline mode */
   onExpandFullscreen?: () => void;
   /** Fullscreen-specific zoom controls */
@@ -44,8 +44,8 @@ export function GraphToolbar({
   onCycleEdgeMode,
   onUndo,
   onReset,
-  smartView,
-  onToggleSmartView,
+  sidebarEnabled,
+  onToggleSidebar,
   onExpandFullscreen,
   onZoomIn,
   onZoomOut,
@@ -59,10 +59,10 @@ export function GraphToolbar({
       <div className="flex items-center gap-2 text-sm font-medium text-foreground/70 min-w-0">
         <GraphIcon />
         <span className="truncate">{t("graphExplorer.title", { defaultValue: "Transaction Graph" })}</span>
-        <span className={`text-xs font-normal hidden sm:inline ${atCapacity ? "text-amber-400" : "text-muted"}`}>
+        <span className={`text-xs font-normal hidden sm:inline ${atCapacity ? "text-severity-medium" : "text-muted"}`}>
           {t("graphExplorer.nodeCount", { count: nodeCount, max: maxNodes, defaultValue: "({{count}}/{{max}} nodes)" })}
           {hiddenCount > 0 && (
-            <span className="ml-1 text-muted/50">
+            <span className="ml-1 text-muted/70">
               ({hiddenCount} {t("graphExplorer.hidden", { defaultValue: "hidden" })})
             </span>
           )}
@@ -70,24 +70,6 @@ export function GraphToolbar({
       </div>
 
       <div className="flex items-center gap-1.5 shrink-0">
-        {/* Smart view toggle */}
-        {onToggleSmartView && (
-          <button
-            onClick={onToggleSmartView}
-            className={`text-xs transition-colors px-2 py-1 rounded border cursor-pointer ${
-              smartView
-                ? "text-green-400 border-green-400/30 bg-green-400/10"
-                : "text-white/50 hover:text-white/80 border-white/10"
-            }`}
-            title={smartView ? "Smart view: showing only relevant nodes" : "Showing all nodes"}
-          >
-            <span className="flex items-center gap-1">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></svg>
-              <span className="hidden sm:inline">{smartView ? "Smart" : "All"}</span>
-            </span>
-          </button>
-        )}
-
         {/* Heat map toggle */}
         <button
           onClick={onToggleHeatMap}
@@ -113,7 +95,7 @@ export function GraphToolbar({
           onClick={onToggleFingerprint}
           className={`text-xs transition-colors px-2 py-1 rounded border cursor-pointer ${
             fingerprintMode
-              ? "text-purple-400 border-purple-400/30 bg-purple-400/10"
+              ? "text-purple-500 border-purple-500/30 bg-purple-500/10"
               : "text-muted hover:text-foreground border-card-border"
           }`}
           title="Fingerprint mode - encode locktime, version, and script types"
@@ -131,7 +113,7 @@ export function GraphToolbar({
             edgeMode === "linkability"
               ? "text-bitcoin border-bitcoin/30 bg-bitcoin/10"
               : edgeMode === "entropy"
-                ? "text-green-400 border-green-400/30 bg-green-400/10"
+                ? "text-severity-good border-severity-good/30 bg-severity-good/10"
                 : "text-muted hover:text-foreground border-card-border"
           }`}
           title={edgeMode === "default"
@@ -152,6 +134,24 @@ export function GraphToolbar({
           </span>
         </button>
 
+        {/* Sidebar toggle */}
+        {onToggleSidebar && (
+          <button
+            onClick={onToggleSidebar}
+            className={`text-xs transition-colors px-2 py-1 rounded border cursor-pointer ${
+              sidebarEnabled
+                ? "text-muted hover:text-foreground border-card-border"
+                : "text-muted/50 border-card-border/50 bg-surface-inset line-through"
+            }`}
+            title={sidebarEnabled ? "Hide detail sidebar" : "Show detail sidebar"}
+          >
+            <span className="flex items-center gap-1">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M15 3v18" /></svg>
+              <span className="hidden sm:inline">Sidebar</span>
+            </span>
+          </button>
+        )}
+
         {/* Undo */}
         <button
           onClick={onUndo}
@@ -159,7 +159,7 @@ export function GraphToolbar({
           className={`text-xs transition-colors px-2 py-1 rounded border border-card-border ${
             canUndo
               ? "text-muted hover:text-foreground cursor-pointer"
-              : "text-muted/30 cursor-not-allowed"
+              : "text-muted/50 cursor-not-allowed"
           }`}
           title={t("common.undo", { defaultValue: "Undo" })}
         >
@@ -186,7 +186,7 @@ export function GraphToolbar({
         {/* Fullscreen zoom controls */}
         {onZoomIn && onZoomOut && (
           <>
-            <span className="text-muted/30 hidden sm:inline">|</span>
+            <span className="text-muted/50 hidden sm:inline">|</span>
             <button
               onClick={onZoomIn}
               className="text-xs text-muted hover:text-foreground transition-colors px-1.5 py-1 rounded border border-card-border cursor-pointer"

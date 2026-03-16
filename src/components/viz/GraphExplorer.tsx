@@ -51,6 +51,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
   const [selectedNode, setSelectedNode] = useState<{ txid: string; x: number; y: number } | null>(null);
   const [focusedNode, setFocusedNode] = useState<string | null>(null);
   const [filter, setFilter] = useState<NodeFilter>({ showCoinJoin: true, showEntity: true, showStandard: true });
+  const [sidebarEnabled, setSidebarEnabled] = useState(true);
 
   // View transform for fullscreen pan/zoom
   const [viewTransform, setViewTransform] = useState<ViewTransform | undefined>(undefined);
@@ -140,8 +141,8 @@ export function GraphExplorer(props: GraphExplorerProps) {
     });
   }, [props.nodes]);
 
-  // Sidebar visible when a node is expanded
-  const sidebarTx = props.expandedNodeTxid ? props.nodes.get(props.expandedNodeTxid)?.tx : undefined;
+  // Sidebar visible when a node is expanded AND sidebar is enabled
+  const sidebarTx = sidebarEnabled && props.expandedNodeTxid ? props.nodes.get(props.expandedNodeTxid)?.tx : undefined;
 
   // ─── Boltzmann cache (on-demand computation for any node) ──────
   const boltzmannCacheRef = useRef<Map<string, BoltzmannWorkerResult>>(new Map());
@@ -433,6 +434,16 @@ export function GraphExplorer(props: GraphExplorerProps) {
     onCycleEdgeMode: cycleEdgeMode,
     onUndo: props.onUndo,
     onReset: props.onReset,
+    sidebarEnabled,
+    onToggleSidebar: () => {
+      setSidebarEnabled((prev) => {
+        if (prev && props.expandedNodeTxid && props.onToggleExpand) {
+          // Closing sidebar: also collapse the expanded node
+          props.onToggleExpand(props.expandedNodeTxid);
+        }
+        return !prev;
+      });
+    },
   };
 
   // ─── Legend (clickable filters) ────────────────────────
@@ -560,6 +571,8 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
   const canvasProps = {
     ...props,
+    // When sidebar is disabled, suppress the toggle so clicking nodes doesn't open it
+    onToggleExpand: sidebarEnabled ? props.onToggleExpand : undefined,
     tooltip,
     scrollRef,
     filter,
