@@ -1,6 +1,7 @@
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import { getSpendableOutputs } from "../heuristics/tx-utils";
+import { isCoinJoinTx } from "../heuristics/coinjoin";
 import { roundTo } from "@/lib/format";
 
 /**
@@ -162,6 +163,8 @@ export function buildLinkabilityMatrix(
   const averageAmbiguity = Math.round((1 - avgMaxProb) * 100) / 100;
 
   // Generate findings
+  const isCJ = isCoinJoinTx(tx);
+
   if (deterministicLinks > 0) {
     findings.push({
       id: "linkability-deterministic",
@@ -172,9 +175,10 @@ export function buildLinkabilityMatrix(
         `Linkability analysis found ${deterministicLinks} input-output pair(s) with near-certain ` +
         "connections. An analyst can determine with high confidence which input funded " +
         "which output, breaking transaction privacy.",
-      recommendation:
-        "Use CoinJoin to break deterministic links. Transactions with equal outputs " +
-        "(Whirlpool, WabiSabi) create maximum ambiguity in the linkability matrix.",
+      recommendation: isCJ
+        ? "Despite the CoinJoin structure, some links remain deterministic. This may indicate a sub-optimal mix or change outputs that reduce anonymity."
+        : "Use CoinJoin to break deterministic links. Transactions with equal outputs " +
+          "(Whirlpool, WabiSabi) create maximum ambiguity in the linkability matrix.",
       scoreImpact: -3 * Math.min(deterministicLinks, 3),
       params: { deterministicLinks, totalPairs: nIn * nOut },
     });
@@ -188,9 +192,10 @@ export function buildLinkabilityMatrix(
         `The linkability matrix shows ${Math.round(averageAmbiguity * 100)}% average ambiguity ` +
         "across all input-output pairs. This means an analyst has significant uncertainty " +
         "about which input funded which output.",
-      recommendation:
-        "Good transaction privacy. For even stronger ambiguity, use CoinJoin or increase " +
-        "the number of inputs and outputs.",
+      recommendation: isCJ
+        ? "Excellent CoinJoin privacy. The linkability matrix confirms high ambiguity across all input-output pairs."
+        : "Good transaction privacy. For even stronger ambiguity, use CoinJoin or increase " +
+          "the number of inputs and outputs.",
       scoreImpact: 2,
       params: { ambiguity: averageAmbiguity },
     });
