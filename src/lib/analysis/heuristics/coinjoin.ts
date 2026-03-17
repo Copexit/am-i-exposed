@@ -105,11 +105,16 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
       allOutputCounts.set(o.value, (allOutputCounts.get(o.value) ?? 0) + 1);
     }
     const denomTiers = [...allOutputCounts.entries()].filter(([, c]) => c >= 2);
-    // JoinMarket: one dominant denomination tier. Secondary tiers from coincidental
-    // equal change amounts don't disqualify - only the primary tier matters.
-    // WabiSabi has many tiers of intentionally similar size.
-    const isDominantSingleDenom = denomTiers.length === 1 ||
-      (denomTiers.length >= 2 && count >= 2 * denomTiers.filter(([v]) => v !== denomination).reduce((sum, [, c]) => sum + c, 0));
+    // JoinMarket: one dominant denomination tier with distinct change values.
+    // In JM, each maker's change = input - denomination - fee, so change values
+    // are always distinct. If non-denomination outputs form a large equal group
+    // (3+), this is a multi-tier CoinJoin, not maker/taker JoinMarket.
+    const nonDenomTiers = denomTiers.filter(([v]) => v !== denomination);
+    const hasLargeSecondaryTier = nonDenomTiers.some(([, c]) => c >= 3);
+    const isDominantSingleDenom = !hasLargeSecondaryTier && (
+      denomTiers.length === 1 ||
+      (denomTiers.length >= 2 && count >= 2 * nonDenomTiers.reduce((sum, [, c]) => sum + c, 0))
+    );
 
     if (isDominantSingleDenom && count < total) {
       // Large JoinMarket CoinJoin: 10+ in/out, single denomination + change outputs.

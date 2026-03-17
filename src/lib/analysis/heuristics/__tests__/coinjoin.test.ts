@@ -235,6 +235,73 @@ describe("analyzeCoinJoin", () => {
     expect(findings.find((f) => f.id === "h4-stonewall")).toBeUndefined();
   });
 
+  // ── Multi-tier CoinJoin (not JoinMarket) ─────────────────────────────
+
+  it("classifies handcrafted CoinJoin with 2 tiers of equal outputs as generic CoinJoin, not JoinMarket", () => {
+    // Tx a60fcc1d: 278 identical inputs (5M sats each), 16 outputs:
+    // 12 x 100M (1 BTC) + 4 x 47,495,125. Pre-split and recombined.
+    // Not JoinMarket: no maker/taker structure, "change" outputs are all equal.
+    const tx = makeTx({
+      vin: Array.from({ length: 278 }, (_, i) =>
+        makeVin({
+          txid: String(i).padStart(64, "f"),
+          prevout: {
+            scriptpubkey: "",
+            scriptpubkey_asm: "",
+            scriptpubkey_type: "v0_p2wpkh",
+            scriptpubkey_address: `bc1qfake${String(i).padStart(33, "0")}`,
+            value: 5_000_000,
+          },
+        }),
+      ),
+      vout: [
+        ...Array.from({ length: 12 }, (_, i) =>
+          makeVout({ value: 100_000_000, scriptpubkey_address: `bc1qout${String(i).padStart(34, "0")}` }),
+        ),
+        ...Array.from({ length: 4 }, (_, i) =>
+          makeVout({ value: 47_495_125, scriptpubkey_address: `bc1qchg${String(i).padStart(34, "0")}` }),
+        ),
+      ],
+      fee: 19_500,
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    // Should be generic CoinJoin (h4-coinjoin), NOT JoinMarket
+    expect(findings.find((f) => f.id === "h4-coinjoin")).toBeDefined();
+    expect(findings.find((f) => f.id === "h4-joinmarket")).toBeUndefined();
+  });
+
+  it("still classifies single-tier + distinct changes as JoinMarket", () => {
+    // Real JM pattern: 10 equal outputs + distinct change values
+    const tx = makeTx({
+      vin: Array.from({ length: 10 }, (_, i) =>
+        makeVin({
+          txid: String(i).padStart(64, "c"),
+          prevout: {
+            scriptpubkey: "",
+            scriptpubkey_asm: "",
+            scriptpubkey_type: "v0_p2wpkh",
+            scriptpubkey_address: `bc1qmaker${String(i).padStart(31, "0")}`,
+            value: 1_500_000 + i * 100_000,
+          },
+        }),
+      ),
+      vout: [
+        ...Array.from({ length: 10 }, (_, i) =>
+          makeVout({ value: 1_000_000, scriptpubkey_address: `bc1qcj${String(i).padStart(35, "0")}` }),
+        ),
+        // Distinct change values (each maker's residual is different)
+        makeVout({ value: 490_000 }),
+        makeVout({ value: 580_000 }),
+        makeVout({ value: 690_000 }),
+        makeVout({ value: 780_000 }),
+      ],
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    const jm = findings.find((f) => f.id === "h4-joinmarket");
+    expect(jm).toBeDefined();
+    expect(jm!.scoreImpact).toBe(25);
+  });
+
   // ── Edge cases ───────────────────────────────────────────────────────
 
   it("returns empty for < 2 inputs", () => {
