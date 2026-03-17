@@ -345,11 +345,12 @@ describe("Wallet-aware tool selection (pickTool)", () => {
     expect(primary.tool).toBeUndefined();
   });
 
-  it("coin-control: unknown wallet gets Sparrow", () => {
+  it("coin-control: recommends Sparrow, Bitkit, and Ashigaru", () => {
     const [primary] = selectRecommendations(
       ctx([f("h3-cioh", { scoreImpact: -5, params: { inputCount: 4 } })]),
     );
-    expect(primary.tool?.name).toBe("Sparrow Wallet");
+    expect(primary.tools).toHaveLength(3);
+    expect(primary.tools?.[0].name).toBe("Sparrow Wallet");
   });
 
   it("payjoin: recommends all three collaborative payment wallets", () => {
@@ -360,10 +361,10 @@ describe("Wallet-aware tool selection (pickTool)", () => {
     expect(primary.tools?.map((t) => t.name)).toEqual(["Cake Wallet", "Bull Bitcoin", "Ashigaru (Stowaway)"]);
   });
 
-  it("lightning: recommends Phoenix, Zeus, and Blixt", () => {
+  it("lightning: recommends Phoenix, Bitkit, Zeus, and Blixt", () => {
     const [primary] = selectRecommendations(ctx([f("h1-round-amount")]));
-    expect(primary.tools).toHaveLength(3);
-    expect(primary.tools?.map((t) => t.name)).toEqual(["Phoenix", "Zeus", "Blixt"]);
+    expect(primary.tools).toHaveLength(4);
+    expect(primary.tools?.map((t) => t.name)).toEqual(["Phoenix", "Bitkit", "Zeus", "Blixt"]);
   });
 });
 

@@ -30,8 +30,15 @@ export interface RecommendationContext {
  */
 const LIGHTNING_TOOLS = [
   { name: "Phoenix", url: "https://phoenix.acinq.co" },
+  { name: "Bitkit", url: "https://bitkit.to" },
   { name: "Zeus", url: "https://zeusln.com" },
   { name: "Blixt", url: "https://blixtwallet.com" },
+];
+
+const COIN_CONTROL_TOOLS = [
+  { name: "Sparrow Wallet", url: "https://sparrowwallet.com" },
+  { name: "Bitkit", url: "https://bitkit.to" },
+  { name: "Ashigaru", url: "https://ashigaru.rs" },
 ];
 
 const PAYJOIN_TOOLS = [
@@ -237,7 +244,7 @@ export function selectRecommendations(
           "Every time you consolidate, you reveal additional information about your economic activity to everyone who sent you each coin joined in this transaction. " +
           "Choose a single UTXO that covers the payment. " +
           "If you must consolidate, do it with coins from the same origin.",
-        tool: pickTool("coin-control", ctx.walletGuess),
+        tools: COIN_CONTROL_TOOLS,
         guideLink: "/guide#coin-control",
       },
       secondary,
@@ -463,7 +470,7 @@ export function selectRecommendations(
 
 /** Pick the most relevant tool, avoiding what the user already has. */
 function pickTool(
-  need: "wallet-switch" | "coin-control",
+  need: "wallet-switch",
   walletGuess: string | null,
 ): { name: string; url: string } | undefined {
   const w = walletGuess?.toLowerCase() ?? "";
@@ -472,10 +479,6 @@ function pickTool(
     case "wallet-switch":
       if (w.includes("sparrow")) return { name: "Ashigaru", url: "https://ashigaru.rs" };
       if (w.includes("ashigaru")) return { name: "Sparrow Wallet", url: "https://sparrowwallet.com" };
-      return { name: "Sparrow Wallet", url: "https://sparrowwallet.com" };
-    case "coin-control":
-      if (w.includes("sparrow")) return undefined; // already has it
-      if (w.includes("ashigaru")) return undefined;
       return { name: "Sparrow Wallet", url: "https://sparrowwallet.com" };
   }
 }
