@@ -1963,5 +1963,13 @@
   "primaryRec.bGrade.detail": "CoinJoin, PayJoin oder Lightning für stärkere Privatsphäre in Betracht ziehen.",
   "primaryRec.bGrade.detailCJ": "Guter Mix. Post-Mix jeweils ein UTXO ausgeben und vollständige Konsolidierung vermeiden.",
   "primaryRec.fallback.headline": "Die obigen Ergebnisse auf spezifische Verbesserungen prüfen",
-  "primaryRec.fallback.detail": "Jedes Ergebnis auf gezielte Empfehlungen prüfen."
+  "primaryRec.fallback.detail": "Jedes Ergebnis auf gezielte Empfehlungen prüfen.",
+
+  "learnMore.addressReuse": "Warum Adresswiederverwendung gefährlich ist",
+  "learnMore.changeDetection": "Wie Wechselgelderkennung funktioniert",
+  "learnMore.selfSend": "Wechselgelderkennung erklärt",
+  "learnMore.cioh": "Heuristik des gemeinsamen Eingabebesitzes",
+  "learnMore.dustAttack": "Was ist ein Dust-Angriff?",
+  "learnMore.coinjoin": "Wie CoinJoin die Privatsphäre verbessert",
+  "learnMore.entropy": "Transaktionsentropie erklärt"
 }

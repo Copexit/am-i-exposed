@@ -1963,5 +1963,13 @@
   "primaryRec.bGrade.detail": "Considere CoinJoin, PayJoin ou Lightning para privacidade mais forte.",
   "primaryRec.bGrade.detailCJ": "Boa mistura. Gaste pos-mix um UTXO por vez e evite consolidacao total.",
   "primaryRec.fallback.headline": "Revise as descobertas acima para melhorias especificas",
-  "primaryRec.fallback.detail": "Verifique cada descoberta para recomendacoes direcionadas."
+  "primaryRec.fallback.detail": "Verifique cada descoberta para recomendacoes direcionadas.",
+
+  "learnMore.addressReuse": "Por que a reutilização de endereços é perigosa",
+  "learnMore.changeDetection": "Como funciona a detecção de troco",
+  "learnMore.selfSend": "Detecção de troco explicada",
+  "learnMore.cioh": "Heurística de propriedade comum de entradas",
+  "learnMore.dustAttack": "O que é um ataque de poeira?",
+  "learnMore.coinjoin": "Como CoinJoin melhora a privacidade",
+  "learnMore.entropy": "Entropia de transações explicada"
 }
