@@ -1,0 +1,117 @@
+address,entity,source
+# Binance - additional cold wallet and reserve addresses
+# 3LYJfcfHPXYJreMsASk2jkn69LWEYKzexb: Binance BTCB Reserve wallet (confirmed by Binance 2019 announcement, bitinfocharts labeled)
+3LYJfcfHPXYJreMsASk2jkn69LWEYKzexb,Binance,bitinfocharts-labeled
+# 3KnZmJohDM8tmmkwUax9JHXpaQPK28Ja8s: Binance cold wallet (bitinfocharts Binance-coldwallet cluster, GitHub exchange gist)
+3KnZmJohDM8tmmkwUax9JHXpaQPK28Ja8s,Binance,bitinfocharts-labeled
+# 3FrSzikNqBgikWgTHixywhXcx57q6H6rHC: Binance cold wallet (bitinfocharts Binance-coldwallet cluster, GitHub exchange gist)
+3FrSzikNqBgikWgTHixywhXcx57q6H6rHC,Binance,bitinfocharts-labeled
+# WalletExplorer.com Binance.com cluster - machine-learning-based wallet clustering
+bc1qcgmpzx2pww9h3g9slxwzjqrztv7fy4t0lkye99,Binance,walletexplorer-cluster
+bc1qkcwwnsjtfp4snqyytxayjp9lctmj9z3ntcxaka,Binance,walletexplorer-cluster
+bc1q9um04kmt2ej5svsep9a7akvnckx3h6t3yqn8lh,Binance,walletexplorer-cluster
+bc1q3gvwrz86ull0p9hjs5k8sza3fpgfhsxhhz830x,Binance,walletexplorer-cluster
+bc1qaeav2hk5u2yn73st0fqkxp6zedefld6vyf04hz,Binance,walletexplorer-cluster
+bc1q4s0s7anxtydjmarh30p3xenm03h3c6k6qq7yzw,Binance,walletexplorer-cluster
+bc1q2r3snw3hyj9c6pc8ec5367dnfhhqzcy44jv9xs,Binance,walletexplorer-cluster
+bc1qe492vdgzwmlpgffgjjqgevwdf2ew257wqyex4s,Binance,walletexplorer-cluster
+bc1qqewsrjuue4kw9nkzff5v8fdd9qdc0cg3jllv6l,Binance,walletexplorer-cluster
+bc1qp2tm408z8mcdndw738mkyvudrspc5z56z29667,Binance,walletexplorer-cluster
+bc1q7vcewmnn0dh3kwkv2m3n6skrhmf60ch4e0j7ka,Binance,walletexplorer-cluster
+bc1q3h3yd4nuq3mgkdx38hephtqj5s84akl3emq9np,Binance,walletexplorer-cluster
+bc1q57z0d30nazzc84khpj69x4ajulv674sj2g9xjl,Binance,walletexplorer-cluster
+bc1qhf64z522aqc2mch79y3g74sc9yt5qzey7u0g4k,Binance,walletexplorer-cluster
+bc1qvk3rkrjepztn0ctk56n6gynjy7ysyx33hptdxx,Binance,walletexplorer-cluster
+bc1qaq4v5wfffquvcmj4he3786ex5vtxnt9p3p9kdu,Binance,walletexplorer-cluster
+bc1qdsrqvzfh2s330ggf7n9l86xkmxcjah3rhxu4k4,Binance,walletexplorer-cluster
+bc1quvzhed9dk6hh8y86kjptswwm32304jchps7xwr,Binance,walletexplorer-cluster
+bc1qvgv6e8jrp4ratrsudf7zv4ldq8gct88rjxt2g4,Binance,walletexplorer-cluster
+bc1q5s20mf5pj650dha28xngphq054ntxr4emqcqdg,Binance,walletexplorer-cluster
+bc1qdeu46k8hdg90ely7rgu69jkkhudwhmr26jgvde,Binance,walletexplorer-cluster
+bc1qjs8zg53hdyxd87q6pna9tdujapng44dkvezmp6,Binance,walletexplorer-cluster
+bc1qtaey3dn46n40vlarfzecjctsgah3qe7dj64szl,Binance,walletexplorer-cluster
+bc1qky0qpy7wnjp0k2v8zcrrvu0xnfpfrwdmx6vzpr,Binance,walletexplorer-cluster
+bc1ql42rmpvvq488tkqxvg8wmaa7j3jsrkxgnm8cy6,Binance,walletexplorer-cluster
+bc1qrqlasfl7xd2fmn3ws60jux3d45qn6wn04zg8fn,Binance,walletexplorer-cluster
+bc1q4dwch4fdvm80gtl3qeyen4u045gvkhzm63xkph,Binance,walletexplorer-cluster
+bc1qx3k93wzhypnxdhqev2ny0luz9jgtmg9wtlcuu4,Binance,walletexplorer-cluster
+bc1qkawz79pqpqxushk9y6sm7s3tlvhzaphrzmgake,Binance,walletexplorer-cluster
+# Coinbase - Coinbase Prime hot wallet (Arkham Intelligence labeled)
+3MqUP6G1daVS5YTD8fz3QgwjZortWwxXFd,Coinbase,arkham-labeled
+# Kraken - addresses from WalletExplorer.com Kraken.com cluster and GitHub exchange gist
+# 1AnwDVbwsLBVwRfqN2x9Eo4YEJSPXo2cwG: labeled Kraken in GitHub exchange address gist (f13end)
+1AnwDVbwsLBVwRfqN2x9Eo4YEJSPXo2cwG,Kraken,github-exchange-gist
+# 14eQD1QQb8QFVG8YFwGz7skyzsvBLWLwJS: labeled Kraken in GitHub exchange address gist (f13end)
+14eQD1QQb8QFVG8YFwGz7skyzsvBLWLwJS,Kraken,github-exchange-gist
+# 1A7znRYE24Z6K8MCAKXLmEvuS5ixzvUrjH: labeled Kraken in GitHub exchange address gist (f13end)
+1A7znRYE24Z6K8MCAKXLmEvuS5ixzvUrjH,Kraken,github-exchange-gist
+# WalletExplorer.com Kraken.com cluster addresses
+3QQMoxVLkrvekZSCpR4LMmpRw6enLvU6tV,Kraken,walletexplorer-cluster
+367NrcqcUj6vuSRo4En68XwKsN3Q63o1fD,Kraken,walletexplorer-cluster
+35BubtU2CFcBtjd15FfsDR5RbMJDNbYE7x,Kraken,walletexplorer-cluster
+3G9aRnZUQfy6XXuoLdDZJ7hYvwG3tzxvfi,Kraken,walletexplorer-cluster
+3MXB5MLTqohfq69K4ksMe3Q9mPjjmwnJy9,Kraken,walletexplorer-cluster
+31t26CQpWPcbBJqeK8sngAP4uuhJHmTGFH,Kraken,walletexplorer-cluster
+3Etzd5Kr15jHF7oN4vseg8qav52aMLqmYy,Kraken,walletexplorer-cluster
+3JM34UtPMGHhyEVNW1QP6g4yBBAjYoAG4n,Kraken,walletexplorer-cluster
+3JxGaXNSDmGfpVWXb8tTW2iaexuAE9qPDR,Kraken,walletexplorer-cluster
+3QXL4pDLSSybYtvdcjtdTqAk8Gi5XZYhyR,Kraken,walletexplorer-cluster
+323kUz3rDbQ2egFpHqigAsoSDjFmeSN2fs,Kraken,walletexplorer-cluster
+3PSTcKKvgjfuvWMAmk1Rfg1mJtgpGfyFt5,Kraken,walletexplorer-cluster
+36aYMWj34qBnBFnwGB64QLPtD4QNuDtHDw,Kraken,walletexplorer-cluster
+3QL6t5Qxg66ovhtaqdQo2vS9GmNKEq8iaR,Kraken,walletexplorer-cluster
+3Qfjn3kTGfUM9AfvC5sHy5MDDBmp4DUmAU,Kraken,walletexplorer-cluster
+36fkfiVSMaNRFqJ5CEkaxvGGH5qDFu8FhC,Kraken,walletexplorer-cluster
+3LkeDBEpMnoYZR4QCkC3BDimURmpP7ukbp,Kraken,walletexplorer-cluster
+3Q4zpQjSxRjCeFcwZW2akFj5zyxy6LTy8D,Kraken,walletexplorer-cluster
+36HMJPNF3LYesGJn6Yu9ioqGedQfoC7hbr,Kraken,walletexplorer-cluster
+3HFEdDUhgwRKi3HJs2Xckx7aycgU1cAjDG,Kraken,walletexplorer-cluster
+37iRfyzowgpXfkecc1JdcBBARn4Nbg8e4J,Kraken,walletexplorer-cluster
+35RqJirzPEvT3RnVQ4HyDUAbE9S1zQDdRd,Kraken,walletexplorer-cluster
+39qrLLNP4rYHH7Fo6RKssMLhJZtAD1cwe5,Kraken,walletexplorer-cluster
+3E62AuYGSvdpzVDw5zjD697xd1YvxAS5LH,Kraken,walletexplorer-cluster
+34csQ3d8NJhDHY7Q5JAJAdoFvrq6S4MEu2,Kraken,walletexplorer-cluster
+3532MVGp1Mqrr74JWk9gDDQTnPngE88gts,Kraken,walletexplorer-cluster
+3GBg7Wm3qoQ9phBRDDkHwRaZQwZGsVTFVr,Kraken,walletexplorer-cluster
+3N2KC8kE238nNHdZ5EjSdTxjSBYxnpTP74,Kraken,walletexplorer-cluster
+3QgpUoTRwgmtKymqhitp9yUhFDFatqFxw6,Kraken,walletexplorer-cluster
+# OKX - no additional verified addresses found beyond those in exchange-modern-curated.csv
+# OKX publishes 680,000+ addresses but only via downloadable PoR files requiring authentication
+# Bitfinex - additional address identified as Bitfinex Deposit on blockchain explorers
+bc1qd4ysezhmypwty5dnw7c8nqy5h5nxg0xqsvaefd0qn5kq32vwnwqqgv4rzr,Bitfinex,blockchain-explorer-labeled
+# Bybit - addresses from Hacken-audited proof-of-reserves reports (Nov 2024, Mar 2025)
+bc1qs5vdqkusz4v7qac8ynx0vt9jrekwuupx2fl5udp9jql3sr03z3gsr2mf0f,Bybit,proof-of-reserves
+bc1qa2eu6p5rl9255e3xz7fcgm6snn4wl5kdfh7zpt05qp5fad9dmsys0qjg0e,Bybit,proof-of-reserves
+# Huobi (HTX) - WalletExplorer.com Huobi.com cluster addresses
+19hx1B4pTDsBAYJJYYrj1t6bcVw1e9omuH,Huobi (HTX),walletexplorer-cluster
+16vyeuwbuNz9PKPs4VqqGLsVRJ2G6uJj39,Huobi (HTX),walletexplorer-cluster
+12uuCfvuxeyGhWaEU1sHTbkCN7eWMT7qFp,Huobi (HTX),walletexplorer-cluster
+1NMbcRqggWu75DG5AqZtin5kecdHoDVs3b,Huobi (HTX),walletexplorer-cluster
+1DgcQFeaCQBo41oxtzUuV3caW5TNjXvhLZ,Huobi (HTX),walletexplorer-cluster
+16K4VtKNxcaNkvNvDYiiWjyn1n49irJ8Ep,Huobi (HTX),walletexplorer-cluster
+1FDpmBztMAUvR1Q4JJeb2FnA4VUxUAAtmd,Huobi (HTX),walletexplorer-cluster
+1ko9cGfFxWoUMMZ3MsxuSjRHfLDNgyjr9,Huobi (HTX),walletexplorer-cluster
+1MnkzcBw8prYASnMiJ772ApcEsn1tFtn1A,Huobi (HTX),walletexplorer-cluster
+1CXrs7piiUdDXG1nT8jk43GWqCtPpbQbYu,Huobi (HTX),walletexplorer-cluster
+17WQqNZafGZWWa1zW4LaJ1h7S7qKKER8as,Huobi (HTX),walletexplorer-cluster
+14zzx8PWeXULMp11NmFdk3yuTabME6naBN,Huobi (HTX),walletexplorer-cluster
+1H8casG2e6keyjVGoQeh21oE2UJCtXECSL,Huobi (HTX),walletexplorer-cluster
+1JHsjazLvtpW6MC3AppTK8FtDU79mKeJDg,Huobi (HTX),walletexplorer-cluster
+18FVW8RUVnoHwBGFkRFsf9kyAHJcrcbiuS,Huobi (HTX),walletexplorer-cluster
+1F3GeJi6VesFMkaUF9o81vtJFkTdCs59bC,Huobi (HTX),walletexplorer-cluster
+1NMwkFzhkPRdK1XCH8dKxWmsCDCFFmx8Rq,Huobi (HTX),walletexplorer-cluster
+1BzudAAfaaqtNVUs1ZjFAzSZKoWKSg6NYY,Huobi (HTX),walletexplorer-cluster
+1LvWcQMQS8X5uyX7sSZSkEaUeM1ojYZ6r3,Huobi (HTX),walletexplorer-cluster
+1KXiM8NMPfAHvRdt3ZvUDrFWW1B29i2xr6,Huobi (HTX),walletexplorer-cluster
+1MTKTCg7Xh3yinQ87sjUzp73ES5caET61t,Huobi (HTX),walletexplorer-cluster
+15s6yYhzVsrM29nBi1geaJuBZFGQtMdhA6,Huobi (HTX),walletexplorer-cluster
+12aKRDdkL5Ae3zRVwbs9ywPo4Jfx44GYfd,Huobi (HTX),walletexplorer-cluster
+185ohog3RpD81YnG1p3Eb4DaS4FtU4hHc7,Huobi (HTX),walletexplorer-cluster
+1Crucw3RmmFvNdM35mt5QKC4tbVwWgXDgd,Huobi (HTX),walletexplorer-cluster
+1vdXJDiDSzeUAoM7eAcWZPhM9wEKmH8dG,Huobi (HTX),walletexplorer-cluster
+1HcQVoEFKk9rqU61UnAsKczxkeEj31hE92,Huobi (HTX),walletexplorer-cluster
+1Eb3pnx8LKsu4m7fR6Bt2bBw7wcEiH2erW,Huobi (HTX),walletexplorer-cluster
+1BDvRoPJK2evVhRRWJg3Fhyv7WPpwuiubJ,Huobi (HTX),walletexplorer-cluster
+144jMnE7sagf67e2e1vX9YPX9BhvWSoMnD,Huobi (HTX),walletexplorer-cluster
+# Crypto.com - no additional addresses found beyond proof-of-reserves.csv and exchange-modern-curated.csv
+# Crypto.com disclosed 6 BTC addresses in their "Transparency First" blog post (Nov 2022), all already cataloged

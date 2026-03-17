@@ -1,0 +1,47 @@
+# Targeted web research for high-priority exchanges with thin coverage
+# Generated: 2026-03-11
+# Method: WebSearch + WebFetch across OFAC SDN, OpenSanctions, blockchain forensics reports
+#
+# Sources consulted:
+# - OFAC SDN List (ofac.treasury.gov/recent-actions/20220405, 20250814)
+# - OpenSanctions (opensanctions.org/entities/NK-XQyqxmZPMezqQiDeHoGQjf)
+# - Chainalysis blog (chainalysis.com/blog/russian-exchange-garantex-dismantled)
+# - TRM Labs (trmlabs.com/resources/blog/garantex-grinex-and-the-a7a5-token)
+# - Elliptic (elliptic.co/blog/elliptic-in-action-garantex)
+# - US Treasury press releases (home.treasury.gov/news/press-releases/sb0225)
+# - US Secret Service seizure announcement (secretservice.gov/newsroom/releases/2025/03)
+#
+# Notes on other targets:
+# - FTX: Existing 47 addresses cover known public wallets; FTX stored keys in AWS hot wallets
+#   and made little use of cold storage per bankruptcy debtors. No new BTC addresses found.
+# - Binance US: Operates under BAM Trading; SEC filings show custody key disputes but no
+#   public BTC address disclosures beyond what Binance.com published. No new addresses found.
+# - Celsius: Custody via Fireblocks/BitGo; Ionic Digital mining successor identified by Arkham
+#   but BTC addresses not published in accessible sources. No new addresses found.
+# - Voyager: Commingled wallet structure with Ledger Vault custody; no public BTC addresses
+#   beyond existing 2 in dataset. No new addresses found.
+# - Upbit: "Mr. 100" cold wallet (1Ay8vMC7R1UbyCCZRVULMV7iQpHSAbguJP) already in dataset.
+#   Additional wallets tracked by Arkham/CoinCarp but addresses not accessible. No new found.
+# - Bithumb: 2018 hack involved 1,993 BTC to 70 addresses sent to YoBit; these are hacker
+#   addresses, not Bithumb's own wallets. No new Bithumb addresses found.
+# - Bitget, MEXC: Proof-of-reserves pages require JS rendering; addresses not extractable.
+# - ChangeNOW: Only ETH/EVM hot wallets publicly labeled; no BTC addresses found.
+# - BitMart: Dec 2021 hack was ETH/BSC only, no BTC involvement.
+# - Hotbit: Shutdown May 2023, no public BTC addresses found.
+# - Galaxy Digital: Institutional custody via BitGo; no public BTC wallet disclosures.
+# - Cash App: Individual user addresses rotate per transaction; no corporate BTC addresses public.
+#
+address,entity,source
+
+# Garantex - OFAC-sanctioned Russian exchange (p9)
+# Seized March 2025 by US Secret Service, DOJ, German/Finnish law enforcement
+# Re-designated August 2025 with successor Grinex
+# These addresses are from OFAC SDN designations and OpenSanctions cross-reference
+
+# OFAC SDN designation 2025 - BTC addresses from OpenSanctions consolidated data
+bc1qwtz3zv95x2flu4w26kgfepf529z50r2sqc5zml,Garantex,ofac-opensanctions-2025
+bc1qwxqxd25yk2dtw2ml04vxj9atq3huv4rdytf6vt,Garantex,ofac-opensanctions-2025
+3My1ffQr5qQzmq4aBFgRqwRYqfB5zPAt8t,Garantex,ofac-opensanctions-2025
+
+# OFAC SDN designation 2022 - USDT/Omni address (Bitcoin-format, also processes BTC)
+3E6ZCKRrsdPc35chA9Eftp1h3DLW18NFNV,Garantex,ofac-sdn-list-20220405

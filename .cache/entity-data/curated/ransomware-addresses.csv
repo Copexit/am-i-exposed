@@ -1,0 +1,130 @@
+address,entity,source
+bc1qq2euq8pw950klpjcawuy4uj39ym43hs6cfsegq,DarkSide Ransomware,doj-seizure-affidavit-colonial-pipeline-2021
+bc1qvhnfknw852ephxyc5hm4q520zmvf9maphetc9z,LockBit,ofac-sdn-khoroshev-2024
+bc1qnju697uc83w5u3ykw7luujzupfyf82t6trlnd8,DeadBolt,deadbolt-ransom-note-qnap-2022
+158treVZBGMBThoaympxccPdZPtqUfYrT9,REvil Ransomware,ofac-sdn-list-20211108-polyanin
+389Sft4nJFkPGhbagk9FN4jXncA9piYTuU,REvil Ransomware,ofac-sdn-list-20211108-polyanin
+39Te8MbphSgs7npDJPj2hbNzhke61NTcnB,REvil Ransomware,ofac-sdn-list-20211108-polyanin
+31p6woV4e55HUfC2aGynFhzQnGoJFW26cD,REvil Ransomware,ofac-sdn-list-20211108-polyanin
+3DNsaQnaUz7wkQny1ZDSmtz6QfbEShxoDD,REvil Ransomware,ofac-sdn-list-20211108-polyanin
+3AjyprBY5yhijiCjUC5NUJutGbwhd3AQdE,REvil Ransomware,ofac-sdn-list-20211108-polyanin
+35QpLWYkvD3ALhjbge5bK2kd7HfHYcDMu3,REvil Ransomware,ofac-sdn-list-20211108-vasinskyi
+3NQ1aa9ceirMJ1JvRq3eXefvXj1L639fzX,REvil Ransomware,ofac-sdn-list-20211108-vasinskyi
+3BsyZ7qRFSi3NsaoV1Ff724qAgrEpjVUHm,REvil Ransomware,ofac-sdn-list-20211108-vasinskyi
+372Wk9NLrMkJzKgqJdatWJy4bYRfxFjgat,REvil Ransomware,ofac-sdn-list-20211108-vasinskyi
+# DarkSide Ransomware - Elliptic/RedPacketSecurity/NotATether blockchain analysis (Colonial Pipeline May 2021)
+bc1q7eqww9dmm9p48hx5yz5gcvmncu65w43wfytpsf,DarkSide Ransomware,elliptic-darkside-colonial-pipeline-2021
+bc1qxu83k5qkj8kcqdqqenwzn7khcw4llfykeqwg45,DarkSide Ransomware,notatether-darkside-affiliate-wallet-seized
+bc1qu57hnxf0c65fsdd5kewcsfeag6sljgfhz99zwt,DarkSide Ransomware,notatether-darkside-profit-share-wallet
+bc1q2sewgrnau4e4gvceh8ykzf8lqxawpluu0k0607,DarkSide Ransomware,elliptic-darkside-stolen-funds-wallet
+15WpW77a5zuMYUENyW3tFAvovgjbURBNdc,DarkSide Ransomware,redpacketsecurity-darkside-blackmatter-wallets
+1FysrVjFC8y1exHiSXWfHxWwHqwDEmDGcT,DarkSide Ransomware,redpacketsecurity-darkside-blackmatter-wallets
+12WLsWxC12hDWRAPYdaVCKxu3u5atL9DFc,DarkSide Ransomware,redpacketsecurity-darkside-blackmatter-wallets
+1EPJax1dzPr79yCuGM3BxHNRhpKesYnM4Y,DarkSide Ransomware,redpacketsecurity-darkside-blackmatter-wallets
+122rgzWWjHypxz51XydiuRvzATqYvEFoAk,DarkSide Ransomware,redpacketsecurity-darkside-blackmatter-wallets
+1HjFQLdGP4DFJR1TgXk9WUiGFMoomMmyax,DarkSide Ransomware,redpacketsecurity-darkside-blackmatter-wallets
+1KMV2LUcTJ8KF2chY32ErMtGUWXvRvWfrC,DarkSide Ransomware,redpacketsecurity-darkside-blackmatter-wallets
+16hJwHm4c6M2A6CytimipRDVhUeXVD2QrB,DarkSide Ransomware,redpacketsecurity-darkside-blackmatter-wallets
+bc1q9jy4pq5su9slh56gryydwkk0qjnqxvfwzm7xl6,DarkSide Ransomware,redpacketsecurity-darkside-blackmatter-wallets
+# LockBit - GitHub LockBit-Wallet-Tracker funded wallets (Operation Cronos Feb 2024, FBI/NCA)
+bc1q5tanumnzxuhk0vxkmaqvhqgnq6sf0855trrmjw,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1qr0ynspq5aurj23xqw23uc5sd7xpw5qfy5y98ze,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1qmydvt6xz9rkw36yvw2qztgxexz8dp40pxgklhq,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1q5xt7padm8nmytf8h048uaw6el2vdn0h8fj8ju4,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1qh7lptqnm4zzpvrqxumwtup82qq4htnn2qentxd,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1qx3e4eslyzhclzr4y4yexw3jhyw5n4xe4vakgvt,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1q8980rpzy9f6meq8hur75ept62aug6dfrxnlwc0,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1q5xpf5anwuz75vhlc00g2ec6teu3zvud3axeqcw,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1qthvjqlelj2fkr8d6u06mq27je07j9hek2g0nj2,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1qv4j45knlkeazg0n0ymv3e3rpcv4gc8qqmrhp20,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1qkusslhuvaxjqcyvk8ql5uzgsx9ql5xsmmr5hfj,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1q760tha4qcccvxvxkwvhtzdjpkdsmknr97sel3j,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1qat80jxvlng5gpt2er5ghz42zrd4f3dv36zh5yd,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1q9ks759pfsg7gmrl66qpke8qds4f76l5h822tz9,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1quap6ufkkndyfvmeyksc6pn7swz8l2wgaaexpfq,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1qecwanftfjseh6qe4sxazh8x0p3f54d85hcvukq,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1qgy0tuzle24z7xtn920fd3n37eue2jnp36yn3d2,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1q8jnjgppawydxy6t2fh9k8kjgm4llu7dm03qla7,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1qewexpdxwkr6xu8tnmlg5fye3z7q4menr7c6m8c,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1qv2hgsqdpx84um5epv25l5tlahsyd3dlapnhepp,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1q2ukccvdq2nk7t0n802pms345p48emzsqta5w7p,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1q5979ns9zrhtq8j2znkf59ldmd4nxc4hamuq8ut,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1qk4ssagl307sjwxqk4pcj4ukndup452j5rxmkej,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1qszj958vn26yz0pza7ftq9r5g3edfxayf58d32f,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1qkhmyzj4kswwhrkdrt3ww0v2cvqrzcgh2jvpt8q,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1q8mhmgckl7afmehe4vj7kmej2yxdj2rzft9juk6,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1qewh7r5ytxq6dqrztz6nelleela4akttdn79ktm,LockBit,github-lockbit-wallet-tracker-funded-2025
+bc1qzyrrasx3cgjqme50jfu5kz0xjjheu8smy6del0,LockBit,github-lockbit-wallet-tracker-funded-2025
+# Conti Ransomware - Gray et al. 2023 "Money Over Morals" expanded ransom payment addresses (ContiLeaks)
+bc1q646fx2g833cvtg9t65ldfhswn9f83xg5y9zffx,Conti Ransomware,gray-et-al-conti-payments-2023
+bc1q69htg0wx5vafqmgusxrvgf6cakfd0na6r89ydh,Conti Ransomware,gray-et-al-conti-payments-2023
+bc1q8ylqa3w37hsuel983yygn02qr3crsw75mg9fjd,Conti Ransomware,gray-et-al-conti-payments-2023
+bc1q9w7qwcgf53ntl0x3jcmnr9vmtgnn8memsxsesr,Conti Ransomware,gray-et-al-conti-payments-2023
+bc1qa2eh8yhetqtpsdrzrlxzmz7k6nuqnczap8emv6,Conti Ransomware,gray-et-al-conti-payments-2023
+bc1qe0c3l4ycmslne3kgprrs0wy80rv2w6d8jxy9ev,Conti Ransomware,gray-et-al-conti-payments-2023
+bc1qqyym2t37g2wqdkl8hxytavkv0z64xpd4jn4hkw,Conti Ransomware,gray-et-al-conti-payments-2023
+bc1qrxpu0xur4tg0afd3lddhv4lkmn2f74mrkfs60t,Conti Ransomware,gray-et-al-conti-payments-2023
+bc1qufacauqaudvnnlzdg2y0hnnafsg0utqv5nxc6m,Conti Ransomware,gray-et-al-conti-payments-2023
+bc1qvx6vz8g6q2sgkd0yas83j8mx4xl8kln28mzgmw,Conti Ransomware,gray-et-al-conti-payments-2023
+bc1qyxsf9xckuj7tej5tgvfg09fparxu77tedn7c3j,Conti Ransomware,gray-et-al-conti-payments-2023
+13XELohdTXGbgHpwRrNHMiuKrjA7a9wM2z,Conti Ransomware,gray-et-al-conti-payments-2023
+13sBMhTkri6be75TVQKHqtUo3LuLJRaY8p,Conti Ransomware,gray-et-al-conti-payments-2023
+15pBv8xf2CbqJ1eqphAPyD1XZdMfuioVdU,Conti Ransomware,gray-et-al-conti-payments-2023
+1KUzq13qqefyBoHtiS7J8E9uHhZiRwgxvM,Conti Ransomware,gray-et-al-conti-payments-2023
+329r1HNykiBNtPy1T26esQxn9ubiGN6Gt8,Conti Ransomware,gray-et-al-conti-payments-2023
+32v83CaZtARUD5CJp29YYmjZ91xqMXYywN,Conti Ransomware,gray-et-al-conti-payments-2023
+33WPATuBnYWpVEYJiCCU3B6hiszVCSJkBp,Conti Ransomware,gray-et-al-conti-payments-2023
+34EgpqB3Bo8mANPK8F4R8RDhCWdgxdXFDa,Conti Ransomware,gray-et-al-conti-payments-2023
+34mut8dNvF4p1sd6EQm52pKfRq5JbY1qFd,Conti Ransomware,gray-et-al-conti-payments-2023
+34tseG2mpZKt74FCreL3ozTPFtssSVwbAZ,Conti Ransomware,gray-et-al-conti-payments-2023
+35pQybSCV6KFpTbYhbfWkVHEnxRmHc58TK,Conti Ransomware,gray-et-al-conti-payments-2023
+35tokppmTKjELs5dM8omk4i2kUBQqcn3so,Conti Ransomware,gray-et-al-conti-payments-2023
+36KQWiUJtZsTiezhbPHUBUEo4JBhxCWmkM,Conti Ransomware,gray-et-al-conti-payments-2023
+36jMyHnGEMXPqsBumUGw5WtFFVJSmW4xW4,Conti Ransomware,gray-et-al-conti-payments-2023
+37jp2pP2cxjvJMyLs8KA1upLxmU1KUAUE7,Conti Ransomware,gray-et-al-conti-payments-2023
+37n8nyjh2DSks3vLzbBU8dBTkRgHPnPHSe,Conti Ransomware,gray-et-al-conti-payments-2023
+37x8uirHH9iQxGFQb7TUNU7tw1ub3pg6Gr,Conti Ransomware,gray-et-al-conti-payments-2023
+38dBQTGStT81AXRDxRko5E7mW5jVKms2i6,Conti Ransomware,gray-et-al-conti-payments-2023
+38haT249fW4FXhZF6C3RtKwbUrqVD9jyVP,Conti Ransomware,gray-et-al-conti-payments-2023
+39hXQy1z6DkKEP2LLrg239WgZPRGsmJceC,Conti Ransomware,gray-et-al-conti-payments-2023
+3A2oDZzVPvjJsprHLsyibbMSBGx91vtags,Conti Ransomware,gray-et-al-conti-payments-2023
+3AxLAP33tT1hz4H3R9UemCXPszvExB5eRm,Conti Ransomware,gray-et-al-conti-payments-2023
+3AzYnkxndqvf75qxtk8piTDcpnhjQbLZzQ,Conti Ransomware,gray-et-al-conti-payments-2023
+3BAQ2ZdHXG8D2Qp7hnZ66RPpPevFb6Fer6,Conti Ransomware,gray-et-al-conti-payments-2023
+3BQ36UxEr6diz6KER6rxzbnoEoWfk67Z6b,Conti Ransomware,gray-et-al-conti-payments-2023
+3C6AaqSBPuL8gUviRm6eRASSNyBkFFERUn,Conti Ransomware,gray-et-al-conti-payments-2023
+3DNoMBMzRrm6mp4AE1J9yCwZzms2V87Y5v,Conti Ransomware,gray-et-al-conti-payments-2023
+3DVoasYjENgEoTdPv62anDZATKoc8YF52B,Conti Ransomware,gray-et-al-conti-payments-2023
+3DZN2f85X5W2NNpjw8HTmB63iDKqf7oFjJ,Conti Ransomware,gray-et-al-conti-payments-2023
+3Dk6FoNywkP5SU86WuwxVdHPuyDyZXnWPr,Conti Ransomware,gray-et-al-conti-payments-2023
+3E3AH3cdYEoMWsoezeqULqoGCfLkr9sDDn,Conti Ransomware,gray-et-al-conti-payments-2023
+3EQ31A7kZ9YHthJTskcFeQVt8LTwNeFk9Z,Conti Ransomware,gray-et-al-conti-payments-2023
+3F36mQSHL3QH7Ym8jrgsMXSMB2sJ3LEBWx,Conti Ransomware,gray-et-al-conti-payments-2023
+3G8hqexhV4yyLpneQ2qBNeLxAH7SpHwoeh,Conti Ransomware,gray-et-al-conti-payments-2023
+3GohLiHGCXMzRazhnGFVwPn8gXfNeL98bW,Conti Ransomware,gray-et-al-conti-payments-2023
+3HVAcXKiZUxGyZmKyeCPTU64U415hCfnrE,Conti Ransomware,gray-et-al-conti-payments-2023
+3HWbmfqVFxdLJgDHTtDPoyswGbxZJZwYNk,Conti Ransomware,gray-et-al-conti-payments-2023
+3HaeZ4wEddcLYVgZVDhByXFwHxAgVHe7aM,Conti Ransomware,gray-et-al-conti-payments-2023
+3JDzTo87HrpQSVhqUejwv2DrxiL9vcaDXN,Conti Ransomware,gray-et-al-conti-payments-2023
+3JEfGqJ7Qo6HkaFPfLvTfgHK5qHr3nersc,Conti Ransomware,gray-et-al-conti-payments-2023
+3JXhcYw1AAEucXGNjAHXayuwTzFfo3gQ9e,Conti Ransomware,gray-et-al-conti-payments-2023
+3K7aw3SQEpwUsQdYmDNkakLuXnjUxhrt54,Conti Ransomware,gray-et-al-conti-payments-2023
+3KvZVcGfiL6EmP1py5cToUeXdPXFa5XJN4,Conti Ransomware,gray-et-al-conti-payments-2023
+3L683L8rooZsz73QLH3BcNVpKHFtVQCofW,Conti Ransomware,gray-et-al-conti-payments-2023
+3LRFy9Q7whFtwk6m9SxyiJ9tkBmSc8VDRX,Conti Ransomware,gray-et-al-conti-payments-2023
+3LeZ6P5MHG8XaTEfeSYqAqp7DM7UJUo8fA,Conti Ransomware,gray-et-al-conti-payments-2023
+3Lqz6xi75jJHNYakCXiFQa48ywEuMXSo3H,Conti Ransomware,gray-et-al-conti-payments-2023
+3Mbipj57iES1qV3R44cS4QKcKggdKwyr1P,Conti Ransomware,gray-et-al-conti-payments-2023
+3N76Z9oJctXJyAE2cxMnVUuVJTBTMar81N,Conti Ransomware,gray-et-al-conti-payments-2023
+3NACQAdctT9E2JqcnpSQDGUbDxYiLBJgCg,Conti Ransomware,gray-et-al-conti-payments-2023
+3NsgkAq5YnJDFURU29b83kqMaghhbyevUp,Conti Ransomware,gray-et-al-conti-payments-2023
+3PBCSty8nGtZGYUnYcCXWYnsfgLcqa8dy6,Conti Ransomware,gray-et-al-conti-payments-2023
+3PH3ej3ygG2T1dzZFTxvfPzdSZtGiAiTAU,Conti Ransomware,gray-et-al-conti-payments-2023
+3QWZdWGGAsztGeMHJvF2vXBHqguvXfkS2V,Conti Ransomware,gray-et-al-conti-payments-2023
+3Qdcku7zn25YrpPSAfBtEZ5wHb9vhWEFPe,Conti Ransomware,gray-et-al-conti-payments-2023
+3QizGW69PnMhHJCEzeWPtgp14HwAkCnC6k,Conti Ransomware,gray-et-al-conti-payments-2023
+3QxEq4vY4rBKC4Jii5uuuVzxm5BKNDTu1S,Conti Ransomware,gray-et-al-conti-payments-2023
+3D3SSugAjoUrHx7gmXpcd1bnyWdUwTqUJh,Conti Ransomware,gray-et-al-conti-payments-2023
+35WggqJQHrLCtFJnQbHrhE3ZowEb2RgJhE,Conti Ransomware,gray-et-al-conti-payments-2023
+3Pi4tkxqH4mQGpxnubdmyWyDTyZfnFNmZo,Conti Ransomware,gray-et-al-conti-payments-2023
+3JPRi64Yr95Hrygq8dqb3LhxHizrmoUQhr,Conti Ransomware,gray-et-al-conti-payments-2023

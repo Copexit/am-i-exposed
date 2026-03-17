@@ -59,8 +59,12 @@ presentation/
 scripts/audit15-*.mjs
 scripts/glossary-capture.mjs
 
-# entity filter data (large binaries)
-.cache/
+# entity filter data (large downloads cached locally)
+.cache/*
+!.cache/entity-data/
+.cache/entity-data/*
+!.cache/entity-data/curated/
+!.cache/entity-data/custom/
 public/data/entity-filter-full.bin
 public/data/entity-index-full.bin
 

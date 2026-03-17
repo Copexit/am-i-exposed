@@ -1,0 +1,9 @@
+address,entity,source
+# Crypto.com - published cold wallet addresses from "Transparency First" blog post (Nov 2022)
+bc1qpy4jwethqenp4r7hqls660wy8287vw0my32lmy,Crypto.com,proof-of-reserves
+3LhhDLBVWBZChNQv8Dn4nDKFnCyojG1FqN,Crypto.com,proof-of-reserves
+3QsGsAXQ4rqRNvh5pEW55hf3F9PEyb7rVq,Crypto.com,proof-of-reserves
+bc1q4c8n5t00jmj8temxdgcc3t32nkg2wjwz24lywv,Crypto.com,proof-of-reserves
+14m3sd9HCCFJW4LymahJCKMabAxTK4DAqW,Crypto.com,proof-of-reserves
+# Bitfinex - from official bitfinexcom/pub GitHub repo (wallets.txt)
+# Note: 3 Bitfinex addresses already in exchange-modern-curated.csv, these are additional from GitHub

@@ -13,6 +13,8 @@ import {
   getFilter,
   loadEntityFilter,
   loadFullEntityFilter,
+  checkForFullDataUpdate,
+  updateFullEntityData,
 } from "@/lib/analysis/entity-filter";
 import { NetworkSettings } from "@/components/settings/NetworkSettings";
 import { AnalysisSettingsPanel } from "@/components/settings/AnalysisSettingsPanel";
@@ -209,9 +211,18 @@ function EntityFilterStatus({ t, proMode }: { t: (key: string, opts?: Record<str
   const [, forceUpdate] = useState(0);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<{ loaded: number; total: number } | null>(null);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
 
   // Auto-load core entity filter when settings panel renders
   useEffect(() => { loadEntityFilter().then(() => forceUpdate((n) => n + 1)); }, []);
+
+  // Check for full data updates when full filter is loaded
+  useEffect(() => {
+    if (!isFullFilterLoaded()) return;
+    checkForFullDataUpdate().then((available) => {
+      if (available) setUpdateAvailable(true);
+    });
+  }, []);
 
   const coreStatus = getFilterStatus();
   const fullStatus = getFullFilterStatus();
@@ -229,6 +240,22 @@ function EntityFilterStatus({ t, proMode }: { t: (key: string, opts?: Record<str
       });
     } catch {
       // silently fail - filter is optional
+    }
+    setLoading(false);
+    setProgress(null);
+    forceUpdate((n) => n + 1);
+  }, []);
+
+  const handleUpdateFull = useCallback(async () => {
+    setLoading(true);
+    setProgress({ loaded: 0, total: 0 });
+    try {
+      await updateFullEntityData((loaded, total) => {
+        setProgress({ loaded, total });
+      });
+      setUpdateAvailable(false);
+    } catch {
+      // silently fail
     }
     setLoading(false);
     setProgress(null);
@@ -311,11 +338,21 @@ function EntityFilterStatus({ t, proMode }: { t: (key: string, opts?: Record<str
             </div>
           )}
 
-          {fullLoaded && (
+          {fullLoaded && !updateAvailable && (
             <div className="flex items-center gap-1.5 text-[10px] text-success/80">
               <Check size={12} />
               {t("settings.entityFullLoaded", { defaultValue: "Full entity database loaded" })}
             </div>
+          )}
+
+          {fullLoaded && updateAvailable && !isDownloading && (
+            <button
+              onClick={handleUpdateFull}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-xs font-medium rounded-lg bg-bitcoin/10 text-bitcoin border border-bitcoin/20 hover:bg-bitcoin/20 hover:border-bitcoin/40 transition-all cursor-pointer"
+            >
+              <Database size={14} />
+              {t("settings.entityUpdateAvailable", { defaultValue: "Update to latest database" })}
+            </button>
           )}
         </div>
       )}

@@ -1,0 +1,12 @@
+address,entity,source
+# Huobi (HTX) - cold wallet addresses from bitinfocharts Huobi-coldwallet labeled cluster
+35hK24tcLEWcgNA4JxpvbkNkoAcDGqQPsP,Huobi (HTX),bitinfocharts-richlist
+12qTdZHx6f77aQ74CPCZGSY47VaRwYjVD8,Huobi (HTX),bitinfocharts-richlist
+143gLvWYUojXaWZRrxquRKpVNTkhmr415B,Huobi (HTX),bitinfocharts-richlist
+14XKsv8tT6tt8P8mfDQZgNF8wtN5erNu5D,Huobi (HTX),bitinfocharts-richlist
+# Poloniex - labeled on walletexplorer.com and bitinfocharts as Poloniex.com
+17A16QmavnUfCW11DAApiJxp7ARnxN5pGX,Poloniex,bitinfocharts-richlist
+# Bitstamp - cold wallet from bitinfocharts Bitstamp-coldwallet labeled cluster
+3Nxwenay9Z8Lc9JBiywExpnEFiLp6Afp8v,Bitstamp,bitinfocharts-richlist
+# Upbit - "Mr. 100" cold wallet confirmed by Arkham Intelligence and Crystal Intelligence
+1Ay8vMC7R1UbyCCZRVULMV7iQpHSAbguJP,Upbit,bitinfocharts-richlist

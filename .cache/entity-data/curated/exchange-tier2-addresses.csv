@@ -1,0 +1,58 @@
+address,entity,source
+# Bitstamp - addresses from WalletExplorer.com Bitstamp.net cluster (machine-learning-based wallet clustering)
+# Source: walletexplorer.com/wallet/Bitstamp.net/addresses
+3B1SjhsRuvxTAwxhwVbbuaa8JeEV6cw7TC,Bitstamp,walletexplorer-cluster
+36dB2oPBD7LNgjjemPjeCAyX5wy7ukDzeh,Bitstamp,walletexplorer-cluster
+3CDHcQUEsZdhRTFk8E3EsDPGGzgwBD6rhu,Bitstamp,walletexplorer-cluster
+3G1nNTTyrpZBwyEiG6U3bJvZdu9sW3rbUz,Bitstamp,walletexplorer-cluster
+3F5xyMiMityzeMVExpXXK2VZptxJUUpsXt,Bitstamp,walletexplorer-cluster
+3LgkQgduzHGS96cu3HSiFUzev6Z8DB2syr,Bitstamp,walletexplorer-cluster
+3CdVVzBpY9pmNEh6rUtAsD8ggqreVBuTJn,Bitstamp,walletexplorer-cluster
+3GoksJ1KvMoyaq7hGV5yempdXeddg95k1h,Bitstamp,walletexplorer-cluster
+3H98NVp6qjtKMN2xN4WiWmCHhDyoBd6TwE,Bitstamp,walletexplorer-cluster
+3BHUBwdPnCc2Kfcc5WsdCapLqzfdd2hsXN,Bitstamp,walletexplorer-cluster
+357ZStzT8g8ccnr9SLZC9wArQG4baW8KsH,Bitstamp,walletexplorer-cluster
+3Bon6DF4wiUm3YcgcZHj77ZoMLdaH5fvRN,Bitstamp,walletexplorer-cluster
+3C2P7KgRLJTpSvujz8zahW4dDhR6PZrNxE,Bitstamp,walletexplorer-cluster
+38f8RHFQ8v6avZqCmaYTga5bTYiuhoM6fh,Bitstamp,walletexplorer-cluster
+3JPbpBjyYQjZWN7PK3pu3GQ1vF9794ampn,Bitstamp,walletexplorer-cluster
+3NAh5gS8RvR3jEYDCsaXTcJT2Rv6nnTZ95,Bitstamp,walletexplorer-cluster
+35PC4Tz8As9YVAohyXsbSumQSe18nvWMvi,Bitstamp,walletexplorer-cluster
+3ESJqDu8FQcyiS9T6yYrGtj3ijv1QxfNVT,Bitstamp,walletexplorer-cluster
+3KntDtTT4qz4XghBCF552yNC9buDqTRHj1,Bitstamp,walletexplorer-cluster
+3Jtubm4jAPt1vdoijWAT9LW31HnMKTTNcd,Bitstamp,walletexplorer-cluster
+3FDTj3DSj3KYwezQBfD3TWogm9LjfFqD9R,Bitstamp,walletexplorer-cluster
+3ES4fakY48i1AxQ4gUkGbMcqKrU1Nn7wvj,Bitstamp,walletexplorer-cluster
+33v7hqYypyhGNs68PfQm86UyHMZRNUQrrv,Bitstamp,walletexplorer-cluster
+326DgM2u3F34ZLcUUFes4TeXdiaVCNus5h,Bitstamp,walletexplorer-cluster
+3QokXhzCzmgBXE8uo15NBYG1Yc6j1s66kP,Bitstamp,walletexplorer-cluster
+3DnByQ6HVhcFLj452uxWDZ7ZefSxQ6SsWE,Bitstamp,walletexplorer-cluster
+3As5RSdNVVQNdqHpsRcRdxaMjZPMs4dvrb,Bitstamp,walletexplorer-cluster
+36pQjvNMRiufycBCbyGsFZDRey48Xpqcgu,Bitstamp,walletexplorer-cluster
+3PtJRj5xKUKJ21TshP5u2G6dQMPNz2yUSc,Bitstamp,walletexplorer-cluster
+3976tZdk1QX3QGnDFCfYayif3j5Gi96gwg,Bitstamp,walletexplorer-cluster
+33aiP8hvrjHRuuRiMjTv4SUACPPQ6oCULn,Bitstamp,walletexplorer-cluster
+37EftDYC9pLicDCUB8ZxKuZctBWkMQ47yK,Bitstamp,walletexplorer-cluster
+3P1ZMa6suYiK42QsMonSSjwhGA9xpPv6vS,Bitstamp,walletexplorer-cluster
+36xuA9WJK9YqbhbKGRgiHGBZ1nxjXWToxq,Bitstamp,walletexplorer-cluster
+3QNk9KJPSvXcsJ3tQfCoeEniuiYfVQBUvk,Bitstamp,walletexplorer-cluster
+3DH3pUrBznmNWpa5JnkwGcNNh2Dfhib42P,Bitstamp,walletexplorer-cluster
+3BX321fRjZZEt1Y4VXXvx5BBykhoqebfAH,Bitstamp,walletexplorer-cluster
+39aU3sYa8AfUu1uFqaUuYfxbU6UhEtnWbN,Bitstamp,walletexplorer-cluster
+32FsQ56a4tRtdH62pcX2bBN8S2KnGRVopr,Bitstamp,walletexplorer-cluster
+3CH8GGuxZoVsnoMcFXg6TTmmwD1vWWEGeK,Bitstamp,walletexplorer-cluster
+# BitMEX - new cold wallet address identified after migration from 3BMEX format (Nov 2023)
+# Confirmed by CoinDesk, Benzinga reporting. Received BTC from 450 bc1qmex proof-of-reserves addresses.
+bc1qchctnvmdva5z9vrpxkkxck64v7nmzdtyxsrq64,BitMEX,proof-of-reserves
+# Gate.io - cold wallet addresses from bitinfocharts gate.io-coldwallet labeled cluster
+# Source: bitinfocharts.com/bitcoin/wallet/gate.io-coldwallet
+1HpED69tpKSaEaWpY3Udt1DtcVcuCUoh2Y,Gate.io,bitinfocharts-labeled
+14kmvhQrWrNEHbrSKBySj4qHGjemDtS3SF,Gate.io,bitinfocharts-labeled
+3HroDXv8hmzKRtaSfBffRgedKpru8fgy6M,Gate.io,bitinfocharts-labeled
+162bzZT2hJfv5Gm3ZmWfWfHJjCtMD6rHhw,Gate.io,bitinfocharts-labeled
+# Gate.io - hot wallet from bitinfocharts gate.io-wallet labeled cluster
+# Source: bitinfocharts.com/bitcoin/wallet/gate.io-wallet
+1G47mSr3oANXMafVrR8UC4pzV7FEAzo3r9,Gate.io,bitinfocharts-labeled
+# FTX - address used by FTX hack drainer to receive stolen BTC via Ren bridge (Nov 2022)
+# Identified by Scorechain blockchain forensics and Elliptic analysis reports
+bc1qvd2kntzzz6y223av68h4xx8zwhxmcncy3gpedg,FTX,blockchain-forensics

@@ -1,0 +1,8 @@
+address,entity,source
+# Bisq - decentralized bitcoin exchange DAO
+# Donation address approved in DAO Cycle 5 vote (GitHub bisq-network/proposals#116)
+3EtUWqsGThPtjwUczw27YCo6EWvQdaPUyp,Bisq,bisq-dao-proposal-116
+# Fee and delayed payout addresses from Bisq Wiki (Donation Address Owner role, retired Jan 2023)
+38bZBj5peYS3Husdz7AH3gEUiUbYRD951t,Bisq,bisq-wiki-donation-address-owner
+34VLFgtFKAtwTdZ5rengTT2g2zC99sWQLC,Bisq,bisq-wiki-donation-address-owner
+3A8Zc1XioE2HRzYfbb5P8iemCS72M6vRJV,Bisq,bisq-wiki-donation-address-owner

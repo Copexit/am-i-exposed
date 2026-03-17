@@ -486,3 +486,67 @@ export async function loadFullEntityFilter(
 export function getFilterError(): string | null {
   return filterError;
 }
+
+// ───────────────── Data update check ─────────────────
+
+const DATA_CACHE_NAME = "ami-exposed-data";
+
+/**
+ * Check if the server has newer full entity data than what's cached.
+ * Sends a message to the service worker to compare cached ETags vs server.
+ * Returns true if an update is available for the full database.
+ */
+export async function checkForFullDataUpdate(): Promise<boolean> {
+  try {
+    const reg = await navigator.serviceWorker?.ready;
+    if (!reg?.active) return false;
+
+    const channel = new MessageChannel();
+    const result = await new Promise<
+      Record<string, { cached: boolean; updateAvailable: boolean }>
+    >((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("timeout")), 10_000);
+      channel.port1.onmessage = (e) => {
+        clearTimeout(timeout);
+        resolve(e.data);
+      };
+      reg.active!.postMessage(
+        {
+          type: "CHECK_DATA_ETAGS",
+          paths: [FULL_INDEX_PATH, FULL_BLOOM_PATH],
+        },
+        [channel.port2],
+      );
+    });
+
+    return (
+      (result[FULL_INDEX_PATH]?.updateAvailable ?? false) ||
+      (result[FULL_BLOOM_PATH]?.updateAvailable ?? false)
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Force re-download of full entity data (clears cache, re-fetches).
+ * Called when user clicks "Update to latest database".
+ */
+export async function updateFullEntityData(
+  onProgress?: ProgressCallback,
+): Promise<AddressFilter | null> {
+  // Clear cached full data so the SW fetches fresh copies
+  try {
+    const cache = await caches.open(DATA_CACHE_NAME);
+    await cache.delete(FULL_INDEX_PATH);
+    await cache.delete(FULL_BLOOM_PATH);
+  } catch {
+    // Cache API may not be available (e.g., private browsing)
+  }
+
+  // Reset state so loadFullEntityFilter re-fetches from network
+  fullFilterInstance = null;
+  fullFilterStatus = "idle";
+
+  return loadFullEntityFilter(onProgress);
+}

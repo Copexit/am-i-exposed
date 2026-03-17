@@ -1,0 +1,111 @@
+name: Entity Data Update
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # Sunday midnight UTC
+  workflow_dispatch:
+    inputs:
+      download_maru92:
+        description: 'Download Maru92 dataset (first run only, ~10 min)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: entity-update
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Restore cached source data (Maru92 2.3GB + bithypha state).
+      # Curated/custom CSVs come from git checkout (committed to repo).
+      # Key includes run_id so cache updates each run (GH caches are immutable per key).
+      - name: Restore entity data cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/entity-data
+          key: entity-data-${{ github.run_id }}
+          restore-keys: |
+            entity-data-
+
+      # Optional: download Maru92 dataset (first run or manual trigger).
+      - name: Download Maru92 dataset
+        if: inputs.download_maru92 == true
+        run: |
+          mkdir -p .cache/entity-data/maru92
+          curl -L -o /tmp/maru92.zip "https://drive.switch.ch/index.php/s/ag4OnNgwf7LhWFu/download" --max-time 600
+          unzip -o /tmp/maru92.zip -d .cache/entity-data/maru92/
+          rm /tmp/maru92.zip
+          echo "Maru92 files:"
+          ls -lh .cache/entity-data/maru92/
+        timeout-minutes: 20
+
+      # Maru92 (30M addresses) is the bulk of the data. Without it, the
+      # index would be too small (~87K vs ~1M). Fail early with a clear message.
+      - name: Verify source data
+        run: |
+          echo "=== Curated CSVs ==="
+          find .cache/entity-data/curated -name '*.csv' 2>/dev/null | wc -l
+          echo "=== Custom CSVs ==="
+          find .cache/entity-data/custom -name '*.csv' 2>/dev/null | wc -l
+          echo "=== Maru92 ==="
+          if [ -d ".cache/entity-data/maru92" ] && ls .cache/entity-data/maru92/*.csv >/dev/null 2>&1; then
+            echo "Maru92 data: found"
+            ls -lh .cache/entity-data/maru92/
+          else
+            echo "::error::Maru92 data not in cache. Trigger workflow_dispatch with download_maru92=true to bootstrap."
+            exit 1
+          fi
+
+      # Fetch incremental updates from OFAC and Bithypha.
+      # Both use continue-on-error so a temporary API outage
+      # doesn't block the build (it uses cached/committed data).
+      - name: Update OFAC addresses
+        run: node scripts/update-ofac.mjs
+        continue-on-error: true
+
+      - name: Fetch new Bithypha notes (incremental)
+        run: node scripts/fetch-osint-sources.mjs --incremental --parallel
+        continue-on-error: true
+
+      # Rebuild all 4 entity binaries from source data
+      - name: Build core index + bloom
+        run: node scripts/build-entity-filter.mjs --core
+
+      - name: Build full index + bloom
+        run: node scripts/build-entity-filter.mjs --full
+
+      # Safety gate - validate address counts haven't dropped
+      - name: Validate entity data
+        run: node scripts/validate-entity-data.mjs
+
+      # Commit only if binaries actually changed
+      - name: Commit updated entity data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/data/entity-filter.bin public/data/entity-index.bin \
+                  public/data/entity-filter-full.bin public/data/entity-index-full.bin \
+                  src/data/ofac-addresses.json
+          if git diff --cached --quiet; then
+            echo "No changes to entity data, skipping commit"
+          else
+            git commit -m "chore: weekly entity data update"
+            git push
+          fi

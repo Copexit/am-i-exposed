@@ -1,0 +1,81 @@
+address,entity,source
+# Binance - publicly labeled on blockchain explorers and proof-of-reserves
+34xp4vRoCGJym3xR7yCVPFHoCNxv4Twseo,Binance,bitinfocharts-labeled
+bc1qm34lsc65zpw79lxes69zkqmk6ee3ewf0j77s3h,Binance,bitinfocharts-labeled
+1NDyJtNTjmwk5xPNhjgAMu4HDHigtobu1s,Binance,blockchain-explorer-labeled
+3M219KR5vEneNb47ewrPfWyb5jQ2DjxRP6,Binance,blockchain-explorer-labeled
+39884E3j6KZj82FK4hA3t6K5GCHkWwqLHv,Binance,blockchain-explorer-labeled
+3LQeSGkvCMaRAmihAqUeSuGMKXX8WR7aXX,Binance,blockchain-explorer-labeled
+bc1qnkl53lls2qnqrpg5ay3t5gm9vpfm058phu9z05,Binance,proof-of-reserves
+3Cbq7aT1tY8kMxWLbitaG7yT6bPbKChq64,Binance,bitinfocharts-labeled
+3JJmF63ifcamPLiAmLgG96RA599yNtEKSV,Binance,blockchain-explorer-labeled
+bc1qazcm763858nkj2dz7g3vafgk2ys2lf5gqhceag,Binance,blockchain-explorer-labeled
+12ib7dApVFvg82TXKSwwgEMxjjDNVMFpR2,Binance,blockchain-explorer-labeled
+1Pzaqw98PeRfyHypfqyEgg5yycJRsENrE7,Binance,blockchain-explorer-labeled
+17WLHZ5hFxHdGTWcq5VLb57a7y82PUi4Tq,Binance,blockchain-explorer-labeled
+bc1ql49ydapnjafl5t2cp9zqpjwe6pdgmxy98859v2,Binance,bitinfocharts-labeled
+# Coinbase - publicly labeled cold wallets
+bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh,Coinbase,bitinfocharts-labeled
+3Nxwenay9Z8Lc9JBiep5MYkpS3TFjGFz1,Coinbase,blockchain-explorer-labeled
+3FHNBLobJnbCTFTVakh5TXmEneyf5PT61B,Coinbase,blockchain-explorer-labeled
+3KbaBdnHWz1fhmFCqGBiEHLe8h4fUP8yu3,Coinbase,blockchain-explorer-labeled
+bc1q7cyrfmck2ffu2ud3rn5l5a8yv6f0chkp0zpemf,Coinbase,bitinfocharts-labeled
+395xEBrMqETHC8MruPMsKRrDqsNmvVcBSN,Coinbase,blockchain-explorer-labeled
+1GR9qNz7zgtaW5HwwVpEJWMnGWhsbsieCG,Coinbase,blockchain-explorer-labeled
+1CWbhJpGi1MoNjNtADbF4kM3QGJxuGJ9E1,Coinbase,blockchain-explorer-labeled
+# Bitfinex - publicly labeled
+bc1qgdjqv0av3q56jvd82tkdjpy7gdp9ut8tlqmgrpmv24sq90ecnvqqjwvw97,Bitfinex,bitinfocharts-labeled
+3D2oetdNuZUqQHPJmcMDDHYoqkyNVsFk9r,Bitfinex,bitinfocharts-labeled
+1Kr6QSydW9bFQG1mXiPNNu6WpJGmUa9i1g,Bitfinex,bitinfocharts-labeled
+3JZq4atUahhuA9rLhXLMhhTo133J9rF97j,Bitfinex,blockchain-explorer-labeled
+bc1qajmu5gm5hppmy4lf88z88t82v8gff5nnw4xc0a,Bitfinex,blockchain-explorer-labeled
+# Kraken - publicly labeled
+bc1qr4dl5wa7kl8yu792dceg9z5knl2gkn220lk7a9,Kraken,bitinfocharts-labeled
+3AfP3BFWM7ELQJ1WCuBfYP33DGEmFLsYDf,Kraken,blockchain-explorer-labeled
+bc1q5shngaekx8vmhm9q7zalzdxxecmmkru6rzt9pv,Kraken,blockchain-explorer-labeled
+3FupZp77ySr7jwoLYEJ9mwzJpvoNBXsBnE,Kraken,blockchain-explorer-labeled
+# OKX - proof-of-reserves and blockchain explorer labels
+3LhFMsMkaBETasFTQSPGQsLy247Jv3dsig,OKX,proof-of-reserves
+1CYJRQ3nDBR9rQAQ3n5fSzWDnFP6YgcfVk,OKX,blockchain-explorer-labeled
+bc1q2s3rjwvam9dt2ftt4sqxqjf3twav0gdx0k0q2etjz8pd4shxazlqnfgjkq,OKX,proof-of-reserves
+# Bybit - proof-of-reserves
+bc1qjysjfd9t9aspttpjqzv68k0la5cas7suhe4uzm,Bybit,proof-of-reserves
+bc1qse0xhtg5w0rcd0rylhsm9p37a0e3x4fmkrn8r2,Bybit,blockchain-explorer-labeled
+# Gemini - publicly labeled
+bc1q5tjflgp67fmkhs3fcmah3ldfqyx3q3n2k3n92j,Gemini,blockchain-explorer-labeled
+36NkTqCAApfRJBKicQaqrdKs29g6hyE4eC,Gemini,blockchain-explorer-labeled
+# Crypto.com - proof-of-reserves
+bc1q7t9fxfaakmtk8pj7tdxjvwsng6y9x76czuaf5h,Crypto.com,proof-of-reserves
+3A1mvU3GBuGZpMZKCkKBCMiHzRMn2dFhUK,Crypto.com,blockchain-explorer-labeled
+1PJiGp2yDLvUgqeBsuZVCBADArNsk6XEiC,Crypto.com,blockchain-explorer-labeled
+# KuCoin - blockchain explorer labels
+3CySZ3R5mDeNFH3hHNVaehPfnAEipz5b8V,KuCoin,blockchain-explorer-labeled
+# Gate.io - blockchain explorer labels
+1HpED4bHtNYMB5Bxb9PaMFVMHDWhmf7X8Y,Gate.io,blockchain-explorer-labeled
+# Bitget - blockchain explorer labels
+bc1qtv0frlhf2vmh2w9v8vdczruav9g0fqlwqpfhxv,Bitget,blockchain-explorer-labeled
+# Huobi/HTX - blockchain explorer labels
+1LAnF8h3qMGx3TSwNUHVneBZUEpwE4gu3D,Huobi (HTX),bitinfocharts-labeled
+12sETwhSuBrr3oVzWCMskLBPfGxB8j6YR2,Huobi (HTX),blockchain-explorer-labeled
+3M81bCRKKL6dDeqVHmh6udP55tS2vSUWXp,Huobi (HTX),blockchain-explorer-labeled
+# BitMEX - publicly labeled (including insurance fund)
+3BMEXqGpG4FxBA1KWhRFufXfSTRgzfDBhJ,BitMEX,bitinfocharts-labeled
+3BMEXT65ZFbpHBaaSCig1BEfDCvP2hZ7Yb,BitMEX,blockchain-explorer-labeled
+# Robinhood - publicly labeled
+bc1qm6q4cswpq6w5c38gpck37a939kfpeqfh567jxw,Robinhood,bitinfocharts-labeled
+3MWBoPaXPUJhE2UBTR9UR6B4q97HVArAjq,Robinhood,blockchain-explorer-labeled
+# Upbit - blockchain explorer labels
+18o1DGnMRjHbtPoGjv4fmtQVA23Wu7VWUj,Upbit,blockchain-explorer-labeled
+# FTX - public addresses (pre-collapse, seized by DOJ)
+1FWQiwK27EnGXb6BiBMRLJvunJQZZPMcGd,FTX,blockchain-explorer-labeled
+1AC4fMwgY8j9onSbXEWeH6Zan8QGMSdmtA,FTX,blockchain-explorer-labeled
+# Mt. Gox - famous addresses from court filings
+1Drt3c8pSdrkyjuBiwVcSSixZwQGMhL2mP,Mt. Gox,court-filings
+17Tf4bVQaCzwWrDWGRCmUfkBvfiuPQ4vg8,Mt. Gox,blockchain-explorer-labeled
+1JbezDVd9VsK9o1Ga9UqLydeuEvhKLAPs6,Mt. Gox,court-filings
+# Celsius - post-bankruptcy court filings
+3Ps5e6qiLqWJXHWRSwcTSp6qHVRivhvCWa,Celsius,court-filings
+# BlockFi - publicly labeled
+3PFJQaCaxMUjeJbBHHLi5XjAFX6NXLGF6d,BlockFi,blockchain-explorer-labeled
+# Chivo Wallet - El Salvador government Bitcoin wallet
+32ixEdVJWo3kmvJGMTZq5jAQVZZeuwnqzo,Chivo Wallet,osint-sourced

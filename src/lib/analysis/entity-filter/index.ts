@@ -9,6 +9,8 @@ export {
   isFullFilterLoaded,
   lookupEntityName,
   lookupEntityCategory,
+  checkForFullDataUpdate,
+  updateFullEntityData,
 } from "./filter-loader";
 export type { ProgressCallback } from "./filter-loader";
 export type { EntityMatch, FilterMeta, AddressFilter, FilterStatus } from "./types";

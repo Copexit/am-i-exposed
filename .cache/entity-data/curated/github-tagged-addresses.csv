@@ -1,0 +1,7 @@
+address,entity,source
+# GitHub repositories checked:
+# - bitfinexcom/pub (wallets.txt) - 3 BTC addresses, all already in exchange-modern-curated.csv
+# - f13end/bf88acb162bed (exchange address gist) - only contained exchange names, no BTC addresses
+# - Maru92/EntityAddressBitcoin - bulk dataset already consumed by build pipeline via .cache/entity-data/
+# No additional unique exchange BTC addresses found from GitHub sources beyond what is covered
+# by the other curated CSV files.
