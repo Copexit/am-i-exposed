@@ -165,10 +165,14 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
         scoreImpact: count >= 10 ? 25 : 20,
       });
     } else {
-      // Multiple denomination tiers = WabiSabi, or non-large generic CoinJoin
+      // Multiple denomination tiers or non-dominant single denom.
+      // Only label as WabiSabi if there are 3+ denomination tiers (consistent
+      // with multi-tier detection at the top). With only 1-2 tiers, it's a
+      // generic CoinJoin - could be handcrafted, custom mixing, or unknown protocol.
+      const isActualWabiSabi = isWabiSabi && denomTiers.length >= 3;
       const impact = count >= 10 ? 25 : count >= 5 ? 20 : 15;
 
-      const label = isWabiSabi
+      const label = isActualWabiSabi
         ? `WabiSabi CoinJoin: ${count} equal outputs across ${total} total`
         : `Likely CoinJoin: ${count} equal outputs of ${formatBtc(denomination)}`;
 
@@ -177,16 +181,16 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
         severity: "good",
         confidence: "high",
         title: label,
-        params: { count, denomination: formatBtc(denomination), total, vin: tx.vin.length, isWabiSabi: isWabiSabi ? 1 : 0 },
+        params: { count, denomination: formatBtc(denomination), total, vin: tx.vin.length, isWabiSabi: isActualWabiSabi ? 1 : 0 },
         description:
-          (isWabiSabi
+          (isActualWabiSabi
             ? `This transaction has ${tx.vin.length} inputs and ${total} outputs, consistent with a WabiSabi (Wasabi Wallet 2.0) CoinJoin. `
             : "") +
           `${count} of ${total} outputs have the same value (${formatBtc(denomination)}). ` +
           "This pattern is characteristic of collaborative CoinJoin transactions that break the " +
           "link between inputs and outputs, significantly improving privacy.",
         recommendation:
-          (isWabiSabi
+          (isActualWabiSabi
             ? "WabiSabi CoinJoins provide excellent privacy through large anonymity sets and multiple denomination tiers. Continue using CoinJoin for maximum privacy. "
             : "CoinJoin is a strong privacy technique. For maximum benefit, ensure you are using a reputable CoinJoin coordinator and consider multiple rounds. ") +
           EXCHANGE_WARNING,

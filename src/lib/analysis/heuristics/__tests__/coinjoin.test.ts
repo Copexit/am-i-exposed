@@ -265,8 +265,11 @@ describe("analyzeCoinJoin", () => {
       fee: 19_500,
     });
     const { findings } = analyzeCoinJoin(tx);
-    // Should be generic CoinJoin (h4-coinjoin), NOT JoinMarket
-    expect(findings.find((f) => f.id === "h4-coinjoin")).toBeDefined();
+    // Should be generic CoinJoin (h4-coinjoin), NOT JoinMarket or WabiSabi
+    const cj = findings.find((f) => f.id === "h4-coinjoin");
+    expect(cj).toBeDefined();
+    expect(cj!.params?.isWabiSabi).toBe(0); // Only 2 tiers, not WabiSabi (needs 3+)
+    expect(cj!.title).toMatch(/^Likely CoinJoin/);
     expect(findings.find((f) => f.id === "h4-joinmarket")).toBeUndefined();
   });
 
