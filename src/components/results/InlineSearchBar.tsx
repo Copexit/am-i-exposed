@@ -42,30 +42,28 @@ export function InlineSearchBar({ onScan, initialValue }: { onScan: (input: stri
 
   return (
     <form onSubmit={handleSubmit} className="w-full">
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1 min-w-0">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted/60 pointer-events-none" />
-          <input
-            ref={inputRef}
-            type="text"
-            value={value}
-            onChange={(e) => { setValue(e.target.value); setError(null); }}
-            onPaste={handlePaste}
-            placeholder={t("input.placeholderScan", { defaultValue: "Paste a Bitcoin address or transaction ID" })}
-            spellCheck={false}
-            autoComplete="off"
-            aria-label={t("input.placeholderScan", { defaultValue: "Paste a Bitcoin address or transaction ID" })}
-            className="w-full rounded-lg border border-card-border bg-surface-elevated/50 pl-8 pr-3 py-2 min-h-[44px]
-              font-mono text-sm text-foreground placeholder:text-muted/50
-              focus:border-bitcoin/40 focus:shadow-[0_0_8px_rgba(247,147,26,0.1)]
-              focus-visible:outline-2 focus-visible:outline-bitcoin/50
-              transition-all duration-150"
-          />
-        </div>
+      <div className="relative flex items-center">
+        <Search size={14} className="absolute left-3 text-muted/60 pointer-events-none" />
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={(e) => { setValue(e.target.value); setError(null); }}
+          onPaste={handlePaste}
+          placeholder={t("input.placeholderScan", { defaultValue: "Paste a Bitcoin address or transaction ID" })}
+          spellCheck={false}
+          autoComplete="off"
+          aria-label={t("input.placeholderScan", { defaultValue: "Paste a Bitcoin address or transaction ID" })}
+          className="w-full rounded-lg border border-card-border bg-surface-elevated/50 pl-8 pr-16 py-2 min-h-[44px]
+            font-mono text-sm text-foreground placeholder:text-muted/50
+            focus:border-bitcoin/40 focus:shadow-[0_0_8px_rgba(247,147,26,0.1)]
+            focus-visible:outline-2 focus-visible:outline-bitcoin/50
+            transition-all duration-150"
+        />
         <button
           type="submit"
           disabled={!value.trim()}
-          className="shrink-0 px-4 py-2 min-h-[44px] text-xs font-semibold rounded-lg
+          className="absolute right-1.5 px-3 py-1 text-xs font-semibold rounded-md
             bg-bitcoin/80 text-black hover:bg-bitcoin transition-colors
             disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
         >

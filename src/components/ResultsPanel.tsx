@@ -145,9 +145,9 @@ export const ResultsPanel = memo(function ResultsPanel({
       id="results-panel"
       className={`flex flex-col items-center gap-5 sm:gap-6 w-full ${proMode ? "max-w-3xl lg:max-w-5xl xl:max-w-7xl 2xl:max-w-[1800px]" : "max-w-3xl"}`}
     >
-      {/* ZONE 1: Search bar + action buttons (shared row on desktop) */}
-      <div className="w-full flex flex-col xl:flex-row xl:items-center gap-3">
-        {onScan && <div className="w-full xl:flex-1 xl:min-w-0"><InlineSearchBar onScan={onScan} initialValue={query} /></div>}
+      {/* ZONE 1: Search bar + action buttons (stacked in normie, shared row on xl+ in pro) */}
+      <div className={`w-full flex flex-col ${proMode ? "xl:flex-row xl:items-center" : ""} gap-3`}>
+        {onScan && <div className={`w-full ${proMode ? "xl:flex-1 xl:min-w-0" : ""}`}><InlineSearchBar onScan={onScan} initialValue={query} /></div>}
         <div className="flex items-center gap-2 flex-wrap xl:shrink-0">
           <BookmarkButton query={query} inputType={inputType} grade={result.grade} score={result.score} />
           <ExportButton targetId="results-panel" query={query} result={result} inputType={inputType} />

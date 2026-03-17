@@ -255,6 +255,38 @@ describe("change detection auto-marking", () => {
   });
 });
 
+// ─── Stonewall Exclusion from JoinMarket Turbo ──────────────────
+
+describe("Stonewall exclusion from JoinMarket turbo mode", () => {
+  it("9-input Stonewall (4 outputs, 1 equal pair) is NOT detected as JoinMarket", () => {
+    // Mirrors tx 015d9cf0...f404: 9 inputs, 4 outputs (2 equal at 9,136,520 + 2 change)
+    const inputs = [
+      5_000_000, 3_000_000, 2_500_000, 1_800_000, 1_500_000,
+      1_200_000, 900_000, 700_000, 500_000,
+    ];
+    const outputs = [9_136_520, 9_136_520, 6_500_000, 1_363_480];
+    const result = detectJoinMarketForTurbo(inputs, outputs);
+    expect(result.isJoinMarket).toBe(false);
+  });
+
+  it("actual JoinMarket (5 equal outputs + changes) IS detected as JoinMarket", () => {
+    const inputs = [
+      1_000_000, 1_100_000, 1_200_000, 900_000, 1_050_000,
+    ];
+    const outputs = [500_000, 500_000, 500_000, 500_000, 500_000, 450_000, 550_000, 650_000, 350_000, 100_000];
+    const result = detectJoinMarketForTurbo(inputs, outputs);
+    expect(result.isJoinMarket).toBe(true);
+    expect(result.denomination).toBe(500_000);
+  });
+
+  it("small Stonewall (2 inputs, 4 outputs) is also excluded", () => {
+    const inputs = [500_000, 600_000];
+    const outputs = [300_000, 300_000, 250_000, 248_500];
+    const result = detectJoinMarketForTurbo(inputs, outputs);
+    expect(result.isJoinMarket).toBe(false);
+  });
+});
+
 // ─── AbortController Behavior ───────────────────────────────────
 
 describe("AbortController signal handling", () => {
