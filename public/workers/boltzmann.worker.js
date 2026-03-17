@@ -73,6 +73,30 @@ self.onmessage = async (e) => {
     return;
   }
 
+  if (msg.type === "compute-wabisabi") {
+    // --- WabiSabi turbo mode: synchronous, always fast (<1ms) ---
+    try {
+      await initWasm();
+      const inputValues = new BigInt64Array(msg.inputValues.map(v => BigInt(v)));
+      const outputValues = new BigInt64Array(msg.outputValues.map(v => BigInt(v)));
+      const raw = wasmExports.compute_boltzmann_wabisabi(
+        inputValues, outputValues,
+        BigInt(msg.fee), msg.timeoutMs,
+      );
+      if (!raw || !raw.mat_lnk_combinations) {
+        throw new Error("WASM returned null result");
+      }
+      self.postMessage(buildResultMessage(raw, msg.id));
+    } catch (err) {
+      self.postMessage({
+        type: "error",
+        id: msg.id,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+    return;
+  }
+
   if (msg.type === "compute-range") {
     // --- Multi-worker ranged DFS path ---
     try {

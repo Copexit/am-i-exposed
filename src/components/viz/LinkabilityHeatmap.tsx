@@ -20,11 +20,18 @@ interface Props {
   boltzmannResult?: BoltzmannWorkerResult | null;
 }
 
-/** Truncate address to first/last N chars. */
-function truncAddr(addr: string | undefined, n = 4): string {
+/** Truncate address for row labels (prefix + suffix). */
+function truncAddr(addr: string | undefined, n = 5): string {
   if (!addr) return "?";
   if (addr.length <= n * 2 + 2) return addr;
-  return `${addr.slice(0, n)}...${addr.slice(-n)}`;
+  return `${addr.slice(0, n)}\u2026${addr.slice(-n)}`;
+}
+
+/** Truncate address for column headers (suffix only - bc1q prefix is shared). */
+function truncAddrSuffix(addr: string | undefined, n = 5): string {
+  if (!addr) return "?";
+  if (addr.length <= n + 2) return addr;
+  return `\u2026${addr.slice(-n)}`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -86,6 +93,15 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
 
   const nIn = inputs.length;
   const nOut = outputs.length;
+
+  // Pagination for large matrices to prevent browser crashes
+  const PAGE_SIZE = 30;
+  const [visibleRows, setVisibleRows] = useState(PAGE_SIZE);
+  const [visibleCols, setVisibleCols] = useState(PAGE_SIZE);
+  const cappedInputs = inputs.slice(0, visibleRows);
+  const cappedOutputs = outputs.slice(0, visibleCols);
+  const hasMoreRows = visibleRows < nIn;
+  const hasMoreCols = visibleCols < nOut;
 
   // Derived state: reset entrance flag on status transitions (getDerivedStateFromProps pattern)
   if (prevStatus !== state.status) {
@@ -306,16 +322,17 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                 )}
 
                 {/* Heat map grid */}
-                <div className="overflow-x-auto -mx-2 px-2">
+                <div className="relative -mx-2">
                   <div
                     ref={gridRef}
-                    className="relative bg-surface-inset/40 rounded-lg p-3 border border-card-border/40"
+                    className="bg-surface-inset/40 rounded-lg border border-card-border/40 overflow-auto p-3"
+                    style={{ maxHeight: "70vh" }}
                   >
                     <div
-                      className="grid gap-px w-full"
+                      className="grid gap-px"
                       style={{
-                        gridTemplateColumns: `minmax(90px, 120px) repeat(${nOut}, minmax(56px, 1fr))`,
-                        gridTemplateRows: `auto repeat(${nIn}, minmax(44px, auto))`,
+                        gridTemplateColumns: `minmax(90px, 120px) repeat(${cappedOutputs.length}, minmax(56px, 1fr))`,
+                        gridTemplateRows: `auto repeat(${cappedInputs.length}, minmax(44px, auto))`,
                       }}
                     >
                       {/* Top-left corner */}
@@ -323,8 +340,8 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                         {t("boltzmann.gridLabel", { defaultValue: "In \\ Out" })}
                       </div>
 
-                      {/* Column headers - outputs */}
-                      {outputs.map((out, o) => {
+                      {/* Column headers - outputs (capped) */}
+                      {cappedOutputs.map((out, o) => {
                         const isColHovered = hoveredCell?.col === o;
                         return (
                           <div
@@ -333,12 +350,12 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                           >
                             <button
                               onClick={() => out.address && (window.location.hash = `#addr=${out.address}`)}
-                              className={`text-[11px] font-mono truncate transition-colors duration-150 block w-full hover:text-bitcoin cursor-pointer ${
+                              className={`text-[11px] font-mono transition-colors duration-150 block w-full hover:text-bitcoin cursor-pointer whitespace-nowrap ${
                                 isColHovered ? "text-foreground" : "text-muted"
                               }`}
                               title={out.address}
                             >
-                              {truncAddr(out.address)}
+                              {truncAddrSuffix(out.address)}
                             </button>
                             <div className="text-[10px] text-muted/60">
                               {formatSats(out.value)}
@@ -347,15 +364,15 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                         );
                       })}
 
-                      {/* Rows - one per input */}
-                      {inputs.map((inp, i) => (
+                      {/* Rows - one per input (capped) */}
+                      {cappedInputs.map((inp, i) => (
                         <Fragment key={`row-${i}`}>
                           {/* Row label */}
                           <div className="flex items-center justify-end pr-2 gap-1">
                             <div className="text-right">
                               <button
                                 onClick={() => inp.address && (window.location.hash = `#addr=${inp.address}`)}
-                                className={`text-[11px] font-mono truncate max-w-[100px] transition-colors duration-150 block ml-auto hover:text-bitcoin cursor-pointer ${
+                                className={`text-[11px] font-mono transition-colors duration-150 block ml-auto hover:text-bitcoin cursor-pointer whitespace-nowrap ${
                                   hoveredCell?.row === i ? "text-foreground" : "text-muted"
                                 }`}
                                 title={inp.address}
@@ -369,7 +386,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                           </div>
 
                           {/* Cells - matrix is [out][in], so access as [col][row] */}
-                          {outputs.map((_out, o) => {
+                          {cappedOutputs.map((_out, o) => {
                             const prob = result.matLnkProbabilities[o]?.[i] ?? 0;
                             const count = result.matLnkCombinations[o]?.[i] ?? 0;
                             const isDeterministic = prob >= 1.0;
@@ -391,7 +408,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                                   scale: isHovered ? 1.06 : 1,
                                 }}
                                 transition={
-                                  entered
+                                  entered || nIn + nOut > 40
                                     ? { duration: 0.15 }
                                     : { duration: 0.25, delay: (i + o) * 0.03 }
                                 }
@@ -419,32 +436,6 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                           })}
                         </Fragment>
                       ))}
-                    </div>
-
-                    {/* Legend bar */}
-                    <div className="mt-3 pt-2 border-t border-card-border/40">
-                      <div
-                        className="h-1 rounded-full w-full"
-                        style={{
-                          background: `linear-gradient(to right, ${getColorStops().map(
-                            ([stop, rgb]) => `rgb(${rgb.join(",")}) ${stop * 100}%`,
-                          ).join(", ")})`,
-                        }}
-                      />
-                      <div className="flex justify-between mt-1">
-                        <span className="text-[9px] text-muted">0%</span>
-                        <span className="text-[9px] text-muted">25%</span>
-                        <span className="text-[9px] text-muted">50%</span>
-                        <span className="text-[9px] text-muted">75%</span>
-                        <span className="text-[9px] text-muted">100%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-[8px] text-muted/70">No link</span>
-                        <span className="text-[8px] text-muted/70">Ambiguous</span>
-                        <span className="text-[8px] text-muted/70">Probable</span>
-                        <span className="text-[8px] text-muted/70">Likely</span>
-                        <span className="text-[8px] text-muted/70">Deterministic</span>
-                      </div>
                     </div>
 
                     {/* Tooltip */}
@@ -477,6 +468,60 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                         </div>
                       </ChartTooltip>
                     )}
+                  </div>
+
+                  {/* Right fade + expand pill - on scroll viewport edge */}
+                  {hasMoreCols && (
+                    <>
+                      <div className="absolute top-0 right-0 bottom-0 w-10 pointer-events-none rounded-r-lg" style={{ background: "linear-gradient(to right, transparent, var(--card-bg))" }} />
+                      <button
+                        onClick={() => setVisibleCols(Math.min(visibleCols + PAGE_SIZE, nOut))}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5 px-2 py-1 rounded-full bg-surface-elevated/90 backdrop-blur-sm border border-card-border text-[10px] text-muted hover:text-foreground hover:border-muted transition-all cursor-pointer shadow-sm z-10"
+                        title={`Show more columns (${visibleCols}/${nOut})`}
+                      >
+                        +{Math.min(PAGE_SIZE, nOut - visibleCols)}
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+                      </button>
+                    </>
+                  )}
+
+                  {/* Bottom fade + expand pill - on scroll viewport edge */}
+                  {hasMoreRows && (
+                    <>
+                      <div className="absolute left-0 right-0 bottom-0 h-10 pointer-events-none rounded-b-lg" style={{ background: "linear-gradient(to bottom, transparent, var(--card-bg))" }} />
+                      <button
+                        onClick={() => setVisibleRows(Math.min(visibleRows + PAGE_SIZE, nIn))}
+                        className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex items-center gap-0.5 px-2 py-1 rounded-full bg-surface-elevated/90 backdrop-blur-sm border border-card-border text-[10px] text-muted hover:text-foreground hover:border-muted transition-all cursor-pointer shadow-sm z-10"
+                        title={`Show more rows (${visibleRows}/${nIn})`}
+                      >
+                        +{Math.min(PAGE_SIZE, nIn - visibleRows)}
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+                      </button>
+                    </>
+                  )}
+                </div>
+                <div className="mt-2 px-1">
+                  <div
+                    className="h-1 rounded-full w-full"
+                    style={{
+                      background: `linear-gradient(to right, ${getColorStops().map(
+                        ([stop, rgb]) => `rgb(${rgb.join(",")}) ${stop * 100}%`,
+                      ).join(", ")})`,
+                    }}
+                  />
+                  <div className="flex justify-between mt-1">
+                    <span className="text-[9px] text-muted">0%</span>
+                    <span className="text-[9px] text-muted">25%</span>
+                    <span className="text-[9px] text-muted">50%</span>
+                    <span className="text-[9px] text-muted">75%</span>
+                    <span className="text-[9px] text-muted">100%</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[8px] text-muted/70">No link</span>
+                    <span className="text-[8px] text-muted/70">Ambiguous</span>
+                    <span className="text-[8px] text-muted/70">Probable</span>
+                    <span className="text-[8px] text-muted/70">Likely</span>
+                    <span className="text-[8px] text-muted/70">Deterministic</span>
                   </div>
                 </div>
 

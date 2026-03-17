@@ -55,6 +55,9 @@ const AUTO_COMPUTE_MAX_TOTAL = 20;
 /** Maximum supported total UTXOs (inputs + outputs). */
 export const MAX_SUPPORTED_TOTAL = 80;
 
+/** Maximum supported total for WabiSabi (tier-decomposed, no DFS). */
+export const MAX_SUPPORTED_TOTAL_WABISABI = 800;
+
 /** Maximum number of parallel workers. */
 export const MAX_WORKERS = 8;
 
@@ -155,6 +158,29 @@ export function detectJoinMarketForTurbo(
   if (changeCount === 0) return { isJoinMarket: false, denomination: 0 };
 
   return { isJoinMarket: true, denomination };
+}
+
+/** Detect WabiSabi CoinJoin structure for turbo Boltzmann mode.
+ *
+ * WabiSabi has 3+ denomination tiers with 10+ total equal outputs.
+ * Unlike JoinMarket (single denomination), WabiSabi uses the tier-decomposed
+ * Boltzmann approach: per-tier partition formulas combined under independence.
+ */
+export function detectWabiSabiForTurbo(
+  inputValues: number[],
+  outputValues: number[],
+): boolean {
+  if (inputValues.length < 10 || outputValues.length < 10) return false;
+
+  const counts = new Map<number, number>();
+  for (const v of outputValues) {
+    if (v > 0) counts.set(v, (counts.get(v) ?? 0) + 1);
+  }
+
+  const tiers = [...counts.entries()].filter(([, c]) => c >= 2);
+  const totalEqual = tiers.reduce((sum, [, c]) => sum + c, 0);
+
+  return totalEqual >= 10 && tiers.length >= 3;
 }
 
 /**
@@ -334,6 +360,8 @@ export function isAutoComputable(
   const nOut = outputValues.length;
   if (nIn === 0 || nOut === 0) return false;
   if (nIn + nOut < AUTO_COMPUTE_MAX_TOTAL) return true;
+  // WabiSabi turbo: tier-decomposed, handles up to 800 total I/O
+  if (nIn + nOut <= MAX_SUPPORTED_TOTAL_WABISABI && detectWabiSabiForTurbo(inputValues, outputValues)) return true;
   if (nIn + nOut > MAX_SUPPORTED_TOTAL) return false;
   return detectJoinMarketForTurbo(inputValues, outputValues).isJoinMarket;
 }

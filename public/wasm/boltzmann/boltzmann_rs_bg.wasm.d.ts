@@ -3,6 +3,7 @@
 export const memory: WebAssembly.Memory;
 export const compute_boltzmann: (a: number, b: number, c: number, d: number, e: bigint, f: number, g: number) => any;
 export const compute_boltzmann_joinmarket: (a: number, b: number, c: number, d: number, e: bigint, f: bigint, g: number, h: number) => any;
+export const compute_boltzmann_wabisabi: (a: number, b: number, c: number, d: number, e: bigint, f: number) => any;
 export const dfs_finalize: () => any;
 export const dfs_step: (a: number) => any;
 export const prepare_boltzmann: (a: number, b: number, c: number, d: number, e: bigint, f: number, g: number) => any;

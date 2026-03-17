@@ -26,6 +26,15 @@ export function compute_boltzmann(input_values: BigInt64Array, output_values: Bi
 export function compute_boltzmann_joinmarket(input_values: BigInt64Array, output_values: BigInt64Array, fee: bigint, denomination: bigint, max_cj_intrafees_ratio: number, timeout_ms: number): any;
 
 /**
+ * Compute the Boltzmann LPM using WabiSabi turbo mode.
+ *
+ * Exploits WabiSabi's multi-denomination tier structure to compute entropy
+ * and linkability matrices via per-tier Boltzmann partition formulas.
+ * Handles transactions with 300+ inputs/outputs in <1ms.
+ */
+export function compute_boltzmann_wabisabi(input_values: BigInt64Array, output_values: BigInt64Array, fee: bigint, timeout_ms: number): any;
+
+/**
  * Finalize the chunked Boltzmann analysis and return the full result.
  *
  * Must be called after `dfs_step` returns `done: true`.
@@ -69,6 +78,7 @@ export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly compute_boltzmann: (a: number, b: number, c: number, d: number, e: bigint, f: number, g: number) => any;
     readonly compute_boltzmann_joinmarket: (a: number, b: number, c: number, d: number, e: bigint, f: bigint, g: number, h: number) => any;
+    readonly compute_boltzmann_wabisabi: (a: number, b: number, c: number, d: number, e: bigint, f: number) => any;
     readonly dfs_finalize: () => any;
     readonly dfs_step: (a: number) => any;
     readonly prepare_boltzmann: (a: number, b: number, c: number, d: number, e: bigint, f: number, g: number) => any;

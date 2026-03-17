@@ -5,6 +5,7 @@ pub mod partition;
 mod subset_sum;
 pub(crate) mod time;
 pub mod types;
+pub mod wabisabi;
 
 use std::cell::RefCell;
 
@@ -514,6 +515,27 @@ pub fn dfs_finalize() -> JsValue {
     });
 
     result
+}
+
+/// Compute the Boltzmann LPM using WabiSabi turbo mode.
+///
+/// Exploits WabiSabi's multi-denomination tier structure to compute entropy
+/// and linkability matrices via per-tier Boltzmann partition formulas.
+/// Handles transactions with 300+ inputs/outputs in <1ms.
+#[wasm_bindgen]
+pub fn compute_boltzmann_wabisabi(
+    input_values: &[i64],
+    output_values: &[i64],
+    fee: i64,
+    timeout_ms: u32,
+) -> JsValue {
+    let result = wabisabi::analyze_wabisabi(
+        input_values,
+        output_values,
+        fee,
+        timeout_ms,
+    );
+    to_js(&result)
 }
 
 /// Compute the Boltzmann LPM using JoinMarket turbo mode.

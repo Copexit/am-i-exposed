@@ -8,11 +8,13 @@ import type { MempoolTransaction } from "@/lib/api/types";
 import type { BoltzmannWorkerResult, BoltzmannProgress, WorkerResponse } from "./boltzmann-pool";
 import {
   MAX_SUPPORTED_TOTAL,
+  MAX_SUPPORTED_TOTAL_WABISABI,
   MAX_WORKERS,
   getWorkerPool,
   terminatePool,
   detectIntrafees,
   detectJoinMarketForTurbo,
+  detectWabiSabiForTurbo,
   runParallelPass,
   isAutoComputable,
   extractTxValues,
@@ -44,7 +46,11 @@ export async function computeBoltzmann(
   const nOut = outputValues.length;
 
   if (nIn === 0 || nOut === 0) return null;
-  if (nIn + nOut > MAX_SUPPORTED_TOTAL) return null;
+
+  // WabiSabi gets a higher limit (tier-decomposed, no DFS)
+  const isWabiSabi = detectWabiSabiForTurbo(inputValues, outputValues);
+  const maxTotal = isWabiSabi ? MAX_SUPPORTED_TOTAL_WABISABI : MAX_SUPPORTED_TOTAL;
+  if (nIn + nOut > maxTotal) return null;
 
   // Check for abort before starting workers
   if (opts?.signal?.aborted) return null;
@@ -70,6 +76,13 @@ export async function computeBoltzmann(
     // Check for JoinMarket turbo mode (approximate, for large JM CoinJoins only).
     // Only use for txs with 10+ I/O where standard DFS would be slow.
     // Small txs (like Stonewall with 2 equal outputs) must use exact DFS path.
+    // WabiSabi turbo mode: tier-decomposed Boltzmann (no DFS, <1ms)
+    if (isWabiSabi) {
+      return await runWabiSabiCompute(
+        id, inputValues, outputValues, tx.fee, timeoutMs, opts?.signal,
+      );
+    }
+
     const jmDetection = detectJoinMarketForTurbo(inputValues, outputValues);
     if (jmDetection.isJoinMarket && nIn + nOut >= 10) {
       return await runJoinMarketCompute(
@@ -101,6 +114,48 @@ export async function computeBoltzmann(
   } finally {
     opts?.signal?.removeEventListener("abort", abortHandler);
   }
+}
+
+/** WabiSabi turbo mode - single worker, tier-decomposed, always fast (<1ms). */
+function runWabiSabiCompute(
+  id: string,
+  inputValues: number[],
+  outputValues: number[],
+  fee: number,
+  timeoutMs: number,
+  signal?: AbortSignal,
+): Promise<BoltzmannWorkerResult | null> {
+  const pool = getWorkerPool(1);
+  if (pool.length === 0) return Promise.resolve(null);
+  const worker = pool[0];
+
+  return new Promise((resolve) => {
+    if (signal?.aborted) { resolve(null); return; }
+
+    worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
+      const msg = e.data;
+      if (msg.id !== id) return;
+      if (msg.type === "result") {
+        resolve(msg as BoltzmannWorkerResult);
+      } else if (msg.type === "error") {
+        resolve(null);
+      }
+    };
+
+    worker.onerror = () => {
+      terminatePool();
+      resolve(null);
+    };
+
+    worker.postMessage({
+      type: "compute-wabisabi",
+      id,
+      inputValues,
+      outputValues,
+      fee,
+      timeoutMs,
+    });
+  });
 }
 
 /** JoinMarket turbo mode - single worker, always fast. */

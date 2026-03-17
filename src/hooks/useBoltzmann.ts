@@ -5,7 +5,9 @@ import type { MempoolTransaction } from "@/lib/api/types";
 import { computeBoltzmann, isAutoComputable, extractTxValues } from "@/lib/analysis/boltzmann-compute";
 import {
   MAX_SUPPORTED_TOTAL,
+  MAX_SUPPORTED_TOTAL_WABISABI,
   terminatePool,
+  detectWabiSabiForTurbo,
   type BoltzmannWorkerResult,
   type BoltzmannProgress,
 } from "@/lib/analysis/boltzmann-pool";
@@ -63,7 +65,10 @@ export function useBoltzmann(
       return;
     }
 
-    if (nIn + nOut > MAX_SUPPORTED_TOTAL) {
+    const maxTotal = detectWabiSabiForTurbo(inputValues, outputValues)
+      ? MAX_SUPPORTED_TOTAL_WABISABI
+      : MAX_SUPPORTED_TOTAL;
+    if (nIn + nOut > maxTotal) {
       setState({ status: "idle", result: null, error: null, progress: null });
       return;
     }
@@ -133,7 +138,10 @@ export function useBoltzmann(
     const nOut = outputValues.length;
 
     if (nIn === 0 || nOut === 0) return;
-    if (nIn + nOut > MAX_SUPPORTED_TOTAL) return;
+    const autoMaxTotal = detectWabiSabiForTurbo(inputValues, outputValues)
+      ? MAX_SUPPORTED_TOTAL_WABISABI
+      : MAX_SUPPORTED_TOTAL;
+    if (nIn + nOut > autoMaxTotal) return;
 
     if (isAutoComputable(inputValues, outputValues)) {
       const timer = setTimeout(compute, 0);
@@ -161,7 +169,11 @@ export function useBoltzmann(
         if (isCoinbase) return false;
         const nIn = tx.vin.filter(v => !v.is_coinbase && v.prevout).length;
         const nOut = tx.vout.filter(o => o.scriptpubkey_type !== "op_return" && o.value > 0).length;
-        return nIn >= 1 && nOut >= 1 && nIn + nOut <= MAX_SUPPORTED_TOTAL;
+        const { inputValues: iv, outputValues: ov } = extractTxValues(tx);
+        const supportedMax = detectWabiSabiForTurbo(iv, ov)
+          ? MAX_SUPPORTED_TOTAL_WABISABI
+          : MAX_SUPPORTED_TOTAL;
+        return nIn >= 1 && nOut >= 1 && nIn + nOut <= supportedMax;
       })()
     : false;
 

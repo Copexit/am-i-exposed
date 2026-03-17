@@ -52,6 +52,27 @@ export function compute_boltzmann_joinmarket(input_values, output_values, fee, d
 }
 
 /**
+ * Compute the Boltzmann LPM using WabiSabi turbo mode.
+ *
+ * Exploits WabiSabi's multi-denomination tier structure to compute entropy
+ * and linkability matrices via per-tier Boltzmann partition formulas.
+ * Handles transactions with 300+ inputs/outputs in <1ms.
+ * @param {BigInt64Array} input_values
+ * @param {BigInt64Array} output_values
+ * @param {bigint} fee
+ * @param {number} timeout_ms
+ * @returns {any}
+ */
+export function compute_boltzmann_wabisabi(input_values, output_values, fee, timeout_ms) {
+    const ptr0 = passArray64ToWasm0(input_values, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArray64ToWasm0(output_values, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.compute_boltzmann_wabisabi(ptr0, len0, ptr1, len1, fee, timeout_ms);
+    return ret;
+}
+
+/**
  * Finalize the chunked Boltzmann analysis and return the full result.
  *
  * Must be called after `dfs_step` returns `done: true`.
