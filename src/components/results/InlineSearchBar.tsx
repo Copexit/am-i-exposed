@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
@@ -12,6 +12,11 @@ export function InlineSearchBar({ onScan, initialValue }: { onScan: (input: stri
   const [value, setValue] = useState(initialValue ?? "");
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Sync value when the scanned query changes (initialValue only seeds useState on mount)
+  useEffect(() => {
+    setValue(initialValue ?? "");
+  }, [initialValue]);
 
   const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
@@ -37,6 +42,8 @@ export function InlineSearchBar({ onScan, initialValue }: { onScan: (input: stri
       setValue("");
       setError(null);
       onScan(cleaned);
+      // Restore focus after the re-render triggered by onScan
+      requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [network, onScan]);
 
