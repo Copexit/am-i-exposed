@@ -50,7 +50,7 @@ jobs:
         run: |
           mkdir -p .cache/entity-data/maru92
           curl -L -o /tmp/maru92.zip "https://drive.switch.ch/index.php/s/ag4OnNgwf7LhWFu/download" --max-time 600
-          unzip -o /tmp/maru92.zip -d .cache/entity-data/maru92/
+          unzip -o -j /tmp/maru92.zip -d .cache/entity-data/maru92/
           rm /tmp/maru92.zip
           echo "Maru92 files:"
           ls -lh .cache/entity-data/maru92/
@@ -65,9 +65,10 @@ jobs:
           echo "=== Custom CSVs ==="
           find .cache/entity-data/custom -name '*.csv' 2>/dev/null | wc -l
           echo "=== Maru92 ==="
-          if [ -d ".cache/entity-data/maru92" ] && ls .cache/entity-data/maru92/*.csv >/dev/null 2>&1; then
-            echo "Maru92 data: found"
-            ls -lh .cache/entity-data/maru92/
+          MARU_COUNT=$(find .cache/entity-data/maru92 -name '*.csv' 2>/dev/null | wc -l)
+          if [ "$MARU_COUNT" -gt 0 ]; then
+            echo "Maru92 data: found ($MARU_COUNT CSV files)"
+            find .cache/entity-data/maru92 -name '*.csv' -exec ls -lh {} \;
           else
             echo "::error::Maru92 data not in cache. Trigger workflow_dispatch with download_maru92=true to bootstrap."
             exit 1
