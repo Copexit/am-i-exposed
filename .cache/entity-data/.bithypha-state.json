@@ -1,0 +1,36 @@
+{
+  "sources": {
+    "Ransomwhere": {
+      "lastPage": 373,
+      "totalAddresses": 9969,
+      "lastRun": "2026-03-16T17:34:15.796Z",
+      "complete": true
+    },
+    "Bithypha": {
+      "lastPage": 1,
+      "totalAddresses": 25,
+      "lastRun": "2026-03-16T18:53:29.977Z",
+      "complete": true
+    },
+    "Collectibles": {
+      "lastPage": 4183,
+      "totalAddresses": 97333,
+      "lastRun": "2026-03-16T21:08:43.533Z",
+      "complete": true
+    },
+    "BitcoinTalk": {
+      "lastPage": 4096,
+      "totalAddresses": 0,
+      "totalNotes": 279420,
+      "lastRun": "2026-03-16T22:21:14.876Z",
+      "complete": false
+    },
+    "Reddit": {
+      "lastPage": 4093,
+      "totalAddresses": 0,
+      "totalNotes": 263670,
+      "lastRun": "2026-03-16T22:21:14.757Z",
+      "complete": false
+    }
+  }
+}

@@ -65,6 +65,7 @@ scripts/glossary-capture.mjs
 .cache/entity-data/*
 !.cache/entity-data/curated/
 !.cache/entity-data/custom/
+!.cache/entity-data/.bithypha-state.json
 public/data/entity-filter-full.bin
 public/data/entity-index-full.bin
 
