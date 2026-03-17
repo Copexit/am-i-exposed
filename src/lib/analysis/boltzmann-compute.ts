@@ -78,18 +78,22 @@ export async function computeBoltzmann(
     // Small txs (like Stonewall with 2 equal outputs) must use exact DFS path.
     // WabiSabi turbo mode: tier-decomposed Boltzmann (no DFS, <1ms)
     if (isWabiSabi) {
-      return await runWabiSabiCompute(
+      const r = await runWabiSabiCompute(
         id, inputValues, outputValues, tx.fee, timeoutMs, opts?.signal,
       );
+      if (r) r.method = "wabisabi";
+      return r;
     }
 
     const jmDetection = detectJoinMarketForTurbo(inputValues, outputValues);
     if (jmDetection.isJoinMarket && nIn + nOut >= 10) {
-      return await runJoinMarketCompute(
+      const r = await runJoinMarketCompute(
         id, inputValues, outputValues, tx.fee,
         jmDetection.denomination, maxCjIntrafeesRatio, timeoutMs,
         opts?.signal,
       );
+      if (r) r.method = "joinmarket";
+      return r;
     }
 
     // Determine worker count

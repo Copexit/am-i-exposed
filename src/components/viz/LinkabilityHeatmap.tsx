@@ -157,8 +157,20 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
         <h3 className="text-sm font-semibold text-foreground flex-1">
           {t("boltzmann.title", { defaultValue: "Link Probability Matrix" })}
         </h3>
-        <span className="text-xs text-muted">
+        <span className="text-xs text-muted" title={
+          state.result?.method === "wabisabi"
+            ? "Tier-decomposed upper bound: per-tier Boltzmann partition formulas combined under independence assumption. True entropy may be slightly lower due to cross-tier dependencies."
+            : state.result?.method === "joinmarket"
+              ? "JoinMarket-optimized Boltzmann: exploits maker/taker structure for fast computation. Upper bound due to formula approximations for large transactions."
+              : "Exact Boltzmann link probability computation via WASM"
+        }>
           {t("boltzmann.subtitle", { defaultValue: "Boltzmann analysis" })}
+          {state.result?.method === "wabisabi" && (
+            <span className="ml-1 text-[9px] text-muted/50">(tier-decomposed)</span>
+          )}
+          {state.result?.method === "joinmarket" && (
+            <span className="ml-1 text-[9px] text-muted/50">(JoinMarket-optimized)</span>
+          )}
         </span>
       </div>
 
@@ -239,6 +251,8 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
             const result = state.result;
             const showEfficiency = isCoinJoinTx(tx) && result.efficiency > 0 && !result.timedOut;
             const effPct = Math.min(result.efficiency, 1) * 100;
+            const isApprox = result.method === "wabisabi" || result.method === "joinmarket";
+            const boundLabel = isApprox ? " (upper bound)" : "";
 
             return (
               <>
@@ -261,28 +275,24 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: 0.05 }}
                     className="inline-flex items-center gap-1.5 bg-surface-inset rounded-full px-2.5 py-1 text-xs text-muted"
+                    title={isApprox ? "Upper bound. True entropy may be slightly lower due to structural approximations." : undefined}
                   >
                     <Grid3X3 size={11} />
                     {result.timedOut
                       ? `${result.entropy.toFixed(2)}+ bits entropy (partial)`
-                      : t("boltzmann.entropy", {
-                          defaultValue: "{{bits}} bits entropy",
-                          bits: result.entropy.toFixed(2),
-                        })}
+                      : `${result.entropy.toFixed(2)} bits entropy${boundLabel}`}
                   </motion.span>
                   <motion.span
                     initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: 0.075 }}
                     className="inline-flex items-center gap-1.5 bg-surface-inset rounded-full px-2.5 py-1 text-xs text-muted"
+                    title={isApprox ? "Upper bound. Per-UTXO entropy averaged across the transaction." : undefined}
                   >
                     <Grid3X3 size={11} />
                     {result.timedOut
                       ? `${(result.entropy / (nIn + nOut)).toFixed(2)}+ bits/UTXO (partial)`
-                      : t("boltzmann.entropyPerUtxo", {
-                          defaultValue: "{{bits}} bits/UTXO",
-                          bits: (result.entropy / (nIn + nOut)).toFixed(2),
-                        })}
+                      : `${(result.entropy / (nIn + nOut)).toFixed(2)} bits/UTXO${boundLabel}`}
                   </motion.span>
                   {result.deterministicLinks.length > 0 && (
                     <motion.span

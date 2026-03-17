@@ -8,6 +8,18 @@ import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import { isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
 import { fmtN, roundTo } from "@/lib/format";
 
+/** Method label and accuracy qualifier for the entropy finding. */
+function getMethodInfo(b: BoltzmannWorkerResult): { label: string; isApprox: boolean } {
+  switch (b.method) {
+    case "wabisabi":
+      return { label: "tier-decomposed Boltzmann", isApprox: true };
+    case "joinmarket":
+      return { label: "JoinMarket Boltzmann", isApprox: true };
+    default:
+      return { label: "WASM Boltzmann", isApprox: false };
+  }
+}
+
 /** Finding IDs that should NOT be overridden (structurally deterministic). */
 const SKIP_IDS = new Set([
   "h5-zero-entropy",
@@ -46,9 +58,12 @@ export function enhanceEntropyFinding(
   // Efficiency is only meaningful for CoinJoin transactions
   const isCJ = findings.some(isCoinJoinFinding);
 
+  const { label: methodLabel, isApprox } = getMethodInfo(boltzmann);
+  const boundNote = isApprox ? " (upper bound)" : "";
+
   const params: Record<string, string | number> = {
     entropy: roundedEntropy,
-    method: "WASM Boltzmann",
+    method: methodLabel,
     interpretations: boltzmann.nbCmbn,
     context: entropyBits >= 4 ? "high" : "low",
     entropyPerUtxo: roundTo(entropyBits / nUtxos),
@@ -62,13 +77,16 @@ export function enhanceEntropyFinding(
   findings[idx] = {
     ...existing,
     severity: impact >= 10 ? "good" : impact >= 5 ? "low" : impact > 0 ? "low" : "medium",
-    title: `Transaction entropy: ${roundedEntropy} bits`,
+    title: `Transaction entropy: ${roundedEntropy} bits${boundNote}`,
     params,
     description:
-      `This transaction has ${roundedEntropy} bits of entropy (via WASM Boltzmann), meaning there are ` +
-      `${interpretationsStr} valid interpretations of the fund flow. ` +
+      `This transaction has ${roundedEntropy} bits of entropy (via ${methodLabel}${boundNote}), meaning there are ` +
+      (isApprox ? "approximately " : "") +
+      `${interpretationsStr} ` +
+      (isApprox ? "possible" : "valid") +
+      ` interpretations of the fund flow. ` +
       `Higher entropy makes chain analysis less reliable. ` +
-      `Entropy per UTXO: ${roundTo(entropyBits / nUtxos)} bits (${nUtxos} UTXOs).` +
+      `Entropy per UTXO: ${roundTo(entropyBits / nUtxos)} bits${boundNote} (${nUtxos} UTXOs).` +
       (boltzmann.deterministicLinks.length > 0
         ? ` ${boltzmann.deterministicLinks.length} deterministic link${boltzmann.deterministicLinks.length > 1 ? "s" : ""} detected (100% probability).`
         : ""),

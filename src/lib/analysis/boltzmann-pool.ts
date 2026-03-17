@@ -3,6 +3,8 @@
  * Shared between the imperative computeBoltzmann() and the useBoltzmann hook.
  */
 
+export type BoltzmannMethod = "exact" | "joinmarket" | "wabisabi";
+
 export interface BoltzmannWorkerResult {
   type: "result";
   id: string;
@@ -20,6 +22,8 @@ export interface BoltzmannWorkerResult {
   fees: number;
   intraFeesMaker: number;
   intraFeesTaker: number;
+  /** Which computation path produced this result. */
+  method?: BoltzmannMethod;
 }
 
 export interface BoltzmannProgress {
