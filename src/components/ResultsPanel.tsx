@@ -93,19 +93,22 @@ export const ResultsPanel = memo(function ResultsPanel({
   const fingerprintFinding = result.findings.find((f) => f.id === "h11-wallet-fingerprint");
   const detectedWallet = fingerprintFinding?.params?.walletGuess as string | undefined;
   const [cjLinkabilityView, setCjLinkabilityView] = useState(false);
-  // Reset CJ linkability view when query changes
-  useEffect(() => { const t = setTimeout(() => setCjLinkabilityView(false), 0); return () => clearTimeout(t); }, [query]);
-  // Pro mode: auto-switch to linkability view when Boltzmann is computed
+  // Reset CJ linkability view when query changes or when the tx is not a CoinJoin
+  useEffect(() => {
+    const t = setTimeout(() => setCjLinkabilityView(false), 0);
+    return () => clearTimeout(t);
+  }, [query, isCoinJoin]);
+  // Pro mode: auto-switch to linkability view when Boltzmann is computed for a CoinJoin
   // Normie mode: always reset to normal view
   useEffect(() => {
-    if (proMode && boltzmannResult != null) {
+    if (proMode && boltzmannResult != null && isCoinJoin) {
       const t = setTimeout(() => setCjLinkabilityView(true), 0);
       return () => clearTimeout(t);
     } else if (!proMode) {
       const t = setTimeout(() => setCjLinkabilityView(false), 0);
       return () => clearTimeout(t);
     }
-  }, [proMode, boltzmannResult]);
+  }, [proMode, boltzmannResult, isCoinJoin]);
 
   const handleFindingClick = useCallback((findingId: string) => {
     const el = document.querySelector(`[data-finding-id="${findingId}"]`);
@@ -182,7 +185,7 @@ export const ResultsPanel = memo(function ResultsPanel({
                 />
               ) : (
                 <TxFlowDiagram tx={txData} findings={result.findings} onAddressClick={onScan} usdPrice={usdPrice} outspends={outspends} boltzmannResult={boltzmannResult}
-                  isCoinJoinOverride={cjLinkabilityView}
+                  isCoinJoinOverride={cjLinkabilityView && isCoinJoin}
                   onExitLinkability={() => setCjLinkabilityView(false)}
                 />
               )}
