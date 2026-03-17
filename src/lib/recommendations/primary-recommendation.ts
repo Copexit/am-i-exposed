@@ -28,6 +28,12 @@ export interface RecommendationContext {
  * Deterministic cascade: walks tiers top-to-bottom, returns first match.
  * Mirrors chain analysis damage hierarchy (see docs/adr-recommendations.md).
  */
+const LIGHTNING_TOOLS = [
+  { name: "Phoenix", url: "https://phoenix.acinq.co" },
+  { name: "Zeus", url: "https://zeusln.com" },
+  { name: "Blixt", url: "https://blixtwallet.com" },
+];
+
 const PAYJOIN_TOOLS = [
   { name: "Cake Wallet", url: "https://cakewallet.com" },
   { name: "Bull Bitcoin", url: "https://www.bullbitcoin.com/wallet" },
@@ -195,7 +201,7 @@ export function selectRecommendations(
         headlineDefault: "Avoid sending directly to known entities",
         detailKey: hasCoinJoin ? "primaryRec.entityOutputCJ.detail" : "primaryRec.entityOutput.detail",
         detailDefault: detail,
-        tool: pickTool("lightning", ctx.walletGuess),
+        tools: LIGHTNING_TOOLS,
         guideLink: "/guide#lightning",
       },
       null,
@@ -353,7 +359,7 @@ export function selectRecommendations(
         detailDefault:
           "Round amounts make change detection easier. " +
           "If unavoidable, use Lightning - amounts are not visible on-chain.",
-        tool: pickTool("lightning", ctx.walletGuess),
+        tools: LIGHTNING_TOOLS,
         guideLink: "/guide#lightning",
       },
       null,
@@ -457,7 +463,7 @@ export function selectRecommendations(
 
 /** Pick the most relevant tool, avoiding what the user already has. */
 function pickTool(
-  need: "wallet-switch" | "coin-control" | "payjoin" | "lightning",
+  need: "wallet-switch" | "coin-control",
   walletGuess: string | null,
 ): { name: string; url: string } | undefined {
   const w = walletGuess?.toLowerCase() ?? "";
@@ -471,9 +477,5 @@ function pickTool(
       if (w.includes("sparrow")) return undefined; // already has it
       if (w.includes("ashigaru")) return undefined;
       return { name: "Sparrow Wallet", url: "https://sparrowwallet.com" };
-    case "payjoin":
-      return { name: "Cake Wallet", url: "https://cakewallet.com" };
-    case "lightning":
-      return { name: "Phoenix", url: "https://phoenix.acinq.co" };
   }
 }

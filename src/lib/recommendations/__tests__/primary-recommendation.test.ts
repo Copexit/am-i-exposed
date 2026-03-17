@@ -360,9 +360,10 @@ describe("Wallet-aware tool selection (pickTool)", () => {
     expect(primary.tools?.map((t) => t.name)).toEqual(["Cake Wallet", "Bull Bitcoin", "Ashigaru (Stowaway)"]);
   });
 
-  it("lightning: always recommends Phoenix", () => {
+  it("lightning: recommends Phoenix, Zeus, and Blixt", () => {
     const [primary] = selectRecommendations(ctx([f("h1-round-amount")]));
-    expect(primary.tool?.name).toBe("Phoenix");
+    expect(primary.tools).toHaveLength(3);
+    expect(primary.tools?.map((t) => t.name)).toEqual(["Phoenix", "Zeus", "Blixt"]);
   });
 });
 
