@@ -138,6 +138,11 @@ export function detectJoinMarketForTurbo(
   const equalCount = bestCount;
   const denomination = bestAmount;
 
+  // Stonewall exclusion: exactly 2 equal outputs + 2 change = 4 total outputs
+  // is a Stonewall pattern (single-party), not JoinMarket (multi-party).
+  // Must use exact DFS, not turbo mode which assumes maker/taker structure.
+  if (equalCount === 2 && outputValues.length === 4) return { isJoinMarket: false, denomination: 0 };
+
   if (outputValues.length > 2 * equalCount + 5) return { isJoinMarket: false, denomination: 0 };
 
   const changeCount = outputValues.length - equalCount;
