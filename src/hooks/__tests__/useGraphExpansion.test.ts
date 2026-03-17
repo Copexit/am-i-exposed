@@ -523,6 +523,128 @@ describe("useGraphExpansion", () => {
       expect(result.current.nodes.size).toBe(1);
       expect(result.current.nodes.has("root-protect")).toBe(true);
     });
+
+    it("cascades: collapsing depth +1 also removes depth +2, +3, +4", async () => {
+      // Chain: root -> A(+1) -> B(+2) -> C(+3) -> D(+4)
+      const rootTx = makeTx({ txid: "r-casc", vout: [makeVout(100000)] });
+      const txA = makeTx({ txid: "A-casc", vin: [makeVin("r-casc", 0)], vout: [makeVout(90000)] });
+      const txB = makeTx({ txid: "B-casc", vin: [makeVin("A-casc", 0)], vout: [makeVout(80000)] });
+      const txC = makeTx({ txid: "C-casc", vin: [makeVin("B-casc", 0)], vout: [makeVout(70000)] });
+      const txD = makeTx({ txid: "D-casc", vin: [makeVin("C-casc", 0)], vout: [makeVout(60000)] });
+
+      const fetcher = {
+        getTransaction: vi.fn().mockImplementation((txid: string) => {
+          const m: Record<string, MempoolTransaction> = {
+            "A-casc": txA, "B-casc": txB, "C-casc": txC, "D-casc": txD,
+          };
+          return Promise.resolve(m[txid]);
+        }),
+        getTxOutspends: vi.fn().mockImplementation((txid: string) => {
+          const m: Record<string, MempoolOutspend[]> = {
+            "r-casc": [{ spent: true, txid: "A-casc", vin: 0, status: { confirmed: true } }],
+            "A-casc": [{ spent: true, txid: "B-casc", vin: 0, status: { confirmed: true } }],
+            "B-casc": [{ spent: true, txid: "C-casc", vin: 0, status: { confirmed: true } }],
+            "C-casc": [{ spent: true, txid: "D-casc", vin: 0, status: { confirmed: true } }],
+          };
+          return Promise.resolve(m[txid] ?? []);
+        }),
+      };
+
+      const { result } = renderHook(() => useGraphExpansion(fetcher));
+      act(() => { result.current.setRoot(rootTx); });
+
+      await act(async () => { await result.current.expandOutput("r-casc", 0); });
+      await act(async () => { await result.current.expandOutput("A-casc", 0); });
+      await act(async () => { await result.current.expandOutput("B-casc", 0); });
+      await act(async () => { await result.current.expandOutput("C-casc", 0); });
+      expect(result.current.nodes.size).toBe(5);
+
+      // Collapsing A should cascade-remove A, B, C, D
+      act(() => { result.current.collapse("A-casc"); });
+      expect(result.current.nodes.has("A-casc")).toBe(false);
+      expect(result.current.nodes.has("B-casc")).toBe(false);
+      expect(result.current.nodes.has("C-casc")).toBe(false);
+      expect(result.current.nodes.has("D-casc")).toBe(false);
+      expect(result.current.nodes.size).toBe(1);
+    });
+
+    it("cascades: collapsing depth -1 also removes depth -2, -3", async () => {
+      // Chain: GP(-2) -> P(-1) -> root -> child(+1)
+      const txGP = makeTx({ txid: "GP-casc", vout: [makeVout(200000)] });
+      const txP = makeTx({ txid: "P-casc", vin: [makeVin("GP-casc", 0)], vout: [makeVout(150000)] });
+      const rootTx = makeTx({ txid: "rt-casc", vin: [makeVin("P-casc", 0)], vout: [makeVout(100000)] });
+      const txCh = makeTx({ txid: "ch-casc", vin: [makeVin("rt-casc", 0)], vout: [makeVout(80000)] });
+
+      const fetcher = {
+        getTransaction: vi.fn().mockImplementation((txid: string) => {
+          const m: Record<string, MempoolTransaction> = { "GP-casc": txGP, "P-casc": txP, "ch-casc": txCh };
+          return Promise.resolve(m[txid]);
+        }),
+        getTxOutspends: vi.fn().mockImplementation((txid: string) => {
+          if (txid === "rt-casc") return Promise.resolve([{ spent: true, txid: "ch-casc", vin: 0, status: { confirmed: true } }]);
+          return Promise.resolve([]);
+        }),
+      };
+
+      const { result } = renderHook(() => useGraphExpansion(fetcher));
+      act(() => { result.current.setRoot(rootTx); });
+
+      // Expand backward: P, then GP
+      await act(async () => { await result.current.expandInput("rt-casc", 0); });
+      await act(async () => { await result.current.expandInput("P-casc", 0); });
+      // Expand forward: child
+      await act(async () => { await result.current.expandOutput("rt-casc", 0); });
+      expect(result.current.nodes.size).toBe(4);
+
+      // Collapsing P should remove P and GP, but keep child
+      act(() => { result.current.collapse("P-casc"); });
+      expect(result.current.nodes.has("P-casc")).toBe(false);
+      expect(result.current.nodes.has("GP-casc")).toBe(false);
+      expect(result.current.nodes.has("ch-casc")).toBe(true);
+      expect(result.current.nodes.has("rt-casc")).toBe(true);
+      expect(result.current.nodes.size).toBe(2);
+    });
+
+    it("cascades: collapsing one branch preserves sibling branch", async () => {
+      // root -> A(+1) -> B(+2) and root -> C(+1)
+      // Collapsing A should remove A and B but keep C
+      const rootTx = makeTx({ txid: "r-br", vout: [makeVout(100000), makeVout(50000)] });
+      const txA = makeTx({ txid: "A-br", vin: [makeVin("r-br", 0)], vout: [makeVout(90000)] });
+      const txB = makeTx({ txid: "B-br", vin: [makeVin("A-br", 0)], vout: [makeVout(80000)] });
+      const txC = makeTx({ txid: "C-br", vin: [makeVin("r-br", 1)], vout: [makeVout(40000)] });
+
+      const fetcher = {
+        getTransaction: vi.fn().mockImplementation((txid: string) => {
+          const m: Record<string, MempoolTransaction> = { "A-br": txA, "B-br": txB, "C-br": txC };
+          return Promise.resolve(m[txid]);
+        }),
+        getTxOutspends: vi.fn().mockImplementation((txid: string) => {
+          if (txid === "r-br") return Promise.resolve([
+            { spent: true, txid: "A-br", vin: 0, status: { confirmed: true } },
+            { spent: true, txid: "C-br", vin: 0, status: { confirmed: true } },
+          ]);
+          if (txid === "A-br") return Promise.resolve([
+            { spent: true, txid: "B-br", vin: 0, status: { confirmed: true } },
+          ]);
+          return Promise.resolve([]);
+        }),
+      };
+
+      const { result } = renderHook(() => useGraphExpansion(fetcher));
+      act(() => { result.current.setRoot(rootTx); });
+
+      await act(async () => { await result.current.expandOutput("r-br", 0); }); // A
+      await act(async () => { await result.current.expandOutput("A-br", 0); }); // B
+      await act(async () => { await result.current.expandOutput("r-br", 1); }); // C
+      expect(result.current.nodes.size).toBe(4);
+
+      act(() => { result.current.collapse("A-br"); });
+      expect(result.current.nodes.has("A-br")).toBe(false);
+      expect(result.current.nodes.has("B-br")).toBe(false);
+      expect(result.current.nodes.has("C-br")).toBe(true);
+      expect(result.current.nodes.has("r-br")).toBe(true);
+      expect(result.current.nodes.size).toBe(2);
+    });
   });
 
   // ── nodeCount and maxNodes ────────────────────────────────────────────
