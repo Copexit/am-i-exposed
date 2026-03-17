@@ -386,6 +386,54 @@ describe("analyzeCoinJoin", () => {
     expect(sw!.scoreImpact).toBe(15);
   });
 
+  it("detects Stonewall with many inputs consolidating UTXOs (issue #20)", () => {
+    // Real tx 015d9cf0...f404: 9 inputs from distinct addresses, 4 outputs
+    // with 1 equal pair (9,136,520) + 2 change. Previously misclassified as
+    // JoinMarket because detectStonewall capped non-Whirlpool inputs at 4.
+    const tx = makeTx({
+      vin: Array.from({ length: 9 }, (_, i) =>
+        makeVin({
+          txid: String(i).padStart(64, "b"),
+          prevout: {
+            scriptpubkey: "",
+            scriptpubkey_asm: "",
+            scriptpubkey_type: "v0_p2wpkh",
+            scriptpubkey_address: `bc1qutxo${String(i).padStart(33, "0")}`,
+            value: [203_486, 5_000_000, 11_126, 9_829, 9_572_867, 13_796, 150_000, 82_835, 5_000_000][i],
+          },
+        }),
+      ),
+      vout: [
+        makeVout({ value: 791_116, scriptpubkey_address: "bc1qout1_000000000000000000000000000000000" }),
+        makeVout({ value: 907_419, scriptpubkey_address: "bc1qout2_000000000000000000000000000000000" }),
+        makeVout({ value: 9_136_520, scriptpubkey_address: "bc1qout3_000000000000000000000000000000000" }),
+        makeVout({ value: 9_136_520, scriptpubkey_address: "bc1qout4_000000000000000000000000000000000" }),
+      ],
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    // Must be Stonewall, NOT JoinMarket
+    const sw = findings.find((f) => f.id === "h4-stonewall");
+    expect(sw).toBeDefined();
+    expect(sw!.scoreImpact).toBe(15);
+    expect(findings.find((f) => f.id === "h4-joinmarket")).toBeUndefined();
+    // Stonewall is steganographic - no exchange flagging
+    expect(findings.find((f) => f.id === "h4-exchange-flagging")).toBeUndefined();
+  });
+
+  it("does not detect Stonewall with fewer than 2 inputs", () => {
+    const tx = makeTx({
+      vin: [makeVin()],
+      vout: [
+        makeVout({ value: 200_000, scriptpubkey_address: "bc1qsw1_0000000000000000000000000000000000" }),
+        makeVout({ value: 200_000, scriptpubkey_address: "bc1qsw2_0000000000000000000000000000000000" }),
+        makeVout({ value: 150_000 }),
+        makeVout({ value: 100_000 }),
+      ],
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    expect(findings.find((f) => f.id === "h4-stonewall")).toBeUndefined();
+  });
+
   // ── isCoinJoinFinding ────────────────────────────────────────────────
 
   it("isCoinJoinFinding returns true for positive CoinJoin findings", () => {

@@ -192,7 +192,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
 
   // Check for Stonewall pattern: steganographic CoinJoin (Samourai/Ashigaru Wallet)
   // Stonewall is the most specific small CoinJoin pattern (exactly 4 outputs,
-  // 2-4 inputs, 1 equal pair + 2 distinct change) and must be checked before
+  // 2+ inputs, 1 equal pair + 2 distinct change) and must be checked before
   // JoinMarket to avoid misattribution.
   // NOTE: Solo Stonewall vs STONEWALLx2 cannot be reliably distinguished on-chain.
   // That ambiguity IS the privacy feature. We report a single finding.
@@ -560,11 +560,13 @@ function detectStonewall(
   vin: Parameters<typeof analyzeCoinJoin>[0]["vin"],
   spendableOutputs: { value: number; scriptpubkey_address?: string }[],
 ): { denomination: number; distinctInputAddresses: number; whirlpoolOrigin: boolean } | null {
-  // Stonewall: typically 2-4 inputs, exactly 4 spendable outputs (2 equal + 2 change)
+  // Stonewall: 2+ inputs, exactly 4 spendable outputs (2 equal + 2 change).
   // Solo Stonewall typically has 2-3 inputs from one wallet.
-  // STONEWALLx2 can have up to 4 inputs (2 from each party).
-  // Exception: Stonewall from Whirlpool can have many more inputs (all at the
-  // same Whirlpool denomination), e.g. 12 inputs at 0.5 BTC each.
+  // STONEWALLx2 can have inputs from 2 parties (2+ each).
+  // Either variant may consolidate many UTXOs, so no upper input limit is
+  // imposed - the 4-output pattern (1 equal pair + 2 distinct change) is
+  // already highly specific.
+  // Stonewall from Whirlpool: all inputs share a Whirlpool denomination.
   if (vin.length < 2) return null;
   if (spendableOutputs.length !== 4) return null;
 
@@ -574,9 +576,6 @@ function detectStonewall(
   const inputValues = vin.map((v) => v.prevout?.value).filter((v): v is number => v != null);
   const allSameValue = inputValues.length >= 2 && inputValues.every((v) => v === inputValues[0]);
   const isWhirlpoolOrigin = allSameValue && inputValues.length >= 5 && WHIRLPOOL_DENOMS.includes(inputValues[0]);
-
-  // Standard Stonewall: 2-4 inputs. Allow more only for Whirlpool-origin.
-  if (vin.length > 4 && !isWhirlpoolOrigin) return null;
 
   // Count output values
   const counts = new Map<number, number>();
