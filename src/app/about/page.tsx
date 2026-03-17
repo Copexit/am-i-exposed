@@ -49,65 +49,25 @@ const DEFAULTS: Record<string, string> = {
 };
 
 const STATS = [
-  { value: "31", label: "Heuristics" },
-  { value: "14", label: "Chain modules" },
-  { value: "364", label: "Known entities" },
-  { value: "30M+", label: "Addresses indexed" },
-  { value: "844+", label: "Tests" },
-  { value: "5", label: "Languages" },
+  { value: "31", labelKey: "about.stat_1_label" },
+  { value: "14", labelKey: "about.stat_2_label" },
+  { value: "364", labelKey: "about.stat_3_label" },
+  { value: "30M+", labelKey: "about.stat_4_label" },
+  { value: "844+", labelKey: "about.stat_5_label" },
+  { value: "5", labelKey: "about.stat_6_label" },
 ];
 
 const CAPABILITIES = [
-  {
-    icon: Search,
-    title: "31 Privacy Heuristics",
-    desc: "Round amounts, change detection, CIOH, CoinJoin patterns (Whirlpool, WabiSabi, JoinMarket), wallet fingerprinting, script analysis, timing, and more.",
-  },
-  {
-    icon: GitFork,
-    title: "Multi-Hop Chain Tracing",
-    desc: "Backward and forward transaction tracing, entity proximity detection, taint analysis, UTXO clustering, peel chain tracing, and temporal pattern analysis.",
-  },
-  {
-    icon: Database,
-    title: "Entity Detection",
-    desc: "364 known entities across 30M+ addresses - exchanges, darknet markets, mixers, gambling, mining pools, scams, and payment services. OFAC-list coverage included.",
-  },
-  {
-    icon: Cpu,
-    title: "Boltzmann Entropy (WASM)",
-    desc: "Full link probability matrix computed on-device via Rust/WebAssembly. Real entropy calculation, not estimation - the same math OXT.me used, running locally using all threads, with turbo paths for JoinMarket and more.",
-  },
-  {
-    icon: Wallet,
-    title: "Wallet Audit",
-    desc: "Paste an xpub or output descriptor. BIP44/49/84/86 derivation. Aggregate privacy assessment across all derived addresses - reuse, UTXO hygiene, spending patterns.",
-  },
-  {
-    icon: FileCheck,
-    title: "PSBT Pre-Broadcast Check",
-    desc: "Analyze an unsigned transaction before signing. Catch round amounts, script mismatches, and fingerprinting issues while they can still be fixed.",
-  },
-  {
-    icon: BarChart3,
-    title: "Interactive Visualizations",
-    desc: "Transaction flow diagrams, Boltzmann heatmaps, interactive graph explorer, taint path diagrams, cluster timelines, CoinJoin structure breakdowns, and more.",
-  },
-  {
-    icon: Languages,
-    title: "5 Languages",
-    desc: "Full interface translation in English, Spanish, Portuguese, German, and French. Community contributions welcome.",
-  },
-  {
-    icon: HardDrive,
-    title: "Smart Local Cache",
-    desc: "Confirmed transactions, outspends, and analysis results are cached in IndexedDB across sessions. Repeat scans are instant, API requests are minimized, and fewer queries leave your browser.",
-  },
-  {
-    icon: Server,
-    title: "Self-Hostable",
-    desc: "Available as an Umbrel app connecting to your own Bitcoin node. Or point it at any custom mempool.space instance for zero third-party exposure.",
-  },
+  { icon: Search, titleKey: "about.cap_1_title", descKey: "about.cap_1_desc" },
+  { icon: GitFork, titleKey: "about.cap_2_title", descKey: "about.cap_2_desc" },
+  { icon: Database, titleKey: "about.cap_3_title", descKey: "about.cap_3_desc" },
+  { icon: Cpu, titleKey: "about.cap_4_title", descKey: "about.cap_4_desc" },
+  { icon: Wallet, titleKey: "about.cap_5_title", descKey: "about.cap_5_desc" },
+  { icon: FileCheck, titleKey: "about.cap_6_title", descKey: "about.cap_6_desc" },
+  { icon: BarChart3, titleKey: "about.cap_7_title", descKey: "about.cap_7_desc" },
+  { icon: Languages, titleKey: "about.cap_8_title", descKey: "about.cap_8_desc" },
+  { icon: HardDrive, titleKey: "about.cap_9_title", descKey: "about.cap_9_desc" },
+  { icon: Server, titleKey: "about.cap_10_title", descKey: "about.cap_10_desc" },
 ];
 
 export default function AboutPage() {
@@ -161,11 +121,11 @@ export default function AboutPage() {
           <div className="flex flex-wrap gap-3">
             {STATS.map((s) => (
               <div
-                key={s.label}
+                key={s.labelKey}
                 className="flex items-baseline gap-2 rounded-lg border border-card-border bg-surface-elevated/50 px-4 py-2.5"
               >
                 <span className="text-xl font-bold text-bitcoin">{s.value}</span>
-                <span className="text-sm text-muted">{s.label}</span>
+                <span className="text-sm text-muted">{t(s.labelKey)}</span>
               </div>
             ))}
           </div>
@@ -182,14 +142,14 @@ export default function AboutPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {CAPABILITIES.map((c) => (
               <div
-                key={c.title}
+                key={c.titleKey}
                 className="rounded-xl border border-card-border bg-surface-elevated/50 p-5 space-y-2"
               >
                 <div className="flex items-center gap-2">
                   <c.icon size={18} className="text-bitcoin shrink-0" />
-                  <h3 className="font-medium text-foreground">{c.title}</h3>
+                  <h3 className="font-medium text-foreground">{t(c.titleKey)}</h3>
                 </div>
-                <p className="text-sm text-muted leading-relaxed">{c.desc}</p>
+                <p className="text-sm text-muted leading-relaxed">{t(c.descKey)}</p>
               </div>
             ))}
           </div>
