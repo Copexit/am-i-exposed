@@ -255,35 +255,51 @@ describe("change detection auto-marking", () => {
   });
 });
 
-// ─── Stonewall Exclusion from JoinMarket Turbo ──────────────────
+// ─── JoinMarket Turbo Mode Detection Guards ─────────────────────
 
-describe("Stonewall exclusion from JoinMarket turbo mode", () => {
-  it("9-input Stonewall (4 outputs, 1 equal pair) is NOT detected as JoinMarket", () => {
-    // Mirrors tx 015d9cf0...f404: 9 inputs, 4 outputs (2 equal at 9,136,520 + 2 change)
-    const inputs = [
-      5_000_000, 3_000_000, 2_500_000, 1_800_000, 1_500_000,
-      1_200_000, 900_000, 700_000, 500_000,
-    ];
-    const outputs = [9_136_520, 9_136_520, 6_500_000, 1_363_480];
+describe("detectJoinMarketForTurbo guards", () => {
+  it("rejects Stonewall (2 equal outputs) - equalCount < 3", () => {
+    // Tx 015d9cf0: 9 inputs, 4 outputs (2 equal at 9.1M + 2 change)
+    const inputs = [203_486, 5_000_000, 11_126, 9_829, 9_572_867, 13_796, 150_000, 82_835, 5_000_000];
+    const outputs = [9_136_520, 9_136_520, 907_419, 791_116];
     const result = detectJoinMarketForTurbo(inputs, outputs);
     expect(result.isJoinMarket).toBe(false);
   });
 
-  it("actual JoinMarket (5 equal outputs + changes) IS detected as JoinMarket", () => {
-    const inputs = [
-      1_000_000, 1_100_000, 1_200_000, 900_000, 1_050_000,
-    ];
-    const outputs = [500_000, 500_000, 500_000, 500_000, 500_000, 450_000, 550_000, 650_000, 350_000, 100_000];
-    const result = detectJoinMarketForTurbo(inputs, outputs);
-    expect(result.isJoinMarket).toBe(true);
-    expect(result.denomination).toBe(500_000);
-  });
-
-  it("small Stonewall (2 inputs, 4 outputs) is also excluded", () => {
+  it("rejects small Stonewall (2 inputs, 2 equal outputs)", () => {
     const inputs = [500_000, 600_000];
     const outputs = [300_000, 300_000, 250_000, 248_500];
+    expect(detectJoinMarketForTurbo(inputs, outputs).isJoinMarket).toBe(false);
+  });
+
+  it("rejects batch payment (1 large input, 3 equal outputs) - aboveDenom < equalCount-1", () => {
+    // 1 input funding 3 equal outputs + change: only 1 input >= denom, need 2
+    const inputs = [3_500_000];
+    const outputs = [1_000_000, 1_000_000, 1_000_000, 490_000];
+    expect(detectJoinMarketForTurbo(inputs, outputs).isJoinMarket).toBe(false);
+  });
+
+  it("rejects consolidation with coincidental equal outputs", () => {
+    // 6 small inputs, 3 happen to be equal but none above denom
+    const inputs = [50_000, 40_000, 30_000, 20_000, 15_000, 10_000];
+    const outputs = [50_000, 50_000, 50_000, 13_000];
+    expect(detectJoinMarketForTurbo(inputs, outputs).isJoinMarket).toBe(false);
+  });
+
+  it("accepts real JoinMarket (5 equal outputs, 5 inputs above denom)", () => {
+    const inputs = [1_600_000, 1_300_000, 1_100_000, 1_050_000, 1_006_000];
+    const outputs = [1_000_000, 1_000_000, 1_000_000, 1_000_000, 1_000_000, 599_000, 299_000, 99_000, 49_000];
     const result = detectJoinMarketForTurbo(inputs, outputs);
-    expect(result.isJoinMarket).toBe(false);
+    expect(result.isJoinMarket).toBe(true);
+    expect(result.denomination).toBe(1_000_000);
+  });
+
+  it("accepts 3-party JoinMarket (3 equal, 3 inputs above denom)", () => {
+    const inputs = [150_000, 120_000, 106_000];
+    const outputs = [100_000, 100_000, 100_000, 49_000, 19_000];
+    const result = detectJoinMarketForTurbo(inputs, outputs);
+    expect(result.isJoinMarket).toBe(true);
+    expect(result.denomination).toBe(100_000);
   });
 });
 

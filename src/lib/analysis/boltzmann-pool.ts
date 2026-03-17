@@ -138,18 +138,21 @@ export function detectJoinMarketForTurbo(
   const equalCount = bestCount;
   const denomination = bestAmount;
 
-  // Stonewall exclusion: exactly 2 equal outputs + 2 change = 4 total outputs
-  // is a Stonewall pattern (single-party), not JoinMarket (multi-party).
-  // Must use exact DFS, not turbo mode which assumes maker/taker structure.
-  if (equalCount === 2 && outputValues.length === 4) return { isJoinMarket: false, denomination: 0 };
+  // JoinMarket requires at least 3 equal outputs (2 makers + 1 taker minimum).
+  // This eliminates Stonewall (always 2 equal), batch payments with coincidental
+  // pairs, and other false positives. A 1-maker JM round is useless for privacy.
+  if (equalCount < 3) return { isJoinMarket: false, denomination: 0 };
+
+  // Each maker must fund the denomination from a single input, so at least
+  // (equalCount - 1) inputs must be >= denomination. The -1 accounts for the
+  // taker, whose individual inputs may be smaller (consolidation).
+  const aboveDenom = inputValues.filter(v => v >= denomination).length;
+  if (aboveDenom < equalCount - 1) return { isJoinMarket: false, denomination: 0 };
 
   if (outputValues.length > 2 * equalCount + 5) return { isJoinMarket: false, denomination: 0 };
 
   const changeCount = outputValues.length - equalCount;
   if (changeCount === 0) return { isJoinMarket: false, denomination: 0 };
-
-  const aboveDenom = inputValues.filter(v => v > denomination).length;
-  if (aboveDenom < changeCount - 5) return { isJoinMarket: false, denomination: 0 };
 
   return { isJoinMarket: true, denomination };
 }

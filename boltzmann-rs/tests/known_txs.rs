@@ -371,6 +371,46 @@ fn test_nondeterministic_9in_4out() {
 }
 
 // ==========================================================================
+// Test 14b: Same tx as Test 14 - compare standard vs JoinMarket turbo
+// Stonewall tx should NOT use turbo mode; this test proves the difference
+// ==========================================================================
+#[test]
+fn test_stonewall_015d_standard_vs_jm_turbo() {
+    let inputs = [203486i64, 5_000_000, 11126, 9829, 9_572_867, 13796, 150000, 82835, 5_000_000];
+    let outputs = [791116i64, 907419, 9_136_520, 9_136_520];
+    let fee = 72364i64;
+
+    let standard = analyze(&inputs, &outputs, fee, 0.005, 60_000);
+    let turbo = analyze_joinmarket(&inputs, &outputs, fee, 9_136_520, 0.005, 60_000);
+
+    println!("STANDARD: nb_cmbn={}, entropy={:.6}", standard.nb_cmbn, standard.entropy);
+    for (o, row) in standard.mat_lnk_probabilities.iter().enumerate() {
+        let formatted: Vec<String> = row.iter().map(|p| format!("{:.1}%", p * 100.0)).collect();
+        println!("  out[{o}]: {}", formatted.join("  "));
+    }
+
+    println!("\nTURBO (JM): nb_cmbn={}, entropy={:.6}", turbo.nb_cmbn, turbo.entropy);
+    for (o, row) in turbo.mat_lnk_probabilities.iter().enumerate() {
+        let formatted: Vec<String> = row.iter().map(|p| format!("{:.1}%", p * 100.0)).collect();
+        println!("  out[{o}]: {}", formatted.join("  "));
+    }
+
+    // Standard should give 438 combinations (verified in Test 14)
+    assert_eq!(standard.nb_cmbn, 438, "Standard should have 438 combinations");
+
+    // Turbo gives DIFFERENT (wrong) results for this Stonewall tx
+    // This test documents the divergence to justify the exclusion
+    assert_ne!(
+        standard.nb_cmbn, turbo.nb_cmbn,
+        "Standard and turbo should differ for Stonewall (turbo is wrong here)"
+    );
+    assert_ne!(
+        standard.mat_lnk_combinations, turbo.mat_lnk_combinations,
+        "Matrices should differ - turbo assumes JM structure which is wrong for Stonewall"
+    );
+}
+
+// ==========================================================================
 // Test 15: "Hell is other people" from LaurentMT Part 3
 // ==========================================================================
 #[test]
