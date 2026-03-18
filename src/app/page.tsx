@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, lazy, Suspense, useCallback, useMemo } from "react";
+import { useEffect, useRef, useState, lazy, Suspense, useCallback, useMemo, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import { ShieldCheck, ShieldAlert, AlertCircle, ArrowLeft, EyeOff, Github } from "lucide-react";
@@ -27,6 +27,8 @@ const DevChainalysisPanel = lazy(() => import("@/components/DevChainalysisPanel"
 const WalletAuditResults = lazy(() => import("@/components/wallet/WalletAuditResults").then(m => ({ default: m.WalletAuditResults })));
 import type { PreSendResult } from "@/lib/analysis/orchestrator";
 import { RISK_CONFIG } from "@/components/DestinationAlert";
+
+const subscribeNoop = () => () => {};
 
 function DestinationOnlyResult({ query, preSendResult, onBack, durationMs }: {
   query: string;
@@ -198,30 +200,33 @@ export default function Home() {
   const skipNextHashChange = useRef(false);
 
   // Detect if initial URL has a hash so we can suppress the landing flash.
-  const [pendingHash, setPendingHash] = useState(false);
-
-  useEffect(() => {
-    const hash = window.location.hash.slice(1);
-    if (!hash) return;
-    const params = new URLSearchParams(hash);
-    if (params.get("tx") ?? params.get("addr") ?? params.get("check") ?? params.get("xpub")) {
-      const timer = setTimeout(() => setPendingHash(true), 0);
-      return () => clearTimeout(timer);
-    }
-  }, []);
+  // useSyncExternalStore reads the hash synchronously on the client (preventing
+  // a flash) while returning false during SSR to avoid hydration mismatch.
+  const hasInitialHash = useSyncExternalStore(
+    subscribeNoop,
+    () => {
+      const hash = window.location.hash.slice(1);
+      if (!hash) return false;
+      const params = new URLSearchParams(hash);
+      return !!(params.get("tx") ?? params.get("addr") ?? params.get("check") ?? params.get("xpub"));
+    },
+    () => false,
+  );
+  const [pendingHashDismissed, setPendingHashDismissed] = useState(false);
+  const pendingHash = hasInitialHash && !pendingHashDismissed;
 
   useEffect(() => {
     function handleHash() {
       // Skip when hash was changed programmatically by startXpubScan
       if (skipNextHashChange.current) {
         skipNextHashChange.current = false;
-        setPendingHash(false);
+        setPendingHashDismissed(true);
         return;
       }
 
       const hash = window.location.hash.slice(1);
       if (!hash) {
-        setPendingHash(false);
+        setPendingHashDismissed(true);
         resetRef.current();
         walletResetRef.current();
         return;
@@ -239,7 +244,7 @@ export default function Home() {
         // Guard: show privacy warning if using a third-party API
         if (isThirdPartyRef.current && !isXpubPrivacyAcked()) {
           setPendingXpubRef.current(xpub);
-          setPendingHash(false);
+          setPendingHashDismissed(true);
           return;
         }
         resetRef.current();
@@ -347,10 +352,8 @@ export default function Home() {
   const walletActive = wallet.phase !== "idle";
 
   // Clear pendingHash once analysis has actually started (phase left idle).
-  // Using a ref + synchronous check avoids a useEffect setState lint violation
-  // while still preventing the flash where phase=idle && !pendingHash.
   if (pendingHash && (phase !== "idle" || walletActive)) {
-    setPendingHash(false);
+    setPendingHashDismissed(true);
   }
 
   // Compute xpub address count for the privacy warning dialog
