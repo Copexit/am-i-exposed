@@ -38,6 +38,7 @@ import {
   analyzeHighActivityAddress,
   analyzePostMix,
   analyzeEntityDetection,
+  analyzeRicochet,
 } from "./heuristics";
 import { analyzeTemporalCorrelation } from "./chain/temporal";
 import { analyzeFingerprintEvolution } from "./chain/prospective";
@@ -88,6 +89,7 @@ export const TX_HEURISTICS = [
   { id: "witness", label: "Witness data analysis", fn: analyzeWitnessData },
   { id: "postmix", label: "Post-mix consolidation", fn: analyzePostMix },
   { id: "entity", label: "Known entity detection", fn: analyzeEntityDetection },
+  { id: "ricochet", label: "Ricochet detection", fn: analyzeRicochet },
 ] as const;
 
 export const ADDRESS_HEURISTICS = [

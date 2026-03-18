@@ -37,6 +37,7 @@ export type TxType =
   | "simplified-stonewall"
   | "tx0-premix"
   | "bip47-notification"
+  | "ricochet"
   | "consolidation"
   | "exchange-withdrawal"
   | "batch-payment"

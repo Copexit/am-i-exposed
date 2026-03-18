@@ -29,8 +29,8 @@ describe("analyzeTransaction", () => {
     expect(result.grade).toBeDefined();
     expect(result.findings.length).toBeGreaterThan(0);
 
-    // onStep called twice per heuristic (start + done) = 50 calls
-    expect(onStep).toHaveBeenCalledTimes(50);
+    // onStep called twice per heuristic (start + done) = 52 calls
+    expect(onStep).toHaveBeenCalledTimes(52);
   });
 
   it("passes rawHex to wallet-fingerprint heuristic", async () => {
@@ -226,8 +226,8 @@ describe("analyzeDestination", () => {
 });
 
 describe("heuristic step lists", () => {
-  it("getTxHeuristicSteps returns 31 steps (25 heuristics + 6 chain)", () => {
-    expect(getTxHeuristicSteps()).toHaveLength(31);
+  it("getTxHeuristicSteps returns 32 steps (26 heuristics + 6 chain)", () => {
+    expect(getTxHeuristicSteps()).toHaveLength(32);
   });
 
   it("getAddressHeuristicSteps returns 6 steps", () => {

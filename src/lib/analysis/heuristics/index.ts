@@ -29,4 +29,5 @@ export { analyzeWitnessData } from "./witness-analysis";
 export { analyzeHighActivityAddress } from "./high-activity-address";
 export { analyzeEntityDetection } from "./entity-detection";
 export { analyzePostMix } from "./post-mix";
+export { analyzeRicochet } from "./ricochet";
 export type { TxHeuristic, AddressHeuristic, HeuristicTranslator } from "./types";

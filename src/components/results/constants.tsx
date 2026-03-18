@@ -13,6 +13,7 @@ export const TX_TYPE_LABELS: Partial<Record<TxType, string>> = {
   "simplified-stonewall": "Simplified Stonewall",
   "tx0-premix": "TX0 Premix",
   "bip47-notification": "BIP47 Notification",
+  "ricochet": "Ricochet (Ashigaru)",
   "consolidation": "Consolidation",
   "exchange-withdrawal": "Exchange Withdrawal",
   "batch-payment": "Batch Payment",
