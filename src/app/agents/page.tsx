@@ -110,7 +110,7 @@ const MCP_CONFIG = `{
   "mcpServers": {
     "bitcoin-privacy": {
       "command": "npx",
-      "args": ["-y", "@copexit/am-i-exposed", "mcp"]
+      "args": ["-y", "am-i-exposed", "mcp"]
     }
   }
 }`;
@@ -149,9 +149,9 @@ export default function AgentsPage() {
             <Terminal size={22} />
             Quick Start
           </h2>
-          <CodeBlock code="npm install -g @copexit/am-i-exposed" />
+          <CodeBlock code="npm install -g am-i-exposed" />
           <p className="text-muted text-sm">
-            Requires Node.js 20+. Or use <code className="text-foreground">npx @copexit/am-i-exposed</code> without installing.
+            Requires Node.js 20+. Or use <code className="text-foreground">npx am-i-exposed</code> without installing.
           </p>
         </section>
 
@@ -364,7 +364,7 @@ export default function AgentsPage() {
             Full spec
           </a>
           <a
-            href="https://www.npmjs.com/package/@copexit/am-i-exposed"
+            href="https://www.npmjs.com/package/am-i-exposed"
             target="_blank"
             rel="noopener noreferrer"
             className="text-muted hover:text-foreground underline underline-offset-2"

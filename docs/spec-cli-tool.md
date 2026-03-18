@@ -15,7 +15,7 @@ A CLI tool (`am-i-exposed`) that provides the full analysis engine from the comm
 5. **Boltzmann analysis** - entropy, efficiency, link probability matrix via Rust WASM
 6. **Chain tracing** - multi-hop backward/forward analysis with entity proximity, taint, clustering
 
-Published as `@copexit/am-i-exposed` on npm. Runnable via `npx @copexit/am-i-exposed <command>`.
+Published as `am-i-exposed` on npm. Runnable via `npx am-i-exposed <command>`.
 
 ## Why
 
@@ -117,7 +117,7 @@ CLI wrapper (`cli/src/adapters/boltzmann-node.ts`) imports the generated binding
 
 ```
 cli/
-  package.json              # npm package: @copexit/am-i-exposed
+  package.json              # npm package: am-i-exposed
   tsconfig.json             # Extends root, drops "dom" lib, targets Node 20+
   src/
     index.ts                # #!/usr/bin/env node - commander entry point
@@ -911,7 +911,7 @@ Entries are sorted by hash4 for binary search.
 
 ```json
 {
-  "name": "@copexit/am-i-exposed",
+  "name": "am-i-exposed",
   "version": "0.33.0",
   "description": "Bitcoin privacy scanner - analyze transactions, addresses, and wallets for chain analysis exposure",
   "type": "module",
@@ -991,8 +991,8 @@ Structure:
 # am-i-exposed - Bitcoin Privacy Scanner CLI
 
 ## Installation
-npm install -g @copexit/am-i-exposed
-# or: npx @copexit/am-i-exposed <command>
+npm install -g am-i-exposed
+# or: npx am-i-exposed <command>
 
 ## Commands
 [Each command with exact syntax, description, flags]

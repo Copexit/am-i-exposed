@@ -7,9 +7,9 @@ All analysis runs locally. Only mempool.space API calls are made for blockchain 
 ## Installation
 
 ```bash
-npm install -g @copexit/am-i-exposed
+npm install -g am-i-exposed
 # or run without installing:
-npx @copexit/am-i-exposed <command>
+npx am-i-exposed <command>
 ```
 
 Requires Node.js >= 20.

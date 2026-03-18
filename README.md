@@ -13,7 +13,7 @@ Paste a Bitcoin address, transaction ID, xpub/descriptor, or unsigned PSBT. Get 
 
 > **Are you an agent?** Scan a transaction right now:
 > ```bash
-> npx @copexit/am-i-exposed scan tx <txid> --json
+> npx am-i-exposed scan tx <txid> --json
 > ```
 > [Full agent docs](https://am-i.exposed/agents/) | [skill.md](./cli/skill.md) | [MCP server](#mcp-server-ai-agents)
 
@@ -230,7 +230,7 @@ The analysis engine is available as a CLI tool and MCP server for terminal use a
 ### Install
 
 ```bash
-npm install -g @copexit/am-i-exposed
+npm install -g am-i-exposed
 ```
 
 ### Commands
@@ -280,7 +280,7 @@ Claude Desktop configuration:
   "mcpServers": {
     "bitcoin-privacy": {
       "command": "npx",
-      "args": ["-y", "@copexit/am-i-exposed", "mcp"]
+      "args": ["-y", "am-i-exposed", "mcp"]
     }
   }
 }
