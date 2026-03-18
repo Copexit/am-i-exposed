@@ -1,4 +1,5 @@
 import { createMempoolClient, type MempoolClient } from "@/lib/api/mempool";
+import { createCachedNodeClient } from "../adapters/cached-client-node";
 import type { GlobalOpts } from "../index";
 
 /** Resolve the mempool API base URL from CLI flags. */
@@ -16,8 +17,14 @@ export function resolveApiUrl(opts: GlobalOpts): string {
   }
 }
 
-/** Create a mempool API client from CLI opts. */
+/** Create a mempool API client from CLI opts. Cached by default. */
 export function createClient(opts: GlobalOpts): MempoolClient {
   const baseUrl = resolveApiUrl(opts);
-  return createMempoolClient(baseUrl);
+
+  // --no-cache: use raw client (no SQLite caching)
+  if (opts.cache === false) {
+    return createMempoolClient(baseUrl);
+  }
+
+  return createCachedNodeClient(baseUrl, opts.network);
 }

@@ -38,9 +38,13 @@ export async function scanTx(txid: string, opts: GlobalOpts): Promise<void> {
     // Raw hex is optional - some endpoints don't support it
   }
 
-  // Build TxContext (parent txs, output tx counts)
-  updateSpinner("Fetching context (parent transactions)...");
-  const ctx = await buildTxContext(tx, client);
+  // Build TxContext (parent txs, output tx counts) - skip with --fast
+  const fast = !!opts.fast;
+  let ctx: TxContext = {};
+  if (!fast) {
+    updateSpinner("Fetching context (parent transactions)...");
+    ctx = await buildTxContext(tx, client);
+  }
 
   // Run analysis
   updateSpinner("Running heuristic analysis...");
@@ -72,58 +76,63 @@ export async function scanTx(txid: string, opts: GlobalOpts): Promise<void> {
   }
 }
 
-/** Build TxContext for richer heuristic analysis. */
+/** Build TxContext for richer heuristic analysis. All fetches run concurrently. */
 async function buildTxContext(
   tx: MempoolTransaction,
   client: ReturnType<typeof createClient>,
 ): Promise<TxContext> {
   const ctx: TxContext = {};
   const parentTxs = new Map<string, MempoolTransaction>();
+  const txCounts = new Map<string, number>();
 
-  // Fetch parent transactions for all inputs (needed for entity detection, post-mix, etc.)
+  // Collect all fetches to run in a single concurrent batch
+  const allFetches: Promise<void>[] = [];
+
+  // Parent transaction fetches
   const parentTxids = new Set<string>();
   for (const vin of tx.vin) {
     if (!vin.is_coinbase && vin.txid) {
       parentTxids.add(vin.txid);
     }
   }
-
-  const parentFetches = [...parentTxids].map(async (ptxid) => {
-    try {
-      const ptx = await client.getTransaction(ptxid);
-      parentTxs.set(ptxid, ptx);
-    } catch {
-      // Skip failed parent fetches
-    }
-  });
-  await Promise.all(parentFetches);
-
-  ctx.parentTxs = parentTxs;
-
-  // Set parentTx (first input's parent) for peel chain detection
-  if (tx.vin[0] && !tx.vin[0].is_coinbase && tx.vin[0].txid) {
-    ctx.parentTx = parentTxs.get(tx.vin[0].txid);
+  for (const ptxid of parentTxids) {
+    allFetches.push(
+      client.getTransaction(ptxid).then(
+        (ptx) => { parentTxs.set(ptxid, ptx); },
+        () => {},
+      ),
+    );
   }
 
-  // Fetch output address tx counts (for fresh-address change detection)
+  // Output address tx count fetches (for fresh-address change detection)
   const outputAddresses = tx.vout
     .map((v) => v.scriptpubkey_address)
     .filter((a): a is string => !!a);
 
-  if (outputAddresses.length > 0 && outputAddresses.length <= 20) {
-    const txCounts = new Map<string, number>();
-    const countFetches = outputAddresses.map(async (addr) => {
-      try {
-        const addrData = await client.getAddress(addr);
-        txCounts.set(
-          addr,
-          addrData.chain_stats.tx_count + addrData.mempool_stats.tx_count,
-        );
-      } catch {
-        // Skip
-      }
-    });
-    await Promise.all(countFetches);
+  if (outputAddresses.length <= 20) {
+    for (const addr of outputAddresses) {
+      allFetches.push(
+        client.getAddress(addr).then(
+          (addrData) => {
+            txCounts.set(
+              addr,
+              addrData.chain_stats.tx_count + addrData.mempool_stats.tx_count,
+            );
+          },
+          () => {},
+        ),
+      );
+    }
+  }
+
+  // Run all fetches concurrently (single batch instead of two sequential batches)
+  await Promise.all(allFetches);
+
+  ctx.parentTxs = parentTxs;
+  if (tx.vin[0] && !tx.vin[0].is_coinbase && tx.vin[0].txid) {
+    ctx.parentTx = parentTxs.get(tx.vin[0].txid);
+  }
+  if (txCounts.size > 0) {
     ctx.outputTxCounts = txCounts;
   }
 

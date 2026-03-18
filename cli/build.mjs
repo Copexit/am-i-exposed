@@ -32,6 +32,7 @@ await build({
     "@scure/base",
     "@scure/bip32",
     "@scure/btc-signer",
+    "better-sqlite3",
   ],
   // Banner with shebang for CLI binary
   banner: {

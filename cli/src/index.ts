@@ -34,7 +34,8 @@ program
   )
   .option("--api <url>", "Custom mempool API URL")
   .option("--no-color", "Disable colored output")
-  .option("--no-entities", "Skip entity filter loading (faster startup)");
+  .option("--no-entities", "Skip entity filter loading (faster startup)")
+  .option("--no-cache", "Disable SQLite response caching");
 
 // ---- scan <subcommand> ----
 
@@ -43,6 +44,7 @@ const scan = program.command("scan").description("Scan a Bitcoin artifact");
 scan
   .command("tx <txid>")
   .description("Analyze a transaction for privacy exposure")
+  .option("--fast", "Skip parent tx and output address fetching (faster, less context)")
   .option(
     "--chain-depth <N>",
     "Include chain analysis up to N hops (0 = tx-only)",
@@ -118,6 +120,42 @@ program
     await run(() => chainTrace(txid, mergeOpts(opts)));
   });
 
+// ---- cache management ----
+
+const cache = program
+  .command("cache")
+  .description("Manage the API response cache");
+
+cache
+  .command("stats")
+  .description("Show cache statistics")
+  .action(async () => {
+    const { cacheStats } = await import("./adapters/sqlite-cache");
+    const stats = cacheStats();
+    const sizeMB = (stats.sizeBytes / 1024 / 1024).toFixed(2);
+    const age = stats.oldestAt
+      ? `${Math.round((Date.now() - stats.oldestAt) / 1000 / 60)} min ago`
+      : "n/a";
+    if (program.opts().json) {
+      console.log(JSON.stringify(stats, null, 2));
+    } else {
+      console.log(`Entries:  ${stats.entries}`);
+      console.log(`Expired: ${stats.expired}`);
+      console.log(`Size:    ${sizeMB} MB`);
+      console.log(`Oldest:  ${age}`);
+    }
+  });
+
+cache
+  .command("clear")
+  .description("Purge all cached API responses")
+  .action(async () => {
+    const { cacheClear, cacheClose } = await import("./adapters/sqlite-cache");
+    cacheClear();
+    cacheClose();
+    console.log("Cache cleared.");
+  });
+
 // ---- helpers ----
 
 export interface GlobalOpts {
@@ -125,6 +163,7 @@ export interface GlobalOpts {
   network: string;
   api?: string;
   entities: boolean;
+  cache: boolean;
   color: boolean;
   // command-specific (merged in)
   [key: string]: unknown;
