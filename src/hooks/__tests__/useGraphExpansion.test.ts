@@ -705,8 +705,8 @@ describe("useGraphExpansion", () => {
     });
 
     it("setMultiRootWithLayers places roots + expanded trace nodes", () => {
-      // Root1 has a backward parent
-      const parent1 = makeTx({ txid: "mr-parent1" });
+      // Root1 has a backward parent (sweep tx: 1 input, 1 output - scores above relevance threshold)
+      const parent1 = makeTx({ txid: "mr-parent1", vout: [makeVout(50000)] });
       const root1 = makeTx({
         txid: "mr-root1",
         vin: [makeVin("mr-parent1", 0)],

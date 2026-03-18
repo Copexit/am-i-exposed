@@ -122,7 +122,7 @@ export function layoutGraph(
   }
 
   const depths = [...depthGroups.keys()].sort((a, b) => a - b);
-  const minDepth = depths[0] ?? 0;
+  const _minDepth = depths[0] ?? 0;
 
   // Determine which depth column contains the expanded node
   const expandedNode = expandedNodeTxid ? graphNodes.get(expandedNodeTxid) : undefined;

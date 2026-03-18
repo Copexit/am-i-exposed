@@ -10,7 +10,6 @@ import {
   makeTx,
   makeVin,
   makeVout,
-  makeCoinbaseVin,
   makeOpReturnVout,
   resetAddrCounter,
 } from "@/lib/analysis/heuristics/__tests__/fixtures/tx-factory";

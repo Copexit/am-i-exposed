@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { SVG_COLORS, GRADE_HEX_SVG } from "../shared/svgConstants";
@@ -14,7 +14,7 @@ import { probColor } from "../shared/linkabilityColors";
 import { analyzeChangeDetection } from "@/lib/analysis/heuristics/change-detection";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
-import type { ScoringResult, Finding } from "@/lib/types";
+import type { ScoringResult } from "@/lib/types";
 
 export const SIDEBAR_WIDTH = 320;
 

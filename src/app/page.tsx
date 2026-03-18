@@ -145,6 +145,7 @@ export default function Home() {
   const walletResetRef = useRef(wallet.reset);
   const isThirdPartyRef = useRef(isThirdPartyApi);
   const setPendingXpubRef = useRef(setPendingXpub);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally runs every render to keep refs fresh
   useEffect(() => {
     analyzeRef.current = analyze;
     walletAnalyzeRef.current = wallet.analyze;
@@ -197,13 +198,17 @@ export default function Home() {
   const skipNextHashChange = useRef(false);
 
   // Detect if initial URL has a hash so we can suppress the landing flash.
-  const [pendingHash, setPendingHash] = useState(() => {
-    if (typeof window === "undefined") return false;
+  const [pendingHash, setPendingHash] = useState(false);
+
+  useEffect(() => {
     const hash = window.location.hash.slice(1);
-    if (!hash) return false;
+    if (!hash) return;
     const params = new URLSearchParams(hash);
-    return !!(params.get("tx") ?? params.get("addr") ?? params.get("check") ?? params.get("xpub"));
-  });
+    if (params.get("tx") ?? params.get("addr") ?? params.get("check") ?? params.get("xpub")) {
+      const timer = setTimeout(() => setPendingHash(true), 0);
+      return () => clearTimeout(timer);
+    }
+  }, []);
 
   useEffect(() => {
     function handleHash() {

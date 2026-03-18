@@ -20,7 +20,7 @@ interface FindingsTierProps {
   proMode?: boolean;
 }
 
-export function FindingsTier({ findings, label, defaultOpen, grade, delay, onTxClick, proMode = false }: FindingsTierProps) {
+export function FindingsTier({ findings, label, defaultOpen, grade: _grade, delay, onTxClick, proMode = false }: FindingsTierProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(defaultOpen);
 
