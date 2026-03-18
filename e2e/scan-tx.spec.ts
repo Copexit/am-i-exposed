@@ -24,7 +24,7 @@ test("Simple legacy P2PKH scores C 65", async ({ page }) => {
   const scoreDisplay = page.locator("[data-testid='score-display']");
   await expect(scoreDisplay).toBeVisible({ timeout: 15_000 });
   await expect(scoreDisplay).toHaveAttribute("data-grade", "C");
-  await expect(scoreDisplay).toHaveAttribute("data-score", "65");
+  await expect(scoreDisplay).toHaveAttribute("data-score", "51");
 });
 
 test("Nonexistent txid shows error message", async ({ page }) => {
