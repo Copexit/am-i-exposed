@@ -41,7 +41,17 @@ export function InstallPrompt() {
 
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const ts = localStorage.getItem("ami-install-dismissed");
+      if (!ts) return false;
+      const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
+      return Date.now() - parseInt(ts, 10) < ONE_WEEK;
+    } catch {
+      return false;
+    }
+  });
   const [visitCount] = useState(() => {
     if (typeof window === "undefined") return 0;
     try {
@@ -77,10 +87,12 @@ export function InstallPrompt() {
       // Browser may reject prompt() in some edge cases
     }
     setDismissed(true);
+    try { localStorage.setItem("ami-install-dismissed", String(Date.now())); } catch { /* private browsing */ }
   };
 
   const handleDismiss = () => {
     setDismissed(true);
+    try { localStorage.setItem("ami-install-dismissed", String(Date.now())); } catch { /* private browsing */ }
   };
 
   // Umbrel: show on first load, then every 3 loads (1, 4, 7, 10...)
