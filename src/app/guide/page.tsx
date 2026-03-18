@@ -160,12 +160,12 @@ export default function GuidePage() {
     const hash = window.location.hash.slice(1);
     if (!hash) return;
 
-    const matched = PATHWAYS.find((p) => p.id === hash);
-    if (matched) setExpandedPathway(matched.id);
-
-    if (COMBINED_PATHWAYS.some((c) => c.id === hash)) setShowCombined(true);
-
     const timer = setTimeout(() => {
+      const matched = PATHWAYS.find((p) => p.id === hash);
+      if (matched) setExpandedPathway(matched.id);
+
+      if (COMBINED_PATHWAYS.some((c) => c.id === hash)) setShowCombined(true);
+
       const el = document.getElementById(hash);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     }, 150);

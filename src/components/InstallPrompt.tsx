@@ -45,20 +45,22 @@ export function InstallPrompt() {
   const [visitCount, setVisitCount] = useState(0);
 
   useEffect(() => {
-    try {
-      const ts = localStorage.getItem("ami-install-dismissed");
-      if (ts) {
-        const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
-        setDismissed(Date.now() - parseInt(ts, 10) < ONE_WEEK);
-      }
-    } catch { /* localStorage unavailable */ }
+    const timer = setTimeout(() => {
+      try {
+        const ts = localStorage.getItem("ami-install-dismissed");
+        if (ts) {
+          const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
+          setDismissed(Date.now() - parseInt(ts, 10) < ONE_WEEK);
+        }
+      } catch { /* localStorage unavailable */ }
 
-    try {
-      const key = "ami-visit-count";
-      const count = parseInt(localStorage.getItem(key) ?? "0", 10) + 1;
-      localStorage.setItem(key, String(count));
-      setVisitCount(count);
-    } catch { /* localStorage unavailable (private browsing) */ }
+      try {
+        const key = "ami-visit-count";
+        const count = parseInt(localStorage.getItem(key) ?? "0", 10) + 1;
+        localStorage.setItem(key, String(count));
+        setVisitCount(count);
+      } catch { /* localStorage unavailable (private browsing) */ }
+    }, 0);
 
     function handleBeforeInstall(e: Event) {
       e.preventDefault();
@@ -66,8 +68,10 @@ export function InstallPrompt() {
     }
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstall);
-    return () =>
+    return () => {
+      clearTimeout(timer);
       window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
+    };
   }, []);
 
   const handleInstall = async () => {

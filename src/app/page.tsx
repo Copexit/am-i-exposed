@@ -204,7 +204,8 @@ export default function Home() {
     if (!hash) return;
     const params = new URLSearchParams(hash);
     if (params.get("tx") ?? params.get("addr") ?? params.get("check") ?? params.get("xpub")) {
-      setPendingHash(true);
+      const timer = setTimeout(() => setPendingHash(true), 0);
+      return () => clearTimeout(timer);
     }
   }, []);
 
