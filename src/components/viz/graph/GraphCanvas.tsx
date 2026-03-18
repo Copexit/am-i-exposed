@@ -1162,7 +1162,12 @@ export function GraphCanvas({
                   fill={SVG_COLORS.muted}
                   fillOpacity={0.6}
                 >
-                  {node.inputCount === 1 && node.outputCount === 1 ? "sweep" :
+                  {/* BIP47 notification: OP_RETURN with 80-byte payload + dust */}
+                  {node.tx.vout.some(o => o.scriptpubkey_type === "op_return" && o.scriptpubkey.replace(/^6a(?:4c..)?/, "").length === 160) &&
+                   node.tx.vout.some(o => o.value > 0 && o.value <= 1000) ? "BIP47 notification" :
+                   /* Ricochet: known Ashigaru fee address */
+                   node.tx.vout.some(o => o.scriptpubkey_address === "bc1qsc887pxce0r3qed50e8he49a3amenemgptakg2" && o.value === 100_000) ? "ricochet" :
+                   node.inputCount === 1 && node.outputCount === 1 ? "sweep" :
                    node.inputCount === 1 && node.outputCount === 2 ? "simple send" :
                    node.inputCount > 1 && node.outputCount === 1 ? "consolidation" :
                    node.inputCount === 1 && node.outputCount > 3 ? "batch" :

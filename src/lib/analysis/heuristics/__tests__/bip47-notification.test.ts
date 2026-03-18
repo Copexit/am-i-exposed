@@ -41,11 +41,13 @@ describe("analyzeBip47Notification", () => {
     expect(findings).toHaveLength(1);
     expect(findings[0].id).toBe("bip47-notification");
     expect(findings[0].scoreImpact).toBe(3);
-    expect(findings[0].params?.hasNotificationDust).toBe(1);
+    expect(findings[0].params?._variant).toBe("toxic");
     expect(findings[0].params?.notificationValue).toBe(546);
-    expect(findings[0].params?.hasToxicChange).toBe(1);
-    expect(findings[0].params?.toxicChangeValue).toBe(98_000);
+    expect(findings[0].params?.toxicChangeValue).toBe("98,000");
     expect(findings[0].remediation?.urgency).toBe("immediate");
+    // Notification address should be extracted from the dust output
+    expect(findings[0].params?.notificationAddress).toBeTruthy();
+    expect(typeof findings[0].params?.notificationAddress).toBe("string");
   });
 
   it("detects notification tx without dust output (change only)", () => {
@@ -66,7 +68,31 @@ describe("analyzeBip47Notification", () => {
     const { findings } = analyzeBip47Notification(tx);
     expect(findings).toHaveLength(1);
     expect(findings[0].id).toBe("bip47-notification");
-    expect(findings[0].params?.hasToxicChange).toBe(1);
+    expect(findings[0].params?._variant).toBe("toxic");
+    // No dust output means no notification address
+    expect(findings[0].params?.notificationAddress).toBe("");
+  });
+
+  it("extracts the notification address from the dust output", () => {
+    const notifAddr = "bc1qnotification000000000000000000001";
+    const tx = makeTx({
+      vin: [makeVin()],
+      vout: [
+        {
+          scriptpubkey: makeOpReturnScript(makeNotificationPayload()),
+          scriptpubkey_asm: "",
+          scriptpubkey_type: "op_return",
+          scriptpubkey_address: "",
+          value: 0,
+        },
+        makeVout({ value: 546, scriptpubkey_address: notifAddr }), // notification dust
+        makeVout({ value: 90_000 }), // toxic change
+      ],
+    });
+
+    const { findings } = analyzeBip47Notification(tx);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].params?.notificationAddress).toBe(notifAddr);
   });
 
   it("rejects coinbase transactions", () => {
@@ -175,7 +201,6 @@ describe("analyzeBip47Notification", () => {
     expect(findings).toHaveLength(1);
     // The 546-sat output is notification dust, and there's no other output, so no toxic change
     // Actually 546 is <= 1000 so it's treated as notification dust, with no change
-    expect(findings[0].params?.hasNotificationDust).toBe(1);
-    expect(findings[0].params?.hasToxicChange).toBe(0);
+    expect(findings[0].params?._variant).toBe("clean");
   });
 });

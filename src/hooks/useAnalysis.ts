@@ -23,7 +23,9 @@ import { getCachedResult, putCachedResult } from "@/lib/api/analysis-cache";
 import { loadEntityFilter } from "@/lib/analysis/entity-filter";
 import { computeBoltzmann, isAutoComputable, extractTxValues } from "@/lib/analysis/boltzmann-compute";
 import { enhanceEntropyFinding } from "@/lib/analysis/boltzmann-enhance";
+import type { Finding } from "@/lib/types";
 import type { MempoolTransaction } from "@/lib/api/types";
+import type { ApiClient } from "@/lib/api/client";
 import type { HeuristicTranslator } from "@/lib/analysis/heuristics/types";
 
 import {
@@ -38,6 +40,42 @@ import { runChainTrace, runChainAnalysis } from "@/hooks/useChainTrace";
 // Re-export types that components import from this module
 export type { FetchProgress } from "@/hooks/useAnalysisState";
 export type { PreSendResult } from "@/lib/analysis/orchestrator";
+
+/**
+ * Enrich a BIP47 notification finding with the notification address tx count.
+ * The notification address is reused by every party opening a BIP47 channel
+ * to that PayNym, so the tx count reveals how many channels have been opened.
+ * Mutates the finding in-place. Silently no-ops on error.
+ */
+async function enrichBip47Finding(
+  findings: Finding[],
+  api: ApiClient,
+  signal: AbortSignal,
+): Promise<void> {
+  const bip47 = findings.find((f) => f.id === "bip47-notification");
+  if (!bip47) return;
+
+  const addr = bip47.params?.notificationAddress;
+  if (typeof addr !== "string" || addr === "") return;
+
+  try {
+    const addrInfo = await api.getAddress(addr);
+    if (signal.aborted) return;
+
+    const txCount =
+      addrInfo.chain_stats.tx_count + addrInfo.mempool_stats.tx_count;
+
+    bip47.params = {
+      ...bip47.params,
+      notificationTxCount: txCount,
+      channelInfo: txCount > 1
+        ? ` The notification address has received ${txCount} transactions, indicating ${txCount} BIP47 payment channels have been opened to this PayNym. While this address is reused and publicly visible, the actual payment addresses derived through each channel are unique and cannot be linked without knowledge of the payment codes.`
+        : " This appears to be the first notification to this address. The notification address is reused and publicly visible, but the actual payment addresses derived through the channel are unique and cannot be linked without knowledge of the payment codes.",
+    };
+  } catch {
+    // Non-critical enrichment - do not fail the analysis
+  }
+}
 
 export function useAnalysis() {
   const [state, setState] = useState<AnalysisState>(INITIAL_STATE);
@@ -323,6 +361,11 @@ export function useAnalysis() {
           };
           const result = await analyzeTransaction(tx, rawHex, onStep, ctx);
           if (controller.signal.aborted) return;
+
+          // --- BIP47 notification address enrichment ---
+          // If a BIP47 notification finding exists with a notification address,
+          // fetch the address stats to show how many channels have been opened
+          await enrichBip47Finding(result.findings, api, controller.signal);
 
           // --- Chain analysis from trace layers ---
           await runChainAnalysis({

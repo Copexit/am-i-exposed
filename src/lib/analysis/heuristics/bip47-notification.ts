@@ -71,34 +71,36 @@ export const analyzeBip47Notification: TxHeuristic = (tx) => {
   const hasChange = changeOutputs.length > 0;
   const changeValue = changeOutputs.reduce((sum, o) => sum + o.value, 0);
 
+  const notificationAddress = notificationOutput?.scriptpubkey_address ?? "";
+
   findings.push({
     id: "bip47-notification",
     severity: "good",
     confidence: "high",
     title: "BIP47 notification transaction (PayNym)",
     params: {
-      hasNotificationDust: notificationOutput ? 1 : 0,
+      _variant: hasChange ? "toxic" : "clean",
       notificationValue: notificationOutput?.value ?? 0,
-      hasToxicChange: hasChange ? 1 : 0,
-      toxicChangeValue: hasChange ? changeValue : 0,
+      toxicChangeValue: hasChange ? fmtN(changeValue) : "0",
+      notificationAddress,
     },
     description:
       "This transaction contains an OP_RETURN with an 80-byte payload consistent with a BIP47 notification transaction. " +
-      "BIP47 establishes a reusable payment channel between two PayNym identities. " +
+      "BIP47 establishes a reusable payment channel between two PayNym identities." +
       (notificationOutput
-        ? `A small notification output of ${notificationOutput.value} sats was sent to the receiver's notification address. `
+        ? ` A small notification output of ${notificationOutput.value} sats was sent to the receiver's notification address.`
         : "") +
       (hasChange
-        ? `The change output (${fmtN(changeValue)} sats) is toxic - it permanently links the sender's identity to this PayNym connection.`
-        : "No change output detected."),
+        ? ` The change output (${fmtN(changeValue)} sats) is toxic - it permanently links the sender's identity to this PayNym connection.`
+        : " No change output detected."),
     recommendation:
-      "BIP47 reusable payment codes improve privacy for recurring payments. " +
-      (hasChange
-        ? "CRITICAL: The change from this notification transaction is toxic. " +
+      hasChange
+        ? "BIP47 reusable payment codes improve privacy for recurring payments. " +
+          "CRITICAL: The change from this notification transaction is toxic. " +
           "It permanently links your wallet to the PayNym connection. " +
           "Freeze this change output immediately and never spend it with your other UTXOs. " +
           "Best practice: use only no-KYC UTXOs for notification transactions."
-        : "No toxic change to manage."),
+        : "BIP47 reusable payment codes improve privacy for recurring payments. No toxic change to manage.",
     scoreImpact: 3,
     remediation: hasChange
       ? {
