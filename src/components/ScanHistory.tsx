@@ -99,22 +99,26 @@ export const ScanHistory = memo(function ScanHistory({
   }, [tab, availableTabs]);
 
   // Shuffle examples once on mount so Whirlpool variants don't cluster together
-  const [shuffledExamples] = useState(() => {
+  // Use effect to avoid hydration mismatch from Math.random() during SSR
+  const [shuffledExamples, setShuffledExamples] = useState(examples);
+  const [showAllExamples, setShowAllExamples] = useState(false);
+  // Responsive: 2 on very small screens (<400px), 3 on mobile, 4 on desktop
+  const [previewCount, setPreviewCount] = useState(4);
+
+  useEffect(() => {
+    // Shuffle after mount to avoid hydration mismatch
     const arr = [...examples];
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [arr[i], arr[j]] = [arr[j], arr[i]];
     }
-    return arr;
-  });
-  const [showAllExamples, setShowAllExamples] = useState(false);
-  // Responsive: 2 on very small screens (<400px), 3 on mobile, 4 on desktop
-  const [previewCount] = useState(() => {
-    if (typeof window === "undefined") return 4;
-    if (window.innerWidth < 400) return 2;
-    if (window.innerWidth < 640) return 3;
-    return 4;
-  });
+    setShuffledExamples(arr);
+
+    // Set responsive preview count after mount
+    if (window.innerWidth < 400) setPreviewCount(2);
+    else if (window.innerWidth < 640) setPreviewCount(3);
+    else setPreviewCount(4);
+  }, [examples]);
 
   return (
     <motion.div
