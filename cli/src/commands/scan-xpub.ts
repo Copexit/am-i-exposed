@@ -92,7 +92,7 @@ export async function scanXpub(
 
   // Output
   if (isJson) {
-    walletJson(descriptor, result, network);
+    walletJson(descriptor, result, network, opts.api);
   } else {
     console.log(formatWalletResult(descriptor, result, network));
   }

@@ -52,7 +52,7 @@ describe("txJson", () => {
     expect(captured).toHaveLength(1);
     const parsed = JSON.parse(captured[0]);
 
-    expect(parsed.version).toBe("0.33.0");
+    expect(parsed.version).toBe("0.34.2");
     expect(parsed.input.type).toBe("txid");
     expect(parsed.input.value).toBe("abcd1234");
     expect(parsed.network).toBe("mainnet");

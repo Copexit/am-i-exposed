@@ -3,7 +3,7 @@ import type { PrimaryRec } from "@/lib/recommendations/primary-recommendation";
 import type { WalletAuditResult } from "@/lib/analysis/wallet-audit";
 import type { MempoolTransaction } from "@/lib/api/types";
 
-const VERSION = "0.33.0";
+const VERSION = "0.34.2";
 
 interface JsonEnvelope {
   version: string;
@@ -21,6 +21,8 @@ interface JsonEnvelope {
   chainAnalysis?: unknown;
   boltzmann?: unknown;
   trace?: unknown;
+  /** URLs to interactive visualizations on am-i.exposed */
+  links?: Record<string, string>;
 }
 
 interface JsonRec {
@@ -29,6 +31,28 @@ interface JsonRec {
   headline: string;
   detail: string;
   tools?: { name: string; url: string }[];
+}
+
+const BASE_URL = "https://am-i.exposed";
+
+function buildLinks(type: string, value: string, network: string, apiUrl?: string): Record<string, string> {
+  const mempoolBase = apiUrl
+    ? apiUrl.replace(/\/api\/?$/, "")  // strip /api suffix to get the explorer base
+    : "https://mempool.space";
+  const networkPrefix = network === "mainnet" ? "" : `${network}/`;
+  const links: Record<string, string> = {};
+
+  if (type === "txid") {
+    links.analysis = `${BASE_URL}/#tx=${value}`;
+    links.mempool = `${mempoolBase}/${networkPrefix}tx/${value}`;
+  } else if (type === "address") {
+    links.analysis = `${BASE_URL}/#addr=${value}`;
+    links.mempool = `${mempoolBase}/${networkPrefix}address/${value}`;
+  } else if (type === "xpub") {
+    links.analysis = `${BASE_URL}/#xpub=${encodeURIComponent(value)}`;
+  }
+
+  return links;
 }
 
 function recToJson(rec: PrimaryRec | null | undefined): JsonRec | null {
@@ -53,6 +77,7 @@ export function txJson(
   network: string,
   rec?: PrimaryRec | null,
   chainAnalysis?: unknown,
+  apiUrl?: string,
 ): void {
   jsonOutput({
     version: VERSION,
@@ -73,6 +98,7 @@ export function txJson(
     findings: result.findings,
     recommendation: recToJson(rec),
     chainAnalysis: chainAnalysis ?? null,
+    links: buildLinks("txid", txid, network, apiUrl),
   });
 }
 
@@ -82,6 +108,7 @@ export function addressJson(
   network: string,
   addressInfo: Record<string, unknown>,
   rec?: PrimaryRec | null,
+  apiUrl?: string,
 ): void {
   jsonOutput({
     version: VERSION,
@@ -92,6 +119,7 @@ export function addressJson(
     addressInfo,
     findings: result.findings,
     recommendation: recToJson(rec),
+    links: buildLinks("address", address, network, apiUrl),
   });
 }
 
@@ -99,6 +127,7 @@ export function walletJson(
   descriptor: string,
   result: WalletAuditResult,
   network: string,
+  apiUrl?: string,
 ): void {
   jsonOutput({
     version: VERSION,
@@ -115,6 +144,7 @@ export function walletJson(
       dustUtxos: result.dustUtxos,
     },
     findings: result.findings,
+    links: buildLinks("xpub", descriptor, network, apiUrl),
   });
 }
 

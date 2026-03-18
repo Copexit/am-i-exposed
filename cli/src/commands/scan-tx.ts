@@ -70,7 +70,7 @@ export async function scanTx(txid: string, opts: GlobalOpts): Promise<void> {
 
   // Output
   if (isJson) {
-    txJson(txid, result, tx, opts.network, primary, chainAnalysis);
+    txJson(txid, result, tx, opts.network, primary, chainAnalysis, opts.api);
   } else {
     console.log(formatTxResult(txid, result, tx, opts.network, primary));
   }

@@ -116,6 +116,10 @@ All commands with `--json` return a consistent envelope:
     "headline": "...",
     "detail": "...",
     "tools": [{ "name": "Sparrow Wallet", "url": "https://sparrowwallet.com" }]
+  },
+  "links": {
+    "analysis": "https://am-i.exposed/#tx=<txid>",
+    "mempool": "https://mempool.space/tx/<txid>"
   }
 }
 ```

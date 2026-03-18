@@ -78,7 +78,7 @@ export async function scanAddress(
         addressData.chain_stats.spent_txo_sum +
         addressData.mempool_stats.funded_txo_sum -
         addressData.mempool_stats.spent_txo_sum,
-    }, primary);
+    }, primary, opts.api);
   } else {
     console.log(formatAddressResult(addr, result, network, primary));
   }
