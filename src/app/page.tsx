@@ -145,6 +145,7 @@ export default function Home() {
   const walletResetRef = useRef(wallet.reset);
   const isThirdPartyRef = useRef(isThirdPartyApi);
   const setPendingXpubRef = useRef(setPendingXpub);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally runs every render to keep refs fresh
   useEffect(() => {
     analyzeRef.current = analyze;
     walletAnalyzeRef.current = wallet.analyze;

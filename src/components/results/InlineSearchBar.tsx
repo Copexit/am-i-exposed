@@ -15,7 +15,8 @@ export function InlineSearchBar({ onScan, initialValue }: { onScan: (input: stri
 
   // Sync value when the scanned query changes (initialValue only seeds useState on mount)
   useEffect(() => {
-    setValue(initialValue ?? "");
+    const timer = setTimeout(() => setValue(initialValue ?? ""), 0);
+    return () => clearTimeout(timer);
   }, [initialValue]);
 
   const handleSubmit = useCallback((e: React.FormEvent) => {

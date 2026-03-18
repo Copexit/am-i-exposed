@@ -22,7 +22,7 @@ import { BookmarkButton } from "./BookmarkButton";
 const TxFlowDiagram = lazy(() => import("./viz/TxFlowDiagram").then(m => ({ default: m.TxFlowDiagram })));
 const CoinJoinStructure = lazy(() => import("./viz/CoinJoinStructure").then(m => ({ default: m.CoinJoinStructure })));
 const GraphExplorerPanel = lazy(() => import("./GraphExplorerPanel").then(m => ({ default: m.GraphExplorerPanel })));
-const TipJar = lazy(() => import("./TipJar").then(m => ({ default: m.TipJar })));
+const _TipJar = lazy(() => import("./TipJar").then(m => ({ default: m.TipJar })));
 
 // Extracted sub-components
 import { InlineSearchBar } from "./results/InlineSearchBar";
@@ -132,7 +132,7 @@ export const ResultsPanel = memo(function ResultsPanel({
   // Split findings into severity tiers for progressive disclosure
   const criticalFindings = visibleFindings.filter((f) => f.severity === "critical");
   const highFindings = visibleFindings.filter((f) => f.severity === "high");
-  const issues = [...criticalFindings, ...highFindings];
+  const _issues = [...criticalFindings, ...highFindings];
   const details = visibleFindings.filter((f) => f.severity === "medium" || f.severity === "low");
   const strengths = visibleFindings.filter((f) => f.severity === "good");
 
