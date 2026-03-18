@@ -24,7 +24,7 @@ export function InlineSearchBar({ onScan, initialValue }: { onScan: (input: stri
     if (!cleaned) return;
     const type = detectInputType(cleaned, network);
     if (type === "invalid") {
-      setError(t("input.errorInvalid", { defaultValue: "Invalid address or txid" }));
+      setError(t("input.errorInvalid", { defaultValue: "That doesn't look like a Bitcoin address or txid. Check and try again." }));
       return;
     }
     setError(null);
