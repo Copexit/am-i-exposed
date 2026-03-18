@@ -35,16 +35,31 @@ function readFixture(name: string): string {
  * Unknown txids/addresses get a 404.
  */
 export async function mockMempoolApi(page: Page) {
-  // Transaction endpoints
+  // Transaction endpoints (order matters: specific routes before catch-all)
   await page.route("**/api/tx/**/hex", async (route) => {
-    // Return empty hex - rawHex is optional for analysis
     await route.fulfill({ status: 200, body: "", contentType: "text/plain" });
+  });
+
+  await page.route("**/api/tx/**/outspends", async (route) => {
+    const url = route.request().url();
+    const txid = url.split("/api/tx/")[1]?.split("/")[0]?.split("?")[0];
+    const fixture = txid ? TX_MAP[txid] : undefined;
+    if (fixture) {
+      const tx = JSON.parse(readFixture(fixture));
+      const outspends = (tx.vout as unknown[]).map(() => ({ spent: false }));
+      await route.fulfill({
+        status: 200,
+        body: JSON.stringify(outspends),
+        contentType: "application/json",
+      });
+    } else {
+      await route.fulfill({ status: 404, body: "Transaction not found" });
+    }
   });
 
   await page.route("**/api/tx/**", async (route) => {
     const url = route.request().url();
-    // Skip /hex routes (handled above)
-    if (url.endsWith("/hex")) {
+    if (url.endsWith("/hex") || url.includes("/outspends")) {
       await route.fallback();
       return;
     }
