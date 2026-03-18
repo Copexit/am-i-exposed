@@ -65,43 +65,110 @@ export function detectPartialSpendWarning(
   return null;
 }
 
+const ASHIGARU_FEE_ADDR = "bc1qsc887pxce0r3qed50e8he49a3amenemgptakg2";
+const ASHIGARU_FEE_SATS = 100_000;
+
+/** Check if a transaction is a Ricochet hop 0 (pays Ashigaru fee). */
+function isRicochetHop0(tx: MempoolTransaction): boolean {
+  return tx.vout.some(
+    o => o.scriptpubkey_address === ASHIGARU_FEE_ADDR && o.value === ASHIGARU_FEE_SATS,
+  );
+}
+
 /**
- * Detect ricochet pattern: chain of 4+ single-input single-output
+ * Detect ricochet pattern: chain of single-input single-output
  * transactions. Ricochet is a GOOD practice - adds hops between
  * CoinJoin and destination to defeat shallow chain analysis.
+ *
+ * Detection covers:
+ * - Sweep chains originating from a CoinJoin (existing behavior)
+ * - Hops 1-4 of a Ricochet chain (parent is hop 0 with Ashigaru fee, or another sweep from hop 0)
  */
 export function detectRicochet(
   tx: MempoolTransaction,
   parentTxs: Map<number, MempoolTransaction>,
+  allBackwardTxs?: Map<string, MempoolTransaction>,
 ): Finding | null {
-  // Ricochet: 1 input, 1 output (sweep), chain of 4+ hops
-  // Check if this tx is part of a chain of sweeps
+  // Ricochet: 1 input, 1-2 outputs (sweep or PayNym fee split)
   if (tx.vin.length !== 1 || tx.vin[0].is_coinbase) return null;
 
   const spendable = getSpendableOutputs(tx.vout);
-  if (spendable.length !== 1) return null;
+  if (spendable.length < 1 || spendable.length > 2) return null;
 
-  // Walk backward through parent chain counting consecutive sweeps
+  // Walk backward through ancestors to find hop 0 or CoinJoin origin.
+  // Use allBackwardTxs (all trace layers) when available for multi-hop detection.
   let hops = 1; // current tx counts as 1
   let originIsCoinJoin = false;
-  const firstParent = parentTxs.get(0);
+  let originIsRicochetHop0 = false;
 
-  if (firstParent && firstParent.txid !== tx.txid) {
-    // Check if the parent is a CoinJoin (the origin)
-    if (isCoinJoinTx(firstParent)) {
+  // Build a txid -> tx lookup from all available backward data
+  const txLookup = new Map<string, MempoolTransaction>();
+  if (allBackwardTxs) {
+    for (const [txid, btx] of allBackwardTxs) txLookup.set(txid, btx);
+  }
+  // Also include immediate parents (always available, may overlap)
+  for (const [, ptx] of parentTxs) {
+    if (ptx && !txLookup.has(ptx.txid)) txLookup.set(ptx.txid, ptx);
+  }
+
+  // Walk backward through the chain: follow input txids to find ancestors
+  let currentTx: MempoolTransaction | undefined = tx;
+  const visited = new Set<string>([tx.txid]);
+
+  for (let depth = 0; depth < 5; depth++) {
+    const parentTxid = currentTx.vin[0]?.txid;
+    if (!parentTxid || visited.has(parentTxid)) break;
+    visited.add(parentTxid);
+
+    const ancestor = txLookup.get(parentTxid);
+    if (!ancestor) break;
+
+    if (isCoinJoinTx(ancestor)) {
       originIsCoinJoin = true;
-    } else {
-      // Parent must also be 1-in-1-out sweep to count as a hop
-      const parentSpendable = getSpendableOutputs(firstParent.vout);
-      if (
-        firstParent.vin.length === 1 &&
-        parentSpendable.length === 1 &&
-        !firstParent.vin[0].is_coinbase
-      ) {
-        hops++;
-        // Can't walk further without grandparent data (single-parent limitation)
-      }
+      hops++;
+      break;
     }
+
+    if (isRicochetHop0(ancestor)) {
+      originIsRicochetHop0 = true;
+      hops++;
+      break;
+    }
+
+    // Ancestor must be a sweep (1-in, 1-2 out) to continue the chain
+    const ancestorSpendable = getSpendableOutputs(ancestor.vout);
+    if (
+      ancestor.vin.length !== 1 ||
+      ancestorSpendable.length > 2 ||
+      ancestor.vin[0].is_coinbase
+    ) {
+      break;
+    }
+
+    hops++;
+    currentTx = ancestor;
+  }
+
+  // Hop in a Ricochet chain originating from known hop 0
+  if (originIsRicochetHop0) {
+    const hopNumber = hops - 1;
+    return {
+      id: "chain-ricochet",
+      severity: "good",
+      title: `Ricochet (Ashigaru) hop ${hopNumber}`,
+      description:
+        `This transaction is hop ${hopNumber} of an Ashigaru Ricochet chain. ` +
+        "Ricochet adds transactional distance between a CoinJoin and the final destination, " +
+        "defeating shallow chain analysis by exchanges that only look back 3-5 transactions. " +
+        "Ricochet provides retrospective anonymity (distancing past history) rather than " +
+        "prospective anonymity (like CoinJoin).",
+      recommendation:
+        "Ricochet is a good practice when sending to exchanges or services that perform chain analysis. " +
+        "For even better privacy, use the PayNym variant which eliminates the detectable fee address fingerprint.",
+      scoreImpact: 5,
+      params: { hops, hopNumber, wallet: "Ashigaru" },
+      confidence: "high",
+    };
   }
 
   // Sweep from CoinJoin origin = ricochet (even 1 hop is meaningful)
@@ -342,6 +409,7 @@ export function analyzeSpendingPatterns(
   coinJoinInputIndices: number[],
   outspends: MempoolOutspend[] | null,
   childTxs: Map<number, MempoolTransaction>,
+  allBackwardTxs?: Map<string, MempoolTransaction>,
 ): SpendingPatternResult {
   const findings: Finding[] = [];
   let isRicochet = false;
@@ -352,8 +420,8 @@ export function analyzeSpendingPatterns(
   const partialSpend = detectPartialSpendWarning(tx);
   if (partialSpend) findings.push(partialSpend);
 
-  // 2. Ricochet detection
-  const ricochet = detectRicochet(tx, parentTxs);
+  // 2. Ricochet detection (pass all backward txs for multi-hop ancestor walk)
+  const ricochet = detectRicochet(tx, parentTxs, allBackwardTxs);
   if (ricochet) {
     findings.push(ricochet);
     isRicochet = ricochet.id === "chain-ricochet";

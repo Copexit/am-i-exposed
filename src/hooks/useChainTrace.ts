@@ -316,12 +316,18 @@ export async function runChainAnalysis(params: ChainAnalysisParams): Promise<voi
   onStep("chain-spending");
   await tick50();
   {
+    // Build flat map of ALL backward txs across all trace layers for multi-hop ricochet detection
+    const allBackwardTxs = new Map<string, MempoolTransaction>();
+    for (const layer of backwardLayers) {
+      for (const [txid, btx] of layer.txs) allBackwardTxs.set(txid, btx);
+    }
     const spResult = analyzeSpendingPatterns(
       tx,
       parentTxsByIdx,
       coinJoinInputIndices,
       outspends,
       childTxsByIdx,
+      allBackwardTxs,
     );
     result.findings.push(...spResult.findings);
     onStep("chain-spending", sumImpact(spResult.findings));

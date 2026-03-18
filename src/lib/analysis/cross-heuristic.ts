@@ -474,7 +474,7 @@ export function classifyTransactionType(findings: Finding[]): TxType {
   if (hasAny("h4-simplified-stonewall")) return "simplified-stonewall";
   if (hasAny("tx0-premix")) return "tx0-premix";
   if (hasAny("bip47-notification")) return "bip47-notification";
-  if (hasAny("ricochet-hop0")) return "ricochet";
+  if (hasAny("ricochet-hop0") || hasAny("chain-ricochet")) return "ricochet";
 
   // Coinbase
   if (hasAny("coinbase-transaction")) return "coinbase";

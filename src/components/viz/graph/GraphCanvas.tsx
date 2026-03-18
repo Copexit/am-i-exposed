@@ -101,6 +101,43 @@ export function GraphCanvas({
     onLayoutComplete?.({ visibleCount: layoutNodes.length });
   }, [layoutNodes.length, onLayoutComplete]);
 
+  // Pre-compute ricochet hop labels by walking forward from hop 0 nodes
+  const ricochetHopLabels = useMemo(() => {
+    const labels = new Map<string, string>();
+    const ASHIGARU_FEE_ADDR = "bc1qsc887pxce0r3qed50e8he49a3amenemgptakg2";
+    const nodeMap = new Map(layoutNodes.map(n => [n.txid, n]));
+    // Build forward adjacency: fromTxid -> toTxid[] (use ALL edges regardless
+    // of expansion direction - ricochet detection cares about tx flow, not how
+    // the graph was built. When scanning hop 1, hop 0 is a backward parent but
+    // the edge still flows from hop 0 to hop 1.)
+    const forwardEdges = new Map<string, string[]>();
+    for (const e of edges) {
+      const arr = forwardEdges.get(e.fromTxid);
+      if (arr) arr.push(e.toTxid); else forwardEdges.set(e.fromTxid, [e.toTxid]);
+    }
+    // Find hop 0 nodes (Ashigaru fee address output)
+    for (const n of layoutNodes) {
+      if (n.tx.vout.some(o => o.scriptpubkey_address === ASHIGARU_FEE_ADDR && o.value === 100_000)) {
+        labels.set(n.txid, "ricochet hop 0");
+        // Walk forward through 1-in-1-out children
+        let currentTxid = n.txid;
+        for (let hop = 1; hop <= 4; hop++) {
+          const children = forwardEdges.get(currentTxid);
+          if (!children || children.length === 0) break;
+          // Find the 1-in sweep child (ricochet hop pattern)
+          const nextTxid = children.find(cid => {
+            const child = nodeMap.get(cid);
+            return child && child.tx.vin.length === 1 && child.tx.vout.length <= 2;
+          });
+          if (!nextTxid) break;
+          labels.set(nextTxid, `ricochet hop ${hop}`);
+          currentTxid = nextTxid;
+        }
+      }
+    }
+    return labels;
+  }, [layoutNodes, edges]);
+
   // Build port position map for expanded node (used for edge routing)
   const portPositions = useMemo(
     () => buildPortPositionMap(expandedNodeTxid ?? null, nodes, nodePositions),
@@ -1162,17 +1199,17 @@ export function GraphCanvas({
                   fill={SVG_COLORS.muted}
                   fillOpacity={0.6}
                 >
-                  {/* BIP47 notification: OP_RETURN with 80-byte payload + dust */}
-                  {node.tx.vout.some(o => o.scriptpubkey_type === "op_return" && o.scriptpubkey.replace(/^6a(?:4c..)?/, "").length === 160) &&
+                  {/* Ricochet hops (pre-computed from graph walk) */}
+                  {ricochetHopLabels.get(node.txid) ??
+                   /* BIP47 notification: OP_RETURN with 80-byte payload + dust */
+                   (node.tx.vout.some(o => o.scriptpubkey_type === "op_return" && o.scriptpubkey.replace(/^6a(?:4c..)?/, "").length === 160) &&
                    node.tx.vout.some(o => o.value > 0 && o.value <= 1000) ? "BIP47 notification" :
-                   /* Ricochet: known Ashigaru fee address */
-                   node.tx.vout.some(o => o.scriptpubkey_address === "bc1qsc887pxce0r3qed50e8he49a3amenemgptakg2" && o.value === 100_000) ? "ricochet" :
                    node.inputCount === 1 && node.outputCount === 1 ? "sweep" :
                    node.inputCount === 1 && node.outputCount === 2 ? "simple send" :
                    node.inputCount > 1 && node.outputCount === 1 ? "consolidation" :
                    node.inputCount === 1 && node.outputCount > 3 ? "batch" :
                    node.tx.vin[0]?.is_coinbase ? "coinbase" :
-                   ""}
+                   "")}
                 </Text>
               )}
 
