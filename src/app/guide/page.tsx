@@ -153,22 +153,18 @@ function SectionHeader({ id, children }: { id: string; children: React.ReactNode
 
 export default function GuidePage() {
   const { t } = useTranslation();
-  const [expandedPathway, setExpandedPathway] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    const hash = window.location.hash.slice(1);
-    const matched = PATHWAYS.find((p) => p.id === hash);
-    return matched ? matched.id : null;
-  });
-  const [showCombined, setShowCombined] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const hash = window.location.hash.slice(1);
-    return COMBINED_PATHWAYS.some((c) => c.id === hash);
-  });
+  const [expandedPathway, setExpandedPathway] = useState<string | null>(null);
+  const [showCombined, setShowCombined] = useState(false);
 
-  // Scroll to the target element on mount when navigating via hash
   useEffect(() => {
     const hash = window.location.hash.slice(1);
     if (!hash) return;
+
+    const matched = PATHWAYS.find((p) => p.id === hash);
+    if (matched) setExpandedPathway(matched.id);
+
+    if (COMBINED_PATHWAYS.some((c) => c.id === hash)) setShowCombined(true);
+
     const timer = setTimeout(() => {
       const el = document.getElementById(hash);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });

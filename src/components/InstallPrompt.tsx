@@ -41,30 +41,25 @@ export function InstallPrompt() {
 
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
-  const [dismissed, setDismissed] = useState(() => {
-    if (typeof window === "undefined") return false;
+  const [dismissed, setDismissed] = useState(false);
+  const [visitCount, setVisitCount] = useState(0);
+
+  useEffect(() => {
     try {
       const ts = localStorage.getItem("ami-install-dismissed");
-      if (!ts) return false;
-      const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
-      return Date.now() - parseInt(ts, 10) < ONE_WEEK;
-    } catch {
-      return false;
-    }
-  });
-  const [visitCount] = useState(() => {
-    if (typeof window === "undefined") return 0;
+      if (ts) {
+        const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
+        setDismissed(Date.now() - parseInt(ts, 10) < ONE_WEEK);
+      }
+    } catch { /* localStorage unavailable */ }
+
     try {
       const key = "ami-visit-count";
       const count = parseInt(localStorage.getItem(key) ?? "0", 10) + 1;
       localStorage.setItem(key, String(count));
-      return count;
-    } catch {
-      return 0; // localStorage unavailable (private browsing)
-    }
-  });
+      setVisitCount(count);
+    } catch { /* localStorage unavailable (private browsing) */ }
 
-  useEffect(() => {
     function handleBeforeInstall(e: Event) {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);

@@ -197,13 +197,16 @@ export default function Home() {
   const skipNextHashChange = useRef(false);
 
   // Detect if initial URL has a hash so we can suppress the landing flash.
-  const [pendingHash, setPendingHash] = useState(() => {
-    if (typeof window === "undefined") return false;
+  const [pendingHash, setPendingHash] = useState(false);
+
+  useEffect(() => {
     const hash = window.location.hash.slice(1);
-    if (!hash) return false;
+    if (!hash) return;
     const params = new URLSearchParams(hash);
-    return !!(params.get("tx") ?? params.get("addr") ?? params.get("check") ?? params.get("xpub"));
-  });
+    if (params.get("tx") ?? params.get("addr") ?? params.get("check") ?? params.get("xpub")) {
+      setPendingHash(true);
+    }
+  }, []);
 
   useEffect(() => {
     function handleHash() {

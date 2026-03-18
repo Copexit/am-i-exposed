@@ -33,16 +33,14 @@ export function TipToast() {
   const dismissed = sessionDismissed || localDismissed;
   const [expanded, setExpanded] = useState(false);
   // Hide on lg+ where the inline TipJar is visible to avoid duplicate QR codes
-  const [isLargeScreen, setIsLargeScreen] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.matchMedia("(min-width: 1024px)").matches;
-  });
+  const [isLargeScreen, setIsLargeScreen] = useState(false);
   const [copied, setCopied] = useState(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(copyTimerRef.current), []);
 
   useEffect(() => {
     const mql = window.matchMedia("(min-width: 1024px)");
+    setIsLargeScreen(mql.matches);
     const handler = (e: MediaQueryListEvent) => setIsLargeScreen(e.matches);
     mql.addEventListener("change", handler);
     return () => mql.removeEventListener("change", handler);
