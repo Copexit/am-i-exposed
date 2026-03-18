@@ -94,7 +94,7 @@ function PortRow({
       {/* Address */}
       <Text
         x={portX + (side === "input" ? 8 : 6)}
-        y={port.y - 3}
+        y={port.y - 6}
         fontSize={9}
         fill={isOpReturn ? SVG_COLORS.medium : SVG_COLORS.muted}
         fontFamily="monospace"
@@ -105,7 +105,7 @@ function PortRow({
       {/* Value */}
       <Text
         x={portX + (side === "input" ? 8 : 6)}
-        y={port.y + 9}
+        y={port.y + 11}
         fontSize={9}
         fill={SVG_COLORS.bitcoin}
         fillOpacity={isOpReturn ? 0.4 : 0.8}

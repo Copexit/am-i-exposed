@@ -36,8 +36,8 @@ export const ENTITY_CATEGORY_COLORS: Record<EntityCategory | "unknown", string> 
 
 // ─── Expanded node dimensions ───────────────────────────────────
 export const EXPANDED_NODE_W = 300;
-export const PORT_H = 26;
-export const PORT_GAP = 2;
+export const PORT_H = 30;
+export const PORT_GAP = 4;
 export const EXPANDED_HEADER_H = 40;
 export const EXPANDED_PAD_V = 8;
 /** Max ports per side before overflow. */
