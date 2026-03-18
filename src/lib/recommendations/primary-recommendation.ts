@@ -63,7 +63,7 @@ export function selectRecommendations(
   const entityOrigin = ctx.entityOrigin
     ?? (entityInputFinding?.params?.entityName as string | undefined)
     ?? null;
-  const entityCategory = ctx.entityCategory
+  const _entityCategory = ctx.entityCategory
     ?? (entityInputFinding?.params?.category as string | undefined)
     ?? null;
 

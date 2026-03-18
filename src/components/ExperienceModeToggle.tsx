@@ -33,7 +33,7 @@ export function ExperienceModeToggle() {
   return (
     <div
       role="radiogroup"
-      aria-label={t("settings.experienceMode", { defaultValue: "Experience mode" })}
+      aria-label={t("settings.experienceMode", { defaultValue: "Experience" })}
       className="inline-flex items-center rounded-full bg-surface-inset border border-card-border p-0.5"
     >
       <button

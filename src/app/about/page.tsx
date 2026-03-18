@@ -137,7 +137,7 @@ export default function AboutPage() {
             {t("about.what_heading", { defaultValue: "What It Does" })}
           </h2>
           <p className="text-muted leading-relaxed max-w-4xl">
-            {t("about.what_intro", { defaultValue: "Paste any Bitcoin address, transaction ID, xpub/descriptor, or unsigned PSBT. The tool runs the same techniques chain analysis firms use and shows you exactly what they can infer - with a privacy score from 0 to 100, detailed findings, and actionable recommendations." })}
+            {t("about.what_intro", { defaultValue: "Paste any Bitcoin address, transaction ID, xpub/descriptor, or unsigned PSBT. The tool runs the same techniques chain analysis firms use and shows exactly what they can infer - with a privacy score from 0 to 100, detailed findings, and actionable recommendations." })}
           </p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {CAPABILITIES.map((c) => (

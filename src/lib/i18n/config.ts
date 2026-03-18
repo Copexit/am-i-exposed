@@ -1,6 +1,7 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import Backend from "i18next-http-backend";
+import enCommon from "../../../public/locales/en/common.json";
 
 const SUPPORTED_LANGUAGES = ["en", "es", "pt", "de", "fr"] as const;
 type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
@@ -50,12 +51,17 @@ i18n
     load: "languageOnly",
     defaultNS: "common",
     ns: ["common"],
+    // Bundle English translations so t() returns correct values synchronously
+    // during SSR and first render, preventing hydration mismatches.
+    // Other languages are still loaded async via the HTTP backend.
+    resources: {
+      en: { common: enCommon },
+    },
+    partialBundledLanguages: true,
     backend: {
       loadPath: "/locales/{{lng}}/{{ns}}.json",
     },
     interpolation: {
-      // React handles XSS escaping via JSX textContent, so i18next HTML escaping
-      // is redundant. IMPORTANT: Never use t() output in dangerouslySetInnerHTML.
       escapeValue: false,
     },
     react: {

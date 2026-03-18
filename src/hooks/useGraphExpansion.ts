@@ -856,7 +856,6 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
       setAutoTracing(false);
       setAutoTraceProgress(null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /** Cancel any in-progress auto-trace. */
@@ -982,7 +981,6 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
       setAutoTracing(false);
       setAutoTraceProgress(null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {

@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { SVG_COLORS, GRADE_HEX_SVG } from "./shared/svgConstants";
 import { probColor } from "./shared/linkabilityColors";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
-import { formatSats } from "@/lib/format";
+import { formatSats as _formatSats } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 import { useFullscreen } from "@/hooks/useFullscreen";
 import { analyzeTransactionSync } from "@/lib/analysis/analyze-sync";
@@ -149,7 +149,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
   const boltzmannCacheRef = useRef<Map<string, BoltzmannWorkerResult>>(new Map());
   const [boltzmannVersion, setBoltzmannVersion] = useState(0);
   const computingBoltzmannRef = useRef<Set<string>>(new Set());
-  const [computingBoltzmannVersion, setComputingBoltzmannVersion] = useState(0);
+  const [_computingBoltzmannVersion, setComputingBoltzmannVersion] = useState(0);
   const [boltzmannProgressMap, setBoltzmannProgressMap] = useState<Map<string, number>>(new Map());
 
   // Seed cache with root Boltzmann result if available

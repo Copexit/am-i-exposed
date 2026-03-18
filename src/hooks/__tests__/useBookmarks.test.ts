@@ -105,7 +105,7 @@ describe("useBookmarks", () => {
       const revokeObjectURL = vi.fn();
       const clickSpy = vi.fn();
       vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
-      vi.spyOn(document, "createElement").mockReturnValue({
+      const createElementSpy = vi.spyOn(document, "createElement").mockReturnValue({
         set href(_: string) { /* noop */ },
         set download(_: string) { /* noop */ },
         click: clickSpy,
@@ -118,6 +118,9 @@ describe("useBookmarks", () => {
       expect(createObjectURL).toHaveBeenCalledTimes(1);
       expect(clickSpy).toHaveBeenCalledTimes(1);
       expect(revokeObjectURL).toHaveBeenCalledWith("blob:test");
+
+      createElementSpy.mockRestore();
+      vi.unstubAllGlobals();
     });
   });
 
