@@ -1,14 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { analyzeForward } from "../forward";
-import { makeTx, makeVin, makeVout, resetAddrCounter } from "../../heuristics/__tests__/fixtures/tx-factory";
+import { makeTx, makeVin, makeVout, makeOutspend, resetAddrCounter } from "../../heuristics/__tests__/fixtures/tx-factory";
 import { WHIRLPOOL_DENOMS } from "@/lib/constants";
-import type { MempoolOutspend } from "@/lib/api/types";
 
 beforeEach(() => resetAddrCounter());
-
-function makeOutspend(overrides: Partial<MempoolOutspend> = {}): MempoolOutspend {
-  return { spent: false, txid: undefined, vin: undefined, status: undefined, ...overrides };
-}
 
 describe("analyzeForward", () => {
   it("detects post-CoinJoin consolidation", () => {

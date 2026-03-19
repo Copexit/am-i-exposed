@@ -2,7 +2,8 @@
 
 import { useState, lazy, Suspense } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Network, Loader2, ChevronDown, AlertTriangle, GitBranch, RotateCw, Search } from "lucide-react";
+import { Network, ChevronDown, AlertTriangle, GitBranch, RotateCw, Search } from "lucide-react";
+import { Spinner } from "./ui/Spinner";
 import { useTranslation } from "react-i18next";
 import { useClusterAnalysis } from "@/hooks/useClusterAnalysis";
 import { ChartErrorBoundary } from "./ui/ChartErrorBoundary";
@@ -53,7 +54,7 @@ export function ClusterPanel({ targetAddress, txs, onAddressClick }: ClusterPane
     return (
       <div className="w-full bg-surface-inset rounded-xl p-5 space-y-3">
         <div className="flex items-center gap-2">
-          <Loader2 size={16} className="text-bitcoin animate-spin" />
+          <Spinner size="sm" />
           <span className="text-sm font-medium text-foreground/90">
             {t("cluster.building", { defaultValue: "Building cluster..." })}
           </span>

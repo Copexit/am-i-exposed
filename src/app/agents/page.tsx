@@ -1,8 +1,6 @@
 "use client";
 
-import Link from "next/link";
 import {
-  ArrowLeft,
   Terminal,
   Bot,
   Braces,
@@ -10,35 +8,14 @@ import {
   Zap,
   FileJson,
   Cpu,
-  Copy,
-  Check,
 } from "lucide-react";
-import { useState, useCallback } from "react";
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  }, [text]);
-
-  return (
-    <button
-      onClick={handleCopy}
-      className="absolute top-2 right-2 p-1.5 rounded bg-surface-inset/50 hover:bg-surface-inset text-muted hover:text-foreground transition-colors"
-      title="Copy to clipboard"
-    >
-      {copied ? <Check size={14} /> : <Copy size={14} />}
-    </button>
-  );
-}
+import { PageShell } from "@/components/PageShell";
+import { CopyButton } from "@/components/ui/CopyButton";
 
 function CodeBlock({ code, lang = "bash" }: { code: string; lang?: string }) {
   return (
     <div className="relative group">
-      <pre className="bg-surface-inset rounded-lg p-4 text-sm overflow-x-auto border border-border/50">
+      <pre className="bg-surface-inset rounded-lg p-4 text-sm overflow-x-auto border border-card-border/50">
         <code className={`language-${lang}`}>{code}</code>
       </pre>
       <div className="opacity-0 group-hover:opacity-100 transition-opacity">
@@ -117,21 +94,14 @@ const MCP_CONFIG = `{
 
 export default function AgentsPage() {
   return (
-    <div className="flex-1 flex flex-col items-center px-4 sm:px-6 lg:px-8 xl:px-10 py-8">
-      <div className="w-full max-w-4xl space-y-10">
-        {/* Back nav */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors py-2 -my-2"
-        >
-          <ArrowLeft size={16} />
-          Back to scanner
-        </Link>
-
+    <PageShell
+      backLabel="Back to scanner"
+      className="sm:px-6 lg:px-8 xl:px-10"
+    >
         {/* Title */}
         <div className="space-y-3">
           <div className="flex items-center gap-3">
-            <Bot size={32} className="text-[#28d065]" />
+            <Bot size={32} className="text-severity-good" />
             <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
               Agent Integration
             </h1>
@@ -165,9 +135,9 @@ export default function AgentsPage() {
             {TOOLS.map((tool) => (
               <div
                 key={tool.name}
-                className="border border-border/50 rounded-lg p-4 space-y-2"
+                className="border border-card-border/50 rounded-lg p-4 space-y-2"
               >
-                <h3 className="font-mono text-sm font-semibold text-[#28d065]">
+                <h3 className="font-mono text-sm font-semibold text-severity-good">
                   {tool.name}
                 </h3>
                 <p className="text-muted text-sm">{tool.desc}</p>
@@ -209,13 +179,13 @@ export default function AgentsPage() {
           />
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center text-sm">
             {[
-              { grade: "A+", range: "90-100", color: "text-[#28d065]" },
-              { grade: "B", range: "75-89", color: "text-[#3b82f6]" },
-              { grade: "C", range: "50-74", color: "text-[#eab308]" },
-              { grade: "D", range: "25-49", color: "text-[#f97316]" },
-              { grade: "F", range: "0-24", color: "text-[#ef4444]" },
+              { grade: "A+", range: "90-100", color: "text-severity-good" },
+              { grade: "B", range: "75-89", color: "text-severity-low" },
+              { grade: "C", range: "50-74", color: "text-severity-medium" },
+              { grade: "D", range: "25-49", color: "text-severity-high" },
+              { grade: "F", range: "0-24", color: "text-severity-critical" },
             ].map((g) => (
-              <div key={g.grade} className="border border-border/50 rounded-lg p-2">
+              <div key={g.grade} className="border border-card-border/50 rounded-lg p-2">
                 <div className={`text-lg font-bold ${g.color}`}>{g.grade}</div>
                 <div className="text-muted text-xs">{g.range}</div>
               </div>
@@ -262,7 +232,7 @@ export default function AgentsPage() {
             {WORKFLOWS.map((wf) => (
               <div
                 key={wf.title}
-                className="border border-border/50 rounded-lg p-4 space-y-3"
+                className="border border-card-border/50 rounded-lg p-4 space-y-3"
               >
                 <h3 className="font-semibold text-foreground">{wf.title}</h3>
                 <ol className="list-decimal list-inside space-y-1.5 text-muted text-sm">
@@ -284,31 +254,31 @@ export default function AgentsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border/50 text-left text-muted">
+                <tr className="border-b border-card-border/50 text-left text-muted">
                   <th className="py-2 pr-4">Mode</th>
                   <th className="py-2 pr-4">Time</th>
                   <th className="py-2">Notes</th>
                 </tr>
               </thead>
               <tbody className="text-muted">
-                <tr className="border-b border-border/30">
+                <tr className="border-b border-card-border/30">
                   <td className="py-2 pr-4 text-foreground">Normal scan</td>
                   <td className="py-2 pr-4">~10s</td>
                   <td className="py-2">Full context (parent txs + output addresses)</td>
                 </tr>
-                <tr className="border-b border-border/30">
+                <tr className="border-b border-card-border/30">
                   <td className="py-2 pr-4 text-foreground">--fast</td>
                   <td className="py-2 pr-4">~6s</td>
                   <td className="py-2">Skip context fetching, all heuristics still run</td>
                 </tr>
-                <tr className="border-b border-border/30">
+                <tr className="border-b border-card-border/30">
                   <td className="py-2 pr-4 text-foreground">Cached (repeat)</td>
-                  <td className="py-2 pr-4 text-[#28d065]">~1.5s</td>
+                  <td className="py-2 pr-4 text-severity-good">~1.5s</td>
                   <td className="py-2">SQLite cache, instant on second scan</td>
                 </tr>
-                <tr className="border-b border-border/30">
+                <tr className="border-b border-card-border/30">
                   <td className="py-2 pr-4 text-foreground">PSBT (offline)</td>
-                  <td className="py-2 pr-4 text-[#28d065]">&lt;1s</td>
+                  <td className="py-2 pr-4 text-severity-good">&lt;1s</td>
                   <td className="py-2">Zero network access needed</td>
                 </tr>
                 <tr>
@@ -338,7 +308,7 @@ export default function AgentsPage() {
         </section>
 
         {/* Links */}
-        <section className="border-t border-border/50 pt-6 flex flex-wrap gap-4 text-sm">
+        <section className="border-t border-card-border/50 pt-6 flex flex-wrap gap-4 text-sm">
           <a
             href="https://github.com/Copexit/am-i-exposed/blob/main/cli/skill.md"
             target="_blank"
@@ -372,7 +342,6 @@ export default function AgentsPage() {
             npm package
           </a>
         </section>
-      </div>
-    </div>
+    </PageShell>
   );
 }

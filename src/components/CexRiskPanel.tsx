@@ -7,11 +7,11 @@ import {
   ShieldAlert,
   ShieldX,
   ChevronDown,
-  Loader2,
   AlertTriangle,
   Search,
   RotateCw,
 } from "lucide-react";
+import { Spinner } from "./ui/Spinner";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { checkOfac } from "@/lib/analysis/cex-risk/ofac-check";
@@ -351,7 +351,7 @@ export function CexRiskPanel({ query, inputType, txData, isCoinJoin }: CexRiskPa
                       <ShieldCheck size={16} className="text-severity-good" />
                     )
                   ) : chainalysis.status === "loading" ? (
-                    <Loader2 size={16} className="text-bitcoin animate-spin" />
+                    <Spinner size="sm" />
                   ) : chainalysis.status === "error" ? (
                     <ShieldAlert size={16} className="text-severity-high" />
                   ) : (

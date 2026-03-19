@@ -1,6 +1,8 @@
 import type { TxHeuristic, TxContext } from "./types";
 import type { Finding } from "@/lib/types";
 import { fmtN, calcVsize } from "@/lib/format";
+import { isRoundAmount } from "./round-amount";
+import { isCoinbase, isOpReturn } from "./tx-utils";
 
 /**
  * H6: Fee Analysis
@@ -106,11 +108,8 @@ export const analyzeFees: TxHeuristic = (tx, _rawHex?, ctx?) => {
 
   // Check for fee-in-amount: detect when fee appears to be subtracted from an output
   // rather than added on top. Fingerprints wallets with "send max" or incorrect fee handling.
-  if (tx.vin.length === 1 && tx.vout.length === 1) {
-    // Single-input single-output: total output + fee = input exactly (always true)
-    // Nothing to detect here
-  } else if (tx.vout.length === 2) {
-    const spendable = tx.vout.filter((o) => !o.scriptpubkey.startsWith("6a"));
+  if (tx.vout.length === 2) {
+    const spendable = tx.vout.filter((o) => !isOpReturn(o.scriptpubkey));
     if (spendable.length === 2) {
       // Check if either output amount + fee equals a round number
       // This would suggest the user intended to send a round amount but the wallet
@@ -118,7 +117,7 @@ export const analyzeFees: TxHeuristic = (tx, _rawHex?, ctx?) => {
       for (const out of spendable) {
         const amountPlusFee = out.value + tx.fee;
         // Check if amount+fee is a round BTC value
-        if (isRoundSatAmount(amountPlusFee) && !isRoundSatAmount(out.value)) {
+        if (isRoundAmount(amountPlusFee) && !isRoundAmount(out.value)) {
           findings.push({
             id: "h6-fee-in-amount",
             severity: "low",
@@ -155,7 +154,7 @@ export const analyzeFees: TxHeuristic = (tx, _rawHex?, ctx?) => {
 function detectCpfp(tx: Parameters<TxHeuristic>[0], ctx: TxContext | undefined, findings: Finding[]): void {
   if (!ctx?.parentTx) return;
   if (tx.vin.length !== 1) return;
-  if (tx.vin[0].is_coinbase) return;
+  if (isCoinbase(tx)) return;
 
   const parentTx = ctx.parentTx;
 
@@ -215,9 +214,3 @@ function detectCpfp(tx: Parameters<TxHeuristic>[0], ctx: TxContext | undefined, 
   });
 }
 
-/** Check if a sat amount is "round" (divisible by common BTC denominations) */
-function isRoundSatAmount(sats: number): boolean {
-  // Round BTC amounts: 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0 BTC
-  const roundDenoms = [100_000, 500_000, 1_000_000, 5_000_000, 10_000_000, 50_000_000, 100_000_000];
-  return roundDenoms.some((d) => sats % d === 0 && sats > 0);
-}

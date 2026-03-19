@@ -84,7 +84,7 @@ describe("data directory paths", () => {
 
 describe("entity filter - filesystem loading", () => {
   it("loads core entity index from disk", async () => {
-    const { configureDataLoader, loadEntityFilter, lookupEntityName } =
+    const { configureDataLoader, loadEntityFilter } =
       await import("@/lib/analysis/entity-filter/filter-loader");
     const { readFileSync } = await import("fs");
 

@@ -78,8 +78,10 @@ export function parsePSBT(input: string): PSBTParseResult {
     psbtBytes = base64.decode(trimmed);
   } else if (trimmed.startsWith("70736274ff")) {
     // Hex-encoded PSBT
+    const hexPairs = trimmed.match(/.{1,2}/g);
+    if (!hexPairs) throw new Error("Invalid PSBT hex");
     psbtBytes = new Uint8Array(
-      trimmed.match(/.{1,2}/g)!.map(b => parseInt(b, 16)),
+      hexPairs.map(b => parseInt(b, 16)),
     );
   } else {
     throw new Error("Invalid PSBT format: must be base64 or hex encoded");

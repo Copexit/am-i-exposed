@@ -24,8 +24,6 @@ export interface FingerprintSnapshot {
   locktimeType: "zero" | "block-exact" | "block-randomized" | "block-general" | "timestamp";
   scriptTypes: string[];
   hasRbf: boolean;
-  /** Whether this tx was sent from this address (has inputs from it) */
-  isSender: boolean;
 }
 
 interface FingerprintEvolution {
@@ -286,6 +284,5 @@ function buildSnapshot(
     locktimeType,
     scriptTypes,
     hasRbf,
-    isSender: true,
   };
 }

@@ -22,7 +22,7 @@ function getVersion(): string {
       return JSON.parse(readFileSync(pkgPath, "utf-8")).version;
     } catch { /* fall through */ }
   }
-  return "0.33.0";
+  return "0.34.3";
 }
 const version = getVersion();
 

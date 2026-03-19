@@ -13,7 +13,7 @@ import {
   makeOpReturnVout,
   resetAddrCounter,
 } from "@/lib/analysis/heuristics/__tests__/fixtures/tx-factory";
-import { identifyChangeOutput } from "../autoTrace";
+import { identifyChangeOutput } from "@/lib/graph/autoTrace";
 import { computeDeterministicChains } from "../deterministicChains";
 import { detectToxicMerges } from "../toxicChange";
 import type { GraphNode } from "@/hooks/useGraphExpansion";

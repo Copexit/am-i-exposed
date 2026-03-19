@@ -7,7 +7,7 @@ import type {
 import { calculateScore, sumImpact } from "@/lib/scoring/score";
 import { checkOfac } from "./cex-risk/ofac-check";
 import { applyCrossHeuristicRules } from "./cross-heuristic";
-import { TX_HEURISTICS, ADDRESS_HEURISTICS, tick } from "./orchestrator";
+import { TX_HEURISTICS, ADDRESS_HEURISTICS, tick } from "./heuristic-registry";
 
 // ── Pre-send destination check (H13) ────────────────────────────────────────
 

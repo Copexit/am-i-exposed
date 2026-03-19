@@ -5,6 +5,7 @@ import { ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { ChartErrorBoundary } from "../ui/ChartErrorBoundary";
+import { fadeUpVariants, fadeUpTransition } from "./animations";
 import type { ScoringResult } from "@/lib/types";
 
 const ScoreWaterfall = lazy(() => import("../viz/ScoreWaterfall").then(m => ({ default: m.ScoreWaterfall })));
@@ -29,9 +30,8 @@ export function ScoreWaterfallCollapsible({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay }}
+      {...fadeUpVariants}
+      transition={fadeUpTransition(delay)}
       className="w-full"
     >
       <button

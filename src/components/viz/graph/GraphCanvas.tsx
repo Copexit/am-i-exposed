@@ -5,21 +5,21 @@ import { motion } from "motion/react";
 import { Text } from "@visx/text";
 import { useTheme } from "@/hooks/useTheme";
 import { SVG_COLORS } from "../shared/svgConstants";
-import { probColor } from "../shared/linkabilityColors";
 import { ChartDefs } from "../shared/ChartDefs";
 import { formatSats } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
-import { SCROLL_MARGIN_X, SCROLL_MARGIN_Y, MIN_ZOOM, MAX_ZOOM, ENTITY_CATEGORY_COLORS } from "./constants";
-import { DUST_THRESHOLD } from "@/lib/constants";
+import { SCROLL_MARGIN_X, SCROLL_MARGIN_Y, ENTITY_CATEGORY_COLORS } from "./constants";
 import { layoutGraph, getNodeColor } from "./layout";
-import { edgePath, getEdgeMaxProb, portAwareEdgePath } from "./edge-utils";
-import { getScriptTypeColor, getScriptTypeDash, getEdgeThickness, getLockTimeRx, getVersionFill } from "./scriptStyles";
+import { getLockTimeRx, getVersionFill } from "./scriptStyles";
 import { buildPortPositionMap } from "./portLayout";
 import { GraphMinimap } from "./GraphMinimap";
+import { GraphEdges } from "./GraphEdges";
 import { ExpandedNode } from "./ExpandedNode";
 import { computeDeterministicChains, buildDetChainEdgeSet } from "./deterministicChains";
 import { detectToxicMerges, buildToxicMergeSet } from "./toxicChange";
-import { computeEntropyPropagation, entropyColor } from "./privacyGradient";
+import { computeEntropyPropagation } from "./privacyGradient";
+import { usePanZoom } from "./usePanZoom";
+import { computeFocusSpotlight } from "./focusSpotlight";
 import type { GraphCanvasProps, LayoutNode } from "./types";
 
 export function GraphCanvas({
@@ -74,13 +74,23 @@ export function GraphCanvas({
     window.addEventListener("touchstart", onTouch, { once: true, passive: true });
     return () => window.removeEventListener("touchstart", onTouch);
   }, []);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const panRef = useRef({ active: false, startX: 0, startY: 0, vtX: 0, vtY: 0, scale: 1 });
-  const pinchRef = useRef({ active: false, startDist: 0, startScale: 1, midX: 0, midY: 0 });
-  const viewTransformRef = useRef(viewTransform);
-  viewTransformRef.current = viewTransform;
-  const [isPanning, setIsPanning] = useState(false);
+
+  // Pan/zoom/pinch interaction (fullscreen transform mode)
+  const handlePanStartDismiss = useCallback(() => {
+    setSelectedNode(null);
+    tooltip.hideTooltip();
+    setHoveredNode(null);
+    setHoveredEdgeKey(null);
+  }, [setSelectedNode, tooltip, setHoveredNode]);
+  const handleWheelDismiss = useCallback(() => {
+    tooltip.hideTooltip();
+  }, [tooltip]);
+  const { svgRef, wrapperRef, isPanning, handlePanStart } = usePanZoom({
+    viewTransform,
+    onViewTransformChange,
+    onPanStart: handlePanStartDismiss,
+    onWheel: handleWheelDismiss,
+  });
 
   // Convert graph coordinates to screen coordinates (accounts for scroll or view transform)
   const toScreen = useCallback((gx: number, gy: number) => {
@@ -198,19 +208,10 @@ export function GraphCanvas({
   }, [hoveredNode, edges]);
 
   // Focus spotlight: nodes/edges connected to the expanded (sidebar) node
-  const focusSpotlight = useMemo(() => {
-    if (!expandedNodeTxid) return null;
-    const connectedNodes = new Set<string>([expandedNodeTxid]);
-    const connectedEdges = new Set<string>();
-    for (const e of edges) {
-      if (e.fromTxid === expandedNodeTxid || e.toTxid === expandedNodeTxid) {
-        connectedNodes.add(e.fromTxid);
-        connectedNodes.add(e.toTxid);
-        connectedEdges.add(`e-${e.fromTxid}-${e.toTxid}`);
-      }
-    }
-    return { nodes: connectedNodes, edges: connectedEdges };
-  }, [expandedNodeTxid, edges]);
+  const focusSpotlight = useMemo(
+    () => computeFocusSpotlight(expandedNodeTxid ?? null, edges),
+    [expandedNodeTxid, edges],
+  );
 
   // Keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -428,6 +429,21 @@ export function GraphCanvas({
     return () => el.removeEventListener("scroll", handler);
   }, [scrollRef]);
 
+  // Track SVG element dimensions for minimap viewport rect (avoids ref read during render)
+  const [svgDims, setSvgDims] = useState<{ width: number; height: number } | null>(null);
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el || !isFullscreen) return;
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      setSvgDims({ width: rect.width, height: rect.height });
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [svgRef, isFullscreen]);
+
   const handleMinimapClick = useCallback((x: number, y: number) => {
     if (viewTransform && onViewTransformChange) {
       const cw = containerWidth;
@@ -440,155 +456,6 @@ export function GraphCanvas({
     el.scrollLeft = x - el.clientWidth / 2;
     el.scrollTop = y - el.clientHeight / 2;
   }, [scrollRef, viewTransform, onViewTransformChange, containerWidth, containerHeight]);
-
-  // ─── Pan handlers (fullscreen transform mode) ────────────
-
-  const handlePanStart = useCallback((e: React.MouseEvent) => {
-    if (!viewTransform || !onViewTransformChange || e.button !== 0) return;
-    e.preventDefault();
-    panRef.current = { active: true, startX: e.clientX, startY: e.clientY, vtX: viewTransform.x, vtY: viewTransform.y, scale: viewTransform.scale };
-    setIsPanning(true);
-    setSelectedNode(null);
-    tooltip.hideTooltip();
-    setHoveredNode(null);
-    setHoveredEdgeKey(null);
-  }, [viewTransform, onViewTransformChange, setSelectedNode, tooltip, setHoveredNode]);
-
-  useEffect(() => {
-    if (!isPanning) return;
-    const onMove = (e: MouseEvent) => {
-      if (!panRef.current.active) return;
-      const dx = e.clientX - panRef.current.startX;
-      const dy = e.clientY - panRef.current.startY;
-      onViewTransformChange?.({ scale: panRef.current.scale, x: panRef.current.vtX + dx, y: panRef.current.vtY + dy });
-    };
-    const onUp = () => { panRef.current.active = false; setIsPanning(false); };
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-    return () => { document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); };
-  }, [isPanning, onViewTransformChange]);
-
-  // Wheel-to-zoom (fullscreen transform mode)
-  useEffect(() => {
-    if (!viewTransform || !onViewTransformChange) return;
-    const el = svgRef.current;
-    if (!el) return;
-    const handler = (e: WheelEvent) => {
-      e.preventDefault();
-      const vt = viewTransformRef.current;
-      if (!vt) return;
-      const rect = el.getBoundingClientRect();
-      const cx = e.clientX - rect.left;
-      const cy = e.clientY - rect.top;
-      const gx = (cx - vt.x) / vt.scale;
-      const gy = (cy - vt.y) / vt.scale;
-      const factor = e.deltaY > 0 ? 0.9 : 1.1;
-      const ns = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, vt.scale * factor));
-      onViewTransformChange({ x: cx - gx * ns, y: cy - gy * ns, scale: ns });
-      tooltip.hideTooltip();
-    };
-    el.addEventListener("wheel", handler, { passive: false });
-    return () => el.removeEventListener("wheel", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [!!viewTransform, onViewTransformChange]);
-
-  // Touch gestures: single-finger pan, two-finger pinch-to-zoom
-  useEffect(() => {
-    if (!viewTransform || !onViewTransformChange) return;
-    const el = wrapperRef.current;
-    if (!el) return;
-
-    const PAN_THRESHOLD = 8;
-    const dist = (a: Touch, b: Touch) =>
-      Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-
-    let pendingPan: { startX: number; startY: number; vtX: number; vtY: number; scale: number } | null = null;
-
-    const handleTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        e.preventDefault();
-        pendingPan = null;
-        const vt = viewTransformRef.current;
-        if (!vt) return;
-        const t0 = e.touches[0], t1 = e.touches[1];
-        const rect = el.getBoundingClientRect();
-        pinchRef.current = {
-          active: true,
-          startDist: dist(t0, t1),
-          startScale: vt.scale,
-          midX: (t0.clientX + t1.clientX) / 2 - rect.left,
-          midY: (t0.clientY + t1.clientY) / 2 - rect.top,
-        };
-        panRef.current.active = false;
-      } else if (e.touches.length === 1) {
-        const vt = viewTransformRef.current;
-        if (!vt) return;
-        const t = e.touches[0];
-        pendingPan = { startX: t.clientX, startY: t.clientY, vtX: vt.x, vtY: vt.y, scale: vt.scale };
-        pinchRef.current.active = false;
-      }
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (pinchRef.current.active && e.touches.length === 2) {
-        e.preventDefault();
-        const vt = viewTransformRef.current;
-        if (!vt) return;
-        const t0 = e.touches[0], t1 = e.touches[1];
-        const curDist = dist(t0, t1);
-        const ratio = curDist / pinchRef.current.startDist;
-        const ns = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, pinchRef.current.startScale * ratio));
-        const { midX, midY } = pinchRef.current;
-        const gx = (midX - vt.x) / vt.scale;
-        const gy = (midY - vt.y) / vt.scale;
-        onViewTransformChange({ x: midX - gx * ns, y: midY - gy * ns, scale: ns });
-      } else if (e.touches.length === 1) {
-        const t = e.touches[0];
-
-        if (pendingPan && !panRef.current.active) {
-          const moved = Math.hypot(t.clientX - pendingPan.startX, t.clientY - pendingPan.startY);
-          if (moved >= PAN_THRESHOLD) {
-            panRef.current = { active: true, startX: pendingPan.startX, startY: pendingPan.startY, vtX: pendingPan.vtX, vtY: pendingPan.vtY, scale: pendingPan.scale };
-            pendingPan = null;
-            setIsPanning(true);
-            setSelectedNode(null);
-          }
-        }
-
-        if (panRef.current.active) {
-          e.preventDefault();
-          const dx = t.clientX - panRef.current.startX;
-          const dy = t.clientY - panRef.current.startY;
-          onViewTransformChange({ scale: panRef.current.scale, x: panRef.current.vtX + dx, y: panRef.current.vtY + dy });
-        }
-      }
-    };
-
-    const handleTouchEnd = (e: TouchEvent) => {
-      pendingPan = null;
-      if (e.touches.length < 2) pinchRef.current.active = false;
-      if (e.touches.length === 0) {
-        panRef.current.active = false;
-        setIsPanning(false);
-      }
-      if (e.touches.length === 1 && !pinchRef.current.active) {
-        const vt = viewTransformRef.current;
-        if (!vt) return;
-        const t = e.touches[0];
-        pendingPan = { startX: t.clientX, startY: t.clientY, vtX: vt.x, vtY: vt.y, scale: vt.scale };
-      }
-    };
-
-    el.addEventListener("touchstart", handleTouchStart, { passive: false });
-    el.addEventListener("touchmove", handleTouchMove, { passive: false });
-    el.addEventListener("touchend", handleTouchEnd, { passive: false });
-    return () => {
-      el.removeEventListener("touchstart", handleTouchStart);
-      el.removeEventListener("touchmove", handleTouchMove);
-      el.removeEventListener("touchend", handleTouchEnd);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [!!viewTransform, onViewTransformChange]);
 
   return (
     <div
@@ -682,260 +549,29 @@ export function GraphCanvas({
           pointerEvents="none"
         />
 
-        {/* Edges */}
-        {edges.map((edge) => {
-          const edgeKey = `e-${edge.fromTxid}-${edge.toTxid}`;
-          const hasPortRouting = expandedNodeTxid && (edge.fromTxid === expandedNodeTxid || edge.toTxid === expandedNodeTxid);
-          const d = hasPortRouting
-            ? portAwareEdgePath(edge, portPositions, nodes as Map<string, { tx: { vin: Array<{ txid: string; vout: number }> } }>)
-            : edgePath(edge);
-          const midX = (edge.x1 + edge.x2) / 2;
-
-          const isHoveredViaNode = hoveredEdges?.has(edgeKey);
-          const isHoveredDirect = hoveredEdgeKey === edgeKey;
-          const isHovered = isHoveredViaNode || isHoveredDirect;
-          const isDimmedByHover = hoveredNode && !isHoveredViaNode;
-          const isConsolidation = edge.consolidationCount >= 2;
-
-          // Linkability edge coloring: check boltzmannCache for ANY source tx
-          let linkabilityColor: string | null = null;
-          let linkabilityMaxProb = -1;
-          if (linkabilityEdgeMode && edge.outputIndices?.length) {
-            const cachedResult = boltzmannCache?.get(edge.fromTxid) ?? (edge.fromTxid === rootTxid ? rootBoltzmannResult : null);
-            const mat = cachedResult?.matLnkProbabilities;
-            if (mat && mat.length > 0) {
-              linkabilityMaxProb = getEdgeMaxProb(mat, edge.outputIndices);
-              if (linkabilityMaxProb <= 0) return null;
-              linkabilityColor = probColor(linkabilityMaxProb);
-            }
-          }
-
-          // Script type encoding: color, dash, and thickness from UTXO data
-          const scriptInfo = edgeScriptInfo.get(edgeKey);
-          const scriptColor = scriptInfo ? getScriptTypeColor(scriptInfo.scriptType) : null;
-          const scriptDash = scriptInfo ? getScriptTypeDash(scriptInfo.scriptType) : undefined;
-          const scriptThickness = scriptInfo ? getEdgeThickness(scriptInfo.value, maxEdgeValue) : undefined;
-
-          // Check if any output index on this edge is change-marked
-          const isChangeMarked = changeOutputs && edge.outputIndices?.some(
-            (oi) => changeOutputs.has(`${edge.fromTxid}:${oi}`),
-          );
-
-          // Check if this edge carries dust-level value
-          const isDust = scriptInfo && scriptInfo.value > 0 && scriptInfo.value <= DUST_THRESHOLD;
-
-          // Entropy gradient mode: override edge color with effective entropy
-          const entropyEntry = entropyEdges?.get(edgeKey);
-          const entropyColorVal = entropyEntry ? entropyColor(entropyEntry.normalized) : null;
-
-          const strokeColor = entropyColorVal
-            ?? linkabilityColor
-            ?? (isChangeMarked ? "#d97706" : (isConsolidation ? SVG_COLORS.critical : (scriptColor ?? SVG_COLORS.muted)));
-          let strokeOpacity = entropyColorVal ? (0.4 + entropyEntry!.normalized * 0.5) : (linkabilityColor ? (0.3 + linkabilityMaxProb * 0.7) : (isChangeMarked ? 0.8 : (isConsolidation ? 0.6 : (scriptColor ? 0.55 : 0.45))));
-          let strokeWidth = linkabilityColor ? 2.5 : (isChangeMarked ? 3 : (isConsolidation ? 2.5 : (scriptThickness ?? 1.5)));
-          // Dust edges: visible but distinct (dashed, reduced opacity)
-          let dustDash: string | undefined;
-          if (isDust && !linkabilityColor && !isChangeMarked) {
-            strokeOpacity = 0.3;
-            strokeWidth = Math.min(strokeWidth, 1.5);
-            dustDash = "2 2";
-          }
-
-          if (isHovered && !linkabilityColor) {
-            strokeOpacity = isConsolidation ? 0.9 : 0.7;
-            strokeWidth = isConsolidation ? 3.5 : 2.5;
-          }
-          // Focus spotlight: dim edges not connected to expanded node
-          if (focusSpotlight && !focusSpotlight.edges.has(edgeKey)) strokeOpacity = 0.06;
-          else if (isDimmedByHover) strokeOpacity = isConsolidation ? 0.2 : 0.1;
-
-          let markerEnd: string | undefined;
-          let markerStart: string | undefined;
-          if (edge.isBackward) {
-            markerStart = isConsolidation ? "url(#arrow-graph-consolidation-start)" : "url(#arrow-graph-start)";
-          } else {
-            markerEnd = isConsolidation ? "url(#arrow-graph-consolidation)" : "url(#arrow-graph)";
-          }
-
-          const edgeMaxProb = linkabilityMaxProb >= 0 ? linkabilityMaxProb : undefined;
-          const hasEdgeTooltip = edgeMaxProb !== undefined || entropyEntry != null;
-
-          return (
-            <g key={edgeKey}>
-              {hasEdgeTooltip && (
-                <path
-                  d={d}
-                  fill="none"
-                  stroke="transparent"
-                  strokeWidth={12}
-                  style={{ cursor: "default" }}
-                  onMouseMove={() => {
-                    setHoveredEdgeKey(edgeKey);
-                    const eMidX = (edge.x1 + edge.x2) / 2;
-                    const eMidY = (edge.y1 + edge.y2) / 2;
-                    const pos = toScreen(eMidX, eMidY - 12);
-                    tooltip.showTooltip({
-                      tooltipData: {
-                        txid: edge.fromTxid,
-                        inputCount: 0, outputCount: 0, totalValue: 0,
-                        isCoinJoin: false, depth: 0, fee: 0, feeRate: "",
-                        confirmed: true,
-                        linkProb: edgeMaxProb,
-                        entropyNormalized: entropyEntry?.normalized,
-                        entropyBits: entropyEntry?.effectiveEntropy,
-                      },
-                      tooltipLeft: pos.x,
-                      tooltipTop: pos.y,
-                    });
-                  }}
-                  onMouseLeave={() => { setHoveredEdgeKey(null); tooltip.hideTooltip(); }}
-                />
-              )}
-              <motion.path
-                d={d}
-                fill="none"
-                stroke={strokeColor}
-                strokeWidth={strokeWidth}
-                strokeOpacity={strokeOpacity}
-                strokeDasharray={dustDash ?? scriptDash ?? undefined}
-                markerEnd={markerEnd}
-                markerStart={markerStart}
-                style={entropyColorVal ? {
-                  "--ep-min": String(Math.max(0.2, strokeOpacity - 0.15)),
-                  "--ep-max": String(Math.min(1, strokeOpacity + 0.15)),
-                  animation: `entropy-pulse ${1.5 + (1 - (entropyEntry?.normalized ?? 0.5)) * 2}s ease-in-out infinite`,
-                  pointerEvents: "none" as const,
-                } as React.CSSProperties : { pointerEvents: "none" as const }}
-                initial={{ pathLength: 0 }}
-                animate={{ pathLength: 1 }}
-                transition={{ duration: 0.4 }}
-              />
-              {isConsolidation && (
-                <Text
-                  x={midX}
-                  y={(edge.y1 + edge.y2) / 2 - 6}
-                  textAnchor="middle"
-                  fontSize={9}
-                  fontWeight={700}
-                  fill={SVG_COLORS.critical}
-                  fillOpacity={isDimmedByHover ? 0.15 : 0.85}
-                  style={{ pointerEvents: "none" as const }}
-                >
-                  {`${edge.consolidationCount} outputs`}
-                </Text>
-              )}
-              {/* Deterministic link badge (100%) - only for multi-input txs where determinism is non-trivial */}
-              {!isConsolidation && edge.outputIndices?.length === 1 && (() => {
-                const edgeBoltz = boltzmannCache?.get(edge.fromTxid) ?? (edge.fromTxid === rootTxid ? rootBoltzmannResult : null);
-                if (!edgeBoltz?.deterministicLinks?.length) return null;
-                // Skip 1-input txs: every link is trivially deterministic, badge adds no info
-                if (edgeBoltz.nInputs <= 1) return null;
-                const outIdx = edge.outputIndices![0];
-                const isDeterministic = edgeBoltz.deterministicLinks.some(
-                  ([oi]) => oi === outIdx,
-                );
-                if (!isDeterministic) return null;
-                return (
-                  <g style={{ pointerEvents: "none" }}>
-                    <rect
-                      x={midX - 16}
-                      y={(edge.y1 + edge.y2) / 2 - 10}
-                      width={32}
-                      height={14}
-                      rx={3}
-                      fill={SVG_COLORS.background}
-                      fillOpacity={0.8}
-                      stroke={SVG_COLORS.critical}
-                      strokeWidth={0.5}
-                      strokeOpacity={0.6}
-                    />
-                    <Text
-                      x={midX}
-                      y={(edge.y1 + edge.y2) / 2}
-                      textAnchor="middle"
-                      fontSize={8}
-                      fontWeight={700}
-                      fill={SVG_COLORS.critical}
-                      fillOpacity={isDimmedByHover ? 0.2 : 0.9}
-                    >
-                      100%
-                    </Text>
-                  </g>
-                );
-              })()}
-            </g>
-          );
-        })}
-
-        {/* Hover overlay: re-render hovered linkability edge on top of all edges */}
-        {hoveredEdgeKey && linkabilityEdgeMode && rootBoltzmannResult && (() => {
-          const edge = edges.find((e) => `e-${e.fromTxid}-${e.toTxid}` === hoveredEdgeKey);
-          if (!edge || edge.fromTxid !== rootTxid || !edge.outputIndices?.length) return null;
-          const mat = rootBoltzmannResult.matLnkProbabilities;
-          if (!mat?.length) return null;
-          const maxProb = getEdgeMaxProb(mat, edge.outputIndices);
-          if (maxProb <= 0) return null;
-          const hasPortRouting2 = expandedNodeTxid && (edge.fromTxid === expandedNodeTxid || edge.toTxid === expandedNodeTxid);
-          const d = hasPortRouting2
-            ? portAwareEdgePath(edge, portPositions, nodes as Map<string, { tx: { vin: Array<{ txid: string; vout: number }> } }>)
-            : edgePath(edge);
-          const color = probColor(maxProb);
-          return (
-            <g style={{ pointerEvents: "none" }}>
-              <path d={d} fill="none" stroke={color} strokeWidth={6.5} strokeOpacity={0.4} filter="url(#glow-medium)" />
-              <path d={d} fill="none" stroke={color} strokeWidth={2.5} strokeOpacity={1.0}
-                strokeDasharray={undefined} />
-            </g>
-          );
-        })()}
-
-        {/* Deterministic chain overlay - bold red lines for multi-hop certainty traces */}
-        {detChainEdges.size > 0 && edges.filter((e) => detChainEdges.has(`e-${e.fromTxid}-${e.toTxid}`)).map((edge) => {
-          const edgeKey = `detchain-${edge.fromTxid}-${edge.toTxid}`;
-          const hasPortRouting = expandedNodeTxid && (edge.fromTxid === expandedNodeTxid || edge.toTxid === expandedNodeTxid);
-          const d = hasPortRouting
-            ? portAwareEdgePath(edge, portPositions, nodes as Map<string, { tx: { vin: Array<{ txid: string; vout: number }> } }>)
-            : edgePath(edge);
-          return (
-            <g key={edgeKey} style={{ pointerEvents: "none" }}>
-              <path d={d} fill="none" stroke={SVG_COLORS.critical} strokeWidth={5} strokeOpacity={0.15} filter="url(#glow-medium)" />
-              <motion.path
-                d={d}
-                fill="none"
-                stroke={SVG_COLORS.critical}
-                strokeWidth={2.5}
-                strokeOpacity={0.7}
-                initial={{ pathLength: 0 }}
-                animate={{ pathLength: 1 }}
-                transition={{ duration: 0.6 }}
-              />
-            </g>
-          );
-        })}
-
-        {/* Edge flow particles (on focused/expanded node's edges) */}
-        {focusSpotlight && edges.filter((e) => focusSpotlight.edges.has(`e-${e.fromTxid}-${e.toTxid}`)).map((edge) => {
-          const d = (portPositions.size > 0)
-            ? portAwareEdgePath(edge, portPositions, nodes)
-            : edgePath(edge);
-          const edgeKey = `e-${edge.fromTxid}-${edge.toTxid}`;
-          const scriptInfo = edgeScriptInfo.get(edgeKey);
-          const particleColor = scriptInfo ? getScriptTypeColor(scriptInfo.scriptType) : SVG_COLORS.muted;
-          // 2-3 staggered particles per edge
-          return [0, 1, 2].map((pi) => (
-            <circle
-              key={`particle-${edgeKey}-${pi}`}
-              r={2}
-              fill={particleColor}
-              fillOpacity={0.8}
-              style={{
-                offsetPath: `path("${d}")`,
-                animation: `flow-particle ${2 + pi * 0.3}s linear ${pi * 0.7}s infinite`,
-                pointerEvents: "none" as const,
-              }}
-            />
-          ));
-        })}
+        {/* Edges (main edges, hover overlay, det-chain overlay, flow particles) */}
+        <GraphEdges
+          edges={edges}
+          nodes={nodes}
+          rootTxid={rootTxid}
+          expandedNodeTxid={expandedNodeTxid}
+          portPositions={portPositions}
+          hoveredNode={hoveredNode}
+          hoveredEdges={hoveredEdges}
+          hoveredEdgeKey={hoveredEdgeKey}
+          setHoveredEdgeKey={setHoveredEdgeKey}
+          focusSpotlight={focusSpotlight}
+          linkabilityEdgeMode={linkabilityEdgeMode}
+          rootBoltzmannResult={rootBoltzmannResult}
+          boltzmannCache={boltzmannCache}
+          changeOutputs={changeOutputs}
+          detChainEdges={detChainEdges}
+          entropyEdges={entropyEdges}
+          maxEdgeValue={maxEdgeValue}
+          edgeScriptInfo={edgeScriptInfo}
+          tooltip={tooltip}
+          toScreen={toScreen}
+        />
 
         {/* Nodes */}
         {layoutNodes.map((node) => {
@@ -1325,10 +961,8 @@ export function GraphCanvas({
 
       {/* Minimap - only in fullscreen */}
       {isFullscreen && (() => {
-        // Use actual SVG element dimensions for accurate viewport rect on mobile
-        const svgRect = svgRef.current?.getBoundingClientRect();
-        const actualW = svgRect?.width ?? containerWidth;
-        const actualH = svgRect?.height ?? (containerHeight ?? 600);
+        const actualW = svgDims?.width ?? containerWidth;
+        const actualH = svgDims?.height ?? (containerHeight ?? 600);
         return (
           <GraphMinimap
             layoutNodes={layoutNodes}

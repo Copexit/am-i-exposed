@@ -208,17 +208,15 @@ export function identifyTakerMaker(tx: MempoolTransaction): TakerMakerResult | n
 
   // Pick the most frequent repeated value as the denomination
   let denomination = 0;
-  let equalCount = 0;
   let maxCount = 0;
   for (const [val, count] of valueCounts) {
     if (count >= 2 && (count > maxCount || (count === maxCount && val > denomination))) {
       denomination = val;
-      equalCount = count;
       maxCount = count;
     }
   }
 
-  if (denomination === 0 || equalCount < 2) return null;
+  if (denomination === 0) return null;
 
   // Change outputs = non-denomination outputs
   const changeOutputs = spendable

@@ -235,7 +235,7 @@ for (const name of indexEntities) {
 }
 
 // Update timestamp
-entitiesData.lastUpdated = '2026-03-08';
+entitiesData.lastUpdated = new Date().toISOString().split('T')[0];
 
 // Write result
 const output = JSON.stringify(entitiesData, null, 2) + '\n';

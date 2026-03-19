@@ -9,206 +9,28 @@ import { NETWORK_CONFIG } from "@/lib/bitcoin/networks";
 import { detectInputType } from "@/lib/analysis/detect-input";
 import {
   analyzeTransaction,
-  analyzeAddress,
-  analyzeDestination,
-  analyzeTransactionsForAddress,
   getTxHeuristicSteps,
   getAddressHeuristicSteps,
 } from "@/lib/analysis/orchestrator";
 import { checkOfac } from "@/lib/analysis/cex-risk/ofac-check";
-import { needsEnrichment, enrichPrevouts, countNullPrevouts } from "@/lib/api/enrich-prevouts";
 import { parsePSBT } from "@/lib/bitcoin/psbt";
 import { getAnalysisSettings } from "@/hooks/useAnalysisSettings";
 import { getCachedResult, putCachedResult } from "@/lib/api/analysis-cache";
 import { loadEntityFilter } from "@/lib/analysis/entity-filter";
-import { computeBoltzmann, isAutoComputable, extractTxValues } from "@/lib/analysis/boltzmann-compute";
-import { enhanceEntropyFinding } from "@/lib/analysis/boltzmann-enhance";
-import type { Finding } from "@/lib/types";
-import type { MempoolTransaction } from "@/lib/api/types";
-import type { ApiClient } from "@/lib/api/client";
+import { runTxidAnalysis } from "@/lib/analysis/run-txid-analysis";
+import { runAddressAnalysis } from "@/lib/analysis/run-address-analysis";
 import type { HeuristicTranslator } from "@/lib/analysis/heuristics/types";
 
 import {
   type AnalysisState,
   INITIAL_STATE,
-  makeIncompletePrevoutFinding,
   makeOfacPreSendResult,
   markAllDone,
 } from "@/hooks/useAnalysisState";
-import { runChainTrace, runChainAnalysis } from "@/hooks/useChainTrace";
 
 // Re-export types that components import from this module
 export type { FetchProgress } from "@/hooks/useAnalysisState";
 export type { PreSendResult } from "@/lib/analysis/orchestrator";
-
-/**
- * Enrich a BIP47 notification finding with the notification address tx count.
- * The notification address is reused by every party opening a BIP47 channel
- * to that PayNym, so the tx count reveals how many channels have been opened.
- * Mutates the finding in-place. Silently no-ops on error.
- */
-async function enrichBip47Finding(
-  findings: Finding[],
-  api: ApiClient,
-  signal: AbortSignal,
-): Promise<void> {
-  const bip47 = findings.find((f) => f.id === "bip47-notification");
-  if (!bip47) return;
-
-  const addr = bip47.params?.notificationAddress;
-  if (typeof addr !== "string" || addr === "") return;
-
-  try {
-    const addrInfo = await api.getAddress(addr);
-    if (signal.aborted) return;
-
-    const txCount =
-      addrInfo.chain_stats.tx_count + addrInfo.mempool_stats.tx_count;
-
-    bip47.params = {
-      ...bip47.params,
-      notificationTxCount: txCount,
-      channelInfo: txCount > 1
-        ? ` The notification address has received ${txCount} transactions, indicating ${txCount} BIP47 payment channels have been opened to this PayNym. While this address is reused and publicly visible, the actual payment addresses derived through each channel are unique and cannot be linked without knowledge of the payment codes.`
-        : " This appears to be the first notification to this address. The notification address is reused and publicly visible, but the actual payment addresses derived through the channel are unique and cannot be linked without knowledge of the payment codes.",
-    };
-  } catch {
-    // Non-critical enrichment - do not fail the analysis
-  }
-}
-
-/**
- * Trace the full Ricochet hop chain (up to 4 forward hops from hop 0).
- *
- * Ricochet creates a chain of single-input transactions that add "distance"
- * between a CoinJoin and a final destination. This enrichment follows the
- * chain forward and annotates the finding with hop details and variant type.
- * Mutates the finding in-place. Silently no-ops on error.
- */
-async function enrichRicochetFinding(
-  findings: Finding[],
-  api: ApiClient,
-  tx: MempoolTransaction,
-  signal: AbortSignal,
-): Promise<void> {
-  const hop0 = findings.find((f) => f.id === "ricochet-hop0");
-  if (!hop0 || !hop0.params) return;
-
-  const ricochetVout = hop0.params.ricochetOutputIndex;
-  if (typeof ricochetVout !== "number" || ricochetVout < 0) return;
-
-  interface HopInfo {
-    hop: number;
-    txid: string;
-    blockHeight: number;
-    value: number;
-    outputCount: number;
-  }
-
-  try {
-    // Hop 0 from the original transaction
-    const hops: HopInfo[] = [
-      {
-        hop: 0,
-        txid: tx.txid,
-        blockHeight: tx.status?.block_height ?? 0,
-        value: tx.vout[ricochetVout]?.value ?? 0,
-        outputCount: tx.vout.length,
-      },
-    ];
-
-    let currentTxid = tx.txid;
-    let currentVout = ricochetVout;
-
-    // Follow up to 4 forward hops
-    for (let hopNum = 1; hopNum <= 4; hopNum++) {
-      if (signal.aborted) return;
-
-      // Fetch outspends for the current tx
-      const outspends = await api.getTxOutspends(currentTxid);
-      if (signal.aborted) return;
-
-      const outspend = outspends[currentVout];
-      if (!outspend?.spent || !outspend.txid) break; // chain ends here
-
-      // Fetch the next hop tx
-      const hopTx = await api.getTransaction(outspend.txid);
-      if (signal.aborted) return;
-
-      // Validate hop structure: 1 input is required.
-      // Outputs: 1 (pure sweep) or 2 (PayNym variant with fee split) are valid.
-      if (hopTx.vin.length !== 1) break;
-      if (hopTx.vout.length < 1 || hopTx.vout.length > 2) break;
-
-      // Determine which output continues the chain.
-      // For 1-output hops, it is vout 0.
-      // For 2-output hops, the larger output continues the chain.
-      let nextVout = 0;
-      if (hopTx.vout.length === 2) {
-        nextVout = hopTx.vout[0].value >= hopTx.vout[1].value ? 0 : 1;
-      }
-
-      hops.push({
-        hop: hopNum,
-        txid: hopTx.txid,
-        blockHeight: hopTx.status?.block_height ?? 0,
-        value: hopTx.vout[nextVout].value,
-        outputCount: hopTx.vout.length,
-      });
-
-      currentTxid = hopTx.txid;
-      currentVout = nextVout;
-    }
-
-    // Need at least 2 hops (hop 0 + one forward) to be meaningful
-    if (hops.length < 2) return;
-
-    // Determine variant based on block height spacing
-    const confirmedHops = hops.filter((h) => h.blockHeight > 0);
-    let variant: "classic" | "staggered" | "partial";
-
-    if (confirmedHops.length < hops.length) {
-      variant = "partial";
-    } else if (confirmedHops.length >= 2) {
-      const isConsecutive = confirmedHops.every(
-        (h, i) => i === 0 || h.blockHeight === confirmedHops[i - 1].blockHeight + 1,
-      );
-      variant = isConsecutive ? "classic" : "staggered";
-    } else {
-      variant = "partial";
-    }
-
-    const lastHop = hops[hops.length - 1];
-    const hopCount = hops.length;
-
-    const variantLabel =
-      variant === "classic" ? "classic (consecutive blocks)" :
-      variant === "staggered" ? "staggered (non-consecutive blocks)" :
-      "partial (some hops unconfirmed or unspent)";
-
-    hop0.params = {
-      ...hop0.params,
-      hops: JSON.stringify(hops),
-      hopCount,
-      variant,
-      destinationTxid: lastHop.txid,
-    };
-
-    hop0.description =
-      `Ricochet hop chain traced: ${hopCount} hops (${variantLabel}). ` +
-      `This transaction pays the Ashigaru Ricochet fee (100,000 sats) and initiates a chain of ` +
-      `${hopCount - 1} forward hop${hopCount - 1 === 1 ? "" : "s"} to create transactional distance. ` +
-      "Ricochet provides retrospective anonymity (distancing past history) rather than " +
-      "prospective anonymity (like CoinJoin). " +
-      "The PayNym variant is undetectable by design - this detection means the non-PayNym variant was used.";
-
-    hop0.recommendation =
-      "Ricochet is a good practice when sending to exchanges or services that perform chain analysis. " +
-      "For even better privacy, use the PayNym variant which eliminates the detectable fee address fingerprint.";
-  } catch {
-    // Non-critical enrichment - do not fail the analysis
-  }
-}
 
 export function useAnalysis() {
   const [state, setState] = useState<AnalysisState>(INITIAL_STATE);
@@ -377,175 +199,65 @@ export function useAnalysis() {
 
       try {
         if (inputType === "txid") {
-          const [tx, rawHex] = await Promise.all([
-            api.getTransaction(input),
-            api.getTxHex(input).catch(() => undefined),
-          ]);
-
-          // Enrich missing prevout data for self-hosted mempool backends
-          if (needsEnrichment([tx])) {
-            await enrichPrevouts([tx], {
-              getTransaction: (txid) => api.getTransaction(txid),
-              signal: controller.signal,
-            });
-          }
-
-          // Start Boltzmann computation early (in parallel with price/trace fetches)
-          const txValues = extractTxValues(tx);
-          const shouldAutoBoltzmann = isAutoComputable(txValues.inputValues, txValues.outputValues);
-          const boltzmannPromise = shouldAutoBoltzmann
-            ? computeBoltzmann(tx, {
-                timeoutMs: (analysisSettingsForCache.boltzmannTimeout ?? 300) * 1000,
-                signal: controller.signal,
-              }).catch(() => null)
-            : Promise.resolve(null);
-
-          // Fetch historical fiat prices + outspend data for confirmed txs
-          // Also pre-fetch parent tx for peel chain detection (only for 1-input txs)
-          let usdPrice: number | null = null;
-          let eurPrice: number | null = null;
-          let outspends: import("@/lib/api/types").MempoolOutspend[] | null = null;
-          let parentTx: MempoolTransaction | null = null;
-          const isPeelCandidate = tx.vin.length === 1 && !tx.vin[0].is_coinbase;
-          const parentTxPromise = isPeelCandidate
-            ? api.getTransaction(tx.vin[0].txid).catch(() => null)
-            : Promise.resolve(null);
-
-          if (network === "mainnet" && tx.status?.block_time) {
-            [usdPrice, eurPrice, outspends, parentTx] = await Promise.all([
-              api.getHistoricalPrice(tx.status.block_time).catch(() => null),
-              api.getHistoricalEurPrice(tx.status.block_time).catch(() => null),
-              api.getTxOutspends(input).catch(() => null),
-              parentTxPromise,
-            ]);
-          } else if (tx.status?.confirmed) {
-            [outspends, parentTx] = await Promise.all([
-              api.getTxOutspends(input).catch(() => null),
-              parentTxPromise,
-            ]);
-          } else {
-            parentTx = await parentTxPromise;
-          }
-
-          // Fetch child tx for peel chain detection: if one of our outputs was
-          // spent, fetch the spending tx to check if it continues the peel pattern
-          let childTx: MempoolTransaction | null = null;
-          if (outspends && isPeelCandidate) {
-            const spentEntry = outspends.find((o) => o.spent && o.txid);
-            if (spentEntry?.txid) {
-              childTx = await api.getTransaction(spentEntry.txid).catch(() => null);
-            }
-          }
-
-          // Pre-fetch output address tx counts for fresh address change detection (H2 sub-heuristic 8)
-          // Only for 2-output txs (the change detection heuristic only applies to these)
-          let outputTxCounts: Map<string, number> | undefined;
-          const spendableOuts = tx.vout.filter(
-            (v) => v.scriptpubkey_type !== "op_return" && v.scriptpubkey_address && v.value > 0,
-          );
-          if (spendableOuts.length === 2) {
-            const addrs = spendableOuts.map((v) => v.scriptpubkey_address!);
-            const counts = await Promise.all(
-              addrs.map((addr) =>
-                api.getAddress(addr)
-                  .then((a) => a.chain_stats.tx_count + a.mempool_stats.tx_count)
-                  .catch(() => -1),
-              ),
-            );
-            if (counts.every((c) => c >= 0)) {
-              outputTxCounts = new Map(addrs.map((a, i) => [a, counts[i]]));
-            }
-          }
-
-          // --- Recursive tracing (chain analysis) ---
-          const analysisSettings = getAnalysisSettings();
-          const { backwardLayers, forwardLayers, backwardFailed, forwardFailed } = await runChainTrace({
-            tx,
-            settings: analysisSettings,
+          const txResult = await runTxidAnalysis(input, {
             api,
             controller,
-            setState,
-            onStep,
-            parentTx,
-            childTx,
-            outspends,
-          });
-
-          if (controller.signal.aborted) return;
-
-          setState((prev) => ({
-            ...prev,
-            phase: "analyzing",
-            txData: tx,
-            usdPrice,
-            outspends,
-            fetchProgress: { status: "done", timeoutSec: 0, currentDepth: 0, maxDepth: 0, txsFetched: 0 },
-            backwardLayers: backwardLayers.length > 0 ? backwardLayers : null,
-            forwardLayers: forwardLayers.length > 0 ? forwardLayers : null,
-          }));
-
-          const ctx: import("@/lib/analysis/heuristics/types").TxContext = {
-            ...(usdPrice ? { usdPrice } : {}),
-            ...(eurPrice ? { eurPrice } : {}),
+            network,
             isCustomApi,
-            ...(parentTx ? { parentTx } : {}),
-            ...(childTx ? { childTx } : {}),
-            ...(outputTxCounts ? { outputTxCounts } : {}),
-          };
-          const result = await analyzeTransaction(tx, rawHex, onStep, ctx);
+            analysisSettingsForCache,
+            onStep,
+            setState,
+          });
           if (controller.signal.aborted) return;
 
-          // --- BIP47 notification address enrichment ---
-          // If a BIP47 notification finding exists with a notification address,
-          // fetch the address stats to show how many channels have been opened
-          await enrichBip47Finding(result.findings, api, controller.signal);
-
-          // --- Ricochet hop chain enrichment ---
-          // If a ricochet-hop0 finding exists, trace forward through the hop chain
-          await enrichRicochetFinding(result.findings, api, tx, controller.signal);
-
-          // --- Chain analysis from trace layers ---
-          await runChainAnalysis({
-            tx,
-            result,
-            backwardLayers,
-            forwardLayers,
-            parentTx,
-            childTx,
-            outspends,
-            onStep,
+          setState((prev) => {
+            const completeState = {
+              ...prev,
+              phase: "complete" as const,
+              steps: markAllDone(prev.steps),
+              result: txResult.result,
+              boltzmannResult: txResult.boltzmannResult,
+              boltzmannStatus: txResult.boltzmannStatus as AnalysisState["boltzmannStatus"],
+              durationMs: Date.now() - startTime,
+            };
+            // Fire-and-forget cache write
+            putCachedResult(network, input, analysisSettingsForCache, completeState).catch((e) => console.warn("cache write failed:", e));
+            return completeState;
           });
+        } else {
+          const addrResult = await runAddressAnalysis(input, {
+            api,
+            controller,
+            onStep,
+            setState,
+            t,
+          });
+          if (controller.signal.aborted) return;
 
-          // Warn if chain tracing failed or timed out
-          if (backwardFailed || forwardFailed) {
-            const direction = backwardFailed && forwardFailed ? "backward and forward"
-              : backwardFailed ? "backward" : "forward";
-            result.findings.push({
-              id: "chain-trace-partial",
-              severity: "low",
-              confidence: "high",
-              title: `Chain tracing incomplete (${direction})`,
-              description:
-                `${direction.charAt(0).toUpperCase() + direction.slice(1)} tracing failed or timed out. ` +
-                "Chain analysis results may be incomplete. This typically happens with rate-limited APIs or deep trace depths.",
-              recommendation:
-                "Try again with a shorter chain depth or longer timeout in Analysis settings.",
-              scoreImpact: 0,
+          // OFAC-sanctioned: short-circuit to complete with only preSendResult
+          if (addrResult.isOfacSanctioned) {
+            setState({
+              ...INITIAL_STATE,
+              phase: "complete",
+              query: input,
+              inputType: "address",
+              steps: steps.map((s) => ({ ...s, status: "done" as const })),
+              preSendResult: addrResult.preSendResult,
+              durationMs: Date.now() - startTime,
             });
+            return;
           }
 
-          // If prevout data is still missing after enrichment, warn the user
-          const remainingNulls = countNullPrevouts([tx]);
-          if (remainingNulls > 0) {
-            result.findings.push(makeIncompletePrevoutFinding(remainingNulls));
-          }
-
-          // Await Boltzmann result (started earlier in parallel)
-          const boltzmannResult = await boltzmannPromise;
-
-          // Enhance entropy finding with real WASM Boltzmann data
-          if (boltzmannResult && !boltzmannResult.timedOut) {
-            enhanceEntropyFinding(result.findings, boltzmannResult);
+          // Fresh address: only preSendResult, no scoring result
+          if (!addrResult.result) {
+            setState((prev) => ({
+              ...prev,
+              phase: "complete",
+              steps: markAllDone(prev.steps),
+              preSendResult: addrResult.preSendResult,
+              durationMs: Date.now() - startTime,
+            }));
+            return;
           }
 
           setState((prev) => {
@@ -553,102 +265,17 @@ export function useAnalysis() {
               ...prev,
               phase: "complete" as const,
               steps: markAllDone(prev.steps),
-              result,
-              boltzmannResult: boltzmannResult ?? null,
-              boltzmannStatus: boltzmannResult ? "complete" as const : shouldAutoBoltzmann ? "error" as const : "idle" as const,
+              result: addrResult.result,
+              preSendResult: addrResult.preSendResult,
+              addressTxs: addrResult.addressTxs,
+              addressUtxos: addrResult.addressUtxos,
+              txBreakdown: addrResult.txBreakdown,
               durationMs: Date.now() - startTime,
             };
             // Fire-and-forget cache write
-            putCachedResult(network, input, analysisSettingsForCache, completeState).catch(() => {});
+            putCachedResult(network, input, analysisSettingsForCache, completeState).catch((e) => console.warn("cache write failed:", e));
             return completeState;
           });
-        } else {
-          // OFAC pre-flight check (no network needed)
-          const ofacResult = checkOfac([input]);
-          if (ofacResult.sanctioned) {
-            setState({
-              ...INITIAL_STATE,
-              phase: "complete",
-              query: input,
-              inputType: "address",
-              steps: steps.map((s) => ({ ...s, status: "done" as const })),
-              preSendResult: makeOfacPreSendResult(t),
-              durationMs: Date.now() - startTime,
-            });
-            return;
-          }
-
-          // Fetch address data - UTXOs may fail for addresses with >500 UTXOs
-          const [address, utxos, txs] = await Promise.all([
-            api.getAddress(input),
-            api.getAddressUtxos(input).catch(() => [] as import("@/lib/api/types").MempoolUtxo[]),
-            api.getAddressTxs(input).catch(() => [] as import("@/lib/api/types").MempoolTransaction[]),
-          ]);
-
-          // Enrich missing prevout data for self-hosted mempool backends
-          if (txs.length > 0 && needsEnrichment(txs)) {
-            await enrichPrevouts(txs, {
-              getTransaction: (txid) => api.getTransaction(txid),
-              signal: controller.signal,
-              maxParentTxids: 50,
-            });
-          }
-
-          setState((prev) => ({ ...prev, phase: "analyzing", addressData: address }));
-
-          const totalTxCount = address.chain_stats.tx_count + address.mempool_stats.tx_count;
-          const isFreshAddress = totalTxCount === 0;
-
-          // Fresh address: no transactions, nothing to score - only run destination check
-          if (isFreshAddress) {
-            const preSendResult = await analyzeDestination(address, utxos, txs, onStep);
-
-            setState((prev) => ({
-              ...prev,
-              phase: "complete",
-              steps: markAllDone(prev.steps),
-              preSendResult,
-              durationMs: Date.now() - startTime,
-            }));
-          } else {
-            // Run both address analysis AND destination check on the same data
-            const [result, preSendResult] = await Promise.all([
-              analyzeAddress(address, utxos, txs, onStep),
-              analyzeDestination(address, utxos, txs),
-            ]);
-            if (controller.signal.aborted) return;
-
-            // Run per-tx heuristic breakdown for address analysis
-            const txBreakdown = txs.length > 0
-              ? await analyzeTransactionsForAddress(input, txs)
-              : null;
-            if (controller.signal.aborted) return;
-
-            // If prevout data is still missing after enrichment, warn the user
-            if (txs.length > 0) {
-              const remainingNulls = countNullPrevouts(txs);
-              if (remainingNulls > 0) {
-                result.findings.push(makeIncompletePrevoutFinding(remainingNulls, true));
-              }
-            }
-
-            setState((prev) => {
-              const completeState = {
-                ...prev,
-                phase: "complete" as const,
-                steps: markAllDone(prev.steps),
-                result,
-                preSendResult,
-                addressTxs: txs.length > 0 ? txs : null,
-                addressUtxos: utxos.length > 0 ? utxos : null,
-                txBreakdown,
-                durationMs: Date.now() - startTime,
-              };
-              // Fire-and-forget cache write
-              putCachedResult(network, input, analysisSettingsForCache, completeState).catch(() => {});
-              return completeState;
-            });
-          }
         }
       } catch (err) {
         // Ignore aborted requests (user started a new analysis)

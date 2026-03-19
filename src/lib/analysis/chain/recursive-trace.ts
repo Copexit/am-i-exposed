@@ -188,7 +188,6 @@ export async function traceForward(
     // nextFrontier = only non-barrier txs (expanded in next hop)
     const layerTxs = new Map<string, MempoolTransaction>();
     const nextFrontier = new Map<string, MempoolTransaction>();
-    const nextOutspends = new Map<string, MempoolOutspend[]>();
 
     for (const [txid, ftx] of frontier) {
       // Get outspends for this tx
@@ -252,7 +251,7 @@ export async function traceForward(
     // Only expand non-barrier txs in the next hop
     if (nextFrontier.size === 0) break;
     frontier = nextFrontier;
-    frontierOutspends = nextOutspends;
+    frontierOutspends = new Map();
   }
 
   return { layers, allTxs, fetchCount, aborted: signal?.aborted ?? false };

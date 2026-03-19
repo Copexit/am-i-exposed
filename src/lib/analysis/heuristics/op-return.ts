@@ -1,5 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
+import { isCoinbase, extractOpReturnData } from "./tx-utils";
 
 /**
  * H7: OP_RETURN Detection
@@ -14,7 +15,7 @@ export const analyzeOpReturn: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
 
   // Coinbase transactions contain OP_RETURN for SegWit commitment - not a privacy leak
-  if (tx.vin.length === 1 && tx.vin[0].is_coinbase) return { findings };
+  if (isCoinbase(tx)) return { findings };
 
   const opReturnOutputs = tx.vout.filter(
     (out) => out.scriptpubkey_type === "op_return",
@@ -58,29 +59,6 @@ export const analyzeOpReturn: TxHeuristic = (tx) => {
   return { findings };
 };
 
-/** Extract the data portion after the OP_RETURN opcode (0x6a). */
-function extractOpReturnData(scriptpubkey: string): string {
-  // scriptpubkey starts with 6a (OP_RETURN), followed by pushdata
-  if (!scriptpubkey.startsWith("6a")) return "";
-
-  // Skip OP_RETURN (6a) and the pushdata length byte(s)
-  let offset = 2;
-  if (offset >= scriptpubkey.length) return "";
-
-  const pushByte = parseInt(scriptpubkey.slice(offset, offset + 2), 16);
-  if (pushByte <= 0x4b) {
-    // Direct push: 1-byte length
-    offset += 2;
-  } else if (pushByte === 0x4c) {
-    // OP_PUSHDATA1
-    offset += 4;
-  } else if (pushByte === 0x4d) {
-    // OP_PUSHDATA2
-    offset += 6;
-  }
-
-  return scriptpubkey.slice(offset);
-}
 
 function tryDecodeUtf8(hex: string): string | null {
   if (!hex || hex.length < 2) return null;

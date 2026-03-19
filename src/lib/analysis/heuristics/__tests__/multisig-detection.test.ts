@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { analyzeMultisigDetection } from "../multisig-detection";
-import { makeTx, makeVin, makeCoinbaseVin, makeVout, resetAddrCounter } from "./fixtures/tx-factory";
+import { makeTx, makeVin, makeCoinbaseVin, makeVout, makeOpReturnVout, makeMultisigAsm, resetAddrCounter } from "./fixtures/tx-factory";
 
 beforeEach(() => resetAddrCounter());
 
@@ -10,11 +10,6 @@ const PUB2 = "03" + "bb".repeat(32);
 const PUB3 = "02" + "cc".repeat(32);
 const PUB4 = "03" + "dd".repeat(32);
 const PUB5 = "02" + "ee".repeat(32);
-
-function makeMultisigAsm(m: number, keys: string[]): string {
-  const keyParts = keys.map((k) => `OP_PUSHBYTES_33 ${k}`).join(" ");
-  return `OP_PUSHNUM_${m} ${keyParts} OP_PUSHNUM_${keys.length} OP_CHECKMULTISIG`;
-}
 
 const HODLHODL_FEE = "bc1qqmmzt02nu4rqxe03se2zqpw63k0khnwq959zxq";
 const BISQ_TAKER_FEE = "bc1qwxsnvnt7724gg02q624q2pknaqjaaj0vff36vr";
@@ -444,13 +439,7 @@ describe("analyzeMultisigDetection", () => {
       vin: [makeVin(), makeVin()],
       vout: [
         makeVout({ value: 500_000, scriptpubkey_type: "v0_p2wsh" }),
-        {
-          scriptpubkey: "6a14" + contractHash,
-          scriptpubkey_asm: "OP_RETURN OP_PUSHBYTES_20 " + contractHash,
-          scriptpubkey_type: "op_return",
-          scriptpubkey_address: undefined as unknown as string,
-          value: 0,
-        },
+        makeOpReturnVout("14" + contractHash),
       ],
     });
 
@@ -469,13 +458,7 @@ describe("analyzeMultisigDetection", () => {
       vout: [
         makeVout({ value: 400_000, scriptpubkey_type: "v0_p2wsh" }),
         makeVout({ value: 50_000, scriptpubkey_type: "v0_p2wpkh" }), // change
-        {
-          scriptpubkey: "6a14" + contractHash,
-          scriptpubkey_asm: "OP_RETURN OP_PUSHBYTES_20 " + contractHash,
-          scriptpubkey_type: "op_return",
-          scriptpubkey_address: undefined as unknown as string,
-          value: 0,
-        },
+        makeOpReturnVout("14" + contractHash),
       ],
     });
 
@@ -491,13 +474,7 @@ describe("analyzeMultisigDetection", () => {
       vin: [makeVin(), makeVin()],
       vout: [
         makeVout({ value: 300_000, scriptpubkey_type: "p2sh" }),
-        {
-          scriptpubkey: "6a14" + contractHash,
-          scriptpubkey_asm: "OP_RETURN OP_PUSHBYTES_20 " + contractHash,
-          scriptpubkey_type: "op_return",
-          scriptpubkey_address: undefined as unknown as string,
-          value: 0,
-        },
+        makeOpReturnVout("14" + contractHash),
       ],
     });
 
@@ -513,13 +490,7 @@ describe("analyzeMultisigDetection", () => {
       vin: [makeVin(), makeVin(), makeVin()],
       vout: [
         makeVout({ value: 600_000, scriptpubkey_type: "v0_p2wsh" }),
-        {
-          scriptpubkey: "6a14" + contractHash,
-          scriptpubkey_asm: "OP_RETURN OP_PUSHBYTES_20 " + contractHash,
-          scriptpubkey_type: "op_return",
-          scriptpubkey_address: undefined as unknown as string,
-          value: 0,
-        },
+        makeOpReturnVout("14" + contractHash),
       ],
     });
 
@@ -535,13 +506,7 @@ describe("analyzeMultisigDetection", () => {
       vin: [makeVin(), makeVin()],
       vout: [
         makeVout({ value: 500_000, scriptpubkey_type: "v0_p2wsh" }),
-        {
-          scriptpubkey: "6a20" + wrongHash,
-          scriptpubkey_asm: "OP_RETURN OP_PUSHBYTES_32 " + wrongHash,
-          scriptpubkey_type: "op_return",
-          scriptpubkey_address: undefined as unknown as string,
-          value: 0,
-        },
+        makeOpReturnVout("20" + wrongHash),
       ],
     });
 
@@ -556,13 +521,7 @@ describe("analyzeMultisigDetection", () => {
       vin: [makeVin(), makeVin()],
       vout: [
         makeVout({ value: 500_000, scriptpubkey_type: "v0_p2wpkh" }),
-        {
-          scriptpubkey: "6a14" + contractHash,
-          scriptpubkey_asm: "OP_RETURN OP_PUSHBYTES_20 " + contractHash,
-          scriptpubkey_type: "op_return",
-          scriptpubkey_address: undefined as unknown as string,
-          value: 0,
-        },
+        makeOpReturnVout("14" + contractHash),
       ],
     });
 
@@ -577,13 +536,7 @@ describe("analyzeMultisigDetection", () => {
       vin: [makeVin()],
       vout: [
         makeVout({ value: 500_000, scriptpubkey_type: "v0_p2wsh" }),
-        {
-          scriptpubkey: "6a14" + contractHash,
-          scriptpubkey_asm: "OP_RETURN OP_PUSHBYTES_20 " + contractHash,
-          scriptpubkey_type: "op_return",
-          scriptpubkey_address: undefined as unknown as string,
-          value: 0,
-        },
+        makeOpReturnVout("14" + contractHash),
       ],
     });
 
@@ -600,13 +553,7 @@ describe("analyzeMultisigDetection", () => {
         makeVout({ value: 300_000, scriptpubkey_type: "v0_p2wsh" }),
         makeVout({ value: 50_000 }),
         makeVout({ value: 30_000 }), // 3 non-OP_RETURN = too many
-        {
-          scriptpubkey: "6a14" + contractHash,
-          scriptpubkey_asm: "OP_RETURN OP_PUSHBYTES_20 " + contractHash,
-          scriptpubkey_type: "op_return",
-          scriptpubkey_address: undefined as unknown as string,
-          value: 0,
-        },
+        makeOpReturnVout("14" + contractHash),
       ],
     });
 

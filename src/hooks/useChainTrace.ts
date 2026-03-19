@@ -381,6 +381,6 @@ export async function runChainAnalysis(params: ChainAnalysisParams): Promise<voi
         backwardDepth: backwardLayers.length,
         forwardDepth: forwardLayers.length,
       },
-    } as Finding);
+    } satisfies Finding);
   }
 }

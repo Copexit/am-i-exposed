@@ -111,7 +111,7 @@ export function PrimaryRecommendation({ findings, grade, walletGuess }: PrimaryR
       <RecCard rec={primary} />
       {secondary && (
         <>
-          <hr className="border-border/50 my-4" />
+          <hr className="border-card-border/50 my-4" />
           <RecCard rec={secondary} />
         </>
       )}

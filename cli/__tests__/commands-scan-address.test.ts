@@ -2,7 +2,6 @@
  * Integration tests for the scan address command.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { MempoolTransaction, MempoolAddress, MempoolUtxo } from "@/lib/api/types";
 
 // Fixtures
 import satoshiAddr from "@/lib/analysis/heuristics/__tests__/fixtures/api-responses/satoshi-genesis-address.json";

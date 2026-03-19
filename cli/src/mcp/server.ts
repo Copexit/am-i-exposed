@@ -17,7 +17,6 @@ import { analyzeTransaction } from "@/lib/analysis/orchestrator";
 import { analyzeAddress } from "@/lib/analysis/orchestrator";
 import {
   selectRecommendations,
-  type RecommendationContext,
 } from "@/lib/recommendations/primary-recommendation";
 import type { TxContext } from "@/lib/analysis/heuristics/types";
 import type { MempoolTransaction } from "@/lib/api/types";
@@ -42,7 +41,7 @@ export async function startMcpServer(): Promise<void> {
 
   const server = new McpServer({
     name: "am-i-exposed",
-    version: "0.33.0",
+    version: "0.34.3",
   });
 
   // ---- scan_transaction ----

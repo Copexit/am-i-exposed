@@ -3,30 +3,14 @@ import { renderHook, act } from "@testing-library/react";
 import { useGraphExpansion } from "../useGraphExpansion";
 import type { MempoolOutspend, MempoolTransaction } from "@/lib/api/types";
 import {
-  makeTx as _makeTx,
+  makeTx,
   makeVin as _makeVin,
   makeVout as _makeVout,
 } from "@/lib/analysis/heuristics/__tests__/fixtures/tx-factory";
 
-// ---------------------------------------------------------------------------
-// Thin wrappers to match original call-site signatures
-// ---------------------------------------------------------------------------
-
-function makeTx(overrides: Parameters<typeof _makeTx>[0] & { txid: string }) {
-  return _makeTx(overrides);
-}
-
-function makeVin(parentTxid: string, voutIndex = 0) {
-  return _makeVin({ txid: parentTxid, vout: voutIndex });
-}
-
-function makeVout(value: number) {
-  return _makeVout({ value });
-}
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
+// Convenience aliases adapting tx-factory to the concise signatures used here
+const makeVin = (parentTxid: string, voutIndex = 0) => _makeVin({ txid: parentTxid, vout: voutIndex });
+const makeVout = (value: number) => _makeVout({ value });
 
 describe("useGraphExpansion", () => {
   // ── Root initialization ────────────────────────────────────────────────

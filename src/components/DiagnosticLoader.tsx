@@ -19,7 +19,6 @@ interface DiagnosticLoaderProps {
 export function DiagnosticLoader({ steps, phase, inputType, fetchProgress }: DiagnosticLoaderProps) {
   const { t } = useTranslation();
   const { isUmbrel } = useNetwork();
-  const isLocalApi = isUmbrel;
   const [elapsed, setElapsed] = useState(0);
   const [expanded, setExpanded] = useState(false);
 
@@ -64,7 +63,7 @@ export function DiagnosticLoader({ steps, phase, inputType, fetchProgress }: Dia
             {isTracing && traceLabel
               ? traceLabel
               : phase === "fetching"
-                ? isLocalApi
+                ? isUmbrel
                   ? t("loader.fetching_local", { defaultValue: "Fetching data from your mempool instance..." })
                   : t("loader.fetching", { defaultValue: "Fetching data from mempool.space..." })
                 : t("loader.diagnosing", { defaultValue: "Diagnosing your privacy..." })}

@@ -19,3 +19,30 @@ export function getValuedOutputs(vout: MempoolVout[]): MempoolVout[] {
 export function getAddressedOutputs(vout: MempoolVout[]): MempoolVout[] {
   return vout.filter((o) => o.scriptpubkey_type !== "op_return" && o.scriptpubkey_address && o.value > 0);
 }
+
+/** Check if a scriptpubkey is an OP_RETURN output (starts with 0x6a opcode). */
+export function isOpReturn(scriptpubkey: string): boolean {
+  return scriptpubkey.startsWith("6a");
+}
+
+/** Extract the data portion after the OP_RETURN opcode (0x6a) and push length bytes. */
+export function extractOpReturnData(scriptpubkey: string): string {
+  if (!scriptpubkey.startsWith("6a")) return "";
+
+  let offset = 2;
+  if (offset >= scriptpubkey.length) return "";
+
+  const pushByte = parseInt(scriptpubkey.slice(offset, offset + 2), 16);
+  if (pushByte <= 0x4b) {
+    // Direct push: 1-byte length
+    offset += 2;
+  } else if (pushByte === 0x4c) {
+    // OP_PUSHDATA1: length in next byte
+    offset += 4;
+  } else if (pushByte === 0x4d) {
+    // OP_PUSHDATA2: length in next 2 bytes
+    offset += 6;
+  }
+
+  return scriptpubkey.slice(offset);
+}

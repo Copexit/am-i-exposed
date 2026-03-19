@@ -1,7 +1,8 @@
 import type { TxHeuristic } from "./types";
 import type { Finding, Severity } from "@/lib/types";
-import { WHIRLPOOL_DENOMS } from "@/lib/constants";
-import { isCoinbase } from "./tx-utils";
+import { isCoinbase, getSpendableOutputs } from "./tx-utils";
+import { detectWhirlpool } from "./coinjoin-detectors";
+import { checkBip69Ordering } from "./bip69";
 
 /**
  * H11: Wallet Fingerprinting
@@ -69,7 +70,7 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
   // BIP69 check (require >= 3 on each side to reduce false positives)
   let isBip69 = false;
   if (tx.vin.length >= 3 && tx.vout.length >= 3) {
-    isBip69 = checkBip69(tx);
+    isBip69 = checkBip69Ordering(tx);
   }
 
   // Low-R signature detection
@@ -118,7 +119,8 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
 
   // Check CoinJoin patterns first (most specific)
   if (isBip69) {
-    const isWhirlpoolPattern = detectWhirlpoolPattern(tx);
+    const spendableValues = getSpendableOutputs(tx.vout).map((o) => o.value);
+    const isWhirlpoolPattern = detectWhirlpool(spendableValues) !== null;
     const isLargeCoinJoin = tx.vin.length >= 20 && tx.vout.length >= 20;
 
     if (isWhirlpoolPattern) {
@@ -348,49 +350,6 @@ function getAnonymitySetNote(walletGuess: string | null): string {
   );
 }
 
-
-/** Detect Whirlpool CoinJoin pattern: 5+ equal outputs at known denominations (5-10 total outputs). */
-function detectWhirlpoolPattern(
-  tx: { vin: Array<{ txid: string; vout: number }>; vout: Array<{ value: number; scriptpubkey: string }> },
-): boolean {
-  // Filter to spendable outputs (exclude OP_RETURN)
-  const spendable = tx.vout.filter((o) => !o.scriptpubkey.startsWith("6a"));
-  if (spendable.length < 5 || spendable.length > 10) return false;
-  for (const denom of WHIRLPOOL_DENOMS) {
-    const matchCount = spendable.filter((o) => o.value === denom).length;
-    if (matchCount >= 5 && spendable.length - matchCount <= 1) return true;
-  }
-  return false;
-}
-
-/**
- * Check if inputs and outputs follow BIP69 lexicographic ordering.
- * BIP69: inputs sorted by txid then vout, outputs sorted by value then scriptpubkey.
- */
-function checkBip69(
-  tx: { vin: Array<{ txid: string; vout: number }>; vout: Array<{ value: number; scriptpubkey: string }> },
-): boolean {
-  // Check input ordering
-  for (let i = 1; i < tx.vin.length; i++) {
-    const prev = tx.vin[i - 1];
-    const curr = tx.vin[i];
-
-    if (prev.txid > curr.txid) return false;
-    if (prev.txid === curr.txid && prev.vout > curr.vout) return false;
-  }
-
-  // Check output ordering
-  for (let i = 1; i < tx.vout.length; i++) {
-    const prev = tx.vout[i - 1];
-    const curr = tx.vout[i];
-
-    if (prev.value > curr.value) return false;
-    if (prev.value === curr.value && prev.scriptpubkey > curr.scriptpubkey)
-      return false;
-  }
-
-  return true;
-}
 
 /**
  * Detect low-R signatures in raw transaction hex.

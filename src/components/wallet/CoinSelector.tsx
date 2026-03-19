@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { selectCoins, type CoinSelectionInput, type CoinSelectionResult } from "@/lib/analysis/coin-selection";
+import { fmtN } from "@/lib/format";
 import { FindingCard } from "@/components/FindingCard";
 import { GlowCard } from "@/components/ui/GlowCard";
 
@@ -96,13 +97,13 @@ export function CoinSelector({ utxos }: CoinSelectorProps) {
             </span>
             <span className="text-muted">|</span>
             <span className="text-foreground">
-              {t("wallet.fee", { defaultValue: "Fee:" })} {result.estimatedFee.toLocaleString()} {t("common.sats", { defaultValue: "sats" })}
+              {t("wallet.fee", { defaultValue: "Fee:" })} {fmtN(result.estimatedFee)} {t("common.sats", { defaultValue: "sats" })}
             </span>
             {result.changeAmount > 0 && (
               <>
                 <span className="text-muted">|</span>
                 <span className="text-foreground">
-                  {t("wallet.change", { defaultValue: "Change:" })} {result.changeAmount.toLocaleString()} {t("common.sats", { defaultValue: "sats" })}
+                  {t("wallet.change", { defaultValue: "Change:" })} {fmtN(result.changeAmount)} {t("common.sats", { defaultValue: "sats" })}
                 </span>
               </>
             )}
@@ -120,7 +121,7 @@ export function CoinSelector({ utxos }: CoinSelectorProps) {
                   <span className="text-muted truncate max-w-[200px]">
                     {sel.utxo.txid.slice(0, 12)}...:{sel.utxo.vout}
                   </span>
-                  <span className="text-foreground">{sel.utxo.value.toLocaleString()} {t("common.sats", { defaultValue: "sats" })}</span>
+                  <span className="text-foreground">{fmtN(sel.utxo.value)} {t("common.sats", { defaultValue: "sats" })}</span>
                 </div>
               ))}
             </div>

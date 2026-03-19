@@ -1,6 +1,6 @@
 import type { Finding, ScoringResult } from "@/lib/types";
 import type { MempoolTransaction } from "@/lib/api/types";
-import { TX_HEURISTICS } from "./orchestrator";
+import { TX_HEURISTICS } from "./heuristic-registry";
 import { applyCrossHeuristicRules, classifyTransactionType } from "./cross-heuristic";
 import { calculateScore } from "@/lib/scoring/score";
 

@@ -14,10 +14,6 @@ const wasmDir = join(__dirname, '..', 'public', 'wasm', 'boltzmann');
 const jsGlue = await readFile(join(wasmDir, 'boltzmann_rs.js'), 'utf-8');
 const wasmBytes = await readFile(join(wasmDir, 'boltzmann_rs_bg.wasm'));
 
-// Create a module from the JS glue
-const blob = new Blob([jsGlue], { type: 'application/javascript' });
-const _blobUrl = URL.createObjectURL(blob);
-
 // We can't easily import the blob URL in Node, so use initSync directly
 const mod = await import(join(wasmDir, 'boltzmann_rs.js'));
 const wasmModule = new WebAssembly.Module(wasmBytes);
@@ -31,10 +27,6 @@ const fee = 5600n;
 function toNum(v) {
   if (typeof v === 'bigint') return Number(v);
   return v;
-}
-
-function _toNumMatrix(m) {
-  return m.map(row => row.map(toNum));
 }
 
 console.log('=== Test 1: Monolithic compute_boltzmann (no intrafees) ===');

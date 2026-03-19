@@ -12,7 +12,7 @@ import {
   header,
 } from "./colors";
 
-const VERSION = "0.33.0";
+const VERSION = "0.34.3";
 
 function line(label: string, value: string): string {
   return `${dim(label.padEnd(13))}${value}`;

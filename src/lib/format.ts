@@ -38,6 +38,24 @@ export function calcFeeRate(tx: { fee: number; weight: number }): string {
   return (tx.fee / vsize).toFixed(1);
 }
 
+/**
+ * Locale-aware relative time formatting using Intl.RelativeTimeFormat.
+ * Formats a unix timestamp as a human-readable "X ago" string.
+ */
+export function formatTimeAgo(unixTimestamp: number, locale: string): string {
+  const now = Math.floor(Date.now() / 1000);
+  const diff = now - unixTimestamp;
+
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto", style: "narrow" });
+
+  if (diff < 60) return rtf.format(-diff, "second");
+  if (diff < 3600) return rtf.format(-Math.floor(diff / 60), "minute");
+  if (diff < 86400) return rtf.format(-Math.floor(diff / 3600), "hour");
+  if (diff < 2592000) return rtf.format(-Math.floor(diff / 86400), "day");
+  if (diff < 31536000) return rtf.format(-Math.floor(diff / 2592000), "month");
+  return rtf.format(-Math.floor(diff / 31536000), "year");
+}
+
 /** Round a number to `digits` decimal places (default 3). */
 export function roundTo(n: number, digits = 3): number {
   const f = Math.pow(10, digits);

@@ -4,6 +4,7 @@ import { ExternalLink } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { ScoringExplainer } from "./ScoringExplainer";
+import { fadeUpVariants, fadeUpTransition } from "./animations";
 import type { ScoringResult, TxAnalysisResult } from "@/lib/types";
 
 export function ResultsFooter({
@@ -26,7 +27,7 @@ export function ResultsFooter({
   const { t } = useTranslation();
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.65 }} className="w-full space-y-2 pb-4">
+    <motion.div {...fadeUpVariants} transition={fadeUpTransition(0.65)} className="w-full space-y-2 pb-4">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         <ScoringExplainer isAddress={inputType === "address"} />
         <a

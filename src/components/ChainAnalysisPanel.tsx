@@ -5,59 +5,54 @@ import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import type { Finding } from "@/lib/types";
 import { SEVERITY_TEXT, SEVERITY_BG } from "@/lib/severity";
-
-/** Build i18n key for a finding field, appending _variant if present in params. */
-function findingKey(id: string, field: string, params?: Record<string, unknown>): string {
-  const variant = params?._variant;
-  return variant ? `finding.${id}.${field}.${variant}` : `finding.${id}.${field}`;
-}
+import { findingKey } from "@/lib/finding-utils";
 
 interface ChainAnalysisPanelProps {
   findings: Finding[];
 }
 
-/** Chain analysis finding IDs that this panel highlights */
-export const CHAIN_FINDING_IDS = new Set([
-  // Backward (input provenance)
-  "chain-coinjoin-input",
-  "chain-exchange-input",
-  "chain-dust-input",
-  // Forward (output destinations)
-  "chain-post-coinjoin-consolidation",
-  "chain-forward-peel",
-  "chain-toxic-merge",
-  "chain-post-coinjoin-direct-spend",
-  // CoinJoin quality
-  "chain-coinjoin-quality",
-  // Entity proximity
-  "chain-entity-proximity-backward",
-  "chain-entity-proximity-forward",
-  "chain-coinjoin-ancestry",
-  "chain-coinjoin-descendancy",
-  // Taint
-  "chain-taint-backward",
-  // Clustering
-  "chain-cluster-size",
-  // Linkability
-  "linkability-deterministic",
-  "linkability-ambiguous",
-  "linkability-equal-subset",
+/** Category keys for chain finding routing */
+type ChainCategory = "input-provenance" | "output-destinations" | "structural" | "spending-patterns";
+
+/** Explicit map from finding ID to its display category. */
+const FINDING_CATEGORY: Record<string, ChainCategory> = {
+  // Input provenance (backward analysis)
+  "chain-coinjoin-input": "input-provenance",
+  "chain-exchange-input": "input-provenance",
+  "chain-dust-input": "input-provenance",
+  "chain-entity-proximity-backward": "input-provenance",
+  "chain-coinjoin-ancestry": "input-provenance",
+  "chain-taint-backward": "input-provenance",
+  // Output destinations (forward analysis)
+  "chain-post-coinjoin-consolidation": "output-destinations",
+  "chain-forward-peel": "output-destinations",
+  "chain-toxic-merge": "output-destinations",
+  "chain-post-coinjoin-direct-spend": "output-destinations",
+  "chain-entity-proximity-forward": "output-destinations",
+  "chain-coinjoin-descendancy": "output-destinations",
+  "peel-chain-trace": "output-destinations",
+  "peel-chain-trace-short": "output-destinations",
+  // Structural analysis
+  "linkability-deterministic": "structural",
+  "linkability-ambiguous": "structural",
+  "linkability-equal-subset": "structural",
+  "chain-cluster-size": "structural",
+  "chain-coinjoin-quality": "structural",
+  "joinmarket-subset-sum": "structural",
+  "joinmarket-subset-sum-resistant": "structural",
+  "joinmarket-taker-maker": "structural",
+  "joinmarket-multi-round": "structural",
   // Spending patterns
-  "chain-near-exact-spend",
-  "chain-ricochet",
-  "chain-sweep-chain",
-  "chain-post-cj-partial-spend",
-  "chain-post-mix-consolidation",
-  "chain-kyc-consolidation-before-cj",
-  // JoinMarket
-  "joinmarket-subset-sum",
-  "joinmarket-subset-sum-resistant",
-  "joinmarket-taker-maker",
-  "joinmarket-multi-round",
-  // Peel chain trace
-  "peel-chain-trace",
-  "peel-chain-trace-short",
-]);
+  "chain-near-exact-spend": "spending-patterns",
+  "chain-ricochet": "spending-patterns",
+  "chain-sweep-chain": "spending-patterns",
+  "chain-post-cj-partial-spend": "spending-patterns",
+  "chain-post-mix-consolidation": "spending-patterns",
+  "chain-kyc-consolidation-before-cj": "spending-patterns",
+};
+
+/** Chain analysis finding IDs that this panel highlights */
+export const CHAIN_FINDING_IDS = new Set(Object.keys(FINDING_CATEGORY));
 
 
 export function ChainAnalysisPanel({ findings }: ChainAnalysisPanelProps) {
@@ -69,25 +64,10 @@ export function ChainAnalysisPanel({ findings }: ChainAnalysisPanelProps) {
 
   if (chainFindings.length === 0) return null;
 
-  const backward = chainFindings.filter((f) =>
-    f.id.includes("backward") || f.id.includes("coinjoin-input") ||
-    f.id.includes("exchange-input") || f.id.includes("dust-input") ||
-    f.id.includes("ancestry") || f.id.includes("taint"),
-  );
-  const forward = chainFindings.filter((f) =>
-    f.id.includes("forward") || f.id.includes("consolidation") ||
-    f.id.includes("toxic-merge") || f.id.includes("direct-spend") ||
-    f.id.includes("descendancy") || f.id.includes("peel-chain"),
-  );
-  const structural = chainFindings.filter((f) =>
-    f.id.includes("linkability") || f.id.includes("cluster") ||
-    f.id.includes("quality") || f.id.includes("joinmarket"),
-  );
-  const spending = chainFindings.filter((f) =>
-    f.id.includes("near-exact") || f.id.includes("ricochet") ||
-    f.id.includes("sweep-chain") || f.id.includes("post-cj-partial") ||
-    f.id.includes("kyc-consolidation"),
-  );
+  const backward = chainFindings.filter((f) => FINDING_CATEGORY[f.id] === "input-provenance");
+  const forward = chainFindings.filter((f) => FINDING_CATEGORY[f.id] === "output-destinations");
+  const structural = chainFindings.filter((f) => FINDING_CATEGORY[f.id] === "structural");
+  const spending = chainFindings.filter((f) => FINDING_CATEGORY[f.id] === "spending-patterns");
 
   return (
     <motion.div

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseMultisigFromInput } from "../multisig";
+import { makeMultisigAsm } from "@/lib/analysis/heuristics/__tests__/fixtures/tx-factory";
 import type { MempoolVin } from "@/lib/api/types";
 
 function baseVin(overrides: Partial<MempoolVin> = {}): MempoolVin {
@@ -27,11 +28,6 @@ const PUB2 = "03" + "bb".repeat(32);
 const PUB3 = "02" + "cc".repeat(32);
 const PUB4 = "03" + "dd".repeat(32);
 const PUB5 = "02" + "ee".repeat(32);
-
-function makeMultisigAsm(m: number, keys: string[]): string {
-  const keyParts = keys.map((k) => `OP_PUSHBYTES_33 ${k}`).join(" ");
-  return `OP_PUSHNUM_${m} ${keyParts} OP_PUSHNUM_${keys.length} OP_CHECKMULTISIG`;
-}
 
 // Build raw hex for a multisig script: OP_M <pubkey pushes> OP_N OP_CHECKMULTISIG
 function makeMultisigHex(m: number, keys: string[]): string {

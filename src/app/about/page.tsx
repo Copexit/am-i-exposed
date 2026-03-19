@@ -3,7 +3,6 @@
 import { Suspense, lazy } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft,
   Shield,
   Eye,
   Code,
@@ -22,6 +21,7 @@ import {
   HardDrive,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { PageShell } from "@/components/PageShell";
 
 const TipJar = lazy(() =>
   import("@/components/TipJar").then((m) => ({ default: m.TipJar }))
@@ -74,17 +74,11 @@ export default function AboutPage() {
   const { t } = useTranslation();
 
   return (
-    <div className="flex-1 flex flex-col items-center px-4 sm:px-6 lg:px-8 xl:px-10 py-8">
-      <div className="w-full max-w-7xl space-y-10">
-        {/* Back nav */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors py-2 -my-2"
-        >
-          <ArrowLeft size={16} />
-          {t("about.back", { defaultValue: "Back to scanner" })}
-        </Link>
-
+    <PageShell
+      backLabel={t("about.back", { defaultValue: "Back to scanner" })}
+      maxWidth="max-w-7xl"
+      className="sm:px-6 lg:px-8 xl:px-10"
+    >
         {/* Title */}
         <div className="space-y-3">
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
@@ -256,7 +250,6 @@ export default function AboutPage() {
             </Link>
           </div>
         </div>
-      </div>
-    </div>
+    </PageShell>
   );
 }

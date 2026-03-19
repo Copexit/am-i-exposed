@@ -7,14 +7,11 @@ import { useTranslation } from "react-i18next";
 import { SVG_COLORS, GRADE_HEX_SVG } from "./shared/svgConstants";
 import { probColor } from "./shared/linkabilityColors";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
-import { formatSats as _formatSats } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 import { useFullscreen } from "@/hooks/useFullscreen";
+import { useGraphBoltzmann } from "@/hooks/useGraphBoltzmann";
 import { analyzeTransactionSync } from "@/lib/analysis/analyze-sync";
-import { computeBoltzmann, extractTxValues } from "@/lib/analysis/boltzmann-compute";
 import { analyzeChangeDetection } from "@/lib/analysis/heuristics/change-detection";
-import { detectJoinMarketForTurbo } from "@/lib/analysis/boltzmann-pool";
-import type { BoltzmannWorkerResult, BoltzmannProgress } from "@/lib/analysis/boltzmann-pool";
 import { GraphSidebar, SIDEBAR_WIDTH } from "./graph/GraphSidebar";
 import { ENTITY_CATEGORY_COLORS, MAX_ZOOM, MIN_ZOOM } from "./graph/constants";
 import { layoutGraph } from "./graph/layout";
@@ -22,7 +19,7 @@ import { computeFitTransform } from "./graph/edge-utils";
 import { GraphCanvas } from "./graph/GraphCanvas";
 import { CloseIcon } from "./graph/icons";
 import { GraphToolbar } from "./graph/GraphToolbar";
-import { SCRIPT_TYPE_LEGEND } from "./graph/scriptStyles";
+import { GraphLegend } from "./graph/GraphLegend";
 import { entropyColor } from "./graph/privacyGradient";
 import type { GraphExplorerProps, TooltipData, NodeFilter, ViewTransform } from "./graph/types";
 import type { ScoringResult } from "@/lib/types";
@@ -112,11 +109,11 @@ export function GraphExplorer(props: GraphExplorerProps) {
       const result = analyzeChangeDetection(node.tx);
       for (const finding of result.findings) {
         if (finding.id === "h2-change-detected" && finding.params) {
-          const idx = (finding.params as Record<string, unknown>).changeIndex;
+          const idx = finding.params.changeIndex;
           if (typeof idx === "number") newKeys.add(`${txid}:${idx}`);
         }
         if ((finding.id === "h2-same-address-io" || finding.id === "h2-self-send") && finding.params) {
-          const indicesStr = (finding.params as Record<string, unknown>).selfSendIndices;
+          const indicesStr = finding.params.selfSendIndices;
           if (typeof indicesStr === "string" && indicesStr.length > 0) {
             for (const idx of indicesStr.split(",")) {
               const n = parseInt(idx, 10);
@@ -145,159 +142,18 @@ export function GraphExplorer(props: GraphExplorerProps) {
   const sidebarTx = props.expandedNodeTxid ? props.nodes.get(props.expandedNodeTxid)?.tx : undefined;
   const showSidebar = !!sidebarTx && !sidebarCollapsed;
 
-  // ─── Boltzmann cache (on-demand computation for any node) ──────
-  const boltzmannCacheRef = useRef<Map<string, BoltzmannWorkerResult>>(new Map());
-  const [boltzmannVersion, setBoltzmannVersion] = useState(0);
-  const computingBoltzmannRef = useRef<Set<string>>(new Set());
-  const [_computingBoltzmannVersion, setComputingBoltzmannVersion] = useState(0);
-  const [boltzmannProgressMap, setBoltzmannProgressMap] = useState<Map<string, number>>(new Map());
-
-  // Seed cache with root Boltzmann result if available
-  useEffect(() => {
-    if (props.rootBoltzmannResult && props.rootTxid) {
-      boltzmannCacheRef.current.set(props.rootTxid, props.rootBoltzmannResult);
-      setBoltzmannVersion((v) => v + 1);
-    }
-  }, [props.rootBoltzmannResult, props.rootTxid]);
-
-  /** Build a synthetic Boltzmann result for 1-input txs (trivially 100% deterministic). */
-  const buildSyntheticResult = useCallback((tx: import("@/lib/api/types").MempoolTransaction): BoltzmannWorkerResult => {
-    const { inputValues, outputValues } = extractTxValues(tx);
-    const nIn = inputValues.length;
-    const nOut = outputValues.length;
-    // 1 input -> every output is 100% linked to it
-    const matProb = Array.from({ length: nOut }, () => Array.from({ length: nIn }, () => 1));
-    const matComb = Array.from({ length: nOut }, () => Array.from({ length: nIn }, () => 1));
-    const detLinks: [number, number][] = Array.from({ length: nOut }, (_, oi) => [oi, 0] as [number, number]);
-    return {
-      type: "result", id: tx.txid,
-      matLnkCombinations: matComb, matLnkProbabilities: matProb,
-      nbCmbn: 1, entropy: 0, efficiency: 0, nbCmbnPrfctCj: 1,
-      deterministicLinks: detLinks, timedOut: false, elapsedMs: 0,
-      nInputs: nIn, nOutputs: nOut,
-      fees: tx.fee, intraFeesMaker: 0, intraFeesTaker: 0,
-    };
-  }, []);
-
-  // Abort controller for the current computation cycle
-  const boltzmannAbortRef = useRef<AbortController | null>(null);
-
-  /** Compute Boltzmann for a specific txid (or generate synthetic for 1-input). */
-  const computeSingleBoltzmann = useCallback(async (txid: string, signal?: AbortSignal): Promise<void> => {
-    if (boltzmannCacheRef.current.has(txid)) return;
-    const node = props.nodes.get(txid);
-    if (!node) return;
-
-    const tx = node.tx;
-    const isCoinbase = tx.vin.some((v) => v.is_coinbase);
-    if (isCoinbase) return;
-
-    const { inputValues, outputValues } = extractTxValues(tx);
-    if (inputValues.length === 0 || outputValues.length === 0) return;
-
-    // 1-input txs: trivially 100% deterministic, no WASM needed
-    if (inputValues.length === 1) {
-      boltzmannCacheRef.current.set(txid, buildSyntheticResult(tx));
-      setBoltzmannVersion((v) => v + 1);
-      return;
-    }
-
-    // Too large for WASM
-    if (inputValues.length + outputValues.length > 80) return;
-
-    if (signal?.aborted) return;
-
-    computingBoltzmannRef.current.add(txid);
-    setComputingBoltzmannVersion((v) => v + 1);
-    try {
-      const result = await computeBoltzmann(tx, {
-        signal,
-        onProgress: (p: BoltzmannProgress) => {
-          if (!signal?.aborted) {
-            setBoltzmannProgressMap((prev) => new Map(prev).set(txid, p.fraction));
-          }
-        },
-      });
-      if (result && !signal?.aborted) {
-        boltzmannCacheRef.current.set(txid, result);
-        setBoltzmannVersion((v) => v + 1);
-      }
-    } catch { /* computation failed or aborted - not critical */ }
-    computingBoltzmannRef.current.delete(txid);
-    setComputingBoltzmannVersion((v) => v + 1);
-    setBoltzmannProgressMap((prev) => { const next = new Map(prev); next.delete(txid); return next; });
-  }, [props.nodes, buildSyntheticResult]);
-
-  /** Manual trigger (sidebar button). Uses a fresh AbortController. */
-  const triggerBoltzmann = useCallback(async (txid: string) => {
-    // Abort any in-flight computation to free the worker pool
-    boltzmannAbortRef.current?.abort();
-    const ac = new AbortController();
-    boltzmannAbortRef.current = ac;
-    await computeSingleBoltzmann(txid, ac.signal);
-  }, [computeSingleBoltzmann]);
-
-  // Eagerly compute Boltzmann for ALL nodes in the graph whenever the graph changes
-  useEffect(() => {
-    // First pass: instantly fill synthetic results for all 1-input txs
-    let anyNew = false;
-    for (const [txid, node] of props.nodes) {
-      if (boltzmannCacheRef.current.has(txid)) continue;
-      const tx = node.tx;
-      if (tx.vin.some((v) => v.is_coinbase)) continue;
-      const { inputValues, outputValues } = extractTxValues(tx);
-      if (inputValues.length === 1 && outputValues.length > 0) {
-        boltzmannCacheRef.current.set(txid, buildSyntheticResult(tx));
-        anyNew = true;
-      }
-    }
-    if (anyNew) setBoltzmannVersion((v) => v + 1);
-
-    // Second pass: async compute for auto-computable multi-input txs (sequential)
-    // Abort previous computation cycle before starting a new one
-    boltzmannAbortRef.current?.abort();
-    const ac = new AbortController();
-    boltzmannAbortRef.current = ac;
-
-    // Build queue of eligible txids (snapshot - stable across the async loop)
-    const queue: Array<{ txid: string; tx: import("@/lib/api/types").MempoolTransaction }> = [];
-    for (const [txid, node] of props.nodes) {
-      if (boltzmannCacheRef.current.has(txid)) continue;
-      if (computingBoltzmannRef.current.has(txid)) continue;
-
-      const tx = node.tx;
-      if (tx.vin.some((v) => v.is_coinbase)) continue;
-
-      const { inputValues, outputValues } = extractTxValues(tx);
-      if (inputValues.length < 2) continue;
-      const total = inputValues.length + outputValues.length;
-      if (total >= 18) {
-        if (total >= 24) continue;
-        if (!detectJoinMarketForTurbo(inputValues, outputValues).isJoinMarket) continue;
-      }
-
-      queue.push({ txid, tx });
-    }
-
-    // Process queue sequentially with abort signal
-    if (queue.length > 0) {
-      (async () => {
-        for (const { txid } of queue) {
-          if (ac.signal.aborted) break;
-          await computeSingleBoltzmann(txid, ac.signal);
-        }
-      })();
-    }
-
-    return () => { ac.abort(); };
-  }, [props.nodes, buildSyntheticResult, computeSingleBoltzmann]);
-
-  /** Get Boltzmann result for a txid (from cache or root result). */
-  const getBoltzmannResult = useCallback((txid: string): BoltzmannWorkerResult | undefined => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    boltzmannVersion; // depend on version to re-read cache after updates
-    return boltzmannCacheRef.current.get(txid);
-  }, [boltzmannVersion]);
+  // ─── Boltzmann (extracted to custom hook) ──────────────
+  const {
+    getBoltzmannResult,
+    triggerBoltzmann,
+    computingBoltzmannRef,
+    boltzmannProgressMap,
+    boltzmannCache,
+  } = useGraphBoltzmann({
+    nodes: props.nodes,
+    rootTxid: props.rootTxid,
+    rootBoltzmannResult: props.rootBoltzmannResult,
+  });
 
   // Zoom toward center helper
   const zoomBy = useCallback((factor: number) => {
@@ -387,11 +243,16 @@ export function GraphExplorer(props: GraphExplorerProps) {
     setViewTransform(computeFitTransform(gw, gh, cw, ch));
   }, [props.nodes, props.rootTxid, filter, props.rootTxids]);
 
-  const [legendOpen, setLegendOpen] = useState(false);
-
   // Time travel replay
   const [timeTravelPlaying, setTimeTravelPlaying] = useState(false);
   const timeTravelIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Clean up time travel interval on unmount
+  useEffect(() => {
+    return () => {
+      if (timeTravelIntervalRef.current) clearInterval(timeTravelIntervalRef.current);
+    };
+  }, []);
 
   // ─── Global keyboard shortcuts for graph modes ───────
   useEffect(() => {
@@ -437,115 +298,15 @@ export function GraphExplorer(props: GraphExplorerProps) {
     onReset: props.onReset,
   };
 
-  // ─── Legend (clickable filters) ────────────────────────
+  // ─── Legend (extracted to GraphLegend component) ────────
 
   const legend = (
-    <div className="absolute top-0 left-0 z-20 w-[130px] rounded-lg border border-card-border bg-card-bg/95 backdrop-blur-xl overflow-hidden shadow-lg">
-      <button
-        onClick={() => setLegendOpen(!legendOpen)}
-        className="w-full flex items-center justify-between px-2 py-1.5 text-[10px] text-muted hover:text-foreground transition-colors cursor-pointer"
-      >
-        <span className="flex items-center gap-1.5 font-medium">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
-          Legend
-        </span>
-        <svg
-          width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-          className={`transition-transform duration-200 ${legendOpen ? "rotate-180" : ""}`}
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </button>
-      {legendOpen && (
-        <div className="px-2 pb-2 space-y-1.5 text-[10px] text-muted border-t border-card-border/50 pt-1.5">
-          {/* Node types (clickable filters) */}
-          <div className="font-medium text-muted uppercase tracking-wider text-[9px]">Nodes</div>
-          <div className="flex flex-col gap-0.5">
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block w-2.5 h-2.5 rounded-sm border-2 shrink-0" style={{ borderColor: SVG_COLORS.bitcoin, background: "transparent" }} />
-              Root tx
-            </span>
-            <button onClick={() => toggleFilter("showCoinJoin")} className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${filter.showCoinJoin ? "opacity-100" : "opacity-40 line-through"}`}>
-              <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: SVG_COLORS.good }} />
-              CoinJoin
-            </button>
-            <button onClick={() => toggleFilter("showStandard")} className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${filter.showStandard ? "opacity-100" : "opacity-40 line-through"}`}>
-              <span className="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: SVG_COLORS.low }} />
-              Standard
-            </button>
-          </div>
-
-          {/* Entity categories (clickable filter) */}
-          <div className="font-medium text-muted uppercase tracking-wider text-[9px] mt-1">Entities</div>
-          <div className="flex flex-col gap-0.5">
-            {([
-              ["exchange", "Exchange"],
-              ["darknet", "Darknet"],
-              ["scam", "Scam"],
-              ["mixer", "Mixer"],
-              ["gambling", "Gambling"],
-              ["mining", "Mining"],
-              ["payment", "Payment"],
-              ["p2p", "P2P"],
-            ] as const).map(([cat, label]) => (
-              <button
-                key={cat}
-                onClick={() => toggleFilter("showEntity")}
-                className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${filter.showEntity ? "opacity-100" : "opacity-40 line-through"}`}
-              >
-                <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: ENTITY_CATEGORY_COLORS[cat] }} />
-                <span className="text-muted">{label}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* Edge types */}
-          <div className="font-medium text-muted uppercase tracking-wider text-[9px] mt-1">Edges</div>
-          <div className="flex flex-col gap-0.5">
-            {SCRIPT_TYPE_LEGEND.map((s) => (
-              <span key={s.type} className="flex items-center gap-1.5">
-                <span className="inline-block w-4 h-0.5 rounded shrink-0" style={{
-                  background: s.color, opacity: 0.8,
-                  ...(s.dash ? { borderBottom: `1.5px dashed ${s.color}`, background: "transparent" } : {}),
-                }} />
-                <span className="text-muted">{s.label}</span>
-              </span>
-            ))}
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block w-4 h-0.5 rounded shrink-0" style={{ background: SVG_COLORS.critical, opacity: 0.7 }} />
-              <span className="text-muted">Consolidation</span>
-            </span>
-            {changeOutputs.size > 0 && (
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block w-4 h-0.5 rounded shrink-0" style={{ background: "#d97706", opacity: 0.8 }} />
-                <span className="text-muted">Change</span>
-              </span>
-            )}
-          </div>
-
-          {/* Fingerprint mode items */}
-          {fingerprintMode && (
-            <>
-              <div className="font-medium text-muted uppercase tracking-wider text-[9px] mt-1">Fingerprint</div>
-              <div className="flex flex-col gap-0.5">
-                <span className="flex items-center gap-1.5">
-                  <span className="inline-block w-3.5 h-2.5 shrink-0" style={{ background: "var(--card-border)", border: "1.5px solid var(--muted)", borderRadius: 4 }} />
-                  <span className="text-muted">v2, lock=0</span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="inline-block w-3.5 h-2.5 shrink-0" style={{ background: "var(--surface-inset)", border: "1.5px solid var(--muted)", borderRadius: 4 }} />
-                  <span className="text-muted">v2, lock!=0</span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="inline-block w-3.5 h-2.5 shrink-0" style={{ background: "var(--card-border)", border: "1.5px solid var(--muted)", borderRadius: 0 }} />
-                  <span className="text-muted">v1, lock=0</span>
-                </span>
-              </div>
-            </>
-          )}
-        </div>
-      )}
-    </div>
+    <GraphLegend
+      filter={filter}
+      onToggleFilter={toggleFilter}
+      fingerprintMode={fingerprintMode}
+      changeOutputs={changeOutputs}
+    />
   );
 
   // ─── Shared canvas props ───────────────────────────────
@@ -568,13 +329,56 @@ export function GraphExplorer(props: GraphExplorerProps) {
     entropyGradientMode,
     changeOutputs,
     onLayoutComplete: handleLayoutComplete,
-    boltzmannCache: boltzmannCacheRef.current,
+    boltzmannCache,
   };
 
   const fullscreenCanvasProps = {
     ...canvasProps,
     viewTransform,
     onViewTransformChange: setViewTransform,
+  };
+
+  // ─── Sidebar rendering (shared between inline and fullscreen) ────
+
+  const renderSidebar = (keyPrefix: string) => {
+    if (!sidebarTx || !props.expandedNodeTxid) return null;
+
+    if (sidebarCollapsed) {
+      return (
+        <button
+          onClick={() => setSidebarCollapsed(false)}
+          className="absolute right-0 top-2 z-10 w-5 h-8 bg-card-bg/90 border border-card-border border-r-0 rounded-l transition-colors cursor-pointer flex items-center justify-center hover:bg-surface-inset"
+          title="Show sidebar"
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
+        </button>
+      );
+    }
+
+    return (
+      <AnimatePresence>
+        <GraphSidebar
+          key={`${keyPrefix}${props.expandedNodeTxid}`}
+          tx={sidebarTx}
+          outspends={props.outspendCache?.get(props.expandedNodeTxid)}
+          onClose={() => props.onToggleExpand?.(props.expandedNodeTxid!)}
+          onCollapse={() => setSidebarCollapsed(true)}
+          onFullScan={(txid) => props.onTxClick?.(txid)}
+          onExpandInput={props.onExpandInput}
+          onExpandOutput={props.onExpandOutput}
+          changeOutputs={changeOutputs}
+          onToggleChange={toggleChange}
+          boltzmannResult={props.expandedNodeTxid ? getBoltzmannResult(props.expandedNodeTxid) : undefined}
+          computingBoltzmann={props.expandedNodeTxid ? computingBoltzmannRef.current.has(props.expandedNodeTxid) : false}
+          boltzmannProgress={props.expandedNodeTxid ? boltzmannProgressMap.get(props.expandedNodeTxid) : undefined}
+          onComputeBoltzmann={props.expandedNodeTxid ? () => triggerBoltzmann(props.expandedNodeTxid!) : undefined}
+          onAutoTrace={props.onAutoTrace}
+          onAutoTraceLinkability={props.onAutoTraceLinkability}
+          autoTracing={props.autoTracing}
+          autoTraceProgress={props.autoTraceProgress}
+        />
+      </AnimatePresence>
+    );
   };
 
   // ─── Tooltip content ──────────────────────────────────
@@ -617,11 +421,14 @@ export function GraphExplorer(props: GraphExplorerProps) {
         {!tooltip.tooltipData.confirmed && (
           <span className="text-xs font-medium" style={{ color: SVG_COLORS.medium }}>Unconfirmed</span>
         )}
-        {heatMapActive && heatMap.has(tooltip.tooltipData.txid) && (
-          <span className="text-xs font-semibold" style={{ color: GRADE_HEX_SVG[heatMap.get(tooltip.tooltipData.txid)!.grade] }}>
-            {heatMap.get(tooltip.tooltipData.txid)!.grade}
-          </span>
-        )}
+        {(() => {
+          const heatEntry = heatMapActive ? heatMap.get(tooltip.tooltipData.txid) : undefined;
+          return heatEntry ? (
+            <span className="text-xs font-semibold" style={{ color: GRADE_HEX_SVG[heatEntry.grade] }}>
+              {heatEntry.grade}
+            </span>
+          ) : null;
+        })()}
       </div>
       )}
     </ChartTooltip>
@@ -658,40 +465,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
               {tooltipContent}
             </div>
             {/* Sidebar: expanded or collapsed tab */}
-            {sidebarTx && props.expandedNodeTxid && (
-              sidebarCollapsed ? (
-                <button
-                  onClick={() => setSidebarCollapsed(false)}
-                  className="absolute right-0 top-2 z-10 w-5 h-8 bg-card-bg/90 border border-card-border border-r-0 rounded-l transition-colors cursor-pointer flex items-center justify-center hover:bg-surface-inset"
-                  title="Show sidebar"
-                >
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
-                </button>
-              ) : (
-                <AnimatePresence>
-                  <GraphSidebar
-                    key={props.expandedNodeTxid}
-                    tx={sidebarTx}
-                    outspends={props.outspendCache?.get(props.expandedNodeTxid)}
-                    onClose={() => props.onToggleExpand?.(props.expandedNodeTxid!)}
-                    onCollapse={() => setSidebarCollapsed(true)}
-                    onFullScan={(txid) => props.onTxClick?.(txid)}
-                    onExpandInput={props.onExpandInput}
-                    onExpandOutput={props.onExpandOutput}
-                    changeOutputs={changeOutputs}
-                    onToggleChange={toggleChange}
-                    boltzmannResult={props.expandedNodeTxid ? getBoltzmannResult(props.expandedNodeTxid) : undefined}
-                    computingBoltzmann={props.expandedNodeTxid ? computingBoltzmannRef.current.has(props.expandedNodeTxid) : false}
-                    boltzmannProgress={props.expandedNodeTxid ? boltzmannProgressMap.get(props.expandedNodeTxid) : undefined}
-                    onComputeBoltzmann={props.expandedNodeTxid ? () => triggerBoltzmann(props.expandedNodeTxid!) : undefined}
-                    onAutoTrace={props.onAutoTrace}
-                    onAutoTraceLinkability={props.onAutoTraceLinkability}
-                    autoTracing={props.autoTracing}
-                    autoTraceProgress={props.autoTraceProgress}
-                  />
-                </AnimatePresence>
-              )
-            )}
+            {renderSidebar("")}
           </div>
         )}
 
@@ -820,40 +594,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
               {tooltipContent}
             </div>
             {/* Fullscreen sidebar: expanded or collapsed tab */}
-            {sidebarTx && props.expandedNodeTxid && (
-              sidebarCollapsed ? (
-                <button
-                  onClick={() => setSidebarCollapsed(false)}
-                  className="absolute right-0 top-2 z-10 w-5 h-8 bg-card-bg/90 border border-card-border border-r-0 rounded-l transition-colors cursor-pointer flex items-center justify-center hover:bg-surface-inset"
-                  title="Show sidebar"
-                >
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6" /></svg>
-                </button>
-              ) : (
-                <AnimatePresence>
-                  <GraphSidebar
-                    key={`fs-${props.expandedNodeTxid}`}
-                    tx={sidebarTx}
-                    outspends={props.outspendCache?.get(props.expandedNodeTxid)}
-                    onClose={() => props.onToggleExpand?.(props.expandedNodeTxid!)}
-                    onCollapse={() => setSidebarCollapsed(true)}
-                    onFullScan={(txid) => props.onTxClick?.(txid)}
-                    onExpandInput={props.onExpandInput}
-                    onExpandOutput={props.onExpandOutput}
-                    changeOutputs={changeOutputs}
-                    onToggleChange={toggleChange}
-                    boltzmannResult={props.expandedNodeTxid ? getBoltzmannResult(props.expandedNodeTxid) : undefined}
-                    computingBoltzmann={props.expandedNodeTxid ? computingBoltzmannRef.current.has(props.expandedNodeTxid) : false}
-                    boltzmannProgress={props.expandedNodeTxid ? boltzmannProgressMap.get(props.expandedNodeTxid) : undefined}
-                    onComputeBoltzmann={props.expandedNodeTxid ? () => triggerBoltzmann(props.expandedNodeTxid!) : undefined}
-                    onAutoTrace={props.onAutoTrace}
-                    onAutoTraceLinkability={props.onAutoTraceLinkability}
-                    autoTracing={props.autoTracing}
-                    autoTraceProgress={props.autoTraceProgress}
-                  />
-                </AnimatePresence>
-              )
-            )}
+            {renderSidebar("fs-")}
           </div>
         </div>
       )}

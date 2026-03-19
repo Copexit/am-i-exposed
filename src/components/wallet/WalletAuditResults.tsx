@@ -8,10 +8,11 @@ import { GlowCard } from "@/components/ui/GlowCard";
 import { FindingCard } from "@/components/FindingCard";
 import { FindingsTier } from "@/components/FindingsTier";
 import { CoinSelector } from "./CoinSelector";
-import { ACTION_BTN_CLASS } from "@/lib/constants";
+import { ACTION_BTN_CLASS, P2PKH_DUST_LIMIT } from "@/lib/constants";
 import type { WalletAuditResult, WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import type { DescriptorParseResult } from "@/lib/bitcoin/descriptor";
 import type { UtxoTraceResult } from "@/hooks/useWalletAnalysis";
+import { fmtN } from "@/lib/format";
 import type { Grade } from "@/lib/types";
 
 const WalletAddressTable = lazy(() => import("./WalletAddressTable").then(m => ({ default: m.WalletAddressTable })));
@@ -48,7 +49,7 @@ function findWorstOffender(addressInfos: WalletAddressInfo[]): {
   for (const info of addressInfos) {
     if (!info.addressData) continue;
     const funded = info.addressData.chain_stats.funded_txo_count + info.addressData.mempool_stats.funded_txo_count;
-    const dustCount = info.utxos.filter(u => u.value < 546).length;
+    const dustCount = info.utxos.filter(u => u.value < P2PKH_DUST_LIMIT).length;
     const score = (funded > 1 ? funded * 10 : 0) + dustCount * 5;
     if (score > worstScore) {
       worstScore = score;
@@ -140,7 +141,7 @@ export function WalletAuditResults({
           />
           <StatCell
             label={t("wallet.totalBalance", { defaultValue: "Total balance" })}
-            value={`${result.totalBalance.toLocaleString()} sats`}
+            value={`${fmtN(result.totalBalance)} sats`}
           />
           <StatCell
             label={t("wallet.reusedAddresses", { defaultValue: "Reused addresses" })}
@@ -214,7 +215,6 @@ export function WalletAuditResults({
                 findings={details}
                 label={t("results.additionalFindings", { count: details.length, defaultValue: "Additional findings ({{count}})" })}
                 defaultOpen={issues.length === 0}
-                grade={result.grade}
                 delay={0.15}
               />
             )}
@@ -223,7 +223,6 @@ export function WalletAuditResults({
                 findings={strengths}
                 label={t("results.privacyStrengths", { count: strengths.length, defaultValue: "Privacy strengths ({{count}})" })}
                 defaultOpen={issues.length === 0 && details.length === 0}
-                grade={result.grade}
                 delay={0.2}
               />
             )}

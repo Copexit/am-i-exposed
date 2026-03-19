@@ -8,6 +8,21 @@ import { WHIRLPOOL_DENOMS } from "@/lib/constants";
 import { getSpendableOutputs, getValuedOutputs } from "../heuristics/tx-utils";
 
 /**
+ * Resolve entity name, category, and OFAC status for an address.
+ * Checks the entity metadata DB first, then falls back to the entity index.
+ */
+function resolveEntity(
+  addr: string,
+  entity: { name?: string; category?: string; ofac?: boolean } | null | undefined,
+): { name: string | null; category: EntityMatch["category"]; ofac: boolean } {
+  const name = entity?.name ?? lookupEntityName(addr);
+  const rawCategory = entity?.category ?? lookupEntityCategory(addr) ?? "unknown";
+  const category = rawCategory as EntityMatch["category"];
+  const ofac = entity?.ofac ?? false;
+  return { name, category, ofac };
+}
+
+/**
  * Check all addresses in a transaction against known entity databases.
  *
  * Priority order:
@@ -28,13 +43,11 @@ export async function matchEntities(
     // Try to resolve the actual entity name and category from the entity index/filter
     const resolvedName = lookupEntityName(addr);
     const entity = resolvedName ? getEntity(resolvedName) : null;
-    const resolvedCategory = entity?.category
-      ?? lookupEntityCategory(addr) as EntityMatch["category"]
-      ?? "unknown";
+    const resolved = resolveEntity(addr, entity);
     matches.push({
       address: addr,
-      entityName: resolvedName ?? "OFAC Sanctioned",
-      category: resolvedCategory,
+      entityName: resolved.name ?? "OFAC Sanctioned",
+      category: resolved.category,
       ofac: true,
       confidence: "high",
     });
@@ -54,14 +67,12 @@ export async function matchEntities(
       if (filter.has(addr)) {
         const resolvedName = lookupEntityName(addr);
         const entity = resolvedName ? getEntity(resolvedName) : null;
-        const resolvedCategory = entity?.category
-          ?? lookupEntityCategory(addr) as EntityMatch["category"]
-          ?? "unknown";
+        const resolved = resolveEntity(addr, entity);
         matches.push({
           address: addr,
-          entityName: resolvedName ?? "Known Entity",
-          category: resolvedCategory,
-          ofac: entity?.ofac ?? false,
+          entityName: resolved.name ?? "Known Entity",
+          category: resolved.category,
+          ofac: resolved.ofac,
           confidence: resolvedName ? "high" : "medium",
         });
       }
@@ -81,13 +92,11 @@ export function matchEntitySync(address: string): EntityMatch | null {
   if (ofacResult.sanctioned) {
     const resolvedName = lookupEntityName(address);
     const entity = resolvedName ? getEntity(resolvedName) : null;
-    const resolvedCategory = entity?.category
-      ?? lookupEntityCategory(address) as EntityMatch["category"]
-      ?? "unknown";
+    const resolved = resolveEntity(address, entity);
     return {
       address,
-      entityName: resolvedName ?? "OFAC Sanctioned",
-      category: resolvedCategory,
+      entityName: resolved.name ?? "OFAC Sanctioned",
+      category: resolved.category,
       ofac: true,
       confidence: "high",
     };
@@ -98,14 +107,12 @@ export function matchEntitySync(address: string): EntityMatch | null {
   if (filter?.has(address)) {
     const resolvedName = lookupEntityName(address);
     const entity = resolvedName ? getEntity(resolvedName) : null;
-    const resolvedCategory = entity?.category
-      ?? lookupEntityCategory(address) as EntityMatch["category"]
-      ?? "unknown";
+    const resolved = resolveEntity(address, entity);
     return {
       address,
-      entityName: resolvedName ?? "Known Entity",
-      category: resolvedCategory,
-      ofac: entity?.ofac ?? false,
+      entityName: resolved.name ?? "Known Entity",
+      category: resolved.category,
+      ofac: resolved.ofac,
       confidence: resolvedName ? "high" : "medium",
     };
   }

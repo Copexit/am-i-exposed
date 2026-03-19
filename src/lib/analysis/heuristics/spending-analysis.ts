@@ -1,7 +1,7 @@
 import type { AddressHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { fmtN } from "@/lib/format";
-import { analyzeCoinJoin, isCoinJoinFinding } from "./coinjoin";
+import { isCoinJoinTx } from "./coinjoin";
 import { getAddressType } from "@/lib/bitcoin/address-type";
 
 /**
@@ -73,9 +73,7 @@ export const analyzeSpendingPattern: AddressHeuristic = (address, _utxos, txs) =
 
       // Skip CoinJoin transactions - their outputs are other participants,
       // not true counterparties. Counting them would penalize CoinJoin users.
-      const cjResult = analyzeCoinJoin(tx);
-      const isCoinJoin = cjResult.findings.some(isCoinJoinFinding);
-      if (isCoinJoin) continue;
+      if (isCoinJoinTx(tx)) continue;
 
       const spendableOutputs = tx.vout.filter(
         (v) =>

@@ -75,7 +75,7 @@ export async function boltzmann(
   // Output
   if (isJson) {
     jsonOutput({
-      version: "0.33.0",
+      version: "0.34.3",
       input: { type: "txid", value: txid },
       network: opts.network ?? "mainnet",
       score: 0,

@@ -3,7 +3,7 @@
  * Uses real API response fixtures with mocked fetch.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { MempoolTransaction, MempoolAddress } from "@/lib/api/types";
+import type { MempoolTransaction } from "@/lib/api/types";
 
 // --- Fixtures ---
 import whirlpoolTx from "@/lib/analysis/heuristics/__tests__/fixtures/api-responses/whirlpool-coinjoin.json";

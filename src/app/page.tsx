@@ -3,13 +3,16 @@
 import { useEffect, useRef, useState, lazy, Suspense, useCallback, useMemo, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
-import { ShieldCheck, ShieldAlert, AlertCircle, ArrowLeft, EyeOff, Github } from "lucide-react";
+import { ShieldCheck, ShieldAlert, EyeOff, Github } from "lucide-react";
 import { AddressInput } from "@/components/AddressInput";
 import { DiagnosticLoader } from "@/components/DiagnosticLoader";
 import { ResultsPanel } from "@/components/ResultsPanel";
 import { ScanHistory } from "@/components/ScanHistory";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { GlowCard } from "@/components/ui/GlowCard";
+import { DestinationOnlyResult } from "@/components/DestinationOnlyResult";
+import { ErrorView } from "@/components/ErrorView";
+import { WalletLoadingView } from "@/components/wallet/WalletLoadingView";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useWalletAnalysis } from "@/hooks/useWalletAnalysis";
 import { isXpubOrDescriptor, parseAndDerive } from "@/lib/bitcoin/descriptor";
@@ -17,88 +20,15 @@ import { isPSBT } from "@/lib/bitcoin/psbt";
 import { useNetwork } from "@/context/NetworkContext";
 import { useRecentScans } from "@/hooks/useRecentScans";
 import { useBookmarks } from "@/hooks/useBookmarks";
-import { EXAMPLES, ACTION_BTN_CLASS } from "@/lib/constants";
+import { EXAMPLES } from "@/lib/constants";
+import { formatSats } from "@/lib/format";
 import { useKeyboardNav } from "@/hooks/useKeyboardNav";
 import { useDevMode } from "@/hooks/useDevMode";
 import { XpubPrivacyWarning, isXpubPrivacyAcked } from "@/components/wallet/XpubPrivacyWarning";
 const TipToast = lazy(() => import("@/components/TipToast").then(m => ({ default: m.TipToast })));
-import { FindingCard } from "@/components/FindingCard";
 const DevChainalysisPanel = lazy(() => import("@/components/DevChainalysisPanel").then(m => ({ default: m.DevChainalysisPanel })));
 const WalletAuditResults = lazy(() => import("@/components/wallet/WalletAuditResults").then(m => ({ default: m.WalletAuditResults })));
-import type { PreSendResult } from "@/lib/analysis/orchestrator";
-import { RISK_CONFIG } from "@/components/DestinationAlert";
-
 const subscribeNoop = () => () => {};
-
-function DestinationOnlyResult({ query, preSendResult, onBack, durationMs }: {
-  query: string;
-  preSendResult: PreSendResult;
-  onBack: () => void;
-  durationMs?: number | null;
-}) {
-  const { t } = useTranslation();
-  const risk = RISK_CONFIG[preSendResult.riskLevel];
-  const RiskIcon = risk.icon;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-      className="flex flex-col items-center gap-8 w-full max-w-3xl"
-    >
-      <div className="w-full flex items-center">
-        <button
-          onClick={onBack}
-          className={ACTION_BTN_CLASS}
-        >
-          <ArrowLeft size={16} />
-          {t("results.newScan", { defaultValue: "New scan" })}
-        </button>
-      </div>
-
-      <GlowCard className="w-full p-7 space-y-6">
-        <div className="space-y-1">
-          <span className="text-sm font-medium text-muted uppercase tracking-wider">
-            {t("results.address", { defaultValue: "Address" })}
-          </span>
-          <p className="font-mono text-sm text-foreground/90 break-all leading-relaxed">{query}</p>
-        </div>
-        <div className={`rounded-xl border p-6 ${risk.bg} flex flex-col items-center gap-3`}>
-          <RiskIcon size={40} className={risk.color} />
-          <span className={`text-2xl font-bold ${risk.color}`}>
-            {t(risk.labelKey, { defaultValue: risk.labelDefault })}
-          </span>
-          <p className="text-sm text-center text-foreground max-w-md">
-            {t(preSendResult.summaryKey, {
-              reuseCount: preSendResult.timesReceived,
-              txCount: preSendResult.txCount,
-              defaultValue: preSendResult.summary,
-            })}
-          </p>
-        </div>
-      </GlowCard>
-
-      {preSendResult.findings.length > 0 && (
-        <div className="w-full space-y-3">
-          <h2 className="text-base font-medium text-muted uppercase tracking-wider px-1">
-            {t("results.findingsHeading", { count: preSendResult.findings.length, defaultValue: "Findings ({{count}})" })}
-          </h2>
-          <div className="space-y-2">
-            {preSendResult.findings.map((finding, i) => (
-              <FindingCard key={finding.id} finding={finding} index={i} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="w-full bg-surface-inset rounded-lg px-4 py-3 text-sm text-muted leading-relaxed">
-        {t("presend.disclaimerCompleted", { defaultValue: "Pre-send check completed" })}{durationMs ? t("presend.disclaimerDuration", { duration: (durationMs / 1000).toFixed(1), defaultValue: " in {{duration}}s" }) : ""}.
-        {" "}{t("presend.disclaimerBrowser", { defaultValue: "Analysis ran entirely in your browser. This is a heuristic-based assessment - always verify independently." })}
-      </div>
-    </motion.div>
-  );
-}
 
 export default function Home() {
   const {
@@ -521,7 +451,7 @@ export default function Home() {
                     </div>
                     <div>
                       <span className="block text-foreground font-medium">
-                        {psbtData.fee > 0 ? `${psbtData.fee.toLocaleString()} sats` : "N/A"}
+                        {psbtData.fee > 0 ? formatSats(psbtData.fee) : "N/A"}
                       </span>
                       {t("psbt.fee", { defaultValue: "Fee" })}
                     </div>
@@ -573,110 +503,24 @@ export default function Home() {
         )}
 
         {phase === "error" && error !== "xpub" && (
-          <motion.div
-            key="error"
-            initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-            className="flex flex-col items-center gap-6 w-full max-w-xl mt-8 sm:mt-0"
-          >
-            <div data-testid="error-message" className="glass border-severity-critical/30 rounded-xl p-8 w-full space-y-4 text-center">
-              <AlertCircle size={32} className="text-severity-critical mx-auto" />
-              <div className="space-y-2">
-                <h2 className="text-lg font-semibold text-foreground">
-                  {t("page.error_title", { defaultValue: "Analysis failed" })}
-                </h2>
-                {query && (
-                  <p className="font-mono text-sm text-muted break-all text-left mx-auto max-w-sm">
-                    {query}
-                  </p>
-                )}
-                <p className="text-sm text-muted leading-relaxed">
-                  {error}
-                </p>
-              </div>
-              <div className="flex items-center justify-center gap-4">
-                {query && error && errorCode !== "not-retryable" && (
-                  <button
-                    onClick={() => analyze(query)}
-                    className="px-4 py-1.5 bg-bitcoin text-background font-semibold text-sm rounded-lg
-                      hover:bg-bitcoin-hover transition-all duration-150 cursor-pointer"
-                  >
-                    {t("page.retry", { defaultValue: "Retry" })}
-                  </button>
-                )}
-                <button
-                  onClick={handleBack}
-                  className="text-sm text-muted hover:text-foreground transition-colors cursor-pointer"
-                >
-                  {t("page.new_scan", { defaultValue: "New scan" })}
-                </button>
-              </div>
-            </div>
-            <div className="pb-2" />
-          </motion.div>
+          <ErrorView
+            error={error}
+            query={query}
+            errorCode={errorCode}
+            onRetry={analyze}
+            onBack={handleBack}
+          />
         )}
         {/* Wallet analysis: loading states */}
         {walletActive && wallet.phase !== "complete" && wallet.phase !== "error" && (
-          <motion.div
-            key="wallet-loading"
-            initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-            className="flex flex-col items-center gap-6 w-full max-w-3xl"
-          >
-            <GlowCard className="w-full p-8 space-y-6">
-              <div className="space-y-1">
-                <span className="text-xs font-medium text-muted uppercase tracking-wider">
-                  {t("wallet.auditTitle", { defaultValue: "Wallet Privacy Audit" })}
-                </span>
-                <p className="font-mono text-xs text-foreground/90 break-all leading-relaxed">
-                  {wallet.query}
-                </p>
-              </div>
-              {(isUmbrel || customApiUrl) && (
-                <div className="flex items-center gap-2 text-xs text-severity-good">
-                  <ShieldCheck size={14} />
-                  {t("wallet.localApiBanner", { defaultValue: "Local API - address queries stay private" })}
-                </div>
-              )}
-              <div className="border-t border-card-border pt-6 space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="h-2 w-2 rounded-full bg-bitcoin animate-pulse" />
-                  <span className="text-sm text-muted">
-                    {wallet.phase === "deriving"
-                      ? t("wallet.deriving", { defaultValue: "Deriving addresses..." })
-                      : wallet.phase === "fetching"
-                        ? `${t("wallet.fetching", { defaultValue: "Fetching transaction history..." })} (${wallet.progress.fetched})`
-                        : wallet.phase === "tracing"
-                          ? wallet.traceProgress
-                            ? t("wallet.tracing", {
-                                traced: wallet.traceProgress.traced,
-                                total: wallet.traceProgress.total,
-                                defaultValue: "Tracing UTXO provenance ({{traced}}/{{total}} txs)",
-                              })
-                            : t("wallet.tracingGeneric", { defaultValue: "Tracing UTXO provenance..." })
-                          : t("wallet.analyzing", { defaultValue: "Analyzing wallet privacy..." })}
-                  </span>
-                </div>
-                {(wallet.phase === "fetching" || wallet.phase === "tracing") && wallet.progress.fetched > 0 && (
-                  <div className="w-full bg-surface-elevated rounded-full h-1.5">
-                    <div
-                      className="bg-bitcoin h-1.5 rounded-full transition-all duration-300 animate-pulse"
-                      style={{ width: "100%" }}
-                    />
-                  </div>
-                )}
-                {wallet.phase === "fetching" && isThirdPartyApi && (
-                  <p className="text-xs text-muted/70">
-                    {t("wallet.hostedSlowNote", { defaultValue: "Using the public API - this may take several minutes. For faster scans, connect a personal mempool instance." })}
-                  </p>
-                )}
-              </div>
-            </GlowCard>
-          </motion.div>
+          <WalletLoadingView
+            query={wallet.query}
+            phase={wallet.phase as "deriving" | "fetching" | "tracing" | "analyzing"}
+            progress={wallet.progress}
+            traceProgress={wallet.traceProgress}
+            isLocalApi={isUmbrel || !!customApiUrl}
+            isThirdPartyApi={isThirdPartyApi}
+          />
         )}
 
         {/* Wallet analysis: results */}
@@ -696,32 +540,10 @@ export default function Home() {
 
         {/* Wallet analysis: error */}
         {wallet.phase === "error" && (
-          <motion.div
-            key="wallet-error"
-            initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-            className="flex flex-col items-center gap-6 w-full max-w-xl mt-8 sm:mt-0"
-          >
-            <div className="glass border-severity-critical/30 rounded-xl p-8 w-full space-y-4 text-center">
-              <AlertCircle size={32} className="text-severity-critical mx-auto" />
-              <div className="space-y-2">
-                <h2 className="text-lg font-semibold text-foreground">
-                  {t("page.error_title", { defaultValue: "Analysis failed" })}
-                </h2>
-                <p className="text-sm text-muted leading-relaxed">
-                  {wallet.error}
-                </p>
-              </div>
-              <button
-                onClick={handleBack}
-                className="text-sm text-muted hover:text-foreground transition-colors cursor-pointer"
-              >
-                {t("page.new_scan", { defaultValue: "New scan" })}
-              </button>
-            </div>
-          </motion.div>
+          <ErrorView
+            error={wallet.error}
+            onBack={handleBack}
+          />
         )}
       </AnimatePresence>
 

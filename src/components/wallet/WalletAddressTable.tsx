@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronDown, Copy, Check, Search } from "lucide-react";
+import { P2PKH_DUST_LIMIT, TOXIC_CHANGE_THRESHOLD } from "@/lib/constants";
 import type { WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 
 interface WalletAddressTableProps {
@@ -48,8 +49,8 @@ function scoreAddress(info: WalletAddressInfo): ScoredAddress {
   }
 
   const balance = utxos.reduce((sum, u) => sum + u.value, 0);
-  const hasDust = utxos.some(u => u.value < 546);
-  const hasToxic = utxos.some(u => u.value >= 546 && u.value < 10_000);
+  const hasDust = utxos.some(u => u.value < P2PKH_DUST_LIMIT);
+  const hasToxic = utxos.some(u => u.value >= P2PKH_DUST_LIMIT && u.value < TOXIC_CHANGE_THRESHOLD);
 
   if (fundedCount > 1) score -= 10;
   if (hasDust) score -= 5;
@@ -213,7 +214,7 @@ export function WalletAddressTable({ addressInfos, onScan }: WalletAddressTableP
                                 {utxo.txid.slice(0, 10)}...:{utxo.vout}
                               </span>
                               <div className="flex items-center gap-3">
-                                <span className={`${utxo.value < 546 ? "text-severity-medium" : "text-foreground"}`}>
+                                <span className={`${utxo.value < P2PKH_DUST_LIMIT ? "text-severity-medium" : "text-foreground"}`}>
                                   {utxo.value.toLocaleString("en-US")} sats
                                 </span>
                                 {utxo.status.confirmed && (

@@ -114,7 +114,7 @@ export function analyzeBackwardTaint(
     if (!directMatch) {
       const parentTx = allTxs.get(vin.txid);
       if (parentTx) {
-        const parentInputTaint = computeParentTaint(parentTx, allTxs, entityChecker, 1);
+        const parentInputTaint = computeParentTaint(parentTx, entityChecker);
         for (const [category, fraction] of parentInputTaint) {
           const weighted = fraction * inputWeight;
           aggregatedTaint.set(category, (aggregatedTaint.get(category) ?? 0) + weighted);
@@ -197,12 +197,9 @@ export function analyzeBackwardTaint(
  */
 function computeParentTaint(
   parentTx: MempoolTransaction,
-  allTxs: Map<string, MempoolTransaction>,
   entityChecker: (address: string) => { category: string; entityName: string } | null,
-  depth: number,
 ): Map<string, number> {
   const taint = new Map<string, number>();
-  if (depth > 3) return taint; // Cap recursive depth
 
   const totalInput = parentTx.vin.reduce(
     (sum, vin) => sum + (vin.prevout?.value ?? 0), 0,

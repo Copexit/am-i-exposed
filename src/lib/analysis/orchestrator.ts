@@ -6,46 +6,16 @@ import type {
   MempoolUtxo,
 } from "@/lib/api/types";
 import type { HeuristicTranslator, TxContext } from "./heuristics/types";
-import {
-  analyzeRoundAmounts,
-  analyzeChangeDetection,
-  analyzeCioh,
-  analyzeCoinJoin,
-  analyzeEntropy,
-  analyzeFees,
-  analyzeOpReturn,
-  analyzeAddressReuse,
-  analyzeUtxos,
-  analyzeAddressType,
-  analyzeWalletFingerprint,
-  analyzeAnonymitySet,
-  analyzeTiming,
-  analyzeScriptTypeMix,
-  analyzeSpendingPattern,
-  analyzeDustOutputs,
-  analyzeCoinbase,
-  analyzeMultisigDetection,
-  analyzePeelChain,
-  analyzeConsolidation,
-  analyzeUnnecessaryInput,
-  analyzeCoinJoinPremix,
-  analyzeBip69,
-  analyzeBip47Notification,
-  analyzeExchangePattern,
-  analyzeRecurringPayment,
-  analyzeCoinSelection,
-  analyzeWitnessData,
-  analyzeHighActivityAddress,
-  analyzePostMix,
-  analyzeEntityDetection,
-  analyzeRicochet,
-} from "./heuristics";
 import { analyzeTemporalCorrelation } from "./chain/temporal";
 import { analyzeFingerprintEvolution } from "./chain/prospective";
 import { calculateScore, sumImpact } from "@/lib/scoring/score";
 import { matchEntitySync } from "./entity-filter/entity-match";
 import { getEntity } from "./entities";
 import { applyCrossHeuristicRules, classifyTransactionType } from "./cross-heuristic";
+import { TX_HEURISTICS, ADDRESS_HEURISTICS, tick } from "./heuristic-registry";
+
+// Re-export from heuristic-registry so existing consumers don't break
+export { TX_HEURISTICS, ADDRESS_HEURISTICS, tick } from "./heuristic-registry";
 
 export { classifyTransactionType } from "./cross-heuristic";
 export { analyzeTransactionsForAddress, analyzeDestination } from "./address-orchestrator";
@@ -61,46 +31,6 @@ export interface HeuristicStep {
   impact?: number; // cumulative score impact after this step completes
 }
 
-// --- Transaction heuristics ---
-
-export const TX_HEURISTICS = [
-  { id: "coinbase", label: "Coinbase detection", fn: analyzeCoinbase },
-  { id: "h1", label: "Round amounts", fn: analyzeRoundAmounts },
-  { id: "h2", label: "Change detection", fn: analyzeChangeDetection },
-  { id: "h3", label: "Common input ownership", fn: analyzeCioh },
-  { id: "h4", label: "CoinJoin detection", fn: analyzeCoinJoin },
-  { id: "h5", label: "Transaction entropy", fn: analyzeEntropy },
-  { id: "h6", label: "Fee fingerprinting", fn: analyzeFees },
-  { id: "h7", label: "OP_RETURN metadata", fn: analyzeOpReturn },
-  { id: "h11", label: "Wallet fingerprinting", fn: analyzeWalletFingerprint },
-  { id: "anon", label: "Anonymity sets", fn: analyzeAnonymitySet },
-  { id: "timing", label: "Timing analysis", fn: analyzeTiming },
-  { id: "script", label: "Script type analysis", fn: analyzeScriptTypeMix },
-  { id: "dust", label: "Dust output detection", fn: analyzeDustOutputs },
-  { id: "h17", label: "Multisig/escrow detection", fn: analyzeMultisigDetection },
-  { id: "peel", label: "Peel chain detection", fn: analyzePeelChain },
-  { id: "consolidation", label: "Consolidation patterns", fn: analyzeConsolidation },
-  { id: "unnecessary", label: "Unnecessary inputs", fn: analyzeUnnecessaryInput },
-  { id: "tx0", label: "CoinJoin premix (tx0)", fn: analyzeCoinJoinPremix },
-  { id: "bip69", label: "BIP69 ordering", fn: analyzeBip69 },
-  { id: "bip47", label: "BIP47 notification detection", fn: analyzeBip47Notification },
-  { id: "exchange", label: "Exchange pattern detection", fn: analyzeExchangePattern },
-  { id: "coinsel", label: "Coin selection patterns", fn: analyzeCoinSelection },
-  { id: "witness", label: "Witness data analysis", fn: analyzeWitnessData },
-  { id: "postmix", label: "Post-mix consolidation", fn: analyzePostMix },
-  { id: "entity", label: "Known entity detection", fn: analyzeEntityDetection },
-  { id: "ricochet", label: "Ricochet detection", fn: analyzeRicochet },
-] as const;
-
-export const ADDRESS_HEURISTICS = [
-  { id: "h8", label: "Address reuse", fn: analyzeAddressReuse },
-  { id: "h9", label: "UTXO analysis", fn: analyzeUtxos },
-  { id: "h10", label: "Address type", fn: analyzeAddressType },
-  { id: "spending", label: "Spending patterns", fn: analyzeSpendingPattern },
-  { id: "recurring", label: "Recurring payment detection", fn: analyzeRecurringPayment },
-  { id: "highactivity", label: "High activity detection", fn: analyzeHighActivityAddress },
-] as const;
-
 const CHAIN_STEPS = [
   { id: "chain-backward", label: "Input provenance analysis" },
   { id: "chain-forward", label: "Output destination analysis" },
@@ -109,11 +39,6 @@ const CHAIN_STEPS = [
   { id: "chain-entity", label: "Entity proximity scan" },
   { id: "chain-taint", label: "Taint flow analysis" },
 ] as const;
-
-/** Yield to the event loop so the UI can update. */
-export function tick(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 50));
-}
 
 export function getTxHeuristicSteps(t?: HeuristicTranslator): HeuristicStep[] {
   return [

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
+import { PageShell } from "@/components/PageShell";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "motion/react";
 
@@ -120,17 +121,7 @@ export default function FaqPage() {
     : FAQ_ITEMS;
 
   return (
-    <div className="flex-1 flex flex-col items-center px-4 py-8">
-      <div className="w-full max-w-4xl space-y-10">
-        {/* Back nav */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors py-2 -my-2"
-        >
-          <ArrowLeft size={16} />
-          {t("faq.back", { defaultValue: "Back to scanner" })}
-        </Link>
-
+    <PageShell backLabel={t("faq.back", { defaultValue: "Back to scanner" })}>
         {/* Title */}
         <div className="space-y-3">
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
@@ -222,7 +213,6 @@ export default function FaqPage() {
             </Link>
           </div>
         </div>
-      </div>
-    </div>
+    </PageShell>
   );
 }

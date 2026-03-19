@@ -1,232 +1,204 @@
 import type { Finding, TxType } from "@/lib/types";
 import { isCoinJoinFinding } from "./heuristics/coinjoin";
 
+/** Suppress a finding by setting it to low severity with zero score impact. */
+function suppressFinding(f: Finding, context: string): void {
+  f.severity = "low";
+  f.params = { ...f.params, context };
+  f.scoreImpact = 0;
+}
+
 /**
- * Cross-heuristic intelligence: adjust findings based on interactions
- * between different heuristics. This runs after all heuristics complete.
+ * Suppress findings that are misleading or irrelevant in CoinJoin/Stonewall
+ * context. CoinJoin transactions are multi-party by design, so many single-user
+ * heuristics produce false positives.
  */
-export function applyCrossHeuristicRules(findings: Finding[]): void {
-  const isCoinJoin = findings.some(isCoinJoinFinding);
-  const isStonewall = findings.some(
-    (f) => (f.id === "h4-stonewall" || f.id === "h4-simplified-stonewall") && f.scoreImpact > 0,
-  );
-
-  if (isCoinJoin) {
-    for (const f of findings) {
-      // CIOH suppression for ALL CoinJoin types including Stonewall.
-      // Stonewall intentionally consolidates inputs to create the appearance
-      // of a multi-party CoinJoin - CIOH is the expected structure, not a leak.
-      if (f.id === "h3-cioh") {
-        f.severity = "low";
-        f.params = { ...f.params, context: isStonewall ? "stonewall" : "coinjoin", _variant: isStonewall ? "stonewall" : "coinjoin" };
-        f.scoreImpact = 0;
-      }
-      // Round amounts in CoinJoin are the denomination, not a privacy leak.
-      // In Stonewall specifically, round amounts are hidden behind the equal-value pair structure.
-      if (f.id === "h1-round-amount" || f.id === "h1-round-usd-amount" || f.id === "h1-round-eur-amount") {
-        f.severity = "low";
-        f.params = { ...f.params, context: isStonewall ? "stonewall" : "coinjoin" };
-        f.scoreImpact = 0;
-      }
-      // Change detection in CoinJoin is less reliable
-      // NOTE: h2-self-send is NOT suppressed - sending back to your own
-      // input address is a privacy failure even in CoinJoin context
-      if (f.id === "h2-change-detected") {
-        f.severity = "low";
-        f.params = { ...f.params, context: "coinjoin" };
-        f.scoreImpact = 0;
-      }
-      // Script type mixing is expected in CoinJoin (participants use different wallets)
-      if (f.id === "script-mixed") {
-        f.severity = "low";
-        f.params = { ...f.params, context: "coinjoin" };
-        f.scoreImpact = 0;
-      }
-      // Low entropy is unreliable for CoinJoin structures - the one-to-one
-      // assignment model doesn't capture many-to-many Boltzmann ambiguity
-      if (f.id === "h5-low-entropy") {
-        f.severity = "low";
-        f.params = { ...f.params, context: "coinjoin" };
-        f.scoreImpact = 0;
-      }
-      // Entropy recommendation should reflect CoinJoin context.
-      // For Stonewall: the two pairs of equal outputs create more ambiguity
-      // than a normal 2-output payment (which has 0 bits entropy).
-      if (f.id === "h5-entropy") {
-        if (isStonewall) {
-          f.params = { ...f.params, context: "stonewall" };
-          // Enhance description to explain Stonewall's structural ambiguity
-          f.description =
-            f.description +
-            " In this Stonewall transaction, the two equal-value outputs create ambiguity about which is the real payment." +
-            " A normal 2-output payment has 0 bits (fully deterministic), so this entropy is a meaningful improvement.";
-        } else {
-          f.params = { ...f.params, context: "coinjoin" };
-        }
-      }
-      // Wallet fingerprint is less relevant for CoinJoin - but we can infer the wallet
-      // from the CoinJoin type detected by H4.
-      // For Stonewall specifically, nVersion=1 is INTENTIONAL fingerprint disruption
-      // by Samourai/Ashigaru - it should not be penalized.
-      if (f.id === "h11-wallet-fingerprint") {
-        f.severity = "low";
-        // Infer wallet from CoinJoin type
-        const isWabiSabi = findings.some(
-          (x) => x.id === "h4-coinjoin" && x.params?.isWabiSabi === 1,
-        );
-        const isWhirlpool = findings.some((x) => x.id === "h4-whirlpool");
-        if (isWabiSabi) {
-          f.params = { ...f.params, walletGuess: "Wasabi Wallet" };
-        } else if (isWhirlpool) {
-          f.params = { ...f.params, walletGuess: "Ashigaru/Sparrow" };
-        } else if (isStonewall) {
-          f.params = { ...f.params, walletGuess: "Ashigaru", intentionalFingerprint: 1 };
-        }
-        // Compose context: identified (if wallet known) or signals variant + coinjoin
-        const hasWallet = !!f.params?.walletGuess;
-        const base = hasWallet
-          ? "identified"
-          : ((f.params?.context as string) ?? "signals_other");
-        f.params = { ...f.params, context: `${base}_coinjoin` };
-        f.scoreImpact = 0;
-      }
-      // Dust outputs in CoinJoin may be coordinator fees (e.g. Whirlpool)
-      if (f.id === "dust-attack" || f.id === "dust-outputs") {
-        f.severity = "low";
-        f.params = { ...f.params, context: "coinjoin" };
-        f.scoreImpact = 0;
-      }
-      // Timing analysis is meaningless for CoinJoin (participants broadcast together)
-      if (f.id === "timing-unconfirmed") {
-        f.severity = "low";
-        f.params = { ...f.params, context: "coinjoin" };
-        f.scoreImpact = 0;
-      }
-      // Fee fingerprinting reveals the coordinator, not the participant's wallet
-      if (f.id === "h6-round-fee-rate" || f.id === "h6-rbf-signaled" || f.id === "h6-cpfp-detected") {
-        f.severity = "low";
-        f.params = { ...f.params, context: "coinjoin" };
-        f.scoreImpact = 0;
-      }
-      // No anonymity set finding: CoinJoin structure itself provides privacy
-      // beyond simple output value matching, so the penalty is unwarranted.
-      // For Stonewall: the 2 equal outputs plus 2 distinct change outputs create
-      // higher effective ambiguity than the raw anonymity set of 2 suggests,
-      // because each change output could belong to either party.
-      if (f.id === "anon-set-none" || f.id === "anon-set-moderate") {
-        f.severity = "low";
-        if (isStonewall && f.id === "anon-set-moderate") {
-          f.params = { ...f.params, context: "stonewall" };
-          f.description =
-            f.description +
-            " In Stonewall, the 2 equal outputs plus 2 distinct change outputs create structural ambiguity:" +
-            " an observer cannot determine which change belongs to which equal-value output," +
-            " effectively raising the ambiguity beyond what the raw anonymity set of 2 suggests.";
-        } else {
-          f.params = { ...f.params, context: "coinjoin" };
-        }
-        f.scoreImpact = 0;
-      }
-      // Multisig/escrow detection is misleading in CoinJoin context -
-      // multisig inputs may belong to different participants
-      if (f.id.startsWith("h17-")) {
-        f.severity = "low";
-        f.params = { ...f.params, context: "coinjoin" };
-        f.scoreImpact = 0;
-      }
-      // Consolidation/batching/unnecessary input patterns are expected in CoinJoin
-      if (f.id.startsWith("consolidation-") || f.id === "unnecessary-input") {
-        f.severity = "low";
-        f.params = { ...f.params, context: "coinjoin" };
-        f.scoreImpact = 0;
-      }
-      // BIP69 ordering is coordinator-determined in CoinJoin, not a privacy signal
-      if (f.id === "bip69-detected") {
-        f.severity = "low";
-        f.params = { ...f.params, context: "coinjoin" };
-        f.scoreImpact = 0;
-      }
-      // Witness analysis reflects different participants' wallets, not a single user
-      if (f.id === "witness-mixed-types" || f.id === "witness-mixed-depths"
-        || f.id === "witness-mixed-sig-types" || f.id === "witness-deep-stack") {
-        f.severity = "low";
-        f.params = { ...f.params, context: "coinjoin" };
-        f.scoreImpact = 0;
-      }
-      // Coin selection patterns are coordinator-determined in CoinJoin
-      if (f.id.startsWith("h-coin-selection-")) {
-        f.severity = "low";
-        f.params = { ...f.params, context: "coinjoin" };
-        f.scoreImpact = 0;
-      }
-      // Linkability recommendations should not suggest CoinJoin when already CoinJoin.
-      // The findings themselves are valid (ambiguity is good), but the recommendation
-      // text needs to reflect post-mix best practices instead.
-      if (f.id === "linkability-ambiguous") {
-        f.recommendation =
-          "Good transaction privacy. To preserve this ambiguity, spend post-mix outputs " +
-          "one at a time and avoid consolidating them with non-CoinJoin UTXOs.";
-        f.params = { ...f.params, context: "coinjoin" };
-      }
-      if (f.id === "linkability-deterministic") {
-        f.recommendation =
-          "Deterministic links reduce CoinJoin effectiveness. Avoid consolidating " +
-          "mixed outputs with unmixed UTXOs. Spend post-mix outputs individually.";
-        f.params = { ...f.params, context: "coinjoin" };
-      }
-      if (f.id === "linkability-equal-subset") {
-        f.recommendation =
-          "Non-equal outputs in this CoinJoin are deterministically linked. " +
-          "This is expected for change/fee outputs. Spend mixed equal-value outputs " +
-          "individually to preserve the ambiguity set.";
-        f.params = { ...f.params, context: "coinjoin" };
-      }
-      // Peel chain findings are false positives on CoinJoin: post-mix outputs
-      // spent individually (1-in, 2-out) is the expected spending pattern, not
-      // a peel chain. Both the tx-level and chain-level findings are suppressed.
-      if (f.id === "peel-chain" || f.id === "chain-forward-peel") {
-        f.severity = "low";
-        f.params = { ...f.params, context: "coinjoin" };
-        f.scoreImpact = 0;
-      }
-      // OP_RETURN is intentionally NOT suppressed - protocol markers in CoinJoin
-      // are additional metadata that may fingerprint the coordinator or participants.
-      // Whirlpool uses OP_RETURN for pool-pairing; WabiSabi does not.
+function applyCoinJoinSuppressions(findings: Finding[], isStonewall: boolean): void {
+  for (const f of findings) {
+    // CIOH suppression for ALL CoinJoin types including Stonewall.
+    // Stonewall intentionally consolidates inputs to create the appearance
+    // of a multi-party CoinJoin - CIOH is the expected structure, not a leak.
+    if (f.id === "h3-cioh") {
+      const ctx = isStonewall ? "stonewall" : "coinjoin";
+      suppressFinding(f, ctx);
+      f.params = { ...f.params, _variant: ctx };
     }
+    // Round amounts in CoinJoin are the denomination, not a privacy leak.
+    // In Stonewall specifically, round amounts are hidden behind the equal-value pair structure.
+    if (f.id === "h1-round-amount" || f.id === "h1-round-usd-amount" || f.id === "h1-round-eur-amount") {
+      suppressFinding(f, isStonewall ? "stonewall" : "coinjoin");
+    }
+    // Change detection in CoinJoin is less reliable
+    // NOTE: h2-self-send is NOT suppressed - sending back to your own
+    // input address is a privacy failure even in CoinJoin context
+    if (f.id === "h2-change-detected") {
+      suppressFinding(f, "coinjoin");
+    }
+    // Script type mixing is expected in CoinJoin (participants use different wallets)
+    if (f.id === "script-mixed") {
+      suppressFinding(f, "coinjoin");
+    }
+    // Low entropy is unreliable for CoinJoin structures - the one-to-one
+    // assignment model doesn't capture many-to-many Boltzmann ambiguity
+    if (f.id === "h5-low-entropy") {
+      suppressFinding(f, "coinjoin");
+    }
+    // Entropy recommendation should reflect CoinJoin context.
+    // For Stonewall: the two pairs of equal outputs create more ambiguity
+    // than a normal 2-output payment (which has 0 bits entropy).
+    if (f.id === "h5-entropy") {
+      if (isStonewall) {
+        f.params = { ...f.params, context: "stonewall" };
+        // Enhance description to explain Stonewall's structural ambiguity
+        f.description =
+          f.description +
+          " In this Stonewall transaction, the two equal-value outputs create ambiguity about which is the real payment." +
+          " A normal 2-output payment has 0 bits (fully deterministic), so this entropy is a meaningful improvement.";
+      } else {
+        f.params = { ...f.params, context: "coinjoin" };
+      }
+    }
+    // Wallet fingerprint is less relevant for CoinJoin - but we can infer the wallet
+    // from the CoinJoin type detected by H4.
+    // For Stonewall specifically, nVersion=1 is INTENTIONAL fingerprint disruption
+    // by Samourai/Ashigaru - it should not be penalized.
+    if (f.id === "h11-wallet-fingerprint") {
+      f.severity = "low";
+      // Infer wallet from CoinJoin type
+      const isWabiSabi = findings.some(
+        (x) => x.id === "h4-coinjoin" && x.params?.isWabiSabi === 1,
+      );
+      const isWhirlpool = findings.some((x) => x.id === "h4-whirlpool");
+      if (isWabiSabi) {
+        f.params = { ...f.params, walletGuess: "Wasabi Wallet" };
+      } else if (isWhirlpool) {
+        f.params = { ...f.params, walletGuess: "Ashigaru/Sparrow" };
+      } else if (isStonewall) {
+        f.params = { ...f.params, walletGuess: "Ashigaru", intentionalFingerprint: 1 };
+      }
+      // Compose context: identified (if wallet known) or signals variant + coinjoin
+      const hasWallet = !!f.params?.walletGuess;
+      const base = hasWallet
+        ? "identified"
+        : ((f.params?.context as string) ?? "signals_other");
+      f.params = { ...f.params, context: `${base}_coinjoin` };
+      f.scoreImpact = 0;
+    }
+    // Dust outputs in CoinJoin may be coordinator fees (e.g. Whirlpool)
+    if (f.id === "dust-attack" || f.id === "dust-outputs") {
+      suppressFinding(f, "coinjoin");
+    }
+    // Timing analysis is meaningless for CoinJoin (participants broadcast together)
+    if (f.id === "timing-unconfirmed") {
+      suppressFinding(f, "coinjoin");
+    }
+    // Fee fingerprinting reveals the coordinator, not the participant's wallet
+    if (f.id === "h6-round-fee-rate" || f.id === "h6-rbf-signaled" || f.id === "h6-cpfp-detected") {
+      suppressFinding(f, "coinjoin");
+    }
+    // No anonymity set finding: CoinJoin structure itself provides privacy
+    // beyond simple output value matching, so the penalty is unwarranted.
+    // For Stonewall: the 2 equal outputs plus 2 distinct change outputs create
+    // higher effective ambiguity than the raw anonymity set of 2 suggests,
+    // because each change output could belong to either party.
+    if (f.id === "anon-set-none" || f.id === "anon-set-moderate") {
+      if (isStonewall && f.id === "anon-set-moderate") {
+        suppressFinding(f, "stonewall");
+        f.description =
+          f.description +
+          " In Stonewall, the 2 equal outputs plus 2 distinct change outputs create structural ambiguity:" +
+          " an observer cannot determine which change belongs to which equal-value output," +
+          " effectively raising the ambiguity beyond what the raw anonymity set of 2 suggests.";
+      } else {
+        suppressFinding(f, "coinjoin");
+      }
+    }
+    // Multisig/escrow detection is misleading in CoinJoin context -
+    // multisig inputs may belong to different participants
+    if (f.id.startsWith("h17-")) {
+      suppressFinding(f, "coinjoin");
+    }
+    // Consolidation/batching/unnecessary input patterns are expected in CoinJoin
+    if (f.id.startsWith("consolidation-") || f.id === "unnecessary-input") {
+      suppressFinding(f, "coinjoin");
+    }
+    // BIP69 ordering is coordinator-determined in CoinJoin, not a privacy signal
+    if (f.id === "bip69-detected") {
+      suppressFinding(f, "coinjoin");
+    }
+    // Witness analysis reflects different participants' wallets, not a single user
+    if (f.id === "witness-mixed-types" || f.id === "witness-mixed-depths"
+      || f.id === "witness-mixed-sig-types" || f.id === "witness-deep-stack") {
+      suppressFinding(f, "coinjoin");
+    }
+    // Coin selection patterns are coordinator-determined in CoinJoin
+    if (f.id.startsWith("h-coin-selection-")) {
+      suppressFinding(f, "coinjoin");
+    }
+    // Linkability recommendations should not suggest CoinJoin when already CoinJoin.
+    // The findings themselves are valid (ambiguity is good), but the recommendation
+    // text needs to reflect post-mix best practices instead.
+    if (f.id === "linkability-ambiguous") {
+      f.recommendation =
+        "Good transaction privacy. To preserve this ambiguity, spend post-mix outputs " +
+        "one at a time and avoid consolidating them with non-CoinJoin UTXOs.";
+      f.params = { ...f.params, context: "coinjoin" };
+    }
+    if (f.id === "linkability-deterministic") {
+      f.recommendation =
+        "Deterministic links reduce CoinJoin effectiveness. Avoid consolidating " +
+        "mixed outputs with unmixed UTXOs. Spend post-mix outputs individually.";
+      f.params = { ...f.params, context: "coinjoin" };
+    }
+    if (f.id === "linkability-equal-subset") {
+      f.recommendation =
+        "Non-equal outputs in this CoinJoin are deterministically linked. " +
+        "This is expected for change/fee outputs. Spend mixed equal-value outputs " +
+        "individually to preserve the ambiguity set.";
+      f.params = { ...f.params, context: "coinjoin" };
+    }
+    // Peel chain findings are false positives on CoinJoin: post-mix outputs
+    // spent individually (1-in, 2-out) is the expected spending pattern, not
+    // a peel chain. Both the tx-level and chain-level findings are suppressed.
+    if (f.id === "peel-chain" || f.id === "chain-forward-peel") {
+      suppressFinding(f, "coinjoin");
+    }
+    // OP_RETURN is intentionally NOT suppressed - protocol markers in CoinJoin
+    // are additional metadata that may fingerprint the coordinator or participants.
+    // Whirlpool uses OP_RETURN for pool-pairing; WabiSabi does not.
   }
+}
 
-  // Note: exchange-withdrawal-pattern is NOT suppressed for CoinJoin because
-  // it structurally cannot overlap: exchange withdrawals require <= 2 inputs
-  // while all CoinJoin types (Whirlpool, WabiSabi, JoinMarket, Stonewall)
-  // require 3+ inputs. Explicit suppression is unnecessary.
-
-  // Multisig script-type adjustment: multisig inputs inherently use different
-  // script types (P2SH/P2WSH) from single-sig outputs. The "script-mixed"
-  // penalty is misleading in this context - it's not a privacy leak but a
-  // structural property of multisig spending.
+/**
+ * Suppress findings that are structural properties of multisig spending
+ * rather than privacy leaks. Multisig inputs inherently use different script
+ * types (P2SH/P2WSH) from single-sig outputs.
+ */
+function applyMultisigSuppressions(findings: Finding[]): void {
   const hasMultisig = findings.some((f) => f.id.startsWith("h17-"));
-  if (hasMultisig) {
-    for (const f of findings) {
-      if (f.id === "script-mixed") {
-        f.severity = "low";
-        f.params = { ...f.params, context: "multisig" };
-        f.scoreImpact = 0;
-      }
-      // Multisig inherently combines UTXOs from different signing participants.
-      // CIOH and consolidation findings are structural, not privacy leaks.
-      if (f.id === "h3-cioh") {
-        f.severity = "low";
-        f.params = { ...f.params, context: "multisig" };
-        f.scoreImpact = 0;
-      }
-      if (f.id.startsWith("consolidation-")) {
-        f.severity = "low";
-        f.params = { ...f.params, context: "multisig" };
-        f.scoreImpact = 0;
-      }
+  if (!hasMultisig) return;
+
+  for (const f of findings) {
+    if (f.id === "script-mixed") {
+      suppressFinding(f, "multisig");
+    }
+    // Multisig inherently combines UTXOs from different signing participants.
+    // CIOH and consolidation findings are structural, not privacy leaks.
+    if (f.id === "h3-cioh") {
+      suppressFinding(f, "multisig");
+    }
+    if (f.id.startsWith("consolidation-")) {
+      suppressFinding(f, "multisig");
     }
   }
+}
 
+/**
+ * Deduplicate and reduce overlapping consolidation/CIOH/entropy findings.
+ * When multiple heuristics describe the same underlying multi-input pattern,
+ * keep the most informative one and suppress the rest.
+ */
+function applyConsolidationDedup(findings: Finding[], isCoinJoin: boolean): void {
   // CIOH + consolidation + unnecessary input dedup: when CIOH fires on a
   // non-CoinJoin tx, the consolidation and unnecessary-input findings are
   // redundant (they describe the same multi-input problem).
@@ -234,9 +206,7 @@ export function applyCrossHeuristicRules(findings: Finding[]): void {
   if (ciohFinding && !isCoinJoin) {
     for (const f of findings) {
       if (f.id === "unnecessary-input") {
-        f.severity = "low";
-        f.params = { ...f.params, context: "cioh-covers" };
-        f.scoreImpact = 0;
+        suppressFinding(f, "cioh-covers");
       }
       if (f.id.startsWith("consolidation-") && f.scoreImpact < -2) {
         f.params = { ...f.params, context: "cioh-covers" };
@@ -254,9 +224,7 @@ export function applyCrossHeuristicRules(findings: Finding[]): void {
   if (isConsolidationSelfSend) {
     for (const f of findings) {
       if (f.id === "h5-zero-entropy" || f.id === "h5-zero-entropy-sweep") {
-        f.severity = "low";
-        f.params = { ...f.params, context: "consolidation" };
-        f.scoreImpact = 0;
+        suppressFinding(f, "consolidation");
       }
     }
   }
@@ -268,7 +236,16 @@ export function applyCrossHeuristicRules(findings: Finding[]): void {
     const idx = findings.findIndex((f) => f.id === "h5-zero-entropy-sweep");
     if (idx !== -1) findings.splice(idx, 1);
   }
+}
 
+/**
+ * Apply compound scoring adjustments for corroborating heuristics:
+ * - RBF x Change detection boost
+ * - Multi-heuristic change detection confidence boost
+ * - Post-mix to known entity escalation
+ * - Post-mix backward CoinJoin dedup
+ */
+function applyCompoundScoringAdjustments(findings: Finding[]): void {
   // RBF x Change detection: RBF confirms which output is change. When both
   // h6-rbf-signaled and h2-change-detected fire, boost change confidence and
   // add compound note. RBF replacement reduces the change output value,
@@ -383,14 +360,19 @@ export function applyCrossHeuristicRules(findings: Finding[]): void {
       }
     }
   }
+}
 
-  // Wasabi fingerprint + address reuse paradox: Wasabi is designed to prevent
-  // address reuse, so detecting both signals is a contradiction worth flagging.
+/**
+ * Detect contradictions between wallet fingerprint signals and observed
+ * behavior. For example, Wasabi is designed to prevent address reuse, so
+ * seeing both signals together is a paradox worth flagging.
+ */
+function applyWalletContradictionRules(findings: Finding[]): void {
   const hasWasabiFingerprint = findings.some(
     (f) =>
       f.id === "h11-wallet-fingerprint" &&
       typeof f.params?.walletGuess === "string" &&
-      (f.params.walletGuess as string).toLowerCase().includes("wasabi"),
+      f.params.walletGuess.toLowerCase().includes("wasabi"),
   );
   const hasAddressReuse = findings.some(
     (f) => f.id === "h8-address-reuse" && f.scoreImpact < 0,
@@ -415,11 +397,14 @@ export function applyCrossHeuristicRules(findings: Finding[]): void {
       params: { context: "wasabi-reuse-paradox" },
     });
   }
+}
 
-  // Compound stacking: when a deterministic (100% certain) finding is present,
-  // ensure the score is capped at F (grade F = score < 25, meaning total impact
-  // from base 70 must be at least -46). Deterministic findings make all other
-  // privacy measures irrelevant - one certain link reveals everything.
+/**
+ * When a deterministic (100% certain) privacy failure is present, cap the
+ * score at F. Deterministic findings make all other privacy measures
+ * irrelevant - one certain link reveals everything.
+ */
+function applyDeterministicScoreCap(findings: Finding[]): void {
   // Only h2-same-address-io (partial self-send) is truly deterministic in the
   // Blockchair sense: change is revealed to third-party observers, leaking the
   // payment amount. Full self-sends (h2-self-send) have no external payment to
@@ -453,6 +438,42 @@ export function applyCrossHeuristicRules(findings: Finding[]): void {
       });
     }
   }
+}
+
+/**
+ * Cross-heuristic intelligence: adjust findings based on interactions
+ * between different heuristics. This runs after all heuristics complete.
+ */
+export function applyCrossHeuristicRules(findings: Finding[]): void {
+  const isCoinJoin = findings.some(isCoinJoinFinding);
+  const isStonewall = findings.some(
+    (f) => (f.id === "h4-stonewall" || f.id === "h4-simplified-stonewall") && f.scoreImpact > 0,
+  );
+
+  // 1. CoinJoin/Stonewall suppression
+  if (isCoinJoin) {
+    applyCoinJoinSuppressions(findings, isStonewall);
+  }
+
+  // Note: exchange-withdrawal-pattern is NOT suppressed for CoinJoin because
+  // it structurally cannot overlap: exchange withdrawals require <= 2 inputs
+  // while all CoinJoin types (Whirlpool, WabiSabi, JoinMarket, Stonewall)
+  // require 3+ inputs. Explicit suppression is unnecessary.
+
+  // 2. Multisig suppression
+  applyMultisigSuppressions(findings);
+
+  // 3. Consolidation/CIOH/entropy deduplication
+  applyConsolidationDedup(findings, isCoinJoin);
+
+  // 4. Compound scoring adjustments (RBF, corroboration, post-mix entity)
+  applyCompoundScoringAdjustments(findings);
+
+  // 5. Wallet fingerprint contradiction detection
+  applyWalletContradictionRules(findings);
+
+  // 6. Deterministic score cap
+  applyDeterministicScoreCap(findings);
 }
 
 /**

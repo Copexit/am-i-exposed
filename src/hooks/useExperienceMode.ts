@@ -27,8 +27,3 @@ export function useExperienceMode() {
 
   return { proMode, toggleMode, setProMode };
 }
-
-/** Non-React access for contexts outside component tree. */
-export function getExperienceMode(): boolean {
-  return store.getSnapshot();
-}

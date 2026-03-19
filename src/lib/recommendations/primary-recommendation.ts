@@ -63,12 +63,9 @@ export function selectRecommendations(
   const entityOrigin = ctx.entityOrigin
     ?? (entityInputFinding?.params?.entityName as string | undefined)
     ?? null;
-  const _entityCategory = ctx.entityCategory
-    ?? (entityInputFinding?.params?.category as string | undefined)
-    ?? null;
 
   if (entityOrigin && !hasCoinJoin) {
-    const entityName = ctx.entityOrigin;
+    const entityName = entityOrigin;
     const isExchange = ctx.entityCategory === "exchange" || ctx.entityCategory === "payment";
     const detail = isExchange
       ? `This transaction was constructed by ${entityName}. Privacy recommendations for transaction ` +

@@ -4,7 +4,7 @@ import Backend from "i18next-http-backend";
 import enCommon from "../../../public/locales/en/common.json";
 
 const SUPPORTED_LANGUAGES = ["en", "es", "pt", "de", "fr"] as const;
-type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
+export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 
 const LANGUAGE_STORAGE_KEY = "ami-language";
 

@@ -17,7 +17,7 @@ export interface AnalysisSettings {
   walletGapLimit: number;
   /** Persist API cache in IndexedDB across sessions (default true) */
   enableCache: boolean;
-  /** Boltzmann WASM computation timeout in seconds (1-120, default 30) */
+  /** Boltzmann WASM computation timeout in seconds (10-600, default 300) */
   boltzmannTimeout: number;
 }
 

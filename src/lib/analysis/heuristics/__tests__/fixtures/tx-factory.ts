@@ -4,6 +4,7 @@ import type {
   MempoolVout,
   MempoolAddress,
   MempoolUtxo,
+  MempoolOutspend,
 } from "@/lib/api/types";
 
 let addrCounter = 0;
@@ -117,4 +118,15 @@ export function makeOpReturnVout(data = "deadbeef"): MempoolVout {
     scriptpubkey_type: "op_return",
     value: 0,
   };
+}
+
+/** Create an outspend (default: unspent). */
+export function makeOutspend(overrides: Partial<MempoolOutspend> = {}): MempoolOutspend {
+  return { spent: false, txid: undefined, vin: undefined, status: undefined, ...overrides };
+}
+
+/** Build a bare multisig script ASM string: OP_PUSHNUM_M <keys> OP_PUSHNUM_N OP_CHECKMULTISIG. */
+export function makeMultisigAsm(m: number, keys: string[]): string {
+  const keyParts = keys.map((k) => `OP_PUSHBYTES_33 ${k}`).join(" ");
+  return `OP_PUSHNUM_${m} ${keyParts} OP_PUSHNUM_${keys.length} OP_CHECKMULTISIG`;
 }

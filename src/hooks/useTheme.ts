@@ -89,8 +89,3 @@ export function useTheme() {
 
   return { theme, setTheme, toggleTheme };
 }
-
-/** Non-React access for contexts outside component tree. */
-export function getTheme(): Theme {
-  return domTheme();
-}

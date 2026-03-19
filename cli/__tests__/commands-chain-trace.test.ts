@@ -2,7 +2,6 @@
  * Tests for the chain-trace command with mocked fetch.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import { makeTx, makeVin, makeVout } from "@/lib/analysis/heuristics/__tests__/fixtures/tx-factory";
 
 const mockFetch = vi.fn<typeof globalThis.fetch>();

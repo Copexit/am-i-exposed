@@ -15,13 +15,13 @@ beforeEach(() => resetAddrCounter());
 vi.useFakeTimers();
 
 describe("analyzeTransaction", () => {
-  it("runs all 25 TX heuristics and returns a scored result", async () => {
+  it("runs all 26 TX heuristics and returns a scored result", async () => {
     const tx = makeTx();
     const stepIds: string[] = [];
     const onStep = vi.fn((id: string) => stepIds.push(id));
 
     const resultPromise = analyzeTransaction(tx, undefined, onStep);
-    await vi.advanceTimersByTimeAsync(25 * 100);
+    await vi.advanceTimersByTimeAsync(26 * 100);
     const result = await resultPromise;
 
     expect(result.score).toBeGreaterThanOrEqual(0);
@@ -43,7 +43,7 @@ describe("analyzeTransaction", () => {
     const rawHex = sig + sig;
 
     const resultPromise = analyzeTransaction(tx, rawHex);
-    await vi.advanceTimersByTimeAsync(24 * 100);
+    await vi.advanceTimersByTimeAsync(26 * 100);
     const result = await resultPromise;
 
     const wf = result.findings.find((f) => f.id === "h11-wallet-fingerprint");

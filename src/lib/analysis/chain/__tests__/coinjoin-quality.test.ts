@@ -1,13 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { evaluateCoinJoinQuality } from "../coinjoin-quality";
-import { makeTx, makeVin, makeVout, resetAddrCounter } from "../../heuristics/__tests__/fixtures/tx-factory";
-import type { MempoolOutspend, MempoolTransaction } from "@/lib/api/types";
+import { makeTx, makeVin, makeVout, makeOutspend, resetAddrCounter } from "../../heuristics/__tests__/fixtures/tx-factory";
+import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 
 beforeEach(() => resetAddrCounter());
-
-function makeOutspend(overrides: Partial<MempoolOutspend> = {}): MempoolOutspend {
-  return { spent: false, txid: null as unknown as string | undefined, vin: undefined, status: undefined, ...overrides };
-}
 
 describe("evaluateCoinJoinQuality", () => {
   it("returns empty result when no CoinJoin inputs", () => {

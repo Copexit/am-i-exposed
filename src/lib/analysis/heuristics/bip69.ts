@@ -17,6 +17,34 @@ import { isCoinbase } from "./tx-utils";
  *
  * Impact: -2 (fingerprints wallet software)
  */
+/**
+ * Check if inputs and outputs follow BIP69 lexicographic ordering.
+ * BIP69: inputs sorted by txid then vout, outputs sorted by value then scriptpubkey.
+ *
+ * Shared utility used by both the BIP69 heuristic and wallet fingerprinting.
+ */
+export function checkBip69Ordering(
+  tx: { vin: Array<{ txid: string; vout: number }>; vout: Array<{ value: number; scriptpubkey: string }> },
+): boolean {
+  // Check input ordering: sorted by txid (ascending), then vout (ascending)
+  for (let i = 1; i < tx.vin.length; i++) {
+    const prev = tx.vin[i - 1];
+    const curr = tx.vin[i];
+    if (prev.txid > curr.txid) return false;
+    if (prev.txid === curr.txid && prev.vout > curr.vout) return false;
+  }
+
+  // Check output ordering: sorted by value (ascending), then scriptpubkey (ascending)
+  for (let i = 1; i < tx.vout.length; i++) {
+    const prev = tx.vout[i - 1];
+    const curr = tx.vout[i];
+    if (prev.value > curr.value) return false;
+    if (prev.value === curr.value && prev.scriptpubkey > curr.scriptpubkey) return false;
+  }
+
+  return true;
+}
+
 export const analyzeBip69: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
 
@@ -24,35 +52,8 @@ export const analyzeBip69: TxHeuristic = (tx) => {
   if (tx.vin.length < 2 && tx.vout.length < 2) return { findings };
   if (isCoinbase(tx)) return { findings };
 
-  // Check input ordering: sorted by txid (ascending), then vout (ascending)
-  let inputsSorted = true;
-  for (let i = 1; i < tx.vin.length; i++) {
-    const prev = tx.vin[i - 1];
-    const curr = tx.vin[i];
-    const cmp = prev.txid.localeCompare(curr.txid);
-    if (cmp > 0 || (cmp === 0 && prev.vout > curr.vout)) {
-      inputsSorted = false;
-      break;
-    }
-  }
-
-  // Check output ordering: sorted by value (ascending), then scriptpubkey (ascending)
   const spendable = tx.vout.filter((o) => o.value > 0);
-  let outputsSorted = true;
-  for (let i = 1; i < spendable.length; i++) {
-    const prev = spendable[i - 1];
-    const curr = spendable[i];
-    if (prev.value > curr.value) {
-      outputsSorted = false;
-      break;
-    }
-    if (prev.value === curr.value && prev.scriptpubkey.localeCompare(curr.scriptpubkey) > 0) {
-      outputsSorted = false;
-      break;
-    }
-  }
-
-  const isBip69 = inputsSorted && outputsSorted;
+  const isBip69 = checkBip69Ordering(tx);
 
   if (isBip69 && tx.vin.length >= 2 && spendable.length >= 2) {
     findings.push({

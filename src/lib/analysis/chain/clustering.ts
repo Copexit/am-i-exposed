@@ -10,7 +10,7 @@ import { isCoinJoinTx } from "../heuristics/coinjoin";
  * By following this across multiple transactions, we build an address cluster.
  */
 
-export interface ClusterResult {
+export interface ClusterAnalysisResult {
   findings: Finding[];
   /** All addresses in the cluster (including the seed address) */
   clusterAddresses: Set<string>;
@@ -32,13 +32,13 @@ type ClusterRiskTier =
  * @param seedAddress - Starting address
  * @param txsByAddress - Map of address -> transactions involving that address
  * @param maxDepth - Maximum expansion depth (default 2)
- * @returns ClusterResult with findings and cluster data
+ * @returns ClusterAnalysisResult with findings and cluster data
  */
 export function buildCluster(
   seedAddress: string,
   txsByAddress: Map<string, MempoolTransaction[]>,
   maxDepth = 2,
-): ClusterResult {
+): ClusterAnalysisResult {
   const findings: Finding[] = [];
   const cluster = new Set<string>();
   cluster.add(seedAddress);

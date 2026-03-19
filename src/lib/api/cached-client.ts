@@ -78,7 +78,7 @@ async function withIdbCache<T>(
     const ttl = ttlFn ? ttlFn(value) : undefined;
     // Negative TTL signals "don't cache this result"
     if (ttl === undefined || ttl >= 0) {
-      idbPut(key, value, ttl).catch(() => {});
+      idbPut(key, value, ttl).catch((e) => console.warn("cache write failed:", e));
     }
   }
   return value;

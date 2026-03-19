@@ -3,7 +3,7 @@ import type { Finding } from "@/lib/types";
 import type { MempoolVin, MempoolVout } from "@/lib/api/types";
 import { getAddressType } from "@/lib/bitcoin/address-type";
 import { isRoundAmount, getMatchingRoundFiat, ROUND_USD_TOLERANCE_DEFAULT, ROUND_USD_TOLERANCE_SELF_HOSTED } from "./round-amount";
-import { isCoinbase, getAddressedOutputs } from "./tx-utils";
+import { isCoinbase, getAddressedOutputs, isOpReturn } from "./tx-utils";
 
 /**
  * H2: Change Detection
@@ -65,7 +65,7 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
   // ── Data-attachment payment (1 spendable + OP_RETURN) ──────────
   // A tx with 1 spendable output and OP_RETURN data carrier (e.g. Omni, OpenTimestamps)
   // has a deterministic input-to-output link, similar to a sweep.
-  const hasOpReturn = tx.vout.some((o) => o.scriptpubkey.startsWith("6a"));
+  const hasOpReturn = tx.vout.some((o) => isOpReturn(o.scriptpubkey));
   if (!isSweep && spendableOutputs.length === 1 && hasOpReturn && tx.vin.length >= 1) {
     // Check if the single output goes back to an input address (self-send with data)
     const outputAddr = spendableOutputs[0].scriptpubkey_address;

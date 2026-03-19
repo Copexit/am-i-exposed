@@ -44,14 +44,12 @@ export const EXPANDED_PAD_V = 8;
 export const MAX_VISIBLE_PORTS = 20;
 /** Width of each port column (input or output). */
 export const PORT_COL_W = 135;
-/** Width of the center info area in expanded node. */
-export const CENTER_COL_W = EXPANDED_NODE_W - PORT_COL_W * 2;
 
 // ─── Heat map ───────────────────────────────────────────────────
 /** Heat map score thresholds and corresponding colors. */
 export const HEAT_TIERS: readonly { min: number; color: string }[] = [
   { min: 90, color: SVG_COLORS.good },
-  { min: 75, color: "#60a5fa" },   // blue-400
+  { min: 75, color: SVG_COLORS.low },
   { min: 50, color: SVG_COLORS.medium },
   { min: 25, color: SVG_COLORS.high },
 ];

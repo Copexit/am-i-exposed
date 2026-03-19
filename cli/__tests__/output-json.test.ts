@@ -1,7 +1,7 @@
 /**
  * Tests for JSON output - verifies the schema and data integrity.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import type { ScoringResult } from "@/lib/types";
 import type { PrimaryRec } from "@/lib/recommendations/primary-recommendation";
 import type { WalletAuditResult } from "@/lib/analysis/wallet-audit";

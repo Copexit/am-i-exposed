@@ -16,6 +16,7 @@ import type { Finding, Severity, Grade } from "@/lib/types";
 import { scoreToGrade } from "@/lib/scoring/score";
 import { sumImpact } from "@/lib/scoring/score";
 import { fmtN } from "@/lib/format";
+import { P2PKH_DUST_LIMIT, TOXIC_CHANGE_THRESHOLD } from "@/lib/constants";
 import type { MempoolAddress, MempoolTransaction, MempoolUtxo } from "@/lib/api/types";
 import type { DerivedAddress } from "@/lib/bitcoin/descriptor";
 
@@ -47,9 +48,6 @@ export interface WalletAuditResult {
 }
 
 // ---------- Analysis functions ----------
-
-/** P2WPKH relay dust limit (conservative default for wallet UTXO hygiene check). */
-const P2WPKH_DUST_LIMIT = 546;
 
 /** Check for address reuse across the wallet. */
 function checkAddressReuse(addresses: WalletAddressInfo[]): Finding[] {
@@ -103,7 +101,7 @@ function checkUtxoHygiene(addresses: WalletAddressInfo[]): Finding[] {
     for (const utxo of addr.utxos) {
       totalUtxos++;
       utxoValues.push(utxo.value);
-      if (utxo.value < P2WPKH_DUST_LIMIT) {
+      if (utxo.value < P2PKH_DUST_LIMIT) {
         dustCount++;
         dustValue += utxo.value;
       }
@@ -125,7 +123,7 @@ function checkUtxoHygiene(addresses: WalletAddressInfo[]): Finding[] {
       confidence: "deterministic",
       title: `${dustCount} dust UTXO${dustCount > 1 ? "s" : ""} (${fmtN(dustValue)} sats)`,
       description:
-        `The wallet contains ${dustCount} UTXO${dustCount > 1 ? "s" : ""} below the dust threshold (${P2WPKH_DUST_LIMIT} sats). ` +
+        `The wallet contains ${dustCount} UTXO${dustCount > 1 ? "s" : ""} below the dust threshold (${P2PKH_DUST_LIMIT} sats). ` +
         "Dust UTXOs are uneconomical to spend and can be used in dust attacks to track wallet activity.",
       recommendation:
         "Consolidate dust UTXOs into a larger output during low-fee periods, or ignore them entirely. " +
@@ -172,7 +170,7 @@ function checkUtxoHygiene(addresses: WalletAddressInfo[]): Finding[] {
   }
 
   // Check for very small change outputs (toxic change)
-  const toxicChange = utxoValues.filter(v => v > P2WPKH_DUST_LIMIT && v < 10_000);
+  const toxicChange = utxoValues.filter(v => v > P2PKH_DUST_LIMIT && v < TOXIC_CHANGE_THRESHOLD);
   if (toxicChange.length > 3) {
     findings.push({
       id: "wallet-toxic-change",
@@ -180,7 +178,7 @@ function checkUtxoHygiene(addresses: WalletAddressInfo[]): Finding[] {
       confidence: "medium",
       title: `${toxicChange.length} toxic change UTXOs detected`,
       description:
-        `The wallet has ${toxicChange.length} UTXOs between ${P2WPKH_DUST_LIMIT} and 10,000 sats. ` +
+        `The wallet has ${toxicChange.length} UTXOs between ${P2PKH_DUST_LIMIT} and ${fmtN(TOXIC_CHANGE_THRESHOLD)} sats. ` +
         "These 'toxic change' outputs are too small to spend economically but large enough " +
         "to link transactions if used as inputs.",
       recommendation:
@@ -335,7 +333,7 @@ export function auditWallet(addresses: WalletAddressInfo[]): WalletAuditResult {
     for (const utxo of addr.utxos) {
       totalUtxos++;
       totalBalance += utxo.value;
-      if (utxo.value < P2WPKH_DUST_LIMIT) dustUtxos++;
+      if (utxo.value < P2PKH_DUST_LIMIT) dustUtxos++;
     }
   }
 

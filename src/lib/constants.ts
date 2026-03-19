@@ -3,9 +3,6 @@ import type { Grade } from "@/lib/types";
 /** Number of satoshis per bitcoin. */
 export const SATS_PER_BTC = 100_000_000;
 
-/** Lightning address for tips / Value4Value. */
-export const LN_ADDRESS = "exposed@coinos.io";
-
 /** Coinos pay page accepting Bitcoin, Lightning, and Liquid. */
 export const COINOS_PAY_URL = "https://coinos.io/pay/exposed";
 
@@ -24,6 +21,16 @@ export const TXID_RE = /^[a-fA-F0-9]{64}$/;
  * separately in the dust-output heuristic (dust-output.ts).
  */
 export const DUST_THRESHOLD = 1000;
+
+/**
+ * P2PKH dust limit in satoshis (Bitcoin Core's minimum relay output value
+ * for legacy script types). Used for UTXO hygiene checks in wallet analysis.
+ */
+export const P2PKH_DUST_LIMIT = 546;
+
+/** Toxic change threshold in satoshis. UTXOs below this value but above dust
+ * are considered "toxic change" - economically marginal and privacy-risky. */
+export const TOXIC_CHANGE_THRESHOLD = 10_000;
 
 /** Whirlpool pool denominations in satoshis. */
 export const WHIRLPOOL_DENOMS = [

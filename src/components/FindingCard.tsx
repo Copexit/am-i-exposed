@@ -10,6 +10,7 @@ import { Tooltip } from "@/components/ui/Tooltip";
 import { truncateId } from "@/lib/constants";
 import { formatSats, fmtN } from "@/lib/format";
 import { copyToClipboard } from "@/lib/clipboard";
+import { findingKey } from "@/lib/finding-utils";
 
 /** Map finding IDs to relevant FAQ section anchors */
 const FINDING_LEARN_MORE: Record<string, { faqId: string; labelKey: string; labelDefault: string }> = {
@@ -21,12 +22,6 @@ const FINDING_LEARN_MORE: Record<string, { faqId: string; labelKey: string; labe
   "h5-entropy": { faqId: "coinjoin", labelKey: "learnMore.coinjoin", labelDefault: "How CoinJoin improves privacy" },
   "h5-low-entropy": { faqId: "coinjoin", labelKey: "learnMore.entropy", labelDefault: "Transaction entropy explained" },
 };
-
-/** Build i18n key for a finding field, appending _variant if present in params. */
-function findingKey(id: string, field: string, params?: Record<string, unknown>): string {
-  const variant = params?._variant;
-  return variant ? `finding.${id}.${field}.${variant}` : `finding.${id}.${field}`;
-}
 
 interface FindingCardProps {
   finding: Finding;

@@ -3,6 +3,7 @@
 import { lazy, Suspense } from "react";
 import { motion } from "motion/react";
 import { ChartErrorBoundary } from "../ui/ChartErrorBoundary";
+import { fadeUpVariants, fadeUpTransition } from "./animations";
 import type { ScoringResult } from "@/lib/types";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
@@ -28,7 +29,7 @@ export function DeepAnalysisTxid({
 }) {
   return (
     <>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.42 }} className="w-full">
+      <motion.div {...fadeUpVariants} transition={fadeUpTransition(0.42)} className="w-full">
         <ChartErrorBoundary>
           <Suspense fallback={null}>
             <TaintPathDiagram findings={result.findings} backwardLayers={backwardLayers} forwardLayers={forwardLayers} onTxClick={onScan} />
@@ -36,7 +37,7 @@ export function DeepAnalysisTxid({
         </ChartErrorBoundary>
       </motion.div>
       {txData && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.43 }} className="w-full">
+        <motion.div {...fadeUpVariants} transition={fadeUpTransition(0.43)} className="w-full">
           <ChartErrorBoundary>
             <Suspense fallback={null}>
               <LinkabilityHeatmap tx={txData} boltzmannResult={boltzmannResult} />

@@ -12,6 +12,7 @@
 
 import type { GraphNode } from "@/hooks/useGraphExpansion";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
+import { SVG_COLORS } from "../shared/svgConstants";
 
 /** Effective entropy per edge: the minimum entropy along the path from root. */
 export interface EdgeEntropy {
@@ -125,9 +126,9 @@ export function computeEntropyPropagation(
 /** Get a color for an effective entropy value (green = high privacy, red = collapsed). */
 export function entropyColor(normalized: number): string {
   // Green (high entropy/privacy) to red (zero entropy/collapsed)
-  if (normalized >= 0.8) return "#28d065";
-  if (normalized >= 0.6) return "#60a5fa";
-  if (normalized >= 0.4) return "#eab308";
-  if (normalized >= 0.2) return "#f97316";
-  return "#ef4444";
+  if (normalized >= 0.8) return SVG_COLORS.good;
+  if (normalized >= 0.6) return SVG_COLORS.low;
+  if (normalized >= 0.4) return SVG_COLORS.medium;
+  if (normalized >= 0.2) return SVG_COLORS.high;
+  return SVG_COLORS.critical;
 }

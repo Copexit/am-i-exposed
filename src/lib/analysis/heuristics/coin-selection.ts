@@ -1,5 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
+import { isOpReturn } from "./tx-utils";
 
 /**
  * Coin Selection Pattern Detection
@@ -20,7 +21,7 @@ export const analyzeCoinSelection: TxHeuristic = (tx) => {
 
   // Check for BnB (Branch and Bound) pattern: changeless transaction
   // BnB tries to find an exact-match input set that avoids creating change
-  const spendable = tx.vout.filter((o) => !o.scriptpubkey.startsWith("6a"));
+  const spendable = tx.vout.filter((o) => !isOpReturn(o.scriptpubkey));
   if (spendable.length === 1 && nonCoinbase.length >= 2) {
     // Multiple inputs, single output (no change) = likely BnB
     findings.push({

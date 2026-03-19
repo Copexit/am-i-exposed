@@ -110,8 +110,8 @@ function isUsed(info: WalletAddressInfo): boolean {
 function abortableDelay(ms: number, abortSignal: AbortSignal): Promise<void> {
   if (ms <= 0) return Promise.resolve();
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(resolve, ms);
     const onAbort = () => { clearTimeout(timer); reject(new DOMException("Aborted", "AbortError")); };
+    const timer = setTimeout(() => { abortSignal.removeEventListener("abort", onAbort); resolve(); }, ms);
     abortSignal.addEventListener("abort", onAbort, { once: true });
   });
 }
@@ -171,7 +171,11 @@ async function scanChain(
     // Rate limit for hosted APIs - skip delay on cache hits (IDB reads < 10ms)
     if (!isLocal && !wasCacheHit && consecutiveUnused < gapLimit) {
       const delayMs = fetchCount <= BURST_SIZE ? BURST_GAP_MS : SUSTAIN_DELAY_MS;
-      await abortableDelay(delayMs, signal).catch(() => {});
+      await abortableDelay(delayMs, signal).catch((e) => {
+        if (!(e instanceof DOMException && e.name === "AbortError")) {
+          console.warn("delay failed:", e);
+        }
+      });
     }
   }
 

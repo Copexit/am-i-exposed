@@ -1,5 +1,3 @@
-import type { AddressFilter, FilterStatus, FilterMeta } from "./types";
-
 /**
  * Lazy-loads the entity address filter on first use.
  *
@@ -15,9 +13,24 @@ import type { AddressFilter, FilterStatus, FilterMeta } from "./types";
  * Build pipeline: scripts/build-entity-filter.mjs -> public/data/
  */
 
+import type { AddressFilter, FilterMeta, FilterStatus } from "./types";
+import {
+  fnv1a,
+  normalizeAddress,
+  parseEntityIndex,
+  setEntityIndex,
+  createIndexBackedFilter,
+} from "./entity-index";
+import {
+  checkForFullDataUpdate as checkForFullDataUpdateImpl,
+  updateFullEntityData as updateFullEntityDataImpl,
+} from "./data-updater";
+
+// Re-export entity index lookup functions
+export { lookupEntityName, lookupEntityCategory } from "./entity-index";
+
 let filterInstance: AddressFilter | null = null;
 let filterStatus: FilterStatus = "idle";
-let filterError: string | null = null;
 
 let fullFilterInstance: AddressFilter | null = null;
 let fullFilterStatus: FilterStatus = "idle";
@@ -25,24 +38,6 @@ let fullFilterStatus: FilterStatus = "idle";
 const CORE_INDEX_PATH = "/data/entity-index.bin";
 const FULL_INDEX_PATH = "/data/entity-index-full.bin";
 const FULL_BLOOM_PATH = "/data/entity-filter-full.bin";
-
-// ───────────────── Entity name index ─────────────────
-
-/** Category byte -> EntityCategory string. Must match build script CATEGORY_BYTE. */
-const CATEGORY_FROM_BYTE = [
-  "exchange", "darknet", "scam", "gambling",
-  "payment", "mining", "mixer", "p2p", "unknown",
-] as const;
-
-interface EntityIndex {
-  names: string[];
-  categories: string[];
-  hashes: Uint32Array;
-  entityIds: Uint16Array;
-  hashSeed: number;
-}
-
-let entityIndexInstance: EntityIndex | null = null;
 
 /**
  * Get the current core filter status without triggering a load.
@@ -73,48 +68,7 @@ export function getFullFilterStatus(): FilterStatus {
   return fullFilterStatus;
 }
 
-// ───────────────── Hash and parse helpers ─────────────────
-
-/**
- * FNV-1a 32-bit hash with configurable seed.
- * Must match the build script implementation exactly.
- */
-function fnv1a(key: string, seed: number): number {
-  let h = seed;
-  for (let i = 0; i < key.length; i++) {
-    h ^= key.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
-/**
- * Normalize a Bitcoin address for filter lookup.
- * BIP-173: bech32 addresses are case-insensitive, stored lowercase.
- */
-function normalizeAddress(address: string): string {
-  if (address.startsWith("bc1") || address.startsWith("tb1")) {
-    return address.toLowerCase();
-  }
-  return address;
-}
-
-/**
- * Binary search a sorted Uint32Array for a target value.
- * Returns true if found.
- */
-function binarySearchHashes(hashes: Uint32Array, target: number): boolean {
-  let lo = 0;
-  let hi = hashes.length - 1;
-  while (lo <= hi) {
-    const mid = (lo + hi) >>> 1;
-    const midVal = hashes[mid];
-    if (midVal === target) return true;
-    if (midVal < target) lo = mid + 1;
-    else hi = mid - 1;
-  }
-  return false;
-}
+// ───────────────── Bloom filter parser ─────────────────
 
 /**
  * Parse filter header from an ArrayBuffer (Bloom filter binary format v2).
@@ -179,168 +133,10 @@ function parseBloomFilter(
   };
 }
 
-// ───────────────── Entity index parser ─────────────────
-
-/**
- * Parse an entity name index binary (format v1 or v2).
- *
- * Header (20 bytes): magic("EIDX",4) version(4) entryCount(4) nameCount(2) hashSeed(4) reserved(2)
- * Name table:
- *   v1: for each name: length(1) + UTF-8 bytes
- *   v2: for each name: length(1) + UTF-8 bytes + category(1)
- * Sorted index: for each entry: hash(4,LE) + entityId(2,LE)
- */
-function parseEntityIndex(buffer: ArrayBuffer): EntityIndex | null {
-  if (buffer.byteLength < 20) return null;
-
-  const bytes = new Uint8Array(buffer);
-  const view = new DataView(buffer);
-
-  // Check magic "EIDX"
-  if (bytes[0] !== 0x45 || bytes[1] !== 0x49 || bytes[2] !== 0x44 || bytes[3] !== 0x58) return null;
-
-  const version = view.getUint32(4, true);
-  if (version !== 1 && version !== 2) return null;
-
-  const entryCount = view.getUint32(8, true);
-  const nameCount = view.getUint16(12, true);
-  const hashSeed = view.getUint32(14, true);
-
-  // Parse name table
-  const names: string[] = [];
-  const categories: string[] = [];
-  const decoder = new TextDecoder();
-  let offset = 20;
-  for (let i = 0; i < nameCount; i++) {
-    if (offset >= buffer.byteLength) return null;
-    const len = bytes[offset];
-    offset++;
-    names.push(decoder.decode(bytes.slice(offset, offset + len)));
-    offset += len;
-    if (version >= 2) {
-      // v2: category byte follows the name
-      const catByte = bytes[offset] ?? 0;
-      categories.push(CATEGORY_FROM_BYTE[catByte] ?? "exchange");
-      offset++;
-    } else {
-      categories.push("exchange"); // v1 fallback
-    }
-  }
-
-  // Parse sorted index entries into typed arrays for fast binary search
-  const hashes = new Uint32Array(entryCount);
-  const entityIds = new Uint16Array(entryCount);
-  for (let i = 0; i < entryCount; i++) {
-    hashes[i] = view.getUint32(offset, true);
-    entityIds[i] = view.getUint16(offset + 4, true);
-    offset += 6;
-  }
-
-  return { names, categories, hashes, entityIds, hashSeed };
-}
-
-/**
- * Binary search the entity index for a given address hash.
- * Returns the entity ID index, or -1 if not found.
- */
-function searchEntityIndex(address: string): number {
-  if (!entityIndexInstance) return -1;
-
-  const { hashes, entityIds, hashSeed } = entityIndexInstance;
-  const hash = fnv1a(normalizeAddress(address), hashSeed);
-
-  let lo = 0;
-  let hi = hashes.length - 1;
-  while (lo <= hi) {
-    const mid = (lo + hi) >>> 1;
-    const midHash = hashes[mid];
-    if (midHash === hash) return entityIds[mid];
-    if (midHash < hash) lo = mid + 1;
-    else hi = mid - 1;
-  }
-
-  return -1;
-}
-
-/**
- * Look up an entity name for a given address using the entity index.
- * Returns the canonical entity name, or null if not found or index not loaded.
- */
-export function lookupEntityName(address: string): string | null {
-  const eid = searchEntityIndex(address);
-  if (eid < 0 || !entityIndexInstance) return null;
-  return eid < entityIndexInstance.names.length ? entityIndexInstance.names[eid] : null;
-}
-
-/**
- * Look up the category for a given address using the entity index.
- * Returns "exchange", "mining", "gambling", etc., or null if not found.
- */
-export function lookupEntityCategory(address: string): string | null {
-  const eid = searchEntityIndex(address);
-  if (eid < 0 || !entityIndexInstance) return null;
-  return eid < entityIndexInstance.categories.length ? entityIndexInstance.categories[eid] : null;
-}
-
-// ───────────────── Index-backed filter ─────────────────
-
-/**
- * Create an AddressFilter backed by a sorted entity index.
- * Optionally includes an overflow Bloom filter for addresses not in the index.
- *
- * For core: wraps entity index only (1M addresses, all named).
- * For full: wraps full index (10M named) + overflow Bloom (20M boolean).
- */
-function createIndexBackedFilter(
-  index: EntityIndex,
-  overflowBloom?: AddressFilter,
-): AddressFilter {
-  const addressCount = index.hashes.length + (overflowBloom?.meta.addressCount ?? 0);
-  return {
-    has(address: string): boolean {
-      const normalized = normalizeAddress(address);
-      const hash = fnv1a(normalized, index.hashSeed);
-      // Check index first (binary search on sorted hashes)
-      if (binarySearchHashes(index.hashes, hash)) return true;
-      // Fall back to overflow Bloom (no name, just "Known entity")
-      return overflowBloom?.has(address) ?? false;
-    },
-    meta: {
-      version: 1,
-      addressCount,
-      fpr: overflowBloom?.meta.fpr ?? 0,
-      buildDate: overflowBloom?.meta.buildDate ?? "",
-    },
-  };
-}
-
 // ───────────────── Streaming fetch helper ─────────────────
 
 /** Progress callback: received bytes and total bytes (0 if unknown). */
 export type ProgressCallback = (loaded: number, total: number) => void;
-
-// ───────────────── Data loader configuration ─────────────────
-
-/**
- * Override for fetchArrayBuffer, allowing non-browser environments (Node.js CLI)
- * to load entity data from the filesystem instead of browser fetch.
- */
-let fetchOverride: ((path: string) => Promise<ArrayBuffer | null>) | null =
-  null;
-
-/**
- * Configure how entity data files are loaded.
- * Call this before loadEntityFilter() to override the default browser fetch.
- *
- * @param opts.fetchFn - Custom function to load a binary file by path.
- *                       Receives the same path strings used internally
- *                       (e.g., "/data/entity-index.bin").
- */
-export function configureDataLoader(opts: {
-  fetchFn?: (path: string) => Promise<ArrayBuffer | null>;
-}): void {
-  fetchOverride = opts.fetchFn ?? null;
-}
 
 /**
  * Fetch a binary file with optional streaming progress.
@@ -350,9 +146,6 @@ async function fetchArrayBuffer(
   path: string,
   onProgress?: ProgressCallback,
 ): Promise<ArrayBuffer | null> {
-  // Allow CLI / Node.js to override the fetch mechanism
-  if (fetchOverride) return fetchOverride(path);
-
   const res = await fetch(path);
   if (!res.ok) return null;
 
@@ -411,15 +204,14 @@ export async function loadEntityFilter(): Promise<AddressFilter | null> {
     }
 
     // Set entity index for name lookups
-    entityIndexInstance = index;
+    setEntityIndex(index);
 
     // Create index-backed filter (no Bloom needed for core)
     filterInstance = createIndexBackedFilter(index);
     filterStatus = "ready";
     return filterInstance;
-  } catch (err) {
+  } catch {
     filterStatus = "error";
-    filterError = err instanceof Error ? err.message : "Failed to load filter";
     return null;
   }
 }
@@ -494,7 +286,7 @@ export async function loadFullEntityFilter(
     }
 
     // Replace entity index with full version
-    entityIndexInstance = fullIndex;
+    setEntityIndex(fullIndex);
 
     // Create combined filter (index + optional overflow Bloom)
     fullFilterInstance = createIndexBackedFilter(fullIndex, overflowBloom);
@@ -506,53 +298,13 @@ export async function loadFullEntityFilter(
   }
 }
 
-/**
- * Get the filter error message, if any.
- */
-export function getFilterError(): string | null {
-  return filterError;
-}
-
 // ───────────────── Data update check ─────────────────
-
-const DATA_CACHE_NAME = "ami-exposed-data";
 
 /**
  * Check if the server has newer full entity data than what's cached.
- * Sends a message to the service worker to compare cached ETags vs server.
- * Returns true if an update is available for the full database.
+ * Delegates to data-updater module.
  */
-export async function checkForFullDataUpdate(): Promise<boolean> {
-  try {
-    const reg = await navigator.serviceWorker?.ready;
-    if (!reg?.active) return false;
-
-    const channel = new MessageChannel();
-    const result = await new Promise<
-      Record<string, { cached: boolean; updateAvailable: boolean }>
-    >((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("timeout")), 10_000);
-      channel.port1.onmessage = (e) => {
-        clearTimeout(timeout);
-        resolve(e.data);
-      };
-      reg.active!.postMessage(
-        {
-          type: "CHECK_DATA_ETAGS",
-          paths: [FULL_INDEX_PATH, FULL_BLOOM_PATH],
-        },
-        [channel.port2],
-      );
-    });
-
-    return (
-      (result[FULL_INDEX_PATH]?.updateAvailable ?? false) ||
-      (result[FULL_BLOOM_PATH]?.updateAvailable ?? false)
-    );
-  } catch {
-    return false;
-  }
-}
+export const checkForFullDataUpdate = checkForFullDataUpdateImpl;
 
 /**
  * Force re-download of full entity data (clears cache, re-fetches).
@@ -561,18 +313,12 @@ export async function checkForFullDataUpdate(): Promise<boolean> {
 export async function updateFullEntityData(
   onProgress?: ProgressCallback,
 ): Promise<AddressFilter | null> {
-  // Clear cached full data so the SW fetches fresh copies
-  try {
-    const cache = await caches.open(DATA_CACHE_NAME);
-    await cache.delete(FULL_INDEX_PATH);
-    await cache.delete(FULL_BLOOM_PATH);
-  } catch {
-    // Cache API may not be available (e.g., private browsing)
-  }
-
-  // Reset state so loadFullEntityFilter re-fetches from network
-  fullFilterInstance = null;
-  fullFilterStatus = "idle";
-
-  return loadFullEntityFilter(onProgress);
+  return updateFullEntityDataImpl(
+    () => {
+      fullFilterInstance = null;
+      fullFilterStatus = "idle";
+    },
+    loadFullEntityFilter,
+    onProgress,
+  );
 }

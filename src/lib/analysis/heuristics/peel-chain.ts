@@ -1,7 +1,7 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import type { MempoolTransaction } from "@/lib/api/types";
-import { getAddressedOutputs } from "./tx-utils";
+import { getAddressedOutputs, isCoinbase } from "./tx-utils";
 
 /**
  * Peel Chain Detection
@@ -26,7 +26,7 @@ import { getAddressedOutputs } from "./tx-utils";
 
 /** Check if a transaction has the classic peel shape: 1 input, 2 spendable outputs. */
 function isPeelShape(tx: MempoolTransaction): boolean {
-  if (tx.vin.length !== 1 || tx.vin[0].is_coinbase) return false;
+  if (tx.vin.length !== 1 || isCoinbase(tx)) return false;
   return getAddressedOutputs(tx.vout).length === 2;
 }
 

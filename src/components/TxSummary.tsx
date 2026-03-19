@@ -4,8 +4,7 @@ import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { ArrowRight, Search } from "lucide-react";
 import type { MempoolTransaction } from "@/lib/api/types";
-import { formatTimeAgo } from "@/lib/i18n/format";
-import { formatSats, calcFeeRate, calcVsize } from "@/lib/format";
+import { formatSats, calcFeeRate, calcVsize, formatTimeAgo } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 
 interface TxSummaryProps {
@@ -254,7 +253,6 @@ function formatOutputAddr(vout: { scriptpubkey_address?: string; scriptpubkey_ty
     multisig: "Multisig",
     "p2ms": "Multisig",
     "nonstandard": "Non-standard",
-    "nulldata": "OP_RETURN",
     "witness_unknown": "Unknown witness",
   };
   return typeLabels[vout.scriptpubkey_type] ?? vout.scriptpubkey_type;

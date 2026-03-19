@@ -1,4 +1,5 @@
 import type { MempoolVin } from "@/lib/api/types";
+import { hexToBytes } from "./hex";
 
 export interface MultisigInfo {
   m: number;
@@ -63,12 +64,7 @@ function parseFromAsm(asm: string | undefined): { m: number; n: number } | null 
 function parseMultisigFromHex(hex: string): { m: number; n: number } | null {
   if (!hex || hex.length < 10) return null;
 
-  // Convert hex to bytes
-  const len = hex.length / 2;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
-  }
+  const bytes = hexToBytes(hex);
 
   // Must end with OP_CHECKMULTISIG (0xae)
   if (bytes[bytes.length - 1] !== 0xae) return null;

@@ -1,6 +1,5 @@
 import type { Grade, Severity } from "@/lib/types";
 import { GRADE_HEX } from "@/lib/constants";
-export { DUST_THRESHOLD } from "@/lib/constants";
 
 interface SurfaceColors {
   readonly background: string;
@@ -12,7 +11,7 @@ interface SurfaceColors {
   readonly surfaceElevated: string;
 }
 
-const DARK_SURFACES: SurfaceColors = {
+export const DARK_SURFACES: SurfaceColors = {
   background: "#0c0c0e",
   foreground: "#f0f0f2",
   muted: "#d4d4dc",

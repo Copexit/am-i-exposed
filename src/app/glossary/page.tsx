@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { ArrowLeft, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
+import { PageShell } from "@/components/PageShell";
 import { useTranslation } from "react-i18next";
 
 const GLOSSARY_ITEMS = [
@@ -313,17 +314,7 @@ export default function GlossaryPage() {
   }, [filter, t]);
 
   return (
-    <div className="flex-1 flex flex-col items-center px-4 py-8">
-      <div className="w-full max-w-4xl space-y-8">
-        {/* Back nav */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors py-2 -my-2"
-        >
-          <ArrowLeft size={16} />
-          {t("glossary.back", { defaultValue: "Back to scanner" })}
-        </Link>
-
+    <PageShell backLabel={t("glossary.back", { defaultValue: "Back to scanner" })} spacing="space-y-8">
         {/* Title + search */}
         <div className="space-y-4">
           <div className="space-y-3">
@@ -419,7 +410,6 @@ export default function GlossaryPage() {
             </Link>
           </div>
         </div>
-      </div>
-    </div>
+    </PageShell>
   );
 }

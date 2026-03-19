@@ -126,7 +126,7 @@ export async function idbGet<T>(key: string): Promise<T | undefined> {
     if (!entry) return undefined;
     if (entry.expiresAt > 0 && Date.now() > entry.expiresAt) {
       // Expired - delete asynchronously
-      idbDelete(key).catch(() => {});
+      idbDelete(key).catch((e) => console.warn("cache delete failed:", e));
       return undefined;
     }
     return entry.value as T;

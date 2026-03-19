@@ -8,6 +8,7 @@ import { ScoreDisplay } from "../ScoreDisplay";
 import { GlowCard } from "../ui/GlowCard";
 import { ChartErrorBoundary } from "../ui/ChartErrorBoundary";
 import { DestinationAlert } from "../DestinationAlert";
+import { fadeUpVariants, fadeUpTransition } from "./animations";
 import { getSummarySentiment } from "@/lib/scoring/score";
 import type { ScoringResult } from "@/lib/types";
 import type { PreSendResult } from "@/lib/analysis/orchestrator";
@@ -44,9 +45,8 @@ export function ScoreAlertBlock({
         <div className="w-full flex flex-col gap-3 sm:gap-4">
           {result.grade === "F" && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.05 }}
+              {...fadeUpVariants}
+              transition={fadeUpTransition(0.05)}
               className="w-full bg-severity-critical/10 border border-severity-critical/30 rounded-xl p-4 flex items-start gap-3"
             >
               <AlertTriangle size={18} className="text-severity-critical shrink-0 mt-0.5" />
@@ -73,7 +73,7 @@ export function ScoreAlertBlock({
             };
             const colors = colorMap[sentiment];
             return (
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.05 }} className={`w-full rounded-xl border px-4 py-3 ${colors.border}`}>
+              <motion.div {...fadeUpVariants} transition={fadeUpTransition(0.05)} className={`w-full rounded-xl border px-4 py-3 ${colors.border}`}>
                 <p className={`text-base font-medium ${colors.text}`}>
                   {sentiment === "positive"
                     ? t("results.summaryGood", { defaultValue: "No significant privacy concerns detected." })

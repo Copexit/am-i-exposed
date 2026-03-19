@@ -1,7 +1,7 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { fmtN } from "@/lib/format";
-import { isCoinbase, getValuedOutputs } from "./tx-utils";
+import { isCoinbase, getValuedOutputs, extractOpReturnData } from "./tx-utils";
 
 /**
  * BIP47 Notification Transaction Detection
@@ -37,7 +37,7 @@ export const analyzeBip47Notification: TxHeuristic = (tx) => {
   if (opReturnOutputs.length !== 1) return { findings };
 
   const opReturn = opReturnOutputs[0];
-  const dataHex = extractPaymentCodeData(opReturn.scriptpubkey);
+  const dataHex = extractOpReturnData(opReturn.scriptpubkey);
 
   // BIP47 payment code is exactly 80 bytes = 160 hex characters
   if (dataHex.length !== 160) return { findings };
@@ -123,28 +123,3 @@ export const analyzeBip47Notification: TxHeuristic = (tx) => {
   return { findings };
 };
 
-/**
- * Extract the data portion after OP_RETURN opcode and push length bytes.
- * Returns the raw hex data payload.
- */
-function extractPaymentCodeData(scriptpubkey: string): string {
-  // scriptpubkey starts with 6a (OP_RETURN)
-  if (!scriptpubkey.startsWith("6a")) return "";
-
-  let offset = 2;
-  if (offset >= scriptpubkey.length) return "";
-
-  const pushByte = parseInt(scriptpubkey.slice(offset, offset + 2), 16);
-  if (pushByte <= 0x4b) {
-    // Direct push: 1-byte length
-    offset += 2;
-  } else if (pushByte === 0x4c) {
-    // OP_PUSHDATA1: length in next byte
-    offset += 4;
-  } else if (pushByte === 0x4d) {
-    // OP_PUSHDATA2: length in next 2 bytes
-    offset += 6;
-  }
-
-  return scriptpubkey.slice(offset);
-}

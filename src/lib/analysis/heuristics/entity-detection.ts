@@ -1,7 +1,7 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { matchEntitySync, detectEntityBehavior } from "../entity-filter/entity-match";
-import { getFilter, getFilterStatus } from "../entity-filter/filter-loader";
+import { getFilter } from "../entity-filter/filter-loader";
 import { isCoinbase } from "./tx-utils";
 
 /**
@@ -27,9 +27,6 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
 
   // Skip coinbase transactions (mining reward, no entity concern)
   if (isCoinbase(tx)) return { findings };
-
-  // Skip if filter is not ready (don't block analysis on filter loading)
-  const filterReady = getFilterStatus() === "ready" || getFilter() !== null;
 
   // Collect all addresses with their roles (input vs output)
   const inputAddresses = new Set<string>();
@@ -201,11 +198,6 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
         scoreImpact: -1,
       });
     }
-  }
-
-  // Add filter status note if filter is not loaded
-  if (!filterReady && entityInputs.length === 0 && entityOutputs.length === 0) {
-    // Don't add a finding - just skip silently. The filter loads lazily.
   }
 
   return { findings };

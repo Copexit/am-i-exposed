@@ -6,13 +6,12 @@ import { ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { FindingCard } from "./FindingCard";
 import { CHAIN_FINDING_IDS } from "./ChainAnalysisPanel";
-import type { Finding, Grade } from "@/lib/types";
+import type { Finding } from "@/lib/types";
 
 interface FindingsTierProps {
   findings: Finding[];
   label: string;
   defaultOpen: boolean;
-  grade: Grade;
   delay: number;
   /** Callback when user clicks a txid link inside a finding card. */
   onTxClick?: (txid: string) => void;
@@ -20,7 +19,7 @@ interface FindingsTierProps {
   proMode?: boolean;
 }
 
-export function FindingsTier({ findings, label, defaultOpen, grade: _grade, delay, onTxClick, proMode = false }: FindingsTierProps) {
+export function FindingsTier({ findings, label, defaultOpen, delay, onTxClick, proMode = false }: FindingsTierProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(defaultOpen);
 

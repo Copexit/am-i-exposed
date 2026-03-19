@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 import { Clock, X } from "lucide-react";
 import type { RecentScan } from "@/hooks/useRecentScans";
 import { useTranslation } from "react-i18next";
-import { formatTimeAgo } from "@/lib/i18n/format";
+import { formatTimeAgo } from "@/lib/format";
 import { gradeColor, truncateId } from "@/lib/constants";
 
 interface RecentScansProps {

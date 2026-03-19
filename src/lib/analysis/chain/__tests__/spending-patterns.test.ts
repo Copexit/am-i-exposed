@@ -10,16 +10,13 @@ import {
   makeTx,
   makeVin,
   makeVout,
+  makeOutspend,
   resetAddrCounter,
 } from "../../heuristics/__tests__/fixtures/tx-factory";
 import { WHIRLPOOL_DENOMS } from "@/lib/constants";
-import type { MempoolOutspend, MempoolTransaction } from "@/lib/api/types";
+import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 
 beforeEach(() => resetAddrCounter());
-
-function makeOutspend(overrides: Partial<MempoolOutspend> = {}): MempoolOutspend {
-  return { spent: false, txid: undefined, vin: undefined, status: undefined, ...overrides };
-}
 
 describe("detectPartialSpendWarning", () => {
   it("flags near-exact spend when change < 5% of input", () => {

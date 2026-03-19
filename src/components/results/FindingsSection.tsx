@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { FindingCard } from "../FindingCard";
 import { CHAIN_FINDING_IDS } from "../ChainAnalysisPanel";
+import { fadeUpVariants, fadeUpTransition } from "./animations";
 import type { ScoringResult } from "@/lib/types";
 
 function FindingSummary({ findings }: { findings: ScoringResult["findings"] }) {
@@ -41,7 +42,7 @@ export function FindingsSection({
   if (issues.length === 0) return null;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay }} className="w-full space-y-4">
+    <motion.div {...fadeUpVariants} transition={fadeUpTransition(delay)} className="w-full space-y-4">
       <div className="flex items-center justify-between px-1">
         <h2 className="text-base font-medium text-muted uppercase tracking-wider">
           {t("results.findingsHeading", { count: visibleFindings.length, defaultValue: "Findings ({{count}})" })}

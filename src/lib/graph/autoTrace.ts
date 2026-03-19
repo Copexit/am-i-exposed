@@ -76,7 +76,7 @@ export function identifyChangeOutput(tx: MempoolTransaction): ChangeOutputResult
   // Priority 1: same-address-io (deterministic)
   const sameAddrFinding = cdResult.findings.find((f) => f.id === "h2-same-address-io");
   if (sameAddrFinding?.params) {
-    const indicesStr = (sameAddrFinding.params as Record<string, unknown>).selfSendIndices;
+    const indicesStr = sameAddrFinding.params.selfSendIndices;
     if (typeof indicesStr === "string" && indicesStr.length > 0) {
       const indices = indicesStr.split(",").map(Number).filter((n) => !isNaN(n));
       if (indices.length === 1) {
@@ -94,9 +94,9 @@ export function identifyChangeOutput(tx: MempoolTransaction): ChangeOutputResult
   // Priority 2: h2-change-detected (heuristic consensus)
   const changeFinding = cdResult.findings.find((f) => f.id === "h2-change-detected");
   if (changeFinding?.params) {
-    const idx = (changeFinding.params as Record<string, unknown>).changeIndex;
+    const idx = changeFinding.params.changeIndex;
     if (typeof idx === "number") {
-      const confidence = (changeFinding.params as Record<string, unknown>).confidence;
+      const confidence = changeFinding.params.confidence;
       return {
         changeOutputIndex: idx,
         reason: "change-detected",

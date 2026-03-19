@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "node scripts/generate-sitemap.mjs && next build",
-    "start": "next start",
+    "start": "npx serve out",
     "lint": "eslint",
     "type-check": "tsc --noEmit",
     "test": "vitest run",

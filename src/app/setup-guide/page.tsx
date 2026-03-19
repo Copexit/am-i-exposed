@@ -1,38 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft, AlertTriangle, Terminal, Shield, Globe, Copy } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { AlertTriangle, Terminal, Shield, Globe } from "lucide-react";
+import { PageShell } from "@/components/PageShell";
+import { CopyButton } from "@/components/ui/CopyButton";
 import { useTranslation } from "react-i18next";
-import { copyToClipboard } from "@/lib/clipboard";
-
-function CopyButton({ text }: { text: string }) {
-  const { t } = useTranslation();
-  const [copied, setCopied] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  useEffect(() => () => clearTimeout(timerRef.current), []);
-  return (
-    <button
-      onClick={async () => {
-        const ok = await copyToClipboard(text);
-        if (ok) {
-          setCopied(true);
-          clearTimeout(timerRef.current);
-          timerRef.current = setTimeout(() => setCopied(false), 2000);
-        }
-      }}
-      className="absolute top-1 right-1 text-muted hover:text-foreground transition-colors cursor-pointer p-4 rounded bg-surface-elevated/50"
-      aria-label={t("common.copy", { defaultValue: "Copy" })}
-    >
-      <Copy size={12} />
-      {copied && (
-        <span className="absolute -top-6 right-0 text-[10px] text-severity-good whitespace-nowrap">
-          {t("common.copied", { defaultValue: "Copied" })}
-        </span>
-      )}
-    </button>
-  );
-}
 
 const CORS_SNIPPET = `# Add these lines inside your existing location /api/ { } block
 add_header 'Access-Control-Allow-Origin' '*' always;
@@ -53,17 +24,7 @@ export default function SetupGuidePage() {
   const { t } = useTranslation();
 
   return (
-    <div className="flex-1 flex flex-col items-center px-4 py-8">
-      <div className="w-full max-w-4xl space-y-10">
-        {/* Back nav */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-foreground transition-colors py-2 -my-2"
-        >
-          <ArrowLeft size={16} />
-          {t("setup.back", { defaultValue: "Back to scanner" })}
-        </Link>
-
+    <PageShell backLabel={t("setup.back", { defaultValue: "Back to scanner" })}>
         {/* Title */}
         <div className="space-y-3">
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
@@ -553,17 +514,6 @@ docker run -v $(pwd)/nginx-mempool.conf:/etc/nginx/conf.d/nginx-mempool.conf ...
           </div>
         </section>
 
-        {/* Back to scanner */}
-        <div className="flex items-center justify-center py-4">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-bitcoin/10 border border-bitcoin/20 hover:border-bitcoin/40 text-bitcoin hover:text-bitcoin-hover transition-all text-sm"
-          >
-            <ArrowLeft size={14} />
-            {t("setup.back", { defaultValue: "Back to scanner" })}
-          </Link>
-        </div>
-      </div>
-    </div>
+    </PageShell>
   );
 }

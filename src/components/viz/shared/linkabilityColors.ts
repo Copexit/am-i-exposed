@@ -6,7 +6,7 @@
 type ColorStop = [number, [number, number, number]];
 
 /** Dark-mode gradient: dark navy to hot red. */
-export const COLOR_STOPS: ColorStop[] = [
+const COLOR_STOPS: ColorStop[] = [
   [0.00, [17,  24,  39 ]],  // #111827 dark navy
   [0.10, [13,  59,  79 ]],  // #0d3b4f deep teal
   [0.25, [6,   95,  70 ]],  // #065f46 dark emerald

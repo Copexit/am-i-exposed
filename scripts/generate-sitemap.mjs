@@ -10,6 +10,7 @@ const PAGES = [
   { path: "/about/", priority: "0.6", changefreq: "monthly", source: "src/app/about/page.tsx" },
   { path: "/faq/", priority: "0.7", changefreq: "monthly", source: "src/app/faq/page.tsx" },
   { path: "/glossary/", priority: "0.7", changefreq: "monthly", source: "src/app/glossary/page.tsx" },
+  { path: "/guide/", priority: "0.8", changefreq: "monthly", source: "src/app/guide/page.tsx" },
 ];
 
 function getLastMod(file) {

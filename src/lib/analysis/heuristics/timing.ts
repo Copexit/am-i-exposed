@@ -1,5 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
+import { isCoinbase } from "./tx-utils";
 
 /**
  * Timing Analysis
@@ -15,7 +16,7 @@ export const analyzeTiming: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
 
   // Coinbase transactions have no privacy implications for timing
-  if (tx.vin.length === 1 && tx.vin[0].is_coinbase) return { findings };
+  if (isCoinbase(tx)) return { findings };
 
   const { status } = tx;
 

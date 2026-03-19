@@ -1,6 +1,7 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { DUST_THRESHOLD } from "@/lib/constants";
+import { isCoinbase } from "./tx-utils";
 
 /**
  * Dust Output Detection (transaction level)
@@ -41,7 +42,7 @@ export const analyzeDustOutputs: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
 
   // Coinbase transactions can have small outputs (fees); not a dust attack
-  if (tx.vin.length === 1 && tx.vin[0].is_coinbase) return { findings };
+  if (isCoinbase(tx)) return { findings };
 
   // Collect dust outputs with their vout indices, using per-script-type thresholds
   const dustEntries: { index: number; value: number; belowEconThreshold: boolean }[] = [];
