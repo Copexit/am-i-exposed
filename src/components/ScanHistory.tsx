@@ -149,7 +149,7 @@ export const ScanHistory = memo(function ScanHistory({
               <span className="text-muted">({scans.length})</span>
             )}
           </button>
-          <button
+          {(bookmarks.length > 0 || onExportBookmarks) && <button
             id="tab-bookmarks"
             role="tab"
             aria-selected={tab === "bookmarks"}
@@ -167,7 +167,7 @@ export const ScanHistory = memo(function ScanHistory({
             {bookmarks.length > 0 && (
               <span className="text-muted">({bookmarks.length})</span>
             )}
-          </button>
+          </button>}
           {examples.length > 0 && (
             <button
               id="tab-examples"
