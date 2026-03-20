@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
+import { KnowledgeTabBar } from "@/components/KnowledgeTabBar";
 import { useTranslation } from "react-i18next";
 import { AnimatePresence, motion } from "motion/react";
 
@@ -122,6 +123,8 @@ export default function FaqPage() {
 
   return (
     <PageShell backLabel={t("faq.back", { defaultValue: "Back to scanner" })}>
+        <KnowledgeTabBar />
+
         {/* Title */}
         <div className="space-y-3">
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">

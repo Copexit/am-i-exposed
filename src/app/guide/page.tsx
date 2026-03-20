@@ -10,6 +10,7 @@ import { WalletComparison } from "@/components/guide/WalletComparison";
 import { GuideMistakes } from "@/components/guide/GuideMistakes";
 import { RecoveryPlaybook } from "@/components/guide/RecoveryPlaybook";
 import { MaintenanceSection } from "@/components/guide/MaintenanceSection";
+import { KnowledgeTabBar } from "@/components/KnowledgeTabBar";
 
 export default function GuidePage() {
   const { t } = useTranslation();
@@ -34,6 +35,8 @@ export default function GuidePage() {
 
   return (
     <PageShell backLabel={t("guide.back", { defaultValue: "Back to scanner" })}>
+        <KnowledgeTabBar />
+
         {/* Title */}
         <div>
           <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-3">

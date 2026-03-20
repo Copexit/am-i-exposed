@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Search, X } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
+import { KnowledgeTabBar } from "@/components/KnowledgeTabBar";
 import { useTranslation } from "react-i18next";
 
 const GLOSSARY_ITEMS = [
@@ -315,6 +316,8 @@ export default function GlossaryPage() {
 
   return (
     <PageShell backLabel={t("glossary.back", { defaultValue: "Back to scanner" })} spacing="space-y-8">
+        <KnowledgeTabBar />
+
         {/* Title + search */}
         <div className="space-y-4">
           <div className="space-y-3">

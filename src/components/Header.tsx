@@ -5,17 +5,18 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
-import { Menu, X, BookOpen, HelpCircle, FileText, Info, Shield } from "lucide-react";
+import { Menu, X, FileText, Info, Shield } from "lucide-react";
 import { ConnectionBadge } from "./ConnectionBadge";
 import { ApiSettings } from "./ApiSettings";
 import { ExperienceModeToggle } from "./ExperienceModeToggle";
 import { useDevMode } from "@/hooks/useDevMode";
 
+/** Knowledge section paths grouped under the Guide nav item. */
+const KNOWLEDGE_PATHS = new Set(["/guide", "/faq", "/glossary"]);
+
 const NAV_ITEMS = [
   { href: "/guide/", labelKey: "common.guide", labelDefault: "Guide", icon: Shield },
   { href: "/methodology/", labelKey: "common.methodology", labelDefault: "Methodology", icon: FileText },
-  { href: "/faq/", labelKey: "common.faq", labelDefault: "FAQ", icon: HelpCircle },
-  { href: "/glossary/", labelKey: "common.glossary", labelDefault: "Glossary", icon: BookOpen },
   { href: "/about/", labelKey: "common.about", labelDefault: "About", icon: Info },
 ];
 
@@ -53,6 +54,8 @@ export function Header() {
   const isActive = (href: string) => {
     const normalized = currentPath.replace(/\/$/, "") || "/";
     const target = href.replace(/\/$/, "") || "/";
+    // Guide nav item highlights for all knowledge section pages
+    if (target === "/guide" && KNOWLEDGE_PATHS.has(normalized)) return true;
     return normalized === target;
   };
 
