@@ -243,6 +243,26 @@ export function GraphExplorer(props: GraphExplorerProps) {
     setViewTransform(computeFitTransform(gw, gh, cw, ch));
   }, [props.nodes, props.rootTxid, filter, props.rootTxids]);
 
+  // Auto-center root node on mount in alwaysFullscreen mode
+  const didAutoCenter = useRef(false);
+  useEffect(() => {
+    if (!props.alwaysFullscreen || didAutoCenter.current || props.nodes.size === 0) return;
+    didAutoCenter.current = true;
+    // Delay to let the layout compute after first render
+    const timer = setTimeout(() => {
+      const { layoutNodes: ln } = layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids);
+      const roots = ln.filter((n) => n.isRoot);
+      const cw = window.innerWidth - 32;
+      const ch = window.innerHeight - 160;
+      if (roots.length > 0) {
+        const avgX = roots.reduce((s, n) => s + n.x + n.width / 2, 0) / roots.length;
+        const avgY = roots.reduce((s, n) => s + n.y + n.height / 2, 0) / roots.length;
+        setViewTransform({ x: cw / 2 - avgX, y: ch / 2 - avgY, scale: 1 });
+      }
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [props.alwaysFullscreen, props.nodes, props.rootTxid, filter, props.rootTxids]);
+
   // ─── Global keyboard shortcuts for graph modes ───────
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -429,7 +449,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
   // Standalone fullscreen mode (e.g. /graph page) - no modal, no inline card
   if (props.alwaysFullscreen) {
     return (
-      <div className="flex flex-col h-full bg-card-bg">
+      <div className="flex flex-col h-full">
         <div className="p-4 pr-14 space-y-2 shrink-0">
           <GraphToolbar
             {...toolbarProps}

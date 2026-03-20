@@ -112,12 +112,14 @@ export function Header() {
             <nav className="hidden sm:flex items-center gap-0.5 ml-4 relative" aria-label="Main navigation">
               {NAV_ITEMS.filter((item) => !item.proOnly || proMode).map((item) => {
                 const active = isActive(item.href);
+                const Icon = item.icon;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     aria-current={active ? "page" : undefined}
-                    className={`relative text-sm px-3 py-2 rounded-lg transition-colors ${
+                    aria-label={t(item.labelKey, { defaultValue: item.labelDefault })}
+                    className={`relative text-sm px-2.5 lg:px-3 py-2 rounded-lg transition-colors ${
                       active
                         ? "text-foreground"
                         : "text-muted hover:text-foreground hover:bg-foreground/5"
@@ -130,8 +132,11 @@ export function Header() {
                         transition={{ type: "spring", stiffness: 380, damping: 30 }}
                       />
                     )}
-                    <span className="relative z-10">
-                      {t(item.labelKey, { defaultValue: item.labelDefault })}
+                    <span className="relative z-10 flex items-center gap-1.5">
+                      <Icon size={14} />
+                      <span className="hidden lg:inline">
+                        {t(item.labelKey, { defaultValue: item.labelDefault })}
+                      </span>
                     </span>
                   </Link>
                 );

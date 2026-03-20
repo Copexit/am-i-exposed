@@ -13,7 +13,7 @@ const TABS = [
 
 /**
  * Shared tab bar for knowledge pages (Guide, FAQ, Glossary).
- * Renders at the top of each page, between the back link and the title.
+ * Shows icon + label on desktop, icon-only on mobile.
  */
 export function KnowledgeTabBar() {
   const { t } = useTranslation();
@@ -35,14 +35,17 @@ export function KnowledgeTabBar() {
             key={tab.href}
             href={tab.href}
             aria-current={active ? "page" : undefined}
-            className={`flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg transition-colors ${
+            aria-label={t(tab.labelKey, { defaultValue: tab.labelDefault })}
+            className={`flex items-center gap-1.5 text-sm px-2.5 sm:px-3 py-2 rounded-lg transition-colors ${
               active
                 ? "text-foreground bg-bitcoin/15 border border-bitcoin/30"
                 : "text-muted hover:text-foreground hover:bg-foreground/5 border border-transparent"
             }`}
           >
             <Icon size={14} />
-            {t(tab.labelKey, { defaultValue: tab.labelDefault })}
+            <span className="hidden sm:inline">
+              {t(tab.labelKey, { defaultValue: tab.labelDefault })}
+            </span>
           </Link>
         );
       })}
