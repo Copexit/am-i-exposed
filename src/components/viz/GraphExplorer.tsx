@@ -241,10 +241,23 @@ export function GraphExplorer(props: GraphExplorerProps) {
   }, [expandFullscreen, props.nodes, props.rootTxid, filter, props.rootTxids]);
 
   const handleFitView = useCallback(() => {
-    const { width: gw, height: gh } = layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids, undefined, true);
+    const { layoutNodes: ln } = layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids, undefined, true);
+    if (ln.length === 0) return;
+    // Compute tight bounding box around actual nodes (ignores empty padding)
+    const minX = Math.min(...ln.map((n) => n.x));
+    const minY = Math.min(...ln.map((n) => n.y));
+    const maxX = Math.max(...ln.map((n) => n.x + n.width));
+    const maxY = Math.max(...ln.map((n) => n.y + n.height));
+    const nodesW = maxX - minX;
+    const nodesH = maxY - minY;
     const cw = window.innerWidth - 32;
     const ch = window.innerHeight - 160;
-    setViewTransform(computeFitTransform(gw, gh, cw, ch));
+    const s = Math.min(cw / nodesW, ch / nodesH, 1.5);
+    setViewTransform({
+      x: (cw - nodesW * s) / 2 - minX * s,
+      y: (ch - nodesH * s) / 2 - minY * s,
+      scale: s,
+    });
   }, [props.nodes, props.rootTxid, filter, props.rootTxids]);
 
   // Auto-center on root change in alwaysFullscreen mode
@@ -267,14 +280,35 @@ export function GraphExplorer(props: GraphExplorerProps) {
     });
   }, [props.alwaysFullscreen, props.rootTxid, props.nodes, filter, props.rootTxids]);
 
-  // ─── Global keyboard shortcuts for graph modes ───────
+  // ─── Global keyboard shortcuts ───────
+  const { onUndo, onReset } = props;
+  // Toolbar handler refs - populated by GraphToolbar via _tbHandlers
+  const tbHandlersRef = useRef<Record<string, () => void>>({});
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      // Ctrl+S always works
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        tbHandlersRef.current.save?.();
+        return;
+      }
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        if (e.key === "Escape") (e.target as HTMLElement).blur();
+        return;
+      }
       switch (e.key) {
         case "h": handleToggleHeatMap(); break;
         case "g": handleToggleFingerprint(); break;
         case "l": cycleEdgeMode(); break;
+        case "u": onUndo?.(); break;
+        case "r": onReset?.(); break;
+        case "+": case "=": zoomBy(1.25); break;
+        case "-": zoomBy(1 / 1.25); break;
+        case "0": handleFitView(); break;
+        case "/": e.preventDefault(); tbHandlersRef.current.focusSearch?.(); break;
+        case "s": tbHandlersRef.current.save?.(); break;
+        case "o": tbHandlersRef.current.open?.(); break;
+        case "c": tbHandlersRef.current.share?.(); break;
         case "f":
           if (isExpanded) collapseFullscreen();
           else handleExpandFullscreen();
@@ -286,9 +320,10 @@ export function GraphExplorer(props: GraphExplorerProps) {
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [handleToggleHeatMap, handleToggleFingerprint, cycleEdgeMode, isExpanded, collapseFullscreen, handleExpandFullscreen]);
+  }, [handleToggleHeatMap, handleToggleFingerprint, cycleEdgeMode, isExpanded, collapseFullscreen, handleExpandFullscreen, onUndo, onReset, zoomBy, handleFitView]);
 
-  if (props.nodes.size === 0) return null;
+  // In alwaysFullscreen mode, render toolbar even with 0 nodes (for search + load)
+  if (props.nodes.size === 0 && !props.alwaysFullscreen) return null;
 
   // Toggle filter helpers
   const toggleFilter = (key: keyof NodeFilter) => {
@@ -309,6 +344,20 @@ export function GraphExplorer(props: GraphExplorerProps) {
     onUndo: props.onUndo ?? (() => {}),
     onCycleEdgeMode: cycleEdgeMode,
     onReset: props.onReset,
+    // Search
+    onSearch: props.onSearch,
+    searchLoading: props.searchLoading,
+    searchError: props.searchError,
+    currentTxid: props.rootTxid || null,
+    currentLabel: props.currentLabel ?? null,
+    // Save/Load/Share
+    nodes: props.nodes,
+    rootTxid: props.rootTxid,
+    rootTxids: props.rootTxids,
+    network: props.network,
+    currentGraphId: props.currentGraphId ?? null,
+    onLoadSavedGraph: props.onLoadSavedGraph,
+    onRegisterHandlers: (handlers: Record<string, () => void>) => { tbHandlersRef.current = handlers; },
   };
 
   // ─── Legend (extracted to GraphLegend component) ────────
@@ -454,7 +503,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
   if (props.alwaysFullscreen) {
     return (
       <div className="flex flex-col h-full">
-        <div className="p-4 pr-44 space-y-2 shrink-0">
+        <div className="pt-4 px-4 space-y-2 shrink-0">
           <GraphToolbar
             {...toolbarProps}
             onZoomIn={() => zoomBy(1.25)}
@@ -570,9 +619,11 @@ export function GraphExplorer(props: GraphExplorerProps) {
           </button>
 
           {/* Fullscreen header */}
-          <div className="p-4 pr-14 space-y-2 shrink-0">
+          <div className="p-4 pr-12 space-y-2 shrink-0">
             <GraphToolbar
               {...toolbarProps}
+              onSearch={undefined}
+              onLoadSavedGraph={undefined}
               onZoomIn={() => zoomBy(1.25)}
               onZoomOut={() => zoomBy(1 / 1.25)}
               onFitView={handleFitView}
