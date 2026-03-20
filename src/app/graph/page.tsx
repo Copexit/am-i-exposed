@@ -33,6 +33,8 @@ export default function GraphPage() {
     expandInput,
     expandOutput,
     collapse,
+    undo,
+    canUndo,
     reset,
     expandedNodeTxid,
     toggleExpand,
@@ -83,7 +85,6 @@ export default function GraphPage() {
         const example = TX_EXAMPLES[Math.floor(Math.random() * TX_EXAMPLES.length)];
         if (example) {
           window.location.hash = `txid=${example.input}`;
-          // hash change listener will pick it up
         }
       }
     };
@@ -95,8 +96,7 @@ export default function GraphPage() {
 
   const handleSearch = useCallback(
     (txid: string) => {
-      // Find if it's a known example for the label
-      const example = TX_EXAMPLES.find((e) => e.input === txid);
+      const example = TX_EXAMPLES.find((e) => e.input.toLowerCase() === txid.toLowerCase());
       window.location.hash = `txid=${txid}`;
       loadTxid(txid, example?.labelDefault);
     },
@@ -105,8 +105,9 @@ export default function GraphPage() {
 
   const handleSetAsRoot = useCallback(
     (txid: string) => {
+      const example = TX_EXAMPLES.find((e) => e.input.toLowerCase() === txid.toLowerCase());
       window.location.hash = `txid=${txid}`;
-      loadTxid(txid);
+      loadTxid(txid, example?.labelDefault);
     },
     [loadTxid],
   );
@@ -115,32 +116,33 @@ export default function GraphPage() {
     window.location.href = `/#tx=${txid}`;
   }, []);
 
+  // Use viewport height minus header (80px on desktop, 72px on mobile)
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-      <div className="relative flex-1 min-h-0">
-        <GraphSearchBar
-          onSubmit={handleSearch}
-          loading={searchLoading}
-          error={searchError}
-          currentTxid={rootTxid}
-          currentLabel={currentLabel}
-        />
+    <div className="relative w-full" style={{ height: "calc(100vh - 80px)" }}>
+      <GraphSearchBar
+        onSubmit={handleSearch}
+        loading={searchLoading}
+        error={searchError}
+        currentTxid={rootTxid || null}
+        currentLabel={currentLabel}
+      />
+      {rootTxid && nodes.size > 0 ? (
         <ChartErrorBoundary>
           <Suspense fallback={null}>
             <GraphExplorer
-              alwaysFullscreen
               nodes={nodes}
               rootTxid={rootTxid}
               loading={loading}
               errors={errors}
               nodeCount={nodeCount}
               maxNodes={maxNodes}
+              canUndo={canUndo}
               onExpandInput={expandInput}
               onExpandOutput={expandOutput}
               onCollapse={collapse}
+              onUndo={undo}
               onReset={reset}
               onTxClick={handleFullScan}
-              onSetAsRoot={handleSetAsRoot}
               expandedNodeTxid={expandedNodeTxid}
               onToggleExpand={toggleExpand}
               onExpandPortInput={expandPortInput}
@@ -153,10 +155,18 @@ export default function GraphPage() {
               onAutoTraceLinkability={(txid, outputIndex) =>
                 autoTraceLinkability(txid, outputIndex, { boltzmannCache: undefined })
               }
+              alwaysFullscreen
+              onSetAsRoot={handleSetAsRoot}
             />
           </Suspense>
         </ChartErrorBoundary>
-      </div>
+      ) : searchLoading ? (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-sm text-muted animate-pulse">
+            {t("graphPage.loadingTx", { defaultValue: "Loading transaction..." })}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

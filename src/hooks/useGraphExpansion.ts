@@ -258,6 +258,10 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     dispatch({ type: "REMOVE_NODE", txid });
   }, []);
 
+  const undo = useCallback(() => {
+    dispatch({ type: "UNDO" });
+  }, []);
+
   const reset = useCallback(() => {
     dispatch({ type: "RESET" });
   }, []);
@@ -416,6 +420,8 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     expandInput,
     expandOutput,
     collapse,
+    undo,
+    canUndo: state.undoStack.length > 0,
     reset,
     // Expanded node (UTXO ports)
     expandedNodeTxid,

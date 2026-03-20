@@ -31,6 +31,9 @@ export interface MultiRootEntry {
   outspends?: MempoolOutspend[];
 }
 
+/** Max number of undo snapshots to keep. */
+const MAX_UNDO = 50;
+
 export interface GraphState {
   nodes: Map<string, GraphNode>;
   rootTxid: string;
@@ -38,6 +41,8 @@ export interface GraphState {
   rootTxids: Set<string>;
   /** Maximum nodes allowed in the graph. */
   maxNodes: number;
+  /** Stack of previous node snapshots for undo (most recent last). */
+  undoStack: Map<string, GraphNode>[];
   /** Loading state per txid */
   loading: Set<string>;
   /** Error messages per txid */
@@ -55,7 +60,8 @@ export type GraphAction =
   | { type: "SET_LOADING"; txid: string; loading: boolean }
   | { type: "SET_ERROR"; txid: string; error: string }
   | { type: "CLEAR_ERROR"; txid: string }
-  | { type: "RESET" };
+  | { type: "RESET" }
+  | { type: "UNDO" };
 
 export interface GraphExpansionFetcher {
   getTransaction(txid: string): Promise<MempoolTransaction>;
@@ -185,6 +191,7 @@ export function graphReducer(state: GraphState, action: GraphAction): GraphState
         rootTxid: action.tx.txid,
         rootTxids: new Set([action.tx.txid]),
         maxNodes: state.maxNodes,
+        undoStack: [],
         loading: new Set(),
         errors: new Map(),
       };
@@ -221,7 +228,7 @@ export function graphReducer(state: GraphState, action: GraphAction): GraphState
         });
       }
 
-      return { nodes, rootTxid, rootTxids: new Set([rootTxid]), maxNodes: state.maxNodes, loading: new Set(), errors: new Map() };
+      return { nodes, rootTxid, rootTxids: new Set([rootTxid]), maxNodes: state.maxNodes, undoStack: [], loading: new Set(), errors: new Map() };
     }
 
     case "SET_ROOT_WITH_LAYERS": {
@@ -231,7 +238,7 @@ export function graphReducer(state: GraphState, action: GraphAction): GraphState
 
       addLayersToNodes(nodes, rootTxid, action.root, 0, state.maxNodes, action.backwardLayers, action.forwardLayers, action.outspends, action.smartFilter ?? true);
 
-      return { nodes, rootTxid, rootTxids: new Set([rootTxid]), maxNodes: state.maxNodes, loading: new Set(), errors: new Map() };
+      return { nodes, rootTxid, rootTxids: new Set([rootTxid]), maxNodes: state.maxNodes, undoStack: [], loading: new Set(), errors: new Map() };
     }
 
     case "SET_MULTI_ROOT": {
@@ -247,7 +254,7 @@ export function graphReducer(state: GraphState, action: GraphAction): GraphState
         nodes.set(txid, { txid, tx, depth: 0 });
       }
 
-      return { nodes, rootTxid: firstTxid, rootTxids, maxNodes: state.maxNodes, loading: new Set(), errors: new Map() };
+      return { nodes, rootTxid: firstTxid, rootTxids, maxNodes: state.maxNodes, undoStack: [], loading: new Set(), errors: new Map() };
     }
 
     case "SET_MULTI_ROOT_WITH_LAYERS": {
@@ -274,7 +281,7 @@ export function graphReducer(state: GraphState, action: GraphAction): GraphState
         addLayersToNodes(nodes, txid, entry.tx, 0, budget, entry.backward, entry.forward, entry.outspends);
       }
 
-      return { nodes, rootTxid: firstTxid, rootTxids, maxNodes: state.maxNodes, loading: new Set(), errors: new Map() };
+      return { nodes, rootTxid: firstTxid, rootTxids, maxNodes: state.maxNodes, undoStack: [], loading: new Set(), errors: new Map() };
     }
 
     case "ADD_NODE": {
@@ -282,7 +289,9 @@ export function graphReducer(state: GraphState, action: GraphAction): GraphState
       if (state.nodes.has(action.node.txid)) return state;
       const nodes = new Map(state.nodes);
       nodes.set(action.node.txid, action.node);
-      return { ...state, nodes };
+      const undoStack = [...state.undoStack, new Map(state.nodes)];
+      if (undoStack.length > MAX_UNDO) undoStack.shift();
+      return { ...state, nodes, undoStack };
     }
 
     case "REMOVE_NODE": {
@@ -336,7 +345,9 @@ export function graphReducer(state: GraphState, action: GraphAction): GraphState
       for (const nid of [...nodes.keys()]) {
         if (!reachable.has(nid)) nodes.delete(nid);
       }
-      return { ...state, nodes };
+      const undoStackRm = [...state.undoStack, new Map(state.nodes)];
+      if (undoStackRm.length > MAX_UNDO) undoStackRm.shift();
+      return { ...state, nodes, undoStack: undoStackRm };
     }
 
     case "SET_LOADING": {
@@ -368,8 +379,19 @@ export function graphReducer(state: GraphState, action: GraphAction): GraphState
       return {
         ...state,
         nodes,
+        undoStack: [],
         loading: new Set(),
         errors: new Map(),
+      };
+    }
+
+    case "UNDO": {
+      if (state.undoStack.length === 0) return state;
+      const nodes = state.undoStack[state.undoStack.length - 1];
+      return {
+        ...state,
+        nodes,
+        undoStack: state.undoStack.slice(0, -1),
       };
     }
 
@@ -384,6 +406,7 @@ export function makeInitialState(maxNodes: number): GraphState {
     rootTxid: "",
     rootTxids: new Set(),
     maxNodes,
+    undoStack: [],
     loading: new Set(),
     errors: new Map(),
   };

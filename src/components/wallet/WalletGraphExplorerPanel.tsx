@@ -50,6 +50,8 @@ export function WalletGraphExplorerPanel({
     expandInput,
     expandOutput,
     collapse,
+    undo,
+    canUndo,
     reset,
     expandedNodeTxid,
     toggleExpand,
@@ -156,6 +158,8 @@ export function WalletGraphExplorerPanel({
             onExpandInput={expandInput}
             onExpandOutput={expandOutput}
             onCollapse={collapse}
+            onUndo={undo}
+            canUndo={canUndo}
             onReset={reset}
             onTxClick={onTxClick}
             expandedNodeTxid={expandedNodeTxid}

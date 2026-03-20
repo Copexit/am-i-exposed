@@ -281,6 +281,8 @@ export function GraphExplorer(props: GraphExplorerProps) {
     edgeMode,
     onToggleHeatMap: handleToggleHeatMap,
     onToggleFingerprint: handleToggleFingerprint,
+    canUndo: props.canUndo ?? false,
+    onUndo: props.onUndo ?? (() => {}),
     onCycleEdgeMode: cycleEdgeMode,
     onReset: props.onReset,
   };

@@ -23,6 +23,8 @@ export interface GraphExplorerProps {
   onExpandInput: (txid: string, inputIndex: number) => void;
   onExpandOutput: (txid: string, outputIndex: number) => void;
   onCollapse: (txid: string) => void;
+  onUndo?: () => void;
+  canUndo?: boolean;
   onReset: () => void;
   onTxClick?: (txid: string) => void;
   /** Boltzmann result for the root transaction (linkability edge coloring). */

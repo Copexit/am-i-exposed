@@ -150,7 +150,7 @@ export const ResultsPanel = memo(function ResultsPanel({
       <div className={`w-full flex flex-col ${proMode ? "xl:flex-row xl:items-center" : ""} gap-3`}>
         {onScan && <div className={`w-full ${proMode ? "xl:flex-1 xl:min-w-0" : ""}`}><InlineSearchBar onScan={onScan} initialValue={query} /></div>}
         <div className="flex items-center gap-2 flex-wrap xl:shrink-0">
-          <BookmarkButton query={query} inputType={inputType} grade={result.grade} score={result.score} />
+          {proMode && <BookmarkButton query={query} inputType={inputType} grade={result.grade} score={result.score} />}
           <ExportButton targetId="results-panel" query={query} result={result} inputType={inputType} />
           <ShareCardButton grade={result.grade} score={result.score} query={query} inputType={inputType} findingCount={result.findings.length} />
           <ShareButtons grade={result.grade} score={result.score} query={query} inputType={inputType} findingCount={result.findings.length} />

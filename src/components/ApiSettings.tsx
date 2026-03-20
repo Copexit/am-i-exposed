@@ -190,8 +190,8 @@ export function ApiSettings() {
           {/* Cache settings (Pro only) */}
           {proMode && <CacheSettingsPanel />}
 
-          {/* Workspace export/import */}
-          <WorkspaceSettingsPanel />
+          {/* Workspace export/import (Cypherpunk only) */}
+          {proMode && <WorkspaceSettingsPanel />}
 
           {/* Entity filter status */}
           <EntityFilterStatus t={t} proMode={proMode} />

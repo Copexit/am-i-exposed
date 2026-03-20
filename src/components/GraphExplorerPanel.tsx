@@ -52,6 +52,8 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, fo
     expandInput,
     expandOutput,
     collapse,
+    undo,
+    canUndo,
     reset,
     expandedNodeTxid,
     toggleExpand,
@@ -102,6 +104,8 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, fo
           onExpandInput={expandInput}
           onExpandOutput={expandOutput}
           onCollapse={collapse}
+          onUndo={undo}
+          canUndo={canUndo}
           onReset={reset}
           onTxClick={onTxClick}
           rootBoltzmannResult={boltzmannResult}
