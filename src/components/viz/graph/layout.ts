@@ -109,6 +109,8 @@ export function layoutGraph(
   filter: NodeFilter,
   rootTxids?: Set<string>,
   expandedNodeTxid?: string | null,
+  /** Reserve left padding so backward expansions don't shift nodes (fullscreen pan/zoom mode). */
+  reserveBackwardSpace?: boolean,
 ): { layoutNodes: LayoutNode[]; edges: LayoutEdge[]; width: number; height: number; nodePositions: Map<string, { x: number; y: number; w: number; h: number }> } {
   const layoutNodes: LayoutNode[] = [];
   const edges: LayoutEdge[] = [];
@@ -138,11 +140,10 @@ export function layoutGraph(
   // Calculate cumulative x positions.
   // Reserve space to the left of depth 0 so backward expansions don't shift
   // existing nodes. We pre-offset by the number of negative-depth columns
-  // that COULD exist (budget: 20 backward hops max).
-  const maxBackwardBudget = 20;
-  const negativeDepths = depths.filter((d) => d < 0).length;
-  const reservedBackward = Math.max(0, maxBackwardBudget - negativeDepths);
-  const backwardPadding = reservedBackward * (NODE_W + COL_GAP);
+  // that COULD exist (budget: 5 backward hops).
+  const backwardPadding = reserveBackwardSpace
+    ? Math.max(0, 5 - depths.filter((d) => d < 0).length) * (NODE_W + COL_GAP)
+    : 0;
 
   const colX = new Map<number, number>();
   let cumX = MARGIN.left + backwardPadding;

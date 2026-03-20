@@ -101,9 +101,10 @@ export function GraphCanvas({
     const sy = scrollRef.current?.scrollTop ?? 0;
     return { x: gx - sx, y: gy - sy };
   }, [viewTransform, scrollRef]);
+  const isFs = !!viewTransform; // fullscreen / pan-zoom mode
   const { layoutNodes, edges, width, height, nodePositions } = useMemo(
-    () => layoutGraph(nodes, rootTxid, filter, rootTxids, expandedNodeTxid),
-    [nodes, rootTxid, filter, rootTxids, expandedNodeTxid],
+    () => layoutGraph(nodes, rootTxid, filter, rootTxids, expandedNodeTxid, isFs),
+    [nodes, rootTxid, filter, rootTxids, expandedNodeTxid, isFs],
   );
 
   // Report visible count to parent (eliminates redundant layout call)

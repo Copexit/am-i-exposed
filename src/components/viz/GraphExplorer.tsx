@@ -226,7 +226,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
   const handleExpandFullscreen = useCallback(() => {
     expandFullscreen();
-    const { layoutNodes: ln } = layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids);
+    const { layoutNodes: ln } = layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids, undefined, true);
     const roots = ln.filter((n) => n.isRoot);
     const cw = window.innerWidth - 32;
     const ch = window.innerHeight - 160;
@@ -240,7 +240,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
   }, [expandFullscreen, props.nodes, props.rootTxid, filter, props.rootTxids]);
 
   const handleFitView = useCallback(() => {
-    const { width: gw, height: gh } = layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids);
+    const { width: gw, height: gh } = layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids, undefined, true);
     const cw = window.innerWidth - 32;
     const ch = window.innerHeight - 160;
     setViewTransform(computeFitTransform(gw, gh, cw, ch));
@@ -254,7 +254,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
     prevRootRef.current = props.rootTxid;
     // Small delay so GraphCanvas re-renders with new nodes before we read layout
     requestAnimationFrame(() => {
-      const { layoutNodes: ln } = layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids);
+      const { layoutNodes: ln } = layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids, undefined, true);
       const roots = ln.filter((n) => n.isRoot);
       const cw = window.innerWidth - 32;
       const ch = window.innerHeight - 160;
@@ -453,7 +453,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
   if (props.alwaysFullscreen) {
     return (
       <div className="flex flex-col h-full">
-        <div className="p-4 pr-14 space-y-2 shrink-0">
+        <div className="p-4 pr-44 space-y-2 shrink-0">
           <GraphToolbar
             {...toolbarProps}
             onZoomIn={() => zoomBy(1.25)}
