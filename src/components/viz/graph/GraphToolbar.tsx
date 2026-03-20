@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
-import { HeatIcon, FingerprintIcon, ExpandIcon, GraphIcon, UndoIcon, ResetIcon } from "./icons";
+import { HeatIcon, FingerprintIcon, ExpandIcon, GraphIcon, ResetIcon } from "./icons";
 
 type EdgeMode = "default" | "linkability" | "entropy";
 
@@ -9,7 +9,6 @@ interface GraphToolbarProps {
   nodeCount: number;
   maxNodes: number;
   hiddenCount: number;
-  canUndo: boolean;
   heatMapActive: boolean;
   heatProgress: number;
   fingerprintMode: boolean;
@@ -17,7 +16,6 @@ interface GraphToolbarProps {
   onToggleHeatMap: () => void;
   onToggleFingerprint: () => void;
   onCycleEdgeMode: () => void;
-  onUndo: () => void;
   onReset: () => void;
   /** Fullscreen-specific: omitted in inline mode */
   onExpandFullscreen?: () => void;
@@ -31,7 +29,6 @@ export function GraphToolbar({
   nodeCount,
   maxNodes,
   hiddenCount,
-  canUndo,
   heatMapActive,
   heatProgress,
   fingerprintMode,
@@ -39,7 +36,6 @@ export function GraphToolbar({
   onToggleHeatMap,
   onToggleFingerprint,
   onCycleEdgeMode,
-  onUndo,
   onReset,
   onExpandFullscreen,
   onZoomIn,
@@ -126,23 +122,6 @@ export function GraphToolbar({
             <span className="hidden sm:inline">
               {edgeMode === "default" ? "Edges" : edgeMode === "linkability" ? "Linkability" : "Entropy"}
             </span>
-          </span>
-        </button>
-
-        {/* Undo */}
-        <button
-          onClick={onUndo}
-          disabled={!canUndo}
-          className={`text-xs transition-colors px-2 py-1 rounded border border-card-border ${
-            canUndo
-              ? "text-muted hover:text-foreground cursor-pointer"
-              : "text-muted/50 cursor-not-allowed"
-          }`}
-          title={t("common.undo", { defaultValue: "Undo" })}
-        >
-          <span className="flex items-center gap-1">
-            <UndoIcon />
-            <span className="hidden sm:inline">{t("common.undo", { defaultValue: "Undo" })}</span>
           </span>
         </button>
 
