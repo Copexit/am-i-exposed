@@ -5,14 +5,10 @@ import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { createApiClient } from "@/lib/api/client";
 import { useGraphExpansion } from "@/hooks/useGraphExpansion";
-import { GraphSearchBar } from "@/components/GraphSearchBar";
-import { GraphSaveLoad } from "@/components/viz/graph/GraphSaveLoad";
 import { ChartErrorBoundary } from "@/components/ui/ChartErrorBoundary";
 import { EXAMPLES, TXID_RE } from "@/lib/constants";
 import { decodeGraphFromUrl } from "@/lib/graph/graph-url-codec";
 import { loadSavedGraph } from "@/lib/graph/graph-loader";
-import { computeBoltzmann, isAutoComputable, extractTxValues } from "@/lib/analysis/boltzmann-compute";
-import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { SavedGraph } from "@/lib/graph/saved-graph-types";
 
@@ -31,7 +27,6 @@ export default function GraphPage() {
   const {
     nodes,
     rootTxid,
-    rootTxids,
     loading,
     errors,
     nodeCount,
@@ -59,7 +54,6 @@ export default function GraphPage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [currentLabel, setCurrentLabel] = useState<string | null>(null);
-  const [rootBoltzmann, setRootBoltzmann] = useState<BoltzmannWorkerResult | null>(null);
   const [currentGraphId, setCurrentGraphId] = useState<string | null>(null);
   const [loadProgress, setLoadProgress] = useState<{ loaded: number; total: number } | null>(null);
   const [loadWarning, setLoadWarning] = useState<string | null>(null);
@@ -74,14 +68,6 @@ export default function GraphPage() {
       try {
         const tx: MempoolTransaction = await api.getTransaction(txid);
         setRoot(tx);
-        setRootBoltzmann(null);
-        // Async Boltzmann computation for the root tx
-        const txVals = extractTxValues(tx);
-        if (isAutoComputable(txVals.inputValues, txVals.outputValues)) {
-          computeBoltzmann(tx, { timeoutMs: 300_000 })
-            .then((result) => setRootBoltzmann(result))
-            .catch(() => {});
-        }
       } catch {
         setSearchError(
           t("graphPage.errorNotFound", {
@@ -98,7 +84,6 @@ export default function GraphPage() {
   /** Load a saved graph: re-fetch all txids, then dispatch LOAD_GRAPH. */
   const handleLoadSavedGraph = useCallback(
     async (saved: SavedGraph) => {
-      // Network mismatch check
       if (saved.network !== network) {
         const confirmed = window.confirm(
           t("graphSaveLoad.networkMismatch", {
@@ -110,7 +95,6 @@ export default function GraphPage() {
         setNetwork(saved.network);
       }
 
-      // Abort any previous load
       loadAbortRef.current?.abort();
       const ac = new AbortController();
       loadAbortRef.current = ac;
@@ -124,18 +108,14 @@ export default function GraphPage() {
 
       try {
         const result = await loadSavedGraph(
-          saved,
-          api,
+          saved, api,
           (loaded, total) => setLoadProgress({ loaded, total }),
           ac.signal,
         );
-
         if (ac.signal.aborted) return;
 
         if (result.nodes.size === 0) {
-          setSearchError(
-            t("graphSaveLoad.loadFailed", { defaultValue: "Failed to load graph - no transactions could be fetched." }),
-          );
+          setSearchError(t("graphSaveLoad.loadFailed", { defaultValue: "Failed to load graph." }));
           return;
         }
 
@@ -151,9 +131,7 @@ export default function GraphPage() {
         }
       } catch {
         if (!ac.signal.aborted) {
-          setSearchError(
-            t("graphSaveLoad.loadError", { defaultValue: "Failed to load saved graph." }),
-          );
+          setSearchError(t("graphSaveLoad.loadError", { defaultValue: "Failed to load saved graph." }));
         }
       } finally {
         setSearchLoading(false);
@@ -168,30 +146,21 @@ export default function GraphPage() {
     const loadFromHash = () => {
       const hash = window.location.hash.slice(1);
 
-      // Graph URL: #graph=<encoded>
       if (hash.startsWith("graph=")) {
         const encoded = hash.slice(6);
         const decoded = decodeGraphFromUrl(encoded);
         if (decoded) {
-          // Convert decoded structure to a SavedGraph-like object for loading
-          const graphToLoad: SavedGraph = {
-            id: "",
-            name: "",
-            savedAt: 0,
-            ...decoded,
-          };
+          const graphToLoad: SavedGraph = { id: "", name: "", savedAt: 0, ...decoded };
           handleLoadSavedGraph(graphToLoad);
           return;
         }
       }
 
-      // Txid URL: #txid=<hex64>
       const match = hash.match(/^txid=([a-fA-F0-9]{64})$/);
       if (match) {
         const example = TX_EXAMPLES.find((e) => e.input.toLowerCase() === match[1].toLowerCase());
         loadTxid(match[1], example?.labelDefault);
       } else if (!rootTxid) {
-        // No hash and no root - pick random example
         const example = TX_EXAMPLES[Math.floor(Math.random() * TX_EXAMPLES.length)];
         if (example) {
           window.location.hash = `txid=${example.input}`;
@@ -225,62 +194,52 @@ export default function GraphPage() {
     return () => clearTimeout(timer);
   }, [loadWarning]);
 
-  // Use viewport height minus header (80px on desktop, 72px on mobile)
   return (
     <div className="relative w-full" style={{ height: "calc(100vh - 80px)" }}>
-      <GraphSearchBar
-        onSubmit={navigateToTxid}
-        loading={searchLoading}
-        error={searchError}
-        currentTxid={rootTxid || null}
-        currentLabel={currentLabel}
-      />
-      <GraphSaveLoad
-        nodes={nodes}
-        rootTxid={rootTxid}
-        rootTxids={rootTxids}
-        network={network}
-        currentGraphId={currentGraphId}
-        currentLabel={currentLabel}
-        onLoad={handleLoadSavedGraph}
-      />
-      {rootTxid && nodes.size > 0 ? (
-        <ChartErrorBoundary>
-          <Suspense fallback={null}>
-            <GraphExplorer
-              nodes={nodes}
-              rootTxid={rootTxid}
-              loading={loading}
-              errors={errors}
-              nodeCount={nodeCount}
-              maxNodes={maxNodes}
-              canUndo={canUndo}
-              rootBoltzmannResult={rootBoltzmann}
-              onExpandInput={expandInput}
-              onExpandOutput={expandOutput}
-              onCollapse={collapse}
-              onUndo={undo}
-              onReset={reset}
-              onTxClick={handleFullScan}
-              expandedNodeTxid={expandedNodeTxid}
-              onToggleExpand={toggleExpand}
-              onExpandPortInput={expandPortInput}
-              onExpandPortOutput={expandPortOutput}
-              outspendCache={outspendCache}
-              onAutoTrace={autoTrace}
-              onCancelAutoTrace={cancelAutoTrace}
-              autoTracing={autoTracing}
-              autoTraceProgress={autoTraceProgress}
-              onAutoTraceLinkability={(txid, outputIndex) =>
-                autoTraceLinkability(txid, outputIndex, { boltzmannCache: undefined })
-              }
-              alwaysFullscreen
-              onSetAsRoot={navigateToTxid}
-            />
-          </Suspense>
-        </ChartErrorBoundary>
-      ) : searchLoading ? (
-        <div className="flex items-center justify-center h-full">
+      <ChartErrorBoundary>
+        <Suspense fallback={null}>
+          <GraphExplorer
+            nodes={nodes}
+            rootTxid={rootTxid}
+            loading={loading}
+            errors={errors}
+            nodeCount={nodeCount}
+            maxNodes={maxNodes}
+            canUndo={canUndo}
+            onExpandInput={expandInput}
+            onExpandOutput={expandOutput}
+            onCollapse={collapse}
+            onUndo={undo}
+            onReset={reset}
+            onTxClick={handleFullScan}
+            expandedNodeTxid={expandedNodeTxid}
+            onToggleExpand={toggleExpand}
+            onExpandPortInput={expandPortInput}
+            onExpandPortOutput={expandPortOutput}
+            outspendCache={outspendCache}
+            onAutoTrace={autoTrace}
+            onCancelAutoTrace={cancelAutoTrace}
+            autoTracing={autoTracing}
+            autoTraceProgress={autoTraceProgress}
+            onAutoTraceLinkability={(txid, outputIndex) =>
+              autoTraceLinkability(txid, outputIndex, { boltzmannCache: undefined })
+            }
+            alwaysFullscreen
+            onSetAsRoot={navigateToTxid}
+            onSearch={navigateToTxid}
+            searchLoading={searchLoading}
+            searchError={searchError}
+            currentLabel={currentLabel}
+            network={network}
+            currentGraphId={currentGraphId}
+            onLoadSavedGraph={handleLoadSavedGraph}
+          />
+        </Suspense>
+      </ChartErrorBoundary>
+
+      {/* Loading overlay (shown when graph has no nodes yet) */}
+      {searchLoading && nodes.size === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="text-sm text-muted animate-pulse">
             {loadProgress
               ? t("graphSaveLoad.loadingGraph", {
@@ -291,18 +250,13 @@ export default function GraphPage() {
               : t("graphPage.loadingTx", { defaultValue: "Loading transaction..." })}
           </div>
         </div>
-      ) : null}
+      )}
 
       {/* Load warning banner */}
       {loadWarning && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 glass rounded-lg border border-severity-medium/30 px-4 py-2 text-xs text-severity-medium max-w-md text-center">
           {loadWarning}
-          <button
-            onClick={() => setLoadWarning(null)}
-            className="ml-2 text-muted hover:text-foreground cursor-pointer"
-          >
-            &times;
-          </button>
+          <button onClick={() => setLoadWarning(null)} className="ml-2 text-muted hover:text-foreground cursor-pointer">&times;</button>
         </div>
       )}
     </div>

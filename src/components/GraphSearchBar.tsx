@@ -43,7 +43,7 @@ export function GraphSearchBar({ onSubmit, loading, error, currentTxid, currentL
   const isValid = input.trim() === "" || TXID_RE.test(input.trim());
 
   return (
-    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 w-full max-w-lg px-3">
+    <div className="max-w-lg mx-auto">
       <form onSubmit={handleSubmit} className="glass rounded-xl border border-glass-border px-3 py-2">
         <div className="flex items-center gap-2">
           <Search size={14} className="text-muted shrink-0" />

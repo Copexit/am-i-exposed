@@ -33,7 +33,7 @@ interface GraphExplorerPanelProps {
  * When trace layers are provided, auto-expands up to 2 hops in each direction.
  */
 export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, forwardLayers, outspends, boltzmannResult }: GraphExplorerPanelProps) {
-  const { config } = useNetwork();
+  const { network, config } = useNetwork();
 
   // No AbortController signal: the graph is long-lived and expansion requests
   // don't need abort-on-unmount. The previous useMemo+effect-cleanup pattern
@@ -119,6 +119,7 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, fo
           autoTracing={autoTracing}
           autoTraceProgress={autoTraceProgress}
           onAutoTraceLinkability={(txid, outputIndex) => autoTraceLinkability(txid, outputIndex, { boltzmannCache: undefined })}
+          network={network}
         />
       </Suspense>
     </ChartErrorBoundary>

@@ -3,6 +3,8 @@ import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { Finding, ScoringResult } from "@/lib/types";
 import type { EntityCategory } from "@/lib/analysis/entities";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
+import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
+import type { SavedGraph } from "@/lib/graph/saved-graph-types";
 import type { useChartTooltip } from "../shared/ChartTooltip";
 
 // Re-export for convenience
@@ -53,6 +55,15 @@ export interface GraphExplorerProps {
   alwaysFullscreen?: boolean;
   /** Callback to change the graph root to a different transaction. */
   onSetAsRoot?: (txid: string) => void;
+  // ─── Search (only on /graph page) ───
+  onSearch?: (txid: string) => void;
+  searchLoading?: boolean;
+  searchError?: string | null;
+  // ─── Save/Load/Share ───
+  network?: BitcoinNetwork;
+  currentGraphId?: string | null;
+  currentLabel?: string | null;
+  onLoadSavedGraph?: (graph: SavedGraph) => void;
 }
 
 export interface LayoutNode {
