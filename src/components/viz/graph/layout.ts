@@ -262,9 +262,10 @@ export function layoutGraph(
     }
   }
 
-  // Calculate total dimensions
-  const maxX = Math.max(...layoutNodes.map((n) => n.x + n.width), 0);
-  const maxY = Math.max(...layoutNodes.map((n) => n.y + n.height), 0);
+  // Calculate total dimensions (extra padding for pan/zoom drag surface)
+  const extraPadding = reserveBackwardSpace ? 400 : 0;
+  const maxX = Math.max(...layoutNodes.map((n) => n.x + n.width), 0) + extraPadding;
+  const maxY = Math.max(...layoutNodes.map((n) => n.y + n.height), 0) + extraPadding;
 
   return {
     layoutNodes,

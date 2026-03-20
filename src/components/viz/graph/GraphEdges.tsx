@@ -230,9 +230,41 @@ function GraphEdge({
 }: GraphEdgeProps) {
   const edgeKey = `e-${edge.fromTxid}-${edge.toTxid}`;
   const hasPortRouting = expandedNodeTxid && (edge.fromTxid === expandedNodeTxid || edge.toTxid === expandedNodeTxid);
-  const d = hasPortRouting
-    ? portAwareEdgePath(edge, portPositions, nodes as Map<string, { tx: { vin: Array<{ txid: string; vout: number }> } }>)
-    : edgePath(edge);
+  const isConsolidationWithPorts = hasPortRouting && edge.consolidationCount >= 2 && edge.outputIndices && edge.outputIndices.length >= 2;
+
+  // For consolidation edges with expanded source: build one path per output port
+  const consolidationPaths: string[] = [];
+  if (isConsolidationWithPorts && edge.outputIndices) {
+    // Find destination input port position
+    const destNode = (nodes as Map<string, { tx: { vin: Array<{ txid: string; vout: number }> } }>).get(edge.toTxid);
+    let destX = edge.x2;
+    let destY = edge.y2;
+    if (destNode) {
+      for (let i = 0; i < destNode.tx.vin.length; i++) {
+        if (destNode.tx.vin[i].txid === edge.fromTxid && edge.outputIndices.includes(destNode.tx.vin[i].vout)) {
+          const pp = portPositions.get(`${edge.toTxid}:input:${i}`);
+          if (pp) { destX = pp.x; destY = pp.y; break; }
+        }
+      }
+    }
+    for (const outIdx of edge.outputIndices) {
+      const portPos = portPositions.get(`${edge.fromTxid}:output:${outIdx}`);
+      const srcX = portPos?.x ?? edge.x1;
+      const srcY = portPos?.y ?? edge.y1;
+      const cpOffset = Math.max(Math.abs(destX - srcX) * 0.4, 40);
+      consolidationPaths.push(
+        edge.isBackward
+          ? `M${destX},${destY} C${destX + cpOffset},${destY} ${srcX - cpOffset},${srcY} ${srcX},${srcY}`
+          : `M${srcX},${srcY} C${srcX + cpOffset},${srcY} ${destX - cpOffset},${destY} ${destX},${destY}`,
+      );
+    }
+  }
+
+  const d = isConsolidationWithPorts
+    ? consolidationPaths[0] ?? edgePath(edge)
+    : hasPortRouting
+      ? portAwareEdgePath(edge, portPositions, nodes as Map<string, { tx: { vin: Array<{ txid: string; vout: number }> } }>)
+      : edgePath(edge);
   const midX = (edge.x1 + edge.x2) / 2;
 
   const isHoveredViaNode = hoveredEdges?.has(edgeKey);
@@ -360,6 +392,22 @@ function GraphEdge({
         animate={{ pathLength: 1 }}
         transition={{ duration: 0.4 }}
       />
+      {/* Extra consolidation paths: one per additional output port */}
+      {consolidationPaths.slice(1).map((cp, ci) => (
+        <motion.path
+          key={`${edgeKey}-cons-${ci}`}
+          d={cp}
+          fill="none"
+          stroke={strokeColor}
+          strokeWidth={strokeWidth}
+          strokeOpacity={strokeOpacity}
+          strokeDasharray={dustDash ?? scriptDash ?? undefined}
+          style={{ pointerEvents: "none" as const }}
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 0.4, delay: 0.05 * (ci + 1) }}
+        />
+      ))}
       {isConsolidation && (
         <Text
           x={midX}
