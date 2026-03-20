@@ -120,16 +120,32 @@ function TierContext({ finding, t }: { finding: Finding; t: (key: string, opts?:
   const advText = tier
     ? t(`finding.tierContext.adversary.${tier}`, { defaultValue: `Exploitable by ${ADVERSARY_DESCRIPTIONS[tier]}` })
     : null;
+  const advStyle = tier ? ADVERSARY_STYLES[tier] : null;
   const tempText = finding.temporality
     ? t(`finding.tierContext.temporality.${finding.temporality}`, { defaultValue: TEMPORALITY_DESCRIPTIONS[finding.temporality] })
     : null;
+  const tempStyle = finding.temporality ? TEMPORALITY_STYLES[finding.temporality] : null;
 
   if (!advText && !tempText) return null;
 
   return (
-    <div className="flex flex-col gap-1 text-xs text-muted">
-      {advText && <span>{advText}.</span>}
-      {tempText && <span>{tempText}</span>}
+    <div className="flex flex-col gap-1.5 text-xs">
+      {advText && advStyle && (
+        <span className="flex items-center gap-2">
+          <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${advStyle.className}`}>
+            {t(`adversary.${tier}`, { defaultValue: advStyle.label })}
+          </span>
+          <span className="text-muted">{advText}.</span>
+        </span>
+      )}
+      {tempText && tempStyle && (
+        <span className="flex items-center gap-2">
+          <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded border shrink-0 ${tempStyle.className}`}>
+            {t(`temporality.${finding.temporality}`, { defaultValue: tempStyle.label })}
+          </span>
+          <span className="text-muted">{tempText}</span>
+        </span>
+      )}
     </div>
   );
 }
@@ -157,50 +173,52 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
         aria-controls={`finding-detail-${finding.id}`}
-        className="w-full flex items-center gap-3 px-4 py-3 min-h-[48px] text-left hover:bg-surface-elevated/50 transition-colors cursor-pointer"
+        className="w-full flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 min-h-[48px] text-left hover:bg-surface-elevated/50 transition-colors cursor-pointer"
       >
         <span className={`w-2 h-2 rounded-full shrink-0 ${style.dot}`} aria-hidden="true" />
         {finding.id === "h11-wallet-fingerprint" && finding.params?.walletGuess && (
           <WalletIcon walletName={String(finding.params.walletGuess)} size="sm" />
         )}
-        <span className="flex-1 text-sm font-medium text-foreground">
+        <span className="flex-1 text-sm font-medium text-foreground min-w-[120px]">
           {t(findingKey(finding.id, "title", finding.params), { ...finding.params, defaultValue: finding.title })}
         </span>
-        {proMode && confidenceStyle && (
-          <Tooltip content={t(`common.confidenceTooltip.${confidence}`, { defaultValue: confidenceStyle.tooltip })}>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded border ${confidenceStyle.className}`}>
-              {t(`common.confidence.${confidence}`, { defaultValue: confidenceStyle.label })}
-            </span>
-          </Tooltip>
-        )}
-        {finding.adversaryTiers && finding.adversaryTiers.length > 0 && (() => {
-          const tier = highestAdversaryTier(finding.adversaryTiers);
-          const advStyle = ADVERSARY_STYLES[tier];
-          return (
-            <Tooltip content={t(`adversaryTooltip.${tier}`, { defaultValue: `Exploitable by ${tier.replace(/_/g, " ")}` })}>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded border ${advStyle.className}`}>
-                {t(`adversary.${tier}`, { defaultValue: advStyle.label })}
+        <span className="flex items-center gap-1.5 flex-wrap">
+          {proMode && confidenceStyle && (
+            <Tooltip content={t(`common.confidenceTooltip.${confidence}`, { defaultValue: confidenceStyle.tooltip })}>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded border ${confidenceStyle.className}`}>
+                {t(`common.confidence.${confidence}`, { defaultValue: confidenceStyle.label })}
               </span>
             </Tooltip>
-          );
-        })()}
-        {finding.temporality && (() => {
-          const tempStyle = TEMPORALITY_STYLES[finding.temporality];
-          return (
-            <Tooltip content={t(`temporalityTooltip.${finding.temporality}`, { defaultValue: `Temporality: ${finding.temporality.replace(/_/g, " ")}` })}>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded border ${tempStyle.className}`}>
-                {t(`temporality.${finding.temporality}`, { defaultValue: tempStyle.label })}
+          )}
+          {finding.adversaryTiers && finding.adversaryTiers.length > 0 && (() => {
+            const tier = highestAdversaryTier(finding.adversaryTiers);
+            const advStyle = ADVERSARY_STYLES[tier];
+            return (
+              <Tooltip content={t(`adversaryTooltip.${tier}`, { defaultValue: `Exploitable by ${tier.replace(/_/g, " ")}` })}>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded border ${advStyle.className}`}>
+                  {t(`adversary.${tier}`, { defaultValue: advStyle.label })}
+                </span>
+              </Tooltip>
+            );
+          })()}
+          {finding.temporality && (() => {
+            const tempStyle = TEMPORALITY_STYLES[finding.temporality];
+            return (
+              <Tooltip content={t(`temporalityTooltip.${finding.temporality}`, { defaultValue: `Temporality: ${finding.temporality.replace(/_/g, " ")}` })}>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded border ${tempStyle.className}`}>
+                  {t(`temporality.${finding.temporality}`, { defaultValue: tempStyle.label })}
+                </span>
+              </Tooltip>
+            );
+          })()}
+          {badge && (
+            <Tooltip content={t("results.chainBadgeTooltip", { defaultValue: "Based on backward and forward analysis of the inputs and outputs to this transaction" })}>
+              <span className="text-[10px] px-1.5 py-0.5 rounded border border-card-border bg-surface-inset text-muted">
+                {badge}
               </span>
             </Tooltip>
-          );
-        })()}
-        {badge && (
-          <Tooltip content={t("results.chainBadgeTooltip", { defaultValue: "Based on backward and forward analysis of the inputs and outputs to this transaction" })}>
-            <span className="text-[10px] px-1.5 py-0.5 rounded border border-card-border bg-surface-inset text-muted">
-              {badge}
-            </span>
-          </Tooltip>
-        )}
+          )}
+        </span>
         <Tooltip content={t(`common.severityTooltip.${finding.severity}`, { defaultValue: SEVERITY_TOOLTIPS[finding.severity] })}>
           <span className={`text-xs font-medium ${style.text}`}>
             {severityLabel}
