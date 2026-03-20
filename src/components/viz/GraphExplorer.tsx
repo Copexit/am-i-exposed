@@ -209,7 +209,20 @@ export function GraphExplorer(props: GraphExplorerProps) {
   const [visibleCount, setVisibleCount] = useState(totalNodes);
   const handleLayoutComplete = useCallback((info: { visibleCount: number }) => {
     setVisibleCount(info.visibleCount);
-  }, []);
+    // Auto-center root on first layout in alwaysFullscreen mode
+    if (props.alwaysFullscreen && pendingCenterRef.current) {
+      pendingCenterRef.current = false;
+      const { layoutNodes: ln } = layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids);
+      const roots = ln.filter((n) => n.isRoot);
+      const cw = window.innerWidth - 32;
+      const ch = window.innerHeight - 160;
+      if (roots.length > 0) {
+        const avgX = roots.reduce((s, n) => s + n.x + n.width / 2, 0) / roots.length;
+        const avgY = roots.reduce((s, n) => s + n.y + n.height / 2, 0) / roots.length;
+        setViewTransform({ x: cw / 2 - avgX, y: ch / 2 - avgY, scale: 1 });
+      }
+    }
+  }, [props.alwaysFullscreen, props.nodes, props.rootTxid, filter, props.rootTxids]);
   const hiddenCount = totalNodes - visibleCount;
 
   // ─── Toolbar helpers (must be before early return for hooks rules) ───
@@ -246,26 +259,15 @@ export function GraphExplorer(props: GraphExplorerProps) {
     setViewTransform(computeFitTransform(gw, gh, cw, ch));
   }, [props.nodes, props.rootTxid, filter, props.rootTxids]);
 
-  // Auto-center root node when rootTxid changes in alwaysFullscreen mode
+  // Flag: center root after next layout completes (alwaysFullscreen mode)
+  const pendingCenterRef = useRef(!!props.alwaysFullscreen);
   const lastCenteredRoot = useRef<string>("");
   useEffect(() => {
-    if (!props.alwaysFullscreen || !props.rootTxid || props.nodes.size === 0) return;
+    if (!props.alwaysFullscreen || !props.rootTxid) return;
     if (lastCenteredRoot.current === props.rootTxid) return;
     lastCenteredRoot.current = props.rootTxid;
-    // Delay to let the DOM render the canvas at its final size
-    const timer = setTimeout(() => {
-      const { layoutNodes: ln } = layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids);
-      const roots = ln.filter((n) => n.isRoot);
-      const cw = window.innerWidth - 32;
-      const ch = window.innerHeight - 160;
-      if (roots.length > 0) {
-        const avgX = roots.reduce((s, n) => s + n.x + n.width / 2, 0) / roots.length;
-        const avgY = roots.reduce((s, n) => s + n.y + n.height / 2, 0) / roots.length;
-        setViewTransform({ x: cw / 2 - avgX, y: ch / 2 - avgY, scale: 1 });
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [props.alwaysFullscreen, props.nodes, props.rootTxid, filter, props.rootTxids]);
+    pendingCenterRef.current = true;
+  }, [props.alwaysFullscreen, props.rootTxid]);
 
   // ─── Global keyboard shortcuts for graph modes ───────
   useEffect(() => {
