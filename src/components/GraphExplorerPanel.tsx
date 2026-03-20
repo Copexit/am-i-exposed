@@ -47,13 +47,11 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, fo
     errors,
     nodeCount,
     maxNodes,
-    canUndo,
     setRoot,
     setRootWithLayers,
     expandInput,
     expandOutput,
     collapse,
-    undo,
     reset,
     expandedNodeTxid,
     toggleExpand,
@@ -65,8 +63,6 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, fo
     autoTracing,
     autoTraceProgress,
     autoTraceLinkability,
-    undoStackLength,
-    gotoSnapshot,
   } = useGraphExpansion(fetcher);
 
   // Set root tx on mount or when tx changes. Smart filtering is always enabled.
@@ -103,11 +99,9 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, fo
           errors={errors}
           nodeCount={nodeCount}
           maxNodes={maxNodes}
-          canUndo={canUndo}
           onExpandInput={expandInput}
           onExpandOutput={expandOutput}
           onCollapse={collapse}
-          onUndo={undo}
           onReset={reset}
           onTxClick={onTxClick}
           rootBoltzmannResult={boltzmannResult}
@@ -121,8 +115,6 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, fo
           autoTracing={autoTracing}
           autoTraceProgress={autoTraceProgress}
           onAutoTraceLinkability={(txid, outputIndex) => autoTraceLinkability(txid, outputIndex, { boltzmannCache: undefined })}
-          undoStackLength={undoStackLength}
-          onGotoSnapshot={gotoSnapshot}
         />
       </Suspense>
     </ChartErrorBoundary>

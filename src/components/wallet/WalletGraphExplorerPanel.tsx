@@ -45,13 +45,11 @@ export function WalletGraphExplorerPanel({
     errors,
     nodeCount,
     maxNodes,
-    canUndo,
     setMultiRoot,
     setMultiRootWithLayers,
     expandInput,
     expandOutput,
     collapse,
-    undo,
     reset,
     expandedNodeTxid,
     toggleExpand,
@@ -155,11 +153,9 @@ export function WalletGraphExplorerPanel({
             errors={errors}
             nodeCount={nodeCount}
             maxNodes={maxNodes}
-            canUndo={canUndo}
             onExpandInput={expandInput}
             onExpandOutput={expandOutput}
             onCollapse={collapse}
-            onUndo={undo}
             onReset={reset}
             onTxClick={onTxClick}
             expandedNodeTxid={expandedNodeTxid}
