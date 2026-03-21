@@ -20,7 +20,7 @@ export const RECOVERY_STEPS: RecoveryStep[] = [
     titleKey: "recoveryFlow.step2Title",
     titleDefault: "CoinJoin your UTXOs",
     descKey: "recoveryFlow.step2Desc",
-    descDefault: "Run your funds through Whirlpool (Sparrow/Ashigaru) or JoinMarket to break the transaction graph. Each CoinJoin cycle adds anonymity set members.",
+    descDefault: "Run your funds through Whirlpool (Sparrow/Ashigaru), JoinMarket, or Wasabi (WabiSabi) to break the transaction graph. Each CoinJoin cycle adds anonymity set members.",
     severity: "high",
   },
   {

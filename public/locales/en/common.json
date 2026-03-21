@@ -1419,7 +1419,7 @@
   "recoveryFlow.result": "Result: Critical -> Moderate -> Healthy",
   "recoveryFlow.step1Desc": "Transfer your compromised UTXOs to Sparrow Wallet or Ashigaru. These wallets give you coin control and proper change address management.",
   "recoveryFlow.step1Title": "Move funds to a privacy-focused wallet",
-  "recoveryFlow.step2Desc": "Run your funds through Whirlpool (Sparrow/Ashigaru) or JoinMarket to break the transaction graph. Each CoinJoin cycle adds anonymity set members.",
+  "recoveryFlow.step2Desc": "Run your funds through Whirlpool (Sparrow/Ashigaru), JoinMarket, or Wasabi (WabiSabi) to break the transaction graph. Each CoinJoin cycle adds anonymity set members.",
   "recoveryFlow.step2Title": "CoinJoin your UTXOs",
   "recoveryFlow.step3Desc": "After CoinJoin, let the outputs sit for at least 10-20 blocks. Spending immediately after mixing is a timing correlation signal that weakens your privacy.",
   "recoveryFlow.step3Title": "Wait several blocks before spending",

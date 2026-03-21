@@ -1394,7 +1394,7 @@
   "recoveryFlow.result": "Resultado: Crítico -> Moderado -> Saludable",
   "recoveryFlow.step1Desc": "Transfiere tus UTXOs comprometidos a Sparrow Wallet o Ashigaru. Estas billeteras te dan coin control y gestión adecuada de direcciones de cambio.",
   "recoveryFlow.step1Title": "Mover fondos a una billetera enfocada en privacidad",
-  "recoveryFlow.step2Desc": "Pasa tus fondos por Whirlpool (Sparrow/Ashigaru) o JoinMarket para romper el gráfico de transacciones. Cada ciclo de CoinJoin agrega miembros al conjunto de anonimato.",
+  "recoveryFlow.step2Desc": "Pasa tus fondos por Whirlpool (Sparrow/Ashigaru), JoinMarket o Wasabi (WabiSabi) para romper el gráfico de transacciones. Cada ciclo de CoinJoin agrega miembros al conjunto de anonimato.",
   "recoveryFlow.step2Title": "CoinJoin a tus UTXOs",
   "recoveryFlow.step3Desc": "Después del CoinJoin, deja que los outputs reposen al menos 10-20 bloques. Gastar inmediatamente después del mezclado es una señal de correlación temporal que debilita tu privacidad.",
   "recoveryFlow.step3Title": "Espera varios bloques antes de gastar",
