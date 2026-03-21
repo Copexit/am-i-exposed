@@ -197,7 +197,7 @@ export default function GraphPage() {
   }, [loadWarning]);
 
   return (
-    <div className="relative w-full" style={{ height: "calc(100vh - 80px)" }}>
+    <div className="relative w-full h-[calc(100vh-72px)] sm:h-[calc(100vh-80px)]">
       <ChartErrorBoundary>
         <Suspense fallback={null}>
           <GraphExplorer
