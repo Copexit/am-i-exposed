@@ -1281,7 +1281,7 @@
   "recoveryFlow.step2Title": "Effectuer un CoinJoin de vos UTXOs",
   "recoveryFlow.step3Desc": "Après CoinJoin, laissez les sorties reposer pendant au moins 10-20 blocs. Dépenser immédiatement après le mixage est un signal de corrélation temporelle qui affaiblit votre confidentialité.",
   "recoveryFlow.step3Title": "Attendre plusieurs blocs avant de dépenser",
-  "recoveryFlow.step4Desc": "Sélectionnez des UTXOs individuels pour chaque paiement en utilisant le contrôle de pièces. Ne combinez jamais plusieurs UTXOs post-mix dans une seule transaction - cela annule le CoinJoin.",
+  "recoveryFlow.step4Desc": "Selectionnez des UTXOs individuels pour chaque paiement en utilisant le controle de pieces. Preferez depenser un seul UTXO post-mix par transaction. Si un UTXO ne suffit pas, consolidez uniquement le minimum necessaire pour ce paiement - envisagez d'utiliser Stonewall pour ajouter de l'ambiguite. Ne consolidez jamais tous les UTXOs post-mix ensemble.",
   "recoveryFlow.step4Title": "Dépenser avec le contrôle de pièces - un UTXO par transaction",
   "recoveryFlow.step5Desc": "Envoyez toujours vers une adresse neuve, jamais utilisée, du destinataire. Si vous contrôlez le portefeuille de réception, générez une nouvelle adresse pour chaque réception.",
   "recoveryFlow.step5Title": "Envoyer vers une adresse neuve",

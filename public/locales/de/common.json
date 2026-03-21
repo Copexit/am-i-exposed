@@ -1281,7 +1281,7 @@
   "recoveryFlow.step2Title": "UTXOs durch CoinJoin mischen",
   "recoveryFlow.step3Desc": "Nach dem CoinJoin die Outputs mindestens 10-20 Blöcke ruhen lassen. Sofortiges Ausgeben nach dem Mischen ist ein Timing-Korrelationssignal, das die Privatsphäre schwächt.",
   "recoveryFlow.step3Title": "Mehrere Blöcke vor dem Ausgeben warten",
-  "recoveryFlow.step4Desc": "Wähle einzelne UTXOs für jede Zahlung mit Coin Control aus. Niemals mehrere Post-Mix-UTXOs in einer einzelnen Transaktion kombinieren - das macht den CoinJoin rückgängig.",
+  "recoveryFlow.step4Desc": "Waehle einzelne UTXOs fuer jede Zahlung mit Coin Control aus. Bevorzuge einen einzelnen Post-Mix-UTXO pro Transaktion. Wenn ein UTXO nicht ausreicht, konsolidiere nur das Minimum fuer diese Zahlung - erwaege Stonewall fuer zusaetzliche Ambiguitaet. Niemals alle Post-Mix-UTXOs zusammen konsolidieren.",
   "recoveryFlow.step4Title": "Mit Coin Control ausgeben - ein UTXO pro Transaktion",
   "recoveryFlow.step5Desc": "Immer an eine neue, nie verwendete Adresse des Empfängers senden. Wenn das empfangende Wallet unter eigener Kontrolle ist, für jeden Empfang eine neue Adresse generieren.",
   "recoveryFlow.step5Title": "An eine neue Adresse senden",

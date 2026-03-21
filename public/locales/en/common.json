@@ -1423,7 +1423,7 @@
   "recoveryFlow.step2Title": "CoinJoin your UTXOs",
   "recoveryFlow.step3Desc": "After CoinJoin, let the outputs sit for at least 10-20 blocks. Spending immediately after mixing is a timing correlation signal that weakens your privacy.",
   "recoveryFlow.step3Title": "Wait several blocks before spending",
-  "recoveryFlow.step4Desc": "Select individual UTXOs for each payment using coin control. Never combine multiple post-mix UTXOs in a single transaction - that undoes the CoinJoin.",
+  "recoveryFlow.step4Desc": "Select individual UTXOs for each payment using coin control. Prefer spending a single post-mix UTXO per transaction. If one UTXO is not enough, consolidate only the minimum needed for that payment - consider using Stonewall to add ambiguity. Never consolidate all post-mix UTXOs together.",
   "recoveryFlow.step4Title": "Spend with coin control - one UTXO per transaction",
   "recoveryFlow.step5Desc": "Always send to a fresh, never-used address from the receiver. If you control the receiving wallet, generate a new address for each receive.",
   "recoveryFlow.step5Title": "Send to a fresh address",
