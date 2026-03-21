@@ -66,7 +66,7 @@ export function CombinedStrategies({ expanded, onToggle }: CombinedStrategiesPro
                 <AlertTriangle size={14} className="text-severity-medium shrink-0 mt-0.5" />
                 <p className="text-xs text-foreground/80 leading-relaxed">
                   {t("pathways.jurisdictionNote", {
-                    defaultValue: "Privacy tool availability and legality vary by jurisdiction. Research your local regulations regarding CoinJoin, atomic swaps, and privacy coins before using these techniques. Some exchanges may flag or restrict accounts that interact with known privacy tools.",
+                    defaultValue: "Privacy tools like CoinJoin and atomic swaps are standard Bitcoin transactions - not illegal anywhere. However, KYC exchanges may flag, delay, or restrict funds that have interacted with privacy tools due to internal compliance policies. If using KYC exchanges, send to your own wallet first. For full freedom, use non-KYC, trustless, and permissionless systems.",
                   })}
                 </p>
               </div>

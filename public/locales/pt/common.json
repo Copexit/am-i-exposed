@@ -1120,7 +1120,7 @@
   "pathways.combo.xmr.strength": "Quebra completa da cadeia. O BTC recebido tem zero vinculo on-chain com o BTC original. Opcao de privacidade mais forte disponivel.",
   "pathways.combo.xmr.title": "BTC -> Monero -> BTC",
   "pathways.intro": "Ferramentas de privacidade on-chain como CoinJoin sao apenas uma camada. A privacidade mais forte vem da combinacao de multiplas tecnicas em diferentes redes.",
-  "pathways.jurisdictionNote": "A disponibilidade e legalidade de ferramentas de privacidade variam por jurisdicao. Pesquise suas regulamentacoes locais sobre CoinJoin, atomic swaps e moedas de privacidade antes de usar essas tecnicas. Algumas exchanges podem sinalizar ou restringir contas que interagem com ferramentas de privacidade conhecidas.",
+  "pathways.jurisdictionNote": "Ferramentas de privacidade como CoinJoin e atomic swaps sao transacoes padrao de Bitcoin - nao sao ilegais em nenhum lugar. No entanto, exchanges KYC podem sinalizar, atrasar ou restringir fundos que interagiram com ferramentas de privacidade devido a politicas internas de conformidade. Se usar exchanges KYC, envie primeiro para sua propria carteira. Para liberdade total, use sistemas sem KYC, trustless e sem permissao.",
   "pathways.liquid.con1": "Sidechain federada - requer confianca nos membros da federacao Liquid",
   "pathways.liquid.con2": "Peg-in e peg-out podem ser correlacionados por valor e momento. Se o mesmo servico (ex. Boltz) lidar com ambas as direcoes, esse servico ve seu fluxo completo.",
   "pathways.liquid.con3": "Base de usuarios menor limita o conjunto de anonimato",

@@ -1120,7 +1120,7 @@
   "pathways.combo.xmr.strength": "Vollstaendiger Kettenbruch. Die empfangenen BTC haben keinerlei On-chain-Verbindung zu den urspruenglichen BTC. Staerkste verfuegbare Datenschutzoption.",
   "pathways.combo.xmr.title": "BTC -> Monero -> BTC",
   "pathways.intro": "On-chain-Datenschutztools wie CoinJoin sind nur eine Schicht. Der staerkste Datenschutz entsteht durch die Kombination mehrerer Techniken ueber verschiedene Netzwerke hinweg.",
-  "pathways.jurisdictionNote": "Verfuegbarkeit und Legalitaet von Datenschutztools variieren je nach Rechtsgebiet. Informieren Sie sich ueber Ihre lokalen Vorschriften zu CoinJoin, Atomic Swaps und Privacy-Coins, bevor Sie diese Techniken verwenden. Einige Boersen koennten Konten kennzeichnen oder einschraenken, die mit bekannten Datenschutztools interagieren.",
+  "pathways.jurisdictionNote": "Datenschutztools wie CoinJoin und Atomic Swaps sind Standard-Bitcoin-Transaktionen - nirgendwo illegal. Allerdings koennen KYC-Boersen Gelder, die mit Datenschutztools interagiert haben, aufgrund interner Compliance-Richtlinien markieren, verzoegern oder einschraenken. Wenn Sie KYC-Boersen nutzen, senden Sie zuerst an Ihre eigene Wallet. Fuer volle Freiheit nutzen Sie KYC-freie, trustless und genehmigungsfreie Systeme.",
   "pathways.liquid.con1": "Foederierte Sidechain - erfordert Vertrauen in die Liquid-Foederationsmitglieder",
   "pathways.liquid.con2": "Peg-in und Peg-out koennen anhand von Betrag und Timing korreliert werden. Wenn derselbe Dienst (z.B. Boltz) beide Richtungen abwickelt, sieht er den kompletten Geldfluss.",
   "pathways.liquid.con3": "Kleinere Nutzerbasis begrenzt das Anonymity-Set",
