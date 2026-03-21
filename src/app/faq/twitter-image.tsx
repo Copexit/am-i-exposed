@@ -1,15 +1,14 @@
-import { createOgImageResponse, OG_SIZE } from "../og-template";
+import { createOgImageWithIcon, OG_SIZE, OG_ICONS } from "../og-template";
 
 export const dynamic = "force-static";
-
-export const alt =
-  "FAQ - Bitcoin Privacy Questions Answered | am-i.exposed";
+export const alt = "FAQ | am-i.exposed";
 export const size = OG_SIZE;
 export const contentType = "image/png";
 
 export default function Image() {
-  return createOgImageResponse(
+  return createOgImageWithIcon(
     "FAQ",
-    "Bitcoin privacy questions answered. 13 common questions.",
+    "Bitcoin privacy questions answered.",
+    OG_ICONS.helpCircle,
   );
 }
