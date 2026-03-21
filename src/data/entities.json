@@ -521,7 +521,7 @@
     },
     {
       "name": "Coinkite",
-      "category": "exchange",
+      "category": "payment",
       "status": "active",
       "country": "Canada",
       "ofac": false,
