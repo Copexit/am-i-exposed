@@ -23,7 +23,7 @@ export const RECOMMENDED_WALLETS: WalletEntry[] = [
     coinJoin: true,
     payJoin: "v1-only",
     bip47: true,
-    silentPayments: false,
+    silentPayments: "send-only",
     ownNode: true,
     tor: true,
     url: "https://sparrowwallet.com",
