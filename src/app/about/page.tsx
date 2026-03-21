@@ -51,11 +51,11 @@ const DEFAULTS: Record<string, string> = {
 };
 
 const STATS = [
-  { value: "31", labelKey: "about.stat_1_label" },
-  { value: "14", labelKey: "about.stat_2_label" },
+  { value: "33", labelKey: "about.stat_1_label" },
+  { value: "13", labelKey: "about.stat_2_label" },
   { value: "364", labelKey: "about.stat_3_label" },
   { value: "30M+", labelKey: "about.stat_4_label" },
-  { value: "844+", labelKey: "about.stat_5_label" },
+  { value: "930+", labelKey: "about.stat_5_label" },
   { value: "5", labelKey: "about.stat_6_label" },
 ];
 
