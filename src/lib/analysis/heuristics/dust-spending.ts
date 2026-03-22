@@ -81,7 +81,7 @@ export const analyzeDustSpending: TxHeuristic = (tx) => {
           { name: "Sparrow Wallet", url: "https://sparrowwallet.com" },
           { name: "Ashigaru", url: "https://ashigaru.rs" },
         ],
-        urgency: "high",
+        urgency: "immediate",
       },
     });
   }
