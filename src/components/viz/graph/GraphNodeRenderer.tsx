@@ -158,7 +158,8 @@ export function GraphNodeRenderer({
           onHoverPort={setHoveredPort}
           onExpandInput={onExpandPortInput ?? onExpandInput}
           onExpandOutput={onExpandPortOutput ?? onExpandOutput}
-          onNodeClick={() => handleNodeClick(node, selectedNode?.txid ?? null)}
+          onNodeClick={() => { if (!justDraggedRef.current) handleNodeClick(node, selectedNode?.txid ?? null); }}
+          onMouseDown={(e: React.MouseEvent) => handleNodeMouseDown(e, node)}
           atCapacity={atCapacity}
         />
       </motion.g>
