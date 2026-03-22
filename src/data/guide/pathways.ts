@@ -335,6 +335,28 @@ export const COMBINED_PATHWAYS: CombinedPathwayData[] = [
     stepsDefault: "Can go directly Lightning to Bitcoin via submarine swap (Boltz). The swap service does not know the origin of LN funds but sees the destination address. If multiple swaps are made and outputs later consolidated, the service can link them to one entity. For high-fee periods: swap LN to Liquid (e.g., Boltz), accumulate, then peg out to Bitcoin via a different service (e.g., SideSwap). Non-custodial atomic paths preserve self-custody.",
     strengthKey: "pathways.combo.lnliq.strength",
     strengthDefault: "Breaks the on-chain trail. The swap service sees the destination but not the origin. Use different services for the LN-to-Liquid and Liquid-to-BTC legs. Avoid consolidating multiple swap outputs to prevent linking them.",
+    warnings: [
+      {
+        key: "pathways.combo.lnliq.warn1",
+        default: "Boltz knows: the amounts exchanged and the Liquid addresses receiving funds. Even though Liquid uses confidential transactions, Boltz already knows the amounts from the swap itself.",
+      },
+      {
+        key: "pathways.combo.lnliq.warn2",
+        default: "Consolidation risk: if you merge multiple Boltz swap outputs on Liquid before peg-out, common input ownership applies - Boltz can correlate them to the same entity with known amounts.",
+      },
+      {
+        key: "pathways.combo.lnliq.warn3",
+        default: "SideSwap knows: the destination Bitcoin on-chain address of the peg-out, but not the origin of the Liquid funds.",
+      },
+      {
+        key: "pathways.combo.lnliq.warn4",
+        default: "Collusion risk: if Boltz and SideSwap share information, they can reconstruct the full path from origin to destination, completely breaking the privacy benefit of using Liquid as an intermediary.",
+      },
+      {
+        key: "pathways.combo.lnliq.warn5",
+        default: "BTC on-chain -> Liquid variant: unlike Lightning where the sender is hidden, Boltz can see the origin Bitcoin on-chain address. The LN -> Liquid path is preferable since Lightning hides the sender.",
+      },
+    ],
   },
   {
     id: "coinjoin-p2p",
