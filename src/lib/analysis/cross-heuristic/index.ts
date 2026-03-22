@@ -126,6 +126,7 @@ export function classifyTransactionType(findings: Finding[]): TxType {
   // CoinJoin variants (most specific first)
   if (hasAny("h4-whirlpool")) return "whirlpool-coinjoin";
   if (findings.some((f) => f.id === "h4-coinjoin" && f.params?.isWabiSabi === 1)) return "wabisabi-coinjoin";
+  if (hasAny("h4-wasabi1")) return "wasabi1-coinjoin";
   if (hasAny("h4-joinmarket")) return "joinmarket-coinjoin";
   if (hasAny("h4-coinjoin")) return "generic-coinjoin";
 

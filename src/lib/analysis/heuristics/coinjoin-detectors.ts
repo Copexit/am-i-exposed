@@ -197,6 +197,82 @@ export function detectStonewall(
 }
 
 /**
+ * Detect Wasabi 1.0 CoinJoin pattern.
+ *
+ * Wasabi 1.0 (2018-2022) coinjoins have a distinctive structure:
+ * - Many inputs (typically 10-100+) from many distinct addresses
+ * - One dominant denomination tier: 5+ equal outputs at a single value
+ * - Additional change outputs of varying sizes
+ * - Change outputs are mixed in with the equal-value outputs
+ * - NOT Whirlpool (which has only equal outputs, no change)
+ * - NOT WabiSabi (which has multiple denomination tiers)
+ *
+ * The key differentiator from generic equal-output detection is the
+ * combination of high input count + single denomination + change outputs.
+ */
+export function detectWasabi1(
+  vin: { prevout?: { scriptpubkey_address?: string; value?: number } | null }[],
+  spendableOutputs: { value: number; scriptpubkey_address?: string }[],
+): { equalCount: number; denomination: number; changeCount: number } | null {
+  // Wasabi 1.0: typically 10-100+ inputs, 10-100+ outputs
+  // Higher thresholds than JoinMarket to avoid overlap
+  if (vin.length < 10 || spendableOutputs.length < 10) return null;
+
+  // Require many distinct input addresses (multi-party evidence)
+  const inputAddresses = new Set<string>();
+  for (const v of vin) {
+    if (v.prevout?.scriptpubkey_address) {
+      inputAddresses.add(v.prevout.scriptpubkey_address);
+    }
+  }
+  if (inputAddresses.size < 5) return null;
+
+  // Count output values
+  const counts = countOutputValues(spendableOutputs);
+
+  // Find the dominant denomination (most common output value with 5+ occurrences)
+  let bestValue = 0;
+  let bestCount = 0;
+  for (const [value, count] of counts) {
+    if (count >= 5 && count > bestCount && value >= MIN_COINJOIN_DENOM) {
+      // Skip Whirlpool denominations
+      if (WHIRLPOOL_DENOMS.includes(value)) continue;
+      bestCount = count;
+      bestValue = value;
+    }
+  }
+  if (bestCount < 5) return null;
+
+  // Must have change outputs (non-equal outputs present)
+  const changeCount = spendableOutputs.length - bestCount;
+  if (changeCount < 1) return null;
+
+  // Wasabi 1.0 has a single dominant denomination. If there are multiple
+  // denomination tiers with 3+ outputs each, it's more likely WabiSabi
+  // or a custom multi-tier CoinJoin.
+  let denomTierCount = 0;
+  for (const [, count] of counts) {
+    if (count >= 3) denomTierCount++;
+  }
+  if (denomTierCount > 1) return null;
+
+  // Equal outputs must go to distinct addresses
+  const equalAddresses = new Set<string>();
+  for (const o of spendableOutputs) {
+    if (o.value === bestValue && o.scriptpubkey_address) {
+      equalAddresses.add(o.scriptpubkey_address);
+    }
+  }
+  if (equalAddresses.size < bestCount) return null;
+
+  return {
+    equalCount: bestCount,
+    denomination: bestValue,
+    changeCount,
+  };
+}
+
+/**
  * Detect simplified Stonewall pattern.
  *
  * Simplified Stonewall: 2+ inputs, exactly 3 spendable outputs.

@@ -7,6 +7,7 @@ import {
   detectJoinMarket,
   detectStonewall,
   detectSimplifiedStonewall,
+  detectWasabi1,
 } from "./coinjoin-detectors";
 import {
   buildWhirlpoolFinding,
@@ -40,6 +41,36 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
   const whirlpool = detectWhirlpool(spendableOutputs.map((o) => o.value));
   if (whirlpool) {
     findings.push(buildWhirlpoolFinding(whirlpool.denomination));
+    return { findings };
+  }
+
+  // Wasabi 1.0 detection: single denomination + change outputs + many inputs
+  const wasabi1 = detectWasabi1(tx.vin, spendableOutputs);
+  if (wasabi1) {
+    const { equalCount, denomination, changeCount } = wasabi1;
+    findings.push({
+      id: "h4-wasabi1",
+      severity: "good",
+      confidence: "high",
+      title: `Wasabi 1.0 CoinJoin detected (${equalCount} equal outputs at ${denomination} sats)`,
+      params: {
+        denomination,
+        equalOutputs: equalCount,
+        changeOutputs: changeCount,
+        inputCount: tx.vin.length,
+        outputCount: spendableOutputs.length,
+      },
+      description:
+        `This transaction matches the Wasabi 1.0 CoinJoin fingerprint: ${equalCount} equal outputs ` +
+        `at ${denomination} sats with ${changeCount} change outputs from ${tx.vin.length} inputs. ` +
+        `Wasabi 1.0 (ZeroLink protocol, 2018-2022) uses a single coordinator and a fixed denomination ` +
+        `with unmixed change returned to participants.`,
+      recommendation:
+        "Wasabi 1.0 CoinJoin provides good forward privacy for the equal-denomination outputs. " +
+        "The change outputs carry the full pre-mix history - spend them separately or remix them. " +
+        "Consider upgrading to Wasabi 2.0 (WabiSabi) or Whirlpool for better change handling.",
+      scoreImpact: 20,
+    });
     return { findings };
   }
 
@@ -139,7 +170,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
 
 /** Set of finding IDs that identify CoinJoin transactions. */
 const COINJOIN_FINDING_IDS = new Set([
-  "h4-whirlpool", "h4-coinjoin", "h4-joinmarket", "h4-stonewall", "h4-simplified-stonewall",
+  "h4-whirlpool", "h4-wasabi1", "h4-coinjoin", "h4-joinmarket", "h4-stonewall", "h4-simplified-stonewall",
 ]);
 
 /** Check if a finding indicates a positive CoinJoin detection. */
