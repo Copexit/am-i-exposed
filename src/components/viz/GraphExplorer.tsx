@@ -23,19 +23,27 @@ import type { GraphAnnotation, SavedGraph } from "@/lib/graph/saved-graph-types"
 // Re-export types for consumers that import from this file
 export type { GraphExplorerProps } from "./graph/types";
 
-/** Horizontal padding subtracted from window.innerWidth for viewport calculations. */
-const VIEWPORT_PAD_X = 32;
-/** Vertical padding subtracted from window.innerHeight for viewport calculations. */
-const VIEWPORT_PAD_Y = 160;
+/** Minimum horizontal margin on each side for small screens. */
+const MIN_MARGIN_X = 16;
+/** Fallback vertical padding when no container ref is available. */
+const FALLBACK_PAD_Y = 160;
 
-/** Compute the usable viewport dimensions (window minus padding). */
-function getViewportDims() {
-  return { cw: window.innerWidth - VIEWPORT_PAD_X, ch: window.innerHeight - VIEWPORT_PAD_Y };
+/**
+ * Compute the usable viewport dimensions.
+ * Uses measured container dims from ParentSize (via onLayoutComplete) when available.
+ */
+function getViewportDims(dims?: { width: number; height: number }) {
+  if (dims && dims.width > 0 && dims.height > 0) {
+    return { cw: dims.width, ch: dims.height };
+  }
+  // Last resort: use window dimensions with padding
+  const padX = Math.max(MIN_MARGIN_X * 2, Math.min(48, window.innerWidth * 0.08));
+  return { cw: window.innerWidth - padX, ch: window.innerHeight - FALLBACK_PAD_Y };
 }
 
 /** Compute a ViewTransform that centers the root nodes within the viewport. */
-function computeRootCenterView(roots: LayoutNode[]): ViewTransform {
-  const { cw, ch } = getViewportDims();
+function computeRootCenterView(roots: LayoutNode[], dims?: { width: number; height: number }): ViewTransform {
+  const { cw, ch } = getViewportDims(dims);
   if (roots.length === 0) return { x: 0, y: 0, scale: 1 };
   const avgX = roots.reduce((s, n) => s + n.x + n.width / 2, 0) / roots.length;
   const avgY = roots.reduce((s, n) => s + n.y + n.height / 2, 0) / roots.length;
@@ -43,9 +51,9 @@ function computeRootCenterView(roots: LayoutNode[]): ViewTransform {
 }
 
 /** Compute a ViewTransform that fits all layout nodes within the viewport. */
-function computeFitView(ln: LayoutNode[]): ViewTransform | null {
+function computeFitView(ln: LayoutNode[], dims?: { width: number; height: number }): ViewTransform | null {
   if (ln.length === 0) return null;
-  const { cw, ch } = getViewportDims();
+  const { cw, ch } = getViewportDims(dims);
   const minX = Math.min(...ln.map((n) => n.x));
   const minY = Math.min(...ln.map((n) => n.y));
   const maxX = Math.max(...ln.map((n) => n.x + n.width));
@@ -53,7 +61,10 @@ function computeFitView(ln: LayoutNode[]): ViewTransform | null {
   const nodesW = maxX - minX;
   const nodesH = maxY - minY;
   const s = Math.min(cw / nodesW, ch / nodesH, 1.5);
-  return { x: (cw - nodesW * s) / 2 - minX * s, y: (ch - nodesH * s) / 2 - minY * s, scale: s };
+  const rawX = (cw - nodesW * s) / 2 - minX * s;
+  // Ensure nodes don't clip the left edge on small screens
+  const x = Math.max(rawX, MIN_MARGIN_X - minX * s);
+  return { x, y: (ch - nodesH * s) / 2 - minY * s, scale: s };
 }
 
 /**
@@ -75,6 +86,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
     handleToggleHeatMap, handleToggleFingerprint,
     handleLayoutComplete, handleFullscreenExit,
     restoreSavedGraph, restoreFromLastLoaded,
+    nodePositionsRef, containerDimsRef,
   } = useGraphExplorerState(props.alwaysFullscreen);
 
   const {
@@ -96,6 +108,99 @@ export function GraphExplorer(props: GraphExplorerProps) {
   const sidebarTx = props.expandedNodeTxid ? props.nodes.get(props.expandedNodeTxid)?.tx : undefined;
   const showSidebar = !!sidebarTx && !sidebarCollapsed;
 
+  // Seed new nodes near their trigger node.
+  const pendingSeedRef = useRef<{ triggerTxid: string; direction: "backward" | "forward"; x: number; y: number } | null>(null);
+  const prevNodeKeysRef = useRef<Set<string>>(new Set());
+
+  // Find a y position that doesn't overlap existing nodes near the target x.
+  // Scans nodePositions + overrides for occupied y slots and nudges down.
+  const findFreeY = useCallback((targetX: number, targetY: number, excludeTxid?: string): number => {
+    const NODE_SLOT = 80; // NODE_H(56) + ROW_GAP(24)
+    const X_TOLERANCE = 300; // only check nodes in nearby columns
+    const occupied: number[] = [];
+
+    // Collect y positions of nodes near the target x
+    for (const [txid, pos] of nodePositionsRef.current) {
+      if (txid === excludeTxid) continue;
+      if (Math.abs(pos.x - targetX) < X_TOLERANCE) {
+        occupied.push(pos.y);
+      }
+    }
+    // Also check pending overrides
+    for (const [txid, pos] of nodePositionOverrides) {
+      if (txid === excludeTxid) continue;
+      if (Math.abs(pos.x - targetX) < X_TOLERANCE) {
+        occupied.push(pos.y);
+      }
+    }
+
+    let y = targetY;
+    let attempts = 0;
+    while (attempts < 50) {
+      const collision = occupied.some((oy) => Math.abs(oy - y) < NODE_SLOT);
+      if (!collision) return y;
+      y += NODE_SLOT;
+      attempts++;
+    }
+    return y;
+  }, [nodePositionsRef, nodePositionOverrides]);
+
+  // When nodes change, detect new nodes and seed their position
+  useEffect(() => {
+    const seed = pendingSeedRef.current;
+    if (!seed) { prevNodeKeysRef.current = new Set(props.nodes.keys()); return; }
+    const prevKeys = prevNodeKeysRef.current;
+    for (const txid of props.nodes.keys()) {
+      if (!prevKeys.has(txid)) {
+        const y = findFreeY(seed.x, seed.y, txid);
+        dispatch({ type: "SET_NODE_POSITION", txid, x: seed.x, y });
+        pendingSeedRef.current = null;
+        break;
+      }
+    }
+    prevNodeKeysRef.current = new Set(props.nodes.keys());
+  }, [props.nodes, dispatch, findFreeY]);
+
+  const { onExpandInput, onExpandOutput, onExpandPortInput, onExpandPortOutput } = props;
+
+  // Seed position before any expand (backward or forward, node button or port)
+  const seedBackward = useCallback((txid: string) => {
+    const triggerPos = nodePositionsRef.current.get(txid);
+    if (triggerPos) {
+      const y = findFreeY(triggerPos.x - 280, triggerPos.y, undefined);
+      pendingSeedRef.current = { triggerTxid: txid, direction: "backward", x: triggerPos.x - 280, y };
+    }
+  }, [nodePositionsRef, findFreeY]);
+
+  const seedForward = useCallback((txid: string) => {
+    const triggerPos = nodePositionsRef.current.get(txid);
+    if (triggerPos) {
+      const targetX = triggerPos.x + triggerPos.w + 100;
+      const y = findFreeY(targetX, triggerPos.y, undefined);
+      pendingSeedRef.current = { triggerTxid: txid, direction: "forward", x: targetX, y };
+    }
+  }, [nodePositionsRef, findFreeY]);
+
+  const handleExpandInput = useCallback((txid: string, inputIndex: number) => {
+    seedBackward(txid);
+    onExpandInput?.(txid, inputIndex);
+  }, [onExpandInput, seedBackward]);
+
+  const handleExpandOutput = useCallback((txid: string, outputIndex: number) => {
+    seedForward(txid);
+    onExpandOutput?.(txid, outputIndex);
+  }, [onExpandOutput, seedForward]);
+
+  const handleExpandPortInput = useCallback((txid: string, inputIndex: number) => {
+    seedBackward(txid);
+    onExpandPortInput?.(txid, inputIndex);
+  }, [onExpandPortInput, seedBackward]);
+
+  const handleExpandPortOutput = useCallback((txid: string, outputIndex: number) => {
+    seedForward(txid);
+    onExpandPortOutput?.(txid, outputIndex);
+  }, [onExpandPortOutput, seedForward]);
+
   // ─── Boltzmann ─────────────────────────────────────────
   const {
     getBoltzmannResult, triggerBoltzmann,
@@ -115,9 +220,10 @@ export function GraphExplorer(props: GraphExplorerProps) {
   const { isExpanded, expand: expandFullscreen, collapse: collapseFullscreen } = useFullscreen(handleFullscreenExit);
 
   // Zoom helper
+  const containerDims = containerDimsRef.current;
   const zoomBy = useCallback((factor: number) => {
     if (!viewTransform) return;
-    const { cw, ch } = getViewportDims();
+    const { cw, ch } = getViewportDims(containerDims);
     const cx = cw / 2;
     const cy = ch / 2;
     const gx = (cx - viewTransform.x) / viewTransform.scale;
@@ -138,26 +244,32 @@ export function GraphExplorer(props: GraphExplorerProps) {
   const handleExpandFullscreen = useCallback(() => {
     expandFullscreen();
     const { layoutNodes: ln } = layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids, undefined, true);
-    dispatch({ type: "SET_VIEW_TRANSFORM", vt: computeRootCenterView(ln.filter((n) => n.isRoot)) });
-  }, [expandFullscreen, props.nodes, props.rootTxid, filter, props.rootTxids, dispatch]);
+    // Use rAF to measure after fullscreen layout settles
+    requestAnimationFrame(() => {
+      dispatch({ type: "SET_VIEW_TRANSFORM", vt: computeRootCenterView(ln.filter((n) => n.isRoot), containerDimsRef.current) });
+    });
+  }, [expandFullscreen, props.nodes, props.rootTxid, filter, props.rootTxids, dispatch, containerDimsRef]);
 
   const handleFitView = useCallback(() => {
     const { layoutNodes: ln } = layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids, undefined, true);
-    const vt = computeFitView(ln);
+    const vt = computeFitView(ln, containerDimsRef.current);
     if (vt) dispatch({ type: "SET_VIEW_TRANSFORM", vt });
-  }, [props.nodes, props.rootTxid, filter, props.rootTxids, dispatch]);
+  }, [props.nodes, props.rootTxid, filter, props.rootTxids, dispatch, containerDimsRef]);
 
-  // Auto-center on root change in alwaysFullscreen mode
+  // Auto-center on root change in alwaysFullscreen mode.
+  // GraphCanvas handles first-render centering (it knows the real container dims).
+  // This effect handles subsequent root changes (e.g., navigating to a new txid).
   const prevRootRef = useRef<string>("");
   useEffect(() => {
     if (!props.alwaysFullscreen || !props.rootTxid || props.nodes.size === 0) return;
     if (prevRootRef.current === props.rootTxid) return;
     prevRootRef.current = props.rootTxid;
-    requestAnimationFrame(() => {
-      const { layoutNodes: ln } = layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids, undefined, true);
-      const roots = ln.filter((n) => n.isRoot);
-      if (roots.length > 0) dispatch({ type: "SET_VIEW_TRANSFORM", vt: computeRootCenterView(roots) });
-    });
+    // Skip if containerDims not yet populated (first render handled by GraphCanvas)
+    const dims = containerDimsRef.current;
+    if (!dims || dims.width === 0) return;
+    const { layoutNodes: ln } = layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids, undefined, true);
+    const roots = ln.filter((n) => n.isRoot);
+    if (roots.length > 0) dispatch({ type: "SET_VIEW_TRANSFORM", vt: computeRootCenterView(roots, dims) });
   }, [props.alwaysFullscreen, props.rootTxid, props.nodes, filter, props.rootTxids, dispatch]);
 
   // ─── Stable callbacks ──────────────────────────────────
@@ -229,7 +341,12 @@ export function GraphExplorer(props: GraphExplorerProps) {
   };
 
   const canvasProps = {
-    ...props, tooltip, scrollRef, filter, hoveredNode,
+    ...props,
+    onExpandInput: handleExpandInput,
+    onExpandOutput: handleExpandOutput,
+    onExpandPortInput: handleExpandPortInput,
+    onExpandPortOutput: handleExpandPortOutput,
+    tooltip, scrollRef, filter, hoveredNode,
     setHoveredNode: (txid: string | null) => dispatch({ type: "SET_HOVERED_NODE", txid }),
     selectedNode,
     setSelectedNode: (node: { txid: string; x: number; y: number } | null) => dispatch({ type: "SET_SELECTED_NODE", node }),
@@ -278,8 +395,8 @@ export function GraphExplorer(props: GraphExplorerProps) {
           onClose={() => props.onToggleExpand?.(props.expandedNodeTxid!)}
           onCollapse={() => dispatch({ type: "SET_SIDEBAR_COLLAPSED", collapsed: true })}
           onFullScan={(txid) => props.onTxClick?.(txid)}
-          onExpandInput={props.onExpandInput}
-          onExpandOutput={props.onExpandOutput}
+          onExpandInput={handleExpandInput}
+          onExpandOutput={handleExpandOutput}
           changeOutputs={changeOutputs}
           onToggleChange={toggleChange}
           boltzmannResult={props.expandedNodeTxid ? getBoltzmannResult(props.expandedNodeTxid) : undefined}

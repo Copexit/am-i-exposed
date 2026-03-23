@@ -29,7 +29,7 @@ export function NodeExpandButtons({
   return (
     <>
       {/* Expand left button (backward) */}
-      {!atCapacity && node.depth <= 0 && (() => {
+      {!atCapacity && (() => {
         const idx = node.tx.vin.findIndex((v) => !v.is_coinbase && !graphNodes.has(v.txid));
         return idx >= 0 ? (
           <g className="graph-btn" style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); onExpandInput(node.txid, idx); }}>
