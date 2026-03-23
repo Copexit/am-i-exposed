@@ -273,7 +273,10 @@ export function GraphExplorer(props: GraphExplorerProps) {
   };
 
   const canvasProps = {
-    ...props, tooltip, scrollRef, filter, hoveredNode,
+    ...props,
+    onExpandInput: handleExpandInput,
+    onExpandOutput: handleExpandOutput,
+    tooltip, scrollRef, filter, hoveredNode,
     setHoveredNode: (txid: string | null) => dispatch({ type: "SET_HOVERED_NODE", txid }),
     selectedNode,
     setSelectedNode: (node: { txid: string; x: number; y: number } | null) => dispatch({ type: "SET_SELECTED_NODE", node }),
