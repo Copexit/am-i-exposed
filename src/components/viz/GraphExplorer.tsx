@@ -30,11 +30,25 @@ const FALLBACK_PAD_Y = 160;
 
 /** Compute the usable viewport dimensions from container element or window fallback. */
 function getViewportDims(containerEl?: HTMLElement | null) {
+  // Try the passed container first
   if (containerEl) {
     const rect = containerEl.getBoundingClientRect();
-    return { cw: Math.max(rect.width - 16, 100), ch: Math.max(rect.height - 16, 100) };
+    if (rect.width > 0 && rect.height > 0) {
+      return { cw: Math.max(rect.width - 16, 100), ch: Math.max(rect.height - 16, 100) };
+    }
   }
-  // Fallback: use window dimensions with padding
+  // Try finding the graph SVG element directly as second fallback
+  const svg = typeof document !== "undefined" ? document.querySelector<SVGSVGElement>(".overflow-visible") : null;
+  if (svg) {
+    const parent = svg.parentElement;
+    if (parent) {
+      const rect = parent.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        return { cw: Math.max(rect.width - 16, 100), ch: Math.max(rect.height - 16, 100) };
+      }
+    }
+  }
+  // Last resort: use window dimensions with padding
   const padX = Math.max(MIN_MARGIN_X * 2, Math.min(48, window.innerWidth * 0.08));
   return { cw: window.innerWidth - padX, ch: window.innerHeight - FALLBACK_PAD_Y };
 }
@@ -259,11 +273,12 @@ export function GraphExplorer(props: GraphExplorerProps) {
     if (!props.alwaysFullscreen || !props.rootTxid || props.nodes.size === 0) return;
     if (prevRootRef.current === props.rootTxid) return;
     prevRootRef.current = props.rootTxid;
-    requestAnimationFrame(() => {
+    // Double rAF ensures the container has its final dimensions after mount
+    requestAnimationFrame(() => requestAnimationFrame(() => {
       const { layoutNodes: ln } = layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids, undefined, true);
       const roots = ln.filter((n) => n.isRoot);
       if (roots.length > 0) dispatch({ type: "SET_VIEW_TRANSFORM", vt: computeRootCenterView(roots, scrollRef.current) });
-    });
+    }));
   }, [props.alwaysFullscreen, props.rootTxid, props.nodes, filter, props.rootTxids, dispatch]);
 
   // ─── Stable callbacks ──────────────────────────────────
