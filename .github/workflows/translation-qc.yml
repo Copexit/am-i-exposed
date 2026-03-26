@@ -1,0 +1,228 @@
+name: Translation QC
+
+# Runs quality review on translation PRs and posts a scored report as a comment.
+# Uses the qc-review Claude Code skill.
+#
+# Trigger: PRs that touch locale files, or manual dispatch on any PR.
+
+on:
+  pull_request:
+    paths:
+      - 'public/locales/*/common.json'
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to review'
+        type: number
+        required: true
+
+concurrency:
+  group: translation-qc-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  detect:
+    name: Detect changed locales
+    runs-on: ubuntu-latest
+    outputs:
+      locales: ${{ steps.detect.outputs.locales }}
+      has_changes: ${{ steps.detect.outputs.has_changes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine PR ref
+        id: pr
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "ref=${{ inputs.pr_number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Detect changed locale files
+        id: detect
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          FILES=$(gh pr diff "${{ steps.pr.outputs.ref }}" --name-only | grep '^public/locales/.*/common.json$' || true)
+
+          if [ -z "$FILES" ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "locales=[]" >> "$GITHUB_OUTPUT"
+            echo "No locale files changed in this PR"
+            exit 0
+          fi
+
+          LOCALES=$(echo "$FILES" | sed 's|public/locales/\(.*\)/common.json|\1|' | sort -u | grep -v '^en$' || true)
+
+          if [ -z "$LOCALES" ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "locales=[]" >> "$GITHUB_OUTPUT"
+            echo "Only English source changed, no translations to review"
+            exit 0
+          fi
+
+          JSON=$(echo "$LOCALES" | jq -R . | jq -s -c .)
+          echo "locales=$JSON" >> "$GITHUB_OUTPUT"
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          echo "Changed locales: $JSON"
+
+  review:
+    name: QC review (${{ matrix.locale }})
+    runs-on: ubuntu-latest
+    needs: detect
+    if: needs.detect.outputs.has_changes == 'true'
+    strategy:
+      matrix:
+        locale: ${{ fromJson(needs.detect.outputs.locales) }}
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Extract changed keys for this locale
+        id: scope
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUM="${{ github.event.pull_request.number || inputs.pr_number }}"
+          LOCALE="${{ matrix.locale }}"
+          TARGET="public/locales/${LOCALE}/common.json"
+
+          CHANGED_KEYS=$(gh pr diff "$PR_NUM" -- "$TARGET" \
+            | grep '^+' | grep -v '^+++' \
+            | sed -n 's/^+[[:space:]]*"\([^"]*\)".*/\1/p' \
+            | sort -u)
+
+          KEY_COUNT=$(echo "$CHANGED_KEYS" | grep -c . || true)
+
+          if [ "$KEY_COUNT" -gt 200 ]; then
+            echo "scope=full" >> "$GITHUB_OUTPUT"
+            echo "scope_note=This is a large change ($KEY_COUNT keys). Review the full file." >> "$GITHUB_OUTPUT"
+            echo "Large change ($KEY_COUNT keys) - full file review"
+          elif [ "$KEY_COUNT" -gt 0 ]; then
+            KEYS_CSV=$(echo "$CHANGED_KEYS" | tr '\n' ', ' | sed 's/,$//')
+            echo "scope=scoped" >> "$GITHUB_OUTPUT"
+            echo "scope_note=Review ONLY these changed keys (not the full file): ${KEYS_CSV}" >> "$GITHUB_OUTPUT"
+            echo "Scoped review: $KEY_COUNT changed keys"
+          else
+            echo "scope=none" >> "$GITHUB_OUTPUT"
+            echo "No translatable key changes detected"
+          fi
+
+      - name: Set up Claude Code skills symlink
+        if: steps.scope.outputs.scope != 'none'
+        run: mkdir -p .claude && ln -sf ../tools/skills .claude/skills
+
+      - name: Run QC review
+        if: steps.scope.outputs.scope != 'none'
+        uses: anthropics/claude-code-action@v1
+        timeout-minutes: 20
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Use the qc-review skill. Review the ${{ matrix.locale }} translation at public/locales/${{ matrix.locale }}/common.json against the English source at public/locales/en/common.json. Language pair: EN -> ${{ matrix.locale }}. Content type: UI strings.
+
+            ${{ steps.scope.outputs.scope_note }}
+
+            Produce the full scored report in the exact format specified by the skill (Part 5). Focus on: accuracy, fluency, terminology consistency, voice (no we/us/our, no em dashes), and completeness (all placeholders preserved).
+
+            Write the report to /tmp/qc-report-${{ matrix.locale }}.md. Output only the report, no other commentary.
+          claude_args: |
+            --allowedTools "Read,Glob,Grep,Write"
+
+      - name: Upload review report
+        if: steps.scope.outputs.scope != 'none'
+        uses: actions/upload-artifact@v4
+        with:
+          name: qc-report-${{ matrix.locale }}
+          path: /tmp/qc-report-${{ matrix.locale }}.md
+          retention-days: 30
+
+  comment:
+    name: Post QC results
+    runs-on: ubuntu-latest
+    needs: [detect, review]
+    if: always() && needs.detect.outputs.has_changes == 'true' && needs.review.result != 'skipped'
+    steps:
+      - name: Download all review reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: qc-report-*
+          path: /tmp/reports/
+          merge-multiple: false
+        continue-on-error: true
+
+      - name: Check for reports
+        id: check
+        run: |
+          if find /tmp/reports -name '*.md' 2>/dev/null | grep -q .; then
+            echo "has_reports=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_reports=false" >> "$GITHUB_OUTPUT"
+            echo "No QC reports to post"
+          fi
+
+      - name: Determine PR number
+        if: steps.check.outputs.has_reports == 'true'
+        id: pr
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "number=${{ inputs.pr_number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "number=${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Assemble and post comment
+        if: steps.check.outputs.has_reports == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER="${{ steps.pr.outputs.number }}"
+
+          {
+            echo "## Translation QC Report"
+            echo ""
+            echo "Automated quality review using the \`qc-review\` Claude Code skill."
+            echo ""
+
+            for report in /tmp/reports/qc-report-*/qc-report-*.md; do
+              if [ -f "$report" ]; then
+                LOCALE=$(basename "$report" .md | sed 's/qc-report-//')
+                echo "---"
+                echo ""
+                echo "### Locale: \`$LOCALE\`"
+                echo ""
+                cat "$report"
+                echo ""
+              fi
+            done
+
+            echo "---"
+            echo ""
+            echo "*Generated with [Claude Code](https://claude.ai/code) using \`qc-review\` skill.*"
+          } > /tmp/combined-report.md
+
+          EXISTING=$(gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
+            --jq '.[] | select(.body | startswith("## Translation QC Report")) | .id' \
+            | head -1)
+
+          if [ -n "$EXISTING" ]; then
+            gh api "repos/${{ github.repository }}/issues/comments/${EXISTING}" \
+              -X PATCH \
+              -F body=@/tmp/combined-report.md
+            echo "Updated existing QC comment"
+          else
+            gh pr comment "$PR_NUMBER" --body-file /tmp/combined-report.md
+            echo "Posted new QC comment"
+          fi
