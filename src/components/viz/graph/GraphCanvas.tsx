@@ -120,7 +120,7 @@ export function GraphCanvas({
     return { x: gx - sx, y: gy - sy };
   }, [viewTransform, scrollRef]);
 
-  const isFs = !!viewTransform; // fullscreen / pan-zoom mode
+  const isFs = !!isFullscreen; // fullscreen layout mode (reserve backward space)
 
   // ─── Layout + derived graph data ──────────────────────────────
   const {
@@ -141,12 +141,12 @@ export function GraphCanvas({
     onLayoutComplete?.({ visibleCount: layoutNodes.length, nodePositions, containerWidth, containerHeight: containerHeight ?? 0 });
   }, [layoutNodes.length, nodePositions, onLayoutComplete, containerWidth, containerHeight]);
 
-  // Auto-center on first fullscreen render when viewTransform is unset or default.
+  // Auto-center on first render when viewTransform is available.
   // GraphCanvas knows the real containerWidth/containerHeight from ParentSize,
   // so it can compute the correct centering without guessing.
   const hasAutoCenteredRef = useRef(false);
   useEffect(() => {
-    if (!isFullscreen || !onViewTransformChange || hasAutoCenteredRef.current) return;
+    if (!onViewTransformChange || hasAutoCenteredRef.current) return;
     if (layoutNodes.length === 0 || containerWidth <= 0) return;
     const ch = containerHeight ?? 0;
     if (ch <= 0) return;
@@ -157,7 +157,7 @@ export function GraphCanvas({
     const avgX = targets.reduce((s, n) => s + n.x + n.width / 2, 0) / targets.length;
     const avgY = targets.reduce((s, n) => s + n.y + n.height / 2, 0) / targets.length;
     onViewTransformChange({ x: containerWidth / 2 - avgX, y: ch / 2 - avgY, scale: 1 });
-  }, [isFullscreen, layoutNodes, containerWidth, containerHeight, onViewTransformChange]);
+  }, [layoutNodes, containerWidth, containerHeight, onViewTransformChange]);
 
   const svgWidth = Math.max(containerWidth, width);
   const svgHeight = Math.max(isFullscreen ? (containerHeight ?? height) : height, 150);

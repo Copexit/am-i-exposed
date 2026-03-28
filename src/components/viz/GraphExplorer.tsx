@@ -450,9 +450,11 @@ export function GraphExplorer(props: GraphExplorerProps) {
         {!isExpanded && (
           <div className="relative flex overflow-hidden rounded-lg">
             <GraphViewport
-              canvasProps={canvasProps} showSidebar={showSidebar} scrollRef={scrollRef}
+              canvasProps={canvasProps} viewTransform={viewTransform} onViewTransformChange={setViewTransform}
+              showSidebar={showSidebar} scrollRef={scrollRef}
               legend={legend} tooltipContent={tooltipContent} sidebar={renderSidebar("")}
-              scrollClassName="overflow-auto max-h-[900px] -mx-4 px-4"
+              scrollClassName="overflow-hidden h-[500px] -mx-4 px-4"
+              outerStyle={{ touchAction: "none" }}
             />
           </div>
         )}

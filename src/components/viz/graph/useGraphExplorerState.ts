@@ -194,7 +194,7 @@ function graphExplorerReducer(state: GraphExplorerState, action: GraphExplorerAc
           : new Map(),
       };
     case "CLEAR_FULLSCREEN":
-      return { ...state, selectedNode: null, viewTransform: undefined };
+      return { ...state, selectedNode: null, viewTransform: { x: 0, y: 0, scale: 1 } };
     default:
       return state;
   }
@@ -202,7 +202,7 @@ function graphExplorerReducer(state: GraphExplorerState, action: GraphExplorerAc
 
 // ─── Initial state factory ──────────────────────────────────────────
 
-function createInitialState(alwaysFullscreen?: boolean): GraphExplorerState {
+function createInitialState(_alwaysFullscreen?: boolean): GraphExplorerState {
   return {
     hoveredNode: null,
     selectedNode: null,
@@ -214,7 +214,7 @@ function createInitialState(alwaysFullscreen?: boolean): GraphExplorerState {
     annotateMode: false,
     nodeLabels: new Map(),
     edgeLabels: new Map(),
-    viewTransform: alwaysFullscreen ? { x: 0, y: 0, scale: 1 } : undefined,
+    viewTransform: { x: 0, y: 0, scale: 1 },
     edgeMode: "default",
     heatMapActive: false,
     heatMap: new Map(),

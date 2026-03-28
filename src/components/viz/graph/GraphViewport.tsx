@@ -57,22 +57,18 @@ export function GraphViewport({
     <div className="flex-1 min-h-0 relative px-4 pb-4 flex" style={outerStyle}>
       <div className="flex-1 min-w-0 relative">
         {legend}
-        <div ref={scrollRef} className={scrollClassName} style={isFullscreen ? { touchAction: "none" } : undefined}>
+        <div ref={scrollRef} className={scrollClassName} style={(isFullscreen || viewTransform !== undefined) ? { touchAction: "none" } : undefined}>
           <ParentSize debounceTime={100}>
             {({ width, height: parentH }) => {
               const adjustedWidth = showSidebar ? Math.max(width - SIDEBAR_WIDTH, 200) : width;
               if (adjustedWidth <= 0) return null;
-              return isFullscreen ? (
+              const passHeight = isFullscreen || viewTransform !== undefined;
+              return (
                 <GraphCanvas
                   {...fullCanvasProps}
                   containerWidth={adjustedWidth}
-                  containerHeight={parentH}
-                  isFullscreen
-                />
-              ) : (
-                <GraphCanvas
-                  {...fullCanvasProps}
-                  containerWidth={adjustedWidth}
+                  {...(passHeight ? { containerHeight: parentH } : {})}
+                  isFullscreen={isFullscreen}
                 />
               );
             }}
