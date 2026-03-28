@@ -19,6 +19,7 @@ import {
   SEVERITY_TOOLTIPS,
   ADVERSARY_DESCRIPTIONS,
   TEMPORALITY_DESCRIPTIONS,
+  CHANGE_SIGNAL_LABELS,
 } from "./findingCardConstants";
 
 /** Map finding IDs to relevant FAQ section anchors */
@@ -89,6 +90,86 @@ function TierContext({ finding, t }: { finding: Finding; t: (key: string, opts?:
           </span>
           <span className="text-muted">{tempText}</span>
         </span>
+      )}
+    </div>
+  );
+}
+
+/** Inline breakdown of which change detection signals fired and how they voted. */
+function ChangeSignalBreakdown({ finding, t, proMode }: { finding: Finding; t: (key: string, opts?: Record<string, unknown>) => string; proMode: boolean }) {
+  if (finding.id !== "h2-change-detected" || !finding.params?.signalDetails) return null;
+
+  let details: Array<{ key: string; votedOutput: number; weight: number }>;
+  try {
+    details = JSON.parse(String(finding.params.signalDetails));
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(details) || details.length === 0) return null;
+
+  const hasMinorityDissent = Number(finding.params.hasMinorityDissent ?? 0) === 1;
+  const changeIndex = finding.params.changeIndex;
+  const majorityRatio = Number(finding.params.majorityRatio ?? 100);
+  const corroboratorCount = Number(finding.params.corroboratorCount ?? 0);
+
+  // Count how many signals agree on the majority output
+  const majorityOutput = typeof changeIndex === "number" ? changeIndex : -1;
+  const agreeCount = majorityOutput >= 0
+    ? details.filter((d) => d.votedOutput === majorityOutput).length
+    : details.length;
+
+  return (
+    <div className="bg-surface-inset/50 rounded-md px-3 py-2 space-y-2 text-xs">
+      <ul className="space-y-1">
+        {details.map((d) => {
+          const label = CHANGE_SIGNAL_LABELS[d.key];
+          const name = label
+            ? t(label.i18nKey, { defaultValue: label.defaultLabel })
+            : d.key;
+          return (
+            <li key={d.key} className="flex items-center justify-between gap-2">
+              <span className="text-foreground/80">{name}</span>
+              <span className="text-muted text-[11px] shrink-0">
+                {t("finding.changeSignals.votesFor", { defaultValue: "votes" })}{" "}
+                {t("finding.changeSignals.output", { index: d.votedOutput, defaultValue: `Output #${d.votedOutput}` })}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="text-muted">
+        {!hasMinorityDissent
+          ? t("finding.changeSignals.allAgree", {
+              count: details.length,
+              output: majorityOutput,
+              defaultValue: `All ${details.length} signal${details.length > 1 ? "s" : ""} agree on Output #${majorityOutput} as change.`,
+            })
+          : majorityRatio >= 67
+            ? t("finding.changeSignals.majorityAgree", {
+                agreeCount,
+                total: details.length,
+                output: majorityOutput,
+                defaultValue: `${agreeCount} of ${details.length} signals agree on Output #${majorityOutput} as change.`,
+              })
+            : t("finding.changeSignals.split", {
+                defaultValue: "Signals are split - change output uncertain.",
+              })}
+      </p>
+      {typeof changeIndex === "number" && majorityRatio >= 67 && (
+        <p className="text-foreground/70 font-medium">
+          {t("finding.changeSignals.identified", {
+            index: changeIndex,
+            defaultValue: `Output #${changeIndex} identified as likely change.`,
+          })}
+        </p>
+      )}
+      {proMode && corroboratorCount > 0 && (
+        <p className="text-muted italic">
+          {t("finding.changeSignals.compoundBoost", {
+            count: corroboratorCount,
+            defaultValue: `Confidence boosted by ${corroboratorCount} corroborating heuristic${corroboratorCount > 1 ? "s" : ""}.`,
+          })}
+        </p>
       )}
     </div>
   );
@@ -187,6 +268,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
               <p className="text-base text-foreground leading-relaxed">
                 {t(findingKey(finding.id, "description", finding.params), { ...finding.params, defaultValue: finding.description })}
               </p>
+              <ChangeSignalBreakdown finding={finding} t={t} proMode={proMode} />
               <TierContext finding={finding} t={t} />
               {finding.recommendation && (
                 <div className="bg-surface-inset rounded-md px-3 py-2">

@@ -83,3 +83,16 @@ export const CONFIDENCE_DESCRIPTIONS: Record<ConfidenceLevel, string> = {
   medium: "This pattern is suggestive but could have other explanations.",
   low: "Weak signal that could easily be coincidence.",
 };
+
+/** Human-readable labels for change detection sub-heuristic signal keys. */
+export const CHANGE_SIGNAL_LABELS: Record<string, { i18nKey: string; defaultLabel: string }> = {
+  address_type:      { i18nKey: "signal.addressType",      defaultLabel: "Address type mismatch" },
+  round_amount:      { i18nKey: "signal.roundAmount",      defaultLabel: "Round BTC amount" },
+  round_usd_amount:  { i18nKey: "signal.roundUsd",         defaultLabel: "Round USD amount" },
+  round_eur_amount:  { i18nKey: "signal.roundEur",         defaultLabel: "Round EUR amount" },
+  value_disparity:   { i18nKey: "signal.valueDisparity",   defaultLabel: "Large value disparity" },
+  unnecessary_input: { i18nKey: "signal.unnecessaryInput", defaultLabel: "Unnecessary input" },
+  optimal_change:    { i18nKey: "signal.optimalChange",    defaultLabel: "Optimal change position" },
+  shadow_change:     { i18nKey: "signal.shadowChange",     defaultLabel: "Shadow change (tiny remainder)" },
+  fresh_address:     { i18nKey: "signal.freshAddress",     defaultLabel: "Fresh vs. heavily reused address" },
+};

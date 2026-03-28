@@ -50,11 +50,15 @@ export function applyCompoundScoringAdjustments(findings: Finding[]): void {
       h2Finding.params = {
         ...h2Finding.params,
         compoundBoost: boost,
-        corroborators: boostCount,
+        corroboratorCount: boostCount,
       };
+      // Cap at "high" (Likely) - never "deterministic" for h2-change-detected.
+      // Only h2-same-address-io is truly deterministic (output address matches
+      // input address). Heuristic-based change detection can never be
+      // "mathematically certain" regardless of corroboration count.
       if (boostCount >= 2) {
         h2Finding.severity = "high";
-        h2Finding.confidence = "deterministic";
+        h2Finding.confidence = "high";
       } else if (h2Finding.severity === "low") {
         h2Finding.severity = "medium";
         h2Finding.confidence = "high";

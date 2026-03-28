@@ -191,13 +191,15 @@ export function checkOptimalChange(
   const ratio0 = vout[0].value / totalSpendable;
   const ratio1 = vout[1].value / totalSpendable;
 
-  // One output gets > 90% of input value - it's almost certainly change
-  if (ratio0 > 0.9 && ratio1 <= 0.9) {
+  // One output gets > 95% of input value - likely change.
+  // Threshold is 95% (not 90%) because 90-95% is ambiguous: it could be a
+  // large self-transfer to cold storage rather than a small payment + big change.
+  if (ratio0 > 0.95 && ratio1 <= 0.95) {
     changeIndices.set(0, (changeIndices.get(0) ?? 0) + 1);
-    signals.push("optimal change: output receives >90% of input value");
-  } else if (ratio1 > 0.9 && ratio0 <= 0.9) {
+    signals.push("optimal change: output receives >95% of input value");
+  } else if (ratio1 > 0.95 && ratio0 <= 0.95) {
     changeIndices.set(1, (changeIndices.get(1) ?? 0) + 1);
-    signals.push("optimal change: output receives >90% of input value");
+    signals.push("optimal change: output receives >95% of input value");
   }
 }
 
@@ -237,11 +239,16 @@ export function checkShadowChange(
 }
 
 /**
- * Sub-heuristic 8: Fresh address vs reused address
+ * Sub-heuristic 8: Fresh address vs heavily reused address
  *
- * Wallets generate fresh (never-seen) addresses for change. If one output
- * goes to a fresh address (0 prior txs) and the other goes to an address
- * that has been seen before, the fresh address is almost certainly change.
+ * HD wallets generate fresh addresses for change. If one output goes to a
+ * fresh address and the other to a heavily reused address (tx_count >= 5),
+ * the fresh address is likely change.
+ *
+ * Weight is 1 (not 2) because fresh addresses are inherently ambiguous -
+ * recipients also generate fresh addresses via HD wallets. The signal only
+ * fires when the "reused" side has meaningful history (>= REUSE_THRESHOLD),
+ * filtering out noise from barely-used addresses (cold storage, new users).
  *
  * Reference: Blockchair 100-indicator PDF, category 4
  */
@@ -264,13 +271,16 @@ export function checkFreshAddress(
   const fresh0 = count0 <= 1;
   const fresh1 = count1 <= 1;
 
-  // If exactly one is fresh and the other is reused, the fresh one is likely change.
-  // Weight is 2 because this is a strong change signal.
-  if (fresh0 && !fresh1) {
-    changeIndices.set(0, (changeIndices.get(0) ?? 0) + 2);
-    signals.push("fresh address is likely change (reused address is likely payment)");
-  } else if (fresh1 && !fresh0) {
-    changeIndices.set(1, (changeIndices.get(1) ?? 0) + 2);
-    signals.push("fresh address is likely change (reused address is likely payment)");
+  // Minimum reuse threshold: the "reused" side must have meaningful history.
+  // tx_count 2-4 is ambiguous (cold storage, new user, simple wallet).
+  // >= 5 indicates a service, exchange, merchant, or habitual address reuser.
+  const REUSE_THRESHOLD = 5;
+
+  if (fresh0 && count1 >= REUSE_THRESHOLD) {
+    changeIndices.set(0, (changeIndices.get(0) ?? 0) + 1);
+    signals.push("fresh address vs. heavily reused address");
+  } else if (fresh1 && count0 >= REUSE_THRESHOLD) {
+    changeIndices.set(1, (changeIndices.get(1) ?? 0) + 1);
+    signals.push("fresh address vs. heavily reused address");
   }
 }

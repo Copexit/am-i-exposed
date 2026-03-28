@@ -100,7 +100,7 @@ export function identifyChangeOutput(tx: MempoolTransaction): ChangeOutputResult
       return {
         changeOutputIndex: idx,
         reason: "change-detected",
-        confidence: confidence === "high" ? "high" : "medium",
+        confidence: confidence === "high" ? "high" : confidence === "medium" ? "medium" : "low",
       };
     }
   }

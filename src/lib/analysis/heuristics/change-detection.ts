@@ -218,73 +218,108 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
   }
 
   const signals: string[] = [];
-  const changeIndices = new Map<number, number>(); // output index -> signal count
+  const changeIndices = new Map<number, number>(); // output index -> weighted vote count
+
+  // ── Per-signal detail capture (for frontend transparency) ───────
+  interface SignalDetail { key: string; votedOutput: number; weight: number; }
+  const signalDetails: SignalDetail[] = [];
+
+  /** Wraps a check* call, capturing which output was voted and with what weight. */
+  function captureSignal(key: string, fn: () => void): void {
+    const prevLen = signals.length;
+    const prev0 = changeIndices.get(0) ?? 0;
+    const prev1 = changeIndices.get(1) ?? 0;
+    fn();
+    if (signals.length > prevLen) {
+      const d0 = (changeIndices.get(0) ?? 0) - prev0;
+      const d1 = (changeIndices.get(1) ?? 0) - prev1;
+      signalDetails.push({ key, votedOutput: d0 > 0 ? 0 : 1, weight: Math.max(d0, d1) });
+    }
+  }
 
   // Sub-heuristic 1: Address type mismatch
-  checkAddressTypeMismatch(tx.vin, spendableOutputs, changeIndices, signals);
+  captureSignal("address_type", () =>
+    checkAddressTypeMismatch(tx.vin, spendableOutputs, changeIndices, signals));
 
   // Sub-heuristic 2: Round amount
-  checkRoundAmount(spendableOutputs, changeIndices, signals);
+  captureSignal("round_amount", () =>
+    checkRoundAmount(spendableOutputs, changeIndices, signals));
 
   // Sub-heuristic 3: Value disparity (100x+ difference)
-  checkValueDisparity(spendableOutputs, changeIndices, signals);
+  captureSignal("value_disparity", () =>
+    checkValueDisparity(spendableOutputs, changeIndices, signals));
 
   // Sub-heuristic 4: Unnecessary input (one input could fund payment alone)
-  checkUnnecessaryInput(tx.vin, spendableOutputs, tx.fee, changeIndices, signals);
+  captureSignal("unnecessary_input", () =>
+    checkUnnecessaryInput(tx.vin, spendableOutputs, tx.fee, changeIndices, signals));
 
-  // Sub-heuristic 5: Optimal change (one output ~ total input - fee)
-  checkOptimalChange(tx.vin, spendableOutputs, tx.fee, changeIndices, signals);
+  // Sub-heuristic 5: Optimal change (one output > 95% of input value)
+  captureSignal("optimal_change", () =>
+    checkOptimalChange(tx.vin, spendableOutputs, tx.fee, changeIndices, signals));
 
   // Sub-heuristic 6: Shadow change (one output much smaller than any input)
-  checkShadowChange(tx.vin, spendableOutputs, changeIndices, signals);
+  captureSignal("shadow_change", () =>
+    checkShadowChange(tx.vin, spendableOutputs, changeIndices, signals));
 
   // Sub-heuristic 7: Round fiat amount (USD + EUR, requires historical price)
   const tol = ctx?.isCustomApi ? ROUND_USD_TOLERANCE_SELF_HOSTED : ROUND_USD_TOLERANCE_DEFAULT;
   if (ctx?.usdPrice) {
-    checkRoundFiatAmount(spendableOutputs, ctx.usdPrice, "usd", changeIndices, signals, tol);
+    captureSignal("round_usd_amount", () =>
+      checkRoundFiatAmount(spendableOutputs, ctx.usdPrice!, "usd", changeIndices, signals, tol));
   }
   if (ctx?.eurPrice) {
-    checkRoundFiatAmount(spendableOutputs, ctx.eurPrice, "eur", changeIndices, signals, tol);
+    captureSignal("round_eur_amount", () =>
+      checkRoundFiatAmount(spendableOutputs, ctx.eurPrice!, "eur", changeIndices, signals, tol));
   }
 
-  // Sub-heuristic 8: Fresh address vs reused address (requires pre-fetched tx counts)
+  // Sub-heuristic 8: Fresh address vs heavily reused address
   if (ctx?.outputTxCounts) {
-    checkFreshAddress(spendableOutputs, ctx.outputTxCounts, changeIndices, signals);
+    captureSignal("fresh_address", () =>
+      checkFreshAddress(spendableOutputs, ctx.outputTxCounts!, changeIndices, signals));
   }
 
   if (signals.length === 0) return { findings };
 
-  // Check if signals agree on which output is change
+  // ── Ratio-based confidence (handles disagreement proportionally) ──
   const signals0 = changeIndices.get(0) ?? 0;
   const signals1 = changeIndices.get(1) ?? 0;
   const maxSignals = Math.max(signals0, signals1);
+  const totalWeight = signals0 + signals1;
+  const majorityRatio = totalWeight > 0 ? maxSignals / totalWeight : 1;
+  const hasMinorityDissent = signals0 > 0 && signals1 > 0;
 
-  // Confidence based on agreement, not just signal count
-  const confidence = maxSignals >= 2 ? "medium" : "low";
+  // Confidence tiers:
+  //   high   = 3+ weight with >= 3/4 majority (strong consensus)
+  //   medium = 2+ weight with >= 2/3 majority (clear majority)
+  //   low    = weak or deadlocked signals
+  // Use fractional literals (not decimals) to avoid floating-point rounding issues.
+  type Confidence = "high" | "medium" | "low";
+  let findingConfidence: Confidence;
+  if (maxSignals >= 3 && majorityRatio >= 3 / 4) {
+    findingConfidence = "high";
+  } else if (maxSignals >= 2 && majorityRatio >= 2 / 3) {
+    findingConfidence = "medium";
+  } else {
+    findingConfidence = "low";
+  }
 
-  // Boost impact when a round amount signal confirms change detection
-  const signalKeys = signals.map((s) =>
-    s.includes("address type") ? "address_type"
-      : s.includes("round USD") ? "round_usd_amount"
-      : s.includes("round EUR") ? "round_eur_amount"
-      : s.includes("round") ? "round_amount"
-      : s.includes("disparity") ? "value_disparity"
-      : s.includes("unnecessary") ? "unnecessary_input"
-      : s.includes("optimal") ? "optimal_change"
-      : s.includes("shadow") ? "shadow_change"
-      : s.includes("fresh") ? "fresh_address"
-      : "unknown",
-  );
+  // ── Signal key extraction (for backward compat with graph viz) ────
+  const signalKeys = signalDetails.map((d) => d.key);
   const hasRoundSignal = signalKeys.includes("round_amount")
     || signalKeys.includes("round_usd_amount")
     || signalKeys.includes("round_eur_amount");
 
-  const impact = confidence === "medium"
-    ? (hasRoundSignal ? -15 : -10)
-    : -5;
+  // ── Impact: scales with confidence, round signal boosts ───────────
+  let impact: number;
+  if (findingConfidence === "high") {
+    impact = hasRoundSignal ? -15 : -12;
+  } else if (findingConfidence === "medium") {
+    impact = hasRoundSignal ? -12 : -10;
+  } else {
+    impact = -5;
+  }
 
-  // Identify which output index the heuristic thinks is change.
-  // Map indices into full tx.vout space (skip OP_RETURN / zero-value outputs).
+  // ── Identify which output index the heuristic thinks is change ────
   const changeSpendableIdx = signals0 > signals1 ? 0 : signals1 > signals0 ? 1 : -1;
   let changeVoutIdx: number | undefined;
   if (changeSpendableIdx >= 0) {
@@ -303,21 +338,26 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
 
   findings.push({
     id: "h2-change-detected",
-    severity: confidence === "medium" ? "medium" : "low",
-    confidence: confidence === "medium" ? "high" : "medium",
-    title: `Change output likely identifiable (${confidence} confidence)`,
+    severity: findingConfidence === "high" ? "high"
+      : findingConfidence === "medium" ? "medium" : "low",
+    confidence: findingConfidence,
+    title: `Change output likely identifiable (${findingConfidence} confidence)`,
     params: {
       signalCount: signals.length,
-      confidence,
+      confidence: findingConfidence,
       ...(changeVoutIdx !== undefined ? { changeIndex: changeVoutIdx } : {}),
       signalKeys: signalKeys.join(","),
+      signalDetails: JSON.stringify(signalDetails),
+      hasMinorityDissent: hasMinorityDissent ? 1 : 0,
+      majorityRatio: Math.round(majorityRatio * 100),
+      ...(hasMinorityDissent ? { _variant: "dissent" } : {}),
     },
     description:
       `${signals.length} sub-heuristic${signals.length > 1 ? "s" : ""} point to a likely change output: ${signals.join("; ")}. ` +
-      (maxSignals >= 2
-        ? "Multiple signals agree, making change identification reliable. "
+      (hasMinorityDissent
+        ? "Not all signals agree on which output is change, reducing certainty. "
         : signals.length >= 2
-          ? "However, sub-heuristics disagree on which output is change, reducing confidence. "
+          ? "Multiple signals agree, making change identification reliable. "
           : "") +
       "When the change output is known, the exact payment amount and recipient are revealed.",
     recommendation:
