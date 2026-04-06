@@ -18,7 +18,7 @@
   "about.cap_6_title": "Verificacao PSBT Pre-Transmissao",
   "about.cap_7_desc": "Diagramas de fluxo de transacoes, mapas de calor Boltzmann, explorador de grafos interativo, diagramas de caminhos de taint, linhas do tempo de clusters, detalhamentos de estrutura CoinJoin e mais.",
   "about.cap_7_title": "Visualizacoes Interativas",
-  "about.cap_8_desc": "Traducao completa da interface em ingles, espanhol, portugues, alemao e frances. Contribuicoes da comunidade sao bem-vindas.",
+  "about.cap_8_desc": "Traducao completa da interface em ingles, espanhol, portugues, alemao, frances e polonês. Contribuicoes da comunidade sao bem-vindas.",
   "about.cap_8_title": "5 Idiomas",
   "about.cap_9_desc": "Transacoes confirmadas, outspends e resultados de analise sao armazenados em cache no IndexedDB entre sessoes. Escaneamentos repetidos sao instantaneos, requisicoes de API sao minimizadas e menos consultas saem do navegador.",
   "about.cap_9_title": "Cache Local Inteligente",

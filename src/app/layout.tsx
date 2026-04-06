@@ -120,7 +120,7 @@ export default function RootLayout({
                 "100% client-side analysis",
                 "No tracking or data collection",
                 "PWA - works offline",
-                "5 languages supported",
+                "6 languages supported",
               ],
             }),
           }}

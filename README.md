@@ -195,7 +195,7 @@ The engine doesn't run heuristics in isolation. CoinJoin detection suppresses CI
 - **Tailwind CSS 4** - dark theme
 - **visx** - interactive SVG visualizations (graph explorer, taint diagrams, timelines)
 - **@scure/btc-signer** - PSBT parsing and raw transaction decoding
-- **i18next** - 5 languages (English, Spanish, Portuguese, German, French)
+- **i18next** - 6 languages (English, Spanish, Portuguese, German, French, Polish)
 - **PWA** - installable, works offline after first load
 - **844+ tests** - Vitest unit/integration + Playwright E2E
 
@@ -220,6 +220,7 @@ Available in 5 languages:
 - Portuguese
 - German
 - French
+- Polish
 
 Translations live in `public/locales/`. Contributions for additional languages are welcome.
 
