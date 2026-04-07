@@ -215,7 +215,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
               </span>
             </Tooltip>
           )}
-          {finding.adversaryTiers && finding.adversaryTiers.length > 0 && (() => {
+          {proMode && finding.adversaryTiers && finding.adversaryTiers.length > 0 && (() => {
             const tier = highestAdversaryTier(finding.adversaryTiers);
             const advStyle = ADVERSARY_STYLES[tier];
             return (
@@ -226,7 +226,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
               </Tooltip>
             );
           })()}
-          {finding.temporality && (() => {
+          {proMode && finding.temporality && (() => {
             const tempStyle = TEMPORALITY_STYLES[finding.temporality];
             return (
               <Tooltip content={t(`temporalityTooltip.${finding.temporality}`, { defaultValue: `Temporality: ${finding.temporality.replace(/_/g, " ")}` })}>
@@ -269,7 +269,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
                 {t(findingKey(finding.id, "description", finding.params), { ...finding.params, defaultValue: finding.description })}
               </p>
               <ChangeSignalBreakdown finding={finding} t={t} proMode={proMode} />
-              <TierContext finding={finding} t={t} />
+              {proMode && <TierContext finding={finding} t={t} />}
               {finding.recommendation && (
                 <div className="bg-surface-inset rounded-md px-3 py-2">
                   <p className="text-xs font-medium text-muted mb-1">
