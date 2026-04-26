@@ -138,6 +138,22 @@ function parseBloomFilter(
 /** Progress callback: received bytes and total bytes (0 if unknown). */
 export type ProgressCallback = (loaded: number, total: number) => void;
 
+/** Custom data loader (used by the CLI to read from the local filesystem). */
+export type DataFetchFn = (
+  path: string,
+  onProgress?: ProgressCallback,
+) => Promise<ArrayBuffer | null>;
+
+let customFetchFn: DataFetchFn | null = null;
+
+/**
+ * Override the default `fetch()`-based loader. Used by environments without
+ * a network (e.g. the CLI, which reads files from disk).
+ */
+export function configureDataLoader(opts: { fetchFn: DataFetchFn }): void {
+  customFetchFn = opts.fetchFn;
+}
+
 /**
  * Fetch a binary file with optional streaming progress.
  * Returns the ArrayBuffer, or null on failure.
@@ -146,6 +162,10 @@ async function fetchArrayBuffer(
   path: string,
   onProgress?: ProgressCallback,
 ): Promise<ArrayBuffer | null> {
+  if (customFetchFn) {
+    return customFetchFn(path, onProgress);
+  }
+
   const res = await fetch(path);
   if (!res.ok) return null;
 
