@@ -1,15 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { analyzeTransaction } from "../orchestrator";
 import { makeTx, makeVin, makeVout, resetAddrCounter } from "../heuristics/__tests__/fixtures/tx-factory";
-import { WHIRLPOOL_DENOMS } from "@/lib/constants";
-
 beforeEach(() => resetAddrCounter());
 
 vi.useFakeTimers();
 
 /** Helper: create a Whirlpool-like transaction (5 equal outputs at known denom). */
 function makeWhirlpoolTx() {
-  const denom = WHIRLPOOL_DENOMS[2]; // 1_000_000 sats
+  const denom = 1_000_000; // 0.01 BTC Samourai
   return makeTx({
     vin: Array.from({ length: 5 }, (_, i) =>
       makeVin({
@@ -75,7 +73,7 @@ describe("cross-heuristic intelligence", () => {
 
   it("does NOT suppress h2-self-send even in CoinJoin context", async () => {
     // Create a Whirlpool-like tx but with a self-send output
-    const denom = WHIRLPOOL_DENOMS[2];
+    const denom = 1_000_000; // 0.01 BTC Samourai
     const selfAddr = "bc1qself0000000000000000000000000000000000";
     const tx = makeTx({
       vin: [

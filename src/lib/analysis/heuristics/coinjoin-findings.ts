@@ -7,6 +7,7 @@
 
 import type { Finding } from "@/lib/types";
 import { formatBtc } from "@/lib/format";
+import { SAMOURAI_SEIZURE_TS, ASHIGARU_LAUNCH_TS, type WhirlpoolPool } from "@/lib/constants";
 
 const EXCHANGE_WARNING =
   "Centralized exchanges including Binance, Coinbase, Gemini, Bitstamp, Swan Bitcoin, Bitvavo, Bitfinex, and BitMEX " +
@@ -15,18 +16,43 @@ const EXCHANGE_WARNING =
   "Some exchanges retroactively flag CoinJoin activity months or years after the transaction. " +
   "For safe off-ramping, consider decentralized alternatives like Bisq, RoboSats, or Hodl Hodl that do not apply chain surveillance.";
 
-export function buildWhirlpoolFinding(denomination: number): Finding {
+export function buildWhirlpoolFinding(pool: WhirlpoolPool, txTime: number | undefined): Finding {
+  const denom = formatBtc(pool.sats);
+  const isSamourai = pool.era === "samourai";
+  const eraLabel = isSamourai ? "Samourai-era" : "Ashigaru";
+
+  const eraSentence = isSamourai
+    ? `The ${denom} denomination is a Samourai-era pool size (active 2019 - April 2024). ` +
+      "This was almost certainly created with Samourai Wallet, Sparrow, or another Whirlpool-compatible client " +
+      "while the original coordinator was operational."
+    : `The ${denom} denomination is an Ashigaru pool size (introduced June 2025). ` +
+      "This was created with Ashigaru Terminal using the decentralized ZeroLink coordinator.";
+
+  let temporalNote = "";
+  if (txTime !== undefined) {
+    if (isSamourai && txTime > SAMOURAI_SEIZURE_TS) {
+      temporalNote =
+        " Note: this transaction was confirmed after the April 2024 Samourai seizure, " +
+        "when the original coordinator was offline. It may be from a privately-run or forked coordinator, " +
+        "an offline Sparrow mix, or another unusual case worth investigating.";
+    } else if (!isSamourai && txTime < ASHIGARU_LAUNCH_TS) {
+      temporalNote =
+        " Note: this transaction was confirmed before the Ashigaru Whirlpool launch (June 2025), " +
+        "which is unexpected for this denomination - check the timestamp source.";
+    }
+  }
+
   return {
     id: "h4-whirlpool",
     severity: "good",
     confidence: "deterministic",
-    title: `Whirlpool CoinJoin detected (${formatBtc(denomination)} pool)`,
-    params: { denom: formatBtc(denomination) },
+    title: `Whirlpool CoinJoin detected (${denom} ${eraLabel} pool)`,
+    params: { denom, era: pool.era, _variant: pool.era },
     description:
       "This transaction matches the Whirlpool CoinJoin pattern: 5, 8, or 9 equal outputs at a standard denomination. " +
       "Whirlpool provides strong forward-looking privacy by breaking deterministic transaction links. " +
-      "Note: since the Samourai Wallet seizure (April 2024), Whirlpool no longer uses a centralized coordinator. " +
-      "Ashigaru implements decentralized Whirlpool coordination.",
+      eraSentence +
+      temporalNote,
     recommendation:
       "Whirlpool is one of the strongest CoinJoin implementations. Make sure to also remix (multiple rounds) for maximum privacy. " +
       EXCHANGE_WARNING,
@@ -146,7 +172,6 @@ export function buildStonewallFinding(
     ? ` All ${vinCount} inputs are Whirlpool pool outputs, indicating this is a post-CoinJoin spend - the ideal pattern for forward privacy.`
     : "";
 
-  const SAMOURAI_SEIZURE_TS = 1713916800; // 2024-04-24T00:00:00Z
   const isPostSeizure = txTime ? txTime >= SAMOURAI_SEIZURE_TS : false;
   const historicalNote = txTime
     ? isPostSeizure

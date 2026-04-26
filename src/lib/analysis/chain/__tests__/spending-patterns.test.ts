@@ -13,7 +13,6 @@ import {
   makeOutspend,
   resetAddrCounter,
 } from "../../heuristics/__tests__/fixtures/tx-factory";
-import { WHIRLPOOL_DENOMS } from "@/lib/constants";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 
 beforeEach(() => resetAddrCounter());
@@ -64,7 +63,7 @@ describe("detectPartialSpendWarning", () => {
 describe("detectRicochet", () => {
   it("detects ricochet from CoinJoin origin", () => {
     const cjTxid = "c".repeat(64);
-    const denom = WHIRLPOOL_DENOMS[3]; // 5_000_000
+    const denom = 5_000_000; // 0.05 BTC Samourai
 
     // This tx: 1 in, 1 out (sweep)
     const tx = makeTx({
@@ -273,7 +272,7 @@ describe("detectRicochet", () => {
 
 describe("detectPostCoinJoinPartialSpend", () => {
   it("flags partial spend of CoinJoin output", () => {
-    const denom = WHIRLPOOL_DENOMS[3]; // 5_000_000
+    const denom = 5_000_000; // 0.05 BTC Samourai
     const tx = makeTx({
       vin: [makeVin({ prevout: { scriptpubkey: "0014aaa", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qtest", value: denom } })],
       vout: [
@@ -326,7 +325,7 @@ describe("detectKycConsolidationBeforeCJ", () => {
     });
 
     // Child is a Whirlpool CoinJoin
-    const denom = WHIRLPOOL_DENOMS[0];
+    const denom = 100_000; // 0.001 BTC Samourai
     const childTx = makeTx({
       vin: [
         makeVin({ txid, vout: 0 }),
@@ -376,7 +375,7 @@ describe("detectKycConsolidationBeforeCJ", () => {
 });
 
 describe("detectPostMixConsolidation (via analyzeSpendingPatterns)", () => {
-  const denom = WHIRLPOOL_DENOMS[3]; // 5_000_000
+  const denom = 5_000_000; // 0.05 BTC Samourai
 
   function makeWhirlpoolParent(txid: string): MempoolTransaction {
     return makeTx({

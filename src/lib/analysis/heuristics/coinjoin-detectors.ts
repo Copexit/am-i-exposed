@@ -1,4 +1,4 @@
-import { WHIRLPOOL_DENOMS } from "@/lib/constants";
+import { WHIRLPOOL_DENOMS, WHIRLPOOL_POOLS, type WhirlpoolPool } from "@/lib/constants";
 import { countOutputValues } from "./tx-utils";
 
 /** Minimum denomination for CoinJoin equal outputs (below this, likely noise/dust). */
@@ -12,15 +12,15 @@ const MIN_COINJOIN_DENOM = 10_000;
  * Post-Sparrow 1.7.6: 8 or 9 equal outputs at the same denominations.
  * Coordinator fees are in the separate TX0 premix transaction, not in the mix.
  */
-export function detectWhirlpool(values: number[]): { denomination: number } | null {
+export function detectWhirlpool(values: number[]): { pool: WhirlpoolPool } | null {
   if (values.length < 5 || values.length > 10) return null;
 
-  for (const denom of WHIRLPOOL_DENOMS) {
-    const matchCount = values.filter((v) => v === denom).length;
+  for (const pool of WHIRLPOOL_POOLS) {
+    const matchCount = values.filter((v) => v === pool.sats).length;
     // Accept 5, 8, or 9 equal outputs at a Whirlpool denomination.
     // Non-matching outputs (if any) must be OP_RETURN zero-value markers.
     if ((matchCount === 5 || matchCount === 8 || matchCount === 9) && values.length - matchCount <= 1) {
-      return { denomination: denom };
+      return { pool };
     }
   }
   return null;

@@ -1,13 +1,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { analyzeBackward } from "../backward";
 import { makeTx, makeVin, makeVout, resetAddrCounter } from "../../heuristics/__tests__/fixtures/tx-factory";
-import { WHIRLPOOL_DENOMS } from "@/lib/constants";
-
 beforeEach(() => resetAddrCounter());
 
 describe("analyzeBackward", () => {
   it("detects CoinJoin input provenance", () => {
-    const denom = WHIRLPOOL_DENOMS[0];
+    const denom = 100_000; // 0.001 BTC Samourai
     const whirlpoolTx = makeTx({
       vin: Array.from({ length: 5 }, () => makeVin({ vout: 0 })),
       vout: Array.from({ length: 5 }, () => makeVout({ value: denom })),

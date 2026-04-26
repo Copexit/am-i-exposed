@@ -1,6 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
-import { WHIRLPOOL_DENOMS } from "@/lib/constants";
+import { WHIRLPOOL_POOLS } from "@/lib/constants";
 import { fmtN, formatBtc } from "@/lib/format";
 import { isCoinbase, getValuedOutputs } from "./tx-utils";
 
@@ -34,8 +34,9 @@ export const analyzeCoinJoinPremix: TxHeuristic = (tx) => {
   // Need at least 3 outputs: 2+ denomination outputs + fee/change
   if (spendable.length < 3) return { findings };
 
-  // Check each Whirlpool denomination
-  for (const denom of WHIRLPOOL_DENOMS) {
+  // Check each Whirlpool pool
+  for (const pool of WHIRLPOOL_POOLS) {
+    const denom = pool.sats;
     const denomOutputs = spendable.filter((o) => o.value === denom);
 
     // Need at least 2 outputs at this denomination
@@ -61,21 +62,24 @@ export const analyzeCoinJoinPremix: TxHeuristic = (tx) => {
       : undefined;
 
     const denomBtcLabel = formatBtc(denom);
+    const eraLabel = pool.era === "ashigaru" ? "Ashigaru" : "Samourai";
 
     findings.push({
       id: "tx0-premix",
       severity: "good",
       confidence: "high",
-      title: `CoinJoin premix (tx0): ${denomOutputs.length} outputs at ${denomBtcLabel}`,
+      title: `${eraLabel} CoinJoin premix (tx0): ${denomOutputs.length} outputs at ${denomBtcLabel}`,
       params: {
         denomination: denomBtcLabel.replace(/ BTC$/, ""),
         denomCount: denomOutputs.length,
         hasToxicChange: toxicChange ? 1 : 0,
         toxicChangeValue: toxicChange?.value ?? 0,
         coordinatorFee: feeCandidate.value,
+        era: pool.era,
+        _variant: pool.era,
       },
       description:
-        `This transaction is a Whirlpool tx0 (premix): it splits funds into ${denomOutputs.length} equal outputs ` +
+        `This transaction is a ${eraLabel} Whirlpool tx0 (premix): it splits funds into ${denomOutputs.length} equal outputs ` +
         `of ${denomBtcLabel} ready for CoinJoin mixing. ` +
         (toxicChange
           ? `The toxic change output (${fmtN(toxicChange.value)} sats) is NOT mixed and must be handled carefully. `

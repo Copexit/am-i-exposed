@@ -1,14 +1,12 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { analyzeForward } from "../forward";
 import { makeTx, makeVin, makeVout, makeOutspend, resetAddrCounter } from "../../heuristics/__tests__/fixtures/tx-factory";
-import { WHIRLPOOL_DENOMS } from "@/lib/constants";
-
 beforeEach(() => resetAddrCounter());
 
 describe("analyzeForward", () => {
   it("detects post-CoinJoin consolidation", () => {
     const txid = "a".repeat(64);
-    const denom = WHIRLPOOL_DENOMS[0];
+    const denom = 100_000; // 0.001 BTC Samourai
 
     // Parent is a CoinJoin (5 equal outputs)
     const coinJoinTx = makeTx({
@@ -42,7 +40,7 @@ describe("analyzeForward", () => {
 
   it("suppresses consolidation when child tx is a CoinJoin (remix)", () => {
     const txid = "a".repeat(64);
-    const denom = WHIRLPOOL_DENOMS[0];
+    const denom = 100_000; // 0.001 BTC Samourai
 
     // Parent is a CoinJoin (5 equal outputs)
     const coinJoinTx = makeTx({
@@ -76,7 +74,7 @@ describe("analyzeForward", () => {
 
   it("suppresses consolidation when child has 5+ distinct input sources and 5+ outputs (likely remix)", () => {
     const txid = "a".repeat(64);
-    const denom = WHIRLPOOL_DENOMS[0];
+    const denom = 100_000; // 0.001 BTC Samourai
 
     const coinJoinTx = makeTx({
       txid,
@@ -110,7 +108,7 @@ describe("analyzeForward", () => {
 
   it("suppresses consolidation when child has 3+ distinct sources and equal-value outputs (small remix)", () => {
     const txid = "a".repeat(64);
-    const denom = WHIRLPOOL_DENOMS[0];
+    const denom = 100_000; // 0.001 BTC Samourai
 
     const coinJoinTx = makeTx({
       txid,
@@ -146,7 +144,7 @@ describe("analyzeForward", () => {
 
   it("still detects consolidation for simple 2-input spend from same parent", () => {
     const txid = "a".repeat(64);
-    const denom = WHIRLPOOL_DENOMS[0];
+    const denom = 100_000; // 0.001 BTC Samourai
 
     const coinJoinTx = makeTx({
       txid,

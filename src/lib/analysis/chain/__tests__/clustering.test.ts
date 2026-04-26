@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { buildCluster, classifyClusterSize } from "../clustering";
 import { makeTx, makeVin, makeVout, resetAddrCounter } from "../../heuristics/__tests__/fixtures/tx-factory";
-import { WHIRLPOOL_DENOMS } from "@/lib/constants";
 import type { MempoolTransaction } from "@/lib/api/types";
 
 beforeEach(() => resetAddrCounter());
@@ -101,7 +100,7 @@ describe("buildCluster", () => {
   it("excludes CoinJoin transactions from clustering", () => {
     const addrA = "bc1qaddr_a0000000000000000000000000000000";
     const addrB = "bc1qaddr_b0000000000000000000000000000000";
-    const denom = WHIRLPOOL_DENOMS[0];
+    const denom = 100_000; // 0.001 BTC Samourai
 
     // Whirlpool CoinJoin - should NOT cluster these addresses
     const cjTx = makeTx({

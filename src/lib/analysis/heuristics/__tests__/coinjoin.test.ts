@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { analyzeCoinJoin, isCoinJoinFinding } from "../coinjoin";
 import { makeTx, makeVin, makeVout, resetAddrCounter } from "./fixtures/tx-factory";
-import { WHIRLPOOL_DENOMS } from "@/lib/constants";
+// Use literal sat values to keep tests decoupled from the WHIRLPOOL_POOLS layout.
 
 beforeEach(() => resetAddrCounter());
 
@@ -25,7 +25,7 @@ describe("analyzeCoinJoin", () => {
   // ── Whirlpool ────────────────────────────────────────────────────────
 
   it("detects Whirlpool (5 equal outputs at known denom), impact +30", () => {
-    const denom = WHIRLPOOL_DENOMS[2]; // 1_000_000 sats
+    const denom = 1_000_000; // 0.01 BTC Samourai
     const tx = makeTx({
       vin: makeDistinctVins(5),
       vout: Array.from({ length: 5 }, () => makeVout({ value: denom })),
@@ -39,7 +39,7 @@ describe("analyzeCoinJoin", () => {
   });
 
   it("does not detect Whirlpool with only 4 equal outputs", () => {
-    const denom = WHIRLPOOL_DENOMS[0]; // 50_000 sats
+    const denom = 100_000; // 0.001 BTC Samourai
     const tx = makeTx({
       vin: makeDistinctVins(4),
       vout: [
@@ -52,7 +52,7 @@ describe("analyzeCoinJoin", () => {
   });
 
   it("detects Whirlpool with 5 equal + 1 extra output (up to 6 total)", () => {
-    const denom = WHIRLPOOL_DENOMS[1]; // 100_000 sats
+    const denom = 100_000; // 0.001 BTC Samourai
     const tx = makeTx({
       vin: makeDistinctVins(5),
       vout: [
@@ -66,7 +66,7 @@ describe("analyzeCoinJoin", () => {
   });
 
   it("detects Whirlpool 8x8 (8 equal outputs at known denom)", () => {
-    const denom = WHIRLPOOL_DENOMS[2]; // 1_000_000 sats
+    const denom = 1_000_000; // 0.01 BTC Samourai
     const tx = makeTx({
       vin: makeDistinctVins(8),
       vout: Array.from({ length: 8 }, () => makeVout({ value: denom })),
@@ -77,7 +77,7 @@ describe("analyzeCoinJoin", () => {
   });
 
   it("detects Whirlpool 9x9 (9 equal outputs at known denom)", () => {
-    const denom = WHIRLPOOL_DENOMS[0]; // 50_000 sats
+    const denom = 100_000; // 0.001 BTC Samourai
     const tx = makeTx({
       vin: makeDistinctVins(9),
       vout: Array.from({ length: 9 }, () => makeVout({ value: denom })),
@@ -85,6 +85,78 @@ describe("analyzeCoinJoin", () => {
     const { findings } = analyzeCoinJoin(tx);
     expect(findings[0].id).toBe("h4-whirlpool");
     expect(findings[0].scoreImpact).toBe(30);
+  });
+
+  // ── Whirlpool era attribution (Samourai vs Ashigaru) ─────────────────
+
+  it("tags Samourai-era denomination with era=samourai", () => {
+    const tx = makeTx({
+      vin: makeDistinctVins(5),
+      vout: Array.from({ length: 5 }, () => makeVout({ value: 5_000_000 })), // 0.05 BTC Samourai
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    const f = findings.find((x) => x.id === "h4-whirlpool")!;
+    expect(f.params?.era).toBe("samourai");
+    expect(f.title).toContain("Samourai-era");
+  });
+
+  it("detects Ashigaru 0.025 BTC pool (5x5) and tags era=ashigaru", () => {
+    const tx = makeTx({
+      vin: makeDistinctVins(5),
+      vout: Array.from({ length: 5 }, () => makeVout({ value: 2_500_000 })), // 0.025 BTC Ashigaru
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    const f = findings.find((x) => x.id === "h4-whirlpool")!;
+    expect(f).toBeDefined();
+    expect(f.scoreImpact).toBe(30);
+    expect(f.params?.era).toBe("ashigaru");
+    expect(f.title).toContain("Ashigaru");
+    expect(f.description).toContain("Ashigaru Terminal");
+  });
+
+  it("detects Ashigaru 0.25 BTC pool (8x8) and tags era=ashigaru", () => {
+    const tx = makeTx({
+      vin: makeDistinctVins(8),
+      vout: Array.from({ length: 8 }, () => makeVout({ value: 25_000_000 })), // 0.25 BTC Ashigaru
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    const f = findings.find((x) => x.id === "h4-whirlpool")!;
+    expect(f).toBeDefined();
+    expect(f.params?.era).toBe("ashigaru");
+  });
+
+  it("flags temporal anomaly: Samourai-era denom confirmed after seizure", () => {
+    const SAMOURAI_SEIZURE_TS = 1713916800;
+    const tx = makeTx({
+      vin: makeDistinctVins(5),
+      vout: Array.from({ length: 5 }, () => makeVout({ value: 5_000_000 })),
+      status: { confirmed: true, block_height: 900_000, block_time: SAMOURAI_SEIZURE_TS + 86_400 },
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    const f = findings.find((x) => x.id === "h4-whirlpool")!;
+    expect(f.description).toContain("Samourai seizure");
+    expect(f.description).toContain("offline");
+  });
+
+  it("flags temporal anomaly: Ashigaru denom confirmed before launch", () => {
+    const ASHIGARU_LAUNCH_TS = 1750636800;
+    const tx = makeTx({
+      vin: makeDistinctVins(5),
+      vout: Array.from({ length: 5 }, () => makeVout({ value: 2_500_000 })),
+      status: { confirmed: true, block_height: 800_000, block_time: ASHIGARU_LAUNCH_TS - 86_400 },
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    const f = findings.find((x) => x.id === "h4-whirlpool")!;
+    expect(f.description).toContain("before the Ashigaru Whirlpool launch");
+  });
+
+  it("does not detect Whirlpool for 5x5 outputs at 50,000 sats (legacy bogus denom removed)", () => {
+    const tx = makeTx({
+      vin: makeDistinctVins(5),
+      vout: Array.from({ length: 5 }, () => makeVout({ value: 50_000 })),
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    expect(findings.find((f) => f.id === "h4-whirlpool")).toBeUndefined();
   });
 
   // ── WabiSabi multi-tier ──────────────────────────────────────────────
@@ -341,7 +413,7 @@ describe("analyzeCoinJoin", () => {
   });
 
   it("rejects Whirlpool with 11 outputs at known denom", () => {
-    const denom = WHIRLPOOL_DENOMS[2];
+    const denom = 1_000_000; // 0.01 BTC Samourai
     const tx = makeTx({
       vin: makeDistinctVins(11),
       vout: Array.from({ length: 11 }, () => makeVout({ value: denom })),
@@ -352,7 +424,7 @@ describe("analyzeCoinJoin", () => {
   });
 
   it("detects Whirlpool with exactly 9 outputs at known denom", () => {
-    const denom = WHIRLPOOL_DENOMS[1]; // 100_000 sats
+    const denom = 100_000; // 0.001 BTC Samourai
     const tx = makeTx({
       vin: makeDistinctVins(9),
       vout: Array.from({ length: 9 }, () => makeVout({ value: denom })),
@@ -362,7 +434,7 @@ describe("analyzeCoinJoin", () => {
   });
 
   it("rejects 10 equal outputs at Whirlpool denom as generic CoinJoin (not Whirlpool)", () => {
-    const denom = WHIRLPOOL_DENOMS[1]; // 100_000 sats
+    const denom = 100_000; // 0.001 BTC Samourai
     const tx = makeTx({
       vin: makeDistinctVins(10),
       vout: Array.from({ length: 10 }, () => makeVout({ value: denom })),

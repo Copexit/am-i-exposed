@@ -297,4 +297,42 @@ describe("analyzeWalletFingerprint", () => {
     expect(f).toBeDefined();
     expect(f!.description).toContain("Samourai/Ashigaru");
   });
+
+  it("attributes BIP69 + Samourai-era Whirlpool denom to Samourai / Sparrow", () => {
+    const tx = makeTx({
+      locktime: 0,
+      vin: Array.from({ length: 5 }, (_, i) =>
+        makeVin({ txid: String(i).padStart(64, "a"), vout: 0, sequence: 0xffffffff }),
+      ),
+      vout: Array.from({ length: 5 }, (_, i) =>
+        makeVout({
+          value: 1_000_000, // 0.01 BTC Samourai
+          scriptpubkey: "0014" + String(i).padStart(40, "a"),
+        }),
+      ),
+    });
+    const { findings } = analyzeWalletFingerprint(tx);
+    const f = findings.find((x) => x.id === "h11-wallet-fingerprint");
+    expect(f).toBeDefined();
+    expect(f!.params?.walletGuess).toBe("Samourai / Sparrow (Whirlpool)");
+  });
+
+  it("attributes BIP69 + Ashigaru Whirlpool denom to Ashigaru Terminal", () => {
+    const tx = makeTx({
+      locktime: 0,
+      vin: Array.from({ length: 5 }, (_, i) =>
+        makeVin({ txid: String(i).padStart(64, "a"), vout: 0, sequence: 0xffffffff }),
+      ),
+      vout: Array.from({ length: 5 }, (_, i) =>
+        makeVout({
+          value: 2_500_000, // 0.025 BTC Ashigaru
+          scriptpubkey: "0014" + String(i).padStart(40, "a"),
+        }),
+      ),
+    });
+    const { findings } = analyzeWalletFingerprint(tx);
+    const f = findings.find((x) => x.id === "h11-wallet-fingerprint");
+    expect(f).toBeDefined();
+    expect(f!.params?.walletGuess).toBe("Ashigaru Terminal (Whirlpool)");
+  });
 });

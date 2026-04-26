@@ -32,14 +32,48 @@ export const P2PKH_DUST_LIMIT = 546;
  * are considered "toxic change" - economically marginal and privacy-risky. */
 export const TOXIC_CHANGE_THRESHOLD = 10_000;
 
-/** Whirlpool pool denominations in satoshis. */
-export const WHIRLPOOL_DENOMS = [
-  50_000, // 0.0005 BTC
-  100_000, // 0.001 BTC
-  1_000_000, // 0.01 BTC
-  5_000_000, // 0.05 BTC
-  50_000_000, // 0.5 BTC (retired 2023)
+/** Whirlpool coordinator era. */
+export type WhirlpoolEra = "samourai" | "ashigaru";
+
+/** Pool metadata for a Whirlpool denomination. */
+export interface WhirlpoolPool {
+  /** Pool denomination in satoshis. */
+  sats: number;
+  /** Coordinator/wallet ecosystem that runs this pool. */
+  era: WhirlpoolEra;
+  /** Unix seconds when this pool became available. */
+  activeFrom: number;
+  /** Unix seconds when this pool was retired (undefined = still active). */
+  retiredAt?: number;
+}
+
+/** April 24 2024 00:00:00 UTC - Samourai Wallet seizure. */
+export const SAMOURAI_SEIZURE_TS = 1713916800;
+
+/** June 23 2025 00:00:00 UTC - Ashigaru Whirlpool launch. */
+export const ASHIGARU_LAUNCH_TS = 1750636800;
+
+/**
+ * Whirlpool pool registry. Samourai-era and Ashigaru-era pool sizes are
+ * disjoint sets, so the denomination alone is a deterministic signal of
+ * which coordinator/wallet ecosystem produced the transaction.
+ */
+export const WHIRLPOOL_POOLS: WhirlpoolPool[] = [
+  { sats: 100_000, era: "samourai", activeFrom: 1609459200, retiredAt: SAMOURAI_SEIZURE_TS }, // 0.001 BTC, added 2021
+  { sats: 1_000_000, era: "samourai", activeFrom: 1555632000, retiredAt: SAMOURAI_SEIZURE_TS }, // 0.01 BTC, since 2019-04-19
+  { sats: 5_000_000, era: "samourai", activeFrom: 1555632000, retiredAt: SAMOURAI_SEIZURE_TS }, // 0.05 BTC, since 2019
+  { sats: 50_000_000, era: "samourai", activeFrom: 1555632000, retiredAt: 1672531200 }, // 0.5 BTC, retired 2023
+  { sats: 2_500_000, era: "ashigaru", activeFrom: ASHIGARU_LAUNCH_TS }, // 0.025 BTC
+  { sats: 25_000_000, era: "ashigaru", activeFrom: ASHIGARU_LAUNCH_TS }, // 0.25 BTC
 ];
+
+/** Flat array of pool sizes - kept for "is this a known whirlpool denom" boolean checks. */
+export const WHIRLPOOL_DENOMS: number[] = WHIRLPOOL_POOLS.map((p) => p.sats);
+
+/** O(1) lookup for callers that need pool metadata from a sat value. */
+export const WHIRLPOOL_POOL_BY_SATS: ReadonlyMap<number, WhirlpoolPool> = new Map(
+  WHIRLPOOL_POOLS.map((p) => [p.sats, p]),
+);
 
 /** Grade-to-Tailwind text color mapping for use in components. */
 export const GRADE_COLORS: Record<Grade, string> = {

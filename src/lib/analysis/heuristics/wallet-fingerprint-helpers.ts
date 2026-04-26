@@ -1,4 +1,5 @@
 import type { Severity } from "@/lib/types";
+import type { WhirlpoolPool } from "@/lib/constants";
 
 /** Provide anonymity set context for each wallet family. */
 export function getAnonymitySetNote(walletGuess: string | null): string {
@@ -103,7 +104,8 @@ export function scoreFingerprintSeverity(
   }
   if (
     walletGuess === "Ashigaru/Samourai" ||
-    walletGuess === "Ashigaru/Sparrow (Whirlpool)" ||
+    walletGuess === "Samourai / Sparrow (Whirlpool)" ||
+    walletGuess === "Ashigaru Terminal (Whirlpool)" ||
     walletGuess === "Sparrow/Ashigaru"
   ) {
     return { severity: "medium", impact: -7 };
@@ -129,7 +131,7 @@ export function identifyWallet(
   spendableValues: number[],
   vinLength: number,
   voutLength: number,
-  detectWhirlpool: (values: number[]) => unknown,
+  detectWhirlpool: (values: number[]) => { pool: WhirlpoolPool } | null,
 ): string | null {
   const {
     locktimeZero, locktimeBlockExact, locktimeBlockGeneral, locktimeBlockRandomized,
@@ -141,11 +143,13 @@ export function identifyWallet(
 
   // Check CoinJoin patterns first (most specific)
   if (isBip69) {
-    const isWhirlpoolPattern = detectWhirlpool(spendableValues) !== null;
+    const whirlpoolMatch = detectWhirlpool(spendableValues);
     const isLargeCoinJoin = vinLength >= 20 && voutLength >= 20;
 
-    if (isWhirlpoolPattern) {
-      walletGuess = "Ashigaru/Sparrow (Whirlpool)";
+    if (whirlpoolMatch) {
+      walletGuess = whirlpoolMatch.pool.era === "ashigaru"
+        ? "Ashigaru Terminal (Whirlpool)"
+        : "Samourai / Sparrow (Whirlpool)";
     } else if (isLargeCoinJoin) {
       walletGuess = "Wasabi Wallet (WabiSabi)";
     } else if (allMax && locktimeZero) {

@@ -39,7 +39,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
   const spendableOutputs = getSpendableOutputs(tx.vout);
   const whirlpool = detectWhirlpool(spendableOutputs.map((o) => o.value));
   if (whirlpool) {
-    findings.push(buildWhirlpoolFinding(whirlpool.denomination));
+    findings.push(buildWhirlpoolFinding(whirlpool.pool, tx.status?.block_time));
     return { findings };
   }
 

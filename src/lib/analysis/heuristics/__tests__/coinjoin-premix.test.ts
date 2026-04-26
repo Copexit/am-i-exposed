@@ -82,6 +82,44 @@ describe("analyzeCoinJoinPremix", () => {
     expect(findings).toHaveLength(0);
   });
 
+  it("tags Samourai-era tx0 with era=samourai in title and params", () => {
+    const tx = makeTx({
+      vin: [makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qsender0000000000000000000000000000001", value: 2_051_500 } })],
+      vout: [
+        makeVout({ value: 1_000_000 }),
+        makeVout({ value: 1_000_000 }),
+        makeVout({ value: 50_000 }),
+      ],
+      fee: 1_500,
+    });
+    const { findings } = analyzeCoinJoinPremix(tx);
+    expect(findings[0].params?.era).toBe("samourai");
+    expect(findings[0].title).toContain("Samourai");
+    expect(findings[0].description).toContain("Samourai");
+  });
+
+  it("detects Ashigaru tx0 at 0.025 BTC pool with 5% coordinator fee", () => {
+    // 5 outputs at 2.5M sats + ~5% Anti-Sybil fee (125,000 sats)
+    const tx = makeTx({
+      vin: [makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qsender0000000000000000000000000000001", value: 12_625_000 } })],
+      vout: [
+        makeVout({ value: 2_500_000 }),
+        makeVout({ value: 2_500_000 }),
+        makeVout({ value: 2_500_000 }),
+        makeVout({ value: 2_500_000 }),
+        makeVout({ value: 2_500_000 }),
+        makeVout({ value: 125_000 }), // 5% coordinator fee
+      ],
+      fee: 1_500,
+    });
+    const { findings } = analyzeCoinJoinPremix(tx);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].id).toBe("tx0-premix");
+    expect(findings[0].params?.era).toBe("ashigaru");
+    expect(findings[0].title).toContain("Ashigaru");
+    expect(findings[0].description).toContain("Ashigaru");
+  });
+
   it("rejects transactions with only 1 denomination output", () => {
     const tx = makeTx({
       vin: [makeVin()],
