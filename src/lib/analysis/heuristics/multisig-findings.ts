@@ -8,12 +8,12 @@
 import type { Finding } from "@/lib/types";
 
 const P2P_TOOLS: { name: string; url: string }[] = [
-  { name: "RoboSats (Lightning P2P)", url: "https://learn.robosats.com" },
+  { name: "RoboSats (Lightning P2P)", url: "https://learn.robosats.org" },
   { name: "Sparrow Wallet (CoinJoin)", url: "https://sparrowwallet.com" },
 ];
 
 const COIN_CONTROL_TOOLS: { name: string; url: string }[] = [
-  { name: "RoboSats (Lightning P2P)", url: "https://learn.robosats.com" },
+  { name: "RoboSats (Lightning P2P)", url: "https://learn.robosats.org" },
   { name: "Sparrow Wallet (Coin Control)", url: "https://sparrowwallet.com" },
 ];
 
