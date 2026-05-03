@@ -277,7 +277,7 @@ npx playwright screenshot --full-page --viewport-size=375,812 "http://localhost:
 - [x] Chain analysis - recursive backward/forward tracing up to 50 hops
 - [x] Share card generation - Canvas-rendered PNG share cards
 - [x] PSBT analysis - client-side parsing without API calls
-- [x] i18n - 5 languages (en, es, de, fr, pt)
+- [x] i18n - 6 languages (en, es, de, fr, pt, pl)
 
 ## Remaining Ideas
 

@@ -3,7 +3,7 @@ import { initReactI18next } from "react-i18next";
 import Backend from "i18next-http-backend";
 import enCommon from "../../../public/locales/en/common.json";
 
-const SUPPORTED_LANGUAGES = ["en", "es", "pt", "de", "fr"] as const;
+const SUPPORTED_LANGUAGES = ["en", "es", "pt", "de", "fr", "pl"] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 
 const LANGUAGE_STORAGE_KEY = "ami-language";
@@ -18,6 +18,7 @@ export const LANGUAGE_OPTIONS: {
   { code: "pt", flag: "\u{1F1E7}\u{1F1F7}", label: "PT" },
   { code: "de", flag: "\u{1F1E9}\u{1F1EA}", label: "DE" },
   { code: "fr", flag: "\u{1F1EB}\u{1F1F7}", label: "FR" },
+  { code: "pl", flag: "\u{1F1F5}\u{1F1F1}", label: "PL" }
 ];
 
 // Detect preferred language from localStorage/navigator, but don't apply it
