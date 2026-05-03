@@ -27,7 +27,7 @@ const STATUS_LABEL: Record<string, { key: string; default: string }> = {
 
 const SAFE_LINKS: Record<string, string> = {
   Bisq: "https://bisq.network",
-  RoboSats: "https://robosats.com",
+  RoboSats: "https://learn.robosats.org",
   "Hodl Hodl": "https://hodlhodl.com",
 };
 
