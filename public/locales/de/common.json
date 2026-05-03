@@ -19,7 +19,7 @@
   "about.cap_7_desc": "Transaktionsfluss-Diagramme, Boltzmann-Heatmaps, interaktiver Graph-Explorer, Taint-Pfad-Diagramme, Cluster-Zeitleisten, CoinJoin-Strukturaufschluesselungen und mehr.",
   "about.cap_7_title": "Interaktive Visualisierungen",
   "about.cap_8_desc": "Vollstaendige Oberflaechenuebersetzung in Englisch, Spanisch, Portugiesisch, Deutsch, Franzoesisch und Polnisch. Community-Beitraege willkommen.",
-  "about.cap_8_title": "5 Sprachen",
+  "about.cap_8_title": "6 Sprachen",
   "about.cap_9_desc": "Bestaetigte Transaktionen, Outspends und Analyseergebnisse werden sitzungsuebergreifend in IndexedDB zwischengespeichert. Wiederholte Scans sind sofort verfuegbar, API-Anfragen werden minimiert und weniger Abfragen verlassen den Browser.",
   "about.cap_9_title": "Intelligenter lokaler Cache",
   "about.contribute_heading": "Mitmachen",

@@ -65,7 +65,7 @@
   "address.utxoCount": "{{count}} UTXO",
   "adversary.kyc_exchange": "KYC",
   "adversary.passive_observer": "Publiczny",
-  "adversary.state_adversary": "Pański",
+  "adversary.state_adversary": "Państwowy",
   "adversaryTooltip.kyc_exchange": "Wykorzystywane przez giełdy lub usługi mające dane tożsamości",
   "adversaryTooltip.passive_observer": "Wykorzystywane przez każdego, kto ogląda publiczny blockchain",
   "adversaryTooltip.state_adversary": "Wykorzystywane przez analizy łańcucha na poziomie wywiadowczym",

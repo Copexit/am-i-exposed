@@ -19,7 +19,7 @@
   "about.cap_7_desc": "Diagramas de flujo de transacciones, mapas de calor Boltzmann, explorador interactivo de grafos, diagramas de rutas de taint, lineas de tiempo de clusters, desgloses de estructura CoinJoin y mas.",
   "about.cap_7_title": "Visualizaciones Interactivas",
   "about.cap_8_desc": "Traduccion completa de la interfaz en ingles, espanol, portugues, aleman, frances y polaco. Contribuciones de la comunidad son bienvenidas.",
-  "about.cap_8_title": "5 Idiomas",
+  "about.cap_8_title": "6 Idiomas",
   "about.cap_9_desc": "Las transacciones confirmadas, outspends y resultados de analisis se almacenan en cache en IndexedDB entre sesiones. Los escaneos repetidos son instantaneos, las solicitudes a la API se minimizan y menos consultas salen del navegador.",
   "about.cap_9_title": "Cache Local Inteligente",
   "about.contribute_heading": "Participa",
