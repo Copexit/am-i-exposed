@@ -121,7 +121,12 @@ export function validateSavedGraph(obj: unknown): obj is SavedGraph {
   if (typeof obj.id !== "string" || !obj.id) return false;
   if (typeof obj.name !== "string") return false;
   if (typeof obj.savedAt !== "number") return false;
-  if (obj.network !== "mainnet" && obj.network !== "testnet4" && obj.network !== "signet") return false;
+  if (
+    obj.network !== "mainnet" &&
+    obj.network !== "testnet4" &&
+    obj.network !== "testnet3" &&
+    obj.network !== "signet"
+  ) return false;
   if (typeof obj.rootTxid !== "string" || !TXID_HEX.test(obj.rootTxid)) return false;
   if (!Array.isArray(obj.rootTxids)) return false;
   if (!Array.isArray(obj.nodes) || obj.nodes.length === 0) return false;

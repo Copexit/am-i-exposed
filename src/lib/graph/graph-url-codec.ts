@@ -12,7 +12,7 @@
  *     [0-1]   multiRootCount uint16
  *     [2..]   multiRootCount * uint16 indices
  *
- *   Network (1 byte): 0=mainnet, 1=testnet4, 2=signet
+ *   Network (1 byte): 0=mainnet, 1=testnet4, 2=signet, 3=testnet3
  *
  *   Node table (nodeCount * 37 bytes):
  *     [0-31]  txid (32 raw bytes)
@@ -32,7 +32,7 @@ import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
 import type { SavedGraph, SavedGraphNode, GraphAnnotation } from "./saved-graph-types";
 
 const MAX_URL_LENGTH = 6000;
-const NETWORK_MAP: BitcoinNetwork[] = ["mainnet", "testnet4", "signet"];
+const NETWORK_MAP: BitcoinNetwork[] = ["mainnet", "testnet4", "signet", "testnet3"];
 const MAX_TITLE_BYTES = 60; // 20 chars * 3 bytes max for UTF-8
 const TXID_BYTES = 32;
 const NODE_RECORD_SIZE = 37; // 32 txid + 1 depth + 1 flags + 2 edgeRef + 1 edgeIndex

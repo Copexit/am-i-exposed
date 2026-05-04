@@ -1,4 +1,4 @@
-export type BitcoinNetwork = "mainnet" | "testnet4" | "signet";
+export type BitcoinNetwork = "mainnet" | "testnet4" | "testnet3" | "signet";
 
 export interface NetworkConfig {
   label: string;
@@ -20,6 +20,11 @@ export const NETWORK_CONFIG: Record<BitcoinNetwork, NetworkConfig> = {
     mempoolBaseUrl: "https://mempool.space/testnet4/api",
     explorerUrl: "https://mempool.space/testnet4",
   },
+  testnet3: {
+    label: "Testnet3",
+    mempoolBaseUrl: "https://mempool.space/testnet/api",
+    explorerUrl: "https://mempool.space/testnet",
+  },
   signet: {
     label: "Signet",
     mempoolBaseUrl: "https://mempool.space/signet/api",
@@ -30,5 +35,10 @@ export const NETWORK_CONFIG: Record<BitcoinNetwork, NetworkConfig> = {
 export const DEFAULT_NETWORK: BitcoinNetwork = "mainnet";
 
 export function isValidNetwork(value: string): value is BitcoinNetwork {
-  return value === "mainnet" || value === "testnet4" || value === "signet";
+  return (
+    value === "mainnet" ||
+    value === "testnet4" ||
+    value === "testnet3" ||
+    value === "signet"
+  );
 }

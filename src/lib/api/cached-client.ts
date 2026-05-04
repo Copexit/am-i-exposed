@@ -27,11 +27,16 @@ const TTL_12_HOURS = 12 * 60 * 60 * 1000;
  * Derive the network name from a mempool.space base URL.
  * - Contains "/testnet4/" -> "testnet4"
  * - Contains "/signet/" -> "signet"
+ * - Contains "/testnet/" -> "testnet3" (mempool.space legacy path for testnet3)
  * - Otherwise -> "mainnet"
+ *
+ * Order matters: "/testnet4" must be checked before "/testnet" since the
+ * former contains the latter as a substring.
  */
 export function networkFromUrl(url: string): string {
   if (url.includes("/testnet4")) return "testnet4";
   if (url.includes("/signet")) return "signet";
+  if (url.includes("/testnet")) return "testnet3";
   return "mainnet";
 }
 

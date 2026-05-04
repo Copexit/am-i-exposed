@@ -10,6 +10,10 @@ describe("isValidNetwork", () => {
     expect(isValidNetwork("testnet4")).toBe(true);
   });
 
+  it("accepts testnet3", () => {
+    expect(isValidNetwork("testnet3")).toBe(true);
+  });
+
   it("accepts signet", () => {
     expect(isValidNetwork("signet")).toBe(true);
   });
@@ -23,17 +27,23 @@ describe("isValidNetwork", () => {
 });
 
 describe("NETWORK_CONFIG", () => {
-  it("has config for all three networks", () => {
-    expect(Object.keys(NETWORK_CONFIG)).toEqual(["mainnet", "testnet4", "signet"]);
+  it("has config for all four networks", () => {
+    expect(Object.keys(NETWORK_CONFIG)).toEqual(["mainnet", "testnet4", "testnet3", "signet"]);
   });
 
   it("mainnet has onion URL", () => {
     expect(NETWORK_CONFIG.mainnet.mempoolOnionUrl).toContain(".onion");
   });
 
-  it("testnet4 and signet lack onion URL", () => {
+  it("testnet4, testnet3, and signet lack onion URL", () => {
     expect(NETWORK_CONFIG.testnet4.mempoolOnionUrl).toBeUndefined();
+    expect(NETWORK_CONFIG.testnet3.mempoolOnionUrl).toBeUndefined();
     expect(NETWORK_CONFIG.signet.mempoolOnionUrl).toBeUndefined();
+  });
+
+  it("testnet3 uses the legacy mempool.space /testnet path", () => {
+    expect(NETWORK_CONFIG.testnet3.mempoolBaseUrl).toBe("https://mempool.space/testnet/api");
+    expect(NETWORK_CONFIG.testnet3.explorerUrl).toBe("https://mempool.space/testnet");
   });
 
   it("all configs have required fields", () => {
