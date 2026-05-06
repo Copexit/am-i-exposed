@@ -1,6 +1,6 @@
 {
   "name": "am-i-exposed",
-  "version": "0.35.6",
+  "version": "0.35.7",
   "private": true,
   "packageManager": "pnpm@10.26.1",
   "scripts": {
