@@ -8,6 +8,13 @@ beforeEach(() => resetAddrCounter());
 const PUB1 = "02" + "aa".repeat(32);
 const PUB2 = "03" + "bb".repeat(32);
 const PUB3 = "02" + "cc".repeat(32);
+
+const HH_WITNESS: string[] = [
+  "",
+  "30" + "44" + "02" + "20" + "ab".repeat(32) + "02" + "20" + "cd".repeat(32) + "01",
+  "30" + "44" + "02" + "20" + "ef".repeat(32) + "02" + "20" + "01".repeat(32) + "01",
+  "522102" + "aa".repeat(32) + "2103" + "bb".repeat(32) + "2102" + "cc".repeat(32) + "53ae",
+];
 const PUB4 = "03" + "dd".repeat(32);
 const PUB5 = "02" + "ee".repeat(32);
 
@@ -23,6 +30,8 @@ describe("analyzeMultisigDetection", () => {
       vin: [
         makeVin({
           sequence: 0xffffffff,
+          witness: HH_WITNESS,
+          scriptsig: "22" + "00".repeat(34),
           prevout: {
             scriptpubkey: "",
             scriptpubkey_asm: "",
@@ -230,6 +239,8 @@ describe("analyzeMultisigDetection", () => {
       vin: [
         makeVin({
           sequence: 0xffffffff,
+          witness: HH_WITNESS,
+          scriptsig: "22" + "00".repeat(34),
           prevout: {
             scriptpubkey: "",
             scriptpubkey_asm: "",
@@ -253,13 +264,15 @@ describe("analyzeMultisigDetection", () => {
     expect(findings[0].confidence).toBe("medium");
   });
 
-  it("detects HodlHodl via fee pattern at 0.45% (referral rate)", () => {
+  it("detects HodlHodl via fee pattern at 0.45% (referral rate, in single-side band)", () => {
     const tx = makeTx({
       version: 1,
       locktime: 0,
       vin: [
         makeVin({
           sequence: 0xffffffff,
+          witness: HH_WITNESS,
+          scriptsig: "22" + "00".repeat(34),
           prevout: {
             scriptpubkey: "",
             scriptpubkey_asm: "",
@@ -273,7 +286,7 @@ describe("analyzeMultisigDetection", () => {
       ],
       vout: [
         makeVout({ value: 198_800 }),
-        makeVout({ value: 900 }), // 0.45% of input
+        makeVout({ value: 1000 }), // 0.5% of input - single-side band
       ],
     });
 
@@ -290,6 +303,8 @@ describe("analyzeMultisigDetection", () => {
       vin: [
         makeVin({
           sequence: 0xffffffff,
+          witness: HH_WITNESS,
+          scriptsig: "22" + "00".repeat(34),
           prevout: {
             scriptpubkey: "",
             scriptpubkey_asm: "",

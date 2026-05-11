@@ -125,6 +125,8 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
       params: {
         matchCount: entityOutputs.length,
         addresses: entityOutputs.map((m) => m.address).join(", "),
+        entityName: entityOutputs[0].entityName,
+        category: entityOutputs[0].category ?? "unknown",
         filterFpr: getFilter()?.meta.fpr ?? 0.001,
       },
       description:

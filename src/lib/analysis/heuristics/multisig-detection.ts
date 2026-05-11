@@ -4,19 +4,13 @@ import { parseMultisigFromInput, type MultisigInfo } from "@/lib/bitcoin/multisi
 import { getSpendableOutputs, isCoinbase } from "./tx-utils";
 import {
   buildBisqDepositFinding,
-  buildHodlHodlAddressFinding,
-  buildHodlHodlPatternFinding,
   buildEscrow2of3Finding,
   buildBisqEscrowFinding,
   buildLightningChannelFinding,
   buildEscrow2of2Finding,
   buildGenericMultisigFinding,
 } from "./multisig-findings";
-
-/** Known HodlHodl fee collection addresses (mainnet). */
-const HODLHODL_FEE_ADDRESSES = new Set([
-  "bc1qqmmzt02nu4rqxe03se2zqpw63k0khnwq959zxq",
-]);
+import { analyzeHodlHodlDetection } from "./hodlhodl-detection";
 
 /** Known Bisq fee collection addresses (mainnet). */
 const BISQ_FEE_ADDRESSES = new Set([
@@ -36,15 +30,13 @@ const BISQ_FEE_ADDRESSES = new Set([
  *
  * Impact: 0 to -3
  */
-/** HodlHodl fee-pattern bounds (combined buyer + seller fee as fraction of input). */
-const HODLHODL_FEE_MIN = 0.004; // 0.4%
-const HODLHODL_FEE_MAX = 0.012; // 1.2%
-const HODLHODL_FEE_ABS_MAX = 100_000; // sats - absolute cap to avoid coincidental ratio matches
-
-export const analyzeMultisigDetection: TxHeuristic = (tx) => {
+export const analyzeMultisigDetection: TxHeuristic = (tx, rawHex, ctx) => {
   const findings: Finding[] = [];
 
   if (isCoinbase(tx)) return { findings };
+
+  const hh = analyzeHodlHodlDetection(tx, rawHex, ctx);
+  if (hh.findings.length > 0) return hh;
 
   // ── Bisq deposit tx detection (before multisig input parsing) ─────
   if (tx.vin.length >= 2) {
@@ -75,54 +67,6 @@ export const analyzeMultisigDetection: TxHeuristic = (tx) => {
   if (multisigInputs.length === 0) return { findings };
 
   const spendableOutputs = getSpendableOutputs(tx.vout);
-
-  // ── HodlHodl detection (most specific, check first) ─────────────────
-  if (
-    tx.vin.length === 1 &&
-    multisigInputs.length === 1 &&
-    multisigInputs[0].info.m === 2 &&
-    multisigInputs[0].info.n === 3 &&
-    spendableOutputs.length >= 2 &&
-    spendableOutputs.length <= 3
-  ) {
-    const feeOutput = tx.vout.find(
-      (o) => o.scriptpubkey_address && HODLHODL_FEE_ADDRESSES.has(o.scriptpubkey_address),
-    );
-
-    if (feeOutput) {
-      findings.push(buildHodlHodlAddressFinding(
-        multisigInputs[0].info.scriptType,
-        feeOutput.scriptpubkey_address ?? "",
-        feeOutput.value,
-      ));
-      return { findings };
-    }
-
-    // ── HodlHodl fee-pattern fallback (no address match) ──────────────
-    if (spendableOutputs.length === 2) {
-      const inputValue = tx.vin[0].prevout?.value ?? 0;
-      if (inputValue > 0) {
-        const [smaller, larger] = spendableOutputs[0].value <= spendableOutputs[1].value
-          ? [spendableOutputs[0], spendableOutputs[1]]
-          : [spendableOutputs[1], spendableOutputs[0]];
-        const feeRatio = smaller.value / inputValue;
-
-        if (
-          feeRatio >= HODLHODL_FEE_MIN &&
-          feeRatio <= HODLHODL_FEE_MAX &&
-          smaller.value < HODLHODL_FEE_ABS_MAX &&
-          larger.value > smaller.value * 10
-        ) {
-          findings.push(buildHodlHodlPatternFinding(
-            multisigInputs[0].info.scriptType,
-            smaller.value,
-            feeRatio,
-          ));
-          return { findings };
-        }
-      }
-    }
-  }
 
   // ── 2-of-3 escrow (no fee address match) ─────────────────────────────
   if (

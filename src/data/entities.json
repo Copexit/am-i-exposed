@@ -278,7 +278,7 @@
       "ofac": false,
       "priority": 6,
       "sampleAddresses": [
-        "bc1q7t9fxfaakmtk8pj7tdxjvwsng6y9x76czuaf5h",
+        "bc1q7cyrfmck2ffu2ud3rn5l5a8yv6f0chkp0zpemf",
         "3A1mvU3GBuGZpMZKCkKBCMiHzRMn2dFhUK",
         "1PJiGp2yDLvUgqeBsuZVCBADArNsk6XEiC"
       ]
@@ -525,10 +525,7 @@
       "status": "active",
       "country": "Canada",
       "ofac": false,
-      "priority": 4,
-      "sampleAddresses": [
-        "16zXVL256Go3Li9mmBT3ffFVHfZemkgvhd"
-      ]
+      "priority": 4
     },
     {
       "name": "Mt. Gox",
@@ -818,10 +815,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 9,
-      "sampleAddresses": [
-        "1QA2oaNYk73PSxp3RXFMtimvhGyQNJF8kF"
-      ]
+      "priority": 9
     },
     {
       "name": "Agora",
@@ -829,10 +823,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 9,
-      "sampleAddresses": [
-        "1J3BDU4wHgxk5bHky8EiDnptX39dYgdDGj"
-      ]
+      "priority": 9
     },
     {
       "name": "Dark0de",
@@ -1031,10 +1022,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 2,
-      "sampleAddresses": [
-        "17hiCXtpyFKXMSzGD3Tt1xqfTFK5Jt9mWB"
-      ]
+      "priority": 2
     },
     {
       "name": "BitStarz",
@@ -1042,10 +1030,7 @@
       "status": "active",
       "country": "Curacao",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1Q5X43DKVF1R8XM1MsyquCaNmNrzzmaReV"
-      ]
+      "priority": 3
     },
     {
       "name": "Cloudbet",
@@ -1053,10 +1038,7 @@
       "status": "active",
       "country": "Curacao",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "18TzsZwvQbP4bdwVMDVNJtWMmmfW3uhDe6"
-      ]
+      "priority": 3
     },
     {
       "name": "mBit Casino",
@@ -1072,10 +1054,7 @@
       "status": "active",
       "country": "Curacao",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1KKb4e3xkDpQcZskFdd5ZKYES38KH5LP19"
-      ]
+      "priority": 3
     },
     {
       "name": "Stake.com",
@@ -1099,10 +1078,7 @@
       "status": "active",
       "country": "Curacao",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1H2s3ZSXuYKKXp8SvPki851FghJq5q2sH4"
-      ]
+      "priority": 3
     },
     {
       "name": "Nitrogen Sports",
@@ -1110,10 +1086,7 @@
       "status": "active",
       "country": "Costa Rica",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "18cLoYRHxKojpj7Ayhj1KH8Vx91RiP2s1"
-      ]
+      "priority": 3
     },
     {
       "name": "1xBit",
@@ -1180,10 +1153,7 @@
       "status": "active",
       "country": "Canada",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "188rQxuBATS5msRQbp6qvrArKpVYsnKFUu"
-      ]
+      "priority": 3
     },
     {
       "name": "GoURL",
@@ -1423,7 +1393,12 @@
       "status": "active",
       "country": "Latvia",
       "ofac": false,
-      "priority": 3
+      "priority": 3,
+      "sampleAddresses": [
+        "112JoN1CLk4KVPpsPkdDV8JLQVSusrC2i2",
+        "31iKyYfVgiSUCdrX334VjAT3432ErRkgUL",
+        "bc1p3py4ts63vvw5qqprx76lc6u7u0zcwlf9h3trwh5qpcgnkfrmn4nqdg94xx"
+      ]
     },
     {
       "name": "RoboSats",
@@ -1648,11 +1623,7 @@
       "status": "closed",
       "country": "UK",
       "ofac": false,
-      "priority": 1,
-      "sampleAddresses": [
-        "3FkwtWb73k4i6iJ17bbMbwNAtgsRQ8mJ5M",
-        "16fZR1i8RJRPYtkU984agmJGbAVvCSU4W2"
-      ]
+      "priority": 1
     },
     {
       "name": "Xapo Bank",
@@ -1719,10 +1690,7 @@
       "status": "active",
       "country": "Unknown",
       "ofac": false,
-      "priority": 8,
-      "sampleAddresses": [
-        "1LDM7MdmimPdyKZLZnmJoRUqRcjHMsakkC"
-      ]
+      "priority": 8
     },
     {
       "name": "Cryptonator",
@@ -1730,10 +1698,7 @@
       "status": "active",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1Gc8MiAv7ymiyjdQwU2AHn5DRi6BdBiTtw"
-      ]
+      "priority": 3
     },
     {
       "name": "Cryptsy",
@@ -1765,10 +1730,7 @@
       "status": "active",
       "country": "Unknown",
       "ofac": false,
-      "priority": 4,
-      "sampleAddresses": [
-        "138EpYELCN4aQ7Pc2ZoRnfGVWL9SD47Zue"
-      ]
+      "priority": 4
     },
     {
       "name": "BTCC",
@@ -1827,10 +1789,7 @@
       "status": "active",
       "country": "Unknown",
       "ofac": false,
-      "priority": 4,
-      "sampleAddresses": [
-        "1HbjETkThQTNrAcFtdzZSZ141EGdsW41L9"
-      ]
+      "priority": 4
     },
     {
       "name": "Unocoin",
@@ -1854,10 +1813,7 @@
       "status": "active",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1LuckyP83urTUEJE9YEaVG2ov3EDz3TgQw"
-      ]
+      "priority": 3
     },
     {
       "name": "Finst",
@@ -1918,10 +1874,7 @@
       "status": "active",
       "country": "Unknown",
       "ofac": false,
-      "priority": 4,
-      "sampleAddresses": [
-        "182mfwwavbfMTtthxAQgBPrANR7S5YBdYr"
-      ]
+      "priority": 4
     },
     {
       "name": "CoinsBank",
@@ -1977,10 +1930,7 @@
       "status": "active",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1Go7vvmLfKeu88m2zRzbuztfkLDfxbLJk5"
-      ]
+      "priority": 3
     },
     {
       "name": "SpectroCoin",
@@ -1988,10 +1938,7 @@
       "status": "active",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1LNoCJhzLeGzkLcMiyjRU4v9DyuuqArfL2"
-      ]
+      "priority": 3
     },
     {
       "name": "C-CEX.com",
@@ -1999,10 +1946,7 @@
       "status": "active",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1McigNugznuPaiePA3hbcCSLEympQWPCc2"
-      ]
+      "priority": 3
     },
     {
       "name": "Nobitex",
@@ -2093,10 +2037,7 @@
       "status": "active",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "19FqUTFqKPZW2u2tkv1AHML21EnrGMrue4"
-      ]
+      "priority": 3
     },
     {
       "name": "CoinsPaid",
@@ -2152,10 +2093,7 @@
       "status": "active",
       "country": "Unknown",
       "ofac": false,
-      "priority": 6,
-      "sampleAddresses": [
-        "1bonesKMPpCDViQVGjdxn9ZjLiSFScGKb"
-      ]
+      "priority": 6
     },
     {
       "name": "EOBot",
@@ -2195,10 +2133,7 @@
       "status": "active",
       "country": "Unknown",
       "ofac": false,
-      "priority": 1,
-      "sampleAddresses": [
-        "143WdLNY4oyQURUUx66G5Z9ZZaiV3fGqhS"
-      ]
+      "priority": 1
     },
     {
       "name": "Yolo Group",
@@ -2246,10 +2181,7 @@
       "status": "active",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "3GoZcArbQbvRUupedX2FBMgp2f3Bq2A8WP"
-      ]
+      "priority": 3
     },
     {
       "name": "BinaryCent",
@@ -2323,10 +2255,7 @@
       "status": "active",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1MEmY9JoJNVfJnTDofLtER7pEZr74DJa24"
-      ]
+      "priority": 3
     },
     {
       "name": "DeadBolt",
@@ -2541,10 +2470,7 @@
       "status": "active",
       "country": "Unknown",
       "ofac": false,
-      "priority": 8,
-      "sampleAddresses": [
-        "1K7xa7dTenzX4CfoGvU2gmYBCum2E6qg9P"
-      ]
+      "priority": 8
     },
     {
       "name": "Pandora Open Market",
@@ -2552,10 +2478,7 @@
       "status": "active",
       "country": "Unknown",
       "ofac": false,
-      "priority": 8,
-      "sampleAddresses": [
-        "1NBJSXmDQo5UHYquxzRr7ooBPvh9XCL3a5"
-      ]
+      "priority": 8
     },
     {
       "name": "WhiteBIT",
@@ -2591,10 +2514,7 @@
       "status": "active",
       "country": "Unknown",
       "ofac": false,
-      "priority": 7,
-      "sampleAddresses": [
-        "1JTboQzFboMFBPQ9CpxH19BEXGamPQ26GF"
-      ]
+      "priority": 7
     },
     {
       "name": "SatoshiMines.com",
@@ -2602,10 +2522,7 @@
       "status": "active",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1n2bMqXWzSaRntAYHUCh1QkRSrWgPRN9q"
-      ]
+      "priority": 3
     },
     {
       "name": "Bitaroo",
@@ -2654,10 +2571,7 @@
       "status": "active",
       "country": "Unknown",
       "ofac": false,
-      "priority": 8,
-      "sampleAddresses": [
-        "1Hqh6TSGxPR3qMRL3toAXRPJjUtDRSoPfy"
-      ]
+      "priority": 8
     },
     {
       "name": "Bitmynt.no",
@@ -2681,10 +2595,7 @@
       "status": "active",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1Nrj7LXt6pzVGd9q6vWpFy2pkuDrsfxNwZ"
-      ]
+      "priority": 3
     },
     {
       "name": "AnxPro",
@@ -2714,11 +2625,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1LiLdMtJJqUKrFuecVYy9KiE3GenAxyD8W",
-        "3HGc8FtknDZ7mJTsMQsKhXf6J7Bc5tY7pz"
-      ]
+      "priority": 3
     },
     {
       "name": "Coinmate",
@@ -2745,12 +2652,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1HVJkXAk7c7iKxxpqPG8tQwwLNMa2tkzSv",
-        "33TBF1fjSvw4k9ovEmXmjGYRDMbN1GTo4B",
-        "bc1qsg8ztej3yj0nqtjvdh2j8apfwtn5tdnn34kwyp"
-      ]
+      "priority": 3
     },
     {
       "name": "Vaultoro",
@@ -2795,8 +2697,7 @@
       "ofac": false,
       "priority": 3,
       "sampleAddresses": [
-        "12d8Q37j8mRLpCwAt3nGGLftECYG2XpReb",
-        "36FjDenp9X4FUj8oVdhUzGaT3tLPW86HAJ"
+        "12d8Q37j8mRLpCwAt3nGGLftECYG2XpReb"
       ]
     },
     {
@@ -2827,10 +2728,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "193VAR1YYbTb3dsXp95d2JzpkCWLpy5sq"
-      ]
+      "priority": 3
     },
     {
       "name": "ChBtc",
@@ -2838,10 +2736,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "15nwH7QYuQ2Xgifv6QXBoQvoK4HA8vvTLK"
-      ]
+      "priority": 3
     },
     {
       "name": "BlockTrades.us",
@@ -2849,11 +2744,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1CatT3oNGbGeiUu7DCNAqW7HaQjveQs7EF",
-        "3LWfq4PTH8iYWBozSfQa2LPt4f2XduwFC8"
-      ]
+      "priority": 3
     },
     {
       "name": "BtcTrade",
@@ -2880,10 +2771,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1CG8YLRY83fY5AtaTjzrjuHxh2BQJf21Mn"
-      ]
+      "priority": 3
     },
     {
       "name": "MaiCoin",
@@ -2891,10 +2779,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1LzrNeRVste2De3BaE92dezw7TAWeoAr8v"
-      ]
+      "priority": 3
     },
     {
       "name": "Gatecoin",
@@ -2913,10 +2798,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "185TLkMZYwgcGjGMcWpYukdVd1b6HRs7kA"
-      ]
+      "priority": 3
     },
     {
       "name": "SimpleCoin.cz",
@@ -2924,10 +2806,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1ETAeh5y2q9Bh9s7kYDY2DDaNX89jEjW7M"
-      ]
+      "priority": 3
     },
     {
       "name": "CoinTrader",
@@ -2935,10 +2814,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 1,
-      "sampleAddresses": [
-        "1BCBeSKb1i8N87KfGT8CkKbSUoV3H6ehtm"
-      ]
+      "priority": 1
     },
     {
       "name": "Coinbroker",
@@ -2946,10 +2822,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1PLjsBGtf7rJNuxaeWWReDhkLk9bZstGo"
-      ]
+      "priority": 3
     },
     {
       "name": "Vircurex",
@@ -2968,10 +2841,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1LBuYdxJsDBxkgdjH7kyuD8dkWu1EMZEgP"
-      ]
+      "priority": 3
     },
     {
       "name": "1Coin",
@@ -2979,10 +2849,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1GqWeVySuv96nFybv27W7ULQ1rzDHeAi7a"
-      ]
+      "priority": 3
     },
     {
       "name": "Igot",
@@ -2990,10 +2857,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1GS2inLB6jaqUuu7hpgVKociwPGEMMctkg"
-      ]
+      "priority": 3
     },
     {
       "name": "CleverCoin",
@@ -3023,11 +2887,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "123DvCXxfH24dM57qjGLixN3ENjnuEZwGe",
-        "3M3nQgZsXeMoLJau6wdGHen798vpy9qMLA"
-      ]
+      "priority": 3
     },
     {
       "name": "UseCryptos",
@@ -3035,10 +2895,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1QELiiEgw997EycjPu9wmFh9u7CRctk8J6"
-      ]
+      "priority": 3
     },
     {
       "name": "MeXBT",
@@ -3046,10 +2903,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "14HG4qKzjskksCnh4dKDfvP4KdXBi7JEcF"
-      ]
+      "priority": 3
     },
     {
       "name": "Banx",
@@ -3057,10 +2911,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1FMvaN8SdDSsaDABVqETxeqf8BDD5gLrTu"
-      ]
+      "priority": 3
     },
     {
       "name": "Coinomat",
@@ -3068,10 +2919,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "14bYTf7fqMm3Eh12Y59T5DbfEmm8QrfWtu"
-      ]
+      "priority": 3
     },
     {
       "name": "Zyado",
@@ -3079,10 +2927,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1Mb4JKCVaGkdF5NuxufwhFy2f8u1WUoVKc"
-      ]
+      "priority": 3
     },
     {
       "name": "Coinimal",
@@ -3090,10 +2935,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1MLgaxVMmhscDAN3Mjg1wPYNvSAG4mMDbf"
-      ]
+      "priority": 3
     },
     {
       "name": "ExchangeMyCoins",
@@ -3101,10 +2943,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1M5NczBKPQSyFP2DzouXGAHeqoAYDQv2WC"
-      ]
+      "priority": 3
     },
     {
       "name": "OrderBook",
@@ -3112,10 +2951,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "14QdBtAhexfupgR2pyhNULWVTwDKbethrm"
-      ]
+      "priority": 3
     },
     {
       "name": "796",
@@ -3123,10 +2959,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "14EBC92evNCak2PqubXJshG5KPjnyajC3H"
-      ]
+      "priority": 3
     },
     {
       "name": "Btc38",
@@ -3145,10 +2978,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1MudcrRWzrjUgn1ugzh2ve4gpCpS8vWyHL"
-      ]
+      "priority": 3
     },
     {
       "name": "CoinChimp",
@@ -3156,10 +2986,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1JnSk5wGTigae183N9TGZXHKJTtGA8DNfm"
-      ]
+      "priority": 3
     },
     {
       "name": "CoinArch",
@@ -3167,10 +2994,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1LX78tyJGCoDnYbYZcNU3rKVw4w3u4kmrp"
-      ]
+      "priority": 3
     },
     {
       "name": "Coins-e",
@@ -3189,10 +3013,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1D1ZqQedv56GoasmmE5yaomNMJq6bsNjkz"
-      ]
+      "priority": 3
     },
     {
       "name": "Exchanging.ir",
@@ -3200,10 +3021,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1Ks5aLkREyVUba3QiS64ZL5PPdcgXDXhBp"
-      ]
+      "priority": 3
     },
     {
       "name": "Bitcurex",
@@ -3222,10 +3040,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1Nznb9Szo3Vx9njDUU5eVgqEe8YqiV5Uwx"
-      ]
+      "priority": 3
     },
     {
       "name": "BitVC",
@@ -3255,10 +3070,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1Q7PTybd4ybhKAi8a9pph6NjVCEMVfUhBt"
-      ]
+      "priority": 3
     },
     {
       "name": "CampBX",
@@ -3277,10 +3089,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1BBYRsHBbx7QFSD3JDqFs694ZgZSurb4Zd"
-      ]
+      "priority": 3
     },
     {
       "name": "Kano.is",
@@ -3288,10 +3097,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1N6LrEDiHuFwSyJYj2GedZM2FGk7kkLjn"
-      ]
+      "priority": 3
     },
     {
       "name": "SlushPool",
@@ -3299,10 +3105,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "12Wvqf3pTa3HcZWHhyizo7Nkc1HzVdEWnJ"
-      ]
+      "priority": 3
     },
     {
       "name": "Telco214",
@@ -3310,10 +3113,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1DXRoTT67mCbhdHHL1it4J1xsSZHHnFxYR"
-      ]
+      "priority": 3
     },
     {
       "name": "Eligius",
@@ -3321,11 +3121,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1JkT6EQMotCz6BFqPWFd3kFDQzU1qa119N",
-        "31igiusSdShicXmGAbJHNJuit1rzuJYKzF"
-      ]
+      "priority": 3
     },
     {
       "name": "EclipseMC",
@@ -3333,10 +3129,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "18M9o2mXNjNR96yKe7eyY6pfP6Nx4Nso3d"
-      ]
+      "priority": 3
     },
     {
       "name": "GHash",
@@ -3344,10 +3137,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1CjPR7Z5ZSyWk6WtXvSFgkptmpoi4UM9BC"
-      ]
+      "priority": 3
     },
     {
       "name": "BW",
@@ -3355,10 +3145,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1JLRXD8rjRgQtTS9MvfQALfHgGWau9L9ky"
-      ]
+      "priority": 3
     },
     {
       "name": "Bitfury",
@@ -3377,10 +3164,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1H1sq6Msgt9HjRrBuz8ieZdThzWXS6oPVA"
-      ]
+      "priority": 3
     },
     {
       "name": "BitMinter",
@@ -3388,10 +3172,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1DigvDaF9s2UTgWYwWwoNSDUkRktwqLAxh"
-      ]
+      "priority": 3
     },
     {
       "name": "BTCCPool",
@@ -3399,10 +3180,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 3,
-      "sampleAddresses": [
-        "1CDK1bUV98T8Kqix4CEr5iyPYVSjv6tawG"
-      ]
+      "priority": 3
     },
     {
       "name": "CoinGaming",
@@ -3410,10 +3188,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 2,
-      "sampleAddresses": [
-        "1LkEiNuK47XdoQLiMBhYEEZvz3iUDqQhQP"
-      ]
+      "priority": 2
     },
     {
       "name": "BitZino",
@@ -3421,10 +3196,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 2,
-      "sampleAddresses": [
-        "12DzK5gjSEYbmBZUn3XkQ9ypmytHNpvjDC"
-      ]
+      "priority": 2
     },
     {
       "name": "AnoniBet",
@@ -3432,10 +3204,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 2,
-      "sampleAddresses": [
-        "1AMqnsRgbMjqZLPqBQPuuX7THgorF8WngM"
-      ]
+      "priority": 2
     },
     {
       "name": "Betcoin.tm",
@@ -3443,10 +3212,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 2,
-      "sampleAddresses": [
-        "1BTPSjiSC1s3A5cqJrbDRi2LAHx3U88mKR"
-      ]
+      "priority": 2
     },
     {
       "name": "Coinroll",
@@ -3454,10 +3220,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 2,
-      "sampleAddresses": [
-        "1BKSARZdi7vyBvTv4LRW9QGe3cvfuCBjsz"
-      ]
+      "priority": 2
     },
     {
       "name": "PocketDice",
@@ -3473,10 +3236,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 2,
-      "sampleAddresses": [
-        "15qJZk4qh9fqEkrMLKfxQXmBk3WdnQ9T7R"
-      ]
+      "priority": 2
     },
     {
       "name": "777Coin",
@@ -3484,10 +3244,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 2,
-      "sampleAddresses": [
-        "1E421ChpHWEqQ2Kcy2JqEE8eDx7nFN4AXj"
-      ]
+      "priority": 2
     },
     {
       "name": "JetWin",
@@ -3495,10 +3252,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 2,
-      "sampleAddresses": [
-        "1KTrWTMsB7zYADPFSCPnisBEYYzAhLXsdN"
-      ]
+      "priority": 2
     },
     {
       "name": "SwCPoker",
@@ -3506,10 +3260,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 2,
-      "sampleAddresses": [
-        "1FJWNZnYrA5ptLmreBzdXCnPXa9cHiqR2B"
-      ]
+      "priority": 2
     },
     {
       "name": "FairProof",
@@ -3517,10 +3268,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 2,
-      "sampleAddresses": [
-        "14AfRero4nGxvPdRTF3A4GytDHbppJvD4o"
-      ]
+      "priority": 2
     },
     {
       "name": "MineField.BitcoinLab",
@@ -3528,10 +3276,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 2,
-      "sampleAddresses": [
-        "19mS9jJD5srCNwDVJetQRrUYnnhWQGmJc"
-      ]
+      "priority": 2
     },
     {
       "name": "Satoshi-Karoshi",
@@ -3539,10 +3284,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 2,
-      "sampleAddresses": [
-        "18s7KGN3htDhKZSSuJDFFgSCXyEomgzXTT"
-      ]
+      "priority": 2
     },
     {
       "name": "BetMoose",
@@ -3550,10 +3292,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 2,
-      "sampleAddresses": [
-        "1EKfcwM8Kur9A7fJnU5ZE5cE7DcdiKR3ig"
-      ]
+      "priority": 2
     },
     {
       "name": "SecondsTrade",
@@ -3561,10 +3300,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 2,
-      "sampleAddresses": [
-        "1ARF7D3a1CTUP2ej3UNuLSY54VnftKNfPm"
-      ]
+      "priority": 2
     },
     {
       "name": "Coinichiwa",
@@ -3572,10 +3308,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 2,
-      "sampleAddresses": [
-        "1CeqPhoTFbX8zq3wWCFUbt7g5C3TDbQFsD"
-      ]
+      "priority": 2
     },
     {
       "name": "BTCOracle",
@@ -3583,10 +3316,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 2,
-      "sampleAddresses": [
-        "1Up15Msx4sbvUCGm8Xgo2Zp5FQim3wE59"
-      ]
+      "priority": 2
     },
     {
       "name": "CoinRoyale",
@@ -3594,10 +3324,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 2,
-      "sampleAddresses": [
-        "1FFwxD2C7DUohz4m5BW7h4yzCqm48dBPHd"
-      ]
+      "priority": 2
     },
     {
       "name": "SafeDice",
@@ -3605,10 +3332,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 2,
-      "sampleAddresses": [
-        "1BLRnwX8hVEwGkTEW4XbAg6Wk1cnWyDrBZ"
-      ]
+      "priority": 2
     },
     {
       "name": "SatoshiRoulette",
@@ -3616,10 +3340,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 2,
-      "sampleAddresses": [
-        "1Bt7HfZAkggTLJUrMrWTcdzB2igJfn7avD"
-      ]
+      "priority": 2
     },
     {
       "name": "SatoshiMines",
@@ -3635,10 +3356,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 2,
-      "sampleAddresses": [
-        "1KpnaXqHgEut1LCaE1maLZBKgAgEu8G7QF"
-      ]
+      "priority": 2
     },
     {
       "name": "YABTCL",
@@ -3646,11 +3364,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 2,
-      "sampleAddresses": [
-        "163XMwibcsbMLJkHyCsNkoZaHvAn1NiqfQ",
-        "3GPSfpTJWGdigAuzVMFqw9qzRBkvooYLfP"
-      ]
+      "priority": 2
     },
     {
       "name": "ePay.info",
@@ -3658,11 +3372,7 @@
       "status": "closed",
       "country": "Unknown",
       "ofac": false,
-      "priority": 1,
-      "sampleAddresses": [
-        "1KZ9nAxpY1UbgFKcAmkHqJaMDY4Uzwcneu",
-        "3QsT6Sast6ghfsjZ9VJj9u8jkM2qTfDgHV"
-      ]
+      "priority": 1
     }
   ]
 }

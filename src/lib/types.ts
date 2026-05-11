@@ -52,6 +52,7 @@ export type TxType =
   | "self-transfer"
   | "peel-chain"
   | "coinbase"
+  | "p2p-escrow"
   | "simple-payment"
   | "unknown";
 

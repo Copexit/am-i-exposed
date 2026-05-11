@@ -20,6 +20,7 @@ export const TX_TYPE_LABELS: Partial<Record<TxType, string>> = {
   "self-transfer": "Self-transfer",
   "peel-chain": "Peel Chain",
   "coinbase": "Coinbase",
+  "p2p-escrow": "P2P Escrow",
 };
 
 const ADDRESS_TYPE_CONFIG: Record<string, { label: string; color: string }> = {

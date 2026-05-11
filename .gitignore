@@ -81,6 +81,7 @@ scripts/glossary-capture.mjs
 !.cache/entity-data/curated/mining-pool-addresses.csv
 !.cache/entity-data/curated/mixer-addresses.csv
 !.cache/entity-data/curated/ofac-entity-labeled.csv
+!.cache/entity-data/curated/p2p-hodlhodl-addresses.csv
 !.cache/entity-data/curated/p2p-platform-addresses.csv
 !.cache/entity-data/curated/proof-of-reserves.csv
 !.cache/entity-data/curated/ransomware-addresses.csv

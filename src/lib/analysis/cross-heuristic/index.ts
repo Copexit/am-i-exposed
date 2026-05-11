@@ -139,6 +139,14 @@ export function classifyTransactionType(findings: Finding[]): TxType {
   // Coinbase
   if (hasAny("coinbase-transaction")) return "coinbase";
 
+  // P2P escrow (HodlHodl, etc.) - more specific than peel-chain, so check first.
+  // Triggers on either the structural multisig heuristic firing or the
+  // entity-detection bloom returning a P2P-categorized entity name.
+  const isHodlHodlEntity = (f: Finding) =>
+    (f.id === "entity-known-output" || f.id === "entity-known-input")
+    && f.params?.entityName === "HodlHodl";
+  if (hasAny("h17-hodlhodl") || findings.some(isHodlHodlEntity)) return "p2p-escrow";
+
   // Structural patterns
   if (hasAny("h2-self-send")) return "self-transfer";
   if (has("consolidation-fan-in")) return "consolidation";
