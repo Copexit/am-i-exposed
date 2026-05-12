@@ -7,7 +7,19 @@
  * field to each entity in entities.json. Up to 3 addresses per entity,
  * preferring address-type diversity (bc1..., 3..., 1...).
  *
- * Usage: node scripts/enrich-entity-samples.mjs
+ * Usage:
+ *   node scripts/enrich-entity-samples.mjs
+ *     Regenerate sampleAddresses for ALL entities from currently-available
+ *     CSVs. Entities without matched samples have any existing sampleAddresses
+ *     field removed. Use this only when you have the full curated dataset
+ *     locally; running it with a partial dataset will WIPE samples for any
+ *     entity whose CSVs aren't present.
+ *
+ *   node scripts/enrich-entity-samples.mjs --only Name1,Name2
+ *     Only touch the named entities. For each one, set sampleAddresses if at
+ *     least one matched address was found; otherwise leave the existing field
+ *     untouched. All other entities are left exactly as they are in
+ *     entities.json. Safe for targeted contributions.
  */
 
 import { readFileSync, writeFileSync, readdirSync, createReadStream } from "fs";
@@ -151,12 +163,38 @@ async function collectSamples(csvPath, entityLookup, samples) {
 
 // ─── Main ────────────────────────────────────────────────────────
 
+function parseArgs(argv) {
+  const out = { only: null };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--only" && i + 1 < argv.length) {
+      out.only = new Set(argv[++i].split(",").map((s) => s.trim()).filter(Boolean));
+    } else if (a.startsWith("--only=")) {
+      out.only = new Set(a.slice("--only=".length).split(",").map((s) => s.trim()).filter(Boolean));
+    }
+  }
+  return out;
+}
+
 async function main() {
-  console.log("=== Enriching entities.json with sample addresses ===\n");
+  const args = parseArgs(process.argv.slice(2));
+  console.log("=== Enriching entities.json with sample addresses ===");
+  if (args.only) {
+    console.log(`  --only mode: restricting to ${[...args.only].join(", ")}`);
+  }
+  console.log("");
 
   const entitiesJson = JSON.parse(readFileSync(ENTITIES_PATH, "utf-8"));
   const entityLookup = buildEntityLookup(entitiesJson);
   const entityNames = new Set(entitiesJson.entities.map((e) => e.name));
+
+  if (args.only) {
+    const unknown = [...args.only].filter((n) => !entityNames.has(n));
+    if (unknown.length > 0) {
+      console.error(`  ERROR: --only entities not found in entities.json: ${unknown.join(", ")}`);
+      process.exit(1);
+    }
+  }
 
   const samples = new Map(); // canonicalName -> string[]
 
@@ -180,21 +218,33 @@ async function main() {
 
   // Enrich entities.json
   let enriched = 0;
+  let skipped = 0;
   for (const entity of entitiesJson.entities) {
+    // In --only mode, leave non-targeted entities completely untouched.
+    if (args.only && !args.only.has(entity.name)) {
+      skipped++;
+      continue;
+    }
     const addrs = samples.get(entity.name);
     if (addrs && addrs.length > 0) {
       entity.sampleAddresses = addrs.slice(0, MAX_SAMPLES);
       enriched++;
-    } else {
-      // Remove stale sampleAddresses if any
+    } else if (!args.only) {
+      // Default mode: remove stale sampleAddresses if no matches found.
+      // In --only mode we never delete, only set.
       delete entity.sampleAddresses;
     }
   }
 
   writeFileSync(ENTITIES_PATH, JSON.stringify(entitiesJson, null, 2) + "\n", "utf-8");
 
-  console.log(`\n  Enriched ${enriched}/${entityNames.size} entities with sample addresses`);
-  console.log(`  Entities without samples: ${entityNames.size - enriched}`);
+  if (args.only) {
+    console.log(`\n  Enriched ${enriched} of ${args.only.size} targeted entities`);
+    console.log(`  Untouched (preserved as-is): ${skipped}`);
+  } else {
+    console.log(`\n  Enriched ${enriched}/${entityNames.size} entities with sample addresses`);
+    console.log(`  Entities without samples: ${entityNames.size - enriched}`);
+  }
 
   // Show top entities
   const topEntities = entitiesJson.entities
