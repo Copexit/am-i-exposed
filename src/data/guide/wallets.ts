@@ -114,7 +114,7 @@ export const RECOMMENDED_WALLETS: WalletEntry[] = [
     name: "Nunchuk",
     type: ["desktop", "mobile"],
     nSequence: "good",
-    antiFeeSniping: true,
+    antiFeeSniping: false,
     coinJoin: false,
     payJoin: false,
     bip47: false,
