@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { createApiClient } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/fetch-with-retry";
+import { detectTxidNetwork } from "@/lib/api/detect-network";
 import { isBraveBrowser } from "@/hooks/useTorDetection";
 import { NETWORK_CONFIG } from "@/lib/bitcoin/networks";
 import { detectInputType } from "@/lib/analysis/detect-input";
@@ -35,7 +36,7 @@ export type { PreSendResult } from "@/lib/analysis/orchestrator";
 
 export function useAnalysis() {
   const [state, setState] = useState<AnalysisState>(INITIAL_STATE);
-  const { network, config, isUmbrel } = useNetwork();
+  const { network, setNetwork, config, customApiUrl, isUmbrel } = useNetwork();
   const { t } = useTranslation();
   const abortRef = useRef<AbortController | null>(null);
 
@@ -297,6 +298,63 @@ export function useAnalysis() {
           }
         }
 
+        // Auto-detect network: a NOT_FOUND on a txid against the public
+        // mempool.space API often means the user is on the wrong network.
+        // Probe the other networks; if the tx lives on one of them, switch
+        // and retry transparently.
+        if (
+          err instanceof ApiError &&
+          err.code === "NOT_FOUND" &&
+          inputType === "txid" &&
+          !isUmbrel &&
+          !customApiUrl
+        ) {
+          const detected = await detectTxidNetwork(input, network, controller.signal);
+          if (detected && detected !== network && !controller.signal.aborted) {
+            setNetwork(detected);
+            const detectedConfig = NETWORK_CONFIG[detected];
+            const detectedApi = createApiClient(detectedConfig, controller.signal);
+
+            setState({
+              ...INITIAL_STATE,
+              phase: "fetching",
+              query: input,
+              inputType,
+              steps,
+            });
+
+            try {
+              const txResult = await runTxidAnalysis(input, {
+                api: detectedApi,
+                controller,
+                network: detected,
+                isCustomApi: false,
+                analysisSettingsForCache,
+                onStep,
+                setState,
+              });
+              if (controller.signal.aborted) return;
+
+              setState((prev) => {
+                const completeState = {
+                  ...prev,
+                  phase: "complete" as const,
+                  steps: markAllDone(prev.steps),
+                  result: txResult.result,
+                  boltzmannResult: txResult.boltzmannResult,
+                  boltzmannStatus: txResult.boltzmannStatus as AnalysisState["boltzmannStatus"],
+                  durationMs: Date.now() - startTime,
+                };
+                putCachedResult(detected, input, analysisSettingsForCache, completeState).catch((e) => console.warn("cache write failed:", e));
+                return completeState;
+              });
+              return;
+            } catch {
+              // Retry failed; fall through to the original error handling
+            }
+          }
+        }
+
         let message = t("errors.unexpected", { defaultValue: "An unexpected error occurred." });
         let errorCode: "retryable" | "not-retryable" = "retryable";
         if (err instanceof ApiError) {
@@ -350,7 +408,7 @@ export function useAnalysis() {
         }));
       }
     },
-    [network, config, isCustomApi, isUmbrel, t, ht, onStep],
+    [network, setNetwork, config, customApiUrl, isCustomApi, isUmbrel, t, ht, onStep],
   );
 
   const reset = useCallback(() => {
