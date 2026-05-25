@@ -54,10 +54,10 @@ function RecCard({ rec }: { rec: PrimaryRec }) {
             </span>
           </div>
           <h3 className="text-base font-semibold text-foreground mt-1.5 leading-snug">
-            {t(rec.headlineKey, { defaultValue: rec.headlineDefault })}
+            {t(rec.headlineKey, { defaultValue: rec.headlineDefault, ...rec.tParams })}
           </h3>
           <p className="text-sm text-muted mt-1 leading-relaxed">
-            {t(rec.detailKey, { defaultValue: rec.detailDefault })}
+            {t(rec.detailKey, { defaultValue: rec.detailDefault, ...rec.tParams })}
           </p>
           <div className="flex items-center gap-3 mt-2 flex-wrap">
             {rec.tools && rec.tools.map((tool) => (

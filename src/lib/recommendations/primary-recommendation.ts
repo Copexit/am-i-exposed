@@ -20,6 +20,8 @@ export interface PrimaryRec {
   tool?: { name: string; url: string };
   tools?: { name: string; url: string }[];
   guideLink?: string;
+  /** Interpolation values passed to react-i18next t() for headline and detail. */
+  tParams?: Record<string, string | number>;
 }
 
 export interface RecommendationContext {

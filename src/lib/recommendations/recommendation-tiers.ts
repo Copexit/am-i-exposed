@@ -41,26 +41,24 @@ export function pickTool(
   }
 }
 
-export function buildEntityDetail(
-  entityName: string,
-  entityCategory: string | null | undefined,
-  isExchange: boolean,
-): string {
-  if (isExchange) {
-    return (
-      `This transaction was constructed by ${entityName}. Privacy recommendations for transaction ` +
-      "construction do not apply - you did not choose the inputs, outputs, or structure. " +
-      "To protect your privacy after receiving these funds: keep them in a separate wallet from " +
-      "non-KYC coins, consider CoinJoin before spending, and avoid consolidating with other UTXOs."
-    );
-  }
-  return (
-    `This transaction was constructed by ${entityName} (${entityCategory ?? "known entity"}). ` +
+/**
+ * English fallback strings for the entity-origin recommendation detail.
+ * Mirrors primaryRec.entityOrigin.detail.{exchange,other} in the locale
+ * files. Used as react-i18next `defaultValue` when the translation key
+ * cannot be resolved. {{entity}} is interpolated via PrimaryRec.tParams.
+ */
+const ENTITY_DETAIL_DEFAULTS = {
+  exchange:
+    "This transaction was constructed by {{entity}}. Privacy recommendations for transaction " +
+    "construction do not apply - you did not choose the inputs, outputs, or structure. " +
+    "To protect your privacy after receiving these funds: keep them in a separate wallet from " +
+    "non-KYC coins, consider CoinJoin before spending, and avoid consolidating with other UTXOs.",
+  other:
+    "This transaction was constructed by {{entity}}. " +
     "Privacy recommendations for transaction construction do not apply. " +
     "To reduce exposure: spend received UTXOs individually, use CoinJoin to break the trail, " +
-    "and avoid linking these funds to your other addresses."
-  );
-}
+    "and avoid linking these funds to your other addresses.",
+} as const;
 
 // ── Shared context for tier checks ───────────────────────────────────
 
@@ -83,16 +81,17 @@ export function checkEntityOrigin(tc: TierContext): TierResult {
 
   if (entityOrigin && !hasCoinJoin) {
     const isExchange = ctx.entityCategory === "exchange" || ctx.entityCategory === "payment";
-    const detail = buildEntityDetail(entityOrigin, ctx.entityCategory, isExchange);
+    const variant = isExchange ? "exchange" : "other";
 
     return [
       {
         id: "rec-entity-origin",
         urgency: "when-convenient",
         headlineKey: "primaryRec.entityOrigin.headline",
-        headlineDefault: `Transaction constructed by ${entityOrigin}`,
-        detailKey: "primaryRec.entityOrigin.detail",
-        detailDefault: detail,
+        headlineDefault: "Transaction constructed by {{entity}}",
+        detailKey: `primaryRec.entityOrigin.detail.${variant}`,
+        detailDefault: ENTITY_DETAIL_DEFAULTS[variant],
+        tParams: { entity: entityOrigin },
         guideLink: "/guide#coin-control",
       },
       null,
