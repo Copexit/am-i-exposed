@@ -76,4 +76,24 @@ describe("detectTxidNetwork", () => {
     await detectTxidNetwork(VALID_TXID, "mainnet", controller.signal);
     expect(fetchMock).toHaveBeenCalled();
   });
+
+  it("uses /tx/{txid}/hex (not /status) - regression: /status returns 200 for missing txs", async () => {
+    // Live mempool.space behavior, observed during PR #91 verification:
+    // - GET /api/tx/{unknownTxid}/status     -> HTTP 200 {"confirmed":false}
+    // - GET /api/tx/{unknownTxid}/hex        -> HTTP 404
+    // - GET /api/tx/{unknownTxid}            -> HTTP 404
+    // Using /status would make every probe spuriously succeed and pick
+    // whichever network responded fastest - mainnet wins by latency.
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      return new Response(null, { status: url.includes("/hex") ? 200 : 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await detectTxidNetwork(VALID_TXID, "mainnet");
+    for (const call of fetchMock.mock.calls) {
+      const url = typeof call[0] === "string" ? call[0] : call[0].toString();
+      expect(url.endsWith("/hex"), `must probe /hex, got ${url}`).toBe(true);
+    }
+  });
 });

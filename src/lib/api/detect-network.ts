@@ -20,11 +20,14 @@ const PROBE_NETWORKS: readonly BitcoinNetwork[] = [
 
 /**
  * Probe the other public mempool.space networks (everything except `fromNetwork`)
- * for the given txid. Returns the first network whose `/tx/{txid}/status`
- * endpoint responds OK, or `null` if none do.
+ * for the given txid. Returns the first network whose `/tx/{txid}/hex` endpoint
+ * responds OK, or `null` if none do.
  *
- * Probes run concurrently. The HEAD-like `/status` endpoint is used because
- * it is the smallest payload that confirms existence on a given network.
+ * Probes run concurrently via `Promise.any`. The `/hex` endpoint is used because
+ * it returns 404 for unknown txids on every network. The `/status` endpoint is
+ * unsuitable: mempool.space returns `{"confirmed":false}` with HTTP 200 for
+ * non-existent txids, which would make every probe spuriously succeed and pick
+ * whichever network responded first.
  */
 export async function detectTxidNetwork(
   txid: string,
@@ -36,7 +39,7 @@ export async function detectTxidNetwork(
   const others = PROBE_NETWORKS.filter((n) => n !== fromNetwork);
 
   const probes = others.map(async (net) => {
-    const url = `${NETWORK_CONFIG[net].mempoolBaseUrl}/tx/${txid}/status`;
+    const url = `${NETWORK_CONFIG[net].mempoolBaseUrl}/tx/${txid}/hex`;
     const res = await fetch(url, { signal });
     if (!res.ok) throw new Error(`${net}: ${res.status}`);
     return net;
