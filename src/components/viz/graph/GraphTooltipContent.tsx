@@ -46,7 +46,7 @@ export function GraphTooltipContent({ tooltip, scrollRef, heatMapActive, heatMap
         </div>
       ) : (
         /* Node hover: minimal chip - only data NOT already on the canvas label */
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="font-mono text-xs" style={{ color: SVG_COLORS.muted }}>{truncateId(data.txid, 6)}</span>
           {data.entityLabel ? (
             <span className="text-xs font-medium" style={{ color: ENTITY_CATEGORY_COLORS[data.entityCategory ?? "unknown"] }}>

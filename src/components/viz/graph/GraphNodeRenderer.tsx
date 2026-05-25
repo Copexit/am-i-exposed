@@ -232,7 +232,17 @@ export function GraphNodeRenderer({
       )}
 
       {/* Badge pills */}
-      <NodeBadges nodeX={node.x} nodeY={node.y} nodeWidth={node.width} isCoinJoin={node.isCoinJoin} coinJoinType={node.coinJoinType} isOfac={node.entityOfac} isToxicMerge={toxicMergeNodes.has(node.txid)} />
+      <NodeBadges
+        nodeX={node.x}
+        nodeY={node.y}
+        nodeWidth={node.width}
+        isCoinJoin={node.isCoinJoin}
+        coinJoinType={node.coinJoinType}
+        isOfac={node.entityOfac}
+        isToxicMerge={toxicMergeNodes.has(node.txid)}
+        isUnconfirmed={!node.confirmed}
+        unconfirmedLabel={t("graph.unconfirmed", { defaultValue: "Unconfirmed" })}
+      />
 
       {/* Privacy score sparkline */}
       {heatMapActive && heatMap.has(node.txid) && (
