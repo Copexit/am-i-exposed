@@ -88,7 +88,7 @@ export default function ObservatoryPage() {
         {loading && !whirlpool ? (
           <SkeletonCards count={2} />
         ) : whirlpool ? (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {whirlpool.summary.pools.map((pool) => (
               <WhirlpoolPoolCard
                 key={pool.pool}
@@ -113,7 +113,7 @@ export default function ObservatoryPage() {
         {loading && !liquisabi ? (
           <SkeletonCards count={3} />
         ) : liquisabi ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {coordinators.map((c) => (
               <WabiSabiCoordinatorCard
                 key={c.endpoint}
@@ -136,7 +136,7 @@ export default function ObservatoryPage() {
         <h2 className="text-xl font-semibold text-foreground">
           {t("observatory.trends.title", { defaultValue: "30-day trends" })}
         </h2>
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <TrendCard
             title={t("observatory.trends.whirlpoolPoolsize", {
               defaultValue: "Whirlpool 0.025 BTC poolsize (per block)",

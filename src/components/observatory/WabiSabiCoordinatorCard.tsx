@@ -22,7 +22,7 @@ export function WabiSabiCoordinatorCard({
   const isInactive = coordinator.roundCount === 0;
   return (
     <div
-      className={`rounded-xl border border-card-border bg-surface-elevated/50 p-4 sm:p-5 space-y-3 ${
+      className={`rounded-xl border border-card-border bg-surface-elevated/50 p-4 sm:p-5 space-y-3 min-w-0 ${
         isInactive ? "opacity-60" : ""
       }`}
     >

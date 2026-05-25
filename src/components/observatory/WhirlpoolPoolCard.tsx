@@ -24,7 +24,7 @@ export function WhirlpoolPoolCard({ pool, poolsizeSeries }: WhirlpoolPoolCardPro
   const points = poolsizeSeries ? whirlpoolSparkline(poolsizeSeries, pool.pool) : [];
 
   return (
-    <div className="rounded-xl border border-card-border bg-surface-elevated/50 p-4 sm:p-5 space-y-4">
+    <div className="rounded-xl border border-card-border bg-surface-elevated/50 p-4 sm:p-5 space-y-4 min-w-0">
       <div className="flex items-baseline justify-between gap-2 flex-wrap">
         <h3
           className="text-base sm:text-lg font-semibold text-foreground"
