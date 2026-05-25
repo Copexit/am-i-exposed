@@ -6,7 +6,12 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
-    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    include: [
+      "src/**/*.test.ts",
+      "src/**/*.test.tsx",
+      "workers/**/*.test.js",
+      "umbrel/**/*.test.js",
+    ],
     exclude: ["src/hooks/__tests__/**"],
     coverage: {
       provider: "v8",

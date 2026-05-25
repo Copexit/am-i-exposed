@@ -1,0 +1,7 @@
+name = "coinjoin-stats"
+main = "worker.js"
+compatibility_date = "2024-06-01"
+
+[vars]
+# Comma-separated allowlist. Worker echoes back the matching Origin from this list.
+ALLOWED_ORIGINS = "https://am-i.exposed,http://localhost:3000,http://localhost:8787"

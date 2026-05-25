@@ -1,0 +1,153 @@
+{
+  "Summary": {
+    "CoordinatorEndpoint": "https://api.opencoordinator.org/;https://coinjoin.kruw.io/",
+    "EstimatedCoordinatorEarningsSats": 12400,
+    "RoundId": "48304",
+    "IsBlame": false,
+    "CoordinationFeeRate": 0.0008,
+    "MinInputCount": 46,
+    "ParametersMiningFeeRate": 2.86,
+    "RoundStartTime": "2024-10-05T05:29:17+00:00",
+    "RoundEndTime": "2026-05-24T16:34:10+00:00",
+    "TxId": "48304",
+    "FinalMiningFeeRate": 2.88,
+    "VirtualSize": 11778,
+    "TotalMiningFee": 29306,
+    "InputCount": 108,
+    "TotalInputAmount": 1035608648,
+    "FreshInputsEstimateBtc": 1.26027835,
+    "AverageStandardInputsAnonSet": 3.92,
+    "OutputCount": 128,
+    "TotalOutputAmount": 1035579342,
+    "ChangeOutputsAmountRatio": 0.06,
+    "AverageStandardOutputsAnonSet": 6.91298,
+    "TotalLeftovers": 11207
+  },
+  "Totals": {
+    "CoordinatorEndpoint": "https://api.opencoordinator.org/;https://coinjoin.kruw.io/",
+    "EstimatedCoordinatorEarningsSats": 598997804,
+    "RoundId": "48304",
+    "IsBlame": false,
+    "CoordinationFeeRate": 0.0008,
+    "MinInputCount": 46,
+    "ParametersMiningFeeRate": 2.86,
+    "RoundStartTime": "2024-10-05T05:29:17+00:00",
+    "RoundEndTime": "2026-05-24T16:34:10+00:00",
+    "TxId": "48304",
+    "FinalMiningFeeRate": 2.88,
+    "VirtualSize": 568937048,
+    "TotalMiningFee": 1415614350,
+    "InputCount": 5259087,
+    "TotalInputAmount": 50024040175499,
+    "FreshInputsEstimateBtc": 60876.48552157,
+    "AverageStandardInputsAnonSet": 3.92,
+    "OutputCount": 6228779,
+    "TotalOutputAmount": 50022624561149,
+    "ChangeOutputsAmountRatio": 0.06,
+    "AverageStandardOutputsAnonSet": 6.91298,
+    "TotalLeftovers": 11207
+  },
+  "PaginatedRounds": {
+    "Rounds": [
+      {
+        "CoordinatorEndpoint": "https://coinjoin.kruw.io/",
+        "EstimatedCoordinatorEarningsSats": 26365,
+        "RoundId": "5c3ef0e588b9e338ea8e4b2557031bce7fe96a0b18450a741276265fb761da0c",
+        "IsBlame": true,
+        "CoordinationFeeRate": 0.0,
+        "MinInputCount": 100,
+        "ParametersMiningFeeRate": 2.0,
+        "RoundStartTime": "2026-05-24T16:29:42+00:00",
+        "RoundEndTime": "2026-05-24T16:34:10+00:00",
+        "TxId": "789dce145e60f0c8037a6aaa66b25dd2693d5145fd84ba3646e06d71f833b548",
+        "FinalMiningFeeRate": 2.01,
+        "VirtualSize": 30504,
+        "TotalMiningFee": 61271,
+        "InputCount": 287,
+        "TotalInputAmount": 819947499,
+        "FreshInputsEstimateBtc": 0.9071866,
+        "AverageStandardInputsAnonSet": 8.71,
+        "OutputCount": 323,
+        "TotalOutputAmount": 819886228,
+        "ChangeOutputsAmountRatio": 0.001,
+        "AverageStandardOutputsAnonSet": 14.59,
+        "TotalLeftovers": 0
+      },
+      {
+        "CoordinatorEndpoint": "https://api.gingerwallet.io/",
+        "EstimatedCoordinatorEarningsSats": 1234,
+        "RoundId": "ab12cd34",
+        "IsBlame": false,
+        "CoordinationFeeRate": 0.003,
+        "MinInputCount": 10,
+        "ParametersMiningFeeRate": 2.0,
+        "RoundStartTime": "2026-05-23T10:00:00+00:00",
+        "RoundEndTime": "2026-05-23T10:10:00+00:00",
+        "TxId": "ginger_tx",
+        "FinalMiningFeeRate": 2.0,
+        "VirtualSize": 1000,
+        "TotalMiningFee": 2000,
+        "InputCount": 12,
+        "TotalInputAmount": 100000000,
+        "FreshInputsEstimateBtc": 0.5,
+        "AverageStandardInputsAnonSet": 2.5,
+        "OutputCount": 18,
+        "TotalOutputAmount": 99998000,
+        "ChangeOutputsAmountRatio": 0.1,
+        "AverageStandardOutputsAnonSet": 5.0,
+        "TotalLeftovers": 0
+      }
+    ],
+    "TotalCount": 2,
+    "Page": 1,
+    "PageSize": 5,
+    "TotalPages": 1,
+    "Statistics": null
+  },
+  "Graph": [
+    { "Date": "01/05", "Averages": { "CoordinatorEndpoint": "x", "EstimatedCoordinatorEarningsSats": 1, "RoundId": "12", "IsBlame": false, "CoordinationFeeRate": 0, "MinInputCount": 100, "ParametersMiningFeeRate": 2, "RoundStartTime": "2026-05-01T00:00:00+00:00", "RoundEndTime": "2026-05-01T23:59:59+00:00", "TxId": "12", "FinalMiningFeeRate": 2, "VirtualSize": 1, "TotalMiningFee": 1, "InputCount": 200, "TotalInputAmount": 1, "FreshInputsEstimateBtc": 5.5, "AverageStandardInputsAnonSet": 5, "OutputCount": 250, "TotalOutputAmount": 1, "ChangeOutputsAmountRatio": 0.1, "AverageStandardOutputsAnonSet": 10, "TotalLeftovers": 0 } },
+    { "Date": "02/05", "Averages": null },
+    { "Date": "03/05", "Averages": { "CoordinatorEndpoint": "x", "EstimatedCoordinatorEarningsSats": 1, "RoundId": "20", "IsBlame": false, "CoordinationFeeRate": 0, "MinInputCount": 100, "ParametersMiningFeeRate": 2, "RoundStartTime": "2026-05-03T00:00:00+00:00", "RoundEndTime": "2026-05-03T23:59:59+00:00", "TxId": "20", "FinalMiningFeeRate": 2, "VirtualSize": 1, "TotalMiningFee": 1, "InputCount": 200, "TotalInputAmount": 1, "FreshInputsEstimateBtc": 7.2, "AverageStandardInputsAnonSet": 5, "OutputCount": 250, "TotalOutputAmount": 1, "ChangeOutputsAmountRatio": 0.1, "AverageStandardOutputsAnonSet": 10, "TotalLeftovers": 0 } }
+  ],
+  "Coordinators": [
+    {
+      "Coordinator": {
+        "PubKey": "001ad927b14c4b65d305dcb2bc58f1b9cc5b1f69e08ef38ea8e117b578faafeb",
+        "Endpoint": "https://coinjoin.kruw.io/",
+        "LastUpdate": "2025-06-15T17:41:07+00:00",
+        "Name": "Kruw.io",
+        "Content": "Fast confirmation speed. No coordinator fees charged.",
+        "ReadMore": "https://kruw.io/",
+        "AbsoluteMinInputCount": "100"
+      },
+      "FreshInputPercent": 99.71827518957218872392756210,
+      "NbRounds": 985
+    },
+    {
+      "Coordinator": {
+        "PubKey": "",
+        "Endpoint": "https://api.opencoordinator.org/",
+        "LastUpdate": "2026-03-09T14:38:38.1623018+00:00",
+        "Name": "OpenCoordinator",
+        "Content": "OpenCoordinator is bitcoin coinjoin coordinator for Wasabi Wallet 2.x.",
+        "ReadMore": "https://www.opencoordinator.org/",
+        "AbsoluteMinInputCount": "21"
+      },
+      "FreshInputPercent": 0.27,
+      "NbRounds": 1193
+    },
+    {
+      "Coordinator": {
+        "PubKey": "",
+        "Endpoint": "https://api.gingerwallet.io/",
+        "LastUpdate": "2026-03-09T14:38:38.1626012+00:00",
+        "Name": "Gingerwallet",
+        "Content": "Paid coordinator.",
+        "ReadMore": "https://gingerwallet.io/",
+        "AbsoluteMinInputCount": "10"
+      },
+      "FreshInputPercent": 0.01,
+      "NbRounds": 50
+    }
+  ]
+}

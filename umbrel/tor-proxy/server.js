@@ -1,6 +1,7 @@
 const http = require("http");
 const https = require("https");
 const { SocksProxyAgent } = require("socks-proxy-agent");
+const { createHandler } = require("./handler");
 
 const PORT = parseInt(process.env.PORT || "3001", 10);
 const TOR_PROXY_IP = process.env.TOR_PROXY_IP || "10.21.21.11";
@@ -11,25 +12,28 @@ const UPSTREAM_BASE =
 
 // socks5h:// means the SOCKS proxy handles DNS resolution (no DNS leak)
 const agent = new SocksProxyAgent(
-  `socks5h://${TOR_PROXY_IP}:${TOR_PROXY_PORT}`
+  `socks5h://${TOR_PROXY_IP}:${TOR_PROXY_PORT}`,
 );
 
-// Supports mainnet (1/3/bc1), testnet/signet (m/n/2/tb1)
-const ADDR_RE = /^\/chainalysis\/address\/([13mn2][a-km-zA-HJ-NP-Z1-9]{25,34}|(bc1|tb1)[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{39,87})$/;
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RESPONSE_BYTES = 1024 * 1024; // 1 MB limit to prevent memory exhaustion
 
-function fetchViaAgent(url) {
+function fetchViaAgent(url, { method = "GET", body, contentType } = {}) {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
+    const headers = { Accept: "application/json" };
+    if (body) {
+      headers["Content-Type"] = contentType || "application/json";
+      headers["Content-Length"] = Buffer.byteLength(body);
+    }
     const req = https.request(
       {
         hostname: parsed.hostname,
         port: parsed.port || 443,
         path: parsed.pathname + parsed.search,
-        method: "GET",
+        method,
         agent,
-        headers: { Accept: "application/json" },
+        headers,
         timeout: REQUEST_TIMEOUT_MS,
       },
       (res) => {
@@ -45,60 +49,28 @@ function fetchViaAgent(url) {
           chunks.push(chunk);
         });
         res.on("end", () => {
-          const body = Buffer.concat(chunks).toString();
+          const out = Buffer.concat(chunks).toString();
           if (res.statusCode >= 200 && res.statusCode < 300) {
-            resolve(body);
+            resolve(out);
           } else {
-            reject(new Error(`Upstream ${res.statusCode}: ${body.slice(0, 200)}`));
+            reject(new Error(`Upstream ${res.statusCode}: ${out.slice(0, 200)}`));
           }
         });
-      }
+      },
     );
     req.on("error", reject);
     req.on("timeout", () => {
       req.destroy();
       reject(new Error("Upstream request timed out"));
     });
+    if (body) req.write(body);
     req.end();
   });
 }
 
-const server = http.createServer(async (req, res) => {
-  // Health check
-  if (req.url === "/health") {
-    res.writeHead(200, { "Content-Type": "text/plain" });
-    res.end("ok");
-    return;
-  }
+const handler = createHandler({ fetchViaAgent, upstreamBase: UPSTREAM_BASE });
 
-  if (req.method !== "GET") {
-    res.writeHead(405, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ error: "Method not allowed" }));
-    return;
-  }
-
-  const match = req.url.match(ADDR_RE);
-  if (!match) {
-    res.writeHead(400, { "Content-Type": "application/json" });
-    res.end(
-      JSON.stringify({ error: "Invalid path. Use /chainalysis/address/{btc_address}" })
-    );
-    return;
-  }
-
-  const address = match[1];
-  const upstreamUrl = `${UPSTREAM_BASE}/address/${address}`;
-
-  try {
-    const body = await fetchViaAgent(upstreamUrl);
-    res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
-    res.end(body);
-  } catch (err) {
-    console.error(`Tor proxy error: ${err.message}`);
-    res.writeHead(502, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ error: "Tor proxy upstream request failed" }));
-  }
-});
+const server = http.createServer(handler);
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Tor proxy sidecar listening on port ${PORT}`);

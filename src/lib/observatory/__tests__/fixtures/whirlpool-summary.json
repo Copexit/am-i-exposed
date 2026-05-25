@@ -1,0 +1,52 @@
+{
+  "api_url": "https://mempool.space/api",
+  "current_processing_block": 950825,
+  "fallback_api_url": "https://blockstream.info/api",
+  "is_synced": true,
+  "last_processed_block": 950825,
+  "last_report_refresh_ts": 1779638701,
+  "next_update_seconds": 1958,
+  "pools": [
+    {
+      "avg_fee_paid_pct": 2.820834900232881,
+      "color": "#8e8e93",
+      "cycles": 441,
+      "exited_count": 87,
+      "label": "0.025 BTC Pool",
+      "mixed_count": 890,
+      "pool": "0.025_BTC_Pool",
+      "poolsize_btc": 13.675,
+      "removed_count": 0,
+      "total_premix_outputs": 978,
+      "tx0_count": 219,
+      "unmixed_btc": 0.025,
+      "unmixed_utxos": 1,
+      "unspent_btc": 13.65,
+      "unspent_utxos": 546,
+      "utxos_in_pool": 547
+    },
+    {
+      "avg_fee_paid_pct": 1.8412147266313934,
+      "color": "#f5f5f7",
+      "cycles": 181,
+      "exited_count": 1,
+      "label": "0.25 BTC Pool",
+      "mixed_count": 393,
+      "pool": "0.25_BTC_Pool",
+      "poolsize_btc": 80.5,
+      "removed_count": 0,
+      "total_premix_outputs": 399,
+      "tx0_count": 36,
+      "unmixed_btc": 1.25,
+      "unmixed_utxos": 5,
+      "unspent_btc": 79.25,
+      "unspent_utxos": 317,
+      "utxos_in_pool": 322
+    }
+  ],
+  "progress_pct": 100.0,
+  "rescan_hours": 1.0,
+  "start_block_height": 899205,
+  "tip_height": 950825,
+  "title": "Whirlpool.Observer"
+}
