@@ -24,15 +24,15 @@ export function WhirlpoolPoolCard({ pool, poolsizeSeries }: WhirlpoolPoolCardPro
   const points = poolsizeSeries ? whirlpoolSparkline(poolsizeSeries, pool.pool) : [];
 
   return (
-    <div className="rounded-xl border border-card-border bg-surface-elevated/50 p-5 space-y-4">
-      <div className="flex items-baseline justify-between gap-3">
+    <div className="rounded-xl border border-card-border bg-surface-elevated/50 p-4 sm:p-5 space-y-4">
+      <div className="flex items-baseline justify-between gap-2 flex-wrap">
         <h3
-          className="text-lg font-semibold text-foreground"
+          className="text-base sm:text-lg font-semibold text-foreground"
           style={{ color: pool.color }}
         >
           {pool.label}
         </h3>
-        <span className="text-sm text-muted">
+        <span className="text-xs sm:text-sm text-muted">
           {pool.cycles.toLocaleString()}{" "}
           {t("observatory.whirlpool.cyclesLifetime", {
             defaultValue: "cycles",
@@ -40,7 +40,7 @@ export function WhirlpoolPoolCard({ pool, poolsizeSeries }: WhirlpoolPoolCardPro
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 text-sm">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-3 text-sm">
         <Stat
           label={t("observatory.whirlpool.unspent", { defaultValue: "Unspent" })}
           value={fmtBtc(pool.unspent_btc)}

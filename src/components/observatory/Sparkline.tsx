@@ -49,15 +49,21 @@ export function Sparkline({
 
   return (
     <svg
-      width={width}
-      height={height}
       viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
       role="img"
       aria-label={ariaLabel ?? "Trend sparkline"}
       className={className}
+      style={{ width: "100%", height, display: "block" }}
     >
       {fill !== "none" && <path d={areaD} fill={fill} opacity={0.18} />}
-      <path d={d} stroke={stroke} strokeWidth={1.5} fill="none" />
+      <path
+        d={d}
+        stroke={stroke}
+        strokeWidth={1.5}
+        fill="none"
+        vectorEffect="non-scaling-stroke"
+      />
     </svg>
   );
 }

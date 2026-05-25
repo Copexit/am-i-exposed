@@ -82,20 +82,20 @@ export function ObservatoryHero({ whirlpool, liquisabi, loading }: ObservatoryHe
       {tiles.map((tile) => (
         <div
           key={tile.labelKey}
-          className="rounded-xl border border-card-border bg-surface-elevated/50 p-5"
+          className="rounded-xl border border-card-border bg-surface-elevated/50 p-4 sm:p-5"
         >
           {tile.value != null ? (
-            <div className="text-2xl font-bold text-bitcoin tabular-nums">
+            <div className="text-xl sm:text-2xl font-bold text-bitcoin tabular-nums">
               {tile.value}
             </div>
           ) : loading ? (
-            <div className="h-8 w-24 rounded bg-surface-elevated/80 animate-pulse" />
+            <div className="h-7 sm:h-8 w-20 sm:w-24 rounded bg-surface-elevated/80 animate-pulse" />
           ) : (
-            <div className="text-2xl font-bold text-muted/40 tabular-nums">
+            <div className="text-xl sm:text-2xl font-bold text-muted/40 tabular-nums">
               {EMPTY}
             </div>
           )}
-          <div className="mt-1 text-sm text-muted">
+          <div className="mt-1 text-xs sm:text-sm text-muted">
             {t(tile.labelKey, { defaultValue: tile.defaultLabel })}
           </div>
         </div>

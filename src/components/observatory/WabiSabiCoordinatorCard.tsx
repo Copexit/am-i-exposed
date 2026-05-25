@@ -22,13 +22,13 @@ export function WabiSabiCoordinatorCard({
   const isInactive = coordinator.roundCount === 0;
   return (
     <div
-      className={`rounded-xl border border-card-border bg-surface-elevated/50 p-5 space-y-3 ${
+      className={`rounded-xl border border-card-border bg-surface-elevated/50 p-4 sm:p-5 space-y-3 ${
         isInactive ? "opacity-60" : ""
       }`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="text-lg font-semibold text-foreground">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-base sm:text-lg font-semibold text-foreground">
             {coordinator.name}
           </h3>
           <p className="text-xs text-muted truncate">

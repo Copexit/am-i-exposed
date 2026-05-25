@@ -28,7 +28,11 @@ interface TrendChartProps {
   ariaLabel?: string;
 }
 
-const MARGIN = { top: 16, right: 16, bottom: 28, left: 56 };
+function marginFor(width: number) {
+  if (width < 360) return { top: 12, right: 8, bottom: 24, left: 36 };
+  if (width < 480) return { top: 14, right: 12, bottom: 26, left: 44 };
+  return { top: 16, right: 16, bottom: 28, left: 56 };
+}
 
 const tooltipStyles: React.CSSProperties = {
   ...defaultStyles,
@@ -73,8 +77,10 @@ function Inner({
   height,
   ariaLabel,
 }: TrendChartProps & { width: number; height: number }) {
+  const MARGIN = marginFor(width);
   const innerWidth = Math.max(0, width - MARGIN.left - MARGIN.right);
   const innerHeight = Math.max(0, height - MARGIN.top - MARGIN.bottom);
+  const isNarrow = width < 360;
 
   const { xScale, yScale, yMin, yMax } = useMemo(() => {
     const xs = points.map((p) => p.x);
@@ -120,7 +126,7 @@ function Inner({
         tooltipTop: MARGIN.top + yScale(d.y),
       });
     },
-    [points, xScale, yScale, showTooltip],
+    [points, xScale, yScale, showTooltip, MARGIN.left, MARGIN.top],
   );
 
   if (points.length < 2 || innerWidth <= 0 || innerHeight <= 0) {
@@ -196,7 +202,11 @@ function Inner({
           <AxisLeft
             scale={yScale}
             numTicks={numYTicks}
-            tickFormat={(v) => `${formatY(Number(v))}${unit ? ` ${unit}` : ""}`}
+            tickFormat={(v) =>
+              isNarrow
+                ? formatY(Number(v))
+                : `${formatY(Number(v))}${unit ? ` ${unit}` : ""}`
+            }
             stroke="rgba(255,255,255,0.18)"
             tickStroke="rgba(255,255,255,0.18)"
             tickLabelProps={() => ({

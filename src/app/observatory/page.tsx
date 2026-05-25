@@ -50,7 +50,7 @@ export default function ObservatoryPage() {
     <PageShell
       backLabel={t("observatory.back", { defaultValue: "Back to scanner" })}
       maxWidth="max-w-5xl"
-      className="sm:px-6 lg:px-8"
+      className="px-3 sm:px-6 lg:px-8"
     >
       <Hero showMainnetBadge />
 
@@ -232,11 +232,11 @@ function TrendCard({
 }: TrendCardProps) {
   const { t } = useTranslation();
   return (
-    <div className="rounded-xl border border-card-border bg-surface-elevated/50 p-5 space-y-3">
-      <div className="flex items-baseline justify-between gap-3">
+    <div className="rounded-xl border border-card-border bg-surface-elevated/50 p-4 sm:p-5 space-y-3">
+      <div className="flex items-baseline justify-between gap-2 flex-wrap">
         <div className="text-sm font-medium text-foreground">{title}</div>
         {ready && points.length > 1 && (
-          <div className="text-xs text-muted tabular-nums">
+          <div className="text-xs text-muted tabular-nums whitespace-nowrap">
             min {Math.min(...points.map((p) => p.y)).toFixed(2)} ·{" "}
             max {Math.max(...points.map((p) => p.y)).toFixed(2)}
             {unit ? ` ${unit}` : ""}
