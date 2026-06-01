@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { DiagnosticLoader } from "@/components/DiagnosticLoader";
 import { ResultsPanel } from "@/components/ResultsPanel";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { AppStoreAnnouncement } from "@/components/AppStoreAnnouncement";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { DestinationOnlyResult } from "@/components/DestinationOnlyResult";
 import { ErrorView } from "@/components/ErrorView";
@@ -304,6 +305,7 @@ export default function Home() {
         )}
       </AnimatePresence>
 
+      <AppStoreAnnouncement />
       <InstallPrompt />
       {phase === "complete" && <Suspense fallback={null}><TipToast /></Suspense>}
 

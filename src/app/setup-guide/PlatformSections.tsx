@@ -1,9 +1,10 @@
 "use client";
 
-import { Terminal, Shield, Globe } from "lucide-react";
+import { Terminal, Shield, ExternalLink } from "lucide-react";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { useTranslation } from "react-i18next";
 import { CADDY_SNIPPET } from "./setup-guide-data";
+import { UMBREL_APP_URL } from "@/lib/external-links";
 
 export function UmbrelSection() {
   const { t } = useTranslation();
@@ -18,51 +19,96 @@ export function UmbrelSection() {
       <div className="bg-card-bg border border-bitcoin/30 rounded-xl p-6 space-y-4">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-bold uppercase tracking-wider text-bitcoin bg-bitcoin/10 px-2 py-0.5 rounded">
-            {t("setup.recommended", { defaultValue: "Recommended" })}
+            {t("setup.one_click", { defaultValue: "One-click install" })}
           </span>
         </div>
         <h3 className="text-lg font-semibold text-foreground">
           {t("setup.umbrel_app_title", { defaultValue: "Install the Umbrel App" })}
         </h3>
         <p className="text-muted leading-relaxed">
-          {t("setup.umbrel_app_desc", { defaultValue: "The easiest way. Install am-i.exposed directly on your Umbrel and it automatically connects to your local mempool instance. No CORS headers, no SSH tunnel, no configuration needed." })}
+          {t("setup.umbrel_app_desc", { defaultValue: "The easiest way. Install am-i.exposed directly from the official Umbrel App Store and it automatically connects to your local mempool instance. No CORS headers, no SSH tunnel, no configuration needed." })}
         </p>
         <ol className="space-y-2 text-muted leading-relaxed">
           <li className="flex gap-2">
             <span className="text-bitcoin shrink-0 font-bold">1.</span>
             <span>
-              {t("setup.umbrel_step1", { defaultValue: "Open your Umbrel dashboard and go to the App Store" })}
+              {t("setup.umbrel_step1", { defaultValue: "Open the App Store on your Umbrel dashboard" })}
             </span>
           </li>
           <li className="flex gap-2">
             <span className="text-bitcoin shrink-0 font-bold">2.</span>
             <span>
-              {t("setup.umbrel_step2", { defaultValue: "Click the three-dot menu (top right) and select Community App Stores" })}
+              {t("setup.umbrel_step2", { defaultValue: "Search for am-i.exposed" })}
             </span>
           </li>
           <li className="flex gap-2">
             <span className="text-bitcoin shrink-0 font-bold">3.</span>
             <span>
-              {t("setup.umbrel_step3", { defaultValue: "Paste the store URL and click Add:" })}
+              {t("setup.umbrel_step3", { defaultValue: "Click Install" })}
             </span>
           </li>
         </ol>
-        <div className="relative">
-          <pre className="bg-surface-inset rounded-lg p-3 text-sm font-mono overflow-x-auto text-bitcoin">
-            https://github.com/Copexit/copexit-umbrel-app-store
-          </pre>
-          <CopyButton text="https://github.com/Copexit/copexit-umbrel-app-store" />
+        <a
+          href={UMBREL_APP_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-bitcoin hover:text-bitcoin/80 transition-colors"
+        >
+          <ExternalLink size={14} aria-hidden="true" />
+          {t("setup.umbrel_store_link", { defaultValue: "View on the Umbrel App Store" })}
+        </a>
+        <p className="text-muted leading-relaxed">
+          {t("setup.umbrel_app_footer", { defaultValue: "The app detects your local mempool automatically. All API requests stay on your local network and Chainalysis lookups are routed through a built-in Tor proxy." })}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+export function Start9Section() {
+  const { t } = useTranslation();
+
+  return (
+    <section id="start9" className="space-y-4">
+      <h2 className="text-2xl font-semibold text-foreground flex items-center gap-2">
+        <Shield size={22} />
+        {t("setup.start9_title", { defaultValue: "Start9 / StartOS" })}
+      </h2>
+
+      <div className="bg-card-bg border border-bitcoin/30 rounded-xl p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-bitcoin bg-bitcoin/10 px-2 py-0.5 rounded">
+            {t("setup.one_click", { defaultValue: "One-click install" })}
+          </span>
         </div>
-        <ol start={4} className="space-y-2 text-muted leading-relaxed">
+        <h3 className="text-lg font-semibold text-foreground">
+          {t("setup.start9_app_title", { defaultValue: "Install from the StartOS Marketplace" })}
+        </h3>
+        <p className="text-muted leading-relaxed">
+          {t("setup.start9_app_desc", { defaultValue: "am-i.exposed is in the official Start9 marketplace, maintained by the Start9 team. Install it directly on your StartOS server and it connects to your local mempool automatically. No CORS headers, no SSH tunnel, no configuration needed." })}
+        </p>
+        <ol className="space-y-2 text-muted leading-relaxed">
           <li className="flex gap-2">
-            <span className="text-bitcoin shrink-0 font-bold">4.</span>
+            <span className="text-bitcoin shrink-0 font-bold">1.</span>
             <span>
-              {t("setup.umbrel_step4", { defaultValue: "Find am-i.exposed in the store and click Install" })}
+              {t("setup.start9_app_step1", { defaultValue: "Open the Marketplace on your StartOS dashboard" })}
+            </span>
+          </li>
+          <li className="flex gap-2">
+            <span className="text-bitcoin shrink-0 font-bold">2.</span>
+            <span>
+              {t("setup.start9_app_step2", { defaultValue: "Search for am-i.exposed" })}
+            </span>
+          </li>
+          <li className="flex gap-2">
+            <span className="text-bitcoin shrink-0 font-bold">3.</span>
+            <span>
+              {t("setup.start9_app_step3", { defaultValue: "Click Install" })}
             </span>
           </li>
         </ol>
         <p className="text-muted leading-relaxed">
-          {t("setup.umbrel_app_footer", { defaultValue: "The app detects your local mempool automatically. All API requests stay on your local network and Chainalysis lookups are routed through a built-in Tor proxy." })}
+          {t("setup.start9_app_footer", { defaultValue: "The app detects your local mempool automatically. Prefer to use the am-i.exposed website with your StartOS node instead? See the manual setup below." })}
         </p>
       </div>
     </section>
@@ -74,10 +120,10 @@ export function UmbrelManualSection() {
 
   return (
     <section id="umbrel-manual" className="space-y-4">
-      <h2 className="text-2xl font-semibold text-foreground flex items-center gap-2">
-        <Terminal size={22} />
+      <h3 className="text-xl font-semibold text-foreground flex items-center gap-2">
+        <Terminal size={20} />
         {t("setup.umbrel_manual_title", { defaultValue: "Umbrel (Manual)" })}
-      </h2>
+      </h3>
       <div className="bg-card-bg border border-card-border rounded-xl p-6 space-y-5">
         <p className="text-muted leading-relaxed">
           {t("setup.umbrel_manual_desc", { defaultValue: "If you prefer using the am-i.exposed website instead of the Umbrel app, you can point it at your Umbrel's mempool instance. The mempool app listens on port 3006 via Umbrel's app_proxy container." })}
@@ -141,15 +187,15 @@ vi /etc/nginx/conf.d/nginx-mempool.conf`}</pre>
   );
 }
 
-export function Start9Section() {
+export function Start9ManualSection() {
   const { t } = useTranslation();
 
   return (
-    <section id="start9" className="space-y-4">
-      <h2 className="text-2xl font-semibold text-foreground flex items-center gap-2">
-        <Shield size={22} />
-        {t("setup.start9_title", { defaultValue: "Start9 / StartOS" })}
-      </h2>
+    <section id="start9-manual" className="space-y-4">
+      <h3 className="text-xl font-semibold text-foreground flex items-center gap-2">
+        <Shield size={20} />
+        {t("setup.start9_manual_title", { defaultValue: "StartOS (use the website instead)" })}
+      </h3>
       <div className="bg-card-bg border border-card-border rounded-xl p-6 space-y-4">
         <p className="text-muted leading-relaxed">
           {t("setup.start9_desc", { defaultValue: "Start9 serves mempool over HTTPS on a .local hostname with a self-signed certificate. There is no bare port to SSH tunnel to, so the approach is different from Umbrel." })}
@@ -197,10 +243,10 @@ export function DockerSection() {
 
   return (
     <section id="docker" className="space-y-4">
-      <h2 className="text-2xl font-semibold text-foreground flex items-center gap-2">
-        <Terminal size={22} />
+      <h3 className="text-xl font-semibold text-foreground flex items-center gap-2">
+        <Terminal size={20} />
         {t("setup.docker_title", { defaultValue: "Docker / Bare Metal" })}
-      </h2>
+      </h3>
       <div className="bg-card-bg border border-card-border rounded-xl p-6 space-y-4">
         <p className="text-muted leading-relaxed">
           {t("setup.docker_desc", { defaultValue: "If you run the official mempool/mempool Docker image or a bare-metal installation:" })}
@@ -249,9 +295,9 @@ export function CorsProxySection() {
 
   return (
     <section id="cors-proxy" className="space-y-4">
-      <h2 className="text-2xl font-semibold text-foreground">
+      <h3 className="text-xl font-semibold text-foreground">
         {t("setup.cors_proxy_title", { defaultValue: "Alternative: Local CORS Proxy" })}
-      </h2>
+      </h3>
       <div className="bg-card-bg border border-card-border rounded-xl p-6 space-y-4">
         <p className="text-muted leading-relaxed">
           {t("setup.cors_proxy_desc", { defaultValue: "If you cannot or do not want to modify your node's nginx config, you can run a small reverse proxy on your desktop that adds CORS headers. This sits between your browser and the SSH tunnel." })}
@@ -284,4 +330,3 @@ export function CorsProxySection() {
     </section>
   );
 }
-

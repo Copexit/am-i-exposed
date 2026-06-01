@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Download, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
+import { APPSTORE_ANNOUNCE_DISMISS_KEY } from "./AppStoreAnnouncement";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -43,6 +44,9 @@ export function InstallPrompt() {
     useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [visitCount, setVisitCount] = useState(0);
+  // On clearnet, yield the bottom slot to the app-store announcement until it
+  // has been (permanently) dismissed, so the two banners never stack.
+  const [announcementDismissed, setAnnouncementDismissed] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -52,6 +56,10 @@ export function InstallPrompt() {
           const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
           setDismissed(Date.now() - parseInt(ts, 10) < ONE_WEEK);
         }
+      } catch { /* localStorage unavailable */ }
+
+      try {
+        setAnnouncementDismissed(localStorage.getItem(APPSTORE_ANNOUNCE_DISMISS_KEY) === "1");
       } catch { /* localStorage unavailable */ }
 
       try {
@@ -95,10 +103,11 @@ export function InstallPrompt() {
   };
 
   // Umbrel: show on first load, then every 3 loads (1, 4, 7, 10...)
-  // GitHub Pages: show after 5 visits
+  // GitHub Pages: show after 5 visits, but only once the app-store announcement
+  // has been dismissed (it owns the bottom slot first).
   const shouldShow = isUmbrel
     ? visitCount === 1 || (visitCount - 1) % 3 === 0
-    : visitCount >= 5;
+    : visitCount >= 5 && announcementDismissed;
 
   if (isStandalone || dismissed || !deferredPrompt || !shouldShow) return null;
 

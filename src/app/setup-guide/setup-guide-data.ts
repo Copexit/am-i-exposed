@@ -24,11 +24,8 @@ export interface TocItem {
 export const TOC_ITEMS: TocItem[] = [
   { labelKey: "setup.toc_why", labelDefault: "Why Self-Host", id: "why" },
   { labelKey: "setup.toc_umbrel", labelDefault: "Umbrel App", id: "umbrel" },
-  { labelKey: "setup.toc_manual", labelDefault: "Manual Setup", id: "manual" },
-  { labelKey: "setup.toc_start9", labelDefault: "Start9", id: "start9" },
-  { labelKey: "setup.toc_docker", labelDefault: "Docker", id: "docker" },
-  { labelKey: "setup.toc_cors", labelDefault: "CORS Proxy", id: "cors-proxy" },
-  { labelKey: "setup.toc_troubleshooting", labelDefault: "Troubleshooting", id: "troubleshooting" },
+  { labelKey: "setup.toc_start9", labelDefault: "StartOS App", id: "start9" },
+  { labelKey: "setup.toc_advanced", labelDefault: "Advanced Setup", id: "advanced" },
 ];
 
 export interface TroubleshootingItem {

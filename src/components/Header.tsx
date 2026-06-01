@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
-import { Menu, X, Info, Shield, Network, Activity } from "lucide-react";
+import { Menu, X, Info, Shield, Network, Activity, Server } from "lucide-react";
 import { ConnectionBadge } from "./ConnectionBadge";
 import { ApiSettings } from "./ApiSettings";
 import { ExperienceModeToggle } from "./ExperienceModeToggle";
@@ -19,6 +19,7 @@ const NAV_ITEMS = [
   { href: "/graph/", labelKey: "common.graphExplorer", labelDefault: "Graph", icon: Network, proOnly: true },
   { href: "/observatory/", labelKey: "common.observatory", labelDefault: "Observatory", icon: Activity },
   { href: "/guide/", labelKey: "common.guide", labelDefault: "Guide", icon: Shield },
+  { href: "/setup-guide/", labelKey: "common.selfHost", labelDefault: "Self-Host", icon: Server },
   { href: "/about/", labelKey: "common.about", labelDefault: "About", icon: Info },
 ];
 

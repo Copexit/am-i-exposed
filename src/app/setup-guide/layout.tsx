@@ -3,11 +3,13 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Connect Your Node - Setup Guide | am-i.exposed",
   description:
-    "Point am-i.exposed at your own mempool instance for maximum privacy. Step-by-step guides for Umbrel, Start9, Docker, bare metal, SSH tunnels, and Tor.",
+    "Run am-i.exposed on your own Bitcoin node. One-click install from the official Umbrel and StartOS app stores, plus advanced manual setup for Docker, bare metal, and custom mempool instances.",
   keywords: [
+    "am-i.exposed umbrel app",
+    "am-i.exposed startos app",
     "mempool self-host guide",
     "bitcoin node privacy setup",
-    "umbrel mempool CORS",
+    "umbrel app store bitcoin privacy",
     "start9 mempool setup",
     "bitcoin privacy self-hosted",
     "mempool SSH tunnel",
@@ -19,7 +21,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Connect Your Node - Setup Guide | am-i.exposed",
     description:
-      "Point am-i.exposed at your own mempool instance. Guides for Umbrel, Start9, Docker, and Tor.",
+      "Run am-i.exposed on your own node - one-click install on Umbrel and StartOS, or advanced manual setup for Docker and bare metal.",
     url: "https://am-i.exposed/setup-guide/",
     type: "article",
     siteName: "am-i.exposed",
@@ -29,7 +31,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Connect Your Node - Setup Guide | am-i.exposed",
     description:
-      "Point am-i.exposed at your own mempool instance. Guides for Umbrel, Start9, Docker, and Tor.",
+      "Run am-i.exposed on your own node - one-click install on Umbrel and StartOS, or advanced manual setup for Docker and bare metal.",
   },
 };
 
@@ -69,27 +71,27 @@ export default function SetupGuideLayout({
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "HowTo",
-            name: "Connect am-i.exposed to Your Own Bitcoin Node",
+            name: "Install am-i.exposed on Your Own Bitcoin Node",
             description:
-              "Point am-i.exposed at your own mempool instance for maximum privacy using SSH tunnels and CORS configuration.",
+              "Run am-i.exposed natively on your own node with a one-click install from the official Umbrel or StartOS app store.",
             step: [
               {
                 "@type": "HowToStep",
                 position: 1,
-                name: "Add CORS Headers",
-                text: "Edit your mempool nginx configuration to add Access-Control-Allow-Origin headers inside the location /api/ block, then reload nginx.",
+                name: "Open your app store",
+                text: "Open the App Store on your Umbrel dashboard, or the Marketplace on your StartOS dashboard.",
               },
               {
                 "@type": "HowToStep",
                 position: 2,
-                name: "Create SSH Tunnel",
-                text: "Run an SSH tunnel command to forward your node's mempool port to localhost, e.g. ssh -L 3006:localhost:3006 user@your-node-ip.",
+                name: "Install am-i.exposed",
+                text: "Search for am-i.exposed and click Install. It is published in the official Umbrel and Start9 app stores.",
               },
               {
                 "@type": "HowToStep",
                 position: 3,
-                name: "Configure am-i.exposed",
-                text: "Click the gear icon in the am-i.exposed header and enter http://localhost:3006/api as your custom API endpoint. Click Apply and verify the green Connected status.",
+                name: "Open the app",
+                text: "Open am-i.exposed from your dashboard. It detects your local mempool automatically - no CORS headers, SSH tunnel, or configuration needed.",
               },
             ],
           }),

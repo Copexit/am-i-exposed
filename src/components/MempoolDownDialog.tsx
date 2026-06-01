@@ -5,8 +5,8 @@ import { useTranslation } from "react-i18next";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 
 /**
- * Blocking overlay shown when the app is running on Umbrel
- * but the local mempool API is unreachable.
+ * Blocking overlay shown when the app is running on a self-hosted backend
+ * (Umbrel, StartOS, or a manual install) but the local mempool API is unreachable.
  *
  * Covers the entire viewport so the user can't miss it.
  * They can dismiss it to poke around, but the warning is clear.
@@ -43,7 +43,7 @@ export function MempoolDownDialog() {
           <ol className="text-xs text-muted space-y-1 list-decimal list-inside">
             <li>
               {t("umbrel.mempoolDownStep1", {
-                defaultValue: "Open your Umbrel dashboard",
+                defaultValue: "Open your server dashboard (Umbrel, StartOS, etc.)",
               })}
             </li>
             <li>
