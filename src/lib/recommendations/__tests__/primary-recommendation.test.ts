@@ -422,6 +422,69 @@ describe("Cascade priority - higher tier wins", () => {
   });
 });
 
+// ── Entity origin (pre-tier check) ──────────────────────────────────
+
+describe("Entity origin (pre-tier check)", () => {
+  it("exchange category selects the .exchange detail key", () => {
+    const [primary] = selectRecommendations({
+      findings: [],
+      grade: "C",
+      walletGuess: null,
+      entityOrigin: "Coinbase",
+      entityCategory: "exchange",
+    });
+    expect(primary.id).toBe("rec-entity-origin");
+    expect(primary.detailKey).toBe("primaryRec.entityOrigin.detail.exchange");
+    expect(primary.tParams?.entity).toBe("Coinbase");
+  });
+
+  it("payment category selects the .exchange detail key", () => {
+    const [primary] = selectRecommendations({
+      findings: [],
+      grade: "C",
+      walletGuess: null,
+      entityOrigin: "BitPay",
+      entityCategory: "payment",
+    });
+    expect(primary.detailKey).toBe("primaryRec.entityOrigin.detail.exchange");
+  });
+
+  it("non-exchange category selects the .other detail key", () => {
+    const [primary] = selectRecommendations({
+      findings: [],
+      grade: "C",
+      walletGuess: null,
+      entityOrigin: "Reddit",
+      entityCategory: "merchant",
+    });
+    expect(primary.detailKey).toBe("primaryRec.entityOrigin.detail.other");
+    expect(primary.tParams?.entity).toBe("Reddit");
+  });
+
+  it("headline carries the entity interpolation parameter", () => {
+    const [primary] = selectRecommendations({
+      findings: [],
+      grade: "C",
+      walletGuess: null,
+      entityOrigin: "Kraken",
+      entityCategory: "exchange",
+    });
+    expect(primary.headlineKey).toBe("primaryRec.entityOrigin.headline");
+    expect(primary.headlineDefault).toContain("{{entity}}");
+  });
+
+  it("CoinJoin presence suppresses the entity-origin recommendation", () => {
+    const [primary] = selectRecommendations({
+      findings: [cjFinding()],
+      grade: "B",
+      walletGuess: null,
+      entityOrigin: "Coinbase",
+      entityCategory: "exchange",
+    });
+    expect(primary.id).not.toBe("rec-entity-origin");
+  });
+});
+
 // ── Every recommendation has required fields ────────────────────────
 
 describe("All recommendations have required fields", () => {
@@ -439,6 +502,8 @@ describe("All recommendations have required fields", () => {
     ["change-single", ctx([f("h2-change-detected", { params: { corroboratorCount: 1 } })])],
     ["low-entropy", ctx([f("h5-low-entropy", { scoreImpact: -3 })])],
     ["round-amount", ctx([f("h1-round-amount")])],
+    ["entity-origin-exchange", { findings: [], grade: "C", walletGuess: null, entityOrigin: "Coinbase", entityCategory: "exchange" }],
+    ["entity-origin-other", { findings: [], grade: "C", walletGuess: null, entityOrigin: "Reddit", entityCategory: "merchant" }],
     ["a-plus-cj", ctx([cjFinding()], "A+")],
     ["a-plus", ctx([], "A+")],
     ["b-grade", ctx([], "B")],
