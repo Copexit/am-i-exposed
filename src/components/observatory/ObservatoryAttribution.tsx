@@ -41,13 +41,13 @@ export function ObservatoryAttribution({
         </p>
         <div className="flex flex-wrap gap-3">
           <a
-            href="https://whirlpool.observer"
+            href="https://www.whirlpoolstats.xyz"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg bg-surface-inset border border-card-border text-foreground hover:border-bitcoin/30 transition-all"
           >
             {t("observatory.attribution.openWhirlpool", {
-              defaultValue: "Open whirlpool.observer",
+              defaultValue: "Open whirlpoolstats.xyz",
             })}
             <ExternalLink size={12} className="text-muted" />
           </a>

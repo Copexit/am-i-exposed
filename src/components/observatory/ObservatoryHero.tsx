@@ -6,14 +6,18 @@ import {
   sumRecentFreshInputs,
   unpaidCoordinators,
   projectCoordinators,
+  whirlpool30dDelta,
+  whirlpoolLifetimeEntered,
 } from "@/lib/observatory/selectors";
 import type {
   LiquiSabiDashboard,
+  WhirlpoolCharts,
   WhirlpoolSummary,
 } from "@/lib/observatory/types";
 
 interface ObservatoryHeroProps {
   whirlpool: WhirlpoolSummary | null;
+  whirlpoolCharts: WhirlpoolCharts | null;
   liquisabi: LiquiSabiDashboard | null;
   loading: boolean;
 }
@@ -22,28 +26,31 @@ interface Tile {
   value: string | null;
   labelKey: string;
   defaultLabel: string;
-  group: "whirlpool" | "wabisabi";
 }
 
 const EMPTY = "·";
 
 function fmtBtc(value: number): string {
-  // Strip trailing zeros after a decimal point so "12.700" renders as "12.7".
   return `${value.toFixed(3).replace(/\.?0+$/, "")} BTC`;
 }
 
-export function ObservatoryHero({ whirlpool, liquisabi, loading }: ObservatoryHeroProps) {
+function fmtBtcSigned(value: number): string {
+  const arrow = value > 0 ? "↑" : value < 0 ? "↓" : "·";
+  return `${arrow} ${fmtBtc(Math.abs(value))}`;
+}
+
+export function ObservatoryHero({
+  whirlpool,
+  whirlpoolCharts,
+  liquisabi,
+  loading,
+}: ObservatoryHeroProps) {
   const { t } = useTranslation();
 
-  const totalPoolSize = whirlpool
-    ? whirlpool.pools.reduce((acc, p) => acc + p.poolsize_btc, 0)
-    : null;
-  const totalWhirlpoolCycles = whirlpool
-    ? whirlpool.pools.reduce((acc, p) => acc + p.cycles, 0)
-    : null;
-  const freshInputs30d = liquisabi
-    ? sumRecentFreshInputs(liquisabi.Graph, liquisabi.Graph.length)
-    : null;
+  const lifetimeEntered = whirlpool ? whirlpoolLifetimeEntered(whirlpool) : null;
+  const delta30d =
+    whirlpoolCharts ? whirlpool30dDelta(whirlpoolCharts) : null;
+  const fresh24h = liquisabi ? sumRecentFreshInputs(liquisabi.Graph, 1) : 0;
   const activeCoordinators = liquisabi
     ? unpaidCoordinators(projectCoordinators(liquisabi)).filter(
         (c) => c.roundCount > 0,
@@ -52,28 +59,24 @@ export function ObservatoryHero({ whirlpool, liquisabi, loading }: ObservatoryHe
 
   const tiles: Tile[] = [
     {
-      value: totalPoolSize != null ? fmtBtc(totalPoolSize) : null,
+      value: lifetimeEntered != null ? fmtBtc(lifetimeEntered) : null,
       labelKey: "observatory.hero.totalPoolSize",
-      defaultLabel: "Whirlpool pool size",
-      group: "whirlpool",
+      defaultLabel: "Whirlpool lifetime entered",
     },
     {
-      value: totalWhirlpoolCycles != null ? fmtN(totalWhirlpoolCycles) : null,
-      labelKey: "observatory.hero.whirlpoolCycles",
-      defaultLabel: "Whirlpool cycles (lifetime)",
-      group: "whirlpool",
+      value: delta30d != null ? fmtBtcSigned(delta30d) : null,
+      labelKey: "observatory.hero.entered30d",
+      defaultLabel: "Whirlpool capacity Δ (30d)",
     },
     {
-      value: freshInputs30d != null ? fmtBtc(freshInputs30d) : null,
-      labelKey: "observatory.hero.freshInputs30d",
-      defaultLabel: "WabiSabi fresh inputs (30d)",
-      group: "wabisabi",
+      value: liquisabi ? fmtBtc(fresh24h) : null,
+      labelKey: "observatory.hero.freshInputs24h",
+      defaultLabel: "WabiSabi fresh inputs (24h)",
     },
     {
       value: activeCoordinators != null ? fmtN(activeCoordinators) : null,
       labelKey: "observatory.hero.activeCoordinators",
       defaultLabel: "Active free coordinators",
-      group: "wabisabi",
     },
   ];
 
@@ -103,4 +106,3 @@ export function ObservatoryHero({ whirlpool, liquisabi, loading }: ObservatoryHe
     </div>
   );
 }
-

@@ -2,17 +2,30 @@
  * Pure request-handler factory for the tor-proxy sidecar.
  *
  * Split out from server.js so it can be unit-tested without pulling in the
- * socks-proxy-agent dependency (which is only installed inside the Docker image).
+ * socks-proxy-agent dependency. Whirlpool routes scrape whirlpoolstats.xyz
+ * and run the shared parser (workers/coinjoin-stats/parser.js).
  */
 
 const UPSTREAM_BASE_DEFAULT = "https://chainalysis-proxy.copexit.workers.dev";
-const WHIRLPOOL_BASE_DEFAULT = "https://whirlpool.observer/api";
+const WHIRLPOOLSTATS_BASE_DEFAULT = "https://www.whirlpoolstats.xyz";
 const LIQUISABI_URL_DEFAULT = "https://liquisabi.com/api";
 
 const ADDR_RE = /^\/chainalysis\/address\/([13mn2][a-km-zA-HJ-NP-Z1-9]{25,34}|(bc1|tb1)[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{39,87})$/;
 const OBSERVATORY_WHIRLPOOL_RE = /^\/observatory\/whirlpool\/(summary|charts)(\?.*)?$/;
 const OBSERVATORY_LIQUISABI_PATH = "/observatory/liquisabi/api";
 const ALLOWED_LIQUISABI_METHODS = new Set(["dashboard"]);
+
+const SUMMARY_TIMEOUT_MS = 20_000;
+const CHARTS_TIMEOUT_MS = 60_000;
+
+// Lazy-loaded shared parser (ESM, imported via dynamic import).
+let parserModule = null;
+async function getParser() {
+  if (!parserModule) {
+    parserModule = await import("../../workers/coinjoin-stats/parser.js");
+  }
+  return parserModule;
+}
 
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
@@ -38,10 +51,14 @@ function readJsonBody(req) {
   });
 }
 
+function structuredError(code, message) {
+  return JSON.stringify({ error: { code, message } });
+}
+
 function createHandler({
   fetchViaAgent,
   upstreamBase = UPSTREAM_BASE_DEFAULT,
-  whirlpoolBase = WHIRLPOOL_BASE_DEFAULT,
+  whirlpoolStatsBase = WHIRLPOOLSTATS_BASE_DEFAULT,
   liquiSabiUrl = LIQUISABI_URL_DEFAULT,
   logger = console,
 } = {}) {
@@ -49,18 +66,54 @@ function createHandler({
     throw new Error("fetchViaAgent is required");
   }
 
-  async function handleObservatoryWhirlpool(req, res, segment) {
+  async function handleWhirlpoolSummary(req, res) {
     try {
-      const body = await fetchViaAgent(`${whirlpoolBase}/${segment}`);
+      const html = await fetchViaAgent(`${whirlpoolStatsBase}/`, {
+        accept: "text/html",
+        timeoutMs: SUMMARY_TIMEOUT_MS,
+      });
+      const { parseSummaryHtml } = await getParser();
+      const parsed = parseSummaryHtml(html);
+      if (parsed.error) {
+        res.writeHead(502, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: parsed.error }));
+        return;
+      }
       res.writeHead(200, {
         "Content-Type": "application/json",
         "Cache-Control": "no-store",
       });
-      res.end(body);
+      res.end(JSON.stringify(parsed));
     } catch (err) {
-      logger.error(`Observatory whirlpool error: ${err.message}`);
+      logger.error(`Observatory whirlpool summary error: ${err.message}`);
       res.writeHead(502, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Tor proxy upstream request failed" }));
+      res.end(structuredError("UPSTREAM_DOWN", "Tor proxy upstream request failed"));
+    }
+  }
+
+  async function handleWhirlpoolCharts(req, res) {
+    try {
+      const csv = await fetchViaAgent(`${whirlpoolStatsBase}/whirlpool_stats.csv`, {
+        accept: "text/csv",
+        timeoutMs: CHARTS_TIMEOUT_MS,
+      });
+      const { parseStatsCsv, downsample } = await getParser();
+      const charts = parseStatsCsv(csv);
+      if (charts.error) {
+        res.writeHead(502, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: charts.error }));
+        return;
+      }
+      const downsampled = downsample(charts, 512);
+      res.writeHead(200, {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store",
+      });
+      res.end(JSON.stringify(downsampled));
+    } catch (err) {
+      logger.error(`Observatory whirlpool charts error: ${err.message}`);
+      res.writeHead(502, { "Content-Type": "application/json" });
+      res.end(structuredError("UPSTREAM_DOWN", "Tor proxy upstream request failed"));
     }
   }
 
@@ -102,7 +155,7 @@ function createHandler({
     } catch (err) {
       logger.error(`Observatory liquisabi error: ${err.message}`);
       res.writeHead(502, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Tor proxy upstream request failed" }));
+      res.end(structuredError("UPSTREAM_DOWN", "Tor proxy upstream request failed"));
     }
   }
 
@@ -130,7 +183,8 @@ function createHandler({
         res.end(JSON.stringify({ error: "Method not allowed" }));
         return;
       }
-      await handleObservatoryWhirlpool(req, res, wpMatch[1]);
+      if (wpMatch[1] === "summary") await handleWhirlpoolSummary(req, res);
+      else await handleWhirlpoolCharts(req, res);
       return;
     }
 

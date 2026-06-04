@@ -38,7 +38,7 @@ describe("getWhirlpoolSummary", () => {
   it("fetches and parses the summary endpoint", async () => {
     mockFetch.mockResolvedValueOnce(jsonOk(summaryFixture));
     const result = await getWhirlpoolSummary(BASE);
-    expect(result.tip_height).toBe(950825);
+    expect(result.tip_block_height).toBe(951952);
     expect(result.pools).toHaveLength(2);
     expect(mockFetch).toHaveBeenCalledWith(
       `${BASE}/summary`,
@@ -50,7 +50,7 @@ describe("getWhirlpoolSummary", () => {
     mockFetch.mockResolvedValueOnce(jsonOk(summaryFixture));
     await getWhirlpoolSummary(BASE);
     const second = await getWhirlpoolSummary(BASE);
-    expect(second.tip_height).toBe(950825);
+    expect(second.tip_block_height).toBe(951952);
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 });
@@ -59,10 +59,9 @@ describe("getWhirlpoolCharts", () => {
   it("fetches and parses the charts endpoint", async () => {
     mockFetch.mockResolvedValueOnce(jsonOk(chartsFixture));
     const result = await getWhirlpoolCharts(BASE);
-    expect(result.poolsize.blocks).toEqual([899205, 899335, 899336, 950735]);
-    expect(result.poolsize.series["0.025_BTC_Pool"]).toEqual([
-      0.125, 0.325, 0.45, 13.675,
-    ]);
+    expect(result.blocks).toEqual([899205, 899336, 911228, 920000, 935000, 945000, 951952]);
+    expect(result.capacity_btc["0.025_BTC_Pool"][result.blocks.length - 1]).toBe(22.95);
+    expect(result.capacity_btc["0.25_BTC_Pool"][result.blocks.length - 1]).toBe(95.5);
     expect(mockFetch).toHaveBeenCalledWith(
       `${BASE}/charts`,
       expect.objectContaining({ method: "GET" }),

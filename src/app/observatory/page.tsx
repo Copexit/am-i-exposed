@@ -4,22 +4,31 @@ import { useTranslation } from "react-i18next";
 import { PageShell } from "@/components/PageShell";
 import { useNetwork } from "@/context/NetworkContext";
 import { useObservatory } from "@/hooks/useObservatory";
+import { useChainTip } from "@/hooks/useChainTip";
 import { ObservatoryHero } from "@/components/observatory/ObservatoryHero";
 import { WhirlpoolPoolCard } from "@/components/observatory/WhirlpoolPoolCard";
 import { WabiSabiCoordinatorCard } from "@/components/observatory/WabiSabiCoordinatorCard";
 import { ObservatoryAttribution } from "@/components/observatory/ObservatoryAttribution";
 import { ObservatoryErrorState } from "@/components/observatory/ObservatoryErrorState";
-import { TrendChart } from "@/components/observatory/TrendChart";
+import { TrendChart, type TrendSeries } from "@/components/observatory/TrendChart";
 import {
   liquiSabiFreshInputSparkline,
   projectCoordinators,
+  whirlpoolLifetimeCycles,
+  whirlpoolLifetimeEntered,
   whirlpoolSparkline,
 } from "@/lib/observatory/selectors";
+import { fmtN } from "@/lib/format";
 import type { LiquiSabiGraphEntry } from "@/lib/observatory/types";
+
+function fmtBtc(value: number): string {
+  return `${value.toFixed(3).replace(/\.?0+$/, "")} BTC`;
+}
 
 export default function ObservatoryPage() {
   const { t, i18n } = useTranslation();
   const { network } = useNetwork();
+  const tipHeight = useChainTip();
   const { whirlpool, liquisabi, loading, lastUpdatedAt } = useObservatory();
 
   const isMainnet = network === "mainnet";
@@ -46,6 +55,28 @@ export default function ObservatoryPage() {
     ? liquiSabiFreshInputSparkline(liquisabi.Graph)
     : [];
 
+  const summary = whirlpool?.summary ?? null;
+  const charts = whirlpool?.charts ?? null;
+
+  const lifetimeEntered = summary ? whirlpoolLifetimeEntered(summary) : null;
+  const lifetimeCycles = summary ? whirlpoolLifetimeCycles(summary) : null;
+
+  const whirlpoolUpstreamBlock = summary?.tip_block_height ?? null;
+  const lagBlocks =
+    tipHeight != null && whirlpoolUpstreamBlock != null
+      ? Math.max(0, tipHeight - whirlpoolUpstreamBlock)
+      : null;
+
+  // Build the multi-series payload for the Whirlpool trend chart.
+  const whirlpoolSeries: TrendSeries[] = charts
+    ? summary?.pools.map((p) => ({
+        id: p.pool,
+        label: p.label,
+        color: p.color,
+        points: whirlpoolSparkline(charts, p.pool),
+      })) ?? []
+    : [];
+
   return (
     <PageShell
       backLabel={t("observatory.back", { defaultValue: "Back to scanner" })}
@@ -55,34 +86,35 @@ export default function ObservatoryPage() {
       <Hero showMainnetBadge />
 
       <ObservatoryHero
-        whirlpool={whirlpool?.summary ?? null}
+        whirlpool={summary}
+        whirlpoolCharts={charts}
         liquisabi={liquisabi}
         loading={loading}
       />
 
       {/* Whirlpool */}
       <section className="space-y-4">
-        <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-xl font-semibold text-foreground">
-            {t("observatory.whirlpool.title", { defaultValue: "Whirlpool pools" })}
-          </h2>
-          {whirlpool?.summary && (
-            <span
-              className={`text-xs px-2 py-0.5 rounded-full ${
-                whirlpool.summary.is_synced
-                  ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
-                  : "bg-amber-500/15 text-amber-300 border border-amber-500/30"
-              }`}
-            >
-              {whirlpool.summary.is_synced
-                ? t("observatory.whirlpool.syncStatusSynced", {
-                    defaultValue: "Synced",
-                  })
-                : t("observatory.whirlpool.syncStatusBehind", {
-                    defaultValue: "Catching up",
-                  })}{" "}
-              · {whirlpool.summary.tip_height.toLocaleString()}
-            </span>
+        <div className="space-y-1">
+          <div className="flex items-baseline justify-between gap-3 flex-wrap">
+            <h2 className="text-xl font-semibold text-foreground">
+              {t("observatory.whirlpool.title", { defaultValue: "Whirlpool pools" })}
+            </h2>
+            {summary && (
+              <SyncPill
+                lagBlocks={lagBlocks}
+                upstreamBlock={whirlpoolUpstreamBlock}
+              />
+            )}
+          </div>
+          {summary && lifetimeEntered != null && lifetimeCycles != null && (
+            <p className="text-sm text-muted">
+              {t("observatory.whirlpool.lifetimeSubtitle", {
+                defaultValue:
+                  "Lifetime entered: {{total}} across {{cycles}} cycles",
+                total: fmtBtc(lifetimeEntered),
+                cycles: fmtN(lifetimeCycles),
+              })}
+            </p>
           )}
         </div>
         {loading && !whirlpool ? (
@@ -93,15 +125,12 @@ export default function ObservatoryPage() {
               <WhirlpoolPoolCard
                 key={pool.pool}
                 pool={pool}
-                poolsizeSeries={whirlpool.charts.poolsize}
+                charts={whirlpool.charts}
               />
             ))}
           </div>
         ) : (
-          <ObservatoryErrorState
-            source="whirlpool"
-            staleAt={lastUpdatedAt}
-          />
+          <ObservatoryErrorState source="whirlpool" staleAt={lastUpdatedAt} />
         )}
       </section>
 
@@ -124,10 +153,7 @@ export default function ObservatoryPage() {
             ))}
           </div>
         ) : (
-          <ObservatoryErrorState
-            source="liquisabi"
-            staleAt={lastUpdatedAt}
-          />
+          <ObservatoryErrorState source="liquisabi" staleAt={lastUpdatedAt} />
         )}
       </section>
 
@@ -137,29 +163,21 @@ export default function ObservatoryPage() {
           {t("observatory.trends.title", { defaultValue: "30-day trends" })}
         </h2>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <TrendCard
-            title={t("observatory.trends.whirlpoolPoolsize", {
-              defaultValue: "Whirlpool 0.025 BTC poolsize (per block)",
+          <WhirlpoolTrendCard
+            title={t("observatory.trends.whirlpoolCapacity", {
+              defaultValue: "Whirlpool capacity per block",
             })}
-            points={
-              whirlpool
-                ? whirlpoolSparkline(whirlpool.charts.poolsize, "0.025_BTC_Pool")
-                : []
-            }
-            color="#8e8e93"
-            unit="BTC"
-            xFormat={(v) => `#${Math.round(v).toLocaleString("en-US")}`}
+            series={whirlpoolSeries}
             ready={!!whirlpool}
             loading={loading}
           />
-          <TrendCard
+          <WabiSabiTrendCard
             title={t("observatory.trends.wabisabiFreshInputs", {
               defaultValue: "WabiSabi fresh inputs (BTC/day)",
             })}
             points={wabisabiSparkline}
             color="#f97316"
-            unit="BTC"
-            xFormat={(v) => labelFromGraph(liquisabi?.Graph, v)}
+            graph={liquisabi?.Graph}
             ready={!!liquisabi}
             loading={loading}
           />
@@ -198,9 +216,47 @@ function Hero({ showMainnetBadge }: { showMainnetBadge: boolean }) {
   );
 }
 
+interface SyncPillProps {
+  lagBlocks: number | null;
+  upstreamBlock: number | null;
+}
+
+function SyncPill({ lagBlocks, upstreamBlock }: SyncPillProps) {
+  const { t } = useTranslation();
+  if (upstreamBlock == null) return null;
+  if (lagBlocks == null) {
+    return (
+      <span className="text-xs px-2 py-0.5 rounded-full bg-muted/10 text-muted border border-card-border">
+        {t("observatory.whirlpool.atBlock", {
+          defaultValue: "Block {{block}}",
+          block: upstreamBlock.toLocaleString("en-US"),
+        })}
+      </span>
+    );
+  }
+  const fresh = lagBlocks <= 6;
+  const cls = fresh
+    ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+    : "bg-amber-500/15 text-amber-300 border-amber-500/30";
+  return (
+    <span className={`text-xs px-2 py-0.5 rounded-full border ${cls}`}>
+      {fresh
+        ? t("observatory.whirlpool.nearTip", {
+            defaultValue: "Block {{block}} · in sync",
+            block: upstreamBlock.toLocaleString("en-US"),
+          })
+        : t("observatory.whirlpool.behindTip", {
+            defaultValue: "Block {{block}} · {{lag}} blocks behind tip",
+            block: upstreamBlock.toLocaleString("en-US"),
+            lag: lagBlocks.toLocaleString("en-US"),
+          })}
+    </span>
+  );
+}
+
 function SkeletonCards({ count }: { count: number }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {Array.from({ length: count }, (_, i) => (
         <div
           key={i}
@@ -211,25 +267,92 @@ function SkeletonCards({ count }: { count: number }) {
   );
 }
 
-interface TrendCardProps {
+interface WhirlpoolTrendCardProps {
   title: string;
-  points: ReturnType<typeof whirlpoolSparkline>;
-  color: string;
-  unit?: string;
-  xFormat?: (value: number) => string;
+  series: TrendSeries[];
   ready: boolean;
   loading: boolean;
 }
 
-function TrendCard({
+function WhirlpoolTrendCard({
+  title,
+  series,
+  ready,
+  loading,
+}: WhirlpoolTrendCardProps) {
+  const { t } = useTranslation();
+  const allY = series.flatMap((s) => s.points.map((p) => p.y));
+  const minY = allY.length ? Math.min(...allY) : 0;
+  const maxY = allY.length ? Math.max(...allY) : 0;
+  const start = series[0]?.points[0]?.y;
+  const end = series[0]?.points[series[0].points.length - 1]?.y;
+  const delta = start != null && end != null ? end - start : null;
+
+  return (
+    <div className="rounded-xl border border-card-border bg-surface-elevated/50 p-4 sm:p-5 space-y-3">
+      <div className="flex items-baseline justify-between gap-2 flex-wrap">
+        <div className="text-sm font-medium text-foreground">{title}</div>
+        {ready && allY.length > 1 && (
+          <div className="text-xs text-muted tabular-nums whitespace-nowrap">
+            {t("observatory.trends.minMax", {
+              defaultValue: "min {{min}} · max {{max}} BTC",
+              min: minY.toFixed(2),
+              max: maxY.toFixed(2),
+            })}
+          </div>
+        )}
+      </div>
+      {ready ? (
+        <>
+          <TrendChart
+            series={series}
+            unit="BTC"
+            formatX={(v) => `#${Math.round(v).toLocaleString("en-US")}`}
+            height={220}
+            ariaLabel={title}
+          />
+          {delta != null && (
+            <div className="text-xs text-muted">
+              {t("observatory.trends.startEndDelta", {
+                defaultValue:
+                  "0.025 pool: start {{start}} BTC · end {{end}} BTC · Δ {{delta}} BTC",
+                start: start!.toFixed(2),
+                end: end!.toFixed(2),
+                delta: (delta >= 0 ? "+" : "") + delta.toFixed(2),
+              })}
+            </div>
+          )}
+        </>
+      ) : loading ? (
+        <div className="h-[220px] rounded bg-surface-elevated/60 animate-pulse" />
+      ) : (
+        <div className="h-[220px] flex items-center justify-center text-xs text-muted/70">
+          {t("observatory.trends.empty", {
+            defaultValue: "No trend data available right now.",
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface WabiSabiTrendCardProps {
+  title: string;
+  points: ReturnType<typeof whirlpoolSparkline>;
+  color: string;
+  graph: LiquiSabiGraphEntry[] | undefined;
+  ready: boolean;
+  loading: boolean;
+}
+
+function WabiSabiTrendCard({
   title,
   points,
   color,
-  unit,
-  xFormat,
+  graph,
   ready,
   loading,
-}: TrendCardProps) {
+}: WabiSabiTrendCardProps) {
   const { t } = useTranslation();
   return (
     <div className="rounded-xl border border-card-border bg-surface-elevated/50 p-4 sm:p-5 space-y-3">
@@ -237,9 +360,11 @@ function TrendCard({
         <div className="text-sm font-medium text-foreground">{title}</div>
         {ready && points.length > 1 && (
           <div className="text-xs text-muted tabular-nums whitespace-nowrap">
-            min {Math.min(...points.map((p) => p.y)).toFixed(2)} ·{" "}
-            max {Math.max(...points.map((p) => p.y)).toFixed(2)}
-            {unit ? ` ${unit}` : ""}
+            {t("observatory.trends.minMax", {
+              defaultValue: "min {{min}} · max {{max}} BTC",
+              min: Math.min(...points.map((p) => p.y)).toFixed(2),
+              max: Math.max(...points.map((p) => p.y)).toFixed(2),
+            })}
           </div>
         )}
       </div>
@@ -247,8 +372,8 @@ function TrendCard({
         <TrendChart
           points={points}
           color={color}
-          unit={unit}
-          formatX={xFormat ? (v) => xFormat(v) : undefined}
+          unit="BTC"
+          formatX={(v) => labelFromGraph(graph, v)}
           height={220}
           ariaLabel={title}
         />

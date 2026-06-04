@@ -54,6 +54,7 @@ describe("observatory smoke tests", () => {
     const { container } = render(
       <ObservatoryHero
         whirlpool={summary}
+        whirlpoolCharts={charts}
         liquisabi={dashboard}
         loading={false}
       />,
@@ -63,25 +64,36 @@ describe("observatory smoke tests", () => {
 
   it("ObservatoryHero renders empty placeholders when data is null and not loading", () => {
     const { container } = render(
-      <ObservatoryHero whirlpool={null} liquisabi={null} loading={false} />,
+      <ObservatoryHero
+        whirlpool={null}
+        whirlpoolCharts={null}
+        liquisabi={null}
+        loading={false}
+      />,
     );
-    // No "0 BTC" zeros should appear - the placeholder character should
     expect(container.textContent).not.toMatch(/0\.000 BTC/);
   });
 
   it("ObservatoryHero renders skeleton bars when loading without data", () => {
     const { container } = render(
-      <ObservatoryHero whirlpool={null} liquisabi={null} loading={true} />,
+      <ObservatoryHero
+        whirlpool={null}
+        whirlpoolCharts={null}
+        liquisabi={null}
+        loading={true}
+      />,
     );
     expect(container.querySelectorAll(".animate-pulse").length).toBe(4);
   });
 
-  it("WhirlpoolPoolCard renders the pool label and a stat grid", () => {
+  it("WhirlpoolPoolCard renders the pool label, current capacity, and sparkline", () => {
     const { getByText, container } = render(
-      <WhirlpoolPoolCard pool={summary.pools[0]} poolsizeSeries={charts.poolsize} />,
+      <WhirlpoolPoolCard pool={summary.pools[0]} charts={charts} />,
     );
     expect(getByText("0.025 BTC Pool")).toBeTruthy();
     expect(container.querySelector("svg")).toBeTruthy();
+    // Current capacity headline = last sample of 0.025 series = 22.95 BTC.
+    expect(container.textContent).toMatch(/22\.95 BTC/);
   });
 
   it("WabiSabiCoordinatorCard renders coordinator name and fresh-input share", () => {
@@ -103,13 +115,13 @@ describe("observatory smoke tests", () => {
     expect(getByText("Paid")).toBeTruthy();
   });
 
-  it("ObservatoryAttribution renders both data-source link-outs", () => {
+  it("ObservatoryAttribution renders both data-source link-outs at the new whirlpoolstats URL", () => {
     const { container } = render(
       <ObservatoryAttribution lastUpdatedAt={Date.now()} locale="en" />,
     );
     const links = container.querySelectorAll("a[href]");
     const hrefs = Array.from(links).map((a) => a.getAttribute("href"));
-    expect(hrefs).toContain("https://whirlpool.observer");
+    expect(hrefs).toContain("https://www.whirlpoolstats.xyz");
     expect(hrefs).toContain("https://liquisabi.com");
   });
 
@@ -117,10 +129,28 @@ describe("observatory smoke tests", () => {
     const { container: wp } = render(
       <ObservatoryErrorState source="whirlpool" staleAt={null} />,
     );
-    expect(wp.querySelector('a[href="https://whirlpool.observer"]')).toBeTruthy();
+    expect(wp.querySelector('a[href="https://www.whirlpoolstats.xyz"]')).toBeTruthy();
     const { container: ls } = render(
       <ObservatoryErrorState source="liquisabi" staleAt={null} />,
     );
     expect(ls.querySelector('a[href="https://liquisabi.com"]')).toBeTruthy();
+  });
+
+  it("no rendered text contains the literal substring 'observatory.whirlpool.'", () => {
+    // Catches removed-but-still-referenced i18n keys (would render as the raw key
+    // string via the test mock's t() fallback).
+    const { container } = render(
+      <>
+        <ObservatoryHero
+          whirlpool={summary}
+          whirlpoolCharts={charts}
+          liquisabi={dashboard}
+          loading={false}
+        />
+        <WhirlpoolPoolCard pool={summary.pools[0]} charts={charts} />
+        <WhirlpoolPoolCard pool={summary.pools[1]} charts={charts} />
+      </>,
+    );
+    expect(container.textContent ?? "").not.toMatch(/observatory\.whirlpool\./);
   });
 });

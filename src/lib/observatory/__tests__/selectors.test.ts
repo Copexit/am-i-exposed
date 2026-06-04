@@ -6,7 +6,10 @@ import {
   sumRecentFreshInputs,
   sumRecentRoundCount,
   unpaidCoordinators,
+  whirlpool30dDelta,
+  whirlpoolCurrentCapacity,
   whirlpoolSparkline,
+  whirlpoolTotalCurrentCapacity,
 } from "../selectors";
 import chartsFixture from "./fixtures/whirlpool-charts.json";
 import dashboardFixture from "./fixtures/liquisabi-dashboard.json";
@@ -45,14 +48,50 @@ describe("downsampleSeries", () => {
 });
 
 describe("whirlpoolSparkline", () => {
-  it("returns sparkline points for a known pool key", () => {
-    const points = whirlpoolSparkline(charts.poolsize, "0.025_BTC_Pool");
-    expect(points).toHaveLength(4);
-    expect(points[3]).toEqual({ x: 950735, y: 13.675 });
+  it("returns sparkline points for a known pool key from the cumulative series", () => {
+    const points = whirlpoolSparkline(charts, "0.025_BTC_Pool");
+    expect(points.length).toBe(charts.blocks.length);
+    expect(points[points.length - 1].y).toBe(22.95);
   });
 
   it("returns [] for an unknown pool key", () => {
-    expect(whirlpoolSparkline(charts.poolsize, "unknown_pool")).toEqual([]);
+    expect(whirlpoolSparkline(charts, "unknown_pool")).toEqual([]);
+  });
+});
+
+describe("whirlpoolCurrentCapacity", () => {
+  it("returns the last sample of a pool series", () => {
+    expect(whirlpoolCurrentCapacity(charts, "0.025_BTC_Pool")).toBe(22.95);
+    expect(whirlpoolCurrentCapacity(charts, "0.25_BTC_Pool")).toBe(95.5);
+  });
+
+  it("returns null for an unknown pool", () => {
+    expect(whirlpoolCurrentCapacity(charts, "0.5_BTC_Pool")).toBeNull();
+  });
+});
+
+describe("whirlpoolTotalCurrentCapacity", () => {
+  it("sums the last sample across all pools", () => {
+    expect(whirlpoolTotalCurrentCapacity(charts)).toBeCloseTo(22.95 + 95.5);
+  });
+});
+
+describe("whirlpool30dDelta", () => {
+  it("returns null if the series is shorter than 30 days of blocks", () => {
+    const short = {
+      blocks: [900000, 900100, 900200],
+      capacity_btc: { p: [10, 11, 12] },
+    };
+    expect(whirlpool30dDelta(short, "p")).toBeNull();
+  });
+
+  it("returns the net change in capacity across the recent window", () => {
+    // Synthesize a series where the last block is current and 4320 blocks
+    // ago capacity was 10 BTC, current is 22.95 BTC.
+    const blocks = [900000, 947000, 951952];
+    const series = { blocks, capacity_btc: { p: [5, 10, 22.95] } };
+    const delta = whirlpool30dDelta(series, "p");
+    expect(delta).toBeCloseTo(12.95, 1);
   });
 });
 

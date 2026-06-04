@@ -10,10 +10,14 @@ import type {
   LiquiSabiGraphEntry,
   CoordinatorView,
   SparklinePoint,
-  WhirlpoolChartSeries,
+  WhirlpoolCharts,
+  WhirlpoolSummary,
 } from "./types";
 
 const MAX_SPARKLINE_POINTS = 60;
+
+/** ~30 days of Bitcoin blocks at 10 min/block (used for "last 30d" windows). */
+export const BLOCKS_PER_30D = 4320;
 
 /**
  * Drop the array down to at most maxPoints by uniform bucket averaging.
@@ -45,14 +49,90 @@ export function downsampleSeries(
   return out;
 }
 
+/**
+ * Build a per-pool sparkline from the cumulative-capacity charts payload.
+ * Reads `charts.capacity_btc[poolKey]` against `charts.blocks` and downsamples.
+ */
 export function whirlpoolSparkline(
-  series: WhirlpoolChartSeries,
+  charts: WhirlpoolCharts,
   poolKey: string,
 ): SparklinePoint[] {
-  const ys = series.series[poolKey];
+  const ys = charts.capacity_btc?.[poolKey];
   if (!ys) return [];
-  return downsampleSeries(series.blocks, ys);
+  return downsampleSeries(charts.blocks, ys);
 }
+
+/**
+ * Approximate net change in current capacity over the last 30 days.
+ * - `poolKey` undefined → sum across all pools in the payload.
+ * - Returns null if the chart has too few samples to span a 30d window.
+ */
+export function whirlpool30dDelta(
+  charts: WhirlpoolCharts,
+  poolKey?: string,
+): number | null {
+  if (!charts.blocks || charts.blocks.length < 2) return null;
+  const firstBlock = charts.blocks[0];
+  const lastBlock = charts.blocks[charts.blocks.length - 1];
+  // Need at least 30 days of data span to be meaningful.
+  if (lastBlock - firstBlock < BLOCKS_PER_30D) return null;
+  const targetBlock = lastBlock - BLOCKS_PER_30D;
+  // Find the latest sample whose block height is <= targetBlock (i.e., the
+  // "30 days ago" reference point). Linear scan is fine - charts are tiny
+  // after downsampling.
+  let startIdx = -1;
+  for (let i = 0; i < charts.blocks.length; i++) {
+    if (charts.blocks[i] <= targetBlock) startIdx = i;
+    else break;
+  }
+  if (startIdx === -1) return null;
+  const keys = poolKey ? [poolKey] : Object.keys(charts.capacity_btc ?? {});
+  if (keys.length === 0) return null;
+  let delta = 0;
+  for (const k of keys) {
+    const series = charts.capacity_btc[k];
+    if (!series || series.length === 0) continue;
+    delta += series[series.length - 1] - series[startIdx];
+  }
+  return delta;
+}
+
+/**
+ * Current per-pool capacity (last sample in the time series).
+ * Returns null if the pool is missing or empty.
+ */
+export function whirlpoolCurrentCapacity(
+  charts: WhirlpoolCharts,
+  poolKey: string,
+): number | null {
+  const series = charts.capacity_btc?.[poolKey];
+  if (!series || series.length === 0) return null;
+  return series[series.length - 1];
+}
+
+/** Sum the latest capacity across all pools in the charts payload. */
+export function whirlpoolTotalCurrentCapacity(charts: WhirlpoolCharts): number {
+  const keys = Object.keys(charts.capacity_btc ?? {});
+  let total = 0;
+  for (const k of keys) {
+    const v = whirlpoolCurrentCapacity(charts, k);
+    if (v != null) total += v;
+  }
+  return total;
+}
+
+/** Sum of total_entered_btc across all pools in the summary. */
+export function whirlpoolLifetimeEntered(summary: WhirlpoolSummary): number {
+  if (summary.total_entered_btc != null) return summary.total_entered_btc;
+  return summary.pools.reduce((acc, p) => acc + p.total_entered_btc, 0);
+}
+
+/** Sum of cycles across all pools in the summary. */
+export function whirlpoolLifetimeCycles(summary: WhirlpoolSummary): number {
+  return summary.pools.reduce((acc, p) => acc + p.cycles, 0);
+}
+
+// ---------- liquisabi (unchanged) ----------
 
 export function liquiSabiFreshInputSparkline(
   graph: LiquiSabiGraphEntry[],
@@ -67,12 +147,6 @@ export function liquiSabiFreshInputSparkline(
   return downsampleSeries(xs, ys);
 }
 
-/**
- * Project LiquiSabi coordinators into the simpler view model the UI uses.
- * Paid coordinators (CoordinationFeeRate > 0) are flagged so the UI can hide
- * or visually distinguish them - LiquiSabi's own `coords` method drops paid
- * coordinators entirely, so we match that default by treating them as "paid".
- */
 export function projectCoordinators(
   dashboard: LiquiSabiDashboard,
 ): CoordinatorView[] {
@@ -94,7 +168,6 @@ export function projectCoordinators(
       isPaid: (lastFeeByEndpoint.get(c.Coordinator.Endpoint) ?? 0) > 0,
     }))
     .sort((a, b) => {
-      // Active coordinators first (descending by share), then inactive.
       if ((a.roundCount > 0) !== (b.roundCount > 0)) {
         return a.roundCount > 0 ? -1 : 1;
       }
@@ -108,10 +181,6 @@ export function unpaidCoordinators(
   return views.filter((c) => !c.isPaid);
 }
 
-/**
- * Sum of FreshInputsEstimateBtc across the most recent N graph entries.
- * Used by the hero "fresh inputs 24h" KPI.
- */
 export function sumRecentFreshInputs(
   graph: LiquiSabiGraphEntry[],
   recentDays: number,
@@ -121,11 +190,6 @@ export function sumRecentFreshInputs(
   return slice.reduce((acc, entry) => acc + (entry.Averages?.FreshInputsEstimateBtc ?? 0), 0);
 }
 
-/**
- * Sum of round counts across the most recent N graph entries. LiquiSabi's
- * Averages.RoundId field is overloaded as the "count of rounds in window"
- * (see LiquiSabiRpc.GetSummary in turbolay/LiquiSabi).
- */
 export function sumRecentRoundCount(
   graph: LiquiSabiGraphEntry[],
   recentDays: number,

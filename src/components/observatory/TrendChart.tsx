@@ -11,19 +11,29 @@ import { localPoint } from "@visx/event";
 import { bisector } from "d3-array";
 import type { SparklinePoint } from "@/lib/observatory/types";
 
-interface TrendChartProps {
+export interface TrendSeries {
+  /** Stable id used for the gradient + tooltip row. */
+  id: string;
   points: SparklinePoint[];
   color: string;
-  /** Domain label for the x value (e.g. "Block", "Day"). */
-  xLabel?: string;
-  /** Label for the y value (used in tooltip). */
-  yLabel?: string;
+  /** Display label shown in the tooltip and (when more than one series) the legend. */
+  label?: string;
+}
+
+interface TrendChartProps {
+  /** Single-series convenience (legacy). Use `series` for multi-line charts. */
+  points?: SparklinePoint[];
+  color?: string;
+  /** Multi-series form. Mutually exclusive with `points`. */
+  series?: TrendSeries[];
   /** Optional unit appended to numeric values (e.g. "BTC"). */
   unit?: string;
   /** Optional formatter override for x tick labels. */
   formatX?: (x: number, index: number, total: number) => string;
   /** Optional formatter override for y tick labels and tooltip. */
   formatY?: (y: number) => string;
+  /** When true, suppress the gradient area fill (better for monotonic data). */
+  noFill?: boolean;
   height?: number;
   ariaLabel?: string;
 }
@@ -67,39 +77,50 @@ function defaultFormatY(value: number): string {
   return value.toFixed(2);
 }
 
+interface HoverPayload {
+  x: number;
+  perSeries: { id: string; label?: string; y: number; color: string }[];
+}
+
 function Inner({
   points,
   color,
+  series,
   unit,
   formatX,
   formatY = defaultFormatY,
+  noFill,
   width,
   height,
   ariaLabel,
 }: TrendChartProps & { width: number; height: number }) {
+  const allSeries: TrendSeries[] = useMemo(() => {
+    if (series && series.length > 0) return series;
+    if (points && points.length > 0)
+      return [{ id: "default", points, color: color ?? "#f97316" }];
+    return [];
+  }, [series, points, color]);
+
   const MARGIN = marginFor(width);
   const innerWidth = Math.max(0, width - MARGIN.left - MARGIN.right);
   const innerHeight = Math.max(0, height - MARGIN.top - MARGIN.bottom);
   const isNarrow = width < 360;
 
-  const { xScale, yScale, yMin, yMax } = useMemo(() => {
-    const xs = points.map((p) => p.x);
-    const ys = points.map((p) => p.y);
-    const xMin = xs.length ? Math.min(...xs) : 0;
-    const xMax = xs.length ? Math.max(...xs) : 1;
-    const rawMin = ys.length ? Math.min(...ys) : 0;
-    const rawMax = ys.length ? Math.max(...ys) : 1;
-    // Add 8% headroom so the line doesn't touch the top edge.
+  const { xScale, yScale } = useMemo(() => {
+    const allX = allSeries.flatMap((s) => s.points.map((p) => p.x));
+    const allY = allSeries.flatMap((s) => s.points.map((p) => p.y));
+    const xMin = allX.length ? Math.min(...allX) : 0;
+    const xMax = allX.length ? Math.max(...allX) : 1;
+    const rawMin = allY.length ? Math.min(...allY) : 0;
+    const rawMax = allY.length ? Math.max(...allY) : 1;
     const span = rawMax - rawMin || 1;
     const yMin = Math.max(0, rawMin - span * 0.05);
     const yMax = rawMax + span * 0.08;
     return {
       xScale: scaleLinear({ domain: [xMin, xMax], range: [0, innerWidth] }),
       yScale: scaleLinear({ domain: [yMin, yMax], range: [innerHeight, 0] }),
-      yMin,
-      yMax,
     };
-  }, [points, innerWidth, innerHeight]);
+  }, [allSeries, innerWidth, innerHeight]);
 
   const {
     tooltipData,
@@ -107,29 +128,38 @@ function Inner({
     tooltipTop,
     showTooltip,
     hideTooltip,
-  } = useTooltip<SparklinePoint>();
+  } = useTooltip<HoverPayload>();
 
   const onMove = useCallback(
     (event: React.MouseEvent<SVGRectElement> | React.TouchEvent<SVGRectElement>) => {
       const point = localPoint(event);
-      if (!point || points.length === 0) return;
+      if (!point || allSeries.length === 0) return;
       const x = point.x - MARGIN.left;
       const x0 = xScale.invert(x);
-      const idx = bisectX(points, x0, 1);
-      const d0 = points[idx - 1];
-      const d1 = points[idx] ?? d0;
-      const d = !d1 || (d0 && x0 - d0.x < d1.x - x0) ? d0 : d1;
-      if (!d) return;
+      const perSeries: HoverPayload["perSeries"] = [];
+      let avgY = 0;
+      for (const s of allSeries) {
+        if (s.points.length === 0) continue;
+        const idx = bisectX(s.points, x0, 1);
+        const d0 = s.points[idx - 1];
+        const d1 = s.points[idx] ?? d0;
+        const d = !d1 || (d0 && x0 - d0.x < d1.x - x0) ? d0 : d1;
+        if (!d) continue;
+        perSeries.push({ id: s.id, label: s.label, y: d.y, color: s.color });
+        avgY += d.y;
+      }
+      if (perSeries.length === 0) return;
+      avgY /= perSeries.length;
       showTooltip({
-        tooltipData: d,
-        tooltipLeft: MARGIN.left + xScale(d.x),
-        tooltipTop: MARGIN.top + yScale(d.y),
+        tooltipData: { x: x0, perSeries },
+        tooltipLeft: MARGIN.left + xScale(x0),
+        tooltipTop: MARGIN.top + yScale(avgY),
       });
     },
-    [points, xScale, yScale, showTooltip, MARGIN.left, MARGIN.top],
+    [allSeries, xScale, yScale, showTooltip, MARGIN.left, MARGIN.top],
   );
 
-  if (points.length < 2 || innerWidth <= 0 || innerHeight <= 0) {
+  if (allSeries.length === 0 || innerWidth <= 0 || innerHeight <= 0) {
     return null;
   }
 
@@ -145,10 +175,19 @@ function Inner({
     <div style={{ position: "relative", width, height }}>
       <svg width={width} height={height} role="img" aria-label={ariaLabel ?? "Trend chart"}>
         <defs>
-          <linearGradient id={`grad-${color.replace("#", "")}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity={0.35} />
-            <stop offset="100%" stopColor={color} stopOpacity={0} />
-          </linearGradient>
+          {allSeries.map((s) => (
+            <linearGradient
+              key={s.id}
+              id={`grad-${s.id}-${s.color.replace("#", "")}`}
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="1"
+            >
+              <stop offset="0%" stopColor={s.color} stopOpacity={0.28} />
+              <stop offset="100%" stopColor={s.color} stopOpacity={0} />
+            </linearGradient>
+          ))}
         </defs>
         <Group left={MARGIN.left} top={MARGIN.top}>
           {/* Y gridlines */}
@@ -164,31 +203,36 @@ function Inner({
               strokeDasharray="2,3"
             />
           ))}
-          {/* Filled area */}
-          <AreaClosed
-            data={points}
-            x={(d) => xScale(d.x)}
-            y={(d) => yScale(d.y)}
-            yScale={yScale}
-            stroke="none"
-            fill={`url(#grad-${color.replace("#", "")})`}
-          />
-          {/* Line */}
-          <LinePath
-            data={points}
-            x={(d) => xScale(d.x)}
-            y={(d) => yScale(d.y)}
-            stroke={color}
-            strokeWidth={1.75}
-          />
+          {/* Filled areas (one per series) */}
+          {!noFill &&
+            allSeries.map((s) => (
+              <AreaClosed
+                key={`area-${s.id}`}
+                data={s.points}
+                x={(d) => xScale(d.x)}
+                y={(d) => yScale(d.y)}
+                yScale={yScale}
+                stroke="none"
+                fill={`url(#grad-${s.id}-${s.color.replace("#", "")})`}
+              />
+            ))}
+          {/* Lines (one per series) */}
+          {allSeries.map((s) => (
+            <LinePath
+              key={`line-${s.id}`}
+              data={s.points}
+              x={(d) => xScale(d.x)}
+              y={(d) => yScale(d.y)}
+              stroke={s.color}
+              strokeWidth={1.75}
+            />
+          ))}
           {/* Axes */}
           <AxisBottom
             top={innerHeight}
             scale={xScale}
             numTicks={numXTicks}
-            tickFormat={(v, i) =>
-              defaultXFormat(Number(v), i, numXTicks)
-            }
+            tickFormat={(v, i) => defaultXFormat(Number(v), i, numXTicks)}
             stroke="rgba(255,255,255,0.18)"
             tickStroke="rgba(255,255,255,0.18)"
             tickLabelProps={() => ({
@@ -203,9 +247,7 @@ function Inner({
             scale={yScale}
             numTicks={numYTicks}
             tickFormat={(v) =>
-              isNarrow
-                ? formatY(Number(v))
-                : `${formatY(Number(v))}${unit ? ` ${unit}` : ""}`
+              isNarrow ? formatY(Number(v)) : `${formatY(Number(v))}${unit ? ` ${unit}` : ""}`
             }
             stroke="rgba(255,255,255,0.18)"
             tickStroke="rgba(255,255,255,0.18)"
@@ -218,26 +260,29 @@ function Inner({
               dy: 3,
             })}
           />
-          {/* Hover crosshair */}
+          {/* Hover crosshair (vertical guide + per-series dots) */}
           {tooltipData && (
             <>
               <Line
                 from={{ x: xScale(tooltipData.x), y: 0 }}
                 to={{ x: xScale(tooltipData.x), y: innerHeight }}
-                stroke={color}
+                stroke="currentColor"
                 strokeOpacity={0.35}
                 strokeDasharray="2,3"
                 pointerEvents="none"
               />
-              <circle
-                cx={xScale(tooltipData.x)}
-                cy={yScale(tooltipData.y)}
-                r={4}
-                fill={color}
-                stroke="var(--background, #000)"
-                strokeWidth={2}
-                pointerEvents="none"
-              />
+              {tooltipData.perSeries.map((p) => (
+                <circle
+                  key={p.id}
+                  cx={xScale(tooltipData.x)}
+                  cy={yScale(p.y)}
+                  r={4}
+                  fill={p.color}
+                  stroke="var(--background, #000)"
+                  strokeWidth={2}
+                  pointerEvents="none"
+                />
+              ))}
             </>
           )}
           {/* Hover capture rect */}
@@ -257,18 +302,29 @@ function Inner({
       </svg>
       {tooltipData && (
         <TooltipWithBounds top={tooltipTop} left={tooltipLeft} style={tooltipStyles}>
-          <div style={{ fontWeight: 600 }}>
-            {formatY(tooltipData.y)}
-            {unit ? ` ${unit}` : ""}
-          </div>
-          <div style={{ fontSize: 11, opacity: 0.7 }}>
+          <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 2 }}>
             {defaultXFormat(tooltipData.x, 0, 1)}
           </div>
+          {tooltipData.perSeries.map((p) => (
+            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span
+                style={{
+                  display: "inline-block",
+                  width: 8,
+                  height: 8,
+                  borderRadius: 999,
+                  background: p.color,
+                }}
+              />
+              <span style={{ flex: 1 }}>{p.label ?? p.id}</span>
+              <span style={{ fontWeight: 600 }}>
+                {formatY(p.y)}
+                {unit ? ` ${unit}` : ""}
+              </span>
+            </div>
+          ))}
         </TooltipWithBounds>
       )}
-      <span className="sr-only">
-        min {formatY(yMin)} {unit ?? ""}, max {formatY(yMax)} {unit ?? ""}
-      </span>
     </div>
   );
 }
