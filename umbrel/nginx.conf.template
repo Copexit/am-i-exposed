@@ -87,10 +87,14 @@ server {
     # Expose mempool connection info so the frontend can build explorer links
     # mempoolPort: matches the external app_proxy port on Umbrel (typically 3006)
     # mempoolOnion: mempool's .onion hostname for Tor users (from mempool's exports.sh)
+    # mempoolExternalUrl: optional explicit user-facing URL for mempool's web UI.
+    #   On Umbrel this is unset (the host:port heuristic works because Umbrel
+    #   routes the app_proxy port directly to mempool). On StartOS the packager
+    #   must pass it because each service has its own hostname (see issue #95).
     location = /api/local-info {
         access_log off;
         default_type application/json;
-        return 200 '{"mempoolPort":"${APP_MEMPOOL_PORT}","mempoolOnion":"${APP_MEMPOOL_HIDDEN_SERVICE}"}';
+        return 200 '{"mempoolPort":"${APP_MEMPOOL_PORT}","mempoolOnion":"${APP_MEMPOOL_HIDDEN_SERVICE}","mempoolExternalUrl":"${APP_MEMPOOL_EXTERNAL_URL}"}';
     }
 
     # Health check endpoint

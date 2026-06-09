@@ -12,6 +12,13 @@ interface LocalApiResult {
   status: LocalApiStatus;
   mempoolPort: string | null;
   mempoolOnion: string | null;
+  /**
+   * Optional explicit external URL for the local mempool web UI. Set by
+   * packagers (e.g. StartOS) when the user-facing mempool URL is NOT
+   * `${same-host}:${mempoolPort}` - on StartOS each service has its own
+   * hostname so the `host:port` fallback yields a broken link.
+   */
+  mempoolExternalUrl: string | null;
 }
 
 const MEMPOOL_TIMEOUT_MS = 3_000;
@@ -28,7 +35,11 @@ let inflight: Promise<LocalApiResult> | null = null;
  */
 async function probeLocalInfo(
   signal: AbortSignal,
-): Promise<{ mempoolPort: string | null; mempoolOnion: string | null } | null> {
+): Promise<{
+  mempoolPort: string | null;
+  mempoolOnion: string | null;
+  mempoolExternalUrl: string | null;
+} | null> {
   try {
     const res = await fetch("/api/local-info", {
       signal: abortSignalAny([signal, abortSignalTimeout(LOCAL_INFO_TIMEOUT_MS)]),
@@ -37,12 +48,19 @@ async function probeLocalInfo(
     const info = await res.json();
     // Validate it's our JSON (not an HTML fallback page)
     if (typeof info !== "object" || info === null) return null;
+    const externalUrl =
+      info.mempoolExternalUrl &&
+      typeof info.mempoolExternalUrl === "string" &&
+      /^https?:\/\//.test(info.mempoolExternalUrl)
+        ? info.mempoolExternalUrl
+        : null;
     return {
       mempoolPort: info.mempoolPort ?? null,
       mempoolOnion:
         info.mempoolOnion && typeof info.mempoolOnion === "string" && info.mempoolOnion.endsWith(".onion")
           ? info.mempoolOnion
           : null,
+      mempoolExternalUrl: externalUrl,
     };
   } catch {
     return null;
@@ -83,7 +101,7 @@ async function probe(
 
   if (!info) {
     // Not on Umbrel - skip Phase 2 entirely
-    return { isUmbrel: false, status: "unavailable", mempoolPort: null, mempoolOnion: null };
+    return { isUmbrel: false, status: "unavailable", mempoolPort: null, mempoolOnion: null, mempoolExternalUrl: null };
   }
 
   // Umbrel detected! Push early state so badge shows "Local" immediately
@@ -92,6 +110,7 @@ async function probe(
     status: "checking",
     mempoolPort: info.mempoolPort,
     mempoolOnion: info.mempoolOnion,
+    mempoolExternalUrl: info.mempoolExternalUrl,
   };
   earlyUpdate(earlyResult);
 
@@ -104,6 +123,7 @@ async function probe(
     status: healthy ? "available" : "unavailable",
     mempoolPort: info.mempoolPort,
     mempoolOnion: info.mempoolOnion,
+    mempoolExternalUrl: info.mempoolExternalUrl,
   };
 }
 
@@ -119,7 +139,7 @@ async function probe(
  */
 export function useLocalApi(): LocalApiResult {
   const [result, setResult] = useState<LocalApiResult>(
-    () => cachedResult ?? { isUmbrel: false, status: "checking", mempoolPort: null, mempoolOnion: null },
+    () => cachedResult ?? { isUmbrel: false, status: "checking", mempoolPort: null, mempoolOnion: null, mempoolExternalUrl: null },
   );
 
   useEffect(() => {

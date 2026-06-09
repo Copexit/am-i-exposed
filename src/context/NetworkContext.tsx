@@ -68,8 +68,14 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
         if (isOnion && localApi.mempoolOnion) {
           // Tor: use mempool's .onion hostname (from Umbrel's exports.sh)
           explorerUrl = `http://${localApi.mempoolOnion.trim()}`;
+        } else if (localApi.mempoolExternalUrl) {
+          // Packager-supplied explicit external URL (e.g. StartOS where
+          // mempool's user-facing URL is on a different hostname entirely
+          // from this app's hostname - the `host:port` heuristic below
+          // can't build it).
+          explorerUrl = localApi.mempoolExternalUrl.trim().replace(/\/$/, "");
         } else if (localApi.mempoolPort) {
-          // LAN: use same hostname with mempool's port
+          // LAN (Umbrel): same hostname, mempool's external port.
           explorerUrl = `${window.location.protocol}//${window.location.hostname}:${localApi.mempoolPort}`;
         }
       }
@@ -92,7 +98,7 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
     }
     // Priority 4: Hardcoded defaults
     return baseConfig;
-  }, [baseConfig, customUrl, isUmbrel, localApi.mempoolPort, localApi.mempoolOnion, torStatus]);
+  }, [baseConfig, customUrl, isUmbrel, localApi.mempoolPort, localApi.mempoolOnion, localApi.mempoolExternalUrl, torStatus]);
 
   const value = useMemo(
     () => ({
