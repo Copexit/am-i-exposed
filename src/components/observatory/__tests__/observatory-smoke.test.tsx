@@ -5,10 +5,12 @@ import { render } from "@testing-library/react";
 import summaryFixture from "@/lib/observatory/__tests__/fixtures/whirlpool-summary.json";
 import chartsFixture from "@/lib/observatory/__tests__/fixtures/whirlpool-charts.json";
 import dashboardFixture from "@/lib/observatory/__tests__/fixtures/liquisabi-dashboard.json";
+import txsFixture from "@/lib/observatory/__tests__/fixtures/whirlpool-txs.json";
 import type {
   LiquiSabiDashboard,
   WhirlpoolCharts,
   WhirlpoolSummary,
+  WhirlpoolTxsPage,
 } from "@/lib/observatory/types";
 
 vi.mock("react-i18next", () => ({
@@ -29,11 +31,13 @@ import { WhirlpoolPoolCard } from "../WhirlpoolPoolCard";
 import { WabiSabiCoordinatorCard } from "../WabiSabiCoordinatorCard";
 import { ObservatoryAttribution } from "../ObservatoryAttribution";
 import { ObservatoryErrorState } from "../ObservatoryErrorState";
+import { RecentCyclesTable } from "../RecentCyclesTable";
 import { projectCoordinators } from "@/lib/observatory/selectors";
 
 const summary = summaryFixture as WhirlpoolSummary;
 const charts = chartsFixture as WhirlpoolCharts;
 const dashboard = dashboardFixture as unknown as LiquiSabiDashboard;
+const txs = txsFixture as WhirlpoolTxsPage;
 
 describe("observatory smoke tests", () => {
   it("Sparkline renders an SVG path for non-empty input", () => {
@@ -86,14 +90,14 @@ describe("observatory smoke tests", () => {
     expect(container.querySelectorAll(".animate-pulse").length).toBe(4);
   });
 
-  it("WhirlpoolPoolCard renders the pool label, current capacity, and sparkline", () => {
+  it("WhirlpoolPoolCard renders the pool label, unspent capacity, and sparkline", () => {
     const { getByText, container } = render(
       <WhirlpoolPoolCard pool={summary.pools[0]} charts={charts} />,
     );
     expect(getByText("0.025 BTC Pool")).toBeTruthy();
     expect(container.querySelector("svg")).toBeTruthy();
-    // Current capacity headline = last sample of 0.025 series = 22.95 BTC.
-    expect(container.textContent).toMatch(/22\.95 BTC/);
+    // Headline = summary unspent_btc for the 0.025 pool = 13.65 BTC.
+    expect(container.textContent).toMatch(/13\.65 BTC/);
   });
 
   it("WabiSabiCoordinatorCard renders coordinator name and fresh-input share", () => {
@@ -121,15 +125,37 @@ describe("observatory smoke tests", () => {
     );
     const links = container.querySelectorAll("a[href]");
     const hrefs = Array.from(links).map((a) => a.getAttribute("href"));
-    expect(hrefs).toContain("https://www.whirlpoolstats.xyz");
+    expect(hrefs).toContain("https://whirlpoolstats.xyz");
     expect(hrefs).toContain("https://liquisabi.com");
+  });
+
+  it("RecentCyclesTable renders one same-origin scan link per cycle", () => {
+    const { container } = render(<RecentCyclesTable firstPage={txs} />);
+    expect(container.querySelectorAll("li").length).toBe(txs.items.length);
+    const hrefs = Array.from(container.querySelectorAll("a[href]")).map((a) =>
+      a.getAttribute("href"),
+    );
+    expect(hrefs).toContain(`/#tx=${txs.items[0].txid}`);
+    // Never links to the external upstream URL.
+    expect(hrefs.some((h) => h?.includes("am-i.exposed"))).toBe(false);
+  });
+
+  it("RecentCyclesTable renders nothing when there is no page", () => {
+    const { container } = render(<RecentCyclesTable firstPage={null} />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it("RecentCyclesTable dedups duplicate txids", () => {
+    const dupe = { ...txs, items: [txs.items[0], txs.items[0]] } as WhirlpoolTxsPage;
+    const { container } = render(<RecentCyclesTable firstPage={dupe} />);
+    expect(container.querySelectorAll("li").length).toBe(1);
   });
 
   it("ObservatoryErrorState links to the right source per variant", () => {
     const { container: wp } = render(
       <ObservatoryErrorState source="whirlpool" staleAt={null} />,
     );
-    expect(wp.querySelector('a[href="https://www.whirlpoolstats.xyz"]')).toBeTruthy();
+    expect(wp.querySelector('a[href="https://whirlpoolstats.xyz"]')).toBeTruthy();
     const { container: ls } = render(
       <ObservatoryErrorState source="liquisabi" staleAt={null} />,
     );

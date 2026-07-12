@@ -9,9 +9,11 @@ import type {
   LiquiSabiDashboard,
   LiquiSabiGraphEntry,
   CoordinatorView,
+  CycleRow,
   SparklinePoint,
   WhirlpoolCharts,
   WhirlpoolSummary,
+  WhirlpoolTxsPage,
 } from "./types";
 
 const MAX_SPARKLINE_POINTS = 60;
@@ -50,16 +52,16 @@ export function downsampleSeries(
 }
 
 /**
- * Build a per-pool sparkline from the cumulative-capacity charts payload.
- * Reads `charts.capacity_btc[poolKey]` against `charts.blocks` and downsamples.
+ * Build a per-pool sparkline from the current-capacity charts payload.
+ * Reads `charts.capacity.series[poolKey]` against `charts.capacity.blocks`.
  */
 export function whirlpoolSparkline(
   charts: WhirlpoolCharts,
   poolKey: string,
 ): SparklinePoint[] {
-  const ys = charts.capacity_btc?.[poolKey];
+  const ys = charts.capacity?.series?.[poolKey];
   if (!ys) return [];
-  return downsampleSeries(charts.blocks, ys);
+  return downsampleSeries(charts.capacity.blocks, ys);
 }
 
 /**
@@ -71,9 +73,10 @@ export function whirlpool30dDelta(
   charts: WhirlpoolCharts,
   poolKey?: string,
 ): number | null {
-  if (!charts.blocks || charts.blocks.length < 2) return null;
-  const firstBlock = charts.blocks[0];
-  const lastBlock = charts.blocks[charts.blocks.length - 1];
+  const blocks = charts.capacity?.blocks;
+  if (!blocks || blocks.length < 2) return null;
+  const firstBlock = blocks[0];
+  const lastBlock = blocks[blocks.length - 1];
   // Need at least 30 days of data span to be meaningful.
   if (lastBlock - firstBlock < BLOCKS_PER_30D) return null;
   const targetBlock = lastBlock - BLOCKS_PER_30D;
@@ -81,16 +84,16 @@ export function whirlpool30dDelta(
   // "30 days ago" reference point). Linear scan is fine - charts are tiny
   // after downsampling.
   let startIdx = -1;
-  for (let i = 0; i < charts.blocks.length; i++) {
-    if (charts.blocks[i] <= targetBlock) startIdx = i;
+  for (let i = 0; i < blocks.length; i++) {
+    if (blocks[i] <= targetBlock) startIdx = i;
     else break;
   }
   if (startIdx === -1) return null;
-  const keys = poolKey ? [poolKey] : Object.keys(charts.capacity_btc ?? {});
+  const keys = poolKey ? [poolKey] : Object.keys(charts.capacity.series ?? {});
   if (keys.length === 0) return null;
   let delta = 0;
   for (const k of keys) {
-    const series = charts.capacity_btc[k];
+    const series = charts.capacity.series[k];
     if (!series || series.length === 0) continue;
     delta += series[series.length - 1] - series[startIdx];
   }
@@ -105,14 +108,14 @@ export function whirlpoolCurrentCapacity(
   charts: WhirlpoolCharts,
   poolKey: string,
 ): number | null {
-  const series = charts.capacity_btc?.[poolKey];
+  const series = charts.capacity?.series?.[poolKey];
   if (!series || series.length === 0) return null;
   return series[series.length - 1];
 }
 
 /** Sum the latest capacity across all pools in the charts payload. */
 export function whirlpoolTotalCurrentCapacity(charts: WhirlpoolCharts): number {
-  const keys = Object.keys(charts.capacity_btc ?? {});
+  const keys = Object.keys(charts.capacity?.series ?? {});
   let total = 0;
   for (const k of keys) {
     const v = whirlpoolCurrentCapacity(charts, k);
@@ -121,15 +124,46 @@ export function whirlpoolTotalCurrentCapacity(charts: WhirlpoolCharts): number {
   return total;
 }
 
-/** Sum of total_entered_btc across all pools in the summary. */
+/** Sum of lifetime entered BTC across all pools in the summary. */
 export function whirlpoolLifetimeEntered(summary: WhirlpoolSummary): number {
-  if (summary.total_entered_btc != null) return summary.total_entered_btc;
-  return summary.pools.reduce((acc, p) => acc + p.total_entered_btc, 0);
+  return summary.pools.reduce((acc, p) => acc + p.entered_btc, 0);
 }
 
 /** Sum of cycles across all pools in the summary. */
 export function whirlpoolLifetimeCycles(summary: WhirlpoolSummary): number {
   return summary.pools.reduce((acc, p) => acc + p.cycles, 0);
+}
+
+/** Sum of currently-unspent BTC across all pools in the summary. */
+export function whirlpoolTotalUnspent(summary: WhirlpoolSummary): number {
+  return summary.pools.reduce((acc, p) => acc + p.unspent_btc, 0);
+}
+
+/** Sum of currently-unspent UTXOs across all pools in the summary. */
+export function whirlpoolTotalUnspentUtxos(summary: WhirlpoolSummary): number {
+  return summary.pools.reduce((acc, p) => acc + p.unspent_utxos, 0);
+}
+
+/** Sum of lifetime TX0 (premix) transactions across all pools. */
+export function whirlpoolTotalTx0(summary: WhirlpoolSummary): number {
+  return summary.pools.reduce((acc, p) => acc + p.tx0_count, 0);
+}
+
+/**
+ * Shape a page of coinjoin-cycle history into table rows, linking each cycle
+ * to the same-origin scanner (`/#tx=<txid>`) rather than the upstream's
+ * external deep link.
+ */
+export function toCycleRows(page: WhirlpoolTxsPage | null): CycleRow[] {
+  if (!page?.items) return [];
+  return page.items.map((tx) => ({
+    txid: tx.txid,
+    blockHeight: tx.block_height,
+    poolLabel: tx.pool_label,
+    poolColor: tx.pool_color,
+    tx0Count: tx.tx0_inputs?.length ?? 0,
+    scanHref: `/#tx=${tx.txid}`,
+  }));
 }
 
 // ---------- liquisabi (unchanged) ----------
@@ -179,6 +213,23 @@ export function unpaidCoordinators(
   views: CoordinatorView[],
 ): CoordinatorView[] {
   return views.filter((c) => !c.isPaid);
+}
+
+/**
+ * Coordinators that ran at least one round in the last 30 days.
+ * `roundCount` is LiquiSabi's `NbRounds`, a 30-day rolling count.
+ */
+export function activeCoordinators(
+  views: CoordinatorView[],
+): CoordinatorView[] {
+  return views.filter((c) => c.roundCount > 0);
+}
+
+/** Coordinators with zero rounds in the last 30 days (idle 30d+). */
+export function inactiveCoordinators(
+  views: CoordinatorView[],
+): CoordinatorView[] {
+  return views.filter((c) => c.roundCount === 0);
 }
 
 export function sumRecentFreshInputs(

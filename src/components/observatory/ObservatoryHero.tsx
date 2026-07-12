@@ -8,6 +8,7 @@ import {
   projectCoordinators,
   whirlpool30dDelta,
   whirlpoolLifetimeEntered,
+  whirlpoolTotalUnspent,
 } from "@/lib/observatory/selectors";
 import type {
   LiquiSabiDashboard,
@@ -26,6 +27,7 @@ interface Tile {
   value: string | null;
   labelKey: string;
   defaultLabel: string;
+  sub?: string | null;
 }
 
 const EMPTY = "·";
@@ -48,6 +50,7 @@ export function ObservatoryHero({
   const { t } = useTranslation();
 
   const lifetimeEntered = whirlpool ? whirlpoolLifetimeEntered(whirlpool) : null;
+  const unspent = whirlpool ? whirlpoolTotalUnspent(whirlpool) : null;
   const delta30d =
     whirlpoolCharts ? whirlpool30dDelta(whirlpoolCharts) : null;
   const fresh24h = liquisabi ? sumRecentFreshInputs(liquisabi.Graph, 1) : 0;
@@ -57,6 +60,14 @@ export function ObservatoryHero({
       ).length
     : null;
 
+  const delta30dSub =
+    delta30d != null
+      ? t("observatory.hero.deltaSub", {
+          defaultValue: "{{delta}} (30d)",
+          delta: fmtBtcSigned(delta30d),
+        })
+      : null;
+
   const tiles: Tile[] = [
     {
       value: lifetimeEntered != null ? fmtBtc(lifetimeEntered) : null,
@@ -64,9 +75,10 @@ export function ObservatoryHero({
       defaultLabel: "Whirlpool lifetime entered",
     },
     {
-      value: delta30d != null ? fmtBtcSigned(delta30d) : null,
-      labelKey: "observatory.hero.entered30d",
-      defaultLabel: "Whirlpool capacity Δ (30d)",
+      value: unspent != null ? fmtBtc(unspent) : null,
+      labelKey: "observatory.hero.liveUnspent",
+      defaultLabel: "Whirlpool unspent (live)",
+      sub: delta30dSub,
     },
     {
       value: liquisabi ? fmtBtc(fresh24h) : null,
@@ -101,6 +113,11 @@ export function ObservatoryHero({
           <div className="mt-1 text-xs sm:text-sm text-muted">
             {t(tile.labelKey, { defaultValue: tile.defaultLabel })}
           </div>
+          {tile.sub && (
+            <div className="mt-0.5 text-[11px] text-muted/70 tabular-nums">
+              {tile.sub}
+            </div>
+          )}
         </div>
       ))}
     </div>

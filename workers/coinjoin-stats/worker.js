@@ -1,32 +1,28 @@
 /**
  * coinjoin-stats Cloudflare Worker
  *
- * Reverse proxy + parser-translator + CORS + edge cache for:
- *   - whirlpoolstats.xyz/           (HTML, scraped for headline stats)
- *   - whirlpoolstats.xyz/whirlpool_stats.csv (per-block current-capacity CSV)
- *   - liquisabi.com/api             (JSON-RPC POST, method "dashboard")
+ * Reverse proxy + CORS + edge cache for:
+ *   - whirlpoolstats.xyz/api/summary  (per-pool stats + sync metadata)
+ *   - whirlpoolstats.xyz/api/charts   (per-block time series)
+ *   - whirlpoolstats.xyz/api/txs      (paginated coinjoin cycle history)
+ *   - liquisabi.com/api               (JSON-RPC POST, method "dashboard")
  *
- * The Whirlpool endpoints emit our own slim JSON schema by running
- * `parser.js` against the upstream payloads. See parser.js for semantics.
+ * The Whirlpool endpoints are rich JSON and are passed through verbatim - the
+ * Worker only adds CORS + its own cache contract.
  */
 
-import { parseSummaryHtml, parseStatsCsv, downsample } from "./parser.js";
-
-const WHIRLPOOLSTATS_BASE = "https://www.whirlpoolstats.xyz";
+const WHIRLPOOLSTATS_BASE = "https://whirlpoolstats.xyz/api";
 const LIQUISABI_URL = "https://liquisabi.com/api";
 
-const WHIRLPOOL_PATH_RE = /^\/whirlpool\/(summary|charts)$/;
+const WHIRLPOOL_PATH_RE = /^\/whirlpool\/(summary|charts|txs)$/;
 const LIQUISABI_PATH = "/liquisabi/api";
 
 const ALLOWED_LIQUISABI_METHODS = new Set(["dashboard"]);
 
-const TTL_SUMMARY = 60;
-const TTL_CHARTS = 120;
+const TTL_BY_SEGMENT = { summary: 60, charts: 120, txs: 60 };
 const TTL_LIQUISABI = 60;
 
-// Body caps split between upstream ingestion (CSV can grow) and response path.
-const MAX_UPSTREAM_BYTES = 4 * 1024 * 1024; // ~10 years of CSV growth headroom
-const MAX_BODY_BYTES = 1024 * 1024;          // response cap (post-parse / post-downsample)
+const MAX_BODY_BYTES = 4 * 1024 * 1024; // upstream JSON + response cap
 
 const DEFAULT_ORIGINS = [
   "https://am-i.exposed",
@@ -68,9 +64,7 @@ const handler = {
     if (request.method === "GET") {
       const wpMatch = url.pathname.match(WHIRLPOOL_PATH_RE);
       if (wpMatch) {
-        return wpMatch[1] === "summary"
-          ? handleWhirlpoolSummary(ctx, cors)
-          : handleWhirlpoolCharts(ctx, cors);
+        return handleWhirlpool(ctx, cors, wpMatch[1], url.searchParams);
       }
       return notFound(cors);
     }
@@ -85,42 +79,53 @@ const handler = {
 
 export default handler;
 
-// ---------- Whirlpool: summary (HTML scrape) ----------
+// ---------- Whirlpool: JSON pass-through ----------
 
-async function handleWhirlpoolSummary(ctx, cors) {
-  const cacheKey = new Request("https://cache.local/whirlpool/summary", { method: "GET" });
+async function handleWhirlpool(ctx, cors, segment, searchParams) {
+  // Only `txs` is paginated; clamp page to a sane positive integer.
+  let query = "";
+  let cacheSuffix = "";
+  if (segment === "txs") {
+    const page = clampPage(searchParams.get("page"));
+    query = `?page=${page}`;
+    cacheSuffix = `:${page}`;
+  }
+
+  const cacheKey = new Request(
+    `https://cache.local/whirlpool/${segment}${cacheSuffix}`,
+    { method: "GET" },
+  );
   const cache = caches.default;
   const cached = await cache.match(cacheKey);
   if (cached) return withCors(cached, cors);
 
   let upstream;
   try {
-    upstream = await fetch(`${WHIRLPOOLSTATS_BASE}/`, {
-      headers: { Accept: "text/html" },
+    upstream = await fetch(`${WHIRLPOOLSTATS_BASE}/${segment}${query}`, {
+      headers: { Accept: "application/json" },
     });
   } catch {
     return errorResponse("UPSTREAM_DOWN", "whirlpoolstats.xyz unreachable", cors);
   }
   if (!upstream.ok) {
-    return errorResponse("UPSTREAM_HTTP", `whirlpoolstats.xyz HTTP ${upstream.status}`, cors);
-  }
-  const html = await readLimited(upstream, MAX_UPSTREAM_BYTES);
-  if (html === null) {
-    return errorResponse("UPSTREAM_HTTP", "HTML response exceeded cap", cors);
-  }
-
-  const parsed = parseSummaryHtml(html);
-  if (parsed.error) {
-    return structuredErrorResponse(parsed.error, cors);
+    return errorResponse(
+      "UPSTREAM_HTTP",
+      `whirlpoolstats.xyz/api/${segment} HTTP ${upstream.status}`,
+      cors,
+    );
   }
 
-  // Edge cache override: whirlpoolstats sends `max-age=0, must-revalidate`,
-  // we replace with our own contract since we control freshness here.
-  const response = new Response(JSON.stringify(parsed), {
+  const text = await readLimited(upstream, MAX_BODY_BYTES);
+  if (text === null) {
+    return errorResponse("UPSTREAM_HTTP", "Response payload too large", cors);
+  }
+
+  const ttl = TTL_BY_SEGMENT[segment] ?? 60;
+  const response = new Response(text, {
     status: 200,
     headers: {
       "Content-Type": "application/json",
-      "Cache-Control": `public, max-age=${TTL_SUMMARY}`,
+      "Cache-Control": `public, max-age=${ttl}`,
       ...cors,
     },
   });
@@ -128,51 +133,10 @@ async function handleWhirlpoolSummary(ctx, cors) {
   return response;
 }
 
-// ---------- Whirlpool: charts (CSV scrape) ----------
-
-async function handleWhirlpoolCharts(ctx, cors) {
-  const cacheKey = new Request("https://cache.local/whirlpool/charts", { method: "GET" });
-  const cache = caches.default;
-  const cached = await cache.match(cacheKey);
-  if (cached) return withCors(cached, cors);
-
-  let upstream;
-  try {
-    upstream = await fetch(`${WHIRLPOOLSTATS_BASE}/whirlpool_stats.csv`, {
-      headers: { Accept: "text/csv" },
-    });
-  } catch {
-    return errorResponse("UPSTREAM_DOWN", "whirlpoolstats.xyz unreachable", cors);
-  }
-  if (!upstream.ok) {
-    return errorResponse("UPSTREAM_HTTP", `whirlpool_stats.csv HTTP ${upstream.status}`, cors);
-  }
-  const csv = await readLimited(upstream, MAX_UPSTREAM_BYTES);
-  if (csv === null) {
-    return errorResponse("UPSTREAM_HTTP", "CSV response exceeded cap", cors);
-  }
-
-  const charts = parseStatsCsv(csv);
-  if (charts.error) {
-    return structuredErrorResponse(charts.error, cors);
-  }
-
-  const downsampled = downsample(charts, 512);
-  const body = JSON.stringify(downsampled);
-  if (body.length > MAX_BODY_BYTES) {
-    return errorResponse("UPSTREAM_HTTP", "Response payload too large", cors);
-  }
-
-  const response = new Response(body, {
-    status: 200,
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": `public, max-age=${TTL_CHARTS}`,
-      ...cors,
-    },
-  });
-  ctx.waitUntil(cache.put(cacheKey, response.clone()));
-  return response;
+function clampPage(raw) {
+  const n = parseInt(raw ?? "1", 10);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(n, 10_000);
 }
 
 // ---------- LiquiSabi (unchanged) ----------
@@ -272,16 +236,6 @@ function concat(chunks) {
 function errorResponse(code, message, cors) {
   return new Response(
     JSON.stringify({ error: { code, message } }),
-    {
-      status: 502,
-      headers: { "Content-Type": "application/json", ...cors },
-    },
-  );
-}
-
-function structuredErrorResponse(err, cors) {
-  return new Response(
-    JSON.stringify({ error: err }),
     {
       status: 502,
       headers: { "Content-Type": "application/json", ...cors },

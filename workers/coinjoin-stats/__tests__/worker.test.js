@@ -1,14 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
 import handler from "../worker.js";
 
 const env = { ALLOWED_ORIGIN: "https://am-i.exposed" };
-
-const here = dirname(fileURLToPath(import.meta.url));
-const HTML_FIXTURE = readFileSync(join(here, "fixtures/whirlpoolstats.html"), "utf8");
-const CSV_FIXTURE = readFileSync(join(here, "fixtures/whirlpool_stats.head-tail.csv"), "utf8");
 
 // Stub the edge cache (caches.default) - the worker calls cache.match/put.
 const cacheStore = new Map();
@@ -25,6 +18,10 @@ globalThis.caches = {
 
 const ctx = { waitUntil: (p) => p };
 
+const SUMMARY = { title: "Whirlpool.Observer", is_synced: true, pools: [{}, {}] };
+const CHARTS = { capacity: { blocks: [1], series: { "0.025_BTC_Pool": [1] } } };
+const TXS = { items: [{ txid: "a" }], page: 1, per_page: 25, total: 1, total_pages: 1 };
+
 beforeEach(() => {
   cacheStore.clear();
   vi.restoreAllMocks();
@@ -38,22 +35,6 @@ function jsonResponse(body, init = {}) {
   return new Response(JSON.stringify(body), {
     status: 200,
     headers: { "Content-Type": "application/json" },
-    ...init,
-  });
-}
-
-function htmlResponse(body, init = {}) {
-  return new Response(body, {
-    status: 200,
-    headers: { "Content-Type": "text/html" },
-    ...init,
-  });
-}
-
-function csvResponse(body, init = {}) {
-  return new Response(body, {
-    status: 200,
-    headers: { "Content-Type": "text/csv" },
     ...init,
   });
 }
@@ -89,8 +70,8 @@ describe("coinjoin-stats worker", () => {
     expect(res.status).toBe(405);
   });
 
-  it("fetches whirlpoolstats.xyz HTML and emits parsed summary JSON", async () => {
-    const spy = withFetchMock(htmlResponse(HTML_FIXTURE));
+  it("passes through whirlpoolstats.xyz/api/summary JSON with 60s cache", async () => {
+    const spy = withFetchMock(jsonResponse(SUMMARY));
     const res = await handler.fetch(
       new Request("https://w.dev/whirlpool/summary", { method: "GET" }),
       env,
@@ -102,16 +83,16 @@ describe("coinjoin-stats worker", () => {
     );
     expect(res.headers.get("Cache-Control")).toBe("public, max-age=60");
     expect(spy).toHaveBeenCalledWith(
-      "https://www.whirlpoolstats.xyz/",
+      "https://whirlpoolstats.xyz/api/summary",
       expect.any(Object),
     );
     const body = await res.json();
+    expect(body.title).toBe("Whirlpool.Observer");
     expect(body.pools).toHaveLength(2);
-    expect(body.total_entered_btc).toBeGreaterThan(0);
   });
 
-  it("fetches whirlpoolstats.xyz CSV and emits parsed charts JSON with 120s cache", async () => {
-    const spy = withFetchMock(csvResponse(CSV_FIXTURE));
+  it("passes through /api/charts JSON with 120s cache", async () => {
+    const spy = withFetchMock(jsonResponse(CHARTS));
     const res = await handler.fetch(
       new Request("https://w.dev/whirlpool/charts", { method: "GET" }),
       env,
@@ -120,15 +101,72 @@ describe("coinjoin-stats worker", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("Cache-Control")).toBe("public, max-age=120");
     expect(spy).toHaveBeenCalledWith(
-      "https://www.whirlpoolstats.xyz/whirlpool_stats.csv",
+      "https://whirlpoolstats.xyz/api/charts",
       expect.any(Object),
     );
     const body = await res.json();
-    expect(Array.isArray(body.blocks)).toBe(true);
-    expect(body.capacity_btc["0.025_BTC_Pool"].length).toBe(body.blocks.length);
+    expect(body.capacity.series["0.025_BTC_Pool"]).toEqual([1]);
   });
 
-  it("returns 502 with structured error when upstream fails", async () => {
+  it("forwards the page query on /whirlpool/txs", async () => {
+    const spy = withFetchMock(jsonResponse(TXS));
+    const res = await handler.fetch(
+      new Request("https://w.dev/whirlpool/txs?page=3", { method: "GET" }),
+      env,
+      ctx,
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=60");
+    expect(spy).toHaveBeenCalledWith(
+      "https://whirlpoolstats.xyz/api/txs?page=3",
+      expect.any(Object),
+    );
+  });
+
+  it("caches txs per page (page 2 is not served page 1's body)", async () => {
+    // Fresh Response per call - a single reused Response would lock its body
+    // stream on the second upstream read.
+    const spy = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async () => jsonResponse(TXS));
+    // Page 1 and page 2 must each hit the upstream (distinct cache keys)...
+    await handler.fetch(
+      new Request("https://w.dev/whirlpool/txs?page=1", { method: "GET" }),
+      env,
+      ctx,
+    );
+    await handler.fetch(
+      new Request("https://w.dev/whirlpool/txs?page=2", { method: "GET" }),
+      env,
+      ctx,
+    );
+    expect(spy).toHaveBeenCalledTimes(2);
+    // ...and a repeat of page 1 is served from cache (no third fetch).
+    await handler.fetch(
+      new Request("https://w.dev/whirlpool/txs?page=1", { method: "GET" }),
+      env,
+      ctx,
+    );
+    expect(spy).toHaveBeenCalledTimes(2);
+    const urls = spy.mock.calls.map((c) => c[0]);
+    expect(urls).toContain("https://whirlpoolstats.xyz/api/txs?page=1");
+    expect(urls).toContain("https://whirlpoolstats.xyz/api/txs?page=2");
+  });
+
+  it("clamps a bad page to 1", async () => {
+    const spy = withFetchMock(jsonResponse(TXS));
+    await handler.fetch(
+      new Request("https://w.dev/whirlpool/txs?page=-5", { method: "GET" }),
+      env,
+      ctx,
+    );
+    expect(spy).toHaveBeenCalledWith(
+      "https://whirlpoolstats.xyz/api/txs?page=1",
+      expect.any(Object),
+    );
+  });
+
+  it("returns 502 UPSTREAM_DOWN when upstream fetch rejects", async () => {
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network"));
     const res = await handler.fetch(
       new Request("https://w.dev/whirlpool/summary", { method: "GET" }),
@@ -140,21 +178,8 @@ describe("coinjoin-stats worker", () => {
     expect(body.error?.code).toBe("UPSTREAM_DOWN");
   });
 
-  it("returns 502 with PARSER_HTML code when the HTML structure breaks", async () => {
-    withFetchMock(htmlResponse("<html><body>nothing here</body></html>"));
-    const res = await handler.fetch(
-      new Request("https://w.dev/whirlpool/summary", { method: "GET" }),
-      env,
-      ctx,
-    );
-    expect(res.status).toBe(502);
-    const body = await res.json();
-    expect(body.error?.code).toBe("PARSER_HTML");
-    expect(Array.isArray(body.error?.fields_missing)).toBe(true);
-  });
-
-  it("returns 502 with PARSER_CSV code when the CSV is too short", async () => {
-    withFetchMock(csvResponse("899205,0.05,0.0\n899206,0.05,0.0\n"));
+  it("returns 502 UPSTREAM_HTTP when upstream responds non-2xx", async () => {
+    withFetchMock(new Response("nope", { status: 503 }));
     const res = await handler.fetch(
       new Request("https://w.dev/whirlpool/charts", { method: "GET" }),
       env,
@@ -162,7 +187,7 @@ describe("coinjoin-stats worker", () => {
     );
     expect(res.status).toBe(502);
     const body = await res.json();
-    expect(body.error?.code).toBe("PARSER_CSV");
+    expect(body.error?.code).toBe("UPSTREAM_HTTP");
   });
 
   it("accepts liquisabi dashboard POST and forwards to upstream", async () => {
@@ -225,7 +250,7 @@ describe("coinjoin-stats worker", () => {
   });
 
   it("serves the second whirlpool request from edge cache", async () => {
-    const spy = withFetchMock(htmlResponse(HTML_FIXTURE));
+    const spy = withFetchMock(jsonResponse(SUMMARY));
     await handler.fetch(
       new Request("https://w.dev/whirlpool/summary", { method: "GET" }),
       env,

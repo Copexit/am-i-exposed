@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageShell } from "@/components/PageShell";
 import { useNetwork } from "@/context/NetworkContext";
@@ -8,10 +9,13 @@ import { useChainTip } from "@/hooks/useChainTip";
 import { ObservatoryHero } from "@/components/observatory/ObservatoryHero";
 import { WhirlpoolPoolCard } from "@/components/observatory/WhirlpoolPoolCard";
 import { WabiSabiCoordinatorCard } from "@/components/observatory/WabiSabiCoordinatorCard";
+import { RecentCyclesTable } from "@/components/observatory/RecentCyclesTable";
 import { ObservatoryAttribution } from "@/components/observatory/ObservatoryAttribution";
 import { ObservatoryErrorState } from "@/components/observatory/ObservatoryErrorState";
 import { TrendChart, type TrendSeries } from "@/components/observatory/TrendChart";
 import {
+  activeCoordinators,
+  inactiveCoordinators,
   liquiSabiFreshInputSparkline,
   projectCoordinators,
   whirlpoolLifetimeCycles,
@@ -19,7 +23,7 @@ import {
   whirlpoolSparkline,
 } from "@/lib/observatory/selectors";
 import { fmtN } from "@/lib/format";
-import type { LiquiSabiGraphEntry } from "@/lib/observatory/types";
+import type { CoordinatorView, LiquiSabiGraphEntry } from "@/lib/observatory/types";
 
 function fmtBtc(value: number): string {
   return `${value.toFixed(3).replace(/\.?0+$/, "")} BTC`;
@@ -50,7 +54,9 @@ export default function ObservatoryPage() {
     );
   }
 
-  const coordinators = liquisabi ? projectCoordinators(liquisabi) : [];
+  const allCoordinators = liquisabi ? projectCoordinators(liquisabi) : [];
+  const activeCoords = activeCoordinators(allCoordinators);
+  const inactiveCoords = inactiveCoordinators(allCoordinators);
   const wabisabiSparkline = liquisabi
     ? liquiSabiFreshInputSparkline(liquisabi.Graph)
     : [];
@@ -61,7 +67,7 @@ export default function ObservatoryPage() {
   const lifetimeEntered = summary ? whirlpoolLifetimeEntered(summary) : null;
   const lifetimeCycles = summary ? whirlpoolLifetimeCycles(summary) : null;
 
-  const whirlpoolUpstreamBlock = summary?.tip_block_height ?? null;
+  const whirlpoolUpstreamBlock = summary?.tip_height ?? null;
   const lagBlocks =
     tipHeight != null && whirlpoolUpstreamBlock != null
       ? Math.max(0, tipHeight - whirlpoolUpstreamBlock)
@@ -134,6 +140,26 @@ export default function ObservatoryPage() {
         )}
       </section>
 
+      {/* Recent Whirlpool cycles */}
+      {whirlpool?.txs && whirlpool.txs.items.length > 0 && (
+        <section className="space-y-4">
+          <div className="space-y-1">
+            <h2 className="text-xl font-semibold text-foreground">
+              {t("observatory.cycles.sectionTitle", {
+                defaultValue: "Recent Whirlpool cycles",
+              })}
+            </h2>
+            <p className="text-sm text-muted">
+              {t("observatory.cycles.sectionSubtitle", {
+                defaultValue:
+                  "Latest coinjoin cycles and TX0 activity. Select any cycle to inspect it in the scanner.",
+              })}
+            </p>
+          </div>
+          <RecentCyclesTable firstPage={whirlpool.txs} />
+        </section>
+      )}
+
       {/* WabiSabi */}
       <section className="space-y-4">
         <h2 className="text-xl font-semibold text-foreground">
@@ -142,15 +168,22 @@ export default function ObservatoryPage() {
         {loading && !liquisabi ? (
           <SkeletonCards count={3} />
         ) : liquisabi ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {coordinators.map((c) => (
-              <WabiSabiCoordinatorCard
-                key={c.endpoint}
-                coordinator={c}
-                avgAnonIn={liquisabi.Summary?.AverageStandardInputsAnonSet ?? null}
-                avgAnonOut={liquisabi.Summary?.AverageStandardOutputsAnonSet ?? null}
-              />
-            ))}
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {activeCoords.map((c) => (
+                <WabiSabiCoordinatorCard
+                  key={c.endpoint}
+                  coordinator={c}
+                  avgAnonIn={liquisabi.Summary?.AverageStandardInputsAnonSet ?? null}
+                  avgAnonOut={liquisabi.Summary?.AverageStandardOutputsAnonSet ?? null}
+                />
+              ))}
+            </div>
+            <InactiveCoordinators
+              coordinators={inactiveCoords}
+              avgAnonIn={liquisabi.Summary?.AverageStandardInputsAnonSet ?? null}
+              avgAnonOut={liquisabi.Summary?.AverageStandardOutputsAnonSet ?? null}
+            />
           </div>
         ) : (
           <ObservatoryErrorState source="liquisabi" staleAt={lastUpdatedAt} />
@@ -251,6 +284,59 @@ function SyncPill({ lagBlocks, upstreamBlock }: SyncPillProps) {
             lag: lagBlocks.toLocaleString("en-US"),
           })}
     </span>
+  );
+}
+
+interface InactiveCoordinatorsProps {
+  coordinators: CoordinatorView[];
+  avgAnonIn: number | null;
+  avgAnonOut: number | null;
+}
+
+/**
+ * Coordinators idle for 30+ days are hidden behind a toggle rather than mixed
+ * into the active grid, keeping them discoverable without cluttering the page.
+ */
+function InactiveCoordinators({
+  coordinators,
+  avgAnonIn,
+  avgAnonOut,
+}: InactiveCoordinatorsProps) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+
+  if (coordinators.length === 0) return null;
+
+  return (
+    <div className="space-y-4">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="text-sm font-medium text-muted hover:text-foreground transition-colors"
+      >
+        {open
+          ? t("observatory.wabisabi.hideInactive", {
+              defaultValue: "Hide inactive coordinators",
+            })
+          : t("observatory.wabisabi.showInactive", {
+              defaultValue: "Show {{n}} inactive (30d+)",
+              n: fmtN(coordinators.length),
+            })}
+      </button>
+      {open && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {coordinators.map((c) => (
+            <WabiSabiCoordinatorCard
+              key={c.endpoint}
+              coordinator={c}
+              avgAnonIn={avgAnonIn}
+              avgAnonOut={avgAnonOut}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

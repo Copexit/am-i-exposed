@@ -1,0 +1,54 @@
+{
+  "items": [
+    {
+      "am_i_exposed_url": "http://am-i.exposed/#tx=40a21f2c1177ffdbd80f4162df0d585d0269a18f4a9568d6b450421fa40ad6a9",
+      "block_height": 957584,
+      "pool_color": "#8e8e93",
+      "pool_label": "0.025 BTC Pool",
+      "pool_name": "0.025_BTC_Pool",
+      "tx0_inputs": [
+        {
+          "fee_efficiency_pct": "0.50",
+          "txid": "1f540dfac58f6fc467d0f2664b9e554a0433cfdf836cffc3f2374fc15cabf77b"
+        },
+        {
+          "fee_efficiency_pct": "5.00",
+          "txid": "6f3e76c47f2b21855fbccd0d625a2c079b36914ff6c0ce0bee5a47cafbd10f7a"
+        }
+      ],
+      "txid": "40a21f2c1177ffdbd80f4162df0d585d0269a18f4a9568d6b450421fa40ad6a9"
+    },
+    {
+      "am_i_exposed_url": "http://am-i.exposed/#tx=d27712a2151257e274fe5bd2d4ad899902daf8d06c9f1c4e213ba9db823023dd",
+      "block_height": 957583,
+      "pool_color": "#8e8e93",
+      "pool_label": "0.025 BTC Pool",
+      "pool_name": "0.025_BTC_Pool",
+      "tx0_inputs": [
+        {
+          "fee_efficiency_pct": "0.50",
+          "txid": "1f540dfac58f6fc467d0f2664b9e554a0433cfdf836cffc3f2374fc15cabf77b"
+        }
+      ],
+      "txid": "d27712a2151257e274fe5bd2d4ad899902daf8d06c9f1c4e213ba9db823023dd"
+    },
+    {
+      "am_i_exposed_url": "http://am-i.exposed/#tx=cf6b90b8fc9d0e2c8b1a3f4e5d6c7b8a9f0e1d2c3b4a5f6e7d8c9b0a1f2e3d4c",
+      "block_height": 957573,
+      "pool_color": "#f5f5f7",
+      "pool_label": "0.25 BTC Pool",
+      "pool_name": "0.25_BTC_Pool",
+      "tx0_inputs": [
+        {
+          "fee_efficiency_pct": "0.83",
+          "txid": "027e6bae65cdc4a83c36260a7243043fc57f7633e41bd6cba1aa7070cb9fb05e"
+        }
+      ],
+      "txid": "cf6b90b8fc9d0e2c8b1a3f4e5d6c7b8a9f0e1d2c3b4a5f6e7d8c9b0a1f2e3d4c"
+    }
+  ],
+  "page": 1,
+  "per_page": 25,
+  "total": 704,
+  "total_pages": 29
+}

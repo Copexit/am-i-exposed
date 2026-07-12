@@ -13,7 +13,7 @@ interface ObservatoryErrorStateProps {
 }
 
 const SOURCE_URLS: Record<"whirlpool" | "liquisabi", string> = {
-  whirlpool: "https://www.whirlpoolstats.xyz",
+  whirlpool: "https://whirlpoolstats.xyz",
   liquisabi: "https://liquisabi.com",
 };
 

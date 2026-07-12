@@ -1,22 +1,53 @@
 import { describe, it, expect } from "vitest";
 import {
+  activeCoordinators,
   downsampleSeries,
+  inactiveCoordinators,
   liquiSabiFreshInputSparkline,
   projectCoordinators,
   sumRecentFreshInputs,
   sumRecentRoundCount,
+  toCycleRows,
   unpaidCoordinators,
   whirlpool30dDelta,
   whirlpoolCurrentCapacity,
+  whirlpoolLifetimeCycles,
+  whirlpoolLifetimeEntered,
   whirlpoolSparkline,
   whirlpoolTotalCurrentCapacity,
+  whirlpoolTotalTx0,
+  whirlpoolTotalUnspent,
+  whirlpoolTotalUnspentUtxos,
 } from "../selectors";
 import chartsFixture from "./fixtures/whirlpool-charts.json";
+import summaryFixture from "./fixtures/whirlpool-summary.json";
+import txsFixture from "./fixtures/whirlpool-txs.json";
 import dashboardFixture from "./fixtures/liquisabi-dashboard.json";
-import type { LiquiSabiDashboard, WhirlpoolCharts } from "../types";
+import type {
+  CoordinatorView,
+  LiquiSabiDashboard,
+  WhirlpoolCharts,
+  WhirlpoolSummary,
+  WhirlpoolTxsPage,
+} from "../types";
 
 const charts = chartsFixture as WhirlpoolCharts;
+const summary = summaryFixture as WhirlpoolSummary;
+const txs = txsFixture as WhirlpoolTxsPage;
 const dashboard = dashboardFixture as unknown as LiquiSabiDashboard;
+
+function view(overrides: Partial<CoordinatorView>): CoordinatorView {
+  return {
+    endpoint: "https://example.test/",
+    name: "Example",
+    readMore: "",
+    description: "",
+    freshInputPercent: 0,
+    roundCount: 0,
+    isPaid: false,
+    ...overrides,
+  };
+}
 
 describe("downsampleSeries", () => {
   it("returns the original points when below the max", () => {
@@ -48,10 +79,10 @@ describe("downsampleSeries", () => {
 });
 
 describe("whirlpoolSparkline", () => {
-  it("returns sparkline points for a known pool key from the cumulative series", () => {
+  it("returns sparkline points for a known pool key from the capacity series", () => {
     const points = whirlpoolSparkline(charts, "0.025_BTC_Pool");
-    expect(points.length).toBe(charts.blocks.length);
-    expect(points[points.length - 1].y).toBe(22.95);
+    expect(points.length).toBe(charts.capacity.blocks.length);
+    expect(points[points.length - 1].y).toBe(13.65);
   });
 
   it("returns [] for an unknown pool key", () => {
@@ -61,8 +92,8 @@ describe("whirlpoolSparkline", () => {
 
 describe("whirlpoolCurrentCapacity", () => {
   it("returns the last sample of a pool series", () => {
-    expect(whirlpoolCurrentCapacity(charts, "0.025_BTC_Pool")).toBe(22.95);
-    expect(whirlpoolCurrentCapacity(charts, "0.25_BTC_Pool")).toBe(95.5);
+    expect(whirlpoolCurrentCapacity(charts, "0.025_BTC_Pool")).toBe(13.65);
+    expect(whirlpoolCurrentCapacity(charts, "0.25_BTC_Pool")).toBe(62.75);
   });
 
   it("returns null for an unknown pool", () => {
@@ -72,26 +103,68 @@ describe("whirlpoolCurrentCapacity", () => {
 
 describe("whirlpoolTotalCurrentCapacity", () => {
   it("sums the last sample across all pools", () => {
-    expect(whirlpoolTotalCurrentCapacity(charts)).toBeCloseTo(22.95 + 95.5);
+    expect(whirlpoolTotalCurrentCapacity(charts)).toBeCloseTo(13.65 + 62.75);
   });
 });
 
 describe("whirlpool30dDelta", () => {
   it("returns null if the series is shorter than 30 days of blocks", () => {
-    const short = {
-      blocks: [900000, 900100, 900200],
-      capacity_btc: { p: [10, 11, 12] },
+    const short: WhirlpoolCharts = {
+      capacity: { blocks: [900000, 900100, 900200], series: { p: [10, 11, 12] } },
+      entered: { blocks: [], series: {} },
+      entered_utxos: { blocks: [], total_utxos: [] },
+      utxos: { blocks: [], total_utxos: [] },
     };
     expect(whirlpool30dDelta(short, "p")).toBeNull();
   });
 
   it("returns the net change in capacity across the recent window", () => {
-    // Synthesize a series where the last block is current and 4320 blocks
-    // ago capacity was 10 BTC, current is 22.95 BTC.
     const blocks = [900000, 947000, 951952];
-    const series = { blocks, capacity_btc: { p: [5, 10, 22.95] } };
-    const delta = whirlpool30dDelta(series, "p");
-    expect(delta).toBeCloseTo(12.95, 1);
+    const synth: WhirlpoolCharts = {
+      capacity: { blocks, series: { p: [5, 10, 22.95] } },
+      entered: { blocks: [], series: {} },
+      entered_utxos: { blocks: [], total_utxos: [] },
+      utxos: { blocks: [], total_utxos: [] },
+    };
+    expect(whirlpool30dDelta(synth, "p")).toBeCloseTo(12.95, 1);
+  });
+});
+
+describe("whirlpool summary aggregates", () => {
+  it("sums lifetime entered across pools", () => {
+    expect(whirlpoolLifetimeEntered(summary)).toBeCloseTo(27.15 + 100.0);
+  });
+
+  it("sums lifetime cycles across pools", () => {
+    expect(whirlpoolLifetimeCycles(summary)).toBe(521 + 183);
+  });
+
+  it("sums currently-unspent BTC across pools", () => {
+    expect(whirlpoolTotalUnspent(summary)).toBeCloseTo(13.65 + 62.75);
+  });
+
+  it("sums currently-unspent UTXOs across pools", () => {
+    expect(whirlpoolTotalUnspentUtxos(summary)).toBe(546 + 251);
+  });
+
+  it("sums lifetime TX0 count across pools", () => {
+    expect(whirlpoolTotalTx0(summary)).toBe(251 + 36);
+  });
+});
+
+describe("toCycleRows", () => {
+  it("maps txs items to rows with same-origin scan links", () => {
+    const rows = toCycleRows(txs);
+    expect(rows).toHaveLength(3);
+    expect(rows[0].txid).toBe(txs.items[0].txid);
+    expect(rows[0].scanHref).toBe(`/#tx=${txs.items[0].txid}`);
+    expect(rows[0].blockHeight).toBe(957584);
+    expect(rows[0].poolLabel).toBe("0.025 BTC Pool");
+    expect(rows[0].tx0Count).toBe(2);
+  });
+
+  it("returns [] for a null page", () => {
+    expect(toCycleRows(null)).toEqual([]);
   });
 });
 
@@ -131,6 +204,31 @@ describe("unpaidCoordinators", () => {
     const views = projectCoordinators(dashboard);
     const free = unpaidCoordinators(views);
     expect(free.map((v) => v.name)).toEqual(["Kruw.io", "OpenCoordinator"]);
+  });
+});
+
+describe("activeCoordinators / inactiveCoordinators", () => {
+  const views = [
+    view({ name: "Live", roundCount: 42 }),
+    view({ name: "Idle", roundCount: 0 }),
+    view({ name: "AlsoLive", roundCount: 1 }),
+  ];
+
+  it("keeps only coordinators with rounds in the last 30 days", () => {
+    expect(activeCoordinators(views).map((v) => v.name)).toEqual([
+      "Live",
+      "AlsoLive",
+    ]);
+  });
+
+  it("keeps only coordinators idle for 30+ days", () => {
+    expect(inactiveCoordinators(views).map((v) => v.name)).toEqual(["Idle"]);
+  });
+
+  it("partitions the fixture coordinators (all active) with none idle", () => {
+    const projected = projectCoordinators(dashboard);
+    expect(activeCoordinators(projected)).toHaveLength(3);
+    expect(inactiveCoordinators(projected)).toHaveLength(0);
   });
 });
 

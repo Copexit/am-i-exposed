@@ -1,25 +1,37 @@
 {
-  "title": "Ashigaru Whirlpool Statistics",
-  "last_updated_iso": "2026-05-25T08:21:07Z",
-  "start_block_height": 899205,
-  "tip_block_height": 951952,
-  "total_entered_btc": 157.6,
+  "api_url": "https://mempool.space/api",
+  "current_processing_block": 957629,
+  "is_synced": true,
+  "last_processed_block": 957629,
+  "last_report_refresh_ts": 1783813878,
+  "next_update_seconds": 33447,
   "pools": [
     {
-      "pool": "0.025_BTC_Pool",
-      "label": "0.025 BTC Pool",
+      "avg_fee_efficiency_pct": 2.8314507159390785,
       "color": "#8e8e93",
-      "denomination_btc": 0.025,
-      "total_entered_btc": 32.1,
-      "cycles": 459
+      "cycles": 521,
+      "entered_btc": 27.15,
+      "label": "0.025 BTC Pool",
+      "pool": "0.025_BTC_Pool",
+      "tx0_count": 251,
+      "unspent_btc": 13.65,
+      "unspent_utxos": 546
     },
     {
-      "pool": "0.25_BTC_Pool",
-      "label": "0.25 BTC Pool",
+      "avg_fee_efficiency_pct": 1.7717702821869488,
       "color": "#f5f5f7",
-      "denomination_btc": 0.25,
-      "total_entered_btc": 125.5,
-      "cycles": 191
+      "cycles": 183,
+      "entered_btc": 100.0,
+      "label": "0.25 BTC Pool",
+      "pool": "0.25_BTC_Pool",
+      "tx0_count": 36,
+      "unspent_btc": 62.75,
+      "unspent_utxos": 251
     }
-  ]
+  ],
+  "progress_pct": 100.0,
+  "rescan_hours": 12.0,
+  "start_block_height": 899205,
+  "tip_height": 957629,
+  "title": "Whirlpool.Observer"
 }

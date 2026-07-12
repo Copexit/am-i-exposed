@@ -5,7 +5,6 @@ import { fmtN } from "@/lib/format";
 import { Sparkline } from "./Sparkline";
 import {
   whirlpool30dDelta,
-  whirlpoolCurrentCapacity,
   whirlpoolSparkline,
 } from "@/lib/observatory/selectors";
 import type {
@@ -15,7 +14,7 @@ import type {
 
 interface WhirlpoolPoolCardProps {
   pool: WhirlpoolPoolStats;
-  /** Full charts payload, used for the inline sparkline + 30d delta + live capacity. */
+  /** Full charts payload, used for the inline sparkline + 30d delta. */
   charts: WhirlpoolCharts | null;
 }
 
@@ -26,7 +25,6 @@ function fmtBtc(value: number): string {
 export function WhirlpoolPoolCard({ pool, charts }: WhirlpoolPoolCardProps) {
   const { t } = useTranslation();
   const points = charts ? whirlpoolSparkline(charts, pool.pool) : [];
-  const currentCapacity = charts ? whirlpoolCurrentCapacity(charts, pool.pool) : null;
   const delta30d = charts ? whirlpool30dDelta(charts, pool.pool) : null;
 
   const deltaArrow = delta30d == null ? null : delta30d > 0 ? "↑" : delta30d < 0 ? "↓" : "·";
@@ -54,15 +52,11 @@ export function WhirlpoolPoolCard({ pool, charts }: WhirlpoolPoolCardProps) {
         </span>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-1">
         <div className="flex items-baseline justify-between gap-2 flex-wrap">
-          {currentCapacity != null ? (
-            <div className="text-2xl sm:text-3xl font-bold text-bitcoin tabular-nums">
-              {fmtBtc(currentCapacity)}
-            </div>
-          ) : (
-            <div className="text-2xl sm:text-3xl font-bold text-muted/40 tabular-nums">·</div>
-          )}
+          <div className="text-2xl sm:text-3xl font-bold text-bitcoin tabular-nums">
+            {fmtBtc(pool.unspent_btc)}
+          </div>
           {delta30d != null && (
             <span
               className={`text-xs font-medium tabular-nums whitespace-nowrap ${deltaTone}`}
@@ -73,15 +67,37 @@ export function WhirlpoolPoolCard({ pool, charts }: WhirlpoolPoolCardProps) {
           )}
         </div>
         <div className="text-xs text-muted">
-          {t("observatory.whirlpool.currentCapacity", {
-            defaultValue: "current capacity",
-          })}
-          {" · "}
-          {t("observatory.whirlpool.lifetimeEntered", {
-            defaultValue: "lifetime entered {{btc}}",
-            btc: fmtBtc(pool.total_entered_btc),
+          {t("observatory.whirlpool.unspentCapacity", {
+            defaultValue: "unspent capacity",
           })}
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+        <Stat
+          label={t("observatory.whirlpool.lifetimeEnteredLabel", {
+            defaultValue: "Lifetime entered",
+          })}
+          value={fmtBtc(pool.entered_btc)}
+        />
+        <Stat
+          label={t("observatory.whirlpool.unspentUtxos", {
+            defaultValue: "Unspent UTXOs",
+          })}
+          value={fmtN(pool.unspent_utxos)}
+        />
+        <Stat
+          label={t("observatory.whirlpool.tx0Count", {
+            defaultValue: "TX0s",
+          })}
+          value={fmtN(pool.tx0_count)}
+        />
+        <Stat
+          label={t("observatory.whirlpool.avgFeeEfficiency", {
+            defaultValue: "Avg fee efficiency",
+          })}
+          value={`${pool.avg_fee_efficiency_pct.toFixed(2)}%`}
+        />
       </div>
 
       <Sparkline
@@ -92,6 +108,17 @@ export function WhirlpoolPoolCard({ pool, charts }: WhirlpoolPoolCardProps) {
         className="w-full text-bitcoin"
         ariaLabel={`${pool.label} capacity history`}
       />
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-xs text-muted truncate">{label}</div>
+      <div className="text-base font-medium text-foreground tabular-nums">
+        {value}
+      </div>
     </div>
   );
 }

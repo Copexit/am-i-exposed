@@ -1,14 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Readable } from "node:stream";
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
 import { createHandler } from "../handler.js";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const WORKER_FIXTURE_DIR = join(here, "../../../workers/coinjoin-stats/__tests__/fixtures");
-const HTML_FIXTURE = readFileSync(join(WORKER_FIXTURE_DIR, "whirlpoolstats.html"), "utf8");
-const CSV_FIXTURE = readFileSync(join(WORKER_FIXTURE_DIR, "whirlpool_stats.head-tail.csv"), "utf8");
+const SUMMARY_JSON = JSON.stringify({
+  title: "Whirlpool.Observer",
+  is_synced: true,
+  pools: [{}, {}],
+});
+const CHARTS_JSON = JSON.stringify({
+  capacity: { blocks: [1], series: { "0.025_BTC_Pool": [1] } },
+});
+const TXS_JSON = JSON.stringify({
+  items: [{ txid: "a" }],
+  page: 1,
+  per_page: 25,
+  total: 1,
+  total_pages: 1,
+});
 
 function makeReq({ url, method = "GET", body }) {
   const stream = Readable.from(body ? [Buffer.from(body)] : []);
@@ -60,44 +68,53 @@ describe("tor-proxy handler", () => {
     expect(res.body()).toBe("ok");
   });
 
-  it("parses whirlpoolstats HTML into a WhirlpoolSummary on /observatory/whirlpool/summary", async () => {
-    const fetchViaAgent = vi.fn().mockResolvedValue(HTML_FIXTURE);
+  it("passes through /api/summary JSON on /observatory/whirlpool/summary", async () => {
+    const fetchViaAgent = vi.fn().mockResolvedValue(SUMMARY_JSON);
     const handler = createHandler({ fetchViaAgent, logger: silentLogger });
     const res = makeRes();
     await handler(makeReq({ url: "/observatory/whirlpool/summary" }), res);
     expect(res.status()).toBe(200);
     expect(fetchViaAgent).toHaveBeenCalledWith(
-      "https://www.whirlpoolstats.xyz/",
+      "https://whirlpoolstats.xyz/api/summary",
       expect.any(Object),
     );
-    const parsed = JSON.parse(res.body());
-    expect(parsed.pools).toHaveLength(2);
-    expect(parsed.total_entered_btc).toBeGreaterThan(0);
+    expect(res.body()).toBe(SUMMARY_JSON);
   });
 
-  it("parses whirlpoolstats CSV into a downsampled WhirlpoolCharts", async () => {
-    const fetchViaAgent = vi.fn().mockResolvedValue(CSV_FIXTURE);
+  it("passes through /api/charts JSON on /observatory/whirlpool/charts", async () => {
+    const fetchViaAgent = vi.fn().mockResolvedValue(CHARTS_JSON);
     const handler = createHandler({ fetchViaAgent, logger: silentLogger });
     const res = makeRes();
     await handler(makeReq({ url: "/observatory/whirlpool/charts" }), res);
     expect(res.status()).toBe(200);
     expect(fetchViaAgent).toHaveBeenCalledWith(
-      "https://www.whirlpoolstats.xyz/whirlpool_stats.csv",
+      "https://whirlpoolstats.xyz/api/charts",
       expect.any(Object),
     );
-    const parsed = JSON.parse(res.body());
-    expect(Array.isArray(parsed.blocks)).toBe(true);
-    expect(parsed.blocks.length).toBeLessThanOrEqual(513);
+    expect(res.body()).toBe(CHARTS_JSON);
   });
 
-  it("returns 502 with PARSER_HTML code when the HTML can't be parsed", async () => {
-    const fetchViaAgent = vi.fn().mockResolvedValue("<html><body>nope</body></html>");
+  it("forwards the page query on /observatory/whirlpool/txs", async () => {
+    const fetchViaAgent = vi.fn().mockResolvedValue(TXS_JSON);
     const handler = createHandler({ fetchViaAgent, logger: silentLogger });
     const res = makeRes();
-    await handler(makeReq({ url: "/observatory/whirlpool/summary" }), res);
-    expect(res.status()).toBe(502);
-    const parsed = JSON.parse(res.body());
-    expect(parsed.error?.code).toBe("PARSER_HTML");
+    await handler(makeReq({ url: "/observatory/whirlpool/txs?page=2" }), res);
+    expect(res.status()).toBe(200);
+    expect(fetchViaAgent).toHaveBeenCalledWith(
+      "https://whirlpoolstats.xyz/api/txs?page=2",
+      expect.any(Object),
+    );
+  });
+
+  it("defaults txs to page 1 when the query is absent", async () => {
+    const fetchViaAgent = vi.fn().mockResolvedValue(TXS_JSON);
+    const handler = createHandler({ fetchViaAgent, logger: silentLogger });
+    const res = makeRes();
+    await handler(makeReq({ url: "/observatory/whirlpool/txs" }), res);
+    expect(fetchViaAgent).toHaveBeenCalledWith(
+      "https://whirlpoolstats.xyz/api/txs?page=1",
+      expect.any(Object),
+    );
   });
 
   it("405s POST to a whirlpool path", async () => {
@@ -113,12 +130,14 @@ describe("tor-proxy handler", () => {
     expect(res.status()).toBe(405);
   });
 
-  it("returns 502 when whirlpool upstream fails", async () => {
+  it("returns 502 UPSTREAM_DOWN when whirlpool upstream fails", async () => {
     const fetchViaAgent = vi.fn().mockRejectedValue(new Error("boom"));
     const handler = createHandler({ fetchViaAgent, logger: silentLogger });
     const res = makeRes();
     await handler(makeReq({ url: "/observatory/whirlpool/summary" }), res);
     expect(res.status()).toBe(502);
+    const parsed = JSON.parse(res.body());
+    expect(parsed.error?.code).toBe("UPSTREAM_DOWN");
   });
 
   it("POST /observatory/liquisabi/api with method=dashboard is forwarded", async () => {
