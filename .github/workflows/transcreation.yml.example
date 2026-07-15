@@ -1,0 +1,347 @@
+name: Transcreation
+
+# Translates missing/changed keys across all locales and opens a PR.
+# Uses the transcreation-exposed Claude Code skill.
+#
+# Trigger: manual dispatch or schedule (weekly).
+# The QC workflow (translation-qc.yml) runs automatically on the resulting PR.
+
+on:
+  schedule:
+    - cron: '0 6 * * 1' # Monday 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      locale:
+        description: 'Target locale (blank = all missing)'
+        type: choice
+        options:
+          - all
+          - de
+          - es
+          - pt
+          - fr
+        default: all
+      dry_run:
+        description: 'Dry run - diff only, no PR'
+        type: boolean
+        default: false
+
+concurrency:
+  group: transcreation
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  diff:
+    name: Detect missing and stale translations
+    runs-on: ubuntu-latest
+    outputs:
+      has_work: ${{ steps.diff.outputs.has_work }}
+      summary: ${{ steps.diff.outputs.summary }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Diff locales against English source
+        id: diff
+        run: |
+          python3 << 'PYEOF'
+          import json, os, subprocess
+
+          locale_filter = os.environ.get("LOCALE_FILTER", "all")
+          locales = ["de", "es", "pt", "fr"]
+          if locale_filter != "all":
+              locales = [locale_filter]
+
+          # Current English source
+          en = json.load(open("public/locales/en/common.json"))
+          en_keys = set(en.keys())
+
+          def get_en_at_last_sync(lang):
+              """Get English source values at the time the locale was last translated.
+
+              Finds the most recent commit that touched the target locale file,
+              then reads the English source at that commit. Keys where the English
+              value changed since that commit have stale translations.
+
+              Limitation: if someone edits the target locale file for reasons
+              other than a sync (e.g., fixing a typo), this resets the baseline
+              and may miss EN changes that happened before that edit."""
+              target_path = f"public/locales/{lang}/common.json"
+              en_path = "public/locales/en/common.json"
+              try:
+                  result = subprocess.run(
+                      ["git", "log", "-1", "--format=%H", "--", target_path],
+                      capture_output=True, text=True, check=True
+                  )
+                  last_sync_sha = result.stdout.strip()
+                  if not last_sync_sha:
+                      return None
+
+                  result = subprocess.run(
+                      ["git", "show", f"{last_sync_sha}:{en_path}"],
+                      capture_output=True, text=True, check=True
+                  )
+                  return json.loads(result.stdout)
+              except (subprocess.CalledProcessError, json.JSONDecodeError):
+                  return None
+
+          total_work = 0
+          summary_lines = []
+          diff_details = {}
+
+          for lang in locales:
+              path = f"public/locales/{lang}/common.json"
+              if not os.path.exists(path):
+                  summary_lines.append(f"{lang}: new locale (all {len(en_keys)} keys)")
+                  total_work += len(en_keys)
+                  diff_details[lang] = {"new": list(en_keys), "stale": [], "orphaned": []}
+                  continue
+
+              target = json.load(open(path))
+              target_keys = set(target.keys())
+
+              missing = sorted(en_keys - target_keys)
+              orphaned = sorted(target_keys - en_keys)
+
+              stale = []
+              en_at_sync = get_en_at_last_sync(lang)
+              if en_at_sync:
+                  for key in sorted(en_keys & target_keys):
+                      old_val = en_at_sync.get(key)
+                      new_val = en.get(key)
+                      if old_val is not None and old_val != new_val:
+                          stale.append(key)
+
+              parts = []
+              if missing:
+                  parts.append(f"{len(missing)} missing")
+              if stale:
+                  parts.append(f"{len(stale)} stale")
+              if orphaned:
+                  parts.append(f"{len(orphaned)} orphaned")
+              if not parts:
+                  parts.append("up to date")
+
+              summary_lines.append(f"{lang}: {', '.join(parts)}")
+              total_work += len(missing) + len(stale)
+              diff_details[lang] = {"new": missing, "stale": stale, "orphaned": orphaned}
+
+          summary = "; ".join(summary_lines)
+          has_work = "true" if total_work > 0 else "false"
+
+          with open("/tmp/i18n-diff.json", "w") as f:
+              json.dump(diff_details, f, indent=2)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"has_work={has_work}\n")
+              f.write(f"summary={summary}\n")
+
+          print(f"has_work={has_work}")
+          print(f"summary={summary}")
+          for lang, d in diff_details.items():
+              if d["new"]:
+                  print(f"  {lang} new: {d['new'][:5]}{'...' if len(d['new']) > 5 else ''}")
+              if d["stale"]:
+                  print(f"  {lang} stale: {d['stale'][:5]}{'...' if len(d['stale']) > 5 else ''}")
+              if d["orphaned"]:
+                  print(f"  {lang} orphaned: {d['orphaned'][:5]}{'...' if len(d['orphaned']) > 5 else ''}")
+          PYEOF
+        env:
+          LOCALE_FILTER: ${{ inputs.locale || 'all' }}
+
+      - name: Upload diff details
+        if: steps.diff.outputs.has_work == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: i18n-diff
+          path: /tmp/i18n-diff.json
+          retention-days: 1
+
+  translate:
+    name: Translate missing keys
+    runs-on: ubuntu-latest
+    needs: diff
+    # On schedule trigger, inputs is empty so dry_run is null (always runs).
+    # Dry run is only available via manual workflow_dispatch.
+    if: needs.diff.outputs.has_work == 'true' && inputs.dry_run != true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download diff details
+        uses: actions/download-artifact@v4
+        with:
+          name: i18n-diff
+          path: /tmp/
+
+      - name: Set up Claude Code skills symlink
+        run: mkdir -p .claude && ln -sf ../tools/skills .claude/skills
+
+      - name: Build translation prompt
+        id: prompt
+        run: |
+          python3 << 'PYEOF'
+          import json, os
+
+          diff = json.load(open("/tmp/i18n-diff.json"))
+          en = json.load(open("public/locales/en/common.json"))
+
+          sections = []
+          for lang, d in diff.items():
+              if not d["new"] and not d["stale"]:
+                  continue
+
+              parts = []
+
+              if d["new"]:
+                  keys_with_values = {k: en[k] for k in d["new"]}
+                  parts.append(f"NEW KEYS to translate ({len(d['new'])}):\n{json.dumps(keys_with_values, indent=2, ensure_ascii=False)}")
+
+              if d["stale"]:
+                  keys_with_values = {k: en[k] for k in d["stale"]}
+                  parts.append(f"STALE KEYS to re-translate (English source changed) ({len(d['stale'])}):\n{json.dumps(keys_with_values, indent=2, ensure_ascii=False)}")
+
+              if d["orphaned"]:
+                  parts.append(f"ORPHANED KEYS (flag only, do not delete): {d['orphaned']}")
+
+              sections.append(f"### Locale: {lang}\nTarget file: public/locales/{lang}/common.json\n\n" + "\n\n".join(parts))
+
+          prompt = "Use the transcreation-exposed skill.\n\n"
+          prompt += "The diff has already been computed. Translate ONLY the keys listed below - do not re-translate unchanged keys.\n\n"
+          prompt += "For NEW keys: add translations to the target locale file.\n"
+          prompt += "For STALE keys: replace the existing translation with a fresh one (the English source text changed).\n"
+          prompt += "For ORPHANED keys: do not delete them. Note them in your output.\n\n"
+          prompt += "Read each target locale file first to maintain consistency with existing translations.\n"
+          prompt += "Write updated JSON files back to their locale paths.\n"
+          prompt += "Follow all skill rules: no we/us/our, no em dashes, preserve {{placeholders}}, match brevity.\n\n"
+          prompt += "\n\n".join(sections)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              # Use multiline output for the prompt
+              f.write("prompt<<PROMPT_EOF\n")
+              f.write(prompt)
+              f.write("\nPROMPT_EOF\n")
+
+          print(f"Prompt ready ({len(prompt)} chars, {sum(len(d['new']) + len(d['stale']) for d in diff.values())} keys to translate)")
+          PYEOF
+
+      - name: Translate keys
+        uses: anthropics/claude-code-action@v1
+        timeout-minutes: 30
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: ${{ steps.prompt.outputs.prompt }}
+          claude_args: |
+            --allowedTools "Edit,Write,Read,Glob,Grep"
+
+      - name: Validate JSON output
+        run: |
+          ERRORS=0
+          for f in public/locales/*/common.json; do
+            if ! python3 -c "import json; json.load(open('$f'))"; then
+              echo "::error::Invalid JSON: $f"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+
+          python3 << 'PYEOF'
+          import json, sys
+          en = json.load(open("public/locales/en/common.json"))
+          en_count = len(en)
+          for lang in ["de", "es", "pt", "fr"]:
+              path = f"public/locales/{lang}/common.json"
+              try:
+                  target = json.load(open(path))
+              except (FileNotFoundError, json.JSONDecodeError):
+                  continue
+              target_count = len(target)
+              if target_count < en_count * 0.9:
+                  print(f"::error::{lang} has {target_count} keys, EN has {en_count} - possible key loss")
+                  sys.exit(1)
+
+              for key in target:
+                  if key in en:
+                      src_vars = set(v for v in en[key].split("{{")[1:] if "}}" in v)
+                      tgt_vars = set(v for v in target[key].split("{{")[1:] if "}}" in v)
+                      src_vars = {v.split("}}")[0] for v in src_vars}
+                      tgt_vars = {v.split("}}")[0] for v in tgt_vars}
+                      if src_vars != tgt_vars:
+                          print(f"::warning::Placeholder mismatch in {lang}/{key}: EN has {src_vars}, target has {tgt_vars}")
+          PYEOF
+
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "::error::JSON validation failed"
+            exit 1
+          fi
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet public/locales/; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create PR
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DIFF_SUMMARY: ${{ needs.diff.outputs.summary }}
+        run: |
+          BRANCH="i18n/sync-translations-$(date +%Y%m%d-%H%M)"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add public/locales/
+
+          git commit -m "$(cat <<EOF
+          i18n: sync translations
+
+          ${DIFF_SUMMARY}
+
+          Generated by transcreation-exposed skill.
+          EOF
+          )"
+
+          git push -u origin "$BRANCH"
+
+          cat > /tmp/pr-body.md << 'BODY_EOF'
+          ## Summary
+
+          Automated translation sync using the transcreation-exposed Claude Code skill.
+
+          BODY_EOF
+
+          printf '**Diff:** %s\n\n' "$DIFF_SUMMARY" >> /tmp/pr-body.md
+
+          cat >> /tmp/pr-body.md << 'BODY_EOF'
+          ## What was done
+
+          - Diffed public/locales/en/common.json against all target locales
+          - Translated new keys (added to EN since last sync)
+          - Re-translated stale keys (EN source text changed since last sync)
+          - Unchanged translations were not modified
+          - Orphaned keys (removed from EN) were left in place for manual review
+
+          ## Review checklist
+
+          The translation-qc workflow runs on this PR and posts a scored review.
+
+          - [ ] QC workflow passed (check PR comments)
+          - [ ] Spot-check 5 random strings per locale
+          - [ ] No we/us/our in any translation
+          - [ ] No em dashes in any translation
+          - [ ] All placeholders preserved
+          - [ ] Orphaned keys reviewed (remove or remap as needed)
+          BODY_EOF
+
+          gh pr create \
+            --title "i18n: sync translations" \
+            --body-file /tmp/pr-body.md \
+            --label "i18n"
