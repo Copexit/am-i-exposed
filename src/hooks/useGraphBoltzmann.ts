@@ -25,8 +25,11 @@ interface UseGraphBoltzmannReturn {
   boltzmannCache: Map<string, BoltzmannWorkerResult>;
 }
 
+/** Graph explorer size cap for Boltzmann (smaller than the single-tx heatmap's). */
+const GRAPH_MAX_TOTAL = 80;
+
 /** Build a synthetic Boltzmann result for 1-input txs (trivially 100% deterministic). */
-function buildSyntheticResult(tx: MempoolTransaction): BoltzmannWorkerResult {
+export function buildSyntheticResult(tx: MempoolTransaction): BoltzmannWorkerResult {
   const { inputValues, outputValues } = extractTxValues(tx);
   const nIn = inputValues.length;
   const nOut = outputValues.length;
@@ -42,6 +45,21 @@ function buildSyntheticResult(tx: MempoolTransaction): BoltzmannWorkerResult {
     nInputs: nIn, nOutputs: nOut,
     fees: tx.fee, intraFeesMaker: 0, intraFeesTaker: 0,
   };
+}
+
+/**
+ * How the graph gets a tx's Boltzmann matrix: synthetic (1 input), eager
+ * background compute (small, or small JoinMarket), the sidebar's manual
+ * button, or not at all.
+ */
+export function isEagerEligible(tx: MempoolTransaction): "synthetic" | "auto-compute" | "manual-button" | "ineligible" {
+  const { canCompute, inputValues, outputValues } = getBoltzmannEligibility(tx, GRAPH_MAX_TOTAL);
+  if (!canCompute) return "ineligible";
+  if (inputValues.length === 1) return "synthetic";
+  const total = inputValues.length + outputValues.length;
+  if (total < 18) return "auto-compute";
+  if (total < 24 && detectJoinMarketForTurbo(inputValues, outputValues).isJoinMarket) return "auto-compute";
+  return "manual-button";
 }
 
 export function useGraphBoltzmann({
@@ -74,7 +92,7 @@ export function useGraphBoltzmann({
     if (!node) return;
 
     const tx = node.tx;
-    const eligibility = getBoltzmannEligibility(tx, 80);
+    const eligibility = getBoltzmannEligibility(tx, GRAPH_MAX_TOTAL);
     if (!eligibility.canCompute) return;
 
     // 1-input txs: trivially 100% deterministic, no WASM needed
@@ -123,11 +141,8 @@ export function useGraphBoltzmann({
     let anyNew = false;
     for (const [txid, node] of nodes) {
       if (boltzmannCacheRef.current.has(txid)) continue;
-      const tx = node.tx;
-      const eligibility = getBoltzmannEligibility(tx, 80);
-      if (!eligibility.canCompute) continue;
-      if (eligibility.inputValues.length === 1 && eligibility.outputValues.length > 0) {
-        boltzmannCacheRef.current.set(txid, buildSyntheticResult(tx));
+      if (isEagerEligible(node.tx) === "synthetic") {
+        boltzmannCacheRef.current.set(txid, buildSyntheticResult(node.tx));
         anyNew = true;
       }
     }
@@ -146,20 +161,8 @@ export function useGraphBoltzmann({
       for (const [txid, node] of nodes) {
         if (boltzmannCacheRef.current.has(txid)) continue;
         if (computingBoltzmannRef.current.has(txid)) continue;
-
-        const tx = node.tx;
-        const eligibility = getBoltzmannEligibility(tx, 80);
-        if (!eligibility.canCompute) continue;
-
-        const { inputValues, outputValues } = eligibility;
-        if (inputValues.length < 2) continue;
-        const total = inputValues.length + outputValues.length;
-        if (total >= 18) {
-          if (total >= 24) continue;
-          if (!detectJoinMarketForTurbo(inputValues, outputValues).isJoinMarket) continue;
-        }
-
-        queue.push({ txid, tx });
+        if (isEagerEligible(node.tx) !== "auto-compute") continue;
+        queue.push({ txid, tx: node.tx });
       }
 
       // Process queue sequentially with abort signal
@@ -179,13 +182,6 @@ export function useGraphBoltzmann({
     };
   }, [nodes, computeSingleBoltzmann]);
 
-  /** Get Boltzmann result for a txid (from cache or root result). */
-  const getBoltzmannResult = useCallback((txid: string): BoltzmannWorkerResult | undefined => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    boltzmannVersion; // depend on version to re-read cache after updates
-    return boltzmannCacheRef.current.get(txid);
-  }, [boltzmannVersion]);
-
   // Snapshot the cache as a new Map whenever the version bumps, so consumers
   // get a render-safe value without accessing the ref during render.
   const boltzmannCache = useMemo(
@@ -193,6 +189,12 @@ export function useGraphBoltzmann({
     () => new Map(boltzmannCacheRef.current),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [boltzmannVersion],
+  );
+
+  /** Get Boltzmann result for a txid (reads the render-safe snapshot). */
+  const getBoltzmannResult = useCallback(
+    (txid: string): BoltzmannWorkerResult | undefined => boltzmannCache.get(txid),
+    [boltzmannCache],
   );
 
   // Render-safe snapshot of the computing set (re-created when computing version changes).

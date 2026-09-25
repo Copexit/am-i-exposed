@@ -8,6 +8,7 @@ import {
   makeInitialState,
   DEFAULT_MAX_NODES,
   type GraphNode,
+  type GraphAction,
   type GraphExpansionFetcher,
   type MultiRootEntry,
 } from "@/lib/graph/graph-reducer";
@@ -52,27 +53,45 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     getFetcher: () => fetcherRef.current,
   }), []);
 
+  // ---- Auto-trace state (declared first: replacing the graph cancels it) ----
+
+  const autoTraceAbortRef = useRef<AbortController | null>(null);
+  const [autoTracing, setAutoTracing] = useState(false);
+  const [autoTraceProgress, setAutoTraceProgress] = useState<AutoTraceProgress | null>(null);
+
+  const cancelAutoTrace = useCallback(() => {
+    autoTraceAbortRef.current?.abort();
+    setAutoTracing(false);
+    setAutoTraceProgress(null);
+  }, []);
+
+  // Stop a running trace on unmount so it makes no further requests
+  useEffect(() => () => autoTraceAbortRef.current?.abort(), []);
+
   // ---- Root initialization actions ----
 
   const setRoot = useCallback((tx: MempoolTransaction) => {
+    cancelAutoTrace();
     dispatch({ type: "SET_ROOT", tx });
-  }, []);
+  }, [cancelAutoTrace]);
 
   const loadGraph = useCallback((
     nodes: Map<string, GraphNode>,
     rootTxid: string,
     rootTxids: Set<string>,
   ) => {
+    cancelAutoTrace();
     dispatch({ type: "LOAD_GRAPH", nodes, rootTxid, rootTxids });
-  }, []);
+  }, [cancelAutoTrace]);
 
   const setRootWithNeighbors = useCallback((
     root: MempoolTransaction,
     parents: Map<string, MempoolTransaction>,
     children: Map<number, MempoolTransaction>,
   ) => {
+    cancelAutoTrace();
     dispatch({ type: "SET_ROOT_WITH_NEIGHBORS", root, parents, children });
-  }, []);
+  }, [cancelAutoTrace]);
 
   const setRootWithLayers = useCallback((
     root: MempoolTransaction,
@@ -81,16 +100,19 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     outspends?: MempoolOutspend[],
     smartFilter?: boolean,
   ) => {
+    cancelAutoTrace();
     dispatch({ type: "SET_ROOT_WITH_LAYERS", root, backwardLayers, forwardLayers, outspends, smartFilter });
-  }, []);
+  }, [cancelAutoTrace]);
 
   const setMultiRoot = useCallback((txs: Map<string, MempoolTransaction>) => {
+    cancelAutoTrace();
     dispatch({ type: "SET_MULTI_ROOT", txs });
-  }, []);
+  }, [cancelAutoTrace]);
 
   const setMultiRootWithLayers = useCallback((roots: Map<string, MultiRootEntry>, preExpandBudget?: number) => {
+    cancelAutoTrace();
     dispatch({ type: "SET_MULTI_ROOT_WITH_LAYERS", roots, preExpandBudget });
-  }, []);
+  }, [cancelAutoTrace]);
 
   // ---- Expansion (delegates to extracted ops) ----
 
@@ -115,8 +137,9 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
   }, []);
 
   const reset = useCallback(() => {
+    cancelAutoTrace();
     dispatch({ type: "RESET" });
-  }, []);
+  }, [cancelAutoTrace]);
 
   // Auto-clear errors after 5 seconds
   useEffect(() => {
@@ -210,15 +233,12 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
 
   // ---- Auto-trace (peel chain following) ----
 
-  const autoTraceAbortRef = useRef<AbortController | null>(null);
-  const [autoTracing, setAutoTracing] = useState(false);
-  const [autoTraceProgress, setAutoTraceProgress] = useState<AutoTraceProgress | null>(null);
-
-  const makeAutoTraceCallbacks = useCallback(() => ({
-    dispatch,
+  // A cancelled trace's late updates are dropped (cancelAutoTrace already reset the UI)
+  const makeAutoTraceCallbacks = useCallback((signal: AbortSignal) => ({
+    dispatch: (action: GraphAction) => { if (!signal.aborted) dispatch(action); },
     getState: () => ({ nodes: stateRef.current.nodes, maxNodes: stateRef.current.maxNodes }),
-    onProgress: setAutoTraceProgress,
-    onTracingChange: setAutoTracing,
+    onProgress: (p: AutoTraceProgress | null) => { if (!signal.aborted) setAutoTraceProgress(p); },
+    onTracingChange: (tracing: boolean) => { if (!signal.aborted) setAutoTracing(tracing); },
   }), []);
 
   const autoTrace = useCallback(async (startTxid: string, startOutputIndex: number, maxHops = 20) => {
@@ -227,14 +247,8 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     autoTraceAbortRef.current?.abort();
     const ac = new AbortController();
     autoTraceAbortRef.current = ac;
-    await runAutoTrace(client, startTxid, startOutputIndex, maxHops, ac.signal, makeAutoTraceCallbacks());
+    await runAutoTrace(client, startTxid, startOutputIndex, maxHops, ac.signal, makeAutoTraceCallbacks(ac.signal));
   }, [makeAutoTraceCallbacks]);
-
-  const cancelAutoTrace = useCallback(() => {
-    autoTraceAbortRef.current?.abort();
-    setAutoTracing(false);
-    setAutoTraceProgress(null);
-  }, []);
 
   const autoTraceLinkability = useCallback(async (
     startTxid: string,
@@ -246,7 +260,7 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     autoTraceAbortRef.current?.abort();
     const ac = new AbortController();
     autoTraceAbortRef.current = ac;
-    await runAutoTraceLinkability(client, startTxid, startOutputIndex, ac.signal, makeAutoTraceCallbacks(), opts);
+    await runAutoTraceLinkability(client, startTxid, startOutputIndex, ac.signal, makeAutoTraceCallbacks(ac.signal), opts);
   }, [makeAutoTraceCallbacks]);
 
   // Expose outspend cache as readonly. The outspendTick counter above triggers

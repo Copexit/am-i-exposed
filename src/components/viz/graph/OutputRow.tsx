@@ -9,6 +9,7 @@ import { getScriptTypeColor } from "./scriptStyles";
 import { probColor } from "../shared/linkabilityColors";
 import { CopyButton } from "@/components/ui/CopyButton";
 import type { MempoolVin, MempoolVout, MempoolOutspend } from "@/lib/api/types";
+import { isOpReturnOutput } from "@/lib/analysis/heuristics/tx-utils";
 
 // ---------- InputRow ----------
 
@@ -119,9 +120,9 @@ export function OutputRow({
   autoTracing,
 }: OutputRowProps) {
   const { t } = useTranslation();
-  const addr = vout.scriptpubkey_address ?? (vout.scriptpubkey_type === "op_return" ? t("graph.opReturn", { defaultValue: "OP_RETURN" }) : t("graph.unknown", { defaultValue: "unknown" }));
+  const addr = vout.scriptpubkey_address ?? (isOpReturnOutput(vout) ? t("graph.opReturn", { defaultValue: "OP_RETURN" }) : t("graph.unknown", { defaultValue: "unknown" }));
   const entity = vout.scriptpubkey_address ? matchEntitySync(vout.scriptpubkey_address) : null;
-  const canExpand = vout.scriptpubkey_type !== "op_return" && vout.value > 0 && outspend?.spent !== false;
+  const canExpand = !isOpReturnOutput(vout) && vout.value > 0 && outspend?.spent !== false;
 
   return (
     <div

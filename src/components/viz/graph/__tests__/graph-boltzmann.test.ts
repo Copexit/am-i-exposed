@@ -14,45 +14,9 @@ import {
   makeOpReturnVout,
   resetAddrCounter,
 } from "@/lib/analysis/heuristics/__tests__/fixtures/tx-factory";
-import { extractTxValues } from "@/lib/analysis/boltzmann-compute";
 import { detectJoinMarketForTurbo } from "@/lib/analysis/boltzmann-pool";
 import { analyzeChangeDetection } from "@/lib/analysis/heuristics/change-detection";
-import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
-import type { MempoolTransaction } from "@/lib/api/types";
-
-// ─── Helpers matching GraphExplorer's logic ─────────────────────
-
-/** Build a synthetic Boltzmann result for 1-input txs (mirrors GraphExplorer). */
-function buildSyntheticResult(tx: MempoolTransaction): BoltzmannWorkerResult {
-  const { inputValues, outputValues } = extractTxValues(tx);
-  const nIn = inputValues.length;
-  const nOut = outputValues.length;
-  const matProb = Array.from({ length: nOut }, () => Array.from({ length: nIn }, () => 1));
-  const matComb = Array.from({ length: nOut }, () => Array.from({ length: nIn }, () => 1));
-  const detLinks: [number, number][] = Array.from({ length: nOut }, (_, oi) => [oi, 0] as [number, number]);
-  return {
-    type: "result", id: tx.txid,
-    matLnkCombinations: matComb, matLnkProbabilities: matProb,
-    nbCmbn: 1, entropy: 0, efficiency: 0, nbCmbnPrfctCj: 1,
-    deterministicLinks: detLinks, timedOut: false, elapsedMs: 0,
-    nInputs: nIn, nOutputs: nOut,
-    fees: tx.fee, intraFeesMaker: 0, intraFeesTaker: 0,
-  };
-}
-
-/** Check if a tx is eligible for eager auto-compute (mirrors GraphExplorer thresholds). */
-function isEagerEligible(tx: MempoolTransaction): "synthetic" | "auto-compute" | "manual-button" | "ineligible" {
-  if (tx.vin.some((v) => v.is_coinbase)) return "ineligible";
-  const { inputValues, outputValues } = extractTxValues(tx);
-  if (inputValues.length === 0 || outputValues.length === 0) return "ineligible";
-  if (inputValues.length === 1) return "synthetic";
-  const total = inputValues.length + outputValues.length;
-  if (total > 80) return "ineligible";
-  if (total < 18) return "auto-compute";
-  if (total < 24 && detectJoinMarketForTurbo(inputValues, outputValues).isJoinMarket) return "auto-compute";
-  if (total <= 80) return "manual-button";
-  return "ineligible";
-}
+import { buildSyntheticResult, isEagerEligible } from "@/hooks/useGraphBoltzmann";
 
 beforeEach(() => resetAddrCounter());
 

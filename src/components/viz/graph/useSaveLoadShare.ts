@@ -14,6 +14,9 @@ import type { SavedGraph, GraphAnnotation } from "@/lib/graph/saved-graph-types"
 
 type Panel = "save" | "load" | null;
 
+/** Mirrors the cap in useSavedGraphs: saveGraph returns "" at the cap or when the write fails. */
+const MAX_SAVED_GRAPHS = 50;
+
 interface UseSaveLoadShareArgs {
   nodes?: Map<string, GraphNode>;
   rootTxid?: string;
@@ -82,10 +85,12 @@ export function useSaveLoadShare(args: UseSaveLoadShareArgs) {
     if (id) {
       setToast(t("graphSaveLoad.saved", { defaultValue: "Graph saved" }));
       setActivePanel(null);
-    } else {
+    } else if (graphs.length >= MAX_SAVED_GRAPHS) {
       setToast(t("graphSaveLoad.limitReached", { defaultValue: "Max 50 saved graphs reached" }));
+    } else {
+      setToast(t("workspace.storageFull", { defaultValue: "Browser storage is full. Delete some bookmarks or saved graphs and try again." }));
     }
-  }, [saveName, rootTxid, buildGraphState, network, saveGraph, t, posOverrides, savedAnnotations, nodeLabels, edgeLabels]);
+  }, [saveName, rootTxid, buildGraphState, network, saveGraph, graphs.length, t, posOverrides, savedAnnotations, nodeLabels, edgeLabels]);
 
   const handleUpdate = useCallback(() => {
     if (!currentGraphId) return;
@@ -95,11 +100,15 @@ export function useSaveLoadShare(args: UseSaveLoadShareArgs) {
       parentEdge: n.parentEdge ? { ...n.parentEdge } : undefined,
       childEdge: n.childEdge ? { ...n.childEdge } : undefined,
     }));
-    updateGraph(currentGraphId, {
+    const ok = updateGraph(currentGraphId, {
       nodes: nodesArr,
       rootTxid: state.rootTxid,
       rootTxids: [...state.rootTxids],
     });
+    if (!ok) {
+      setToast(t("workspace.storageFull", { defaultValue: "Browser storage is full. Delete some bookmarks or saved graphs and try again." }));
+      return;
+    }
     setToast(t("graphSaveLoad.updated", { defaultValue: "Graph updated" }));
     setActivePanel(null);
   }, [currentGraphId, buildGraphState, updateGraph, t]);

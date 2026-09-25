@@ -19,6 +19,7 @@ import type { MempoolOutspend } from "@/lib/api/types";
 import type { ScoringResult } from "@/lib/types";
 import type { EditingLabel } from "./useLabelEditor";
 import type { useChartTooltip } from "../shared/ChartTooltip";
+import { isOpReturnOutput } from "@/lib/analysis/heuristics/tx-utils";
 
 // ─── Props ──────────────────────────────────────────────────────
 
@@ -266,7 +267,7 @@ export function GraphNodeRenderer({
       {!node.entityLabel && !node.isCoinJoin && node.inputCount > 0 && node.txid !== expandedNodeTxid && (
         <Text x={node.x + 10} y={node.y + 50} fontSize={9} fill={SVG_COLORS.muted} fillOpacity={0.6}>
           {ricochetHopLabels.get(node.txid) ??
-           (node.tx.vout.some(o => o.scriptpubkey_type === "op_return" && o.scriptpubkey.replace(/^6a(?:4c..)?/, "").length === 160) &&
+           (node.tx.vout.some(o => isOpReturnOutput(o) && o.scriptpubkey.replace(/^6a(?:4c..)?/, "").length === 160) &&
            node.tx.vout.some(o => o.value > 0 && o.value <= 1000) ? t("graph.bip47Notification", { defaultValue: "BIP47 notification" }) :
            node.inputCount === 1 && node.outputCount === 1 ? t("graph.txTypeSweep", { defaultValue: "sweep" }) :
            node.inputCount === 1 && node.outputCount === 2 ? t("graph.txTypeSimpleSend", { defaultValue: "simple send" }) :

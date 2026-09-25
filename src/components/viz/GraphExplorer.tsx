@@ -8,7 +8,10 @@ import { useFullscreen } from "@/hooks/useFullscreen";
 import { useGraphBoltzmann } from "@/hooks/useGraphBoltzmann";
 import { GraphSidebar } from "./graph/GraphSidebar";
 import { MAX_ZOOM, MIN_ZOOM } from "./graph/constants";
-import { layoutGraph } from "./graph/layout";
+import {
+  layoutGraph, computeFitView, computeRootCenterView, getViewportDims, findFreeY,
+  SEED_BACKWARD_DX, SEED_FORWARD_GAP,
+} from "./graph/layout";
 import { CloseIcon } from "./graph/icons";
 import { GraphToolbar } from "./graph/GraphToolbar";
 import { GraphLegend } from "./graph/GraphLegend";
@@ -17,55 +20,11 @@ import { GraphViewport } from "./graph/GraphViewport";
 import { useGraphExplorerState } from "./graph/useGraphExplorerState";
 import { useGraphHeatMap } from "./graph/useGraphHeatMap";
 import { useChangeOutputDetection } from "./graph/useChangeOutputDetection";
-import type { GraphExplorerProps, TooltipData, NodeFilter, ViewTransform, LayoutNode } from "./graph/types";
+import type { GraphExplorerProps, TooltipData, NodeFilter, ViewTransform } from "./graph/types";
 import type { GraphAnnotation, SavedGraph } from "@/lib/graph/saved-graph-types";
 
 // Re-export types for consumers that import from this file
 export type { GraphExplorerProps } from "./graph/types";
-
-/** Minimum horizontal margin on each side for small screens. */
-const MIN_MARGIN_X = 16;
-/** Fallback vertical padding when no container ref is available. */
-const FALLBACK_PAD_Y = 160;
-
-/**
- * Compute the usable viewport dimensions.
- * Uses measured container dims from ParentSize (via onLayoutComplete) when available.
- */
-function getViewportDims(dims?: { width: number; height: number }) {
-  if (dims && dims.width > 0 && dims.height > 0) {
-    return { cw: dims.width, ch: dims.height };
-  }
-  // Last resort: use window dimensions with padding
-  const padX = Math.max(MIN_MARGIN_X * 2, Math.min(48, window.innerWidth * 0.08));
-  return { cw: window.innerWidth - padX, ch: window.innerHeight - FALLBACK_PAD_Y };
-}
-
-/** Compute a ViewTransform that centers the root nodes within the viewport. */
-function computeRootCenterView(roots: LayoutNode[], dims?: { width: number; height: number }): ViewTransform {
-  const { cw, ch } = getViewportDims(dims);
-  if (roots.length === 0) return { x: 0, y: 0, scale: 1 };
-  const avgX = roots.reduce((s, n) => s + n.x + n.width / 2, 0) / roots.length;
-  const avgY = roots.reduce((s, n) => s + n.y + n.height / 2, 0) / roots.length;
-  return { x: cw / 2 - avgX, y: ch / 2 - avgY, scale: 1 };
-}
-
-/** Compute a ViewTransform that fits all layout nodes within the viewport. */
-function computeFitView(ln: LayoutNode[], dims?: { width: number; height: number }): ViewTransform | null {
-  if (ln.length === 0) return null;
-  const { cw, ch } = getViewportDims(dims);
-  const minX = Math.min(...ln.map((n) => n.x));
-  const minY = Math.min(...ln.map((n) => n.y));
-  const maxX = Math.max(...ln.map((n) => n.x + n.width));
-  const maxY = Math.max(...ln.map((n) => n.y + n.height));
-  const nodesW = maxX - minX;
-  const nodesH = maxY - minY;
-  const s = Math.min(cw / nodesW, ch / nodesH, 1.5);
-  const rawX = (cw - nodesW * s) / 2 - minX * s;
-  // Ensure nodes don't clip the left edge on small screens
-  const x = Math.max(rawX, MIN_MARGIN_X - minX * s);
-  return { x, y: (ch - nodesH * s) / 2 - minY * s, scale: s };
-}
 
 /**
  * OXT-style interactive graph explorer.
@@ -75,6 +34,7 @@ function computeFitView(ln: LayoutNode[], dims?: { width: number; height: number
  * to expand forward. Nodes are colored by privacy grade and entity attribution.
  */
 export function GraphExplorer(props: GraphExplorerProps) {
+  const { graph } = props;
   const { t } = useTranslation();
   const tooltip = useChartTooltip<TooltipData>();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -105,109 +65,82 @@ export function GraphExplorer(props: GraphExplorerProps) {
   }, [props.lastLoadedGraph, restoreFromLastLoaded]);
 
   // Sidebar tx data
-  const sidebarTx = props.expandedNodeTxid ? props.nodes.get(props.expandedNodeTxid)?.tx : undefined;
+  const sidebarTx = graph.expandedNodeTxid ? graph.nodes.get(graph.expandedNodeTxid)?.tx : undefined;
   const showSidebar = !!sidebarTx && !sidebarCollapsed;
 
   // Seed new nodes near their trigger node.
   const pendingSeedRef = useRef<{ triggerTxid: string; direction: "backward" | "forward"; x: number; y: number } | null>(null);
   const prevNodeKeysRef = useRef<Set<string>>(new Set());
 
-  // Find a y position that doesn't overlap existing nodes near the target x.
-  // Scans nodePositions + overrides for occupied y slots and nudges down.
-  const findFreeY = useCallback((targetX: number, targetY: number, excludeTxid?: string): number => {
-    const NODE_SLOT = 80; // NODE_H(56) + ROW_GAP(24)
-    const X_TOLERANCE = 300; // only check nodes in nearby columns
-    const occupied: number[] = [];
-
-    // Collect y positions of nodes near the target x
-    for (const [txid, pos] of nodePositionsRef.current) {
-      if (txid === excludeTxid) continue;
-      if (Math.abs(pos.x - targetX) < X_TOLERANCE) {
-        occupied.push(pos.y);
-      }
-    }
-    // Also check pending overrides
-    for (const [txid, pos] of nodePositionOverrides) {
-      if (txid === excludeTxid) continue;
-      if (Math.abs(pos.x - targetX) < X_TOLERANCE) {
-        occupied.push(pos.y);
-      }
-    }
-
-    let y = targetY;
-    let attempts = 0;
-    while (attempts < 50) {
-      const collision = occupied.some((oy) => Math.abs(oy - y) < NODE_SLOT);
-      if (!collision) return y;
-      y += NODE_SLOT;
-      attempts++;
-    }
-    return y;
-  }, [nodePositionsRef, nodePositionOverrides]);
+  // Free y slot near (x, y), avoiding laid-out nodes and pending drag overrides
+  const freeY = useCallback((x: number, y: number, excludeTxid?: string) =>
+    findFreeY(x, y, [nodePositionsRef.current, nodePositionOverrides], excludeTxid),
+  [nodePositionsRef, nodePositionOverrides]);
 
   // When nodes change, detect new nodes and seed their position
   useEffect(() => {
     const seed = pendingSeedRef.current;
-    if (!seed) { prevNodeKeysRef.current = new Set(props.nodes.keys()); return; }
+    if (!seed) { prevNodeKeysRef.current = new Set(graph.nodes.keys()); return; }
     const prevKeys = prevNodeKeysRef.current;
-    for (const txid of props.nodes.keys()) {
+    for (const txid of graph.nodes.keys()) {
       if (!prevKeys.has(txid)) {
-        const y = findFreeY(seed.x, seed.y, txid);
+        const y = freeY(seed.x, seed.y, txid);
         dispatch({ type: "SET_NODE_POSITION", txid, x: seed.x, y });
         pendingSeedRef.current = null;
         break;
       }
     }
-    prevNodeKeysRef.current = new Set(props.nodes.keys());
-  }, [props.nodes, dispatch, findFreeY]);
+    prevNodeKeysRef.current = new Set(graph.nodes.keys());
+  }, [graph.nodes, dispatch, freeY]);
 
-  const { onExpandInput, onExpandOutput, onExpandPortInput, onExpandPortOutput } = props;
+  const { expandInput, expandOutput, expandPortInput, expandPortOutput } = graph;
 
   // Seed position before any expand (backward or forward, node button or port)
   const seedBackward = useCallback((txid: string) => {
     const triggerPos = nodePositionsRef.current.get(txid);
     if (triggerPos) {
-      const y = findFreeY(triggerPos.x - 280, triggerPos.y, undefined);
-      pendingSeedRef.current = { triggerTxid: txid, direction: "backward", x: triggerPos.x - 280, y };
+      const targetX = triggerPos.x - SEED_BACKWARD_DX;
+      const y = freeY(targetX, triggerPos.y);
+      pendingSeedRef.current = { triggerTxid: txid, direction: "backward", x: targetX, y };
     }
-  }, [nodePositionsRef, findFreeY]);
+  }, [nodePositionsRef, freeY]);
 
   const seedForward = useCallback((txid: string) => {
     const triggerPos = nodePositionsRef.current.get(txid);
     if (triggerPos) {
-      const targetX = triggerPos.x + triggerPos.w + 100;
-      const y = findFreeY(targetX, triggerPos.y, undefined);
+      const targetX = triggerPos.x + triggerPos.w + SEED_FORWARD_GAP;
+      const y = freeY(targetX, triggerPos.y);
       pendingSeedRef.current = { triggerTxid: txid, direction: "forward", x: targetX, y };
     }
-  }, [nodePositionsRef, findFreeY]);
+  }, [nodePositionsRef, freeY]);
 
   const handleExpandInput = useCallback((txid: string, inputIndex: number) => {
     seedBackward(txid);
-    onExpandInput?.(txid, inputIndex);
-  }, [onExpandInput, seedBackward]);
+    expandInput(txid, inputIndex);
+  }, [expandInput, seedBackward]);
 
   const handleExpandOutput = useCallback((txid: string, outputIndex: number) => {
     seedForward(txid);
-    onExpandOutput?.(txid, outputIndex);
-  }, [onExpandOutput, seedForward]);
+    expandOutput(txid, outputIndex);
+  }, [expandOutput, seedForward]);
 
   const handleExpandPortInput = useCallback((txid: string, inputIndex: number) => {
     seedBackward(txid);
-    onExpandPortInput?.(txid, inputIndex);
-  }, [onExpandPortInput, seedBackward]);
+    expandPortInput(txid, inputIndex);
+  }, [expandPortInput, seedBackward]);
 
   const handleExpandPortOutput = useCallback((txid: string, outputIndex: number) => {
     seedForward(txid);
-    onExpandPortOutput?.(txid, outputIndex);
-  }, [onExpandPortOutput, seedForward]);
+    expandPortOutput(txid, outputIndex);
+  }, [expandPortOutput, seedForward]);
 
   // ─── Boltzmann ─────────────────────────────────────────
   const {
     getBoltzmannResult, triggerBoltzmann,
     computingBoltzmann, boltzmannProgressMap, boltzmannCache,
   } = useGraphBoltzmann({
-    nodes: props.nodes,
-    rootTxid: props.rootTxid,
+    nodes: graph.nodes,
+    rootTxid: graph.rootTxid,
     rootBoltzmannResult: props.rootBoltzmannResult,
   });
 
@@ -219,58 +152,57 @@ export function GraphExplorer(props: GraphExplorerProps) {
   // Fullscreen toggle
   const { isExpanded, expand: expandFullscreen, collapse: collapseFullscreen } = useFullscreen(handleFullscreenExit);
 
-  // Zoom helper
-  const containerDims = containerDimsRef.current;
+  // Zoom helper (reads container dims at call time, so a resize is honored)
   const zoomBy = useCallback((factor: number) => {
     if (!viewTransform) return;
-    const { cw, ch } = getViewportDims(containerDims);
+    const { cw, ch } = getViewportDims(containerDimsRef.current);
     const cx = cw / 2;
     const cy = ch / 2;
     const gx = (cx - viewTransform.x) / viewTransform.scale;
     const gy = (cy - viewTransform.y) / viewTransform.scale;
     const s = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, viewTransform.scale * factor));
     dispatch({ type: "SET_VIEW_TRANSFORM", vt: { x: cx - gx * s, y: cy - gy * s, scale: s } });
-  }, [viewTransform, dispatch]);
+  }, [viewTransform, dispatch, containerDimsRef]);
 
   // ─── Heat map computation ──────────────────────────────
-  useGraphHeatMap({ active: heatMapActive, nodes: props.nodes, dispatch });
+  useGraphHeatMap({ active: heatMapActive, nodes: graph.nodes, dispatch });
 
   // ─── Auto-mark change outputs ──────────────────────────
-  useChangeOutputDetection({ nodes: props.nodes, dispatch, userToggledRef });
+  useChangeOutputDetection({ nodes: graph.nodes, dispatch, userToggledRef });
 
   // ─── Layout helpers ────────────────────────────────────
-  const hiddenCount = props.nodeCount - visibleCount;
+  const hiddenCount = graph.nodeCount - visibleCount;
 
   const handleExpandFullscreen = useCallback(() => {
     expandFullscreen();
-    const { layoutNodes: ln } = layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids, undefined, true);
+    const { layoutNodes: ln } = layoutGraph(graph.nodes, graph.rootTxid, filter, graph.rootTxids, undefined, true);
     // Use rAF to measure after fullscreen layout settles
     requestAnimationFrame(() => {
       dispatch({ type: "SET_VIEW_TRANSFORM", vt: computeRootCenterView(ln.filter((n) => n.isRoot), containerDimsRef.current) });
     });
-  }, [expandFullscreen, props.nodes, props.rootTxid, filter, props.rootTxids, dispatch, containerDimsRef]);
+  }, [expandFullscreen, graph.nodes, graph.rootTxid, filter, graph.rootTxids, dispatch, containerDimsRef]);
 
   const handleFitView = useCallback(() => {
-    const { layoutNodes: ln } = layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids, undefined, true);
+    const { layoutNodes: ln } = layoutGraph(graph.nodes, graph.rootTxid, filter, graph.rootTxids, undefined, true);
     const vt = computeFitView(ln, containerDimsRef.current);
     if (vt) dispatch({ type: "SET_VIEW_TRANSFORM", vt });
-  }, [props.nodes, props.rootTxid, filter, props.rootTxids, dispatch, containerDimsRef]);
+  }, [graph.nodes, graph.rootTxid, filter, graph.rootTxids, dispatch, containerDimsRef]);
 
   // Auto-center on root change in alwaysFullscreen mode.
   // GraphCanvas handles first-render centering (it knows the real container dims).
   // This effect handles subsequent root changes (e.g., navigating to a new txid).
   const prevRootRef = useRef<string>("");
   useEffect(() => {
-    if (!props.alwaysFullscreen || !props.rootTxid || props.nodes.size === 0) return;
-    if (prevRootRef.current === props.rootTxid) return;
-    prevRootRef.current = props.rootTxid;
+    if (!props.alwaysFullscreen || !graph.rootTxid || graph.nodes.size === 0) return;
+    if (prevRootRef.current === graph.rootTxid) return;
+    prevRootRef.current = graph.rootTxid;
     // Skip if containerDims not yet populated (first render handled by GraphCanvas)
     const dims = containerDimsRef.current;
     if (!dims || dims.width === 0) return;
-    const { layoutNodes: ln } = layoutGraph(props.nodes, props.rootTxid, filter, props.rootTxids, undefined, true);
+    const { layoutNodes: ln } = layoutGraph(graph.nodes, graph.rootTxid, filter, graph.rootTxids, undefined, true);
     const roots = ln.filter((n) => n.isRoot);
     if (roots.length > 0) dispatch({ type: "SET_VIEW_TRANSFORM", vt: computeRootCenterView(roots, dims) });
-  }, [props.alwaysFullscreen, props.rootTxid, props.nodes, filter, props.rootTxids, dispatch]);
+  }, [props.alwaysFullscreen, graph.rootTxid, graph.nodes, filter, graph.rootTxids, dispatch, containerDimsRef]);
 
   // ─── Stable callbacks ──────────────────────────────────
   const { onLoadSavedGraph } = props;
@@ -288,7 +220,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
   }, [dispatch]);
 
   // ─── Keyboard shortcuts ────────────────────────────────
-  const { onUndo, onReset } = props;
+  const { undo, reset } = graph;
   const tbHandlersRef = useRef<Record<string, () => void>>({});
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -301,8 +233,8 @@ export function GraphExplorer(props: GraphExplorerProps) {
         case "h": handleToggleHeatMap(); break;
         case "g": handleToggleFingerprint(); break;
         case "l": cycleEdgeMode(); break;
-        case "u": onUndo?.(); break;
-        case "r": onReset?.(); break;
+        case "u": undo(); break;
+        case "r": reset(); break;
         case "+": case "=": zoomBy(1.25); break;
         case "-": zoomBy(1 / 1.25); break;
         case "0": handleFitView(); break;
@@ -317,22 +249,22 @@ export function GraphExplorer(props: GraphExplorerProps) {
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [handleToggleHeatMap, handleToggleFingerprint, cycleEdgeMode, isExpanded, collapseFullscreen, handleExpandFullscreen, onUndo, onReset, zoomBy, handleFitView, dispatch]);
+  }, [handleToggleHeatMap, handleToggleFingerprint, cycleEdgeMode, isExpanded, collapseFullscreen, handleExpandFullscreen, undo, reset, zoomBy, handleFitView, dispatch]);
 
   // Early return for empty graph (but not alwaysFullscreen)
-  if (props.nodes.size === 0 && !props.alwaysFullscreen) return null;
+  if (graph.nodes.size === 0 && !props.alwaysFullscreen) return null;
 
   // ─── Shared prop objects ───────────────────────────────
 
   const toolbarProps = {
-    nodeCount: props.nodeCount, maxNodes: props.maxNodes, hiddenCount,
+    nodeCount: graph.nodeCount, maxNodes: graph.maxNodes, hiddenCount,
     heatMapActive, heatProgress, fingerprintMode, edgeMode,
     onToggleHeatMap: handleToggleHeatMap, onToggleFingerprint: handleToggleFingerprint,
-    canUndo: props.canUndo ?? false, onUndo: props.onUndo ?? (() => {}),
-    onCycleEdgeMode: cycleEdgeMode, onReset: props.onReset,
+    canUndo: graph.canUndo, onUndo: undo,
+    onCycleEdgeMode: cycleEdgeMode, onReset: reset,
     onSearch: props.onSearch, searchLoading: props.searchLoading, searchError: props.searchError,
-    currentTxid: props.rootTxid || null, currentLabel: props.currentLabel ?? null,
-    nodes: props.nodes, rootTxid: props.rootTxid, rootTxids: props.rootTxids,
+    currentTxid: graph.rootTxid || null, currentLabel: props.currentLabel ?? null,
+    nodes: graph.nodes, rootTxid: graph.rootTxid, rootTxids: graph.rootTxids,
     network: props.network, currentGraphId: props.currentGraphId ?? null,
     onLoadSavedGraph: onLoadSavedGraph ? handleLoadSavedGraph : undefined,
     onRegisterHandlers: (handlers: Record<string, () => void>) => { tbHandlersRef.current = handlers; },
@@ -341,7 +273,12 @@ export function GraphExplorer(props: GraphExplorerProps) {
   };
 
   const canvasProps = {
-    ...props,
+    nodes: graph.nodes, rootTxid: graph.rootTxid, rootTxids: graph.rootTxids,
+    walletUtxos: props.walletUtxos, loading: graph.loading,
+    nodeCount: graph.nodeCount, maxNodes: graph.maxNodes,
+    onCollapse: graph.collapse, rootBoltzmannResult: props.rootBoltzmannResult,
+    expandedNodeTxid: graph.expandedNodeTxid, onToggleExpand: graph.toggleExpand,
+    outspendCache: graph.outspendCache,
     onExpandInput: handleExpandInput,
     onExpandOutput: handleExpandOutput,
     onExpandPortInput: handleExpandPortInput,
@@ -374,7 +311,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
   // ─── Sidebar rendering (shared between all modes) ──────
   const renderSidebar = (keyPrefix: string) => {
-    if (!sidebarTx || !props.expandedNodeTxid) return null;
+    if (!sidebarTx || !graph.expandedNodeTxid) return null;
     if (sidebarCollapsed) {
       return (
         <button
@@ -389,24 +326,24 @@ export function GraphExplorer(props: GraphExplorerProps) {
     return (
       <AnimatePresence>
         <GraphSidebar
-          key={`${keyPrefix}${props.expandedNodeTxid}`}
+          key={`${keyPrefix}${graph.expandedNodeTxid}`}
           tx={sidebarTx}
-          outspends={props.outspendCache?.get(props.expandedNodeTxid)}
-          onClose={() => props.onToggleExpand?.(props.expandedNodeTxid!)}
+          outspends={graph.outspendCache?.get(graph.expandedNodeTxid)}
+          onClose={() => graph.toggleExpand(graph.expandedNodeTxid!)}
           onCollapse={() => dispatch({ type: "SET_SIDEBAR_COLLAPSED", collapsed: true })}
           onFullScan={(txid) => props.onTxClick?.(txid)}
           onExpandInput={handleExpandInput}
           onExpandOutput={handleExpandOutput}
           changeOutputs={changeOutputs}
           onToggleChange={toggleChange}
-          boltzmannResult={props.expandedNodeTxid ? getBoltzmannResult(props.expandedNodeTxid) : undefined}
-          computingBoltzmann={props.expandedNodeTxid ? computingBoltzmann.has(props.expandedNodeTxid) : false}
-          boltzmannProgress={props.expandedNodeTxid ? boltzmannProgressMap.get(props.expandedNodeTxid) : undefined}
-          onComputeBoltzmann={props.expandedNodeTxid ? () => triggerBoltzmann(props.expandedNodeTxid!) : undefined}
-          onAutoTrace={props.onAutoTrace}
-          onAutoTraceLinkability={props.onAutoTraceLinkability}
-          autoTracing={props.autoTracing}
-          autoTraceProgress={props.autoTraceProgress}
+          boltzmannResult={graph.expandedNodeTxid ? getBoltzmannResult(graph.expandedNodeTxid) : undefined}
+          computingBoltzmann={graph.expandedNodeTxid ? computingBoltzmann.has(graph.expandedNodeTxid) : false}
+          boltzmannProgress={graph.expandedNodeTxid ? boltzmannProgressMap.get(graph.expandedNodeTxid) : undefined}
+          onComputeBoltzmann={graph.expandedNodeTxid ? () => triggerBoltzmann(graph.expandedNodeTxid!) : undefined}
+          onAutoTrace={props.noAutoTrace ? undefined : graph.autoTrace}
+          onAutoTraceLinkability={props.noAutoTrace ? undefined : graph.autoTraceLinkability}
+          autoTracing={graph.autoTracing}
+          autoTraceProgress={graph.autoTraceProgress}
           onSetAsRoot={props.onSetAsRoot}
         />
       </AnimatePresence>
@@ -415,8 +352,8 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
   const zoomProps = { onZoomIn: () => zoomBy(1.25), onZoomOut: () => zoomBy(1 / 1.25), onFitView: handleFitView };
 
-  const lastError = props.errors.size > 0 && props.loading.size === 0
-    ? [...props.errors.values()].at(-1)
+  const lastError = graph.errors.size > 0 && graph.loading.size === 0
+    ? [...graph.errors.values()].at(-1)
     : null;
 
   // ─── Render ────────────────────────────────────────────
@@ -459,15 +396,15 @@ export function GraphExplorer(props: GraphExplorerProps) {
           </div>
         )}
 
-        {props.nodeCount >= props.maxNodes && (
+        {graph.nodeCount >= graph.maxNodes && (
           <div className="text-xs text-severity-medium bg-severity-medium/10 border border-severity-medium/20 rounded-lg px-3 py-1.5">
             {t("graphExplorer.maxNodesReached", {
-              max: props.maxNodes,
+              max: graph.maxNodes,
               defaultValue: "Maximum number of nodes reached ({{max}}). Remove some nodes before expanding further.",
             })}
           </div>
         )}
-        {props.loading.size > 0 && (
+        {graph.loading.size > 0 && (
           <div className="text-xs text-muted animate-pulse">{t("graphExplorer.fetching", { defaultValue: "Fetching transactions..." })}</div>
         )}
         {lastError && <div className="text-xs text-severity-medium/80">{lastError}</div>}

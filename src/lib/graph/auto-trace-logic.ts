@@ -205,15 +205,17 @@ export async function runAutoTraceLinkability(
 
       // Compute Boltzmann for the child tx (use cache or compute fresh)
       let boltzResult = cache?.get(childTxid);
+      // 1-input txs are trivially 100% linked (no WASM needed); anything else
+      // needs a matrix, and a hop without one (too large, preempted, failed)
+      // has unknown linkability.
+      let singleInput = false;
       if (!boltzResult) {
         const { inputValues, outputValues } = extractTxValues(childTx);
-        if (inputValues.length === 1) {
-          // 1-input: synthetic 100% deterministic (no need for WASM)
-          compoundProb *= 1.0; // doesn't change compound
-        } else if (inputValues.length >= 2 && inputValues.length + outputValues.length <= 80) {
+        singleInput = inputValues.length === 1;
+        if (inputValues.length >= 2 && inputValues.length + outputValues.length <= 80) {
           try {
             boltzResult = await computeBoltzmann(childTx, { signal }) ?? undefined;
-          } catch { /* treat as 100% worst case */ }
+          } catch { /* unknown linkability, handled below */ }
         }
       }
       if (signal.aborted) break;
@@ -222,6 +224,12 @@ export async function runAutoTraceLinkability(
       const changeResult = identifyChangeOutput(childTx);
       if (changeResult.changeOutputIndex === null) {
         onProgress({ hop: hop + 1, txid: childTxid, reason: changeResult.reason });
+        break;
+      }
+
+      // Unknown linkability: stop rather than silently compounding it as 100%
+      if (!singleInput && !boltzResult?.matLnkProbabilities) {
+        onProgress({ hop: hop + 1, txid: childTxid, reason: "linkability unknown" });
         break;
       }
 

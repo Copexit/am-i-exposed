@@ -8,6 +8,7 @@ import { analyzeChangeDetection } from "@/lib/analysis/heuristics/change-detecti
 import { InputRow, OutputRow } from "./OutputRow";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
+import { isOpReturnOutput } from "@/lib/analysis/heuristics/tx-utils";
 
 export interface IOTabProps {
   tx: MempoolTransaction;
@@ -78,7 +79,7 @@ export function IOTab({
 
   const expandableOutputs = useMemo(() => {
     return tx.vout.flatMap((v, i) => {
-      if (v.scriptpubkey_type === "op_return" || v.value === 0) return [];
+      if (isOpReturnOutput(v) || v.value === 0) return [];
       const os = outspends?.[i];
       if (os && os.spent === false) return [];
       return [i];

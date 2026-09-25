@@ -22,6 +22,7 @@ import {
   HeatmapUnsupportedBlock,
 } from "./shared/HeatmapStatusBlocks";
 import { isCoinJoinTx } from "@/lib/analysis/heuristics/coinjoin";
+import { isCoinbase, getValuedOutputs } from "@/lib/analysis/heuristics/tx-utils";
 import type { MempoolTransaction } from "@/lib/api/types";
 
 interface Props {
@@ -49,7 +50,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
     showTooltip, hideTooltip,
   } = useChartTooltip<HeatmapTooltipData>();
 
-  const isCoinbase = tx.vin.some(v => v.is_coinbase);
+  const coinbase = isCoinbase(tx);
 
   const inputs = useMemo(() =>
     tx.vin
@@ -64,8 +65,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
   );
 
   const outputs = useMemo(() =>
-    tx.vout
-      .filter(o => o.scriptpubkey_type !== "op_return" && o.value > 0)
+    getValuedOutputs(tx.vout)
       .map((o, i) => ({
         index: i,
         address: o.scriptpubkey_address,
@@ -131,7 +131,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
     hideTooltip();
   }, [hideTooltip]);
 
-  if (isCoinbase || !isSupported) return null;
+  if (coinbase || !isSupported) return null;
 
   return (
     <GlowCard className="p-5 sm:p-6">
@@ -169,6 +169,20 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
 
           {state.status === "error" && (
             <HeatmapErrorBlock error={state.error ?? undefined} compute={compute} />
+          )}
+
+          {state.status === "cancelled" && (
+            <div className="text-center py-6 space-y-3">
+              <p className="text-xs text-muted">
+                {t("boltzmann.cancelled", { defaultValue: "Computation was interrupted by another Boltzmann job." })}
+              </p>
+              <button
+                onClick={compute}
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-muted border border-card-border rounded-lg hover:text-foreground transition-colors cursor-pointer"
+              >
+                {t("boltzmann.retry", { defaultValue: "Retry" })}
+              </button>
+            </div>
           )}
 
           {state.status === "unsupported" && <HeatmapUnsupportedBlock />}
@@ -299,7 +313,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                   {hasMoreCols && (
                     <>
                       <div className="absolute top-0 right-0 bottom-0 w-10 pointer-events-none rounded-r-lg" style={{ background: "linear-gradient(to right, transparent, var(--card-bg))" }} />
-                      <button onClick={() => setVisibleCols(Math.min(visibleCols + PAGE_SIZE, nOut))} className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5 px-2 py-1 rounded-full bg-surface-elevated/90 backdrop-blur-sm border border-card-border text-[10px] text-muted hover:text-foreground hover:border-muted transition-all cursor-pointer shadow-sm z-10" title={`Show more columns (${visibleCols}/${nOut})`}>
+                      <button onClick={() => setVisibleCols(Math.min(visibleCols + PAGE_SIZE, nOut))} className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5 px-2 py-1 rounded-full bg-surface-elevated/90 backdrop-blur-sm border border-card-border text-[10px] text-muted hover:text-foreground hover:border-muted transition-all cursor-pointer shadow-sm z-10" title={t("boltzmann.showMoreColumns", { shown: visibleCols, total: nOut, defaultValue: "Show more columns ({{shown}}/{{total}})" })}>
                         +{Math.min(PAGE_SIZE, nOut - visibleCols)}
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
                       </button>
@@ -310,7 +324,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                   {hasMoreRows && (
                     <>
                       <div className="absolute left-0 right-0 bottom-0 h-10 pointer-events-none rounded-b-lg" style={{ background: "linear-gradient(to bottom, transparent, var(--card-bg))" }} />
-                      <button onClick={() => setVisibleRows(Math.min(visibleRows + PAGE_SIZE, nIn))} className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex items-center gap-0.5 px-2 py-1 rounded-full bg-surface-elevated/90 backdrop-blur-sm border border-card-border text-[10px] text-muted hover:text-foreground hover:border-muted transition-all cursor-pointer shadow-sm z-10" title={`Show more rows (${visibleRows}/${nIn})`}>
+                      <button onClick={() => setVisibleRows(Math.min(visibleRows + PAGE_SIZE, nIn))} className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex items-center gap-0.5 px-2 py-1 rounded-full bg-surface-elevated/90 backdrop-blur-sm border border-card-border text-[10px] text-muted hover:text-foreground hover:border-muted transition-all cursor-pointer shadow-sm z-10" title={t("boltzmann.showMoreRows", { shown: visibleRows, total: nIn, defaultValue: "Show more rows ({{shown}}/{{total}})" })}>
                         +{Math.min(PAGE_SIZE, nIn - visibleRows)}
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
                       </button>
@@ -329,11 +343,11 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                     <span className="text-[9px] text-muted">100%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-[8px] text-muted/70">No link</span>
-                    <span className="text-[8px] text-muted/70">Ambiguous</span>
-                    <span className="text-[8px] text-muted/70">Probable</span>
-                    <span className="text-[8px] text-muted/70">Likely</span>
-                    <span className="text-[8px] text-muted/70">Deterministic</span>
+                    <span className="text-[8px] text-muted/70">{t("boltzmann.legend.noLink", { defaultValue: "No link" })}</span>
+                    <span className="text-[8px] text-muted/70">{t("boltzmann.legend.ambiguous", { defaultValue: "Ambiguous" })}</span>
+                    <span className="text-[8px] text-muted/70">{t("boltzmann.legend.probable", { defaultValue: "Probable" })}</span>
+                    <span className="text-[8px] text-muted/70">{t("boltzmann.legend.likely", { defaultValue: "Likely" })}</span>
+                    <span className="text-[8px] text-muted/70">{t("boltzmann.legend.deterministic", { defaultValue: "Deterministic" })}</span>
                   </div>
                 </div>
 

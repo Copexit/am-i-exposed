@@ -8,7 +8,7 @@ import { SEVERITY_HEX } from "./shared/svgConstants";
 import { SVG_COLORS, GRADIENT_COLORS } from "./shared/svgConstants";
 import { DUST_THRESHOLD } from "@/lib/constants";
 import { truncateId } from "@/lib/constants";
-import { countOutputValues } from "@/lib/analysis/heuristics/tx-utils";
+import { countOutputValues, isOpReturnOutput } from "@/lib/analysis/heuristics/tx-utils";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
 import { analyzeMultisigDetection } from "@/lib/analysis/heuristics/multisig-detection";
 import { computeDenomGrouping } from "./shared/sankeyTypes";
@@ -133,7 +133,7 @@ export function buildDustOutputIndices(
 
   if (indices.size === 0) {
     for (let i = 0; i < tx.vout.length; i++) {
-      if (tx.vout[i].value > 0 && tx.vout[i].value < DUST_THRESHOLD && tx.vout[i].scriptpubkey_type !== "op_return") {
+      if (tx.vout[i].value > 0 && tx.vout[i].value < DUST_THRESHOLD && !isOpReturnOutput(tx.vout[i])) {
         indices.add(i);
       }
     }
@@ -188,7 +188,7 @@ export function buildBoltzmannLookup(
   const outputMap: number[] = [];
   let bo = 0;
   for (let i = 0; i < tx.vout.length; i++) {
-    if (tx.vout[i].scriptpubkey_type !== "op_return" && tx.vout[i].value > 0) {
+    if (!isOpReturnOutput(tx.vout[i]) && tx.vout[i].value > 0) {
       outputMap[i] = bo++;
     } else {
       outputMap[i] = -1;
@@ -308,7 +308,7 @@ export function buildFlowGraph(
     const heuristicLabel = addr ? heuristicEntityMap[addr] : undefined;
     nodes.push({
       id: `out-${i}`,
-      label: vout.scriptpubkey_type === "op_return"
+      label: isOpReturnOutput(vout)
         ? "OP_RETURN"
         : truncateId(addr ?? vout.scriptpubkey_type, 5),
       fullAddress: addr,

@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import type { GraphNode } from "@/hooks/useGraphExpansion";
 import type { LayoutNode } from "./types";
+import { isOpReturnOutput } from "@/lib/analysis/heuristics/tx-utils";
 
 interface UseKeyboardNavigationParams {
   focusedNode: string | null;
@@ -107,7 +108,7 @@ export function useKeyboardNavigation({
           }
         }
         const outIdx = gn.tx.vout.findIndex((v, i) =>
-          !consumedOutputs.has(i) && v.scriptpubkey_type !== "op_return" && v.value > 0,
+          !consumedOutputs.has(i) && !isOpReturnOutput(v) && v.value > 0,
         );
         if (outIdx >= 0) onExpandOutput(focusedNode, outIdx);
         break;
@@ -124,7 +125,7 @@ export function useKeyboardNavigation({
         }
         dExpanded = 0;
         for (let i = 0; i < gn.tx.vout.length && dExpanded < 5; i++) {
-          if (gn.tx.vout[i].scriptpubkey_type !== "op_return" && gn.tx.vout[i].value > 0) {
+          if (!isOpReturnOutput(gn.tx.vout[i]) && gn.tx.vout[i].value > 0) {
             onExpandOutput(focusedNode, i); dExpanded++;
           }
         }

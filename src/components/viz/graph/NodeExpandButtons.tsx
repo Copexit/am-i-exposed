@@ -4,6 +4,7 @@ import { Text } from "@visx/text";
 import { SVG_COLORS } from "../shared/svgConstants";
 import type { LayoutNode, GraphNode } from "./types";
 import type { MempoolOutspend } from "@/lib/api/types";
+import { isOpReturnOutput } from "@/lib/analysis/heuristics/tx-utils";
 
 interface NodeExpandButtonsProps {
   node: LayoutNode;
@@ -51,7 +52,7 @@ export function NodeExpandButtons({
         }
         for (let i = 0; i < node.tx.vout.length; i++) {
           const out = node.tx.vout[i];
-          if (out.scriptpubkey_type === "op_return" || out.value === 0) {
+          if (isOpReturnOutput(out) || out.value === 0) {
             nonExpandable.add(i);
           }
         }

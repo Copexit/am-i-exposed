@@ -37,28 +37,8 @@ export function WalletGraphExplorerPanel({
 
   const fetcher = useMemo(() => createApiClient(config), [config]);
 
-  const {
-    nodes,
-    rootTxid,
-    rootTxids,
-    loading,
-    errors,
-    nodeCount,
-    maxNodes,
-    setMultiRoot,
-    setMultiRootWithLayers,
-    expandInput,
-    expandOutput,
-    collapse,
-    undo,
-    canUndo,
-    reset,
-    expandedNodeTxid,
-    toggleExpand,
-    expandPortInput,
-    expandPortOutput,
-    outspendCache,
-  } = useGraphExpansion(fetcher, WALLET_MAX_NODES);
+  const graph = useGraphExpansion(fetcher, WALLET_MAX_NODES);
+  const { setMultiRoot, setMultiRootWithLayers } = graph;
 
   // Build wallet output index: all txs with outputs belonging to wallet addresses
   const { walletOutputs, walletTxMap, capped } = useMemo(() => {
@@ -132,7 +112,7 @@ export function WalletGraphExplorerPanel({
   }, [walletTxMap, utxoTraces, setMultiRoot, setMultiRootWithLayers]);
 
   if (walletTxMap.size === 0) return null;
-  if (!rootTxid) return null;
+  if (!graph.rootTxid) return null;
 
   return (
     <div className="space-y-2">
@@ -147,26 +127,10 @@ export function WalletGraphExplorerPanel({
       <ChartErrorBoundary>
         <Suspense fallback={null}>
           <GraphExplorer
-            nodes={nodes}
-            rootTxid={rootTxid}
-            rootTxids={rootTxids}
+            graph={graph}
+            noAutoTrace
             walletUtxos={walletOutputs}
-            loading={loading}
-            errors={errors}
-            nodeCount={nodeCount}
-            maxNodes={maxNodes}
-            onExpandInput={expandInput}
-            onExpandOutput={expandOutput}
-            onCollapse={collapse}
-            onUndo={undo}
-            canUndo={canUndo}
-            onReset={reset}
             onTxClick={onTxClick}
-            expandedNodeTxid={expandedNodeTxid}
-            onToggleExpand={toggleExpand}
-            onExpandPortInput={expandPortInput}
-            onExpandPortOutput={expandPortOutput}
-            outspendCache={outspendCache}
           />
         </Suspense>
       </ChartErrorBoundary>

@@ -58,7 +58,9 @@ export const ScanHistory = memo(function ScanHistory({
     const reader = new FileReader();
     reader.onload = () => {
       const result = onImportBookmarks(reader.result as string);
-      if (result.error) {
+      if (result.error === "storage_full") {
+        setImportFeedback({ type: "error", message: t("workspace.storageFull", { defaultValue: "Browser storage is full. Delete some bookmarks or saved graphs and try again." }) });
+      } else if (result.error) {
         setImportFeedback({ type: "error", message: t("history.importError", { defaultValue: "Invalid bookmark file" }) });
       } else {
         setImportFeedback({ type: "success", message: t("history.importSuccess", { defaultValue: "{{count}} bookmarks imported", count: result.imported }) });

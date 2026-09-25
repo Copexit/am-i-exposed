@@ -27,32 +27,8 @@ export default function GraphPage() {
   // Initial load waits until the backend is known (Umbrel / Tor onion / clearnet)
   const apiReady = localApiStatus !== "checking" && torStatus !== "checking";
 
-  const {
-    nodes,
-    rootTxid,
-    loading,
-    errors,
-    nodeCount,
-    maxNodes,
-    setRoot,
-    loadGraph,
-    expandInput,
-    expandOutput,
-    collapse,
-    undo,
-    canUndo,
-    reset,
-    expandedNodeTxid,
-    toggleExpand,
-    expandPortInput,
-    expandPortOutput,
-    outspendCache,
-    autoTrace,
-    cancelAutoTrace,
-    autoTracing,
-    autoTraceProgress,
-    autoTraceLinkability,
-  } = useGraphExpansion(api);
+  const graph = useGraphExpansion(api);
+  const { nodes, rootTxid, setRoot, loadGraph } = graph;
 
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -241,31 +217,8 @@ export default function GraphPage() {
       <ChartErrorBoundary>
         <Suspense fallback={null}>
           <GraphExplorer
-            nodes={nodes}
-            rootTxid={rootTxid}
-            loading={loading}
-            errors={errors}
-            nodeCount={nodeCount}
-            maxNodes={maxNodes}
-            canUndo={canUndo}
-            onExpandInput={expandInput}
-            onExpandOutput={expandOutput}
-            onCollapse={collapse}
-            onUndo={undo}
-            onReset={reset}
+            graph={graph}
             onTxClick={handleFullScan}
-            expandedNodeTxid={expandedNodeTxid}
-            onToggleExpand={toggleExpand}
-            onExpandPortInput={expandPortInput}
-            onExpandPortOutput={expandPortOutput}
-            outspendCache={outspendCache}
-            onAutoTrace={autoTrace}
-            onCancelAutoTrace={cancelAutoTrace}
-            autoTracing={autoTracing}
-            autoTraceProgress={autoTraceProgress}
-            onAutoTraceLinkability={(txid, outputIndex) =>
-              autoTraceLinkability(txid, outputIndex, { boltzmannCache: undefined })
-            }
             alwaysFullscreen
             onSetAsRoot={navigateToTxid}
             onSearch={navigateToTxid}

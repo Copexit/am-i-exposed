@@ -818,4 +818,86 @@ describe("useGraphExpansion", () => {
       expect(result.current.rootTxids.has("sr-check")).toBe(true);
     });
   });
+
+  // ── Auto-trace cancellation (graph replaced / unmounted) ───────────────
+
+  describe("auto-trace cancellation", () => {
+    const flush = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
+
+    function setup() {
+      const rootTx = makeTx({ txid: "at-root", vout: [makeVout(50000)] });
+      const childTx = makeTx({ txid: "at-child", vin: [makeVin("at-root", 0)], vout: [makeVout(49000)] });
+      let resolveOutspends!: (v: MempoolOutspend[]) => void;
+      const outspends = new Promise<MempoolOutspend[]>((r) => { resolveOutspends = r; });
+      const fetcher = {
+        getTransaction: vi.fn().mockResolvedValue(childTx),
+        getTxOutspends: vi.fn().mockReturnValue(outspends),
+      };
+      const hook = renderHook(() => useGraphExpansion(fetcher));
+      act(() => { hook.result.current.setRoot(rootTx); });
+      const release = () => resolveOutspends([{ spent: true, txid: "at-child", vin: 0, status: { confirmed: true } }]);
+      return { hook, fetcher, release };
+    }
+
+    async function startTrace({ hook, fetcher }: ReturnType<typeof setup>) {
+      await act(async () => {
+        void hook.result.current.autoTrace("at-root", 0);
+        await flush();
+      });
+      expect(fetcher.getTxOutspends).toHaveBeenCalledWith("at-root");
+      expect(hook.result.current.autoTracing).toBe(true);
+    }
+
+    it("reset aborts a running auto-trace", async () => {
+      const ctx = setup();
+      await startTrace(ctx);
+
+      act(() => { ctx.hook.result.current.reset(); });
+      await act(async () => { ctx.release(); await flush(); });
+
+      expect(ctx.fetcher.getTransaction).not.toHaveBeenCalled();
+      expect(ctx.hook.result.current.nodes.size).toBe(1);
+      expect(ctx.hook.result.current.autoTracing).toBe(false);
+    });
+
+    it("setRoot with a new root aborts a running auto-trace", async () => {
+      const ctx = setup();
+      await startTrace(ctx);
+
+      act(() => { ctx.hook.result.current.setRoot(makeTx({ txid: "other-root" })); });
+      await act(async () => { ctx.release(); await flush(); });
+
+      expect(ctx.fetcher.getTransaction).not.toHaveBeenCalled();
+      expect([...ctx.hook.result.current.nodes.keys()]).toEqual(["other-root"]);
+      expect(ctx.hook.result.current.autoTracing).toBe(false);
+    });
+
+    it("loadGraph aborts a running auto-trace", async () => {
+      const ctx = setup();
+      await startTrace(ctx);
+
+      const loaded = makeTx({ txid: "loaded-root" });
+      act(() => {
+        ctx.hook.result.current.loadGraph(
+          new Map([["loaded-root", { txid: "loaded-root", tx: loaded, depth: 0 }]]),
+          "loaded-root",
+          new Set(["loaded-root"]),
+        );
+      });
+      await act(async () => { ctx.release(); await flush(); });
+
+      expect(ctx.fetcher.getTransaction).not.toHaveBeenCalled();
+    });
+
+    it("unmount aborts a running auto-trace", async () => {
+      const ctx = setup();
+      await startTrace(ctx);
+
+      ctx.hook.unmount();
+      ctx.release();
+      await flush();
+
+      expect(ctx.fetcher.getTransaction).not.toHaveBeenCalled();
+    });
+  });
 });

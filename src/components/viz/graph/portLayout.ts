@@ -1,6 +1,7 @@
 import { PORT_H, PORT_GAP, EXPANDED_HEADER_H, EXPANDED_PAD_V, MAX_VISIBLE_PORTS } from "./constants";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { GraphNode, PortLayout, PortPositionMap } from "./types";
+import { isOpReturnOutput } from "@/lib/analysis/heuristics/tx-utils";
 
 /**
  * Pre-built spending index: maps "${txid}:${vout}" to the spender node info.
@@ -101,13 +102,13 @@ export function buildOutputPorts(
 
     ports.push({
       index: i,
-      address: vout.scriptpubkey_address ?? (vout.scriptpubkey_type === "op_return" ? "OP_RETURN" : "unknown"),
+      address: vout.scriptpubkey_address ?? (isOpReturnOutput(vout) ? "OP_RETURN" : "unknown"),
       value: vout.value,
       scriptType: vout.scriptpubkey_type,
       y: getPortY(nodeY, i, tx.vout.length, nodeHeight),
       spent: os?.spent ?? null,
       spentByTxid,
-      isExpandable: vout.scriptpubkey_type !== "op_return" && vout.value > 0 && !isConsumed,
+      isExpandable: !isOpReturnOutput(vout) && vout.value > 0 && !isConsumed,
       isExpanded: isConsumed,
     });
   }

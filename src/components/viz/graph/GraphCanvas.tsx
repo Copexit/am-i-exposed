@@ -16,6 +16,7 @@ import { useGraphLayout } from "./useGraphLayout";
 import { GraphAnnotations } from "./GraphAnnotations";
 import { GraphNodeRenderer } from "./GraphNodeRenderer";
 import type { GraphCanvasProps, LayoutNode } from "./types";
+import { isOpReturnOutput } from "@/lib/analysis/heuristics/tx-utils";
 
 export function GraphCanvas({
   nodes,
@@ -233,7 +234,7 @@ export function GraphCanvas({
     }
     for (let i = 0; i < node.tx.vout.length && expanded < 5; i++) {
       if (consumedOutputs.has(i)) continue;
-      if (node.tx.vout[i].scriptpubkey_type === "op_return" || node.tx.vout[i].value === 0) continue;
+      if (isOpReturnOutput(node.tx.vout[i]) || node.tx.vout[i].value === 0) continue;
       onExpandOutput(node.txid, i);
       expanded++;
     }
