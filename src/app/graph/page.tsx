@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useEffectEvent, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
+import { useRouter } from "next/navigation";
 import { useNetwork } from "@/context/NetworkContext";
 import { createApiClient } from "@/lib/api/client";
 import { useGraphExpansion } from "@/hooks/useGraphExpansion";
@@ -22,6 +23,7 @@ const TX_EXAMPLES = EXAMPLES.filter((e) => TXID_RE.test(e.input));
 
 export default function GraphPage() {
   const { t } = useTranslation();
+  const router = useRouter();
   const { network, config, configFor, setNetwork, isUmbrel, localApiStatus, torStatus } = useNetwork();
   const api = useMemo(() => createApiClient(config), [config]);
   // Initial load waits until the backend is known (Umbrel / Tor onion / clearnet)
@@ -202,8 +204,8 @@ export default function GraphPage() {
   );
 
   const handleFullScan = useCallback((txid: string) => {
-    window.location.href = `/#tx=${txid}`;
-  }, []);
+    router.push(`/#tx=${txid}`);
+  }, [router]);
 
   // Auto-clear load warning after 8 seconds
   useEffect(() => {
