@@ -900,4 +900,81 @@ describe("useGraphExpansion", () => {
       expect(ctx.fetcher.getTransaction).not.toHaveBeenCalled();
     });
   });
+
+  describe("expanded node and outspend cache", () => {
+    const flush = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
+    const spent = (txid: string): MempoolOutspend[] => [{ spent: true, txid, vin: 0, status: { confirmed: true } }];
+
+    function setup() {
+      const parentTx = makeTx({ txid: "ex-parent", vout: [makeVout(60000)] });
+      const rootTx = makeTx({ txid: "ex-root", vin: [makeVin("ex-parent", 0)], vout: [makeVout(50000)] });
+      const childTx = makeTx({ txid: "ex-child", vin: [makeVin("ex-root", 0)], vout: [makeVout(49000)] });
+      const txs = new Map([["ex-parent", parentTx], ["ex-child", childTx]]);
+      const fetcher = {
+        getTransaction: vi.fn((txid: string) => Promise.resolve(txs.get(txid)!)),
+        getTxOutspends: vi.fn((txid: string) => Promise.resolve(spent(`${txid}-spender`))),
+      };
+      const hook = renderHook(() => useGraphExpansion(fetcher));
+      act(() => { hook.result.current.setRoot(rootTx); });
+      return { hook, fetcher };
+    }
+
+    it("toggleExpand expands a node, caches its outspends once, and collapses on a second toggle", async () => {
+      const { hook, fetcher } = setup();
+      await act(async () => { await hook.result.current.toggleExpand("ex-root"); });
+      expect(hook.result.current.expandedNodeTxid).toBe("ex-root");
+      expect(hook.result.current.outspendCache.get("ex-root")).toEqual(spent("ex-root-spender"));
+
+      await act(async () => { await hook.result.current.toggleExpand("ex-root"); });
+      expect(hook.result.current.expandedNodeTxid).toBeNull();
+
+      await act(async () => { await hook.result.current.toggleExpand("ex-root"); });
+      expect(hook.result.current.expandedNodeTxid).toBe("ex-root");
+      expect(fetcher.getTxOutspends).toHaveBeenCalledTimes(1);
+    });
+
+    it("a root change clears the expanded node and the outspend cache", async () => {
+      const { hook, fetcher } = setup();
+      await act(async () => { await hook.result.current.toggleExpand("ex-root"); });
+
+      act(() => { hook.result.current.setRoot(makeTx({ txid: "ex-other" })); });
+      expect(hook.result.current.expandedNodeTxid).toBeNull();
+      expect(hook.result.current.outspendCache.size).toBe(0);
+
+      await act(async () => { await hook.result.current.toggleExpand("ex-root"); });
+      expect(fetcher.getTxOutspends).toHaveBeenCalledTimes(2);
+    });
+
+    it("drops outspends that land after the root changed", async () => {
+      const { hook, fetcher } = setup();
+      let release!: () => void;
+      fetcher.getTxOutspends.mockReturnValueOnce(
+        new Promise((r) => { release = () => r(spent("late")); }),
+      );
+      await act(async () => { void hook.result.current.toggleExpand("ex-root"); await flush(); });
+      act(() => { hook.result.current.setRoot(makeTx({ txid: "ex-other" })); });
+      await act(async () => { release(); await flush(); });
+
+      expect(hook.result.current.outspendCache.size).toBe(0);
+    });
+
+    it("expandPortOutput expands the child that spends the port once it arrives", async () => {
+      const { hook, fetcher } = setup();
+      fetcher.getTxOutspends.mockResolvedValueOnce(spent("ex-child"));
+      await act(async () => { await hook.result.current.expandPortOutput("ex-root", 0); await flush(); });
+
+      expect(hook.result.current.nodes.has("ex-child")).toBe(true);
+      expect(hook.result.current.expandedNodeTxid).toBe("ex-child");
+      expect(hook.result.current.outspendCache.get("ex-child")).toEqual(spent("ex-child-spender"));
+    });
+
+    it("expandPortInput expands the funding parent", async () => {
+      const { hook } = setup();
+      await act(async () => { await hook.result.current.expandPortInput("ex-root", 0); await flush(); });
+
+      expect(hook.result.current.nodes.has("ex-parent")).toBe(true);
+      expect(hook.result.current.expandedNodeTxid).toBe("ex-parent");
+      expect(hook.result.current.outspendCache.get("ex-parent")).toEqual(spent("ex-parent-spender"));
+    });
+  });
 });

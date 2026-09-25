@@ -40,10 +40,12 @@ vi.mock("@/context/NetworkContext", () => ({
   useNetwork: () => ({
     network: "mainnet",
     setNetwork: m.setNetwork,
-    config: { mempoolBaseUrl: "https://mempool.space/api" },
+    // Tor: the active backend is mempool.space's onion, which is not a custom API
+    config: onionConfigFor("mainnet"),
     configFor: onionConfigFor,
     customApiUrl: null,
     isUmbrel: false,
+    isCustomApi: false,
   }),
 }));
 
@@ -88,6 +90,14 @@ describe("useAnalysis", () => {
     expect(net).toBe("mainnet");
     expect(query).toBe(TXID);
     expect(state.phase).toBe("complete");
+  });
+
+  it("takes isCustomApi from the network context, so Tor is not treated as self-hosted", async () => {
+    m.runTxidAnalysis.mockResolvedValue(txOutcome(result()));
+    const { result: hook } = renderHook(() => useAnalysis());
+    await act(async () => { await hook.current.analyze(TXID); });
+
+    expect(m.runTxidAnalysis.mock.calls[0][1].isCustomApi).toBe(false);
   });
 
   it("does not cache a partial result", async () => {

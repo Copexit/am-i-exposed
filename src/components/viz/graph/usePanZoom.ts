@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useLayoutEffect, useState, useCallback } from "react";
 import type { ViewTransform } from "./types";
 import { MIN_ZOOM, MAX_ZOOM } from "./constants";
 
@@ -40,9 +40,11 @@ export function usePanZoom({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const panRef = useRef({ active: false, mode: "transform" as "transform" | "scroll", startX: 0, startY: 0, vtX: 0, vtY: 0, scale: 1, scrollLeft: 0, scrollTop: 0 });
   const pinchRef = useRef({ active: false, startDist: 0, startScale: 1, midX: 0, midY: 0 });
-  const viewTransformRef = useRef(viewTransform);
-  // eslint-disable-next-line react-hooks/refs -- latest-value ref for stable event handlers
-  viewTransformRef.current = viewTransform;
+  // Latest values for the native listeners below, which subscribe once per
+  // transform-mode toggle instead of on every render.
+  const latestRef = useRef({ viewTransform, onPanStart, onWheel });
+  useLayoutEffect(() => { latestRef.current = { viewTransform, onPanStart, onWheel }; });
+  const transformMode = !!viewTransform;
   const [isPanning, setIsPanning] = useState(false);
 
   // ─── Mouse pan ─────────────────────────────────────────────────
@@ -110,12 +112,12 @@ export function usePanZoom({
   // ─── Wheel-to-zoom ────────────────────────────────────────────
 
   useEffect(() => {
-    if (!viewTransform || !onViewTransformChange) return;
+    if (!transformMode || !onViewTransformChange) return;
     const el = svgRef.current;
     if (!el) return;
     const handler = (e: WheelEvent) => {
       e.preventDefault();
-      const vt = viewTransformRef.current;
+      const vt = latestRef.current.viewTransform;
       if (!vt) return;
       const rect = el.getBoundingClientRect();
       const cx = e.clientX - rect.left;
@@ -125,17 +127,16 @@ export function usePanZoom({
       const factor = e.deltaY > 0 ? 0.9 : 1.1;
       const ns = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, vt.scale * factor));
       onViewTransformChange({ x: cx - gx * ns, y: cy - gy * ns, scale: ns });
-      onWheel?.();
+      latestRef.current.onWheel?.();
     };
     el.addEventListener("wheel", handler, { passive: false });
     return () => el.removeEventListener("wheel", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [!!viewTransform, onViewTransformChange]);
+  }, [transformMode, onViewTransformChange]);
 
   // ─── Touch gestures: single-finger pan + two-finger pinch ─────
 
   useEffect(() => {
-    if (!viewTransform || !onViewTransformChange) return;
+    if (!transformMode || !onViewTransformChange) return;
     const el = wrapperRef.current;
     if (!el) return;
 
@@ -149,7 +150,7 @@ export function usePanZoom({
       if (e.touches.length === 2) {
         e.preventDefault();
         pendingPan = null;
-        const vt = viewTransformRef.current;
+        const vt = latestRef.current.viewTransform;
         if (!vt) return;
         const t0 = e.touches[0], t1 = e.touches[1];
         const rect = el.getBoundingClientRect();
@@ -162,7 +163,7 @@ export function usePanZoom({
         };
         panRef.current.active = false;
       } else if (e.touches.length === 1) {
-        const vt = viewTransformRef.current;
+        const vt = latestRef.current.viewTransform;
         if (!vt) return;
         const t = e.touches[0];
         pendingPan = { startX: t.clientX, startY: t.clientY, vtX: vt.x, vtY: vt.y, scale: vt.scale };
@@ -173,7 +174,7 @@ export function usePanZoom({
     const handleTouchMove = (e: TouchEvent) => {
       if (pinchRef.current.active && e.touches.length === 2) {
         e.preventDefault();
-        const vt = viewTransformRef.current;
+        const vt = latestRef.current.viewTransform;
         if (!vt) return;
         const t0 = e.touches[0], t1 = e.touches[1];
         const curDist = dist(t0, t1);
@@ -200,7 +201,7 @@ export function usePanZoom({
             };
             pendingPan = null;
             setIsPanning(true);
-            onPanStart?.();
+            latestRef.current.onPanStart?.();
           }
         }
 
@@ -225,7 +226,7 @@ export function usePanZoom({
         setIsPanning(false);
       }
       if (e.touches.length === 1 && !pinchRef.current.active) {
-        const vt = viewTransformRef.current;
+        const vt = latestRef.current.viewTransform;
         if (!vt) return;
         const t = e.touches[0];
         pendingPan = { startX: t.clientX, startY: t.clientY, vtX: vt.x, vtY: vt.y, scale: vt.scale };
@@ -240,8 +241,7 @@ export function usePanZoom({
       el.removeEventListener("touchmove", handleTouchMove);
       el.removeEventListener("touchend", handleTouchEnd);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [!!viewTransform, onViewTransformChange]);
+  }, [transformMode, onViewTransformChange]);
 
   return { svgRef, wrapperRef, isPanning, handlePanStart };
 }

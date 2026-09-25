@@ -27,6 +27,8 @@ import {
 // Re-export types that consumers import from this module
 export type { GraphNode, MultiRootEntry } from "@/lib/graph/graph-reducer";
 
+const EMPTY_OUTSPENDS: ReadonlyMap<string, MempoolOutspend[]> = new Map();
+
 /**
  * Interactive graph expansion hook (OXT-style click-to-expand).
  *
@@ -153,83 +155,72 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
 
   // ---- Expanded node state (UTXO port mode) ----
 
-  const [expandedNodeTxid, setExpandedNodeTxid] = useState<string | null>(null);
-  const outspendCacheRef = useRef<Map<string, MempoolOutspend[]>>(new Map());
-  // Force re-render counter - used when outspend data arrives for an already-expanded node
-  const [, setOutspendTick] = useState(0);
+  // Both are tagged with the root they belong to, so a root change resets them
+  // by derivation. An expanded node that left the graph (collapsed, or its
+  // ADD_NODE was rejected at capacity) is not expanded.
+  const [expanded, setExpanded] = useState<{ root: string; txid: string | null }>({ root: "", txid: null });
+  const expandedNodeTxid =
+    expanded.root === state.rootTxid && expanded.txid && state.nodes.has(expanded.txid) ? expanded.txid : null;
 
-  // Clear expanded node and outspend cache when root changes.
-  // setState here is an intentional derived-state reset; the effect is the correct
-  // place because the ref must also be cleared alongside React state.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- derived-state reset on root change
-    setExpandedNodeTxid(null);
-    outspendCacheRef.current.clear();
-  }, [state.rootTxid]);
+  const [outspends, setOutspends] = useState<{ root: string; cache: ReadonlyMap<string, MempoolOutspend[]> }>(
+    { root: "", cache: EMPTY_OUTSPENDS },
+  );
+  const outspendCache = outspends.root === state.rootTxid ? outspends.cache : EMPTY_OUTSPENDS;
+  const outspendsRef = useRef(outspends);
+  useEffect(() => { outspendsRef.current = outspends; }, [outspends]);
 
-  const fetchAndCacheOutspends = useCallback(async (txid: string) => {
-    if (outspendCacheRef.current.has(txid)) return;
+  const fetchAndCacheOutspends = useCallback(async (txid: string, root: string) => {
+    const current = outspendsRef.current;
+    if (current.root === root && current.cache.has(txid)) return;
     const client = fetcherRef.current;
     if (!client) return;
     try {
-      const outspends = await client.getTxOutspends(txid);
-      outspendCacheRef.current.set(txid, outspends);
-      setOutspendTick((c) => c + 1);
+      const result = await client.getTxOutspends(txid);
+      // The graph was replaced while this was in flight - the entry belongs to the old root.
+      if (stateRef.current.rootTxid !== root) return;
+      setOutspends((prev) => ({
+        root,
+        cache: new Map(prev.root === root ? prev.cache : []).set(txid, result),
+      }));
     } catch {
       // Outspends unavailable - not critical, ports still render without spend status
     }
   }, []);
 
+  /** Expand a node's UTXO ports and load its spend status. */
+  const expandNode = useCallback(async (txid: string) => {
+    const root = stateRef.current.rootTxid;
+    setExpanded({ root, txid });
+    await fetchAndCacheOutspends(txid, root);
+  }, [fetchAndCacheOutspends]);
+
   const toggleExpand = useCallback(async (txid: string) => {
     if (expandedNodeTxid === txid) {
-      setExpandedNodeTxid(null);
+      setExpanded((prev) => ({ ...prev, txid: null }));
       return;
     }
-    setExpandedNodeTxid(txid);
-    await fetchAndCacheOutspends(txid);
-  }, [expandedNodeTxid, fetchAndCacheOutspends]);
+    await expandNode(txid);
+  }, [expandedNodeTxid, expandNode]);
 
   const expandPortInput = useCallback(async (txid: string, inputIndex: number) => {
     await expandInput(txid, inputIndex);
-    const node = stateRef.current.nodes.get(txid);
-    if (node) {
-      const vin = node.tx.vin[inputIndex];
-      if (vin && !vin.is_coinbase) {
-        setExpandedNodeTxid(vin.txid);
-        await fetchAndCacheOutspends(vin.txid);
-      }
-    }
-  }, [expandInput, fetchAndCacheOutspends]);
-
-  const [pendingPortExpand, setPendingPortExpand] = useState<{ txid: string; outputIndex: number } | null>(null);
+    const vin = stateRef.current.nodes.get(txid)?.tx.vin[inputIndex];
+    if (vin && !vin.is_coinbase) await expandNode(vin.txid);
+  }, [expandInput, expandNode]);
 
   const expandPortOutput = useCallback(async (txid: string, outputIndex: number) => {
-    await expandOutput(txid, outputIndex);
-    setPendingPortExpand({ txid, outputIndex });
-  }, [expandOutput]);
-
-  // Resolve pending port expansion after React processes the ADD_NODE dispatch.
-  // setState calls here are intentional: this effect synchronizes derived
-  // expansion state after the graph state updates from an async dispatch.
-  useEffect(() => {
-    if (!pendingPortExpand) return;
-    const { txid, outputIndex } = pendingPortExpand;
-
-    for (const [childTxid, childNode] of state.nodes) {
-      if (childNode.parentEdge?.fromTxid === txid) {
-        const matchesOutput = childNode.tx.vin.some(
-          (v) => v.txid === txid && v.vout === outputIndex,
-        );
-        if (matchesOutput) {
-          // eslint-disable-next-line react-hooks/set-state-in-effect -- consume pending port expand once child node arrives
-          setExpandedNodeTxid(childTxid);
-          setPendingPortExpand(null);
-          fetchAndCacheOutspends(childTxid);
-          return;
-        }
-      }
-    }
-  }, [pendingPortExpand, state.nodes, fetchAndCacheOutspends]);
+    // The op may pick a different output than the one clicked (it skips spends
+    // already in the graph), so take the child from the ADD_NODE it dispatches.
+    let childTxid: string | null = null;
+    await expandOutputOp({
+      ...expansionCtx,
+      dispatch: (action) => {
+        if (action.type === "ADD_NODE") childTxid = action.node.txid;
+        dispatch(action);
+      },
+    }, txid, outputIndex);
+    if (childTxid) await expandNode(childTxid);
+  }, [expansionCtx, expandNode]);
 
   // ---- Auto-trace (peel chain following) ----
 
@@ -262,11 +253,6 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     autoTraceAbortRef.current = ac;
     await runAutoTraceLinkability(client, startTxid, startOutputIndex, ac.signal, makeAutoTraceCallbacks(ac.signal), opts);
   }, [makeAutoTraceCallbacks]);
-
-  // Expose outspend cache as readonly. The outspendTick counter above triggers
-  // re-renders when new entries are added, keeping consumers in sync.
-  /* eslint-disable react-hooks/refs -- reading ref for return value; tick state ensures re-renders */
-  const outspendCache: ReadonlyMap<string, MempoolOutspend[]> = outspendCacheRef.current;
 
   return {
     nodes: state.nodes,
@@ -301,5 +287,4 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     autoTraceProgress,
     autoTraceLinkability,
   };
-  /* eslint-enable react-hooks/refs */
 }

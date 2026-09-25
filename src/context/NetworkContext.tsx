@@ -37,6 +37,11 @@ interface NetworkContextValue {
   localApiStatus: LocalApiStatus;
   /** Whether the app is running on the Umbrel Docker backend */
   isUmbrel: boolean;
+  /**
+   * The backend is a self-hosted mempool (a user-set custom URL, or Umbrel's),
+   * not mempool.space. The Tor onion endpoint is mempool.space, so it is not custom.
+   */
+  isCustomApi: boolean;
 }
 
 const NetworkContext = createContext<NetworkContextValue>({
@@ -49,6 +54,7 @@ const NetworkContext = createContext<NetworkContextValue>({
   torStatus: "checking",
   localApiStatus: "checking",
   isUmbrel: false,
+  isCustomApi: false,
 });
 
 interface ResolveOptions {
@@ -160,6 +166,7 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
       torStatus,
       localApiStatus,
       isUmbrel,
+      isCustomApi: !!customUrl || isUmbrel,
     }),
     [network, setNetwork, config, configFor, customUrl, setCustomUrl, torStatus, localApiStatus, isUmbrel],
   );

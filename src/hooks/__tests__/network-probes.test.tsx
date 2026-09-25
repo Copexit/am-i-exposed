@@ -131,6 +131,28 @@ describe("NetworkProvider", () => {
     act(() => result.current.setNetwork("testnet4"));
     expect(result.current.network).toBe("mainnet");
   });
+
+  it("isCustomApi: false on Tor (the onion endpoint is mempool.space), true for a custom URL and on Umbrel", async () => {
+    const offUmbrel = { "/api/local-info": { delay: 5, status: 404, body: "not found" } };
+    mockFetch({ ...offUmbrel, "tor-check": { delay: 5, body: { isTor: true } } });
+    const tor = await renderNetwork();
+    await flush();
+    await flush(15_000);
+    expect(tor.result.current.torStatus).toBe("tor");
+    expect(tor.result.current.config.mempoolBaseUrl).toContain(".onion");
+    expect(tor.result.current.isCustomApi).toBe(false);
+    act(() => tor.result.current.setCustomApiUrl("https://node.local/api"));
+    expect(tor.result.current.isCustomApi).toBe(true);
+    act(() => tor.result.current.setCustomApiUrl(null));
+    cleanup();
+
+    vi.resetModules();
+    mockFetch(UMBREL_ROUTES);
+    const umbrel = await renderNetwork();
+    await flush();
+    expect(umbrel.result.current.isUmbrel).toBe(true);
+    expect(umbrel.result.current.isCustomApi).toBe(true);
+  });
 });
 
 describe("resolveNetworkConfig", () => {

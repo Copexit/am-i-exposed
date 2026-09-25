@@ -4,7 +4,7 @@ import { useSyncExternalStore, useCallback } from "react";
 import { createLocalStorageStore } from "./createLocalStorageStore";
 import { validateSavedGraph, type SavedGraph } from "@/lib/graph/saved-graph-types";
 
-const MAX_SAVED_GRAPHS = 50;
+export const MAX_SAVED_GRAPHS = 50;
 
 export const savedGraphStore = createLocalStorageStore<SavedGraph[]>(
   "ami-saved-graphs",

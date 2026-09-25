@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
 import { fmtN } from "@/lib/format";
@@ -22,18 +22,15 @@ function truncTxid(txid: string): string {
 export function RecentCyclesTable({ firstPage }: RecentCyclesTableProps) {
   const { t } = useTranslation();
   const { isUmbrel } = useNetwork();
-  const [extra, setExtra] = useState<WhirlpoolTxsPage[]>([]);
+  // Appended pages are tagged with the base page they were loaded under, so a
+  // base refresh (focus revalidation) drops them by derivation, and a page that
+  // was in flight across a refresh is discarded when it lands.
+  const [appended, setAppended] = useState<{
+    base: WhirlpoolTxsPage | null;
+    pages: WhirlpoolTxsPage[];
+  }>({ base: firstPage, pages: [] });
   const [loadingMore, setLoadingMore] = useState(false);
-  // Tracks the current base page so an in-flight "load more" can detect a
-  // mid-load refresh and drop its (now stale) result instead of appending it.
-  const firstPageRef = useRef(firstPage);
-
-  // When the base page refreshes (focus revalidation), drop appended pages.
-  useEffect(() => {
-    firstPageRef.current = firstPage;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset appended pages when base page refreshes
-    setExtra([]);
-  }, [firstPage]);
+  const extra = appended.base === firstPage ? appended.pages : [];
 
   const allPages = firstPage ? [firstPage, ...extra] : [];
   // Dedup by txid: pagination can shift between fetches (a new cycle lands
@@ -52,24 +49,23 @@ export function RecentCyclesTable({ firstPage }: RecentCyclesTableProps) {
   const canLoadMore =
     lastPage != null && lastPage.page < lastPage.total_pages && !loadingMore;
 
-  /* eslint-disable react-hooks/preserve-manual-memoization -- ref read guards stale in-flight pages */
-  const loadMore = useCallback(async () => {
+  const loadMore = async () => {
     if (!lastPage) return;
-    const base = firstPageRef.current;
+    const base = firstPage;
     setLoadingMore(true);
     try {
       const endpoints = getObservatoryEndpoints({ isUmbrel });
       const next = await getWhirlpoolTxs(endpoints.whirlpoolBase, lastPage.page + 1);
-      // The base page refreshed while this was in flight - discard the stale page.
-      if (firstPageRef.current !== base) return;
-      setExtra((prev) => [...prev, next]);
+      setAppended((prev) => ({
+        base,
+        pages: [...(prev.base === base ? prev.pages : []), next],
+      }));
     } catch {
       // Silently stop; the "load more" button just stays available to retry.
     } finally {
       setLoadingMore(false);
     }
-  }, [isUmbrel, lastPage]);
-  /* eslint-enable react-hooks/preserve-manual-memoization */
+  };
 
   if (rows.length === 0) return null;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useRef, useEffect } from "react";
+import { useCallback, useState, useRef, useLayoutEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { SVG_COLORS } from "./svgConstants";
 
@@ -19,35 +19,35 @@ interface ChartTooltipProps {
   containerRef?: React.RefObject<HTMLElement | null>;
 }
 
+const subscribeNoop = () => () => {};
+
 /**
  * Portal-based tooltip that renders at body level to avoid overflow clipping.
  * Coordinates are local to the container; if containerRef is provided they are
  * converted to viewport-fixed positioning via getBoundingClientRect.
  */
 export function ChartTooltip({ top, left, children, containerRef }: ChartTooltipProps) {
-  const [mounted, setMounted] = useState(false);
+  // Client-only: document.body does not exist during the static prerender.
+  const mounted = useSyncExternalStore(subscribeNoop, () => true, () => false);
   const tooltipRef = useRef<HTMLDivElement>(null);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- client-only mount flag for portal
-  useEffect(() => { setMounted(true); }, []);
+  // Convert container-local coords to viewport-fixed coords before paint, so
+  // the tooltip moves in the same frame as the mouse event that re-rendered it.
+  useLayoutEffect(() => {
+    const el = tooltipRef.current;
+    if (!el) return;
+    const rect = containerRef?.current?.getBoundingClientRect();
+    el.style.top = `${rect ? rect.top + top : top}px`;
+    el.style.left = `${rect ? rect.left + left : left}px`;
+  });
 
   if (!mounted) return null;
-
-  // Convert container-local coords to viewport-fixed coords.
-  // Reading containerRef during render is intentional: tooltip position must
-  // be synchronous with the mouse event that triggered the render.
-  // eslint-disable-next-line react-hooks/refs -- DOM measurement for portal positioning
-  const rect = containerRef?.current?.getBoundingClientRect();
-  const fixedTop = rect ? rect.top + top : top;
-  const fixedLeft = rect ? rect.left + left : left;
 
   return createPortal(
     <div
       ref={tooltipRef}
       style={{
         position: "fixed",
-        top: fixedTop,
-        left: fixedLeft,
         transform: "translate(-50%, -100%)",
         backgroundColor: "var(--overlay-bg)",
         border: "1px solid var(--overlay-border)",

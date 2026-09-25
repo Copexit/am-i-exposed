@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { isXpubPrivacyAcked } from "@/components/wallet/XpubPrivacyWarning";
-import type { LocalApiStatus } from "@/hooks/useLocalApi";
 import { useNetwork } from "@/context/NetworkContext";
 
 const subscribeNoop = () => () => {};
@@ -29,10 +28,7 @@ interface HashRoutingResult {
  * Encapsulates all hash-routing logic: initial hash detection,
  * hashchange listener, API-status gating, and programmatic skip flag.
  */
-export function useHashRouting(
-  callbacks: HashRoutingCallbacks,
-  localApiStatus: LocalApiStatus,
-): HashRoutingResult {
+export function useHashRouting(callbacks: HashRoutingCallbacks): HashRoutingResult {
   // Keep latest function refs for hashchange listener (avoids stale closures)
   const analyzeRef = useRef(callbacks.analyze);
   const walletAnalyzeRef = useRef(callbacks.walletAnalyze);
@@ -53,7 +49,7 @@ export function useHashRouting(
   // Wait for both the local API probe and Tor detection to settle before
   // processing the initial hash URL. Otherwise the first scan goes to
   // mempool.space on Umbrel, or to clearnet instead of the onion on Tor.
-  const { torStatus } = useNetwork();
+  const { torStatus, localApiStatus } = useNetwork();
   const apiReady = localApiStatus !== "checking" && torStatus !== "checking";
   const initialHashProcessedRef = useRef(false);
   /** Skip the next hashchange handler (set when startXpubScan changes the hash programmatically). */

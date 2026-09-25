@@ -7,7 +7,7 @@ import { createApiClient } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/fetch-with-retry";
 import { detectTxidNetwork } from "@/lib/api/detect-network";
 import { mapApiErrorMessage } from "@/lib/api/error-message";
-import { NETWORK_CONFIG, type BitcoinNetwork } from "@/lib/bitcoin/networks";
+import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
 import { detectInputType } from "@/lib/analysis/detect-input";
 import {
   analyzeTransaction,
@@ -36,7 +36,7 @@ export type { PreSendResult } from "@/lib/analysis/orchestrator";
 
 export function useAnalysis() {
   const [state, setState] = useState<AnalysisState>(INITIAL_STATE);
-  const { network, setNetwork, config, configFor, customApiUrl, isUmbrel } = useNetwork();
+  const { network, setNetwork, config, configFor, customApiUrl, isUmbrel, isCustomApi } = useNetwork();
   const { t } = useTranslation();
   const abortRef = useRef<AbortController | null>(null);
   /** Cache write owed by the analysis that just completed; flushed after the commit. */
@@ -69,9 +69,6 @@ export function useAnalysis() {
       }),
     }));
   }, []);
-
-  const isCustomApi =
-    config.mempoolBaseUrl !== NETWORK_CONFIG[network].mempoolBaseUrl;
 
   const analyze = useCallback(
     async (input: string) => {

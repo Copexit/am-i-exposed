@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useSavedGraphs } from "@/hooks/useSavedGraphs";
+import { useSavedGraphs, MAX_SAVED_GRAPHS } from "@/hooks/useSavedGraphs";
 import { serializeGraph } from "@/lib/graph/saved-graph-types";
 import { encodeGraphToUrl } from "@/lib/graph/graph-url-codec";
 import { truncateId } from "@/lib/constants";
@@ -13,9 +13,6 @@ import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
 import type { SavedGraph, GraphAnnotation } from "@/lib/graph/saved-graph-types";
 
 type Panel = "save" | "load" | null;
-
-/** Mirrors the cap in useSavedGraphs: saveGraph returns "" at the cap or when the write fails. */
-const MAX_SAVED_GRAPHS = 50;
 
 interface UseSaveLoadShareArgs {
   nodes?: Map<string, GraphNode>;

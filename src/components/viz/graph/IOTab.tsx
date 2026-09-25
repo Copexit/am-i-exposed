@@ -25,6 +25,7 @@ export interface IOTabProps {
   onAutoTraceLinkability?: (txid: string, outputIndex: number) => void;
   autoTracing?: boolean;
   autoTraceProgress?: { hop: number; txid: string; reason: string } | null;
+  onCancelAutoTrace?: () => void;
 }
 
 export function IOTab({
@@ -42,6 +43,7 @@ export function IOTab({
   onAutoTraceLinkability,
   autoTracing,
   autoTraceProgress,
+  onCancelAutoTrace,
 }: IOTabProps) {
   const { t } = useTranslation();
   const mat = boltzmannResult?.matLnkProbabilities;
@@ -101,6 +103,15 @@ export function IOTab({
               <span className="text-muted ml-1">({autoTraceProgress.reason})</span>
             )}
           </span>
+          {onCancelAutoTrace && (
+            <button
+              type="button"
+              onClick={onCancelAutoTrace}
+              className="ml-auto text-xs text-bitcoin/70 hover:text-bitcoin transition-colors cursor-pointer"
+            >
+              {t("graph.ioTab.stopTrace", { defaultValue: "Stop" })}
+            </button>
+          )}
         </div>
       )}
 

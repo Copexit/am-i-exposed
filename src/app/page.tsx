@@ -86,13 +86,12 @@ export default function Home() {
   const [pendingXpub, setPendingXpub] = useState<string | null>(null);
 
   // Detect third-party API (not Umbrel and no custom API)
-  const { customApiUrl, isUmbrel, config, localApiStatus } = useNetwork();
+  const { customApiUrl, isUmbrel, config } = useNetwork();
   const isThirdPartyApi = !isUmbrel && !customApiUrl;
 
   // Hash routing (refs, hashchange listener, initial hash detection)
   const { pendingHash, dismissPendingHash, skipNextHashChangeRef } = useHashRouting(
     { analyze, walletAnalyze: wallet.analyze, reset, walletReset: wallet.reset, isThirdPartyApi, setPendingXpub },
-    localApiStatus,
   );
 
   // Register service worker

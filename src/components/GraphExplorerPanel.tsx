@@ -8,14 +8,11 @@ import { ChartErrorBoundary } from "./ui/ChartErrorBoundary";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
-import type { Finding } from "@/lib/types";
 
 const GraphExplorer = lazy(() => import("./viz/GraphExplorer").then(m => ({ default: m.GraphExplorer })));
 
 interface GraphExplorerPanelProps {
   tx: MempoolTransaction;
-  /** Unused: the graph scores nodes itself. Kept until ResultsPanel stops passing it. */
-  findings?: Finding[];
   onTxClick?: (txid: string) => void;
   /** Backward trace layers from chain analysis (multi-hop). */
   backwardLayers?: TraceLayer[] | null;

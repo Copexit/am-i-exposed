@@ -20,7 +20,6 @@ import {
   type UtxoTraceResult,
 } from "@/lib/wallet/scan";
 import { mapApiErrorMessage } from "@/lib/api/error-message";
-import { NETWORK_CONFIG } from "@/lib/bitcoin/networks";
 
 export type { UtxoTraceResult } from "@/lib/wallet/scan";
 
@@ -78,8 +77,7 @@ const INITIAL_STATE: WalletAnalysisState = {
 export function useWalletAnalysis() {
   const [state, setState] = useState<WalletAnalysisState>(INITIAL_STATE);
   const { t } = useTranslation();
-  const { network, config, isUmbrel } = useNetwork();
-  const isCustomApi = config.mempoolBaseUrl !== NETWORK_CONFIG[network].mempoolBaseUrl;
+  const { config, isUmbrel, isCustomApi } = useNetwork();
   const abortRef = useRef<AbortController | null>(null);
 
   const analyze = useCallback(

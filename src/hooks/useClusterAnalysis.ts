@@ -5,7 +5,6 @@ import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { createApiClient } from "@/lib/api/client";
 import { mapApiErrorMessage } from "@/lib/api/error-message";
-import { NETWORK_CONFIG } from "@/lib/bitcoin/networks";
 import {
   buildFirstDegreeCluster,
   type ClusterResult,
@@ -31,9 +30,8 @@ const INITIAL: ClusterState = {
 
 export function useClusterAnalysis() {
   const [state, setState] = useState<ClusterState>(INITIAL);
-  const { network, config, isUmbrel } = useNetwork();
+  const { config, isUmbrel, isCustomApi } = useNetwork();
   const { t } = useTranslation();
-  const isCustomApi = config.mempoolBaseUrl !== NETWORK_CONFIG[network].mempoolBaseUrl;
   const abortRef = useRef<AbortController | null>(null);
 
   const analyze = useCallback(
