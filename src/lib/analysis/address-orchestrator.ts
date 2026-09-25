@@ -8,6 +8,7 @@ import { sumImpact } from "@/lib/scoring/score";
 import { checkOfac } from "./cex-risk/ofac-check";
 import { ADDRESS_HEURISTICS, tick } from "./heuristic-registry";
 import { runTxHeuristics, finalizeTxResult } from "./tx-pipeline";
+import { enrichFindingsWithMetadata } from "./finding-metadata";
 
 // ── Pre-send destination check (H13) ────────────────────────────────────────
 
@@ -181,6 +182,7 @@ export async function analyzeDestination(
         : "Ask the recipient for a fresh, unused address. If this is an exchange, consider the privacy implications.",
     scoreImpact: 0,
   });
+  enrichFindingsWithMetadata(allFindings);
 
   return {
     riskLevel,

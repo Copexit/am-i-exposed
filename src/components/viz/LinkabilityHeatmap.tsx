@@ -192,7 +192,9 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
             const showEfficiency = isCoinJoinTx(tx) && result.efficiency > 0 && !result.timedOut;
             const effPct = Math.min(result.efficiency, 1) * 100;
             const isApprox = result.method === "wabisabi" || result.method === "joinmarket";
-            const boundLabel = isApprox ? " (upper bound)" : "";
+            const boundLabel = isApprox ? ` ${t("boltzmann.upperBound", { defaultValue: "(upper bound)" })}` : "";
+            const bits = result.entropy.toFixed(2);
+            const bitsPerUtxo = (result.entropy / (nIn + nOut)).toFixed(2);
 
             return (
               <>
@@ -200,20 +202,26 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                 <div className="flex flex-wrap gap-2">
                   <motion.span initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="inline-flex items-center gap-1.5 bg-surface-inset rounded-full px-2.5 py-1 text-xs text-muted">
                     <Hash size={11} />
-                    {result.timedOut ? `${result.nbCmbn.toLocaleString()}+ interpretations (partial)` : t("boltzmann.interpretations", { defaultValue: "{{num}} interpretations", num: result.nbCmbn.toLocaleString() })}
+                    {result.timedOut
+                      ? t("boltzmann.interpretationsPartial", { num: result.nbCmbn.toLocaleString(), defaultValue: "{{num}}+ interpretations (partial)" })
+                      : t("boltzmann.interpretations", { count: result.nbCmbn, num: result.nbCmbn.toLocaleString(), defaultValue: "{{num}} interpretations" })}
                   </motion.span>
-                  <motion.span initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.05 }} className="inline-flex items-center gap-1.5 bg-surface-inset rounded-full px-2.5 py-1 text-xs text-muted" title={isApprox ? "Upper bound. True entropy may be slightly lower due to structural approximations." : undefined}>
+                  <motion.span initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.05 }} className="inline-flex items-center gap-1.5 bg-surface-inset rounded-full px-2.5 py-1 text-xs text-muted" title={isApprox ? t("boltzmann.entropyUpperBoundTooltip", { defaultValue: "Upper bound. True entropy may be slightly lower due to structural approximations." }) : undefined}>
                     <Grid3X3 size={11} />
-                    {result.timedOut ? `${result.entropy.toFixed(2)}+ bits entropy (partial)` : `${result.entropy.toFixed(2)} bits entropy${boundLabel}`}
+                    {result.timedOut
+                      ? t("boltzmann.entropyPartial", { bits, defaultValue: "{{bits}}+ bits entropy (partial)" })
+                      : t("boltzmann.entropy", { bits, defaultValue: "{{bits}} bits entropy" }) + boundLabel}
                   </motion.span>
-                  <motion.span initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.075 }} className="inline-flex items-center gap-1.5 bg-surface-inset rounded-full px-2.5 py-1 text-xs text-muted" title={isApprox ? "Upper bound. Per-UTXO entropy averaged across the transaction." : undefined}>
+                  <motion.span initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.075 }} className="inline-flex items-center gap-1.5 bg-surface-inset rounded-full px-2.5 py-1 text-xs text-muted" title={isApprox ? t("boltzmann.bitsPerUtxoUpperBoundTooltip", { defaultValue: "Upper bound. Per-UTXO entropy averaged across the transaction." }) : undefined}>
                     <Grid3X3 size={11} />
-                    {result.timedOut ? `${(result.entropy / (nIn + nOut)).toFixed(2)}+ bits/UTXO (partial)` : `${(result.entropy / (nIn + nOut)).toFixed(2)} bits/UTXO${boundLabel}`}
+                    {result.timedOut
+                      ? t("boltzmann.bitsPerUtxoPartial", { bits: bitsPerUtxo, defaultValue: "{{bits}}+ bits/UTXO (partial)" })
+                      : t("boltzmann.bitsPerUtxo", { bits: bitsPerUtxo, defaultValue: "{{bits}} bits/UTXO" }) + boundLabel}
                   </motion.span>
                   {result.deterministicLinks.length > 0 && (
                     <motion.span initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.15 }} className="inline-flex items-center gap-1.5 bg-severity-critical/10 text-severity-critical border border-severity-critical/20 rounded-full px-2.5 py-1 text-xs">
                       <Link size={11} />
-                      {t("boltzmann.deterministicLinks", { defaultValue: "{{num}} deterministic links", num: result.deterministicLinks.length })}
+                      {t("boltzmann.deterministicLinks", { count: result.deterministicLinks.length, num: result.deterministicLinks.length, defaultValue: "{{num}} deterministic links" })}
                     </motion.span>
                   )}
                   <motion.span initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.2 }} className="inline-flex items-center gap-1.5 bg-surface-inset rounded-full px-2.5 py-1 text-xs text-muted">

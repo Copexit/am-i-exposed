@@ -195,7 +195,7 @@ export function GraphSidebar({
               {t("graph.quickScore", { score: result.score, defaultValue: "Quick score: {{score}}/100" })}
             </div>
             {result.txType && result.txType !== "unknown" && (
-              <div className="text-xs text-muted truncate">{result.txType.replace(/-/g, " ")}</div>
+              <div className="text-xs text-muted truncate">{t(`txType.${result.txType}`, { defaultValue: result.txType.replace(/-/g, " ") })}</div>
             )}
           </div>
           <div className="text-xs text-muted shrink-0">{formatSats(totalValue)}</div>

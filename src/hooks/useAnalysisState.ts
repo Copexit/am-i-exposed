@@ -5,6 +5,7 @@ import type { HeuristicStep, PreSendResult } from "@/lib/analysis/orchestrator";
 import type { PSBTParseResult } from "@/lib/bitcoin/psbt";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
+import { enrichFindingsWithMetadata } from "@/lib/analysis/finding-metadata";
 
 type AnalysisPhase =
   | "idle"
@@ -104,29 +105,31 @@ export function makeIncompletePrevoutFinding(remainingNulls: number, isAddress =
 export function makeOfacPreSendResult(
   t: (key: string, opts?: Record<string, unknown>) => string,
 ): PreSendResult {
+  const findings: Finding[] = [
+    {
+      id: "h13-presend-check",
+      severity: "critical",
+      params: { riskLevel: "CRITICAL" },
+      title: t("finding.h13-presend-check.title", { riskLevel: "CRITICAL", defaultValue: "Destination risk: CRITICAL" }),
+      description: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
+      recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),
+      scoreImpact: 0,
+    },
+    {
+      id: "h13-ofac-match",
+      severity: "critical",
+      title: t("finding.h13-ofac-match.title", { defaultValue: "OFAC sanctioned address" }),
+      description: t("finding.h13-ofac-match.description", { defaultValue: "This address matches an entry on the U.S. Treasury OFAC Specially Designated Nationals (SDN) list. Transacting with sanctioned addresses may have serious legal consequences." }),
+      recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),
+      scoreImpact: -100,
+    },
+  ];
+  enrichFindingsWithMetadata(findings);
   return {
     riskLevel: "CRITICAL",
     summaryKey: "presend.adviceCritical",
     summary: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
-    findings: [
-      {
-        id: "h13-presend-check",
-        severity: "critical",
-        params: { riskLevel: "CRITICAL" },
-        title: t("finding.h13-presend-check.title", { riskLevel: "CRITICAL", defaultValue: "Destination risk: CRITICAL" }),
-        description: t("presend.adviceCritical", { defaultValue: "Do NOT send to this address. It poses severe privacy or legal risks." }),
-        recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),
-        scoreImpact: 0,
-      },
-      {
-        id: "h13-ofac-match",
-        severity: "critical",
-        title: t("finding.h13-ofac-match.title", { defaultValue: "OFAC sanctioned address" }),
-        description: t("finding.h13-ofac-match.description", { defaultValue: "This address matches an entry on the U.S. Treasury OFAC Specially Designated Nationals (SDN) list. Transacting with sanctioned addresses may have serious legal consequences." }),
-        recommendation: t("finding.h13-ofac-match.recommendation", { defaultValue: "Do NOT send funds to this address. Consult legal counsel if you have already transacted with this address." }),
-        scoreImpact: -100,
-      },
-    ],
+    findings,
     txCount: 0,
     timesReceived: 0,
     totalReceived: 0,

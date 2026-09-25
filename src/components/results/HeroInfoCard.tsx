@@ -5,7 +5,7 @@ import { Copy, Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { GlowCard } from "../ui/GlowCard";
 import { copyToClipboard } from "@/lib/clipboard";
-import { TX_TYPE_LABELS, AddressTypeBadge } from "./constants";
+import { AddressTypeBadge } from "./constants";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { ScoringResult } from "@/lib/types";
 
@@ -49,7 +49,7 @@ export function HeroInfoCard({
         <div className="flex items-center gap-2 flex-wrap">
           {inputType === "txid" && result.txType && result.txType !== "simple-payment" && result.txType !== "unknown" && (
             <span className="text-xs font-medium px-1.5 py-0.5 rounded border border-card-border bg-surface-elevated text-muted">
-              {TX_TYPE_LABELS[result.txType] ?? result.txType.replace(/-/g, " ")}
+              {t(`txType.${result.txType}`, { defaultValue: result.txType.replace(/-/g, " ") })}
             </span>
           )}
           {inputType === "address" && <AddressTypeBadge address={query} />}

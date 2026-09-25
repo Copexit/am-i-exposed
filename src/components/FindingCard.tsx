@@ -8,7 +8,7 @@ import type { Finding } from "@/lib/types";
 import { highestAdversaryTier } from "@/lib/analysis/finding-metadata";
 import { WalletIcon } from "@/components/ui/WalletIcon";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { findingKey } from "@/lib/finding-utils";
+import { findingKeys } from "@/lib/finding-utils";
 import { RicochetHopTable, ConsolidationTable } from "./FindingCardTables";
 import {
   SEVERITY_STYLES,
@@ -183,6 +183,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
   const severityLabel = t(`common.severity.${finding.severity}`, { defaultValue: style.label });
   const confidence = finding.confidence;
   const confidenceStyle = confidence ? CONFIDENCE_STYLES[confidence] : null;
+  const title = t(findingKeys(finding.id, "title", finding.params), { ...finding.params, defaultValue: finding.title });
 
   return (
     <motion.div
@@ -192,7 +193,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
       className={`glass rounded-lg border-l-2 ${style.border} ${style.glow ?? ""}`}
       data-finding-id={finding.id}
       role="article"
-      aria-label={`${severityLabel} finding: ${t(findingKey(finding.id, "title", finding.params), { ...finding.params, defaultValue: finding.title })}`}
+      aria-label={t("finding.ariaLabel", { severity: severityLabel, title, defaultValue: "{{severity}} finding: {{title}}" })}
     >
       <button
         onClick={() => setExpanded(!expanded)}
@@ -205,7 +206,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
           <WalletIcon walletName={String(finding.params.walletGuess)} size="sm" />
         )}
         <span className="flex-1 text-sm font-medium text-foreground min-w-[120px]">
-          {t(findingKey(finding.id, "title", finding.params), { ...finding.params, defaultValue: finding.title })}
+          {title}
         </span>
         <span className="flex items-center gap-1.5 flex-wrap">
           {proMode && confidenceStyle && (
@@ -266,7 +267,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
           >
             <div id={`finding-detail-${finding.id}`} className="px-5 pb-5 space-y-3 border-t border-card-border pt-3">
               <p className="text-base text-foreground leading-relaxed">
-                {t(findingKey(finding.id, "description", finding.params), { ...finding.params, defaultValue: finding.description })}
+                {t(findingKeys(finding.id, "description", finding.params), { ...finding.params, defaultValue: finding.description })}
               </p>
               <ChangeSignalBreakdown finding={finding} t={t} proMode={proMode} />
               {proMode && <TierContext finding={finding} t={t} />}
@@ -276,7 +277,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
                     {t("finding.recommendationLabel", { defaultValue: "Recommendation" })}
                   </p>
                   <p className="text-base text-foreground/90 leading-relaxed">
-                    {t(findingKey(finding.id, "recommendation", finding.params), { ...finding.params, defaultValue: finding.recommendation })}
+                    {t(findingKeys(finding.id, "recommendation", finding.params), { ...finding.params, defaultValue: finding.recommendation })}
                   </p>
                 </div>
               )}

@@ -239,7 +239,7 @@ export function WalletAuditResults({
               defaultValue: "Transaction Graph",
             })}
           </div>
-          <Suspense fallback={<div className="text-sm text-muted text-center py-4">Loading...</div>}>
+          <Suspense fallback={<div className="text-sm text-muted text-center py-4">{t("common.loading", { defaultValue: "Loading..." })}</div>}>
             <WalletGraphExplorerPanel
               addressInfos={addressInfos}
               utxoTraces={utxoTraces}
@@ -260,7 +260,7 @@ export function WalletAuditResults({
             {t("wallet.addressDetails", { count: activeCount, defaultValue: "Address Details ({{count}})" })}
           </button>
           {showAddresses && (
-            <Suspense fallback={<div className="text-sm text-muted text-center py-4">Loading...</div>}>
+            <Suspense fallback={<div className="text-sm text-muted text-center py-4">{t("common.loading", { defaultValue: "Loading..." })}</div>}>
               <WalletAddressTable addressInfos={addressInfos} onScan={onScan} />
             </Suspense>
           )}
@@ -278,7 +278,7 @@ export function WalletAuditResults({
             {t("wallet.txHistory", { count: totalTxs, defaultValue: "Transaction History ({{count}})" })}
           </button>
           {showTxs && (
-            <Suspense fallback={<div className="text-sm text-muted text-center py-4">Loading...</div>}>
+            <Suspense fallback={<div className="text-sm text-muted text-center py-4">{t("common.loading", { defaultValue: "Loading..." })}</div>}>
               <WalletTxList addressInfos={addressInfos} onScan={onScan} />
             </Suspense>
           )}

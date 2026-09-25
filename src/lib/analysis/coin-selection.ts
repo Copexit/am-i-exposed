@@ -19,6 +19,7 @@
 import type { MempoolUtxo } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import { fmtN } from "@/lib/format";
+import { enrichFindingsWithMetadata } from "./finding-metadata";
 import { TOXIC_CHANGE_THRESHOLD } from "@/lib/constants";
 
 // ---------- Types ----------
@@ -274,6 +275,7 @@ function generateFindings(result: CoinSelectionResult): Finding[] {
     });
   }
 
+  enrichFindingsWithMetadata(findings);
   return findings;
 }
 

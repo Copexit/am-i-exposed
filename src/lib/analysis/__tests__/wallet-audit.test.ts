@@ -146,4 +146,11 @@ describe("auditWallet", () => {
     expect(result.score).toBeLessThanOrEqual(100);
     expect(["A+", "B", "C", "D", "F"]).toContain(result.grade);
   });
+
+  it("tags findings with adversary tiers and temporality", () => {
+    const result = auditWallet([makeAddr("bc1qaddr0", 0, 3), makeAddr("bc1qaddr1", 1, 1)]);
+    const reuse = result.findings.find(f => f.id === "wallet-address-reuse");
+    expect(reuse?.adversaryTiers).toEqual(["passive_observer", "kyc_exchange", "state_adversary"]);
+    expect(reuse?.temporality).toBe("ongoing_pattern");
+  });
 });

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { FINDING_METADATA } from "../analysis/finding-metadata";
 
 const LOCALES_DIR = join(process.cwd(), "public/locales");
 
@@ -62,6 +63,36 @@ describe("locale parity", () => {
       }
     }
     expect([...missing], "keys used in code but missing from en/common.json").toEqual([]);
+  });
+
+  it("no locale value uses mustache sections, which i18next does not support", () => {
+    for (const lang of locales) {
+      for (const [k, v] of Object.entries(readLocale(lang))) {
+        expect(v, `${lang}/${k}`).not.toMatch(/\{\{[#/^]/);
+      }
+    }
+  });
+
+  it("every emitted finding id has title and description keys in English", () => {
+    const keys = Object.keys(readLocale("en"));
+    // Base key, a _variant key (finding.<id>.<field>.<variant>) or an i18next context key.
+    const has = (id: string, field: string) => {
+      const base = `finding.${id}.${field}`;
+      return keys.some((k) => k === base || k.startsWith(`${base}.`) || k.startsWith(`${base}_`));
+    };
+    // Registry ids catch emitters the literal scan below misses (other field order, template ids).
+    const missing = Object.keys(FINDING_METADATA).flatMap((id) =>
+      ["title", "description"].filter((field) => !has(id, field)).map((field) => `${id}.${field} (finding-metadata)`),
+    );
+    for (const file of sourceFiles(join(process.cwd(), "src"))) {
+      // Same finding-literal shape as the finding-metadata coverage test.
+      for (const m of readFileSync(file, "utf8").matchAll(/\bid:\s*"([a-z0-9-]+)",\s*\n\s*severity\b/g)) {
+        for (const field of ["title", "description"]) {
+          if (!has(m[1], field)) missing.push(`${m[1]}.${field} (${file.split("/src/")[1]})`);
+        }
+      }
+    }
+    expect(missing).toEqual([]);
   });
 
   it("every {{placeholder}} in a locale value is passed by its literal t() call", () => {

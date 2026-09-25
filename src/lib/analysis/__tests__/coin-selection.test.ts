@@ -118,4 +118,11 @@ describe("selectCoins", () => {
       expect(exactFinding?.severity).toBe("good");
     }
   });
+
+  it("tags findings with adversary tiers and temporality", () => {
+    const result = selectCoins([makeInput(25_000)], 20_000, 5);
+    const toxic = result?.findings.find(f => f.id === "coin-select-toxic-change");
+    expect(toxic?.adversaryTiers).toEqual(["passive_observer", "kyc_exchange"]);
+    expect(toxic?.temporality).toBe("active_risk");
+  });
 });

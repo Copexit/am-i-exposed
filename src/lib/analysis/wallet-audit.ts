@@ -16,6 +16,7 @@ import type { Finding, Severity, Grade } from "@/lib/types";
 import { scoreToGrade } from "@/lib/scoring/score";
 import { sumImpact } from "@/lib/scoring/score";
 import { fmtN } from "@/lib/format";
+import { enrichFindingsWithMetadata } from "./finding-metadata";
 import { P2PKH_DUST_LIMIT, TOXIC_CHANGE_THRESHOLD } from "@/lib/constants";
 import type { MempoolAddress, MempoolTransaction, MempoolUtxo } from "@/lib/api/types";
 import type { DerivedAddress } from "@/lib/bitcoin/descriptor";
@@ -306,6 +307,7 @@ export function auditWallet(addresses: WalletAddressInfo[]): WalletAuditResult {
   findings.push(...checkUtxoHygiene(addresses));
   findings.push(...checkSpendingPatterns(addresses));
   findings.push(...checkGoodPractices(addresses));
+  enrichFindingsWithMetadata(findings);
 
   // Calculate aggregate stats
   let activeAddresses = 0;
