@@ -79,18 +79,36 @@ describe("analyzeCioh", () => {
     expect(findings[0].severity).toBe("critical");
   });
 
-  it("deduplicates same address across inputs", () => {
-    const sameAddr = "bc1qdup00000000000000000000000000000000000";
-    const tx = makeTx({
-      vin: [
-        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: sameAddr, value: 50_000 } }),
-        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: sameAddr, value: 50_000 } }),
-      ],
-    });
+  const sameAddrVin = (txid: string) => makeVin({
+    txid,
+    prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qdup00000000000000000000000000000000000", value: 50_000 },
+  });
+
+  it("treats same-address inputs from one parent tx as a batch receive, not reuse", () => {
+    const tx = makeTx({ vin: [sameAddrVin("a".repeat(64)), sameAddrVin("a".repeat(64))] });
     const { findings } = analyzeCioh(tx);
-    // Only 1 unique address -> single input
-    expect(findings[0].id).toBe("h3-single-input");
+    expect(findings).toHaveLength(1);
+    expect(findings[0].id).toBe("h3-batch-receive-spend");
+    expect(findings[0].severity).toBe("low");
     expect(findings[0].scoreImpact).toBe(0);
+  });
+
+  it("flags same-address inputs from different parent txs as address reuse (#92)", () => {
+    const tx = makeTx({ vin: [sameAddrVin("a".repeat(64)), sameAddrVin("b".repeat(64))] });
+    const { findings } = analyzeCioh(tx);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].id).toBe("h3-input-reuse");
+    expect(findings[0].severity).toBe("high");
+    expect(findings[0].scoreImpact).toBe(-20);
+    expect(findings[0].params?.parentCount).toBe(2);
+  });
+
+  it("escalates input reuse to critical at 5+ distinct receives", () => {
+    const tx = makeTx({ vin: ["1", "2", "3", "4", "5"].map((c) => sameAddrVin(c.repeat(64))) });
+    const { findings } = analyzeCioh(tx);
+    expect(findings[0].id).toBe("h3-input-reuse");
+    expect(findings[0].severity).toBe("critical");
+    expect(findings[0].scoreImpact).toBe(-30);
   });
 
   it("returns no findings for coinbase transactions", () => {
