@@ -121,7 +121,7 @@ describe("observatory smoke tests", () => {
 
   it("ObservatoryAttribution renders both data-source link-outs at the new whirlpoolstats URL", () => {
     const { container } = render(
-      <ObservatoryAttribution lastUpdatedAt={Date.now()} locale="en" />,
+      <ObservatoryAttribution lastUpdatedAt={1_700_000_000_000} locale="en" />,
     );
     const links = container.querySelectorAll("a[href]");
     const hrefs = Array.from(links).map((a) => a.getAttribute("href"));

@@ -34,11 +34,6 @@ describe("HodlHodl detection - true positives (envelope-detectable)", () => {
   }
 });
 
-describe("HodlHodl detection - true positives (address-match-only, may or may not fire on envelope)", () => {
-  for (const fx of tp.filter((f) => !isEnvelopeDetectable(f.notes))) {
-    it.skip(`TP ${fx.txid.slice(0, 12)} - ${fx.notes} (envelope may skip)`, () => {});
-  }
-});
 
 function isFilterRuleTestable(notes: string): boolean {
   return notes.startsWith("3BMEX")
@@ -62,8 +57,3 @@ describe("HodlHodl detection - false positives (filter-rule-testable, MUST NOT f
   }
 });
 
-describe("HodlHodl detection - structurally-undecidable FPs (bloom-filter-resolved)", () => {
-  for (const fx of fp.filter((f) => !isFilterRuleTestable(f.notes))) {
-    it.skip(`FP ${fx.txid.slice(0, 12)} - ${fx.notes} (resolved by bloom layer)`, () => {});
-  }
-});

@@ -1,0 +1,336 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`golden corpus - block 850000 > 1a0198d5942a5111 1`] = `
+{
+  "findings": [
+    "anon-set-none 0",
+    "behavioral-fingerprint-rollup -6",
+    "compound-deterministic-cap -6",
+    "h1-round-amount -8",
+    "h11-no-locktime 0",
+    "h11-wallet-fingerprint -3",
+    "h2-same-address-io -20",
+    "h3-single-input 0",
+    "h5-low-entropy -3",
+    "h6-fee-segwit-miscalc -2",
+    "h6-rbf-signaled 0",
+    "script-uniform 2",
+  ],
+  "grade": "F",
+  "score": 24,
+}
+`;
+
+exports[`golden corpus - block 850000 > 2d2dcc80195541dd 1`] = `
+{
+  "findings": [
+    "behavioral-fingerprint-rollup -6",
+    "consolidation-fan-in -3",
+    "h-coin-selection-bnb 3",
+    "h11-legacy-version 0",
+    "h11-no-locktime 0",
+    "h11-wallet-fingerprint -3",
+    "h3-single-input 0",
+    "h6-rbf-signaled 0",
+  ],
+  "grade": "C",
+  "score": 61,
+}
+`;
+
+exports[`golden corpus - block 850000 > 8ce796fe58a92927 1`] = `
+{
+  "findings": [
+    "behavioral-fingerprint-rollup -6",
+    "consolidation-fan-in -2",
+    "h-coin-selection-bnb 3",
+    "h11-legacy-version 0",
+    "h11-no-locktime 0",
+    "h11-wallet-fingerprint -3",
+    "h2-wallet-hop 0",
+    "h3-cioh -9",
+    "h6-rbf-signaled 0",
+  ],
+  "grade": "C",
+  "score": 53,
+}
+`;
+
+exports[`golden corpus - block 850000 > 9e65c23dc39d5c3e 1`] = `
+{
+  "findings": [
+    "anon-set-none 0",
+    "behavioral-fingerprint-rollup -6",
+    "bip69-detected -2",
+    "h1-round-amount -8",
+    "h11-wallet-fingerprint -5",
+    "h2-change-detected -21",
+    "h3-cioh -12",
+    "h5-low-entropy -3",
+    "h6-fee-segwit-miscalc -2",
+    "h6-rbf-signaled 0",
+    "script-mixed -1",
+  ],
+  "grade": "F",
+  "score": 10,
+}
+`;
+
+exports[`golden corpus - block 850000 > 53d885d1aa07f481 1`] = `
+{
+  "findings": [
+    "compound-deterministic-cap -55",
+    "dust-attack 0",
+    "h-coin-selection-value-asc 0",
+    "h11-no-locktime 0",
+    "h2-same-address-io -20",
+    "h3-cioh 0",
+    "h4-coinjoin 20",
+    "h4-exchange-flagging 0",
+    "h5-entropy 15",
+    "h6-rbf-signaled 0",
+    "h7-op-return -8",
+    "script-uniform 2",
+    "witness-mixed-depths 0",
+  ],
+  "grade": "F",
+  "score": 24,
+}
+`;
+
+exports[`golden corpus - block 850000 > 58a7b1b7ef1e0c3b 1`] = `
+{
+  "findings": [
+    "anon-set-none 0",
+    "h11-legacy-version 0",
+    "h11-no-locktime 0",
+    "h11-wallet-fingerprint -3",
+    "h17-escrow-2of3 -2",
+    "h2-change-detected -16",
+    "h3-single-input 0",
+    "h5-low-entropy -3",
+    "h6-rbf-signaled 0",
+    "script-mixed 0",
+  ],
+  "grade": "D",
+  "score": 46,
+}
+`;
+
+exports[`golden corpus - block 850000 > 68b76a9f359782d7 1`] = `
+{
+  "findings": [
+    "behavioral-fingerprint-rollup -6",
+    "compound-deterministic-cap -3",
+    "dust-outputs -5",
+    "h-coin-selection-value-asc -1",
+    "h11-no-locktime 0",
+    "h11-wallet-fingerprint -3",
+    "h2-same-address-io -20",
+    "h3-single-input 0",
+    "h5-entropy 2",
+    "h6-round-fee-rate -2",
+    "h7-op-return -8",
+    "script-uniform 2",
+    "unnecessary-input -2",
+  ],
+  "grade": "F",
+  "score": 24,
+}
+`;
+
+exports[`golden corpus - block 850000 > 242b2de161deac31 1`] = `
+{
+  "findings": [
+    "behavioral-fingerprint-rollup -6",
+    "h11-no-locktime 0",
+    "h11-wallet-fingerprint -3",
+    "h2-sweep 0",
+    "h3-single-input 0",
+    "h5-zero-entropy 0",
+    "h6-fee-segwit-miscalc -2",
+    "h6-rbf-signaled 0",
+  ],
+  "grade": "C",
+  "score": 59,
+}
+`;
+
+exports[`golden corpus - block 850000 > 635b025b146d760d 1`] = `
+{
+  "findings": [
+    "anon-set-none 0",
+    "behavioral-fingerprint-rollup -6",
+    "compound-deterministic-cap -3",
+    "consolidation-fan-out -3",
+    "entity-behavior-exchange 0",
+    "exchange-withdrawal-pattern -3",
+    "h11-legacy-version 0",
+    "h11-no-locktime 0",
+    "h11-wallet-fingerprint -3",
+    "h2-same-address-io -20",
+    "h3-single-input 0",
+    "h5-low-entropy -3",
+    "h6-round-fee-rate -2",
+    "script-mixed -3",
+  ],
+  "grade": "F",
+  "score": 24,
+}
+`;
+
+exports[`golden corpus - block 850000 > 2494d26de43697c5 1`] = `
+{
+  "findings": [
+    "anon-set-none 0",
+    "behavioral-fingerprint-rollup -6",
+    "bip69-detected -2",
+    "h11-mixed-sequence 0",
+    "h11-no-locktime 0",
+    "h11-wallet-fingerprint -3",
+    "h2-self-send -25",
+    "h3-cioh -6",
+    "h5-low-entropy -3",
+    "h6-rbf-signaled 0",
+    "script-uniform 2",
+    "unnecessary-input 0",
+  ],
+  "grade": "D",
+  "score": 27,
+}
+`;
+
+exports[`golden corpus - block 850000 > 21797d49e0de1242 1`] = `
+{
+  "findings": [
+    "compound-deterministic-cap -5",
+    "dust-outputs -5",
+    "h11-no-locktime 0",
+    "h11-wallet-fingerprint -3",
+    "h2-same-address-io -20",
+    "h3-cioh -6",
+    "h5-entropy 2",
+    "h7-op-return -8",
+    "script-mixed -1",
+  ],
+  "grade": "F",
+  "score": 24,
+}
+`;
+
+exports[`golden corpus - block 850000 > 60848192841f6dac 1`] = `
+{
+  "findings": [
+    "anon-set-none 0",
+    "h11-wallet-fingerprint -5",
+    "h2-change-detected -18",
+    "h3-cioh -6",
+    "h5-low-entropy -3",
+    "h6-rbf-signaled 0",
+    "script-mixed -1",
+  ],
+  "grade": "D",
+  "score": 37,
+}
+`;
+
+exports[`golden corpus - block 850000 > a3d271e5377c35a2 1`] = `
+{
+  "findings": [
+    "anon-set-none 0",
+    "compound-deterministic-cap -16",
+    "h1-round-amount -8",
+    "h11-legacy-version 0",
+    "h11-no-locktime 0",
+    "h11-wallet-fingerprint -3",
+    "h2-same-address-io -20",
+    "h3-single-input 0",
+    "h5-entropy 2",
+    "h6-rbf-signaled 0",
+    "script-mixed -1",
+  ],
+  "grade": "F",
+  "score": 24,
+}
+`;
+
+exports[`golden corpus - block 850000 > b10c0000004da5a9 1`] = `
+{
+  "findings": [
+    "behavioral-fingerprint-rollup -12",
+    "dust-attack -8",
+    "h11-legacy-version 0",
+    "h11-mixed-sequence 0",
+    "h11-wallet-fingerprint -3",
+    "h17-multisig-info 0",
+    "h3-cioh 0",
+    "h5-entropy 15",
+    "h6-rbf-signaled 0",
+    "h7-op-return -5",
+    "script-mixed 0",
+    "script-multisig -8",
+    "timing-locktime-timestamp -3",
+    "witness-deep-stack -1",
+    "witness-mixed-depths -1",
+    "witness-mixed-sig-types -2",
+    "witness-mixed-types -1",
+  ],
+  "grade": "D",
+  "score": 41,
+}
+`;
+
+exports[`golden corpus - block 850000 > bb8e57e42ab0e028 1`] = `
+{
+  "findings": [
+    "behavioral-fingerprint-rollup -6",
+    "dust-outputs -3",
+    "h11-no-locktime 0",
+    "h11-wallet-fingerprint -3",
+    "h2-self-send -25",
+    "h3-single-input 0",
+    "h5-entropy 2",
+    "h6-fee-segwit-miscalc -2",
+    "script-uniform 2",
+  ],
+  "grade": "D",
+  "score": 35,
+}
+`;
+
+exports[`golden corpus - block 850000 > d3a0efbe90835b52 1`] = `
+{
+  "findings": [
+    "anon-set-none 0",
+    "compound-deterministic-cap -19",
+    "h11-no-locktime 0",
+    "h11-wallet-fingerprint -3",
+    "h2-same-address-io -20",
+    "h3-single-input 0",
+    "h5-low-entropy -3",
+    "h6-rbf-signaled 0",
+    "script-mixed -1",
+  ],
+  "grade": "F",
+  "score": 24,
+}
+`;
+
+exports[`golden corpus - block 850000 > d98f14d555b9db58 1`] = `
+{
+  "findings": [
+    "anon-set-none 0",
+    "compound-deterministic-cap -19",
+    "h11-legacy-version 0",
+    "h11-no-locktime 0",
+    "h11-wallet-fingerprint -3",
+    "h2-same-address-io -20",
+    "h3-single-input 0",
+    "h5-low-entropy -3",
+    "h6-rbf-signaled 0",
+    "script-mixed -1",
+  ],
+  "grade": "F",
+  "score": 24,
+}
+`;

@@ -32,9 +32,17 @@ function readFixture(name: string): string {
 
 /**
  * Intercept all mempool.space API calls and return fixture data.
- * Unknown txids/addresses get a 404.
+ * Unknown txids/addresses get a 404; every other external request is aborted.
  */
 export async function mockMempoolApi(page: Page) {
+  // Registered first so it has the lowest priority: anything not handled by
+  // a specific mock below (or served by the local static server) is aborted,
+  // so tests can never reach the real network.
+  await page.route(
+    (url) => url.hostname !== "localhost",
+    (route) => route.abort("blockedbyclient"),
+  );
+
   // Transaction endpoints (order matters: specific routes before catch-all)
   await page.route("**/api/tx/**/hex", async (route) => {
     await route.fulfill({ status: 200, body: "", contentType: "text/plain" });
