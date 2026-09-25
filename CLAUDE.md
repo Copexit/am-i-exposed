@@ -5,7 +5,11 @@
 - **Package manager:** pnpm (do not use npm or yarn)
 - **Dev server:** `pnpm dev`
 - **Build (static export):** `pnpm build`
-- **Lint:** `pnpm lint`
+- **Lint:** `pnpm lint` (`--max-warnings 0`, type-aware rules)
+- **Type-check:** `pnpm type-check`
+- **Unit/hook tests:** `pnpm test` (one Vitest run; DOM tests opt into jsdom per file), `pnpm test:coverage`
+- **E2E:** `pnpm test:e2e` (Playwright against `out/`, run `pnpm build` first)
+- **CLI tests:** `cd cli && pnpm test`
 
 ## Code Style Rules
 
@@ -51,7 +55,7 @@ Use these consistently for findings:
 - `critical` - red (#ef4444)
 - `high` - orange (#f97316)
 - `medium` - amber (#eab308)
-- `low` - blue (#3b82f6)
+- `low` - blue (#60a5fa)
 - `good` - green (#28d065)
 
 ## Boltzmann WASM
@@ -70,7 +74,7 @@ Requires `rustup target add wasm32-unknown-unknown` and `cargo install wasm-pack
 
 ```bash
 pnpm build:wasm          # Runs scripts/build-boltzmann-wasm.sh
-cd boltzmann-rs && cargo test   # Run Rust tests (23 test vectors)
+cd boltzmann-rs && cargo test   # Run Rust tests (known-tx vectors in tests/)
 ```
 
 After rebuilding, commit the updated files in `public/wasm/boltzmann/`. The worker JS in `public/workers/` is hand-written, not generated.
@@ -97,7 +101,7 @@ After rebuilding, commit the updated files in `public/wasm/boltzmann/`. The work
 
 ## Release Process
 
-- **Always run `pnpm test && pnpm lint && pnpm build` before pushing.** CI runs type-check and will fail on type errors that `pnpm test` alone does not catch. Do not push without verifying the build passes locally.
+- **Always run `pnpm test && pnpm lint && pnpm type-check && pnpm build` before pushing.** CI runs type-check and will fail on type errors that `pnpm test` alone does not catch. Do not push without verifying the build passes locally.
 - After removing or adding dependencies, always run `pnpm install` to sync `pnpm-lock.yaml`. CI uses `--frozen-lockfile` and will fail on mismatches.
 - Use `/deploy` command for the full pipeline: type-check, build, bump version, commit, push, GH Pages, Umbrel release.
 
@@ -126,7 +130,7 @@ After rebuilding, commit the updated files in `public/wasm/boltzmann/`. The work
 
 Project documentation lives in `docs/`. Before tackling new tasks, explore this folder for context. Key references:
 
-- **`docs/privacy-engine.md`** - Canonical heuristic reference (H1-H12), scoring model, threat model
+- **`docs/privacy-engine.md`** - Canonical heuristic reference (all registered heuristics), scoring model, threat model
 - **`docs/development-guide.md`** - Architecture, components, state machine, API endpoints
 - **`docs/testing-reference.md`** - Example transactions/addresses with expected grades
 - **`docs/research-boltzmann-entropy.md`** - Entropy math and implementation notes

@@ -14,11 +14,13 @@ pnpm install
 pnpm dev        # http://localhost:3000
 
 # Verify your changes
-pnpm lint       # Must pass with 0 errors
-pnpm build      # Static export to out/
+pnpm lint         # 0 errors, 0 warnings
+pnpm type-check   # tsc --noEmit
+pnpm test         # Vitest
+pnpm build        # Static export to out/
 ```
 
-**Requirements:** Node.js 20+, pnpm 9+
+**Requirements:** Node.js 22 (what CI uses), pnpm 10
 
 ## Project structure
 
@@ -27,20 +29,25 @@ src/
   app/                    # Next.js pages (static export)
   components/             # React components
   context/                # React context providers
-  lib/
+  hooks/                  # React hooks wrapping src/lib
+  lib/                    # Framework-free logic (also compiled by the CLI)
     analysis/
-      heuristics/         # 16 privacy heuristics (H1-H12 tx, H13-H16 addr)
-      orchestrator.ts     # Runs heuristics, manages scoring
-    api/                  # mempool.space API client
-    bitcoin/              # Address type detection, validation
-    i18n/                 # Internationalization (en, es, de, fr, pt)
+      heuristics/         # One module per heuristic
+      heuristic-registry.ts # 28 tx + 6 address heuristics
+      tx-pipeline.ts      # Runs tx heuristics, finalizes the score
+      chain/              # Multi-hop chain analysis
+    api/                  # mempool.space API client and caches
+    bitcoin/              # Networks, PSBT, descriptors, address types
     scoring/              # Score calculation, grade assignment
+public/locales/           # Translations (en, es, pt, de, fr, pl)
+cli/                      # CLI and MCP server
 docs/                     # Architecture, methodology, research
 ```
 
 Key docs to read before contributing:
-- **[`docs/privacy-engine.md`](docs/privacy-engine.md)** - Heuristic reference (H1-H12), scoring model
-- **[`docs/development-guide.md`](docs/development-guide.md)** - Architecture, state machine, API details
+- **[`docs/privacy-engine.md`](docs/privacy-engine.md)** - Heuristic reference, scoring model
+- **[`docs/development-guide.md`](docs/development-guide.md)** - Architecture, data flow, API details
+- **[`docs/testing.md`](docs/testing.md)** - Test suites and how to update the golden baselines
 - **[`docs/testing-reference.md`](docs/testing-reference.md)** - Example transactions with expected grades
 
 ## Code style
@@ -56,7 +63,7 @@ Key docs to read before contributing:
 
 1. Fork the repo and create a branch from `main`
 2. Make your changes
-3. Run `pnpm lint` and `pnpm build` - both must pass
+3. Run `pnpm test`, `pnpm lint`, `pnpm type-check` and `pnpm build` - all must pass
 4. Write a clear PR description explaining **what** and **why**
 5. If adding a new heuristic, include test transactions with expected outcomes
 
@@ -72,15 +79,16 @@ Examples of good first contributions:
 
 ## Adding a new heuristic
 
-1. Create the heuristic file in `src/lib/analysis/heuristics/`
-2. Follow the existing pattern: export a function that takes transaction/address data and returns findings
-3. Register it in the orchestrator (`src/lib/analysis/orchestrator.ts`)
-4. Document it in `docs/privacy-engine.md`
-5. Add test transactions to `docs/testing-reference.md`
+1. Create the heuristic file in `src/lib/analysis/heuristics/` and export it from `heuristics/index.ts`
+2. Follow the existing pattern: a function that takes transaction/address data and returns findings
+3. Register it in `src/lib/analysis/heuristic-registry.ts` (`TX_HEURISTICS` or `ADDRESS_HEURISTICS`)
+4. Add each new finding id to `FINDING_METADATA` in `src/lib/analysis/finding-metadata.ts` (finding ids are a typed union) and its title/description keys to `public/locales/en/common.json`
+5. Add unit tests next to the other heuristic tests, and review any golden corpus snapshot change (see `docs/testing.md`)
+6. Document it in `docs/privacy-engine.md`
 
 ## Translations
 
-We support 5 locales: `en`, `es`, `de`, `fr`, `pt`. Translation strings use `react-i18next` with inline `defaultValue` fallbacks. To add translations for a new locale or fix an existing one, look for `t("key", { defaultValue: "..." })` calls throughout the components.
+Six locales are supported: `en`, `es`, `pt`, `de`, `fr`, `pl`, in `public/locales/<lang>/common.json`. Strings use `react-i18next` with inline `defaultValue` fallbacks. English is the source of truth: `src/lib/__tests__/locale-parity.test.ts` fails when a locale is missing a key, a `t()` key is missing from English, or a value contains an em dash.
 
 ## Privacy rules
 
@@ -91,4 +99,4 @@ This is a privacy-focused project. Please:
 
 ## Questions?
 
-Open an issue or start a discussion on GitHub. We're happy to help you find something to work on.
+Open an issue or start a discussion on GitHub.
