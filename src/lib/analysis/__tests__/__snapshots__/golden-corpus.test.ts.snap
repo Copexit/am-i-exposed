@@ -28,11 +28,11 @@ exports[`golden corpus - block 850000 > 2d2dcc80195541dd 1`] = `
     "h11-legacy-version 0",
     "h11-no-locktime 0",
     "h11-wallet-fingerprint -3",
-    "h3-single-input 0",
+    "h3-input-reuse -30",
     "h6-rbf-signaled 0",
   ],
-  "grade": "C",
-  "score": 61,
+  "grade": "D",
+  "score": 31,
 }
 `;
 
@@ -118,13 +118,12 @@ exports[`golden corpus - block 850000 > 68b76a9f359782d7 1`] = `
 {
   "findings": [
     "behavioral-fingerprint-rollup -6",
-    "compound-deterministic-cap -3",
     "dust-outputs -5",
     "h-coin-selection-value-asc -1",
     "h11-no-locktime 0",
     "h11-wallet-fingerprint -3",
     "h2-same-address-io -20",
-    "h3-single-input 0",
+    "h3-input-reuse -20",
     "h5-entropy 2",
     "h6-round-fee-rate -2",
     "h7-op-return -8",
@@ -132,7 +131,7 @@ exports[`golden corpus - block 850000 > 68b76a9f359782d7 1`] = `
     "unnecessary-input -2",
   ],
   "grade": "F",
-  "score": 24,
+  "score": 7,
 }
 `;
 
@@ -233,19 +232,18 @@ exports[`golden corpus - block 850000 > a3d271e5377c35a2 1`] = `
 {
   "findings": [
     "anon-set-none 0",
-    "compound-deterministic-cap -16",
     "h1-round-amount -8",
     "h11-legacy-version 0",
     "h11-no-locktime 0",
     "h11-wallet-fingerprint -3",
     "h2-same-address-io -20",
-    "h3-single-input 0",
+    "h3-input-reuse -20",
     "h5-entropy 2",
     "h6-rbf-signaled 0",
     "script-mixed -1",
   ],
   "grade": "F",
-  "score": 24,
+  "score": 20,
 }
 `;
 
