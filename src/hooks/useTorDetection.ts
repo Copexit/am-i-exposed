@@ -158,47 +158,43 @@ async function checkTor(signal: AbortSignal): Promise<TorStatus> {
  * @param skip When true (e.g. local API detected on Umbrel), return "clearnet"
  *   immediately without firing any external checks. This prevents IP leakage
  *   to tor-check.copexit.workers.dev on every page load.
+ * @param defer When true (e.g. local API detection still pending), stay in
+ *   "checking" and fire nothing until the caller knows whether to skip.
  */
-export function useTorDetection(skip?: boolean): TorStatus {
+export function useTorDetection(skip?: boolean, defer?: boolean): TorStatus {
   const [status, setStatus] = useState<TorStatus>(() => {
     if (skip) return "clearnet";
     return cachedStatus ?? "checking";
   });
 
   useEffect(() => {
-    // Local API available (Umbrel) - skip all external Tor checks.
-    // When skip transitions to true after mount (localApiStatus resolved),
-    // abort any in-flight checks and discard their results.
-    if (skip) {
-      // Null out inflight so no stale promise can set cachedStatus
-      if (inflight) inflight = null;
-      return;
-    }
-
-    // Already resolved from a previous render / page load
-    if (cachedStatus) return;
+    if (skip || defer || cachedStatus) return;
 
     const controller = new AbortController();
 
-    // Deduplicate concurrent calls (e.g. StrictMode double-mount)
+    // Deduplicate concurrent calls. An aborted probe (StrictMode unmount)
+    // clears itself in cleanup, so a remount starts a fresh one.
     if (!inflight) {
-      inflight = checkTor(controller.signal).then((result) => {
-        if (!controller.signal.aborted) {
-          cachedStatus = result;
-        }
-        inflight = null;
+      const p: Promise<TorStatus> = checkTor(controller.signal).then((result) => {
+        if (!controller.signal.aborted) cachedStatus = result;
+        if (inflight === p) inflight = null;
         return result;
       });
+      inflight = p;
     }
+    const current = inflight;
 
-    inflight.then((result) => {
+    current.then((result) => {
       if (!controller.signal.aborted) {
         setStatus(result);
       }
     });
 
-    return () => controller.abort();
-  }, [skip]);
+    return () => {
+      controller.abort();
+      if (!cachedStatus && inflight === current) inflight = null;
+    };
+  }, [skip, defer]);
 
   return skip ? "clearnet" : status;
 }

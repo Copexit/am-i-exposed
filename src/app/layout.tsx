@@ -78,8 +78,6 @@ export default function RootLayout({
         />
         <meta name="referrer" content="no-referrer" />
         <meta name="theme-color" content="#0a0a0a" id="meta-theme-color" />
-        <link rel="preconnect" href="https://mempool.space" />
-        <link rel="dns-prefetch" href="https://mempool.space" />
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{if(localStorage.getItem("ami-theme")==="light"){document.documentElement.dataset.theme="light";var m=document.getElementById("meta-theme-color");if(m)m.content="#f8fafc"}}catch(e){}})()` }} />
       </head>
       <body

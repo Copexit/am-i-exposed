@@ -12,8 +12,12 @@ const MIN_ENTITY_QUERY = 2;
 /** Debounce delay in ms for address API calls. */
 const DEBOUNCE_MS = 300;
 
-/** Regex for partial address prefixes worth autocompleting. */
-const ADDRESS_PREFIX_RE = /^(bc1|tb1|[13]|[mn2])/i;
+/**
+ * Partial addresses worth autocompleting: network prefix plus only bech32 or
+ * base58 characters, so entity names ("MEXC", "Mt. Gox") never match.
+ */
+const MAINNET_PREFIX_RE = /^(?:bc1[02-9ac-hj-np-z]*|[13][1-9A-HJ-NP-Za-km-z]*)$/;
+const TESTNET_PREFIX_RE = /^(?:tb1[02-9ac-hj-np-z]*|[mn2][1-9A-HJ-NP-Za-km-z]*)$/;
 
 export interface AutocompleteSuggestion {
   type: "address" | "entity";
@@ -26,7 +30,10 @@ export interface AutocompleteSuggestion {
 }
 
 export function useAddressAutocomplete() {
-  const { config } = useNetwork();
+  const { config, network, isUmbrel, customApiUrl } = useNetwork();
+  // Partial addresses are only sent to the user's own node, never to a
+  // third-party API before the user asks for a scan.
+  const isOwnNode = isUmbrel || !!customApiUrl;
   const [suggestions, setSuggestions] = useState<AutocompleteSuggestion[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [isOpen, setIsOpen] = useState(false);
@@ -57,10 +64,10 @@ export function useAddressAutocomplete() {
       return;
     }
 
-    const isAddressPrefix = ADDRESS_PREFIX_RE.test(trimmed);
+    const isAddressPrefix = (network === "mainnet" ? MAINNET_PREFIX_RE : TESTNET_PREFIX_RE).test(trimmed);
 
     // Path 1: Address prefix autocomplete (API call with debounce)
-    if (isAddressPrefix && trimmed.length >= MIN_PREFIX_LENGTH) {
+    if (isAddressPrefix && isOwnNode && trimmed.length >= MIN_PREFIX_LENGTH) {
       const seq = ++seqRef.current;
 
       timerRef.current = setTimeout(async () => {
@@ -113,7 +120,7 @@ export function useAddressAutocomplete() {
     // Neither path matched
     setSuggestions([]);
     setIsOpen(false);
-  }, [config]);
+  }, [config, network, isOwnNode]);
 
   const close = useCallback(() => {
     setIsOpen(false);
