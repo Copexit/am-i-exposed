@@ -27,6 +27,7 @@ import {
   whirlpoolSparkline,
 } from "@/lib/observatory/selectors";
 import { fmtN } from "@/lib/format";
+import { COLORS } from "@/lib/palette";
 import type { LiquiSabiGraphEntry } from "@/lib/observatory/types";
 
 function fmtBtc(value: number): string {
@@ -246,7 +247,7 @@ export default function ObservatoryPage() {
           >
             <TrendChart
               points={wabisabiSparkline}
-              color="#f97316"
+              color={COLORS.severityHigh}
               unit="BTC"
               formatX={(v) => labelFromGraph(liquisabi?.Graph, v)}
               height={220}

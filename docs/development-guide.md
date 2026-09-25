@@ -56,7 +56,6 @@ src/
 ├── hooks/
 │   ├── useAnalysis.ts       # Main orchestration hook with AbortController
 │   ├── useAnalysisSettings.ts # Chain trace settings (depth, sats, timeout)
-│   ├── useAnalysisState.ts  # State types, initial state, helper factories
 │   ├── useChainTrace.ts     # Backward/forward recursive tracing + chain heuristics
 │   ├── useGraphExpansion.ts # Expandable tx graph state (undo/reset/node cap)
 │   ├── useKeyboardNav.ts    # Keyboard shortcuts (Esc, /, Ctrl+K)

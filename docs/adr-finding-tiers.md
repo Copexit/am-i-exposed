@@ -185,7 +185,7 @@ Dynamic finding IDs (e.g., `h7-op-return-0`, `h7-op-return-1`) fall back to pref
 | `chain-trace-summary` | passive | historical | Trace overview (informational) |
 | `chain-trace-partial` | passive | historical | Incomplete trace (data quality) |
 | `utxo-age-spread` | passive, kyc | historical | Co-spent UTXOs with large age spread |
-| `linkability-deterministic`, `linkability-ambiguous`, `linkability-equal-subset` | passive | historical | Linkability analysis |
+| `linkability-deterministic`, `linkability-equal-subset` | passive | historical | Linkability analysis |
 
 ### Temporal & Prospective Analysis
 

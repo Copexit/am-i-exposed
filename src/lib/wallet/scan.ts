@@ -3,7 +3,7 @@ import {
   type ParsedXpub,
 } from "@/lib/bitcoin/descriptor";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
-import { traceBackward, traceForward, type TraceLayer } from "@/lib/analysis/chain/recursive-trace";
+import { traceBackward, traceForward, type TraceLayer, type EntityBarrierCheck } from "@/lib/analysis/chain/recursive-trace";
 import type { WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import type { DerivedAddress } from "@/lib/bitcoin/descriptor";
 import type { MempoolClient } from "@/lib/api/mempool";
@@ -204,7 +204,7 @@ export async function traceWalletTxs(
   txs: Map<string, MempoolTransaction>,
   api: MempoolClient,
   signal: AbortSignal,
-  { depth, minSats, concurrency }: { depth: number; minSats: number; concurrency: number },
+  { depth, minSats, concurrency, barrier }: { depth: number; minSats: number; concurrency: number; barrier?: EntityBarrierCheck },
   onTraced: (traced: number) => void,
 ): Promise<Map<string, UtxoTraceResult>> {
   const queue = [...txs.entries()];
@@ -216,8 +216,8 @@ export async function traceWalletTxs(
       const [txid, tx] = next;
       try {
         const [bwResult, fwResult, outspends] = await Promise.all([
-          traceBackward(tx, depth, minSats, api, signal),
-          traceForward(tx, depth, minSats, api, signal),
+          traceBackward(tx, depth, minSats, api, signal, undefined, undefined, barrier),
+          traceForward(tx, depth, minSats, api, signal, undefined, undefined, undefined, barrier),
           api.getTxOutspends(txid).catch(() => [] as MempoolOutspend[]),
         ]);
         results.set(txid, { tx, backward: bwResult.layers, forward: fwResult.layers, outspends });

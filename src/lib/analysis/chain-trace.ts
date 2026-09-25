@@ -80,6 +80,30 @@ function isLargeCluster(tx: MempoolTransaction): boolean {
 }
 
 /**
+ * Trace barrier: stop tracing through known custodial entities (exchanges,
+ * etc.) because they break chain of custody - no link between deposits and
+ * withdrawals. Opt-in: also through CoinJoins and large CIOH clusters
+ * (barrier txs stay in the layer).
+ */
+export function buildTraceBarrier(
+  settings: Pick<AnalysisSettings, "skipCoinJoins" | "skipLargeClusters">,
+): EntityBarrierCheck {
+  return (btx) => {
+    if (settings.skipCoinJoins && isCoinJoinTx(btx)) return true;
+    if (settings.skipLargeClusters && isLargeCluster(btx)) return true;
+    for (const vin of btx.vin) {
+      const addr = vin.prevout?.scriptpubkey_address;
+      if (addr && matchEntitySync(addr)) return true;
+    }
+    for (const vout of btx.vout) {
+      const addr = vout.scriptpubkey_address;
+      if (addr && matchEntitySync(addr)) return true;
+    }
+    return false;
+  };
+}
+
+/**
  * Run the recursive backward/forward tracing phase.
  * Returns the trace layers (may be empty if depth is 0 or tracing times out).
  */
@@ -124,22 +148,7 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
   const existingChildren = new Map<string, MempoolTransaction>();
   if (childTx) existingChildren.set(childTx.txid, childTx);
 
-  // Barrier: stop tracing through known custodial entities (exchanges, etc.)
-  // because they break chain of custody - no link between deposits and withdrawals.
-  // Opt-in: also through CoinJoins and large CIOH clusters (barrier txs stay in the layer).
-  const entityBarrier: EntityBarrierCheck = (btx) => {
-    if (settings.skipCoinJoins && isCoinJoinTx(btx)) return true;
-    if (settings.skipLargeClusters && isLargeCluster(btx)) return true;
-    for (const vin of btx.vin) {
-      const addr = vin.prevout?.scriptpubkey_address;
-      if (addr && matchEntitySync(addr)) return true;
-    }
-    for (const vout of btx.vout) {
-      const addr = vout.scriptpubkey_address;
-      if (addr && matchEntitySync(addr)) return true;
-    }
-    return false;
-  };
+  const entityBarrier = buildTraceBarrier(settings);
 
   // --- Phase 1: Backward tracing (first half of timeout) ---
   {

@@ -108,4 +108,22 @@ describe("traceWalletTxs", () => {
     // One trace = backward + forward + outspends in parallel; 5 unbounded traces would be 15
     expect(maxInFlight).toBeLessThanOrEqual(3);
   });
+
+  it("passes the trace barrier to both trace directions", async () => {
+    const parent = { txid: "p", vin: [], vout: [{ value: 100_000 }] } as unknown as MempoolTransaction;
+    const root = {
+      txid: "r",
+      vin: [{ txid: "p", vout: 0, is_coinbase: false, prevout: { value: 100_000 } }],
+      vout: [{ value: 90_000 }],
+    } as unknown as MempoolTransaction;
+    const api = {
+      getTransaction: async () => parent,
+      getTxOutspends: async () => [],
+    } as unknown as MempoolClient;
+    const barrier = vi.fn(() => true);
+
+    await traceWalletTxs(new Map([["r", root]]), api, new AbortController().signal, { depth: 2, minSats: 0, concurrency: 1, barrier }, () => {});
+
+    expect(barrier).toHaveBeenCalledWith(parent);
+  });
 });

@@ -20,6 +20,7 @@ import {
   type UtxoTraceResult,
 } from "@/lib/wallet/scan";
 import { mapApiErrorMessage } from "@/lib/api/error-message";
+import { buildTraceBarrier } from "@/lib/analysis/chain-trace";
 
 export type { UtxoTraceResult } from "@/lib/wallet/scan";
 
@@ -170,13 +171,19 @@ export function useWalletAnalysis() {
             traceProgress: { traced: 0, total: utxoTxs.size },
           }));
 
-          const { maxDepth = UTXO_TRACE_DEPTH } = getAnalysisSettings();
+          const settings = getAnalysisSettings();
+          const { maxDepth = UTXO_TRACE_DEPTH } = settings;
           const traceResults = await traceWalletTxs(
             utxoTxs,
             api,
             controller.signal,
             // Hosted APIs: one trace at a time to stay under the rate limit
-            { depth: Math.min(UTXO_TRACE_DEPTH, maxDepth), minSats, concurrency: localApi ? 3 : 1 },
+            {
+              depth: Math.min(UTXO_TRACE_DEPTH, maxDepth),
+              minSats,
+              concurrency: localApi ? 3 : 1,
+              barrier: buildTraceBarrier(settings),
+            },
             (traced) => setState(prev => ({
               ...prev,
               traceProgress: { traced, total: utxoTxs.size },

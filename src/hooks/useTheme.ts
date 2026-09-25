@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore, useCallback, useEffect } from "react";
+import { COLORS, LIGHT_COLORS } from "@/lib/palette";
 
 type Theme = "dark" | "light";
 
@@ -36,7 +37,7 @@ function applyTheme(theme: Theme) {
     }
     // Update browser chrome color to match theme
     const meta = document.getElementById("meta-theme-color") as HTMLMetaElement | null;
-    if (meta) meta.content = theme === "light" ? "#f8fafc" : "#0a0a0a";
+    if (meta) meta.content = theme === "light" ? LIGHT_COLORS.background : COLORS.background;
   }
 }
 
