@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { analyzeCoinJoinPremix } from "../coinjoin-premix";
-import { makeTx, makeVin, makeVout, makeCoinbaseVin, resetAddrCounter } from "./fixtures/tx-factory";
+import { analyzeCoinJoin } from "../coinjoin";
+import { makeTx, makeVin, makeVout, makeCoinbaseVin, makeOpReturnVout, resetAddrCounter } from "./fixtures/tx-factory";
 
 beforeEach(() => resetAddrCounter());
 
@@ -130,6 +131,40 @@ describe("analyzeCoinJoinPremix", () => {
       ],
     });
     const { findings } = analyzeCoinJoinPremix(tx);
+    expect(findings).toHaveLength(0);
+  });
+
+  // Shape of 4570c426...2a68 (issue #86): premix outputs carry a miner-fee
+  // reserve on top of the 0.025 BTC denomination, so they are not exact.
+  const realTx0 = (withOpReturn: boolean) => makeTx({
+    vin: [makeVin(), makeVin()],
+    vout: [
+      ...(withOpReturn ? [makeOpReturnVout()] : []),
+      makeVout({ value: 125_000 }), // coordinator fee
+      makeVout({ value: 644_060 }), // toxic change
+      makeVout({ value: 2_500_605 }),
+      makeVout({ value: 2_500_605 }),
+      makeVout({ value: 2_500_605 }),
+      makeVout({ value: 2_500_605 }),
+    ],
+  });
+
+  it("detects tx0 whose premix outputs include the miner-fee reserve", () => {
+    const { findings } = analyzeCoinJoinPremix(realTx0(true));
+    expect(findings).toHaveLength(1);
+    expect(findings[0].params?.denomination).toBe("0.025");
+    expect(findings[0].params?.denomCount).toBe(4);
+    expect(findings[0].params?.toxicChangeValue).toBe(644_060);
+    expect(findings[0].params?.coordinatorFee).toBe(125_000);
+  });
+
+  it("does not report a tx0 as a JoinMarket CoinJoin", () => {
+    const { findings } = analyzeCoinJoin(realTx0(true));
+    expect(findings.some((f) => f.id === "h4-joinmarket")).toBe(false);
+  });
+
+  it("requires the tx0 OP_RETURN when premix values are not exact", () => {
+    const { findings } = analyzeCoinJoinPremix(realTx0(false));
     expect(findings).toHaveLength(0);
   });
 });

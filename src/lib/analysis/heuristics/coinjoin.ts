@@ -18,6 +18,7 @@ import {
   buildSmallJoinMarketFinding,
   buildExchangeFlaggingFinding,
 } from "./coinjoin-findings";
+import { detectTx0 } from "./coinjoin-premix";
 
 
 /**
@@ -35,6 +36,10 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
 
   // Need at least 2 inputs and 2 outputs
   if (tx.vin.length < 2 || tx.vout.length < 2) return { findings };
+
+  // Whirlpool tx0 (premix) has equal outputs + fee + change, which mimics a
+  // small JoinMarket round. It is reported by the premix heuristic instead.
+  if (detectTx0(tx)) return { findings };
 
   const spendableOutputs = getSpendableOutputs(tx.vout);
   const whirlpool = detectWhirlpool(spendableOutputs.map((o) => o.value));
