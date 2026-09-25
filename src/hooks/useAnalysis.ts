@@ -6,8 +6,8 @@ import { useNetwork } from "@/context/NetworkContext";
 import { createApiClient } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/fetch-with-retry";
 import { detectTxidNetwork } from "@/lib/api/detect-network";
-import { isBraveBrowser } from "@/hooks/useTorDetection";
-import { NETWORK_CONFIG } from "@/lib/bitcoin/networks";
+import { mapApiErrorMessage } from "@/lib/api/error-message";
+import { NETWORK_CONFIG, type BitcoinNetwork } from "@/lib/bitcoin/networks";
 import { detectInputType } from "@/lib/analysis/detect-input";
 import {
   analyzeTransaction,
@@ -16,7 +16,7 @@ import {
 } from "@/lib/analysis/orchestrator";
 import { checkOfac } from "@/lib/analysis/cex-risk/ofac-check";
 import { parsePSBT } from "@/lib/bitcoin/psbt";
-import { getAnalysisSettings } from "@/hooks/useAnalysisSettings";
+import { getAnalysisSettings, type AnalysisSettings } from "@/hooks/useAnalysisSettings";
 import { getCachedResult, putCachedResult } from "@/lib/api/analysis-cache";
 import { loadEntityFilter } from "@/lib/analysis/entity-filter";
 import { runTxidAnalysis } from "@/lib/analysis/run-txid-analysis";
@@ -36,9 +36,11 @@ export type { PreSendResult } from "@/lib/analysis/orchestrator";
 
 export function useAnalysis() {
   const [state, setState] = useState<AnalysisState>(INITIAL_STATE);
-  const { network, setNetwork, config, customApiUrl, isUmbrel } = useNetwork();
+  const { network, setNetwork, config, configFor, customApiUrl, isUmbrel } = useNetwork();
   const { t } = useTranslation();
   const abortRef = useRef<AbortController | null>(null);
+  /** Cache write owed by the analysis that just completed; flushed after the commit. */
+  const pendingCacheRef = useRef<{ network: BitcoinNetwork; input: string; settings: AnalysisSettings } | null>(null);
 
   // Auto-load core entity filter on mount
   useEffect(() => { loadEntityFilter(); }, []);
@@ -77,6 +79,7 @@ export function useAnalysis() {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
+      pendingCacheRef.current = null;
       const inputType = detectInputType(input, network);
 
       if (inputType === "invalid") {
@@ -117,7 +120,7 @@ export function useAnalysis() {
         });
 
         try {
-          const psbtResult = parsePSBT(input);
+          const psbtResult = parsePSBT(input, network);
           const result = await analyzeTransaction(psbtResult.tx, undefined, onStep);
           if (controller.signal.aborted) return;
           // No trace data for PSBTs - mark all chain steps as done
@@ -125,6 +128,7 @@ export function useAnalysis() {
             onStep(cid); onStep(cid, 0);
           }
 
+          const durationMs = Date.now() - startTime;
           setState((prev) => ({
             ...prev,
             phase: "complete",
@@ -132,7 +136,7 @@ export function useAnalysis() {
             result,
             txData: psbtResult.tx,
             psbtData: psbtResult,
-            durationMs: Date.now() - startTime,
+            durationMs,
           }));
         } catch (err) {
           if (controller.signal.aborted) return;
@@ -151,7 +155,9 @@ export function useAnalysis() {
       // Check analysis result cache before making API calls
       const analysisSettingsForCache = getAnalysisSettings();
       const cached = await getCachedResult(network, input, analysisSettingsForCache);
-      if (cached && !controller.signal.aborted) {
+      // reset() or a newer analyze() ran during the lookup: leave their state alone
+      if (controller.signal.aborted) return;
+      if (cached) {
         const cachedSteps = (inputType === "txid"
           ? getTxHeuristicSteps(ht)
           : getAddressHeuristicSteps(ht)
@@ -191,6 +197,25 @@ export function useAnalysis() {
 
       const startTime = Date.now();
 
+      /**
+       * Merge the final fields into the live state as "complete". With `cacheNetwork`,
+       * the committed state is cached (by the effect below) unless the result is partial.
+       */
+      const complete = (fields: Partial<AnalysisState>, cacheNetwork?: BitcoinNetwork) => {
+        // TODO(types stream): drop the cast once ScoringResult declares `partial?: boolean`
+        if (cacheNetwork && !(fields.result as { partial?: boolean } | null | undefined)?.partial) {
+          pendingCacheRef.current = { network: cacheNetwork, input, settings: analysisSettingsForCache };
+        }
+        const durationMs = Date.now() - startTime;
+        setState((prev) => ({
+          ...prev,
+          phase: "complete",
+          steps: markAllDone(prev.steps),
+          ...fields,
+          durationMs,
+        }));
+      };
+
       setState({
         ...INITIAL_STATE,
         phase: "fetching",
@@ -211,21 +236,11 @@ export function useAnalysis() {
             setState,
           });
           if (controller.signal.aborted) return;
-
-          setState((prev) => {
-            const completeState = {
-              ...prev,
-              phase: "complete" as const,
-              steps: markAllDone(prev.steps),
-              result: txResult.result,
-              boltzmannResult: txResult.boltzmannResult,
-              boltzmannStatus: txResult.boltzmannStatus as AnalysisState["boltzmannStatus"],
-              durationMs: Date.now() - startTime,
-            };
-            // Fire-and-forget cache write
-            putCachedResult(network, input, analysisSettingsForCache, completeState).catch((e) => console.warn("cache write failed:", e));
-            return completeState;
-          });
+          complete({
+            result: txResult.result,
+            boltzmannResult: txResult.boltzmannResult,
+            boltzmannStatus: txResult.boltzmannStatus as AnalysisState["boltzmannStatus"],
+          }, network);
         } else {
           const addrResult = await runAddressAnalysis(input, {
             api,
@@ -252,32 +267,17 @@ export function useAnalysis() {
 
           // Fresh address: only preSendResult, no scoring result
           if (!addrResult.result) {
-            setState((prev) => ({
-              ...prev,
-              phase: "complete",
-              steps: markAllDone(prev.steps),
-              preSendResult: addrResult.preSendResult,
-              durationMs: Date.now() - startTime,
-            }));
+            complete({ preSendResult: addrResult.preSendResult });
             return;
           }
 
-          setState((prev) => {
-            const completeState = {
-              ...prev,
-              phase: "complete" as const,
-              steps: markAllDone(prev.steps),
-              result: addrResult.result,
-              preSendResult: addrResult.preSendResult,
-              addressTxs: addrResult.addressTxs,
-              addressUtxos: addrResult.addressUtxos,
-              txBreakdown: addrResult.txBreakdown,
-              durationMs: Date.now() - startTime,
-            };
-            // Fire-and-forget cache write
-            putCachedResult(network, input, analysisSettingsForCache, completeState).catch((e) => console.warn("cache write failed:", e));
-            return completeState;
-          });
+          complete({
+            result: addrResult.result,
+            preSendResult: addrResult.preSendResult,
+            addressTxs: addrResult.addressTxs,
+            addressUtxos: addrResult.addressUtxos,
+            txBreakdown: addrResult.txBreakdown,
+          }, network);
         }
       } catch (err) {
         // Ignore aborted requests (user started a new analysis)
@@ -287,21 +287,15 @@ export function useAnalysis() {
         if (inputType === "address") {
           const fallbackOfac = checkOfac([input]);
           if (fallbackOfac.sanctioned) {
-            setState((prev) => ({
-              ...prev,
-              phase: "complete",
-              steps: markAllDone(prev.steps),
-              preSendResult: makeOfacPreSendResult(t),
-              durationMs: Date.now() - startTime,
-            }));
+            complete({ preSendResult: makeOfacPreSendResult(t) });
             return;
           }
         }
 
         // Auto-detect network: a NOT_FOUND on a txid against the public
         // mempool.space API often means the user is on the wrong network.
-        // Probe the other networks; if the tx lives on one of them, switch
-        // and retry transparently.
+        // Probe the other networks on the same backend family (onion on Tor);
+        // if the tx lives on one of them, switch and retry transparently.
         if (
           err instanceof ApiError &&
           err.code === "NOT_FOUND" &&
@@ -309,11 +303,12 @@ export function useAnalysis() {
           !isUmbrel &&
           !customApiUrl
         ) {
-          const detected = await detectTxidNetwork(input, network, controller.signal);
+          const detected = await detectTxidNetwork(
+            input, network, controller.signal, (n) => configFor(n).mempoolBaseUrl,
+          );
           if (detected && detected !== network && !controller.signal.aborted) {
             setNetwork(detected);
-            const detectedConfig = NETWORK_CONFIG[detected];
-            const detectedApi = createApiClient(detectedConfig, controller.signal);
+            const detectedApi = createApiClient(configFor(detected), controller.signal);
 
             setState({
               ...INITIAL_STATE,
@@ -334,21 +329,14 @@ export function useAnalysis() {
                 setState,
               });
               if (controller.signal.aborted) return;
-
-              setState((prev) => {
-                const completeState = {
-                  ...prev,
-                  phase: "complete" as const,
-                  steps: markAllDone(prev.steps),
-                  result: txResult.result,
-                  boltzmannResult: txResult.boltzmannResult,
-                  boltzmannStatus: txResult.boltzmannStatus as AnalysisState["boltzmannStatus"],
-                  durationMs: Date.now() - startTime,
-                };
-                putCachedResult(detected, input, analysisSettingsForCache, completeState).catch((e) => console.warn("cache write failed:", e));
-                // Not cached: the notice only applies to the switch that just happened
-                return { ...completeState, autoSwitchedNetwork: detected };
-              });
+              // autoSwitchedNetwork is not part of the cached payload: the notice
+              // only applies to the switch that just happened
+              complete({
+                result: txResult.result,
+                boltzmannResult: txResult.boltzmannResult,
+                boltzmannStatus: txResult.boltzmannStatus as AnalysisState["boltzmannStatus"],
+                autoSwitchedNetwork: detected,
+              }, detected);
               return;
             } catch {
               // Retry failed; fall through to the original error handling
@@ -356,65 +344,32 @@ export function useAnalysis() {
           }
         }
 
-        let message = t("errors.unexpected", { defaultValue: "An unexpected error occurred." });
-        let errorCode: "retryable" | "not-retryable" = "retryable";
-        if (err instanceof ApiError) {
-          switch (err.code) {
-            case "NOT_FOUND":
-              message = t("errors.not_found", { defaultValue: "Not found. Check that the address or transaction ID is correct and exists on the selected network." });
-              errorCode = "not-retryable";
-              break;
-            case "INVALID_INPUT":
-              errorCode = "not-retryable";
-              break;
-            case "RATE_LIMITED":
-              message = t("errors.rate_limited", { defaultValue: "Rate limited by mempool.space. Please wait a moment and try again." });
-              break;
-            case "NETWORK_ERROR":
-              message = isUmbrel
-                ? t("errors.network_umbrel", { defaultValue: "Connection to local mempool failed. Try restarting mempool from your Umbrel dashboard." })
-                : isCustomApi
-                  ? t("errors.network_custom", { defaultValue: "Connection to your custom endpoint failed. Open API settings to troubleshoot." })
-                  : t("errors.network", { defaultValue: "Network error. Check your internet connection or try again later." });
-              break;
-            case "API_UNAVAILABLE":
-              message = isUmbrel
-                ? t("errors.api_umbrel", { defaultValue: "Local mempool returned an error. This address may have too many transactions for the Electrum backend to handle. Try restarting mempool or analyzing a different address." })
-                : isCustomApi
-                  ? t("errors.api_custom", { defaultValue: "Your custom API endpoint returned an error. Check that it is running." })
-                  : t("errors.api_unavailable", { defaultValue: "The API is temporarily unavailable. Please try again later." });
-              break;
-          }
-        } else if (err instanceof Error) {
-          // TypeError: Failed to fetch - likely blocked by browser shields or CSP
-          if (err.name === "TypeError" && isBraveBrowser()) {
-            message = t("errors.brave_shields", {
-              defaultValue:
-                "Request blocked by Brave Shields. Click the Shields icon in the address bar and disable Shields for this site, then retry.",
-            });
-          } else if (err.name === "TypeError") {
-            message = t("errors.fetch_blocked", {
-              defaultValue:
-                "API request was blocked by the browser. If using a privacy browser, allow connections to mempool.space for this site.",
-            });
-          } else {
-            message = t("errors.unexpected", { defaultValue: "An unexpected error occurred." });
-          }
-        }
+        const { message, retryable } = mapApiErrorMessage(err, ht, { isUmbrel, isCustomApi });
         setState((prev) => ({
           ...prev,
           phase: "error",
           error: message,
-          errorCode,
+          errorCode: retryable ? "retryable" : "not-retryable",
         }));
       }
     },
-    [network, setNetwork, config, customApiUrl, isCustomApi, isUmbrel, t, ht, onStep],
+    [network, setNetwork, config, configFor, customApiUrl, isCustomApi, isUmbrel, t, ht, onStep],
   );
+
+  // Flush the cache write owed by a just-completed analysis from committed state
+  // (never from inside a setState updater, which React may run more than once).
+  useEffect(() => {
+    const pending = pendingCacheRef.current;
+    if (!pending || state.phase !== "complete") return;
+    pendingCacheRef.current = null;
+    putCachedResult(pending.network, pending.input, pending.settings, state)
+      .catch((e) => console.warn("cache write failed:", e));
+  }, [state]);
 
   const reset = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
+    pendingCacheRef.current = null;
     setState(INITIAL_STATE);
   }, []);
 
