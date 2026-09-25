@@ -28,18 +28,22 @@ const PROBE_NETWORKS: readonly BitcoinNetwork[] = [
  * unsuitable: mempool.space returns `{"confirmed":false}` with HTTP 200 for
  * non-existent txids, which would make every probe spuriously succeed and pick
  * whichever network responded first.
+ *
+ * `baseUrlFor` maps each network to the API base of the user's current backend
+ * family (e.g. the onion endpoint for mainnet on Tor). Defaults to clearnet.
  */
 export async function detectTxidNetwork(
   txid: string,
   fromNetwork: BitcoinNetwork,
   signal?: AbortSignal,
+  baseUrlFor: (net: BitcoinNetwork) => string = (net) => NETWORK_CONFIG[net].mempoolBaseUrl,
 ): Promise<BitcoinNetwork | null> {
   if (!/^[a-fA-F0-9]{64}$/.test(txid)) return null;
 
   const others = PROBE_NETWORKS.filter((n) => n !== fromNetwork);
 
   const probes = others.map(async (net) => {
-    const url = `${NETWORK_CONFIG[net].mempoolBaseUrl}/tx/${txid}/hex`;
+    const url = `${baseUrlFor(net)}/tx/${txid}/hex`;
     const res = await fetch(url, { signal });
     if (!res.ok) throw new Error(`${net}: ${res.status}`);
     return net;

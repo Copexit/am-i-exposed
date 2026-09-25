@@ -77,6 +77,23 @@ describe("detectTxidNetwork", () => {
     expect(fetchMock).toHaveBeenCalled();
   });
 
+  it("probes the caller's resolved backend per network (e.g. onion on Tor)", async () => {
+    const onion = "http://example.onion/api";
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      return new Response(null, { status: url.startsWith(onion) ? 200 : 404 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await detectTxidNetwork(VALID_TXID, "signet", undefined, (net) =>
+      net === "mainnet" ? onion : `https://mempool.space/${net}/api`,
+    );
+    expect(result).toBe("mainnet");
+    const urls = fetchMock.mock.calls.map(([u]) => String(u));
+    expect(urls).toContain(`${onion}/tx/${VALID_TXID}/hex`);
+    expect(urls.some((u) => u.startsWith("https://mempool.space/api/"))).toBe(false);
+  });
+
   it("uses /tx/{txid}/hex (not /status) - regression: /status returns 200 for missing txs", async () => {
     // Live mempool.space behavior, observed during PR #91 verification:
     // - GET /api/tx/{unknownTxid}/status     -> HTTP 200 {"confirmed":false}

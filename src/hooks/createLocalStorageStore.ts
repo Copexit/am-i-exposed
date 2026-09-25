@@ -33,16 +33,17 @@ export function createLocalStorageStore<T>(
     return () => window.removeEventListener("storage", callback);
   }
 
-  function set(value: T): void {
+  /** Persist a value. Returns false (and changes nothing) when storage is full or unavailable. */
+  function set(value: T): boolean {
     try {
-      const serialized = serialize(value);
-      localStorage.setItem(key, serialized);
+      localStorage.setItem(key, serialize(value));
     } catch {
-      /* storage full / private browsing */
+      return false;
     }
     cachedRaw = null; // invalidate cache so next getSnapshot reads fresh
     cachedValue = value;
     window.dispatchEvent(new StorageEvent("storage"));
+    return true;
   }
 
   function remove(): void {

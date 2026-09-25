@@ -11,10 +11,18 @@ import {
   type ScriptType,
 } from "@/lib/bitcoin/descriptor";
 import { auditWallet, type WalletAuditResult, type WalletAddressInfo } from "@/lib/analysis/wallet-audit";
-import { traceBackward, traceForward } from "@/lib/analysis/chain/recursive-trace";
-import { scanChain, collectWalletTxs, DEFAULT_GAP_LIMIT, UTXO_TRACE_DEPTH } from "@/lib/wallet/scan";
-import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
-import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
+import {
+  scanChain,
+  collectWalletTxs,
+  traceWalletTxs,
+  DEFAULT_GAP_LIMIT,
+  UTXO_TRACE_DEPTH,
+  type UtxoTraceResult,
+} from "@/lib/wallet/scan";
+import { mapApiErrorMessage } from "@/lib/api/error-message";
+import { NETWORK_CONFIG } from "@/lib/bitcoin/networks";
+
+export type { UtxoTraceResult } from "@/lib/wallet/scan";
 
 // ---------- Types ----------
 
@@ -27,13 +35,6 @@ type WalletPhase =
   | "complete"
   | "error";
 
-export interface UtxoTraceResult {
-  tx: MempoolTransaction;
-  backward: TraceLayer[];
-  forward: TraceLayer[];
-  outspends: MempoolOutspend[];
-}
-
 interface WalletAnalysisState {
   phase: WalletPhase;
   /** Original xpub/descriptor input */
@@ -44,6 +45,8 @@ interface WalletAnalysisState {
   result: WalletAuditResult | null;
   /** Per-address info (for detail views) */
   addressInfos: WalletAddressInfo[];
+  /** Addresses whose data could not be fetched (partial scan when non-empty) */
+  failedAddresses: string[];
   /** Pre-fetched UTXO trace data for graph visualization */
   utxoTraces: Map<string, UtxoTraceResult> | null;
   /** Progress: addresses fetched so far / total (0 = unknown) */
@@ -62,6 +65,7 @@ const INITIAL_STATE: WalletAnalysisState = {
   descriptor: null,
   result: null,
   addressInfos: [],
+  failedAddresses: [],
   utxoTraces: null,
   progress: { fetched: 0, total: 0 },
   traceProgress: null,
@@ -74,7 +78,8 @@ const INITIAL_STATE: WalletAnalysisState = {
 export function useWalletAnalysis() {
   const [state, setState] = useState<WalletAnalysisState>(INITIAL_STATE);
   const { t } = useTranslation();
-  const { config } = useNetwork();
+  const { network, config, isUmbrel } = useNetwork();
+  const isCustomApi = config.mempoolBaseUrl !== NETWORK_CONFIG[network].mempoolBaseUrl;
   const abortRef = useRef<AbortController | null>(null);
 
   const analyze = useCallback(
@@ -112,6 +117,7 @@ export function useWalletAnalysis() {
         const localApi = isLocalApi(config.mempoolBaseUrl);
         const { walletGapLimit = DEFAULT_GAP_LIMIT, minSats = 5000 } = getAnalysisSettings();
         const allInfos: WalletAddressInfo[] = [];
+        const failedAddresses: string[] = [];
         let fetched = 0;
 
         const onProgress = (info: WalletAddressInfo) => {
@@ -131,7 +137,8 @@ export function useWalletAnalysis() {
 
         for (const chain of chains) {
           if (controller.signal.aborted) return;
-          await scanChain(parsed, chain, api, controller.signal, localApi, walletGapLimit, onProgress);
+          const { failed } = await scanChain(parsed, chain, api, controller.signal, localApi, walletGapLimit, onProgress);
+          failedAddresses.push(...failed);
         }
 
         if (controller.signal.aborted) return;
@@ -165,38 +172,18 @@ export function useWalletAnalysis() {
             traceProgress: { traced: 0, total: utxoTxs.size },
           }));
 
-          let tracedCount = 0;
-          const traceResults = new Map<string, UtxoTraceResult>();
-
           const { maxDepth = UTXO_TRACE_DEPTH } = getAnalysisSettings();
-          const traceDepth = Math.min(UTXO_TRACE_DEPTH, maxDepth);
-
-          const tracePromises = [...utxoTxs.entries()].map(async ([txid, tx]) => {
-            try {
-              const [bwResult, fwResult, outspends] = await Promise.all([
-                traceBackward(tx, traceDepth, minSats, api, controller.signal),
-                traceForward(tx, traceDepth, minSats, api, controller.signal),
-                api.getTxOutspends(txid).catch(() => [] as MempoolOutspend[]),
-              ]);
-
-              traceResults.set(txid, {
-                tx,
-                backward: bwResult.layers,
-                forward: fwResult.layers,
-                outspends,
-              });
-            } catch {
-              // Failed trace - root will appear without pre-expansion
-            }
-
-            tracedCount++;
-            setState(prev => ({
+          const traceResults = await traceWalletTxs(
+            utxoTxs,
+            api,
+            controller.signal,
+            // Hosted APIs: one trace at a time to stay under the rate limit
+            { depth: Math.min(UTXO_TRACE_DEPTH, maxDepth), minSats, concurrency: localApi ? 3 : 1 },
+            (traced) => setState(prev => ({
               ...prev,
-              traceProgress: { traced: tracedCount, total: utxoTxs.size },
-            }));
-          });
-
-          await Promise.all(tracePromises);
+              traceProgress: { traced, total: utxoTxs.size },
+            })),
+          );
           if (controller.signal.aborted) return;
 
           utxoTraces = traceResults.size > 0 ? traceResults : null;
@@ -211,22 +198,41 @@ export function useWalletAnalysis() {
         }));
 
         const result = auditWallet(allInfos);
+        if (failedAddresses.length > 0) {
+          // Rendered via finding.wallet-scan-partial.* keys, English fallback here
+          const count = failedAddresses.length;
+          result.findings.push({
+            id: "wallet-scan-partial",
+            severity: "low",
+            confidence: "high",
+            title: `Wallet scan incomplete (${count} addresses failed)`,
+            description:
+              `${count} addresses could not be fetched (rate limit or network error) and are missing from this audit. ` +
+              "Used addresses beyond them may also have been missed.",
+            recommendation: "Wait a moment and scan again, or use a self-hosted API.",
+            scoreImpact: 0,
+            params: { count },
+          });
+        }
 
         setState(prev => ({
           ...prev,
           phase: "complete",
           result,
           addressInfos: allInfos,
+          failedAddresses,
           utxoTraces,
           durationMs: Date.now() - startTime,
         }));
       } catch (err) {
         if (controller.signal.aborted) return;
 
-        let message = t("errors.unexpected", { defaultValue: "An unexpected error occurred." });
-        if (err instanceof Error) {
-          message = err.message;
-        }
+        const { message } = mapApiErrorMessage(err, t, {
+          isUmbrel,
+          isCustomApi,
+          // Parse errors (invalid xpub/descriptor) carry a useful message
+          fallback: err instanceof Error ? err.message : undefined,
+        });
 
         setState(prev => ({
           ...prev,
@@ -235,7 +241,7 @@ export function useWalletAnalysis() {
         }));
       }
     },
-    [config, t],
+    [config, t, isUmbrel, isCustomApi],
   );
 
   // Abort in-flight requests on unmount

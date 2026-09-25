@@ -147,4 +147,32 @@ describe("fetchWithRetry", () => {
     }
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
+
+  it("retries a per-attempt timeout and wraps it in ApiError NETWORK_ERROR", async () => {
+    mockFetch.mockRejectedValue(new DOMException("Signal timed out", "TimeoutError"));
+    const result = settle(fetchWithRetry("https://example.com"));
+    await vi.runAllTimersAsync();
+
+    const settled = await result;
+    expect(settled.ok).toBe(false);
+    if (!settled.ok) {
+      expect(settled.error).toBeInstanceOf(ApiError);
+      expect((settled.error as ApiError).code).toBe("NETWORK_ERROR");
+    }
+    expect(mockFetch).toHaveBeenCalledTimes(4);
+  });
+
+  it("does not retry when the caller's signal aborted", async () => {
+    const controller = new AbortController();
+    mockFetch.mockImplementation(async () => {
+      controller.abort();
+      throw new DOMException("Aborted", "AbortError");
+    });
+    const result = await settle(
+      fetchWithRetry("https://example.com", { signal: controller.signal }),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect((result.error as DOMException).name).toBe("AbortError");
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
 });

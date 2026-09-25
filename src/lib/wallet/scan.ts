@@ -2,7 +2,8 @@ import {
   deriveOneAddress,
   type ParsedXpub,
 } from "@/lib/bitcoin/descriptor";
-import type { MempoolTransaction, MempoolUtxo } from "@/lib/api/types";
+import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
+import { traceBackward, traceForward, type TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 import type { WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import type { DerivedAddress } from "@/lib/bitcoin/descriptor";
 import type { MempoolClient } from "@/lib/api/mempool";
@@ -16,15 +17,27 @@ export const MAX_UTXO_TRACES = 50;
 /** Trace depth for UTXO provenance. */
 export const UTXO_TRACE_DEPTH = 3;
 
-/** Fetch all 3 endpoints for a single address. */
+/**
+ * Consecutive addresses whose fetch still fails after retries before the scan
+ * gives up. A backend that keeps failing is an error, not an empty wallet.
+ */
+const MAX_CONSECUTIVE_FAILURES = 3;
+
+/** Scan-level retries per address, on top of fetchWithRetry's own retries. */
+const ADDRESS_RETRIES = 2;
+
+/**
+ * Fetch all 3 endpoints for a single address. Rejects on any failure so a
+ * rate-limited or unreachable address is never mistaken for an unused one.
+ */
 async function fetchAddress(
   api: MempoolClient,
   derived: DerivedAddress,
 ): Promise<WalletAddressInfo> {
   const [addressData, utxos, txs] = await Promise.all([
-    api.getAddress(derived.address).catch(() => null),
-    api.getAddressUtxos(derived.address).catch(() => [] as MempoolUtxo[]),
-    api.getAddressTxs(derived.address).catch(() => [] as MempoolTransaction[]),
+    api.getAddress(derived.address),
+    api.getAddressUtxos(derived.address),
+    api.getAddressTxs(derived.address),
   ]);
   return { derived, addressData, utxos, txs };
 }
@@ -49,10 +62,18 @@ function abortableDelay(ms: number, abortSignal: AbortSignal): Promise<void> {
   });
 }
 
+export interface ScanChainResult {
+  infos: WalletAddressInfo[];
+  /** Addresses whose data could not be fetched (excluded from infos and the gap count). */
+  failed: string[];
+}
+
 /**
  * Scan one chain (receive=0 or change=1) incrementally.
  * Derives + fetches one address at a time, stops after gapLimit
- * consecutive unused addresses.
+ * consecutive unused addresses. Failed fetches are retried with the same
+ * throttle delays, then reported in `failed`; after MAX_CONSECUTIVE_FAILURES
+ * failed addresses in a row the last error is thrown.
  */
 export async function scanChain(
   parsed: ParsedXpub,
@@ -62,9 +83,11 @@ export async function scanChain(
   isLocal: boolean,
   gapLimit: number,
   onProgress: (info: WalletAddressInfo) => void,
-): Promise<WalletAddressInfo[]> {
+): Promise<ScanChainResult> {
   const results: WalletAddressInfo[] = [];
+  const failed: string[] = [];
   let consecutiveUnused = 0;
+  let consecutiveFailures = 0;
   let index = 0;
   /** Addresses in the initial token bucket (20 tokens / 3 per addr). */
   const BURST_SIZE = 6;
@@ -75,44 +98,54 @@ export async function scanChain(
   /** Track how many addresses have been fetched across this chain for burst logic. */
   let fetchCount = 0;
 
+  const pause = (ms: number) => abortableDelay(ms, signal).catch((e) => {
+    if (!(e instanceof DOMException && e.name === "AbortError")) {
+      console.warn("delay failed:", e);
+    }
+  });
+
   while (consecutiveUnused < gapLimit) {
-    if (signal.aborted) return results;
+    if (signal.aborted) return { infos: results, failed };
 
     const derived = deriveOneAddress(parsed, chain, index);
     const t0 = performance.now();
-    const info = await fetchAddress(api, derived)
-      .catch((): WalletAddressInfo => ({
-        derived,
-        addressData: null,
-        txs: [],
-        utxos: [],
-      }));
-    const wasCacheHit = performance.now() - t0 < 100;
-
-    results.push(info);
-    onProgress(info);
-    if (!wasCacheHit) fetchCount++;
-
-    if (isUsed(info)) {
-      consecutiveUnused = 0;
-    } else {
-      consecutiveUnused++;
+    let info: WalletAddressInfo | null = null;
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= ADDRESS_RETRIES && !signal.aborted; attempt++) {
+      // Back off on the sustained throttle rate before re-fetching a failed address
+      if (attempt > 0) await pause((isLocal ? 1000 : SUSTAIN_DELAY_MS) * attempt);
+      try {
+        info = await fetchAddress(api, derived);
+        break;
+      } catch (e) {
+        lastError = e;
+      }
     }
-
+    const wasCacheHit = performance.now() - t0 < 100;
+    if (!wasCacheHit) fetchCount++;
     index++;
+
+    if (info) {
+      consecutiveFailures = 0;
+      results.push(info);
+      onProgress(info);
+      if (isUsed(info)) {
+        consecutiveUnused = 0;
+      } else {
+        consecutiveUnused++;
+      }
+    } else if (!signal.aborted) {
+      failed.push(derived.address);
+      if (++consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) throw lastError;
+    }
 
     // Rate limit for hosted APIs - skip delay on cache hits (IDB reads < 10ms)
     if (!isLocal && !wasCacheHit && consecutiveUnused < gapLimit) {
-      const delayMs = fetchCount <= BURST_SIZE ? BURST_GAP_MS : SUSTAIN_DELAY_MS;
-      await abortableDelay(delayMs, signal).catch((e) => {
-        if (!(e instanceof DOMException && e.name === "AbortError")) {
-          console.warn("delay failed:", e);
-        }
-      });
+      await pause(fetchCount <= BURST_SIZE ? BURST_GAP_MS : SUSTAIN_DELAY_MS);
     }
   }
 
-  return results;
+  return { infos: results, failed };
 }
 
 /**
@@ -153,4 +186,48 @@ export function collectWalletTxs(
     .slice(0, MAX_UTXO_TRACES);
 
   return new Map(sorted);
+}
+
+export interface UtxoTraceResult {
+  tx: MempoolTransaction;
+  backward: TraceLayer[];
+  forward: TraceLayer[];
+  outspends: MempoolOutspend[];
+}
+
+/**
+ * Trace provenance of wallet txs for graph pre-expansion, running at most
+ * `concurrency` traces at once (each trace already runs 3 fetch chains).
+ * A failed trace is skipped: its root appears without pre-expansion.
+ */
+export async function traceWalletTxs(
+  txs: Map<string, MempoolTransaction>,
+  api: MempoolClient,
+  signal: AbortSignal,
+  { depth, minSats, concurrency }: { depth: number; minSats: number; concurrency: number },
+  onTraced: (traced: number) => void,
+): Promise<Map<string, UtxoTraceResult>> {
+  const queue = [...txs.entries()];
+  const results = new Map<string, UtxoTraceResult>();
+  let traced = 0;
+
+  const worker = async () => {
+    for (let next = queue.shift(); next && !signal.aborted; next = queue.shift()) {
+      const [txid, tx] = next;
+      try {
+        const [bwResult, fwResult, outspends] = await Promise.all([
+          traceBackward(tx, depth, minSats, api, signal),
+          traceForward(tx, depth, minSats, api, signal),
+          api.getTxOutspends(txid).catch(() => [] as MempoolOutspend[]),
+        ]);
+        results.set(txid, { tx, backward: bwResult.layers, forward: fwResult.layers, outspends });
+      } catch {
+        // Failed trace - root will appear without pre-expansion
+      }
+      onTraced(++traced);
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, queue.length) }, worker));
+  return results;
 }

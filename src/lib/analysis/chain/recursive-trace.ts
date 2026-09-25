@@ -25,6 +25,8 @@ interface TraceResult {
   fetchCount: number;
   /** Whether the trace was cut short by abort signal */
   aborted: boolean;
+  /** Fetches that failed (429, timeout, ...): their branches are missing from the layers */
+  failedFetches: number;
 }
 
 type TraceProgressCallback = (progress: {
@@ -74,12 +76,13 @@ export async function traceBackward(
   const visited = new Set<string>([tx.txid]);
   const layers: TraceLayer[] = [];
   let fetchCount = 0;
+  let failedFetches = 0;
 
   // Seed the frontier with the starting transaction
   let frontier = new Map<string, MempoolTransaction>([[tx.txid, tx]]);
 
   for (let d = 0; d < maxDepth; d++) {
-    if (signal?.aborted) return { layers, allTxs, fetchCount, aborted: true };
+    if (signal?.aborted) return { layers, allTxs, fetchCount, aborted: true, failedFetches };
 
     onProgress?.({ currentDepth: d + 1, maxDepth, txsFetched: fetchCount });
 
@@ -124,7 +127,8 @@ export async function traceBackward(
           onProgress?.({ currentDepth: d + 1, maxDepth, txsFetched: fetchCount });
           if (layerTxs.size >= MAX_FANOUT_PER_LAYER) break;
         } catch {
-          // Failed to fetch - skip this branch
+          // Failed to fetch - skip this branch, but record it
+          failedFetches++;
         }
       }
       if (layerTxs.size >= MAX_FANOUT_PER_LAYER) break;
@@ -138,7 +142,7 @@ export async function traceBackward(
     frontier = nextFrontier;
   }
 
-  return { layers, allTxs, fetchCount, aborted: signal?.aborted ?? false };
+  return { layers, allTxs, fetchCount, aborted: signal?.aborted ?? false, failedFetches };
 }
 
 /**
@@ -170,6 +174,7 @@ export async function traceForward(
   const visited = new Set<string>([tx.txid]);
   const layers: TraceLayer[] = [];
   let fetchCount = 0;
+  let failedFetches = 0;
 
   // Seed frontier
   let frontier = new Map<string, MempoolTransaction>([[tx.txid, tx]]);
@@ -180,7 +185,7 @@ export async function traceForward(
   }
 
   for (let d = 0; d < maxDepth; d++) {
-    if (signal?.aborted) return { layers, allTxs, fetchCount, aborted: true };
+    if (signal?.aborted) return { layers, allTxs, fetchCount, aborted: true, failedFetches };
 
     onProgress?.({ currentDepth: d + 1, maxDepth, txsFetched: fetchCount });
 
@@ -198,6 +203,7 @@ export async function traceForward(
           outspends = await fetcher.getTxOutspends(txid);
           fetchCount++;
         } catch {
+          failedFetches++;
           continue;
         }
       }
@@ -239,7 +245,8 @@ export async function traceForward(
           onProgress?.({ currentDepth: d + 1, maxDepth, txsFetched: fetchCount });
           if (layerTxs.size >= MAX_FANOUT_PER_LAYER) break;
         } catch {
-          // Failed to fetch - skip this branch
+          // Failed to fetch - skip this branch, but record it
+          failedFetches++;
         }
       }
       if (layerTxs.size >= MAX_FANOUT_PER_LAYER) break;
@@ -254,5 +261,5 @@ export async function traceForward(
     frontierOutspends = new Map();
   }
 
-  return { layers, allTxs, fetchCount, aborted: signal?.aborted ?? false };
+  return { layers, allTxs, fetchCount, aborted: signal?.aborted ?? false, failedFetches };
 }

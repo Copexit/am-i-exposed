@@ -134,6 +134,8 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
         entityBarrier,
       );
       backwardLayers = backResult.layers;
+      // traceBackward swallows per-branch errors; a timeout or failed fetch still means partial
+      backwardFailed = backResult.aborted || backResult.failedFetches > 0;
     } catch {
       backwardFailed = true;
     }
@@ -180,6 +182,7 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
         entityBarrier,
       );
       forwardLayers = fwdResult.layers;
+      forwardFailed = fwdResult.aborted || fwdResult.failedFetches > 0;
     } catch {
       forwardFailed = true;
     }

@@ -6,7 +6,9 @@ import {
   getCachedResult,
   putCachedResult,
   TTL_24_HOURS,
+  INCOMPLETE_RESULT_FINDING_IDS,
 } from "../analysis-cache";
+import type { MempoolTransaction } from "@/lib/api/types";
 import type { AnalysisSettings } from "@/hooks/useAnalysisSettings";
 import type { AnalysisState } from "@/hooks/useAnalysisState";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
@@ -296,6 +298,44 @@ describe("analysis-cache", () => {
       expect(expired).toBeUndefined();
 
       vi.restoreAllMocks();
+    });
+
+    const ELEVEN_MIN = 11 * 60_000;
+    const tx = (confirmed: boolean, blockTime?: number) =>
+      ({ txid: "abc123", status: { confirmed, block_time: blockTime } }) as MempoolTransaction;
+
+    async function presentAfter(query: string, state: AnalysisState, ms: number) {
+      await putCachedResult("mainnet", query, defaultSettings, state);
+      const now = Date.now();
+      vi.spyOn(Date, "now").mockReturnValue(now + ms);
+      const cached = await getCachedResult("mainnet", query, defaultSettings);
+      vi.restoreAllMocks();
+      return cached !== undefined;
+    }
+
+    it("unconfirmed tx results expire after 10 min", async () => {
+      expect(await presentAfter("abc123", makeMinimalState({ txData: tx(false) }), ELEVEN_MIN)).toBe(false);
+    });
+
+    it("confirmed tx results are kept for 24h", async () => {
+      expect(await presentAfter("abc123", makeMinimalState({ txData: tx(true, 1_600_000_000) }), ELEVEN_MIN)).toBe(true);
+    });
+
+    it("address results use the adaptive address TTL, not 24h", async () => {
+      const recent = Math.floor(Date.now() / 1000) - 86_400;
+      const state = makeMinimalState({ query: "bc1qtest", inputType: "address", addressTxs: [tx(true, recent)] });
+      expect(await presentAfter("bc1qtest", state, ELEVEN_MIN)).toBe(false);
+    });
+  });
+
+  describe("incomplete results", () => {
+    it.each(INCOMPLETE_RESULT_FINDING_IDS)("does not cache a result carrying %s", async (id) => {
+      const state = makeMinimalState({
+        txData: { txid: "abc123", status: { confirmed: true } } as MempoolTransaction,
+        result: { score: 70, grade: "B", findings: [{ id, severity: "low", title: "", description: "", recommendation: "", scoreImpact: 0 }] },
+      });
+      await putCachedResult("mainnet", "abc123", defaultSettings, state);
+      expect(await getCachedResult("mainnet", "abc123", defaultSettings)).toBeUndefined();
     });
   });
 });

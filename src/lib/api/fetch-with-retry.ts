@@ -27,6 +27,7 @@ export async function fetchWithRetry(
   options?: FetchRetryOptions,
 ): Promise<Response> {
   const perAttemptTimeout = options?.timeoutMs ?? REQUEST_TIMEOUT_MS;
+  let timedOut = false;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
@@ -64,7 +65,9 @@ export async function fetchWithRetry(
       throw new ApiError("API_UNAVAILABLE", `HTTP ${response.status}`);
     } catch (error) {
       if (error instanceof ApiError) throw error;
-      if (error instanceof DOMException && (error.name === "AbortError" || error.name === "TimeoutError")) throw error;
+      // Only a caller abort is final; a per-attempt timeout is transient and retried
+      if (options?.signal?.aborted) throw error;
+      timedOut = error instanceof DOMException && (error.name === "TimeoutError" || error.name === "AbortError");
 
       if (attempt < MAX_RETRIES) {
         await sleep(RETRY_DELAYS[attempt], options?.signal ?? undefined);
@@ -73,5 +76,5 @@ export async function fetchWithRetry(
     }
   }
 
-  throw new ApiError("NETWORK_ERROR", "Network request failed");
+  throw new ApiError("NETWORK_ERROR", timedOut ? "Request timed out" : "Network request failed");
 }
