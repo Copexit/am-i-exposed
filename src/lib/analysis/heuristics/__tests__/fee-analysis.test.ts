@@ -30,6 +30,13 @@ describe("analyzeFees", () => {
     expect(findings.find((f) => f.id === "h6-round-fee-rate")).toBeUndefined();
   });
 
+  it("does not flag a fee rate that is only near an integer", () => {
+    // weight=400 -> vsize=100, fee=603 -> 6.03 sat/vB (fee is not rate * vsize)
+    const tx = makeTx({ weight: 400, fee: 603 });
+    const { findings } = analyzeFees(tx);
+    expect(findings.find((f) => f.id === "h6-round-fee-rate")).toBeUndefined();
+  });
+
   it("detects RBF signaled (sequence < 0xfffffffe) with impact 0", () => {
     const tx = makeTx({
       vin: [makeVin({ sequence: 0xfffffffd })],

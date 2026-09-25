@@ -42,6 +42,7 @@ const CORPUS_TXIDS = [
   "8ce796fe58a9292770178b199f1368adfeb6671a63dae3243b06b9e52769ec47", // 3-1 p2sh
   "58a7b1b7ef1e0c3bdce1c5df5ca4ff5120e49ae64f16e8945993fbad71818240", // 1-2 p2wsh
   "b10c0000004da5a9d1d9b4ae32e09f0b3e62d21a5cce5428d4ad714fb444eb5d", // 10-9 every script type
+  "ebe3d1ad3798ec45d9be5dcff476fe54ff36ddc0c9ac8ff9d5acb08d485d340e", // 2-12 one address, 10x 546 back to it
 ];
 
 const ADDR_CASES = [

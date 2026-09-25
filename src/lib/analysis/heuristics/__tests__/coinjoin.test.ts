@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { analyzeCoinJoin, isCoinJoinFinding } from "../coinjoin";
+import { readFileSync } from "fs";
+import { join } from "path";
+import type { MempoolTransaction } from "@/lib/api/types";
+import { analyzeCoinJoin, isCoinJoinFinding, isCoinJoinTx } from "../coinjoin";
 import { makeTx, makeVin, makeVout, resetAddrCounter } from "./fixtures/tx-factory";
 // Use literal sat values to keep tests decoupled from the WHIRLPOOL_POOLS layout.
 
@@ -637,5 +640,53 @@ describe("analyzeCoinJoin", () => {
     });
     const { findings } = analyzeCoinJoin(tx);
     expect(findings.some((f) => f.params?.isWasabi1 === 1)).toBe(false);
+  });
+});
+
+describe("CoinJoin detection ignores single-owner structure", () => {
+  const CORPUS = join(__dirname, "fixtures/api-responses/corpus");
+  const corpusTx = (txid: string) =>
+    (JSON.parse(readFileSync(join(CORPUS, `${txid}.json`), "utf-8")) as { tx: MempoolTransaction }).tx;
+  const vinFrom = (address: string, value: number) =>
+    makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: address, value } });
+
+  it("does not flag equal outputs when every input comes from one address", () => {
+    const tx = makeTx({
+      vin: [vinFrom("bc1qsingleowner", 600_000), vinFrom("bc1qsingleowner", 900_000)],
+      vout: [...Array.from({ length: 6 }, () => makeVout({ value: 200_000 })), makeVout({ value: 290_000 })],
+    });
+    expect(analyzeCoinJoin(tx).findings.some(isCoinJoinFinding)).toBe(false);
+    expect(isCoinJoinTx(tx)).toBe(false);
+  });
+
+  it("does not count outputs paying back to an input address as equal outputs", () => {
+    const reused = "bc1qreusedinput";
+    const tx = makeTx({
+      vin: [vinFrom(reused, 400_000), makeVin()],
+      vout: [makeVout({ value: 50_000 }), ...Array.from({ length: 6 }, () => makeVout({ value: 50_000, scriptpubkey_address: reused }))],
+    });
+    expect(analyzeCoinJoin(tx).findings.some(isCoinJoinFinding)).toBe(false);
+    expect(isCoinJoinTx(tx)).toBe(false);
+  });
+
+  it("still detects a CoinJoin when inputs come from distinct addresses", () => {
+    const tx = makeTx({
+      vin: [vinFrom("bc1qpartya", 600_000), vinFrom("bc1qpartyb", 900_000)],
+      vout: [...Array.from({ length: 6 }, () => makeVout({ value: 200_000 })), makeVout({ value: 290_000 })],
+    });
+    expect(analyzeCoinJoin(tx).findings.some(isCoinJoinFinding)).toBe(true);
+    expect(isCoinJoinTx(tx)).toBe(true);
+  });
+
+  it("ebe3d1ad (2 inputs from one address, 10x 546 back to it) is not a JoinMarket round", () => {
+    const tx = corpusTx("ebe3d1ad3798ec45d9be5dcff476fe54ff36ddc0c9ac8ff9d5acb08d485d340e");
+    expect(analyzeCoinJoin(tx).findings.some(isCoinJoinFinding)).toBe(false);
+    expect(isCoinJoinTx(tx)).toBe(false);
+  });
+
+  it("53d885d1 (7 of 8 outputs back to an input address) is not a CoinJoin", () => {
+    const tx = corpusTx("53d885d1aa07f481ae4d5e1976fc3b8a230c8dafe0f94167dfc02ebc2b9b071a");
+    expect(analyzeCoinJoin(tx).findings.some(isCoinJoinFinding)).toBe(false);
+    expect(isCoinJoinTx(tx)).toBe(false);
   });
 });

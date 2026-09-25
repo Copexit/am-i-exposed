@@ -22,6 +22,29 @@ import {
 } from "./coinjoin-findings";
 import { detectTx0 } from "./coinjoin-premix";
 
+type Tx = Parameters<TxHeuristic>[0];
+
+/**
+ * outputs: spendable outputs that can belong to a CoinJoin's anonymity set,
+ * i.e. not paying back to an input address (those are certainly the
+ * spender's own, so they hide nothing).
+ * singleOwner: every input comes from one address, so the equal-output
+ * patterns cannot be a multi-party round (detectJoinMarket requires 2+ input
+ * addresses for the same reason). Stonewall keeps its own input rules: solo
+ * Stonewall is single-owner by design.
+ */
+function coinJoinCandidates(tx: Tx) {
+  const inputAddresses = new Set<string>();
+  for (const v of tx.vin) {
+    if (v.prevout?.scriptpubkey_address) inputAddresses.add(v.prevout.scriptpubkey_address);
+  }
+  return {
+    outputs: getSpendableOutputs(tx.vout).filter(
+      (o) => !o.scriptpubkey_address || !inputAddresses.has(o.scriptpubkey_address),
+    ),
+    singleOwner: inputAddresses.size === 1 && tx.vin.every((v) => v.prevout?.scriptpubkey_address),
+  };
+}
 
 /**
  * H4: CoinJoin Detection
@@ -43,7 +66,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
   // small JoinMarket round. It is reported by the premix heuristic instead.
   if (detectTx0(tx)) return { findings };
 
-  const spendableOutputs = getSpendableOutputs(tx.vout);
+  const { outputs: spendableOutputs, singleOwner } = coinJoinCandidates(tx);
   const whirlpool = detectWhirlpool(spendableOutputs.map((o) => o.value));
   if (whirlpool) {
     findings.push(buildWhirlpoolFinding(whirlpool.pool, tx.status?.block_time));
@@ -52,7 +75,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
 
   // Wasabi 1.x: base denomination + near-2x mixing levels (checked before
   // WabiSabi, whose tier heuristic would otherwise also match these rounds)
-  const wasabi1 = detectWasabi1(spendableOutputs);
+  const wasabi1 = singleOwner ? null : detectWasabi1(spendableOutputs);
   if (wasabi1) {
     findings.push(buildWasabi1Finding(wasabi1, tx.vin.length, spendableOutputs.length));
     findings.push(buildExchangeFlaggingFinding());
@@ -60,9 +83,9 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
   }
 
   // WabiSabi: many inputs + many outputs
-  const isWabiSabi = tx.vin.length >= 10 && spendableOutputs.length >= 10;
+  const isWabiSabi = !singleOwner && tx.vin.length >= 10 && spendableOutputs.length >= 10;
 
-  const equalOutput = detectEqualOutputs(spendableOutputs.map((o) => o.value));
+  const equalOutput = singleOwner ? null : detectEqualOutputs(spendableOutputs.map((o) => o.value));
 
   // WabiSabi multi-tier detection: no single 5+ denomination, but multiple groups
   if (!equalOutput && isWabiSabi) {
@@ -170,18 +193,18 @@ export function isCoinJoinFinding(f: Finding): boolean {
  * so it must stay allocation-free. Uses the same detector functions
  * as analyzeCoinJoin but only checks boolean results.
  */
-export function isCoinJoinTx(tx: Parameters<typeof analyzeCoinJoin>[0]): boolean {
+export function isCoinJoinTx(tx: Tx): boolean {
   if (tx.vin.length < 2 || tx.vout.length < 2) return false;
 
-  const spendable = getSpendableOutputs(tx.vout);
+  const { outputs: spendable, singleOwner } = coinJoinCandidates(tx);
   const values = spendable.map((o) => o.value);
 
   // Whirlpool
   if (detectWhirlpool(values)) return true;
 
   // WabiSabi multi-tier
-  const isWabiSabi = tx.vin.length >= 10 && spendable.length >= 10;
-  const equalOutput = detectEqualOutputs(values);
+  const isWabiSabi = !singleOwner && tx.vin.length >= 10 && spendable.length >= 10;
+  const equalOutput = singleOwner ? null : detectEqualOutputs(values);
 
   if (!equalOutput && isWabiSabi) {
     const counts = countOutputValues(spendable);
