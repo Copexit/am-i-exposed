@@ -55,6 +55,8 @@ const CACHE_DIR = join(ROOT, ".cache", "entity-data");
 const OUTPUT_DIR = join(ROOT, "public", "data");
 const OFAC_PATH = join(ROOT, "src", "data", "ofac-addresses.json");
 const ENTITIES_PATH = join(ROOT, "src", "data", "entities.json");
+/** Curated files that only record where an address was mentioned, not who owns it. */
+const MENTION_ONLY_CSVS = new Set(["bithypha-reddit.csv", "bithypha-bitcointalk.csv"]);
 
 // WalletExplorer API config (adapted from enrich_entities.py)
 const WE_CALLER = "semilla_bitcoin";
@@ -843,8 +845,14 @@ Output: public/data/
 
   // Curated (modern exchange addresses)
   const curatedDir = join(CACHE_DIR, "curated");
-  const curatedCsvs = !opts.ofacOnly ? findCsvFiles(curatedDir) : [];
-  for (const csv of curatedCsvs) {
+  // Forum-mention lists (address was merely posted on Reddit/BitcoinTalk) say
+  // nothing about ownership. Dedup is first-seen-wins, so they are streamed
+  // after every labeled source to never shadow a real entity label.
+  const isMentionOnly = (p) => MENTION_ONLY_CSVS.has(basename(p));
+  const allCuratedCsvs = !opts.ofacOnly ? findCsvFiles(curatedDir).sort() : [];
+  const curatedCsvs = allCuratedCsvs.filter((p) => !isMentionOnly(p));
+  const mentionCsvs = allCuratedCsvs.filter(isMentionOnly);
+  for (const csv of allCuratedCsvs) {
     const lines = countLines(csv);
     estimatedTotal += lines;
     console.log(`  ${basename(csv)}: ~${lines.toLocaleString()} lines`);
@@ -903,7 +911,7 @@ Output: public/data/
     for (const csv of temporalCsvs) {
       allCsvFiles.push({ path: csv, category: "unknown" });
     }
-    for (const csv of curatedCsvs) {
+    for (const csv of allCuratedCsvs) {
       allCsvFiles.push({
         path: csv,
         category: getCategoryFromFilename(basename(csv, ".csv")),
@@ -1105,6 +1113,16 @@ Output: public/data/
         stats,
       );
       console.log();
+    }
+
+    // Source 6: Forum-mention lists (lowest priority, see isMentionOnly)
+    for (const csvPath of mentionCsvs) {
+      if (stats.budgetMap && stats.totalAllocated >= stats.totalBudget) break;
+      if (!stats.budgetMap && opts.maxAddresses > 0 && stats.unique >= opts.maxAddresses) break;
+      const fname = basename(csvPath, ".csv");
+      console.log(`  [Mention] ${fname}`);
+      const added = await streamCsvIntoFilter(csvPath, "unknown", "curated", filter, stats);
+      console.log(`    ${added.toLocaleString()} new\n`);
     }
   }
 
