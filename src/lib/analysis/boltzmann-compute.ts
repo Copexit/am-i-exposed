@@ -5,12 +5,14 @@
 
 import { getAnalysisSettings } from "@/hooks/useAnalysisSettings";
 import type { MempoolTransaction } from "@/lib/api/types";
+import { isCoinbase } from "./heuristics/tx-utils";
 import type { BoltzmannWorkerResult, BoltzmannProgress, WorkerResponse } from "./boltzmann-pool";
 import {
   MAX_SUPPORTED_TOTAL,
   MAX_SUPPORTED_TOTAL_WABISABI,
   MAX_WORKERS,
   getWorkerPool,
+  onPoolTerminate,
   terminatePool,
   detectIntrafees,
   detectJoinMarketForTurbo,
@@ -38,8 +40,7 @@ export async function computeBoltzmann(
 ): Promise<BoltzmannWorkerResult | null> {
   if (typeof Worker === "undefined") return null;
 
-  const isCoinbase = tx.vin.some(v => v.is_coinbase);
-  if (isCoinbase) return null;
+  if (isCoinbase(tx)) return null;
 
   const { inputValues, outputValues } = extractTxValues(tx);
   const nIn = inputValues.length;
@@ -58,7 +59,7 @@ export async function computeBoltzmann(
   // Terminate any existing workers to avoid stale WASM state conflicts
   terminatePool();
 
-  const { boltzmannTimeout = 300 } = getAnalysisSettings() as { boltzmannTimeout?: number };
+  const { boltzmannTimeout = 300 } = getAnalysisSettings();
   const timeoutMs = opts?.timeoutMs ?? boltzmannTimeout * 1000;
   const id = `${tx.txid}-${Date.now()}`;
 
@@ -66,7 +67,7 @@ export async function computeBoltzmann(
   const { feesMaker, feesTaker, hasCjPattern } = detectIntrafees(outputValues, 0.005);
   const maxCjIntrafeesRatio = hasCjPattern ? 0.005 : 0.0;
 
-  // Set up abort listener
+  // Abort terminates the pool, which settles the pending job with null
   const abortHandler = () => {
     terminatePool();
   };
@@ -120,6 +121,48 @@ export async function computeBoltzmann(
   }
 }
 
+type WorkerProgressMsg = Extract<WorkerResponse, { type: "progress" }>;
+
+/**
+ * Post one job to a single pool worker and resolve with its result, or null on
+ * error, abort or pool termination (preemption by another compute).
+ */
+function runOnSingleWorker(
+  message: { type: string; id: string } & Record<string, unknown>,
+  signal?: AbortSignal,
+  onProgressMsg?: (msg: WorkerProgressMsg) => void,
+): Promise<BoltzmannWorkerResult | null> {
+  if (signal?.aborted) return Promise.resolve(null);
+  const pool = getWorkerPool(1);
+  if (pool.length === 0) return Promise.resolve(null);
+  const worker = pool[0];
+
+  return new Promise((resolve) => {
+    const unregister = onPoolTerminate(() => finish(null));
+    function finish(r: BoltzmannWorkerResult | null) {
+      unregister();
+      worker.onmessage = null;
+      worker.onerror = null;
+      resolve(r);
+    }
+
+    worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
+      const msg = e.data;
+      if (msg.id !== message.id) return;
+      if (msg.type === "result") finish(msg);
+      else if (msg.type === "error") finish(null);
+      else if (msg.type === "progress") onProgressMsg?.(msg);
+    };
+
+    worker.onerror = () => {
+      finish(null);
+      terminatePool();
+    };
+
+    worker.postMessage(message);
+  });
+}
+
 /** WabiSabi turbo mode - single worker, tier-decomposed, always fast (<1ms). */
 function runWabiSabiCompute(
   id: string,
@@ -129,37 +172,10 @@ function runWabiSabiCompute(
   timeoutMs: number,
   signal?: AbortSignal,
 ): Promise<BoltzmannWorkerResult | null> {
-  const pool = getWorkerPool(1);
-  if (pool.length === 0) return Promise.resolve(null);
-  const worker = pool[0];
-
-  return new Promise((resolve) => {
-    if (signal?.aborted) { resolve(null); return; }
-
-    worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
-      const msg = e.data;
-      if (msg.id !== id) return;
-      if (msg.type === "result") {
-        resolve(msg as BoltzmannWorkerResult);
-      } else if (msg.type === "error") {
-        resolve(null);
-      }
-    };
-
-    worker.onerror = () => {
-      terminatePool();
-      resolve(null);
-    };
-
-    worker.postMessage({
-      type: "compute-wabisabi",
-      id,
-      inputValues,
-      outputValues,
-      fee,
-      timeoutMs,
-    });
-  });
+  return runOnSingleWorker(
+    { type: "compute-wabisabi", id, inputValues, outputValues, fee, timeoutMs },
+    signal,
+  );
 }
 
 /** JoinMarket turbo mode - single worker, always fast. */
@@ -173,39 +189,13 @@ function runJoinMarketCompute(
   timeoutMs: number,
   signal?: AbortSignal,
 ): Promise<BoltzmannWorkerResult | null> {
-  const pool = getWorkerPool(1);
-  if (pool.length === 0) return Promise.resolve(null);
-  const worker = pool[0];
-
-  return new Promise((resolve) => {
-    if (signal?.aborted) { resolve(null); return; }
-
-    worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
-      const msg = e.data;
-      if (msg.id !== id) return;
-      if (msg.type === "result") {
-        resolve(msg as BoltzmannWorkerResult);
-      } else if (msg.type === "error") {
-        resolve(null);
-      }
-    };
-
-    worker.onerror = () => {
-      terminatePool();
-      resolve(null);
-    };
-
-    worker.postMessage({
-      type: "compute-jm",
-      id,
-      inputValues,
-      outputValues,
-      fee,
-      denomination,
-      maxCjIntrafeesRatio,
-      timeoutMs,
-    });
-  });
+  return runOnSingleWorker(
+    {
+      type: "compute-jm", id, inputValues, outputValues, fee,
+      denomination, maxCjIntrafeesRatio, timeoutMs,
+    },
+    signal,
+  );
 }
 
 /** Single-worker compute path (handles dual-run internally). */
@@ -219,54 +209,26 @@ function runSingleWorkerCompute(
   onProgress?: (p: BoltzmannProgress) => void,
   signal?: AbortSignal,
 ): Promise<BoltzmannWorkerResult | null> {
-  const pool = getWorkerPool(1);
-  if (pool.length === 0) return Promise.resolve(null);
-  const worker = pool[0];
-
-  return new Promise((resolve) => {
-    if (signal?.aborted) { resolve(null); return; }
-
-    worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
-      const msg = e.data;
-      if (msg.id !== id) return;
-
-      if (msg.type === "result") {
-        resolve(msg as BoltzmannWorkerResult);
-      } else if (msg.type === "error") {
-        resolve(null);
-      } else if (msg.type === "progress" && onProgress) {
-        let estimatedRemainingMs: number | null = null;
-        if (msg.runFraction !== undefined && msg.runFraction > 0.05 && msg.runElapsedMs !== undefined) {
-          const runRemainingMs = (msg.runElapsedMs / msg.runFraction) * (1 - msg.runFraction);
-          if (msg.hasDualRun && msg.runIndex === 0) {
-            estimatedRemainingMs = null;
-          } else {
-            estimatedRemainingMs = Math.max(0, Math.round(runRemainingMs));
-          }
+  return runOnSingleWorker(
+    { type: "compute", id, inputValues, outputValues, fee, maxCjIntrafeesRatio, timeoutMs },
+    signal,
+    onProgress && ((msg) => {
+      let estimatedRemainingMs: number | null = null;
+      if (msg.runFraction !== undefined && msg.runFraction > 0.05 && msg.runElapsedMs !== undefined) {
+        const runRemainingMs = (msg.runElapsedMs / msg.runFraction) * (1 - msg.runFraction);
+        if (msg.hasDualRun && msg.runIndex === 0) {
+          estimatedRemainingMs = null;
+        } else {
+          estimatedRemainingMs = Math.max(0, Math.round(runRemainingMs));
         }
-        onProgress({
-          fraction: msg.fraction,
-          elapsedMs: msg.elapsedMs,
-          estimatedRemainingMs,
-        });
       }
-    };
-
-    worker.onerror = () => {
-      terminatePool();
-      resolve(null);
-    };
-
-    worker.postMessage({
-      type: "compute",
-      id,
-      inputValues,
-      outputValues,
-      fee,
-      maxCjIntrafeesRatio,
-      timeoutMs,
-    });
-  });
+      onProgress({
+        fraction: msg.fraction,
+        elapsedMs: msg.elapsedMs,
+        estimatedRemainingMs,
+      });
+    }),
+  );
 }
 
 /** Multi-worker parallel compute path. */
@@ -338,7 +300,8 @@ async function runMultiWorkerCompute(
 
     return { ...run0Result, intraFeesMaker: 0, intraFeesTaker: 0 };
   } catch {
-    terminatePool();
+    // runParallelPass already dropped the pool on worker errors; on preemption
+    // the pool now belongs to another job and must not be terminated here.
     return null;
   }
 }

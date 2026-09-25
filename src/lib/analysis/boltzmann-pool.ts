@@ -73,6 +73,19 @@ export const MAX_WORKERS = 8;
 // --- Worker pool singleton ---
 let workerPool: Worker[] = [];
 
+/**
+ * Cancellers for jobs awaiting a reply from the current pool. A terminated
+ * Worker fires neither onmessage nor onerror, so terminatePool() must settle
+ * these itself or their callers await forever.
+ */
+const pendingJobs = new Set<() => void>();
+
+/** Register a canceller run on terminatePool(); returns its unregister fn. */
+export function onPoolTerminate(cancel: () => void): () => void {
+  pendingJobs.add(cancel);
+  return () => pendingJobs.delete(cancel);
+}
+
 function createWorker(): Worker | null {
   if (typeof Worker === "undefined") return null;
   try {
@@ -97,6 +110,9 @@ export function getWorkerPool(size: number): Worker[] {
 export function terminatePool() {
   for (const w of workerPool) w.terminate();
   workerPool = [];
+  const cancels = [...pendingJobs];
+  pendingJobs.clear();
+  for (const cancel of cancels) cancel();
 }
 
 /**
@@ -197,11 +213,27 @@ export function runParallelPass(
     let settled = false;
 
     function detachAll() {
+      unregister();
       for (const w of workers) {
         w.onmessage = null;
         w.onerror = null;
       }
     }
+
+    /** Settle with an error. Workers are left in an unknown state, so the pool is dropped. */
+    function fail(message: string) {
+      settled = true;
+      detachAll();
+      terminatePool();
+      reject(new Error(message));
+    }
+
+    const unregister = onPoolTerminate(() => {
+      if (settled) return;
+      settled = true;
+      detachAll();
+      reject(new Error("Boltzmann worker pool terminated"));
+    });
 
     for (let idx = 0; idx < N; idx++) {
       const w = workers[idx];
@@ -237,18 +269,12 @@ export function runParallelPass(
           return;
         }
 
-        if (msg.type === "error") {
-          settled = true;
-          detachAll();
-          reject(new Error(msg.message));
-        }
+        if (msg.type === "error") fail(msg.message);
       };
 
       w.onerror = (err) => {
         if (settled) return;
-        settled = true;
-        detachAll();
-        reject(new Error(err.message || "Worker error"));
+        fail(err.message || "Worker error");
       };
 
       w.postMessage({
