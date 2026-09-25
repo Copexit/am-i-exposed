@@ -81,6 +81,8 @@ Only exact round amounts are detected. "Nearly round" amounts (e.g., a "send max
 
 The formula is `Math.min(roundOutputCount * 8, 20)`.
 
+When the historical price is known, outputs that are round in USD or EUR (within 0.5%, or 1% on self-hosted backends) are flagged the same way (`h1-round-usd-amount`, `h1-round-eur-amount`). An output that is already a round BTC amount is not counted again in fiat, and fiat findings fire only when some but not all outputs are fiat-round (USD and EUR matches combined).
+
 **References**
 - Meiklejohn et al., "A Fistful of Bitcoins: Characterizing Payments Among Men with No Names" (2013) - identifies round amounts as a payment indicator
 - Nick, "Data-Driven De-Anonymization in Bitcoin" (2015)
@@ -110,16 +112,16 @@ for each output:
 
 If one output is a round amount and the other is not, the non-round output is likely change. This overlaps with H1 but is scored here in the context of change identification specifically.
 
-**Sub-heuristic 2c: Unnecessary input heuristic**
+**Sub-heuristic 2c: Unnecessary input (optimal change) heuristic**
 
-If a transaction has multiple inputs and a single input alone would have been sufficient to fund the payment output (plus fee), then the additional inputs are likely from the same wallet. This heuristic relies on the assumption that wallets select UTXOs automatically and sometimes include more than strictly necessary. The output that could have been funded by one input alone is likely the payment; the other output is likely change.
+Wallets do not add inputs they do not need. If output X were the change, the other output (the payment) plus fee must have required every input - otherwise the smallest input was unnecessary. Since `sum(inputs) = payment + change + fee`, this holds only when the change is smaller than the smallest input. When exactly one output is smaller than the smallest input, that output is the change (Bitcoin Wiki "Privacy", unnecessary input heuristic; Kalodner et al., BlockSci 2017, "optimal change"). Example: inputs 2 + 3 BTC, outputs 4 + 1 BTC - the 1 BTC output is change.
 
 ```
-largest_input = max(input.value for input in tx.inputs)
-for each output:
-  if output.value + estimated_fee <= largest_input:
-    // This output could have been funded by one input alone.
-    // The other inputs were unnecessary - they are from the same wallet.
+smallest_input = min(input.value for input in tx.inputs)  // skip if any prevout is missing
+candidates = [o for o in outputs if o.value < smallest_input]
+if len(candidates) == 1 and candidates[0].value >= 0.1 * smallest_input:
+  // candidates[0] is change. Below 10% of the smallest input the
+  // shadow-change signal already votes for it, so it is not counted twice.
 ```
 
 **Sub-heuristic 2d: Value disparity**
@@ -321,6 +323,8 @@ For transactions with mixed output values (<= 8x8), the engine enumerates which 
 
 For large mixed-value transactions (> 8x8), structural estimation is used based on the largest group of equal outputs, applying the Boltzmann partition formula to that group.
 
+**Incomplete data:** if any non-coinbase input is missing its prevout (e.g. a self-hosted backend that could not enrich it), H5 emits nothing rather than computing on a partial input set, which would misreport the structure (a 2-in-1-out consolidation would look like a 1-in-1-out sweep). Transactions with no valued outputs (OP_RETURN-only burns) are also skipped.
+
 **Entropy interpretation:**
 - 0 bits: Deterministic transaction. Only one valid interpretation exists.
 - 1-3 bits: Low entropy. A few possible interpretations, limited ambiguity.
@@ -336,7 +340,7 @@ This is why OXT.me's Boltzmann tool was so valuable - and why its loss in April 
 
 **Scoring impact:** -5 to +15
 
-- 0 bits (1-in-1-out): -5
+- 0 bits (1-in-1-out): 0 (normal sweep / exact payment)
 - 0 bits (N-in-1-out sweep/consolidation): -3
 - Near-zero entropy (rounded to 0): -3
 - Less than 1 bit: 0
@@ -387,9 +391,20 @@ If the fee rate is significantly higher or lower than the prevailing mempool fee
 
 Fee analysis alone is a weak signal. But combined with other wallet fingerprinting data (H11), it narrows the set of possible wallet software significantly. Knowing the wallet software can reveal the user's technical sophistication, preferred privacy tools, and even geographic region (some wallets are popular in specific communities).
 
+**Fee computed on raw size (SegWit discount ignored)**
+
+A wallet that ignores the SegWit discount computes `fee = rate * raw_size`. The finding fires only when the fee is an exact multiple of the raw size at 2+ sat/B and not an exact multiple of the vsize. An earlier near-integer window (fee/size within 0.1 of an integer) fired on about 16% of random SegWit fees; the exact-product test fires on roughly 1/size of them.
+
+```
+if has_segwit_inputs and size != vsize:
+  if fee % size == 0 and fee / size >= 2 and fee % vsize != 0:
+    flag h6-fee-segwit-miscalc
+```
+
 **Scoring impact:** -2
 
 - Round fee rate detected (exact sat/vB integer): -2
+- Fee computed on raw size: -2
 - RBF signaling: 0 (informational only)
 
 **References**
@@ -652,14 +667,16 @@ BIP69 was intended to improve privacy by standardizing ordering, but because ado
 Bitcoin Core since version 0.17 grinds the ECDSA nonce to produce signatures where the R value is in the lower half of the curve order. This produces 71-byte signatures instead of 72-byte, saving 1 byte per input. This is a distinctive fingerprint - most other wallets do not implement low-R grinding.
 
 ```
+sigs = []
 for input in tx.inputs:
-  sig = extract_signature(input.witness or input.scriptSig)
-  r_value = parse_der_signature(sig).r
-  if r_value < secp256k1_order / 2:
-    low_r_count += 1
-if low_r_count == len(tx.inputs):
-  flag as probable Bitcoin Core (>= 0.17)
+  for item in input.witness + input.scriptSig pushes:
+    if item is a strict DER signature + sighash byte (not a 64/65-byte Schnorr sig):
+      sigs.append(item)
+if len(sigs) > 0 and every sig has an R length <= 32 bytes:
+  flag low-R (probable Bitcoin Core >= 0.17)
 ```
+
+Only parsed signature fields are inspected, never the whole raw hex (a pattern search over raw hex matches txids, amounts and pubkeys). Taproot inputs carry no DER signatures and do not count.
 
 **Why it matters for privacy**
 

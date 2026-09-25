@@ -99,42 +99,46 @@ export function checkValueDisparity(
   }
 }
 
+/** Shadow change threshold: output below this fraction of the smallest input. */
+const SHADOW_CHANGE_RATIO = 0.1;
+
 /**
- * Sub-heuristic 4: Unnecessary input
+ * Sub-heuristic 4: Unnecessary input (optimal change)
  *
- * If the largest input alone could fund one output (+ fee), extra inputs
- * were unnecessary for that payment, revealing which output is change.
+ * Wallets do not add inputs they do not need. If output X were the change,
+ * the payment plus fee could only have required every input when X is smaller
+ * than the smallest input (otherwise the smallest input was unnecessary).
+ * When exactly one output passes that test, it is the change.
+ *
+ * Outputs below SHADOW_CHANGE_RATIO of the smallest input are left to
+ * checkShadowChange, which is the same rule with a stricter threshold.
+ *
+ * Reference: Bitcoin Wiki "Privacy" (unnecessary input heuristic);
+ * Kalodner et al., BlockSci (2017), "optimal change".
  */
 export function checkUnnecessaryInput(
   vin: MempoolVin[],
   vout: MempoolVout[],
-  fee: number,
   changeIndices: Map<number, number>,
   signals: string[],
 ): void {
   // Need multiple inputs for this heuristic
   if (vin.length < 2) return;
 
-  let largestInput = 0;
+  let smallestInput = Infinity;
   for (const v of vin) {
-    const val = v.prevout?.value ?? 0;
-    if (val > largestInput) largestInput = val;
+    if (!v.prevout) return; // Can't evaluate without full prevout data
+    smallestInput = Math.min(smallestInput, v.prevout.value);
   }
 
-  // Check if each output could have been funded by the largest input alone
-  const out0Fundable = vout[0].value + fee <= largestInput;
-  const out1Fundable = vout[1].value + fee <= largestInput;
+  const candidate0 = vout[0].value < smallestInput;
+  const candidate1 = vout[1].value < smallestInput;
+  if (candidate0 === candidate1) return;
 
-  // If exactly one output is fundable by a single input, it's likely the payment
-  // (the wallet didn't need the extra inputs for that output)
-  if (out0Fundable && !out1Fundable) {
-    // Output 0 could be paid by one input; output 1 needed extras -> output 1 is change
-    changeIndices.set(1, (changeIndices.get(1) ?? 0) + 1);
-    signals.push("unnecessary inputs suggest change");
-  } else if (out1Fundable && !out0Fundable) {
-    changeIndices.set(0, (changeIndices.get(0) ?? 0) + 1);
-    signals.push("unnecessary inputs suggest change");
-  }
+  const idx = candidate0 ? 0 : 1;
+  if (vout[idx].value < smallestInput * SHADOW_CHANGE_RATIO) return; // shadow change covers it
+  changeIndices.set(idx, (changeIndices.get(idx) ?? 0) + 1);
+  signals.push("unnecessary inputs suggest change");
 }
 
 /**
@@ -228,7 +232,7 @@ export function checkShadowChange(
   const v1 = vout[1].value;
 
   // If one output is < 10% of the smallest input, it's likely shadow change
-  const threshold = smallestInput * 0.1;
+  const threshold = smallestInput * SHADOW_CHANGE_RATIO;
   if (v0 < threshold && v1 >= threshold) {
     changeIndices.set(0, (changeIndices.get(0) ?? 0) + 1);
     signals.push("shadow change: output much smaller than smallest input");

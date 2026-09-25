@@ -113,12 +113,12 @@ describe("scan tx - golden cases", () => {
     expect(result.txType).toBe("wabisabi-coinjoin");
   });
 
-  it("JoinMarket CoinJoin -> B (87)", async () => {
+  it("JoinMarket CoinJoin -> B (89)", async () => {
     setupTxMock(joinmarketTx as unknown as MempoolTransaction);
     await runScanTx(joinmarketTx.txid);
     const result = parseCaptured();
     expect(result.grade).toBe("B");
-    expect(result.score).toBe(87);
+    expect(result.score).toBe(89);
   });
 
   it("Simple legacy P2PKH -> C (52)", async () => {

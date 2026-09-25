@@ -82,8 +82,8 @@
 | Whirlpool 5x5 | tx | 70 | A+ | 100 | H4 (+30), H5 (+15), anon (+5), script (+2) |
 | WabiSabi 300+ | tx | 70 | A+ | 100 | H4 (+25), H5 (+15), anon (+5) |
 | Simple legacy P2PKH | tx | 70 | C | 53 | H2 (-10, compound -4), H11 (-3), anon (-1), script (-1) |
-| Taproot + OP_RETURN | tx | 70 | C | 57 | H5 (-5), H7 (-5), H11 (-2), script (-1) |
-| JoinMarket 2x equal | tx | 70 | B | 86 | H4 (+12 STONEWALLx2), H5 (+2), anon (+1), script (+2), timing (-1) |
+| Taproot + OP_RETURN | tx | 70 | C | 56 | H2 data-payment (-5), H7 (-5), H11 (-3), script (-1) |
+| JoinMarket 2x equal | tx | 70 | B | 89 | H4 (+15 STONEWALL), H5 (+2), script (+2) |
 | Bare multisig | tx | 70 | F | 19 | H2 (-20), script-multisig (-8), H1 (-10), H3 (-6), H5 (-3), H11 (-2), anon (-1), script (-1) |
 | OP_RETURN charley | tx | 70 | C | 50 | H2 (-15), H7 (-5), H11 (-2), script (+2) |
 | Dust attack 555 sats | tx | 70 | F | 24 | H2 (-20), dust (-8), H5 (-3), H11 (0), script (+2), compound-cap (-15) |

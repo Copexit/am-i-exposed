@@ -1,4 +1,5 @@
 import type { MempoolTransaction } from "@/lib/api/types";
+import { isRbfSignaling } from "../heuristics/tx-utils";
 import type { Finding } from "@/lib/types";
 
 /**
@@ -273,7 +274,7 @@ function buildSnapshot(
     .filter((t, i, arr) => arr.indexOf(t) === i);
 
   // Check RBF signaling
-  const hasRbf = tx.vin.some((v) => v.sequence < 0xfffffffe);
+  const hasRbf = isRbfSignaling(tx.vin);
 
   return {
     txid: tx.txid,

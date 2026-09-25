@@ -89,11 +89,11 @@ describe("analyzeRoundAmounts", () => {
   // ── Round USD amount detection ───────────────────────────────────────
 
   it("flags round USD output when usdPrice context is provided", () => {
-    // At $50,000/BTC, $100 = 200,000 sats
+    // At $49,997/BTC, $100 = 200,012 sats (not a round BTC amount)
     const tx = makeTx({
-      vout: [makeVout({ value: 200_000 }), makeVout({ value: 48_723 })],
+      vout: [makeVout({ value: 200_012 }), makeVout({ value: 48_723 })],
     });
-    const { findings } = analyzeRoundAmounts(tx, undefined, { usdPrice: 50_000 });
+    const { findings } = analyzeRoundAmounts(tx, undefined, { usdPrice: 49_997 });
     const usdFinding = findings.find((f) => f.id === "h1-round-usd-amount");
     expect(usdFinding).toBeDefined();
     expect(usdFinding!.scoreImpact).toBe(-8);
@@ -250,12 +250,12 @@ describe("analyzeRoundAmounts - EUR detection", () => {
   it("does not double-count outputs that match both USD and EUR", () => {
     // If an output matches both $200 USD and EUR200, only USD finding should include it.
     // EUR finding should only include EUR-only matches.
-    const sats = 200_000; // $100 at $50k/BTC
+    const sats = 200_012; // $100 at $49,997/BTC (not a round BTC amount)
     const tx = makeTx({
       vout: [makeVout({ value: sats }), makeVout({ value: 48_723 })],
     });
     // Use USD and EUR prices where $100 = EUR100 (both match same output)
-    const { findings } = analyzeRoundAmounts(tx, undefined, { usdPrice: 50_000, eurPrice: 50_000 });
+    const { findings } = analyzeRoundAmounts(tx, undefined, { usdPrice: 49_997, eurPrice: 49_997 });
     const usdFinding = findings.find((f) => f.id === "h1-round-usd-amount");
     const eurFinding = findings.find((f) => f.id === "h1-round-eur-amount");
     expect(usdFinding).toBeDefined();

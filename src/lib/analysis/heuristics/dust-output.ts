@@ -1,6 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
-import { DUST_THRESHOLD } from "@/lib/constants";
+import { DUST_THRESHOLD, P2PKH_DUST_LIMIT } from "@/lib/constants";
 import { isCoinbase } from "./tx-utils";
 
 /**
@@ -27,14 +27,14 @@ export function getDustThreshold(scriptType: string): number {
   switch (scriptType) {
     case "p2pkh":
     case "p2sh":
-      return 546;
+      return P2PKH_DUST_LIMIT;
     case "v0_p2wpkh":
       return 294;
     case "v0_p2wsh":
     case "v1_p2tr":
       return 330;
     default:
-      return 546; // conservative default
+      return P2PKH_DUST_LIMIT; // conservative default
   }
 }
 

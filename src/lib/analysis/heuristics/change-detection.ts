@@ -21,7 +21,7 @@ import {
  * 2. Address type mismatch: change usually matches input address type
  * 3. Round payment: the non-round output is likely change
  * 4. Value disparity: if one output is 100x+ larger, larger is likely change
- * 5. Unnecessary input: if one input alone could fund a payment, extra inputs reveal change
+ * 5. Unnecessary input: change is smaller than the smallest input (else that input was not needed)
  *
  * When change is identifiable, the payment amount and direction are revealed.
  *
@@ -41,7 +41,8 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
   // Exactly 1 input + 1 output (no OP_RETURN or other extras) = full spend / sweep.
   // Entropy is 0 bits. The link between input and output is 100% deterministic.
   // Note: txs with OP_RETURN + 1 spendable output are data-attachment payments, not sweeps.
-  const isSweep = tx.vin.length === 1 && tx.vout.length === 1;
+  // The lone output must also be addressed (not a burn or bare/nonstandard script).
+  const isSweep = tx.vin.length === 1 && tx.vout.length === 1 && spendableOutputs.length === 1;
   if (isSweep) {
     const inputAddr = tx.vin[0].prevout?.scriptpubkey_address;
     const outputAddr = spendableOutputs[0].scriptpubkey_address;
@@ -249,9 +250,9 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
   captureSignal("value_disparity", () =>
     checkValueDisparity(spendableOutputs, changeIndices, signals));
 
-  // Sub-heuristic 4: Unnecessary input (one input could fund payment alone)
+  // Sub-heuristic 4: Unnecessary input (change is smaller than the smallest input)
   captureSignal("unnecessary_input", () =>
-    checkUnnecessaryInput(tx.vin, spendableOutputs, tx.fee, changeIndices, signals));
+    checkUnnecessaryInput(tx.vin, spendableOutputs, changeIndices, signals));
 
   // Sub-heuristic 5: Optimal change (one output > 95% of input value)
   captureSignal("optimal_change", () =>

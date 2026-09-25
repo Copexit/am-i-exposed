@@ -1,3 +1,4 @@
+import type { MempoolVin } from "@/lib/api/types";
 import type { Severity } from "@/lib/types";
 import type { WhirlpoolPool } from "@/lib/constants";
 
@@ -42,36 +43,44 @@ export function getAnonymitySetNote(walletGuess: string | null): string {
 }
 
 /**
- * Detect low-R signatures in raw transaction hex.
- *
- * Bitcoin Core since 0.17 grinds nonces to produce 32-byte R values
- * (R < 0x80...) to save 1 byte. Most other wallets produce 33-byte R values
- * about 50% of the time.
- *
- * We check witness/scriptsig data for DER-encoded signatures where R is
- * exactly 32 bytes (the first byte of R is < 0x80).
+ * R length in bytes if `hex` is a strict DER ECDSA signature followed by a
+ * sighash byte, else null. Pubkeys, scripts and Schnorr signatures do not
+ * satisfy the nested length fields.
  */
-export function detectLowRSignatures(rawHex: string, inputCount: number): boolean {
-  if (inputCount === 0) return false;
+function derRLength(hex: string): number | null {
+  const byteLen = hex.length / 2;
+  if (byteLen === 64 || byteLen === 65) return null; // Schnorr (BIP340)
+  const byte = (i: number) => parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  if (byte(0) !== 0x30 || byte(1) + 3 !== byteLen || byte(2) !== 0x02) return null;
+  const rLen = byte(3);
+  if (byte(4 + rLen) !== 0x02 || 4 + rLen + 2 + byte(5 + rLen) !== byteLen - 1) return null;
+  return rLen;
+}
 
-  // Quick heuristic: look for DER signature patterns in the hex
-  // DER sig: 30 [len] 02 [rlen] [R...] 02 [slen] [S...]
-  // Low-R means rlen = 0x20 (32 bytes)
-  let lowRCount = 0;
+/**
+ * Detect low-R signatures from the inputs' witness stacks and scriptSig pushes.
+ *
+ * Bitcoin Core since 0.17 grinds nonces so R always fits in 32 bytes (saving
+ * 1 byte). Other wallets produce a 33-byte R about 50% of the time.
+ *
+ * Returns true only if at least one DER signature is present and every DER
+ * signature has R <= 32 bytes. Taproot (Schnorr) inputs carry no DER
+ * signatures and are ignored.
+ */
+export function detectLowRSignatures(vin: MempoolVin[]): boolean {
   let totalSigs = 0;
-
-  // Find all DER signatures in the raw hex
-  const derPattern = /30[0-9a-f]{2}02([0-9a-f]{2})/gi;
-  let match;
-
-  while ((match = derPattern.exec(rawHex)) !== null) {
-    const rLen = parseInt(match[1], 16);
-    totalSigs++;
-    if (rLen === 0x20) lowRCount++;
+  for (const v of vin) {
+    if (v.is_coinbase) continue;
+    const scriptSigPushes = v.scriptsig_asm ? v.scriptsig_asm.split(" ") : [];
+    for (const item of [...(v.witness ?? []), ...scriptSigPushes]) {
+      if (!/^30(?:[0-9a-f]{2})+$/i.test(item)) continue;
+      const rLen = derRLength(item);
+      if (rLen === null) continue;
+      if (rLen > 0x20) return false;
+      totalSigs++;
+    }
   }
-
-  // If all signatures have low-R and there are enough to be meaningful
-  return totalSigs >= inputCount && lowRCount === totalSigs && totalSigs > 0;
+  return totalSigs > 0;
 }
 
 /** Collected signal flags from transaction metadata. */

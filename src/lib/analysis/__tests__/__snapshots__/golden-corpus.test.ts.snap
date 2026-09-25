@@ -4,15 +4,13 @@ exports[`golden corpus - block 850000 > 1a0198d5942a5111 1`] = `
 {
   "findings": [
     "anon-set-none 0",
-    "behavioral-fingerprint-rollup -6",
-    "compound-deterministic-cap -6",
+    "compound-deterministic-cap -14",
     "h1-round-amount -8",
     "h11-no-locktime 0",
     "h11-wallet-fingerprint -3",
     "h2-same-address-io -20",
     "h3-single-input 0",
     "h5-low-entropy -3",
-    "h6-fee-segwit-miscalc -2",
     "h6-rbf-signaled 0",
     "script-uniform 2",
   ],
@@ -67,12 +65,11 @@ exports[`golden corpus - block 850000 > 9e65c23dc39d5c3e 1`] = `
     "h2-change-detected -21",
     "h3-cioh -12",
     "h5-low-entropy -3",
-    "h6-fee-segwit-miscalc -2",
     "h6-rbf-signaled 0",
     "script-mixed -1",
   ],
   "grade": "F",
-  "score": 10,
+  "score": 12,
 }
 `;
 
@@ -142,17 +139,15 @@ exports[`golden corpus - block 850000 > 68b76a9f359782d7 1`] = `
 exports[`golden corpus - block 850000 > 242b2de161deac31 1`] = `
 {
   "findings": [
-    "behavioral-fingerprint-rollup -6",
     "h11-no-locktime 0",
     "h11-wallet-fingerprint -3",
     "h2-sweep 0",
     "h3-single-input 0",
     "h5-zero-entropy 0",
-    "h6-fee-segwit-miscalc -2",
     "h6-rbf-signaled 0",
   ],
   "grade": "C",
-  "score": 59,
+  "score": 67,
 }
 `;
 
@@ -223,14 +218,14 @@ exports[`golden corpus - block 850000 > 60848192841f6dac 1`] = `
   "findings": [
     "anon-set-none 0",
     "h11-wallet-fingerprint -5",
-    "h2-change-detected -18",
+    "h2-change-detected -16",
     "h3-cioh -6",
     "h5-low-entropy -3",
     "h6-rbf-signaled 0",
     "script-mixed -1",
   ],
   "grade": "D",
-  "score": 37,
+  "score": 39,
 }
 `;
 
@@ -283,18 +278,16 @@ exports[`golden corpus - block 850000 > b10c0000004da5a9 1`] = `
 exports[`golden corpus - block 850000 > bb8e57e42ab0e028 1`] = `
 {
   "findings": [
-    "behavioral-fingerprint-rollup -6",
     "dust-outputs -3",
     "h11-no-locktime 0",
     "h11-wallet-fingerprint -3",
     "h2-self-send -25",
     "h3-single-input 0",
     "h5-entropy 2",
-    "h6-fee-segwit-miscalc -2",
     "script-uniform 2",
   ],
   "grade": "D",
-  "score": 35,
+  "score": 43,
 }
 `;
 

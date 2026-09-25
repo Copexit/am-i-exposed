@@ -5,7 +5,7 @@ import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import type { MempoolTransaction, MempoolVin } from "@/lib/api/types";
 import { parseMultisigFromInput } from "@/lib/bitcoin/multisig";
-import { getSpendableOutputs, isCoinbase, isOpReturn } from "./tx-utils";
+import { getSpendableOutputs, isCoinbase, isOpReturnOutput } from "./tx-utils";
 import { buildHodlHodlPatternFinding } from "./multisig-findings";
 
 // One-party-pays fee mode (~0.5%): low-band cluster
@@ -48,9 +48,7 @@ export const analyzeHodlHodlDetection: TxHeuristic = (tx: MempoolTransaction) =>
   if (info.scriptType !== "p2sh-p2wsh") return { findings };
   if (!vinPassesInvariants(vin)) return { findings };
 
-  for (const o of tx.vout) {
-    if (isOpReturn(o.scriptpubkey)) return { findings };
-  }
+  if (tx.vout.some(isOpReturnOutput)) return { findings };
 
   const spendable = getSpendableOutputs(tx.vout);
   if (spendable.length < 2 || spendable.length > 5) return { findings };

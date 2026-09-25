@@ -2,7 +2,7 @@ import type { TxHeuristic, TxContext } from "./types";
 import type { Finding } from "@/lib/types";
 import { fmtN, calcVsize } from "@/lib/format";
 import { isRoundAmount } from "./round-amount";
-import { isCoinbase, isOpReturn } from "./tx-utils";
+import { isCoinbase, isOpReturn, isRbfSignaling } from "./tx-utils";
 
 /**
  * H6: Fee Analysis
@@ -47,11 +47,7 @@ export const analyzeFees: TxHeuristic = (tx, _rawHex?, ctx?) => {
   }
 
   // Check RBF signaling
-  const hasRbf = tx.vin.some(
-    (v) => !v.is_coinbase && v.sequence < 0xfffffffe,
-  );
-
-  if (hasRbf) {
+  if (isRbfSignaling(tx.vin)) {
     findings.push({
       id: "h6-rbf-signaled",
       severity: "low",
@@ -71,26 +67,26 @@ export const analyzeFees: TxHeuristic = (tx, _rawHex?, ctx?) => {
     (v) => !v.is_coinbase && v.witness && v.witness.length > 0,
   );
   if (hasSegWitInputs) {
-    // For SegWit txs, weight < size * 4. If fee appears calibrated to non-segwit,
-    // the effective sat/vB would be higher than intended.
+    // For SegWit txs, weight < size * 4. A wallet that ignores the SegWit discount
+    // computes fee = rate * raw size, so the fee is an exact multiple of the raw
+    // size. Require an exact product (a near-integer rate window fires on ~16% of
+    // random fees) and a rate of at least 2 sat/B (1 sat/B is the relay minimum).
     const rawSize = tx.size;
     const segwitVsize = calcVsize(tx.weight);
     const nonSegwitFeeRate = tx.fee / rawSize;
     const segwitFeeRate = tx.fee / segwitVsize;
 
-    // If the non-segwit rate looks like a round number but segwit rate doesn't,
-    // the wallet likely calculates fees using non-segwit size
-    const nonSegRounded = Math.abs(nonSegwitFeeRate - Math.round(nonSegwitFeeRate)) < 0.1;
-    const segRounded = Math.abs(segwitFeeRate - Math.round(segwitFeeRate)) < 0.1;
+    const nonSegExact = tx.fee % rawSize === 0 && nonSegwitFeeRate >= 2;
+    const segExact = tx.fee % segwitVsize === 0;
 
-    if (nonSegRounded && !segRounded && rawSize !== segwitVsize) {
+    if (nonSegExact && !segExact && rawSize !== segwitVsize) {
       findings.push({
         id: "h6-fee-segwit-miscalc",
         severity: "low",
         title: "Fee appears calculated using non-SegWit weight",
         description:
-          "This SegWit transaction has a fee rate that aligns to a round number when " +
-          `calculated against raw byte size (${Math.round(nonSegwitFeeRate)} sat/byte) but not ` +
+          "This SegWit transaction pays a fee that is an exact whole-number rate " +
+          `times its raw byte size (${Math.round(nonSegwitFeeRate)} sat/byte) but not ` +
           `when calculated correctly against virtual size (${segwitFeeRate.toFixed(1)} sat/vB). ` +
           "This suggests the wallet may not account for the SegWit discount, fingerprinting it as older software.",
         recommendation:
@@ -180,9 +176,7 @@ function detectCpfp(tx: Parameters<TxHeuristic>[0], ctx: TxContext | undefined, 
   if (spentOutput.value === largestValue) return;
 
   // Check if parent had RBF signaled
-  const parentHadRbf = parentTx.vin.some(
-    (v) => !v.is_coinbase && v.sequence < 0xfffffffe,
-  );
+  const parentHadRbf = isRbfSignaling(parentTx.vin);
 
   const description =
     `This transaction appears to be a CPFP (Child-Pays-For-Parent) fee bump. ` +

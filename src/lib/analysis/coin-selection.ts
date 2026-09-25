@@ -19,6 +19,7 @@
 import type { MempoolUtxo } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import { fmtN } from "@/lib/format";
+import { TOXIC_CHANGE_THRESHOLD } from "@/lib/constants";
 
 // ---------- Types ----------
 
@@ -214,7 +215,7 @@ function generateFindings(result: CoinSelectionResult): Finding[] {
   }
 
   // Toxic change warning
-  if (result.changeAmount > 0 && result.changeAmount < 10_000) {
+  if (result.changeAmount > 0 && result.changeAmount < TOXIC_CHANGE_THRESHOLD) {
     findings.push({
       id: "coin-select-toxic-change",
       severity: "high",

@@ -8,13 +8,8 @@ const ROUND_FIAT_VALUES = [
   5, 10, 20, 50, 100, 200, 500, 1_000, 2_000, 5_000, 10_000, 25_000, 50_000, 100_000,
 ];
 
-
-// Round BTC values (in sats) to check against
-const ROUND_BTC_VALUES = [
-  0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.25, 0.5, 1, 2, 5, 10,
-].map((btc) => btc * SATS_PER_BTC);
-
-// Round sat multiples (10k+ only; 1000 sats is too common to be a meaningful signal)
+// Round sat multiples (10k+ only; 1000 sats is too common to be a meaningful signal).
+// Round BTC denominations (0.001 BTC and up) are all multiples of 10k sats.
 const ROUND_SAT_MULTIPLES = [10_000, 100_000, 1_000_000, 10_000_000];
 
 /**
@@ -37,13 +32,8 @@ export const analyzeRoundAmounts: TxHeuristic = (tx, _rawHex?, ctx?) => {
   // Skip single-output transactions (no change to distinguish)
   if (outputs.length < 2) return { findings };
 
-  let roundOutputCount = 0;
-
-  for (const out of outputs) {
-    if (isRoundAmount(out.value)) {
-      roundOutputCount++;
-    }
-  }
+  const btcRound = outputs.map((out) => isRoundAmount(out.value));
+  const roundOutputCount = btcRound.filter(Boolean).length;
 
   if (roundOutputCount > 0 && roundOutputCount < outputs.length) {
     // Some (but not all) outputs are round - strong change indicator
@@ -85,13 +75,15 @@ export const analyzeRoundAmounts: TxHeuristic = (tx, _rawHex?, ctx?) => {
   // Round fiat amount detection (USD + EUR, requires historical price)
   const tol = ctx?.isCustomApi ? ROUND_USD_TOLERANCE_SELF_HOSTED : ROUND_USD_TOLERANCE_DEFAULT;
 
-  // Collect per-output fiat matches (deduplicate: each output counts once even if both USD and EUR match)
+  // Collect per-output fiat matches (deduplicate: each output counts once even if both USD and EUR match).
+  // BTC-round outputs are already counted above, so they are not matched again in fiat.
   const fiatMatchedIndices = new Set<number>();
 
   // USD detection
   const roundUsdOutputs: Array<{ index: number; usd: number }> = [];
   if (ctx?.usdPrice) {
     for (let i = 0; i < outputs.length; i++) {
+      if (btcRound[i]) continue;
       const usdMatch = getMatchingRoundFiat(outputs[i].value, ctx.usdPrice, tol);
       if (usdMatch !== null) {
         roundUsdOutputs.push({ index: i, usd: usdMatch });
@@ -104,6 +96,7 @@ export const analyzeRoundAmounts: TxHeuristic = (tx, _rawHex?, ctx?) => {
   const roundEurOutputs: Array<{ index: number; eur: number }> = [];
   if (ctx?.eurPrice) {
     for (let i = 0; i < outputs.length; i++) {
+      if (btcRound[i]) continue;
       const eurMatch = getMatchingRoundFiat(outputs[i].value, ctx.eurPrice, tol);
       if (eurMatch !== null) {
         roundEurOutputs.push({ index: i, eur: eurMatch });
@@ -112,8 +105,11 @@ export const analyzeRoundAmounts: TxHeuristic = (tx, _rawHex?, ctx?) => {
     }
   }
 
-  // Emit USD finding (only if some but not all outputs match)
-  if (ctx?.usdPrice && roundUsdOutputs.length > 0 && roundUsdOutputs.length < outputs.length) {
+  // Fiat findings only fire if some but not all outputs are fiat-round (USD or EUR)
+  const fiatDistinguishes = fiatMatchedIndices.size < outputs.length;
+
+  // Emit USD finding
+  if (ctx?.usdPrice && roundUsdOutputs.length > 0 && fiatDistinguishes) {
     const impact = Math.min(roundUsdOutputs.length * 8, 20);
     const usdValues = roundUsdOutputs.map((o) => `$${o.usd.toLocaleString("en-US")}`).join(", ");
     findings.push({
@@ -143,7 +139,7 @@ export const analyzeRoundAmounts: TxHeuristic = (tx, _rawHex?, ctx?) => {
     const eurOnlyOutputs = roundEurOutputs.filter(
       (o) => !roundUsdOutputs.some((u) => u.index === o.index),
     );
-    if (eurOnlyOutputs.length > 0 && fiatMatchedIndices.size < outputs.length) {
+    if (eurOnlyOutputs.length > 0 && fiatDistinguishes) {
       const impact = Math.min(eurOnlyOutputs.length * 8, 20);
       const eurValues = eurOnlyOutputs.map((o) => `EUR${o.eur.toLocaleString("en-US")}`).join(", ");
       findings.push({
@@ -173,10 +169,6 @@ export const analyzeRoundAmounts: TxHeuristic = (tx, _rawHex?, ctx?) => {
 };
 
 export function isRoundAmount(sats: number): boolean {
-  // Check against known round BTC values
-  if (ROUND_BTC_VALUES.includes(sats)) return true;
-
-  // Check if divisible by round sat multiples
   for (const multiple of ROUND_SAT_MULTIPLES) {
     if (sats >= multiple && sats % multiple === 0) return true;
   }

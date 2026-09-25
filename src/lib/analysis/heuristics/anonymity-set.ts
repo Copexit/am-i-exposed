@@ -2,7 +2,7 @@ import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { DUST_THRESHOLD } from "@/lib/constants";
 import { formatSatsOrBtc } from "@/lib/format";
-import { isCoinbase } from "./tx-utils";
+import { isCoinbase, isOpReturnOutput } from "./tx-utils";
 
 /**
  * Anonymity Set Analysis
@@ -25,7 +25,7 @@ export const analyzeAnonymitySet: TxHeuristic = (tx) => {
   // contribute to anonymity sets - a coincidental value match with dust
   // does not provide real privacy protection.
   const outputs = tx.vout.filter(
-    (o) => o.scriptpubkey_type !== "op_return" && o.value >= DUST_THRESHOLD,
+    (o) => !isOpReturnOutput(o) && o.value >= DUST_THRESHOLD,
   );
 
   // Skip coinbase transactions
