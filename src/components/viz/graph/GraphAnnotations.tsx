@@ -5,14 +5,15 @@ import { Text } from "@visx/text";
 import type { GraphAnnotation } from "@/lib/graph/saved-graph-types";
 import type { ViewTransform } from "./types";
 import { SVG_COLORS } from "../shared/svgConstants";
+import { ANNOTATION_COLOR, HUES, NOTE_BG_COLOR, hexToRgba } from "@/lib/palette";
 import { useAnnotationInteraction } from "./useAnnotationInteraction";
 
 // ─── Annotation colors ──────────────────────────────────────────
-const ANNOTATION_ACCENT = "#f59e0b";       // amber (selection, shapes, labels)
-const ANNOTATION_ACCENT_FILL = "rgba(245, 158, 11, 0.06)";
-const ANNOTATION_ACCENT_PREVIEW = "rgba(245, 158, 11, 0.08)";
-const NOTE_BG = "rgba(30, 30, 30, 0.85)";
-const NOTE_TEXT = "#e5e5e5";
+const ANNOTATION_ACCENT = ANNOTATION_COLOR; // amber (selection, shapes, labels)
+const ANNOTATION_ACCENT_FILL = hexToRgba(ANNOTATION_COLOR, 0.06);
+const ANNOTATION_ACCENT_PREVIEW = hexToRgba(ANNOTATION_COLOR, 0.08);
+const NOTE_BG = hexToRgba(NOTE_BG_COLOR, 0.85);
+const NOTE_TEXT = HUES.neutral200;
 const DELETE_COLOR = SVG_COLORS.critical;   // red
 const DEFAULT_BORDER = "rgba(255,255,255,0.2)";
 

@@ -1,5 +1,6 @@
 import { SVG_COLORS } from "../shared/svgConstants";
 import { probColor } from "../shared/linkabilityColors";
+import { CHANGE_MARKED_COLOR } from "@/lib/palette";
 import { DUST_THRESHOLD } from "@/lib/constants";
 import { getScriptTypeColor, getScriptTypeDash, getEdgeThickness } from "./scriptStyles";
 import { entropyColor } from "./privacyGradient";
@@ -221,7 +222,7 @@ export function computeEdgeStroke(ctx: StrokeContext): EdgeStrokeStyle {
 
   const strokeColor = entropyColorVal
     ?? linkability.color
-    ?? (isChangeMarked ? "#d97706" : (isConsolidation ? SVG_COLORS.critical : (scriptColor ?? SVG_COLORS.muted)));
+    ?? (isChangeMarked ? CHANGE_MARKED_COLOR : (isConsolidation ? SVG_COLORS.critical : (scriptColor ?? SVG_COLORS.muted)));
 
   // Resolve stroke opacity from the highest-priority active mode
   const entropyNorm = entropyEntry?.normalized ?? 0;

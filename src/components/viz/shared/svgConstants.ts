@@ -1,5 +1,6 @@
 import type { Grade, Severity } from "@/lib/types";
 import { GRADE_HEX } from "@/lib/constants";
+import { COLORS, HUES, LIGHT_COLORS } from "@/lib/palette";
 
 interface SurfaceColors {
   readonly background: string;
@@ -12,24 +13,16 @@ interface SurfaceColors {
 }
 
 export const DARK_SURFACES: SurfaceColors = {
-  background: "#0c0c0e",
-  foreground: "#f0f0f2",
-  muted: "#d4d4dc",
-  cardBg: "#1c1c20",
-  cardBorder: "#444450",
-  surfaceInset: "#151518",
-  surfaceElevated: "#222228",
+  background: COLORS.background,
+  foreground: COLORS.foreground,
+  muted: COLORS.muted,
+  cardBg: COLORS.cardBg,
+  cardBorder: COLORS.cardBorder,
+  surfaceInset: COLORS.surfaceInset,
+  surfaceElevated: COLORS.surfaceElevated,
 };
 
-const LIGHT_SURFACES: SurfaceColors = {
-  background: "#f8fafc",
-  foreground: "#0f172a",
-  muted: "#475569",
-  cardBg: "#ffffff",
-  cardBorder: "#cbd5e1",
-  surfaceInset: "#f1f5f9",
-  surfaceElevated: "#ffffff",
-};
+const LIGHT_SURFACES: SurfaceColors = LIGHT_COLORS;
 
 /** Returns surface colors matching the current theme. Safe to call at render time. */
 export function getSurfaceColors(): SurfaceColors {
@@ -55,13 +48,13 @@ type SvgColorMap = {
 };
 
 const STATIC_COLORS: Record<string, string> = {
-  critical: "#ef4444",
-  high: "#f97316",
-  medium: "#eab308",
-  low: "#60a5fa",
-  good: "#28d065",
-  bitcoin: "#f7931a",
-  bitcoinHover: "#e8850f",
+  critical: COLORS.severityCritical,
+  high: COLORS.severityHigh,
+  medium: COLORS.severityMedium,
+  low: COLORS.severityLow,
+  good: COLORS.severityGood,
+  bitcoin: COLORS.bitcoin,
+  bitcoinHover: COLORS.bitcoinHover,
 };
 
 const SURFACE_KEYS = new Set(Object.keys(DARK_SURFACES));
@@ -114,24 +107,24 @@ export const ANIMATION_DEFAULTS = {
 /** Gradient color palette for semantic meaning in charts. */
 export const GRADIENT_COLORS = {
   // Cool (privacy-positive)
-  inputLight: "#60a5fa",
-  inputDark: "#3b82f6",
-  mixerLight: "#28d065",
-  mixerDark: "#059669",
+  inputLight: COLORS.severityLow,
+  inputDark: HUES.blue500,
+  mixerLight: COLORS.severityGood,
+  mixerDark: HUES.emerald600,
 
   // Warm (exposure)
-  outputLight: "#f7931a",
-  outputDark: "#e8850f",
-  changeLight: "#f97316",
-  changeDark: "#dc2626",
-  dustLight: "#ef4444",
-  dustDark: "#991b1b",
+  outputLight: COLORS.bitcoin,
+  outputDark: COLORS.bitcoinHover,
+  changeLight: COLORS.severityHigh,
+  changeDark: HUES.red600,
+  dustLight: COLORS.severityCritical,
+  dustDark: HUES.red800,
 
   // Neutral
-  feeLight: "#6b7280",
-  feeDark: "#4b5563",
-  baseLight: "#9ca3af",
-  baseDark: "#6b7280",
+  feeLight: HUES.gray500,
+  feeDark: HUES.gray600,
+  baseLight: HUES.gray400,
+  baseDark: HUES.gray500,
 } as const;
 
 /** Lookup from waterfall bar type to gradient ID. */

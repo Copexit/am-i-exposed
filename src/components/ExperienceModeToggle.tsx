@@ -79,7 +79,7 @@ export function ExperienceModeToggle() {
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
             />
           ) : (
-            <span className="absolute inset-0 rounded-full bg-bitcoin/5 border border-bitcoin/20 shadow-[0_0_8px_rgba(247,147,26,0.3)]" />
+            <span className="absolute inset-0 rounded-full bg-bitcoin/5 border border-bitcoin/20 shadow-[0_0_8px_--alpha(var(--color-bitcoin)/30%)]" />
           )}
           <span className="relative z-10 flex items-center gap-1">
             <CypherpunkIcon className="sm:hidden shrink-0" />

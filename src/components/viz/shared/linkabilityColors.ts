@@ -3,31 +3,46 @@
  * Used by LinkabilityHeatmap, TxFlowDiagram (linkability mode), and GraphExplorer.
  */
 
+import { COLORS, HUES, hexToRgb } from "@/lib/palette";
+
 type ColorStop = [number, [number, number, number]];
+
+const stop = (p: number, hex: string): ColorStop => [p, hexToRgb(hex)];
+
+/** Mid-ramp dark-mode stops without a palette entry. */
+const RAMP_GREEN = "#28a065";
+const RAMP_AMBER = "#b59215";
 
 /** Dark-mode gradient: dark navy to hot red. */
 const COLOR_STOPS: ColorStop[] = [
-  [0.00, [17,  24,  39 ]],  // #111827 dark navy
-  [0.10, [13,  59,  79 ]],  // #0d3b4f deep teal
-  [0.25, [6,   95,  70 ]],  // #065f46 dark emerald
-  [0.40, [40,  160, 101]],  // #28a065 green
-  [0.55, [181, 146, 21 ]],  // #b59215 dark amber
-  [0.70, [217, 119, 6  ]],  // #d97706 amber-orange
-  [0.85, [220, 74,  42 ]],  // #dc4a2a red-orange
-  [1.00, [239, 68,  68 ]],  // #ef4444 hot red
+  stop(0.00, HUES.gray900),           // dark navy
+  stop(0.10, "#0d3b4f"),              // deep teal
+  stop(0.25, HUES.emerald800),        // dark emerald
+  stop(0.40, RAMP_GREEN),             // green
+  stop(0.55, RAMP_AMBER),             // dark amber
+  stop(0.70, HUES.amber600),          // amber-orange
+  stop(0.85, "#dc4a2a"),              // red-orange
+  stop(1.00, COLORS.severityCritical), // hot red
 ];
 
 /** Light-mode gradient: cool slate to hot red (pastel-to-vivid for light backgrounds). */
 const COLOR_STOPS_LIGHT: ColorStop[] = [
-  [0.00, [203, 213, 225]],  // #cbd5e1 slate-300
-  [0.10, [147, 197, 253]],  // #93c5fd blue-300
-  [0.25, [74,  222, 128]],  // #4ade80 green-400
-  [0.40, [52,  211, 153]],  // #34d399 emerald-400
-  [0.55, [250, 204, 21 ]],  // #facc15 yellow-400
-  [0.70, [251, 146, 60 ]],  // #fb923c orange-400
-  [0.85, [248, 113, 113]],  // #f87171 red-400
-  [1.00, [239, 68,  68 ]],  // #ef4444 red-500
+  stop(0.00, HUES.slate300),
+  stop(0.10, HUES.blue300),
+  stop(0.25, HUES.green400),
+  stop(0.40, HUES.emerald400),
+  stop(0.55, HUES.yellow400),
+  stop(0.70, HUES.orange400),
+  stop(0.85, HUES.red400),
+  stop(1.00, COLORS.severityCritical),
 ];
+
+/** Efficiency bar colors (high / mid / low), sampled from the dark ramp. */
+export const EFFICIENCY_COLORS = {
+  high: RAMP_GREEN,
+  mid: RAMP_AMBER,
+  low: HUES.amber600,
+} as const;
 
 function isLightTheme(): boolean {
   return typeof document !== "undefined" && document.documentElement.dataset.theme === "light";

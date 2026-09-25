@@ -10,7 +10,7 @@ import { useBoltzmann } from "@/hooks/useBoltzmann";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import { formatSats } from "@/lib/format";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
-import { getColorStops, probColor, probLabel } from "./shared/linkabilityColors";
+import { EFFICIENCY_COLORS, getColorStops, probColor, probLabel } from "./shared/linkabilityColors";
 import { truncAddr, truncAddrSuffix } from "./shared/addressFormat";
 import { formatElapsed } from "./shared/heatmapHelpers";
 import type { HeatmapTooltipData } from "./shared/heatmapHelpers";
@@ -365,7 +365,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                     <span className="shrink-0">{t("boltzmann.efficiencyLabel", { defaultValue: "Efficiency:" })}</span>
                     <span className="font-mono">{effPct.toFixed(2)}%</span>
                     <div className="flex-1 h-1 bg-foreground/[0.06] rounded-full overflow-hidden max-w-[120px]">
-                      <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(effPct, 100)}%`, backgroundColor: effPct > 50 ? "#28a065" : effPct > 20 ? "#b59215" : "#d97706" }} />
+                      <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(effPct, 100)}%`, backgroundColor: effPct > 50 ? EFFICIENCY_COLORS.high : effPct > 20 ? EFFICIENCY_COLORS.mid : EFFICIENCY_COLORS.low }} />
                     </div>
                     <span className="text-muted/40">(vs. {result.nbCmbnPrfctCj.toLocaleString()} perfect CJ)</span>
                   </motion.div>

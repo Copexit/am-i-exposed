@@ -34,7 +34,7 @@ export function NodeBadges({
   const badges: Badge[] = [];
   if (isCoinJoin) badges.push({ label: coinJoinType ?? "CJ", bg: SVG_COLORS.good, fg: SVG_COLORS.background });
   if (isOfac) badges.push({ label: "OFAC", bg: SVG_COLORS.critical, fg: SVG_COLORS.background });
-  if (isToxicMerge) badges.push({ label: "TOXIC", bg: "#ef4444", fg: SVG_COLORS.background });
+  if (isToxicMerge) badges.push({ label: "TOXIC", bg: SVG_COLORS.critical, fg: SVG_COLORS.background });
   if (isUnconfirmed) badges.push({ label: unconfirmedLabel ?? "Unconfirmed", bg: SVG_COLORS.medium, fg: SVG_COLORS.background });
   if (badges.length === 0) return null;
 

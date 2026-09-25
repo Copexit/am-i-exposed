@@ -2,11 +2,12 @@
 
 import { motion, useReducedMotion } from "motion/react";
 import { useTheme } from "@/hooks/useTheme";
+import { COLORS, HUES, hexToRgba } from "@/lib/palette";
 
 const darkOrbs = [
   {
-    color: "rgba(139, 92, 246, 0.08)",
-    mid: "rgba(139, 92, 246, 0.03)",
+    color: hexToRgba(HUES.violet500, 0.08),
+    mid: hexToRgba(HUES.violet500, 0.03),
     size: "60vw",
     top: "-10%",
     left: "0%",
@@ -15,8 +16,8 @@ const darkOrbs = [
     duration: 20,
   },
   {
-    color: "rgba(247, 147, 26, 0.06)",
-    mid: "rgba(247, 147, 26, 0.02)",
+    color: hexToRgba(COLORS.bitcoin, 0.06),
+    mid: hexToRgba(COLORS.bitcoin, 0.02),
     size: "55vw",
     top: "40%",
     right: "-5%",
@@ -25,8 +26,8 @@ const darkOrbs = [
     duration: 25,
   },
   {
-    color: "rgba(59, 130, 246, 0.06)",
-    mid: "rgba(59, 130, 246, 0.02)",
+    color: hexToRgba(HUES.blue500, 0.06),
+    mid: hexToRgba(HUES.blue500, 0.02),
     size: "50vw",
     bottom: "-10%",
     left: "25%",
@@ -38,8 +39,8 @@ const darkOrbs = [
 
 const lightOrbs = [
   {
-    color: "rgba(168, 139, 250, 0.06)",
-    mid: "rgba(168, 139, 250, 0.02)",
+    color: hexToRgba(HUES.violet400, 0.06),
+    mid: hexToRgba(HUES.violet400, 0.02),
     size: "60vw",
     top: "-10%",
     left: "0%",
@@ -48,8 +49,8 @@ const lightOrbs = [
     duration: 20,
   },
   {
-    color: "rgba(251, 191, 36, 0.05)",
-    mid: "rgba(251, 191, 36, 0.015)",
+    color: hexToRgba(HUES.amber400, 0.05),
+    mid: hexToRgba(HUES.amber400, 0.015),
     size: "55vw",
     top: "40%",
     right: "-5%",
@@ -58,8 +59,8 @@ const lightOrbs = [
     duration: 25,
   },
   {
-    color: "rgba(147, 197, 253, 0.06)",
-    mid: "rgba(147, 197, 253, 0.02)",
+    color: hexToRgba(HUES.blue300, 0.06),
+    mid: hexToRgba(HUES.blue300, 0.02),
     size: "50vw",
     bottom: "-10%",
     left: "25%",

@@ -1,4 +1,5 @@
 import type { Grade } from "@/lib/types";
+import { COLORS } from "@/lib/palette";
 
 /** Number of satoshis per bitcoin. */
 export const SATS_PER_BTC = 100_000_000;
@@ -90,11 +91,11 @@ export const GRADE_BADGE_COLORS: Record<Grade, string> = {
 
 /** Grade-to-hex color mapping for Canvas/non-CSS contexts (share cards, glow effects). */
 export const GRADE_HEX: Record<Grade, string> = {
-  "A+": "#28d065",
-  B: "#60a5fa",
-  C: "#eab308",
-  D: "#f97316",
-  F: "#ef4444",
+  "A+": COLORS.severityGood,
+  B: COLORS.severityLow,
+  C: COLORS.severityMedium,
+  D: COLORS.severityHigh,
+  F: COLORS.severityCritical,
 };
 
 /** Look up grade text color, returning fallback for unknown grades. */
