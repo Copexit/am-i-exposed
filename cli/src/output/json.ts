@@ -2,8 +2,10 @@ import type { ScoringResult, Finding } from "@/lib/types";
 import type { PrimaryRec } from "@/lib/recommendations/primary-recommendation";
 import type { WalletAuditResult } from "@/lib/analysis/wallet-audit";
 import type { MempoolTransaction } from "@/lib/api/types";
+import pkg from "../../package.json";
 
-const VERSION = "0.34.2";
+/** CLI version, bundled from cli/package.json. */
+export const VERSION: string = pkg.version;
 
 interface JsonEnvelope {
   version: string;

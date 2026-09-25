@@ -12,7 +12,7 @@
 
 import { idbGet, idbPut } from "./idb-cache";
 import { computeAddressTxsTtl, TTL_10_MIN } from "./cache-policy";
-import type { AnalysisSettings } from "@/hooks/useAnalysisSettings";
+import type { AnalysisSettings } from "@/lib/analysis/settings";
 import type { ScoringResult, InputType, TxAnalysisResult } from "@/lib/types";
 import type {
   MempoolTransaction,

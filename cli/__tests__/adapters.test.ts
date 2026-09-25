@@ -1,11 +1,10 @@
 /**
- * Tests for CLI adapters - entity loader, settings, API utilities.
+ * Tests for CLI adapters - entity loader, API utilities.
  */
 import { describe, it, expect } from "vitest";
 import { existsSync } from "fs";
 import { join } from "path";
 import { resolveApiUrl } from "../src/util/api";
-import { getCliSettings, setCliSettings } from "../src/adapters/settings";
 import { DATA_DIR, WASM_DIR } from "../src/util/data-dir";
 import type { GlobalOpts } from "../src/index";
 
@@ -46,25 +45,6 @@ describe("resolveApiUrl", () => {
         api: "http://mynode:8080/api",
       }),
     ).toBe("http://mynode:8080/api");
-  });
-});
-
-describe("CLI settings", () => {
-  it("returns defaults initially", () => {
-    const settings = getCliSettings();
-    expect(settings.maxDepth).toBe(3);
-    expect(settings.minSats).toBe(1000);
-    expect(settings.enableCache).toBe(false);
-    expect(settings.boltzmannTimeout).toBe(300);
-  });
-
-  it("merges overrides", () => {
-    setCliSettings({ maxDepth: 5, minSats: 5000 });
-    const settings = getCliSettings();
-    expect(settings.maxDepth).toBe(5);
-    expect(settings.minSats).toBe(5000);
-    // Other defaults preserved
-    expect(settings.enableCache).toBe(false);
   });
 });
 

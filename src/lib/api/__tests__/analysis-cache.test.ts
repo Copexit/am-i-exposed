@@ -9,7 +9,7 @@ import {
   INCOMPLETE_RESULT_FINDING_IDS,
 } from "../analysis-cache";
 import type { MempoolTransaction } from "@/lib/api/types";
-import type { AnalysisSettings } from "@/hooks/useAnalysisSettings";
+import type { AnalysisSettings } from "@/lib/analysis/settings";
 import type { AnalysisState } from "@/hooks/useAnalysisState";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 

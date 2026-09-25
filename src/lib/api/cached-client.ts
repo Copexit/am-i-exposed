@@ -9,7 +9,7 @@
 import { createMempoolClient, type MempoolClient, type MempoolClientOptions } from "./mempool";
 import { idbGet, idbPut } from "./idb-cache";
 import { cacheKeyPrefix, withCachePolicy, type WithCache } from "./cache-policy";
-import { getAnalysisSettings } from "@/hooks/useAnalysisSettings";
+import { getAnalysisSettings } from "@/lib/analysis/settings";
 
 /**
  * Cache-or-fetch helper. Checks IDB cache first (if caching is enabled),

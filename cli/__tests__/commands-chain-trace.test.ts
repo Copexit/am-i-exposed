@@ -106,6 +106,26 @@ describe("chain-trace command", () => {
     expect(trace.forward).toBeNull();
   });
 
+  it("defaults depth to the web maxDepth setting", async () => {
+    const { DEFAULT_ANALYSIS_SETTINGS } = await import("@/lib/analysis/settings");
+    const tx = makeTx({ txid: "a".repeat(64) });
+    mockFetch.mockResolvedValue(jsonResponse(tx));
+
+    const { chainTrace } = await import("../src/commands/chain-trace");
+    const promise = chainTrace("a".repeat(64), {
+      json: true,
+      network: "mainnet",
+      entities: false,
+      color: true,
+      direction: "backward",
+    } as never);
+    await vi.advanceTimersByTimeAsync(10000);
+    await promise;
+
+    const trace = parseCaptured().trace as { backward: { depth: number } };
+    expect(trace.backward.depth).toBe(DEFAULT_ANALYSIS_SETTINGS.maxDepth);
+  });
+
   it("rejects invalid txid", async () => {
     const { chainTrace } = await import("../src/commands/chain-trace");
     await expect(

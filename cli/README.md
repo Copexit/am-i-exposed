@@ -54,6 +54,20 @@ am-i-exposed mcp
 | `--no-cache` | Disable SQLite response caching (cache lives in `~/.am-i-exposed`, override with `AM_I_EXPOSED_CACHE_DIR`) |
 | `--no-entities` | Skip entity filter loading |
 
+### Defaults shared with the web app
+
+`chain-trace --depth` (4), `--min-sats` (1000) and `boltzmann --timeout` (300s) use the web app's
+default analysis settings (`src/lib/analysis/settings.ts`), so the CLI, the MCP server and the
+web app trace the same graph by default.
+
+Two defaults differ on purpose:
+
+- `scan tx --chain-depth` defaults to 0, which skips every chain module. Chain tracing costs many
+  extra API calls, so it is opt-in. The web scan always runs chain analysis, so a tx-only CLI grade
+  can differ from the web grade. Pass `--chain-depth 4` to match the web.
+- `scan xpub --gap-limit` defaults to 20 (the BIP44 gap limit). The web app uses 5 to keep
+  browser scans against the public mempool.space API short.
+
 ## JSON Output
 
 All commands with `--json` return:

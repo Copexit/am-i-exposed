@@ -7,7 +7,7 @@ import {
   succeedSpinner,
 } from "../util/progress";
 import { dim, bold, header } from "../output/colors";
-import { jsonOutput } from "../output/json";
+import { jsonOutput, VERSION } from "../output/json";
 import {
   computeBoltzmann,
   computeBoltzmannWabiSabi,
@@ -15,6 +15,8 @@ import {
   type BoltzmannResult,
 } from "../adapters/boltzmann-node";
 import { analyzeCoinJoin } from "@/lib/analysis/heuristics/coinjoin";
+import { DEFAULT_ANALYSIS_SETTINGS } from "@/lib/analysis/settings";
+import type { MempoolTransaction } from "@/lib/api/types";
 
 export async function boltzmann(
   txid: string,
@@ -29,44 +31,14 @@ export async function boltzmann(
   }
 
   const client = createClient(opts);
-  const timeoutSec = Number(opts.timeout ?? 300);
-  const intrafees = Number(opts.intrafees ?? opts["intrafees-ratio"] ?? 0.005);
+  const timeoutSec = Number(opts.timeout ?? DEFAULT_ANALYSIS_SETTINGS.boltzmannTimeout);
+  const intrafees = Number(opts.intrafees ?? opts["intrafees-ratio"] ?? DEFAULT_INTRAFEES_RATIO);
 
   // Fetch transaction
   startSpinner("Fetching transaction...");
   const tx = await client.getTransaction(txid);
 
-  const inputValues = tx.vin.map((v) => v.prevout?.value ?? 0);
-  const outputValues = tx.vout.filter((v) => v.value > 0).map((v) => v.value);
-
-  if (inputValues.length < 2) {
-    throw new Error(
-      "Boltzmann analysis requires at least 2 inputs. This transaction has " +
-        `${inputValues.length} input(s).`,
-    );
-  }
-
-  // Detect CoinJoin type via existing heuristic for turbo mode selection
-  const { findings: cjFindings } = analyzeCoinJoin(tx);
-  const mode = detectBoltzmannMode(cjFindings);
-  updateSpinner(
-    `Computing Boltzmann analysis (${inputValues.length}x${outputValues.length}${mode.label ? `, ${mode.label}` : ""})...`,
-  );
-
-  let result: BoltzmannResult;
-  if (mode.type === "wabisabi") {
-    result = await computeBoltzmannWabiSabi(
-      inputValues, outputValues, tx.fee, timeoutSec * 1000,
-    );
-  } else if (mode.type === "joinmarket" && mode.denomination) {
-    result = await computeBoltzmannJoinMarket(
-      inputValues, outputValues, tx.fee, mode.denomination, intrafees, timeoutSec * 1000,
-    );
-  } else {
-    result = await computeBoltzmann(
-      inputValues, outputValues, tx.fee, intrafees, timeoutSec * 1000,
-    );
-  }
+  const result = await boltzmannForTx(tx, intrafees, timeoutSec * 1000, updateSpinner);
 
   succeedSpinner(
     `Boltzmann analysis complete (${result.elapsedMs}ms)`,
@@ -75,7 +47,7 @@ export async function boltzmann(
   // Output
   if (isJson) {
     jsonOutput({
-      version: "0.34.3",
+      version: VERSION,
       input: { type: "txid", value: txid },
       network: opts.network ?? "mainnet",
       score: 0,
@@ -194,6 +166,44 @@ function formatBoltzmannResult(
  * Pick Boltzmann turbo mode based on CoinJoin heuristic findings.
  * Reuses the existing analyzeCoinJoin() detection instead of reimplementing it.
  */
+export const DEFAULT_INTRAFEES_RATIO = 0.005;
+
+/**
+ * Boltzmann LPM for a tx, with WabiSabi/JoinMarket turbo mode picked from the
+ * CoinJoin heuristic. Shared by the `boltzmann` command and the MCP tool.
+ */
+export async function boltzmannForTx(
+  tx: MempoolTransaction,
+  intrafees: number,
+  timeoutMs: number,
+  onProgress: (msg: string) => void = () => {},
+): Promise<BoltzmannResult> {
+  const inputValues = tx.vin.map((v) => v.prevout?.value ?? 0);
+  const outputValues = tx.vout.filter((v) => v.value > 0).map((v) => v.value);
+
+  if (inputValues.length < 2) {
+    throw new Error(
+      "Boltzmann analysis requires at least 2 inputs. This transaction has " +
+        `${inputValues.length} input(s).`,
+    );
+  }
+
+  const mode = detectBoltzmannMode(analyzeCoinJoin(tx).findings);
+  onProgress(
+    `Computing Boltzmann analysis (${inputValues.length}x${outputValues.length}${mode.label ? `, ${mode.label}` : ""})...`,
+  );
+
+  if (mode.type === "wabisabi") {
+    return computeBoltzmannWabiSabi(inputValues, outputValues, tx.fee, timeoutMs);
+  }
+  if (mode.type === "joinmarket" && mode.denomination) {
+    return computeBoltzmannJoinMarket(
+      inputValues, outputValues, tx.fee, mode.denomination, intrafees, timeoutMs,
+    );
+  }
+  return computeBoltzmann(inputValues, outputValues, tx.fee, intrafees, timeoutMs);
+}
+
 function detectBoltzmannMode(
   findings: import("@/lib/types").Finding[],
 ): { type: "standard" | "wabisabi" | "joinmarket"; label?: string; denomination?: number } {

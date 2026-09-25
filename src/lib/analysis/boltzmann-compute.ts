@@ -3,7 +3,7 @@
  * Used by the analysis pipeline to start computation early during TX fetch.
  */
 
-import { getAnalysisSettings } from "@/hooks/useAnalysisSettings";
+import { getAnalysisSettings } from "@/lib/analysis/settings";
 import type { MempoolTransaction } from "@/lib/api/types";
 import { isCoinbase } from "./heuristics/tx-utils";
 import type { BoltzmannWorkerResult, BoltzmannProgress, WorkerResponse } from "./boltzmann-pool";

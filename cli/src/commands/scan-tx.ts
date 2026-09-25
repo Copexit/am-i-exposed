@@ -1,8 +1,6 @@
 import { runTxHeuristics, finalizeTxResult } from "@/lib/analysis/orchestrator";
-import {
-  selectRecommendations,
-  type RecommendationContext,
-} from "@/lib/recommendations/primary-recommendation";
+import { selectRecommendations } from "@/lib/recommendations/primary-recommendation";
+import { DEFAULT_ANALYSIS_SETTINGS } from "@/lib/analysis/settings";
 import type { TxContext } from "@/lib/analysis/heuristics/types";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
@@ -23,55 +21,13 @@ export async function scanTx(txid: string, opts: GlobalOpts): Promise<void> {
     throw new Error(`Invalid txid: expected 64 hex characters, got "${txid}"`);
   }
 
-  const client = createClient(opts);
-  const chainDepth = Number(opts.chainDepth ?? opts["chain-depth"] ?? 0);
-  const minSats = Number(opts.minSats ?? opts["min-sats"] ?? 1000);
-
-  // Fetch transaction
   startSpinner("Fetching transaction...");
-  const tx = await client.getTransaction(txid);
-  let rawHex: string | undefined;
-  try {
-    rawHex = await client.getTxHex(txid);
-  } catch {
-    // Raw hex is optional - some endpoints don't support it
-  }
-
-  // Build TxContext (parent txs, output tx counts) - skip with --fast
-  const fast = !!opts.fast;
-  let ctx: TxContext = {};
-  if (!fast) {
-    updateSpinner("Fetching context (parent transactions)...");
-    ctx = await buildTxContext(tx, client);
-  }
-
-  // Run analysis (shared pipeline: heuristics, optional chain findings, one finalize)
-  updateSpinner("Running heuristic analysis...");
-  const findings = runTxHeuristics(tx, rawHex, ctx);
-
-  // Chain analysis (optional) - its findings count toward the grade.
-  // Without --chain-depth no chain module runs, while the web scan always runs
-  // the layer-free ones (spending patterns from outspends), so a tx-only CLI
-  // grade can differ from the web grade for the same tx.
-  let chainAnalysis: unknown = null;
-  if (chainDepth > 0) {
-    updateSpinner(`Tracing transaction graph (depth ${chainDepth})...`);
-    const { findings: chainFindings, ...summary } =
-      await runChainAnalysis(tx, chainDepth, minSats, client, ctx.parentTx ?? null);
-    findings.push(...chainFindings);
-    chainAnalysis = summary;
-  }
-
-  const result = finalizeTxResult(findings);
-
-  // Recommendation
-  const recCtx: RecommendationContext = {
-    findings: result.findings,
-    grade: result.grade,
-    txType: result.txType,
-    walletGuess: null,
-  };
-  const [primary] = selectRecommendations(recCtx);
+  const { tx, result, primary, chainAnalysis } = await analyzeTxid(createClient(opts), txid, {
+    fast: !!opts.fast,
+    chainDepth: Number(opts.chainDepth ?? opts["chain-depth"] ?? 0),
+    minSats: Number(opts.minSats ?? opts["min-sats"] ?? DEFAULT_ANALYSIS_SETTINGS.minSats),
+    onProgress: updateSpinner,
+  });
 
   succeedSpinner("Analysis complete");
 
@@ -81,6 +37,61 @@ export async function scanTx(txid: string, opts: GlobalOpts): Promise<void> {
   } else {
     console.log(formatTxResult(txid, result, tx, opts.network, primary));
   }
+}
+
+/**
+ * The tx scan pipeline shared by `scan tx` and the MCP scan_transaction tool:
+ * context fetch, heuristics, optional chain findings, one finalize.
+ */
+export async function analyzeTxid(
+  client: ReturnType<typeof createClient>,
+  txid: string,
+  {
+    fast = false,
+    chainDepth = 0,
+    minSats = DEFAULT_ANALYSIS_SETTINGS.minSats,
+    onProgress = () => {},
+  }: { fast?: boolean; chainDepth?: number; minSats?: number; onProgress?: (msg: string) => void },
+) {
+  const tx = await client.getTransaction(txid);
+  let rawHex: string | undefined;
+  try {
+    rawHex = await client.getTxHex(txid);
+  } catch {
+    // Raw hex is optional - some endpoints don't support it
+  }
+
+  // Build TxContext (parent txs, output tx counts) - skip with --fast
+  let ctx: TxContext = {};
+  if (!fast) {
+    onProgress("Fetching context (parent transactions)...");
+    ctx = await buildTxContext(tx, client);
+  }
+
+  onProgress("Running heuristic analysis...");
+  const findings = runTxHeuristics(tx, rawHex, ctx);
+
+  // Chain analysis (optional) - its findings count toward the grade.
+  // Without --chain-depth no chain module runs, while the web scan always runs
+  // the layer-free ones (spending patterns from outspends), so a tx-only CLI
+  // grade can differ from the web grade for the same tx.
+  let chainAnalysis: unknown = null;
+  if (chainDepth > 0) {
+    onProgress(`Tracing transaction graph (depth ${chainDepth})...`);
+    const { findings: chainFindings, ...summary } =
+      await runChainAnalysis(tx, chainDepth, minSats, client, ctx.parentTx ?? null);
+    findings.push(...chainFindings);
+    chainAnalysis = summary;
+  }
+
+  const result = finalizeTxResult(findings);
+  const [primary] = selectRecommendations({
+    findings: result.findings,
+    grade: result.grade,
+    txType: result.txType,
+    walletGuess: null,
+  });
+  return { tx, result, primary, chainAnalysis };
 }
 
 /** Build TxContext for richer heuristic analysis. All fetches run concurrently. */
@@ -162,7 +173,7 @@ async function runChainAnalysis(
   // Shared with the web pipeline; it only appends to result.findings
   await runSharedChainAnalysis({
     tx,
-    result: { score: 0, grade: "F", findings },
+    result: { findings },
     backwardLayers: backwardResult.layers,
     forwardLayers: forwardResult.layers,
     parentTx,

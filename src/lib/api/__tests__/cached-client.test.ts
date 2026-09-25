@@ -235,7 +235,7 @@ describe("createCachedMempoolClient", () => {
   describe("enableCache bypass", () => {
     it("skips cache when enableCache is false", async () => {
       // Mock getAnalysisSettings to return enableCache: false
-      const { getAnalysisSettings } = await import("@/hooks/useAnalysisSettings");
+      const { getAnalysisSettings } = await import("@/lib/analysis/settings");
       const originalSettings = getAnalysisSettings();
 
       // Store something first with cache enabled

@@ -26,15 +26,42 @@ export async function scanXpub(
   startSpinner("Parsing descriptor...");
   const parsed = parseXpub(descriptor);
 
-  // Scan both chains (external = 0, internal = 1)
+  const allAddresses = await scanWalletAddresses(client, parsed, gapLimit, updateSpinner);
+
+  // Run wallet audit
+  updateSpinner("Running wallet audit...");
+  const result = auditWallet(allAddresses);
+
+  succeedSpinner(
+    `Wallet audit complete (${result.activeAddresses} active addresses)`,
+  );
+
+  // Output
+  if (isJson) {
+    walletJson(descriptor, result, network, opts.api);
+  } else {
+    console.log(formatWalletResult(descriptor, result, network));
+  }
+}
+
+/**
+ * Derive and fetch both chains (external = 0, internal = 1) until gapLimit
+ * consecutive unused addresses. Shared by the scan xpub command and MCP scan_wallet.
+ */
+export async function scanWalletAddresses(
+  client: ReturnType<typeof createClient>,
+  parsed: ReturnType<typeof parseXpub>,
+  gapLimit: number,
+  onProgress: (msg: string) => void = () => {},
+): Promise<WalletAddressInfo[]> {
   const allAddresses: WalletAddressInfo[] = [];
 
-  for (const chain of [0, 1]) {
+  for (const chain of [0, 1] as const) {
     const chainLabel = chain === 0 ? "external" : "internal";
     let consecutiveEmpty = 0;
 
     for (let index = 0; consecutiveEmpty < gapLimit; index++) {
-      updateSpinner(
+      onProgress(
         `Scanning ${chainLabel} chain: index ${index} (gap ${consecutiveEmpty}/${gapLimit})`,
       );
 
@@ -82,18 +109,5 @@ export async function scanXpub(
     }
   }
 
-  // Run wallet audit
-  updateSpinner("Running wallet audit...");
-  const result = auditWallet(allAddresses);
-
-  succeedSpinner(
-    `Wallet audit complete (${result.activeAddresses} active addresses)`,
-  );
-
-  // Output
-  if (isJson) {
-    walletJson(descriptor, result, network, opts.api);
-  } else {
-    console.log(formatWalletResult(descriptor, result, network));
-  }
+  return allAddresses;
 }
