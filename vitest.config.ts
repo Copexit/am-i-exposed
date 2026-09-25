@@ -23,10 +23,10 @@ export default defineConfig({
       ],
       // Measured floor minus 1 point: a regression below these fails CI
       thresholds: {
-        statements: 81,
-        lines: 84,
-        functions: 82,
-        branches: 77,
+        statements: 87,
+        lines: 89,
+        functions: 89,
+        branches: 81,
       },
     },
   },
