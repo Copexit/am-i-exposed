@@ -37,6 +37,52 @@ export const analyzeCioh: TxHeuristic = (tx) => {
     return { findings: [] };
   }
 
+  // Multiple inputs from one address: not CIOH, but the tx itself proves reuse
+  // when those inputs were received in different transactions.
+  if (uniqueInputAddresses.size === 1 && nonCoinbaseCount > 1) {
+    const parentCount = new Set(tx.vin.filter((v) => !v.is_coinbase).map((v) => v.txid)).size;
+
+    // All inputs come from one parent tx (e.g. an exchange batch withdrawal
+    // paying the same address twice): mirrors h8-batch-receive, not reuse.
+    if (parentCount <= 1) {
+      return {
+        findings: [
+          {
+            id: "h3-batch-receive-spend",
+            severity: "low",
+            confidence: "deterministic",
+            title: "Inputs from a single batch receive",
+            params: { inputCount: nonCoinbaseCount },
+            description:
+              `This transaction spends ${nonCoinbaseCount} outputs that one address received in a single transaction (likely a batched payment). ` +
+              "This is not address reuse, and no additional addresses are clustered.",
+            recommendation: "Use a fresh address for every receive so each payment lands on its own address.",
+            scoreImpact: 0,
+          },
+        ],
+      };
+    }
+
+    const impact = parentCount >= 5 ? 30 : 20;
+    return {
+      findings: [
+        {
+          id: "h3-input-reuse",
+          severity: impact >= 30 ? "critical" : "high",
+          confidence: "deterministic",
+          title: `Inputs from one address reused across ${parentCount} receives`,
+          params: { inputCount: nonCoinbaseCount, parentCount },
+          description:
+            `All ${nonCoinbaseCount} inputs of this transaction come from the same address, which received funds in ${parentCount} separate transactions. ` +
+            "Address reuse publicly links every payment to that address, and spending them together confirms it on-chain.",
+          recommendation:
+            "Use a wallet that generates a new address for every receive. Never share the same address twice.",
+          scoreImpact: -impact,
+        },
+      ],
+    };
+  }
+
   // Single input address - no CIOH concern
   if (uniqueInputAddresses.size <= 1) {
     return {

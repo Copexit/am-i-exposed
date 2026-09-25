@@ -43,6 +43,8 @@ export const FINDING_METADATA: Record<string, FindingMeta> = {
   // ── H3: Common Input Ownership Heuristic ────────────────────────────
   "h3-single-input": { adversaryTiers: [P],       temporality: "historical" },
   "h3-cioh":         { adversaryTiers: [P, K, S], temporality: "historical" },
+  "h3-input-reuse":  { adversaryTiers: [P, K, S], temporality: "ongoing_pattern" },
+  "h3-batch-receive-spend": { adversaryTiers: [P], temporality: "historical" },
 
   // ── H4: CoinJoin Detection ──────────────────────────────────────────
   "h4-whirlpool":            { adversaryTiers: [P], temporality: "historical" },
