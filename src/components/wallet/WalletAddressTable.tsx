@@ -166,7 +166,7 @@ export function WalletAddressTable({ addressInfos, onScan }: WalletAddressTableP
                       <button
                         onClick={() => handleCopy(addr)}
                         className="text-muted hover:text-foreground transition-colors p-1 cursor-pointer flex-shrink-0"
-                        aria-label="Copy address"
+                        aria-label={t("wallet.copyAddress", { defaultValue: "Copy address" })}
                       >
                         {copiedAddr === addr ? <Check size={14} className="text-severity-good" /> : <Copy size={14} />}
                       </button>

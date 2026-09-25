@@ -2,7 +2,7 @@ import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import { fmtN } from "@/lib/format";
 import { isCoinJoinTx } from "../heuristics/coinjoin";
-import { getSpendableOutputs } from "../heuristics/tx-utils";
+import { getSpendableOutputs, isOpReturnOutput } from "../heuristics/tx-utils";
 import { detectRicochet } from "./ricochet-detection";
 import { detectPostMixConsolidation } from "./post-mix-consolidation";
 
@@ -202,7 +202,7 @@ export function analyzeSpendingPatterns(
     if (spendableOuts.length >= 2) {
       const minVal = Math.min(...spendableOuts.map((o) => o.value));
       const changeIdx = tx.vout.findIndex(
-        (o) => o.value === minVal && o.scriptpubkey_type !== "op_return",
+        (o) => o.value === minVal && !isOpReturnOutput(o),
       );
       if (changeIdx >= 0) postCjPartialSpends.push(changeIdx);
     }

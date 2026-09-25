@@ -109,7 +109,6 @@ Dynamic finding IDs (e.g., `h7-op-return-0`, `h7-op-return-1`) fall back to pref
 | `h2-change-detected`, `h2-self-send` | passive, kyc | historical | Change identification enables fund tracing |
 | `h2-same-address-io` | passive, kyc, state | historical | Deterministic leak, any adversary exploits this |
 | `h2-sweep`, `h2-data-payment`, `h2-wallet-hop` | passive | historical | Structural patterns, low severity |
-| `h2-value-disparity` | passive, kyc | historical | Value ratio reveals payment/change split |
 | `h3-cioh` | passive, kyc, state | historical | Core clustering heuristic used by all adversary tiers |
 | `h3-single-input` | passive | historical | Informational (positive) |
 | `h4-whirlpool`, `h4-coinjoin`, `h4-joinmarket`, `h4-stonewall`, `h4-simplified-stonewall` | passive | historical | CoinJoin detection (positive findings) |
@@ -177,7 +176,6 @@ Dynamic finding IDs (e.g., `h7-op-return-0`, `h7-op-return-1`) fall back to pref
 | `chain-entity-proximity-backward`, `chain-entity-proximity-forward` | kyc, state | historical | Entity in graph |
 | `chain-taint-backward` | kyc, state | historical | Taint propagation |
 | `chain-cluster-size` | passive, kyc, state | historical | Cluster size measurement |
-| `chain-coinjoin-quality` | passive | historical | CoinJoin quality assessment |
 | `chain-near-exact-spend` | passive | historical | Near-exact spend pattern |
 | `chain-ricochet` | passive | historical | Ricochet detection (positive) |
 | `chain-sweep-chain` | passive | historical | Sweep chain pattern |
@@ -186,14 +184,8 @@ Dynamic finding IDs (e.g., `h7-op-return-0`, `h7-op-return-1`) fall back to pref
 | `chain-kyc-consolidation-before-cj` | passive | historical | Positive pattern |
 | `chain-trace-summary` | passive | historical | Trace overview (informational) |
 | `chain-trace-partial` | passive | historical | Incomplete trace (data quality) |
-| `chain-post-coinjoin-direct-spend` | passive, kyc, state | historical | Post-CoinJoin output spent directly to entity |
-| `no-consolidation`, `no-mix-origins`, `fresh-addresses`, `time-elapsed`, `small-change` | passive | historical | CoinJoin quality sub-findings (positive indicators) |
 | `utxo-age-spread` | passive, kyc | historical | Co-spent UTXOs with large age spread |
-| `peel-chain-trace` | passive, kyc, state | historical | Multi-hop peel chain (full trace requires state resources) |
-| `peel-chain-trace-short` | passive, kyc | historical | Short peel chain trace |
 | `linkability-deterministic`, `linkability-ambiguous`, `linkability-equal-subset` | passive | historical | Linkability analysis |
-| `joinmarket-subset-sum`, `joinmarket-subset-sum-resistant` | passive, state | historical | Subset-sum analysis |
-| `joinmarket-taker-maker`, `joinmarket-anon-set` | passive, state | historical | JoinMarket role identification |
 
 ### Temporal & Prospective Analysis
 

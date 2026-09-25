@@ -1,7 +1,7 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { fmtN } from "@/lib/format";
-import { isCoinbase, getValuedOutputs, extractOpReturnData } from "./tx-utils";
+import { isCoinbase, getValuedOutputs, extractOpReturnData, isOpReturnOutput } from "./tx-utils";
 
 /**
  * BIP47 Notification Transaction Detection
@@ -31,7 +31,7 @@ export const analyzeBip47Notification: TxHeuristic = (tx) => {
 
   // Look for OP_RETURN output with exactly 80 bytes (160 hex chars) of data
   const opReturnOutputs = tx.vout.filter(
-    (o) => o.scriptpubkey_type === "op_return",
+    (o) => isOpReturnOutput(o),
   );
 
   if (opReturnOutputs.length !== 1) return { findings };

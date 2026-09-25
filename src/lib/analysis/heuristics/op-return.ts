@@ -1,6 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
-import { isCoinbase, extractOpReturnData } from "./tx-utils";
+import { isCoinbase, extractOpReturnData, isOpReturnOutput } from "./tx-utils";
 
 /**
  * H7: OP_RETURN Detection
@@ -18,7 +18,7 @@ export const analyzeOpReturn: TxHeuristic = (tx) => {
   if (isCoinbase(tx)) return { findings };
 
   const opReturnOutputs = tx.vout.filter(
-    (out) => out.scriptpubkey_type === "op_return",
+    (out) => isOpReturnOutput(out),
   );
 
   if (opReturnOutputs.length === 0) return { findings };

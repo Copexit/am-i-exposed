@@ -1,7 +1,7 @@
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import type { TraceLayer } from "./recursive-trace";
-import { getSpendableOutputs } from "../heuristics/tx-utils";
+import { getSpendableOutputs, isOpReturnOutput } from "../heuristics/tx-utils";
 
 /**
  * Taint Analysis
@@ -136,7 +136,7 @@ export function analyzeBackwardTaint(
   if (totalOutputValue > 0 && aggregatedTaint.size > 0) {
     for (let i = 0; i < tx.vout.length; i++) {
       const vout = tx.vout[i];
-      if (vout.scriptpubkey_type === "op_return") continue;
+      if (isOpReturnOutput(vout)) continue;
       // Proportional: each output gets the same taint fraction as the overall tx
       const breakdown: TaintBreakdown = {
         total: Math.min(1, totalTaintFraction),

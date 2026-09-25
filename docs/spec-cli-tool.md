@@ -51,7 +51,7 @@ The core engine in `src/lib/` is ~85% decoupled from React/browser. The CLI impo
 | PSBT parser | `src/lib/bitcoin/psbt.ts` | `parsePSBT(input)`, `isPSBT(input)` | Yes |
 | Descriptor parser | `src/lib/bitcoin/descriptor.ts` | `parseXpub(str)`, `deriveOneAddress(parsed, chain, index)` | Yes |
 | Address validation | `src/lib/bitcoin/address-type.ts` | `getAddressType(addr)` | Yes |
-| Entity matching | `src/lib/analysis/entity-filter/entity-match.ts` | `matchEntities(tx)`, `matchEntitySync(addr)` | Yes |
+| Entity matching | `src/lib/analysis/entity-filter/entity-match.ts` | `matchEntitySync(addr)` | Yes |
 | Backward trace | `src/lib/analysis/chain/recursive-trace.ts` | `traceBackward(tx, depth, minSats, fetcher, ...)` | Yes |
 | Forward trace | `src/lib/analysis/chain/recursive-trace.ts` | `traceForward(tx, depth, minSats, fetcher, ...)` | Yes |
 | Entity proximity | `src/lib/analysis/chain/entity-proximity.ts` | `analyzeEntityProximity(tx, backward, forward)` | Yes |
@@ -59,11 +59,8 @@ The core engine in `src/lib/` is ~85% decoupled from React/browser. The CLI impo
 | Clustering | `src/lib/analysis/chain/clustering.ts` | `buildCluster(tx, layers)` | Yes |
 | Spending patterns | `src/lib/analysis/chain/spending-patterns.ts` | `analyzeSpendingPatterns(tx, layers)` | Yes |
 | Linkability | `src/lib/analysis/chain/linkability.ts` | `buildLinkabilityMatrix(tx)` | Yes |
-| JoinMarket analysis | `src/lib/analysis/chain/joinmarket.ts` | `analyzeJoinMarket(tx)` | Yes |
-| Peel chain trace | `src/lib/analysis/chain/peel-chain-trace.ts` | `tracePeelChain(tx, ...)` | Yes |
 | Temporal analysis | `src/lib/analysis/chain/temporal.ts` | `analyzeTemporalCorrelation(txs)` | Yes |
 | Prospective analysis | `src/lib/analysis/chain/prospective.ts` | `analyzeFingerprintEvolution(addr, txs)` | Yes |
-| CoinJoin quality | `src/lib/analysis/chain/coinjoin-quality.ts` | `evaluateCoinJoinQuality(tx, ...)` | Yes |
 | Format utilities | `src/lib/format.ts` | `formatSats()`, `fmtN()`, `formatBtc()` | Yes |
 | Constants | `src/lib/constants.ts` | `WHIRLPOOL_DENOMS`, `DUST_THRESHOLD`, etc. | Yes |
 | Types | `src/lib/types.ts` | `Finding`, `ScoringResult`, `Grade`, `Severity`, `TxType` | Yes |

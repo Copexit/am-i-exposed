@@ -1,7 +1,7 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { DUST_THRESHOLD, P2PKH_DUST_LIMIT } from "@/lib/constants";
-import { isCoinbase } from "./tx-utils";
+import { isCoinbase, isOpReturnOutput } from "./tx-utils";
 
 /**
  * Dust Output Detection (transaction level)
@@ -48,7 +48,7 @@ export const analyzeDustOutputs: TxHeuristic = (tx) => {
   const dustEntries: { index: number; value: number; belowEconThreshold: boolean }[] = [];
   for (let i = 0; i < tx.vout.length; i++) {
     const out = tx.vout[i];
-    if (out.value > 0 && out.value < DUST_THRESHOLD && out.scriptpubkey_type !== "op_return") {
+    if (out.value > 0 && out.value < DUST_THRESHOLD && !isOpReturnOutput(out)) {
       const econThreshold = getDustThreshold(out.scriptpubkey_type);
       dustEntries.push({ index: i, value: out.value, belowEconThreshold: out.value < econThreshold });
     }

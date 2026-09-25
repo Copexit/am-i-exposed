@@ -8,6 +8,7 @@
 
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { TraceLayer } from "./recursive-trace";
+import { isOpReturnOutput } from "../heuristics/tx-utils";
 
 /**
  * Build a map of (input index -> parent transaction) from depth-1 backward
@@ -93,7 +94,7 @@ export function buildTxsByAddress(
     }
     for (const vout of atx.vout) {
       const addr = vout.scriptpubkey_address;
-      if (addr && vout.scriptpubkey_type !== "op_return") {
+      if (addr && !isOpReturnOutput(vout)) {
         const arr = txsByAddress.get(addr) ?? [];
         arr.push(atx);
         txsByAddress.set(addr, arr);

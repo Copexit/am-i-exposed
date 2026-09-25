@@ -1,7 +1,7 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { parseMultisigFromInput, type MultisigInfo } from "@/lib/bitcoin/multisig";
-import { getSpendableOutputs, isCoinbase } from "./tx-utils";
+import { getSpendableOutputs, isCoinbase, isOpReturnOutput } from "./tx-utils";
 import {
   buildBisqDepositFinding,
   buildEscrow2of3Finding,
@@ -40,8 +40,8 @@ export const analyzeMultisigDetection: TxHeuristic = (tx, rawHex, ctx) => {
 
   // ── Bisq deposit tx detection (before multisig input parsing) ─────
   if (tx.vin.length >= 2) {
-    const opReturnOutputs = tx.vout.filter((o) => o.scriptpubkey_type === "op_return");
-    const nonOpReturnOutputs = tx.vout.filter((o) => o.scriptpubkey_type !== "op_return");
+    const opReturnOutputs = tx.vout.filter((o) => isOpReturnOutput(o));
+    const nonOpReturnOutputs = getSpendableOutputs(tx.vout);
 
     if (opReturnOutputs.length === 1 && nonOpReturnOutputs.length >= 1 && nonOpReturnOutputs.length <= 2) {
       const opReturnHex = opReturnOutputs[0].scriptpubkey;

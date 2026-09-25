@@ -71,7 +71,7 @@ src/
     │   ├── address-orchestrator.ts # Address analysis + destination pre-send checks
     │   ├── heuristics/            # 32 tx-level + 6 address-level heuristic modules
     │   │   └── tx-utils.ts        # Shared utilities (getSpendableOutputs)
-    │   ├── chain/                 # 13 chain analysis modules
+    │   ├── chain/                 # Chain analysis modules (main ones below)
     │   │   ├── recursive-trace.ts # Multi-hop backward/forward tracing engine
     │   │   ├── backward.ts        # Input provenance analysis
     │   │   ├── forward.ts         # Output destination analysis
@@ -80,9 +80,6 @@ src/
     │   │   ├── taint.ts           # Proportional (haircut) taint flow
     │   │   ├── linkability.ts     # Linkability matrix analysis
     │   │   ├── spending-patterns.ts # Spending pattern detection
-    │   │   ├── joinmarket.ts      # JoinMarket-specific analysis
-    │   │   ├── coinjoin-quality.ts # CoinJoin quality assessment
-    │   │   ├── peel-chain-trace.ts # Peel chain following
     │   │   ├── temporal.ts        # Temporal pattern analysis
     │   │   └── prospective.ts     # Prospective privacy assessment
     │   └── entity-filter/         # Entity matching (OFAC, exchanges, etc.)
@@ -163,9 +160,6 @@ src/
 Additional chain modules (computed inline, no separate step):
 - `linkability.ts` - Linkability matrix for tx inputs/outputs
 - `recursive-trace.ts` - Multi-hop backward/forward tracing engine
-- `joinmarket.ts` - JoinMarket-specific chain analysis
-- `coinjoin-quality.ts` - CoinJoin quality assessment
-- `peel-chain-trace.ts` - Peel chain following across hops
 - `temporal.ts` - Temporal pattern analysis
 - `prospective.ts` - Prospective privacy assessment
 

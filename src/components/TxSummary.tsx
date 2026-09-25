@@ -6,7 +6,7 @@ import { ArrowRight, Search } from "lucide-react";
 import type { MempoolTransaction } from "@/lib/api/types";
 import { formatSats, calcFeeRate, calcVsize, formatTimeAgo } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
-import { countOutputValues } from "@/lib/analysis/heuristics/tx-utils";
+import { countOutputValues, isCoinbase, isOpReturnOutput } from "@/lib/analysis/heuristics/tx-utils";
 
 interface TxSummaryProps {
   tx: MempoolTransaction;
@@ -78,9 +78,9 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
         </span>
       </div>
 
-      <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-start overflow-hidden" role="group" aria-label="Transaction inputs and outputs">
+      <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-start overflow-hidden" role="group" aria-label={t("tx.inputsAndOutputs", { defaultValue: "Transaction inputs and outputs" })}>
         {/* Inputs */}
-        <div className="space-y-2 min-w-0" role="list" aria-label="Inputs">
+        <div className="space-y-2 min-w-0" role="list" aria-label={t("psbt.inputs", { defaultValue: "Inputs" })}>
           {inputsToShow.map((vin, i) => {
             const addr = vin.prevout?.scriptpubkey_address;
             const isHighlighted = highlightAddress && addr === highlightAddress;
@@ -125,7 +125,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
         </div>
 
         {/* Outputs */}
-        <div className="space-y-2 min-w-0" role="list" aria-label="Outputs">
+        <div className="space-y-2 min-w-0" role="list" aria-label={t("psbt.outputs", { defaultValue: "Outputs" })}>
           {outputsToShow.map((vout, i) => {
             const anonSet = valueCounts.get(vout.value) ?? 1;
             const color = groupColors.get(vout.value);
@@ -216,7 +216,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
 function detectLikelyChange(tx: MempoolTransaction): number {
   if (tx.vout.length !== 2) return -1;
   if (!tx.vout[0].scriptpubkey_address || !tx.vout[1].scriptpubkey_address) return -1;
-  if (tx.vin.some((v) => v.is_coinbase)) return -1;
+  if (isCoinbase(tx)) return -1;
 
   let score0 = 0;
   let score1 = 0;
@@ -244,7 +244,7 @@ function detectLikelyChange(tx: MempoolTransaction): number {
 }
 
 function formatOutputAddr(vout: { scriptpubkey_address?: string; scriptpubkey_type: string }): string {
-  if (vout.scriptpubkey_type === "op_return") return "OP_RETURN";
+  if (isOpReturnOutput(vout)) return "OP_RETURN";
   if (vout.scriptpubkey_address) return truncateId(vout.scriptpubkey_address, 6);
   // Non-standard output types without a decoded address
   const typeLabels: Record<string, string> = {

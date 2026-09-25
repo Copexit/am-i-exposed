@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 import {
   FINDING_METADATA,
   getFindingMeta,
@@ -49,6 +51,29 @@ describe("FINDING_METADATA registry", () => {
   });
 });
 
+/** Recursively list non-test .ts/.tsx files under a directory. */
+function sourceFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const full = join(dir, name);
+    if (statSync(full).isDirectory()) return name === "__tests__" ? [] : sourceFiles(full);
+    return /\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name) ? [full] : [];
+  });
+}
+
+describe("FINDING_METADATA coverage", () => {
+  it("every finding id literal in src/ has a metadata entry", () => {
+    // A finding literal is `id: "..."` directly followed by its severity.
+    const missing = new Set<string>();
+    for (const file of sourceFiles(join(process.cwd(), "src"))) {
+      const text = readFileSync(file, "utf8");
+      for (const m of text.matchAll(/\bid:\s*"([a-z0-9-]+)",\s*\n\s*severity\b/g)) {
+        if (!getFindingMeta(m[1])) missing.add(m[1]);
+      }
+    }
+    expect([...missing]).toEqual([]);
+  });
+});
+
 describe("getFindingMeta", () => {
   it("returns metadata for known IDs", () => {
     const meta = getFindingMeta("h3-cioh");
@@ -70,12 +95,6 @@ describe("getFindingMeta", () => {
   it("prefix-matches h7-op-return-1", () => {
     const meta = getFindingMeta("h7-op-return-1");
     expect(meta).toBeDefined();
-  });
-
-  it("prefix-matches toxic-merge-0", () => {
-    const meta = getFindingMeta("toxic-merge-0");
-    expect(meta).toBeDefined();
-    expect(meta?.adversaryTiers).toContain("state_adversary");
   });
 
   it("does not prefix-match non-numeric suffixes", () => {

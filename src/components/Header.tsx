@@ -126,7 +126,7 @@ export function Header() {
             </button>
 
             {/* Desktop nav */}
-            <nav className="hidden sm:flex items-center gap-0.5 ml-4 relative" aria-label="Main navigation">
+            <nav className="hidden sm:flex items-center gap-0.5 ml-4 relative" aria-label={t("common.mainNavigation", { defaultValue: "Main navigation" })}>
               {NAV_ITEMS.filter((item) => !item.proOnly || proMode).map((item) => {
                 const active = isActive(item.href);
                 const Icon = item.icon;
@@ -208,7 +208,7 @@ export function Header() {
                 WebkitBackdropFilter: "blur(16px) saturate(180%)",
                 background: "var(--card-bg)",
               }}
-              aria-label="Mobile navigation"
+              aria-label={t("common.mobileNavigation", { defaultValue: "Mobile navigation" })}
             >
               {NAV_ITEMS.filter((item) => !item.proOnly || proMode).map((item) => {
                 const active = isActive(item.href);

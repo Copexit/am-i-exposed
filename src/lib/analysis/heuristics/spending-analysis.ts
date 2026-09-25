@@ -3,6 +3,7 @@ import type { Finding } from "@/lib/types";
 import { fmtN } from "@/lib/format";
 import { isCoinJoinTx } from "./coinjoin";
 import { getAddressType } from "@/lib/bitcoin/address-type";
+import { isOpReturnOutput } from "./tx-utils";
 
 /**
  * Spending Pattern Analysis (Address-level)
@@ -77,7 +78,7 @@ export const analyzeSpendingPattern: AddressHeuristic = (address, _utxos, txs) =
 
       const spendableOutputs = tx.vout.filter(
         (v) =>
-          v.scriptpubkey_type !== "op_return" &&
+          !isOpReturnOutput(v) &&
           v.scriptpubkey_address &&
           v.scriptpubkey_address !== address.address,
       );

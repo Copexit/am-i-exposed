@@ -56,9 +56,9 @@ export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspend
                 <button
                   onClick={onExitLinkability}
                   className="text-[10px] px-2 py-0.5 rounded-full border border-card-border text-muted hover:text-foreground hover:border-muted transition-colors cursor-pointer"
-                  title="Back to CoinJoin structure"
+                  title={t("viz.flow.backToCoinjoin", { defaultValue: "Back to CoinJoin structure" })}
                 >
-                  CJ view
+                  {t("viz.flow.cjView", { defaultValue: "CJ view" })}
                 </button>
               )}
             </span>

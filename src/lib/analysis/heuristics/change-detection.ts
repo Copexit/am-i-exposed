@@ -1,6 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
-import { isOpReturn, isCoinbase, getAddressedOutputs } from "./tx-utils";
+import { isCoinbase, getAddressedOutputs, isOpReturnOutput } from "./tx-utils";
 import { ROUND_USD_TOLERANCE_DEFAULT, ROUND_USD_TOLERANCE_SELF_HOSTED } from "./round-amount";
 import {
   checkAddressTypeMismatch,
@@ -71,7 +71,7 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
   // ── Data-attachment payment (1 spendable + OP_RETURN) ──────────
   // A tx with 1 spendable output and OP_RETURN data carrier (e.g. Omni, OpenTimestamps)
   // has a deterministic input-to-output link, similar to a sweep.
-  const hasOpReturn = tx.vout.some((o) => isOpReturn(o.scriptpubkey));
+  const hasOpReturn = tx.vout.some(isOpReturnOutput);
   if (!isSweep && spendableOutputs.length === 1 && hasOpReturn && tx.vin.length >= 1) {
     const outputAddr = spendableOutputs[0].scriptpubkey_address;
     const inAddrs = new Set(tx.vin.map((v) => v.prevout?.scriptpubkey_address).filter(Boolean));
@@ -327,7 +327,7 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
     let spendableCount = 0;
     for (let i = 0; i < tx.vout.length; i++) {
       const out = tx.vout[i];
-      if (out.scriptpubkey_type !== "op_return" && out.scriptpubkey_address && out.value > 0) {
+      if (!isOpReturnOutput(out) && out.scriptpubkey_address && out.value > 0) {
         if (spendableCount === changeSpendableIdx) {
           changeVoutIdx = i;
           break;

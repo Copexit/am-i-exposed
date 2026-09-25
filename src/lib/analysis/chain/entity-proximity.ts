@@ -4,6 +4,7 @@ import { getFilter, lookupEntityName, lookupEntityCategory } from "../entity-fil
 import { getEntity } from "../entities";
 import { isCoinJoinTx } from "../heuristics/coinjoin";
 import type { TraceLayer } from "./recursive-trace";
+import { isOpReturnOutput } from "../heuristics/tx-utils";
 
 /**
  * Entity Proximity Detection
@@ -314,7 +315,7 @@ function scanTxForEntity(
   // Check output addresses
   for (const vout of layerTx.vout) {
     const addr = vout.scriptpubkey_address;
-    if (!addr || vout.scriptpubkey_type === "op_return") continue;
+    if (!addr || isOpReturnOutput(vout)) continue;
     if (filter.has(addr)) {
       const entityName = lookupEntityName(addr);
       if (!entityName) continue;
