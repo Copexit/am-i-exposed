@@ -39,6 +39,7 @@ export interface Finding {
 export type TxType =
   | "whirlpool-coinjoin"
   | "wabisabi-coinjoin"
+  | "wasabi1-coinjoin"
   | "joinmarket-coinjoin"
   | "generic-coinjoin"
   | "stonewall"

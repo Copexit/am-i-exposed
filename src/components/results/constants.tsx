@@ -7,6 +7,7 @@ import type { TxType } from "@/lib/types";
 export const TX_TYPE_LABELS: Partial<Record<TxType, string>> = {
   "whirlpool-coinjoin": "Whirlpool",
   "wabisabi-coinjoin": "WabiSabi",
+  "wasabi1-coinjoin": "Wasabi 1.0",
   "joinmarket-coinjoin": "JoinMarket",
   "generic-coinjoin": "CoinJoin",
   "stonewall": "Stonewall",

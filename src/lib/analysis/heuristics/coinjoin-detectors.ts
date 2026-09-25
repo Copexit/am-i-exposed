@@ -4,6 +4,55 @@ import { countOutputValues } from "./tx-utils";
 /** Minimum denomination for CoinJoin equal outputs (below this, likely noise/dust). */
 const MIN_COINJOIN_DENOM = 10_000;
 
+/** Fixed Wasabi 1.0 coordinator fee addresses used until early 2020. */
+const WASABI1_COORDINATOR_ADDRESSES = new Set([
+  "bc1qs604c7jv6amk4cxqlnvuxv26hv3e48cds4m0ew",
+  "bc1qa24tsgchvuxsaccp8vrnkfd85hrcpafg20kmjw",
+]);
+
+/**
+ * Detect a Wasabi 1.x (ZeroLink) CoinJoin.
+ *
+ * Wasabi 1.x rounds have one base denomination (~0.1 BTC) shared by many
+ * outputs, plus "mixing levels" for larger inputs: level 1 is just under 2x
+ * the base (fees are deducted), each further level exactly doubles the last.
+ * WabiSabi (Wasabi 2.0) uses exact standard denominations, so this
+ * just-under-2x step does not occur there. Rounds paying one of the fixed
+ * coordinator addresses match directly. Small rounds without a second level
+ * and without a known coordinator address stay generic.
+ */
+export function detectWasabi1(
+  spendableOutputs: { value: number; scriptpubkey_address?: string }[],
+): { denomination: number; equalCount: number; levels: number } | null {
+  const counts = countOutputValues(spendableOutputs);
+  let denomination = 0;
+  let equalCount = 0;
+  for (const [value, count] of counts) {
+    if (count > equalCount && value >= MIN_COINJOIN_DENOM) {
+      denomination = value;
+      equalCount = count;
+    }
+  }
+  if (equalCount < 10) return null;
+
+  // Follow the mixing levels: ~2x base, then exact doubling
+  let levels = 1;
+  let level = [...counts.keys()].find(
+    (v) => (counts.get(v) ?? 0) >= 2 && v >= denomination * 1.99 && v < denomination * 2,
+  );
+  while (level !== undefined) {
+    levels++;
+    level = (counts.get(level * 2) ?? 0) >= 2 ? level * 2 : undefined;
+  }
+
+  const paysCoordinator = spendableOutputs.some(
+    (o) => o.scriptpubkey_address && WASABI1_COORDINATOR_ADDRESSES.has(o.scriptpubkey_address),
+  );
+  if (levels < 2 && !paysCoordinator) return null;
+
+  return { denomination, equalCount, levels };
+}
+
 /**
  * Detect Whirlpool CoinJoin pattern.
  *

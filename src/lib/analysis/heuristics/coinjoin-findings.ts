@@ -127,6 +127,38 @@ export function buildJoinMarketFinding(
   };
 }
 
+export function buildWasabi1Finding(
+  wasabi1: { denomination: number; equalCount: number; levels: number },
+  vinCount: number,
+  total: number,
+): Finding {
+  const { denomination, equalCount, levels } = wasabi1;
+  return {
+    id: "h4-coinjoin",
+    severity: "good",
+    confidence: "high",
+    title: `Wasabi 1.0 CoinJoin: ${equalCount} equal outputs of ${formatBtc(denomination)}`,
+    params: {
+      count: equalCount,
+      denomination: formatBtc(denomination),
+      total,
+      vin: vinCount,
+      levels,
+      isWasabi1: 1,
+      _variant: "wasabi1",
+    },
+    description:
+      `This transaction has ${vinCount} inputs and ${total} outputs, with ${equalCount} outputs of ${formatBtc(denomination)}` +
+      (levels > 1 ? ` and ${levels - 1} higher mixing level(s) at roughly double that amount` : "") +
+      ", consistent with a Wasabi Wallet 1.x (ZeroLink) CoinJoin. " +
+      "The equal outputs break the link between inputs and outputs, significantly improving privacy.",
+    recommendation:
+      "The equal-value outputs are mixed. Any change outputs are not: they carry the full pre-mix history, so spend them separately or remix them. " +
+      EXCHANGE_WARNING,
+    scoreImpact: equalCount >= 10 ? 25 : 20,
+  };
+}
+
 export function buildGenericCoinJoinFinding(
   count: number,
   denomination: number,
