@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, lazy, Suspense, useCallback, useMemo } from "react";
+import { Fragment, useEffect, useRef, useState, lazy, Suspense, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import { DiagnosticLoader } from "@/components/DiagnosticLoader";
@@ -198,6 +198,7 @@ export default function Home() {
       <AnimatePresence mode="wait">
         {phase === "idle" && !pendingHash && !walletActive && (
           <HeroSection
+            key="hero"
             onSubmit={handleSubmit}
             inputRef={inputRef}
             scans={scans}
@@ -235,7 +236,7 @@ export default function Home() {
         )}
 
         {phase === "complete" && query && inputType && result && (
-          <>
+          <Fragment key="results">
             {psbtData && (
               <PsbtBanner
                 inputCount={psbtData.inputCount}
@@ -265,19 +266,20 @@ export default function Home() {
               forwardLayers={forwardLayers}
               boltzmannResult={boltzmannResult}
             />
-          </>
+          </Fragment>
         )}
 
         {phase === "complete" && query && preSendResult && !result && (
-          <DestinationOnlyResult query={query} preSendResult={preSendResult} onBack={handleBack} durationMs={durationMs} />
+          <DestinationOnlyResult key="destination" query={query} preSendResult={preSendResult} onBack={handleBack} durationMs={durationMs} />
         )}
 
         {phase === "error" && error !== "xpub" && (
-          <ErrorView error={error} query={query} errorCode={errorCode} onRetry={analyze} onBack={handleBack} />
+          <ErrorView key="error" error={error} query={query} errorCode={errorCode} onRetry={analyze} onBack={handleBack} />
         )}
 
         {walletActive && wallet.phase !== "complete" && wallet.phase !== "error" && (
           <WalletLoadingView
+            key="wallet-loading"
             query={wallet.query}
             phase={wallet.phase as "deriving" | "fetching" | "tracing" | "analyzing"}
             progress={wallet.progress}
@@ -288,7 +290,7 @@ export default function Home() {
         )}
 
         {wallet.phase === "complete" && wallet.descriptor && wallet.result && (
-          <Suspense fallback={null}>
+          <Suspense key="wallet-results" fallback={null}>
             <WalletAuditResults
               descriptor={wallet.descriptor}
               result={wallet.result}
@@ -302,7 +304,7 @@ export default function Home() {
         )}
 
         {wallet.phase === "error" && (
-          <ErrorView error={wallet.error} onBack={handleBack} />
+          <ErrorView key="wallet-error" error={wallet.error} onBack={handleBack} />
         )}
       </AnimatePresence>
 

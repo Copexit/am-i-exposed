@@ -31,6 +31,7 @@ export function RecentCyclesTable({ firstPage }: RecentCyclesTableProps) {
   // When the base page refreshes (focus revalidation), drop appended pages.
   useEffect(() => {
     firstPageRef.current = firstPage;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset appended pages when base page refreshes
     setExtra([]);
   }, [firstPage]);
 
@@ -51,6 +52,7 @@ export function RecentCyclesTable({ firstPage }: RecentCyclesTableProps) {
   const canLoadMore =
     lastPage != null && lastPage.page < lastPage.total_pages && !loadingMore;
 
+  /* eslint-disable react-hooks/preserve-manual-memoization -- ref read guards stale in-flight pages */
   const loadMore = useCallback(async () => {
     if (!lastPage) return;
     const base = firstPageRef.current;
@@ -67,6 +69,7 @@ export function RecentCyclesTable({ firstPage }: RecentCyclesTableProps) {
       setLoadingMore(false);
     }
   }, [isUmbrel, lastPage]);
+  /* eslint-enable react-hooks/preserve-manual-memoization */
 
   if (rows.length === 0) return null;
 
