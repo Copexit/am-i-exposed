@@ -6,8 +6,8 @@ import {
   analyzeDestination,
   getTxHeuristicSteps,
   getAddressHeuristicSteps,
-  classifyTransactionType,
 } from "../orchestrator";
+import { applyCrossHeuristicRules, classifyTransactionType } from "../cross-heuristic";
 import { makeTx, makeVin, makeAddress, makeUtxo, resetAddrCounter } from "../heuristics/__tests__/fixtures/tx-factory";
 
 beforeEach(() => resetAddrCounter());
@@ -33,16 +33,16 @@ describe("analyzeTransaction", () => {
     expect(onStep).toHaveBeenCalledTimes(56);
   });
 
-  it("passes rawHex to wallet-fingerprint heuristic", async () => {
+  it("identifies Bitcoin Core from low-R witness signatures", async () => {
+    // Low-R DER signature (32-byte r with high bit clear) + SIGHASH_ALL, then a pubkey
+    const lowR = "3044" + "0220" + "11".repeat(32) + "0220" + "22".repeat(32) + "01";
+    const witness = [lowR, "02" + "33".repeat(32)];
     const tx = makeTx({
       locktime: 800_000, // block-height locktime (anti-fee-sniping)
-      vin: [makeVin({ sequence: 0xfffffffd }), makeVin({ sequence: 0xfffffffd })],
+      vin: [makeVin({ sequence: 0xfffffffd, witness }), makeVin({ sequence: 0xfffffffd, witness })],
     });
-    // Build rawHex with Low-R signatures
-    const sig = "3044022020" + "00".repeat(32) + "0220" + "00".repeat(32);
-    const rawHex = sig + sig;
 
-    const resultPromise = analyzeTransaction(tx, rawHex);
+    const resultPromise = analyzeTransaction(tx);
     await vi.advanceTimersByTimeAsync(26 * 100);
     const result = await resultPromise;
 
@@ -269,8 +269,7 @@ describe("cross-heuristic: Wasabi + address reuse paradox", () => {
     );
 
     // Import and re-run the cross-heuristic rules
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
-    applyCrossHeuristicRulesForTest(result.findings);
+    applyCrossHeuristicRules(result.findings);
 
     const paradox = result.findings.find((f) => f.id === "cross-wasabi-reuse-paradox");
     expect(paradox).toBeDefined();
@@ -299,8 +298,7 @@ describe("cross-heuristic: Wasabi + address reuse paradox", () => {
       },
     ];
 
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const paradox = findings.find((f) => f.id === "cross-wasabi-reuse-paradox");
     expect(paradox).toBeUndefined();
@@ -309,7 +307,6 @@ describe("cross-heuristic: Wasabi + address reuse paradox", () => {
 
 describe("cross-heuristic: CoinJoin suppression of conflicting findings", () => {
   it("suppresses CIOH, round amount, change detection, and script-mixed when CoinJoin is detected", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -355,7 +352,7 @@ describe("cross-heuristic: CoinJoin suppression of conflicting findings", () => 
       },
     ];
 
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const cioh = findings.find((f) => f.id === "h3-cioh")!;
     expect(cioh.scoreImpact).toBe(0);
@@ -379,7 +376,6 @@ describe("cross-heuristic: CoinJoin suppression of conflicting findings", () => 
   });
 
   it("also suppresses consolidation, unnecessary-input, and entropy findings for CoinJoin", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -416,7 +412,7 @@ describe("cross-heuristic: CoinJoin suppression of conflicting findings", () => 
       },
     ];
 
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     for (const f of findings) {
       if (f.id !== "h4-whirlpool") {
@@ -430,7 +426,6 @@ describe("cross-heuristic: CoinJoin suppression of conflicting findings", () => 
 
 describe("cross-heuristic: CIOH + consolidation penalty capping", () => {
   it("caps consolidation at -2 and zeroes unnecessary-input when CIOH fires on non-CoinJoin tx", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -459,7 +454,7 @@ describe("cross-heuristic: CIOH + consolidation penalty capping", () => {
       },
     ];
 
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const cioh = findings.find((f) => f.id === "h3-cioh")!;
     // CIOH itself should remain unchanged (it still fires)
@@ -476,7 +471,6 @@ describe("cross-heuristic: CIOH + consolidation penalty capping", () => {
   });
 
   it("does NOT cap consolidation when impact is already -2 or lighter", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -497,7 +491,7 @@ describe("cross-heuristic: CIOH + consolidation penalty capping", () => {
       },
     ];
 
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const consolidation = findings.find((f) => f.id === "consolidation-fan-in")!;
     // Already at -2, should not be modified (the condition is scoreImpact < -2)
@@ -508,7 +502,6 @@ describe("cross-heuristic: CIOH + consolidation penalty capping", () => {
 
 describe("cross-heuristic: deterministic cap enforcement", () => {
   it("adds compound-deterministic-cap when h2-same-address-io fires and total impact is insufficient for F", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -531,7 +524,7 @@ describe("cross-heuristic: deterministic cap enforcement", () => {
 
     // Total impact before cross-heuristic = -15 + -8 = -23
     // Target is -46, so a cap finding with -23 impact should be added
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const cap = findings.find((f) => f.id === "compound-deterministic-cap");
     expect(cap).toBeDefined();
@@ -544,7 +537,6 @@ describe("cross-heuristic: deterministic cap enforcement", () => {
   });
 
   it("does NOT add compound-deterministic-cap for h2-sweep (sweeps are normal practice)", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -557,14 +549,13 @@ describe("cross-heuristic: deterministic cap enforcement", () => {
       },
     ];
 
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const cap = findings.find((f) => f.id === "compound-deterministic-cap");
     expect(cap).toBeUndefined();
   });
 
   it("does NOT add cap finding when total impact already exceeds -46", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -586,7 +577,7 @@ describe("cross-heuristic: deterministic cap enforcement", () => {
     ];
 
     // Total = -50, already beyond -46
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const cap = findings.find((f) => f.id === "compound-deterministic-cap");
     expect(cap).toBeUndefined();
@@ -595,7 +586,6 @@ describe("cross-heuristic: deterministic cap enforcement", () => {
 
 describe("cross-heuristic: post-mix consolidation + entity escalation", () => {
   it("escalates entity-known-output to critical with -10 impact when post-mix consolidation is present", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -617,7 +607,7 @@ describe("cross-heuristic: post-mix consolidation + entity escalation", () => {
       },
     ];
 
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const entity = findings.find((f) => f.id === "entity-known-output")!;
     expect(entity.severity).toBe("critical");
@@ -629,7 +619,6 @@ describe("cross-heuristic: post-mix consolidation + entity escalation", () => {
   });
 
   it("escalates entity-known-output when chain-post-coinjoin-consolidation is present", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -650,7 +639,7 @@ describe("cross-heuristic: post-mix consolidation + entity escalation", () => {
       },
     ];
 
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const entity = findings.find((f) => f.id === "entity-known-output")!;
     expect(entity.severity).toBe("critical");
@@ -659,7 +648,6 @@ describe("cross-heuristic: post-mix consolidation + entity escalation", () => {
   });
 
   it("escalates entity-known-output when chain-post-coinjoin-direct-spend is present", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -680,7 +668,7 @@ describe("cross-heuristic: post-mix consolidation + entity escalation", () => {
       },
     ];
 
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const entity = findings.find((f) => f.id === "entity-known-output")!;
     expect(entity.severity).toBe("critical");
@@ -689,7 +677,6 @@ describe("cross-heuristic: post-mix consolidation + entity escalation", () => {
   });
 
   it("does NOT escalate entity finding when no post-mix pattern is present", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -702,7 +689,7 @@ describe("cross-heuristic: post-mix consolidation + entity escalation", () => {
       },
     ];
 
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const entity = findings.find((f) => f.id === "entity-known-output")!;
     expect(entity.severity).toBe("medium");
@@ -710,7 +697,6 @@ describe("cross-heuristic: post-mix consolidation + entity escalation", () => {
   });
 
   it("also zeroes chain-coinjoin-input positive finding when post-mix consolidation is present", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -731,7 +717,7 @@ describe("cross-heuristic: post-mix consolidation + entity escalation", () => {
       },
     ];
 
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const cjInput = findings.find((f) => f.id === "chain-coinjoin-input")!;
     expect(cjInput.scoreImpact).toBe(0);

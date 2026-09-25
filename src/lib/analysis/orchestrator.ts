@@ -15,15 +15,8 @@ import { applyCrossHeuristicRules, classifyTransactionType } from "./cross-heuri
 import { enrichFindingsWithMetadata } from "./finding-metadata";
 import { TX_HEURISTICS, ADDRESS_HEURISTICS, tick } from "./heuristic-registry";
 
-// Re-export from heuristic-registry so existing consumers don't break
-export { TX_HEURISTICS, ADDRESS_HEURISTICS, tick } from "./heuristic-registry";
-
-export { classifyTransactionType } from "./cross-heuristic";
 export { analyzeTransactionsForAddress, analyzeDestination } from "./address-orchestrator";
 export type { PreSendResult } from "./address-orchestrator";
-
-/** Exposed for unit tests only. */
-export const applyCrossHeuristicRulesForTest = applyCrossHeuristicRules;
 
 export interface HeuristicStep {
   id: string;

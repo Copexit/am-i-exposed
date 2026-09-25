@@ -6,6 +6,8 @@
  * No worker or browser dependencies - safe to use in tests and SSR.
  */
 
+import { getValuedOutputs } from "./heuristics/tx-utils";
+
 /** Auto-compute when total UTXOs (inputs + outputs) is under this threshold. */
 const AUTO_COMPUTE_MAX_TOTAL = 20;
 
@@ -124,15 +126,13 @@ export function isAutoComputable(
 }
 
 /** Extract input/output values from a transaction (filtering coinbase/OP_RETURN). */
-export function extractTxValues(tx: { vin: Array<{ is_coinbase?: boolean; prevout?: { value: number } | null }>; vout: Array<{ scriptpubkey_type?: string; value: number }> }): {
+export function extractTxValues(tx: { vin: Array<{ is_coinbase?: boolean; prevout?: { value: number } | null }>; vout: Array<{ scriptpubkey_type?: string; scriptpubkey?: string; value: number }> }): {
   inputValues: number[];
   outputValues: number[];
 } {
   const inputValues = tx.vin
     .filter(v => !v.is_coinbase && v.prevout)
     .map(v => v.prevout!.value);
-  const outputValues = tx.vout
-    .filter(o => o.scriptpubkey_type !== "op_return" && o.value > 0)
-    .map(o => o.value);
+  const outputValues = getValuedOutputs(tx.vout).map(o => o.value);
   return { inputValues, outputValues };
 }

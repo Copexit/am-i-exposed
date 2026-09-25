@@ -1,6 +1,6 @@
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
-import { getSpendableOutputs } from "../heuristics/tx-utils";
+import { isCoinbase, getSpendableOutputs } from "../heuristics/tx-utils";
 import { isCoinJoinTx } from "../heuristics/coinjoin";
 import { roundTo } from "@/lib/format";
 
@@ -50,7 +50,7 @@ export function buildLinkabilityMatrix(
   const findings: Finding[] = [];
 
   // Skip coinbase
-  if (tx.vin.some((v) => v.is_coinbase)) return null;
+  if (isCoinbase(tx)) return null;
 
   // Limit to manageable sizes (2^8 * 2^8 = 65K combinations max)
   if (tx.vin.length > 8 || tx.vout.length > 8) return null;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { applyCrossHeuristicRulesForTest as applyCrossHeuristicRules } from "../orchestrator";
+import { applyCrossHeuristicRules } from "../cross-heuristic";
 import type { Finding } from "@/lib/types";
 
 function makeFinding(id: string, scoreImpact: number = -2): Finding {

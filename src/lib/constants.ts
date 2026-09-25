@@ -70,11 +70,6 @@ export const WHIRLPOOL_POOLS: WhirlpoolPool[] = [
 /** Flat array of pool sizes - kept for "is this a known whirlpool denom" boolean checks. */
 export const WHIRLPOOL_DENOMS: number[] = WHIRLPOOL_POOLS.map((p) => p.sats);
 
-/** O(1) lookup for callers that need pool metadata from a sat value. */
-export const WHIRLPOOL_POOL_BY_SATS: ReadonlyMap<number, WhirlpoolPool> = new Map(
-  WHIRLPOOL_POOLS.map((p) => [p.sats, p]),
-);
-
 /** Grade-to-Tailwind text color mapping for use in components. */
 export const GRADE_COLORS: Record<Grade, string> = {
   "A+": "text-severity-good",

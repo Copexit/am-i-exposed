@@ -6,6 +6,7 @@ import { useSavedGraphs } from "@/hooks/useSavedGraphs";
 import { serializeGraph } from "@/lib/graph/saved-graph-types";
 import { encodeGraphToUrl } from "@/lib/graph/graph-url-codec";
 import { truncateId } from "@/lib/constants";
+import { copyToClipboard } from "@/lib/clipboard";
 import type { GraphNode } from "@/components/viz/graph/types";
 import type { GraphState } from "@/lib/graph/graph-reducer";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
@@ -112,10 +113,9 @@ export function useSaveLoadShare(args: UseSaveLoadShareArgs) {
       return;
     }
     const url = `${window.location.origin}/graph/?network=${network}#graph=${encoded}`;
-    navigator.clipboard.writeText(url).then(
-      () => setToast(t("graphSaveLoad.linkCopied", { defaultValue: "Link copied to clipboard" })),
-      () => setToast("Failed to copy"),
-    );
+    copyToClipboard(url).then((ok) => setToast(ok
+      ? t("graphSaveLoad.linkCopied", { defaultValue: "Link copied to clipboard" })
+      : t("graphSaveLoad.copyFailed", { defaultValue: "Failed to copy" })));
   }, [buildGraphState, network, t, posOverrides, savedAnnotations, nodeLabels, edgeLabels]);
 
   const [now] = useState(() => Date.now());

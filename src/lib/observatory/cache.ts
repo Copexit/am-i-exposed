@@ -22,11 +22,3 @@ export async function withObservatoryCache<T>(
   await idbPut(fullKey, value, ttlMs);
   return value;
 }
-
-/**
- * Get the cached value if present, otherwise undefined.
- * Used by the error state to render stale data without refetching.
- */
-export async function getObservatoryStale<T>(key: string): Promise<T | undefined> {
-  return idbGet<T>(`${CACHE_NAMESPACE}${key}`);
-}

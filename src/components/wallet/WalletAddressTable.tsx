@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronDown, Copy, Check, Search } from "lucide-react";
 import { P2PKH_DUST_LIMIT, TOXIC_CHANGE_THRESHOLD } from "@/lib/constants";
+import { copyToClipboard } from "@/lib/clipboard";
 import type { WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 
 interface WalletAddressTableProps {
@@ -83,12 +84,9 @@ export function WalletAddressTable({ addressInfos, onScan }: WalletAddressTableP
   }, [addressInfos]);
 
   const handleCopy = useCallback(async (addr: string) => {
-    try {
-      await navigator.clipboard.writeText(addr);
+    if (await copyToClipboard(addr)) {
       setCopiedAddr(addr);
       setTimeout(() => setCopiedAddr(null), 1500);
-    } catch {
-      // clipboard not available
     }
   }, []);
 

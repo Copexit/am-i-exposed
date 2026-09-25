@@ -8,6 +8,7 @@
 import { analyzeChangeDetection } from "@/lib/analysis/heuristics/change-detection";
 import { analyzeCoinJoin, isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
+import { getAddressedOutputs } from "@/lib/analysis/heuristics/tx-utils";
 import type { MempoolTransaction } from "@/lib/api/types";
 
 /** Result of identifying the best change output for tracing. */
@@ -52,14 +53,8 @@ export function identifyChangeOutput(tx: MempoolTransaction): ChangeOutputResult
     }
   }
 
-  // Count spendable outputs (non-OP_RETURN, non-zero-value)
-  const spendable: number[] = [];
-  for (let i = 0; i < tx.vout.length; i++) {
-    const v = tx.vout[i];
-    if (v.scriptpubkey_type !== "op_return" && v.value > 0 && v.scriptpubkey_address) {
-      spendable.push(i);
-    }
-  }
+  // Indices of spendable outputs (non-OP_RETURN, non-zero-value, addressed)
+  const spendable = getAddressedOutputs(tx.vout).map((o) => tx.vout.indexOf(o));
 
   if (spendable.length === 0) {
     return { changeOutputIndex: null, reason: "no-spendable", confidence: "none" };

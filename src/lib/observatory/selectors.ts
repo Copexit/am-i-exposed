@@ -100,30 +100,6 @@ export function whirlpool30dDelta(
   return delta;
 }
 
-/**
- * Current per-pool capacity (last sample in the time series).
- * Returns null if the pool is missing or empty.
- */
-export function whirlpoolCurrentCapacity(
-  charts: WhirlpoolCharts,
-  poolKey: string,
-): number | null {
-  const series = charts.capacity?.series?.[poolKey];
-  if (!series || series.length === 0) return null;
-  return series[series.length - 1];
-}
-
-/** Sum the latest capacity across all pools in the charts payload. */
-export function whirlpoolTotalCurrentCapacity(charts: WhirlpoolCharts): number {
-  const keys = Object.keys(charts.capacity?.series ?? {});
-  let total = 0;
-  for (const k of keys) {
-    const v = whirlpoolCurrentCapacity(charts, k);
-    if (v != null) total += v;
-  }
-  return total;
-}
-
 /** Sum of lifetime entered BTC across all pools in the summary. */
 export function whirlpoolLifetimeEntered(summary: WhirlpoolSummary): number {
   return summary.pools.reduce((acc, p) => acc + p.entered_btc, 0);
@@ -137,16 +113,6 @@ export function whirlpoolLifetimeCycles(summary: WhirlpoolSummary): number {
 /** Sum of currently-unspent BTC across all pools in the summary. */
 export function whirlpoolTotalUnspent(summary: WhirlpoolSummary): number {
   return summary.pools.reduce((acc, p) => acc + p.unspent_btc, 0);
-}
-
-/** Sum of currently-unspent UTXOs across all pools in the summary. */
-export function whirlpoolTotalUnspentUtxos(summary: WhirlpoolSummary): number {
-  return summary.pools.reduce((acc, p) => acc + p.unspent_utxos, 0);
-}
-
-/** Sum of lifetime TX0 (premix) transactions across all pools. */
-export function whirlpoolTotalTx0(summary: WhirlpoolSummary): number {
-  return summary.pools.reduce((acc, p) => acc + p.tx0_count, 0);
 }
 
 /**
@@ -239,19 +205,4 @@ export function sumRecentFreshInputs(
   if (!graph.length) return 0;
   const slice = graph.slice(-recentDays);
   return slice.reduce((acc, entry) => acc + (entry.Averages?.FreshInputsEstimateBtc ?? 0), 0);
-}
-
-export function sumRecentRoundCount(
-  graph: LiquiSabiGraphEntry[],
-  recentDays: number,
-): number {
-  if (!graph.length) return 0;
-  const slice = graph.slice(-recentDays);
-  let total = 0;
-  for (const entry of slice) {
-    const id = entry.Averages?.RoundId;
-    const parsed = id ? parseInt(id, 10) : NaN;
-    if (!isNaN(parsed)) total += parsed;
-  }
-  return total;
 }

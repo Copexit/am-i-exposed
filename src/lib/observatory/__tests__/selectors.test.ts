@@ -6,18 +6,13 @@ import {
   liquiSabiFreshInputSparkline,
   projectCoordinators,
   sumRecentFreshInputs,
-  sumRecentRoundCount,
   toCycleRows,
   unpaidCoordinators,
   whirlpool30dDelta,
-  whirlpoolCurrentCapacity,
   whirlpoolLifetimeCycles,
   whirlpoolLifetimeEntered,
   whirlpoolSparkline,
-  whirlpoolTotalCurrentCapacity,
-  whirlpoolTotalTx0,
   whirlpoolTotalUnspent,
-  whirlpoolTotalUnspentUtxos,
 } from "../selectors";
 import chartsFixture from "./fixtures/whirlpool-charts.json";
 import summaryFixture from "./fixtures/whirlpool-summary.json";
@@ -90,23 +85,6 @@ describe("whirlpoolSparkline", () => {
   });
 });
 
-describe("whirlpoolCurrentCapacity", () => {
-  it("returns the last sample of a pool series", () => {
-    expect(whirlpoolCurrentCapacity(charts, "0.025_BTC_Pool")).toBe(13.65);
-    expect(whirlpoolCurrentCapacity(charts, "0.25_BTC_Pool")).toBe(62.75);
-  });
-
-  it("returns null for an unknown pool", () => {
-    expect(whirlpoolCurrentCapacity(charts, "0.5_BTC_Pool")).toBeNull();
-  });
-});
-
-describe("whirlpoolTotalCurrentCapacity", () => {
-  it("sums the last sample across all pools", () => {
-    expect(whirlpoolTotalCurrentCapacity(charts)).toBeCloseTo(13.65 + 62.75);
-  });
-});
-
 describe("whirlpool30dDelta", () => {
   it("returns null if the series is shorter than 30 days of blocks", () => {
     const short: WhirlpoolCharts = {
@@ -143,13 +121,6 @@ describe("whirlpool summary aggregates", () => {
     expect(whirlpoolTotalUnspent(summary)).toBeCloseTo(13.65 + 62.75);
   });
 
-  it("sums currently-unspent UTXOs across pools", () => {
-    expect(whirlpoolTotalUnspentUtxos(summary)).toBe(546 + 251);
-  });
-
-  it("sums lifetime TX0 count across pools", () => {
-    expect(whirlpoolTotalTx0(summary)).toBe(251 + 36);
-  });
 });
 
 describe("toCycleRows", () => {
@@ -239,11 +210,5 @@ describe("sumRecentFreshInputs", () => {
 
   it("returns 0 for an empty graph", () => {
     expect(sumRecentFreshInputs([], 7)).toBe(0);
-  });
-});
-
-describe("sumRecentRoundCount", () => {
-  it("sums numeric RoundId fields (LiquiSabi overloads it as a count)", () => {
-    expect(sumRecentRoundCount(dashboard.Graph, 3)).toBe(32);
   });
 });

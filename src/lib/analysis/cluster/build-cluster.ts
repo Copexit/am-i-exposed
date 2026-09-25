@@ -3,6 +3,7 @@ import type { ApiClient } from "@/lib/api/client";
 import { createRateLimiter } from "@/lib/api/rate-limiter";
 import { isCoinJoinTx } from "../heuristics/coinjoin";
 import { analyzeChangeDetection } from "../heuristics/change-detection";
+import { getSpendableOutputs } from "../heuristics/tx-utils";
 import { getAddressType } from "@/lib/bitcoin/address-type";
 
 export interface ClusterProgress {
@@ -102,9 +103,7 @@ export async function buildFirstDegreeCluster(
       (f) => f.id === "h2-change-detected" && (f.params?.confidence === "medium" || f.params?.confidence === "high"),
     );
     const changeDetected = !!changeFinding;
-    const spendableOutputs = tx.vout.filter(
-      (v) => v.scriptpubkey_type !== "op_return" && v.scriptpubkey_address,
-    );
+    const spendableOutputs = getSpendableOutputs(tx.vout).filter((v) => v.scriptpubkey_address);
     if (changeDetected && spendableOutputs.length === 2) {
       // If one output goes back to the target address (self-reuse / address reuse),
       // the OTHER output is the payment recipient, not change. Skip this tx.
