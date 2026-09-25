@@ -12,7 +12,7 @@ import { mkdirSync, existsSync, statSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 
-const CACHE_DIR = join(homedir(), ".am-i-exposed");
+const CACHE_DIR = process.env.AM_I_EXPOSED_CACHE_DIR ?? join(homedir(), ".am-i-exposed");
 const DB_PATH = join(CACHE_DIR, "cache.sqlite");
 const MAX_ENTRIES = 10_000;
 

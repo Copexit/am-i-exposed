@@ -51,7 +51,7 @@ am-i-exposed mcp
 | `--fast` | Skip parent tx context (~6s instead of ~10s) |
 | `--network <net>` | `mainnet` / `testnet4` / `signet` |
 | `--api <url>` | Custom mempool API (self-hosted, Umbrel) |
-| `--no-cache` | Disable SQLite response caching |
+| `--no-cache` | Disable SQLite response caching (cache lives in `~/.am-i-exposed`, override with `AM_I_EXPOSED_CACHE_DIR`) |
 | `--no-entities` | Skip entity filter loading |
 
 ## JSON Output
