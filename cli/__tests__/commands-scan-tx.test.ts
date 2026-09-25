@@ -208,3 +208,26 @@ describe("scan tx - input validation", () => {
     expect(captured.length).toBeGreaterThan(0);
   });
 });
+
+describe("scan tx - chain analysis", () => {
+  it("counts chain findings toward the grade (--chain-depth)", async () => {
+    const tx = simpleLegacyTx as unknown as MempoolTransaction;
+    setupTxMock(tx);
+    const base = mockFetch.getMockImplementation()!;
+    mockFetch.mockImplementation(async (url: string | URL | Request) => {
+      const urlStr = typeof url === "string" ? url : url.toString();
+      if (urlStr.endsWith("/outspends")) return jsonResponse(tx.vout.map(() => ({ spent: false })));
+      return base(url);
+    });
+    await runScanTx(tx.txid, { chainDepth: 1 });
+    const result = parseCaptured();
+    const findings = result.findings as { id: string; scoreImpact: number }[];
+    expect(findings.some((f) => f.id.startsWith("chain-"))).toBe(true);
+    const total = findings.reduce((s, f) => s + f.scoreImpact, 0);
+    expect(result.score).toBe(Math.max(0, Math.min(100, 70 + total)));
+    // Chain findings are listed once, in result.findings
+    const chain = result.chainAnalysis as Record<string, unknown>;
+    expect(chain.backward).toBeDefined();
+    expect(chain.findings).toBeUndefined();
+  });
+});

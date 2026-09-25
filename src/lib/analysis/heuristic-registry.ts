@@ -77,7 +77,19 @@ export const ADDRESS_HEURISTICS = [
   { id: "highactivity", label: "High activity detection", fn: analyzeHighActivityAddress },
 ] as const;
 
-/** Yield to the event loop so the UI can update. */
+/**
+ * Delay between diagnostic-loader steps. 50ms in the browser for the visible
+ * step-by-step effect; 0 in Node (CLI, MCP server) and in tests, including
+ * DOM-environment tests. Override with setTickDelay.
+ */
+let tickDelayMs = typeof window !== "undefined" && process.env.NODE_ENV !== "test" ? 50 : 0;
+
+export function setTickDelay(ms: number): void {
+  tickDelayMs = ms;
+}
+
+/** Yield to the event loop so the UI can update (no-op when the delay is 0). */
 export function tick(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 50));
+  if (tickDelayMs <= 0) return Promise.resolve();
+  return new Promise((resolve) => setTimeout(resolve, tickDelayMs));
 }

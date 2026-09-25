@@ -4,10 +4,10 @@ import type {
   MempoolAddress,
   MempoolUtxo,
 } from "@/lib/api/types";
-import { calculateScore, sumImpact } from "@/lib/scoring/score";
+import { sumImpact } from "@/lib/scoring/score";
 import { checkOfac } from "./cex-risk/ofac-check";
-import { applyCrossHeuristicRules } from "./cross-heuristic";
-import { TX_HEURISTICS, ADDRESS_HEURISTICS, tick } from "./heuristic-registry";
+import { ADDRESS_HEURISTICS, tick } from "./heuristic-registry";
+import { runTxHeuristics, finalizeTxResult } from "./tx-pipeline";
 
 // ── Pre-send destination check (H13) ────────────────────────────────────────
 
@@ -39,18 +39,8 @@ export async function analyzeTransactionsForAddress(
     if (i > 0 && i % 10 === 0) await tick();
 
     const tx = txs[i];
-    const allFindings: Finding[] = [];
-
-    for (const heuristic of TX_HEURISTICS) {
-      try {
-        const result = heuristic.fn(tx);
-        allFindings.push(...result.findings);
-      } catch (err) {
-        console.error(`[analyzeTransactionsForAddress] ${heuristic.id} failed:`, err);
-      }
-    }
-
-    applyCrossHeuristicRules(allFindings);
+    // Quick score: no TxContext or chain data per tx (the UI labels it as such)
+    const scored = finalizeTxResult(runTxHeuristics(tx));
 
     const isSender = tx.vin.some(
       (v) => v.prevout?.scriptpubkey_address === targetAddress,
@@ -59,7 +49,6 @@ export async function analyzeTransactionsForAddress(
       (v) => v.scriptpubkey_address === targetAddress,
     );
 
-    const scored = calculateScore(allFindings);
     results.push({
       txid: tx.txid,
       tx,

@@ -63,6 +63,8 @@ export interface ScoringResult {
   findings: Finding[];
   /** Classified transaction type based on detected patterns */
   txType?: TxType;
+  /** An optional data fetch failed: the result is incomplete and must not be cached */
+  partial?: boolean;
 }
 
 export type Grade = "A+" | "B" | "C" | "D" | "F";

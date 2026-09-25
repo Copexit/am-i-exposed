@@ -16,7 +16,9 @@ test("Whirlpool CoinJoin scores A+ 100", async ({ page }) => {
   await expect(scoreDisplay).toHaveAttribute("data-score", "100");
 });
 
-test("Simple legacy P2PKH scores C 52", async ({ page }) => {
+// Web scans include chain findings in the grade (heuristics alone give 52, as in
+// golden-cases): chain-near-exact-spend -1. Linkability findings are display-only.
+test("Simple legacy P2PKH scores C 51", async ({ page }) => {
   await page.goto(
     "/#tx=0b6461de422c46a221db99608fcbe0326e4f2325ebf2a47c9faf660ed61ee6a4",
   );
@@ -24,7 +26,7 @@ test("Simple legacy P2PKH scores C 52", async ({ page }) => {
   const scoreDisplay = page.locator("[data-testid='score-display']");
   await expect(scoreDisplay).toBeVisible({ timeout: 15_000 });
   await expect(scoreDisplay).toHaveAttribute("data-grade", "C");
-  await expect(scoreDisplay).toHaveAttribute("data-score", "52");
+  await expect(scoreDisplay).toHaveAttribute("data-score", "51");
 });
 
 test("Nonexistent txid shows error message", async ({ page }) => {

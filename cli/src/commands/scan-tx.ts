@@ -1,14 +1,13 @@
-import { analyzeTransaction } from "@/lib/analysis/orchestrator";
+import { runTxHeuristics, finalizeTxResult } from "@/lib/analysis/orchestrator";
 import {
   selectRecommendations,
   type RecommendationContext,
 } from "@/lib/recommendations/primary-recommendation";
 import type { TxContext } from "@/lib/analysis/heuristics/types";
 import type { MempoolTransaction } from "@/lib/api/types";
+import type { Finding } from "@/lib/types";
 import { traceBackward, traceForward } from "@/lib/analysis/chain/recursive-trace";
-import { analyzeEntityProximity } from "@/lib/analysis/chain/entity-proximity";
-import { analyzeBackwardTaint } from "@/lib/analysis/chain/taint";
-import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
+import { runChainAnalysis as runSharedChainAnalysis } from "@/lib/analysis/chain-trace";
 import { createClient } from "../util/api";
 import type { GlobalOpts } from "../index";
 import { setJsonMode, startSpinner, updateSpinner, succeedSpinner } from "../util/progress";
@@ -46,16 +45,24 @@ export async function scanTx(txid: string, opts: GlobalOpts): Promise<void> {
     ctx = await buildTxContext(tx, client);
   }
 
-  // Run analysis
+  // Run analysis (shared pipeline: heuristics, optional chain findings, one finalize)
   updateSpinner("Running heuristic analysis...");
-  const result = await analyzeTransaction(tx, rawHex, undefined, ctx);
+  const findings = runTxHeuristics(tx, rawHex, ctx);
 
-  // Chain analysis (optional)
+  // Chain analysis (optional) - its findings count toward the grade.
+  // Without --chain-depth no chain module runs, while the web scan always runs
+  // the layer-free ones (spending patterns from outspends), so a tx-only CLI
+  // grade can differ from the web grade for the same tx.
   let chainAnalysis: unknown = null;
   if (chainDepth > 0) {
     updateSpinner(`Tracing transaction graph (depth ${chainDepth})...`);
-    chainAnalysis = await runChainAnalysis(tx, chainDepth, minSats, client);
+    const { findings: chainFindings, ...summary } =
+      await runChainAnalysis(tx, chainDepth, minSats, client, ctx.parentTx ?? null);
+    findings.push(...chainFindings);
+    chainAnalysis = summary;
   }
+
+  const result = finalizeTxResult(findings);
 
   // Recommendation
   const recCtx: RecommendationContext = {
@@ -139,50 +146,36 @@ async function buildTxContext(
   return ctx;
 }
 
-/** Run chain analysis modules on traced graph. */
+/** Trace the tx graph and run the shared chain analysis modules on it. */
 async function runChainAnalysis(
   tx: MempoolTransaction,
   depth: number,
   minSats: number,
   client: ReturnType<typeof createClient>,
-): Promise<unknown> {
+  parentTx: MempoolTransaction | null,
+): Promise<{ backward: unknown; forward: unknown; findings: Finding[] }> {
+  const outspends = await client.getTxOutspends(tx.txid).catch(() => null);
   const backwardResult = await traceBackward(tx, depth, minSats, client);
-  const forwardResult = await traceForward(tx, depth, minSats, client);
+  const forwardResult = await traceForward(tx, depth, minSats, client, undefined, undefined, undefined, outspends ?? undefined);
 
-  // Run chain analysis modules
-  const findings: import("@/lib/types").Finding[] = [];
+  const findings: Finding[] = [];
+  // Shared with the web pipeline; it only appends to result.findings
+  await runSharedChainAnalysis({
+    tx,
+    result: { score: 0, grade: "F", findings },
+    backwardLayers: backwardResult.layers,
+    forwardLayers: forwardResult.layers,
+    parentTx,
+    childTx: null,
+    outspends,
+    onStep: () => {},
+  });
 
-  // Entity proximity
-  const proximityResult = analyzeEntityProximity(tx, backwardResult.layers, forwardResult.layers);
-  findings.push(...proximityResult.findings);
-
-  // Taint analysis
-  const entityChecker = (addr: string) => {
-    const match = matchEntitySync(addr);
-    return match ? { category: match.category, entityName: match.entityName } : null;
-  };
-  const taintResult = analyzeBackwardTaint(tx, backwardResult.layers, entityChecker);
-  findings.push(...taintResult.findings);
-
-  return {
-    backward: {
-      depth,
-      txsFetched: backwardResult.fetchCount,
-      aborted: backwardResult.aborted,
-      layers: backwardResult.layers.map((l) => ({
-        depth: l.depth,
-        txCount: l.txs.size,
-      })),
-    },
-    forward: {
-      depth,
-      txsFetched: forwardResult.fetchCount,
-      aborted: forwardResult.aborted,
-      layers: forwardResult.layers.map((l) => ({
-        depth: l.depth,
-        txCount: l.txs.size,
-      })),
-    },
-    findings,
-  };
+  const summarize = (r: typeof backwardResult) => ({
+    depth,
+    txsFetched: r.fetchCount,
+    aborted: r.aborted,
+    layers: r.layers.map((l) => ({ depth: l.depth, txCount: l.txs.size })),
+  });
+  return { backward: summarize(backwardResult), forward: summarize(forwardResult), findings };
 }

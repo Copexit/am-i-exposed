@@ -59,6 +59,9 @@ export function TxBreakdownPanel({
           <p className="text-xs text-muted">
             {t("breakdown.scoreNote", { defaultValue: "Transaction grades reflect individual transaction privacy. The address grade reflects overall address hygiene." })}
           </p>
+          <p className="text-xs text-muted">
+            {t("breakdown.quickScoreNote", { defaultValue: "These are quick scores from on-chain heuristics only, without chain analysis. Use a full scan of a transaction for its complete grade." })}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           {issues > 0 && (

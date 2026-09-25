@@ -10,17 +10,16 @@ import type { Finding } from "@/lib/types";
 export function applyCompoundScoringAdjustments(findings: Finding[]): void {
   // RBF x Change detection: RBF confirms which output is change. When both
   // h6-rbf-signaled and h2-change-detected fire, boost change confidence and
-  // add compound note. RBF replacement reduces the change output value,
-  // proving to any observer which output is change.
+  // flag the compound (rbfCompound). RBF replacement reduces the change output
+  // value, proving to any observer which output is change.
   const h6Rbf = findings.find((f) => f.id === "h6-rbf-signaled");
   const h2ChangeForRbf = findings.find((f) => f.id === "h2-change-detected" && f.scoreImpact < 0);
   if (h6Rbf && h2ChangeForRbf) {
     h2ChangeForRbf.confidence = "high";
     h2ChangeForRbf.scoreImpact += -2;
-    h2ChangeForRbf.description +=
-      " RBF is signaled on this transaction. If fee-bumped via RBF, the change output value will decrease, confirming which output is change.";
     h2ChangeForRbf.params = {
       ...h2ChangeForRbf.params,
+      confidence: "high",
       rbfCompound: 1,
     };
   }
@@ -56,12 +55,11 @@ export function applyCompoundScoringAdjustments(findings: Finding[]): void {
       // Only h2-same-address-io is truly deterministic (output address matches
       // input address). Heuristic-based change detection can never be
       // "mathematically certain" regardless of corroboration count.
-      if (boostCount >= 2) {
-        h2Finding.severity = "high";
+      if (boostCount >= 2 || h2Finding.severity === "low") {
+        h2Finding.severity = boostCount >= 2 ? "high" : "medium";
         h2Finding.confidence = "high";
-      } else if (h2Finding.severity === "low") {
-        h2Finding.severity = "medium";
-        h2Finding.confidence = "high";
+        // The i18n title interpolates params.confidence: keep it in sync with the badge
+        h2Finding.params = { ...h2Finding.params, confidence: "high" };
       }
     }
   }
@@ -75,28 +73,17 @@ export function applyCompoundScoringAdjustments(findings: Finding[]): void {
         || f.id === "chain-post-coinjoin-consolidation"
         || f.id === "chain-post-mix-consolidation",
   );
-  const hasEntityOutput = findings.some((f) => f.id === "entity-known-output");
-  const hasPostMixDirectSpend = findings.some((f) => f.id === "chain-post-coinjoin-direct-spend");
+  const entityFinding = findings.find((f) => f.id === "entity-known-output");
 
-  if (hasEntityOutput && (hasPostMixConsolidation || hasPostMixDirectSpend)) {
-    const entityFinding = findings.find((f) => f.id === "entity-known-output");
-    if (entityFinding) {
-      entityFinding.severity = "critical";
-      entityFinding.scoreImpact = -10;
-      entityFinding.title = "Post-mix funds sent to known entity";
-      entityFinding.description =
-        "This transaction sends CoinJoin/post-mix outputs to a known exchange or service. " +
-        "The receiving entity can identify that funds came from a CoinJoin, which may trigger " +
-        "compliance flags and source-of-funds requests. The entity can also attempt to trace " +
-        "backward through the CoinJoin to de-anonymize the sender.";
-      entityFinding.recommendation =
-        "Never send directly from post-mix to KYC exchanges. Add intermediate hops, use P2P " +
-        "platforms (Bisq, RoboSats, HodlHodl), or route through Lightning Network.";
-      entityFinding.params = {
-        ...entityFinding.params,
-        context: hasPostMixConsolidation ? "postmix-consolidation-to-entity" : "postmix-direct-to-entity",
-      };
-    }
+  if (entityFinding && hasPostMixConsolidation) {
+    entityFinding.severity = "critical";
+    entityFinding.scoreImpact = -10;
+    // Escalated text lives in the finding.entity-known-output.*.postmix locale keys
+    entityFinding.params = {
+      ...entityFinding.params,
+      _variant: "postmix",
+      context: "postmix-consolidation-to-entity",
+    };
   }
 
   // Post-mix + backward CoinJoin dedup: when post-mix consolidation reduces

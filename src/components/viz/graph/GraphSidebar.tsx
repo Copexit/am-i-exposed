@@ -8,6 +8,7 @@ import { formatSats, calcVsize } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 import { analyzeTransactionSync } from "@/lib/analysis/analyze-sync";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
+import { isRbfSignaling } from "@/lib/analysis/heuristics/tx-utils";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { useBookmarks } from "@/hooks/useBookmarks";
 import { IOTab } from "./IOTab";
@@ -187,7 +188,12 @@ export function GraphSidebar({
             {result.grade}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-medium text-foreground">{result.score}/100</div>
+            <div
+              className="text-xs font-medium text-foreground"
+              title={t("graph.quickScoreHint", { defaultValue: "Quick score from on-chain heuristics only. Chain analysis is not included. Scan the transaction for the full grade." })}
+            >
+              {t("graph.quickScore", { score: result.score, defaultValue: "Quick score: {{score}}/100" })}
+            </div>
             {result.txType && result.txType !== "unknown" && (
               <div className="text-xs text-muted truncate">{result.txType.replace(/-/g, " ")}</div>
             )}
@@ -333,7 +339,7 @@ function TechnicalTab({ tx, feeRate, vsize }: { tx: MempoolTransaction; feeRate:
   const hasSegwit = tx.vin.some((v) => v.witness && v.witness.length > 0);
   const hasTaproot = tx.vin.some((v) => v.prevout?.scriptpubkey_type === "v1_p2tr") ||
     tx.vout.some((v) => v.scriptpubkey_type === "v1_p2tr");
-  const isRbf = tx.vin.some((v) => v.sequence < 0xfffffffe);
+  const isRbf = isRbfSignaling(tx.vin);
   const rows: Array<{ label: string; value: string | number; highlight?: boolean }> = [
     { label: t("graph.technical.version", { defaultValue: "Version" }), value: tx.version },
     { label: t("graph.technical.locktime", { defaultValue: "Locktime" }), value: tx.locktime === 0 ? t("graph.technical.locktimeNone", { defaultValue: "0 (none)" }) : tx.locktime < 500_000_000 ? `${tx.locktime} ${t("graph.technical.locktimeBlockHeight", { defaultValue: "(block height)" })}` : `${tx.locktime} ${t("graph.technical.locktimeTimestamp", { defaultValue: "(timestamp)" })}` },

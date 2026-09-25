@@ -8,6 +8,8 @@ import {
   getAddressHeuristicSteps,
 } from "../orchestrator";
 import { applyCrossHeuristicRules, classifyTransactionType } from "../cross-heuristic";
+import { analyzeTransactionSync } from "../analyze-sync";
+import { TX_HEURISTICS, setTickDelay } from "../heuristic-registry";
 import { makeTx, makeVin, makeAddress, makeUtxo, resetAddrCounter } from "../heuristics/__tests__/fixtures/tx-factory";
 
 beforeEach(() => resetAddrCounter());
@@ -49,6 +51,56 @@ describe("analyzeTransaction", () => {
     const wf = result.findings.find((f) => f.id === "h11-wallet-fingerprint");
     expect(wf).toBeDefined();
     expect(wf!.params?.walletGuess).toBe("Bitcoin Core");
+  });
+});
+
+describe("shared tx pipeline", () => {
+  it("resolves without timers when no onStep is given (CLI / tests)", async () => {
+    // Fake timers are on: a pending tick() would hang this await
+    const result = await analyzeTransaction(makeTx());
+    expect(result.grade).toBeDefined();
+  });
+
+  it("keeps the diagnostic step delay when one is configured (web)", async () => {
+    setTickDelay(50);
+    try {
+      const onStep = vi.fn();
+      const p = analyzeTransaction(makeTx(), undefined, onStep);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(onStep).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(28 * 50);
+      await p;
+      expect(onStep).toHaveBeenCalledTimes(56);
+    } finally {
+      setTickDelay(0);
+    }
+  });
+
+  it("graph (sync) and address per-tx views produce the same result as analyzeTransaction", async () => {
+    const tx = makeTx();
+    const full = await analyzeTransaction(tx);
+    expect(analyzeTransactionSync(tx)).toEqual(full);
+    const [perTx] = await analyzeTransactionsForAddress("bc1qnone", [tx]);
+    expect(perTx.findings).toEqual(full.findings);
+    expect(perTx.score).toBe(full.score);
+  });
+
+  it("logs and skips a failing heuristic in every view", async () => {
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const h = TX_HEURISTICS.find((x) => x.id === "h1")!;
+    const spy = vi.spyOn(h, "fn").mockImplementation(() => { throw new Error("boom"); });
+    try {
+      const tx = makeTx();
+      const full = await analyzeTransaction(tx);
+      expect(full.findings.length).toBeGreaterThan(0);
+      analyzeTransactionSync(tx);
+      await analyzeTransactionsForAddress("bc1qnone", [tx]);
+      const h1Logs = consoleSpy.mock.calls.filter((c) => String(c[0]).includes("h1 failed"));
+      expect(h1Logs).toHaveLength(3);
+    } finally {
+      spy.mockRestore();
+      consoleSpy.mockRestore();
+    }
   });
 });
 
@@ -612,7 +664,10 @@ describe("cross-heuristic: post-mix consolidation + entity escalation", () => {
     const entity = findings.find((f) => f.id === "entity-known-output")!;
     expect(entity.severity).toBe("critical");
     expect(entity.scoreImpact).toBe(-10);
-    expect(entity.title).toBe("Post-mix funds sent to known entity");
+    // Display text is a locale variant, never an in-place English rewrite
+    expect(entity.title).toBe("Output to known entity");
+    expect(entity.description).toBe("Funds sent to a known entity.");
+    expect(entity.params?._variant).toBe("postmix");
     expect(entity.params?.context).toBe("postmix-consolidation-to-entity");
     // Original param should be preserved
     expect(entity.params?.entityName).toBe("Binance");
@@ -645,35 +700,6 @@ describe("cross-heuristic: post-mix consolidation + entity escalation", () => {
     expect(entity.severity).toBe("critical");
     expect(entity.scoreImpact).toBe(-10);
     expect(entity.params?.context).toBe("postmix-consolidation-to-entity");
-  });
-
-  it("escalates entity-known-output when chain-post-coinjoin-direct-spend is present", async () => {
-
-    const findings: import("@/lib/types").Finding[] = [
-      {
-        id: "chain-post-coinjoin-direct-spend",
-        severity: "high",
-        title: "Chain: direct spend from post-CoinJoin",
-        description: "",
-        recommendation: "",
-        scoreImpact: -5,
-      },
-      {
-        id: "entity-known-output",
-        severity: "medium",
-        title: "Output to known entity",
-        description: "",
-        recommendation: "",
-        scoreImpact: -4,
-      },
-    ];
-
-    applyCrossHeuristicRules(findings);
-
-    const entity = findings.find((f) => f.id === "entity-known-output")!;
-    expect(entity.severity).toBe("critical");
-    expect(entity.scoreImpact).toBe(-10);
-    expect(entity.params?.context).toBe("postmix-direct-to-entity");
   });
 
   it("does NOT escalate entity finding when no post-mix pattern is present", async () => {
@@ -722,6 +748,38 @@ describe("cross-heuristic: post-mix consolidation + entity escalation", () => {
     const cjInput = findings.find((f) => f.id === "chain-coinjoin-input")!;
     expect(cjInput.scoreImpact).toBe(0);
     expect(cjInput.params?.context).toBe("negated-by-consolidation");
+  });
+});
+
+describe("cross-heuristic: RBF x change detection", () => {
+  it("boosts h2 without rewriting its English text and keeps params.confidence in sync", () => {
+    const findings: import("@/lib/types").Finding[] = [
+      { id: "h6-rbf-signaled", severity: "low", title: "", description: "", recommendation: "", scoreImpact: -1 },
+      {
+        id: "h2-change-detected", severity: "low", confidence: "low", title: "t", description: "d", recommendation: "",
+        scoreImpact: -5, params: { confidence: "low" },
+      },
+    ];
+    applyCrossHeuristicRules(findings);
+    const h2 = findings.find((f) => f.id === "h2-change-detected")!;
+    expect(h2.description).toBe("d");
+    expect(h2.confidence).toBe("high");
+    expect(h2.params?.confidence).toBe("high");
+    expect(h2.params?.rbfCompound).toBe(1);
+  });
+
+  it("keeps params.confidence in sync on corroborator boosts", () => {
+    const findings: import("@/lib/types").Finding[] = [
+      { id: "peel-chain", severity: "medium", title: "", description: "", recommendation: "", scoreImpact: -3 },
+      {
+        id: "h2-change-detected", severity: "low", confidence: "low", title: "", description: "", recommendation: "",
+        scoreImpact: -5, params: { confidence: "low" },
+      },
+    ];
+    applyCrossHeuristicRules(findings);
+    const h2 = findings.find((f) => f.id === "h2-change-detected")!;
+    expect(h2.confidence).toBe("high");
+    expect(h2.params?.confidence).toBe("high");
   });
 });
 

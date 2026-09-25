@@ -1,26 +1,13 @@
-import type { Finding, ScoringResult } from "@/lib/types";
+import type { ScoringResult } from "@/lib/types";
 import type { MempoolTransaction } from "@/lib/api/types";
-import { TX_HEURISTICS } from "./heuristic-registry";
-import { applyCrossHeuristicRules, classifyTransactionType } from "./cross-heuristic";
-import { calculateScore } from "@/lib/scoring/score";
+import { runTxHeuristics, finalizeTxResult } from "./tx-pipeline";
 
 /**
- * Run all transaction heuristics synchronously (no tick delays) for instant results.
+ * Run the shared tx pipeline synchronously (no tick delays) for instant results.
  *
- * This is used by GraphExplorer and GraphNodeAnalysis where we want immediate
- * scoring without the 50ms inter-heuristic delay used in the main analysis flow.
+ * Used by the graph views. No TxContext or chain data is available here, so
+ * the result is a quick score (the UI labels it as such).
  */
 export function analyzeTransactionSync(tx: MempoolTransaction): ScoringResult {
-  const allFindings: Finding[] = [];
-  for (const h of TX_HEURISTICS) {
-    try {
-      allFindings.push(...h.fn(tx).findings);
-    } catch {
-      // Skip failing heuristics
-    }
-  }
-  applyCrossHeuristicRules(allFindings);
-  const result = calculateScore(allFindings);
-  result.txType = classifyTransactionType(allFindings);
-  return result;
+  return finalizeTxResult(runTxHeuristics(tx));
 }
