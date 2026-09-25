@@ -25,8 +25,10 @@ const MAX_CONSECUTIVE_FAILURES = 3;
 const ADDRESS_RETRIES = 2;
 
 /**
- * Fetch all 3 endpoints for a single address. Rejects on any failure so a
- * rate-limited or unreachable address is never mistaken for an unused one.
+ * Fetch all 3 endpoints for a single address. Rejects on any transient failure
+ * so a rate-limited or unreachable address is never mistaken for an unused one.
+ * A 4xx refusal of the UTXO list is final (esplora answers 400 for >500 UTXOs):
+ * the address and its history are known, so it is kept with no UTXOs.
  */
 async function fetchAddress(
   api: MempoolClient,
@@ -34,10 +36,23 @@ async function fetchAddress(
 ): Promise<WalletAddressInfo> {
   const [addressData, utxos, txs] = await Promise.all([
     api.getAddress(derived.address),
-    api.getAddressUtxos(derived.address),
+    api.getAddressUtxos(derived.address).catch((e: unknown) => {
+      // 429 is a rate limit (transient), every other 4xx is a final refusal
+      if (e instanceof ApiError && e.status !== undefined && e.status >= 400 && e.status < 500 && e.status !== 429) {
+        return [];
+      }
+      throw e;
+    }),
     api.getAddressTxs(derived.address),
   ]);
   return { derived, addressData, utxos, txs };
+}
+
+/** Chains to scan: both, or only the one a descriptor fixes (e.g. `.../0/*`). */
+export function walletChains(parsed: ParsedXpub): (0 | 1)[] {
+  const c = parsed.singleChain;
+  if (c === undefined) return [0, 1];
+  return c === 0 || c === 1 ? [c] : [];
 }
 
 /** Returns true if address has any on-chain activity. */

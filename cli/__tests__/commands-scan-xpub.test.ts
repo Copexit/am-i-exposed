@@ -49,6 +49,15 @@ describe("scanWalletAddresses", () => {
     expect(addresses.some((a) => a.derived.address === "c1i0")).toBe(true);
   });
 
+  it("scans only the chain a descriptor fixes (…/0/*), like the web", async () => {
+    const p = scanWalletAddresses(fakeClient(), { singleChain: 0 } as ParsedXpub, 2, { isLocal: true });
+    await vi.runAllTimersAsync();
+    const { addresses } = await p;
+
+    expect(addresses.some((a) => a.derived.address === "c0i0")).toBe(true);
+    expect(addresses.some((a) => a.derived.isChange)).toBe(false);
+  });
+
   it("stops scanning when the caller's signal aborts (MCP request cancelled)", async () => {
     const client = fakeClient();
     const getAddress = vi.spyOn(client, "getAddress");

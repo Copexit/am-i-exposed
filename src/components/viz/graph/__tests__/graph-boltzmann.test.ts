@@ -16,7 +16,7 @@ import {
 } from "@/lib/analysis/heuristics/__tests__/fixtures/tx-factory";
 import { detectJoinMarketForTurbo } from "@/lib/analysis/boltzmann-pool";
 import { analyzeChangeDetection } from "@/lib/analysis/heuristics/change-detection";
-import { buildSyntheticResult, isEagerEligible } from "@/hooks/useGraphBoltzmann";
+import { buildSyntheticResult, graphBoltzmannMode } from "@/hooks/useGraphBoltzmann";
 
 beforeEach(() => resetAddrCounter());
 
@@ -71,7 +71,7 @@ describe("synthetic Boltzmann for 1-input txs", () => {
 describe("auto-compute eligibility thresholds", () => {
   it("coinbase txs are ineligible", () => {
     const tx = makeTx({ vin: [makeCoinbaseVin()] });
-    expect(isEagerEligible(tx)).toBe("ineligible");
+    expect(graphBoltzmannMode(tx)).toBe("ineligible");
   });
 
   it("1-input txs get synthetic results", () => {
@@ -79,7 +79,7 @@ describe("auto-compute eligibility thresholds", () => {
       vin: [makeVin()],
       vout: [makeVout(), makeVout()],
     });
-    expect(isEagerEligible(tx)).toBe("synthetic");
+    expect(graphBoltzmannMode(tx)).toBe("synthetic");
   });
 
   it("small multi-input txs (<18 I/O) are auto-computed", () => {
@@ -88,35 +88,35 @@ describe("auto-compute eligibility thresholds", () => {
       vin: [makeVin(), makeVin(), makeVin()],
       vout: [makeVout(), makeVout(), makeVout(), makeVout()],
     });
-    expect(isEagerEligible(tx)).toBe("auto-compute");
+    expect(graphBoltzmannMode(tx)).toBe("auto-compute");
   });
 
   it("17 total I/O is auto-computed", () => {
     const vins = Array.from({ length: 8 }, () => makeVin());
     const vouts = Array.from({ length: 9 }, () => makeVout());
     const tx = makeTx({ vin: vins, vout: vouts });
-    expect(isEagerEligible(tx)).toBe("auto-compute");
+    expect(graphBoltzmannMode(tx)).toBe("auto-compute");
   });
 
   it("18 total I/O (non-JoinMarket) needs manual button", () => {
     const vins = Array.from({ length: 9 }, () => makeVin());
     const vouts = Array.from({ length: 9 }, () => makeVout());
     const tx = makeTx({ vin: vins, vout: vouts });
-    expect(isEagerEligible(tx)).toBe("manual-button");
+    expect(graphBoltzmannMode(tx)).toBe("manual-button");
   });
 
   it(">80 total I/O is ineligible", () => {
     const vins = Array.from({ length: 41 }, () => makeVin());
     const vouts = Array.from({ length: 41 }, () => makeVout());
     const tx = makeTx({ vin: vins, vout: vouts });
-    expect(isEagerEligible(tx)).toBe("ineligible");
+    expect(graphBoltzmannMode(tx)).toBe("ineligible");
   });
 
   it("exactly 80 I/O gets manual button", () => {
     const vins = Array.from({ length: 40 }, () => makeVin());
     const vouts = Array.from({ length: 40 }, () => makeVout());
     const tx = makeTx({ vin: vins, vout: vouts });
-    expect(isEagerEligible(tx)).toBe("manual-button");
+    expect(graphBoltzmannMode(tx)).toBe("manual-button");
   });
 });
 

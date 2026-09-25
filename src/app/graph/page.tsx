@@ -52,6 +52,9 @@ export default function GraphPage() {
 
       setSearchLoading(true);
       setSearchError(null);
+      // A cancelled saved-graph load leaves these behind (its finally skips them)
+      setLoadProgress(null);
+      setLoadWarning(null);
       setCurrentLabel(label ?? null);
       setCurrentGraphId(null);
       try {

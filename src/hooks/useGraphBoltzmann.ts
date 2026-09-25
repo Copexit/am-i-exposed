@@ -56,7 +56,7 @@ export function buildSyntheticResult(tx: MempoolTransaction): BoltzmannWorkerRes
  * background compute (small, or small JoinMarket), the sidebar's manual
  * button, or not at all.
  */
-export function isEagerEligible(tx: MempoolTransaction): "synthetic" | "auto-compute" | "manual-button" | "ineligible" {
+export function graphBoltzmannMode(tx: MempoolTransaction): "synthetic" | "auto-compute" | "manual-button" | "ineligible" {
   const { canCompute, inputValues, outputValues } = getBoltzmannEligibility(tx, GRAPH_MAX_TOTAL);
   if (!canCompute) return "ineligible";
   if (inputValues.length === 1) return "synthetic";
@@ -100,22 +100,15 @@ export function useGraphBoltzmann({
     if (rootBoltzmannResult && rootTxid) boltzmannCacheRef.current.set(rootTxid, rootBoltzmannResult);
   }, [rootBoltzmannResult, rootTxid]);
 
-  /** Compute Boltzmann for a specific txid (or generate synthetic for 1-input). */
+  /** Compute Boltzmann for a specific txid (1-input txs come from the synthetic cache). */
   const computeSingleBoltzmann = useCallback(async (txid: string, signal?: AbortSignal): Promise<void> => {
     if (boltzmannCacheRef.current.has(txid)) return;
     const node = nodes.get(txid);
     if (!node) return;
 
     const tx = node.tx;
-    const eligibility = getBoltzmannEligibility(tx, GRAPH_MAX_TOTAL);
-    if (!eligibility.canCompute) return;
-
-    // 1-input txs: trivially 100% deterministic, no WASM needed
-    if (eligibility.inputValues.length === 1) {
-      cacheResult(txid, buildSyntheticResult(tx));
-      return;
-    }
-
+    const mode = graphBoltzmannMode(tx);
+    if (mode !== "auto-compute" && mode !== "manual-button") return;
     if (signal?.aborted) return;
 
     setComputing(txid, true);
@@ -147,7 +140,7 @@ export function useGraphBoltzmann({
   const syntheticCache = useMemo(() => {
     const synthetic = new Map<string, BoltzmannWorkerResult>();
     for (const [txid, node] of nodes) {
-      if (isEagerEligible(node.tx) === "synthetic") synthetic.set(txid, buildSyntheticResult(node.tx));
+      if (graphBoltzmannMode(node.tx) === "synthetic") synthetic.set(txid, buildSyntheticResult(node.tx));
     }
     return synthetic;
   }, [nodes]);
@@ -167,7 +160,7 @@ export function useGraphBoltzmann({
       for (const [txid, node] of nodes) {
         if (boltzmannCacheRef.current.has(txid)) continue;
         if (computingBoltzmannRef.current.has(txid)) continue;
-        if (isEagerEligible(node.tx) !== "auto-compute") continue;
+        if (graphBoltzmannMode(node.tx) !== "auto-compute") continue;
         queue.push({ txid, tx: node.tx });
       }
 

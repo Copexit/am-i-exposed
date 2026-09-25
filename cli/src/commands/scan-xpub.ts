@@ -1,6 +1,6 @@
 import { parseXpub, type ParsedXpub } from "@/lib/bitcoin/descriptor";
 import { auditWallet, type WalletAddressInfo } from "@/lib/analysis/wallet-audit";
-import { scanChain } from "@/lib/wallet/scan";
+import { scanChain, walletChains } from "@/lib/wallet/scan";
 import type { MempoolClient } from "@/lib/api/mempool";
 import { createClient } from "../util/api";
 import type { GlobalOpts } from "../index";
@@ -54,7 +54,8 @@ export async function scanXpub(
 }
 
 /**
- * Scan both chains (external = 0, internal = 1) with the web wallet scan
+ * Scan the wallet's chains (external = 0, internal = 1, or only the one a
+ * descriptor fixes) with the web wallet scan
  * (scanChain): a failed address fetch is retried, then reported in `failed`
  * and never counted as unused. Shared by the scan xpub command and MCP scan_wallet.
  * Rejects with an AbortError once `signal` aborts.
@@ -72,7 +73,7 @@ export async function scanWalletAddresses(
   const addresses: WalletAddressInfo[] = [];
   const failed: string[] = [];
 
-  for (const chain of [0, 1] as const) {
+  for (const chain of walletChains(parsed)) {
     signal.throwIfAborted();
     const chainLabel = chain === 0 ? "external" : "internal";
     const res = await scanChain(parsed, chain, client, signal, isLocal, gapLimit, (info) =>

@@ -41,7 +41,7 @@ void i18n.init({
   lng: "en",
   fallbackLng: "en",
   initAsync: false,
-  resources: { en: { translation: locale("en") }, es: { translation: locale("es") } },
+  resources: { en: { translation: locale("en") }, es: { translation: locale("es") }, pl: { translation: locale("pl") } },
   interpolation: { escapeValue: false },
 });
 
@@ -267,6 +267,25 @@ describe("finding locale text keeps the heuristic's information", () => {
       expect(render(findings[0], "es").title).toBe("1 salida de polvo detectada (< 1000 sats)");
       applyCoinJoinSuppressions(findings, false);
       expect(render(findings[0], "es").title).toContain("CoinJoin");
+    });
+
+    it("dust-outputs title stays Polish for 2-4 and 5+ dust outputs (pl _few/_many)", () => {
+      for (const n of [3, 5]) {
+        // More regular outputs than dust, so this is not a batch dust attack
+        const vout = [...Array.from({ length: n }, () => makeVout({ value: 700 })), ...Array.from({ length: n + 1 }, () => makeVout({ value: 20_000 }))];
+        const tx = makeTx({ vin: [addrVin("bc1qdustsender", 200_000)], vout });
+        const f = analyzeDustOutputs(tx).findings.find((x) => x.id === "dust-outputs");
+        expect(render(f, "pl").title).toMatch(/^Wykryto \d+ wyj/);
+      }
+    });
+
+    it("h9-dust-detected title is translated (plural keys get a count)", async () => {
+      const address = makeAddress({ address: "bc1qdusty" });
+      const utxo = (value: number, i: number) => ({ txid: String(i).repeat(64), vout: 0, value, status: { confirmed: true } });
+      for (const [n, lng, expected] of [[1, "es", /^1 salida sospechosa/], [3, "es", /^3 salidas sospechosas/], [3, "pl", /^Wykryto 3 podejrzane/], [5, "pl", /^Wykryto 5 podejrzanych/]] as const) {
+        const result = await analyzeAddress(address, Array.from({ length: n }, (_, i) => utxo(500, i)), []);
+        expect(render(result.findings.find((x) => x.id === "h9-dust-detected"), lng).title).toMatch(expected);
+      }
     });
 
     it("h5-entropy on a Stonewall has Stonewall text in every field", () => {

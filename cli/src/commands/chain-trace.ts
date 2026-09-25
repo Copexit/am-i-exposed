@@ -4,6 +4,7 @@ import { analyzeBackwardTaint } from "@/lib/analysis/chain/taint";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
 import type { Finding } from "@/lib/types";
 import { DEFAULT_ANALYSIS_SETTINGS } from "@/lib/analysis/settings";
+import { buildTraceBarrier } from "@/lib/analysis/chain-trace";
 import { createClient } from "../util/api";
 import type { GlobalOpts } from "../index";
 import {
@@ -36,6 +37,10 @@ export async function chainTrace(
   startSpinner("Fetching transaction...");
   const tx = await client.getTransaction(txid);
 
+  // Same barrier as the web trace: stop at known entities (and CoinJoins /
+  // large clusters when those settings are on)
+  const barrier = buildTraceBarrier(DEFAULT_ANALYSIS_SETTINGS);
+
   const doBackward = direction === "both" || direction === "backward";
   const doForward = direction === "both" || direction === "forward";
 
@@ -56,6 +61,8 @@ export async function chainTrace(
           `Tracing backward: depth ${p.currentDepth}/${p.maxDepth} (${p.txsFetched} txs fetched)`,
         );
       },
+      undefined,
+      barrier,
     );
   }
 
@@ -72,6 +79,9 @@ export async function chainTrace(
           `Tracing forward: depth ${p.currentDepth}/${p.maxDepth} (${p.txsFetched} txs fetched)`,
         );
       },
+      undefined,
+      undefined,
+      barrier,
     );
   }
 

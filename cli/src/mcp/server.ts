@@ -114,12 +114,13 @@ export function createMcpServer(): McpServer {
     "Analyze an unsigned Bitcoin transaction (PSBT) BEFORE broadcasting. Requires zero network access. The key tool for checking transaction privacy before sending.",
     {
       psbt: z.string().describe("PSBT data as base64 or hex string"),
+      network: network.describe("Bitcoin network, used to encode the PSBT's addresses"),
     },
-    async ({ psbt }) => {
+    async ({ psbt, network }) => {
       if (!isPSBT(psbt)) {
         throw new Error("Invalid PSBT format");
       }
-      const parsed = parsePSBT(psbt);
+      const parsed = parsePSBT(psbt, network);
       const result = await analyzeTransaction(parsed.tx);
 
       return textResult({

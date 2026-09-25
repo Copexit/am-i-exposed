@@ -38,7 +38,8 @@ describe("locale parity", () => {
       if (lang === "en") continue;
       const other = new Set(Object.keys(readLocale(lang)));
       const missing = [...en].filter((k) => !other.has(k));
-      const orphan = [...other].filter((k) => !en.has(k));
+      // Plural forms English lacks (pl _few/_many) are fine when English has the _other form
+      const orphan = [...other].filter((k) => !en.has(k) && !en.has(k.replace(/_(zero|two|few|many)$/, "_other")));
       expect(missing, `${lang} is missing ${missing.length} keys (sample: ${missing.slice(0, 5).join(", ")})`).toEqual([]);
       expect(orphan, `${lang} has ${orphan.length} orphaned keys (sample: ${orphan.slice(0, 5).join(", ")})`).toEqual([]);
     }

@@ -64,6 +64,18 @@ describe("useTorDetection", () => {
     expect(result.current).toBe("tor");
   });
 
+  it("goes back to 'checking' (not 'clearnet') while probing after skip turns off", async () => {
+    mockFetch({ "tor-check": { delay: 3000, body: { isTor: true } } });
+    const { useTorDetection } = await import("../useTorDetection");
+    const { result, rerender } = renderHook(({ skip }) => useTorDetection(skip), { initialProps: { skip: true } });
+    expect(result.current).toBe("clearnet");
+    rerender({ skip: false });
+    await flush(100);
+    expect(result.current).toBe("checking");
+    await flush(5000);
+    expect(result.current).toBe("tor");
+  });
+
   it("does not probe while deferred", async () => {
     const fetchFn = mockFetch({ "tor-check": { delay: 10, body: { isTor: false } } });
     const { useTorDetection } = await import("../useTorDetection");

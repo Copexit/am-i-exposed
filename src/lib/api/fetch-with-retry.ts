@@ -4,6 +4,8 @@ export class ApiError extends Error {
   constructor(
     public code: "NOT_FOUND" | "RATE_LIMITED" | "API_UNAVAILABLE" | "NETWORK_ERROR" | "INVALID_INPUT",
     message?: string,
+    /** HTTP status when the backend answered with an error response. */
+    public status?: number,
   ) {
     super(message ?? code);
     this.name = "ApiError";
@@ -66,7 +68,7 @@ export async function fetchWithRetry(
         continue;
       }
 
-      throw new ApiError("API_UNAVAILABLE", `HTTP ${response.status}`);
+      throw new ApiError("API_UNAVAILABLE", `HTTP ${response.status}`, response.status);
     } catch (error) {
       if (error instanceof ApiError) throw error;
       if (options?.signal?.aborted) throw error;

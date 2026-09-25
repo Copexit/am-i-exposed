@@ -35,7 +35,7 @@ export const ANALYSIS_INCOMPLETE_FINDING: Finding = {
   confidence: "high",
   title: "Some optional data could not be fetched",
   description:
-    "One or more optional lookups (raw transaction, historical prices, output spends, " +
+    "One or more optional lookups (historical prices, output spends, " +
     "parent/child transactions or output address history) failed, usually because of rate " +
     "limiting or a timeout. Heuristics that depend on that data were skipped, so the result may be incomplete.",
   recommendation: "Scan again in a moment for a complete analysis.",
@@ -96,10 +96,8 @@ export async function runTxidAnalysis(
   const price = <T>(p: Promise<T>): Promise<T | null> =>
     isCustomApi ? p.catch(() => null) : optional(p);
 
-  const [tx, rawHex] = await Promise.all([
-    api.getTransaction(txid),
-    optional(api.getTxHex(txid)),
-  ]);
+  // Raw hex is not fetched: no heuristic reads it (low-R uses vin witness/scriptsig)
+  const tx = await api.getTransaction(txid);
 
   // Enrich missing prevout data for self-hosted mempool backends
   if (needsEnrichment([tx])) {
@@ -223,7 +221,7 @@ export async function runTxidAnalysis(
   };
   // Raw findings: every stage below appends to this list, then one
   // finalizeTxResult scores everything together (chain findings count).
-  const findings = await runTxHeuristicSteps(tx, rawHex ?? undefined, onStep, ctx);
+  const findings = await runTxHeuristicSteps(tx, undefined, onStep, ctx);
   if (controller.signal.aborted) {
     throw new DOMException("Aborted", "AbortError");
   }

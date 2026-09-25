@@ -159,6 +159,26 @@ describe("GraphPage", () => {
     expect(h.setRoot.mock.calls.map(([tx]) => (tx as { txid: string }).txid)).toEqual([TX_B]);
   });
 
+  it("a txid load that cancels a saved-graph load does not show that load's progress", async () => {
+    setNet();
+    await renderPage();
+    h.loadSavedGraph.mockImplementation((_s: unknown, _c: unknown, onProgress: (l: number, t: number) => void) => {
+      onProgress(3, 20);
+      return new Promise(() => {});
+    });
+    const saved = { id: "g", name: "", savedAt: 0, network: "mainnet", nodes: [], rootTxid: TX_A } as unknown as SavedGraph;
+    act(() => {
+      void explorerProp("onLoadSavedGraph")(saved as never);
+    });
+    expect(screen.queryByText(/3\/20/)).not.toBeNull();
+    h.delays = { [TX_B]: 500 };
+    act(() => {
+      explorerProp("onSearch")(TX_B as never);
+    });
+    await flush(100);
+    expect(screen.queryByText(/3\/20/)).toBeNull();
+  });
+
   it("loads a saved graph from another network with that network's client", async () => {
     setNet();
     vi.spyOn(window, "confirm").mockReturnValue(true);

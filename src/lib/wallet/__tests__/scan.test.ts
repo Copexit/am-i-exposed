@@ -85,6 +85,37 @@ describe("scanChain", () => {
     expect(calls).toBe(3);
   });
 
+  it("keeps an address whose UTXO list the backend refuses (>500 UTXOs), with no UTXOs", async () => {
+    let utxoCalls = 0;
+    const api = {
+      getAddress: async (a: string) => addressData(a, a === "addr0" ? 1 : 0),
+      getAddressUtxos: async () => { utxoCalls++; throw new ApiError("API_UNAVAILABLE", "HTTP 400", 400); },
+      getAddressTxs: async (a: string) => (a === "addr0" ? [{ txid: "tx0" } as MempoolTransaction] : []),
+    } as unknown as MempoolClient;
+    const p = scanChain(parsed, 0, api, new AbortController().signal, true, 1, () => {});
+    await vi.runAllTimersAsync();
+    const { infos, failed } = await p;
+
+    expect(failed).toEqual([]);
+    expect(infos[0]?.txs).toHaveLength(1);
+    expect(infos[0]?.utxos).toEqual([]);
+    // A 4xx refusal is final: no scan-level retries
+    expect(utxoCalls).toBe(infos.length);
+  });
+
+  it("treats a rate-limited UTXO fetch (429) as a failure, not as an empty UTXO set", async () => {
+    const api = {
+      getAddress: async (a: string) => addressData(a, a === "addr0" ? 1 : 0),
+      getAddressUtxos: async () => { throw new ApiError("RATE_LIMITED", "HTTP 429", 429); },
+      getAddressTxs: async (a: string) => (a === "addr0" ? [{ txid: "tx0" } as MempoolTransaction] : []),
+    } as unknown as MempoolClient;
+    const p = settle(scanChain(parsed, 0, api, new AbortController().signal, true, 1, () => {}));
+    await vi.runAllTimersAsync();
+    const r = await p;
+
+    expect(r.ok && r.value.infos.some((i) => i.utxos.length === 0 && i.txs.length > 0)).toBe(false);
+  });
+
   it("aborts the scan with the API error when the backend keeps failing", async () => {
     const api = fakeApi(new Set(), () => true);
     const p = settle(scanChain(parsed, 0, api, new AbortController().signal, true, 5, () => {}));

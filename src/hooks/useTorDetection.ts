@@ -153,10 +153,9 @@ async function checkTor(signal: AbortSignal): Promise<TorStatus> {
  *   "checking" and fire nothing until the caller knows whether to skip.
  */
 export function useTorDetection(skip?: boolean, defer?: boolean): TorStatus {
-  const [status, setStatus] = useState<TorStatus>(() => {
-    if (skip) return "clearnet";
-    return cachedStatus ?? "checking";
-  });
+  // Not "clearnet" when skipped: the return masks skip, and if skip later turns
+  // off (custom API cleared) the probe must start from "checking".
+  const [status, setStatus] = useState<TorStatus>(() => cachedStatus ?? "checking");
 
   useEffect(() => {
     if (skip || defer || cachedStatus) return;

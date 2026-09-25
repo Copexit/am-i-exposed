@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useRef, useState, lazy, Suspense, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
+import { Loader2 } from "lucide-react";
 import { DiagnosticLoader } from "@/components/DiagnosticLoader";
 import { ResultsPanel } from "@/components/ResultsPanel";
 import { InstallPrompt } from "@/components/InstallPrompt";
@@ -211,6 +212,21 @@ export default function Home() {
             onExportBookmarks={exportBookmarks}
             onImportBookmarks={importBookmarks}
           />
+        )}
+
+        {/* Deep link waiting for backend detection (local API / Tor probe, up to ~10s) */}
+        {phase === "idle" && pendingHash && !walletActive && (
+          <motion.div
+            key="pending-hash"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            data-testid="pending-hash-loader"
+            className="flex items-center gap-2 text-sm text-muted"
+          >
+            <Loader2 size={16} className="animate-spin text-bitcoin" aria-hidden="true" />
+            {t("common.loading", { defaultValue: "Loading..." })}
+          </motion.div>
         )}
 
         {(phase === "fetching" || phase === "analyzing") && (

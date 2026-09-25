@@ -4,8 +4,8 @@ import { DEFAULT_ANALYSIS_SETTINGS } from "@/lib/analysis/settings";
 import type { TxContext } from "@/lib/analysis/heuristics/types";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
-import { traceBackward, traceForward } from "@/lib/analysis/chain/recursive-trace";
-import { runChainAnalysis as runSharedChainAnalysis } from "@/lib/analysis/chain-trace";
+import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
+import { runChainTrace, runChainAnalysis as runSharedChainAnalysis } from "@/lib/analysis/chain-trace";
 import { createClient } from "../util/api";
 import type { GlobalOpts } from "../index";
 import { setJsonMode, startSpinner, updateSpinner, succeedSpinner } from "../util/progress";
@@ -53,13 +53,8 @@ export async function analyzeTxid(
     onProgress = () => {},
   }: { fast?: boolean; chainDepth?: number; minSats?: number; onProgress?: (msg: string) => void },
 ) {
+  // Raw hex is not fetched: no heuristic reads it (same as the web pipeline)
   const tx = await client.getTransaction(txid);
-  let rawHex: string | undefined;
-  try {
-    rawHex = await client.getTxHex(txid);
-  } catch {
-    // Raw hex is optional - some endpoints don't support it
-  }
 
   // Build TxContext (parent txs, output tx counts) - skip with --fast
   let ctx: TxContext = {};
@@ -69,7 +64,7 @@ export async function analyzeTxid(
   }
 
   onProgress("Running heuristic analysis...");
-  const findings = runTxHeuristics(tx, rawHex, ctx);
+  const findings = runTxHeuristics(tx, undefined, ctx);
 
   // Chain analysis (optional) - its findings count toward the grade.
   // Without --chain-depth no chain module runs, while the web scan always runs
@@ -166,27 +161,41 @@ async function runChainAnalysis(
   parentTx: MempoolTransaction | null,
 ): Promise<{ backward: unknown; forward: unknown; findings: Finding[] }> {
   const outspends = await client.getTxOutspends(tx.txid).catch(() => null);
-  const backwardResult = await traceBackward(tx, depth, minSats, client);
-  const forwardResult = await traceForward(tx, depth, minSats, client, undefined, undefined, undefined, outspends ?? undefined);
+  // The web trace (entity/CoinJoin barrier, per-phase timeout). ponytail: a CLI
+  // user waits on purpose, so the timeout is the settings maximum (600s).
+  const trace = await runChainTrace({
+    tx,
+    settings: { ...DEFAULT_ANALYSIS_SETTINGS, maxDepth: depth, minSats, timeout: 600 },
+    api: client,
+    controller: new AbortController(),
+    onProgress: () => {},
+    parentTx,
+    childTx: null,
+    outspends,
+  });
 
   const findings: Finding[] = [];
   // Shared with the web pipeline; it only appends to result.findings
   await runSharedChainAnalysis({
     tx,
     result: { findings },
-    backwardLayers: backwardResult.layers,
-    forwardLayers: forwardResult.layers,
+    backwardLayers: trace.backwardLayers,
+    forwardLayers: trace.forwardLayers,
     parentTx,
     childTx: null,
     outspends,
     onStep: () => {},
   });
 
-  const summarize = (r: typeof backwardResult) => ({
+  const summarize = (layers: TraceLayer[], failed: boolean) => ({
     depth,
-    txsFetched: r.fetchCount,
-    aborted: r.aborted,
-    layers: r.layers.map((l) => ({ depth: l.depth, txCount: l.txs.size })),
+    txsFetched: layers.reduce((n, l) => n + l.txs.size, 0),
+    aborted: failed,
+    layers: layers.map((l) => ({ depth: l.depth, txCount: l.txs.size })),
   });
-  return { backward: summarize(backwardResult), forward: summarize(forwardResult), findings };
+  return {
+    backward: summarize(trace.backwardLayers, trace.backwardFailed),
+    forward: summarize(trace.forwardLayers, trace.forwardFailed),
+    findings,
+  };
 }

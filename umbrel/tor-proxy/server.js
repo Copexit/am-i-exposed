@@ -53,7 +53,7 @@ function fetchViaAgent(url, { method = "GET", body, contentType } = {}) {
           if (res.statusCode >= 200 && res.statusCode < 300) {
             resolve(out);
           } else {
-            reject(new Error(`Upstream ${res.statusCode}: ${out.slice(0, 200)}`));
+            reject(Object.assign(new Error(`Upstream ${res.statusCode}: ${out.slice(0, 200)}`), { status: res.statusCode }));
           }
         });
       },

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "fs";
 import { parsePSBT, isPSBT } from "@/lib/bitcoin/psbt";
+import { isValidNetwork } from "@/lib/bitcoin/networks";
 import { analyzeTransaction } from "@/lib/analysis/orchestrator";
 import type { GlobalOpts } from "../index";
 import { setJsonMode, startSpinner, succeedSpinner } from "../util/progress";
@@ -28,7 +29,9 @@ export async function scanPsbt(
   }
 
   startSpinner("Parsing PSBT...");
-  const parsed = parsePSBT(psbtData);
+  // Encode addresses for the selected network, like the web
+  const network = opts.network ?? "mainnet";
+  const parsed = parsePSBT(psbtData, isValidNetwork(network) ? network : undefined);
 
   // Analyze the parsed transaction
   const result = await analyzeTransaction(parsed.tx);
@@ -45,10 +48,9 @@ export async function scanPsbt(
 
   // Output
   if (isJson) {
-    psbtJson(input, result, psbtInfo);
+    psbtJson(input, result, psbtInfo, network);
   } else {
     // Reuse tx formatter with a synthetic "PSBT" label
-    const network = opts.network ?? "mainnet";
     console.log(formatTxResult("(PSBT - unsigned)", result, parsed.tx, network));
   }
 }

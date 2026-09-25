@@ -108,6 +108,14 @@ describe("runTxidAnalysis", () => {
     expect(f!.scoreImpact).toBe(0);
   });
 
+  it("does not fetch the raw tx hex (no heuristic reads it), so a hex failure cannot mark the result partial", async () => {
+    const tx = makeTestTx();
+    const getTxHex = vi.fn(async () => { throw new ApiError("RATE_LIMITED"); });
+    const { result } = await runTxidAnalysis(tx.txid, deps(makeApi(tx, { getTxHex })));
+    expect(getTxHex).not.toHaveBeenCalled();
+    expect(result.partial).toBeFalsy();
+  });
+
   it("marks the result partial when a historical price fetch is rate limited", async () => {
     const tx = makeTestTx();
     const { result } = await runTxidAnalysis(tx.txid, deps(makeApi(tx, {

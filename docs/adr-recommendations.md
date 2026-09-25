@@ -26,7 +26,7 @@ The results page renders 8 recommendation panels (Remediation, MaintenanceGuide,
 - Recovery Playbook
 - Maintaining Privacy
 
-**Bridge.** Finding cards link to relevant guide sections via `FINDING_TO_PATHWAYS` mapping.
+**Bridge.** The `/guide` page is reached from the site navigation. There is no per-finding deep-link mapping (the former `FINDING_TO_PATHWAYS` / `pathway-matcher.ts` were removed).
 
 ### Recommendation Engine: Deterministic Cascade
 
@@ -132,6 +132,5 @@ These principles were validated by a Bitcoin privacy specialist and must be pres
 | `src/lib/recommendations/primary-recommendation.ts` | Cascade engine |
 | `src/components/PrimaryRecommendation.tsx` | Hero card UI |
 | `src/components/ResultsPanel.tsx` | Zone 7 integration |
-| `src/lib/recommendations/pathway-matcher.ts` | Finding-to-guide deep links |
 | `src/data/guide/*.ts` | Shared educational data |
 | `src/app/guide/page.tsx` | Standalone guide page |

@@ -158,11 +158,12 @@ export function psbtJson(
   input: string,
   result: ScoringResult,
   psbtInfo: Record<string, unknown>,
+  network = "mainnet",
 ): void {
   jsonOutput({
     version: VERSION,
     input: { type: "psbt", value: input.length > 80 ? input.slice(0, 77) + "..." : input },
-    network: "mainnet",
+    network,
     score: result.score,
     grade: result.grade,
     txType: result.txType,

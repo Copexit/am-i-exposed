@@ -9,6 +9,7 @@ import { InputRow, OutputRow } from "./OutputRow";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import { isOpReturnOutput } from "@/lib/analysis/heuristics/tx-utils";
+import { graphBoltzmannMode } from "@/hooks/useGraphBoltzmann";
 
 export interface IOTabProps {
   tx: MempoolTransaction;
@@ -89,7 +90,10 @@ export function IOTab({
   }, [tx, outspends]);
 
   const nonCoinbaseInputCount = tx.vin.filter((v) => !v.is_coinbase).length;
-  const canComputeBoltzmann = !boltzmannResult && !computingBoltzmann && nonCoinbaseInputCount >= 2;
+  // Same rule as the graph's compute (80 I/O cap; 1-input txs get a synthetic matrix)
+  const boltzmannMode = graphBoltzmannMode(tx);
+  const canComputeBoltzmann = !boltzmannResult && !computingBoltzmann &&
+    (boltzmannMode === "auto-compute" || boltzmannMode === "manual-button");
 
   return (
     <div className="p-2 space-y-3">

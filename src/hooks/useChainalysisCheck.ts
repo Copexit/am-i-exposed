@@ -6,6 +6,7 @@ import {
   checkChainalysis,
   checkChainalysisViaTor,
   checkChainalysisDirect,
+  ChainalysisRateLimitError,
   type ChainalysisRoute,
 } from "@/lib/analysis/cex-risk/chainalysis-check";
 import type { ChainalysisCheckResult } from "@/lib/analysis/cex-risk/types";
@@ -48,6 +49,11 @@ export function useChainalysisCheck(
     };
   }, []);
 
+  const rateLimitedError = useCallback(
+    () => t("cex.errorRateLimited", { defaultValue: "Too many sanctions checks from this network right now (the limit is shared on Tor). Wait a minute and try again." }),
+    [t],
+  );
+
   const runChainalysis = useCallback(async () => {
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -79,6 +85,7 @@ export function useChainalysisCheck(
             torErr.name === "AbortError"
           )
             return;
+          if (torErr instanceof ChainalysisRateLimitError) throw torErr;
           // Tor proxy failed on Umbrel - show sidecar-specific error
           // (direct fallback would fail due to CORS on local origins)
           setChainalysis((prev) => ({
@@ -106,10 +113,12 @@ export function useChainalysisCheck(
       setChainalysis((prev) => ({
         ...prev,
         status: "error",
-        error: t("cex.requestFailed", { defaultValue: "Request failed. Check your internet connection and try again." }),
+        error: err instanceof ChainalysisRateLimitError
+          ? rateLimitedError()
+          : t("cex.requestFailed", { defaultValue: "Request failed. Check your internet connection and try again." }),
       }));
     }
-  }, [addresses, isUmbrel, t]);
+  }, [addresses, isUmbrel, t, rateLimitedError]);
 
   const runChainalysisDirect = useCallback(async () => {
     abortRef.current?.abort();
@@ -136,10 +145,12 @@ export function useChainalysisCheck(
       setChainalysis((prev) => ({
         ...prev,
         status: "error",
-        error: t("cex.errorDirectFallback", { defaultValue: "Both Tor and direct connections failed. Try restarting the app or check your internet connection." }),
+        error: err instanceof ChainalysisRateLimitError
+          ? rateLimitedError()
+          : t("cex.errorDirectFallback", { defaultValue: "Both Tor and direct connections failed. Try restarting the app or check your internet connection." }),
       }));
     }
-  }, [addresses, t]);
+  }, [addresses, t, rateLimitedError]);
 
   return {
     chainalysis,

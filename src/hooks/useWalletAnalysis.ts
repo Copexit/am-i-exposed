@@ -13,6 +13,7 @@ import {
 import { auditWallet, type WalletAuditResult, type WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import {
   scanChain,
+  walletChains,
   collectWalletTxs,
   traceWalletTxs,
   UTXO_TRACE_DEPTH,
@@ -128,12 +129,7 @@ export function useWalletAnalysis() {
         };
 
         // Scan receive chain (0) then change chain (1)
-        const chains: (0 | 1)[] =
-          parsed.singleChain !== undefined
-            ? [parsed.singleChain as 0 | 1]
-            : [0, 1];
-
-        for (const chain of chains) {
+        for (const chain of walletChains(parsed)) {
           if (controller.signal.aborted) return;
           const { failed } = await scanChain(parsed, chain, api, controller.signal, localApi, walletGapLimit, onProgress);
           failedAddresses.push(...failed);
