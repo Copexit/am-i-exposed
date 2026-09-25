@@ -24,6 +24,25 @@ const handler = {
 
     const address = match[1];
 
+    // Per-IP quota (RATE_LIMITER binding in wrangler.toml) so the shared API
+    // key cannot be exhausted by a single caller. CORS does not stop curl.
+    // Fail closed if the binding is missing (stale deploy or local run
+    // without wrangler.toml): never hit the upstream unmetered.
+    if (!env.RATE_LIMITER) {
+      return new Response(JSON.stringify({ error: "Rate limiter not configured" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json", ...corsHeaders(env) },
+      });
+    }
+    const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+    const { success } = await env.RATE_LIMITER.limit({ key: ip });
+    if (!success) {
+      return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
+        status: 429,
+        headers: { "Content-Type": "application/json", "Retry-After": "60", ...corsHeaders(env) },
+      });
+    }
+
     try {
       const res = await fetch(`${CHAINALYSIS_BASE}/${address}`, {
         headers: {
