@@ -139,6 +139,7 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
   // setState here is an intentional derived-state reset; the effect is the correct
   // place because the ref must also be cleared alongside React state.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- derived-state reset on root change
     setExpandedNodeTxid(null);
     outspendCacheRef.current.clear();
   }, [state.rootTxid]);
@@ -197,6 +198,7 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
           (v) => v.txid === txid && v.vout === outputIndex,
         );
         if (matchesOutput) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect -- consume pending port expand once child node arrives
           setExpandedNodeTxid(childTxid);
           setPendingPortExpand(null);
           fetchAndCacheOutspends(childTxid);

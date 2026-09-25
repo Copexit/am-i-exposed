@@ -62,6 +62,7 @@ export function useGraphBoltzmann({
   useEffect(() => {
     if (rootBoltzmannResult && rootTxid) {
       boltzmannCacheRef.current.set(rootTxid, rootBoltzmannResult);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- bump version after seeding cache
       setBoltzmannVersion((v) => v + 1);
     }
   }, [rootBoltzmannResult, rootTxid]);
@@ -130,6 +131,7 @@ export function useGraphBoltzmann({
         anyNew = true;
       }
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- bump version after synchronous cache fill
     if (anyNew) setBoltzmannVersion((v) => v + 1);
 
     // Second pass (debounced): async compute for auto-computable multi-input txs
@@ -187,6 +189,7 @@ export function useGraphBoltzmann({
   // Snapshot the cache as a new Map whenever the version bumps, so consumers
   // get a render-safe value without accessing the ref during render.
   const boltzmannCache = useMemo(
+    // eslint-disable-next-line react-hooks/refs -- snapshot keyed on version counter
     () => new Map(boltzmannCacheRef.current),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [boltzmannVersion],
@@ -194,6 +197,7 @@ export function useGraphBoltzmann({
 
   // Render-safe snapshot of the computing set (re-created when computing version changes).
   const computingBoltzmann = useMemo(
+    // eslint-disable-next-line react-hooks/refs -- snapshot keyed on version counter
     () => new Set(computingBoltzmannRef.current),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [_computingBoltzmannVersion],

@@ -41,6 +41,7 @@ export function usePanZoom({
   const panRef = useRef({ active: false, mode: "transform" as "transform" | "scroll", startX: 0, startY: 0, vtX: 0, vtY: 0, scale: 1, scrollLeft: 0, scrollTop: 0 });
   const pinchRef = useRef({ active: false, startDist: 0, startScale: 1, midX: 0, midY: 0 });
   const viewTransformRef = useRef(viewTransform);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref for stable event handlers
   viewTransformRef.current = viewTransform;
   const [isPanning, setIsPanning] = useState(false);
 
