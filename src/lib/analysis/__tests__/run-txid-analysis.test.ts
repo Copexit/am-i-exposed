@@ -7,7 +7,7 @@ import type { Finding } from "@/lib/types";
 import type { ApiClient } from "@/lib/api/client";
 import type { MempoolTransaction } from "@/lib/api/types";
 
-const chainFindings = vi.hoisted(() => ({ list: [] as Finding[], real: false }));
+const chainFindings = vi.hoisted(() => ({ list: [] as Finding[], real: false, backwardFailed: false }));
 
 vi.mock("@/lib/analysis/chain-trace", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/analysis/chain-trace")>();
@@ -15,7 +15,7 @@ vi.mock("@/lib/analysis/chain-trace", async (importOriginal) => {
     runChainTrace: async () => ({
       backwardLayers: [],
       forwardLayers: [],
-      backwardFailed: false,
+      backwardFailed: chainFindings.backwardFailed,
       forwardFailed: false,
     }),
     runChainAnalysis: async (p: Parameters<typeof actual.runChainAnalysis>[0]) => {
@@ -35,6 +35,7 @@ beforeEach(() => {
   resetAddrCounter();
   chainFindings.list = [];
   chainFindings.real = false;
+  chainFindings.backwardFailed = false;
 });
 
 function makeApi(tx: MempoolTransaction, overrides: Partial<Record<keyof ApiClient, unknown>> = {}): ApiClient {
@@ -107,6 +108,23 @@ describe("runTxidAnalysis", () => {
     expect(f!.scoreImpact).toBe(0);
   });
 
+  it("marks the result partial when a historical price fetch is rate limited", async () => {
+    const tx = makeTestTx();
+    const { result } = await runTxidAnalysis(tx.txid, deps(makeApi(tx, {
+      getHistoricalPrice: async () => { throw new ApiError("RATE_LIMITED"); },
+    })));
+    expect(result.partial).toBe(true);
+  });
+
+  it("reports a failed chain trace once (chain-trace-partial, no second 'incomplete' finding)", async () => {
+    chainFindings.backwardFailed = true;
+    const tx = makeTestTx();
+    const { result } = await runTxidAnalysis(tx.txid, deps(makeApi(tx)));
+    expect(result.partial).toBe(true);
+    expect(result.findings.some((x) => x.id === "chain-trace-partial")).toBe(true);
+    expect(result.findings.some((x) => x.id === "analysis-incomplete")).toBe(false);
+  });
+
   it("does not mark the result partial for NOT_FOUND (e.g. raw hex unavailable)", async () => {
     const tx = makeTestTx();
     const { result } = await runTxidAnalysis(tx.txid, deps(makeApi(tx)));
@@ -114,21 +132,35 @@ describe("runTxidAnalysis", () => {
     expect(result.findings.some((x) => x.id === "analysis-incomplete")).toBe(false);
   });
 
-  // linkability.ts reports max ambiguity when nIn < nOut (no valid assignment)
-  // and a trivial "deterministic" link when nOut == 1, so its findings stay
-  // display-only until that model is fixed.
+  // Zero-entropy txs (1 input or 1 output) have only trivial links: H5 scores them.
   it.each([
     ["1-in/2-out payment", () => makeTx()],
     ["3-in/1-out consolidation", () => makeTx({
       vin: [makeVin(), makeVin({ txid: "c".repeat(64) }), makeVin({ txid: "d".repeat(64) })],
       vout: [makeVout({ value: 298_000 })],
     })],
-  ])("keeps linkability findings out of the score (%s, real runChainAnalysis)", async (_name, build) => {
+  ])("emits no linkability finding for a trivial tx (%s, real runChainAnalysis)", async (_name, build) => {
     chainFindings.real = true;
     const tx = build();
     const { result } = await runTxidAnalysis(tx.txid, deps(makeApi(tx)));
-    const link = result.findings.filter((f) => f.id.startsWith("linkability-"));
-    expect(link.length).toBeGreaterThan(0);
-    for (const f of link) expect(f.scoreImpact).toBe(0);
+    expect(result.findings.filter((f) => f.id.startsWith("linkability-"))).toEqual([]);
+  });
+
+  it("counts deterministic links in the score (2-in/2-out, real runChainAnalysis)", async () => {
+    chainFindings.real = true;
+    const withValue = (txid: string, value: number) => {
+      const v = makeVin({ txid });
+      return { ...v, prevout: { ...v.prevout!, value } };
+    };
+    // 100k -> 90k and 50k -> 40k is the only split besides the merged reading
+    const tx = makeTx({
+      vin: [withValue("c".repeat(64), 100_000), withValue("d".repeat(64), 50_000)],
+      vout: [makeVout({ value: 90_000 }), makeVout({ value: 40_000 })],
+      fee: 20_000,
+    });
+    const { result } = await runTxidAnalysis(tx.txid, deps(makeApi(tx)));
+    const f = result.findings.find((x) => x.id === "linkability-deterministic");
+    expect(f?.scoreImpact).toBe(-6);
+    expect(result.score).toBe(Math.max(0, Math.min(100, 70 + sumImpact(result.findings))));
   });
 });

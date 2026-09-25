@@ -86,14 +86,6 @@ export function applyCrossHeuristicRules(findings: Finding[]): void {
     (f) => (f.id === "h4-stonewall" || f.id === "h4-simplified-stonewall") && f.scoreImpact > 0,
   );
 
-  // 0. Linkability findings are display-only. ponytail: chain/linkability.ts
-  // reports max ambiguity (+2) when nIn < nOut (no valid assignment) and a
-  // trivial "deterministic" link (up to -9) when nOut == 1; score them once
-  // that model is fixed.
-  for (const f of findings) {
-    if (f.id.startsWith("linkability-")) f.scoreImpact = 0;
-  }
-
   // 1. CoinJoin/Stonewall suppression
   if (isCoinJoin) {
     applyCoinJoinSuppressions(findings, isStonewall);

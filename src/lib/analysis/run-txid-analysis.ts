@@ -51,7 +51,7 @@ export interface TxidAnalysisDeps {
   analysisSettingsForCache: AnalysisSettings;
   /** Step-update callback for diagnostic loader progress. */
   onStep: (stepId: string, impact?: number) => void;
-  /** React setState - needed by runChainTrace for progress updates. */
+  /** React setState - applies chain-trace progress and the final result. */
   setState: React.Dispatch<React.SetStateAction<AnalysisState>>;
 }
 
@@ -174,8 +174,7 @@ export async function runTxidAnalysis(
     settings: analysisSettings,
     api,
     controller,
-    setState,
-    onStep,
+    onProgress: (fetchProgress) => setState((prev) => ({ ...prev, fetchProgress })),
     parentTx,
     childTx,
     outspends,
@@ -228,12 +227,10 @@ export async function runTxidAnalysis(
   // --- Ricochet hop chain enrichment ---
   await enrichRicochetFinding(findings, api, tx, controller.signal);
 
-  // --- Chain analysis from trace layers ---
-  // runChainAnalysis only appends to result.findings; score/grade are placeholders
-  // until finalizeTxResult below.
+  // --- Chain analysis from trace layers (appends to findings) ---
   await runChainAnalysis({
     tx,
-    result: { score: 0, grade: "F", findings },
+    result: { findings },
     backwardLayers,
     forwardLayers,
     parentTx,
@@ -246,7 +243,6 @@ export async function runTxidAnalysis(
   if (backwardFailed || forwardFailed) {
     const direction = backwardFailed && forwardFailed ? "backward and forward"
       : backwardFailed ? "backward" : "forward";
-    partial = true;
     findings.push({
       id: "chain-trace-partial",
       severity: "low",
@@ -278,7 +274,8 @@ export async function runTxidAnalysis(
   if (partial) findings.push({ ...ANALYSIS_INCOMPLETE_FINDING });
 
   const result = finalizeTxResult(findings);
-  if (partial) result.partial = true;
+  // chain-trace-partial already tells the user; it only needs the flag
+  if (partial || backwardFailed || forwardFailed) result.partial = true;
 
   return {
     result,

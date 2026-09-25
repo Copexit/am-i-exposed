@@ -152,4 +152,25 @@ describe("createMempoolClient", () => {
       expect(result).toHaveLength(1);
     });
   });
+
+  describe("getHistoricalPrice", () => {
+    it("returns the price, and null when there is no price data yet", async () => {
+      const client = createMempoolClient(BASE);
+      mockFetch.mockResolvedValueOnce(jsonResponse({ prices: [{ USD: 67_500 }] }));
+      expect(await client.getHistoricalPrice(1_700_000_000)).toBe(67_500);
+      mockFetch.mockResolvedValueOnce(jsonResponse({ prices: [{ USD: 0 }] }));
+      expect(await client.getHistoricalPrice(1_230_000_000)).toBeNull();
+    });
+
+    it("maps NOT_FOUND to null", async () => {
+      mockFetch.mockResolvedValueOnce(new Response("", { status: 404 }));
+      expect(await createMempoolClient(BASE).getHistoricalEurPrice(1_700_000_000)).toBeNull();
+    });
+
+    it("propagates other errors so the caller can mark the result partial", async () => {
+      mockFetch.mockResolvedValueOnce(new Response("", { status: 400 }));
+      await expect(createMempoolClient(BASE).getHistoricalPrice(1_700_000_000))
+        .rejects.toMatchObject({ code: "API_UNAVAILABLE" });
+    });
+  });
 });

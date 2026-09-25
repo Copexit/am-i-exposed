@@ -33,8 +33,10 @@ async function getHistoricalCurrencyPrice(
     const price = data.prices?.[0]?.[currency];
     // API returns 0 for timestamps before price data existed
     return price && price > 0 ? price : null;
-  } catch {
-    return null;
+  } catch (err) {
+    // No price data for this timestamp; any other failure is the caller's to flag
+    if (err instanceof ApiError && err.code === "NOT_FOUND") return null;
+    throw err;
   }
 }
 
