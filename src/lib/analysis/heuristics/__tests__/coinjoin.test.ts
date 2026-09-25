@@ -593,4 +593,49 @@ describe("analyzeCoinJoin", () => {
   it("isCoinJoinFinding returns false for non-coinjoin findings", () => {
     expect(isCoinJoinFinding({ id: "h3-cioh", scoreImpact: -6, severity: "medium", title: "", description: "", recommendation: "" })).toBe(false);
   });
+
+  // ── Wasabi 1.x (#42) ────────────────────────────────────────────────
+
+  const outs = (value: number, n: number) => Array.from({ length: n }, () => makeVout({ value }));
+
+  it("detects Wasabi 1.x from near-2x mixing levels (shape of 9afb631d, 2020)", () => {
+    const tx = makeTx({
+      vin: makeDistinctVins(20),
+      vout: [
+        ...outs(9_564_600, 12),
+        ...outs(19_127_228, 3), // level 1: just under 2x base
+        ...outs(38_254_456, 2), // level 2: exactly 2x level 1
+        makeVout({ value: 4_321_000 }),
+        makeVout({ value: 1_234_567 }),
+      ],
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    expect(findings[0].id).toBe("h4-coinjoin");
+    expect(findings[0].params?.isWasabi1).toBe(1);
+    expect(findings[0].params?.levels).toBe(3);
+    expect(findings[0].params?.count).toBe(12);
+  });
+
+  it("detects Wasabi 1.x from the fixed coordinator address without levels", () => {
+    const tx = makeTx({
+      vin: makeDistinctVins(15),
+      vout: [
+        ...outs(9_981_451, 12),
+        makeVout({ value: 786_843, scriptpubkey_address: "bc1qs604c7jv6amk4cxqlnvuxv26hv3e48cds4m0ew" }),
+        makeVout({ value: 2_507_339 }),
+      ],
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    expect(findings[0].params?.isWasabi1).toBe(1);
+    expect(findings[0].params?.levels).toBe(1);
+  });
+
+  it("does not treat exact 2x standard denominations (WabiSabi) as Wasabi 1.x", () => {
+    const tx = makeTx({
+      vin: makeDistinctVins(20),
+      vout: [...outs(10_000_000, 12), ...outs(20_000_000, 3), ...outs(5_000_000, 3), makeVout({ value: 1_234_567 })],
+    });
+    const { findings } = analyzeCoinJoin(tx);
+    expect(findings.some((f) => f.params?.isWasabi1 === 1)).toBe(false);
+  });
 });

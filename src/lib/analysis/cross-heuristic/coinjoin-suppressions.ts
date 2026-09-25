@@ -66,8 +66,11 @@ export function applyCoinJoinSuppressions(findings: Finding[], isStonewall: bool
       const isWabiSabi = findings.some(
         (x) => x.id === "h4-coinjoin" && x.params?.isWabiSabi === 1,
       );
+      const isWasabi1 = findings.some(
+        (x) => x.id === "h4-coinjoin" && x.params?.isWasabi1 === 1,
+      );
       const isWhirlpool = findings.some((x) => x.id === "h4-whirlpool");
-      if (isWabiSabi) {
+      if (isWabiSabi || isWasabi1) {
         f.params = { ...f.params, walletGuess: "Wasabi Wallet" };
       } else if (isWhirlpool) {
         f.params = { ...f.params, walletGuess: "Ashigaru/Sparrow" };

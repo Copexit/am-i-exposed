@@ -3,6 +3,7 @@ import type { Finding } from "@/lib/types";
 import { getSpendableOutputs, countOutputValues } from "./tx-utils";
 import {
   detectWhirlpool,
+  detectWasabi1,
   detectEqualOutputs,
   detectJoinMarket,
   detectStonewall,
@@ -10,6 +11,7 @@ import {
 } from "./coinjoin-detectors";
 import {
   buildWhirlpoolFinding,
+  buildWasabi1Finding,
   buildWabiSabiMultiTierFinding,
   buildJoinMarketFinding,
   buildGenericCoinJoinFinding,
@@ -40,6 +42,15 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
   const whirlpool = detectWhirlpool(spendableOutputs.map((o) => o.value));
   if (whirlpool) {
     findings.push(buildWhirlpoolFinding(whirlpool.pool, tx.status?.block_time));
+    return { findings };
+  }
+
+  // Wasabi 1.x: base denomination + near-2x mixing levels (checked before
+  // WabiSabi, whose tier heuristic would otherwise also match these rounds)
+  const wasabi1 = detectWasabi1(spendableOutputs);
+  if (wasabi1) {
+    findings.push(buildWasabi1Finding(wasabi1, tx.vin.length, spendableOutputs.length));
+    findings.push(buildExchangeFlaggingFinding());
     return { findings };
   }
 
