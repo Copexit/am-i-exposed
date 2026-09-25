@@ -138,4 +138,19 @@ describe("locale parity", () => {
     }
     expect(bad).toEqual([]);
   });
+
+  it("has no known transliteration or mistranslation regressions", () => {
+    // Words that were once shipped without diacritics or with a wrong term
+    const banned: Record<string, RegExp> = {
+      es: /\b(transaccion|direccion|analisis|tambien|despues|heuristica)\b/i,
+      pt: /\b(transacao|endereco|voce|tambem|nao)\b/i, // "analise" is a valid imperative
+      fr: /liabilit|\b(securite|donnees|reseau|detection)\b/i,
+      de: /\b(fuer|ueber|koennen|muessen|Schluessel|Gebuehr)\b/,
+    };
+    for (const [lang, rx] of Object.entries(banned)) {
+      const hits = Object.entries(readLocale(lang)).filter(([, v]) => rx.test(v)).map(([k]) => k);
+      expect(hits, `${lang} values with ${rx}`).toEqual([]);
+    }
+  });
 });
+
