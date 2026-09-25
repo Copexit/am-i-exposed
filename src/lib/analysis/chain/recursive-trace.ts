@@ -209,8 +209,7 @@ export async function traceForward(
       }
 
       // Follow spent outputs
-      for (let i = 0; i < outspends.length; i++) {
-        const os = outspends[i];
+      for (const [i, os] of outspends.entries()) {
         if (!os.spent || !os.txid) continue;
         if (visited.has(os.txid)) continue;
 

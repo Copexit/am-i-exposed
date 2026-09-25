@@ -75,7 +75,6 @@ export function detectTx0(tx: MempoolTransaction): Tx0Match | null {
     // The coordinator fee is typically small (0.5-5% of denomination)
     const feeOutput = nonDenomOutputs.reduce(
       (smallest, o) => (o.value < smallest.value ? o : smallest),
-      nonDenomOutputs[0],
     );
     if (!(feeOutput.value < denom * 0.5 && feeOutput.value > 0)) continue;
 

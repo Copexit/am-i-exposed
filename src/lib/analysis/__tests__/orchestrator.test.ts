@@ -81,8 +81,8 @@ describe("shared tx pipeline", () => {
     const full = await analyzeTransaction(tx);
     expect(analyzeTransactionSync(tx)).toEqual(full);
     const [perTx] = await analyzeTransactionsForAddress("bc1qnone", [tx]);
-    expect(perTx.findings).toEqual(full.findings);
-    expect(perTx.score).toBe(full.score);
+    expect(perTx?.findings).toEqual(full.findings);
+    expect(perTx?.score).toBe(full.score);
   });
 
   it("logs and skips a failing heuristic in every view", async () => {
@@ -158,9 +158,9 @@ describe("analyzeTransactionsForAddress", () => {
 
     const results = await analyzeTransactionsForAddress(targetAddr, [tx]);
     expect(results).toHaveLength(1);
-    expect(results[0].role).toBe("sender");
-    expect(results[0].score).toBeGreaterThanOrEqual(0);
-    expect(results[0].grade).toBeDefined();
+    expect(results[0]?.role).toBe("sender");
+    expect(results[0]?.score).toBeGreaterThanOrEqual(0);
+    expect(results[0]?.grade).toBeDefined();
   });
 
   it("returns correct role for receiver", async () => {
@@ -171,7 +171,7 @@ describe("analyzeTransactionsForAddress", () => {
 
     const results = await analyzeTransactionsForAddress(targetAddr, [tx]);
     expect(results).toHaveLength(1);
-    expect(results[0].role).toBe("receiver");
+    expect(results[0]?.role).toBe("receiver");
   });
 
   it("returns 'both' when target is in vin and vout", async () => {
@@ -183,7 +183,7 @@ describe("analyzeTransactionsForAddress", () => {
 
     const results = await analyzeTransactionsForAddress(targetAddr, [tx]);
     expect(results).toHaveLength(1);
-    expect(results[0].role).toBe("both");
+    expect(results[0]?.role).toBe("both");
   });
 
   it("caps at 50 transactions", async () => {
@@ -201,7 +201,7 @@ describe("analyzeTransactionsForAddress", () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const results = await analyzeTransactionsForAddress("bc1qtest", [tx]);
     expect(results).toHaveLength(1);
-    expect(results[0].score).toBeGreaterThanOrEqual(0);
+    expect(results[0]?.score).toBeGreaterThanOrEqual(0);
     consoleSpy.mockRestore();
   });
 });

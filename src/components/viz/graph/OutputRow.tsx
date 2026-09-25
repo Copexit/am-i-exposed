@@ -58,8 +58,9 @@ export function InputRow({
       {/* Linkability indicator */}
       {mat && !vin.is_coinbase && (() => {
         let maxP = 0;
-        for (let oi = 0; oi < mat.length; oi++) {
-          if (mat[oi]?.[index] !== undefined && mat[oi][index] > maxP) maxP = mat[oi][index];
+        for (const row of mat) {
+          const p = row[index];
+          if (p !== undefined && p > maxP) maxP = p;
         }
         if (maxP <= 0) return null;
         const isDet = detLinks?.some(([, inIdx]) => inIdx === index);

@@ -32,8 +32,9 @@ async function findChildViaAddress(
   const vout = tx.vout;
   for (let offset = 0; offset < vout.length; offset++) {
     const oi = (outputIndex + offset) % vout.length;
-    const addr = vout[oi].scriptpubkey_address;
-    if (!addr || vout[oi].value === 0) continue;
+    const out = vout[oi];
+    const addr = out?.scriptpubkey_address;
+    if (!out || !addr || out.value === 0) continue;
 
     const addrTxs = await client.getAddressTxs(addr);
     for (const atx of addrTxs) {

@@ -15,7 +15,8 @@ import { EntityFilterStatus } from "@/components/settings/EntityFilterStatus";
 import { useExperienceMode } from "@/hooks/useExperienceMode";
 import { useTheme } from "@/hooks/useTheme";
 
-const NETWORKS: { value: BitcoinNetwork; label: string; dot: string }[] = [
+type NetworkOption = { value: BitcoinNetwork; label: string; dot: string };
+const NETWORKS: [NetworkOption, ...NetworkOption[]] = [
   { value: "mainnet", label: "Mainnet", dot: "bg-bitcoin" },
   { value: "testnet4", label: "Testnet4", dot: "bg-success" },
   { value: "testnet3", label: "Testnet3", dot: "bg-warning" },
@@ -71,6 +72,7 @@ export function ApiSettings() {
       if (focusable.length === 0) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
       if (e.shiftKey && document.activeElement === first) {
         e.preventDefault();
         last.focus();

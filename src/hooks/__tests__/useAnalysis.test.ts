@@ -86,7 +86,7 @@ describe("useAnalysis", () => {
 
     expect(hook.current.phase).toBe("complete");
     expect(m.putCachedResult).toHaveBeenCalledTimes(1);
-    const [net, query, , state] = m.putCachedResult.mock.calls[0];
+    const [net, query, , state] = m.putCachedResult.mock.calls[0]!;
     expect(net).toBe("mainnet");
     expect(query).toBe(TXID);
     expect(state.phase).toBe("complete");
@@ -97,7 +97,7 @@ describe("useAnalysis", () => {
     const { result: hook } = renderHook(() => useAnalysis());
     await act(async () => { await hook.current.analyze(TXID); });
 
-    expect(m.runTxidAnalysis.mock.calls[0][1].isCustomApi).toBe(false);
+    expect(m.runTxidAnalysis.mock.calls[0]![1].isCustomApi).toBe(false);
   });
 
   it("does not cache a partial result", async () => {
@@ -117,14 +117,14 @@ describe("useAnalysis", () => {
     const { result: hook } = renderHook(() => useAnalysis());
     await act(async () => { await hook.current.analyze(TXID); });
 
-    const baseUrlFor = m.detectTxidNetwork.mock.calls[0][3] as (n: BitcoinNetwork) => string;
+    const baseUrlFor = m.detectTxidNetwork.mock.calls[0]![3] as (n: BitcoinNetwork) => string;
     expect(baseUrlFor("signet")).toBe("http://onion.example/signet/api");
     expect(m.createApiClient).toHaveBeenLastCalledWith(onionConfigFor("testnet4"), expect.anything());
     expect(m.setNetwork).toHaveBeenCalledWith("testnet4");
     expect(hook.current.phase).toBe("complete");
     expect(hook.current.autoSwitchedNetwork).toBe("testnet4");
     expect(m.putCachedResult).toHaveBeenCalledTimes(1);
-    expect(m.putCachedResult.mock.calls[0][0]).toBe("testnet4");
+    expect(m.putCachedResult.mock.calls[0]![0]).toBe("testnet4");
   });
 
   it("maps API errors through the shared error mapper", async () => {

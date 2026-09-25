@@ -92,6 +92,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - run: pnpm install --frozen-lockfile
+        working-directory: cli
+
+      - run: pnpm type-check
+        working-directory: cli
+
       # Build CLI bundle (esbuild)
       - run: cd cli && node build.mjs
 

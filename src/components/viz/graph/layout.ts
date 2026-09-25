@@ -8,6 +8,7 @@ import { calcExpandedHeight } from "./portLayout";
 import type { GraphNode, LayoutNode, LayoutEdge, NodeFilter, ViewTransform } from "./types";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { EntityMatch } from "@/lib/analysis/entity-filter/types";
+import type { FindingId } from "@/lib/analysis/finding-metadata";
 import type { Finding } from "@/lib/types";
 
 /** Detect CoinJoin type from findings. */
@@ -29,7 +30,7 @@ export function getCoinJoinType(findings: Finding[]): string | undefined {
 }
 
 /** Map heuristic finding IDs to entity-like labels for graph visualization. */
-const HEURISTIC_ENTITY_MAP: Record<string, { entityName: string; category: EntityMatch["category"] }> = {
+const HEURISTIC_ENTITY_MAP: Partial<Record<FindingId, { entityName: string; category: EntityMatch["category"] }>> = {
   "h17-hodlhodl": { entityName: "HodlHodl", category: "p2p" },
   "h17-bisq": { entityName: "Bisq", category: "p2p" },
   "h17-bisq-deposit": { entityName: "Bisq", category: "p2p" },

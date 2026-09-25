@@ -70,7 +70,7 @@ export function useAddressAutocomplete() {
     if (isAddressPrefix && isOwnNode && trimmed.length >= MIN_PREFIX_LENGTH) {
       const seq = ++seqRef.current;
 
-      timerRef.current = setTimeout(async () => {
+      const fetchSuggestions = async () => {
         abortRef.current?.abort();
         const controller = new AbortController();
         abortRef.current = controller;
@@ -92,7 +92,9 @@ export function useAddressAutocomplete() {
             setIsOpen(false);
           }
         }
-      }, DEBOUNCE_MS);
+      };
+      // Fire-and-forget: fetchSuggestions catches its own errors.
+      timerRef.current = setTimeout(() => void fetchSuggestions(), DEBOUNCE_MS);
       return;
     }
 
@@ -143,10 +145,7 @@ export function useAddressAutocomplete() {
   }, [suggestions.length]);
 
   const getSelected = useCallback((): string | null => {
-    if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
-      return suggestions[selectedIndex].value;
-    }
-    return null;
+    return suggestions[selectedIndex]?.value ?? null;
   }, [selectedIndex, suggestions]);
 
   return {

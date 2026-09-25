@@ -27,9 +27,8 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
     tx.vin.map((v) => v.prevout?.scriptpubkey_address).filter(Boolean) as string[],
   );
   const reuseChangeIndices = new Set<number>();
-  for (let idx = 0; idx < tx.vout.length; idx++) {
-    const outAddr = tx.vout[idx].scriptpubkey_address;
-    if (outAddr && inputAddresses.has(outAddr)) reuseChangeIndices.add(idx);
+  for (const [idx, out] of tx.vout.entries()) {
+    if (out.scriptpubkey_address && inputAddresses.has(out.scriptpubkey_address)) reuseChangeIndices.add(idx);
   }
   // Heuristic change detection for 2-output txs (only when no address-reuse detected)
   const likelyChangeIdx = reuseChangeIndices.size > 0
@@ -40,7 +39,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
 
   // Assign colors to equal-value groups
   const groupColors = new Map<number, string>();
-  const colors = [
+  const colors: [string, ...string[]] = [
     "text-severity-good",
     "text-bitcoin",
     "text-info",
@@ -50,7 +49,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
   let colorIdx = 0;
   for (const [value, count] of valueCounts) {
     if (count >= 2) {
-      groupColors.set(value, colors[colorIdx % colors.length]);
+      groupColors.set(value, colors[colorIdx % colors.length] ?? colors[0]);
       colorIdx++;
     }
   }
@@ -214,8 +213,9 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
  * Returns the output index (0 or 1) or -1 if uncertain.
  */
 function detectLikelyChange(tx: MempoolTransaction): number {
-  if (tx.vout.length !== 2) return -1;
-  if (!tx.vout[0].scriptpubkey_address || !tx.vout[1].scriptpubkey_address) return -1;
+  const [o0, o1] = tx.vout;
+  if (tx.vout.length !== 2 || !o0 || !o1) return -1;
+  if (!o0.scriptpubkey_address || !o1.scriptpubkey_address) return -1;
   if (isCoinbase(tx)) return -1;
 
   let score0 = 0;
@@ -228,13 +228,13 @@ function detectLikelyChange(tx: MempoolTransaction): number {
   }
   if (inputTypes.size === 1) {
     const iType = [...inputTypes][0];
-    if (tx.vout[0].scriptpubkey_type === iType && tx.vout[1].scriptpubkey_type !== iType) score0++;
-    if (tx.vout[1].scriptpubkey_type === iType && tx.vout[0].scriptpubkey_type !== iType) score1++;
+    if (o0.scriptpubkey_type === iType && o1.scriptpubkey_type !== iType) score0++;
+    if (o1.scriptpubkey_type === iType && o0.scriptpubkey_type !== iType) score1++;
   }
 
   // Check round amounts (round output = payment, non-round = change)
-  const r0 = tx.vout[0].value % 10_000 === 0;
-  const r1 = tx.vout[1].value % 10_000 === 0;
+  const r0 = o0.value % 10_000 === 0;
+  const r1 = o1.value % 10_000 === 0;
   if (r0 && !r1) score1++;
   if (r1 && !r0) score0++;
 

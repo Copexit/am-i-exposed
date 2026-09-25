@@ -6,6 +6,7 @@ import { applyCompoundScoringAdjustments } from "./compound-scoring";
 import { applyWalletContradictionRules } from "./wallet-rules";
 import { applyBehavioralRollup } from "./behavioral-rollup";
 import { applyDeterministicScoreCap } from "./deterministic-cap";
+import type { FindingId } from "@/lib/analysis/finding-metadata";
 
 /**
  * Suppress findings that are structural properties of multisig spending
@@ -120,8 +121,8 @@ export function applyCrossHeuristicRules(findings: Finding[]): void {
  * Priority: most specific pattern first, fallback to structural patterns.
  */
 export function classifyTransactionType(findings: Finding[]): TxType {
-  const has = (id: string) => findings.some((f) => f.id === id && f.scoreImpact !== 0);
-  const hasAny = (id: string) => findings.some((f) => f.id === id);
+  const has = (id: FindingId) => findings.some((f) => f.id === id && f.scoreImpact !== 0);
+  const hasAny = (id: FindingId) => findings.some((f) => f.id === id);
 
   // CoinJoin variants (most specific first)
   if (hasAny("h4-whirlpool")) return "whirlpool-coinjoin";

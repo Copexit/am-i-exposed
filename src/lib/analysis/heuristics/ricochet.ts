@@ -50,9 +50,9 @@ export const analyzeRicochet: TxHeuristic = (tx) => {
   // Sort non-fee outputs by value descending; the largest is the ricochet output,
   // the rest are change. If only one non-fee output exists, it is the ricochet output.
   const sorted = [...nonFeeOutputs].sort((a, b) => b.output.value - a.output.value);
-  const ricochetOutputIndex = sorted.length > 0 ? sorted[0].index : -1;
+  const ricochetOutputIndex = sorted[0]?.index;
 
-  if (ricochetOutputIndex < 0) return { findings };
+  if (ricochetOutputIndex === undefined) return { findings };
 
   findings.push({
     id: "ricochet-hop0",

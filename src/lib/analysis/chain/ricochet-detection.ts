@@ -37,7 +37,7 @@ export function detectRicochet(
   allBackwardTxs?: Map<string, MempoolTransaction>,
 ): Finding | null {
   // Ricochet: 1 input, 1-2 outputs (sweep or PayNym fee split)
-  if (tx.vin.length !== 1 || tx.vin[0].is_coinbase) return null;
+  if (tx.vin.length !== 1 || tx.vin[0]?.is_coinbase) return null;
 
   const spendable = getSpendableOutputs(tx.vout);
   if (spendable.length < 1 || spendable.length > 2) return null;
@@ -87,7 +87,7 @@ export function detectRicochet(
     if (
       ancestor.vin.length !== 1 ||
       ancestorSpendable.length > 2 ||
-      ancestor.vin[0].is_coinbase
+      ancestor.vin[0]?.is_coinbase
     ) {
       break;
     }

@@ -67,9 +67,9 @@ export const analyzeRecurringPayment: AddressHeuristic = (address, _utxos, txs) 
   if (totalRecurring === 0) return { findings };
 
   // Most frequent counterparty
-  const allCounterparties = [...recurringReceive, ...recurringSend];
-  allCounterparties.sort((a, b) => b[1] - a[1]);
-  const maxFrequency = allCounterparties[0][1];
+  const maxFrequency = Math.max(
+    ...[...recurringReceive, ...recurringSend].map(([, count]) => count),
+  );
 
   // Scale impact: 2-3 repeats = -5, 4-9 = -7, 10+ = -10
   let impact = -5;

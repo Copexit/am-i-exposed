@@ -1,6 +1,6 @@
 import type { Grade } from "@/lib/types";
 import { GRADE_HEX } from "@/lib/constants";
-import { DARK_SURFACES, SVG_COLORS } from "@/components/viz/shared/svgConstants";
+import { COLORS } from "@/lib/palette";
 
 interface ShareCardLabels {
   privacyGrade: string;
@@ -32,7 +32,7 @@ export async function generateShareCard(options: {
   if (!ctx) throw new Error("Canvas 2D context not available");
 
   // Background
-  ctx.fillStyle = DARK_SURFACES.background;
+  ctx.fillStyle = COLORS.background;
   ctx.fillRect(0, 0, 1200, 630);
 
   // Subtle grid pattern
@@ -53,10 +53,10 @@ export async function generateShareCard(options: {
 
   // Brand: "am-i.exposed"
   ctx.font = "bold 36px system-ui, -apple-system, sans-serif";
-  ctx.fillStyle = DARK_SURFACES.foreground;
+  ctx.fillStyle = COLORS.foreground;
   ctx.fillText("am-i.", 80, 72);
   const amWidth = ctx.measureText("am-i.").width;
-  ctx.fillStyle = SVG_COLORS.critical;
+  ctx.fillStyle = COLORS.severityCritical;
   ctx.fillText("exposed", 80 + amWidth, 72);
 
   // Grade label
@@ -65,7 +65,7 @@ export async function generateShareCard(options: {
   ctx.fillText(labels.privacyGrade, 80, 160);
 
   // Grade (large)
-  const gradeColor = GRADE_HEX[options.grade] ?? DARK_SURFACES.foreground;
+  const gradeColor = GRADE_HEX[options.grade] ?? COLORS.foreground;
   ctx.font = "bold 180px system-ui, -apple-system, sans-serif";
   ctx.fillStyle = gradeColor;
   ctx.fillText(options.grade, 70, 350);

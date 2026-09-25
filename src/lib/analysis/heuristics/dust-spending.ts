@@ -29,39 +29,37 @@ export const analyzeDustSpending: TxHeuristic = (tx) => {
 
   let hasDustInput = false;
   let hasNonDustInput = false;
-  const dustInputIndices: number[] = [];
+  const dustValues: number[] = [];
 
-  for (let i = 0; i < tx.vin.length; i++) {
-    const prevout = tx.vin[i].prevout;
+  for (const { prevout } of tx.vin) {
     if (!prevout) continue;
 
     const threshold = getDustThreshold(prevout.scriptpubkey_type);
     if (prevout.value > 0 && prevout.value <= threshold) {
       hasDustInput = true;
-      dustInputIndices.push(i);
+      dustValues.push(prevout.value);
     } else if (prevout.value > threshold) {
       hasNonDustInput = true;
     }
   }
 
   if (hasDustInput && hasNonDustInput) {
-    const dustValues = dustInputIndices.map((i) => tx.vin[i].prevout!.value);
     const totalDust = dustValues.reduce((s, v) => s + v, 0);
 
     findings.push({
       id: "dust-spending",
       severity: "high",
       confidence: "deterministic",
-      title: `Dust input co-spent with non-dust inputs (${dustInputIndices.length} dust input${dustInputIndices.length > 1 ? "s" : ""})`,
+      title: `Dust input co-spent with non-dust inputs (${dustValues.length} dust input${dustValues.length > 1 ? "s" : ""})`,
       params: {
-        dustInputCount: dustInputIndices.length,
+        dustInputCount: dustValues.length,
         totalInputs: tx.vin.length,
         dustValues: dustValues.join(","),
         totalDust,
       },
       description:
-        `This transaction spends ${dustInputIndices.length} dust input${dustInputIndices.length > 1 ? "s" : ""} ` +
-        `(${totalDust} sats total) alongside ${tx.vin.length - dustInputIndices.length} non-dust inputs. ` +
+        `This transaction spends ${dustValues.length} dust input${dustValues.length > 1 ? "s" : ""} ` +
+        `(${totalDust} sats total) alongside ${tx.vin.length - dustValues.length} non-dust inputs. ` +
         "Common input ownership heuristic (CIOH) links the dust probe to all other inputs, " +
         "exposing the victim's UTXO set to the attacker who sent the dust. " +
         "This is the most damaging action after receiving surveillance dust.",

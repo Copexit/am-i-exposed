@@ -65,8 +65,8 @@ describe("useObservatory", () => {
 
     const { result } = renderHook(() => useObservatory());
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.whirlpool?.summary.pools[0].pool).toBe("0.025_BTC_Pool");
-    expect(result.current.whirlpool?.txs?.items[0].txid).toBe("abc");
+    expect(result.current.whirlpool?.summary.pools[0]?.pool).toBe("0.025_BTC_Pool");
+    expect(result.current.whirlpool?.txs?.items[0]?.txid).toBe("abc");
     expect(result.current.liquisabi?.Coordinators).toEqual([]);
     expect(result.current.error).toBeNull();
     expect(result.current.lastUpdatedAt).not.toBeNull();

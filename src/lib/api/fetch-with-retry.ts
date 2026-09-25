@@ -11,7 +11,7 @@ export class ApiError extends Error {
 }
 
 const MAX_RETRIES = 3;
-const RETRY_DELAYS = [1000, 2000, 4000];
+const RETRY_DELAYS = [1000, 2000, 4000] as const;
 /** Per-request timeout - prevents individual fetch attempts hanging on Tor */
 const REQUEST_TIMEOUT_MS = 15_000;
 
@@ -21,6 +21,11 @@ interface FetchRetryOptions extends RequestInit {
 }
 
 const sleep = abortableSleep;
+
+/** Backoff before retry `attempt`; attempts past the table reuse the longest delay. */
+function retryDelay(attempt: number): number {
+  return RETRY_DELAYS[attempt] ?? RETRY_DELAYS[2];
+}
 
 export async function fetchWithRetry(
   url: string,
@@ -48,7 +53,7 @@ export async function fetchWithRetry(
         const parsed = retryAfter ? parseInt(retryAfter, 10) : NaN;
         const delay = !isNaN(parsed)
           ? Math.min(parsed * 1000, 10_000)
-          : RETRY_DELAYS[attempt];
+          : retryDelay(attempt);
         await sleep(delay, options?.signal ?? undefined);
         continue;
       }
@@ -58,7 +63,7 @@ export async function fetchWithRetry(
 
       // 5xx: retry
       if (response.status >= 500 && attempt < MAX_RETRIES) {
-        await sleep(RETRY_DELAYS[attempt], options?.signal ?? undefined);
+        await sleep(retryDelay(attempt), options?.signal ?? undefined);
         continue;
       }
 
@@ -70,7 +75,7 @@ export async function fetchWithRetry(
       timedOut = error instanceof DOMException && (error.name === "TimeoutError" || error.name === "AbortError");
 
       if (attempt < MAX_RETRIES) {
-        await sleep(RETRY_DELAYS[attempt], options?.signal ?? undefined);
+        await sleep(retryDelay(attempt), options?.signal ?? undefined);
         continue;
       }
     }

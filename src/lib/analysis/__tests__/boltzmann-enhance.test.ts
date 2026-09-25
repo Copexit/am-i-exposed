@@ -18,13 +18,13 @@ describe("enhanceEntropyFinding", () => {
   it("replaces the JS estimate when WASM ran on the same UTXO set", () => {
     const findings = [entropyFinding(4)];
     enhanceEntropyFinding(findings, wasm(2, 2));
-    expect(findings[0].scoreImpact).toBe(12);
+    expect(findings[0]?.scoreImpact).toBe(12);
   });
 
   it("keeps the address-merged JS score when WASM counted per-UTXO", () => {
     // 3 inputs from 2 addresses: the JS score merged them into 2 parties
     const findings = [entropyFinding(4)];
     enhanceEntropyFinding(findings, wasm(3, 2));
-    expect(findings[0].scoreImpact).toBe(-3);
+    expect(findings[0]?.scoreImpact).toBe(-3);
   });
 });

@@ -78,9 +78,9 @@ export function analyzeFingerprintEvolution(
   // Detect transitions between consecutive snapshots
   const transitions: WalletTransition[] = [];
 
-  for (let i = 1; i < snapshots.length; i++) {
+  for (const [i, curr] of snapshots.entries()) {
     const prev = snapshots[i - 1];
-    const curr = snapshots[i];
+    if (!prev) continue;
     const changes: string[] = [];
 
     // nVersion change
@@ -206,7 +206,7 @@ export function analyzeFingerprintEvolution(
         title: "Wallet fingerprint change detected",
         description:
           "A wallet fingerprint change was detected between transactions: " +
-          transitions[0].changes.join("; ") +
+          transitions.flatMap((t) => t.changes).join("; ") +
           ". This may indicate a wallet update, configuration change, or " +
           "wallet migration.",
         recommendation:

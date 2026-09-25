@@ -7,7 +7,7 @@ export function LangAttributeSync() {
   const { i18n } = useTranslation();
 
   useEffect(() => {
-    document.documentElement.lang = (i18n.language ?? "en").split("-")[0];
+    document.documentElement.lang = (i18n.language ?? "en").split("-")[0] ?? "en";
   }, [i18n.language]);
 
   return null;

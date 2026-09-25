@@ -24,7 +24,7 @@ export function mergeByAddress(utxos: { address?: string; value: number }[]): nu
   for (const { address, value } of utxos) {
     const i = address ? slot.get(address) : undefined;
     if (i !== undefined) {
-      merged[i] += value;
+      merged[i]! += value; // i is an index slot recorded before its push below
     } else {
       if (address) slot.set(address, merged.length);
       merged.push(value);
@@ -58,8 +58,8 @@ export function tryBoltzmannEqualOutputs(
 ): { entropy: number; method: string } | null {
   if (outputs.length < 2 || inputs.length < 2) return null;
 
-  const outputValue = outputs[0];
-  if (!outputs.every((v) => v === outputValue)) return null;
+  const [outputValue] = outputs;
+  if (outputValue === undefined || !outputs.every((v) => v === outputValue)) return null;
 
   const n = outputs.length;
   const k = inputs.filter((v) => v >= outputValue).length;
@@ -97,8 +97,6 @@ export function tryBoltzmannEqualOutputs(
  * of the true Boltzmann count, which would consider many-to-many mappings.
  */
 export function countValidMappings(inputs: number[], outputs: number[]): { count: number; truncated: boolean } {
-  const n = inputs.length;
-  const m = outputs.length;
 
   const totalInput = inputs.reduce((s, v) => s + v, 0);
   const totalOutput = outputs.reduce((s, v) => s + v, 0);
@@ -109,17 +107,18 @@ export function countValidMappings(inputs: number[], outputs: number[]): { count
 
   function enumerate(outputIdx: number, inputRemaining: number[]): number {
     if (iterations > limit) return 0;
-    if (outputIdx === m) {
+    const outVal = outputs[outputIdx];
+    if (outVal === undefined) {
+      // Past the last output: a complete mapping
       iterations++;
       return 1;
     }
     let valid = 0;
-    const outVal = outputs[outputIdx];
-    for (let i = 0; i < n; i++) {
-      if (inputRemaining[i] >= outVal) {
-        inputRemaining[i] -= outVal;
+    for (const [i, remaining] of inputRemaining.entries()) {
+      if (remaining >= outVal) {
+        inputRemaining[i] = remaining - outVal;
         valid += enumerate(outputIdx + 1, inputRemaining);
-        inputRemaining[i] += outVal;
+        inputRemaining[i] = remaining;
         if (iterations > limit) break;
       }
     }

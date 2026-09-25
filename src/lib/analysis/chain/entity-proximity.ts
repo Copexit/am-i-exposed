@@ -233,7 +233,7 @@ function buildEntityProximityFinding(
   const hops = hit.hops;
   const cjsBetween = [...cjDepths].filter(d => d < hops).length;
   const barrierSuppressed = !isOfac && isCoinJoinBarrier(hops, cjsBetween);
-  const findingId = `chain-entity-proximity-${hit.direction}`;
+  const findingId = `chain-entity-proximity-${hit.direction}` as const;
 
   if (barrierSuppressed) {
     return {

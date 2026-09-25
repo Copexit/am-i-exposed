@@ -127,7 +127,7 @@ export function useBoltzmann(
     if (!eligibility.canCompute) return;
 
     if (isAutoComputable(eligibility.inputValues, eligibility.outputValues)) {
-      const timer = setTimeout(compute, 0);
+      const timer = setTimeout(() => void compute(), 0);
       return () => {
         clearTimeout(timer);
         requestIdRef.current = null;

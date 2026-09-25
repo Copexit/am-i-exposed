@@ -15,9 +15,9 @@ describe("analyzeEntropy", () => {
     });
     const { findings } = analyzeEntropy(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h5-zero-entropy");
-    expect(findings[0].scoreImpact).toBe(0);
-    expect(findings[0].severity).toBe("low");
+    expect(findings[0]!.id).toBe("h5-zero-entropy");
+    expect(findings[0]!.scoreImpact).toBe(0);
+    expect(findings[0]!.severity).toBe("low");
   });
 
   it("detects near-zero entropy (all mappings deterministic), impact -3", () => {
@@ -35,9 +35,9 @@ describe("analyzeEntropy", () => {
     });
     const { findings } = analyzeEntropy(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h5-low-entropy");
-    expect(findings[0].scoreImpact).toBe(-3);
-    expect(findings[0].severity).toBe("medium");
+    expect(findings[0]!.id).toBe("h5-low-entropy");
+    expect(findings[0]!.scoreImpact).toBe(-3);
+    expect(findings[0]!.severity).toBe("medium");
   });
 
   it("detects positive entropy with Boltzmann path (2 equal outputs)", () => {
@@ -55,11 +55,11 @@ describe("analyzeEntropy", () => {
     });
     const { findings } = analyzeEntropy(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h5-entropy");
-    expect(findings[0].scoreImpact).toBe(2);
-    expect(findings[0].params?.entropy).toBeCloseTo(1.58, 1);
-    expect(findings[0].params?.entropyPerUtxo).toBeCloseTo(0.396, 2);
-    expect(findings[0].params?.nUtxos).toBe(4);
+    expect(findings[0]!.id).toBe("h5-entropy");
+    expect(findings[0]!.scoreImpact).toBe(2);
+    expect(findings[0]!.params?.entropy).toBeCloseTo(1.58, 1);
+    expect(findings[0]!.params?.entropyPerUtxo).toBeCloseTo(0.396, 2);
+    expect(findings[0]!.params?.nUtxos).toBe(4);
   });
 
   it("detects high entropy (5 equal outputs), impact capped at 15", () => {
@@ -73,9 +73,9 @@ describe("analyzeEntropy", () => {
     });
     const { findings } = analyzeEntropy(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h5-entropy");
-    expect(findings[0].scoreImpact).toBe(15);
-    expect(findings[0].severity).toBe("good");
+    expect(findings[0]!.id).toBe("h5-entropy");
+    expect(findings[0]!.scoreImpact).toBe(15);
+    expect(findings[0]!.severity).toBe("good");
   });
 
   it("ignores OP_RETURN outputs in entropy calculation", () => {
@@ -85,7 +85,7 @@ describe("analyzeEntropy", () => {
     });
     const { findings } = analyzeEntropy(tx);
     // 1 input, 1 spendable output (OP_RETURN excluded) -> zero entropy
-    expect(findings[0].id).toBe("h5-zero-entropy");
+    expect(findings[0]!.id).toBe("h5-zero-entropy");
   });
 
   it("detects N-in-1-out sweep as zero entropy with sweep label, impact -3", () => {
@@ -99,11 +99,11 @@ describe("analyzeEntropy", () => {
     });
     const { findings } = analyzeEntropy(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h5-zero-entropy-sweep");
-    expect(findings[0].scoreImpact).toBe(-3);
-    expect(findings[0].title).toContain("sweep");
-    expect(findings[0].params?.inputCount).toBe(3);
-    expect(findings[0].remediation).toBeDefined();
+    expect(findings[0]!.id).toBe("h5-zero-entropy-sweep");
+    expect(findings[0]!.scoreImpact).toBe(-3);
+    expect(findings[0]!.title).toContain("sweep");
+    expect(findings[0]!.params?.inputCount).toBe(3);
+    expect(findings[0]!.remediation).toBeDefined();
   });
 
   it("computes Boltzmann entropy when only a subset of inputs can fund equal outputs (k < n)", () => {
@@ -128,13 +128,13 @@ describe("analyzeEntropy", () => {
     });
     const { findings } = analyzeEntropy(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h5-entropy");
+    expect(findings[0]!.id).toBe("h5-entropy");
     // boltzmannEqualOutputs(3) = 16 -> log2(16) = 4.0
     // C(5,3) = 10 -> log2(10) ~ 3.3219
     // total ~ 7.32 bits
-    expect(findings[0].params?.entropy).toBeCloseTo(7.32, 1);
-    expect(findings[0].params?.method).toBe("Boltzmann partition");
-    expect(findings[0].scoreImpact).toBe(14);
+    expect(findings[0]!.params?.entropy).toBeCloseTo(7.32, 1);
+    expect(findings[0]!.params?.method).toBe("Boltzmann partition");
+    expect(findings[0]!.scoreImpact).toBe(14);
   });
 
   it("returns empty for coinbase transactions", () => {
@@ -168,7 +168,7 @@ describe("analyzeEntropy - UTXOs sharing an address are one party (Boltzmann MER
       ],
     });
     const expected = analyzeEntropy(merged).findings;
-    expect(expected[0].id).toBe("h5-entropy");
+    expect(expected[0]!.id).toBe("h5-entropy");
     expect(analyzeEntropy(split).findings).toEqual(expected);
   });
 
@@ -179,8 +179,8 @@ describe("analyzeEntropy - UTXOs sharing an address are one party (Boltzmann MER
     )) as { tx: MempoolTransaction };
     const { findings } = analyzeEntropy(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h5-zero-entropy");
-    expect(findings[0].scoreImpact).toBe(0);
-    expect(findings[0].params?._variant).toBe("merged");
+    expect(findings[0]!.id).toBe("h5-zero-entropy");
+    expect(findings[0]!.scoreImpact).toBe(0);
+    expect(findings[0]!.params?._variant).toBe("merged");
   });
 });

@@ -24,6 +24,7 @@ import type { PreSendResult } from "@/lib/analysis/orchestrator";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 import type { AnalysisState } from "@/lib/analysis/analysis-state";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
+import type { FindingId } from "@/lib/analysis/finding-metadata";
 
 export const TTL_24_HOURS = 24 * 60 * 60 * 1000;
 
@@ -31,7 +32,7 @@ export const TTL_24_HOURS = 24 * 60 * 60 * 1000;
  * Findings that mark a result as built from incomplete data (failed or
  * timed-out fetches). Such results are never cached, so a retry refetches.
  */
-export const INCOMPLETE_RESULT_FINDING_IDS = ["chain-trace-partial", "address-utxos-unavailable"];
+export const INCOMPLETE_RESULT_FINDING_IDS: readonly FindingId[] = ["chain-trace-partial", "address-utxos-unavailable"];
 
 /** TraceLayer with txs stored as a plain object (for JSON/IDB serialization). */
 interface StoredTraceLayer {

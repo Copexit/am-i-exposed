@@ -43,8 +43,8 @@ const NO_EDGE = 0xFFFF;
 
 function toBase64Url(bytes: Uint8Array): string {
   let binary = "";
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]);
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
   }
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
@@ -80,7 +80,7 @@ function writeLabelBytes(buf: Uint8Array, offset: number, bytes: Uint8Array): nu
 /** Read a uint8-length-prefixed UTF-8 label from buf at offset. Returns [text, newOffset]. */
 function readLabelBytes(buf: Uint8Array, offset: number): [string, number] {
   const len = buf[offset++];
-  if (offset + len > buf.length) return ["", offset];
+  if (len === undefined || offset + len > buf.length) return ["", offset];
   const text = decodeUtf8(buf, offset, len);
   return [text, offset + len];
 }
@@ -93,8 +93,8 @@ export function encodeGraphToUrl(saved: SavedGraph): string | null {
   if (nodeCount === 0) return null;
 
   const txidToIdx = new Map<string, number>();
-  for (let i = 0; i < nodeCount; i++) {
-    txidToIdx.set(nodes[i].txid, i);
+  for (const [i, node] of nodes.entries()) {
+    txidToIdx.set(node.txid, i);
   }
 
   const rootIndex = txidToIdx.get(saved.rootTxid) ?? 0;
@@ -148,8 +148,8 @@ export function encodeGraphToUrl(saved: SavedGraph): string | null {
     for (const [key, label] of Object.entries(saved.edgeLabels)) {
       const parts = key.split("->");
       if (parts.length !== 2 || !label) continue;
-      const fromIdx = txidToIdx.get(parts[0]);
-      const toIdx = txidToIdx.get(parts[1]);
+      const fromIdx = txidToIdx.get(parts[0]!);
+      const toIdx = txidToIdx.get(parts[1]!);
       if (fromIdx === undefined || toIdx === undefined) continue;
       edgeLabelEntries.push({ fromIdx, toIdx, bytes: encodeUtf8(label.slice(0, 20)) });
     }
@@ -275,7 +275,7 @@ export function decodeGraphFromUrl(
     }
 
     // Network
-    const networkByte = buf[offset++];
+    const networkByte = view.getUint8(offset++);
     const network: BitcoinNetwork = NETWORK_MAP[networkByte] ?? "mainnet";
 
     // Node table
@@ -288,28 +288,28 @@ export function decodeGraphFromUrl(
 
     offset = nodeStartOffset;
     const nodes: SavedGraphNode[] = [];
-    for (let i = 0; i < nodeCount; i++) {
-      const txid = txids[i];
+    for (const txid of txids) {
       offset += TXID_BYTES;
       const depth = view.getInt8(offset); offset += 1;
-      const flags = buf[offset++];
+      const flags = view.getUint8(offset++);
       const edgeRefIdx = view.getUint16(offset); offset += 2;
-      const edgeIndex = buf[offset++];
+      const edgeIndex = view.getUint8(offset++);
 
       const node: SavedGraphNode = { txid, depth };
-      if ((flags & 1) && edgeRefIdx !== NO_EDGE && edgeRefIdx < nodeCount) {
-        node.parentEdge = { fromTxid: txids[edgeRefIdx], outputIndex: edgeIndex };
+      // NO_EDGE (0xFFFF) is never a valid index since nodeCount <= 0xFFFF
+      const edgeTxid = txids[edgeRefIdx];
+      if ((flags & 1) && edgeTxid !== undefined) {
+        node.parentEdge = { fromTxid: edgeTxid, outputIndex: edgeIndex };
       }
-      if ((flags & 2) && edgeRefIdx !== NO_EDGE && edgeRefIdx < nodeCount) {
-        node.childEdge = { toTxid: txids[edgeRefIdx], inputIndex: edgeIndex };
+      if ((flags & 2) && edgeTxid !== undefined) {
+        node.childEdge = { toTxid: edgeTxid, inputIndex: edgeIndex };
       }
       nodes.push(node);
     }
 
     const rootTxid = txids[rootIndex] ?? txids[0];
-    const rootTxids = multiRootIndices
-      .filter((i) => i < nodeCount)
-      .map((i) => txids[i]);
+    if (rootTxid === undefined) return null; // empty graph
+    const rootTxids = multiRootIndices.flatMap((i) => txids[i] ?? []);
     if (rootTxids.length === 0) rootTxids.push(rootTxid);
 
     // ─── V2 Extensions (optional) ──────────────────────────────
@@ -327,7 +327,8 @@ export function decodeGraphFromUrl(
           const idx = view.getUint16(offset); offset += 2;
           const x = view.getFloat32(offset); offset += 4;
           const y = view.getFloat32(offset); offset += 4;
-          if (idx < nodeCount) nodePositions[txids[idx]] = { x, y };
+          const txid = txids[idx];
+          if (txid !== undefined) nodePositions[txid] = { x, y };
         }
       }
 
@@ -340,7 +341,8 @@ export function decodeGraphFromUrl(
             const idx = view.getUint16(offset); offset += 2;
             const [text, nextOff] = readLabelBytes(buf, offset);
             offset = nextOff;
-            if (idx < nodeCount) nodeLabels[txids[idx]] = text;
+            const txid = txids[idx];
+            if (txid !== undefined) nodeLabels[txid] = text;
           }
         }
       }
@@ -351,7 +353,7 @@ export function decodeGraphFromUrl(
         if (annotCount > 0) {
           annotations = [];
           for (let i = 0; i < annotCount && offset + 18 <= buf.length; i++) {
-            const typeIdx = buf[offset++];
+            const typeIdx = view.getUint8(offset++);
             const x = view.getFloat32(offset); offset += 4;
             const y = view.getFloat32(offset); offset += 4;
             const w = view.getFloat32(offset); offset += 4;
@@ -385,8 +387,10 @@ export function decodeGraphFromUrl(
           const toIdx = view.getUint16(offset); offset += 2;
           const [text, nextOff] = readLabelBytes(buf, offset);
           offset = nextOff;
-          if (fromIdx < nodeCount && toIdx < nodeCount) {
-            edgeLabels[`${txids[fromIdx]}->${txids[toIdx]}`] = text;
+          const fromTxid = txids[fromIdx];
+          const toTxid = txids[toIdx];
+          if (fromTxid !== undefined && toTxid !== undefined) {
+            edgeLabels[`${fromTxid}->${toTxid}`] = text;
           }
         }
       }

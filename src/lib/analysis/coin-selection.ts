@@ -104,10 +104,12 @@ function bnbSearch(
   let iterations = 0;
 
   // Precompute suffix sums for O(1) remaining-value lookups
-  const suffixSum = new Array<number>(sorted.length + 1);
-  suffixSum[sorted.length] = 0;
-  for (let i = sorted.length - 1; i >= 0; i--) {
-    suffixSum[i] = suffixSum[i + 1] + sorted[i].utxo.value;
+  // suffixSum[i] = total value of sorted[i..]; suffixSum[sorted.length] = 0
+  const suffixSum = [0];
+  let remainingValue = 0;
+  for (const c of [...sorted].reverse()) {
+    remainingValue += c.utxo.value;
+    suffixSum.unshift(remainingValue);
   }
 
   function search(index: number, selected: CoinSelectionInput[], currentSum: number): void {
@@ -130,14 +132,16 @@ function bnbSearch(
     if (waste > EXACT_MATCH_TOLERANCE) return;
 
     // No more candidates
-    if (index >= sorted.length) return;
+    const candidate = sorted[index];
+    const remaining = suffixSum[index];
+    if (!candidate || remaining === undefined) return;
 
     // Remaining sum can't reach target
-    if (currentSum + suffixSum[index] < needed) return;
+    if (currentSum + remaining < needed) return;
 
     // Branch: include current
-    selected.push(sorted[index]);
-    search(index + 1, selected, currentSum + sorted[index].utxo.value);
+    selected.push(candidate);
+    search(index + 1, selected, currentSum + candidate.utxo.value);
     selected.pop();
 
     // Branch: exclude current

@@ -125,9 +125,10 @@ export async function runTxidAnalysis(
   let eurPrice: number | null = null;
   let outspends: MempoolOutspend[] | null = null;
   let parentTx: MempoolTransaction | null = null;
-  const isPeelCandidate = tx.vin.length === 1 && !tx.vin[0].is_coinbase;
+  const [firstVin] = tx.vin;
+  const isPeelCandidate = tx.vin.length === 1 && firstVin !== undefined && !firstVin.is_coinbase;
   const parentTxPromise = isPeelCandidate
-    ? optional(api.getTransaction(tx.vin[0].txid))
+    ? optional(api.getTransaction(firstVin.txid))
     : Promise.resolve(null);
 
   if (network === "mainnet" && tx.status?.block_time) {
@@ -203,11 +204,12 @@ export async function runTxidAnalysis(
   // Build parentTxs Map from backward trace layer 0 (direct parents)
   // for heuristics that need confirmation heights of input funding txs
   let parentTxs: Map<string, MempoolTransaction> | undefined;
-  if (backwardLayers.length > 0 && backwardLayers[0].txs.size > 0) {
-    parentTxs = backwardLayers[0].txs;
-  } else if (parentTx) {
+  const directParents = backwardLayers[0]?.txs;
+  if (directParents && directParents.size > 0) {
+    parentTxs = directParents;
+  } else if (parentTx && firstVin) {
     // Fallback: only the single pre-fetched parent for vin[0]
-    parentTxs = new Map([[tx.vin[0].txid, parentTx]]);
+    parentTxs = new Map([[firstVin.txid, parentTx]]);
   }
 
   const ctx: TxContext = {

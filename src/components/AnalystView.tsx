@@ -160,8 +160,8 @@ function deriveInsights(findings: Finding[]): AnalystInsight[] {
     });
   }
 
-  if (findings.some((item) => item.id.startsWith("h17-") && item.id !== "h17-unknown")) {
-    const f = findings.find((item) => item.id.startsWith("h17-") && item.id !== "h17-unknown");
+  if (findings.some((item) => item.id.startsWith("h17-"))) {
+    const f = findings.find((item) => item.id.startsWith("h17-"));
     const escrowType = f?.params?.escrowType;
     insights.push({
       text: escrowType

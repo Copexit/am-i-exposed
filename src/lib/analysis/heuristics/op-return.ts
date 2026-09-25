@@ -23,8 +23,7 @@ export const analyzeOpReturn: TxHeuristic = (tx) => {
 
   if (opReturnOutputs.length === 0) return { findings };
 
-  for (let idx = 0; idx < opReturnOutputs.length; idx++) {
-    const out = opReturnOutputs[idx];
+  for (const [idx, out] of opReturnOutputs.entries()) {
     const dataHex = extractOpReturnData(out.scriptpubkey);
     const decoded = tryDecodeUtf8(dataHex);
     const protocol = isRunesScript(out.scriptpubkey) ? "Runes" : detectProtocol(dataHex);
@@ -42,7 +41,7 @@ export const analyzeOpReturn: TxHeuristic = (tx) => {
     }
 
     findings.push({
-      id: `h7-op-return${opReturnOutputs.length > 1 ? `-${idx}` : ""}`,
+      id: opReturnOutputs.length > 1 ? `h7-op-return-${idx}` as const : "h7-op-return",
       severity: protocol ? "medium" : "low",
       confidence: "deterministic",
       title: protocol

@@ -36,8 +36,9 @@ export function detectPartialSpendWarning(
   const totalInput = tx.vin.reduce((s, v) => s + (v.prevout?.value ?? 0), 0);
   if (totalInput === 0) return null;
 
-  const [v1, v2] = [spendable[0].value, spendable[1].value];
-  const smaller = Math.min(v1, v2);
+  const [out1, out2] = spendable;
+  if (!out1 || !out2) return null;
+  const smaller = Math.min(out1.value, out2.value);
   const changeRatio = smaller / totalInput;
 
   // Change is < 5% of total input - near-exact spend
@@ -83,7 +84,7 @@ export function detectPostCoinJoinPartialSpend(
 
   // If spending a single CoinJoin UTXO and creating change = bad
   if (coinJoinInputIndices.length === 1 && tx.vin.length === 1) {
-    const totalInput = tx.vin[0].prevout?.value ?? 0;
+    const totalInput = tx.vin[0]?.prevout?.value ?? 0;
     const largestOutput = Math.max(...spendable.map((o) => o.value));
     const changeAmount = totalInput - largestOutput - tx.fee;
 

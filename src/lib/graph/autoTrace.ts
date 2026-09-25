@@ -62,7 +62,7 @@ export function identifyChangeOutput(tx: MempoolTransaction): ChangeOutputResult
 
   // Single spendable output - trivial, it's the only option (sweep or consolidation output)
   if (spendable.length === 1) {
-    return { changeOutputIndex: spendable[0], reason: "single-spendable", confidence: "high" };
+    return { changeOutputIndex: spendable[0]!, reason: "single-spendable", confidence: "high" };
   }
 
   // Run change detection heuristics
@@ -73,14 +73,15 @@ export function identifyChangeOutput(tx: MempoolTransaction): ChangeOutputResult
   if (sameAddrFinding?.params) {
     const indicesStr = sameAddrFinding.params.selfSendIndices;
     if (typeof indicesStr === "string" && indicesStr.length > 0) {
-      const indices = indicesStr.split(",").map(Number).filter((n) => !isNaN(n));
+      // Keep only indices that point at a real output (drops NaN and out-of-range)
+      const indices = indicesStr.split(",").map(Number).filter((n) => tx.vout[n] !== undefined);
       if (indices.length === 1) {
-        return { changeOutputIndex: indices[0], reason: "same-address-io", confidence: "deterministic" };
+        return { changeOutputIndex: indices[0]!, reason: "same-address-io", confidence: "deterministic" };
       }
       // Multiple same-address outputs - pick the largest (most likely the main change)
       if (indices.length > 1) {
         const largest = indices.reduce((best, idx) =>
-          tx.vout[idx].value > tx.vout[best].value ? idx : best, indices[0]);
+          tx.vout[idx]!.value > tx.vout[best]!.value ? idx : best);
         return { changeOutputIndex: largest, reason: "same-address-io", confidence: "high" };
       }
     }

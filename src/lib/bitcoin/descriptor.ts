@@ -198,8 +198,8 @@ function descsumPolymod(symbols: number[]): number {
   for (const value of symbols) {
     const top = Math.floor(chk / 2 ** 35);
     chk = (chk % 2 ** 35) * 32 + value; // low 5 bits are zero, so + is ^
-    for (let i = 0; i < 5; i++) {
-      if ((top >> i) & 1) chk = xor40(chk, DESCSUM_GENERATOR[i]);
+    for (const [i, gen] of DESCSUM_GENERATOR.entries()) {
+      if ((top >> i) & 1) chk = xor40(chk, gen);
     }
   }
   return chk;
@@ -208,24 +208,26 @@ function descsumPolymod(symbols: number[]): number {
 /** Compute the 8-char BIP-380 checksum of a descriptor body, or null if it has invalid characters. */
 export function descriptorChecksum(body: string): string | null {
   const symbols: number[] = [];
-  const groups: number[] = [];
+  // Base-3 accumulator of up to 3 high-bit groups (g0 * 9 + g1 * 3 + g2)
+  let group = 0;
+  let groupCount = 0;
   for (const c of body) {
     const v = DESCSUM_INPUT_CHARSET.indexOf(c);
     if (v < 0) return null;
     symbols.push(v & 31);
-    groups.push(v >> 5);
-    if (groups.length === 3) {
-      symbols.push(groups[0] * 9 + groups[1] * 3 + groups[2]);
-      groups.length = 0;
+    group = group * 3 + (v >> 5);
+    if (++groupCount === 3) {
+      symbols.push(group);
+      group = 0;
+      groupCount = 0;
     }
   }
-  if (groups.length === 1) symbols.push(groups[0]);
-  else if (groups.length === 2) symbols.push(groups[0] * 3 + groups[1]);
+  if (groupCount > 0) symbols.push(group);
 
   const chk = xor40(descsumPolymod([...symbols, 0, 0, 0, 0, 0, 0, 0, 0]), 1);
   let out = "";
   for (let i = 0; i < 8; i++) {
-    out += DESCSUM_CHARSET[Math.floor(chk / 2 ** (5 * (7 - i))) % 32];
+    out += DESCSUM_CHARSET.charAt(Math.floor(chk / 2 ** (5 * (7 - i))) % 32);
   }
   return out;
 }
@@ -263,11 +265,12 @@ function matchDescriptor(descriptor: string): ParsedDescriptor | null {
   const wrapper = DESCRIPTOR_WRAPPERS.find((w) => body.startsWith(w.open) && body.endsWith(w.close));
   if (!wrapper) return null;
   const m = DESCRIPTOR_KEY_RE.exec(body.slice(wrapper.open.length, body.length - wrapper.close.length));
-  if (!m) return null;
+  const [, xpub, chain] = m ?? [];
+  if (!xpub) return null;
 
   // "<0;1>" (multipath) derives both chains, same as no chain at all
-  const chainIndex = m[2] !== undefined && m[2] !== "<0;1>" ? parseInt(m[2], 10) : undefined;
-  return { scriptType: wrapper.scriptType, xpub: m[1], chainIndex, checksum, body };
+  const chainIndex = chain !== undefined && chain !== "<0;1>" ? parseInt(chain, 10) : undefined;
+  return { scriptType: wrapper.scriptType, xpub, chainIndex, checksum, body };
 }
 
 function parseDescriptor(descriptor: string): ParsedDescriptor | null {

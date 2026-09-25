@@ -6,6 +6,7 @@
 import { COLORS, HUES, hexToRgb } from "@/lib/palette";
 
 type ColorStop = [number, [number, number, number]];
+type ColorRamp = [ColorStop, ...ColorStop[]];
 
 const stop = (p: number, hex: string): ColorStop => [p, hexToRgb(hex)];
 
@@ -14,7 +15,7 @@ const RAMP_GREEN = "#28a065";
 const RAMP_AMBER = "#b59215";
 
 /** Dark-mode gradient: dark navy to hot red. */
-const COLOR_STOPS: ColorStop[] = [
+const COLOR_STOPS: ColorRamp = [
   stop(0.00, HUES.gray900),           // dark navy
   stop(0.10, "#0d3b4f"),              // deep teal
   stop(0.25, HUES.emerald800),        // dark emerald
@@ -26,7 +27,7 @@ const COLOR_STOPS: ColorStop[] = [
 ];
 
 /** Light-mode gradient: cool slate to hot red (pastel-to-vivid for light backgrounds). */
-const COLOR_STOPS_LIGHT: ColorStop[] = [
+const COLOR_STOPS_LIGHT: ColorRamp = [
   stop(0.00, HUES.slate300),
   stop(0.10, HUES.blue300),
   stop(0.25, HUES.green400),
@@ -49,28 +50,31 @@ function isLightTheme(): boolean {
 }
 
 /** Returns the active color stops for the current theme. */
-export function getColorStops(): ColorStop[] {
+export function getColorStops(): ColorRamp {
   return isLightTheme() ? COLOR_STOPS_LIGHT : COLOR_STOPS;
 }
 
 /** Smooth continuous color for probability 0..1 via linear interpolation. */
 export function probColor(p: number): string {
   const stops = getColorStops();
-  if (p <= 0) return `rgb(${stops[0][1].join(",")})`;
-  if (p >= 1) return `rgb(${stops[stops.length - 1][1].join(",")})`;
+  let prev = stops[0];
+  if (p <= 0) return `rgb(${prev[1].join(",")})`;
 
-  for (let s = 1; s < stops.length; s++) {
-    if (p <= stops[s][0]) {
-      const [p0, c0] = stops[s - 1];
-      const [p1, c1] = stops[s];
+  // The first stop sits at 0, so it never matches here and prev is always the stop below.
+  for (const cur of stops) {
+    if (p <= cur[0]) {
+      const [p0, c0] = prev;
+      const [p1, c1] = cur;
       const t = (p - p0) / (p1 - p0);
       const r = Math.round(c0[0] + (c1[0] - c0[0]) * t);
       const g = Math.round(c0[1] + (c1[1] - c0[1]) * t);
       const b = Math.round(c0[2] + (c1[2] - c0[2]) * t);
       return `rgb(${r},${g},${b})`;
     }
+    prev = cur;
   }
-  return `rgb(${stops[stops.length - 1][1].join(",")})`;
+  // p >= 1 (or NaN): clamp to the last stop.
+  return `rgb(${prev[1].join(",")})`;
 }
 
 /** Inner (+ optional outer) glow for heat map cells. */

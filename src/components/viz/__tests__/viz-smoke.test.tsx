@@ -111,7 +111,7 @@ function makeCoinJoinTx(): MempoolTransaction {
 function makeCoinJoinFindings(): Finding[] {
   return [
     {
-      id: "h4-coinjoin-detected",
+      id: "h4-coinjoin",
       severity: "good",
       title: "CoinJoin detected",
       description: "This transaction is a CoinJoin with 5 equal outputs.",
@@ -183,7 +183,7 @@ describe("CoinJoinStructure smoke test", () => {
     const tx = makeCoinJoinTx();
     const findings: Finding[] = [
       {
-        id: "h1-address-reuse",
+        id: "h8-address-reuse",
         severity: "medium",
         title: "Address reuse",
         description: "Reused address.",
@@ -211,7 +211,7 @@ describe("TaintPathDiagram smoke test", () => {
   it("returns null when no chain analysis findings are present", () => {
     const findings: Finding[] = [
       {
-        id: "h1-address-reuse",
+        id: "h8-address-reuse",
         severity: "medium",
         title: "Address reuse",
         description: "Reused address.",

@@ -25,7 +25,7 @@ describe("useRecentScans", () => {
       });
     });
     expect(result.current.scans).toHaveLength(1);
-    expect(result.current.scans[0].input).toBe("abc123");
+    expect(result.current.scans[0]?.input).toBe("abc123");
   });
 
   it("caps at 5 recent scans", () => {
@@ -42,7 +42,7 @@ describe("useRecentScans", () => {
     });
     expect(result.current.scans).toHaveLength(5);
     // Most recent should be first
-    expect(result.current.scans[0].input).toBe("tx6");
+    expect(result.current.scans[0]?.input).toBe("tx6");
   });
 
   it("clears all scans", () => {
@@ -77,7 +77,7 @@ describe("useRecentScans", () => {
       result.current.addScan({ input: "tx1", type: "txid", grade: "A+", score: 95 });
     });
     expect(result.current.scans).toHaveLength(2);
-    expect(result.current.scans[0].input).toBe("tx1");
-    expect(result.current.scans[0].grade).toBe("A+");
+    expect(result.current.scans[0]?.input).toBe("tx1");
+    expect(result.current.scans[0]?.grade).toBe("A+");
   });
 });

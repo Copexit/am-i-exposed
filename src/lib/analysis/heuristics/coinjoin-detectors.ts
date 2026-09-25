@@ -199,8 +199,10 @@ export function detectStonewall(
   // Only flag as Whirlpool-origin when there are 5+ inputs at the same Whirlpool
   // denomination - with 2-4 inputs, coincidental matches are possible.
   const inputValues = vin.map((v) => v.prevout?.value).filter((v): v is number => v != null);
-  const allSameValue = inputValues.length >= 2 && inputValues.every((v) => v === inputValues[0]);
-  const isWhirlpoolOrigin = allSameValue && inputValues.length >= 5 && WHIRLPOOL_DENOMS.includes(inputValues[0]);
+  const firstInputValue = inputValues[0];
+  const allSameValue = inputValues.length >= 2 && inputValues.every((v) => v === firstInputValue);
+  const isWhirlpoolOrigin = allSameValue && inputValues.length >= 5
+    && firstInputValue !== undefined && WHIRLPOOL_DENOMS.includes(firstInputValue);
 
   // Count output values
   const counts = countOutputValues(spendableOutputs);

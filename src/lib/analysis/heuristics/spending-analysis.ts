@@ -76,40 +76,34 @@ export const analyzeSpendingPattern: AddressHeuristic = (address, _utxos, txs) =
       // not true counterparties. Counting them would penalize CoinJoin users.
       if (isCoinJoinTx(tx)) continue;
 
-      const spendableOutputs = tx.vout.filter(
-        (v) =>
-          !isOpReturnOutput(v) &&
-          v.scriptpubkey_address &&
-          v.scriptpubkey_address !== address.address,
+      const outputAddrs = tx.vout.flatMap((v) =>
+        !isOpReturnOutput(v) && v.scriptpubkey_address && v.scriptpubkey_address !== address.address
+          ? [v.scriptpubkey_address]
+          : [],
       );
 
       // For 2-spendable-output txs (typical send), exclude the likely change output.
       // Change usually matches the sender's address type.
-      if (spendableOutputs.length === 1) {
-        // Single non-self output: clear counterparty
-        counterparties.add(spendableOutputs[0].scriptpubkey_address!);
-      } else if (spendableOutputs.length === 2) {
+      const [addr0, addr1] = outputAddrs;
+      if (outputAddrs.length === 2 && addr0 && addr1) {
         // Identify likely payment (non-change) by address type mismatch
-        const type0 = getAddressType(spendableOutputs[0].scriptpubkey_address!);
-        const type1 = getAddressType(spendableOutputs[1].scriptpubkey_address!);
+        const type0 = getAddressType(addr0);
+        const type1 = getAddressType(addr1);
 
         if (type0 === senderAddrType && type1 !== senderAddrType) {
           // Output 0 matches sender type (likely change), output 1 is the payment
-          counterparties.add(spendableOutputs[1].scriptpubkey_address!);
+          counterparties.add(addr1);
         } else if (type1 === senderAddrType && type0 !== senderAddrType) {
           // Output 1 matches sender type (likely change), output 0 is the payment
-          counterparties.add(spendableOutputs[0].scriptpubkey_address!);
+          counterparties.add(addr0);
         } else {
           // Same type or mixed - count both (can't reliably exclude change)
-          for (const out of spendableOutputs) {
-            counterparties.add(out.scriptpubkey_address!);
-          }
+          counterparties.add(addr0);
+          counterparties.add(addr1);
         }
       } else {
-        // 3+ outputs (batch payment) - count all
-        for (const out of spendableOutputs) {
-          counterparties.add(out.scriptpubkey_address!);
-        }
+        // Single non-self output (clear counterparty) or 3+ outputs (batch payment) - count all
+        for (const addr of outputAddrs) counterparties.add(addr);
       }
     }
 

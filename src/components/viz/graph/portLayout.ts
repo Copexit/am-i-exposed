@@ -19,8 +19,7 @@ export function getSpendingIndex(graphNodes: Map<string, GraphNode>): SpendingIn
   _spendingIndexNodes = graphNodes;
   _spendingIndex = new Map();
   for (const [txid, node] of graphNodes) {
-    for (let i = 0; i < node.tx.vin.length; i++) {
-      const vin = node.tx.vin[i];
+    for (const [i, vin] of node.tx.vin.entries()) {
       if (vin.is_coinbase) continue;
       const key = `${vin.txid}:${vin.vout}`;
       _spendingIndex.set(key, { spenderTxid: txid, inputIdx: i });
@@ -57,10 +56,7 @@ export function buildInputPorts(
   graphNodes: Map<string, GraphNode>,
 ): PortLayout[] {
   const ports: PortLayout[] = [];
-  const count = Math.min(tx.vin.length, MAX_VISIBLE_PORTS);
-
-  for (let i = 0; i < count; i++) {
-    const vin = tx.vin[i];
+  for (const [i, vin] of tx.vin.slice(0, MAX_VISIBLE_PORTS).entries()) {
     const parentTxid = vin.is_coinbase ? undefined : vin.txid;
     const isInGraph = parentTxid ? graphNodes.has(parentTxid) : false;
 
@@ -88,12 +84,9 @@ export function buildOutputPorts(
   outspends?: MempoolOutspend[],
 ): PortLayout[] {
   const ports: PortLayout[] = [];
-  const count = Math.min(tx.vout.length, MAX_VISIBLE_PORTS);
-
   const spendingIdx = getSpendingIndex(graphNodes);
 
-  for (let i = 0; i < count; i++) {
-    const vout = tx.vout[i];
+  for (const [i, vout] of tx.vout.slice(0, MAX_VISIBLE_PORTS).entries()) {
     const os = outspends?.[i];
     const spentByTxid = os?.spent ? os.txid : undefined;
     const isInGraph = spentByTxid ? graphNodes.has(spentByTxid) : false;

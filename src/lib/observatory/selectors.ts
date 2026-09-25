@@ -33,20 +33,18 @@ export function downsampleSeries(
   if (xs.length !== ys.length) return [];
   if (xs.length === 0) return [];
   if (xs.length <= maxPoints) {
-    return xs.map((x, i) => ({ x, y: ys[i] }));
+    return xs.map((x, i) => ({ x, y: ys[i]! })); // same length, checked above
   }
   const bucket = xs.length / maxPoints;
   const out: SparklinePoint[] = [];
   for (let i = 0; i < maxPoints; i++) {
     const start = Math.floor(i * bucket);
     const end = Math.min(xs.length, Math.floor((i + 1) * bucket));
-    let sum = 0;
-    let count = 0;
-    for (let j = start; j < end; j++) {
-      sum += ys[j];
-      count++;
-    }
-    out.push({ x: xs[start], y: count > 0 ? sum / count : 0 });
+    const x = xs[start];
+    if (x === undefined) break;
+    const bucketYs = ys.slice(start, end);
+    const sum = bucketYs.reduce((acc, y) => acc + y, 0);
+    out.push({ x, y: bucketYs.length > 0 ? sum / bucketYs.length : 0 });
   }
   return out;
 }
@@ -76,7 +74,8 @@ export function whirlpool30dDelta(
   const blocks = charts.capacity?.blocks;
   if (!blocks || blocks.length < 2) return null;
   const firstBlock = blocks[0];
-  const lastBlock = blocks[blocks.length - 1];
+  const lastBlock = blocks.at(-1);
+  if (firstBlock === undefined || lastBlock === undefined) return null;
   // Need at least 30 days of data span to be meaningful.
   if (lastBlock - firstBlock < BLOCKS_PER_30D) return null;
   const targetBlock = lastBlock - BLOCKS_PER_30D;
@@ -84,8 +83,8 @@ export function whirlpool30dDelta(
   // "30 days ago" reference point). Linear scan is fine - charts are tiny
   // after downsampling.
   let startIdx = -1;
-  for (let i = 0; i < blocks.length; i++) {
-    if (blocks[i] <= targetBlock) startIdx = i;
+  for (const [i, block] of blocks.entries()) {
+    if (block <= targetBlock) startIdx = i;
     else break;
   }
   if (startIdx === -1) return null;
@@ -94,8 +93,11 @@ export function whirlpool30dDelta(
   let delta = 0;
   for (const k of keys) {
     const series = charts.capacity.series[k];
-    if (!series || series.length === 0) continue;
-    delta += series[series.length - 1] - series[startIdx];
+    const end = series?.at(-1);
+    const start = series?.[startIdx];
+    // Skip series too short to cover the 30d reference point
+    if (end === undefined || start === undefined) continue;
+    delta += end - start;
   }
   return delta;
 }
@@ -140,9 +142,9 @@ export function liquiSabiFreshInputSparkline(
   if (!graph.length) return [];
   const xs: number[] = [];
   const ys: number[] = [];
-  for (let i = 0; i < graph.length; i++) {
+  for (const [i, entry] of graph.entries()) {
     xs.push(i);
-    ys.push(graph[i].Averages?.FreshInputsEstimateBtc ?? 0);
+    ys.push(entry.Averages?.FreshInputsEstimateBtc ?? 0);
   }
   return downsampleSeries(xs, ys);
 }

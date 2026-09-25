@@ -13,7 +13,7 @@ import type { TxHeuristic } from "./types";
 export const analyzeCoinbase: TxHeuristic = (tx) => {
   // A real coinbase tx always has exactly 1 input with is_coinbase set.
   // Multi-input txs with a coinbase flag on one input are malformed, not coinbase.
-  if (tx.vin.length === 1 && tx.vin[0].is_coinbase) {
+  if (tx.vin.length === 1 && tx.vin[0]?.is_coinbase) {
     return {
       findings: [
         {

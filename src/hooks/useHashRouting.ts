@@ -7,8 +7,8 @@ import { useNetwork } from "@/context/NetworkContext";
 const subscribeNoop = () => () => {};
 
 interface HashRoutingCallbacks {
-  analyze: (input: string) => void;
-  walletAnalyze: (input: string) => void;
+  analyze: (input: string) => Promise<void>;
+  walletAnalyze: (input: string) => Promise<void>;
   reset: () => void;
   walletReset: () => void;
   isThirdPartyApi: boolean;
@@ -104,7 +104,8 @@ export function useHashRouting(callbacks: HashRoutingCallbacks): HashRoutingResu
           return;
         }
         resetRef.current();
-        walletAnalyzeRef.current(xpub);
+        // Fire-and-forget: the callee catches its own errors.
+        void walletAnalyzeRef.current(xpub);
         return;
       }
 
@@ -114,7 +115,8 @@ export function useHashRouting(callbacks: HashRoutingCallbacks): HashRoutingResu
         // Mark as processed so the apiReady settle doesn't re-trigger
         initialHashProcessedRef.current = true;
         walletResetRef.current();
-        analyzeRef.current(input);
+        // Fire-and-forget: the callee catches its own errors.
+        void analyzeRef.current(input);
       }
     }
 

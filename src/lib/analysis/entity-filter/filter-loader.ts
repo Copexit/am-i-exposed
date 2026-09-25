@@ -125,7 +125,8 @@ function parseBloomFilter(
 
       for (let i = 0; i < bloomK; i++) {
         const pos = (h1 + i * h2) % bloomM;
-        if (!(bits[pos >> 3] & (1 << (pos & 7)))) return false;
+        // A bit past the end of a truncated filter reads as unset.
+        if (!((bits[pos >> 3] ?? 0) & (1 << (pos & 7)))) return false;
       }
       return true;
     },

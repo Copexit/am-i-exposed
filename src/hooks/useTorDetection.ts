@@ -175,7 +175,8 @@ export function useTorDetection(skip?: boolean, defer?: boolean): TorStatus {
     }
     const current = inflight;
 
-    current.then((result) => {
+    // Fire-and-forget: the probe catches its own errors.
+    void current.then((result) => {
       if (!controller.signal.aborted) {
         setStatus(result);
       }

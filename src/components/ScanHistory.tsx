@@ -96,6 +96,7 @@ export const ScanHistory = memo(function ScanHistory({
     if (next !== null) {
       e.preventDefault();
       const nextTab = availableTabs[next];
+      if (!nextTab) return;
       setTab(nextTab);
       tabListRef.current?.querySelector<HTMLElement>(`#tab-${nextTab}`)?.focus();
     }
@@ -111,7 +112,7 @@ export const ScanHistory = memo(function ScanHistory({
       const arr = [...examples];
       for (let i = arr.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
+        [arr[i], arr[j]] = [arr[j]!, arr[i]!]; // i, j < arr.length by loop bounds
       }
       setShuffledExamples(arr);
 

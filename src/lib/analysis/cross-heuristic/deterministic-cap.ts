@@ -1,4 +1,5 @@
 import type { Finding } from "@/lib/types";
+import type { FindingId } from "@/lib/analysis/finding-metadata";
 
 /**
  * When a deterministic (100% certain) privacy failure is present, cap the
@@ -10,7 +11,7 @@ export function applyDeterministicScoreCap(findings: Finding[]): void {
   // Blockchair sense: change is revealed to third-party observers, leaking the
   // payment amount. Full self-sends (h2-self-send) have no external payment to
   // leak and are already heavily penalized (-15 to -25).
-  const DETERMINISTIC_FINDING_IDS = new Set([
+  const DETERMINISTIC_FINDING_IDS = new Set<FindingId>([
     "h2-same-address-io",    // Same address in input and output (partial - change revealed)
     // h2-sweep removed: 1-in-1-out sweeps are normal practice (wallet migration,
     // exact-amount payment, UTXO swap). No consolidation, no change = no privacy loss.

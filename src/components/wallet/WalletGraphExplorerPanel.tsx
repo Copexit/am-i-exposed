@@ -59,10 +59,10 @@ export function WalletGraphExplorerPanel({
         // Find outputs belonging to wallet addresses
         const vouts = new Set<number>();
         let walletValue = 0;
-        for (let i = 0; i < tx.vout.length; i++) {
-          if (tx.vout[i].scriptpubkey_address && walletAddresses.has(tx.vout[i].scriptpubkey_address!)) {
+        for (const [i, vout] of tx.vout.entries()) {
+          if (vout.scriptpubkey_address && walletAddresses.has(vout.scriptpubkey_address)) {
             vouts.add(i);
-            walletValue += tx.vout[i].value;
+            walletValue += vout.value;
           }
         }
 

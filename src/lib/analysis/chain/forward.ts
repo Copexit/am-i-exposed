@@ -88,9 +88,9 @@ export function analyzeForward(
     // Skip when parent tx is a CoinJoin: post-mix outputs spent individually
     // (1-in, 2-out) is normal and expected behavior, not a peel chain.
     if (!txIsCoinJoin && childTx.vin.length === 1 && childTx.vout.length === 2) {
-      const spendable = getSpendableOutputs(childTx.vout);
-      if (spendable.length === 2) {
-        const [v1, v2] = [spendable[0].value, spendable[1].value];
+      const [out1, out2] = getSpendableOutputs(childTx.vout);
+      if (out1 && out2) {
+        const [v1, v2] = [out1.value, out2.value];
         const ratio = Math.min(v1, v2) / Math.max(v1, v2);
         // Peel chain: one output is much smaller (change) - ratio < 0.3
         if (ratio < 0.3 && ratio > 0) {

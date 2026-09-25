@@ -124,12 +124,17 @@ function mergePartialResults(
   partials: BoltzmannWorkerResult[],
 ): BoltzmannWorkerResult {
   const N = partials.length;
-  if (N === 1) return partials[0];
+  const first = partials[0];
+  if (!first) throw new Error("No Boltzmann partial results to merge");
+  if (N === 1) return first;
 
-  const nOut = partials[0].matLnkCombinations.length;
-  const nIn = nOut > 0 ? partials[0].matLnkCombinations[0].length : 0;
-
-  const mat: number[][] = Array.from({ length: nOut }, () => new Array<number>(nIn).fill(0));
+  // All partials come from the same tx, so every matrix has the first one's shape.
+  // A mismatched cell yields NaN rather than a silently wrong count.
+  const mat: number[][] = first.matLnkCombinations.map((row, o) =>
+    row.map((_, i) =>
+      partials.reduce((sum, p) => sum + (p.matLnkCombinations[o]?.[i] ?? NaN), 0) - (N - 1),
+    ),
+  );
   let nbCmbn = 0;
   let anyTimedOut = false;
   let maxElapsed = 0;
@@ -138,31 +143,21 @@ function mergePartialResults(
     nbCmbn += p.nbCmbn;
     anyTimedOut = anyTimedOut || p.timedOut;
     if (p.elapsedMs > maxElapsed) maxElapsed = p.elapsedMs;
-    for (let o = 0; o < nOut; o++) {
-      for (let i = 0; i < nIn; i++) {
-        mat[o][i] += p.matLnkCombinations[o][i];
-      }
-    }
   }
 
   nbCmbn -= (N - 1);
-  for (let o = 0; o < nOut; o++) {
-    for (let i = 0; i < nIn; i++) {
-      mat[o][i] -= (N - 1);
-    }
-  }
 
   const probs: number[][] = mat.map(row =>
     row.map(v => (nbCmbn > 0 ? v / nbCmbn : 0)),
   );
   const entropy = nbCmbn > 1 ? Math.log2(nbCmbn) : 0;
-  const nbCmbnPrfctCj = partials[0].nbCmbnPrfctCj;
+  const nbCmbnPrfctCj = first.nbCmbnPrfctCj;
   const efficiency = nbCmbnPrfctCj > 0 && nbCmbn > 0 ? nbCmbn / nbCmbnPrfctCj : 0;
 
   const deterministicLinks: [number, number][] = [];
-  for (let o = 0; o < nOut; o++) {
-    for (let i = 0; i < nIn; i++) {
-      if (mat[o][i] === nbCmbn && nbCmbn > 0) {
+  for (const [o, row] of mat.entries()) {
+    for (const [i, v] of row.entries()) {
+      if (v === nbCmbn && nbCmbn > 0) {
         deterministicLinks.push([o, i]);
       }
     }
@@ -170,7 +165,7 @@ function mergePartialResults(
 
   return {
     type: "result",
-    id: partials[0].id,
+    id: first.id,
     matLnkCombinations: mat,
     matLnkProbabilities: probs,
     nbCmbn,
@@ -180,11 +175,11 @@ function mergePartialResults(
     deterministicLinks,
     timedOut: anyTimedOut,
     elapsedMs: maxElapsed,
-    nInputs: partials[0].nInputs,
-    nOutputs: partials[0].nOutputs,
-    fees: partials[0].fees,
-    intraFeesMaker: partials[0].intraFeesMaker,
-    intraFeesTaker: partials[0].intraFeesTaker,
+    nInputs: first.nInputs,
+    nOutputs: first.nOutputs,
+    fees: first.fees,
+    intraFeesMaker: first.intraFeesMaker,
+    intraFeesTaker: first.intraFeesTaker,
   };
 }
 
@@ -235,8 +230,7 @@ export function runParallelPass(
       reject(new Error("Boltzmann worker pool terminated"));
     });
 
-    for (let idx = 0; idx < N; idx++) {
-      const w = workers[idx];
+    for (const [idx, w] of workers.entries()) {
 
       w.onmessage = (e: MessageEvent<WorkerResponse>) => {
         if (settled) return;

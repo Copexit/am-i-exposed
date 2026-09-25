@@ -16,6 +16,7 @@ import type { BaseNodeDatum, LinkDatum, DenomGrouping } from "./shared/sankeyTyp
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import type { SankeyExtraProperties, SankeyGraph } from "d3-sankey";
+import type { FindingId } from "@/lib/analysis/finding-metadata";
 
 // ---------------------------------------------------------------------------
 // FlowChart-specific node type (extends shared base)
@@ -96,8 +97,7 @@ export function buildChangeOutputMap(
     const inputAddrs = new Set(
       tx.vin.map((v) => v.prevout?.scriptpubkey_address).filter(Boolean) as string[],
     );
-    for (let i = 0; i < tx.vout.length; i++) {
-      const a = tx.vout[i].scriptpubkey_address;
+    for (const [i, { scriptpubkey_address: a }] of tx.vout.entries()) {
       if (a && inputAddrs.has(a)) {
         map.set(i, {
           findingId: "h2-self-send",
@@ -132,8 +132,8 @@ export function buildDustOutputIndices(
   }
 
   if (indices.size === 0) {
-    for (let i = 0; i < tx.vout.length; i++) {
-      if (tx.vout[i].value > 0 && tx.vout[i].value < DUST_THRESHOLD && !isOpReturnOutput(tx.vout[i])) {
+    for (const [i, out] of tx.vout.entries()) {
+      if (out.value > 0 && out.value < DUST_THRESHOLD && !isOpReturnOutput(out)) {
         indices.add(i);
       }
     }
@@ -177,8 +177,8 @@ export function buildBoltzmannLookup(
 
   const inputMap: number[] = [];
   let bi = 0;
-  for (let i = 0; i < tx.vin.length; i++) {
-    if (!tx.vin[i].is_coinbase && tx.vin[i].prevout) {
+  for (const [i, vin] of tx.vin.entries()) {
+    if (!vin.is_coinbase && vin.prevout) {
       inputMap[i] = bi++;
     } else {
       inputMap[i] = -1;
@@ -187,8 +187,8 @@ export function buildBoltzmannLookup(
 
   const outputMap: number[] = [];
   let bo = 0;
-  for (let i = 0; i < tx.vout.length; i++) {
-    if (!isOpReturnOutput(tx.vout[i]) && tx.vout[i].value > 0) {
+  for (const [i, out] of tx.vout.entries()) {
+    if (!isOpReturnOutput(out) && out.value > 0) {
       outputMap[i] = bo++;
     } else {
       outputMap[i] = -1;
@@ -199,7 +199,7 @@ export function buildBoltzmannLookup(
     getProb: (displayInIdx: number, displayOutIdx: number): number => {
       const mi = inputMap[displayInIdx];
       const mo = outputMap[displayOutIdx];
-      if (mi < 0 || mo < 0) return 0;
+      if (mi === undefined || mo === undefined || mi < 0 || mo < 0) return 0;
       return mat[mo]?.[mi] ?? 0;
     },
     timedOut: boltzmannResult.timedOut,
@@ -250,7 +250,7 @@ export function buildFlowGraph(
 
   // Heuristic entity detection (HodlHodl, Bisq) - labels fee addresses
   const heuristicEntityMap: Record<string, string> = {};
-  const HEURISTIC_LABELS: Record<string, string> = { "h17-hodlhodl": "HodlHodl", "h17-bisq": "Bisq" };
+  const HEURISTIC_LABELS: Partial<Record<FindingId, string>> = { "h17-hodlhodl": "HodlHodl", "h17-bisq": "Bisq" };
   const msResult = analyzeMultisigDetection(tx);
   for (const f of msResult.findings) {
     const label = HEURISTIC_LABELS[f.id];
@@ -264,8 +264,7 @@ export function buildFlowGraph(
   const links: LinkDatum[] = [];
 
   // Input nodes
-  for (let i = 0; i < displayInputs.length; i++) {
-    const vin = displayInputs[i];
+  for (const [i, vin] of displayInputs.entries()) {
     const addr = vin.prevout?.scriptpubkey_address;
     const val = vin.prevout?.value ?? 0;
     const entity = addr ? matchEntitySync(addr) : null;
@@ -281,8 +280,7 @@ export function buildFlowGraph(
   }
 
   // Output nodes
-  for (let i = 0; i < displayOutputs.length; i++) {
-    const vout = displayOutputs[i];
+  for (const [i, vout] of displayOutputs.entries()) {
     const addr = vout.scriptpubkey_address;
     const val = vout.value;
     const anonCount = anonSets.valueCounts.get(val) ?? 1;
@@ -332,16 +330,15 @@ export function buildFlowGraph(
   const minPositive = Math.min(...outputValues.filter((v) => v > 0), maxOut);
   const useCompression = maxOut / minPositive > 10;
 
-  for (let i = 0; i < displayInputs.length; i++) {
-    const inputVal = displayInputs[i].prevout?.value ?? 0;
+  for (const [i, input] of displayInputs.entries()) {
+    const inputVal = input.prevout?.value ?? 0;
     if (inputVal === 0) continue;
 
     const scaledTotal = useCompression
       ? displayOutputs.reduce((s, o) => s + Math.sqrt(o.value), 0)
       : totalOutputValue;
 
-    for (let j = 0; j < displayOutputs.length; j++) {
-      const outVal = displayOutputs[j].value;
+    for (const [j, { value: outVal }] of displayOutputs.entries()) {
       const scaledOut = useCompression ? Math.sqrt(outVal) : outVal;
       const proportion = scaledTotal > 0 ? scaledOut / scaledTotal : 1 / displayOutputs.length;
       const linkVal = Math.max(1, Math.round(inputVal * proportion));
@@ -351,8 +348,8 @@ export function buildFlowGraph(
 
   // Coinbase fallback
   if (links.length === 0 && nodes.length > 1) {
-    for (let j = 0; j < displayOutputs.length; j++) {
-      links.push({ source: "in-0", target: `out-${j}`, value: Math.max(1, displayOutputs[j].value) });
+    for (const [j, out] of displayOutputs.entries()) {
+      links.push({ source: "in-0", target: `out-${j}`, value: Math.max(1, out.value) });
     }
     if (nodes[0]) {
       nodes[0].value = totalOutputValue + tx.fee;

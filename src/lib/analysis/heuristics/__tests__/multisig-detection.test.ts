@@ -54,10 +54,10 @@ describe("analyzeMultisigDetection", () => {
 
     const { findings } = analyzeMultisigDetection(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h17-hodlhodl");
-    expect(findings[0].severity).toBe("high");
-    expect(findings[0].scoreImpact).toBe(-3);
-    expect(findings[0].remediation).toBeDefined();
+    expect(findings[0]?.id).toBe("h17-hodlhodl");
+    expect(findings[0]?.severity).toBe("high");
+    expect(findings[0]?.scoreImpact).toBe(-3);
+    expect(findings[0]?.remediation).toBeDefined();
   });
 
   it("detects 2-of-3 escrow without fee address match", () => {
@@ -78,9 +78,9 @@ describe("analyzeMultisigDetection", () => {
 
     const { findings } = analyzeMultisigDetection(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h17-escrow-2of3");
-    expect(findings[0].severity).toBe("medium");
-    expect(findings[0].scoreImpact).toBe(-2);
+    expect(findings[0]?.id).toBe("h17-escrow-2of3");
+    expect(findings[0]?.severity).toBe("medium");
+    expect(findings[0]?.scoreImpact).toBe(-2);
   });
 
   it("detects Bisq escrow release (2-of-2 + known taker fee address)", () => {
@@ -111,11 +111,11 @@ describe("analyzeMultisigDetection", () => {
 
     const { findings } = analyzeMultisigDetection(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h17-bisq");
-    expect(findings[0].severity).toBe("high");
-    expect(findings[0].scoreImpact).toBe(-3);
-    expect(findings[0].params?.feeAddress).toBe(BISQ_TAKER_FEE);
-    expect(findings[0].remediation).toBeDefined();
+    expect(findings[0]?.id).toBe("h17-bisq");
+    expect(findings[0]?.severity).toBe("high");
+    expect(findings[0]?.scoreImpact).toBe(-3);
+    expect(findings[0]?.params?.feeAddress).toBe(BISQ_TAKER_FEE);
+    expect(findings[0]?.remediation).toBeDefined();
   });
 
   it("detects Bisq with maker fee address", () => {
@@ -139,8 +139,8 @@ describe("analyzeMultisigDetection", () => {
 
     const { findings } = analyzeMultisigDetection(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h17-bisq");
-    expect(findings[0].params?.feeAddress).toBe(BISQ_MAKER_FEE);
+    expect(findings[0]?.id).toBe("h17-bisq");
+    expect(findings[0]?.params?.feeAddress).toBe(BISQ_MAKER_FEE);
   });
 
   it("detects 2-of-2 escrow (generic, no Bisq fee match)", () => {
@@ -161,10 +161,10 @@ describe("analyzeMultisigDetection", () => {
 
     const { findings } = analyzeMultisigDetection(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h17-escrow-2of2");
-    expect(findings[0].severity).toBe("medium");
-    expect(findings[0].scoreImpact).toBe(-2);
-    expect(findings[0].params?.likelyLN).toBe(0);
+    expect(findings[0]?.id).toBe("h17-escrow-2of2");
+    expect(findings[0]?.severity).toBe("medium");
+    expect(findings[0]?.scoreImpact).toBe(-2);
+    expect(findings[0]?.params?.likelyLN).toBe(0);
   });
 
   it("detects 2-of-2 with LN-like metadata (locktime > 0)", () => {
@@ -185,8 +185,8 @@ describe("analyzeMultisigDetection", () => {
 
     const { findings } = analyzeMultisigDetection(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("lightning-channel-legacy");
-    expect(findings[0].params?.likelyLN).toBe(1);
+    expect(findings[0]?.id).toBe("lightning-channel-legacy");
+    expect(findings[0]?.params?.likelyLN).toBe(1);
   });
 
   it("detects generic M-of-N (3-of-5 enterprise multisig)", () => {
@@ -205,11 +205,11 @@ describe("analyzeMultisigDetection", () => {
 
     const { findings } = analyzeMultisigDetection(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h17-multisig-info");
-    expect(findings[0].severity).toBe("low");
-    expect(findings[0].scoreImpact).toBe(0);
-    expect(findings[0].params?.m).toBe(3);
-    expect(findings[0].params?.n).toBe(5);
+    expect(findings[0]?.id).toBe("h17-multisig-info");
+    expect(findings[0]?.severity).toBe("low");
+    expect(findings[0]?.scoreImpact).toBe(0);
+    expect(findings[0]?.params?.m).toBe(3);
+    expect(findings[0]?.params?.n).toBe(5);
   });
 
   it("returns empty for non-multisig transaction", () => {
@@ -260,8 +260,8 @@ describe("analyzeMultisigDetection", () => {
 
     const { findings } = analyzeMultisigDetection(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h17-hodlhodl");
-    expect(findings[0].confidence).toBe("medium");
+    expect(findings[0]?.id).toBe("h17-hodlhodl");
+    expect(findings[0]?.confidence).toBe("medium");
   });
 
   it("detects HodlHodl via fee pattern at 0.45% (referral rate, in single-side band)", () => {
@@ -292,8 +292,8 @@ describe("analyzeMultisigDetection", () => {
 
     const { findings } = analyzeMultisigDetection(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h17-hodlhodl");
-    expect(findings[0].confidence).toBe("medium");
+    expect(findings[0]?.id).toBe("h17-hodlhodl");
+    expect(findings[0]?.confidence).toBe("medium");
   });
 
   it("detects HodlHodl via fee pattern at 1.0% (combined max fees)", () => {
@@ -324,8 +324,8 @@ describe("analyzeMultisigDetection", () => {
 
     const { findings } = analyzeMultisigDetection(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h17-hodlhodl");
-    expect(findings[0].confidence).toBe("medium");
+    expect(findings[0]?.id).toBe("h17-hodlhodl");
+    expect(findings[0]?.confidence).toBe("medium");
   });
 
   it("does NOT trigger HodlHodl fee pattern at 2% (too high)", () => {
@@ -354,7 +354,7 @@ describe("analyzeMultisigDetection", () => {
 
     const { findings } = analyzeMultisigDetection(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h17-escrow-2of3"); // generic fallback
+    expect(findings[0]?.id).toBe("h17-escrow-2of3"); // generic fallback
   });
 
   it("does NOT trigger HodlHodl fee pattern at 0.2% (too low)", () => {
@@ -383,7 +383,7 @@ describe("analyzeMultisigDetection", () => {
 
     const { findings } = analyzeMultisigDetection(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h17-escrow-2of3"); // generic fallback
+    expect(findings[0]?.id).toBe("h17-escrow-2of3"); // generic fallback
   });
 
   it("does NOT trigger HodlHodl fee pattern when fee > absolute cap", () => {
@@ -412,7 +412,7 @@ describe("analyzeMultisigDetection", () => {
 
     const { findings } = analyzeMultisigDetection(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h17-escrow-2of3");
+    expect(findings[0]?.id).toBe("h17-escrow-2of3");
   });
 
   it("does NOT trigger HodlHodl fee pattern with 3 outputs", () => {
@@ -442,7 +442,7 @@ describe("analyzeMultisigDetection", () => {
 
     const { findings } = analyzeMultisigDetection(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h17-escrow-2of3");
+    expect(findings[0]?.id).toBe("h17-escrow-2of3");
   });
 
   // ── Bisq deposit OP_RETURN detection ─────────────────────────────
@@ -460,9 +460,9 @@ describe("analyzeMultisigDetection", () => {
 
     const { findings } = analyzeMultisigDetection(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h17-bisq-deposit");
-    expect(findings[0].confidence).toBe("high");
-    expect(findings[0].params?.contractHash).toBe(contractHash);
+    expect(findings[0]?.id).toBe("h17-bisq-deposit");
+    expect(findings[0]?.confidence).toBe("high");
+    expect(findings[0]?.params?.contractHash).toBe(contractHash);
   });
 
   it("detects Bisq deposit with change output (3 non-OP_RETURN = too many, but 2 non-OP_RETURN + OP_RETURN = 3 total OK)", () => {
@@ -479,7 +479,7 @@ describe("analyzeMultisigDetection", () => {
 
     const { findings } = analyzeMultisigDetection(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h17-bisq-deposit");
+    expect(findings[0]?.id).toBe("h17-bisq-deposit");
   });
 
   it("detects Bisq deposit with P2SH output (legacy Bisq)", () => {
@@ -495,7 +495,7 @@ describe("analyzeMultisigDetection", () => {
 
     const { findings } = analyzeMultisigDetection(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h17-bisq-deposit");
+    expect(findings[0]?.id).toBe("h17-bisq-deposit");
   });
 
   it("detects Bisq deposit with 3 inputs (partial fill)", () => {
@@ -511,7 +511,7 @@ describe("analyzeMultisigDetection", () => {
 
     const { findings } = analyzeMultisigDetection(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h17-bisq-deposit");
+    expect(findings[0]?.id).toBe("h17-bisq-deposit");
   });
 
   it("does NOT trigger Bisq deposit with 32-byte OP_RETURN (wrong hash length)", () => {
@@ -599,7 +599,7 @@ describe("analyzeMultisigDetection", () => {
 
     const { findings } = analyzeMultisigDetection(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h17-multisig-info");
-    expect(findings[0].params?.inputCount).toBe(2);
+    expect(findings[0]?.id).toBe("h17-multisig-info");
+    expect(findings[0]?.params?.inputCount).toBe(2);
   });
 });

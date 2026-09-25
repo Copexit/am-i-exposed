@@ -72,14 +72,14 @@ describe("parseAndDerive", () => {
     expect(result.changeAddresses).toHaveLength(3);
 
     // BIP84 test vector: first receive address (m/84'/0'/0'/0/0)
-    expect(result.receiveAddresses[0].address).toBe(
+    expect(result.receiveAddresses[0]?.address).toBe(
       "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu",
     );
-    expect(result.receiveAddresses[0].path).toBe("0/0");
-    expect(result.receiveAddresses[0].isChange).toBe(false);
+    expect(result.receiveAddresses[0]?.path).toBe("0/0");
+    expect(result.receiveAddresses[0]?.isChange).toBe(false);
 
     // Second receive address (m/84'/0'/0'/0/1)
-    expect(result.receiveAddresses[1].address).toBe(
+    expect(result.receiveAddresses[1]?.address).toBe(
       "bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g",
     );
   });
@@ -89,11 +89,11 @@ describe("parseAndDerive", () => {
     expect(result.changeAddresses).toHaveLength(2);
 
     // BIP84 test vector: first change address (m/84'/0'/0'/1/0)
-    expect(result.changeAddresses[0].address).toBe(
+    expect(result.changeAddresses[0]?.address).toBe(
       "bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el",
     );
-    expect(result.changeAddresses[0].path).toBe("1/0");
-    expect(result.changeAddresses[0].isChange).toBe(true);
+    expect(result.changeAddresses[0]?.path).toBe("1/0");
+    expect(result.changeAddresses[0]?.isChange).toBe(true);
   });
 
   // BIP32 Test Vector 1 - seed = 000102030405060708090a0b0c0d0e0f
@@ -108,7 +108,7 @@ describe("parseAndDerive", () => {
     expect(result.receiveAddresses).toHaveLength(2);
 
     // Derived 0/0 P2PKH address
-    expect(result.receiveAddresses[0].address).toBe(
+    expect(result.receiveAddresses[0]?.address).toBe(
       "12CL4K2eVqj7hQTix7dM7CVHCkpP17Pry3",
     );
   });
@@ -126,7 +126,7 @@ describe("parseAndDerive", () => {
   it("derives P2TR addresses when scriptType overridden", () => {
     const result = parseAndDerive(xpubBip32, 2, "p2tr");
     expect(result.scriptType).toBe("p2tr");
-    expect(result.receiveAddresses[0].address).toMatch(/^bc1p/);
+    expect(result.receiveAddresses[0]?.address).toMatch(/^bc1p/);
   });
 
   // BIP86 test vector: account xpub for m/86'/0'/0' from mnemonic:
@@ -139,12 +139,12 @@ describe("parseAndDerive", () => {
     expect(result.scriptType).toBe("p2tr");
 
     // BIP86 test vector: first receive address (m/86'/0'/0'/0/0)
-    expect(result.receiveAddresses[0].address).toBe(
+    expect(result.receiveAddresses[0]?.address).toBe(
       "bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr",
     );
 
     // BIP86 test vector: first change address (m/86'/0'/0'/1/0)
-    expect(result.changeAddresses[0].address).toBe(
+    expect(result.changeAddresses[0]?.address).toBe(
       "bc1p3qkhfews2uk44qtvauqyr2ttdsw7svhkl9nkm9s9c3x4ax5h60wqwruhk7",
     );
   });

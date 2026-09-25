@@ -86,11 +86,11 @@ describe("analyzePostMix", () => {
     });
 
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("post-mix-consolidation");
+    expect(findings[0]!.id).toBe("post-mix-consolidation");
     // 2 of 2 inputs from different CoinJoins = 100% consolidation + cross-round = critical
-    expect(findings[0].severity).toBe("critical");
-    expect(findings[0].params?.postMixInputCount).toBe(2);
-    expect(findings[0].params?.distinctCoinJoins).toBe(2);
+    expect(findings[0]!.severity).toBe("critical");
+    expect(findings[0]!.params?.postMixInputCount).toBe(2);
+    expect(findings[0]!.params?.distinctCoinJoins).toBe(2);
   });
 
   it("should flag as critical for 3+ post-mix inputs", () => {
@@ -112,9 +112,9 @@ describe("analyzePostMix", () => {
     });
 
     expect(findings).toHaveLength(1);
-    expect(findings[0].severity).toBe("critical");
-    expect(findings[0].scoreImpact).toBe(-18);
-    expect(findings[0].params?.postMixInputCount).toBe(3);
+    expect(findings[0]!.severity).toBe("critical");
+    expect(findings[0]!.scoreImpact).toBe(-18);
+    expect(findings[0]!.params?.postMixInputCount).toBe(3);
   });
 
   it("should not flag when inputs are NOT from CoinJoin parents", () => {
@@ -195,8 +195,8 @@ describe("analyzePostMix", () => {
     });
 
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("post-mix-consolidation");
+    expect(findings[0]!.id).toBe("post-mix-consolidation");
     // Only 1 distinct CoinJoin
-    expect(findings[0].params?.distinctCoinJoins).toBe(1);
+    expect(findings[0]!.params?.distinctCoinJoins).toBe(1);
   });
 });

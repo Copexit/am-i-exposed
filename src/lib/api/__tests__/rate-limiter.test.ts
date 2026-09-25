@@ -43,7 +43,7 @@ describe("createRateLimiter", () => {
     await p2;
 
     expect(calls).toHaveLength(2);
-    expect(calls[1] - calls[0]).toBeGreaterThanOrEqual(100);
+    expect(calls[1]! - calls[0]!).toBeGreaterThanOrEqual(100);
   });
 
   it("throws immediately if signal already aborted", async () => {

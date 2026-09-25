@@ -11,9 +11,9 @@ describe("analyzeAnonymitySet", () => {
     });
     const { findings } = analyzeAnonymitySet(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("anon-set-strong");
-    expect(findings[0].scoreImpact).toBe(5);
-    expect(findings[0].severity).toBe("good");
+    expect(findings[0]?.id).toBe("anon-set-strong");
+    expect(findings[0]?.scoreImpact).toBe(5);
+    expect(findings[0]?.severity).toBe("good");
   });
 
   it("detects moderate anonymity set (2-4 equal outputs), impact +1", () => {
@@ -26,9 +26,9 @@ describe("analyzeAnonymitySet", () => {
     });
     const { findings } = analyzeAnonymitySet(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("anon-set-moderate");
-    expect(findings[0].scoreImpact).toBe(1);
-    expect(findings[0].severity).toBe("low");
+    expect(findings[0]?.id).toBe("anon-set-moderate");
+    expect(findings[0]?.scoreImpact).toBe(1);
+    expect(findings[0]?.severity).toBe("low");
   });
 
   it("flags all unique outputs with impact -1", () => {
@@ -37,9 +37,9 @@ describe("analyzeAnonymitySet", () => {
     });
     const { findings } = analyzeAnonymitySet(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("anon-set-none");
-    expect(findings[0].scoreImpact).toBe(0);
-    expect(findings[0].severity).toBe("low");
+    expect(findings[0]?.id).toBe("anon-set-none");
+    expect(findings[0]?.scoreImpact).toBe(0);
+    expect(findings[0]?.severity).toBe("low");
   });
 
   it("returns empty for < 2 spendable outputs", () => {
@@ -70,7 +70,7 @@ describe("analyzeAnonymitySet", () => {
     const { findings } = analyzeAnonymitySet(tx);
     // Only 50k and 30k are non-dust, both unique -> anon-set-none
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("anon-set-none");
+    expect(findings[0]?.id).toBe("anon-set-none");
   });
 
   it("does not inflate anonymity set with dust matching real outputs", () => {
@@ -85,7 +85,7 @@ describe("analyzeAnonymitySet", () => {
     const { findings } = analyzeAnonymitySet(tx);
     // Two equal 50k outputs = moderate anonymity set
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("anon-set-moderate");
-    expect(findings[0].params?.count).toBe(2);
+    expect(findings[0]?.id).toBe("anon-set-moderate");
+    expect(findings[0]?.params?.count).toBe(2);
   });
 });

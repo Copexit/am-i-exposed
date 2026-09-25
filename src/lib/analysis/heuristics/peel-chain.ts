@@ -41,13 +41,13 @@ export const analyzePeelChain: TxHeuristic = (tx, _rawHex?, ctx?) => {
 
   // Check backward: is the parent tx also peel-shaped and linked to us?
   const parentTx = ctx?.parentTx;
-  if (parentTx && isPeelShape(parentTx) && parentTx.txid === tx.vin[0].txid) {
+  if (parentTx && isPeelShape(parentTx) && parentTx.txid === tx.vin[0]?.txid) {
     backwardHops = 1;
   }
 
   // Check forward: is the child tx also peel-shaped and fed by one of our outputs?
   const childTx = ctx?.childTx;
-  if (childTx && isPeelShape(childTx) && childTx.vin[0].txid === tx.txid) {
+  if (childTx && isPeelShape(childTx) && childTx.vin[0]?.txid === tx.txid) {
     forwardHops = 1;
   }
 

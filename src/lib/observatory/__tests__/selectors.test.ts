@@ -77,7 +77,7 @@ describe("whirlpoolSparkline", () => {
   it("returns sparkline points for a known pool key from the capacity series", () => {
     const points = whirlpoolSparkline(charts, "0.025_BTC_Pool");
     expect(points.length).toBe(charts.capacity.blocks.length);
-    expect(points[points.length - 1].y).toBe(13.65);
+    expect(points.at(-1)?.y).toBe(13.65);
   });
 
   it("returns [] for an unknown pool key", () => {
@@ -127,11 +127,11 @@ describe("toCycleRows", () => {
   it("maps txs items to rows with same-origin scan links", () => {
     const rows = toCycleRows(txs);
     expect(rows).toHaveLength(3);
-    expect(rows[0].txid).toBe(txs.items[0].txid);
-    expect(rows[0].scanHref).toBe(`/#tx=${txs.items[0].txid}`);
-    expect(rows[0].blockHeight).toBe(957584);
-    expect(rows[0].poolLabel).toBe("0.025 BTC Pool");
-    expect(rows[0].tx0Count).toBe(2);
+    expect(rows[0]?.txid).toBe(txs.items[0]?.txid);
+    expect(rows[0]?.scanHref).toBe(`/#tx=${txs.items[0]?.txid}`);
+    expect(rows[0]?.blockHeight).toBe(957584);
+    expect(rows[0]?.poolLabel).toBe("0.025 BTC Pool");
+    expect(rows[0]?.tx0Count).toBe(2);
   });
 
   it("returns [] for a null page", () => {
@@ -143,9 +143,9 @@ describe("liquiSabiFreshInputSparkline", () => {
   it("treats null Averages entries as zero", () => {
     const points = liquiSabiFreshInputSparkline(dashboard.Graph);
     expect(points).toHaveLength(3);
-    expect(points[1].y).toBe(0);
-    expect(points[0].y).toBeCloseTo(5.5);
-    expect(points[2].y).toBeCloseTo(7.2);
+    expect(points[1]?.y).toBe(0);
+    expect(points[0]?.y).toBeCloseTo(5.5);
+    expect(points[2]?.y).toBeCloseTo(7.2);
   });
 
   it("returns [] for an empty graph", () => {
@@ -165,7 +165,7 @@ describe("projectCoordinators", () => {
 
   it("sorts by fresh-input share descending", () => {
     const views = projectCoordinators(dashboard);
-    expect(views[0].name).toBe("Kruw.io");
+    expect(views[0]?.name).toBe("Kruw.io");
     expect(views.at(-1)?.name).toBe("Gingerwallet");
   });
 });

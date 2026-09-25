@@ -45,12 +45,16 @@ export const analyzeDustOutputs: TxHeuristic = (tx) => {
   if (isCoinbase(tx)) return { findings };
 
   // Collect dust outputs with their vout indices, using per-script-type thresholds
-  const dustEntries: { index: number; value: number; belowEconThreshold: boolean }[] = [];
-  for (let i = 0; i < tx.vout.length; i++) {
-    const out = tx.vout[i];
+  const dustEntries: { index: number; value: number; address?: string; belowEconThreshold: boolean }[] = [];
+  for (const [i, out] of tx.vout.entries()) {
     if (out.value > 0 && out.value < DUST_THRESHOLD && !isOpReturnOutput(out)) {
       const econThreshold = getDustThreshold(out.scriptpubkey_type);
-      dustEntries.push({ index: i, value: out.value, belowEconThreshold: out.value < econThreshold });
+      dustEntries.push({
+        index: i,
+        value: out.value,
+        address: out.scriptpubkey_address,
+        belowEconThreshold: out.value < econThreshold,
+      });
     }
   }
 
@@ -61,10 +65,7 @@ export const analyzeDustOutputs: TxHeuristic = (tx) => {
   // A dust attack is dust sent to someone else. Dust paying back to an input
   // address of this tx (e.g. 546-sat token postage) is the spender's own.
   const inputAddresses = new Set(tx.vin.map((v) => v.prevout?.scriptpubkey_address).filter(Boolean));
-  const sentEntries = dustEntries.filter((d) => {
-    const address = tx.vout[d.index].scriptpubkey_address;
-    return !address || !inputAddresses.has(address);
-  });
+  const sentEntries = dustEntries.filter(({ address }) => !address || !inputAddresses.has(address));
   const sentDust = sentEntries.length;
 
   // Check if this looks like a dust attack:

@@ -95,7 +95,8 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
   const entityInputs = inputMatches.filter((m) => !m.ofac);
   const entityOutputs = outputMatches.filter((m) => !m.ofac);
 
-  if (entityInputs.length > 0) {
+  const [firstInput] = entityInputs;
+  if (firstInput) {
     findings.push({
       id: "entity-known-input",
       severity: "medium",
@@ -105,8 +106,8 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
         matchCount: entityInputs.length,
         count: entityInputs.length,
         addresses: shortList(entityInputs),
-        entityName: entityInputs[0].entityName,
-        category: entityInputs[0].category ?? "unknown",
+        entityName: firstInput.entityName,
+        category: firstInput.category ?? "unknown",
         filterFpr: getFilter()?.meta.fpr ?? 0.001,
       },
       description:
@@ -123,7 +124,8 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
     });
   }
 
-  if (entityOutputs.length > 0) {
+  const [firstOutput] = entityOutputs;
+  if (firstOutput) {
     findings.push({
       id: "entity-known-output",
       severity: "low",
@@ -133,8 +135,8 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
         matchCount: entityOutputs.length,
         count: entityOutputs.length,
         addresses: shortList(entityOutputs),
-        entityName: entityOutputs[0].entityName,
-        category: entityOutputs[0].category ?? "unknown",
+        entityName: firstOutput.entityName,
+        category: firstOutput.category ?? "unknown",
         filterFpr: getFilter()?.meta.fpr ?? 0.001,
       },
       description:

@@ -119,7 +119,8 @@ export function useSaveLoadShare(args: UseSaveLoadShareArgs) {
       return;
     }
     const url = `${window.location.origin}/graph/?network=${network}#graph=${encoded}`;
-    copyToClipboard(url).then((ok) => setToast(ok
+    // Fire-and-forget: copyToClipboard never rejects.
+    void copyToClipboard(url).then((ok) => setToast(ok
       ? t("graphSaveLoad.linkCopied", { defaultValue: "Link copied to clipboard" })
       : t("graphSaveLoad.copyFailed", { defaultValue: "Failed to copy" })));
   }, [buildGraphState, network, t, posOverrides, savedAnnotations, nodeLabels, edgeLabels]);

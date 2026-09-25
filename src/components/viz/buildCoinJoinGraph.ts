@@ -210,8 +210,7 @@ export function buildCoinJoinGraph(
     const displayInputs = showAllInputs ? tx.vin : tx.vin.slice(0, MAX_DISPLAY);
     hiddenIn = tx.vin.length - displayInputs.length;
 
-    for (let i = 0; i < displayInputs.length; i++) {
-      const vin = displayInputs[i];
+    for (const [i, vin] of displayInputs.entries()) {
       const addr = vin.prevout?.scriptpubkey_address;
       const val = vin.prevout?.value ?? 0;
       const ic = inputConsolidation.get(i);
@@ -287,11 +286,11 @@ export function buildCoinJoinGraph(
     });
   } else {
     const linkInputs = showAllInputs ? tx.vin : tx.vin.slice(0, MAX_DISPLAY);
-    for (let i = 0; i < linkInputs.length; i++) {
+    for (const [i, input] of linkInputs.entries()) {
       links.push({
         source: `in-${i}`,
         target: "mixer",
-        value: Math.max(1, linkInputs[i].prevout?.value ?? 1),
+        value: Math.max(1, input.prevout?.value ?? 1),
       });
     }
   }

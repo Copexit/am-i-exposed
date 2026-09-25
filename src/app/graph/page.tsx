@@ -159,20 +159,23 @@ export default function GraphPage() {
       const decoded = decodeGraphFromUrl(encoded);
       if (decoded) {
         const graphToLoad: SavedGraph = { id: "", name: "", savedAt: 0, ...decoded };
-        handleLoadSavedGraph(graphToLoad);
+        // Fire-and-forget: the callee catches its own errors.
+        void handleLoadSavedGraph(graphToLoad);
         return;
       }
     }
 
-    const match = hash.match(/^txid=([a-fA-F0-9]{64})$/);
-    if (match) {
-      const example = TX_EXAMPLES.find((e) => e.input.toLowerCase() === match[1].toLowerCase());
-      loadTxid(match[1], example?.labelDefault);
+    const txid = hash.match(/^txid=([a-fA-F0-9]{64})$/)?.[1];
+    if (txid) {
+      const example = TX_EXAMPLES.find((e) => e.input.toLowerCase() === txid.toLowerCase());
+      // Fire-and-forget: the callee catches its own errors.
+      void loadTxid(txid, example?.labelDefault);
     } else if (!rootTxid) {
       // Check for saved graphs - load the most recently saved/modified
-      const savedGraphs = savedGraphStore.getSnapshot();
-      if (savedGraphs.length > 0) {
-        handleLoadSavedGraph(savedGraphs[0]);
+      const [latestGraph] = savedGraphStore.getSnapshot();
+      if (latestGraph) {
+        // Fire-and-forget: the callee catches its own errors.
+        void handleLoadSavedGraph(latestGraph);
       } else {
         // First visit - random example (the hashchange handler loads it)
         const example = TX_EXAMPLES[Math.floor(Math.random() * TX_EXAMPLES.length)];
@@ -198,7 +201,8 @@ export default function GraphPage() {
         return;
       }
       const example = TX_EXAMPLES.find((e) => e.input.toLowerCase() === txid.toLowerCase());
-      loadTxid(txid, example?.labelDefault);
+      // Fire-and-forget: the callee catches its own errors.
+      void loadTxid(txid, example?.labelDefault);
     },
     [loadTxid],
   );

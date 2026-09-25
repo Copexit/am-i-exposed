@@ -134,13 +134,14 @@ function createTreeEdges(nodes: TaintNode[], edges: TaintEdge[]) {
 
     const parentDepth = depth > 0 ? depth - 1 : depth + 1;
     const parents = depthGroups.get(parentDepth);
-    if (!parents || parents.length === 0) continue;
+    const firstParent = parents?.[0];
+    if (!parents || !firstParent) continue;
 
     // Pick primary parent: entity > coinjoin > root > first
     const primary = parents.find(n => n.type === "entity")
       ?? parents.find(n => n.type === "coinjoin")
       ?? parents.find(n => n.type === "root")
-      ?? parents[0];
+      ?? firstParent;
 
     for (const node of group) {
       const hasTaint = node.type === "entity" || primary.type === "entity" || node.taintPct > 50;

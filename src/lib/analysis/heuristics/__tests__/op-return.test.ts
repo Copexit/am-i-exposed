@@ -11,9 +11,9 @@ describe("analyzeOpReturn", () => {
     });
     const { findings } = analyzeOpReturn(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h7-op-return");
-    expect(findings[0].scoreImpact).toBe(-5);
-    expect(findings[0].severity).toBe("low");
+    expect(findings[0]?.id).toBe("h7-op-return");
+    expect(findings[0]?.scoreImpact).toBe(-5);
+    expect(findings[0]?.severity).toBe("low");
   });
 
   it("detects Omni Layer protocol with impact -8, severity medium", () => {
@@ -29,8 +29,8 @@ describe("analyzeOpReturn", () => {
     const tx2 = makeTx({ vout: [makeVout({ value: 48_000 }), omniVout] });
     const { findings } = analyzeOpReturn(tx2);
     expect(findings).toHaveLength(1);
-    expect(findings[0].scoreImpact).toBe(-8);
-    expect(findings[0].severity).toBe("medium");
+    expect(findings[0]?.scoreImpact).toBe(-8);
+    expect(findings[0]?.severity).toBe("medium");
   });
 
   it("detects Runes protocol (6a5d prefix)", () => {
@@ -43,8 +43,8 @@ describe("analyzeOpReturn", () => {
     const tx = makeTx({ vout: [makeVout({ value: 48_000 }), runesVout] });
     const { findings } = analyzeOpReturn(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].scoreImpact).toBe(-8);
-    expect(findings[0].severity).toBe("medium");
+    expect(findings[0]?.scoreImpact).toBe(-8);
+    expect(findings[0]?.severity).toBe("medium");
   });
 
   it("produces indexed IDs for multiple OP_RETURN outputs", () => {
@@ -57,8 +57,8 @@ describe("analyzeOpReturn", () => {
     });
     const { findings } = analyzeOpReturn(tx);
     expect(findings).toHaveLength(2);
-    expect(findings[0].id).toBe("h7-op-return-0");
-    expect(findings[1].id).toBe("h7-op-return-1");
+    expect(findings[0]?.id).toBe("h7-op-return-0");
+    expect(findings[1]?.id).toBe("h7-op-return-1");
   });
 
   it("returns empty when no OP_RETURN outputs exist", () => {

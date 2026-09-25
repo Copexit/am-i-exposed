@@ -36,9 +36,9 @@ describe("analyzeCoinJoin", () => {
     const { findings } = analyzeCoinJoin(tx);
     // Whirlpool returns early - only 1 finding, no exchange-flagging
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h4-whirlpool");
-    expect(findings[0].scoreImpact).toBe(30);
-    expect(findings[0].severity).toBe("good");
+    expect(findings[0]!.id).toBe("h4-whirlpool");
+    expect(findings[0]!.scoreImpact).toBe(30);
+    expect(findings[0]!.severity).toBe("good");
   });
 
   it("does not detect Whirlpool with only 4 equal outputs", () => {
@@ -64,8 +64,8 @@ describe("analyzeCoinJoin", () => {
       ],
     });
     const { findings } = analyzeCoinJoin(tx);
-    expect(findings[0].id).toBe("h4-whirlpool");
-    expect(findings[0].scoreImpact).toBe(30);
+    expect(findings[0]!.id).toBe("h4-whirlpool");
+    expect(findings[0]!.scoreImpact).toBe(30);
   });
 
   it("detects Whirlpool 8x8 (8 equal outputs at known denom)", () => {
@@ -75,8 +75,8 @@ describe("analyzeCoinJoin", () => {
       vout: Array.from({ length: 8 }, () => makeVout({ value: denom })),
     });
     const { findings } = analyzeCoinJoin(tx);
-    expect(findings[0].id).toBe("h4-whirlpool");
-    expect(findings[0].scoreImpact).toBe(30);
+    expect(findings[0]!.id).toBe("h4-whirlpool");
+    expect(findings[0]!.scoreImpact).toBe(30);
   });
 
   it("detects Whirlpool 9x9 (9 equal outputs at known denom)", () => {
@@ -86,8 +86,8 @@ describe("analyzeCoinJoin", () => {
       vout: Array.from({ length: 9 }, () => makeVout({ value: denom })),
     });
     const { findings } = analyzeCoinJoin(tx);
-    expect(findings[0].id).toBe("h4-whirlpool");
-    expect(findings[0].scoreImpact).toBe(30);
+    expect(findings[0]!.id).toBe("h4-whirlpool");
+    expect(findings[0]!.scoreImpact).toBe(30);
   });
 
   // ── Whirlpool era attribution (Samourai vs Ashigaru) ─────────────────
@@ -433,7 +433,7 @@ describe("analyzeCoinJoin", () => {
       vout: Array.from({ length: 9 }, () => makeVout({ value: denom })),
     });
     const { findings } = analyzeCoinJoin(tx);
-    expect(findings[0].id).toBe("h4-whirlpool");
+    expect(findings[0]!.id).toBe("h4-whirlpool");
   });
 
   it("rejects 10 equal outputs at Whirlpool denom as generic CoinJoin (not Whirlpool)", () => {
@@ -444,7 +444,7 @@ describe("analyzeCoinJoin", () => {
     });
     const { findings } = analyzeCoinJoin(tx);
     expect(findings.find((f) => f.id === "h4-whirlpool")).toBeUndefined();
-    expect(findings[0].id).toBe("h4-coinjoin");
+    expect(findings[0]!.id).toBe("h4-coinjoin");
   });
 
   it("does not detect JoinMarket with 11 inputs", () => {
@@ -536,7 +536,7 @@ describe("analyzeCoinJoin", () => {
     // with 1 equal pair (9,136,520) + 2 change. Previously misclassified as
     // JoinMarket because detectStonewall capped non-Whirlpool inputs at 4.
     const tx = makeTx({
-      vin: Array.from({ length: 9 }, (_, i) =>
+      vin: [203_486, 5_000_000, 11_126, 9_829, 9_572_867, 13_796, 150_000, 82_835, 5_000_000].map((value, i) =>
         makeVin({
           txid: String(i).padStart(64, "b"),
           prevout: {
@@ -544,7 +544,7 @@ describe("analyzeCoinJoin", () => {
             scriptpubkey_asm: "",
             scriptpubkey_type: "v0_p2wpkh",
             scriptpubkey_address: `bc1qutxo${String(i).padStart(33, "0")}`,
-            value: [203_486, 5_000_000, 11_126, 9_829, 9_572_867, 13_796, 150_000, 82_835, 5_000_000][i],
+            value,
           },
         }),
       ),
@@ -613,10 +613,10 @@ describe("analyzeCoinJoin", () => {
       ],
     });
     const { findings } = analyzeCoinJoin(tx);
-    expect(findings[0].id).toBe("h4-coinjoin");
-    expect(findings[0].params?.isWasabi1).toBe(1);
-    expect(findings[0].params?.levels).toBe(3);
-    expect(findings[0].params?.count).toBe(12);
+    expect(findings[0]!.id).toBe("h4-coinjoin");
+    expect(findings[0]!.params?.isWasabi1).toBe(1);
+    expect(findings[0]!.params?.levels).toBe(3);
+    expect(findings[0]!.params?.count).toBe(12);
   });
 
   it("detects Wasabi 1.x from the fixed coordinator address without levels", () => {
@@ -629,8 +629,8 @@ describe("analyzeCoinJoin", () => {
       ],
     });
     const { findings } = analyzeCoinJoin(tx);
-    expect(findings[0].params?.isWasabi1).toBe(1);
-    expect(findings[0].params?.levels).toBe(1);
+    expect(findings[0]!.params?.isWasabi1).toBe(1);
+    expect(findings[0]!.params?.levels).toBe(1);
   });
 
   it("does not treat exact 2x standard denominations (WabiSabi) as Wasabi 1.x", () => {

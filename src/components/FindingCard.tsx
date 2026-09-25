@@ -10,6 +10,7 @@ import { WalletIcon } from "@/components/ui/WalletIcon";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { findingKeys } from "@/lib/finding-utils";
 import { RicochetHopTable, ConsolidationTable } from "./FindingCardTables";
+import type { FindingId } from "@/lib/analysis/finding-metadata";
 import {
   SEVERITY_STYLES,
   CONFIDENCE_STYLES,
@@ -23,7 +24,7 @@ import {
 } from "./findingCardConstants";
 
 /** Map finding IDs to relevant FAQ section anchors */
-const FINDING_LEARN_MORE: Record<string, { faqId: string; labelKey: string; labelDefault: string }> = {
+const FINDING_LEARN_MORE: Partial<Record<FindingId, { faqId: string; labelKey: string; labelDefault: string }>> = {
   "h8-address-reuse": { faqId: "address-reuse", labelKey: "learnMore.addressReuse", labelDefault: "Why address reuse is dangerous" },
   "h2-change-detected": { faqId: "change-detection", labelKey: "learnMore.changeDetection", labelDefault: "How change detection works" },
   "h2-self-send": { faqId: "change-detection", labelKey: "learnMore.selfSend", labelDefault: "Change detection explained" },
@@ -183,6 +184,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
   const severityLabel = t(`common.severity.${finding.severity}`, { defaultValue: style.label });
   const confidence = finding.confidence;
   const confidenceStyle = confidence ? CONFIDENCE_STYLES[confidence] : null;
+  const learnMore = FINDING_LEARN_MORE[finding.id];
   const title = t(findingKeys(finding.id, "title", finding.params), { ...finding.params, defaultValue: finding.title });
 
   return (
@@ -298,13 +300,13 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
                 />
               )}
               <div className="flex items-center justify-between">
-                {FINDING_LEARN_MORE[finding.id] && (
+                {learnMore && (
                   <a
-                    href={`/faq/#${FINDING_LEARN_MORE[finding.id].faqId}`}
+                    href={`/faq/#${learnMore.faqId}`}
                     className="inline-flex items-center gap-1 text-xs text-bitcoin hover:text-bitcoin-hover transition-colors"
                   >
                     <BookOpen size={12} />
-                    {t(FINDING_LEARN_MORE[finding.id].labelKey, { defaultValue: FINDING_LEARN_MORE[finding.id].labelDefault })}
+                    {t(learnMore.labelKey, { defaultValue: learnMore.labelDefault })}
                   </a>
                 )}
                 {proMode && finding.scoreImpact !== 0 && (

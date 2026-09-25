@@ -21,7 +21,7 @@ function linkCounts(inputs: number[], outputs: number[]) {
   const r = buildLinkabilityMatrix(tx(inputs, outputs))!;
   return {
     n: r.totalInterpretations,
-    mat: outputs.map((_, o) => inputs.map((_, i) => Math.round(r.matrix[i][o].probability * r.totalInterpretations))),
+    mat: outputs.map((_, o) => inputs.map((_, i) => Math.round(r.matrix[i]![o]!.probability * r.totalInterpretations))),
   };
 }
 
@@ -76,8 +76,9 @@ describe("buildLinkabilityMatrix - findings", () => {
 
   it("2-in/2-out where both inputs share one address: no finding (single owner, as H5 merges)", () => {
     const t = tx([100_000, 50_000], [90_000, 40_000]);
-    const addr = t.vin[0].prevout!.scriptpubkey_address;
-    t.vin[1] = { ...t.vin[1], prevout: { ...t.vin[1].prevout!, scriptpubkey_address: addr } };
+    const [first, second] = t.vin as [MempoolVin, MempoolVin];
+    const addr = first.prevout!.scriptpubkey_address;
+    t.vin[1] = { ...second, prevout: { ...second.prevout!, scriptpubkey_address: addr } };
     expect(buildLinkabilityMatrix(t)!.findings).toEqual([]);
   });
 
@@ -112,7 +113,7 @@ describe("buildLinkabilityMatrix - findings", () => {
     // Only input[0] (10k) can fund the 5k output on its own; the 50k inputs fund the 50k outputs
     const r = buildLinkabilityMatrix(tx([10_000, 50_000, 50_000, 50_000], [50_000, 50_000, 50_000, 5_000]))!;
     expect(r.totalInterpretations).toBeGreaterThan(1);
-    expect(r.matrix[0][3].deterministic).toBe(true);
+    expect(r.matrix[0]?.[3]?.deterministic).toBe(true);
     expect(r.findings.find((f) => f.id === "linkability-equal-subset")).toMatchObject({ severity: "medium" });
   });
 
@@ -134,7 +135,7 @@ describe("buildLinkabilityMatrix - skipped txs", () => {
 
   it("returns null when a prevout value is missing", () => {
     const t = tx([100_000, 50_000], [90_000, 40_000]);
-    t.vin[1] = { ...t.vin[1], prevout: null };
+    t.vin[1] = { ...t.vin[1]!, prevout: null };
     expect(buildLinkabilityMatrix(t)).toBeNull();
   });
 });

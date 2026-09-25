@@ -4,7 +4,7 @@ import type { Finding } from "@/lib/types";
 
 function makeFinding(overrides: Partial<Finding> = {}): Finding {
   return {
-    id: "test",
+    id: "h1-round-amount",
     severity: "low",
     title: "Test finding",
     description: "Test",
@@ -130,14 +130,14 @@ describe("calculateScore", () => {
 
   it("sorts findings by severity (critical first, good last)", () => {
     const findings = [
-      makeFinding({ id: "good", severity: "good", scoreImpact: 5 }),
-      makeFinding({ id: "critical", severity: "critical", scoreImpact: -10 }),
-      makeFinding({ id: "medium", severity: "medium", scoreImpact: -3 }),
+      makeFinding({ id: "h4-coinjoin", severity: "good", scoreImpact: 5 }),
+      makeFinding({ id: "h8-address-reuse", severity: "critical", scoreImpact: -10 }),
+      makeFinding({ id: "h6-rbf-signaled", severity: "medium", scoreImpact: -3 }),
     ];
     const result = calculateScore(findings);
-    expect(result.findings[0].id).toBe("critical");
-    expect(result.findings[1].id).toBe("medium");
-    expect(result.findings[2].id).toBe("good");
+    expect(result.findings[0]?.id).toBe("h8-address-reuse");
+    expect(result.findings[1]?.id).toBe("h6-rbf-signaled");
+    expect(result.findings[2]?.id).toBe("h4-coinjoin");
   });
 });
 

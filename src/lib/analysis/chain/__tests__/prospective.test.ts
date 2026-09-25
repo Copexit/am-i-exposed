@@ -70,7 +70,7 @@ describe("analyzeFingerprintEvolution", () => {
     ];
     const result = analyzeFingerprintEvolution(ADDR, txs);
     expect(result.transitions).toHaveLength(1);
-    expect(result.transitions[0].changes).toContain("nVersion 1 -> 2");
+    expect(result.transitions[0]?.changes).toContain("nVersion 1 -> 2");
     // nVersion + locktime change = 2 signals = wallet migration
     const f = result.findings.find((f) => f.id === "prospective-wallet-migration");
     expect(f).toBeDefined();
@@ -120,7 +120,7 @@ describe("analyzeFingerprintEvolution", () => {
     ];
     const result = analyzeFingerprintEvolution(ADDR, txs);
     expect(result.transitions).toHaveLength(1);
-    expect(result.transitions[0].changes.some((c) => c.includes("Script type"))).toBe(true);
+    expect(result.transitions[0]?.changes.some((c) => c.includes("Script type"))).toBe(true);
   });
 
   it("detects multiple transitions as mixed fingerprints", () => {

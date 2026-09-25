@@ -33,6 +33,7 @@ export function MempoolDownDialog() {
       if (!buttons?.length) return;
       const first = buttons[0];
       const last = buttons[buttons.length - 1];
+      if (!first || !last) return;
       const active = document.activeElement;
       const inside = dialogRef.current?.contains(active);
       if (e.shiftKey && (active === first || !inside)) {

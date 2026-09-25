@@ -80,8 +80,7 @@ export function analyzeBackwardTaint(
   const aggregatedTaint = new Map<string, number>();
   let totalTaintFraction = 0;
 
-  for (let i = 0; i < tx.vin.length; i++) {
-    const vin = tx.vin[i];
+  for (const [i, vin] of tx.vin.entries()) {
     if (vin.is_coinbase) continue;
     const inputValue = vin.prevout?.value ?? 0;
     if (inputValue === 0) continue;
@@ -134,8 +133,7 @@ export function analyzeBackwardTaint(
   const totalOutputValue = spendable.reduce((sum, o) => sum + o.value, 0);
 
   if (totalOutputValue > 0 && aggregatedTaint.size > 0) {
-    for (let i = 0; i < tx.vout.length; i++) {
-      const vout = tx.vout[i];
+    for (const [i, vout] of tx.vout.entries()) {
       if (isOpReturnOutput(vout)) continue;
       // Proportional: each output gets the same taint fraction as the overall tx
       const breakdown: TaintBreakdown = {

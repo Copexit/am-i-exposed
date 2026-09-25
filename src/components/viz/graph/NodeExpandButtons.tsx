@@ -50,16 +50,15 @@ export function NodeExpandButtons({
             }
           }
         }
-        for (let i = 0; i < node.tx.vout.length; i++) {
-          const out = node.tx.vout[i];
+        for (const [i, out] of node.tx.vout.entries()) {
           if (isOpReturnOutput(out) || out.value === 0) {
             nonExpandable.add(i);
           }
         }
         const outspends = outspendCache?.get(node.txid);
         if (outspends) {
-          for (let i = 0; i < outspends.length; i++) {
-            if (!outspends[i].spent) nonExpandable.add(i);
+          for (const [i, os] of outspends.entries()) {
+            if (!os.spent) nonExpandable.add(i);
           }
         }
         if (nonExpandable.size >= node.tx.vout.length) return null;

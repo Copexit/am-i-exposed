@@ -21,6 +21,13 @@ const h = vi.hoisted(() => ({
   explorerProps: {} as Record<string, (...args: never[]) => unknown>,
 }));
 
+/** A callback prop captured from the mocked GraphExplorer; throws if it was never passed. */
+function explorerProp(name: string) {
+  const fn = h.explorerProps[name];
+  if (!fn) throw new Error(`GraphExplorer prop "${name}" was not captured`);
+  return fn;
+}
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (_k: string, o?: { defaultValue?: string }) => o?.defaultValue ?? _k }),
 }));
@@ -131,7 +138,7 @@ describe("GraphPage", () => {
     await renderPage();
     h.calls = [];
     act(() => {
-      h.explorerProps.onSearch(TX_B as never);
+      explorerProp("onSearch")(TX_B as never);
     });
     await flush();
     expect(h.calls.map(([, t]) => t)).toEqual([TX_B]);
@@ -144,10 +151,10 @@ describe("GraphPage", () => {
     h.delays = { [TX_A]: 500, [TX_B]: 10 };
     // Same-hash reload path + a new-hash path, back to back
     act(() => {
-      h.explorerProps.onSearch(TX_A as never);
+      explorerProp("onSearch")(TX_A as never);
     });
     act(() => {
-      h.explorerProps.onSearch(TX_B as never);
+      explorerProp("onSearch")(TX_B as never);
     });
     await flush();
     expect(h.setRoot.mock.calls.map(([tx]) => (tx as { txid: string }).txid)).toEqual([TX_B]);
@@ -159,10 +166,10 @@ describe("GraphPage", () => {
     await renderPage();
     const saved = { id: "g", name: "", savedAt: 0, network: "signet", nodes: [], rootTxid: TX_A } as unknown as SavedGraph;
     await act(async () => {
-      await h.explorerProps.onLoadSavedGraph(saved as never);
+      await explorerProp("onLoadSavedGraph")(saved as never);
     });
     expect((h.net.setNetwork as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith("signet");
-    const fetcher = h.loadSavedGraph.mock.calls[0][1] as { base: string };
+    const fetcher = h.loadSavedGraph.mock.calls[0]?.[1] as { base: string };
     expect(fetcher.base).toBe(NETWORK_CONFIG.signet.mempoolBaseUrl);
   });
 
@@ -172,7 +179,7 @@ describe("GraphPage", () => {
     await renderPage();
     const saved = { id: "g", name: "", savedAt: 0, network: "signet", nodes: [], rootTxid: TX_A } as unknown as SavedGraph;
     await act(async () => {
-      await h.explorerProps.onLoadSavedGraph(saved as never);
+      await explorerProp("onLoadSavedGraph")(saved as never);
     });
     expect(confirm).not.toHaveBeenCalled();
     expect(h.loadSavedGraph).not.toHaveBeenCalled();

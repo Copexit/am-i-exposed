@@ -150,7 +150,8 @@ export const analyzeFees: TxHeuristic = (tx, _rawHex?, ctx?) => {
 /** Detect CPFP fee bumping pattern. */
 function detectCpfp(tx: Parameters<TxHeuristic>[0], ctx: TxContext | undefined, findings: Finding[]): void {
   if (!ctx?.parentTx) return;
-  if (tx.vin.length !== 1) return;
+  const [onlyInput] = tx.vin;
+  if (tx.vin.length !== 1 || !onlyInput) return;
   if (isCoinbase(tx)) return;
 
   const parentTx = ctx.parentTx;
@@ -170,7 +171,7 @@ function detectCpfp(tx: Parameters<TxHeuristic>[0], ctx: TxContext | undefined, 
   if (parentFeeRate <= 0 || childFeeRate < parentFeeRate * 2) return;
 
   // The spent output must NOT be the largest parent output (CPFP spends change, not payment)
-  const spentOutputIndex = tx.vin[0].vout;
+  const spentOutputIndex = onlyInput.vout;
   const spentOutput = parentTx.vout[spentOutputIndex];
   if (!spentOutput) return;
   const largestValue = Math.max(...parentTx.vout.map((o) => o.value));

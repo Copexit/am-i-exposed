@@ -46,7 +46,7 @@ describe("getWhirlpoolSummary", () => {
     expect(result.tip_height).toBe(957629);
     expect(result.is_synced).toBe(true);
     expect(result.pools).toHaveLength(2);
-    expect(result.pools[0].unspent_utxos).toBe(546);
+    expect(result.pools[0]?.unspent_utxos).toBe(546);
     expect(mockFetch).toHaveBeenCalledWith(
       `${BASE}/summary`,
       expect.objectContaining({ method: "GET" }),
@@ -68,8 +68,8 @@ describe("getWhirlpoolCharts", () => {
     const result = await getWhirlpoolCharts(BASE);
     const cap = result.capacity;
     expect(cap.blocks[cap.blocks.length - 1]).toBe(957310);
-    expect(cap.series["0.025_BTC_Pool"][cap.blocks.length - 1]).toBe(13.65);
-    expect(cap.series["0.25_BTC_Pool"][cap.blocks.length - 1]).toBe(62.75);
+    expect(cap.series["0.025_BTC_Pool"]?.[cap.blocks.length - 1]).toBe(13.65);
+    expect(cap.series["0.25_BTC_Pool"]?.[cap.blocks.length - 1]).toBe(62.75);
     expect(result.utxos.total_utxos.length).toBe(result.utxos.blocks.length);
     expect(mockFetch).toHaveBeenCalledWith(
       `${BASE}/charts`,

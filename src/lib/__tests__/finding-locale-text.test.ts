@@ -30,7 +30,8 @@ const locale = (lang: string) =>
   JSON.parse(readFileSync(join(process.cwd(), "public/locales", lang, "common.json"), "utf8")) as Record<string, string>;
 
 const i18n = i18next.createInstance();
-i18n.init({
+// initAsync: false - resources are ready synchronously.
+void i18n.init({
   lng: "en",
   fallbackLng: "en",
   initAsync: false,

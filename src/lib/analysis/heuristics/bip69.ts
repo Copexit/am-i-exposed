@@ -28,16 +28,16 @@ export function checkBip69Ordering(
 ): boolean {
   // Check input ordering: sorted by txid (ascending), then vout (ascending)
   for (let i = 1; i < tx.vin.length; i++) {
-    const prev = tx.vin[i - 1];
-    const curr = tx.vin[i];
+    const prev = tx.vin[i - 1]!;
+    const curr = tx.vin[i]!;
     if (prev.txid > curr.txid) return false;
     if (prev.txid === curr.txid && prev.vout > curr.vout) return false;
   }
 
   // Check output ordering: sorted by value (ascending), then scriptpubkey (ascending)
   for (let i = 1; i < tx.vout.length; i++) {
-    const prev = tx.vout[i - 1];
-    const curr = tx.vout[i];
+    const prev = tx.vout[i - 1]!;
+    const curr = tx.vout[i]!;
     if (prev.value > curr.value) return false;
     if (prev.value === curr.value && prev.scriptpubkey > curr.scriptpubkey) return false;
   }

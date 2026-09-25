@@ -16,7 +16,7 @@ describe("analyzeDustOutputs", () => {
       vin: [makeVin()],
       vout: [makeVout({ value: 99_000 })],
     });
-    tx.vout.unshift(makeVout({ value: 546, scriptpubkey_address: tx.vin[0].prevout!.scriptpubkey_address }));
+    tx.vout.unshift(makeVout({ value: 546, scriptpubkey_address: tx.vin[0]!.prevout!.scriptpubkey_address }));
     const { findings } = analyzeDustOutputs(tx);
     expect(findings.map((f) => f.id)).toEqual(["dust-outputs"]);
   });
@@ -36,9 +36,9 @@ describe("analyzeDustOutputs", () => {
     });
     const { findings } = analyzeDustOutputs(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("dust-attack");
-    expect(findings[0].scoreImpact).toBe(-8);
-    expect(findings[0].severity).toBe("high");
+    expect(findings[0]?.id).toBe("dust-attack");
+    expect(findings[0]?.scoreImpact).toBe(-8);
+    expect(findings[0]?.severity).toBe("high");
   });
 
   it("detects batch dust attack (>= 5 dust, > 50% of outputs)", () => {
@@ -56,8 +56,8 @@ describe("analyzeDustOutputs", () => {
     });
     const { findings } = analyzeDustOutputs(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("dust-attack");
-    expect(findings[0].scoreImpact).toBe(-8);
+    expect(findings[0]?.id).toBe("dust-attack");
+    expect(findings[0]?.scoreImpact).toBe(-8);
   });
 
   it("flags non-attack dust with extreme values (< 600 sats) as medium, impact -5", () => {
@@ -67,9 +67,9 @@ describe("analyzeDustOutputs", () => {
     });
     const { findings } = analyzeDustOutputs(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("dust-outputs");
-    expect(findings[0].scoreImpact).toBe(-5);
-    expect(findings[0].severity).toBe("medium");
+    expect(findings[0]?.id).toBe("dust-outputs");
+    expect(findings[0]?.scoreImpact).toBe(-5);
+    expect(findings[0]?.severity).toBe("medium");
   });
 
   it("flags non-attack dust without extreme values as low, impact -3", () => {
@@ -79,9 +79,9 @@ describe("analyzeDustOutputs", () => {
     });
     const { findings } = analyzeDustOutputs(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("dust-outputs");
-    expect(findings[0].scoreImpact).toBe(-3);
-    expect(findings[0].severity).toBe("low");
+    expect(findings[0]?.id).toBe("dust-outputs");
+    expect(findings[0]?.scoreImpact).toBe(-3);
+    expect(findings[0]?.severity).toBe("low");
   });
 
   it("returns empty when no dust outputs", () => {
@@ -112,10 +112,10 @@ describe("analyzeDustOutputs", () => {
     });
     const { findings } = analyzeDustOutputs(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("dust-outputs");
-    expect(findings[0].severity).toBe("medium");
-    expect(findings[0].scoreImpact).toBe(-5);
-    expect(findings[0].description).toContain("wallet");
+    expect(findings[0]?.id).toBe("dust-outputs");
+    expect(findings[0]?.severity).toBe("medium");
+    expect(findings[0]?.scoreImpact).toBe(-5);
+    expect(findings[0]?.description).toContain("wallet");
   });
 
   it("flags P2TR output at 300 sats as economic dust (below 330 threshold)", () => {
@@ -129,9 +129,9 @@ describe("analyzeDustOutputs", () => {
     });
     const { findings } = analyzeDustOutputs(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("dust-outputs");
-    expect(findings[0].severity).toBe("medium");
-    expect(findings[0].params?.econDustCount).toBe(1);
+    expect(findings[0]?.id).toBe("dust-outputs");
+    expect(findings[0]?.severity).toBe("medium");
+    expect(findings[0]?.params?.econDustCount).toBe(1);
   });
 });
 

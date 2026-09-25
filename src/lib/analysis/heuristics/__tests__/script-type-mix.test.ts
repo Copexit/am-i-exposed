@@ -29,9 +29,9 @@ describe("analyzeScriptTypeMix", () => {
     });
     const { findings } = analyzeScriptTypeMix(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("script-uniform");
-    expect(findings[0].scoreImpact).toBe(2);
-    expect(findings[0].severity).toBe("good");
+    expect(findings[0]?.id).toBe("script-uniform");
+    expect(findings[0]?.scoreImpact).toBe(2);
+    expect(findings[0]?.severity).toBe("good");
   });
 
   it("detects 3+ script types with impact -3, severity medium", () => {
@@ -79,6 +79,6 @@ describe("analyzeScriptTypeMix", () => {
     });
     const { findings } = analyzeScriptTypeMix(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("script-multisig");
+    expect(findings[0]?.id).toBe("script-multisig");
   });
 });

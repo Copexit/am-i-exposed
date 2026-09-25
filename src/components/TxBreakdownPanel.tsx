@@ -36,6 +36,15 @@ export function TxBreakdownPanel({
   const [copiedTxid, setCopiedTxid] = useState<string | null>(null);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(copyTimerRef.current), []);
+  const copyTxid = (txid: string) => {
+    // copyToClipboard never rejects; it resolves false when copying failed
+    void copyToClipboard(txid).then((ok) => {
+      if (!ok) return;
+      setCopiedTxid(txid);
+      clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopiedTxid(null), 2000);
+    });
+  };
 
   const sorted = useMemo(() => [...breakdown].sort((a, b) => {
     if (sortBy === "grade") return a.score - b.score; // worst first
@@ -141,18 +150,12 @@ export function TxBreakdownPanel({
                     tabIndex={0}
                     onClick={(e) => {
                       e.stopPropagation();
-                      copyToClipboard(item.txid);
-                      setCopiedTxid(item.txid);
-                      clearTimeout(copyTimerRef.current);
-                      copyTimerRef.current = setTimeout(() => setCopiedTxid(null), 2000);
+                      copyTxid(item.txid);
                     }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.stopPropagation();
-                        copyToClipboard(item.txid);
-                        setCopiedTxid(item.txid);
-                        clearTimeout(copyTimerRef.current);
-                        copyTimerRef.current = setTimeout(() => setCopiedTxid(null), 2000);
+                        copyTxid(item.txid);
                       }
                     }}
                     aria-label={t("breakdown.copyTxid", { defaultValue: "Copy transaction ID" })}

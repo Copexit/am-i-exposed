@@ -11,7 +11,7 @@ import { COLORS, HUES } from "@/lib/palette";
 // ─── Script type colors ─────────────────────────────────────────
 
 /** Edge color by scriptpubkey_type (OXT conventions). */
-export const SCRIPT_TYPE_COLORS: Record<string, string> = {
+export const SCRIPT_TYPE_COLORS = {
   // Legacy
   p2pk: COLORS.severityGood,  // green
   p2pkh: COLORS.severityGood, // green
@@ -35,10 +35,11 @@ export const SCRIPT_TYPE_COLORS: Record<string, string> = {
   op_return: HUES.stone500,    // warm gray (data-only, not a payment)
   nonstandard: HUES.pink500,   // pink
   unknown: HUES.gray500,       // gray
-};
+} satisfies Record<string, string>;
 
 export function getScriptTypeColor(scriptType: string): string {
-  return SCRIPT_TYPE_COLORS[scriptType] ?? SCRIPT_TYPE_COLORS.unknown;
+  const byType: Partial<Record<string, string>> = SCRIPT_TYPE_COLORS;
+  return byType[scriptType] ?? SCRIPT_TYPE_COLORS.unknown;
 }
 
 // ─── Script dash patterns ───────────────────────────────────────

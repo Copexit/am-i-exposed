@@ -34,9 +34,9 @@ export const analyzeBip47Notification: TxHeuristic = (tx) => {
     (o) => isOpReturnOutput(o),
   );
 
-  if (opReturnOutputs.length !== 1) return { findings };
+  const [opReturn] = opReturnOutputs;
+  if (opReturnOutputs.length !== 1 || !opReturn) return { findings };
 
-  const opReturn = opReturnOutputs[0];
   const dataHex = extractOpReturnData(opReturn.scriptpubkey);
 
   // BIP47 payment code is exactly 80 bytes = 160 hex characters

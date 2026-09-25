@@ -153,6 +153,7 @@ export function usePanZoom({
         const vt = latestRef.current.viewTransform;
         if (!vt) return;
         const t0 = e.touches[0], t1 = e.touches[1];
+        if (!t0 || !t1) return;
         const rect = el.getBoundingClientRect();
         pinchRef.current = {
           active: true,
@@ -166,6 +167,7 @@ export function usePanZoom({
         const vt = latestRef.current.viewTransform;
         if (!vt) return;
         const t = e.touches[0];
+        if (!t) return;
         pendingPan = { startX: t.clientX, startY: t.clientY, vtX: vt.x, vtY: vt.y, scale: vt.scale };
         pinchRef.current.active = false;
       }
@@ -177,6 +179,7 @@ export function usePanZoom({
         const vt = latestRef.current.viewTransform;
         if (!vt) return;
         const t0 = e.touches[0], t1 = e.touches[1];
+        if (!t0 || !t1) return;
         const curDist = dist(t0, t1);
         const ratio = curDist / pinchRef.current.startDist;
         const ns = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, pinchRef.current.startScale * ratio));
@@ -186,6 +189,7 @@ export function usePanZoom({
         onViewTransformChange({ x: midX - gx * ns, y: midY - gy * ns, scale: ns });
       } else if (e.touches.length === 1) {
         const t = e.touches[0];
+        if (!t) return;
 
         if (pendingPan && !panRef.current.active) {
           const moved = Math.hypot(t.clientX - pendingPan.startX, t.clientY - pendingPan.startY);
@@ -229,6 +233,7 @@ export function usePanZoom({
         const vt = latestRef.current.viewTransform;
         if (!vt) return;
         const t = e.touches[0];
+        if (!t) return;
         pendingPan = { startX: t.clientX, startY: t.clientY, vtX: vt.x, vtY: vt.y, scale: vt.scale };
       }
     };

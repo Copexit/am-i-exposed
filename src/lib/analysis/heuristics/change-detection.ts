@@ -44,8 +44,8 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
   // The lone output must also be addressed (not a burn or bare/nonstandard script).
   const isSweep = tx.vin.length === 1 && tx.vout.length === 1 && spendableOutputs.length === 1;
   if (isSweep) {
-    const inputAddr = tx.vin[0].prevout?.scriptpubkey_address;
-    const outputAddr = spendableOutputs[0].scriptpubkey_address;
+    const inputAddr = tx.vin[0]?.prevout?.scriptpubkey_address;
+    const outputAddr = spendableOutputs[0]?.scriptpubkey_address;
     // Skip if it's sending to the same address (consolidation, already caught by self-send)
     if (inputAddr !== outputAddr) {
       findings.push({
@@ -73,7 +73,7 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
   // has a deterministic input-to-output link, similar to a sweep.
   const hasOpReturn = tx.vout.some(isOpReturnOutput);
   if (!isSweep && spendableOutputs.length === 1 && hasOpReturn && tx.vin.length >= 1) {
-    const outputAddr = spendableOutputs[0].scriptpubkey_address;
+    const outputAddr = spendableOutputs[0]?.scriptpubkey_address;
     const inAddrs = new Set(tx.vin.map((v) => v.prevout?.scriptpubkey_address).filter(Boolean));
     const isSelfData = outputAddr && inAddrs.has(outputAddr);
     if (!isSelfData) {
@@ -94,12 +94,13 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
   }
 
   // ── Wallet hop detection (N-in, 1-out, script type upgrade) ──────
-  if (spendableOutputs.length === 1 && spendableOutputs[0].scriptpubkey_address) {
+  const loneOutput = spendableOutputs[0];
+  if (spendableOutputs.length === 1 && loneOutput?.scriptpubkey_address) {
     const inputScriptTypes = new Set<string>();
     for (const v of tx.vin) {
       if (v.prevout?.scriptpubkey_type) inputScriptTypes.add(v.prevout.scriptpubkey_type);
     }
-    const outputType = spendableOutputs[0].scriptpubkey_type;
+    const outputType = loneOutput.scriptpubkey_type;
 
     if (inputScriptTypes.size > 0 && !inputScriptTypes.has(outputType)) {
       const isUpgrade =
@@ -149,8 +150,8 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
       const totalSpendable = spendableOutputs.length;
 
       const selfSendIndices: number[] = [];
-      for (let i = 0; i < tx.vout.length; i++) {
-        const addr = tx.vout[i].scriptpubkey_address;
+      for (const [i, out] of tx.vout.entries()) {
+        const addr = out.scriptpubkey_address;
         if (addr && inputAddresses.has(addr)) {
           selfSendIndices.push(i);
         }
@@ -214,7 +215,8 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
   if (spendableOutputs.length !== 2) return { findings };
 
   // Skip if either output has no address
-  if (!spendableOutputs[0].scriptpubkey_address || !spendableOutputs[1].scriptpubkey_address) {
+  const [out0, out1] = spendableOutputs;
+  if (!out0?.scriptpubkey_address || !out1?.scriptpubkey_address) {
     return { findings };
   }
 
@@ -325,8 +327,7 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
   let changeVoutIdx: number | undefined;
   if (changeSpendableIdx >= 0) {
     let spendableCount = 0;
-    for (let i = 0; i < tx.vout.length; i++) {
-      const out = tx.vout[i];
+    for (const [i, out] of tx.vout.entries()) {
       if (!isOpReturnOutput(out) && out.scriptpubkey_address && out.value > 0) {
         if (spendableCount === changeSpendableIdx) {
           changeVoutIdx = i;

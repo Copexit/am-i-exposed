@@ -50,7 +50,7 @@ describe("runChainTrace", () => {
   it("does not report failure when every fetch succeeds", async () => {
     const res = await runChainTrace(params({ getTransaction: coinbaseParent }));
     expect(res.backwardFailed).toBe(false);
-    expect(res.backwardLayers[0].txs.size).toBe(2);
+    expect(res.backwardLayers[0]?.txs.size).toBe(2);
   });
 
   it("reports progress through onProgress (no React state in lib code)", async () => {
@@ -96,14 +96,14 @@ describe("runChainTrace", () => {
       const { res, fetchedGrandparents } = await traceWith(whirlpoolMix, { skipCoinJoins: true });
       expect(fetchedGrandparents).toBe(0);
       expect(res.backwardLayers).toHaveLength(1);
-      expect(res.backwardLayers[0].txs.has("1".repeat(64))).toBe(true);
+      expect(res.backwardLayers[0]?.txs.has("1".repeat(64))).toBe(true);
     });
 
     it("skipLargeClusters does not expand through a tx merging more than 50 input addresses", async () => {
       expect((await traceWith(largeConsolidation, {})).fetchedGrandparents).toBeGreaterThan(0);
       const { res, fetchedGrandparents } = await traceWith(largeConsolidation, { skipLargeClusters: true });
       expect(fetchedGrandparents).toBe(0);
-      expect(res.backwardLayers[0].txs.has("1".repeat(64))).toBe(true);
+      expect(res.backwardLayers[0]?.txs.has("1".repeat(64))).toBe(true);
     });
   });
 

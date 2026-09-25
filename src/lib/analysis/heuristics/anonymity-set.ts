@@ -54,6 +54,7 @@ export const analyzeAnonymitySet: TxHeuristic = (tx) => {
 
   // Find max anonymity set
   const maxSet = sets[0];
+  if (!maxSet) return { findings };
   const uniqueOutputs = sets.filter((s) => s.count === 1).length;
   const totalSets = sets.length;
 

@@ -165,7 +165,8 @@ export function useLocalApi(): LocalApiResult {
     }
     const current = inflight;
 
-    current.then((r) => {
+    // Fire-and-forget: the probe catches its own errors.
+    void current.then((r) => {
       if (!controller.signal.aborted) {
         setResult(r);
       }

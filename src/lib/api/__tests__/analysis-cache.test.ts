@@ -175,7 +175,7 @@ describe("analysis-cache", () => {
   describe("round-trip", () => {
     it("put then get returns the same data", async () => {
       const state = makeMinimalState({
-        result: { score: 45, grade: "D", findings: [{ id: "test", severity: "high", title: "Test", description: "desc", recommendation: "rec", scoreImpact: -10 }] },
+        result: { score: 45, grade: "D", findings: [{ id: "h1-round-amount", severity: "high", title: "Test", description: "desc", recommendation: "rec", scoreImpact: -10 }] },
         usdPrice: 50000,
         durationMs: 2500,
       });
@@ -222,17 +222,17 @@ describe("analysis-cache", () => {
 
       // Verify backward layers
       expect(cached!.backwardLayers).toHaveLength(1);
-      expect(cached!.backwardLayers![0].depth).toBe(1);
-      expect(cached!.backwardLayers![0].txs).toBeInstanceOf(Map);
-      expect(cached!.backwardLayers![0].txs.size).toBe(1);
-      expect(cached!.backwardLayers![0].txs.get("tx1")).toEqual(fakeTx);
+      expect(cached!.backwardLayers?.[0]?.depth).toBe(1);
+      expect(cached!.backwardLayers?.[0]?.txs).toBeInstanceOf(Map);
+      expect(cached!.backwardLayers?.[0]?.txs.size).toBe(1);
+      expect(cached!.backwardLayers?.[0]?.txs.get("tx1")).toEqual(fakeTx);
 
       // Verify forward layers
       expect(cached!.forwardLayers).toHaveLength(2);
-      expect(cached!.forwardLayers![0].txs).toBeInstanceOf(Map);
-      expect(cached!.forwardLayers![0].txs.get("tx1")).toEqual(fakeTx);
-      expect(cached!.forwardLayers![1].txs).toBeInstanceOf(Map);
-      expect(cached!.forwardLayers![1].txs.size).toBe(0);
+      expect(cached!.forwardLayers?.[0]?.txs).toBeInstanceOf(Map);
+      expect(cached!.forwardLayers?.[0]?.txs.get("tx1")).toEqual(fakeTx);
+      expect(cached!.forwardLayers?.[1]?.txs).toBeInstanceOf(Map);
+      expect(cached!.forwardLayers?.[1]?.txs.size).toBe(0);
     });
 
     it("address analysis data round-trips correctly", async () => {

@@ -82,9 +82,9 @@ export const analyzeRoundAmounts: TxHeuristic = (tx, _rawHex?, ctx?) => {
   // USD detection
   const roundUsdOutputs: Array<{ index: number; usd: number }> = [];
   if (ctx?.usdPrice) {
-    for (let i = 0; i < outputs.length; i++) {
+    for (const [i, out] of outputs.entries()) {
       if (btcRound[i]) continue;
-      const usdMatch = getMatchingRoundFiat(outputs[i].value, ctx.usdPrice, tol);
+      const usdMatch = getMatchingRoundFiat(out.value, ctx.usdPrice, tol);
       if (usdMatch !== null) {
         roundUsdOutputs.push({ index: i, usd: usdMatch });
         fiatMatchedIndices.add(i);
@@ -95,9 +95,9 @@ export const analyzeRoundAmounts: TxHeuristic = (tx, _rawHex?, ctx?) => {
   // EUR detection
   const roundEurOutputs: Array<{ index: number; eur: number }> = [];
   if (ctx?.eurPrice) {
-    for (let i = 0; i < outputs.length; i++) {
+    for (const [i, out] of outputs.entries()) {
       if (btcRound[i]) continue;
-      const eurMatch = getMatchingRoundFiat(outputs[i].value, ctx.eurPrice, tol);
+      const eurMatch = getMatchingRoundFiat(out.value, ctx.eurPrice, tol);
       if (eurMatch !== null) {
         roundEurOutputs.push({ index: i, eur: eurMatch });
         fiatMatchedIndices.add(i);

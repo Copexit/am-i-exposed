@@ -7,6 +7,7 @@ import type { Finding } from "@/lib/types";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import { isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
 import { fmtN, roundTo } from "@/lib/format";
+import type { FindingId } from "@/lib/analysis/finding-metadata";
 
 /** Method label and accuracy qualifier for the entropy finding. */
 function getMethodInfo(b: BoltzmannWorkerResult): { label: string; isApprox: boolean } {
@@ -21,7 +22,7 @@ function getMethodInfo(b: BoltzmannWorkerResult): { label: string; isApprox: boo
 }
 
 /** Finding IDs that should NOT be overridden (structurally deterministic). */
-const SKIP_IDS = new Set([
+const SKIP_IDS = new Set<FindingId>([
   "h5-zero-entropy",
   "h5-zero-entropy-sweep",
 ]);
@@ -39,10 +40,8 @@ export function enhanceEntropyFinding(
   const idx = findings.findIndex(f =>
     f.id === "h5-entropy" || f.id === "h5-low-entropy",
   );
-  if (idx === -1) return;
-
   const existing = findings[idx];
-  if (SKIP_IDS.has(existing.id)) return;
+  if (!existing || SKIP_IDS.has(existing.id)) return;
 
   const nUtxos = boltzmann.nInputs + boltzmann.nOutputs;
   // H5 merges UTXOs sharing an address (Boltzmann MERGE_INPUTS/MERGE_OUTPUTS),

@@ -25,7 +25,7 @@ const S: AdversaryTier = "state_adversary";
  * Organized by source heuristic/module. Each entry maps a finding ID to its
  * adversary tiers (who can exploit it) and temporality (whether it's fixable).
  */
-export const FINDING_METADATA: Record<string, FindingMeta> = {
+export const FINDING_METADATA = {
   // ── H1: Round Amount Detection ──────────────────────────────────────
   "h1-round-amount":     { adversaryTiers: [P, K], temporality: "historical" },
   "h1-round-usd-amount": { adversaryTiers: [P, K], temporality: "historical" },
@@ -260,11 +260,20 @@ export const FINDING_METADATA: Record<string, FindingMeta> = {
   "coin-select-toxic-change":    { adversaryTiers: [P, K],    temporality: "active_risk" },
   "coin-select-mixed-scripts":   { adversaryTiers: [P],       temporality: "active_risk" },
   "coin-select-multiple-inputs": { adversaryTiers: [P, K, S], temporality: "active_risk" },
-};
+} satisfies Record<string, FindingMeta>;
+
+/**
+ * Every known finding ID. A typo in a finding ID fails type-check.
+ * OP_RETURN findings are indexed (h7-op-return-N) when a tx has several.
+ */
+export type FindingId = keyof typeof FINDING_METADATA | `h7-op-return-${number}`;
+
+/** String-keyed view for lookups by untrusted IDs (e.g. parsed from a URL). */
+const META_BY_ID: Readonly<Record<string, FindingMeta | undefined>> = FINDING_METADATA;
 
 /** Look up metadata for a finding ID. Returns undefined for unknown IDs. */
 export function getFindingMeta(id: string): FindingMeta | undefined {
-  return FINDING_METADATA[id] ?? getFindingMetaByPrefix(id);
+  return META_BY_ID[id] ?? getFindingMetaByPrefix(id);
 }
 
 /**
@@ -272,9 +281,8 @@ export function getFindingMeta(id: string): FindingMeta | undefined {
  * Strips trailing -N suffix and retries the lookup.
  */
 function getFindingMetaByPrefix(id: string): FindingMeta | undefined {
-  const match = id.match(/^(.+)-\d+$/);
-  if (match) return FINDING_METADATA[match[1]];
-  return undefined;
+  const base = id.match(/^(.+)-\d+$/)?.[1];
+  return base ? META_BY_ID[base] : undefined;
 }
 
 /** Return the highest adversary tier from a list of tiers. */

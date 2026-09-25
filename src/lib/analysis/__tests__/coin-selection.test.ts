@@ -46,7 +46,7 @@ describe("selectCoins", () => {
 
     // Should prefer smallest sufficient UTXO (25_000)
     expect(result.selected).toHaveLength(1);
-    expect(result.selected[0].utxo.value).toBe(25_000);
+    expect(result.selected[0]?.utxo.value).toBe(25_000);
     expect(result.changeAmount).toBeGreaterThan(0);
   });
 

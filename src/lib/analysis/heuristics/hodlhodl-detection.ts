@@ -23,9 +23,10 @@ function vinPassesInvariants(vin: MempoolVin): boolean {
   if (vin.sequence !== 0xffffffff) return false;
   const w = vin.witness;
   if (!w || w.length !== 4) return false;
-  if (w[0] !== "") return false;
-  if (!w[1].endsWith("01")) return false;
-  if (!w[2].endsWith("01")) return false;
+  const [w0, w1, w2] = w;
+  if (w0 !== "") return false;
+  if (!w1?.endsWith("01")) return false;
+  if (!w2?.endsWith("01")) return false;
   return true;
 }
 
@@ -39,9 +40,9 @@ export const analyzeHodlHodlDetection: TxHeuristic = (tx: MempoolTransaction) =>
 
   if (tx.version !== 1) return { findings };
   if (tx.locktime !== 0) return { findings };
-  if (tx.vin.length !== 1) return { findings };
+  const [vin] = tx.vin;
+  if (tx.vin.length !== 1 || !vin) return { findings };
 
-  const vin = tx.vin[0];
   const info = parseMultisigFromInput(vin);
   if (!info) return { findings };
   if (info.m !== 2 || info.n !== 3) return { findings };
@@ -63,9 +64,10 @@ export const analyzeHodlHodlDetection: TxHeuristic = (tx: MempoolTransaction) =>
   if (inputValue > MAX_INPUT_SATS) return { findings };
 
   const sortedAsc = [...spendable].sort((a, b) => a.value - b.value);
-  const feeOutput = sortedAsc[0];
+  const [feeOutput] = sortedAsc;
+  if (!feeOutput) return { findings };
   const platformTake = spendable.length === 2
-    ? sortedAsc[0].value
+    ? feeOutput.value
     : sortedAsc.slice(0, sortedAsc.length - 1).reduce((s, o) => s + o.value, 0);
   const ratio = platformTake / inputValue;
 

@@ -67,7 +67,8 @@ describe("FINDING_METADATA coverage", () => {
     for (const file of sourceFiles(join(process.cwd(), "src"))) {
       const text = readFileSync(file, "utf8");
       for (const m of text.matchAll(/\bid:\s*"([a-z0-9-]+)",\s*\n\s*severity\b/g)) {
-        if (!getFindingMeta(m[1])) missing.add(m[1]);
+        const id = m[1];
+        if (id && !getFindingMeta(id)) missing.add(id);
       }
     }
     expect([...missing]).toEqual([]);
@@ -119,8 +120,8 @@ describe("enrichFindingsWithMetadata", () => {
 
     enrichFindingsWithMetadata(findings);
 
-    expect(findings[0].adversaryTiers).toEqual(["passive_observer", "kyc_exchange", "state_adversary"]);
-    expect(findings[0].temporality).toBe("historical");
+    expect(findings[0]?.adversaryTiers).toEqual(["passive_observer", "kyc_exchange", "state_adversary"]);
+    expect(findings[0]?.temporality).toBe("historical");
   });
 
   it("does not overwrite existing adversaryTiers", () => {
@@ -140,8 +141,8 @@ describe("enrichFindingsWithMetadata", () => {
     enrichFindingsWithMetadata(findings);
 
     // Both were already set, so skip
-    expect(findings[0].adversaryTiers).toEqual(["passive_observer"]);
-    expect(findings[0].temporality).toBe("active_risk");
+    expect(findings[0]?.adversaryTiers).toEqual(["passive_observer"]);
+    expect(findings[0]?.temporality).toBe("active_risk");
   });
 
   it("fills in missing temporality even if adversaryTiers is set", () => {
@@ -161,13 +162,14 @@ describe("enrichFindingsWithMetadata", () => {
     enrichFindingsWithMetadata(findings);
 
     // adversaryTiers was already set but temporality was not - fill it in
-    expect(findings[0].adversaryTiers).toEqual(["passive_observer"]);
-    expect(findings[0].temporality).toBe("historical");
+    expect(findings[0]?.adversaryTiers).toEqual(["passive_observer"]);
+    expect(findings[0]?.temporality).toBe("historical");
   });
 
   it("handles unknown finding IDs gracefully", () => {
     const findings: Finding[] = [
       {
+        // @ts-expect-error - deliberately unknown ID: enrichment must tolerate it at runtime
         id: "unknown-finding",
         severity: "low",
         title: "test",
@@ -179,8 +181,8 @@ describe("enrichFindingsWithMetadata", () => {
 
     enrichFindingsWithMetadata(findings);
 
-    expect(findings[0].adversaryTiers).toBeUndefined();
-    expect(findings[0].temporality).toBeUndefined();
+    expect(findings[0]?.adversaryTiers).toBeUndefined();
+    expect(findings[0]?.temporality).toBeUndefined();
   });
 
   it("enriches dynamic OP_RETURN IDs via prefix match", () => {
@@ -197,7 +199,7 @@ describe("enrichFindingsWithMetadata", () => {
 
     enrichFindingsWithMetadata(findings);
 
-    expect(findings[0].adversaryTiers).toContain("passive_observer");
-    expect(findings[0].temporality).toBe("historical");
+    expect(findings[0]?.adversaryTiers).toContain("passive_observer");
+    expect(findings[0]?.temporality).toBe("historical");
   });
 });

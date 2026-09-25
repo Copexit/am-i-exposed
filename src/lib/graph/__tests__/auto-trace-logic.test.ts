@@ -40,7 +40,11 @@ function run() {
   };
   const client = {
     getTransaction: vi.fn(async () => child),
-    getTxOutspends: vi.fn(async (txid: string) => outspends[txid]),
+    getTxOutspends: vi.fn(async (txid: string) => {
+      const found = outspends[txid];
+      if (!found) throw new Error(`no outspends fixture for ${txid}`);
+      return found;
+    }),
   };
   const progress: (AutoTraceProgress | null)[] = [];
   const nodes = new Map<string, GraphNode>([[start.txid, { txid: start.txid, tx: start, depth: 0 }]]);

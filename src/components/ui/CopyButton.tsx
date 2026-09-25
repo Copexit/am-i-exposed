@@ -37,7 +37,8 @@ export function CopyButton({
   const handleCopy = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      copyToClipboard(text).then((ok) => {
+      // Fire-and-forget: copyToClipboard never rejects.
+      void copyToClipboard(text).then((ok) => {
         if (ok) {
           setCopied(true);
           clearTimeout(timerRef.current);

@@ -66,7 +66,7 @@ describe("scanChain", () => {
     const { infos, failed } = await p;
 
     expect(failed).toEqual([]);
-    expect(infos[0].txs).toHaveLength(1);
+    expect(infos[0]?.txs).toHaveLength(1);
   });
 
   it("aborts the scan with the API error when the backend keeps failing", async () => {

@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import type { Finding } from "@/lib/types";
 import { SEVERITY_TEXT, SEVERITY_BG } from "@/lib/severity";
 import { findingKey } from "@/lib/finding-utils";
+import type { FindingId } from "@/lib/analysis/finding-metadata";
 
 interface ChainAnalysisPanelProps {
   findings: Finding[];
@@ -15,7 +16,7 @@ interface ChainAnalysisPanelProps {
 type ChainCategory = "input-provenance" | "output-destinations" | "structural" | "spending-patterns";
 
 /** Explicit map from finding ID to its display category. */
-const FINDING_CATEGORY: Record<string, ChainCategory> = {
+const FINDING_CATEGORY: Partial<Record<FindingId, ChainCategory>> = {
   // Input provenance (backward analysis)
   "chain-coinjoin-input": "input-provenance",
   "chain-exchange-input": "input-provenance",

@@ -12,6 +12,7 @@ function hexVars(selector: string): Record<string, string> {
   const body = css.slice(start, css.indexOf("}", start));
   const out: Record<string, string> = {};
   for (const [, name, value] of body.matchAll(/--([\w-]+):\s*(#[0-9a-fA-F]{6});/g)) {
+    if (!name || !value) continue;
     out[name.replace(/-(\w)/g, (_, c: string) => c.toUpperCase())] = value.toLowerCase();
   }
   return out;

@@ -44,8 +44,7 @@ export const analyzePostMix: TxHeuristic = (tx, _rawHex?, ctx?) => {
   const coinJoinInputIndices: number[] = [];
   const coinJoinParentTxids = new Set<string>();
 
-  for (let i = 0; i < tx.vin.length; i++) {
-    const vin = tx.vin[i];
+  for (const [i, vin] of tx.vin.entries()) {
     if (vin.is_coinbase) continue;
 
     const parentTx = parentTxs.get(vin.txid);

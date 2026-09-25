@@ -19,6 +19,7 @@
     "build": "node build.mjs",
     "build:wasm": "bash ../scripts/build-boltzmann-wasm-node.sh",
     "test": "vitest run",
+    "type-check": "tsc --noEmit",
     "prepublishOnly": "node build.mjs && rm -rf data && mkdir -p data && cp ../public/data/entity-*.bin data/"
   },
   "dependencies": {

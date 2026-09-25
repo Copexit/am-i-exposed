@@ -46,10 +46,10 @@ function setPartitions(n: number): number[][] {
   const blocks: number[] = [];
   const rec = (i: number) => {
     if (i === n) { out.push([...blocks]); return; }
-    for (let b = 0; b < blocks.length; b++) {
-      blocks[b] |= 1 << i;
+    for (const [b, mask] of blocks.entries()) {
+      blocks[b] = mask | (1 << i);
       rec(i + 1);
-      blocks[b] &= ~(1 << i);
+      blocks[b] = mask;
     }
     blocks.push(1 << i);
     rec(i + 1);
@@ -61,7 +61,7 @@ function setPartitions(n: number): number[][] {
 
 function maskSum(mask: number, values: number[]): number {
   let s = 0;
-  for (let i = 0; i < values.length; i++) if (mask & (1 << i)) s += values[i];
+  for (const [i, v] of values.entries()) if (mask & (1 << i)) s += v;
   return s;
 }
 
@@ -102,24 +102,27 @@ export function buildLinkabilityMatrix(
     for (const outBlocks of outPartitions) {
       if (outBlocks.length !== inBlocks.length) continue;
       // Every bijection input block -> output block where the input block funds it
-      const pairing: number[] = [];
+      const pairs: Array<[inMask: number, outMask: number]> = [];
       const match = (k: number, used: number) => {
-        if (k === inBlocks.length) {
+        const inBlock = inBlocks[k];
+        if (!inBlock) {
+          // Every input block is paired: one interpretation
           totalInterpretations++;
-          for (let b = 0; b < k; b++) {
-            for (let i = 0; i < nIn; i++) {
-              if (!(inBlocks[b].mask & (1 << i))) continue;
-              for (let o = 0; o < nOut; o++) {
-                if (outBlocks[pairing[b]].mask & (1 << o)) linkCounts[i][o]++;
+          for (const [inMask, outMask] of pairs) {
+            for (const [i, row] of linkCounts.entries()) {
+              if (!(inMask & (1 << i))) continue;
+              for (const o of row.keys()) {
+                if (outMask & (1 << o)) row[o]!++;
               }
             }
           }
           return;
         }
-        for (let j = 0; j < outBlocks.length; j++) {
-          if (used & (1 << j) || inBlocks[k].sum < outBlocks[j].sum) continue;
-          pairing[k] = j;
+        for (const [j, outBlock] of outBlocks.entries()) {
+          if (used & (1 << j) || inBlock.sum < outBlock.sum) continue;
+          pairs.push([inBlock.mask, outBlock.mask]);
           match(k + 1, used | (1 << j));
+          pairs.pop();
         }
       };
       match(0, 0);
@@ -129,22 +132,19 @@ export function buildLinkabilityMatrix(
   // Outputs exceed inputs (bad data): no valid interpretation
   if (totalInterpretations === 0) return null;
 
-  const matrix: LinkabilityCell[][] = [];
   let deterministicLinks = 0;
-  for (let i = 0; i < nIn; i++) {
-    const row: LinkabilityCell[] = [];
-    for (let j = 0; j < nOut; j++) {
-      const isDeterministic = linkCounts[i][j] === totalInterpretations;
+  const matrix: LinkabilityCell[][] = linkCounts.map((counts, i) =>
+    counts.map((count, j) => {
+      const isDeterministic = count === totalInterpretations;
       if (isDeterministic) deterministicLinks++;
-      row.push({
+      return {
         inputIndex: i,
         outputIndex: j,
-        probability: roundTo(linkCounts[i][j] / totalInterpretations),
+        probability: roundTo(count / totalInterpretations),
         deterministic: isDeterministic,
-      });
-    }
-    matrix.push(row);
-  }
+      };
+    }),
+  );
 
   // Nothing to report when there is no link to hide: N === 1 (every 1-in tx,
   // and any tx only valid as one merged transfer) is zero entropy that H5
@@ -153,7 +153,7 @@ export function buildLinkabilityMatrix(
   // owner (Boltzmann MERGE_INPUTS, as H5 applies it). Ambiguity (N > 1) is
   // H5's entropy reward, so only links that stay deterministic despite other
   // interpretations are reported.
-  const firstAddr = tx.vin[0].prevout!.scriptpubkey_address;
+  const firstAddr = tx.vin[0]?.prevout?.scriptpubkey_address;
   const singleOwner = !!firstAddr && tx.vin.every((v) => v.prevout!.scriptpubkey_address === firstAddr);
   if (totalInterpretations === 1 || nOut === 1 || singleOwner) {
     return { matrix, deterministicLinks, totalInterpretations, findings };
@@ -194,11 +194,9 @@ export function buildLinkabilityMatrix(
       const equalIndices = new Set(equalGroups.flat());
       const deterministicNonEqual: Array<{ input: number; output: number }> = [];
 
-      for (let i = 0; i < nIn; i++) {
-        for (let j = 0; j < nOut; j++) {
-          if (!equalIndices.has(j) && matrix[i][j].deterministic) {
-            deterministicNonEqual.push({ input: i, output: j });
-          }
+      for (const cell of matrix.flat()) {
+        if (!equalIndices.has(cell.outputIndex) && cell.deterministic) {
+          deterministicNonEqual.push({ input: cell.inputIndex, output: cell.outputIndex });
         }
       }
 
@@ -239,10 +237,10 @@ export function buildLinkabilityMatrix(
  */
 function findEqualOutputGroups(values: number[]): number[][] {
   const byValue = new Map<number, number[]>();
-  for (let i = 0; i < values.length; i++) {
-    const arr = byValue.get(values[i]) ?? [];
+  for (const [i, value] of values.entries()) {
+    const arr = byValue.get(value) ?? [];
     arr.push(i);
-    byValue.set(values[i], arr);
+    byValue.set(value, arr);
   }
   return [...byValue.values()].filter((group) => group.length >= 3);
 }

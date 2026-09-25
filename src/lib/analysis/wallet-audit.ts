@@ -274,18 +274,19 @@ function checkGoodPractices(addresses: WalletAddressInfo[]): Finding[] {
     }
   }
 
-  if (scriptTypes.size === 1 && active.length > 3) {
+  const [onlyScriptType] = scriptTypes;
+  if (scriptTypes.size === 1 && onlyScriptType !== undefined && active.length > 3) {
     findings.push({
       id: "wallet-uniform-script",
       severity: "good",
       confidence: "deterministic",
-      title: `Uniform script type: ${[...scriptTypes][0]}`,
+      title: `Uniform script type: ${onlyScriptType}`,
       description:
         "All wallet UTXOs use the same script type, which avoids revealing " +
         "wallet migration history when spending.",
       recommendation: "Continue using a consistent script type.",
       scoreImpact: 3,
-      params: { scriptType: [...scriptTypes][0] },
+      params: { scriptType: onlyScriptType },
     });
   }
 

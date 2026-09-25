@@ -23,15 +23,15 @@ export default function GlossaryPage() {
       : GLOSSARY_ITEMS;
 
     const groups: { letter: string; items: typeof GLOSSARY_ITEMS }[] = [];
-    let currentLetter = "";
     for (const item of items) {
       const term = t(item.termKey, { defaultValue: GLOSSARY_DEFAULTS[item.termKey] });
       const letter = term.charAt(0).toUpperCase();
-      if (letter !== currentLetter) {
-        currentLetter = letter;
-        groups.push({ letter, items: [] });
+      let group = groups.at(-1);
+      if (group?.letter !== letter) {
+        group = { letter, items: [] };
+        groups.push(group);
       }
-      groups[groups.length - 1].items.push(item);
+      group.items.push(item);
     }
     return groups;
   }, [filter, t]);

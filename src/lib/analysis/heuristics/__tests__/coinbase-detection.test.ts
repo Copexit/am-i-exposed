@@ -12,9 +12,9 @@ describe("analyzeCoinbase", () => {
     });
     const { findings } = analyzeCoinbase(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("coinbase-transaction");
-    expect(findings[0].severity).toBe("low");
-    expect(findings[0].scoreImpact).toBe(0);
+    expect(findings[0]?.id).toBe("coinbase-transaction");
+    expect(findings[0]?.severity).toBe("low");
+    expect(findings[0]?.scoreImpact).toBe(0);
   });
 
   it("returns empty findings for a normal transaction", () => {

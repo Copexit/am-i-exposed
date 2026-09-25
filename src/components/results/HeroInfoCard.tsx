@@ -30,10 +30,13 @@ export function HeroInfoCard({
       <div className="space-y-1">
         <button
           onClick={() => {
-            copyToClipboard(query);
-            setQueryCopied(true);
-            clearTimeout(copyTimerRef.current);
-            copyTimerRef.current = setTimeout(() => setQueryCopied(false), 2000);
+            // copyToClipboard never rejects; it resolves false when copying failed
+            void copyToClipboard(query).then((ok) => {
+              if (!ok) return;
+              setQueryCopied(true);
+              clearTimeout(copyTimerRef.current);
+              copyTimerRef.current = setTimeout(() => setQueryCopied(false), 2000);
+            });
           }}
           className="inline-flex items-start gap-2 font-mono text-sm text-foreground/90 break-all leading-relaxed text-left hover:text-foreground transition-colors cursor-pointer group/copy"
           title={t("common.copy", { defaultValue: "Copy" })}

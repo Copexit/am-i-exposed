@@ -46,11 +46,8 @@ export function getEdgeMaxProb(
 ): number {
   let maxProb = 0;
   for (const outIdx of outputIndices) {
-    if (outIdx < mat.length) {
-      const row = mat[outIdx];
-      for (let i = 0; i < row.length; i++) {
-        if (row[i] > maxProb) maxProb = row[i];
-      }
+    for (const p of mat[outIdx] ?? []) {
+      if (p > maxProb) maxProb = p;
     }
   }
   return maxProb;
@@ -88,8 +85,7 @@ export function portAwareEdgePath(
   // Check if the dest (toTxid) is expanded and has input port positions
   const destNode = graphNodes.get(edge.toTxid);
   if (destNode) {
-    for (let i = 0; i < destNode.tx.vin.length; i++) {
-      const vin = destNode.tx.vin[i];
+    for (const [i, vin] of destNode.tx.vin.entries()) {
       if (vin.txid === edge.fromTxid && edge.outputIndices?.includes(vin.vout)) {
         const portPos = portPositions.get(`${edge.toTxid}:input:${i}`);
         if (portPos) {
@@ -127,8 +123,8 @@ export function buildConsolidationPaths(
   let destX = edge.x2;
   let destY = edge.y2;
   if (destNode) {
-    for (let i = 0; i < destNode.tx.vin.length; i++) {
-      if (destNode.tx.vin[i].txid === edge.fromTxid && edge.outputIndices.includes(destNode.tx.vin[i].vout)) {
+    for (const [i, vin] of destNode.tx.vin.entries()) {
+      if (vin.txid === edge.fromTxid && edge.outputIndices.includes(vin.vout)) {
         const pp = portPositions.get(`${edge.toTxid}:input:${i}`);
         if (pp) { destX = pp.x; destY = pp.y; break; }
       }

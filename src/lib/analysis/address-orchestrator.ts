@@ -32,14 +32,12 @@ export async function analyzeTransactionsForAddress(
   targetAddress: string,
   txs: MempoolTransaction[],
 ): Promise<TxAnalysisResult[]> {
-  const cap = Math.min(txs.length, 50);
   const results: TxAnalysisResult[] = [];
 
-  for (let i = 0; i < cap; i++) {
+  for (const [i, tx] of txs.slice(0, 50).entries()) {
     // Yield to the event loop every 10 txs to prevent UI freezing
     if (i > 0 && i % 10 === 0) await tick();
 
-    const tx = txs[i];
     // Quick score: no TxContext or chain data per tx (the UI labels it as such)
     const scored = finalizeTxResult(runTxHeuristics(tx));
 

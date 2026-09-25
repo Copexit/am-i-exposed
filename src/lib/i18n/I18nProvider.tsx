@@ -17,7 +17,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     applied.current = true;
     const preferred = detectPreferredLanguage();
     if (preferred !== "en") {
-      i18n.changeLanguage(preferred);
+      // Fire-and-forget: i18next logs load failures and keeps the current language.
+      void i18n.changeLanguage(preferred);
     }
   }, []);
 

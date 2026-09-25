@@ -1,3 +1,5 @@
+import type { FindingId } from "@/lib/analysis/finding-metadata";
+
 export type InputType = "txid" | "address" | "xpub" | "psbt" | "invalid";
 
 export type AddressType = "p2pkh" | "p2sh" | "p2wpkh" | "p2wsh" | "p2tr" | "unknown";
@@ -19,7 +21,7 @@ export type AdversaryTier = "passive_observer" | "kyc_exchange" | "state_adversa
 export type TemporalityClass = "historical" | "ongoing_pattern" | "active_risk";
 
 export interface Finding {
-  id: string;
+  id: FindingId;
   severity: Severity;
   title: string;
   description: string;

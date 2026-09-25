@@ -43,7 +43,7 @@ export function NodeBadges({
   const reversed = [...badges].reverse();
   const positioned = reversed.reduce<Array<Badge & { x: number; tw: number }>>((acc, b) => {
     const tw = b.label.length * 5.5 + 8;
-    const prevX = acc.length > 0 ? acc[acc.length - 1].x : nodeX + nodeWidth - 4;
+    const prevX = acc.at(-1)?.x ?? nodeX + nodeWidth - 4;
     const x = prevX - tw - 2;
     acc.push({ ...b, x, tw });
     return acc;

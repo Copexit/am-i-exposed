@@ -22,7 +22,7 @@ interface ScoredAddress {
   fundedCount: number;
 }
 
-const STATUS_CLASS: Record<string, string> = {
+const STATUS_CLASS: Record<ScoredAddress["status"], string> = {
   reused: "bg-severity-critical/15 text-severity-critical",
   dust: "bg-severity-medium/15 text-severity-medium",
   toxic: "bg-severity-high/15 text-severity-high",
@@ -30,7 +30,7 @@ const STATUS_CLASS: Record<string, string> = {
   unused: "bg-surface-elevated text-muted",
 };
 
-const STATUS_KEY: Record<string, { key: string; defaultValue: string }> = {
+const STATUS_KEY: Record<ScoredAddress["status"], { key: string; defaultValue: string }> = {
   reused: { key: "wallet.status_reused", defaultValue: "Reused" },
   dust: { key: "wallet.status_dust", defaultValue: "Dust" },
   toxic: { key: "wallet.status_toxic", defaultValue: "Toxic change" },

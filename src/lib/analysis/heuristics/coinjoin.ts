@@ -21,6 +21,7 @@ import {
   buildExchangeFlaggingFinding,
 } from "./coinjoin-findings";
 import { detectTx0 } from "./coinjoin-premix";
+import type { FindingId } from "@/lib/analysis/finding-metadata";
 
 type Tx = Parameters<TxHeuristic>[0];
 
@@ -165,10 +166,8 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
   }
 
   // Exchange flagging warning (skip for Stonewall-only - it's steganographic)
-  const isStonewallOnly = findings.length === 1 && (
-    findings[0].id === "h4-stonewall" ||
-    findings[0].id === "h4-simplified-stonewall"
-  );
+  const onlyFindingId = findings.length === 1 ? findings[0]?.id : undefined;
+  const isStonewallOnly = onlyFindingId === "h4-stonewall" || onlyFindingId === "h4-simplified-stonewall";
   if (findings.length > 0 && !isStonewallOnly) {
     findings.push(buildExchangeFlaggingFinding());
   }
@@ -177,7 +176,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
 };
 
 /** Set of finding IDs that identify CoinJoin transactions. */
-const COINJOIN_FINDING_IDS = new Set([
+const COINJOIN_FINDING_IDS = new Set<FindingId>([
   "h4-whirlpool", "h4-coinjoin", "h4-joinmarket", "h4-stonewall", "h4-simplified-stonewall",
 ]);
 

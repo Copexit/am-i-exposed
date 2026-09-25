@@ -53,8 +53,8 @@ export const analyzeCoinSelection: TxHeuristic = (tx) => {
 
     if (values.length >= 3) {
       // Check if inputs are sorted by value (ascending or descending)
-      const ascending = values.every((v, i) => i === 0 || v >= values[i - 1]);
-      const descending = values.every((v, i) => i === 0 || v <= values[i - 1]);
+      const ascending = values.every((v, i) => { const prev = values[i - 1]; return prev === undefined || v >= prev; });
+      const descending = values.every((v, i) => { const prev = values[i - 1]; return prev === undefined || v <= prev; });
 
       if (ascending && !descending) {
         findings.push({

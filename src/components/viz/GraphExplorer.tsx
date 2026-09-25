@@ -116,22 +116,26 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
   const handleExpandInput = useCallback((txid: string, inputIndex: number) => {
     seedBackward(txid);
-    expandInput(txid, inputIndex);
+    // Fire-and-forget: the callee catches its own errors.
+    void expandInput(txid, inputIndex);
   }, [expandInput, seedBackward]);
 
   const handleExpandOutput = useCallback((txid: string, outputIndex: number) => {
     seedForward(txid);
-    expandOutput(txid, outputIndex);
+    // Fire-and-forget: the callee catches its own errors.
+    void expandOutput(txid, outputIndex);
   }, [expandOutput, seedForward]);
 
   const handleExpandPortInput = useCallback((txid: string, inputIndex: number) => {
     seedBackward(txid);
-    expandPortInput(txid, inputIndex);
+    // Fire-and-forget: the callee catches its own errors.
+    void expandPortInput(txid, inputIndex);
   }, [expandPortInput, seedBackward]);
 
   const handleExpandPortOutput = useCallback((txid: string, outputIndex: number) => {
     seedForward(txid);
-    expandPortOutput(txid, outputIndex);
+    // Fire-and-forget: the callee catches its own errors.
+    void expandPortOutput(txid, outputIndex);
   }, [expandPortOutput, seedForward]);
 
   // ─── Boltzmann ─────────────────────────────────────────

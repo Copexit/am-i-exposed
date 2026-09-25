@@ -58,8 +58,8 @@ describe("locale parity", () => {
     const has = (k: string) => k in en || `${k}_one` in en || `${k}_other` in en;
     const missing = new Set<string>();
     for (const file of sourceFiles(join(process.cwd(), "src"))) {
-      for (const m of readFileSync(file, "utf8").matchAll(/\bt\(\s*"([a-zA-Z0-9_.-]+)"/g)) {
-        if (!has(m[1])) missing.add(m[1]);
+      for (const [, key] of readFileSync(file, "utf8").matchAll(/\bt\(\s*"([a-zA-Z0-9_.-]+)"/g)) {
+        if (key && !has(key)) missing.add(key);
       }
     }
     expect([...missing], "keys used in code but missing from en/common.json").toEqual([]);
@@ -80,7 +80,7 @@ describe("locale parity", () => {
       const text = readFileSync(file, "utf8");
       const matches = [...text.matchAll(/\bid:\s*"([a-z0-9-]+)",\s*\n\s*severity\b/g)];
       return matches.map((m, i) => ({
-        id: m[1],
+        id: m[1]!, // the regex capture group is not optional
         file: file.split("/src/")[1],
         // The literal runs to the next finding literal, capped so later code is not included
         body: text.slice(m.index, Math.min(matches[i + 1]?.index ?? text.length, m.index + 2000)),
@@ -110,11 +110,12 @@ describe("locale parity", () => {
     const bad: string[] = [];
     for (const file of sourceFiles(join(process.cwd(), "src"))) {
       // Only calls with a flat options object literal, so its keys are known.
-      for (const m of readFileSync(file, "utf8").matchAll(/\bt\(\s*"([a-zA-Z0-9_.-]+)",\s*\{([^{}()]*)\}\s*\)/g)) {
-        const passed = new Set([...m[2].matchAll(/(?:^|,)\s*([a-zA-Z_]\w*)\s*(?=[:,]|$)/g)].map((p) => p[1]));
+      for (const [, tKey, opts] of readFileSync(file, "utf8").matchAll(/\bt\(\s*"([a-zA-Z0-9_.-]+)",\s*\{([^{}()]*)\}\s*\)/g)) {
+        if (!tKey || opts === undefined) continue;
+        const passed = new Set([...opts.matchAll(/(?:^|,)\s*([a-zA-Z_]\w*)\s*(?=[:,]|$)/g)].map((p) => p[1]));
         for (const lang of locales) {
-          for (const key of [m[1], `${m[1]}_other`]) {
-            const value = data[lang][key];
+          for (const key of [tKey, `${tKey}_other`]) {
+            const value = data[lang]?.[key];
             if (value === undefined) continue;
             for (const v of value.matchAll(/\{\{\s*(\w+)/g)) {
               if (!passed.has(v[1])) bad.push(`${lang}/${key}: {{${v[1]}}} (${file.split("/src/")[1]})`);

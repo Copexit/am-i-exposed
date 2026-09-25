@@ -133,9 +133,9 @@ function runOnSingleWorker(
   onProgressMsg?: (msg: WorkerProgressMsg) => void,
 ): Promise<BoltzmannWorkerResult | null> {
   if (signal?.aborted) return Promise.resolve(null);
-  const pool = getWorkerPool(1);
-  if (pool.length === 0) return Promise.resolve(null);
-  const worker = pool[0];
+  const [poolWorker] = getWorkerPool(1);
+  if (!poolWorker) return Promise.resolve(null);
+  const worker = poolWorker; // narrowed binding, visible inside the hoisted finish()
 
   return new Promise((resolve) => {
     const unregister = onPoolTerminate(() => finish(null));

@@ -34,8 +34,9 @@ export function useKeyboardNavigation({
     // Don't capture keys when typing in an input element
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
-    if (!focusedNode && layoutNodes.length > 0) {
-      setFocusedNode(layoutNodes[0].txid);
+    const firstNode = layoutNodes[0];
+    if (!focusedNode && firstNode) {
+      setFocusedNode(firstNode.txid);
       return;
     }
     if (!focusedNode) return;
@@ -51,12 +52,14 @@ export function useKeyboardNavigation({
       // ─── Navigation ──────────────────────
       case "ArrowUp": {
         e.preventDefault();
-        if (currentIdx > 0) setFocusedNode(sameDepth[currentIdx - 1].txid);
+        const prev = sameDepth[currentIdx - 1];
+        if (prev) setFocusedNode(prev.txid);
         break;
       }
       case "ArrowDown": {
         e.preventDefault();
-        if (currentIdx < sameDepth.length - 1) setFocusedNode(sameDepth[currentIdx + 1].txid);
+        const next = sameDepth[currentIdx + 1];
+        if (next) setFocusedNode(next.txid);
         break;
       }
       case "ArrowLeft": {
@@ -118,14 +121,16 @@ export function useKeyboardNavigation({
         e.preventDefault();
         if (!gn || atCapacity) break;
         let dExpanded = 0;
-        for (let i = 0; i < gn.tx.vin.length && dExpanded < 5; i++) {
-          if (!gn.tx.vin[i].is_coinbase && !nodes.has(gn.tx.vin[i].txid)) {
+        for (const [i, vin] of gn.tx.vin.entries()) {
+          if (dExpanded >= 5) break;
+          if (!vin.is_coinbase && !nodes.has(vin.txid)) {
             onExpandInput(focusedNode, i); dExpanded++;
           }
         }
         dExpanded = 0;
-        for (let i = 0; i < gn.tx.vout.length && dExpanded < 5; i++) {
-          if (!isOpReturnOutput(gn.tx.vout[i]) && gn.tx.vout[i].value > 0) {
+        for (const [i, out] of gn.tx.vout.entries()) {
+          if (dExpanded >= 5) break;
+          if (!isOpReturnOutput(out) && out.value > 0) {
             onExpandOutput(focusedNode, i); dExpanded++;
           }
         }

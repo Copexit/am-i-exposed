@@ -96,8 +96,9 @@ export function analyzeTemporalCorrelation(
   // positives on small samples that happen to be evenly spaced
   if (sorted.length >= 8) {
     const intervals: number[] = [];
-    for (let i = 1; i < sorted.length; i++) {
-      intervals.push(sorted[i].status.block_time! - sorted[i - 1].status.block_time!);
+    for (const [i, curr] of sorted.entries()) {
+      const prev = sorted[i - 1];
+      if (prev) intervals.push(curr.status.block_time! - prev.status.block_time!);
     }
 
     // Check for regular intervals (coefficient of variation < 0.3)
@@ -151,15 +152,14 @@ function findBursts(
   let i = 0;
 
   while (i < sortedTxs.length) {
-    const windowStart = sortedTxs[i].status.block_time!;
+    const windowStart = sortedTxs[i]!.status.block_time!; // i < length per the loop condition
     const windowEnd = windowStart + windowSecs;
 
     // Collect all txs within this window
     const bucket: string[] = [];
     let j = i;
-    while (j < sortedTxs.length && sortedTxs[j].status.block_time! <= windowEnd) {
-      bucket.push(sortedTxs[j].txid);
-      j++;
+    for (let tx = sortedTxs[j]; tx && tx.status.block_time! <= windowEnd; tx = sortedTxs[++j]) {
+      bucket.push(tx.txid);
     }
 
     if (bucket.length >= 3) {

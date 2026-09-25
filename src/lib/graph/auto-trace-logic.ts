@@ -239,8 +239,9 @@ export async function runAutoTraceLinkability(
         const spendingInputIdx = childTx.vin.findIndex(
           (v) => v.txid === currentTxid && v.vout === currentOutputIndex,
         );
-        if (spendingInputIdx >= 0 && mat[changeResult.changeOutputIndex]?.[spendingInputIdx] !== undefined) {
-          compoundProb *= mat[changeResult.changeOutputIndex][spendingInputIdx];
+        const linkProb = mat[changeResult.changeOutputIndex]?.[spendingInputIdx];
+        if (spendingInputIdx >= 0 && linkProb !== undefined) {
+          compoundProb *= linkProb;
         }
       }
 

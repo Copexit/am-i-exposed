@@ -11,9 +11,9 @@ describe("analyzeRoundAmounts", () => {
     });
     const { findings } = analyzeRoundAmounts(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h1-round-amount");
-    expect(findings[0].scoreImpact).toBe(-8);
-    expect(findings[0].severity).toBe("low");
+    expect(findings[0]!.id).toBe("h1-round-amount");
+    expect(findings[0]!.scoreImpact).toBe(-8);
+    expect(findings[0]!.severity).toBe("low");
   });
 
   it("flags 2 round outputs with impact -16, severity medium", () => {
@@ -25,8 +25,8 @@ describe("analyzeRoundAmounts", () => {
       ],
     });
     const { findings } = analyzeRoundAmounts(tx);
-    expect(findings[0].scoreImpact).toBe(-16);
-    expect(findings[0].severity).toBe("medium");
+    expect(findings[0]!.scoreImpact).toBe(-16);
+    expect(findings[0]!.severity).toBe("medium");
   });
 
   it("caps impact at -20 for 3+ round outputs", () => {
@@ -40,7 +40,7 @@ describe("analyzeRoundAmounts", () => {
       ],
     });
     const { findings } = analyzeRoundAmounts(tx);
-    expect(findings[0].scoreImpact).toBe(-20);
+    expect(findings[0]!.scoreImpact).toBe(-20);
   });
 
   it("flags all-round outputs with lower impact", () => {
@@ -49,8 +49,8 @@ describe("analyzeRoundAmounts", () => {
     });
     const { findings } = analyzeRoundAmounts(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].scoreImpact).toBe(-3);
-    expect(findings[0].confidence).toBe("medium");
+    expect(findings[0]!.scoreImpact).toBe(-3);
+    expect(findings[0]!.confidence).toBe("medium");
   });
 
   it("skips single-output transactions", () => {

@@ -4,7 +4,8 @@ import { findingKey, findingKeys } from "../finding-utils";
 
 describe("findingKey", () => {
   const i18n = i18next.createInstance();
-  i18n.init({
+  // initAsync: false - resources are ready synchronously.
+  void i18n.init({
     lng: "es",
     fallbackLng: "en",
     initAsync: false,
@@ -35,7 +36,8 @@ describe("finding locale text", () => {
   it("formats utxo-age-spread block heights with thousands separators", async () => {
     const en = (await import("../../../public/locales/en/common.json")).default as Record<string, string>;
     const i18n = i18next.createInstance();
-    i18n.init({ lng: "en", initAsync: false, resources: { en: { translation: en } }, interpolation: { escapeValue: false } });
+    // initAsync: false - resources are ready synchronously.
+    void i18n.init({ lng: "en", initAsync: false, resources: { en: { translation: en } }, interpolation: { escapeValue: false } });
     const text = i18n.t(findingKeys("utxo-age-spread", "description"), {
       minHeight: 500000, maxHeight: 850000, spread: 350000, years: 6.7, defaultValue: "dflt",
     });

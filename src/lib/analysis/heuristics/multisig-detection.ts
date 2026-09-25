@@ -43,8 +43,9 @@ export const analyzeMultisigDetection: TxHeuristic = (tx, rawHex, ctx) => {
     const opReturnOutputs = tx.vout.filter((o) => isOpReturnOutput(o));
     const nonOpReturnOutputs = getSpendableOutputs(tx.vout);
 
-    if (opReturnOutputs.length === 1 && nonOpReturnOutputs.length >= 1 && nonOpReturnOutputs.length <= 2) {
-      const opReturnHex = opReturnOutputs[0].scriptpubkey;
+    const [opReturnOutput] = opReturnOutputs;
+    if (opReturnOutput && opReturnOutputs.length === 1 && nonOpReturnOutputs.length >= 1 && nonOpReturnOutputs.length <= 2) {
+      const opReturnHex = opReturnOutput.scriptpubkey;
       const hasContractHash = opReturnHex && opReturnHex.startsWith("6a14") && opReturnHex.length === 44;
       const hasMultisigOutput = nonOpReturnOutputs.some(
         (o) => o.scriptpubkey_type === "v0_p2wsh" || o.scriptpubkey_type === "p2sh",
@@ -59,12 +60,13 @@ export const analyzeMultisigDetection: TxHeuristic = (tx, rawHex, ctx) => {
 
   // Parse all inputs for multisig
   const multisigInputs: { index: number; info: MultisigInfo }[] = [];
-  for (let i = 0; i < tx.vin.length; i++) {
-    const info = parseMultisigFromInput(tx.vin[i]);
+  for (const [i, vin] of tx.vin.entries()) {
+    const info = parseMultisigFromInput(vin);
     if (info) multisigInputs.push({ index: i, info });
   }
 
-  if (multisigInputs.length === 0) return { findings };
+  const first = multisigInputs[0]?.info;
+  if (!first) return { findings };
 
   const spendableOutputs = getSpendableOutputs(tx.vout);
 
@@ -72,12 +74,12 @@ export const analyzeMultisigDetection: TxHeuristic = (tx, rawHex, ctx) => {
   if (
     tx.vin.length === 1 &&
     multisigInputs.length === 1 &&
-    multisigInputs[0].info.m === 2 &&
-    multisigInputs[0].info.n === 3 &&
+    first.m === 2 &&
+    first.n === 3 &&
     spendableOutputs.length >= 2 &&
     spendableOutputs.length <= 4
   ) {
-    findings.push(buildEscrow2of3Finding(multisigInputs[0].info.scriptType));
+    findings.push(buildEscrow2of3Finding(first.scriptType));
     return { findings };
   }
 
@@ -106,23 +108,24 @@ export const analyzeMultisigDetection: TxHeuristic = (tx, rawHex, ctx) => {
   if (
     tx.vin.length === 1 &&
     multisigInputs.length === 1 &&
-    multisigInputs[0].info.m === 2 &&
-    multisigInputs[0].info.n === 2 &&
+    first.m === 2 &&
+    first.n === 2 &&
     spendableOutputs.length === 2
   ) {
     const signals: string[] = [];
     if (tx.version === 1) signals.push("tx version 1 (bitcoinj-style)");
     if (tx.locktime === 0) signals.push("nLockTime = 0");
-    if (tx.vin[0].sequence === 0xffffffff) signals.push("nSequence = max (no RBF)");
+    const maxSequence = tx.vin[0]?.sequence === 0xffffffff;
+    if (maxSequence) signals.push("nSequence = max (no RBF)");
 
-    const likelyLN = tx.locktime > 0 && tx.vin[0].sequence !== 0xffffffff;
+    const likelyLN = tx.locktime > 0 && !maxSequence;
 
     if (likelyLN) {
-      findings.push(buildLightningChannelFinding(multisigInputs[0].info.scriptType, signals));
+      findings.push(buildLightningChannelFinding(first.scriptType, signals));
       return { findings };
     }
 
-    findings.push(buildEscrow2of2Finding(multisigInputs[0].info.scriptType, signals));
+    findings.push(buildEscrow2of2Finding(first.scriptType, signals));
     return { findings };
   }
 
@@ -135,8 +138,6 @@ export const analyzeMultisigDetection: TxHeuristic = (tx, rawHex, ctx) => {
   const typeList = [...types.entries()]
     .map(([key, count]) => (count > 1 ? `${key} (${count} inputs)` : key))
     .join(", ");
-
-  const first = multisigInputs[0].info;
 
   findings.push(buildGenericMultisigFinding(first, multisigInputs.length, typeList));
 

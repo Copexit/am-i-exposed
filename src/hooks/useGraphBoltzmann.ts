@@ -166,7 +166,8 @@ export function useGraphBoltzmann({
 
       // Process queue sequentially with abort signal
       if (queue.length > 0) {
-        (async () => {
+        // Fire-and-forget: the callee catches its own errors.
+        void (async () => {
           for (const { txid } of queue) {
             if (ac.signal.aborted) break;
             await computeSingleBoltzmann(txid, ac.signal);

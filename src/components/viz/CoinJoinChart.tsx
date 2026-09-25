@@ -120,8 +120,8 @@ export function CoinJoinChart({
     let unspentCount: number | undefined;
     if (outspends && n.tierValue != null) {
       let s = 0, u = 0;
-      for (let oi = 0; oi < tx.vout.length; oi++) {
-        if (tx.vout[oi].value === n.tierValue) {
+      for (const [oi, vout] of tx.vout.entries()) {
+        if (vout.value === n.tierValue) {
           if (outspends[oi]?.spent) s++; else u++;
         }
       }

@@ -1,3 +1,4 @@
+import type { FindingId } from "@/lib/analysis/finding-metadata";
 /** Common mistakes data - shared between CommonMistakes component and /guide page */
 
 interface MistakeEntry {
@@ -6,7 +7,7 @@ interface MistakeEntry {
   descKey: string;
   descDefault: string;
   /** Only show on results page when a specific finding ID is present */
-  triggerFinding?: string;
+  triggerFinding?: FindingId;
 }
 
 export const MISTAKES: MistakeEntry[] = [

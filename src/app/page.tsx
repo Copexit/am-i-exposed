@@ -142,7 +142,8 @@ export default function Home() {
     if (oldHash !== newHash) skipNextHashChangeRef.current = true;
     window.location.hash = newHash;
     reset();
-    wallet.analyze(input);
+    // Fire-and-forget: the callee catches its own errors.
+    void wallet.analyze(input);
   }, [reset, wallet, skipNextHashChangeRef]);
 
   const handleXpubConfirm = useCallback(() => {
@@ -157,12 +158,14 @@ export default function Home() {
       startXpubScan(input);
       return;
     }
-    if (isPSBT(input)) { wallet.reset(); analyze(input); return; }
+    // Fire-and-forget: the callee catches its own errors.
+    if (isPSBT(input)) { wallet.reset(); void analyze(input); return; }
     const prefix = input.length === 64 ? "tx" : "addr";
     const newHash = `${prefix}=${encodeURIComponent(input)}`;
     const oldHash = window.location.hash.slice(1);
     window.location.hash = newHash;
-    if (oldHash === newHash) { wallet.reset(); analyze(input); }
+    // Fire-and-forget: the callee catches its own errors.
+    if (oldHash === newHash) { wallet.reset(); void analyze(input); }
   }, [analyze, isThirdPartyApi, startXpubScan, wallet]);
 
   const handleBack = useCallback(() => {

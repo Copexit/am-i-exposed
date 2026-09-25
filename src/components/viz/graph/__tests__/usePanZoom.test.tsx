@@ -42,7 +42,7 @@ describe("usePanZoom", () => {
     fireEvent.wheel(getByTestId("svg"), { deltaY: -1, clientX: 0, clientY: 0 });
 
     // Zoom in by 1.1 around (0,0) from scale 2 at (10,20).
-    const vt = onChange.mock.calls[0][0] as ViewTransform;
+    const vt = onChange.mock.calls[0]![0] as ViewTransform;
     expect(vt.scale).toBeCloseTo(2.2);
     expect(vt.x).toBeCloseTo(11);
     expect(vt.y).toBeCloseTo(22);

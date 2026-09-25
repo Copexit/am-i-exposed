@@ -21,11 +21,11 @@ export function buildParentTxsByIdx(
 ): Map<number, MempoolTransaction> {
   const parentTxsByIdx = new Map<number, MempoolTransaction>();
 
-  if (backwardLayers.length > 0) {
-    const depth1 = backwardLayers[0];
-    for (let i = 0; i < tx.vin.length; i++) {
-      if (tx.vin[i].is_coinbase) continue;
-      const ptx = depth1.txs.get(tx.vin[i].txid);
+  const [depth1] = backwardLayers;
+  if (depth1) {
+    for (const [i, vin] of tx.vin.entries()) {
+      if (vin.is_coinbase) continue;
+      const ptx = depth1.txs.get(vin.txid);
       if (ptx) parentTxsByIdx.set(i, ptx);
     }
   }
@@ -49,10 +49,9 @@ export function buildChildTxsByIdx(
 ): Map<number, MempoolTransaction> {
   const childTxsByIdx = new Map<number, MempoolTransaction>();
 
-  if (forwardLayers.length > 0 && outspends) {
-    const depth1 = forwardLayers[0];
-    for (let i = 0; i < outspends.length; i++) {
-      const os = outspends[i];
+  const [depth1] = forwardLayers;
+  if (depth1 && outspends) {
+    for (const [i, os] of outspends.entries()) {
       if (os?.spent && os.txid) {
         const ctxn = depth1.txs.get(os.txid);
         if (ctxn) childTxsByIdx.set(i, ctxn);

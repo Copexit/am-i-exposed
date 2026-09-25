@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "node scripts/generate-sitemap.mjs && next build",
     "start": "npx serve out",
-    "lint": "eslint",
+    "lint": "eslint --max-warnings 0",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -43,7 +43,7 @@ export function useAnalysis() {
   const pendingCacheRef = useRef<{ network: BitcoinNetwork; input: string; settings: AnalysisSettings } | null>(null);
 
   // Auto-load core entity filter on mount
-  useEffect(() => { loadEntityFilter(); }, []);
+  useEffect(() => { void loadEntityFilter(); }, []);
 
   // Wrap t as HeuristicTranslator for passing into analysis layer
   const ht: HeuristicTranslator = useCallback(

@@ -226,8 +226,8 @@ export function graphReducer(state: GraphState, action: GraphAction): GraphState
     }
 
     case "UNDO": {
-      if (state.undoStack.length === 0) return state;
-      const nodes = state.undoStack[state.undoStack.length - 1];
+      const nodes = state.undoStack.at(-1);
+      if (!nodes) return state;
       return { ...state, nodes, undoStack: state.undoStack.slice(0, -1) };
     }
 
