@@ -102,9 +102,12 @@ export function analyzeForward(
 
   // Item 3: Toxic change merged with post-mix UTXOs
   // Check if any child tx combines a tx0 toxic change with CoinJoin outputs
-  const isTx0 = detectTx0(tx) !== null;
-  if (isTx0) {
+  // Only the toxic change output counts: premix outputs are supposed to be
+  // spent alongside other participants' inputs in the Whirlpool mix.
+  const toxicChange = detectTx0(tx)?.toxicChange;
+  if (toxicChange) {
     for (const [outputIdx, childTx] of childTxs.entries()) {
+      if (tx.vout[outputIdx] !== toxicChange) continue;
       if (!childTx || childTx.vin.length < 2) continue;
 
       // Check if child tx mixes tx0 change with post-mix outputs

@@ -13,15 +13,21 @@ export function createLocalStorageStore<T>(
   let cachedValue: T = defaultValue;
 
   function getSnapshot(): T {
+    let stored: string;
     try {
-      const stored = localStorage.getItem(key) ?? "";
-      if (stored === cachedRaw) return cachedValue;
-      cachedRaw = stored;
-      cachedValue = stored ? parse(stored) : defaultValue;
-      return cachedValue;
+      stored = localStorage.getItem(key) ?? "";
     } catch {
       return defaultValue;
     }
+    if (stored === cachedRaw) return cachedValue;
+    cachedRaw = stored;
+    try {
+      cachedValue = stored ? parse(stored) : defaultValue;
+    } catch {
+      // Corrupt data: cache the default so consecutive snapshots agree
+      cachedValue = defaultValue;
+    }
+    return cachedValue;
   }
 
   function getServerSnapshot(): T {

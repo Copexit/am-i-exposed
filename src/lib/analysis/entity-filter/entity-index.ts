@@ -104,11 +104,13 @@ export function parseEntityIndex(buffer: ArrayBuffer): EntityIndex | null {
     const len = bytes[offset];
     if (len === undefined) return null;
     offset++;
-    names.push(decoder.decode(bytes.slice(offset, offset + len)));
+    if (offset + len > bytes.length) return null; // truncated name
+    names.push(decoder.decode(bytes.subarray(offset, offset + len)));
     offset += len;
     if (version >= 2) {
       // v2: category byte follows the name
-      const catByte = bytes[offset] ?? 0;
+      const catByte = bytes[offset];
+      if (catByte === undefined) return null; // truncated category byte
       categories.push(CATEGORY_FROM_BYTE[catByte] ?? "exchange");
       offset++;
     } else {
@@ -116,11 +118,20 @@ export function parseEntityIndex(buffer: ArrayBuffer): EntityIndex | null {
     }
   }
 
+  // Reject a record section shorter than the header claims (truncated
+  // download or corrupt entryCount) before allocating anything.
+  if (entryCount > (buffer.byteLength - offset) / 6) return null;
+
   // Parse sorted index entries into typed arrays for fast binary search
   const hashes = new Uint32Array(entryCount);
   const entityIds = new Uint16Array(entryCount);
+  let prev = 0;
   for (let i = 0; i < entryCount; i++) {
-    hashes[i] = view.getUint32(offset, true);
+    const hash = view.getUint32(offset, true);
+    // Binary search requires ascending order; unsorted data would silently miss.
+    if (hash < prev) return null;
+    prev = hash;
+    hashes[i] = hash;
     entityIds[i] = view.getUint16(offset + 4, true);
     offset += 6;
   }

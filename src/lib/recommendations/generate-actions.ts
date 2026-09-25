@@ -237,6 +237,9 @@ export function generateActions(findings: Finding[], grade: Grade): Action[] {
     });
   }
 
+  // Captured before connection privacy, which would otherwise always hide the fallback
+  const noFindingActions = actions.length === 0;
+
   // Connection privacy (6.8) - show for any poor grade
   if (grade === "C" || grade === "D" || grade === "F") {
     actions.push({
@@ -253,7 +256,7 @@ export function generateActions(findings: Finding[], grade: Grade): Action[] {
   }
 
   // General fallback for poor scores
-  if (actions.length === 0 && (grade === "D" || grade === "F")) {
+  if (noFindingActions && (grade === "D" || grade === "F")) {
     actions.push({
       priority: 1,
       textKey: "remediation.freshStart",

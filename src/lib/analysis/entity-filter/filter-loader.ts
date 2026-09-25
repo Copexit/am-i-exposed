@@ -35,6 +35,10 @@ let filterStatus: FilterStatus = "idle";
 let fullFilterInstance: AddressFilter | null = null;
 let fullFilterStatus: FilterStatus = "idle";
 
+// In-flight loads, shared so concurrent callers all get the loaded filter.
+let corePromise: Promise<AddressFilter | null> | null = null;
+let fullPromise: Promise<AddressFilter | null> | null = null;
+
 const CORE_INDEX_PATH = "/data/entity-index.bin";
 const FULL_INDEX_PATH = "/data/entity-index-full.bin";
 const FULL_BLOOM_PATH = "/data/entity-filter-full.bin";
@@ -78,7 +82,8 @@ function parseHeader(buffer: ArrayBuffer): {
   version: number;
   meta: FilterMeta;
 } | null {
-  if (buffer.byteLength < 32) return null;
+  // 32-byte header + 16-byte Bloom parameters (m, k, seed1, seed2)
+  if (buffer.byteLength < 48) return null;
 
   const view = new DataView(buffer);
   const version = view.getUint32(0, true);
@@ -202,13 +207,18 @@ async function fetchArrayBuffer(
  * Load the core entity address filter (small, auto-loaded).
  * Loads entity-index.bin and creates an index-backed AddressFilter.
  * Returns the filter if successful, null otherwise.
- * Safe to call multiple times - only loads once.
+ * Safe to call multiple times - only loads once; concurrent callers share
+ * the same in-flight load.
  */
-export async function loadEntityFilter(): Promise<AddressFilter | null> {
-  if (filterInstance) return filterInstance;
-  if (filterStatus === "loading") return null;
-  if (filterStatus === "error" || filterStatus === "unavailable") return null;
+export function loadEntityFilter(): Promise<AddressFilter | null> {
+  if (filterInstance) return Promise.resolve(filterInstance);
+  if (filterStatus === "error" || filterStatus === "unavailable") {
+    return Promise.resolve(null);
+  }
+  return (corePromise ??= loadCore());
+}
 
+async function loadCore(): Promise<AddressFilter | null> {
   filterStatus = "loading";
 
   try {
@@ -224,8 +234,8 @@ export async function loadEntityFilter(): Promise<AddressFilter | null> {
       return null;
     }
 
-    // Set entity index for name lookups
-    setEntityIndex(index);
+    // Set entity index for name lookups, unless the full index won the race
+    if (!fullFilterInstance) setEntityIndex(index);
 
     // Create index-backed filter (no Bloom needed for core)
     filterInstance = createIndexBackedFilter(index);
@@ -248,15 +258,20 @@ export async function loadEntityFilter(): Promise<AddressFilter | null> {
  *
  * @param onProgress - Optional callback for download progress (loaded, total bytes)
  */
-export async function loadFullEntityFilter(
+export function loadFullEntityFilter(
   onProgress?: ProgressCallback,
 ): Promise<AddressFilter | null> {
-  if (fullFilterInstance) return fullFilterInstance;
-  if (fullFilterStatus === "loading") return null;
+  if (fullFilterInstance) return Promise.resolve(fullFilterInstance);
   if (fullFilterStatus === "error" || fullFilterStatus === "unavailable") {
-    return null;
+    return Promise.resolve(null);
   }
+  // A concurrent caller shares the in-flight download (and its progress callback).
+  return (fullPromise ??= loadFull(onProgress));
+}
 
+async function loadFull(
+  onProgress?: ProgressCallback,
+): Promise<AddressFilter | null> {
   fullFilterStatus = "loading";
 
   try {
@@ -338,6 +353,7 @@ export async function updateFullEntityData(
     () => {
       fullFilterInstance = null;
       fullFilterStatus = "idle";
+      fullPromise = null;
     },
     loadFullEntityFilter,
     onProgress,

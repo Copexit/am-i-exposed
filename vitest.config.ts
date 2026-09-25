@@ -14,16 +14,19 @@ export default defineConfig({
     ],
     coverage: {
       provider: "v8",
-      include: [
-        "src/lib/analysis/**",
-        "src/lib/scoring/**",
-        "src/lib/bitcoin/**",
-        "src/lib/api/**",
+      include: ["src/lib/**", "src/hooks/**"],
+      exclude: [
+        "**/__tests__/**",
+        "**/*.test.{ts,tsx}",
+        "**/*.json",
+        "**/types.ts", // type-only modules
       ],
+      // Measured floor minus 1 point: a regression below these fails CI
       thresholds: {
-        lines: 60,
-        functions: 70,
-        branches: 50,
+        statements: 81,
+        lines: 84,
+        functions: 82,
+        branches: 77,
       },
     },
   },

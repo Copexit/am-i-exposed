@@ -191,10 +191,9 @@ export function encodeGraphToUrl(saved: SavedGraph): string | null {
     buf.set(txidBytes, offset); offset += TXID_BYTES;
     view.setInt8(offset, node.depth); offset += 1;
 
-    let flags = 0;
-    if (node.parentEdge) flags |= 1;
-    if (node.childEdge) flags |= 2;
-    buf[offset++] = flags;
+    // One edge slot per record: flag only the edge actually written, or the
+    // decoder would rebuild a bogus childEdge from the parent's ref
+    buf[offset++] = node.parentEdge ? 1 : node.childEdge ? 2 : 0;
 
     if (node.parentEdge) {
       const refIdx = txidToIdx.get(node.parentEdge.fromTxid) ?? NO_EDGE;
