@@ -161,6 +161,18 @@ describe("analyzeEntityProximity", () => {
     });
   });
 
+  it("does not re-report the analyzed tx's own addresses (entity-detection scores those)", () => {
+    const own = makeTx({
+      txid: id(0),
+      vin: [makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qbinance", value: 1 } })],
+      vout: [makeVout({ scriptpubkey_address: "bc1qhydra" })],
+    });
+    const r = analyzeEntityProximity(own, chain([outputTo("bc1qbinance", 1)]), chain([inputFrom("bc1qhydra", 2)]));
+    expect(r.nearestBackward).toBeNull();
+    expect(r.nearestForward).toBeNull();
+    expect(r.findings).toEqual([]);
+  });
+
   it("reports a direct forward deposit", () => {
     const r = analyzeEntityProximity(target, [], chain([outputTo("bc1qbinance", 1)]));
     const f = r.findings[0]!;

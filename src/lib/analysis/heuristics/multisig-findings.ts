@@ -161,9 +161,10 @@ export function buildLightningChannelFinding(
     },
     description:
       "This transaction matches the pattern of a legacy P2WSH Lightning channel close: " +
-      "2-of-2 multisig input with nLockTime > 0 and non-max nSequence. " +
+      "a 2-of-2 multisig input carrying the BOLT 3 commitment encoding (nLockTime upper byte 0x20, nSequence upper byte 0x80) " +
+      "or the cooperative close layout (version 2, nLockTime 0, nSequence max). " +
       "The 2-of-2 P2WSH multisig funding output is identifiable by chain analysis as a Lightning channel. " +
-      "Note: this pattern can also match 2-of-2 multisig spends using anti-fee-sniping (BIP-339).",
+      "Note: the cooperative close layout can also match other 2-of-2 multisig spends built the same way.",
     recommendation:
       "Upgrade to Taproot channels (LND simple-taproot-channels, CLN) which use MuSig2 key aggregation. " +
       "Taproot channel opens and cooperative closes are indistinguishable from regular Taproot spends, " +

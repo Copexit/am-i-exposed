@@ -11,8 +11,7 @@ import {
   bold,
   header,
 } from "./colors";
-
-const VERSION = "0.34.3";
+import { VERSION } from "./json";
 
 function line(label: string, value: string): string {
   return `${dim(label.padEnd(13))}${value}`;

@@ -81,6 +81,8 @@ export function enhanceEntropyFinding(
 
   findings[idx] = {
     ...existing,
+    // nbCmbn > 1: a JS "h5-low-entropy" estimate no longer applies
+    id: "h5-entropy",
     severity: impact >= 10 ? "good" : impact >= 5 ? "low" : impact > 0 ? "low" : "medium",
     title: `Transaction entropy: ${roundedEntropy} bits${boundNote}`,
     params,

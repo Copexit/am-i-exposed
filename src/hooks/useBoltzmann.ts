@@ -63,7 +63,8 @@ export function useBoltzmann(
     setState({ status: "computing", result: null, error: null, progress: null });
 
     // computeBoltzmann terminates the pool synchronously when it starts, so a
-    // terminate seen after this call means another compute preempted ours.
+    // terminate seen after this call means another compute preempted ours
+    // (a job's own worker failure drops the pool without notifying listeners).
     let preempted = false;
     let unregister = () => {};
     try {

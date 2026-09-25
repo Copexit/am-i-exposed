@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
+import { onPoolTerminate, terminatePool, type BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import type { GraphNode } from "@/lib/graph/graph-reducer";
 import type { MempoolTransaction } from "@/lib/api/types";
 import { makeTx, makeVin, makeVout } from "@/lib/analysis/heuristics/__tests__/fixtures/tx-factory";
@@ -72,6 +72,65 @@ describe("useGraphBoltzmann", () => {
     await act(async () => { pending.resolve(computed); });
     expect(result.current.computingBoltzmann.has("two-in")).toBe(false);
     expect(result.current.getBoltzmannResult("two-in")).toBe(computed);
+  });
+
+  it("pauses the eager loop while paused (a linkability trace owns the worker pool)", async () => {
+    computeBoltzmann.mockResolvedValue(fakeResult("two-in"));
+    const { result, rerender } = renderHook(
+      ({ paused }) => useGraphBoltzmann({ nodes: NODES_twoIn, rootTxid: "two-in", paused }),
+      { initialProps: { paused: true } },
+    );
+    await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+    expect(computeBoltzmann).not.toHaveBeenCalled();
+
+    rerender({ paused: false });
+    await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+    expect(computeBoltzmann).toHaveBeenCalledTimes(1);
+    expect(result.current.getBoltzmannResult("two-in")?.id).toBe("two-in");
+  });
+
+  it("pausing aborts an in-flight eager compute", async () => {
+    let signal: AbortSignal | undefined;
+    computeBoltzmann.mockImplementationOnce((_tx, opts) => { signal = opts.signal; return new Promise(() => {}); });
+    const { rerender } = renderHook(
+      ({ paused }) => useGraphBoltzmann({ nodes: NODES_twoIn, rootTxid: "two-in", paused }),
+      { initialProps: { paused: false } },
+    );
+    await act(async () => { await vi.advanceTimersByTimeAsync(300); });
+    expect(signal?.aborted).toBe(false);
+    rerender({ paused: true });
+    expect(signal?.aborted).toBe(true);
+  });
+
+  it("does not start eager computes while another job owns the worker pool", async () => {
+    computeBoltzmann.mockResolvedValue(fakeResult("two-in"));
+    onPoolTerminate(() => {}); // e.g. the heatmap's manual compute
+    try {
+      renderHook(() => useGraphBoltzmann({ nodes: NODES_twoIn, rootTxid: "two-in" }));
+      await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+      expect(computeBoltzmann).not.toHaveBeenCalled();
+    } finally {
+      terminatePool();
+    }
+  });
+
+  it("stops the eager queue once another job preempts it", async () => {
+    const twoInB = makeTx({ txid: "two-in-b", vin: [makeVin(), makeVin()], vout: [makeVout(), makeVout({ value: 40000 })] });
+    const first = deferred<BoltzmannWorkerResult | null>();
+    computeBoltzmann.mockReturnValueOnce(first.promise).mockResolvedValue(fakeResult("x"));
+    const nodes = nodesOf(twoIn, twoInB);
+    renderHook(() => useGraphBoltzmann({ nodes, rootTxid: "two-in" }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(300); });
+    expect(computeBoltzmann).toHaveBeenCalledTimes(1);
+
+    // A foreign compute terminates the pool and registers its own job.
+    onPoolTerminate(() => {});
+    try {
+      await act(async () => { first.resolve(null); });
+      expect(computeBoltzmann).toHaveBeenCalledTimes(1);
+    } finally {
+      terminatePool();
+    }
   });
 
   it("triggerBoltzmann computes on demand and caches the result", async () => {

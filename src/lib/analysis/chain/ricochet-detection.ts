@@ -118,8 +118,12 @@ export function detectRicochet(
     };
   }
 
+  // A direct CoinJoin child with 2 outputs is an ordinary payment with
+  // change, not a hop.
+  if (originIsCoinJoin && hops < 3 && spendable.length > 1) return null;
+
   // Sweep from CoinJoin origin = ricochet (even 1 hop is meaningful)
-  if (hops >= 1 && originIsCoinJoin) {
+  if (originIsCoinJoin) {
     return {
       id: "chain-ricochet",
       severity: "good",

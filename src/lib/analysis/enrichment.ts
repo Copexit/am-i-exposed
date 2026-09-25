@@ -26,13 +26,15 @@ export async function enrichBip47Finding(
     const txCount =
       addrInfo.chain_stats.tx_count + addrInfo.mempool_stats.tx_count;
 
+    // Localized text: the description.{clean,toxic}_{reused,first} context keys
     bip47.params = {
       ...bip47.params,
       notificationTxCount: txCount,
-      channelInfo: txCount > 1
-        ? ` The notification address has received ${txCount} transactions, indicating ${txCount} BIP47 payment channels have been opened to this PayNym. While this address is reused and publicly visible, the actual payment addresses derived through each channel are unique and cannot be linked without knowledge of the payment codes.`
-        : " This appears to be the first notification to this address. The notification address is reused and publicly visible, but the actual payment addresses derived through the channel are unique and cannot be linked without knowledge of the payment codes.",
+      context: txCount > 1 ? "reused" : "first",
     };
+    bip47.description += txCount > 1
+      ? ` The notification address has received ${txCount} transactions, indicating ${txCount} BIP47 payment channels have been opened to this PayNym. While this address is reused and publicly visible, the actual payment addresses derived through each channel are unique and cannot be linked without knowledge of the payment codes.`
+      : " This appears to be the first notification to this address. The notification address is reused and publicly visible, but the actual payment addresses derived through the channel are unique and cannot be linked without knowledge of the payment codes.";
   } catch {
     // Non-critical enrichment - do not fail the analysis
   }

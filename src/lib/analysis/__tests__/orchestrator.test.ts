@@ -664,9 +664,8 @@ describe("cross-heuristic: post-mix consolidation + entity escalation", () => {
     const entity = findings.find((f) => f.id === "entity-known-output")!;
     expect(entity.severity).toBe("critical");
     expect(entity.scoreImpact).toBe(-10);
-    // Display text is a locale variant, never an in-place English rewrite
-    expect(entity.title).toBe("Output to known entity");
-    expect(entity.description).toBe("Funds sent to a known entity.");
+    // Localized text is the postmix variant; the English copy (CLI/MCP) matches it
+    expect(entity.title).toBe("Post-mix funds sent to known entity");
     expect(entity.params?._variant).toBe("postmix");
     expect(entity.params?.context).toBe("postmix-consolidation-to-entity");
     // Original param should be preserved
@@ -752,7 +751,7 @@ describe("cross-heuristic: post-mix consolidation + entity escalation", () => {
 });
 
 describe("cross-heuristic: RBF x change detection", () => {
-  it("boosts h2 without rewriting its English text and keeps params.confidence in sync", () => {
+  it("boosts h2, explains RBF in its text and keeps params.confidence in sync", () => {
     const findings: import("@/lib/types").Finding[] = [
       { id: "h6-rbf-signaled", severity: "low", title: "", description: "", recommendation: "", scoreImpact: -1 },
       {
@@ -762,7 +761,8 @@ describe("cross-heuristic: RBF x change detection", () => {
     ];
     applyCrossHeuristicRules(findings);
     const h2 = findings.find((f) => f.id === "h2-change-detected")!;
-    expect(h2.description).toBe("d");
+    expect(h2.description).toMatch(/^d RBF is signaled/);
+    expect(h2.params?.context).toBe("rbf");
     expect(h2.confidence).toBe("high");
     expect(h2.params?.confidence).toBe("high");
     expect(h2.params?.rbfCompound).toBe(1);

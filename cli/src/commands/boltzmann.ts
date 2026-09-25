@@ -79,8 +79,7 @@ export async function boltzmann(
 
 function formatBoltzmannResult(
   txid: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tx: any,
+  tx: MempoolTransaction,
   result: BoltzmannResult,
 ): string {
   const lines: string[] = [];
@@ -88,16 +87,8 @@ function formatBoltzmannResult(
   lines.push("");
   lines.push(`${dim("Transaction:")}  ${txid}`);
 
-  const inputTotal = tx.vin.reduce(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (s: number, v: any) => s + (v.prevout?.value ?? 0),
-    0,
-  );
-  const outputTotal = tx.vout.reduce(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (s: number, v: any) => s + v.value,
-    0,
-  );
+  const inputTotal = tx.vin.reduce((s, v) => s + (v.prevout?.value ?? 0), 0);
+  const outputTotal = tx.vout.reduce((s, v) => s + v.value, 0);
 
   lines.push(
     `${dim("Inputs:")}       ${tx.vin.length} (${inputTotal.toLocaleString("en-US")} sats)`,
@@ -106,7 +97,7 @@ function formatBoltzmannResult(
     `${dim("Outputs:")}      ${tx.vout.length} (${outputTotal.toLocaleString("en-US")} sats)`,
   );
   lines.push(
-    `${dim("Fee:")}          ${(tx.fee ?? 0).toLocaleString("en-US")} sats`,
+    `${dim("Fee:")}          ${tx.fee.toLocaleString("en-US")} sats`,
   );
   lines.push("");
   lines.push(`${bold("Entropy:")}       ${result.entropy.toFixed(2)} bits`);

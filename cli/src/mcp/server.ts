@@ -141,13 +141,17 @@ export function createMcpServer(): McpServer {
       descriptor: z.string().describe("xpub, zpub, ypub, or output descriptor"),
       network,
       apiUrl: z.string().optional(),
-      gapLimit: z.number().default(20).describe("Consecutive unused addresses before stopping"),
+      gapLimit: z.number().default(DEFAULT_ANALYSIS_SETTINGS.walletGapLimit).describe(
+        "Consecutive unused addresses before stopping. On the hosted API each address after the first 6 per chain " +
+        "takes ~9s (rate limit), so large values can take minutes; pass apiUrl of your own node to scan unthrottled.",
+      ),
     },
-    async ({ descriptor, network, apiUrl, gapLimit }) => {
+    async ({ descriptor, network, apiUrl, gapLimit }, extra) => {
+      // extra.signal aborts when the MCP client cancels or times out the request
       const { addresses, failed } = await scanWalletAddresses(
-        mcpClient(network, apiUrl), parseXpub(descriptor), gapLimit, { isLocal: !!apiUrl },
+        mcpClient(network, apiUrl), parseXpub(descriptor), gapLimit, { isLocal: !!apiUrl, signal: extra.signal },
       );
-      const result = auditWallet(addresses);
+      const result = auditWallet(addresses, failed);
       return textResult({
         score: result.score, grade: result.grade,
         activeAddresses: result.activeAddresses,

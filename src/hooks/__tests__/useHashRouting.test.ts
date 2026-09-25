@@ -1,13 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { renderHook, cleanup } from "@testing-library/react";
-import type { TorStatus } from "../useTorDetection";
-import type { LocalApiStatus } from "../useLocalApi";
 
-const net = vi.hoisted(() => ({
-  torStatus: "checking" as TorStatus,
-  localApiStatus: "unavailable" as LocalApiStatus,
-}));
+const net = vi.hoisted(() => ({ apiReady: false }));
 vi.mock("@/context/NetworkContext", () => ({ useNetwork: () => net }));
 
 import { useHashRouting } from "../useHashRouting";
@@ -27,31 +22,16 @@ function makeCallbacks() {
 }
 
 describe("useHashRouting", () => {
-  it("holds the initial hash scan until Tor detection settles too", () => {
+  it("holds the initial hash scan until the network config settles (local probe and Tor)", () => {
     window.history.replaceState(null, "", `/#tx=${TXID}`);
     const callbacks = makeCallbacks();
-    const { analyze } = callbacks;
-    net.torStatus = "checking";
-    net.localApiStatus = "unavailable";
-    const { rerender } = renderHook(() => useHashRouting(callbacks));
-    expect(analyze).not.toHaveBeenCalled();
-
-    net.torStatus = "tor";
-    rerender();
-    expect(analyze).toHaveBeenCalledTimes(1);
-    expect(analyze).toHaveBeenCalledWith(TXID);
-  });
-
-  it("holds the initial hash scan until the local API probe settles", () => {
-    window.history.replaceState(null, "", `/#tx=${TXID}`);
-    const callbacks = makeCallbacks();
-    net.torStatus = "clearnet";
-    net.localApiStatus = "checking";
+    net.apiReady = false;
     const { rerender } = renderHook(() => useHashRouting(callbacks));
     expect(callbacks.analyze).not.toHaveBeenCalled();
 
-    net.localApiStatus = "available";
+    net.apiReady = true;
     rerender();
+    expect(callbacks.analyze).toHaveBeenCalledTimes(1);
     expect(callbacks.analyze).toHaveBeenCalledWith(TXID);
   });
 });

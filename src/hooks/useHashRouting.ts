@@ -49,8 +49,7 @@ export function useHashRouting(callbacks: HashRoutingCallbacks): HashRoutingResu
   // Wait for both the local API probe and Tor detection to settle before
   // processing the initial hash URL. Otherwise the first scan goes to
   // mempool.space on Umbrel, or to clearnet instead of the onion on Tor.
-  const { torStatus, localApiStatus } = useNetwork();
-  const apiReady = localApiStatus !== "checking" && torStatus !== "checking";
+  const { apiReady } = useNetwork();
   const initialHashProcessedRef = useRef(false);
   /** Skip the next hashchange handler (set when startXpubScan changes the hash programmatically). */
   const skipNextHashChangeRef = useRef(false);

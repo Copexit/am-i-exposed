@@ -32,7 +32,12 @@ export const TTL_24_HOURS = 24 * 60 * 60 * 1000;
  * Findings that mark a result as built from incomplete data (failed or
  * timed-out fetches). Such results are never cached, so a retry refetches.
  */
-export const INCOMPLETE_RESULT_FINDING_IDS: readonly FindingId[] = ["chain-trace-partial", "address-utxos-unavailable"];
+export const INCOMPLETE_RESULT_FINDING_IDS: readonly FindingId[] = [
+  "chain-trace-partial",
+  "address-utxos-unavailable",
+  // Prevout enrichment can fail transiently (timeouts, rate limits)
+  "api-incomplete-prevout",
+];
 
 /** TraceLayer with txs stored as a plain object (for JSON/IDB serialization). */
 interface StoredTraceLayer {
@@ -84,7 +89,7 @@ interface CachedAnalysisResult {
  * Cache version - bump when computation logic changes (WASM rebuild, heuristic
  * updates, scoring changes) to invalidate stale cached results.
  */
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 3;
 
 /**
  * Build a cache key that embeds the analysis settings affecting results.

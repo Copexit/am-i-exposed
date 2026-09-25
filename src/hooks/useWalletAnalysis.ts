@@ -15,7 +15,6 @@ import {
   scanChain,
   collectWalletTxs,
   traceWalletTxs,
-  DEFAULT_GAP_LIMIT,
   UTXO_TRACE_DEPTH,
   type UtxoTraceResult,
 } from "@/lib/wallet/scan";
@@ -114,7 +113,7 @@ export function useWalletAnalysis() {
         // Step 2: Incrementally derive + fetch addresses.
         const api = createApiClient(config, controller.signal);
         const localApi = isLocalApi(config.mempoolBaseUrl);
-        const { walletGapLimit = DEFAULT_GAP_LIMIT, minSats = 5000 } = getAnalysisSettings();
+        const { walletGapLimit, minSats } = getAnalysisSettings();
         const allInfos: WalletAddressInfo[] = [];
         const failedAddresses: string[] = [];
         let fetched = 0;
@@ -172,7 +171,7 @@ export function useWalletAnalysis() {
           }));
 
           const settings = getAnalysisSettings();
-          const { maxDepth = UTXO_TRACE_DEPTH } = settings;
+          const { maxDepth } = settings;
           const traceResults = await traceWalletTxs(
             utxoTxs,
             api,
@@ -202,23 +201,7 @@ export function useWalletAnalysis() {
           progress: { fetched, total: fetched },
         }));
 
-        const result = auditWallet(allInfos);
-        if (failedAddresses.length > 0) {
-          // Rendered via finding.wallet-scan-partial.* keys, English fallback here
-          const count = failedAddresses.length;
-          result.findings.push({
-            id: "wallet-scan-partial",
-            severity: "low",
-            confidence: "high",
-            title: `Wallet scan incomplete (${count} addresses failed)`,
-            description:
-              `${count} addresses could not be fetched (rate limit or network error) and are missing from this audit. ` +
-              "Used addresses beyond them may also have been missed.",
-            recommendation: "Wait a moment and scan again, or use a self-hosted API.",
-            scoreImpact: 0,
-            params: { count },
-          });
-        }
+        const result = auditWallet(allInfos, failedAddresses);
 
         setState(prev => ({
           ...prev,

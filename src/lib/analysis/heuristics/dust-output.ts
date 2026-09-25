@@ -121,7 +121,7 @@ export const analyzeDustOutputs: TxHeuristic = (tx) => {
       severity,
       confidence: "high",
       title: `${dustEntries.length} dust output${dustEntries.length > 1 ? "s" : ""} detected (< ${DUST_THRESHOLD} sats)`,
-      params: { dustCount: dustEntries.length, threshold: DUST_THRESHOLD, totalDustValue, econDustCount, dustIndices: dustIndicesStr },
+      params: { dustCount: dustEntries.length, count: dustEntries.length, threshold: DUST_THRESHOLD, totalDustValue, econDustCount, dustIndices: dustIndicesStr },
       description:
         `This transaction contains ${dustEntries.length} output${dustEntries.length > 1 ? "s" : ""} ` +
         `below ${DUST_THRESHOLD} sats (total: ${totalDustValue} sats). ` +

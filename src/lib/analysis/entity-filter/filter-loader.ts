@@ -38,6 +38,11 @@ let fullFilterStatus: FilterStatus = "idle";
 // In-flight loads, shared so concurrent callers all get the loaded filter.
 let corePromise: Promise<AddressFilter | null> | null = null;
 let fullPromise: Promise<AddressFilter | null> | null = null;
+// Bumped by updateFullEntityData: a full load from an older generation that
+// finishes late must not overwrite the newer state.
+let fullGeneration = 0;
+// Progress listeners of every caller sharing the in-flight full download.
+const fullProgressListeners = new Set<ProgressCallback>();
 
 const CORE_INDEX_PATH = "/data/entity-index.bin";
 const FULL_INDEX_PATH = "/data/entity-index-full.bin";
@@ -265,13 +270,14 @@ export function loadFullEntityFilter(
   if (fullFilterStatus === "error" || fullFilterStatus === "unavailable") {
     return Promise.resolve(null);
   }
-  // A concurrent caller shares the in-flight download (and its progress callback).
-  return (fullPromise ??= loadFull(onProgress));
+  // Concurrent callers share the in-flight download; each gets progress.
+  if (onProgress) fullProgressListeners.add(onProgress);
+  return (fullPromise ??= loadFull());
 }
 
-async function loadFull(
-  onProgress?: ProgressCallback,
-): Promise<AddressFilter | null> {
+async function loadFull(): Promise<AddressFilter | null> {
+  const generation = fullGeneration;
+  const stale = () => generation !== fullGeneration;
   fullFilterStatus = "loading";
 
   try {
@@ -281,11 +287,11 @@ async function loadFull(
 
     const reportProgress = () => {
       // Only report a real total when both content-lengths are known
+      if (stale()) return;
       const totalKnown = indexTotal > 0 && bloomTotal > 0;
-      onProgress?.(
-        indexLoaded + bloomLoaded,
-        totalKnown ? indexTotal + bloomTotal : 0,
-      );
+      for (const listener of fullProgressListeners) {
+        listener(indexLoaded + bloomLoaded, totalKnown ? indexTotal + bloomTotal : 0);
+      }
     };
 
     const [indexBuffer, bloomBuffer] = await Promise.all([
@@ -300,6 +306,9 @@ async function loadFull(
         reportProgress();
       }),
     ]);
+
+    // Superseded by an update: hand callers the newer load's result instead.
+    if (stale()) return loadFullEntityFilter();
 
     if (!indexBuffer) {
       fullFilterStatus = "unavailable";
@@ -329,8 +338,11 @@ async function loadFull(
     fullFilterStatus = "ready";
     return fullFilterInstance;
   } catch {
+    if (stale()) return loadFullEntityFilter();
     fullFilterStatus = "error";
     return null;
+  } finally {
+    if (!stale()) fullProgressListeners.clear();
   }
 }
 
@@ -351,6 +363,8 @@ export async function updateFullEntityData(
 ): Promise<AddressFilter | null> {
   return updateFullEntityDataImpl(
     () => {
+      fullGeneration++;
+      fullProgressListeners.clear();
       fullFilterInstance = null;
       fullFilterStatus = "idle";
       fullPromise = null;

@@ -21,6 +21,12 @@ describe("enhanceEntropyFinding", () => {
     expect(findings[0]?.scoreImpact).toBe(12);
   });
 
+  it("renames an upgraded low-entropy finding to h5-entropy", () => {
+    const findings = [entropyFinding(4)];
+    enhanceEntropyFinding(findings, wasm(2, 2));
+    expect(findings[0]?.id).toBe("h5-entropy");
+  });
+
   it("keeps the address-merged JS score when WASM counted per-UTXO", () => {
     // 3 inputs from 2 addresses: the JS score merged them into 2 parties
     const findings = [entropyFinding(4)];

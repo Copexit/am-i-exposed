@@ -121,6 +121,45 @@ describe("NetworkProvider", () => {
     expect(result.current.isUmbrel).toBe(false);
   });
 
+  it("apiReady waits for both the local API probe and Tor detection", async () => {
+    mockFetch({
+      "/api/local-info": { delay: 50, status: 404, body: "not found" },
+      "tor-check": { delay: 500, body: { isTor: true } },
+    });
+    const { result } = await renderNetwork();
+    expect(result.current.apiReady).toBe(false);
+    await flush(100); // local probe settled, Tor still checking
+    expect(result.current.localApiStatus).not.toBe("checking");
+    expect(result.current.apiReady).toBe(false);
+    await flush(15_000);
+    expect(result.current.torStatus).toBe("tor");
+    expect(result.current.apiReady).toBe(true);
+  });
+
+  it("skips Tor detection when a custom API (own node) is set", async () => {
+    localStorage.setItem("ami-custom-api-url", "http://localhost:3006/api");
+    const fetchFn = mockFetch({ "/api/local-info": { delay: 50, status: 404, body: "not found" } });
+    const { result } = await renderNetwork();
+    await flush(15_000);
+    expect(result.current.torStatus).not.toBe("checking");
+    const urls = calledUrls(fetchFn);
+    expect(urls.some((u) => u.includes("tor-check") || u.includes(".onion"))).toBe(false);
+  });
+
+  it("chain tip on Umbrel only queries the node, never public mempool.space", async () => {
+    const fetchFn = mockFetch(UMBREL_ROUTES);
+    const { NetworkProvider } = await import("@/context/NetworkContext");
+    const { useChainTip } = await import("../useChainTip");
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <StrictMode><NetworkProvider>{children}</NetworkProvider></StrictMode>
+    );
+    const { result } = renderHook(() => useChainTip(), { wrapper });
+    await flush(15_000);
+    await flush();
+    expect(result.current).toBe(850000);
+    expect(calledUrls(fetchFn).some((u) => u.includes("mempool.space"))).toBe(false);
+  });
+
   it("pins the network to mainnet on Umbrel, ignoring ?network=", async () => {
     window.history.replaceState(null, "", "/?network=signet");
     mockFetch(UMBREL_ROUTES);

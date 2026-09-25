@@ -24,6 +24,14 @@ describe("analyzeRoundAmounts - fiat guards", () => {
     expect(found).not.toContain("h1-round-usd-amount");
   });
 
+  it("does not add a fiat finding when every output is BTC-round or fiat-round", () => {
+    // out0 = 0.001 BTC (BTC-round, also ~$99.80); out1 = 20,040 sats = $20.00 at 99,800 USD/BTC.
+    const tx = makeTx({ vout: [makeVout({ value: 100_000 }), makeVout({ value: 20_040 })] });
+    const found = ids(tx, { usdPrice: 99_800 });
+    expect(found).toContain("h1-round-amount");
+    expect(found).not.toContain("h1-round-usd-amount");
+  });
+
   it("still flags a round USD output next to a non-round output", () => {
     const tx = makeTx({ vout: [makeVout({ value: 102_532 }), makeVout({ value: 48_723 })] });
     expect(ids(tx, { usdPrice: 97_531, eurPrice: 90_000 })).toContain("h1-round-usd-amount");

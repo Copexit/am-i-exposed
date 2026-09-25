@@ -146,6 +146,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
     nodes: graph.nodes,
     rootTxid: graph.rootTxid,
     rootBoltzmannResult: props.rootBoltzmannResult,
+    paused: graph.autoTracing,
   });
 
   const hasLinkability = !!props.rootBoltzmannResult || boltzmannCache.size > 0;
@@ -345,7 +346,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
           boltzmannProgress={graph.expandedNodeTxid ? boltzmannProgressMap.get(graph.expandedNodeTxid) : undefined}
           onComputeBoltzmann={graph.expandedNodeTxid ? () => triggerBoltzmann(graph.expandedNodeTxid!) : undefined}
           onAutoTrace={props.noAutoTrace ? undefined : graph.autoTrace}
-          onAutoTraceLinkability={props.noAutoTrace ? undefined : graph.autoTraceLinkability}
+          onAutoTraceLinkability={props.noAutoTrace ? undefined : (txid, outputIndex) => graph.autoTraceLinkability(txid, outputIndex, { boltzmannCache })}
           autoTracing={graph.autoTracing}
           autoTraceProgress={graph.autoTraceProgress}
           onCancelAutoTrace={props.noAutoTrace ? undefined : graph.cancelAutoTrace}

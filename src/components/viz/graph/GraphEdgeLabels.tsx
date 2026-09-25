@@ -1,6 +1,7 @@
 "use client";
 
 import { Text } from "@visx/text";
+import { useTranslation } from "react-i18next";
 import { SVG_COLORS } from "../shared/svgConstants";
 import { ANNOTATION_COLOR, NOTE_BG_COLOR, hexToRgba } from "@/lib/palette";
 import type { LayoutEdge } from "./types";
@@ -29,6 +30,7 @@ export function GraphEdgeLabels({
   commitLabel,
   onSetEdgeLabel,
 }: GraphEdgeLabelsProps) {
+  const { t } = useTranslation();
   return (
     <>
       {edges.map((edge) => {
@@ -65,7 +67,7 @@ export function GraphEdgeLabels({
                   onBlur={commitLabel}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") commitLabel(); }}
                   onMouseDown={(e) => e.stopPropagation()}
-                  placeholder="Clear to delete"
+                  placeholder={t("graph.clearToDelete", { defaultValue: "Clear to delete" })}
                   style={{ width: "100%", height: "100%", background: "transparent", color: ANNOTATION_COLOR, border: "none", outline: "none", fontSize: "10px", fontFamily: "inherit", textAlign: "center", padding: "0" }}
                 />
               </foreignObject>

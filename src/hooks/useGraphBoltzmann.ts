@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { computeBoltzmann } from "@/lib/analysis/boltzmann-compute";
-import { detectJoinMarketForTurbo } from "@/lib/analysis/boltzmann-pool";
+import { detectJoinMarketForTurbo, isPoolBusy } from "@/lib/analysis/boltzmann-pool";
 import type { BoltzmannWorkerResult, BoltzmannProgress } from "@/lib/analysis/boltzmann-pool";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { GraphNode } from "@/hooks/useGraphExpansion";
@@ -12,6 +12,11 @@ interface UseGraphBoltzmannParams {
   nodes: Map<string, GraphNode>;
   rootTxid: string;
   rootBoltzmannResult?: BoltzmannWorkerResult | null;
+  /**
+   * Suspend the eager loop, e.g. while a linkability auto-trace runs: any
+   * computeBoltzmann call preempts the one in flight, so both cannot share the pool.
+   */
+  paused?: boolean;
 }
 
 interface UseGraphBoltzmannReturn {
@@ -65,6 +70,7 @@ export function useGraphBoltzmann({
   nodes,
   rootTxid,
   rootBoltzmannResult,
+  paused = false,
 }: UseGraphBoltzmannParams): UseGraphBoltzmannReturn {
   // The refs are the working sets the async compute loop checks; the state
   // copies are what renders. Every write updates both, outside render.
@@ -149,6 +155,7 @@ export function useGraphBoltzmann({
   // Eagerly compute Boltzmann for the multi-input nodes whenever the graph changes.
   // Debounced by 300ms so rapid node additions (e.g. auto-trace) don't cause WASM churn.
   useEffect(() => {
+    if (paused) return;
     const debounceTimer = setTimeout(() => {
       // Abort previous computation cycle before starting a new one
       boltzmannAbortRef.current?.abort();
@@ -169,7 +176,9 @@ export function useGraphBoltzmann({
         // Fire-and-forget: the callee catches its own errors.
         void (async () => {
           for (const { txid } of queue) {
-            if (ac.signal.aborted) break;
+            // Yield to any other job on the shared pool (heatmap, pipeline):
+            // starting a compute would preempt it. The next graph change retries.
+            if (ac.signal.aborted || isPoolBusy()) break;
             await computeSingleBoltzmann(txid, ac.signal);
           }
         })();
@@ -180,7 +189,7 @@ export function useGraphBoltzmann({
       clearTimeout(debounceTimer);
       boltzmannAbortRef.current?.abort();
     };
-  }, [nodes, computeSingleBoltzmann]);
+  }, [nodes, computeSingleBoltzmann, paused]);
 
   const boltzmannCache = useMemo(() => {
     const merged = new Map([...syntheticCache, ...computedCache]);

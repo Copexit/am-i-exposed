@@ -1,6 +1,9 @@
 import type { Finding } from "@/lib/types";
 import { suppressFinding } from "./utils";
 
+const STONEWALL_ENTROPY_RECOMMENDATION =
+  "Stonewall adds real ambiguity to this payment. For stronger privacy, spend exact amounts where possible or use a full CoinJoin.";
+
 /**
  * Suppress findings that are misleading or irrelevant in CoinJoin/Stonewall
  * context. CoinJoin transactions are multi-party by design, so many single-user
@@ -52,6 +55,7 @@ export function applyCoinJoinSuppressions(findings: Finding[], isStonewall: bool
           f.description +
           " In this Stonewall transaction, the two equal-value outputs create ambiguity about which is the real payment." +
           " A normal 2-output payment has 0 bits (fully deterministic), so this entropy is a meaningful improvement.";
+        f.recommendation = STONEWALL_ENTROPY_RECOMMENDATION;
       } else {
         f.params = { ...f.params, context: "coinjoin" };
       }

@@ -104,4 +104,16 @@ describe("buildTxsByAddress", () => {
     // Only real addresses are keys (no OP_RETURN / coinbase entries)
     expect(map.size).toBe(3);
   });
+
+  it("lists a tx once per address even when the address repeats or the tx appears in several layers", () => {
+    const addr = "bc1qreused";
+    const pv = { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: addr, value: 1 };
+    const tx = makeTx({
+      txid: id(30),
+      vin: [makeVin({ prevout: pv }), makeVin({ prevout: pv })],
+      vout: [makeVout({ scriptpubkey_address: addr })],
+    });
+    const map = buildTxsByAddress(tx, [layer(1, tx)], [layer(1, tx)]);
+    expect(map.get(addr)?.map((t) => t.txid)).toEqual([id(30)]);
+  });
 });

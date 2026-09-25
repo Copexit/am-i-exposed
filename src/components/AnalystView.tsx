@@ -167,7 +167,7 @@ function deriveInsights(findings: Finding[]): AnalystInsight[] {
       text: escrowType
         ? `Multisig escrow pattern detected (${escrowType}) - narrows transaction purpose`
         : "Multisig pattern detected - reveals the transaction's governance structure",
-      textKey: "analyst.multisig",
+      textKey: escrowType ? "analyst.multisigEscrow" : "analyst.multisig",
       good: false,
     });
   }
@@ -268,6 +268,10 @@ function findParamsForInsight(insight: AnalystInsight, findings: Finding[]): Rec
   if (insight.textKey === "analyst.addressReuse") {
     const f = findings.find((item) => item.id === "h8-address-reuse");
     return { reuseCount: f?.params?.reuseCount ?? "multiple" };
+  }
+  if (insight.textKey === "analyst.multisigEscrow") {
+    const f = findings.find((item) => item.id.startsWith("h17-"));
+    return { escrowType: String(f?.params?.escrowType ?? "") };
   }
   return {};
 }

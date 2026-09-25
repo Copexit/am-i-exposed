@@ -38,8 +38,7 @@ function convertBigInts(obj: any): any {
 }
 
 /** Map a raw snake_case WASM result to BoltzmannResult. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toResult(raw: any): BoltzmannResult {
+function toResult(raw: unknown): BoltzmannResult {
   const result = convertBigInts(raw);
   return {
     matLnkCombinations: result.mat_lnk_combinations ?? [],

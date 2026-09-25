@@ -20,11 +20,17 @@ import { buildLinkabilityMatrix } from "../analysis/chain/linkability";
 import { applyCoinJoinSuppressions } from "../analysis/cross-heuristic/coinjoin-suppressions";
 import { analyzeCoinJoinPremix } from "../analysis/heuristics/coinjoin-premix";
 import { analyzeFees } from "../analysis/heuristics/fee-analysis";
+import { applyCompoundScoringAdjustments } from "../analysis/cross-heuristic/compound-scoring";
 import { applyBehavioralRollup } from "../analysis/cross-heuristic/behavioral-rollup";
 import { analyzeEntityDetection } from "../analysis/heuristics/entity-detection";
 import { analyzeEntropy } from "../analysis/heuristics/entropy";
 import { analyzeDustOutputs } from "../analysis/heuristics/dust-output";
 import { analyzeAddress } from "../analysis/orchestrator";
+import { analyzeBip47Notification } from "../analysis/heuristics/bip47-notification";
+import { enrichBip47Finding } from "../analysis/enrichment";
+import { makeIncompletePrevoutFinding } from "../analysis/analysis-state";
+import { buildCluster } from "../analysis/chain/clustering";
+import type { ApiClient } from "../api/client";
 
 const locale = (lang: string) =>
   JSON.parse(readFileSync(join(process.cwd(), "public/locales", lang, "common.json"), "utf8")) as Record<string, string>;
@@ -201,5 +207,87 @@ describe("finding locale text keeps the heuristic's information", () => {
     const f = analyzeDustOutputs(tx).findings.find((x) => x.id === "dust-attack")!;
     expect(render(f).title).toBe("Possible dust attack (3000 sats)");
     expect(f.params!.dustIndices).toBe("0,1,2,3,4,5");
+  });
+
+  describe("no raw placeholders, text in the viewer's language", () => {
+    const noPlaceholders = (f: Finding) => {
+      for (const lng of ["en", "es"]) {
+        const text = render(f, lng);
+        for (const v of Object.values(text)) expect(v, `${f.id} ${lng}`).not.toContain("{{");
+      }
+    };
+
+    const opReturn = {
+      scriptpubkey: "6a4c50" + "a".repeat(160), scriptpubkey_asm: "", scriptpubkey_type: "op_return", scriptpubkey_address: "", value: 0,
+    };
+    const bip47 = (vout: ReturnType<typeof makeVout>[]) =>
+      analyzeBip47Notification(makeTx({ vin: [makeVin()], vout: [opReturn, ...vout] })).findings[0]!;
+
+    it("bip47-notification without enrichment", () => {
+      noPlaceholders(bip47([makeVout({ value: 546 }), makeVout({ value: 90_000 })]));
+      noPlaceholders(bip47([makeVout({ value: 546 })]));
+    });
+
+    it("bip47-notification without a notification output does not claim one", () => {
+      const f = bip47([makeVout({ value: 90_000 })]);
+      noPlaceholders(f);
+      expect(render(f).description).not.toContain(" 0 sats");
+      expect(render(f, "es").description).not.toContain(" 0 sats");
+    });
+
+    it("bip47-notification channel info is localized", async () => {
+      const f = bip47([makeVout({ value: 546 }), makeVout({ value: 90_000 })]);
+      const getAddress = vi.fn().mockResolvedValue(makeAddress({
+        chain_stats: { funded_txo_count: 0, funded_txo_sum: 0, spent_txo_count: 0, spent_txo_sum: 0, tx_count: 5 },
+      }));
+      await enrichBip47Finding([f], { getAddress } as unknown as ApiClient, new AbortController().signal);
+      noPlaceholders(f);
+      expect(render(f).description).toContain("5 BIP47 payment channels");
+      expect(render(f, "es").description).toContain("5 canales de pago BIP47");
+    });
+
+    it("api-incomplete-prevout states the count", () => {
+      const f = makeIncompletePrevoutFinding(3);
+      noPlaceholders(f);
+      expect(render(f).description).toContain("3 transaction inputs");
+    });
+
+    it("chain-cluster-size counts the other addresses and keeps tier advice", () => {
+      const addrs = ["bc1qa", "bc1qb", "bc1qc", "bc1qd", "bc1qe"];
+      const tx = makeTx({ vin: addrs.map((x) => addrVin(x, 10_000)), vout: [makeVout()] });
+      const f = buildCluster("bc1qa", new Map([["bc1qa", [tx]]])).findings[0]!;
+      noPlaceholders(f);
+      expect(render(f).description).toContain("with 4 other addresses");
+      expect(render(f).recommendation).toContain("Label and spend them individually");
+    });
+
+    it("dust-outputs title is translated, CoinJoin title reachable", () => {
+      const tx = makeTx({ vin: [addrVin("bc1qdustsender", 100_000)], vout: [makeVout({ value: 700 }), makeVout({ value: 50_000 }), makeVout({ value: 40_000 })] });
+      const findings = analyzeDustOutputs(tx).findings.filter((x) => x.id === "dust-outputs");
+      expect(render(findings[0], "es").title).toBe("1 salida de polvo detectada (< 1000 sats)");
+      applyCoinJoinSuppressions(findings, false);
+      expect(render(findings[0], "es").title).toContain("CoinJoin");
+    });
+
+    it("h5-entropy on a Stonewall has Stonewall text in every field", () => {
+      const f: Finding = {
+        id: "h5-entropy", severity: "low", title: "", description: "d", recommendation: "r", scoreImpact: 1,
+        params: { entropy: 1.58, method: "exact", interpretations: 3, context: "low", entropyPerUtxo: 0.2, nUtxos: 8 },
+      };
+      applyCoinJoinSuppressions([f], true);
+      expect(render(f).description).toContain("Stonewall");
+      expect(render(f, "es").description).toContain("Stonewall");
+      expect(render(f, "es").recommendation).toContain("Stonewall");
+    });
+
+    it("h2-change-detected explains the RBF compound", () => {
+      const f: Finding = {
+        id: "h2-change-detected", severity: "medium", title: "", description: "", recommendation: "", scoreImpact: -5,
+        params: { signalCount: 2, confidence: "medium" },
+      };
+      applyCompoundScoringAdjustments([{ id: "h6-rbf-signaled", severity: "low", title: "", description: "", recommendation: "", scoreImpact: -1 }, f]);
+      expect(render(f).description).toContain("RBF");
+      expect(render(f, "es").description).toContain("RBF");
+    });
   });
 });

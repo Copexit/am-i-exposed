@@ -7,9 +7,7 @@ import { traceBackward, traceForward, type TraceLayer, type EntityBarrierCheck }
 import type { WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import type { DerivedAddress } from "@/lib/bitcoin/descriptor";
 import type { MempoolClient } from "@/lib/api/mempool";
-
-/** Default gap limit if settings unavailable. */
-export const DEFAULT_GAP_LIMIT = 5;
+import { ApiError } from "@/lib/api/fetch-with-retry";
 
 /** Max UTXO txids to trace (prevents explosion on large wallets). */
 export const MAX_UTXO_TRACES = 50;
@@ -23,7 +21,7 @@ export const UTXO_TRACE_DEPTH = 3;
  */
 const MAX_CONSECUTIVE_FAILURES = 3;
 
-/** Scan-level retries per address, on top of fetchWithRetry's own retries. */
+/** Scan-level retries per address (rate limits, 5xx), on top of fetchWithRetry's own retries. */
 const ADDRESS_RETRIES = 2;
 
 /**
@@ -119,6 +117,9 @@ export async function scanChain(
         break;
       } catch (e) {
         lastError = e;
+        // fetchWithRetry already retried network failures, and a timeout is
+        // final: re-sending would repeat the same slow query on the backend.
+        if (e instanceof ApiError && e.code === "NETWORK_ERROR") break;
       }
     }
     const wasCacheHit = performance.now() - t0 < 100;

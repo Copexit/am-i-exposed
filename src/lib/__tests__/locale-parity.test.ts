@@ -65,6 +65,17 @@ describe("locale parity", () => {
     expect([...missing], "keys used in code but missing from en/common.json").toEqual([]);
   });
 
+  it("every key stored in data for a later t() call (textKey, labelKey, ...) exists in English", () => {
+    const en = readLocale("en");
+    const missing = new Set<string>();
+    for (const file of sourceFiles(join(process.cwd(), "src"))) {
+      for (const [, key] of readFileSync(file, "utf8").matchAll(/\b\w*Key:\s*"([a-zA-Z0-9_]+\.[a-zA-Z0-9_.-]+)"/g)) {
+        if (key && !(key in en)) missing.add(key);
+      }
+    }
+    expect([...missing], "indirect keys missing from en/common.json").toEqual([]);
+  });
+
   it("no locale value uses mustache sections, which i18next does not support", () => {
     for (const lang of locales) {
       for (const [k, v] of Object.entries(readLocale(lang))) {

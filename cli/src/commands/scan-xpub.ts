@@ -36,7 +36,7 @@ export async function scanXpub(
 
   // Run wallet audit
   updateSpinner("Running wallet audit...");
-  const result = auditWallet(allAddresses);
+  const result = auditWallet(allAddresses, failed);
 
   succeedSpinner(
     `Wallet audit complete (${result.activeAddresses} active addresses)`,
@@ -47,7 +47,7 @@ export async function scanXpub(
 
   // Output
   if (isJson) {
-    walletJson(descriptor, result, network, opts.api);
+    walletJson(descriptor, result, network, opts.api, failed);
   } else {
     console.log(formatWalletResult(descriptor, result, network));
   }
@@ -57,18 +57,23 @@ export async function scanXpub(
  * Scan both chains (external = 0, internal = 1) with the web wallet scan
  * (scanChain): a failed address fetch is retried, then reported in `failed`
  * and never counted as unused. Shared by the scan xpub command and MCP scan_wallet.
+ * Rejects with an AbortError once `signal` aborts.
  */
 export async function scanWalletAddresses(
   client: MempoolClient,
   parsed: ParsedXpub,
   gapLimit: number,
-  { isLocal, onProgress = () => {} }: { isLocal: boolean; onProgress?: (msg: string) => void },
+  {
+    isLocal,
+    onProgress = () => {},
+    signal = new AbortController().signal,
+  }: { isLocal: boolean; onProgress?: (msg: string) => void; signal?: AbortSignal },
 ): Promise<{ addresses: WalletAddressInfo[]; failed: string[] }> {
   const addresses: WalletAddressInfo[] = [];
   const failed: string[] = [];
-  const signal = new AbortController().signal;
 
   for (const chain of [0, 1] as const) {
+    signal.throwIfAborted();
     const chainLabel = chain === 0 ? "external" : "internal";
     const res = await scanChain(parsed, chain, client, signal, isLocal, gapLimit, (info) =>
       onProgress(`Scanning ${chainLabel} chain: index ${info.derived.index}`),
@@ -76,6 +81,7 @@ export async function scanWalletAddresses(
     addresses.push(...res.infos);
     failed.push(...res.failed);
   }
+  signal.throwIfAborted();
 
   return { addresses, failed };
 }

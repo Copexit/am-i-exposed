@@ -129,6 +129,17 @@ describe("walletJson", () => {
     expect(parsed.walletInfo.activeAddresses).toBe(15);
     expect(parsed.walletInfo.reusedAddresses).toBe(2);
     expect(parsed.walletInfo.totalBalance).toBe(500000);
+    expect(parsed.failedAddresses).toEqual([]);
+  });
+
+  it("lists addresses that could not be fetched", async () => {
+    const { walletJson } = await getJsonModule();
+    const result: WalletAuditResult = {
+      score: 70, grade: "C", findings: [], activeAddresses: 0, totalTxs: 0,
+      totalUtxos: 0, totalBalance: 0, reusedAddresses: 0, dustUtxos: 0,
+    };
+    walletJson("zpub6abc", result, "mainnet", undefined, ["bc1qfailed"]);
+    expect(JSON.parse(captured[0]).failedAddresses).toEqual(["bc1qfailed"]);
   });
 });
 

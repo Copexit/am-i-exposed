@@ -143,17 +143,17 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
         </h3>
         <span className="text-xs text-muted" title={
           state.result?.method === "wabisabi"
-            ? "Tier-decomposed upper bound: per-tier Boltzmann partition formulas combined under independence assumption. True entropy may be slightly lower due to cross-tier dependencies."
+            ? t("boltzmann.methodTooltip.wabisabi", { defaultValue: "Tier-decomposed upper bound: per-tier Boltzmann partition formulas combined under independence assumption. True entropy may be slightly lower due to cross-tier dependencies." })
             : state.result?.method === "joinmarket"
-              ? "JoinMarket-optimized Boltzmann: exploits maker/taker structure for fast computation. Upper bound due to formula approximations for large transactions."
-              : "Exact Boltzmann link probability computation via WASM"
+              ? t("boltzmann.methodTooltip.joinmarket", { defaultValue: "JoinMarket-optimized Boltzmann: exploits maker/taker structure for fast computation. Upper bound due to formula approximations for large transactions." })
+              : t("boltzmann.methodTooltip.exact", { defaultValue: "Exact Boltzmann link probability computation via WASM" })
         }>
           {t("boltzmann.subtitle", { defaultValue: "Boltzmann analysis" })}
           {state.result?.method === "wabisabi" && (
-            <span className="ml-1 text-[9px] text-muted/50">(tier-decomposed)</span>
+            <span className="ml-1 text-[9px] text-muted/50">{t("boltzmann.method.wabisabi", { defaultValue: "(tier-decomposed)" })}</span>
           )}
           {state.result?.method === "joinmarket" && (
-            <span className="ml-1 text-[9px] text-muted/50">(JoinMarket-optimized)</span>
+            <span className="ml-1 text-[9px] text-muted/50">{t("boltzmann.method.joinmarket", { defaultValue: "(JoinMarket-optimized)" })}</span>
           )}
         </span>
       </div>
@@ -367,7 +367,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                     <div className="flex-1 h-1 bg-foreground/[0.06] rounded-full overflow-hidden max-w-[120px]">
                       <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(effPct, 100)}%`, backgroundColor: effPct > 50 ? EFFICIENCY_COLORS.high : effPct > 20 ? EFFICIENCY_COLORS.mid : EFFICIENCY_COLORS.low }} />
                     </div>
-                    <span className="text-muted/40">(vs. {result.nbCmbnPrfctCj.toLocaleString()} perfect CJ)</span>
+                    <span className="text-muted/40">{t("boltzmann.efficiencyVsPerfect", { prfct: result.nbCmbnPrfctCj.toLocaleString(), defaultValue: "(vs. {{prfct}} perfect CJ)" })}</span>
                   </motion.div>
                 )}
               </>

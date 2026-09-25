@@ -83,6 +83,8 @@ export const analyzeBip47Notification: TxHeuristic = (tx) => {
       notificationValue: notificationOutput?.value ?? 0,
       toxicChangeValue: hasChange ? fmtN(changeValue) : "0",
       notificationAddress,
+      // No notification output: the description.toxic_nodust key omits that sentence
+      ...(notificationOutput ? {} : { context: "nodust" }),
     },
     description:
       "This transaction contains an OP_RETURN with an 80-byte payload consistent with a BIP47 notification transaction. " +

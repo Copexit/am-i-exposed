@@ -12,6 +12,7 @@ import {
   MAX_SUPPORTED_TOTAL_WABISABI,
   MAX_WORKERS,
   getWorkerPool,
+  dropFailedPool,
   onPoolTerminate,
   terminatePool,
   detectIntrafees,
@@ -156,7 +157,7 @@ function runOnSingleWorker(
 
     worker.onerror = () => {
       finish(null);
-      terminatePool();
+      dropFailedPool();
     };
 
     worker.postMessage(message);

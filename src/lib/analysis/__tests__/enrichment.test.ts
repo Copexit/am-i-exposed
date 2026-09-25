@@ -27,14 +27,16 @@ describe("enrichBip47Finding", () => {
     expect(getAddress).toHaveBeenCalledWith("bc1qnotif");
     expect(f.params?.notificationTxCount).toBe(5);
     expect(f.params?.notificationAddress).toBe("bc1qnotif");
-    expect(f.params?.channelInfo).toContain("5 BIP47 payment channels");
+    expect(f.params?.context).toBe("reused");
+    expect(f.description).toContain("5 BIP47 payment channels");
   });
 
   it("uses first-notification wording for a single tx", async () => {
     const f = bip47({ notificationAddress: "bc1qnotif" });
     await enrichBip47Finding([f], api({ getAddress: vi.fn().mockResolvedValue(makeAddress()) }), live());
     expect(f.params?.notificationTxCount).toBe(1);
-    expect(f.params?.channelInfo).toContain("first notification");
+    expect(f.params?.context).toBe("first");
+    expect(f.description).toContain("first notification");
   });
 
   it("does not fetch without a finding or a usable address", async () => {

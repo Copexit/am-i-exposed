@@ -257,6 +257,18 @@ describe("loadFullEntityFilter", () => {
     expect(fetchCount(FULL_INDEX)).toBe(1);
   });
 
+  it("fans progress out to a second caller that joins an in-flight download", async () => {
+    files[FULL_INDEX] = fullBin();
+    files[FULL_BLOOM] = bloomBin();
+    const first = vi.fn();
+    const second = vi.fn();
+    const [a, b] = await Promise.all([L.loadFullEntityFilter(first), L.loadFullEntityFilter(second)]);
+    expect(b).toBe(a);
+    const total = fullBin().byteLength + bloomBin().byteLength;
+    expect(first).toHaveBeenLastCalledWith(total, total);
+    expect(second).toHaveBeenLastCalledWith(total, total);
+  });
+
   it("keeps full-index names when the core load finishes after the full load", async () => {
     files[FULL_INDEX] = fullBin();
     files[FULL_BLOOM] = bloomBin();
@@ -298,6 +310,32 @@ describe("updateFullEntityData", () => {
     expect(L.getFilter()).toBe(second);
     expect(fetchCount(FULL_INDEX)).toBe(2);
     expect(progress).toHaveBeenCalled();
+  });
+
+  it("an older in-flight download finishing late does not overwrite the update", async () => {
+    const oldBin = buildEidx({ names: [["Old Market", 1]], entries: [[FULL_ADDR, 0]] });
+    files[FULL_BLOOM] = bloomBin();
+    let releaseOld!: () => void;
+    const oldGate = new Promise<void>((r) => (releaseOld = r));
+    let indexCalls = 0;
+    fetchMock.mockImplementation((path: string) => {
+      if (path === FULL_INDEX && ++indexCalls === 1) return oldGate.then(() => respond(oldBin, true));
+      const served = path === FULL_INDEX ? fullBin() : files[path];
+      return Promise.resolve().then(() => respond(served, true));
+    });
+    const oldProgress = vi.fn();
+    const oldP = L.loadFullEntityFilter(oldProgress);
+    const updated = await L.updateFullEntityData();
+    expect(L.lookupEntityName(FULL_ADDR)).toBe("Full Market");
+    oldProgress.mockClear();
+
+    releaseOld();
+    const late = await oldP;
+    expect(L.getFilter()).toBe(updated);
+    expect(late).toBe(updated);
+    expect(L.getFullFilterStatus()).toBe("ready");
+    expect(L.lookupEntityName(FULL_ADDR)).toBe("Full Market");
+    expect(oldProgress).not.toHaveBeenCalled();
   });
 
   it("recovers from a previous error state", async () => {

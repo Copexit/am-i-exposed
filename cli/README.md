@@ -66,7 +66,9 @@ Two defaults differ on purpose:
   extra API calls, so it is opt-in. The web scan always runs chain analysis, so a tx-only CLI grade
   can differ from the web grade. Pass `--chain-depth 4` to run chain analysis at the web default depth.
 - `scan xpub --gap-limit` defaults to 20 (the BIP44 gap limit). The web app uses 5 to keep
-  browser scans against the public mempool.space API short.
+  browser scans against the public mempool.space API short. The MCP `scan_wallet` tool also
+  defaults to 5, so a call against the hosted API finishes within typical MCP request timeouts;
+  a cancelled or timed-out request stops the scan.
 
 ## JSON Output
 

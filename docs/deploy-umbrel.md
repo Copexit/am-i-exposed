@@ -185,11 +185,11 @@ When running on Umbrel (local API detected), two privacy improvements activate:
 
 ### 1. Tor detection is skipped
 
-`useTorDetection(skip)` accepts a `skip` parameter. `NetworkContext` passes `localApiStatus === "available"`, so on Umbrel no requests go to `tor-check.copexit.workers.dev` or the `.onion` probe. This eliminates IP leakage on every page load.
+`useTorDetection(skip, defer)` takes a `skip` and a `defer` flag. `NetworkContext` sets `skip = isUmbrel || !!customUrl`: on Umbrel, and for any user with a custom API (own node), no requests go to `tor-check.copexit.workers.dev` or the `.onion` probe, since `resolveNetworkConfig` ignores Tor status there anyway. This eliminates IP leakage on every page load. Otherwise detection is deferred until the local API probe settles (`localApiStatus !== "checking"`). With the skip, `torStatus` stays `"clearnet"` and means nothing, so `ConnectionBadge` shows a "Local" (Umbrel) or "Custom API" badge and `PrivacyNotice` hides itself (`isCustomApi`).
 
 ### 2. Chainalysis checks route through Tor
 
-`CexRiskPanel` detects Umbrel mode via `useNetwork().localApiStatus`. When the user clicks "Run Chainalysis Check":
+`CexRiskPanel` reads `isUmbrel` from `useNetwork()` and passes it to `useChainalysisCheck`. When the user clicks "Run Chainalysis Check":
 
 1. First tries `/tor-proxy/chainalysis/address/{addr}` (goes through sidecar -> Tor -> Cloudflare Worker -> Chainalysis API)
 2. If Tor fails (502, timeout, blocked): shows amber warning dialog "Tor proxy is unavailable. Proceeding will expose your IP."

@@ -13,13 +13,13 @@ Key concepts adopted from SIP-001:
 
 - **Temporality classification.** Findings differ in whether the damage is fixable. `HISTORICAL` findings are permanently on-chain. `ONGOING_PATTERN` findings reflect changeable behavior. `ACTIVE_RISK` findings represent unspent UTXOs where the user can still act. This maps directly to user intent: "what can I still do about this?"
 
-- **Formal finding dependency model.** SIP-001's `specializes/generalizes/implies` edges provide a clean declarative model for the finding suppression and deduplication that am-i-exposed currently implements procedurally in `cross-heuristic.ts`. While am-i-exposed's compound rules (RBF x Change, post-mix entity escalation) are more sophisticated than simple edges can express, the declarative model is cleaner for basic specialization/generalization cases.
+- **Formal finding dependency model.** SIP-001's `specializes/generalizes/implies` edges provide a clean declarative model for the finding suppression and deduplication that am-i-exposed currently implements procedurally in `cross-heuristic/`. While am-i-exposed's compound rules (RBF x Change, post-mix entity escalation) are more sophisticated than simple edges can express, the declarative model is cleaner for basic specialization/generalization cases.
 
 - **Confidence in scoring.** SIP-001 uses `severity_weight x confidence_multiplier` rather than hand-tuned impact numbers. am-i-exposed already populates confidence on most findings but doesn't use it in scoring - an opportunity for future improvement.
 
 - **CHANGE_REUSE as distinct finding.** Change reuse (sending change to a previously-funded address) directly collapses two transaction histories. am-i-exposed detects both signals independently but doesn't escalate their intersection.
 
-- **BEHAVIORAL_FINGERPRINT rollup.** A compound finding that fires when >=2 behavioral sub-signals (fee rate, RBF, output ordering, amount patterns) co-occur, escalating to CRITICAL at >=4. am-i-exposed implements this as `applyBehavioralRollup()` in cross-heuristic.ts, emitting a compound finding at 2+ signals and escalating to critical at 4+.
+- **BEHAVIORAL_FINGERPRINT rollup.** A compound finding that fires when >=2 behavioral sub-signals (fee rate, RBF, output ordering, amount patterns) co-occur, escalating to CRITICAL at >=4. am-i-exposed implements this as `applyBehavioralRollup()` in cross-heuristic/behavioral-rollup.ts, emitting a compound finding at 2+ signals and escalating to critical at 4+.
 
 - **UTXO_AGE_SPREAD.** Flagging when co-spent UTXOs have vastly different creation heights reveals dormancy patterns to chain analysts. This is now implemented as `utxo-age-spread.ts`, detecting co-spent UTXOs with creation heights spanning 1+ years.
 
@@ -234,7 +234,7 @@ Filters are visual only. Score includes all findings regardless of filter state.
 
 ## Dependency Graph Concepts
 
-The registry creates the foundation for formalizing finding relationships. Currently `cross-heuristic.ts` uses procedural if-then rules for finding suppression. Many of these encode implicit specialization/generalization edges:
+The registry creates the foundation for formalizing finding relationships. Currently `cross-heuristic/` uses procedural if-then rules for finding suppression. Many of these encode implicit specialization/generalization edges:
 
 | Relationship | Current Implementation | Declarative Equivalent |
 |---|---|---|
@@ -259,8 +259,8 @@ Complex compound rules (RBF x Change, post-mix entity escalation, wallet paradox
 |---|---|
 | `src/lib/types.ts` | AdversaryTier, TemporalityClass types; Finding interface extension |
 | `src/lib/analysis/finding-metadata.ts` | Centralized registry + enrichment function |
-| `src/lib/analysis/orchestrator.ts` | Enrichment call after cross-heuristic rules |
-| `src/hooks/useChainTrace.ts` | Enrichment call for chain findings |
+| `src/lib/analysis/tx-pipeline.ts` | `finalizeTxResult()`: the single tx enrichment call, after cross-heuristic rules, on heuristic and chain findings together |
+| `src/lib/analysis/orchestrator.ts` | Enrichment call for address analysis |
 | `src/components/FindingCard.tsx` | Badge rendering (pro mode) |
 | `src/components/results/FindingsSection.tsx` | Filter controls (pro mode) |
 | `docs/privacy-engine.md` | Per-heuristic metadata boxes |

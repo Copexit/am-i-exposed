@@ -70,7 +70,7 @@ import GraphPage from "../page";
 
 beforeAll(async () => {
   // Resolve the lazy GraphExplorer chunk once with real timers
-  setNet({ localApiStatus: "checking", torStatus: "checking" });
+  setNet({ apiReady: false });
   const r = render(<GraphPage />);
   await act(async () => {
     await vi.dynamicImportSettled();
@@ -86,8 +86,7 @@ function setNet(over: Record<string, unknown> = {}) {
     configFor: (n: BitcoinNetwork) => NETWORK_CONFIG[n],
     setNetwork: vi.fn(),
     isUmbrel: false,
-    localApiStatus: "unavailable",
-    torStatus: "clearnet",
+    apiReady: true,
     ...over,
   };
 }
@@ -123,11 +122,11 @@ afterEach(() => {
 
 describe("GraphPage", () => {
   it("waits for backend detection and then loads with the live (Umbrel) api", async () => {
-    setNet({ localApiStatus: "checking", torStatus: "checking" });
+    setNet({ apiReady: false });
     const r = await renderPage();
     expect(h.calls).toEqual([]);
 
-    setNet({ config: UMBREL, isUmbrel: true, localApiStatus: "available" });
+    setNet({ config: UMBREL, isUmbrel: true });
     r.rerender(<GraphPage />);
     await flush();
     expect(h.calls).toEqual([["/api", TX_A]]);
@@ -174,7 +173,7 @@ describe("GraphPage", () => {
   });
 
   it("refuses a saved graph from another network on Umbrel", async () => {
-    setNet({ config: UMBREL, configFor: () => UMBREL, isUmbrel: true, localApiStatus: "available" });
+    setNet({ config: UMBREL, configFor: () => UMBREL, isUmbrel: true });
     const confirm = vi.spyOn(window, "confirm");
     await renderPage();
     const saved = { id: "g", name: "", savedAt: 0, network: "signet", nodes: [], rootTxid: TX_A } as unknown as SavedGraph;

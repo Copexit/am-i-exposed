@@ -48,4 +48,19 @@ describe("scanWalletAddresses", () => {
     // The change chain is scanned too
     expect(addresses.some((a) => a.derived.address === "c1i0")).toBe(true);
   });
+
+  it("stops scanning when the caller's signal aborts (MCP request cancelled)", async () => {
+    const client = fakeClient();
+    const getAddress = vi.spyOn(client, "getAddress");
+    const ac = new AbortController();
+    const p = scanWalletAddresses(client, {} as ParsedXpub, 20, { isLocal: false, signal: ac.signal });
+    const settled = expect(p).rejects.toThrow(/abort/i);
+    await vi.advanceTimersByTimeAsync(1_000);
+    ac.abort();
+    await vi.runAllTimersAsync();
+    await settled;
+    const callsAtAbort = getAddress.mock.calls.length;
+    expect(callsAtAbort).toBeLessThan(10);
+  });
 });
+

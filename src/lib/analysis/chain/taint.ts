@@ -79,6 +79,9 @@ export function analyzeBackwardTaint(
   // Aggregate taint across all inputs
   const aggregatedTaint = new Map<string, number>();
   let totalTaintFraction = 0;
+  // Taint from parents only: direct (hop 0) entity inputs are the tx's own
+  // addresses, which entity-detection already scores.
+  let parentTaintFraction = 0;
 
   for (const [i, vin] of tx.vin.entries()) {
     if (vin.is_coinbase) continue;
@@ -118,6 +121,7 @@ export function analyzeBackwardTaint(
           const weighted = fraction * inputWeight;
           aggregatedTaint.set(category, (aggregatedTaint.get(category) ?? 0) + weighted);
           totalTaintFraction += weighted;
+          parentTaintFraction += weighted;
           sources.push({ category, fraction: weighted, hops: 1 });
         }
       }
@@ -159,9 +163,10 @@ export function analyzeBackwardTaint(
     const severity = totalTaintFraction >= 0.8 ? "high" as const
       : totalTaintFraction >= 0.3 ? "medium" as const
       : "low" as const;
-    const impact = totalTaintFraction >= 0.8 ? -5
-      : totalTaintFraction >= 0.3 ? -3
-      : -1;
+    const impact = parentTaintFraction >= 0.8 ? -5
+      : parentTaintFraction >= 0.3 ? -3
+      : parentTaintFraction > 0 ? -1
+      : 0;
 
     findings.push({
       id: "chain-taint-backward",

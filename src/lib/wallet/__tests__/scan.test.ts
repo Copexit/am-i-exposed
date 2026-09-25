@@ -69,6 +69,22 @@ describe("scanChain", () => {
     expect(infos[0]?.txs).toHaveLength(1);
   });
 
+  it("does not re-send a request that timed out or failed at the network level", async () => {
+    let calls = 0;
+    const api = {
+      getAddress: async (a: string) => addressData(a, 0),
+      getAddressUtxos: async () => [],
+      getAddressTxs: async () => { calls++; throw new ApiError("NETWORK_ERROR", "Request timed out"); },
+    } as unknown as MempoolClient;
+    const p = settle(scanChain(parsed, 0, api, new AbortController().signal, true, 5, () => {}));
+    await vi.runAllTimersAsync();
+    const r = await p;
+
+    expect(r.ok).toBe(false);
+    // One attempt per address, stopping after 3 failed addresses in a row
+    expect(calls).toBe(3);
+  });
+
   it("aborts the scan with the API error when the backend keeps failing", async () => {
     const api = fakeApi(new Set(), () => true);
     const p = settle(scanChain(parsed, 0, api, new AbortController().signal, true, 5, () => {}));

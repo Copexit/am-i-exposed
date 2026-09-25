@@ -115,10 +115,21 @@ export const analyzeMultisigDetection: TxHeuristic = (tx, rawHex, ctx) => {
     const signals: string[] = [];
     if (tx.version === 1) signals.push("tx version 1 (bitcoinj-style)");
     if (tx.locktime === 0) signals.push("nLockTime = 0");
-    const maxSequence = tx.vin[0]?.sequence === 0xffffffff;
+    const sequence = tx.vin[0]?.sequence ?? 0;
+    const maxSequence = sequence === 0xffffffff;
     if (maxSequence) signals.push("nSequence = max (no RBF)");
 
-    const likelyLN = tx.locktime > 0 && !maxSequence;
+    // BOLT 3 fingerprints. Commitment tx (force close): nLockTime upper byte
+    // 0x20 and nSequence upper byte 0x80, the lower 24 bits of each carry the
+    // obscured commitment number. Cooperative close: version 2, nLockTime 0,
+    // nSequence 0xffffffff. A plain anti-fee-sniping spend (locktime = height,
+    // nSequence 0xfffffffd) matches neither.
+    const commitmentTx = tx.locktime >>> 24 === 0x20 && sequence >>> 24 === 0x80;
+    const coopClose = tx.version === 2 && tx.locktime === 0 && maxSequence;
+    if (commitmentTx) signals.push("BOLT 3 commitment encoding (nLockTime 0x20..., nSequence 0x80...)");
+    if (coopClose) signals.push("BOLT 3 cooperative close (v2, nLockTime 0, nSequence max)");
+
+    const likelyLN = commitmentTx || coopClose;
 
     if (likelyLN) {
       findings.push(buildLightningChannelFinding(first.scriptType, signals));

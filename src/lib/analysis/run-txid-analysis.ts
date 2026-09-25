@@ -266,6 +266,7 @@ export async function runTxidAnalysis(
   }
 
   // If prevout data is still missing after enrichment, warn the user
+  // (id is in INCOMPLETE_RESULT_FINDING_IDS, so this result is not cached)
   const remainingNulls = countNullPrevouts([tx]);
   if (remainingNulls > 0) {
     findings.push(makeIncompletePrevoutFinding(remainingNulls));

@@ -31,9 +31,15 @@ vi.mock("@/lib/analysis/orchestrator", () => ({
   getTxHeuristicSteps: () => [{ id: "h1", label: "h1", status: "pending" }],
   getAddressHeuristicSteps: () => [{ id: "a1", label: "a1", status: "pending" }],
 }));
-vi.mock("react-i18next", () => ({
-  useTranslation: () => ({ t: (_k: string, o?: { defaultValue?: string }) => o?.defaultValue ?? _k }),
-}));
+// Like i18next: the bundled English catalog wins over defaultValue, and a
+// missing interpolation variable stays as the raw {{name}}.
+vi.mock("react-i18next", async () => {
+  const en = (await import("../../../public/locales/en/common.json")).default as Record<string, string>;
+  const t = (k: string, o: Record<string, unknown> = {}) =>
+    (en[k] ?? (typeof o.defaultValue === "string" ? o.defaultValue : k))
+      .replace(/\{\{(\w+)\}\}/g, (raw, name: string) => (name in o ? String(o[name]) : raw));
+  return { useTranslation: () => ({ t }) };
+});
 
 const onionConfigFor = (n: BitcoinNetwork) => ({ mempoolBaseUrl: `http://onion.example/${n}/api` });
 vi.mock("@/context/NetworkContext", () => ({
@@ -145,5 +151,14 @@ describe("useAnalysis", () => {
     await act(async () => { await hook.current.analyze("cHNidP8BAAoCAAAAAAAAAAAAAAAA"); });
 
     expect(m.parsePSBT).toHaveBeenCalledWith("cHNidP8BAAoCAAAAAAAAAAAAAAAA", "mainnet");
+  });
+
+  it("shows the parser's reason when a PSBT fails to parse", async () => {
+    m.parsePSBT.mockImplementation(() => { throw new Error("unexpected end of input"); });
+    const { result: hook } = renderHook(() => useAnalysis());
+    await act(async () => { await hook.current.analyze("cHNidP8BAAoC"); });
+
+    expect(hook.current.phase).toBe("error");
+    expect(hook.current.error).toBe("Failed to parse PSBT: unexpected end of input");
   });
 });

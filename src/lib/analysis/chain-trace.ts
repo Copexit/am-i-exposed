@@ -13,7 +13,6 @@ import type { AnalysisSettings } from "@/lib/analysis/settings";
 import type { FetchProgress } from "@/lib/analysis/analysis-state";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import { sumImpact } from "@/lib/scoring/score";
-import { enrichFindingsWithMetadata } from "@/lib/analysis/finding-metadata";
 import { tick } from "@/lib/analysis/heuristic-registry";
 import type { Finding } from "@/lib/types";
 
@@ -238,7 +237,8 @@ interface ChainAnalysisParams {
 /**
  * Run post-trace chain analysis heuristics (backward, forward, clustering,
  * spending patterns, entity proximity, taint, linkability).
- * Mutates `result.findings` in place to match the original behavior.
+ * Only appends to `result.findings`; the caller's finalizeTxResult applies the
+ * cross-heuristic rules, metadata enrichment and scoring to all findings.
  */
 export async function runChainAnalysis(params: ChainAnalysisParams): Promise<void> {
   const { tx, result, backwardLayers, forwardLayers, parentTx, childTx, outspends, onStep } = params;
@@ -361,7 +361,4 @@ export async function runChainAnalysis(params: ChainAnalysisParams): Promise<voi
       },
     } satisfies Finding);
   }
-
-  // Enrich chain findings with adversary tier and temporality metadata
-  enrichFindingsWithMetadata(result.findings);
 }

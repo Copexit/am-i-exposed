@@ -141,7 +141,7 @@ export function useAnalysis() {
             ...prev,
             phase: "error",
             error: err instanceof Error
-              ? t("errors.psbt_parse", { defaultValue: `Failed to parse PSBT: ${err.message}` })
+              ? t("errors.psbt_parse", { message: err.message, defaultValue: "Failed to parse PSBT: {{message}}" })
               : t("errors.unexpected", { defaultValue: "An unexpected error occurred." }),
             errorCode: "not-retryable",
           }));
@@ -199,8 +199,7 @@ export function useAnalysis() {
        * the committed state is cached (by the effect below) unless the result is partial.
        */
       const complete = (fields: Partial<AnalysisState>, cacheNetwork?: BitcoinNetwork) => {
-        // TODO(types stream): drop the cast once ScoringResult declares `partial?: boolean`
-        if (cacheNetwork && !(fields.result as { partial?: boolean } | null | undefined)?.partial) {
+        if (cacheNetwork && !fields.result?.partial) {
           pendingCacheRef.current = { network: cacheNetwork, input, settings: analysisSettingsForCache };
         }
         const durationMs = Date.now() - startTime;

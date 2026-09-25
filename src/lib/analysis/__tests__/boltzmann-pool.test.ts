@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { MempoolTransaction } from "@/lib/api/types";
 import { computeBoltzmann } from "../boltzmann-compute";
-import { getWorkerPool, runParallelPass, terminatePool } from "../boltzmann-pool";
+import { getWorkerPool, onPoolTerminate, runParallelPass, terminatePool } from "../boltzmann-pool";
 
 /** Worker stub that never replies, like a real Worker after terminate(). */
 class SilentWorker {
@@ -77,5 +77,29 @@ describe("boltzmann pool termination settles pending jobs", () => {
     terminatePool();
     expect(await state(p)).toBe("settled");
     await expect(p).rejects.toThrow();
+  });
+
+  describe("a job's own worker failure is not reported as preemption", () => {
+    it("single-worker crash", async () => {
+      const preempted = vi.fn();
+      const p = computeBoltzmann(small);
+      const off = onPoolTerminate(preempted);
+      getWorkerPool(1)[0]!.onerror!({ message: "crash" } as ErrorEvent);
+      await expect(p).resolves.toBeNull();
+      expect(preempted).not.toHaveBeenCalled();
+      off();
+    });
+
+    it("parallel pass worker error", async () => {
+      const preempted = vi.fn();
+      const pool = getWorkerPool(2);
+      const p = runParallelPass(pool, "x", [2, 1], [2, 1], 0, 0, 0, 1000, () => {});
+      const off = onPoolTerminate(preempted);
+      pool[1]!.onmessage!(new MessageEvent("message", { data: { type: "error", id: "x", message: "boom" } }));
+      await expect(p).rejects.toThrow("boom");
+      expect(preempted).not.toHaveBeenCalled();
+      expect(getWorkerPool(0)).toHaveLength(0);
+      off();
+    });
   });
 });

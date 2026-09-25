@@ -148,7 +148,7 @@ describe("fetchWithRetry", () => {
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 
-  it("retries a per-attempt timeout and wraps it in ApiError NETWORK_ERROR", async () => {
+  it("does not retry a per-attempt timeout and wraps it in ApiError NETWORK_ERROR", async () => {
     mockFetch.mockRejectedValue(new DOMException("Signal timed out", "TimeoutError"));
     const result = settle(fetchWithRetry("https://example.com"));
     await vi.runAllTimersAsync();
@@ -158,8 +158,10 @@ describe("fetchWithRetry", () => {
     if (!settled.ok) {
       expect(settled.error).toBeInstanceOf(ApiError);
       expect((settled.error as ApiError).code).toBe("NETWORK_ERROR");
+      expect((settled.error as ApiError).message).toBe("Request timed out");
     }
-    expect(mockFetch).toHaveBeenCalledTimes(4);
+    // A backend that timed out once gets no repeat of the same heavy query
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
   it("does not retry when the caller's signal aborted", async () => {

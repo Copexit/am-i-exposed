@@ -41,8 +41,8 @@ The core engine in `src/lib/` is ~85% decoupled from React/browser. The CLI impo
 | TX orchestrator | `src/lib/analysis/orchestrator.ts` | `analyzeTransaction(tx, rawHex?, onStep?, ctx?)` | Yes |
 | Address orchestrator | `src/lib/analysis/orchestrator.ts` | `analyzeAddress(address, utxos, txs, onStep?)` | Yes |
 | Pre-send analysis | `src/lib/analysis/address-orchestrator.ts` | `analyzeDestination(address, utxos, txs)` | Yes |
-| Cross-heuristic rules | `src/lib/analysis/cross-heuristic.ts` | `applyCrossHeuristicRules(findings)` | Yes |
-| TX classification | `src/lib/analysis/cross-heuristic.ts` | `classifyTransactionType(findings)` | Yes |
+| Cross-heuristic rules | `src/lib/analysis/cross-heuristic/` | `applyCrossHeuristicRules(findings)` | Yes |
+| TX classification | `src/lib/analysis/cross-heuristic/` | `classifyTransactionType(findings)` | Yes |
 | Scoring | `src/lib/scoring/score.ts` | `calculateScore(findings, mode?)` | Yes |
 | Wallet audit | `src/lib/analysis/wallet-audit.ts` | `auditWallet(addresses)` | Yes |
 | Recommendations | `src/lib/recommendations/primary-recommendation.ts` | `selectRecommendations(ctx)` | Yes |
@@ -410,6 +410,7 @@ Scanning wallet...
     "externalScanned": 45,
     "internalScanned": 38
   },
+  "failedAddresses": [],
   "score": 62,
   "grade": "C",
   "findings": [

@@ -86,6 +86,11 @@ export function onPoolTerminate(cancel: () => void): () => void {
   return () => pendingJobs.delete(cancel);
 }
 
+/** True while some job awaits the pool, i.e. a new compute would preempt it. */
+export function isPoolBusy(): boolean {
+  return pendingJobs.size > 0;
+}
+
 function createWorker(): Worker | null {
   if (typeof Worker === "undefined") return null;
   try {
@@ -107,9 +112,19 @@ export function getWorkerPool(size: number): Worker[] {
   return workerPool;
 }
 
-export function terminatePool() {
+/**
+ * Drop the pool after the owning job failed. Unlike terminatePool() this runs
+ * no cancellers: the failing job settles itself, and listeners must not read
+ * its own failure as preemption by another job.
+ */
+export function dropFailedPool() {
   for (const w of workerPool) w.terminate();
   workerPool = [];
+}
+
+/** Terminate the pool (preemption or abort) and settle every pending job. */
+export function terminatePool() {
+  dropFailedPool();
   const cancels = [...pendingJobs];
   pendingJobs.clear();
   for (const cancel of cancels) cancel();
@@ -219,7 +234,7 @@ export function runParallelPass(
     function fail(message: string) {
       settled = true;
       detachAll();
-      terminatePool();
+      dropFailedPool();
       reject(new Error(message));
     }
 

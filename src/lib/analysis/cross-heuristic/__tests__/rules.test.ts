@@ -132,7 +132,9 @@ describe("applyCompoundScoringAdjustments", () => {
     const ch = byId(fs, "h2-change-detected");
     expect(ch.scoreImpact).toBe(-7);
     expect(ch.confidence).toBe("high");
-    expect(ch.params).toMatchObject({ rbfCompound: 1, confidence: "high" });
+    expect(ch.params).toMatchObject({ rbfCompound: 1, confidence: "high", context: "rbf" });
+    // English text (CLI/MCP) explains the compound
+    expect(ch.description).toContain("RBF");
   });
 
   it("does not RBF-boost a suppressed change finding", () => {
@@ -179,6 +181,10 @@ describe("applyCompoundScoringAdjustments", () => {
       scoreImpact: -10,
       params: { entityName: "X", _variant: "postmix", context: "postmix-consolidation-to-entity" },
     });
+    // English text (CLI/MCP) carries the escalated warning too
+    const e = byId(fs, "entity-known-output");
+    expect(e.title).toBe("Post-mix funds sent to known entity");
+    expect(e.recommendation).toContain("Never send directly from post-mix to KYC exchanges");
   });
 
   it("leaves an entity output alone without post-mix consolidation", () => {
@@ -216,6 +222,49 @@ describe("applyCompoundScoringAdjustments", () => {
       scoreImpact: 0,
       params: { context: "negated-by-consolidation" },
     });
+  });
+});
+
+describe("applyCompoundScoringAdjustments: chain overlap", () => {
+  it("scores CoinJoin provenance once for a spend from one CoinJoin output", () => {
+    const fs = [
+      f("chain-coinjoin-input", { severity: "good", scoreImpact: 8 }),
+      f("chain-coinjoin-ancestry", { severity: "good", scoreImpact: 5 }),
+      f("chain-ricochet", { severity: "good", scoreImpact: 5, params: { hops: 2 } }),
+    ];
+    applyCompoundScoringAdjustments(fs);
+    expect(total(fs)).toBe(8);
+    expect(byId(fs, "chain-coinjoin-ancestry").params?.context).toBe("overlap");
+  });
+
+  it("keeps an Ashigaru Ricochet hop bonus apart from CoinJoin provenance", () => {
+    const fs = [
+      f("chain-coinjoin-ancestry", { severity: "good", scoreImpact: 5 }),
+      f("chain-ricochet", { severity: "good", scoreImpact: 5, params: { wallet: "Ashigaru" } }),
+    ];
+    applyCompoundScoringAdjustments(fs);
+    expect(total(fs)).toBe(10);
+  });
+
+  it("post-mix consolidation cancels whichever CoinJoin provenance bonus survives", () => {
+    const fs = [
+      f("post-mix-consolidation", { scoreImpact: -5 }),
+      f("chain-coinjoin-input", { severity: "good", scoreImpact: 8 }),
+      f("chain-coinjoin-ancestry", { severity: "good", scoreImpact: 5 }),
+    ];
+    applyCompoundScoringAdjustments(fs);
+    expect(total(fs)).toBe(-5);
+
+    const ancestryOnly = [f("post-mix-consolidation", { scoreImpact: -5 }), f("chain-coinjoin-ancestry", { severity: "good", scoreImpact: 5 })];
+    applyCompoundScoringAdjustments(ancestryOnly);
+    expect(total(ancestryOnly)).toBe(-5);
+  });
+
+  it("scores a backward entity once when proximity and taint both find it", () => {
+    const fs = [f("chain-entity-proximity-backward", { scoreImpact: -4 }), f("chain-taint-backward", { scoreImpact: -5 })];
+    applyCompoundScoringAdjustments(fs);
+    expect(total(fs)).toBe(-5);
+    expect(byId(fs, "chain-entity-proximity-backward").scoreImpact).toBe(0);
   });
 });
 

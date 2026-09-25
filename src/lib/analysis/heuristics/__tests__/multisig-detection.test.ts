@@ -167,13 +167,13 @@ describe("analyzeMultisigDetection", () => {
     expect(findings[0]?.params?.likelyLN).toBe(0);
   });
 
-  it("detects 2-of-2 with LN-like metadata (locktime > 0)", () => {
-    const tx = makeTx({
-      version: 2,
-      locktime: 850000,
+  function make2of2(version: number, locktime: number, sequence: number) {
+    return makeTx({
+      version,
+      locktime,
       vin: [
         makeVin({
-          sequence: 0xfffffffd,
+          sequence,
           inner_witnessscript_asm: makeMultisigAsm(2, [PUB1, PUB2]),
         }),
       ],
@@ -182,11 +182,32 @@ describe("analyzeMultisigDetection", () => {
         makeVout({ value: 35_000 }),
       ],
     });
+  }
 
-    const { findings } = analyzeMultisigDetection(tx);
+  it("does not flag an anti-fee-sniping 2-of-2 spend as Lightning", () => {
+    // locktime = block height, nSequence 0xfffffffd (RBF): ordinary wallet spend
+    const { findings } = analyzeMultisigDetection(make2of2(2, 850_000, 0xfffffffd));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.id).toBe("h17-escrow-2of2");
+    expect(findings[0]?.params?.likelyLN).toBe(0);
+  });
+
+  it("detects a BOLT 3 commitment tx (locktime 0x20.., sequence 0x80..)", () => {
+    const { findings } = analyzeMultisigDetection(make2of2(2, 0x20a1b2c3, 0x80d4e5f6));
     expect(findings).toHaveLength(1);
     expect(findings[0]?.id).toBe("lightning-channel-legacy");
     expect(findings[0]?.params?.likelyLN).toBe(1);
+  });
+
+  it("detects a BOLT 3 cooperative close (v2, locktime 0, sequence max)", () => {
+    const { findings } = analyzeMultisigDetection(make2of2(2, 0, 0xffffffff));
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.id).toBe("lightning-channel-legacy");
+  });
+
+  it("requires both commitment markers (locktime 0x20 alone is not enough)", () => {
+    const { findings } = analyzeMultisigDetection(make2of2(2, 0x20a1b2c3, 0xfffffffd));
+    expect(findings[0]?.id).toBe("h17-escrow-2of2");
   });
 
   it("detects generic M-of-N (3-of-5 enterprise multisig)", () => {

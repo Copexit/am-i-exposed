@@ -42,6 +42,12 @@ interface NetworkContextValue {
    * not mempool.space. The Tor onion endpoint is mempool.space, so it is not custom.
    */
   isCustomApi: boolean;
+  /**
+   * `config` is final: the local API probe (unless on Umbrel) and Tor detection
+   * have settled. Before that, requests could go to clearnet mempool.space
+   * instead of the local node or the onion.
+   */
+  apiReady: boolean;
 }
 
 const NetworkContext = createContext<NetworkContextValue>({
@@ -55,6 +61,7 @@ const NetworkContext = createContext<NetworkContextValue>({
   localApiStatus: "checking",
   isUmbrel: false,
   isCustomApi: false,
+  apiReady: false,
 });
 
 interface ResolveOptions {
@@ -130,9 +137,12 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
   const localApi = useLocalApi();
   const { isUmbrel, mempoolPort, mempoolOnion, mempoolExternalUrl } = localApi;
   const localApiStatus = localApi.status;
-  // Hold Tor detection until the local API probe settles. On Umbrel it never
-  // fires: phase 1 sets isUmbrel before the status settles, so skip wins.
-  const torStatus = useTorDetection(isUmbrel, !isUmbrel && localApiStatus === "checking");
+  // Hold Tor detection until the local API probe settles. On Umbrel or with a
+  // custom API (own node) it never fires: resolveNetworkConfig ignores Tor there,
+  // so the probe would only leak the IP to Cloudflare and mempool.space.
+  // On Umbrel, phase 1 sets isUmbrel before the status settles, so skip wins.
+  const skipTor = isUmbrel || !!customUrl;
+  const torStatus = useTorDetection(skipTor, !skipTor && localApiStatus === "checking");
 
   const network = isUmbrel ? UMBREL_NETWORK : url.network;
   const urlSetNetwork = url.setNetwork;
@@ -167,6 +177,7 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
       localApiStatus,
       isUmbrel,
       isCustomApi: !!customUrl || isUmbrel,
+      apiReady: (isUmbrel || localApiStatus !== "checking") && torStatus !== "checking",
     }),
     [network, setNetwork, config, configFor, customUrl, setCustomUrl, torStatus, localApiStatus, isUmbrel],
   );

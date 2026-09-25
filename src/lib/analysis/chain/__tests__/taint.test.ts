@@ -59,7 +59,8 @@ describe("analyzeBackwardTaint", () => {
     const f = r.findings[0]!;
     expect(f.id).toBe("chain-taint-backward");
     expect(f.severity).toBe("medium");
-    expect(f.scoreImpact).toBe(-3);
+    // Direct entity inputs are scored by entity-detection, not again here
+    expect(f.scoreImpact).toBe(0);
     expect(f.title).toBe("30% of input value traceable to known entities");
     expect(f.description).toContain("30% exchange");
     expect(f.recommendation).toMatch(/^Some funds are traceable/);
@@ -85,6 +86,7 @@ describe("analyzeBackwardTaint", () => {
     expect(src?.[0]?.entityName).toBeUndefined();
     expect(src?.[0]?.fraction).toBeCloseTo(0.3, 10);
     expect(r.findings[0]?.params?.taintPct).toBe(30);
+    expect(r.findings[0]?.scoreImpact).toBe(-3);
   });
 
   it("does not double count: a direct match skips the parent lookup", () => {
@@ -95,7 +97,7 @@ describe("analyzeBackwardTaint", () => {
     expect(r.outputTaint.get(0)?.total).toBe(1);
     const f = r.findings[0]!;
     expect(f.severity).toBe("high");
-    expect(f.scoreImpact).toBe(-5);
+    expect(f.scoreImpact).toBe(0);
     expect(f.recommendation).toMatch(/^A majority of funds/);
   });
 
@@ -115,13 +117,15 @@ describe("analyzeBackwardTaint", () => {
     expect(r.outputTaint.get(0)?.total).toBeCloseTo(1, 10);
     expect(r.findings[0]?.description).toContain("60% darknet, 40% exchange");
     expect(r.findings[0]?.params?.sourceCount).toBe(2);
+    // Only the 40% reached through the parent is scored
+    expect(r.findings[0]?.scoreImpact).toBe(-3);
   });
 
   it("uses low severity below 30% taint", () => {
     const tx = makeTx({ vin: [vinFrom("bc1qpool", 10_000), vinFrom("bc1qz", 90_000)] });
     const f = analyzeBackwardTaint(tx, layers(), checker).findings[0];
     expect(f?.severity).toBe("low");
-    expect(f?.scoreImpact).toBe(-1);
+    expect(f?.scoreImpact).toBe(0);
     expect(f?.params?.taintPct).toBe(10);
   });
 

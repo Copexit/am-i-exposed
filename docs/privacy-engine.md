@@ -4,7 +4,7 @@
 
 This document describes the privacy analysis engine behind **am-i.exposed**, an open-source, client-side Bitcoin privacy scanner. It is intended for cypherpunks, privacy researchers, wallet developers, and anyone who wants to understand exactly how their Bitcoin transactions are being analyzed - by this tool, and by adversaries.
 
-The engine implements 27 transaction-level heuristics, 6 address-level heuristics, and 6 chain analysis modules that evaluate the on-chain privacy of Bitcoin addresses and transactions. These are the same techniques - sometimes simplified, sometimes extended - that chain surveillance firms use to cluster addresses, trace fund flows, and deanonymize users.
+The engine implements 28 transaction-level heuristics, 6 address-level heuristics, and 12 chain analysis modules that evaluate the on-chain privacy of Bitcoin addresses and transactions. These are the same techniques - sometimes simplified, sometimes extended - that chain surveillance firms use to cluster addresses, trace fund flows, and deanonymize users.
 
 **Why this tool exists now.** In April 2024, OXT.me and KYCP.org ("Know Your Coin Privacy") went offline following the arrest of the Samourai Wallet developers. OXT.me was the gold standard for Boltzmann entropy analysis of Bitcoin transactions, created by LaurentMT as part of OXT Research. KYCP.org provided CoinJoin analysis and entropy calculations accessible to ordinary users. Both are gone. As of today, there is no publicly available tool that combines Boltzmann entropy estimation, wallet fingerprinting detection, and multi-transaction graph analysis in a single interface. am-i.exposed fills that gap.
 
@@ -909,7 +909,11 @@ Check most specific pattern first:
   elif 2-of-3 input without fee address match:
     "2-of-3 multisig escrow detected" (-2, medium)
   elif single 2-of-2 input + 2 outputs:
-    "2-of-2 multisig escrow detected" (-2, medium)
+    if BOLT 3 commitment (nLockTime >> 24 == 0x20 and nSequence >> 24 == 0x80)
+       or BOLT 3 cooperative close (version 2, nLockTime 0, nSequence 0xffffffff):
+      "Likely legacy Lightning channel close" (-3, medium)
+    else:
+      "2-of-2 multisig escrow detected" (-2, medium)
   else:
     "Wrapped multisig detected: M-of-N" (0, low, informational)
 ```
@@ -918,13 +922,14 @@ Check most specific pattern first:
 
 - HodlHodl escrow release: -3 (high confidence P2P exchange identification)
 - 2-of-3 escrow: -2 (escrow pattern reveals multi-party custody)
-- 2-of-2 escrow: -2 (P2P exchange or Lightning close)
+- 2-of-2 escrow: -2 (P2P exchange or other 2-of-2 spend)
+- Legacy Lightning channel close: -3 (2-of-2 with BOLT 3 fingerprint)
 - Generic M-of-N: 0 (informational only)
 
 **False positive analysis:**
 
 - HodlHodl detection has 90-95% precision due to the known fee address anchor
-- 2-of-2 detection has ~60-70% precision for P2P exchanges; Lightning cooperative closes are a significant source of false positives (mitigated by checking locktime and nSequence)
+- 2-of-2 detection has ~60-70% precision for P2P exchanges; Lightning cooperative closes are a significant source of false positives (mitigated by matching the BOLT 3 fingerprints: a commitment tx stores the obscured commitment number with nLockTime upper byte 0x20 and nSequence upper byte 0x80; a cooperative close uses version 2, nLockTime 0, nSequence 0xffffffff). A plain anti-fee-sniping spend (nLockTime = block height, nSequence 0xfffffffd) matches neither and stays an escrow finding
 - 2-of-3 detection cannot distinguish between cold storage and P2P escrow without additional context
 
 **Remediation guidance:**
@@ -1594,7 +1599,7 @@ All heuristic impacts are summed. Negative impacts indicate privacy weaknesses. 
 
 Individual heuristics analyze isolated signals, but real-world transactions produce findings that interact. The cross-heuristic engine runs after all individual heuristics complete, applying suppression rules, compound scoring adjustments, and contradiction detection. This prevents double-counting, resolves conflicting signals, and captures emergent patterns that no single heuristic can identify.
 
-The engine is implemented in `src/lib/analysis/cross-heuristic.ts` and consists of 7 rule groups:
+The engine is implemented in `src/lib/analysis/cross-heuristic/` and consists of 7 rule groups:
 
 ### 1. CoinJoin/Stonewall Suppressions
 
@@ -1637,7 +1642,9 @@ Four sub-rules that detect when multiple findings together indicate a stronger (
 
 **Post-mix entity escalation:** When post-mix consolidation AND `entity-known-output` fire together, the entity finding is escalated to critical severity with impact -10. Sending post-mix outputs to a known entity (exchange) undoes the CoinJoin and creates a KYC anchor point.
 
-**Post-mix backward CoinJoin dedup:** When post-mix consolidation is present, the positive `chain-coinjoin-input` bonus (from chain analysis detecting CoinJoin parents) is reduced or zeroed. The post-mix consolidation already accounts for and penalizes this pattern; giving a CoinJoin bonus for the parent transactions would partially offset the consolidation penalty.
+**Chain overlap dedup:** Chain findings count toward the grade, so one fact is scored once. `chain-coinjoin-input`, `chain-coinjoin-ancestry` and the CoinJoin-origin `chain-ricochet` all reward CoinJoin provenance: only the strongest keeps its score, the others get `scoreImpact: 0` and `params.context: "overlap"` (an Ashigaru Ricochet hop is a separate fact and keeps its bonus). Likewise `chain-entity-proximity-backward` and `chain-taint-backward` both penalize an entity among the parent's inputs: only the stronger penalty counts. Entity proximity never matches the analyzed transaction's own addresses, and taint only scores the fraction reached through parents, because `entity-detection` already scores the transaction's own addresses.
+
+**Post-mix backward CoinJoin dedup:** When post-mix consolidation is present, the surviving CoinJoin provenance bonus (`chain-coinjoin-input`, `chain-coinjoin-ancestry` or CoinJoin-origin `chain-ricochet`) is reduced or zeroed. The post-mix consolidation already accounts for and penalizes this pattern; giving a CoinJoin bonus for the parent transactions would partially offset the consolidation penalty.
 
 ### 5. Wallet Contradiction Rules
 

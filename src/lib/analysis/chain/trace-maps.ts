@@ -82,22 +82,21 @@ export function buildTxsByAddress(
 ): Map<string, MempoolTransaction[]> {
   const txsByAddress = new Map<string, MempoolTransaction[]>();
 
+  const add = (addr: string, atx: MempoolTransaction) => {
+    const arr = txsByAddress.get(addr) ?? [];
+    // An address can repeat within a tx, and a tx can appear in several layers
+    if (!arr.some((t) => t.txid === atx.txid)) arr.push(atx);
+    txsByAddress.set(addr, arr);
+  };
+
   const addTxToMap = (atx: MempoolTransaction) => {
     for (const vin of atx.vin) {
       const addr = vin.prevout?.scriptpubkey_address;
-      if (addr) {
-        const arr = txsByAddress.get(addr) ?? [];
-        arr.push(atx);
-        txsByAddress.set(addr, arr);
-      }
+      if (addr) add(addr, atx);
     }
     for (const vout of atx.vout) {
       const addr = vout.scriptpubkey_address;
-      if (addr && !isOpReturnOutput(vout)) {
-        const arr = txsByAddress.get(addr) ?? [];
-        arr.push(atx);
-        txsByAddress.set(addr, arr);
-      }
+      if (addr && !isOpReturnOutput(vout)) add(addr, atx);
     }
   };
 

@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { SVG_COLORS, GRADE_HEX_SVG } from "../shared/svgConstants";
 import { formatSats, calcVsize } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
+import { findingKeys } from "@/lib/finding-utils";
 import { analyzeTransactionSync } from "@/lib/analysis/analyze-sync";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
 import { isRbfSignaling } from "@/lib/analysis/heuristics/tx-utils";
@@ -265,6 +266,9 @@ export function GraphSidebar({
 // ─── Analysis Tab ────────────────────────────────────────────────
 
 function AnalysisTab({ result, tx }: { result: ScoringResult; tx: MempoolTransaction }) {
+  const { t } = useTranslation();
+  const title = (f: ScoringResult["findings"][number]) =>
+    t(findingKeys(f.id, "title", f.params), { ...f.params, defaultValue: f.title });
   const topFindings = result.findings
     .filter((f) => f.severity !== "good")
     .sort((a, b) => (SEV_ORDER[a.severity] ?? 3) - (SEV_ORDER[b.severity] ?? 3));
@@ -288,7 +292,7 @@ function AnalysisTab({ result, tx }: { result: ScoringResult; tx: MempoolTransac
       {/* Entity matches */}
       {entityMatches.length > 0 && (
         <div className="space-y-1">
-          <div className="text-xs font-medium text-muted">Entities</div>
+          <div className="text-xs font-medium text-muted">{t("graphExplorer.analysis.entities", { defaultValue: "Entities" })}</div>
           {entityMatches.map((m) => (
             <div key={m.address} className="flex items-center gap-1.5 text-xs">
               {m.ofac && (
@@ -304,14 +308,14 @@ function AnalysisTab({ result, tx }: { result: ScoringResult; tx: MempoolTransac
       {/* Problems */}
       {topFindings.length > 0 && (
         <div className="space-y-1">
-          <div className="text-xs font-medium text-muted">Problems ({topFindings.length})</div>
+          <div className="text-xs font-medium text-muted">{t("graphExplorer.analysis.problems", { count: topFindings.length, defaultValue: "Problems ({{count}})" })}</div>
           {topFindings.map((f) => (
             <div key={f.id} className="flex items-start gap-1.5 text-xs py-0.5">
               <span
                 className="inline-block w-1.5 h-1.5 rounded-full mt-1 shrink-0"
                 style={{ backgroundColor: SEV_DOT[f.severity] ?? SEV_DOT.low }}
               />
-              <span className="text-foreground/70">{f.title}</span>
+              <span className="text-foreground/70">{title(f)}</span>
             </div>
           ))}
         </div>
@@ -320,14 +324,14 @@ function AnalysisTab({ result, tx }: { result: ScoringResult; tx: MempoolTransac
       {/* Good findings */}
       {goodFindings.length > 0 && (
         <div className="space-y-1">
-          <div className="text-xs font-medium text-muted">Positives ({goodFindings.length})</div>
+          <div className="text-xs font-medium text-muted">{t("graphExplorer.analysis.positives", { count: goodFindings.length, defaultValue: "Positives ({{count}})" })}</div>
           {goodFindings.map((f) => (
             <div key={f.id} className="flex items-start gap-1.5 text-xs py-0.5">
               <span
                 className="inline-block w-1.5 h-1.5 rounded-full mt-1 shrink-0"
                 style={{ backgroundColor: SVG_COLORS.good }}
               />
-              <span className="text-muted">{f.title}</span>
+              <span className="text-muted">{title(f)}</span>
             </div>
           ))}
         </div>

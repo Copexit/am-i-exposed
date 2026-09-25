@@ -153,4 +153,10 @@ describe("auditWallet", () => {
     expect(reuse?.adversaryTiers).toEqual(["passive_observer", "kyc_exchange", "state_adversary"]);
     expect(reuse?.temporality).toBe("ongoing_pattern");
   });
+
+  it("marks a partial scan with wallet-scan-partial (web, CLI and MCP share this)", () => {
+    const partial = auditWallet([], ["a1", "a2"]).findings.find(f => f.id === "wallet-scan-partial");
+    expect(partial).toMatchObject({ severity: "low", scoreImpact: 0, params: { count: 2 } });
+    expect(auditWallet([]).findings.some(f => f.id === "wallet-scan-partial")).toBe(false);
+  });
 });

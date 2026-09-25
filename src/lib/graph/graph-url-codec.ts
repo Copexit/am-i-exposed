@@ -1,10 +1,10 @@
 /**
  * Binary encode/decode for sharing graph structures via URL hash.
  *
- * Version 2 format (all multi-byte integers are big-endian):
+ * Version 3 format (all multi-byte integers are big-endian):
  *
  *   Header (5 bytes):
- *     [0]     version       uint8  = 2
+ *     [0]     version       uint8  = 3
  *     [1-2]   nodeCount     uint16
  *     [3-4]   rootIndex     uint16
  *
@@ -14,14 +14,17 @@
  *
  *   Network (1 byte): 0=mainnet, 1=testnet4, 2=signet, 3=testnet3
  *
- *   Node table (nodeCount * 37 bytes):
+ *   Node table (nodeCount * 38 bytes):
  *     [0-31]  txid (32 raw bytes)
  *     [32]    depth (int8)
  *     [33]    flags (bit0=parentEdge, bit1=childEdge)
  *     [34-35] edgeRef (uint16, 0xFFFF=none)
- *     [36]    edgeIndex (uint8)
+ *     [36-37] edgeIndex (uint16)
  *
- *   Extensions (v2):
+ *   v1/v2 (decode only): node records are 37 bytes with edgeIndex as uint8,
+ *   so they cannot address outputs/inputs above 255. v1 has no extensions.
+ *
+ *   Extensions (v2+):
  *     Node positions: count(uint16) + entries(nodeIdx:uint16, x:float32, y:float32)
  *     Node labels:    count(uint16) + entries(nodeIdx:uint16, len:uint8, utf8[len])
  *     Annotations:    count(uint16) + entries(type:uint8, x:float32, y:float32,
@@ -36,7 +39,8 @@ const MAX_URL_LENGTH = 6000;
 const NETWORK_MAP: BitcoinNetwork[] = ["mainnet", "testnet4", "signet", "testnet3"];
 const MAX_TITLE_BYTES = 60; // 20 chars * 3 bytes max for UTF-8
 const TXID_BYTES = 32;
-const NODE_RECORD_SIZE = 37; // 32 txid + 1 depth + 1 flags + 2 edgeRef + 1 edgeIndex
+const NODE_RECORD_SIZE = 38; // 32 txid + 1 depth + 1 flags + 2 edgeRef + 2 edgeIndex
+const NODE_RECORD_SIZE_V2 = 37; // v1/v2: edgeIndex was uint8
 const NO_EDGE = 0xFFFF;
 
 // ─── Helpers ────────────────────────────────────────────────────────
@@ -170,8 +174,8 @@ export function encodeGraphToUrl(saved: SavedGraph): string | null {
   const view = new DataView(buf.buffer);
   let offset = 0;
 
-  // Header (version 2)
-  buf[offset++] = 2;
+  // Header (version 3)
+  buf[offset++] = 3;
   view.setUint16(offset, nodeCount); offset += 2;
   view.setUint16(offset, rootIndex); offset += 2;
 
@@ -198,14 +202,14 @@ export function encodeGraphToUrl(saved: SavedGraph): string | null {
     if (node.parentEdge) {
       const refIdx = txidToIdx.get(node.parentEdge.fromTxid) ?? NO_EDGE;
       view.setUint16(offset, refIdx); offset += 2;
-      buf[offset++] = node.parentEdge.outputIndex & 0xFF;
+      view.setUint16(offset, node.parentEdge.outputIndex); offset += 2;
     } else if (node.childEdge) {
       const refIdx = txidToIdx.get(node.childEdge.toTxid) ?? NO_EDGE;
       view.setUint16(offset, refIdx); offset += 2;
-      buf[offset++] = node.childEdge.inputIndex & 0xFF;
+      view.setUint16(offset, node.childEdge.inputIndex); offset += 2;
     } else {
       view.setUint16(offset, NO_EDGE); offset += 2;
-      buf[offset++] = 0;
+      view.setUint16(offset, 0); offset += 2;
     }
   }
 
@@ -261,7 +265,8 @@ export function decodeGraphFromUrl(
     let offset = 0;
 
     const version = buf[offset++];
-    if (version !== 1 && version !== 2) return null;
+    if (version !== 1 && version !== 2 && version !== 3) return null;
+    const recordSize = version === 3 ? NODE_RECORD_SIZE : NODE_RECORD_SIZE_V2;
 
     const nodeCount = view.getUint16(offset); offset += 2;
     const rootIndex = view.getUint16(offset); offset += 2;
@@ -282,7 +287,7 @@ export function decodeGraphFromUrl(
     const nodeStartOffset = offset;
     for (let i = 0; i < nodeCount; i++) {
       txids.push(bytesToHex(buf.subarray(offset, offset + TXID_BYTES)));
-      offset += NODE_RECORD_SIZE;
+      offset += recordSize;
     }
 
     offset = nodeStartOffset;
@@ -292,7 +297,9 @@ export function decodeGraphFromUrl(
       const depth = view.getInt8(offset); offset += 1;
       const flags = view.getUint8(offset++);
       const edgeRefIdx = view.getUint16(offset); offset += 2;
-      const edgeIndex = view.getUint8(offset++);
+      let edgeIndex: number;
+      if (version === 3) { edgeIndex = view.getUint16(offset); offset += 2; }
+      else edgeIndex = view.getUint8(offset++);
 
       const node: SavedGraphNode = { txid, depth };
       // NO_EDGE (0xFFFF) is never a valid index since nodeCount <= 0xFFFF

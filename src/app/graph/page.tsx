@@ -24,10 +24,9 @@ const TX_EXAMPLES = EXAMPLES.filter((e) => TXID_RE.test(e.input));
 export default function GraphPage() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { network, config, configFor, setNetwork, isUmbrel, localApiStatus, torStatus } = useNetwork();
+  // Initial load waits (apiReady) until the backend is known (Umbrel / Tor onion / clearnet)
+  const { network, config, configFor, setNetwork, isUmbrel, apiReady } = useNetwork();
   const api = useMemo(() => createApiClient(config), [config]);
-  // Initial load waits until the backend is known (Umbrel / Tor onion / clearnet)
-  const apiReady = localApiStatus !== "checking" && torStatus !== "checking";
 
   const graph = useGraphExpansion(api);
   const { nodes, rootTxid, setRoot, loadGraph } = graph;

@@ -90,6 +90,7 @@ export function makeIncompletePrevoutFinding(remainingNulls: number, isAddress =
   return {
     id: "api-incomplete-prevout",
     severity: "low",
+    params: { nullCount: remainingNulls },
     title: `${remainingNulls} input${remainingNulls > 1 ? "s" : ""} missing data${isAddress ? " across transactions" : ""}`,
     description:
       `Could not retrieve full data for ${remainingNulls} transaction input${remainingNulls > 1 ? "s" : ""}. ` +

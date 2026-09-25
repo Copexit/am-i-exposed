@@ -105,8 +105,8 @@ export const analyzeRoundAmounts: TxHeuristic = (tx, _rawHex?, ctx?) => {
     }
   }
 
-  // Fiat findings only fire if some but not all outputs are fiat-round (USD or EUR)
-  const fiatDistinguishes = fiatMatchedIndices.size < outputs.length;
+  // Fiat findings only fire if some output is neither BTC-round nor fiat-round (USD or EUR)
+  const fiatDistinguishes = roundOutputCount + fiatMatchedIndices.size < outputs.length;
 
   // Emit USD finding
   if (ctx?.usdPrice && roundUsdOutputs.length > 0 && fiatDistinguishes) {

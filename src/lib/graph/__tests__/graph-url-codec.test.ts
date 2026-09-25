@@ -137,8 +137,39 @@ describe("graph-url-codec extensions", () => {
     expect(encodeGraphToUrl(graph(big))).toBeNull();
   });
 
+  // Encoded by the v2 encoder (uint8 edge index) before v3 existed; must keep decoding.
+  const V2_FIXTURE =
+    "AgADAAEAAgABAAIDq6urq6urq6urq6urq6urq6urq6urq6urq6urq6urq6v_AgABAw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw_hAAD__wDNzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3NzQEBAAHIAAEAAD_AAADAAAAAAAEAAghleGNoYW5nZQAAAAEAAQACB3BheW1lbnQ";
+
+  it("decodes a v2 link unchanged", () => {
+    expect(decodeGraphFromUrl(V2_FIXTURE)).toMatchObject({
+      network: "testnet3",
+      rootTxid: B,
+      rootTxids: [B, C],
+      nodes: [
+        { txid: A, depth: -1, childEdge: { toTxid: B, inputIndex: 3 } },
+        { txid: B, depth: 0 },
+        { txid: C, depth: 1, parentEdge: { fromTxid: B, outputIndex: 200 } },
+      ],
+      nodePositions: { [A]: { x: 1.5, y: -2 } },
+      nodeLabels: { [C]: "exchange" },
+      edgeLabels: { [`${B}->${C}`]: "payment" },
+    });
+  });
+
+  it("encodes v3 and round-trips edge indices above 255", () => {
+    const g = graph([A, B, C]);
+    g.nodes[1] = { txid: B, depth: 1, parentEdge: { fromTxid: A, outputIndex: 300 } };
+    g.nodes[2] = { txid: C, depth: -1, childEdge: { toTxid: A, inputIndex: 65_535 } };
+    const encoded = encodeGraphToUrl(g) ?? "";
+    expect(toBytes(encoded)[0]).toBe(3);
+    const decoded = decodeGraphFromUrl(encoded);
+    expect(decoded?.nodes[1]?.parentEdge).toEqual({ fromTxid: A, outputIndex: 300 });
+    expect(decoded?.nodes[2]?.childEdge).toEqual({ toTxid: A, inputIndex: 65_535 });
+  });
+
   it("rejects unknown versions and decodes v1 without extensions", () => {
-    const bytes = toBytes(encodeGraphToUrl(rich()) ?? "");
+    const bytes = toBytes(V2_FIXTURE);
     expect(decodeGraphFromUrl(toUrl(Uint8Array.from([9, ...bytes.slice(1)])))).toBeNull();
     const v1 = decodeGraphFromUrl(toUrl(Uint8Array.from([1, ...bytes.slice(1)])));
     expect(v1?.nodes).toHaveLength(3);
@@ -150,8 +181,8 @@ describe("graph-url-codec extensions", () => {
     const g = graph([A]);
     g.nodeLabels = { [A]: "label" };
     const bytes = toBytes(encodeGraphToUrl(g) ?? "");
-    // header 5 + multi-root 4 + network 1 + node 37 + positions 2 + label count 2 + idx 2 + len 1 + 2 of 5 bytes
-    const decoded = decodeGraphFromUrl(toUrl(bytes.slice(0, 5 + 4 + 1 + 37 + 2 + 2 + 2 + 3)));
+    // header 5 + multi-root 4 + network 1 + node 38 + positions 2 + label count 2 + idx 2 + len 1 + 2 of 5 bytes
+    const decoded = decodeGraphFromUrl(toUrl(bytes.slice(0, 5 + 4 + 1 + 38 + 2 + 2 + 2 + 3)));
     expect(decoded?.rootTxid).toBe(A);
     expect(decoded?.nodeLabels).toEqual({ [A]: "" });
   });

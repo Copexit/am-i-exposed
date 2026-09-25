@@ -17,6 +17,8 @@ interface JsonEnvelope {
   txInfo?: Record<string, unknown>;
   addressInfo?: Record<string, unknown>;
   walletInfo?: Record<string, unknown>;
+  /** Wallet scan: addresses whose fetch failed (partial scan when non-empty) */
+  failedAddresses?: string[];
   psbtInfo?: Record<string, unknown>;
   findings: Finding[];
   recommendation?: JsonRec | null;
@@ -130,6 +132,7 @@ export function walletJson(
   result: WalletAuditResult,
   network: string,
   apiUrl?: string,
+  failedAddresses: string[] = [],
 ): void {
   jsonOutput({
     version: VERSION,
@@ -145,6 +148,7 @@ export function walletJson(
       reusedAddresses: result.reusedAddresses,
       dustUtxos: result.dustUtxos,
     },
+    failedAddresses,
     findings: result.findings,
     links: buildLinks("xpub", descriptor, network, apiUrl),
   });
