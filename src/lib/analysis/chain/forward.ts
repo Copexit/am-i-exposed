@@ -2,7 +2,8 @@ import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import { isCoinJoinTx } from "../heuristics/coinjoin";
 import { getSpendableOutputs, countOutputValues } from "../heuristics/tx-utils";
-import { WHIRLPOOL_DENOMS, truncateId } from "@/lib/constants";
+import { truncateId } from "@/lib/constants";
+import { detectTx0 } from "../heuristics/coinjoin-premix";
 import { fmtN } from "@/lib/format";
 
 /**
@@ -101,16 +102,7 @@ export function analyzeForward(
 
   // Item 3: Toxic change merged with post-mix UTXOs
   // Check if any child tx combines a tx0 toxic change with CoinJoin outputs
-  // tx0 detection: OP_RETURN + multiple equal-value outputs (premix denomination).
-  // The OP_RETURN requirement prevents false-positives on exchange batch withdrawals,
-  // which may have equal outputs but never include OP_RETURN data.
-  const hasOpReturn = tx.vout.some((o) => o.scriptpubkey_type === "op_return");
-  const spendableVout = getSpendableOutputs(tx.vout);
-  const valueCounts = countOutputValues(spendableVout);
-  const hasEqualOutputsAtDenom = [...valueCounts.entries()].some(
-    ([value, count]) => count >= 2 && WHIRLPOOL_DENOMS.includes(value),
-  );
-  const isTx0 = hasOpReturn && hasEqualOutputsAtDenom && spendableVout.length >= 3;
+  const isTx0 = detectTx0(tx) !== null;
   if (isTx0) {
     for (const [outputIdx, childTx] of childTxs.entries()) {
       if (!childTx || childTx.vin.length < 2) continue;
