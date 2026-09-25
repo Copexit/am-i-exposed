@@ -1287,6 +1287,7 @@
   "page.label_address": "Dirección",
   "page.label_presend": "Verificación de destino pre-envío",
   "page.label_transaction": "Transacción",
+  "page.networkAutoSwitched": "Se cambió a {{network}} para encontrar esta transacción.",
   "page.new_scan": "Nuevo escaneo",
   "page.presend_exchange": "Depósito de exchange",
   "page.presend_fresh": "Dirección nueva",

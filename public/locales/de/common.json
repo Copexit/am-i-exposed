@@ -1287,6 +1287,7 @@
   "page.label_address": "Adresse",
   "page.label_presend": "Zieladress-Vorabprüfung",
   "page.label_transaction": "Transaktion",
+  "page.networkAutoSwitched": "Zu {{network}} gewechselt, um diese Transaktion zu finden.",
   "page.new_scan": "Neuer Scan",
   "page.presend_exchange": "Exchange-Einzahlung",
   "page.presend_fresh": "Neue Adresse",

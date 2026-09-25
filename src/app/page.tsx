@@ -23,6 +23,7 @@ import { useBookmarks } from "@/hooks/useBookmarks";
 import { useKeyboardNav } from "@/hooks/useKeyboardNav";
 import { useHashRouting } from "@/hooks/useHashRouting";
 import { XpubPrivacyWarning, isXpubPrivacyAcked } from "@/components/wallet/XpubPrivacyWarning";
+const NetworkSwitchToast = lazy(() => import("@/components/NetworkSwitchToast").then(m => ({ default: m.NetworkSwitchToast })));
 const TipToast = lazy(() => import("@/components/TipToast").then(m => ({ default: m.TipToast })));
 const WalletAuditResults = lazy(() => import("@/components/wallet/WalletAuditResults").then(m => ({ default: m.WalletAuditResults })));
 
@@ -74,7 +75,7 @@ export default function Home() {
     phase, query, inputType, steps, result, txData, addressData,
     txBreakdown, addressTxs, addressUtxos, preSendResult, error,
     errorCode, durationMs, usdPrice, outspends, psbtData, fetchProgress,
-    backwardLayers, forwardLayers, boltzmannResult, analyze, reset,
+    backwardLayers, forwardLayers, boltzmannResult, autoSwitchedNetwork, analyze, reset,
   } = useAnalysis();
 
   const wallet = useWalletAnalysis();
@@ -308,6 +309,9 @@ export default function Home() {
       <AppStoreAnnouncement />
       <InstallPrompt />
       {phase === "complete" && <Suspense fallback={null}><TipToast /></Suspense>}
+      {phase === "complete" && autoSwitchedNetwork && (
+        <Suspense fallback={null}><NetworkSwitchToast key={query} network={autoSwitchedNetwork} /></Suspense>
+      )}
 
       {pendingXpub && (
         <XpubPrivacyWarning
