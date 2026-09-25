@@ -12,7 +12,8 @@ export default defineConfig({
     { name: "chromium", use: { browserName: "chromium" } },
   ],
   webServer: {
-    command: "npx serve out -l 3333 -s",
+    // No -s: single-page mode rewrites every path (even /graph/) to the root index.html
+    command: "npx serve out -l 3333",
     port: 3333,
     reuseExistingServer: !process.env.CI,
   },
