@@ -1293,6 +1293,7 @@
   "page.label_address": "Adres",
   "page.label_presend": "Sprawdzenie docelowego adresu przed wysłaniem",
   "page.label_transaction": "Transakcja",
+  "page.networkAutoSwitched": "Przełączono na {{network}}, aby znaleźć tę transakcję.",
   "page.new_scan": "Nowe skanowanie",
   "page.presend_exchange": "Depozyt giełdy",
   "page.presend_fresh": "Świeży adres",

@@ -1293,6 +1293,7 @@
   "page.label_address": "Endereço",
   "page.label_presend": "Verificação pré-envio do destino",
   "page.label_transaction": "Transação",
+  "page.networkAutoSwitched": "Alterado para {{network}} para encontrar esta transação.",
   "page.new_scan": "Nova varredura",
   "page.presend_exchange": "Depósito de exchange",
   "page.presend_fresh": "Endereço novo",

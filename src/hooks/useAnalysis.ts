@@ -346,7 +346,8 @@ export function useAnalysis() {
                   durationMs: Date.now() - startTime,
                 };
                 putCachedResult(detected, input, analysisSettingsForCache, completeState).catch((e) => console.warn("cache write failed:", e));
-                return completeState;
+                // Not cached: the notice only applies to the switch that just happened
+                return { ...completeState, autoSwitchedNetwork: detected };
               });
               return;
             } catch {

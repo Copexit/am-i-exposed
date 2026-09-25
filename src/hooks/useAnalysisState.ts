@@ -4,6 +4,7 @@ import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import type { HeuristicStep, PreSendResult } from "@/lib/analysis/orchestrator";
 import type { PSBTParseResult } from "@/lib/bitcoin/psbt";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
+import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
 
 type AnalysisPhase =
   | "idle"
@@ -50,6 +51,8 @@ export interface AnalysisState {
   forwardLayers: TraceLayer[] | null;
   /** Whether this result was loaded from the analysis result cache. */
   fromCache?: boolean;
+  /** Set when a txid NOT_FOUND made the analysis auto-switch to this network. */
+  autoSwitchedNetwork?: BitcoinNetwork;
   /** Boltzmann link probability result (null = not computed yet or unsupported). */
   boltzmannResult: BoltzmannWorkerResult | null;
   /** Boltzmann computation status. */

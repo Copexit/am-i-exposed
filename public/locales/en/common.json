@@ -1293,6 +1293,7 @@
   "page.label_address": "Address",
   "page.label_presend": "Pre-send destination check",
   "page.label_transaction": "Transaction",
+  "page.networkAutoSwitched": "Switched to {{network}} to find this transaction.",
   "page.new_scan": "New scan",
   "page.presend_exchange": "Exchange deposit",
   "page.presend_fresh": "Fresh address",
