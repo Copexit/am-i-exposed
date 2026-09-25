@@ -18,8 +18,8 @@ test("Whirlpool CoinJoin scores A+ 100", async ({ page }) => {
 
 // Web scans include chain and entity findings in the grade (heuristics alone
 // give 52, as in golden-cases): chain-near-exact-spend -1, and the bundled
-// entity index labels output 0 as BTCC (known-entity output) -1. Linkability
-// findings are display-only.
+// entity index labels output 0 as BTCC (known-entity output) -1. A 1-input tx
+// has no linkability finding (zero entropy is scored by H5).
 test("Simple legacy P2PKH scores C 50", async ({ page }) => {
   await page.goto(
     "/#tx=0b6461de422c46a221db99608fcbe0326e4f2325ebf2a47c9faf660ed61ee6a4",

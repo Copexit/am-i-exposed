@@ -176,7 +176,12 @@ export function buildLinkabilityMatrix(
         : "Use CoinJoin to break deterministic links. Transactions with equal outputs " +
           "(Whirlpool, WabiSabi) create maximum ambiguity in the linkability matrix.",
       scoreImpact: -3 * Math.min(deterministicLinks, 3),
-      params: { deterministicLinks, totalPairs: nIn * nOut, interpretations: totalInterpretations },
+      params: {
+        deterministicLinks,
+        totalPairs: nIn * nOut,
+        interpretations: totalInterpretations,
+        ...(isCJ ? { context: "coinjoin" } : {}),
+      },
     });
   }
 
@@ -218,6 +223,7 @@ export function buildLinkabilityMatrix(
           params: {
             equalOutputCount: equalCount,
             deterministicNonEqualCount: deterministicNonEqual.length,
+            pairs: pairDesc,
           },
         });
       }

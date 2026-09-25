@@ -2,27 +2,6 @@
 
 import { useTranslation } from "react-i18next";
 import { getAddressType } from "@/lib/bitcoin/address-type";
-import type { TxType } from "@/lib/types";
-
-export const TX_TYPE_LABELS: Partial<Record<TxType, string>> = {
-  "whirlpool-coinjoin": "Whirlpool",
-  "wabisabi-coinjoin": "WabiSabi",
-  "wasabi1-coinjoin": "Wasabi 1.0",
-  "joinmarket-coinjoin": "JoinMarket",
-  "generic-coinjoin": "CoinJoin",
-  "stonewall": "Stonewall",
-  "simplified-stonewall": "Simplified Stonewall",
-  "tx0-premix": "TX0 Premix",
-  "bip47-notification": "BIP47 Notification",
-  "ricochet": "Ricochet (Ashigaru)",
-  "consolidation": "Consolidation",
-  "exchange-withdrawal": "Exchange Withdrawal",
-  "batch-payment": "Batch Payment",
-  "self-transfer": "Self-transfer",
-  "peel-chain": "Peel Chain",
-  "coinbase": "Coinbase",
-  "p2p-escrow": "P2P Escrow",
-};
 
 const ADDRESS_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
   p2tr:    { label: "Taproot",  color: "bg-severity-good/20 text-severity-good border-severity-good/30" },

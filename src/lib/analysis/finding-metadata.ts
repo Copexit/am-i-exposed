@@ -199,7 +199,6 @@ export const FINDING_METADATA: Record<string, FindingMeta> = {
 
   // ── Chain: Linkability ──────────────────────────────────────────────
   "linkability-deterministic": { adversaryTiers: [P],       temporality: "historical" },
-  "linkability-ambiguous":     { adversaryTiers: [P],       temporality: "historical" },
   "linkability-equal-subset":  { adversaryTiers: [P],       temporality: "historical" },
 
   // ── Chain: Taint Flow ───────────────────────────────────────────────

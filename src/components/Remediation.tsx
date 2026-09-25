@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { getSummarySentiment } from "@/lib/scoring/score";
 import { generateActions } from "@/lib/recommendations/generate-actions";
 import type { Finding, Grade, Remediation as RemediationType } from "@/lib/types";
+import { findingKeys } from "@/lib/finding-utils";
 
 interface RemediationProps {
   findings: Finding[];
@@ -28,7 +29,7 @@ function StructuredRemediation({ remediation, findingId, findingTitle, findingPa
   return (
     <div className="bg-surface-inset rounded-lg px-4 py-3 border-l-2 border-l-bitcoin/50 space-y-2.5">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-foreground/90">{t(`finding.${findingId}.title`, { ...findingParams, defaultValue: findingTitle })}</p>
+        <p className="text-sm font-medium text-foreground/90">{t(findingKeys(findingId, "title", findingParams), { ...findingParams, defaultValue: findingTitle })}</p>
         <span className={`inline-flex items-center gap-1 text-xs ${urgency.color}`}>
           <UrgencyIcon size={14} />
           {t(urgency.labelKey, { defaultValue: urgency.labelDefault })}

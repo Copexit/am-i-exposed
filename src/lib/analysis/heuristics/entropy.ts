@@ -61,9 +61,11 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
               "This is typical of self-transfers and token transfers that pay back to the same address."
             : "This transaction has a single input and single output, meaning there is only one possible interpretation. " +
               "This is typical of sweep transactions, exact-amount payments, or wallet migrations.",
-          recommendation:
-            "Single-input, single-output transactions are a normal spending pattern. " +
-            "For future payments, collaborative transactions (PayJoin/Stowaway) or batch payments increase entropy.",
+          recommendation: merged
+            ? "Address reuse already links every UTXO of that address, so spending them together reveals nothing new. " +
+              "Use a fresh address for each receive; for future payments, collaborative transactions (PayJoin/Stowaway) or batch payments increase entropy."
+            : "Single-input, single-output transactions are a normal spending pattern. " +
+              "For future payments, collaborative transactions (PayJoin/Stowaway) or batch payments increase entropy.",
           scoreImpact: 0,
         },
       ],

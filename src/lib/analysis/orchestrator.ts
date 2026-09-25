@@ -128,6 +128,7 @@ export async function analyzeAddress(
   if (entityMatch) {
     const entityInfo = getEntity(entityMatch.entityName);
     const isOfac = entityMatch.ofac || (entityInfo?.ofac ?? false);
+    const country = entityInfo?.country ?? "Unknown";
     allFindings.unshift({
       id: "address-entity-identified",
       severity: isOfac ? "critical" : "medium",
@@ -138,15 +139,17 @@ export async function analyzeAddress(
       params: {
         entityName: entityMatch.entityName,
         category: entityInfo?.category ?? entityMatch.category,
-        country: entityInfo?.country ?? "Unknown",
+        country,
         status: entityInfo?.status ?? "unknown",
         ofac: isOfac ? 1 : 0,
+        _variant: isOfac ? "ofac" : "known",
+        ...(country !== "Unknown" ? { context: "country" } : {}),
       },
       description: isOfac
         ? `This address is associated with ${entityMatch.entityName}, an OFAC-sanctioned entity. ` +
           "Transacting with sanctioned addresses may have legal consequences depending on jurisdiction."
         : `This address is associated with ${entityMatch.entityName}` +
-          ` (${entityInfo?.category ?? entityMatch.category}${(entityInfo?.country ?? "Unknown") !== "Unknown" ? ", " + entityInfo?.country : ""})` +
+          ` (${entityInfo?.category ?? entityMatch.category}${country !== "Unknown" ? ", " + country : ""})` +
           ". Transactions involving known entities are traceable by chain analysis firms.",
       recommendation: isOfac
         ? "Exercise extreme caution. Consult legal counsel before transacting with this address."

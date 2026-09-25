@@ -205,6 +205,7 @@ function detectCpfp(tx: Parameters<TxHeuristic>[0], ctx: TxContext | undefined, 
       parentFeeRate: Math.round(parentFeeRate * 10) / 10,
       childFeeRate: Math.round(childFeeRate * 10) / 10,
       parentHadRbf: parentHadRbf ? 1 : 0,
+      ...(parentHadRbf ? { context: "rbf" } : {}),
     },
   });
 }

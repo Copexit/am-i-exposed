@@ -31,7 +31,6 @@ const FINDING_CATEGORY: Record<string, ChainCategory> = {
   "chain-coinjoin-descendancy": "output-destinations",
   // Structural analysis
   "linkability-deterministic": "structural",
-  "linkability-ambiguous": "structural",
   "linkability-equal-subset": "structural",
   "chain-cluster-size": "structural",
   // Spending patterns

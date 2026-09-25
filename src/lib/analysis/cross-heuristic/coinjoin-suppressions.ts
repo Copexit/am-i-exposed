@@ -136,15 +136,8 @@ export function applyCoinJoinSuppressions(findings: Finding[], isStonewall: bool
     if (f.id.startsWith("h-coin-selection-")) {
       suppressFinding(f, "coinjoin");
     }
-    // Linkability recommendations should not suggest CoinJoin when already CoinJoin.
-    // The findings themselves are valid (ambiguity is good), but the recommendation
-    // text needs to reflect post-mix best practices instead.
-    if (f.id === "linkability-ambiguous") {
-      f.recommendation =
-        "Good transaction privacy. To preserve this ambiguity, spend post-mix outputs " +
-        "one at a time and avoid consolidating them with non-CoinJoin UTXOs.";
-      f.params = { ...f.params, context: "coinjoin" };
-    }
+    // Linkability recommendations should not suggest CoinJoin when already CoinJoin:
+    // the recommendation text reflects post-mix best practices instead.
     if (f.id === "linkability-deterministic") {
       f.recommendation =
         "Deterministic links reduce CoinJoin effectiveness. Avoid consolidating " +

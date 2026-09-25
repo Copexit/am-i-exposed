@@ -50,6 +50,7 @@ export function applyBehavioralRollup(findings: Finding[]): void {
       params: {
         signalCount: firedSignals.length,
         signals: signalNames,
+        ...(isCritical ? { context: "strong" } : {}),
       },
       adversaryTiers: ["passive_observer"],
       temporality: "ongoing_pattern",

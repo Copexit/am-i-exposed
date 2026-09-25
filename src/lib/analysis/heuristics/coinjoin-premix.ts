@@ -112,6 +112,7 @@ export const analyzeCoinJoinPremix: TxHeuristic = (tx) => {
       coordinatorFee: feeCandidate.value,
       era: pool.era,
       _variant: pool.era,
+      ...(toxicChange ? { context: "toxic" } : {}),
     },
     description:
       `This transaction is a ${eraLabel} Whirlpool tx0 (premix): it splits funds into ${denomOutputs.length} equal outputs ` +

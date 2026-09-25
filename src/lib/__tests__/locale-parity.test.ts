@@ -75,21 +75,31 @@ describe("locale parity", () => {
 
   it("every emitted finding id has title and description keys in English", () => {
     const keys = Object.keys(readLocale("en"));
-    // Base key, a _variant key (finding.<id>.<field>.<variant>) or an i18next context key.
+    // Same finding-literal shape as the finding-metadata coverage test.
+    const literals = sourceFiles(join(process.cwd(), "src")).flatMap((file) => {
+      const text = readFileSync(file, "utf8");
+      const matches = [...text.matchAll(/\bid:\s*"([a-z0-9-]+)",\s*\n\s*severity\b/g)];
+      return matches.map((m, i) => ({
+        id: m[1],
+        file: file.split("/src/")[1],
+        // The literal runs to the next finding literal, capped so later code is not included
+        body: text.slice(m.index, Math.min(matches[i + 1]?.index ?? text.length, m.index + 2000)),
+      }));
+    });
+    const passesVariant = new Set(literals.filter((l) => /\b_variant:/.test(l.body)).map((l) => l.id));
+    // Base key or an i18next context/plural key. A _variant key (finding.<id>.<field>.<variant>)
+    // only counts when the emitter passes a _variant, since findingKeys() otherwise asks for the base key.
     const has = (id: string, field: string) => {
       const base = `finding.${id}.${field}`;
-      return keys.some((k) => k === base || k.startsWith(`${base}.`) || k.startsWith(`${base}_`));
+      return keys.some((k) => k === base || k.startsWith(`${base}_`) || (passesVariant.has(id) && k.startsWith(`${base}.`)));
     };
     // Registry ids catch emitters the literal scan below misses (other field order, template ids).
     const missing = Object.keys(FINDING_METADATA).flatMap((id) =>
       ["title", "description"].filter((field) => !has(id, field)).map((field) => `${id}.${field} (finding-metadata)`),
     );
-    for (const file of sourceFiles(join(process.cwd(), "src"))) {
-      // Same finding-literal shape as the finding-metadata coverage test.
-      for (const m of readFileSync(file, "utf8").matchAll(/\bid:\s*"([a-z0-9-]+)",\s*\n\s*severity\b/g)) {
-        for (const field of ["title", "description"]) {
-          if (!has(m[1], field)) missing.push(`${m[1]}.${field} (${file.split("/src/")[1]})`);
-        }
+    for (const { id, file } of literals) {
+      for (const field of ["title", "description"]) {
+        if (!has(id, field)) missing.push(`${id}.${field} (${file})`);
       }
     }
     expect(missing).toEqual([]);

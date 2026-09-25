@@ -22,6 +22,11 @@ import { isCoinbase } from "./tx-utils";
  *   - Behavioral: low (informational, 0)
  */
 
+/** Matched addresses as a short list, e.g. "bc1qxy2kgdyg..., 3J98t1WpEZ73...". */
+function shortList(matches: Array<{ address: string }>): string {
+  return matches.map((m) => m.address.slice(0, 12) + "...").join(", ");
+}
+
 export const analyzeEntityDetection: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
 
@@ -69,14 +74,15 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
       title: `OFAC sanctioned address${allOfac.length > 1 ? "es" : ""} detected`,
       params: {
         matchCount: allOfac.length,
-        addresses: allOfac.map((m) => m.address).join(", "),
+        count: allOfac.length,
+        addresses: shortList(allOfac),
         side: ofacInputs.length > 0 && ofacOutputs.length > 0 ? "both" : ofacInputs.length > 0 ? "input" : "output",
       },
       description:
         `${allOfac.length} address${allOfac.length > 1 ? "es" : ""} in this transaction ` +
         `appear${allOfac.length === 1 ? "s" : ""} on the OFAC SDN sanctioned list. ` +
         "Interacting with sanctioned addresses may have legal consequences depending on jurisdiction. " +
-        `Matched: ${allOfac.map((m) => m.address.slice(0, 12) + "...").join(", ")}`,
+        `Matched: ${shortList(allOfac)}`,
       recommendation:
         "Exercise extreme caution. OFAC-sanctioned addresses are associated with entities " +
         "under US Treasury sanctions. Depending on your jurisdiction, interaction with these " +
@@ -97,7 +103,8 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
       title: `Known entity address${entityInputs.length > 1 ? "es" : ""} in inputs`,
       params: {
         matchCount: entityInputs.length,
-        addresses: entityInputs.map((m) => m.address).join(", "),
+        count: entityInputs.length,
+        addresses: shortList(entityInputs),
         entityName: entityInputs[0].entityName,
         category: entityInputs[0].category ?? "unknown",
         filterFpr: getFilter()?.meta.fpr ?? 0.001,
@@ -105,7 +112,7 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
       description:
         `${entityInputs.length} input address${entityInputs.length > 1 ? "es" : ""} matched the ` +
         "known entity database (exchanges, services, mining pools). " +
-        `Matched: ${entityInputs.map((m) => m.address.slice(0, 12) + "...").join(", ")}. ` +
+        `Matched: ${shortList(entityInputs)}. ` +
         "This suggests the sending party may be a known service or entity. " +
         "Note: the entity filter has a 0.1% false positive rate.",
       recommendation:
@@ -124,7 +131,8 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
       title: `Known entity address${entityOutputs.length > 1 ? "es" : ""} in outputs`,
       params: {
         matchCount: entityOutputs.length,
-        addresses: entityOutputs.map((m) => m.address).join(", "),
+        count: entityOutputs.length,
+        addresses: shortList(entityOutputs),
         entityName: entityOutputs[0].entityName,
         category: entityOutputs[0].category ?? "unknown",
         filterFpr: getFilter()?.meta.fpr ?? 0.001,
@@ -132,7 +140,7 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
       description:
         `${entityOutputs.length} output address${entityOutputs.length > 1 ? "es" : ""} matched the ` +
         "known entity database. " +
-        `Matched: ${entityOutputs.map((m) => m.address.slice(0, 12) + "...").join(", ")}. ` +
+        `Matched: ${shortList(entityOutputs)}. ` +
         "This suggests funds are being sent to a known exchange, service, or entity. " +
         "Note: the entity filter has a 0.1% false positive rate.",
       recommendation:
