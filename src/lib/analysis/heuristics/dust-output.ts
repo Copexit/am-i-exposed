@@ -60,12 +60,20 @@ export const analyzeDustOutputs: TxHeuristic = (tx) => {
   const totalDustValue = dustEntries.reduce((sum, d) => sum + d.value, 0);
   const dustIndicesStr = dustEntries.map((d) => d.index).join(",");
 
+  // A dust attack is dust sent to someone else. Dust paying back to an input
+  // address of this tx (e.g. 546-sat token postage) is the spender's own.
+  const inputAddresses = new Set(tx.vin.map((v) => v.prevout?.scriptpubkey_address).filter(Boolean));
+  const sentDust = dustEntries.filter((d) => {
+    const address = tx.vout[d.index].scriptpubkey_address;
+    return !address || !inputAddresses.has(address);
+  }).length;
+
   // Check if this looks like a dust attack:
   // - Classic: 1 input, 2 outputs, 1 dust (attacker sends dust + change)
   // - Batch: many outputs, majority are dust (attacker dusts many addresses at once)
   const isLikelyDustAttack =
-    (dustEntries.length === 1 && tx.vout.length === 2 && tx.vin.length === 1) ||
-    (dustEntries.length >= 5 && dustEntries.length > tx.vout.length * 0.5);
+    (sentDust === 1 && tx.vout.length === 2 && tx.vin.length === 1) ||
+    (sentDust >= 5 && sentDust > tx.vout.length * 0.5);
 
   if (isLikelyDustAttack) {
     findings.push({

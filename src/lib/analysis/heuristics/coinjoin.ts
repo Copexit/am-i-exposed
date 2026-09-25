@@ -189,12 +189,14 @@ export function isCoinJoinFinding(f: Finding): boolean {
 /**
  * Lightweight structural CoinJoin check - no Finding allocations.
  *
- * Called in tight loops across chain analysis (13+ call sites),
- * so it must stay allocation-free. Uses the same detector functions
- * as analyzeCoinJoin but only checks boolean results.
+ * Called in loops across chain analysis (13+ call sites), so it keeps to
+ * boolean detector results. Uses the same detector functions and the same
+ * early returns as analyzeCoinJoin, so both agree on what is a CoinJoin.
  */
 export function isCoinJoinTx(tx: Tx): boolean {
   if (tx.vin.length < 2 || tx.vout.length < 2) return false;
+  // A Whirlpool tx0 is a premix: its equal outputs have not been mixed yet
+  if (detectTx0(tx)) return false;
 
   const { outputs: spendable, singleOwner } = coinJoinCandidates(tx);
   const values = spendable.map((o) => o.value);

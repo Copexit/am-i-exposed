@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { analyzeCoinJoinPremix } from "../coinjoin-premix";
-import { analyzeCoinJoin } from "../coinjoin";
+import { analyzeCoinJoin, isCoinJoinTx } from "../coinjoin";
 import { makeTx, makeVin, makeVout, makeCoinbaseVin, makeOpReturnVout, resetAddrCounter } from "./fixtures/tx-factory";
 
 beforeEach(() => resetAddrCounter());
@@ -161,6 +161,10 @@ describe("analyzeCoinJoinPremix", () => {
   it("does not report a tx0 as a JoinMarket CoinJoin", () => {
     const { findings } = analyzeCoinJoin(realTx0(true));
     expect(findings.some((f) => f.id === "h4-joinmarket")).toBe(false);
+  });
+
+  it("isCoinJoinTx agrees: a tx0 is a premix, not a mix", () => {
+    expect(isCoinJoinTx(realTx0(true))).toBe(false);
   });
 
   it("requires the tx0 OP_RETURN when premix values are not exact", () => {

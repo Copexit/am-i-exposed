@@ -7,6 +7,7 @@ import {
   countValidMappings,
   trySingleDenominationBoltzmann,
   estimateEntropy,
+  mergeByAddress,
 } from "./entropy-math";
 
 const MAX_ENUMERABLE_SIZE = 8;
@@ -33,10 +34,12 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
   const nonCoinbaseVin = tx.vin.filter((v) => !v.is_coinbase);
   // A missing prevout would silently shrink the input set and misreport entropy
   if (nonCoinbaseVin.some((v) => !v.prevout)) return { findings: [] };
-  const inputs = nonCoinbaseVin.map((v) => v.prevout!.value);
   // Filter to spendable outputs (exclude OP_RETURN and other non-spendable)
   const valuedOutputs = getValuedOutputs(tx.vout);
-  const outputs = valuedOutputs.map((v) => v.value);
+  // UTXOs sharing an address are one party (see mergeByAddress)
+  const inputs = mergeByAddress(nonCoinbaseVin.map((v) => ({ address: v.prevout!.scriptpubkey_address, value: v.prevout!.value })));
+  const outputs = mergeByAddress(valuedOutputs.map((o) => ({ address: o.scriptpubkey_address, value: o.value })));
+  const merged = inputs.length !== nonCoinbaseVin.length || outputs.length !== valuedOutputs.length;
 
   // Coinbase transactions have no privacy implications; burns have no fund flow
   if (inputs.length === 0 || outputs.length === 0) return { findings: [] };
@@ -51,9 +54,13 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
           severity: "low",
           confidence: "deterministic",
           title: "Zero transaction entropy",
-          description:
-            "This transaction has a single input and single output, meaning there is only one possible interpretation. " +
-            "This is typical of sweep transactions, exact-amount payments, or wallet migrations.",
+          ...(merged ? { params: { _variant: "merged" } } : {}),
+          description: merged
+            ? "All inputs of this transaction come from one address and all outputs go to one address, " +
+              "so there is only one possible interpretation of the fund flow. " +
+              "This is typical of self-transfers and token transfers that pay back to the same address."
+            : "This transaction has a single input and single output, meaning there is only one possible interpretation. " +
+              "This is typical of sweep transactions, exact-amount payments, or wallet migrations.",
           recommendation:
             "Single-input, single-output transactions are a normal spending pattern. " +
             "For future payments, collaborative transactions (PayJoin/Stowaway) or batch payments increase entropy.",
@@ -63,18 +70,20 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
     };
   }
 
-  // N-in-1-out sweep/consolidation: zero entropy, all inputs provably linked
+  // N-in-1-out sweep/consolidation: zero entropy, all inputs provably linked.
+  // The text describes the UTXOs consolidated, so it counts real inputs.
   if (outputs.length === 1 && inputs.length >= 2) {
+    const inputCount = nonCoinbaseVin.length;
     return {
       findings: [
         {
           id: "h5-zero-entropy-sweep",
-          severity: inputs.length >= 5 ? "high" : "medium",
+          severity: inputCount >= 5 ? "high" : "medium",
           confidence: "deterministic",
-          title: `Zero entropy: ${inputs.length}-input sweep/consolidation`,
-          params: { inputCount: inputs.length },
+          title: `Zero entropy: ${inputCount}-input sweep/consolidation`,
+          params: { inputCount },
           description:
-            `This transaction consolidates ${inputs.length} inputs into a single output. ` +
+            `This transaction consolidates ${inputCount} inputs into a single output. ` +
             "There is only one possible interpretation of the fund flow. " +
             "All input addresses are now provably linked.",
           recommendation:
@@ -92,7 +101,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
               { name: "Sparrow Wallet (Coin Control)", url: "https://sparrowwallet.com" },
               { name: "Wasabi Wallet (CoinJoin)", url: "https://wasabiwallet.io" },
             ],
-            urgency: inputs.length >= 10 ? "soon" as const : "when-convenient" as const,
+            urgency: inputCount >= 10 ? "soon" as const : "when-convenient" as const,
           },
         },
       ],
@@ -127,7 +136,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
       // Count total permutations from all equal-output groups
       let totalPerms = 1;
       let totalGrouped = 0;
-      for (const c of countOutputValues(valuedOutputs).values()) {
+      for (const c of countOutputValues(outputs.map((value) => ({ value }))).values()) {
         if (c >= 2) {
           totalPerms *= factorial(c);
           totalGrouped += c;
@@ -175,7 +184,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
           severity: "medium",
           confidence: "medium",
           title: "Very low transaction entropy",
-          params: { entropy: roundedEntropy, method },
+          params: { entropy: roundedEntropy, method, nUtxos: inputs.length + outputs.length },
           description:
             `This transaction has near-zero entropy (${roundedEntropy} bits, via ${method}). ` +
             "There is essentially only one valid interpretation of the fund flow, making it trivial to trace.",

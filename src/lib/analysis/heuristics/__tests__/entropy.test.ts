@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { readFileSync } from "fs";
+import { join } from "path";
+import type { MempoolTransaction } from "@/lib/api/types";
 import { analyzeEntropy } from "../entropy";
 import { makeTx, makeVin, makeCoinbaseVin, makeVout, makeOpReturnVout, resetAddrCounter } from "./fixtures/tx-factory";
 
@@ -141,5 +144,43 @@ describe("analyzeEntropy", () => {
     });
     const { findings } = analyzeEntropy(tx);
     expect(findings).toHaveLength(0);
+  });
+});
+
+describe("analyzeEntropy - UTXOs sharing an address are one party (Boltzmann MERGE_INPUTS/MERGE_OUTPUTS)", () => {
+  const vinAt = (address: string, value: number) =>
+    makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: address, value } });
+
+  it("scores the same as the tx with those UTXOs already merged", () => {
+    const split = makeTx({
+      vin: [vinAt("bc1qa", 30_000), vinAt("bc1qa", 30_000), vinAt("bc1qb", 60_000)],
+      vout: [
+        makeVout({ value: 25_000, scriptpubkey_address: "bc1qx" }),
+        makeVout({ value: 30_000, scriptpubkey_address: "bc1qx" }),
+        makeVout({ value: 55_000, scriptpubkey_address: "bc1qy" }),
+      ],
+    });
+    const merged = makeTx({
+      vin: [vinAt("bc1qa", 60_000), vinAt("bc1qb", 60_000)],
+      vout: [
+        makeVout({ value: 55_000, scriptpubkey_address: "bc1qx" }),
+        makeVout({ value: 55_000, scriptpubkey_address: "bc1qy" }),
+      ],
+    });
+    const expected = analyzeEntropy(merged).findings;
+    expect(expected[0].id).toBe("h5-entropy");
+    expect(analyzeEntropy(split).findings).toEqual(expected);
+  });
+
+  it("ebe3d1ad (single-address self-transfer) has zero entropy, not +15", () => {
+    const { tx } = JSON.parse(readFileSync(
+      join(__dirname, "fixtures/api-responses/corpus/ebe3d1ad3798ec45d9be5dcff476fe54ff36ddc0c9ac8ff9d5acb08d485d340e.json"),
+      "utf-8",
+    )) as { tx: MempoolTransaction };
+    const { findings } = analyzeEntropy(tx);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].id).toBe("h5-zero-entropy");
+    expect(findings[0].scoreImpact).toBe(0);
+    expect(findings[0].params?._variant).toBe("merged");
   });
 });

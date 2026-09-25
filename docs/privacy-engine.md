@@ -246,6 +246,14 @@ if len(tx.inputs) >= 20 and len(tx.outputs) >= 20:
 - Fewer participants than Wasabi, but higher flexibility in amounts
 - Identifiable by the characteristic pattern of equal-value outputs mixed with varied change outputs
 
+**Single-owner structure is not a CoinJoin**
+
+A CoinJoin needs more than one party, so two structural checks run before any equal-output counting:
+
+- Outputs that pay back to an address among the inputs are excluded from the equal-output groups. They certainly belong to the spender and hide nothing (e.g. `53d885d1...`, where 7 of 8 equal 546-sat outputs return to the input address).
+- When every input comes from one address, the equal-output paths (generic, JoinMarket, WabiSabi, Wasabi 1.x) are skipped. Whirlpool detection and Stonewall keep their own rules, since solo Stonewall is single-owner by design. Example: `ebe3d1ad...` (2 inputs from one address, 10 equal 546-sat outputs back to it) is a self-transfer, not a JoinMarket round.
+- A Whirlpool tx0 (premix, see "CoinJoin Premix (tx0) Detection") is not a CoinJoin: its equal outputs are not mixed yet. Both the H4 heuristic and the structural `isCoinJoinTx` check used by chain analysis return early on a tx0, so a mix whose inputs come from a tx0 is not credited with "inputs came from CoinJoin", and premix outputs are not treated as post-mix outputs.
+
 **Why it matters for privacy**
 
 CoinJoins are the ONLY positive privacy signal in on-chain analysis. A well-executed CoinJoin breaks the transaction graph by creating ambiguity about which inputs funded which outputs. After a CoinJoin, an adversary tracking funds encounters an exponential increase in possible interpretations. This is why CoinJoin detection is the only heuristic that increases the privacy score.
@@ -275,6 +283,10 @@ CoinJoin is not a silver bullet. Post-mix behavior matters enormously. If a user
 Transaction entropy measures the number of valid interpretations of a transaction - that is, how many different mappings of inputs to outputs are consistent with the transaction's structure. Higher entropy means more ambiguity for an adversary. Entropy E = log2(N), where N is the number of valid interpretations.
 
 Full Boltzmann analysis, as defined by LaurentMT, counts all valid input-to-output partitions. For equal-value CoinJoin transactions, the interpretation count can be computed exactly using integer partitions of n.
+
+**Address merging (Boltzmann MERGE_INPUTS / MERGE_OUTPUTS):** before counting, inputs that share an address are merged into one input (values summed), and likewise for outputs, as LaurentMT's Boltzmann tool does with its merge options. Coins controlled by one address belong to one party, so counting them as separate parties would invent interpretations. A single-address self-transfer such as `ebe3d1ad...` (2 inputs and 11 outputs, all on one address) is therefore 1-in-1-out with 0 bits, not 15. The merged counts drive every path below and the reported UTXO count.
+
+The WASM Boltzmann link probability matrix is not merged: its rows and columns must map one-to-one to the transaction's inputs and outputs for the heat map, the graph and auto-trace. When the WASM result covers a different number of UTXOs than the merged H5 computation, it does not replace the H5 finding, so the score keeps the merged value while the heat map still shows per-UTXO links.
 
 A two-path approach is used:
 
@@ -340,8 +352,8 @@ This is why OXT.me's Boltzmann tool was so valuable - and why its loss in April 
 
 **Scoring impact:** -5 to +15
 
-- 0 bits (1-in-1-out): 0 (normal sweep / exact payment)
-- 0 bits (N-in-1-out sweep/consolidation): -3
+- 0 bits (1-in-1-out after address merging): 0 (normal sweep / exact payment / single-address self-transfer)
+- 0 bits (N-in-1-out sweep/consolidation of 2+ input addresses): -3
 - Near-zero entropy (rounded to 0): -3
 - Less than 1 bit: 0
 - 1-2 bits: +2
@@ -735,6 +747,8 @@ for utxo in address.utxos:
     else:
       flag as "potential dust - exercise caution"
 ```
+
+At transaction level, outputs below 1000 sats are reported as `dust-outputs`, and as `dust-attack` when the shape matches dusting: a 1-in-2-out transaction with one dust output, or 5+ dust outputs making up more than half of the outputs. A dust attack is dust sent to someone else, so dust outputs paying back to an address among the transaction's own inputs (e.g. 546-sat token postage outputs in `ebe3d1ad...` and `53d885d1...`) do not count toward the attack shape; they are still reported as `dust-outputs`.
 
 Any UTXO with a value below 1000 sats is flagged. UTXOs below 546 sats (the default dust limit in Bitcoin Core) are flagged with higher severity, as they are below the economic threshold for normal use and are more likely to be surveillance dust.
 

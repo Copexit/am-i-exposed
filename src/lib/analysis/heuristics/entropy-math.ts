@@ -12,6 +12,27 @@ import {
   estimateBoltzmannEntropy,
 } from "./combinatorics";
 
+/**
+ * Sum the values of UTXOs that share an address, keeping first-seen order.
+ * Coins controlled by one address belong to one party, so they are one
+ * input (or output) for entropy - LaurentMT's Boltzmann MERGE_INPUTS /
+ * MERGE_OUTPUTS options. UTXOs without an address stay separate.
+ */
+export function mergeByAddress(utxos: { address?: string; value: number }[]): number[] {
+  const merged: number[] = [];
+  const slot = new Map<string, number>();
+  for (const { address, value } of utxos) {
+    const i = address ? slot.get(address) : undefined;
+    if (i !== undefined) {
+      merged[i] += value;
+    } else {
+      if (address) slot.set(address, merged.length);
+      merged.push(value);
+    }
+  }
+  return merged;
+}
+
 /** Iteration budget for brute-force valid-mapping enumeration. */
 const MAPPING_ITERATION_LIMIT = 10_000;
 

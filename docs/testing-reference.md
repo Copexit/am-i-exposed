@@ -84,7 +84,7 @@
 | Simple legacy P2PKH | tx | 70 | C | 53 | H2 (-10, compound -4), H11 (-3), anon (-1), script (-1) |
 | Taproot + OP_RETURN | tx | 70 | C | 56 | H2 data-payment (-5), H7 (-5), H11 (-3), script (-1) |
 | JoinMarket 2x equal | tx | 70 | B | 89 | H4 (+15 STONEWALL), H5 (+2), script (+2) |
-| Bare multisig | tx | 70 | F | 19 | H2 (-20), script-multisig (-8), H1 (-10), H3 (-6), H5 (-3), H11 (-2), anon (-1), script (-1) |
+| Bare multisig | tx | 70 | F | 11 | H2 same-address-io (-20), H1 (-16), script-multisig (-8), H3 (-6), fingerprint rollup (-6), H11 (-3), H5 (+2, 1 bit after merging the two inputs on one address), script (-1), coin-selection (-1) |
 | OP_RETURN charley | tx | 70 | C | 50 | H2 (-15), H7 (-5), H11 (-2), script (+2) |
 | Dust attack 555 sats | tx | 70 | F | 24 | H2 (-20), dust (-8), H5 (-3), H11 (0), script (+2), compound-cap (-15) |
 | Batch withdrawal 143 | tx | 70 | C | 57 | H5 (-3), script (-3), H11 (-2), anon (+1), fan-out (-3), exchange (-3) |

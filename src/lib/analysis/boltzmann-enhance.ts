@@ -44,9 +44,15 @@ export function enhanceEntropyFinding(
   const existing = findings[idx];
   if (SKIP_IDS.has(existing.id)) return;
 
+  const nUtxos = boltzmann.nInputs + boltzmann.nOutputs;
+  // H5 merges UTXOs sharing an address (Boltzmann MERGE_INPUTS/MERGE_OUTPUTS),
+  // while the WASM matrix stays per-UTXO so its rows/cols map to vin/vout.
+  // When the UTXO counts differ, the WASM entropy counts one owner's coins as
+  // separate parties, so the merged score stands.
+  if (existing.params?.nUtxos !== nUtxos) return;
+
   const entropyBits = boltzmann.entropy;
   const roundedEntropy = Math.round(entropyBits * 100) / 100;
-  const nUtxos = boltzmann.nInputs + boltzmann.nOutputs;
 
   // Same scaling as entropy.ts line 186
   const impact = entropyBits < 1 ? 0 : entropyBits < 2 ? 2 : Math.min(Math.floor(entropyBits * 2), 15);

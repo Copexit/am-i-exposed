@@ -1,10 +1,34 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { readFileSync } from "fs";
+import { join } from "path";
+import type { MempoolTransaction } from "@/lib/api/types";
 import { analyzeDustOutputs, getDustThreshold } from "../dust-output";
 import { makeTx, makeVin, makeCoinbaseVin, makeVout, resetAddrCounter } from "./fixtures/tx-factory";
 
 beforeEach(() => resetAddrCounter());
 
+const corpusTx = (txid: string) =>
+  (JSON.parse(readFileSync(join(__dirname, "fixtures/api-responses/corpus", `${txid}.json`), "utf-8")) as { tx: MempoolTransaction }).tx;
+
 describe("analyzeDustOutputs", () => {
+  it("does not call dust paid back to the spender's own input address an attack", () => {
+    const tx = makeTx({
+      vin: [makeVin()],
+      vout: [makeVout({ value: 99_000 })],
+    });
+    tx.vout.unshift(makeVout({ value: 546, scriptpubkey_address: tx.vin[0].prevout!.scriptpubkey_address }));
+    const { findings } = analyzeDustOutputs(tx);
+    expect(findings.map((f) => f.id)).toEqual(["dust-outputs"]);
+  });
+
+  it.each([
+    ["ebe3d1ad", "ebe3d1ad3798ec45d9be5dcff476fe54ff36ddc0c9ac8ff9d5acb08d485d340e"],
+    ["53d885d1", "53d885d1aa07f481ae4d5e1976fc3b8a230c8dafe0f94167dfc02ebc2b9b071a"],
+  ])("%s (546-sat outputs back to its own input address) is not a dust attack", (_id, txid) => {
+    const { findings } = analyzeDustOutputs(corpusTx(txid));
+    expect(findings.map((f) => f.id)).toEqual(["dust-outputs"]);
+  });
+
   it("detects classic dust attack (1 dust + 2 vout + 1 vin)", () => {
     const tx = makeTx({
       vin: [makeVin()],
