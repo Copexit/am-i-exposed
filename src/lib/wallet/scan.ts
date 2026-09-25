@@ -132,9 +132,12 @@ export async function scanChain(
         break;
       } catch (e) {
         lastError = e;
-        // fetchWithRetry already retried network failures, and a timeout is
-        // final: re-sending would repeat the same slow query on the backend.
-        if (e instanceof ApiError && e.code === "NETWORK_ERROR") break;
+        // Only rate limits and 5xx are worth waiting for. Network failures were
+        // already retried by fetchWithRetry (a timeout would just repeat the same
+        // slow query), and 404/4xx/invalid input are deterministic.
+        const transient = e instanceof ApiError
+          && (e.code === "RATE_LIMITED" || (e.code === "API_UNAVAILABLE" && (e.status ?? 0) >= 500));
+        if (!transient) break;
       }
     }
     const wasCacheHit = performance.now() - t0 < 100;

@@ -3,6 +3,7 @@ import type { Finding } from "@/lib/types";
 import { isCoinbase, getSpendableOutputs } from "../heuristics/tx-utils";
 import { isCoinJoinTx } from "../heuristics/coinjoin";
 import { roundTo } from "@/lib/format";
+import { mergeByAddress } from "../heuristics/entropy-math";
 
 /**
  * Boltzmann Link Probability Matrix (LaurentMT), exact for small txs.
@@ -15,8 +16,14 @@ import { roundTo } from "@/lib/format";
  * divided by the number of interpretations N. A link is deterministic when
  * it holds in every interpretation. See docs/research-boltzmann-entropy.md.
  *
- * Exact enumeration is limited to <= 4 inputs and <= 4 outputs (Bell(4)^2
- * partition pairs x 4! matchings); larger txs are left to the WASM Boltzmann.
+ * UTXOs sharing an address are merged first (Boltzmann MERGE_INPUTS /
+ * MERGE_OUTPUTS, as H5 applies it): one owner's coins are one party. The
+ * returned matrix keeps one row per vin and one column per spendable output,
+ * each carrying its address group's links.
+ *
+ * Exact enumeration is limited to <= 4 merged inputs and <= 4 merged outputs
+ * (Bell(4)^2 partition pairs x 4! matchings); larger txs are left to the WASM
+ * Boltzmann.
  */
 
 interface LinkabilityCell {
@@ -77,16 +84,17 @@ export function buildLinkabilityMatrix(
   const findings: Finding[] = [];
 
   if (isCoinbase(tx)) return null;
-  if (tx.vin.length < 1 || tx.vin.length > MAX_EXACT) return null;
+  if (tx.vin.length < 1) return null;
   if (tx.vin.some((v) => v.prevout == null)) return null;
 
   const spendable = getSpendableOutputs(tx.vout);
-  if (spendable.length < 1 || spendable.length > MAX_EXACT) return null;
-
-  const inputValues = tx.vin.map((v) => v.prevout!.value);
-  const outputValues = spendable.map((o) => o.value);
+  const { values: inputValues, groupOf: inGroup } =
+    mergeByAddress(tx.vin.map((v) => ({ address: v.prevout!.scriptpubkey_address, value: v.prevout!.value })));
+  const { values: outputValues, groupOf: outGroup } =
+    mergeByAddress(spendable.map((o) => ({ address: o.scriptpubkey_address, value: o.value })));
   const nIn = inputValues.length;
   const nOut = outputValues.length;
+  if (nIn > MAX_EXACT || nOut < 1 || nOut > MAX_EXACT) return null;
 
   const linkCounts: number[][] = Array.from({ length: nIn }, () => new Array(nOut).fill(0));
   let totalInterpretations = 0;
@@ -132,30 +140,28 @@ export function buildLinkabilityMatrix(
   // Outputs exceed inputs (bad data): no valid interpretation
   if (totalInterpretations === 0) return null;
 
+  // Links are counted per address group; the matrix spreads them back per vin/vout
   let deterministicLinks = 0;
-  const matrix: LinkabilityCell[][] = linkCounts.map((counts, i) =>
-    counts.map((count, j) => {
-      const isDeterministic = count === totalInterpretations;
-      if (isDeterministic) deterministicLinks++;
+  for (const row of linkCounts) for (const count of row) if (count === totalInterpretations) deterministicLinks++;
+  const matrix: LinkabilityCell[][] = inGroup.map((gi, i) =>
+    outGroup.map((go, j) => {
+      const count = linkCounts[gi]![go]!;
       return {
         inputIndex: i,
         outputIndex: j,
         probability: roundTo(count / totalInterpretations),
-        deterministic: isDeterministic,
+        deterministic: count === totalInterpretations,
       };
     }),
   );
 
   // Nothing to report when there is no link to hide: N === 1 (every 1-in tx,
-  // and any tx only valid as one merged transfer) is zero entropy that H5
-  // already scores; a single output is funded by all inputs even when a dust
-  // input can be a fee-only block (N = 2); inputs sharing one address are one
-  // owner (Boltzmann MERGE_INPUTS, as H5 applies it). Ambiguity (N > 1) is
-  // H5's entropy reward, so only links that stay deterministic despite other
-  // interpretations are reported.
-  const firstAddr = tx.vin[0]?.prevout?.scriptpubkey_address;
-  const singleOwner = !!firstAddr && tx.vin.every((v) => v.prevout!.scriptpubkey_address === firstAddr);
-  if (totalInterpretations === 1 || nOut === 1 || singleOwner) {
+  // all inputs on one address, and any tx only valid as one merged transfer)
+  // is zero entropy that H5 already scores; a single output is funded by all
+  // inputs even when a dust input can be a fee-only block (N = 2). Ambiguity
+  // (N > 1) is H5's entropy reward, so only links that stay deterministic
+  // despite other interpretations are reported.
+  if (totalInterpretations === 1 || nOut === 1) {
     return { matrix, deterministicLinks, totalInterpretations, findings };
   }
 
@@ -194,15 +200,20 @@ export function buildLinkabilityMatrix(
       const equalIndices = new Set(equalGroups.flat());
       const deterministicNonEqual: Array<{ input: number; output: number }> = [];
 
-      for (const cell of matrix.flat()) {
-        if (!equalIndices.has(cell.outputIndex) && cell.deterministic) {
-          deterministicNonEqual.push({ input: cell.inputIndex, output: cell.outputIndex });
+      for (const [gi, row] of linkCounts.entries()) {
+        for (const [go, count] of row.entries()) {
+          if (!equalIndices.has(go) && count === totalInterpretations) {
+            deterministicNonEqual.push({ input: gi, output: go });
+          }
         }
       }
 
       if (deterministicNonEqual.length > 0) {
+        // Name each address group by its original vin/vout indices
+        const members = (groupOf: number[], g: number, label: string) =>
+          groupOf.flatMap((x, k) => (x === g ? [`${label}[${k}]`] : [])).join("+");
         const pairDesc = deterministicNonEqual
-          .map((p) => `input[${p.input}] -> output[${p.output}]`)
+          .map((p) => `${members(inGroup, p.input, "input")} -> ${members(outGroup, p.output, "output")}`)
           .join(", ");
         const equalCount = equalGroups.reduce((s, g) => s + g.length, 0);
         findings.push({

@@ -17,8 +17,8 @@ import { tick } from "@/lib/analysis/heuristic-registry";
 import type { Finding } from "@/lib/types";
 
 interface TraceApi {
-  getTransaction: (txid: string) => Promise<MempoolTransaction>;
-  getTxOutspends: (txid: string) => Promise<MempoolOutspend[]>;
+  getTransaction: (txid: string, signal?: AbortSignal) => Promise<MempoolTransaction>;
+  getTxOutspends: (txid: string, signal?: AbortSignal) => Promise<MempoolOutspend[]>;
 }
 
 /** Parameters for the chain analysis phase. */
@@ -42,26 +42,11 @@ interface ChainTraceResult {
   forwardFailed: boolean;
 }
 
-/** Reject with an AbortError as soon as `signal` aborts, whatever `p` does. */
-function raceAbort<T>(p: Promise<T>, signal: AbortSignal): Promise<T> {
-  if (signal.aborted) return Promise.reject(new DOMException("Aborted", "AbortError"));
-  return new Promise<T>((resolve, reject) => {
-    const onAbort = () => reject(new DOMException("Aborted", "AbortError"));
-    signal.addEventListener("abort", onAbort, { once: true });
-    p.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
-  });
-}
-
-/**
- * The trace api bound to a phase signal, so the phase timeout stops waiting on
- * in-flight requests. ponytail: the underlying fetch still runs until it
- * settles or the analysis controller aborts it; a per-call signal on
- * ApiClient would cancel it too.
- */
+/** The trace api bound to a phase signal, so a phase timeout cancels its in-flight requests. */
 function phaseApi(api: TraceApi, signal: AbortSignal): TraceApi {
   return {
-    getTransaction: (txid) => raceAbort(api.getTransaction(txid), signal),
-    getTxOutspends: (txid) => raceAbort(api.getTxOutspends(txid), signal),
+    getTransaction: (txid) => api.getTransaction(txid, signal),
+    getTxOutspends: (txid) => api.getTxOutspends(txid, signal),
   };
 }
 

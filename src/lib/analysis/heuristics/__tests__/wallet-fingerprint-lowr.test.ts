@@ -29,7 +29,11 @@ describe("detectLowRSignatures", () => {
 
   it("parses legacy scriptSig pushes", () => {
     const vin = makeVin({ scriptsig_asm: `OP_PUSHBYTES_71 ${LOW_R} OP_PUSHBYTES_33 ${PUBKEY}` });
-    expect(detectLowRSignatures([vin])).toBe(true);
+    expect(detectLowRSignatures([vin, vin])).toBe(true);
+  });
+
+  it("needs at least two signatures (one low-R sig happens by chance ~50% of the time)", () => {
+    expect(detectLowRSignatures([makeVin({ witness: [LOW_R, PUBKEY] })])).toBe(false);
   });
 
   it("returns false with no signatures at all", () => {

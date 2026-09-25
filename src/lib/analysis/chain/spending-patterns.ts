@@ -30,14 +30,11 @@ export function detectPartialSpendWarning(
   tx: MempoolTransaction,
 ): Finding | null {
   // Need at least 2 outputs (payment + change) and non-coinbase inputs
-  const spendable = getSpendableOutputs(tx.vout);
-  if (spendable.length !== 2) return null;
+  const [out1, out2, extra] = getSpendableOutputs(tx.vout);
+  if (!out1 || !out2 || extra) return null;
 
   const totalInput = tx.vin.reduce((s, v) => s + (v.prevout?.value ?? 0), 0);
   if (totalInput === 0) return null;
-
-  const [out1, out2] = spendable;
-  if (!out1 || !out2) return null;
   const smaller = Math.min(out1.value, out2.value);
   const changeRatio = smaller / totalInput;
 

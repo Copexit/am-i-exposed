@@ -127,11 +127,12 @@ describe("toCycleRows", () => {
   it("maps txs items to rows with same-origin scan links", () => {
     const rows = toCycleRows(txs);
     expect(rows).toHaveLength(3);
-    expect(rows[0]?.txid).toBe(txs.items[0]?.txid);
-    expect(rows[0]?.scanHref).toBe(`/#tx=${txs.items[0]?.txid}`);
-    expect(rows[0]?.blockHeight).toBe(957584);
-    expect(rows[0]?.poolLabel).toBe("0.025 BTC Pool");
-    expect(rows[0]?.tx0Count).toBe(2);
+    const [row] = rows;
+    expect(row!.txid).toBe(txs.items[0]!.txid);
+    expect(row!.scanHref).toBe(`/#tx=${txs.items[0]!.txid}`);
+    expect(row!.blockHeight).toBe(957584);
+    expect(row!.poolLabel).toBe("0.025 BTC Pool");
+    expect(row!.tx0Count).toBe(2);
   });
 
   it("returns [] for a null page", () => {

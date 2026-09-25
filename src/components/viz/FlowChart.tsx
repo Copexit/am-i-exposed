@@ -7,7 +7,7 @@ import { Group } from "@visx/group";
 import { useTranslation } from "react-i18next";
 import { SVG_COLORS, SEVERITY_HEX, GRADIENT_COLORS } from "./shared/svgConstants";
 import { ChartDefs } from "./shared/ChartDefs";
-import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
+import { ChartTooltip, anchorTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import { probColor } from "./shared/linkabilityColors";
 import { formatSats, formatUsdValue } from "@/lib/format";
 import { FlowNode } from "./FlowNode";
@@ -176,8 +176,6 @@ export function FlowChart({
   const showNodeTooltip = (n: NodeDatum & { x0: number; x1: number; y0: number; y1: number }, e: React.MouseEvent) => {
     const container = containerRef.current;
     if (!container) return;
-    const containerRect = container.getBoundingClientRect();
-    const elemRect = (e.currentTarget as Element).getBoundingClientRect();
     showTooltip({
       tooltipData: {
         label: n.fullAddress ?? n.label,
@@ -188,8 +186,7 @@ export function FlowChart({
         lang: i18n.language,
         spent: n.spent,
       },
-      tooltipLeft: elemRect.left - containerRect.left + elemRect.width / 2,
-      tooltipTop: elemRect.top - containerRect.top,
+      ...anchorTooltip(e.currentTarget as Element, container),
     });
   };
 

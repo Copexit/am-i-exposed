@@ -33,7 +33,7 @@ For the full technical deep-dive - every heuristic, scoring weight, academic ref
 
 1. Paste a Bitcoin address, txid, xpub/descriptor, or PSBT
 2. Your browser fetches transaction data from the mempool.space API
-3. 34 heuristics (28 transaction-level, 6 address-level), 12 chain analysis modules, and entity matching against 364 known services run client-side
+3. 34 heuristics (28 transaction-level, 6 address-level), 10 chain analysis modules, and entity matching against 364 known services run client-side
 4. Boltzmann entropy is computed on-device using a Rust/WASM engine
 5. You get a privacy score (0-100), letter grade, detailed findings, and actionable recommendations
 
@@ -204,7 +204,7 @@ The engine doesn't run heuristics in isolation. CoinJoin detection suppresses CI
 - **@scure/btc-signer** - PSBT parsing and raw transaction decoding
 - **i18next** - 6 languages (English, Spanish, Portuguese, German, French, Polish)
 - **PWA** - installable, works offline after first load
-- **1,400+ tests** - Vitest unit/integration/hook tests, golden regression corpus, Playwright E2E, CLI tests (see [`docs/testing.md`](./docs/testing.md))
+- **1,800+ tests** - Vitest unit/integration/hook tests, golden regression corpus, Playwright E2E, CLI tests (see [`docs/testing.md`](./docs/testing.md))
 
 ## Self-hosting
 

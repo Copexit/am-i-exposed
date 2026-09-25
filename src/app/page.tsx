@@ -24,6 +24,7 @@ import { useBookmarks } from "@/hooks/useBookmarks";
 import { useKeyboardNav } from "@/hooks/useKeyboardNav";
 import { useHashRouting } from "@/hooks/useHashRouting";
 import { XpubPrivacyWarning, isXpubPrivacyAcked } from "@/components/wallet/XpubPrivacyWarning";
+import { blurInMotion } from "@/components/results/animations";
 const NetworkSwitchToast = lazy(() => import("@/components/NetworkSwitchToast").then(m => ({ default: m.NetworkSwitchToast })));
 const TipToast = lazy(() => import("@/components/TipToast").then(m => ({ default: m.TipToast })));
 const WalletAuditResults = lazy(() => import("@/components/wallet/WalletAuditResults").then(m => ({ default: m.WalletAuditResults })));
@@ -232,10 +233,7 @@ export default function Home() {
         {(phase === "fetching" || phase === "analyzing") && (
           <motion.div
             key="loading"
-            initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+            {...blurInMotion}
             data-testid="diagnostic-loader"
             className="flex flex-col items-center gap-6 w-full max-w-3xl"
           >

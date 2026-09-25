@@ -78,6 +78,12 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
   const nIn = inputs.length;
   const nOut = outputs.length;
 
+  // H5 merges UTXOs sharing an address (mergeByAddress), so its entropy can differ from these per-UTXO pills
+  const hasSharedAddress = useMemo(() => [inputs, outputs].some((list) => {
+    const addrs = list.flatMap((u) => (u.address ? [u.address] : []));
+    return new Set(addrs).size < addrs.length;
+  }), [inputs, outputs]);
+
   // Pagination for large matrices to prevent browser crashes
   const PAGE_SIZE = 30;
   const [visibleRows, setVisibleRows] = useState(PAGE_SIZE);
@@ -229,6 +235,12 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                     {formatElapsed(result.elapsedMs)}
                   </motion.span>
                 </div>
+
+                {hasSharedAddress && (
+                  <p className="text-xs text-muted">
+                    {t("boltzmann.mergedNote", { defaultValue: "The entropy finding merges UTXOs that share an address, so its value can differ from these per-UTXO figures." })}
+                  </p>
+                )}
 
                 {/* Timed out warning */}
                 {result.timedOut && (

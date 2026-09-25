@@ -889,6 +889,22 @@ describe("useGraphExpansion", () => {
       expect(ctx.fetcher.getTransaction).not.toHaveBeenCalled();
     });
 
+    it("keeps the stop reason after a trace ends and clears it when a new one starts", async () => {
+      const ctx = setup();
+      await startTrace(ctx);
+      expect(ctx.hook.result.current.lastAutoTraceStop).toBeNull();
+      // The child's own outspends come back empty: its change output is unspent
+      ctx.fetcher.getTxOutspends.mockResolvedValue([]);
+      await act(async () => { ctx.release(); await flush(); await new Promise((r) => setTimeout(r, 120)); await flush(); });
+      expect(ctx.hook.result.current.autoTracing).toBe(false);
+      expect(ctx.hook.result.current.lastAutoTraceStop).toBe("unspent");
+
+      ctx.fetcher.getTxOutspends.mockReturnValue(new Promise(() => {}));
+      await act(async () => { void ctx.hook.result.current.autoTrace("at-root", 0); await flush(); });
+      expect(ctx.hook.result.current.autoTracing).toBe(true);
+      expect(ctx.hook.result.current.lastAutoTraceStop).toBeNull();
+    });
+
     it("unmount aborts a running auto-trace", async () => {
       const ctx = setup();
       await startTrace(ctx);
@@ -956,6 +972,39 @@ describe("useGraphExpansion", () => {
       await act(async () => { release(); await flush(); });
 
       expect(hook.result.current.outspendCache.size).toBe(0);
+    });
+
+    it("two toggles in the same tick fetch the outspends once", async () => {
+      const { hook, fetcher } = setup();
+      await act(async () => {
+        const a = hook.result.current.toggleExpand("ex-root");
+        const b = hook.result.current.toggleExpand("ex-root");
+        await Promise.all([a, b]);
+      });
+      expect(fetcher.getTxOutspends).toHaveBeenCalledTimes(1);
+      expect(hook.result.current.outspendCache.get("ex-root")).toEqual(spent("ex-root-spender"));
+    });
+
+    it("reset then re-rooting on the same txid does not revive the old expansion or cache", async () => {
+      const { hook, fetcher } = setup();
+      await act(async () => { await hook.result.current.toggleExpand("ex-root"); });
+      expect(hook.result.current.expandedNodeTxid).toBe("ex-root");
+
+      act(() => { hook.result.current.reset(); });
+      act(() => { hook.result.current.setRoot(makeTx({ txid: "ex-root", vout: [makeVout(50000)] })); });
+      expect(hook.result.current.expandedNodeTxid).toBeNull();
+      expect(hook.result.current.outspendCache.size).toBe(0);
+
+      act(() => {
+        hook.result.current.loadGraph(
+          new Map([["ex-root", { txid: "ex-root", tx: makeTx({ txid: "ex-root" }), depth: 0 }]]),
+          "ex-root",
+          new Set(["ex-root"]),
+        );
+      });
+      expect(hook.result.current.outspendCache.size).toBe(0);
+      await act(async () => { await hook.result.current.toggleExpand("ex-root"); });
+      expect(fetcher.getTxOutspends).toHaveBeenCalledTimes(2);
     });
 
     it("expandPortOutput expands the child that spends the port once it arrives", async () => {

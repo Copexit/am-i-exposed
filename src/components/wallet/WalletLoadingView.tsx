@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { ShieldCheck } from "lucide-react";
 import { GlowCard } from "@/components/ui/GlowCard";
+import { blurInMotion } from "@/components/results/animations";
 
 type WalletPhase = "deriving" | "fetching" | "tracing" | "analyzing";
 
@@ -31,10 +32,7 @@ export function WalletLoadingView({
   return (
     <motion.div
       key="wallet-loading"
-      initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-      exit={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+      {...blurInMotion}
       className="flex flex-col items-center gap-6 w-full max-w-3xl"
     >
       <GlowCard className="w-full p-8 space-y-6">

@@ -19,6 +19,7 @@ export const COLORS = {
   surfaceElevated: "#222228",
   bitcoin: "#f7931a",
   bitcoinHover: "#e8850f",
+  violet: "#8b5cf6",
   success: "#28d065",
   warning: "#eab308",
   danger: "#ef4444",
@@ -42,15 +43,18 @@ export const LIGHT_COLORS = {
 } as const;
 
 /**
- * Chart hues with no CSS token (Tailwind default-scale values), used by SVG
- * gradients and graph encodings.
+ * Fixed chart hues (Tailwind default-scale values plus the brand green), used
+ * by SVG gradients and graph encodings. Independent of the semantic tokens, so
+ * a severity palette change never recolors a data encoding.
  */
 export const HUES = {
+  brandGreen: "#28d065",
   red300: "#fca5a5",
   red400: "#f87171",
   red600: "#dc2626",
   red800: "#991b1b",
   orange400: "#fb923c",
+  orange500: "#f97316",
   orange600: "#ea580c",
   amber300: "#fcd34d",
   amber400: "#fbbf24",
@@ -65,6 +69,7 @@ export const HUES = {
   emerald800: "#065f46",
   cyan500: "#06b6d4",
   blue300: "#93c5fd",
+  blue400: "#60a5fa",
   blue500: "#3b82f6",
   blue600: "#2563eb",
   violet400: "#a78bfa",
@@ -88,6 +93,19 @@ export const CHANGE_MARKED_COLOR = HUES.amber600;
 
 /** Dark backdrop for graph notes and edge labels (used with alpha). */
 export const NOTE_BG_COLOR = "#1e1e1e";
+
+/**
+ * Neutral tones for rasterized images (share card canvas, OG image), which
+ * cannot read CSS custom properties.
+ */
+export const IMAGE_TONES = {
+  dimText: "#787880",
+  faintText: "#505058",
+  footerText: "#4a4a52",
+  track: "#1a1a1e",
+  gridLine: "rgba(255, 255, 255, 0.03)",
+  divider: "rgba(255, 255, 255, 0.06)",
+} as const;
 
 /** Parse "#rrggbb" into an [r, g, b] tuple. */
 export function hexToRgb(hex: string): [number, number, number] {

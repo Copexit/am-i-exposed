@@ -55,8 +55,24 @@ describe("loadSavedGraph", () => {
     expect(r.failedTxids).toEqual([id("0")]);
     expect(r.nodes.get(id("a"))?.childEdge).toBeUndefined();
     expect(r.nodes.get(id("b"))?.parentEdge).toBeUndefined();
-    expect(r.rootTxid).toBe(id("a"));
+    // The first surviving saved root wins over the first loaded node
+    expect(r.rootTxid).toBe(id("b"));
     expect([...r.rootTxids]).toEqual([id("b")]);
+  });
+
+  it("falls back to the first loaded node when no saved root survives", async () => {
+    const r = await loadSavedGraph(
+      { nodes: chain, rootTxid: id("0"), rootTxids: [id("0")] },
+      fetcher(new Set([id("0")])),
+    );
+    expect(r.rootTxid).toBe(id("a"));
+    expect([...r.rootTxids]).toEqual([id("a")]);
+  });
+
+  it("keeps rootTxid a member of rootTxids", async () => {
+    const r = await loadSavedGraph({ nodes: chain, rootTxid: id("0"), rootTxids: [id("b")] }, fetcher());
+    expect(r.rootTxid).toBe(id("0"));
+    expect(r.rootTxids.has(r.rootTxid)).toBe(true);
   });
 
   it("returns an empty result when everything fails", async () => {

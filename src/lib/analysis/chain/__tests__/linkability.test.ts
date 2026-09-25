@@ -82,6 +82,31 @@ describe("buildLinkabilityMatrix - findings", () => {
     expect(buildLinkabilityMatrix(t)!.findings).toEqual([]);
   });
 
+  it("merges inputs sharing an address: 3-in with 2 on one address matches the 2-in tx", () => {
+    const three = tx([60_000, 50_000, 40_000], [90_000, 40_000]);
+    const [a, , c] = three.vin as [MempoolVin, MempoolVin, MempoolVin];
+    three.vin[2] = { ...c, prevout: { ...c.prevout!, scriptpubkey_address: a.prevout!.scriptpubkey_address } };
+    const merged = buildLinkabilityMatrix(three)!;
+    const two = buildLinkabilityMatrix(tx([100_000, 50_000], [90_000, 40_000]))!;
+
+    expect(merged.totalInterpretations).toBe(two.totalInterpretations);
+    expect(merged.deterministicLinks).toBe(two.deterministicLinks);
+    expect(merged.findings).toEqual(two.findings);
+    // The matrix keeps one row per vin: both coins of the shared address carry its links
+    expect(merged.matrix).toHaveLength(3);
+    expect(merged.matrix[2]).toEqual(merged.matrix[0]!.map((cell) => ({ ...cell, inputIndex: 2 })));
+  });
+
+  it("merges outputs sharing an address before enumeration", () => {
+    const t = tx([100_000, 50_000], [60_000, 40_000, 30_000]);
+    const [x, , z] = t.vout;
+    t.vout[2] = { ...z!, scriptpubkey_address: x!.scriptpubkey_address };
+    const merged = buildLinkabilityMatrix(t)!;
+    const two = buildLinkabilityMatrix(tx([100_000, 50_000], [90_000, 40_000]))!;
+    expect(merged.totalInterpretations).toBe(two.totalInterpretations);
+    expect(merged.findings).toEqual(two.findings);
+  });
+
   it("2-in/2-out where only the merged interpretation is valid: no finding", () => {
     // Neither input alone funds either output
     expect(buildLinkabilityMatrix(tx([50_000, 30_000], [40_000, 39_000]))!.findings).toEqual([]);

@@ -27,12 +27,26 @@ describe("graph-url-codec", () => {
     expect(decoded?.nodes.map((n) => [n.txid, n.depth])).toEqual([[A, 0], [B, 1]]);
   });
 
-  it("throws on a non-hex txid instead of encoding zero bytes", () => {
-    expect(() => encodeGraphToUrl(graph(["zz".repeat(32)]))).toThrow();
+  it("returns null (no throw) on a non-hex txid instead of encoding zero bytes", () => {
+    expect(encodeGraphToUrl(graph(["zz".repeat(32)]))).toBeNull();
   });
 
-  it("throws on a txid that is not 32 bytes", () => {
-    expect(() => encodeGraphToUrl(graph(["abcd"]))).toThrow();
+  it("returns null (no throw) on a txid that is not 32 bytes", () => {
+    expect(encodeGraphToUrl(graph(["abcd"]))).toBeNull();
+  });
+
+  it("returns null when an edge index does not fit in uint16", () => {
+    const parent = graph([A, B]);
+    parent.nodes[1]!.parentEdge = { fromTxid: A, outputIndex: 70_000 };
+    expect(encodeGraphToUrl(parent)).toBeNull();
+
+    const child = graph([A, B]);
+    child.nodes[0]!.childEdge = { toTxid: B, inputIndex: 0x10000 };
+    expect(encodeGraphToUrl(child)).toBeNull();
+
+    const max = graph([A, B]);
+    max.nodes[1]!.parentEdge = { fromTxid: A, outputIndex: 0xffff };
+    expect(decodeGraphFromUrl(encodeGraphToUrl(max)!)?.nodes[1]?.parentEdge?.outputIndex).toBe(0xffff);
   });
 
   it("rejects a well-formed header with zero nodes (no root)", () => {

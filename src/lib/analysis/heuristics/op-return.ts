@@ -17,9 +17,7 @@ export const analyzeOpReturn: TxHeuristic = (tx) => {
   // Coinbase transactions contain OP_RETURN for SegWit commitment - not a privacy leak
   if (isCoinbase(tx)) return { findings };
 
-  const opReturnOutputs = tx.vout.filter(
-    (out) => isOpReturnOutput(out),
-  );
+  const opReturnOutputs = tx.vout.filter(isOpReturnOutput);
 
   if (opReturnOutputs.length === 0) return { findings };
 

@@ -24,6 +24,12 @@ describe("isExtendedPubkey", () => {
     expect(isExtendedPubkey("xpub123")).toBe(false);
   });
 
+  it("rejects the nonexistent wpub prefix", () => {
+    expect(isExtendedPubkey(
+      "wpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8",
+    )).toBe(false);
+  });
+
   it("rejects addresses", () => {
     expect(isExtendedPubkey("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4")).toBe(false);
   });
@@ -215,6 +221,13 @@ describe("parseAndDerive - descriptor syntax", () => {
       expect(isDescriptor(bad)).toBe(false);
       expect(() => parseAndDerive(bad, 1)).toThrow();
     }
+  });
+
+  it("accepts only the receive, change or multipath chain", () => {
+    expect(isDescriptor(`wpkh(${ZPUB}/0/*)`)).toBe(true);
+    expect(isDescriptor(`wpkh(${ZPUB}/1/*)`)).toBe(true);
+    expect(isDescriptor(`wpkh(${ZPUB}/5/*)`)).toBe(false);
+    expect(() => parseAndDerive(`wpkh(${ZPUB}/1/*)`, 1)).not.toThrow();
   });
 
   it("does not claim unsupported descriptor types", () => {

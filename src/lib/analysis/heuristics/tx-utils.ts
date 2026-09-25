@@ -23,6 +23,15 @@ export function isRbfSignaling(vin: MempoolVin[]): boolean {
   return vin.some((v) => !v.is_coinbase && v.sequence < 0xfffffffe);
 }
 
+/** Distinct addresses the inputs spend from (inputs without a known prevout address are skipped). */
+export function inputAddressSet(vin: { prevout?: { scriptpubkey_address?: string } | null }[]): Set<string> {
+  const addrs = new Set<string>();
+  for (const v of vin) {
+    if (v.prevout?.scriptpubkey_address) addrs.add(v.prevout.scriptpubkey_address);
+  }
+  return addrs;
+}
+
 /** Filter transaction outputs to only spendable ones (excluding OP_RETURN). */
 export function getSpendableOutputs(vout: MempoolVout[]): MempoolVout[] {
   return vout.filter((o) => !isOpReturnOutput(o));

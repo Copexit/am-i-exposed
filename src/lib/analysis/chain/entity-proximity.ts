@@ -4,7 +4,7 @@ import { getFilter, lookupEntityName, lookupEntityCategory } from "../entity-fil
 import { getEntity } from "../entities";
 import { isCoinJoinTx } from "../heuristics/coinjoin";
 import type { TraceLayer } from "./recursive-trace";
-import { isOpReturnOutput } from "../heuristics/tx-utils";
+import { isOpReturnOutput, inputAddressSet } from "../heuristics/tx-utils";
 
 /**
  * Entity Proximity Detection
@@ -50,8 +50,7 @@ export function analyzeEntityProximity(
   const filter = getFilter();
   // The analyzed tx's own addresses reappear in its parents' outputs and its
   // children's inputs. entity-detection already scores them.
-  const ownAddresses = new Set<string>();
-  for (const vin of tx.vin) if (vin.prevout?.scriptpubkey_address) ownAddresses.add(vin.prevout.scriptpubkey_address);
+  const ownAddresses = inputAddressSet(tx.vin);
   for (const vout of tx.vout) if (vout.scriptpubkey_address) ownAddresses.add(vout.scriptpubkey_address);
 
   let nearestBackward: EntityHit | null = null;

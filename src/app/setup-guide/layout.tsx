@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 
 export const metadata: Metadata = {
   title: "Connect Your Node - Setup Guide | am-i.exposed",
@@ -42,29 +43,7 @@ export default function SetupGuideLayout({
 }) {
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "BreadcrumbList",
-            itemListElement: [
-              {
-                "@type": "ListItem",
-                position: 1,
-                name: "Home",
-                item: "https://am-i.exposed/",
-              },
-              {
-                "@type": "ListItem",
-                position: 2,
-                name: "Setup Guide",
-                item: "https://am-i.exposed/setup-guide/",
-              },
-            ],
-          }),
-        }}
-      />
+      <BreadcrumbJsonLd name="Setup Guide" path="/setup-guide/" />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{

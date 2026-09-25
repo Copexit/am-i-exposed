@@ -54,6 +54,32 @@ export function useChainalysisCheck(
     [t],
   );
 
+  const settleDone = useCallback(
+    (result: Pick<ChainalysisCheckResult, "sanctioned" | "identifications" | "matchedAddresses">, route: ChainalysisRoute) => {
+      setRouteUsed(route);
+      setChainalysis({
+        status: "done",
+        sanctioned: result.sanctioned,
+        identifications: result.identifications,
+        matchedAddresses: result.matchedAddresses,
+      });
+    },
+    [],
+  );
+
+  /** Aborts stay silent; rate limits get their own message, anything else `fallbackMsg`. */
+  const settleError = useCallback(
+    (err: unknown, fallbackMsg: string) => {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      setChainalysis((prev) => ({
+        ...prev,
+        status: "error",
+        error: err instanceof ChainalysisRateLimitError ? rateLimitedError() : fallbackMsg,
+      }));
+    },
+    [rateLimitedError],
+  );
+
   const runChainalysis = useCallback(async () => {
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -71,13 +97,7 @@ export function useChainalysisCheck(
             addresses,
             controller.signal,
           );
-          setRouteUsed(result.route);
-          setChainalysis({
-            status: "done",
-            sanctioned: result.sanctioned,
-            identifications: result.identifications,
-            matchedAddresses: result.matchedAddresses,
-          });
+          settleDone(result, result.route);
           return;
         } catch (torErr) {
           if (
@@ -101,24 +121,11 @@ export function useChainalysisCheck(
 
       // Non-Umbrel: direct check (original behavior)
       const result = await checkChainalysis(addresses, controller.signal);
-      setRouteUsed("direct");
-      setChainalysis({
-        status: "done",
-        sanctioned: result.sanctioned,
-        identifications: result.identifications,
-        matchedAddresses: result.matchedAddresses,
-      });
+      settleDone(result, "direct");
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      setChainalysis((prev) => ({
-        ...prev,
-        status: "error",
-        error: err instanceof ChainalysisRateLimitError
-          ? rateLimitedError()
-          : t("cex.requestFailed", { defaultValue: "Request failed. Check your internet connection and try again." }),
-      }));
+      settleError(err, t("cex.requestFailed", { defaultValue: "Request failed. Check your internet connection and try again." }));
     }
-  }, [addresses, isUmbrel, t, rateLimitedError]);
+  }, [addresses, isUmbrel, t, settleDone, settleError]);
 
   const runChainalysisDirect = useCallback(async () => {
     abortRef.current?.abort();
@@ -133,24 +140,11 @@ export function useChainalysisCheck(
         addresses,
         controller.signal,
       );
-      setRouteUsed(result.route);
-      setChainalysis({
-        status: "done",
-        sanctioned: result.sanctioned,
-        identifications: result.identifications,
-        matchedAddresses: result.matchedAddresses,
-      });
+      settleDone(result, result.route);
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      setChainalysis((prev) => ({
-        ...prev,
-        status: "error",
-        error: err instanceof ChainalysisRateLimitError
-          ? rateLimitedError()
-          : t("cex.errorDirectFallback", { defaultValue: "Both Tor and direct connections failed. Try restarting the app or check your internet connection." }),
-      }));
+      settleError(err, t("cex.errorDirectFallback", { defaultValue: "Both Tor and direct connections failed. Try restarting the app or check your internet connection." }));
     }
-  }, [addresses, t, rateLimitedError]);
+  }, [addresses, t, settleDone, settleError]);
 
   return {
     chainalysis,

@@ -62,6 +62,32 @@ export const ExpandedNode = memo(function ExpandedNode({
   const overflowInputs = node.tx.vin.length - MAX_VISIBLE_PORTS;
   const overflowOutputs = node.tx.vout.length - MAX_VISIBLE_PORTS;
 
+  const renderPorts = (ports: typeof inputPorts, side: "input" | "output") =>
+    ports.map((port, pi) => {
+      const portKey = `${node.txid}:${side}:${port.index}`;
+      const onExpand = side === "input" ? onExpandInput : onExpandOutput;
+      return (
+        <motion.g
+          key={portKey}
+          initial={{ opacity: 0, x: side === "input" ? -6 : 6 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: pi * 0.03, duration: 0.2 }}
+        >
+          <PortRow
+            port={port}
+            side={side}
+            x={node.x}
+            nodeWidth={node.width}
+            hoveredPort={hoveredPort}
+            portKey={portKey}
+            onHover={onHoverPort}
+            onClick={() => onExpand(node.txid, port.index)}
+            canExpand={port.isExpandable && !atCapacity}
+          />
+        </motion.g>
+      );
+    });
+
   return (
     <g style={{ cursor: onMouseDown ? "grab" : "pointer" }}>
       {/* Node background */}
@@ -120,55 +146,9 @@ export const ExpandedNode = memo(function ExpandedNode({
         strokeWidth={0.5}
       />
 
-      {/* Input ports (left side) - staggered entry */}
-      {inputPorts.map((port, pi) => {
-        const portKey = `${node.txid}:input:${port.index}`;
-        return (
-          <motion.g
-            key={portKey}
-            initial={{ opacity: 0, x: -6 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: pi * 0.03, duration: 0.2 }}
-          >
-            <PortRow
-              port={port}
-              side="input"
-              x={node.x}
-              nodeWidth={node.width}
-              hoveredPort={hoveredPort}
-              portKey={portKey}
-              onHover={onHoverPort}
-              onClick={() => onExpandInput(node.txid, port.index)}
-              canExpand={port.isExpandable && !atCapacity}
-            />
-          </motion.g>
-        );
-      })}
-
-      {/* Output ports (right side) - staggered entry */}
-      {outputPorts.map((port, pi) => {
-        const portKey = `${node.txid}:output:${port.index}`;
-        return (
-          <motion.g
-            key={portKey}
-            initial={{ opacity: 0, x: 6 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: pi * 0.03, duration: 0.2 }}
-          >
-            <PortRow
-              port={port}
-              side="output"
-              x={node.x}
-              nodeWidth={node.width}
-              hoveredPort={hoveredPort}
-              portKey={portKey}
-              onHover={onHoverPort}
-              onClick={() => onExpandOutput(node.txid, port.index)}
-              canExpand={port.isExpandable && !atCapacity}
-            />
-          </motion.g>
-        );
-      })}
+      {/* Input ports (left side), output ports (right side) - staggered entry */}
+      {renderPorts(inputPorts, "input")}
+      {renderPorts(outputPorts, "output")}
 
       {/* Overflow indicators */}
       {overflowInputs > 0 && (

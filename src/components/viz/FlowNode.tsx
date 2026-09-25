@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { Group } from "@visx/group";
 import { Text } from "@visx/text";
 import { SVG_COLORS, ANIMATION_DEFAULTS } from "./shared/svgConstants";
+import { addressActivationProps } from "./shared/addressActivation";
 import { formatSats } from "@/lib/format";
 import type { SankeyComputedNode } from "./shared/sankeyTypes";
 import type { FlowNodeDatum } from "./buildFlowGraph";
@@ -69,13 +70,7 @@ export function FlowNode({
           onHoverEnter(n, e);
         }}
         onMouseLeave={onHoverLeave}
-        onClick={() => { if (n.fullAddress && onAddressClick) onAddressClick(n.fullAddress); }}
-        onKeyDown={(e: React.KeyboardEvent) => {
-          if ((e.key === "Enter" || e.key === " ") && n.fullAddress && onAddressClick) {
-            e.preventDefault();
-            onAddressClick(n.fullAddress);
-          }
-        }}
+        {...addressActivationProps(n.fullAddress, onAddressClick)}
       />
 
       <motion.rect

@@ -45,26 +45,6 @@ interface StoredTraceLayer {
   txs: Record<string, MempoolTransaction>;
 }
 
-/** What gets stored in IDB (layers as plain objects). */
-interface StoredAnalysisResult {
-  phase: "complete";
-  query: string;
-  inputType: InputType;
-  result: ScoringResult | null;
-  txData: MempoolTransaction | null;
-  addressData: MempoolAddress | null;
-  addressTxs: MempoolTransaction[] | null;
-  addressUtxos: MempoolUtxo[] | null;
-  txBreakdown: TxAnalysisResult[] | null;
-  preSendResult: PreSendResult | null;
-  durationMs: number | null;
-  usdPrice: number | null;
-  outspends: MempoolOutspend[] | null;
-  backwardLayers: StoredTraceLayer[] | null;
-  forwardLayers: StoredTraceLayer[] | null;
-  boltzmannResult: BoltzmannWorkerResult | null;
-}
-
 /** Deserialized analysis result returned from getCachedResult. */
 interface CachedAnalysisResult {
   phase: "complete";
@@ -84,6 +64,12 @@ interface CachedAnalysisResult {
   forwardLayers: TraceLayer[] | null;
   boltzmannResult: BoltzmannWorkerResult | null;
 }
+
+/** What gets stored in IDB (layers as plain objects). */
+type StoredAnalysisResult = Omit<CachedAnalysisResult, "backwardLayers" | "forwardLayers"> & {
+  backwardLayers: StoredTraceLayer[] | null;
+  forwardLayers: StoredTraceLayer[] | null;
+};
 
 /**
  * Cache version - bump when computation logic changes (WASM rebuild, heuristic

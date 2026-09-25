@@ -6,30 +6,30 @@
  */
 
 import { getSurfaceColors } from "../shared/svgConstants";
-import { COLORS, HUES } from "@/lib/palette";
+import { HUES } from "@/lib/palette";
 
 // ─── Script type colors ─────────────────────────────────────────
 
 /** Edge color by scriptpubkey_type (OXT conventions). */
 export const SCRIPT_TYPE_COLORS = {
   // Legacy
-  p2pk: COLORS.severityGood,  // green
-  p2pkh: COLORS.severityGood, // green
+  p2pk: HUES.brandGreen,  // green
+  p2pkh: HUES.brandGreen, // green
 
   // Native SegWit
-  v0_p2wpkh: COLORS.severityLow, // light blue
+  v0_p2wpkh: HUES.blue400, // light blue
   v0_p2wsh: HUES.cyan500,     // teal
 
   // Taproot
   v1_p2tr: HUES.violet400,    // purple
 
   // Wrapped (P2SH)
-  p2sh: COLORS.severityHigh,          // orange
-  "p2sh-p2wpkh": COLORS.severityHigh, // orange
-  "p2sh-p2wsh": COLORS.severityHigh,  // orange
+  p2sh: HUES.orange500,          // orange
+  "p2sh-p2wpkh": HUES.orange500, // orange
+  "p2sh-p2wsh": HUES.orange500,  // orange
 
   // Multisig
-  multisig: COLORS.severityHigh,      // orange
+  multisig: HUES.orange500,      // orange
 
   // Special
   op_return: HUES.stone500,    // warm gray (data-only, not a payment)

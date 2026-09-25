@@ -85,11 +85,12 @@ export async function loadSavedGraph(
     }
   }
 
-  const rootTxid = nodes.has(saved.rootTxid) ? saved.rootTxid : (nodes.keys().next().value ?? "");
-  const rootTxids = new Set(
-    saved.rootTxids.filter((t) => nodes.has(t)),
-  );
-  if (rootTxids.size === 0 && rootTxid) rootTxids.add(rootTxid);
+  // Root: the saved root, else the first surviving saved root, else the first loaded node
+  const rootTxids = new Set(saved.rootTxids.filter((t) => nodes.has(t)));
+  const rootTxid = nodes.has(saved.rootTxid)
+    ? saved.rootTxid
+    : (rootTxids.values().next().value ?? nodes.keys().next().value ?? "");
+  if (rootTxid) rootTxids.add(rootTxid);
 
   return { nodes, rootTxid, rootTxids, failedTxids };
 }

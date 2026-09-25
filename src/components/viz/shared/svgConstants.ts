@@ -2,32 +2,20 @@ import type { Grade, Severity } from "@/lib/types";
 import { GRADE_HEX } from "@/lib/constants";
 import { COLORS, HUES, LIGHT_COLORS } from "@/lib/palette";
 
-interface SurfaceColors {
-  readonly background: string;
-  readonly foreground: string;
-  readonly muted: string;
-  readonly cardBg: string;
-  readonly cardBorder: string;
-  readonly surfaceInset: string;
-  readonly surfaceElevated: string;
-}
+type SurfaceKey = keyof typeof LIGHT_COLORS;
+type SurfaceColors = Readonly<Record<SurfaceKey, string>>;
 
-export const DARK_SURFACES: SurfaceColors = {
-  background: COLORS.background,
-  foreground: COLORS.foreground,
-  muted: COLORS.muted,
-  cardBg: COLORS.cardBg,
-  cardBorder: COLORS.cardBorder,
-  surfaceInset: COLORS.surfaceInset,
-  surfaceElevated: COLORS.surfaceElevated,
-};
+/** Theme-dependent keys: the ones the light theme overrides. */
+const SURFACE_KEY_LIST = Object.keys(LIGHT_COLORS) as SurfaceKey[];
 
-const LIGHT_SURFACES: SurfaceColors = LIGHT_COLORS;
+export const DARK_SURFACES: SurfaceColors = Object.fromEntries(
+  SURFACE_KEY_LIST.map((k) => [k, COLORS[k]]),
+) as SurfaceColors;
 
 /** Returns surface colors matching the current theme. Safe to call at render time. */
 export function getSurfaceColors(): SurfaceColors {
   if (typeof document === "undefined") return DARK_SURFACES;
-  return document.documentElement.dataset.theme === "light" ? LIGHT_SURFACES : DARK_SURFACES;
+  return document.documentElement.dataset.theme === "light" ? LIGHT_COLORS : DARK_SURFACES;
 }
 
 type SvgColorMap = {
@@ -57,7 +45,7 @@ const STATIC_COLORS: Record<string, string> = {
   bitcoinHover: COLORS.bitcoinHover,
 };
 
-const SURFACE_KEYS = new Set(Object.keys(DARK_SURFACES));
+const SURFACE_KEYS = new Set<string>(SURFACE_KEY_LIST);
 
 /**
  * Hex colors for SVG fills/strokes. Surface properties (background, foreground,
@@ -69,7 +57,7 @@ export const SVG_COLORS: SvgColorMap = new Proxy(
   {
     get(target, prop: string) {
       if (SURFACE_KEYS.has(prop)) {
-        return getSurfaceColors()[prop as keyof typeof DARK_SURFACES];
+        return getSurfaceColors()[prop as SurfaceKey];
       }
       return (target as unknown as Record<string, string>)[prop];
     },

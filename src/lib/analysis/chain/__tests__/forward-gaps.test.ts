@@ -45,6 +45,30 @@ describe("analyzeForward - toxic change merge", () => {
     expect(f?.params?.mergeCount).toBe(1);
   });
 
+  it("describes the merge without claiming the other inputs are post-mix (not verified)", () => {
+    const tx0 = makeTx0();
+    const child = makeTx({
+      txid: OTHER(2),
+      vin: [makeVin({ txid: TX0_ID, vout: 4 }), makeVin({ txid: OTHER(3), vout: 0 })],
+      vout: [makeVout({ value: 1_400_000 })],
+    });
+    const f = analyzeForward(tx0, spentBy(child.txid, 5, [4]), new Map([[4, child]]))
+      .findings.find((x) => x.id === "chain-toxic-merge");
+    expect(f?.title).toBe("Toxic change spent together with other UTXOs");
+    expect(f?.description).toContain("in the same transaction as other UTXOs");
+  });
+
+  it("ignores a child whose outspend is not marked spent", () => {
+    const tx0 = makeTx0();
+    const child = makeTx({
+      txid: OTHER(2),
+      vin: [makeVin({ txid: TX0_ID, vout: 4 }), makeVin({ txid: OTHER(3), vout: 0 })],
+      vout: [makeVout({ value: 1_400_000 })],
+    });
+    const res = analyzeForward(tx0, spentBy(child.txid, 5, []), new Map([[4, child]]));
+    expect(res.toxicMergeOutputs).toEqual([]);
+  });
+
   it("does not flag premix outputs that enter a Whirlpool mix (normal remix flow)", () => {
     const tx0 = makeTx0();
     // Whirlpool mix: 5 inputs of 1M from 5 different tx0s, 5 equal outputs

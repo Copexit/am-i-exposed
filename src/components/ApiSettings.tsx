@@ -14,6 +14,7 @@ import { LocaleSelector } from "@/components/settings/LocaleSelector";
 import { EntityFilterStatus } from "@/components/settings/EntityFilterStatus";
 import { useExperienceMode } from "@/hooks/useExperienceMode";
 import { useTheme } from "@/hooks/useTheme";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 type NetworkOption = { value: BitcoinNetwork; label: string; dot: string };
 const NETWORKS: [NetworkOption, ...NetworkOption[]] = [
@@ -61,32 +62,7 @@ export function ApiSettings() {
   }, [open]);
 
   // Focus trap when panel is open
-  useEffect(() => {
-    if (!open || !panelRef.current) return;
-    const savedFocus = document.activeElement as HTMLElement | null;
-    function handleTrap(e: KeyboardEvent) {
-      if (e.key !== "Tab" || !panelRef.current) return;
-      const focusable = panelRef.current.querySelectorAll<HTMLElement>(
-        'button, input, select, a, [tabindex]:not([tabindex="-1"])'
-      );
-      if (focusable.length === 0) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (!first || !last) return;
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    }
-    document.addEventListener("keydown", handleTrap);
-    return () => {
-      document.removeEventListener("keydown", handleTrap);
-      savedFocus?.focus();
-    };
-  }, [open]);
+  useFocusTrap(panelRef, open);
 
   return (
     <div className="relative">

@@ -12,7 +12,6 @@ test("switching language to es translates the UI and persists across reloads", a
   await page.getByLabel("Select language").selectOption("es");
 
   await expect(page.locator("html")).toHaveAttribute("lang", "es");
-  await expect(page.getByText("Idioma", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Seleccionar idioma")).toHaveValue("es");
 
   await page.reload();

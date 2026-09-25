@@ -51,6 +51,15 @@ describe("parseEntityIndex", () => {
     expect(h).toEqual([...h].sort((a, b) => a - b));
   });
 
+  it("accepts duplicate hashes (one address under two entity ids)", () => {
+    // Production indexes contain such duplicates: sorted order is non-decreasing, not strict
+    const idx = parseEntityIndex(
+      buildEidx({ names: [["Alpha Exchange", 0], ["Beta Market", 1]], entries: [[A1, 0], [A1, 1], [A2, 1]] }),
+    );
+    expect(idx).not.toBeNull();
+    expect(idx!.hashes).toHaveLength(3);
+  });
+
   it("parses v1 (no category bytes) with exchange fallback", () => {
     const idx = parseEntityIndex(
       buildEidx({ version: 1, names: [["Old", 0], ["Older", 0]], entries: [[A1, 1]] }),

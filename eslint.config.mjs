@@ -57,6 +57,20 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // cli/tsconfig.json includes the DOM libs (shared src/lib code needs them),
+  // so tsc cannot catch browser globals in Node-side CLI code.
+  {
+    files: ["cli/src/**"],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        ...["window", "document", "localStorage", "sessionStorage", "navigator"].map((name) => ({
+          name,
+          message: "CLI runs in Node",
+        })),
+      ],
+    },
+  },
   // Type-aware promise checks.
   {
     files: ["src/**/*.ts", "src/**/*.tsx"],

@@ -37,8 +37,8 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
   // Filter to spendable outputs (exclude OP_RETURN and other non-spendable)
   const valuedOutputs = getValuedOutputs(tx.vout);
   // UTXOs sharing an address are one party (see mergeByAddress)
-  const inputs = mergeByAddress(nonCoinbaseVin.map((v) => ({ address: v.prevout!.scriptpubkey_address, value: v.prevout!.value })));
-  const outputs = mergeByAddress(valuedOutputs.map((o) => ({ address: o.scriptpubkey_address, value: o.value })));
+  const inputs = mergeByAddress(nonCoinbaseVin.map((v) => ({ address: v.prevout!.scriptpubkey_address, value: v.prevout!.value }))).values;
+  const outputs = mergeByAddress(valuedOutputs.map((o) => ({ address: o.scriptpubkey_address, value: o.value }))).values;
   const merged = inputs.length !== nonCoinbaseVin.length || outputs.length !== valuedOutputs.length;
 
   // Coinbase transactions have no privacy implications; burns have no fund flow

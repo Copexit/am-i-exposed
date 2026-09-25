@@ -6,7 +6,7 @@
  * No worker or browser dependencies - safe to use in tests and SSR.
  */
 
-import { getValuedOutputs } from "./heuristics/tx-utils";
+import { countOutputValues, getValuedOutputs } from "./heuristics/tx-utils";
 
 /** Auto-compute when total UTXOs (inputs + outputs) is under this threshold. */
 const AUTO_COMPUTE_MAX_TOTAL = 20;
@@ -17,23 +17,28 @@ export const MAX_SUPPORTED_TOTAL = 80;
 /** Maximum supported total for WabiSabi (tier-decomposed, no DFS). */
 export const MAX_SUPPORTED_TOTAL_WABISABI = 800;
 
+/**
+ * Most frequent value appearing at least twice (ties go to the larger value).
+ * Returns count 0 when no value repeats.
+ */
+function dominantEqualValue(values: number[]): { amount: number; count: number } {
+  let amount = 0;
+  let count = 0;
+  for (const [val, n] of countOutputValues(values.map((value) => ({ value })))) {
+    if (n >= 2 && (n > count || (n === count && val > amount))) {
+      amount = val;
+      count = n;
+    }
+  }
+  return { amount, count };
+}
+
 /** Detect intrafees for CoinJoin pattern. */
 export function detectIntrafees(
   outputValues: number[],
   maxRatio: number,
 ): { feesMaker: number; feesTaker: number; hasCjPattern: boolean } {
-  const valueCounts = new Map<number, number>();
-  for (const v of outputValues) {
-    valueCounts.set(v, (valueCounts.get(v) ?? 0) + 1);
-  }
-  let bestAmount = 0;
-  let bestCount = 0;
-  for (const [val, count] of valueCounts) {
-    if (count >= 2 && (count > bestCount || (count === bestCount && val > bestAmount))) {
-      bestAmount = val;
-      bestCount = count;
-    }
-  }
+  const { amount: bestAmount, count: bestCount } = dominantEqualValue(outputValues);
 
   if (bestCount < 2 || outputValues.length > 2 * bestCount) {
     return { feesMaker: 0, feesTaker: 0, hasCjPattern: false };
@@ -49,24 +54,7 @@ export function detectJoinMarketForTurbo(
   inputValues: number[],
   outputValues: number[],
 ): { isJoinMarket: boolean; denomination: number } {
-  const valueCounts = new Map<number, number>();
-  for (const v of outputValues) {
-    valueCounts.set(v, (valueCounts.get(v) ?? 0) + 1);
-  }
-
-  let bestAmount = 0;
-  let bestCount = 0;
-  for (const [val, count] of valueCounts) {
-    if (count >= 2 && (count > bestCount || (count === bestCount && val > bestAmount))) {
-      bestAmount = val;
-      bestCount = count;
-    }
-  }
-
-  if (bestCount < 2) return { isJoinMarket: false, denomination: 0 };
-
-  const equalCount = bestCount;
-  const denomination = bestAmount;
+  const { amount: denomination, count: equalCount } = dominantEqualValue(outputValues);
 
   // JoinMarket requires at least 3 equal outputs (2 makers + 1 taker minimum).
   // This eliminates Stonewall (always 2 equal), batch payments with coincidental

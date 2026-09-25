@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 
 const TERMS = [
   { term: "Address Reuse", definition: "Using the same Bitcoin address for multiple transactions. Creates deterministic links between all transactions involving that address, severely degrading privacy." },
@@ -77,29 +78,7 @@ export default function GlossaryLayout({
 }) {
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "BreadcrumbList",
-            itemListElement: [
-              {
-                "@type": "ListItem",
-                position: 1,
-                name: "Home",
-                item: "https://am-i.exposed/",
-              },
-              {
-                "@type": "ListItem",
-                position: 2,
-                name: "Glossary",
-                item: "https://am-i.exposed/glossary/",
-              },
-            ],
-          }),
-        }}
-      />
+      <BreadcrumbJsonLd name="Glossary" path="/glossary/" />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{

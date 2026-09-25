@@ -85,6 +85,41 @@ describe("scanChain", () => {
     expect(calls).toBe(3);
   });
 
+  it.each([
+    ["NOT_FOUND", new ApiError("NOT_FOUND", "HTTP 404", 404)],
+    ["4xx API_UNAVAILABLE", new ApiError("API_UNAVAILABLE", "HTTP 400", 400)],
+    ["INVALID_INPUT", new ApiError("INVALID_INPUT")],
+  ])("does not retry a deterministic %s error", async (_label, err) => {
+    let calls = 0;
+    const api = {
+      getAddress: async (a: string) => addressData(a, 0),
+      getAddressUtxos: async () => [],
+      getAddressTxs: async () => { calls++; throw err; },
+    } as unknown as MempoolClient;
+    const p = settle(scanChain(parsed, 0, api, new AbortController().signal, true, 5, () => {}));
+    await vi.runAllTimersAsync();
+    await p;
+    // One attempt per address, stopping after 3 failed addresses in a row
+    expect(calls).toBe(3);
+  });
+
+  it.each([
+    ["RATE_LIMITED", new ApiError("RATE_LIMITED", "HTTP 429", 429)],
+    ["5xx API_UNAVAILABLE", new ApiError("API_UNAVAILABLE", "HTTP 503", 503)],
+  ])("retries a transient %s error ADDRESS_RETRIES times", async (_label, err) => {
+    let calls = 0;
+    const api = {
+      getAddress: async (a: string) => addressData(a, 0),
+      getAddressUtxos: async () => [],
+      getAddressTxs: async () => { calls++; throw err; },
+    } as unknown as MempoolClient;
+    const p = settle(scanChain(parsed, 0, api, new AbortController().signal, true, 5, () => {}));
+    await vi.runAllTimersAsync();
+    await p;
+    // 1 + ADDRESS_RETRIES (2) attempts per address, 3 addresses
+    expect(calls).toBe(9);
+  });
+
   it("keeps an address whose UTXO list the backend refuses (>500 UTXOs), with no UTXOs", async () => {
     let utxoCalls = 0;
     const api = {

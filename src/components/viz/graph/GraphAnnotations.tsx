@@ -132,15 +132,16 @@ export function GraphAnnotations({
     const borderColor = isSelected ? ANNOTATION_ACCENT : (a.color || DEFAULT_BORDER);
     const interactionStyle: React.CSSProperties = { pointerEvents: annotateMode ? "all" : "none", cursor: annotateMode ? "move" : "default" };
 
+    // Shape body plus where the selection chrome (delete button, resize handle) sits
+    let shape: React.ReactNode;
+    let deleteAt: [number, number];
+    let resizeAt: [number, number] | null = null;
+
     if (a.type === "note") {
       const w = a.width ?? DEFAULT_NOTE_W;
       const h = a.height ?? DEFAULT_NOTE_H;
-      return (
-        <g key={a.id} data-annotation={a.id}
-          onMouseDown={(e) => handleAnnotationMouseDown(e, a)}
-          onDoubleClick={(e) => handleAnnotationDoubleClick(e, a)}
-          style={interactionStyle}
-        >
+      shape = (
+        <>
           <rect x={a.x} y={a.y} width={w} height={h} rx={6}
             fill={NOTE_BG} stroke={borderColor} strokeWidth={isSelected ? 1.5 : 1} />
           {isEditing ? (
@@ -157,21 +158,15 @@ export function GraphAnnotations({
               )}
             </>
           )}
-          {isSelected && renderDeleteBtn(a.x + w - 4, a.y - 4, a.id)}
-          {isSelected && renderResizeHandle(a.x + w, a.y + h, a)}
-        </g>
+        </>
       );
-    }
-
-    if (a.type === "rect") {
+      deleteAt = [a.x + w - 4, a.y - 4];
+      resizeAt = [a.x + w, a.y + h];
+    } else if (a.type === "rect") {
       const w = a.width ?? 120;
       const h = a.height ?? 80;
-      return (
-        <g key={a.id} data-annotation={a.id}
-          onMouseDown={(e) => handleAnnotationMouseDown(e, a)}
-          onDoubleClick={(e) => handleAnnotationDoubleClick(e, a)}
-          style={interactionStyle}
-        >
+      shape = (
+        <>
           <rect x={a.x} y={a.y} width={w} height={h} rx={4}
             fill={ANNOTATION_ACCENT_FILL} stroke={borderColor} strokeWidth={isSelected ? 1.5 : 1} strokeDasharray="6 4" />
           {isEditing ? (
@@ -179,20 +174,14 @@ export function GraphAnnotations({
           ) : a.title ? (
             <Text x={a.x + w / 2} y={a.y + h / 2 + 4} fontSize={11} fontWeight={600} fill={ANNOTATION_ACCENT} textAnchor="middle" width={w - NOTE_PAD * 2}>{a.title}</Text>
           ) : null}
-          {isSelected && renderDeleteBtn(a.x + w - 4, a.y - 4, a.id)}
-          {isSelected && renderResizeHandle(a.x + w, a.y + h, a)}
-        </g>
+        </>
       );
-    }
-
-    if (a.type === "circle") {
+      deleteAt = [a.x + w - 4, a.y - 4];
+      resizeAt = [a.x + w, a.y + h];
+    } else if (a.type === "circle") {
       const r = a.radius ?? 50;
-      return (
-        <g key={a.id} data-annotation={a.id}
-          onMouseDown={(e) => handleAnnotationMouseDown(e, a)}
-          onDoubleClick={(e) => handleAnnotationDoubleClick(e, a)}
-          style={interactionStyle}
-        >
+      shape = (
+        <>
           <circle cx={a.x} cy={a.y} r={r}
             fill={ANNOTATION_ACCENT_FILL} stroke={borderColor} strokeWidth={isSelected ? 1.5 : 1} strokeDasharray="6 4" />
           {isEditing ? (
@@ -200,12 +189,24 @@ export function GraphAnnotations({
           ) : a.title ? (
             <Text x={a.x} y={a.y + 4} fontSize={11} fontWeight={600} fill={ANNOTATION_ACCENT} textAnchor="middle" width={r * 1.4}>{a.title}</Text>
           ) : null}
-          {isSelected && renderDeleteBtn(a.x + r * 0.7, a.y - r * 0.7, a.id)}
-        </g>
+        </>
       );
+      deleteAt = [a.x + r * 0.7, a.y - r * 0.7];
+    } else {
+      return null;
     }
 
-    return null;
+    return (
+      <g key={a.id} data-annotation={a.id}
+        onMouseDown={(e) => handleAnnotationMouseDown(e, a)}
+        onDoubleClick={(e) => handleAnnotationDoubleClick(e, a)}
+        style={interactionStyle}
+      >
+        {shape}
+        {isSelected && renderDeleteBtn(deleteAt[0], deleteAt[1], a.id)}
+        {isSelected && resizeAt && renderResizeHandle(resizeAt[0], resizeAt[1], a)}
+      </g>
+    );
   };
 
   return (

@@ -114,6 +114,24 @@ describe("useGraphBoltzmann", () => {
     }
   });
 
+  it("resumes skipped eager computes once the busy job settles", async () => {
+    computeBoltzmann.mockResolvedValue(fakeResult("two-in"));
+    const unregister = onPoolTerminate(() => {}); // e.g. the heatmap's manual compute
+    try {
+      const { result } = renderHook(() => useGraphBoltzmann({ nodes: NODES_twoIn, rootTxid: "two-in" }));
+      await act(async () => { await vi.advanceTimersByTimeAsync(400); });
+      expect(computeBoltzmann).not.toHaveBeenCalled();
+
+      unregister(); // the heatmap job resolved: the pool is idle, graph unchanged
+      await act(async () => { await vi.advanceTimersByTimeAsync(600); }); // idle poll fires
+      await act(async () => { await vi.advanceTimersByTimeAsync(400); }); // re-run debounce
+      expect(computeBoltzmann).toHaveBeenCalledTimes(1);
+      expect(result.current.getBoltzmannResult("two-in")?.id).toBe("two-in");
+    } finally {
+      terminatePool();
+    }
+  });
+
   it("stops the eager queue once another job preempts it", async () => {
     const twoInB = makeTx({ txid: "two-in-b", vin: [makeVin(), makeVin()], vout: [makeVout(), makeVout({ value: 40000 })] });
     const first = deferred<BoltzmannWorkerResult | null>();

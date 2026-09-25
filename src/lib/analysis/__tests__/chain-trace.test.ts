@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { runChainTrace } from "../chain-trace";
 import { ApiError } from "@/lib/api/fetch-with-retry";
+import { createMempoolClient } from "@/lib/api/mempool";
 import { makeTx, makeVin, makeVout } from "../heuristics/__tests__/fixtures/tx-factory";
 import type { AnalysisSettings } from "@/lib/analysis/settings";
 import type { FetchProgress } from "@/lib/analysis/analysis-state";
@@ -18,7 +19,7 @@ const settings: AnalysisSettings = {
 };
 
 function params(
-  api: { getTransaction: (txid: string) => Promise<MempoolTransaction> },
+  api: { getTransaction: (txid: string, signal?: AbortSignal) => Promise<MempoolTransaction> },
   onProgress: (p: FetchProgress) => void = () => {},
 ) {
   return {
@@ -107,9 +108,15 @@ describe("runChainTrace", () => {
     });
   });
 
-  it("stops a phase at its half timeout even while a request is still in flight", async () => {
+  it("stops a phase at its half timeout and aborts the in-flight request", async () => {
     vi.useFakeTimers();
-    const hung = vi.fn(() => new Promise<MempoolTransaction>(() => {}));
+    const signals: (AbortSignal | undefined)[] = [];
+    const hung = vi.fn((_txid: string, signal?: AbortSignal) => {
+      signals.push(signal);
+      return new Promise<MempoolTransaction>((_, reject) => {
+        signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+      });
+    });
     // timeout 4s -> 2s per phase; forward has nothing to fetch (outspends known)
     const p = runChainTrace({ ...params({ getTransaction: hung }), settings: { ...settings, timeout: 4 } });
     let done = false;
@@ -118,5 +125,29 @@ describe("runChainTrace", () => {
     expect(done).toBe(true);
     expect((await p).backwardFailed).toBe(true);
     expect(hung).toHaveBeenCalledTimes(1);
+    expect(signals[0]?.aborted).toBe(true);
+  });
+
+  it("aborts the underlying fetch when the backward phase times out", async () => {
+    vi.useFakeTimers();
+    const fetchSignals: AbortSignal[] = [];
+    vi.stubGlobal("fetch", vi.fn((_url: string, init: RequestInit) => {
+      const signal = init.signal as AbortSignal;
+      fetchSignals.push(signal);
+      return new Promise<Response>((_, reject) => {
+        signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+      });
+    }));
+    try {
+      const api = createMempoolClient("https://mempool.space/api", { timeoutMs: 60_000 });
+      const p = runChainTrace({ ...params(api), api, settings: { ...settings, maxDepth: 1, timeout: 4 } });
+      await vi.advanceTimersByTimeAsync(2_000);
+      const res = await p;
+      expect(res.backwardFailed).toBe(true);
+      expect(fetchSignals.length).toBeGreaterThan(0);
+      expect(fetchSignals.every((s) => s.aborted)).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

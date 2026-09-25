@@ -160,8 +160,10 @@ export function analyzeBackwardTaint(
       .map(([cat, frac]) => `${Math.round(frac * 100)}% ${cat}`)
       .join(", ");
 
-    const severity = totalTaintFraction >= 0.8 ? "high" as const
-      : totalTaintFraction >= 0.3 ? "medium" as const
+    // Severity follows the scored (parent) taint, like the impact: hop-0
+    // entity inputs are entity-detection's to score.
+    const severity = parentTaintFraction >= 0.8 ? "high" as const
+      : parentTaintFraction >= 0.3 ? "medium" as const
       : "low" as const;
     const impact = parentTaintFraction >= 0.8 ? -5
       : parentTaintFraction >= 0.3 ? -3
@@ -187,6 +189,8 @@ export function analyzeBackwardTaint(
       params: {
         taintPct: pct,
         sourceCount: aggregatedTaint.size,
+        // Lets compound scoring tell whether entity proximity found the same entity
+        sourceCategories: [...aggregatedTaint.keys()].join(","),
       },
     });
   }

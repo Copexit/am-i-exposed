@@ -79,6 +79,8 @@ export function useGraphBoltzmann({
   const computingBoltzmannRef = useRef<Set<string>>(new Set());
   const [computingBoltzmann, setComputingBoltzmann] = useState<Set<string>>(() => new Set());
   const [boltzmannProgressMap, setBoltzmannProgressMap] = useState<Map<string, number>>(new Map());
+  /** Bumped to re-run the eager loop without a graph change (pool went idle, manual compute done). */
+  const [eagerRetry, setEagerRetry] = useState(0);
 
   // Abort controller for the current computation cycle
   const boltzmannAbortRef = useRef<AbortController | null>(null);
@@ -134,6 +136,8 @@ export function useGraphBoltzmann({
     const ac = new AbortController();
     boltzmannAbortRef.current = ac;
     await computeSingleBoltzmann(txid, ac.signal);
+    // The abort above also stopped the eager loop: resume it
+    if (!ac.signal.aborted) setEagerRetry((n) => n + 1);
   }, [computeSingleBoltzmann]);
 
   // 1-input txs are trivially deterministic: derive their results from the graph.
@@ -149,6 +153,11 @@ export function useGraphBoltzmann({
   // Debounced by 300ms so rapid node additions (e.g. auto-trace) don't cause WASM churn.
   useEffect(() => {
     if (paused) return;
+    let idlePoll: ReturnType<typeof setTimeout> | undefined;
+    // ponytail: polls isPoolBusy(); an idle event from boltzmann-pool would avoid the timer
+    const retryWhenIdle = () => {
+      idlePoll = setTimeout(() => (isPoolBusy() ? retryWhenIdle() : setEagerRetry((n) => n + 1)), 500);
+    };
     const debounceTimer = setTimeout(() => {
       // Abort previous computation cycle before starting a new one
       boltzmannAbortRef.current?.abort();
@@ -169,9 +178,10 @@ export function useGraphBoltzmann({
         // Fire-and-forget: the callee catches its own errors.
         void (async () => {
           for (const { txid } of queue) {
+            if (ac.signal.aborted) break;
             // Yield to any other job on the shared pool (heatmap, pipeline):
-            // starting a compute would preempt it. The next graph change retries.
-            if (ac.signal.aborted || isPoolBusy()) break;
+            // starting a compute would preempt it. Retry once the pool is idle.
+            if (isPoolBusy()) { retryWhenIdle(); break; }
             await computeSingleBoltzmann(txid, ac.signal);
           }
         })();
@@ -180,9 +190,10 @@ export function useGraphBoltzmann({
 
     return () => {
       clearTimeout(debounceTimer);
+      clearTimeout(idlePoll);
       boltzmannAbortRef.current?.abort();
     };
-  }, [nodes, computeSingleBoltzmann, paused]);
+  }, [nodes, computeSingleBoltzmann, paused, eagerRetry]);
 
   const boltzmannCache = useMemo(() => {
     const merged = new Map([...syntheticCache, ...computedCache]);

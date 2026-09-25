@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, XCircle } from "lucide-react";
 import type { Finding } from "@/lib/types";
 import { MISTAKES } from "@/data/guide/mistakes";
+import { Collapse } from "./ui/Collapse";
 
 interface CommonMistakesProps {
   findings: Finding[];
@@ -42,38 +42,28 @@ export function CommonMistakes({ findings, grade }: CommonMistakesProps) {
           aria-hidden="true"
         />
       </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div id="common-mistakes-panel" className="mt-2 space-y-2">
-              {visibleMistakes.map((mistake, i) => (
-                <div
-                  key={i}
-                  className="bg-severity-high/5 border border-severity-high/15 rounded-lg px-4 py-3"
-                >
-                  <div className="flex items-start gap-2">
-                    <XCircle size={14} className="text-severity-high shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium text-foreground/90">
-                        {t(mistake.titleKey, { defaultValue: mistake.titleDefault })}
-                      </p>
-                      <p className="text-sm text-muted mt-1 leading-relaxed">
-                        {t(mistake.descKey, { defaultValue: mistake.descDefault })}
-                      </p>
-                    </div>
-                  </div>
+      <Collapse open={open}>
+        <div id="common-mistakes-panel" className="mt-2 space-y-2">
+          {visibleMistakes.map((mistake, i) => (
+            <div
+              key={i}
+              className="bg-severity-high/5 border border-severity-high/15 rounded-lg px-4 py-3"
+            >
+              <div className="flex items-start gap-2">
+                <XCircle size={14} className="text-severity-high shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-foreground/90">
+                    {t(mistake.titleKey, { defaultValue: mistake.titleDefault })}
+                  </p>
+                  <p className="text-sm text-muted mt-1 leading-relaxed">
+                    {t(mistake.descKey, { defaultValue: mistake.descDefault })}
+                  </p>
                 </div>
-              ))}
+              </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          ))}
+        </div>
+      </Collapse>
     </div>
   );
 }

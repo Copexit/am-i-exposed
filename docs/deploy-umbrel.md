@@ -480,12 +480,10 @@ Requires prior auth: `echo "$GHCR_TOKEN" | docker login ghcr.io -u USERNAME --pa
 | Test | Network | Result |
 |------|---------|--------|
 | Health check `/health` | - | `ok` |
-| API proxy `/api/blocks/tip/height` | signet | Block height (e.g. 292382) |
-| Network-prefix `/signet/api/tx/{txid}` | signet | JSON tx data |
+| API proxy `/api/blocks/tip/height` | - | Block height of the local node |
 | ConnectionBadge | - | Green "Local" shield |
 | Whirlpool CoinJoin (Tier 1, mainnet) | mainnet | A+ 100/100 |
 | Satoshi address (Tier 1, mainnet) | mainnet | F 0/100 |
-| Signet tx analysis (Tier 2) | signet | C 53/100 |
 | App install/uninstall | - | Clean both ways |
 | Tor detection skipped on Umbrel | - | No requests to tor-check.copexit.workers.dev |
 | Chainalysis via Tor (Tier 2) | - | Pending verification |

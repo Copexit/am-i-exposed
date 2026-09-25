@@ -13,17 +13,16 @@ import { ExpandedNode } from "./ExpandedNode";
 import { NodeBadges } from "./NodeBadges";
 import { PrivacySparkline } from "./PrivacySparkline";
 import { NodeExpandButtons } from "./NodeExpandButtons";
-import { NodeLabelAnnotation } from "./NodeLabelAnnotation";
+import { NodeLabelAnnotation, type NodeLabelAnnotationProps } from "./NodeLabelAnnotation";
 import type { LayoutNode, LayoutEdge, GraphNode, TooltipData } from "./types";
 import type { MempoolOutspend } from "@/lib/api/types";
 import type { ScoringResult } from "@/lib/types";
-import type { EditingLabel } from "./useLabelEditor";
 import type { useChartTooltip } from "../shared/ChartTooltip";
 import { isOpReturnOutput } from "@/lib/analysis/heuristics/tx-utils";
 
 // ─── Props ──────────────────────────────────────────────────────
 
-interface GraphNodeRendererProps {
+type GraphNodeRendererProps = Omit<NodeLabelAnnotationProps, "node"> & {
   node: LayoutNode;
   graphNodes: Map<string, GraphNode>;
   edges: LayoutEdge[];
@@ -62,15 +61,7 @@ interface GraphNodeRendererProps {
   viewTransform?: { x: number; y: number; scale: number };
   hoveredPort: string | null;
   setHoveredPort: (port: string | null) => void;
-  annotateMode?: boolean;
-  nodeLabels?: Map<string, string>;
-  onSetNodeLabel?: (txid: string, label: string) => void;
-  editingLabel: EditingLabel | null;
-  editLabelText: string;
-  setEditLabelText: (text: string) => void;
-  startEditNodeLabel: (txid: string) => void;
-  commitLabel: () => void;
-}
+};
 
 export function GraphNodeRenderer({
   node,
@@ -110,14 +101,7 @@ export function GraphNodeRenderer({
   viewTransform,
   hoveredPort,
   setHoveredPort,
-  annotateMode,
-  nodeLabels,
-  onSetNodeLabel,
-  editingLabel,
-  editLabelText,
-  setEditLabelText,
-  startEditNodeLabel,
-  commitLabel,
+  ...labelProps
 }: GraphNodeRendererProps) {
   const { t } = useTranslation();
 
@@ -322,14 +306,7 @@ export function GraphNodeRenderer({
 
       <NodeLabelAnnotation
         node={node}
-        annotateMode={annotateMode}
-        nodeLabels={nodeLabels}
-        onSetNodeLabel={onSetNodeLabel}
-        editingLabel={editingLabel}
-        editLabelText={editLabelText}
-        setEditLabelText={setEditLabelText}
-        startEditNodeLabel={startEditNodeLabel}
-        commitLabel={commitLabel}
+        {...labelProps}
       />
     </motion.g>
   );

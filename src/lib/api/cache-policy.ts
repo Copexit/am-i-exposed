@@ -23,19 +23,20 @@ const TTL_1_HOUR = 60 * 60 * 1000;
 const TTL_12_HOURS = 12 * 60 * 60 * 1000;
 
 /**
- * Derive the network name from a mempool.space base URL.
- * - Contains "/testnet4/" -> "testnet4"
- * - Contains "/signet/" -> "signet"
- * - Contains "/testnet/" -> "testnet3" (mempool.space legacy path for testnet3)
+ * Derive the network name from a mempool.space base URL path.
+ * - Path segment "testnet4" -> "testnet4"
+ * - Path segment "signet" -> "signet"
+ * - Path segment "testnet" -> "testnet3" (mempool.space legacy path for testnet3)
  * - Otherwise -> "mainnet"
  *
- * Order matters: "/testnet4" must be checked before "/testnet" since the
- * former contains the latter as a substring.
+ * Only the pathname is inspected, so a host like signet-node.local is not
+ * mistaken for signet.
  */
 export function networkFromUrl(url: string): string {
-  if (url.includes("/testnet4")) return "testnet4";
-  if (url.includes("/signet")) return "signet";
-  if (url.includes("/testnet")) return "testnet3";
+  const segments = new URL(url, "http://x").pathname.split("/");
+  if (segments.includes("testnet4")) return "testnet4";
+  if (segments.includes("signet")) return "signet";
+  if (segments.includes("testnet")) return "testnet3";
   return "mainnet";
 }
 
@@ -87,10 +88,10 @@ export function withCachePolicy(
   withCache: WithCache,
 ): MempoolClient {
   return {
-    getTransaction(txid: string) {
+    getTransaction(txid: string, signal?: AbortSignal) {
       return withCache(
         `${prefix}:tx:${txid}`,
-        () => inner.getTransaction(txid),
+        () => inner.getTransaction(txid, signal),
         (tx) => tx.status?.confirmed ? undefined : TTL_10_MIN,
       );
     },
@@ -130,10 +131,10 @@ export function withCachePolicy(
       );
     },
 
-    getTxOutspends(txid: string) {
+    getTxOutspends(txid: string, signal?: AbortSignal) {
       return withCache(
         `${prefix}:outspend:${txid}`,
-        () => inner.getTxOutspends(txid),
+        () => inner.getTxOutspends(txid, signal),
         () => TTL_1_HOUR,
       );
     },

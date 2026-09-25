@@ -240,9 +240,9 @@ const DESCRIPTOR_WRAPPERS: { open: string; close: string; scriptType: ScriptType
   { open: "sh(wpkh(", close: "))", scriptType: "p2sh-p2wpkh" },
 ];
 
-/** Key expression: optional [fingerprint/origin], xpub, optional /chain/* or /<0;1>/* (BIP-389) */
+/** Key expression: optional [fingerprint/origin], xpub, optional /0/*, /1/* or /<0;1>/* (BIP-389) */
 const DESCRIPTOR_KEY_RE =
-  /^(?:\[[a-fA-F0-9]{8}(?:\/\d+['h]?)*\])?([xyztuv]pub[1-9A-HJ-NP-Za-km-z]+)(?:\/(\d+|<0;1>)\/\*)?$/;
+  /^(?:\[[a-fA-F0-9]{8}(?:\/\d+['h]?)*\])?([xyztuv]pub[1-9A-HJ-NP-Za-km-z]+)(?:\/(0|1|<0;1>)\/\*)?$/;
 
 interface ParsedDescriptor {
   scriptType: ScriptType;
@@ -290,8 +290,7 @@ function parseDescriptor(descriptor: string): ParsedDescriptor | null {
 
 /** Check if a string looks like an xpub, ypub, zpub, tpub, upub, or vpub. */
 export function isExtendedPubkey(input: string): boolean {
-  return /^[xyztuvw]pub[a-zA-Z0-9]{100,120}$/.test(input) ||
-    /^tpub[a-zA-Z0-9]{100,120}$/.test(input);
+  return /^[xyztuv]pub[a-zA-Z0-9]{100,120}$/.test(input);
 }
 
 /**

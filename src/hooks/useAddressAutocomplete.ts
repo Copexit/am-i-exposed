@@ -64,7 +64,9 @@ export function useAddressAutocomplete() {
       return;
     }
 
-    const isAddressPrefix = (network === "mainnet" ? MAINNET_PREFIX_RE : TESTNET_PREFIX_RE).test(trimmed);
+    // bech32 is case-insensitive (QR codes use uppercase); base58 is not
+    const addrQuery = /^(?:bc1|tb1)/i.test(trimmed) ? trimmed.toLowerCase() : trimmed;
+    const isAddressPrefix = (network === "mainnet" ? MAINNET_PREFIX_RE : TESTNET_PREFIX_RE).test(addrQuery);
 
     // Path 1: Address prefix autocomplete (API call with debounce)
     if (isAddressPrefix && isOwnNode && trimmed.length >= MIN_PREFIX_LENGTH) {
@@ -77,7 +79,7 @@ export function useAddressAutocomplete() {
 
         try {
           const client = createApiClient(config, controller.signal);
-          const results = await client.getAddressPrefix(trimmed);
+          const results = await client.getAddressPrefix(addrQuery);
           if (seq === seqRef.current && results.length > 0) {
             setSuggestions(results.map((addr) => ({ type: "address" as const, value: addr })));
             setSelectedIndex(-1);

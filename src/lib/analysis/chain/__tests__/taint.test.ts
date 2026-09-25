@@ -58,13 +58,13 @@ describe("analyzeBackwardTaint", () => {
     expect(r.findings).toHaveLength(1);
     const f = r.findings[0]!;
     expect(f.id).toBe("chain-taint-backward");
-    expect(f.severity).toBe("medium");
     // Direct entity inputs are scored by entity-detection, not again here
     expect(f.scoreImpact).toBe(0);
+    expect(f.severity).toBe("low");
     expect(f.title).toBe("30% of input value traceable to known entities");
     expect(f.description).toContain("30% exchange");
     expect(f.recommendation).toMatch(/^Some funds are traceable/);
-    expect(f.params).toEqual({ taintPct: 30, sourceCount: 1 });
+    expect(f.params).toEqual({ taintPct: 30, sourceCount: 1, sourceCategories: "exchange" });
   });
 
   it("propagates one-hop parent taint with the haircut method", () => {
@@ -96,7 +96,8 @@ describe("analyzeBackwardTaint", () => {
     expect(r.inputSources.get(0)).toEqual([{ category: "exchange", entityName: "Binance", fraction: 1, hops: 0 }]);
     expect(r.outputTaint.get(0)?.total).toBe(1);
     const f = r.findings[0]!;
-    expect(f.severity).toBe("high");
+    // All taint is hop 0: severity follows the (zero) scored parent taint
+    expect(f.severity).toBe("low");
     expect(f.scoreImpact).toBe(0);
     expect(f.recommendation).toMatch(/^A majority of funds/);
   });
@@ -129,10 +130,20 @@ describe("analyzeBackwardTaint", () => {
     expect(f?.params?.taintPct).toBe(10);
   });
 
-  it("treats exactly 80% as high severity", () => {
+  it("treats exactly 80% parent taint as high severity", () => {
+    const parent = makeTx({ txid: id(5), vin: [vinFrom("bc1qpool", 80_000), vinFrom("bc1qz", 20_000)] });
+    const tx = makeTx({ vin: [vinFrom("bc1qme", 100_000, parent.txid)] });
+    const f = analyzeBackwardTaint(tx, layers(parent), checker).findings[0];
+    expect(f?.severity).toBe("high");
+    expect(f?.scoreImpact).toBe(-5);
+    expect(f?.params?.taintPct).toBe(80);
+  });
+
+  it("only input-address (hop 0) taint: no score impact and low severity", () => {
     const tx = makeTx({ vin: [vinFrom("bc1qpool", 80_000), vinFrom("bc1qz", 20_000)] });
     const f = analyzeBackwardTaint(tx, layers(), checker).findings[0];
-    expect(f?.severity).toBe("high");
+    expect(f?.scoreImpact).toBe(0);
+    expect(f?.severity).toBe("low");
     expect(f?.params?.taintPct).toBe(80);
   });
 
@@ -182,7 +193,7 @@ describe("analyzeBackwardTaint", () => {
     expect(r.findings[0]?.params?.taintPct).toBe(100);
   });
 
-  it("terminates on cyclic layer data (self-referencing parent)", () => {
+  it("weights a self-referencing parent once (one hop only)", () => {
     // Malformed trace where the parent claims to spend itself: taint is still one hop
     const loop = makeTx({ txid: id(10), vin: [vinFrom("bc1qpool", 50_000, id(10)), vinFrom("bc1qa", 50_000, id(10))] });
     const tx = makeTx({ vin: [vinFrom("bc1qme", 100_000, loop.txid)] });

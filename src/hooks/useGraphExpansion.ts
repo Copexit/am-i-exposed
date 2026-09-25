@@ -60,15 +60,78 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
   const autoTraceAbortRef = useRef<AbortController | null>(null);
   const [autoTracing, setAutoTracing] = useState(false);
   const [autoTraceProgress, setAutoTraceProgress] = useState<AutoTraceProgress | null>(null);
+  /** Why the last finished trace stopped (unspent, threshold, ...); null while tracing or after a cancel. */
+  const [lastAutoTraceStop, setLastAutoTraceStop] = useState<string | null>(null);
 
   const cancelAutoTrace = useCallback(() => {
     autoTraceAbortRef.current?.abort();
     setAutoTracing(false);
     setAutoTraceProgress(null);
+    setLastAutoTraceStop(null);
   }, []);
 
   // Stop a running trace on unmount so it makes no further requests
   useEffect(() => () => autoTraceAbortRef.current?.abort(), []);
+
+  // ---- Expanded node state (UTXO port mode) ----
+
+  // Both are tagged with the root they belong to, so a root change resets them
+  // by derivation; RESET and LOAD_GRAPH also clear them explicitly, since they
+  // can land back on the same root. An expanded node that left the graph
+  // (collapsed, or its ADD_NODE was rejected at capacity) is not expanded.
+  const [expanded, setExpanded] = useState<{ root: string; txid: string | null }>({ root: "", txid: null });
+  const expandedNodeTxid =
+    expanded.root === state.rootTxid && expanded.txid && state.nodes.has(expanded.txid) ? expanded.txid : null;
+
+  const [outspends, setOutspends] = useState<{ root: string; cache: ReadonlyMap<string, MempoolOutspend[]> }>(
+    { root: "", cache: EMPTY_OUTSPENDS },
+  );
+  const outspendCache = outspends.root === state.rootTxid ? outspends.cache : EMPTY_OUTSPENDS;
+  // Written synchronously next to every setOutspends, so back-to-back calls see the latest cache
+  const outspendsRef = useRef(outspends);
+  // In-flight fetches by txid, so concurrent expands share one request
+  const outspendsInflight = useRef(new Map<string, Promise<void>>());
+  // Bumped when the cache is cleared, so a fetch from before the clear is dropped
+  const outspendsGen = useRef(0);
+
+  const clearExpansion = useCallback(() => {
+    outspendsGen.current++;
+    outspendsInflight.current.clear();
+    const empty = { root: "", cache: EMPTY_OUTSPENDS };
+    outspendsRef.current = empty;
+    setOutspends(empty);
+    setExpanded({ root: "", txid: null });
+  }, []);
+
+  const fetchAndCacheOutspends = useCallback((txid: string, root: string): Promise<void> => {
+    const current = outspendsRef.current;
+    if (current.root === root && current.cache.has(txid)) return Promise.resolve();
+    const client = fetcherRef.current;
+    if (!client) return Promise.resolve();
+    const key = `${root}:${txid}`;
+    const pending = outspendsInflight.current.get(key);
+    if (pending) return pending;
+
+    const gen = outspendsGen.current;
+    const request = (async () => {
+      try {
+        const result = await client.getTxOutspends(txid);
+        // The graph was replaced while this was in flight - the entry belongs to the old graph.
+        if (stateRef.current.rootTxid !== root || outspendsGen.current !== gen) return;
+        const prev = outspendsRef.current;
+        const next = { root, cache: new Map(prev.root === root ? prev.cache : []).set(txid, result) };
+        outspendsRef.current = next;
+        setOutspends(next);
+      } catch {
+        // Outspends unavailable - not critical, ports still render without spend status
+      } finally {
+        if (outspendsGen.current === gen) outspendsInflight.current.delete(key);
+      }
+    })();
+    outspendsInflight.current.set(key, request);
+    return request;
+  }, []);
+
 
   // ---- Root initialization actions ----
 
@@ -83,8 +146,9 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     rootTxids: Set<string>,
   ) => {
     cancelAutoTrace();
+    clearExpansion();
     dispatch({ type: "LOAD_GRAPH", nodes, rootTxid, rootTxids });
-  }, [cancelAutoTrace]);
+  }, [cancelAutoTrace, clearExpansion]);
 
   const setRootWithNeighbors = useCallback((
     root: MempoolTransaction,
@@ -140,8 +204,9 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
 
   const reset = useCallback(() => {
     cancelAutoTrace();
+    clearExpansion();
     dispatch({ type: "RESET" });
-  }, [cancelAutoTrace]);
+  }, [cancelAutoTrace, clearExpansion]);
 
   // Auto-clear errors after 5 seconds
   useEffect(() => {
@@ -152,40 +217,6 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     }
     return () => timers.forEach(clearTimeout);
   }, [state.errors]);
-
-  // ---- Expanded node state (UTXO port mode) ----
-
-  // Both are tagged with the root they belong to, so a root change resets them
-  // by derivation. An expanded node that left the graph (collapsed, or its
-  // ADD_NODE was rejected at capacity) is not expanded.
-  const [expanded, setExpanded] = useState<{ root: string; txid: string | null }>({ root: "", txid: null });
-  const expandedNodeTxid =
-    expanded.root === state.rootTxid && expanded.txid && state.nodes.has(expanded.txid) ? expanded.txid : null;
-
-  const [outspends, setOutspends] = useState<{ root: string; cache: ReadonlyMap<string, MempoolOutspend[]> }>(
-    { root: "", cache: EMPTY_OUTSPENDS },
-  );
-  const outspendCache = outspends.root === state.rootTxid ? outspends.cache : EMPTY_OUTSPENDS;
-  const outspendsRef = useRef(outspends);
-  useEffect(() => { outspendsRef.current = outspends; }, [outspends]);
-
-  const fetchAndCacheOutspends = useCallback(async (txid: string, root: string) => {
-    const current = outspendsRef.current;
-    if (current.root === root && current.cache.has(txid)) return;
-    const client = fetcherRef.current;
-    if (!client) return;
-    try {
-      const result = await client.getTxOutspends(txid);
-      // The graph was replaced while this was in flight - the entry belongs to the old root.
-      if (stateRef.current.rootTxid !== root) return;
-      setOutspends((prev) => ({
-        root,
-        cache: new Map(prev.root === root ? prev.cache : []).set(txid, result),
-      }));
-    } catch {
-      // Outspends unavailable - not critical, ports still render without spend status
-    }
-  }, []);
 
   /** Expand a node's UTXO ports and load its spend status. */
   const expandNode = useCallback(async (txid: string) => {
@@ -238,7 +269,9 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     autoTraceAbortRef.current?.abort();
     const ac = new AbortController();
     autoTraceAbortRef.current = ac;
-    await runAutoTrace(client, startTxid, startOutputIndex, maxHops, ac.signal, makeAutoTraceCallbacks(ac.signal));
+    setLastAutoTraceStop(null);
+    const stop = await runAutoTrace(client, startTxid, startOutputIndex, maxHops, ac.signal, makeAutoTraceCallbacks(ac.signal));
+    if (!ac.signal.aborted) setLastAutoTraceStop(stop);
   }, [makeAutoTraceCallbacks]);
 
   const autoTraceLinkability = useCallback(async (
@@ -251,7 +284,9 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     autoTraceAbortRef.current?.abort();
     const ac = new AbortController();
     autoTraceAbortRef.current = ac;
-    await runAutoTraceLinkability(client, startTxid, startOutputIndex, ac.signal, makeAutoTraceCallbacks(ac.signal), opts);
+    setLastAutoTraceStop(null);
+    const stop = await runAutoTraceLinkability(client, startTxid, startOutputIndex, ac.signal, makeAutoTraceCallbacks(ac.signal), opts);
+    if (!ac.signal.aborted) setLastAutoTraceStop(stop);
   }, [makeAutoTraceCallbacks]);
 
   return {
@@ -285,6 +320,7 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     cancelAutoTrace,
     autoTracing,
     autoTraceProgress,
+    lastAutoTraceStop,
     autoTraceLinkability,
   };
 }

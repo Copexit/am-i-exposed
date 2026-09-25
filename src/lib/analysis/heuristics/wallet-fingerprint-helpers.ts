@@ -63,8 +63,9 @@ function derRLength(hex: string): number | null {
  * Bitcoin Core since 0.17 grinds nonces so R always fits in 32 bytes (saving
  * 1 byte). Other wallets produce a 33-byte R about 50% of the time.
  *
- * Returns true only if at least one DER signature is present and every DER
- * signature has R <= 32 bytes. Taproot (Schnorr) inputs carry no DER
+ * Returns true only if at least two DER signatures are present and every DER
+ * signature has R <= 32 bytes (a single low-R signature happens by chance
+ * about half the time, so it is not evidence of grinding). Taproot (Schnorr) inputs carry no DER
  * signatures and are ignored.
  */
 export function detectLowRSignatures(vin: MempoolVin[]): boolean {
@@ -80,7 +81,7 @@ export function detectLowRSignatures(vin: MempoolVin[]): boolean {
       totalSigs++;
     }
   }
-  return totalSigs > 0;
+  return totalSigs >= 2;
 }
 
 /** Collected signal flags from transaction metadata. */

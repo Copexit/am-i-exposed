@@ -23,11 +23,16 @@ describe("searchEntitiesByPrefix ordering and limits", () => {
     }
   });
 
-  it("returns the entity's first sample addresses in order", () => {
-    const [first, second] = searchEntitiesByPrefix("bi", 200);
-    const src = byName.get(first!.entityName)!.sampleAddresses!;
-    expect(first!.address).toBe(src[0]);
-    if (second?.entityName === first!.entityName) expect(second.address).toBe(src[1]);
+  it("returns the entity's first two sample addresses in order", () => {
+    const src = byName.get("Binance")!.sampleAddresses!;
+    expect(src.length).toBeGreaterThanOrEqual(3);
+    const got = searchEntitiesByPrefix("binance", 200).filter((r) => r.entityName === "Binance");
+    expect(got.map((r) => r.address)).toEqual(src.slice(0, 2));
+  });
+
+  it("returns nothing for a zero or negative limit", () => {
+    expect(searchEntitiesByPrefix("bi", 0)).toEqual([]);
+    expect(searchEntitiesByPrefix("bi", -1)).toEqual([]);
   });
 
   it("stops exactly at the limit, even mid-entity", () => {

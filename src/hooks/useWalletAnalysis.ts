@@ -211,12 +211,15 @@ export function useWalletAnalysis() {
       } catch (err) {
         if (controller.signal.aborted) return;
 
-        const { message } = mapApiErrorMessage(err, t, {
-          isUmbrel,
-          isCustomApi,
-          // Parse errors (invalid xpub/descriptor) carry a useful message
-          fallback: err instanceof Error ? err.message : undefined,
-        });
+        // Parse errors (invalid xpub/descriptor) carry a useful message;
+        // descriptor.ts throws English, so translate the checksum ones here
+        const raw = err instanceof Error ? err.message : undefined;
+        const fallback = raw?.startsWith("Invalid descriptor checksum format")
+          ? t("errors.descriptorChecksumFormat", { defaultValue: "Invalid descriptor checksum format: expected 8 characters after '#'." })
+          : raw?.startsWith("Descriptor checksum mismatch")
+            ? t("errors.descriptorChecksumMismatch", { defaultValue: "Descriptor checksum mismatch: the descriptor may be mistyped or truncated." })
+            : raw;
+        const { message } = mapApiErrorMessage(err, t, { isUmbrel, isCustomApi, fallback });
 
         setState(prev => ({
           ...prev,

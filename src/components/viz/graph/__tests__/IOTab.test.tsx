@@ -46,6 +46,13 @@ describe("IOTab auto-trace progress", () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
+  it("shows why the last trace stopped once tracing has ended", () => {
+    const { getByText, rerender, queryByText } = render(<IOTab {...baseProps} autoTraceStop="unspent" />);
+    expect(getByText("Trace stopped: unspent")).toBeTruthy();
+    rerender(<IOTab {...baseProps} autoTracing autoTraceProgress={{ hop: 1, txid: "x", reason: "expanding" }} autoTraceStop="unspent" />);
+    expect(queryByText("Trace stopped: unspent")).toBeNull();
+  });
+
   it("has no Stop button when not tracing", () => {
     const { queryByRole } = render(<IOTab {...baseProps} onCancelAutoTrace={vi.fn()} />);
     expect(queryByRole("button", { name: "Stop" })).toBeNull();

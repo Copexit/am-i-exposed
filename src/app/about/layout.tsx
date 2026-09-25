@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 
 export const metadata: Metadata = {
   title: "About - Why am-i.exposed Exists | Bitcoin Privacy Scanner",
@@ -38,29 +39,7 @@ export default function AboutLayout({
 }) {
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "BreadcrumbList",
-            itemListElement: [
-              {
-                "@type": "ListItem",
-                position: 1,
-                name: "Home",
-                item: "https://am-i.exposed/",
-              },
-              {
-                "@type": "ListItem",
-                position: 2,
-                name: "About",
-                item: "https://am-i.exposed/about/",
-              },
-            ],
-          }),
-        }}
-      />
+      <BreadcrumbJsonLd name="About" path="/about/" />
       {children}
     </>
   );

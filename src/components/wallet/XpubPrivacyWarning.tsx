@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import { ShieldAlert, X } from "lucide-react";
+import { useFocusTrap } from "@/hooks/useFocusTrap";
 
 interface XpubPrivacyWarningProps {
   addressCount: number;
@@ -24,41 +25,18 @@ export function XpubPrivacyWarning({
   const { t } = useTranslation();
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
-  const prevFocusRef = useRef<Element | null>(null);
 
-  // Focus trap + escape key
+  // Focus trap (restores the previous focus on unmount) + escape key
+  useFocusTrap(dialogRef, true);
   useEffect(() => {
-    prevFocusRef.current = document.activeElement;
     dialogRef.current?.focus();
-
+  }, []);
+  useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        onCancel();
-      }
-      if (e.key === "Tab" && dialogRef.current) {
-        const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, [tabindex]:not([tabindex="-1"])',
-        );
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (!first || !last) return;
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
+      if (e.key === "Escape") onCancel();
     }
-
     document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      if (prevFocusRef.current instanceof HTMLElement) {
-        prevFocusRef.current.focus();
-      }
-    };
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onCancel]);
 
   const handleConfirm = useCallback(() => {

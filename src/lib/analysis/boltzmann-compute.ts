@@ -232,6 +232,14 @@ function runSingleWorkerCompute(
   );
 }
 
+/** Progress with an ETA extrapolated from the elapsed time; `map` rescales the fraction onto the overall bar. */
+function etaProgress(fraction: number, elapsedMs: number, map: (f: number) => number): BoltzmannProgress {
+  const estimatedRemainingMs = fraction > 0.05
+    ? Math.max(0, Math.round((elapsedMs / fraction) * (1 - fraction)))
+    : null;
+  return { fraction: map(fraction), elapsedMs, estimatedRemainingMs };
+}
+
 /** Multi-worker parallel compute path. */
 async function runMultiWorkerCompute(
   id: string,
@@ -257,39 +265,29 @@ async function runMultiWorkerCompute(
     );
   }
 
+  // A terminatePool() between the passes (preemption) leaves `pool` dead;
+  // run 1 must not be posted to it, or it would wait forever.
+  let preempted = false;
+  const unregister = onPoolTerminate(() => { preempted = true; });
+
   try {
-    const progressCallback = (fraction: number, elapsedMs: number) => {
-      if (signal?.aborted || !onProgress) return;
-      let estimatedRemainingMs: number | null = null;
-      if (fraction > 0.05) {
-        estimatedRemainingMs = Math.max(0, Math.round((elapsedMs / fraction) * (1 - fraction)));
-      }
-      const adjustedFraction = hasCjPattern ? fraction * 0.5 : fraction;
-      onProgress({ fraction: adjustedFraction, elapsedMs, estimatedRemainingMs });
+    const report = (map: (f: number) => number) => (fraction: number, elapsedMs: number) => {
+      if (!signal?.aborted && onProgress) onProgress(etaProgress(fraction, elapsedMs, map));
     };
 
-    // Run 0: no intrafees
+    // Run 0: no intrafees (the first half of the bar when a run 1 follows)
     const run0Result = await runParallelPass(
       pool, id, inputValues, outputValues, fee,
-      0, 0, timeoutMs, progressCallback,
+      0, 0, timeoutMs, report((f) => (hasCjPattern ? f * 0.5 : f)),
     );
 
-    if (signal?.aborted) return null;
+    if (signal?.aborted || preempted) return null;
 
     // Run 1: with intrafees (if CoinJoin pattern detected and run 0 didn't timeout)
     if (hasCjPattern && !run0Result.timedOut && feesMaker > 0) {
-      const progress1 = (fraction: number, elapsedMs: number) => {
-        if (signal?.aborted || !onProgress) return;
-        let estimatedRemainingMs: number | null = null;
-        if (fraction > 0.05) {
-          estimatedRemainingMs = Math.max(0, Math.round((elapsedMs / fraction) * (1 - fraction)));
-        }
-        onProgress({ fraction: 0.5 + fraction * 0.5, elapsedMs, estimatedRemainingMs });
-      };
-
       const run1Result = await runParallelPass(
         pool, id, inputValues, outputValues, fee,
-        feesMaker, feesTaker, timeoutMs, progress1,
+        feesMaker, feesTaker, timeoutMs, report((f) => 0.5 + f * 0.5),
       );
 
       if (signal?.aborted) return null;
@@ -304,5 +302,7 @@ async function runMultiWorkerCompute(
     // runParallelPass already dropped the pool on worker errors; on preemption
     // the pool now belongs to another job and must not be terminated here.
     return null;
+  } finally {
+    unregister();
   }
 }

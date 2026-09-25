@@ -29,13 +29,15 @@ test("graph page loads a root, expands an input, and restores a saved graph", as
   await expect(page.getByText(label(ROOT.txid))).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText(label(PARENT_TXID))).toHaveCount(0);
 
-  // The first expand button on the lone root node is its backward (input) "+"
-  await page.locator("g.graph-btn").first().click();
+  // The lone root node's backward (input) "+"
+  await page.getByRole("button", { name: "Expand inputs" }).first().click();
   await expect(page.getByText(label(PARENT_TXID))).toBeVisible();
 
   await page.getByTitle("Save graph (S)").click();
-  await page.getByPlaceholder("Graph name...").fill("E2E graph");
-  await page.getByRole("button", { name: "Save", exact: true }).last().click();
+  const nameInput = page.getByPlaceholder("Graph name...");
+  await nameInput.fill("E2E graph");
+  // Scope to the save panel (the input's container), not the toolbar's Save toggle
+  await nameInput.locator("..").getByRole("button", { name: "Save", exact: true }).click();
 
   // With no hash and no root, the page restores the most recently saved graph
   await page.goto("/graph/");

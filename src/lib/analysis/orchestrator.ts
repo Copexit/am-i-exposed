@@ -14,6 +14,7 @@ import { getEntity } from "./entities";
 import { enrichFindingsWithMetadata } from "./finding-metadata";
 import { TX_HEURISTICS, ADDRESS_HEURISTICS, tick } from "./heuristic-registry";
 import { runTxHeuristics, finalizeTxResult } from "./tx-pipeline";
+import { runAddressHeuristics } from "./address-orchestrator";
 
 export { runTxHeuristics, finalizeTxResult } from "./tx-pipeline";
 
@@ -105,23 +106,7 @@ export async function analyzeAddress(
   txs: MempoolTransaction[],
   onStep?: (stepId: string, impact?: number) => void,
 ): Promise<ScoringResult> {
-  const allFindings: Finding[] = [];
-
-  for (const heuristic of ADDRESS_HEURISTICS) {
-    onStep?.(heuristic.id);
-    await tick();
-
-    try {
-      const result = heuristic.fn(address, utxos, txs);
-      allFindings.push(...result.findings);
-
-      const stepImpact = sumImpact(result.findings);
-      onStep?.(heuristic.id, stepImpact);
-    } catch (err) {
-      console.error(`[analyzeAddress] ${heuristic.id} failed:`, err);
-      onStep?.(heuristic.id, 0);
-    }
-  }
+  const allFindings = await runAddressHeuristics(address, utxos, txs, onStep, "analyzeAddress");
 
   // Entity identification: check the target address against entity databases
   const entityMatch = matchEntitySync(address.address);

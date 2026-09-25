@@ -4,6 +4,7 @@ import React from "react";
 import { render, act, cleanup, screen } from "@testing-library/react";
 import { NETWORK_CONFIG, type BitcoinNetwork, type NetworkConfig } from "@/lib/bitcoin/networks";
 import type { SavedGraph } from "@/lib/graph/saved-graph-types";
+import type { GraphExplorerProps } from "@/components/viz/GraphExplorer";
 
 const TX_A = "a".repeat(64);
 const TX_B = "b".repeat(64);
@@ -18,11 +19,11 @@ const h = vi.hoisted(() => ({
   setRoot: vi.fn(),
   loadGraph: vi.fn(),
   loadSavedGraph: vi.fn(),
-  explorerProps: {} as Record<string, (...args: never[]) => unknown>,
+  explorerProps: {} as Partial<GraphExplorerProps>,
 }));
 
 /** A callback prop captured from the mocked GraphExplorer; throws if it was never passed. */
-function explorerProp(name: string) {
+function explorerProp<K extends keyof GraphExplorerProps>(name: K): NonNullable<GraphExplorerProps[K]> {
   const fn = h.explorerProps[name];
   if (!fn) throw new Error(`GraphExplorer prop "${name}" was not captured`);
   return fn;
@@ -60,7 +61,7 @@ vi.mock("@/hooks/useGraphExpansion", () => ({
 vi.mock("@/lib/graph/graph-loader", () => ({ loadSavedGraph: h.loadSavedGraph }));
 vi.mock("@/hooks/useSavedGraphs", () => ({ savedGraphStore: { getSnapshot: () => [] } }));
 vi.mock("@/components/viz/GraphExplorer", () => ({
-  GraphExplorer: (props: Record<string, (...args: never[]) => unknown>) => {
+  GraphExplorer: (props: GraphExplorerProps) => {
     h.explorerProps = props;
     return null;
   },
@@ -137,7 +138,7 @@ describe("GraphPage", () => {
     await renderPage();
     h.calls = [];
     act(() => {
-      explorerProp("onSearch")(TX_B as never);
+      explorerProp("onSearch")(TX_B);
     });
     await flush();
     expect(h.calls.map(([, t]) => t)).toEqual([TX_B]);
@@ -150,10 +151,10 @@ describe("GraphPage", () => {
     h.delays = { [TX_A]: 500, [TX_B]: 10 };
     // Same-hash reload path + a new-hash path, back to back
     act(() => {
-      explorerProp("onSearch")(TX_A as never);
+      explorerProp("onSearch")(TX_A);
     });
     act(() => {
-      explorerProp("onSearch")(TX_B as never);
+      explorerProp("onSearch")(TX_B);
     });
     await flush();
     expect(h.setRoot.mock.calls.map(([tx]) => (tx as { txid: string }).txid)).toEqual([TX_B]);
@@ -168,12 +169,12 @@ describe("GraphPage", () => {
     });
     const saved = { id: "g", name: "", savedAt: 0, network: "mainnet", nodes: [], rootTxid: TX_A } as unknown as SavedGraph;
     act(() => {
-      void explorerProp("onLoadSavedGraph")(saved as never);
+      void explorerProp("onLoadSavedGraph")(saved);
     });
     expect(screen.queryByText(/3\/20/)).not.toBeNull();
     h.delays = { [TX_B]: 500 };
     act(() => {
-      explorerProp("onSearch")(TX_B as never);
+      explorerProp("onSearch")(TX_B);
     });
     await flush(100);
     expect(screen.queryByText(/3\/20/)).toBeNull();
@@ -185,7 +186,7 @@ describe("GraphPage", () => {
     await renderPage();
     const saved = { id: "g", name: "", savedAt: 0, network: "signet", nodes: [], rootTxid: TX_A } as unknown as SavedGraph;
     await act(async () => {
-      await explorerProp("onLoadSavedGraph")(saved as never);
+      await explorerProp("onLoadSavedGraph")(saved);
     });
     expect((h.net.setNetwork as ReturnType<typeof vi.fn>)).toHaveBeenCalledWith("signet");
     const fetcher = h.loadSavedGraph.mock.calls[0]?.[1] as { base: string };
@@ -198,7 +199,7 @@ describe("GraphPage", () => {
     await renderPage();
     const saved = { id: "g", name: "", savedAt: 0, network: "signet", nodes: [], rootTxid: TX_A } as unknown as SavedGraph;
     await act(async () => {
-      await explorerProp("onLoadSavedGraph")(saved as never);
+      await explorerProp("onLoadSavedGraph")(saved);
     });
     expect(confirm).not.toHaveBeenCalled();
     expect(h.loadSavedGraph).not.toHaveBeenCalled();

@@ -6,6 +6,7 @@ import {
   getFindingMeta,
   enrichFindingsWithMetadata,
 } from "../finding-metadata";
+import { getTxHeuristicSteps, getAddressHeuristicSteps } from "../orchestrator";
 import type { Finding, AdversaryTier, TemporalityClass } from "@/lib/types";
 
 const VALID_ADVERSARY_TIERS: AdversaryTier[] = [
@@ -55,20 +56,24 @@ describe("FINDING_METADATA registry", () => {
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const full = join(dir, name);
-    if (statSync(full).isDirectory()) return name === "__tests__" ? [] : sourceFiles(full);
+    if (statSync(full).isDirectory()) return name === "__tests__" || name === "__scratch" ? [] : sourceFiles(full);
     return /\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name) ? [full] : [];
   });
 }
 
 describe("FINDING_METADATA coverage", () => {
   it("every finding id literal in src/ has a metadata entry", () => {
-    // A finding literal is `id: "..."` directly followed by its severity.
+    // Non-finding ids that share the `id: "..."` shape in finding-producing files:
+    // pipeline step ids and recommendation ids.
+    const stepIds = new Set([...getTxHeuristicSteps(), ...getAddressHeuristicSteps()].map((s) => s.id));
+    const isNonFinding = (id: string) => stepIds.has(id) || id.startsWith("rec-");
     const missing = new Set<string>();
     for (const file of sourceFiles(join(process.cwd(), "src"))) {
       const text = readFileSync(file, "utf8");
-      for (const m of text.matchAll(/\bid:\s*"([a-z0-9-]+)",\s*\n\s*severity\b/g)) {
+      if (!/\bscoreImpact\b/.test(text)) continue; // only files that build findings
+      for (const m of text.matchAll(/\bid:\s*"([a-z0-9-]+)"/g)) {
         const id = m[1];
-        if (id && !getFindingMeta(id)) missing.add(id);
+        if (id && !isNonFinding(id) && !getFindingMeta(id)) missing.add(id);
       }
     }
     expect([...missing]).toEqual([]);
@@ -119,9 +124,11 @@ describe("enrichFindingsWithMetadata", () => {
     ];
 
     enrichFindingsWithMetadata(findings);
+    expect(findings).toHaveLength(1);
+    const [f] = findings;
 
-    expect(findings[0]?.adversaryTiers).toEqual(["passive_observer", "kyc_exchange", "state_adversary"]);
-    expect(findings[0]?.temporality).toBe("historical");
+    expect(f!.adversaryTiers).toEqual(["passive_observer", "kyc_exchange", "state_adversary"]);
+    expect(f!.temporality).toBe("historical");
   });
 
   it("does not overwrite existing adversaryTiers", () => {
@@ -139,10 +146,12 @@ describe("enrichFindingsWithMetadata", () => {
     ];
 
     enrichFindingsWithMetadata(findings);
+    expect(findings).toHaveLength(1);
+    const [f] = findings;
 
     // Both were already set, so skip
-    expect(findings[0]?.adversaryTiers).toEqual(["passive_observer"]);
-    expect(findings[0]?.temporality).toBe("active_risk");
+    expect(f!.adversaryTiers).toEqual(["passive_observer"]);
+    expect(f!.temporality).toBe("active_risk");
   });
 
   it("fills in missing temporality even if adversaryTiers is set", () => {
@@ -160,10 +169,12 @@ describe("enrichFindingsWithMetadata", () => {
     ];
 
     enrichFindingsWithMetadata(findings);
+    expect(findings).toHaveLength(1);
+    const [f] = findings;
 
     // adversaryTiers was already set but temporality was not - fill it in
-    expect(findings[0]?.adversaryTiers).toEqual(["passive_observer"]);
-    expect(findings[0]?.temporality).toBe("historical");
+    expect(f!.adversaryTiers).toEqual(["passive_observer"]);
+    expect(f!.temporality).toBe("historical");
   });
 
   it("handles unknown finding IDs gracefully", () => {
@@ -180,9 +191,11 @@ describe("enrichFindingsWithMetadata", () => {
     ];
 
     enrichFindingsWithMetadata(findings);
+    expect(findings).toHaveLength(1);
+    const [f] = findings;
 
-    expect(findings[0]?.adversaryTiers).toBeUndefined();
-    expect(findings[0]?.temporality).toBeUndefined();
+    expect(f!.adversaryTiers).toBeUndefined();
+    expect(f!.temporality).toBeUndefined();
   });
 
   it("enriches dynamic OP_RETURN IDs via prefix match", () => {
@@ -198,8 +211,10 @@ describe("enrichFindingsWithMetadata", () => {
     ];
 
     enrichFindingsWithMetadata(findings);
+    expect(findings).toHaveLength(1);
+    const [f] = findings;
 
-    expect(findings[0]?.adversaryTiers).toContain("passive_observer");
-    expect(findings[0]?.temporality).toBe("historical");
+    expect(f!.adversaryTiers).toContain("passive_observer");
+    expect(f!.temporality).toBe("historical");
   });
 });

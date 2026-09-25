@@ -135,6 +135,19 @@ describe("loadEntityFilter (core)", () => {
     expect(L.getFilter()).toBeNull();
   });
 
+  it("retries on the next call after a transient network error", async () => {
+    files[CORE] = new TypeError("Failed to fetch");
+    expect(await L.loadEntityFilter()).toBeNull();
+    expect(L.getFilterStatus()).toBe("error");
+
+    files[CORE] = coreBin();
+    const f = await L.loadEntityFilter();
+    expect(f).not.toBeNull();
+    expect(f!.has(CORE_ADDR)).toBe(true);
+    expect(L.getFilterStatus()).toBe("ready");
+    expect(fetchCount(CORE)).toBe(2);
+  });
+
   it("uses a configured data loader instead of fetch", async () => {
     const fetchFn = vi.fn((path: string) => Promise.resolve(path === CORE ? coreBin() : null));
     L.configureDataLoader({ fetchFn });
@@ -219,9 +232,26 @@ describe("loadFullEntityFilter", () => {
 
   it("treats bits past the end of a truncated Bloom as unset", async () => {
     files[FULL_INDEX] = fullBin();
-    files[FULL_BLOOM] = bloomBin().slice(0, 48);
+    // Keep only the first 16 bytes of bits, all set: every in-range read hits,
+    // so the lookup can only fail on the (unset) positions past the end.
+    const truncated = new Uint8Array(bloomBin().slice(0, 48 + 16));
+    truncated.fill(0xff, 48);
+    files[FULL_BLOOM] = truncated.buffer;
     const f = await L.loadFullEntityFilter();
     expect(f!.has(BLOOM_ADDR)).toBe(false);
+  });
+
+  it.each([
+    ["k = 0", { m: 1 << 16, k: 0 }],
+    ["m = 0", { m: 0, k: 7 }],
+  ])("ignores a Bloom file with %s instead of matching everything", async (_, params) => {
+    files[FULL_INDEX] = fullBin();
+    files[FULL_BLOOM] = buildBloom({ addresses: [BLOOM_ADDR], addressCount: 1000, ...params });
+    const f = await L.loadFullEntityFilter();
+    expect(L.getFullFilterStatus()).toBe("ready");
+    expect(f!.has(FULL_ADDR)).toBe(true);
+    expect(f!.has(MISSING)).toBe(false);
+    expect(f!.meta.addressCount).toBe(2);
   });
 
   it("marks unavailable when the full index is missing, keeping the core filter", async () => {

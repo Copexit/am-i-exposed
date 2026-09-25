@@ -49,24 +49,34 @@ async function findChildViaAddress(
   return null;
 }
 
+/** Look up the fetcher and the node to expand, dispatching SET_ERROR when either is missing. */
+function resolveExpansion(
+  ctx: ExpansionContext,
+  txid: string,
+): { client: GraphExpansionFetcher; nodes: Map<string, GraphNode>; node: GraphNode } | null {
+  const client = ctx.getFetcher();
+  if (!client) {
+    ctx.dispatch({ type: "SET_ERROR", txid, error: "No API client available" });
+    return null;
+  }
+  const nodes = ctx.getNodes();
+  const node = nodes.get(txid);
+  if (!node) {
+    ctx.dispatch({ type: "SET_ERROR", txid, error: "Transaction not found in graph" });
+    return null;
+  }
+  return { client, nodes, node };
+}
+
 /** Expand backward: fetch the parent tx that created the given input. */
 export async function expandInputOp(
   ctx: ExpansionContext,
   currentTxid: string,
   inputIndex: number,
 ): Promise<void> {
-  const client = ctx.getFetcher();
-  if (!client) {
-    ctx.dispatch({ type: "SET_ERROR", txid: currentTxid, error: "No API client available" });
-    return;
-  }
-
-  const nodes = ctx.getNodes();
-  const node = nodes.get(currentTxid);
-  if (!node) {
-    ctx.dispatch({ type: "SET_ERROR", txid: currentTxid, error: "Transaction not found in graph" });
-    return;
-  }
+  const resolved = resolveExpansion(ctx, currentTxid);
+  if (!resolved) return;
+  const { client, nodes, node } = resolved;
 
   const vin = node.tx.vin[inputIndex];
   if (!vin || vin.is_coinbase) return;
@@ -112,18 +122,9 @@ export async function expandOutputOp(
   currentTxid: string,
   outputIndex: number,
 ): Promise<void> {
-  const client = ctx.getFetcher();
-  if (!client) {
-    ctx.dispatch({ type: "SET_ERROR", txid: currentTxid, error: "No API client available" });
-    return;
-  }
-
-  const nodes = ctx.getNodes();
-  const node = nodes.get(currentTxid);
-  if (!node) {
-    ctx.dispatch({ type: "SET_ERROR", txid: currentTxid, error: "Transaction not found in graph" });
-    return;
-  }
+  const resolved = resolveExpansion(ctx, currentTxid);
+  if (!resolved) return;
+  const { client, nodes, node } = resolved;
   if (nodes.size >= ctx.getMaxNodes()) {
     ctx.dispatch({ type: "SET_ERROR", txid: `${currentTxid}:out`, error: "Maximum nodes reached" });
     return;

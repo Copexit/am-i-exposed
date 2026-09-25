@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { StrictMode } from "react";
 import { renderHook, act, cleanup } from "@testing-library/react";
 import { ApiError } from "@/lib/api/fetch-with-retry";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
@@ -14,6 +15,7 @@ const m = vi.hoisted(() => ({
   parsePSBT: vi.fn(),
   analyzeTransaction: vi.fn(),
   setNetwork: vi.fn(),
+  host: "http://onion.example",
 }));
 
 vi.mock("@/lib/api/analysis-cache", () => ({
@@ -41,13 +43,13 @@ vi.mock("react-i18next", async () => {
   return { useTranslation: () => ({ t }) };
 });
 
-const onionConfigFor = (n: BitcoinNetwork) => ({ mempoolBaseUrl: `http://onion.example/${n}/api` });
+const onionConfigFor = (n: BitcoinNetwork) => ({ mempoolBaseUrl: `${m.host}/${n}/api` });
 vi.mock("@/context/NetworkContext", () => ({
   useNetwork: () => ({
     network: "mainnet",
     setNetwork: m.setNetwork,
     // Tor: the active backend is mempool.space's onion, which is not a custom API
-    config: onionConfigFor("mainnet"),
+    get config() { return onionConfigFor("mainnet"); },
     configFor: onionConfigFor,
     customApiUrl: null,
     isUmbrel: false,
@@ -64,6 +66,7 @@ const txOutcome = (r: ScoringResult) => ({ result: r, boltzmannResult: null, bol
 
 beforeEach(() => {
   vi.clearAllMocks();
+  m.host = "http://onion.example";
   m.getCachedResult.mockResolvedValue(null);
   m.putCachedResult.mockResolvedValue(undefined);
   m.createApiClient.mockReturnValue({});
@@ -87,15 +90,32 @@ describe("useAnalysis", () => {
 
   it("caches a complete txid result once, outside the state updater", async () => {
     m.runTxidAnalysis.mockResolvedValue(txOutcome(result()));
-    const { result: hook } = renderHook(() => useAnalysis());
+    // StrictMode double-invokes state updaters: a cache write inside one would run twice
+    const { result: hook } = renderHook(() => useAnalysis(), { wrapper: StrictMode });
     await act(async () => { await hook.current.analyze(TXID); });
 
     expect(hook.current.phase).toBe("complete");
     expect(m.putCachedResult).toHaveBeenCalledTimes(1);
     const [net, query, , state] = m.putCachedResult.mock.calls[0]!;
-    expect(net).toBe("mainnet");
+    expect(net).toBe("mainnet@http://onion.example/mainnet/api");
     expect(query).toBe(TXID);
     expect(state.phase).toBe("complete");
+  });
+
+  it("keys the result cache by backend, so another base URL misses the cache", async () => {
+    const store = new Map<string, unknown>();
+    m.getCachedResult.mockImplementation(async (net: string, q: string) => store.get(`${net}|${q}`) ?? null);
+    m.putCachedResult.mockImplementation(async (net: string, q: string, _s: unknown, st: unknown) => { store.set(`${net}|${q}`, st); });
+    m.runTxidAnalysis.mockResolvedValue(txOutcome(result()));
+    const { result: hook, rerender } = renderHook(() => useAnalysis());
+    await act(async () => { await hook.current.analyze(TXID); });
+    expect(m.runTxidAnalysis).toHaveBeenCalledTimes(1);
+
+    m.host = "http://umbrel.local:3006";
+    rerender();
+    await act(async () => { await hook.current.analyze(TXID); });
+    expect(m.runTxidAnalysis).toHaveBeenCalledTimes(2);
+    expect(hook.current.fromCache).toBeFalsy();
   });
 
   it("takes isCustomApi from the network context, so Tor is not treated as self-hosted", async () => {
@@ -130,7 +150,7 @@ describe("useAnalysis", () => {
     expect(hook.current.phase).toBe("complete");
     expect(hook.current.autoSwitchedNetwork).toBe("testnet4");
     expect(m.putCachedResult).toHaveBeenCalledTimes(1);
-    expect(m.putCachedResult.mock.calls[0]![0]).toBe("testnet4");
+    expect(m.putCachedResult.mock.calls[0]![0]).toBe("testnet4@http://onion.example/testnet4/api");
   });
 
   it("maps API errors through the shared error mapper", async () => {

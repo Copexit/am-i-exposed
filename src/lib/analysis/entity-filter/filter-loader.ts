@@ -114,16 +114,19 @@ function parseHeader(buffer: ArrayBuffer): {
 
 /**
  * Parse a version-2 Bloom filter from an ArrayBuffer.
+ * Returns null for degenerate parameters (m = 0 or k = 0), which would
+ * otherwise match every address.
  */
 function parseBloomFilter(
   buffer: ArrayBuffer,
   meta: FilterMeta,
-): AddressFilter {
+): AddressFilter | null {
   const bloomView = new DataView(buffer, 32, 16);
   const bloomM = bloomView.getUint32(0, true);
   const bloomK = bloomView.getUint32(4, true);
   const seed1 = bloomView.getUint32(8, true);
   const seed2 = bloomView.getUint32(12, true);
+  if (bloomM === 0 || bloomK === 0) return null;
 
   const bits = new Uint8Array(buffer, 48);
 
@@ -213,13 +216,12 @@ async function fetchArrayBuffer(
  * Loads entity-index.bin and creates an index-backed AddressFilter.
  * Returns the filter if successful, null otherwise.
  * Safe to call multiple times - only loads once; concurrent callers share
- * the same in-flight load.
+ * the same in-flight load. A missing or corrupt file ("unavailable") is final;
+ * a thrown load ("error", e.g. a network failure) is retried on the next call.
  */
 export function loadEntityFilter(): Promise<AddressFilter | null> {
   if (filterInstance) return Promise.resolve(filterInstance);
-  if (filterStatus === "error" || filterStatus === "unavailable") {
-    return Promise.resolve(null);
-  }
+  if (filterStatus === "unavailable") return Promise.resolve(null);
   return (corePromise ??= loadCore());
 }
 
@@ -248,6 +250,7 @@ async function loadCore(): Promise<AddressFilter | null> {
     return filterInstance;
   } catch {
     filterStatus = "error";
+    corePromise = null; // allow a retry on the next call
     return null;
   }
 }
@@ -326,7 +329,7 @@ async function loadFull(): Promise<AddressFilter | null> {
     if (bloomBuffer) {
       const parsed = parseHeader(bloomBuffer);
       if (parsed && parsed.version === 2) {
-        overflowBloom = parseBloomFilter(bloomBuffer, parsed.meta);
+        overflowBloom = parseBloomFilter(bloomBuffer, parsed.meta) ?? undefined;
       }
     }
 

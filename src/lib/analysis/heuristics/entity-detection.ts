@@ -2,7 +2,7 @@ import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { matchEntitySync, detectEntityBehavior } from "../entity-filter/entity-match";
 import { getFilter } from "../entity-filter/filter-loader";
-import { isCoinbase } from "./tx-utils";
+import { isCoinbase, inputAddressSet } from "./tx-utils";
 
 /**
  * Entity Address Detection
@@ -34,13 +34,8 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
   if (isCoinbase(tx)) return { findings };
 
   // Collect all addresses with their roles (input vs output)
-  const inputAddresses = new Set<string>();
+  const inputAddresses = inputAddressSet(tx.vin);
   const outputAddresses = new Set<string>();
-
-  for (const vin of tx.vin) {
-    const addr = vin.prevout?.scriptpubkey_address;
-    if (addr) inputAddresses.add(addr);
-  }
 
   for (const vout of tx.vout) {
     const addr = vout.scriptpubkey_address;
@@ -95,6 +90,9 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
   const entityInputs = inputMatches.filter((m) => !m.ofac);
   const entityOutputs = outputMatches.filter((m) => !m.ofac);
 
+  const filterFpr = getFilter()?.meta.fpr ?? 0.001;
+  const fprText = `${+(filterFpr * 100).toFixed(3)}%`;
+
   const [firstInput] = entityInputs;
   if (firstInput) {
     findings.push({
@@ -108,14 +106,14 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
         addresses: shortList(entityInputs),
         entityName: firstInput.entityName,
         category: firstInput.category ?? "unknown",
-        filterFpr: getFilter()?.meta.fpr ?? 0.001,
+        filterFpr,
       },
       description:
         `${entityInputs.length} input address${entityInputs.length > 1 ? "es" : ""} matched the ` +
         "known entity database (exchanges, services, mining pools). " +
         `Matched: ${shortList(entityInputs)}. ` +
         "This suggests the sending party may be a known service or entity. " +
-        "Note: the entity filter has a 0.1% false positive rate.",
+        `Note: the entity filter has a ${fprText} false positive rate.`,
       recommendation:
         "Inputs from known entities (exchanges, services) indicate the source of funds is traceable. " +
         "If privacy is important, avoid receiving funds directly from known entities without " +
@@ -137,14 +135,14 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
         addresses: shortList(entityOutputs),
         entityName: firstOutput.entityName,
         category: firstOutput.category ?? "unknown",
-        filterFpr: getFilter()?.meta.fpr ?? 0.001,
+        filterFpr,
       },
       description:
         `${entityOutputs.length} output address${entityOutputs.length > 1 ? "es" : ""} matched the ` +
         "known entity database. " +
         `Matched: ${shortList(entityOutputs)}. ` +
         "This suggests funds are being sent to a known exchange, service, or entity. " +
-        "Note: the entity filter has a 0.1% false positive rate.",
+        `Note: the entity filter has a ${fprText} false positive rate.`,
       recommendation:
         "Sending to known entities (especially KYC exchanges) creates a link between your " +
         "on-chain activity and your real identity. Consider using P2P platforms (Bisq, RoboSats, " +

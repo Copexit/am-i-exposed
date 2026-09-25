@@ -1,5 +1,5 @@
 import { WHIRLPOOL_DENOMS, WHIRLPOOL_POOLS, type WhirlpoolPool } from "@/lib/constants";
-import { countOutputValues } from "./tx-utils";
+import { countOutputValues, inputAddressSet } from "./tx-utils";
 
 /** Minimum denomination for CoinJoin equal outputs (below this, likely noise/dust). */
 const MIN_COINJOIN_DENOM = 10_000;
@@ -128,12 +128,7 @@ export function detectJoinMarket(
   if (spendableOutputs.length < 3 || spendableOutputs.length > 8) return null;
 
   // Require inputs from at least 2 distinct addresses (multi-party evidence)
-  const inputAddresses = new Set<string>();
-  for (const v of vin) {
-    if (v.prevout?.scriptpubkey_address) {
-      inputAddresses.add(v.prevout.scriptpubkey_address);
-    }
-  }
+  const inputAddresses = inputAddressSet(vin);
   if (inputAddresses.size < 2) return null;
 
   // Count output values - look for 2-4 equal-valued outputs
@@ -233,12 +228,7 @@ export function detectStonewall(
   if (equalAddresses.size < 2) return null;
 
   // Count distinct input addresses
-  const inputAddresses = new Set<string>();
-  for (const v of vin) {
-    if (v.prevout?.scriptpubkey_address) {
-      inputAddresses.add(v.prevout.scriptpubkey_address);
-    }
-  }
+  const inputAddresses = inputAddressSet(vin);
 
   return {
     denomination: equalValue,

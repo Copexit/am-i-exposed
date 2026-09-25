@@ -260,11 +260,23 @@ describe("applyCompoundScoringAdjustments: chain overlap", () => {
     expect(total(ancestryOnly)).toBe(-5);
   });
 
-  it("scores a backward entity once when proximity and taint both find it", () => {
-    const fs = [f("chain-entity-proximity-backward", { scoreImpact: -4 }), f("chain-taint-backward", { scoreImpact: -5 })];
+  it("scores a backward entity once when proximity and taint both find it (same category)", () => {
+    const fs = [
+      f("chain-entity-proximity-backward", { scoreImpact: -4, params: { category: "exchange" } }),
+      f("chain-taint-backward", { scoreImpact: -5, params: { sourceCategories: "mining,exchange" } }),
+    ];
     applyCompoundScoringAdjustments(fs);
     expect(total(fs)).toBe(-5);
     expect(byId(fs, "chain-entity-proximity-backward").scoreImpact).toBe(0);
+  });
+
+  it("keeps both penalties when proximity and taint found different entity categories", () => {
+    const fs = [
+      f("chain-entity-proximity-backward", { scoreImpact: -4, params: { category: "darknet" } }),
+      f("chain-taint-backward", { scoreImpact: -5, params: { sourceCategories: "exchange" } }),
+    ];
+    applyCompoundScoringAdjustments(fs);
+    expect(total(fs)).toBe(-9);
   });
 });
 

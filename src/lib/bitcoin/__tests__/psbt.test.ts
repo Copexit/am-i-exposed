@@ -44,7 +44,7 @@ describe("parsePSBT", () => {
 
   it("extracts output values and computes fee", () => {
     const result = parsePSBT(PSBT_COMPLETE);
-    expect(result.tx.vout[0]?.value).toBe(90_000);
+    expect(result.tx.vout[0]!.value).toBe(90_000);
     expect(result.outputTotal).toBe(90_000);
     expect(result.inputTotal).toBe(100_000);
     expect(result.complete).toBe(true);
@@ -57,13 +57,13 @@ describe("parsePSBT", () => {
 
   it("detects P2WPKH script type in outputs", () => {
     const result = parsePSBT(PSBT_COMPLETE);
-    expect(result.tx.vout[0]?.scriptpubkey_type).toBe("v0_p2wpkh");
+    expect(result.tx.vout[0]!.scriptpubkey_type).toBe("v0_p2wpkh");
   });
 
   it("detects P2WPKH script type in inputs with witnessUtxo", () => {
     const result = parsePSBT(PSBT_COMPLETE);
-    expect(result.tx.vin[0]?.prevout?.scriptpubkey_type).toBe("v0_p2wpkh");
-    expect(result.tx.vin[0]?.prevout?.value).toBe(100_000);
+    expect(result.tx.vin[0]!.prevout!.scriptpubkey_type).toBe("v0_p2wpkh");
+    expect(result.tx.vin[0]!.prevout!.value).toBe(100_000);
   });
 
   it("computes fee rate", () => {
@@ -103,8 +103,8 @@ describe("parsePSBT - input prevouts", () => {
     tx.addOutput({ script: P2WPKH_B, amount: BigInt(60_000) });
     tx.addOutput({ script: P2WPKH_A, amount: BigInt(39_000) });
     const r = parsePSBT(toBase64(tx), "mainnet");
-    expect(r.tx.vin[0]?.prevout?.scriptpubkey_address).toMatch(/^bc1q/);
-    expect(r.tx.vin[0]?.prevout?.scriptpubkey_address).toBe(r.tx.vout[1]?.scriptpubkey_address);
+    expect(r.tx.vin[0]!.prevout!.scriptpubkey_address).toMatch(/^bc1q/);
+    expect(r.tx.vin[0]!.prevout!.scriptpubkey_address).toBe(r.tx.vout[1]!.scriptpubkey_address);
   });
 
   it("reads value, script and address from nonWitnessUtxo for legacy inputs", () => {
@@ -126,7 +126,7 @@ describe("parsePSBT - input prevouts", () => {
     tx.addInput({ txid: DUMMY_TXID, index: 0 });
     tx.addOutput({ script: P2WPKH_B, amount: BigInt(45_000) });
     const r = parsePSBT(toBase64(tx), "mainnet");
-    expect(r.tx.vin[0]?.prevout).toBeNull();
+    expect(r.tx.vin[0]!.prevout).toBeNull();
     expect(r.complete).toBe(false);
     expect(r.fee).toBe(0);
     // Heuristics must tolerate the unknown prevout
@@ -142,10 +142,10 @@ describe("parsePSBT - input prevouts", () => {
     tx.updateInput(0, { finalScriptWitness: [hexToBytes("3044aa01"), PUBKEY] }, true);
     tx.updateInput(1, { finalScriptSig: hexToBytes("0101") }, true);
     const r = parsePSBT(toBase64(tx), "mainnet");
-    expect(r.tx.vin[0]?.witness).toEqual(["3044aa01", bytesToHex(PUBKEY)]);
-    expect(r.tx.vin[0]?.scriptsig).toBe("");
-    expect(r.tx.vin[1]?.witness).toEqual([]);
-    expect(r.tx.vin[1]?.scriptsig).toBe("0101");
+    expect(r.tx.vin[0]!.witness).toEqual(["3044aa01", bytesToHex(PUBKEY)]);
+    expect(r.tx.vin[0]!.scriptsig).toBe("");
+    expect(r.tx.vin[1]!.witness).toEqual([]);
+    expect(r.tx.vin[1]!.scriptsig).toBe("0101");
   });
 });
 
@@ -156,8 +156,8 @@ describe("parsePSBT - outputs and network", () => {
     tx.addOutput({ script: OP_RETURN, amount: BigInt(0) });
     tx.addOutput({ script: P2WPKH_B, amount: BigInt(90_000) });
     const r = parsePSBT(toBase64(tx), "mainnet");
-    expect(r.tx.vout[0]?.scriptpubkey_type).toBe("op_return");
-    expect(r.tx.vout[0]?.scriptpubkey_address).toBe("");
+    expect(r.tx.vout[0]!.scriptpubkey_type).toBe("op_return");
+    expect(r.tx.vout[0]!.scriptpubkey_address).toBe("");
   });
 
   it("encodes addresses for the requested test network", () => {
@@ -166,8 +166,8 @@ describe("parsePSBT - outputs and network", () => {
     tx.addOutput({ script: P2WPKH_B, amount: BigInt(90_000) });
     const r = parsePSBT(toBase64(tx), "testnet4");
     expect(r.network).toBe("testnet");
-    expect(r.tx.vin[0]?.prevout?.scriptpubkey_address).toMatch(/^tb1q/);
-    expect(r.tx.vout[0]?.scriptpubkey_address).toMatch(/^tb1q/);
+    expect(r.tx.vin[0]!.prevout!.scriptpubkey_address).toMatch(/^tb1q/);
+    expect(r.tx.vout[0]!.scriptpubkey_address).toMatch(/^tb1q/);
   });
 
   it("infers testnet from a BIP32 coin type 1' derivation hint when no network is given", () => {
@@ -180,7 +180,7 @@ describe("parsePSBT - outputs and network", () => {
     tx.addOutput({ script: P2WPKH_B, amount: BigInt(90_000) });
     const r = parsePSBT(toBase64(tx));
     expect(r.network).toBe("testnet");
-    expect(r.tx.vout[0]?.scriptpubkey_address).toMatch(/^tb1q/);
+    expect(r.tx.vout[0]!.scriptpubkey_address).toMatch(/^tb1q/);
   });
 
   it("rejects malformed hex with a hex error", () => {

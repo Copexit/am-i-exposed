@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ParentSize } from "@visx/responsive";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/hooks/useTheme";
-import { formatSats, calcFeeRate } from "@/lib/format";
+import { TxFeeText } from "./shared/TxFeeText";
 import { CoinJoinChart } from "./CoinJoinChart";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
@@ -101,13 +101,7 @@ export function CoinJoinStructure({ tx, findings, onAddressClick, usdPrice, outs
 
       {/* Fee + size info */}
       <div className="flex items-center justify-between text-sm text-muted border-t border-card-border pt-2">
-        <span>
-          {t("tx.fee", {
-            amount: formatSats(tx.fee, i18n.language),
-            rate: calcFeeRate(tx),
-            defaultValue: `Fee: ${formatSats(tx.fee, i18n.language)} (${calcFeeRate(tx)} sat/vB)`,
-          })}
-        </span>
+        <TxFeeText tx={tx} />
         <div className="flex items-center gap-3">
           {(canExpand || expanded) && (
             <button

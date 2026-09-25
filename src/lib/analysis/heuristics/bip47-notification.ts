@@ -30,9 +30,7 @@ export const analyzeBip47Notification: TxHeuristic = (tx) => {
   if (tx.vin.length < 1 || tx.vin.length > 3) return { findings };
 
   // Look for OP_RETURN output with exactly 80 bytes (160 hex chars) of data
-  const opReturnOutputs = tx.vout.filter(
-    (o) => isOpReturnOutput(o),
-  );
+  const opReturnOutputs = tx.vout.filter(isOpReturnOutput);
 
   const [opReturn] = opReturnOutputs;
   if (opReturnOutputs.length !== 1 || !opReturn) return { findings };

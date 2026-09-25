@@ -199,6 +199,20 @@ describe("analyzeMultisigDetection", () => {
     expect(findings[0]?.params?.likelyLN).toBe(1);
   });
 
+  it("detects an anchor-channel force close (2 anchors + to_local + to_remote)", () => {
+    const tx = make2of2(2, 0x20a1b2c3, 0x80d4e5f6);
+    tx.vout = [makeVout({ value: 330 }), makeVout({ value: 330 }), makeVout({ value: 60_000 }), makeVout({ value: 35_000 })];
+    const { findings } = analyzeMultisigDetection(tx);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]?.id).toBe("lightning-channel-legacy");
+  });
+
+  it("detects a commitment tx with a single output", () => {
+    const tx = make2of2(2, 0x20a1b2c3, 0x80d4e5f6);
+    tx.vout = [makeVout({ value: 95_000 })];
+    expect(analyzeMultisigDetection(tx).findings[0]?.id).toBe("lightning-channel-legacy");
+  });
+
   it("detects a BOLT 3 cooperative close (v2, locktime 0, sequence max)", () => {
     const { findings } = analyzeMultisigDetection(make2of2(2, 0, 0xffffffff));
     expect(findings).toHaveLength(1);

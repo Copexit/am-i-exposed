@@ -1,6 +1,6 @@
 import type { Grade } from "@/lib/types";
 import { GRADE_HEX } from "@/lib/constants";
-import { COLORS } from "@/lib/palette";
+import { COLORS, IMAGE_TONES } from "@/lib/palette";
 
 interface ShareCardLabels {
   privacyGrade: string;
@@ -36,7 +36,7 @@ export async function generateShareCard(options: {
   ctx.fillRect(0, 0, 1200, 630);
 
   // Subtle grid pattern
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.03)";
+  ctx.strokeStyle = IMAGE_TONES.gridLine;
   ctx.lineWidth = 1;
   for (let x = 0; x < 1200; x += 40) {
     ctx.beginPath();
@@ -61,7 +61,7 @@ export async function generateShareCard(options: {
 
   // Grade label
   ctx.font = "16px system-ui, -apple-system, sans-serif";
-  ctx.fillStyle = "#787880";
+  ctx.fillStyle = IMAGE_TONES.dimText;
   ctx.fillText(labels.privacyGrade, 80, 160);
 
   // Grade (large)
@@ -80,12 +80,12 @@ export async function generateShareCard(options: {
   ctx.fillText(`${options.score}`, scoreX, 260);
   const scoreNumWidth = ctx.measureText(`${options.score}`).width;
   ctx.font = "24px system-ui, -apple-system, sans-serif";
-  ctx.fillStyle = "#787880";
+  ctx.fillStyle = IMAGE_TONES.dimText;
   ctx.fillText("/100", scoreX + scoreNumWidth + 4, 260);
 
   // Finding count
   ctx.font = "20px system-ui, -apple-system, sans-serif";
-  ctx.fillStyle = "#787880";
+  ctx.fillStyle = IMAGE_TONES.dimText;
   ctx.fillText(`${options.findingCount} ${labels.findingsAnalyzed}`, scoreX, 300);
 
   // Severity bar
@@ -93,7 +93,7 @@ export async function generateShareCard(options: {
   const barY = 320;
   const barWidth = 300;
   const barHeight = 8;
-  ctx.fillStyle = "#1a1a1e";
+  ctx.fillStyle = IMAGE_TONES.track;
   ctx.beginPath();
   ctx.roundRect(barX, barY, barWidth, barHeight, 4);
   ctx.fill();
@@ -105,7 +105,7 @@ export async function generateShareCard(options: {
 
   // Query (truncated)
   ctx.font = "16px monospace";
-  ctx.fillStyle = "#505058";
+  ctx.fillStyle = IMAGE_TONES.faintText;
   const label = options.inputType === "txid" ? "TX" : "ADDR";
   const truncated =
     options.query.length > 48
@@ -114,15 +114,15 @@ export async function generateShareCard(options: {
   ctx.fillText(`${label}: ${truncated}`, 80, 440);
 
   // Bottom divider
-  ctx.fillStyle = "rgba(255, 255, 255, 0.06)";
+  ctx.fillStyle = IMAGE_TONES.divider;
   ctx.fillRect(80, 520, 1040, 1);
 
   // Footer
   ctx.font = "16px system-ui, -apple-system, sans-serif";
-  ctx.fillStyle = "#505058";
+  ctx.fillStyle = IMAGE_TONES.faintText;
   ctx.fillText(labels.footerLeft, 80, 570);
 
-  ctx.fillStyle = "#505058";
+  ctx.fillStyle = IMAGE_TONES.faintText;
   ctx.textAlign = "right";
   ctx.fillText(labels.footerRight, 1120, 570);
   ctx.textAlign = "left";

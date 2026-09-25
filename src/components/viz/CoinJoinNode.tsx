@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { Group } from "@visx/group";
 import { Text } from "@visx/text";
 import { SVG_COLORS, ANIMATION_DEFAULTS } from "./shared/svgConstants";
+import { addressActivationProps } from "./shared/addressActivation";
 import { formatSats } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 import type { SankeyComputedNode } from "./shared/sankeyTypes";
@@ -88,15 +89,7 @@ export function CoinJoinNode({
           role={isClickable ? "button" : undefined}
           aria-label={isClickable ? t("viz.cj.scanAddress", { address: n.fullAddress, defaultValue: `Scan ${n.fullAddress}` }) : undefined}
           className={isClickable ? "outline-none focus-visible:outline-2 focus-visible:outline-bitcoin" : ""}
-          onClick={() => {
-            if (n.fullAddress && onAddressClick) onAddressClick(n.fullAddress);
-          }}
-          onKeyDown={(e: React.KeyboardEvent) => {
-            if ((e.key === "Enter" || e.key === " ") && n.fullAddress && onAddressClick) {
-              e.preventDefault();
-              onAddressClick(n.fullAddress);
-            }
-          }}
+          {...addressActivationProps(n.fullAddress, onAddressClick)}
           onMouseEnter={onMouseEnter}
           onMouseLeave={onMouseLeave}
         />

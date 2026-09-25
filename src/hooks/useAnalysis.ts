@@ -18,6 +18,7 @@ import { checkOfac } from "@/lib/analysis/cex-risk/ofac-check";
 import { parsePSBT } from "@/lib/bitcoin/psbt";
 import { getAnalysisSettings, type AnalysisSettings } from "@/hooks/useAnalysisSettings";
 import { getCachedResult, putCachedResult } from "@/lib/api/analysis-cache";
+import { cacheKeyPrefix } from "@/lib/api/cache-policy";
 import { loadEntityFilter } from "@/lib/analysis/entity-filter";
 import { runTxidAnalysis } from "@/lib/analysis/run-txid-analysis";
 import { runAddressAnalysis } from "@/lib/analysis/run-address-analysis";
@@ -40,7 +41,7 @@ export function useAnalysis() {
   const { t } = useTranslation();
   const abortRef = useRef<AbortController | null>(null);
   /** Cache write owed by the analysis that just completed; flushed after the commit. */
-  const pendingCacheRef = useRef<{ network: BitcoinNetwork; input: string; settings: AnalysisSettings } | null>(null);
+  const pendingCacheRef = useRef<{ cacheKey: string; input: string; settings: AnalysisSettings } | null>(null);
 
   // Auto-load core entity filter on mount
   useEffect(() => { void loadEntityFilter(); }, []);
@@ -151,7 +152,8 @@ export function useAnalysis() {
 
       // Check analysis result cache before making API calls
       const analysisSettingsForCache = getAnalysisSettings();
-      const cached = await getCachedResult(network, input, analysisSettingsForCache);
+      // Keyed per backend: custom/Umbrel/onion results never share an entry with mempool.space
+      const cached = await getCachedResult(cacheKeyPrefix(config.mempoolBaseUrl, network), input, analysisSettingsForCache);
       // reset() or a newer analyze() ran during the lookup: leave their state alone
       if (controller.signal.aborted) return;
       if (cached) {
@@ -200,7 +202,8 @@ export function useAnalysis() {
        */
       const complete = (fields: Partial<AnalysisState>, cacheNetwork?: BitcoinNetwork) => {
         if (cacheNetwork && !fields.result?.partial) {
-          pendingCacheRef.current = { network: cacheNetwork, input, settings: analysisSettingsForCache };
+          const cacheKey = cacheKeyPrefix(configFor(cacheNetwork).mempoolBaseUrl, cacheNetwork);
+          pendingCacheRef.current = { cacheKey, input, settings: analysisSettingsForCache };
         }
         const durationMs = Date.now() - startTime;
         setState((prev) => ({
@@ -358,7 +361,7 @@ export function useAnalysis() {
     const pending = pendingCacheRef.current;
     if (!pending || state.phase !== "complete") return;
     pendingCacheRef.current = null;
-    putCachedResult(pending.network, pending.input, pending.settings, state)
+    putCachedResult(pending.cacheKey, pending.input, pending.settings, state)
       .catch((e) => console.warn("cache write failed:", e));
   }, [state]);
 

@@ -1,4 +1,5 @@
 import { fetchWithRetry, ApiError } from "./fetch-with-retry";
+import { abortSignalAny } from "@/lib/abort-signal";
 import { ADDR_RE, TXID_RE } from "@/lib/constants";
 import type {
   MempoolTransaction,
@@ -45,8 +46,12 @@ export function createMempoolClient(baseUrl: string, options?: MempoolClientOpti
   const signal = options?.signal;
   const timeoutMs = options?.timeoutMs;
 
-  async function get<T>(path: string): Promise<T> {
-    const res = await fetchWithRetry(`${base}${path}`, { signal, timeoutMs });
+  /** Combine the client signal with an optional per-call one. */
+  const withCallSignal = (callSignal?: AbortSignal) =>
+    callSignal && signal ? abortSignalAny([signal, callSignal]) : (callSignal ?? signal);
+
+  async function get<T>(path: string, callSignal?: AbortSignal): Promise<T> {
+    const res = await fetchWithRetry(`${base}${path}`, { signal: withCallSignal(callSignal), timeoutMs });
     try {
       return await res.json();
     } catch {
@@ -60,9 +65,10 @@ export function createMempoolClient(baseUrl: string, options?: MempoolClientOpti
   }
 
   return {
-    getTransaction(txid: string): Promise<MempoolTransaction> {
+    /** `signal` cancels this request only (e.g. a trace phase timeout). */
+    getTransaction(txid: string, signal?: AbortSignal): Promise<MempoolTransaction> {
       assertTxid(txid);
-      return get(`/tx/${txid}`);
+      return get(`/tx/${txid}`, signal);
     },
 
     getTxHex(txid: string): Promise<string> {
@@ -106,9 +112,10 @@ export function createMempoolClient(baseUrl: string, options?: MempoolClientOpti
       return get(`/address/${address}/utxo`);
     },
 
-    getTxOutspends(txid: string): Promise<MempoolOutspend[]> {
+    /** `signal` cancels this request only (e.g. a trace phase timeout). */
+    getTxOutspends(txid: string, signal?: AbortSignal): Promise<MempoolOutspend[]> {
       assertTxid(txid);
-      return get(`/tx/${txid}/outspends`);
+      return get(`/tx/${txid}/outspends`, signal);
     },
 
     /** Search for addresses starting with the given prefix. Returns up to 10 matches.

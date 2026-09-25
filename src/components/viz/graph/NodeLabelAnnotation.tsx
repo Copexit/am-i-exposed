@@ -6,8 +6,9 @@ import { SVG_COLORS } from "../shared/svgConstants";
 import { ANNOTATION_COLOR, hexToRgba } from "@/lib/palette";
 import type { LayoutNode } from "./types";
 import type { EditingLabel } from "./useLabelEditor";
+import { SvgCircleButton } from "./SvgCircleButton";
 
-interface NodeLabelAnnotationProps {
+export interface NodeLabelAnnotationProps {
   node: LayoutNode;
   annotateMode?: boolean;
   nodeLabels?: Map<string, string>;
@@ -85,10 +86,17 @@ export function NodeLabelAnnotation({
       )}
       {/* Delete button in annotate mode */}
       {annotateMode && !isEditingThis && (
-        <g style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); onSetNodeLabel?.(node.txid, ""); }}>
-          <circle cx={node.x + node.width - 4} cy={labelY - 2} r={6} fill={SVG_COLORS.critical} />
-          <Text x={node.x + node.width - 4} y={labelY + 1} fontSize={8} fontWeight={700} textAnchor="middle" fill="white" style={{ pointerEvents: "none" }}>x</Text>
-        </g>
+        <SvgCircleButton
+          cx={node.x + node.width - 4}
+          cy={labelY - 2}
+          r={6}
+          fill={SVG_COLORS.critical}
+          label={t("graph.deleteLabel", { defaultValue: "Delete label" })}
+          glyph="x"
+          glyphColor="white"
+          fontSize={8}
+          onActivate={() => onSetNodeLabel?.(node.txid, "")}
+        />
       )}
     </g>
   );

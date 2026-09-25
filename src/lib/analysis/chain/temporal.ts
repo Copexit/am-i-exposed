@@ -158,8 +158,9 @@ function findBursts(
     // Collect all txs within this window
     const bucket: string[] = [];
     let j = i;
-    for (let tx = sortedTxs[j]; tx && tx.status.block_time! <= windowEnd; tx = sortedTxs[++j]) {
-      bucket.push(tx.txid);
+    while (j < sortedTxs.length && sortedTxs[j]!.status.block_time! <= windowEnd) {
+      bucket.push(sortedTxs[j]!.txid);
+      j++;
     }
 
     if (bucket.length >= 3) {

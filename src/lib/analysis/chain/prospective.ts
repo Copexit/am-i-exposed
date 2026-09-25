@@ -130,6 +130,7 @@ export function analyzeFingerprintEvolution(
 
   // Generate findings based on transitions
   if (transitions.length > 0) {
+    const [only, ...rest] = transitions;
     // Check for significant wallet migration signals
     const hasVersionChange = transitions.some((t) =>
       t.changes.some((c) => c.startsWith("nVersion")),
@@ -197,7 +198,7 @@ export function analyzeFingerprintEvolution(
           changeSignals: totalChangeSignals,
         },
       });
-    } else if (transitions.length === 1) {
+    } else if (only && rest.length === 0) {
       // Single transition - informational
       findings.push({
         id: "prospective-fingerprint-change",
@@ -206,7 +207,7 @@ export function analyzeFingerprintEvolution(
         title: "Wallet fingerprint change detected",
         description:
           "A wallet fingerprint change was detected between transactions: " +
-          transitions.flatMap((t) => t.changes).join("; ") +
+          only.changes.join("; ") +
           ". This may indicate a wallet update, configuration change, or " +
           "wallet migration.",
         recommendation:

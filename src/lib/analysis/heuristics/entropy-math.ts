@@ -17,20 +17,24 @@ import {
  * Coins controlled by one address belong to one party, so they are one
  * input (or output) for entropy - LaurentMT's Boltzmann MERGE_INPUTS /
  * MERGE_OUTPUTS options. UTXOs without an address stay separate.
+ * `groupOf[k]` is the index in `values` that UTXO k was merged into.
  */
-export function mergeByAddress(utxos: { address?: string; value: number }[]): number[] {
-  const merged: number[] = [];
+export function mergeByAddress(utxos: { address?: string; value: number }[]): { values: number[]; groupOf: number[] } {
+  const values: number[] = [];
+  const groupOf: number[] = [];
   const slot = new Map<string, number>();
   for (const { address, value } of utxos) {
     const i = address ? slot.get(address) : undefined;
     if (i !== undefined) {
-      merged[i]! += value; // i is an index slot recorded before its push below
+      values[i]! += value; // i is an index slot recorded before its push below
+      groupOf.push(i);
     } else {
-      if (address) slot.set(address, merged.length);
-      merged.push(value);
+      if (address) slot.set(address, values.length);
+      groupOf.push(values.length);
+      values.push(value);
     }
   }
-  return merged;
+  return { values, groupOf };
 }
 
 /** Iteration budget for brute-force valid-mapping enumeration. */
@@ -97,7 +101,6 @@ export function tryBoltzmannEqualOutputs(
  * of the true Boltzmann count, which would consider many-to-many mappings.
  */
 export function countValidMappings(inputs: number[], outputs: number[]): { count: number; truncated: boolean } {
-
   const totalInput = inputs.reduce((s, v) => s + v, 0);
   const totalOutput = outputs.reduce((s, v) => s + v, 0);
   if (totalInput < totalOutput) return { count: 1, truncated: false };

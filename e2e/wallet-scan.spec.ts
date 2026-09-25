@@ -50,7 +50,7 @@ test("xpub scan finds the one funded address and renders the wallet audit", asyn
   await expect(stat(page, "Active addresses")).toHaveText("1");
   await expect(stat(page, "Total transactions")).toHaveText("1");
   await expect(stat(page, "Total UTXOs")).toHaveText("1");
-  await expect(stat(page, "Total balance")).toHaveText(`${FUNDED_SATS.toLocaleString("en-US")} sats`);
+  await expect(stat(page, "Total balance")).toHaveText("39,852,779 sats"); // FUNDED_SATS
 
   // Receive chain: index 0 (used) + 2 unused; change chain: 2 unused
   expect(requested.has(FIRST_ADDRESS)).toBe(true);

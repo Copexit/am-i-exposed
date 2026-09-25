@@ -7,7 +7,7 @@ import { Group } from "@visx/group";
 import { useTranslation } from "react-i18next";
 import { SVG_COLORS } from "./shared/svgConstants";
 import { ChartDefs } from "./shared/ChartDefs";
-import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
+import { ChartTooltip, anchorTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import { formatSats, formatUsdValue } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 import { CoinJoinNode } from "./CoinJoinNode";
@@ -113,8 +113,6 @@ export function CoinJoinChart({
   const showNodeTooltip = (n: SankeyComputedNode<CoinJoinNodeDatum>, e: React.MouseEvent) => {
     const container = containerRef.current;
     if (!container) return;
-    const containerRect = container.getBoundingClientRect();
-    const elemRect = (e.currentTarget as Element).getBoundingClientRect();
     // Compute spent/unspent counts for tier nodes
     let spentCount: number | undefined;
     let unspentCount: number | undefined;
@@ -146,8 +144,7 @@ export function CoinJoinChart({
         sharedParentTxid: n.sharedParentTxid,
         sharedParentCount: n.sharedParentCount,
       },
-      tooltipLeft: elemRect.left - containerRect.left + elemRect.width / 2,
-      tooltipTop: elemRect.top - containerRect.top,
+      ...anchorTooltip(e.currentTarget as Element, container),
     });
   };
 

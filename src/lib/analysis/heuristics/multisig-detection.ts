@@ -40,7 +40,7 @@ export const analyzeMultisigDetection: TxHeuristic = (tx, rawHex, ctx) => {
 
   // ── Bisq deposit tx detection (before multisig input parsing) ─────
   if (tx.vin.length >= 2) {
-    const opReturnOutputs = tx.vout.filter((o) => isOpReturnOutput(o));
+    const opReturnOutputs = tx.vout.filter(isOpReturnOutput);
     const nonOpReturnOutputs = getSpendableOutputs(tx.vout);
 
     const [opReturnOutput] = opReturnOutputs;
@@ -104,14 +104,8 @@ export const analyzeMultisigDetection: TxHeuristic = (tx, rawHex, ctx) => {
     }
   }
 
-  // ── 2-of-2 escrow detection ──────────────────────────────────────────
-  if (
-    tx.vin.length === 1 &&
-    multisigInputs.length === 1 &&
-    first.m === 2 &&
-    first.n === 2 &&
-    spendableOutputs.length === 2
-  ) {
+  // ── 1-input 2-of-2 spend: Lightning channel close or 2-of-2 escrow ──
+  if (tx.vin.length === 1 && multisigInputs.length === 1 && first.m === 2 && first.n === 2) {
     const signals: string[] = [];
     if (tx.version === 1) signals.push("tx version 1 (bitcoinj-style)");
     if (tx.locktime === 0) signals.push("nLockTime = 0");
@@ -119,25 +113,30 @@ export const analyzeMultisigDetection: TxHeuristic = (tx, rawHex, ctx) => {
     const maxSequence = sequence === 0xffffffff;
     if (maxSequence) signals.push("nSequence = max (no RBF)");
 
-    // BOLT 3 fingerprints. Commitment tx (force close): nLockTime upper byte
-    // 0x20 and nSequence upper byte 0x80, the lower 24 bits of each carry the
-    // obscured commitment number. Cooperative close: version 2, nLockTime 0,
-    // nSequence 0xffffffff. A plain anti-fee-sniping spend (locktime = height,
-    // nSequence 0xfffffffd) matches neither.
-    const commitmentTx = tx.locktime >>> 24 === 0x20 && sequence >>> 24 === 0x80;
-    const coopClose = tx.version === 2 && tx.locktime === 0 && maxSequence;
-    if (commitmentTx) signals.push("BOLT 3 commitment encoding (nLockTime 0x20..., nSequence 0x80...)");
-    if (coopClose) signals.push("BOLT 3 cooperative close (v2, nLockTime 0, nSequence max)");
-
-    const likelyLN = commitmentTx || coopClose;
-
-    if (likelyLN) {
+    // BOLT 3 commitment tx (force close): nLockTime upper byte 0x20 and
+    // nSequence upper byte 0x80, the lower 24 bits of each carry the obscured
+    // commitment number. Strong on its own, so it applies to any output count
+    // (anchor channels add 2 anchor outputs, pending HTLCs add more).
+    if (tx.locktime >>> 24 === 0x20 && sequence >>> 24 === 0x80) {
+      signals.push("BOLT 3 commitment encoding (nLockTime 0x20..., nSequence 0x80...)");
       findings.push(buildLightningChannelFinding(first.scriptType, signals));
       return { findings };
     }
 
-    findings.push(buildEscrow2of2Finding(first.scriptType, signals));
-    return { findings };
+    if (spendableOutputs.length === 2) {
+      // Cooperative close: version 2, nLockTime 0, nSequence 0xffffffff. This
+      // covers the legacy closing_signed flow only; option_simple_close uses
+      // the current height as nLockTime and nSequence 0xfffffffd, which is
+      // indistinguishable from a plain anti-fee-sniping spend and stays escrow.
+      if (tx.version === 2 && tx.locktime === 0 && maxSequence) {
+        signals.push("BOLT 3 cooperative close (v2, nLockTime 0, nSequence max)");
+        findings.push(buildLightningChannelFinding(first.scriptType, signals));
+        return { findings };
+      }
+
+      findings.push(buildEscrow2of2Finding(first.scriptType, signals));
+      return { findings };
+    }
   }
 
   // ── Generic multisig (informational) ─────────────────────────────────

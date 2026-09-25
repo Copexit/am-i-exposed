@@ -5,7 +5,7 @@ import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import type { Finding } from "@/lib/types";
 import { SEVERITY_TEXT, SEVERITY_BG } from "@/lib/severity";
-import { findingKey } from "@/lib/finding-utils";
+import { findingKeys } from "@/lib/finding-utils";
 import type { FindingId } from "@/lib/analysis/finding-metadata";
 
 interface ChainAnalysisPanelProps {
@@ -92,7 +92,7 @@ export function ChainAnalysisPanel({ findings }: ChainAnalysisPanelProps) {
   );
 }
 
-function ChainSection({ title, findings, t }: { title: string; findings: Finding[]; t: (key: string, opts?: Record<string, unknown>) => string }) {
+function ChainSection({ title, findings, t }: { title: string; findings: Finding[]; t: (key: string | string[], opts?: Record<string, unknown>) => string }) {
   return (
     <div className="space-y-2">
       <div className="text-xs font-medium text-muted uppercase tracking-wider">
@@ -106,7 +106,7 @@ function ChainSection({ title, findings, t }: { title: string; findings: Finding
           >
             <div className="flex items-start justify-between gap-2">
               <span className={`font-medium ${SEVERITY_TEXT[f.severity] ?? "text-foreground"}`}>
-                {t(findingKey(f.id, "title", f.params), { ...f.params, defaultValue: f.title })}
+                {t(findingKeys(f.id, "title", f.params), { ...f.params, defaultValue: f.title })}
               </span>
               {f.scoreImpact !== 0 && (
                 <span className={`text-xs font-mono shrink-0 ${f.scoreImpact > 0 ? "text-severity-good" : "text-severity-critical"}`}>

@@ -1,6 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
-import { isCoinbase, getAddressedOutputs, isOpReturnOutput } from "./tx-utils";
+import { isCoinbase, getAddressedOutputs, isOpReturnOutput, inputAddressSet } from "./tx-utils";
 import { ROUND_USD_TOLERANCE_DEFAULT, ROUND_USD_TOLERANCE_SELF_HOSTED } from "./round-amount";
 import {
   checkAddressTypeMismatch,
@@ -74,7 +74,7 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
   const hasOpReturn = tx.vout.some(isOpReturnOutput);
   if (!isSweep && spendableOutputs.length === 1 && hasOpReturn && tx.vin.length >= 1) {
     const outputAddr = spendableOutputs[0]?.scriptpubkey_address;
-    const inAddrs = new Set(tx.vin.map((v) => v.prevout?.scriptpubkey_address).filter(Boolean));
+    const inAddrs = inputAddressSet(tx.vin);
     const isSelfData = outputAddr && inAddrs.has(outputAddr);
     if (!isSelfData) {
       findings.push({

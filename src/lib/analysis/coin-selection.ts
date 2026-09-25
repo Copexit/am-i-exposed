@@ -105,11 +105,9 @@ function bnbSearch(
 
   // Precompute suffix sums for O(1) remaining-value lookups
   // suffixSum[i] = total value of sorted[i..]; suffixSum[sorted.length] = 0
-  const suffixSum = [0];
-  let remainingValue = 0;
-  for (const c of [...sorted].reverse()) {
-    remainingValue += c.utxo.value;
-    suffixSum.unshift(remainingValue);
+  const suffixSum = new Array<number>(sorted.length + 1).fill(0);
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    suffixSum[i] = suffixSum[i + 1]! + sorted[i]!.utxo.value;
   }
 
   function search(index: number, selected: CoinSelectionInput[], currentSum: number): void {

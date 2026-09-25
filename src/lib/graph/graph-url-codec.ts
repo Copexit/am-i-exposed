@@ -190,13 +190,19 @@ export function encodeGraphToUrl(saved: SavedGraph): string | null {
 
   // Node table
   for (const node of nodes) {
-    const txidBytes = hexToBytes(node.txid);
-    if (txidBytes.length !== TXID_BYTES) throw new Error(`Invalid txid: ${node.txid}`);
+    let txidBytes: Uint8Array;
+    try { txidBytes = hexToBytes(node.txid); } catch { return null; }
+    if (txidBytes.length !== TXID_BYTES) return null;
+    // Edge indices are stored as uint16: a larger one cannot be shared by URL
+    const edgeIndex = node.parentEdge?.outputIndex ?? node.childEdge?.inputIndex ?? 0;
+    if (edgeIndex > 0xFFFF) return null;
     buf.set(txidBytes, offset); offset += TXID_BYTES;
     view.setInt8(offset, node.depth); offset += 1;
 
     // One edge slot per record: flag only the edge actually written, or the
-    // decoder would rebuild a bogus childEdge from the parent's ref
+    // decoder would rebuild a bogus childEdge from the parent's ref.
+    // Format limit: a node with both a parentEdge and a childEdge keeps only
+    // its parentEdge in a shared URL (the childEdge is dropped).
     buf[offset++] = node.parentEdge ? 1 : node.childEdge ? 2 : 0;
 
     if (node.parentEdge) {

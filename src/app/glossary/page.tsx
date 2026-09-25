@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Link from "next/link";
-import { Search, X, ExternalLink } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { PageShell } from "@/components/PageShell";
+import { PageCta } from "@/components/PageCta";
 import { KnowledgeTabBar } from "@/components/KnowledgeTabBar";
 import { useTranslation } from "react-i18next";
 import { GLOSSARY_ITEMS, GLOSSARY_DEFAULTS } from "@/data/glossary";
@@ -115,29 +115,10 @@ export default function GlossaryPage() {
           ))}
         </div>
 
-        {/* CTA */}
-        <div className="text-center space-y-2">
-          <p className="text-sm text-muted">
-            {t("glossary.cta", { defaultValue: "Ready to analyze a transaction? See these concepts in action." })}
-          </p>
-          <div className="flex flex-wrap justify-center gap-3">
-            <a
-              href="https://github.com/Copexit/am-i-exposed/blob/main/docs/privacy-engine.md"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm px-4 py-2.5 rounded-lg bg-surface-elevated border border-card-border text-foreground hover:border-bitcoin/30 transition-all"
-            >
-              {t("common.methodology", { defaultValue: "Methodology" })}
-              <ExternalLink size={12} className="text-muted" />
-            </a>
-            <Link
-              href="/"
-              className="text-sm px-4 py-2.5 rounded-lg bg-bitcoin text-background font-semibold hover:bg-bitcoin-hover transition-all"
-            >
-              {t("glossary.scanNow", { defaultValue: "Scan now" })}
-            </Link>
-          </div>
-        </div>
+        <PageCta
+          text={t("glossary.cta", { defaultValue: "Ready to analyze a transaction? See these concepts in action." })}
+          scanLabel={t("glossary.scanNow", { defaultValue: "Scan now" })}
+        />
     </PageShell>
   );
 }

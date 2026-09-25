@@ -33,11 +33,16 @@ export function applyCompoundScoringAdjustments(findings: Finding[]): void {
   // Chain findings count toward the grade, so the same fact must not be
   // scored by several chain modules. CoinJoin provenance (backward,
   // entity-proximity ancestry, ricochet) scores once. A backward entity
-  // found by both entity proximity and taint (the parent's inputs) scores once.
+  // found by both entity proximity and taint (the parent's inputs) scores
+  // once; when taint's sources do not include proximity's entity category,
+  // they found different entities and both count.
   keepStrongest(findings.filter(isCoinJoinProvenanceBonus));
-  keepStrongest(findings.filter(
-    (f) => (f.id === "chain-entity-proximity-backward" || f.id === "chain-taint-backward") && f.scoreImpact < 0,
-  ));
+  const proximity = findings.find((f) => f.id === "chain-entity-proximity-backward" && f.scoreImpact < 0);
+  const taint = findings.find((f) => f.id === "chain-taint-backward" && f.scoreImpact < 0);
+  const taintCategories = String(taint?.params?.sourceCategories ?? "").split(",");
+  if (proximity && taint && taintCategories.includes(String(proximity.params?.category))) {
+    keepStrongest([proximity, taint]);
+  }
 
   // RBF x Change detection: RBF confirms which output is change. When both
   // h6-rbf-signaled and h2-change-detected fire, boost change confidence and

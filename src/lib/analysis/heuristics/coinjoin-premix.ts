@@ -51,7 +51,7 @@ export function detectTx0(tx: MempoolTransaction): Tx0Match | null {
   // Need at least 3 outputs: 2+ denomination outputs + fee/change
   if (spendable.length < 3) return null;
 
-  const hasOpReturn = tx.vout.some((o) => isOpReturnOutput(o));
+  const hasOpReturn = tx.vout.some(isOpReturnOutput);
   const valueCounts = countOutputValues(spendable);
 
   for (const pool of WHIRLPOOL_POOLS) {

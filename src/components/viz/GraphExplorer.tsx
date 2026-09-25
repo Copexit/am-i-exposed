@@ -350,6 +350,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
           autoTracing={graph.autoTracing}
           autoTraceProgress={graph.autoTraceProgress}
           onCancelAutoTrace={props.noAutoTrace ? undefined : graph.cancelAutoTrace}
+          autoTraceStop={graph.lastAutoTraceStop}
           onSetAsRoot={props.onSetAsRoot}
         />
       </AnimatePresence>

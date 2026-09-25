@@ -84,6 +84,16 @@ describe("networkFromUrl", () => {
   it("defaults to mainnet for custom URLs", () => {
     expect(networkFromUrl("http://localhost:3006/api")).toBe("mainnet");
   });
+
+  it("matches path segments, not the hostname", () => {
+    expect(networkFromUrl("https://signet-node.local/api")).toBe("mainnet");
+    expect(networkFromUrl("https://testnet4.example.com/api")).toBe("mainnet");
+  });
+
+  it("handles relative URLs", () => {
+    expect(networkFromUrl("/api")).toBe("mainnet");
+    expect(networkFromUrl("/signet/api")).toBe("signet");
+  });
 });
 
 describe("createCachedMempoolClient", () => {
@@ -108,6 +118,21 @@ describe("createCachedMempoolClient", () => {
       // Verify stored in IndexedDB with infinite TTL (expiresAt = 0)
       const cached = await idbGet<MempoolTransaction>("mainnet@https://mempool.space/api:tx:aaa");
       expect(cached?.txid).toBe("aaa");
+    });
+
+    it("passes a per-call signal through to the network client", async () => {
+      const mock = makeMockClient({
+        getTransaction: vi.fn().mockResolvedValue(makeMockTx("ccc", true)),
+        getTxOutspends: vi.fn().mockResolvedValue([]),
+      });
+      mockCreate.mockReturnValue(mock as ReturnType<typeof createMempoolClient>);
+      const client = createCachedMempoolClient("https://mempool.space/api", "mainnet");
+      const { signal } = new AbortController();
+
+      await client.getTransaction("ccc", signal);
+      await client.getTxOutspends("ccc", signal);
+      expect(mock.getTransaction).toHaveBeenCalledWith("ccc", signal);
+      expect(mock.getTxOutspends).toHaveBeenCalledWith("ccc", signal);
     });
 
     it("caches unconfirmed transactions with short TTL", async () => {

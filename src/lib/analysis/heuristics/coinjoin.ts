@@ -1,6 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
-import { getSpendableOutputs, countOutputValues } from "./tx-utils";
+import { getSpendableOutputs, countOutputValues, inputAddressSet } from "./tx-utils";
 import {
   detectWhirlpool,
   detectWasabi1,
@@ -35,10 +35,7 @@ type Tx = Parameters<TxHeuristic>[0];
  * Stonewall is single-owner by design.
  */
 function coinJoinCandidates(tx: Tx) {
-  const inputAddresses = new Set<string>();
-  for (const v of tx.vin) {
-    if (v.prevout?.scriptpubkey_address) inputAddresses.add(v.prevout.scriptpubkey_address);
-  }
+  const inputAddresses = inputAddressSet(tx.vin);
   return {
     outputs: getSpendableOutputs(tx.vout).filter(
       (o) => !o.scriptpubkey_address || !inputAddresses.has(o.scriptpubkey_address),
@@ -67,8 +64,10 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
   // small JoinMarket round. It is reported by the premix heuristic instead.
   if (detectTx0(tx)) return { findings };
 
+  // Whirlpool matches on the unfiltered outputs: a remixer paying back to its
+  // own input address is still one of the pool's 5 equal outputs.
+  const whirlpool = detectWhirlpool(getSpendableOutputs(tx.vout).map((o) => o.value));
   const { outputs: spendableOutputs, singleOwner } = coinJoinCandidates(tx);
-  const whirlpool = detectWhirlpool(spendableOutputs.map((o) => o.value));
   if (whirlpool) {
     findings.push(buildWhirlpoolFinding(whirlpool.pool, tx.status?.block_time));
     return { findings };
@@ -197,11 +196,11 @@ export function isCoinJoinTx(tx: Tx): boolean {
   // A Whirlpool tx0 is a premix: its equal outputs have not been mixed yet
   if (detectTx0(tx)) return false;
 
+  // Whirlpool (unfiltered outputs, see analyzeCoinJoin)
+  if (detectWhirlpool(getSpendableOutputs(tx.vout).map((o) => o.value))) return true;
+
   const { outputs: spendable, singleOwner } = coinJoinCandidates(tx);
   const values = spendable.map((o) => o.value);
-
-  // Whirlpool
-  if (detectWhirlpool(values)) return true;
 
   // WabiSabi multi-tier
   const isWabiSabi = !singleOwner && tx.vin.length >= 10 && spendable.length >= 10;

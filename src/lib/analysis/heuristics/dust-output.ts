@@ -1,7 +1,7 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { DUST_THRESHOLD, P2PKH_DUST_LIMIT } from "@/lib/constants";
-import { isCoinbase, isOpReturnOutput } from "./tx-utils";
+import { isCoinbase, isOpReturnOutput, inputAddressSet } from "./tx-utils";
 
 /**
  * Dust Output Detection (transaction level)
@@ -64,7 +64,7 @@ export const analyzeDustOutputs: TxHeuristic = (tx) => {
 
   // A dust attack is dust sent to someone else. Dust paying back to an input
   // address of this tx (e.g. 546-sat token postage) is the spender's own.
-  const inputAddresses = new Set(tx.vin.map((v) => v.prevout?.scriptpubkey_address).filter(Boolean));
+  const inputAddresses = inputAddressSet(tx.vin);
   const sentEntries = dustEntries.filter(({ address }) => !address || !inputAddresses.has(address));
   const sentDust = sentEntries.length;
 

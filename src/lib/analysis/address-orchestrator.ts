@@ -10,6 +10,34 @@ import { ADDRESS_HEURISTICS, tick } from "./heuristic-registry";
 import { runTxHeuristics, finalizeTxResult } from "./tx-pipeline";
 import { enrichFindingsWithMetadata } from "./finding-metadata";
 
+/**
+ * Run every address heuristic, reporting each to the diagnostic loader
+ * (onStep(id), tick, onStep(id, impact)). A throwing heuristic is logged
+ * under `label` and reported with impact 0.
+ */
+export async function runAddressHeuristics(
+  address: MempoolAddress,
+  utxos: MempoolUtxo[],
+  txs: MempoolTransaction[],
+  onStep: ((stepId: string, impact?: number) => void) | undefined,
+  label: string,
+): Promise<Finding[]> {
+  const findings: Finding[] = [];
+  for (const heuristic of ADDRESS_HEURISTICS) {
+    onStep?.(heuristic.id);
+    await tick();
+    try {
+      const result = heuristic.fn(address, utxos, txs);
+      findings.push(...result.findings);
+      onStep?.(heuristic.id, sumImpact(result.findings));
+    } catch (err) {
+      console.error(`[${label}] ${heuristic.id} failed:`, err);
+      onStep?.(heuristic.id, 0);
+    }
+  }
+  return findings;
+}
+
 // ── Pre-send destination check (H13) ────────────────────────────────────────
 
 type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
@@ -71,21 +99,7 @@ export async function analyzeDestination(
   txs: MempoolTransaction[],
   onStep?: (stepId: string, impact?: number) => void,
 ): Promise<PreSendResult> {
-  const allFindings: Finding[] = [];
-
-  for (const heuristic of ADDRESS_HEURISTICS) {
-    onStep?.(heuristic.id);
-    await tick();
-    try {
-      const result = heuristic.fn(address, utxos, txs);
-      allFindings.push(...result.findings);
-      const stepImpact = sumImpact(result.findings);
-      onStep?.(heuristic.id, stepImpact);
-    } catch (err) {
-      console.error(`[analyzeDestination] ${heuristic.id} failed:`, err);
-      onStep?.(heuristic.id, 0);
-    }
-  }
+  const allFindings = await runAddressHeuristics(address, utxos, txs, onStep, "analyzeDestination");
 
   const { chain_stats, mempool_stats } = address;
   // Use tx_count for display, but funded_txo_count for reuse detection.

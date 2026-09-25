@@ -33,4 +33,17 @@ describe("enhanceEntropyFinding", () => {
     enhanceEntropyFinding(findings, wasm(3, 2));
     expect(findings[0]?.scoreImpact).toBe(-3);
   });
+
+  it("labels the kept JS one-to-one count as a lower bound (Boltzmann may find more)", () => {
+    const findings = [{ ...entropyFinding(4), description: "near-zero entropy (0 bits, via exact enumeration)." }];
+    enhanceEntropyFinding(findings, wasm(3, 2));
+    expect(findings[0]?.params?.method).toBe("lower-bound estimate");
+    expect(findings[0]?.description).toContain("via lower-bound estimate");
+  });
+
+  it("keeps an exact merged method label (equal-output partition) as is", () => {
+    const findings = [{ ...entropyFinding(4), params: { entropy: 1, method: "Boltzmann partition", nUtxos: 4 } }];
+    enhanceEntropyFinding(findings, wasm(3, 2));
+    expect(findings[0]?.params?.method).toBe("Boltzmann partition");
+  });
 });

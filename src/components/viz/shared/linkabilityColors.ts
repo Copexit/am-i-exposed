@@ -11,18 +11,20 @@ type ColorRamp = [ColorStop, ...ColorStop[]];
 const stop = (p: number, hex: string): ColorStop => [p, hexToRgb(hex)];
 
 /** Mid-ramp dark-mode stops without a palette entry. */
+const RAMP_TEAL = "#0d3b4f";
 const RAMP_GREEN = "#28a065";
 const RAMP_AMBER = "#b59215";
+const RAMP_RED = "#dc4a2a";
 
 /** Dark-mode gradient: dark navy to hot red. */
 const COLOR_STOPS: ColorRamp = [
   stop(0.00, HUES.gray900),           // dark navy
-  stop(0.10, "#0d3b4f"),              // deep teal
+  stop(0.10, RAMP_TEAL),              // deep teal
   stop(0.25, HUES.emerald800),        // dark emerald
   stop(0.40, RAMP_GREEN),             // green
   stop(0.55, RAMP_AMBER),             // dark amber
   stop(0.70, HUES.amber600),          // amber-orange
-  stop(0.85, "#dc4a2a"),              // red-orange
+  stop(0.85, RAMP_RED),               // red-orange
   stop(1.00, COLORS.severityCritical), // hot red
 ];
 

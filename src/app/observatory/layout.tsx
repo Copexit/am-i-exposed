@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 
 export const metadata: Metadata = {
   title: "CoinJoin Observatory - Live Whirlpool & WabiSabi stats | am-i.exposed",
@@ -39,29 +40,7 @@ export default function ObservatoryLayout({
 }) {
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "BreadcrumbList",
-            itemListElement: [
-              {
-                "@type": "ListItem",
-                position: 1,
-                name: "Home",
-                item: "https://am-i.exposed/",
-              },
-              {
-                "@type": "ListItem",
-                position: 2,
-                name: "CoinJoin Observatory",
-                item: "https://am-i.exposed/observatory/",
-              },
-            ],
-          }),
-        }}
-      />
+      <BreadcrumbJsonLd name="CoinJoin Observatory" path="/observatory/" />
       {children}
     </>
   );

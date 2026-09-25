@@ -64,6 +64,8 @@ interface GraphSidebarProps {
   autoTraceProgress?: { hop: number; txid: string; reason: string } | null;
   /** Stop a running auto-trace. */
   onCancelAutoTrace?: () => void;
+  /** Why the last auto-trace stopped (stable code). */
+  autoTraceStop?: string | null;
 }
 
 // CopyButton imported from shared component
@@ -87,6 +89,7 @@ export function GraphSidebar({
   autoTracing,
   autoTraceProgress,
   onCancelAutoTrace,
+  autoTraceStop,
   onSetAsRoot,
 }: GraphSidebarProps) {
   const { t } = useTranslation();
@@ -232,6 +235,7 @@ export function GraphSidebar({
             autoTracing={autoTracing}
             autoTraceProgress={autoTraceProgress}
             onCancelAutoTrace={onCancelAutoTrace}
+            autoTraceStop={autoTraceStop}
           />
         )}
         {activeTab === "analysis" && result && (

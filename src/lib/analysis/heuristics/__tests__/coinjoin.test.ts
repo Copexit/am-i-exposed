@@ -41,6 +41,21 @@ describe("analyzeCoinJoin", () => {
     expect(findings[0]!.severity).toBe("good");
   });
 
+  it("detects Whirlpool when one participant remixes back to its own input address", () => {
+    const denom = 1_000_000;
+    const vin = makeDistinctVins(5);
+    const reusedAddr = vin[0]!.prevout!.scriptpubkey_address;
+    const tx = makeTx({
+      vin,
+      vout: [
+        makeVout({ value: denom, scriptpubkey_address: reusedAddr }),
+        ...Array.from({ length: 4 }, () => makeVout({ value: denom })),
+      ],
+    });
+    expect(analyzeCoinJoin(tx).findings[0]!.id).toBe("h4-whirlpool");
+    expect(isCoinJoinTx(tx)).toBe(true);
+  });
+
   it("does not detect Whirlpool with only 4 equal outputs", () => {
     const denom = 100_000; // 0.001 BTC Samourai
     const tx = makeTx({

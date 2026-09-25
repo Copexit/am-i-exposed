@@ -79,6 +79,44 @@ describe("boltzmann pool termination settles pending jobs", () => {
     await expect(p).rejects.toThrow();
   });
 
+  it("a pool terminated between the two intrafee passes does not start the second pass", async () => {
+    type Posted = { id: string; feesMaker: number; workerIndex: number };
+    const posted: { worker: SilentWorker; msg: Posted }[] = [];
+    class RecordingWorker extends SilentWorker {
+      override postMessage(msg?: unknown) { posted.push({ worker: this, msg: msg as Posted }); }
+    }
+    vi.stubGlobal("Worker", RecordingWorker);
+    vi.stubGlobal("navigator", { hardwareConcurrency: 2 });
+    // 6 inputs + 4 outputs (two equal): multi-worker path with a CoinJoin intrafee pass
+    const cj = makeTx(
+      "d".repeat(64),
+      [120_001, 130_003, 140_007, 150_009, 160_021, 170_023],
+      [300_000, 300_000, 120_011, 149_000],
+    );
+    const p = computeBoltzmann(cj);
+    await new Promise((r) => setImmediate(r));
+    const run0 = posted.splice(0);
+    expect(run0).toHaveLength(2);
+    expect(run0.every(({ msg }) => msg.feesMaker === 0)).toBe(true);
+
+    // Both workers finish run 0; the pool is preempted before run 1 can start
+    for (const { worker, msg } of run0) {
+      worker.onmessage!(new MessageEvent("message", {
+        data: {
+          type: "result", id: msg.id, workerIndex: msg.workerIndex,
+          matLnkCombinations: [[1]], matLnkProbabilities: [[1]], nbCmbn: 1, entropy: 0, efficiency: 0,
+          nbCmbnPrfctCj: 1, deterministicLinks: [], timedOut: false, elapsedMs: 1,
+          nInputs: 6, nOutputs: 4, fees: 1000, intraFeesMaker: 0, intraFeesTaker: 0,
+        },
+      }));
+    }
+    terminatePool();
+
+    expect(await state(p)).toBe("settled");
+    await expect(p).resolves.toBeNull();
+    expect(posted).toHaveLength(0);
+  });
+
   describe("a job's own worker failure is not reported as preemption", () => {
     it("single-worker crash", async () => {
       const preempted = vi.fn();

@@ -148,6 +148,7 @@ Change detection is the backbone of transaction tracing. If an adversary can ide
 - Medium confidence change detection (one sub-heuristic matches clearly): -10
 - Low confidence: -5
 - Wallet hop (address type upgrade): 0
+- Sweep (`h2-sweep`, exactly 1 input and 1 output, spending one UTXO in full to a different address): 0, informational. The lone output must be addressed: a 1-in/1-out payment to a bare P2PK or other address-less script is not reported as a sweep, and a 1-in/1-out spend back to the input address is left to the self-send checks.
 
 **References**
 - Meiklejohn et al., "A Fistful of Bitcoins: Characterizing Payments Among Men with No Names" (2013) - foundational change detection heuristics
@@ -908,12 +909,14 @@ Check most specific pattern first:
     "Likely HodlHodl escrow release" (-3, high)
   elif 2-of-3 input without fee address match:
     "2-of-3 multisig escrow detected" (-2, medium)
+  elif single 2-of-2 input and BOLT 3 commitment (nLockTime >> 24 == 0x20 and nSequence >> 24 == 0x80):
+    # any output count: anchor outputs and pending HTLCs add outputs
+    "Likely legacy Lightning channel close" (-3, medium)
   elif single 2-of-2 input + 2 outputs:
-    if BOLT 3 commitment (nLockTime >> 24 == 0x20 and nSequence >> 24 == 0x80)
-       or BOLT 3 cooperative close (version 2, nLockTime 0, nSequence 0xffffffff):
+    if legacy BOLT 3 cooperative close (closing_signed: version 2, nLockTime 0, nSequence 0xffffffff):
       "Likely legacy Lightning channel close" (-3, medium)
     else:
-      "2-of-2 multisig escrow detected" (-2, medium)
+      "2-of-2 multisig escrow detected" (h17-escrow-2of2, -2, medium)
   else:
     "Wrapped multisig detected: M-of-N" (0, low, informational)
 ```
@@ -929,7 +932,7 @@ Check most specific pattern first:
 **False positive analysis:**
 
 - HodlHodl detection has 90-95% precision due to the known fee address anchor
-- 2-of-2 detection has ~60-70% precision for P2P exchanges; Lightning cooperative closes are a significant source of false positives (mitigated by matching the BOLT 3 fingerprints: a commitment tx stores the obscured commitment number with nLockTime upper byte 0x20 and nSequence upper byte 0x80; a cooperative close uses version 2, nLockTime 0, nSequence 0xffffffff). A plain anti-fee-sniping spend (nLockTime = block height, nSequence 0xfffffffd) matches neither and stays an escrow finding
+- 2-of-2 detection has ~60-70% precision for P2P exchanges; Lightning cooperative closes are a significant source of false positives (mitigated by matching the BOLT 3 fingerprints: a commitment tx stores the obscured commitment number with nLockTime upper byte 0x20 and nSequence upper byte 0x80; a legacy `closing_signed` cooperative close uses version 2, nLockTime 0, nSequence 0xffffffff). The commitment fingerprint is matched at any output count (anchor channels add 2 anchor outputs, pending HTLCs add more); the cooperative-close fingerprint only on 2-output spends. Closes negotiated with `option_simple_close` set nLockTime to the current height and nSequence 0xfffffffd, which is indistinguishable from a plain anti-fee-sniping spend, so they (like any such spend) stay an `h17-escrow-2of2` finding
 - 2-of-3 detection cannot distinguish between cold storage and P2P escrow without additional context
 
 **Remediation guidance:**

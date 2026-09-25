@@ -71,6 +71,16 @@ export function ChartTooltip({ top, left, children, containerRef }: ChartTooltip
   );
 }
 
+/** Tooltip position (container-local) centered above `elem`. */
+export function anchorTooltip(elem: Element, container: Element): { tooltipLeft: number; tooltipTop: number } {
+  const elemRect = elem.getBoundingClientRect();
+  const containerRect = container.getBoundingClientRect();
+  return {
+    tooltipLeft: elemRect.left - containerRect.left + elemRect.width / 2,
+    tooltipTop: elemRect.top - containerRect.top,
+  };
+}
+
 /** Lightweight tooltip state hook (replaces @visx/tooltip useTooltip). */
 export function useChartTooltip<T>() {
   const [state, setState] = useState<TooltipState<T>>({

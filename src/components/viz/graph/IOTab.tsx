@@ -25,7 +25,9 @@ export interface IOTabProps {
   onAutoTrace?: (txid: string, outputIndex: number) => void;
   onAutoTraceLinkability?: (txid: string, outputIndex: number) => void;
   autoTracing?: boolean;
-  autoTraceProgress?: { hop: number; txid: string; reason: string } | null;
+  autoTraceProgress?: { hop: number; txid: string; reason: string; percent?: number } | null;
+  /** Why the last finished auto-trace stopped, shown once tracing has ended. */
+  autoTraceStop?: string | null;
   onCancelAutoTrace?: () => void;
 }
 
@@ -44,9 +46,13 @@ export function IOTab({
   onAutoTraceLinkability,
   autoTracing,
   autoTraceProgress,
+  autoTraceStop,
   onCancelAutoTrace,
 }: IOTabProps) {
   const { t } = useTranslation();
+  // Auto-trace reasons are stable codes; unknown codes fall back to the code itself
+  const traceReason = (reason: string, percent?: number) =>
+    t(`graph.autoTrace.${reason}`, { percent, defaultValue: reason });
   const mat = boltzmannResult?.matLnkProbabilities;
   const detLinks = boltzmannResult?.deterministicLinks;
 
@@ -104,7 +110,7 @@ export function IOTab({
           <span className="text-xs text-bitcoin">
             {t("graph.ioTab.tracingHop", { hop: autoTraceProgress.hop, defaultValue: "Tracing hop {{hop}}..." })}
             {autoTraceProgress.reason !== "expanding" && autoTraceProgress.reason !== "starting" && (
-              <span className="text-muted ml-1">({autoTraceProgress.reason})</span>
+              <span className="text-muted ml-1">({traceReason(autoTraceProgress.reason, autoTraceProgress.percent)})</span>
             )}
           </span>
           {onCancelAutoTrace && (
@@ -116,6 +122,11 @@ export function IOTab({
               {t("graph.ioTab.stopTrace", { defaultValue: "Stop" })}
             </button>
           )}
+        </div>
+      )}
+      {!autoTracing && autoTraceStop && (
+        <div className="px-1 py-1 text-xs text-muted">
+          {t("graph.ioTab.traceStopped", { reason: traceReason(autoTraceStop), defaultValue: "Trace stopped: {{reason}}" })}
         </div>
       )}
 

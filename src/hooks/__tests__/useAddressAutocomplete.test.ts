@@ -72,6 +72,12 @@ describe("useAddressAutocomplete", () => {
     },
   );
 
+  it("accepts an uppercase bech32 paste (QR codes) and sends it lowercased", async () => {
+    net.isUmbrel = true;
+    await type("BC1QXY");
+    expect(getAddressPrefix).toHaveBeenCalledWith("bc1qxy");
+  });
+
   it("accepts testnet base58 prefixes only on test networks", async () => {
     Object.assign(net, { network: "testnet4", customApiUrl: "http://node.local/testnet4/api" });
     await type("mipcBb");

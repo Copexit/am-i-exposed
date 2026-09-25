@@ -6,6 +6,7 @@ import { SVG_COLORS } from "../shared/svgConstants";
 import { ANNOTATION_COLOR, NOTE_BG_COLOR, hexToRgba } from "@/lib/palette";
 import type { LayoutEdge } from "./types";
 import type { EditingLabel } from "./useLabelEditor";
+import { SvgCircleButton } from "./SvgCircleButton";
 
 interface GraphEdgeLabelsProps {
   edges: LayoutEdge[];
@@ -76,10 +77,17 @@ export function GraphEdgeLabels({
             )}
             {/* Delete button in annotate mode */}
             {annotateMode && !isEditingThis && (
-              <g style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); onSetEdgeLabel?.(key, ""); }}>
-                <circle cx={midX + 50} cy={midY - 6} r={6} fill={SVG_COLORS.critical} />
-                <Text x={midX + 50} y={midY - 3} fontSize={8} fontWeight={700} textAnchor="middle" fill="white" style={{ pointerEvents: "none" }}>x</Text>
-              </g>
+              <SvgCircleButton
+                cx={midX + 50}
+                cy={midY - 6}
+                r={6}
+                fill={SVG_COLORS.critical}
+                label={t("graph.deleteLabel", { defaultValue: "Delete label" })}
+                glyph="x"
+                glyphColor="white"
+                fontSize={8}
+                onActivate={() => onSetEdgeLabel?.(key, "")}
+              />
             )}
           </g>
         );
