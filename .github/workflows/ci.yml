@@ -1,8 +1,7 @@
 name: CI
 
 on:
-  # push:
-  #   branches: [main]
+  pull_request:
   workflow_dispatch:
 
 concurrency:
@@ -46,12 +45,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm test
-
-      - run: pnpm test:hooks
-
       - run: pnpm test:coverage
-        continue-on-error: true
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -133,8 +127,12 @@ jobs:
       # Build Node.js WASM target
       - run: bash scripts/build-boltzmann-wasm-node.sh
 
-      # Verify WASM loads in Node.js
-      - run: node -e "const w = require('./cli/wasm/boltzmann_rs.js'); console.log('WASM exports:', Object.keys(w).join(', '))"
+      # CLI unit tests (need the Node.js WASM target built above)
+      - run: pnpm install --frozen-lockfile
+        working-directory: cli
+
+      - run: pnpm test
+        working-directory: cli
 
   e2e:
     runs-on: ubuntu-latest

@@ -12,7 +12,6 @@ export default defineConfig({
       "workers/**/*.test.js",
       "umbrel/**/*.test.js",
     ],
-    exclude: ["src/hooks/__tests__/**"],
     coverage: {
       provider: "v8",
       include: [

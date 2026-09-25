@@ -1,6 +1,8 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useGraphExpansion } from "../useGraphExpansion";
+import { DEFAULT_MAX_NODES } from "@/lib/graph/graph-reducer";
 import type { MempoolOutspend, MempoolTransaction } from "@/lib/api/types";
 import {
   makeTx,
@@ -214,8 +216,8 @@ describe("useGraphExpansion", () => {
 
   describe("MAX_NODES cap", () => {
     it("does not exceed the maximum node count via ADD_NODE", () => {
-      // Build a root with 110 inputs so we can attempt to add 110 parents
-      const parentIds = Array.from({ length: 110 }, (_, i) => `p-${String(i).padStart(3, "0")}`);
+      // Build a root with more inputs than the node cap allows
+      const parentIds = Array.from({ length: DEFAULT_MAX_NODES + 10 }, (_, i) => `p-${String(i).padStart(3, "0")}`);
       const rootTx = makeTx({
         txid: "root-cap",
         vin: parentIds.map((pid) => makeVin(pid, 0)),
@@ -238,16 +240,14 @@ describe("useGraphExpansion", () => {
         result.current.setRootWithNeighbors(rootTx, parents, children);
       });
 
-      // maxNodes is 100, so the graph should have at most 100 nodes
-      expect(result.current.nodes.size).toBeLessThanOrEqual(result.current.maxNodes);
-      expect(result.current.maxNodes).toBe(100);
-      // Root + 99 parents = 100 max
-      expect(result.current.nodes.size).toBe(100);
+      // Root + (cap - 1) parents fills the graph exactly
+      expect(result.current.maxNodes).toBe(DEFAULT_MAX_NODES);
+      expect(result.current.nodes.size).toBe(DEFAULT_MAX_NODES);
     });
 
     it("expandInput is a no-op when graph is already at MAX_NODES", async () => {
       // Create a root with many inputs
-      const parentIds = Array.from({ length: 105 }, (_, i) => `cap-${i}`);
+      const parentIds = Array.from({ length: DEFAULT_MAX_NODES + 5 }, (_, i) => `cap-${i}`);
       const rootTx = makeTx({
         txid: "root-full",
         vin: parentIds.map((pid) => makeVin(pid, 0)),
@@ -270,14 +270,14 @@ describe("useGraphExpansion", () => {
         result.current.setRootWithNeighbors(rootTx, parents, children);
       });
 
-      expect(result.current.nodes.size).toBe(100);
+      expect(result.current.nodes.size).toBe(DEFAULT_MAX_NODES);
 
       // Try expanding - should not add anything
       await act(async () => {
-        await result.current.expandInput("root-full", 100);
+        await result.current.expandInput("root-full", DEFAULT_MAX_NODES);
       });
 
-      expect(result.current.nodes.size).toBe(100);
+      expect(result.current.nodes.size).toBe(DEFAULT_MAX_NODES);
       // Fetcher should not have been called since we bail early
       expect(fetcher.getTransaction).not.toHaveBeenCalled();
     });
@@ -590,9 +590,9 @@ describe("useGraphExpansion", () => {
       expect(result.current.nodeCount).toBe(1);
     });
 
-    it("maxNodes is 100", () => {
+    it("maxNodes defaults to DEFAULT_MAX_NODES", () => {
       const { result } = renderHook(() => useGraphExpansion(null));
-      expect(result.current.maxNodes).toBe(100);
+      expect(result.current.maxNodes).toBe(DEFAULT_MAX_NODES);
     });
   });
 
