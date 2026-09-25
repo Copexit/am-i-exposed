@@ -29,6 +29,7 @@
  */
 
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
+import { bytesToHex, hexToBytes } from "@/lib/bitcoin/hex";
 import type { SavedGraph, SavedGraphNode, GraphAnnotation } from "./saved-graph-types";
 
 const MAX_URL_LENGTH = 6000;
@@ -39,22 +40,6 @@ const NODE_RECORD_SIZE = 37; // 32 txid + 1 depth + 1 flags + 2 edgeRef + 1 edge
 const NO_EDGE = 0xFFFF;
 
 // ─── Helpers ────────────────────────────────────────────────────────
-
-function hexToBytes(hex: string): Uint8Array {
-  const bytes = new Uint8Array(TXID_BYTES);
-  for (let i = 0; i < TXID_BYTES; i++) {
-    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
-  }
-  return bytes;
-}
-
-function bytesToHex(bytes: Uint8Array, offset: number): string {
-  let hex = "";
-  for (let i = 0; i < TXID_BYTES; i++) {
-    hex += bytes[offset + i].toString(16).padStart(2, "0");
-  }
-  return hex;
-}
 
 function toBase64Url(bytes: Uint8Array): string {
   let binary = "";
@@ -202,6 +187,7 @@ export function encodeGraphToUrl(saved: SavedGraph): string | null {
   // Node table
   for (const node of nodes) {
     const txidBytes = hexToBytes(node.txid);
+    if (txidBytes.length !== TXID_BYTES) throw new Error(`Invalid txid: ${node.txid}`);
     buf.set(txidBytes, offset); offset += TXID_BYTES;
     view.setInt8(offset, node.depth); offset += 1;
 
@@ -296,7 +282,7 @@ export function decodeGraphFromUrl(
     const txids: string[] = [];
     const nodeStartOffset = offset;
     for (let i = 0; i < nodeCount; i++) {
-      txids.push(bytesToHex(buf, offset));
+      txids.push(bytesToHex(buf.subarray(offset, offset + TXID_BYTES)));
       offset += NODE_RECORD_SIZE;
     }
 

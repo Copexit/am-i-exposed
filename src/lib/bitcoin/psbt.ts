@@ -5,13 +5,14 @@
  * This allows users to preview the privacy impact of a transaction before broadcasting.
  *
  * The PSBT is parsed using @scure/btc-signer, which handles the complex binary format.
- * We then convert the parsed data into our MempoolTransaction format so existing
+ * The parsed data is converted into the MempoolTransaction format so existing
  * heuristics can analyze it.
  */
 
-import { Transaction, NETWORK, TEST_NETWORK } from "@scure/btc-signer";
+import { Transaction, Address, OutScript, NETWORK, TEST_NETWORK } from "@scure/btc-signer";
 import { base64 } from "@scure/base";
-import { bytesToHex } from "./hex";
+import { bytesToHex, hexToBytes } from "./hex";
+import type { BitcoinNetwork } from "./networks";
 import type { MempoolTransaction, MempoolVin, MempoolVout } from "@/lib/api/types";
 
 // ---------- Types ----------
@@ -35,25 +36,74 @@ export interface PSBTParseResult {
   outputCount: number;
   /** Whether all inputs have UTXO data (needed for fee calc) */
   complete: boolean;
-  /** Network detected from output addresses */
+  /** Network used to encode addresses (caller-selected, or inferred from BIP32 hints) */
   network: "mainnet" | "testnet";
 }
 
 // ---------- Helpers ----------
 
-function detectScriptType(scriptHex: string): string {
-  if (!scriptHex) return "unknown";
-  // P2PKH: OP_DUP OP_HASH160 <20> ... OP_EQUALVERIFY OP_CHECKSIG
-  if (scriptHex.startsWith("76a914") && scriptHex.endsWith("88ac")) return "p2pkh";
-  // P2SH: OP_HASH160 <20> ... OP_EQUAL
-  if (scriptHex.startsWith("a914") && scriptHex.endsWith("87")) return "p2sh";
-  // P2WPKH: OP_0 <20>
-  if (scriptHex.startsWith("0014") && scriptHex.length === 44) return "v0_p2wpkh";
-  // P2WSH: OP_0 <32>
-  if (scriptHex.startsWith("0020") && scriptHex.length === 68) return "v0_p2wsh";
-  // P2TR: OP_1 <32>
-  if (scriptHex.startsWith("5120") && scriptHex.length === 68) return "v1_p2tr";
-  return "unknown";
+/** btc-signer OutScript type -> mempool.space scriptpubkey_type */
+const MEMPOOL_SCRIPT_TYPE: Record<string, string> = {
+  pk: "p2pk",
+  pkh: "p2pkh",
+  sh: "p2sh",
+  wpkh: "v0_p2wpkh",
+  wsh: "v0_p2wsh",
+  tr: "v1_p2tr",
+  ms: "multisig",
+  p2a: "anchor",
+};
+
+/** Rough per-input vsize by prevout type, for PSBTs that are not finalized yet. */
+const INPUT_VSIZE: Record<string, number> = {
+  p2pkh: 148,
+  p2sh: 91, // assumes P2SH-P2WPKH
+  v0_p2wpkh: 68,
+  v1_p2tr: 58,
+};
+
+type BtcNetwork = typeof NETWORK;
+
+/** Describe an output script the way the mempool.space API does. */
+function describeScript(script: Uint8Array, net: BtcNetwork) {
+  const scriptpubkey = bytesToHex(script);
+  if (script[0] === 0x6a) {
+    return { scriptpubkey, scriptpubkey_type: "op_return", scriptpubkey_address: "" };
+  }
+  let scriptpubkey_type = "unknown";
+  let scriptpubkey_address = "";
+  try {
+    const decoded = OutScript.decode(script);
+    scriptpubkey_type = MEMPOOL_SCRIPT_TYPE[decoded.type] ?? "unknown";
+    scriptpubkey_address = Address(net).encode(decoded);
+  } catch {
+    // Non-standard script or a type without an address (p2pk, bare multisig)
+  }
+  return { scriptpubkey, scriptpubkey_type, scriptpubkey_address };
+}
+
+/**
+ * Output scripts do not encode the network, so fall back to BIP32 derivation
+ * hints: a coin type of 1' (m/purpose'/1'/...) means a test network.
+ */
+function inferTestnet(tx: Transaction): boolean {
+  const paths: number[][] = [];
+  const collect = (
+    bip32?: [Uint8Array, { path: number[] }][],
+    tapBip32?: [Uint8Array, { der: { path: number[] } }][],
+  ) => {
+    for (const [, d] of bip32 ?? []) paths.push(d.path);
+    for (const [, d] of tapBip32 ?? []) paths.push(d.der.path);
+  };
+  for (let i = 0; i < tx.inputsLength; i++) {
+    const inp = tx.getInput(i);
+    collect(inp.bip32Derivation, inp.tapBip32Derivation);
+  }
+  for (let i = 0; i < tx.outputsLength; i++) {
+    const out = tx.getOutput(i);
+    collect(out.bip32Derivation, out.tapBip32Derivation);
+  }
+  return paths.some((p) => p.length >= 2 && p[1] === 0x80000001);
 }
 
 // ---------- Public API ----------
@@ -68,8 +118,11 @@ export function isPSBT(input: string): boolean {
 /**
  * Parse a PSBT string (base64 or hex) and extract transaction data
  * suitable for privacy analysis.
+ *
+ * @param network - the selected network, used to encode addresses. When omitted,
+ *   the network is inferred from BIP32 derivation hints (default mainnet).
  */
-export function parsePSBT(input: string): PSBTParseResult {
+export function parsePSBT(input: string, network?: BitcoinNetwork): PSBTParseResult {
   const trimmed = input.trim();
 
   // Decode the PSBT bytes
@@ -77,12 +130,11 @@ export function parsePSBT(input: string): PSBTParseResult {
   if (trimmed.startsWith("cHNidP")) {
     psbtBytes = base64.decode(trimmed);
   } else if (trimmed.startsWith("70736274ff")) {
-    // Hex-encoded PSBT
-    const hexPairs = trimmed.match(/.{1,2}/g);
-    if (!hexPairs) throw new Error("Invalid PSBT hex");
-    psbtBytes = new Uint8Array(
-      hexPairs.map(b => parseInt(b, 16)),
-    );
+    try {
+      psbtBytes = hexToBytes(trimmed);
+    } catch {
+      throw new Error("Invalid PSBT hex");
+    }
   } else {
     throw new Error("Invalid PSBT format: must be base64 or hex encoded");
   }
@@ -93,43 +145,36 @@ export function parsePSBT(input: string): PSBTParseResult {
   const inputCount = tx.inputsLength;
   const outputCount = tx.outputsLength;
 
+  const testnet = network ? network !== "mainnet" : inferTestnet(tx);
+  const net = testnet ? TEST_NETWORK : NETWORK;
+
   // Extract input data
   let inputTotal = 0;
   let complete = true;
+  let estimatedVsize = 10.5;
   const vins: MempoolVin[] = [];
 
   for (let i = 0; i < inputCount; i++) {
     const inp = tx.getInput(i);
+    const utxo = inp.witnessUtxo ?? inp.nonWitnessUtxo?.outputs[inp.index ?? 0];
 
-    let prevValue = 0;
-    let prevScript = "";
-    let prevScriptType = "unknown";
-    const prevAddress = "";
-
-    // Try to get UTXO value from witnessUtxo or nonWitnessUtxo
-    if (inp.witnessUtxo) {
-      prevValue = Number(inp.witnessUtxo.amount);
-      prevScript = bytesToHex(inp.witnessUtxo.script);
-      prevScriptType = detectScriptType(prevScript);
+    let prevout: MempoolVin["prevout"] = null;
+    if (utxo) {
+      const value = Number(utxo.amount);
+      inputTotal += value;
+      prevout = { ...describeScript(utxo.script, net), scriptpubkey_asm: "", value };
     } else {
       complete = false;
     }
-
-    inputTotal += prevValue;
+    estimatedVsize += INPUT_VSIZE[prevout?.scriptpubkey_type ?? ""] ?? 68;
 
     vins.push({
       txid: inp.txid ? bytesToHex(inp.txid) : `unknown_${i}`,
       vout: inp.index ?? 0,
-      prevout: {
-        scriptpubkey: prevScript,
-        scriptpubkey_asm: "",
-        scriptpubkey_type: prevScriptType,
-        scriptpubkey_address: prevAddress,
-        value: prevValue,
-      },
-      scriptsig: "",
+      prevout,
+      scriptsig: inp.finalScriptSig ? bytesToHex(inp.finalScriptSig) : "",
       scriptsig_asm: "",
-      witness: [],
+      witness: inp.finalScriptWitness?.map(bytesToHex) ?? [],
       is_coinbase: false,
       sequence: inp.sequence ?? 0xffffffff,
     });
@@ -138,42 +183,18 @@ export function parsePSBT(input: string): PSBTParseResult {
   // Extract output data
   let outputTotal = 0;
   const vouts: MempoolVout[] = [];
-  let detectedNetwork: "mainnet" | "testnet" = "mainnet";
 
   for (let i = 0; i < outputCount; i++) {
     const out = tx.getOutput(i);
     const value = Number(out.amount ?? 0);
     outputTotal += value;
-
-    const script = out.script ? bytesToHex(out.script) : "";
-    const scriptType = detectScriptType(script);
-
-    // Try to get address
-    let address = "";
-    try {
-      const mainAddr = tx.getOutputAddress(i, NETWORK);
-      if (mainAddr) address = mainAddr;
-    } catch {
-      try {
-        const testAddr = tx.getOutputAddress(i, TEST_NETWORK);
-        if (testAddr) {
-          address = testAddr;
-          detectedNetwork = "testnet";
-        }
-      } catch {
-        // Can't determine address
-      }
-    }
-
-    if (address.startsWith("tb1") || address.startsWith("m") || address.startsWith("n") || address.startsWith("2")) {
-      detectedNetwork = "testnet";
-    }
+    estimatedVsize += 31;
 
     vouts.push({
-      scriptpubkey: script,
+      ...(out.script
+        ? describeScript(out.script, net)
+        : { scriptpubkey: "", scriptpubkey_type: "unknown", scriptpubkey_address: "" }),
       scriptpubkey_asm: "",
-      scriptpubkey_type: scriptType,
-      scriptpubkey_address: address,
       value,
     });
   }
@@ -185,8 +206,7 @@ export function parsePSBT(input: string): PSBTParseResult {
   try {
     vsize = tx.vsize;
   } catch {
-    // Estimate: 10.5 overhead + 68 per segwit input + 31 per output
-    vsize = Math.ceil(10.5 + inputCount * 68 + outputCount * 31);
+    vsize = Math.ceil(estimatedVsize);
   }
   const feeRate = vsize > 0 && fee > 0 ? Math.round(fee / vsize) : 0;
 
@@ -215,6 +235,6 @@ export function parsePSBT(input: string): PSBTParseResult {
     inputCount,
     outputCount,
     complete,
-    network: detectedNetwork,
+    network: testnet ? "testnet" : "mainnet",
   };
 }

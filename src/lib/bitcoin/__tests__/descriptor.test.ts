@@ -4,6 +4,7 @@ import {
   isExtendedPubkey,
   isDescriptor,
   isXpubOrDescriptor,
+  descriptorChecksum,
 } from "../descriptor";
 
 describe("isExtendedPubkey", () => {
@@ -30,11 +31,11 @@ describe("isExtendedPubkey", () => {
 
 describe("isDescriptor", () => {
   it("recognizes wpkh descriptor", () => {
-    expect(isDescriptor("wpkh(xpub6CUG.../0/*)")).toBe(true);
+    expect(isDescriptor("wpkh(xpub6CUG/0/*)")).toBe(true);
   });
 
   it("recognizes sh(wpkh()) descriptor", () => {
-    expect(isDescriptor("sh(wpkh(xpub6CUG.../0/*))")).toBe(true);
+    expect(isDescriptor("sh(wpkh(xpub6CUG/0/*))")).toBe(true);
   });
 
   it("rejects plain xpub", () => {
@@ -155,5 +156,69 @@ describe("parseAndDerive", () => {
     expect(result.receiveAddresses).toHaveLength(2);
     // With chain index 0 specified, only receive addresses
     expect(result.changeAddresses).toHaveLength(0);
+  });
+});
+
+// Bitcoin Core doc/descriptors.md example (BIP32 test vector 1 xpub, with checksum)
+const CORE_PKH =
+  "pkh([d34db33f/44'/0'/0']xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL/1/*)";
+const ZPUB =
+  "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs";
+
+describe("descriptorChecksum (BIP-380)", () => {
+  it("matches the BIP-380 test vector", () => {
+    expect(descriptorChecksum("raw(deadbeef)")).toBe("89f8spxm");
+  });
+
+  it("matches the Bitcoin Core documentation example", () => {
+    expect(descriptorChecksum(CORE_PKH)).toBe("ml40v0wf");
+  });
+
+  it("returns null for characters outside the descriptor charset", () => {
+    // BIP-380 invalid vector: "raw(\u00dc)#00000000"
+    expect(descriptorChecksum("raw(\u00dc)")).toBeNull();
+  });
+});
+
+describe("parseAndDerive - descriptor checksum", () => {
+  it("accepts a descriptor with a valid bech32-charset checksum", () => {
+    const withSum = parseAndDerive(`${CORE_PKH}#ml40v0wf`, 2);
+    const without = parseAndDerive(CORE_PKH, 2);
+    expect(withSum.changeAddresses.map((a) => a.address)).toEqual(
+      without.changeAddresses.map((a) => a.address),
+    );
+    expect(withSum.changeAddresses).toHaveLength(2);
+    expect(withSum.receiveAddresses).toHaveLength(0);
+  });
+
+  it("rejects a descriptor with a wrong checksum", () => {
+    expect(() => parseAndDerive(`${CORE_PKH}#ml40v0wq`, 2)).toThrow(/checksum/i);
+  });
+
+  it("rejects a malformed checksum", () => {
+    expect(() => parseAndDerive(`${CORE_PKH}#ml40v0w`, 2)).toThrow(/checksum/i);
+    expect(isDescriptor(`${CORE_PKH}#ml40v0w`)).toBe(true);
+  });
+});
+
+describe("parseAndDerive - descriptor syntax", () => {
+  it("expands <0;1>/* multipath into receive and change chains", () => {
+    const multi = parseAndDerive(`wpkh([d34db33f/84h/0h/0h]${ZPUB}/<0;1>/*)`, 3);
+    const bare = parseAndDerive(ZPUB, 3);
+    expect(multi.receiveAddresses).toEqual(bare.receiveAddresses);
+    expect(multi.changeAddresses).toEqual(bare.changeAddresses);
+    expect(isDescriptor(`wpkh(${ZPUB}/<0;1>/*)`)).toBe(true);
+  });
+
+  it("rejects unbalanced parentheses", () => {
+    for (const bad of [`wpkh(${ZPUB}/0/*)))`, `sh(wpkh(${ZPUB}/0/*)`, `sh(wpkh(${ZPUB}/0/*)))`]) {
+      expect(isDescriptor(bad)).toBe(false);
+      expect(() => parseAndDerive(bad, 1)).toThrow();
+    }
+  });
+
+  it("does not claim unsupported descriptor types", () => {
+    expect(isDescriptor(`sh(wsh(multi(1,${ZPUB}/0/*)))`)).toBe(false);
+    expect(isDescriptor(`wsh(multi(1,${ZPUB}/0/*))`)).toBe(false);
   });
 });
