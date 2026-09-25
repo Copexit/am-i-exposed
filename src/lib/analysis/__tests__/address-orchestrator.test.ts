@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { analyzeDestination } from "../address-orchestrator";
 import { makeAddress } from "../heuristics/__tests__/fixtures/tx-factory";
-import { makeOfacPreSendResult } from "@/hooks/useAnalysisState";
+import { makeOfacPreSendResult } from "@/lib/analysis/analysis-state";
 import ofacData from "@/data/ofac-addresses.json";
 
 const t = (_key: string, opts?: Record<string, unknown>) => String(opts?.defaultValue ?? "");

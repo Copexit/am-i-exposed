@@ -17,12 +17,12 @@ import {
 } from "@/lib/analysis/orchestrator";
 import { checkOfac } from "@/lib/analysis/cex-risk/ofac-check";
 import { needsEnrichment, enrichPrevouts, countNullPrevouts } from "@/lib/api/enrich-prevouts";
-import { makeIncompletePrevoutFinding, makeOfacPreSendResult } from "@/hooks/useAnalysisState";
+import { makeIncompletePrevoutFinding, makeOfacPreSendResult } from "@/lib/analysis/analysis-state";
 import type { ApiClient } from "@/lib/api/client";
 import type { MempoolTransaction, MempoolAddress, MempoolUtxo } from "@/lib/api/types";
 import type { PreSendResult } from "@/lib/analysis/address-orchestrator";
 import type { ScoringResult, TxAnalysisResult } from "@/lib/types";
-import type { AnalysisState } from "@/hooks/useAnalysisState";
+import type { AnalysisState } from "@/lib/analysis/analysis-state";
 
 /** Dependencies injected from the React hook layer. */
 export interface AddressAnalysisDeps {

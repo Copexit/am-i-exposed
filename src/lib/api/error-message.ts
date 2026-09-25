@@ -1,5 +1,5 @@
 import { ApiError } from "./fetch-with-retry";
-import { isBraveBrowser } from "@/hooks/useTorDetection";
+import { isBraveBrowser } from "@/lib/browser";
 import type { HeuristicTranslator } from "@/lib/analysis/heuristics/types";
 
 interface ErrorMessageContext {

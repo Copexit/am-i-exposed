@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { runChainTrace } from "../chain-trace";
 import { ApiError } from "@/lib/api/fetch-with-retry";
-import { makeTx, makeVin } from "../heuristics/__tests__/fixtures/tx-factory";
-import type { AnalysisSettings } from "@/hooks/useAnalysisSettings";
-import type { FetchProgress } from "@/hooks/useAnalysisState";
+import { makeTx, makeVin, makeVout } from "../heuristics/__tests__/fixtures/tx-factory";
+import type { AnalysisSettings } from "@/lib/analysis/settings";
+import type { FetchProgress } from "@/lib/analysis/analysis-state";
 import type { MempoolTransaction } from "@/lib/api/types";
 
 const settings: AnalysisSettings = {
@@ -58,6 +58,53 @@ describe("runChainTrace", () => {
     await runChainTrace(params({ getTransaction: coinbaseParent }, (p) => progress.push(p)));
     expect(progress[0]).toMatchObject({ status: "tracing-backward", currentDepth: 0, maxDepth: 4 });
     expect(progress.some((p) => p.status === "tracing-forward")).toBe(true);
+  });
+
+  describe("skip settings (parent 1 is expandable, parent 2 is a coinbase)", () => {
+    const grandparentIds = (n: number) => Array.from({ length: n }, (_, i) => `f${i}`.padEnd(64, "0"));
+    const whirlpoolMix = (txid: string) => makeTx({
+      txid,
+      vin: grandparentIds(5).map((id) => makeVin({ txid: id })),
+      vout: Array.from({ length: 5 }, () => makeVout({ value: 1_000_000 })),
+    });
+    const largeConsolidation = (txid: string) => makeTx({
+      txid,
+      vin: grandparentIds(51).map((id) => makeVin({ txid: id })),
+      vout: [makeVout({ value: 5_000_000 })],
+    });
+    const traceWith = async (parent1: (txid: string) => MempoolTransaction, s: Partial<AnalysisSettings>) => {
+      const fetched: string[] = [];
+      const res = await runChainTrace({
+        ...params({
+          getTransaction: async (txid) => {
+            fetched.push(txid);
+            return txid === "1".repeat(64) ? parent1(txid) : coinbaseParent(txid);
+          },
+        }),
+        settings: { ...settings, ...s },
+      });
+      return { res, fetchedGrandparents: fetched.filter((id) => id.startsWith("f")).length };
+    };
+
+    it("expands through a CoinJoin parent by default", async () => {
+      const { res, fetchedGrandparents } = await traceWith(whirlpoolMix, {});
+      expect(fetchedGrandparents).toBe(5);
+      expect(res.backwardLayers).toHaveLength(2);
+    });
+
+    it("skipCoinJoins keeps the CoinJoin in the trace but does not expand through it", async () => {
+      const { res, fetchedGrandparents } = await traceWith(whirlpoolMix, { skipCoinJoins: true });
+      expect(fetchedGrandparents).toBe(0);
+      expect(res.backwardLayers).toHaveLength(1);
+      expect(res.backwardLayers[0].txs.has("1".repeat(64))).toBe(true);
+    });
+
+    it("skipLargeClusters does not expand through a tx merging more than 50 input addresses", async () => {
+      expect((await traceWith(largeConsolidation, {})).fetchedGrandparents).toBeGreaterThan(0);
+      const { res, fetchedGrandparents } = await traceWith(largeConsolidation, { skipLargeClusters: true });
+      expect(fetchedGrandparents).toBe(0);
+      expect(res.backwardLayers[0].txs.has("1".repeat(64))).toBe(true);
+    });
   });
 
   it("stops a phase at its half timeout even while a request is still in flight", async () => {

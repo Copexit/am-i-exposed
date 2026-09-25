@@ -344,6 +344,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
           onAutoTraceLinkability={props.noAutoTrace ? undefined : graph.autoTraceLinkability}
           autoTracing={graph.autoTracing}
           autoTraceProgress={graph.autoTraceProgress}
+          onCancelAutoTrace={props.noAutoTrace ? undefined : graph.cancelAutoTrace}
           onSetAsRoot={props.onSetAsRoot}
         />
       </AnimatePresence>

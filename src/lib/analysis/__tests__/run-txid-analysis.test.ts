@@ -116,12 +116,34 @@ describe("runTxidAnalysis", () => {
     expect(result.partial).toBe(true);
   });
 
+  it("does not mark the result partial when a price lookup fails on the user's own node", async () => {
+    const tx = makeTestTx();
+    const d = deps(makeApi(tx, {
+      getHistoricalPrice: async () => { throw new ApiError("API_UNAVAILABLE"); },
+      getHistoricalEurPrice: async () => { throw new SyntaxError("Unexpected token <"); },
+    }));
+    const { result, usdPrice } = await runTxidAnalysis(tx.txid, { ...d, isCustomApi: true });
+    expect(usdPrice).toBeNull();
+    expect(result.partial).toBeFalsy();
+    expect(result.findings.some((x) => x.id === "analysis-incomplete")).toBe(false);
+  });
+
+  it("still marks the result partial on the user's own node when a non-price lookup fails", async () => {
+    const tx = makeTestTx();
+    const d = deps(makeApi(tx, {
+      getTxOutspends: async () => { throw new ApiError("RATE_LIMITED"); },
+    }));
+    const { result } = await runTxidAnalysis(tx.txid, { ...d, isCustomApi: true });
+    expect(result.partial).toBe(true);
+  });
+
   it("reports a failed chain trace once (chain-trace-partial, no second 'incomplete' finding)", async () => {
     chainFindings.backwardFailed = true;
     const tx = makeTestTx();
     const { result } = await runTxidAnalysis(tx.txid, deps(makeApi(tx)));
     expect(result.partial).toBe(true);
-    expect(result.findings.some((x) => x.id === "chain-trace-partial")).toBe(true);
+    const f = result.findings.find((x) => x.id === "chain-trace-partial");
+    expect(f?.params?._variant).toBe("backward");
     expect(result.findings.some((x) => x.id === "analysis-incomplete")).toBe(false);
   });
 

@@ -10,7 +10,7 @@ import {
 } from "../analysis-cache";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { AnalysisSettings } from "@/lib/analysis/settings";
-import type { AnalysisState } from "@/hooks/useAnalysisState";
+import type { AnalysisState } from "@/lib/analysis/analysis-state";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 
 function deleteDb(): Promise<void> {

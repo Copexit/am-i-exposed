@@ -64,7 +64,7 @@ Two defaults differ on purpose:
 
 - `scan tx --chain-depth` defaults to 0, which skips every chain module. Chain tracing costs many
   extra API calls, so it is opt-in. The web scan always runs chain analysis, so a tx-only CLI grade
-  can differ from the web grade. Pass `--chain-depth 4` to match the web.
+  can differ from the web grade. Pass `--chain-depth 4` to run chain analysis at the web default depth.
 - `scan xpub --gap-limit` defaults to 20 (the BIP44 gap limit). The web app uses 5 to keep
   browser scans against the public mempool.space API short.
 
@@ -125,6 +125,8 @@ npx am-i-exposed scan tx <txid> --json | jq '.grade'
 ```
 
 5 tools: `scan_transaction`, `scan_address`, `scan_psbt`, `scan_wallet`, `compute_boltzmann`
+
+MCP tools use the same SQLite API cache as the CLI (under `~/.am-i-exposed`); there is no per-tool opt-out.
 
 ### Agent Workflows
 

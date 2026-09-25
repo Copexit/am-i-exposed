@@ -162,10 +162,6 @@ function formatBoltzmannResult(
   return lines.join("\n");
 }
 
-/**
- * Pick Boltzmann turbo mode based on CoinJoin heuristic findings.
- * Reuses the existing analyzeCoinJoin() detection instead of reimplementing it.
- */
 export const DEFAULT_INTRAFEES_RATIO = 0.005;
 
 /**
@@ -204,6 +200,10 @@ export async function boltzmannForTx(
   return computeBoltzmann(inputValues, outputValues, tx.fee, intrafees, timeoutMs);
 }
 
+/**
+ * Pick Boltzmann turbo mode based on CoinJoin heuristic findings.
+ * Reuses the existing analyzeCoinJoin() detection instead of reimplementing it.
+ */
 function detectBoltzmannMode(
   findings: import("@/lib/types").Finding[],
 ): { type: "standard" | "wabisabi" | "joinmarket"; label?: string; denomination?: number } {

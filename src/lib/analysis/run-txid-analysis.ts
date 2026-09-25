@@ -17,13 +17,13 @@ import { needsEnrichment, enrichPrevouts, countNullPrevouts } from "@/lib/api/en
 import { computeBoltzmann, isAutoComputable, extractTxValues } from "@/lib/analysis/boltzmann-compute";
 import { enhanceEntropyFinding } from "@/lib/analysis/boltzmann-enhance";
 import { enrichBip47Finding, enrichRicochetFinding } from "@/lib/analysis/enrichment";
-import { getAnalysisSettings, type AnalysisSettings } from "@/hooks/useAnalysisSettings";
+import { getAnalysisSettings, type AnalysisSettings } from "@/lib/analysis/settings";
 import { runChainTrace, runChainAnalysis } from "@/lib/analysis/chain-trace";
-import { makeIncompletePrevoutFinding } from "@/hooks/useAnalysisState";
+import { makeIncompletePrevoutFinding } from "@/lib/analysis/analysis-state";
 import type { ApiClient } from "@/lib/api/client";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { TxContext } from "@/lib/analysis/heuristics/types";
-import type { AnalysisState } from "@/hooks/useAnalysisState";
+import type { AnalysisState } from "@/lib/analysis/analysis-state";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import type { Finding, ScoringResult } from "@/lib/types";
@@ -90,6 +90,11 @@ export async function runTxidAnalysis(
       if (!(err instanceof ApiError && err.code === "NOT_FOUND")) partial = true;
       return null;
     });
+  // A user's own node (custom URL or Umbrel) often runs with the price service
+  // disabled, so a failed price lookup there is expected: fiat heuristics are
+  // skipped without flagging the result partial. Hosted API failures still count.
+  const price = <T>(p: Promise<T>): Promise<T | null> =>
+    isCustomApi ? p.catch(() => null) : optional(p);
 
   const [tx, rawHex] = await Promise.all([
     api.getTransaction(txid),
@@ -127,8 +132,8 @@ export async function runTxidAnalysis(
 
   if (network === "mainnet" && tx.status?.block_time) {
     [usdPrice, eurPrice, outspends, parentTx] = await Promise.all([
-      optional(api.getHistoricalPrice(tx.status.block_time)),
-      optional(api.getHistoricalEurPrice(tx.status.block_time)),
+      price(api.getHistoricalPrice(tx.status.block_time)),
+      price(api.getHistoricalEurPrice(tx.status.block_time)),
       optional(api.getTxOutspends(txid)),
       parentTxPromise,
     ]);
@@ -247,6 +252,7 @@ export async function runTxidAnalysis(
       id: "chain-trace-partial",
       severity: "low",
       confidence: "high",
+      params: { _variant: backwardFailed && forwardFailed ? "both" : direction },
       title: `Chain tracing incomplete (${direction})`,
       description:
         `${direction.charAt(0).toUpperCase() + direction.slice(1)} tracing failed or timed out. ` +

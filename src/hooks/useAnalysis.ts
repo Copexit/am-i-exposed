@@ -28,10 +28,10 @@ import {
   INITIAL_STATE,
   makeOfacPreSendResult,
   markAllDone,
-} from "@/hooks/useAnalysisState";
+} from "@/lib/analysis/analysis-state";
 
 // Re-export types that components import from this module
-export type { FetchProgress } from "@/hooks/useAnalysisState";
+export type { FetchProgress } from "@/lib/analysis/analysis-state";
 export type { PreSendResult } from "@/lib/analysis/orchestrator";
 
 export function useAnalysis() {

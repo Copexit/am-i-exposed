@@ -144,8 +144,8 @@ export function createMcpServer(): McpServer {
       gapLimit: z.number().default(20).describe("Consecutive unused addresses before stopping"),
     },
     async ({ descriptor, network, apiUrl, gapLimit }) => {
-      const addresses = await scanWalletAddresses(
-        mcpClient(network, apiUrl), parseXpub(descriptor), gapLimit,
+      const { addresses, failed } = await scanWalletAddresses(
+        mcpClient(network, apiUrl), parseXpub(descriptor), gapLimit, { isLocal: !!apiUrl },
       );
       const result = auditWallet(addresses);
       return textResult({
@@ -156,6 +156,7 @@ export function createMcpServer(): McpServer {
         totalBalance: result.totalBalance,
         reusedAddresses: result.reusedAddresses,
         dustUtxos: result.dustUtxos,
+        failedAddresses: failed,
         findings: result.findings,
       });
     },

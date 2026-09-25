@@ -8,8 +8,9 @@ import { analyzeSpendingPatterns } from "@/lib/analysis/chain/spending-patterns"
 import { buildLinkabilityMatrix } from "@/lib/analysis/chain/linkability";
 import { buildParentTxsByIdx, buildChildTxsByIdx, buildTxsByAddress } from "@/lib/analysis/chain/trace-maps";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
-import type { AnalysisSettings } from "@/hooks/useAnalysisSettings";
-import type { FetchProgress } from "@/hooks/useAnalysisState";
+import { isCoinJoinTx } from "@/lib/analysis/heuristics/coinjoin";
+import type { AnalysisSettings } from "@/lib/analysis/settings";
+import type { FetchProgress } from "@/lib/analysis/analysis-state";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import { sumImpact } from "@/lib/scoring/score";
 import { enrichFindingsWithMetadata } from "@/lib/analysis/finding-metadata";
@@ -65,6 +66,19 @@ function phaseApi(api: TraceApi, signal: AbortSignal): TraceApi {
   };
 }
 
+/** More input addresses than this = a "service" tier cluster (see chain/clustering.ts). */
+const LARGE_CLUSTER_ADDRESSES = 50;
+
+/** Whether a tx merges a large CIOH cluster (typically an exchange or service consolidation). */
+function isLargeCluster(tx: MempoolTransaction): boolean {
+  const addrs = new Set<string>();
+  for (const vin of tx.vin) {
+    const addr = vin.prevout?.scriptpubkey_address;
+    if (addr) addrs.add(addr);
+  }
+  return addrs.size > LARGE_CLUSTER_ADDRESSES;
+}
+
 /**
  * Run the recursive backward/forward tracing phase.
  * Returns the trace layers (may be empty if depth is 0 or tracing times out).
@@ -110,9 +124,12 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
   const existingChildren = new Map<string, MempoolTransaction>();
   if (childTx) existingChildren.set(childTx.txid, childTx);
 
-  // Entity barrier: stop tracing through known custodial entities (exchanges, etc.)
+  // Barrier: stop tracing through known custodial entities (exchanges, etc.)
   // because they break chain of custody - no link between deposits and withdrawals.
+  // Opt-in: also through CoinJoins and large CIOH clusters (barrier txs stay in the layer).
   const entityBarrier: EntityBarrierCheck = (btx) => {
+    if (settings.skipCoinJoins && isCoinJoinTx(btx)) return true;
+    if (settings.skipLargeClusters && isLargeCluster(btx)) return true;
     for (const vin of btx.vin) {
       const addr = vin.prevout?.scriptpubkey_address;
       if (addr && matchEntitySync(addr)) return true;

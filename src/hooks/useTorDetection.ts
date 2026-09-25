@@ -57,15 +57,6 @@ function detectTorBrowserLocally(): boolean {
 }
 
 /**
- * Whether the browser is Brave (any mode).
- * Brave exposes navigator.brave with an isBrave() method.
- */
-export function isBraveBrowser(): boolean {
-  if (typeof window === "undefined") return false;
-  return "brave" in navigator;
-}
-
-/**
  * Whether `.onion` API endpoints can be used.
  * Chromium-based browsers (Brave) block mixed content (http .onion from https page),
  * so even when Tor is detected, we must use https://mempool.space through the Tor circuit.

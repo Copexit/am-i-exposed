@@ -374,9 +374,9 @@ Wallet-level privacy audit via extended public key or output descriptor.
 **Pipeline:**
 1. Parse descriptor via `parseXpub(descriptor)`
 2. Derive addresses: external chain (0) and internal chain (1) up to gap limit
-3. For each derived address, fetch: address data, transactions, UTXOs
-   - Rate limiting: batch of 3 requests, 500ms delay between batches (for hosted APIs)
-   - Self-hosted/Umbrel APIs: batch of 5, no delay
+3. For each derived address, fetch: address data, transactions, UTXOs, via the web wallet scan (`scanChain` in `src/lib/wallet/scan.ts`)
+   - Rate limiting: the web throttle for the hosted mempool.space API; none with a custom `--api`
+   - A failed fetch is retried, then reported as failed (never counted as unused); 3 failed addresses in a row abort the scan
 4. Determine gap: stop scanning a chain after `--gap-limit` consecutive addresses with 0 transactions
 5. Run `auditWallet(walletAddressInfo)` - returns `WalletAuditResult`
 6. Format output with wallet summary stats
@@ -598,9 +598,8 @@ Multi-hop transaction graph analysis.
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--direction <dir>` | `both` | `backward`, `forward`, or `both` |
-| `--depth <N>` | 3 | Maximum hops to trace |
+| `--depth <N>` | 4 | Maximum hops to trace |
 | `--min-sats <N>` | 1000 | Minimum value to follow (filters dust) |
-| `--skip-coinjoins` | false | Stop tracing at CoinJoin transactions |
 
 **Pipeline:**
 1. Fetch starting tx
