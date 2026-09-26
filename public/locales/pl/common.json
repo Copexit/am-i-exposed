@@ -2488,8 +2488,6 @@
   "v2.home.status_checks_few": "{{count}} kontrole transakcji działają lokalnie w tej przeglądarce.",
   "v2.home.status_checks_many": "{{count}} kontroli transakcji działa lokalnie w tej przeglądarce.",
   "v2.home.status_locked": "Cel zablokowany. Naciśnij Skanuj lub Enter.",
-  "v2.home.sub_lead": "Każde UTXO ktoś grupuje, oznacza i etykietuje.",
-  "v2.home.sub_strong": "Zobacz, co analityk widzi w twojej transakcji, zanim zacznie działać.",
   "v2.home.verdict_blind": "Nie da się ustalić, kto komu zapłacił. {{n}} identycznych wyjść.",
   "v2.home.verdict_blind_n": "Nie da się ustalić, kto komu zapłacił. {{n}} identycznych wyjść, {{i}} prawidłowych interpretacji.",
   "v2.home.verdict_change_certain": "Zapłacono {{paid}}. Reszta ({{change}}) wróciła do nadawcy, z pewnością.",
@@ -2667,5 +2665,7 @@
   "v2.stage.analyst.changeCertain": "Reszta wraca do nadawcy (pewne)",
   "v2.stage.analyst.changeHint": "Słaba wskazówka: reszta wraca do nadawcy",
   "v2.stage.analyst.changeLikely": "Prawdopodobnie reszta wraca do nadawcy",
-  "v2.stage.analyst.changePossible": "Możliwe, że reszta wraca do nadawcy"
+  "v2.stage.analyst.changePossible": "Możliwe, że reszta wraca do nadawcy",
+  "v2.scan.fee": "opłata",
+  "v2.scan.liveAria": "Transakcja z {{ins}} wejściami i {{outs}} wyjściami"
 }

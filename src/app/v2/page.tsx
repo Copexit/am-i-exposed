@@ -69,6 +69,7 @@ export default function V2ScannerPage() {
             phase={phase}
             steps={steps}
             fetchProgress={fetchProgress}
+            txData={inputType === "txid" ? txData : null}
           />
         )}
 

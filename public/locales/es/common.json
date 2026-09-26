@@ -2434,8 +2434,6 @@
   "v2.home.status_checks": "{{count}} verificación de transacción se ejecuta localmente en este navegador.",
   "v2.home.status_checks_other": "{{count}} verificaciones de transacción se ejecutan localmente en este navegador.",
   "v2.home.status_locked": "Objetivo bloqueado. Pulsa Escanear o Intro.",
-  "v2.home.sub_lead": "Cada UTXO acaba agrupado en un clúster, etiquetado y clasificado por alguien.",
-  "v2.home.sub_strong": "Descubre qué ve un analista en tu transacción, antes de que actúe sobre ella.",
   "v2.home.verdict_blind": "No se puede saber quién pagó a quién. {{n}} salidas idénticas.",
   "v2.home.verdict_blind_n": "No se puede saber quién pagó a quién. {{n}} salidas idénticas, {{i}} interpretaciones válidas.",
   "v2.home.verdict_change_certain": "Pagado {{paid}}. El cambio ({{change}}) volvió al remitente, con certeza.",
@@ -2607,5 +2605,7 @@
   "v2.stage.analyst.changeCertain": "Cambio de vuelta al remitente (seguro)",
   "v2.stage.analyst.changeHint": "Indicio débil: cambio de vuelta al remitente",
   "v2.stage.analyst.changeLikely": "Probable cambio de vuelta al remitente",
-  "v2.stage.analyst.changePossible": "Posible cambio de vuelta al remitente"
+  "v2.stage.analyst.changePossible": "Posible cambio de vuelta al remitente",
+  "v2.scan.fee": "comisión",
+  "v2.scan.liveAria": "Transacción con {{ins}} entradas y {{outs}} salidas"
 }

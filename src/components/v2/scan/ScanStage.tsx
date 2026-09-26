@@ -1,6 +1,8 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
+import type { MempoolTransaction } from "@/lib/api/types";
+import { ScanTxLive } from "./ScanTxLive";
 
 export interface ScanStageProps {
   kind: "tx" | "address" | "psbt";
@@ -8,6 +10,8 @@ export interface ScanStageProps {
   focus: "in" | "out" | null;
   /** 0..100 trace progress (max of time and depth), drawn on the bottom edge. */
   traceProgress: number | null;
+  /** The fetched transaction: once known, the real inputs/outputs replace the skeleton. */
+  tx?: MempoolTransaction | null;
 }
 
 const IN_Y = [44, 97, 150];
@@ -15,17 +19,17 @@ const OUT_Y = [70, 123];
 const W = 640, H = 220, BOX_W = 150, BOX_H = 26;
 
 /**
- * Decorative skeleton of what is being scanned, with a slow scanning beam.
- * It carries no data (no amounts, no counts): only the shape of the query
- * and which side the chain trace is walking.
+ * What is being scanned, with a slow scanning beam: a data-free skeleton until
+ * the transaction is fetched, then its real inputs and outputs (ScanTxLive),
+ * highlighting the side the chain trace is walking.
  */
-export function ScanStage({ kind, focus, traceProgress }: ScanStageProps) {
+export function ScanStage({ kind, focus, traceProgress, tx }: ScanStageProps) {
   const reduced = useReducedMotion();
   const backward = focus === "in";
 
   return (
     <div
-      aria-hidden="true"
+      aria-hidden={tx ? undefined : true}
       className="relative overflow-hidden rounded-xl border border-hairline bg-surface-1"
       style={{
         backgroundImage:
@@ -35,9 +39,13 @@ export function ScanStage({ kind, focus, traceProgress }: ScanStageProps) {
         backgroundSize: "100% 100%, 100% 28px, 28px 100%",
       }}
     >
-      <svg viewBox={`0 0 ${W} ${H}`} className="block w-full h-auto max-h-[240px]" fill="none">
-        {kind === "address" ? <AddressSkeleton /> : <TxSkeleton focus={focus} unsigned={kind === "psbt"} />}
-      </svg>
+      {kind === "tx" && tx ? (
+        <ScanTxLive tx={tx} focus={focus} />
+      ) : (
+        <svg viewBox={`0 0 ${W} ${H}`} className="block w-full h-auto max-h-[240px]" fill="none">
+          {kind === "address" ? <AddressSkeleton /> : <TxSkeleton focus={focus} unsigned={kind === "psbt"} />}
+        </svg>
+      )}
 
       {!reduced && (
         <motion.div

@@ -2434,8 +2434,6 @@
   "v2.home.status_checks": "{{count}} vérification de transaction s'exécute localement dans ce navigateur.",
   "v2.home.status_checks_other": "{{count}} vérifications de transaction s'exécutent localement dans ce navigateur.",
   "v2.home.status_locked": "Cible verrouillée. Appuyez sur Scanner ou Entrée.",
-  "v2.home.sub_lead": "Chaque UTXO finit par être regroupé en cluster, étiqueté et catégorisé par quelqu'un.",
-  "v2.home.sub_strong": "Voyez ce qu'un analyste voit dans votre transaction, avant qu'il n'agisse.",
   "v2.home.verdict_blind": "Impossible de déterminer qui a payé qui. {{n}} sorties identiques.",
   "v2.home.verdict_blind_n": "Impossible de déterminer qui a payé qui. {{n}} sorties identiques, {{i}} interprétations valides.",
   "v2.home.verdict_change_certain": "Payé {{paid}}. La monnaie ({{change}}) est revenue à l'expéditeur, avec certitude.",
@@ -2607,5 +2605,7 @@
   "v2.stage.analyst.changeCertain": "Monnaie retournée à l'expéditeur (certain)",
   "v2.stage.analyst.changeHint": "Indice faible : monnaie retournée à l'expéditeur",
   "v2.stage.analyst.changeLikely": "Monnaie probablement retournée à l'expéditeur",
-  "v2.stage.analyst.changePossible": "Monnaie peut-être retournée à l'expéditeur"
+  "v2.stage.analyst.changePossible": "Monnaie peut-être retournée à l'expéditeur",
+  "v2.scan.fee": "frais",
+  "v2.scan.liveAria": "Transaction avec {{ins}} entrées et {{outs}} sorties"
 }

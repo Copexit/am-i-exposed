@@ -2434,8 +2434,6 @@
   "v2.home.status_checks": "{{count}} verificação de transação roda localmente neste navegador.",
   "v2.home.status_checks_other": "{{count}} verificações de transação rodam localmente neste navegador.",
   "v2.home.status_locked": "Alvo travado. Pressione Escanear ou Enter.",
-  "v2.home.sub_lead": "Todo UTXO é agrupado, marcado e rotulado por alguém.",
-  "v2.home.sub_strong": "Veja o que um analista vê na sua transação, antes que ele aja sobre ela.",
   "v2.home.verdict_blind": "Não é possível saber quem pagou a quem. {{n}} saídas idênticas.",
   "v2.home.verdict_blind_n": "Não é possível saber quem pagou a quem. {{n}} saídas idênticas, {{i}} interpretações válidas.",
   "v2.home.verdict_change_certain": "Pagou {{paid}}. O troco ({{change}}) voltou ao remetente, com certeza.",
@@ -2607,5 +2605,7 @@
   "v2.stage.analyst.changeCertain": "Troco de volta ao remetente (certo)",
   "v2.stage.analyst.changeHint": "Indício fraco: troco de volta ao remetente",
   "v2.stage.analyst.changeLikely": "Provável troco de volta ao remetente",
-  "v2.stage.analyst.changePossible": "Possível troco de volta ao remetente"
+  "v2.stage.analyst.changePossible": "Possível troco de volta ao remetente",
+  "v2.scan.fee": "taxa",
+  "v2.scan.liveAria": "Transação com {{ins}} entradas e {{outs}} saídas"
 }

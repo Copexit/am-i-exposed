@@ -2434,8 +2434,6 @@
   "v2.home.status_checks": "{{count}} transaction check runs locally in this browser.",
   "v2.home.status_checks_other": "{{count}} transaction checks run locally in this browser.",
   "v2.home.status_locked": "Target locked. Press Scan or Enter.",
-  "v2.home.sub_lead": "Every UTXO gets clustered, tagged and labelled by someone.",
-  "v2.home.sub_strong": "See what an analyst sees in your transaction, before they act on it.",
   "v2.home.verdict_blind": "Cannot tell who paid whom. {{n}} identical outputs.",
   "v2.home.verdict_blind_n": "Cannot tell who paid whom. {{n}} identical outputs, {{i}} valid interpretations.",
   "v2.home.verdict_change_certain": "Paid {{paid}}. The change ({{change}}) went back to the sender, with certainty.",
@@ -2607,5 +2605,7 @@
   "v2.stage.analyst.changeCertain": "Change back to the sender (certain)",
   "v2.stage.analyst.changeHint": "Weak hint: change back to the sender",
   "v2.stage.analyst.changeLikely": "Likely change back to the sender",
-  "v2.stage.analyst.changePossible": "Possibly change back to the sender"
+  "v2.stage.analyst.changePossible": "Possibly change back to the sender",
+  "v2.scan.fee": "fee",
+  "v2.scan.liveAria": "Transaction with {{ins}} inputs and {{outs}} outputs"
 }

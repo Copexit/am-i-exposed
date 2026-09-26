@@ -153,8 +153,7 @@ export function V2Home({
           </h1>
 
           <p className="mt-5 max-w-[30em] text-base sm:text-[19px] leading-relaxed text-muted text-balance">
-            {t("v2.home.sub_lead", { defaultValue: "Every UTXO gets clustered, tagged and labelled by someone." })}{" "}
-            <strong className="font-medium text-foreground">{t("v2.home.sub_strong", { defaultValue: "See what an analyst sees in your transaction, before they act on it." })}</strong>
+            {t("page.tagline", { defaultValue: "The Bitcoin privacy scanner you were afraid to run." })}
           </p>
 
           <div

@@ -8,6 +8,7 @@ import { useNetwork } from "@/context/NetworkContext";
 import { CopyButton } from "@/components/ui/CopyButton";
 import type { HeuristicStep } from "@/lib/analysis/orchestrator";
 import type { FetchProgress } from "@/hooks/useAnalysis";
+import type { MempoolTransaction } from "@/lib/api/types";
 import { ChecksStrip } from "./ChecksStrip";
 import { ScanStage } from "./ScanStage";
 import { scanStages, summarizeSteps, impactSeverity, apiHost, type StageId } from "./scan-model";
@@ -18,6 +19,8 @@ export interface V2ScanProps {
   phase: "fetching" | "analyzing";
   steps: HeuristicStep[];
   fetchProgress: FetchProgress | null;
+  /** The transaction, once fetched (drawn live while the trace runs). */
+  txData?: MempoolTransaction | null;
 }
 
 /**
@@ -25,7 +28,7 @@ export interface V2ScanProps {
  * only through live signals (source, stage, depth, txs fetched, elapsed vs
  * timeout, per-check progress and the running score).
  */
-export function V2Scan({ query, inputType, phase, steps, fetchProgress }: V2ScanProps) {
+export function V2Scan({ query, inputType, phase, steps, fetchProgress, txData }: V2ScanProps) {
   const { t } = useTranslation();
   const { isUmbrel, customApiUrl, config, torStatus } = useNetwork();
   const [elapsed, setElapsed] = useState(0);
@@ -164,7 +167,7 @@ export function V2Scan({ query, inputType, phase, steps, fetchProgress }: V2Scan
         ))}
       </ol>
 
-      <ScanStage kind={isAddress ? "address" : isPsbt ? "psbt" : "tx"} focus={tracing && fp ? (fp.status === "tracing-backward" ? "in" : "out") : null} traceProgress={traceProgress} />
+      <ScanStage kind={isAddress ? "address" : isPsbt ? "psbt" : "tx"} focus={tracing && fp ? (fp.status === "tracing-backward" ? "in" : "out") : null} traceProgress={traceProgress} tx={txData} />
 
       <h2 className="mt-5 text-[17px] sm:text-[20px] font-medium tracking-tight text-foreground" role="status" aria-live="polite">
         {headline[active]}

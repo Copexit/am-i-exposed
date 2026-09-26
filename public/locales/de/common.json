@@ -2434,8 +2434,6 @@
   "v2.home.status_checks": "{{count}} Transaktionsprüfung läuft lokal in diesem Browser.",
   "v2.home.status_checks_other": "{{count}} Transaktionsprüfungen laufen lokal in diesem Browser.",
   "v2.home.status_locked": "Ziel erfasst. Scannen oder Enter drücken.",
-  "v2.home.sub_lead": "Jedes UTXO wird von irgendjemandem geclustert, getaggt und beschriftet.",
-  "v2.home.sub_strong": "Sieh, was ein Analyst in deiner Transaktion sieht, bevor er danach handelt.",
   "v2.home.verdict_blind": "Nicht erkennbar, wer wen bezahlt hat. {{n}} identische Outputs.",
   "v2.home.verdict_blind_n": "Nicht erkennbar, wer wen bezahlt hat. {{n}} identische Outputs, {{i}} gültige Interpretationen.",
   "v2.home.verdict_change_certain": "{{paid}} bezahlt. Das Wechselgeld ({{change}}) ging mit Sicherheit zurück an den Absender.",
@@ -2607,5 +2605,7 @@
   "v2.stage.analyst.changeCertain": "Wechselgeld zurück an den Absender (sicher)",
   "v2.stage.analyst.changeHint": "Schwacher Hinweis: Wechselgeld zurück an den Absender",
   "v2.stage.analyst.changeLikely": "Wahrscheinlich Wechselgeld zurück an den Absender",
-  "v2.stage.analyst.changePossible": "Möglicherweise Wechselgeld zurück an den Absender"
+  "v2.stage.analyst.changePossible": "Möglicherweise Wechselgeld zurück an den Absender",
+  "v2.scan.fee": "Gebühr",
+  "v2.scan.liveAria": "Transaktion mit {{ins}} Inputs und {{outs}} Outputs"
 }
