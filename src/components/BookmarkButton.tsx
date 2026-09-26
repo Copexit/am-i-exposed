@@ -36,18 +36,6 @@ export function BookmarkButton({ query, inputType, grade, score }: BookmarkButto
       removeBookmark(query);
       return;
     }
-
-    // Check if privacy notice needs showing
-    const dismissed = localStorage.getItem(PRIVACY_DISMISSED_KEY);
-    if (!dismissed) {
-      setShowPrivacy(true);
-      return;
-    }
-
-    doBookmark();
-  };
-
-  const doBookmark = () => {
     addBookmark({
       input: query,
       type: inputType === "txid" ? "txid" : "address",
@@ -57,23 +45,29 @@ export function BookmarkButton({ query, inputType, grade, score }: BookmarkButto
     setShowLabel(true);
   };
 
+  /** Once the bookmark exists (label saved or skipped), explain where it lives - first time only. */
+  const finishBookmark = () => {
+    setShowLabel(false);
+    setLabelValue("");
+    let dismissed = true;
+    try { dismissed = !!localStorage.getItem(PRIVACY_DISMISSED_KEY); } catch { /* storage unavailable */ }
+    if (!dismissed) setShowPrivacy(true);
+  };
+
   const handlePrivacyDismiss = () => {
-    localStorage.setItem(PRIVACY_DISMISSED_KEY, "1");
+    try { localStorage.setItem(PRIVACY_DISMISSED_KEY, "1"); } catch { /* storage unavailable */ }
     setShowPrivacy(false);
-    doBookmark();
   };
 
   const handleLabelConfirm = () => {
     if (labelValue.trim()) {
       updateLabel(query, labelValue.trim());
     }
-    setShowLabel(false);
-    setLabelValue("");
+    finishBookmark();
   };
 
   const handleLabelSkip = () => {
-    setShowLabel(false);
-    setLabelValue("");
+    finishBookmark();
   };
 
   return (
