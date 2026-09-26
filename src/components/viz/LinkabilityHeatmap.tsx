@@ -54,8 +54,10 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
 
   const inputs = useMemo(() =>
     tx.vin
-      .filter(v => !v.is_coinbase && v.prevout)
-      .map((v, i) => ({
+      // index = raw vin position: the matrix is indexed by tx position
+      .map((v, i) => ({ v, i }))
+      .filter(({ v }) => !v.is_coinbase && v.prevout)
+      .map(({ v, i }) => ({
         index: i,
         address: v.prevout?.scriptpubkey_address,
         value: v.prevout?.value ?? 0,
@@ -65,8 +67,11 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
   );
 
   const outputs = useMemo(() =>
-    getValuedOutputs(tx.vout)
-      .map((o, i) => ({
+    tx.vout
+      // index = raw vout position (valued outputs only)
+      .map((o, i) => ({ o, i }))
+      .filter(({ o }) => getValuedOutputs([o]).length === 1)
+      .map(({ o, i }) => ({
         index: i,
         address: o.scriptpubkey_address,
         value: o.value,
@@ -280,13 +285,13 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                               <div className="text-[10px] text-muted/60">{formatSats(inp.value)}</div>
                             </div>
                           </div>
-                          {cappedOutputs.map((_out, o) => (
+                          {cappedOutputs.map((out, o) => (
                             <HeatmapCell
                               key={`c-${i}-${o}`}
                               row={i}
                               col={o}
-                              prob={result.matLnkProbabilities[o]?.[i] ?? 0}
-                              count={result.matLnkCombinations[o]?.[i] ?? 0}
+                              prob={result.matLnkProbabilities[out.index]?.[inp.index] ?? 0}
+                              count={result.matLnkCombinations[out.index]?.[inp.index] ?? 0}
                               timedOut={result.timedOut}
                               hoveredRow={hoveredCell?.row ?? null}
                               hoveredCol={hoveredCell?.col ?? null}

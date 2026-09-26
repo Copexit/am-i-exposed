@@ -131,6 +131,39 @@ export function terminatePool() {
 }
 
 /**
+ * boltzmann-rs sorts inputs and outputs by value (descending, stable) and
+ * returns its matrices in that sorted order. Consumers index them by the
+ * position of the input/output among the values that were sent (tx order), so
+ * reorder rows, columns and deterministic links back to that order.
+ */
+export function toSubmittedOrder(
+  result: BoltzmannWorkerResult,
+  inputValues: readonly number[],
+  outputValues: readonly number[],
+): BoltzmannWorkerResult {
+  const sortedPositions = (vals: readonly number[]) =>
+    vals.map((v, i) => [v, i] as const).sort((a, b) => b[0] - a[0] || a[1] - b[1]).map(([, i]) => i);
+  const inOrder = sortedPositions(inputValues); // sorted rank -> submitted index
+  const outOrder = sortedPositions(outputValues);
+  const nIn = result.matLnkProbabilities[0]?.length ?? 0;
+  const nOut = result.matLnkProbabilities.length;
+  // Degenerate results (shape not matching the submitted values) are uniform; leave them.
+  if (nIn !== inputValues.length || nOut !== outputValues.length) return result;
+  const rankIn: number[] = [];
+  const rankOut: number[] = [];
+  inOrder.forEach((orig, rank) => { rankIn[orig] = rank; });
+  outOrder.forEach((orig, rank) => { rankOut[orig] = rank; });
+  const remap = (m: number[][]) =>
+    outputValues.map((_, o) => inputValues.map((__, i) => m[rankOut[o]!]?.[rankIn[i]!] ?? 0));
+  return {
+    ...result,
+    matLnkCombinations: remap(result.matLnkCombinations),
+    matLnkProbabilities: remap(result.matLnkProbabilities),
+    deterministicLinks: result.deterministicLinks.map(([o, i]) => [outOrder[o] ?? o, inOrder[i] ?? i] as [number, number]),
+  };
+}
+
+/**
  * Merge partial results from multiple workers.
  * Each worker's finalize_link_matrix adds a +1 base case to every cell and nb_cmbn.
  * For N workers, subtract (N-1) from each to correct.

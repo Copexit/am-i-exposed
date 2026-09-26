@@ -75,7 +75,7 @@ type StoredAnalysisResult = Omit<CachedAnalysisResult, "backwardLayers" | "forwa
  * Cache version - bump when computation logic changes (WASM rebuild, heuristic
  * updates, scoring changes) to invalidate stale cached results.
  */
-const CACHE_VERSION = 3;
+const CACHE_VERSION = 4; // v4: Boltzmann matrices in tx order (were value-sorted)
 
 /**
  * Build a cache key that embeds the analysis settings affecting results.

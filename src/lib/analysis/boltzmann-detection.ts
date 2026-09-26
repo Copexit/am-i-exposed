@@ -113,6 +113,46 @@ export function isAutoComputable(
   return detectJoinMarketForTurbo(inputValues, outputValues).isJoinMarket;
 }
 
+type ValueTx = { vin: Array<{ is_coinbase?: boolean; prevout?: { value: number } | null }>; vout: Array<{ scriptpubkey_type?: string; scriptpubkey?: string; value: number }> };
+
+/** Tx positions of the values extractTxValues returns (same filters, same order). */
+export function extractTxValueIndices(tx: ValueTx): { inputIndices: number[]; outputIndices: number[] } {
+  const inputIndices = tx.vin.flatMap((v, i) => (!v.is_coinbase && v.prevout ? [i] : []));
+  const valued = new Set(getValuedOutputs(tx.vout));
+  const outputIndices = tx.vout.flatMap((o, i) => (valued.has(o) ? [i] : []));
+  return { inputIndices, outputIndices };
+}
+
+/**
+ * Re-index a link matrix from extracted-value positions to raw tx positions
+ * (rows = vout index, columns = vin index), so consumers can index it by the
+ * vin/vout they already hold. OP_RETURN / zero-value outputs and coinbase
+ * inputs get all-zero rows/columns.
+ */
+export function expandMatrixToTx<T extends { matLnkProbabilities: number[][]; matLnkCombinations: number[][]; deterministicLinks: [number, number][] }>(
+  result: T,
+  tx: ValueTx,
+): T {
+  const { inputIndices, outputIndices } = extractTxValueIndices(tx);
+  if (result.matLnkProbabilities.length !== outputIndices.length) return result;
+  const colOf = new Map(inputIndices.map((raw, k) => [raw, k]));
+  const rowOf = new Map(outputIndices.map((raw, k) => [raw, k]));
+  const expand = (m: number[][]) =>
+    tx.vout.map((_, o) => {
+      const r = rowOf.get(o);
+      return tx.vin.map((__, i) => {
+        const c = colOf.get(i);
+        return r === undefined || c === undefined ? 0 : m[r]?.[c] ?? 0;
+      });
+    });
+  return {
+    ...result,
+    matLnkProbabilities: expand(result.matLnkProbabilities),
+    matLnkCombinations: expand(result.matLnkCombinations),
+    deterministicLinks: result.deterministicLinks.map(([o, i]) => [outputIndices[o] ?? o, inputIndices[i] ?? i] as [number, number]),
+  };
+}
+
 /** Extract input/output values from a transaction (filtering coinbase/OP_RETURN). */
 export function extractTxValues(tx: { vin: Array<{ is_coinbase?: boolean; prevout?: { value: number } | null }>; vout: Array<{ scriptpubkey_type?: string; scriptpubkey?: string; value: number }> }): {
   inputValues: number[];

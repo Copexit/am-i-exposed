@@ -170,38 +170,14 @@ interface BoltzmannInput {
 export function buildBoltzmannLookup(
   boltzmannResult: BoltzmannInput | null | undefined,
   linkabilityMode: boolean,
-  tx: MempoolTransaction,
+  _tx?: MempoolTransaction,
 ): BoltzmannLookup | null {
   if (!boltzmannResult || !linkabilityMode) return null;
+  // Matrices are indexed by raw tx position (rows = vout, columns = vin);
+  // see expandMatrixToTx in boltzmann-detection.
   const mat = boltzmannResult.matLnkProbabilities;
-
-  const inputMap: number[] = [];
-  let bi = 0;
-  for (const [i, vin] of tx.vin.entries()) {
-    if (!vin.is_coinbase && vin.prevout) {
-      inputMap[i] = bi++;
-    } else {
-      inputMap[i] = -1;
-    }
-  }
-
-  const outputMap: number[] = [];
-  let bo = 0;
-  for (const [i, out] of tx.vout.entries()) {
-    if (!isOpReturnOutput(out) && out.value > 0) {
-      outputMap[i] = bo++;
-    } else {
-      outputMap[i] = -1;
-    }
-  }
-
   return {
-    getProb: (displayInIdx: number, displayOutIdx: number): number => {
-      const mi = inputMap[displayInIdx];
-      const mo = outputMap[displayOutIdx];
-      if (mi === undefined || mo === undefined || mi < 0 || mo < 0) return 0;
-      return mat[mo]?.[mi] ?? 0;
-    },
+    getProb: (displayInIdx: number, displayOutIdx: number): number => mat[displayOutIdx]?.[displayInIdx] ?? 0,
     timedOut: boltzmannResult.timedOut,
   };
 }

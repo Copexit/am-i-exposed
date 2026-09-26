@@ -19,9 +19,12 @@ import {
   detectJoinMarketForTurbo,
   detectWabiSabiForTurbo,
   runParallelPass,
+  toSubmittedOrder,
   isAutoComputable,
   extractTxValues,
 } from "./boltzmann-pool";
+
+import { expandMatrixToTx } from "./boltzmann-detection";
 
 export { isAutoComputable, extractTxValues };
 
@@ -74,7 +77,9 @@ export async function computeBoltzmann(
   };
   opts?.signal?.addEventListener("abort", abortHandler);
 
-  try {
+  // Every compute mode returns matrices in boltzmann-rs's value-sorted order.
+  // Hand them out indexed by raw tx position: rows = vout, columns = vin.
+  const run = async (): Promise<BoltzmannWorkerResult | null> => {
     // Check for JoinMarket turbo mode (approximate, for large JM CoinJoins only).
     // Only use for txs with 10+ I/O where standard DFS would be slow.
     // Small txs (like Stonewall with 2 equal outputs) must use exact DFS path.
@@ -117,6 +122,11 @@ export async function computeBoltzmann(
       feesMaker, feesTaker, hasCjPattern, numWorkers, timeoutMs,
       opts?.onProgress, opts?.signal,
     );
+  };
+
+  try {
+    const r = await run();
+    return r ? expandMatrixToTx(toSubmittedOrder(r, inputValues, outputValues), tx) : r;
   } finally {
     opts?.signal?.removeEventListener("abort", abortHandler);
   }

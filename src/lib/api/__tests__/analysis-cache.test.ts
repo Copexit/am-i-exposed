@@ -69,7 +69,7 @@ describe("analysis-cache", () => {
   describe("buildResultCacheKey", () => {
     it("produces correct format with all settings embedded", () => {
       const key = buildResultCacheKey("mainnet", "abc123", defaultSettings);
-      expect(key).toBe("result:v3:mainnet:abc123:6:1000:0:0");
+      expect(key).toBe("result:v4:mainnet:abc123:6:1000:0:0");
     });
 
     it("different maxDepth values produce different keys", () => {
@@ -79,7 +79,7 @@ describe("analysis-cache", () => {
         maxDepth: 10,
       });
       expect(key1).not.toBe(key2);
-      expect(key2).toBe("result:v3:mainnet:abc123:10:1000:0:0");
+      expect(key2).toBe("result:v4:mainnet:abc123:10:1000:0:0");
     });
 
     it("different minSats values produce different keys", () => {
@@ -89,7 +89,7 @@ describe("analysis-cache", () => {
         minSats: 5000,
       });
       expect(key1).not.toBe(key2);
-      expect(key2).toBe("result:v3:mainnet:abc123:6:5000:0:0");
+      expect(key2).toBe("result:v4:mainnet:abc123:6:5000:0:0");
     });
 
     it("different skipCoinJoins values produce different keys", () => {
@@ -99,7 +99,7 @@ describe("analysis-cache", () => {
         skipCoinJoins: true,
       });
       expect(key1).not.toBe(key2);
-      expect(key2).toBe("result:v3:mainnet:abc123:6:1000:1:0");
+      expect(key2).toBe("result:v4:mainnet:abc123:6:1000:1:0");
     });
 
     it("different skipLargeClusters values produce different keys", () => {
@@ -109,7 +109,7 @@ describe("analysis-cache", () => {
         skipLargeClusters: true,
       });
       expect(key1).not.toBe(key2);
-      expect(key2).toBe("result:v3:mainnet:abc123:6:1000:0:1");
+      expect(key2).toBe("result:v4:mainnet:abc123:6:1000:0:1");
     });
 
     it("same settings and query produce the same key", () => {

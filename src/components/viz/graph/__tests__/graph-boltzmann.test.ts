@@ -52,7 +52,7 @@ describe("synthetic Boltzmann for 1-input txs", () => {
     expect(result.efficiency).toBe(0);
   });
 
-  it("skips OP_RETURN outputs in the matrix (extractTxValues filters them)", () => {
+  it("indexes the matrix by vout: the OP_RETURN output gets an all-zero row", () => {
     const tx = makeTx({
       txid: "ccc",
       vin: [makeVin()],
@@ -60,9 +60,11 @@ describe("synthetic Boltzmann for 1-input txs", () => {
     });
     const result = buildSyntheticResult(tx);
 
-    // extractTxValues filters OP_RETURN, so only 1 output in the matrix
+    // extractTxValues filters OP_RETURN (1 valued output), and the matrix is
+    // re-indexed by raw tx position so consumers can use vout indices directly
     expect(result.nOutputs).toBe(1);
-    expect(result.matLnkProbabilities).toEqual([[1]]);
+    expect(result.matLnkProbabilities).toEqual([[1], [0]]);
+    expect(result.deterministicLinks).toEqual([[0, 0]]);
   });
 });
 

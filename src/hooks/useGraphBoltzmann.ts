@@ -7,6 +7,7 @@ import type { BoltzmannWorkerResult, BoltzmannProgress } from "@/lib/analysis/bo
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { GraphNode } from "@/hooks/useGraphExpansion";
 import { getBoltzmannEligibility, extractTxValues } from "@/lib/analysis/boltzmann-eligibility";
+import { expandMatrixToTx } from "@/lib/analysis/boltzmann-detection";
 
 interface UseGraphBoltzmannParams {
   nodes: Map<string, GraphNode>;
@@ -32,8 +33,15 @@ interface UseGraphBoltzmannReturn {
 /** Graph explorer size cap for Boltzmann (smaller than the single-tx heatmap's). */
 const GRAPH_MAX_TOTAL = 80;
 
-/** Build a synthetic Boltzmann result for 1-input txs (trivially 100% deterministic). */
+/**
+ * Build a synthetic Boltzmann result for 1-input txs (trivially 100% deterministic),
+ * indexed by raw tx position like computed results.
+ */
 export function buildSyntheticResult(tx: MempoolTransaction): BoltzmannWorkerResult {
+  return expandMatrixToTx(buildSyntheticCompact(tx), tx);
+}
+
+function buildSyntheticCompact(tx: MempoolTransaction): BoltzmannWorkerResult {
   const { inputValues, outputValues } = extractTxValues(tx);
   const nIn = inputValues.length;
   const nOut = outputValues.length;
