@@ -88,7 +88,7 @@ export function TipJar() {
 
               <div className="text-center space-y-2">
                 <p className="text-xs text-muted">
-                  {t("common.tipScanQR", { defaultValue: "Scan to tip via Bitcoin, Lightning, or Liquid" })}
+                  {t("common.tipScanQR", { defaultValue: "Scan to tip via Bitcoin or Lightning" })}
                 </p>
                 <div className="flex items-center justify-center gap-2">
                   <a

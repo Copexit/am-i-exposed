@@ -94,38 +94,6 @@ export const PATHWAYS: PathwayData[] = [
     ],
   },
   {
-    id: "liquid",
-    category: "off-chain",
-    titleKey: "pathways.liquid.title",
-    titleDefault: "Liquid Network",
-    iconName: "Layers",
-    descKey: "pathways.liquid.desc",
-    descDefault:
-      "Liquid is a Bitcoin sidechain with confidential transactions that hide amounts. Transaction amounts are encrypted and only visible to the sender and receiver.",
-    pros: [
-      { key: "pathways.liquid.pro1", default: "Confidential transactions hide amounts from observers" },
-      { key: "pathways.liquid.pro2", default: "Faster block times (1 minute) than mainchain" },
-      { key: "pathways.liquid.pro3", default: "L-BTC is 1:1 pegged to BTC" },
-    ],
-    cons: [
-      { key: "pathways.liquid.con1", default: "Federated sidechain - requires trusting the Liquid federation members" },
-      { key: "pathways.liquid.con2", default: "Peg-in and peg-out can be correlated by amount and timing. If the same service (e.g., Boltz) handles both directions, that service sees your complete flow." },
-      { key: "pathways.liquid.con3", default: "Smaller user base limits anonymity set" },
-      { key: "pathways.liquid.con4", default: "Federated consensus (11-of-15 functionaries) introduces trust assumptions different from Bitcoin's trustless model" },
-    ],
-    tools: ["Blockstream Green", "Boltz Exchange", "SideSwap"],
-    warnings: [
-      {
-        key: "pathways.liquid.warn1",
-        default: "Use different services for entry and exit (e.g., Boltz for peg-in, SideSwap for peg-out, or vice versa). Avoid entering and exiting with similar amounts within a short time window. If services collude or share data, privacy can be undone.",
-      },
-      {
-        key: "pathways.liquid.warn2",
-        default: "Liquid and Lightning can be used to receive change from on-chain transactions, accumulate small amounts off-chain over time, then consolidate to a single UTXO after a delay.",
-      },
-    ],
-  },
-  {
     id: "payjoin-v2",
     category: "off-chain",
     titleKey: "pathways.pj2.title",
@@ -283,15 +251,6 @@ export const COMBINED_PATHWAYS: CombinedPathwayData[] = [
     strengthDefault: "On-chain mixing + off-chain spending. Channel opens are linked to CoinJoin outputs (which have high anonymity sets), not to your original funds. When paying exchanges via LN, route through intermediate hops - never connect your channel directly to the exchange node.",
   },
   {
-    id: "coinjoin-liquid",
-    titleKey: "pathways.combo.cjliq.title",
-    titleDefault: "CoinJoin -> Liquid",
-    stepsKey: "pathways.combo.cjliq.steps",
-    stepsDefault: "Mix first with CoinJoin, then peg into Liquid for confidential transactions.",
-    strengthKey: "pathways.combo.cjliq.strength",
-    strengthDefault: "Combines CoinJoin anonymity set with Liquid's amount privacy. The peg-in links to a CoinJoin output, not your original identity. Note: after CoinJoin, history is already broken - Liquid peg-in adds optional amount privacy, not a required next step. Post-CoinJoin spending tools (Stonewall, PayJoin, coin control) are sufficient for most cases.",
-  },
-  {
     id: "btc-xmr-btc",
     titleKey: "pathways.combo.xmr.title",
     titleDefault: "BTC -> Monero -> BTC",
@@ -321,42 +280,11 @@ export const COMBINED_PATHWAYS: CombinedPathwayData[] = [
   {
     id: "exchange-coinjoin-ln",
     titleKey: "pathways.combo.excjln.title",
-    titleDefault: "Exchange -> CoinJoin -> Lightning/Liquid",
+    titleDefault: "Exchange -> CoinJoin -> Lightning",
     stepsKey: "pathways.combo.excjln.steps",
     stepsDefault: "Not recommended. This breaks the on-chain trace but NOT the KYC history - the exchange still has your identity record. Better approach: keep KYC UTXOs in a separate lifecycle (exchange to cold storage, back to exchange when selling, respecting tax obligations). For private spending, acquire Bitcoin without KYC (P2P, ATMs, mining, earning).",
     strengthKey: "pathways.combo.excjln.strength",
     strengthDefault: "CoinJoin breaks the trace but not the history. The exchange can be compelled to share your KYC record. This pathway adds chain-level deniability but does not protect against legal or regulatory inquiries tied to the original purchase.",
-  },
-  {
-    id: "ln-liquid-btc",
-    titleKey: "pathways.combo.lnliq.title",
-    titleDefault: "Lightning -> Liquid -> BTC",
-    stepsKey: "pathways.combo.lnliq.steps",
-    stepsDefault: "Can go directly Lightning to Bitcoin via submarine swap (Boltz). The swap service does not know the origin of LN funds but sees the destination address. If multiple swaps are made and outputs later consolidated, the service can link them to one entity. For high-fee periods: swap LN to Liquid (e.g., Boltz), accumulate, then peg out to Bitcoin via a different service (e.g., SideSwap). Non-custodial atomic paths preserve self-custody.",
-    strengthKey: "pathways.combo.lnliq.strength",
-    strengthDefault: "Breaks the on-chain trail. The swap service sees the destination but not the origin. Use different services for the LN-to-Liquid and Liquid-to-BTC legs. Avoid consolidating multiple swap outputs to prevent linking them.",
-    warnings: [
-      {
-        key: "pathways.combo.lnliq.warn1",
-        default: "Boltz knows: the amounts exchanged and the Liquid addresses receiving funds. Even though Liquid uses confidential transactions, Boltz already knows the amounts from the swap itself.",
-      },
-      {
-        key: "pathways.combo.lnliq.warn2",
-        default: "Consolidation risk: if you merge multiple Boltz swap outputs on Liquid before peg-out, common input ownership applies - Boltz can correlate them to the same entity with known amounts.",
-      },
-      {
-        key: "pathways.combo.lnliq.warn3",
-        default: "SideSwap knows: the destination Bitcoin on-chain address of the peg-out, but not the origin of the Liquid funds.",
-      },
-      {
-        key: "pathways.combo.lnliq.warn4",
-        default: "Collusion risk: if Boltz and SideSwap share information, they can reconstruct the full path from origin to destination, completely breaking the privacy benefit of using Liquid as an intermediary.",
-      },
-      {
-        key: "pathways.combo.lnliq.warn5",
-        default: "BTC on-chain -> Liquid variant: unlike Lightning where the sender is hidden, Boltz can see the origin Bitcoin on-chain address. The LN -> Liquid path is preferable since Lightning hides the sender.",
-      },
-    ],
   },
   {
     id: "coinjoin-p2p",

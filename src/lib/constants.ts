@@ -4,7 +4,7 @@ import { COLORS } from "@/lib/palette";
 /** Number of satoshis per bitcoin. */
 export const SATS_PER_BTC = 100_000_000;
 
-/** Coinos pay page accepting Bitcoin, Lightning, and Liquid. */
+/** Coinos pay page accepting Bitcoin and Lightning. */
 export const COINOS_PAY_URL = "https://coinos.io/pay/exposed";
 
 /** Basic format validation for Bitcoin addresses (all networks). */

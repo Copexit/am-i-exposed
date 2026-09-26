@@ -24,10 +24,10 @@ export const MISTAKES: MistakeEntry[] = [
     descDefault: "Exchange withdrawal addresses are in chain analysis databases. Exchanges now require signing or declaring destination addresses. Keep KYC funds in a clean lifecycle: exchange to cold wallet to exchange when selling. Mixing breaks the trace but not the history - the exchange still has your KYC record and could trigger compliance issues.",
   },
   {
-    titleKey: "mistakes.wasabiThenSend",
-    titleDefault: "Mix with Wasabi then send immediately",
-    descKey: "mistakes.wasabiThenSendDesc",
-    descDefault: "Wasabi's nVersion=1 fingerprint identifies the pre-CoinJoin transaction. Spending immediately after creates a timing correlation. Wait several blocks and use a different wallet for the spend.",
+    titleKey: "mistakes.coinjoinThenSend",
+    titleDefault: "Mix with CoinJoin then send immediately",
+    descKey: "mistakes.coinjoinThenSendDesc",
+    descDefault: "Spending immediately after a CoinJoin creates a timing correlation between the mix and the spend, whichever implementation you use. Wait several blocks and use a different wallet for the spend.",
   },
   {
     titleKey: "mistakes.reuseAddress",
@@ -72,6 +72,6 @@ export const MISTAKES: MistakeEntry[] = [
     titleKey: "mistakes.sameSwapService",
     titleDefault: "Use the same swap service for both entry and exit",
     descKey: "mistakes.sameSwapServiceDesc",
-    descDefault: "Using the same service (e.g., Boltz) for both Liquid peg-in and peg-out, or for both BTC-to-XMR and XMR-to-BTC swaps, gives that service full visibility of your flow. Use different services for each direction.",
+    descDefault: "Using the same service (e.g., Boltz) for both BTC-to-XMR and XMR-to-BTC swaps, gives that service full visibility of your flow. Use different services for each direction.",
   },
 ];

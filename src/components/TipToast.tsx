@@ -134,7 +134,7 @@ export function TipToast() {
                         className="inline-flex items-center justify-center gap-2 text-sm font-medium text-background bg-bitcoin hover:bg-bitcoin/90 transition-colors px-4 py-2.5 rounded-lg w-full"
                       >
                         <ExternalLink size={14} />
-                        {t("common.tipViaCoinos", { defaultValue: "Tip via Bitcoin, Lightning, or Liquid" })}
+                        {t("common.tipViaCoinos", { defaultValue: "Tip via Bitcoin or Lightning" })}
                       </a>
                     </div>
 
