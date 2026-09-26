@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
-import { GRADE_HEX } from "@/lib/constants";
+import { GRADE_VAR } from "@/lib/constants";
 
 const GRADES = ["A+", "B", "C", "D", "F"] as const;
 /** Decorative: a few finished checks tinted by severity, like the scan's checks strip. */
@@ -42,7 +42,7 @@ export function HowItWorks({ checks }: { checks: number }) {
       body: t("v2.home.how_3_body", { defaultValue: "A privacy score from A+ to F, every finding explained, and the next step that repairs it." }),
       glyph: (
         <div aria-hidden="true" className="h-11 flex items-center gap-5 text-[30px] font-extrabold tracking-tight leading-none">
-          {GRADES.map((g) => <span key={g} style={{ color: GRADE_HEX[g] }}>{g}</span>)}
+          {GRADES.map((g) => <span key={g} style={{ color: GRADE_VAR[g] }}>{g}</span>)}
         </div>
       ),
     },

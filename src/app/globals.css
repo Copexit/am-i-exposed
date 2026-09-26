@@ -80,6 +80,7 @@ html[data-theme="light"] {
   /* v2 UI tokens (defined under [data-ui="v2"] only) */
   --color-surface-1: var(--surface-1);
   --color-surface-2: var(--surface-2);
+  --color-surface-float: var(--surface-float);
   --color-hairline: var(--hairline);
   --color-hairline-strong: var(--hairline-strong);
   --color-faint: var(--faint);
@@ -109,9 +110,138 @@ html[data-theme="light"] {
   --glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 12px 40px rgba(0, 0, 0, 0.35);
   --overlay-bg: rgba(20, 20, 24, 0.97);
   --overlay-border: rgba(255, 255, 255, 0.1);
+  --bitcoin-text: #f7931a;
+  --bitcoin-display: #f7931a;
+  --surface-float: #17171b;
+  --shadow-sm: 0 0 #0000;
+  --shadow-card: 0 0 #0000;
+  --shadow-pop: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  --hero-field-bg: color-mix(in oklab, var(--surface-float) 85%, transparent);
   background: var(--background);
   color: var(--foreground);
   font-feature-settings: "ss01", "cv11";
+}
+
+/*
+ * v2 light: designed as light, not an inverted dark. Elevation is a white
+ * surface on a softly tinted cool page, a hairline and a soft layered shadow
+ * (dark stays flat: its shadow tokens are transparent). Clean zinc/slate
+ * neutrals. --bitcoin stays the real brand orange for fills, marks and focus;
+ * orange TEXT uses --bitcoin-text (AA) or --bitcoin-display (large type, 3:1).
+ * Severity tokens are AA text shades; fills and soft tints use the --fill-*
+ * hues below (see the remaps after this block).
+ */
+html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"] {
+  --background: #eceef2;
+  --foreground: #15171c;
+  --muted: #4a4f5a;
+  --faint: #62676f;
+  --surface-1: #fbfbfc;
+  --surface-2: #e0e4ea;
+  --surface-float: #fbfbfc;
+  --hero-field-bg: var(--surface-float);
+  --hairline: rgba(15, 17, 21, 0.14);
+  --hairline-strong: rgba(15, 17, 21, 0.22);
+  --card-bg: #fbfbfc;
+  --card-border: #cfd4db;
+  --surface-inset: #eef0f4;
+  --surface-elevated: #fbfbfc;
+  --bitcoin-text: #b04307;
+  --bitcoin-display: #c85f06;
+  --success: #12703a;
+  --warning: #8f5606;
+  --danger: #c81e1e;
+  --info: #1d56d8;
+  --severity-critical: #c81e1e;
+  --severity-high: #b53d0b;
+  --severity-medium: #8f5606;
+  --severity-low: #1d56d8;
+  --severity-good: #12703a;
+  --fill-critical: #ef4444;
+  --fill-high: #ea580c;
+  --fill-medium: #b07b00;
+  --fill-low: #3b82f6;
+  --fill-good: #15803d;
+  --dial-band: 0.22;
+  --dial-band-active: 0.4;
+  --shadow-sm: 0 1px 2px rgba(16, 18, 24, 0.05);
+  --shadow-card: 0 1px 2px rgba(16, 18, 24, 0.06), 0 6px 20px -6px rgba(16, 18, 24, 0.1);
+  --shadow-pop: 0 2px 6px rgba(16, 18, 24, 0.05), 0 18px 44px -10px rgba(16, 18, 24, 0.18);
+  --glass-bg: rgba(251, 251, 252, 0.86);
+  --glass-border: rgba(15, 17, 21, 0.14);
+  --glass-shadow: 0 1px 2px rgba(16, 18, 24, 0.04), 0 10px 30px -10px rgba(16, 18, 24, 0.12);
+  --overlay-bg: rgba(251, 251, 252, 0.98);
+  --overlay-border: rgba(15, 17, 21, 0.16);
+  --overlay-shadow: 0 2px 6px rgba(16, 18, 24, 0.05), 0 18px 44px -10px rgba(16, 18, 24, 0.18);
+  --subtle-border: rgba(15, 17, 21, 0.14);
+  --subtle-hover: rgba(15, 17, 21, 0.05);
+  --shimmer-color: rgba(15, 17, 21, 0.08);
+  color-scheme: light;
+}
+
+/* Orange text fails contrast on white: in v2 light, bitcoin-colored text uses the deeper accent. */
+:is(html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"]) :is(.text-bitcoin, .hover\:text-bitcoin:hover, .group:hover .group-hover\:text-bitcoin) {
+  color: var(--bitcoin-text);
+}
+:is(html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"]) :is(.text-bitcoin\/85, .text-bitcoin\/80, .text-bitcoin\/70, .text-bitcoin\/50, .hover\:text-bitcoin\/80:hover, .group:hover .group-hover\:text-bitcoin\/80) {
+  color: color-mix(in srgb, var(--bitcoin-text) 88%, transparent);
+}
+
+/*
+ * v2 light severity: solid marks (dots, bars) use the brighter fill hues, and
+ * the translucent tints dark mode uses become clean soft tints (red-50 style)
+ * instead of greyed 700-shade washes.
+ */
+:is(html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"]) {
+  .bg-severity-critical { background-color: var(--fill-critical); }
+  .bg-severity-high { background-color: var(--fill-high); }
+  .bg-severity-medium { background-color: var(--fill-medium); }
+  .bg-severity-low { background-color: var(--fill-low); }
+  .bg-severity-good { background-color: var(--fill-good); }
+  :is(.bg-severity-critical\/5, .bg-severity-critical\/8, .bg-severity-critical\/10, .bg-severity-critical\/15, .bg-severity-critical\/20, .bg-severity-critical\/25) { background-color: color-mix(in srgb, var(--fill-critical) 9%, var(--card-bg)); }
+  :is(.bg-severity-high\/5, .bg-severity-high\/8, .bg-severity-high\/10, .bg-severity-high\/15, .bg-severity-high\/20) { background-color: color-mix(in srgb, var(--fill-high) 9%, var(--card-bg)); }
+  :is(.bg-severity-medium\/5, .bg-severity-medium\/10, .bg-severity-medium\/15, .bg-severity-medium\/20) { background-color: color-mix(in srgb, var(--fill-medium) 11%, var(--card-bg)); }
+  :is(.bg-severity-low\/10, .bg-severity-low\/15, .bg-severity-low\/20) { background-color: color-mix(in srgb, var(--fill-low) 9%, var(--card-bg)); }
+  :is(.bg-severity-good\/5, .bg-severity-good\/10, .bg-severity-good\/15, .bg-severity-good\/20) { background-color: color-mix(in srgb, var(--fill-good) 9%, var(--card-bg)); }
+  :is(.bg-warning\/10, .bg-warning\/15, .bg-warning\/25) { background-color: color-mix(in srgb, var(--fill-medium) 11%, var(--card-bg)); }
+  :is(.border-severity-critical\/15, .border-severity-critical\/20, .border-severity-critical\/25, .border-severity-critical\/30, .border-severity-critical\/40) { border-color: color-mix(in srgb, var(--fill-critical) 28%, var(--card-bg)); }
+  :is(.border-severity-high\/15, .border-severity-high\/20, .border-severity-high\/25, .border-severity-high\/30, .border-severity-high\/40, .border-severity-high\/50) { border-color: color-mix(in srgb, var(--fill-high) 30%, var(--card-bg)); }
+  :is(.border-severity-medium\/20, .border-severity-medium\/25, .border-severity-medium\/30, .border-severity-medium\/40, .border-warning\/30) { border-color: color-mix(in srgb, var(--fill-medium) 34%, var(--card-bg)); }
+  :is(.border-severity-low\/30, .border-severity-low\/40) { border-color: color-mix(in srgb, var(--fill-low) 28%, var(--card-bg)); }
+  :is(.border-severity-good\/15, .border-severity-good\/20, .border-severity-good\/30, .border-severity-good\/40) { border-color: color-mix(in srgb, var(--fill-good) 28%, var(--card-bg)); }
+}
+
+/* v2 light chrome: white glass bars, panels, clean paper (no film grain), quiet scrollbars. */
+:is(html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"]) {
+  .bg-background\/75 { background-color: rgb(236 238 242 / 0.85); }
+  /*
+   * Classic panels embedded in v2 use bg-surface-inset for both page-level
+   * containers and wells inside cards. On paper the first must be raised
+   * (white), the second recessed: resolve by nesting.
+   */
+  :is(.bg-surface-inset, .bg-surface-inset\/50, .bg-surface-inset\/40) { background-color: var(--surface-1); }
+  :is(.bg-surface-1, .bg-card-bg, .bg-surface-elevated, .v2-panel, .glass, .v2-canvas) :is(.bg-surface-inset, .bg-surface-inset\/50, .bg-surface-inset\/40) { background-color: var(--surface-inset); }
+  /* Home scan field: disabled Scan reads as a quiet grey key, not a washed-out orange one. */
+  .v2-hero-field button:disabled { background: var(--surface-2) !important; color: var(--faint); box-shadow: none !important; opacity: 1; }
+  .v2-readouts { box-shadow: var(--shadow-card); }
+  .v2-readouts > * { background-color: var(--surface-1); }
+  .v2-canvas { box-shadow: var(--shadow-card); border-color: var(--hairline); }
+  .v2-canvas-backdrop { background-color: rgb(236 238 242 / 0.9); backdrop-filter: blur(14px); }
+  .v2-panel {
+    background: var(--surface-1);
+    border: 1px solid var(--hairline);
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: var(--shadow-card);
+  }
+  ::selection { background: color-mix(in srgb, var(--bitcoin) 28%, var(--card-bg)); color: var(--foreground); }
+  ::-webkit-scrollbar-thumb { background: rgba(15, 17, 21, 0.16); }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(15, 17, 21, 0.3); }
+  scrollbar-color: rgba(15, 17, 21, 0.2) transparent;
+}
+html[data-theme="light"][data-ui="v2"] body::after { display: none; }
+@media (min-width: 640px) {
+  :is(html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"]) .v2-panel { padding: 24px; }
 }
 
 [data-ui="v2"] .v2-num {

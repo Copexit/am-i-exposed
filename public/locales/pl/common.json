@@ -1891,6 +1891,7 @@
   "settings.theme": "Motyw",
   "settings.themeDark": "Ciemny",
   "settings.themeLight": "Jasny",
+  "settings.themeSystem": "Systemowy",
   "settings.timeout": "Limit czasu (10s)",
   "settings.title": "Ustawienia",
   "settings.walletGapLimit": "Gap limit skanu portfela",

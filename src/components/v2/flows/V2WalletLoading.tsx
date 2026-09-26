@@ -67,7 +67,7 @@ export function V2WalletLoading({ query, phase, progress, traceProgress, isLocal
         </p>
       )}
 
-      <ol className="rounded-xl border border-hairline bg-surface-1 divide-y divide-hairline">
+      <ol className="rounded-xl border border-hairline bg-surface-1 shadow-(--shadow-card) divide-y divide-hairline">
         {PHASES.map((p, i) => {
           const state = stateOf(p, i);
           const info = detail(p);

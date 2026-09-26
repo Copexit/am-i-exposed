@@ -41,7 +41,7 @@ export function V2Destination({ query, preSendResult, onBack, durationMs }: V2De
       <section
         data-testid="v2-destination-verdict"
         data-risk={preSendResult.riskLevel}
-        className="rounded-xl border border-hairline bg-surface-1 overflow-hidden"
+        className="rounded-xl border border-hairline bg-surface-1 shadow-(--shadow-card) overflow-hidden"
       >
         <div className={`h-0.5 ${RISK_BAR[preSendResult.riskLevel]}`} aria-hidden="true" />
         <div className="p-5 sm:p-7 space-y-6">

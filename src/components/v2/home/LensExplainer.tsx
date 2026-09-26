@@ -9,7 +9,7 @@ import { analyzeTransactionSync } from "@/lib/analysis/analyze-sync";
 import { loadEntityFilter } from "@/lib/analysis/entity-filter";
 import { buildResultViewModel } from "@/lib/view/tx-view-model";
 import { TX_BASE_SCORE } from "@/lib/scoring/score";
-import { GRADE_HEX } from "@/lib/constants";
+import { GRADE_COLORS, GRADE_VAR } from "@/lib/constants";
 import { formatBtc, fmtN } from "@/lib/format";
 import { findingKeys } from "@/lib/finding-utils";
 import { SEVERITY_BG } from "@/components/v2/results/severity";
@@ -198,7 +198,7 @@ function LensExplainerBody() {
             {TABS.map((tab) => (
               <button key={tab.k} type="button" aria-pressed={key === tab.k} onClick={() => { setKey(tab.k); setSelected(null); setOpen(null); }} className={`${seg} ${key === tab.k ? "bg-surface-2 text-foreground" : "text-muted hover:text-foreground"}`}>
                 {tab.label}
-                <span className="v2-num text-xs font-semibold" style={{ color: GRADE_HEX[data[tab.k].vm.grade] }}>{data[tab.k].vm.grade}</span>
+                <span className={`v2-num text-xs font-semibold ${GRADE_COLORS[data[tab.k].vm.grade]}`}>{data[tab.k].vm.grade}</span>
               </button>
             ))}
           </div>
@@ -209,7 +209,7 @@ function LensExplainerBody() {
       </div>
 
       <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-5 items-start">
-        <div className="rounded-xl border border-hairline bg-surface-1 overflow-hidden">
+        <div className="rounded-xl border border-hairline bg-surface-1 shadow-(--shadow-card) overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 border-b border-hairline">
             <span className="v2-num text-xs text-muted truncate min-w-0 flex-1">{tx.txid}</span>
             <span className="v2-num text-xs text-faint">{t("v2.home.lens_meta", { defaultValue: "{{i}} in · {{o}} out · block {{b}}", i: tx.vin.length, o: tx.vout.length, b: fmtN(tx.status.block_height ?? 0) })}</span>
@@ -229,7 +229,7 @@ function LensExplainerBody() {
           </div>
           <div className="flex items-center gap-4 px-4 py-3.5 border-t border-hairline bg-surface-2">
             <div className="shrink-0">
-              <div className="text-[36px] font-bold leading-none tracking-tight" style={{ color: GRADE_HEX[vm.grade] }}>{vm.grade}</div>
+              <div className="text-[36px] font-bold leading-none tracking-tight" style={{ color: GRADE_VAR[vm.grade] }}>{vm.grade}</div>
               <div className="v2-num text-[11px] text-muted mt-1">{vm.score}/100</div>
             </div>
             <div className="min-w-0">
@@ -239,7 +239,7 @@ function LensExplainerBody() {
           </div>
         </div>
 
-        <aside className="rounded-xl border border-hairline bg-surface-1 py-2" aria-label={t("v2.home.lens_notebook", { defaultValue: "Analyst notebook" })}>
+        <aside className="rounded-xl border border-hairline bg-surface-1 shadow-(--shadow-card) py-2" aria-label={t("v2.home.lens_notebook", { defaultValue: "Analyst notebook" })}>
           {leaks.length > 0 && (
             <>
               <h3 className="v2-eyebrow px-4 pt-3 pb-2">{model.blind ? t("v2.home.lens_residual", { defaultValue: "Residual leaks" }) : t("v2.home.lens_leaked", { defaultValue: "What leaked" })}</h3>

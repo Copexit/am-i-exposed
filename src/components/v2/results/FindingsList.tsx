@@ -128,7 +128,7 @@ export function FindingsList({ visible, title, openIds, onToggle, highlightId, o
       </header>
 
       <Collapse open={showFilters}>
-        <div className="rounded-lg bg-surface-1 border border-hairline p-4 space-y-3">
+        <div className="rounded-lg bg-surface-1 border border-hairline shadow-(--shadow-card) p-4 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-muted w-24">{t("v2.results.filterWho", { defaultValue: "Who can see it" })}</span>
             {ADVERSARY_TIERS.map((a) => chip(adversary.has(a), t(ADVERSARY_LABEL[a][0], { defaultValue: ADVERSARY_LABEL[a][1] }), () => setAdversary((s) => toggleIn(s, a))))}
@@ -142,7 +142,7 @@ export function FindingsList({ visible, title, openIds, onToggle, highlightId, o
       </Collapse>
 
       {groups.leaks.length > 0 ? (
-        <div className="rounded-xl bg-surface-1 border border-hairline px-1">
+        <div className="rounded-xl bg-surface-1 border border-hairline shadow-(--shadow-card) px-1">
           <p className="v2-eyebrow px-4 pt-4 pb-1 text-severity-high/80">{t("v2.results.leaks", { defaultValue: "Leaks" })}</p>
           {renderItems(groups.leaks)}
         </div>
@@ -154,7 +154,7 @@ export function FindingsList({ visible, title, openIds, onToggle, highlightId, o
         <div className="border-t border-hairline">
           {groupHeader(t("v2.results.minor", { defaultValue: "Minor signals" }), groups.minor.length, minorOpen || minorForced, () => setMinorOpen((v) => !v), "v2-findings-minor")}
           <Collapse open={minorOpen || minorForced}>
-            <div id="v2-findings-minor" className="rounded-xl bg-surface-1 border border-hairline px-1 mb-2">{renderItems(groups.minor)}</div>
+            <div id="v2-findings-minor" className="rounded-xl bg-surface-1 border border-hairline shadow-(--shadow-card) px-1 mb-2">{renderItems(groups.minor)}</div>
           </Collapse>
         </div>
       )}
@@ -163,7 +163,7 @@ export function FindingsList({ visible, title, openIds, onToggle, highlightId, o
         <div className="border-t border-hairline">
           {groupHeader(t("v2.results.strengths", { defaultValue: "Privacy strengths" }), groups.strengths.length, strengthsOpen || strengthsForced, () => setStrengthsOpen((v) => !v), "v2-findings-strengths")}
           <Collapse open={strengthsOpen || strengthsForced}>
-            <div id="v2-findings-strengths" className="rounded-xl bg-surface-1 border border-hairline px-1">{renderItems(groups.strengths)}</div>
+            <div id="v2-findings-strengths" className="rounded-xl bg-surface-1 border border-hairline shadow-(--shadow-card) px-1">{renderItems(groups.strengths)}</div>
           </Collapse>
         </div>
       )}

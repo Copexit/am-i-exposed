@@ -48,7 +48,7 @@ export function VerdictBand({ query, inputType, vm, txData, reveal, checkCount, 
   const showType = inputType === "txid" && vm.txType && vm.txType !== "simple-payment" && vm.txType !== "unknown";
 
   return (
-    <section id="v2-overview" aria-labelledby="v2-verdict-title" className="grid gap-8 lg:gap-14 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)] items-center">
+    <section id="v2-overview" aria-labelledby="v2-verdict-title" className="v2-panel grid gap-8 lg:gap-14 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)] items-center">
       {/* Grade */}
       <div
         className="flex flex-col items-center gap-5"

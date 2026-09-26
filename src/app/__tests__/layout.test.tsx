@@ -28,24 +28,26 @@ describe("RootLayout", () => {
     expect(html).not.toMatch(/<link[^>]+rel="(preconnect|dns-prefetch)"[^>]*mempool\.space/);
   });
 
-  it("pre-paint theme script parses and keeps v2 dark even with a stored light preference", () => {
+  it("pre-paint theme script applies the stored preference, else the OS preference, on classic and v2", () => {
     const html = renderToStaticMarkup(<RootLayout><main /></RootLayout>);
     const code = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]!).find((c) => c.includes("ami-theme"));
     expect(code).toBeDefined();
-    const run = (pathname: string) => {
+    const run = (pathname: string, stored: string | null, osLight: boolean) => {
       const dataset: Record<string, string> = {};
       const meta = { content: "" };
-      new Function("localStorage", "location", "document", code!)(
-        { getItem: () => "light" },
+      new Function("localStorage", "location", "document", "matchMedia", code!)(
+        { getItem: () => stored },
         { pathname },
         { documentElement: { dataset }, getElementById: () => meta },
+        () => ({ matches: osLight }),
       );
       return dataset.theme;
     };
-    expect(run("/")).toBe("light");
-    expect(run("/guide/")).toBe("light");
-    expect(run("/v2/")).toBeUndefined();
-    expect(run("/v2")).toBeUndefined();
-    expect(run("/v2/guide/")).toBeUndefined();
+    for (const path of ["/", "/guide/", "/v2/", "/v2", "/v2/guide/"]) {
+      expect(run(path, null, true)).toBe("light");
+      expect(run(path, null, false)).toBeUndefined();
+      expect(run(path, "light", false)).toBe("light");
+      expect(run(path, "dark", true)).toBeUndefined();
+    }
   });
 });

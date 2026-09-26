@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, type RefObject } from "react";
-import { COLORS, V2_COLORS, hexToRgba } from "@/lib/palette";
+import { COLORS, V2_LIGHT_PALETTE, hexToRgba } from "@/lib/palette";
+import { useV2Palette } from "../useV2Palette";
 import { sampleEvenly, type FieldUtxo } from "./field-labels";
 
 /** Pre-formatted, translated label for one UTXO (built once by the parent). */
@@ -45,6 +46,7 @@ function bz(p: Path, t: number): [number, number] {
  */
 export function GlassField({ utxos, labels, captions, locked, lockTarget, avoid, counter }: GlassFieldProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const P = useV2Palette();
   const live = useRef({ labels, captions, locked });
   useEffect(() => { live.current = { labels, captions, locked }; }, [labels, captions, locked]);
 
@@ -65,18 +67,20 @@ export function GlassField({ utxos, labels, captions, locked, lockTarget, avoid,
     let seed = 21_000_000;
     const rnd = () => ((seed = (Math.imul(seed ^ (seed >>> 15), seed | 1) + 0x6d2b79f5) | 0) >>> 0) / 4294967296;
 
+    // Light is drawn as light: fewer, finer ink strokes on paper, crisp dots, a white lens.
+    const light = P === V2_LIGHT_PALETTE;
     const layer = (paths: Path[], alpha: number, bar: boolean) => {
       const o = document.createElement("canvas");
       o.width = W * DPR; o.height = H * DPR;
       const g = o.getContext("2d")!;
       g.scale(DPR, DPR);
-      g.strokeStyle = hexToRgba(V2_COLORS.muted, alpha);
-      g.lineWidth = 1;
+      g.strokeStyle = hexToRgba(light ? P.foreground : P.muted, alpha);
+      g.lineWidth = light ? 0.6 : 1;
       g.beginPath();
       for (const p of paths) { g.moveTo(p.ax, p.ay); g.bezierCurveTo(p.c1, p.ay, p.c2, p.by, p.bx, p.by); }
       g.stroke();
       // The tx bar only shows under the lens (in the open field it read as a stray line).
-      if (bar) { g.fillStyle = hexToRgba(V2_COLORS.foreground, Math.min(1, alpha * 3)); g.fillRect(hub.x - 1.5, hub.y0, 3, hub.y1 - hub.y0); }
+      if (bar) { g.fillStyle = hexToRgba(P.foreground, light ? 0.7 : Math.min(1, alpha * 3)); g.fillRect(hub.x - 1.5, hub.y0, 3, hub.y1 - hub.y0); }
       return o;
     };
 
@@ -87,7 +91,7 @@ export function GlassField({ utxos, labels, captions, locked, lockTarget, avoid,
       seed = 21_000_000;
       const mob = W < 700;
       hub = { x: W * (mob ? 0.88 : 0.8), y0: H * 0.2, y1: H * 0.8 };
-      const cap = Math.min(mob ? 220 : 600, Math.round((W * H) / (mob ? 1400 : 1800)));
+      const cap = Math.round(Math.min(mob ? 220 : 600, Math.round((W * H) / (mob ? 1400 : 1800))) * (light ? 0.5 : 1));
       const chosen = sampleEvenly(utxos.map((_, i) => i), cap);
       const nIn = chosen.filter((i) => utxos[i]!.side === "in").length;
       let kIn = 0, kOut = 0;
@@ -108,8 +112,8 @@ export function GlassField({ utxos, labels, captions, locked, lockTarget, avoid,
         return { u, p, t: rnd(), sp: 22 + rnd() * 40, seen: false, x: 0, y: 0, x0: 0, y0: 0 };
       });
       seenCount = 0;
-      dim = layer(paths, 0.05, false);
-      bright = layer(paths, 0.36, true);
+      dim = layer(paths, light ? 0.045 : 0.05, false);
+      bright = layer(paths, light ? 0.13 : 0.36, true);
       if (!L.x) { L.x = W * 0.78; L.y = H * 0.3; }
     };
 
@@ -147,11 +151,20 @@ export function GlassField({ utxos, labels, captions, locked, lockTarget, avoid,
       const bx = x + w > W - 8 ? x - w - 20 : x;
       if (y < topInset || y + 32 > H - 4) return false;
       if (keepOut.some((r) => bx < r.right + 6 && bx + w > r.left - 6 && y < r.bottom + 6 && y + 32 > r.top - 6)) return false;
-      ctx.fillStyle = hexToRgba(V2_COLORS.background, 0.92); ctx.fillRect(bx, y, w, 32);
-      ctx.fillStyle = color; ctx.fillRect(bx, y, 2, 32);
-      ctx.strokeStyle = hexToRgba(V2_COLORS.foreground, 0.08); ctx.strokeRect(bx + 0.5, y + 0.5, w - 1, 31);
-      ctx.fillStyle = V2_COLORS.foreground; ctx.fillText(title, bx + 9, y + 13);
-      ctx.font = `400 10px ${mono}`; ctx.fillStyle = V2_COLORS.muted; ctx.fillText(sub, bx + 9, y + 26);
+      if (light) {
+        ctx.save();
+        ctx.shadowColor = "rgba(16, 18, 24, 0.1)"; ctx.shadowBlur = 12; ctx.shadowOffsetY = 3;
+        ctx.fillStyle = P.surface1; ctx.beginPath(); ctx.roundRect(bx, y, w, 32, 5); ctx.fill();
+        ctx.restore();
+        ctx.strokeStyle = hexToRgba(P.foreground, 0.1); ctx.beginPath(); ctx.roundRect(bx + 0.5, y + 0.5, w - 1, 31, 5); ctx.stroke();
+        ctx.fillStyle = color; ctx.fillRect(bx + 4, y + 7, 2, 18);
+      } else {
+        ctx.fillStyle = hexToRgba(P.background, 0.92); ctx.fillRect(bx, y, w, 32);
+        ctx.fillStyle = color; ctx.fillRect(bx, y, 2, 32);
+        ctx.strokeStyle = hexToRgba(P.foreground, 0.08); ctx.strokeRect(bx + 0.5, y + 0.5, w - 1, 31);
+      }
+      ctx.fillStyle = P.foreground; ctx.fillText(title, bx + 9, y + 13);
+      ctx.font = `400 10px ${mono}`; ctx.fillStyle = P.muted; ctx.fillText(sub, bx + 9, y + 26);
       return true;
     };
 
@@ -176,7 +189,8 @@ export function GlassField({ utxos, labels, captions, locked, lockTarget, avoid,
       ctx.drawImage(dim, 0, 0, W, H);
       const R = L.r, R2 = (R / MAG) ** 2, inLens: Particle[] = [];
       ctx.lineCap = "round"; ctx.lineWidth = 1.4;
-      ctx.strokeStyle = hexToRgba(V2_COLORS.muted, 0.32);
+      ctx.strokeStyle = hexToRgba(P.muted, 0.32);
+      ctx.fillStyle = hexToRgba(P.foreground, 0.42);
       ctx.beginPath();
       const seen: Particle[] = [];
       for (const p of parts) {
@@ -188,34 +202,53 @@ export function GlassField({ utxos, labels, captions, locked, lockTarget, avoid,
           inLens.push(p);
           if (!p.seen && !RM && L.lockA < 0.5 && L.vis > 0.9) { p.seen = true; seenCount++; }
         }
-        if (p.seen) seen.push(p); else { ctx.moveTo(p.x0, p.y0); ctx.lineTo(p.x, p.y); }
+        if (p.seen) seen.push(p);
+        else if (light) { ctx.moveTo(p.x + 1.1, p.y); ctx.arc(p.x, p.y, 1.1, 0, 7); }
+        else { ctx.moveTo(p.x0, p.y0); ctx.lineTo(p.x, p.y); }
       }
-      ctx.stroke();
+      if (light) ctx.fill(); else ctx.stroke();
       // Once labelled, a UTXO stays marked: the label follows the coin.
-      ctx.strokeStyle = hexToRgba(COLORS.bitcoin, 0.34);
       ctx.beginPath();
-      for (const p of seen) { ctx.moveTo(p.x0, p.y0); ctx.lineTo(p.x, p.y); }
-      ctx.stroke();
+      if (light) {
+        ctx.fillStyle = hexToRgba(COLORS.bitcoin, 0.9);
+        for (const p of seen) { ctx.moveTo(p.x + 1.5, p.y); ctx.arc(p.x, p.y, 1.5, 0, 7); }
+        ctx.fill();
+      } else {
+        ctx.strokeStyle = hexToRgba(COLORS.bitcoin, 0.34);
+        for (const p of seen) { ctx.moveTo(p.x0, p.y0); ctx.lineTo(p.x, p.y); }
+        ctx.stroke();
+      }
 
       // The lens: darkened glass, magnified bright paths, scanlines.
       ctx.save();
       ctx.globalAlpha = L.vis;
+      if (light) {
+        // A clean white disc lifted off the page by a soft shadow.
+        ctx.save();
+        ctx.shadowColor = "rgba(16, 18, 24, 0.14)"; ctx.shadowBlur = 36; ctx.shadowOffsetY = 12;
+        ctx.fillStyle = P.surface1; ctx.beginPath(); ctx.arc(L.x, L.y, R, 0, 7); ctx.fill();
+        ctx.restore();
+      }
       ctx.beginPath(); ctx.arc(L.x, L.y, R, 0, 7); ctx.clip();
-      ctx.fillStyle = hexToRgba(V2_COLORS.background, 0.66); ctx.fillRect(L.x - R, L.y - R, R * 2, R * 2);
-      const gl = ctx.createRadialGradient(L.x, L.y - R * 0.4, R * 0.1, L.x, L.y, R);
-      gl.addColorStop(0, hexToRgba(COLORS.bitcoin, 0.08)); gl.addColorStop(1, hexToRgba(V2_COLORS.background, 0.5));
-      ctx.fillStyle = gl; ctx.fillRect(L.x - R, L.y - R, R * 2, R * 2);
+      if (!light) {
+        ctx.fillStyle = hexToRgba(P.background, 0.66); ctx.fillRect(L.x - R, L.y - R, R * 2, R * 2);
+        const gl = ctx.createRadialGradient(L.x, L.y - R * 0.4, R * 0.1, L.x, L.y, R);
+        gl.addColorStop(0, hexToRgba(COLORS.bitcoin, 0.08)); gl.addColorStop(1, hexToRgba(P.background, 0.5));
+        ctx.fillStyle = gl; ctx.fillRect(L.x - R, L.y - R, R * 2, R * 2);
+      }
       ctx.save();
       ctx.translate(L.x, L.y); ctx.scale(MAG, MAG); ctx.translate(-L.x, -L.y);
       ctx.drawImage(bright, 0, 0, W, H);
       ctx.restore();
-      ctx.fillStyle = hexToRgba(V2_COLORS.foreground, 0.025);
-      for (let y = L.y - R; y < L.y + R; y += 3) ctx.fillRect(L.x - R, y, R * 2, 1);
+      if (!light) {
+        ctx.fillStyle = hexToRgba(P.foreground, 0.025);
+        for (let y = L.y - R; y < L.y + R; y += 3) ctx.fillRect(L.x - R, y, R * 2, 1);
+      }
       const marks: { p: Particle; mx: number; my: number }[] = [];
       for (const p of inLens) {
         const mx = L.x + (p.x - L.x) * MAG, my = L.y + (p.y - L.y) * MAG;
         if (inKeepOut(mx, my, 4)) continue;
-        ctx.fillStyle = lab[p.u]?.color ?? V2_COLORS.muted;
+        ctx.fillStyle = lab[p.u]?.color ?? P.muted;
         ctx.globalAlpha = 0.9 * L.vis;
         ctx.beginPath(); ctx.arc(mx, my, 1.6 + Math.log10(utxos[p.u]!.value + 10) / 3.2, 0, 7); ctx.fill();
         marks.push({ p, mx, my });
@@ -224,7 +257,7 @@ export function GlassField({ utxos, labels, captions, locked, lockTarget, avoid,
       const hdx = hub.x - L.x, hmy = L.y + ((hub.y0 + hub.y1) / 2 - L.y) * MAG;
       const showHub = Math.abs(hdx) < R / MAG && !marks.length;
       if (Math.abs(hdx) < R / MAG) {
-        ctx.fillStyle = V2_COLORS.foreground;
+        ctx.fillStyle = P.foreground;
         ctx.fillRect(L.x + hdx * MAG - 2, L.y + (hub.y0 - L.y) * MAG, 4, (hub.y1 - hub.y0) * MAG);
       }
       ctx.restore();
@@ -244,15 +277,15 @@ export function GlassField({ utxos, labels, captions, locked, lockTarget, avoid,
         ctx.strokeStyle = l.color; ctx.lineWidth = 1;
         ctx.beginPath(); ctx.arc(m.mx, m.my, 6, 0, 7); ctx.stroke();
       }
-      if (showHub && max) tagBox(L.x + hdx * MAG + 12, hmy - 16, cap.hubTitle, cap.hubSub, COLORS.severityGood);
+      if (showHub && max) tagBox(L.x + hdx * MAG + 12, hmy - 16, cap.hubTitle, cap.hubSub, P.severityGood);
 
       // Rim, ticks and caption.
-      const ring = L.lockA > 0.5 ? ORANGE : hexToRgba(COLORS.bitcoin, 0.55);
+      const ring = L.lockA > 0.5 ? ORANGE : hexToRgba(COLORS.bitcoin, light ? 0.8 : 0.55);
       ctx.lineWidth = 1.25; ctx.strokeStyle = ring;
       ctx.beginPath(); ctx.arc(L.x, L.y, R, 0, 7); ctx.stroke();
-      ctx.lineWidth = 6; ctx.strokeStyle = hexToRgba(COLORS.bitcoin, 0.16);
+      ctx.lineWidth = light ? 4 : 6; ctx.strokeStyle = hexToRgba(COLORS.bitcoin, light ? 0.1 : 0.16);
       ctx.beginPath(); ctx.arc(L.x, L.y, R + 4, 0, 7); ctx.stroke();
-      ctx.lineWidth = 1; ctx.strokeStyle = ring;
+      ctx.lineWidth = 1; ctx.strokeStyle = light && L.lockA <= 0.5 ? hexToRgba(COLORS.bitcoin, 0.5) : ring;
       ctx.beginPath();
       const rot = time * 0.0002;
       for (let i = 0; i < 24; i++) {
@@ -262,7 +295,7 @@ export function GlassField({ utxos, labels, captions, locked, lockTarget, avoid,
       }
       ctx.stroke();
       if (W >= 700 || L.lockA > 0.5) {
-        ctx.font = `500 10px ${mono}`; ctx.fillStyle = ring; ctx.textAlign = "center";
+        ctx.font = `500 10px ${mono}`; ctx.fillStyle = light ? P.bitcoinText : ring; ctx.textAlign = "center";
         ctx.fillText(L.lockA > 0.5 ? cap.locked : cap.inView(inLens.length), L.x, L.y + R + 30);
         ctx.textAlign = "left";
       }
@@ -318,7 +351,7 @@ export function GlassField({ utxos, labels, captions, locked, lockTarget, avoid,
       host.removeEventListener("pointerdown", onDown);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [utxos, lockTarget, avoid, counter]);
+  }, [utxos, lockTarget, avoid, counter, P]);
 
   return <canvas ref={canvasRef} aria-hidden="true" className="absolute inset-0 w-full h-full -z-10 pointer-events-none font-mono" />;
 }

@@ -40,7 +40,7 @@ export function V2WalletWorkspace({ result, addressInfos, utxoTraces, onScan, ad
         </span>
       </div>
 
-      <div className="rounded-xl border border-hairline bg-surface-1 divide-y divide-hairline">
+      <div className="rounded-xl border border-hairline bg-surface-1 shadow-(--shadow-card) divide-y divide-hairline">
         {hasTxs && (
           <div className="p-3 sm:p-5 space-y-3 min-w-0">
             <span className="v2-eyebrow block px-1">{t("wallet.txGraph", { defaultValue: "Transaction Graph" })}</span>

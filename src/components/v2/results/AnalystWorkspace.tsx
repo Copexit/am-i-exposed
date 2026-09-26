@@ -71,7 +71,7 @@ export function AnalystWorkspace(p: AnalystWorkspaceProps) {
             <button
               type="button"
               onClick={() => setOpenedGraph(true)}
-              className="w-full flex items-center justify-between gap-3 rounded-xl border border-hairline bg-surface-1 px-4 min-h-[56px] text-left text-sm text-foreground hover:border-hairline-strong transition-colors"
+              className="w-full flex items-center justify-between gap-3 rounded-xl border border-hairline bg-surface-1 shadow-(--shadow-card) px-4 min-h-[56px] text-left text-sm text-foreground hover:border-hairline-strong transition-colors"
             >
               {t("v2.results.openGraph", { defaultValue: "Open the transaction graph explorer" })}
               <span aria-hidden="true" className="text-bitcoin">→</span>

@@ -1,12 +1,14 @@
 "use client";
 
 import { useSyncExternalStore, useCallback, useEffect } from "react";
-import { COLORS, LIGHT_COLORS } from "@/lib/palette";
-import { isV2Path } from "@/lib/v2/paths";
+import { COLORS, LIGHT_COLORS, V2_COLORS, V2_LIGHT_COLORS } from "@/lib/palette";
 
 type Theme = "dark" | "light";
+/** Stored preference: "system" (key absent) follows prefers-color-scheme live. */
+export type ThemePreference = "system" | Theme;
 
 const STORAGE_KEY = "ami-theme";
+const LIGHT_QUERY = "(prefers-color-scheme: light)";
 
 let listeners: Array<() => void> = [];
 
@@ -14,17 +16,25 @@ function notify() {
   for (const fn of listeners) fn();
 }
 
-/**
- * Theme to show: the stored preference, except in the v2 UI, which is dark
- * only. The stored preference is never changed by visiting v2.
- */
-function storedTheme(): Theme {
-  if (typeof window === "undefined") return "dark";
-  if (isV2Path(window.location.pathname)) return "dark";
+function readPreference(): ThemePreference {
+  if (typeof window === "undefined") return "system";
   try {
-    if (localStorage.getItem(STORAGE_KEY) === "light") return "light";
+    const v = localStorage.getItem(STORAGE_KEY);
+    if (v === "light" || v === "dark") return v;
   } catch { /* private browsing */ }
-  return "dark";
+  return "system";
+}
+
+function systemTheme(): Theme {
+  return typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(LIGHT_QUERY).matches
+    ? "light"
+    : "dark";
+}
+
+/** Theme to show for the stored preference. Mirrors the pre-paint script in app/layout.tsx. */
+function resolvedTheme(): Theme {
+  const pref = readPreference();
+  return pref === "system" ? systemTheme() : pref;
 }
 
 /** Read theme from the DOM attribute (the visual ground truth). */
@@ -34,27 +44,33 @@ function domTheme(): Theme {
 }
 
 function applyTheme(theme: Theme) {
-  if (typeof document !== "undefined") {
-    if (theme === "light") {
-      document.documentElement.dataset.theme = "light";
-    } else {
-      delete document.documentElement.dataset.theme;
-    }
-    // Update browser chrome color to match theme
-    const meta = document.getElementById("meta-theme-color") as HTMLMetaElement | null;
-    if (meta) meta.content = theme === "light" ? LIGHT_COLORS.background : COLORS.background;
-  }
+  if (typeof document === "undefined") return;
+  if (theme === "light") document.documentElement.dataset.theme = "light";
+  else delete document.documentElement.dataset.theme;
+  // Update browser chrome color to match theme
+  const meta = document.getElementById("meta-theme-color") as HTMLMetaElement | null;
+  const v2 = document.documentElement.dataset.ui === "v2";
+  if (meta) meta.content = (theme === "light" ? (v2 ? V2_LIGHT_COLORS : LIGHT_COLORS) : v2 ? V2_COLORS : COLORS).background;
 }
 
-// Apply on module load (client-side) so the DOM is correct before first render
-if (typeof window !== "undefined") {
-  applyTheme(storedTheme());
-}
-
-/** Re-apply the theme for the current path (client-side navigation into or out of v2). */
-export function syncThemeWithPath(): void {
-  applyTheme(storedTheme());
+/**
+ * Re-apply the theme and re-render subscribers. Also used when `data-ui`
+ * changes on <html>, since JS-drawn colors (SVG_COLORS) depend on it.
+ */
+export function syncTheme(): void {
+  applyTheme(resolvedTheme());
   notify();
+}
+
+// Apply on module load (client-side) so the DOM is correct before first render,
+// and follow OS theme changes while the preference is "system".
+if (typeof window !== "undefined") {
+  applyTheme(resolvedTheme());
+  if (typeof window.matchMedia === "function") {
+    window.matchMedia(LIGHT_QUERY).addEventListener?.("change", () => {
+      if (readPreference() === "system") syncTheme();
+    });
+  }
 }
 
 function subscribe(callback: () => void): () => void {
@@ -64,40 +80,30 @@ function subscribe(callback: () => void): () => void {
   };
 }
 
-/** Snapshot reads from the DOM so it always matches the visual state. */
-function getSnapshot(): Theme {
-  return domTheme();
-}
-
-function getServerSnapshot(): Theme {
-  return "dark";
-}
+const getServerTheme = (): Theme => "dark";
+const getServerPreference = (): ThemePreference => "system";
 
 export function useTheme() {
-  const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const theme = useSyncExternalStore(subscribe, domTheme, getServerTheme);
+  const preference = useSyncExternalStore(subscribe, readPreference, getServerPreference);
 
-  // Post-hydration sync: if React hydration removed data-theme,
-  // re-apply from localStorage. This runs once after mount.
+  // Post-hydration sync: if React hydration removed data-theme, re-apply.
   useEffect(() => {
-    const stored = storedTheme();
-    if (domTheme() !== stored) {
-      applyTheme(stored);
-      notify();
-    }
+    if (domTheme() !== resolvedTheme()) syncTheme();
   }, []);
 
-  const setTheme = useCallback((val: Theme) => {
-    try { localStorage.setItem(STORAGE_KEY, val); } catch { /* */ }
-    applyTheme(val);
-    notify();
+  const setTheme = useCallback((val: ThemePreference) => {
+    try {
+      if (val === "system") localStorage.removeItem(STORAGE_KEY);
+      else localStorage.setItem(STORAGE_KEY, val);
+    } catch { /* */ }
+    syncTheme();
   }, []);
 
+  /** Classic toggle: switches to the explicit opposite of what is shown. */
   const toggleTheme = useCallback(() => {
-    const next = domTheme() === "dark" ? "light" : "dark";
-    try { localStorage.setItem(STORAGE_KEY, next); } catch { /* */ }
-    applyTheme(next);
-    notify();
-  }, []);
+    setTheme(domTheme() === "dark" ? "light" : "dark");
+  }, [setTheme]);
 
-  return { theme, setTheme, toggleTheme };
+  return { theme, preference, setTheme, toggleTheme };
 }

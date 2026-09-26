@@ -97,7 +97,7 @@ export function TxStage({ tx, vm, outspends, usdPrice, boltzmannResult, onAddres
 
   return (
     <StageContext.Provider value={ctx}>
-      <section data-testid="tx-stage" aria-label={title} className="w-full rounded-xl border border-hairline bg-surface-1">
+      <section data-testid="tx-stage" aria-label={title} className="w-full rounded-xl border border-hairline bg-surface-1 shadow-(--shadow-card)">
         <header className="flex flex-wrap items-center justify-between gap-2 px-4 pt-3 pb-2 sm:px-5">
           <h3 className="v2-eyebrow">{title}</h3>
           <div className="flex items-center gap-1.5">
@@ -125,7 +125,7 @@ export function TxStage({ tx, vm, outspends, usdPrice, boltzmannResult, onAddres
       {tip && (
         <div
           role="presentation"
-          className="fixed z-[70] pointer-events-none max-w-[280px] -translate-x-1/2 -translate-y-full rounded-lg border border-hairline-strong bg-surface-2 px-2.5 py-1.5 text-[12px] leading-snug text-foreground shadow-lg"
+          className="fixed z-[70] pointer-events-none max-w-[280px] -translate-x-1/2 -translate-y-full rounded-lg border border-hairline-strong bg-surface-float shadow-(--shadow-card) px-2.5 py-1.5 text-[12px] leading-snug text-foreground shadow-lg"
           style={{ left: Math.min(Math.max(tip.x, 150), (typeof window !== "undefined" ? window.innerWidth : 1000) - 150), top: tip.y - 6 }}
         >
           {tip.text}

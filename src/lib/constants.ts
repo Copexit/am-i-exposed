@@ -98,6 +98,28 @@ export const GRADE_HEX: Record<Grade, string> = {
   F: COLORS.severityCritical,
 };
 
+/**
+ * Grade colors as CSS custom properties for display type and marks (dial,
+ * bars): follow the theme. v2 light defines brighter --fill-* hues (3:1 for
+ * large type and graphics); elsewhere the severity color is used.
+ */
+export const GRADE_VAR: Record<Grade, string> = {
+  "A+": "var(--fill-good, var(--severity-good))",
+  B: "var(--fill-low, var(--severity-low))",
+  C: "var(--fill-medium, var(--severity-medium))",
+  D: "var(--fill-high, var(--severity-high))",
+  F: "var(--fill-critical, var(--severity-critical))",
+};
+
+/** Grade colors for small text (AA shades in every theme). */
+export const GRADE_TEXT_VAR: Record<Grade, string> = {
+  "A+": "var(--severity-good)",
+  B: "var(--severity-low)",
+  C: "var(--severity-medium)",
+  D: "var(--severity-high)",
+  F: "var(--severity-critical)",
+};
+
 /** Look up grade text color, returning fallback for unknown grades. */
 export function gradeColor(grade: string, fallback = "text-muted"): string {
   return GRADE_COLORS[grade as Grade] ?? fallback;

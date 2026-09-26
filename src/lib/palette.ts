@@ -53,7 +53,56 @@ export const V2_COLORS = {
   cardBg: "#17171b",
   surfaceInset: "#111114",
   surfaceElevated: "#1d1d22",
+  bitcoinText: "#f7931a",
+  bitcoinDisplay: "#f7931a",
+  surfaceFloat: "#17171b",
 } as const;
+
+/** v2 light overrides (`html[data-theme="light"] [data-ui="v2"]`), applied over V2_COLORS. */
+export const V2_LIGHT_COLORS = {
+  background: "#eceef2",
+  foreground: "#15171c",
+  muted: "#4a4f5a",
+  faint: "#62676f",
+  surface1: "#fbfbfc",
+  surface2: "#e0e4ea",
+  surfaceFloat: "#fbfbfc",
+  cardBg: "#fbfbfc",
+  cardBorder: "#cfd4db",
+  surfaceInset: "#eef0f4",
+  surfaceElevated: "#fbfbfc",
+  bitcoinText: "#b04307",
+  bitcoinDisplay: "#c85f06",
+  success: "#12703a",
+  warning: "#8f5606",
+  danger: "#c81e1e",
+  info: "#1d56d8",
+  severityCritical: "#c81e1e",
+  severityHigh: "#b53d0b",
+  severityMedium: "#8f5606",
+  severityLow: "#1d56d8",
+  severityGood: "#12703a",
+  fillCritical: "#ef4444",
+  fillHigh: "#ea580c",
+  fillMedium: "#b07b00",
+  fillLow: "#3b82f6",
+  fillGood: "#15803d",
+} as const;
+
+type V2Palette = Readonly<Record<keyof typeof COLORS | keyof typeof V2_LIGHT_COLORS, string>>;
+
+/** Full resolved v2 palettes for JS-drawn surfaces (canvas, SVG, inline styles). */
+/** Dark marks use the severity hues themselves (light has brighter fills than its AA text shades). */
+const V2_DARK_FILLS = {
+  fillCritical: COLORS.severityCritical,
+  fillHigh: COLORS.severityHigh,
+  fillMedium: COLORS.severityMedium,
+  fillLow: COLORS.severityLow,
+  fillGood: COLORS.severityGood,
+} as const;
+
+export const V2_DARK_PALETTE: V2Palette = { ...COLORS, ...V2_COLORS, ...V2_DARK_FILLS };
+export const V2_LIGHT_PALETTE: V2Palette = { ...COLORS, ...V2_COLORS, ...V2_DARK_FILLS, ...V2_LIGHT_COLORS };
 
 /**
  * Fixed chart hues (Tailwind default-scale values plus the brand green), used
@@ -88,6 +137,7 @@ export const HUES = {
   violet400: "#a78bfa",
   violet500: "#8b5cf6",
   fuchsia400: "#e879f9",
+  fuchsia600: "#c026d3",
   pink500: "#ec4899",
   slate300: "#cbd5e1",
   gray400: "#9ca3af",
@@ -103,9 +153,6 @@ export const ANNOTATION_COLOR = HUES.amber500;
 
 /** Edge/legend color for outputs the user marked as change. */
 export const CHANGE_MARKED_COLOR = HUES.amber600;
-
-/** Dark backdrop for graph notes and edge labels (used with alpha). */
-export const NOTE_BG_COLOR = "#1e1e1e";
 
 /**
  * Neutral tones for rasterized images (share card canvas, OG image), which

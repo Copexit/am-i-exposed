@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { Finding } from "@/lib/types";
 import type { ScoreWaterfall } from "@/lib/view/waterfall";
 import { findingKeys } from "@/lib/finding-utils";
-import { GRADE_HEX } from "@/lib/constants";
+import { GRADE_TEXT_VAR, GRADE_VAR } from "@/lib/constants";
 import { scoreToGrade } from "@/lib/scoring/score";
 import { SEVERITY_BG } from "./severity";
 
@@ -31,7 +31,7 @@ export function ScoreBreakdown({ waterfall, findings, isRevealed, highlightId, o
   const hi = Math.max(100, ...waterfall.steps.map((s) => Math.max(s.from, s.to)));
   const pct = (v: number) => ((v - lo) / (hi - lo)) * 100;
   const zeroImpact = zeroImpactCount;
-  const finalColor = GRADE_HEX[scoreToGrade(waterfall.final)];
+  const finalColor = GRADE_VAR[scoreToGrade(waterfall.final)];
 
   const bar = (from: number, to: number, cls: string, style?: React.CSSProperties) => (
     <div className="relative h-2 rounded-full bg-surface-2 overflow-hidden">
@@ -41,7 +41,7 @@ export function ScoreBreakdown({ waterfall, findings, isRevealed, highlightId, o
   );
 
   return (
-    <section aria-labelledby="v2-breakdown-title" className="space-y-4" data-testid="v2-score-breakdown">
+    <section aria-labelledby="v2-breakdown-title" className="v2-panel space-y-4" data-testid="v2-score-breakdown">
       <div>
         <p className="v2-eyebrow mb-2">{t("v2.results.breakdownEyebrow", { defaultValue: "Score breakdown" })}</p>
         <h3 id="v2-breakdown-title" className="text-base font-semibold">{t("v2.results.breakdownTitle", { defaultValue: "Where the score went" })}</h3>
@@ -92,7 +92,7 @@ export function ScoreBreakdown({ waterfall, findings, isRevealed, highlightId, o
             <div className="text-xs text-foreground">{t("export.finalScore", { defaultValue: "Final score" })}</div>
             {bar(0, waterfall.final, "", { backgroundColor: finalColor })}
           </div>
-          <span className="v2-num text-sm text-right" style={{ color: finalColor }}>{waterfall.final}</span>
+          <span className="v2-num text-sm text-right" style={{ color: GRADE_TEXT_VAR[scoreToGrade(waterfall.final)] }}>{waterfall.final}</span>
         </li>
       </ol>
       {zeroImpact > 0 && (

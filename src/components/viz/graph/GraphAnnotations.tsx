@@ -5,17 +5,15 @@ import { Text } from "@visx/text";
 import type { GraphAnnotation } from "@/lib/graph/saved-graph-types";
 import type { ViewTransform } from "./types";
 import { SVG_COLORS } from "../shared/svgConstants";
-import { ANNOTATION_COLOR, HUES, NOTE_BG_COLOR, hexToRgba } from "@/lib/palette";
+import { ANNOTATION_COLOR, hexToRgba } from "@/lib/palette";
+import { useTheme } from "@/hooks/useTheme";
 import { useAnnotationInteraction } from "./useAnnotationInteraction";
 
 // ─── Annotation colors ──────────────────────────────────────────
 const ANNOTATION_ACCENT = ANNOTATION_COLOR; // amber (selection, shapes, labels)
 const ANNOTATION_ACCENT_FILL = hexToRgba(ANNOTATION_COLOR, 0.06);
 const ANNOTATION_ACCENT_PREVIEW = hexToRgba(ANNOTATION_COLOR, 0.08);
-const NOTE_BG = hexToRgba(NOTE_BG_COLOR, 0.85);
-const NOTE_TEXT = HUES.neutral200;
 const DELETE_COLOR = SVG_COLORS.critical;   // red
-const DEFAULT_BORDER = "rgba(255,255,255,0.2)";
 
 interface GraphAnnotationsProps {
   annotations: GraphAnnotation[];
@@ -40,6 +38,10 @@ export function GraphAnnotations({
   onDelete,
 }: GraphAnnotationsProps) {
   const { t } = useTranslation();
+  useTheme(); // re-render on theme change: note colors follow the surfaces
+  const NOTE_BG = hexToRgba(SVG_COLORS.surfaceElevated, 0.9);
+  const NOTE_TEXT = SVG_COLORS.foreground;
+  const DEFAULT_BORDER = hexToRgba(SVG_COLORS.foreground, 0.2);
   const interaction = useAnnotationInteraction(annotateMode, viewTransform, onAdd, onUpdate);
   const {
     selectedId, setSelectedId, editingId, editTitle, editBody,

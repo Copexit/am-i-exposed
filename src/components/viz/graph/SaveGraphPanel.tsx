@@ -131,7 +131,7 @@ export function SaveGraphPanel({
             ) : (
               <div className="py-1">
                 {graphs.map((g) => (
-                  <div key={g.id} className="px-3 py-2 hover:bg-white/5 flex items-center gap-2 group">
+                  <div key={g.id} className="px-3 py-2 hover:bg-surface-inset flex items-center gap-2 group">
                     <button
                       onClick={() => { onLoadSavedGraph(g); setActivePanel(null); }}
                       className="flex-1 text-left min-w-0 cursor-pointer"

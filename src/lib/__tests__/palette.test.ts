@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it, expect } from "vitest";
-import { COLORS, LIGHT_COLORS, V2_COLORS, hexToRgba } from "../palette";
+import { COLORS, LIGHT_COLORS, V2_COLORS, V2_LIGHT_COLORS, hexToRgba } from "../palette";
 
 const css = readFileSync(join(__dirname, "../../app/globals.css"), "utf8");
 
@@ -29,6 +29,10 @@ describe("palette mirrors globals.css", () => {
 
   it("v2 tokens match [data-ui=v2]", () => {
     expect(V2_COLORS).toEqual(hexVars('[data-ui="v2"]'));
+  });
+
+  it("v2 light tokens match the light v2 block", () => {
+    expect(V2_LIGHT_COLORS).toEqual(hexVars('html[data-theme="light"] [data-ui="v2"]'));
   });
 
   it("severity tokens use the documented project values", () => {
