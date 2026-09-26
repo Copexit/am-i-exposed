@@ -6,6 +6,7 @@ import type { ScoringResult } from "@/lib/types";
 import type { PrimaryRec } from "@/lib/recommendations/primary-recommendation";
 import type { WalletAuditResult } from "@/lib/analysis/wallet-audit";
 import { makeTx } from "@/lib/analysis/heuristics/__tests__/fixtures/tx-factory";
+import pkg from "../package.json";
 
 // Capture console.log output for JSON tests
 let captured: string[] = [];
@@ -52,7 +53,7 @@ describe("txJson", () => {
     expect(captured).toHaveLength(1);
     const parsed = JSON.parse(captured[0]);
 
-    expect(parsed.version).toBe("0.35.9");
+    expect(parsed.version).toBe(pkg.version);
     expect(parsed.input.type).toBe("txid");
     expect(parsed.input.value).toBe("abcd1234");
     expect(parsed.network).toBe("mainnet");
