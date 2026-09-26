@@ -56,7 +56,7 @@ export function V2WalletResults({ descriptor, result, addressInfos, utxoTraces, 
         data-testid="v2-wallet-verdict"
         data-grade={result.grade}
         data-score={result.score}
-        className="relative overflow-hidden rounded-xl border border-hairline bg-surface-1"
+        className="relative overflow-hidden rounded-xl border border-hairline bg-surface-1 shadow-(--shadow-card)"
       >
         <div
           aria-hidden="true"

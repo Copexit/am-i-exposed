@@ -25,6 +25,22 @@ export function getSurfaceColors(): SurfaceColors {
   return theme === "light" ? LIGHT_COLORS : DARK_SURFACES;
 }
 
+const V2_LIGHT_TEXT: Record<string, string> = {
+  [COLORS.bitcoin]: V2_LIGHT_PALETTE.bitcoinText,
+  [COLORS.severityCritical]: V2_LIGHT_PALETTE.severityCritical,
+  [COLORS.severityHigh]: V2_LIGHT_PALETTE.severityHigh,
+  [COLORS.severityMedium]: V2_LIGHT_PALETTE.severityMedium,
+  [COLORS.severityLow]: V2_LIGHT_PALETTE.severityLow,
+  [COLORS.severityGood]: V2_LIGHT_PALETTE.severityGood,
+};
+
+/** Text drawn in a mark color: in v2 light, bright marks swap to their AA text shades. */
+export function svgTextColor(color: string): string {
+  if (typeof document === "undefined") return color;
+  const { theme, ui } = document.documentElement.dataset;
+  return ui === "v2" && theme === "light" ? (V2_LIGHT_TEXT[color] ?? color) : color;
+}
+
 type SvgColorMap = {
   readonly critical: string;
   readonly high: string;

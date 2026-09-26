@@ -41,7 +41,7 @@ export function ScoreBreakdown({ waterfall, findings, isRevealed, highlightId, o
   );
 
   return (
-    <section aria-labelledby="v2-breakdown-title" className="space-y-4" data-testid="v2-score-breakdown">
+    <section aria-labelledby="v2-breakdown-title" className="v2-panel space-y-4" data-testid="v2-score-breakdown">
       <div>
         <p className="v2-eyebrow mb-2">{t("v2.results.breakdownEyebrow", { defaultValue: "Score breakdown" })}</p>
         <h3 id="v2-breakdown-title" className="text-base font-semibold">{t("v2.results.breakdownTitle", { defaultValue: "Where the score went" })}</h3>

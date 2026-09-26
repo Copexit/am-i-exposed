@@ -32,7 +32,7 @@ export function ExposureMatrix({ matrix, findings, highlightId, onHover, onOpen 
   const byId = new Map(findings.map((f) => [f.id as string, f]));
 
   return (
-    <section aria-labelledby="v2-exposure-title" className="space-y-4" data-testid="v2-exposure">
+    <section aria-labelledby="v2-exposure-title" className="v2-panel space-y-4" data-testid="v2-exposure">
       <div>
         <p className="v2-eyebrow mb-2">{t("v2.results.exposureEyebrow", { defaultValue: "Exposure" })}</p>
         <h3 id="v2-exposure-title" className="text-base font-semibold">{t("v2.results.exposureTitle", { defaultValue: "Who can see this" })}</h3>

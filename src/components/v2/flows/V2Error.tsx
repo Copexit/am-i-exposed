@@ -20,7 +20,7 @@ export function V2Error({ error, query, errorCode, onRetry, onBack }: V2ErrorPro
 
   return (
     <FlowShell width="narrow" className="py-16 sm:py-24" testId="v2-error">
-      <div data-testid="error-message" role="alert" className="rounded-xl border border-hairline bg-surface-1 overflow-hidden">
+      <div data-testid="error-message" role="alert" className="rounded-xl border border-hairline bg-surface-1 shadow-(--shadow-card) overflow-hidden">
         <div className="h-0.5 bg-severity-critical/70" aria-hidden="true" />
         <div className="p-6 sm:p-8 space-y-5">
           <div className="space-y-2">

@@ -30,20 +30,39 @@ in `src/lib/palette.ts` via `useV2Palette()`; `palette.test.ts` fails on drift.
 
 | Token | Tailwind | Dark | Light | Use |
 |---|---|---|---|---|
-| `--background` | `bg-background` | #0b0b0d | #fafaf9 | page |
-| `--surface-1` | `bg-surface-1` | #111114 | #f4f4f2 | sections, rails |
-| `--surface-2` | `bg-surface-2` | #17171b | #ffffff | raised items, popovers, inputs |
-| `--hairline` | `border-hairline` | 7% white | 8% black | dividers, quiet outlines |
-| `--hairline-strong` | `border-hairline-strong` | 13% white | 14% black | hover/focus outlines, active chips |
-| `--foreground` | `text-foreground` | #f2f2f4 | #131316 | primary text |
-| `--muted` | `text-muted` | #a6a6b0 | #55555f | secondary text (AA on all surfaces) |
-| `--faint` | `text-faint` | #70707b | #8a8a94 | eyebrows, captions only, never essential info |
-| `--bitcoin` | `bg-bitcoin` | #f7931a | #f7931a | accent fills, primary action, focus |
-| `--bitcoin-text` | `text-bitcoin` | #f7931a | #b45309 | orange text (light remaps `text-bitcoin` for AA) |
-| severity | `text-severity-*` | critical #ef4444, high #f97316, medium #eab308, low #60a5fa, good #28d065 | critical #dc2626, high #c2410c, medium #a16207, low #2563eb, good #15803d | meaning only |
+| `--background` | `bg-background` | #0b0b0d | #f6f7f8 | page (light: a cool, softly tinted paper) |
+| `--surface-1` | `bg-surface-1` | #111114 | #ffffff | cards, sections, panels (raised) |
+| `--surface-2` | `bg-surface-2` | #17171b | #f1f2f4 | hover and active tints, tracks, wells inside cards |
+| `--surface-float` | `bg-surface-float` | #17171b | #ffffff | popovers, tooltips, the home scan field |
+| `--surface-inset` | `bg-surface-inset` | #111114 | #f1f2f4 | classic wells (light: white at page level, recessed inside a card) |
+| `--hairline` | `border-hairline` | 7% white | rgba(15,17,21,.08) | dividers, card outlines |
+| `--hairline-strong` | `border-hairline-strong` | 13% white | rgba(15,17,21,.13) | hover/focus outlines, active chips |
+| `--foreground` | `text-foreground` | #f2f2f4 | #16181d | primary text (17.8:1 on white) |
+| `--muted` | `text-muted` | #a6a6b0 | #565b66 | secondary text (6.8:1 white, 6.4:1 page) |
+| `--faint` | `text-faint` | #70707b | #80858f | eyebrows, captions only, never essential info (3.7:1) |
+| `--bitcoin` | `bg-bitcoin` | #f7931a | #f7931a | accent fills, primary action (near-black label), focus rings, grade arc |
+| `--bitcoin-text` | `text-bitcoin` | #f7931a | #c14c08 | orange text; light remaps `text-bitcoin` (4.9:1 white, 4.55:1 page) |
+| `--bitcoin-display` | `text-(--bitcoin-display)` | #f7931a | #dc6b08 | large display type only, e.g. the hero "exposed?" (3.2:1 page) |
+| severity | `text-severity-*` | critical #ef4444, high #f97316, medium #eab308, low #60a5fa, good #28d065 | critical #dc2626, high #c2410c, medium #a16207, low #2563eb, good #15803d | meaning only, AA text |
+| `--fill-*` | (light only) | = severity | critical #ef4444, high #ea580c, medium #b98305, low #3b82f6, good #16a34a | marks: dots, bars, dial, grade letters (>= 3:1) |
+| `--shadow-sm` / `--shadow-card` / `--shadow-pop` | `shadow-(--shadow-card)` | transparent (pop = shadow-2xl) | soft layered, rgba(16,18,24,.04-.18) | elevation |
 
-Grades use `GRADE_COLORS` (classes) or `GRADE_VAR` (CSS vars, for inline
-styles and SVG) from `src/lib/constants.ts`, so they follow the theme.
+**Elevation in light.** Light is designed as light, not an inverted dark:
+elevation is a white surface on the tinted page, a hairline and a soft layered
+shadow (`--shadow-card`; `--shadow-pop` for popovers). Never a surface darker
+than the page for a raised element; wells (inputs inside cards, code, table
+heads) are a hair darker than the page. Dark stays flat: its shadow tokens are
+transparent, so adding `shadow-(--shadow-card)` never changes dark. Panels that
+are bare in dark (verdict band, rail) take `.v2-panel`, which only draws in light.
+
+**Severity in light.** Solid `bg-severity-*` marks resolve to the brighter
+`--fill-*` hues, and the translucent tints dark uses (`bg-severity-*/10`,
+`border-severity-*/30`) become clean soft tints (red-50 style) instead of
+greyed washes (see the remaps in `globals.css`). Graph text drawn in a mark
+color goes through `svgTextColor()`.
+
+Grades use `GRADE_COLORS` (classes, AA text) or `GRADE_VAR` (CSS vars for
+display-size letters, dials and bars; light uses `--fill-*`) from `src/lib/constants.ts`, so they follow the theme.
 
 Theme: stored in `localStorage["ami-theme"]` ("light" / "dark"; absent =
 follow the OS live). Picked in settings (System / Light / Dark). The pre-paint

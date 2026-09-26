@@ -57,7 +57,7 @@ export function ResultActions({ query, inputType, result, vm }: {
           <ChevronDown size={14} className={`text-faint transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
         </button>
         {open && (
-          <div className="absolute right-0 top-full mt-2 z-40 w-[min(92vw,300px)] rounded-xl border border-hairline-strong bg-surface-2 p-3 shadow-2xl flex flex-col items-stretch gap-2 [&_button]:w-full [&_button]:justify-start">
+          <div className="absolute right-0 top-full mt-2 z-40 w-[min(92vw,300px)] rounded-xl border border-hairline-strong bg-surface-float p-3 shadow-(--shadow-pop) flex flex-col items-stretch gap-2 [&_button]:w-full [&_button]:justify-start">
             <ShareCardV2Button grade={result.grade} score={result.score} query={query} inputType={inputType} findingCount={findingCount} txType={txType} topLeak={topLeak} />
             <ShareButtons grade={result.grade} score={result.score} query={query} inputType={inputType} findingCount={findingCount} />
             <ExportButton targetId="results-panel" query={query} result={result} inputType={inputType} />

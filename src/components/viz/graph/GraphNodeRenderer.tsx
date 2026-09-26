@@ -3,7 +3,7 @@
 import { motion } from "motion/react";
 import { Text } from "@visx/text";
 import { useTranslation } from "react-i18next";
-import { SVG_COLORS } from "../shared/svgConstants";
+import { SVG_COLORS, svgTextColor } from "../shared/svgConstants";
 import { formatSats } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 import { ENTITY_CATEGORY_COLORS } from "./constants";
@@ -236,11 +236,11 @@ export function GraphNodeRenderer({
 
       {/* Heat map score */}
       {heatMapActive && heatScore !== undefined && (
-        <Text x={node.x + node.width - 20} y={node.y + node.height / 2 + 6} fontSize={18} fontWeight={800} fill={color} textAnchor="middle" opacity={0.9}>{heatScore}</Text>
+        <Text x={node.x + node.width - 20} y={node.y + node.height / 2 + 6} fontSize={18} fontWeight={800} fill={svgTextColor(color)} textAnchor="middle" opacity={0.9}>{heatScore}</Text>
       )}
 
       {/* Txid label */}
-      <Text x={node.x + 10} y={node.y + 20} fontSize={11} fill={color} fontWeight={600} fontFamily="monospace">{truncateId(node.txid, 8)}</Text>
+      <Text x={node.x + 10} y={node.y + 20} fontSize={11} fill={svgTextColor(color)} fontWeight={600} fontFamily="monospace">{truncateId(node.txid, 8)}</Text>
 
       {/* Summary line */}
       <Text x={node.x + 10} y={node.y + 38} fontSize={10} fill={SVG_COLORS.muted}>
@@ -276,7 +276,7 @@ export function GraphNodeRenderer({
         return (
           <g>
             <rect x={node.x} y={node.y + node.height + 2} width={node.width} height={18} rx={4} fill={SVG_COLORS.bitcoin} fillOpacity={0.15} stroke={SVG_COLORS.bitcoin} strokeWidth={0.5} strokeOpacity={0.4} />
-            <Text x={node.x + node.width / 2} y={node.y + node.height + 14} fontSize={9} fill={SVG_COLORS.bitcoin} textAnchor="middle" fontWeight={600}>
+            <Text x={node.x + node.width / 2} y={node.y + node.height + 14} fontSize={9} fill={svgTextColor(SVG_COLORS.bitcoin)} textAnchor="middle" fontWeight={600}>
               {vouts.size === 1 ? t("graph.walletOutput", { sats: formatSats(utxoSats), defaultValue: "Wallet: {{sats}}" }) : t("graph.walletOutputs", { count: vouts.size, sats: formatSats(utxoSats), defaultValue: "{{count}} outputs: {{sats}}" })}
             </Text>
           </g>

@@ -40,7 +40,7 @@ export function ScanStage({ kind, focus, traceProgress, tx }: ScanStageProps) {
   return (
     <div
       aria-hidden={tx ? undefined : true}
-      className="relative overflow-hidden rounded-xl border border-hairline bg-surface-1"
+      className="relative overflow-hidden rounded-xl border border-hairline bg-surface-1 shadow-(--shadow-card)"
       style={{
         backgroundImage:
           `radial-gradient(ellipse at 50% 50%, ${orange(0.05)}, transparent 65%),` +

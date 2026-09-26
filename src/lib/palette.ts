@@ -54,21 +54,25 @@ export const V2_COLORS = {
   surfaceInset: "#111114",
   surfaceElevated: "#1d1d22",
   bitcoinText: "#f7931a",
+  bitcoinDisplay: "#f7931a",
+  surfaceFloat: "#17171b",
 } as const;
 
 /** v2 light overrides (`html[data-theme="light"] [data-ui="v2"]`), applied over V2_COLORS. */
 export const V2_LIGHT_COLORS = {
-  background: "#fafaf9",
-  foreground: "#131316",
-  muted: "#55555f",
-  faint: "#8a8a94",
-  surface1: "#f4f4f2",
-  surface2: "#ffffff",
+  background: "#f6f7f8",
+  foreground: "#16181d",
+  muted: "#565b66",
+  faint: "#80858f",
+  surface1: "#ffffff",
+  surface2: "#f1f2f4",
+  surfaceFloat: "#ffffff",
   cardBg: "#ffffff",
-  cardBorder: "#e2e2de",
-  surfaceInset: "#f4f4f2",
+  cardBorder: "#e3e5e9",
+  surfaceInset: "#f1f2f4",
   surfaceElevated: "#ffffff",
-  bitcoinText: "#b45309",
+  bitcoinText: "#c14c08",
+  bitcoinDisplay: "#dc6b08",
   success: "#15803d",
   warning: "#a16207",
   danger: "#dc2626",
@@ -78,13 +82,27 @@ export const V2_LIGHT_COLORS = {
   severityMedium: "#a16207",
   severityLow: "#2563eb",
   severityGood: "#15803d",
+  fillCritical: "#ef4444",
+  fillHigh: "#ea580c",
+  fillMedium: "#b98305",
+  fillLow: "#3b82f6",
+  fillGood: "#16a34a",
 } as const;
 
 type V2Palette = Readonly<Record<keyof typeof COLORS | keyof typeof V2_LIGHT_COLORS, string>>;
 
 /** Full resolved v2 palettes for JS-drawn surfaces (canvas, SVG, inline styles). */
-export const V2_DARK_PALETTE: V2Palette = { ...COLORS, ...V2_COLORS };
-export const V2_LIGHT_PALETTE: V2Palette = { ...COLORS, ...V2_COLORS, ...V2_LIGHT_COLORS };
+/** Dark marks use the severity hues themselves (light has brighter fills than its AA text shades). */
+const V2_DARK_FILLS = {
+  fillCritical: COLORS.severityCritical,
+  fillHigh: COLORS.severityHigh,
+  fillMedium: COLORS.severityMedium,
+  fillLow: COLORS.severityLow,
+  fillGood: COLORS.severityGood,
+} as const;
+
+export const V2_DARK_PALETTE: V2Palette = { ...COLORS, ...V2_COLORS, ...V2_DARK_FILLS };
+export const V2_LIGHT_PALETTE: V2Palette = { ...COLORS, ...V2_COLORS, ...V2_DARK_FILLS, ...V2_LIGHT_COLORS };
 
 /**
  * Fixed chart hues (Tailwind default-scale values plus the brand green), used

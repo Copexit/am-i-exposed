@@ -57,7 +57,7 @@ export function V2Home({
   const P = useV2Palette();
   const BG = (a: number) => hexToRgba(P.background, a);
   // A soft halo on paper; the full glow reads as a smudge on white.
-  const GLOW = `0 0 40px ${hexToRgba(COLORS.bitcoin, P === V2_LIGHT_PALETTE ? 0.16 : 0.35)}`;
+  const GLOW = `0 0 40px ${hexToRgba(COLORS.bitcoin, P === V2_LIGHT_PALETTE ? 0.12 : 0.35)}`;
   const fieldRef = useRef<HTMLDivElement>(null);
   const counterRef = useRef<HTMLSpanElement>(null);
   const heroRef = useRef<HTMLElement>(null);
@@ -123,7 +123,7 @@ export function V2Home({
 
           <h1 className="font-extrabold text-[clamp(50px,10.5vw,112px)] leading-[0.92] tracking-[-0.055em] text-balance sm:whitespace-nowrap">
             {t("page.hero_prefix", { defaultValue: "Am I " })}
-            <span className="relative inline-block text-bitcoin">
+            <span className="relative inline-block text-(--bitcoin-display)">
               <motion.span
                 className="inline-block"
                 initial={{ textShadow: "0 0 0 transparent" }}
@@ -162,7 +162,7 @@ export function V2Home({
             ref={fieldRef}
             onInput={onFieldInput}
             data-locked={locked}
-            className="relative w-full max-w-[680px] mt-8 flex flex-col items-center [&_.blur-2xl]:hidden [&_.p-px]:[background:var(--hairline-strong)]! [&:focus-within_.p-px]:[background:color-mix(in_srgb,var(--bitcoin)_45%,transparent)]! data-[locked=true]:[&_.p-px]:[background:color-mix(in_srgb,var(--bitcoin)_85%,transparent)]! data-[locked=true]:[&_.p-px]:shadow-[0_0_0_4px_color-mix(in_srgb,var(--bitcoin)_12%,transparent),0_20px_60px_-20px_color-mix(in_srgb,var(--bitcoin)_35%,transparent)] [&_input]:bg-surface-2/85! [&_input]:backdrop-blur-md"
+            className="v2-hero-field relative w-full max-w-[680px] mt-8 flex flex-col items-center [&_.blur-2xl]:hidden [&_.p-px]:[background:var(--hairline-strong)]! [&:focus-within_.p-px]:[background:color-mix(in_srgb,var(--bitcoin)_45%,transparent)]! data-[locked=true]:[&_.p-px]:[background:color-mix(in_srgb,var(--bitcoin)_85%,transparent)]! data-[locked=true]:[&_.p-px]:shadow-[0_0_0_4px_color-mix(in_srgb,var(--bitcoin)_12%,transparent),0_20px_60px_-20px_color-mix(in_srgb,var(--bitcoin)_35%,transparent)] [&_input]:bg-(--hero-field-bg)! [&_.p-px]:shadow-(--shadow-card) [&_input]:backdrop-blur-md"
           >
             <AddressInput onSubmit={onSubmit} isLoading={false} inputRef={inputRef} placeholder={t("v2.home.placeholder", { defaultValue: "Address, txid, xpub or PSBT" })} />
           </div>
@@ -178,7 +178,7 @@ export function V2Home({
                 key={ex.input}
                 type="button"
                 onClick={() => onSubmit(ex.input)}
-                className={`text-left min-h-[44px] rounded-xl border border-hairline bg-surface-1/80 backdrop-blur-md px-3 py-2.5 hover:border-hairline-strong hover:-translate-y-0.5 motion-reduce:hover:translate-y-0 transition-[translate,border-color] duration-200 cursor-pointer ${FOCUS}`}
+                className={`text-left min-h-[44px] rounded-xl border border-hairline bg-surface-1/80 shadow-(--shadow-sm) backdrop-blur-md px-3 py-2.5 hover:border-hairline-strong hover:-translate-y-0.5 motion-reduce:hover:translate-y-0 transition-[translate,border-color] duration-200 cursor-pointer ${FOCUS}`}
               >
                 <span className="flex items-baseline justify-between gap-2">
                   <span className="text-sm font-semibold text-foreground truncate">{t(ex.labelKey, { defaultValue: ex.labelDefault })}</span>

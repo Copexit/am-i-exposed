@@ -174,7 +174,7 @@ export function V2Scan({ query, inputType, phase, steps, fetchProgress, txData }
       </h2>
 
       {/* Live readouts */}
-      <dl className={`mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-hairline bg-hairline ${readouts.length === 4 ? "sm:grid-cols-4" : ""}`}>
+      <dl className={`v2-readouts mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-hairline bg-hairline ${readouts.length === 4 ? "sm:grid-cols-4" : ""}`}>
         {readouts.map((r) => (
           <div key={r.key} className="bg-background px-4 py-3">
             <dt className="v2-eyebrow">{r.label}</dt>
