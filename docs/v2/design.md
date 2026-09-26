@@ -30,25 +30,25 @@ in `src/lib/palette.ts` via `useV2Palette()`; `palette.test.ts` fails on drift.
 
 | Token | Tailwind | Dark | Light | Use |
 |---|---|---|---|---|
-| `--background` | `bg-background` | #0b0b0d | #f6f7f8 | page (light: a cool, softly tinted paper) |
-| `--surface-1` | `bg-surface-1` | #111114 | #ffffff | cards, sections, panels (raised) |
-| `--surface-2` | `bg-surface-2` | #17171b | #f1f2f4 | hover and active tints, tracks, wells inside cards |
-| `--surface-float` | `bg-surface-float` | #17171b | #ffffff | popovers, tooltips, the home scan field |
-| `--surface-inset` | `bg-surface-inset` | #111114 | #f1f2f4 | classic wells (light: white at page level, recessed inside a card) |
-| `--hairline` | `border-hairline` | 7% white | rgba(15,17,21,.08) | dividers, card outlines |
-| `--hairline-strong` | `border-hairline-strong` | 13% white | rgba(15,17,21,.13) | hover/focus outlines, active chips |
-| `--foreground` | `text-foreground` | #f2f2f4 | #16181d | primary text (17.8:1 on white) |
-| `--muted` | `text-muted` | #a6a6b0 | #565b66 | secondary text (6.8:1 white, 6.4:1 page) |
-| `--faint` | `text-faint` | #70707b | #80858f | eyebrows, captions only, never essential info (3.7:1) |
+| `--background` | `bg-background` | #0b0b0d | #eceef2 | page (light: a cool mid-grey paper, low glare) |
+| `--surface-1` | `bg-surface-1` | #111114 | #fbfbfc | cards, sections, panels (raised) |
+| `--surface-2` | `bg-surface-2` | #17171b | #e0e4ea | hover and active tints, tracks, wells inside cards |
+| `--surface-float` | `bg-surface-float` | #17171b | #fbfbfc | popovers, tooltips, the home scan field |
+| `--surface-inset` | `bg-surface-inset` | #111114 | #eef0f4 | classic wells (light: card color at page level, recessed inside a card) |
+| `--hairline` | `border-hairline` | 7% white | rgba(15,17,21,.14) | dividers, card outlines |
+| `--hairline-strong` | `border-hairline-strong` | 13% white | rgba(15,17,21,.22) | hover/focus outlines, active chips |
+| `--foreground` | `text-foreground` | #f2f2f4 | #15171c | primary text (17.3:1 card, 15.4:1 page) |
+| `--muted` | `text-muted` | #a6a6b0 | #4a4f5a | secondary text (7.9:1 card, 7.1:1 page) |
+| `--faint` | `text-faint` | #70707b | #62676f | eyebrows, captions (5.5:1 card, 4.9:1 page, AA everywhere) |
 | `--bitcoin` | `bg-bitcoin` | #f7931a | #f7931a | accent fills, primary action (near-black label), focus rings, grade arc |
-| `--bitcoin-text` | `text-bitcoin` | #f7931a | #c14c08 | orange text; light remaps `text-bitcoin` (4.9:1 white, 4.55:1 page) |
-| `--bitcoin-display` | `text-(--bitcoin-display)` | #f7931a | #dc6b08 | large display type only, e.g. the hero "exposed?" (3.2:1 page) |
-| severity | `text-severity-*` | critical #ef4444, high #f97316, medium #eab308, low #60a5fa, good #28d065 | critical #dc2626, high #c2410c, medium #a16207, low #2563eb, good #15803d | meaning only, AA text |
-| `--fill-*` | (light only) | = severity | critical #ef4444, high #ea580c, medium #c58a00, low #3b82f6, good #16a34a | marks: dots, bars, dial, grade letters (>= 3:1) |
-| `--shadow-sm` / `--shadow-card` / `--shadow-pop` | `shadow-(--shadow-card)` | transparent (pop = shadow-2xl) | soft layered, rgba(16,18,24,.04-.18) | elevation |
+| `--bitcoin-text` | `text-bitcoin` | #f7931a | #b04307 | orange text; light remaps `text-bitcoin` (5.6:1 card, 5.0:1 page) |
+| `--bitcoin-display` | `text-(--bitcoin-display)` | #f7931a | #c85f06 | large display type only, e.g. the hero "exposed?" (3.6:1 page) |
+| severity | `text-severity-*` | critical #ef4444, high #f97316, medium #eab308, low #60a5fa, good #28d065 | critical #c81e1e, high #b53d0b, medium #8f5606, low #1d56d8, good #12703a | meaning only, AA text on card and page |
+| `--fill-*` | (light only) | = severity | critical #ef4444, high #ea580c, medium #b07b00, low #3b82f6, good #15803d | marks: dots, bars, dial, grade letters (>= 3:1) |
+| `--shadow-sm` / `--shadow-card` / `--shadow-pop` | `shadow-(--shadow-card)` | transparent (pop = shadow-2xl) | soft layered, rgba(16,18,24,.05-.18) | elevation |
 
 **Elevation in light.** Light is designed as light, not an inverted dark:
-elevation is a white surface on the tinted page, a hairline and a soft layered
+elevation is a near-white card on a mid-grey page (never pure white: it glares), a hairline and a soft layered
 shadow (`--shadow-card`; `--shadow-pop` for popovers). Never a surface darker
 than the page for a raised element; wells (inputs inside cards, code, table
 heads) are a hair darker than the page. Dark stays flat: its shadow tokens are
@@ -62,7 +62,7 @@ greyed washes (see the remaps in `globals.css`). Graph text drawn in a mark
 color goes through `svgTextColor()`.
 
 Grades use `GRADE_COLORS` (classes, AA text) or `GRADE_VAR` (CSS vars for
-display-size letters, dials and bars; light uses `--fill-*`) from `src/lib/constants.ts`, so they follow the theme.
+display-size letters, dials and bars; light uses `--fill-*`) or `GRADE_TEXT_VAR` (small text, AA) from `src/lib/constants.ts`, so they follow the theme.
 
 Theme: stored in `localStorage["ami-theme"]` ("light" / "dark"; absent =
 follow the OS live). Picked in settings (System / Light / Dark). The pre-paint
