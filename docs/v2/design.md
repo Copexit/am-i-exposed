@@ -44,7 +44,7 @@ in `src/lib/palette.ts` via `useV2Palette()`; `palette.test.ts` fails on drift.
 | `--bitcoin-text` | `text-bitcoin` | #f7931a | #c14c08 | orange text; light remaps `text-bitcoin` (4.9:1 white, 4.55:1 page) |
 | `--bitcoin-display` | `text-(--bitcoin-display)` | #f7931a | #dc6b08 | large display type only, e.g. the hero "exposed?" (3.2:1 page) |
 | severity | `text-severity-*` | critical #ef4444, high #f97316, medium #eab308, low #60a5fa, good #28d065 | critical #dc2626, high #c2410c, medium #a16207, low #2563eb, good #15803d | meaning only, AA text |
-| `--fill-*` | (light only) | = severity | critical #ef4444, high #ea580c, medium #b98305, low #3b82f6, good #16a34a | marks: dots, bars, dial, grade letters (>= 3:1) |
+| `--fill-*` | (light only) | = severity | critical #ef4444, high #ea580c, medium #c58a00, low #3b82f6, good #16a34a | marks: dots, bars, dial, grade letters (>= 3:1) |
 | `--shadow-sm` / `--shadow-card` / `--shadow-pop` | `shadow-(--shadow-card)` | transparent (pop = shadow-2xl) | soft layered, rgba(16,18,24,.04-.18) | elevation |
 
 **Elevation in light.** Light is designed as light, not an inverted dark:
