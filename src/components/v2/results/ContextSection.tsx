@@ -23,7 +23,7 @@ interface ContextSectionProps {
 export function ContextSection({ query, inputType, vm, txData, devMode }: ContextSectionProps) {
   const { t } = useTranslation();
   return (
-    <section aria-labelledby="v2-context-title" className="space-y-5" data-testid="v2-context">
+    <section aria-labelledby="v2-context-title" className="space-y-5 pt-10 border-t border-hairline" data-testid="v2-context">
       <div>
         <p className="v2-eyebrow mb-2">{t("v2.results.contextEyebrow", { defaultValue: "Before you act" })}</p>
         <h2 id="v2-context-title" className="text-xl font-semibold tracking-tight">
