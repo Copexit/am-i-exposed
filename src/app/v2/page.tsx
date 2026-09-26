@@ -2,7 +2,6 @@
 
 import { lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
-import { AnimatePresence } from "motion/react";
 import { Loader2 } from "lucide-react";
 import { useScanner } from "@/hooks/useScanner";
 import { InstallPrompt } from "@/components/InstallPrompt";
@@ -33,19 +32,20 @@ export default function V2ScannerPage() {
   return (
     <div className="flex-1 flex flex-col">
       <div className="sr-only" role="status" aria-live="polite">{ariaStatus}</div>
-      {/*
-        Deep link waiting for backend detection (local API / Tor probe, up to ~10s).
-        Rendered outside AnimatePresence on purpose: it has no exit animation to
-        wait for, so it can never hold back the view that replaces it.
-      */}
+      {/* Deep link waiting for backend detection (local API / Tor probe, up to ~10s). */}
       {phase === "idle" && pendingHash && !walletActive && (
         <div data-testid="pending-hash-loader" className="flex-1 flex items-center justify-center gap-2 text-sm text-muted py-24">
           <Loader2 size={16} className="animate-spin text-bitcoin" aria-hidden="true" />
           {t("common.loading", { defaultValue: "Loading..." })}
         </div>
       )}
-      {/* Every direct child of AnimatePresence carries its own key (motion >= 12.41). */}
-      <AnimatePresence mode="wait">
+      {/*
+        Views swap without exit animations on purpose (no AnimatePresence
+        mode="wait"): a view whose exit was interrupted by a fast phase change
+        could hold the switch and leave the page stuck on the old view.
+        Each view still animates in. Keys stay for React identity.
+      */}
+      <>
         {phase === "idle" && !pendingHash && !walletActive && (
           <V2Home
             key="hero"
@@ -141,7 +141,7 @@ export default function V2ScannerPage() {
         {wallet.phase === "error" && (
           <V2Error key="wallet-error" error={wallet.error} onBack={handleBack} />
         )}
-      </AnimatePresence>
+      </>
 
       {/* No floating promo or tip toasts in v2: both are inline (home self-host row, results tip row). */}
       <InstallPrompt />
