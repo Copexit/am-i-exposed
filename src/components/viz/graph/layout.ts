@@ -362,6 +362,27 @@ export function computeFitView(ln: LayoutNode[], dims?: ContainerDims): ViewTran
   return { x, y: (ch - nodesH * s) / 2 - minY * s, scale: s };
 }
 
+/**
+ * Initial view for the compact inline canvas: fit when that stays readable
+ * (scale >= minScale, never zoom in), otherwise keep minScale and center the root.
+ */
+export function computeCompactView(ln: LayoutNode[], dims?: ContainerDims, minScale = 0.75): ViewTransform | null {
+  if (ln.length === 0) return null;
+  const { cw, ch } = getViewportDims(dims);
+  const minX = Math.min(...ln.map((n) => n.x));
+  const minY = Math.min(...ln.map((n) => n.y));
+  const nodesW = Math.max(...ln.map((n) => n.x + n.width)) - minX;
+  const nodesH = Math.max(...ln.map((n) => n.y + n.height)) - minY;
+  const s = Math.max(minScale, Math.min(1, cw / nodesW, ch / nodesH));
+  const roots = ln.filter((n) => n.isRoot);
+  const focus = roots.length > 0 ? roots : ln;
+  const cx = focus.reduce((a, n) => a + n.x + n.width / 2, 0) / focus.length;
+  const cy = focus.reduce((a, n) => a + n.y + n.height / 2, 0) / focus.length;
+  const x = nodesW * s <= cw ? (cw - nodesW * s) / 2 - minX * s : cw / 2 - cx * s;
+  const y = nodesH * s <= ch ? (ch - nodesH * s) / 2 - minY * s : ch / 2 - cy * s;
+  return { x, y, scale: s };
+}
+
 // ─── Seeding positions for newly expanded nodes ─────────────────
 
 /** Horizontal offset of a backward-expanded node from its trigger node. */

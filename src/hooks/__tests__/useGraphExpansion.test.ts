@@ -787,7 +787,7 @@ describe("useGraphExpansion", () => {
 
       // setMultiRootWithLayers with roots that have many trace nodes
       const roots = new Map<string, { tx: MempoolTransaction; backward?: { depth: number; txs: Map<string, MempoolTransaction> }[] }>();
-      for (let i = 0; i < 95; i++) {
+      for (let i = 0; i < 120; i++) {
         const txid = `mr-cap2-${String(i).padStart(3, "0")}`;
         const parentTxid = `mr-cap2-parent-${i}`;
         roots.set(txid, {
@@ -800,10 +800,10 @@ describe("useGraphExpansion", () => {
         result.current.setMultiRootWithLayers(roots);
       });
 
-      // Should not exceed MAX_NODES (100)
-      expect(result.current.nodes.size).toBeLessThanOrEqual(100);
-      // All 95 roots should be present (roots placed first)
-      expect(result.current.rootTxids.size).toBe(95);
+      // 120 roots + 120 relevant parents overflow MAX_NODES (200)
+      expect(result.current.nodes.size).toBe(200);
+      // All 120 roots should be present (roots placed first)
+      expect(result.current.rootTxids.size).toBe(120);
     });
 
     it("single-root actions still populate rootTxids correctly", () => {

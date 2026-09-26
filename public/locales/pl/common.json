@@ -2376,6 +2376,7 @@
   "v2.flows.utxosAvailable_other": "{{count}} UTXO",
   "v2.flows.utxosAvailable_few": "{{count}} UTXO",
   "v2.flows.utxosAvailable_many": "{{count}} UTXO",
+  "v2.graph.compactHint": "Rozwiń dowolne wejście lub wyjście przyciskiem +, albo otwórz pełny ekran, aby zobaczyć mapę cieplną, odciski palców i powiązywalność.",
   "v2.home.fewer_examples": "Mniej przykładów",
   "v2.home.field_count": "UTXO oznaczone na twoich oczach:",
   "v2.home.field_dust": "Pył · {{sats}} sats",

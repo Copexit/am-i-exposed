@@ -2328,6 +2328,7 @@
   "v2.flows.transactions": "Transaktionen",
   "v2.flows.utxosAvailable": "{{count}} UTXO",
   "v2.flows.utxosAvailable_other": "{{count}} UTXOs",
+  "v2.graph.compactHint": "Erweitere jeden Input oder Output mit +, oder öffne den Vollbildmodus für Heatmap, Fingerabdrücke und Verknüpfbarkeit.",
   "v2.home.fewer_examples": "Weniger Beispiele",
   "v2.home.field_count": "Vor deinen Augen markierte UTXOs:",
   "v2.home.field_dust": "Dust · {{sats}} sats",

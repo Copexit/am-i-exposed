@@ -38,6 +38,8 @@ export interface GraphExplorerProps {
   onLoadSavedGraph?: (graph: SavedGraph) => void;
   /** Last loaded SavedGraph - used to restore annotations/positions/labels. */
   lastLoadedGraph?: SavedGraph | null;
+  /** Compact inline view: slim toolbar, no legend, content-fit height, hint line. */
+  compact?: boolean;
 }
 
 export interface LayoutNode {

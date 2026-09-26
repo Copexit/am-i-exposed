@@ -63,7 +63,7 @@ export function AnalystWorkspace(p: AnalystWorkspaceProps) {
           {showGraph ? (
             <ChartErrorBoundary>
               <Suspense fallback={<div className="h-96 rounded-xl bg-surface-1 animate-pulse" />}>
-                <GraphExplorerPanel tx={p.txData} onTxClick={p.onScan} backwardLayers={p.backwardLayers} forwardLayers={p.forwardLayers} outspends={p.outspends} boltzmannResult={p.boltzmannResult} />
+                <GraphExplorerPanel tx={p.txData} onTxClick={p.onScan} backwardLayers={p.backwardLayers} forwardLayers={p.forwardLayers} outspends={p.outspends} boltzmannResult={p.boltzmannResult} compact />
               </Suspense>
             </ChartErrorBoundary>
           ) : (

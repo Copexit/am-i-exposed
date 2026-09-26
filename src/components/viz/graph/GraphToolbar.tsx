@@ -53,6 +53,8 @@ interface GraphToolbarProps {
   annotations?: GraphAnnotation[];
   nodeLabels?: Map<string, string>;
   edgeLabels?: Map<string, string>;
+  /** Inline (non-fullscreen) shows only node count, undo/reset and fullscreen. */
+  compact?: boolean;
 }
 
 const SEP = <span className="text-muted/30 hidden sm:inline select-none">|</span>;
@@ -77,6 +79,7 @@ export function GraphToolbar(props: GraphToolbarProps) {
   // Show save/load/share only in fullscreen modes (alwaysFullscreen or modal), not inline embedded
   const isFullscreenMode = !!(onZoomIn || onSearch);
   const hasSaveLoad = !!network && isFullscreenMode;
+  const slim = !!props.compact && !isFullscreenMode;
   const isEmpty = !nodes || nodes.size === 0;
 
   // ─── Search state ──────────────────────────────────────────────
@@ -188,6 +191,7 @@ export function GraphToolbar(props: GraphToolbarProps) {
         )}
       </div>
 
+      {!slim && <>
       {SEP}
 
       {/* ── Analysis toggles ────────────────────────────────── */}
@@ -267,9 +271,10 @@ export function GraphToolbar(props: GraphToolbarProps) {
       )}
 
       {SEP}
+      </>}
 
       {/* ── Actions ─────────────────────────────────────────── */}
-      <button
+      {(!slim || canUndo) && <button
         onClick={onUndo}
         disabled={!canUndo}
         className={canUndo ? btnOff : btnDisabled}
@@ -279,7 +284,7 @@ export function GraphToolbar(props: GraphToolbarProps) {
           <UndoIcon />
           <span className="hidden sm:inline">{t("graph.undoLabel", { defaultValue: "Undo" })}</span>
         </span>
-      </button>
+      </button>}
 
       {nodeCount > 1 && (
         <button onClick={onReset} className={btnOff} title={t("graph.reset", { defaultValue: "Reset (R)" })}>
