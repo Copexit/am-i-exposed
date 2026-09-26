@@ -457,60 +457,6 @@ The Monero round-trip achieves the strongest possible chain break available in c
 
 ---
 
-## F. Liquid Network
-
-### F1. Confidential Transactions (Amount Hiding)
-
-**What it is:** Liquid uses Confidential Transactions (CT) by default, hiding both the asset type and amount of every transaction. Only the sender and receiver can see these values. Even the Liquid Federation functionaries cannot view transaction amounts.
-
-**How it helps privacy:**
-- **Amount hiding**: Observers can verify that no inflation occurred (inputs = outputs) without seeing actual values
-- **Asset type hiding**: On Liquid, multiple asset types exist (L-BTC, USDT-Liquid, etc.) and CT hides which asset is being transacted
-- **Eliminates amount-based heuristics**: Round-number analysis, change detection by value, and balance inference all become impossible
-
-### F2. Liquid Peg-in/Peg-out Privacy
-
-**Peg-in (BTC -> L-BTC):**
-- Send BTC to a federation-generated address
-- Requires 102 Bitcoin confirmations before L-BTC is claimable
-- The peg-in transaction is visible on Bitcoin's chain, but subsequent Liquid transactions are confidential
-
-**Peg-out (L-BTC -> BTC):**
-- Processing time: 11-35 minutes depending on conditions
-- The peg-out reveals the destination Bitcoin address
-
-**Privacy note:** The peg-in and peg-out are the weak points - they're visible on Bitcoin's chain. The privacy benefit comes from what happens between peg-in and peg-out on Liquid, where amounts are hidden.
-
-### F3. Federation Trust Model
-
-**Current structure:**
-- 15 functionaries, requiring 11-of-15 signatures per block
-- DynaFed allows dynamic addition/removal of functionaries
-- Functionary source code is open-source and auditable
-- Functionaries cannot see Confidential Transaction amounts
-
-**Trust considerations:**
-- Federated consensus introduces centralization risk
-- A compromised functionary could theoretically censor transactions
-- Users must trust that 11-of-15 functionaries act honestly for peg-out
-- This is fundamentally different from Bitcoin's trustless consensus
-
-**2025-2026 activity:** Nearly 700,000 transactions in Q4 2025 (4x year-over-year growth). Planned 2026 protocol upgrades include multi-asset fee payments and 0-conf transactions.
-
-### F4. Boltz Exchange for LN <-> Liquid Swaps
-
-**What it is:** Boltz is a non-custodial bridge using submarine swaps (HTLCs) to enable trustless swaps between Bitcoin on-chain, Lightning, and Liquid.
-
-**How it works:**
-- Uses Hashed Time-Lock Contracts where both parties must reveal a preimage or the swap reverts
-- Taproot swaps provide cooperative refunds, lower fees, and improved privacy
-- No accounts, no KYC, no custody
-
-**Fees:** LN->Liquid: 0.25%, LN->Bitcoin: 0.5%, Bitcoin/Liquid->LN: 0.1%
-
-**Privacy benefit:** By swapping BTC -> LN -> Liquid via Boltz, users can move between layers without centralized intermediaries, leveraging each layer's privacy properties.
-
----
 
 ## G. Advanced Normal TX Techniques
 
@@ -652,20 +598,20 @@ The Monero round-trip achieves the strongest possible chain break available in c
 
 ---
 
-### H2. Exchange -> CoinJoin -> LN/Liquid Pipeline
+### H2. Exchange -> CoinJoin -> Lightning Pipeline
 
 **What it is:** A multi-step privacy pipeline for coins acquired from KYC exchanges.
 
 **Flow:**
 1. Withdraw from exchange to your own wallet (KYC-tagged UTXO)
 2. CoinJoin the withdrawal to break the link (Wasabi, JoinMarket)
-3. Open a Lightning channel with the mixed output, OR peg into Liquid
-4. Use Lightning/Liquid for spending
+3. Open a Lightning channel with the mixed output
+4. Use Lightning for spending
 
 **Privacy benefits:**
 - Each step adds a layer of plausible deniability
+- Lightning activity is invisible to the exchange and on-chain observers
 - The exchange knows you withdrew, but the CoinJoin breaks the trail
-- Lightning/Liquid activity is invisible to the exchange and on-chain observers
 
 **Caveats:**
 - The exchange has your identity and withdrawal address - this is a permanent record
@@ -698,34 +644,13 @@ The Monero round-trip achieves the strongest possible chain break available in c
 
 ---
 
-### H4. LN -> Liquid via Boltz, then Liquid -> BTC
-
-**What it is:** Using Boltz submarine swaps to move funds between Lightning and Liquid, leveraging Liquid's Confidential Transactions before settling back to Bitcoin.
-
-**Flow:**
-1. Send a Lightning payment to Boltz
-2. Receive L-BTC on Liquid (amounts hidden by CT)
-3. Perform any number of confidential Liquid transactions
-4. Peg out from Liquid to Bitcoin, or swap back via Boltz
-
-**Privacy benefits:**
-- Lightning hop hides the on-chain origin
-- Liquid's CT hides amounts during the Liquid phase
-- The final peg-out to Bitcoin is disconnected from the original Lightning payment
-- No KYC required (Boltz has no accounts)
-
-**Fees:** ~0.25-0.5% per swap direction via Boltz
-
----
-
-### H5. Multi-Hop for ATM/P2P Purchases
+### H4. Multi-Hop for ATM/P2P Purchases
 
 **What it is:** Combining multiple privacy techniques when acquiring Bitcoin through ATMs or P2P trades.
 
 **Flow options:**
 1. **ATM -> CoinJoin -> Lightning**: Buy BTC at a no-KYC ATM (sub-$1000 in many jurisdictions), CoinJoin the output, open a Lightning channel
 2. **P2P -> Monero -> BTC**: Buy XMR via P2P (Haveno, cash), swap to BTC via atomic swap
-3. **P2P BTC -> Liquid**: Buy BTC peer-to-peer (Bisq, Peach Bitcoin, Hodl Hodl), peg into Liquid for confidential transactions
 
 **Key P2P platforms (no KYC):**
 - **Bisq**: Decentralized, escrow via smart contracts, no registration
@@ -756,7 +681,6 @@ The Monero round-trip achieves the strongest possible chain break available in c
 | Silent Payments | Address reuse, linking | Easy | High | Growing |
 | Lightning Network | All on-chain heuristics | Medium | High | Excellent |
 | Monero Round-Trip | Complete chain break | Hard | Maximum | Limited |
-| Liquid CT | Amount heuristics | Medium | High | Moderate |
 | Stonewall | CIOH, change detection | Easy | Medium-High | Limited |
 | Exact Amount Spend | All change heuristics | Medium | High | Good |
 
@@ -793,12 +717,8 @@ Sources:
 - [Best XMR Atomic Swaps 2026 - Xgram](https://xgram.io/blog/best-xmr-atomic-swaps-and-community-services-2026)
 - [Monero P2P Exchanges - arXiv](https://arxiv.org/html/2505.02392v2)
 - [BasicSwap DEX - Particl Academy](https://academy.particl.io/en/latest/basicswap-dex/basicswap_explained.html)
-- [Liquid Technical Overview](https://docs.liquid.net/docs/technical-overview)
-- [Liquid Confidential Transactions - Bitcoin Magazine](https://bitcoinmagazine.com/technical/liquid-for-bitcoiners-confidential-transaction)
-- [Liquid Federation Q4 2025 Update](https://blog.liquid.net/liquid-federation-quarterly-update-q4-2025/)
 - [Boltz Exchange](https://boltz.exchange/)
 - [Boltz - Bitcoin Magazine](https://bitcoinmagazine.com/business/boltz-exchange-becoming-the-leading-bridge-across-bitcoin-layers-via-holy-grail-technology)
-- [Boltz Liquid Swaps Launch](https://blog.boltz.exchange/p/launching-liquid-swaps-unfairly-cheap)
 - [Stonewall Transaction - Bitcoin Manual](https://thebitcoinmanual.com/articles/btc-stonewall-transaction/)
 - [Stonewall - Samourai](https://samouraiwallet.com/stonewall)
 - [Spending Privately - Sparrow Wallet](https://sparrowwallet.com/docs/spending-privately.html)

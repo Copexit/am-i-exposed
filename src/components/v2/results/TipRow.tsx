@@ -10,7 +10,7 @@ export function TipRow() {
     <p className="text-xs text-faint">
       {t("common.tipToastMessage", { defaultValue: "This tool is free and open source. Tip to keep it running." })}{" "}
       <a href={COINOS_PAY_URL} target="_blank" rel="noopener noreferrer" className="text-muted hover:text-bitcoin underline underline-offset-4">
-        {t("common.tipViaCoinos", { defaultValue: "Tip via Bitcoin, Lightning, or Liquid" })}
+        {t("common.tipViaCoinos", { defaultValue: "Tip via Bitcoin or Lightning" })}
       </a>
     </p>
   );

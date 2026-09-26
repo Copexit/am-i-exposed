@@ -95,10 +95,9 @@ export function generateActions(findings: Finding[], grade: Grade): Action[] {
         "Small change outputs are toxic - they link future transactions back to this one. " +
         "Options: (1) increase the mining fee to consume the change entirely (e.g., 1000 sats of change becomes part of the fee), " +
         "(2) use a submarine swap to send it to Lightning (Boltz, Phoenix), " +
-        "(3) swap to Liquid via atomic path (SideSwap, Boltz), " +
-        "(4) swap to Monero - atomic swaps (UnstoppableSwap, Bisq) can cost over 2%, " +
+        "(3) swap to Monero - atomic swaps (UnstoppableSwap, Bisq) can cost over 2%, " +
         "for small amounts Unstoppable Wallet offers cheaper non-atomic swaps, " +
-        "(5) accumulate small amounts via Lightning over time, then consolidate to a single UTXO after a delay.",
+        "(4) accumulate small amounts via Lightning over time, then consolidate to a single UTXO after a delay.",
     });
   }
 

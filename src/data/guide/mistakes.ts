@@ -72,6 +72,6 @@ export const MISTAKES: MistakeEntry[] = [
     titleKey: "mistakes.sameSwapService",
     titleDefault: "Use the same swap service for both entry and exit",
     descKey: "mistakes.sameSwapServiceDesc",
-    descDefault: "Using the same service (e.g., Boltz) for both Liquid peg-in and peg-out, or for both BTC-to-XMR and XMR-to-BTC swaps, gives that service full visibility of your flow. Use different services for each direction.",
+    descDefault: "Using the same service (e.g., Boltz) for both BTC-to-XMR and XMR-to-BTC swaps, gives that service full visibility of your flow. Use different services for each direction.",
   },
 ];
