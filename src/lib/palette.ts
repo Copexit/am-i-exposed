@@ -84,7 +84,7 @@ export const V2_LIGHT_COLORS = {
   severityGood: "#15803d",
   fillCritical: "#ef4444",
   fillHigh: "#ea580c",
-  fillMedium: "#b98305",
+  fillMedium: "#c58a00",
   fillLow: "#3b82f6",
   fillGood: "#16a34a",
 } as const;
