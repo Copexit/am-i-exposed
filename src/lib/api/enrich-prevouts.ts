@@ -74,12 +74,11 @@ export async function enrichPrevouts(
   // 1. Collect all inputs that need enrichment, grouped by parent txid
   const patchTargets = new Map<
     string,
-    Array<{ tx: MempoolTransaction; vinIndex: number; voutIndex: number }>
+    Array<{ vin: MempoolTransaction["vin"][number]; voutIndex: number }>
   >();
 
   for (const tx of txs) {
-    for (let i = 0; i < tx.vin.length; i++) {
-      const vin = tx.vin[i];
+    for (const vin of tx.vin) {
       if (vin.is_coinbase || vin.prevout !== null) continue;
 
       const parentId = vin.txid;
@@ -88,7 +87,7 @@ export async function enrichPrevouts(
         targets = [];
         patchTargets.set(parentId, targets);
       }
-      targets.push({ tx, vinIndex: i, voutIndex: vin.vout });
+      targets.push({ vin, voutIndex: vin.vout });
     }
   }
 
@@ -111,13 +110,12 @@ export async function enrichPrevouts(
 
     const batch = toFetch.slice(i, i + concurrency);
     const results = await Promise.allSettled(
-      batch.map((txid) => getTransaction(txid)),
+      batch.map(async (txid) => [txid, await getTransaction(txid)] as const),
     );
 
-    for (let j = 0; j < results.length; j++) {
-      const result = results[j];
+    for (const result of results) {
       if (result.status === "fulfilled") {
-        parentCache.set(batch[j], result.value);
+        parentCache.set(...result.value);
       } else {
         failedCount++;
       }
@@ -129,11 +127,11 @@ export async function enrichPrevouts(
     const parentTx = parentCache.get(parentId);
     if (!parentTx) continue;
 
-    for (const { tx, vinIndex, voutIndex } of targets) {
+    for (const { vin, voutIndex } of targets) {
       const output = parentTx.vout[voutIndex];
       if (!output) continue;
 
-      tx.vin[vinIndex].prevout = {
+      vin.prevout = {
         scriptpubkey: output.scriptpubkey,
         scriptpubkey_asm: output.scriptpubkey_asm,
         scriptpubkey_type: output.scriptpubkey_type,

@@ -42,7 +42,8 @@ function detectPreferredLanguage(): SupportedLanguage {
 
 export { detectPreferredLanguage };
 
-i18n
+// Fire-and-forget: i18next logs init failures; English is bundled.
+void i18n
   .use(Backend)
   .use(initReactI18next)
   .init({
@@ -73,7 +74,8 @@ i18n
 // Persist language choice to localStorage (replaces LanguageDetector caching)
 i18n.on("languageChanged", (lng) => {
   try {
-    localStorage.setItem(LANGUAGE_STORAGE_KEY, lng.split("-")[0]);
+    const [base = lng] = lng.split("-");
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, base);
   } catch { /* localStorage unavailable */ }
 });
 

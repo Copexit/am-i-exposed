@@ -6,8 +6,10 @@ import {
   analyzeDestination,
   getTxHeuristicSteps,
   getAddressHeuristicSteps,
-  classifyTransactionType,
 } from "../orchestrator";
+import { applyCrossHeuristicRules, classifyTransactionType } from "../cross-heuristic";
+import { analyzeTransactionSync } from "../analyze-sync";
+import { TX_HEURISTICS, ADDRESS_HEURISTICS, setTickDelay } from "../heuristic-registry";
 import { makeTx, makeVin, makeAddress, makeUtxo, resetAddrCounter } from "../heuristics/__tests__/fixtures/tx-factory";
 
 beforeEach(() => resetAddrCounter());
@@ -15,13 +17,13 @@ beforeEach(() => resetAddrCounter());
 vi.useFakeTimers();
 
 describe("analyzeTransaction", () => {
-  it("runs all 28 TX heuristics and returns a scored result", async () => {
+  it("runs every TX heuristic and returns a scored result", async () => {
     const tx = makeTx();
     const stepIds: string[] = [];
     const onStep = vi.fn((id: string) => stepIds.push(id));
 
     const resultPromise = analyzeTransaction(tx, undefined, onStep);
-    await vi.advanceTimersByTimeAsync(28 * 100);
+    await vi.advanceTimersByTimeAsync(TX_HEURISTICS.length * 100);
     const result = await resultPromise;
 
     expect(result.score).toBeGreaterThanOrEqual(0);
@@ -29,20 +31,20 @@ describe("analyzeTransaction", () => {
     expect(result.grade).toBeDefined();
     expect(result.findings.length).toBeGreaterThan(0);
 
-    // onStep called twice per heuristic (start + done) = 56 calls
-    expect(onStep).toHaveBeenCalledTimes(56);
+    // onStep called twice per heuristic (start + done)
+    expect(onStep).toHaveBeenCalledTimes(TX_HEURISTICS.length * 2);
   });
 
-  it("passes rawHex to wallet-fingerprint heuristic", async () => {
+  it("identifies Bitcoin Core from low-R witness signatures", async () => {
+    // Low-R DER signature (32-byte r with high bit clear) + SIGHASH_ALL, then a pubkey
+    const lowR = "3044" + "0220" + "11".repeat(32) + "0220" + "22".repeat(32) + "01";
+    const witness = [lowR, "02" + "33".repeat(32)];
     const tx = makeTx({
       locktime: 800_000, // block-height locktime (anti-fee-sniping)
-      vin: [makeVin({ sequence: 0xfffffffd }), makeVin({ sequence: 0xfffffffd })],
+      vin: [makeVin({ sequence: 0xfffffffd, witness }), makeVin({ sequence: 0xfffffffd, witness })],
     });
-    // Build rawHex with Low-R signatures
-    const sig = "3044022020" + "00".repeat(32) + "0220" + "00".repeat(32);
-    const rawHex = sig + sig;
 
-    const resultPromise = analyzeTransaction(tx, rawHex);
+    const resultPromise = analyzeTransaction(tx);
     await vi.advanceTimersByTimeAsync(26 * 100);
     const result = await resultPromise;
 
@@ -52,14 +54,64 @@ describe("analyzeTransaction", () => {
   });
 });
 
+describe("shared tx pipeline", () => {
+  it("resolves without timers when no onStep is given (CLI / tests)", async () => {
+    // Fake timers are on: a pending tick() would hang this await
+    const result = await analyzeTransaction(makeTx());
+    expect(result.grade).toBeDefined();
+  });
+
+  it("keeps the diagnostic step delay when one is configured (web)", async () => {
+    setTickDelay(50);
+    try {
+      const onStep = vi.fn();
+      const p = analyzeTransaction(makeTx(), undefined, onStep);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(onStep).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(TX_HEURISTICS.length * 50);
+      await p;
+      expect(onStep).toHaveBeenCalledTimes(TX_HEURISTICS.length * 2);
+    } finally {
+      setTickDelay(0);
+    }
+  });
+
+  it("graph (sync) and address per-tx views produce the same result as analyzeTransaction", async () => {
+    const tx = makeTx();
+    const full = await analyzeTransaction(tx);
+    expect(analyzeTransactionSync(tx)).toEqual(full);
+    const [perTx] = await analyzeTransactionsForAddress("bc1qnone", [tx]);
+    expect(perTx?.findings).toEqual(full.findings);
+    expect(perTx?.score).toBe(full.score);
+  });
+
+  it("logs and skips a failing heuristic in every view", async () => {
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const h = TX_HEURISTICS.find((x) => x.id === "h1")!;
+    const spy = vi.spyOn(h, "fn").mockImplementation(() => { throw new Error("boom"); });
+    try {
+      const tx = makeTx();
+      const full = await analyzeTransaction(tx);
+      expect(full.findings.length).toBeGreaterThan(0);
+      analyzeTransactionSync(tx);
+      await analyzeTransactionsForAddress("bc1qnone", [tx]);
+      const h1Logs = consoleSpy.mock.calls.filter((c) => String(c[0]).includes("h1 failed"));
+      expect(h1Logs).toHaveLength(3);
+    } finally {
+      spy.mockRestore();
+      consoleSpy.mockRestore();
+    }
+  });
+});
+
 describe("analyzeAddress", () => {
-  it("runs all 6 address heuristics and returns a scored result", async () => {
+  it("runs every address heuristic and returns a scored result", async () => {
     const addr = makeAddress();
     const utxos = [makeUtxo()];
     const onStep = vi.fn();
 
     const resultPromise = analyzeAddress(addr, utxos, [], onStep);
-    await vi.advanceTimersByTimeAsync(6 * 100);
+    await vi.advanceTimersByTimeAsync(ADDRESS_HEURISTICS.length * 100);
     const result = await resultPromise;
 
     expect(result.score).toBeGreaterThanOrEqual(0);
@@ -75,7 +127,7 @@ describe("analyzeAddress", () => {
     });
 
     const resultPromise = analyzeAddress(addr, [], []);
-    await vi.advanceTimersByTimeAsync(6 * 100);
+    await vi.advanceTimersByTimeAsync(ADDRESS_HEURISTICS.length * 100);
     const result = await resultPromise;
 
     const pw = result.findings.find((f) => f.id === "partial-history-unavailable");
@@ -89,7 +141,7 @@ describe("analyzeAddress", () => {
     const txs = Array.from({ length: 10 }, () => makeTx());
 
     const resultPromise = analyzeAddress(addr, [], txs);
-    await vi.advanceTimersByTimeAsync(6 * 100);
+    await vi.advanceTimersByTimeAsync(ADDRESS_HEURISTICS.length * 100);
     const result = await resultPromise;
 
     const pw = result.findings.find((f) => f.id === "partial-history-partial");
@@ -106,9 +158,9 @@ describe("analyzeTransactionsForAddress", () => {
 
     const results = await analyzeTransactionsForAddress(targetAddr, [tx]);
     expect(results).toHaveLength(1);
-    expect(results[0].role).toBe("sender");
-    expect(results[0].score).toBeGreaterThanOrEqual(0);
-    expect(results[0].grade).toBeDefined();
+    expect(results[0]?.role).toBe("sender");
+    expect(results[0]?.score).toBeGreaterThanOrEqual(0);
+    expect(results[0]?.grade).toBeDefined();
   });
 
   it("returns correct role for receiver", async () => {
@@ -119,7 +171,7 @@ describe("analyzeTransactionsForAddress", () => {
 
     const results = await analyzeTransactionsForAddress(targetAddr, [tx]);
     expect(results).toHaveLength(1);
-    expect(results[0].role).toBe("receiver");
+    expect(results[0]?.role).toBe("receiver");
   });
 
   it("returns 'both' when target is in vin and vout", async () => {
@@ -131,7 +183,7 @@ describe("analyzeTransactionsForAddress", () => {
 
     const results = await analyzeTransactionsForAddress(targetAddr, [tx]);
     expect(results).toHaveLength(1);
-    expect(results[0].role).toBe("both");
+    expect(results[0]?.role).toBe("both");
   });
 
   it("caps at 50 transactions", async () => {
@@ -149,7 +201,7 @@ describe("analyzeTransactionsForAddress", () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const results = await analyzeTransactionsForAddress("bc1qtest", [tx]);
     expect(results).toHaveLength(1);
-    expect(results[0].score).toBeGreaterThanOrEqual(0);
+    expect(results[0]?.score).toBeGreaterThanOrEqual(0);
     consoleSpy.mockRestore();
   });
 });
@@ -163,7 +215,7 @@ describe("analyzeDestination", () => {
     const onStep = vi.fn();
 
     const resultPromise = analyzeDestination(addr, [], [], onStep);
-    await vi.advanceTimersByTimeAsync(6 * 100);
+    await vi.advanceTimersByTimeAsync(ADDRESS_HEURISTICS.length * 100);
     const result = await resultPromise;
 
     expect(result.riskLevel).toBe("LOW");
@@ -178,7 +230,7 @@ describe("analyzeDestination", () => {
     });
 
     const resultPromise = analyzeDestination(addr, [], []);
-    await vi.advanceTimersByTimeAsync(6 * 100);
+    await vi.advanceTimersByTimeAsync(ADDRESS_HEURISTICS.length * 100);
     const result = await resultPromise;
 
     expect(result.riskLevel).toBe("HIGH");
@@ -192,7 +244,7 @@ describe("analyzeDestination", () => {
     });
 
     const resultPromise = analyzeDestination(addr, [], []);
-    await vi.advanceTimersByTimeAsync(6 * 100);
+    await vi.advanceTimersByTimeAsync(ADDRESS_HEURISTICS.length * 100);
     const result = await resultPromise;
 
     expect(result.riskLevel).toBe("CRITICAL");
@@ -206,7 +258,7 @@ describe("analyzeDestination", () => {
     });
 
     const resultPromise = analyzeDestination(addr, [], []);
-    await vi.advanceTimersByTimeAsync(6 * 100);
+    await vi.advanceTimersByTimeAsync(ADDRESS_HEURISTICS.length * 100);
     const result = await resultPromise;
 
     expect(result.riskLevel).toBe("HIGH");
@@ -217,7 +269,7 @@ describe("analyzeDestination", () => {
     const addr = makeAddress();
 
     const resultPromise = analyzeDestination(addr, [], []);
-    await vi.advanceTimersByTimeAsync(6 * 100);
+    await vi.advanceTimersByTimeAsync(ADDRESS_HEURISTICS.length * 100);
     const result = await resultPromise;
 
     const presend = result.findings.find((f) => f.id === "h13-presend-check");
@@ -226,12 +278,12 @@ describe("analyzeDestination", () => {
 });
 
 describe("heuristic step lists", () => {
-  it("getTxHeuristicSteps returns 34 steps (28 heuristics + 6 chain)", () => {
-    expect(getTxHeuristicSteps()).toHaveLength(34);
+  it("getTxHeuristicSteps returns one step per TX heuristic plus 6 chain steps", () => {
+    expect(getTxHeuristicSteps()).toHaveLength(TX_HEURISTICS.length + 6);
   });
 
-  it("getAddressHeuristicSteps returns 6 steps", () => {
-    expect(getAddressHeuristicSteps()).toHaveLength(6);
+  it("getAddressHeuristicSteps returns one step per address heuristic", () => {
+    expect(getAddressHeuristicSteps()).toHaveLength(ADDRESS_HEURISTICS.length);
   });
 });
 
@@ -269,8 +321,7 @@ describe("cross-heuristic: Wasabi + address reuse paradox", () => {
     );
 
     // Import and re-run the cross-heuristic rules
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
-    applyCrossHeuristicRulesForTest(result.findings);
+    applyCrossHeuristicRules(result.findings);
 
     const paradox = result.findings.find((f) => f.id === "cross-wasabi-reuse-paradox");
     expect(paradox).toBeDefined();
@@ -278,7 +329,7 @@ describe("cross-heuristic: Wasabi + address reuse paradox", () => {
     expect(paradox!.scoreImpact).toBe(0);
   });
 
-  it("does NOT emit paradox for non-Wasabi wallet + address reuse", async () => {
+  it("does NOT emit paradox for non-Wasabi wallet + address reuse", () => {
     const findings: import("@/lib/types").Finding[] = [
       {
         id: "h11-wallet-fingerprint",
@@ -299,8 +350,7 @@ describe("cross-heuristic: Wasabi + address reuse paradox", () => {
       },
     ];
 
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const paradox = findings.find((f) => f.id === "cross-wasabi-reuse-paradox");
     expect(paradox).toBeUndefined();
@@ -308,8 +358,7 @@ describe("cross-heuristic: Wasabi + address reuse paradox", () => {
 });
 
 describe("cross-heuristic: CoinJoin suppression of conflicting findings", () => {
-  it("suppresses CIOH, round amount, change detection, and script-mixed when CoinJoin is detected", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
+  it("suppresses CIOH, round amount, change detection, and script-mixed when CoinJoin is detected", () => {
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -355,7 +404,7 @@ describe("cross-heuristic: CoinJoin suppression of conflicting findings", () => 
       },
     ];
 
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const cioh = findings.find((f) => f.id === "h3-cioh")!;
     expect(cioh.scoreImpact).toBe(0);
@@ -378,8 +427,7 @@ describe("cross-heuristic: CoinJoin suppression of conflicting findings", () => 
     expect(scriptMixed.params?.context).toBe("coinjoin");
   });
 
-  it("also suppresses consolidation, unnecessary-input, and entropy findings for CoinJoin", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
+  it("also suppresses consolidation, unnecessary-input, and entropy findings for CoinJoin", () => {
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -416,7 +464,7 @@ describe("cross-heuristic: CoinJoin suppression of conflicting findings", () => 
       },
     ];
 
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     for (const f of findings) {
       if (f.id !== "h4-whirlpool") {
@@ -429,8 +477,7 @@ describe("cross-heuristic: CoinJoin suppression of conflicting findings", () => 
 });
 
 describe("cross-heuristic: CIOH + consolidation penalty capping", () => {
-  it("caps consolidation at -2 and zeroes unnecessary-input when CIOH fires on non-CoinJoin tx", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
+  it("caps consolidation at -2 and zeroes unnecessary-input when CIOH fires on non-CoinJoin tx", () => {
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -459,7 +506,7 @@ describe("cross-heuristic: CIOH + consolidation penalty capping", () => {
       },
     ];
 
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const cioh = findings.find((f) => f.id === "h3-cioh")!;
     // CIOH itself should remain unchanged (it still fires)
@@ -475,8 +522,7 @@ describe("cross-heuristic: CIOH + consolidation penalty capping", () => {
     expect(unnecessary.params?.context).toBe("cioh-covers");
   });
 
-  it("does NOT cap consolidation when impact is already -2 or lighter", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
+  it("does NOT cap consolidation when impact is already -2 or lighter", () => {
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -497,7 +543,7 @@ describe("cross-heuristic: CIOH + consolidation penalty capping", () => {
       },
     ];
 
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const consolidation = findings.find((f) => f.id === "consolidation-fan-in")!;
     // Already at -2, should not be modified (the condition is scoreImpact < -2)
@@ -507,8 +553,7 @@ describe("cross-heuristic: CIOH + consolidation penalty capping", () => {
 });
 
 describe("cross-heuristic: deterministic cap enforcement", () => {
-  it("adds compound-deterministic-cap when h2-same-address-io fires and total impact is insufficient for F", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
+  it("adds compound-deterministic-cap when h2-same-address-io fires and total impact is insufficient for F", () => {
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -531,7 +576,7 @@ describe("cross-heuristic: deterministic cap enforcement", () => {
 
     // Total impact before cross-heuristic = -15 + -8 = -23
     // Target is -46, so a cap finding with -23 impact should be added
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const cap = findings.find((f) => f.id === "compound-deterministic-cap");
     expect(cap).toBeDefined();
@@ -543,8 +588,7 @@ describe("cross-heuristic: deterministic cap enforcement", () => {
     expect(totalImpact).toBe(-46);
   });
 
-  it("does NOT add compound-deterministic-cap for h2-sweep (sweeps are normal practice)", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
+  it("does NOT add compound-deterministic-cap for h2-sweep (sweeps are normal practice)", () => {
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -557,14 +601,13 @@ describe("cross-heuristic: deterministic cap enforcement", () => {
       },
     ];
 
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const cap = findings.find((f) => f.id === "compound-deterministic-cap");
     expect(cap).toBeUndefined();
   });
 
-  it("does NOT add cap finding when total impact already exceeds -46", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
+  it("does NOT add cap finding when total impact already exceeds -46", () => {
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -586,7 +629,7 @@ describe("cross-heuristic: deterministic cap enforcement", () => {
     ];
 
     // Total = -50, already beyond -46
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const cap = findings.find((f) => f.id === "compound-deterministic-cap");
     expect(cap).toBeUndefined();
@@ -594,8 +637,7 @@ describe("cross-heuristic: deterministic cap enforcement", () => {
 });
 
 describe("cross-heuristic: post-mix consolidation + entity escalation", () => {
-  it("escalates entity-known-output to critical with -10 impact when post-mix consolidation is present", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
+  it("escalates entity-known-output to critical with -10 impact when post-mix consolidation is present", () => {
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -617,19 +659,20 @@ describe("cross-heuristic: post-mix consolidation + entity escalation", () => {
       },
     ];
 
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const entity = findings.find((f) => f.id === "entity-known-output")!;
     expect(entity.severity).toBe("critical");
     expect(entity.scoreImpact).toBe(-10);
+    // Localized text is the postmix variant; the English copy (CLI/MCP) matches it
     expect(entity.title).toBe("Post-mix funds sent to known entity");
+    expect(entity.params?._variant).toBe("postmix");
     expect(entity.params?.context).toBe("postmix-consolidation-to-entity");
     // Original param should be preserved
     expect(entity.params?.entityName).toBe("Binance");
   });
 
-  it("escalates entity-known-output when chain-post-coinjoin-consolidation is present", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
+  it("escalates entity-known-output when chain-post-coinjoin-consolidation is present", () => {
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -650,7 +693,7 @@ describe("cross-heuristic: post-mix consolidation + entity escalation", () => {
       },
     ];
 
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const entity = findings.find((f) => f.id === "entity-known-output")!;
     expect(entity.severity).toBe("critical");
@@ -658,38 +701,7 @@ describe("cross-heuristic: post-mix consolidation + entity escalation", () => {
     expect(entity.params?.context).toBe("postmix-consolidation-to-entity");
   });
 
-  it("escalates entity-known-output when chain-post-coinjoin-direct-spend is present", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
-
-    const findings: import("@/lib/types").Finding[] = [
-      {
-        id: "chain-post-coinjoin-direct-spend",
-        severity: "high",
-        title: "Chain: direct spend from post-CoinJoin",
-        description: "",
-        recommendation: "",
-        scoreImpact: -5,
-      },
-      {
-        id: "entity-known-output",
-        severity: "medium",
-        title: "Output to known entity",
-        description: "",
-        recommendation: "",
-        scoreImpact: -4,
-      },
-    ];
-
-    applyCrossHeuristicRulesForTest(findings);
-
-    const entity = findings.find((f) => f.id === "entity-known-output")!;
-    expect(entity.severity).toBe("critical");
-    expect(entity.scoreImpact).toBe(-10);
-    expect(entity.params?.context).toBe("postmix-direct-to-entity");
-  });
-
-  it("does NOT escalate entity finding when no post-mix pattern is present", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
+  it("does NOT escalate entity finding when no post-mix pattern is present", () => {
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -702,15 +714,14 @@ describe("cross-heuristic: post-mix consolidation + entity escalation", () => {
       },
     ];
 
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const entity = findings.find((f) => f.id === "entity-known-output")!;
     expect(entity.severity).toBe("medium");
     expect(entity.scoreImpact).toBe(-4);
   });
 
-  it("also zeroes chain-coinjoin-input positive finding when post-mix consolidation is present", async () => {
-    const { applyCrossHeuristicRulesForTest } = await import("../orchestrator");
+  it("also zeroes chain-coinjoin-input positive finding when post-mix consolidation is present", () => {
 
     const findings: import("@/lib/types").Finding[] = [
       {
@@ -731,11 +742,44 @@ describe("cross-heuristic: post-mix consolidation + entity escalation", () => {
       },
     ];
 
-    applyCrossHeuristicRulesForTest(findings);
+    applyCrossHeuristicRules(findings);
 
     const cjInput = findings.find((f) => f.id === "chain-coinjoin-input")!;
     expect(cjInput.scoreImpact).toBe(0);
     expect(cjInput.params?.context).toBe("negated-by-consolidation");
+  });
+});
+
+describe("cross-heuristic: RBF x change detection", () => {
+  it("boosts h2, explains RBF in its text and keeps params.confidence in sync", () => {
+    const findings: import("@/lib/types").Finding[] = [
+      { id: "h6-rbf-signaled", severity: "low", title: "", description: "", recommendation: "", scoreImpact: -1 },
+      {
+        id: "h2-change-detected", severity: "low", confidence: "low", title: "t", description: "d", recommendation: "",
+        scoreImpact: -5, params: { confidence: "low" },
+      },
+    ];
+    applyCrossHeuristicRules(findings);
+    const h2 = findings.find((f) => f.id === "h2-change-detected")!;
+    expect(h2.description).toMatch(/^d RBF is signaled/);
+    expect(h2.params?.context).toBe("rbf");
+    expect(h2.confidence).toBe("high");
+    expect(h2.params?.confidence).toBe("high");
+    expect(h2.params?.rbfCompound).toBe(1);
+  });
+
+  it("keeps params.confidence in sync on corroborator boosts", () => {
+    const findings: import("@/lib/types").Finding[] = [
+      { id: "peel-chain", severity: "medium", title: "", description: "", recommendation: "", scoreImpact: -3 },
+      {
+        id: "h2-change-detected", severity: "low", confidence: "low", title: "", description: "", recommendation: "",
+        scoreImpact: -5, params: { confidence: "low" },
+      },
+    ];
+    applyCrossHeuristicRules(findings);
+    const h2 = findings.find((f) => f.id === "h2-change-detected")!;
+    expect(h2.confidence).toBe("high");
+    expect(h2.params?.confidence).toBe("high");
   });
 });
 

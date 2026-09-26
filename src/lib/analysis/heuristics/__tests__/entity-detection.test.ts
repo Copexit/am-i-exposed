@@ -43,6 +43,28 @@ describe("analyzeEntityDetection", () => {
     expect(mockMatchEntitySync).not.toHaveBeenCalled();
   });
 
+  it("states the entity filter's real false positive rate from its metadata", () => {
+    const inAddr = "bc1q" + "7".repeat(38);
+    const outAddr = "bc1q" + "8".repeat(38);
+    const tx = makeTx({
+      vin: [makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: inAddr, value: 100000 } })],
+      vout: [makeVout({ scriptpubkey_address: outAddr })],
+    });
+    mockGetFilter.mockReturnValue({ meta: { fpr: 0.0025, addressCount: 1000, version: 1, buildDate: "" }, has: () => false });
+    mockMatchEntitySync.mockImplementation((addr) =>
+      addr === inAddr || addr === outAddr
+        ? { address: addr, entityName: "Some Exchange", category: "exchange", ofac: false, confidence: "high" }
+        : null,
+    );
+
+    const { findings } = analyzeEntityDetection(tx);
+    for (const id of ["entity-known-input", "entity-known-output"]) {
+      const f = findings.find((x) => x.id === id)!;
+      expect(f.description).toContain("0.25% false positive rate");
+      expect(f.params?.filterFpr).toBe(0.0025);
+    }
+  });
+
   describe("OFAC detection", () => {
     it("detects OFAC-sanctioned address in inputs", () => {
       const inputAddr = "bc1q" + "0".repeat(38);

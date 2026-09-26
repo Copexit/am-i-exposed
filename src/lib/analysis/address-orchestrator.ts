@@ -4,10 +4,39 @@ import type {
   MempoolAddress,
   MempoolUtxo,
 } from "@/lib/api/types";
-import { calculateScore, sumImpact } from "@/lib/scoring/score";
+import { sumImpact } from "@/lib/scoring/score";
 import { checkOfac } from "./cex-risk/ofac-check";
-import { applyCrossHeuristicRules } from "./cross-heuristic";
-import { TX_HEURISTICS, ADDRESS_HEURISTICS, tick } from "./heuristic-registry";
+import { ADDRESS_HEURISTICS, tick } from "./heuristic-registry";
+import { runTxHeuristics, finalizeTxResult } from "./tx-pipeline";
+import { enrichFindingsWithMetadata } from "./finding-metadata";
+
+/**
+ * Run every address heuristic, reporting each to the diagnostic loader
+ * (onStep(id), tick, onStep(id, impact)). A throwing heuristic is logged
+ * under `label` and reported with impact 0.
+ */
+export async function runAddressHeuristics(
+  address: MempoolAddress,
+  utxos: MempoolUtxo[],
+  txs: MempoolTransaction[],
+  onStep: ((stepId: string, impact?: number) => void) | undefined,
+  label: string,
+): Promise<Finding[]> {
+  const findings: Finding[] = [];
+  for (const heuristic of ADDRESS_HEURISTICS) {
+    onStep?.(heuristic.id);
+    await tick();
+    try {
+      const result = heuristic.fn(address, utxos, txs);
+      findings.push(...result.findings);
+      onStep?.(heuristic.id, sumImpact(result.findings));
+    } catch (err) {
+      console.error(`[${label}] ${heuristic.id} failed:`, err);
+      onStep?.(heuristic.id, 0);
+    }
+  }
+  return findings;
+}
 
 // ── Pre-send destination check (H13) ────────────────────────────────────────
 
@@ -31,26 +60,14 @@ export async function analyzeTransactionsForAddress(
   targetAddress: string,
   txs: MempoolTransaction[],
 ): Promise<TxAnalysisResult[]> {
-  const cap = Math.min(txs.length, 50);
   const results: TxAnalysisResult[] = [];
 
-  for (let i = 0; i < cap; i++) {
+  for (const [i, tx] of txs.slice(0, 50).entries()) {
     // Yield to the event loop every 10 txs to prevent UI freezing
     if (i > 0 && i % 10 === 0) await tick();
 
-    const tx = txs[i];
-    const allFindings: Finding[] = [];
-
-    for (const heuristic of TX_HEURISTICS) {
-      try {
-        const result = heuristic.fn(tx);
-        allFindings.push(...result.findings);
-      } catch (err) {
-        console.error(`[analyzeTransactionsForAddress] ${heuristic.id} failed:`, err);
-      }
-    }
-
-    applyCrossHeuristicRules(allFindings);
+    // Quick score: no TxContext or chain data per tx (the UI labels it as such)
+    const scored = finalizeTxResult(runTxHeuristics(tx));
 
     const isSender = tx.vin.some(
       (v) => v.prevout?.scriptpubkey_address === targetAddress,
@@ -59,7 +76,6 @@ export async function analyzeTransactionsForAddress(
       (v) => v.scriptpubkey_address === targetAddress,
     );
 
-    const scored = calculateScore(allFindings);
     results.push({
       txid: tx.txid,
       tx,
@@ -83,21 +99,7 @@ export async function analyzeDestination(
   txs: MempoolTransaction[],
   onStep?: (stepId: string, impact?: number) => void,
 ): Promise<PreSendResult> {
-  const allFindings: Finding[] = [];
-
-  for (const heuristic of ADDRESS_HEURISTICS) {
-    onStep?.(heuristic.id);
-    await tick();
-    try {
-      const result = heuristic.fn(address, utxos, txs);
-      allFindings.push(...result.findings);
-      const stepImpact = sumImpact(result.findings);
-      onStep?.(heuristic.id, stepImpact);
-    } catch (err) {
-      console.error(`[analyzeDestination] ${heuristic.id} failed:`, err);
-      onStep?.(heuristic.id, 0);
-    }
-  }
+  const allFindings = await runAddressHeuristics(address, utxos, txs, onStep, "analyzeDestination");
 
   const { chain_stats, mempool_stats } = address;
   // Use tx_count for display, but funded_txo_count for reuse detection.
@@ -192,6 +194,7 @@ export async function analyzeDestination(
         : "Ask the recipient for a fresh, unused address. If this is an exchange, consider the privacy implications.",
     scoreImpact: 0,
   });
+  enrichFindingsWithMetadata(allFindings);
 
   return {
     riskLevel,

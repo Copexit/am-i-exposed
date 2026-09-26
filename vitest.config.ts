@@ -12,19 +12,21 @@ export default defineConfig({
       "workers/**/*.test.js",
       "umbrel/**/*.test.js",
     ],
-    exclude: ["src/hooks/__tests__/**"],
     coverage: {
       provider: "v8",
-      include: [
-        "src/lib/analysis/**",
-        "src/lib/scoring/**",
-        "src/lib/bitcoin/**",
-        "src/lib/api/**",
+      include: ["src/lib/**", "src/hooks/**"],
+      exclude: [
+        "**/__tests__/**",
+        "**/*.test.{ts,tsx}",
+        "**/*.json",
+        "**/types.ts", // type-only modules
       ],
+      // Measured floor minus 1 point: a regression below these fails CI
       thresholds: {
-        lines: 60,
-        functions: 70,
-        branches: 50,
+        statements: 87,
+        lines: 89,
+        functions: 89,
+        branches: 81,
       },
     },
   },

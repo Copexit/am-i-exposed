@@ -145,6 +145,7 @@ function TimelineChart({
           <defs>
             {points.slice(0, -1).map((p, i) => {
               const nextP = points[i + 1];
+              if (!nextP) return null;
               return (
                 <linearGradient key={`tl-seg-${i}`} id={`tl-seg-${i}`}>
                   <stop offset="0%" stopColor={GRADE_HEX_SVG[p.grade]} />
@@ -155,6 +156,7 @@ function TimelineChart({
           </defs>
           {points.slice(0, -1).map((p, i) => {
             const nextP = points[i + 1];
+            if (!nextP) return null;
             return (
               <line
                 key={`seg-${i}`}

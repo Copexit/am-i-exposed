@@ -51,8 +51,24 @@ am-i-exposed mcp
 | `--fast` | Skip parent tx context (~6s instead of ~10s) |
 | `--network <net>` | `mainnet` / `testnet4` / `signet` |
 | `--api <url>` | Custom mempool API (self-hosted, Umbrel) |
-| `--no-cache` | Disable SQLite response caching |
+| `--no-cache` | Disable SQLite response caching (cache lives in `~/.am-i-exposed`, override with `AM_I_EXPOSED_CACHE_DIR`) |
 | `--no-entities` | Skip entity filter loading |
+
+### Defaults shared with the web app
+
+`chain-trace --depth` (4), `--min-sats` (1000) and `boltzmann --timeout` (300s) use the web app's
+default analysis settings (`src/lib/analysis/settings.ts`), so the CLI, the MCP server and the
+web app trace the same graph by default.
+
+Two defaults differ on purpose:
+
+- `scan tx --chain-depth` defaults to 0, which skips every chain module. Chain tracing costs many
+  extra API calls, so it is opt-in. The web scan always runs chain analysis, so a tx-only CLI grade
+  can differ from the web grade. Pass `--chain-depth 4` to run chain analysis at the web default depth.
+- `scan xpub --gap-limit` defaults to 20 (the BIP44 gap limit). The web app uses 5 to keep
+  browser scans against the public mempool.space API short. The MCP `scan_wallet` tool also
+  defaults to 5, so a call against the hosted API finishes within typical MCP request timeouts;
+  a cancelled or timed-out request stops the scan.
 
 ## JSON Output
 
@@ -111,6 +127,8 @@ npx am-i-exposed scan tx <txid> --json | jq '.grade'
 ```
 
 5 tools: `scan_transaction`, `scan_address`, `scan_psbt`, `scan_wallet`, `compute_boltzmann`
+
+MCP tools use the same SQLite API cache as the CLI (under `~/.am-i-exposed`); there is no per-tool opt-out.
 
 ### Agent Workflows
 

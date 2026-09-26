@@ -7,6 +7,7 @@ import type { Finding } from "@/lib/types";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import { isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
 import { fmtN, roundTo } from "@/lib/format";
+import type { FindingId } from "@/lib/analysis/finding-metadata";
 
 /** Method label and accuracy qualifier for the entropy finding. */
 function getMethodInfo(b: BoltzmannWorkerResult): { label: string; isApprox: boolean } {
@@ -20,8 +21,11 @@ function getMethodInfo(b: BoltzmannWorkerResult): { label: string; isApprox: boo
   }
 }
 
+/** Method label of the JS entropy when it is only a lower bound. */
+const LOWER_BOUND = "lower-bound estimate";
+
 /** Finding IDs that should NOT be overridden (structurally deterministic). */
-const SKIP_IDS = new Set([
+const SKIP_IDS = new Set<FindingId>([
   "h5-zero-entropy",
   "h5-zero-entropy-sweep",
 ]);
@@ -39,14 +43,32 @@ export function enhanceEntropyFinding(
   const idx = findings.findIndex(f =>
     f.id === "h5-entropy" || f.id === "h5-low-entropy",
   );
-  if (idx === -1) return;
-
   const existing = findings[idx];
-  if (SKIP_IDS.has(existing.id)) return;
+  if (!existing || SKIP_IDS.has(existing.id)) return;
+
+  const nUtxos = boltzmann.nInputs + boltzmann.nOutputs;
+  // H5 merges UTXOs sharing an address (Boltzmann MERGE_INPUTS/MERGE_OUTPUTS),
+  // while the WASM matrix stays per-UTXO so its rows/cols map to vin/vout.
+  // When the UTXO counts differ, the WASM entropy counts one owner's coins as
+  // separate parties, so the merged score stands. The JS one-to-one
+  // enumeration is only a lower bound of Boltzmann's many-to-many count (it
+  // can say 0 bits where Boltzmann finds ambiguity), so it is labelled as one.
+  // ponytail: a second WASM run on address-merged values would give the exact
+  // merged entropy; add it if shared-address txs need the exact score.
+  if (existing.params?.nUtxos !== nUtxos) {
+    const method = existing.params?.method;
+    if (method === "exact enumeration") {
+      findings[idx] = {
+        ...existing,
+        params: { ...existing.params, method: LOWER_BOUND },
+        description: existing.description.replace(`via ${method}`, `via ${LOWER_BOUND}`),
+      };
+    }
+    return;
+  }
 
   const entropyBits = boltzmann.entropy;
   const roundedEntropy = Math.round(entropyBits * 100) / 100;
-  const nUtxos = boltzmann.nInputs + boltzmann.nOutputs;
 
   // Same scaling as entropy.ts line 186
   const impact = entropyBits < 1 ? 0 : entropyBits < 2 ? 2 : Math.min(Math.floor(entropyBits * 2), 15);
@@ -76,6 +98,8 @@ export function enhanceEntropyFinding(
 
   findings[idx] = {
     ...existing,
+    // nbCmbn > 1: a JS "h5-low-entropy" estimate no longer applies
+    id: "h5-entropy",
     severity: impact >= 10 ? "good" : impact >= 5 ? "low" : impact > 0 ? "low" : "medium",
     title: `Transaction entropy: ${roundedEntropy} bits${boundNote}`,
     params,

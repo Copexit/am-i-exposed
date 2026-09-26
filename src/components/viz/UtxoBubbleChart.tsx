@@ -76,8 +76,7 @@ function BubbleChart({ width, height, utxos }: UtxoBubbleChartProps & { width: n
         dustCount: dustUtxos.length,
       });
     } else {
-      for (let i = 0; i < dustUtxos.length; i++) {
-        const u = dustUtxos[i];
+      for (const [i, u] of dustUtxos.entries()) {
         children.push({
           id: `dust-${i}`,
           txid: u.txid,

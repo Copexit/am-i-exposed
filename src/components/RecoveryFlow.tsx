@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, ArrowDown, ExternalLink } from "lucide-react";
-import { WalletIcon } from "@/components/ui/WalletIcon";
-import { RECOVERY_STEPS, RECOVERY_TOOLS } from "@/data/guide/recovery";
-import { SEVERITY_COLORS, SEVERITY_DOT } from "@/lib/severity";
+import { ChevronDown } from "lucide-react";
+import { Collapse } from "./ui/Collapse";
+import { RecoveryStepList, RecoveryToolLinks } from "./guide/RecoveryPlaybook";
 
 interface RecoveryFlowProps {
   /** Only show for poor grades */
@@ -39,76 +37,26 @@ export function RecoveryFlow({ grade }: RecoveryFlowProps) {
           aria-hidden="true"
         />
       </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div id="recovery-flow-panel" className="mt-2 space-y-1">
-              <p className="text-sm text-muted px-1 mb-3">
-                {t("recoveryFlow.intro", {
-                  defaultValue: "Follow these steps to improve your privacy score from Critical/F to Healthy/A:",
-                })}
-              </p>
+      <Collapse open={open}>
+        <div id="recovery-flow-panel" className="mt-2 space-y-1">
+          <p className="text-sm text-muted px-1 mb-3">
+            {t("recoveryFlow.intro", {
+              defaultValue: "Follow these steps to improve your privacy score from Critical/F to Healthy/A:",
+            })}
+          </p>
 
-              {RECOVERY_STEPS.map((step, i) => (
-                <div key={i}>
-                  <div className={`rounded-lg border px-4 py-3 ${SEVERITY_COLORS[step.severity]}`}>
-                    <div className="flex items-start gap-3">
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${SEVERITY_DOT[step.severity]}`}>
-                          {i + 1}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground/90">
-                          {t(step.titleKey, { defaultValue: step.titleDefault })}
-                        </p>
-                        <p className="text-sm text-muted mt-1 leading-relaxed">
-                          {t(step.descKey, { defaultValue: step.descDefault })}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  {i < RECOVERY_STEPS.length - 1 && (
-                    <div className="flex justify-center py-0.5">
-                      <ArrowDown size={14} className="text-muted/50" />
-                    </div>
-                  )}
-                </div>
-              ))}
+          <RecoveryStepList size="sm" />
 
-              {/* Result indicator */}
-              <div className="flex justify-center pt-2">
-                <div className="bg-severity-good/10 border border-severity-good/30 rounded-lg px-4 py-2 text-sm text-severity-good font-medium">
-                  {t("recoveryFlow.result", { defaultValue: "Result: Critical -> Moderate -> Healthy" })}
-                </div>
-              </div>
-
-              {/* Tools */}
-              <div className="flex flex-wrap gap-2 pt-2">
-                {RECOVERY_TOOLS.map((tool) => (
-                  <a
-                    key={tool.name}
-                    href={tool.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-sm text-bitcoin hover:text-bitcoin-hover transition-colors px-3 py-1.5 rounded-lg border border-bitcoin/20 hover:border-bitcoin/40 bg-bitcoin/5"
-                  >
-                    <WalletIcon walletName={tool.name} size="sm" />
-                    {tool.name}
-                    <ExternalLink size={12} />
-                  </a>
-                ))}
-              </div>
+          {/* Result indicator */}
+          <div className="flex justify-center pt-2">
+            <div className="bg-severity-good/10 border border-severity-good/30 rounded-lg px-4 py-2 text-sm text-severity-good font-medium">
+              {t("recoveryFlow.result", { defaultValue: "Result: Critical -> Moderate -> Healthy" })}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+
+          <RecoveryToolLinks />
+        </div>
+      </Collapse>
     </div>
   );
 }

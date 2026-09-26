@@ -17,12 +17,12 @@ import {
 } from "@/lib/analysis/orchestrator";
 import { checkOfac } from "@/lib/analysis/cex-risk/ofac-check";
 import { needsEnrichment, enrichPrevouts, countNullPrevouts } from "@/lib/api/enrich-prevouts";
-import { makeIncompletePrevoutFinding, makeOfacPreSendResult } from "@/hooks/useAnalysisState";
+import { makeIncompletePrevoutFinding, makeOfacPreSendResult } from "@/lib/analysis/analysis-state";
 import type { ApiClient } from "@/lib/api/client";
 import type { MempoolTransaction, MempoolAddress, MempoolUtxo } from "@/lib/api/types";
 import type { PreSendResult } from "@/lib/analysis/address-orchestrator";
 import type { ScoringResult, TxAnalysisResult } from "@/lib/types";
-import type { AnalysisState } from "@/hooks/useAnalysisState";
+import type { AnalysisState } from "@/lib/analysis/analysis-state";
 
 /** Dependencies injected from the React hook layer. */
 export interface AddressAnalysisDeps {
@@ -76,11 +76,17 @@ export async function runAddressAnalysis(
     };
   }
 
-  // Fetch address data - UTXOs may fail for addresses with >500 UTXOs
+  // Fetch address data. A failed tx history must surface as an error, never
+  // be scored as empty. UTXOs may fail for addresses with >500 UTXOs, so that
+  // one degrades to a flagged (uncached) result instead.
+  let utxosFailed = false;
   const [addressData, utxos, txs] = await Promise.all([
     api.getAddress(address),
-    api.getAddressUtxos(address).catch(() => [] as MempoolUtxo[]),
-    api.getAddressTxs(address).catch(() => [] as MempoolTransaction[]),
+    api.getAddressUtxos(address).catch(() => {
+      utxosFailed = true;
+      return [] as MempoolUtxo[];
+    }),
+    api.getAddressTxs(address),
   ]);
 
   // Enrich missing prevout data for self-hosted mempool backends
@@ -135,6 +141,21 @@ export async function runAddressAnalysis(
     if (remainingNulls > 0) {
       result.findings.push(makeIncompletePrevoutFinding(remainingNulls, true));
     }
+  }
+
+  if (utxosFailed) {
+    // id is in INCOMPLETE_RESULT_FINDING_IDS, so this result is not cached
+    result.findings.push({
+      id: "address-utxos-unavailable",
+      severity: "low",
+      confidence: "high",
+      title: "Unspent outputs could not be loaded",
+      description:
+        "The API did not return this address's unspent outputs (rate limit, timeout, or too many UTXOs for the backend). " +
+        "UTXO-based checks were skipped, so this result may be incomplete.",
+      recommendation: "Try again in a moment, or use a backend that supports large UTXO sets.",
+      scoreImpact: 0,
+    });
   }
 
   return {

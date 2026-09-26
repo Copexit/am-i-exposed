@@ -11,7 +11,8 @@
  */
 
 import { idbGet, idbPut } from "./idb-cache";
-import type { AnalysisSettings } from "@/hooks/useAnalysisSettings";
+import { computeAddressTxsTtl, TTL_10_MIN } from "./cache-policy";
+import type { AnalysisSettings } from "@/lib/analysis/settings";
 import type { ScoringResult, InputType, TxAnalysisResult } from "@/lib/types";
 import type {
   MempoolTransaction,
@@ -21,35 +22,27 @@ import type {
 } from "@/lib/api/types";
 import type { PreSendResult } from "@/lib/analysis/orchestrator";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
-import type { AnalysisState } from "@/hooks/useAnalysisState";
+import type { AnalysisState } from "@/lib/analysis/analysis-state";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
+import type { FindingId } from "@/lib/analysis/finding-metadata";
 
 export const TTL_24_HOURS = 24 * 60 * 60 * 1000;
+
+/**
+ * Findings that mark a result as built from incomplete data (failed or
+ * timed-out fetches). Such results are never cached, so a retry refetches.
+ */
+export const INCOMPLETE_RESULT_FINDING_IDS: readonly FindingId[] = [
+  "chain-trace-partial",
+  "address-utxos-unavailable",
+  // Prevout enrichment can fail transiently (timeouts, rate limits)
+  "api-incomplete-prevout",
+];
 
 /** TraceLayer with txs stored as a plain object (for JSON/IDB serialization). */
 interface StoredTraceLayer {
   depth: number;
   txs: Record<string, MempoolTransaction>;
-}
-
-/** What gets stored in IDB (layers as plain objects). */
-interface StoredAnalysisResult {
-  phase: "complete";
-  query: string;
-  inputType: InputType;
-  result: ScoringResult | null;
-  txData: MempoolTransaction | null;
-  addressData: MempoolAddress | null;
-  addressTxs: MempoolTransaction[] | null;
-  addressUtxos: MempoolUtxo[] | null;
-  txBreakdown: TxAnalysisResult[] | null;
-  preSendResult: PreSendResult | null;
-  durationMs: number | null;
-  usdPrice: number | null;
-  outspends: MempoolOutspend[] | null;
-  backwardLayers: StoredTraceLayer[] | null;
-  forwardLayers: StoredTraceLayer[] | null;
-  boltzmannResult: BoltzmannWorkerResult | null;
 }
 
 /** Deserialized analysis result returned from getCachedResult. */
@@ -72,11 +65,17 @@ interface CachedAnalysisResult {
   boltzmannResult: BoltzmannWorkerResult | null;
 }
 
+/** What gets stored in IDB (layers as plain objects). */
+type StoredAnalysisResult = Omit<CachedAnalysisResult, "backwardLayers" | "forwardLayers"> & {
+  backwardLayers: StoredTraceLayer[] | null;
+  forwardLayers: StoredTraceLayer[] | null;
+};
+
 /**
  * Cache version - bump when computation logic changes (WASM rebuild, heuristic
  * updates, scoring changes) to invalidate stale cached results.
  */
-const CACHE_VERSION = 2;
+const CACHE_VERSION = 4; // v4: Boltzmann matrices in tx order (were value-sorted)
 
 /**
  * Build a cache key that embeds the analysis settings affecting results.
@@ -134,7 +133,18 @@ export async function getCachedResult(
 }
 
 /**
- * Store an analysis result in the cache. No-op if cache is disabled.
+ * How long a result stays valid: addresses follow the same adaptive TTL as
+ * their raw tx lists, unconfirmed txs 10 min, everything else 24h.
+ */
+function resultTtl(state: AnalysisState): number {
+  if (state.inputType === "address") return computeAddressTxsTtl(state.addressTxs ?? []);
+  if (state.txData && !state.txData.status?.confirmed) return TTL_10_MIN;
+  return TTL_24_HOURS;
+}
+
+/**
+ * Store an analysis result in the cache. No-op if cache is disabled or the
+ * result was built from incomplete data.
  * Extracts relevant fields from AnalysisState and serializes trace layers.
  */
 export async function putCachedResult(
@@ -144,6 +154,7 @@ export async function putCachedResult(
   state: AnalysisState,
 ): Promise<void> {
   if (!settings.enableCache) return;
+  if (state.result?.findings.some((f) => INCOMPLETE_RESULT_FINDING_IDS.includes(f.id))) return;
 
   const key = buildResultCacheKey(network, query, settings);
 
@@ -170,5 +181,5 @@ export async function putCachedResult(
     boltzmannResult: state.boltzmannResult ?? null,
   };
 
-  await idbPut(key, stored, TTL_24_HOURS);
+  await idbPut(key, stored, resultTtl(state));
 }

@@ -32,9 +32,17 @@ function readFixture(name: string): string {
 
 /**
  * Intercept all mempool.space API calls and return fixture data.
- * Unknown txids/addresses get a 404.
+ * Unknown txids/addresses get a 404; every other external request is aborted.
  */
 export async function mockMempoolApi(page: Page) {
+  // Registered first so it has the lowest priority: anything not handled by
+  // a specific mock below (or served by the local static server) is aborted,
+  // so tests can never reach the real network.
+  await page.route(
+    (url) => url.hostname !== "localhost",
+    (route) => route.abort("blockedbyclient"),
+  );
+
   // Transaction endpoints (order matters: specific routes before catch-all)
   await page.route("**/api/tx/**/hex", async (route) => {
     await route.fulfill({ status: 200, body: "", contentType: "text/plain" });
@@ -130,5 +138,97 @@ export async function mockMempoolApi(page: Page) {
     } else {
       await route.fulfill({ status: 404, body: "Address not found" });
     }
+  });
+}
+
+/** Read a fixture from the api-responses directory as parsed JSON. */
+export function loadTxFixture(name: string): MockTx {
+  return JSON.parse(readFixture(name)) as MockTx;
+}
+
+export interface MockTx {
+  txid: string;
+  vin: { txid: string; vout: number; prevout: Record<string, unknown> | null }[];
+  vout: Record<string, unknown>[];
+  [key: string]: unknown;
+}
+
+const json = (body: unknown) => ({
+  status: 200,
+  body: JSON.stringify(body),
+  contentType: "application/json",
+});
+
+/** Split ".../api/<kind>/<id>/<sub>/<more>?q" into [id, sub, more]. */
+function apiPath(url: string, kind: "tx" | "address"): string[] {
+  return url.split(`/api/${kind}/`)[1]?.split("?")[0]?.split("/") ?? [];
+}
+
+/**
+ * Serve extra, test-built transactions on /api/tx/<txid> and their outspends
+ * (all unspent). Call after mockMempoolApi so these routes take priority;
+ * other txids fall through to the fixture mocks.
+ */
+export async function mockExtraTxs(page: Page, txs: MockTx[]) {
+  const byId = new Map(txs.map((tx) => [tx.txid, tx]));
+  await page.route("**/api/tx/**", async (route) => {
+    const [txid, sub] = apiPath(route.request().url(), "tx");
+    const tx = txid ? byId.get(txid) : undefined;
+    if (!tx || (sub && sub !== "outspends")) return route.fallback();
+    await route.fulfill(json(sub ? tx.vout.map(() => ({ spent: false })) : tx));
+  });
+}
+
+export interface MockAddressData {
+  txs: MockTx[];
+  utxos: unknown[];
+  fundedSats: number;
+}
+
+/**
+ * Wallet scan mock: every address is an empty, unused address except the
+ * ones in `funded`. Call after mockMempoolApi so these routes take priority.
+ */
+export async function mockWalletAddresses(page: Page, funded: Record<string, MockAddressData>) {
+  await page.route("**/api/address/**", async (route) => {
+    const [addr, sub, more] = apiPath(route.request().url(), "address");
+    if (!addr) return route.fallback();
+    const data = funded[addr];
+    if (sub === "txs") return route.fulfill(json(more || !data ? [] : data.txs));
+    if (sub === "utxo") return route.fulfill(json(data?.utxos ?? []));
+    const n = data ? data.txs.length : 0;
+    const sats = data?.fundedSats ?? 0;
+    await route.fulfill(json({
+      address: addr,
+      chain_stats: { funded_txo_count: n, funded_txo_sum: sats, spent_txo_count: 0, spent_txo_sum: 0, tx_count: n },
+      mempool_stats: { funded_txo_count: 0, funded_txo_sum: 0, spent_txo_count: 0, spent_txo_sum: 0, tx_count: 0 },
+    }));
+  });
+}
+
+const OBSERVATORY_FIXTURES = path.join(__dirname, "../../src/lib/observatory/__tests__/fixtures");
+const readObservatory = (name: string) =>
+  fs.readFileSync(path.join(OBSERVATORY_FIXTURES, `${name}.json`), "utf-8");
+
+/**
+ * Observatory mock: the hosted Cloudflare Worker's whirlpool JSON routes and
+ * the LiquiSabi JSON-RPC `dashboard` call, served from the unit-test fixtures.
+ */
+export async function mockObservatoryApi(page: Page) {
+  const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "*" };
+  await page.route("https://coinjoin-stats.copexit.workers.dev/**", async (route) => {
+    const req = route.request();
+    if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
+    const { pathname } = new URL(req.url());
+    let body: string | null = null;
+    if (pathname === "/whirlpool/summary") body = readObservatory("whirlpool-summary");
+    else if (pathname === "/whirlpool/charts") body = readObservatory("whirlpool-charts");
+    else if (pathname === "/whirlpool/txs") body = readObservatory("whirlpool-txs");
+    else if (pathname === "/liquisabi/api") {
+      const { id } = req.postDataJSON() as { id: number };
+      body = `{"jsonrpc":"2.0","id":${id},"result":${readObservatory("liquisabi-dashboard")}}`;
+    }
+    if (body === null) return route.fulfill({ status: 404, headers: cors, body: "not found" });
+    await route.fulfill({ status: 200, headers: cors, body, contentType: "application/json" });
   });
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { analyzeCoinJoinPremix } from "../coinjoin-premix";
-import { analyzeCoinJoin } from "../coinjoin";
+import { analyzeCoinJoin, isCoinJoinTx } from "../coinjoin";
 import { makeTx, makeVin, makeVout, makeCoinbaseVin, makeOpReturnVout, resetAddrCounter } from "./fixtures/tx-factory";
 
 beforeEach(() => resetAddrCounter());
@@ -21,12 +21,12 @@ describe("analyzeCoinJoinPremix", () => {
     });
     const { findings } = analyzeCoinJoinPremix(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("tx0-premix");
-    expect(findings[0].scoreImpact).toBe(5);
-    expect(findings[0].severity).toBe("good");
-    expect(findings[0].params?.denomCount).toBe(3);
-    expect(findings[0].params?.hasToxicChange).toBe(1);
-    expect(findings[0].params?.toxicChangeValue).toBe(448_500);
+    expect(findings[0]?.id).toBe("tx0-premix");
+    expect(findings[0]?.scoreImpact).toBe(5);
+    expect(findings[0]?.severity).toBe("good");
+    expect(findings[0]?.params?.denomCount).toBe(3);
+    expect(findings[0]?.params?.hasToxicChange).toBe(1);
+    expect(findings[0]?.params?.toxicChangeValue).toBe(448_500);
   });
 
   it("detects tx0 without toxic change (all funds allocated to denominations)", () => {
@@ -41,8 +41,8 @@ describe("analyzeCoinJoinPremix", () => {
     });
     const { findings } = analyzeCoinJoinPremix(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("tx0-premix");
-    expect(findings[0].params?.hasToxicChange).toBe(0);
+    expect(findings[0]?.id).toBe("tx0-premix");
+    expect(findings[0]?.params?.hasToxicChange).toBe(0);
   });
 
   it("detects tx0 at 0.05 BTC denomination", () => {
@@ -58,7 +58,7 @@ describe("analyzeCoinJoinPremix", () => {
     });
     const { findings } = analyzeCoinJoinPremix(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].params?.denomination).toBe("0.05");
+    expect(findings[0]?.params?.denomination).toBe("0.05");
   });
 
   it("rejects coinbase transactions", () => {
@@ -94,9 +94,9 @@ describe("analyzeCoinJoinPremix", () => {
       fee: 1_500,
     });
     const { findings } = analyzeCoinJoinPremix(tx);
-    expect(findings[0].params?.era).toBe("samourai");
-    expect(findings[0].title).toContain("Samourai");
-    expect(findings[0].description).toContain("Samourai");
+    expect(findings[0]?.params?.era).toBe("samourai");
+    expect(findings[0]?.title).toContain("Samourai");
+    expect(findings[0]?.description).toContain("Samourai");
   });
 
   it("detects Ashigaru tx0 at 0.025 BTC pool with 5% coordinator fee", () => {
@@ -115,10 +115,10 @@ describe("analyzeCoinJoinPremix", () => {
     });
     const { findings } = analyzeCoinJoinPremix(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("tx0-premix");
-    expect(findings[0].params?.era).toBe("ashigaru");
-    expect(findings[0].title).toContain("Ashigaru");
-    expect(findings[0].description).toContain("Ashigaru");
+    expect(findings[0]?.id).toBe("tx0-premix");
+    expect(findings[0]?.params?.era).toBe("ashigaru");
+    expect(findings[0]?.title).toContain("Ashigaru");
+    expect(findings[0]?.description).toContain("Ashigaru");
   });
 
   it("rejects transactions with only 1 denomination output", () => {
@@ -152,15 +152,19 @@ describe("analyzeCoinJoinPremix", () => {
   it("detects tx0 whose premix outputs include the miner-fee reserve", () => {
     const { findings } = analyzeCoinJoinPremix(realTx0(true));
     expect(findings).toHaveLength(1);
-    expect(findings[0].params?.denomination).toBe("0.025");
-    expect(findings[0].params?.denomCount).toBe(4);
-    expect(findings[0].params?.toxicChangeValue).toBe(644_060);
-    expect(findings[0].params?.coordinatorFee).toBe(125_000);
+    expect(findings[0]?.params?.denomination).toBe("0.025");
+    expect(findings[0]?.params?.denomCount).toBe(4);
+    expect(findings[0]?.params?.toxicChangeValue).toBe(644_060);
+    expect(findings[0]?.params?.coordinatorFee).toBe(125_000);
   });
 
   it("does not report a tx0 as a JoinMarket CoinJoin", () => {
     const { findings } = analyzeCoinJoin(realTx0(true));
     expect(findings.some((f) => f.id === "h4-joinmarket")).toBe(false);
+  });
+
+  it("isCoinJoinTx agrees: a tx0 is a premix, not a mix", () => {
+    expect(isCoinJoinTx(realTx0(true))).toBe(false);
   });
 
   it("requires the tx0 OP_RETURN when premix values are not exact", () => {

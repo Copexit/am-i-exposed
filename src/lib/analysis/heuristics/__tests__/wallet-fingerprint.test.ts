@@ -62,16 +62,16 @@ describe("analyzeWalletFingerprint", () => {
     // locktime = block_height - 50 (randomized) + Low-R signatures
     const rBytes = "00".repeat(32);
     const sBytes = "00".repeat(32);
-    const sig = `3044022020${rBytes}0220${sBytes}`;
-    const rawHex = sig + sig;
+    const sig = `30440220${rBytes}0220${sBytes}`;
+    const witness = [sig + "01", "02" + "33".repeat(32)];
     const tx = makeTx({
       locktime: 799_950, // delta = 800_000 - 799_950 = 50 (randomized range)
       vin: [
-        makeVin({ sequence: 0xfffffffd }),
-        makeVin({ sequence: 0xfffffffd }),
+        makeVin({ sequence: 0xfffffffd, witness }),
+        makeVin({ sequence: 0xfffffffd, witness }),
       ],
     });
-    const { findings } = analyzeWalletFingerprint(tx, rawHex);
+    const { findings } = analyzeWalletFingerprint(tx);
     const f = findings.find((f) => f.id === "h11-wallet-fingerprint");
     expect(f).toBeDefined();
     expect(f!.params?.walletGuess).toBe("Bitcoin Core");
@@ -81,16 +81,16 @@ describe("analyzeWalletFingerprint", () => {
   it("identifies Bitcoin Core with exact locktime + Low-R (no BIP69)", () => {
     const rBytes = "00".repeat(32);
     const sBytes = "00".repeat(32);
-    const sig = `3044022020${rBytes}0220${sBytes}`;
-    const rawHex = sig + sig;
+    const sig = `30440220${rBytes}0220${sBytes}`;
+    const witness = [sig + "01", "02" + "33".repeat(32)];
     const tx = makeTx({
       locktime: 800_000,
       vin: [
-        makeVin({ sequence: 0xfffffffd }),
-        makeVin({ sequence: 0xfffffffd }),
+        makeVin({ sequence: 0xfffffffd, witness }),
+        makeVin({ sequence: 0xfffffffd, witness }),
       ],
     });
-    const { findings } = analyzeWalletFingerprint(tx, rawHex);
+    const { findings } = analyzeWalletFingerprint(tx);
     const f = findings.find((f) => f.id === "h11-wallet-fingerprint");
     expect(f).toBeDefined();
     expect(f!.params?.walletGuess).toBe("Bitcoin Core");
@@ -184,16 +184,16 @@ describe("analyzeWalletFingerprint", () => {
     // Low-R without other Core signals should only guess Core if combined properly
     const rBytes = "00".repeat(32);
     const sBytes = "00".repeat(32);
-    const sig = `3044022020${rBytes}0220${sBytes}`;
-    const rawHex = sig + sig;
+    const sig = `30440220${rBytes}0220${sBytes}`;
+    const witness = [sig + "01", "02" + "33".repeat(32)];
     const tx = makeTx({
       locktime: 0,
       vin: [
-        makeVin({ sequence: 0xffffffff }),
-        makeVin({ sequence: 0xffffffff }),
+        makeVin({ sequence: 0xffffffff, witness }),
+        makeVin({ sequence: 0xffffffff, witness }),
       ],
     });
-    const { findings } = analyzeWalletFingerprint(tx, rawHex);
+    const { findings } = analyzeWalletFingerprint(tx);
     const f = findings.find((f) => f.id === "h11-wallet-fingerprint");
     expect(f).toBeDefined();
     // With locktime=0 + allMax + Low-R, no wallet matches the decision tree

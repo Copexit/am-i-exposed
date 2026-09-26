@@ -52,8 +52,9 @@ export function computeDenomGrouping(
   const groupColors = new Map<number, string>();
   let ci = 0;
   for (const [value, count] of valueCounts) {
-    if (count >= 2) {
-      groupColors.set(value, palette[ci % palette.length]);
+    const color = palette[ci % palette.length];
+    if (count >= 2 && color !== undefined) {
+      groupColors.set(value, color);
       ci++;
     }
   }

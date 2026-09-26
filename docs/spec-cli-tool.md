@@ -41,8 +41,8 @@ The core engine in `src/lib/` is ~85% decoupled from React/browser. The CLI impo
 | TX orchestrator | `src/lib/analysis/orchestrator.ts` | `analyzeTransaction(tx, rawHex?, onStep?, ctx?)` | Yes |
 | Address orchestrator | `src/lib/analysis/orchestrator.ts` | `analyzeAddress(address, utxos, txs, onStep?)` | Yes |
 | Pre-send analysis | `src/lib/analysis/address-orchestrator.ts` | `analyzeDestination(address, utxos, txs)` | Yes |
-| Cross-heuristic rules | `src/lib/analysis/cross-heuristic.ts` | `applyCrossHeuristicRules(findings)` | Yes |
-| TX classification | `src/lib/analysis/cross-heuristic.ts` | `classifyTransactionType(findings)` | Yes |
+| Cross-heuristic rules | `src/lib/analysis/cross-heuristic/` | `applyCrossHeuristicRules(findings)` | Yes |
+| TX classification | `src/lib/analysis/cross-heuristic/` | `classifyTransactionType(findings)` | Yes |
 | Scoring | `src/lib/scoring/score.ts` | `calculateScore(findings, mode?)` | Yes |
 | Wallet audit | `src/lib/analysis/wallet-audit.ts` | `auditWallet(addresses)` | Yes |
 | Recommendations | `src/lib/recommendations/primary-recommendation.ts` | `selectRecommendations(ctx)` | Yes |
@@ -51,7 +51,7 @@ The core engine in `src/lib/` is ~85% decoupled from React/browser. The CLI impo
 | PSBT parser | `src/lib/bitcoin/psbt.ts` | `parsePSBT(input)`, `isPSBT(input)` | Yes |
 | Descriptor parser | `src/lib/bitcoin/descriptor.ts` | `parseXpub(str)`, `deriveOneAddress(parsed, chain, index)` | Yes |
 | Address validation | `src/lib/bitcoin/address-type.ts` | `getAddressType(addr)` | Yes |
-| Entity matching | `src/lib/analysis/entity-filter/entity-match.ts` | `matchEntities(tx)`, `matchEntitySync(addr)` | Yes |
+| Entity matching | `src/lib/analysis/entity-filter/entity-match.ts` | `matchEntitySync(addr)` | Yes |
 | Backward trace | `src/lib/analysis/chain/recursive-trace.ts` | `traceBackward(tx, depth, minSats, fetcher, ...)` | Yes |
 | Forward trace | `src/lib/analysis/chain/recursive-trace.ts` | `traceForward(tx, depth, minSats, fetcher, ...)` | Yes |
 | Entity proximity | `src/lib/analysis/chain/entity-proximity.ts` | `analyzeEntityProximity(tx, backward, forward)` | Yes |
@@ -59,11 +59,8 @@ The core engine in `src/lib/` is ~85% decoupled from React/browser. The CLI impo
 | Clustering | `src/lib/analysis/chain/clustering.ts` | `buildCluster(tx, layers)` | Yes |
 | Spending patterns | `src/lib/analysis/chain/spending-patterns.ts` | `analyzeSpendingPatterns(tx, layers)` | Yes |
 | Linkability | `src/lib/analysis/chain/linkability.ts` | `buildLinkabilityMatrix(tx)` | Yes |
-| JoinMarket analysis | `src/lib/analysis/chain/joinmarket.ts` | `analyzeJoinMarket(tx)` | Yes |
-| Peel chain trace | `src/lib/analysis/chain/peel-chain-trace.ts` | `tracePeelChain(tx, ...)` | Yes |
 | Temporal analysis | `src/lib/analysis/chain/temporal.ts` | `analyzeTemporalCorrelation(txs)` | Yes |
 | Prospective analysis | `src/lib/analysis/chain/prospective.ts` | `analyzeFingerprintEvolution(addr, txs)` | Yes |
-| CoinJoin quality | `src/lib/analysis/chain/coinjoin-quality.ts` | `evaluateCoinJoinQuality(tx, ...)` | Yes |
 | Format utilities | `src/lib/format.ts` | `formatSats()`, `fmtN()`, `formatBtc()` | Yes |
 | Constants | `src/lib/constants.ts` | `WHIRLPOOL_DENOMS`, `DUST_THRESHOLD`, etc. | Yes |
 | Types | `src/lib/types.ts` | `Finding`, `ScoringResult`, `Grade`, `Severity`, `TxType` | Yes |
@@ -377,9 +374,9 @@ Wallet-level privacy audit via extended public key or output descriptor.
 **Pipeline:**
 1. Parse descriptor via `parseXpub(descriptor)`
 2. Derive addresses: external chain (0) and internal chain (1) up to gap limit
-3. For each derived address, fetch: address data, transactions, UTXOs
-   - Rate limiting: batch of 3 requests, 500ms delay between batches (for hosted APIs)
-   - Self-hosted/Umbrel APIs: batch of 5, no delay
+3. For each derived address, fetch: address data, transactions, UTXOs, via the web wallet scan (`scanChain` in `src/lib/wallet/scan.ts`)
+   - Rate limiting: the web throttle for the hosted mempool.space API; none with a custom `--api`
+   - A failed fetch is retried, then reported as failed (never counted as unused); 3 failed addresses in a row abort the scan
 4. Determine gap: stop scanning a chain after `--gap-limit` consecutive addresses with 0 transactions
 5. Run `auditWallet(walletAddressInfo)` - returns `WalletAuditResult`
 6. Format output with wallet summary stats
@@ -413,6 +410,7 @@ Scanning wallet...
     "externalScanned": 45,
     "internalScanned": 38
   },
+  "failedAddresses": [],
   "score": 62,
   "grade": "C",
   "findings": [
@@ -601,9 +599,8 @@ Multi-hop transaction graph analysis.
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--direction <dir>` | `both` | `backward`, `forward`, or `both` |
-| `--depth <N>` | 3 | Maximum hops to trace |
+| `--depth <N>` | 4 | Maximum hops to trace |
 | `--min-sats <N>` | 1000 | Minimum value to follow (filters dust) |
-| `--skip-coinjoins` | false | Stop tracing at CoinJoin transactions |
 
 **Pipeline:**
 1. Fetch starting tx

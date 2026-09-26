@@ -33,20 +33,18 @@ export function downsampleSeries(
   if (xs.length !== ys.length) return [];
   if (xs.length === 0) return [];
   if (xs.length <= maxPoints) {
-    return xs.map((x, i) => ({ x, y: ys[i] }));
+    return xs.map((x, i) => ({ x, y: ys[i]! })); // same length, checked above
   }
   const bucket = xs.length / maxPoints;
   const out: SparklinePoint[] = [];
   for (let i = 0; i < maxPoints; i++) {
     const start = Math.floor(i * bucket);
     const end = Math.min(xs.length, Math.floor((i + 1) * bucket));
-    let sum = 0;
-    let count = 0;
-    for (let j = start; j < end; j++) {
-      sum += ys[j];
-      count++;
-    }
-    out.push({ x: xs[start], y: count > 0 ? sum / count : 0 });
+    const x = xs[start];
+    if (x === undefined) break;
+    const bucketYs = ys.slice(start, end);
+    const sum = bucketYs.reduce((acc, y) => acc + y, 0);
+    out.push({ x, y: bucketYs.length > 0 ? sum / bucketYs.length : 0 });
   }
   return out;
 }
@@ -76,7 +74,8 @@ export function whirlpool30dDelta(
   const blocks = charts.capacity?.blocks;
   if (!blocks || blocks.length < 2) return null;
   const firstBlock = blocks[0];
-  const lastBlock = blocks[blocks.length - 1];
+  const lastBlock = blocks.at(-1);
+  if (firstBlock === undefined || lastBlock === undefined) return null;
   // Need at least 30 days of data span to be meaningful.
   if (lastBlock - firstBlock < BLOCKS_PER_30D) return null;
   const targetBlock = lastBlock - BLOCKS_PER_30D;
@@ -84,8 +83,8 @@ export function whirlpool30dDelta(
   // "30 days ago" reference point). Linear scan is fine - charts are tiny
   // after downsampling.
   let startIdx = -1;
-  for (let i = 0; i < blocks.length; i++) {
-    if (blocks[i] <= targetBlock) startIdx = i;
+  for (const [i, block] of blocks.entries()) {
+    if (block <= targetBlock) startIdx = i;
     else break;
   }
   if (startIdx === -1) return null;
@@ -94,34 +93,13 @@ export function whirlpool30dDelta(
   let delta = 0;
   for (const k of keys) {
     const series = charts.capacity.series[k];
-    if (!series || series.length === 0) continue;
-    delta += series[series.length - 1] - series[startIdx];
+    const end = series?.at(-1);
+    const start = series?.[startIdx];
+    // Skip series too short to cover the 30d reference point
+    if (end === undefined || start === undefined) continue;
+    delta += end - start;
   }
   return delta;
-}
-
-/**
- * Current per-pool capacity (last sample in the time series).
- * Returns null if the pool is missing or empty.
- */
-export function whirlpoolCurrentCapacity(
-  charts: WhirlpoolCharts,
-  poolKey: string,
-): number | null {
-  const series = charts.capacity?.series?.[poolKey];
-  if (!series || series.length === 0) return null;
-  return series[series.length - 1];
-}
-
-/** Sum the latest capacity across all pools in the charts payload. */
-export function whirlpoolTotalCurrentCapacity(charts: WhirlpoolCharts): number {
-  const keys = Object.keys(charts.capacity?.series ?? {});
-  let total = 0;
-  for (const k of keys) {
-    const v = whirlpoolCurrentCapacity(charts, k);
-    if (v != null) total += v;
-  }
-  return total;
 }
 
 /** Sum of lifetime entered BTC across all pools in the summary. */
@@ -137,16 +115,6 @@ export function whirlpoolLifetimeCycles(summary: WhirlpoolSummary): number {
 /** Sum of currently-unspent BTC across all pools in the summary. */
 export function whirlpoolTotalUnspent(summary: WhirlpoolSummary): number {
   return summary.pools.reduce((acc, p) => acc + p.unspent_btc, 0);
-}
-
-/** Sum of currently-unspent UTXOs across all pools in the summary. */
-export function whirlpoolTotalUnspentUtxos(summary: WhirlpoolSummary): number {
-  return summary.pools.reduce((acc, p) => acc + p.unspent_utxos, 0);
-}
-
-/** Sum of lifetime TX0 (premix) transactions across all pools. */
-export function whirlpoolTotalTx0(summary: WhirlpoolSummary): number {
-  return summary.pools.reduce((acc, p) => acc + p.tx0_count, 0);
 }
 
 /**
@@ -174,9 +142,9 @@ export function liquiSabiFreshInputSparkline(
   if (!graph.length) return [];
   const xs: number[] = [];
   const ys: number[] = [];
-  for (let i = 0; i < graph.length; i++) {
+  for (const [i, entry] of graph.entries()) {
     xs.push(i);
-    ys.push(graph[i].Averages?.FreshInputsEstimateBtc ?? 0);
+    ys.push(entry.Averages?.FreshInputsEstimateBtc ?? 0);
   }
   return downsampleSeries(xs, ys);
 }
@@ -239,19 +207,4 @@ export function sumRecentFreshInputs(
   if (!graph.length) return 0;
   const slice = graph.slice(-recentDays);
   return slice.reduce((acc, entry) => acc + (entry.Averages?.FreshInputsEstimateBtc ?? 0), 0);
-}
-
-export function sumRecentRoundCount(
-  graph: LiquiSabiGraphEntry[],
-  recentDays: number,
-): number {
-  if (!graph.length) return 0;
-  const slice = graph.slice(-recentDays);
-  let total = 0;
-  for (const entry of slice) {
-    const id = entry.Averages?.RoundId;
-    const parsed = id ? parseInt(id, 10) : NaN;
-    if (!isNaN(parsed)) total += parsed;
-  }
-  return total;
 }

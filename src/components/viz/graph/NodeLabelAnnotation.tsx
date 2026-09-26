@@ -2,10 +2,13 @@
 
 import { Text } from "@visx/text";
 import { useTranslation } from "react-i18next";
+import { SVG_COLORS } from "../shared/svgConstants";
+import { ANNOTATION_COLOR, hexToRgba } from "@/lib/palette";
 import type { LayoutNode } from "./types";
 import type { EditingLabel } from "./useLabelEditor";
+import { SvgCircleButton } from "./SvgCircleButton";
 
-interface NodeLabelAnnotationProps {
+export interface NodeLabelAnnotationProps {
   node: LayoutNode;
   annotateMode?: boolean;
   nodeLabels?: Map<string, string>;
@@ -45,8 +48,8 @@ export function NodeLabelAnnotation({
         width={node.width}
         height={20}
         rx={4}
-        fill="rgba(245, 158, 11, 0.12)"
-        stroke="#f59e0b"
+        fill={hexToRgba(ANNOTATION_COLOR, 0.12)}
+        stroke={ANNOTATION_COLOR}
         strokeWidth={0.5}
         strokeOpacity={0.4}
       />
@@ -62,7 +65,7 @@ export function NodeLabelAnnotation({
             onMouseDown={(e) => e.stopPropagation()}
             placeholder={t("graph.clearToDelete", { defaultValue: "Clear to delete" })}
             style={{
-              width: "100%", height: "100%", background: "transparent", color: "#f59e0b",
+              width: "100%", height: "100%", background: "transparent", color: ANNOTATION_COLOR,
               border: "none", outline: "none", fontSize: "10px", fontFamily: "inherit",
               padding: "0 2px",
             }}
@@ -73,7 +76,7 @@ export function NodeLabelAnnotation({
           x={node.x + node.width / 2}
           y={labelY + 14}
           fontSize={10}
-          fill="#f59e0b"
+          fill={ANNOTATION_COLOR}
           textAnchor="middle"
           fontWeight={500}
           style={{ pointerEvents: "none" }}
@@ -83,10 +86,17 @@ export function NodeLabelAnnotation({
       )}
       {/* Delete button in annotate mode */}
       {annotateMode && !isEditingThis && (
-        <g style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); onSetNodeLabel?.(node.txid, ""); }}>
-          <circle cx={node.x + node.width - 4} cy={labelY - 2} r={6} fill="#ef4444" />
-          <Text x={node.x + node.width - 4} y={labelY + 1} fontSize={8} fontWeight={700} textAnchor="middle" fill="white" style={{ pointerEvents: "none" }}>x</Text>
-        </g>
+        <SvgCircleButton
+          cx={node.x + node.width - 4}
+          cy={labelY - 2}
+          r={6}
+          fill={SVG_COLORS.critical}
+          label={t("graph.deleteLabel", { defaultValue: "Delete label" })}
+          glyph="x"
+          glyphColor="white"
+          fontSize={8}
+          onActivate={() => onSetNodeLabel?.(node.txid, "")}
+        />
       )}
     </g>
   );

@@ -26,7 +26,7 @@ import {
  *
  * Impact: -2 to -8
  */
-export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
+export const analyzeWalletFingerprint: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
 
   // Skip coinbase transactions (mining pool software fingerprinting is not meaningful here)
@@ -77,7 +77,7 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx, rawHex) => {
   const isBip69 = tx.vin.length >= 3 && tx.vout.length >= 3 && checkBip69Ordering(tx);
 
   // Low-R signature detection
-  const hasLowR = rawHex ? detectLowRSignatures(rawHex, nonCoinbaseVin.length) : false;
+  const hasLowR = detectLowRSignatures(tx.vin);
 
   // ── Build human-readable signal list ──────────────────────────────────────
 

@@ -3,7 +3,7 @@ import type { Finding } from "@/lib/types";
 import type { MempoolTransaction, MempoolVout } from "@/lib/api/types";
 import { WHIRLPOOL_POOLS, type WhirlpoolPool } from "@/lib/constants";
 import { fmtN, formatBtc } from "@/lib/format";
-import { isCoinbase, getValuedOutputs, countOutputValues } from "./tx-utils";
+import { isCoinbase, getValuedOutputs, countOutputValues, isOpReturnOutput } from "./tx-utils";
 
 /**
  * CoinJoin Premix (tx0) Detection
@@ -51,7 +51,7 @@ export function detectTx0(tx: MempoolTransaction): Tx0Match | null {
   // Need at least 3 outputs: 2+ denomination outputs + fee/change
   if (spendable.length < 3) return null;
 
-  const hasOpReturn = tx.vout.some((o) => o.scriptpubkey_type === "op_return");
+  const hasOpReturn = tx.vout.some(isOpReturnOutput);
   const valueCounts = countOutputValues(spendable);
 
   for (const pool of WHIRLPOOL_POOLS) {
@@ -75,7 +75,6 @@ export function detectTx0(tx: MempoolTransaction): Tx0Match | null {
     // The coordinator fee is typically small (0.5-5% of denomination)
     const feeOutput = nonDenomOutputs.reduce(
       (smallest, o) => (o.value < smallest.value ? o : smallest),
-      nonDenomOutputs[0],
     );
     if (!(feeOutput.value < denom * 0.5 && feeOutput.value > 0)) continue;
 
@@ -112,6 +111,7 @@ export const analyzeCoinJoinPremix: TxHeuristic = (tx) => {
       coordinatorFee: feeCandidate.value,
       era: pool.era,
       _variant: pool.era,
+      ...(toxicChange ? { context: "toxic" } : {}),
     },
     description:
       `This transaction is a ${eraLabel} Whirlpool tx0 (premix): it splits funds into ${denomOutputs.length} equal outputs ` +

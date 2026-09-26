@@ -2,7 +2,7 @@ import type { TxHeuristic, TxContext } from "./types";
 import type { Finding } from "@/lib/types";
 import { fmtN, calcVsize } from "@/lib/format";
 import { isRoundAmount } from "./round-amount";
-import { isCoinbase, isOpReturn } from "./tx-utils";
+import { isCoinbase, getSpendableOutputs, isRbfSignaling } from "./tx-utils";
 
 /**
  * H6: Fee Analysis
@@ -24,20 +24,21 @@ export const analyzeFees: TxHeuristic = (tx, _rawHex?, ctx?) => {
   const vsize = calcVsize(tx.weight);
   const feeRate = tx.fee / vsize;
 
-  // Check for exact integer fee rate (common in some wallets)
+  // Check for exact integer fee rate (common in some wallets): the fee must be
+  // an exact multiple of the vsize, like the h6-fee-segwit-miscalc test. A
+  // near-integer window (+/-0.05 sat/vB) fired on ~10% of random fee rates;
+  // the exact product fires on ~1/vsize of them.
   // Exclude low rates (1-5 sat/vB) since these are common during low-fee periods
   // and being in a large cohort is actually privacy-neutral
-  // Check if fee rate is close to an integer (vsize ceiling can cause slight deviation)
-  const roundedFeeRate = Math.round(feeRate);
-  if (Math.abs(feeRate - roundedFeeRate) < 0.05 && roundedFeeRate > 5) {
+  if (tx.fee % vsize === 0 && feeRate > 5) {
     findings.push({
       id: "h6-round-fee-rate",
       severity: "low",
       confidence: "medium",
-      title: `Exact fee rate: ${roundedFeeRate} sat/vB`,
-      params: { feeRate: roundedFeeRate },
+      title: `Exact fee rate: ${feeRate} sat/vB`,
+      params: { feeRate },
       description:
-        `This transaction uses an exact integer fee rate of ${roundedFeeRate} sat/vB. ` +
+        `This transaction uses an exact integer fee rate of ${feeRate} sat/vB. ` +
         "Some wallet software uses round fee rates rather than precise estimates, " +
         "which can help identify the wallet used.",
       recommendation:
@@ -47,11 +48,7 @@ export const analyzeFees: TxHeuristic = (tx, _rawHex?, ctx?) => {
   }
 
   // Check RBF signaling
-  const hasRbf = tx.vin.some(
-    (v) => !v.is_coinbase && v.sequence < 0xfffffffe,
-  );
-
-  if (hasRbf) {
+  if (isRbfSignaling(tx.vin)) {
     findings.push({
       id: "h6-rbf-signaled",
       severity: "low",
@@ -71,26 +68,26 @@ export const analyzeFees: TxHeuristic = (tx, _rawHex?, ctx?) => {
     (v) => !v.is_coinbase && v.witness && v.witness.length > 0,
   );
   if (hasSegWitInputs) {
-    // For SegWit txs, weight < size * 4. If fee appears calibrated to non-segwit,
-    // the effective sat/vB would be higher than intended.
+    // For SegWit txs, weight < size * 4. A wallet that ignores the SegWit discount
+    // computes fee = rate * raw size, so the fee is an exact multiple of the raw
+    // size. Require an exact product (a near-integer rate window fires on ~16% of
+    // random fees) and a rate of at least 2 sat/B (1 sat/B is the relay minimum).
     const rawSize = tx.size;
     const segwitVsize = calcVsize(tx.weight);
     const nonSegwitFeeRate = tx.fee / rawSize;
     const segwitFeeRate = tx.fee / segwitVsize;
 
-    // If the non-segwit rate looks like a round number but segwit rate doesn't,
-    // the wallet likely calculates fees using non-segwit size
-    const nonSegRounded = Math.abs(nonSegwitFeeRate - Math.round(nonSegwitFeeRate)) < 0.1;
-    const segRounded = Math.abs(segwitFeeRate - Math.round(segwitFeeRate)) < 0.1;
+    const nonSegExact = tx.fee % rawSize === 0 && nonSegwitFeeRate >= 2;
+    const segExact = tx.fee % segwitVsize === 0;
 
-    if (nonSegRounded && !segRounded && rawSize !== segwitVsize) {
+    if (nonSegExact && !segExact && rawSize !== segwitVsize) {
       findings.push({
         id: "h6-fee-segwit-miscalc",
         severity: "low",
         title: "Fee appears calculated using non-SegWit weight",
         description:
-          "This SegWit transaction has a fee rate that aligns to a round number when " +
-          `calculated against raw byte size (${Math.round(nonSegwitFeeRate)} sat/byte) but not ` +
+          "This SegWit transaction pays a fee that is an exact whole-number rate " +
+          `times its raw byte size (${Math.round(nonSegwitFeeRate)} sat/byte) but not ` +
           `when calculated correctly against virtual size (${segwitFeeRate.toFixed(1)} sat/vB). ` +
           "This suggests the wallet may not account for the SegWit discount, fingerprinting it as older software.",
         recommendation:
@@ -109,7 +106,7 @@ export const analyzeFees: TxHeuristic = (tx, _rawHex?, ctx?) => {
   // Check for fee-in-amount: detect when fee appears to be subtracted from an output
   // rather than added on top. Fingerprints wallets with "send max" or incorrect fee handling.
   if (tx.vout.length === 2) {
-    const spendable = tx.vout.filter((o) => !isOpReturn(o.scriptpubkey));
+    const spendable = getSpendableOutputs(tx.vout);
     if (spendable.length === 2) {
       // Check if either output amount + fee equals a round number
       // This would suggest the user intended to send a round amount but the wallet
@@ -153,7 +150,8 @@ export const analyzeFees: TxHeuristic = (tx, _rawHex?, ctx?) => {
 /** Detect CPFP fee bumping pattern. */
 function detectCpfp(tx: Parameters<TxHeuristic>[0], ctx: TxContext | undefined, findings: Finding[]): void {
   if (!ctx?.parentTx) return;
-  if (tx.vin.length !== 1) return;
+  const [onlyInput] = tx.vin;
+  if (tx.vin.length !== 1 || !onlyInput) return;
   if (isCoinbase(tx)) return;
 
   const parentTx = ctx.parentTx;
@@ -173,16 +171,14 @@ function detectCpfp(tx: Parameters<TxHeuristic>[0], ctx: TxContext | undefined, 
   if (parentFeeRate <= 0 || childFeeRate < parentFeeRate * 2) return;
 
   // The spent output must NOT be the largest parent output (CPFP spends change, not payment)
-  const spentOutputIndex = tx.vin[0].vout;
+  const spentOutputIndex = onlyInput.vout;
   const spentOutput = parentTx.vout[spentOutputIndex];
   if (!spentOutput) return;
   const largestValue = Math.max(...parentTx.vout.map((o) => o.value));
   if (spentOutput.value === largestValue) return;
 
   // Check if parent had RBF signaled
-  const parentHadRbf = parentTx.vin.some(
-    (v) => !v.is_coinbase && v.sequence < 0xfffffffe,
-  );
+  const parentHadRbf = isRbfSignaling(parentTx.vin);
 
   const description =
     `This transaction appears to be a CPFP (Child-Pays-For-Parent) fee bump. ` +
@@ -210,6 +206,7 @@ function detectCpfp(tx: Parameters<TxHeuristic>[0], ctx: TxContext | undefined, 
       parentFeeRate: Math.round(parentFeeRate * 10) / 10,
       childFeeRate: Math.round(childFeeRate * 10) / 10,
       parentHadRbf: parentHadRbf ? 1 : 0,
+      ...(parentHadRbf ? { context: "rbf" } : {}),
     },
   });
 }

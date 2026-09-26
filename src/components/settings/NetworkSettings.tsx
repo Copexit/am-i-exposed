@@ -90,7 +90,8 @@ export function NetworkSettings({ onClosePanel }: NetworkSettingsProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    checkHealth(inputValue);
+    // Fire-and-forget: the callee catches its own errors.
+    void checkHealth(inputValue);
   };
 
   return (

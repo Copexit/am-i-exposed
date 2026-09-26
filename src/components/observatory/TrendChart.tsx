@@ -10,6 +10,7 @@ import { useTooltip, TooltipWithBounds, defaultStyles } from "@visx/tooltip";
 import { localPoint } from "@visx/event";
 import { bisector } from "d3-array";
 import type { SparklinePoint } from "@/lib/observatory/types";
+import { COLORS } from "@/lib/palette";
 
 export interface TrendSeries {
   /** Stable id used for the gradient + tooltip row. */
@@ -46,9 +47,9 @@ function marginFor(width: number) {
 
 const tooltipStyles: React.CSSProperties = {
   ...defaultStyles,
-  background: "var(--surface-elevated, #1a1a1a)",
-  border: "1px solid var(--card-border, #2a2a2a)",
-  color: "var(--foreground, #fafafa)",
+  background: "var(--surface-elevated)",
+  border: "1px solid var(--card-border)",
+  color: "var(--foreground)",
   fontSize: 12,
   padding: "6px 10px",
   borderRadius: 8,
@@ -97,7 +98,7 @@ function Inner({
   const allSeries: TrendSeries[] = useMemo(() => {
     if (series && series.length > 0) return series;
     if (points && points.length > 0)
-      return [{ id: "default", points, color: color ?? "#f97316" }];
+      return [{ id: "default", points, color: color ?? COLORS.severityHigh }];
     return [];
   }, [series, points, color]);
 
@@ -278,7 +279,7 @@ function Inner({
                   cy={yScale(p.y)}
                   r={4}
                   fill={p.color}
-                  stroke="var(--background, #000)"
+                  stroke="var(--background)"
                   strokeWidth={2}
                   pointerEvents="none"
                 />

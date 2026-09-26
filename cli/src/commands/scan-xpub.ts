@@ -1,5 +1,7 @@
-import { parseXpub, deriveOneAddress } from "@/lib/bitcoin/descriptor";
+import { parseXpub, type ParsedXpub } from "@/lib/bitcoin/descriptor";
 import { auditWallet, type WalletAddressInfo } from "@/lib/analysis/wallet-audit";
+import { scanChain, walletChains } from "@/lib/wallet/scan";
+import type { MempoolClient } from "@/lib/api/mempool";
 import { createClient } from "../util/api";
 import type { GlobalOpts } from "../index";
 import {
@@ -26,74 +28,61 @@ export async function scanXpub(
   startSpinner("Parsing descriptor...");
   const parsed = parseXpub(descriptor);
 
-  // Scan both chains (external = 0, internal = 1)
-  const allAddresses: WalletAddressInfo[] = [];
-
-  for (const chain of [0, 1]) {
-    const chainLabel = chain === 0 ? "external" : "internal";
-    let consecutiveEmpty = 0;
-
-    for (let index = 0; consecutiveEmpty < gapLimit; index++) {
-      updateSpinner(
-        `Scanning ${chainLabel} chain: index ${index} (gap ${consecutiveEmpty}/${gapLimit})`,
-      );
-
-      const derived = deriveOneAddress(parsed, chain, index);
-      const addr = derived.address;
-
-      // Fetch address data with rate limiting
-      // Batch of 3 concurrent requests for hosted APIs
-      let addressData = null;
-      let txs: Awaited<ReturnType<typeof client.getAddressTxs>> = [];
-      let utxos: Awaited<ReturnType<typeof client.getAddressUtxos>> = [];
-
-      try {
-        [addressData, txs, utxos] = await Promise.all([
-          client.getAddress(addr),
-          client.getAddressTxs(addr),
-          client.getAddressUtxos(addr),
-        ]);
-      } catch {
-        // Skip failed addresses
-      }
-
-      const txCount = addressData
-        ? addressData.chain_stats.tx_count +
-          addressData.mempool_stats.tx_count
-        : 0;
-
-      if (txCount === 0) {
-        consecutiveEmpty++;
-      } else {
-        consecutiveEmpty = 0;
-      }
-
-      allAddresses.push({
-        derived,
-        addressData,
-        txs,
-        utxos,
-      });
-
-      // Rate limit: small delay between batches for hosted APIs
-      if (index % 3 === 2) {
-        await new Promise((r) => setTimeout(r, 500));
-      }
-    }
-  }
+  // A custom --api is usually the user's own node: no hosted-API throttle
+  const { addresses: allAddresses, failed } = await scanWalletAddresses(client, parsed, gapLimit, {
+    isLocal: !!opts.api,
+    onProgress: updateSpinner,
+  });
 
   // Run wallet audit
   updateSpinner("Running wallet audit...");
-  const result = auditWallet(allAddresses);
+  const result = auditWallet(allAddresses, failed);
 
   succeedSpinner(
     `Wallet audit complete (${result.activeAddresses} active addresses)`,
   );
+  if (failed.length > 0) {
+    console.error(`Warning: ${failed.length} address(es) could not be fetched, the audit may be incomplete: ${failed.join(", ")}`);
+  }
 
   // Output
   if (isJson) {
-    walletJson(descriptor, result, network, opts.api);
+    walletJson(descriptor, result, network, opts.api, failed);
   } else {
     console.log(formatWalletResult(descriptor, result, network));
   }
+}
+
+/**
+ * Scan the wallet's chains (external = 0, internal = 1, or only the one a
+ * descriptor fixes) with the web wallet scan
+ * (scanChain): a failed address fetch is retried, then reported in `failed`
+ * and never counted as unused. Shared by the scan xpub command and MCP scan_wallet.
+ * Rejects with an AbortError once `signal` aborts.
+ */
+export async function scanWalletAddresses(
+  client: MempoolClient,
+  parsed: ParsedXpub,
+  gapLimit: number,
+  {
+    isLocal,
+    onProgress = () => {},
+    signal = new AbortController().signal,
+  }: { isLocal: boolean; onProgress?: (msg: string) => void; signal?: AbortSignal },
+): Promise<{ addresses: WalletAddressInfo[]; failed: string[] }> {
+  const addresses: WalletAddressInfo[] = [];
+  const failed: string[] = [];
+
+  for (const chain of walletChains(parsed)) {
+    signal.throwIfAborted();
+    const chainLabel = chain === 0 ? "external" : "internal";
+    const res = await scanChain(parsed, chain, client, signal, isLocal, gapLimit, (info) =>
+      onProgress(`Scanning ${chainLabel} chain: index ${info.derived.index}`),
+    );
+    addresses.push(...res.infos);
+    failed.push(...res.failed);
+  }
+  signal.throwIfAborted();
+
+  return { addresses, failed };
 }

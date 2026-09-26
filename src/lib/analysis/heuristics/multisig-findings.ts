@@ -12,11 +12,6 @@ const P2P_TOOLS: { name: string; url: string }[] = [
   { name: "Sparrow Wallet (CoinJoin)", url: "https://sparrowwallet.com" },
 ];
 
-const COIN_CONTROL_TOOLS: { name: string; url: string }[] = [
-  { name: "RoboSats (Lightning P2P)", url: "https://learn.robosats.org" },
-  { name: "Sparrow Wallet (Coin Control)", url: "https://sparrowwallet.com" },
-];
-
 export function buildBisqDepositFinding(
   inputCount: number,
   outputCount: number,
@@ -45,40 +40,6 @@ export function buildBisqDepositFinding(
         "For future trades, consider Lightning-based P2P exchanges (RoboSats) which leave no on-chain escrow footprint.",
       ],
       tools: P2P_TOOLS,
-      urgency: "when-convenient",
-    },
-  };
-}
-
-export function buildHodlHodlAddressFinding(
-  scriptType: string,
-  feeAddress: string,
-  feeAmount: number,
-): Finding {
-  return {
-    id: "h17-hodlhodl",
-    severity: "high",
-    confidence: "high",
-    title: "Likely HodlHodl escrow release (2-of-3 multisig)",
-    params: { m: 2, n: 3, scriptType, feeAddress, feeAmount },
-    description:
-      "This transaction matches the HodlHodl P2P exchange pattern: a 2-of-3 multisig input " +
-      "with a small fee output to a known HodlHodl fee address. This identifies the transaction " +
-      "as a P2P exchange escrow release with high confidence. The multisig structure reveals " +
-      "that three parties (buyer, seller, arbitrator) were involved in custody.",
-    recommendation:
-      "HodlHodl escrow transactions are identifiable on-chain due to the 2-of-3 multisig structure " +
-      "and reused fee address. For more private P2P trading, consider protocols that use " +
-      "Taproot-based escrow or Lightning-based settlement (e.g., RoboSats).",
-    scoreImpact: -3,
-    remediation: {
-      steps: [
-        "The 2-of-3 multisig structure and fee address pattern cannot be undone for this transaction.",
-        "For future P2P trades, consider Lightning-based exchanges (RoboSats) which leave no on-chain escrow footprint.",
-        "If continuing to use HodlHodl, be aware that the platform's fee address links your trade to other HodlHodl trades.",
-        "Use CoinJoin before or after trading to break the link between the escrow and your other UTXOs.",
-      ],
-      tools: COIN_CONTROL_TOOLS,
       urgency: "when-convenient",
     },
   };
@@ -200,9 +161,10 @@ export function buildLightningChannelFinding(
     },
     description:
       "This transaction matches the pattern of a legacy P2WSH Lightning channel close: " +
-      "2-of-2 multisig input with nLockTime > 0 and non-max nSequence. " +
+      "a 2-of-2 multisig input carrying the BOLT 3 commitment encoding (nLockTime upper byte 0x20, nSequence upper byte 0x80) " +
+      "or the cooperative close layout (version 2, nLockTime 0, nSequence max). " +
       "The 2-of-2 P2WSH multisig funding output is identifiable by chain analysis as a Lightning channel. " +
-      "Note: this pattern can also match 2-of-2 multisig spends using anti-fee-sniping (BIP-339).",
+      "Note: the cooperative close layout can also match other 2-of-2 multisig spends built the same way.",
     recommendation:
       "Upgrade to Taproot channels (LND simple-taproot-channels, CLN) which use MuSig2 key aggregation. " +
       "Taproot channel opens and cooperative closes are indistinguishable from regular Taproot spends, " +

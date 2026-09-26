@@ -132,9 +132,12 @@ export function ConsolidationTable({
   if (groups.length === 0) return null;
 
   const handleCopy = (txid: string) => {
-    copyToClipboard(txid);
-    setCopiedTxid(txid);
-    setTimeout(() => setCopiedTxid(null), 1500);
+    // copyToClipboard never rejects; it resolves false when copying failed
+    void copyToClipboard(txid).then((ok) => {
+      if (!ok) return;
+      setCopiedTxid(txid);
+      setTimeout(() => setCopiedTxid(null), 1500);
+    });
   };
 
   return (

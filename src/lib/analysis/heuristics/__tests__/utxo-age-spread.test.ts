@@ -60,9 +60,9 @@ describe("analyzeUtxoAgeSpread", () => {
     // Spread = 99000 blocks > 52560 (1 year)
     const { findings } = analyzeUtxoAgeSpread(tx, undefined, { parentTxs });
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("utxo-age-spread");
-    expect(findings[0].severity).toBe("low");
-    expect(findings[0].scoreImpact).toBe(-2);
+    expect(findings[0]?.id).toBe("utxo-age-spread");
+    expect(findings[0]?.severity).toBe("low");
+    expect(findings[0]?.scoreImpact).toBe(-2);
   });
 
   it("flags MEDIUM when spread exceeds 4 years", () => {
@@ -73,8 +73,8 @@ describe("analyzeUtxoAgeSpread", () => {
     // Spread = 399000 blocks > 210240 (4 years)
     const { findings } = analyzeUtxoAgeSpread(tx, undefined, { parentTxs });
     expect(findings).toHaveLength(1);
-    expect(findings[0].severity).toBe("medium");
-    expect(findings[0].scoreImpact).toBe(-4);
+    expect(findings[0]?.severity).toBe("medium");
+    expect(findings[0]?.scoreImpact).toBe(-4);
   });
 
   it("skips coinbase transactions", () => {
@@ -100,7 +100,7 @@ describe("analyzeUtxoAgeSpread", () => {
     parentTxs.set("aaa", makeTx({ txid: "aaa", status: { confirmed: true, block_height: 400000 } }));
     parentTxs.set("bbb", makeTx({ txid: "bbb", status: { confirmed: true, block_height: 799000 } }));
     const { findings } = analyzeUtxoAgeSpread(tx, undefined, { parentTxs });
-    expect(findings[0].adversaryTiers).toContain("passive_observer");
-    expect(findings[0].temporality).toBe("historical");
+    expect(findings[0]?.adversaryTiers).toContain("passive_observer");
+    expect(findings[0]?.temporality).toBe("historical");
   });
 });

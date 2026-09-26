@@ -24,9 +24,9 @@ describe("analyzeExchangePattern", () => {
 
     const { findings } = analyzeExchangePattern(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("exchange-withdrawal-pattern");
-    expect(findings[0].scoreImpact).toBe(-3);
-    expect(findings[0].severity).toBe("medium");
+    expect(findings[0]!.id).toBe("exchange-withdrawal-pattern");
+    expect(findings[0]!.scoreImpact).toBe(-3);
+    expect(findings[0]!.severity).toBe("medium");
   });
 
   it("rejects coinbase transactions", () => {

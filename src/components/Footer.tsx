@@ -15,7 +15,7 @@ export function Footer() {
   return (
     <footer className="max-w-6xl mx-auto w-full">
       <div className="gradient-divider" />
-      <nav aria-label="Footer navigation" className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 px-4 py-4 text-sm text-muted">
+      <nav aria-label={t("common.footerNavigation", { defaultValue: "Footer navigation" })} className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 px-4 py-4 text-sm text-muted">
         <span className="font-medium text-foreground">am-i.<span className="gradient-text">exposed</span></span>
         <span className="text-muted">{t("common.tagline", { defaultValue: "Your privacy. Diagnosed." })}</span>
         <span className="text-sm text-muted">

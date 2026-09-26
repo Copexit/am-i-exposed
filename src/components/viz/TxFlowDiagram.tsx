@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ParentSize } from "@visx/responsive";
 import { useTranslation } from "react-i18next";
 import { useTheme } from "@/hooks/useTheme";
-import { formatSats, calcFeeRate } from "@/lib/format";
+import { TxFeeText } from "./shared/TxFeeText";
 import { useFullscreen } from "@/hooks/useFullscreen";
 import { FlowChart } from "./FlowChart";
 import { MAX_DISPLAY } from "./buildFlowGraph";
@@ -56,9 +56,9 @@ export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspend
                 <button
                   onClick={onExitLinkability}
                   className="text-[10px] px-2 py-0.5 rounded-full border border-card-border text-muted hover:text-foreground hover:border-muted transition-colors cursor-pointer"
-                  title="Back to CoinJoin structure"
+                  title={t("viz.flow.backToCoinjoin", { defaultValue: "Back to CoinJoin structure" })}
                 >
-                  CJ view
+                  {t("viz.flow.cjView", { defaultValue: "CJ view" })}
                 </button>
               )}
             </span>
@@ -106,13 +106,7 @@ export function TxFlowDiagram({ tx, findings, onAddressClick, usdPrice, outspend
 
         {/* Fee + size info */}
         <div className="flex items-center justify-between text-sm text-muted border-t border-card-border pt-2">
-          <span>
-            {t("tx.fee", {
-              amount: formatSats(tx.fee, i18n.language),
-              rate: calcFeeRate(tx),
-              defaultValue: `Fee: ${formatSats(tx.fee, i18n.language)} (${calcFeeRate(tx)} sat/vB)`,
-            })}
-          </span>
+          <TxFeeText tx={tx} />
           <span>{tx.weight.toLocaleString(i18n.language)} WU</span>
         </div>
       </div>

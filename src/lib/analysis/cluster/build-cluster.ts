@@ -3,6 +3,7 @@ import type { ApiClient } from "@/lib/api/client";
 import { createRateLimiter } from "@/lib/api/rate-limiter";
 import { isCoinJoinTx } from "../heuristics/coinjoin";
 import { analyzeChangeDetection } from "../heuristics/change-detection";
+import { getSpendableOutputs } from "../heuristics/tx-utils";
 import { getAddressType } from "@/lib/bitcoin/address-type";
 
 export interface ClusterProgress {
@@ -60,11 +61,10 @@ export async function buildFirstDegreeCluster(
   // Phase 1: Direct CIOH - for each tx where target is an input, collect co-inputs
   const changeAddresses: string[] = [];
 
-  for (let i = 0; i < cap; i++) {
+  for (const [i, tx] of txs.slice(0, cap).entries()) {
     if (signal?.aborted) break;
     onProgress?.({ phase: "inputs", current: i + 1, total: cap });
 
-    const tx = txs[i];
     txsAnalyzed++;
 
     // Check if this is a CoinJoin - skip CIOH if so
@@ -102,9 +102,7 @@ export async function buildFirstDegreeCluster(
       (f) => f.id === "h2-change-detected" && (f.params?.confidence === "medium" || f.params?.confidence === "high"),
     );
     const changeDetected = !!changeFinding;
-    const spendableOutputs = tx.vout.filter(
-      (v) => v.scriptpubkey_type !== "op_return" && v.scriptpubkey_address,
-    );
+    const spendableOutputs = getSpendableOutputs(tx.vout).filter((v) => v.scriptpubkey_address);
     if (changeDetected && spendableOutputs.length === 2) {
       // If one output goes back to the target address (self-reuse / address reuse),
       // the OTHER output is the payment recipient, not change. Skip this tx.
@@ -116,16 +114,14 @@ export async function buildFirstDegreeCluster(
         // Change goes back to the sender's wallet, so it should match the input
         // address type. Pick the output matching the target's address type prefix.
         const targetPrefix = getAddressType(targetAddress);
-        const candidates = spendableOutputs.filter((vout) => {
-          const addr = vout.scriptpubkey_address;
-          if (!addr) return false;
-          return getAddressType(addr) === targetPrefix;
-        });
+        const candidates = spendableOutputs
+          .map((vout) => vout.scriptpubkey_address)
+          .filter((addr): addr is string => !!addr && getAddressType(addr) === targetPrefix);
         // Only follow when exactly one output matches sender type.
         // If both outputs match (sender and receiver use same wallet type),
         // we can't reliably distinguish change from payment.
-        if (candidates.length === 1) {
-          const outAddr = candidates[0].scriptpubkey_address!;
+        const [outAddr] = candidates;
+        if (candidates.length === 1 && outAddr !== undefined) {
           if (!changeAddresses.includes(outAddr)) {
             changeAddresses.push(outAddr);
           }
@@ -136,11 +132,10 @@ export async function buildFirstDegreeCluster(
 
   // Phase 2: Follow change outputs one hop
   const changeToFollow = changeAddresses.slice(0, 10); // Cap change follows
-  for (let i = 0; i < changeToFollow.length; i++) {
+  for (const [i, changeAddr] of changeToFollow.entries()) {
     if (signal?.aborted) break;
     onProgress?.({ phase: "change-follow", current: i + 1, total: changeToFollow.length });
 
-    const changeAddr = changeToFollow[i];
     // Add edge from target to change address (change output link)
     const chKey = [targetAddress, changeAddr].sort().join("-");
     if (!edgeSet.has(chKey)) {
@@ -151,10 +146,7 @@ export async function buildFirstDegreeCluster(
 
     try {
       const changeTxs = await throttle(() => api.getAddressTxs(changeAddr), signal);
-      const changeCap = Math.min(changeTxs.length, 20);
-
-      for (let j = 0; j < changeCap; j++) {
-        const ctx = changeTxs[j];
+      for (const ctx of changeTxs.slice(0, 20)) {
         txsAnalyzed++;
 
         // Skip CoinJoins

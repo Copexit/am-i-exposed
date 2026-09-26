@@ -11,11 +11,22 @@ import {
   bold,
   header,
 } from "./colors";
-
-const VERSION = "0.34.3";
+import { VERSION } from "./json";
 
 function line(label: string, value: string): string {
   return `${dim(label.padEnd(13))}${value}`;
+}
+
+/** Score/grade line, findings and optional recommendation shared by tx and address output. */
+function scoreTail(result: ScoringResult, rec?: PrimaryRec | null): string[] {
+  const out = [
+    "",
+    `Score: ${formatScore(result.score, result.grade)}   Grade: ${formatGrade(result.grade)}`,
+    "",
+    formatFindings(result.findings),
+  ];
+  if (rec) out.push("", formatRecommendation(rec));
+  return out;
 }
 
 // ---- Transaction ----
@@ -48,18 +59,7 @@ export function formatTxResult(
     ),
   );
   lines.push(line("Fee:", formatSats(tx.fee)));
-  lines.push("");
-  lines.push(
-    `Score: ${formatScore(result.score, result.grade)}   Grade: ${formatGrade(result.grade)}`,
-  );
-  lines.push("");
-  lines.push(formatFindings(result.findings));
-
-  if (rec) {
-    lines.push("");
-    lines.push(formatRecommendation(rec));
-  }
-
+  lines.push(...scoreTail(result, rec));
   return lines.join("\n");
 }
 
@@ -76,18 +76,7 @@ export function formatAddressResult(
   lines.push("");
   lines.push(line("Address:", address));
   lines.push(line("Network:", network));
-  lines.push("");
-  lines.push(
-    `Score: ${formatScore(result.score, result.grade)}   Grade: ${formatGrade(result.grade)}`,
-  );
-  lines.push("");
-  lines.push(formatFindings(result.findings));
-
-  if (rec) {
-    lines.push("");
-    lines.push(formatRecommendation(rec));
-  }
-
+  lines.push(...scoreTail(result, rec));
   return lines.join("\n");
 }
 

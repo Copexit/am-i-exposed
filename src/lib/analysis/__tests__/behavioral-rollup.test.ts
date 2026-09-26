@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { applyCrossHeuristicRulesForTest as applyCrossHeuristicRules } from "../orchestrator";
+import { applyCrossHeuristicRules } from "../cross-heuristic";
 import type { Finding } from "@/lib/types";
+import type { FindingId } from "@/lib/analysis/finding-metadata";
 
-function makeFinding(id: string, scoreImpact: number = -2): Finding {
+function makeFinding(id: FindingId, scoreImpact: number = -2): Finding {
   return {
     id,
     severity: "low",

@@ -49,6 +49,7 @@ export function useNodeDragging({
     if (!onNodePositionChange || !viewTransform || annotateMode) return;
     if (e.touches.length !== 1) return; // single finger only
     const touch = e.touches[0];
+    if (!touch) return;
     nodeDragRef.current = {
       txid: node.txid,
       startMouseX: touch.clientX,
@@ -96,6 +97,7 @@ export function useNodeDragging({
       const drag = nodeDragRef.current;
       if (!drag || e.touches.length !== 1) return;
       const touch = e.touches[0];
+      if (!touch) return;
       const dx = touch.clientX - drag.startMouseX;
       const dy = touch.clientY - drag.startMouseY;
       if (!drag.isDragging && Math.sqrt(dx * dx + dy * dy) < 8) return;

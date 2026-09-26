@@ -10,11 +10,11 @@ function extractFromUrl(input: string): string | null {
     const path = url.pathname;
 
     // Match /tx/{txid} or /address/{address}
-    const txMatch = path.match(/\/tx\/([a-fA-F0-9]{64})/);
-    if (txMatch) return txMatch[1];
+    const txid = path.match(/\/tx\/([a-fA-F0-9]{64})/)?.[1];
+    if (txid) return txid;
 
-    const addrMatch = path.match(/\/address\/([a-zA-Z0-9]{25,90})/);
-    if (addrMatch) return addrMatch[1];
+    const address = path.match(/\/address\/([a-zA-Z0-9]{25,90})/)?.[1];
+    if (address) return address;
   } catch {
     // Not a URL
   }

@@ -17,19 +17,19 @@ interface State {
  * Prevents a chart crash from taking down the entire results panel.
  */
 export class ChartErrorBoundary extends Component<Props, State> {
-  state: State = { hasError: false };
+  override state: State = { hasError: false };
 
   static getDerivedStateFromError(): State {
     return { hasError: true };
   }
 
-  componentDidCatch(error: Error) {
+  override componentDidCatch(error: Error) {
     if (process.env.NODE_ENV !== "production") {
       console.error("[ChartErrorBoundary]", error);
     }
   }
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       return this.props.fallback ?? (
         <div className="w-full text-center py-4 text-xs text-muted">

@@ -60,7 +60,7 @@ function binarySearchHashes(hashes: Uint32Array, target: number): boolean {
   let hi = hashes.length - 1;
   while (lo <= hi) {
     const mid = (lo + hi) >>> 1;
-    const midVal = hashes[mid];
+    const midVal = hashes[mid]!; // lo <= mid <= hi < hashes.length
     if (midVal === target) return true;
     if (midVal < target) lo = mid + 1;
     else hi = mid - 1;
@@ -101,14 +101,16 @@ export function parseEntityIndex(buffer: ArrayBuffer): EntityIndex | null {
   const decoder = new TextDecoder();
   let offset = 20;
   for (let i = 0; i < nameCount; i++) {
-    if (offset >= buffer.byteLength) return null;
     const len = bytes[offset];
+    if (len === undefined) return null;
     offset++;
-    names.push(decoder.decode(bytes.slice(offset, offset + len)));
+    if (offset + len > bytes.length) return null; // truncated name
+    names.push(decoder.decode(bytes.subarray(offset, offset + len)));
     offset += len;
     if (version >= 2) {
       // v2: category byte follows the name
-      const catByte = bytes[offset] ?? 0;
+      const catByte = bytes[offset];
+      if (catByte === undefined) return null; // truncated category byte
       categories.push(CATEGORY_FROM_BYTE[catByte] ?? "exchange");
       offset++;
     } else {
@@ -116,11 +118,20 @@ export function parseEntityIndex(buffer: ArrayBuffer): EntityIndex | null {
     }
   }
 
+  // Reject a record section shorter than the header claims (truncated
+  // download or corrupt entryCount) before allocating anything.
+  if (entryCount > (buffer.byteLength - offset) / 6) return null;
+
   // Parse sorted index entries into typed arrays for fast binary search
   const hashes = new Uint32Array(entryCount);
   const entityIds = new Uint16Array(entryCount);
+  let prev = 0;
   for (let i = 0; i < entryCount; i++) {
-    hashes[i] = view.getUint32(offset, true);
+    const hash = view.getUint32(offset, true);
+    // Binary search requires ascending order; unsorted data would silently miss.
+    if (hash < prev) return null;
+    prev = hash;
+    hashes[i] = hash;
     entityIds[i] = view.getUint16(offset + 4, true);
     offset += 6;
   }
@@ -152,8 +163,8 @@ function searchEntityIndex(address: string): number {
   let hi = hashes.length - 1;
   while (lo <= hi) {
     const mid = (lo + hi) >>> 1;
-    const midHash = hashes[mid];
-    if (midHash === hash) return entityIds[mid];
+    const midHash = hashes[mid]!; // lo <= mid <= hi < hashes.length
+    if (midHash === hash) return entityIds[mid] ?? -1;
     if (midHash < hash) lo = mid + 1;
     else hi = mid - 1;
   }
@@ -168,7 +179,7 @@ function searchEntityIndex(address: string): number {
 export function lookupEntityName(address: string): string | null {
   const eid = searchEntityIndex(address);
   if (eid < 0 || !entityIndexInstance) return null;
-  return eid < entityIndexInstance.names.length ? entityIndexInstance.names[eid] : null;
+  return entityIndexInstance.names[eid] ?? null;
 }
 
 /**
@@ -178,7 +189,7 @@ export function lookupEntityName(address: string): string | null {
 export function lookupEntityCategory(address: string): string | null {
   const eid = searchEntityIndex(address);
   if (eid < 0 || !entityIndexInstance) return null;
-  return eid < entityIndexInstance.categories.length ? entityIndexInstance.categories[eid] : null;
+  return entityIndexInstance.categories[eid] ?? null;
 }
 
 // ───────────────── Index-backed filter ─────────────────

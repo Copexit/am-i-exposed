@@ -140,11 +140,11 @@ describe("computeDeterministicChains", () => {
 
     const chains = computeDeterministicChains(nodes, cache);
     expect(chains.length).toBe(1);
-    expect(chains[0].length).toBe(2);
-    expect(chains[0].hops[0].fromTxid).toBe("a".repeat(64));
-    expect(chains[0].hops[0].toTxid).toBe("b".repeat(64));
-    expect(chains[0].hops[1].fromTxid).toBe("b".repeat(64));
-    expect(chains[0].hops[1].toTxid).toBe("c".repeat(64));
+    expect(chains[0]!.length).toBe(2);
+    expect(chains[0]!.hops[0]!.fromTxid).toBe("a".repeat(64));
+    expect(chains[0]!.hops[0]!.toTxid).toBe("b".repeat(64));
+    expect(chains[0]!.hops[1]!.fromTxid).toBe("b".repeat(64));
+    expect(chains[0]!.hops[1]!.toTxid).toBe("c".repeat(64));
   });
 });
 
@@ -191,10 +191,10 @@ describe("detectToxicMerges", () => {
 
     const merges = detectToxicMerges(nodes);
     expect(merges.length).toBe(1);
-    expect(merges[0].mergeTxid).toBe("merge".padEnd(64, "0"));
-    expect(merges[0].coinjoinTxid).toBe("cj".padEnd(64, "0"));
-    expect(merges[0].mixedOutputIndex).toBe(0);
-    expect(merges[0].changeOutputIndex).toBe(5);
+    expect(merges[0]!.mergeTxid).toBe("merge".padEnd(64, "0"));
+    expect(merges[0]!.coinjoinTxid).toBe("cj".padEnd(64, "0"));
+    expect(merges[0]!.mixedOutputIndex).toBe(0);
+    expect(merges[0]!.changeOutputIndex).toBe(5);
   });
 
   it("does not flag when mixed outputs are spent separately", () => {

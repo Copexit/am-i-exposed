@@ -5,7 +5,7 @@ import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import type { MempoolTransaction, MempoolVin } from "@/lib/api/types";
 import { parseMultisigFromInput } from "@/lib/bitcoin/multisig";
-import { getSpendableOutputs, isCoinbase, isOpReturn } from "./tx-utils";
+import { getSpendableOutputs, isCoinbase, isOpReturnOutput } from "./tx-utils";
 import { buildHodlHodlPatternFinding } from "./multisig-findings";
 
 // One-party-pays fee mode (~0.5%): low-band cluster
@@ -23,9 +23,10 @@ function vinPassesInvariants(vin: MempoolVin): boolean {
   if (vin.sequence !== 0xffffffff) return false;
   const w = vin.witness;
   if (!w || w.length !== 4) return false;
-  if (w[0] !== "") return false;
-  if (!w[1].endsWith("01")) return false;
-  if (!w[2].endsWith("01")) return false;
+  const [w0, w1, w2] = w;
+  if (w0 !== "") return false;
+  if (!w1?.endsWith("01")) return false;
+  if (!w2?.endsWith("01")) return false;
   return true;
 }
 
@@ -39,18 +40,16 @@ export const analyzeHodlHodlDetection: TxHeuristic = (tx: MempoolTransaction) =>
 
   if (tx.version !== 1) return { findings };
   if (tx.locktime !== 0) return { findings };
-  if (tx.vin.length !== 1) return { findings };
+  const [vin] = tx.vin;
+  if (tx.vin.length !== 1 || !vin) return { findings };
 
-  const vin = tx.vin[0];
   const info = parseMultisigFromInput(vin);
   if (!info) return { findings };
   if (info.m !== 2 || info.n !== 3) return { findings };
   if (info.scriptType !== "p2sh-p2wsh") return { findings };
   if (!vinPassesInvariants(vin)) return { findings };
 
-  for (const o of tx.vout) {
-    if (isOpReturn(o.scriptpubkey)) return { findings };
-  }
+  if (tx.vout.some(isOpReturnOutput)) return { findings };
 
   const spendable = getSpendableOutputs(tx.vout);
   if (spendable.length < 2 || spendable.length > 5) return { findings };
@@ -65,9 +64,10 @@ export const analyzeHodlHodlDetection: TxHeuristic = (tx: MempoolTransaction) =>
   if (inputValue > MAX_INPUT_SATS) return { findings };
 
   const sortedAsc = [...spendable].sort((a, b) => a.value - b.value);
-  const feeOutput = sortedAsc[0];
+  const [feeOutput] = sortedAsc;
+  if (!feeOutput) return { findings };
   const platformTake = spendable.length === 2
-    ? sortedAsc[0].value
+    ? feeOutput.value
     : sortedAsc.slice(0, sortedAsc.length - 1).reduce((s, o) => s + o.value, 0);
   const ratio = platformTake / inputValue;
 

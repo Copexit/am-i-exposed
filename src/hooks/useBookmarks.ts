@@ -15,15 +15,6 @@ export interface Bookmark {
   savedAt: number;
 }
 
-const store = createLocalStorageStore<Bookmark[]>(
-  "bookmarks",
-  [],
-  (raw) => {
-    const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  },
-);
-
 function isValidBookmark(b: unknown): b is Bookmark {
   return (
     typeof b === "object" && b !== null &&
@@ -35,7 +26,17 @@ function isValidBookmark(b: unknown): b is Bookmark {
   );
 }
 
-function mergeBookmarks(items: unknown[]): number {
+const store = createLocalStorageStore<Bookmark[]>(
+  "bookmarks",
+  [],
+  (raw) => {
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter(isValidBookmark) : [];
+  },
+);
+
+/** Merge entries into storage. Returns the count merged, or null when the write failed. */
+function mergeBookmarks(items: unknown[]): number | null {
   const valid = items.filter(isValidBookmark);
   if (valid.length === 0) return 0;
   const existing = store.getSnapshot();
@@ -49,11 +50,11 @@ function mergeBookmarks(items: unknown[]): number {
     }
   }
   const merged = Array.from(byInput.values()).sort((a, b) => b.savedAt - a.savedAt);
-  try { store.set(merged); } catch { return 0; }
-  return count;
+  return store.set(merged) ? count : null;
 }
 
-function mergeGraphs(items: unknown[]): number {
+/** Merge entries into storage. Returns the count merged, or null when the write failed. */
+function mergeGraphs(items: unknown[]): number | null {
   const valid = items.filter(validateSavedGraph) as SavedGraph[];
   if (valid.length === 0) return 0;
   const existing = savedGraphStore.getSnapshot();
@@ -67,8 +68,7 @@ function mergeGraphs(items: unknown[]): number {
     }
   }
   const merged = Array.from(byId.values()).sort((a, b) => b.savedAt - a.savedAt);
-  try { savedGraphStore.set(merged); } catch { return 0; }
-  return count;
+  return savedGraphStore.set(merged) ? count : null;
 }
 
 export function useBookmarks() {
@@ -139,9 +139,12 @@ export function useBookmarks() {
 
       let importedCount = 0;
 
+      const storageFull = { imported: 0, error: "storage_full" };
+
       // Format 1: Legacy bookmark array
       if (Array.isArray(parsed)) {
         const count = mergeBookmarks(parsed);
+        if (count === null) return storageFull;
         if (count === 0) return { imported: 0, error: "no_valid_entries" };
         return { imported: count };
       }
@@ -153,10 +156,14 @@ export function useBookmarks() {
 
       // Format 2: Workspace { version, bookmarks, graphs }
       if (Array.isArray(obj.bookmarks)) {
-        importedCount += mergeBookmarks(obj.bookmarks);
+        const count = mergeBookmarks(obj.bookmarks);
+        if (count === null) return storageFull;
+        importedCount += count;
       }
       if (Array.isArray(obj.graphs)) {
-        importedCount += mergeGraphs(obj.graphs);
+        const count = mergeGraphs(obj.graphs);
+        if (count === null) return storageFull;
+        importedCount += count;
       }
 
       // Format 3: Legacy graph export { version, graphs } (no bookmarks field)

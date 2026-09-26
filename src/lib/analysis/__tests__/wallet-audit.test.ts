@@ -146,4 +146,17 @@ describe("auditWallet", () => {
     expect(result.score).toBeLessThanOrEqual(100);
     expect(["A+", "B", "C", "D", "F"]).toContain(result.grade);
   });
+
+  it("tags findings with adversary tiers and temporality", () => {
+    const result = auditWallet([makeAddr("bc1qaddr0", 0, 3), makeAddr("bc1qaddr1", 1, 1)]);
+    const reuse = result.findings.find(f => f.id === "wallet-address-reuse");
+    expect(reuse?.adversaryTiers).toEqual(["passive_observer", "kyc_exchange", "state_adversary"]);
+    expect(reuse?.temporality).toBe("ongoing_pattern");
+  });
+
+  it("marks a partial scan with wallet-scan-partial (web, CLI and MCP share this)", () => {
+    const partial = auditWallet([], ["a1", "a2"]).findings.find(f => f.id === "wallet-scan-partial");
+    expect(partial).toMatchObject({ severity: "low", scoreImpact: 0, params: { count: 2 } });
+    expect(auditWallet([]).findings.some(f => f.id === "wallet-scan-partial")).toBe(false);
+  });
 });

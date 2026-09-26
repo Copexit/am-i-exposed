@@ -8,6 +8,7 @@
 
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { TraceLayer } from "./recursive-trace";
+import { isOpReturnOutput } from "../heuristics/tx-utils";
 
 /**
  * Build a map of (input index -> parent transaction) from depth-1 backward
@@ -20,11 +21,11 @@ export function buildParentTxsByIdx(
 ): Map<number, MempoolTransaction> {
   const parentTxsByIdx = new Map<number, MempoolTransaction>();
 
-  if (backwardLayers.length > 0) {
-    const depth1 = backwardLayers[0];
-    for (let i = 0; i < tx.vin.length; i++) {
-      if (tx.vin[i].is_coinbase) continue;
-      const ptx = depth1.txs.get(tx.vin[i].txid);
+  const [depth1] = backwardLayers;
+  if (depth1) {
+    for (const [i, vin] of tx.vin.entries()) {
+      if (vin.is_coinbase) continue;
+      const ptx = depth1.txs.get(vin.txid);
       if (ptx) parentTxsByIdx.set(i, ptx);
     }
   }
@@ -48,10 +49,9 @@ export function buildChildTxsByIdx(
 ): Map<number, MempoolTransaction> {
   const childTxsByIdx = new Map<number, MempoolTransaction>();
 
-  if (forwardLayers.length > 0 && outspends) {
-    const depth1 = forwardLayers[0];
-    for (let i = 0; i < outspends.length; i++) {
-      const os = outspends[i];
+  const [depth1] = forwardLayers;
+  if (depth1 && outspends) {
+    for (const [i, os] of outspends.entries()) {
       if (os?.spent && os.txid) {
         const ctxn = depth1.txs.get(os.txid);
         if (ctxn) childTxsByIdx.set(i, ctxn);
@@ -82,22 +82,21 @@ export function buildTxsByAddress(
 ): Map<string, MempoolTransaction[]> {
   const txsByAddress = new Map<string, MempoolTransaction[]>();
 
+  const add = (addr: string, atx: MempoolTransaction) => {
+    const arr = txsByAddress.get(addr) ?? [];
+    // An address can repeat within a tx, and a tx can appear in several layers
+    if (!arr.some((t) => t.txid === atx.txid)) arr.push(atx);
+    txsByAddress.set(addr, arr);
+  };
+
   const addTxToMap = (atx: MempoolTransaction) => {
     for (const vin of atx.vin) {
       const addr = vin.prevout?.scriptpubkey_address;
-      if (addr) {
-        const arr = txsByAddress.get(addr) ?? [];
-        arr.push(atx);
-        txsByAddress.set(addr, arr);
-      }
+      if (addr) add(addr, atx);
     }
     for (const vout of atx.vout) {
       const addr = vout.scriptpubkey_address;
-      if (addr && vout.scriptpubkey_type !== "op_return") {
-        const arr = txsByAddress.get(addr) ?? [];
-        arr.push(atx);
-        txsByAddress.set(addr, arr);
-      }
+      if (addr && !isOpReturnOutput(vout)) add(addr, atx);
     }
   };
 

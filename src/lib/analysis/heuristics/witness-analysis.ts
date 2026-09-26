@@ -99,7 +99,8 @@ export const analyzeWitnessData: TxHeuristic = (tx) => {
     const witnessSizes = witnessInputs.map((v) =>
       v.witness!.reduce((sum, item) => sum + item.length, 0),
     );
-    const allSameSize = witnessSizes.every((s) => s === witnessSizes[0]);
+    const [firstSize, ...otherSizes] = witnessSizes;
+    const allSameSize = firstSize !== undefined && otherSizes.every((s) => s === firstSize);
 
     // Standard P2WPKH has uniform witness (sig + pubkey are ~same length).
     // Only flag padding if it's NOT the standard pattern (depth 2 with
@@ -119,7 +120,7 @@ export const analyzeWitnessData: TxHeuristic = (tx) => {
         recommendation:
           "This is a positive privacy practice. Continue using this wallet's witness handling.",
         scoreImpact: 1,
-        params: { size: witnessSizes[0] },
+        params: { size: firstSize },
       });
     }
   }

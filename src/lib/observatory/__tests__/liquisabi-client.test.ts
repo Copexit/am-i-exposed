@@ -36,7 +36,7 @@ describe("getLiquiSabiDashboard", () => {
     );
     const result = await getLiquiSabiDashboard(URL);
     expect(result.Coordinators).toHaveLength(3);
-    expect(result.Coordinators[0].Coordinator.Name).toBe("Kruw.io");
+    expect(result.Coordinators[0]?.Coordinator.Name).toBe("Kruw.io");
 
     const [, init] = mockFetch.mock.calls[0]!;
     expect(init?.method).toBe("POST");

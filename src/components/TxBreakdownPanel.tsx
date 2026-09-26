@@ -36,6 +36,15 @@ export function TxBreakdownPanel({
   const [copiedTxid, setCopiedTxid] = useState<string | null>(null);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(copyTimerRef.current), []);
+  const copyTxid = (txid: string) => {
+    // copyToClipboard never rejects; it resolves false when copying failed
+    void copyToClipboard(txid).then((ok) => {
+      if (!ok) return;
+      setCopiedTxid(txid);
+      clearTimeout(copyTimerRef.current);
+      copyTimerRef.current = setTimeout(() => setCopiedTxid(null), 2000);
+    });
+  };
 
   const sorted = useMemo(() => [...breakdown].sort((a, b) => {
     if (sortBy === "grade") return a.score - b.score; // worst first
@@ -58,6 +67,9 @@ export function TxBreakdownPanel({
           </h2>
           <p className="text-xs text-muted">
             {t("breakdown.scoreNote", { defaultValue: "Transaction grades reflect individual transaction privacy. The address grade reflects overall address hygiene." })}
+          </p>
+          <p className="text-xs text-muted">
+            {t("breakdown.quickScoreNote", { defaultValue: "These are quick scores from on-chain heuristics only, without chain analysis. Use a full scan of a transaction for its complete grade." })}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -138,18 +150,12 @@ export function TxBreakdownPanel({
                     tabIndex={0}
                     onClick={(e) => {
                       e.stopPropagation();
-                      copyToClipboard(item.txid);
-                      setCopiedTxid(item.txid);
-                      clearTimeout(copyTimerRef.current);
-                      copyTimerRef.current = setTimeout(() => setCopiedTxid(null), 2000);
+                      copyTxid(item.txid);
                     }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.stopPropagation();
-                        copyToClipboard(item.txid);
-                        setCopiedTxid(item.txid);
-                        clearTimeout(copyTimerRef.current);
-                        copyTimerRef.current = setTimeout(() => setCopiedTxid(null), 2000);
+                        copyTxid(item.txid);
                       }
                     }}
                     aria-label={t("breakdown.copyTxid", { defaultValue: "Copy transaction ID" })}

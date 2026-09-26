@@ -3,12 +3,14 @@
 import { useState, useMemo, lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
-import { ArrowLeft, Wallet, ShieldCheck, ShieldAlert, ShieldX, AlertCircle, List, Hash, Network } from "lucide-react";
+import { Wallet, ShieldCheck, ShieldAlert, ShieldX, AlertCircle, List, Hash, Network } from "lucide-react";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { FindingCard } from "@/components/FindingCard";
 import { FindingsTier } from "@/components/FindingsTier";
 import { CoinSelector } from "./CoinSelector";
-import { ACTION_BTN_CLASS, P2PKH_DUST_LIMIT } from "@/lib/constants";
+import { NewScanButton } from "@/components/results/NewScanButton";
+import { resultEnterMotion } from "@/components/results/animations";
+import { P2PKH_DUST_LIMIT } from "@/lib/constants";
 import type { WalletAuditResult, WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import type { DescriptorParseResult } from "@/lib/bitcoin/descriptor";
 import type { UtxoTraceResult } from "@/hooks/useWalletAnalysis";
@@ -92,18 +94,11 @@ export function WalletAuditResults({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+      {...resultEnterMotion}
       className="flex flex-col items-center gap-6 w-full max-w-3xl"
     >
       {/* Back button */}
-      <div className="w-full flex items-center">
-        <button onClick={onBack} className={ACTION_BTN_CLASS}>
-          <ArrowLeft size={16} />
-          {t("results.newScan", { defaultValue: "New scan" })}
-        </button>
-      </div>
+      <NewScanButton onBack={onBack} />
 
       {/* Score card */}
       <GlowCard className="w-full p-7 space-y-6">
@@ -239,7 +234,7 @@ export function WalletAuditResults({
               defaultValue: "Transaction Graph",
             })}
           </div>
-          <Suspense fallback={<div className="text-sm text-muted text-center py-4">Loading...</div>}>
+          <Suspense fallback={<div className="text-sm text-muted text-center py-4">{t("common.loading", { defaultValue: "Loading..." })}</div>}>
             <WalletGraphExplorerPanel
               addressInfos={addressInfos}
               utxoTraces={utxoTraces}
@@ -260,7 +255,7 @@ export function WalletAuditResults({
             {t("wallet.addressDetails", { count: activeCount, defaultValue: "Address Details ({{count}})" })}
           </button>
           {showAddresses && (
-            <Suspense fallback={<div className="text-sm text-muted text-center py-4">Loading...</div>}>
+            <Suspense fallback={<div className="text-sm text-muted text-center py-4">{t("common.loading", { defaultValue: "Loading..." })}</div>}>
               <WalletAddressTable addressInfos={addressInfos} onScan={onScan} />
             </Suspense>
           )}
@@ -278,7 +273,7 @@ export function WalletAuditResults({
             {t("wallet.txHistory", { count: totalTxs, defaultValue: "Transaction History ({{count}})" })}
           </button>
           {showTxs && (
-            <Suspense fallback={<div className="text-sm text-muted text-center py-4">Loading...</div>}>
+            <Suspense fallback={<div className="text-sm text-muted text-center py-4">{t("common.loading", { defaultValue: "Loading..." })}</div>}>
               <WalletTxList addressInfos={addressInfos} onScan={onScan} />
             </Suspense>
           )}

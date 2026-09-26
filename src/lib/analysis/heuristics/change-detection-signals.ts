@@ -33,9 +33,11 @@ export function checkAddressTypeMismatch(
 
   if (inputTypes.size !== 1) return; // Mixed inputs, can't determine
 
-  const inputType = [...inputTypes][0];
-  const out0Type = getAddressType(vout[0].scriptpubkey_address!);
-  const out1Type = getAddressType(vout[1].scriptpubkey_address!);
+  const [inputType] = inputTypes;
+  const [out0, out1] = vout;
+  if (!out0 || !out1) return;
+  const out0Type = getAddressType(out0.scriptpubkey_address!);
+  const out1Type = getAddressType(out1.scriptpubkey_address!);
 
   // If one output matches input type and the other doesn't.
   // Weight is 2 because address type mismatch is one of the strongest change
@@ -59,8 +61,10 @@ export function checkRoundAmount(
   changeIndices: Map<number, number>,
   signals: string[],
 ): void {
-  const round0 = isRoundAmount(vout[0].value);
-  const round1 = isRoundAmount(vout[1].value);
+  const [out0, out1] = vout;
+  if (!out0 || !out1) return;
+  const round0 = isRoundAmount(out0.value);
+  const round1 = isRoundAmount(out1.value);
 
   // If exactly one output is round, the other is likely change
   if (round0 && !round1) {
@@ -83,8 +87,10 @@ export function checkValueDisparity(
   changeIndices: Map<number, number>,
   signals: string[],
 ): void {
-  const v0 = vout[0].value;
-  const v1 = vout[1].value;
+  const [out0, out1] = vout;
+  if (!out0 || !out1) return;
+  const v0 = out0.value;
+  const v1 = out1.value;
   const ratio = Math.max(v0, v1) / Math.min(v0, v1);
 
   // 100x+ difference: larger output is likely change (sender's remaining funds)
@@ -99,42 +105,48 @@ export function checkValueDisparity(
   }
 }
 
+/** Shadow change threshold: output below this fraction of the smallest input. */
+const SHADOW_CHANGE_RATIO = 0.1;
+
 /**
- * Sub-heuristic 4: Unnecessary input
+ * Sub-heuristic 4: Unnecessary input (optimal change)
  *
- * If the largest input alone could fund one output (+ fee), extra inputs
- * were unnecessary for that payment, revealing which output is change.
+ * Wallets do not add inputs they do not need. If output X were the change,
+ * the payment plus fee could only have required every input when X is smaller
+ * than the smallest input (otherwise the smallest input was unnecessary).
+ * When exactly one output passes that test, it is the change.
+ *
+ * Outputs below SHADOW_CHANGE_RATIO of the smallest input are left to
+ * checkShadowChange, which is the same rule with a stricter threshold.
+ *
+ * Reference: Bitcoin Wiki "Privacy" (unnecessary input heuristic);
+ * Kalodner et al., BlockSci (2017), "optimal change".
  */
 export function checkUnnecessaryInput(
   vin: MempoolVin[],
   vout: MempoolVout[],
-  fee: number,
   changeIndices: Map<number, number>,
   signals: string[],
 ): void {
   // Need multiple inputs for this heuristic
   if (vin.length < 2) return;
 
-  let largestInput = 0;
+  let smallestInput = Infinity;
   for (const v of vin) {
-    const val = v.prevout?.value ?? 0;
-    if (val > largestInput) largestInput = val;
+    if (!v.prevout) return; // Can't evaluate without full prevout data
+    smallestInput = Math.min(smallestInput, v.prevout.value);
   }
 
-  // Check if each output could have been funded by the largest input alone
-  const out0Fundable = vout[0].value + fee <= largestInput;
-  const out1Fundable = vout[1].value + fee <= largestInput;
+  const [out0, out1] = vout;
+  if (!out0 || !out1) return;
+  const candidate0 = out0.value < smallestInput;
+  const candidate1 = out1.value < smallestInput;
+  if (candidate0 === candidate1) return;
 
-  // If exactly one output is fundable by a single input, it's likely the payment
-  // (the wallet didn't need the extra inputs for that output)
-  if (out0Fundable && !out1Fundable) {
-    // Output 0 could be paid by one input; output 1 needed extras -> output 1 is change
-    changeIndices.set(1, (changeIndices.get(1) ?? 0) + 1);
-    signals.push("unnecessary inputs suggest change");
-  } else if (out1Fundable && !out0Fundable) {
-    changeIndices.set(0, (changeIndices.get(0) ?? 0) + 1);
-    signals.push("unnecessary inputs suggest change");
-  }
+  const idx = candidate0 ? 0 : 1;
+  if ((candidate0 ? out0 : out1).value < smallestInput * SHADOW_CHANGE_RATIO) return; // shadow change covers it
+  changeIndices.set(idx, (changeIndices.get(idx) ?? 0) + 1);
+  signals.push("unnecessary inputs suggest change");
 }
 
 /**
@@ -151,8 +163,10 @@ export function checkRoundFiatAmount(
   signals: string[],
   tolerancePct: number = ROUND_USD_TOLERANCE_DEFAULT,
 ): void {
-  const round0 = getMatchingRoundFiat(vout[0].value, fiatPerBtc, tolerancePct) !== null;
-  const round1 = getMatchingRoundFiat(vout[1].value, fiatPerBtc, tolerancePct) !== null;
+  const [out0, out1] = vout;
+  if (!out0 || !out1) return;
+  const round0 = getMatchingRoundFiat(out0.value, fiatPerBtc, tolerancePct) !== null;
+  const round1 = getMatchingRoundFiat(out1.value, fiatPerBtc, tolerancePct) !== null;
   const label = currency.toUpperCase();
 
   // If exactly one output is a round fiat amount, the other is likely change
@@ -188,8 +202,10 @@ export function checkOptimalChange(
   const totalSpendable = totalInput - fee;
   if (totalSpendable <= 0) return;
 
-  const ratio0 = vout[0].value / totalSpendable;
-  const ratio1 = vout[1].value / totalSpendable;
+  const [out0, out1] = vout;
+  if (!out0 || !out1) return;
+  const ratio0 = out0.value / totalSpendable;
+  const ratio1 = out1.value / totalSpendable;
 
   // One output gets > 95% of input value - likely change.
   // Threshold is 95% (not 90%) because 90-95% is ambiguous: it could be a
@@ -224,11 +240,13 @@ export function checkShadowChange(
   }
   if (smallestInput === Infinity) return;
 
-  const v0 = vout[0].value;
-  const v1 = vout[1].value;
+  const [out0, out1] = vout;
+  if (!out0 || !out1) return;
+  const v0 = out0.value;
+  const v1 = out1.value;
 
   // If one output is < 10% of the smallest input, it's likely shadow change
-  const threshold = smallestInput * 0.1;
+  const threshold = smallestInput * SHADOW_CHANGE_RATIO;
   if (v0 < threshold && v1 >= threshold) {
     changeIndices.set(0, (changeIndices.get(0) ?? 0) + 1);
     signals.push("shadow change: output much smaller than smallest input");
@@ -258,8 +276,10 @@ export function checkFreshAddress(
   changeIndices: Map<number, number>,
   signals: string[],
 ): void {
-  const addr0 = vout[0].scriptpubkey_address!;
-  const addr1 = vout[1].scriptpubkey_address!;
+  const [out0, out1] = vout;
+  if (!out0 || !out1) return;
+  const addr0 = out0.scriptpubkey_address!;
+  const addr1 = out1.scriptpubkey_address!;
   const count0 = outputTxCounts.get(addr0);
   const count1 = outputTxCounts.get(addr1);
 

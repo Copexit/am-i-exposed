@@ -11,19 +11,15 @@ import { analyzeFingerprintEvolution } from "./chain/prospective";
 import { calculateScore, sumImpact } from "@/lib/scoring/score";
 import { matchEntitySync } from "./entity-filter/entity-match";
 import { getEntity } from "./entities";
-import { applyCrossHeuristicRules, classifyTransactionType } from "./cross-heuristic";
 import { enrichFindingsWithMetadata } from "./finding-metadata";
 import { TX_HEURISTICS, ADDRESS_HEURISTICS, tick } from "./heuristic-registry";
+import { runTxHeuristics, finalizeTxResult } from "./tx-pipeline";
+import { runAddressHeuristics } from "./address-orchestrator";
 
-// Re-export from heuristic-registry so existing consumers don't break
-export { TX_HEURISTICS, ADDRESS_HEURISTICS, tick } from "./heuristic-registry";
+export { runTxHeuristics, finalizeTxResult } from "./tx-pipeline";
 
-export { classifyTransactionType } from "./cross-heuristic";
 export { analyzeTransactionsForAddress, analyzeDestination } from "./address-orchestrator";
 export type { PreSendResult } from "./address-orchestrator";
-
-/** Exposed for unit tests only. */
-export const applyCrossHeuristicRulesForTest = applyCrossHeuristicRules;
 
 export interface HeuristicStep {
   id: string;
@@ -65,10 +61,32 @@ export function getAddressHeuristicSteps(t?: HeuristicTranslator): HeuristicStep
 }
 
 /**
- * Run all transaction heuristics and return scored results.
+ * Run the tx heuristics and report each one to the diagnostic loader
+ * (onStep(id) then onStep(id, impact), with a tick in between).
+ * Returns raw (not finalized) findings.
+ */
+export async function runTxHeuristicSteps(
+  tx: MempoolTransaction,
+  rawHex?: string,
+  onStep?: (stepId: string, impact?: number) => void,
+  ctx?: TxContext,
+): Promise<Finding[]> {
+  const steps: [string, number][] = [];
+  const findings = runTxHeuristics(tx, rawHex, ctx, (id, f) => steps.push([id, sumImpact(f)]));
+  if (onStep) {
+    for (const [id, impact] of steps) {
+      onStep(id);
+      await tick();
+      onStep(id, impact);
+    }
+  }
+  return findings;
+}
+
+/**
+ * Run all transaction heuristics and return scored results (no chain data).
  *
- * The onStep callback is called before each heuristic runs, enabling
- * the diagnostic loader UI to show progress.
+ * The onStep callback drives the diagnostic loader UI.
  */
 export async function analyzeTransaction(
   tx: MempoolTransaction,
@@ -76,37 +94,7 @@ export async function analyzeTransaction(
   onStep?: (stepId: string, impact?: number) => void,
   ctx?: TxContext,
 ): Promise<ScoringResult> {
-  const allFindings: Finding[] = [];
-
-  for (const heuristic of TX_HEURISTICS) {
-    onStep?.(heuristic.id);
-
-    // Small delay to let the UI update and create the diagnostic effect
-    await tick();
-
-    try {
-      const result = heuristic.fn(tx, rawHex, ctx);
-      allFindings.push(...result.findings);
-
-      // Report cumulative impact so the UI can show a running score
-      const stepImpact = sumImpact(result.findings);
-      onStep?.(heuristic.id, stepImpact);
-    } catch (err) {
-      // A single heuristic failure should not crash the entire analysis
-      console.error(`[analyzeTransaction] ${heuristic.id} failed:`, err);
-      onStep?.(heuristic.id, 0);
-    }
-  }
-
-  // Cross-heuristic intelligence
-  applyCrossHeuristicRules(allFindings);
-
-  // Enrich with adversary tier and temporality metadata
-  enrichFindingsWithMetadata(allFindings);
-
-  const result = calculateScore(allFindings);
-  result.txType = classifyTransactionType(allFindings);
-  return result;
+  return finalizeTxResult(await runTxHeuristicSteps(tx, rawHex, onStep, ctx));
 }
 
 /**
@@ -118,29 +106,14 @@ export async function analyzeAddress(
   txs: MempoolTransaction[],
   onStep?: (stepId: string, impact?: number) => void,
 ): Promise<ScoringResult> {
-  const allFindings: Finding[] = [];
-
-  for (const heuristic of ADDRESS_HEURISTICS) {
-    onStep?.(heuristic.id);
-    await tick();
-
-    try {
-      const result = heuristic.fn(address, utxos, txs);
-      allFindings.push(...result.findings);
-
-      const stepImpact = sumImpact(result.findings);
-      onStep?.(heuristic.id, stepImpact);
-    } catch (err) {
-      console.error(`[analyzeAddress] ${heuristic.id} failed:`, err);
-      onStep?.(heuristic.id, 0);
-    }
-  }
+  const allFindings = await runAddressHeuristics(address, utxos, txs, onStep, "analyzeAddress");
 
   // Entity identification: check the target address against entity databases
   const entityMatch = matchEntitySync(address.address);
   if (entityMatch) {
     const entityInfo = getEntity(entityMatch.entityName);
     const isOfac = entityMatch.ofac || (entityInfo?.ofac ?? false);
+    const country = entityInfo?.country ?? "Unknown";
     allFindings.unshift({
       id: "address-entity-identified",
       severity: isOfac ? "critical" : "medium",
@@ -151,15 +124,17 @@ export async function analyzeAddress(
       params: {
         entityName: entityMatch.entityName,
         category: entityInfo?.category ?? entityMatch.category,
-        country: entityInfo?.country ?? "Unknown",
+        country,
         status: entityInfo?.status ?? "unknown",
         ofac: isOfac ? 1 : 0,
+        _variant: isOfac ? "ofac" : "known",
+        ...(country !== "Unknown" ? { context: "country" } : {}),
       },
       description: isOfac
         ? `This address is associated with ${entityMatch.entityName}, an OFAC-sanctioned entity. ` +
           "Transacting with sanctioned addresses may have legal consequences depending on jurisdiction."
         : `This address is associated with ${entityMatch.entityName}` +
-          ` (${entityInfo?.category ?? entityMatch.category}${(entityInfo?.country ?? "Unknown") !== "Unknown" ? ", " + entityInfo?.country : ""})` +
+          ` (${entityInfo?.category ?? entityMatch.category}${country !== "Unknown" ? ", " + country : ""})` +
           ". Transactions involving known entities are traceable by chain analysis firms.",
       recommendation: isOfac
         ? "Exercise extreme caution. Consult legal counsel before transacting with this address."

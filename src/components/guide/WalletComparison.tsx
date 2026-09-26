@@ -36,6 +36,9 @@ function TypeBadge({ type }: { type: ("desktop" | "mobile" | "hardware")[] }) {
   );
 }
 
+/** Yes/no feature columns, in table order (after the nSequence column). */
+const BOOL_COLS = ["antiFeeSniping", "coinJoin", "payJoin", "bip47", "silentPayments", "coinControl", "ownNode", "tor"] as const;
+
 export function WalletComparison() {
   const { t } = useTranslation();
 
@@ -88,14 +91,9 @@ export function WalletComparison() {
                   </td>
                   <td className="text-center px-2 py-2"><TypeBadge type={w.type} /></td>
                   <td className="text-center px-2 py-2"><BoolCell value={w.nSequence === "good"} /></td>
-                  <td className="text-center px-2 py-2"><BoolCell value={w.antiFeeSniping} /></td>
-                  <td className="text-center px-2 py-2"><BoolCell value={w.coinJoin} /></td>
-                  <td className="text-center px-2 py-2"><BoolCell value={w.payJoin} /></td>
-                  <td className="text-center px-2 py-2"><BoolCell value={w.bip47} /></td>
-                  <td className="text-center px-2 py-2"><BoolCell value={w.silentPayments} /></td>
-                  <td className="text-center px-2 py-2"><BoolCell value={w.coinControl} /></td>
-                  <td className="text-center px-2 py-2"><BoolCell value={w.ownNode} /></td>
-                  <td className="text-center px-2 py-2"><BoolCell value={w.tor} /></td>
+                  {BOOL_COLS.map((col) => (
+                    <td key={col} className="text-center px-2 py-2"><BoolCell value={w[col]} /></td>
+                  ))}
                   <td className="text-center px-2 py-2">
                     {w.trackers === 0 ? (
                       <span className="text-severity-good text-xs">0</span>

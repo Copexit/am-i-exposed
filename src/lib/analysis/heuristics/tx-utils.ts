@@ -1,28 +1,50 @@
-import type { MempoolTransaction, MempoolVout } from "@/lib/api/types";
+import type { MempoolTransaction, MempoolVin, MempoolVout } from "@/lib/api/types";
 
 /** Check if a transaction is a coinbase (block reward) transaction. */
 export function isCoinbase(tx: MempoolTransaction): boolean {
   return tx.vin.some((v) => v.is_coinbase);
 }
 
+/** Check if a scriptpubkey is an OP_RETURN output (starts with 0x6a opcode). */
+export function isOpReturn(scriptpubkey: string): boolean {
+  return scriptpubkey.startsWith("6a");
+}
+
+/**
+ * Canonical OP_RETURN check for an output. mempool.space labels it via
+ * scriptpubkey_type; PSBT-derived outputs may only carry the raw script.
+ */
+export function isOpReturnOutput(o: { scriptpubkey_type?: string; scriptpubkey?: string }): boolean {
+  return o.scriptpubkey_type === "op_return" || (o.scriptpubkey !== undefined && isOpReturn(o.scriptpubkey));
+}
+
+/** BIP125 opt-in RBF: any non-coinbase input with nSequence below 0xfffffffe. */
+export function isRbfSignaling(vin: MempoolVin[]): boolean {
+  return vin.some((v) => !v.is_coinbase && v.sequence < 0xfffffffe);
+}
+
+/** Distinct addresses the inputs spend from (inputs without a known prevout address are skipped). */
+export function inputAddressSet(vin: { prevout?: { scriptpubkey_address?: string } | null }[]): Set<string> {
+  const addrs = new Set<string>();
+  for (const v of vin) {
+    if (v.prevout?.scriptpubkey_address) addrs.add(v.prevout.scriptpubkey_address);
+  }
+  return addrs;
+}
+
 /** Filter transaction outputs to only spendable ones (excluding OP_RETURN). */
 export function getSpendableOutputs(vout: MempoolVout[]): MempoolVout[] {
-  return vout.filter((o) => o.scriptpubkey_type !== "op_return");
+  return vout.filter((o) => !isOpReturnOutput(o));
 }
 
 /** Spendable outputs with positive value (excludes OP_RETURN and zero-value). */
-export function getValuedOutputs(vout: MempoolVout[]): MempoolVout[] {
-  return vout.filter((o) => o.scriptpubkey_type !== "op_return" && o.value > 0);
+export function getValuedOutputs<T extends { scriptpubkey_type?: string; scriptpubkey?: string; value: number }>(vout: T[]): T[] {
+  return vout.filter((o) => !isOpReturnOutput(o) && o.value > 0);
 }
 
 /** Spendable outputs with positive value and an address. */
 export function getAddressedOutputs(vout: MempoolVout[]): MempoolVout[] {
-  return vout.filter((o) => o.scriptpubkey_type !== "op_return" && o.scriptpubkey_address && o.value > 0);
-}
-
-/** Check if a scriptpubkey is an OP_RETURN output (starts with 0x6a opcode). */
-export function isOpReturn(scriptpubkey: string): boolean {
-  return scriptpubkey.startsWith("6a");
+  return vout.filter((o) => !isOpReturnOutput(o) && o.scriptpubkey_address && o.value > 0);
 }
 
 /** Count occurrences of each output value in the given outputs. */

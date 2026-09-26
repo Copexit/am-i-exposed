@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronDown, Copy, Check, Search } from "lucide-react";
 import { P2PKH_DUST_LIMIT, TOXIC_CHANGE_THRESHOLD } from "@/lib/constants";
+import { copyToClipboard } from "@/lib/clipboard";
 import type { WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 
 interface WalletAddressTableProps {
@@ -21,7 +22,7 @@ interface ScoredAddress {
   fundedCount: number;
 }
 
-const STATUS_CLASS: Record<string, string> = {
+const STATUS_CLASS: Record<ScoredAddress["status"], string> = {
   reused: "bg-severity-critical/15 text-severity-critical",
   dust: "bg-severity-medium/15 text-severity-medium",
   toxic: "bg-severity-high/15 text-severity-high",
@@ -29,7 +30,7 @@ const STATUS_CLASS: Record<string, string> = {
   unused: "bg-surface-elevated text-muted",
 };
 
-const STATUS_KEY: Record<string, { key: string; defaultValue: string }> = {
+const STATUS_KEY: Record<ScoredAddress["status"], { key: string; defaultValue: string }> = {
   reused: { key: "wallet.status_reused", defaultValue: "Reused" },
   dust: { key: "wallet.status_dust", defaultValue: "Dust" },
   toxic: { key: "wallet.status_toxic", defaultValue: "Toxic change" },
@@ -83,12 +84,9 @@ export function WalletAddressTable({ addressInfos, onScan }: WalletAddressTableP
   }, [addressInfos]);
 
   const handleCopy = useCallback(async (addr: string) => {
-    try {
-      await navigator.clipboard.writeText(addr);
+    if (await copyToClipboard(addr)) {
       setCopiedAddr(addr);
       setTimeout(() => setCopiedAddr(null), 1500);
-    } catch {
-      // clipboard not available
     }
   }, []);
 
@@ -168,7 +166,7 @@ export function WalletAddressTable({ addressInfos, onScan }: WalletAddressTableP
                       <button
                         onClick={() => handleCopy(addr)}
                         className="text-muted hover:text-foreground transition-colors p-1 cursor-pointer flex-shrink-0"
-                        aria-label="Copy address"
+                        aria-label={t("wallet.copyAddress", { defaultValue: "Copy address" })}
                       >
                         {copiedAddr === addr ? <Check size={14} className="text-severity-good" /> : <Copy size={14} />}
                       </button>

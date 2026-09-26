@@ -1,3 +1,4 @@
+import type { FindingId } from "@/lib/analysis/finding-metadata";
 /** Common mistakes data - shared between CommonMistakes component and /guide page */
 
 interface MistakeEntry {
@@ -6,7 +7,7 @@ interface MistakeEntry {
   descKey: string;
   descDefault: string;
   /** Only show on results page when a specific finding ID is present */
-  triggerFinding?: string;
+  triggerFinding?: FindingId;
 }
 
 export const MISTAKES: MistakeEntry[] = [
@@ -57,7 +58,7 @@ export const MISTAKES: MistakeEntry[] = [
     titleKey: "mistakes.rbfChangeReveal",
     titleDefault: "Fee bump a privacy-sensitive transaction",
     descKey: "mistakes.rbfChangeRevealDesc",
-    descDefault: "RBF definitively reveals the change output - when a transaction is replaced, the output that decreased in value is obviously change. CPFP is better for privacy because either the sender or receiver can bump the fee, so a child transaction spending an output does not prove it is change. If fee bumping is necessary on a privacy-sensitive transaction, prefer CPFP over RBF. Ideally, set an adequate fee upfront to avoid fee bumping entirely.",
+    descDefault: "RBF definitively reveals the change output - when a transaction is replaced, the output that decreased in value is obviously change. CPFP only avoids this when the receiver does it: the receiver's child transaction spends their own output and does not reveal your change, but a CPFP by the sender spends the change output and reveals it just the same. If fee bumping is necessary on a privacy-sensitive transaction, only a CPFP by the receiver keeps the change hidden. Ideally, set an adequate fee upfront to avoid fee bumping entirely.",
     triggerFinding: "h6-rbf-signaled",
   },
   {

@@ -178,6 +178,10 @@ export function graphReducer(state: GraphState, action: GraphAction): GraphState
     case "ADD_NODE": {
       if (state.nodes.size >= state.maxNodes) return state;
       if (state.nodes.has(action.node.txid)) return state;
+      // Reject orphans: the node it attaches to may be gone (collapse/undo/new root)
+      const { parentEdge, childEdge } = action.node;
+      if (parentEdge && !state.nodes.has(parentEdge.fromTxid)) return state;
+      if (childEdge && !state.nodes.has(childEdge.toTxid)) return state;
       const nodes = new Map(state.nodes);
       nodes.set(action.node.txid, action.node);
       return { ...state, nodes, undoStack: pushUndo(state) };
@@ -222,8 +226,8 @@ export function graphReducer(state: GraphState, action: GraphAction): GraphState
     }
 
     case "UNDO": {
-      if (state.undoStack.length === 0) return state;
-      const nodes = state.undoStack[state.undoStack.length - 1];
+      const nodes = state.undoStack.at(-1);
+      if (!nodes) return state;
       return { ...state, nodes, undoStack: state.undoStack.slice(0, -1) };
     }
 

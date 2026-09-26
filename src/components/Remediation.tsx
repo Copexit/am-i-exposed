@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { motion, AnimatePresence } from "motion/react";
 import { Lightbulb, ChevronDown, ExternalLink, AlertCircle, Clock, Wrench } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getSummarySentiment } from "@/lib/scoring/score";
 import { generateActions } from "@/lib/recommendations/generate-actions";
 import type { Finding, Grade, Remediation as RemediationType } from "@/lib/types";
+import { findingKeys } from "@/lib/finding-utils";
+import { Collapse } from "./ui/Collapse";
 
 interface RemediationProps {
   findings: Finding[];
@@ -28,7 +29,7 @@ function StructuredRemediation({ remediation, findingId, findingTitle, findingPa
   return (
     <div className="bg-surface-inset rounded-lg px-4 py-3 border-l-2 border-l-bitcoin/50 space-y-2.5">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-foreground/90">{t(`finding.${findingId}.title`, { ...findingParams, defaultValue: findingTitle })}</p>
+        <p className="text-sm font-medium text-foreground/90">{t(findingKeys(findingId, "title", findingParams), { ...findingParams, defaultValue: findingTitle })}</p>
         <span className={`inline-flex items-center gap-1 text-xs ${urgency.color}`}>
           <UrgencyIcon size={14} />
           {t(urgency.labelKey, { defaultValue: urgency.labelDefault })}
@@ -120,52 +121,42 @@ export function Remediation({ findings, grade }: RemediationProps) {
           aria-hidden="true"
         />
       </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div id="remediation-panel" className="mt-2 space-y-2">
-              {/* Structured remediations first */}
-              {structuredRemediations.map((f) => (
-                <StructuredRemediation
-                  key={f.id}
-                  remediation={f.remediation!}
-                  findingId={f.id}
-                  findingTitle={f.title}
-                  findingParams={f.params}
-                />
-              ))}
+      <Collapse open={open}>
+        <div id="remediation-panel" className="mt-2 space-y-2">
+          {/* Structured remediations first */}
+          {structuredRemediations.map((f) => (
+            <StructuredRemediation
+              key={f.id}
+              remediation={f.remediation!}
+              findingId={f.id}
+              findingTitle={f.title}
+              findingParams={f.params}
+            />
+          ))}
 
-              {/* General actions for all findings */}
-              {actions.map((action, i) => (
-                <div
-                  key={i}
-                  className="bg-surface-inset rounded-lg px-4 py-3 border-l-2 border-l-bitcoin/50"
-                >
-                  <div className="flex items-start gap-2">
-                    <span className="text-bitcoin/80 text-xs font-bold mt-0.5 shrink-0">
-                      {i + 1}.
-                    </span>
-                    <div>
-                      <p className="text-base font-medium text-foreground/90">
-                        {t(action.textKey, { defaultValue: action.textDefault })}
-                      </p>
-                      <p className="text-base text-muted mt-1 leading-relaxed">
-                        {t(action.detailKey, { defaultValue: action.detailDefault })}
-                      </p>
-                    </div>
-                  </div>
+          {/* General actions for all findings */}
+          {actions.map((action, i) => (
+            <div
+              key={i}
+              className="bg-surface-inset rounded-lg px-4 py-3 border-l-2 border-l-bitcoin/50"
+            >
+              <div className="flex items-start gap-2">
+                <span className="text-bitcoin/80 text-xs font-bold mt-0.5 shrink-0">
+                  {i + 1}.
+                </span>
+                <div>
+                  <p className="text-base font-medium text-foreground/90">
+                    {t(action.textKey, { defaultValue: action.textDefault })}
+                  </p>
+                  <p className="text-base text-muted mt-1 leading-relaxed">
+                    {t(action.detailKey, { defaultValue: action.detailDefault })}
+                  </p>
                 </div>
-              ))}
+              </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          ))}
+        </div>
+      </Collapse>
     </div>
   );
 }

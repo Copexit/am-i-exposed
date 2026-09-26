@@ -2,16 +2,17 @@
 
 import { useSyncExternalStore, useCallback } from "react";
 import { createLocalStorageStore } from "./createLocalStorageStore";
-import type { SavedGraph } from "@/lib/graph/saved-graph-types";
+import { validateSavedGraph, type SavedGraph } from "@/lib/graph/saved-graph-types";
 
-const MAX_SAVED_GRAPHS = 50;
+export const MAX_SAVED_GRAPHS = 50;
 
 export const savedGraphStore = createLocalStorageStore<SavedGraph[]>(
   "ami-saved-graphs",
   [],
   (raw) => {
     const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    // Drop entries from older schemas or manual edits so they cannot crash the graph page
+    return Array.isArray(parsed) ? parsed.filter(validateSavedGraph) : [];
   },
 );
 
@@ -29,29 +30,24 @@ export function useSavedGraphs() {
       if (existing.length >= MAX_SAVED_GRAPHS) return "";
       const id = crypto.randomUUID();
       const entry: SavedGraph = { ...graph, id, savedAt: Date.now() };
-      try {
-        savedGraphStore.set([entry, ...existing]);
-      } catch {
-        return "";
-      }
-      return id;
+      return savedGraphStore.set([entry, ...existing]) ? id : "";
     },
     [],
   );
 
-  /** Update an existing saved graph by id. */
+  /** Update an existing saved graph by id. Returns false when the write failed. */
   const updateGraph = useCallback(
     (
       id: string,
       patch: Partial<
         Pick<SavedGraph, "name" | "nodes" | "rootTxid" | "rootTxids" | "viewTransform" | "changeOutputs">
       >,
-    ) => {
+    ): boolean => {
       const existing = savedGraphStore.getSnapshot();
       const updated = existing.map((g) =>
         g.id === id ? { ...g, ...patch, savedAt: Date.now() } : g,
       );
-      savedGraphStore.set(updated);
+      return savedGraphStore.set(updated);
     },
     [],
   );

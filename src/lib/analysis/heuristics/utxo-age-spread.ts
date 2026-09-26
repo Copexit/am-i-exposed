@@ -32,7 +32,7 @@ export function analyzeUtxoAgeSpread(
   }
 
   // Skip coinbase transactions
-  if (tx.vin[0].is_coinbase) return { findings };
+  if (tx.vin[0]?.is_coinbase) return { findings };
 
   // Collect confirmation heights of input funding transactions
   const inputHeights: number[] = [];

@@ -42,7 +42,7 @@ export function detectPostMixConsolidation(
   const count = coinJoinInputIndices.length;
 
   // Severity scales with count but this is a warning, not a harsh penalty.
-  // The real cost is the reduction of the CoinJoin bonus (handled in cross-heuristic.ts).
+  // The real cost is the reduction of the CoinJoin bonus (handled in cross-heuristic/compound-scoring.ts).
   // 2-3 inputs: medium (sometimes necessary), 4-9: high, 10+: critical
   const severity = count >= 10 ? "critical" as const
     : count >= 4 ? "high" as const

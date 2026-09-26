@@ -92,7 +92,7 @@ describe("observatory smoke tests", () => {
 
   it("WhirlpoolPoolCard renders the pool label, unspent capacity, and sparkline", () => {
     const { getByText, container } = render(
-      <WhirlpoolPoolCard pool={summary.pools[0]} charts={charts} />,
+      <WhirlpoolPoolCard pool={summary.pools[0]!} charts={charts} />,
     );
     expect(getByText("0.025 BTC Pool")).toBeTruthy();
     expect(container.querySelector("svg")).toBeTruthy();
@@ -121,7 +121,7 @@ describe("observatory smoke tests", () => {
 
   it("ObservatoryAttribution renders both data-source link-outs at the new whirlpoolstats URL", () => {
     const { container } = render(
-      <ObservatoryAttribution lastUpdatedAt={Date.now()} locale="en" />,
+      <ObservatoryAttribution lastUpdatedAt={1_700_000_000_000} locale="en" />,
     );
     const links = container.querySelectorAll("a[href]");
     const hrefs = Array.from(links).map((a) => a.getAttribute("href"));
@@ -135,7 +135,7 @@ describe("observatory smoke tests", () => {
     const hrefs = Array.from(container.querySelectorAll("a[href]")).map((a) =>
       a.getAttribute("href"),
     );
-    expect(hrefs).toContain(`/#tx=${txs.items[0].txid}`);
+    expect(hrefs).toContain(`/#tx=${txs.items[0]!.txid}`);
     // Never links to the external upstream URL.
     expect(hrefs.some((h) => h?.includes("am-i.exposed"))).toBe(false);
   });
@@ -173,8 +173,8 @@ describe("observatory smoke tests", () => {
           liquisabi={dashboard}
           loading={false}
         />
-        <WhirlpoolPoolCard pool={summary.pools[0]} charts={charts} />
-        <WhirlpoolPoolCard pool={summary.pools[1]} charts={charts} />
+        <WhirlpoolPoolCard pool={summary.pools[0]!} charts={charts} />
+        <WhirlpoolPoolCard pool={summary.pools[1]!} charts={charts} />
       </>,
     );
     expect(container.textContent ?? "").not.toMatch(/observatory\.whirlpool\./);

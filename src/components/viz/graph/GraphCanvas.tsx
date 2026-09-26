@@ -16,6 +16,7 @@ import { useGraphLayout } from "./useGraphLayout";
 import { GraphAnnotations } from "./GraphAnnotations";
 import { GraphNodeRenderer } from "./GraphNodeRenderer";
 import type { GraphCanvasProps, LayoutNode } from "./types";
+import { isOpReturnOutput } from "@/lib/analysis/heuristics/tx-utils";
 
 export function GraphCanvas({
   nodes,
@@ -216,8 +217,8 @@ export function GraphCanvas({
     if (atCapacity) return;
     // Expand backward: first 5 non-coinbase inputs not already in graph
     let expanded = 0;
-    for (let i = 0; i < node.tx.vin.length && expanded < 5; i++) {
-      const vin = node.tx.vin[i];
+    for (const [i, vin] of node.tx.vin.entries()) {
+      if (expanded >= 5) break;
       if (!vin.is_coinbase && !nodes.has(vin.txid)) {
         onExpandInput(node.txid, i);
         expanded++;
@@ -231,9 +232,10 @@ export function GraphCanvas({
         if (vin.txid === node.txid && vin.vout !== undefined) consumedOutputs.add(vin.vout);
       }
     }
-    for (let i = 0; i < node.tx.vout.length && expanded < 5; i++) {
+    for (const [i, out] of node.tx.vout.entries()) {
+      if (expanded >= 5) break;
       if (consumedOutputs.has(i)) continue;
-      if (node.tx.vout[i].scriptpubkey_type === "op_return" || node.tx.vout[i].value === 0) continue;
+      if (isOpReturnOutput(out) || out.value === 0) continue;
       onExpandOutput(node.txid, i);
       expanded++;
     }

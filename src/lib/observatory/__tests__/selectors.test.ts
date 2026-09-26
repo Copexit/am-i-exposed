@@ -6,18 +6,13 @@ import {
   liquiSabiFreshInputSparkline,
   projectCoordinators,
   sumRecentFreshInputs,
-  sumRecentRoundCount,
   toCycleRows,
   unpaidCoordinators,
   whirlpool30dDelta,
-  whirlpoolCurrentCapacity,
   whirlpoolLifetimeCycles,
   whirlpoolLifetimeEntered,
   whirlpoolSparkline,
-  whirlpoolTotalCurrentCapacity,
-  whirlpoolTotalTx0,
   whirlpoolTotalUnspent,
-  whirlpoolTotalUnspentUtxos,
 } from "../selectors";
 import chartsFixture from "./fixtures/whirlpool-charts.json";
 import summaryFixture from "./fixtures/whirlpool-summary.json";
@@ -82,28 +77,11 @@ describe("whirlpoolSparkline", () => {
   it("returns sparkline points for a known pool key from the capacity series", () => {
     const points = whirlpoolSparkline(charts, "0.025_BTC_Pool");
     expect(points.length).toBe(charts.capacity.blocks.length);
-    expect(points[points.length - 1].y).toBe(13.65);
+    expect(points.at(-1)?.y).toBe(13.65);
   });
 
   it("returns [] for an unknown pool key", () => {
     expect(whirlpoolSparkline(charts, "unknown_pool")).toEqual([]);
-  });
-});
-
-describe("whirlpoolCurrentCapacity", () => {
-  it("returns the last sample of a pool series", () => {
-    expect(whirlpoolCurrentCapacity(charts, "0.025_BTC_Pool")).toBe(13.65);
-    expect(whirlpoolCurrentCapacity(charts, "0.25_BTC_Pool")).toBe(62.75);
-  });
-
-  it("returns null for an unknown pool", () => {
-    expect(whirlpoolCurrentCapacity(charts, "0.5_BTC_Pool")).toBeNull();
-  });
-});
-
-describe("whirlpoolTotalCurrentCapacity", () => {
-  it("sums the last sample across all pools", () => {
-    expect(whirlpoolTotalCurrentCapacity(charts)).toBeCloseTo(13.65 + 62.75);
   });
 });
 
@@ -143,24 +121,18 @@ describe("whirlpool summary aggregates", () => {
     expect(whirlpoolTotalUnspent(summary)).toBeCloseTo(13.65 + 62.75);
   });
 
-  it("sums currently-unspent UTXOs across pools", () => {
-    expect(whirlpoolTotalUnspentUtxos(summary)).toBe(546 + 251);
-  });
-
-  it("sums lifetime TX0 count across pools", () => {
-    expect(whirlpoolTotalTx0(summary)).toBe(251 + 36);
-  });
 });
 
 describe("toCycleRows", () => {
   it("maps txs items to rows with same-origin scan links", () => {
     const rows = toCycleRows(txs);
     expect(rows).toHaveLength(3);
-    expect(rows[0].txid).toBe(txs.items[0].txid);
-    expect(rows[0].scanHref).toBe(`/#tx=${txs.items[0].txid}`);
-    expect(rows[0].blockHeight).toBe(957584);
-    expect(rows[0].poolLabel).toBe("0.025 BTC Pool");
-    expect(rows[0].tx0Count).toBe(2);
+    const [row] = rows;
+    expect(row!.txid).toBe(txs.items[0]!.txid);
+    expect(row!.scanHref).toBe(`/#tx=${txs.items[0]!.txid}`);
+    expect(row!.blockHeight).toBe(957584);
+    expect(row!.poolLabel).toBe("0.025 BTC Pool");
+    expect(row!.tx0Count).toBe(2);
   });
 
   it("returns [] for a null page", () => {
@@ -172,9 +144,9 @@ describe("liquiSabiFreshInputSparkline", () => {
   it("treats null Averages entries as zero", () => {
     const points = liquiSabiFreshInputSparkline(dashboard.Graph);
     expect(points).toHaveLength(3);
-    expect(points[1].y).toBe(0);
-    expect(points[0].y).toBeCloseTo(5.5);
-    expect(points[2].y).toBeCloseTo(7.2);
+    expect(points[1]?.y).toBe(0);
+    expect(points[0]?.y).toBeCloseTo(5.5);
+    expect(points[2]?.y).toBeCloseTo(7.2);
   });
 
   it("returns [] for an empty graph", () => {
@@ -194,7 +166,7 @@ describe("projectCoordinators", () => {
 
   it("sorts by fresh-input share descending", () => {
     const views = projectCoordinators(dashboard);
-    expect(views[0].name).toBe("Kruw.io");
+    expect(views[0]?.name).toBe("Kruw.io");
     expect(views.at(-1)?.name).toBe("Gingerwallet");
   });
 });
@@ -239,11 +211,5 @@ describe("sumRecentFreshInputs", () => {
 
   it("returns 0 for an empty graph", () => {
     expect(sumRecentFreshInputs([], 7)).toBe(0);
-  });
-});
-
-describe("sumRecentRoundCount", () => {
-  it("sums numeric RoundId fields (LiquiSabi overloads it as a count)", () => {
-    expect(sumRecentRoundCount(dashboard.Graph, 3)).toBe(32);
   });
 });

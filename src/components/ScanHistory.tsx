@@ -58,7 +58,9 @@ export const ScanHistory = memo(function ScanHistory({
     const reader = new FileReader();
     reader.onload = () => {
       const result = onImportBookmarks(reader.result as string);
-      if (result.error) {
+      if (result.error === "storage_full") {
+        setImportFeedback({ type: "error", message: t("workspace.storageFull", { defaultValue: "Browser storage is full. Delete some bookmarks or saved graphs and try again." }) });
+      } else if (result.error) {
         setImportFeedback({ type: "error", message: t("history.importError", { defaultValue: "Invalid bookmark file" }) });
       } else {
         setImportFeedback({ type: "success", message: t("history.importSuccess", { defaultValue: "{{count}} bookmarks imported", count: result.imported }) });
@@ -94,6 +96,7 @@ export const ScanHistory = memo(function ScanHistory({
     if (next !== null) {
       e.preventDefault();
       const nextTab = availableTabs[next];
+      if (!nextTab) return;
       setTab(nextTab);
       tabListRef.current?.querySelector<HTMLElement>(`#tab-${nextTab}`)?.focus();
     }
@@ -109,7 +112,7 @@ export const ScanHistory = memo(function ScanHistory({
       const arr = [...examples];
       for (let i = arr.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
+        [arr[i], arr[j]] = [arr[j]!, arr[i]!]; // i, j < arr.length by loop bounds
       }
       setShuffledExamples(arr);
 

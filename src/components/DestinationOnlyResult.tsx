@@ -2,11 +2,11 @@
 
 import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
-import { ArrowLeft } from "lucide-react";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { FindingCard } from "@/components/FindingCard";
 import { RISK_CONFIG } from "@/components/DestinationAlert";
-import { ACTION_BTN_CLASS } from "@/lib/constants";
+import { NewScanButton } from "@/components/results/NewScanButton";
+import { resultEnterMotion } from "@/components/results/animations";
 import type { PreSendResult } from "@/lib/analysis/orchestrator";
 
 interface DestinationOnlyResultProps {
@@ -23,20 +23,10 @@ export function DestinationOnlyResult({ query, preSendResult, onBack, durationMs
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+      {...resultEnterMotion}
       className="flex flex-col items-center gap-8 w-full max-w-3xl"
     >
-      <div className="w-full flex items-center">
-        <button
-          onClick={onBack}
-          className={ACTION_BTN_CLASS}
-        >
-          <ArrowLeft size={16} />
-          {t("results.newScan", { defaultValue: "New scan" })}
-        </button>
-      </div>
+      <NewScanButton onBack={onBack} />
 
       <GlowCard className="w-full p-7 space-y-6">
         <div className="space-y-1">

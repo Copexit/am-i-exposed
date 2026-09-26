@@ -44,15 +44,16 @@ export const analyzeUnnecessaryInput: TxHeuristic = (tx) => {
   // For 1-output (sweep/consolidation) or 3+ outputs (batched sends),
   // the concept of "unnecessary" inputs is ambiguous.
   const spendableOutputs = getAddressedOutputs(tx.vout);
-  if (spendableOutputs.length !== 2) return { findings };
+  const [out0, out1] = spendableOutputs;
+  if (spendableOutputs.length !== 2 || !out0 || !out1) return { findings };
 
   // Sort inputs descending for greedy covering
   const sortedValues = [...inputValues].sort((a, b) => b - a);
 
   // Try both interpretations: each output as the payment target.
   // Take the most conservative result (higher min-inputs = fewer false positives).
-  const v0 = spendableOutputs[0].value;
-  const v1 = spendableOutputs[1].value;
+  const v0 = out0.value;
+  const v1 = out1.value;
   const min0 = greedyCover(v1 + tx.fee, sortedValues); // v0 is change, v1 is payment
   const min1 = greedyCover(v0 + tx.fee, sortedValues); // v1 is change, v0 is payment
   const minInputsNeeded = Math.max(min0, min1);

@@ -87,6 +87,20 @@ describe("detectRicochet", () => {
     expect(result!.scoreImpact).toBe(5);
   });
 
+  it("does not call a payment with change from a CoinJoin output a ricochet", () => {
+    const cjTxid = "c".repeat(64);
+    const tx = makeTx({
+      vin: [makeVin({ txid: cjTxid, vout: 0 })],
+      vout: [makeVout({ value: 3_000_000 }), makeVout({ value: 1_998_500 })],
+    });
+    const parentTx = makeTx({
+      txid: cjTxid,
+      vin: Array.from({ length: 5 }, () => makeVin()),
+      vout: Array.from({ length: 5 }, () => makeVout({ value: 5_000_000 })),
+    });
+    expect(detectRicochet(tx, new Map([[0, parentTx]]))).toBeNull();
+  });
+
   it("detects sweep chain without CoinJoin origin", () => {
     const parentTxid = "b".repeat(64);
 

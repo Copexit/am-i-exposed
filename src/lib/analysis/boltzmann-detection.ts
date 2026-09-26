@@ -6,6 +6,8 @@
  * No worker or browser dependencies - safe to use in tests and SSR.
  */
 
+import { countOutputValues, getValuedOutputs } from "./heuristics/tx-utils";
+
 /** Auto-compute when total UTXOs (inputs + outputs) is under this threshold. */
 const AUTO_COMPUTE_MAX_TOTAL = 20;
 
@@ -15,23 +17,28 @@ export const MAX_SUPPORTED_TOTAL = 80;
 /** Maximum supported total for WabiSabi (tier-decomposed, no DFS). */
 export const MAX_SUPPORTED_TOTAL_WABISABI = 800;
 
+/**
+ * Most frequent value appearing at least twice (ties go to the larger value).
+ * Returns count 0 when no value repeats.
+ */
+function dominantEqualValue(values: number[]): { amount: number; count: number } {
+  let amount = 0;
+  let count = 0;
+  for (const [val, n] of countOutputValues(values.map((value) => ({ value })))) {
+    if (n >= 2 && (n > count || (n === count && val > amount))) {
+      amount = val;
+      count = n;
+    }
+  }
+  return { amount, count };
+}
+
 /** Detect intrafees for CoinJoin pattern. */
 export function detectIntrafees(
   outputValues: number[],
   maxRatio: number,
 ): { feesMaker: number; feesTaker: number; hasCjPattern: boolean } {
-  const valueCounts = new Map<number, number>();
-  for (const v of outputValues) {
-    valueCounts.set(v, (valueCounts.get(v) ?? 0) + 1);
-  }
-  let bestAmount = 0;
-  let bestCount = 0;
-  for (const [val, count] of valueCounts) {
-    if (count >= 2 && (count > bestCount || (count === bestCount && val > bestAmount))) {
-      bestAmount = val;
-      bestCount = count;
-    }
-  }
+  const { amount: bestAmount, count: bestCount } = dominantEqualValue(outputValues);
 
   if (bestCount < 2 || outputValues.length > 2 * bestCount) {
     return { feesMaker: 0, feesTaker: 0, hasCjPattern: false };
@@ -47,24 +54,7 @@ export function detectJoinMarketForTurbo(
   inputValues: number[],
   outputValues: number[],
 ): { isJoinMarket: boolean; denomination: number } {
-  const valueCounts = new Map<number, number>();
-  for (const v of outputValues) {
-    valueCounts.set(v, (valueCounts.get(v) ?? 0) + 1);
-  }
-
-  let bestAmount = 0;
-  let bestCount = 0;
-  for (const [val, count] of valueCounts) {
-    if (count >= 2 && (count > bestCount || (count === bestCount && val > bestAmount))) {
-      bestAmount = val;
-      bestCount = count;
-    }
-  }
-
-  if (bestCount < 2) return { isJoinMarket: false, denomination: 0 };
-
-  const equalCount = bestCount;
-  const denomination = bestAmount;
+  const { amount: denomination, count: equalCount } = dominantEqualValue(outputValues);
 
   // JoinMarket requires at least 3 equal outputs (2 makers + 1 taker minimum).
   // This eliminates Stonewall (always 2 equal), batch payments with coincidental
@@ -123,16 +113,54 @@ export function isAutoComputable(
   return detectJoinMarketForTurbo(inputValues, outputValues).isJoinMarket;
 }
 
+type ValueTx = { vin: Array<{ is_coinbase?: boolean; prevout?: { value: number } | null }>; vout: Array<{ scriptpubkey_type?: string; scriptpubkey?: string; value: number }> };
+
+/** Tx positions of the values extractTxValues returns (same filters, same order). */
+export function extractTxValueIndices(tx: ValueTx): { inputIndices: number[]; outputIndices: number[] } {
+  const inputIndices = tx.vin.flatMap((v, i) => (!v.is_coinbase && v.prevout ? [i] : []));
+  const valued = new Set(getValuedOutputs(tx.vout));
+  const outputIndices = tx.vout.flatMap((o, i) => (valued.has(o) ? [i] : []));
+  return { inputIndices, outputIndices };
+}
+
+/**
+ * Re-index a link matrix from extracted-value positions to raw tx positions
+ * (rows = vout index, columns = vin index), so consumers can index it by the
+ * vin/vout they already hold. OP_RETURN / zero-value outputs and coinbase
+ * inputs get all-zero rows/columns.
+ */
+export function expandMatrixToTx<T extends { matLnkProbabilities: number[][]; matLnkCombinations: number[][]; deterministicLinks: [number, number][] }>(
+  result: T,
+  tx: ValueTx,
+): T {
+  const { inputIndices, outputIndices } = extractTxValueIndices(tx);
+  if (result.matLnkProbabilities.length !== outputIndices.length) return result;
+  const colOf = new Map(inputIndices.map((raw, k) => [raw, k]));
+  const rowOf = new Map(outputIndices.map((raw, k) => [raw, k]));
+  const expand = (m: number[][]) =>
+    tx.vout.map((_, o) => {
+      const r = rowOf.get(o);
+      return tx.vin.map((__, i) => {
+        const c = colOf.get(i);
+        return r === undefined || c === undefined ? 0 : m[r]?.[c] ?? 0;
+      });
+    });
+  return {
+    ...result,
+    matLnkProbabilities: expand(result.matLnkProbabilities),
+    matLnkCombinations: expand(result.matLnkCombinations),
+    deterministicLinks: result.deterministicLinks.map(([o, i]) => [outputIndices[o] ?? o, inputIndices[i] ?? i] as [number, number]),
+  };
+}
+
 /** Extract input/output values from a transaction (filtering coinbase/OP_RETURN). */
-export function extractTxValues(tx: { vin: Array<{ is_coinbase?: boolean; prevout?: { value: number } | null }>; vout: Array<{ scriptpubkey_type?: string; value: number }> }): {
+export function extractTxValues(tx: { vin: Array<{ is_coinbase?: boolean; prevout?: { value: number } | null }>; vout: Array<{ scriptpubkey_type?: string; scriptpubkey?: string; value: number }> }): {
   inputValues: number[];
   outputValues: number[];
 } {
   const inputValues = tx.vin
     .filter(v => !v.is_coinbase && v.prevout)
     .map(v => v.prevout!.value);
-  const outputValues = tx.vout
-    .filter(o => o.scriptpubkey_type !== "op_return" && o.value > 0)
-    .map(o => o.value);
+  const outputValues = getValuedOutputs(tx.vout).map(o => o.value);
   return { inputValues, outputValues };
 }

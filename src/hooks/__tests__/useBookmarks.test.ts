@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useBookmarks } from "../useBookmarks";
@@ -24,8 +25,8 @@ describe("useBookmarks", () => {
       });
     });
     expect(result.current.bookmarks).toHaveLength(1);
-    expect(result.current.bookmarks[0].input).toBe("abc123");
-    expect(result.current.bookmarks[0].grade).toBe("B");
+    expect(result.current.bookmarks[0]?.input).toBe("abc123");
+    expect(result.current.bookmarks[0]?.grade).toBe("B");
   });
 
   it("removes a bookmark", () => {
@@ -40,7 +41,7 @@ describe("useBookmarks", () => {
       result.current.removeBookmark("tx1");
     });
     expect(result.current.bookmarks).toHaveLength(1);
-    expect(result.current.bookmarks[0].input).toBe("tx2");
+    expect(result.current.bookmarks[0]?.input).toBe("tx2");
   });
 
   it("updates a label", () => {
@@ -51,7 +52,7 @@ describe("useBookmarks", () => {
     act(() => {
       result.current.updateLabel("tx1", "My Transaction");
     });
-    expect(result.current.bookmarks[0].label).toBe("My Transaction");
+    expect(result.current.bookmarks[0]?.label).toBe("My Transaction");
   });
 
   it("clears all bookmarks", () => {
@@ -83,15 +84,15 @@ describe("useBookmarks", () => {
       result.current.addBookmark({ input: "tx1", type: "txid", grade: "B", score: 80 });
       result.current.addBookmark({ input: "tx2", type: "txid", grade: "C", score: 55 });
     });
-    expect(result.current.bookmarks[0].input).toBe("tx2");
+    expect(result.current.bookmarks[0]?.input).toBe("tx2");
 
     act(() => {
       result.current.addBookmark({ input: "tx1", type: "txid", grade: "A+", score: 95 });
     });
     // tx1 should be at the top now, and only appear once
     expect(result.current.bookmarks).toHaveLength(2);
-    expect(result.current.bookmarks[0].input).toBe("tx1");
-    expect(result.current.bookmarks[0].grade).toBe("A+");
+    expect(result.current.bookmarks[0]?.input).toBe("tx1");
+    expect(result.current.bookmarks[0]?.grade).toBe("A+");
   });
 
   describe("exportBookmarks", () => {
@@ -148,7 +149,7 @@ describe("useBookmarks", () => {
       act(() => {
         result.current.addBookmark({ input: "tx1", type: "txid", grade: "B", score: 80 });
       });
-      const existingSavedAt = result.current.bookmarks[0].savedAt;
+      const existingSavedAt = result.current.bookmarks[0]!.savedAt;
 
       // Import same input with newer timestamp and different grade
       const data = JSON.stringify([
@@ -172,7 +173,7 @@ describe("useBookmarks", () => {
       act(() => {
         result.current.addBookmark({ input: "tx1", type: "txid", grade: "B", score: 80 });
       });
-      const existingSavedAt = result.current.bookmarks[0].savedAt;
+      const existingSavedAt = result.current.bookmarks[0]!.savedAt;
 
       const data = JSON.stringify([
         { input: "tx1", type: "txid", grade: "D", score: 30, savedAt: existingSavedAt - 1000 },
@@ -184,7 +185,7 @@ describe("useBookmarks", () => {
       });
 
       expect(importResult.imported).toBe(0);
-      expect(result.current.bookmarks[0].grade).toBe("B"); // Kept existing
+      expect(result.current.bookmarks[0]?.grade).toBe("B"); // Kept existing
     });
 
     it("rejects invalid JSON", () => {
@@ -222,7 +223,7 @@ describe("useBookmarks", () => {
 
       expect(importResult.imported).toBe(1);
       expect(result.current.bookmarks).toHaveLength(1);
-      expect(result.current.bookmarks[0].input).toBe("tx1");
+      expect(result.current.bookmarks[0]?.input).toBe("tx1");
     });
 
     it("returns error when all entries are invalid", () => {

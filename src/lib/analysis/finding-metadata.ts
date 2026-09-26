@@ -25,7 +25,7 @@ const S: AdversaryTier = "state_adversary";
  * Organized by source heuristic/module. Each entry maps a finding ID to its
  * adversary tiers (who can exploit it) and temporality (whether it's fixable).
  */
-export const FINDING_METADATA: Record<string, FindingMeta> = {
+export const FINDING_METADATA = {
   // ── H1: Round Amount Detection ──────────────────────────────────────
   "h1-round-amount":     { adversaryTiers: [P, K], temporality: "historical" },
   "h1-round-usd-amount": { adversaryTiers: [P, K], temporality: "historical" },
@@ -38,7 +38,6 @@ export const FINDING_METADATA: Record<string, FindingMeta> = {
   "h2-change-detected":  { adversaryTiers: [P, K],    temporality: "historical" },
   "h2-same-address-io":  { adversaryTiers: [P, K, S], temporality: "historical" },
   "h2-self-send":        { adversaryTiers: [P, K],    temporality: "historical" },
-  "h2-value-disparity":  { adversaryTiers: [P, K],    temporality: "historical" },
 
   // ── H3: Common Input Ownership Heuristic ────────────────────────────
   "h3-single-input": { adversaryTiers: [P],       temporality: "historical" },
@@ -198,30 +197,9 @@ export const FINDING_METADATA: Record<string, FindingMeta> = {
   "chain-kyc-consolidation-before-cj": { adversaryTiers: [P],     temporality: "historical" },
   "chain-post-mix-consolidation":    { adversaryTiers: [P, K, S], temporality: "historical" },
 
-  // ── Chain: Peel Chain Tracing ───────────────────────────────────────
-  "peel-chain-trace":       { adversaryTiers: [P, K, S], temporality: "historical" },
-  "peel-chain-trace-short": { adversaryTiers: [P, K],    temporality: "historical" },
-
   // ── Chain: Linkability ──────────────────────────────────────────────
   "linkability-deterministic": { adversaryTiers: [P],       temporality: "historical" },
-  "linkability-ambiguous":     { adversaryTiers: [P],       temporality: "historical" },
   "linkability-equal-subset":  { adversaryTiers: [P],       temporality: "historical" },
-
-  // ── Chain: CoinJoin Quality ─────────────────────────────────────────
-  "chain-coinjoin-quality": { adversaryTiers: [P], temporality: "historical" },
-  "no-consolidation":       { adversaryTiers: [P], temporality: "historical" },
-  "no-mix-origins":         { adversaryTiers: [P], temporality: "historical" },
-  "fresh-addresses":        { adversaryTiers: [P], temporality: "historical" },
-  "time-elapsed":           { adversaryTiers: [P], temporality: "historical" },
-  "small-change":           { adversaryTiers: [P], temporality: "historical" },
-  // toxic-merge-N is prefix-matched via "toxic-merge"
-  "toxic-merge":            { adversaryTiers: [P, K, S], temporality: "historical" },
-
-  // ── Chain: JoinMarket Analysis ──────────────────────────────────────
-  "joinmarket-subset-sum":           { adversaryTiers: [P, S], temporality: "historical" },
-  "joinmarket-subset-sum-resistant": { adversaryTiers: [P],    temporality: "historical" },
-  "joinmarket-taker-maker":          { adversaryTiers: [P, S], temporality: "historical" },
-  "joinmarket-anon-set":             { adversaryTiers: [P],    temporality: "historical" },
 
   // ── Chain: Taint Flow ───────────────────────────────────────────────
   "chain-taint-backward": { adversaryTiers: [K, S], temporality: "historical" },
@@ -250,8 +228,7 @@ export const FINDING_METADATA: Record<string, FindingMeta> = {
   "utxo-age-spread": { adversaryTiers: [P, K], temporality: "historical" },
 
   // ── Chain: Trace Infrastructure ─────────────────────────────────────
-  "chain-trace-partial":               { adversaryTiers: [P], temporality: "historical" },
-  "chain-post-coinjoin-direct-spend":  { adversaryTiers: [P, K, S], temporality: "historical" },
+  "chain-trace-partial": { adversaryTiers: [P], temporality: "historical" },
 
   // ── Cross-Heuristic Synthetic Findings ──────────────────────────────
   "cross-wasabi-reuse-paradox":     { adversaryTiers: [P, K], temporality: "ongoing_pattern" },
@@ -259,22 +236,53 @@ export const FINDING_METADATA: Record<string, FindingMeta> = {
   "behavioral-fingerprint-rollup":  { adversaryTiers: [P], temporality: "ongoing_pattern" },
 
   // ── API / Infrastructure ────────────────────────────────────────────
-  "api-incomplete-prevout": { adversaryTiers: [P], temporality: "historical" },
-};
+  "api-incomplete-prevout":    { adversaryTiers: [P], temporality: "historical" },
+  "analysis-incomplete":       { adversaryTiers: [P], temporality: "historical" },
+  "address-utxos-unavailable": { adversaryTiers: [P], temporality: "historical" },
+  "wallet-scan-partial":       { adversaryTiers: [P], temporality: "historical" },
+
+  // ── Destination Pre-Send Check ──────────────────────────────────────
+  "h13-presend-check": { adversaryTiers: [P],    temporality: "active_risk" },
+  "h13-ofac-match":    { adversaryTiers: [K, S], temporality: "active_risk" },
+
+  // ── Wallet Audit ────────────────────────────────────────────────────
+  "wallet-address-reuse":         { adversaryTiers: [P, K, S], temporality: "ongoing_pattern" },
+  "wallet-no-reuse":              { adversaryTiers: [P],       temporality: "ongoing_pattern" },
+  "wallet-dust-utxos":            { adversaryTiers: [P, S],    temporality: "active_risk" },
+  "wallet-mixed-script-utxos":    { adversaryTiers: [P],       temporality: "active_risk" },
+  "wallet-uniform-script":        { adversaryTiers: [P],       temporality: "ongoing_pattern" },
+  "wallet-utxo-bloat":            { adversaryTiers: [P],       temporality: "active_risk" },
+  "wallet-toxic-change":          { adversaryTiers: [P, K],    temporality: "active_risk" },
+  "wallet-consolidation-history": { adversaryTiers: [P, K],    temporality: "historical" },
+
+  // ── Coin Selection (PSBT planning) ──────────────────────────────────
+  "coin-select-exact-match":     { adversaryTiers: [P],       temporality: "active_risk" },
+  "coin-select-toxic-change":    { adversaryTiers: [P, K],    temporality: "active_risk" },
+  "coin-select-mixed-scripts":   { adversaryTiers: [P],       temporality: "active_risk" },
+  "coin-select-multiple-inputs": { adversaryTiers: [P, K, S], temporality: "active_risk" },
+} satisfies Record<string, FindingMeta>;
+
+/**
+ * Every known finding ID. A typo in a finding ID fails type-check.
+ * OP_RETURN findings are indexed (h7-op-return-N) when a tx has several.
+ */
+export type FindingId = keyof typeof FINDING_METADATA | `h7-op-return-${number}`;
+
+/** String-keyed view for lookups by untrusted IDs (e.g. parsed from a URL). */
+const META_BY_ID: Readonly<Record<string, FindingMeta | undefined>> = FINDING_METADATA;
 
 /** Look up metadata for a finding ID. Returns undefined for unknown IDs. */
 export function getFindingMeta(id: string): FindingMeta | undefined {
-  return FINDING_METADATA[id] ?? getFindingMetaByPrefix(id);
+  return META_BY_ID[id] ?? getFindingMetaByPrefix(id);
 }
 
 /**
- * Prefix fallback for dynamic IDs like h7-op-return-0, toxic-merge-1.
+ * Prefix fallback for dynamic IDs like h7-op-return-0.
  * Strips trailing -N suffix and retries the lookup.
  */
 function getFindingMetaByPrefix(id: string): FindingMeta | undefined {
-  const match = id.match(/^(.+)-\d+$/);
-  if (match) return FINDING_METADATA[match[1]];
-  return undefined;
+  const base = id.match(/^(.+)-\d+$/)?.[1];
+  return base ? META_BY_ID[base] : undefined;
 }
 
 /** Return the highest adversary tier from a list of tiers. */

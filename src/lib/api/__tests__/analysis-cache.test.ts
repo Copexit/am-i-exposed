@@ -6,9 +6,11 @@ import {
   getCachedResult,
   putCachedResult,
   TTL_24_HOURS,
+  INCOMPLETE_RESULT_FINDING_IDS,
 } from "../analysis-cache";
-import type { AnalysisSettings } from "@/hooks/useAnalysisSettings";
-import type { AnalysisState } from "@/hooks/useAnalysisState";
+import type { MempoolTransaction } from "@/lib/api/types";
+import type { AnalysisSettings } from "@/lib/analysis/settings";
+import type { AnalysisState } from "@/lib/analysis/analysis-state";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 
 function deleteDb(): Promise<void> {
@@ -67,7 +69,7 @@ describe("analysis-cache", () => {
   describe("buildResultCacheKey", () => {
     it("produces correct format with all settings embedded", () => {
       const key = buildResultCacheKey("mainnet", "abc123", defaultSettings);
-      expect(key).toBe("result:v2:mainnet:abc123:6:1000:0:0");
+      expect(key).toBe("result:v4:mainnet:abc123:6:1000:0:0");
     });
 
     it("different maxDepth values produce different keys", () => {
@@ -77,7 +79,7 @@ describe("analysis-cache", () => {
         maxDepth: 10,
       });
       expect(key1).not.toBe(key2);
-      expect(key2).toBe("result:v2:mainnet:abc123:10:1000:0:0");
+      expect(key2).toBe("result:v4:mainnet:abc123:10:1000:0:0");
     });
 
     it("different minSats values produce different keys", () => {
@@ -87,7 +89,7 @@ describe("analysis-cache", () => {
         minSats: 5000,
       });
       expect(key1).not.toBe(key2);
-      expect(key2).toBe("result:v2:mainnet:abc123:6:5000:0:0");
+      expect(key2).toBe("result:v4:mainnet:abc123:6:5000:0:0");
     });
 
     it("different skipCoinJoins values produce different keys", () => {
@@ -97,7 +99,7 @@ describe("analysis-cache", () => {
         skipCoinJoins: true,
       });
       expect(key1).not.toBe(key2);
-      expect(key2).toBe("result:v2:mainnet:abc123:6:1000:1:0");
+      expect(key2).toBe("result:v4:mainnet:abc123:6:1000:1:0");
     });
 
     it("different skipLargeClusters values produce different keys", () => {
@@ -107,7 +109,7 @@ describe("analysis-cache", () => {
         skipLargeClusters: true,
       });
       expect(key1).not.toBe(key2);
-      expect(key2).toBe("result:v2:mainnet:abc123:6:1000:0:1");
+      expect(key2).toBe("result:v4:mainnet:abc123:6:1000:0:1");
     });
 
     it("same settings and query produce the same key", () => {
@@ -173,7 +175,7 @@ describe("analysis-cache", () => {
   describe("round-trip", () => {
     it("put then get returns the same data", async () => {
       const state = makeMinimalState({
-        result: { score: 45, grade: "D", findings: [{ id: "test", severity: "high", title: "Test", description: "desc", recommendation: "rec", scoreImpact: -10 }] },
+        result: { score: 45, grade: "D", findings: [{ id: "h1-round-amount", severity: "high", title: "Test", description: "desc", recommendation: "rec", scoreImpact: -10 }] },
         usdPrice: 50000,
         durationMs: 2500,
       });
@@ -220,17 +222,17 @@ describe("analysis-cache", () => {
 
       // Verify backward layers
       expect(cached!.backwardLayers).toHaveLength(1);
-      expect(cached!.backwardLayers![0].depth).toBe(1);
-      expect(cached!.backwardLayers![0].txs).toBeInstanceOf(Map);
-      expect(cached!.backwardLayers![0].txs.size).toBe(1);
-      expect(cached!.backwardLayers![0].txs.get("tx1")).toEqual(fakeTx);
+      expect(cached!.backwardLayers?.[0]?.depth).toBe(1);
+      expect(cached!.backwardLayers?.[0]?.txs).toBeInstanceOf(Map);
+      expect(cached!.backwardLayers?.[0]?.txs.size).toBe(1);
+      expect(cached!.backwardLayers?.[0]?.txs.get("tx1")).toEqual(fakeTx);
 
       // Verify forward layers
       expect(cached!.forwardLayers).toHaveLength(2);
-      expect(cached!.forwardLayers![0].txs).toBeInstanceOf(Map);
-      expect(cached!.forwardLayers![0].txs.get("tx1")).toEqual(fakeTx);
-      expect(cached!.forwardLayers![1].txs).toBeInstanceOf(Map);
-      expect(cached!.forwardLayers![1].txs.size).toBe(0);
+      expect(cached!.forwardLayers?.[0]?.txs).toBeInstanceOf(Map);
+      expect(cached!.forwardLayers?.[0]?.txs.get("tx1")).toEqual(fakeTx);
+      expect(cached!.forwardLayers?.[1]?.txs).toBeInstanceOf(Map);
+      expect(cached!.forwardLayers?.[1]?.txs.size).toBe(0);
     });
 
     it("address analysis data round-trips correctly", async () => {
@@ -296,6 +298,48 @@ describe("analysis-cache", () => {
       expect(expired).toBeUndefined();
 
       vi.restoreAllMocks();
+    });
+
+    const ELEVEN_MIN = 11 * 60_000;
+    const tx = (confirmed: boolean, blockTime?: number) =>
+      ({ txid: "abc123", status: { confirmed, block_time: blockTime } }) as MempoolTransaction;
+
+    async function presentAfter(query: string, state: AnalysisState, ms: number) {
+      await putCachedResult("mainnet", query, defaultSettings, state);
+      const now = Date.now();
+      vi.spyOn(Date, "now").mockReturnValue(now + ms);
+      const cached = await getCachedResult("mainnet", query, defaultSettings);
+      vi.restoreAllMocks();
+      return cached !== undefined;
+    }
+
+    it("unconfirmed tx results expire after 10 min", async () => {
+      expect(await presentAfter("abc123", makeMinimalState({ txData: tx(false) }), ELEVEN_MIN)).toBe(false);
+    });
+
+    it("confirmed tx results are kept for 24h", async () => {
+      expect(await presentAfter("abc123", makeMinimalState({ txData: tx(true, 1_600_000_000) }), ELEVEN_MIN)).toBe(true);
+    });
+
+    it("address results use the adaptive address TTL, not 24h", async () => {
+      const recent = Math.floor(Date.now() / 1000) - 86_400;
+      const state = makeMinimalState({ query: "bc1qtest", inputType: "address", addressTxs: [tx(true, recent)] });
+      expect(await presentAfter("bc1qtest", state, ELEVEN_MIN)).toBe(false);
+    });
+  });
+
+  describe("incomplete results", () => {
+    it("covers failed prevout enrichment", () => {
+      expect(INCOMPLETE_RESULT_FINDING_IDS).toContain("api-incomplete-prevout");
+    });
+
+    it.each(INCOMPLETE_RESULT_FINDING_IDS)("does not cache a result carrying %s", async (id) => {
+      const state = makeMinimalState({
+        txData: { txid: "abc123", status: { confirmed: true } } as MempoolTransaction,
+        result: { score: 70, grade: "B", findings: [{ id, severity: "low", title: "", description: "", recommendation: "", scoreImpact: 0 }] },
+      });
+      await putCachedResult("mainnet", "abc123", defaultSettings, state);
+      expect(await getCachedResult("mainnet", "abc123", defaultSettings)).toBeUndefined();
     });
   });
 });

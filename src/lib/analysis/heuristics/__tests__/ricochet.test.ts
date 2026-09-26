@@ -20,10 +20,11 @@ describe("analyzeRicochet", () => {
 
     const { findings } = analyzeRicochet(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("ricochet-hop0");
-    expect(findings[0].severity).toBe("good");
-    expect(findings[0].confidence).toBe("deterministic");
-    expect(findings[0].scoreImpact).toBe(5);
+    const [f] = findings;
+    expect(f!.id).toBe("ricochet-hop0");
+    expect(f!.severity).toBe("good");
+    expect(f!.confidence).toBe("deterministic");
+    expect(f!.scoreImpact).toBe(5);
   });
 
   it("returns no findings for coinbase transactions", () => {
@@ -107,7 +108,8 @@ describe("analyzeRicochet", () => {
 
     const { findings } = analyzeRicochet(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("ricochet-hop0");
+    const [f] = findings;
+    expect(f!.id).toBe("ricochet-hop0");
   });
 
   it("detects Ricochet with more than 3 outputs", () => {
@@ -123,7 +125,8 @@ describe("analyzeRicochet", () => {
 
     const { findings } = analyzeRicochet(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("ricochet-hop0");
+    const [f] = findings;
+    expect(f!.id).toBe("ricochet-hop0");
   });
 
   it("includes ricochetOutputIndex param pointing to the largest non-fee output", () => {
@@ -138,9 +141,10 @@ describe("analyzeRicochet", () => {
 
     const { findings } = analyzeRicochet(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].params).toBeDefined();
-    expect(findings[0].params!.ricochetOutputIndex).toBe(1);
-    expect(findings[0].params!.hop0Txid).toBe(tx.txid);
+    const [f] = findings;
+    expect(f!.params).toBeDefined();
+    expect(f!.params!.ricochetOutputIndex).toBe(1);
+    expect(f!.params!.hop0Txid).toBe(tx.txid);
   });
 
   it("identifies correct ricochet output when fee is last", () => {
@@ -155,7 +159,8 @@ describe("analyzeRicochet", () => {
 
     const { findings } = analyzeRicochet(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].params!.ricochetOutputIndex).toBe(0);
+    const [f] = findings;
+    expect(f!.params!.ricochetOutputIndex).toBe(0);
   });
 
   it("identifies correct ricochet output with 4+ outputs", () => {
@@ -171,6 +176,7 @@ describe("analyzeRicochet", () => {
 
     const { findings } = analyzeRicochet(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].params!.ricochetOutputIndex).toBe(2);
+    const [f] = findings;
+    expect(f!.params!.ricochetOutputIndex).toBe(2);
   });
 });

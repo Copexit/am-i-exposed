@@ -1,4 +1,5 @@
 import type { Grade } from "@/lib/types";
+import { COLORS } from "@/lib/palette";
 
 /** Number of satoshis per bitcoin. */
 export const SATS_PER_BTC = 100_000_000;
@@ -70,11 +71,6 @@ export const WHIRLPOOL_POOLS: WhirlpoolPool[] = [
 /** Flat array of pool sizes - kept for "is this a known whirlpool denom" boolean checks. */
 export const WHIRLPOOL_DENOMS: number[] = WHIRLPOOL_POOLS.map((p) => p.sats);
 
-/** O(1) lookup for callers that need pool metadata from a sat value. */
-export const WHIRLPOOL_POOL_BY_SATS: ReadonlyMap<number, WhirlpoolPool> = new Map(
-  WHIRLPOOL_POOLS.map((p) => [p.sats, p]),
-);
-
 /** Grade-to-Tailwind text color mapping for use in components. */
 export const GRADE_COLORS: Record<Grade, string> = {
   "A+": "text-severity-good",
@@ -95,11 +91,11 @@ export const GRADE_BADGE_COLORS: Record<Grade, string> = {
 
 /** Grade-to-hex color mapping for Canvas/non-CSS contexts (share cards, glow effects). */
 export const GRADE_HEX: Record<Grade, string> = {
-  "A+": "#28d065",
-  B: "#60a5fa",
-  C: "#eab308",
-  D: "#f97316",
-  F: "#ef4444",
+  "A+": COLORS.severityGood,
+  B: COLORS.severityLow,
+  C: COLORS.severityMedium,
+  D: COLORS.severityHigh,
+  F: COLORS.severityCritical,
 };
 
 /** Look up grade text color, returning fallback for unknown grades. */

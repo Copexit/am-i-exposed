@@ -1,4 +1,5 @@
 import type { Finding } from "@/lib/types";
+import type { FindingId } from "@/lib/analysis/finding-metadata";
 
 /**
  * Behavioral fingerprint rollup: when multiple behavioral sub-signals fire
@@ -8,7 +9,7 @@ import type { Finding } from "@/lib/types";
  * wallet fingerprint that re-identifies the user across chain scans.
  */
 export function applyBehavioralRollup(findings: Finding[]): void {
-  const behavioralIds = [
+  const behavioralIds: FindingId[] = [
     "h11-wallet-fingerprint",
     "h6-round-fee-rate",
     "h6-rbf-signaled",
@@ -50,6 +51,7 @@ export function applyBehavioralRollup(findings: Finding[]): void {
       params: {
         signalCount: firedSignals.length,
         signals: signalNames,
+        ...(isCritical ? { context: "strong" } : {}),
       },
       adversaryTiers: ["passive_observer"],
       temporality: "ongoing_pattern",

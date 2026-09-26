@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, Eye, ShieldCheck, ShieldAlert } from "lucide-react";
 import type { Finding, Grade } from "@/lib/types";
 import { WalletIcon } from "@/components/ui/WalletIcon";
+import { Collapse } from "./ui/Collapse";
 
 interface AnalystViewProps {
   findings: Finding[];
@@ -160,14 +160,14 @@ function deriveInsights(findings: Finding[]): AnalystInsight[] {
     });
   }
 
-  if (findings.some((item) => item.id.startsWith("h17-") && item.id !== "h17-unknown")) {
-    const f = findings.find((item) => item.id.startsWith("h17-") && item.id !== "h17-unknown");
+  if (findings.some((item) => item.id.startsWith("h17-"))) {
+    const f = findings.find((item) => item.id.startsWith("h17-"));
     const escrowType = f?.params?.escrowType;
     insights.push({
       text: escrowType
         ? `Multisig escrow pattern detected (${escrowType}) - narrows transaction purpose`
         : "Multisig pattern detected - reveals the transaction's governance structure",
-      textKey: "analyst.multisig",
+      textKey: escrowType ? "analyst.multisigEscrow" : "analyst.multisig",
       good: false,
     });
   }
@@ -207,55 +207,45 @@ export function AnalystView({ findings, grade }: AnalystViewProps) {
           aria-hidden="true"
         />
       </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div id="analyst-view-panel" className="mt-2 space-y-2">
-              {/* Overall verdict */}
-              <div className={`rounded-lg px-4 py-3 text-sm font-medium ${
-                overallGood
-                  ? "bg-severity-good/10 border border-severity-good/30 text-severity-good"
-                  : "bg-severity-critical/10 border border-severity-critical/30 text-severity-critical"
-              }`}>
-                <div className="flex items-center gap-2">
-                  {overallGood ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
-                  {overallGood
-                    ? t("analyst.verdictGood", { defaultValue: "This transaction appears ambiguous to chain analysis" })
-                    : t("analyst.verdictBad", { defaultValue: "This transaction leaks identifiable information" })}
-                </div>
-              </div>
-
-              {/* Individual insights */}
-              {insights.map((insight, i) => (
-                <div
-                  key={i}
-                  className={`rounded-lg px-4 py-2.5 text-sm flex items-start gap-2 ${
-                    insight.good
-                      ? "bg-severity-good/5 border border-severity-good/15 text-muted"
-                      : "bg-severity-critical/5 border border-severity-critical/15 text-muted"
-                  }`}
-                >
-                  <span className={`shrink-0 mt-0.5 text-xs font-bold ${insight.good ? "text-severity-good" : "text-severity-critical"}`}>
-                    {insight.good ? "+" : "-"}
-                  </span>
-                  {insight.textKey === "analyst.walletIdentified" && (() => {
-                    const f = findings.find((item) => item.id === "h11-wallet-fingerprint");
-                    const wallet = f?.params?.walletGuess;
-                    return wallet ? <WalletIcon walletName={String(wallet)} size="sm" className="mt-0.5" /> : null;
-                  })()}
-                  <span>{t(insight.textKey, { defaultValue: insight.text, ...findParamsForInsight(insight, findings) })}</span>
-                </div>
-              ))}
+      <Collapse open={open}>
+        <div id="analyst-view-panel" className="mt-2 space-y-2">
+          {/* Overall verdict */}
+          <div className={`rounded-lg px-4 py-3 text-sm font-medium ${
+            overallGood
+              ? "bg-severity-good/10 border border-severity-good/30 text-severity-good"
+              : "bg-severity-critical/10 border border-severity-critical/30 text-severity-critical"
+          }`}>
+            <div className="flex items-center gap-2">
+              {overallGood ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
+              {overallGood
+                ? t("analyst.verdictGood", { defaultValue: "This transaction appears ambiguous to chain analysis" })
+                : t("analyst.verdictBad", { defaultValue: "This transaction leaks identifiable information" })}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+
+          {/* Individual insights */}
+          {insights.map((insight, i) => (
+            <div
+              key={i}
+              className={`rounded-lg px-4 py-2.5 text-sm flex items-start gap-2 ${
+                insight.good
+                  ? "bg-severity-good/5 border border-severity-good/15 text-muted"
+                  : "bg-severity-critical/5 border border-severity-critical/15 text-muted"
+              }`}
+            >
+              <span className={`shrink-0 mt-0.5 text-xs font-bold ${insight.good ? "text-severity-good" : "text-severity-critical"}`}>
+                {insight.good ? "+" : "-"}
+              </span>
+              {insight.textKey === "analyst.walletIdentified" && (() => {
+                const f = findings.find((item) => item.id === "h11-wallet-fingerprint");
+                const wallet = f?.params?.walletGuess;
+                return wallet ? <WalletIcon walletName={String(wallet)} size="sm" className="mt-0.5" /> : null;
+              })()}
+              <span>{t(insight.textKey, { defaultValue: insight.text, ...findParamsForInsight(insight, findings) })}</span>
+            </div>
+          ))}
+        </div>
+      </Collapse>
     </div>
   );
 }
@@ -268,6 +258,10 @@ function findParamsForInsight(insight: AnalystInsight, findings: Finding[]): Rec
   if (insight.textKey === "analyst.addressReuse") {
     const f = findings.find((item) => item.id === "h8-address-reuse");
     return { reuseCount: f?.params?.reuseCount ?? "multiple" };
+  }
+  if (insight.textKey === "analyst.multisigEscrow") {
+    const f = findings.find((item) => item.id.startsWith("h17-"));
+    return { escrowType: String(f?.params?.escrowType ?? "") };
   }
   return {};
 }

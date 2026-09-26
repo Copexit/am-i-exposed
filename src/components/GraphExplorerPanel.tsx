@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useMemo, useCallback, lazy, Suspense } from "react";
+import { useEffect, useRef, useMemo, lazy, Suspense } from "react";
 import { useNetwork } from "@/context/NetworkContext";
 import { createApiClient } from "@/lib/api/client";
 import { useGraphExpansion } from "@/hooks/useGraphExpansion";
@@ -8,13 +8,11 @@ import { ChartErrorBoundary } from "./ui/ChartErrorBoundary";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
-import type { Finding } from "@/lib/types";
 
 const GraphExplorer = lazy(() => import("./viz/GraphExplorer").then(m => ({ default: m.GraphExplorer })));
 
 interface GraphExplorerPanelProps {
   tx: MempoolTransaction;
-  findings?: Finding[];
   onTxClick?: (txid: string) => void;
   /** Backward trace layers from chain analysis (multi-hop). */
   backwardLayers?: TraceLayer[] | null;
@@ -32,7 +30,7 @@ interface GraphExplorerPanelProps {
  *
  * When trace layers are provided, auto-expands up to 2 hops in each direction.
  */
-export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, forwardLayers, outspends, boltzmannResult }: GraphExplorerPanelProps) {
+export function GraphExplorerPanel({ tx, onTxClick, backwardLayers, forwardLayers, outspends, boltzmannResult }: GraphExplorerPanelProps) {
   const { network, config } = useNetwork();
 
   // No AbortController signal: the graph is long-lived and expansion requests
@@ -40,37 +38,16 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, fo
   // broke under React Strict Mode (double-mount aborts the signal permanently).
   const fetcher = useMemo(() => createApiClient(config), [config]);
 
-  const {
-    nodes,
-    rootTxid,
-    loading,
-    errors,
-    nodeCount,
-    maxNodes,
-    setRoot,
-    setRootWithLayers,
-    expandInput,
-    expandOutput,
-    collapse,
-    undo,
-    canUndo,
-    reset,
-    expandedNodeTxid,
-    toggleExpand,
-    expandPortInput,
-    expandPortOutput,
-    outspendCache,
-    autoTrace,
-    cancelAutoTrace,
-    autoTracing,
-    autoTraceProgress,
-    autoTraceLinkability,
-  } = useGraphExpansion(fetcher);
+  const graph = useGraphExpansion(fetcher);
+  const { setRoot, setRootWithLayers } = graph;
 
-  // Set root tx on mount or when tx changes. Smart filtering is always enabled.
+  // Set root tx on mount or when tx changes (only then: later layer/outspend
+  // updates for the same tx must not rebuild the graph). Smart filtering is always enabled.
   const rootTxidRef = useRef<string>("");
 
-  const initGraph = useCallback(() => {
+  useEffect(() => {
+    if (rootTxidRef.current === tx.txid) return;
+    rootTxidRef.current = tx.txid;
     const hasBw = backwardLayers && backwardLayers.length > 0;
     const hasFw = forwardLayers && forwardLayers.length > 0;
     if (hasBw || hasFw) {
@@ -78,47 +55,17 @@ export function GraphExplorerPanel({ tx, findings, onTxClick, backwardLayers, fo
     } else {
       setRoot(tx);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tx.txid]);
+  }, [tx, backwardLayers, forwardLayers, outspends, setRoot, setRootWithLayers]);
 
-  useEffect(() => {
-    if (rootTxidRef.current !== tx.txid) {
-      rootTxidRef.current = tx.txid;
-      initGraph();
-    }
-  }, [tx.txid, initGraph]);
-
-  if (!rootTxid) return null;
+  if (!graph.rootTxid) return null;
 
   return (
     <ChartErrorBoundary>
       <Suspense fallback={null}>
         <GraphExplorer
-          nodes={nodes}
-          rootTxid={rootTxid}
-          findings={findings}
-          loading={loading}
-          errors={errors}
-          nodeCount={nodeCount}
-          maxNodes={maxNodes}
-          onExpandInput={expandInput}
-          onExpandOutput={expandOutput}
-          onCollapse={collapse}
-          onUndo={undo}
-          canUndo={canUndo}
-          onReset={reset}
+          graph={graph}
           onTxClick={onTxClick}
           rootBoltzmannResult={boltzmannResult}
-          expandedNodeTxid={expandedNodeTxid}
-          onToggleExpand={toggleExpand}
-          onExpandPortInput={expandPortInput}
-          onExpandPortOutput={expandPortOutput}
-          outspendCache={outspendCache}
-          onAutoTrace={autoTrace}
-          onCancelAutoTrace={cancelAutoTrace}
-          autoTracing={autoTracing}
-          autoTraceProgress={autoTraceProgress}
-          onAutoTraceLinkability={(txid, outputIndex) => autoTraceLinkability(txid, outputIndex, { boltzmannCache: undefined })}
           network={network}
         />
       </Suspense>

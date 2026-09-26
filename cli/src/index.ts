@@ -1,30 +1,16 @@
 import { Command } from "commander";
-import { readFileSync, existsSync } from "fs";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
+import { DEFAULT_ANALYSIS_SETTINGS } from "@/lib/analysis/settings";
 import { initEntityFilter } from "./adapters/entity-loader";
 import { scanTx } from "./commands/scan-tx";
 import { scanAddress } from "./commands/scan-address";
 import { scanXpub } from "./commands/scan-xpub";
 import { scanPsbt } from "./commands/scan-psbt";
-import { boltzmann } from "./commands/boltzmann";
+import { boltzmann, DEFAULT_INTRAFEES_RATIO } from "./commands/boltzmann";
 import { chainTrace } from "./commands/chain-trace";
+import { VERSION } from "./output/json";
 
-const dir = typeof __dirname !== "undefined"
-  ? __dirname
-  : dirname(fileURLToPath(import.meta.url));
-
-// Read version from package.json if available, fall back to hardcoded
-function getVersion(): string {
-  const pkgPath = join(dir, "..", "package.json");
-  if (existsSync(pkgPath)) {
-    try {
-      return JSON.parse(readFileSync(pkgPath, "utf-8")).version;
-    } catch { /* fall through */ }
-  }
-  return "0.34.3";
-}
-const version = getVersion();
+// Defaults shared with the web app's analysis settings
+const DEFAULT_MIN_SATS = String(DEFAULT_ANALYSIS_SETTINGS.minSats);
 
 const program = new Command();
 
@@ -33,7 +19,7 @@ program
   .description(
     "Bitcoin privacy scanner - analyze transactions, addresses, and wallets for chain analysis exposure",
   )
-  .version(version)
+  .version(VERSION)
   .option("--json", "Output structured JSON (suppresses spinner and colors)")
   .option(
     "--network <net>",
@@ -55,13 +41,14 @@ scan
   .option("--fast", "Skip parent tx and output address fetching (faster, less context)")
   .option(
     "--chain-depth <N>",
-    "Include chain analysis up to N hops (0 = tx-only)",
+    "Include chain analysis up to N hops. 0 skips all chain modules, " +
+      "so the grade can differ from the web scan, which always runs chain analysis",
     "0",
   )
   .option(
     "--min-sats <N>",
     "Minimum satoshi value to follow when tracing",
-    "1000",
+    DEFAULT_MIN_SATS,
   )
   .action(async (txid: string, opts: Record<string, string>) => {
     await run(() => scanTx(txid, mergeOpts(opts)));
@@ -99,11 +86,15 @@ program
   .description(
     "Compute Boltzmann entropy and link probability matrix for a transaction",
   )
-  .option("--timeout <seconds>", "Maximum computation time", "300")
+  .option(
+    "--timeout <seconds>",
+    "Maximum computation time",
+    String(DEFAULT_ANALYSIS_SETTINGS.boltzmannTimeout),
+  )
   .option(
     "--intrafees-ratio <float>",
     "Max CoinJoin intrafees ratio",
-    "0.005",
+    String(DEFAULT_INTRAFEES_RATIO),
   )
   .action(async (txid: string, opts: Record<string, string>) => {
     await run(() => boltzmann(txid, mergeOpts(opts)));
@@ -117,13 +108,12 @@ program
     "Trace direction: backward, forward, or both",
     "both",
   )
-  .option("--depth <N>", "Maximum hops to trace", "3")
+  .option("--depth <N>", "Maximum hops to trace", String(DEFAULT_ANALYSIS_SETTINGS.maxDepth))
   .option(
     "--min-sats <N>",
     "Minimum satoshi value to follow (filters dust)",
-    "1000",
+    DEFAULT_MIN_SATS,
   )
-  .option("--skip-coinjoins", "Stop tracing at CoinJoin transactions")
   .action(async (txid: string, opts: Record<string, string>) => {
     await run(() => chainTrace(txid, mergeOpts(opts)));
   });

@@ -20,8 +20,8 @@ describe("analyzeBip69", () => {
     });
     const { findings } = analyzeBip69(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("bip69-detected");
-    expect(findings[0].scoreImpact).toBe(-2);
+    expect(findings[0]?.id).toBe("bip69-detected");
+    expect(findings[0]?.scoreImpact).toBe(-2);
   });
 
   it("does not fire when inputs are not sorted", () => {
@@ -92,7 +92,7 @@ describe("analyzeBip69", () => {
     });
     const { findings } = analyzeBip69(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("bip69-detected");
+    expect(findings[0]?.id).toBe("bip69-detected");
   });
 
   it("detects non-BIP69 when equal values have wrong scriptpubkey order", () => {
@@ -123,6 +123,6 @@ describe("analyzeBip69", () => {
     });
     const { findings } = analyzeBip69(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("bip69-detected");
+    expect(findings[0]?.id).toBe("bip69-detected");
   });
 });

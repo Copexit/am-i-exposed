@@ -2,8 +2,10 @@ import type { ScoringResult, Finding } from "@/lib/types";
 import type { PrimaryRec } from "@/lib/recommendations/primary-recommendation";
 import type { WalletAuditResult } from "@/lib/analysis/wallet-audit";
 import type { MempoolTransaction } from "@/lib/api/types";
+import pkg from "../../package.json";
 
-const VERSION = "0.34.2";
+/** CLI version, bundled from cli/package.json. */
+export const VERSION: string = pkg.version;
 
 interface JsonEnvelope {
   version: string;
@@ -15,6 +17,8 @@ interface JsonEnvelope {
   txInfo?: Record<string, unknown>;
   addressInfo?: Record<string, unknown>;
   walletInfo?: Record<string, unknown>;
+  /** Wallet scan: addresses whose fetch failed (partial scan when non-empty) */
+  failedAddresses?: string[];
   psbtInfo?: Record<string, unknown>;
   findings: Finding[];
   recommendation?: JsonRec | null;
@@ -128,6 +132,7 @@ export function walletJson(
   result: WalletAuditResult,
   network: string,
   apiUrl?: string,
+  failedAddresses: string[] = [],
 ): void {
   jsonOutput({
     version: VERSION,
@@ -143,6 +148,7 @@ export function walletJson(
       reusedAddresses: result.reusedAddresses,
       dustUtxos: result.dustUtxos,
     },
+    failedAddresses,
     findings: result.findings,
     links: buildLinks("xpub", descriptor, network, apiUrl),
   });
@@ -152,11 +158,12 @@ export function psbtJson(
   input: string,
   result: ScoringResult,
   psbtInfo: Record<string, unknown>,
+  network = "mainnet",
 ): void {
   jsonOutput({
     version: VERSION,
     input: { type: "psbt", value: input.length > 80 ? input.slice(0, 77) + "..." : input },
-    network: "mainnet",
+    network,
     score: result.score,
     grade: result.grade,
     txType: result.txType,

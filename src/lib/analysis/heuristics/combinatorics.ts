@@ -11,8 +11,9 @@
 const factorialCache: number[] = [1, 1];
 
 export function factorial(n: number): number {
-  if (n < factorialCache.length) return factorialCache[n];
-  let result = factorialCache[factorialCache.length - 1];
+  // Negative or non-integer n has no cache entry: NaN, as the arithmetic always yielded.
+  if (n < factorialCache.length) return factorialCache[n] ?? NaN;
+  let result = factorialCache[factorialCache.length - 1]!; // cache is seeded [1, 1] and only grows
   for (let i = factorialCache.length; i <= n; i++) {
     result *= i;
     factorialCache[i] = result;

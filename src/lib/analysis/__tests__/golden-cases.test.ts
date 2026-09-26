@@ -56,9 +56,9 @@ describe("golden test cases - transactions", () => {
   it.each([
     ["Whirlpool CoinJoin", whirlpoolTx, "A+", 100],
     ["WabiSabi CoinJoin", wabisabiTx, "A+", 100],
-    ["JoinMarket CoinJoin", joinmarketTx, "B", 87],
-    ["Taproot + OP_RETURN", taprootOpReturnTx, "D", 48],
-    ["Bare multisig", bareMultisigTx, "F", 6],
+    ["JoinMarket CoinJoin", joinmarketTx, "B", 89],
+    ["Taproot + OP_RETURN", taprootOpReturnTx, "C", 56],
+    ["Bare multisig", bareMultisigTx, "F", 11],
     ["OP_RETURN charley loves heidi", opReturnCharleyTx, "D", 49],
     ["Simple legacy P2PKH", simpleLegacyTx, "C", 52],
     ["Batch withdrawal 143 outputs", batchWithdrawalTx, "C", 56],

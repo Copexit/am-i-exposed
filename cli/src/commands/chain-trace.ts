@@ -3,6 +3,8 @@ import { analyzeEntityProximity } from "@/lib/analysis/chain/entity-proximity";
 import { analyzeBackwardTaint } from "@/lib/analysis/chain/taint";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
 import type { Finding } from "@/lib/types";
+import { DEFAULT_ANALYSIS_SETTINGS } from "@/lib/analysis/settings";
+import { buildTraceBarrier } from "@/lib/analysis/chain-trace";
 import { createClient } from "../util/api";
 import type { GlobalOpts } from "../index";
 import {
@@ -12,7 +14,7 @@ import {
   succeedSpinner,
 } from "../util/progress";
 import { severityLabel, dim, header } from "../output/colors";
-import { jsonOutput } from "../output/json";
+import { jsonOutput, VERSION } from "../output/json";
 
 export async function chainTrace(
   txid: string,
@@ -28,12 +30,16 @@ export async function chainTrace(
 
   const client = createClient(opts);
   const direction = String(opts.direction ?? "both");
-  const depth = Number(opts.depth ?? 3);
-  const minSats = Number(opts.minSats ?? opts["min-sats"] ?? 1000);
+  const depth = Number(opts.depth ?? DEFAULT_ANALYSIS_SETTINGS.maxDepth);
+  const minSats = Number(opts.minSats ?? opts["min-sats"] ?? DEFAULT_ANALYSIS_SETTINGS.minSats);
 
   // Fetch starting tx
   startSpinner("Fetching transaction...");
   const tx = await client.getTransaction(txid);
+
+  // Same barrier as the web trace: stop at known entities (and CoinJoins /
+  // large clusters when those settings are on)
+  const barrier = buildTraceBarrier(DEFAULT_ANALYSIS_SETTINGS);
 
   const doBackward = direction === "both" || direction === "backward";
   const doForward = direction === "both" || direction === "forward";
@@ -55,6 +61,8 @@ export async function chainTrace(
           `Tracing backward: depth ${p.currentDepth}/${p.maxDepth} (${p.txsFetched} txs fetched)`,
         );
       },
+      undefined,
+      barrier,
     );
   }
 
@@ -71,6 +79,9 @@ export async function chainTrace(
           `Tracing forward: depth ${p.currentDepth}/${p.maxDepth} (${p.txsFetched} txs fetched)`,
         );
       },
+      undefined,
+      undefined,
+      barrier,
     );
   }
 
@@ -128,7 +139,7 @@ export async function chainTrace(
 
   if (isJson) {
     jsonOutput({
-      version: "0.34.3",
+      version: VERSION,
       input: { type: "txid", value: txid },
       network: opts.network ?? "mainnet",
       score: 0,

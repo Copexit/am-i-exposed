@@ -5,6 +5,7 @@ import { I18nProvider } from "@/lib/i18n/I18nProvider";
 import { LangAttributeSync } from "@/lib/i18n/LangAttributeSync";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
+import { COLORS, LIGHT_COLORS } from "@/lib/palette";
 import { PrivacyNotice } from "@/components/PrivacyNotice";
 import { MempoolDownDialog } from "@/components/MempoolDownDialog";
 import { AmbientBackground } from "@/components/AmbientBackground";
@@ -77,10 +78,8 @@ export default function RootLayout({
           content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https: http://*.onion http://localhost:* http://127.0.0.1:* http://*.local:*; img-src 'self' data:; worker-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
         />
         <meta name="referrer" content="no-referrer" />
-        <meta name="theme-color" content="#0a0a0a" id="meta-theme-color" />
-        <link rel="preconnect" href="https://mempool.space" />
-        <link rel="dns-prefetch" href="https://mempool.space" />
-        <script dangerouslySetInnerHTML={{ __html: `(function(){try{if(localStorage.getItem("ami-theme")==="light"){document.documentElement.dataset.theme="light";var m=document.getElementById("meta-theme-color");if(m)m.content="#f8fafc"}}catch(e){}})()` }} />
+        <meta name="theme-color" content={COLORS.background} id="meta-theme-color" />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{if(localStorage.getItem("ami-theme")==="light"){document.documentElement.dataset.theme="light";var m=document.getElementById("meta-theme-color");if(m)m.content="${LIGHT_COLORS.background}"}}catch(e){}})()` }} />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}

@@ -4,6 +4,7 @@ import { getFilter, lookupEntityName, lookupEntityCategory } from "../entity-fil
 import { getEntity } from "../entities";
 import { isCoinJoinTx } from "../heuristics/coinjoin";
 import type { TraceLayer } from "./recursive-trace";
+import { isOpReturnOutput, inputAddressSet } from "../heuristics/tx-utils";
 
 /**
  * Entity Proximity Detection
@@ -41,12 +42,16 @@ interface EntityHit {
  * Scan trace layers for entity proximity and CoinJoin ancestry.
  */
 export function analyzeEntityProximity(
-  _tx: MempoolTransaction,
+  tx: MempoolTransaction,
   backwardLayers: TraceLayer[],
   forwardLayers: TraceLayer[],
 ): EntityProximityResult {
   const findings: Finding[] = [];
   const filter = getFilter();
+  // The analyzed tx's own addresses reappear in its parents' outputs and its
+  // children's inputs. entity-detection already scores them.
+  const ownAddresses = inputAddressSet(tx.vin);
+  for (const vout of tx.vout) if (vout.scriptpubkey_address) ownAddresses.add(vout.scriptpubkey_address);
 
   let nearestBackward: EntityHit | null = null;
   let nearestForward: EntityHit | null = null;
@@ -64,7 +69,7 @@ export function analyzeEntityProximity(
 
       // Check addresses for entity matches
       if (filter && !nearestBackward) {
-        const hit = scanTxForEntity(layerTx, layer.depth, "backward", filter);
+        const hit = scanTxForEntity(layerTx, layer.depth, "backward", filter, ownAddresses);
         if (hit) nearestBackward = hit;
       }
     }
@@ -80,7 +85,7 @@ export function analyzeEntityProximity(
 
       // Check addresses for entity matches
       if (filter && !nearestForward) {
-        const hit = scanTxForEntity(layerTx, layer.depth, "forward", filter);
+        const hit = scanTxForEntity(layerTx, layer.depth, "forward", filter, ownAddresses);
         if (hit) nearestForward = hit;
       }
     }
@@ -232,7 +237,7 @@ function buildEntityProximityFinding(
   const hops = hit.hops;
   const cjsBetween = [...cjDepths].filter(d => d < hops).length;
   const barrierSuppressed = !isOfac && isCoinJoinBarrier(hops, cjsBetween);
-  const findingId = `chain-entity-proximity-${hit.direction}`;
+  const findingId = `chain-entity-proximity-${hit.direction}` as const;
 
   if (barrierSuppressed) {
     return {
@@ -297,11 +302,12 @@ function scanTxForEntity(
   depth: number,
   direction: "backward" | "forward",
   filter: { has(addr: string): boolean },
+  skip: Set<string>,
 ): EntityHit | null {
   // Check input addresses
   for (const vin of layerTx.vin) {
     const addr = vin.prevout?.scriptpubkey_address;
-    if (!addr) continue;
+    if (!addr || skip.has(addr)) continue;
     if (filter.has(addr)) {
       // Only report named entities - skip unnamed Bloom filter matches (possible false positives)
       const entityName = lookupEntityName(addr);
@@ -314,7 +320,7 @@ function scanTxForEntity(
   // Check output addresses
   for (const vout of layerTx.vout) {
     const addr = vout.scriptpubkey_address;
-    if (!addr || vout.scriptpubkey_type === "op_return") continue;
+    if (!addr || skip.has(addr) || isOpReturnOutput(vout)) continue;
     if (filter.has(addr)) {
       const entityName = lookupEntityName(addr);
       if (!entityName) continue;

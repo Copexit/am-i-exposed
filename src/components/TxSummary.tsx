@@ -6,7 +6,7 @@ import { ArrowRight, Search } from "lucide-react";
 import type { MempoolTransaction } from "@/lib/api/types";
 import { formatSats, calcFeeRate, calcVsize, formatTimeAgo } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
-import { countOutputValues } from "@/lib/analysis/heuristics/tx-utils";
+import { countOutputValues, isCoinbase, isOpReturnOutput } from "@/lib/analysis/heuristics/tx-utils";
 
 interface TxSummaryProps {
   tx: MempoolTransaction;
@@ -27,9 +27,8 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
     tx.vin.map((v) => v.prevout?.scriptpubkey_address).filter(Boolean) as string[],
   );
   const reuseChangeIndices = new Set<number>();
-  for (let idx = 0; idx < tx.vout.length; idx++) {
-    const outAddr = tx.vout[idx].scriptpubkey_address;
-    if (outAddr && inputAddresses.has(outAddr)) reuseChangeIndices.add(idx);
+  for (const [idx, out] of tx.vout.entries()) {
+    if (out.scriptpubkey_address && inputAddresses.has(out.scriptpubkey_address)) reuseChangeIndices.add(idx);
   }
   // Heuristic change detection for 2-output txs (only when no address-reuse detected)
   const likelyChangeIdx = reuseChangeIndices.size > 0
@@ -40,7 +39,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
 
   // Assign colors to equal-value groups
   const groupColors = new Map<number, string>();
-  const colors = [
+  const colors: [string, ...string[]] = [
     "text-severity-good",
     "text-bitcoin",
     "text-info",
@@ -50,7 +49,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
   let colorIdx = 0;
   for (const [value, count] of valueCounts) {
     if (count >= 2) {
-      groupColors.set(value, colors[colorIdx % colors.length]);
+      groupColors.set(value, colors[colorIdx % colors.length] ?? colors[0]);
       colorIdx++;
     }
   }
@@ -78,9 +77,9 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
         </span>
       </div>
 
-      <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-start overflow-hidden" role="group" aria-label="Transaction inputs and outputs">
+      <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-start overflow-hidden" role="group" aria-label={t("tx.inputsAndOutputs", { defaultValue: "Transaction inputs and outputs" })}>
         {/* Inputs */}
-        <div className="space-y-2 min-w-0" role="list" aria-label="Inputs">
+        <div className="space-y-2 min-w-0" role="list" aria-label={t("psbt.inputs", { defaultValue: "Inputs" })}>
           {inputsToShow.map((vin, i) => {
             const addr = vin.prevout?.scriptpubkey_address;
             const isHighlighted = highlightAddress && addr === highlightAddress;
@@ -125,7 +124,7 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
         </div>
 
         {/* Outputs */}
-        <div className="space-y-2 min-w-0" role="list" aria-label="Outputs">
+        <div className="space-y-2 min-w-0" role="list" aria-label={t("psbt.outputs", { defaultValue: "Outputs" })}>
           {outputsToShow.map((vout, i) => {
             const anonSet = valueCounts.get(vout.value) ?? 1;
             const color = groupColors.get(vout.value);
@@ -214,9 +213,10 @@ export function TxSummary({ tx, changeOutputIndex, onAddressClick, highlightAddr
  * Returns the output index (0 or 1) or -1 if uncertain.
  */
 function detectLikelyChange(tx: MempoolTransaction): number {
-  if (tx.vout.length !== 2) return -1;
-  if (!tx.vout[0].scriptpubkey_address || !tx.vout[1].scriptpubkey_address) return -1;
-  if (tx.vin.some((v) => v.is_coinbase)) return -1;
+  const [o0, o1] = tx.vout;
+  if (tx.vout.length !== 2 || !o0 || !o1) return -1;
+  if (!o0.scriptpubkey_address || !o1.scriptpubkey_address) return -1;
+  if (isCoinbase(tx)) return -1;
 
   let score0 = 0;
   let score1 = 0;
@@ -228,13 +228,13 @@ function detectLikelyChange(tx: MempoolTransaction): number {
   }
   if (inputTypes.size === 1) {
     const iType = [...inputTypes][0];
-    if (tx.vout[0].scriptpubkey_type === iType && tx.vout[1].scriptpubkey_type !== iType) score0++;
-    if (tx.vout[1].scriptpubkey_type === iType && tx.vout[0].scriptpubkey_type !== iType) score1++;
+    if (o0.scriptpubkey_type === iType && o1.scriptpubkey_type !== iType) score0++;
+    if (o1.scriptpubkey_type === iType && o0.scriptpubkey_type !== iType) score1++;
   }
 
   // Check round amounts (round output = payment, non-round = change)
-  const r0 = tx.vout[0].value % 10_000 === 0;
-  const r1 = tx.vout[1].value % 10_000 === 0;
+  const r0 = o0.value % 10_000 === 0;
+  const r1 = o1.value % 10_000 === 0;
   if (r0 && !r1) score1++;
   if (r1 && !r0) score0++;
 
@@ -244,7 +244,7 @@ function detectLikelyChange(tx: MempoolTransaction): number {
 }
 
 function formatOutputAddr(vout: { scriptpubkey_address?: string; scriptpubkey_type: string }): string {
-  if (vout.scriptpubkey_type === "op_return") return "OP_RETURN";
+  if (isOpReturnOutput(vout)) return "OP_RETURN";
   if (vout.scriptpubkey_address) return truncateId(vout.scriptpubkey_address, 6);
   // Non-standard output types without a decoded address
   const typeLabels: Record<string, string> = {

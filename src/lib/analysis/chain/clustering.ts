@@ -96,8 +96,11 @@ export function buildCluster(
       scoreImpact,
       params: {
         clusterSize: cluster.size,
+        count: cluster.size - 1,
         riskTier,
         _variant: "clustered",
+        // Selects recommendation.clustered_{good,typical,large}
+        context: riskTier === "small" ? "good" : riskTier === "typical" ? "typical" : "large",
       },
       confidence: "high",
     });

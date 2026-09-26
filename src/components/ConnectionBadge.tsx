@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
  */
 export function ConnectionBadge() {
   const { t } = useTranslation();
-  const { torStatus, localApiStatus, isUmbrel } = useNetwork();
+  const { torStatus, localApiStatus, isUmbrel, customApiUrl } = useNetwork();
   const [showTip, setShowTip] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -40,6 +40,13 @@ export function ConnectionBadge() {
           label: <span className="text-success text-xs hidden sm:inline">{t("common.local", { defaultValue: "Local" })}</span>,
           tip: t("common.connectionLocal", { defaultValue: "Connected to local mempool instance - all queries stay on your network" }),
         }
+    : customApiUrl
+    // Tor detection is skipped with a custom API, so torStatus says nothing here.
+    ? {
+        icon: <Shield size={16} className="text-muted" />,
+        label: <span className="text-muted text-xs hidden sm:inline">{t("common.custom", { defaultValue: "Custom API" })}</span>,
+        tip: t("common.connectionCustom", { defaultValue: "Using a custom API - queries go to your configured server, not mempool.space" }),
+      }
     : {
         checking: {
           icon: <Shield size={16} className="text-muted animate-pulse" />,

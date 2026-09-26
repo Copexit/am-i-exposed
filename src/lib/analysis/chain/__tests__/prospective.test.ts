@@ -2,7 +2,11 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { analyzeFingerprintEvolution } from "../prospective";
 import { makeTx, makeVin, resetAddrCounter } from "../../heuristics/__tests__/fixtures/tx-factory";
 
-beforeEach(() => resetAddrCounter());
+let txSeq = 0;
+beforeEach(() => {
+  resetAddrCounter();
+  txSeq = 0;
+});
 
 const ADDR = "bc1qsender00000000000000000000000000000001";
 
@@ -16,7 +20,7 @@ function makeSenderTx(overrides: {
   sequence?: number;
 }) {
   return makeTx({
-    txid: overrides.txid ?? Math.random().toString(16).slice(2).padEnd(64, "0"),
+    txid: overrides.txid ?? String(++txSeq).padStart(64, "0"),
     version: overrides.version ?? 2,
     locktime: overrides.locktime ?? (overrides.blockHeight ?? 800000),
     vin: [
@@ -66,7 +70,7 @@ describe("analyzeFingerprintEvolution", () => {
     ];
     const result = analyzeFingerprintEvolution(ADDR, txs);
     expect(result.transitions).toHaveLength(1);
-    expect(result.transitions[0].changes).toContain("nVersion 1 -> 2");
+    expect(result.transitions[0]?.changes).toContain("nVersion 1 -> 2");
     // nVersion + locktime change = 2 signals = wallet migration
     const f = result.findings.find((f) => f.id === "prospective-wallet-migration");
     expect(f).toBeDefined();
@@ -116,7 +120,7 @@ describe("analyzeFingerprintEvolution", () => {
     ];
     const result = analyzeFingerprintEvolution(ADDR, txs);
     expect(result.transitions).toHaveLength(1);
-    expect(result.transitions[0].changes.some((c) => c.includes("Script type"))).toBe(true);
+    expect(result.transitions[0]?.changes.some((c) => c.includes("Script type"))).toBe(true);
   });
 
   it("detects multiple transitions as mixed fingerprints", () => {

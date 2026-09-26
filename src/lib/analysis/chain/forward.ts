@@ -38,7 +38,7 @@ interface ForwardAnalysisResult {
   consolidatedCoinJoinOutputs: number[];
   /** Outputs that are part of a forward peel chain */
   peelChainOutputs: number[];
-  /** Outputs where toxic change was merged with post-mix UTXOs */
+  /** Outputs where tx0 toxic change was spent together with other UTXOs */
   toxicMergeOutputs: number[];
 }
 
@@ -88,9 +88,9 @@ export function analyzeForward(
     // Skip when parent tx is a CoinJoin: post-mix outputs spent individually
     // (1-in, 2-out) is normal and expected behavior, not a peel chain.
     if (!txIsCoinJoin && childTx.vin.length === 1 && childTx.vout.length === 2) {
-      const spendable = getSpendableOutputs(childTx.vout);
-      if (spendable.length === 2) {
-        const [v1, v2] = [spendable[0].value, spendable[1].value];
+      const [out1, out2] = getSpendableOutputs(childTx.vout);
+      if (out1 && out2) {
+        const [v1, v2] = [out1.value, out2.value];
         const ratio = Math.min(v1, v2) / Math.max(v1, v2);
         // Peel chain: one output is much smaller (change) - ratio < 0.3
         if (ratio < 0.3 && ratio > 0) {
@@ -100,14 +100,18 @@ export function analyzeForward(
     }
   }
 
-  // Item 3: Toxic change merged with post-mix UTXOs
-  // Check if any child tx combines a tx0 toxic change with CoinJoin outputs
-  const isTx0 = detectTx0(tx) !== null;
-  if (isTx0) {
+  // Item 3: Toxic change spent together with other UTXOs
+  // Only the toxic change output counts: premix outputs are supposed to be
+  // spent alongside other participants' inputs in the Whirlpool mix. Whether
+  // the other inputs are post-mix is not known here (their parents are not
+  // fetched), so the finding claims only the merge itself.
+  const toxicChange = detectTx0(tx)?.toxicChange;
+  if (toxicChange) {
     for (const [outputIdx, childTx] of childTxs.entries()) {
+      if (tx.vout[outputIdx] !== toxicChange) continue;
+      if (!outspends[outputIdx]?.spent) continue;
       if (!childTx || childTx.vin.length < 2) continue;
 
-      // Check if child tx mixes tx0 change with post-mix outputs
       const hasThisTxInput = childTx.vin.some((v) => v.txid === tx.txid);
       const hasOtherInput = childTx.vin.some((v) => v.txid !== tx.txid);
       if (hasThisTxInput && hasOtherInput) {
@@ -183,11 +187,11 @@ export function analyzeForward(
     findings.push({
       id: "chain-toxic-merge",
       severity: "critical",
-      title: "Toxic change merged with post-mix UTXOs",
+      title: "Toxic change spent together with other UTXOs",
       description:
         "Change from a CoinJoin premix (tx0) was spent in the same transaction as " +
-        "post-mix CoinJoin outputs. This links the pre-mix identity to the mixed coins, " +
-        "destroying all mixing benefit.",
+        "other UTXOs. This links the pre-mix identity to those coins; if any of them " +
+        "are post-mix outputs, their mixing benefit is lost.",
       recommendation:
         "Never spend toxic change with post-mix UTXOs. Dispose of toxic change via " +
         "Monero atomic swap (UnstoppableSwap), Lightning channel opening, or submarine swap.",

@@ -5,7 +5,8 @@ import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
 import type { Finding } from "@/lib/types";
 import { SEVERITY_TEXT, SEVERITY_BG } from "@/lib/severity";
-import { findingKey } from "@/lib/finding-utils";
+import { findingKeys } from "@/lib/finding-utils";
+import type { FindingId } from "@/lib/analysis/finding-metadata";
 
 interface ChainAnalysisPanelProps {
   findings: Finding[];
@@ -15,7 +16,7 @@ interface ChainAnalysisPanelProps {
 type ChainCategory = "input-provenance" | "output-destinations" | "structural" | "spending-patterns";
 
 /** Explicit map from finding ID to its display category. */
-const FINDING_CATEGORY: Record<string, ChainCategory> = {
+const FINDING_CATEGORY: Partial<Record<FindingId, ChainCategory>> = {
   // Input provenance (backward analysis)
   "chain-coinjoin-input": "input-provenance",
   "chain-exchange-input": "input-provenance",
@@ -27,21 +28,12 @@ const FINDING_CATEGORY: Record<string, ChainCategory> = {
   "chain-post-coinjoin-consolidation": "output-destinations",
   "chain-forward-peel": "output-destinations",
   "chain-toxic-merge": "output-destinations",
-  "chain-post-coinjoin-direct-spend": "output-destinations",
   "chain-entity-proximity-forward": "output-destinations",
   "chain-coinjoin-descendancy": "output-destinations",
-  "peel-chain-trace": "output-destinations",
-  "peel-chain-trace-short": "output-destinations",
   // Structural analysis
   "linkability-deterministic": "structural",
-  "linkability-ambiguous": "structural",
   "linkability-equal-subset": "structural",
   "chain-cluster-size": "structural",
-  "chain-coinjoin-quality": "structural",
-  "joinmarket-subset-sum": "structural",
-  "joinmarket-subset-sum-resistant": "structural",
-  "joinmarket-taker-maker": "structural",
-  "joinmarket-multi-round": "structural",
   // Spending patterns
   "chain-near-exact-spend": "spending-patterns",
   "chain-ricochet": "spending-patterns",
@@ -100,7 +92,7 @@ export function ChainAnalysisPanel({ findings }: ChainAnalysisPanelProps) {
   );
 }
 
-function ChainSection({ title, findings, t }: { title: string; findings: Finding[]; t: (key: string, opts?: Record<string, unknown>) => string }) {
+function ChainSection({ title, findings, t }: { title: string; findings: Finding[]; t: (key: string | string[], opts?: Record<string, unknown>) => string }) {
   return (
     <div className="space-y-2">
       <div className="text-xs font-medium text-muted uppercase tracking-wider">
@@ -114,7 +106,7 @@ function ChainSection({ title, findings, t }: { title: string; findings: Finding
           >
             <div className="flex items-start justify-between gap-2">
               <span className={`font-medium ${SEVERITY_TEXT[f.severity] ?? "text-foreground"}`}>
-                {t(findingKey(f.id, "title", f.params), { ...f.params, defaultValue: f.title })}
+                {t(findingKeys(f.id, "title", f.params), { ...f.params, defaultValue: f.title })}
               </span>
               {f.scoreImpact !== 0 && (
                 <span className={`text-xs font-mono shrink-0 ${f.scoreImpact > 0 ? "text-severity-good" : "text-severity-critical"}`}>

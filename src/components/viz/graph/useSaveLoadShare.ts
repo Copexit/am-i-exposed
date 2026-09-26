@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useSavedGraphs } from "@/hooks/useSavedGraphs";
+import { useSavedGraphs, MAX_SAVED_GRAPHS } from "@/hooks/useSavedGraphs";
 import { serializeGraph } from "@/lib/graph/saved-graph-types";
 import { encodeGraphToUrl } from "@/lib/graph/graph-url-codec";
 import { truncateId } from "@/lib/constants";
+import { copyToClipboard } from "@/lib/clipboard";
 import type { GraphNode } from "@/components/viz/graph/types";
 import type { GraphState } from "@/lib/graph/graph-reducer";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
@@ -81,10 +82,12 @@ export function useSaveLoadShare(args: UseSaveLoadShareArgs) {
     if (id) {
       setToast(t("graphSaveLoad.saved", { defaultValue: "Graph saved" }));
       setActivePanel(null);
-    } else {
+    } else if (graphs.length >= MAX_SAVED_GRAPHS) {
       setToast(t("graphSaveLoad.limitReached", { defaultValue: "Max 50 saved graphs reached" }));
+    } else {
+      setToast(t("workspace.storageFull", { defaultValue: "Browser storage is full. Delete some bookmarks or saved graphs and try again." }));
     }
-  }, [saveName, rootTxid, buildGraphState, network, saveGraph, t, posOverrides, savedAnnotations, nodeLabels, edgeLabels]);
+  }, [saveName, rootTxid, buildGraphState, network, saveGraph, graphs.length, t, posOverrides, savedAnnotations, nodeLabels, edgeLabels]);
 
   const handleUpdate = useCallback(() => {
     if (!currentGraphId) return;
@@ -94,11 +97,15 @@ export function useSaveLoadShare(args: UseSaveLoadShareArgs) {
       parentEdge: n.parentEdge ? { ...n.parentEdge } : undefined,
       childEdge: n.childEdge ? { ...n.childEdge } : undefined,
     }));
-    updateGraph(currentGraphId, {
+    const ok = updateGraph(currentGraphId, {
       nodes: nodesArr,
       rootTxid: state.rootTxid,
       rootTxids: [...state.rootTxids],
     });
+    if (!ok) {
+      setToast(t("workspace.storageFull", { defaultValue: "Browser storage is full. Delete some bookmarks or saved graphs and try again." }));
+      return;
+    }
     setToast(t("graphSaveLoad.updated", { defaultValue: "Graph updated" }));
     setActivePanel(null);
   }, [currentGraphId, buildGraphState, updateGraph, t]);
@@ -112,10 +119,10 @@ export function useSaveLoadShare(args: UseSaveLoadShareArgs) {
       return;
     }
     const url = `${window.location.origin}/graph/?network=${network}#graph=${encoded}`;
-    navigator.clipboard.writeText(url).then(
-      () => setToast(t("graphSaveLoad.linkCopied", { defaultValue: "Link copied to clipboard" })),
-      () => setToast("Failed to copy"),
-    );
+    // Fire-and-forget: copyToClipboard never rejects.
+    void copyToClipboard(url).then((ok) => setToast(ok
+      ? t("graphSaveLoad.linkCopied", { defaultValue: "Link copied to clipboard" })
+      : t("graphSaveLoad.copyFailed", { defaultValue: "Failed to copy" })));
   }, [buildGraphState, network, t, posOverrides, savedAnnotations, nodeLabels, edgeLabels]);
 
   const [now] = useState(() => Date.now());

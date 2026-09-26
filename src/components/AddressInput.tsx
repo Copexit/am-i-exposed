@@ -8,6 +8,7 @@ import { detectInputType, cleanInput } from "@/lib/analysis/detect-input";
 import { useAddressAutocomplete } from "@/hooks/useAddressAutocomplete";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
 import { useTheme } from "@/hooks/useTheme";
+import { COLORS, HUES, hexToRgba } from "@/lib/palette";
 import { Spinner } from "./ui/Spinner";
 
 function InputTypeHint({ value, network }: { value: string; network: BitcoinNetwork }) {
@@ -131,8 +132,8 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
           className="absolute -inset-2 rounded-2xl opacity-30 group-focus-within:opacity-60 transition-opacity duration-500 pointer-events-none blur-2xl"
           style={{
             background: isLight
-              ? "conic-gradient(from var(--border-angle, 0deg), rgba(168,139,250,0.15), rgba(251,191,36,0.15), rgba(147,197,253,0.15), rgba(168,139,250,0.15))"
-              : "conic-gradient(from var(--border-angle, 0deg), rgba(139,92,246,0.3), rgba(247,147,26,0.3), rgba(59,130,246,0.3), rgba(139,92,246,0.3))",
+              ? `conic-gradient(from var(--border-angle, 0deg), ${hexToRgba(HUES.violet400, 0.15)}, ${hexToRgba(HUES.amber400, 0.15)}, ${hexToRgba(HUES.blue300, 0.15)}, ${hexToRgba(HUES.violet400, 0.15)})`
+              : `conic-gradient(from var(--border-angle, 0deg), ${hexToRgba(HUES.violet500, 0.3)}, ${hexToRgba(COLORS.bitcoin, 0.3)}, ${hexToRgba(HUES.blue500, 0.3)}, ${hexToRgba(HUES.violet500, 0.3)})`,
             animation: "border-rotate 4s linear infinite",
           }}
         />
@@ -143,8 +144,8 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
             background: pasteSuccess
               ? "var(--success)"
               : isLight
-                ? `conic-gradient(from var(--border-angle, 0deg), var(--card-border), rgba(251,191,36,0.3), rgba(168,139,250,0.25), rgba(147,197,253,0.25), var(--card-border))`
-                : `conic-gradient(from var(--border-angle, 0deg), var(--card-border), rgba(247,147,26,0.4), rgba(139,92,246,0.3), rgba(59,130,246,0.3), var(--card-border))`,
+                ? `conic-gradient(from var(--border-angle, 0deg), var(--card-border), ${hexToRgba(HUES.amber400, 0.3)}, ${hexToRgba(HUES.violet400, 0.25)}, ${hexToRgba(HUES.blue300, 0.25)}, var(--card-border))`
+                : `conic-gradient(from var(--border-angle, 0deg), var(--card-border), ${hexToRgba(COLORS.bitcoin, 0.4)}, ${hexToRgba(HUES.violet500, 0.3)}, ${hexToRgba(HUES.blue500, 0.3)}, var(--card-border))`,
             animation: "border-rotate 4s linear infinite",
           }}
         >
@@ -193,7 +194,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
             aria-activedescendant={selectedIndex >= 0 ? `suggestion-${selectedIndex}` : undefined}
             className="relative w-full glass rounded-[11px] pl-4 pr-24 sm:pl-5 sm:pr-20 py-4
               font-mono text-sm sm:text-base text-foreground placeholder:text-muted/70
-              focus:shadow-[0_0_20px_rgba(247,147,26,0.2)]
+              focus:shadow-[0_0_20px_--alpha(var(--color-bitcoin)/20%)]
               transition-all duration-200 border-0
               focus-visible:outline-2 focus-visible:outline-bitcoin/50"
           />
@@ -209,7 +210,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
               disabled={!value.trim()}
               onMouseMove={handleButtonMouseMove}
               onMouseLeave={handleButtonMouseLeave}
-              style={{ background: "var(--bitcoin-gradient)", x: springX, y: springY, boxShadow: isLight ? "0 2px 8px rgba(247, 147, 26, 0.3)" : undefined }}
+              style={{ background: "var(--bitcoin-gradient)", x: springX, y: springY, boxShadow: isLight ? `0 2px 8px ${hexToRgba(COLORS.bitcoin, 0.3)}` : undefined }}
               className="px-5 py-2 text-black font-semibold text-sm sm:text-base rounded-lg
                 hover:brightness-110 transition-[filter] duration-150 disabled:opacity-30
                 disabled:cursor-not-allowed cursor-pointer focus-visible:ring-2 focus-visible:ring-bitcoin focus-visible:outline-none"

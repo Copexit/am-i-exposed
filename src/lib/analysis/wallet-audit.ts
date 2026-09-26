@@ -16,6 +16,7 @@ import type { Finding, Severity, Grade } from "@/lib/types";
 import { scoreToGrade } from "@/lib/scoring/score";
 import { sumImpact } from "@/lib/scoring/score";
 import { fmtN } from "@/lib/format";
+import { enrichFindingsWithMetadata } from "./finding-metadata";
 import { P2PKH_DUST_LIMIT, TOXIC_CHANGE_THRESHOLD } from "@/lib/constants";
 import type { MempoolAddress, MempoolTransaction, MempoolUtxo } from "@/lib/api/types";
 import type { DerivedAddress } from "@/lib/bitcoin/descriptor";
@@ -273,18 +274,19 @@ function checkGoodPractices(addresses: WalletAddressInfo[]): Finding[] {
     }
   }
 
-  if (scriptTypes.size === 1 && active.length > 3) {
+  const [onlyScriptType] = scriptTypes;
+  if (scriptTypes.size === 1 && onlyScriptType !== undefined && active.length > 3) {
     findings.push({
       id: "wallet-uniform-script",
       severity: "good",
       confidence: "deterministic",
-      title: `Uniform script type: ${[...scriptTypes][0]}`,
+      title: `Uniform script type: ${onlyScriptType}`,
       description:
         "All wallet UTXOs use the same script type, which avoids revealing " +
         "wallet migration history when spending.",
       recommendation: "Continue using a consistent script type.",
       scoreImpact: 3,
-      params: { scriptType: [...scriptTypes][0] },
+      params: { scriptType: onlyScriptType },
     });
   }
 
@@ -297,8 +299,9 @@ function checkGoodPractices(addresses: WalletAddressInfo[]): Finding[] {
  * Run a full wallet-level privacy audit on derived addresses.
  *
  * @param addresses - Array of derived address info (address data, txs, utxos)
+ * @param failedAddresses - Addresses whose fetch failed (the scan is partial when non-empty)
  */
-export function auditWallet(addresses: WalletAddressInfo[]): WalletAuditResult {
+export function auditWallet(addresses: WalletAddressInfo[], failedAddresses: string[] = []): WalletAuditResult {
   const findings: Finding[] = [];
 
   // Run all checks
@@ -306,6 +309,23 @@ export function auditWallet(addresses: WalletAddressInfo[]): WalletAuditResult {
   findings.push(...checkUtxoHygiene(addresses));
   findings.push(...checkSpendingPatterns(addresses));
   findings.push(...checkGoodPractices(addresses));
+  if (failedAddresses.length > 0) {
+    // Rendered via finding.wallet-scan-partial.* keys, English fallback here
+    const count = failedAddresses.length;
+    findings.push({
+      id: "wallet-scan-partial",
+      severity: "low",
+      confidence: "high",
+      title: `Wallet scan incomplete (${count} addresses failed)`,
+      description:
+        `${count} addresses could not be fetched (rate limit or network error) and are missing from this audit. ` +
+        "Used addresses beyond them may also have been missed.",
+      recommendation: "Wait a moment and scan again, or use a self-hosted API.",
+      scoreImpact: 0,
+      params: { count },
+    });
+  }
+  enrichFindingsWithMetadata(findings);
 
   // Calculate aggregate stats
   let activeAddresses = 0;

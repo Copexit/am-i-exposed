@@ -26,7 +26,7 @@ export function KnowledgeTabBar() {
   };
 
   return (
-    <nav className="flex items-center gap-1" aria-label="Knowledge sections">
+    <nav className="flex items-center gap-1" aria-label={t("common.knowledgeSections", { defaultValue: "Knowledge sections" })}>
       {TABS.map((tab) => {
         const active = isActive(tab.href);
         const Icon = tab.icon;

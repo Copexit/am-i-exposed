@@ -10,7 +10,7 @@ import { useBoltzmann } from "@/hooks/useBoltzmann";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import { formatSats } from "@/lib/format";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
-import { getColorStops, probColor, probLabel } from "./shared/linkabilityColors";
+import { EFFICIENCY_COLORS, getColorStops, probColor, probLabel } from "./shared/linkabilityColors";
 import { truncAddr, truncAddrSuffix } from "./shared/addressFormat";
 import { formatElapsed } from "./shared/heatmapHelpers";
 import type { HeatmapTooltipData } from "./shared/heatmapHelpers";
@@ -22,6 +22,7 @@ import {
   HeatmapUnsupportedBlock,
 } from "./shared/HeatmapStatusBlocks";
 import { isCoinJoinTx } from "@/lib/analysis/heuristics/coinjoin";
+import { isCoinbase, getValuedOutputs } from "@/lib/analysis/heuristics/tx-utils";
 import type { MempoolTransaction } from "@/lib/api/types";
 
 interface Props {
@@ -49,12 +50,14 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
     showTooltip, hideTooltip,
   } = useChartTooltip<HeatmapTooltipData>();
 
-  const isCoinbase = tx.vin.some(v => v.is_coinbase);
+  const coinbase = isCoinbase(tx);
 
   const inputs = useMemo(() =>
     tx.vin
-      .filter(v => !v.is_coinbase && v.prevout)
-      .map((v, i) => ({
+      // index = raw vin position: the matrix is indexed by tx position
+      .map((v, i) => ({ v, i }))
+      .filter(({ v }) => !v.is_coinbase && v.prevout)
+      .map(({ v, i }) => ({
         index: i,
         address: v.prevout?.scriptpubkey_address,
         value: v.prevout?.value ?? 0,
@@ -65,8 +68,10 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
 
   const outputs = useMemo(() =>
     tx.vout
-      .filter(o => o.scriptpubkey_type !== "op_return" && o.value > 0)
-      .map((o, i) => ({
+      // index = raw vout position (valued outputs only)
+      .map((o, i) => ({ o, i }))
+      .filter(({ o }) => getValuedOutputs([o]).length === 1)
+      .map(({ o, i }) => ({
         index: i,
         address: o.scriptpubkey_address,
         value: o.value,
@@ -77,6 +82,12 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
 
   const nIn = inputs.length;
   const nOut = outputs.length;
+
+  // H5 merges UTXOs sharing an address (mergeByAddress), so its entropy can differ from these per-UTXO pills
+  const hasSharedAddress = useMemo(() => [inputs, outputs].some((list) => {
+    const addrs = list.flatMap((u) => (u.address ? [u.address] : []));
+    return new Set(addrs).size < addrs.length;
+  }), [inputs, outputs]);
 
   // Pagination for large matrices to prevent browser crashes
   const PAGE_SIZE = 30;
@@ -131,7 +142,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
     hideTooltip();
   }, [hideTooltip]);
 
-  if (isCoinbase || !isSupported) return null;
+  if (coinbase || !isSupported) return null;
 
   return (
     <GlowCard className="p-5 sm:p-6">
@@ -143,17 +154,17 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
         </h3>
         <span className="text-xs text-muted" title={
           state.result?.method === "wabisabi"
-            ? "Tier-decomposed upper bound: per-tier Boltzmann partition formulas combined under independence assumption. True entropy may be slightly lower due to cross-tier dependencies."
+            ? t("boltzmann.methodTooltip.wabisabi", { defaultValue: "Tier-decomposed upper bound: per-tier Boltzmann partition formulas combined under independence assumption. True entropy may be slightly lower due to cross-tier dependencies." })
             : state.result?.method === "joinmarket"
-              ? "JoinMarket-optimized Boltzmann: exploits maker/taker structure for fast computation. Upper bound due to formula approximations for large transactions."
-              : "Exact Boltzmann link probability computation via WASM"
+              ? t("boltzmann.methodTooltip.joinmarket", { defaultValue: "JoinMarket-optimized Boltzmann: exploits maker/taker structure for fast computation. Upper bound due to formula approximations for large transactions." })
+              : t("boltzmann.methodTooltip.exact", { defaultValue: "Exact Boltzmann link probability computation via WASM" })
         }>
           {t("boltzmann.subtitle", { defaultValue: "Boltzmann analysis" })}
           {state.result?.method === "wabisabi" && (
-            <span className="ml-1 text-[9px] text-muted/50">(tier-decomposed)</span>
+            <span className="ml-1 text-[9px] text-muted/50">{t("boltzmann.method.wabisabi", { defaultValue: "(tier-decomposed)" })}</span>
           )}
           {state.result?.method === "joinmarket" && (
-            <span className="ml-1 text-[9px] text-muted/50">(JoinMarket-optimized)</span>
+            <span className="ml-1 text-[9px] text-muted/50">{t("boltzmann.method.joinmarket", { defaultValue: "(JoinMarket-optimized)" })}</span>
           )}
         </span>
       </div>
@@ -171,6 +182,20 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
             <HeatmapErrorBlock error={state.error ?? undefined} compute={compute} />
           )}
 
+          {state.status === "cancelled" && (
+            <div className="text-center py-6 space-y-3">
+              <p className="text-xs text-muted">
+                {t("boltzmann.cancelled", { defaultValue: "Computation was interrupted by another Boltzmann job." })}
+              </p>
+              <button
+                onClick={compute}
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-muted border border-card-border rounded-lg hover:text-foreground transition-colors cursor-pointer"
+              >
+                {t("boltzmann.retry", { defaultValue: "Retry" })}
+              </button>
+            </div>
+          )}
+
           {state.status === "unsupported" && <HeatmapUnsupportedBlock />}
 
           {state.status === "complete" && state.result && (() => {
@@ -178,7 +203,9 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
             const showEfficiency = isCoinJoinTx(tx) && result.efficiency > 0 && !result.timedOut;
             const effPct = Math.min(result.efficiency, 1) * 100;
             const isApprox = result.method === "wabisabi" || result.method === "joinmarket";
-            const boundLabel = isApprox ? " (upper bound)" : "";
+            const boundLabel = isApprox ? ` ${t("boltzmann.upperBound", { defaultValue: "(upper bound)" })}` : "";
+            const bits = result.entropy.toFixed(2);
+            const bitsPerUtxo = (result.entropy / (nIn + nOut)).toFixed(2);
 
             return (
               <>
@@ -186,20 +213,26 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                 <div className="flex flex-wrap gap-2">
                   <motion.span initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="inline-flex items-center gap-1.5 bg-surface-inset rounded-full px-2.5 py-1 text-xs text-muted">
                     <Hash size={11} />
-                    {result.timedOut ? `${result.nbCmbn.toLocaleString()}+ interpretations (partial)` : t("boltzmann.interpretations", { defaultValue: "{{num}} interpretations", num: result.nbCmbn.toLocaleString() })}
+                    {result.timedOut
+                      ? t("boltzmann.interpretationsPartial", { num: result.nbCmbn.toLocaleString(), defaultValue: "{{num}}+ interpretations (partial)" })
+                      : t("boltzmann.interpretations", { count: result.nbCmbn, num: result.nbCmbn.toLocaleString(), defaultValue: "{{num}} interpretations" })}
                   </motion.span>
-                  <motion.span initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.05 }} className="inline-flex items-center gap-1.5 bg-surface-inset rounded-full px-2.5 py-1 text-xs text-muted" title={isApprox ? "Upper bound. True entropy may be slightly lower due to structural approximations." : undefined}>
+                  <motion.span initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.05 }} className="inline-flex items-center gap-1.5 bg-surface-inset rounded-full px-2.5 py-1 text-xs text-muted" title={isApprox ? t("boltzmann.entropyUpperBoundTooltip", { defaultValue: "Upper bound. True entropy may be slightly lower due to structural approximations." }) : undefined}>
                     <Grid3X3 size={11} />
-                    {result.timedOut ? `${result.entropy.toFixed(2)}+ bits entropy (partial)` : `${result.entropy.toFixed(2)} bits entropy${boundLabel}`}
+                    {result.timedOut
+                      ? t("boltzmann.entropyPartial", { bits, defaultValue: "{{bits}}+ bits entropy (partial)" })
+                      : t("boltzmann.entropy", { bits, defaultValue: "{{bits}} bits entropy" }) + boundLabel}
                   </motion.span>
-                  <motion.span initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.075 }} className="inline-flex items-center gap-1.5 bg-surface-inset rounded-full px-2.5 py-1 text-xs text-muted" title={isApprox ? "Upper bound. Per-UTXO entropy averaged across the transaction." : undefined}>
+                  <motion.span initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.075 }} className="inline-flex items-center gap-1.5 bg-surface-inset rounded-full px-2.5 py-1 text-xs text-muted" title={isApprox ? t("boltzmann.bitsPerUtxoUpperBoundTooltip", { defaultValue: "Upper bound. Per-UTXO entropy averaged across the transaction." }) : undefined}>
                     <Grid3X3 size={11} />
-                    {result.timedOut ? `${(result.entropy / (nIn + nOut)).toFixed(2)}+ bits/UTXO (partial)` : `${(result.entropy / (nIn + nOut)).toFixed(2)} bits/UTXO${boundLabel}`}
+                    {result.timedOut
+                      ? t("boltzmann.bitsPerUtxoPartial", { bits: bitsPerUtxo, defaultValue: "{{bits}}+ bits/UTXO (partial)" })
+                      : t("boltzmann.bitsPerUtxo", { bits: bitsPerUtxo, defaultValue: "{{bits}} bits/UTXO" }) + boundLabel}
                   </motion.span>
                   {result.deterministicLinks.length > 0 && (
                     <motion.span initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.15 }} className="inline-flex items-center gap-1.5 bg-severity-critical/10 text-severity-critical border border-severity-critical/20 rounded-full px-2.5 py-1 text-xs">
                       <Link size={11} />
-                      {t("boltzmann.deterministicLinks", { defaultValue: "{{num}} deterministic links", num: result.deterministicLinks.length })}
+                      {t("boltzmann.deterministicLinks", { count: result.deterministicLinks.length, num: result.deterministicLinks.length, defaultValue: "{{num}} deterministic links" })}
                     </motion.span>
                   )}
                   <motion.span initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.2 }} className="inline-flex items-center gap-1.5 bg-surface-inset rounded-full px-2.5 py-1 text-xs text-muted">
@@ -207,6 +240,12 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                     {formatElapsed(result.elapsedMs)}
                   </motion.span>
                 </div>
+
+                {hasSharedAddress && (
+                  <p className="text-xs text-muted">
+                    {t("boltzmann.mergedNote", { defaultValue: "The entropy finding merges UTXOs that share an address, so its value can differ from these per-UTXO figures." })}
+                  </p>
+                )}
 
                 {/* Timed out warning */}
                 {result.timedOut && (
@@ -246,13 +285,13 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                               <div className="text-[10px] text-muted/60">{formatSats(inp.value)}</div>
                             </div>
                           </div>
-                          {cappedOutputs.map((_out, o) => (
+                          {cappedOutputs.map((out, o) => (
                             <HeatmapCell
                               key={`c-${i}-${o}`}
                               row={i}
                               col={o}
-                              prob={result.matLnkProbabilities[o]?.[i] ?? 0}
-                              count={result.matLnkCombinations[o]?.[i] ?? 0}
+                              prob={result.matLnkProbabilities[out.index]?.[inp.index] ?? 0}
+                              count={result.matLnkCombinations[out.index]?.[inp.index] ?? 0}
                               timedOut={result.timedOut}
                               hoveredRow={hoveredCell?.row ?? null}
                               hoveredCol={hoveredCell?.col ?? null}
@@ -299,7 +338,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                   {hasMoreCols && (
                     <>
                       <div className="absolute top-0 right-0 bottom-0 w-10 pointer-events-none rounded-r-lg" style={{ background: "linear-gradient(to right, transparent, var(--card-bg))" }} />
-                      <button onClick={() => setVisibleCols(Math.min(visibleCols + PAGE_SIZE, nOut))} className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5 px-2 py-1 rounded-full bg-surface-elevated/90 backdrop-blur-sm border border-card-border text-[10px] text-muted hover:text-foreground hover:border-muted transition-all cursor-pointer shadow-sm z-10" title={`Show more columns (${visibleCols}/${nOut})`}>
+                      <button onClick={() => setVisibleCols(Math.min(visibleCols + PAGE_SIZE, nOut))} className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5 px-2 py-1 rounded-full bg-surface-elevated/90 backdrop-blur-sm border border-card-border text-[10px] text-muted hover:text-foreground hover:border-muted transition-all cursor-pointer shadow-sm z-10" title={t("boltzmann.showMoreColumns", { shown: visibleCols, total: nOut, defaultValue: "Show more columns ({{shown}}/{{total}})" })}>
                         +{Math.min(PAGE_SIZE, nOut - visibleCols)}
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
                       </button>
@@ -310,7 +349,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                   {hasMoreRows && (
                     <>
                       <div className="absolute left-0 right-0 bottom-0 h-10 pointer-events-none rounded-b-lg" style={{ background: "linear-gradient(to bottom, transparent, var(--card-bg))" }} />
-                      <button onClick={() => setVisibleRows(Math.min(visibleRows + PAGE_SIZE, nIn))} className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex items-center gap-0.5 px-2 py-1 rounded-full bg-surface-elevated/90 backdrop-blur-sm border border-card-border text-[10px] text-muted hover:text-foreground hover:border-muted transition-all cursor-pointer shadow-sm z-10" title={`Show more rows (${visibleRows}/${nIn})`}>
+                      <button onClick={() => setVisibleRows(Math.min(visibleRows + PAGE_SIZE, nIn))} className="absolute bottom-1.5 left-1/2 -translate-x-1/2 flex items-center gap-0.5 px-2 py-1 rounded-full bg-surface-elevated/90 backdrop-blur-sm border border-card-border text-[10px] text-muted hover:text-foreground hover:border-muted transition-all cursor-pointer shadow-sm z-10" title={t("boltzmann.showMoreRows", { shown: visibleRows, total: nIn, defaultValue: "Show more rows ({{shown}}/{{total}})" })}>
                         +{Math.min(PAGE_SIZE, nIn - visibleRows)}
                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
                       </button>
@@ -329,11 +368,11 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                     <span className="text-[9px] text-muted">100%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-[8px] text-muted/70">No link</span>
-                    <span className="text-[8px] text-muted/70">Ambiguous</span>
-                    <span className="text-[8px] text-muted/70">Probable</span>
-                    <span className="text-[8px] text-muted/70">Likely</span>
-                    <span className="text-[8px] text-muted/70">Deterministic</span>
+                    <span className="text-[8px] text-muted/70">{t("boltzmann.legend.noLink", { defaultValue: "No link" })}</span>
+                    <span className="text-[8px] text-muted/70">{t("boltzmann.legend.ambiguous", { defaultValue: "Ambiguous" })}</span>
+                    <span className="text-[8px] text-muted/70">{t("boltzmann.legend.probable", { defaultValue: "Probable" })}</span>
+                    <span className="text-[8px] text-muted/70">{t("boltzmann.legend.likely", { defaultValue: "Likely" })}</span>
+                    <span className="text-[8px] text-muted/70">{t("boltzmann.legend.deterministic", { defaultValue: "Deterministic" })}</span>
                   </div>
                 </div>
 
@@ -343,9 +382,9 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                     <span className="shrink-0">{t("boltzmann.efficiencyLabel", { defaultValue: "Efficiency:" })}</span>
                     <span className="font-mono">{effPct.toFixed(2)}%</span>
                     <div className="flex-1 h-1 bg-foreground/[0.06] rounded-full overflow-hidden max-w-[120px]">
-                      <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(effPct, 100)}%`, backgroundColor: effPct > 50 ? "#28a065" : effPct > 20 ? "#b59215" : "#d97706" }} />
+                      <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(effPct, 100)}%`, backgroundColor: effPct > 50 ? EFFICIENCY_COLORS.high : effPct > 20 ? EFFICIENCY_COLORS.mid : EFFICIENCY_COLORS.low }} />
                     </div>
-                    <span className="text-muted/40">(vs. {result.nbCmbnPrfctCj.toLocaleString()} perfect CJ)</span>
+                    <span className="text-muted/40">{t("boltzmann.efficiencyVsPerfect", { prfct: result.nbCmbnPrfctCj.toLocaleString(), defaultValue: "(vs. {{prfct}} perfect CJ)" })}</span>
                   </motion.div>
                 )}
               </>

@@ -1,10 +1,12 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import "fake-indexeddb/auto";
 import { renderHook, waitFor } from "@testing-library/react";
 import { _resetForTest } from "@/lib/api/idb-cache";
 
+const network = { isUmbrel: false, apiReady: true };
 vi.mock("@/context/NetworkContext", () => ({
-  useNetwork: () => ({ isUmbrel: false }),
+  useNetwork: () => network,
 }));
 
 vi.mock("@/lib/observatory/whirlpool-client", () => ({
@@ -39,6 +41,7 @@ beforeEach(async () => {
     total_pages: 0,
   } as never);
   await _resetForTest();
+  Object.assign(network, { isUmbrel: false, apiReady: true });
 });
 
 afterEach(() => {
@@ -46,6 +49,19 @@ afterEach(() => {
 });
 
 describe("useObservatory", () => {
+  it("fetches nothing until the network config settles (an Umbrel user must never hit the public worker)", async () => {
+    Object.assign(network, { isUmbrel: false, apiReady: false });
+    const { rerender } = renderHook(() => useObservatory());
+    await new Promise((r) => setTimeout(r, 10));
+    expect(getWhirlpoolSummary).not.toHaveBeenCalled();
+    expect(getLiquiSabiDashboard).not.toHaveBeenCalled();
+
+    Object.assign(network, { isUmbrel: true, apiReady: true });
+    rerender();
+    await waitFor(() => expect(getWhirlpoolSummary).toHaveBeenCalled());
+    expect(String(vi.mocked(getWhirlpoolSummary).mock.calls[0]?.[0])).not.toContain("workers.dev");
+  });
+
   it("returns parallel results when all upstreams succeed", async () => {
     vi.mocked(getWhirlpoolSummary).mockResolvedValue({
       pools: [{ pool: "0.025_BTC_Pool" }],
@@ -64,8 +80,8 @@ describe("useObservatory", () => {
 
     const { result } = renderHook(() => useObservatory());
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.whirlpool?.summary.pools[0].pool).toBe("0.025_BTC_Pool");
-    expect(result.current.whirlpool?.txs?.items[0].txid).toBe("abc");
+    expect(result.current.whirlpool?.summary.pools[0]?.pool).toBe("0.025_BTC_Pool");
+    expect(result.current.whirlpool?.txs?.items[0]?.txid).toBe("abc");
     expect(result.current.liquisabi?.Coordinators).toEqual([]);
     expect(result.current.error).toBeNull();
     expect(result.current.lastUpdatedAt).not.toBeNull();

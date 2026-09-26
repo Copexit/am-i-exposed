@@ -129,6 +129,7 @@ function WaterfallChart({
           {/* Connector lines between bars */}
           {segments.slice(0, -1).map((seg, i) => {
             const next = segments[i + 1];
+            if (!next) return null;
             const x1 = (xScale(seg.key) ?? 0) + xScale.bandwidth();
             const x2 = xScale(next.key) ?? 0;
             const y = yScale(seg.runningEnd);

@@ -73,6 +73,24 @@ export const MAX_WORKERS = 8;
 // --- Worker pool singleton ---
 let workerPool: Worker[] = [];
 
+/**
+ * Cancellers for jobs awaiting a reply from the current pool. A terminated
+ * Worker fires neither onmessage nor onerror, so terminatePool() must settle
+ * these itself or their callers await forever.
+ */
+const pendingJobs = new Set<() => void>();
+
+/** Register a canceller run on terminatePool(); returns its unregister fn. */
+export function onPoolTerminate(cancel: () => void): () => void {
+  pendingJobs.add(cancel);
+  return () => pendingJobs.delete(cancel);
+}
+
+/** True while some job awaits the pool, i.e. a new compute would preempt it. */
+export function isPoolBusy(): boolean {
+  return pendingJobs.size > 0;
+}
+
 function createWorker(): Worker | null {
   if (typeof Worker === "undefined") return null;
   try {
@@ -94,9 +112,55 @@ export function getWorkerPool(size: number): Worker[] {
   return workerPool;
 }
 
-export function terminatePool() {
+/**
+ * Drop the pool after the owning job failed. Unlike terminatePool() this runs
+ * no cancellers: the failing job settles itself, and listeners must not read
+ * its own failure as preemption by another job.
+ */
+export function dropFailedPool() {
   for (const w of workerPool) w.terminate();
   workerPool = [];
+}
+
+/** Terminate the pool (preemption or abort) and settle every pending job. */
+export function terminatePool() {
+  dropFailedPool();
+  const cancels = [...pendingJobs];
+  pendingJobs.clear();
+  for (const cancel of cancels) cancel();
+}
+
+/**
+ * boltzmann-rs sorts inputs and outputs by value (descending, stable) and
+ * returns its matrices in that sorted order. Consumers index them by the
+ * position of the input/output among the values that were sent (tx order), so
+ * reorder rows, columns and deterministic links back to that order.
+ */
+export function toSubmittedOrder(
+  result: BoltzmannWorkerResult,
+  inputValues: readonly number[],
+  outputValues: readonly number[],
+): BoltzmannWorkerResult {
+  const sortedPositions = (vals: readonly number[]) =>
+    vals.map((v, i) => [v, i] as const).sort((a, b) => b[0] - a[0] || a[1] - b[1]).map(([, i]) => i);
+  const inOrder = sortedPositions(inputValues); // sorted rank -> submitted index
+  const outOrder = sortedPositions(outputValues);
+  const nIn = result.matLnkProbabilities[0]?.length ?? 0;
+  const nOut = result.matLnkProbabilities.length;
+  // Degenerate results (shape not matching the submitted values) are uniform; leave them.
+  if (nIn !== inputValues.length || nOut !== outputValues.length) return result;
+  const rankIn: number[] = [];
+  const rankOut: number[] = [];
+  inOrder.forEach((orig, rank) => { rankIn[orig] = rank; });
+  outOrder.forEach((orig, rank) => { rankOut[orig] = rank; });
+  const remap = (m: number[][]) =>
+    outputValues.map((_, o) => inputValues.map((__, i) => m[rankOut[o]!]?.[rankIn[i]!] ?? 0));
+  return {
+    ...result,
+    matLnkCombinations: remap(result.matLnkCombinations),
+    matLnkProbabilities: remap(result.matLnkProbabilities),
+    deterministicLinks: result.deterministicLinks.map(([o, i]) => [outOrder[o] ?? o, inOrder[i] ?? i] as [number, number]),
+  };
 }
 
 /**
@@ -108,12 +172,17 @@ function mergePartialResults(
   partials: BoltzmannWorkerResult[],
 ): BoltzmannWorkerResult {
   const N = partials.length;
-  if (N === 1) return partials[0];
+  const first = partials[0];
+  if (!first) throw new Error("No Boltzmann partial results to merge");
+  if (N === 1) return first;
 
-  const nOut = partials[0].matLnkCombinations.length;
-  const nIn = nOut > 0 ? partials[0].matLnkCombinations[0].length : 0;
-
-  const mat: number[][] = Array.from({ length: nOut }, () => new Array<number>(nIn).fill(0));
+  // All partials come from the same tx, so every matrix has the first one's shape.
+  // A mismatched cell yields NaN rather than a silently wrong count.
+  const mat: number[][] = first.matLnkCombinations.map((row, o) =>
+    row.map((_, i) =>
+      partials.reduce((sum, p) => sum + (p.matLnkCombinations[o]?.[i] ?? NaN), 0) - (N - 1),
+    ),
+  );
   let nbCmbn = 0;
   let anyTimedOut = false;
   let maxElapsed = 0;
@@ -122,31 +191,21 @@ function mergePartialResults(
     nbCmbn += p.nbCmbn;
     anyTimedOut = anyTimedOut || p.timedOut;
     if (p.elapsedMs > maxElapsed) maxElapsed = p.elapsedMs;
-    for (let o = 0; o < nOut; o++) {
-      for (let i = 0; i < nIn; i++) {
-        mat[o][i] += p.matLnkCombinations[o][i];
-      }
-    }
   }
 
   nbCmbn -= (N - 1);
-  for (let o = 0; o < nOut; o++) {
-    for (let i = 0; i < nIn; i++) {
-      mat[o][i] -= (N - 1);
-    }
-  }
 
   const probs: number[][] = mat.map(row =>
     row.map(v => (nbCmbn > 0 ? v / nbCmbn : 0)),
   );
   const entropy = nbCmbn > 1 ? Math.log2(nbCmbn) : 0;
-  const nbCmbnPrfctCj = partials[0].nbCmbnPrfctCj;
+  const nbCmbnPrfctCj = first.nbCmbnPrfctCj;
   const efficiency = nbCmbnPrfctCj > 0 && nbCmbn > 0 ? nbCmbn / nbCmbnPrfctCj : 0;
 
   const deterministicLinks: [number, number][] = [];
-  for (let o = 0; o < nOut; o++) {
-    for (let i = 0; i < nIn; i++) {
-      if (mat[o][i] === nbCmbn && nbCmbn > 0) {
+  for (const [o, row] of mat.entries()) {
+    for (const [i, v] of row.entries()) {
+      if (v === nbCmbn && nbCmbn > 0) {
         deterministicLinks.push([o, i]);
       }
     }
@@ -154,7 +213,7 @@ function mergePartialResults(
 
   return {
     type: "result",
-    id: partials[0].id,
+    id: first.id,
     matLnkCombinations: mat,
     matLnkProbabilities: probs,
     nbCmbn,
@@ -164,11 +223,11 @@ function mergePartialResults(
     deterministicLinks,
     timedOut: anyTimedOut,
     elapsedMs: maxElapsed,
-    nInputs: partials[0].nInputs,
-    nOutputs: partials[0].nOutputs,
-    fees: partials[0].fees,
-    intraFeesMaker: partials[0].intraFeesMaker,
-    intraFeesTaker: partials[0].intraFeesTaker,
+    nInputs: first.nInputs,
+    nOutputs: first.nOutputs,
+    fees: first.fees,
+    intraFeesMaker: first.intraFeesMaker,
+    intraFeesTaker: first.intraFeesTaker,
   };
 }
 
@@ -197,14 +256,29 @@ export function runParallelPass(
     let settled = false;
 
     function detachAll() {
+      unregister();
       for (const w of workers) {
         w.onmessage = null;
         w.onerror = null;
       }
     }
 
-    for (let idx = 0; idx < N; idx++) {
-      const w = workers[idx];
+    /** Settle with an error. Workers are left in an unknown state, so the pool is dropped. */
+    function fail(message: string) {
+      settled = true;
+      detachAll();
+      dropFailedPool();
+      reject(new Error(message));
+    }
+
+    const unregister = onPoolTerminate(() => {
+      if (settled) return;
+      settled = true;
+      detachAll();
+      reject(new Error("Boltzmann worker pool terminated"));
+    });
+
+    for (const [idx, w] of workers.entries()) {
 
       w.onmessage = (e: MessageEvent<WorkerResponse>) => {
         if (settled) return;
@@ -237,18 +311,12 @@ export function runParallelPass(
           return;
         }
 
-        if (msg.type === "error") {
-          settled = true;
-          detachAll();
-          reject(new Error(msg.message));
-        }
+        if (msg.type === "error") fail(msg.message);
       };
 
       w.onerror = (err) => {
         if (settled) return;
-        settled = true;
-        detachAll();
-        reject(new Error(err.message || "Worker error"));
+        fail(err.message || "Worker error");
       };
 
       w.postMessage({

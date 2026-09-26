@@ -6,6 +6,7 @@ import {
   checkChainalysis,
   checkChainalysisViaTor,
   checkChainalysisDirect,
+  ChainalysisRateLimitError,
   type ChainalysisRoute,
 } from "@/lib/analysis/cex-risk/chainalysis-check";
 import type { ChainalysisCheckResult } from "@/lib/analysis/cex-risk/types";
@@ -48,6 +49,37 @@ export function useChainalysisCheck(
     };
   }, []);
 
+  const rateLimitedError = useCallback(
+    () => t("cex.errorRateLimited", { defaultValue: "Too many sanctions checks from this network right now (the limit is shared on Tor). Wait a minute and try again." }),
+    [t],
+  );
+
+  const settleDone = useCallback(
+    (result: Pick<ChainalysisCheckResult, "sanctioned" | "identifications" | "matchedAddresses">, route: ChainalysisRoute) => {
+      setRouteUsed(route);
+      setChainalysis({
+        status: "done",
+        sanctioned: result.sanctioned,
+        identifications: result.identifications,
+        matchedAddresses: result.matchedAddresses,
+      });
+    },
+    [],
+  );
+
+  /** Aborts stay silent; rate limits get their own message, anything else `fallbackMsg`. */
+  const settleError = useCallback(
+    (err: unknown, fallbackMsg: string) => {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      setChainalysis((prev) => ({
+        ...prev,
+        status: "error",
+        error: err instanceof ChainalysisRateLimitError ? rateLimitedError() : fallbackMsg,
+      }));
+    },
+    [rateLimitedError],
+  );
+
   const runChainalysis = useCallback(async () => {
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -65,13 +97,7 @@ export function useChainalysisCheck(
             addresses,
             controller.signal,
           );
-          setRouteUsed(result.route);
-          setChainalysis({
-            status: "done",
-            sanctioned: result.sanctioned,
-            identifications: result.identifications,
-            matchedAddresses: result.matchedAddresses,
-          });
+          settleDone(result, result.route);
           return;
         } catch (torErr) {
           if (
@@ -79,6 +105,7 @@ export function useChainalysisCheck(
             torErr.name === "AbortError"
           )
             return;
+          if (torErr instanceof ChainalysisRateLimitError) throw torErr;
           // Tor proxy failed on Umbrel - show sidecar-specific error
           // (direct fallback would fail due to CORS on local origins)
           setChainalysis((prev) => ({
@@ -94,22 +121,11 @@ export function useChainalysisCheck(
 
       // Non-Umbrel: direct check (original behavior)
       const result = await checkChainalysis(addresses, controller.signal);
-      setRouteUsed("direct");
-      setChainalysis({
-        status: "done",
-        sanctioned: result.sanctioned,
-        identifications: result.identifications,
-        matchedAddresses: result.matchedAddresses,
-      });
+      settleDone(result, "direct");
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      setChainalysis((prev) => ({
-        ...prev,
-        status: "error",
-        error: t("cex.requestFailed", { defaultValue: "Request failed. Check your internet connection and try again." }),
-      }));
+      settleError(err, t("cex.requestFailed", { defaultValue: "Request failed. Check your internet connection and try again." }));
     }
-  }, [addresses, isUmbrel, t]);
+  }, [addresses, isUmbrel, t, settleDone, settleError]);
 
   const runChainalysisDirect = useCallback(async () => {
     abortRef.current?.abort();
@@ -124,22 +140,11 @@ export function useChainalysisCheck(
         addresses,
         controller.signal,
       );
-      setRouteUsed(result.route);
-      setChainalysis({
-        status: "done",
-        sanctioned: result.sanctioned,
-        identifications: result.identifications,
-        matchedAddresses: result.matchedAddresses,
-      });
+      settleDone(result, result.route);
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      setChainalysis((prev) => ({
-        ...prev,
-        status: "error",
-        error: t("cex.errorDirectFallback", { defaultValue: "Both Tor and direct connections failed. Try restarting the app or check your internet connection." }),
-      }));
+      settleError(err, t("cex.errorDirectFallback", { defaultValue: "Both Tor and direct connections failed. Try restarting the app or check your internet connection." }));
     }
-  }, [addresses, t]);
+  }, [addresses, t, settleDone, settleError]);
 
   return {
     chainalysis,

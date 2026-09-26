@@ -54,8 +54,8 @@ describe("buildCluster", () => {
     expect(result.clusterAddresses.has(addr)).toBe(true);
     expect(result.riskTier).toBe("single");
     expect(result.findings).toHaveLength(1);
-    expect(result.findings[0].severity).toBe("good");
-    expect(result.findings[0].scoreImpact).toBe(3);
+    expect(result.findings[0]?.severity).toBe("good");
+    expect(result.findings[0]?.scoreImpact).toBe(3);
   });
 
   it("clusters co-input addresses via CIOH", () => {
@@ -207,7 +207,7 @@ describe("buildCluster", () => {
 
     expect(result.clusterAddresses.size).toBe(16); // seed + 15 co-addrs
     expect(result.riskTier).toBe("active");
-    expect(result.findings[0].severity).toBe("medium");
-    expect(result.findings[0].scoreImpact).toBe(-5);
+    expect(result.findings[0]?.severity).toBe("medium");
+    expect(result.findings[0]?.scoreImpact).toBe(-5);
   });
 });

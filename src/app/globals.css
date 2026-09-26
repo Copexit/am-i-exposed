@@ -10,6 +10,7 @@
   --surface-elevated: #222228;
   --bitcoin: #f7931a;
   --bitcoin-hover: #e8850f;
+  --violet: #8b5cf6;
   --success: #28d065;
   --warning: #eab308;
   --danger: #ef4444;
@@ -30,7 +31,7 @@
   --subtle-border: rgba(255, 255, 255, 0.06);
   --subtle-hover: rgba(255, 255, 255, 0.02);
   --shimmer-color: rgba(255, 255, 255, 0.4);
-  --glow-card-color: rgba(247, 147, 26, 0.07);
+  --glow-card-color: color-mix(in srgb, var(--bitcoin) 7%, transparent);
 }
 
 html[data-theme="light"] {
@@ -50,7 +51,7 @@ html[data-theme="light"] {
   --subtle-border: rgba(0, 0, 0, 0.1);
   --subtle-hover: rgba(0, 0, 0, 0.04);
   --shimmer-color: rgba(0, 0, 0, 0.12);
-  --glow-card-color: rgba(247, 147, 26, 0.15);
+  --glow-card-color: color-mix(in srgb, var(--bitcoin) 15%, transparent);
 }
 
 @theme inline {
@@ -133,12 +134,12 @@ input:focus-visible,
 textarea:focus-visible {
   outline: 2px solid var(--bitcoin);
   outline-offset: 2px;
-  box-shadow: 0 0 0 4px rgba(247, 147, 26, 0.1);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--bitcoin) 10%, transparent);
 }
 
 html[data-theme="light"] input:focus-visible,
 html[data-theme="light"] textarea:focus-visible {
-  box-shadow: 0 0 0 4px rgba(247, 147, 26, 0.2);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--bitcoin) 20%, transparent);
 }
 
 select:focus-visible {
@@ -201,11 +202,11 @@ html[data-theme="light"] body::after {
 /* Gradient divider */
 .gradient-divider {
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(139,92,246,0.4) 30%, rgba(247,147,26,0.4) 70%, transparent);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--violet) 40%, transparent) 30%, color-mix(in srgb, var(--bitcoin) 40%, transparent) 70%, transparent);
 }
 
 html[data-theme="light"] .gradient-divider {
-  background: linear-gradient(90deg, transparent, rgba(139,92,246,0.35) 30%, rgba(247,147,26,0.35) 70%, transparent);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--violet) 35%, transparent) 30%, color-mix(in srgb, var(--bitcoin) 35%, transparent) 70%, transparent);
 }
 
 /* Sliding underline hover */

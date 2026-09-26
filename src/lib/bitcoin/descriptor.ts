@@ -181,53 +181,125 @@ function pubkeyToAddress(
 
 // ---------- Descriptor parsing ----------
 
-/** Match output descriptor patterns: pkh(xpub/...), wpkh(xpub/...), sh(wpkh(xpub/...)), tr(xpub/...) */
-const DESCRIPTOR_RE =
-  /^(?:(pkh|wpkh|tr)\(|sh\(wpkh\()(?:\[([a-f0-9]{8})(?:\/[0-9'h]+)*\])?((?:[xyztuvw]pub|tpub)[a-zA-Z0-9]+)(?:\/(\d+)\/\*)?(?:\))+$/;
+// BIP-380 descriptor checksum
+const DESCSUM_INPUT_CHARSET =
+  "0123456789()[],'/*abcdefgh@:$%{}IJKLMNOPQRSTUVWXYZ&+-.;<=>?!^_|~ijklmnopqrstuvwxyzABCDEFGH`#\"\\ ";
+const DESCSUM_CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+const DESCSUM_GENERATOR = [0xf5dee51989, 0xa9fdca3312, 0x1bab10e32d, 0x3706b1677a, 0x644d626ffd];
+
+/** XOR of two 40-bit values held in plain numbers (JS bitwise ops are 32-bit). */
+function xor40(a: number, b: number): number {
+  const hi = (Math.floor(a / 2 ** 32) ^ Math.floor(b / 2 ** 32)) * 2 ** 32;
+  return hi + ((a ^ b) >>> 0);
+}
+
+function descsumPolymod(symbols: number[]): number {
+  let chk = 1;
+  for (const value of symbols) {
+    const top = Math.floor(chk / 2 ** 35);
+    chk = (chk % 2 ** 35) * 32 + value; // low 5 bits are zero, so + is ^
+    for (const [i, gen] of DESCSUM_GENERATOR.entries()) {
+      if ((top >> i) & 1) chk = xor40(chk, gen);
+    }
+  }
+  return chk;
+}
+
+/** Compute the 8-char BIP-380 checksum of a descriptor body, or null if it has invalid characters. */
+export function descriptorChecksum(body: string): string | null {
+  const symbols: number[] = [];
+  // Base-3 accumulator of up to 3 high-bit groups (g0 * 9 + g1 * 3 + g2)
+  let group = 0;
+  let groupCount = 0;
+  for (const c of body) {
+    const v = DESCSUM_INPUT_CHARSET.indexOf(c);
+    if (v < 0) return null;
+    symbols.push(v & 31);
+    group = group * 3 + (v >> 5);
+    if (++groupCount === 3) {
+      symbols.push(group);
+      group = 0;
+      groupCount = 0;
+    }
+  }
+  if (groupCount > 0) symbols.push(group);
+
+  const chk = xor40(descsumPolymod([...symbols, 0, 0, 0, 0, 0, 0, 0, 0]), 1);
+  let out = "";
+  for (let i = 0; i < 8; i++) {
+    out += DESCSUM_CHARSET.charAt(Math.floor(chk / 2 ** (5 * (7 - i))) % 32);
+  }
+  return out;
+}
+
+/** Supported wrappers, with exactly balanced parentheses. */
+const DESCRIPTOR_WRAPPERS: { open: string; close: string; scriptType: ScriptType }[] = [
+  { open: "pkh(", close: ")", scriptType: "p2pkh" },
+  { open: "wpkh(", close: ")", scriptType: "p2wpkh" },
+  { open: "tr(", close: ")", scriptType: "p2tr" },
+  { open: "sh(wpkh(", close: "))", scriptType: "p2sh-p2wpkh" },
+];
+
+/** Key expression: optional [fingerprint/origin], xpub, optional /0/*, /1/* or /<0;1>/* (BIP-389) */
+const DESCRIPTOR_KEY_RE =
+  /^(?:\[[a-fA-F0-9]{8}(?:\/\d+['h]?)*\])?([xyztuv]pub[1-9A-HJ-NP-Za-km-z]+)(?:\/(0|1|<0;1>)\/\*)?$/;
 
 interface ParsedDescriptor {
   scriptType: ScriptType;
   xpub: string;
   /** Fixed chain index from descriptor (e.g. 0 for receive, 1 for change) */
   chainIndex?: number;
+  /** The "#..." checksum suffix, if present (not yet validated) */
+  checksum?: string;
+  /** Descriptor without the checksum suffix */
+  body: string;
+}
+
+/** Structural match of a supported descriptor. Does not validate the checksum. */
+function matchDescriptor(descriptor: string): ParsedDescriptor | null {
+  const trimmed = descriptor.trim();
+  const hash = trimmed.indexOf("#");
+  const body = hash < 0 ? trimmed : trimmed.slice(0, hash);
+  const checksum = hash < 0 ? undefined : trimmed.slice(hash + 1);
+
+  const wrapper = DESCRIPTOR_WRAPPERS.find((w) => body.startsWith(w.open) && body.endsWith(w.close));
+  if (!wrapper) return null;
+  const m = DESCRIPTOR_KEY_RE.exec(body.slice(wrapper.open.length, body.length - wrapper.close.length));
+  const [, xpub, chain] = m ?? [];
+  if (!xpub) return null;
+
+  // "<0;1>" (multipath) derives both chains, same as no chain at all
+  const chainIndex = chain !== undefined && chain !== "<0;1>" ? parseInt(chain, 10) : undefined;
+  return { scriptType: wrapper.scriptType, xpub, chainIndex, checksum, body };
 }
 
 function parseDescriptor(descriptor: string): ParsedDescriptor | null {
-  const clean = descriptor.replace(/#[a-f0-9]+$/, "").trim(); // strip checksum
-  const m = DESCRIPTOR_RE.exec(clean);
-  if (!m) return null;
-
-  const funcName = m[1]; // pkh, wpkh, tr, or undefined (sh(wpkh(...)))
-  const xpub = m[3];
-  const chainIdx = m[4] !== undefined ? parseInt(m[4], 10) : undefined;
-
-  let scriptType: ScriptType;
-  if (!funcName) {
-    // sh(wpkh(...))
-    scriptType = "p2sh-p2wpkh";
-  } else {
-    switch (funcName) {
-      case "pkh": scriptType = "p2pkh"; break;
-      case "wpkh": scriptType = "p2wpkh"; break;
-      case "tr": scriptType = "p2tr"; break;
-      default: return null;
+  const desc = matchDescriptor(descriptor);
+  if (desc?.checksum !== undefined) {
+    if (!new RegExp(`^[${DESCSUM_CHARSET}]{8}$`).test(desc.checksum)) {
+      throw new Error("Invalid descriptor checksum format: expected 8 characters after '#'");
+    }
+    if (descriptorChecksum(desc.body) !== desc.checksum) {
+      throw new Error("Descriptor checksum mismatch: the descriptor may be mistyped or truncated");
     }
   }
-
-  return { scriptType, xpub, chainIndex: chainIdx };
+  return desc;
 }
 
 // ---------- Public API ----------
 
 /** Check if a string looks like an xpub, ypub, zpub, tpub, upub, or vpub. */
 export function isExtendedPubkey(input: string): boolean {
-  return /^[xyztuvw]pub[a-zA-Z0-9]{100,120}$/.test(input) ||
-    /^tpub[a-zA-Z0-9]{100,120}$/.test(input);
+  return /^[xyztuv]pub[a-zA-Z0-9]{100,120}$/.test(input);
 }
 
-/** Check if a string looks like an output descriptor. */
+/**
+ * Check if a string is a supported output descriptor. Accepts exactly what
+ * parseXpub() parses; the checksum is validated there, so a bad checksum
+ * still routes to the parser and gets a specific error.
+ */
 export function isDescriptor(input: string): boolean {
-  return /^(pkh|wpkh|tr|sh)\(/.test(input);
+  return matchDescriptor(input) !== null;
 }
 
 /** Check if input is an xpub or descriptor (for input type detection). */

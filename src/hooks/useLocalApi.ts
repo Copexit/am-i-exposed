@@ -149,19 +149,24 @@ export function useLocalApi(): LocalApiResult {
 
     // Deduplicate concurrent calls (e.g. StrictMode double-mount)
     if (!inflight) {
-      inflight = probe(controller.signal, (partial) => {
+      const p: Promise<LocalApiResult> = probe(controller.signal, (partial) => {
         // Early update from Phase 1 - don't cache yet, Phase 2 still running
         if (!controller.signal.aborted) {
           setResult(partial);
         }
       }).then((r) => {
-        cachedResult = r;
-        inflight = null;
+        // An aborted probe's result is meaningless: it must not clobber the
+        // cache or the replacement probe started by a remount.
+        if (!controller.signal.aborted) cachedResult = r;
+        if (inflight === p) inflight = null;
         return r;
       });
+      inflight = p;
     }
+    const current = inflight;
 
-    inflight.then((r) => {
+    // Fire-and-forget: the probe catches its own errors.
+    void current.then((r) => {
       if (!controller.signal.aborted) {
         setResult(r);
       }
@@ -170,7 +175,7 @@ export function useLocalApi(): LocalApiResult {
     return () => {
       controller.abort();
       // Allow StrictMode remount to start a fresh probe
-      if (!cachedResult) inflight = null;
+      if (!cachedResult && inflight === current) inflight = null;
     };
   }, []);
 

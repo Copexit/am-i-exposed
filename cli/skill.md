@@ -69,7 +69,7 @@ Computes Boltzmann entropy (bits), wallet efficiency (0-100%), link probability 
 ### Chain Trace
 
 ```bash
-am-i-exposed chain-trace <txid> [--json] [--direction backward|forward|both] [--depth N] [--min-sats N] [--skip-coinjoins]
+am-i-exposed chain-trace <txid> [--json] [--direction backward|forward|both] [--depth N] [--min-sats N]
 ```
 
 Multi-hop transaction graph analysis. Traces backward (input provenance) and/or forward (output destinations) up to N hops. Runs entity proximity detection, taint analysis, clustering, and spending pattern analysis on the discovered graph.

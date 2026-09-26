@@ -225,7 +225,7 @@ boltzmann-rs/                          Rust crate (monorepo root)
 scripts/build-boltzmann-wasm.sh        wasm-pack build + cleanup
 public/wasm/boltzmann/                 Pre-built .wasm + .js + .d.ts
 
-src/workers/boltzmann.worker.ts        Web Worker loading WASM
+public/workers/boltzmann.worker.js     Web Worker loading WASM (hand-written plain JS, not bundled)
 src/hooks/useBoltzmann.ts              React hook managing worker lifecycle
 src/components/viz/LinkabilityHeatmap.tsx  Heat map visualization
 ```

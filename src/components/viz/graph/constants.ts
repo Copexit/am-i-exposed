@@ -1,4 +1,5 @@
 import { SVG_COLORS } from "../shared/svgConstants";
+import { HUES } from "@/lib/palette";
 import type { EntityCategory } from "@/lib/analysis/entities";
 
 // ─── Node dimensions ────────────────────────────────────────────
@@ -23,15 +24,15 @@ export const MINIMAP_H = 100;
 // ─── Entity category colors ────────────────────────────────────
 /** Category-specific colors for entity nodes. */
 export const ENTITY_CATEGORY_COLORS: Record<EntityCategory | "unknown", string> = {
-  exchange: "#06b6d4",   // teal (distinct from standard-tx blue and root-tx orange)
+  exchange: HUES.cyan500,   // teal (distinct from standard-tx blue and root-tx orange)
   darknet: SVG_COLORS.critical,
   scam: SVG_COLORS.critical,
   mixer: SVG_COLORS.good,
   gambling: SVG_COLORS.medium,
-  mining: "#9ca3af",     // gray
-  payment: "#a78bfa",    // purple
-  p2p: "#e879f9",       // fuchsia (distinct from P2SH orange)
-  unknown: "#9ca3af",   // gray (neutral, like mining)
+  mining: HUES.gray400,     // gray
+  payment: HUES.violet400,    // purple
+  p2p: HUES.fuchsia400,       // fuchsia (distinct from P2SH orange)
+  unknown: HUES.gray400,   // gray (neutral, like mining)
 };
 
 // ─── Expanded node dimensions ───────────────────────────────────

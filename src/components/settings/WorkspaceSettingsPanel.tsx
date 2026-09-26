@@ -34,7 +34,9 @@ export function WorkspaceSettingsPanel() {
     reader.onload = () => {
       const json = reader.result as string;
       const result = importBookmarks(json);
-      if (result.error) {
+      if (result.error === "storage_full") {
+        showToast("error", t("workspace.storageFull", { defaultValue: "Browser storage is full. Delete some bookmarks or saved graphs and try again." }));
+      } else if (result.error) {
         showToast("error", t("workspace.importError", { defaultValue: "Import failed. Invalid file format." }));
       } else {
         showToast("success", t("workspace.imported", { count: result.imported, defaultValue: "Imported {{count}} scans." }));

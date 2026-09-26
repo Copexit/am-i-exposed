@@ -13,15 +13,21 @@ export function createLocalStorageStore<T>(
   let cachedValue: T = defaultValue;
 
   function getSnapshot(): T {
+    let stored: string;
     try {
-      const stored = localStorage.getItem(key) ?? "";
-      if (stored === cachedRaw) return cachedValue;
-      cachedRaw = stored;
-      cachedValue = stored ? parse(stored) : defaultValue;
-      return cachedValue;
+      stored = localStorage.getItem(key) ?? "";
     } catch {
       return defaultValue;
     }
+    if (stored === cachedRaw) return cachedValue;
+    cachedRaw = stored;
+    try {
+      cachedValue = stored ? parse(stored) : defaultValue;
+    } catch {
+      // Corrupt data: cache the default so consecutive snapshots agree
+      cachedValue = defaultValue;
+    }
+    return cachedValue;
   }
 
   function getServerSnapshot(): T {
@@ -33,16 +39,17 @@ export function createLocalStorageStore<T>(
     return () => window.removeEventListener("storage", callback);
   }
 
-  function set(value: T): void {
+  /** Persist a value. Returns false (and changes nothing) when storage is full or unavailable. */
+  function set(value: T): boolean {
     try {
-      const serialized = serialize(value);
-      localStorage.setItem(key, serialized);
+      localStorage.setItem(key, serialize(value));
     } catch {
-      /* storage full / private browsing */
+      return false;
     }
     cachedRaw = null; // invalidate cache so next getSnapshot reads fresh
     cachedValue = value;
     window.dispatchEvent(new StorageEvent("storage"));
+    return true;
   }
 
   function remove(): void {

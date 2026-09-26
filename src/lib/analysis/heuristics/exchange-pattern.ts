@@ -49,9 +49,9 @@ export const analyzeExchangePattern: TxHeuristic = (tx) => {
   if (!isBatchSize) return { findings };
 
   // Calculate value distribution for pattern detection
-  const values = spendable.map((o) => o.value).sort((a, b) => a - b);
-  const maxValue = values[values.length - 1];
-  const minValue = values[0];
+  const values = spendable.map((o) => o.value);
+  const maxValue = Math.max(...values);
+  const minValue = Math.min(...values);
   const valueSpread = maxValue / Math.max(minValue, 1);
 
   // Exchange withdrawals typically have wide value spread (diverse customer amounts)

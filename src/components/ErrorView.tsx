@@ -3,6 +3,7 @@
 import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { AlertCircle } from "lucide-react";
+import { blurInMotion } from "@/components/results/animations";
 
 interface ErrorViewProps {
   /** The error message to display */
@@ -23,10 +24,7 @@ export function ErrorView({ error, query, errorCode, onRetry, onBack }: ErrorVie
   return (
     <motion.div
       key="error"
-      initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-      exit={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+      {...blurInMotion}
       className="flex flex-col items-center gap-6 w-full max-w-xl mt-8 sm:mt-0"
     >
       <div data-testid="error-message" className="glass border-severity-critical/30 rounded-xl p-8 w-full space-y-4 text-center">

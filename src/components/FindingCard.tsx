@@ -2,14 +2,16 @@
 
 import { useState, memo } from "react";
 import { useTranslation } from "react-i18next";
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import { ChevronDown, BookOpen } from "lucide-react";
 import type { Finding } from "@/lib/types";
 import { highestAdversaryTier } from "@/lib/analysis/finding-metadata";
 import { WalletIcon } from "@/components/ui/WalletIcon";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { findingKey } from "@/lib/finding-utils";
+import { findingKeys } from "@/lib/finding-utils";
 import { RicochetHopTable, ConsolidationTable } from "./FindingCardTables";
+import type { FindingId } from "@/lib/analysis/finding-metadata";
+import { Collapse } from "./ui/Collapse";
 import {
   SEVERITY_STYLES,
   CONFIDENCE_STYLES,
@@ -23,7 +25,7 @@ import {
 } from "./findingCardConstants";
 
 /** Map finding IDs to relevant FAQ section anchors */
-const FINDING_LEARN_MORE: Record<string, { faqId: string; labelKey: string; labelDefault: string }> = {
+const FINDING_LEARN_MORE: Partial<Record<FindingId, { faqId: string; labelKey: string; labelDefault: string }>> = {
   "h8-address-reuse": { faqId: "address-reuse", labelKey: "learnMore.addressReuse", labelDefault: "Why address reuse is dangerous" },
   "h2-change-detected": { faqId: "change-detection", labelKey: "learnMore.changeDetection", labelDefault: "How change detection works" },
   "h2-self-send": { faqId: "change-detection", labelKey: "learnMore.selfSend", labelDefault: "Change detection explained" },
@@ -183,6 +185,8 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
   const severityLabel = t(`common.severity.${finding.severity}`, { defaultValue: style.label });
   const confidence = finding.confidence;
   const confidenceStyle = confidence ? CONFIDENCE_STYLES[confidence] : null;
+  const learnMore = FINDING_LEARN_MORE[finding.id];
+  const title = t(findingKeys(finding.id, "title", finding.params), { ...finding.params, defaultValue: finding.title });
 
   return (
     <motion.div
@@ -192,7 +196,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
       className={`glass rounded-lg border-l-2 ${style.border} ${style.glow ?? ""}`}
       data-finding-id={finding.id}
       role="article"
-      aria-label={`${severityLabel} finding: ${t(findingKey(finding.id, "title", finding.params), { ...finding.params, defaultValue: finding.title })}`}
+      aria-label={t("finding.ariaLabel", { severity: severityLabel, title, defaultValue: "{{severity}} finding: {{title}}" })}
     >
       <button
         onClick={() => setExpanded(!expanded)}
@@ -205,7 +209,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
           <WalletIcon walletName={String(finding.params.walletGuess)} size="sm" />
         )}
         <span className="flex-1 text-sm font-medium text-foreground min-w-[120px]">
-          {t(findingKey(finding.id, "title", finding.params), { ...finding.params, defaultValue: finding.title })}
+          {title}
         </span>
         <span className="flex items-center gap-1.5 flex-wrap">
           {proMode && confidenceStyle && (
@@ -255,79 +259,69 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
         />
       </button>
 
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div id={`finding-detail-${finding.id}`} className="px-5 pb-5 space-y-3 border-t border-card-border pt-3">
-              <p className="text-base text-foreground leading-relaxed">
-                {t(findingKey(finding.id, "description", finding.params), { ...finding.params, defaultValue: finding.description })}
+      <Collapse open={expanded}>
+        <div id={`finding-detail-${finding.id}`} className="px-5 pb-5 space-y-3 border-t border-card-border pt-3">
+          <p className="text-base text-foreground leading-relaxed">
+            {t(findingKeys(finding.id, "description", finding.params), { ...finding.params, defaultValue: finding.description })}
+          </p>
+          <ChangeSignalBreakdown finding={finding} t={t} proMode={proMode} />
+          {proMode && <TierContext finding={finding} t={t} />}
+          {finding.recommendation && (
+            <div className="bg-surface-inset rounded-md px-3 py-2">
+              <p className="text-xs font-medium text-muted mb-1">
+                {t("finding.recommendationLabel", { defaultValue: "Recommendation" })}
               </p>
-              <ChangeSignalBreakdown finding={finding} t={t} proMode={proMode} />
-              {proMode && <TierContext finding={finding} t={t} />}
-              {finding.recommendation && (
-                <div className="bg-surface-inset rounded-md px-3 py-2">
-                  <p className="text-xs font-medium text-muted mb-1">
-                    {t("finding.recommendationLabel", { defaultValue: "Recommendation" })}
-                  </p>
-                  <p className="text-base text-foreground/90 leading-relaxed">
-                    {t(findingKey(finding.id, "recommendation", finding.params), { ...finding.params, defaultValue: finding.recommendation })}
-                  </p>
-                </div>
-              )}
-              {finding.id === "ricochet-hop0" && finding.params?.hops && (
-                <RicochetHopTable
-                  hopsJson={String(finding.params.hops)}
-                  variant={String(finding.params.variant ?? "classic")}
-                  hopCount={Number(finding.params.hopCount ?? 0)}
-                  lang={i18n.language}
-                  onTxClick={onTxClick}
-                />
-              )}
-              {finding.id === "chain-post-coinjoin-consolidation" && finding.params?._consolidationGroups && (
-                <ConsolidationTable
-                  groupsJson={String(finding.params._consolidationGroups)}
-                  lang={i18n.language}
-                  onTxClick={onTxClick}
-                />
-              )}
-              <div className="flex items-center justify-between">
-                {FINDING_LEARN_MORE[finding.id] && (
-                  <a
-                    href={`/faq/#${FINDING_LEARN_MORE[finding.id].faqId}`}
-                    className="inline-flex items-center gap-1 text-xs text-bitcoin hover:text-bitcoin-hover transition-colors"
-                  >
-                    <BookOpen size={12} />
-                    {t(FINDING_LEARN_MORE[finding.id].labelKey, { defaultValue: FINDING_LEARN_MORE[finding.id].labelDefault })}
-                  </a>
-                )}
-                {proMode && finding.scoreImpact !== 0 && (
-                  <details className="text-xs text-muted">
-                    <summary className="cursor-pointer select-none hover:text-foreground transition-colors">
-                      {t("finding.showScoreImpact", { defaultValue: "Score impact" })}
-                    </summary>
-                    <span
-                      className={
-                        finding.scoreImpact > 0
-                          ? "text-severity-good"
-                          : "text-severity-high"
-                      }
-                    >
-                      {finding.scoreImpact > 0 ? "+" : ""}
-                      {finding.scoreImpact}
-                    </span>
-                  </details>
-                )}
-              </div>
+              <p className="text-base text-foreground/90 leading-relaxed">
+                {t(findingKeys(finding.id, "recommendation", finding.params), { ...finding.params, defaultValue: finding.recommendation })}
+              </p>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+          {finding.id === "ricochet-hop0" && finding.params?.hops && (
+            <RicochetHopTable
+              hopsJson={String(finding.params.hops)}
+              variant={String(finding.params.variant ?? "classic")}
+              hopCount={Number(finding.params.hopCount ?? 0)}
+              lang={i18n.language}
+              onTxClick={onTxClick}
+            />
+          )}
+          {finding.id === "chain-post-coinjoin-consolidation" && finding.params?._consolidationGroups && (
+            <ConsolidationTable
+              groupsJson={String(finding.params._consolidationGroups)}
+              lang={i18n.language}
+              onTxClick={onTxClick}
+            />
+          )}
+          <div className="flex items-center justify-between">
+            {learnMore && (
+              <a
+                href={`/faq/#${learnMore.faqId}`}
+                className="inline-flex items-center gap-1 text-xs text-bitcoin hover:text-bitcoin-hover transition-colors"
+              >
+                <BookOpen size={12} />
+                {t(learnMore.labelKey, { defaultValue: learnMore.labelDefault })}
+              </a>
+            )}
+            {proMode && finding.scoreImpact !== 0 && (
+              <details className="text-xs text-muted">
+                <summary className="cursor-pointer select-none hover:text-foreground transition-colors">
+                  {t("finding.showScoreImpact", { defaultValue: "Score impact" })}
+                </summary>
+                <span
+                  className={
+                    finding.scoreImpact > 0
+                      ? "text-severity-good"
+                      : "text-severity-high"
+                  }
+                >
+                  {finding.scoreImpact > 0 ? "+" : ""}
+                  {finding.scoreImpact}
+                </span>
+              </details>
+            )}
+          </div>
+        </div>
+      </Collapse>
     </motion.div>
   );
 });

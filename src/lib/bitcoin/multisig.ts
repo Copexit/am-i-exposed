@@ -25,8 +25,8 @@ export function parseMultisigFromInput(vin: MempoolVin): MultisigInfo | null {
   }
 
   // Method 2: raw witness hex (last element is the serialized script)
-  if (vin.witness && vin.witness.length >= 4) {
-    const lastWitness = vin.witness[vin.witness.length - 1];
+  const lastWitness = vin.witness?.at(-1);
+  if (vin.witness && vin.witness.length >= 4 && lastWitness !== undefined) {
     const hexResult = parseMultisigFromHex(lastWitness);
     if (hexResult) {
       const hasRedeem = !!vin.inner_redeemscript_asm;
@@ -48,10 +48,10 @@ const MULTISIG_ASM_RE =
 
 function parseFromAsm(asm: string | undefined): { m: number; n: number } | null {
   if (!asm) return null;
-  const match = asm.match(MULTISIG_ASM_RE);
-  if (!match) return null;
-  const m = parseInt(match[1], 10);
-  const n = parseInt(match[2], 10);
+  const [, mStr, nStr] = asm.match(MULTISIG_ASM_RE) ?? [];
+  if (mStr === undefined || nStr === undefined) return null;
+  const m = parseInt(mStr, 10);
+  const n = parseInt(nStr, 10);
   if (m < 1 || m > 16 || n < 1 || n > 16 || m > n) return null;
   return { m, n };
 }
@@ -71,12 +71,12 @@ function parseMultisigFromHex(hex: string): { m: number; n: number } | null {
 
   // First byte: OP_M (0x51 = OP_1, 0x60 = OP_16)
   const mByte = bytes[0];
-  if (mByte < 0x51 || mByte > 0x60) return null;
+  if (mByte === undefined || mByte < 0x51 || mByte > 0x60) return null;
   const m = mByte - 0x50;
 
   // Second-to-last byte: OP_N
-  const nByte = bytes[bytes.length - 2];
-  if (nByte < 0x51 || nByte > 0x60) return null;
+  const nByte = bytes.at(-2);
+  if (nByte === undefined || nByte < 0x51 || nByte > 0x60) return null;
   const n = nByte - 0x50;
 
   if (m > n) return null;

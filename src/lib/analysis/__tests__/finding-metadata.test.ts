@@ -1,9 +1,12 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 import {
   FINDING_METADATA,
   getFindingMeta,
   enrichFindingsWithMetadata,
 } from "../finding-metadata";
+import { getTxHeuristicSteps, getAddressHeuristicSteps } from "../orchestrator";
 import type { Finding, AdversaryTier, TemporalityClass } from "@/lib/types";
 
 const VALID_ADVERSARY_TIERS: AdversaryTier[] = [
@@ -49,6 +52,34 @@ describe("FINDING_METADATA registry", () => {
   });
 });
 
+/** Recursively list non-test .ts/.tsx files under a directory. */
+function sourceFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const full = join(dir, name);
+    if (statSync(full).isDirectory()) return name === "__tests__" || name === "__scratch" ? [] : sourceFiles(full);
+    return /\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name) ? [full] : [];
+  });
+}
+
+describe("FINDING_METADATA coverage", () => {
+  it("every finding id literal in src/ has a metadata entry", () => {
+    // Non-finding ids that share the `id: "..."` shape in finding-producing files:
+    // pipeline step ids and recommendation ids.
+    const stepIds = new Set([...getTxHeuristicSteps(), ...getAddressHeuristicSteps()].map((s) => s.id));
+    const isNonFinding = (id: string) => stepIds.has(id) || id.startsWith("rec-");
+    const missing = new Set<string>();
+    for (const file of sourceFiles(join(process.cwd(), "src"))) {
+      const text = readFileSync(file, "utf8");
+      if (!/\bscoreImpact\b/.test(text)) continue; // only files that build findings
+      for (const m of text.matchAll(/\bid:\s*"([a-z0-9-]+)"/g)) {
+        const id = m[1];
+        if (id && !isNonFinding(id) && !getFindingMeta(id)) missing.add(id);
+      }
+    }
+    expect([...missing]).toEqual([]);
+  });
+});
+
 describe("getFindingMeta", () => {
   it("returns metadata for known IDs", () => {
     const meta = getFindingMeta("h3-cioh");
@@ -72,12 +103,6 @@ describe("getFindingMeta", () => {
     expect(meta).toBeDefined();
   });
 
-  it("prefix-matches toxic-merge-0", () => {
-    const meta = getFindingMeta("toxic-merge-0");
-    expect(meta).toBeDefined();
-    expect(meta?.adversaryTiers).toContain("state_adversary");
-  });
-
   it("does not prefix-match non-numeric suffixes", () => {
     // "h3-cioh" should not match via prefix for "h3-cioh-extra"
     // because "h3-cioh-extra" doesn't end with -\d+
@@ -99,9 +124,11 @@ describe("enrichFindingsWithMetadata", () => {
     ];
 
     enrichFindingsWithMetadata(findings);
+    expect(findings).toHaveLength(1);
+    const [f] = findings;
 
-    expect(findings[0].adversaryTiers).toEqual(["passive_observer", "kyc_exchange", "state_adversary"]);
-    expect(findings[0].temporality).toBe("historical");
+    expect(f!.adversaryTiers).toEqual(["passive_observer", "kyc_exchange", "state_adversary"]);
+    expect(f!.temporality).toBe("historical");
   });
 
   it("does not overwrite existing adversaryTiers", () => {
@@ -119,10 +146,12 @@ describe("enrichFindingsWithMetadata", () => {
     ];
 
     enrichFindingsWithMetadata(findings);
+    expect(findings).toHaveLength(1);
+    const [f] = findings;
 
     // Both were already set, so skip
-    expect(findings[0].adversaryTiers).toEqual(["passive_observer"]);
-    expect(findings[0].temporality).toBe("active_risk");
+    expect(f!.adversaryTiers).toEqual(["passive_observer"]);
+    expect(f!.temporality).toBe("active_risk");
   });
 
   it("fills in missing temporality even if adversaryTiers is set", () => {
@@ -140,15 +169,18 @@ describe("enrichFindingsWithMetadata", () => {
     ];
 
     enrichFindingsWithMetadata(findings);
+    expect(findings).toHaveLength(1);
+    const [f] = findings;
 
     // adversaryTiers was already set but temporality was not - fill it in
-    expect(findings[0].adversaryTiers).toEqual(["passive_observer"]);
-    expect(findings[0].temporality).toBe("historical");
+    expect(f!.adversaryTiers).toEqual(["passive_observer"]);
+    expect(f!.temporality).toBe("historical");
   });
 
   it("handles unknown finding IDs gracefully", () => {
     const findings: Finding[] = [
       {
+        // @ts-expect-error - deliberately unknown ID: enrichment must tolerate it at runtime
         id: "unknown-finding",
         severity: "low",
         title: "test",
@@ -159,9 +191,11 @@ describe("enrichFindingsWithMetadata", () => {
     ];
 
     enrichFindingsWithMetadata(findings);
+    expect(findings).toHaveLength(1);
+    const [f] = findings;
 
-    expect(findings[0].adversaryTiers).toBeUndefined();
-    expect(findings[0].temporality).toBeUndefined();
+    expect(f!.adversaryTiers).toBeUndefined();
+    expect(f!.temporality).toBeUndefined();
   });
 
   it("enriches dynamic OP_RETURN IDs via prefix match", () => {
@@ -177,8 +211,10 @@ describe("enrichFindingsWithMetadata", () => {
     ];
 
     enrichFindingsWithMetadata(findings);
+    expect(findings).toHaveLength(1);
+    const [f] = findings;
 
-    expect(findings[0].adversaryTiers).toContain("passive_observer");
-    expect(findings[0].temporality).toBe("historical");
+    expect(f!.adversaryTiers).toContain("passive_observer");
+    expect(f!.temporality).toBe("historical");
   });
 });

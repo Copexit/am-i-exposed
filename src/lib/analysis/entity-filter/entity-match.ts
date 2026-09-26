@@ -1,11 +1,10 @@
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { EntityMatch } from "./types";
-import { getFilter, loadEntityFilter, lookupEntityName, lookupEntityCategory } from "./filter-loader";
+import { getFilter, lookupEntityName, lookupEntityCategory } from "./filter-loader";
 import { checkOfac } from "../cex-risk/ofac-check";
-import { extractTxAddresses } from "../cex-risk/extract-addresses";
 import { getEntity } from "../entities";
 import { WHIRLPOOL_DENOMS } from "@/lib/constants";
-import { getSpendableOutputs, getValuedOutputs } from "../heuristics/tx-utils";
+import { isCoinbase, getSpendableOutputs, getValuedOutputs } from "../heuristics/tx-utils";
 
 /**
  * Resolve entity name, category, and OFAC status for an address.
@@ -20,66 +19,6 @@ function resolveEntity(
   const category = rawCategory as EntityMatch["category"];
   const ofac = entity?.ofac ?? false;
   return { name, category, ofac };
-}
-
-/**
- * Check all addresses in a transaction against known entity databases.
- *
- * Priority order:
- * 1. OFAC exact match (zero false positives) - always available
- * 2. Entity filter probabilistic match (0.1% FPR) - when filter is loaded
- *
- * Returns matches sorted by confidence (high first).
- */
-export async function matchEntities(
-  tx: MempoolTransaction,
-): Promise<EntityMatch[]> {
-  const matches: EntityMatch[] = [];
-  const addresses = extractTxAddresses(tx);
-
-  // Layer 1: OFAC exact match (always available, zero FPR)
-  const ofacResult = checkOfac(addresses);
-  for (const addr of ofacResult.matchedAddresses) {
-    // Try to resolve the actual entity name and category from the entity index/filter
-    const resolvedName = lookupEntityName(addr);
-    const entity = resolvedName ? getEntity(resolvedName) : null;
-    const resolved = resolveEntity(addr, entity);
-    matches.push({
-      address: addr,
-      entityName: resolved.name ?? "OFAC Sanctioned",
-      category: resolved.category,
-      ofac: true,
-      confidence: "high",
-    });
-  }
-
-  // Layer 2: Entity address filter (when available)
-  let filter = getFilter();
-  if (!filter) {
-    filter = await loadEntityFilter();
-  }
-
-  if (filter) {
-    for (const addr of addresses) {
-      // Skip addresses already matched by OFAC
-      if (ofacResult.matchedAddresses.includes(addr)) continue;
-
-      if (filter.has(addr)) {
-        const resolvedName = lookupEntityName(addr);
-        const entity = resolvedName ? getEntity(resolvedName) : null;
-        const resolved = resolveEntity(addr, entity);
-        matches.push({
-          address: addr,
-          entityName: resolved.name ?? "Known Entity",
-          category: resolved.category,
-          ofac: resolved.ofac,
-          confidence: resolvedName ? "high" : "medium",
-        });
-      }
-    }
-  }
-
-  return matches;
 }
 
 /**
@@ -137,7 +76,7 @@ export function detectEntityBehavior(
 ): { type: string; confidence: "high" | "medium" } | null {
   // Coinbase spend (mining pool payout or miner) - check first to avoid
   // misclassifying coinbase txs with many outputs as exchange-batch
-  if (tx.vin.some((v) => v.is_coinbase)) {
+  if (isCoinbase(tx)) {
     return { type: "mining", confidence: "high" };
   }
 

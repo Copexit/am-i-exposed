@@ -10,21 +10,37 @@
  * maps to user-facing error state.
  */
 
-import { analyzeTransaction } from "@/lib/analysis/orchestrator";
+import { runTxHeuristicSteps, finalizeTxResult } from "@/lib/analysis/orchestrator";
+import { getAddressedOutputs } from "@/lib/analysis/heuristics/tx-utils";
+import { ApiError } from "@/lib/api/fetch-with-retry";
 import { needsEnrichment, enrichPrevouts, countNullPrevouts } from "@/lib/api/enrich-prevouts";
 import { computeBoltzmann, isAutoComputable, extractTxValues } from "@/lib/analysis/boltzmann-compute";
 import { enhanceEntropyFinding } from "@/lib/analysis/boltzmann-enhance";
 import { enrichBip47Finding, enrichRicochetFinding } from "@/lib/analysis/enrichment";
-import { getAnalysisSettings, type AnalysisSettings } from "@/hooks/useAnalysisSettings";
+import { getAnalysisSettings, type AnalysisSettings } from "@/lib/analysis/settings";
 import { runChainTrace, runChainAnalysis } from "@/lib/analysis/chain-trace";
-import { makeIncompletePrevoutFinding } from "@/hooks/useAnalysisState";
+import { makeIncompletePrevoutFinding } from "@/lib/analysis/analysis-state";
 import type { ApiClient } from "@/lib/api/client";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { TxContext } from "@/lib/analysis/heuristics/types";
-import type { AnalysisState } from "@/hooks/useAnalysisState";
+import type { AnalysisState } from "@/lib/analysis/analysis-state";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
-import type { ScoringResult } from "@/lib/types";
+import type { Finding, ScoringResult } from "@/lib/types";
+
+/** Low-severity marker added when an optional enrichment fetch failed. */
+export const ANALYSIS_INCOMPLETE_FINDING: Finding = {
+  id: "analysis-incomplete",
+  severity: "low",
+  confidence: "high",
+  title: "Some optional data could not be fetched",
+  description:
+    "One or more optional lookups (historical prices, output spends, " +
+    "parent/child transactions or output address history) failed, usually because of rate " +
+    "limiting or a timeout. Heuristics that depend on that data were skipped, so the result may be incomplete.",
+  recommendation: "Scan again in a moment for a complete analysis.",
+  scoreImpact: 0,
+};
 
 /** Dependencies injected from the React hook layer. */
 export interface TxidAnalysisDeps {
@@ -35,7 +51,7 @@ export interface TxidAnalysisDeps {
   analysisSettingsForCache: AnalysisSettings;
   /** Step-update callback for diagnostic loader progress. */
   onStep: (stepId: string, impact?: number) => void;
-  /** React setState - needed by runChainTrace for progress updates. */
+  /** React setState - applies chain-trace progress and the final result. */
   setState: React.Dispatch<React.SetStateAction<AnalysisState>>;
 }
 
@@ -66,10 +82,22 @@ export async function runTxidAnalysis(
 ): Promise<TxidAnalysisResult> {
   const { api, controller, network, isCustomApi, analysisSettingsForCache, onStep, setState } = deps;
 
-  const [tx, rawHex] = await Promise.all([
-    api.getTransaction(txid),
-    api.getTxHex(txid).catch(() => undefined),
-  ]);
+  // Optional enrichment: a failure (other than NOT_FOUND) marks the result
+  // partial so it is flagged to the user and never cached.
+  let partial = false;
+  const optional = <T>(p: Promise<T>): Promise<T | null> =>
+    p.catch((err: unknown) => {
+      if (!(err instanceof ApiError && err.code === "NOT_FOUND")) partial = true;
+      return null;
+    });
+  // A user's own node (custom URL or Umbrel) often runs with the price service
+  // disabled, so a failed price lookup there is expected: fiat heuristics are
+  // skipped without flagging the result partial. Hosted API failures still count.
+  const price = <T>(p: Promise<T>): Promise<T | null> =>
+    isCustomApi ? p.catch(() => null) : optional(p);
+
+  // Raw hex is not fetched: no heuristic reads it (low-R uses vin witness/scriptsig)
+  const tx = await api.getTransaction(txid);
 
   // Enrich missing prevout data for self-hosted mempool backends
   if (needsEnrichment([tx])) {
@@ -95,21 +123,22 @@ export async function runTxidAnalysis(
   let eurPrice: number | null = null;
   let outspends: MempoolOutspend[] | null = null;
   let parentTx: MempoolTransaction | null = null;
-  const isPeelCandidate = tx.vin.length === 1 && !tx.vin[0].is_coinbase;
+  const [firstVin] = tx.vin;
+  const isPeelCandidate = tx.vin.length === 1 && firstVin !== undefined && !firstVin.is_coinbase;
   const parentTxPromise = isPeelCandidate
-    ? api.getTransaction(tx.vin[0].txid).catch(() => null)
+    ? optional(api.getTransaction(firstVin.txid))
     : Promise.resolve(null);
 
   if (network === "mainnet" && tx.status?.block_time) {
     [usdPrice, eurPrice, outspends, parentTx] = await Promise.all([
-      api.getHistoricalPrice(tx.status.block_time).catch(() => null),
-      api.getHistoricalEurPrice(tx.status.block_time).catch(() => null),
-      api.getTxOutspends(txid).catch(() => null),
+      price(api.getHistoricalPrice(tx.status.block_time)),
+      price(api.getHistoricalEurPrice(tx.status.block_time)),
+      optional(api.getTxOutspends(txid)),
       parentTxPromise,
     ]);
   } else if (tx.status?.confirmed) {
     [outspends, parentTx] = await Promise.all([
-      api.getTxOutspends(txid).catch(() => null),
+      optional(api.getTxOutspends(txid)),
       parentTxPromise,
     ]);
   } else {
@@ -122,27 +151,23 @@ export async function runTxidAnalysis(
   if (outspends && isPeelCandidate) {
     const spentEntry = outspends.find((o) => o.spent && o.txid);
     if (spentEntry?.txid) {
-      childTx = await api.getTransaction(spentEntry.txid).catch(() => null);
+      childTx = await optional(api.getTransaction(spentEntry.txid));
     }
   }
 
   // Pre-fetch output address tx counts for fresh address change detection (H2 sub-heuristic 8)
   // Only for 2-output txs (the change detection heuristic only applies to these)
   let outputTxCounts: Map<string, number> | undefined;
-  const spendableOuts = tx.vout.filter(
-    (v) => v.scriptpubkey_type !== "op_return" && v.scriptpubkey_address && v.value > 0,
-  );
+  const spendableOuts = getAddressedOutputs(tx.vout);
   if (spendableOuts.length === 2) {
     const addrs = spendableOuts.map((v) => v.scriptpubkey_address!);
     const counts = await Promise.all(
       addrs.map((addr) =>
-        api.getAddress(addr)
-          .then((a) => a.chain_stats.tx_count + a.mempool_stats.tx_count)
-          .catch(() => -1),
+        optional(api.getAddress(addr).then((a) => a.chain_stats.tx_count + a.mempool_stats.tx_count)),
       ),
     );
-    if (counts.every((c) => c >= 0)) {
-      outputTxCounts = new Map(addrs.map((a, i) => [a, counts[i]]));
+    if (counts.every((c) => c !== null)) {
+      outputTxCounts = new Map(addrs.map((a, i) => [a, counts[i]!]));
     }
   }
 
@@ -153,8 +178,7 @@ export async function runTxidAnalysis(
     settings: analysisSettings,
     api,
     controller,
-    setState,
-    onStep,
+    onProgress: (fetchProgress) => setState((prev) => ({ ...prev, fetchProgress })),
     parentTx,
     childTx,
     outspends,
@@ -178,11 +202,12 @@ export async function runTxidAnalysis(
   // Build parentTxs Map from backward trace layer 0 (direct parents)
   // for heuristics that need confirmation heights of input funding txs
   let parentTxs: Map<string, MempoolTransaction> | undefined;
-  if (backwardLayers.length > 0 && backwardLayers[0].txs.size > 0) {
-    parentTxs = backwardLayers[0].txs;
-  } else if (parentTx) {
+  const directParents = backwardLayers[0]?.txs;
+  if (directParents && directParents.size > 0) {
+    parentTxs = directParents;
+  } else if (parentTx && firstVin) {
     // Fallback: only the single pre-fetched parent for vin[0]
-    parentTxs = new Map([[tx.vin[0].txid, parentTx]]);
+    parentTxs = new Map([[firstVin.txid, parentTx]]);
   }
 
   const ctx: TxContext = {
@@ -194,21 +219,23 @@ export async function runTxidAnalysis(
     ...(childTx ? { childTx } : {}),
     ...(outputTxCounts ? { outputTxCounts } : {}),
   };
-  const result = await analyzeTransaction(tx, rawHex, onStep, ctx);
+  // Raw findings: every stage below appends to this list, then one
+  // finalizeTxResult scores everything together (chain findings count).
+  const findings = await runTxHeuristicSteps(tx, undefined, onStep, ctx);
   if (controller.signal.aborted) {
     throw new DOMException("Aborted", "AbortError");
   }
 
   // --- BIP47 notification address enrichment ---
-  await enrichBip47Finding(result.findings, api, controller.signal);
+  await enrichBip47Finding(findings, api, controller.signal);
 
   // --- Ricochet hop chain enrichment ---
-  await enrichRicochetFinding(result.findings, api, tx, controller.signal);
+  await enrichRicochetFinding(findings, api, tx, controller.signal);
 
-  // --- Chain analysis from trace layers ---
+  // --- Chain analysis from trace layers (appends to findings) ---
   await runChainAnalysis({
     tx,
-    result,
+    result: { findings },
     backwardLayers,
     forwardLayers,
     parentTx,
@@ -221,10 +248,11 @@ export async function runTxidAnalysis(
   if (backwardFailed || forwardFailed) {
     const direction = backwardFailed && forwardFailed ? "backward and forward"
       : backwardFailed ? "backward" : "forward";
-    result.findings.push({
+    findings.push({
       id: "chain-trace-partial",
       severity: "low",
       confidence: "high",
+      params: { _variant: backwardFailed && forwardFailed ? "both" : direction },
       title: `Chain tracing incomplete (${direction})`,
       description:
         `${direction.charAt(0).toUpperCase() + direction.slice(1)} tracing failed or timed out. ` +
@@ -236,9 +264,10 @@ export async function runTxidAnalysis(
   }
 
   // If prevout data is still missing after enrichment, warn the user
+  // (id is in INCOMPLETE_RESULT_FINDING_IDS, so this result is not cached)
   const remainingNulls = countNullPrevouts([tx]);
   if (remainingNulls > 0) {
-    result.findings.push(makeIncompletePrevoutFinding(remainingNulls));
+    findings.push(makeIncompletePrevoutFinding(remainingNulls));
   }
 
   // Await Boltzmann result (started earlier in parallel)
@@ -246,8 +275,14 @@ export async function runTxidAnalysis(
 
   // Enhance entropy finding with real WASM Boltzmann data
   if (boltzmannResult && !boltzmannResult.timedOut) {
-    enhanceEntropyFinding(result.findings, boltzmannResult);
+    enhanceEntropyFinding(findings, boltzmannResult);
   }
+
+  if (partial) findings.push({ ...ANALYSIS_INCOMPLETE_FINDING });
+
+  const result = finalizeTxResult(findings);
+  // chain-trace-partial already tells the user; it only needs the flag
+  if (partial || backwardFailed || forwardFailed) result.partial = true;
 
   return {
     result,

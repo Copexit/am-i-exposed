@@ -1,6 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
-import { isCoinbase, extractOpReturnData } from "./tx-utils";
+import { isCoinbase, extractOpReturnData, isOpReturnOutput } from "./tx-utils";
 
 /**
  * H7: OP_RETURN Detection
@@ -17,14 +17,11 @@ export const analyzeOpReturn: TxHeuristic = (tx) => {
   // Coinbase transactions contain OP_RETURN for SegWit commitment - not a privacy leak
   if (isCoinbase(tx)) return { findings };
 
-  const opReturnOutputs = tx.vout.filter(
-    (out) => out.scriptpubkey_type === "op_return",
-  );
+  const opReturnOutputs = tx.vout.filter(isOpReturnOutput);
 
   if (opReturnOutputs.length === 0) return { findings };
 
-  for (let idx = 0; idx < opReturnOutputs.length; idx++) {
-    const out = opReturnOutputs[idx];
+  for (const [idx, out] of opReturnOutputs.entries()) {
     const dataHex = extractOpReturnData(out.scriptpubkey);
     const decoded = tryDecodeUtf8(dataHex);
     const protocol = isRunesScript(out.scriptpubkey) ? "Runes" : detectProtocol(dataHex);
@@ -42,7 +39,7 @@ export const analyzeOpReturn: TxHeuristic = (tx) => {
     }
 
     findings.push({
-      id: `h7-op-return${opReturnOutputs.length > 1 ? `-${idx}` : ""}`,
+      id: opReturnOutputs.length > 1 ? `h7-op-return-${idx}` as const : "h7-op-return",
       severity: protocol ? "medium" : "low",
       confidence: "deterministic",
       title: protocol

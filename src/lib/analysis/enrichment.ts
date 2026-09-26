@@ -26,13 +26,15 @@ export async function enrichBip47Finding(
     const txCount =
       addrInfo.chain_stats.tx_count + addrInfo.mempool_stats.tx_count;
 
+    // Localized text: the description.{clean,toxic}_{reused,first} context keys
     bip47.params = {
       ...bip47.params,
       notificationTxCount: txCount,
-      channelInfo: txCount > 1
-        ? ` The notification address has received ${txCount} transactions, indicating ${txCount} BIP47 payment channels have been opened to this PayNym. While this address is reused and publicly visible, the actual payment addresses derived through each channel are unique and cannot be linked without knowledge of the payment codes.`
-        : " This appears to be the first notification to this address. The notification address is reused and publicly visible, but the actual payment addresses derived through the channel are unique and cannot be linked without knowledge of the payment codes.",
+      context: txCount > 1 ? "reused" : "first",
     };
+    bip47.description += txCount > 1
+      ? ` The notification address has received ${txCount} transactions, indicating ${txCount} BIP47 payment channels have been opened to this PayNym. While this address is reused and publicly visible, the actual payment addresses derived through each channel are unique and cannot be linked without knowledge of the payment codes.`
+      : " This appears to be the first notification to this address. The notification address is reused and publicly visible, but the actual payment addresses derived through the channel are unique and cannot be linked without knowledge of the payment codes.";
   } catch {
     // Non-critical enrichment - do not fail the analysis
   }
@@ -99,21 +101,20 @@ export async function enrichRicochetFinding(
       // Validate hop structure: 1 input is required.
       // Outputs: 1 (pure sweep) or 2 (PayNym variant with fee split) are valid.
       if (hopTx.vin.length !== 1) break;
-      if (hopTx.vout.length < 1 || hopTx.vout.length > 2) break;
+      const [out0, out1] = hopTx.vout;
+      if (!out0 || hopTx.vout.length > 2) break;
 
       // Determine which output continues the chain.
       // For 1-output hops, it is vout 0.
       // For 2-output hops, the larger output continues the chain.
-      let nextVout = 0;
-      if (hopTx.vout.length === 2) {
-        nextVout = hopTx.vout[0].value >= hopTx.vout[1].value ? 0 : 1;
-      }
+      const nextOut = out1 && out1.value > out0.value ? out1 : out0;
+      const nextVout = nextOut === out0 ? 0 : 1;
 
       hops.push({
         hop: hopNum,
         txid: hopTx.txid,
         blockHeight: hopTx.status?.block_height ?? 0,
-        value: hopTx.vout[nextVout].value,
+        value: nextOut.value,
         outputCount: hopTx.vout.length,
       });
 
@@ -122,7 +123,8 @@ export async function enrichRicochetFinding(
     }
 
     // Need at least 2 hops (hop 0 + one forward) to be meaningful
-    if (hops.length < 2) return;
+    const lastHop = hops.at(-1);
+    if (hops.length < 2 || !lastHop) return;
 
     // Determine variant based on block height spacing
     const confirmedHops = hops.filter((h) => h.blockHeight > 0);
@@ -132,14 +134,16 @@ export async function enrichRicochetFinding(
       variant = "partial";
     } else if (confirmedHops.length >= 2) {
       const isConsecutive = confirmedHops.every(
-        (h, i) => i === 0 || h.blockHeight === confirmedHops[i - 1].blockHeight + 1,
+        (h, i) => {
+          const prev = confirmedHops[i - 1];
+          return !prev || h.blockHeight === prev.blockHeight + 1;
+        },
       );
       variant = isConsecutive ? "classic" : "staggered";
     } else {
       variant = "partial";
     }
 
-    const lastHop = hops[hops.length - 1];
     const hopCount = hops.length;
 
     const variantLabel =

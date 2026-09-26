@@ -1,7 +1,7 @@
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import type { TraceLayer } from "./recursive-trace";
-import { getSpendableOutputs } from "../heuristics/tx-utils";
+import { getSpendableOutputs, isOpReturnOutput } from "../heuristics/tx-utils";
 
 /**
  * Taint Analysis
@@ -79,9 +79,11 @@ export function analyzeBackwardTaint(
   // Aggregate taint across all inputs
   const aggregatedTaint = new Map<string, number>();
   let totalTaintFraction = 0;
+  // Taint from parents only: direct (hop 0) entity inputs are the tx's own
+  // addresses, which entity-detection already scores.
+  let parentTaintFraction = 0;
 
-  for (let i = 0; i < tx.vin.length; i++) {
-    const vin = tx.vin[i];
+  for (const [i, vin] of tx.vin.entries()) {
     if (vin.is_coinbase) continue;
     const inputValue = vin.prevout?.value ?? 0;
     if (inputValue === 0) continue;
@@ -119,6 +121,7 @@ export function analyzeBackwardTaint(
           const weighted = fraction * inputWeight;
           aggregatedTaint.set(category, (aggregatedTaint.get(category) ?? 0) + weighted);
           totalTaintFraction += weighted;
+          parentTaintFraction += weighted;
           sources.push({ category, fraction: weighted, hops: 1 });
         }
       }
@@ -134,9 +137,8 @@ export function analyzeBackwardTaint(
   const totalOutputValue = spendable.reduce((sum, o) => sum + o.value, 0);
 
   if (totalOutputValue > 0 && aggregatedTaint.size > 0) {
-    for (let i = 0; i < tx.vout.length; i++) {
-      const vout = tx.vout[i];
-      if (vout.scriptpubkey_type === "op_return") continue;
+    for (const [i, vout] of tx.vout.entries()) {
+      if (isOpReturnOutput(vout)) continue;
       // Proportional: each output gets the same taint fraction as the overall tx
       const breakdown: TaintBreakdown = {
         total: Math.min(1, totalTaintFraction),
@@ -158,12 +160,15 @@ export function analyzeBackwardTaint(
       .map(([cat, frac]) => `${Math.round(frac * 100)}% ${cat}`)
       .join(", ");
 
-    const severity = totalTaintFraction >= 0.8 ? "high" as const
-      : totalTaintFraction >= 0.3 ? "medium" as const
+    // Severity follows the scored (parent) taint, like the impact: hop-0
+    // entity inputs are entity-detection's to score.
+    const severity = parentTaintFraction >= 0.8 ? "high" as const
+      : parentTaintFraction >= 0.3 ? "medium" as const
       : "low" as const;
-    const impact = totalTaintFraction >= 0.8 ? -5
-      : totalTaintFraction >= 0.3 ? -3
-      : -1;
+    const impact = parentTaintFraction >= 0.8 ? -5
+      : parentTaintFraction >= 0.3 ? -3
+      : parentTaintFraction > 0 ? -1
+      : 0;
 
     findings.push({
       id: "chain-taint-backward",
@@ -184,6 +189,8 @@ export function analyzeBackwardTaint(
       params: {
         taintPct: pct,
         sourceCount: aggregatedTaint.size,
+        // Lets compound scoring tell whether entity proximity found the same entity
+        sourceCategories: [...aggregatedTaint.keys()].join(","),
       },
     });
   }

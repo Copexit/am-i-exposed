@@ -57,7 +57,7 @@ docs/audit/
 audit_*.md
 polish/
 presentation/
-scripts/audit15-*.mjs
+scripts/audit*-*.mjs
 scripts/glossary-capture.mjs
 
 # entity filter data (large downloads cached locally)

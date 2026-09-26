@@ -1,5 +1,6 @@
 import { SVG_COLORS, SEVERITY_HEX, GRADE_HEX_SVG } from "../shared/svgConstants";
 import type { Finding, Grade } from "@/lib/types";
+import { findingKeys } from "@/lib/finding-utils";
 
 export interface WaterfallSegment {
   key: string;
@@ -22,7 +23,7 @@ export function buildWaterfallSegments(
   finalScore: number,
   grade: Grade,
   baseScore: number,
-  t: (key: string, opts?: Record<string, unknown>) => string,
+  t: (key: string | string[], opts?: Record<string, unknown>) => string,
 ): WaterfallSegment[] {
   const impactFindings = findings.filter((f) => f.scoreImpact !== 0);
   // Sort: positive first, then negative by magnitude
@@ -51,7 +52,7 @@ export function buildWaterfallSegments(
     running = Math.max(0, Math.min(100, running + f.scoreImpact));
     segs.push({
       key: f.id,
-      label: t(`finding.${f.id}.title`, { ...f.params, defaultValue: f.title }),
+      label: t(findingKeys(f.id, "title", f.params), { ...f.params, defaultValue: f.title }),
       value: f.scoreImpact,
       runningStart: Math.min(start, running),
       runningEnd: Math.max(start, running),

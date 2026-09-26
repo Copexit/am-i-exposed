@@ -1,4 +1,5 @@
 import type { MempoolTransaction } from "@/lib/api/types";
+import { isRbfSignaling } from "../heuristics/tx-utils";
 import type { Finding } from "@/lib/types";
 
 /**
@@ -77,9 +78,9 @@ export function analyzeFingerprintEvolution(
   // Detect transitions between consecutive snapshots
   const transitions: WalletTransition[] = [];
 
-  for (let i = 1; i < snapshots.length; i++) {
+  for (const [i, curr] of snapshots.entries()) {
     const prev = snapshots[i - 1];
-    const curr = snapshots[i];
+    if (!prev) continue;
     const changes: string[] = [];
 
     // nVersion change
@@ -129,6 +130,7 @@ export function analyzeFingerprintEvolution(
 
   // Generate findings based on transitions
   if (transitions.length > 0) {
+    const [only, ...rest] = transitions;
     // Check for significant wallet migration signals
     const hasVersionChange = transitions.some((t) =>
       t.changes.some((c) => c.startsWith("nVersion")),
@@ -196,7 +198,7 @@ export function analyzeFingerprintEvolution(
           changeSignals: totalChangeSignals,
         },
       });
-    } else if (transitions.length === 1) {
+    } else if (only && rest.length === 0) {
       // Single transition - informational
       findings.push({
         id: "prospective-fingerprint-change",
@@ -205,7 +207,7 @@ export function analyzeFingerprintEvolution(
         title: "Wallet fingerprint change detected",
         description:
           "A wallet fingerprint change was detected between transactions: " +
-          transitions[0].changes.join("; ") +
+          only.changes.join("; ") +
           ". This may indicate a wallet update, configuration change, or " +
           "wallet migration.",
         recommendation:
@@ -273,7 +275,7 @@ function buildSnapshot(
     .filter((t, i, arr) => arr.indexOf(t) === i);
 
   // Check RBF signaling
-  const hasRbf = tx.vin.some((v) => v.sequence < 0xfffffffe);
+  const hasRbf = isRbfSignaling(tx.vin);
 
   return {
     txid: tx.txid,

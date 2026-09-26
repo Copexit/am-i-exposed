@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { createApiClient } from "@/lib/api/client";
+import { mapApiErrorMessage } from "@/lib/api/error-message";
 import {
   buildFirstDegreeCluster,
   type ClusterResult,
@@ -28,7 +30,8 @@ const INITIAL: ClusterState = {
 
 export function useClusterAnalysis() {
   const [state, setState] = useState<ClusterState>(INITIAL);
-  const { config } = useNetwork();
+  const { config, isUmbrel, isCustomApi } = useNetwork();
+  const { t } = useTranslation();
   const abortRef = useRef<AbortController | null>(null);
 
   const analyze = useCallback(
@@ -54,17 +57,17 @@ export function useClusterAnalysis() {
         if (controller.signal.aborted) return;
 
         setState({ phase: "complete", progress: null, result, error: null });
-      } catch {
+      } catch (err) {
         if (controller.signal.aborted) return;
         setState({
           phase: "error",
           progress: null,
           result: null,
-          error: "Cluster analysis failed",
+          error: mapApiErrorMessage(err, t, { isUmbrel, isCustomApi }).message,
         });
       }
     },
-    [config],
+    [config, t, isUmbrel, isCustomApi],
   );
 
   const reset = useCallback(() => {

@@ -1,6 +1,6 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
-import { isCoinbase } from "./tx-utils";
+import { isCoinbase, isOpReturnOutput } from "./tx-utils";
 
 /**
  * Script Type Mix Analysis
@@ -53,7 +53,7 @@ export const analyzeScriptTypeMix: TxHeuristic = (tx) => {
 
   const outputTypes = new Set<string>();
   for (const vout of tx.vout) {
-    if (vout.scriptpubkey_type && vout.scriptpubkey_type !== "op_return") {
+    if (vout.scriptpubkey_type && !isOpReturnOutput(vout)) {
       outputTypes.add(vout.scriptpubkey_type);
     }
   }

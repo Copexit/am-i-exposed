@@ -12,8 +12,12 @@ const MIN_ENTITY_QUERY = 2;
 /** Debounce delay in ms for address API calls. */
 const DEBOUNCE_MS = 300;
 
-/** Regex for partial address prefixes worth autocompleting. */
-const ADDRESS_PREFIX_RE = /^(bc1|tb1|[13]|[mn2])/i;
+/**
+ * Partial addresses worth autocompleting: network prefix plus only bech32 or
+ * base58 characters, so entity names ("MEXC", "Mt. Gox") never match.
+ */
+const MAINNET_PREFIX_RE = /^(?:bc1[02-9ac-hj-np-z]*|[13][1-9A-HJ-NP-Za-km-z]*)$/;
+const TESTNET_PREFIX_RE = /^(?:tb1[02-9ac-hj-np-z]*|[mn2][1-9A-HJ-NP-Za-km-z]*)$/;
 
 export interface AutocompleteSuggestion {
   type: "address" | "entity";
@@ -26,7 +30,10 @@ export interface AutocompleteSuggestion {
 }
 
 export function useAddressAutocomplete() {
-  const { config } = useNetwork();
+  const { config, network, isUmbrel, customApiUrl } = useNetwork();
+  // Partial addresses are only sent to the user's own node, never to a
+  // third-party API before the user asks for a scan.
+  const isOwnNode = isUmbrel || !!customApiUrl;
   const [suggestions, setSuggestions] = useState<AutocompleteSuggestion[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [isOpen, setIsOpen] = useState(false);
@@ -57,20 +64,22 @@ export function useAddressAutocomplete() {
       return;
     }
 
-    const isAddressPrefix = ADDRESS_PREFIX_RE.test(trimmed);
+    // bech32 is case-insensitive (QR codes use uppercase); base58 is not
+    const addrQuery = /^(?:bc1|tb1)/i.test(trimmed) ? trimmed.toLowerCase() : trimmed;
+    const isAddressPrefix = (network === "mainnet" ? MAINNET_PREFIX_RE : TESTNET_PREFIX_RE).test(addrQuery);
 
     // Path 1: Address prefix autocomplete (API call with debounce)
-    if (isAddressPrefix && trimmed.length >= MIN_PREFIX_LENGTH) {
+    if (isAddressPrefix && isOwnNode && trimmed.length >= MIN_PREFIX_LENGTH) {
       const seq = ++seqRef.current;
 
-      timerRef.current = setTimeout(async () => {
+      const fetchSuggestions = async () => {
         abortRef.current?.abort();
         const controller = new AbortController();
         abortRef.current = controller;
 
         try {
           const client = createApiClient(config, controller.signal);
-          const results = await client.getAddressPrefix(trimmed);
+          const results = await client.getAddressPrefix(addrQuery);
           if (seq === seqRef.current && results.length > 0) {
             setSuggestions(results.map((addr) => ({ type: "address" as const, value: addr })));
             setSelectedIndex(-1);
@@ -85,7 +94,9 @@ export function useAddressAutocomplete() {
             setIsOpen(false);
           }
         }
-      }, DEBOUNCE_MS);
+      };
+      // Fire-and-forget: fetchSuggestions catches its own errors.
+      timerRef.current = setTimeout(() => void fetchSuggestions(), DEBOUNCE_MS);
       return;
     }
 
@@ -113,7 +124,7 @@ export function useAddressAutocomplete() {
     // Neither path matched
     setSuggestions([]);
     setIsOpen(false);
-  }, [config]);
+  }, [config, network, isOwnNode]);
 
   const close = useCallback(() => {
     setIsOpen(false);
@@ -136,10 +147,7 @@ export function useAddressAutocomplete() {
   }, [suggestions.length]);
 
   const getSelected = useCallback((): string | null => {
-    if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
-      return suggestions[selectedIndex].value;
-    }
-    return null;
+    return suggestions[selectedIndex]?.value ?? null;
   }, [selectedIndex, suggestions]);
 
   return {

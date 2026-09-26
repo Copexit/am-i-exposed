@@ -19,6 +19,8 @@
 import type { MempoolUtxo } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import { fmtN } from "@/lib/format";
+import { enrichFindingsWithMetadata } from "./finding-metadata";
+import { TOXIC_CHANGE_THRESHOLD } from "@/lib/constants";
 
 // ---------- Types ----------
 
@@ -102,10 +104,10 @@ function bnbSearch(
   let iterations = 0;
 
   // Precompute suffix sums for O(1) remaining-value lookups
-  const suffixSum = new Array<number>(sorted.length + 1);
-  suffixSum[sorted.length] = 0;
+  // suffixSum[i] = total value of sorted[i..]; suffixSum[sorted.length] = 0
+  const suffixSum = new Array<number>(sorted.length + 1).fill(0);
   for (let i = sorted.length - 1; i >= 0; i--) {
-    suffixSum[i] = suffixSum[i + 1] + sorted[i].utxo.value;
+    suffixSum[i] = suffixSum[i + 1]! + sorted[i]!.utxo.value;
   }
 
   function search(index: number, selected: CoinSelectionInput[], currentSum: number): void {
@@ -128,14 +130,16 @@ function bnbSearch(
     if (waste > EXACT_MATCH_TOLERANCE) return;
 
     // No more candidates
-    if (index >= sorted.length) return;
+    const candidate = sorted[index];
+    const remaining = suffixSum[index];
+    if (!candidate || remaining === undefined) return;
 
     // Remaining sum can't reach target
-    if (currentSum + suffixSum[index] < needed) return;
+    if (currentSum + remaining < needed) return;
 
     // Branch: include current
-    selected.push(sorted[index]);
-    search(index + 1, selected, currentSum + sorted[index].utxo.value);
+    selected.push(candidate);
+    search(index + 1, selected, currentSum + candidate.utxo.value);
     selected.pop();
 
     // Branch: exclude current
@@ -214,7 +218,7 @@ function generateFindings(result: CoinSelectionResult): Finding[] {
   }
 
   // Toxic change warning
-  if (result.changeAmount > 0 && result.changeAmount < 10_000) {
+  if (result.changeAmount > 0 && result.changeAmount < TOXIC_CHANGE_THRESHOLD) {
     findings.push({
       id: "coin-select-toxic-change",
       severity: "high",
@@ -273,6 +277,7 @@ function generateFindings(result: CoinSelectionResult): Finding[] {
     });
   }
 
+  enrichFindingsWithMetadata(findings);
   return findings;
 }
 

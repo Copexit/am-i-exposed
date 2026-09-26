@@ -35,6 +35,15 @@ let filterStatus: FilterStatus = "idle";
 let fullFilterInstance: AddressFilter | null = null;
 let fullFilterStatus: FilterStatus = "idle";
 
+// In-flight loads, shared so concurrent callers all get the loaded filter.
+let corePromise: Promise<AddressFilter | null> | null = null;
+let fullPromise: Promise<AddressFilter | null> | null = null;
+// Bumped by updateFullEntityData: a full load from an older generation that
+// finishes late must not overwrite the newer state.
+let fullGeneration = 0;
+// Progress listeners of every caller sharing the in-flight full download.
+const fullProgressListeners = new Set<ProgressCallback>();
+
 const CORE_INDEX_PATH = "/data/entity-index.bin";
 const FULL_INDEX_PATH = "/data/entity-index-full.bin";
 const FULL_BLOOM_PATH = "/data/entity-filter-full.bin";
@@ -78,7 +87,8 @@ function parseHeader(buffer: ArrayBuffer): {
   version: number;
   meta: FilterMeta;
 } | null {
-  if (buffer.byteLength < 32) return null;
+  // 32-byte header + 16-byte Bloom parameters (m, k, seed1, seed2)
+  if (buffer.byteLength < 48) return null;
 
   const view = new DataView(buffer);
   const version = view.getUint32(0, true);
@@ -104,16 +114,19 @@ function parseHeader(buffer: ArrayBuffer): {
 
 /**
  * Parse a version-2 Bloom filter from an ArrayBuffer.
+ * Returns null for degenerate parameters (m = 0 or k = 0), which would
+ * otherwise match every address.
  */
 function parseBloomFilter(
   buffer: ArrayBuffer,
   meta: FilterMeta,
-): AddressFilter {
+): AddressFilter | null {
   const bloomView = new DataView(buffer, 32, 16);
   const bloomM = bloomView.getUint32(0, true);
   const bloomK = bloomView.getUint32(4, true);
   const seed1 = bloomView.getUint32(8, true);
   const seed2 = bloomView.getUint32(12, true);
+  if (bloomM === 0 || bloomK === 0) return null;
 
   const bits = new Uint8Array(buffer, 48);
 
@@ -125,7 +138,8 @@ function parseBloomFilter(
 
       for (let i = 0; i < bloomK; i++) {
         const pos = (h1 + i * h2) % bloomM;
-        if (!(bits[pos >> 3] & (1 << (pos & 7)))) return false;
+        // A bit past the end of a truncated filter reads as unset.
+        if (!((bits[pos >> 3] ?? 0) & (1 << (pos & 7)))) return false;
       }
       return true;
     },
@@ -201,13 +215,17 @@ async function fetchArrayBuffer(
  * Load the core entity address filter (small, auto-loaded).
  * Loads entity-index.bin and creates an index-backed AddressFilter.
  * Returns the filter if successful, null otherwise.
- * Safe to call multiple times - only loads once.
+ * Safe to call multiple times - only loads once; concurrent callers share
+ * the same in-flight load. A missing or corrupt file ("unavailable") is final;
+ * a thrown load ("error", e.g. a network failure) is retried on the next call.
  */
-export async function loadEntityFilter(): Promise<AddressFilter | null> {
-  if (filterInstance) return filterInstance;
-  if (filterStatus === "loading") return null;
-  if (filterStatus === "error" || filterStatus === "unavailable") return null;
+export function loadEntityFilter(): Promise<AddressFilter | null> {
+  if (filterInstance) return Promise.resolve(filterInstance);
+  if (filterStatus === "unavailable") return Promise.resolve(null);
+  return (corePromise ??= loadCore());
+}
 
+async function loadCore(): Promise<AddressFilter | null> {
   filterStatus = "loading";
 
   try {
@@ -223,8 +241,8 @@ export async function loadEntityFilter(): Promise<AddressFilter | null> {
       return null;
     }
 
-    // Set entity index for name lookups
-    setEntityIndex(index);
+    // Set entity index for name lookups, unless the full index won the race
+    if (!fullFilterInstance) setEntityIndex(index);
 
     // Create index-backed filter (no Bloom needed for core)
     filterInstance = createIndexBackedFilter(index);
@@ -232,6 +250,7 @@ export async function loadEntityFilter(): Promise<AddressFilter | null> {
     return filterInstance;
   } catch {
     filterStatus = "error";
+    corePromise = null; // allow a retry on the next call
     return null;
   }
 }
@@ -247,15 +266,21 @@ export async function loadEntityFilter(): Promise<AddressFilter | null> {
  *
  * @param onProgress - Optional callback for download progress (loaded, total bytes)
  */
-export async function loadFullEntityFilter(
+export function loadFullEntityFilter(
   onProgress?: ProgressCallback,
 ): Promise<AddressFilter | null> {
-  if (fullFilterInstance) return fullFilterInstance;
-  if (fullFilterStatus === "loading") return null;
+  if (fullFilterInstance) return Promise.resolve(fullFilterInstance);
   if (fullFilterStatus === "error" || fullFilterStatus === "unavailable") {
-    return null;
+    return Promise.resolve(null);
   }
+  // Concurrent callers share the in-flight download; each gets progress.
+  if (onProgress) fullProgressListeners.add(onProgress);
+  return (fullPromise ??= loadFull());
+}
 
+async function loadFull(): Promise<AddressFilter | null> {
+  const generation = fullGeneration;
+  const stale = () => generation !== fullGeneration;
   fullFilterStatus = "loading";
 
   try {
@@ -265,11 +290,11 @@ export async function loadFullEntityFilter(
 
     const reportProgress = () => {
       // Only report a real total when both content-lengths are known
+      if (stale()) return;
       const totalKnown = indexTotal > 0 && bloomTotal > 0;
-      onProgress?.(
-        indexLoaded + bloomLoaded,
-        totalKnown ? indexTotal + bloomTotal : 0,
-      );
+      for (const listener of fullProgressListeners) {
+        listener(indexLoaded + bloomLoaded, totalKnown ? indexTotal + bloomTotal : 0);
+      }
     };
 
     const [indexBuffer, bloomBuffer] = await Promise.all([
@@ -284,6 +309,9 @@ export async function loadFullEntityFilter(
         reportProgress();
       }),
     ]);
+
+    // Superseded by an update: hand callers the newer load's result instead.
+    if (stale()) return loadFullEntityFilter();
 
     if (!indexBuffer) {
       fullFilterStatus = "unavailable";
@@ -301,7 +329,7 @@ export async function loadFullEntityFilter(
     if (bloomBuffer) {
       const parsed = parseHeader(bloomBuffer);
       if (parsed && parsed.version === 2) {
-        overflowBloom = parseBloomFilter(bloomBuffer, parsed.meta);
+        overflowBloom = parseBloomFilter(bloomBuffer, parsed.meta) ?? undefined;
       }
     }
 
@@ -313,8 +341,11 @@ export async function loadFullEntityFilter(
     fullFilterStatus = "ready";
     return fullFilterInstance;
   } catch {
+    if (stale()) return loadFullEntityFilter();
     fullFilterStatus = "error";
     return null;
+  } finally {
+    if (!stale()) fullProgressListeners.clear();
   }
 }
 
@@ -335,8 +366,11 @@ export async function updateFullEntityData(
 ): Promise<AddressFilter | null> {
   return updateFullEntityDataImpl(
     () => {
+      fullGeneration++;
+      fullProgressListeners.clear();
       fullFilterInstance = null;
       fullFilterStatus = "idle";
+      fullPromise = null;
     },
     loadFullEntityFilter,
     onProgress,

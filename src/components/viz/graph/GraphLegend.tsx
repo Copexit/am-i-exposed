@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SVG_COLORS } from "../shared/svgConstants";
+import { CHANGE_MARKED_COLOR } from "@/lib/palette";
 import { ENTITY_CATEGORY_COLORS } from "./constants";
 import { SCRIPT_TYPE_LEGEND } from "./scriptStyles";
 import type { NodeFilter } from "./types";
@@ -96,7 +97,7 @@ export function GraphLegend({ filter, onToggleFilter, fingerprintMode, changeOut
             </span>
             {changeOutputs.size > 0 && (
               <span className="flex items-center gap-1.5">
-                <span className="inline-block w-4 h-0.5 rounded shrink-0" style={{ background: "#d97706", opacity: 0.8 }} />
+                <span className="inline-block w-4 h-0.5 rounded shrink-0" style={{ background: CHANGE_MARKED_COLOR, opacity: 0.8 }} />
                 <span className="text-muted">{t("graphLegend.change", { defaultValue: "Change" })}</span>
               </span>
             )}

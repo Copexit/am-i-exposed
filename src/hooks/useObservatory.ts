@@ -54,7 +54,9 @@ const INITIAL_STATE: ObservatoryState = {
  * Umbrel). Tab-focus revalidation; no background polling.
  */
 export function useObservatory(): UseObservatoryResult {
-  const { isUmbrel } = useNetwork();
+  // Until the network config settles an Umbrel user looks hosted: wait, or the
+  // first render would send their IP to the public Cloudflare worker.
+  const { isUmbrel, apiReady: ready } = useNetwork();
   const [state, setState] = useState<ObservatoryState>(INITIAL_STATE);
   const [refreshKey, setRefreshKey] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
@@ -69,6 +71,7 @@ export function useObservatory(): UseObservatoryResult {
   }, []);
 
   useEffect(() => {
+    if (!ready) return;
     const endpoints = getObservatoryEndpoints({ isUmbrel });
     const controller = new AbortController();
     abortRef.current?.abort();
@@ -120,7 +123,7 @@ export function useObservatory(): UseObservatoryResult {
       cancelled = true;
       controller.abort();
     };
-  }, [isUmbrel, currentKey]);
+  }, [isUmbrel, currentKey, ready]);
 
   useEffect(() => {
     function onFocus() {

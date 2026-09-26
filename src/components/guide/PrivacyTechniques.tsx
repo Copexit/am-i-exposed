@@ -13,9 +13,9 @@ import {
   AlertTriangle,
   Info,
 } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { PATHWAYS, type PathwayData } from "@/data/guide/pathways";
+import { Collapse } from "../ui/Collapse";
 
 const ICON_MAP: Record<string, React.ReactNode> = {
   Zap: <Zap size={14} />,
@@ -49,52 +49,42 @@ function PathwayCard({ pathway, expanded, onToggle }: {
           className={`text-muted transition-transform ${expanded ? "rotate-180" : ""}`}
         />
       </button>
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="overflow-hidden"
-          >
-            <div className="px-4 pb-3 space-y-2.5">
-              <p className="text-base text-muted leading-relaxed">
-                {t(pathway.descKey, { defaultValue: pathway.descDefault })}
-              </p>
-              <div className="space-y-1.5">
-                {pathway.pros.map((pro, i) => (
-                  <div key={i} className="flex items-start gap-1.5">
-                    <CheckCircle2 size={14} className="text-severity-good shrink-0 mt-0.5" />
-                    <span className="text-sm text-foreground/80">{t(pro.key, { defaultValue: pro.default })}</span>
-                  </div>
-                ))}
+      <Collapse open={expanded} duration={0.15}>
+        <div className="px-4 pb-3 space-y-2.5">
+          <p className="text-base text-muted leading-relaxed">
+            {t(pathway.descKey, { defaultValue: pathway.descDefault })}
+          </p>
+          <div className="space-y-1.5">
+            {pathway.pros.map((pro, i) => (
+              <div key={i} className="flex items-start gap-1.5">
+                <CheckCircle2 size={14} className="text-severity-good shrink-0 mt-0.5" />
+                <span className="text-sm text-foreground/80">{t(pro.key, { defaultValue: pro.default })}</span>
               </div>
-              <div className="space-y-1.5">
-                {pathway.cons.map((con, i) => (
-                  <div key={i} className="flex items-start gap-1.5">
-                    <AlertTriangle size={14} className="text-severity-medium shrink-0 mt-0.5" />
-                    <span className="text-sm text-foreground/80">{t(con.key, { defaultValue: con.default })}</span>
-                  </div>
-                ))}
+            ))}
+          </div>
+          <div className="space-y-1.5">
+            {pathway.cons.map((con, i) => (
+              <div key={i} className="flex items-start gap-1.5">
+                <AlertTriangle size={14} className="text-severity-medium shrink-0 mt-0.5" />
+                <span className="text-sm text-foreground/80">{t(con.key, { defaultValue: con.default })}</span>
               </div>
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {pathway.tools.map((tool) => (
-                  <span key={tool} className="text-xs font-mono px-2 py-0.5 rounded bg-card-bg border border-card-border text-muted">
-                    {tool}
-                  </span>
-                ))}
-              </div>
-              {pathway.warnings?.map((warn, i) => (
-                <div key={i} className="flex items-start gap-1.5 bg-severity-medium/10 rounded-lg px-3 py-2">
-                  <Info size={14} className="text-severity-medium shrink-0 mt-0.5" />
-                  <span className="text-sm text-foreground/80">{t(warn.key, { defaultValue: warn.default })}</span>
-                </div>
-              ))}
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {pathway.tools.map((tool) => (
+              <span key={tool} className="text-xs font-mono px-2 py-0.5 rounded bg-card-bg border border-card-border text-muted">
+                {tool}
+              </span>
+            ))}
+          </div>
+          {pathway.warnings?.map((warn, i) => (
+            <div key={i} className="flex items-start gap-1.5 bg-severity-medium/10 rounded-lg px-3 py-2">
+              <Info size={14} className="text-severity-medium shrink-0 mt-0.5" />
+              <span className="text-sm text-foreground/80">{t(warn.key, { defaultValue: warn.default })}</span>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          ))}
+        </div>
+      </Collapse>
     </div>
   );
 }

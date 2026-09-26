@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useEffectEvent, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
+import { useRouter } from "next/navigation";
 import { useNetwork } from "@/context/NetworkContext";
 import { createApiClient } from "@/lib/api/client";
 import { useGraphExpansion } from "@/hooks/useGraphExpansion";
@@ -22,35 +23,13 @@ const TX_EXAMPLES = EXAMPLES.filter((e) => TXID_RE.test(e.input));
 
 export default function GraphPage() {
   const { t } = useTranslation();
-  const { network, config, setNetwork } = useNetwork();
+  const router = useRouter();
+  // Initial load waits (apiReady) until the backend is known (Umbrel / Tor onion / clearnet)
+  const { network, config, configFor, setNetwork, isUmbrel, apiReady } = useNetwork();
   const api = useMemo(() => createApiClient(config), [config]);
 
-  const {
-    nodes,
-    rootTxid,
-    loading,
-    errors,
-    nodeCount,
-    maxNodes,
-    setRoot,
-    loadGraph,
-    expandInput,
-    expandOutput,
-    collapse,
-    undo,
-    canUndo,
-    reset,
-    expandedNodeTxid,
-    toggleExpand,
-    expandPortInput,
-    expandPortOutput,
-    outspendCache,
-    autoTrace,
-    cancelAutoTrace,
-    autoTracing,
-    autoTraceProgress,
-    autoTraceLinkability,
-  } = useGraphExpansion(api);
+  const graph = useGraphExpansion(api);
+  const { nodes, rootTxid, setRoot, loadGraph } = graph;
 
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -61,32 +40,56 @@ export default function GraphPage() {
   const [lastLoadedGraph, setLastLoadedGraph] = useState<SavedGraph | null>(null);
   const loadAbortRef = useRef<AbortController | null>(null);
 
+  // Abort any in-flight load on unmount
+  useEffect(() => () => loadAbortRef.current?.abort(), []);
+
+  /** Load a single txid as root. Shares loadAbortRef with saved-graph loads: last request wins. */
   const loadTxid = useCallback(
     async (txid: string, label?: string | null) => {
+      loadAbortRef.current?.abort();
+      const ac = new AbortController();
+      loadAbortRef.current = ac;
+
       setSearchLoading(true);
       setSearchError(null);
+      // A cancelled saved-graph load leaves these behind (its finally skips them)
+      setLoadProgress(null);
+      setLoadWarning(null);
       setCurrentLabel(label ?? null);
       setCurrentGraphId(null);
       try {
-        const tx: MempoolTransaction = await api.getTransaction(txid);
+        const tx: MempoolTransaction = await createApiClient(config, ac.signal).getTransaction(txid);
+        if (ac.signal.aborted) return;
         setRoot(tx);
       } catch {
+        if (ac.signal.aborted) return;
         setSearchError(
           t("graphPage.errorNotFound", {
             defaultValue: "Transaction not found. Check the ID and try again.",
           }),
         );
       } finally {
-        setSearchLoading(false);
+        if (!ac.signal.aborted) setSearchLoading(false);
       }
     },
-    [api, setRoot, t],
+    [config, setRoot, t],
   );
 
   /** Load a saved graph: re-fetch all txids, then dispatch LOAD_GRAPH. */
   const handleLoadSavedGraph = useCallback(
     async (saved: SavedGraph) => {
       if (saved.network !== network) {
+        // Umbrel serves only its node's network: refuse instead of switching
+        if (isUmbrel) {
+          setSearchError(
+            t("graphSaveLoad.networkUnavailable", {
+              network: saved.network,
+              nodeNetwork: network,
+              defaultValue: `This graph was saved on ${saved.network}, but this node only serves ${network}.`,
+            }),
+          );
+          return;
+        }
         const confirmed = window.confirm(
           t("graphSaveLoad.networkMismatch", {
             network: saved.network,
@@ -109,8 +112,10 @@ export default function GraphPage() {
       setCurrentGraphId(saved.id || null);
 
       try {
+        // Build the client for the graph's network: `api` still points at the
+        // pre-switch network until the next render.
         const result = await loadSavedGraph(
-          saved, api,
+          saved, createApiClient(configFor(saved.network)),
           (loaded, total) => setLoadProgress({ loaded, total }),
           ac.signal,
         );
@@ -137,65 +142,76 @@ export default function GraphPage() {
           setSearchError(t("graphSaveLoad.loadError", { defaultValue: "Failed to load saved graph." }));
         }
       } finally {
-        setSearchLoading(false);
-        setLoadProgress(null);
+        if (!ac.signal.aborted) {
+          setSearchLoading(false);
+          setLoadProgress(null);
+        }
       }
     },
-    [api, network, setNetwork, loadGraph, t],
+    [configFor, network, isUmbrel, setNetwork, loadGraph, t],
   );
 
-  // Hash-based routing: #txid=<hex> or #graph=<base64url>
+  // Hash-based routing: #txid=<hex> or #graph=<base64url>.
+  // An effect event so it always sees the latest api, network and rootTxid.
+  const loadFromHash = useEffectEvent(() => {
+    const hash = window.location.hash.slice(1);
+
+    if (hash.startsWith("graph=")) {
+      const encoded = hash.slice(6);
+      const decoded = decodeGraphFromUrl(encoded);
+      if (decoded) {
+        const graphToLoad: SavedGraph = { id: "", name: "", savedAt: 0, ...decoded };
+        // Fire-and-forget: the callee catches its own errors.
+        void handleLoadSavedGraph(graphToLoad);
+        return;
+      }
+    }
+
+    const txid = hash.match(/^txid=([a-fA-F0-9]{64})$/)?.[1];
+    if (txid) {
+      const example = TX_EXAMPLES.find((e) => e.input.toLowerCase() === txid.toLowerCase());
+      // Fire-and-forget: the callee catches its own errors.
+      void loadTxid(txid, example?.labelDefault);
+    } else if (!rootTxid) {
+      // Check for saved graphs - load the most recently saved/modified
+      const [latestGraph] = savedGraphStore.getSnapshot();
+      if (latestGraph) {
+        // Fire-and-forget: the callee catches its own errors.
+        void handleLoadSavedGraph(latestGraph);
+      } else {
+        // First visit - random example (the hashchange handler loads it)
+        const example = TX_EXAMPLES[Math.floor(Math.random() * TX_EXAMPLES.length)];
+        if (example) window.location.hash = `txid=${example.input}`;
+      }
+    }
+  });
+
   useEffect(() => {
-    const loadFromHash = () => {
-      const hash = window.location.hash.slice(1);
-
-      if (hash.startsWith("graph=")) {
-        const encoded = hash.slice(6);
-        const decoded = decodeGraphFromUrl(encoded);
-        if (decoded) {
-          const graphToLoad: SavedGraph = { id: "", name: "", savedAt: 0, ...decoded };
-          handleLoadSavedGraph(graphToLoad);
-          return;
-        }
-      }
-
-      const match = hash.match(/^txid=([a-fA-F0-9]{64})$/);
-      if (match) {
-        const example = TX_EXAMPLES.find((e) => e.input.toLowerCase() === match[1].toLowerCase());
-        loadTxid(match[1], example?.labelDefault);
-      } else if (!rootTxid) {
-        // Check for saved graphs - load the most recently saved/modified
-        const savedGraphs = savedGraphStore.getSnapshot();
-        if (savedGraphs.length > 0) {
-          handleLoadSavedGraph(savedGraphs[0]);
-        } else {
-          // First visit - random example
-          const example = TX_EXAMPLES[Math.floor(Math.random() * TX_EXAMPLES.length)];
-          if (example) {
-            window.location.hash = `txid=${example.input}`;
-            loadTxid(example.input, example.labelDefault);
-          }
-        }
-      }
-    };
-
-    loadFromHash();
-    window.addEventListener("hashchange", loadFromHash);
-    return () => window.removeEventListener("hashchange", loadFromHash);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!apiReady) return;
+    const onHashChange = () => loadFromHash();
+    onHashChange();
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, [apiReady]);
 
   const navigateToTxid = useCallback(
     (txid: string) => {
+      const next = `txid=${txid}`;
+      // Setting the hash fires hashchange, which loads. Same hash: reload directly.
+      if (window.location.hash.slice(1) !== next) {
+        window.location.hash = next;
+        return;
+      }
       const example = TX_EXAMPLES.find((e) => e.input.toLowerCase() === txid.toLowerCase());
-      window.location.hash = `txid=${txid}`;
-      loadTxid(txid, example?.labelDefault);
+      // Fire-and-forget: the callee catches its own errors.
+      void loadTxid(txid, example?.labelDefault);
     },
     [loadTxid],
   );
 
   const handleFullScan = useCallback((txid: string) => {
-    window.location.href = `/#tx=${txid}`;
-  }, []);
+    router.push(`/#tx=${txid}`);
+  }, [router]);
 
   // Auto-clear load warning after 8 seconds
   useEffect(() => {
@@ -209,31 +225,8 @@ export default function GraphPage() {
       <ChartErrorBoundary>
         <Suspense fallback={null}>
           <GraphExplorer
-            nodes={nodes}
-            rootTxid={rootTxid}
-            loading={loading}
-            errors={errors}
-            nodeCount={nodeCount}
-            maxNodes={maxNodes}
-            canUndo={canUndo}
-            onExpandInput={expandInput}
-            onExpandOutput={expandOutput}
-            onCollapse={collapse}
-            onUndo={undo}
-            onReset={reset}
+            graph={graph}
             onTxClick={handleFullScan}
-            expandedNodeTxid={expandedNodeTxid}
-            onToggleExpand={toggleExpand}
-            onExpandPortInput={expandPortInput}
-            onExpandPortOutput={expandPortOutput}
-            outspendCache={outspendCache}
-            onAutoTrace={autoTrace}
-            onCancelAutoTrace={cancelAutoTrace}
-            autoTracing={autoTracing}
-            autoTraceProgress={autoTraceProgress}
-            onAutoTraceLinkability={(txid, outputIndex) =>
-              autoTraceLinkability(txid, outputIndex, { boltzmannCache: undefined })
-            }
             alwaysFullscreen
             onSetAsRoot={navigateToTxid}
             onSearch={navigateToTxid}

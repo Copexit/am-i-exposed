@@ -5,9 +5,10 @@ import { analyzeCoinJoin, isCoinJoinFinding } from "@/lib/analysis/heuristics/co
 import { analyzeMultisigDetection } from "@/lib/analysis/heuristics/multisig-detection";
 import { NODE_W, NODE_H, COL_GAP, ROW_GAP, MARGIN, ENTITY_CATEGORY_COLORS, HEAT_TIERS, HEAT_FLOOR_COLOR, EXPANDED_NODE_W } from "./constants";
 import { calcExpandedHeight } from "./portLayout";
-import type { GraphNode, LayoutNode, LayoutEdge, NodeFilter } from "./types";
+import type { GraphNode, LayoutNode, LayoutEdge, NodeFilter, ViewTransform } from "./types";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { EntityMatch } from "@/lib/analysis/entity-filter/types";
+import type { FindingId } from "@/lib/analysis/finding-metadata";
 import type { Finding } from "@/lib/types";
 
 /** Detect CoinJoin type from findings. */
@@ -29,7 +30,7 @@ export function getCoinJoinType(findings: Finding[]): string | undefined {
 }
 
 /** Map heuristic finding IDs to entity-like labels for graph visualization. */
-const HEURISTIC_ENTITY_MAP: Record<string, { entityName: string; category: EntityMatch["category"] }> = {
+const HEURISTIC_ENTITY_MAP: Partial<Record<FindingId, { entityName: string; category: EntityMatch["category"] }>> = {
   "h17-hodlhodl": { entityName: "HodlHodl", category: "p2p" },
   "h17-bisq": { entityName: "Bisq", category: "p2p" },
   "h17-bisq-deposit": { entityName: "Bisq", category: "p2p" },
@@ -305,4 +306,95 @@ export function getNodeColor(node: LayoutNode, heatScore?: number): string {
     return ENTITY_CATEGORY_COLORS[node.entityCategory ?? "unknown"];
   }
   return SVG_COLORS.low;
+}
+
+// ─── Viewport fitting ───────────────────────────────────────────
+
+/** Minimum horizontal margin on each side for small screens. */
+const MIN_MARGIN_X = 16;
+/** Cap on the window-based horizontal padding fallback (px). */
+const MAX_FALLBACK_PAD_X = 48;
+/** Window-based horizontal padding fallback, as a fraction of the window width. */
+const FALLBACK_PAD_X_RATIO = 0.08;
+/** Fallback vertical padding when no container ref is available. */
+const FALLBACK_PAD_Y = 160;
+/** Fit-to-view never zooms in past this scale (small graphs stay readable, not huge). */
+const MAX_FIT_SCALE = 1.5;
+
+type ContainerDims = { width: number; height: number };
+
+/**
+ * Compute the usable viewport dimensions.
+ * Uses measured container dims from ParentSize (via onLayoutComplete) when available.
+ */
+export function getViewportDims(dims?: ContainerDims) {
+  if (dims && dims.width > 0 && dims.height > 0) {
+    return { cw: dims.width, ch: dims.height };
+  }
+  // Last resort: use window dimensions with padding
+  const padX = Math.max(MIN_MARGIN_X * 2, Math.min(MAX_FALLBACK_PAD_X, window.innerWidth * FALLBACK_PAD_X_RATIO));
+  return { cw: window.innerWidth - padX, ch: window.innerHeight - FALLBACK_PAD_Y };
+}
+
+/** Compute a ViewTransform that centers the root nodes within the viewport. */
+export function computeRootCenterView(roots: LayoutNode[], dims?: ContainerDims): ViewTransform {
+  const { cw, ch } = getViewportDims(dims);
+  if (roots.length === 0) return { x: 0, y: 0, scale: 1 };
+  const avgX = roots.reduce((s, n) => s + n.x + n.width / 2, 0) / roots.length;
+  const avgY = roots.reduce((s, n) => s + n.y + n.height / 2, 0) / roots.length;
+  return { x: cw / 2 - avgX, y: ch / 2 - avgY, scale: 1 };
+}
+
+/** Compute a ViewTransform that fits all layout nodes within the viewport. */
+export function computeFitView(ln: LayoutNode[], dims?: ContainerDims): ViewTransform | null {
+  if (ln.length === 0) return null;
+  const { cw, ch } = getViewportDims(dims);
+  const minX = Math.min(...ln.map((n) => n.x));
+  const minY = Math.min(...ln.map((n) => n.y));
+  const maxX = Math.max(...ln.map((n) => n.x + n.width));
+  const maxY = Math.max(...ln.map((n) => n.y + n.height));
+  const nodesW = maxX - minX;
+  const nodesH = maxY - minY;
+  const s = Math.min(cw / nodesW, ch / nodesH, MAX_FIT_SCALE);
+  const rawX = (cw - nodesW * s) / 2 - minX * s;
+  // Ensure nodes don't clip the left edge on small screens
+  const x = Math.max(rawX, MIN_MARGIN_X - minX * s);
+  return { x, y: (ch - nodesH * s) / 2 - minY * s, scale: s };
+}
+
+// ─── Seeding positions for newly expanded nodes ─────────────────
+
+/** Horizontal offset of a backward-expanded node from its trigger node. */
+export const SEED_BACKWARD_DX = 280;
+/** Gap between a trigger node's right edge and a forward-expanded node. */
+export const SEED_FORWARD_GAP = COL_GAP;
+/** Vertical slot one collapsed node occupies. */
+const SEED_SLOT_H = NODE_H + ROW_GAP;
+/** Only nodes this close horizontally count as occupying the target column. */
+const SEED_X_TOLERANCE = 300;
+/** Give up nudging down after this many slots. */
+const SEED_MAX_ATTEMPTS = 50;
+
+/**
+ * Find a y position near targetY that doesn't overlap nodes in nearby columns,
+ * nudging down one slot at a time.
+ */
+export function findFreeY(
+  targetX: number,
+  targetY: number,
+  positionSources: Iterable<[string, { x: number; y: number }]>[],
+  excludeTxid?: string,
+): number {
+  const occupied: number[] = [];
+  for (const source of positionSources) {
+    for (const [txid, pos] of source) {
+      if (txid !== excludeTxid && Math.abs(pos.x - targetX) < SEED_X_TOLERANCE) occupied.push(pos.y);
+    }
+  }
+  let y = targetY;
+  for (let attempts = 0; attempts < SEED_MAX_ATTEMPTS; attempts++) {
+    if (!occupied.some((oy) => Math.abs(oy - y) < SEED_SLOT_H)) return y;
+    y += SEED_SLOT_H;
+  }
+  return y;
 }

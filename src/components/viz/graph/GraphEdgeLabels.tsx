@@ -1,8 +1,12 @@
 "use client";
 
 import { Text } from "@visx/text";
+import { useTranslation } from "react-i18next";
+import { SVG_COLORS } from "../shared/svgConstants";
+import { ANNOTATION_COLOR, NOTE_BG_COLOR, hexToRgba } from "@/lib/palette";
 import type { LayoutEdge } from "./types";
 import type { EditingLabel } from "./useLabelEditor";
+import { SvgCircleButton } from "./SvgCircleButton";
 
 interface GraphEdgeLabelsProps {
   edges: LayoutEdge[];
@@ -27,6 +31,7 @@ export function GraphEdgeLabels({
   commitLabel,
   onSetEdgeLabel,
 }: GraphEdgeLabelsProps) {
+  const { t } = useTranslation();
   return (
     <>
       {edges.map((edge) => {
@@ -41,8 +46,8 @@ export function GraphEdgeLabels({
             <g key={`elbl-${key}`} style={{ cursor: "pointer", pointerEvents: "all" }}
               onClick={(e) => { e.stopPropagation(); startEditEdgeLabel(key); }}
             >
-              <circle cx={midX} cy={midY} r={12} fill="rgba(245, 158, 11, 0.15)" stroke="#f59e0b" strokeWidth={1} strokeDasharray="3 2" />
-              <Text x={midX} y={midY + 4} fontSize={12} fontWeight={700} textAnchor="middle" fill="#f59e0b" fillOpacity={0.6}>+</Text>
+              <circle cx={midX} cy={midY} r={12} fill={hexToRgba(ANNOTATION_COLOR, 0.15)} stroke={ANNOTATION_COLOR} strokeWidth={1} strokeDasharray="3 2" />
+              <Text x={midX} y={midY + 4} fontSize={12} fontWeight={700} textAnchor="middle" fill={ANNOTATION_COLOR} fillOpacity={0.6}>+</Text>
             </g>
           );
         }
@@ -54,7 +59,7 @@ export function GraphEdgeLabels({
             onClick={annotateMode ? (e) => { e.stopPropagation(); startEditEdgeLabel(key); } : undefined}
           >
             <rect x={midX - 55} y={midY - 11} width={110} height={22} rx={4}
-              fill="rgba(30, 30, 30, 0.9)" stroke="#f59e0b" strokeWidth={0.5} strokeOpacity={0.4}
+              fill={hexToRgba(NOTE_BG_COLOR, 0.9)} stroke={ANNOTATION_COLOR} strokeWidth={0.5} strokeOpacity={0.4}
             />
             {isEditingThis ? (
               <foreignObject x={midX - 50} y={midY - 9} width={100} height={18}>
@@ -63,19 +68,26 @@ export function GraphEdgeLabels({
                   onBlur={commitLabel}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") commitLabel(); }}
                   onMouseDown={(e) => e.stopPropagation()}
-                  placeholder="Clear to delete"
-                  style={{ width: "100%", height: "100%", background: "transparent", color: "#f59e0b", border: "none", outline: "none", fontSize: "10px", fontFamily: "inherit", textAlign: "center", padding: "0" }}
+                  placeholder={t("graph.clearToDelete", { defaultValue: "Clear to delete" })}
+                  style={{ width: "100%", height: "100%", background: "transparent", color: ANNOTATION_COLOR, border: "none", outline: "none", fontSize: "10px", fontFamily: "inherit", textAlign: "center", padding: "0" }}
                 />
               </foreignObject>
             ) : (
-              <Text x={midX} y={midY + 4} fontSize={10} fill="#f59e0b" textAnchor="middle" fontWeight={500} style={{ pointerEvents: "none" }}>{label}</Text>
+              <Text x={midX} y={midY + 4} fontSize={10} fill={ANNOTATION_COLOR} textAnchor="middle" fontWeight={500} style={{ pointerEvents: "none" }}>{label}</Text>
             )}
             {/* Delete button in annotate mode */}
             {annotateMode && !isEditingThis && (
-              <g style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); onSetEdgeLabel?.(key, ""); }}>
-                <circle cx={midX + 50} cy={midY - 6} r={6} fill="#ef4444" />
-                <Text x={midX + 50} y={midY - 3} fontSize={8} fontWeight={700} textAnchor="middle" fill="white" style={{ pointerEvents: "none" }}>x</Text>
-              </g>
+              <SvgCircleButton
+                cx={midX + 50}
+                cy={midY - 6}
+                r={6}
+                fill={SVG_COLORS.critical}
+                label={t("graph.deleteLabel", { defaultValue: "Delete label" })}
+                glyph="x"
+                glyphColor="white"
+                fontSize={8}
+                onActivate={() => onSetEdgeLabel?.(key, "")}
+              />
             )}
           </g>
         );

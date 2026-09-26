@@ -4,6 +4,8 @@ export class ApiError extends Error {
   constructor(
     public code: "NOT_FOUND" | "RATE_LIMITED" | "API_UNAVAILABLE" | "NETWORK_ERROR" | "INVALID_INPUT",
     message?: string,
+    /** HTTP status when the backend answered with an error response. */
+    public status?: number,
   ) {
     super(message ?? code);
     this.name = "ApiError";
@@ -11,7 +13,7 @@ export class ApiError extends Error {
 }
 
 const MAX_RETRIES = 3;
-const RETRY_DELAYS = [1000, 2000, 4000];
+const RETRY_DELAYS = [1000, 2000, 4000] as const;
 /** Per-request timeout - prevents individual fetch attempts hanging on Tor */
 const REQUEST_TIMEOUT_MS = 15_000;
 
@@ -21,6 +23,11 @@ interface FetchRetryOptions extends RequestInit {
 }
 
 const sleep = abortableSleep;
+
+/** Backoff before retry `attempt`; attempts past the table reuse the longest delay. */
+function retryDelay(attempt: number): number {
+  return RETRY_DELAYS[attempt] ?? RETRY_DELAYS[2];
+}
 
 export async function fetchWithRetry(
   url: string,
@@ -47,7 +54,7 @@ export async function fetchWithRetry(
         const parsed = retryAfter ? parseInt(retryAfter, 10) : NaN;
         const delay = !isNaN(parsed)
           ? Math.min(parsed * 1000, 10_000)
-          : RETRY_DELAYS[attempt];
+          : retryDelay(attempt);
         await sleep(delay, options?.signal ?? undefined);
         continue;
       }
@@ -57,17 +64,22 @@ export async function fetchWithRetry(
 
       // 5xx: retry
       if (response.status >= 500 && attempt < MAX_RETRIES) {
-        await sleep(RETRY_DELAYS[attempt], options?.signal ?? undefined);
+        await sleep(retryDelay(attempt), options?.signal ?? undefined);
         continue;
       }
 
-      throw new ApiError("API_UNAVAILABLE", `HTTP ${response.status}`);
+      throw new ApiError("API_UNAVAILABLE", `HTTP ${response.status}`, response.status);
     } catch (error) {
       if (error instanceof ApiError) throw error;
-      if (error instanceof DOMException && (error.name === "AbortError" || error.name === "TimeoutError")) throw error;
+      if (options?.signal?.aborted) throw error;
+      // A per-attempt timeout is final: retrying would send a slow backend the
+      // same heavy query again and multiply the wait (60s per attempt on Umbrel).
+      if (error instanceof DOMException && (error.name === "TimeoutError" || error.name === "AbortError")) {
+        throw new ApiError("NETWORK_ERROR", "Request timed out");
+      }
 
       if (attempt < MAX_RETRIES) {
-        await sleep(RETRY_DELAYS[attempt], options?.signal ?? undefined);
+        await sleep(retryDelay(attempt), options?.signal ?? undefined);
         continue;
       }
     }

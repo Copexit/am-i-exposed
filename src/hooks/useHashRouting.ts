@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { isXpubPrivacyAcked } from "@/components/wallet/XpubPrivacyWarning";
-import type { LocalApiStatus } from "@/hooks/useLocalApi";
+import { useNetwork } from "@/context/NetworkContext";
 
 const subscribeNoop = () => () => {};
 
 interface HashRoutingCallbacks {
-  analyze: (input: string) => void;
-  walletAnalyze: (input: string) => void;
+  analyze: (input: string) => Promise<void>;
+  walletAnalyze: (input: string) => Promise<void>;
   reset: () => void;
   walletReset: () => void;
   isThirdPartyApi: boolean;
@@ -28,10 +28,7 @@ interface HashRoutingResult {
  * Encapsulates all hash-routing logic: initial hash detection,
  * hashchange listener, API-status gating, and programmatic skip flag.
  */
-export function useHashRouting(
-  callbacks: HashRoutingCallbacks,
-  localApiStatus: LocalApiStatus,
-): HashRoutingResult {
+export function useHashRouting(callbacks: HashRoutingCallbacks): HashRoutingResult {
   // Keep latest function refs for hashchange listener (avoids stale closures)
   const analyzeRef = useRef(callbacks.analyze);
   const walletAnalyzeRef = useRef(callbacks.walletAnalyze);
@@ -49,9 +46,10 @@ export function useHashRouting(
     setPendingXpubRef.current = callbacks.setPendingXpub;
   });
 
-  // Wait for API status to settle before processing initial hash URL.
-  // This prevents firing requests to mempool.space on Umbrel where the
-  // local API probe hasn't resolved yet.
+  // Wait for both the local API probe and Tor detection to settle before
+  // processing the initial hash URL. Otherwise the first scan goes to
+  // mempool.space on Umbrel, or to clearnet instead of the onion on Tor.
+  const { apiReady } = useNetwork();
   const initialHashProcessedRef = useRef(false);
   /** Skip the next hashchange handler (set when startXpubScan changes the hash programmatically). */
   const skipNextHashChangeRef = useRef(false);
@@ -105,17 +103,19 @@ export function useHashRouting(
           return;
         }
         resetRef.current();
-        walletAnalyzeRef.current(xpub);
+        // Fire-and-forget: the callee catches its own errors.
+        void walletAnalyzeRef.current(xpub);
         return;
       }
 
       // #check=X is treated as #addr=X (unified flow)
       const input = txid ?? addr ?? check;
       if (input) {
-        // Mark as processed so the localApiStatus settle doesn't re-trigger
+        // Mark as processed so the apiReady settle doesn't re-trigger
         initialHashProcessedRef.current = true;
         walletResetRef.current();
-        analyzeRef.current(input);
+        // Fire-and-forget: the callee catches its own errors.
+        void analyzeRef.current(input);
       }
     }
 
@@ -123,13 +123,13 @@ export function useHashRouting(
     window.addEventListener("hashchange", handleHash);
 
     // Only process initial hash after API status settles
-    if (localApiStatus !== "checking" && !initialHashProcessedRef.current) {
+    if (apiReady && !initialHashProcessedRef.current) {
       initialHashProcessedRef.current = true;
       handleHash();
     }
 
     return () => window.removeEventListener("hashchange", handleHash);
-  }, [localApiStatus]);
+  }, [apiReady]);
 
   const dismissPendingHash = () => setPendingHashDismissed(true);
 

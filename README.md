@@ -25,7 +25,7 @@ Paste a Bitcoin address, transaction ID, xpub/descriptor, or unsigned PSBT. Get 
 
 In April 2024, [OXT.me](https://oxt.me) and [KYCP.org](https://kycp.org) went offline following the arrest of the Samourai Wallet developers. OXT was the gold standard for Boltzmann entropy analysis. KYCP made CoinJoin privacy assessment accessible to ordinary users. Both are gone.
 
-**am-i.exposed** fills that gap and goes further: 31 heuristics, multi-hop chain tracing, entity matching against 30M+ known addresses, real Boltzmann entropy computed on-device via WebAssembly, interactive graph exploration, wallet-level auditing, and pre-broadcast PSBT analysis. All client-side. No backend. No tracking.
+**am-i.exposed** fills that gap and goes further: 34 heuristics, multi-hop chain tracing, entity matching against 30M+ known addresses, real Boltzmann entropy computed on-device via WebAssembly, interactive graph exploration, wallet-level auditing, and pre-broadcast PSBT analysis. All client-side. No backend. No tracking.
 
 For the full technical deep-dive - every heuristic, scoring weight, academic reference, threat model, and competitor analysis - see [`privacy-engine.md`](./docs/privacy-engine.md).
 
@@ -33,7 +33,7 @@ For the full technical deep-dive - every heuristic, scoring weight, academic ref
 
 1. Paste a Bitcoin address, txid, xpub/descriptor, or PSBT
 2. Your browser fetches transaction data from the mempool.space API
-3. 31 heuristics, 14 chain analysis modules, and entity matching against 364 known services run client-side
+3. 34 heuristics (28 transaction-level, 6 address-level), 10 chain analysis modules, and entity matching against 364 known services run client-side
 4. Boltzmann entropy is computed on-device using a Rust/WASM engine
 5. You get a privacy score (0-100), letter grade, detailed findings, and actionable recommendations
 
@@ -59,7 +59,7 @@ There is no am-i.exposed backend. No analytics. No cookies. No tracking. The sta
 | D | 25-49 | Poor - significant exposure |
 | F | 0-24 | Critical - you might as well use Venmo |
 
-Scoring starts at a base of 70. Each heuristic applies a positive or negative modifier. The sum is clamped to 0-100. Only CoinJoin participation, Taproot usage, and high entropy can raise the score. Everything else can only lower it.
+Scoring starts at a base of 70 for transactions and 93 for addresses. Each finding applies a positive or negative modifier, and the sum is clamped to 0-100. Only privacy-enhancing signals (CoinJoin participation, high entropy, large anonymity sets, uniform script types, fresh addresses) raise the score; everything else can only lower it. Deterministic links (for example the same address in inputs and outputs) cap the grade at F.
 
 ## What it checks
 
@@ -75,6 +75,9 @@ Scoring starts at a base of 70. Each heuristic applies a positive or negative mo
 | Script type mix | Mixed address types across inputs/outputs that distinguish sender from recipient |
 | Fee analysis | Round fee rates and RBF signaling that narrow wallet identification |
 | Unnecessary input | Inputs that weren't needed to cover the output, exposing extra UTXOs |
+| UTXO age spread | Co-spent UTXOs of very different ages that reveal wallet history |
+| Dust output / dust spending | Tiny tracking outputs, and dust co-spent with real UTXOs (links the probe to the wallet) |
+| Timing | Unconfirmed broadcast recency, locktime set to a timestamp, stale locktime |
 
 **CoinJoin and mixing**
 
@@ -83,6 +86,7 @@ Scoring starts at a base of 70. Each heuristic applies a positive or negative mo
 | CoinJoin detection | Whirlpool (5 equal outputs), WabiSabi (20+ I/O), JoinMarket (maker/taker) |
 | Post-mix analysis | Spending behavior after CoinJoin that undoes privacy gains |
 | CoinJoin premix | Tx0 pre-mix transactions and their privacy implications |
+| Ricochet | Ricochet hop 0 (known fee address and amount) |
 | Anonymity set estimation | How large the set of indistinguishable participants is |
 
 **Structural patterns**
@@ -100,7 +104,8 @@ Scoring starts at a base of 70. Each heuristic applies a positive or negative mo
 | Heuristic | What it detects |
 |-----------|----------------|
 | OP_RETURN metadata | Permanent embedded data (Omni, OpenTimestamps, Runes, ASCII text) |
-| Wallet fingerprinting | nLockTime, nVersion, nSequence, BIP69 ordering, low-R signatures |
+| Wallet fingerprinting | nLockTime, nVersion, nSequence, low-R signatures |
+| BIP69 ordering | Lexicographic input/output ordering that narrows the wallet |
 | Witness analysis | Witness structure patterns that identify wallet software |
 | BIP47 notification | Payment code notification transactions |
 | Multisig/escrow | P2SH and P2WSH multisig patterns |
@@ -127,18 +132,18 @@ Scoring starts at a base of 70. Each heuristic applies a positive or negative mo
 
 | Module | What it does |
 |--------|-------------|
-| Backward tracing | Follows inputs upstream to discover fund origins |
-| Forward tracing | Follows outputs downstream to track where funds went |
+| Recursive trace | Multi-hop backward/forward tracing engine (configurable depth, minimum value, CoinJoin skipping) |
+| Backward analysis | Input provenance: parent tx patterns, CoinJoin inputs |
+| Forward analysis | Output destinations: toxic merges, direct spends |
 | Entity proximity | Detects known entities (exchanges, mixers, darknet markets) within N hops |
 | Taint analysis | Proportional (haircut) method tracking value flow through the tx graph |
-| UTXO clustering | Groups addresses by common-input-ownership across the tx graph |
-| Peel chain tracing | Follows sequential self-transfers to map wallet drain patterns |
-| Temporal analysis | Time-based patterns across transaction history |
-| Spending patterns | Behavioral patterns in how outputs are spent |
-| CoinJoin quality | Structural analysis of CoinJoin effectiveness |
-| JoinMarket analysis | JoinMarket-specific maker/taker detection |
-| Linkability scoring | Cross-tx linkability assessment |
-| Prospective analysis | Forward-looking risk assessment of unspent outputs |
+| UTXO clustering | Groups addresses by common-input-ownership across the traced graph |
+| Spending patterns | How outputs are spent downstream, including post-mix consolidation and ricochet hops |
+| Linkability matrix | Deterministic and probabilistic input-output links for the scanned tx |
+| Temporal analysis | Burst and timing correlation across an address's history |
+| Fingerprint evolution | Wallet fingerprint changes across an address's history |
+
+Chain findings count toward the grade: every finding (heuristic, chain, entropy) is scored together in one final pass.
 
 ### Entity detection
 
@@ -146,8 +151,8 @@ Transactions and addresses are checked against a database of **364 known entitie
 
 | Category | Count | Examples |
 |----------|-------|---------|
-| Exchanges | 169 | Binance, Coinbase, Kraken, Bitfinex, Bitstamp |
-| Payment services | 50 | BitPay, BTCPay, payment processors |
+| Exchanges | 168 | Binance, Coinbase, Kraken, Bitfinex, Bitstamp |
+| Payment services | 51 | BitPay, BTCPay, payment processors |
 | Gambling | 43 | Known gambling platforms |
 | Scams | 29 | Identified scam operations |
 | Darknet markets | 28 | Silk Road, Hydra, and others |
@@ -155,7 +160,7 @@ Transactions and addresses are checked against a database of **364 known entitie
 | Mixers | 11 | Bitcoin Fog, ChipMixer, and others |
 | P2P exchanges | 10 | Bisq, Paxful, HodlHodl |
 
-The full entity index covers **30M+ addresses** using a priority-budgeted binary index. High-priority entities (OFAC-listed, darknet markets) get 100% named coverage. The core index (~0.4 MB) loads instantly; the full index (~92 MB) is available for deep scans.
+The full entity index covers **30M+ addresses** using a priority-budgeted binary index. High-priority entities (OFAC-listed, darknet markets) get 100% named coverage. The core index (~6 MB) loads automatically; the full index (~92 MB) is an optional download for deep scans.
 
 ### Wallet analysis (paste an xpub or descriptor)
 
@@ -177,7 +182,9 @@ The engine doesn't run heuristics in isolation. CoinJoin detection suppresses CI
 | Link probability heatmap | Full Boltzmann matrix showing the probability of each input-output link |
 | Graph explorer | OXT-style interactive transaction DAG - expand, collapse, and trace through the graph |
 | Taint path diagram | Value flow visualization showing how taint propagates through transactions |
-| Cluster timeline | Temporal activity chart for address transaction history |
+| Privacy timeline | Per-transaction privacy history of an address |
+| Fingerprint timeline | Wallet fingerprint changes across an address's transactions |
+| Entity graph | Cluster view of addresses linked to known entities |
 | CoinJoin structure | Pool composition breakdown for Whirlpool, WabiSabi, and JoinMarket transactions |
 | Score waterfall | Step-by-step breakdown of how the privacy score was calculated |
 | UTXO bubble chart | Visual clustering of unspent outputs by value and age |
@@ -192,12 +199,12 @@ The engine doesn't run heuristics in isolation. CoinJoin detection suppresses CI
 - **mempool.space API** only - no secondary APIs, your queries stay with one provider
 - **Tor-aware** - auto-detects `.onion` and routes API requests through Tor
 - **TypeScript** strict mode throughout
-- **Tailwind CSS 4** - dark theme
+- **Tailwind CSS 4** - dark theme by default, optional light theme
 - **visx** - interactive SVG visualizations (graph explorer, taint diagrams, timelines)
 - **@scure/btc-signer** - PSBT parsing and raw transaction decoding
 - **i18next** - 6 languages (English, Spanish, Portuguese, German, French, Polish)
 - **PWA** - installable, works offline after first load
-- **844+ tests** - Vitest unit/integration + Playwright E2E
+- **1,800+ tests** - Vitest unit/integration/hook tests, golden regression corpus, Playwright E2E, CLI tests (see [`docs/testing.md`](./docs/testing.md))
 
 ## Self-hosting
 
@@ -213,7 +220,7 @@ Point the tool at any mempool.space-compatible API by configuring the API URL in
 
 ## Internationalization
 
-Available in 5 languages:
+Available in 6 languages:
 
 - English (default)
 - Spanish (Castilian)
@@ -237,7 +244,7 @@ npm install -g am-i-exposed
 ### Commands
 
 ```bash
-# Scan a transaction (25 heuristics + entity detection)
+# Scan a transaction (28 heuristics + entity detection)
 am-i-exposed scan tx <txid> --json
 
 # Scan an address (reuse, UTXO hygiene, spending patterns)
@@ -304,12 +311,14 @@ bash scripts/build-standalone.sh
 pnpm install
 pnpm dev          # Dev server on :3000
 pnpm build        # Static export to out/
-pnpm lint         # ESLint (must be 0 errors)
-pnpm test         # 844+ tests (Vitest)
+pnpm lint         # ESLint (0 errors, 0 warnings)
+pnpm type-check   # tsc --noEmit
+pnpm test         # Vitest (unit, hook, component, golden regression)
+pnpm test:e2e     # Playwright against out/ (run pnpm build first)
 pnpm build:wasm   # Rebuild Boltzmann WASM from Rust source
 ```
 
-See [`docs/development-guide.md`](./docs/development-guide.md) for architecture, component tree, and state management details. See [`docs/testing-reference.md`](./docs/testing-reference.md) for example transactions and expected scores.
+See [`docs/development-guide.md`](./docs/development-guide.md) for architecture and data flow, [`docs/testing.md`](./docs/testing.md) for the test suites and baseline workflow, and [`docs/testing-reference.md`](./docs/testing-reference.md) for example transactions and expected scores.
 
 ## Research & Acknowledgments
 

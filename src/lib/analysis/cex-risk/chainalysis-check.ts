@@ -20,6 +20,23 @@ function assertAddress(addr: string): void {
   if (!ADDR_RE.test(addr)) throw new Error("Invalid address format");
 }
 
+/**
+ * The proxy's per-IP quota (30 req/min) is exhausted. On Tor the quota is
+ * shared with everyone on the same exit node, so this is not a local fault.
+ */
+export class ChainalysisRateLimitError extends Error {
+  constructor() {
+    super("Chainalysis proxy rate limit reached");
+    this.name = "ChainalysisRateLimitError";
+  }
+}
+
+/**
+ * Per-session results by address (memory only, never persisted). Re-checks
+ * and retries after a 429 do not spend the proxy's per-IP quota again.
+ */
+const sessionResults = new Map<string, { sanctioned: boolean; identifications: ChainalysisIdentification[] }>();
+
 interface ChainalysisResponse {
   identifications: ChainalysisIdentification[];
 }
@@ -53,6 +70,7 @@ async function checkSingleAddress(
     signal: combinedSignal,
   });
 
+  if (res.status === 429) throw new ChainalysisRateLimitError();
   if (!res.ok) {
     throw new Error(`Chainalysis proxy returned ${res.status}`);
   }
@@ -74,17 +92,22 @@ async function checkAddresses(
   identifications: ChainalysisIdentification[];
   matchedAddresses: string[];
 }> {
-  const toCheck = addresses.slice(0, MAX_ADDRESSES);
+  const toCheck = [...new Set(addresses)].slice(0, MAX_ADDRESSES);
   const allIdentifications: ChainalysisIdentification[] = [];
   const matchedAddresses: string[] = [];
 
-  for (let i = 0; i < toCheck.length; i++) {
+  let fetched = 0;
+  for (const address of toCheck) {
     signal?.throwIfAborted();
-    // Small delay between requests to avoid rate limiting
-    if (i > 0) await new Promise((r) => setTimeout(r, 100));
-    const result = await checkSingleAddress(toCheck[i], baseUrl, signal, timeoutMs);
+    let result = sessionResults.get(address);
+    if (!result) {
+      // Small delay between requests to avoid rate limiting
+      if (fetched++ > 0) await new Promise((r) => setTimeout(r, 100));
+      result = await checkSingleAddress(address, baseUrl, signal, timeoutMs);
+      sessionResults.set(address, result);
+    }
     if (result.sanctioned) {
-      matchedAddresses.push(toCheck[i]);
+      matchedAddresses.push(address);
       allIdentifications.push(...result.identifications);
     }
   }

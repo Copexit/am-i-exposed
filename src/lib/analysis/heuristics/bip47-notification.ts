@@ -1,7 +1,7 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { fmtN } from "@/lib/format";
-import { isCoinbase, getValuedOutputs, extractOpReturnData } from "./tx-utils";
+import { isCoinbase, getValuedOutputs, extractOpReturnData, isOpReturnOutput } from "./tx-utils";
 
 /**
  * BIP47 Notification Transaction Detection
@@ -30,13 +30,11 @@ export const analyzeBip47Notification: TxHeuristic = (tx) => {
   if (tx.vin.length < 1 || tx.vin.length > 3) return { findings };
 
   // Look for OP_RETURN output with exactly 80 bytes (160 hex chars) of data
-  const opReturnOutputs = tx.vout.filter(
-    (o) => o.scriptpubkey_type === "op_return",
-  );
+  const opReturnOutputs = tx.vout.filter(isOpReturnOutput);
 
-  if (opReturnOutputs.length !== 1) return { findings };
+  const [opReturn] = opReturnOutputs;
+  if (opReturnOutputs.length !== 1 || !opReturn) return { findings };
 
-  const opReturn = opReturnOutputs[0];
   const dataHex = extractOpReturnData(opReturn.scriptpubkey);
 
   // BIP47 payment code is exactly 80 bytes = 160 hex characters
@@ -83,6 +81,8 @@ export const analyzeBip47Notification: TxHeuristic = (tx) => {
       notificationValue: notificationOutput?.value ?? 0,
       toxicChangeValue: hasChange ? fmtN(changeValue) : "0",
       notificationAddress,
+      // No notification output: the description.toxic_nodust key omits that sentence
+      ...(notificationOutput ? {} : { context: "nodust" }),
     },
     description:
       "This transaction contains an OP_RETURN with an 80-byte payload consistent with a BIP47 notification transaction. " +

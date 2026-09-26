@@ -1,6 +1,7 @@
 import { PORT_H, PORT_GAP, EXPANDED_HEADER_H, EXPANDED_PAD_V, MAX_VISIBLE_PORTS } from "./constants";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { GraphNode, PortLayout, PortPositionMap } from "./types";
+import { isOpReturnOutput } from "@/lib/analysis/heuristics/tx-utils";
 
 /**
  * Pre-built spending index: maps "${txid}:${vout}" to the spender node info.
@@ -18,8 +19,7 @@ export function getSpendingIndex(graphNodes: Map<string, GraphNode>): SpendingIn
   _spendingIndexNodes = graphNodes;
   _spendingIndex = new Map();
   for (const [txid, node] of graphNodes) {
-    for (let i = 0; i < node.tx.vin.length; i++) {
-      const vin = node.tx.vin[i];
+    for (const [i, vin] of node.tx.vin.entries()) {
       if (vin.is_coinbase) continue;
       const key = `${vin.txid}:${vin.vout}`;
       _spendingIndex.set(key, { spenderTxid: txid, inputIdx: i });
@@ -56,10 +56,7 @@ export function buildInputPorts(
   graphNodes: Map<string, GraphNode>,
 ): PortLayout[] {
   const ports: PortLayout[] = [];
-  const count = Math.min(tx.vin.length, MAX_VISIBLE_PORTS);
-
-  for (let i = 0; i < count; i++) {
-    const vin = tx.vin[i];
+  for (const [i, vin] of tx.vin.slice(0, MAX_VISIBLE_PORTS).entries()) {
     const parentTxid = vin.is_coinbase ? undefined : vin.txid;
     const isInGraph = parentTxid ? graphNodes.has(parentTxid) : false;
 
@@ -87,12 +84,9 @@ export function buildOutputPorts(
   outspends?: MempoolOutspend[],
 ): PortLayout[] {
   const ports: PortLayout[] = [];
-  const count = Math.min(tx.vout.length, MAX_VISIBLE_PORTS);
-
   const spendingIdx = getSpendingIndex(graphNodes);
 
-  for (let i = 0; i < count; i++) {
-    const vout = tx.vout[i];
+  for (const [i, vout] of tx.vout.slice(0, MAX_VISIBLE_PORTS).entries()) {
     const os = outspends?.[i];
     const spentByTxid = os?.spent ? os.txid : undefined;
     const isInGraph = spentByTxid ? graphNodes.has(spentByTxid) : false;
@@ -101,13 +95,13 @@ export function buildOutputPorts(
 
     ports.push({
       index: i,
-      address: vout.scriptpubkey_address ?? (vout.scriptpubkey_type === "op_return" ? "OP_RETURN" : "unknown"),
+      address: vout.scriptpubkey_address ?? (isOpReturnOutput(vout) ? "OP_RETURN" : "unknown"),
       value: vout.value,
       scriptType: vout.scriptpubkey_type,
       y: getPortY(nodeY, i, tx.vout.length, nodeHeight),
       spent: os?.spent ?? null,
       spentByTxid,
-      isExpandable: vout.scriptpubkey_type !== "op_return" && vout.value > 0 && !isConsumed,
+      isExpandable: !isOpReturnOutput(vout) && vout.value > 0 && !isConsumed,
       isExpanded: isConsumed,
     });
   }

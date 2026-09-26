@@ -1,10 +1,9 @@
-import { describe, it, expect } from "vitest";
-import type { AnalysisSettings } from "@/hooks/useAnalysisSettings";
-import { getAnalysisSettings } from "@/hooks/useAnalysisSettings";
+import { describe, it, expect, vi } from "vitest";
+import { DEFAULT_ANALYSIS_SETTINGS, getAnalysisSettings } from "@/lib/analysis/settings";
 
-describe("AnalysisSettings defaults", () => {
-  it("default shape has all required fields", () => {
-    const defaults: AnalysisSettings = {
+describe("analysis settings store", () => {
+  it("has the documented defaults", () => {
+    expect(DEFAULT_ANALYSIS_SETTINGS).toEqual({
       maxDepth: 4,
       minSats: 1000,
       skipLargeClusters: false,
@@ -13,56 +12,30 @@ describe("AnalysisSettings defaults", () => {
       walletGapLimit: 5,
       enableCache: true,
       boltzmannTimeout: 300,
-    };
-    expect(defaults.maxDepth).toBe(4);
-    expect(defaults.minSats).toBe(1000);
-    expect(defaults.skipLargeClusters).toBe(false);
-    expect(defaults.skipCoinJoins).toBe(false);
-    expect(defaults.timeout).toBe(30);
-    expect(defaults.walletGapLimit).toBe(5);
+    });
   });
 
-  it("settings can be serialized to JSON", () => {
-    const settings: AnalysisSettings = {
-      maxDepth: 10,
-      minSats: 500,
-      skipLargeClusters: true,
-      skipCoinJoins: true,
-      timeout: 120,
-      walletGapLimit: 20,
-      enableCache: false,
-      boltzmannTimeout: 60,
-    };
-    const json = JSON.stringify(settings);
-    const parsed = JSON.parse(json) as AnalysisSettings;
-    expect(parsed).toEqual(settings);
+  it("getAnalysisSettings returns the defaults outside the browser (CLI, workers)", () => {
+    expect(getAnalysisSettings()).toBe(DEFAULT_ANALYSIS_SETTINGS);
   });
 
-  it("partial settings merge with defaults correctly", () => {
-    const defaults: AnalysisSettings = {
-      maxDepth: 4,
-      minSats: 1000,
-      skipLargeClusters: false,
-      skipCoinJoins: false,
-      timeout: 30,
-      walletGapLimit: 5,
-      enableCache: true,
-      boltzmannTimeout: 300,
-    };
-    const partial = { maxDepth: 10 };
-    const merged = { ...defaults, ...partial };
-    expect(merged.maxDepth).toBe(10);
-    expect(merged.minSats).toBe(1000);
-    expect(merged.skipLargeClusters).toBe(false);
-    expect(merged.timeout).toBe(30);
-  });
+  it("merges stored settings over defaults and persists saves in the browser", async () => {
+    const store = new Map([["analysis-settings", JSON.stringify({ maxDepth: 9 })]]);
+    vi.stubGlobal("window", {
+      localStorage: { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => store.set(k, v) },
+    });
+    vi.resetModules();
+    try {
+      const s = await import("@/lib/analysis/settings");
+      expect(s.getAnalysisSettings()).toEqual({ ...s.DEFAULT_ANALYSIS_SETTINGS, maxDepth: 9 });
 
-  it("getAnalysisSettings returns defaults when no localStorage", () => {
-    const settings = getAnalysisSettings();
-    expect(settings.maxDepth).toBe(4);
-    expect(settings.minSats).toBe(1000);
-    expect(settings.skipLargeClusters).toBe(false);
-    expect(settings.skipCoinJoins).toBe(false);
-    expect(settings.timeout).toBe(30);
+      const listener = vi.fn();
+      s.subscribeAnalysisSettings(listener);
+      s.saveAnalysisSettings({ ...s.getAnalysisSettings(), minSats: 5000 });
+      expect(listener).toHaveBeenCalledOnce();
+      expect(JSON.parse(store.get("analysis-settings")!)).toMatchObject({ maxDepth: 9, minSats: 5000 });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

@@ -2,31 +2,46 @@
 
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { computeBoltzmann } from "@/lib/analysis/boltzmann-compute";
-import { detectJoinMarketForTurbo } from "@/lib/analysis/boltzmann-pool";
+import { detectJoinMarketForTurbo, isPoolBusy } from "@/lib/analysis/boltzmann-pool";
 import type { BoltzmannWorkerResult, BoltzmannProgress } from "@/lib/analysis/boltzmann-pool";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { GraphNode } from "@/hooks/useGraphExpansion";
 import { getBoltzmannEligibility, extractTxValues } from "@/lib/analysis/boltzmann-eligibility";
+import { expandMatrixToTx } from "@/lib/analysis/boltzmann-detection";
 
 interface UseGraphBoltzmannParams {
   nodes: Map<string, GraphNode>;
   rootTxid: string;
   rootBoltzmannResult?: BoltzmannWorkerResult | null;
+  /**
+   * Suspend the eager loop, e.g. while a linkability auto-trace runs: any
+   * computeBoltzmann call preempts the one in flight, so both cannot share the pool.
+   */
+  paused?: boolean;
 }
 
 interface UseGraphBoltzmannReturn {
   getBoltzmannResult: (txid: string) => BoltzmannWorkerResult | undefined;
   triggerBoltzmann: (txid: string) => Promise<void>;
-  computingBoltzmannRef: React.RefObject<Set<string>>;
-  /** Render-safe snapshot of computing txids (updates via state version bump). */
+  /** Txids with a WASM compute in flight. */
   computingBoltzmann: Set<string>;
   boltzmannProgressMap: Map<string, number>;
   /** The raw cache map, for passing to components that expect Map<string, BoltzmannWorkerResult>. */
   boltzmannCache: Map<string, BoltzmannWorkerResult>;
 }
 
-/** Build a synthetic Boltzmann result for 1-input txs (trivially 100% deterministic). */
-function buildSyntheticResult(tx: MempoolTransaction): BoltzmannWorkerResult {
+/** Graph explorer size cap for Boltzmann (smaller than the single-tx heatmap's). */
+const GRAPH_MAX_TOTAL = 80;
+
+/**
+ * Build a synthetic Boltzmann result for 1-input txs (trivially 100% deterministic),
+ * indexed by raw tx position like computed results.
+ */
+export function buildSyntheticResult(tx: MempoolTransaction): BoltzmannWorkerResult {
+  return expandMatrixToTx(buildSyntheticCompact(tx), tx);
+}
+
+function buildSyntheticCompact(tx: MempoolTransaction): BoltzmannWorkerResult {
   const { inputValues, outputValues } = extractTxValues(tx);
   const nIn = inputValues.length;
   const nOut = outputValues.length;
@@ -44,50 +59,69 @@ function buildSyntheticResult(tx: MempoolTransaction): BoltzmannWorkerResult {
   };
 }
 
+/**
+ * How the graph gets a tx's Boltzmann matrix: synthetic (1 input), eager
+ * background compute (small, or small JoinMarket), the sidebar's manual
+ * button, or not at all.
+ */
+export function graphBoltzmannMode(tx: MempoolTransaction): "synthetic" | "auto-compute" | "manual-button" | "ineligible" {
+  const { canCompute, inputValues, outputValues } = getBoltzmannEligibility(tx, GRAPH_MAX_TOTAL);
+  if (!canCompute) return "ineligible";
+  if (inputValues.length === 1) return "synthetic";
+  const total = inputValues.length + outputValues.length;
+  if (total < 18) return "auto-compute";
+  if (total < 24 && detectJoinMarketForTurbo(inputValues, outputValues).isJoinMarket) return "auto-compute";
+  return "manual-button";
+}
+
 export function useGraphBoltzmann({
   nodes,
   rootTxid,
   rootBoltzmannResult,
+  paused = false,
 }: UseGraphBoltzmannParams): UseGraphBoltzmannReturn {
+  // The refs are the working sets the async compute loop checks; the state
+  // copies are what renders. Every write updates both, outside render.
   const boltzmannCacheRef = useRef<Map<string, BoltzmannWorkerResult>>(new Map());
-  const [boltzmannVersion, setBoltzmannVersion] = useState(0);
+  const [computedCache, setComputedCache] = useState<Map<string, BoltzmannWorkerResult>>(() => new Map());
   const computingBoltzmannRef = useRef<Set<string>>(new Set());
-  const [_computingBoltzmannVersion, setComputingBoltzmannVersion] = useState(0);
+  const [computingBoltzmann, setComputingBoltzmann] = useState<Set<string>>(() => new Set());
   const [boltzmannProgressMap, setBoltzmannProgressMap] = useState<Map<string, number>>(new Map());
+  /** Bumped to re-run the eager loop without a graph change (pool went idle, manual compute done). */
+  const [eagerRetry, setEagerRetry] = useState(0);
 
   // Abort controller for the current computation cycle
   const boltzmannAbortRef = useRef<AbortController | null>(null);
 
-  // Seed cache with root Boltzmann result if available
+  const cacheResult = useCallback((txid: string, result: BoltzmannWorkerResult) => {
+    boltzmannCacheRef.current.set(txid, result);
+    setComputedCache(new Map(boltzmannCacheRef.current));
+  }, []);
+
+  const setComputing = useCallback((txid: string, computing: boolean) => {
+    if (computing) computingBoltzmannRef.current.add(txid);
+    else computingBoltzmannRef.current.delete(txid);
+    setComputingBoltzmann(new Set(computingBoltzmannRef.current));
+  }, []);
+
+  // Seed the working cache with the root result so the eager loop skips the
+  // root. Renders read the root result from props (see boltzmannCache below).
   useEffect(() => {
-    if (rootBoltzmannResult && rootTxid) {
-      boltzmannCacheRef.current.set(rootTxid, rootBoltzmannResult);
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- bump version after seeding cache
-      setBoltzmannVersion((v) => v + 1);
-    }
+    if (rootBoltzmannResult && rootTxid) boltzmannCacheRef.current.set(rootTxid, rootBoltzmannResult);
   }, [rootBoltzmannResult, rootTxid]);
 
-  /** Compute Boltzmann for a specific txid (or generate synthetic for 1-input). */
+  /** Compute Boltzmann for a specific txid (1-input txs come from the synthetic cache). */
   const computeSingleBoltzmann = useCallback(async (txid: string, signal?: AbortSignal): Promise<void> => {
     if (boltzmannCacheRef.current.has(txid)) return;
     const node = nodes.get(txid);
     if (!node) return;
 
     const tx = node.tx;
-    const eligibility = getBoltzmannEligibility(tx, 80);
-    if (!eligibility.canCompute) return;
-
-    // 1-input txs: trivially 100% deterministic, no WASM needed
-    if (eligibility.inputValues.length === 1) {
-      boltzmannCacheRef.current.set(txid, buildSyntheticResult(tx));
-      setBoltzmannVersion((v) => v + 1);
-      return;
-    }
-
+    const mode = graphBoltzmannMode(tx);
+    if (mode !== "auto-compute" && mode !== "manual-button") return;
     if (signal?.aborted) return;
 
-    computingBoltzmannRef.current.add(txid);
-    setComputingBoltzmannVersion((v) => v + 1);
+    setComputing(txid, true);
     try {
       const result = await computeBoltzmann(tx, {
         signal,
@@ -97,15 +131,11 @@ export function useGraphBoltzmann({
           }
         },
       });
-      if (result && !signal?.aborted) {
-        boltzmannCacheRef.current.set(txid, result);
-        setBoltzmannVersion((v) => v + 1);
-      }
+      if (result && !signal?.aborted) cacheResult(txid, result);
     } catch { /* computation failed or aborted - not critical */ }
-    computingBoltzmannRef.current.delete(txid);
-    setComputingBoltzmannVersion((v) => v + 1);
+    setComputing(txid, false);
     setBoltzmannProgressMap((prev) => { const next = new Map(prev); next.delete(txid); return next; });
-  }, [nodes]);
+  }, [nodes, cacheResult, setComputing]);
 
   /** Manual trigger (sidebar button). Uses a fresh AbortController. */
   const triggerBoltzmann = useCallback(async (txid: string) => {
@@ -114,27 +144,28 @@ export function useGraphBoltzmann({
     const ac = new AbortController();
     boltzmannAbortRef.current = ac;
     await computeSingleBoltzmann(txid, ac.signal);
+    // The abort above also stopped the eager loop: resume it
+    if (!ac.signal.aborted) setEagerRetry((n) => n + 1);
   }, [computeSingleBoltzmann]);
 
-  // Eagerly compute Boltzmann for ALL nodes in the graph whenever the graph changes.
+  // 1-input txs are trivially deterministic: derive their results from the graph.
+  const syntheticCache = useMemo(() => {
+    const synthetic = new Map<string, BoltzmannWorkerResult>();
+    for (const [txid, node] of nodes) {
+      if (graphBoltzmannMode(node.tx) === "synthetic") synthetic.set(txid, buildSyntheticResult(node.tx));
+    }
+    return synthetic;
+  }, [nodes]);
+
+  // Eagerly compute Boltzmann for the multi-input nodes whenever the graph changes.
   // Debounced by 300ms so rapid node additions (e.g. auto-trace) don't cause WASM churn.
   useEffect(() => {
-    // First pass (synchronous): instantly fill synthetic results for all 1-input txs
-    let anyNew = false;
-    for (const [txid, node] of nodes) {
-      if (boltzmannCacheRef.current.has(txid)) continue;
-      const tx = node.tx;
-      const eligibility = getBoltzmannEligibility(tx, 80);
-      if (!eligibility.canCompute) continue;
-      if (eligibility.inputValues.length === 1 && eligibility.outputValues.length > 0) {
-        boltzmannCacheRef.current.set(txid, buildSyntheticResult(tx));
-        anyNew = true;
-      }
-    }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- bump version after synchronous cache fill
-    if (anyNew) setBoltzmannVersion((v) => v + 1);
-
-    // Second pass (debounced): async compute for auto-computable multi-input txs
+    if (paused) return;
+    let idlePoll: ReturnType<typeof setTimeout> | undefined;
+    // ponytail: polls isPoolBusy(); an idle event from boltzmann-pool would avoid the timer
+    const retryWhenIdle = () => {
+      idlePoll = setTimeout(() => (isPoolBusy() ? retryWhenIdle() : setEagerRetry((n) => n + 1)), 500);
+    };
     const debounceTimer = setTimeout(() => {
       // Abort previous computation cycle before starting a new one
       boltzmannAbortRef.current?.abort();
@@ -146,27 +177,19 @@ export function useGraphBoltzmann({
       for (const [txid, node] of nodes) {
         if (boltzmannCacheRef.current.has(txid)) continue;
         if (computingBoltzmannRef.current.has(txid)) continue;
-
-        const tx = node.tx;
-        const eligibility = getBoltzmannEligibility(tx, 80);
-        if (!eligibility.canCompute) continue;
-
-        const { inputValues, outputValues } = eligibility;
-        if (inputValues.length < 2) continue;
-        const total = inputValues.length + outputValues.length;
-        if (total >= 18) {
-          if (total >= 24) continue;
-          if (!detectJoinMarketForTurbo(inputValues, outputValues).isJoinMarket) continue;
-        }
-
-        queue.push({ txid, tx });
+        if (graphBoltzmannMode(node.tx) !== "auto-compute") continue;
+        queue.push({ txid, tx: node.tx });
       }
 
       // Process queue sequentially with abort signal
       if (queue.length > 0) {
-        (async () => {
+        // Fire-and-forget: the callee catches its own errors.
+        void (async () => {
           for (const { txid } of queue) {
             if (ac.signal.aborted) break;
+            // Yield to any other job on the shared pool (heatmap, pipeline):
+            // starting a compute would preempt it. Retry once the pool is idle.
+            if (isPoolBusy()) { retryWhenIdle(); break; }
             await computeSingleBoltzmann(txid, ac.signal);
           }
         })();
@@ -175,38 +198,26 @@ export function useGraphBoltzmann({
 
     return () => {
       clearTimeout(debounceTimer);
+      clearTimeout(idlePoll);
       boltzmannAbortRef.current?.abort();
     };
-  }, [nodes, computeSingleBoltzmann]);
+  }, [nodes, computeSingleBoltzmann, paused, eagerRetry]);
 
-  /** Get Boltzmann result for a txid (from cache or root result). */
-  const getBoltzmannResult = useCallback((txid: string): BoltzmannWorkerResult | undefined => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-    boltzmannVersion; // depend on version to re-read cache after updates
-    return boltzmannCacheRef.current.get(txid);
-  }, [boltzmannVersion]);
+  const boltzmannCache = useMemo(() => {
+    const merged = new Map([...syntheticCache, ...computedCache]);
+    if (rootBoltzmannResult && rootTxid) merged.set(rootTxid, rootBoltzmannResult);
+    return merged;
+  }, [syntheticCache, computedCache, rootBoltzmannResult, rootTxid]);
 
-  // Snapshot the cache as a new Map whenever the version bumps, so consumers
-  // get a render-safe value without accessing the ref during render.
-  const boltzmannCache = useMemo(
-    // eslint-disable-next-line react-hooks/refs -- snapshot keyed on version counter
-    () => new Map(boltzmannCacheRef.current),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [boltzmannVersion],
-  );
-
-  // Render-safe snapshot of the computing set (re-created when computing version changes).
-  const computingBoltzmann = useMemo(
-    // eslint-disable-next-line react-hooks/refs -- snapshot keyed on version counter
-    () => new Set(computingBoltzmannRef.current),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [_computingBoltzmannVersion],
+  /** Get Boltzmann result for a txid (reads the render-safe snapshot). */
+  const getBoltzmannResult = useCallback(
+    (txid: string): BoltzmannWorkerResult | undefined => boltzmannCache.get(txid),
+    [boltzmannCache],
   );
 
   return {
     getBoltzmannResult,
     triggerBoltzmann,
-    computingBoltzmannRef,
     computingBoltzmann,
     boltzmannProgressMap,
     boltzmannCache,

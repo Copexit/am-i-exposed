@@ -5,25 +5,13 @@
  * computeBoltzmann() function. No Web Worker needed - calls Rust directly.
  */
 
+import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let wasmModule: any = null;
 
-export interface BoltzmannResult {
-  matLnkCombinations: number[][];
-  matLnkProbabilities: number[][];
-  nbCmbn: number;
-  entropy: number;
-  efficiency: number;
-  nbCmbnPrfctCj: number;
-  deterministicLinks: [number, number][];
-  timedOut: boolean;
-  elapsedMs: number;
-  nInputs: number;
-  nOutputs: number;
-  fees: number;
-  intraFeesMaker: number;
-  intraFeesTaker: number;
-}
+/** Same shape the web worker returns, minus the worker envelope. */
+export type BoltzmannResult = Omit<BoltzmannWorkerResult, "type" | "id" | "method">;
 
 /** Convert BigInt values in WASM result to regular numbers. */
 function toNum(val: unknown): number {
@@ -47,6 +35,27 @@ function convertBigInts(obj: any): any {
     return result;
   }
   return obj;
+}
+
+/** Map a raw snake_case WASM result to BoltzmannResult. */
+function toResult(raw: unknown): BoltzmannResult {
+  const result = convertBigInts(raw);
+  return {
+    matLnkCombinations: result.mat_lnk_combinations ?? [],
+    matLnkProbabilities: result.mat_lnk_probabilities ?? [],
+    nbCmbn: toNum(result.nb_cmbn),
+    entropy: result.entropy ?? 0,
+    efficiency: result.efficiency ?? 0,
+    nbCmbnPrfctCj: toNum(result.nb_cmbn_prfct_cj),
+    deterministicLinks: result.deterministic_links ?? [],
+    timedOut: result.timed_out ?? false,
+    elapsedMs: toNum(result.elapsed_ms),
+    nInputs: toNum(result.n_inputs),
+    nOutputs: toNum(result.n_outputs),
+    fees: toNum(result.fees),
+    intraFeesMaker: toNum(result.intra_fees_maker),
+    intraFeesTaker: toNum(result.intra_fees_taker),
+  };
 }
 
 async function loadWasm(): Promise<void> {
@@ -103,24 +112,7 @@ export async function computeBoltzmann(
     timeoutMs,
   );
 
-  const result = convertBigInts(raw);
-
-  return {
-    matLnkCombinations: result.mat_lnk_combinations ?? [],
-    matLnkProbabilities: result.mat_lnk_probabilities ?? [],
-    nbCmbn: toNum(result.nb_cmbn),
-    entropy: result.entropy ?? 0,
-    efficiency: result.efficiency ?? 0,
-    nbCmbnPrfctCj: toNum(result.nb_cmbn_prfct_cj),
-    deterministicLinks: result.deterministic_links ?? [],
-    timedOut: result.timed_out ?? false,
-    elapsedMs: toNum(result.elapsed_ms),
-    nInputs: toNum(result.n_inputs),
-    nOutputs: toNum(result.n_outputs),
-    fees: toNum(result.fees),
-    intraFeesMaker: toNum(result.intra_fees_maker),
-    intraFeesTaker: toNum(result.intra_fees_taker),
-  };
+  return toResult(raw);
 }
 
 /**
@@ -145,24 +137,7 @@ export async function computeBoltzmannJoinMarket(
     timeoutMs,
   );
 
-  const result = convertBigInts(raw);
-
-  return {
-    matLnkCombinations: result.mat_lnk_combinations ?? [],
-    matLnkProbabilities: result.mat_lnk_probabilities ?? [],
-    nbCmbn: toNum(result.nb_cmbn),
-    entropy: result.entropy ?? 0,
-    efficiency: result.efficiency ?? 0,
-    nbCmbnPrfctCj: toNum(result.nb_cmbn_prfct_cj),
-    deterministicLinks: result.deterministic_links ?? [],
-    timedOut: result.timed_out ?? false,
-    elapsedMs: toNum(result.elapsed_ms),
-    nInputs: toNum(result.n_inputs),
-    nOutputs: toNum(result.n_outputs),
-    fees: toNum(result.fees),
-    intraFeesMaker: toNum(result.intra_fees_maker),
-    intraFeesTaker: toNum(result.intra_fees_taker),
-  };
+  return toResult(raw);
 }
 
 /**
@@ -183,22 +158,5 @@ export async function computeBoltzmannWabiSabi(
     timeoutMs,
   );
 
-  const result = convertBigInts(raw);
-
-  return {
-    matLnkCombinations: result.mat_lnk_combinations ?? [],
-    matLnkProbabilities: result.mat_lnk_probabilities ?? [],
-    nbCmbn: toNum(result.nb_cmbn),
-    entropy: result.entropy ?? 0,
-    efficiency: result.efficiency ?? 0,
-    nbCmbnPrfctCj: toNum(result.nb_cmbn_prfct_cj),
-    deterministicLinks: result.deterministic_links ?? [],
-    timedOut: result.timed_out ?? false,
-    elapsedMs: toNum(result.elapsed_ms),
-    nInputs: toNum(result.n_inputs),
-    nOutputs: toNum(result.n_outputs),
-    fees: toNum(result.fees),
-    intraFeesMaker: toNum(result.intra_fees_maker),
-    intraFeesTaker: toNum(result.intra_fees_taker),
-  };
+  return toResult(raw);
 }

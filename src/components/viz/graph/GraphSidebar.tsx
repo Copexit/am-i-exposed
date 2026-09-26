@@ -6,8 +6,10 @@ import { useTranslation } from "react-i18next";
 import { SVG_COLORS, GRADE_HEX_SVG } from "../shared/svgConstants";
 import { formatSats, calcVsize } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
+import { findingKeys } from "@/lib/finding-utils";
 import { analyzeTransactionSync } from "@/lib/analysis/analyze-sync";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
+import { isRbfSignaling } from "@/lib/analysis/heuristics/tx-utils";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { useBookmarks } from "@/hooks/useBookmarks";
 import { IOTab } from "./IOTab";
@@ -60,6 +62,10 @@ interface GraphSidebarProps {
   autoTracing?: boolean;
   /** Auto-trace progress info. */
   autoTraceProgress?: { hop: number; txid: string; reason: string } | null;
+  /** Stop a running auto-trace. */
+  onCancelAutoTrace?: () => void;
+  /** Why the last auto-trace stopped (stable code). */
+  autoTraceStop?: string | null;
 }
 
 // CopyButton imported from shared component
@@ -82,6 +88,8 @@ export function GraphSidebar({
   onAutoTraceLinkability,
   autoTracing,
   autoTraceProgress,
+  onCancelAutoTrace,
+  autoTraceStop,
   onSetAsRoot,
 }: GraphSidebarProps) {
   const { t } = useTranslation();
@@ -187,9 +195,14 @@ export function GraphSidebar({
             {result.grade}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-medium text-foreground">{result.score}/100</div>
+            <div
+              className="text-xs font-medium text-foreground"
+              title={t("graph.quickScoreHint", { defaultValue: "Quick score from on-chain heuristics only. Chain analysis is not included. Scan the transaction for the full grade." })}
+            >
+              {t("graph.quickScore", { score: result.score, defaultValue: "Quick score: {{score}}/100" })}
+            </div>
             {result.txType && result.txType !== "unknown" && (
-              <div className="text-xs text-muted truncate">{result.txType.replace(/-/g, " ")}</div>
+              <div className="text-xs text-muted truncate">{t(`txType.${result.txType}`, { defaultValue: result.txType.replace(/-/g, " ") })}</div>
             )}
           </div>
           <div className="text-xs text-muted shrink-0">{formatSats(totalValue)}</div>
@@ -221,6 +234,8 @@ export function GraphSidebar({
             onAutoTraceLinkability={onAutoTraceLinkability}
             autoTracing={autoTracing}
             autoTraceProgress={autoTraceProgress}
+            onCancelAutoTrace={onCancelAutoTrace}
+            autoTraceStop={autoTraceStop}
           />
         )}
         {activeTab === "analysis" && result && (
@@ -255,6 +270,9 @@ export function GraphSidebar({
 // ─── Analysis Tab ────────────────────────────────────────────────
 
 function AnalysisTab({ result, tx }: { result: ScoringResult; tx: MempoolTransaction }) {
+  const { t } = useTranslation();
+  const title = (f: ScoringResult["findings"][number]) =>
+    t(findingKeys(f.id, "title", f.params), { ...f.params, defaultValue: f.title });
   const topFindings = result.findings
     .filter((f) => f.severity !== "good")
     .sort((a, b) => (SEV_ORDER[a.severity] ?? 3) - (SEV_ORDER[b.severity] ?? 3));
@@ -278,7 +296,7 @@ function AnalysisTab({ result, tx }: { result: ScoringResult; tx: MempoolTransac
       {/* Entity matches */}
       {entityMatches.length > 0 && (
         <div className="space-y-1">
-          <div className="text-xs font-medium text-muted">Entities</div>
+          <div className="text-xs font-medium text-muted">{t("graphExplorer.analysis.entities", { defaultValue: "Entities" })}</div>
           {entityMatches.map((m) => (
             <div key={m.address} className="flex items-center gap-1.5 text-xs">
               {m.ofac && (
@@ -294,14 +312,14 @@ function AnalysisTab({ result, tx }: { result: ScoringResult; tx: MempoolTransac
       {/* Problems */}
       {topFindings.length > 0 && (
         <div className="space-y-1">
-          <div className="text-xs font-medium text-muted">Problems ({topFindings.length})</div>
+          <div className="text-xs font-medium text-muted">{t("graphExplorer.analysis.problems", { count: topFindings.length, defaultValue: "Problems ({{count}})" })}</div>
           {topFindings.map((f) => (
             <div key={f.id} className="flex items-start gap-1.5 text-xs py-0.5">
               <span
                 className="inline-block w-1.5 h-1.5 rounded-full mt-1 shrink-0"
                 style={{ backgroundColor: SEV_DOT[f.severity] ?? SEV_DOT.low }}
               />
-              <span className="text-foreground/70">{f.title}</span>
+              <span className="text-foreground/70">{title(f)}</span>
             </div>
           ))}
         </div>
@@ -310,14 +328,14 @@ function AnalysisTab({ result, tx }: { result: ScoringResult; tx: MempoolTransac
       {/* Good findings */}
       {goodFindings.length > 0 && (
         <div className="space-y-1">
-          <div className="text-xs font-medium text-muted">Positives ({goodFindings.length})</div>
+          <div className="text-xs font-medium text-muted">{t("graphExplorer.analysis.positives", { count: goodFindings.length, defaultValue: "Positives ({{count}})" })}</div>
           {goodFindings.map((f) => (
             <div key={f.id} className="flex items-start gap-1.5 text-xs py-0.5">
               <span
                 className="inline-block w-1.5 h-1.5 rounded-full mt-1 shrink-0"
                 style={{ backgroundColor: SVG_COLORS.good }}
               />
-              <span className="text-muted">{f.title}</span>
+              <span className="text-muted">{title(f)}</span>
             </div>
           ))}
         </div>
@@ -333,7 +351,7 @@ function TechnicalTab({ tx, feeRate, vsize }: { tx: MempoolTransaction; feeRate:
   const hasSegwit = tx.vin.some((v) => v.witness && v.witness.length > 0);
   const hasTaproot = tx.vin.some((v) => v.prevout?.scriptpubkey_type === "v1_p2tr") ||
     tx.vout.some((v) => v.scriptpubkey_type === "v1_p2tr");
-  const isRbf = tx.vin.some((v) => v.sequence < 0xfffffffe);
+  const isRbf = isRbfSignaling(tx.vin);
   const rows: Array<{ label: string; value: string | number; highlight?: boolean }> = [
     { label: t("graph.technical.version", { defaultValue: "Version" }), value: tx.version },
     { label: t("graph.technical.locktime", { defaultValue: "Locktime" }), value: tx.locktime === 0 ? t("graph.technical.locktimeNone", { defaultValue: "0 (none)" }) : tx.locktime < 500_000_000 ? `${tx.locktime} ${t("graph.technical.locktimeBlockHeight", { defaultValue: "(block height)" })}` : `${tx.locktime} ${t("graph.technical.locktimeTimestamp", { defaultValue: "(timestamp)" })}` },

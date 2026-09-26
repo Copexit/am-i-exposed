@@ -28,7 +28,7 @@ export const analyzeUtxos: AddressHeuristic = (_address, utxos) => {
       severity: dustUtxos.length >= 3 ? "high" : "medium",
       confidence: "high",
       title: `${dustUtxos.length} potential dust UTXO${dustUtxos.length > 1 ? "s" : ""} detected`,
-      params: { dustCount: dustUtxos.length, totalDust, threshold: DUST_THRESHOLD },
+      params: { count: dustUtxos.length, dustCount: dustUtxos.length, totalDust, threshold: DUST_THRESHOLD },
       description:
         `Found ${dustUtxos.length} UTXO${dustUtxos.length > 1 ? "s" : ""} below ${DUST_THRESHOLD} sats (total: ${totalDust} sats). ` +
         `Tiny unsolicited UTXOs are often "dusting attacks" - surveillance entities send small amounts to track your spending. ` +

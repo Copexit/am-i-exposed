@@ -1,7 +1,7 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
-import { DUST_THRESHOLD } from "@/lib/constants";
-import { isCoinbase } from "./tx-utils";
+import { DUST_THRESHOLD, P2PKH_DUST_LIMIT } from "@/lib/constants";
+import { isCoinbase, isOpReturnOutput, inputAddressSet } from "./tx-utils";
 
 /**
  * Dust Output Detection (transaction level)
@@ -27,14 +27,14 @@ export function getDustThreshold(scriptType: string): number {
   switch (scriptType) {
     case "p2pkh":
     case "p2sh":
-      return 546;
+      return P2PKH_DUST_LIMIT;
     case "v0_p2wpkh":
       return 294;
     case "v0_p2wsh":
     case "v1_p2tr":
       return 330;
     default:
-      return 546; // conservative default
+      return P2PKH_DUST_LIMIT; // conservative default
   }
 }
 
@@ -45,27 +45,40 @@ export const analyzeDustOutputs: TxHeuristic = (tx) => {
   if (isCoinbase(tx)) return { findings };
 
   // Collect dust outputs with their vout indices, using per-script-type thresholds
-  const dustEntries: { index: number; value: number; belowEconThreshold: boolean }[] = [];
-  for (let i = 0; i < tx.vout.length; i++) {
-    const out = tx.vout[i];
-    if (out.value > 0 && out.value < DUST_THRESHOLD && out.scriptpubkey_type !== "op_return") {
+  const dustEntries: { index: number; value: number; address?: string; belowEconThreshold: boolean }[] = [];
+  for (const [i, out] of tx.vout.entries()) {
+    if (out.value > 0 && out.value < DUST_THRESHOLD && !isOpReturnOutput(out)) {
       const econThreshold = getDustThreshold(out.scriptpubkey_type);
-      dustEntries.push({ index: i, value: out.value, belowEconThreshold: out.value < econThreshold });
+      dustEntries.push({
+        index: i,
+        value: out.value,
+        address: out.scriptpubkey_address,
+        belowEconThreshold: out.value < econThreshold,
+      });
     }
   }
 
   if (dustEntries.length === 0) return { findings };
 
   const econDustCount = dustEntries.filter((d) => d.belowEconThreshold).length;
-  const totalDustValue = dustEntries.reduce((sum, d) => sum + d.value, 0);
-  const dustIndicesStr = dustEntries.map((d) => d.index).join(",");
+
+  // A dust attack is dust sent to someone else. Dust paying back to an input
+  // address of this tx (e.g. 546-sat token postage) is the spender's own.
+  const inputAddresses = inputAddressSet(tx.vin);
+  const sentEntries = dustEntries.filter(({ address }) => !address || !inputAddresses.has(address));
+  const sentDust = sentEntries.length;
 
   // Check if this looks like a dust attack:
   // - Classic: 1 input, 2 outputs, 1 dust (attacker sends dust + change)
   // - Batch: many outputs, majority are dust (attacker dusts many addresses at once)
   const isLikelyDustAttack =
-    (dustEntries.length === 1 && tx.vout.length === 2 && tx.vin.length === 1) ||
-    (dustEntries.length >= 5 && dustEntries.length > tx.vout.length * 0.5);
+    (sentDust === 1 && tx.vout.length === 2 && tx.vin.length === 1) ||
+    (sentDust >= 5 && sentDust > tx.vout.length * 0.5);
+
+  // The attack text covers only the dust sent to others
+  const reported = isLikelyDustAttack ? sentEntries : dustEntries;
+  const totalDustValue = reported.reduce((sum, d) => sum + d.value, 0);
+  const dustIndicesStr = reported.map((d) => d.index).join(",");
 
   if (isLikelyDustAttack) {
     findings.push({
@@ -108,7 +121,7 @@ export const analyzeDustOutputs: TxHeuristic = (tx) => {
       severity,
       confidence: "high",
       title: `${dustEntries.length} dust output${dustEntries.length > 1 ? "s" : ""} detected (< ${DUST_THRESHOLD} sats)`,
-      params: { dustCount: dustEntries.length, threshold: DUST_THRESHOLD, totalDustValue, econDustCount, dustIndices: dustIndicesStr },
+      params: { dustCount: dustEntries.length, count: dustEntries.length, threshold: DUST_THRESHOLD, totalDustValue, econDustCount, dustIndices: dustIndicesStr },
       description:
         `This transaction contains ${dustEntries.length} output${dustEntries.length > 1 ? "s" : ""} ` +
         `below ${DUST_THRESHOLD} sats (total: ${totalDustValue} sats). ` +

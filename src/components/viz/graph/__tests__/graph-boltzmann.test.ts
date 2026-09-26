@@ -14,45 +14,9 @@ import {
   makeOpReturnVout,
   resetAddrCounter,
 } from "@/lib/analysis/heuristics/__tests__/fixtures/tx-factory";
-import { extractTxValues } from "@/lib/analysis/boltzmann-compute";
 import { detectJoinMarketForTurbo } from "@/lib/analysis/boltzmann-pool";
 import { analyzeChangeDetection } from "@/lib/analysis/heuristics/change-detection";
-import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
-import type { MempoolTransaction } from "@/lib/api/types";
-
-// ─── Helpers matching GraphExplorer's logic ─────────────────────
-
-/** Build a synthetic Boltzmann result for 1-input txs (mirrors GraphExplorer). */
-function buildSyntheticResult(tx: MempoolTransaction): BoltzmannWorkerResult {
-  const { inputValues, outputValues } = extractTxValues(tx);
-  const nIn = inputValues.length;
-  const nOut = outputValues.length;
-  const matProb = Array.from({ length: nOut }, () => Array.from({ length: nIn }, () => 1));
-  const matComb = Array.from({ length: nOut }, () => Array.from({ length: nIn }, () => 1));
-  const detLinks: [number, number][] = Array.from({ length: nOut }, (_, oi) => [oi, 0] as [number, number]);
-  return {
-    type: "result", id: tx.txid,
-    matLnkCombinations: matComb, matLnkProbabilities: matProb,
-    nbCmbn: 1, entropy: 0, efficiency: 0, nbCmbnPrfctCj: 1,
-    deterministicLinks: detLinks, timedOut: false, elapsedMs: 0,
-    nInputs: nIn, nOutputs: nOut,
-    fees: tx.fee, intraFeesMaker: 0, intraFeesTaker: 0,
-  };
-}
-
-/** Check if a tx is eligible for eager auto-compute (mirrors GraphExplorer thresholds). */
-function isEagerEligible(tx: MempoolTransaction): "synthetic" | "auto-compute" | "manual-button" | "ineligible" {
-  if (tx.vin.some((v) => v.is_coinbase)) return "ineligible";
-  const { inputValues, outputValues } = extractTxValues(tx);
-  if (inputValues.length === 0 || outputValues.length === 0) return "ineligible";
-  if (inputValues.length === 1) return "synthetic";
-  const total = inputValues.length + outputValues.length;
-  if (total > 80) return "ineligible";
-  if (total < 18) return "auto-compute";
-  if (total < 24 && detectJoinMarketForTurbo(inputValues, outputValues).isJoinMarket) return "auto-compute";
-  if (total <= 80) return "manual-button";
-  return "ineligible";
-}
+import { buildSyntheticResult, graphBoltzmannMode } from "@/hooks/useGraphBoltzmann";
 
 beforeEach(() => resetAddrCounter());
 
@@ -88,7 +52,7 @@ describe("synthetic Boltzmann for 1-input txs", () => {
     expect(result.efficiency).toBe(0);
   });
 
-  it("skips OP_RETURN outputs in the matrix (extractTxValues filters them)", () => {
+  it("indexes the matrix by vout: the OP_RETURN output gets an all-zero row", () => {
     const tx = makeTx({
       txid: "ccc",
       vin: [makeVin()],
@@ -96,9 +60,11 @@ describe("synthetic Boltzmann for 1-input txs", () => {
     });
     const result = buildSyntheticResult(tx);
 
-    // extractTxValues filters OP_RETURN, so only 1 output in the matrix
+    // extractTxValues filters OP_RETURN (1 valued output), and the matrix is
+    // re-indexed by raw tx position so consumers can use vout indices directly
     expect(result.nOutputs).toBe(1);
-    expect(result.matLnkProbabilities).toEqual([[1]]);
+    expect(result.matLnkProbabilities).toEqual([[1], [0]]);
+    expect(result.deterministicLinks).toEqual([[0, 0]]);
   });
 });
 
@@ -107,7 +73,7 @@ describe("synthetic Boltzmann for 1-input txs", () => {
 describe("auto-compute eligibility thresholds", () => {
   it("coinbase txs are ineligible", () => {
     const tx = makeTx({ vin: [makeCoinbaseVin()] });
-    expect(isEagerEligible(tx)).toBe("ineligible");
+    expect(graphBoltzmannMode(tx)).toBe("ineligible");
   });
 
   it("1-input txs get synthetic results", () => {
@@ -115,7 +81,7 @@ describe("auto-compute eligibility thresholds", () => {
       vin: [makeVin()],
       vout: [makeVout(), makeVout()],
     });
-    expect(isEagerEligible(tx)).toBe("synthetic");
+    expect(graphBoltzmannMode(tx)).toBe("synthetic");
   });
 
   it("small multi-input txs (<18 I/O) are auto-computed", () => {
@@ -124,35 +90,35 @@ describe("auto-compute eligibility thresholds", () => {
       vin: [makeVin(), makeVin(), makeVin()],
       vout: [makeVout(), makeVout(), makeVout(), makeVout()],
     });
-    expect(isEagerEligible(tx)).toBe("auto-compute");
+    expect(graphBoltzmannMode(tx)).toBe("auto-compute");
   });
 
   it("17 total I/O is auto-computed", () => {
     const vins = Array.from({ length: 8 }, () => makeVin());
     const vouts = Array.from({ length: 9 }, () => makeVout());
     const tx = makeTx({ vin: vins, vout: vouts });
-    expect(isEagerEligible(tx)).toBe("auto-compute");
+    expect(graphBoltzmannMode(tx)).toBe("auto-compute");
   });
 
   it("18 total I/O (non-JoinMarket) needs manual button", () => {
     const vins = Array.from({ length: 9 }, () => makeVin());
     const vouts = Array.from({ length: 9 }, () => makeVout());
     const tx = makeTx({ vin: vins, vout: vouts });
-    expect(isEagerEligible(tx)).toBe("manual-button");
+    expect(graphBoltzmannMode(tx)).toBe("manual-button");
   });
 
   it(">80 total I/O is ineligible", () => {
     const vins = Array.from({ length: 41 }, () => makeVin());
     const vouts = Array.from({ length: 41 }, () => makeVout());
     const tx = makeTx({ vin: vins, vout: vouts });
-    expect(isEagerEligible(tx)).toBe("ineligible");
+    expect(graphBoltzmannMode(tx)).toBe("ineligible");
   });
 
   it("exactly 80 I/O gets manual button", () => {
     const vins = Array.from({ length: 40 }, () => makeVin());
     const vouts = Array.from({ length: 40 }, () => makeVout());
     const tx = makeTx({ vin: vins, vout: vouts });
-    expect(isEagerEligible(tx)).toBe("manual-button");
+    expect(graphBoltzmannMode(tx)).toBe("manual-button");
   });
 });
 
@@ -300,44 +266,5 @@ describe("detectJoinMarketForTurbo guards", () => {
     const result = detectJoinMarketForTurbo(inputs, outputs);
     expect(result.isJoinMarket).toBe(true);
     expect(result.denomination).toBe(100_000);
-  });
-});
-
-// ─── AbortController Behavior ───────────────────────────────────
-
-describe("AbortController signal handling", () => {
-  it("AbortController.abort() sets signal.aborted synchronously", () => {
-    const ac = new AbortController();
-    expect(ac.signal.aborted).toBe(false);
-    ac.abort();
-    expect(ac.signal.aborted).toBe(true);
-  });
-
-  it("pre-aborted signal prevents computation start", () => {
-    const ac = new AbortController();
-    ac.abort();
-
-    // Simulates the guard in computeSingleBoltzmann
-    let started = false;
-    if (!ac.signal.aborted) {
-      started = true;
-    }
-    expect(started).toBe(false);
-  });
-
-  it("abort during async iteration stops the loop", async () => {
-    const ac = new AbortController();
-    const processed: number[] = [];
-
-    const queue = [1, 2, 3, 4, 5];
-    for (const item of queue) {
-      if (ac.signal.aborted) break;
-      processed.push(item);
-      // Simulate async work
-      await new Promise((r) => setTimeout(r, 1));
-      if (item === 2) ac.abort(); // abort after processing item 2
-    }
-
-    expect(processed).toEqual([1, 2]); // abort after item 2's await, item 3's guard catches it
   });
 });

@@ -13,6 +13,7 @@ import {
   detectWabiSabiForTurbo,
 } from "./boltzmann-pool";
 import { extractTxValues } from "./boltzmann-pool";
+import { isCoinbase } from "./heuristics/tx-utils";
 
 export { extractTxValues };
 
@@ -52,8 +53,7 @@ export function getBoltzmannEligibility(
   };
 
   // 1. Coinbase check
-  const isCoinbase = tx.vin.some((v) => v.is_coinbase);
-  if (isCoinbase) {
+  if (isCoinbase(tx)) {
     return { canCompute: false, reason: "coinbase", maxTotal: 0, ...empty };
   }
 

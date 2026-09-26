@@ -6,38 +6,40 @@
  */
 
 import { getSurfaceColors } from "../shared/svgConstants";
+import { HUES } from "@/lib/palette";
 
 // ─── Script type colors ─────────────────────────────────────────
 
 /** Edge color by scriptpubkey_type (OXT conventions). */
-export const SCRIPT_TYPE_COLORS: Record<string, string> = {
+export const SCRIPT_TYPE_COLORS = {
   // Legacy
-  p2pk: "#28d065",          // green
-  p2pkh: "#28d065",         // green
+  p2pk: HUES.brandGreen,  // green
+  p2pkh: HUES.brandGreen, // green
 
   // Native SegWit
-  v0_p2wpkh: "#60a5fa",    // light blue
-  v0_p2wsh: "#06b6d4",     // teal
+  v0_p2wpkh: HUES.blue400, // light blue
+  v0_p2wsh: HUES.cyan500,     // teal
 
   // Taproot
-  v1_p2tr: "#a78bfa",      // purple
+  v1_p2tr: HUES.violet400,    // purple
 
   // Wrapped (P2SH)
-  p2sh: "#f97316",          // orange
-  "p2sh-p2wpkh": "#f97316", // orange
-  "p2sh-p2wsh": "#f97316",  // orange
+  p2sh: HUES.orange500,          // orange
+  "p2sh-p2wpkh": HUES.orange500, // orange
+  "p2sh-p2wsh": HUES.orange500,  // orange
 
   // Multisig
-  multisig: "#f97316",      // orange
+  multisig: HUES.orange500,      // orange
 
   // Special
-  op_return: "#78716c",     // warm gray (data-only, not a payment)
-  nonstandard: "#ec4899",   // pink
-  unknown: "#6b7280",       // gray
-};
+  op_return: HUES.stone500,    // warm gray (data-only, not a payment)
+  nonstandard: HUES.pink500,   // pink
+  unknown: HUES.gray500,       // gray
+} satisfies Record<string, string>;
 
 export function getScriptTypeColor(scriptType: string): string {
-  return SCRIPT_TYPE_COLORS[scriptType] ?? SCRIPT_TYPE_COLORS.unknown;
+  const byType: Partial<Record<string, string>> = SCRIPT_TYPE_COLORS;
+  return byType[scriptType] ?? SCRIPT_TYPE_COLORS.unknown;
 }
 
 // ─── Script dash patterns ───────────────────────────────────────

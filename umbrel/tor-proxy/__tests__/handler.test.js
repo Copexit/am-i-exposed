@@ -209,6 +209,14 @@ describe("tor-proxy handler", () => {
     );
   });
 
+  it("passes an upstream 429 through instead of reporting the sidecar as down", async () => {
+    const err = Object.assign(new Error("Upstream 429"), { status: 429 });
+    const handler = createHandler({ fetchViaAgent: vi.fn().mockRejectedValue(err), logger: silentLogger });
+    const res = makeRes();
+    await handler(makeReq({ url: "/chainalysis/address/1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa" }), res);
+    expect(res.status()).toBe(429);
+  });
+
   it("400s unknown paths", async () => {
     const handler = createHandler({
       fetchViaAgent: vi.fn(),

@@ -3,7 +3,7 @@
  * PSBT analysis requires zero network access.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { writeFileSync, unlinkSync, existsSync } from "fs";
+import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 
@@ -25,9 +25,8 @@ afterEach(() => {
   console.error = originalError;
 });
 
-// A minimal valid PSBT (2-in, 2-out simple payment, unsigned)
-// This is a synthetic PSBT for testing - parsePSBT should handle it
-const _MINIMAL_PSBT_HEX = "70736274ff01007102000000024242424242424242424242424242424242424242424242424242424242424242000000000043434343434343434343434343434343434343434343434343434343434343430000000000ffffffff0200e1f50500000000160014aabbccddaabbccddaabbccddaabbccddaabbccdd80969800000000001600141122334411223344112233441122334411223344000000000000";
+// prettier-ignore
+const PSBT_COMPLETE = "cHNidP8BAFICAAAAAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAAAAAAD/////AZBfAQAAAAAAFgAUzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc0AAAAAAAEBH6CGAQAAAAAAFgAUq6urq6urq6urq6urq6urq6urq6sAAA==";
 
 describe("scan psbt - input handling", () => {
   it("rejects non-PSBT input", async () => {
@@ -43,22 +42,20 @@ describe("scan psbt - input handling", () => {
   });
 
   it("reads PSBT from file path", async () => {
-    const { isPSBT } = await import("@/lib/bitcoin/psbt");
-
-    // Create a temp file with PSBT-like content
-    const tmpFile = join(tmpdir(), `test-psbt-${Date.now()}.psbt`);
-
-    // Write a base64-encoded PSBT prefix to test file detection
-    writeFileSync(tmpFile, "cHNidP8BAH0C", "utf-8");
-
+    vi.useRealTimers(); // the analysis pipeline yields via setTimeout between heuristics
+    const { scanPsbt } = await import("../src/commands/scan-psbt");
+    const dir = mkdtempSync(join(tmpdir(), "aie-psbt-"));
+    const file = join(dir, "tx.psbt");
+    // 1 input (100000 sats P2WPKH witnessUtxo), 1 output (90000 sats), fee 10000
+    writeFileSync(file, `${PSBT_COMPLETE}\n`, "utf-8");
     try {
-      expect(existsSync(tmpFile)).toBe(true);
-      // isPSBT should recognize base64 PSBT prefix
-      expect(isPSBT("cHNidP8BAH0C")).toBe(true);
+      await scanPsbt(file, { json: true, network: "mainnet", entities: false, color: true } as never);
+      expect(captured.join("\n")).toContain("10000");
     } finally {
-      if (existsSync(tmpFile)) unlinkSync(tmpFile);
+      rmSync(dir, { recursive: true, force: true });
     }
   });
+
 });
 
 describe("PSBT detection", () => {

@@ -15,7 +15,7 @@ describe("needsEnrichment", () => {
       vin: [makeVin({ prevout: null } as never)],
     });
     // Force null
-    tx.vin[0].prevout = null;
+    tx.vin[0]!.prevout = null;
     expect(needsEnrichment([tx])).toBe(true);
   });
 
@@ -51,7 +51,7 @@ describe("enrichPrevouts", () => {
       } as never],
     });
     // Force null
-    childTx.vin[0].prevout = null;
+    childTx.vin[0]!.prevout = null;
 
     const getTransaction = async (txid: string) => {
       if (txid === parentTx.txid) return parentTx;
@@ -62,9 +62,11 @@ describe("enrichPrevouts", () => {
 
     expect(result.enrichedCount).toBe(1);
     expect(result.failedCount).toBe(0);
-    expect(childTx.vin[0].prevout).not.toBeNull();
-    expect(childTx.vin[0].prevout!.value).toBe(50_000);
-    expect(childTx.vin[0].prevout!.scriptpubkey_address).toBe("bc1qparent000000000000000000000000000000000");
+    // Fresh binding: the "Force null" assignment above would otherwise narrow prevout to null.
+    const [enrichedVin] = childTx.vin;
+    expect(enrichedVin?.prevout).not.toBeNull();
+    expect(enrichedVin?.prevout?.value).toBe(50_000);
+    expect(enrichedVin?.prevout?.scriptpubkey_address).toBe("bc1qparent000000000000000000000000000000000");
   });
 
   it("handles failed parent fetches gracefully", async () => {
@@ -79,7 +81,7 @@ describe("enrichPrevouts", () => {
         sequence: 0xfffffffd,
       } as never],
     });
-    childTx.vin[0].prevout = null;
+    childTx.vin[0]!.prevout = null;
 
     const getTransaction = async () => {
       throw new Error("Network error");
@@ -89,7 +91,7 @@ describe("enrichPrevouts", () => {
 
     expect(result.failedCount).toBe(1);
     expect(result.enrichedCount).toBe(0);
-    expect(childTx.vin[0].prevout).toBeNull();
+    expect(childTx.vin[0]?.prevout).toBeNull();
   });
 
   it("returns zero counts when no enrichment needed", async () => {
@@ -114,7 +116,7 @@ describe("enrichPrevouts", () => {
         sequence: 0xfffffffd,
       } as never],
     });
-    childTx.vin[0].prevout = null;
+    childTx.vin[0]!.prevout = null;
 
     const controller = new AbortController();
     controller.abort();
@@ -126,14 +128,14 @@ describe("enrichPrevouts", () => {
     });
 
     // Aborted before fetching - prevout still null
-    expect(childTx.vin[0].prevout).toBeNull();
+    expect(childTx.vin[0]?.prevout).toBeNull();
   });
 });
 
 describe("countNullPrevouts", () => {
   it("counts null prevouts", () => {
     const tx = makeTx();
-    tx.vin[0].prevout = null;
+    tx.vin[0]!.prevout = null;
     expect(countNullPrevouts([tx])).toBe(1);
   });
 

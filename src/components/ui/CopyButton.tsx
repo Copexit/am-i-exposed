@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Copy, Check } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { copyToClipboard } from "@/lib/clipboard";
 
 interface CopyButtonProps {
@@ -27,6 +28,7 @@ export function CopyButton({
   iconSize,
   className,
 }: CopyButtonProps) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -35,7 +37,8 @@ export function CopyButton({
   const handleCopy = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      copyToClipboard(text).then((ok) => {
+      // Fire-and-forget: copyToClipboard never rejects.
+      void copyToClipboard(text).then((ok) => {
         if (ok) {
           setCopied(true);
           clearTimeout(timerRef.current);
@@ -53,7 +56,7 @@ export function CopyButton({
       <button
         className={`text-muted/60 hover:text-foreground transition-colors cursor-pointer ${className ?? ""}`}
         onClick={handleCopy}
-        title="Copy"
+        title={t("common.copy", { defaultValue: "Copy" })}
       >
         {copied ? <Check size={size} /> : <Copy size={size} />}
       </button>
@@ -65,7 +68,7 @@ export function CopyButton({
     <button
       onClick={handleCopy}
       className={`absolute top-2 right-2 p-1.5 rounded bg-surface-inset/50 hover:bg-surface-inset text-muted hover:text-foreground transition-colors cursor-pointer ${className ?? ""}`}
-      title="Copy to clipboard"
+      title={t("common.copyToClipboard", { defaultValue: "Copy to clipboard" })}
     >
       {copied ? <Check size={size} /> : <Copy size={size} />}
     </button>

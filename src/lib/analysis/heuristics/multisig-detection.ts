@@ -1,7 +1,7 @@
 import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { parseMultisigFromInput, type MultisigInfo } from "@/lib/bitcoin/multisig";
-import { getSpendableOutputs, isCoinbase } from "./tx-utils";
+import { getSpendableOutputs, isCoinbase, isOpReturnOutput } from "./tx-utils";
 import {
   buildBisqDepositFinding,
   buildEscrow2of3Finding,
@@ -40,11 +40,12 @@ export const analyzeMultisigDetection: TxHeuristic = (tx, rawHex, ctx) => {
 
   // ── Bisq deposit tx detection (before multisig input parsing) ─────
   if (tx.vin.length >= 2) {
-    const opReturnOutputs = tx.vout.filter((o) => o.scriptpubkey_type === "op_return");
-    const nonOpReturnOutputs = tx.vout.filter((o) => o.scriptpubkey_type !== "op_return");
+    const opReturnOutputs = tx.vout.filter(isOpReturnOutput);
+    const nonOpReturnOutputs = getSpendableOutputs(tx.vout);
 
-    if (opReturnOutputs.length === 1 && nonOpReturnOutputs.length >= 1 && nonOpReturnOutputs.length <= 2) {
-      const opReturnHex = opReturnOutputs[0].scriptpubkey;
+    const [opReturnOutput] = opReturnOutputs;
+    if (opReturnOutput && opReturnOutputs.length === 1 && nonOpReturnOutputs.length >= 1 && nonOpReturnOutputs.length <= 2) {
+      const opReturnHex = opReturnOutput.scriptpubkey;
       const hasContractHash = opReturnHex && opReturnHex.startsWith("6a14") && opReturnHex.length === 44;
       const hasMultisigOutput = nonOpReturnOutputs.some(
         (o) => o.scriptpubkey_type === "v0_p2wsh" || o.scriptpubkey_type === "p2sh",
@@ -59,12 +60,13 @@ export const analyzeMultisigDetection: TxHeuristic = (tx, rawHex, ctx) => {
 
   // Parse all inputs for multisig
   const multisigInputs: { index: number; info: MultisigInfo }[] = [];
-  for (let i = 0; i < tx.vin.length; i++) {
-    const info = parseMultisigFromInput(tx.vin[i]);
+  for (const [i, vin] of tx.vin.entries()) {
+    const info = parseMultisigFromInput(vin);
     if (info) multisigInputs.push({ index: i, info });
   }
 
-  if (multisigInputs.length === 0) return { findings };
+  const first = multisigInputs[0]?.info;
+  if (!first) return { findings };
 
   const spendableOutputs = getSpendableOutputs(tx.vout);
 
@@ -72,12 +74,12 @@ export const analyzeMultisigDetection: TxHeuristic = (tx, rawHex, ctx) => {
   if (
     tx.vin.length === 1 &&
     multisigInputs.length === 1 &&
-    multisigInputs[0].info.m === 2 &&
-    multisigInputs[0].info.n === 3 &&
+    first.m === 2 &&
+    first.n === 3 &&
     spendableOutputs.length >= 2 &&
     spendableOutputs.length <= 4
   ) {
-    findings.push(buildEscrow2of3Finding(multisigInputs[0].info.scriptType));
+    findings.push(buildEscrow2of3Finding(first.scriptType));
     return { findings };
   }
 
@@ -102,28 +104,39 @@ export const analyzeMultisigDetection: TxHeuristic = (tx, rawHex, ctx) => {
     }
   }
 
-  // ── 2-of-2 escrow detection ──────────────────────────────────────────
-  if (
-    tx.vin.length === 1 &&
-    multisigInputs.length === 1 &&
-    multisigInputs[0].info.m === 2 &&
-    multisigInputs[0].info.n === 2 &&
-    spendableOutputs.length === 2
-  ) {
+  // ── 1-input 2-of-2 spend: Lightning channel close or 2-of-2 escrow ──
+  if (tx.vin.length === 1 && multisigInputs.length === 1 && first.m === 2 && first.n === 2) {
     const signals: string[] = [];
     if (tx.version === 1) signals.push("tx version 1 (bitcoinj-style)");
     if (tx.locktime === 0) signals.push("nLockTime = 0");
-    if (tx.vin[0].sequence === 0xffffffff) signals.push("nSequence = max (no RBF)");
+    const sequence = tx.vin[0]?.sequence ?? 0;
+    const maxSequence = sequence === 0xffffffff;
+    if (maxSequence) signals.push("nSequence = max (no RBF)");
 
-    const likelyLN = tx.locktime > 0 && tx.vin[0].sequence !== 0xffffffff;
-
-    if (likelyLN) {
-      findings.push(buildLightningChannelFinding(multisigInputs[0].info.scriptType, signals));
+    // BOLT 3 commitment tx (force close): nLockTime upper byte 0x20 and
+    // nSequence upper byte 0x80, the lower 24 bits of each carry the obscured
+    // commitment number. Strong on its own, so it applies to any output count
+    // (anchor channels add 2 anchor outputs, pending HTLCs add more).
+    if (tx.locktime >>> 24 === 0x20 && sequence >>> 24 === 0x80) {
+      signals.push("BOLT 3 commitment encoding (nLockTime 0x20..., nSequence 0x80...)");
+      findings.push(buildLightningChannelFinding(first.scriptType, signals));
       return { findings };
     }
 
-    findings.push(buildEscrow2of2Finding(multisigInputs[0].info.scriptType, signals));
-    return { findings };
+    if (spendableOutputs.length === 2) {
+      // Cooperative close: version 2, nLockTime 0, nSequence 0xffffffff. This
+      // covers the legacy closing_signed flow only; option_simple_close uses
+      // the current height as nLockTime and nSequence 0xfffffffd, which is
+      // indistinguishable from a plain anti-fee-sniping spend and stays escrow.
+      if (tx.version === 2 && tx.locktime === 0 && maxSequence) {
+        signals.push("BOLT 3 cooperative close (v2, nLockTime 0, nSequence max)");
+        findings.push(buildLightningChannelFinding(first.scriptType, signals));
+        return { findings };
+      }
+
+      findings.push(buildEscrow2of2Finding(first.scriptType, signals));
+      return { findings };
+    }
   }
 
   // ── Generic multisig (informational) ─────────────────────────────────
@@ -135,8 +148,6 @@ export const analyzeMultisigDetection: TxHeuristic = (tx, rawHex, ctx) => {
   const typeList = [...types.entries()]
     .map(([key, count]) => (count > 1 ? `${key} (${count} inputs)` : key))
     .join(", ");
-
-  const first = multisigInputs[0].info;
 
   findings.push(buildGenericMultisigFinding(first, multisigInputs.length, typeList));
 

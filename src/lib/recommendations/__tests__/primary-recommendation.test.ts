@@ -4,9 +4,10 @@ import {
   type RecommendationContext,
 } from "../primary-recommendation";
 import type { Finding, Grade } from "@/lib/types";
+import type { FindingId } from "@/lib/analysis/finding-metadata";
 
 /** Helper: create a minimal finding with given id and optional overrides */
-function f(id: string, overrides?: Partial<Finding>): Finding {
+function f(id: FindingId, overrides?: Partial<Finding>): Finding {
   return {
     id,
     severity: "medium",
@@ -20,7 +21,7 @@ function f(id: string, overrides?: Partial<Finding>): Finding {
 
 /** Helper: create a CoinJoin finding (positive scoreImpact, matching ID) */
 function cjFinding(variant: "whirlpool" | "wabisabi" | "joinmarket" = "whirlpool"): Finding {
-  const ids: Record<string, string> = {
+  const ids: Record<typeof variant, FindingId> = {
     whirlpool: "h4-whirlpool",
     wabisabi: "h4-coinjoin",
     joinmarket: "h4-joinmarket",
@@ -350,7 +351,7 @@ describe("Wallet-aware tool selection (pickTool)", () => {
       ctx([f("h3-cioh", { scoreImpact: -5, params: { inputCount: 4 } })]),
     );
     expect(primary.tools).toHaveLength(3);
-    expect(primary.tools?.[0].name).toBe("Sparrow Wallet");
+    expect(primary.tools?.[0]?.name).toBe("Sparrow Wallet");
   });
 
   it("payjoin: recommends all three collaborative payment wallets", () => {

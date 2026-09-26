@@ -1,6 +1,6 @@
-import type { GraphNode } from "@/hooks/useGraphExpansion";
+import type { GraphNode, useGraphExpansion } from "@/hooks/useGraphExpansion";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
-import type { Finding, ScoringResult } from "@/lib/types";
+import type { ScoringResult } from "@/lib/types";
 import type { EntityCategory } from "@/lib/analysis/entities";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
@@ -10,47 +10,19 @@ import type { useChartTooltip } from "../shared/ChartTooltip";
 // Re-export for convenience
 export type { GraphNode } from "@/hooks/useGraphExpansion";
 
+/** Graph state and actions, as returned by useGraphExpansion. */
+export type GraphExpansion = ReturnType<typeof useGraphExpansion>;
+
 export interface GraphExplorerProps {
-  nodes: Map<string, GraphNode>;
-  rootTxid: string;
-  /** Multi-root highlight set (wallet UTXO graph). */
-  rootTxids?: Set<string>;
+  /** The expandable graph (state + expand/collapse/undo/reset/auto-trace actions). */
+  graph: GraphExpansion;
+  /** Hide the auto-trace actions (wallet UTXO graph). */
+  noAutoTrace?: boolean;
   /** Txid -> vout indices for UTXO badges on root nodes. */
   walletUtxos?: Map<string, Set<number>>;
-  findings?: Finding[];
-  loading: Set<string>;
-  errors: Map<string, string>;
-  nodeCount: number;
-  maxNodes: number;
-  onExpandInput: (txid: string, inputIndex: number) => void;
-  onExpandOutput: (txid: string, outputIndex: number) => void;
-  onCollapse: (txid: string) => void;
-  onUndo?: () => void;
-  canUndo?: boolean;
-  onReset: () => void;
   onTxClick?: (txid: string) => void;
   /** Boltzmann result for the root transaction (linkability edge coloring). */
   rootBoltzmannResult?: BoltzmannWorkerResult | null;
-  /** Txid of the single expanded node (shows UTXO ports). */
-  expandedNodeTxid?: string | null;
-  /** Toggle expansion of a node (collapses previous). */
-  onToggleExpand?: (txid: string) => void;
-  /** Expand backward from a specific input port. */
-  onExpandPortInput?: (txid: string, inputIndex: number) => void;
-  /** Expand forward from a specific output port. */
-  onExpandPortOutput?: (txid: string, outputIndex: number) => void;
-  /** Cached outspends per txid (readonly to prevent external mutation). */
-  outspendCache?: ReadonlyMap<string, MempoolOutspend[]>;
-  /** Trigger auto-trace forward from a specific output. */
-  onAutoTrace?: (txid: string, outputIndex: number) => void;
-  /** Cancel in-progress auto-trace. */
-  onCancelAutoTrace?: () => void;
-  /** Whether auto-trace is currently running. */
-  autoTracing?: boolean;
-  /** Auto-trace progress info. */
-  autoTraceProgress?: { hop: number; txid: string; reason: string } | null;
-  /** Trigger compounding linkability trace from a specific output. */
-  onAutoTraceLinkability?: (txid: string, outputIndex: number) => void;
   /** When true, render fullscreen layout directly without the modal wrapper. */
   alwaysFullscreen?: boolean;
   /** Callback to change the graph root to a different transaction. */
@@ -64,26 +36,6 @@ export interface GraphExplorerProps {
   currentGraphId?: string | null;
   currentLabel?: string | null;
   onLoadSavedGraph?: (graph: SavedGraph) => void;
-  /** User-defined node position overrides from dragging. */
-  nodePositionOverrides?: Map<string, { x: number; y: number }>;
-  /** Callback when user drags a node to a new position. */
-  onNodePositionChange?: (txid: string, x: number, y: number) => void;
-  /** Annotations on the graph canvas. */
-  annotations?: GraphAnnotation[];
-  /** Whether annotate mode is active. */
-  annotateMode?: boolean;
-  /** Callback when annotations change. */
-  onAnnotationsChange?: (annotations: GraphAnnotation[]) => void;
-  /** Toggle annotate mode. */
-  onToggleAnnotateMode?: () => void;
-  /** User labels on nodes, keyed by txid. */
-  nodeLabels?: Map<string, string>;
-  /** Set a label on a node (empty string removes it). */
-  onSetNodeLabel?: (txid: string, label: string) => void;
-  /** User labels on edges, keyed by "fromTxid->toTxid". */
-  edgeLabels?: Map<string, string>;
-  /** Set a label on an edge (empty string removes it). */
-  onSetEdgeLabel?: (key: string, label: string) => void;
   /** Last loaded SavedGraph - used to restore annotations/positions/labels. */
   lastLoadedGraph?: SavedGraph | null;
 }
@@ -185,7 +137,49 @@ export interface PortLayout {
 /** Position map for port-to-port edge routing. Keyed by "${txid}:${side}:${index}". */
 export type PortPositionMap = Map<string, { x: number; y: number }>;
 
-export interface GraphCanvasProps extends GraphExplorerProps {
+export interface GraphCanvasProps {
+  nodes: Map<string, GraphNode>;
+  rootTxid: string;
+  /** Multi-root highlight set (wallet UTXO graph). */
+  rootTxids?: Set<string>;
+  /** Txid -> vout indices for UTXO badges on root nodes. */
+  walletUtxos?: Map<string, Set<number>>;
+  loading: Set<string>;
+  nodeCount: number;
+  maxNodes: number;
+  onExpandInput: (txid: string, inputIndex: number) => void;
+  onExpandOutput: (txid: string, outputIndex: number) => void;
+  onCollapse: (txid: string) => void;
+  /** Boltzmann result for the root transaction (linkability edge coloring). */
+  rootBoltzmannResult?: BoltzmannWorkerResult | null;
+  /** Txid of the single expanded node (shows UTXO ports). */
+  expandedNodeTxid?: string | null;
+  /** Toggle expansion of a node (collapses previous). */
+  onToggleExpand?: (txid: string) => void;
+  /** Expand backward from a specific input port. */
+  onExpandPortInput?: (txid: string, inputIndex: number) => void;
+  /** Expand forward from a specific output port. */
+  onExpandPortOutput?: (txid: string, outputIndex: number) => void;
+  /** Cached outspends per txid (readonly to prevent external mutation). */
+  outspendCache?: ReadonlyMap<string, MempoolOutspend[]>;
+  /** User-defined node position overrides from dragging. */
+  nodePositionOverrides?: Map<string, { x: number; y: number }>;
+  /** Callback when user drags a node to a new position. */
+  onNodePositionChange?: (txid: string, x: number, y: number) => void;
+  /** Annotations on the graph canvas. */
+  annotations?: GraphAnnotation[];
+  /** Whether annotate mode is active. */
+  annotateMode?: boolean;
+  /** Callback when annotations change. */
+  onAnnotationsChange?: (annotations: GraphAnnotation[]) => void;
+  /** User labels on nodes, keyed by txid. */
+  nodeLabels?: Map<string, string>;
+  /** Set a label on a node (empty string removes it). */
+  onSetNodeLabel?: (txid: string, label: string) => void;
+  /** User labels on edges, keyed by "fromTxid->toTxid". */
+  edgeLabels?: Map<string, string>;
+  /** Set a label on an edge (empty string removes it). */
+  onSetEdgeLabel?: (key: string, label: string) => void;
   containerWidth: number;
   containerHeight?: number;
   tooltip: ReturnType<typeof useChartTooltip<TooltipData>>;

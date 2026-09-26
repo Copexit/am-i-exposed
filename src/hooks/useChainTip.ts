@@ -12,10 +12,11 @@ import { useNetwork } from "@/context/NetworkContext";
  * optional method across the project's many client-mocking tests.
  */
 export function useChainTip(): number | null {
-  const { config } = useNetwork();
+  const { config, apiReady: ready } = useNetwork();
   const [height, setHeight] = useState<number | null>(null);
 
   useEffect(() => {
+    if (!ready) return;
     let cancelled = false;
     const controller = new AbortController();
     const base = config.mempoolBaseUrl.replace(/\/+$/, "");
@@ -45,7 +46,7 @@ export function useChainTip(): number | null {
       controller.abort();
       window.removeEventListener("focus", onFocus);
     };
-  }, [config.mempoolBaseUrl]);
+  }, [config.mempoolBaseUrl, ready]);
 
   return height;
 }

@@ -5,6 +5,7 @@ import type { MempoolTransaction } from "@/lib/api/types";
 import { computeBoltzmann, isAutoComputable } from "@/lib/analysis/boltzmann-compute";
 import {
   terminatePool,
+  onPoolTerminate,
   type BoltzmannWorkerResult,
   type BoltzmannProgress,
 } from "@/lib/analysis/boltzmann-pool";
@@ -13,7 +14,8 @@ import { getBoltzmannEligibility, extractTxValues } from "@/lib/analysis/boltzma
 export type { BoltzmannWorkerResult, BoltzmannProgress };
 
 export interface BoltzmannState {
-  status: "idle" | "loading" | "computing" | "complete" | "error" | "unsupported";
+  /** "cancelled": another compute took the shared worker pool before this one finished. */
+  status: "idle" | "loading" | "computing" | "complete" | "error" | "cancelled" | "unsupported";
   result: BoltzmannWorkerResult | null;
   error: string | null;
   progress: BoltzmannProgress | null;
@@ -60,8 +62,13 @@ export function useBoltzmann(
 
     setState({ status: "computing", result: null, error: null, progress: null });
 
+    // computeBoltzmann terminates the pool synchronously when it starts, so a
+    // terminate seen after this call means another compute preempted ours
+    // (a job's own worker failure drops the pool without notifying listeners).
+    let preempted = false;
+    let unregister = () => {};
     try {
-      const result = await computeBoltzmann(tx, {
+      const pending = computeBoltzmann(tx, {
         onProgress: (p) => {
           if (requestIdRef.current !== id) return;
           setState(prev => ({
@@ -71,11 +78,15 @@ export function useBoltzmann(
           }));
         },
       });
+      unregister = onPoolTerminate(() => { preempted = true; });
+      const result = await pending;
 
       if (requestIdRef.current !== id) return;
 
       if (result) {
         setState({ status: "complete", result, error: null, progress: null });
+      } else if (preempted) {
+        setState({ status: "cancelled", result: null, error: null, progress: null });
       } else {
         setState({ status: "error", result: null, error: "Computation failed", progress: null });
       }
@@ -87,6 +98,8 @@ export function useBoltzmann(
         error: err instanceof Error ? err.message : String(err),
         progress: null,
       });
+    } finally {
+      unregister();
     }
   }, [tx]);
 
@@ -115,7 +128,7 @@ export function useBoltzmann(
     if (!eligibility.canCompute) return;
 
     if (isAutoComputable(eligibility.inputValues, eligibility.outputValues)) {
-      const timer = setTimeout(compute, 0);
+      const timer = setTimeout(() => void compute(), 0);
       return () => {
         clearTimeout(timer);
         requestIdRef.current = null;
@@ -125,7 +138,7 @@ export function useBoltzmann(
     return () => {
       requestIdRef.current = null;
     };
-  }, [tx?.txid, precomputed, compute]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tx, precomputed, compute]);
 
   const autoComputed = useMemo(() => {
     if (!tx) return false;

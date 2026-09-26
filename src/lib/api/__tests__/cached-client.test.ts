@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import "fake-indexeddb/auto";
-import { createCachedMempoolClient, networkFromUrl } from "../cached-client";
+import { createCachedMempoolClient } from "../cached-client";
+import { networkFromUrl } from "../cache-policy";
 import { _resetForTest, idbGet } from "../idb-cache";
 import type { MempoolTransaction, MempoolOutspend, MempoolAddress, MempoolUtxo } from "../types";
 
@@ -83,6 +84,16 @@ describe("networkFromUrl", () => {
   it("defaults to mainnet for custom URLs", () => {
     expect(networkFromUrl("http://localhost:3006/api")).toBe("mainnet");
   });
+
+  it("matches path segments, not the hostname", () => {
+    expect(networkFromUrl("https://signet-node.local/api")).toBe("mainnet");
+    expect(networkFromUrl("https://testnet4.example.com/api")).toBe("mainnet");
+  });
+
+  it("handles relative URLs", () => {
+    expect(networkFromUrl("/api")).toBe("mainnet");
+    expect(networkFromUrl("/signet/api")).toBe("signet");
+  });
 });
 
 describe("createCachedMempoolClient", () => {
@@ -105,8 +116,23 @@ describe("createCachedMempoolClient", () => {
       expect(mock.getTransaction).toHaveBeenCalledTimes(1); // No additional call
 
       // Verify stored in IndexedDB with infinite TTL (expiresAt = 0)
-      const cached = await idbGet<MempoolTransaction>("mainnet:tx:aaa");
+      const cached = await idbGet<MempoolTransaction>("mainnet@https://mempool.space/api:tx:aaa");
       expect(cached?.txid).toBe("aaa");
+    });
+
+    it("passes a per-call signal through to the network client", async () => {
+      const mock = makeMockClient({
+        getTransaction: vi.fn().mockResolvedValue(makeMockTx("ccc", true)),
+        getTxOutspends: vi.fn().mockResolvedValue([]),
+      });
+      mockCreate.mockReturnValue(mock as ReturnType<typeof createMempoolClient>);
+      const client = createCachedMempoolClient("https://mempool.space/api", "mainnet");
+      const { signal } = new AbortController();
+
+      await client.getTransaction("ccc", signal);
+      await client.getTxOutspends("ccc", signal);
+      expect(mock.getTransaction).toHaveBeenCalledWith("ccc", signal);
+      expect(mock.getTxOutspends).toHaveBeenCalledWith("ccc", signal);
     });
 
     it("caches unconfirmed transactions with short TTL", async () => {
@@ -117,7 +143,7 @@ describe("createCachedMempoolClient", () => {
       const client = createCachedMempoolClient("https://mempool.space/api", "mainnet");
       await client.getTransaction("bbb");
 
-      const cached = await idbGet<MempoolTransaction>("mainnet:tx:bbb");
+      const cached = await idbGet<MempoolTransaction>("mainnet@https://mempool.space/api:tx:bbb");
       expect(cached).toBeDefined();
     });
   });
@@ -234,7 +260,7 @@ describe("createCachedMempoolClient", () => {
   describe("enableCache bypass", () => {
     it("skips cache when enableCache is false", async () => {
       // Mock getAnalysisSettings to return enableCache: false
-      const { getAnalysisSettings } = await import("@/hooks/useAnalysisSettings");
+      const { getAnalysisSettings } = await import("@/lib/analysis/settings");
       const originalSettings = getAnalysisSettings();
 
       // Store something first with cache enabled
@@ -278,6 +304,31 @@ describe("createCachedMempoolClient", () => {
       expect(r2.fee).toBe(999);
       expect(mainnetMock.getTransaction).toHaveBeenCalledTimes(1);
       expect(testnetMock.getTransaction).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not share entries between two custom backends (network unknown from URL)", async () => {
+      const signetMock = makeMockClient({ getAddress: vi.fn().mockResolvedValue({ address: "tb1qx", chain_stats: { tx_count: 1 } }) });
+      const testnetMock = makeMockClient({ getAddress: vi.fn().mockResolvedValue({ address: "tb1qx", chain_stats: { tx_count: 9 } }) });
+      mockCreate
+        .mockReturnValueOnce(signetMock as ReturnType<typeof createMempoolClient>)
+        .mockReturnValueOnce(testnetMock as ReturnType<typeof createMempoolClient>);
+
+      await createCachedMempoolClient("https://node-a.local/api").getAddress("tb1qx");
+      const r2 = await createCachedMempoolClient("https://node-b.local/api").getAddress("tb1qx");
+
+      expect(r2.chain_stats.tx_count).toBe(9);
+      expect(testnetMock.getAddress).toHaveBeenCalledTimes(1);
+    });
+
+    it("treats a trailing slash as the same backend", async () => {
+      const tx = makeMockTx("ccc", true);
+      const mock = makeMockClient({ getTransaction: vi.fn().mockResolvedValue(tx) });
+      mockCreate.mockReturnValue(mock as ReturnType<typeof createMempoolClient>);
+
+      await createCachedMempoolClient("https://mempool.space/api/", "mainnet").getTransaction("ccc");
+      await createCachedMempoolClient("https://mempool.space/api", "mainnet").getTransaction("ccc");
+
+      expect(mock.getTransaction).toHaveBeenCalledTimes(1);
     });
   });
 });

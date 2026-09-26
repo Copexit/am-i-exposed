@@ -2,7 +2,7 @@ import type { TxHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
 import { matchEntitySync, detectEntityBehavior } from "../entity-filter/entity-match";
 import { getFilter } from "../entity-filter/filter-loader";
-import { isCoinbase } from "./tx-utils";
+import { isCoinbase, inputAddressSet } from "./tx-utils";
 
 /**
  * Entity Address Detection
@@ -22,6 +22,11 @@ import { isCoinbase } from "./tx-utils";
  *   - Behavioral: low (informational, 0)
  */
 
+/** Matched addresses as a short list, e.g. "bc1qxy2kgdyg..., 3J98t1WpEZ73...". */
+function shortList(matches: Array<{ address: string }>): string {
+  return matches.map((m) => m.address.slice(0, 12) + "...").join(", ");
+}
+
 export const analyzeEntityDetection: TxHeuristic = (tx) => {
   const findings: Finding[] = [];
 
@@ -29,13 +34,8 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
   if (isCoinbase(tx)) return { findings };
 
   // Collect all addresses with their roles (input vs output)
-  const inputAddresses = new Set<string>();
+  const inputAddresses = inputAddressSet(tx.vin);
   const outputAddresses = new Set<string>();
-
-  for (const vin of tx.vin) {
-    const addr = vin.prevout?.scriptpubkey_address;
-    if (addr) inputAddresses.add(addr);
-  }
 
   for (const vout of tx.vout) {
     const addr = vout.scriptpubkey_address;
@@ -69,14 +69,15 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
       title: `OFAC sanctioned address${allOfac.length > 1 ? "es" : ""} detected`,
       params: {
         matchCount: allOfac.length,
-        addresses: allOfac.map((m) => m.address).join(", "),
+        count: allOfac.length,
+        addresses: shortList(allOfac),
         side: ofacInputs.length > 0 && ofacOutputs.length > 0 ? "both" : ofacInputs.length > 0 ? "input" : "output",
       },
       description:
         `${allOfac.length} address${allOfac.length > 1 ? "es" : ""} in this transaction ` +
         `appear${allOfac.length === 1 ? "s" : ""} on the OFAC SDN sanctioned list. ` +
         "Interacting with sanctioned addresses may have legal consequences depending on jurisdiction. " +
-        `Matched: ${allOfac.map((m) => m.address.slice(0, 12) + "...").join(", ")}`,
+        `Matched: ${shortList(allOfac)}`,
       recommendation:
         "Exercise extreme caution. OFAC-sanctioned addresses are associated with entities " +
         "under US Treasury sanctions. Depending on your jurisdiction, interaction with these " +
@@ -89,7 +90,11 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
   const entityInputs = inputMatches.filter((m) => !m.ofac);
   const entityOutputs = outputMatches.filter((m) => !m.ofac);
 
-  if (entityInputs.length > 0) {
+  const filterFpr = getFilter()?.meta.fpr ?? 0.001;
+  const fprText = `${+(filterFpr * 100).toFixed(3)}%`;
+
+  const [firstInput] = entityInputs;
+  if (firstInput) {
     findings.push({
       id: "entity-known-input",
       severity: "medium",
@@ -97,17 +102,18 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
       title: `Known entity address${entityInputs.length > 1 ? "es" : ""} in inputs`,
       params: {
         matchCount: entityInputs.length,
-        addresses: entityInputs.map((m) => m.address).join(", "),
-        entityName: entityInputs[0].entityName,
-        category: entityInputs[0].category ?? "unknown",
-        filterFpr: getFilter()?.meta.fpr ?? 0.001,
+        count: entityInputs.length,
+        addresses: shortList(entityInputs),
+        entityName: firstInput.entityName,
+        category: firstInput.category ?? "unknown",
+        filterFpr,
       },
       description:
         `${entityInputs.length} input address${entityInputs.length > 1 ? "es" : ""} matched the ` +
         "known entity database (exchanges, services, mining pools). " +
-        `Matched: ${entityInputs.map((m) => m.address.slice(0, 12) + "...").join(", ")}. ` +
+        `Matched: ${shortList(entityInputs)}. ` +
         "This suggests the sending party may be a known service or entity. " +
-        "Note: the entity filter has a 0.1% false positive rate.",
+        `Note: the entity filter has a ${fprText} false positive rate.`,
       recommendation:
         "Inputs from known entities (exchanges, services) indicate the source of funds is traceable. " +
         "If privacy is important, avoid receiving funds directly from known entities without " +
@@ -116,7 +122,8 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
     });
   }
 
-  if (entityOutputs.length > 0) {
+  const [firstOutput] = entityOutputs;
+  if (firstOutput) {
     findings.push({
       id: "entity-known-output",
       severity: "low",
@@ -124,17 +131,18 @@ export const analyzeEntityDetection: TxHeuristic = (tx) => {
       title: `Known entity address${entityOutputs.length > 1 ? "es" : ""} in outputs`,
       params: {
         matchCount: entityOutputs.length,
-        addresses: entityOutputs.map((m) => m.address).join(", "),
-        entityName: entityOutputs[0].entityName,
-        category: entityOutputs[0].category ?? "unknown",
-        filterFpr: getFilter()?.meta.fpr ?? 0.001,
+        count: entityOutputs.length,
+        addresses: shortList(entityOutputs),
+        entityName: firstOutput.entityName,
+        category: firstOutput.category ?? "unknown",
+        filterFpr,
       },
       description:
         `${entityOutputs.length} output address${entityOutputs.length > 1 ? "es" : ""} matched the ` +
         "known entity database. " +
-        `Matched: ${entityOutputs.map((m) => m.address.slice(0, 12) + "...").join(", ")}. ` +
+        `Matched: ${shortList(entityOutputs)}. ` +
         "This suggests funds are being sent to a known exchange, service, or entity. " +
-        "Note: the entity filter has a 0.1% false positive rate.",
+        `Note: the entity filter has a ${fprText} false positive rate.`,
       recommendation:
         "Sending to known entities (especially KYC exchanges) creates a link between your " +
         "on-chain activity and your real identity. Consider using P2P platforms (Bisq, RoboSats, " +

@@ -24,7 +24,7 @@ describe("HodlHodl detection - true positives (envelope-detectable)", () => {
     it(`TP ${fx.txid.slice(0, 12)} - ${fx.notes}`, () => {
       const { findings } = analyzeHodlHodlDetection(fx.tx);
       const hh = findings.find((f) => f.id === "h17-hodlhodl");
-      const iv = fx.tx.vin[0].prevout?.value ?? 0;
+      const iv = fx.tx.vin[0]?.prevout?.value ?? 0;
       const sp = fx.tx.vout.filter((o) => !o.scriptpubkey.startsWith("6a"));
       const minv = sp.length ? Math.min(...sp.map((o) => o.value)) : 0;
       const ratio = iv ? (minv / iv) * 100 : 0;
@@ -34,11 +34,6 @@ describe("HodlHodl detection - true positives (envelope-detectable)", () => {
   }
 });
 
-describe("HodlHodl detection - true positives (address-match-only, may or may not fire on envelope)", () => {
-  for (const fx of tp.filter((f) => !isEnvelopeDetectable(f.notes))) {
-    it.skip(`TP ${fx.txid.slice(0, 12)} - ${fx.notes} (envelope may skip)`, () => {});
-  }
-});
 
 function isFilterRuleTestable(notes: string): boolean {
   return notes.startsWith("3BMEX")
@@ -52,7 +47,7 @@ describe("HodlHodl detection - false positives (filter-rule-testable, MUST NOT f
     it(`FP ${fx.txid.slice(0, 12)} - ${fx.notes}`, () => {
       const { findings } = analyzeHodlHodlDetection(fx.tx);
       const hh = findings.find((f) => f.id?.startsWith("h17-hodlhodl"));
-      const iv = fx.tx.vin[0].prevout?.value ?? 0;
+      const iv = fx.tx.vin[0]?.prevout?.value ?? 0;
       const sp = fx.tx.vout.filter((o) => !o.scriptpubkey.startsWith("6a"));
       const minv = sp.length ? Math.min(...sp.map((o) => o.value)) : 0;
       const ratio = iv ? (minv / iv) * 100 : 0;
@@ -62,8 +57,3 @@ describe("HodlHodl detection - false positives (filter-rule-testable, MUST NOT f
   }
 });
 
-describe("HodlHodl detection - structurally-undecidable FPs (bloom-filter-resolved)", () => {
-  for (const fx of fp.filter((f) => !isFilterRuleTestable(f.notes))) {
-    it.skip(`FP ${fx.txid.slice(0, 12)} - ${fx.notes} (resolved by bloom layer)`, () => {});
-  }
-});

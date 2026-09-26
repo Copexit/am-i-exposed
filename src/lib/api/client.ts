@@ -39,7 +39,7 @@ export function isLocalApi(url: string): boolean {
  * API client backed by a single mempool.space-compatible endpoint.
  * All responses are transparently cached in IndexedDB for cross-session reuse.
  *
- * Self-hosted/Umbrel APIs get a 120s per-request timeout (Electrs can be slow
+ * Self-hosted/Umbrel APIs get a 60s per-request timeout (Electrs can be slow
  * on large addresses). Hosted mempool.space keeps the default 15s timeout.
  */
 export function createApiClient(config: NetworkConfig, signal?: AbortSignal) {

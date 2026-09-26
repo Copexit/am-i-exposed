@@ -73,7 +73,7 @@ describe("analyzePeelChain", () => {
     const { findings } = analyzePeelChain(tx, undefined, ctx);
 
     expect(findings).toHaveLength(1);
-    const f = findings[0];
+    const f = findings[0]!;
     expect(f.id).toBe("peel-chain");
     expect(f.severity).toBe("high");
     expect(f.confidence).toBe("medium");
@@ -95,7 +95,7 @@ describe("analyzePeelChain", () => {
     const { findings } = analyzePeelChain(tx, undefined, ctx);
 
     expect(findings).toHaveLength(1);
-    const f = findings[0];
+    const f = findings[0]!;
     expect(f.id).toBe("peel-chain");
     expect(f.severity).toBe("high");
     expect(f.scoreImpact).toBe(-15);
@@ -116,7 +116,7 @@ describe("analyzePeelChain", () => {
     const { findings } = analyzePeelChain(tx, undefined, ctx);
 
     expect(findings).toHaveLength(1);
-    const f = findings[0];
+    const f = findings[0]!;
     expect(f.id).toBe("peel-chain");
     expect(f.severity).toBe("critical");
     expect(f.confidence).toBe("high");
@@ -173,6 +173,6 @@ describe("analyzePeelChain", () => {
     const ctx: TxContext = { parentTx };
     const { findings } = analyzePeelChain(tx, undefined, ctx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("peel-chain");
+    expect(findings[0]?.id).toBe("peel-chain");
   });
 });

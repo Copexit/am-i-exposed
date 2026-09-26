@@ -2,11 +2,15 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { analyzeTemporalCorrelation } from "../temporal";
 import { makeTx, resetAddrCounter } from "../../heuristics/__tests__/fixtures/tx-factory";
 
-beforeEach(() => resetAddrCounter());
+let txSeq = 0;
+beforeEach(() => {
+  resetAddrCounter();
+  txSeq = 0;
+});
 
 function makeTxAtTime(blockTime: number, txid?: string) {
   return makeTx({
-    txid: txid ?? Math.random().toString(16).slice(2).padEnd(64, "0"),
+    txid: txid ?? String(++txSeq).padStart(64, "0"),
     status: {
       confirmed: true,
       block_height: 800000 + Math.floor(blockTime / 600),

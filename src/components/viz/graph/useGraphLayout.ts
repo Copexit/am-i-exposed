@@ -76,8 +76,8 @@ export function useGraphLayout({
     const info = new Map<string, { scriptType: string; value: number }>();
     for (const edge of edges) {
       const sourceNode = nodes.get(edge.fromTxid);
-      if (!sourceNode || !edge.outputIndices?.length) continue;
-      const outIdx = edge.outputIndices[0];
+      const outIdx = edge.outputIndices?.[0];
+      if (!sourceNode || outIdx === undefined) continue;
       const vout = sourceNode.tx.vout[outIdx];
       if (vout) {
         const val = vout.value;

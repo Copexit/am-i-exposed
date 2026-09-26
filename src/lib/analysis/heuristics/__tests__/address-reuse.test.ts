@@ -22,9 +22,9 @@ describe("analyzeAddressReuse", () => {
     const txs = makeTxsToAddr(1);
     const { findings } = analyzeAddressReuse(address, [], txs);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h8-no-reuse");
-    expect(findings[0].scoreImpact).toBe(3);
-    expect(findings[0].severity).toBe("good");
+    expect(findings[0]?.id).toBe("h8-no-reuse");
+    expect(findings[0]?.scoreImpact).toBe(3);
+    expect(findings[0]?.severity).toBe("good");
   });
 
   it("treats funded=0, txCount=1 as no reuse (common on romanz/electrs backends)", () => {
@@ -34,8 +34,8 @@ describe("analyzeAddressReuse", () => {
     });
     const { findings } = analyzeAddressReuse(address, [], []);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h8-no-reuse");
-    expect(findings[0].scoreImpact).toBe(3);
+    expect(findings[0]?.id).toBe("h8-no-reuse");
+    expect(findings[0]?.scoreImpact).toBe(3);
   });
 
   it("detects uncertain when funded=0 but txCount > 2 -> h8-reuse-uncertain, impact 0", () => {
@@ -45,8 +45,8 @@ describe("analyzeAddressReuse", () => {
     });
     const { findings } = analyzeAddressReuse(address, [], []);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h8-reuse-uncertain");
-    expect(findings[0].scoreImpact).toBe(0);
+    expect(findings[0]?.id).toBe("h8-reuse-uncertain");
+    expect(findings[0]?.scoreImpact).toBe(0);
   });
 
   it("detects batch receive (funded > 1, txCount <= 1) -> h8-batch-receive, impact 0", () => {
@@ -57,8 +57,8 @@ describe("analyzeAddressReuse", () => {
     const txs = makeTxsToAddr(1);
     const { findings } = analyzeAddressReuse(address, [], txs);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h8-batch-receive");
-    expect(findings[0].scoreImpact).toBe(0);
+    expect(findings[0]?.id).toBe("h8-batch-receive");
+    expect(findings[0]?.scoreImpact).toBe(0);
   });
 
   it("detects 2-tx reuse -> h8-address-reuse, impact -70, severity critical", () => {
@@ -68,9 +68,9 @@ describe("analyzeAddressReuse", () => {
     });
     const txs = makeTxsToAddr(2);
     const { findings } = analyzeAddressReuse(address, [], txs);
-    expect(findings[0].id).toBe("h8-address-reuse");
-    expect(findings[0].scoreImpact).toBe(-70);
-    expect(findings[0].severity).toBe("critical");
+    expect(findings[0]?.id).toBe("h8-address-reuse");
+    expect(findings[0]?.scoreImpact).toBe(-70);
+    expect(findings[0]?.severity).toBe("critical");
   });
 
   it("detects 3-4 tx reuse -> impact -78, severity critical", () => {
@@ -80,8 +80,8 @@ describe("analyzeAddressReuse", () => {
     });
     const txs = makeTxsToAddr(3);
     const { findings } = analyzeAddressReuse(address, [], txs);
-    expect(findings[0].scoreImpact).toBe(-78);
-    expect(findings[0].severity).toBe("critical");
+    expect(findings[0]?.scoreImpact).toBe(-78);
+    expect(findings[0]?.severity).toBe("critical");
   });
 
   it("detects 5-9 tx reuse -> impact -84", () => {
@@ -91,7 +91,7 @@ describe("analyzeAddressReuse", () => {
     });
     const txs = makeTxsToAddr(5);
     const { findings } = analyzeAddressReuse(address, [], txs);
-    expect(findings[0].scoreImpact).toBe(-84);
+    expect(findings[0]?.scoreImpact).toBe(-84);
   });
 
   it("detects 10-49 tx reuse -> impact -88", () => {
@@ -101,7 +101,7 @@ describe("analyzeAddressReuse", () => {
     });
     const txs = makeTxsToAddr(10);
     const { findings } = analyzeAddressReuse(address, [], txs);
-    expect(findings[0].scoreImpact).toBe(-88);
+    expect(findings[0]?.scoreImpact).toBe(-88);
   });
 
   it("detects 50-99 tx reuse -> impact -90", () => {
@@ -111,7 +111,7 @@ describe("analyzeAddressReuse", () => {
     });
     const txs = makeTxsToAddr(50);
     const { findings } = analyzeAddressReuse(address, [], txs);
-    expect(findings[0].scoreImpact).toBe(-90);
+    expect(findings[0]?.scoreImpact).toBe(-90);
   });
 
   it("detects 100-999 tx reuse -> impact -92", () => {
@@ -121,7 +121,7 @@ describe("analyzeAddressReuse", () => {
     });
     const txs = makeTxsToAddr(100);
     const { findings } = analyzeAddressReuse(address, [], txs);
-    expect(findings[0].scoreImpact).toBe(-92);
+    expect(findings[0]?.scoreImpact).toBe(-92);
   });
 
   it("detects 1000+ tx reuse -> impact -93", () => {
@@ -131,7 +131,7 @@ describe("analyzeAddressReuse", () => {
     });
     const txs = makeTxsToAddr(1000);
     const { findings } = analyzeAddressReuse(address, [], txs);
-    expect(findings[0].scoreImpact).toBe(-93);
+    expect(findings[0]?.scoreImpact).toBe(-93);
   });
 
   it("sets remediation urgency to immediate for 10+ txs", () => {
@@ -141,7 +141,7 @@ describe("analyzeAddressReuse", () => {
     });
     const txs = makeTxsToAddr(10);
     const { findings } = analyzeAddressReuse(address, [], txs);
-    expect(findings[0].remediation?.urgency).toBe("immediate");
+    expect(findings[0]?.remediation?.urgency).toBe("immediate");
   });
 
   it("uses actualReceives as fallback when funded_txo_count is 0", () => {
@@ -152,7 +152,7 @@ describe("analyzeAddressReuse", () => {
     });
     const txs = makeTxsToAddr(3);
     const { findings } = analyzeAddressReuse(address, [], txs);
-    expect(findings[0].id).toBe("h8-address-reuse");
-    expect(findings[0].scoreImpact).toBe(-78);
+    expect(findings[0]?.id).toBe("h8-address-reuse");
+    expect(findings[0]?.scoreImpact).toBe(-78);
   });
 });

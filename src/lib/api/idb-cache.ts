@@ -106,8 +106,8 @@ function fallbackPut(key: string, value: unknown, ttlMs?: number): void {
       (a, b) => a[1].storedAt - b[1].storedAt,
     );
     const count = Math.ceil(fallbackMap.size * EVICT_RATIO);
-    for (let i = 0; i < count; i++) {
-      fallbackMap.delete(sorted[i][0]);
+    for (const [key] of sorted.slice(0, count)) {
+      fallbackMap.delete(key);
     }
   }
 }
@@ -262,8 +262,8 @@ export async function idbEvict(maxEntries: number): Promise<number> {
         (a, b) => a[1].storedAt - b[1].storedAt,
       );
       const toDelete = fallbackMap.size - maxEntries;
-      for (let i = 0; i < toDelete; i++) {
-        fallbackMap.delete(sorted[i][0]);
+      for (const [key] of sorted.slice(0, toDelete)) {
+        fallbackMap.delete(key);
       }
       return toDelete;
     }

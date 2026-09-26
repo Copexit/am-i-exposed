@@ -8,24 +8,27 @@ import { analyzeSpendingPatterns } from "@/lib/analysis/chain/spending-patterns"
 import { buildLinkabilityMatrix } from "@/lib/analysis/chain/linkability";
 import { buildParentTxsByIdx, buildChildTxsByIdx, buildTxsByAddress } from "@/lib/analysis/chain/trace-maps";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
-import type { AnalysisSettings } from "@/hooks/useAnalysisSettings";
-import type { FetchProgress, AnalysisState } from "@/hooks/useAnalysisState";
+import { isCoinJoinTx } from "@/lib/analysis/heuristics/coinjoin";
+import type { AnalysisSettings } from "@/lib/analysis/settings";
+import type { FetchProgress } from "@/lib/analysis/analysis-state";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import { sumImpact } from "@/lib/scoring/score";
-import { enrichFindingsWithMetadata } from "@/lib/analysis/finding-metadata";
-import type { ScoringResult, Finding } from "@/lib/types";
+import { tick } from "@/lib/analysis/heuristic-registry";
+import type { Finding } from "@/lib/types";
+
+interface TraceApi {
+  getTransaction: (txid: string, signal?: AbortSignal) => Promise<MempoolTransaction>;
+  getTxOutspends: (txid: string, signal?: AbortSignal) => Promise<MempoolOutspend[]>;
+}
 
 /** Parameters for the chain analysis phase. */
 interface ChainTraceParams {
   tx: MempoolTransaction;
   settings: AnalysisSettings;
-  api: {
-    getTransaction: (txid: string) => Promise<MempoolTransaction>;
-    getTxOutspends: (txid: string) => Promise<MempoolOutspend[]>;
-  };
+  api: TraceApi;
   controller: AbortController;
-  setState: React.Dispatch<React.SetStateAction<AnalysisState>>;
-  onStep: (stepId: string, impact?: number) => void;
+  /** Trace progress for the loader (the caller owns any UI state). */
+  onProgress: (progress: FetchProgress) => void;
   parentTx: MempoolTransaction | null;
   childTx: MempoolTransaction | null;
   outspends: MempoolOutspend[] | null;
@@ -39,12 +42,57 @@ interface ChainTraceResult {
   forwardFailed: boolean;
 }
 
+/** The trace api bound to a phase signal, so a phase timeout cancels its in-flight requests. */
+function phaseApi(api: TraceApi, signal: AbortSignal): TraceApi {
+  return {
+    getTransaction: (txid) => api.getTransaction(txid, signal),
+    getTxOutspends: (txid) => api.getTxOutspends(txid, signal),
+  };
+}
+
+/** More input addresses than this = a "service" tier cluster (see chain/clustering.ts). */
+const LARGE_CLUSTER_ADDRESSES = 50;
+
+/** Whether a tx merges a large CIOH cluster (typically an exchange or service consolidation). */
+function isLargeCluster(tx: MempoolTransaction): boolean {
+  const addrs = new Set<string>();
+  for (const vin of tx.vin) {
+    const addr = vin.prevout?.scriptpubkey_address;
+    if (addr) addrs.add(addr);
+  }
+  return addrs.size > LARGE_CLUSTER_ADDRESSES;
+}
+
+/**
+ * Trace barrier: stop tracing through known custodial entities (exchanges,
+ * etc.) because they break chain of custody - no link between deposits and
+ * withdrawals. Opt-in: also through CoinJoins and large CIOH clusters
+ * (barrier txs stay in the layer).
+ */
+export function buildTraceBarrier(
+  settings: Pick<AnalysisSettings, "skipCoinJoins" | "skipLargeClusters">,
+): EntityBarrierCheck {
+  return (btx) => {
+    if (settings.skipCoinJoins && isCoinJoinTx(btx)) return true;
+    if (settings.skipLargeClusters && isLargeCluster(btx)) return true;
+    for (const vin of btx.vin) {
+      const addr = vin.prevout?.scriptpubkey_address;
+      if (addr && matchEntitySync(addr)) return true;
+    }
+    for (const vout of btx.vout) {
+      const addr = vout.scriptpubkey_address;
+      if (addr && matchEntitySync(addr)) return true;
+    }
+    return false;
+  };
+}
+
 /**
  * Run the recursive backward/forward tracing phase.
  * Returns the trace layers (may be empty if depth is 0 or tracing times out).
  */
 export async function runChainTrace(params: ChainTraceParams): Promise<ChainTraceResult> {
-  const { tx, settings, api, controller, setState, parentTx, childTx, outspends } = params;
+  const { tx, settings, api, controller, onProgress, parentTx, childTx, outspends } = params;
 
   let backwardLayers: TraceLayer[] = [];
   let forwardLayers: TraceLayer[] = [];
@@ -59,6 +107,9 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
   // Split timeout into two phases so forward tracing always gets a chance
   const halfTimeout = Math.max(settings.timeout * 500, 2000); // ms, at least 2s each
 
+  const progress = (status: FetchProgress["status"], currentDepth: number, txsFetched: number) =>
+    onProgress({ status, timeoutSec: settings.timeout, currentDepth, maxDepth: totalMaxDepth, txsFetched });
+
   // Debounced progress updater (only on depth change or every 500ms)
   let lastProgressUpdate = 0;
   let lastDepth = 0;
@@ -71,16 +122,7 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
     if (currentDepth !== lastDepth || now - lastProgressUpdate >= 500) {
       lastDepth = currentDepth;
       lastProgressUpdate = now;
-      setState((prev) => ({
-        ...prev,
-        fetchProgress: {
-          status,
-          timeoutSec: settings.timeout,
-          currentDepth,
-          maxDepth: totalMaxDepth,
-          txsFetched,
-        },
-      }));
+      progress(status, currentDepth, txsFetched);
     }
   };
 
@@ -90,19 +132,7 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
   const existingChildren = new Map<string, MempoolTransaction>();
   if (childTx) existingChildren.set(childTx.txid, childTx);
 
-  // Entity barrier: stop tracing through known custodial entities (exchanges, etc.)
-  // because they break chain of custody - no link between deposits and withdrawals.
-  const entityBarrier: EntityBarrierCheck = (btx) => {
-    for (const vin of btx.vin) {
-      const addr = vin.prevout?.scriptpubkey_address;
-      if (addr && matchEntitySync(addr)) return true;
-    }
-    for (const vout of btx.vout) {
-      const addr = vout.scriptpubkey_address;
-      if (addr && matchEntitySync(addr)) return true;
-    }
-    return false;
-  };
+  const entityBarrier = buildTraceBarrier(settings);
 
   // --- Phase 1: Backward tracing (first half of timeout) ---
   {
@@ -112,28 +142,21 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
     const backwardTimer = setTimeout(() => backwardAbort.abort(), halfTimeout);
 
     try {
-      setState((prev) => ({
-        ...prev,
-        fetchProgress: {
-          status: "tracing-backward",
-          timeoutSec: settings.timeout,
-          currentDepth: 0,
-          maxDepth: totalMaxDepth,
-          txsFetched: 0,
-        },
-      }));
+      progress("tracing-backward", 0, 0);
 
       const backResult = await traceBackward(
         tx,
         settings.maxDepth,
         settings.minSats,
-        api,
+        phaseApi(api, backwardAbort.signal),
         backwardAbort.signal,
         (p) => updateFetchProgress("tracing-backward", p.currentDepth, p.txsFetched),
         existingParents,
         entityBarrier,
       );
       backwardLayers = backResult.layers;
+      // traceBackward swallows per-branch errors; a timeout or failed fetch still means partial
+      backwardFailed = backResult.aborted || backResult.failedFetches > 0;
     } catch {
       backwardFailed = true;
     }
@@ -153,22 +176,13 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
       const depthOffset = settings.maxDepth;
       const backFetchCount = backwardLayers.reduce((s, l) => s + l.txs.size, 0);
 
-      setState((prev) => ({
-        ...prev,
-        fetchProgress: {
-          status: "tracing-forward",
-          timeoutSec: settings.timeout,
-          currentDepth: depthOffset,
-          maxDepth: totalMaxDepth,
-          txsFetched: backFetchCount,
-        },
-      }));
+      progress("tracing-forward", depthOffset, backFetchCount);
 
       const fwdResult = await traceForward(
         tx,
         settings.maxDepth,
         settings.minSats,
-        api,
+        phaseApi(api, forwardAbort.signal),
         forwardAbort.signal,
         (p) => updateFetchProgress(
           "tracing-forward",
@@ -180,6 +194,7 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
         entityBarrier,
       );
       forwardLayers = fwdResult.layers;
+      forwardFailed = fwdResult.aborted || fwdResult.failedFetches > 0;
     } catch {
       forwardFailed = true;
     }
@@ -194,7 +209,8 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
 /** Parameters for chain analysis (post-trace heuristic phase). */
 interface ChainAnalysisParams {
   tx: MempoolTransaction;
-  result: ScoringResult;
+  /** Chain findings are appended to `result.findings`. */
+  result: { findings: Finding[] };
   backwardLayers: TraceLayer[];
   forwardLayers: TraceLayer[];
   parentTx: MempoolTransaction | null;
@@ -206,11 +222,11 @@ interface ChainAnalysisParams {
 /**
  * Run post-trace chain analysis heuristics (backward, forward, clustering,
  * spending patterns, entity proximity, taint, linkability).
- * Mutates `result.findings` in place to match the original behavior.
+ * Only appends to `result.findings`; the caller's finalizeTxResult applies the
+ * cross-heuristic rules, metadata enrichment and scoring to all findings.
  */
 export async function runChainAnalysis(params: ChainAnalysisParams): Promise<void> {
   const { tx, result, backwardLayers, forwardLayers, parentTx, childTx, outspends, onStep } = params;
-  const tick50 = () => new Promise<void>((r) => setTimeout(r, 50));
   const hasTraceLayers = backwardLayers.length > 0 || forwardLayers.length > 0;
 
   // Build index-keyed maps from trace layers
@@ -220,7 +236,7 @@ export async function runChainAnalysis(params: ChainAnalysisParams): Promise<voi
   // 1. Backward analysis (input provenance)
   let coinJoinInputIndices: number[] = [];
   onStep("chain-backward");
-  await tick50();
+  await tick();
   if (parentTxsByIdx.size > 0) {
     const backwardResult = analyzeBackward(tx, parentTxsByIdx);
     result.findings.push(...backwardResult.findings);
@@ -232,7 +248,7 @@ export async function runChainAnalysis(params: ChainAnalysisParams): Promise<voi
 
   // 2. Forward analysis (output destinations)
   onStep("chain-forward");
-  await tick50();
+  await tick();
   if (childTxsByIdx.size > 0 && outspends) {
     const forwardResult = analyzeForward(tx, outspends, childTxsByIdx);
     result.findings.push(...forwardResult.findings);
@@ -243,7 +259,7 @@ export async function runChainAnalysis(params: ChainAnalysisParams): Promise<voi
 
   // 3. Address clustering
   onStep("chain-cluster");
-  await tick50();
+  await tick();
   if (hasTraceLayers) {
     const txsByAddress = buildTxsByAddress(tx, backwardLayers, forwardLayers);
     // Use first input address as seed
@@ -261,7 +277,7 @@ export async function runChainAnalysis(params: ChainAnalysisParams): Promise<voi
 
   // 4. Spending patterns
   onStep("chain-spending");
-  await tick50();
+  await tick();
   {
     // Build flat map of ALL backward txs across all trace layers for multi-hop ricochet detection
     const allBackwardTxs = new Map<string, MempoolTransaction>();
@@ -282,7 +298,7 @@ export async function runChainAnalysis(params: ChainAnalysisParams): Promise<voi
 
   // 5. Entity proximity scan
   onStep("chain-entity");
-  await tick50();
+  await tick();
   if (hasTraceLayers) {
     const proximityResult = analyzeEntityProximity(tx, backwardLayers, forwardLayers);
     result.findings.push(...proximityResult.findings);
@@ -293,7 +309,7 @@ export async function runChainAnalysis(params: ChainAnalysisParams): Promise<voi
 
   // 6. Taint flow analysis
   onStep("chain-taint");
-  await tick50();
+  await tick();
   if (backwardLayers.length > 0) {
     const entityChecker = (addr: string) => {
       const match = matchEntitySync(addr);
@@ -330,7 +346,4 @@ export async function runChainAnalysis(params: ChainAnalysisParams): Promise<voi
       },
     } satisfies Finding);
   }
-
-  // Enrich chain findings with adversary tier and temporality metadata
-  enrichFindingsWithMetadata(result.findings);
 }

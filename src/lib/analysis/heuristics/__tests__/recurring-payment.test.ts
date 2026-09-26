@@ -23,9 +23,9 @@ describe("analyzeRecurringPayment", () => {
 
     const { findings } = analyzeRecurringPayment(addr, [], txs);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("recurring-payment-pattern");
-    expect(findings[0].scoreImpact).toBe(-5);
-    expect(findings[0].params?.maxFrequency).toBe(2);
+    expect(findings[0]?.id).toBe("recurring-payment-pattern");
+    expect(findings[0]?.scoreImpact).toBe(-5);
+    expect(findings[0]?.params?.maxFrequency).toBe(2);
   });
 
   it("detects high frequency recurring payment (10+ times)", () => {
@@ -39,8 +39,8 @@ describe("analyzeRecurringPayment", () => {
 
     const { findings } = analyzeRecurringPayment(addr, [], txs);
     expect(findings).toHaveLength(1);
-    expect(findings[0].scoreImpact).toBe(-10);
-    expect(findings[0].severity).toBe("critical");
+    expect(findings[0]?.scoreImpact).toBe(-10);
+    expect(findings[0]?.severity).toBe("critical");
   });
 
   it("detects recurring send to same receiver", () => {
@@ -59,7 +59,7 @@ describe("analyzeRecurringPayment", () => {
 
     const { findings } = analyzeRecurringPayment(addr, [], txs);
     expect(findings).toHaveLength(1);
-    expect(findings[0].params?.sendRecurring).toBe(1);
+    expect(findings[0]?.params?.sendRecurring).toBe(1);
   });
 
   it("does not fire with only 1 transaction", () => {
@@ -103,7 +103,7 @@ describe("analyzeRecurringPayment", () => {
 
     const { findings } = analyzeRecurringPayment(addr, [], txs);
     expect(findings).toHaveLength(1);
-    expect(findings[0].scoreImpact).toBe(-7);
-    expect(findings[0].severity).toBe("high");
+    expect(findings[0]?.scoreImpact).toBe(-7);
+    expect(findings[0]?.severity).toBe("high");
   });
 });

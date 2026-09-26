@@ -24,59 +24,59 @@ describe("analyzeCioh", () => {
     const tx = makeTx({ vin: [makeVin()] });
     const { findings } = analyzeCioh(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h3-single-input");
-    expect(findings[0].scoreImpact).toBe(0);
-    expect(findings[0].severity).toBe("good");
+    expect(findings[0]?.id).toBe("h3-single-input");
+    expect(findings[0]?.scoreImpact).toBe(0);
+    expect(findings[0]?.severity).toBe("good");
   });
 
   it("returns h3-cioh with impact -6 for 2 addresses, severity medium", () => {
     const tx = makeTx({ vin: makeVinsWithDistinctAddrs(2) });
     const { findings } = analyzeCioh(tx);
-    expect(findings[0].id).toBe("h3-cioh");
-    expect(findings[0].scoreImpact).toBe(-6);
-    expect(findings[0].severity).toBe("medium");
+    expect(findings[0]?.id).toBe("h3-cioh");
+    expect(findings[0]?.scoreImpact).toBe(-6);
+    expect(findings[0]?.severity).toBe("medium");
   });
 
   it("returns impact -9 for 3 addresses, severity medium", () => {
     const tx = makeTx({ vin: makeVinsWithDistinctAddrs(3) });
     const { findings } = analyzeCioh(tx);
-    expect(findings[0].scoreImpact).toBe(-9);
-    expect(findings[0].severity).toBe("medium");
+    expect(findings[0]?.scoreImpact).toBe(-9);
+    expect(findings[0]?.severity).toBe("medium");
   });
 
   it("returns impact -12 for 4 addresses, severity high", () => {
     const tx = makeTx({ vin: makeVinsWithDistinctAddrs(4) });
     const { findings } = analyzeCioh(tx);
-    expect(findings[0].scoreImpact).toBe(-12);
-    expect(findings[0].severity).toBe("high");
+    expect(findings[0]?.scoreImpact).toBe(-12);
+    expect(findings[0]?.severity).toBe("high");
   });
 
   it("returns impact -15 for 5-9 addresses, severity high", () => {
     const tx = makeTx({ vin: makeVinsWithDistinctAddrs(5) });
     const { findings } = analyzeCioh(tx);
-    expect(findings[0].scoreImpact).toBe(-15);
-    expect(findings[0].severity).toBe("high");
+    expect(findings[0]?.scoreImpact).toBe(-15);
+    expect(findings[0]?.severity).toBe("high");
   });
 
   it("returns impact -25 for 10-19 addresses, severity critical", () => {
     const tx = makeTx({ vin: makeVinsWithDistinctAddrs(10) });
     const { findings } = analyzeCioh(tx);
-    expect(findings[0].scoreImpact).toBe(-25);
-    expect(findings[0].severity).toBe("critical");
+    expect(findings[0]?.scoreImpact).toBe(-25);
+    expect(findings[0]?.severity).toBe("critical");
   });
 
   it("returns impact -35 for 20-49 addresses, severity critical", () => {
     const tx = makeTx({ vin: makeVinsWithDistinctAddrs(20) });
     const { findings } = analyzeCioh(tx);
-    expect(findings[0].scoreImpact).toBe(-35);
-    expect(findings[0].severity).toBe("critical");
+    expect(findings[0]?.scoreImpact).toBe(-35);
+    expect(findings[0]?.severity).toBe("critical");
   });
 
   it("returns impact -45 for 50+ addresses, severity critical", () => {
     const tx = makeTx({ vin: makeVinsWithDistinctAddrs(50) });
     const { findings } = analyzeCioh(tx);
-    expect(findings[0].scoreImpact).toBe(-45);
-    expect(findings[0].severity).toBe("critical");
+    expect(findings[0]?.scoreImpact).toBe(-45);
+    expect(findings[0]?.severity).toBe("critical");
   });
 
   const sameAddrVin = (txid: string) => makeVin({
@@ -88,27 +88,27 @@ describe("analyzeCioh", () => {
     const tx = makeTx({ vin: [sameAddrVin("a".repeat(64)), sameAddrVin("a".repeat(64))] });
     const { findings } = analyzeCioh(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h3-batch-receive-spend");
-    expect(findings[0].severity).toBe("low");
-    expect(findings[0].scoreImpact).toBe(0);
+    expect(findings[0]?.id).toBe("h3-batch-receive-spend");
+    expect(findings[0]?.severity).toBe("low");
+    expect(findings[0]?.scoreImpact).toBe(0);
   });
 
   it("flags same-address inputs from different parent txs as address reuse (#92)", () => {
     const tx = makeTx({ vin: [sameAddrVin("a".repeat(64)), sameAddrVin("b".repeat(64))] });
     const { findings } = analyzeCioh(tx);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h3-input-reuse");
-    expect(findings[0].severity).toBe("high");
-    expect(findings[0].scoreImpact).toBe(-20);
-    expect(findings[0].params?.parentCount).toBe(2);
+    expect(findings[0]?.id).toBe("h3-input-reuse");
+    expect(findings[0]?.severity).toBe("high");
+    expect(findings[0]?.scoreImpact).toBe(-20);
+    expect(findings[0]?.params?.parentCount).toBe(2);
   });
 
   it("escalates input reuse to critical at 5+ distinct receives", () => {
     const tx = makeTx({ vin: ["1", "2", "3", "4", "5"].map((c) => sameAddrVin(c.repeat(64))) });
     const { findings } = analyzeCioh(tx);
-    expect(findings[0].id).toBe("h3-input-reuse");
-    expect(findings[0].severity).toBe("critical");
-    expect(findings[0].scoreImpact).toBe(-30);
+    expect(findings[0]?.id).toBe("h3-input-reuse");
+    expect(findings[0]?.severity).toBe("critical");
+    expect(findings[0]?.scoreImpact).toBe(-30);
   });
 
   it("returns no findings for coinbase transactions", () => {

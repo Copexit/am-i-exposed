@@ -48,9 +48,8 @@ function addBackwardLayers(
   rootChangeIdx: number | null,
   smartFilter: boolean,
 ): void {
-  for (let layerIdx = 0; layerIdx < Math.min(backward.length, 2); layerIdx++) {
+  for (const [layerIdx, layer] of backward.slice(0, 2).entries()) {
     const hopDepth = baseDepth - (layerIdx + 1);
-    const layer = backward[layerIdx];
     for (const [txid, ltx] of layer.txs) {
       if (nodes.size >= maxNodes) return;
       if (nodes.has(txid)) continue;
@@ -80,9 +79,8 @@ function addForwardLayers(
   rootChangeIdx: number | null,
   smartFilter: boolean,
 ): void {
-  for (let layerIdx = 0; layerIdx < Math.min(forward.length, 2); layerIdx++) {
+  for (const [layerIdx, layer] of forward.slice(0, 2).entries()) {
     const hopDepth = baseDepth + (layerIdx + 1);
-    const layer = forward[layerIdx];
     for (const [txid, ltx] of layer.txs) {
       if (nodes.size >= maxNodes) return;
       if (nodes.has(txid)) continue;
@@ -143,9 +141,9 @@ function findParentEdge(
 ): GraphNode["parentEdge"] | undefined {
   for (const [existingTxid, existingNode] of nodes) {
     if (existingNode.depth !== parentDepth) continue;
-    for (let vi = 0; vi < ltx.vin.length; vi++) {
-      if (ltx.vin[vi].txid === existingTxid) {
-        const outputIdx = ltx.vin[vi].vout ?? 0;
+    for (const vin of ltx.vin) {
+      if (vin.txid === existingTxid) {
+        const outputIdx = vin.vout ?? 0;
         return { fromTxid: existingTxid, outputIndex: outputIdx };
       }
     }

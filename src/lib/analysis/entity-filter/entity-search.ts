@@ -58,12 +58,12 @@ export function searchEntitiesByPrefix(
     if (!entry.nameLower.startsWith(q)) continue;
 
     // Up to 2 addresses per entity to keep dropdown manageable
-    const maxAddrs = Math.min(2, entry.addresses.length, limit - results.length);
-    for (let i = 0; i < maxAddrs; i++) {
+    const maxAddrs = Math.min(2, limit - results.length);
+    for (const address of entry.addresses.slice(0, maxAddrs)) {
       results.push({
         entityName: entry.name,
         category: entry.category,
-        address: entry.addresses[i],
+        address,
       });
     }
   }

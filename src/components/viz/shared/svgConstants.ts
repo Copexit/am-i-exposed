@@ -1,40 +1,21 @@
 import type { Grade, Severity } from "@/lib/types";
 import { GRADE_HEX } from "@/lib/constants";
+import { COLORS, HUES, LIGHT_COLORS } from "@/lib/palette";
 
-interface SurfaceColors {
-  readonly background: string;
-  readonly foreground: string;
-  readonly muted: string;
-  readonly cardBg: string;
-  readonly cardBorder: string;
-  readonly surfaceInset: string;
-  readonly surfaceElevated: string;
-}
+type SurfaceKey = keyof typeof LIGHT_COLORS;
+type SurfaceColors = Readonly<Record<SurfaceKey, string>>;
 
-export const DARK_SURFACES: SurfaceColors = {
-  background: "#0c0c0e",
-  foreground: "#f0f0f2",
-  muted: "#d4d4dc",
-  cardBg: "#1c1c20",
-  cardBorder: "#444450",
-  surfaceInset: "#151518",
-  surfaceElevated: "#222228",
-};
+/** Theme-dependent keys: the ones the light theme overrides. */
+const SURFACE_KEY_LIST = Object.keys(LIGHT_COLORS) as SurfaceKey[];
 
-const LIGHT_SURFACES: SurfaceColors = {
-  background: "#f8fafc",
-  foreground: "#0f172a",
-  muted: "#475569",
-  cardBg: "#ffffff",
-  cardBorder: "#cbd5e1",
-  surfaceInset: "#f1f5f9",
-  surfaceElevated: "#ffffff",
-};
+export const DARK_SURFACES: SurfaceColors = Object.fromEntries(
+  SURFACE_KEY_LIST.map((k) => [k, COLORS[k]]),
+) as SurfaceColors;
 
 /** Returns surface colors matching the current theme. Safe to call at render time. */
 export function getSurfaceColors(): SurfaceColors {
   if (typeof document === "undefined") return DARK_SURFACES;
-  return document.documentElement.dataset.theme === "light" ? LIGHT_SURFACES : DARK_SURFACES;
+  return document.documentElement.dataset.theme === "light" ? LIGHT_COLORS : DARK_SURFACES;
 }
 
 type SvgColorMap = {
@@ -55,16 +36,16 @@ type SvgColorMap = {
 };
 
 const STATIC_COLORS: Record<string, string> = {
-  critical: "#ef4444",
-  high: "#f97316",
-  medium: "#eab308",
-  low: "#60a5fa",
-  good: "#28d065",
-  bitcoin: "#f7931a",
-  bitcoinHover: "#e8850f",
+  critical: COLORS.severityCritical,
+  high: COLORS.severityHigh,
+  medium: COLORS.severityMedium,
+  low: COLORS.severityLow,
+  good: COLORS.severityGood,
+  bitcoin: COLORS.bitcoin,
+  bitcoinHover: COLORS.bitcoinHover,
 };
 
-const SURFACE_KEYS = new Set(Object.keys(DARK_SURFACES));
+const SURFACE_KEYS = new Set<string>(SURFACE_KEY_LIST);
 
 /**
  * Hex colors for SVG fills/strokes. Surface properties (background, foreground,
@@ -76,7 +57,7 @@ export const SVG_COLORS: SvgColorMap = new Proxy(
   {
     get(target, prop: string) {
       if (SURFACE_KEYS.has(prop)) {
-        return getSurfaceColors()[prop as keyof typeof DARK_SURFACES];
+        return getSurfaceColors()[prop as SurfaceKey];
       }
       return (target as unknown as Record<string, string>)[prop];
     },
@@ -114,24 +95,24 @@ export const ANIMATION_DEFAULTS = {
 /** Gradient color palette for semantic meaning in charts. */
 export const GRADIENT_COLORS = {
   // Cool (privacy-positive)
-  inputLight: "#60a5fa",
-  inputDark: "#3b82f6",
-  mixerLight: "#28d065",
-  mixerDark: "#059669",
+  inputLight: COLORS.severityLow,
+  inputDark: HUES.blue500,
+  mixerLight: COLORS.severityGood,
+  mixerDark: HUES.emerald600,
 
   // Warm (exposure)
-  outputLight: "#f7931a",
-  outputDark: "#e8850f",
-  changeLight: "#f97316",
-  changeDark: "#dc2626",
-  dustLight: "#ef4444",
-  dustDark: "#991b1b",
+  outputLight: COLORS.bitcoin,
+  outputDark: COLORS.bitcoinHover,
+  changeLight: COLORS.severityHigh,
+  changeDark: HUES.red600,
+  dustLight: COLORS.severityCritical,
+  dustDark: HUES.red800,
 
   // Neutral
-  feeLight: "#6b7280",
-  feeDark: "#4b5563",
-  baseLight: "#9ca3af",
-  baseDark: "#6b7280",
+  feeLight: HUES.gray500,
+  feeDark: HUES.gray600,
+  baseLight: HUES.gray400,
+  baseDark: HUES.gray500,
 } as const;
 
 /** Lookup from waterfall bar type to gradient ID. */

@@ -51,6 +51,7 @@ Or modify `src/lib/analysis/cex-risk/chainalysis-check.ts` directly.
 - **API key**: Stored as a Cloudflare secret (`wrangler secret put`), encrypted at rest, never visible in the dashboard or source code.
 - **CORS**: Restricted to `https://am-i.exposed` via the `ALLOWED_ORIGIN` env var in `wrangler.toml`. Change this if deploying to a different domain.
 - **Endpoint**: Only `GET /address/{btc_address}` is proxied. All other paths return 400.
+- **Rate limit**: 30 requests per minute per client IP (`CF-Connecting-IP`) via the `RATE_LIMITER` binding in `wrangler.toml`. Excess requests get `429` with `Retry-After: 60`. CORS alone cannot stop non-browser callers from spending the API key quota.
 - **No logging**: The worker does not log request data or API responses.
 
 ## Local development

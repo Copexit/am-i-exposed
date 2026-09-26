@@ -9,14 +9,14 @@ export const SEVERITY_STYLES: Record<
     label: "Critical",
     text: "text-severity-critical",
     border: "border-l-severity-critical",
-    glow: "shadow-[inset_4px_0_12px_-4px_rgba(239,68,68,0.25)]",
+    glow: "shadow-[inset_4px_0_12px_-4px_--alpha(var(--color-severity-critical)/25%)]",
   },
   high: {
     dot: "bg-severity-high",
     label: "High",
     text: "text-severity-high",
     border: "border-l-severity-high",
-    glow: "shadow-[inset_4px_0_12px_-4px_rgba(249,115,22,0.2)]",
+    glow: "shadow-[inset_4px_0_12px_-4px_--alpha(var(--color-severity-high)/20%)]",
   },
   medium: {
     dot: "bg-severity-medium",

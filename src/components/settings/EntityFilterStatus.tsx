@@ -26,12 +26,13 @@ export function EntityFilterStatus({ proMode }: EntityFilterStatusProps) {
   const [updateAvailable, setUpdateAvailable] = useState(false);
 
   // Auto-load core entity filter when settings panel renders
-  useEffect(() => { loadEntityFilter().then(() => forceUpdate((n) => n + 1)); }, []);
+  useEffect(() => { void loadEntityFilter().then(() => forceUpdate((n) => n + 1)); }, []);
 
   // Check for full data updates when full filter is loaded
   useEffect(() => {
     if (!isFullFilterLoaded()) return;
-    checkForFullDataUpdate().then((available) => {
+    // Fire-and-forget: the callee catches its own errors.
+    void checkForFullDataUpdate().then((available) => {
       if (available) setUpdateAvailable(true);
     });
   }, []);

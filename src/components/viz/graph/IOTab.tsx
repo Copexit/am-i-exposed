@@ -8,6 +8,8 @@ import { analyzeChangeDetection } from "@/lib/analysis/heuristics/change-detecti
 import { InputRow, OutputRow } from "./OutputRow";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
+import { isOpReturnOutput } from "@/lib/analysis/heuristics/tx-utils";
+import { graphBoltzmannMode } from "@/hooks/useGraphBoltzmann";
 
 export interface IOTabProps {
   tx: MempoolTransaction;
@@ -23,7 +25,10 @@ export interface IOTabProps {
   onAutoTrace?: (txid: string, outputIndex: number) => void;
   onAutoTraceLinkability?: (txid: string, outputIndex: number) => void;
   autoTracing?: boolean;
-  autoTraceProgress?: { hop: number; txid: string; reason: string } | null;
+  autoTraceProgress?: { hop: number; txid: string; reason: string; percent?: number } | null;
+  /** Why the last finished auto-trace stopped, shown once tracing has ended. */
+  autoTraceStop?: string | null;
+  onCancelAutoTrace?: () => void;
 }
 
 export function IOTab({
@@ -41,8 +46,13 @@ export function IOTab({
   onAutoTraceLinkability,
   autoTracing,
   autoTraceProgress,
+  autoTraceStop,
+  onCancelAutoTrace,
 }: IOTabProps) {
   const { t } = useTranslation();
+  // Auto-trace reasons are stable codes; unknown codes fall back to the code itself
+  const traceReason = (reason: string, percent?: number) =>
+    t(`graph.autoTrace.${reason}`, { percent, defaultValue: reason });
   const mat = boltzmannResult?.matLnkProbabilities;
   const detLinks = boltzmannResult?.deterministicLinks;
 
@@ -78,7 +88,7 @@ export function IOTab({
 
   const expandableOutputs = useMemo(() => {
     return tx.vout.flatMap((v, i) => {
-      if (v.scriptpubkey_type === "op_return" || v.value === 0) return [];
+      if (isOpReturnOutput(v) || v.value === 0) return [];
       const os = outspends?.[i];
       if (os && os.spent === false) return [];
       return [i];
@@ -86,7 +96,10 @@ export function IOTab({
   }, [tx, outspends]);
 
   const nonCoinbaseInputCount = tx.vin.filter((v) => !v.is_coinbase).length;
-  const canComputeBoltzmann = !boltzmannResult && !computingBoltzmann && nonCoinbaseInputCount >= 2;
+  // Same rule as the graph's compute (80 I/O cap; 1-input txs get a synthetic matrix)
+  const boltzmannMode = graphBoltzmannMode(tx);
+  const canComputeBoltzmann = !boltzmannResult && !computingBoltzmann &&
+    (boltzmannMode === "auto-compute" || boltzmannMode === "manual-button");
 
   return (
     <div className="p-2 space-y-3">
@@ -97,9 +110,23 @@ export function IOTab({
           <span className="text-xs text-bitcoin">
             {t("graph.ioTab.tracingHop", { hop: autoTraceProgress.hop, defaultValue: "Tracing hop {{hop}}..." })}
             {autoTraceProgress.reason !== "expanding" && autoTraceProgress.reason !== "starting" && (
-              <span className="text-muted ml-1">({autoTraceProgress.reason})</span>
+              <span className="text-muted ml-1">({traceReason(autoTraceProgress.reason, autoTraceProgress.percent)})</span>
             )}
           </span>
+          {onCancelAutoTrace && (
+            <button
+              type="button"
+              onClick={onCancelAutoTrace}
+              className="ml-auto text-xs text-bitcoin/70 hover:text-bitcoin transition-colors cursor-pointer"
+            >
+              {t("graph.ioTab.stopTrace", { defaultValue: "Stop" })}
+            </button>
+          )}
+        </div>
+      )}
+      {!autoTracing && autoTraceStop && (
+        <div className="px-1 py-1 text-xs text-muted">
+          {t("graph.ioTab.traceStopped", { reason: traceReason(autoTraceStop), defaultValue: "Trace stopped: {{reason}}" })}
         </div>
       )}
 

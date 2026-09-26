@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { analyzeCoinJoin, isCoinJoinFinding } from "../coinjoin";
+import { readFileSync } from "fs";
+import { join } from "path";
+import type { MempoolTransaction } from "@/lib/api/types";
+import { analyzeCoinJoin, isCoinJoinFinding, isCoinJoinTx } from "../coinjoin";
 import { makeTx, makeVin, makeVout, resetAddrCounter } from "./fixtures/tx-factory";
 // Use literal sat values to keep tests decoupled from the WHIRLPOOL_POOLS layout.
 
@@ -33,9 +36,24 @@ describe("analyzeCoinJoin", () => {
     const { findings } = analyzeCoinJoin(tx);
     // Whirlpool returns early - only 1 finding, no exchange-flagging
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h4-whirlpool");
-    expect(findings[0].scoreImpact).toBe(30);
-    expect(findings[0].severity).toBe("good");
+    expect(findings[0]!.id).toBe("h4-whirlpool");
+    expect(findings[0]!.scoreImpact).toBe(30);
+    expect(findings[0]!.severity).toBe("good");
+  });
+
+  it("detects Whirlpool when one participant remixes back to its own input address", () => {
+    const denom = 1_000_000;
+    const vin = makeDistinctVins(5);
+    const reusedAddr = vin[0]!.prevout!.scriptpubkey_address;
+    const tx = makeTx({
+      vin,
+      vout: [
+        makeVout({ value: denom, scriptpubkey_address: reusedAddr }),
+        ...Array.from({ length: 4 }, () => makeVout({ value: denom })),
+      ],
+    });
+    expect(analyzeCoinJoin(tx).findings[0]!.id).toBe("h4-whirlpool");
+    expect(isCoinJoinTx(tx)).toBe(true);
   });
 
   it("does not detect Whirlpool with only 4 equal outputs", () => {
@@ -61,8 +79,8 @@ describe("analyzeCoinJoin", () => {
       ],
     });
     const { findings } = analyzeCoinJoin(tx);
-    expect(findings[0].id).toBe("h4-whirlpool");
-    expect(findings[0].scoreImpact).toBe(30);
+    expect(findings[0]!.id).toBe("h4-whirlpool");
+    expect(findings[0]!.scoreImpact).toBe(30);
   });
 
   it("detects Whirlpool 8x8 (8 equal outputs at known denom)", () => {
@@ -72,8 +90,8 @@ describe("analyzeCoinJoin", () => {
       vout: Array.from({ length: 8 }, () => makeVout({ value: denom })),
     });
     const { findings } = analyzeCoinJoin(tx);
-    expect(findings[0].id).toBe("h4-whirlpool");
-    expect(findings[0].scoreImpact).toBe(30);
+    expect(findings[0]!.id).toBe("h4-whirlpool");
+    expect(findings[0]!.scoreImpact).toBe(30);
   });
 
   it("detects Whirlpool 9x9 (9 equal outputs at known denom)", () => {
@@ -83,8 +101,8 @@ describe("analyzeCoinJoin", () => {
       vout: Array.from({ length: 9 }, () => makeVout({ value: denom })),
     });
     const { findings } = analyzeCoinJoin(tx);
-    expect(findings[0].id).toBe("h4-whirlpool");
-    expect(findings[0].scoreImpact).toBe(30);
+    expect(findings[0]!.id).toBe("h4-whirlpool");
+    expect(findings[0]!.scoreImpact).toBe(30);
   });
 
   // ── Whirlpool era attribution (Samourai vs Ashigaru) ─────────────────
@@ -430,7 +448,7 @@ describe("analyzeCoinJoin", () => {
       vout: Array.from({ length: 9 }, () => makeVout({ value: denom })),
     });
     const { findings } = analyzeCoinJoin(tx);
-    expect(findings[0].id).toBe("h4-whirlpool");
+    expect(findings[0]!.id).toBe("h4-whirlpool");
   });
 
   it("rejects 10 equal outputs at Whirlpool denom as generic CoinJoin (not Whirlpool)", () => {
@@ -441,7 +459,7 @@ describe("analyzeCoinJoin", () => {
     });
     const { findings } = analyzeCoinJoin(tx);
     expect(findings.find((f) => f.id === "h4-whirlpool")).toBeUndefined();
-    expect(findings[0].id).toBe("h4-coinjoin");
+    expect(findings[0]!.id).toBe("h4-coinjoin");
   });
 
   it("does not detect JoinMarket with 11 inputs", () => {
@@ -533,7 +551,7 @@ describe("analyzeCoinJoin", () => {
     // with 1 equal pair (9,136,520) + 2 change. Previously misclassified as
     // JoinMarket because detectStonewall capped non-Whirlpool inputs at 4.
     const tx = makeTx({
-      vin: Array.from({ length: 9 }, (_, i) =>
+      vin: [203_486, 5_000_000, 11_126, 9_829, 9_572_867, 13_796, 150_000, 82_835, 5_000_000].map((value, i) =>
         makeVin({
           txid: String(i).padStart(64, "b"),
           prevout: {
@@ -541,7 +559,7 @@ describe("analyzeCoinJoin", () => {
             scriptpubkey_asm: "",
             scriptpubkey_type: "v0_p2wpkh",
             scriptpubkey_address: `bc1qutxo${String(i).padStart(33, "0")}`,
-            value: [203_486, 5_000_000, 11_126, 9_829, 9_572_867, 13_796, 150_000, 82_835, 5_000_000][i],
+            value,
           },
         }),
       ),
@@ -610,10 +628,10 @@ describe("analyzeCoinJoin", () => {
       ],
     });
     const { findings } = analyzeCoinJoin(tx);
-    expect(findings[0].id).toBe("h4-coinjoin");
-    expect(findings[0].params?.isWasabi1).toBe(1);
-    expect(findings[0].params?.levels).toBe(3);
-    expect(findings[0].params?.count).toBe(12);
+    expect(findings[0]!.id).toBe("h4-coinjoin");
+    expect(findings[0]!.params?.isWasabi1).toBe(1);
+    expect(findings[0]!.params?.levels).toBe(3);
+    expect(findings[0]!.params?.count).toBe(12);
   });
 
   it("detects Wasabi 1.x from the fixed coordinator address without levels", () => {
@@ -626,8 +644,8 @@ describe("analyzeCoinJoin", () => {
       ],
     });
     const { findings } = analyzeCoinJoin(tx);
-    expect(findings[0].params?.isWasabi1).toBe(1);
-    expect(findings[0].params?.levels).toBe(1);
+    expect(findings[0]!.params?.isWasabi1).toBe(1);
+    expect(findings[0]!.params?.levels).toBe(1);
   });
 
   it("does not treat exact 2x standard denominations (WabiSabi) as Wasabi 1.x", () => {
@@ -637,5 +655,53 @@ describe("analyzeCoinJoin", () => {
     });
     const { findings } = analyzeCoinJoin(tx);
     expect(findings.some((f) => f.params?.isWasabi1 === 1)).toBe(false);
+  });
+});
+
+describe("CoinJoin detection ignores single-owner structure", () => {
+  const CORPUS = join(__dirname, "fixtures/api-responses/corpus");
+  const corpusTx = (txid: string) =>
+    (JSON.parse(readFileSync(join(CORPUS, `${txid}.json`), "utf-8")) as { tx: MempoolTransaction }).tx;
+  const vinFrom = (address: string, value: number) =>
+    makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: address, value } });
+
+  it("does not flag equal outputs when every input comes from one address", () => {
+    const tx = makeTx({
+      vin: [vinFrom("bc1qsingleowner", 600_000), vinFrom("bc1qsingleowner", 900_000)],
+      vout: [...Array.from({ length: 6 }, () => makeVout({ value: 200_000 })), makeVout({ value: 290_000 })],
+    });
+    expect(analyzeCoinJoin(tx).findings.some(isCoinJoinFinding)).toBe(false);
+    expect(isCoinJoinTx(tx)).toBe(false);
+  });
+
+  it("does not count outputs paying back to an input address as equal outputs", () => {
+    const reused = "bc1qreusedinput";
+    const tx = makeTx({
+      vin: [vinFrom(reused, 400_000), makeVin()],
+      vout: [makeVout({ value: 50_000 }), ...Array.from({ length: 6 }, () => makeVout({ value: 50_000, scriptpubkey_address: reused }))],
+    });
+    expect(analyzeCoinJoin(tx).findings.some(isCoinJoinFinding)).toBe(false);
+    expect(isCoinJoinTx(tx)).toBe(false);
+  });
+
+  it("still detects a CoinJoin when inputs come from distinct addresses", () => {
+    const tx = makeTx({
+      vin: [vinFrom("bc1qpartya", 600_000), vinFrom("bc1qpartyb", 900_000)],
+      vout: [...Array.from({ length: 6 }, () => makeVout({ value: 200_000 })), makeVout({ value: 290_000 })],
+    });
+    expect(analyzeCoinJoin(tx).findings.some(isCoinJoinFinding)).toBe(true);
+    expect(isCoinJoinTx(tx)).toBe(true);
+  });
+
+  it("ebe3d1ad (2 inputs from one address, 10x 546 back to it) is not a JoinMarket round", () => {
+    const tx = corpusTx("ebe3d1ad3798ec45d9be5dcff476fe54ff36ddc0c9ac8ff9d5acb08d485d340e");
+    expect(analyzeCoinJoin(tx).findings.some(isCoinJoinFinding)).toBe(false);
+    expect(isCoinJoinTx(tx)).toBe(false);
+  });
+
+  it("53d885d1 (7 of 8 outputs back to an input address) is not a CoinJoin", () => {
+    const tx = corpusTx("53d885d1aa07f481ae4d5e1976fc3b8a230c8dafe0f94167dfc02ebc2b9b071a");
+    expect(analyzeCoinJoin(tx).findings.some(isCoinJoinFinding)).toBe(false);
+    expect(isCoinJoinTx(tx)).toBe(false);
   });
 });

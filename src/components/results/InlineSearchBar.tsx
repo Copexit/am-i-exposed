@@ -64,7 +64,7 @@ export function InlineSearchBar({ onScan, initialValue }: { onScan: (input: stri
           aria-label={t("input.placeholderScan", { defaultValue: "Paste a Bitcoin address or transaction ID" })}
           className="w-full rounded-lg border border-card-border bg-surface-elevated/50 pl-8 pr-16 py-2 min-h-[44px]
             font-mono text-sm text-foreground placeholder:text-muted/50
-            focus:border-bitcoin/40 focus:shadow-[0_0_8px_rgba(247,147,26,0.1)]
+            focus:border-bitcoin/40 focus:shadow-[0_0_8px_--alpha(var(--color-bitcoin)/10%)]
             focus-visible:outline-2 focus-visible:outline-bitcoin/50
             transition-all duration-150"
         />

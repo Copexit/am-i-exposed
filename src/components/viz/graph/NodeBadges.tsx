@@ -34,7 +34,7 @@ export function NodeBadges({
   const badges: Badge[] = [];
   if (isCoinJoin) badges.push({ label: coinJoinType ?? "CJ", bg: SVG_COLORS.good, fg: SVG_COLORS.background });
   if (isOfac) badges.push({ label: "OFAC", bg: SVG_COLORS.critical, fg: SVG_COLORS.background });
-  if (isToxicMerge) badges.push({ label: "TOXIC", bg: "#ef4444", fg: SVG_COLORS.background });
+  if (isToxicMerge) badges.push({ label: "TOXIC", bg: SVG_COLORS.critical, fg: SVG_COLORS.background });
   if (isUnconfirmed) badges.push({ label: unconfirmedLabel ?? "Unconfirmed", bg: SVG_COLORS.medium, fg: SVG_COLORS.background });
   if (badges.length === 0) return null;
 
@@ -43,7 +43,7 @@ export function NodeBadges({
   const reversed = [...badges].reverse();
   const positioned = reversed.reduce<Array<Badge & { x: number; tw: number }>>((acc, b) => {
     const tw = b.label.length * 5.5 + 8;
-    const prevX = acc.length > 0 ? acc[acc.length - 1].x : nodeX + nodeWidth - 4;
+    const prevX = acc.at(-1)?.x ?? nodeX + nodeWidth - 4;
     const x = prevX - tw - 2;
     acc.push({ ...b, x, tw });
     return acc;

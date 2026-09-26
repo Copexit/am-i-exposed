@@ -13,13 +13,13 @@ Key concepts adopted from SIP-001:
 
 - **Temporality classification.** Findings differ in whether the damage is fixable. `HISTORICAL` findings are permanently on-chain. `ONGOING_PATTERN` findings reflect changeable behavior. `ACTIVE_RISK` findings represent unspent UTXOs where the user can still act. This maps directly to user intent: "what can I still do about this?"
 
-- **Formal finding dependency model.** SIP-001's `specializes/generalizes/implies` edges provide a clean declarative model for the finding suppression and deduplication that am-i-exposed currently implements procedurally in `cross-heuristic.ts`. While am-i-exposed's compound rules (RBF x Change, post-mix entity escalation) are more sophisticated than simple edges can express, the declarative model is cleaner for basic specialization/generalization cases.
+- **Formal finding dependency model.** SIP-001's `specializes/generalizes/implies` edges provide a clean declarative model for the finding suppression and deduplication that am-i-exposed currently implements procedurally in `cross-heuristic/`. While am-i-exposed's compound rules (RBF x Change, post-mix entity escalation) are more sophisticated than simple edges can express, the declarative model is cleaner for basic specialization/generalization cases.
 
 - **Confidence in scoring.** SIP-001 uses `severity_weight x confidence_multiplier` rather than hand-tuned impact numbers. am-i-exposed already populates confidence on most findings but doesn't use it in scoring - an opportunity for future improvement.
 
 - **CHANGE_REUSE as distinct finding.** Change reuse (sending change to a previously-funded address) directly collapses two transaction histories. am-i-exposed detects both signals independently but doesn't escalate their intersection.
 
-- **BEHAVIORAL_FINGERPRINT rollup.** A compound finding that fires when >=2 behavioral sub-signals (fee rate, RBF, output ordering, amount patterns) co-occur, escalating to CRITICAL at >=4. am-i-exposed implements this as `applyBehavioralRollup()` in cross-heuristic.ts, emitting a compound finding at 2+ signals and escalating to critical at 4+.
+- **BEHAVIORAL_FINGERPRINT rollup.** A compound finding that fires when >=2 behavioral sub-signals (fee rate, RBF, output ordering, amount patterns) co-occur, escalating to CRITICAL at >=4. am-i-exposed implements this as `applyBehavioralRollup()` in cross-heuristic/behavioral-rollup.ts, emitting a compound finding at 2+ signals and escalating to critical at 4+.
 
 - **UTXO_AGE_SPREAD.** Flagging when co-spent UTXOs have vastly different creation heights reveals dormancy patterns to chain analysts. This is now implemented as `utxo-age-spread.ts`, detecting co-spent UTXOs with creation heights spanning 1+ years.
 
@@ -109,7 +109,6 @@ Dynamic finding IDs (e.g., `h7-op-return-0`, `h7-op-return-1`) fall back to pref
 | `h2-change-detected`, `h2-self-send` | passive, kyc | historical | Change identification enables fund tracing |
 | `h2-same-address-io` | passive, kyc, state | historical | Deterministic leak, any adversary exploits this |
 | `h2-sweep`, `h2-data-payment`, `h2-wallet-hop` | passive | historical | Structural patterns, low severity |
-| `h2-value-disparity` | passive, kyc | historical | Value ratio reveals payment/change split |
 | `h3-cioh` | passive, kyc, state | historical | Core clustering heuristic used by all adversary tiers |
 | `h3-single-input` | passive | historical | Informational (positive) |
 | `h4-whirlpool`, `h4-coinjoin`, `h4-joinmarket`, `h4-stonewall`, `h4-simplified-stonewall` | passive | historical | CoinJoin detection (positive findings) |
@@ -177,7 +176,6 @@ Dynamic finding IDs (e.g., `h7-op-return-0`, `h7-op-return-1`) fall back to pref
 | `chain-entity-proximity-backward`, `chain-entity-proximity-forward` | kyc, state | historical | Entity in graph |
 | `chain-taint-backward` | kyc, state | historical | Taint propagation |
 | `chain-cluster-size` | passive, kyc, state | historical | Cluster size measurement |
-| `chain-coinjoin-quality` | passive | historical | CoinJoin quality assessment |
 | `chain-near-exact-spend` | passive | historical | Near-exact spend pattern |
 | `chain-ricochet` | passive | historical | Ricochet detection (positive) |
 | `chain-sweep-chain` | passive | historical | Sweep chain pattern |
@@ -186,14 +184,8 @@ Dynamic finding IDs (e.g., `h7-op-return-0`, `h7-op-return-1`) fall back to pref
 | `chain-kyc-consolidation-before-cj` | passive | historical | Positive pattern |
 | `chain-trace-summary` | passive | historical | Trace overview (informational) |
 | `chain-trace-partial` | passive | historical | Incomplete trace (data quality) |
-| `chain-post-coinjoin-direct-spend` | passive, kyc, state | historical | Post-CoinJoin output spent directly to entity |
-| `no-consolidation`, `no-mix-origins`, `fresh-addresses`, `time-elapsed`, `small-change` | passive | historical | CoinJoin quality sub-findings (positive indicators) |
 | `utxo-age-spread` | passive, kyc | historical | Co-spent UTXOs with large age spread |
-| `peel-chain-trace` | passive, kyc, state | historical | Multi-hop peel chain (full trace requires state resources) |
-| `peel-chain-trace-short` | passive, kyc | historical | Short peel chain trace |
-| `linkability-deterministic`, `linkability-ambiguous`, `linkability-equal-subset` | passive | historical | Linkability analysis |
-| `joinmarket-subset-sum`, `joinmarket-subset-sum-resistant` | passive, state | historical | Subset-sum analysis |
-| `joinmarket-taker-maker`, `joinmarket-anon-set` | passive, state | historical | JoinMarket role identification |
+| `linkability-deterministic`, `linkability-equal-subset` | passive | historical | Linkability analysis |
 
 ### Temporal & Prospective Analysis
 
@@ -242,7 +234,7 @@ Filters are visual only. Score includes all findings regardless of filter state.
 
 ## Dependency Graph Concepts
 
-The registry creates the foundation for formalizing finding relationships. Currently `cross-heuristic.ts` uses procedural if-then rules for finding suppression. Many of these encode implicit specialization/generalization edges:
+The registry creates the foundation for formalizing finding relationships. Currently `cross-heuristic/` uses procedural if-then rules for finding suppression. Many of these encode implicit specialization/generalization edges:
 
 | Relationship | Current Implementation | Declarative Equivalent |
 |---|---|---|
@@ -267,8 +259,8 @@ Complex compound rules (RBF x Change, post-mix entity escalation, wallet paradox
 |---|---|
 | `src/lib/types.ts` | AdversaryTier, TemporalityClass types; Finding interface extension |
 | `src/lib/analysis/finding-metadata.ts` | Centralized registry + enrichment function |
-| `src/lib/analysis/orchestrator.ts` | Enrichment call after cross-heuristic rules |
-| `src/hooks/useChainTrace.ts` | Enrichment call for chain findings |
+| `src/lib/analysis/tx-pipeline.ts` | `finalizeTxResult()`: the single tx enrichment call, after cross-heuristic rules, on heuristic and chain findings together |
+| `src/lib/analysis/orchestrator.ts` | Enrichment call for address analysis |
 | `src/components/FindingCard.tsx` | Badge rendering (pro mode) |
 | `src/components/results/FindingsSection.tsx` | Filter controls (pro mode) |
 | `docs/privacy-engine.md` | Per-heuristic metadata boxes |

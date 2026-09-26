@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useRef, useState, lazy, Suspense, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
+import { Loader2 } from "lucide-react";
 import { DiagnosticLoader } from "@/components/DiagnosticLoader";
 import { ResultsPanel } from "@/components/ResultsPanel";
 import { InstallPrompt } from "@/components/InstallPrompt";
@@ -23,6 +24,7 @@ import { useBookmarks } from "@/hooks/useBookmarks";
 import { useKeyboardNav } from "@/hooks/useKeyboardNav";
 import { useHashRouting } from "@/hooks/useHashRouting";
 import { XpubPrivacyWarning, isXpubPrivacyAcked } from "@/components/wallet/XpubPrivacyWarning";
+import { blurInMotion } from "@/components/results/animations";
 const NetworkSwitchToast = lazy(() => import("@/components/NetworkSwitchToast").then(m => ({ default: m.NetworkSwitchToast })));
 const TipToast = lazy(() => import("@/components/TipToast").then(m => ({ default: m.TipToast })));
 const WalletAuditResults = lazy(() => import("@/components/wallet/WalletAuditResults").then(m => ({ default: m.WalletAuditResults })));
@@ -86,13 +88,12 @@ export default function Home() {
   const [pendingXpub, setPendingXpub] = useState<string | null>(null);
 
   // Detect third-party API (not Umbrel and no custom API)
-  const { customApiUrl, isUmbrel, config, localApiStatus } = useNetwork();
+  const { customApiUrl, isUmbrel, config } = useNetwork();
   const isThirdPartyApi = !isUmbrel && !customApiUrl;
 
   // Hash routing (refs, hashchange listener, initial hash detection)
   const { pendingHash, dismissPendingHash, skipNextHashChangeRef } = useHashRouting(
     { analyze, walletAnalyze: wallet.analyze, reset, walletReset: wallet.reset, isThirdPartyApi, setPendingXpub },
-    localApiStatus,
   );
 
   // Register service worker
@@ -143,7 +144,8 @@ export default function Home() {
     if (oldHash !== newHash) skipNextHashChangeRef.current = true;
     window.location.hash = newHash;
     reset();
-    wallet.analyze(input);
+    // Fire-and-forget: the callee catches its own errors.
+    void wallet.analyze(input);
   }, [reset, wallet, skipNextHashChangeRef]);
 
   const handleXpubConfirm = useCallback(() => {
@@ -158,12 +160,14 @@ export default function Home() {
       startXpubScan(input);
       return;
     }
-    if (isPSBT(input)) { wallet.reset(); analyze(input); return; }
+    // Fire-and-forget: the callee catches its own errors.
+    if (isPSBT(input)) { wallet.reset(); void analyze(input); return; }
     const prefix = input.length === 64 ? "tx" : "addr";
     const newHash = `${prefix}=${encodeURIComponent(input)}`;
     const oldHash = window.location.hash.slice(1);
     window.location.hash = newHash;
-    if (oldHash === newHash) { wallet.reset(); analyze(input); }
+    // Fire-and-forget: the callee catches its own errors.
+    if (oldHash === newHash) { wallet.reset(); void analyze(input); }
   }, [analyze, isThirdPartyApi, startXpubScan, wallet]);
 
   const handleBack = useCallback(() => {
@@ -195,6 +199,15 @@ export default function Home() {
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-3 sm:px-4 xl:px-8 2xl:px-10 py-4 sm:py-6">
       <div className="sr-only" role="status" aria-live="polite">{ariaStatus}</div>
+      {/* Deep link waiting for backend detection (local API / Tor probe, up to ~10s).
+          Kept outside AnimatePresence mode="wait": a fast scan finishing during its exit
+          animation could leave the switch stuck on this loader. */}
+      {phase === "idle" && pendingHash && !walletActive && (
+        <div data-testid="pending-hash-loader" className="flex items-center gap-2 text-sm text-muted">
+          <Loader2 size={16} className="animate-spin text-bitcoin" aria-hidden="true" />
+          {t("common.loading", { defaultValue: "Loading..." })}
+        </div>
+      )}
       <AnimatePresence mode="wait">
         {phase === "idle" && !pendingHash && !walletActive && (
           <HeroSection
@@ -214,10 +227,7 @@ export default function Home() {
         {(phase === "fetching" || phase === "analyzing") && (
           <motion.div
             key="loading"
-            initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            exit={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+            {...blurInMotion}
             data-testid="diagnostic-loader"
             className="flex flex-col items-center gap-6 w-full max-w-3xl"
           >

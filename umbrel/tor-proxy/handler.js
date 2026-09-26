@@ -183,6 +183,13 @@ function createHandler({
       });
       res.end(body);
     } catch (err) {
+      // The upstream worker's per-IP quota is shared per Tor exit: pass the
+      // 429 through so the UI can say "retry shortly" instead of "sidecar down".
+      if (err.status === 429) {
+        res.writeHead(429, { "Content-Type": "application/json", "Retry-After": "60" });
+        res.end(JSON.stringify({ error: "Rate limit exceeded" }));
+        return;
+      }
       logger.error(`Tor proxy error: ${err.message}`);
       res.writeHead(502, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: "Tor proxy upstream request failed" }));

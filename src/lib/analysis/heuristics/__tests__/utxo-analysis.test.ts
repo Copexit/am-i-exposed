@@ -49,9 +49,9 @@ describe("analyzeUtxos", () => {
     const utxos = [makeUtxo({ value: 50_000 }), makeUtxo({ value: 30_000 })];
     const { findings } = analyzeUtxos(addr, utxos, []);
     expect(findings).toHaveLength(1);
-    expect(findings[0].id).toBe("h9-clean");
-    expect(findings[0].scoreImpact).toBe(2);
-    expect(findings[0].severity).toBe("good");
+    expect(findings[0]?.id).toBe("h9-clean");
+    expect(findings[0]?.scoreImpact).toBe(2);
+    expect(findings[0]?.severity).toBe("good");
   });
 
   it("returns empty for no UTXOs", () => {

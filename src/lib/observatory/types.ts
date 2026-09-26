@@ -107,13 +107,6 @@ export interface WhirlpoolTxsPage {
   total_pages: number;
 }
 
-export interface WhirlpoolStructuredError {
-  error: {
-    code: "UPSTREAM_DOWN" | "UPSTREAM_HTTP";
-    message: string;
-  };
-}
-
 // ---------- liquisabi.com ----------
 
 export interface LiquiSabiSavedRound {

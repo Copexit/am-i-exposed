@@ -6,6 +6,7 @@ import type { Finding, Grade } from "@/lib/types";
 import { getSummarySentiment } from "@/lib/scoring/score";
 import { useTranslation } from "react-i18next";
 import { GRADE_COLORS, GRADE_HEX } from "@/lib/constants";
+import { hexToRgba } from "@/lib/palette";
 
 const GRADE_MARKERS = [
   { pos: 0, label: "F" },
@@ -19,14 +20,6 @@ interface ScoreDisplayProps {
   score: number;
   grade: Grade;
   findings?: Finding[];
-}
-
-/** Convert hex color to rgba string with given opacity. */
-function hexToRgba(hex: string, alpha: number): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 /** Glow colors derived from GRADE_HEX with grade-specific opacity. */
@@ -114,9 +107,9 @@ export function ScoreDisplay({ score, grade, findings }: ScoreDisplayProps) {
               scale: 1,
               opacity: 1,
               textShadow: [
-                `0 0 20px rgba(40, 208, 101, 0.3)`,
-                `0 0 35px rgba(40, 208, 101, 0.5)`,
-                `0 0 20px rgba(40, 208, 101, 0.3)`,
+                `0 0 20px ${hexToRgba(GRADE_HEX["A+"], 0.3)}`,
+                `0 0 35px ${hexToRgba(GRADE_HEX["A+"], 0.5)}`,
+                `0 0 20px ${hexToRgba(GRADE_HEX["A+"], 0.3)}`,
               ],
             } : { scale: 1, opacity: 1 }}
             transition={grade === "A+" ? {

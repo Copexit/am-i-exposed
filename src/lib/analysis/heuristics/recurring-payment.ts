@@ -1,5 +1,6 @@
 import type { AddressHeuristic } from "./types";
 import type { Finding } from "@/lib/types";
+import { isOpReturnOutput } from "./tx-utils";
 
 /**
  * Recurring Payment Pattern Detection
@@ -51,7 +52,7 @@ export const analyzeRecurringPayment: AddressHeuristic = (address, _utxos, txs) 
       // Who did we send to? Collect output addresses
       for (const vout of tx.vout) {
         const recvAddr = vout.scriptpubkey_address;
-        if (recvAddr && recvAddr !== targetAddr && vout.scriptpubkey_type !== "op_return") {
+        if (recvAddr && recvAddr !== targetAddr && !isOpReturnOutput(vout)) {
           receiverCounts.set(recvAddr, (receiverCounts.get(recvAddr) ?? 0) + 1);
         }
       }
@@ -66,9 +67,9 @@ export const analyzeRecurringPayment: AddressHeuristic = (address, _utxos, txs) 
   if (totalRecurring === 0) return { findings };
 
   // Most frequent counterparty
-  const allCounterparties = [...recurringReceive, ...recurringSend];
-  allCounterparties.sort((a, b) => b[1] - a[1]);
-  const maxFrequency = allCounterparties[0][1];
+  const maxFrequency = Math.max(
+    ...[...recurringReceive, ...recurringSend].map(([, count]) => count),
+  );
 
   // Scale impact: 2-3 repeats = -5, 4-9 = -7, 10+ = -10
   let impact = -5;

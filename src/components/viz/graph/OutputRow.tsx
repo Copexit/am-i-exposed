@@ -9,6 +9,34 @@ import { getScriptTypeColor } from "./scriptStyles";
 import { probColor } from "../shared/linkabilityColors";
 import { CopyButton } from "@/components/ui/CopyButton";
 import type { MempoolVin, MempoolVout, MempoolOutspend } from "@/lib/api/types";
+import { isOpReturnOutput } from "@/lib/analysis/heuristics/tx-utils";
+
+// ---------- Shared bits ----------
+
+/** Known-entity name (plus OFAC tag) under an address. */
+function EntityLine({ entity }: { entity: ReturnType<typeof matchEntitySync> }) {
+  if (!entity) return null;
+  return (
+    <div className="text-xs text-muted truncate">
+      <span style={{ color: SVG_COLORS.high }}>{entity.entityName}</span>
+      {entity.ofac && <span className="text-severity-critical ml-1">OFAC</span>}
+    </div>
+  );
+}
+
+/** Hover-revealed arrow that expands this input/output into the graph. */
+function ExpandInGraphButton({ onClick }: { onClick: () => void }) {
+  const { t } = useTranslation();
+  return (
+    <button
+      onClick={onClick}
+      className="opacity-0 group-hover:opacity-100 text-muted/60 hover:text-foreground transition-all cursor-pointer p-0.5"
+      title={t("graph.expandInGraph", { defaultValue: "Expand in graph" })}
+    >
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+    </button>
+  );
+}
 
 // ---------- InputRow ----------
 
@@ -46,19 +74,15 @@ export function InputRow({
           </span>
           {!vin.is_coinbase && addr !== "unknown" && <CopyButton text={addr} variant="inline" />}
         </div>
-        {entity && (
-          <div className="text-xs text-muted truncate">
-            <span style={{ color: SVG_COLORS.high }}>{entity.entityName}</span>
-            {entity.ofac && <span className="text-severity-critical ml-1">OFAC</span>}
-          </div>
-        )}
+        <EntityLine entity={entity} />
       </div>
       <span className="text-xs text-bitcoin/80 shrink-0 tabular-nums">{formatSats(value)}</span>
       {/* Linkability indicator */}
       {mat && !vin.is_coinbase && (() => {
         let maxP = 0;
-        for (let oi = 0; oi < mat.length; oi++) {
-          if (mat[oi]?.[index] !== undefined && mat[oi][index] > maxP) maxP = mat[oi][index];
+        for (const row of mat) {
+          const p = row[index];
+          if (p !== undefined && p > maxP) maxP = p;
         }
         if (maxP <= 0) return null;
         const isDet = detLinks?.some(([, inIdx]) => inIdx === index);
@@ -67,19 +91,15 @@ export function InputRow({
           <button
             className={`shrink-0 w-2.5 h-2.5 rounded-full cursor-pointer transition-all ${isSelected ? "ring-2 ring-foreground/40 scale-125" : ""}`}
             style={{ backgroundColor: probColor(maxP), opacity: isDet ? 1 : 0.7 }}
-            title={`${Math.round(maxP * 100)}% max linkability${isDet ? " (deterministic)" : ""} - click to see per-output breakdown`}
+            title={isDet
+              ? t("graph.ioTab.inputMaxLinkabilityDet", { pct: Math.round(maxP * 100), defaultValue: "{{pct}}% max linkability (deterministic) - click to see per-output breakdown" })
+              : t("graph.ioTab.inputMaxLinkability", { pct: Math.round(maxP * 100), defaultValue: "{{pct}}% max linkability - click to see per-output breakdown" })}
             onClick={(e) => { e.stopPropagation(); onSelectInput(isSelected ? null : index); }}
           />
         );
       })()}
       {onExpandInput && !vin.is_coinbase && (
-        <button
-          onClick={() => onExpandInput(txid, index)}
-          className="opacity-0 group-hover:opacity-100 text-muted/60 hover:text-foreground transition-all cursor-pointer p-0.5"
-          title={t("graph.expandInGraph", { defaultValue: "Expand in graph" })}
-        >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-        </button>
+        <ExpandInGraphButton onClick={() => onExpandInput(txid, index)} />
       )}
     </div>
   );
@@ -119,9 +139,9 @@ export function OutputRow({
   autoTracing,
 }: OutputRowProps) {
   const { t } = useTranslation();
-  const addr = vout.scriptpubkey_address ?? (vout.scriptpubkey_type === "op_return" ? t("graph.opReturn", { defaultValue: "OP_RETURN" }) : t("graph.unknown", { defaultValue: "unknown" }));
+  const addr = vout.scriptpubkey_address ?? (isOpReturnOutput(vout) ? t("graph.opReturn", { defaultValue: "OP_RETURN" }) : t("graph.unknown", { defaultValue: "unknown" }));
   const entity = vout.scriptpubkey_address ? matchEntitySync(vout.scriptpubkey_address) : null;
-  const canExpand = vout.scriptpubkey_type !== "op_return" && vout.value > 0 && outspend?.spent !== false;
+  const canExpand = !isOpReturnOutput(vout) && vout.value > 0 && outspend?.spent !== false;
 
   return (
     <div
@@ -138,12 +158,7 @@ export function OutputRow({
           <span className="font-mono text-xs text-foreground/70 truncate">{truncateId(addr, 6)}</span>
           {vout.scriptpubkey_address && <CopyButton text={vout.scriptpubkey_address} variant="inline" />}
         </div>
-        {entity && (
-          <div className="text-xs text-muted truncate">
-            <span style={{ color: SVG_COLORS.high }}>{entity.entityName}</span>
-            {entity.ofac && <span className="text-severity-critical ml-1">OFAC</span>}
-          </div>
-        )}
+        <EntityLine entity={entity} />
       </div>
       {/* Spend status */}
       <span className="shrink-0" title={outspend?.spent ? t("graph.ioTab.spent", { defaultValue: "Spent" }) : outspend?.spent === false ? t("graph.ioTab.unspent", { defaultValue: "Unspent" }) : t("graph.ioTab.unknown", { defaultValue: "Unknown" })}>
@@ -189,13 +204,7 @@ export function OutputRow({
         )}
       </button>
       {onExpandOutput && canExpand && (
-        <button
-          onClick={() => onExpandOutput(txid, index)}
-          className="opacity-0 group-hover:opacity-100 text-muted/60 hover:text-foreground transition-all cursor-pointer p-0.5"
-          title={t("graph.expandInGraph", { defaultValue: "Expand in graph" })}
-        >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-        </button>
+        <ExpandInGraphButton onClick={() => onExpandOutput(txid, index)} />
       )}
       {/* Per-output auto-trace */}
       {onAutoTrace && !autoTracing && canExpand && (

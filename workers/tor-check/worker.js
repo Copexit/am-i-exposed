@@ -58,14 +58,16 @@ function jsonResponse(data, env) {
   return new Response(JSON.stringify(data), {
     headers: {
       "Content-Type": "application/json",
-      "Cache-Control": "public, max-age=300",
       ...corsHeaders(env),
     },
   });
 }
 
+// Every response carries no-store: the verdict depends on the caller's IP,
+// so a cached copy is wrong as soon as the user's egress changes.
 function corsHeaders(env) {
   return {
+    "Cache-Control": "no-store",
     "Access-Control-Allow-Origin": env.ALLOWED_ORIGIN || "*",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",

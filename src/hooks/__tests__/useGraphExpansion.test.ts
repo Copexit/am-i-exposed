@@ -1,6 +1,8 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useGraphExpansion } from "../useGraphExpansion";
+import { DEFAULT_MAX_NODES } from "@/lib/graph/graph-reducer";
 import type { MempoolOutspend, MempoolTransaction } from "@/lib/api/types";
 import {
   makeTx,
@@ -214,8 +216,8 @@ describe("useGraphExpansion", () => {
 
   describe("MAX_NODES cap", () => {
     it("does not exceed the maximum node count via ADD_NODE", () => {
-      // Build a root with 110 inputs so we can attempt to add 110 parents
-      const parentIds = Array.from({ length: 110 }, (_, i) => `p-${String(i).padStart(3, "0")}`);
+      // Build a root with more inputs than the node cap allows
+      const parentIds = Array.from({ length: DEFAULT_MAX_NODES + 10 }, (_, i) => `p-${String(i).padStart(3, "0")}`);
       const rootTx = makeTx({
         txid: "root-cap",
         vin: parentIds.map((pid) => makeVin(pid, 0)),
@@ -238,16 +240,14 @@ describe("useGraphExpansion", () => {
         result.current.setRootWithNeighbors(rootTx, parents, children);
       });
 
-      // maxNodes is 100, so the graph should have at most 100 nodes
-      expect(result.current.nodes.size).toBeLessThanOrEqual(result.current.maxNodes);
-      expect(result.current.maxNodes).toBe(100);
-      // Root + 99 parents = 100 max
-      expect(result.current.nodes.size).toBe(100);
+      // Root + (cap - 1) parents fills the graph exactly
+      expect(result.current.maxNodes).toBe(DEFAULT_MAX_NODES);
+      expect(result.current.nodes.size).toBe(DEFAULT_MAX_NODES);
     });
 
     it("expandInput is a no-op when graph is already at MAX_NODES", async () => {
       // Create a root with many inputs
-      const parentIds = Array.from({ length: 105 }, (_, i) => `cap-${i}`);
+      const parentIds = Array.from({ length: DEFAULT_MAX_NODES + 5 }, (_, i) => `cap-${i}`);
       const rootTx = makeTx({
         txid: "root-full",
         vin: parentIds.map((pid) => makeVin(pid, 0)),
@@ -270,14 +270,14 @@ describe("useGraphExpansion", () => {
         result.current.setRootWithNeighbors(rootTx, parents, children);
       });
 
-      expect(result.current.nodes.size).toBe(100);
+      expect(result.current.nodes.size).toBe(DEFAULT_MAX_NODES);
 
       // Try expanding - should not add anything
       await act(async () => {
-        await result.current.expandInput("root-full", 100);
+        await result.current.expandInput("root-full", DEFAULT_MAX_NODES);
       });
 
-      expect(result.current.nodes.size).toBe(100);
+      expect(result.current.nodes.size).toBe(DEFAULT_MAX_NODES);
       // Fetcher should not have been called since we bail early
       expect(fetcher.getTransaction).not.toHaveBeenCalled();
     });
@@ -590,9 +590,9 @@ describe("useGraphExpansion", () => {
       expect(result.current.nodeCount).toBe(1);
     });
 
-    it("maxNodes is 100", () => {
+    it("maxNodes defaults to DEFAULT_MAX_NODES", () => {
       const { result } = renderHook(() => useGraphExpansion(null));
-      expect(result.current.maxNodes).toBe(100);
+      expect(result.current.maxNodes).toBe(DEFAULT_MAX_NODES);
     });
   });
 
@@ -816,6 +816,214 @@ describe("useGraphExpansion", () => {
 
       expect(result.current.rootTxids.size).toBe(1);
       expect(result.current.rootTxids.has("sr-check")).toBe(true);
+    });
+  });
+
+  // ── Auto-trace cancellation (graph replaced / unmounted) ───────────────
+
+  describe("auto-trace cancellation", () => {
+    const flush = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
+
+    function setup() {
+      const rootTx = makeTx({ txid: "at-root", vout: [makeVout(50000)] });
+      const childTx = makeTx({ txid: "at-child", vin: [makeVin("at-root", 0)], vout: [makeVout(49000)] });
+      let resolveOutspends!: (v: MempoolOutspend[]) => void;
+      const outspends = new Promise<MempoolOutspend[]>((r) => { resolveOutspends = r; });
+      const fetcher = {
+        getTransaction: vi.fn().mockResolvedValue(childTx),
+        getTxOutspends: vi.fn().mockReturnValue(outspends),
+      };
+      const hook = renderHook(() => useGraphExpansion(fetcher));
+      act(() => { hook.result.current.setRoot(rootTx); });
+      const release = () => resolveOutspends([{ spent: true, txid: "at-child", vin: 0, status: { confirmed: true } }]);
+      return { hook, fetcher, release };
+    }
+
+    async function startTrace({ hook, fetcher }: ReturnType<typeof setup>) {
+      await act(async () => {
+        void hook.result.current.autoTrace("at-root", 0);
+        await flush();
+      });
+      expect(fetcher.getTxOutspends).toHaveBeenCalledWith("at-root");
+      expect(hook.result.current.autoTracing).toBe(true);
+    }
+
+    it("reset aborts a running auto-trace", async () => {
+      const ctx = setup();
+      await startTrace(ctx);
+
+      act(() => { ctx.hook.result.current.reset(); });
+      await act(async () => { ctx.release(); await flush(); });
+
+      expect(ctx.fetcher.getTransaction).not.toHaveBeenCalled();
+      expect(ctx.hook.result.current.nodes.size).toBe(1);
+      expect(ctx.hook.result.current.autoTracing).toBe(false);
+    });
+
+    it("setRoot with a new root aborts a running auto-trace", async () => {
+      const ctx = setup();
+      await startTrace(ctx);
+
+      act(() => { ctx.hook.result.current.setRoot(makeTx({ txid: "other-root" })); });
+      await act(async () => { ctx.release(); await flush(); });
+
+      expect(ctx.fetcher.getTransaction).not.toHaveBeenCalled();
+      expect([...ctx.hook.result.current.nodes.keys()]).toEqual(["other-root"]);
+      expect(ctx.hook.result.current.autoTracing).toBe(false);
+    });
+
+    it("loadGraph aborts a running auto-trace", async () => {
+      const ctx = setup();
+      await startTrace(ctx);
+
+      const loaded = makeTx({ txid: "loaded-root" });
+      act(() => {
+        ctx.hook.result.current.loadGraph(
+          new Map([["loaded-root", { txid: "loaded-root", tx: loaded, depth: 0 }]]),
+          "loaded-root",
+          new Set(["loaded-root"]),
+        );
+      });
+      await act(async () => { ctx.release(); await flush(); });
+
+      expect(ctx.fetcher.getTransaction).not.toHaveBeenCalled();
+    });
+
+    it("keeps the stop reason after a trace ends and clears it when a new one starts", async () => {
+      const ctx = setup();
+      await startTrace(ctx);
+      expect(ctx.hook.result.current.lastAutoTraceStop).toBeNull();
+      // The child's own outspends come back empty: its change output is unspent
+      ctx.fetcher.getTxOutspends.mockResolvedValue([]);
+      await act(async () => { ctx.release(); await flush(); await new Promise((r) => setTimeout(r, 120)); await flush(); });
+      expect(ctx.hook.result.current.autoTracing).toBe(false);
+      expect(ctx.hook.result.current.lastAutoTraceStop).toBe("unspent");
+
+      ctx.fetcher.getTxOutspends.mockReturnValue(new Promise(() => {}));
+      await act(async () => { void ctx.hook.result.current.autoTrace("at-root", 0); await flush(); });
+      expect(ctx.hook.result.current.autoTracing).toBe(true);
+      expect(ctx.hook.result.current.lastAutoTraceStop).toBeNull();
+    });
+
+    it("unmount aborts a running auto-trace", async () => {
+      const ctx = setup();
+      await startTrace(ctx);
+
+      ctx.hook.unmount();
+      ctx.release();
+      await flush();
+
+      expect(ctx.fetcher.getTransaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("expanded node and outspend cache", () => {
+    const flush = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
+    const spent = (txid: string): MempoolOutspend[] => [{ spent: true, txid, vin: 0, status: { confirmed: true } }];
+
+    function setup() {
+      const parentTx = makeTx({ txid: "ex-parent", vout: [makeVout(60000)] });
+      const rootTx = makeTx({ txid: "ex-root", vin: [makeVin("ex-parent", 0)], vout: [makeVout(50000)] });
+      const childTx = makeTx({ txid: "ex-child", vin: [makeVin("ex-root", 0)], vout: [makeVout(49000)] });
+      const txs = new Map([["ex-parent", parentTx], ["ex-child", childTx]]);
+      const fetcher = {
+        getTransaction: vi.fn((txid: string) => Promise.resolve(txs.get(txid)!)),
+        getTxOutspends: vi.fn((txid: string) => Promise.resolve(spent(`${txid}-spender`))),
+      };
+      const hook = renderHook(() => useGraphExpansion(fetcher));
+      act(() => { hook.result.current.setRoot(rootTx); });
+      return { hook, fetcher };
+    }
+
+    it("toggleExpand expands a node, caches its outspends once, and collapses on a second toggle", async () => {
+      const { hook, fetcher } = setup();
+      await act(async () => { await hook.result.current.toggleExpand("ex-root"); });
+      expect(hook.result.current.expandedNodeTxid).toBe("ex-root");
+      expect(hook.result.current.outspendCache.get("ex-root")).toEqual(spent("ex-root-spender"));
+
+      await act(async () => { await hook.result.current.toggleExpand("ex-root"); });
+      expect(hook.result.current.expandedNodeTxid).toBeNull();
+
+      await act(async () => { await hook.result.current.toggleExpand("ex-root"); });
+      expect(hook.result.current.expandedNodeTxid).toBe("ex-root");
+      expect(fetcher.getTxOutspends).toHaveBeenCalledTimes(1);
+    });
+
+    it("a root change clears the expanded node and the outspend cache", async () => {
+      const { hook, fetcher } = setup();
+      await act(async () => { await hook.result.current.toggleExpand("ex-root"); });
+
+      act(() => { hook.result.current.setRoot(makeTx({ txid: "ex-other" })); });
+      expect(hook.result.current.expandedNodeTxid).toBeNull();
+      expect(hook.result.current.outspendCache.size).toBe(0);
+
+      await act(async () => { await hook.result.current.toggleExpand("ex-root"); });
+      expect(fetcher.getTxOutspends).toHaveBeenCalledTimes(2);
+    });
+
+    it("drops outspends that land after the root changed", async () => {
+      const { hook, fetcher } = setup();
+      let release!: () => void;
+      fetcher.getTxOutspends.mockReturnValueOnce(
+        new Promise((r) => { release = () => r(spent("late")); }),
+      );
+      await act(async () => { void hook.result.current.toggleExpand("ex-root"); await flush(); });
+      act(() => { hook.result.current.setRoot(makeTx({ txid: "ex-other" })); });
+      await act(async () => { release(); await flush(); });
+
+      expect(hook.result.current.outspendCache.size).toBe(0);
+    });
+
+    it("two toggles in the same tick fetch the outspends once", async () => {
+      const { hook, fetcher } = setup();
+      await act(async () => {
+        const a = hook.result.current.toggleExpand("ex-root");
+        const b = hook.result.current.toggleExpand("ex-root");
+        await Promise.all([a, b]);
+      });
+      expect(fetcher.getTxOutspends).toHaveBeenCalledTimes(1);
+      expect(hook.result.current.outspendCache.get("ex-root")).toEqual(spent("ex-root-spender"));
+    });
+
+    it("reset then re-rooting on the same txid does not revive the old expansion or cache", async () => {
+      const { hook, fetcher } = setup();
+      await act(async () => { await hook.result.current.toggleExpand("ex-root"); });
+      expect(hook.result.current.expandedNodeTxid).toBe("ex-root");
+
+      act(() => { hook.result.current.reset(); });
+      act(() => { hook.result.current.setRoot(makeTx({ txid: "ex-root", vout: [makeVout(50000)] })); });
+      expect(hook.result.current.expandedNodeTxid).toBeNull();
+      expect(hook.result.current.outspendCache.size).toBe(0);
+
+      act(() => {
+        hook.result.current.loadGraph(
+          new Map([["ex-root", { txid: "ex-root", tx: makeTx({ txid: "ex-root" }), depth: 0 }]]),
+          "ex-root",
+          new Set(["ex-root"]),
+        );
+      });
+      expect(hook.result.current.outspendCache.size).toBe(0);
+      await act(async () => { await hook.result.current.toggleExpand("ex-root"); });
+      expect(fetcher.getTxOutspends).toHaveBeenCalledTimes(2);
+    });
+
+    it("expandPortOutput expands the child that spends the port once it arrives", async () => {
+      const { hook, fetcher } = setup();
+      fetcher.getTxOutspends.mockResolvedValueOnce(spent("ex-child"));
+      await act(async () => { await hook.result.current.expandPortOutput("ex-root", 0); await flush(); });
+
+      expect(hook.result.current.nodes.has("ex-child")).toBe(true);
+      expect(hook.result.current.expandedNodeTxid).toBe("ex-child");
+      expect(hook.result.current.outspendCache.get("ex-child")).toEqual(spent("ex-child-spender"));
+    });
+
+    it("expandPortInput expands the funding parent", async () => {
+      const { hook } = setup();
+      await act(async () => { await hook.result.current.expandPortInput("ex-root", 0); await flush(); });
+
+      expect(hook.result.current.nodes.has("ex-parent")).toBe(true);
+      expect(hook.result.current.expandedNodeTxid).toBe("ex-parent");
+      expect(hook.result.current.outspendCache.get("ex-parent")).toEqual(spent("ex-parent-spender"));
     });
   });
 });

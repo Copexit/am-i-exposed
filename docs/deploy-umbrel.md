@@ -9,8 +9,6 @@ am-i.exposed runs as a self-hosted Umbrel app that routes all API calls through 
 Browser -> Umbrel app_proxy (auth) -> nginx (port 8080) -> static SPA
                                           |
                                           +-> /api/*           -> local mempool:3006/api/*
-                                          +-> /signet/api/*    -> local mempool:3006/api/*
-                                          +-> /testnet4/api/*  -> local mempool:3006/api/*
                                           +-> /tor-proxy/*     -> tor-proxy sidecar:3001
                                                                     -> socks5h://10.21.21.11:9050
                                                                         -> chainalysis-proxy.copexit.workers.dev
@@ -175,10 +173,9 @@ Located at `umbrel/nginx.conf.template`. Uses `nginxinc/nginx-unprivileged` auto
 
 Key proxy rules:
 - `/api/*` -> `http://${APP_MEMPOOL_IP}:${APP_MEMPOOL_PORT}/api/*` (direct proxy to local mempool)
-- `/(signet|testnet4)/api/*` -> rewritten to `/api/*` then proxied (network-prefix stripping)
 - `/tor-proxy/*` -> `http://${APP_TOR_PROXY_IP}:${APP_TOR_PROXY_PORT}/` (Tor proxy sidecar, 60s read timeout)
 
-The network-prefix stripping is necessary because the app constructs URLs like `/signet/api/tx/{txid}` for non-mainnet networks, but the local mempool already runs on the correct network, so `/api/tx/{txid}` suffices.
+There are no `/signet/api` or `/testnet4/api` routes. On Umbrel the app pins the network to mainnet (`UMBREL_NETWORK` in `src/context/NetworkContext.tsx`) and always calls `/api/*`, because `/api/local-info` does not report which network the local mempool serves.
 
 The `/tor-proxy/` route has a 60s read timeout (vs 30s for API) because Tor circuits can be slow on first use.
 
@@ -188,11 +185,11 @@ When running on Umbrel (local API detected), two privacy improvements activate:
 
 ### 1. Tor detection is skipped
 
-`useTorDetection(skip)` accepts a `skip` parameter. `NetworkContext` passes `localApiStatus === "available"`, so on Umbrel no requests go to `tor-check.copexit.workers.dev` or the `.onion` probe. This eliminates IP leakage on every page load.
+`useTorDetection(skip, defer)` takes a `skip` and a `defer` flag. `NetworkContext` sets `skip = isUmbrel || !!customUrl`: on Umbrel, and for any user with a custom API (own node), no requests go to `tor-check.copexit.workers.dev` or the `.onion` probe, since `resolveNetworkConfig` ignores Tor status there anyway. This eliminates IP leakage on every page load. Otherwise detection is deferred until the local API probe settles (`localApiStatus !== "checking"`). With the skip, `torStatus` stays `"clearnet"` and means nothing, so `ConnectionBadge` shows a "Local" (Umbrel) or "Custom API" badge and `PrivacyNotice` hides itself (`isCustomApi`).
 
 ### 2. Chainalysis checks route through Tor
 
-`CexRiskPanel` detects Umbrel mode via `useNetwork().localApiStatus`. When the user clicks "Run Chainalysis Check":
+`CexRiskPanel` reads `isUmbrel` from `useNetwork()` and passes it to `useChainalysisCheck`. When the user clicks "Run Chainalysis Check":
 
 1. First tries `/tor-proxy/chainalysis/address/{addr}` (goes through sidecar -> Tor -> Cloudflare Worker -> Chainalysis API)
 2. If Tor fails (502, timeout, blocked): shows amber warning dialog "Tor proxy is unavailable. Proceeding will expose your IP."
@@ -483,12 +480,10 @@ Requires prior auth: `echo "$GHCR_TOKEN" | docker login ghcr.io -u USERNAME --pa
 | Test | Network | Result |
 |------|---------|--------|
 | Health check `/health` | - | `ok` |
-| API proxy `/api/blocks/tip/height` | signet | Block height (e.g. 292382) |
-| Network-prefix `/signet/api/tx/{txid}` | signet | JSON tx data |
+| API proxy `/api/blocks/tip/height` | - | Block height of the local node |
 | ConnectionBadge | - | Green "Local" shield |
 | Whirlpool CoinJoin (Tier 1, mainnet) | mainnet | A+ 100/100 |
 | Satoshi address (Tier 1, mainnet) | mainnet | F 0/100 |
-| Signet tx analysis (Tier 2) | signet | C 53/100 |
 | App install/uninstall | - | Clean both ways |
 | Tor detection skipped on Umbrel | - | No requests to tor-check.copexit.workers.dev |
 | Chainalysis via Tor (Tier 2) | - | Pending verification |

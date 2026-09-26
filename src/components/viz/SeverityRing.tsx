@@ -51,12 +51,10 @@ export function SeverityRing({ findings, size = 120 }: SeverityRingProps) {
       counts[f.severity] = (counts[f.severity] ?? 0) + 1;
     }
     return SEVERITY_ORDER
-      .filter((s) => (counts[s] ?? 0) > 0)
-      .map((s): SeveritySlice => ({
-        severity: s,
-        count: counts[s],
-        color: SEVERITY_HEX[s],
-      }));
+      .flatMap((s): SeveritySlice[] => {
+        const count = counts[s] ?? 0;
+        return count > 0 ? [{ severity: s, count, color: SEVERITY_HEX[s] }] : [];
+      });
   }, [findings]);
 
   if (slices.length === 0) return null;

@@ -14,7 +14,10 @@ import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 export interface AutoTraceProgress {
   hop: number;
   txid: string;
+  /** Stable code (translated by the UI): change reason, "compound", "below-threshold", ... */
   reason: string;
+  /** Percentage for "compound" (current probability) and "below-threshold" (the threshold). */
+  percent?: number;
 }
 
 export interface AutoTraceCallbacks {
@@ -34,11 +37,63 @@ export interface AutoTraceLinkabilityOptions {
   boltzmannCache?: Map<string, BoltzmannWorkerResult>;
 }
 
+// ─── Shared hop step ───────────────────────────────────────────────────
+
+/** Why a hop could not advance: unspent output, fetch failure (SET_ERROR sent), or abort. */
+type HopStop = "unspent" | "fetch-failed" | "aborted";
+
+/**
+ * Follow `currentTxid:outputIndex` one hop forward: find the spending tx via
+ * outspends, fetch it, add it to the graph at `depth`, and pause briefly so
+ * the UI shows the node appearing. Fetch failures dispatch SET_ERROR.
+ */
+async function advanceHop(
+  client: GraphExpansionFetcher,
+  currentTxid: string,
+  outputIndex: number,
+  depth: number,
+  signal: AbortSignal,
+  dispatch: (action: GraphAction) => void,
+  label: string,
+): Promise<{ childTxid: string; childTx: MempoolTransaction } | { stop: HopStop }> {
+  let outspends: MempoolOutspend[];
+  try {
+    outspends = await client.getTxOutspends(currentTxid);
+  } catch {
+    dispatch({ type: "SET_ERROR", txid: currentTxid, error: `${label}: failed to fetch outspends` });
+    return { stop: "fetch-failed" };
+  }
+  if (signal.aborted) return { stop: "aborted" };
+
+  const os = outspends[outputIndex];
+  if (!os?.spent || !os.txid) return { stop: "unspent" };
+  const childTxid = os.txid;
+
+  // Always fetch the child tx fresh (don't rely on stale graph state)
+  let childTx: MempoolTransaction;
+  try {
+    childTx = await client.getTransaction(childTxid);
+  } catch (err) {
+    dispatch({ type: "SET_ERROR", txid: childTxid, error: `${label}: ${err instanceof Error ? err.message : "fetch failed"}` });
+    return { stop: "fetch-failed" };
+  }
+  if (signal.aborted) return { stop: "aborted" };
+
+  dispatch({
+    type: "ADD_NODE",
+    node: { txid: childTxid, tx: childTx, depth, parentEdge: { fromTxid: currentTxid, outputIndex } },
+  });
+  await new Promise((r) => setTimeout(r, 80));
+  if (signal.aborted) return { stop: "aborted" };
+  return { childTxid, childTx };
+}
+
 // ─── Auto-trace (peel chain following) ─────────────────────────────────
 
 /**
  * Auto-trace forward from a specific output, following the most likely
  * change output at each hop (peel chain following).
+ * Resolves with why the trace stopped (null when aborted).
  */
 export async function runAutoTrace(
   client: GraphExpansionFetcher,
@@ -47,7 +102,7 @@ export async function runAutoTrace(
   maxHops: number,
   signal: AbortSignal,
   callbacks: AutoTraceCallbacks,
-): Promise<void> {
+): Promise<string | null> {
   const { identifyChangeOutput } = await import("@/lib/graph/autoTrace");
   const { dispatch, getState, onProgress, onTracingChange } = callbacks;
 
@@ -58,60 +113,29 @@ export async function runAutoTrace(
   let currentOutputIndex = startOutputIndex;
   let currentDepth = getState().nodes.get(startTxid)?.depth ?? 0;
   let addedThisTrace = 0;
+  let stopReason: string | null = "max-hops";
 
   try {
     for (let hop = 0; hop < maxHops; hop++) {
-      if (signal.aborted) break;
+      if (signal.aborted) { stopReason = null; break; }
       const state = getState();
       if (state.nodes.size + addedThisTrace >= state.maxNodes) {
         dispatch({ type: "SET_ERROR", txid: currentTxid, error: "Auto-trace stopped: max nodes reached" });
+        stopReason = "max-nodes";
         break;
       }
 
       onProgress({ hop: hop + 1, txid: currentTxid, reason: "expanding" });
 
-      // Fetch outspends to find the spending tx for this output
-      let outspends: MempoolOutspend[];
-      try {
-        outspends = await client.getTxOutspends(currentTxid);
-      } catch {
-        dispatch({ type: "SET_ERROR", txid: currentTxid, error: "Auto-trace: failed to fetch outspends" });
+      const step = await advanceHop(client, currentTxid, currentOutputIndex, currentDepth + 1, signal, dispatch, "Auto-trace");
+      if ("stop" in step) {
+        if (step.stop === "unspent") onProgress({ hop: hop + 1, txid: currentTxid, reason: "unspent" });
+        stopReason = step.stop === "aborted" ? null : step.stop;
         break;
       }
-
-      if (signal.aborted) break;
-
-      const os = outspends[currentOutputIndex];
-      if (!os?.spent || !os.txid) {
-        onProgress({ hop: hop + 1, txid: currentTxid, reason: "unspent" });
-        break;
-      }
-
-      const childTxid = os.txid;
-
-      // Always fetch the child tx (don't rely on stale state.nodes)
-      let childTx: MempoolTransaction;
-      try {
-        childTx = await client.getTransaction(childTxid);
-      } catch (err) {
-        dispatch({ type: "SET_ERROR", txid: childTxid, error: `Auto-trace: ${err instanceof Error ? err.message : "fetch failed"}` });
-        break;
-      }
-      if (signal.aborted) break;
-
-      // Add to graph
+      const { childTxid, childTx } = step;
       currentDepth++;
-      dispatch({
-        type: "ADD_NODE",
-        node: {
-          txid: childTxid,
-          tx: childTx,
-          depth: currentDepth,
-          parentEdge: { fromTxid: currentTxid, outputIndex: currentOutputIndex },
-        },
-      });
       addedThisTrace++;
-      await new Promise((r) => setTimeout(r, 80));
 
       // Analyze the freshly fetched tx directly (not from stale state)
       const changeResult = identifyChangeOutput(childTx);
@@ -119,6 +143,7 @@ export async function runAutoTrace(
 
       if (changeResult.changeOutputIndex === null) {
         // Terminal condition reached
+        stopReason = changeResult.reason;
         break;
       }
 
@@ -130,6 +155,7 @@ export async function runAutoTrace(
     onTracingChange(false);
     onProgress(null);
   }
+  return signal.aborted ? null : stopReason;
 }
 
 // ─── Auto-trace with linkability (Boltzmann) ───────────────────────────
@@ -137,6 +163,7 @@ export async function runAutoTrace(
 /**
  * Auto-trace forward using compounding linkability.
  * Stops when compound probability drops below threshold.
+ * Resolves with why the trace stopped (null when aborted).
  */
 export async function runAutoTraceLinkability(
   client: GraphExpansionFetcher,
@@ -145,7 +172,7 @@ export async function runAutoTraceLinkability(
   signal: AbortSignal,
   callbacks: AutoTraceCallbacks,
   opts?: AutoTraceLinkabilityOptions,
-): Promise<void> {
+): Promise<string | null> {
   const { identifyChangeOutput } = await import("@/lib/graph/autoTrace");
   const { computeBoltzmann, extractTxValues } = await import("@/lib/analysis/boltzmann-compute");
   const { dispatch, getState, onProgress, onTracingChange } = callbacks;
@@ -160,68 +187,60 @@ export async function runAutoTraceLinkability(
   let currentOutputIndex = startOutputIndex;
   let currentDepth = getState().nodes.get(startTxid)?.depth ?? 0;
   let addedThisTrace = 0;
+  let stopReason: string | null = "max-hops";
 
   try {
     for (let hop = 0; hop < maxHops; hop++) {
-      if (signal.aborted) break;
+      if (signal.aborted) { stopReason = null; break; }
       const state = getState();
-      if (state.nodes.size + addedThisTrace >= state.maxNodes) break;
-
-      onProgress({ hop: hop + 1, txid: currentTxid, reason: `compound: ${Math.round(compoundProb * 100)}%` });
-
-      // Fetch outspends for the current tx
-      let outspends: MempoolOutspend[];
-      try { outspends = await client.getTxOutspends(currentTxid); } catch { break; }
-      if (signal.aborted) break;
-
-      const os = outspends[currentOutputIndex];
-      if (!os?.spent || !os.txid) {
-        onProgress({ hop: hop + 1, txid: currentTxid, reason: "unspent" });
+      if (state.nodes.size + addedThisTrace >= state.maxNodes) {
+        stopReason = "max-nodes";
         break;
       }
 
-      const childTxid = os.txid;
+      onProgress({ hop: hop + 1, txid: currentTxid, reason: "compound", percent: Math.round(compoundProb * 100) });
 
-      // Fetch the child tx (always fetch fresh - don't rely on stale state.nodes)
-      let childTx: MempoolTransaction;
-      try {
-        childTx = await client.getTransaction(childTxid);
-      } catch {
-        dispatch({ type: "SET_ERROR", txid: childTxid, error: "Linkability trace: failed to fetch tx" });
+      const step = await advanceHop(client, currentTxid, currentOutputIndex, currentDepth + 1, signal, dispatch, "Linkability trace");
+      if ("stop" in step) {
+        if (step.stop === "unspent") onProgress({ hop: hop + 1, txid: currentTxid, reason: "unspent" });
+        stopReason = step.stop === "aborted" ? null : step.stop;
         break;
       }
-      if (signal.aborted) break;
-
-      // Add to graph if not already there
+      const { childTxid, childTx } = step;
       currentDepth++;
-      dispatch({
-        type: "ADD_NODE",
-        node: { txid: childTxid, tx: childTx, depth: currentDepth, parentEdge: { fromTxid: currentTxid, outputIndex: currentOutputIndex } },
-      });
       addedThisTrace++;
-      // Small delay so the UI shows the node appearing
-      await new Promise((r) => setTimeout(r, 100));
-      if (signal.aborted) break;
 
       // Compute Boltzmann for the child tx (use cache or compute fresh)
       let boltzResult = cache?.get(childTxid);
+      // 1-input txs are trivially 100% linked (no WASM needed); anything else
+      // needs a matrix, and a hop without one (too large, preempted, failed)
+      // has unknown linkability.
+      let singleInput = false;
       if (!boltzResult) {
         const { inputValues, outputValues } = extractTxValues(childTx);
-        if (inputValues.length === 1) {
-          // 1-input: synthetic 100% deterministic (no need for WASM)
-          compoundProb *= 1.0; // doesn't change compound
-        } else if (inputValues.length >= 2 && inputValues.length + outputValues.length <= 80) {
+        singleInput = inputValues.length === 1;
+        if (inputValues.length >= 2 && inputValues.length + outputValues.length <= 80) {
           try {
             boltzResult = await computeBoltzmann(childTx, { signal }) ?? undefined;
-          } catch { /* treat as 100% worst case */ }
+            // Share the result so later consumers (graph heat map) do not recompute it
+            if (boltzResult) cache?.set(childTxid, boltzResult);
+          } catch { /* unknown linkability, handled below */ }
         }
       }
-      if (signal.aborted) break;
+      if (signal.aborted) { stopReason = null; break; }
 
       // Identify the change output for the next hop
       const changeResult = identifyChangeOutput(childTx);
       if (changeResult.changeOutputIndex === null) {
         onProgress({ hop: hop + 1, txid: childTxid, reason: changeResult.reason });
+        stopReason = changeResult.reason;
+        break;
+      }
+
+      // Unknown linkability: stop rather than silently compounding it as 100%
+      if (!singleInput && !boltzResult?.matLnkProbabilities) {
+        onProgress({ hop: hop + 1, txid: childTxid, reason: "linkability-unknown" });
+        stopReason = "linkability-unknown";
         break;
       }
 
@@ -231,16 +250,18 @@ export async function runAutoTraceLinkability(
         const spendingInputIdx = childTx.vin.findIndex(
           (v) => v.txid === currentTxid && v.vout === currentOutputIndex,
         );
-        if (spendingInputIdx >= 0 && mat[changeResult.changeOutputIndex]?.[spendingInputIdx] !== undefined) {
-          compoundProb *= mat[changeResult.changeOutputIndex][spendingInputIdx];
+        const linkProb = mat[changeResult.changeOutputIndex]?.[spendingInputIdx];
+        if (spendingInputIdx >= 0 && linkProb !== undefined) {
+          compoundProb *= linkProb;
         }
       }
 
-      onProgress({ hop: hop + 1, txid: childTxid, reason: `compound: ${Math.round(compoundProb * 100)}%` });
+      onProgress({ hop: hop + 1, txid: childTxid, reason: "compound", percent: Math.round(compoundProb * 100) });
 
       // Check threshold
       if (compoundProb < threshold) {
-        onProgress({ hop: hop + 1, txid: childTxid, reason: `below ${Math.round(threshold * 100)}% threshold` });
+        stopReason = "below-threshold";
+        onProgress({ hop: hop + 1, txid: childTxid, reason: stopReason, percent: Math.round(threshold * 100) });
         break;
       }
 
@@ -251,4 +272,5 @@ export async function runAutoTraceLinkability(
     onTracingChange(false);
     onProgress(null);
   }
+  return signal.aborted ? null : stopReason;
 }

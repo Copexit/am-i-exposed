@@ -1,6 +1,9 @@
 import type { Finding } from "@/lib/types";
 import { suppressFinding } from "./utils";
 
+const STONEWALL_ENTROPY_RECOMMENDATION =
+  "Stonewall adds real ambiguity to this payment. For stronger privacy, spend exact amounts where possible or use a full CoinJoin.";
+
 /**
  * Suppress findings that are misleading or irrelevant in CoinJoin/Stonewall
  * context. CoinJoin transactions are multi-party by design, so many single-user
@@ -52,6 +55,7 @@ export function applyCoinJoinSuppressions(findings: Finding[], isStonewall: bool
           f.description +
           " In this Stonewall transaction, the two equal-value outputs create ambiguity about which is the real payment." +
           " A normal 2-output payment has 0 bits (fully deterministic), so this entropy is a meaningful improvement.";
+        f.recommendation = STONEWALL_ENTROPY_RECOMMENDATION;
       } else {
         f.params = { ...f.params, context: "coinjoin" };
       }
@@ -136,15 +140,8 @@ export function applyCoinJoinSuppressions(findings: Finding[], isStonewall: bool
     if (f.id.startsWith("h-coin-selection-")) {
       suppressFinding(f, "coinjoin");
     }
-    // Linkability recommendations should not suggest CoinJoin when already CoinJoin.
-    // The findings themselves are valid (ambiguity is good), but the recommendation
-    // text needs to reflect post-mix best practices instead.
-    if (f.id === "linkability-ambiguous") {
-      f.recommendation =
-        "Good transaction privacy. To preserve this ambiguity, spend post-mix outputs " +
-        "one at a time and avoid consolidating them with non-CoinJoin UTXOs.";
-      f.params = { ...f.params, context: "coinjoin" };
-    }
+    // Linkability recommendations should not suggest CoinJoin when already CoinJoin:
+    // the recommendation text reflects post-mix best practices instead.
     if (f.id === "linkability-deterministic") {
       f.recommendation =
         "Deterministic links reduce CoinJoin effectiveness. Avoid consolidating " +

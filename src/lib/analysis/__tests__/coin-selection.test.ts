@@ -46,7 +46,7 @@ describe("selectCoins", () => {
 
     // Should prefer smallest sufficient UTXO (25_000)
     expect(result.selected).toHaveLength(1);
-    expect(result.selected[0].utxo.value).toBe(25_000);
+    expect(result.selected[0]?.utxo.value).toBe(25_000);
     expect(result.changeAmount).toBeGreaterThan(0);
   });
 
@@ -117,5 +117,12 @@ describe("selectCoins", () => {
       expect(exactFinding).toBeDefined();
       expect(exactFinding?.severity).toBe("good");
     }
+  });
+
+  it("tags findings with adversary tiers and temporality", () => {
+    const result = selectCoins([makeInput(25_000)], 20_000, 5);
+    const toxic = result?.findings.find(f => f.id === "coin-select-toxic-change");
+    expect(toxic?.adversaryTiers).toEqual(["passive_observer", "kyc_exchange"]);
+    expect(toxic?.temporality).toBe("active_risk");
   });
 });

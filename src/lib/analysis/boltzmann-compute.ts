@@ -3,22 +3,28 @@
  * Used by the analysis pipeline to start computation early during TX fetch.
  */
 
-import { getAnalysisSettings } from "@/hooks/useAnalysisSettings";
+import { getAnalysisSettings } from "@/lib/analysis/settings";
 import type { MempoolTransaction } from "@/lib/api/types";
+import { isCoinbase } from "./heuristics/tx-utils";
 import type { BoltzmannWorkerResult, BoltzmannProgress, WorkerResponse } from "./boltzmann-pool";
 import {
   MAX_SUPPORTED_TOTAL,
   MAX_SUPPORTED_TOTAL_WABISABI,
   MAX_WORKERS,
   getWorkerPool,
+  dropFailedPool,
+  onPoolTerminate,
   terminatePool,
   detectIntrafees,
   detectJoinMarketForTurbo,
   detectWabiSabiForTurbo,
   runParallelPass,
+  toSubmittedOrder,
   isAutoComputable,
   extractTxValues,
 } from "./boltzmann-pool";
+
+import { expandMatrixToTx } from "./boltzmann-detection";
 
 export { isAutoComputable, extractTxValues };
 
@@ -38,8 +44,7 @@ export async function computeBoltzmann(
 ): Promise<BoltzmannWorkerResult | null> {
   if (typeof Worker === "undefined") return null;
 
-  const isCoinbase = tx.vin.some(v => v.is_coinbase);
-  if (isCoinbase) return null;
+  if (isCoinbase(tx)) return null;
 
   const { inputValues, outputValues } = extractTxValues(tx);
   const nIn = inputValues.length;
@@ -58,7 +63,7 @@ export async function computeBoltzmann(
   // Terminate any existing workers to avoid stale WASM state conflicts
   terminatePool();
 
-  const { boltzmannTimeout = 300 } = getAnalysisSettings() as { boltzmannTimeout?: number };
+  const { boltzmannTimeout = 300 } = getAnalysisSettings();
   const timeoutMs = opts?.timeoutMs ?? boltzmannTimeout * 1000;
   const id = `${tx.txid}-${Date.now()}`;
 
@@ -66,13 +71,15 @@ export async function computeBoltzmann(
   const { feesMaker, feesTaker, hasCjPattern } = detectIntrafees(outputValues, 0.005);
   const maxCjIntrafeesRatio = hasCjPattern ? 0.005 : 0.0;
 
-  // Set up abort listener
+  // Abort terminates the pool, which settles the pending job with null
   const abortHandler = () => {
     terminatePool();
   };
   opts?.signal?.addEventListener("abort", abortHandler);
 
-  try {
+  // Every compute mode returns matrices in boltzmann-rs's value-sorted order.
+  // Hand them out indexed by raw tx position: rows = vout, columns = vin.
+  const run = async (): Promise<BoltzmannWorkerResult | null> => {
     // Check for JoinMarket turbo mode (approximate, for large JM CoinJoins only).
     // Only use for txs with 10+ I/O where standard DFS would be slow.
     // Small txs (like Stonewall with 2 equal outputs) must use exact DFS path.
@@ -115,9 +122,56 @@ export async function computeBoltzmann(
       feesMaker, feesTaker, hasCjPattern, numWorkers, timeoutMs,
       opts?.onProgress, opts?.signal,
     );
+  };
+
+  try {
+    const r = await run();
+    return r ? expandMatrixToTx(toSubmittedOrder(r, inputValues, outputValues), tx) : r;
   } finally {
     opts?.signal?.removeEventListener("abort", abortHandler);
   }
+}
+
+type WorkerProgressMsg = Extract<WorkerResponse, { type: "progress" }>;
+
+/**
+ * Post one job to a single pool worker and resolve with its result, or null on
+ * error, abort or pool termination (preemption by another compute).
+ */
+function runOnSingleWorker(
+  message: { type: string; id: string } & Record<string, unknown>,
+  signal?: AbortSignal,
+  onProgressMsg?: (msg: WorkerProgressMsg) => void,
+): Promise<BoltzmannWorkerResult | null> {
+  if (signal?.aborted) return Promise.resolve(null);
+  const [poolWorker] = getWorkerPool(1);
+  if (!poolWorker) return Promise.resolve(null);
+  const worker = poolWorker; // narrowed binding, visible inside the hoisted finish()
+
+  return new Promise((resolve) => {
+    const unregister = onPoolTerminate(() => finish(null));
+    function finish(r: BoltzmannWorkerResult | null) {
+      unregister();
+      worker.onmessage = null;
+      worker.onerror = null;
+      resolve(r);
+    }
+
+    worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
+      const msg = e.data;
+      if (msg.id !== message.id) return;
+      if (msg.type === "result") finish(msg);
+      else if (msg.type === "error") finish(null);
+      else if (msg.type === "progress") onProgressMsg?.(msg);
+    };
+
+    worker.onerror = () => {
+      finish(null);
+      dropFailedPool();
+    };
+
+    worker.postMessage(message);
+  });
 }
 
 /** WabiSabi turbo mode - single worker, tier-decomposed, always fast (<1ms). */
@@ -129,37 +183,10 @@ function runWabiSabiCompute(
   timeoutMs: number,
   signal?: AbortSignal,
 ): Promise<BoltzmannWorkerResult | null> {
-  const pool = getWorkerPool(1);
-  if (pool.length === 0) return Promise.resolve(null);
-  const worker = pool[0];
-
-  return new Promise((resolve) => {
-    if (signal?.aborted) { resolve(null); return; }
-
-    worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
-      const msg = e.data;
-      if (msg.id !== id) return;
-      if (msg.type === "result") {
-        resolve(msg as BoltzmannWorkerResult);
-      } else if (msg.type === "error") {
-        resolve(null);
-      }
-    };
-
-    worker.onerror = () => {
-      terminatePool();
-      resolve(null);
-    };
-
-    worker.postMessage({
-      type: "compute-wabisabi",
-      id,
-      inputValues,
-      outputValues,
-      fee,
-      timeoutMs,
-    });
-  });
+  return runOnSingleWorker(
+    { type: "compute-wabisabi", id, inputValues, outputValues, fee, timeoutMs },
+    signal,
+  );
 }
 
 /** JoinMarket turbo mode - single worker, always fast. */
@@ -173,39 +200,13 @@ function runJoinMarketCompute(
   timeoutMs: number,
   signal?: AbortSignal,
 ): Promise<BoltzmannWorkerResult | null> {
-  const pool = getWorkerPool(1);
-  if (pool.length === 0) return Promise.resolve(null);
-  const worker = pool[0];
-
-  return new Promise((resolve) => {
-    if (signal?.aborted) { resolve(null); return; }
-
-    worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
-      const msg = e.data;
-      if (msg.id !== id) return;
-      if (msg.type === "result") {
-        resolve(msg as BoltzmannWorkerResult);
-      } else if (msg.type === "error") {
-        resolve(null);
-      }
-    };
-
-    worker.onerror = () => {
-      terminatePool();
-      resolve(null);
-    };
-
-    worker.postMessage({
-      type: "compute-jm",
-      id,
-      inputValues,
-      outputValues,
-      fee,
-      denomination,
-      maxCjIntrafeesRatio,
-      timeoutMs,
-    });
-  });
+  return runOnSingleWorker(
+    {
+      type: "compute-jm", id, inputValues, outputValues, fee,
+      denomination, maxCjIntrafeesRatio, timeoutMs,
+    },
+    signal,
+  );
 }
 
 /** Single-worker compute path (handles dual-run internally). */
@@ -219,54 +220,34 @@ function runSingleWorkerCompute(
   onProgress?: (p: BoltzmannProgress) => void,
   signal?: AbortSignal,
 ): Promise<BoltzmannWorkerResult | null> {
-  const pool = getWorkerPool(1);
-  if (pool.length === 0) return Promise.resolve(null);
-  const worker = pool[0];
-
-  return new Promise((resolve) => {
-    if (signal?.aborted) { resolve(null); return; }
-
-    worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
-      const msg = e.data;
-      if (msg.id !== id) return;
-
-      if (msg.type === "result") {
-        resolve(msg as BoltzmannWorkerResult);
-      } else if (msg.type === "error") {
-        resolve(null);
-      } else if (msg.type === "progress" && onProgress) {
-        let estimatedRemainingMs: number | null = null;
-        if (msg.runFraction !== undefined && msg.runFraction > 0.05 && msg.runElapsedMs !== undefined) {
-          const runRemainingMs = (msg.runElapsedMs / msg.runFraction) * (1 - msg.runFraction);
-          if (msg.hasDualRun && msg.runIndex === 0) {
-            estimatedRemainingMs = null;
-          } else {
-            estimatedRemainingMs = Math.max(0, Math.round(runRemainingMs));
-          }
+  return runOnSingleWorker(
+    { type: "compute", id, inputValues, outputValues, fee, maxCjIntrafeesRatio, timeoutMs },
+    signal,
+    onProgress && ((msg) => {
+      let estimatedRemainingMs: number | null = null;
+      if (msg.runFraction !== undefined && msg.runFraction > 0.05 && msg.runElapsedMs !== undefined) {
+        const runRemainingMs = (msg.runElapsedMs / msg.runFraction) * (1 - msg.runFraction);
+        if (msg.hasDualRun && msg.runIndex === 0) {
+          estimatedRemainingMs = null;
+        } else {
+          estimatedRemainingMs = Math.max(0, Math.round(runRemainingMs));
         }
-        onProgress({
-          fraction: msg.fraction,
-          elapsedMs: msg.elapsedMs,
-          estimatedRemainingMs,
-        });
       }
-    };
+      onProgress({
+        fraction: msg.fraction,
+        elapsedMs: msg.elapsedMs,
+        estimatedRemainingMs,
+      });
+    }),
+  );
+}
 
-    worker.onerror = () => {
-      terminatePool();
-      resolve(null);
-    };
-
-    worker.postMessage({
-      type: "compute",
-      id,
-      inputValues,
-      outputValues,
-      fee,
-      maxCjIntrafeesRatio,
-      timeoutMs,
-    });
-  });
+/** Progress with an ETA extrapolated from the elapsed time; `map` rescales the fraction onto the overall bar. */
+function etaProgress(fraction: number, elapsedMs: number, map: (f: number) => number): BoltzmannProgress {
+  const estimatedRemainingMs = fraction > 0.05
+    ? Math.max(0, Math.round((elapsedMs / fraction) * (1 - fraction)))
+    : null;
+  return { fraction: map(fraction), elapsedMs, estimatedRemainingMs };
 }
 
 /** Multi-worker parallel compute path. */
@@ -294,39 +275,29 @@ async function runMultiWorkerCompute(
     );
   }
 
+  // A terminatePool() between the passes (preemption) leaves `pool` dead;
+  // run 1 must not be posted to it, or it would wait forever.
+  let preempted = false;
+  const unregister = onPoolTerminate(() => { preempted = true; });
+
   try {
-    const progressCallback = (fraction: number, elapsedMs: number) => {
-      if (signal?.aborted || !onProgress) return;
-      let estimatedRemainingMs: number | null = null;
-      if (fraction > 0.05) {
-        estimatedRemainingMs = Math.max(0, Math.round((elapsedMs / fraction) * (1 - fraction)));
-      }
-      const adjustedFraction = hasCjPattern ? fraction * 0.5 : fraction;
-      onProgress({ fraction: adjustedFraction, elapsedMs, estimatedRemainingMs });
+    const report = (map: (f: number) => number) => (fraction: number, elapsedMs: number) => {
+      if (!signal?.aborted && onProgress) onProgress(etaProgress(fraction, elapsedMs, map));
     };
 
-    // Run 0: no intrafees
+    // Run 0: no intrafees (the first half of the bar when a run 1 follows)
     const run0Result = await runParallelPass(
       pool, id, inputValues, outputValues, fee,
-      0, 0, timeoutMs, progressCallback,
+      0, 0, timeoutMs, report((f) => (hasCjPattern ? f * 0.5 : f)),
     );
 
-    if (signal?.aborted) return null;
+    if (signal?.aborted || preempted) return null;
 
     // Run 1: with intrafees (if CoinJoin pattern detected and run 0 didn't timeout)
     if (hasCjPattern && !run0Result.timedOut && feesMaker > 0) {
-      const progress1 = (fraction: number, elapsedMs: number) => {
-        if (signal?.aborted || !onProgress) return;
-        let estimatedRemainingMs: number | null = null;
-        if (fraction > 0.05) {
-          estimatedRemainingMs = Math.max(0, Math.round((elapsedMs / fraction) * (1 - fraction)));
-        }
-        onProgress({ fraction: 0.5 + fraction * 0.5, elapsedMs, estimatedRemainingMs });
-      };
-
       const run1Result = await runParallelPass(
         pool, id, inputValues, outputValues, fee,
-        feesMaker, feesTaker, timeoutMs, progress1,
+        feesMaker, feesTaker, timeoutMs, report((f) => 0.5 + f * 0.5),
       );
 
       if (signal?.aborted) return null;
@@ -338,7 +309,10 @@ async function runMultiWorkerCompute(
 
     return { ...run0Result, intraFeesMaker: 0, intraFeesTaker: 0 };
   } catch {
-    terminatePool();
+    // runParallelPass already dropped the pool on worker errors; on preemption
+    // the pool now belongs to another job and must not be terminated here.
     return null;
+  } finally {
+    unregister();
   }
 }

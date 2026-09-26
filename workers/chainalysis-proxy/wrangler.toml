@@ -6,3 +6,13 @@ compatibility_date = "2024-01-01"
 ALLOWED_ORIGIN = "*"
 # CHAINALYSIS_API_KEY is stored as a Cloudflare secret (not in config)
 # Set it with: wrangler secret put CHAINALYSIS_API_KEY
+
+# Per-IP rate limit: 30 requests per 60s, keyed on CF-Connecting-IP in worker.js.
+# namespace_id is any integer string unique within the Cloudflare account.
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 30
+  period = 60

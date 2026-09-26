@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
 import { Menu, X, Info, Shield, Network, Activity, Server } from "lucide-react";
@@ -26,6 +26,7 @@ const NAV_ITEMS = [
 export function Header() {
   const { t } = useTranslation();
   const currentPath = usePathname();
+  const router = useRouter();
   const { proMode } = useExperienceMode();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { devMode, toggleDevMode } = useDevMode();
@@ -101,7 +102,7 @@ export function Header() {
                 } else {
                   // Normal navigation on non-5th clicks
                   if (window.location.pathname !== "/") {
-                    window.location.href = "/";
+                    router.push("/");
                   } else {
                     window.location.hash = "";
                   }
@@ -126,7 +127,7 @@ export function Header() {
             </button>
 
             {/* Desktop nav */}
-            <nav className="hidden sm:flex items-center gap-0.5 ml-4 relative" aria-label="Main navigation">
+            <nav className="hidden sm:flex items-center gap-0.5 ml-4 relative" aria-label={t("common.mainNavigation", { defaultValue: "Main navigation" })}>
               {NAV_ITEMS.filter((item) => !item.proOnly || proMode).map((item) => {
                 const active = isActive(item.href);
                 const Icon = item.icon;
@@ -208,7 +209,7 @@ export function Header() {
                 WebkitBackdropFilter: "blur(16px) saturate(180%)",
                 background: "var(--card-bg)",
               }}
-              aria-label="Mobile navigation"
+              aria-label={t("common.mobileNavigation", { defaultValue: "Mobile navigation" })}
             >
               {NAV_ITEMS.filter((item) => !item.proOnly || proMode).map((item) => {
                 const active = isActive(item.href);

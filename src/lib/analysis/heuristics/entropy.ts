@@ -1,11 +1,13 @@
 import type { TxHeuristic } from "./types";
 import { fmtN, roundTo } from "@/lib/format";
-import { getValuedOutputs } from "./tx-utils";
+import { getValuedOutputs, countOutputValues } from "./tx-utils";
+import { factorial } from "./combinatorics";
 import {
   tryBoltzmannEqualOutputs,
   countValidMappings,
   trySingleDenominationBoltzmann,
   estimateEntropy,
+  mergeByAddress,
 } from "./entropy-math";
 
 const MAX_ENUMERABLE_SIZE = 8;
@@ -29,15 +31,18 @@ const MAX_ENUMERABLE_SIZE = 8;
  * Impact: -5 to +15
  */
 export const analyzeEntropy: TxHeuristic = (tx) => {
-  const inputs = tx.vin
-    .filter((v) => !v.is_coinbase)
-    .map((v) => v.prevout?.value)
-    .filter((v): v is number => v != null);
+  const nonCoinbaseVin = tx.vin.filter((v) => !v.is_coinbase);
+  // A missing prevout would silently shrink the input set and misreport entropy
+  if (nonCoinbaseVin.some((v) => !v.prevout)) return { findings: [] };
   // Filter to spendable outputs (exclude OP_RETURN and other non-spendable)
-  const outputs = getValuedOutputs(tx.vout).map((v) => v.value);
+  const valuedOutputs = getValuedOutputs(tx.vout);
+  // UTXOs sharing an address are one party (see mergeByAddress)
+  const inputs = mergeByAddress(nonCoinbaseVin.map((v) => ({ address: v.prevout!.scriptpubkey_address, value: v.prevout!.value }))).values;
+  const outputs = mergeByAddress(valuedOutputs.map((o) => ({ address: o.scriptpubkey_address, value: o.value }))).values;
+  const merged = inputs.length !== nonCoinbaseVin.length || outputs.length !== valuedOutputs.length;
 
-  // Coinbase transactions have no privacy implications
-  if (inputs.length === 0) return { findings: [] };
+  // Coinbase transactions have no privacy implications; burns have no fund flow
+  if (inputs.length === 0 || outputs.length === 0) return { findings: [] };
 
   // Simple 1-in-1-out: zero entropy, but this is a normal sweep/exact payment
   // No consolidation, no change - not a privacy concern per se.
@@ -49,30 +54,38 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
           severity: "low",
           confidence: "deterministic",
           title: "Zero transaction entropy",
-          description:
-            "This transaction has a single input and single output, meaning there is only one possible interpretation. " +
-            "This is typical of sweep transactions, exact-amount payments, or wallet migrations.",
-          recommendation:
-            "Single-input, single-output transactions are a normal spending pattern. " +
-            "For future payments, collaborative transactions (PayJoin/Stowaway) or batch payments increase entropy.",
+          ...(merged ? { params: { _variant: "merged" } } : {}),
+          description: merged
+            ? "All inputs of this transaction come from one address and all outputs go to one address, " +
+              "so there is only one possible interpretation of the fund flow. " +
+              "This is typical of self-transfers and token transfers that pay back to the same address."
+            : "This transaction has a single input and single output, meaning there is only one possible interpretation. " +
+              "This is typical of sweep transactions, exact-amount payments, or wallet migrations.",
+          recommendation: merged
+            ? "Address reuse already links every UTXO of that address, so spending them together reveals nothing new. " +
+              "Use a fresh address for each receive; for future payments, collaborative transactions (PayJoin/Stowaway) or batch payments increase entropy."
+            : "Single-input, single-output transactions are a normal spending pattern. " +
+              "For future payments, collaborative transactions (PayJoin/Stowaway) or batch payments increase entropy.",
           scoreImpact: 0,
         },
       ],
     };
   }
 
-  // N-in-1-out sweep/consolidation: zero entropy, all inputs provably linked
+  // N-in-1-out sweep/consolidation: zero entropy, all inputs provably linked.
+  // The text describes the UTXOs consolidated, so it counts real inputs.
   if (outputs.length === 1 && inputs.length >= 2) {
+    const inputCount = nonCoinbaseVin.length;
     return {
       findings: [
         {
           id: "h5-zero-entropy-sweep",
-          severity: inputs.length >= 5 ? "high" : "medium",
+          severity: inputCount >= 5 ? "high" : "medium",
           confidence: "deterministic",
-          title: `Zero entropy: ${inputs.length}-input sweep/consolidation`,
-          params: { inputCount: inputs.length },
+          title: `Zero entropy: ${inputCount}-input sweep/consolidation`,
+          params: { inputCount },
           description:
-            `This transaction consolidates ${inputs.length} inputs into a single output. ` +
+            `This transaction consolidates ${inputCount} inputs into a single output. ` +
             "There is only one possible interpretation of the fund flow. " +
             "All input addresses are now provably linked.",
           recommendation:
@@ -90,7 +103,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
               { name: "Sparrow Wallet (Coin Control)", url: "https://sparrowwallet.com" },
               { name: "Wasabi Wallet (CoinJoin)", url: "https://wasabiwallet.io" },
             ],
-            urgency: inputs.length >= 10 ? "soon" as const : "when-convenient" as const,
+            urgency: inputCount >= 10 ? "soon" as const : "when-convenient" as const,
           },
         },
       ],
@@ -99,6 +112,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
 
   let entropyBits: number;
   let method: string;
+  let isMultiTier = false;
 
   // Check for equal-value outputs (Boltzmann partition path)
   const equalOutputResult = tryBoltzmannEqualOutputs(inputs, outputs);
@@ -121,16 +135,12 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
     // equal-value outputs still create real ambiguity. Fall back to
     // equal-output permutation entropy as a conservative lower bound.
     if (entropyBits <= 0) {
-      const counts = new Map<number, number>();
-      for (const v of outputs) counts.set(v, (counts.get(v) ?? 0) + 1);
       // Count total permutations from all equal-output groups
       let totalPerms = 1;
       let totalGrouped = 0;
-      for (const c of counts.values()) {
+      for (const c of countOutputValues(outputs.map((value) => ({ value }))).values()) {
         if (c >= 2) {
-          let f = 1;
-          for (let i = 2; i <= c; i++) f *= i;
-          totalPerms *= f;
+          totalPerms *= factorial(c);
           totalGrouped += c;
         }
       }
@@ -158,13 +168,14 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
     } else {
       entropyBits = estimateEntropy(inputs, outputs);
       method = "multi-tier permutation estimate";
+      isMultiTier = true;
     }
   }
 
   // Cap displayed entropy for simple txs where estimation may overcount.
   // Multi-tier CoinJoins (WabiSabi) legitimately produce 500-1000+ bits;
   // the WASM path provides the authoritative value via boltzmann-enhance.
-  const displayEntropy = method.includes("tier") ? entropyBits : Math.min(entropyBits, 64);
+  const displayEntropy = isMultiTier ? entropyBits : Math.min(entropyBits, 64);
   const roundedEntropy = Math.round(displayEntropy * 100) / 100;
 
   if (roundedEntropy <= 0) {
@@ -175,7 +186,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
           severity: "medium",
           confidence: "medium",
           title: "Very low transaction entropy",
-          params: { entropy: roundedEntropy, method },
+          params: { entropy: roundedEntropy, method, nUtxos: inputs.length + outputs.length },
           description:
             `This transaction has near-zero entropy (${roundedEntropy} bits, via ${method}). ` +
             "There is essentially only one valid interpretation of the fund flow, making it trivial to trace.",
