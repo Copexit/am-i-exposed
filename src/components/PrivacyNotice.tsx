@@ -25,8 +25,8 @@ function getServerSnapshot(): boolean {
   return true; // Dismissed on server to avoid hydration mismatch
 }
 
-export function PrivacyNotice() {
-  const { t } = useTranslation();
+/** Shared visibility/dismiss logic for the clearnet privacy notice (classic + v2). */
+export function usePrivacyNotice() {
   const { torStatus, isCustomApi } = useNetwork();
   const dismissed = useSyncExternalStore(
     subscribe,
@@ -34,15 +34,22 @@ export function PrivacyNotice() {
     getServerSnapshot,
   );
 
-  const handleDismiss = useCallback(() => {
+  const dismiss = useCallback(() => {
     sessionStorage.setItem(STORAGE_KEY, "1");
     // Trigger re-render by dispatching storage event
     window.dispatchEvent(new StorageEvent("storage"));
   }, []);
 
+  return { visible: !dismissed && torStatus === "clearnet" && !isCustomApi, dismiss };
+}
+
+export function PrivacyNotice() {
+  const { t } = useTranslation();
+  const { visible, dismiss: handleDismiss } = usePrivacyNotice();
+
   return (
     <AnimatePresence>
-      {!dismissed && torStatus === "clearnet" && !isCustomApi && (
+      {visible && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}

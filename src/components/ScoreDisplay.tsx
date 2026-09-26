@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import type { Finding, Grade } from "@/lib/types";
-import { getSummarySentiment } from "@/lib/scoring/score";
+import { gradeTagline } from "@/lib/view/verdict";
 import { useTranslation } from "react-i18next";
 import { GRADE_COLORS, GRADE_HEX } from "@/lib/constants";
 import { hexToRgba } from "@/lib/palette";
@@ -165,19 +165,7 @@ export function ScoreDisplay({ score, grade, findings }: ScoreDisplayProps) {
       </div>
 
       <p className="text-base text-muted">
-        {grade === "A+"
-          ? t("score.gradeAPlus", { defaultValue: "Excellent privacy practices" })
-          : grade === "B"
-            ? findings && !findings.some((f) => f.scoreImpact < 0)
-              ? t("score.gradeBPositive", { defaultValue: "Good privacy practices" })
-              : t("score.gradeB", { defaultValue: "Good privacy, minor concerns" })
-            : grade === "C"
-              ? findings && getSummarySentiment(grade, findings) === "positive"
-                ? t("score.gradeCPositive", { defaultValue: "Good privacy practices" })
-                : t("score.gradeC", { defaultValue: "Fair privacy, notable issues found" })
-              : grade === "D"
-                ? t("score.gradeD", { defaultValue: "Poor privacy, significant exposure" })
-                : t("score.gradeF", { defaultValue: "Critical privacy failures detected" })}
+        {(() => { const tag = gradeTagline(grade, findings); return t(tag.key, { defaultValue: tag.defaultValue }); })()}
       </p>
     </div>
   );

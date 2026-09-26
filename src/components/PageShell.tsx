@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
+import { isV2Path } from "@/lib/v2/paths";
+import { V2PageFrame } from "@/components/v2/pages/V2PageFrame";
 
 interface PageShellProps {
   /** The translated back-link label, e.g. "Back to scanner" */
@@ -19,6 +22,7 @@ interface PageShellProps {
 /**
  * Shared layout shell for sub-pages (about, faq, glossary, welcome, etc.).
  * Provides the outer centering wrapper, back-link, and consistent spacing.
+ * Under /v2/ the same content renders inside the v2 page frame instead.
  */
 export function PageShell({
   backLabel,
@@ -27,6 +31,9 @@ export function PageShell({
   className,
   children,
 }: PageShellProps) {
+  const v2 = isV2Path(usePathname());
+  if (v2) return <V2PageFrame spacing={spacing}>{children}</V2PageFrame>;
+
   return (
     <div className={`flex-1 flex flex-col items-center px-4 py-8 ${className ?? ""}`}>
       <div className={`w-full ${maxWidth} ${spacing}`}>

@@ -24,10 +24,15 @@ const NETWORKS: [NetworkOption, ...NetworkOption[]] = [
   { value: "signet", label: "Signet", dot: "bg-info" },
 ];
 
-export function ApiSettings() {
+/**
+ * `v2`: the v2 UI has no experience modes and is dark only, so it shows every
+ * panel and no theme toggle.
+ */
+export function ApiSettings({ v2 = false }: { v2?: boolean } = {}) {
   const { t } = useTranslation();
   const { network, setNetwork, customApiUrl, isUmbrel } = useNetwork();
-  const { proMode } = useExperienceMode();
+  const { proMode: proModeSetting } = useExperienceMode();
+  const proMode = v2 || proModeSetting;
   const { theme, toggleTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -139,14 +144,14 @@ export function ApiSettings() {
             <LocaleSelector />
 
             {/* Theme toggle */}
-            <button
+            {!v2 && <button
               onClick={toggleTheme}
               aria-label={theme === "dark" ? t("settings.themeLight", { defaultValue: "Light" }) : t("settings.themeDark", { defaultValue: "Dark" })}
               title={t("settings.theme", { defaultValue: "Theme" })}
               className="flex items-center justify-center w-10 h-10 mt-5 rounded-lg text-muted hover:text-foreground transition-colors cursor-pointer border border-card-border bg-surface-inset hover:border-muted shrink-0"
             >
               {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-            </button>
+            </button>}
           </div>
 
           {/* Workspace export/import (Cypherpunk only) */}

@@ -42,6 +42,19 @@ export const LIGHT_COLORS = {
   surfaceElevated: "#ffffff",
 } as const;
 
+/** v2 UI overrides (`[data-ui="v2"]` in globals.css); other tokens as COLORS. */
+export const V2_COLORS = {
+  background: "#0b0b0d",
+  foreground: "#f2f2f4",
+  muted: "#a6a6b0",
+  faint: "#70707b",
+  surface1: "#111114",
+  surface2: "#17171b",
+  cardBg: "#17171b",
+  surfaceInset: "#111114",
+  surfaceElevated: "#1d1d22",
+} as const;
+
 /**
  * Fixed chart hues (Tailwind default-scale values plus the brand green), used
  * by SVG gradients and graph encodings. Independent of the semantic tokens, so

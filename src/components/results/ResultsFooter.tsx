@@ -3,6 +3,7 @@
 import { ExternalLink } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
+import { TX_HEURISTICS, ADDRESS_HEURISTICS } from "@/lib/analysis/heuristic-registry";
 import { ScoringExplainer } from "./ScoringExplainer";
 import { fadeUpVariants, fadeUpTransition } from "./animations";
 import type { ScoringResult, TxAnalysisResult } from "@/lib/types";
@@ -15,6 +16,8 @@ export function ResultsFooter({
   explorerUrl,
   explorerLabel,
   mempoolBaseUrl,
+  findingCount,
+  checkCount,
 }: {
   inputType: "txid" | "address";
   result: ScoringResult;
@@ -23,6 +26,10 @@ export function ResultsFooter({
   explorerUrl: string;
   explorerLabel: string;
   mempoolBaseUrl: string;
+  /** Findings shown to the user (defaults to every finding). */
+  findingCount?: number;
+  /** Checks run (defaults to the heuristic registry size). */
+  checkCount?: number;
 }) {
   const { t } = useTranslation();
 
@@ -43,8 +50,8 @@ export function ResultsFooter({
 
       <p className="text-xs text-muted/70 leading-relaxed">
         {t("results.disclaimerStats", {
-          findingCount: result.findings.length,
-          heuristicCount: inputType === "txid" ? "27" : "6",
+          findingCount: findingCount ?? result.findings.length,
+          heuristicCount: checkCount ?? (inputType === "txid" ? TX_HEURISTICS.length : ADDRESS_HEURISTICS.length),
           defaultValue: "{{findingCount}} findings from {{heuristicCount}} heuristics",
         })}
         {txBreakdown ? t("results.disclaimerTxAnalyzed", { count: txBreakdown.length, defaultValue: " + {{count}} transactions analyzed" }) : ""}

@@ -77,6 +77,62 @@ html[data-theme="light"] {
   --color-glass-border: var(--glass-border);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* v2 UI tokens (defined under [data-ui="v2"] only) */
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+  --color-faint: var(--faint);
+}
+
+/*
+ * v2 UI ("a quiet instrument"): calmer surfaces, hairlines instead of boxes.
+ * Classic tokens are re-pointed too, so classic components embedded in v2
+ * (graph explorer, heatmap, settings) adopt the v2 look without changing
+ * the classic UI. Dark only. See docs/v2/design.md.
+ */
+[data-ui="v2"] {
+  --background: #0b0b0d;
+  --foreground: #f2f2f4;
+  --muted: #a6a6b0;
+  --faint: #70707b;
+  --surface-1: #111114;
+  --surface-2: #17171b;
+  --hairline: rgba(255, 255, 255, 0.07);
+  --hairline-strong: rgba(255, 255, 255, 0.13);
+  --card-bg: #17171b;
+  --card-border: rgba(255, 255, 255, 0.1);
+  --surface-inset: #111114;
+  --surface-elevated: #1d1d22;
+  --glass-bg: rgba(17, 17, 20, 0.82);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 12px 40px rgba(0, 0, 0, 0.35);
+  --overlay-bg: rgba(20, 20, 24, 0.97);
+  --overlay-border: rgba(255, 255, 255, 0.1);
+  background: var(--background);
+  color: var(--foreground);
+  font-feature-settings: "ss01", "cv11";
+}
+
+[data-ui="v2"] .v2-num {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+[data-ui="v2"] .no-scrollbar {
+  scrollbar-width: none;
+}
+[data-ui="v2"] .no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+[data-ui="v2"] .v2-eyebrow {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--faint);
 }
 
 @media (prefers-reduced-motion: no-preference) {

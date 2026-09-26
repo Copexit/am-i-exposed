@@ -36,7 +36,7 @@ const URGENCY_CONFIG = {
   },
 } as const;
 
-function RecCard({ rec }: { rec: PrimaryRec }) {
+export function RecCard({ rec }: { rec: PrimaryRec }) {
   const { t } = useTranslation();
   const cfg = URGENCY_CONFIG[rec.urgency];
   const Icon = cfg.icon;
