@@ -2,7 +2,6 @@
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowDown } from "lucide-react";
 import { probColor } from "@/components/viz/shared/linkabilityColors";
 import type { BoltzmannLookup } from "@/components/viz/buildFlowGraph";
 import type { MempoolTransaction } from "@/lib/api/types";
@@ -10,6 +9,7 @@ import type { Severity } from "@/lib/types";
 import { layoutFlow, curve, type StageRow as Row, type StageSide, type Port } from "./stage-layout";
 import { bestLinkProb, type TxReadings } from "./analyst";
 import { StageRow } from "./StageRow";
+import { VerticalFlowBand } from "./VerticalFlowBand";
 import { useStage } from "./StageContext";
 
 export interface StageDiagramProps {
@@ -165,10 +165,16 @@ export function StageDiagram({ tx, inRows, outRows, stacked, usdPrice, lookup, l
       <div className="flex flex-col gap-2">
         <p className="v2-eyebrow px-3">{eyebrow("input")}</p>
         {inputsCol}
-        <div aria-hidden="true" className="flex items-center gap-2 px-3 py-1 text-muted">
-          <ArrowDown size={14} />
-          <span className="flex-1 h-px bg-hairline" />
-        </div>
+        <VerticalFlowBand
+          inRows={inRows}
+          outRows={outRows}
+          tones={tones}
+          lookup={lookup}
+          linkMode={linkMode}
+          activeKey={activeKey}
+          hotKeys={hotKeys}
+          onActivate={onActivate}
+        />
         <p className="v2-eyebrow px-3">{eyebrow("output")}</p>
         {outputsCol}
       </div>

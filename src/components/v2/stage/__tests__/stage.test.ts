@@ -135,3 +135,27 @@ describe("consolidation tags", () => {
     expect(r.sameParent).toEqual([{ count: 2, txid: "par" }]);
   });
 });
+
+describe("layoutVerticalFlow", () => {
+  it("keeps list order, stays inside the width and sizes segments by value", async () => {
+    const { layoutVerticalFlow } = await import("../stage-layout");
+    const f = layoutVerticalFlow(
+      [{ key: "i0", value: 100 }, { key: "i1", value: 300 }],
+      [{ key: "o0", value: 50 }, { key: "o1", value: 340 }],
+      { width: 358, height: 140 },
+    );
+    const ins = f.ribbons.filter((r) => r.side === "input");
+    const outs = f.ribbons.filter((r) => r.side === "output");
+    expect(ins.map((r) => r.key)).toEqual(["i0", "i1"]);
+    expect(ins[0]!.bar[1]).toBeLessThanOrEqual(ins[1]!.bar[0]);
+    const w = (r: { bar: [number, number] }) => r.bar[1] - r.bar[0];
+    expect(w(ins[1]!)).toBeGreaterThan(w(ins[0]!) * 2);
+    expect(w(outs[1]!)).toBeGreaterThan(w(outs[0]!));
+    for (const r of f.ribbons) {
+      expect(r.bar[0]).toBeGreaterThanOrEqual(0);
+      expect(r.bar[1]).toBeLessThanOrEqual(358 + 1e-9);
+    }
+    expect(f.junction.x0).toBeGreaterThan(0);
+    expect(f.junction.x1).toBeLessThan(358);
+  });
+});

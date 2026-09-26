@@ -172,3 +172,61 @@ export function curve(x0: number, y0: number, x1: number, y1: number): string {
   const mx = r((x0 + x1) / 2);
   return `M${r(x0)},${r(y0)}C${mx},${r(y0)} ${mx},${r(y1)} ${r(x1)},${r(y1)}`;
 }
+
+export interface VerticalRibbon {
+  key: string;
+  side: StageSide;
+  /** Segment on the input bar (top) or output bar (bottom): [x0, x1]. */
+  bar: [number, number];
+  d: string;
+}
+
+export interface VerticalFlow {
+  ribbons: VerticalRibbon[];
+  junction: { x0: number; x1: number; y: number };
+}
+
+/**
+ * The flow rotated 90 degrees for narrow screens: inputs are segments of a top
+ * bar, outputs segments of a bottom bar, both in list order and sized by value
+ * on one shared scale (the gap on the output side is the fee). Ribbons meet in
+ * a horizontal junction in the middle.
+ */
+export function layoutVerticalFlow(
+  ins: readonly { key: string; value: number }[],
+  outs: readonly { key: string; value: number }[],
+  { width, height, gap = 2, minSeg = 3 }: { width: number; height: number; gap?: number; minSeg?: number },
+): VerticalFlow {
+  const sumIn = ins.reduce((s, p) => s + p.value, 0);
+  const sumOut = outs.reduce((s, p) => s + p.value, 0);
+  const total = Math.max(1, sumIn, sumOut);
+  const n = Math.max(ins.length, outs.length, 1);
+  // Room for gaps and minimum widths, then value scale for the rest.
+  const k = Math.max(0, width - gap * (n - 1) - minSeg * n) / total;
+  const segW = (v: number) => minSeg + v * k;
+  const jw = Math.min(width * 0.55, Math.max(ins.reduce((s, p) => s + segW(p.value), 0), outs.reduce((s, p) => s + segW(p.value), 0)) * 0.55);
+  const jx0 = (width - jw) / 2;
+  const my = height / 2;
+
+  const side = (items: readonly { key: string; value: number }[], s: StageSide): VerticalRibbon[] => {
+    const stackW = items.reduce((acc, p) => acc + segW(p.value), 0) + gap * Math.max(0, items.length - 1);
+    let bx = (width - stackW) / 2;
+    const jScale = jw / Math.max(1, items.reduce((acc, p) => acc + segW(p.value), 0));
+    let jx = jx0;
+    return items.map((p) => {
+      const w = segW(p.value);
+      const bar: [number, number] = [bx, bx + w];
+      const j: [number, number] = [jx, jx + w * jScale];
+      bx += w + gap;
+      jx += w * jScale;
+      const yb = s === "input" ? 0 : height;
+      const c = (height / 2) * 0.55;
+      const [ya, yb2] = s === "input" ? [yb, my] : [my, yb];
+      const [a0, a1, b0, b1] = s === "input" ? [bar[0], bar[1], j[0], j[1]] : [j[0], j[1], bar[0], bar[1]];
+      const d = `M${a0} ${ya} C${a0} ${ya + c}, ${b0} ${yb2 - c}, ${b0} ${yb2} L${b1} ${yb2} C${b1} ${yb2 - c}, ${a1} ${ya + c}, ${a1} ${ya} Z`;
+      return { key: p.key, side: s, bar, d };
+    });
+  };
+
+  return { ribbons: [...side(ins, "input"), ...side(outs, "output")], junction: { x0: jx0, x1: jx0 + jw, y: my } };
+}
