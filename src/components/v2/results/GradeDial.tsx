@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
-import { GRADE_VAR } from "@/lib/constants";
+import { GRADE_TEXT_VAR, GRADE_VAR } from "@/lib/constants";
 import { scoreToGrade } from "@/lib/scoring/score";
 import type { Grade } from "@/lib/types";
 
@@ -44,7 +44,7 @@ export function GradeDial({ score, size = 220 }: { score: number; size?: number 
     <div className="relative" style={{ width: size, height: size * 0.62 }}>
       <svg viewBox="0 0 200 124" width={size} height={size * 0.62} aria-hidden="true" className="overflow-visible">
         {BANDS.map((b) => (
-          <path key={b.grade} d={arc(b.from + 0.6, b.to - 0.6)} fill="none" stroke={GRADE_VAR[b.grade]} strokeOpacity={b.grade === grade ? 0.28 : 0.1} strokeWidth={10} strokeLinecap="butt" />
+          <path key={b.grade} d={arc(b.from + 0.6, b.to - 0.6)} fill="none" stroke={GRADE_VAR[b.grade]} style={{ strokeOpacity: b.grade === grade ? "var(--dial-band-active, 0.28)" : "var(--dial-band, 0.1)" }} strokeWidth={10} strokeLinecap="butt" />
         ))}
         <path d={arc(0, Math.max(0.01, score))} fill="none" stroke={color} strokeWidth={10} strokeLinecap="round" />
         {BANDS.slice(1).map((b) => {
@@ -55,7 +55,7 @@ export function GradeDial({ score, size = 220 }: { score: number; size?: number 
         {BANDS.map((b) => {
           const [x, y] = point((b.from + b.to) / 2, R + 24);
           return (
-            <text key={b.grade} x={x} y={y} textAnchor="middle" dominantBaseline="middle" fontSize={9} fill={b.grade === grade ? GRADE_VAR[b.grade] : "var(--faint)"} fontFamily="var(--font-geist-mono)">
+            <text key={b.grade} x={x} y={y} textAnchor="middle" dominantBaseline="middle" fontSize={9} fill={b.grade === grade ? GRADE_TEXT_VAR[b.grade] : "var(--faint)"} fontFamily="var(--font-geist-mono)">
               {b.grade}
             </text>
           );

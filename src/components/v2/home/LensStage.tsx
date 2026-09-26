@@ -56,7 +56,8 @@ export function LensStage({ tx, model, L, lens, revealAll, reduced, selected, on
   const SEV: Record<string, string> = { critical: P.severityCritical, high: P.severityHigh, medium: P.severityMedium, low: P.severityLow, good: P.severityGood };
   /** GREY: the blinded (CoinJoin) state. CLU: the sender-to-change ownership link, kept distinct from the orange accent and severities. */
   const GREY = light ? HUES.gray500 : HUES.gray400, CLU = light ? HUES.fuchsia600 : HUES.fuchsia400;
-  const FG = (a: number) => hexToRgba(P.foreground, a);
+  /** Light paper needs roughly twice the ink of dark glass for the same visibility. */
+  const FG = (a: number) => hexToRgba(P.foreground, light ? a * 2 : a);
   const [tick, setTick] = useState(0);
   useEffect(() => {
     if (!model.blind || reduced) return;
@@ -182,7 +183,7 @@ export function LensStage({ tx, model, L, lens, revealAll, reduced, selected, on
         {[...ins, ...outs].map((c) => (
           <g key={c.key} onClick={() => onPick(c.key)} className="cursor-pointer">
             <rect x={c.box.x} y={c.box.y} width={c.box.w} height={c.box.h} rx={10} fill={P.background} />
-            <rect x={c.box.x} y={c.box.y} width={c.box.w} height={c.box.h} rx={10} fill={c.color} fillOpacity={0.1} stroke={c.color} strokeWidth={sel(c.key) ? 2.5 : 1.5} />
+            <rect x={c.box.x} y={c.box.y} width={c.box.w} height={c.box.h} rx={10} fill={c.color} fillOpacity={light ? 0.16 : 0.1} stroke={c.color} strokeWidth={sel(c.key) ? 2.5 : 1.5} />
             <text x={c.box.x + 14} y={c.box.y + 20} className="font-mono" fontSize={11} fontWeight={600} letterSpacing="0.06em" fill={c.color}>{c.tag}</text>
             <text x={c.box.x + 14} y={c.box.y + 41} fontSize={15} fontWeight={600} fill={P.foreground}>{c.main}</text>
             <text x={c.box.x + 14} y={c.box.y + 57} className="font-mono" fontSize={11.5} fill={P.muted}>{c.sub}</text>
@@ -191,7 +192,7 @@ export function LensStage({ tx, model, L, lens, revealAll, reduced, selected, on
         ))}
         <g onClick={() => onPick("hub")} className="cursor-pointer">
           <rect x={b.x} y={b.y} width={b.w} height={b.h} rx={10} fill={P.background} />
-          <rect x={b.x} y={b.y} width={b.w} height={b.h} rx={10} fill={model.blind ? P.severityGood : COLORS.bitcoin} fillOpacity={0.07} stroke={hexToRgba(model.blind ? P.severityGood : COLORS.bitcoin, 0.35)} strokeWidth={sel("hub") ? 2.5 : 1} />
+          <rect x={b.x} y={b.y} width={b.w} height={b.h} rx={10} fill={model.blind ? P.severityGood : COLORS.bitcoin} fillOpacity={light ? 0.12 : 0.07} stroke={hexToRgba(model.blind ? P.severityGood : COLORS.bitcoin, light ? 0.6 : 0.35)} strokeWidth={sel("hub") ? 2.5 : 1} />
           <text x={b.x + 14} y={b.y + 23} className="font-mono" fontSize={11} fontWeight={600} letterSpacing="0.12em" fill={model.blind ? P.severityGood : P.bitcoinText}>
             {model.blind ? t("v2.home.lens_hub_blind", { defaultValue: "WHAT THE ANALYST GETS" }) : t("v2.home.lens_hub", { defaultValue: "FINGERPRINT & ENTROPY" })}
           </text>

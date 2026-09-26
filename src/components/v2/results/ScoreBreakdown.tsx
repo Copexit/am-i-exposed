@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import type { Finding } from "@/lib/types";
 import type { ScoreWaterfall } from "@/lib/view/waterfall";
 import { findingKeys } from "@/lib/finding-utils";
-import { GRADE_VAR } from "@/lib/constants";
+import { GRADE_TEXT_VAR, GRADE_VAR } from "@/lib/constants";
 import { scoreToGrade } from "@/lib/scoring/score";
 import { SEVERITY_BG } from "./severity";
 
@@ -92,7 +92,7 @@ export function ScoreBreakdown({ waterfall, findings, isRevealed, highlightId, o
             <div className="text-xs text-foreground">{t("export.finalScore", { defaultValue: "Final score" })}</div>
             {bar(0, waterfall.final, "", { backgroundColor: finalColor })}
           </div>
-          <span className="v2-num text-sm text-right" style={{ color: finalColor }}>{waterfall.final}</span>
+          <span className="v2-num text-sm text-right" style={{ color: GRADE_TEXT_VAR[scoreToGrade(waterfall.final)] }}>{waterfall.final}</span>
         </li>
       </ol>
       {zeroImpact > 0 && (

@@ -111,6 +111,15 @@ export const GRADE_VAR: Record<Grade, string> = {
   F: "var(--fill-critical, var(--severity-critical))",
 };
 
+/** Grade colors for small text (AA shades in every theme). */
+export const GRADE_TEXT_VAR: Record<Grade, string> = {
+  "A+": "var(--severity-good)",
+  B: "var(--severity-low)",
+  C: "var(--severity-medium)",
+  D: "var(--severity-high)",
+  F: "var(--severity-critical)",
+};
+
 /** Look up grade text color, returning fallback for unknown grades. */
 export function gradeColor(grade: string, fallback = "text-muted"): string {
   return GRADE_COLORS[grade as Grade] ?? fallback;

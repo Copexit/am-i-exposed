@@ -72,7 +72,7 @@ export const V2_LIGHT_COLORS = {
   surfaceInset: "#eef0f4",
   surfaceElevated: "#fbfbfc",
   bitcoinText: "#b04307",
-  bitcoinDisplay: "#dc6b08",
+  bitcoinDisplay: "#c85f06",
   success: "#12703a",
   warning: "#8f5606",
   danger: "#c81e1e",
@@ -84,9 +84,9 @@ export const V2_LIGHT_COLORS = {
   severityGood: "#12703a",
   fillCritical: "#ef4444",
   fillHigh: "#ea580c",
-  fillMedium: "#c58a00",
+  fillMedium: "#b07b00",
   fillLow: "#3b82f6",
-  fillGood: "#16a34a",
+  fillGood: "#15803d",
 } as const;
 
 type V2Palette = Readonly<Record<keyof typeof COLORS | keyof typeof V2_LIGHT_COLORS, string>>;

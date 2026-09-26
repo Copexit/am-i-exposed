@@ -6,7 +6,7 @@ import type { MempoolTransaction } from "@/lib/api/types";
 import { formatSats } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 import { isOpReturnOutput } from "@/lib/analysis/heuristics/tx-utils";
-import { COLORS, hexToRgba } from "@/lib/palette";
+import { COLORS, V2_LIGHT_COLORS, hexToRgba } from "@/lib/palette";
 import { useV2Palette } from "../useV2Palette";
 
 /** Rows shown per side before "+N more". */
@@ -68,7 +68,7 @@ export function ScanTxLive({ tx, focus }: { tx: MempoolTransaction; focus: "in" 
   const yOf = (i: number, n: number) => cy - ((n * ROW_H + (n - 1) * GAP) / 2) + i * (ROW_H + GAP);
   const inX = 24, outX = W - 24 - BOX_W;
   const accent = (a: number) => hexToRgba(COLORS.bitcoin, a);
-  const dim = hexToRgba(P.foreground, 0.12);
+  const dim = hexToRgba(P.foreground, P.background === V2_LIGHT_COLORS.background ? 0.22 : 0.12);
   const fmt = (v: number) => formatSats(v, i18n.language);
 
   const row = (r: LiveRow, i: number, n: number, side: "in" | "out") => {
