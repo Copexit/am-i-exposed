@@ -199,6 +199,15 @@ export default function Home() {
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-3 sm:px-4 xl:px-8 2xl:px-10 py-4 sm:py-6">
       <div className="sr-only" role="status" aria-live="polite">{ariaStatus}</div>
+      {/* Deep link waiting for backend detection (local API / Tor probe, up to ~10s).
+          Kept outside AnimatePresence mode="wait": a fast scan finishing during its exit
+          animation could leave the switch stuck on this loader. */}
+      {phase === "idle" && pendingHash && !walletActive && (
+        <div data-testid="pending-hash-loader" className="flex items-center gap-2 text-sm text-muted">
+          <Loader2 size={16} className="animate-spin text-bitcoin" aria-hidden="true" />
+          {t("common.loading", { defaultValue: "Loading..." })}
+        </div>
+      )}
       <AnimatePresence mode="wait">
         {phase === "idle" && !pendingHash && !walletActive && (
           <HeroSection
@@ -213,21 +222,6 @@ export default function Home() {
             onExportBookmarks={exportBookmarks}
             onImportBookmarks={importBookmarks}
           />
-        )}
-
-        {/* Deep link waiting for backend detection (local API / Tor probe, up to ~10s) */}
-        {phase === "idle" && pendingHash && !walletActive && (
-          <motion.div
-            key="pending-hash"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            data-testid="pending-hash-loader"
-            className="flex items-center gap-2 text-sm text-muted"
-          >
-            <Loader2 size={16} className="animate-spin text-bitcoin" aria-hidden="true" />
-            {t("common.loading", { defaultValue: "Loading..." })}
-          </motion.div>
         )}
 
         {(phase === "fetching" || phase === "analyzing") && (
