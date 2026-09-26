@@ -34,25 +34,29 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+// The value element right after the label (a div in classic, a dd in v2).
 const stat = (page: import("@playwright/test").Page, name: string) =>
-  page.getByText(name, { exact: true }).locator("xpath=following-sibling::div");
+  page.getByText(name, { exact: true }).locator("xpath=following-sibling::*[1]");
 
-test("xpub scan finds the one funded address and renders the wallet audit", async ({ page }) => {
-  const requested = new Set<string>();
-  page.on("request", (req) => {
-    const addr = req.url().split("/api/address/")[1]?.split("/")[0];
-    if (addr) requested.add(addr);
+// Classic and v2 share the wallet scanner; the audit must render in both.
+for (const base of ["/", "/v2/"]) {
+  test(`${base}: xpub scan finds the one funded address and renders the wallet audit`, async ({ page }) => {
+    const requested = new Set<string>();
+    page.on("request", (req) => {
+      const addr = req.url().split("/api/address/")[1]?.split("/")[0];
+      if (addr) requested.add(addr);
+    });
+
+    await page.goto(`${base}#xpub=${ZPUB}`);
+
+    await expect(page.getByText("Wallet Privacy Audit")).toBeVisible({ timeout: 20_000 });
+    await expect(stat(page, "Active addresses")).toHaveText("1");
+    await expect(stat(page, "Total transactions")).toHaveText("1");
+    await expect(stat(page, "Total UTXOs")).toHaveText("1");
+    await expect(stat(page, "Total balance")).toHaveText("39,852,779 sats"); // FUNDED_SATS
+
+    // Receive chain: index 0 (used) + 2 unused; change chain: 2 unused
+    expect(requested.has(FIRST_ADDRESS)).toBe(true);
+    expect(requested.size).toBe(5);
   });
-
-  await page.goto(`/#xpub=${ZPUB}`);
-
-  await expect(page.getByText("Wallet Privacy Audit")).toBeVisible({ timeout: 20_000 });
-  await expect(stat(page, "Active addresses")).toHaveText("1");
-  await expect(stat(page, "Total transactions")).toHaveText("1");
-  await expect(stat(page, "Total UTXOs")).toHaveText("1");
-  await expect(stat(page, "Total balance")).toHaveText("39,852,779 sats"); // FUNDED_SATS
-
-  // Receive chain: index 0 (used) + 2 unused; change chain: 2 unused
-  expect(requested.has(FIRST_ADDRESS)).toBe(true);
-  expect(requested.size).toBe(5);
-});
+}

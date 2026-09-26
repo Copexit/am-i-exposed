@@ -9,6 +9,7 @@ import { COLORS, LIGHT_COLORS } from "@/lib/palette";
 import { PrivacyNotice } from "@/components/PrivacyNotice";
 import { MempoolDownDialog } from "@/components/MempoolDownDialog";
 import { AmbientBackground } from "@/components/AmbientBackground";
+import { ClassicOnly, AppMain } from "@/components/ClassicChrome";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -79,7 +80,7 @@ export default function RootLayout({
         />
         <meta name="referrer" content="no-referrer" />
         <meta name="theme-color" content={COLORS.background} id="meta-theme-color" />
-        <script dangerouslySetInnerHTML={{ __html: `(function(){try{if(localStorage.getItem("ami-theme")==="light"){document.documentElement.dataset.theme="light";var m=document.getElementById("meta-theme-color");if(m)m.content="${LIGHT_COLORS.background}"}}catch(e){}})()` }} />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{if(localStorage.getItem("ami-theme")==="light"&&location.pathname!=="/v2"&&location.pathname.indexOf("/v2/")!==0){document.documentElement.dataset.theme="light";var m=document.getElementById("meta-theme-color");if(m)m.content="${LIGHT_COLORS.background}"}}catch(e){}})()` }} />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
@@ -130,16 +131,16 @@ export default function RootLayout({
         >
           Skip to main content
         </a>
-        <AmbientBackground />
+        <ClassicOnly><AmbientBackground /></ClassicOnly>
         <I18nProvider>
           <LangAttributeSync />
           <NetworkProvider>
-            <Header />
-            <main id="main-content" className="flex-1 flex flex-col pt-[72px] sm:pt-[80px]">
-              <PrivacyNotice />
+            <ClassicOnly><Header /></ClassicOnly>
+            <AppMain>
+              <ClassicOnly><PrivacyNotice /></ClassicOnly>
               {children}
-            </main>
-            <Footer />
+            </AppMain>
+            <ClassicOnly><Footer /></ClassicOnly>
             <MempoolDownDialog />
           </NetworkProvider>
         </I18nProvider>

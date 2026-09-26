@@ -12,6 +12,7 @@ import { findingKeys } from "@/lib/finding-utils";
 import { RicochetHopTable, ConsolidationTable } from "./FindingCardTables";
 import type { FindingId } from "@/lib/analysis/finding-metadata";
 import { Collapse } from "./ui/Collapse";
+import { useUiHref } from "@/components/v2/pages/uiHref";
 import {
   SEVERITY_STYLES,
   CONFIDENCE_STYLES,
@@ -177,15 +178,96 @@ function ChangeSignalBreakdown({ finding, t, proMode }: { finding: Finding; t: (
   );
 }
 
-export const FindingCard = memo(function FindingCard({ finding, index, defaultExpanded = false, badge, onTxClick, proMode = false }: FindingCardProps) {
+/**
+ * Expanded detail of a finding: description, change-signal breakdown, tier
+ * context, recommendation, hop/consolidation tables, learn-more link and
+ * score impact. Shared by the classic FindingCard and the v2 findings list.
+ */
+export function FindingCardBody({ finding, onTxClick, proMode = false, className, variant = "classic" }: {
+  finding: Finding;
+  onTxClick?: (txid: string) => void;
+  proMode?: boolean;
+  className?: string;
+  /** v2: quieter, smaller body text under a 15px title. */
+  variant?: "classic" | "v2";
+}) {
+  const v2 = variant === "v2";
   const { t, i18n } = useTranslation();
+  const toUi = useUiHref();
+  const learnMore = FINDING_LEARN_MORE[finding.id];
+  return (
+    <div id={`finding-detail-${finding.id}`} className={className ?? "px-5 pb-5 space-y-3 border-t border-card-border pt-3"}>
+      <p className={v2 ? "text-sm text-muted leading-relaxed max-w-[75ch]" : "text-base text-foreground leading-relaxed"}>
+        {t(findingKeys(finding.id, "description", finding.params), { ...finding.params, defaultValue: finding.description })}
+      </p>
+      <ChangeSignalBreakdown finding={finding} t={t} proMode={proMode} />
+      {proMode && <TierContext finding={finding} t={t} />}
+      {finding.recommendation && (
+        <div className={v2 ? "border-l-2 border-bitcoin/40 pl-3 py-0.5" : "bg-surface-inset rounded-md px-3 py-2"}>
+          <p className={v2 ? "v2-eyebrow mb-1.5" : "text-xs font-medium text-muted mb-1"}>
+            {t("finding.recommendationLabel", { defaultValue: "Recommendation" })}
+          </p>
+          <p className={v2 ? "text-sm text-foreground/90 leading-relaxed max-w-[75ch]" : "text-base text-foreground/90 leading-relaxed"}>
+            {t(findingKeys(finding.id, "recommendation", finding.params), { ...finding.params, defaultValue: finding.recommendation })}
+          </p>
+        </div>
+      )}
+      {finding.id === "ricochet-hop0" && finding.params?.hops && (
+        <RicochetHopTable
+          hopsJson={String(finding.params.hops)}
+          variant={String(finding.params.variant ?? "classic")}
+          hopCount={Number(finding.params.hopCount ?? 0)}
+          lang={i18n.language}
+          onTxClick={onTxClick}
+        />
+      )}
+      {finding.id === "chain-post-coinjoin-consolidation" && finding.params?._consolidationGroups && (
+        <ConsolidationTable
+          groupsJson={String(finding.params._consolidationGroups)}
+          lang={i18n.language}
+          onTxClick={onTxClick}
+        />
+      )}
+      <div className="flex items-center justify-between">
+        {learnMore && (
+          <a
+            href={toUi(`/faq/#${learnMore.faqId}`)}
+            className="inline-flex items-center gap-1 text-xs text-bitcoin hover:text-bitcoin-hover transition-colors"
+          >
+            <BookOpen size={12} />
+            {t(learnMore.labelKey, { defaultValue: learnMore.labelDefault })}
+          </a>
+        )}
+        {proMode && finding.scoreImpact !== 0 && (
+          <details className="text-xs text-muted">
+            <summary className="cursor-pointer select-none hover:text-foreground transition-colors">
+              {t("finding.showScoreImpact", { defaultValue: "Score impact" })}
+            </summary>
+            <span
+              className={
+                finding.scoreImpact > 0
+                  ? "text-severity-good"
+                  : "text-severity-high"
+              }
+            >
+              {finding.scoreImpact > 0 ? "+" : ""}
+              {finding.scoreImpact}
+            </span>
+          </details>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export const FindingCard = memo(function FindingCard({ finding, index, defaultExpanded = false, badge, onTxClick, proMode = false }: FindingCardProps) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(defaultExpanded);
   const reducedMotion = useReducedMotion();
   const style = SEVERITY_STYLES[finding.severity];
   const severityLabel = t(`common.severity.${finding.severity}`, { defaultValue: style.label });
   const confidence = finding.confidence;
   const confidenceStyle = confidence ? CONFIDENCE_STYLES[confidence] : null;
-  const learnMore = FINDING_LEARN_MORE[finding.id];
   const title = t(findingKeys(finding.id, "title", finding.params), { ...finding.params, defaultValue: finding.title });
 
   return (
@@ -260,67 +342,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
       </button>
 
       <Collapse open={expanded}>
-        <div id={`finding-detail-${finding.id}`} className="px-5 pb-5 space-y-3 border-t border-card-border pt-3">
-          <p className="text-base text-foreground leading-relaxed">
-            {t(findingKeys(finding.id, "description", finding.params), { ...finding.params, defaultValue: finding.description })}
-          </p>
-          <ChangeSignalBreakdown finding={finding} t={t} proMode={proMode} />
-          {proMode && <TierContext finding={finding} t={t} />}
-          {finding.recommendation && (
-            <div className="bg-surface-inset rounded-md px-3 py-2">
-              <p className="text-xs font-medium text-muted mb-1">
-                {t("finding.recommendationLabel", { defaultValue: "Recommendation" })}
-              </p>
-              <p className="text-base text-foreground/90 leading-relaxed">
-                {t(findingKeys(finding.id, "recommendation", finding.params), { ...finding.params, defaultValue: finding.recommendation })}
-              </p>
-            </div>
-          )}
-          {finding.id === "ricochet-hop0" && finding.params?.hops && (
-            <RicochetHopTable
-              hopsJson={String(finding.params.hops)}
-              variant={String(finding.params.variant ?? "classic")}
-              hopCount={Number(finding.params.hopCount ?? 0)}
-              lang={i18n.language}
-              onTxClick={onTxClick}
-            />
-          )}
-          {finding.id === "chain-post-coinjoin-consolidation" && finding.params?._consolidationGroups && (
-            <ConsolidationTable
-              groupsJson={String(finding.params._consolidationGroups)}
-              lang={i18n.language}
-              onTxClick={onTxClick}
-            />
-          )}
-          <div className="flex items-center justify-between">
-            {learnMore && (
-              <a
-                href={`/faq/#${learnMore.faqId}`}
-                className="inline-flex items-center gap-1 text-xs text-bitcoin hover:text-bitcoin-hover transition-colors"
-              >
-                <BookOpen size={12} />
-                {t(learnMore.labelKey, { defaultValue: learnMore.labelDefault })}
-              </a>
-            )}
-            {proMode && finding.scoreImpact !== 0 && (
-              <details className="text-xs text-muted">
-                <summary className="cursor-pointer select-none hover:text-foreground transition-colors">
-                  {t("finding.showScoreImpact", { defaultValue: "Score impact" })}
-                </summary>
-                <span
-                  className={
-                    finding.scoreImpact > 0
-                      ? "text-severity-good"
-                      : "text-severity-high"
-                  }
-                >
-                  {finding.scoreImpact > 0 ? "+" : ""}
-                  {finding.scoreImpact}
-                </span>
-              </details>
-            )}
-          </div>
-        </div>
+        <FindingCardBody finding={finding} onTxClick={onTxClick} proMode={proMode} />
       </Collapse>
     </motion.div>
   );

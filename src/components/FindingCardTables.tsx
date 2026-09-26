@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { usePathname } from "next/navigation";
+import { scannerHref } from "@/lib/v2/paths";
 import { ExternalLink, Copy, Check } from "lucide-react";
 import { truncateId } from "@/lib/constants";
 import { formatSats, fmtN } from "@/lib/format";
@@ -31,6 +33,7 @@ export function RicochetHopTable({
   onTxClick?: (txid: string) => void;
 }) {
   const { t } = useTranslation();
+  const pathname = usePathname();
   let hops: RicochetHop[];
   try {
     hops = JSON.parse(hopsJson) as RicochetHop[];
@@ -80,7 +83,7 @@ export function RicochetHopTable({
                 </button>
               ) : (
                 <a
-                  href={`/#tx=${hop.txid}`}
+                  href={scannerHref(`tx=${hop.txid}`, pathname)}
                   className="font-mono text-bitcoin hover:text-bitcoin-hover transition-colors"
                 >
                   {truncateId(hop.txid, 4)}
@@ -122,6 +125,7 @@ export function ConsolidationTable({
   onTxClick?: (txid: string) => void;
 }) {
   const { t } = useTranslation();
+  const pathname = usePathname();
   const [copiedTxid, setCopiedTxid] = useState<string | null>(null);
   let groups: ConsolidationGroup[];
   try {
@@ -166,7 +170,7 @@ export function ConsolidationTable({
                 <span className="font-mono text-xs text-foreground/70">{truncateId(g.childTxid, 8)}</span>
               )}
               <a
-                href={`/#tx=${g.childTxid}`}
+                href={scannerHref(`tx=${g.childTxid}`, pathname)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted hover:text-foreground transition-colors"

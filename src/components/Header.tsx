@@ -5,12 +5,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
-import { Menu, X, Info, Shield, Network, Activity, Server } from "lucide-react";
+import { Menu, X, Info, Shield, Network, Activity, Server, Sparkles } from "lucide-react";
 import { ConnectionBadge } from "./ConnectionBadge";
 import { ApiSettings } from "./ApiSettings";
 import { ExperienceModeToggle } from "./ExperienceModeToggle";
 import { useDevMode } from "@/hooks/useDevMode";
 import { useExperienceMode } from "@/hooks/useExperienceMode";
+import { v2Href } from "@/lib/v2/paths";
 
 /** Knowledge section paths grouped under the Guide nav item. */
 const KNOWLEDGE_PATHS = new Set(["/guide", "/faq", "/glossary"]);
@@ -162,6 +163,15 @@ export function Header() {
             </nav>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              href={v2Href(currentPath, currentHash)}
+              aria-label={t("v2.chrome.tryBeta", { defaultValue: "Try the new am-i.exposed" })}
+              title={t("v2.chrome.tryBeta", { defaultValue: "Try the new am-i.exposed" })}
+              className="hidden md:inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-bitcoin/30 bg-bitcoin/10 px-2 xl:px-3 py-1 text-xs font-medium text-bitcoin hover:bg-bitcoin/15 hover:border-bitcoin/50 transition-colors"
+            >
+              <Sparkles size={12} aria-hidden="true" />
+              <span className="hidden xl:inline">{t("v2.chrome.tryBeta", { defaultValue: "Try the new am-i.exposed" })}</span>
+            </Link>
             <ConnectionBadge />
             <ExperienceModeToggle />
             <ApiSettings />
@@ -231,6 +241,14 @@ export function Header() {
                   </Link>
                 );
               })}
+              <Link
+                href={v2Href(currentPath, currentHash)}
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-bitcoin border border-bitcoin/25 bg-bitcoin/10 hover:bg-bitcoin/15 transition-colors"
+              >
+                <Sparkles size={16} aria-hidden="true" />
+                {t("v2.chrome.tryBeta", { defaultValue: "Try the new am-i.exposed" })}
+              </Link>
             </motion.nav>
           </motion.div>
         )}

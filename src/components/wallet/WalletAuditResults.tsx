@@ -40,7 +40,7 @@ interface WalletAuditResultsProps {
 }
 
 /** Find the worst privacy offender address for the highlight card. */
-function findWorstOffender(addressInfos: WalletAddressInfo[]): {
+export function findWorstOffender(addressInfos: WalletAddressInfo[]): {
   path: string;
   reuseCount: number;
   dustCount: number;

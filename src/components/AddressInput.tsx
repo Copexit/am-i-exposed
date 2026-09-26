@@ -35,9 +35,11 @@ interface AddressInputProps {
   onSubmit: (input: string) => void;
   isLoading: boolean;
   inputRef?: React.RefObject<HTMLInputElement | null>;
+  /** Placeholder override (v2 uses a shorter one that fits a phone). */
+  placeholder?: string;
 }
 
-export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: AddressInputProps) {
+export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, placeholder: placeholderOverride }: AddressInputProps) {
   const { t } = useTranslation();
   const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -121,7 +123,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef }: Add
     }
   };
 
-  const placeholder = t("input.placeholderScan", { defaultValue: "Paste a Bitcoin address or transaction ID" });
+  const placeholder = placeholderOverride ?? t("input.placeholderScan", { defaultValue: "Paste a Bitcoin address or transaction ID" });
   const buttonLabel = t("input.buttonScan", { defaultValue: "Scan" });
 
   return (

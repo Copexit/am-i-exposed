@@ -96,6 +96,34 @@ describe("runTxidAnalysis", () => {
     expect(result.findings.some((f) => f.id === "chain-post-mix-consolidation")).toBe(true);
   });
 
+  it("publishes the transaction before the chain trace so the scan view can draw it", async () => {
+    const tx = makeTestTx();
+    const updates: Array<Record<string, unknown>> = [];
+    const d = deps(makeApi(tx));
+    d.setState = (u) => {
+      const next = typeof u === "function" ? u({} as Parameters<typeof u>[0]) : u;
+      updates.push(next as unknown as Record<string, unknown>);
+    };
+    await runTxidAnalysis(tx.txid, d);
+    const firstWithTx = updates.findIndex((u) => u.txData === tx);
+    const analyzing = updates.findIndex((u) => u.phase === "analyzing");
+    expect(firstWithTx).toBeGreaterThanOrEqual(0);
+    expect(firstWithTx).toBeLessThan(analyzing);
+  });
+
+  it("does not publish the transaction of an aborted scan", async () => {
+    const tx = makeTestTx();
+    const updates: Array<Record<string, unknown>> = [];
+    const d = deps(makeApi(tx));
+    d.controller.abort();
+    d.setState = (u) => {
+      const next = typeof u === "function" ? u({} as Parameters<typeof u>[0]) : u;
+      updates.push(next as unknown as Record<string, unknown>);
+    };
+    await runTxidAnalysis(tx.txid, d).catch(() => {});
+    expect(updates.some((u) => u.txData === tx)).toBe(false);
+  });
+
   it("marks the result partial when an optional enrichment fetch fails", async () => {
     const tx = makeTestTx();
     const { result } = await runTxidAnalysis(tx.txid, deps(makeApi(tx, {

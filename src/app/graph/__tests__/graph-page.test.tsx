@@ -35,7 +35,7 @@ vi.mock("react-i18next", () => ({
 vi.mock("@/components/ui/ChartErrorBoundary", () => ({
   ChartErrorBoundary: ({ children }: { children: React.ReactNode }) => children,
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/graph/" }));
 vi.mock("@/context/NetworkContext", () => ({ useNetwork: () => h.net }));
 vi.mock("@/lib/api/client", () => ({
   createApiClient: (config: NetworkConfig, signal?: AbortSignal) => ({

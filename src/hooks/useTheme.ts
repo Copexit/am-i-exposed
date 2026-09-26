@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore, useCallback, useEffect } from "react";
 import { COLORS, LIGHT_COLORS } from "@/lib/palette";
+import { isV2Path } from "@/lib/v2/paths";
 
 type Theme = "dark" | "light";
 
@@ -13,9 +14,13 @@ function notify() {
   for (const fn of listeners) fn();
 }
 
-/** Read theme from localStorage. */
+/**
+ * Theme to show: the stored preference, except in the v2 UI, which is dark
+ * only. The stored preference is never changed by visiting v2.
+ */
 function storedTheme(): Theme {
   if (typeof window === "undefined") return "dark";
+  if (isV2Path(window.location.pathname)) return "dark";
   try {
     if (localStorage.getItem(STORAGE_KEY) === "light") return "light";
   } catch { /* private browsing */ }
@@ -44,6 +49,12 @@ function applyTheme(theme: Theme) {
 // Apply on module load (client-side) so the DOM is correct before first render
 if (typeof window !== "undefined") {
   applyTheme(storedTheme());
+}
+
+/** Re-apply the theme for the current path (client-side navigation into or out of v2). */
+export function syncThemeWithPath(): void {
+  applyTheme(storedTheme());
+  notify();
 }
 
 function subscribe(callback: () => void): () => void {
