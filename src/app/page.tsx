@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useRef, useState, lazy, Suspense, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import { Loader2 } from "lucide-react";
 import { DiagnosticLoader } from "@/components/DiagnosticLoader";
 import { ResultsPanel } from "@/components/ResultsPanel";
@@ -199,16 +199,17 @@ export default function Home() {
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-3 sm:px-4 xl:px-8 2xl:px-10 py-4 sm:py-6">
       <div className="sr-only" role="status" aria-live="polite">{ariaStatus}</div>
-      {/* Deep link waiting for backend detection (local API / Tor probe, up to ~10s).
-          Kept outside AnimatePresence mode="wait": a fast scan finishing during its exit
-          animation could leave the switch stuck on this loader. */}
+      {/* Deep link waiting for backend detection (local API / Tor probe, up to ~10s) */}
       {phase === "idle" && pendingHash && !walletActive && (
         <div data-testid="pending-hash-loader" className="flex items-center gap-2 text-sm text-muted">
           <Loader2 size={16} className="animate-spin text-bitcoin" aria-hidden="true" />
           {t("common.loading", { defaultValue: "Loading..." })}
         </div>
       )}
-      <AnimatePresence mode="wait">
+      {/* Views animate in on mount and unmount immediately. No AnimatePresence
+          mode="wait": with motion 12.41+ a view change during an exit animation
+          (fast scan, error, network auto-switch) could leave the page stuck on
+          the previous view. */}
         {phase === "idle" && !pendingHash && !walletActive && (
           <HeroSection
             key="hero"
@@ -316,7 +317,6 @@ export default function Home() {
         {wallet.phase === "error" && (
           <ErrorView key="wallet-error" error={wallet.error} onBack={handleBack} />
         )}
-      </AnimatePresence>
 
       <AppStoreAnnouncement />
       <InstallPrompt />
