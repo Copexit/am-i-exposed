@@ -200,9 +200,12 @@ export function GraphCanvas({
   }, [focusedNode, layoutNodes, scrollRef]);
 
   // Auto-scroll to center the root transaction node(s) on first render only
+  // (scroll mode only: with a view transform, scrolling the overflow-hidden
+  // container would shift the whole canvas off-screen on narrow viewports)
   const hasCentered = useRef(false);
+  const usesTransform = !!viewTransform;
   useEffect(() => {
-    if (hasCentered.current) return;
+    if (hasCentered.current || usesTransform) return;
     const el = scrollRef.current;
     if (!el) return;
     const rootNodes = layoutNodes.filter((n) => n.isRoot);
@@ -210,7 +213,7 @@ export function GraphCanvas({
     hasCentered.current = true;
     const avgX = rootNodes.reduce((s, n) => s + n.x + n.width / 2, 0) / rootNodes.length;
     el.scrollLeft = avgX - el.clientWidth / 2;
-  }, [layoutNodes, scrollRef]);
+  }, [layoutNodes, scrollRef, usesTransform]);
 
   // Handle double-click: expand all connected UTXOs (up to 5 per direction)
   const handleNodeDoubleClick = useCallback((node: LayoutNode) => {

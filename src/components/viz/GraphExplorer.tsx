@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { useChartTooltip } from "./shared/ChartTooltip";
@@ -9,7 +10,7 @@ import { useGraphBoltzmann } from "@/hooks/useGraphBoltzmann";
 import { GraphSidebar } from "./graph/GraphSidebar";
 import { MAX_ZOOM, MIN_ZOOM } from "./graph/constants";
 import {
-  layoutGraph, computeFitView, computeRootCenterView, getViewportDims, findFreeY,
+  layoutGraph, computeFitView, computeCompactView, computeRootCenterView, getViewportDims, findFreeY,
   SEED_BACKWARD_DX, SEED_FORWARD_GAP,
 } from "./graph/layout";
 import { CloseIcon } from "./graph/icons";
@@ -155,7 +156,15 @@ export function GraphExplorer(props: GraphExplorerProps) {
   }, [hasLinkability, dispatch]);
 
   // Fullscreen toggle
-  const { isExpanded, expand: expandFullscreen, collapse: collapseFullscreen } = useFullscreen(handleFullscreenExit);
+  // Re-frame the view once the next canvas has measured its real size: on first
+  // compact render, on opening fullscreen, and on returning to compact inline.
+  const pendingFrameRef = useRef(!!props.compact);
+  const { compact } = props;
+  const onFullscreenExit = useCallback(() => {
+    pendingFrameRef.current = !!compact;
+    handleFullscreenExit();
+  }, [compact, handleFullscreenExit]);
+  const { isExpanded, expand: expandFullscreen, collapse: collapseFullscreen } = useFullscreen(onFullscreenExit);
 
   // Zoom helper (reads container dims at call time, so a resize is honored)
   const zoomBy = useCallback((factor: number) => {
@@ -178,20 +187,29 @@ export function GraphExplorer(props: GraphExplorerProps) {
   // ─── Layout helpers ────────────────────────────────────
   const hiddenCount = graph.nodeCount - visibleCount;
 
-  const handleExpandFullscreen = useCallback(() => {
-    expandFullscreen();
-    const { layoutNodes: ln } = layoutGraph(graph.nodes, graph.rootTxid, filter, graph.rootTxids, undefined, true);
-    // Use rAF to measure after fullscreen layout settles
-    requestAnimationFrame(() => {
-      dispatch({ type: "SET_VIEW_TRANSFORM", vt: computeRootCenterView(ln.filter((n) => n.isRoot), containerDimsRef.current) });
-    });
-  }, [expandFullscreen, graph.nodes, graph.rootTxid, filter, graph.rootTxids, dispatch, containerDimsRef]);
-
   const handleFitView = useCallback(() => {
     const { layoutNodes: ln } = layoutGraph(graph.nodes, graph.rootTxid, filter, graph.rootTxids, undefined, true);
     const vt = computeFitView(ln, containerDimsRef.current);
     if (vt) dispatch({ type: "SET_VIEW_TRANSFORM", vt });
   }, [graph.nodes, graph.rootTxid, filter, graph.rootTxids, dispatch, containerDimsRef]);
+
+  const handleExpandFullscreen = useCallback(() => {
+    pendingFrameRef.current = true;
+    expandFullscreen();
+  }, [expandFullscreen]);
+
+  const onLayoutComplete = useCallback((info: Parameters<typeof handleLayoutComplete>[0]) => {
+    handleLayoutComplete(info);
+    if (!pendingFrameRef.current || info.containerHeight <= 0) return;
+    pendingFrameRef.current = false;
+    // rAF: run after GraphCanvas's own first-render root centering
+    requestAnimationFrame(() => {
+      if (isExpanded) { handleFitView(); return; }
+      const { layoutNodes: ln } = layoutGraph(graph.nodes, graph.rootTxid, filter, graph.rootTxids, graph.expandedNodeTxid, false, nodePositionOverrides);
+      const vt = computeCompactView(ln, containerDimsRef.current);
+      if (vt) dispatch({ type: "SET_VIEW_TRANSFORM", vt });
+    });
+  }, [handleLayoutComplete, handleFitView, isExpanded, graph.nodes, graph.rootTxid, filter, graph.rootTxids, graph.expandedNodeTxid, nodePositionOverrides, containerDimsRef, dispatch]);
 
   // Auto-center on root change in alwaysFullscreen mode.
   // GraphCanvas handles first-render centering (it knows the real container dims).
@@ -257,7 +275,6 @@ export function GraphExplorer(props: GraphExplorerProps) {
   }, [handleToggleHeatMap, handleToggleFingerprint, cycleEdgeMode, isExpanded, collapseFullscreen, handleExpandFullscreen, undo, reset, zoomBy, handleFitView, dispatch]);
 
   // Compact inline: canvas height fits the laid-out graph (260-500px).
-  const { compact } = props;
   const compactHeight = useMemo(() => {
     if (!compact) return undefined;
     const { height } = layoutGraph(graph.nodes, graph.rootTxid, filter, graph.rootTxids, graph.expandedNodeTxid, false, nodePositionOverrides);
@@ -303,7 +320,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
     focusedNode,
     setFocusedNode: (txid: string | null) => dispatch({ type: "SET_FOCUSED_NODE", txid }),
     heatMap, heatMapActive, linkabilityEdgeMode, fingerprintMode, entropyGradientMode,
-    changeOutputs, onLayoutComplete: handleLayoutComplete, boltzmannCache,
+    changeOutputs, onLayoutComplete, boltzmannCache,
     nodePositionOverrides, onNodePositionChange: handleNodePositionChange,
     annotations, annotateMode, onAnnotationsChange: setAnnotations,
     nodeLabels, onSetNodeLabel: handleSetNodeLabel, edgeLabels, onSetEdgeLabel: handleSetEdgeLabel,
@@ -430,17 +447,17 @@ export function GraphExplorer(props: GraphExplorerProps) {
         {lastError && <div className="text-xs text-severity-medium/80">{lastError}</div>}
       </motion.div>
 
-      {/* Fullscreen modal overlay */}
-      {isExpanded && (
+      {/* Fullscreen modal overlay: portaled so no transformed/sticky ancestor can clip or cover it */}
+      {isExpanded && createPortal(
         <div
           role="dialog" aria-modal="true"
           aria-label={t("graphExplorer.fullscreenLabel", { defaultValue: "Transaction graph fullscreen" })}
-          className="fixed inset-0 z-50 bg-card-bg/80 backdrop-blur-sm flex flex-col"
+          className="fixed inset-0 z-[100] bg-card-bg/80 backdrop-blur-sm flex flex-col"
           onClick={(e) => { if (e.target === e.currentTarget) collapseFullscreen(); }}
         >
           <button
             onClick={collapseFullscreen}
-            className="fixed top-3 right-3 z-[60] text-muted hover:text-foreground transition-colors p-2 rounded-lg bg-card-bg/80 hover:bg-surface-inset backdrop-blur-sm cursor-pointer"
+            className="fixed top-3 right-3 z-10 text-muted hover:text-foreground transition-colors p-2 rounded-lg bg-card-bg/80 hover:bg-surface-inset backdrop-blur-sm cursor-pointer"
             aria-label={t("common.close", { defaultValue: "Close" })}
           >
             <CloseIcon />
@@ -454,7 +471,8 @@ export function GraphExplorer(props: GraphExplorerProps) {
             legend={legend} tooltipContent={tooltipContent} sidebar={renderSidebar("fs-")}
             outerStyle={{ touchAction: "none" }}
           />
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
