@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
   output: "export",
   trailingSlash: true,
   images: { unoptimized: true },
+  // next dev would otherwise append generated agent rules to CLAUDE.md on every run
+  agentRules: false,
   env: {
     NEXT_PUBLIC_APP_VERSION: pkg.version,
   },
