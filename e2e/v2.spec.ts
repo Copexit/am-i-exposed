@@ -78,3 +78,17 @@ test("the classic header links to v2 carrying the scan, and v2 links back", asyn
   await expect(page.getByTestId("score-display")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("link", { name: "Classic", exact: true })).toHaveAttribute("href", `/#tx=${WHIRLPOOL}`);
 });
+
+test("inline graph is compact; analysis tools live in fullscreen", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(`/v2/#tx=${LEGACY}`);
+  const analyst = page.locator("#v2-analyst");
+  const fullscreen = analyst.getByTitle("Fullscreen (F)");
+  await expect(fullscreen).toBeVisible({ timeout: 20_000 });
+  await expect(analyst.getByTitle("Heat Map (H)")).toHaveCount(0);
+  await expect(analyst.getByText(/open fullscreen for heat map/)).toBeVisible();
+
+  await fullscreen.click();
+  const dialog = page.getByRole("dialog", { name: "Transaction graph fullscreen" });
+  await expect(dialog.getByTitle("Heat Map (H)")).toBeVisible();
+});

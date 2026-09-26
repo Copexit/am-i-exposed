@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "react-i18next";
 import { useChartTooltip } from "./shared/ChartTooltip";
@@ -256,6 +256,14 @@ export function GraphExplorer(props: GraphExplorerProps) {
     return () => window.removeEventListener("keydown", handleKey);
   }, [handleToggleHeatMap, handleToggleFingerprint, cycleEdgeMode, isExpanded, collapseFullscreen, handleExpandFullscreen, undo, reset, zoomBy, handleFitView, dispatch]);
 
+  // Compact inline: canvas height fits the laid-out graph (260-500px).
+  const { compact } = props;
+  const compactHeight = useMemo(() => {
+    if (!compact) return undefined;
+    const { height } = layoutGraph(graph.nodes, graph.rootTxid, filter, graph.rootTxids, graph.expandedNodeTxid, false, nodePositionOverrides);
+    return Math.min(500, Math.max(260, height + 48));
+  }, [compact, graph.nodes, graph.rootTxid, filter, graph.rootTxids, graph.expandedNodeTxid, nodePositionOverrides]);
+
   // Early return for empty graph (but not alwaysFullscreen)
   if (graph.nodes.size === 0 && !props.alwaysFullscreen) return null;
 
@@ -389,18 +397,23 @@ export function GraphExplorer(props: GraphExplorerProps) {
         initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
         className="relative rounded-xl border border-card-border bg-surface-inset p-4 space-y-3"
       >
-        <GraphToolbar {...toolbarProps} onExpandFullscreen={handleExpandFullscreen} />
+        <GraphToolbar {...toolbarProps} compact={compact} onExpandFullscreen={handleExpandFullscreen} />
 
         {!isExpanded && (
-          <div className="relative flex overflow-hidden rounded-lg">
+          <div className="relative flex overflow-hidden rounded-lg" style={compactHeight ? { height: compactHeight } : undefined}>
             <GraphViewport
               canvasProps={canvasProps} viewTransform={viewTransform} onViewTransformChange={setViewTransform}
               showSidebar={showSidebar} scrollRef={scrollRef}
-              legend={legend} tooltipContent={tooltipContent} sidebar={renderSidebar("")}
-              scrollClassName="overflow-hidden h-[500px] -mx-4 px-4"
+              legend={compact ? null : legend} tooltipContent={tooltipContent} sidebar={renderSidebar("")}
+              scrollClassName={compactHeight ? "overflow-hidden h-full -mx-4 px-4" : "overflow-hidden h-[500px] -mx-4 px-4"}
               outerStyle={{ touchAction: "none" }}
             />
           </div>
+        )}
+        {compact && !isExpanded && (
+          <p className="text-xs text-muted">
+            {t("v2.graph.compactHint", { defaultValue: "Expand any input or output with +, or open fullscreen for heat map, fingerprints and linkability." })}
+          </p>
         )}
 
         {graph.nodeCount >= graph.maxNodes && (

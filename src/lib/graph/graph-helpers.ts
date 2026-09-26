@@ -38,6 +38,39 @@ export function addLayersToNodes(
   }
 }
 
+/** Smart-filter caps per side: direct neighbours, then second hop. */
+const SMART_CAP = [3, 2];
+
+interface Candidate {
+  txid: string;
+  tx: MempoolTransaction;
+  score: number;
+  reasons: string[];
+  /** Change-output child or entity-attributed tx: always wins a slot. */
+  priority: number;
+  /** Sats on the connecting edge (tie-break). */
+  value: number;
+}
+
+/**
+ * Rank a layer's connected candidates and keep the best few.
+ * Depth 1: top 3 with any positive score. Depth 2: top 2 at or above the threshold.
+ */
+function pickTop(cands: Candidate[], layerIdx: number): Candidate[] {
+  const min = layerIdx === 0 ? 1 : RELEVANCE_THRESHOLD;
+  return cands
+    .map((c, i) => ({ c, i }))
+    .filter(({ c }) => c.score >= min)
+    .sort((a, b) =>
+      b.c.priority - a.c.priority || b.c.score - a.c.score || b.c.value - a.c.value || a.i - b.i)
+    .slice(0, SMART_CAP[layerIdx] ?? 0)
+    .map(({ c }) => c);
+}
+
+function isEntityReason(r: string): boolean {
+  return r === "OFAC entity" || r.startsWith("Entity:");
+}
+
 function addBackwardLayers(
   nodes: Map<string, GraphNode>,
   rootTxid: string,
@@ -50,20 +83,25 @@ function addBackwardLayers(
 ): void {
   for (const [layerIdx, layer] of backward.slice(0, 2).entries()) {
     const hopDepth = baseDepth - (layerIdx + 1);
+    const edges = new Map<string, NonNullable<GraphNode["childEdge"]>>();
+    const cands: Candidate[] = [];
     for (const [txid, ltx] of layer.txs) {
-      if (nodes.size >= maxNodes) return;
-      if (nodes.has(txid)) continue;
-
+      if (nodes.has(txid) || edges.has(txid)) continue;
       const childEdge = findChildEdge(nodes, txid, hopDepth + 1, rootTxid, rootTx, layerIdx);
       if (!childEdge) continue;
-
-      if (smartFilter) {
-        const ns = scoreNode(ltx, rootTx, "backward", layerIdx + 1, rootChangeIdx);
-        if (ns.score < RELEVANCE_THRESHOLD) continue;
-        nodes.set(txid, { txid, tx: ltx, depth: hopDepth, childEdge, relevanceScore: ns.score, relevanceReasons: ns.reasons });
-      } else {
+      edges.set(txid, childEdge);
+      if (!smartFilter) {
+        if (nodes.size >= maxNodes) return;
         nodes.set(txid, { txid, tx: ltx, depth: hopDepth, childEdge });
+        continue;
       }
+      const ns = scoreNode(ltx, rootTx, "backward", layerIdx + 1, rootChangeIdx);
+      const value = nodes.get(childEdge.toTxid)?.tx.vin[childEdge.inputIndex]?.prevout?.value ?? 0;
+      cands.push({ txid, tx: ltx, score: ns.score, reasons: ns.reasons, priority: ns.reasons.some(isEntityReason) ? 1 : 0, value });
+    }
+    for (const c of pickTop(cands, layerIdx)) {
+      if (nodes.size >= maxNodes) return;
+      nodes.set(c.txid, { txid: c.txid, tx: c.tx, depth: hopDepth, childEdge: edges.get(c.txid), relevanceScore: c.score, relevanceReasons: c.reasons });
     }
   }
 }
@@ -81,20 +119,27 @@ function addForwardLayers(
 ): void {
   for (const [layerIdx, layer] of forward.slice(0, 2).entries()) {
     const hopDepth = baseDepth + (layerIdx + 1);
+    const edges = new Map<string, NonNullable<GraphNode["parentEdge"]>>();
+    const cands: Candidate[] = [];
     for (const [txid, ltx] of layer.txs) {
-      if (nodes.size >= maxNodes) return;
-      if (nodes.has(txid)) continue;
-
+      if (nodes.has(txid) || edges.has(txid)) continue;
       const parentEdge = findParentEdge(nodes, txid, ltx, hopDepth - 1, rootTxid, outspends, layerIdx);
       if (!parentEdge) continue;
-
-      if (smartFilter) {
-        const ns = scoreNode(ltx, rootTx, "forward", layerIdx + 1, rootChangeIdx, parentEdge.outputIndex);
-        if (ns.score < RELEVANCE_THRESHOLD) continue;
-        nodes.set(txid, { txid, tx: ltx, depth: hopDepth, parentEdge, relevanceScore: ns.score, relevanceReasons: ns.reasons });
-      } else {
+      edges.set(txid, parentEdge);
+      if (!smartFilter) {
+        if (nodes.size >= maxNodes) return;
         nodes.set(txid, { txid, tx: ltx, depth: hopDepth, parentEdge });
+        continue;
       }
+      const ns = scoreNode(ltx, rootTx, "forward", layerIdx + 1, rootChangeIdx, parentEdge.outputIndex);
+      const isChange = layerIdx === 0 && rootChangeIdx !== null && parentEdge.outputIndex === rootChangeIdx;
+      const priority = (isChange ? 2 : 0) + (ns.reasons.some(isEntityReason) ? 1 : 0);
+      const value = nodes.get(parentEdge.fromTxid)?.tx.vout[parentEdge.outputIndex]?.value ?? 0;
+      cands.push({ txid, tx: ltx, score: ns.score, reasons: ns.reasons, priority, value });
+    }
+    for (const c of pickTop(cands, layerIdx)) {
+      if (nodes.size >= maxNodes) return;
+      nodes.set(c.txid, { txid: c.txid, tx: c.tx, depth: hopDepth, parentEdge: edges.get(c.txid), relevanceScore: c.score, relevanceReasons: c.reasons });
     }
   }
 }

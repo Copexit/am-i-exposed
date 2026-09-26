@@ -2328,6 +2328,7 @@
   "v2.flows.transactions": "Transacciones",
   "v2.flows.utxosAvailable": "{{count}} UTXO",
   "v2.flows.utxosAvailable_other": "{{count}} UTXOs",
+  "v2.graph.compactHint": "Expande cualquier entrada o salida con +, o abre la pantalla completa para ver el mapa de calor, las huellas y la vinculabilidad.",
   "v2.home.fewer_examples": "Menos ejemplos",
   "v2.home.field_count": "UTXOs etiquetados mientras mirabas:",
   "v2.home.field_dust": "Polvo · {{sats}} sats",

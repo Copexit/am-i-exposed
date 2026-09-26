@@ -2328,6 +2328,7 @@
   "v2.flows.transactions": "Transactions",
   "v2.flows.utxosAvailable": "{{count}} UTXO",
   "v2.flows.utxosAvailable_other": "{{count}} UTXOs",
+  "v2.graph.compactHint": "Développez n'importe quelle entrée ou sortie avec +, ou passez en plein écran pour la carte thermique, les empreintes et la liaison.",
   "v2.home.fewer_examples": "Moins d'exemples",
   "v2.home.field_count": "UTXO étiquetés sous vos yeux :",
   "v2.home.field_dust": "Dust · {{sats}} sats",
