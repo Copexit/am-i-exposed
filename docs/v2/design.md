@@ -21,22 +21,33 @@ the presentation layer is new.
 5. **Analyst-grade.** Exact values in tabular mono (`.v2-num`). IDs copyable.
    Keyboard reachable. Honest states: partial, timed out, cancelled, unknown.
 
-## Tokens (`[data-ui="v2"]` in `src/app/globals.css`)
+## Tokens (`src/app/globals.css`)
 
-| Token | Tailwind | Use |
-|---|---|---|
-| `--background` #0b0b0d | `bg-background` | page |
-| `--surface-1` #111114 | `bg-surface-1` | sections, rails |
-| `--surface-2` #17171b | `bg-surface-2` | raised items, popovers, inputs |
-| `--hairline` 7% white | `border-hairline` | dividers, quiet outlines |
-| `--hairline-strong` 13% white | `border-hairline-strong` | hover/focus outlines, active chips |
-| `--foreground` #f2f2f4 | `text-foreground` | primary text |
-| `--muted` #a6a6b0 | `text-muted` | secondary text (AA on all surfaces) |
-| `--faint` #70707b | `text-faint` | eyebrows, captions only, never essential info |
-| `--bitcoin` #f7931a | `text-bitcoin` | accent, primary action, focus |
-| severity | `text-severity-*` | critical #ef4444, high #f97316, medium #eab308, low #60a5fa, good #28d065 |
+Dark is `[data-ui="v2"]`; light is `html[data-theme="light"] [data-ui="v2"]`
+(same selector on `<html>`), which wins over dark. JS-drawn surfaces (canvas,
+SVG, inline styles) read the same values from `V2_COLORS` / `V2_LIGHT_COLORS`
+in `src/lib/palette.ts` via `useV2Palette()`; `palette.test.ts` fails on drift.
 
-Grades use `GRADE_COLORS` / `GRADE_HEX` from `src/lib/constants.ts`.
+| Token | Tailwind | Dark | Light | Use |
+|---|---|---|---|---|
+| `--background` | `bg-background` | #0b0b0d | #fafaf9 | page |
+| `--surface-1` | `bg-surface-1` | #111114 | #f4f4f2 | sections, rails |
+| `--surface-2` | `bg-surface-2` | #17171b | #ffffff | raised items, popovers, inputs |
+| `--hairline` | `border-hairline` | 7% white | 8% black | dividers, quiet outlines |
+| `--hairline-strong` | `border-hairline-strong` | 13% white | 14% black | hover/focus outlines, active chips |
+| `--foreground` | `text-foreground` | #f2f2f4 | #131316 | primary text |
+| `--muted` | `text-muted` | #a6a6b0 | #55555f | secondary text (AA on all surfaces) |
+| `--faint` | `text-faint` | #70707b | #8a8a94 | eyebrows, captions only, never essential info |
+| `--bitcoin` | `bg-bitcoin` | #f7931a | #f7931a | accent fills, primary action, focus |
+| `--bitcoin-text` | `text-bitcoin` | #f7931a | #b45309 | orange text (light remaps `text-bitcoin` for AA) |
+| severity | `text-severity-*` | critical #ef4444, high #f97316, medium #eab308, low #60a5fa, good #28d065 | critical #dc2626, high #c2410c, medium #a16207, low #2563eb, good #15803d | meaning only |
+
+Grades use `GRADE_COLORS` (classes) or `GRADE_VAR` (CSS vars, for inline
+styles and SVG) from `src/lib/constants.ts`, so they follow the theme.
+
+Theme: stored in `localStorage["ami-theme"]` ("light" / "dark"; absent =
+follow the OS live). Picked in settings (System / Light / Dark). The pre-paint
+script in `src/app/layout.tsx` mirrors `useTheme` so there is no flash.
 
 ## Type
 

@@ -1,6 +1,6 @@
 import type { Grade, Severity } from "@/lib/types";
 import { GRADE_HEX } from "@/lib/constants";
-import { COLORS, HUES, LIGHT_COLORS } from "@/lib/palette";
+import { COLORS, HUES, LIGHT_COLORS, V2_DARK_PALETTE, V2_LIGHT_PALETTE } from "@/lib/palette";
 
 type SurfaceKey = keyof typeof LIGHT_COLORS;
 type SurfaceColors = Readonly<Record<SurfaceKey, string>>;
@@ -12,10 +12,17 @@ export const DARK_SURFACES: SurfaceColors = Object.fromEntries(
   SURFACE_KEY_LIST.map((k) => [k, COLORS[k]]),
 ) as SurfaceColors;
 
-/** Returns surface colors matching the current theme. Safe to call at render time. */
+const pick = (p: Readonly<Record<SurfaceKey, string>>): SurfaceColors =>
+  Object.fromEntries(SURFACE_KEY_LIST.map((k) => [k, p[k]])) as SurfaceColors;
+const V2_DARK_SURFACES = pick(V2_DARK_PALETTE);
+const V2_LIGHT_SURFACES = pick(V2_LIGHT_PALETTE);
+
+/** Returns surface colors matching the current theme (and UI, v2 or classic). Safe to call at render time. */
 export function getSurfaceColors(): SurfaceColors {
   if (typeof document === "undefined") return DARK_SURFACES;
-  return document.documentElement.dataset.theme === "light" ? LIGHT_COLORS : DARK_SURFACES;
+  const { theme, ui } = document.documentElement.dataset;
+  if (ui === "v2") return theme === "light" ? V2_LIGHT_SURFACES : V2_DARK_SURFACES;
+  return theme === "light" ? LIGHT_COLORS : DARK_SURFACES;
 }
 
 type SvgColorMap = {

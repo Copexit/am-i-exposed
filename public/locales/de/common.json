@@ -1849,6 +1849,7 @@
   "settings.theme": "Design",
   "settings.themeDark": "Dunkel",
   "settings.themeLight": "Hell",
+  "settings.themeSystem": "System",
   "settings.timeout": "Zeitüberschreitung (10s)",
   "settings.title": "API-Endpunkt-Einstellungen",
   "settings.walletGapLimit": "Wallet-Scan Lückenlimit",

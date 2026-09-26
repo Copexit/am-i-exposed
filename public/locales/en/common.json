@@ -1849,6 +1849,7 @@
   "settings.theme": "Theme",
   "settings.themeDark": "Dark",
   "settings.themeLight": "Light",
+  "settings.themeSystem": "System",
   "settings.timeout": "Timeout (10s)",
   "settings.title": "Settings",
   "settings.walletGapLimit": "Wallet scan gap limit",

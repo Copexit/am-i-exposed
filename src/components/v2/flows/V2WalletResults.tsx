@@ -8,7 +8,7 @@ import type { DescriptorParseResult } from "@/lib/bitcoin/descriptor";
 import type { UtxoTraceResult } from "@/hooks/useWalletAnalysis";
 import { findWorstOffender } from "@/components/wallet/WalletAuditResults";
 import { CopyButton } from "@/components/ui/CopyButton";
-import { GRADE_COLORS, GRADE_HEX } from "@/lib/constants";
+import { GRADE_COLORS, GRADE_VAR } from "@/lib/constants";
 import { fmtN } from "@/lib/format";
 import { FlowShell, NewScanLink, Chip } from "./V2FlowUi";
 import { V2FindingGroups } from "./V2FindingGroups";
@@ -31,7 +31,7 @@ export function V2WalletResults({ descriptor, result, addressInfos, utxoTraces, 
   const worst = useMemo(() => findWorstOffender(addressInfos), [addressInfos]);
   const showWorst = !!worst && (worst.reuseCount > 0 || worst.dustCount > 0);
   const derivedCount = descriptor.receiveAddresses.length + descriptor.changeAddresses.length;
-  const gradeHex = GRADE_HEX[result.grade];
+  const gradeColor = GRADE_VAR[result.grade];
 
   const openAddresses = () => {
     setAddressesOpen(true);
@@ -61,7 +61,7 @@ export function V2WalletResults({ descriptor, result, addressInfos, utxoTraces, 
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0"
-          style={{ background: `radial-gradient(60% 90% at 0% 0%, ${gradeHex}1a, transparent 70%)` }}
+          style={{ background: `radial-gradient(60% 90% at 0% 0%, color-mix(in srgb, ${gradeColor} 10%, transparent), transparent 70%)` }}
         />
         <div className="relative grid lg:grid-cols-[minmax(260px,320px)_1fr]">
           <div className="p-5 sm:p-7 lg:border-r border-b lg:border-b-0 border-hairline flex flex-col gap-4 min-w-0">

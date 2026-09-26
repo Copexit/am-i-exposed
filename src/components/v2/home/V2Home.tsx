@@ -10,7 +10,8 @@ import { getTxHeuristicSteps } from "@/lib/analysis/orchestrator";
 import { SelfHostRow } from "./SelfHostRow";
 import { detectInputType, cleanInput } from "@/lib/analysis/detect-input";
 import { formatBtc, fmtN } from "@/lib/format";
-import { COLORS, V2_COLORS, hexToRgba } from "@/lib/palette";
+import { COLORS, V2_LIGHT_PALETTE, hexToRgba } from "@/lib/palette";
+import { useV2Palette } from "../useV2Palette";
 import { useNetwork } from "@/context/NetworkContext";
 import { useExperienceMode } from "@/hooks/useExperienceMode";
 import { useDevMode } from "@/hooks/useDevMode";
@@ -38,9 +39,6 @@ export interface V2HomeProps {
 }
 
 const UTXOS = buildFieldUtxos(FIELD_TX);
-const LABEL_COLOR = { dust: COLORS.severityCritical, "anon-set": COLORS.severityGood, round: COLORS.severityMedium, plain: V2_COLORS.muted } as const;
-const BG = (a: number) => hexToRgba(V2_COLORS.background, a);
-const GLOW = `0 0 40px ${hexToRgba(COLORS.bitcoin, 0.35)}`;
 const SPLIT = (a: number) => `${-a}px 0 ${COLORS.severityLow}, ${a}px 0 ${COLORS.severityCritical}`;
 /** Four specimens spanning the grade range; grades are the ones EXAMPLES declares. */
 const SPECIMEN_KEYS = ["page.example_whirlpool", "page.example_stonewall", "page.example_opreturn", "page.example_satoshi"];
@@ -56,6 +54,10 @@ export function V2Home({
   const { devMode } = useDevMode();
   const { proMode } = useExperienceMode();
   const reduced = useReducedMotion();
+  const P = useV2Palette();
+  const BG = (a: number) => hexToRgba(P.background, a);
+  // A soft halo on paper; the full glow reads as a smudge on white.
+  const GLOW = `0 0 40px ${hexToRgba(COLORS.bitcoin, P === V2_LIGHT_PALETTE ? 0.16 : 0.35)}`;
   const fieldRef = useRef<HTMLDivElement>(null);
   const counterRef = useRef<HTMLSpanElement>(null);
   const heroRef = useRef<HTMLElement>(null);
@@ -76,8 +78,8 @@ export function V2Home({
           : kind === "round"
             ? t("v2.home.field_output_round", { defaultValue: "CoinJoin output · round amount" })
             : t("v2.home.field_output", { defaultValue: "CoinJoin output" });
-    return { title, sub: `${formatBtc(u.value)} · ${scriptLabel(u.scriptType)}`, color: LABEL_COLOR[kind] };
-  }), [t]);
+    return { title, sub: `${formatBtc(u.value)} · ${scriptLabel(u.scriptType)}`, color: { dust: P.severityCritical, "anon-set": P.severityGood, round: P.severityMedium, plain: P.muted }[kind] };
+  }), [t, P]);
 
   const captions = useMemo(() => ({
     inView: (n: number) => t("v2.home.lens_in_view", { defaultValue: "LENS ×1.7 · {{n}} UTXOS IN VIEW", n }),
@@ -107,7 +109,7 @@ export function V2Home({
         <div
           aria-hidden="true"
           className="absolute inset-0 -z-[5] pointer-events-none"
-          style={{ background: `radial-gradient(ellipse 50% 46% at 50% 50%, ${BG(0.9)} 0%, ${BG(0.62)} 50%, ${BG(0)} 100%), linear-gradient(180deg, ${BG(0.6)}, ${BG(0)} 16%, ${BG(0)} 82%, ${V2_COLORS.background})` }}
+          style={{ background: `radial-gradient(ellipse 50% 46% at 50% 50%, ${BG(0.9)} 0%, ${BG(0.62)} 50%, ${BG(0)} 100%), linear-gradient(180deg, ${BG(0.6)}, ${BG(0)} 16%, ${BG(0)} 82%, ${P.background})` }}
         />
 
         <div data-keepout className="flex-1 flex flex-col items-center justify-center w-full max-w-[760px] mx-auto px-4 pt-14 pb-10 text-center">

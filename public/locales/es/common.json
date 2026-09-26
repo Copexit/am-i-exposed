@@ -1849,6 +1849,7 @@
   "settings.theme": "Tema",
   "settings.themeDark": "Oscuro",
   "settings.themeLight": "Claro",
+  "settings.themeSystem": "Sistema",
   "settings.timeout": "Tiempo agotado (10s)",
   "settings.title": "Configuración de endpoint API",
   "settings.walletGapLimit": "Límite de brecha del escaneo de billetera",

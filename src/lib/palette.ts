@@ -53,7 +53,38 @@ export const V2_COLORS = {
   cardBg: "#17171b",
   surfaceInset: "#111114",
   surfaceElevated: "#1d1d22",
+  bitcoinText: "#f7931a",
 } as const;
+
+/** v2 light overrides (`html[data-theme="light"] [data-ui="v2"]`), applied over V2_COLORS. */
+export const V2_LIGHT_COLORS = {
+  background: "#fafaf9",
+  foreground: "#131316",
+  muted: "#55555f",
+  faint: "#8a8a94",
+  surface1: "#f4f4f2",
+  surface2: "#ffffff",
+  cardBg: "#ffffff",
+  cardBorder: "#e2e2de",
+  surfaceInset: "#f4f4f2",
+  surfaceElevated: "#ffffff",
+  bitcoinText: "#b45309",
+  success: "#15803d",
+  warning: "#a16207",
+  danger: "#dc2626",
+  info: "#2563eb",
+  severityCritical: "#dc2626",
+  severityHigh: "#c2410c",
+  severityMedium: "#a16207",
+  severityLow: "#2563eb",
+  severityGood: "#15803d",
+} as const;
+
+type V2Palette = Readonly<Record<keyof typeof COLORS | keyof typeof V2_LIGHT_COLORS, string>>;
+
+/** Full resolved v2 palettes for JS-drawn surfaces (canvas, SVG, inline styles). */
+export const V2_DARK_PALETTE: V2Palette = { ...COLORS, ...V2_COLORS };
+export const V2_LIGHT_PALETTE: V2Palette = { ...COLORS, ...V2_COLORS, ...V2_LIGHT_COLORS };
 
 /**
  * Fixed chart hues (Tailwind default-scale values plus the brand green), used
@@ -88,6 +119,7 @@ export const HUES = {
   violet400: "#a78bfa",
   violet500: "#8b5cf6",
   fuchsia400: "#e879f9",
+  fuchsia600: "#c026d3",
   pink500: "#ec4899",
   slate300: "#cbd5e1",
   gray400: "#9ca3af",
@@ -103,9 +135,6 @@ export const ANNOTATION_COLOR = HUES.amber500;
 
 /** Edge/legend color for outputs the user marked as change. */
 export const CHANGE_MARKED_COLOR = HUES.amber600;
-
-/** Dark backdrop for graph notes and edge labels (used with alpha). */
-export const NOTE_BG_COLOR = "#1e1e1e";
 
 /**
  * Neutral tones for rasterized images (share card canvas, OG image), which

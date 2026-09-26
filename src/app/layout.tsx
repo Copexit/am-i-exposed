@@ -80,7 +80,8 @@ export default function RootLayout({
         />
         <meta name="referrer" content="no-referrer" />
         <meta name="theme-color" content={COLORS.background} id="meta-theme-color" />
-        <script dangerouslySetInnerHTML={{ __html: `(function(){try{if(localStorage.getItem("ami-theme")==="light"&&location.pathname!=="/v2"&&location.pathname.indexOf("/v2/")!==0){document.documentElement.dataset.theme="light";var m=document.getElementById("meta-theme-color");if(m)m.content="${LIGHT_COLORS.background}"}}catch(e){}})()` }} />
+        {/* Pre-paint theme (mirrors useTheme): stored "light"/"dark", else the OS preference. */}
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var s=localStorage.getItem("ami-theme");if(s==="light"||(s!=="dark"&&typeof matchMedia==="function"&&matchMedia("(prefers-color-scheme: light)").matches)){document.documentElement.dataset.theme="light";var m=document.getElementById("meta-theme-color");if(m)m.content="${LIGHT_COLORS.background}"}}catch(e){}})()` }} />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}

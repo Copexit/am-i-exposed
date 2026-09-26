@@ -109,9 +109,56 @@ html[data-theme="light"] {
   --glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 12px 40px rgba(0, 0, 0, 0.35);
   --overlay-bg: rgba(20, 20, 24, 0.97);
   --overlay-border: rgba(255, 255, 255, 0.1);
+  --bitcoin-text: #f7931a;
   background: var(--background);
   color: var(--foreground);
   font-feature-settings: "ss01", "cv11";
+}
+
+/*
+ * v2 light: warm paper whites, ink foreground. Severity and accent TEXT colors
+ * are darkened for AA contrast on white; --bitcoin stays for fills and marks.
+ */
+html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"] {
+  --background: #fafaf9;
+  --foreground: #131316;
+  --muted: #55555f;
+  --faint: #8a8a94;
+  --surface-1: #f4f4f2;
+  --surface-2: #ffffff;
+  --hairline: rgba(0, 0, 0, 0.08);
+  --hairline-strong: rgba(0, 0, 0, 0.14);
+  --card-bg: #ffffff;
+  --card-border: #e2e2de;
+  --surface-inset: #f4f4f2;
+  --surface-elevated: #ffffff;
+  --bitcoin-text: #b45309;
+  --success: #15803d;
+  --warning: #a16207;
+  --danger: #dc2626;
+  --info: #2563eb;
+  --severity-critical: #dc2626;
+  --severity-high: #c2410c;
+  --severity-medium: #a16207;
+  --severity-low: #2563eb;
+  --severity-good: #15803d;
+  --glass-bg: rgba(250, 250, 249, 0.86);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --glass-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 12px 40px rgba(0, 0, 0, 0.07);
+  --overlay-bg: rgba(255, 255, 255, 0.97);
+  --overlay-border: rgba(0, 0, 0, 0.1);
+  --overlay-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --subtle-border: rgba(0, 0, 0, 0.08);
+  --subtle-hover: rgba(0, 0, 0, 0.03);
+  --shimmer-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Orange text fails contrast on white: in v2 light, bitcoin-colored text uses the darker accent. */
+:is(html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"]) :is(.text-bitcoin, .hover\:text-bitcoin:hover, .group:hover .group-hover\:text-bitcoin) {
+  color: var(--bitcoin-text);
+}
+:is(html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"]) :is(.text-bitcoin\/85, .text-bitcoin\/80, .text-bitcoin\/70, .text-bitcoin\/50, .hover\:text-bitcoin\/80:hover, .group:hover .group-hover\:text-bitcoin\/80) {
+  color: color-mix(in srgb, var(--bitcoin-text) 85%, transparent);
 }
 
 [data-ui="v2"] .v2-num {

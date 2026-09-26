@@ -9,7 +9,7 @@ import { analyzeTransactionSync } from "@/lib/analysis/analyze-sync";
 import { loadEntityFilter } from "@/lib/analysis/entity-filter";
 import { buildResultViewModel } from "@/lib/view/tx-view-model";
 import { TX_BASE_SCORE } from "@/lib/scoring/score";
-import { GRADE_HEX } from "@/lib/constants";
+import { GRADE_VAR } from "@/lib/constants";
 import { formatBtc, fmtN } from "@/lib/format";
 import { findingKeys } from "@/lib/finding-utils";
 import { SEVERITY_BG } from "@/components/v2/results/severity";
@@ -198,7 +198,7 @@ function LensExplainerBody() {
             {TABS.map((tab) => (
               <button key={tab.k} type="button" aria-pressed={key === tab.k} onClick={() => { setKey(tab.k); setSelected(null); setOpen(null); }} className={`${seg} ${key === tab.k ? "bg-surface-2 text-foreground" : "text-muted hover:text-foreground"}`}>
                 {tab.label}
-                <span className="v2-num text-xs font-semibold" style={{ color: GRADE_HEX[data[tab.k].vm.grade] }}>{data[tab.k].vm.grade}</span>
+                <span className="v2-num text-xs font-semibold" style={{ color: GRADE_VAR[data[tab.k].vm.grade] }}>{data[tab.k].vm.grade}</span>
               </button>
             ))}
           </div>
@@ -229,7 +229,7 @@ function LensExplainerBody() {
           </div>
           <div className="flex items-center gap-4 px-4 py-3.5 border-t border-hairline bg-surface-2">
             <div className="shrink-0">
-              <div className="text-[36px] font-bold leading-none tracking-tight" style={{ color: GRADE_HEX[vm.grade] }}>{vm.grade}</div>
+              <div className="text-[36px] font-bold leading-none tracking-tight" style={{ color: GRADE_VAR[vm.grade] }}>{vm.grade}</div>
               <div className="v2-num text-[11px] text-muted mt-1">{vm.score}/100</div>
             </div>
             <div className="min-w-0">

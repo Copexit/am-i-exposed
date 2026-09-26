@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { GRADE_HEX } from "@/lib/constants";
+import { GRADE_VAR } from "@/lib/constants";
 import type { Grade } from "@/lib/types";
 
 
@@ -45,7 +45,7 @@ export function SectionNav({ hasAnalyst, inputType, grade, score }: {
       <div className="flex items-center gap-3">
       {/* The grade stays in view while scrolling (replaces a floating pill that covered content). */}
       <span className="shrink-0 flex items-baseline gap-1.5 pr-3 border-r border-hairline" aria-label={t("score.ariaLabel", { score, grade, defaultValue: "Privacy score: {{score}} out of 100, grade {{grade}}" })}>
-        <span className="text-base font-semibold leading-none" style={{ color: GRADE_HEX[grade] }}>{grade}</span>
+        <span className="text-base font-semibold leading-none" style={{ color: GRADE_VAR[grade] }}>{grade}</span>
         <span className="v2-num text-xs text-muted">{score}</span>
       </span>
       <ul className="flex gap-1 overflow-x-auto no-scrollbar [mask-image:linear-gradient(to_right,black_calc(100%-24px),transparent)]">

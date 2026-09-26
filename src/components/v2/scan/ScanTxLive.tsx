@@ -7,6 +7,7 @@ import { formatSats } from "@/lib/format";
 import { truncateId } from "@/lib/constants";
 import { isOpReturnOutput } from "@/lib/analysis/heuristics/tx-utils";
 import { COLORS, hexToRgba } from "@/lib/palette";
+import { useV2Palette } from "../useV2Palette";
 
 /** Rows shown per side before "+N more". */
 export const MAX_ROWS = 4;
@@ -46,6 +47,7 @@ const W = 640, ROW_H = 40, GAP = 10, BOX_W = 184, PAD = 20;
 export function ScanTxLive({ tx, focus }: { tx: MempoolTransaction; focus: "in" | "out" | null }) {
   const { t, i18n } = useTranslation();
   const reduced = useReducedMotion();
+  const P = useV2Palette();
   const ins = liveRows(
     tx.vin.map((v) => ({
       label: v.is_coinbase ? t("graph.coinbase", { defaultValue: "coinbase" }) : truncateId(v.prevout?.scriptpubkey_address ?? "?", 6),
@@ -66,7 +68,7 @@ export function ScanTxLive({ tx, focus }: { tx: MempoolTransaction; focus: "in" 
   const yOf = (i: number, n: number) => cy - ((n * ROW_H + (n - 1) * GAP) / 2) + i * (ROW_H + GAP);
   const inX = 24, outX = W - 24 - BOX_W;
   const accent = (a: number) => hexToRgba(COLORS.bitcoin, a);
-  const dim = hexToRgba(COLORS.foreground, 0.12);
+  const dim = hexToRgba(P.foreground, 0.12);
   const fmt = (v: number) => formatSats(v, i18n.language);
 
   const row = (r: LiveRow, i: number, n: number, side: "in" | "out") => {

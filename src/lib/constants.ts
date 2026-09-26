@@ -98,6 +98,15 @@ export const GRADE_HEX: Record<Grade, string> = {
   F: COLORS.severityCritical,
 };
 
+/** Grade colors as CSS custom properties: follow the theme (v2 light darkens them for contrast). */
+export const GRADE_VAR: Record<Grade, string> = {
+  "A+": "var(--severity-good)",
+  B: "var(--severity-low)",
+  C: "var(--severity-medium)",
+  D: "var(--severity-high)",
+  F: "var(--severity-critical)",
+};
+
 /** Look up grade text color, returning fallback for unknown grades. */
 export function gradeColor(grade: string, fallback = "text-muted"): string {
   return GRADE_COLORS[grade as Grade] ?? fallback;

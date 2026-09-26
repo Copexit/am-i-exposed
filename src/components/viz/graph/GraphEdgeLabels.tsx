@@ -3,7 +3,8 @@
 import { Text } from "@visx/text";
 import { useTranslation } from "react-i18next";
 import { SVG_COLORS } from "../shared/svgConstants";
-import { ANNOTATION_COLOR, NOTE_BG_COLOR, hexToRgba } from "@/lib/palette";
+import { ANNOTATION_COLOR, hexToRgba } from "@/lib/palette";
+import { useTheme } from "@/hooks/useTheme";
 import type { LayoutEdge } from "./types";
 import type { EditingLabel } from "./useLabelEditor";
 import { SvgCircleButton } from "./SvgCircleButton";
@@ -32,6 +33,7 @@ export function GraphEdgeLabels({
   onSetEdgeLabel,
 }: GraphEdgeLabelsProps) {
   const { t } = useTranslation();
+  useTheme(); // re-render on theme change for SVG_COLORS
   return (
     <>
       {edges.map((edge) => {
@@ -59,7 +61,7 @@ export function GraphEdgeLabels({
             onClick={annotateMode ? (e) => { e.stopPropagation(); startEditEdgeLabel(key); } : undefined}
           >
             <rect x={midX - 55} y={midY - 11} width={110} height={22} rx={4}
-              fill={hexToRgba(NOTE_BG_COLOR, 0.9)} stroke={ANNOTATION_COLOR} strokeWidth={0.5} strokeOpacity={0.4}
+              fill={hexToRgba(SVG_COLORS.surfaceElevated, 0.9)} stroke={ANNOTATION_COLOR} strokeWidth={0.5} strokeOpacity={0.4}
             />
             {isEditingThis ? (
               <foreignObject x={midX - 50} y={midY - 9} width={100} height={18}>
