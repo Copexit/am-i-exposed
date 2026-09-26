@@ -178,8 +178,6 @@ export function V2Results(props: V2ResultsProps) {
           />
         </div>
 
-        <ContextSection query={query} inputType={inputType} vm={vm} txData={txData} devMode={devMode} />
-
         <AnalystWorkspace
           query={query}
           inputType={inputType}
@@ -195,6 +193,8 @@ export function V2Results(props: V2ResultsProps) {
           boltzmannResult={boltzmannResult}
           onScan={onScan}
         />
+
+        <ContextSection query={query} inputType={inputType} vm={vm} txData={txData} devMode={devMode} />
 
         <ResultsFooter
           inputType={inputType}
