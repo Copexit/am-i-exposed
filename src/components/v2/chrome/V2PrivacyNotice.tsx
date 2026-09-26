@@ -5,8 +5,11 @@ import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { usePrivacyNotice } from "@/components/PrivacyNotice";
 
-/** Slim, dismissible clearnet notice under the v2 header (same logic as classic PrivacyNotice). */
-export function V2PrivacyNotice() {
+/**
+ * Slim, dismissible clearnet notice under the v2 header (same logic as classic PrivacyNotice).
+ * `inFlow`: rendered below the sticky header in page flow (phones), so it scrolls away instead of covering content.
+ */
+export function V2PrivacyNotice({ inFlow = false }: { inFlow?: boolean }) {
   const { t } = useTranslation();
   const { visible, dismiss } = usePrivacyNotice();
 
@@ -19,7 +22,7 @@ export function V2PrivacyNotice() {
           animate={{ height: "auto", opacity: 1 }}
           exit={{ height: 0, opacity: 0 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
-          className="overflow-hidden border-t border-hairline"
+          className={`overflow-hidden border-hairline ${inFlow ? "border-b" : "border-t"}`}
         >
           <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8 flex items-center gap-2.5 min-h-9">
             <span className="size-1.5 shrink-0 rounded-full bg-severity-medium" aria-hidden="true" />

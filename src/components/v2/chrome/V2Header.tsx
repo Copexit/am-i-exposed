@@ -151,7 +151,8 @@ export function V2Header() {
         </div>
       </div>
 
-      <V2PrivacyNotice />
+      {/* md+ keeps the one-line notice in the sticky bar; phones render it in flow (V2Layout) so it never covers content. */}
+      <div className="hidden md:block"><V2PrivacyNotice /></div>
 
       <AnimatePresence>
         {open && (

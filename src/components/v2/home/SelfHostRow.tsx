@@ -10,7 +10,7 @@ export function SelfHostRow() {
   const { t } = useTranslation();
   const toUi = useUiHref();
   return (
-    <section className="max-w-[1360px] w-full mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+    <section className="max-w-[1360px] w-full mx-auto px-4 sm:px-6 lg:px-8 pb-4 sm:pb-16">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-hairline pt-6 text-sm">
         <Server size={16} className="text-bitcoin shrink-0" aria-hidden="true" />
         <span className="text-foreground">{t("appstore.announce_title", { defaultValue: "Run am-i.exposed on your own node" })}</span>
