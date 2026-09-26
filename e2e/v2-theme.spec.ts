@@ -29,7 +29,7 @@ test("theme chosen in v2 settings persists across reloads with no flash", async 
   await light.click();
   await expect(light).toHaveAttribute("aria-checked", "true");
   await expect(html).toHaveAttribute("data-theme", "light");
-  await expect(page.locator("body")).toHaveCSS("background-color", "rgb(246, 247, 248)");
+  await expect(page.locator("body")).toHaveCSS("background-color", "rgb(236, 238, 242)");
 
   await page.reload();
   await expect(html).toHaveAttribute("data-theme", "light");

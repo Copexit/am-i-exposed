@@ -132,48 +132,48 @@ html[data-theme="light"] {
  * hues below (see the remaps after this block).
  */
 html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"] {
-  --background: #f6f7f8;
-  --foreground: #16181d;
-  --muted: #565b66;
-  --faint: #80858f;
-  --surface-1: #ffffff;
-  --surface-2: #f1f2f4;
-  --surface-float: #ffffff;
+  --background: #eceef2;
+  --foreground: #15171c;
+  --muted: #4a4f5a;
+  --faint: #62676f;
+  --surface-1: #fbfbfc;
+  --surface-2: #e0e4ea;
+  --surface-float: #fbfbfc;
   --hero-field-bg: var(--surface-float);
-  --hairline: rgba(15, 17, 21, 0.08);
-  --hairline-strong: rgba(15, 17, 21, 0.13);
-  --card-bg: #ffffff;
-  --card-border: #e3e5e9;
-  --surface-inset: #f1f2f4;
-  --surface-elevated: #ffffff;
-  --bitcoin-text: #c14c08;
+  --hairline: rgba(15, 17, 21, 0.14);
+  --hairline-strong: rgba(15, 17, 21, 0.22);
+  --card-bg: #fbfbfc;
+  --card-border: #cfd4db;
+  --surface-inset: #eef0f4;
+  --surface-elevated: #fbfbfc;
+  --bitcoin-text: #b04307;
   --bitcoin-display: #dc6b08;
-  --success: #15803d;
-  --warning: #a16207;
-  --danger: #dc2626;
-  --info: #2563eb;
-  --severity-critical: #dc2626;
-  --severity-high: #c2410c;
-  --severity-medium: #a16207;
-  --severity-low: #2563eb;
-  --severity-good: #15803d;
+  --success: #12703a;
+  --warning: #8f5606;
+  --danger: #c81e1e;
+  --info: #1d56d8;
+  --severity-critical: #c81e1e;
+  --severity-high: #b53d0b;
+  --severity-medium: #8f5606;
+  --severity-low: #1d56d8;
+  --severity-good: #12703a;
   --fill-critical: #ef4444;
   --fill-high: #ea580c;
   --fill-medium: #c58a00;
   --fill-low: #3b82f6;
   --fill-good: #16a34a;
   --shadow-sm: 0 1px 2px rgba(16, 18, 24, 0.05);
-  --shadow-card: 0 1px 2px rgba(16, 18, 24, 0.04), 0 6px 20px -6px rgba(16, 18, 24, 0.08);
+  --shadow-card: 0 1px 2px rgba(16, 18, 24, 0.06), 0 6px 20px -6px rgba(16, 18, 24, 0.1);
   --shadow-pop: 0 2px 6px rgba(16, 18, 24, 0.05), 0 18px 44px -10px rgba(16, 18, 24, 0.18);
-  --glass-bg: rgba(255, 255, 255, 0.8);
-  --glass-border: rgba(15, 17, 21, 0.08);
+  --glass-bg: rgba(251, 251, 252, 0.86);
+  --glass-border: rgba(15, 17, 21, 0.14);
   --glass-shadow: 0 1px 2px rgba(16, 18, 24, 0.04), 0 10px 30px -10px rgba(16, 18, 24, 0.12);
-  --overlay-bg: rgba(255, 255, 255, 0.98);
-  --overlay-border: rgba(15, 17, 21, 0.1);
+  --overlay-bg: rgba(251, 251, 252, 0.98);
+  --overlay-border: rgba(15, 17, 21, 0.16);
   --overlay-shadow: 0 2px 6px rgba(16, 18, 24, 0.05), 0 18px 44px -10px rgba(16, 18, 24, 0.18);
-  --subtle-border: rgba(15, 17, 21, 0.08);
-  --subtle-hover: rgba(15, 17, 21, 0.03);
-  --shimmer-color: rgba(15, 17, 21, 0.06);
+  --subtle-border: rgba(15, 17, 21, 0.14);
+  --subtle-hover: rgba(15, 17, 21, 0.05);
+  --shimmer-color: rgba(15, 17, 21, 0.08);
   color-scheme: light;
 }
 
@@ -196,22 +196,22 @@ html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"] 
   .bg-severity-medium { background-color: var(--fill-medium); }
   .bg-severity-low { background-color: var(--fill-low); }
   .bg-severity-good { background-color: var(--fill-good); }
-  :is(.bg-severity-critical\/5, .bg-severity-critical\/8, .bg-severity-critical\/10, .bg-severity-critical\/15, .bg-severity-critical\/20, .bg-severity-critical\/25) { background-color: color-mix(in srgb, var(--fill-critical) 9%, #fff); }
-  :is(.bg-severity-high\/5, .bg-severity-high\/8, .bg-severity-high\/10, .bg-severity-high\/15, .bg-severity-high\/20) { background-color: color-mix(in srgb, var(--fill-high) 9%, #fff); }
-  :is(.bg-severity-medium\/5, .bg-severity-medium\/10, .bg-severity-medium\/15, .bg-severity-medium\/20) { background-color: color-mix(in srgb, var(--fill-medium) 11%, #fff); }
-  :is(.bg-severity-low\/10, .bg-severity-low\/15, .bg-severity-low\/20) { background-color: color-mix(in srgb, var(--fill-low) 9%, #fff); }
-  :is(.bg-severity-good\/5, .bg-severity-good\/10, .bg-severity-good\/15, .bg-severity-good\/20) { background-color: color-mix(in srgb, var(--fill-good) 9%, #fff); }
-  :is(.bg-warning\/10, .bg-warning\/15, .bg-warning\/25) { background-color: color-mix(in srgb, var(--fill-medium) 11%, #fff); }
-  :is(.border-severity-critical\/15, .border-severity-critical\/20, .border-severity-critical\/25, .border-severity-critical\/30, .border-severity-critical\/40) { border-color: color-mix(in srgb, var(--fill-critical) 28%, #fff); }
-  :is(.border-severity-high\/15, .border-severity-high\/20, .border-severity-high\/25, .border-severity-high\/30, .border-severity-high\/40, .border-severity-high\/50) { border-color: color-mix(in srgb, var(--fill-high) 30%, #fff); }
-  :is(.border-severity-medium\/20, .border-severity-medium\/25, .border-severity-medium\/30, .border-severity-medium\/40, .border-warning\/30) { border-color: color-mix(in srgb, var(--fill-medium) 34%, #fff); }
-  :is(.border-severity-low\/30, .border-severity-low\/40) { border-color: color-mix(in srgb, var(--fill-low) 28%, #fff); }
-  :is(.border-severity-good\/15, .border-severity-good\/20, .border-severity-good\/30, .border-severity-good\/40) { border-color: color-mix(in srgb, var(--fill-good) 28%, #fff); }
+  :is(.bg-severity-critical\/5, .bg-severity-critical\/8, .bg-severity-critical\/10, .bg-severity-critical\/15, .bg-severity-critical\/20, .bg-severity-critical\/25) { background-color: color-mix(in srgb, var(--fill-critical) 9%, var(--card-bg)); }
+  :is(.bg-severity-high\/5, .bg-severity-high\/8, .bg-severity-high\/10, .bg-severity-high\/15, .bg-severity-high\/20) { background-color: color-mix(in srgb, var(--fill-high) 9%, var(--card-bg)); }
+  :is(.bg-severity-medium\/5, .bg-severity-medium\/10, .bg-severity-medium\/15, .bg-severity-medium\/20) { background-color: color-mix(in srgb, var(--fill-medium) 11%, var(--card-bg)); }
+  :is(.bg-severity-low\/10, .bg-severity-low\/15, .bg-severity-low\/20) { background-color: color-mix(in srgb, var(--fill-low) 9%, var(--card-bg)); }
+  :is(.bg-severity-good\/5, .bg-severity-good\/10, .bg-severity-good\/15, .bg-severity-good\/20) { background-color: color-mix(in srgb, var(--fill-good) 9%, var(--card-bg)); }
+  :is(.bg-warning\/10, .bg-warning\/15, .bg-warning\/25) { background-color: color-mix(in srgb, var(--fill-medium) 11%, var(--card-bg)); }
+  :is(.border-severity-critical\/15, .border-severity-critical\/20, .border-severity-critical\/25, .border-severity-critical\/30, .border-severity-critical\/40) { border-color: color-mix(in srgb, var(--fill-critical) 28%, var(--card-bg)); }
+  :is(.border-severity-high\/15, .border-severity-high\/20, .border-severity-high\/25, .border-severity-high\/30, .border-severity-high\/40, .border-severity-high\/50) { border-color: color-mix(in srgb, var(--fill-high) 30%, var(--card-bg)); }
+  :is(.border-severity-medium\/20, .border-severity-medium\/25, .border-severity-medium\/30, .border-severity-medium\/40, .border-warning\/30) { border-color: color-mix(in srgb, var(--fill-medium) 34%, var(--card-bg)); }
+  :is(.border-severity-low\/30, .border-severity-low\/40) { border-color: color-mix(in srgb, var(--fill-low) 28%, var(--card-bg)); }
+  :is(.border-severity-good\/15, .border-severity-good\/20, .border-severity-good\/30, .border-severity-good\/40) { border-color: color-mix(in srgb, var(--fill-good) 28%, var(--card-bg)); }
 }
 
 /* v2 light chrome: white glass bars, panels, clean paper (no film grain), quiet scrollbars. */
 :is(html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"]) {
-  .bg-background\/75 { background-color: rgb(255 255 255 / 0.8); }
+  .bg-background\/75 { background-color: rgb(236 238 242 / 0.85); }
   /*
    * Classic panels embedded in v2 use bg-surface-inset for both page-level
    * containers and wells inside cards. On paper the first must be raised
@@ -224,7 +224,7 @@ html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"] 
   .v2-readouts { box-shadow: var(--shadow-card); }
   .v2-readouts > * { background-color: var(--surface-1); }
   .v2-canvas { box-shadow: var(--shadow-card); border-color: var(--hairline); }
-  .v2-canvas-backdrop { background-color: rgb(255 255 255 / 0.86); backdrop-filter: blur(14px); }
+  .v2-canvas-backdrop { background-color: rgb(236 238 242 / 0.9); backdrop-filter: blur(14px); }
   .v2-panel {
     background: var(--surface-1);
     border: 1px solid var(--hairline);
@@ -232,7 +232,7 @@ html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"] 
     padding: 20px;
     box-shadow: var(--shadow-card);
   }
-  ::selection { background: color-mix(in srgb, var(--bitcoin) 28%, #fff); color: var(--foreground); }
+  ::selection { background: color-mix(in srgb, var(--bitcoin) 28%, var(--card-bg)); color: var(--foreground); }
   ::-webkit-scrollbar-thumb { background: rgba(15, 17, 21, 0.16); }
   ::-webkit-scrollbar-thumb:hover { background: rgba(15, 17, 21, 0.3); }
   scrollbar-color: rgba(15, 17, 21, 0.2) transparent;
