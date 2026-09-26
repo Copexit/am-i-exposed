@@ -92,3 +92,50 @@ test("inline graph is compact; analysis tools live in fullscreen", async ({ page
   const dialog = page.getByRole("dialog", { name: "Transaction graph fullscreen" });
   await expect(dialog.getByTitle("Heat Map (H)")).toBeVisible();
 });
+
+test.describe("home on a phone", () => {
+  test.use({ viewport: { width: 390, height: 664 }, hasTouch: true, isMobile: true });
+
+  test("lens starts on the wallet view, taps move it, and the notebook trims to the top findings", async ({ page }) => {
+    await page.goto("/v2/");
+    const lens = page.getByTestId("v2-lens-explainer");
+    await lens.scrollIntoViewIfNeeded();
+    const wallet = lens.getByRole("button", { name: "Wallet view" });
+    const analyst = lens.getByRole("button", { name: "Analyst view" });
+    await expect(wallet).toBeVisible({ timeout: 15_000 });
+    await expect(wallet).toHaveAttribute("aria-pressed", "true");
+    await expect(analyst).toHaveAttribute("aria-pressed", "false");
+
+    // A tap on the drawing glides the lens (its crosshair circle) to the tapped point.
+    const stage = lens.getByLabel(/Transaction under the analyst lens/);
+    const ring = stage.locator("svg > g[pointer-events=none] > circle").first();
+    await expect(ring).toBeAttached();
+    const box = (await stage.boundingBox())!;
+    await stage.tap({ position: { x: box.width / 2, y: 40 } });
+    await expect.poll(async () => Number(await ring.getAttribute("cy"))).toBeLessThan(120);
+
+    await analyst.tap();
+    await expect(analyst).toHaveAttribute("aria-pressed", "true");
+    await expect(ring).toHaveCount(0);
+
+    // Top three findings, then the way into the full result.
+    const notebook = lens.getByRole("complementary");
+    await expect(notebook.locator("li:visible")).toHaveCount(3);
+    await expect(notebook).toContainText(/\+\d+ more findings?/);
+    await notebook.getByRole("button", { name: "Scan it" }).tap();
+    await expect(page).toHaveURL(new RegExp(`#tx=${LEGACY}`));
+  });
+
+  test("the privacy notice scrolls with the page instead of riding in the sticky header", async ({ page }) => {
+    // The notice shows on clearnet only; answer the Tor check as a clearnet visitor.
+    await page.route("https://tor-check.copexit.workers.dev/**", (r) => r.fulfill({ json: { isTor: false } }));
+    await page.goto("/v2/");
+    await expect(page.getByTestId("v2-home")).toBeVisible();
+    const notice = page.getByText(/Queries are sent to mempool\.space/).locator("visible=true");
+    await expect(notice).toBeVisible({ timeout: 15_000 });
+    await page.mouse.wheel(0, 600);
+    await expect.poll(async () => (await notice.boundingBox())?.y ?? -1).toBeLessThan(0);
+    const h = await page.locator("header").evaluate((el) => el.getBoundingClientRect().height);
+    expect(h).toBeLessThanOrEqual(60);
+  });
+});

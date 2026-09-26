@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useReducedMotion } from "motion/react";
+import { ArrowRight } from "lucide-react";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
 import { analyzeTransactionSync } from "@/lib/analysis/analyze-sync";
@@ -32,19 +33,19 @@ function analyze(tx: MempoolTransaction) {
  * the engine on bundled txs. Waits for the local entity index (already being
  * loaded by the scanner, same-origin, cached) so the result is deterministic.
  */
-export function LensExplainer() {
+export function LensExplainer({ onScan }: { onScan: (txid: string) => void }) {
   const [ready, setReady] = useState(false);
   useEffect(() => { void loadEntityFilter().finally(() => setReady(true)); }, []);
-  return ready ? <LensExplainerBody /> : <div className="min-h-[720px]" />;
+  return ready ? <LensExplainerBody onScan={onScan} /> : <div className="min-h-[720px]" />;
 }
 
-function LensExplainerBody() {
+function LensExplainerBody({ onScan }: { onScan: (txid: string) => void }) {
   const { t } = useTranslation();
   const reduced = !!useReducedMotion();
   const data = useMemo(() => ({ legacy: analyze(TXS.legacy), whirlpool: analyze(TXS.whirlpool) }), []);
   const [key, setKey] = useState<Key>("legacy");
-  // Touch screens start with the whole analyst layer shown; the lens is one tap away.
-  const [revealAll, setRevealAll] = useState(() => window.matchMedia("(pointer: coarse)").matches);
+  // Everyone starts on the wallet view with the lens: the contrast is the point. Touch moves it by tapping.
+  const [revealAll, setRevealAll] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [port, setPort] = useState(false);
@@ -95,7 +96,7 @@ function LensExplainerBody() {
     glide(to, { x: -L.r, y: to.y });
   }, [key, port, heroKey, anchorOf, glide, L.r]);
 
-  const toSvg = (e: PointerEvent) => {
+  const toSvg = (e: { clientX: number; clientY: number }) => {
     const r = svgBox.current?.getBoundingClientRect();
     if (!r) return null;
     return { x: ((e.clientX - r.left) / r.width) * L.W, y: ((e.clientY - r.top) / r.height) * L.H };
@@ -105,8 +106,9 @@ function LensExplainerBody() {
     const p = toSvg(e);
     if (p) { cancelAnimationFrame(raf.current); put(p); }
   };
-  const onDown = (e: PointerEvent) => {
-    if (e.pointerType === "mouse" || revealAll) return;
+  // A tap (click, so a scroll swipe never moves it) glides the lens to the point: the touch equivalent of hover.
+  const onTap = (e: MouseEvent) => {
+    if (revealAll) return;
     const p = toSvg(e);
     if (p) glide(p);
   };
@@ -159,13 +161,29 @@ function LensExplainerBody() {
     { k: "legacy", label: t("v2.home.lens_tab_legacy", { defaultValue: "Simple payment" }) },
     { k: "whirlpool", label: t("v2.home.lens_tab_whirlpool", { defaultValue: "Whirlpool CoinJoin" }) },
   ];
-  const seg = "min-h-[44px] px-3 rounded-lg text-sm inline-flex items-center gap-2 cursor-pointer transition-colors focus-visible:outline-2 focus-visible:outline-bitcoin";
+  // Phones: each control is a full-width two-way switch; sm+: compact pills as before.
+  const group = "grid grid-cols-2 w-full sm:inline-flex sm:w-auto p-1 gap-1 rounded-xl border border-hairline bg-surface-1";
+  const seg = "min-h-[44px] px-2 sm:px-3 rounded-lg text-sm leading-tight text-center inline-flex items-center justify-center gap-x-2 cursor-pointer transition-colors focus-visible:outline-2 focus-visible:outline-bitcoin";
+  const on = "bg-surface-2 text-foreground shadow-(--shadow-sm)", off = "text-muted hover:text-foreground";
+  const viewSwitch = (
+    <div role="group" aria-label={t("v2.home.lens_mode", { defaultValue: "View" })} className={group}>
+      {([false, true] as const).map((all) => (
+        <button key={String(all)} type="button" aria-pressed={revealAll === all} onClick={() => setRevealAll(all)} className={`${seg} ${revealAll === all ? on : off}`}>
+          {all ? t("v2.home.lens_mode_analyst", { defaultValue: "Analyst view" }) : t("v2.home.lens_mode_wallet", { defaultValue: "Wallet view" })}
+        </button>
+      ))}
+    </div>
+  );
+  // Below md only the top findings show, then a way into the full scan; md+ keeps the whole notebook.
+  const ranked = [...leaks, ...blinds];
+  const topIds = new Set(ranked.slice(0, 3).map((f) => f.id));
+  const rest = ranked.length - topIds.size;
 
   const note = (f: Finding) => {
     const expanded = open === f.id;
     const desc = t(findingKeys(f.id, "description", f.params), { ...f.params, defaultValue: f.description });
     return (
-      <li key={f.id} className="relative">
+      <li key={f.id} className={`relative ${topIds.has(f.id) ? "" : "max-md:hidden"}`}>
         <span className={`absolute left-0 top-3 bottom-3 w-[2px] rounded-full ${SEVERITY_BG[f.severity]}`} aria-hidden="true" />
         <button type="button" onClick={() => choose(f)} aria-expanded={expanded} className={`w-full text-left pl-4 pr-3 py-2.5 min-h-[44px] rounded-md hover:bg-surface-2 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-bitcoin ${expanded ? "bg-surface-2" : ""}`}>
           <span className="flex items-baseline gap-3">
@@ -179,9 +197,9 @@ function LensExplainerBody() {
   };
 
   return (
-    <section aria-labelledby="v2-lens" className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 pt-16 sm:pt-24" data-testid="v2-lens-explainer">
-      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5 mb-6">
-        <div className="max-w-[48rem]">
+    <section aria-labelledby="v2-lens" className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-24" data-testid="v2-lens-explainer">
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 sm:gap-y-5 mb-5 sm:mb-6">
+        <div className="max-w-[44rem]">
           <p className="v2-eyebrow">{t("v2.home.lens_eyebrow", { defaultValue: "Analyst lens" })}</p>
           <h2 id="v2-lens" className="mt-3 text-[28px] sm:text-[40px] font-semibold tracking-tight leading-[1.08] text-balance">
             {t("v2.home.lens_h_1", { defaultValue: "What your wallet shows you." })}{" "}
@@ -189,28 +207,29 @@ function LensExplainerBody() {
               {model.blind ? t("v2.home.lens_h_blind", { defaultValue: "What an analyst cannot see." }) : t("v2.home.lens_h_2", { defaultValue: "What an analyst sees." })}
             </span>
           </h2>
-          <p className="mt-3 text-[15px] leading-relaxed text-muted">
-            {t("v2.home.lens_lede", { defaultValue: "Move the lens over a real transaction. Every label under it comes from a finding the am-i.exposed engine just computed in this browser." })}
+          <p className="mt-3 text-[14.5px] sm:text-[15px] leading-relaxed text-muted">
+            <span className="pointer-coarse:hidden">{t("v2.home.lens_lede", { defaultValue: "Move the lens over a real transaction. Every label under it comes from a finding the am-i.exposed engine just computed in this browser." })}</span>
+            <span className="hidden pointer-coarse:inline">{t("v2.home.lens_lede_touch", { defaultValue: "Tap the transaction to move the lens. Every label under it is a finding computed in this browser." })}</span>
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <div role="group" aria-label={t("v2.home.lens_pick", { defaultValue: "Example transaction" })} className="inline-flex p-1 gap-1 rounded-xl border border-hairline bg-surface-1">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <div role="group" aria-label={t("v2.home.lens_pick", { defaultValue: "Example transaction" })} className={group}>
             {TABS.map((tab) => (
-              <button key={tab.k} type="button" aria-pressed={key === tab.k} onClick={() => { setKey(tab.k); setSelected(null); setOpen(null); }} className={`${seg} ${key === tab.k ? "bg-surface-2 text-foreground" : "text-muted hover:text-foreground"}`}>
-                {tab.label}
-                <span className={`v2-num text-xs font-semibold ${GRADE_COLORS[data[tab.k].vm.grade]}`}>{data[tab.k].vm.grade}</span>
+              <button key={tab.k} type="button" aria-pressed={key === tab.k} onClick={() => { setKey(tab.k); setSelected(null); setOpen(null); }} className={`${seg} ${key === tab.k ? on : off}`}>
+                {/* One inline run, so a wrapped label keeps its grade beside the last word. */}
+                <span>{tab.label}{" "}<span className={`ml-1 v2-num text-xs font-semibold whitespace-nowrap ${GRADE_COLORS[data[tab.k].vm.grade]}`}>{data[tab.k].vm.grade}</span></span>
               </button>
             ))}
           </div>
-          <button type="button" aria-pressed={revealAll} onClick={() => setRevealAll((r) => !r)} className={`${seg} border border-hairline ${revealAll ? "bg-surface-2 text-foreground" : "text-muted hover:text-foreground"}`}>
-            {t("v2.home.lens_reveal", { defaultValue: "Show everything" })}
-          </button>
+          <div className="hidden sm:contents">{viewSwitch}</div>
         </div>
       </div>
 
       <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-5 items-start">
         <div className="rounded-xl border border-hairline bg-surface-1 shadow-(--shadow-card) overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 border-b border-hairline">
+          {/* Phones: the view switch sits on the drawing it controls, in place of the tx meta row. */}
+          <div className="sm:hidden p-2 border-b border-hairline">{viewSwitch}</div>
+          <div className="hidden sm:flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-3 border-b border-hairline">
             <span className="v2-num text-xs text-muted truncate min-w-0 flex-1">{tx.txid}</span>
             <span className="v2-num text-xs text-faint">{t("v2.home.lens_meta", { defaultValue: "{{i}} in · {{o}} out · block {{b}}", i: tx.vin.length, o: tx.vout.length, b: fmtN(tx.status.block_height ?? 0) })}</span>
           </div>
@@ -219,7 +238,7 @@ function LensExplainerBody() {
             tabIndex={0}
             onKeyDown={onKey}
             onPointerMove={onMove}
-            onPointerDown={onDown}
+            onClick={onTap}
             aria-label={t("v2.home.lens_stage", { defaultValue: "Transaction under the analyst lens. Arrow keys move the lens." })}
             className={`relative focus-visible:outline-2 focus-visible:outline-bitcoin focus-visible:-outline-offset-2 ${revealAll ? "" : "md:cursor-none"}`}
           >
@@ -234,7 +253,7 @@ function LensExplainerBody() {
             </div>
             <div className="min-w-0">
               <p className="v2-eyebrow">{t("v2.home.lens_concludes", { defaultValue: "An analyst concludes" })}</p>
-              <p className="mt-1 text-[15px] leading-snug">{verdict}</p>
+              <p className="mt-1 text-[14px] sm:text-[15px] leading-snug">{verdict}</p>
             </div>
           </div>
         </div>
@@ -248,11 +267,20 @@ function LensExplainerBody() {
           )}
           {blinds.length > 0 && (
             <>
-              <h3 className="v2-eyebrow px-4 pt-4 pb-2">{t("v2.home.lens_blinds", { defaultValue: "What blinds the analyst" })}</h3>
+              <h3 className={`v2-eyebrow px-4 pt-4 pb-2 ${blinds.some((f) => topIds.has(f.id)) ? "" : "max-md:hidden"}`}>{t("v2.home.lens_blinds", { defaultValue: "What blinds the analyst" })}</h3>
               <ul className="px-1">{blinds.map(note)}</ul>
             </>
           )}
-          <p className="px-4 pt-3 pb-2 text-xs leading-relaxed text-faint">
+          {rest > 0 && (
+            <p className="md:hidden flex items-center justify-between gap-3 mt-1 mx-1 pl-4 pr-1 border-t border-hairline text-[13.5px] text-muted">
+              {t("v2.home.lens_more", { defaultValue: "+{{count}} more findings", count: rest })}
+              <button type="button" onClick={() => onScan(tx.txid)} className="inline-flex items-center gap-1 min-h-[44px] px-3 rounded-md text-bitcoin font-medium cursor-pointer hover:bg-surface-2 transition-colors focus-visible:outline-2 focus-visible:outline-bitcoin">
+                {t("v2.home.field_scan", { defaultValue: "Scan it" })}
+                <ArrowRight size={14} aria-hidden="true" />
+              </button>
+            </p>
+          )}
+          <p className="max-md:hidden px-4 pt-3 pb-2 text-xs leading-relaxed text-faint">
             {t("v2.home.lens_quick", { defaultValue: "Quick score from the transaction alone. A full scan also follows its parents and children, which can add findings (a peel chain, for example)." })}
           </p>
         </aside>

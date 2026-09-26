@@ -88,6 +88,17 @@ export function V2Home({
     hubSub: t("v2.home.hub_sub", { defaultValue: "{{inputs}} in / {{outputs}} out", inputs: FIELD_TX.inValues.length, outputs: FIELD_TX.outValues.length }),
   }), [t, checks]);
 
+  const fieldSource = t("v2.home.field_source", { defaultValue: "Background: a real WabiSabi CoinJoin, {{inputs}} inputs, {{outputs}} outputs", inputs: FIELD_TX.inValues.length, outputs: FIELD_TX.outValues.length });
+  const scanField = (
+    <button
+      type="button"
+      onClick={() => onSubmit(FIELD_TX.txid)}
+      className={`inline-flex items-center align-middle min-h-[44px] max-sm:px-1 max-sm:-my-3 text-muted hover:text-bitcoin underline underline-offset-4 decoration-hairline-strong cursor-pointer rounded ${FOCUS}`}
+    >
+      {t("v2.home.field_scan", { defaultValue: "Scan it" })}
+    </button>
+  );
+
   const onFieldInput = (e: FormEvent<HTMLDivElement>) => {
     const el = e.target as HTMLInputElement;
     if (el.id !== "main-input") return;
@@ -104,7 +115,7 @@ export function V2Home({
       className="w-full"
       data-testid="v2-home"
     >
-      <section ref={heroRef} className="relative isolate overflow-hidden min-h-[calc(100svh-3.5rem)] flex flex-col">
+      <section ref={heroRef} className="relative isolate overflow-hidden sm:min-h-[calc(100svh-3.5rem)] flex flex-col">
         <GlassField utxos={UTXOS} labels={labels} captions={captions} locked={locked} lockTarget={fieldRef} avoid={heroRef} counter={counterRef} />
         <div
           aria-hidden="true"
@@ -112,7 +123,7 @@ export function V2Home({
           style={{ background: `radial-gradient(ellipse 50% 46% at 50% 50%, ${BG(0.9)} 0%, ${BG(0.62)} 50%, ${BG(0)} 100%), linear-gradient(180deg, ${BG(0.6)}, ${BG(0)} 16%, ${BG(0)} 82%, ${P.background})` }}
         />
 
-        <div data-keepout className="flex-1 flex flex-col items-center justify-center w-full max-w-[760px] mx-auto px-4 pt-14 pb-10 text-center">
+        <div data-keepout className="flex-1 flex flex-col items-center justify-center w-full max-w-[760px] mx-auto px-4 pt-10 sm:pt-14 pb-8 sm:pb-10 text-center">
           <p className="inline-flex items-center gap-2.5 font-mono text-[10px] sm:text-[11px] tracking-[0.1em] sm:tracking-[0.16em] uppercase text-muted mb-5">
             <span className="relative flex size-[7px]" aria-hidden="true">
               <span className="absolute inset-0 rounded-full bg-severity-critical opacity-60 motion-safe:animate-ping" />
@@ -154,7 +165,7 @@ export function V2Home({
             </span>
           </h1>
 
-          <p className="mt-5 max-w-[30em] text-base sm:text-[19px] leading-relaxed text-muted text-balance">
+          <p className="mt-4 sm:mt-5 max-w-[30em] text-base sm:text-[19px] leading-relaxed text-muted text-balance">
             {t("page.tagline", { defaultValue: "The Bitcoin privacy scanner you were afraid to run." })}
           </p>
 
@@ -162,17 +173,18 @@ export function V2Home({
             ref={fieldRef}
             onInput={onFieldInput}
             data-locked={locked}
-            className="v2-hero-field relative w-full max-w-[680px] mt-8 flex flex-col items-center [&_.blur-2xl]:hidden [&_.p-px]:[background:var(--hairline-strong)]! [&:focus-within_.p-px]:[background:color-mix(in_srgb,var(--bitcoin)_45%,transparent)]! data-[locked=true]:[&_.p-px]:[background:color-mix(in_srgb,var(--bitcoin)_85%,transparent)]! data-[locked=true]:[&_.p-px]:shadow-[0_0_0_4px_color-mix(in_srgb,var(--bitcoin)_12%,transparent),0_20px_60px_-20px_color-mix(in_srgb,var(--bitcoin)_35%,transparent)] [&_input]:bg-(--hero-field-bg)! [&_.p-px]:shadow-(--shadow-card) [&_input]:backdrop-blur-md"
+            className="v2-hero-field relative w-full max-w-[680px] mt-6 sm:mt-8 flex flex-col items-center [&_.blur-2xl]:hidden [&_.p-px]:[background:var(--hairline-strong)]! [&:focus-within_.p-px]:[background:color-mix(in_srgb,var(--bitcoin)_45%,transparent)]! data-[locked=true]:[&_.p-px]:[background:color-mix(in_srgb,var(--bitcoin)_85%,transparent)]! data-[locked=true]:[&_.p-px]:shadow-[0_0_0_4px_color-mix(in_srgb,var(--bitcoin)_12%,transparent),0_20px_60px_-20px_color-mix(in_srgb,var(--bitcoin)_35%,transparent)] [&_input]:bg-(--hero-field-bg)! [&_.p-px]:shadow-(--shadow-card) [&_input]:backdrop-blur-md"
           >
             <AddressInput onSubmit={onSubmit} isLoading={false} inputRef={inputRef} placeholder={t("v2.home.placeholder", { defaultValue: "Address, txid, xpub or PSBT" })} />
           </div>
-          <p className="mt-3 font-mono text-xs text-faint" aria-live="polite">
+          {/* Phones fold the idle checks line into the trust row; the live "locked" status shows everywhere. */}
+          <p className={`${locked ? "mt-3" : "sm:mt-3"} font-mono text-xs text-faint`} aria-live="polite">
             {locked
               ? <span className="text-bitcoin">{t("v2.home.status_locked", { defaultValue: "Target locked. Press Scan or Enter." })}</span>
-              : t("v2.home.status_checks", { defaultValue: "{{count}} transaction checks run locally in this browser.", count: checks })}
+              : <span className="hidden sm:inline">{t("v2.home.status_checks", { defaultValue: "{{count}} transaction checks run locally in this browser.", count: checks })}</span>}
           </p>
 
-          <div className="mt-7 w-full grid grid-cols-2 sm:grid-cols-4 gap-2.5" aria-label={t("v2.home.specimens", { defaultValue: "Example scans" })} role="group">
+          <div className="mt-6 sm:mt-7 w-full grid grid-cols-2 sm:grid-cols-4 gap-2.5" aria-label={t("v2.home.specimens", { defaultValue: "Example scans" })} role="group">
             {SPECIMENS.map((ex) => (
               <button
                 key={ex.input}
@@ -242,8 +254,12 @@ export function V2Home({
             </Suspense>
           )}
 
-          <ul className="mt-7 flex flex-wrap justify-center gap-x-5 gap-y-2 font-mono text-xs text-muted">
-            <li className="flex items-center gap-2"><span className="size-1.5 rounded-full bg-severity-good" aria-hidden="true" />{t("page.trust_client", { defaultValue: "100% client-side" })}</li>
+          <ul className="mt-5 sm:mt-7 flex flex-wrap justify-center gap-x-5 gap-y-2 font-mono text-xs text-muted">
+            <li className="flex items-center gap-2">
+              <span className="size-1.5 rounded-full bg-severity-good" aria-hidden="true" />
+              <span className="sm:hidden">{t("v2.home.trust_checks", { defaultValue: "{{count}} checks, all local", count: checks })}</span>
+              <span className="hidden sm:inline">{t("page.trust_client", { defaultValue: "100% client-side" })}</span>
+            </li>
             <li className="flex items-center gap-2"><span className="size-1.5 rounded-full bg-severity-good" aria-hidden="true" />{t("page.trust_tracking", { defaultValue: "No tracking" })}</li>
             <li className="flex items-center gap-2">
               <span className="size-1.5 rounded-full bg-severity-good" aria-hidden="true" />
@@ -254,18 +270,11 @@ export function V2Home({
           </ul>
         </div>
 
-        <div data-keepout className="px-4 sm:px-6 pb-3 flex flex-wrap items-center gap-x-3 font-mono text-[10.5px] tracking-[0.04em] text-faint">
-          <span>
-            {t("v2.home.field_source", { defaultValue: "Background: a real WabiSabi CoinJoin, {{inputs}} inputs, {{outputs}} outputs", inputs: FIELD_TX.inValues.length, outputs: FIELD_TX.outValues.length })}
-          </span>
-          <button
-            type="button"
-            onClick={() => onSubmit(FIELD_TX.txid)}
-            className={`min-h-[44px] text-muted hover:text-bitcoin underline underline-offset-4 decoration-hairline-strong cursor-pointer rounded ${FOCUS}`}
-          >
-            {t("v2.home.field_scan", { defaultValue: "Scan it" })}
-          </button>
-          <span className="hidden sm:inline motion-reduce:hidden">
+        {/* Phones get this caption at the end of the page instead (see below). */}
+        <div data-keepout className="hidden sm:flex px-6 pb-3 flex-wrap items-center gap-x-3 font-mono text-[10.5px] tracking-[0.04em] text-faint">
+          <span>{fieldSource}</span>
+          {scanField}
+          <span className="motion-reduce:hidden">
             {t("v2.home.field_count", { defaultValue: "UTXOs labelled while you watched:" })}{" "}
             <span ref={counterRef} className="v2-num text-muted">0</span>
           </span>
@@ -274,12 +283,15 @@ export function V2Home({
 
       <WhenVisible minHeight={720}>
         <Suspense fallback={<div className="min-h-[720px]" />}>
-          <LensExplainer />
+          <LensExplainer onScan={onSubmit} />
         </Suspense>
       </WhenVisible>
 
       <HowItWorks checks={checks} />
       <SelfHostRow />
+      <p className="sm:hidden px-4 font-mono text-[10.5px] leading-relaxed tracking-[0.04em] text-faint">
+        {fieldSource}{" "}{scanField}
+      </p>
     </motion.div>
   );
 }
