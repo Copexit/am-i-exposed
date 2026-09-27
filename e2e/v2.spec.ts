@@ -138,4 +138,17 @@ test.describe("home on a phone", () => {
     const h = await page.locator("header").evaluate((el) => el.getBoundingClientRect().height);
     expect(h).toBeLessThanOrEqual(60);
   });
+
+  test("the hero fills the first screen: the lens starts at the fold, notice open or closed", async ({ browser }) => {
+    for (const notice of [false, true]) {
+      const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+      await page.route("https://tor-check.copexit.workers.dev/**", (r) => r.fulfill({ json: { isTor: !notice } }));
+      await page.goto("/v2/");
+      await expect(page.getByTestId("v2-home")).toBeVisible();
+      if (notice) await expect(page.getByText(/Queries are sent to mempool\.space/).locator("visible=true")).toBeVisible({ timeout: 15_000 });
+      const lens = page.getByTestId("v2-lens-explainer");
+      await expect.poll(async () => Math.round((await lens.boundingBox())?.y ?? 0)).toBe(844);
+      await page.close();
+    }
+  });
 });
