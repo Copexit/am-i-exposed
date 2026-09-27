@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -12,8 +13,20 @@ import { usePrivacyNotice } from "@/components/PrivacyNotice";
 export function V2PrivacyNotice({ inFlow = false }: { inFlow?: boolean }) {
   const { t } = useTranslation();
   const { visible, dismiss } = usePrivacyNotice();
+  const ref = useRef<HTMLDivElement>(null);
+
+  // In flow, publish the live height (0 when hidden or dismissed) so the home hero can fit the first screen exactly.
+  useEffect(() => {
+    const el = ref.current;
+    if (!inFlow || !el) return;
+    const root = document.documentElement;
+    const ro = new ResizeObserver(() => root.style.setProperty("--v2-notice-h", `${el.offsetHeight}px`));
+    ro.observe(el);
+    return () => { ro.disconnect(); root.style.removeProperty("--v2-notice-h"); };
+  }, [inFlow]);
 
   return (
+    <div ref={ref}>
     <AnimatePresence initial={false}>
       {visible && (
         <motion.div
@@ -41,5 +54,6 @@ export function V2PrivacyNotice({ inFlow = false }: { inFlow?: boolean }) {
         </motion.div>
       )}
     </AnimatePresence>
+    </div>
   );
 }

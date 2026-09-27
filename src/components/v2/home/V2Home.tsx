@@ -115,7 +115,8 @@ export function V2Home({
       className="w-full"
       data-testid="v2-home"
     >
-      <section ref={heroRef} className="relative isolate overflow-hidden sm:min-h-[calc(100svh-3.5rem)] flex flex-col">
+      {/* The first screen is exactly the hero: it fills the space under the header (and the phone privacy notice) and centers its content, so the lens always starts below the fold. */}
+      <section ref={heroRef} className="relative isolate overflow-hidden min-h-[calc(100svh-var(--v2-header-h,3.5rem)-var(--v2-notice-h,0px))] flex flex-col">
         <GlassField utxos={UTXOS} labels={labels} captions={captions} locked={locked} lockTarget={fieldRef} avoid={heroRef} counter={counterRef} />
         <div
           aria-hidden="true"
@@ -123,8 +124,8 @@ export function V2Home({
           style={{ background: `radial-gradient(ellipse 50% 46% at 50% 50%, ${BG(0.9)} 0%, ${BG(0.62)} 50%, ${BG(0)} 100%), linear-gradient(180deg, ${BG(0.6)}, ${BG(0)} 16%, ${BG(0)} 82%, ${P.background})` }}
         />
 
-        <div data-keepout className="flex-1 flex flex-col items-center justify-center w-full max-w-[760px] mx-auto px-4 pt-10 sm:pt-14 pb-8 sm:pb-10 text-center">
-          <p className="inline-flex items-center gap-2.5 font-mono text-[10px] sm:text-[11px] tracking-[0.1em] sm:tracking-[0.16em] uppercase text-muted mb-5">
+        <div data-keepout className="flex-1 flex flex-col items-center justify-center w-full max-w-[760px] mx-auto px-4 pt-6 sm:pt-14 pb-6 sm:pb-10 text-center">
+          <p className="inline-flex items-center gap-2.5 font-mono text-[9px] min-[360px]:text-[10px] sm:text-[11px] tracking-[0.05em] sm:tracking-[0.16em] whitespace-nowrap uppercase text-muted mb-5">
             <span className="relative flex size-[7px]" aria-hidden="true">
               <span className="absolute inset-0 rounded-full bg-severity-critical opacity-60 motion-safe:animate-ping" />
               <span className="relative size-[7px] rounded-full bg-severity-critical" />
