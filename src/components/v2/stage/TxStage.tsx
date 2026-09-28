@@ -236,26 +236,24 @@ function FullscreenStage({ title, toggles, onClose, children }: { title: string;
   useFocusTrap(ref, true);
   useEffect(() => { closeRef.current?.focus(); }, []);
   return createPortal(
-    <div data-ui="v2" className="contents">
-      <div ref={ref} role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-[60] flex flex-col bg-background">
-        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-hairline sm:px-6">
-          <h2 className="v2-eyebrow">{title}</h2>
-          <div className="flex items-center gap-1.5">
-            {toggles}
-            <button
-              ref={closeRef}
-              type="button"
-              onClick={onClose}
-              aria-label={t("common.close", { defaultValue: "Close" })}
-              className="inline-flex items-center justify-center size-11 sm:size-9 rounded-lg text-muted hover:text-foreground hover:bg-surface-2 cursor-pointer focus-visible:outline-2 focus-visible:outline-bitcoin"
-            >
-              <X size={18} aria-hidden="true" />
-            </button>
-          </div>
+    <div ref={ref} role="dialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-[60] flex flex-col bg-background">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-b border-hairline sm:px-6">
+        <h2 className="v2-eyebrow">{title}</h2>
+        <div className="flex items-center gap-1.5">
+          {toggles}
+          <button
+            ref={closeRef}
+            type="button"
+            onClick={onClose}
+            aria-label={t("common.close", { defaultValue: "Close" })}
+            className="inline-flex items-center justify-center size-11 sm:size-9 rounded-lg text-muted hover:text-foreground hover:bg-surface-2 cursor-pointer focus-visible:outline-2 focus-visible:outline-bitcoin"
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
         </div>
-        <div className="flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-[1360px] py-4 sm:px-4">{children}</div>
-        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-[1360px] py-4 sm:px-4">{children}</div>
       </div>
     </div>,
     document.body,

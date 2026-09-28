@@ -5,7 +5,7 @@ API_KEY="29dadd2b-9bd0-4e5e-afb9-8e0c12f88ba9"
 HOST="am-i.exposed"
 URLS=(
   "https://$HOST/"
-  "https://$HOST/methodology/"
+  "https://$HOST/guide/"
   "https://$HOST/setup-guide/"
 )
 

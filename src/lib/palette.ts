@@ -3,12 +3,13 @@
  * inline styles). className code should use the Tailwind semantic classes
  * generated from globals.css instead (text-severity-high, bg-surface-inset).
  *
- * COLORS and LIGHT_COLORS mirror the hex custom properties declared in
+ * V2_COLORS and V2_LIGHT_COLORS mirror the hex custom properties declared in
  * src/app/globals.css (`:root` and `html[data-theme="light"]`), keyed by the
- * camelCased property name. palette.test.ts parses the CSS and fails on drift.
+ * camelCased property name, over the brand and severity values in COLORS.
+ * palette.test.ts parses the CSS and fails on drift.
  */
 
-/** Dark theme tokens (`:root` in globals.css). */
+/** Brand and severity hues (shared by both themes and by rasterized images), plus the original dark neutrals. */
 export const COLORS = {
   background: "#0c0c0e",
   foreground: "#f0f0f2",
@@ -31,18 +32,7 @@ export const COLORS = {
   severityGood: "#28d065",
 } as const;
 
-/** Light theme overrides (`html[data-theme="light"]` in globals.css). */
-export const LIGHT_COLORS = {
-  background: "#f8fafc",
-  foreground: "#0f172a",
-  muted: "#475569",
-  cardBg: "#ffffff",
-  cardBorder: "#cbd5e1",
-  surfaceInset: "#f1f5f9",
-  surfaceElevated: "#ffffff",
-} as const;
-
-/** v2 UI overrides (`[data-ui="v2"]` in globals.css); other tokens as COLORS. */
+/** Dark theme tokens (`:root` in globals.css); other tokens as COLORS. */
 export const V2_COLORS = {
   background: "#0b0b0d",
   foreground: "#f2f2f4",
@@ -58,7 +48,7 @@ export const V2_COLORS = {
   surfaceFloat: "#17171b",
 } as const;
 
-/** v2 light overrides (`html[data-theme="light"] [data-ui="v2"]`), applied over V2_COLORS. */
+/** Light theme overrides (`html[data-theme="light"]`), applied over V2_COLORS. */
 export const V2_LIGHT_COLORS = {
   background: "#eceef2",
   foreground: "#15171c",

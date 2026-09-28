@@ -12,7 +12,6 @@ import { findingKeys } from "@/lib/finding-utils";
 import { RicochetHopTable, ConsolidationTable } from "./FindingCardTables";
 import type { FindingId } from "@/lib/analysis/finding-metadata";
 import { Collapse } from "./ui/Collapse";
-import { useUiHref } from "@/components/v2/pages/uiHref";
 import {
   SEVERITY_STYLES,
   CONFIDENCE_STYLES,
@@ -193,7 +192,6 @@ export function FindingCardBody({ finding, onTxClick, proMode = false, className
 }) {
   const v2 = variant === "v2";
   const { t, i18n } = useTranslation();
-  const toUi = useUiHref();
   const learnMore = FINDING_LEARN_MORE[finding.id];
   return (
     <div id={`finding-detail-${finding.id}`} className={className ?? "px-5 pb-5 space-y-3 border-t border-card-border pt-3"}>
@@ -231,7 +229,7 @@ export function FindingCardBody({ finding, onTxClick, proMode = false, className
       <div className="flex items-center justify-between">
         {learnMore && (
           <a
-            href={toUi(`/faq/#${learnMore.faqId}`)}
+            href={`/faq/#${learnMore.faqId}`}
             className="inline-flex items-center gap-1 text-xs text-bitcoin hover:text-bitcoin-hover transition-colors"
           >
             <BookOpen size={12} />

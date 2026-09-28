@@ -17,7 +17,7 @@ Paste a Bitcoin address, transaction ID, xpub/descriptor, or unsigned PSBT. Get 
 > ```
 > [Full agent docs](https://am-i.exposed/agents/) | [skill.md](./cli/skill.md) | [MCP server](#mcp-server-ai-agents)
 
-[Live Site](https://am-i.exposed) | [Methodology](https://am-i.exposed/methodology/) | [Privacy Guide](https://am-i.exposed/guide/) | [Agents & CLI](https://am-i.exposed/agents/) | [Setup Guide](https://am-i.exposed/setup-guide/) | [Contributing](CONTRIBUTING.md)
+[Live Site](https://am-i.exposed) | [Methodology](docs/privacy-engine.md) | [Privacy Guide](https://am-i.exposed/guide/) | [Agents & CLI](https://am-i.exposed/agents/) | [Setup Guide](https://am-i.exposed/setup-guide/) | [Contributing](CONTRIBUTING.md)
 
 ---
 

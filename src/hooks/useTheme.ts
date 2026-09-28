@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore, useCallback, useEffect } from "react";
-import { COLORS, LIGHT_COLORS, V2_COLORS, V2_LIGHT_COLORS } from "@/lib/palette";
+import { V2_COLORS, V2_LIGHT_COLORS } from "@/lib/palette";
 
 type Theme = "dark" | "light";
 /** Stored preference: "system" (key absent) follows prefers-color-scheme live. */
@@ -49,15 +49,11 @@ function applyTheme(theme: Theme) {
   else delete document.documentElement.dataset.theme;
   // Update browser chrome color to match theme
   const meta = document.getElementById("meta-theme-color") as HTMLMetaElement | null;
-  const v2 = document.documentElement.dataset.ui === "v2";
-  if (meta) meta.content = (theme === "light" ? (v2 ? V2_LIGHT_COLORS : LIGHT_COLORS) : v2 ? V2_COLORS : COLORS).background;
+  if (meta) meta.content = (theme === "light" ? V2_LIGHT_COLORS : V2_COLORS).background;
 }
 
-/**
- * Re-apply the theme and re-render subscribers. Also used when `data-ui`
- * changes on <html>, since JS-drawn colors (SVG_COLORS) depend on it.
- */
-export function syncTheme(): void {
+/** Re-apply the theme and re-render subscribers. */
+function syncTheme(): void {
   applyTheme(resolvedTheme());
   notify();
 }

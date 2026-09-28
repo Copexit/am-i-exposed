@@ -3,13 +3,11 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { NetworkProvider } from "@/context/NetworkContext";
 import { I18nProvider } from "@/lib/i18n/I18nProvider";
 import { LangAttributeSync } from "@/lib/i18n/LangAttributeSync";
-import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
-import { COLORS, LIGHT_COLORS } from "@/lib/palette";
-import { PrivacyNotice } from "@/components/PrivacyNotice";
+import { V2Header } from "@/components/v2/chrome/V2Header";
+import { V2Footer } from "@/components/v2/chrome/V2Footer";
+import { V2PrivacyNotice } from "@/components/v2/chrome/V2PrivacyNotice";
+import { V2_COLORS, V2_LIGHT_COLORS } from "@/lib/palette";
 import { MempoolDownDialog } from "@/components/MempoolDownDialog";
-import { AmbientBackground } from "@/components/AmbientBackground";
-import { ClassicOnly, AppMain } from "@/components/ClassicChrome";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -79,9 +77,9 @@ export default function RootLayout({
           content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https: http://*.onion http://localhost:* http://127.0.0.1:* http://*.local:*; img-src 'self' data:; worker-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'"
         />
         <meta name="referrer" content="no-referrer" />
-        <meta name="theme-color" content={COLORS.background} id="meta-theme-color" />
+        <meta name="theme-color" content={V2_COLORS.background} id="meta-theme-color" />
         {/* Pre-paint theme (mirrors useTheme): stored "light"/"dark", else the OS preference. */}
-        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var s=localStorage.getItem("ami-theme");if(s==="light"||(s!=="dark"&&typeof matchMedia==="function"&&matchMedia("(prefers-color-scheme: light)").matches)){document.documentElement.dataset.theme="light";var m=document.getElementById("meta-theme-color");if(m)m.content="${LIGHT_COLORS.background}"}}catch(e){}})()` }} />
+        <script dangerouslySetInnerHTML={{ __html: `(function(){try{var s=localStorage.getItem("ami-theme");if(s==="light"||(s!=="dark"&&typeof matchMedia==="function"&&matchMedia("(prefers-color-scheme: light)").matches)){document.documentElement.dataset.theme="light";var m=document.getElementById("meta-theme-color");if(m)m.content="${V2_LIGHT_COLORS.background}"}}catch(e){}})()` }} />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
@@ -110,10 +108,10 @@ export default function RootLayout({
                 url: "https://github.com/Copexit",
               },
               datePublished: "2025-04-01",
-              dateModified: "2026-03-07",
+              dateModified: "2026-09-28",
               screenshot: "https://am-i.exposed/opengraph-image",
               featureList: [
-                "33 Bitcoin privacy heuristics",
+                "34 Bitcoin privacy heuristics",
                 "Transaction and address analysis",
                 "CoinJoin detection (Whirlpool, WabiSabi, JoinMarket)",
                 "Boltzmann entropy estimation",
@@ -132,16 +130,16 @@ export default function RootLayout({
         >
           Skip to main content
         </a>
-        <ClassicOnly><AmbientBackground /></ClassicOnly>
         <I18nProvider>
           <LangAttributeSync />
           <NetworkProvider>
-            <ClassicOnly><Header /></ClassicOnly>
-            <AppMain>
-              <ClassicOnly><PrivacyNotice /></ClassicOnly>
+            <V2Header />
+            {/* Phones show the privacy notice in flow; md+ keeps it in the sticky header. */}
+            <div className="md:hidden"><V2PrivacyNotice inFlow /></div>
+            <main id="main-content" className="flex-1 flex flex-col">
               {children}
-            </AppMain>
-            <ClassicOnly><Footer /></ClassicOnly>
+            </main>
+            <V2Footer />
             <MempoolDownDialog />
           </NetworkProvider>
         </I18nProvider>

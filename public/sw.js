@@ -1,4 +1,4 @@
-const APP_CACHE = "ami-exposed-v3";
+const APP_CACHE = "ami-exposed-v4";
 const DATA_CACHE = "ami-exposed-data";
 const OFFLINE_URL = "/offline.html";
 

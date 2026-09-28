@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useEffectEvent, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
-import { usePathname, useRouter } from "next/navigation";
-import { isV2Path, scannerHref } from "@/lib/v2/paths";
+import { useRouter } from "next/navigation";
 import { useNetwork } from "@/context/NetworkContext";
 import { createApiClient } from "@/lib/api/client";
 import { useGraphExpansion } from "@/hooks/useGraphExpansion";
@@ -25,7 +24,6 @@ const TX_EXAMPLES = EXAMPLES.filter((e) => TXID_RE.test(e.input));
 export function GraphPage() {
   const { t } = useTranslation();
   const router = useRouter();
-  const pathname = usePathname();
   // Initial load waits (apiReady) until the backend is known (Umbrel / Tor onion / clearnet)
   const { network, config, configFor, setNetwork, isUmbrel, apiReady } = useNetwork();
   const api = useMemo(() => createApiClient(config), [config]);
@@ -212,8 +210,8 @@ export function GraphPage() {
   );
 
   const handleFullScan = useCallback((txid: string) => {
-    router.push(scannerHref(`tx=${txid}`, pathname));
-  }, [router, pathname]);
+    router.push(`/#tx=${txid}`);
+  }, [router]);
 
   // Auto-clear load warning after 8 seconds
   useEffect(() => {
@@ -223,7 +221,7 @@ export function GraphPage() {
   }, [loadWarning]);
 
   return (
-    <div className={isV2Path(pathname) ? "relative w-full h-[calc(100dvh-57px)]" : "relative w-full h-[calc(100vh-72px)] sm:h-[calc(100vh-80px)]"}>
+    <div className="relative w-full h-[calc(100dvh-57px)]">
       <ChartErrorBoundary>
         <Suspense fallback={null}>
           <GraphExplorer

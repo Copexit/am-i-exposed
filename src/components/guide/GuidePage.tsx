@@ -34,7 +34,7 @@ export function GuidePage() {
   }, []);
 
   return (
-    <PageShell backLabel={t("guide.back", { defaultValue: "Back to scanner" })}>
+    <PageShell>
         <KnowledgeTabBar />
 
         {/* Title */}

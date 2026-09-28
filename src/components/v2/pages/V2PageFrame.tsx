@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 
 const PROSE = "max-w-[72ch]";
 
-/** Per-page eyebrow + width, keyed by the path segment after /v2/. */
+/** Per-page eyebrow + width, keyed by the first path segment. */
 function useSection(segment: string): { eyebrow: string; width: string } {
   const { t } = useTranslation();
   switch (segment) {
@@ -40,7 +40,7 @@ interface V2PageFrameProps {
 /** Calm v2 frame for knowledge and info pages: breadcrumb eyebrow, measured width. */
 export function V2PageFrame({ title, spacing = "space-y-10", children }: V2PageFrameProps) {
   const { t } = useTranslation();
-  const segment = (usePathname() ?? "").split("/")[2] ?? "";
+  const segment = (usePathname() ?? "").split("/")[1] ?? "";
   const { eyebrow, width } = useSection(segment);
 
   return (
@@ -48,7 +48,7 @@ export function V2PageFrame({ title, spacing = "space-y-10", children }: V2PageF
       <div className={`mx-auto w-full ${width}`}>
         <nav aria-label={t("v2.pages.breadcrumb", { defaultValue: "Breadcrumb" })} className="v2-eyebrow flex items-center gap-2 mb-6 sm:mb-8">
           <Link
-            href="/v2/"
+            href="/"
             className="inline-flex items-center min-h-11 hover:text-foreground transition-colors rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bitcoin"
           >
             {t("v2.pages.scanner", { defaultValue: "Scanner" })}

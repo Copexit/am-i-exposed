@@ -5,20 +5,20 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "motion/react";
-import { ArrowUpRight, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { ConnectionBadge } from "@/components/ConnectionBadge";
 import { ApiSettings } from "@/components/ApiSettings";
 import { useDevMode } from "@/hooks/useDevMode";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { V2PrivacyNotice } from "./V2PrivacyNotice";
-import { V2_NAV, isNavActive, classicHref, graphHref } from "./nav";
+import { V2_NAV, isNavActive, graphHref } from "./nav";
 import { useLocationHash } from "./useLocationHash";
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bitcoin";
 
 export function V2Header() {
   const { t } = useTranslation();
-  const pathname = usePathname() ?? "/v2/";
+  const pathname = usePathname() ?? "/";
   const router = useRouter();
   const hash = useLocationHash();
   const { devMode, toggleDevMode } = useDevMode();
@@ -63,8 +63,8 @@ export function V2Header() {
     if (clicks.current >= 5) {
       toggleDevMode();
       clicks.current = 0;
-    } else if (window.location.pathname.replace(/\/$/, "") !== "/v2") {
-      router.push("/v2/");
+    } else if (window.location.pathname !== "/") {
+      router.push("/");
     } else {
       window.location.hash = "";
     }
@@ -74,8 +74,7 @@ export function V2Header() {
   };
 
   const navLabel = (key: string, label: string) => t(key, { defaultValue: label });
-  const hrefFor = (href: string) => (href === "/v2/graph/" ? graphHref(pathname, hash) : href);
-  const classic = classicHref(pathname, hash);
+  const hrefFor = (href: string) => (href === "/graph/" ? graphHref(pathname, hash) : href);
 
   return (
     <header
@@ -93,9 +92,6 @@ export function V2Header() {
           >
             am-i.<span className="text-bitcoin">exposed</span>
           </button>
-          <span className="rounded-full border border-hairline-strong px-1.5 py-px font-mono text-[10px] uppercase tracking-[0.08em] text-muted select-none">
-            {t("v2.chrome.beta", { defaultValue: "Beta" })}
-          </span>
           {devMode && (
             <span className="rounded px-1.5 py-px font-mono text-[10px] font-semibold text-severity-medium bg-severity-medium/15">DEV</span>
           )}
@@ -130,14 +126,6 @@ export function V2Header() {
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
           <ConnectionBadge />
           <ApiSettings v2 />
-          <Link
-            href={classic}
-            title={t("v2.chrome.classicTitle", { defaultValue: "Switch to the classic interface" })}
-            className={`hidden md:inline-flex items-center gap-1 rounded-lg px-2.5 py-2 text-[13px] text-muted hover:text-foreground transition-colors whitespace-nowrap ${FOCUS}`}
-          >
-            {t("v2.chrome.classic", { defaultValue: "Classic" })}
-            <ArrowUpRight size={13} aria-hidden="true" />
-          </Link>
           <button
             type="button"
             onClick={() => setOpen((o) => !o)}
@@ -151,7 +139,7 @@ export function V2Header() {
         </div>
       </div>
 
-      {/* md+ keeps the one-line notice in the sticky bar; phones render it in flow (V2Layout) so it never covers content. */}
+      {/* md+ keeps the one-line notice in the sticky bar; phones render it in flow (root layout) so it never covers content. */}
       <div className="hidden md:block"><V2PrivacyNotice /></div>
 
       <AnimatePresence>
@@ -187,17 +175,6 @@ export function V2Header() {
                 );
               })}
             </ul>
-            <div className="mt-6 border-t border-hairline pt-6">
-              {/* Settings stay reachable via the gear in the bar above (it remains visible while open). */}
-              <Link
-                href={classic}
-                onClick={() => setOpen(false)}
-                className={`flex min-h-12 items-center justify-between rounded-lg border border-hairline bg-surface-1 px-4 text-[15px] text-foreground ${FOCUS}`}
-              >
-                {t("v2.chrome.backToClassic", { defaultValue: "Back to classic" })}
-                <ArrowUpRight size={16} className="text-muted" aria-hidden="true" />
-              </Link>
-            </div>
           </motion.nav>
         )}
       </AnimatePresence>

@@ -44,10 +44,7 @@ export function ObservatoryPage() {
 
   if (!isMainnet) {
     return (
-      <PageShell
-        backLabel={t("observatory.back", { defaultValue: "Back to scanner" })}
-        maxWidth="max-w-5xl"
-      >
+      <PageShell>
         <ObservatoryPageHeader showMainnetBadge={false} />
         <div className="rounded-xl border border-card-border bg-surface-elevated/50 p-6 text-muted">
           {t("observatory.mainnetOnly", {
@@ -102,11 +99,7 @@ export function ObservatoryPage() {
   });
 
   return (
-    <PageShell
-      backLabel={t("observatory.back", { defaultValue: "Back to scanner" })}
-      maxWidth="max-w-5xl"
-      className="px-3 sm:px-6 lg:px-8"
-    >
+    <PageShell>
       <ObservatoryPageHeader showMainnetBadge />
 
       <ObservatoryHero

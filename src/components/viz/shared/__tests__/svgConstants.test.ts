@@ -5,13 +5,13 @@ import { SCRIPT_TYPE_COLORS } from "../../graph/scriptStyles";
 describe("colour constants", () => {
   it("dark surfaces keep the dark theme values", () => {
     expect(DARK_SURFACES).toEqual({
-      background: "#0c0c0e",
-      foreground: "#f0f0f2",
-      muted: "#d4d4dc",
-      cardBg: "#1c1c20",
+      background: "#0b0b0d",
+      foreground: "#f2f2f4",
+      muted: "#a6a6b0",
+      cardBg: "#17171b",
       cardBorder: "#444450",
-      surfaceInset: "#151518",
-      surfaceElevated: "#222228",
+      surfaceInset: "#111114",
+      surfaceElevated: "#1d1d22",
     });
   });
 
