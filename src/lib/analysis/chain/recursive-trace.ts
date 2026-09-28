@@ -71,6 +71,7 @@ async function traceLayers(
   onProgress: TraceProgressCallback | undefined,
   existing: Map<string, MempoolTransaction> | undefined,
   entityBarrier: EntityBarrierCheck | undefined,
+  concurrency: number,
   nextTxids: NextTxids,
 ): Promise<TraceResult> {
   const allTxs = new Map<string, MempoolTransaction>();
@@ -78,8 +79,6 @@ async function traceLayers(
   const layers: TraceLayer[] = [];
   let fetchCount = 0;
   let failedFetches = 0;
-  const countFetch = () => { fetchCount++; };
-  const failFetch = () => { failedFetches++; };
 
   let frontier = new Map<string, MempoolTransaction>([[root.txid, root]]);
 
@@ -99,35 +98,65 @@ async function traceLayers(
       if (!entityBarrier || !entityBarrier(found)) nextFrontier.set(txid, found);
     };
 
-    for (const [ftxid, ftx] of frontier) {
-      const next = await nextTxids(ftxid, ftx, d, countFetch, failFetch);
-      if (next === "abort") break;
-      if (next === "skip") continue;
-
-      for (const txid of next) {
-        if (visited.has(txid)) continue;
-        visited.add(txid);
-
-        // Reuse already-fetched txs (depth 1 optimization)
-        const cached = d === 0 ? existing?.get(txid) : undefined;
-        if (cached) {
-          addToLayer(txid, cached);
-          continue;
-        }
-
-        try {
-          if (signal?.aborted) break;
-          const found = await fetcher.getTransaction(txid);
+    // Up to `concurrency` requests in flight. Batches never reach past the
+    // fan-out cap and results are added in candidate order, so the layers are
+    // the same as a one-at-a-time walk, only faster.
+    const full = () => layerTxs.size >= MAX_FANOUT_PER_LAYER;
+    let batch: string[] = [];
+    const flush = async () => {
+      const ids = batch;
+      batch = [];
+      if (ids.length === 0 || signal?.aborted) return;
+      const settled = await Promise.allSettled(ids.map((txid) => fetcher.getTransaction(txid)));
+      for (const [i, s] of settled.entries()) {
+        if (s.status === "fulfilled") {
           fetchCount++;
-          addToLayer(txid, found);
-          onProgress?.({ currentDepth: d + 1, maxDepth, txsFetched: fetchCount });
-          if (layerTxs.size >= MAX_FANOUT_PER_LAYER) break;
-        } catch {
+          addToLayer(ids[i]!, s.value);
+        } else {
           // Failed to fetch - skip this branch, but record it
           failedFetches++;
         }
       }
-      if (layerTxs.size >= MAX_FANOUT_PER_LAYER) break;
+      onProgress?.({ currentDepth: d + 1, maxDepth, txsFetched: fetchCount });
+    };
+
+    const frontierTxs = [...frontier];
+    walk: for (let c = 0; c < frontierTxs.length; c += concurrency) {
+      const chunk = frontierTxs.slice(c, c + concurrency);
+      // Lookups are tallied only when their result is used: a lookup that
+      // finished after the layer filled must not mark the trace partial.
+      const nexts = await Promise.all(chunk.map(async ([ftxid, ftx]) => {
+        const tally = { ok: 0, failed: 0 };
+        const next = await nextTxids(ftxid, ftx, d, () => tally.ok++, () => tally.failed++);
+        return { next, tally };
+      }));
+      for (const { next, tally } of nexts) {
+        fetchCount += tally.ok;
+        failedFetches += tally.failed;
+        if (next === "abort") break walk;
+        if (next === "skip") continue;
+
+        for (const txid of next) {
+          // Settle the pending batch before deciding whether the cap is reached
+          if (layerTxs.size + batch.length >= MAX_FANOUT_PER_LAYER) await flush();
+          if (full() || signal?.aborted) break;
+          if (visited.has(txid)) continue;
+          visited.add(txid);
+
+          // Reuse already-fetched txs (depth 1 optimization), in order
+          const cached = d === 0 ? existing?.get(txid) : undefined;
+          if (cached) {
+            await flush();
+            addToLayer(txid, cached);
+            continue;
+          }
+
+          batch.push(txid);
+          if (batch.length >= concurrency) await flush();
+        }
+        await flush();
+        if (full()) break walk;
+      }
     }
 
     if (layerTxs.size === 0) break;
@@ -153,6 +182,7 @@ async function traceLayers(
  * @param fetcher - API client for fetching transactions
  * @param signal - AbortSignal for cancellation
  * @param existingParents - Already-fetched parent txs (depth 1) to avoid re-fetching
+ * @param concurrency - Max requests in flight (same layers at any value)
  */
 export async function traceBackward(
   tx: MempoolTransaction,
@@ -163,8 +193,9 @@ export async function traceBackward(
   onProgress?: TraceProgressCallback,
   existingParents?: Map<string, MempoolTransaction>,
   entityBarrier?: EntityBarrierCheck,
+  concurrency = 1,
 ): Promise<TraceResult> {
-  return traceLayers(tx, maxDepth, fetcher, signal, onProgress, existingParents, entityBarrier, async (_id, ftx) =>
+  return traceLayers(tx, maxDepth, fetcher, signal, onProgress, existingParents, entityBarrier, concurrency, async (_id, ftx) =>
     ftx.vin
       .filter((vin) => {
         if (vin.is_coinbase) return false;
@@ -189,6 +220,7 @@ export async function traceBackward(
  * @param signal - AbortSignal for cancellation
  * @param existingChildren - Already-fetched child txs to avoid re-fetching
  * @param existingOutspends - Already-fetched outspends for the starting tx
+ * @param concurrency - Max requests in flight (same layers at any value)
  */
 export async function traceForward(
   tx: MempoolTransaction,
@@ -200,8 +232,9 @@ export async function traceForward(
   existingChildren?: Map<string, MempoolTransaction>,
   existingOutspends?: MempoolOutspend[],
   entityBarrier?: EntityBarrierCheck,
+  concurrency = 1,
 ): Promise<TraceResult> {
-  return traceLayers(tx, maxDepth, fetcher, signal, onProgress, existingChildren, entityBarrier,
+  return traceLayers(tx, maxDepth, fetcher, signal, onProgress, existingChildren, entityBarrier, concurrency,
     async (ftxid, ftx, d, countFetch, failFetch) => {
       // Outspends of the starting tx may already be known
       let outspends = d === 0 ? existingOutspends : undefined;

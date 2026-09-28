@@ -50,6 +50,13 @@ function phaseApi(api: TraceApi, signal: AbortSignal): TraceApi {
   };
 }
 
+/**
+ * Requests in flight per trace phase. One at a time left a Whirlpool 5x5
+ * (~130 parent and ~150 child lookups at maxDepth 4) timing out; 4 matches
+ * prevout enrichment and does not change which txs are traced.
+ */
+const TRACE_CONCURRENCY = 4;
+
 /** More input addresses than this = a "service" tier cluster (see chain/clustering.ts). */
 const LARGE_CLUSTER_ADDRESSES = 50;
 
@@ -104,8 +111,10 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
     return { backwardLayers, forwardLayers, backwardFailed, forwardFailed };
   }
 
-  // Split timeout into two phases so forward tracing always gets a chance
+  // Split timeout into two phases so forward tracing always gets a chance;
+  // time the backward phase leaves unused goes to the forward phase
   const halfTimeout = Math.max(settings.timeout * 500, 2000); // ms, at least 2s each
+  const traceStart = Date.now();
 
   const progress = (status: FetchProgress["status"], currentDepth: number, txsFetched: number) =>
     onProgress({ status, timeoutSec: settings.timeout, currentDepth, maxDepth: totalMaxDepth, txsFetched });
@@ -134,7 +143,7 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
 
   const entityBarrier = buildTraceBarrier(settings);
 
-  // --- Phase 1: Backward tracing (first half of timeout) ---
+  // --- Phase 1: Backward tracing (at most half of the timeout) ---
   {
     const backwardAbort = new AbortController();
     const onParentAbort = () => backwardAbort.abort();
@@ -153,6 +162,7 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
         (p) => updateFetchProgress("tracing-backward", p.currentDepth, p.txsFetched),
         existingParents,
         entityBarrier,
+        TRACE_CONCURRENCY,
       );
       backwardLayers = backResult.layers;
       // traceBackward swallows per-branch errors; a timeout or failed fetch still means partial
@@ -165,12 +175,13 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
     controller.signal.removeEventListener("abort", onParentAbort);
   }
 
-  // --- Phase 2: Forward tracing (second half of timeout) ---
+  // --- Phase 2: Forward tracing (the rest of the timeout, at least half) ---
   if (!controller.signal.aborted) {
     const forwardAbort = new AbortController();
     const onParentAbort = () => forwardAbort.abort();
     controller.signal.addEventListener("abort", onParentAbort);
-    const forwardTimer = setTimeout(() => forwardAbort.abort(), halfTimeout);
+    const forwardBudget = Math.max(halfTimeout, 2 * halfTimeout - (Date.now() - traceStart));
+    const forwardTimer = setTimeout(() => forwardAbort.abort(), forwardBudget);
 
     try {
       const depthOffset = settings.maxDepth;
@@ -192,6 +203,7 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
         existingChildren,
         outspends ?? undefined,
         entityBarrier,
+        TRACE_CONCURRENCY,
       );
       forwardLayers = fwdResult.layers;
       forwardFailed = fwdResult.aborted || fwdResult.failedFetches > 0;
