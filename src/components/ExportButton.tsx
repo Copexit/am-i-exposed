@@ -7,6 +7,8 @@ import { copyToClipboard } from "@/lib/clipboard";
 import { TX_BASE_SCORE, ADDRESS_BASE_SCORE } from "@/lib/scoring/score";
 import { ACTION_BTN_CLASS } from "@/lib/constants";
 import type { ScoringResult } from "@/lib/types";
+import { useNetwork } from "@/context/NetworkContext";
+import { shareUrl as buildShareUrl } from "@/lib/share-url";
 
 interface ExportButtonProps {
   targetId: string;
@@ -21,6 +23,7 @@ interface ExportButtonProps {
  */
 export function ExportButton({ targetId, query, result, inputType }: ExportButtonProps) {
   const { t } = useTranslation();
+  const { network } = useNetwork();
   const [status, setStatus] = useState<"idle" | "done" | "failed">("idle");
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(timerRef.current), []);
@@ -87,9 +90,7 @@ export function ExportButton({ targetId, query, result, inputType }: ExportButto
       }
 
       // Share URL (always use canonical production URL)
-      const shareBase = "https://am-i.exposed/";
-      const prefix = inputType === "txid" ? "tx" : "addr";
-      const shareUrl = query ? `${shareBase}#${prefix}=${encodeURIComponent(query)}` : url;
+      const shareUrl = query ? buildShareUrl(query, inputType === "txid" ? "txid" : "address", network) : url;
 
       lines.push(`─── ${t("export.link", { defaultValue: "Link" })} ───`);
       lines.push(shareUrl);
@@ -105,7 +106,7 @@ export function ExportButton({ targetId, query, result, inputType }: ExportButto
       clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => setStatus("idle"), 2000);
     }
-  }, [targetId, query, result, inputType, t]);
+  }, [targetId, query, result, inputType, network, t]);
 
   return (
     <button

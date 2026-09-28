@@ -6,6 +6,8 @@ import { useTranslation } from "react-i18next";
 import { copyToClipboard } from "@/lib/clipboard";
 import { ACTION_BTN_CLASS } from "@/lib/constants";
 import type { Grade } from "@/lib/types";
+import { useNetwork } from "@/context/NetworkContext";
+import { shareUrl as buildShareUrl } from "@/lib/share-url";
 
 interface ShareButtonsProps {
   grade: Grade;
@@ -15,11 +17,6 @@ interface ShareButtonsProps {
   findingCount: number;
 }
 
-/** Always use the canonical production URL for social sharing - never localhost or custom API hosts. */
-function getShareUrl(query: string, inputType: "txid" | "address"): string {
-  const prefix = inputType === "txid" ? "tx" : "addr";
-  return `https://am-i.exposed/#${prefix}=${encodeURIComponent(query)}`;
-}
 
 function getShareText(
   grade: Grade,
@@ -59,7 +56,8 @@ export function ShareButtons({
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
-  const shareUrl = getShareUrl(query, inputType);
+  const { network } = useNetwork();
+  const shareUrl = buildShareUrl(query, inputType, network);
   const shareText = getShareText(grade, score, findingCount, t);
 
   const handleTwitterShare = () => {
