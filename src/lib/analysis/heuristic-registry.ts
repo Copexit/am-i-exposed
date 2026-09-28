@@ -34,48 +34,56 @@ import {
   analyzeUtxoAgeSpread,
   analyzeDustSpending,
 } from "./heuristics";
+import type { TxHeuristic, AddressHeuristic } from "./heuristics/types";
+import { TX_HEURISTIC_META, ADDRESS_HEURISTIC_META } from "./heuristic-steps";
 
-// --- Transaction heuristics ---
+// --- Transaction heuristics (ids/labels live in heuristic-steps) ---
 
-export const TX_HEURISTICS = [
-  { id: "coinbase", label: "Coinbase detection", fn: analyzeCoinbase },
-  { id: "h1", label: "Round amounts", fn: analyzeRoundAmounts },
-  { id: "h2", label: "Change detection", fn: analyzeChangeDetection },
-  { id: "h3", label: "Common input ownership", fn: analyzeCioh },
-  { id: "h4", label: "CoinJoin detection", fn: analyzeCoinJoin },
-  { id: "h5", label: "Transaction entropy", fn: analyzeEntropy },
-  { id: "h6", label: "Fee fingerprinting", fn: analyzeFees },
-  { id: "h7", label: "OP_RETURN metadata", fn: analyzeOpReturn },
-  { id: "h11", label: "Wallet fingerprinting", fn: analyzeWalletFingerprint },
-  { id: "anon", label: "Anonymity sets", fn: analyzeAnonymitySet },
-  { id: "timing", label: "Timing analysis", fn: analyzeTiming },
-  { id: "script", label: "Script type analysis", fn: analyzeScriptTypeMix },
-  { id: "dust", label: "Dust output detection", fn: analyzeDustOutputs },
-  { id: "dust-spend", label: "Dust spending detection", fn: analyzeDustSpending },
-  { id: "h17", label: "Multisig/escrow detection", fn: analyzeMultisigDetection },
-  { id: "peel", label: "Peel chain detection", fn: analyzePeelChain },
-  { id: "consolidation", label: "Consolidation patterns", fn: analyzeConsolidation },
-  { id: "unnecessary", label: "Unnecessary inputs", fn: analyzeUnnecessaryInput },
-  { id: "tx0", label: "CoinJoin premix (tx0)", fn: analyzeCoinJoinPremix },
-  { id: "bip69", label: "BIP69 ordering", fn: analyzeBip69 },
-  { id: "bip47", label: "BIP47 notification detection", fn: analyzeBip47Notification },
-  { id: "exchange", label: "Exchange pattern detection", fn: analyzeExchangePattern },
-  { id: "coinsel", label: "Coin selection patterns", fn: analyzeCoinSelection },
-  { id: "witness", label: "Witness data analysis", fn: analyzeWitnessData },
-  { id: "postmix", label: "Post-mix consolidation", fn: analyzePostMix },
-  { id: "entity", label: "Known entity detection", fn: analyzeEntityDetection },
-  { id: "ricochet", label: "Ricochet detection", fn: analyzeRicochet },
-  { id: "utxo-age", label: "UTXO age spread", fn: analyzeUtxoAgeSpread },
-] as const;
+const TX_FNS: Record<(typeof TX_HEURISTIC_META)[number]["id"], TxHeuristic> = {
+  "coinbase": analyzeCoinbase,
+  "h1": analyzeRoundAmounts,
+  "h2": analyzeChangeDetection,
+  "h3": analyzeCioh,
+  "h4": analyzeCoinJoin,
+  "h5": analyzeEntropy,
+  "h6": analyzeFees,
+  "h7": analyzeOpReturn,
+  "h11": analyzeWalletFingerprint,
+  "anon": analyzeAnonymitySet,
+  "timing": analyzeTiming,
+  "script": analyzeScriptTypeMix,
+  "dust": analyzeDustOutputs,
+  "dust-spend": analyzeDustSpending,
+  "h17": analyzeMultisigDetection,
+  "peel": analyzePeelChain,
+  "consolidation": analyzeConsolidation,
+  "unnecessary": analyzeUnnecessaryInput,
+  "tx0": analyzeCoinJoinPremix,
+  "bip69": analyzeBip69,
+  "bip47": analyzeBip47Notification,
+  "exchange": analyzeExchangePattern,
+  "coinsel": analyzeCoinSelection,
+  "witness": analyzeWitnessData,
+  "postmix": analyzePostMix,
+  "entity": analyzeEntityDetection,
+  "ricochet": analyzeRicochet,
+  "utxo-age": analyzeUtxoAgeSpread,
+};
 
-export const ADDRESS_HEURISTICS = [
-  { id: "h8", label: "Address reuse", fn: analyzeAddressReuse },
-  { id: "h9", label: "UTXO analysis", fn: analyzeUtxos },
-  { id: "h10", label: "Address type", fn: analyzeAddressType },
-  { id: "spending", label: "Spending patterns", fn: analyzeSpendingPattern },
-  { id: "recurring", label: "Recurring payment detection", fn: analyzeRecurringPayment },
-  { id: "highactivity", label: "High activity detection", fn: analyzeHighActivityAddress },
-] as const;
+export const TX_HEURISTICS = TX_HEURISTIC_META.map((m) => ({ ...m, fn: TX_FNS[m.id] }));
+
+// --- Address heuristics ---
+
+const ADDRESS_FNS: Record<(typeof ADDRESS_HEURISTIC_META)[number]["id"], AddressHeuristic> = {
+  "h8": analyzeAddressReuse,
+  "h9": analyzeUtxos,
+  "h10": analyzeAddressType,
+  "spending": analyzeSpendingPattern,
+  "recurring": analyzeRecurringPayment,
+  "highactivity": analyzeHighActivityAddress,
+};
+
+export const ADDRESS_HEURISTICS = ADDRESS_HEURISTIC_META.map((m) => ({ ...m, fn: ADDRESS_FNS[m.id] }));
 
 /**
  * Delay between diagnostic-loader steps. 50ms in the browser for the visible

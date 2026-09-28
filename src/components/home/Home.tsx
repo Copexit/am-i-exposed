@@ -6,7 +6,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { AddressInput } from "@/components/AddressInput";
 import { ScanHistory } from "@/components/ScanHistory";
 import { EXAMPLES, truncateId } from "@/lib/constants";
-import { getTxHeuristicSteps } from "@/lib/analysis/orchestrator";
+import { getTxHeuristicSteps } from "@/lib/analysis/heuristic-steps";
 import { SelfHostRow } from "./SelfHostRow";
 import { detectInputType, cleanInput } from "@/lib/analysis/detect-input";
 import { formatBtc, fmtN } from "@/lib/format";
@@ -40,7 +40,7 @@ export interface HomeProps {
 const UTXOS = buildFieldUtxos(FIELD_TX);
 const SPLIT = (a: number) => `${-a}px 0 ${COLORS.severityLow}, ${a}px 0 ${COLORS.severityCritical}`;
 /** Four specimens spanning the grade range; grades are the ones EXAMPLES declares. */
-const SPECIMEN_KEYS = ["page.example_whirlpool", "page.example_stonewall", "page.example_opreturn", "page.example_satoshi"];
+const SPECIMEN_KEYS = ["page.example_whirlpool", "page.example_postmix", "page.example_opreturn", "page.example_satoshi"];
 const SPECIMENS = EXAMPLES.filter((e) => SPECIMEN_KEYS.includes(e.labelKey));
 const MORE_EXAMPLES = EXAMPLES.filter((e) => !SPECIMEN_KEYS.includes(e.labelKey));
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-bitcoin focus-visible:outline-offset-2";
@@ -262,7 +262,7 @@ export function Home({
             <li className="flex items-center gap-2"><span className="size-1.5 rounded-full bg-severity-good" aria-hidden="true" />{t("page.trust_tracking", { defaultValue: "No tracking" })}</li>
             <li className="flex items-center gap-2">
               <span className="size-1.5 rounded-full bg-severity-good" aria-hidden="true" />
-              <a href="https://github.com/Copexit/am-i-exposed" target="_blank" rel="noopener noreferrer" className={`hover:text-foreground transition-colors underline-offset-4 hover:underline rounded ${FOCUS}`}>
+              <a href="https://github.com/Copexit/am-i-exposed" target="_blank" rel="noopener noreferrer" className={`inline-block py-1 -my-1 hover:text-foreground transition-colors underline-offset-4 hover:underline rounded ${FOCUS}`}>
                 {t("page.trust_opensource", { defaultValue: "Open source" })}
               </a>
             </li>

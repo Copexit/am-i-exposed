@@ -93,3 +93,16 @@ export function HeatmapUnsupportedBlock() {
     </p>
   );
 }
+
+export function HeatmapTooComplexBlock({ nIn, nOut }: { nIn: number; nOut: number }) {
+  const { t } = useTranslation();
+  return (
+    <p className="text-xs text-muted text-center py-4">
+      {t("boltzmann.tooComplex", {
+        nIn,
+        nOut,
+        defaultValue: "Too complex to compute in the browser: {{nIn}} inputs and {{nOut}} outputs would need gigabytes of memory for an exact Boltzmann analysis.",
+      })}
+    </p>
+  );
+}

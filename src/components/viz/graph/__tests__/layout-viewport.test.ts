@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { findFreeY, computeFitView, computeCompactView } from "../layout";
-import type { LayoutNode } from "../types";
+import { findFreeY, computeFitView, computeAutoFitView } from "../layout";
+import { MIN_ZOOM } from "../constants";
 
 describe("findFreeY", () => {
   it("returns the target y when the column is free", () => {
@@ -19,32 +19,46 @@ describe("findFreeY", () => {
 });
 
 describe("computeFitView", () => {
-  const node = (x: number, y: number) => ({ x, y, width: 100, height: 50 }) as LayoutNode;
+  const box = (x: number, y: number) => ({ x, y, w: 100, h: 50 });
 
   it("returns null for an empty graph", () => {
     expect(computeFitView([], { width: 800, height: 600 })).toBeNull();
   });
 
   it("caps the zoom-in scale at 1.5 and centers the nodes", () => {
-    expect(computeFitView([node(0, 0)], { width: 800, height: 600 })).toEqual({ x: 325, y: 262.5, scale: 1.5 });
+    expect(computeFitView([box(0, 0)], { width: 800, height: 600 })).toEqual({ x: 325, y: 262.5, scale: 1.5 });
+  });
+
+  it("keeps every box inside the viewport with padding on a phone-width canvas", () => {
+    const boxes = [box(-280, 40), box(0, 0), box(280, 120)];
+    const dims = { width: 358, height: 600 };
+    const vt = computeFitView(boxes, dims)!;
+    for (const b of boxes) {
+      expect(b.x * vt.scale + vt.x).toBeGreaterThanOrEqual(24);
+      expect((b.x + b.w) * vt.scale + vt.x).toBeLessThanOrEqual(dims.width - 24);
+      expect(b.y * vt.scale + vt.y).toBeGreaterThanOrEqual(0);
+      expect((b.y + b.h) * vt.scale + vt.y).toBeLessThanOrEqual(dims.height);
+    }
+  });
+
+  it("left-aligns a graph that overflows even at the minimum zoom", () => {
+    const vt = computeFitView([box(0, 0), box(100_000, 0)], { width: 400, height: 400 })!;
+    expect(vt.scale).toBe(MIN_ZOOM);
+    expect(vt.x).toBe(28);
   });
 });
 
-describe("computeCompactView", () => {
-  const node = (x: number, y: number, isRoot = false) => ({ x, y, width: 100, height: 50, isRoot }) as LayoutNode;
+describe("computeAutoFitView", () => {
+  const box = (x: number, y: number) => ({ x, y, w: 180, h: 56 });
 
-  it("never zooms in and centers a graph that fits", () => {
-    expect(computeCompactView([node(0, 0, true)], { width: 800, height: 300 })).toEqual({ x: 350, y: 125, scale: 1 });
+  it("fits everything without zooming in past 1:1", () => {
+    expect(computeAutoFitView([box(0, 0)], [box(0, 0)], { width: 800, height: 300 })?.scale).toBe(1);
   });
 
-  it("fits a slightly too wide graph by scaling down", () => {
-    const vt = computeCompactView([node(0, 0), node(900, 0, true)], { width: 800, height: 300 });
-    expect(vt?.scale).toBe(0.8);
-    expect(vt?.x).toBe(0);
-  });
-
-  it("keeps the minimum scale and centers the root when fitting would be unreadable", () => {
-    const vt = computeCompactView([node(0, 0), node(1000, 0, true), node(2000, 0)], { width: 300, height: 300 });
-    expect(vt).toEqual({ x: 150 - 1050 * 0.75, y: 150 - 25 * 0.75, scale: 0.75 });
+  it("frames only the focus boxes when fitting everything would be unreadable", () => {
+    const all = Array.from({ length: 10 }, (_, i) => box(i * 280, 0));
+    const focus = [all[4]!, all[5]!];
+    const vt = computeAutoFitView(all, focus, { width: 358, height: 400 })!;
+    expect(vt).toEqual(computeFitView(focus, { width: 358, height: 400 }, 1));
   });
 });

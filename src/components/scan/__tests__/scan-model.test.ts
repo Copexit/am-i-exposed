@@ -3,7 +3,7 @@ import { scanStages, summarizeSteps, impactSeverity, apiHost } from "../scan-mod
 import type { HeuristicStep } from "@/lib/analysis/orchestrator";
 
 const fp = (status: "fetching-tx" | "tracing-backward" | "tracing-forward" | "done") =>
-  ({ status, timeoutSec: 30, currentDepth: 1, maxDepth: 3, txsFetched: 4 });
+  ({ status, timeoutSec: 30, startedAt: 0, currentDepth: 1, maxDepth: 3, txsFetched: 4 });
 
 describe("scanStages", () => {
   it("walks the tx pipeline", () => {

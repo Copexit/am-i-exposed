@@ -21,7 +21,8 @@ export function compute_boltzmann(input_values: BigInt64Array, output_values: Bi
  *
  * Exploits JoinMarket's maker structure to deterministically match inputs
  * to change outputs, reducing the problem to inputs vs equal-denomination
- * CJ outputs. Falls back to standard Boltzmann if matching fails.
+ * CJ outputs. Falls back to the multi-input participant model, then to
+ * standard Boltzmann when that is feasible; throws when none applies.
  */
 export function compute_boltzmann_joinmarket(input_values: BigInt64Array, output_values: BigInt64Array, fee: bigint, denomination: bigint, max_cj_intrafees_ratio: number, timeout_ms: number): any;
 
@@ -77,7 +78,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly compute_boltzmann: (a: number, b: number, c: number, d: number, e: bigint, f: number, g: number) => any;
-    readonly compute_boltzmann_joinmarket: (a: number, b: number, c: number, d: number, e: bigint, f: bigint, g: number, h: number) => any;
+    readonly compute_boltzmann_joinmarket: (a: number, b: number, c: number, d: number, e: bigint, f: bigint, g: number, h: number) => [number, number, number];
     readonly compute_boltzmann_wabisabi: (a: number, b: number, c: number, d: number, e: bigint, f: number) => any;
     readonly dfs_finalize: () => any;
     readonly dfs_step: (a: number) => any;
@@ -85,6 +86,7 @@ export interface InitOutput {
     readonly prepare_boltzmann_ranged: (a: number, b: number, c: number, d: number, e: bigint, f: bigint, g: bigint, h: number, i: number, j: number) => any;
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
+    readonly __externref_table_dealloc: (a: number) => void;
     readonly __wbindgen_start: () => void;
 }
 

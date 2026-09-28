@@ -7,7 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import type { ScoringResult, TxAnalysisResult } from "@/lib/types";
 import type { MempoolTransaction, MempoolAddress, MempoolUtxo, MempoolOutspend } from "@/lib/api/types";
 import type { PreSendResult } from "@/lib/analysis/orchestrator";
-import { getTxHeuristicSteps, getAddressHeuristicSteps } from "@/lib/analysis/orchestrator";
+import { getTxHeuristicSteps, getAddressHeuristicSteps } from "@/lib/analysis/heuristic-steps";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 import type { BoltzmannWorkerResult } from "@/hooks/useBoltzmann";
 import { TX_BASE_SCORE, ADDRESS_BASE_SCORE } from "@/lib/scoring/score";

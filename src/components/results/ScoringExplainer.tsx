@@ -16,7 +16,7 @@ export function ScoringExplainer({ isAddress }: { isAddress?: boolean }) {
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         aria-controls="scoring-explainer-panel"
-        className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
+        className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-foreground transition-colors cursor-pointer py-1 -my-1"
       >
         <Info size={12} aria-hidden="true" />
         {t("results.howScoringWorks", { defaultValue: "How scoring works" })}

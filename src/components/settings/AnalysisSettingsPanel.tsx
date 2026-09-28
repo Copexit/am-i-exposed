@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useAnalysisSettings } from "@/hooks/useAnalysisSettings";
 
 export function AnalysisSettingsPanel() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { settings: analysisSettings, update: updateAnalysis, reset: resetAnalysis, DEFAULTS: ANALYSIS_DEFAULTS } = useAnalysisSettings();
   const [analysisOpen, setAnalysisOpen] = useState(false);
 
@@ -86,7 +86,7 @@ export function AnalysisSettingsPanel() {
               <label htmlFor="analysis-minsats" className="text-xs text-muted">
                 {t("settings.minSats", { defaultValue: "Min sats to trace" })}
               </label>
-              <span className="text-xs font-mono text-foreground tabular-nums">{analysisSettings.minSats.toLocaleString()}</span>
+              <span className="text-xs font-mono text-foreground tabular-nums">{analysisSettings.minSats.toLocaleString(i18n.language)}</span>
             </div>
             <input
               id="analysis-minsats"
@@ -189,7 +189,7 @@ export function AnalysisSettingsPanel() {
               role="switch"
               aria-checked={analysisSettings.skipLargeClusters}
               onClick={() => updateAnalysis({ skipLargeClusters: !analysisSettings.skipLargeClusters })}
-              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors after:absolute after:-inset-1 after:content-[''] ${
                 analysisSettings.skipLargeClusters ? "bg-bitcoin" : "bg-surface-inset"
               }`}
             >
@@ -210,7 +210,7 @@ export function AnalysisSettingsPanel() {
               role="switch"
               aria-checked={analysisSettings.skipCoinJoins}
               onClick={() => updateAnalysis({ skipCoinJoins: !analysisSettings.skipCoinJoins })}
-              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors after:absolute after:-inset-1 after:content-[''] ${
                 analysisSettings.skipCoinJoins ? "bg-bitcoin" : "bg-surface-inset"
               }`}
             >

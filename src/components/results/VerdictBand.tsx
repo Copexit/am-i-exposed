@@ -38,7 +38,7 @@ function Stat({ value, label, tone }: { value: React.ReactNode; label: string; t
 
 /** L0: the verdict. Grade, what it means, the counts that matter, and the one thing to do next. */
 export function VerdictBand({ query, inputType, vm, txData, reveal, checkCount, onRetry }: VerdictBandProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -79,7 +79,7 @@ export function VerdictBand({ query, inputType, vm, txData, reveal, checkCount, 
                   timer.current = setTimeout(() => setCopied(false), 1800);
                 });
               }}
-              className="group inline-flex items-center gap-2 num text-xs text-muted hover:text-foreground transition-colors min-w-0 max-w-full"
+              className="group inline-flex items-center gap-2 num text-xs text-muted hover:text-foreground transition-colors min-w-0 max-w-full py-1 -my-1"
               aria-label={t("common.copyToClipboard", { defaultValue: "Copy to clipboard" })}
               title={query}
             >
@@ -95,10 +95,10 @@ export function VerdictBand({ query, inputType, vm, txData, reveal, checkCount, 
             )}
             {inputType === "address" && <AddressTypeBadge address={query} />}
             {inputType === "txid" && status?.confirmed && status.block_height != null && (
-              <span className="num">{t("results.blockHeight", { height: status.block_height.toLocaleString(), defaultValue: "Block #{{height}}" })}</span>
+              <span className="num">{t("results.blockHeight", { height: status.block_height.toLocaleString(i18n.language), defaultValue: "Block #{{height}}" })}</span>
             )}
             {inputType === "txid" && status?.confirmed && status.block_time != null && (
-              <span className="num">{new Date(status.block_time * 1000).toLocaleString()}</span>
+              <span className="num">{new Date(status.block_time * 1000).toLocaleString(i18n.language)}</span>
             )}
             {inputType === "txid" && txData && !status?.confirmed && (
               <span className="text-severity-medium">{t("results.unconfirmed", { defaultValue: "Unconfirmed (mempool)" })}</span>
@@ -125,7 +125,7 @@ export function VerdictBand({ query, inputType, vm, txData, reveal, checkCount, 
                   ({vm.status.map((f) => t(findingKeys(f.id, "title", f.params), { ...f.params, defaultValue: f.title })).join("; ")})
                 </span>
               )}
-              <button type="button" onClick={onRetry} className="text-bitcoin hover:underline underline-offset-4">
+              <button type="button" onClick={onRetry} className="text-bitcoin hover:underline underline-offset-4 px-1 -mx-1 py-1 -my-1">
                 {t("page.retry", { defaultValue: "Retry" })}
               </button>
             </div>

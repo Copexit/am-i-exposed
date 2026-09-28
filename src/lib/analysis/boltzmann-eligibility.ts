@@ -13,6 +13,7 @@ import {
   detectWabiSabiForTurbo,
 } from "./boltzmann-pool";
 import { extractTxValues } from "./boltzmann-pool";
+import { isExactFeasible, usesJoinMarketTurbo } from "./boltzmann-detection";
 import { isCoinbase } from "./heuristics/tx-utils";
 
 export { extractTxValues };
@@ -38,6 +39,7 @@ export interface BoltzmannEligibility {
  *  2. Transactions with 0 inputs or 0 outputs (after filtering) are ineligible.
  *  3. Transactions exceeding the size limit are ineligible (WabiSabi gets a
  *     higher limit via tier-decomposed mode).
+ *  4. Transactions no turbo mode handles must fit the exact engine.
  *
  * @param tx          The mempool transaction to evaluate.
  * @param maxTotalOverride  Override the default size limit (used by graph
@@ -69,6 +71,12 @@ export function getBoltzmannEligibility(
   const total = inputValues.length + outputValues.length;
 
   if (total > maxTotal) {
+    return { canCompute: false, reason: "too-large", maxTotal, inputValues, outputValues };
+  }
+
+  // 4. Without a turbo mode the exact engine must be able to finish
+  const turbo = isWabiSabi || usesJoinMarketTurbo(inputValues, outputValues);
+  if (!turbo && !isExactFeasible(inputValues.length, outputValues.length)) {
     return { canCompute: false, reason: "too-large", maxTotal, inputValues, outputValues };
   }
 

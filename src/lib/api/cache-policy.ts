@@ -26,7 +26,6 @@ const TTL_12_HOURS = 12 * 60 * 60 * 1000;
  * Derive the network name from a mempool.space base URL path.
  * - Path segment "testnet4" -> "testnet4"
  * - Path segment "signet" -> "signet"
- * - Path segment "testnet" -> "testnet3" (mempool.space legacy path for testnet3)
  * - Otherwise -> "mainnet"
  *
  * Only the pathname is inspected, so a host like signet-node.local is not
@@ -36,7 +35,6 @@ export function networkFromUrl(url: string): string {
   const segments = new URL(url, "http://x").pathname.split("/");
   if (segments.includes("testnet4")) return "testnet4";
   if (segments.includes("signet")) return "signet";
-  if (segments.includes("testnet")) return "testnet3";
   return "mainnet";
 }
 

@@ -138,7 +138,7 @@ export function SaveGraphPanel({
                     >
                       <div className="text-sm text-foreground truncate">{g.name}</div>
                       <div className="flex items-center gap-2 text-[11px] text-muted mt-0.5">
-                        <span>{g.nodes.length} nodes</span>
+                        <span>{t("graph.savedNodes", { count: g.nodes.length, defaultValue: "{{count}} nodes" })}</span>
                         {g.network !== network && (
                           <span className="px-1 rounded bg-severity-medium/20 text-severity-medium">{g.network}</span>
                         )}
@@ -147,12 +147,13 @@ export function SaveGraphPanel({
                     </button>
                     {confirmDeleteId === g.id ? (
                       <div className="flex items-center gap-1 shrink-0">
-                        <button onClick={() => { deleteGraph(g.id); setConfirmDeleteId(null); }} className="text-[10px] text-severity-critical hover:underline cursor-pointer">Delete</button>
-                        <button onClick={() => setConfirmDeleteId(null)} className="text-[10px] text-muted hover:underline cursor-pointer">Cancel</button>
+                        <button onClick={() => { deleteGraph(g.id); setConfirmDeleteId(null); }} className="text-[10px] text-severity-critical hover:underline cursor-pointer">{t("common.delete", { defaultValue: "Delete" })}</button>
+                        <button onClick={() => setConfirmDeleteId(null)} className="text-[10px] text-muted hover:underline cursor-pointer">{t("common.cancel", { defaultValue: "Cancel" })}</button>
                       </div>
                     ) : (
                       <button
                         onClick={() => setConfirmDeleteId(g.id)}
+                        aria-label={t("graph.deleteSavedGraph", { defaultValue: "Delete saved graph" })}
                         className="opacity-0 group-hover:opacity-100 text-muted hover:text-severity-critical transition-all cursor-pointer shrink-0"
                       >
                         <Trash2 size={12} />

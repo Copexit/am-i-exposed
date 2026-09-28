@@ -11,27 +11,40 @@ import { GuideMistakes } from "@/components/guide/GuideMistakes";
 import { RecoveryPlaybook } from "@/components/guide/RecoveryPlaybook";
 import { MaintenanceSection } from "@/components/guide/MaintenanceSection";
 import { KnowledgeTabBar } from "@/components/KnowledgeTabBar";
+import { useLocationHash } from "@/components/chrome/useLocationHash";
 
 export function GuidePage() {
   const { t } = useTranslation();
   const [expandedPathway, setExpandedPathway] = useState<string | null>(null);
   const [showCombined, setShowCombined] = useState(false);
 
+  const hash = useLocationHash().slice(1);
+
+  const [scrollTarget, setScrollTarget] = useState<{ id: string } | null>(null);
+
+  // Deep links (initial load and in-page hash changes): open the collapsible
+  // that holds the target first, and scroll only after that render commits.
+  // Combination cards only exist in the DOM while "Combined strategies" is
+  // expanded, so scrolling in the same tick as the expand finds nothing.
   useEffect(() => {
-    const hash = window.location.hash.slice(1);
     if (!hash) return;
-
     const timer = setTimeout(() => {
-      const matched = PATHWAYS.find((p) => p.id === hash);
-      if (matched) setExpandedPathway(matched.id);
-
+      if (PATHWAYS.some((p) => p.id === hash)) setExpandedPathway(hash);
       if (COMBINED_PATHWAYS.some((c) => c.id === hash)) setShowCombined(true);
-
-      const el = document.getElementById(hash);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 150);
+      // A fresh object each time, so re-visiting the same id scrolls again.
+      setScrollTarget({ id: hash });
+    }, 0);
     return () => clearTimeout(timer);
-  }, []);
+  }, [hash]);
+
+  useEffect(() => {
+    if (!scrollTarget) return;
+    // Let the 150ms expand/collapse animations settle so the final layout is measured.
+    const timer = setTimeout(() => {
+      document.getElementById(scrollTarget.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [scrollTarget]);
 
   return (
     <PageShell>
@@ -48,7 +61,7 @@ export function GuidePage() {
         </div>
 
         {/* TOC */}
-        <nav className="bg-surface-inset rounded-lg px-5 py-4 space-y-1.5" aria-label="Table of contents">
+        <nav className="bg-surface-inset rounded-lg px-5 py-4 space-y-1.5" aria-label={t("guide.tocAriaLabel", { defaultValue: "Table of contents" })}>
           <p className="text-xs font-medium text-muted uppercase tracking-wider mb-2">
             {t("guide.tocTitle", { defaultValue: "Sections" })}
           </p>

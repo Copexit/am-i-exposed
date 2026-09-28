@@ -9,19 +9,12 @@ import { detectAddressNetwork, detectTxidNetwork } from "@/lib/api/detect-networ
 import { mapApiErrorMessage } from "@/lib/api/error-message";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
 import { detectInputType } from "@/lib/analysis/detect-input";
-import {
-  analyzeTransaction,
-  getTxHeuristicSteps,
-  getAddressHeuristicSteps,
-} from "@/lib/analysis/orchestrator";
-import { checkOfac } from "@/lib/analysis/cex-risk/ofac-check";
+import { getTxHeuristicSteps, getAddressHeuristicSteps } from "@/lib/analysis/heuristic-steps";
+import { loadEngine } from "@/lib/analysis/load-engine";
 import { parsePSBT } from "@/lib/bitcoin/psbt";
 import { getAnalysisSettings, type AnalysisSettings } from "@/hooks/useAnalysisSettings";
 import { getCachedResult, putCachedResult } from "@/lib/api/analysis-cache";
 import { cacheKeyPrefix } from "@/lib/api/cache-policy";
-import { loadEntityFilter } from "@/lib/analysis/entity-filter";
-import { runTxidAnalysis } from "@/lib/analysis/run-txid-analysis";
-import { runAddressAnalysis } from "@/lib/analysis/run-address-analysis";
 import type { HeuristicTranslator } from "@/lib/analysis/heuristics/types";
 
 import {
@@ -43,8 +36,10 @@ export function useAnalysis() {
   /** Cache write owed by the analysis that just completed; flushed after the commit. */
   const pendingCacheRef = useRef<{ cacheKey: string; input: string; settings: AnalysisSettings } | null>(null);
 
-  // Auto-load core entity filter on mount
-  useEffect(() => { void loadEntityFilter(); }, []);
+  // Load the engine and the core entity filter on mount (off the critical path)
+  useEffect(() => {
+    loadEngine().then((e) => e.loadEntityFilter()).catch(() => { /* retried on first scan */ });
+  }, []);
 
   // Wrap t as HeuristicTranslator for passing into analysis layer
   const ht: HeuristicTranslator = useCallback(
@@ -105,6 +100,10 @@ export function useAnalysis() {
         return;
       }
 
+      // Start loading the engine now; it downloads while the network/cache checks run
+      const enginePromise = loadEngine();
+      enginePromise.catch(() => { /* surfaced where it is awaited */ });
+
       // An address whose format rules out the selected network (tb1 on mainnet,
       // bc1 on testnet) is scanned on the network it belongs to, with the same
       // switch notice as a txid found elsewhere. Public mempool.space only.
@@ -136,6 +135,7 @@ export function useAnalysis() {
 
         try {
           const psbtResult = parsePSBT(input, network);
+          const { analyzeTransaction } = await enginePromise;
           const result = await analyzeTransaction(psbtResult.tx, undefined, onStep);
           if (controller.signal.aborted) return;
           // No trace data for PSBTs - mark all chain steps as done
@@ -242,6 +242,8 @@ export function useAnalysis() {
       });
 
       try {
+        const { runTxidAnalysis, runAddressAnalysis } = await enginePromise;
+        if (controller.signal.aborted) return;
         if (inputType === "txid") {
           const txResult = await runTxidAnalysis(input, {
             api,
@@ -303,8 +305,9 @@ export function useAnalysis() {
 
         // For address queries, even when API fails, check OFAC locally
         if (inputType === "address") {
-          const fallbackOfac = checkOfac([input]);
-          if (fallbackOfac.sanctioned) {
+          const engine = await enginePromise.catch(() => null);
+          if (controller.signal.aborted) return;
+          if (engine?.checkOfac([input]).sanctioned) {
             complete({ preSendResult: makeOfacPreSendResult(t) });
             return;
           }
@@ -337,6 +340,7 @@ export function useAnalysis() {
             });
 
             try {
+              const { runTxidAnalysis } = await enginePromise;
               const txResult = await runTxidAnalysis(input, {
                 api: detectedApi,
                 controller,

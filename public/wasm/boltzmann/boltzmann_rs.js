@@ -33,7 +33,8 @@ export function compute_boltzmann(input_values, output_values, fee, max_cj_intra
  *
  * Exploits JoinMarket's maker structure to deterministically match inputs
  * to change outputs, reducing the problem to inputs vs equal-denomination
- * CJ outputs. Falls back to standard Boltzmann if matching fails.
+ * CJ outputs. Falls back to the multi-input participant model, then to
+ * standard Boltzmann when that is feasible; throws when none applies.
  * @param {BigInt64Array} input_values
  * @param {BigInt64Array} output_values
  * @param {bigint} fee
@@ -48,7 +49,10 @@ export function compute_boltzmann_joinmarket(input_values, output_values, fee, d
     const ptr1 = passArray64ToWasm0(output_values, wasm.__wbindgen_malloc);
     const len1 = WASM_VECTOR_LEN;
     const ret = wasm.compute_boltzmann_joinmarket(ptr0, len0, ptr1, len1, fee, denomination, max_cj_intrafees_ratio, timeout_ms);
-    return ret;
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
 }
 
 /**
@@ -238,6 +242,12 @@ function passArray64ToWasm0(arg, malloc) {
     getBigUint64ArrayMemory0().set(arg, ptr / 8);
     WASM_VECTOR_LEN = arg.length;
     return ptr;
+}
+
+function takeFromExternrefTable0(idx) {
+    const value = wasm.__wbindgen_externrefs.get(idx);
+    wasm.__externref_table_dealloc(idx);
+    return value;
 }
 
 let cachedTextDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true });

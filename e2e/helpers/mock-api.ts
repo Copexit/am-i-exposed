@@ -12,6 +12,7 @@ const TX_MAP: Record<string, string> = {
   "323df21f0b0756f98336437aa3d2fb87e02b59f1946b714a7b09df04d429dec2": "whirlpool-coinjoin",
   "fb596c9f675471019c60e984b569f9020dac3b2822b16396042b50c890b45e5e": "wabisabi-coinjoin",
   "4f112abd2eefe3484a7bbf7c1731f784cba19de677468835145e9c448fb18b7d": "joinmarket-coinjoin",
+  "6cb2433f28177a3b07073a0eb34a527ba6d7dd7483cccb394f88321373c0ed20": "joinmarket-multi-input",
   "0bf67b1f05326afbd613e11631a2b86466ac7e255499f6286e31b9d7d889cee7": "taproot-op-return",
   "60a20bd93aa49ab4b28d514ec10b06e1829ce6818ec06cd3aabd013ebcdc4bb1": "bare-multisig",
   "8bae12b5f4c088d940733dcd1455efc6a3a69cf9340e17a981286d3778615684": "op-return-charley",

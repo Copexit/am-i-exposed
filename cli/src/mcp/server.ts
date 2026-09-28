@@ -186,6 +186,8 @@ export function createMcpServer(): McpServer {
         efficiency: result.efficiency,
         nbCombinations: result.nbCmbn,
         deterministicLinks: result.deterministicLinks,
+        modelLinks: result.modelLinks ?? [],
+        method: result.method,
         timedOut: result.timedOut,
         elapsedMs: result.elapsedMs,
         nInputs: result.nInputs,

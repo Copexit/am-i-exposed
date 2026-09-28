@@ -6,7 +6,7 @@ import { motion } from "motion/react";
 import { Check, Loader2 } from "lucide-react";
 import { useNetwork } from "@/context/NetworkContext";
 import { CopyButton } from "@/components/ui/CopyButton";
-import type { HeuristicStep } from "@/lib/analysis/orchestrator";
+import type { HeuristicStep } from "@/lib/analysis/heuristic-steps";
 import type { FetchProgress } from "@/hooks/useAnalysis";
 import type { MempoolTransaction } from "@/lib/api/types";
 import { ChecksStrip } from "./ChecksStrip";
@@ -31,14 +31,15 @@ export interface ScanScreenProps {
 export function ScanScreen({ query, inputType, phase, steps, fetchProgress, txData }: ScanScreenProps) {
   const { t } = useTranslation();
   const { isUmbrel, customApiUrl, config, torStatus } = useNetwork();
-  const [elapsed, setElapsed] = useState(0);
+  const [start] = useState(() => Date.now());
+  const [now, setNow] = useState(start);
   const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
-    const start = Date.now();
-    const timer = setInterval(() => setElapsed(Math.round((Date.now() - start) / 1000)), 1000);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
+  const elapsed = Math.round((now - start) / 1000);
 
   const isAddress = inputType === "address";
   const isPsbt = inputType === "psbt";
@@ -52,8 +53,13 @@ export function ScanScreen({ query, inputType, phase, steps, fetchProgress, txDa
   if (fp && fp.status !== "done" && fp !== lastTrace) setLastTrace(fp);
   const shown = fp && fp.status !== "done" ? fp : lastTrace;
   const tracing = phase === "fetching" && !!fp && (fp.status === "tracing-backward" || fp.status === "tracing-forward");
+  // The trace budget counts from the trace start (the fetches before it are not
+  // part of it) and is enforced by aborting the trace, so its clock stops at the limit.
+  const traceElapsed = tracing && fp
+    ? Math.min(fp.timeoutSec, Math.max(0, Math.round((now - fp.startedAt) / 1000)))
+    : 0;
   const traceProgress = tracing && fp
-    ? Math.max(Math.min(100, (elapsed / Math.max(1, fp.timeoutSec)) * 100), fp.maxDepth > 0 ? Math.min(100, (fp.currentDepth / fp.maxDepth) * 100) : 0)
+    ? Math.max(Math.min(100, (traceElapsed / Math.max(1, fp.timeoutSec)) * 100), fp.maxDepth > 0 ? Math.min(100, (fp.currentDepth / fp.maxDepth) * 100) : 0)
     : null;
 
   const stageLabel: Record<StageId, string> = {
@@ -113,9 +119,9 @@ export function ScanScreen({ query, inputType, phase, steps, fetchProgress, txDa
     {
       key: "elapsed",
       label: tracing
-        ? t("scan.elapsedTimeout", { defaultValue: "Elapsed / timeout" })
+        ? t("scan.traceTimeLimit", { defaultValue: "Trace / time limit" })
         : t("scan.elapsed", { defaultValue: "Elapsed" }),
-      value: tracing && fp ? <>{elapsed}s<span className="text-faint"> / {fp.timeoutSec}s</span></> : `${elapsed}s`,
+      value: tracing && fp ? <>{traceElapsed}s<span className="text-faint"> / {fp.timeoutSec}s</span></> : `${elapsed}s`,
     },
     {
       // Raw impact of the checks so far, deliberately not shown as a score or

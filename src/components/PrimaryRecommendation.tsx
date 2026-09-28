@@ -58,7 +58,7 @@ export function RecCard({ rec }: { rec: PrimaryRec }) {
                 href={tool.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm text-accent hover:text-accent/80 transition-colors"
+                className="inline-flex items-center gap-1.5 text-sm text-accent hover:text-accent/80 transition-colors py-0.5 -my-0.5"
               >
                 {tool.name}
                 <ExternalLink size={13} aria-hidden="true" />
@@ -69,7 +69,7 @@ export function RecCard({ rec }: { rec: PrimaryRec }) {
                 href={rec.tool.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm text-accent hover:text-accent/80 transition-colors"
+                className="inline-flex items-center gap-1.5 text-sm text-accent hover:text-accent/80 transition-colors py-0.5 -my-0.5"
               >
                 {rec.tool.name}
                 <ExternalLink size={13} aria-hidden="true" />
@@ -78,7 +78,7 @@ export function RecCard({ rec }: { rec: PrimaryRec }) {
             {rec.guideLink && (
               <a
                 href={rec.guideLink}
-                className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors"
+                className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors py-1 -my-1"
               >
                 {t("primaryRec.learnMore", { defaultValue: "Learn more in the privacy guide" })}
                 <ArrowRight size={12} />

@@ -108,7 +108,7 @@ describe("runChainTrace", () => {
     });
   });
 
-  it("stops a phase at its half timeout and aborts the in-flight request", async () => {
+  it("stops a phase at its half timeout and aborts the in-flight requests", async () => {
     vi.useFakeTimers();
     const signals: (AbortSignal | undefined)[] = [];
     const hung = vi.fn((_txid: string, signal?: AbortSignal) => {
@@ -124,8 +124,33 @@ describe("runChainTrace", () => {
     await vi.advanceTimersByTimeAsync(2_000);
     expect(done).toBe(true);
     expect((await p).backwardFailed).toBe(true);
-    expect(hung).toHaveBeenCalledTimes(1);
-    expect(signals[0]?.aborted).toBe(true);
+    // Both parents are requested at once (trace concurrency), both are cancelled
+    expect(hung).toHaveBeenCalledTimes(2);
+    expect(signals.every((s) => s?.aborted)).toBe(true);
+  });
+
+  it("reports the enforced budget and its start time, and finishes within that budget", async () => {
+    vi.useFakeTimers();
+    const hung = (_txid: string, signal?: AbortSignal) =>
+      new Promise<never>((_, reject) => {
+        signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+      });
+    const progress: FetchProgress[] = [];
+    const startedAt = Date.now();
+    // timeout 1s: each phase still gets its 2s floor, so the real budget is 4s
+    const p = runChainTrace({
+      ...params({ getTransaction: hung }, (fp) => progress.push(fp)),
+      api: { getTransaction: hung, getTxOutspends: hung },
+      outspends: null,
+      settings: { ...settings, timeout: 1 },
+    });
+    let done = false;
+    void p.then(() => { done = true; });
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(done).toBe(true);
+    expect((await p).forwardFailed).toBe(true);
+    expect(progress.length).toBeGreaterThan(0);
+    expect(progress.every((fp) => fp.timeoutSec === 4 && fp.startedAt === startedAt)).toBe(true);
   });
 
   it("aborts the underlying fetch when the backward phase times out", async () => {
@@ -149,5 +174,33 @@ describe("runChainTrace", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it("gives the forward phase the time the backward phase left unused", async () => {
+    vi.useFakeTimers();
+    const child = "c".repeat(64);
+    const hungForward = vi.fn((_txid: string, signal?: AbortSignal) =>
+      new Promise<MempoolTransaction>((_, reject) => {
+        signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+      }));
+    // timeout 4s: backward finishes at once, so forward may run for the full 4s
+    const p = runChainTrace({
+      ...params({ getTransaction: coinbaseParent }),
+      api: {
+        getTransaction: (txid: string, signal?: AbortSignal) => (txid === child ? hungForward(txid, signal) : coinbaseParent(txid)),
+        getTxOutspends: async () => [],
+      },
+      outspends: [{ spent: true, txid: child, vin: 0 }],
+      settings: { ...settings, maxDepth: 1, timeout: 4 },
+    });
+    let done = false;
+    void p.then(() => { done = true; });
+    await vi.advanceTimersByTimeAsync(3_000);
+    expect(done).toBe(false);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(done).toBe(true);
+    const res = await p;
+    expect(res.backwardFailed).toBe(false);
+    expect(res.forwardFailed).toBe(true);
   });
 });

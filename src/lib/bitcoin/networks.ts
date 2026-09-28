@@ -1,4 +1,4 @@
-export type BitcoinNetwork = "mainnet" | "testnet4" | "testnet3" | "signet";
+export type BitcoinNetwork = "mainnet" | "testnet4" | "signet";
 
 export interface NetworkConfig {
   label: string;
@@ -20,11 +20,6 @@ export const NETWORK_CONFIG: Record<BitcoinNetwork, NetworkConfig> = {
     mempoolBaseUrl: "https://mempool.space/testnet4/api",
     explorerUrl: "https://mempool.space/testnet4",
   },
-  testnet3: {
-    label: "Testnet3",
-    mempoolBaseUrl: "https://mempool.space/testnet/api",
-    explorerUrl: "https://mempool.space/testnet",
-  },
   signet: {
     label: "Signet",
     mempoolBaseUrl: "https://mempool.space/signet/api",
@@ -35,10 +30,16 @@ export const NETWORK_CONFIG: Record<BitcoinNetwork, NetworkConfig> = {
 export const DEFAULT_NETWORK: BitcoinNetwork = "mainnet";
 
 export function isValidNetwork(value: string): value is BitcoinNetwork {
-  return (
-    value === "mainnet" ||
-    value === "testnet4" ||
-    value === "testnet3" ||
-    value === "signet"
-  );
+  return Object.hasOwn(NETWORK_CONFIG, value);
+}
+
+/**
+ * Pick the active network from the ?network= query param (takes priority, for
+ * shared links) and the saved preference. Unsupported values, such as the
+ * retired "testnet3", are ignored, so the result falls back to mainnet.
+ */
+export function resolveNetwork(fromUrl: string | null, stored: string | null): BitcoinNetwork {
+  if (fromUrl && isValidNetwork(fromUrl)) return fromUrl;
+  if (stored && isValidNetwork(stored)) return stored;
+  return DEFAULT_NETWORK;
 }

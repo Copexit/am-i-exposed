@@ -3,7 +3,7 @@
  * Uses the real WASM bindings (built by wasm-pack --target nodejs).
  */
 import { describe, it, expect } from "vitest";
-import { computeBoltzmann } from "../src/adapters/boltzmann-node";
+import { computeBoltzmann, computeBoltzmannJoinMarket } from "../src/adapters/boltzmann-node";
 
 describe("computeBoltzmann - real WASM", () => {
   it("computes entropy for a 5x5 Whirlpool-like tx", async () => {
@@ -94,5 +94,26 @@ describe("computeBoltzmann - real WASM", () => {
 
     expect(result.efficiency).toBeCloseTo(1.0, 1);
     expect(result.deterministicLinks).toHaveLength(0);
+  });
+});
+
+describe("computeBoltzmannJoinMarket - real WASM", () => {
+  it("reports maker-model links for 6cb2433f as model links, never deterministic", async () => {
+    const inputs = [
+      100_000_000, 99_714_485, 100_008_100, 100_000_000, 100_000_000, 100_000_000,
+      70_577_264, 99_690_093, 21_296_812, 99_712_169, 99_690_093, 100_005_800,
+      100_000_000, 28_764_098, 37_955_010, 100_000_000, 99_703_550, 100_000_000,
+      198_873_630, 100_000_000, 79_216_957, 100_000_000, 100_000_000,
+    ];
+    const outputs = [
+      ...Array.from({ length: 10 }, () => 198_732_961),
+      80_489_759, 29_453_272, 22_583_724, 9_819_186, 1_306_587, 1_278_915, 1_276_615, 985_300, 680_555,
+    ];
+    const result = await computeBoltzmannJoinMarket(inputs, outputs, 4538, 198_732_961);
+
+    expect(result.method).toBe("joinmarket");
+    expect(result.deterministicLinks).toEqual([]);
+    expect(result.modelLinks).toHaveLength(5);
+    expect(result.matLnkProbabilities.flat().every((p) => p >= 0.01 && p <= 0.99)).toBe(true);
   });
 });

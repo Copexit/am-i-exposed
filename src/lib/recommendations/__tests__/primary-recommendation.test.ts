@@ -293,13 +293,13 @@ describe("Tier 4 - Positive / grade-based", () => {
   it("B grade with CoinJoin gets CoinJoin-specific detail", () => {
     const [primary] = selectRecommendations(ctx([cjFinding()], "B"));
     expect(primary.detailDefault).toContain("post-mix");
-    expect(primary.guideLink).toBe("/guide#coin-control");
+    expect(primary.guideLink).toBe("/guide/#coin-control");
   });
 
   it("B grade without CoinJoin gets generic detail", () => {
     const [primary] = selectRecommendations(ctx([], "B"));
     expect(primary.detailDefault).toContain("Consider CoinJoin");
-    expect(primary.guideLink).toBe("/guide#payjoin-v2");
+    expect(primary.guideLink).toBe("/guide/#payjoin-v2");
   });
 
   it("fallback for C/D/F with no matching findings", () => {

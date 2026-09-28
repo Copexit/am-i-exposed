@@ -3,7 +3,7 @@
 import { ExternalLink } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslation } from "react-i18next";
-import { TX_HEURISTICS, ADDRESS_HEURISTICS } from "@/lib/analysis/heuristic-registry";
+import { TX_HEURISTIC_META, ADDRESS_HEURISTIC_META } from "@/lib/analysis/heuristic-steps";
 import { ScoringExplainer } from "./ScoringExplainer";
 import { fadeUpVariants, fadeUpTransition } from "./animations";
 import type { ScoringResult, TxAnalysisResult } from "@/lib/types";
@@ -41,7 +41,7 @@ export function ResultsFooter({
           href={explorerUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-xs text-bitcoin hover:text-bitcoin-hover transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs text-bitcoin hover:text-bitcoin-hover transition-colors py-1 -my-1"
         >
           {explorerLabel}
           <ExternalLink size={12} />
@@ -51,7 +51,7 @@ export function ResultsFooter({
       <p className="text-xs text-muted/70 leading-relaxed">
         {t("results.disclaimerStats", {
           findingCount: findingCount ?? result.findings.length,
-          heuristicCount: checkCount ?? (inputType === "txid" ? TX_HEURISTICS.length : ADDRESS_HEURISTICS.length),
+          heuristicCount: checkCount ?? (inputType === "txid" ? TX_HEURISTIC_META.length : ADDRESS_HEURISTIC_META.length),
           defaultValue: "{{findingCount}} findings from {{heuristicCount}} heuristics",
         })}
         {txBreakdown ? t("results.disclaimerTxAnalyzed", { count: txBreakdown.length, defaultValue: " + {{count}} transactions analyzed" }) : ""}

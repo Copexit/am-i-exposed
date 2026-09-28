@@ -46,6 +46,16 @@ describe("useUrlState", () => {
     expect(renderHook(() => useUrlState()).result.current.network).toBe("signet");
   });
 
+  it("migrates a retired testnet3 URL param and saved value to mainnet", async () => {
+    localStorage.setItem("ami-network", "testnet3");
+    window.history.replaceState(null, "", "/?network=testnet3&foo=1#tx=abc");
+    const useUrlState = await load();
+    expect(renderHook(() => useUrlState()).result.current.network).toBe("mainnet");
+    expect(localStorage.getItem("ami-network")).toBeNull();
+    expect(window.location.search).toBe("?foo=1");
+    expect(window.location.hash).toBe("#tx=abc");
+  });
+
   it("follows back/forward navigation", async () => {
     const useUrlState = await load();
     const { result } = renderHook(() => useUrlState());

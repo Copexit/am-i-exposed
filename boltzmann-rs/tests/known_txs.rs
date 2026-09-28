@@ -573,11 +573,11 @@ fn test_jm_turbo_3party() {
     // Change 49 at out idx 3 -> matched to input 150 at in idx 0
     // Change 19 at out idx 4 -> matched to input 120 at in idx 1
     assert!(
-        turbo.deterministic_links.contains(&(3, 0)),
+        turbo.model_links.contains(&(3, 0)),
         "JM turbo 3p: change 49 should link to input 150"
     );
     assert!(
-        turbo.deterministic_links.contains(&(4, 1)),
+        turbo.model_links.contains(&(4, 1)),
         "JM turbo 3p: change 19 should link to input 120"
     );
 }
@@ -626,10 +626,10 @@ fn test_jm_turbo_5party() {
     // Change 299k (idx 6) -> input 1.3M (idx 1)
     // Change 99k  (idx 7) -> input 1.1M (idx 2)
     // Change 49k  (idx 8) -> input 1.05M (idx 3)
-    assert!(turbo.deterministic_links.contains(&(5, 0)), "JM turbo 5p: change 599k -> input 1.6M");
-    assert!(turbo.deterministic_links.contains(&(6, 1)), "JM turbo 5p: change 299k -> input 1.3M");
-    assert!(turbo.deterministic_links.contains(&(7, 2)), "JM turbo 5p: change 99k -> input 1.1M");
-    assert!(turbo.deterministic_links.contains(&(8, 3)), "JM turbo 5p: change 49k -> input 1.05M");
+    assert!(turbo.model_links.contains(&(5, 0)), "JM turbo 5p: change 599k -> input 1.6M");
+    assert!(turbo.model_links.contains(&(6, 1)), "JM turbo 5p: change 299k -> input 1.3M");
+    assert!(turbo.model_links.contains(&(7, 2)), "JM turbo 5p: change 99k -> input 1.1M");
+    assert!(turbo.model_links.contains(&(8, 3)), "JM turbo 5p: change 49k -> input 1.05M");
 }
 
 // 10-party JM: formula shortcut (would timeout without it)
@@ -673,11 +673,12 @@ fn test_jm_turbo_10party_formula() {
     ];
     for &(out_idx, in_idx) in &expected_det_links {
         assert!(
-            turbo.deterministic_links.contains(&(out_idx, in_idx)),
+            turbo.model_links.contains(&(out_idx, in_idx)),
             "JM turbo 10p: change at out[{out_idx}] should link to in[{in_idx}]"
         );
     }
-    assert_eq!(turbo.deterministic_links.len(), 9, "JM turbo 10p: should have exactly 9 deterministic links");
+    assert_eq!(turbo.model_links.len(), 9, "JM turbo 10p: should have exactly 9 model links");
+    assert!(turbo.deterministic_links.is_empty(), "JM turbo 10p: model links are not deterministic");
 }
 
 // Turbo vs standard comparison on 3-party: CJ output cells should match
@@ -848,7 +849,7 @@ fn test_jm_turbo_real_89633a49_no_false_deterministic() {
     // Matched change outputs SHOULD still be deterministic (1:1 maker match)
     // Output 0 (2,646,252) -> input 0 (3,676,408), residual 1,030,602 ~ change
     assert!(
-        result.deterministic_links.iter().any(|&(o, _)| o == 0),
+        result.model_links.iter().any(|&(o, _)| o == 0),
         "89633a49: matched change output 0 should have a deterministic link"
     );
 }
@@ -891,7 +892,7 @@ fn test_jm_turbo_real_14bf21be() {
     assert!(cj_prob < 1.0, "14bf21be: CJ cell prob should be < 1 (not degenerate)");
 
     // Should have deterministic change links (matched makers)
-    assert!(!result.deterministic_links.is_empty(), "14bf21be: should have deterministic change links");
+    assert!(!result.model_links.is_empty(), "14bf21be: should have model change links");
 }
 
 // Stress test: very large synthetic JM (50 inputs, 25 CJ outputs)
@@ -935,10 +936,69 @@ fn test_jm_turbo_50_inputs() {
 
     // CJ cells should not be 100%
     let cj_row_start = result.mat_lnk_probabilities.iter()
-        .position(|row| row.iter().any(|&p| p > 0.0 && p < 0.99))
+        .position(|row| row.iter().all(|&p| p < 0.99))
         .expect("Should have at least one CJ row with non-degenerate probabilities");
     let cj_prob = result.mat_lnk_probabilities[cj_row_start][0];
     assert!(cj_prob < 0.5, "50-input JM: CJ cell prob should be well below 50%, got {cj_prob}");
+}
+
+// Real JM tx 6cb2433f (home page example): 23 inputs, 10 x 198_732_961 + 9 changes.
+// Makers fund the denomination from 2-3 inputs (mostly 1 BTC UTXOs), so no
+// single input matches a change. It used to fall back to a degenerate result
+// (every cell 100%) here and to an exact DFS that never finished in the browser.
+#[test]
+fn test_jm_multi_input_makers_6cb2433f() {
+    let inputs = [
+        100_000_000i64, 99_714_485, 100_008_100, 100_000_000, 100_000_000, 100_000_000,
+        70_577_264, 99_690_093, 21_296_812, 99_712_169, 99_690_093, 100_005_800,
+        100_000_000, 28_764_098, 37_955_010, 100_000_000, 99_703_550, 100_000_000,
+        198_873_630, 100_000_000, 79_216_957, 100_000_000, 100_000_000,
+    ];
+    let denomination = 198_732_961i64;
+    let mut outputs = vec![denomination; 10];
+    outputs.extend([80_489_759i64, 29_453_272, 22_583_724, 9_819_186, 1_306_587, 1_278_915, 1_276_615, 985_300, 680_555]);
+    let fee = inputs.iter().sum::<i64>() - outputs.iter().sum::<i64>();
+    assert_eq!(fee, 4538);
+
+    let result = analyze_joinmarket(&inputs, &outputs, fee, denomination, 0.005, 60_000);
+
+    assert_eq!((result.n_inputs, result.n_outputs), (23, 19));
+    assert!(!result.timed_out);
+    assert!(result.elapsed_ms < 5000, "should complete quickly, got {}ms", result.elapsed_ms);
+    assert!(result.nb_cmbn > 1 && result.entropy > 0.0, "should not be degenerate");
+
+    // Sorted order: rows 0-9 CJ, 10.. changes by value; columns inputs by value.
+    // The maker model forces 80.5M <- 79.2M, 29.5M <- 28.8M, 22.6M <- 21.3M and
+    // 9.8M <- 70.6M + 38.0M, but Boltzmann does not: sub-tx {70.6M, 100.0058M,
+    // 100M, 38.0M, 198.9M} -> {2 x denom, 80.5M, 29.5M} (fee 2,751) with the
+    // other 18 inputs -> 15 outputs (fee 1,787) breaks four of them. So they are
+    // model links, never deterministic links.
+    assert_eq!(result.method, "joinmarket");
+    assert!(result.deterministic_links.is_empty(), "model links must not be claimed deterministic");
+    assert_eq!(result.model_links, vec![(10, 18), (11, 21), (12, 22), (13, 19), (13, 20)]);
+    let p = &result.mat_lnk_probabilities;
+    // Estimates never show certainty or impossibility
+    assert!(p.iter().flatten().all(|&x| (0.01..=0.99).contains(&x)));
+    for row in &p[..10] {
+        assert!(row.iter().all(|&x| x < 0.5), "CJ rows: ambiguous for every input");
+    }
+    // The 1.99 BTC input funds 29.5M or 680k (its maker's other input: ~1 BTC), not 80.5M
+    assert!((p[11][0] - 0.45).abs() < 0.01 && (p[18][0] - 0.51).abs() < 0.01 && p[10][0] == 0.01);
+    assert_eq!(p[10][18], 0.99);
+}
+
+// Boltzmann's counterexample to the model links above, checked by value:
+// both sub-transactions balance with a fee in [0, 4538].
+#[test]
+fn test_6cb2433f_model_links_are_not_deterministic() {
+    let denomination = 198_732_961i64;
+    let a_in = [70_577_264i64, 100_005_800, 100_000_000, 37_955_010, 198_873_630];
+    let a_out = [denomination, denomination, 80_489_759, 29_453_272];
+    let a_fee = a_in.iter().sum::<i64>() - a_out.iter().sum::<i64>();
+    assert!((0..=4538).contains(&a_fee), "sub-tx A fee {a_fee}");
+    // Sub-tx A holds 80.5M without 79.2M, 29.5M without 28.8M and neither of
+    // 9.8M's model inputs 70.6M/38.0M with 9.8M: all four model links break.
+    assert!(!a_in.contains(&79_216_957) && !a_in.contains(&28_764_098));
 }
 
 // ==========================================================================
@@ -1062,4 +1122,39 @@ fn test_stonewall_chunked_api() {
         chunked.mat_lnk_combinations, native.mat_lnk_combinations,
         "Chunked should match native matrix"
     );
+}
+
+// Synthetic worst case for the participant model: interchangeable inputs make
+// the DP explode; the deadline must stop it close to the requested timeout
+// (checked inside each expansion and in the backward/link passes).
+#[test]
+fn test_jm_participant_model_honors_deadline() {
+    // 11 x 1 BTC + 14 x 0.5 BTC: every change is funded by 2057 input sets
+    let mut inputs = vec![100_000_000i64; 11];
+    inputs.extend(vec![50_000_000i64; 14]);
+    let denomination = 199_000_000i64;
+    let mut outputs = vec![denomination; 9];
+    outputs.extend((0..8).map(|k| 990_000i64 + k * 10));
+    let fee = inputs.iter().sum::<i64>() - outputs.iter().sum::<i64>();
+    assert!(fee > 0);
+
+    let started = std::time::Instant::now();
+    let result = boltzmann_rs::joinmarket::try_analyze_joinmarket(&inputs, &outputs, fee, denomination, 0.005, 300);
+    let elapsed = started.elapsed().as_millis();
+    println!("participant model stopped after {elapsed}ms");
+    assert!(elapsed < 800, "participant model overran its 300ms deadline: {elapsed}ms");
+    // Out of time and too large for exact: no result rather than a fabricated one
+    assert!(result.is_none());
+}
+
+// A timed-out enumeration has only partial counts (often nb_cmbn = 1 with every
+// cell at 1): it must not claim any deterministic link.
+#[test]
+fn test_timed_out_result_claims_no_deterministic_links() {
+    let inputs = vec![1_000_000i64; 10];
+    let outputs = vec![999_000i64; 10];
+    let fee = 10_000i64;
+    let result = analyze(&inputs, &outputs, fee, 0.0, 1);
+    assert!(result.timed_out, "10x10 perfect CoinJoin cannot finish in 1ms");
+    assert!(result.deterministic_links.is_empty(), "timed out, yet claimed {:?}", result.deterministic_links);
 }
