@@ -262,7 +262,7 @@ export function Home({
             <li className="flex items-center gap-2"><span className="size-1.5 rounded-full bg-severity-good" aria-hidden="true" />{t("page.trust_tracking", { defaultValue: "No tracking" })}</li>
             <li className="flex items-center gap-2">
               <span className="size-1.5 rounded-full bg-severity-good" aria-hidden="true" />
-              <a href="https://github.com/Copexit/am-i-exposed" target="_blank" rel="noopener noreferrer" className={`hover:text-foreground transition-colors underline-offset-4 hover:underline rounded ${FOCUS}`}>
+              <a href="https://github.com/Copexit/am-i-exposed" target="_blank" rel="noopener noreferrer" className={`inline-block py-1 -my-1 hover:text-foreground transition-colors underline-offset-4 hover:underline rounded ${FOCUS}`}>
                 {t("page.trust_opensource", { defaultValue: "Open source" })}
               </a>
             </li>

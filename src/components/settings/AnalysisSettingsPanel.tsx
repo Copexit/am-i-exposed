@@ -189,7 +189,7 @@ export function AnalysisSettingsPanel() {
               role="switch"
               aria-checked={analysisSettings.skipLargeClusters}
               onClick={() => updateAnalysis({ skipLargeClusters: !analysisSettings.skipLargeClusters })}
-              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors after:absolute after:-inset-1 after:content-[''] ${
                 analysisSettings.skipLargeClusters ? "bg-bitcoin" : "bg-surface-inset"
               }`}
             >
@@ -210,7 +210,7 @@ export function AnalysisSettingsPanel() {
               role="switch"
               aria-checked={analysisSettings.skipCoinJoins}
               onClick={() => updateAnalysis({ skipCoinJoins: !analysisSettings.skipCoinJoins })}
-              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors after:absolute after:-inset-1 after:content-[''] ${
                 analysisSettings.skipCoinJoins ? "bg-bitcoin" : "bg-surface-inset"
               }`}
             >

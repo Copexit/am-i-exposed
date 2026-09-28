@@ -41,7 +41,7 @@ export function ResultsFooter({
           href={explorerUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-xs text-bitcoin hover:text-bitcoin-hover transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs text-bitcoin hover:text-bitcoin-hover transition-colors py-1 -my-1"
         >
           {explorerLabel}
           <ExternalLink size={12} />
