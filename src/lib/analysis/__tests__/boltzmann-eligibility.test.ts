@@ -58,6 +58,19 @@ describe("Boltzmann routing for JoinMarket rounds with multi-input makers", () =
     expect(detectJoinMarketForTurbo(ins, outs).isJoinMarket).toBe(false);
   });
 
+  it("rejects batch payments with 2-3 non-equal outputs (other payees + change)", () => {
+    // 3 equal payouts + 2 others, funded by 5 inputs below the payout
+    expect(detectJoinMarketForTurbo(
+      [190_000, 180_000, 170_000, 150_000, 100_000],
+      [200_000, 200_000, 200_000, 110_000, 75_000],
+    ).isJoinMarket).toBe(false);
+    // 5 equal payouts + 3 others, funded by 9 inputs below the payout
+    expect(detectJoinMarketForTurbo(
+      Array.from({ length: 9 }, () => 58_000),
+      [60_000, 60_000, 60_000, 60_000, 60_000, 90_000, 72_000, 55_000],
+    ).isJoinMarket).toBe(false);
+  });
+
   it("marks a transaction too large for the exact engine as ineligible", () => {
     // Same size as the example, but no equal outputs: exact DFS would never answer
     const distinct = outputValues.map((v, i) => v + i);
@@ -66,11 +79,17 @@ describe("Boltzmann routing for JoinMarket rounds with multi-input makers", () =
     expect(isAutoComputable(inputValues, distinct)).toBe(false);
   });
 
-  it("keeps mid-size transactions the exact engine finishes", () => {
-    const tx = makeTx(
-      Array.from({ length: 16 }, (_, i) => 1_000_000 + i * 7_919),
-      Array.from({ length: 16 }, (_, i) => 900_000 + i * 6_007),
+  it("keeps sizes the exact engine finishes, including batch payouts with few inputs", () => {
+    const sized = (nIn: number, nOut: number) => makeTx(
+      Array.from({ length: nIn }, (_, i) => 10_000_000 + i * 7_919),
+      Array.from({ length: nOut }, (_, i) => 900_000 + i * 6_007),
     );
-    expect(getBoltzmannEligibility(tx).canCompute).toBe(true);
+    for (const [nIn, nOut] of [[12, 15], [14, 14], [20, 10], [8, 18], [6, 20], [4, 21], [2, 22]] as const) {
+      expect(getBoltzmannEligibility(sized(nIn, nOut)).canCompute, `${nIn}x${nOut}`).toBe(true);
+    }
+    // Measured out of memory / minutes in WASM
+    for (const [nIn, nOut] of [[16, 16], [12, 18], [8, 20], [3, 22], [2, 23]] as const) {
+      expect(getBoltzmannEligibility(sized(nIn, nOut)), `${nIn}x${nOut}`).toMatchObject({ canCompute: false, reason: "too-large" });
+    }
   });
 });

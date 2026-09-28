@@ -103,11 +103,12 @@ pub fn analyze(
         vec![vec![0.0; n_in]; n_out]
     };
 
-    // Find deterministic links
+    // Find deterministic links (a timed-out enumeration proves none: its
+    // partial counts can equal its partial total by accident)
     let mut deterministic_links = Vec::new();
     for (o, row) in final_result.mat_lnk.iter().enumerate() {
         for (i, &count) in row.iter().enumerate() {
-            if count == final_result.nb_cmbn && final_result.nb_cmbn > 0 {
+            if count == final_result.nb_cmbn && final_result.nb_cmbn > 0 && !final_result.timed_out {
                 deterministic_links.push((o, i));
             }
         }
@@ -130,21 +131,43 @@ pub fn analyze(
         fees,
         intra_fees_maker: actual_fees_maker,
         intra_fees_taker: actual_fees_taker,
+        model_links: Vec::new(),
+        method: "exact",
     }
 }
 
 /// Whether the exact linker can run for this many inputs/outputs.
 ///
-/// Phase 1 allocates 2^n aggregates per side (plus a 2^n_out set per matched
-/// value) and Phase 2 is quadratic in the 2^n_in input aggregates; neither
-/// checks the deadline. Measured natively (release): 16x16 2.6s/370MB,
-/// 18x14 3.3s, 21x11 11s, 22x8 12s/0.9GB; 17x17 1.3GB, while 18x18, 14x20
-/// and 12x22 exhaust 2GB+ and 23x8/24x6 overrun a 20s deadline. The browser
-/// runs one copy per worker, so stay inside the measured-safe envelope.
-/// ponytail: a static size bound; checking the deadline inside Phases 1-2
-/// would let larger but sparse transactions through.
+/// Phase 1 allocates 2^n aggregates per side plus a 2^n_out set per matched
+/// input value, and Phase 2 is quadratic in the 2^n_in input aggregates;
+/// neither checks the deadline. So memory grows with 2^n_out times a factor of
+/// n_in, time mostly with n_in. Measured in WASM (Chromium, random values, one
+/// instance): 8x18 0.4GB, 10x18 1.5GB, 12x18 and 14x18 out of memory, 12x16
+/// 1.0GB, 15x15 2.0GB, 18x14 3.9GB, 16x14 0.4GB, 5x20 0.36GB, 8x20 2.1GB,
+/// 4x21 0.46GB, 5x21 0.64GB, 2x22 0.55GB, 3x22 0.72GB, 22x8 0.5GB/23s. With
+/// the 8-worker pool (each worker repeats Phases 1-2) the kept sizes finish
+/// in 4-40s on a desktop; 3x22 needs 84s and 22x8 132s. The table keeps each
+/// instance under ~0.6GB and the pool under ~40s.
+/// ponytail: a static bound from random-value measurements; a memory budget
+/// and deadline inside Phases 1-2 would admit larger sparse transactions.
 pub fn exact_feasible(n_in: usize, n_out: usize) -> bool {
-    n_in <= 22 && n_out <= 18 && n_in + n_out <= 32
+    let max_in = match n_out {
+        0..=10 => 20,
+        11 => 19,
+        12 => 18,
+        13 => 16,
+        14 => 14,
+        15 => 12,
+        16 => 10,
+        17 => 9,
+        18 => 8,
+        19 => 7,
+        20 => 6,
+        21 => 4,
+        22 => 2,
+        _ => 0,
+    };
+    n_in <= max_in
 }
 
 /// Run the full linker pipeline (phases 1-4).
@@ -455,10 +478,11 @@ pub fn finalize_result(
         vec![vec![0.0; n_in]; n_out]
     };
 
+    // A timed-out enumeration proves no link deterministic
     let mut deterministic_links = Vec::new();
     for (o, row) in result.mat_lnk.iter().enumerate() {
         for (i, &count) in row.iter().enumerate() {
-            if count == result.nb_cmbn && result.nb_cmbn > 0 {
+            if count == result.nb_cmbn && result.nb_cmbn > 0 && !result.timed_out {
                 deterministic_links.push((o, i));
             }
         }
@@ -481,6 +505,8 @@ pub fn finalize_result(
         fees,
         intra_fees_maker: fees_maker,
         intra_fees_taker: fees_taker,
+        model_links: Vec::new(),
+        method: "exact",
     }
 }
 
@@ -520,5 +546,7 @@ fn make_degenerate_result(
         fees,
         intra_fees_maker: 0,
         intra_fees_taker: 0,
+        model_links: Vec::new(),
+        method: "exact",
     }
 }

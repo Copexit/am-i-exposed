@@ -121,9 +121,9 @@ describe("auto-compute eligibility thresholds", () => {
     expect(graphBoltzmannMode(tx)).toBe("ineligible");
   });
 
-  it("exact-feasible 30 I/O gets manual button", () => {
-    const vins = Array.from({ length: 15 }, () => makeVin());
-    const vouts = Array.from({ length: 15 }, () => makeVout());
+  it("exact-feasible 24 I/O gets manual button", () => {
+    const vins = Array.from({ length: 12 }, () => makeVin());
+    const vouts = Array.from({ length: 12 }, () => makeVout());
     const tx = makeTx({ vin: vins, vout: vouts });
     expect(graphBoltzmannMode(tx)).toBe("manual-button");
   });

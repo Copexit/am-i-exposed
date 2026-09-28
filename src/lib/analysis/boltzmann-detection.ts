@@ -69,13 +69,16 @@ export function detectJoinMarketForTurbo(
   // Every participant funds the denomination. Either each maker does so from a
   // single input, so at least (equalCount - 1) inputs are >= denomination (the
   // -1 is the taker, whose inputs may be smaller), or makers combine several
-  // inputs: then every maker still gets a change output and there are at least
-  // as many inputs as participants. boltzmann-rs checks the values against a
-  // participant model and falls back when they do not fit. Batch payments and
-  // consolidations (one or two change outputs) fail both.
+  // inputs: then every maker still gets a change output (changes >= makers),
+  // some participant spends 2+ inputs (more inputs than participants), and the
+  // round has 3+ makers, which a batch of equal payouts plus a couple of other
+  // outputs does not mimic. boltzmann-rs checks the values against a
+  // participant model and falls back to exact analysis when they do not fit.
   const aboveDenom = inputValues.filter(v => v >= denomination).length;
   const singleInputMakers = aboveDenom >= equalCount - 1;
-  const multiInputMakers = changeCount >= equalCount - 1 && inputValues.length >= equalCount;
+  const multiInputMakers = equalCount >= 4
+    && changeCount >= equalCount - 1
+    && inputValues.length > equalCount;
   if (!singleInputMakers && !multiInputMakers) return { isJoinMarket: false, denomination: 0 };
 
   return { isJoinMarket: true, denomination };
@@ -111,8 +114,13 @@ export function detectWabiSabiForTurbo(
  * never answer.
  */
 export function isExactFeasible(nIn: number, nOut: number): boolean {
-  return nIn <= 22 && nOut <= 18 && nIn + nOut <= 32;
+  return nIn <= (EXACT_MAX_INPUTS_BY_OUTPUTS[nOut] ?? (nOut <= 10 ? 20 : 0));
 }
+
+/** Max inputs per output count above 10 (index = outputs), see isExactFeasible. */
+const EXACT_MAX_INPUTS_BY_OUTPUTS: Record<number, number> = {
+  11: 19, 12: 18, 13: 16, 14: 14, 15: 12, 16: 10, 17: 9, 18: 8, 19: 7, 20: 6, 21: 4, 22: 2,
+};
 
 /** Whether JoinMarket turbo mode handles the transaction instead of exact DFS. */
 export function usesJoinMarketTurbo(inputValues: number[], outputValues: number[]): boolean {
@@ -151,7 +159,7 @@ export function extractTxValueIndices(tx: ValueTx): { inputIndices: number[]; ou
  * vin/vout they already hold. OP_RETURN / zero-value outputs and coinbase
  * inputs get all-zero rows/columns.
  */
-export function expandMatrixToTx<T extends { matLnkProbabilities: number[][]; matLnkCombinations: number[][]; deterministicLinks: [number, number][] }>(
+export function expandMatrixToTx<T extends { matLnkProbabilities: number[][]; matLnkCombinations: number[][]; deterministicLinks: [number, number][]; modelLinks?: [number, number][] }>(
   result: T,
   tx: ValueTx,
 ): T {
@@ -159,6 +167,8 @@ export function expandMatrixToTx<T extends { matLnkProbabilities: number[][]; ma
   if (result.matLnkProbabilities.length !== outputIndices.length) return result;
   const colOf = new Map(inputIndices.map((raw, k) => [raw, k]));
   const rowOf = new Map(outputIndices.map((raw, k) => [raw, k]));
+  const toTx = (links: [number, number][]) =>
+    links.map(([o, i]) => [outputIndices[o] ?? o, inputIndices[i] ?? i] as [number, number]);
   const expand = (m: number[][]) =>
     tx.vout.map((_, o) => {
       const r = rowOf.get(o);
@@ -171,7 +181,8 @@ export function expandMatrixToTx<T extends { matLnkProbabilities: number[][]; ma
     ...result,
     matLnkProbabilities: expand(result.matLnkProbabilities),
     matLnkCombinations: expand(result.matLnkCombinations),
-    deterministicLinks: result.deterministicLinks.map(([o, i]) => [outputIndices[o] ?? o, inputIndices[i] ?? i] as [number, number]),
+    deterministicLinks: toTx(result.deterministicLinks),
+    modelLinks: result.modelLinks && toTx(result.modelLinks),
   };
 }
 

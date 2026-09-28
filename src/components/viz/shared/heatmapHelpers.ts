@@ -9,7 +9,7 @@ import { probColor, cellGlow, probTextColor } from "./linkabilityColors";
 export interface CellVisuals {
   /** Display probability (0 if unreliable). */
   displayProb: number;
-  /** Whether this is a 100% deterministic link. */
+  /** Whether this is a 100% deterministic link (never when timed out). */
   isDeterministic: boolean;
   /** Whether this cell is unreliable (timed out, partial result). */
   isUnreliable: boolean;
@@ -31,8 +31,9 @@ export function computeCellVisuals(
   prob: number,
   timedOut: boolean,
 ): CellVisuals {
-  const isDeterministic = prob >= 1.0;
-  const isUnreliable = timedOut && prob > 0 && prob < 1.0;
+  // A timed-out enumeration proves nothing: 0 may be not-yet-found, 1 an artifact
+  const isUnreliable = timedOut;
+  const isDeterministic = prob >= 1.0 && !isUnreliable;
   const displayProb = isUnreliable ? 0 : prob;
   const backgroundColor = isUnreliable ? "var(--surface-inset)" : probColor(displayProb);
   const boxShadow = isUnreliable ? "none" : cellGlow(displayProb);

@@ -131,7 +131,40 @@ pub fn analyze_joinmarket(
 /// Tries, in order: single-input maker matching (fast path), the multi-input
 /// participant model, and exact `analyze()` when that is feasible. Returns
 /// None when none of them applies (exact analysis would exhaust memory/time).
+///
+/// Model results (method "joinmarket") are estimates under the maker/taker
+/// model, not Boltzmann enumerations: see [`into_model_estimate`].
 pub fn try_analyze_joinmarket(
+    input_values: &[i64],
+    output_values: &[i64],
+    fees: i64,
+    denomination: i64,
+    max_cj_intrafees_ratio: f64,
+    timeout_ms: u32,
+) -> Option<BoltzmannResult> {
+    joinmarket_paths(input_values, output_values, fees, denomination, max_cj_intrafees_ratio, timeout_ms)
+        .map(|r| if r.method == "joinmarket" { into_model_estimate(r) } else { r })
+}
+
+/// Model cells never show certainty (100%) or impossibility (0%).
+const MODEL_MIN_PROB: f64 = 0.01;
+const MODEL_MAX_PROB: f64 = 0.99;
+
+/// Turn a maker-model result into an honest estimate. The model's forced links
+/// (a change always matched to the same inputs) are not Boltzmann-deterministic:
+/// merging participants into one sub-transaction breaks them (for 6cb2433f a
+/// 5-input sub-transaction funds 2 denominations plus the 80.5M and 29.5M
+/// changes). They move to `model_links`, and every cell is clamped away from
+/// 0 and 1 so no consumer reads a model estimate as proof.
+fn into_model_estimate(mut r: BoltzmannResult) -> BoltzmannResult {
+    r.model_links = std::mem::take(&mut r.deterministic_links);
+    for p in r.mat_lnk_probabilities.iter_mut().flatten() {
+        *p = p.clamp(MODEL_MIN_PROB, MODEL_MAX_PROB);
+    }
+    r
+}
+
+fn joinmarket_paths(
     input_values: &[i64],
     output_values: &[i64],
     fees: i64,
@@ -359,7 +392,7 @@ pub fn try_analyze_joinmarket(
         timed_out,
     };
 
-    Some(finalize_result(
+    let mut result = finalize_result(
         &full_linker,
         n_in,
         n_out,
@@ -367,7 +400,9 @@ pub fn try_analyze_joinmarket(
         actual_fees_maker,
         actual_fees_taker,
         start,
-    ))
+    );
+    result.method = "joinmarket";
+    Some(result)
 }
 
 /// Build a BoltzmannResult using u64 cell values (exact path for small n).
@@ -423,7 +458,9 @@ fn build_u64_result(
         timed_out: false,
     };
 
-    finalize_result(&full_linker, n_in, n_out, fees, 0, 0, start)
+    let mut result = finalize_result(&full_linker, n_in, n_out, fees, 0, 0, start);
+    result.method = "joinmarket";
+    result
 }
 
 /// Build a BoltzmannResult using f64 probabilities (for large n where u64 overflows,
@@ -512,6 +549,8 @@ fn build_f64_result(
         fees,
         intra_fees_maker: 0,
         intra_fees_taker: 0,
+        model_links: Vec::new(),
+        method: "joinmarket",
     }
 }
 
@@ -621,6 +660,14 @@ fn analyze_participants(
         (0..changes.len()).map(Some).collect()
     };
 
+    // Deadline check per expanded mask (each expands up to all candidate sets);
+    // the clock is read every 256 masks.
+    let mut ticks = 0u32;
+    let mut over_time = || {
+        ticks = ticks.wrapping_add(1);
+        ticks % 256 == 0 && crate::time::now_ms() > deadline
+    };
+
     let mut total = 0f64;
     let mut marg = vec![vec![0f64; n_in]; changes.len()];
     for taker in takers {
@@ -640,6 +687,9 @@ fn analyze_participants(
         for (l, &slot) in slots.iter().enumerate() {
             let (cur, next) = reach.split_at_mut(l + 1);
             for (&mask, &w) in &cur[l] {
+                if over_time() || budget + next[0].len() > MAX_PARTICIPANT_STATES {
+                    return None;
+                }
                 for &set in &cands[slot] {
                     if set & mask == 0 {
                         *next[0].entry(mask | set).or_insert(0.0) += w;
@@ -647,22 +697,23 @@ fn analyze_participants(
                 }
             }
             budget += next[0].len();
-            if budget > MAX_PARTICIPANT_STATES || crate::time::now_ms() > deadline {
-                return None;
-            }
         }
 
         // Backward: number of valid completions from each reachable mask.
         let mut comp: Vec<FxHashMap<u64, f64>> = vec![FxHashMap::default(); depth + 1];
         comp[depth] = reach[depth].keys().map(|&m| (m, if taker_ok(m) { 1.0 } else { 0.0 })).collect();
         for l in (0..depth).rev() {
-            let level: FxHashMap<u64, f64> = reach[l].keys().map(|&mask| {
+            let mut level = FxHashMap::default();
+            for &mask in reach[l].keys() {
+                if over_time() {
+                    return None;
+                }
                 let c: f64 = cands[slots[l]].iter()
                     .filter(|&&set| set & mask == 0)
                     .map(|&set| comp[l + 1].get(&(mask | set)).copied().unwrap_or(0.0))
                     .sum();
-                (mask, c)
-            }).collect();
+                level.insert(mask, c);
+            }
             comp[l] = level;
         }
         let run_total = comp[0].get(&0).copied().unwrap_or(0.0);
@@ -674,6 +725,9 @@ fn analyze_participants(
         // Link weights: ways to reach mask, times completions after adding set.
         for (l, &slot) in slots.iter().enumerate() {
             for (&mask, &w) in &reach[l] {
+                if over_time() {
+                    return None;
+                }
                 for &set in &cands[slot] {
                     if set & mask != 0 {
                         continue;

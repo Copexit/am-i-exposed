@@ -59,6 +59,8 @@ export async function boltzmann(
         nbCombinations: result.nbCmbn,
         nbCombinationsPerfectCj: result.nbCmbnPrfctCj,
         deterministicLinks: result.deterministicLinks,
+        modelLinks: result.modelLinks ?? [],
+        method: result.method,
         timedOut: result.timedOut,
         elapsedMs: result.elapsedMs,
         nInputs: result.nInputs,
@@ -110,6 +112,14 @@ function formatBoltzmannResult(
   lines.push(
     `${bold("Det. links:")}    ${result.deterministicLinks.length === 0 ? "None (all probabilistic)" : result.deterministicLinks.length}`,
   );
+  if (result.modelLinks?.length) {
+    lines.push(
+      `${bold("Model links:")}   ${result.modelLinks.length} (likely under the JoinMarket maker model, not proven)`,
+    );
+  }
+  if (result.method && result.method !== "exact") {
+    lines.push(`${dim("Method:")}        ${result.method} (estimate, not an exact Boltzmann count)`);
+  }
   lines.push(
     `${dim("Computation:")}   ${result.elapsedMs}ms${result.timedOut ? " (TIMED OUT - partial results)" : ""}`,
   );

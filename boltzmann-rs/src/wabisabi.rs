@@ -134,6 +134,8 @@ pub fn analyze_wabisabi(
         fees,
         intra_fees_maker: 0,
         intra_fees_taker: 0,
+        model_links: Vec::new(),
+        method: "wabisabi",
     }
 }
 
@@ -254,6 +256,8 @@ fn degenerate_result(n_in: usize, n_out: usize, fees: i64, start: f64) -> Boltzm
         fees,
         intra_fees_maker: 0,
         intra_fees_taker: 0,
+        model_links: Vec::new(),
+        method: "wabisabi",
     }
 }
 

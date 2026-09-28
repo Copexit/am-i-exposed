@@ -465,6 +465,8 @@ pub fn dfs_finalize() -> JsValue {
                         fees: 0,
                         intra_fees_maker: 0,
                         intra_fees_taker: 0,
+                        model_links: Vec::new(),
+                        method: "exact",
                     },
                 );
             }

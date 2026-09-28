@@ -36,4 +36,8 @@ test("Boltzmann heatmap renders for the home page JoinMarket example (multi-inpu
   await expect(analyst.getByText("(JoinMarket-optimized)")).toBeVisible({ timeout: 15_000 });
   await expect(analyst.getByText("bits entropy").first()).toBeVisible();
   await expect(analyst.getByText("Computing link probabilities...")).toHaveCount(0);
+  // Maker-model links are "likely", never the critical deterministic pill
+  await expect(analyst.getByTestId("model-links")).toContainText("likely under the JoinMarket maker model");
+  await expect(analyst.getByText(/deterministic link/)).toHaveCount(0);
+  await expect(analyst.getByText("(model estimate)").first()).toBeVisible();
 });

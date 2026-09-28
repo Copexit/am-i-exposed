@@ -47,3 +47,17 @@ describe("enhanceEntropyFinding", () => {
     expect(findings[0]?.params?.method).toBe("Boltzmann partition");
   });
 });
+
+describe("enhanceEntropyFinding with a JoinMarket model result", () => {
+  it("never claims deterministic links for links the maker model only makes likely", () => {
+    const findings = [entropyFinding(4)];
+    enhanceEntropyFinding(findings, {
+      ...wasm(2, 2), method: "joinmarket", deterministicLinks: [], modelLinks: [[0, 0], [1, 1]],
+    });
+    const f = findings[0];
+    expect(f?.description).not.toMatch(/deterministic/);
+    expect(f?.params?.deterministicLinks).toBe(0);
+    expect(f?.description).toContain("model estimate");
+    expect(f?.description).not.toContain("upper bound");
+  });
+});
