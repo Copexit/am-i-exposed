@@ -140,6 +140,25 @@ jobs:
       - run: pnpm test
         working-directory: cli
 
+  # Native tests for the Boltzmann engine (lib unit tests, known_txs,
+  # wabisabi_audit). Independent of the JS toolchain, so it runs in parallel
+  # with lint. tests/wasm_serialization.rs compiles to nothing natively; it
+  # only checks serde_wasm_bindgen BigInt output and needs the wasm32 runner
+  # (~190s), so it is left out. Clippy is not run yet (16 pre-existing lints).
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: boltzmann-rs
+
+      - run: cargo test --release --locked
+        working-directory: boltzmann-rs
+
   e2e:
     runs-on: ubuntu-latest
     needs: build

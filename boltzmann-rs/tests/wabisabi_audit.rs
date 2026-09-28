@@ -177,6 +177,16 @@ fn tx2_outputs() -> Vec<i64> {
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Helper: Independently compute expected tier structure
+//
+// Singleton model: a lone output with >= 2 eligible inputs is treated as one
+// more member of the nearest (by value) multi-output tier, so its cell
+// probability and entropy come from boltzmann(min(k_nearest + 1, eligible)).
+// This is the "singleton tier fix" from f144bea (2026-03-17, the commit that
+// added this file). The file was written against the earlier 1/eligible
+// singleton model and never updated when that fix landed in the same commit,
+// so 5 tests here failed from day one (CI never ran cargo test). The unit test
+// `wabisabi::tests::test_unique_outputs` already asserted the merged model.
+// When no multi-output tier exists the code keeps 1/eligible, mirrored here.
 // ──────────────────────────────────────────────────────────────────────────────
 
 struct ExpectedTier {
@@ -184,6 +194,38 @@ struct ExpectedTier {
     count: usize,
     eligible: usize,
     effective_n: usize,
+    /// Singletons only: participant count after merging into the nearest
+    /// multi-output tier. None for multi-output tiers, deterministic
+    /// singletons, or when no multi-output tier exists.
+    merged_n: Option<usize>,
+}
+
+impl ExpectedTier {
+    /// Expected per-cell probability for an eligible input.
+    fn cell_prob(&self) -> f64 {
+        if self.effective_n >= 2 {
+            cell_probability_equal_outputs(self.effective_n)
+        } else if let Some(n) = self.merged_n {
+            cell_probability_equal_outputs(n)
+        } else if self.eligible >= 1 {
+            1.0 / self.eligible as f64
+        } else {
+            0.0
+        }
+    }
+
+    /// Expected entropy contribution in bits.
+    fn entropy_bits(&self) -> f64 {
+        let n = if self.effective_n >= 2 { Some(self.effective_n) } else { self.merged_n };
+        match n {
+            Some(n) => {
+                let nb = boltzmann_equal_outputs_f64(n);
+                if nb > 1.0 { nb.log2() } else { 0.0 }
+            }
+            None if self.count == 1 && self.eligible >= 2 => (self.eligible as f64).log2(),
+            None => 0.0,
+        }
+    }
 }
 
 fn compute_expected_tiers(inputs: &[i64], outputs: &[i64]) -> Vec<ExpectedTier> {
@@ -209,26 +251,32 @@ fn compute_expected_tiers(inputs: &[i64], outputs: &[i64]) -> Vec<ExpectedTier> 
             count,
             eligible,
             effective_n,
+            merged_n: None,
         });
         i += count;
+    }
+
+    // Singleton merge: nearest multi-output tier by absolute distance,
+    // ties resolved to the larger denomination (first in descending order).
+    let multi: Vec<(i64, usize)> = tiers
+        .iter()
+        .filter(|t| t.count >= 2)
+        .map(|t| (t.denomination, t.count))
+        .collect();
+    for t in tiers.iter_mut().filter(|t| t.count == 1 && t.eligible >= 2) {
+        let nearest = multi.iter().fold(None::<(i64, usize)>, |best, &(d, k)| match best {
+            Some((bd, _)) if (bd - t.denomination).abs() <= (d - t.denomination).abs() => best,
+            _ => Some((d, k)),
+        });
+        if let Some((_, k)) = nearest {
+            t.merged_n = Some((k + 1).min(t.eligible));
+        }
     }
     tiers
 }
 
 fn independently_compute_entropy(tiers: &[ExpectedTier]) -> f64 {
-    let mut total = 0.0f64;
-    for t in tiers {
-        if t.effective_n >= 2 {
-            let nb = boltzmann_equal_outputs_f64(t.effective_n);
-            if nb > 1.0 {
-                total += nb.log2();
-            }
-        } else if t.count == 1 && t.eligible >= 2 {
-            total += (t.eligible as f64).log2();
-        }
-        // eligible <= 1: 0 entropy contribution
-    }
-    total
+    tiers.iter().map(ExpectedTier::entropy_bits).sum()
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -428,7 +476,8 @@ fn test_tx2_ineligible_inputs_are_zero() {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// PROPERTY 4: Unique outputs have probability 1/eligible for each eligible input
+// PROPERTY 4: Unique outputs take the merged-tier probability
+// cell_probability_equal_outputs(min(k_nearest + 1, eligible)) for each eligible input
 // ──────────────────────────────────────────────────────────────────────────────
 
 #[test]
@@ -443,7 +492,8 @@ fn test_tx1_unique_output_probabilities() {
     let mut out_idx = 0;
     for tier in &tiers {
         if tier.count == 1 && tier.eligible >= 2 {
-            let expected_prob = 1.0 / tier.eligible as f64;
+            assert!(tier.merged_n.is_some(), "TX1 has multi-output tiers, singleton must merge");
+            let expected_prob = tier.cell_prob();
             // Check the single output in this tier
             let nonzero_probs: Vec<f64> = (0..result.n_inputs)
                 .filter(|&in_idx| result.mat_lnk_probabilities[out_idx][in_idx] > 0.0)
@@ -460,8 +510,8 @@ fn test_tx1_unique_output_probabilities() {
             for (i, &p) in nonzero_probs.iter().enumerate() {
                 assert!(
                     (p - expected_prob).abs() < 1e-10,
-                    "Unique output {} (denom={}): eligible input[{}] prob={}, expected 1/{}={}",
-                    out_idx, tier.denomination, i, p, tier.eligible, expected_prob
+                    "Unique output {} (denom={}): eligible input[{}] prob={}, expected {} (merged_n={:?})",
+                    out_idx, tier.denomination, i, p, expected_prob, tier.merged_n
                 );
             }
         }
@@ -594,6 +644,13 @@ fn test_tx1_entropy_matches_independent_computation() {
         result.entropy,
         expected_entropy
     );
+    // Pinned value (was 930.95 under the pre-merge 1/eligible model) so a change that moves both the
+    // code and the mirror above still shows up here.
+    assert!(
+        (result.entropy - 1035.106).abs() < 0.001,
+        "TX1 entropy drifted from pinned 1035.106: {}",
+        result.entropy
+    );
 }
 
 #[test]
@@ -615,6 +672,13 @@ fn test_tx2_entropy_matches_independent_computation() {
         "TX2 entropy mismatch: computed={}, expected={}",
         result.entropy,
         expected_entropy
+    );
+    // Pinned value (was 508.56 under the pre-merge 1/eligible model) so a change that moves both the
+    // code and the mirror above still shows up here.
+    assert!(
+        (result.entropy - 551.611).abs() < 0.001,
+        "TX2 entropy drifted from pinned 551.611: {}",
+        result.entropy
     );
 }
 
@@ -777,17 +841,14 @@ fn test_tx1_nb_cmbn_is_product() {
     let expected_log2: f64 = tiers
         .iter()
         .filter(|t| t.effective_n >= 2)
-        .map(|t| {
-            let nb = boltzmann_equal_outputs_f64(t.effective_n);
-            nb.log2()
-        })
+        .map(|t| boltzmann_equal_outputs_f64(t.effective_n).log2())
         .sum();
 
-    // For unique outputs, the "combination count" is the number of eligible inputs
+    // Merged singletons count as boltzmann(merged_n) combinations each
     let unique_log2: f64 = tiers
         .iter()
-        .filter(|t| t.count == 1 && t.eligible >= 2)
-        .map(|t| (t.eligible as f64).log2())
+        .filter_map(|t| t.merged_n)
+        .map(|n| boltzmann_equal_outputs_f64(n).log2())
         .sum();
 
     let total_expected_log2 = expected_log2 + unique_log2;
@@ -903,17 +964,12 @@ fn test_tx1_row_sums_match_tier_expectations() {
             .map(|in_idx| result.mat_lnk_probabilities[out_idx][in_idx])
             .sum();
 
-        let expected_row_sum = if tier.effective_n >= 2 {
-            tier.eligible as f64 * cell_probability_equal_outputs(tier.effective_n)
-        } else if tier.count == 1 && tier.eligible >= 2 {
-            // Unique output: eligible * (1/eligible) = 1.0
-            1.0
-        } else if tier.eligible == 1 {
-            // Deterministic: 1 * 1.0 = 1.0
-            1.0
-        } else {
-            0.0
-        };
+        // Every eligible input carries the tier's cell probability. For a
+        // merged singleton this is eligible * cell_prob(merged_n), which can
+        // exceed 1.0 just like a multi-output tier row (Boltzmann rows are not
+        // a distribution: one output can be co-funded by several inputs).
+        // Deterministic singletons: 1 * 1.0.
+        let expected_row_sum = tier.eligible as f64 * tier.cell_prob();
 
         assert!(
             (row_sum - expected_row_sum).abs() < 1e-6,
@@ -1001,24 +1057,9 @@ fn test_tx1_full_summary() {
 
     let mut out_idx = 0;
     for tier in &tiers {
-        let prob = if tier.effective_n >= 2 {
-            cell_probability_equal_outputs(tier.effective_n)
-        } else if tier.count == 1 && tier.eligible >= 2 {
-            1.0 / tier.eligible as f64
-        } else if tier.eligible == 1 {
-            1.0
-        } else {
-            0.0
-        };
+        let prob = tier.cell_prob();
 
-        let entropy = if tier.effective_n >= 2 {
-            let nb = boltzmann_equal_outputs_f64(tier.effective_n);
-            if nb > 1.0 { nb.log2() } else { 0.0 }
-        } else if tier.count == 1 && tier.eligible >= 2 {
-            (tier.eligible as f64).log2()
-        } else {
-            0.0
-        };
+        let entropy = tier.entropy_bits();
 
         eprintln!(
             "  [{:>3}] denom={:>15} | count={:>3} | eligible={:>4} | eff_n={:>3} | prob={:.6} | entropy={:.4} bits",
@@ -1046,15 +1087,7 @@ fn test_tx2_full_summary() {
 
     let mut out_idx = 0;
     for tier in &tiers {
-        let prob = if tier.effective_n >= 2 {
-            cell_probability_equal_outputs(tier.effective_n)
-        } else if tier.count == 1 && tier.eligible >= 2 {
-            1.0 / tier.eligible as f64
-        } else if tier.eligible == 1 {
-            1.0
-        } else {
-            0.0
-        };
+        let prob = tier.cell_prob();
 
         eprintln!(
             "  [{:>3}] denom={:>15} | count={:>3} | eligible={:>4} | eff_n={:>3} | prob={:.6}",
