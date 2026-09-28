@@ -60,6 +60,12 @@ pub struct BoltzmannResult {
     pub fees: i64,
     pub intra_fees_maker: i64,
     pub intra_fees_taker: i64,
+    /// Links forced only by a structural model (JoinMarket maker/taker), not by
+    /// Boltzmann: likely, never proven deterministic. (output_idx, input_idx).
+    pub model_links: Vec<(usize, usize)>,
+    /// Which computation produced the result: "exact" (Boltzmann enumeration),
+    /// "joinmarket" (maker-model estimate) or "wabisabi" (tier-decomposed).
+    pub method: &'static str,
 }
 
 /// Intermediate result from the linker: raw link counts + combination count.

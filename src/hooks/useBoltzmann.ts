@@ -146,10 +146,10 @@ export function useBoltzmann(
     return isAutoComputable(inputValues, outputValues);
   }, [tx]);
 
-  const isSupported = useMemo(() => {
-    if (!tx) return false;
-    return getBoltzmannEligibility(tx).canCompute;
-  }, [tx]);
+  const eligibility = useMemo(() => (tx ? getBoltzmannEligibility(tx) : null), [tx]);
+  const isSupported = eligibility?.canCompute ?? false;
+  /** Beyond what the engine can compute in a browser (shown, not hidden). */
+  const tooComplex = eligibility?.reason === "too-large";
 
-  return { state, compute, cancel, autoComputed, isSupported };
+  return { state, compute, cancel, autoComputed, isSupported, tooComplex };
 }

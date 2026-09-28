@@ -1,5 +1,9 @@
 //! Test WASM serialization with large u64 values (BigInt mode).
-//! Run with: wasm-pack test --node
+//! Native `cargo test` compiles this file to nothing (wasm32 only). Run it with
+//! the wasm-bindgen test runner that wasm-pack downloads (`wasm-pack test`
+//! would also build known_txs, which uses native-only helpers):
+//!   CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=$(find ~/.cache/.wasm-pack -name wasm-bindgen-test-runner | head -1) \
+//!     cargo test --target wasm32-unknown-unknown --test wasm_serialization
 
 #![cfg(target_arch = "wasm32")]
 
@@ -54,7 +58,8 @@ fn test_jm_wasm_ae988772() {
 
     let result = boltzmann_rs::compute_boltzmann_joinmarket(
         &inputs, &outputs, fee, 1_067_547, 0.005, 60_000,
-    );
+    )
+    .unwrap_or_else(|_| panic!("ae988772 JM: WASM should return a result"));
 
     assert_ne!(result, JsValue::NULL, "ae988772 JM: WASM returned null result");
     assert!(result.is_object(), "ae988772 JM: result should be a JS object");

@@ -9,15 +9,16 @@ import { isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
 import { fmtN, roundTo } from "@/lib/format";
 import type { FindingId } from "@/lib/analysis/finding-metadata";
 
-/** Method label and accuracy qualifier for the entropy finding. */
-function getMethodInfo(b: BoltzmannWorkerResult): { label: string; isApprox: boolean } {
+/** Method label and accuracy qualifier ("" when exact) for the entropy finding. */
+function getMethodInfo(b: BoltzmannWorkerResult): { label: string; qualifier: string } {
   switch (b.method) {
     case "wabisabi":
-      return { label: "tier-decomposed Boltzmann", isApprox: true };
+      return { label: "tier-decomposed Boltzmann", qualifier: "upper bound" };
     case "joinmarket":
-      return { label: "JoinMarket Boltzmann", isApprox: true };
+      // Maker/taker model, not a Boltzmann enumeration: no proven bound
+      return { label: "JoinMarket maker model", qualifier: "model estimate" };
     default:
-      return { label: "WASM Boltzmann", isApprox: false };
+      return { label: "WASM Boltzmann", qualifier: "" };
   }
 }
 
@@ -80,8 +81,9 @@ export function enhanceEntropyFinding(
   // Efficiency is only meaningful for CoinJoin transactions
   const isCJ = findings.some(isCoinJoinFinding);
 
-  const { label: methodLabel, isApprox } = getMethodInfo(boltzmann);
-  const boundNote = isApprox ? " (upper bound)" : "";
+  const { label: methodLabel, qualifier } = getMethodInfo(boltzmann);
+  const isApprox = qualifier !== "";
+  const boundNote = isApprox ? ` (${qualifier})` : "";
 
   const params: Record<string, string | number> = {
     entropy: roundedEntropy,

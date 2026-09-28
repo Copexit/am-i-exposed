@@ -11,7 +11,7 @@ import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 let wasmModule: any = null;
 
 /** Same shape the web worker returns, minus the worker envelope. */
-export type BoltzmannResult = Omit<BoltzmannWorkerResult, "type" | "id" | "method">;
+export type BoltzmannResult = Omit<BoltzmannWorkerResult, "type" | "id">;
 
 /** Convert BigInt values in WASM result to regular numbers. */
 function toNum(val: unknown): number {
@@ -55,6 +55,9 @@ function toResult(raw: unknown): BoltzmannResult {
     fees: toNum(result.fees),
     intraFeesMaker: toNum(result.intra_fees_maker),
     intraFeesTaker: toNum(result.intra_fees_taker),
+    // Links forced by the JoinMarket maker model: likely, not deterministic
+    modelLinks: result.model_links ?? [],
+    method: result.method,
   };
 }
 

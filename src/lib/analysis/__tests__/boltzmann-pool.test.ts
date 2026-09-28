@@ -117,6 +117,25 @@ describe("boltzmann pool termination settles pending jobs", () => {
     expect(posted).toHaveLength(0);
   });
 
+  it("a timed-out parallel pass claims no deterministic links", async () => {
+    const pool = getWorkerPool(2);
+    const p = runParallelPass(pool, "x", [2, 1], [2, 1], 0, 0, 0, 1000, () => {});
+    // Partial counts: every cell equals the (partial) total after the merge
+    for (const [workerIndex, w] of pool.entries()) {
+      w.onmessage!(new MessageEvent("message", {
+        data: {
+          type: "result", id: "x", workerIndex,
+          matLnkCombinations: [[1, 1], [1, 1]], matLnkProbabilities: [[1, 1], [1, 1]], nbCmbn: 1, entropy: 0,
+          efficiency: 0, nbCmbnPrfctCj: 1, deterministicLinks: [], timedOut: workerIndex === 1, elapsedMs: 1,
+          nInputs: 2, nOutputs: 2, fees: 0, intraFeesMaker: 0, intraFeesTaker: 0,
+        },
+      }));
+    }
+    const merged = await p;
+    expect(merged.timedOut).toBe(true);
+    expect(merged.deterministicLinks).toEqual([]);
+  });
+
   describe("a job's own worker failure is not reported as preemption", () => {
     it("single-worker crash", async () => {
       const preempted = vi.fn();

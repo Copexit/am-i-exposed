@@ -13,19 +13,24 @@ vi.mock("react-i18next", () => ({
 }));
 vi.mock("@/hooks/useTheme", () => ({ useTheme: () => undefined }));
 
-const boltzmann = vi.hoisted(() => ({ result: null as unknown }));
+const boltzmann = vi.hoisted(() => ({ result: null as unknown, isSupported: true, tooComplex: false }));
 vi.mock("@/hooks/useBoltzmann", () => ({
   useBoltzmann: () => ({
-    state: { status: "complete", result: boltzmann.result },
+    state: boltzmann.isSupported ? { status: "complete", result: boltzmann.result } : { status: "idle", result: null },
     compute: vi.fn(),
     autoComputed: true,
-    isSupported: true,
+    isSupported: boltzmann.isSupported,
+    tooComplex: boltzmann.tooComplex,
   }),
 }));
 
 import { LinkabilityHeatmap } from "../LinkabilityHeatmap";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  boltzmann.isSupported = true;
+  boltzmann.tooComplex = false;
+});
 
 const NOTE = /entropy finding merges UTXOs that share an address/;
 
@@ -64,5 +69,50 @@ describe("LinkabilityHeatmap merged-address note", () => {
     boltzmann.result = result(2, 2);
     render(<LinkabilityHeatmap tx={makeTx(["bc1qa", "bc1qb"], ["bc1qx", "bc1qy"])} />);
     expect(screen.queryByText(NOTE)).toBeNull();
+  });
+});
+
+describe("LinkabilityHeatmap JoinMarket model results", () => {
+  // Shape of the 6cb2433f result: links forced by the maker model come back as
+  // modelLinks (never deterministicLinks) and cells are clamped to [1%, 99%].
+  function jmResult(): BoltzmannWorkerResult {
+    const mat = [[0.99, 0.01], [0.2, 0.2]];
+    return {
+      ...result(2, 2), matLnkProbabilities: mat, matLnkCombinations: [[99, 1], [20, 20]],
+      nbCmbn: 9_085_194_458, entropy: 33.08, method: "joinmarket",
+      deterministicLinks: [], modelLinks: [[0, 0]],
+    };
+  }
+
+  it("shows model links as likely, never as the critical deterministic pill", () => {
+    boltzmann.result = jmResult();
+    render(<LinkabilityHeatmap tx={makeTx(["bc1qa", "bc1qb"], ["bc1qx", "bc1qy"])} />);
+    expect(screen.queryByText(/deterministic link/)).toBeNull();
+    const pill = screen.getByTestId("model-links");
+    expect(pill.textContent).toMatch(/likely under the JoinMarket maker model/);
+    expect(pill.className).not.toMatch(/critical/);
+  });
+
+  it("labels the entropy a model estimate, not an upper bound, and never shows 0% or 100%", () => {
+    boltzmann.result = jmResult();
+    render(<LinkabilityHeatmap tx={makeTx(["bc1qa", "bc1qb"], ["bc1qx", "bc1qy"])} />);
+    expect(screen.getAllByText(/\(model estimate\)/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/upper bound/)).toBeNull();
+    // Only the color legend says 0% / 100%; no cell does ("-" is a 0% cell)
+    expect(screen.getAllByText("100%")).toHaveLength(1);
+    expect(screen.getAllByText("0%")).toHaveLength(1);
+    expect(screen.queryAllByText("-")).toHaveLength(0);
+    expect(screen.getByText("99%")).toBeTruthy();
+    expect(screen.getByText("1%")).toBeTruthy();
+  });
+});
+
+describe("LinkabilityHeatmap beyond the engine", () => {
+  it("explains a too-complex transaction instead of hiding the panel", () => {
+    boltzmann.isSupported = false;
+    boltzmann.tooComplex = true;
+    render(<LinkabilityHeatmap tx={makeTx(["bc1qa", "bc1qb"], ["bc1qx", "bc1qy"])} />);
+    expect(screen.getByText(/Too complex to compute in the browser/)).toBeTruthy();
+    expect(screen.queryByText("Compute Boltzmann LPM")).toBeNull();
   });
 });

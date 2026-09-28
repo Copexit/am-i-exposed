@@ -29,6 +29,11 @@ export interface BoltzmannWorkerResult {
   efficiency: number;
   nbCmbnPrfctCj: number;
   deterministicLinks: [number, number][];
+  /**
+   * Links forced only by the JoinMarket maker model (method "joinmarket"):
+   * likely, but not proven by Boltzmann, so never treat them as deterministic.
+   */
+  modelLinks?: [number, number][];
   timedOut: boolean;
   elapsedMs: number;
   nInputs: number;
@@ -153,13 +158,16 @@ export function toSubmittedOrder(
   const rankOut: number[] = [];
   inOrder.forEach((orig, rank) => { rankIn[orig] = rank; });
   outOrder.forEach((orig, rank) => { rankOut[orig] = rank; });
+  const remapLinks = (links: [number, number][]) =>
+    links.map(([o, i]) => [outOrder[o] ?? o, inOrder[i] ?? i] as [number, number]);
   const remap = (m: number[][]) =>
     outputValues.map((_, o) => inputValues.map((__, i) => m[rankOut[o]!]?.[rankIn[i]!] ?? 0));
   return {
     ...result,
     matLnkCombinations: remap(result.matLnkCombinations),
     matLnkProbabilities: remap(result.matLnkProbabilities),
-    deterministicLinks: result.deterministicLinks.map(([o, i]) => [outOrder[o] ?? o, inOrder[i] ?? i] as [number, number]),
+    deterministicLinks: remapLinks(result.deterministicLinks),
+    modelLinks: result.modelLinks && remapLinks(result.modelLinks),
   };
 }
 
@@ -202,10 +210,11 @@ function mergePartialResults(
   const nbCmbnPrfctCj = first.nbCmbnPrfctCj;
   const efficiency = nbCmbnPrfctCj > 0 && nbCmbn > 0 ? nbCmbn / nbCmbnPrfctCj : 0;
 
+  // A timed-out enumeration has only partial counts: it proves no link
   const deterministicLinks: [number, number][] = [];
   for (const [o, row] of mat.entries()) {
     for (const [i, v] of row.entries()) {
-      if (v === nbCmbn && nbCmbn > 0) {
+      if (v === nbCmbn && nbCmbn > 0 && !anyTimedOut) {
         deterministicLinks.push([o, i]);
       }
     }
@@ -228,6 +237,7 @@ function mergePartialResults(
     fees: first.fees,
     intraFeesMaker: first.intraFeesMaker,
     intraFeesTaker: first.intraFeesTaker,
+    method: first.method,
   };
 }
 

@@ -273,5 +273,9 @@ function buildResultMessage(raw, id) {
     fees: toNum(raw.fees),
     intraFeesMaker: toNum(raw.intra_fees_maker),
     intraFeesTaker: toNum(raw.intra_fees_taker),
+    // Links forced by the JoinMarket maker model: likely, not deterministic
+    modelLinks: (raw.model_links || []).map(([a, b]) => [toNum(a), toNum(b)]),
+    // "exact" | "joinmarket" | "wabisabi": which engine produced the result
+    method: raw.method,
   };
 }

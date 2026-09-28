@@ -465,6 +465,8 @@ pub fn dfs_finalize() -> JsValue {
                         fees: 0,
                         intra_fees_maker: 0,
                         intra_fees_taker: 0,
+                        model_links: Vec::new(),
+                        method: "exact",
                     },
                 );
             }
@@ -542,7 +544,8 @@ pub fn compute_boltzmann_wabisabi(
 ///
 /// Exploits JoinMarket's maker structure to deterministically match inputs
 /// to change outputs, reducing the problem to inputs vs equal-denomination
-/// CJ outputs. Falls back to standard Boltzmann if matching fails.
+/// CJ outputs. Falls back to the multi-input participant model, then to
+/// standard Boltzmann when that is feasible; throws when none applies.
 #[wasm_bindgen]
 pub fn compute_boltzmann_joinmarket(
     input_values: &[i64],
@@ -551,16 +554,17 @@ pub fn compute_boltzmann_joinmarket(
     denomination: i64,
     max_cj_intrafees_ratio: f64,
     timeout_ms: u32,
-) -> JsValue {
-    let result = joinmarket::analyze_joinmarket(
+) -> Result<JsValue, JsError> {
+    joinmarket::try_analyze_joinmarket(
         input_values,
         output_values,
         fee,
         denomination,
         max_cj_intrafees_ratio,
         timeout_ms,
-    );
-    to_js(&result)
+    )
+    .map(|result| to_js(&result))
+    .ok_or_else(|| JsError::new("Transaction too complex for the Boltzmann engine"))
 }
 
 // Re-export for native (non-WASM) testing

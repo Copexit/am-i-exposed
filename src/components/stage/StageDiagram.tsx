@@ -106,7 +106,7 @@ export function StageDiagram({ tx, inRows, outRows, stacked, usdPrice, lookup, l
       if (!drawAll && activeKey !== a.key && activeKey !== b.key) continue;
       const p = lookup.getProb(a.io.index, b.io.index);
       if (p <= 0) continue;
-      out.push({ key: `${a.key}>${b.key}`, d: curve(0, ports.get(a.key)!, width, ports.get(b.key)!), p, unreliable: lookup.timedOut && p < 1, ends: [a.key, b.key] });
+      out.push({ key: `${a.key}>${b.key}`, d: curve(0, ports.get(a.key)!, width, ports.get(b.key)!), p, unreliable: lookup.timedOut, ends: [a.key, b.key] });
     }
     return out;
   }, [stacked, lookup, linkMode, width, ports, inRows, outRows, activeKey]);
