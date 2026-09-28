@@ -18,6 +18,8 @@ interface NodeBadgesProps {
   isToxicMerge: boolean;
   isUnconfirmed?: boolean;
   unconfirmedLabel?: string;
+  /** Space kept clear at the right edge (the heat-map sparkline). */
+  rightInset?: number;
 }
 
 export function NodeBadges({
@@ -30,6 +32,7 @@ export function NodeBadges({
   isToxicMerge,
   isUnconfirmed,
   unconfirmedLabel,
+  rightInset = 0,
 }: NodeBadgesProps) {
   const badges: Badge[] = [];
   if (isCoinJoin) badges.push({ label: coinJoinType ?? "CJ", bg: SVG_COLORS.good, fg: SVG_COLORS.background });
@@ -43,7 +46,7 @@ export function NodeBadges({
   const reversed = [...badges].reverse();
   const positioned = reversed.reduce<Array<Badge & { x: number; tw: number }>>((acc, b) => {
     const tw = b.label.length * 5.5 + 8;
-    const prevX = acc.at(-1)?.x ?? nodeX + nodeWidth - 4;
+    const prevX = acc.at(-1)?.x ?? nodeX + nodeWidth - 4 - rightInset;
     const x = prevX - tw - 2;
     acc.push({ ...b, x, tw });
     return acc;

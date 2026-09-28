@@ -11,7 +11,7 @@ import { getNodeColor } from "./layout";
 import { getLockTimeRx, getVersionFill } from "./scriptStyles";
 import { ExpandedNode } from "./ExpandedNode";
 import { NodeBadges } from "./NodeBadges";
-import { PrivacySparkline } from "./PrivacySparkline";
+import { PrivacySparkline, SPARKLINE_MAX_W } from "./PrivacySparkline";
 import { NodeExpandButtons } from "./NodeExpandButtons";
 import { NodeLabelAnnotation, type NodeLabelAnnotationProps } from "./NodeLabelAnnotation";
 import type { LayoutNode, LayoutEdge, GraphNode, TooltipData } from "./types";
@@ -226,6 +226,7 @@ export function GraphNodeRenderer({
         isOfac={node.entityOfac}
         isToxicMerge={toxicMergeNodes.has(node.txid)}
         isUnconfirmed={!node.confirmed}
+        rightInset={heatMapActive && heatMap.has(node.txid) ? SPARKLINE_MAX_W + 4 : 0}
         unconfirmedLabel={t("graph.unconfirmed", { defaultValue: "Unconfirmed" })}
       />
 
@@ -234,16 +235,17 @@ export function GraphNodeRenderer({
         <PrivacySparkline scoringResult={heatMap.get(node.txid)!} nodeX={node.x} nodeY={node.y} nodeWidth={node.width} nodeHeight={node.height} />
       )}
 
-      {/* Heat map score */}
+      {/* Heat map score: top-right, on the txid row, clear of the summary line and the expand buttons */}
       {heatMapActive && heatScore !== undefined && (
-        <Text x={node.x + node.width - 20} y={node.y + node.height / 2 + 6} fontSize={18} fontWeight={800} fill={svgTextColor(color)} textAnchor="middle" opacity={0.9}>{heatScore}</Text>
+        <Text x={node.x + node.width - 8} y={node.y + 20} fontSize={12} fontWeight={800} fill={svgTextColor(color)} textAnchor="end" opacity={0.9}>{heatScore}</Text>
       )}
 
       {/* Txid label */}
       <Text x={node.x + 10} y={node.y + 20} fontSize={11} fill={svgTextColor(color)} fontWeight={600} fontFamily="monospace">{truncateId(node.txid, 8)}</Text>
 
       {/* Summary line */}
-      <Text x={node.x + 10} y={node.y + 38} fontSize={10} fill={SVG_COLORS.muted}>
+      {/* Shrinks (never wraps) to stay inside the node for very large values; visx measures with `style`, not `fontSize` */}
+      <Text x={node.x + 10} y={node.y + 38} width={node.width - 24} scaleToFit="shrink-only" fontSize={10} style={{ fontSize: 10 }} fill={SVG_COLORS.muted}>
         {`${node.inputCount}in / ${node.outputCount}out - ${formatSats(totalValue)}`}
       </Text>
 

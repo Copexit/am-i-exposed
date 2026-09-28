@@ -268,7 +268,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                       {/* Column headers */}
                       {cappedOutputs.map((out, o) => (
                         <div key={`h-${o}`} className="text-center px-1 pb-1 border-b border-card-border/40">
-                          <button onClick={() => out.address && setHash(`addr=${out.address}`)} className={`text-[11px] font-mono transition-colors duration-150 block w-full hover:text-bitcoin cursor-pointer whitespace-nowrap ${hoveredCell?.col === o ? "text-foreground" : "text-muted"}`} title={out.address}>
+                          <button onClick={() => out.address && setHash(`addr=${out.address}`)} className={`text-[11px] font-mono transition-colors duration-150 block w-full py-1 -my-1 hover:text-bitcoin cursor-pointer whitespace-nowrap ${hoveredCell?.col === o ? "text-foreground" : "text-muted"}`} title={out.address}>
                             {truncAddrSuffix(out.address)}
                           </button>
                           <div className="text-[10px] text-muted/60">{formatSats(out.value)}</div>
@@ -280,7 +280,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                         <Fragment key={`row-${i}`}>
                           <div className="flex items-center justify-end pr-2 gap-1">
                             <div className="text-right">
-                              <button onClick={() => inp.address && setHash(`addr=${inp.address}`)} className={`text-[11px] font-mono transition-colors duration-150 block ml-auto hover:text-bitcoin cursor-pointer whitespace-nowrap ${hoveredCell?.row === i ? "text-foreground" : "text-muted"}`} title={inp.address}>
+                              <button onClick={() => inp.address && setHash(`addr=${inp.address}`)} className={`text-[11px] font-mono transition-colors duration-150 block ml-auto py-1 -my-1 hover:text-bitcoin cursor-pointer whitespace-nowrap ${hoveredCell?.row === i ? "text-foreground" : "text-muted"}`} title={inp.address}>
                                 {truncAddr(inp.address)}
                               </button>
                               <div className="text-[10px] text-muted/60">{formatSats(inp.value)}</div>

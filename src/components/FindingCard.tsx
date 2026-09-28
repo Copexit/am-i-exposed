@@ -227,7 +227,7 @@ export function FindingCardBody({ finding, onTxClick, detailed = false, classNam
         {learnMore && (
           <a
             href={`/faq/#${learnMore.faqId}`}
-            className="inline-flex items-center gap-1 text-xs text-bitcoin hover:text-bitcoin-hover transition-colors"
+            className="inline-flex items-center gap-1 text-xs text-bitcoin hover:text-bitcoin-hover transition-colors py-1 -my-1"
           >
             <BookOpen size={12} />
             {t(learnMore.labelKey, { defaultValue: learnMore.labelDefault })}
@@ -235,7 +235,7 @@ export function FindingCardBody({ finding, onTxClick, detailed = false, classNam
         )}
         {detailed && finding.scoreImpact !== 0 && (
           <details className="text-xs text-muted">
-            <summary className="cursor-pointer select-none hover:text-foreground transition-colors">
+            <summary className="cursor-pointer select-none hover:text-foreground transition-colors py-1 -my-1">
               {t("finding.showScoreImpact", { defaultValue: "Score impact" })}
             </summary>
             <span

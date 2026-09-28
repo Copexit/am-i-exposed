@@ -3,6 +3,11 @@
 import { SVG_COLORS } from "../shared/svgConstants";
 import type { ScoringResult } from "@/lib/types";
 
+const BAR_W = 3;
+const BAR_GAP = 1;
+/** Widest sparkline (5 severity bars); node badges keep this much clear. */
+export const SPARKLINE_MAX_W = 5 * (BAR_W + BAR_GAP) - BAR_GAP;
+
 interface PrivacySparklineProps {
   scoringResult: ScoringResult;
   nodeX: number;
@@ -33,11 +38,12 @@ export function PrivacySparkline({
   if (bars.length === 0) return null;
 
   const maxCount = Math.max(...bars.map((b) => b.count), 1);
-  const barW = 3;
-  const barGap = 1;
+  const barW = BAR_W;
+  const barGap = BAR_GAP;
   const totalW = bars.length * (barW + barGap) - barGap;
   const startX = nodeX + nodeWidth - totalW - 6;
-  const maxH = 16;
+  // Bottom row only (below the summary line's baseline at nodeY + 38)
+  const maxH = 10;
   const baseY = nodeY + nodeHeight - 4;
 
   return (

@@ -79,7 +79,7 @@ export function VerdictBand({ query, inputType, vm, txData, reveal, checkCount, 
                   timer.current = setTimeout(() => setCopied(false), 1800);
                 });
               }}
-              className="group inline-flex items-center gap-2 num text-xs text-muted hover:text-foreground transition-colors min-w-0 max-w-full"
+              className="group inline-flex items-center gap-2 num text-xs text-muted hover:text-foreground transition-colors min-w-0 max-w-full py-1 -my-1"
               aria-label={t("common.copyToClipboard", { defaultValue: "Copy to clipboard" })}
               title={query}
             >
@@ -125,7 +125,7 @@ export function VerdictBand({ query, inputType, vm, txData, reveal, checkCount, 
                   ({vm.status.map((f) => t(findingKeys(f.id, "title", f.params), { ...f.params, defaultValue: f.title })).join("; ")})
                 </span>
               )}
-              <button type="button" onClick={onRetry} className="text-bitcoin hover:underline underline-offset-4">
+              <button type="button" onClick={onRetry} className="text-bitcoin hover:underline underline-offset-4 px-1 -mx-1 py-1 -my-1">
                 {t("page.retry", { defaultValue: "Retry" })}
               </button>
             </div>

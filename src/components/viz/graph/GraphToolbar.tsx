@@ -59,7 +59,7 @@ interface GraphToolbarProps {
 
 const SEP = <span className="text-muted/30 hidden sm:inline select-none">|</span>;
 
-const btnBase = "text-xs transition-colors px-2 py-1 rounded border cursor-pointer";
+const btnBase = "inline-flex items-center justify-center min-h-6 min-w-6 text-xs transition-colors px-2 py-1 rounded border cursor-pointer";
 const btnOff = `${btnBase} text-muted hover:text-foreground border-card-border`;
 const btnDisabled = `${btnBase} text-muted/50 border-card-border cursor-not-allowed`;
 
@@ -145,7 +145,7 @@ export function GraphToolbar(props: GraphToolbarProps) {
       {onSearch && (
         <>
           <form onSubmit={handleSearchSubmit} className="flex items-center gap-1.5">
-            <div className={`${btnBase} border-card-border flex items-center gap-1 pr-1`}>
+            <div className={`${btnBase} border-card-border gap-1 pr-1`}>
               {searchLoading ? (
                 <Loader2 size={12} className="text-bitcoin animate-spin shrink-0" />
               ) : (
@@ -161,7 +161,7 @@ export function GraphToolbar(props: GraphToolbarProps) {
                     ? `${currentLabel ? `${currentLabel} - ` : ""}${truncateId(currentTxid)}`
                     : "txid... (/)"
                 }
-                className="bg-transparent text-xs text-foreground placeholder:text-muted/60 outline-none w-32 sm:w-48 focus:w-44 sm:focus:w-64 transition-[width] duration-200 min-w-0"
+                className="h-6 -my-1 bg-transparent text-xs text-foreground placeholder:text-muted/60 outline-none w-32 sm:w-48 focus:w-44 sm:focus:w-64 transition-[width] duration-200 min-w-0"
                 spellCheck={false}
                 autoComplete="off"
               />
