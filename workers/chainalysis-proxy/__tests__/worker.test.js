@@ -68,3 +68,21 @@ describe("chainalysis-proxy rate limit", () => {
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 });
+
+describe("chainalysis-proxy upstream service errors", () => {
+  it.each([
+    ["an error body", JSON.stringify({ message: "Server Error", status: "500" })],
+    ["a non-JSON body", "<html>oops</html>"],
+  ])("turns HTTP 200 with %s into a 502, never a result", async (_label, body) => {
+    globalThis.fetch.mockImplementation(async () => new Response(body, { status: 200 }));
+    const res = await handler.fetch(req("5.6.7.8"), env);
+    expect(res.status).toBe(502);
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
+  });
+
+  it("passes a real screening result through unchanged", async () => {
+    const res = await handler.fetch(req("5.6.7.9"), env);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ identifications: [] });
+  });
+});

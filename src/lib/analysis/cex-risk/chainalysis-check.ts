@@ -32,6 +32,17 @@ export class ChainalysisRateLimitError extends Error {
 }
 
 /**
+ * Chainalysis answered but gave no screening result (its API returns service
+ * errors with HTTP 200 and no `identifications`). Never read as "not sanctioned".
+ */
+export class ChainalysisServiceError extends Error {
+  constructor() {
+    super("Chainalysis service returned no screening result");
+    this.name = "ChainalysisServiceError";
+  }
+}
+
+/**
  * Per-session results by address (memory only, never persisted). Re-checks
  * and retries after a 429 do not spend the proxy's per-IP quota again.
  */
@@ -75,7 +86,8 @@ async function checkSingleAddress(
     throw new Error(`Chainalysis proxy returned ${res.status}`);
   }
 
-  const data: ChainalysisResponse = await res.json();
+  const data = (await res.json().catch(() => null)) as Partial<ChainalysisResponse> | null;
+  if (!data || !Array.isArray(data.identifications)) throw new ChainalysisServiceError();
   return {
     sanctioned: data.identifications.length > 0,
     identifications: data.identifications,

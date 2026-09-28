@@ -7,6 +7,7 @@ import {
   checkChainalysisViaTor,
   checkChainalysisDirect,
   ChainalysisRateLimitError,
+  ChainalysisServiceError,
   type ChainalysisRoute,
 } from "@/lib/analysis/cex-risk/chainalysis-check";
 import type { ChainalysisCheckResult } from "@/lib/analysis/cex-risk/types";
@@ -74,10 +75,14 @@ export function useChainalysisCheck(
       setChainalysis((prev) => ({
         ...prev,
         status: "error",
-        error: err instanceof ChainalysisRateLimitError ? rateLimitedError() : fallbackMsg,
+        error: err instanceof ChainalysisRateLimitError
+          ? rateLimitedError()
+          : err instanceof ChainalysisServiceError
+            ? t("cex.errorService", { defaultValue: "Chainalysis screening is temporarily unavailable: the Chainalysis service returned an error. Try again later." })
+            : fallbackMsg,
       }));
     },
-    [rateLimitedError],
+    [rateLimitedError, t],
   );
 
   const runChainalysis = useCallback(async () => {
@@ -105,7 +110,7 @@ export function useChainalysisCheck(
             torErr.name === "AbortError"
           )
             return;
-          if (torErr instanceof ChainalysisRateLimitError) throw torErr;
+          if (torErr instanceof ChainalysisRateLimitError || torErr instanceof ChainalysisServiceError) throw torErr;
           // Tor proxy failed on Umbrel - show sidecar-specific error
           // (direct fallback would fail due to CORS on local origins)
           setChainalysis((prev) => ({

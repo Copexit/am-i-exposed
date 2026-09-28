@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { checkChainalysis, ChainalysisRateLimitError } from "../chainalysis-check";
+import { checkChainalysis, ChainalysisRateLimitError, ChainalysisServiceError } from "../chainalysis-check";
 
 const ADDR = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa";
 
@@ -31,5 +31,22 @@ describe("checkChainalysis", () => {
     const err = await checkChainalysis([ADDR]).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(Error);
     expect(err).not.toBeInstanceOf(ChainalysisRateLimitError);
+  });
+
+  it("never reads a Chainalysis service error (HTTP 200, no identifications) as not sanctioned, and does not cache it", async () => {
+    const addr = "bc1qm34lsc65zpw79lxes69zkqmk6ee3ewf0j77s3h";
+    const outage = { message: "Server Error", status: "500", cause2: "cannot execute INSERT in a read-only transaction" };
+    const fetchMock = vi.fn(async () => Response.json(outage));
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(checkChainalysis([addr])).rejects.toBeInstanceOf(ChainalysisServiceError);
+
+    fetchMock.mockImplementation(async () => Response.json({ identifications: [] }));
+    await expect(checkChainalysis([addr])).resolves.toMatchObject({ sanctioned: false });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("treats a non-JSON body as a service error", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("<html>oops</html>", { status: 200 })));
+    await expect(checkChainalysis(["1BoatSLRHtKNngkdXEeobR76b53LETtpyT"])).rejects.toBeInstanceOf(ChainalysisServiceError);
   });
 });

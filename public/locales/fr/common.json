@@ -173,6 +173,7 @@
   "cex.disclaimerCoinJoin": "Cette transaction a été identifiée comme un CoinJoin. Plusieurs exchanges centralisés sont documentés pour signaler, geler ou fermer des comptes pour des dépôts associés à un CoinJoin - même des mois ou des années après la transaction. Ces vérifications couvrent uniquement le filtrage des sanctions et ne peuvent pas prédire les décisions de conformité des exchanges.",
   "cex.errorDirectFallback": "Les connexions Tor et directe ont échoué. Essayez de redémarrer l'application ou vérifiez votre connexion internet.",
   "cex.errorRateLimited": "Trop de vérifications de sanctions depuis ce réseau en ce moment (la limite est partagée sur Tor). Attendez une minute et réessayez.",
+  "cex.errorService": "La vérification Chainalysis est temporairement indisponible : le service Chainalysis a renvoyé une erreur. Réessayez plus tard.",
   "cex.errorUmbrelSidecar": "Sidecar du proxy Tor indisponible. Assurez-vous que le conteneur sidecar fonctionne, ou redémarrez l'application am-i.exposed depuis le tableau de bord de votre serveur (Umbrel, StartOS, etc.).",
   "cex.exchangeRiskCheck": "Vérification du risque exchange",
   "cex.flagged": "SIGNALÉ",
