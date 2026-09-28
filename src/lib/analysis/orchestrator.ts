@@ -5,14 +5,14 @@ import type {
   MempoolAddress,
   MempoolUtxo,
 } from "@/lib/api/types";
-import type { HeuristicTranslator, TxContext } from "./heuristics/types";
+import type { TxContext } from "./heuristics/types";
 import { analyzeTemporalCorrelation } from "./chain/temporal";
 import { analyzeFingerprintEvolution } from "./chain/prospective";
 import { calculateScore, sumImpact } from "@/lib/scoring/score";
 import { matchEntitySync } from "./entity-filter/entity-match";
 import { getEntity } from "./entities";
 import { enrichFindingsWithMetadata } from "./finding-metadata";
-import { TX_HEURISTICS, ADDRESS_HEURISTICS, tick } from "./heuristic-registry";
+import { tick } from "./heuristic-registry";
 import { runTxHeuristics, finalizeTxResult } from "./tx-pipeline";
 import { runAddressHeuristics } from "./address-orchestrator";
 
@@ -20,45 +20,7 @@ export { runTxHeuristics, finalizeTxResult } from "./tx-pipeline";
 
 export { analyzeTransactionsForAddress, analyzeDestination } from "./address-orchestrator";
 export type { PreSendResult } from "./address-orchestrator";
-
-export interface HeuristicStep {
-  id: string;
-  label: string;
-  status: "pending" | "running" | "done";
-  impact?: number; // cumulative score impact after this step completes
-}
-
-const CHAIN_STEPS = [
-  { id: "chain-backward", label: "Input provenance analysis" },
-  { id: "chain-forward", label: "Output destination analysis" },
-  { id: "chain-cluster", label: "Address clustering" },
-  { id: "chain-spending", label: "Spending pattern analysis" },
-  { id: "chain-entity", label: "Entity proximity scan" },
-  { id: "chain-taint", label: "Taint flow analysis" },
-] as const;
-
-export function getTxHeuristicSteps(t?: HeuristicTranslator): HeuristicStep[] {
-  return [
-    ...TX_HEURISTICS.map((h) => ({
-      id: h.id,
-      label: t ? t(`step.${h.id}.label`, { defaultValue: h.label }) : h.label,
-      status: "pending" as const,
-    })),
-    ...CHAIN_STEPS.map((h) => ({
-      id: h.id,
-      label: t ? t(`step.${h.id}.label`, { defaultValue: h.label }) : h.label,
-      status: "pending" as const,
-    })),
-  ];
-}
-
-export function getAddressHeuristicSteps(t?: HeuristicTranslator): HeuristicStep[] {
-  return ADDRESS_HEURISTICS.map((h) => ({
-    id: h.id,
-    label: t ? t(`step.${h.id}.label`, { defaultValue: h.label }) : h.label,
-    status: "pending" as const,
-  }));
-}
+export { getTxHeuristicSteps, getAddressHeuristicSteps, type HeuristicStep } from "./heuristic-steps";
 
 /**
  * Run the tx heuristics and report each one to the diagnostic loader

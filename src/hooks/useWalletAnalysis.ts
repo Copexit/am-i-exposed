@@ -10,17 +10,10 @@ import {
   type DescriptorParseResult,
   type ScriptType,
 } from "@/lib/bitcoin/descriptor";
-import { auditWallet, type WalletAuditResult, type WalletAddressInfo } from "@/lib/analysis/wallet-audit";
-import {
-  scanChain,
-  walletChains,
-  collectWalletTxs,
-  traceWalletTxs,
-  UTXO_TRACE_DEPTH,
-  type UtxoTraceResult,
-} from "@/lib/wallet/scan";
+import type { WalletAuditResult, WalletAddressInfo } from "@/lib/analysis/wallet-audit";
+import type { UtxoTraceResult } from "@/lib/wallet/scan";
 import { mapApiErrorMessage } from "@/lib/api/error-message";
-import { buildTraceBarrier } from "@/lib/analysis/chain-trace";
+import { loadEngine } from "@/lib/analysis/load-engine";
 
 export type { UtxoTraceResult } from "@/lib/wallet/scan";
 
@@ -110,6 +103,11 @@ export function useWalletAnalysis() {
           },
           progress: { fetched: 0, total: 0 },
         }));
+
+        const {
+          scanChain, walletChains, collectWalletTxs, traceWalletTxs, UTXO_TRACE_DEPTH, auditWallet, buildTraceBarrier,
+        } = await loadEngine();
+        if (controller.signal.aborted) return;
 
         // Step 2: Incrementally derive + fetch addresses.
         const api = createApiClient(config, controller.signal);

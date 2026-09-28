@@ -3,7 +3,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useNetwork } from "@/context/NetworkContext";
 import { createApiClient } from "@/lib/api/client";
-import { searchEntitiesByPrefix } from "@/lib/analysis/entity-filter/entity-search";
 
 /** Minimum prefix length before querying the address API. */
 const MIN_PREFIX_LENGTH = 4;
@@ -49,6 +48,8 @@ export function useAddressAutocomplete() {
 
   const fetchSuggestions = useCallback((prefix: string) => {
     clearTimeout(timerRef.current);
+    // Any newer keystroke invalidates in-flight address or entity lookups
+    const seq = ++seqRef.current;
 
     const trimmed = prefix.trim();
 
@@ -70,7 +71,6 @@ export function useAddressAutocomplete() {
 
     // Path 1: Address prefix autocomplete (API call with debounce)
     if (isAddressPrefix && isOwnNode && trimmed.length >= MIN_PREFIX_LENGTH) {
-      const seq = ++seqRef.current;
 
       const fetchSuggestions = async () => {
         abortRef.current?.abort();
@@ -100,24 +100,28 @@ export function useAddressAutocomplete() {
       return;
     }
 
-    // Path 2: Entity name autocomplete (synchronous, no API call)
+    // Path 2: Entity name autocomplete (local, no API call). The entity list is
+    // loaded on first use so the home page does not ship it up front.
     if (!isAddressPrefix && trimmed.length >= MIN_ENTITY_QUERY) {
-      const entityResults = searchEntitiesByPrefix(trimmed, 10);
-      if (entityResults.length > 0) {
-        setSuggestions(
-          entityResults.map((e) => ({
-            type: "entity" as const,
-            value: e.address,
-            entityName: e.entityName,
-            category: e.category,
-          })),
-        );
-        setSelectedIndex(-1);
-        setIsOpen(true);
-      } else {
-        setSuggestions([]);
-        setIsOpen(false);
-      }
+      void import("@/lib/analysis/entity-filter/entity-search").then(({ searchEntitiesByPrefix }) => {
+        if (seq !== seqRef.current) return;
+        const entityResults = searchEntitiesByPrefix(trimmed, 10);
+        if (entityResults.length > 0) {
+          setSuggestions(
+            entityResults.map((e) => ({
+              type: "entity" as const,
+              value: e.address,
+              entityName: e.entityName,
+              category: e.category,
+            })),
+          );
+          setSelectedIndex(-1);
+          setIsOpen(true);
+        } else {
+          setSuggestions([]);
+          setIsOpen(false);
+        }
+      });
       return;
     }
 
