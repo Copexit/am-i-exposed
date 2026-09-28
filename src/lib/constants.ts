@@ -175,10 +175,19 @@ export const EXAMPLES: ExampleItem[] = [
     input: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
   },
   {
-    labelKey: "page.example_stonewall",
-    labelDefault: "Stonewall",
+    // Whirlpool output spent alone (1-in-1-out): CoinJoin input, no change, no merge
+    labelKey: "page.example_postmix",
+    labelDefault: "Post-mix spend",
     hint: "B",
     hintColor: "text-severity-low",
+    input: "8c04765862e8b6d9c122e83cc361e21ab24f0f4c1f48a37385620b917d0d041c",
+  },
+  {
+    // Live grade includes chain findings (CoinJoin ancestry and forward chain)
+    labelKey: "page.example_stonewall",
+    labelDefault: "Stonewall",
+    hint: "A+",
+    hintColor: "text-severity-good",
     input: "19a79be39c05a0956c7d1f9f28ee6f1091096247b0906b6a8536dd7f400f2358",
   },
   {
@@ -205,7 +214,8 @@ export const EXAMPLES: ExampleItem[] = [
   {
     labelKey: "page.presend_fresh",
     labelDefault: "Fresh address",
-    hint: "A",
+    // Destination check (no grade for an unused address), like the OFAC card
+    hint: "Low risk",
     hintColor: "text-severity-good",
     input: "bc1pes5mfje89xdr6uh4qu6p4m0r8d6nz3tvgagtwgv99yalqwzyhdzqrl3mnu",
   },
