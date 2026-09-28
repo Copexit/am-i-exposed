@@ -37,10 +37,7 @@ function CodeBlock({ code, lang = "bash" }: { code: string; lang?: string }) {
 
 export function AgentsPage() {
   return (
-    <PageShell
-      backLabel="Back to scanner"
-      className="sm:px-6 lg:px-8 xl:px-10"
-    >
+    <PageShell>
         {/* Title */}
         <div className="space-y-3">
           <div className="flex items-center gap-3">

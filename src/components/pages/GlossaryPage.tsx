@@ -37,7 +37,7 @@ export function GlossaryPage() {
   }, [filter, t]);
 
   return (
-    <PageShell backLabel={t("glossary.back", { defaultValue: "Back to scanner" })} spacing="space-y-8">
+    <PageShell spacing="space-y-8">
         <KnowledgeTabBar />
 
         {/* Title + search */}

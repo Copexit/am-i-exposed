@@ -39,7 +39,7 @@ This applies to all strings, comments, UI text, metadata, test descriptions, and
 - Use `motion/react` (not `framer-motion`) for animations
 - Next.js 16 with static export (`output: "export"`)
 - All Bitcoin amounts in satoshis (never BTC floats in logic)
-- Dark theme only - no light mode toggle
+- Dark and light themes: the theme follows the OS by default (System / Light / Dark in settings, `useTheme`); tokens live in `src/app/globals.css` (`:root` dark, `html[data-theme="light"]` light) and are mirrored for JS in `src/lib/palette.ts`
 - `"use client"` on all interactive pages/components (static export does not support RSC)
 
 ### Bitcoin-specific
@@ -66,7 +66,7 @@ The real Boltzmann Link Probability Matrix is implemented in Rust, compiled to W
 - **Pre-built WASM**: `public/wasm/boltzmann/` - ~70KB `.wasm` + JS glue, committed to git
 - **Worker**: `public/workers/boltzmann.worker.js` - plain JS (not TypeScript), loads WASM via fetch+blob URL
 - **Hook**: `src/hooks/useBoltzmann.ts` - singleton worker, auto-compute for <=8x8 txs
-- **UI**: `src/components/viz/LinkabilityHeatmap.tsx` - heat map in Zone 11 of ResultsPanel
+- **UI**: `src/components/viz/LinkabilityHeatmap.tsx` - the Link Probability Matrix, rendered by `src/components/results/DeepAnalysisTxid.tsx` inside the analyst workspace (`src/components/results/AnalystWorkspace.tsx`) of a tx result
 
 ### Rebuilding WASM
 
@@ -108,7 +108,7 @@ After rebuilding, commit the updated files in `public/wasm/boltzmann/`. The work
 ### Publish New Umbrel Release
 
 1. Run `pnpm lint && pnpm test && pnpm build` - all must pass
-2. Bump `version` in `package.json` (e.g. `0.35.5` -> `0.35.6`)
+2. Bump `version` in `package.json` and `cli/package.json` (e.g. `0.35.5` -> `0.35.6`)
 3. Commit: `chore: bump version to X.Y.Z`
 4. Tag: `git tag vX.Y.Z`
 5. Push: `git push origin main --tags` - triggers CI to build both Docker images
@@ -132,6 +132,7 @@ Project documentation lives in `docs/`. Before tackling new tasks, explore this 
 
 - **`docs/privacy-engine.md`** - Canonical heuristic reference (all registered heuristics), scoring model, threat model
 - **`docs/development-guide.md`** - Architecture, components, state machine, API endpoints
+- **`docs/ui/design.md`** - UI design system: tokens, type, layout, components, copy rules
 - **`docs/testing-reference.md`** - Example transactions/addresses with expected grades
 - **`docs/research-boltzmann-entropy.md`** - Entropy math and implementation notes
 

@@ -14,11 +14,7 @@ import {
   updateFullEntityData,
 } from "@/lib/analysis/entity-filter";
 
-interface EntityFilterStatusProps {
-  proMode: boolean;
-}
-
-export function EntityFilterStatus({ proMode }: EntityFilterStatusProps) {
+export function EntityFilterStatus() {
   const { t } = useTranslation();
   const [, forceUpdate] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -117,7 +113,7 @@ export function EntityFilterStatus({ proMode }: EntityFilterStatusProps) {
             })}
           </p>
 
-          {proMode && !fullLoaded && fullStatus !== "unavailable" && !isDownloading && (
+          {!fullLoaded && fullStatus !== "unavailable" && !isDownloading && (
             <button
               onClick={handleLoadFull}
               className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-xs font-medium rounded-lg bg-bitcoin/10 text-bitcoin border border-bitcoin/20 hover:bg-bitcoin/20 hover:border-bitcoin/40 transition-all cursor-pointer"

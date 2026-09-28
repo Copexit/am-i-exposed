@@ -284,6 +284,6 @@ Every test case verifies: exact nbCmbn, entropy to 10 decimal places, exact matL
 
 - Adds ~50-100 KB WASM binary to the static export
 - Requires Rust toolchain only for WASM rebuilds (pre-built binaries committed to git)
-- New heat map visualization in the Deep Analysis zone (Zone 11 of ResultsPanel)
+- New heat map visualization in the Deep Analysis zone (Zone 11 of the results layout at the time; since v0.37.0 `LinkabilityHeatmap` renders in the analyst workspace via `src/components/results/DeepAnalysisTxid.tsx`)
 - Users with older browsers lacking Web Worker support see graceful "unsupported" message
 - Existing entropy/linkability findings continue to work as before - no breaking changes

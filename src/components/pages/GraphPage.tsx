@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useEffectEvent, useMemo, useCallback, useRef, lazy, Suspense } from "react";
 import { useTranslation } from "react-i18next";
-import { usePathname, useRouter } from "next/navigation";
-import { isV2Path, scannerHref } from "@/lib/v2/paths";
+import { useRouter } from "next/navigation";
 import { useNetwork } from "@/context/NetworkContext";
 import { createApiClient } from "@/lib/api/client";
 import { useGraphExpansion } from "@/hooks/useGraphExpansion";
@@ -14,6 +13,7 @@ import { loadSavedGraph } from "@/lib/graph/graph-loader";
 import { savedGraphStore } from "@/hooks/useSavedGraphs";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { SavedGraph } from "@/lib/graph/saved-graph-types";
+import { setHash } from "@/lib/hash-nav";
 
 const GraphExplorer = lazy(() =>
   import("@/components/viz/GraphExplorer").then((m) => ({ default: m.GraphExplorer })),
@@ -25,7 +25,6 @@ const TX_EXAMPLES = EXAMPLES.filter((e) => TXID_RE.test(e.input));
 export function GraphPage() {
   const { t } = useTranslation();
   const router = useRouter();
-  const pathname = usePathname();
   // Initial load waits (apiReady) until the backend is known (Umbrel / Tor onion / clearnet)
   const { network, config, configFor, setNetwork, isUmbrel, apiReady } = useNetwork();
   const api = useMemo(() => createApiClient(config), [config]);
@@ -183,7 +182,7 @@ export function GraphPage() {
       } else {
         // First visit - random example (the hashchange handler loads it)
         const example = TX_EXAMPLES[Math.floor(Math.random() * TX_EXAMPLES.length)];
-        if (example) window.location.hash = `txid=${example.input}`;
+        if (example) setHash(`txid=${example.input}`, { replace: true });
       }
     }
   });
@@ -201,7 +200,7 @@ export function GraphPage() {
       const next = `txid=${txid}`;
       // Setting the hash fires hashchange, which loads. Same hash: reload directly.
       if (window.location.hash.slice(1) !== next) {
-        window.location.hash = next;
+        setHash(next);
         return;
       }
       const example = TX_EXAMPLES.find((e) => e.input.toLowerCase() === txid.toLowerCase());
@@ -212,8 +211,8 @@ export function GraphPage() {
   );
 
   const handleFullScan = useCallback((txid: string) => {
-    router.push(scannerHref(`tx=${txid}`, pathname));
-  }, [router, pathname]);
+    router.push(`/#tx=${txid}`);
+  }, [router]);
 
   // Auto-clear load warning after 8 seconds
   useEffect(() => {
@@ -223,7 +222,7 @@ export function GraphPage() {
   }, [loadWarning]);
 
   return (
-    <div className={isV2Path(pathname) ? "relative w-full h-[calc(100dvh-57px)]" : "relative w-full h-[calc(100vh-72px)] sm:h-[calc(100vh-80px)]"}>
+    <div className="relative w-full h-[calc(100dvh-var(--header-h,57px)-var(--notice-h,0px))]">
       <ChartErrorBoundary>
         <Suspense fallback={null}>
           <GraphExplorer

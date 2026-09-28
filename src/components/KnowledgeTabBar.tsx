@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { Shield, HelpCircle, BookOpen } from "lucide-react";
-import { uiHref } from "@/components/v2/pages/uiHref";
 
 const TABS = [
   { href: "/guide/", labelKey: "common.guide", labelDefault: "Guide", icon: Shield },
@@ -22,7 +21,7 @@ export function KnowledgeTabBar() {
 
   const isActive = (href: string) => {
     const normalized = currentPath.replace(/\/$/, "") || "/";
-    const target = uiHref(href, currentPath).replace(/\/$/, "") || "/";
+    const target = href.replace(/\/$/, "") || "/";
     return normalized === target;
   };
 
@@ -34,7 +33,7 @@ export function KnowledgeTabBar() {
         return (
           <Link
             key={tab.href}
-            href={uiHref(tab.href, currentPath)}
+            href={tab.href}
             aria-current={active ? "page" : undefined}
             aria-label={t(tab.labelKey, { defaultValue: tab.labelDefault })}
             className={`flex items-center gap-1.5 text-sm px-2.5 sm:px-3 py-2 rounded-lg transition-colors ${

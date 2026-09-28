@@ -12,6 +12,7 @@ import { useBookmarks } from "@/hooks/useBookmarks";
 import { useKeyboardNav } from "@/hooks/useKeyboardNav";
 import { useHashRouting } from "@/hooks/useHashRouting";
 import { isXpubPrivacyAcked } from "@/components/wallet/XpubPrivacyWarning";
+import { setHash } from "@/lib/hash-nav";
 
 type TranslationFn = (key: string, options?: Record<string, unknown>) => string;
 
@@ -57,7 +58,7 @@ export function getAriaStatus({ walletActive, walletPhase, walletResult, phase, 
 }
 
 /**
- * Scanner page controller shared by the classic and v2 home pages:
+ * Scanner page controller for the home page:
  * analysis state, hash routing, submit/back handlers, recent scans,
  * bookmarks, document title, service worker, keyboard nav, xpub warning.
  */
@@ -117,7 +118,7 @@ export function useScanner() {
   // Keyboard navigation
   useKeyboardNav({
     onBack: () => {
-      if (phase !== "idle") { window.location.hash = ""; reset(); }
+      if (phase !== "idle") { setHash(""); reset(); }
     },
     onFocusSearch: () => {
       if (phase === "idle") inputRef.current?.focus();
@@ -128,7 +129,7 @@ export function useScanner() {
     const newHash = `xpub=${encodeURIComponent(input)}`;
     const oldHash = window.location.hash.slice(1);
     if (oldHash !== newHash) skipNextHashChangeRef.current = true;
-    window.location.hash = newHash;
+    setHash(newHash);
     reset();
     // Fire-and-forget: the callee catches its own errors.
     void wallet.analyze(input);
@@ -138,7 +139,11 @@ export function useScanner() {
     if (pendingXpub) { startXpubScan(pendingXpub); setPendingXpub(null); }
   }, [pendingXpub, startXpubScan]);
 
-  const handleXpubCancel = useCallback(() => { setPendingXpub(null); }, []);
+  const handleXpubCancel = useCallback(() => {
+    setPendingXpub(null);
+    // A cancelled #xpub= deep link would otherwise prompt again on reload.
+    if (window.location.hash.startsWith("#xpub=")) setHash("", { replace: true });
+  }, []);
 
   const handleSubmit = useCallback((input: string) => {
     if (isXpubOrDescriptor(input)) {
@@ -151,13 +156,13 @@ export function useScanner() {
     const prefix = input.length === 64 ? "tx" : "addr";
     const newHash = `${prefix}=${encodeURIComponent(input)}`;
     const oldHash = window.location.hash.slice(1);
-    window.location.hash = newHash;
+    setHash(newHash);
     // Fire-and-forget: the callee catches its own errors.
     if (oldHash === newHash) { wallet.reset(); void analyze(input); }
   }, [analyze, isThirdPartyApi, startXpubScan, wallet]);
 
   const handleBack = useCallback(() => {
-    window.location.hash = "";
+    setHash("");
     reset();
     wallet.reset();
   }, [reset, wallet]);

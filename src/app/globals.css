@@ -1,98 +1,12 @@
 @import "tailwindcss";
 
-:root {
-  --background: #0c0c0e;
-  --foreground: #f0f0f2;
-  --muted: #d4d4dc;
-  --card-bg: #1c1c20;
-  --card-border: #444450;
-  --surface-inset: #151518;
-  --surface-elevated: #222228;
-  --bitcoin: #f7931a;
-  --bitcoin-hover: #e8850f;
-  --violet: #8b5cf6;
-  --success: #28d065;
-  --warning: #eab308;
-  --danger: #ef4444;
-  --info: #60a5fa;
-  --severity-critical: #ef4444;
-  --severity-high: #f97316;
-  --severity-medium: #eab308;
-  --severity-low: #60a5fa;
-  --severity-good: #28d065;
-  --glass-bg: rgba(28, 28, 32, 0.75);
-  --glass-border: rgba(255, 255, 255, 0.06);
-  --glass-blur: 16px;
-  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  --bitcoin-gradient: linear-gradient(135deg, #f7931a 0%, #e8850f 50%, #d4790a 100%);
-  --overlay-bg: rgba(28, 28, 32, 0.95);
-  --overlay-border: rgba(255, 255, 255, 0.1);
-  --overlay-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  --subtle-border: rgba(255, 255, 255, 0.06);
-  --subtle-hover: rgba(255, 255, 255, 0.02);
-  --shimmer-color: rgba(255, 255, 255, 0.4);
-  --glow-card-color: color-mix(in srgb, var(--bitcoin) 7%, transparent);
-}
-
-html[data-theme="light"] {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --muted: #475569;
-  --card-bg: #ffffff;
-  --card-border: #cbd5e1;
-  --surface-inset: #f1f5f9;
-  --surface-elevated: #ffffff;
-  --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(0, 0, 0, 0.1);
-  --glass-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
-  --overlay-bg: rgba(255, 255, 255, 0.95);
-  --overlay-border: rgba(0, 0, 0, 0.1);
-  --overlay-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
-  --subtle-border: rgba(0, 0, 0, 0.1);
-  --subtle-hover: rgba(0, 0, 0, 0.04);
-  --shimmer-color: rgba(0, 0, 0, 0.12);
-  --glow-card-color: color-mix(in srgb, var(--bitcoin) 15%, transparent);
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-muted: var(--muted);
-  --color-card-bg: var(--card-bg);
-  --color-card-border: var(--card-border);
-  --color-surface-inset: var(--surface-inset);
-  --color-surface-elevated: var(--surface-elevated);
-  --color-bitcoin: var(--bitcoin);
-  --color-bitcoin-hover: var(--bitcoin-hover);
-  --color-success: var(--success);
-  --color-warning: var(--warning);
-  --color-danger: var(--danger);
-  --color-info: var(--info);
-  --color-severity-critical: var(--severity-critical);
-  --color-severity-high: var(--severity-high);
-  --color-severity-medium: var(--severity-medium);
-  --color-severity-low: var(--severity-low);
-  --color-severity-good: var(--severity-good);
-  --color-glass-bg: var(--glass-bg);
-  --color-glass-border: var(--glass-border);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  /* v2 UI tokens (defined under [data-ui="v2"] only) */
-  --color-surface-1: var(--surface-1);
-  --color-surface-2: var(--surface-2);
-  --color-surface-float: var(--surface-float);
-  --color-hairline: var(--hairline);
-  --color-hairline-strong: var(--hairline-strong);
-  --color-faint: var(--faint);
-}
-
 /*
- * v2 UI ("a quiet instrument"): calmer surfaces, hairlines instead of boxes.
- * Classic tokens are re-pointed too, so classic components embedded in v2
- * (graph explorer, heatmap, settings) adopt the v2 look without changing
- * the classic UI. Dark only. See docs/v2/design.md.
+ * "A quiet instrument": calm surfaces, hairlines instead of boxes. Dark is
+ * the default; light is html[data-theme="light"]. See docs/ui/design.md.
+ * JS mirrors: DARK_COLORS / LIGHT_COLORS in src/lib/palette.ts.
  */
-[data-ui="v2"] {
+:root {
+  color-scheme: dark;
   --background: #0b0b0d;
   --foreground: #f2f2f4;
   --muted: #a6a6b0;
@@ -105,14 +19,32 @@ html[data-theme="light"] {
   --card-border: rgba(255, 255, 255, 0.1);
   --surface-inset: #111114;
   --surface-elevated: #1d1d22;
-  --glass-bg: rgba(17, 17, 20, 0.82);
-  --glass-border: rgba(255, 255, 255, 0.07);
-  --glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 12px 40px rgba(0, 0, 0, 0.35);
-  --overlay-bg: rgba(20, 20, 24, 0.97);
-  --overlay-border: rgba(255, 255, 255, 0.1);
+  --bitcoin: #f7931a;
+  --bitcoin-hover: #e8850f;
   --bitcoin-text: #f7931a;
   --bitcoin-display: #f7931a;
   --surface-float: #17171b;
+  --violet: #8b5cf6;
+  --success: #28d065;
+  --warning: #eab308;
+  --danger: #ef4444;
+  --info: #60a5fa;
+  --severity-critical: #ef4444;
+  --severity-high: #f97316;
+  --severity-medium: #eab308;
+  --severity-low: #60a5fa;
+  --severity-good: #28d065;
+  --glass-bg: rgba(17, 17, 20, 0.82);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --glass-blur: 16px;
+  --glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 12px 40px rgba(0, 0, 0, 0.35);
+  --bitcoin-gradient: linear-gradient(135deg, #f7931a 0%, #e8850f 50%, #d4790a 100%);
+  --overlay-bg: rgba(20, 20, 24, 0.97);
+  --overlay-border: rgba(255, 255, 255, 0.1);
+  --overlay-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --subtle-border: rgba(255, 255, 255, 0.06);
+  --subtle-hover: rgba(255, 255, 255, 0.02);
+  --glow-card-color: color-mix(in srgb, var(--bitcoin) 7%, transparent);
   --shadow-sm: 0 0 #0000;
   --shadow-card: 0 0 #0000;
   --shadow-pop: 0 25px 50px -12px rgb(0 0 0 / 0.25);
@@ -123,15 +55,15 @@ html[data-theme="light"] {
 }
 
 /*
- * v2 light: designed as light, not an inverted dark. Elevation is a white
+ * Light: designed as light, not an inverted dark. Elevation is a near-white
  * surface on a softly tinted cool page, a hairline and a soft layered shadow
- * (dark stays flat: its shadow tokens are transparent). Clean zinc/slate
- * neutrals. --bitcoin stays the real brand orange for fills, marks and focus;
- * orange TEXT uses --bitcoin-text (AA) or --bitcoin-display (large type, 3:1).
- * Severity tokens are AA text shades; fills and soft tints use the --fill-*
- * hues below (see the remaps after this block).
+ * (dark stays flat: its shadow tokens are transparent). --bitcoin stays the
+ * real brand orange for fills, marks and focus; orange TEXT uses
+ * --bitcoin-text (AA) or --bitcoin-display (large type, 3:1). Severity tokens
+ * are AA text shades; fills and soft tints use the --fill-* hues below (see
+ * the remaps after this block).
  */
-html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"] {
+html[data-theme="light"] {
   --background: #eceef2;
   --foreground: #15171c;
   --muted: #4a4f5a;
@@ -175,24 +107,55 @@ html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"] 
   --overlay-shadow: 0 2px 6px rgba(16, 18, 24, 0.05), 0 18px 44px -10px rgba(16, 18, 24, 0.18);
   --subtle-border: rgba(15, 17, 21, 0.14);
   --subtle-hover: rgba(15, 17, 21, 0.05);
-  --shimmer-color: rgba(15, 17, 21, 0.08);
+  --glow-card-color: color-mix(in srgb, var(--bitcoin) 15%, transparent);
   color-scheme: light;
 }
 
-/* Orange text fails contrast on white: in v2 light, bitcoin-colored text uses the deeper accent. */
-:is(html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"]) :is(.text-bitcoin, .hover\:text-bitcoin:hover, .group:hover .group-hover\:text-bitcoin) {
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-card-bg: var(--card-bg);
+  --color-card-border: var(--card-border);
+  --color-surface-inset: var(--surface-inset);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-bitcoin: var(--bitcoin);
+  --color-bitcoin-hover: var(--bitcoin-hover);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-severity-critical: var(--severity-critical);
+  --color-severity-high: var(--severity-high);
+  --color-severity-medium: var(--severity-medium);
+  --color-severity-low: var(--severity-low);
+  --color-severity-good: var(--severity-good);
+  --color-glass-bg: var(--glass-bg);
+  --color-glass-border: var(--glass-border);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-float: var(--surface-float);
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+  --color-faint: var(--faint);
+}
+
+/* Orange text fails contrast on white: in light, bitcoin-colored text uses the deeper accent. */
+html[data-theme="light"] :is(.text-bitcoin, .hover\:text-bitcoin:hover, .group:hover .group-hover\:text-bitcoin) {
   color: var(--bitcoin-text);
 }
-:is(html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"]) :is(.text-bitcoin\/85, .text-bitcoin\/80, .text-bitcoin\/70, .text-bitcoin\/50, .hover\:text-bitcoin\/80:hover, .group:hover .group-hover\:text-bitcoin\/80) {
+html[data-theme="light"] :is(.text-bitcoin\/85, .text-bitcoin\/80, .text-bitcoin\/70, .text-bitcoin\/50, .hover\:text-bitcoin\/80:hover, .group:hover .group-hover\:text-bitcoin\/80) {
   color: color-mix(in srgb, var(--bitcoin-text) 88%, transparent);
 }
 
 /*
- * v2 light severity: solid marks (dots, bars) use the brighter fill hues, and
+ * Light severity: solid marks (dots, bars) use the brighter fill hues, and
  * the translucent tints dark mode uses become clean soft tints (red-50 style)
  * instead of greyed 700-shade washes.
  */
-:is(html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"]) {
+html[data-theme="light"] {
   .bg-severity-critical { background-color: var(--fill-critical); }
   .bg-severity-high { background-color: var(--fill-high); }
   .bg-severity-medium { background-color: var(--fill-medium); }
@@ -211,23 +174,23 @@ html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"] 
   :is(.border-severity-good\/15, .border-severity-good\/20, .border-severity-good\/30, .border-severity-good\/40) { border-color: color-mix(in srgb, var(--fill-good) 28%, var(--card-bg)); }
 }
 
-/* v2 light chrome: white glass bars, panels, clean paper (no film grain), quiet scrollbars. */
-:is(html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"]) {
+/* Light chrome: white glass bars, panels, clean paper (no film grain), quiet scrollbars. */
+html[data-theme="light"] {
   .bg-background\/75 { background-color: rgb(236 238 242 / 0.85); }
   /*
-   * Classic panels embedded in v2 use bg-surface-inset for both page-level
+   * Panels use bg-surface-inset for both page-level
    * containers and wells inside cards. On paper the first must be raised
    * (white), the second recessed: resolve by nesting.
    */
   :is(.bg-surface-inset, .bg-surface-inset\/50, .bg-surface-inset\/40) { background-color: var(--surface-1); }
-  :is(.bg-surface-1, .bg-card-bg, .bg-surface-elevated, .v2-panel, .glass, .v2-canvas) :is(.bg-surface-inset, .bg-surface-inset\/50, .bg-surface-inset\/40) { background-color: var(--surface-inset); }
+  :is(.bg-surface-1, .bg-card-bg, .bg-surface-elevated, .panel, .glass, .graph-canvas) :is(.bg-surface-inset, .bg-surface-inset\/50, .bg-surface-inset\/40) { background-color: var(--surface-inset); }
   /* Home scan field: disabled Scan reads as a quiet grey key, not a washed-out orange one. */
-  .v2-hero-field button:disabled { background: var(--surface-2) !important; color: var(--faint); box-shadow: none !important; opacity: 1; }
-  .v2-readouts { box-shadow: var(--shadow-card); }
-  .v2-readouts > * { background-color: var(--surface-1); }
-  .v2-canvas { box-shadow: var(--shadow-card); border-color: var(--hairline); }
-  .v2-canvas-backdrop { background-color: rgb(236 238 242 / 0.9); backdrop-filter: blur(14px); }
-  .v2-panel {
+  .hero-field button:disabled { background: var(--surface-2) !important; color: var(--faint); box-shadow: none !important; opacity: 1; }
+  .readouts { box-shadow: var(--shadow-card); }
+  .readouts > * { background-color: var(--surface-1); }
+  .graph-canvas { box-shadow: var(--shadow-card); border-color: var(--hairline); }
+  .graph-canvas-backdrop { background-color: rgb(236 238 242 / 0.9); backdrop-filter: blur(14px); }
+  .panel {
     background: var(--surface-1);
     border: 1px solid var(--hairline);
     border-radius: 12px;
@@ -239,24 +202,24 @@ html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"] 
   ::-webkit-scrollbar-thumb:hover { background: rgba(15, 17, 21, 0.3); }
   scrollbar-color: rgba(15, 17, 21, 0.2) transparent;
 }
-html[data-theme="light"][data-ui="v2"] body::after { display: none; }
+html[data-theme="light"] body::after { display: none; }
 @media (min-width: 640px) {
-  :is(html[data-theme="light"][data-ui="v2"], html[data-theme="light"] [data-ui="v2"]) .v2-panel { padding: 24px; }
+  html[data-theme="light"] .panel { padding: 24px; }
 }
 
-[data-ui="v2"] .v2-num {
+.num {
   font-family: var(--font-geist-mono), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
 }
 
-[data-ui="v2"] .no-scrollbar {
+.no-scrollbar {
   scrollbar-width: none;
 }
-[data-ui="v2"] .no-scrollbar::-webkit-scrollbar {
+.no-scrollbar::-webkit-scrollbar {
   display: none;
 }
 
-[data-ui="v2"] .v2-eyebrow {
+.eyebrow {
   font-family: var(--font-geist-mono), ui-monospace, monospace;
   font-size: 11px;
   line-height: 1;
@@ -272,7 +235,8 @@ html[data-theme="light"][data-ui="v2"] body::after { display: none; }
 }
 
 [id] {
-  scroll-margin-top: 96px;
+  /* Clears the sticky header plus the sticky section nav. */
+  scroll-margin-top: calc(var(--header-h, 64px) + 64px);
 }
 
 body {
@@ -303,10 +267,6 @@ body {
 ::selection {
   background: var(--bitcoin);
   color: #000;
-}
-
-html[data-theme="light"] ::selection {
-  color: #fff;
 }
 
 button:focus-visible,
@@ -357,15 +317,6 @@ select:focus-visible {
   }
 }
 
-@keyframes shimmer {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
-}
-
 /* Noise texture overlay for premium film-grain effect */
 body::after {
   content: '';
@@ -379,51 +330,6 @@ body::after {
   background-repeat: repeat;
   background-size: 256px 256px;
 }
-
-html[data-theme="light"] body::after {
-  opacity: 0.03;
-  mix-blend-mode: multiply;
-}
-
-/* Gradient divider */
-.gradient-divider {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--violet) 40%, transparent) 30%, color-mix(in srgb, var(--bitcoin) 40%, transparent) 70%, transparent);
-}
-
-html[data-theme="light"] .gradient-divider {
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--violet) 35%, transparent) 30%, color-mix(in srgb, var(--bitcoin) 35%, transparent) 70%, transparent);
-}
-
-/* Sliding underline hover */
-.link-underline {
-  position: relative;
-}
-.link-underline::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 0;
-  width: 100%;
-  height: 1px;
-  background: currentColor;
-  transform: scaleX(0);
-  transform-origin: right;
-  transition: transform 0.3s ease;
-}
-.link-underline:hover::after {
-  transform: scaleX(1);
-  transform-origin: left;
-}
-
-/* Gradient text utility */
-.gradient-text {
-  background: linear-gradient(135deg, var(--bitcoin), var(--severity-critical));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
 
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -19,12 +19,17 @@ USER root
 RUN rm -f /etc/nginx/conf.d/default.conf
 USER nginx
 
-# Copy nginx config template (envsubst replaces APP_MEMPOOL_IP/PORT at runtime)
+# Copy nginx config template (envsubst replaces the APP_* variables at runtime)
 COPY umbrel/nginx.conf.template /etc/nginx/templates/default.conf.template
+
+# Optional variables default to empty: envsubst leaves an unset variable as a
+# literal ${...}, which nginx rejects at startup ("unknown variable"). The
+# Umbrel compose does not set these; StartOS and other packagers may.
+ENV APP_MEMPOOL_HIDDEN_SERVICE="" APP_MEMPOOL_EXTERNAL_URL=""
 
 # Copy static export from build stage
 COPY --from=builder /app/out /usr/share/nginx/html
 
-HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://localhost:8080/health || exit 1
+HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://127.0.0.1:8080/health || exit 1
 
 EXPOSE 8080

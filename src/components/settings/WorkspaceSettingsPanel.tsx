@@ -5,6 +5,10 @@ import { useTranslation } from "react-i18next";
 import { Download, Upload } from "lucide-react";
 import { useBookmarks } from "@/hooks/useBookmarks";
 import { useSavedGraphs } from "@/hooks/useSavedGraphs";
+import type { TFunction } from "i18next";
+
+const nBookmarks = (t: TFunction, count: number) => t("workspace.nBookmarks", { count, defaultValue: "{{count}} bookmarks" });
+const nGraphs = (t: TFunction, count: number) => t("workspace.nGraphs", { count, defaultValue: "{{count}} graphs" });
 
 export function WorkspaceSettingsPanel() {
   const { t } = useTranslation();
@@ -24,7 +28,7 @@ export function WorkspaceSettingsPanel() {
       return;
     }
     exportBookmarks();
-    showToast("success", t("workspace.exported", { bookmarks: bookmarks.length, graphs: graphs.length, defaultValue: "Exported {{bookmarks}} bookmarks and {{graphs}} graphs." }));
+    showToast("success", t("workspace.exported", { bookmarks: nBookmarks(t, bookmarks.length), graphs: nGraphs(t, graphs.length), defaultValue: "Exported {{bookmarks}} and {{graphs}}." }));
   }, [bookmarks, graphs, exportBookmarks, showToast, t]);
 
   const handleImport = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,7 +57,7 @@ export function WorkspaceSettingsPanel() {
         {t("workspace.title", { defaultValue: "Workspace" })}
       </p>
       <p className="text-[11px] text-muted/70">
-        {t("workspace.itemCount", { bookmarks: bookmarks.length, graphs: graphs.length, defaultValue: "{{bookmarks}} bookmarks and {{graphs}} graphs saved" })}
+        {t("workspace.itemCount", { bookmarks: nBookmarks(t, bookmarks.length), graphs: nGraphs(t, graphs.length), defaultValue: "{{bookmarks}} and {{graphs}} saved" })}
       </p>
       <div className="flex gap-2">
         <button

@@ -9,7 +9,6 @@ import { getObservatoryEndpoints } from "@/lib/observatory/endpoints";
 import { getWhirlpoolTxs } from "@/lib/observatory/whirlpool-client";
 import { toCycleRows } from "@/lib/observatory/selectors";
 import type { CycleRow, WhirlpoolTxsPage } from "@/lib/observatory/types";
-import { useUiHref } from "@/components/v2/pages/uiHref";
 
 interface RecentCyclesTableProps {
   /** First page of cycle history from the observatory hook (null if it failed). */
@@ -22,7 +21,6 @@ function truncTxid(txid: string): string {
 
 export function RecentCyclesTable({ firstPage }: RecentCyclesTableProps) {
   const { t } = useTranslation();
-  const uiHref = useUiHref();
   const { isUmbrel } = useNetwork();
   // Appended pages are tagged with the base page they were loaded under, so a
   // base refresh (focus revalidation) drops them by derivation, and a page that
@@ -92,7 +90,7 @@ export function RecentCyclesTable({ firstPage }: RecentCyclesTableProps) {
         {rows.map((row) => (
           <li key={row.txid}>
             <a
-              href={uiHref(row.scanHref)}
+              href={row.scanHref}
               className="flex items-center gap-3 px-4 py-3 hover:bg-surface-elevated/80 transition-colors group"
             >
               <span className="text-xs text-muted tabular-nums shrink-0 w-20">

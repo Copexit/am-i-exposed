@@ -6,6 +6,8 @@ server {
     listen 8080;
     server_name _;
     server_tokens off;
+    # Relative redirects (e.g. /guide -> /guide/) so they keep the host and port of Umbrel's app proxy.
+    absolute_redirect off;
 
     root /usr/share/nginx/html;
     index index.html;

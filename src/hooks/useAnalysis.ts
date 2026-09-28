@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { createApiClient } from "@/lib/api/client";
 import { ApiError } from "@/lib/api/fetch-with-retry";
-import { detectTxidNetwork } from "@/lib/api/detect-network";
+import { detectAddressNetwork, detectTxidNetwork } from "@/lib/api/detect-network";
 import { mapApiErrorMessage } from "@/lib/api/error-message";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
 import { detectInputType } from "@/lib/analysis/detect-input";
@@ -105,6 +105,23 @@ export function useAnalysis() {
         return;
       }
 
+      // An address whose format rules out the selected network (tb1 on mainnet,
+      // bc1 on testnet) is scanned on the network it belongs to, with the same
+      // switch notice as a txid found elsewhere. Public mempool.space only.
+      let net = network;
+      let cfg = config;
+      let switchedTo: BitcoinNetwork | undefined;
+      if (inputType === "address" && !isUmbrel && !customApiUrl) {
+        const detected = await detectAddressNetwork(input, network, controller.signal, (n) => configFor(n).mempoolBaseUrl);
+        if (controller.signal.aborted) return;
+        if (detected) {
+          net = detected;
+          cfg = configFor(detected);
+          switchedTo = detected;
+          setNetwork(detected);
+        }
+      }
+
       // PSBT: parse locally and run tx heuristics without API calls
       if (inputType === "psbt") {
         const steps = getTxHeuristicSteps(ht);
@@ -153,7 +170,7 @@ export function useAnalysis() {
       // Check analysis result cache before making API calls
       const analysisSettingsForCache = getAnalysisSettings();
       // Keyed per backend: custom/Umbrel/onion results never share an entry with mempool.space
-      const cached = await getCachedResult(cacheKeyPrefix(config.mempoolBaseUrl, network), input, analysisSettingsForCache);
+      const cached = await getCachedResult(cacheKeyPrefix(cfg.mempoolBaseUrl, net), input, analysisSettingsForCache);
       // reset() or a newer analyze() ran during the lookup: leave their state alone
       if (controller.signal.aborted) return;
       if (cached) {
@@ -183,11 +200,12 @@ export function useAnalysis() {
           boltzmannResult: cached.boltzmannResult ?? null,
           boltzmannStatus: cached.boltzmannResult ? "complete" : null,
           fromCache: true,
+          autoSwitchedNetwork: switchedTo,
         });
         return;
       }
 
-      const api = createApiClient(config, controller.signal);
+      const api = createApiClient(cfg, controller.signal);
 
       const steps =
         inputType === "txid"
@@ -266,7 +284,7 @@ export function useAnalysis() {
 
           // Fresh address: only preSendResult, no scoring result
           if (!addrResult.result) {
-            complete({ preSendResult: addrResult.preSendResult });
+            complete({ preSendResult: addrResult.preSendResult, autoSwitchedNetwork: switchedTo });
             return;
           }
 
@@ -276,7 +294,8 @@ export function useAnalysis() {
             addressTxs: addrResult.addressTxs,
             addressUtxos: addrResult.addressUtxos,
             txBreakdown: addrResult.txBreakdown,
-          }, network);
+            autoSwitchedNetwork: switchedTo,
+          }, net);
         }
       } catch (err) {
         // Ignore aborted requests (user started a new analysis)

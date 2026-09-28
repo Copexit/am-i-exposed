@@ -54,6 +54,6 @@ jobs:
       - name: Ping IndexNow
         run: |
           KEY="29dadd2b-9bd0-4e5e-afb9-8e0c12f88ba9"
-          for path in "/" "/methodology/" "/setup-guide/" "/about/" "/faq/" "/glossary/"; do
+          for path in "/" "/guide/" "/setup-guide/" "/about/" "/faq/" "/glossary/" "/observatory/" "/welcome/" "/agents/" "/graph/"; do
             curl -sf "https://api.indexnow.org/indexnow?url=https://am-i.exposed${path}&key=${KEY}" || true
           done

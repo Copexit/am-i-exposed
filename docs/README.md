@@ -4,6 +4,7 @@
 
 - **[privacy-engine.md](./privacy-engine.md)** - Canonical heuristic reference, scoring model, threat model, academic references
 - **[development-guide.md](./development-guide.md)** - Architecture, data flow, chain modules, scoring, colors, API endpoints
+- **[ui/design.md](./ui/design.md)** - UI design system: principles, theme tokens (dark and light), type, layout, copy and component rules
 - **[testing.md](./testing.md)** - Test suites, fixtures, golden baselines and how to update them, e2e mocks, CLI tests, coverage
 - **[testing-reference.md](./testing-reference.md)** - Reference transactions/addresses with expected grades and the score matrix
 - **[mempool-self-hosted-differences.md](./mempool-self-hosted-differences.md)** - Hosted vs self-hosted mempool API differences (electrs forks, prevout field)

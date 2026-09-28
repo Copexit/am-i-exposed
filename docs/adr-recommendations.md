@@ -119,18 +119,21 @@ These principles were validated by a Bitcoin privacy specialist and must be pres
 
 1. **Results Page Test**: Content must reference the user's specific findings/score/wallet. Generic reference content goes to guide page.
 2. **No generic accordions**: Collapsible sections identical regardless of scan belong on guide page.
-3. **Cap Zone 7**: At most: PrimaryRec + Remediation + Recovery (D/F) + Contextual Warnings.
+3. **Cap the action surface**: At most: PrimaryRec (verdict band) + Remediation + Recovery (D/F) + Contextual Warnings (context section).
 4. **New educational content -> guide page**: "Taproot best practices", "Lightning privacy tips" -> guide page.
 5. **Guide is canonical**: Remediations link to guide sections, don't duplicate explanations inline.
-6. **No new standalone panels** in Zone 7 without amending this ADR.
-7. **Review trigger**: Any PR adding content to ResultsPanel Zone 7 must justify why it's scan-specific.
+6. **No new standalone panels** in the action surface without amending this ADR.
+7. **Review trigger**: Any PR adding content to the result's action surface (`VerdictBand` / `ContextSection`) must justify why it's scan-specific.
+
+_Historical note: this ADR was written for the original results layout, where these actions lived in "Zone 7" of `ResultsPanel`. Since v0.37.0 the primary recommendation renders in `src/components/results/VerdictBand.tsx` and remediation, recovery and contextual warnings in `src/components/results/ContextSection.tsx`; the rules are unchanged._
 
 ## Key Files
 
 | File | Role |
 |------|------|
 | `src/lib/recommendations/primary-recommendation.ts` | Cascade engine |
-| `src/components/PrimaryRecommendation.tsx` | Hero card UI |
-| `src/components/ResultsPanel.tsx` | Zone 7 integration |
+| `src/components/PrimaryRecommendation.tsx` | Recommendation card (`RecCard`) |
+| `src/components/results/VerdictBand.tsx` | Primary recommendation in the verdict |
+| `src/components/results/ContextSection.tsx` | Remediation, recovery, contextual warnings |
 | `src/data/guide/*.ts` | Shared educational data |
 | `src/app/guide/page.tsx` | Standalone guide page |

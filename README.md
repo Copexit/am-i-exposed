@@ -17,7 +17,7 @@ Paste a Bitcoin address, transaction ID, xpub/descriptor, or unsigned PSBT. Get 
 > ```
 > [Full agent docs](https://am-i.exposed/agents/) | [skill.md](./cli/skill.md) | [MCP server](#mcp-server-ai-agents)
 
-[Live Site](https://am-i.exposed) | [Methodology](https://am-i.exposed/methodology/) | [Privacy Guide](https://am-i.exposed/guide/) | [Agents & CLI](https://am-i.exposed/agents/) | [Setup Guide](https://am-i.exposed/setup-guide/) | [Contributing](CONTRIBUTING.md)
+[Live Site](https://am-i.exposed) | [Methodology](docs/privacy-engine.md) | [Privacy Guide](https://am-i.exposed/guide/) | [Agents & CLI](https://am-i.exposed/agents/) | [Setup Guide](https://am-i.exposed/setup-guide/) | [Contributing](CONTRIBUTING.md)
 
 ---
 
@@ -178,17 +178,16 @@ The engine doesn't run heuristics in isolation. CoinJoin detection suppresses CI
 
 | Chart | Description |
 |-------|-------------|
-| Transaction flow (Sankey) | Input-to-output flow diagram with optional Boltzmann linkability overlay |
+| Transaction stage | Input-to-output value flow with the engine's tags (change, entities, CoinJoin tiers) and Boltzmann link probabilities |
 | Link probability heatmap | Full Boltzmann matrix showing the probability of each input-output link |
 | Graph explorer | OXT-style interactive transaction DAG - expand, collapse, and trace through the graph |
 | Taint path diagram | Value flow visualization showing how taint propagates through transactions |
 | Privacy timeline | Per-transaction privacy history of an address |
 | Fingerprint timeline | Wallet fingerprint changes across an address's transactions |
 | Entity graph | Cluster view of addresses linked to known entities |
-| CoinJoin structure | Pool composition breakdown for Whirlpool, WabiSabi, and JoinMarket transactions |
-| Score waterfall | Step-by-step breakdown of how the privacy score was calculated |
+| Score breakdown | Step-by-step breakdown of how the privacy score was calculated |
 | UTXO bubble chart | Visual clustering of unspent outputs by value and age |
-| Severity ring | Distribution of findings by severity level |
+| Exposure matrix | Which adversary (passive observer, KYC exchange, state) can exploit which findings |
 
 ## Tech
 
@@ -199,7 +198,7 @@ The engine doesn't run heuristics in isolation. CoinJoin detection suppresses CI
 - **mempool.space API** only - no secondary APIs, your queries stay with one provider
 - **Tor-aware** - auto-detects `.onion` and routes API requests through Tor
 - **TypeScript** strict mode throughout
-- **Tailwind CSS 4** - dark theme by default, optional light theme
+- **Tailwind CSS 4** - dark and light themes, following the OS by default
 - **visx** - interactive SVG visualizations (graph explorer, taint diagrams, timelines)
 - **@scure/btc-signer** - PSBT parsing and raw transaction decoding
 - **i18next** - 6 languages (English, Spanish, Portuguese, German, French, Polish)

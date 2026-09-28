@@ -12,7 +12,6 @@ import { findingKeys } from "@/lib/finding-utils";
 import { RicochetHopTable, ConsolidationTable } from "./FindingCardTables";
 import type { FindingId } from "@/lib/analysis/finding-metadata";
 import { Collapse } from "./ui/Collapse";
-import { useUiHref } from "@/components/v2/pages/uiHref";
 import {
   SEVERITY_STYLES,
   CONFIDENCE_STYLES,
@@ -44,8 +43,8 @@ interface FindingCardProps {
   badge?: string;
   /** Callback when user clicks a txid link (e.g., to analyze a child tx). */
   onTxClick?: (txid: string) => void;
-  /** Pro mode: show confidence badges and score impact details. */
-  proMode?: boolean;
+  /** Show confidence badges, tier context and score impact details. */
+  detailed?: boolean;
 }
 
 function TierContext({ finding, t }: { finding: Finding; t: (key: string, opts?: Record<string, unknown>) => string }) {
@@ -99,7 +98,7 @@ function TierContext({ finding, t }: { finding: Finding; t: (key: string, opts?:
 }
 
 /** Inline breakdown of which change detection signals fired and how they voted. */
-function ChangeSignalBreakdown({ finding, t, proMode }: { finding: Finding; t: (key: string, opts?: Record<string, unknown>) => string; proMode: boolean }) {
+function ChangeSignalBreakdown({ finding, t, detailed }: { finding: Finding; t: (key: string, opts?: Record<string, unknown>) => string; detailed: boolean }) {
   if (finding.id !== "h2-change-detected" || !finding.params?.signalDetails) return null;
 
   let details: Array<{ key: string; votedOutput: number; weight: number }>;
@@ -166,7 +165,7 @@ function ChangeSignalBreakdown({ finding, t, proMode }: { finding: Finding; t: (
           })}
         </p>
       )}
-      {proMode && corroboratorCount > 0 && (
+      {detailed && corroboratorCount > 0 && (
         <p className="text-muted italic">
           {t("finding.changeSignals.compoundBoost", {
             count: corroboratorCount,
@@ -181,33 +180,29 @@ function ChangeSignalBreakdown({ finding, t, proMode }: { finding: Finding; t: (
 /**
  * Expanded detail of a finding: description, change-signal breakdown, tier
  * context, recommendation, hop/consolidation tables, learn-more link and
- * score impact. Shared by the classic FindingCard and the v2 findings list.
+ * score impact. Shared by FindingCard and the findings list.
  */
-export function FindingCardBody({ finding, onTxClick, proMode = false, className, variant = "classic" }: {
+export function FindingCardBody({ finding, onTxClick, detailed = false, className }: {
   finding: Finding;
   onTxClick?: (txid: string) => void;
-  proMode?: boolean;
+  detailed?: boolean;
   className?: string;
-  /** v2: quieter, smaller body text under a 15px title. */
-  variant?: "classic" | "v2";
 }) {
-  const v2 = variant === "v2";
   const { t, i18n } = useTranslation();
-  const toUi = useUiHref();
   const learnMore = FINDING_LEARN_MORE[finding.id];
   return (
     <div id={`finding-detail-${finding.id}`} className={className ?? "px-5 pb-5 space-y-3 border-t border-card-border pt-3"}>
-      <p className={v2 ? "text-sm text-muted leading-relaxed max-w-[75ch]" : "text-base text-foreground leading-relaxed"}>
+      <p className="text-sm text-muted leading-relaxed max-w-[75ch]">
         {t(findingKeys(finding.id, "description", finding.params), { ...finding.params, defaultValue: finding.description })}
       </p>
-      <ChangeSignalBreakdown finding={finding} t={t} proMode={proMode} />
-      {proMode && <TierContext finding={finding} t={t} />}
+      <ChangeSignalBreakdown finding={finding} t={t} detailed={detailed} />
+      {detailed && <TierContext finding={finding} t={t} />}
       {finding.recommendation && (
-        <div className={v2 ? "border-l-2 border-bitcoin/40 pl-3 py-0.5" : "bg-surface-inset rounded-md px-3 py-2"}>
-          <p className={v2 ? "v2-eyebrow mb-1.5" : "text-xs font-medium text-muted mb-1"}>
+        <div className="border-l-2 border-bitcoin/40 pl-3 py-0.5">
+          <p className="eyebrow mb-1.5">
             {t("finding.recommendationLabel", { defaultValue: "Recommendation" })}
           </p>
-          <p className={v2 ? "text-sm text-foreground/90 leading-relaxed max-w-[75ch]" : "text-base text-foreground/90 leading-relaxed"}>
+          <p className="text-sm text-foreground/90 leading-relaxed max-w-[75ch]">
             {t(findingKeys(finding.id, "recommendation", finding.params), { ...finding.params, defaultValue: finding.recommendation })}
           </p>
         </div>
@@ -231,14 +226,14 @@ export function FindingCardBody({ finding, onTxClick, proMode = false, className
       <div className="flex items-center justify-between">
         {learnMore && (
           <a
-            href={toUi(`/faq/#${learnMore.faqId}`)}
+            href={`/faq/#${learnMore.faqId}`}
             className="inline-flex items-center gap-1 text-xs text-bitcoin hover:text-bitcoin-hover transition-colors"
           >
             <BookOpen size={12} />
             {t(learnMore.labelKey, { defaultValue: learnMore.labelDefault })}
           </a>
         )}
-        {proMode && finding.scoreImpact !== 0 && (
+        {detailed && finding.scoreImpact !== 0 && (
           <details className="text-xs text-muted">
             <summary className="cursor-pointer select-none hover:text-foreground transition-colors">
               {t("finding.showScoreImpact", { defaultValue: "Score impact" })}
@@ -260,7 +255,7 @@ export function FindingCardBody({ finding, onTxClick, proMode = false, className
   );
 }
 
-export const FindingCard = memo(function FindingCard({ finding, index, defaultExpanded = false, badge, onTxClick, proMode = false }: FindingCardProps) {
+export const FindingCard = memo(function FindingCard({ finding, index, defaultExpanded = false, badge, onTxClick, detailed = false }: FindingCardProps) {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(defaultExpanded);
   const reducedMotion = useReducedMotion();
@@ -294,14 +289,14 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
           {title}
         </span>
         <span className="flex items-center gap-1.5 flex-wrap">
-          {proMode && confidenceStyle && (
+          {detailed && confidenceStyle && (
             <Tooltip content={t(`common.confidenceTooltip.${confidence}`, { defaultValue: confidenceStyle.tooltip })}>
               <span className={`text-[10px] px-1.5 py-0.5 rounded border ${confidenceStyle.className}`}>
                 {t(`common.confidence.${confidence}`, { defaultValue: confidenceStyle.label })}
               </span>
             </Tooltip>
           )}
-          {proMode && finding.adversaryTiers && finding.adversaryTiers.length > 0 && (() => {
+          {detailed && finding.adversaryTiers && finding.adversaryTiers.length > 0 && (() => {
             const tier = highestAdversaryTier(finding.adversaryTiers);
             const advStyle = ADVERSARY_STYLES[tier];
             return (
@@ -312,7 +307,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
               </Tooltip>
             );
           })()}
-          {proMode && finding.temporality && (() => {
+          {detailed && finding.temporality && (() => {
             const tempStyle = TEMPORALITY_STYLES[finding.temporality];
             return (
               <Tooltip content={t(`temporalityTooltip.${finding.temporality}`, { defaultValue: `Temporality: ${finding.temporality.replace(/_/g, " ")}` })}>
@@ -342,7 +337,7 @@ export const FindingCard = memo(function FindingCard({ finding, index, defaultEx
       </button>
 
       <Collapse open={expanded}>
-        <FindingCardBody finding={finding} onTxClick={onTxClick} proMode={proMode} />
+        <FindingCardBody finding={finding} onTxClick={onTxClick} detailed={detailed} />
       </Collapse>
     </motion.div>
   );

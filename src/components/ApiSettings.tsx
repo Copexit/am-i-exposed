@@ -12,7 +12,6 @@ import { CacheSettingsPanel } from "@/components/settings/CacheSettingsPanel";
 import { WorkspaceSettingsPanel } from "@/components/settings/WorkspaceSettingsPanel";
 import { LocaleSelector } from "@/components/settings/LocaleSelector";
 import { EntityFilterStatus } from "@/components/settings/EntityFilterStatus";
-import { useExperienceMode } from "@/hooks/useExperienceMode";
 import { useTheme, type ThemePreference } from "@/hooks/useTheme";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 
@@ -24,16 +23,11 @@ const NETWORKS: [NetworkOption, ...NetworkOption[]] = [
   { value: "signet", label: "Signet", dot: "bg-info" },
 ];
 
-/**
- * `v2`: the v2 UI has no experience modes, so it shows every panel, and picks
- * the theme with a System / Light / Dark control instead of the toggle.
- */
-export function ApiSettings({ v2 = false }: { v2?: boolean } = {}) {
+/** Settings panel: network, language, theme (System / Light / Dark), API, analysis, cache, entity data. */
+export function ApiSettings() {
   const { t } = useTranslation();
   const { network, setNetwork, customApiUrl, isUmbrel } = useNetwork();
-  const { proMode: proModeSetting } = useExperienceMode();
-  const proMode = v2 || proModeSetting;
-  const { theme, preference, setTheme, toggleTheme } = useTheme();
+  const { preference, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -142,61 +136,43 @@ export function ApiSettings({ v2 = false }: { v2?: boolean } = {}) {
 
             {/* Language selector */}
             <LocaleSelector />
-
-            {/* Theme toggle */}
-            {!v2 && <button
-              onClick={toggleTheme}
-              aria-label={theme === "dark" ? t("settings.themeLight", { defaultValue: "Light" }) : t("settings.themeDark", { defaultValue: "Dark" })}
-              title={t("settings.theme", { defaultValue: "Theme" })}
-              className="flex items-center justify-center w-10 h-10 mt-5 rounded-lg text-muted hover:text-foreground transition-colors cursor-pointer border border-card-border bg-surface-inset hover:border-muted shrink-0"
-            >
-              {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-            </button>}
           </div>
 
-          {v2 && (
-            <div>
-              <span id="theme-label" className="text-xs font-medium text-muted uppercase tracking-wider block mb-1.5">
-                {t("settings.theme", { defaultValue: "Theme" })}
-              </span>
-              <div role="radiogroup" aria-labelledby="theme-label" className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-surface-inset border border-card-border">
-                {([
-                  ["system", Monitor, t("settings.themeSystem", { defaultValue: "System" })],
-                  ["light", Sun, t("settings.themeLight", { defaultValue: "Light" })],
-                  ["dark", Moon, t("settings.themeDark", { defaultValue: "Dark" })],
-                ] as const satisfies readonly (readonly [ThemePreference, typeof Sun, string])[]).map(([value, Icon, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    role="radio"
-                    aria-checked={preference === value}
-                    onClick={() => setTheme(value)}
-                    className={`inline-flex items-center justify-center gap-1.5 rounded-md py-1.5 text-sm transition-colors cursor-pointer ${preference === value ? "bg-surface-elevated text-foreground shadow-sm ring-1 ring-hairline-strong" : "text-muted hover:text-foreground"}`}
-                  >
-                    <Icon size={14} aria-hidden="true" />
-                    {label}
-                  </button>
-                ))}
-              </div>
+          <div>
+            <span id="theme-label" className="text-xs font-medium text-muted uppercase tracking-wider block mb-1.5">
+              {t("settings.theme", { defaultValue: "Theme" })}
+            </span>
+            <div role="radiogroup" aria-labelledby="theme-label" className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-surface-inset border border-card-border">
+              {([
+                ["system", Monitor, t("settings.themeSystem", { defaultValue: "System" })],
+                ["light", Sun, t("settings.themeLight", { defaultValue: "Light" })],
+                ["dark", Moon, t("settings.themeDark", { defaultValue: "Dark" })],
+              ] as const satisfies readonly (readonly [ThemePreference, typeof Sun, string])[]).map(([value, Icon, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={preference === value}
+                  onClick={() => setTheme(value)}
+                  className={`inline-flex items-center justify-center gap-1.5 rounded-md py-1.5 text-sm transition-colors cursor-pointer ${preference === value ? "bg-surface-elevated text-foreground shadow-sm ring-1 ring-hairline-strong" : "text-muted hover:text-foreground"}`}
+                >
+                  <Icon size={14} aria-hidden="true" />
+                  {label}
+                </button>
+              ))}
             </div>
-          )}
+          </div>
 
-          {/* Workspace export/import (Cypherpunk only) */}
-          {proMode && <WorkspaceSettingsPanel />}
+          <WorkspaceSettingsPanel />
 
           {/* Advanced API settings - hidden on Umbrel (API is preconfigured) */}
           {!isUmbrel && (
             <NetworkSettings onClosePanel={() => setOpen(false)} />
           )}
 
-          {/* Analysis settings (Pro only) */}
-          {proMode && <AnalysisSettingsPanel />}
-
-          {/* Cache settings (Pro only) */}
-          {proMode && <CacheSettingsPanel />}
-
-          {/* Entity filter status */}
-          <EntityFilterStatus proMode={proMode} />
+          <AnalysisSettingsPanel />
+          <CacheSettingsPanel />
+          <EntityFilterStatus />
 
           {/* Version */}
           <div className="border-t border-card-border pt-2 text-center">

@@ -11,6 +11,9 @@ const PAGES = [
   { path: "/glossary/", priority: "0.7", changefreq: "monthly", source: "src/app/glossary/page.tsx" },
   { path: "/guide/", priority: "0.8", changefreq: "monthly", source: "src/app/guide/page.tsx" },
   { path: "/observatory/", priority: "0.7", changefreq: "daily", source: "src/app/observatory/page.tsx" },
+  { path: "/graph/", priority: "0.6", changefreq: "monthly", source: "src/app/graph/page.tsx" },
+  { path: "/agents/", priority: "0.6", changefreq: "monthly", source: "src/app/agents/page.tsx" },
+  { path: "/welcome/", priority: "0.5", changefreq: "yearly", source: "src/app/welcome/page.tsx" },
 ];
 
 function getLastMod(file) {

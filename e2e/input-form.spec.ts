@@ -1,15 +1,13 @@
 import { test, expect } from "@playwright/test";
 import { mockMempoolApi } from "./helpers/mock-api";
 
-// Classic and v2 UIs share the scanner, so each behavior is checked in both.
-for (const base of ["/", "/v2/"]) {
-test.describe(`${base}`, () => {
+test.describe("/", () => {
   test.beforeEach(async ({ page }) => {
     await mockMempoolApi(page);
   });
 
   test("invalid input shows error message", async ({ page }) => {
-    await page.goto(base);
+    await page.goto("/");
 
     const input = page.locator("[data-testid='address-input']");
     const button = page.locator("[data-testid='scan-button']");
@@ -22,7 +20,7 @@ test.describe(`${base}`, () => {
   });
 
   test("pasting a valid txid triggers auto-scan", async ({ page }) => {
-    await page.goto(base);
+    await page.goto("/");
 
     const input = page.locator("[data-testid='address-input']");
 
@@ -51,4 +49,3 @@ test.describe(`${base}`, () => {
     await expect(loader.or(scoreDisplay)).toBeVisible({ timeout: 10_000 });
   });
 });
-}

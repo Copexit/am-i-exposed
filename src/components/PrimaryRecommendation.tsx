@@ -2,15 +2,7 @@
 
 import { ExternalLink, AlertTriangle, Clock, CheckCircle, ArrowRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { GlowCard } from "./ui/GlowCard";
-import { selectRecommendations, type PrimaryRec } from "@/lib/recommendations/primary-recommendation";
-import type { Finding, Grade } from "@/lib/types";
-
-interface PrimaryRecommendationProps {
-  findings: Finding[];
-  grade: Grade;
-  walletGuess: string | null;
-}
+import type { PrimaryRec } from "@/lib/recommendations/primary-recommendation";
 
 const URGENCY_CONFIG = {
   immediate: {
@@ -96,25 +88,5 @@ export function RecCard({ rec }: { rec: PrimaryRec }) {
         </div>
       </div>
     </div>
-  );
-}
-
-export function PrimaryRecommendation({ findings, grade, walletGuess }: PrimaryRecommendationProps) {
-  const { t } = useTranslation();
-  const [primary, secondary] = selectRecommendations({ findings, grade, walletGuess });
-
-  return (
-    <GlowCard className="p-5 sm:p-6">
-      <h2 className="text-sm font-semibold text-muted uppercase tracking-wider mb-4">
-        {t("primaryRec.sectionTitle", { defaultValue: "Top recommendation" })}
-      </h2>
-      <RecCard rec={primary} />
-      {secondary && (
-        <>
-          <hr className="border-card-border/50 my-4" />
-          <RecCard rec={secondary} />
-        </>
-      )}
-    </GlowCard>
   );
 }

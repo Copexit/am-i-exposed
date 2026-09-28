@@ -1,6 +1,6 @@
 /**
  * Shared color utilities for linkability probability visualization.
- * Used by LinkabilityHeatmap, TxFlowDiagram (linkability mode), and GraphExplorer.
+ * Used by LinkabilityHeatmap and GraphExplorer.
  */
 
 import { COLORS, HUES, hexToRgb } from "@/lib/palette";

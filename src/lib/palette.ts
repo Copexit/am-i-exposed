@@ -3,12 +3,13 @@
  * inline styles). className code should use the Tailwind semantic classes
  * generated from globals.css instead (text-severity-high, bg-surface-inset).
  *
- * COLORS and LIGHT_COLORS mirror the hex custom properties declared in
+ * DARK_COLORS and LIGHT_COLORS mirror the hex custom properties declared in
  * src/app/globals.css (`:root` and `html[data-theme="light"]`), keyed by the
- * camelCased property name. palette.test.ts parses the CSS and fails on drift.
+ * camelCased property name, over the brand and severity values in COLORS.
+ * palette.test.ts parses the CSS and fails on drift.
  */
 
-/** Dark theme tokens (`:root` in globals.css). */
+/** Brand and severity hues (shared by both themes and by rasterized images), plus the original dark neutrals. */
 export const COLORS = {
   background: "#0c0c0e",
   foreground: "#f0f0f2",
@@ -31,19 +32,8 @@ export const COLORS = {
   severityGood: "#28d065",
 } as const;
 
-/** Light theme overrides (`html[data-theme="light"]` in globals.css). */
-export const LIGHT_COLORS = {
-  background: "#f8fafc",
-  foreground: "#0f172a",
-  muted: "#475569",
-  cardBg: "#ffffff",
-  cardBorder: "#cbd5e1",
-  surfaceInset: "#f1f5f9",
-  surfaceElevated: "#ffffff",
-} as const;
-
-/** v2 UI overrides (`[data-ui="v2"]` in globals.css); other tokens as COLORS. */
-export const V2_COLORS = {
+/** Dark theme tokens (`:root` in globals.css); other tokens as COLORS. */
+export const DARK_COLORS = {
   background: "#0b0b0d",
   foreground: "#f2f2f4",
   muted: "#a6a6b0",
@@ -58,8 +48,8 @@ export const V2_COLORS = {
   surfaceFloat: "#17171b",
 } as const;
 
-/** v2 light overrides (`html[data-theme="light"] [data-ui="v2"]`), applied over V2_COLORS. */
-export const V2_LIGHT_COLORS = {
+/** Light theme overrides (`html[data-theme="light"]`), applied over DARK_COLORS. */
+export const LIGHT_COLORS = {
   background: "#eceef2",
   foreground: "#15171c",
   muted: "#4a4f5a",
@@ -89,11 +79,11 @@ export const V2_LIGHT_COLORS = {
   fillGood: "#15803d",
 } as const;
 
-type V2Palette = Readonly<Record<keyof typeof COLORS | keyof typeof V2_LIGHT_COLORS, string>>;
+type Palette = Readonly<Record<keyof typeof COLORS | keyof typeof LIGHT_COLORS, string>>;
 
-/** Full resolved v2 palettes for JS-drawn surfaces (canvas, SVG, inline styles). */
+/** Full resolved palettes for JS-drawn surfaces (canvas, SVG, inline styles). */
 /** Dark marks use the severity hues themselves (light has brighter fills than its AA text shades). */
-const V2_DARK_FILLS = {
+const DARK_FILLS = {
   fillCritical: COLORS.severityCritical,
   fillHigh: COLORS.severityHigh,
   fillMedium: COLORS.severityMedium,
@@ -101,8 +91,8 @@ const V2_DARK_FILLS = {
   fillGood: COLORS.severityGood,
 } as const;
 
-export const V2_DARK_PALETTE: V2Palette = { ...COLORS, ...V2_COLORS, ...V2_DARK_FILLS };
-export const V2_LIGHT_PALETTE: V2Palette = { ...COLORS, ...V2_COLORS, ...V2_DARK_FILLS, ...V2_LIGHT_COLORS };
+export const DARK_PALETTE: Palette = { ...COLORS, ...DARK_COLORS, ...DARK_FILLS };
+export const LIGHT_PALETTE: Palette = { ...COLORS, ...DARK_COLORS, ...DARK_FILLS, ...LIGHT_COLORS };
 
 /**
  * Fixed chart hues (Tailwind default-scale values plus the brand green), used

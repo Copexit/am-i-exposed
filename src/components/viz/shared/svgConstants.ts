@@ -1,44 +1,36 @@
-import type { Grade, Severity } from "@/lib/types";
+import type { Grade } from "@/lib/types";
 import { GRADE_HEX } from "@/lib/constants";
-import { COLORS, HUES, LIGHT_COLORS, V2_DARK_PALETTE, V2_LIGHT_PALETTE } from "@/lib/palette";
+import { COLORS, DARK_PALETTE, LIGHT_PALETTE } from "@/lib/palette";
 
-type SurfaceKey = keyof typeof LIGHT_COLORS;
+/** Theme-dependent keys: the neutrals that differ between dark and light. */
+const SURFACE_KEY_LIST = ["background", "foreground", "muted", "cardBg", "cardBorder", "surfaceInset", "surfaceElevated"] as const;
+type SurfaceKey = (typeof SURFACE_KEY_LIST)[number];
 type SurfaceColors = Readonly<Record<SurfaceKey, string>>;
-
-/** Theme-dependent keys: the ones the light theme overrides. */
-const SURFACE_KEY_LIST = Object.keys(LIGHT_COLORS) as SurfaceKey[];
-
-export const DARK_SURFACES: SurfaceColors = Object.fromEntries(
-  SURFACE_KEY_LIST.map((k) => [k, COLORS[k]]),
-) as SurfaceColors;
 
 const pick = (p: Readonly<Record<SurfaceKey, string>>): SurfaceColors =>
   Object.fromEntries(SURFACE_KEY_LIST.map((k) => [k, p[k]])) as SurfaceColors;
-const V2_DARK_SURFACES = pick(V2_DARK_PALETTE);
-const V2_LIGHT_SURFACES = pick(V2_LIGHT_PALETTE);
+export const DARK_SURFACES = pick(DARK_PALETTE);
+const LIGHT_SURFACES = pick(LIGHT_PALETTE);
 
-/** Returns surface colors matching the current theme (and UI, v2 or classic). Safe to call at render time. */
+const isLight = () => typeof document !== "undefined" && document.documentElement.dataset.theme === "light";
+
+/** Returns surface colors matching the current theme. Safe to call at render time. */
 export function getSurfaceColors(): SurfaceColors {
-  if (typeof document === "undefined") return DARK_SURFACES;
-  const { theme, ui } = document.documentElement.dataset;
-  if (ui === "v2") return theme === "light" ? V2_LIGHT_SURFACES : V2_DARK_SURFACES;
-  return theme === "light" ? LIGHT_COLORS : DARK_SURFACES;
+  return isLight() ? LIGHT_SURFACES : DARK_SURFACES;
 }
 
-const V2_LIGHT_TEXT: Record<string, string> = {
-  [COLORS.bitcoin]: V2_LIGHT_PALETTE.bitcoinText,
-  [COLORS.severityCritical]: V2_LIGHT_PALETTE.severityCritical,
-  [COLORS.severityHigh]: V2_LIGHT_PALETTE.severityHigh,
-  [COLORS.severityMedium]: V2_LIGHT_PALETTE.severityMedium,
-  [COLORS.severityLow]: V2_LIGHT_PALETTE.severityLow,
-  [COLORS.severityGood]: V2_LIGHT_PALETTE.severityGood,
+const LIGHT_TEXT: Record<string, string> = {
+  [COLORS.bitcoin]: LIGHT_PALETTE.bitcoinText,
+  [COLORS.severityCritical]: LIGHT_PALETTE.severityCritical,
+  [COLORS.severityHigh]: LIGHT_PALETTE.severityHigh,
+  [COLORS.severityMedium]: LIGHT_PALETTE.severityMedium,
+  [COLORS.severityLow]: LIGHT_PALETTE.severityLow,
+  [COLORS.severityGood]: LIGHT_PALETTE.severityGood,
 };
 
-/** Text drawn in a mark color: in v2 light, bright marks swap to their AA text shades. */
+/** Text drawn in a mark color: in light, bright marks swap to their AA text shades. */
 export function svgTextColor(color: string): string {
-  if (typeof document === "undefined") return color;
-  const { theme, ui } = document.documentElement.dataset;
-  return ui === "v2" && theme === "light" ? (V2_LIGHT_TEXT[color] ?? color) : color;
+  return isLight() ? (LIGHT_TEXT[color] ?? color) : color;
 }
 
 type SvgColorMap = {
@@ -87,15 +79,6 @@ export const SVG_COLORS: SvgColorMap = new Proxy(
   },
 );
 
-/** Map severity to hex color for SVG rendering. */
-export const SEVERITY_HEX: Record<Severity, string> = {
-  critical: SVG_COLORS.critical,
-  high: SVG_COLORS.high,
-  medium: SVG_COLORS.medium,
-  low: SVG_COLORS.low,
-  good: SVG_COLORS.good,
-};
-
 /** Grade hex colors for SVG (re-exported from constants for convenience). */
 export const GRADE_HEX_SVG: Record<Grade, string> = GRADE_HEX;
 
@@ -114,37 +97,3 @@ export const ANIMATION_DEFAULTS = {
   duration: 0.4,
   spring: { type: "spring" as const, stiffness: 200, damping: 25 },
 };
-
-/** Gradient color palette for semantic meaning in charts. */
-export const GRADIENT_COLORS = {
-  // Cool (privacy-positive)
-  inputLight: COLORS.severityLow,
-  inputDark: HUES.blue500,
-  mixerLight: COLORS.severityGood,
-  mixerDark: HUES.emerald600,
-
-  // Warm (exposure)
-  outputLight: COLORS.bitcoin,
-  outputDark: COLORS.bitcoinHover,
-  changeLight: COLORS.severityHigh,
-  changeDark: HUES.red600,
-  dustLight: COLORS.severityCritical,
-  dustDark: HUES.red800,
-
-  // Neutral
-  feeLight: HUES.gray500,
-  feeDark: HUES.gray600,
-  baseLight: HUES.gray400,
-  baseDark: HUES.gray500,
-} as const;
-
-/** Lookup from waterfall bar type to gradient ID. */
-export const WATERFALL_GRADIENT_IDS: Record<string, string> = {
-  base: "grad-wf-base",
-  positive: "grad-wf-positive",
-  critical: "grad-wf-critical",
-  high: "grad-wf-high",
-  medium: "grad-wf-medium",
-  low: "grad-wf-low",
-  good: "grad-wf-good",
-} as const;

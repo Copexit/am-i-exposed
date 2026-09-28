@@ -122,7 +122,7 @@ export function FaqPage() {
     : FAQ_ITEMS;
 
   return (
-    <PageShell backLabel={t("faq.back", { defaultValue: "Back to scanner" })}>
+    <PageShell>
         <KnowledgeTabBar />
 
         {/* Title */}

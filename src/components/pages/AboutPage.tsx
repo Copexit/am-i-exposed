@@ -24,7 +24,6 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { PageShell } from "@/components/PageShell";
-import { useUiHref } from "@/components/v2/pages/uiHref";
 
 const TipJar = lazy(() =>
   import("@/components/TipJar").then((m) => ({ default: m.TipJar }))
@@ -75,14 +74,9 @@ const CAPABILITIES = [
 
 export function AboutPage() {
   const { t } = useTranslation();
-  const href = useUiHref();
 
   return (
-    <PageShell
-      backLabel={t("about.back", { defaultValue: "Back to scanner" })}
-      maxWidth="max-w-7xl"
-      className="sm:px-6 lg:px-8 xl:px-10"
-    >
+    <PageShell>
         {/* Title */}
         <div className="space-y-3">
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
@@ -227,14 +221,14 @@ export function AboutPage() {
                 <ExternalLink size={12} className="text-muted" />
               </a>
               <Link
-                href={href("/guide")}
+                href="/guide"
                 className="inline-flex items-center gap-1.5 text-sm px-4 py-2.5 rounded-lg bg-surface-elevated border border-card-border text-foreground hover:border-bitcoin/30 transition-all"
               >
                 <BookOpen size={16} />
                 {t("about.guide_link", { defaultValue: "Privacy Guide" })}
               </Link>
               <Link
-                href={href("/welcome")}
+                href="/welcome"
                 className="inline-flex items-center gap-1.5 text-sm px-4 py-2.5 rounded-lg bg-surface-elevated border border-card-border text-foreground hover:border-bitcoin/30 transition-all"
               >
                 <ScrollText size={16} />
@@ -260,8 +254,8 @@ export function AboutPage() {
               <ExternalLink size={12} className="text-muted" />
             </a>
             <Link
-              href={href("/")}
-              className="text-sm px-4 py-2.5 rounded-lg bg-bitcoin text-background font-semibold hover:bg-bitcoin-hover transition-all"
+              href="/"
+              className="text-sm px-4 py-2.5 rounded-lg bg-bitcoin text-black font-semibold hover:bg-bitcoin-hover transition-all"
             >
               {t("about.scanNow", { defaultValue: "Scan now" })}
             </Link>

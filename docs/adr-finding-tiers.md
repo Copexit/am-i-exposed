@@ -246,7 +246,7 @@ Complex compound rules (RBF x Change, post-mix entity escalation, wallet paradox
 
 ## Anti-Regression Rules
 
-1. **Badges in both modes.** Adversary and temporality badges and the expanded TierContext render in both Normie and Cypherpunk modes - this information is useful for all users. Only the filter bar is Cypherpunk-only.
+1. **Badges for everyone.** Adversary and temporality information and the expanded TierContext are shown to all users. _Historical note: this rule predates v0.37.0, when the UI had Normie and Cypherpunk modes and the filter bar was Cypherpunk-only. There is one UI now: temporality labels sit on each finding (`src/components/results/FindingItem.tsx`) and the adversary/temporality filters are part of the findings list (`FindingsList.tsx`)._
 2. **Score invariant.** Filters never change the displayed score. Visual-only filtering.
 3. **Unclassified passthrough.** Findings without metadata are always shown (no silent hiding).
 4. **Registry is exhaustive.** Every finding ID produced by the engine must have a registry entry. A completeness test enforces this.

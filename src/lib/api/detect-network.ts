@@ -55,3 +55,39 @@ export async function detectTxidNetwork(
     return null;
   }
 }
+
+/** Mainnet address prefixes: bech32 `bc1`, legacy `1`, P2SH `3`. Everything else valid is a test-network format. */
+function isMainnetAddress(address: string): boolean {
+  return /^bc1/i.test(address) || /^[13]/.test(address);
+}
+
+/**
+ * The network an address belongs to when its format rules out `fromNetwork`,
+ * else `null`. The prefix separates mainnet from the test networks; test
+ * networks share formats (`tb1`, `m`/`n`, `2`), so for a test address scanned
+ * on mainnet the one where it has history wins, falling back to testnet4.
+ * Same backend constraints as {@link detectTxidNetwork}.
+ */
+export async function detectAddressNetwork(
+  address: string,
+  fromNetwork: BitcoinNetwork,
+  signal?: AbortSignal,
+  baseUrlFor: (net: BitcoinNetwork) => string = (net) => NETWORK_CONFIG[net].mempoolBaseUrl,
+): Promise<BitcoinNetwork | null> {
+  if (isMainnetAddress(address)) return fromNetwork === "mainnet" ? null : "mainnet";
+  if (fromNetwork !== "mainnet") return null;
+
+  const tests = PROBE_NETWORKS.filter((n) => n !== "mainnet");
+  const probes = tests.map(async (net) => {
+    const res = await fetch(`${baseUrlFor(net)}/address/${address}`, { signal });
+    if (!res.ok) throw new Error(`${net}: ${res.status}`);
+    const a = (await res.json()) as { chain_stats?: { tx_count?: number }; mempool_stats?: { tx_count?: number } };
+    if ((a.chain_stats?.tx_count ?? 0) + (a.mempool_stats?.tx_count ?? 0) === 0) throw new Error(`${net}: no history`);
+    return net;
+  });
+  try {
+    return await Promise.any(probes);
+  } catch {
+    return signal?.aborted ? null : tests[0] ?? null;
+  }
+}

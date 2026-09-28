@@ -32,7 +32,7 @@ async function initWasm() {
     try {
       const mod = await import(blobUrl);
       const wasmUrl = new URL("/wasm/boltzmann/boltzmann_rs_bg.wasm", self.location.origin);
-      await mod.default(wasmUrl.href);
+      await mod.default({ module_or_path: wasmUrl.href });
       wasmExports = mod;
     } finally {
       URL.revokeObjectURL(blobUrl);

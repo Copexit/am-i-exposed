@@ -100,7 +100,7 @@ export const GRADE_HEX: Record<Grade, string> = {
 
 /**
  * Grade colors as CSS custom properties for display type and marks (dial,
- * bars): follow the theme. v2 light defines brighter --fill-* hues (3:1 for
+ * bars): follow the theme. Light defines brighter --fill-* hues (3:1 for
  * large type and graphics); elsewhere the severity color is used.
  */
 export const GRADE_VAR: Record<Grade, string> = {

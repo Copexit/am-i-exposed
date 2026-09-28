@@ -23,9 +23,8 @@ vi.mock("@/hooks/useKeyboardNav", () => ({ useKeyboardNav: () => {} }));
 vi.mock("@/hooks/useHashRouting", () => ({
   useHashRouting: () => ({ pendingHash: h.pendingHash, dismissPendingHash: vi.fn(), skipNextHashChangeRef: { current: false } }),
 }));
-vi.mock("@/components/HeroSection", () => ({ HeroSection: () => <div>hero</div> }));
+vi.mock("@/components/home/Home", () => ({ Home: () => <div>hero</div> }));
 vi.mock("@/components/InstallPrompt", () => ({ InstallPrompt: () => null }));
-vi.mock("@/components/AppStoreAnnouncement", () => ({ AppStoreAnnouncement: () => null }));
 
 import Home from "../page";
 
