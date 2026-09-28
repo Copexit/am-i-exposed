@@ -1766,6 +1766,7 @@
   "settings.cacheTitle": "Cache de API",
   "settings.connected": "Conectado. Usando endpoint personalizado.",
   "settings.connectionFailed": "Conexão falhou",
+  "settings.invalidUrl": "URL inválida. Insira um endereço completo com http:// ou https://, ex.: http://localhost:3006/api",
   "settings.corsError": "Conexão falhou. Seu nó provavelmente precisa de cabeçalhos CORS. Veja o guia de configuração abaixo.",
   "settings.corsExplanation": "Instâncias auto-hospedadas do mempool precisam de",
   "settings.corsExplanation2": "para aceitar requisições deste site. Adicione isso à configuração nginx do seu mempool:",

@@ -1766,6 +1766,7 @@
   "settings.cacheTitle": "API-Cache",
   "settings.connected": "Verbunden. Benutzerdefinierter Endpunkt wird verwendet.",
   "settings.connectionFailed": "Verbindung fehlgeschlagen",
+  "settings.invalidUrl": "Ungültige URL. Bitte eine vollständige http://- oder https://-Adresse eingeben, z. B. http://localhost:3006/api",
   "settings.corsError": "Verbindung fehlgeschlagen. Der Node benötigt wahrscheinlich CORS-Header. Siehe die Einrichtungsanleitung unten.",
   "settings.corsExplanation": "Selbst gehostete mempool-Instanzen benötigen",
   "settings.corsExplanation2": "um Anfragen von dieser Seite zu akzeptieren. Füge dies zu deiner mempool nginx-Konfiguration hinzu:",

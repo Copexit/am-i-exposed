@@ -1766,6 +1766,7 @@
   "settings.cacheTitle": "API Cache",
   "settings.connected": "Connected. Using custom endpoint.",
   "settings.connectionFailed": "Connection failed",
+  "settings.invalidUrl": "Invalid URL. Enter a full http:// or https:// address, e.g. http://localhost:3006/api",
   "settings.corsError": "Connection failed. Your node likely needs CORS headers. See the setup guide below.",
   "settings.corsExplanation": "Self-hosted mempool instances need",
   "settings.corsExplanation2": "to accept requests from this site. Add this to your mempool nginx config:",
