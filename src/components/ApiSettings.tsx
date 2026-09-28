@@ -19,7 +19,6 @@ type NetworkOption = { value: BitcoinNetwork; label: string; dot: string };
 const NETWORKS: [NetworkOption, ...NetworkOption[]] = [
   { value: "mainnet", label: "Mainnet", dot: "bg-bitcoin" },
   { value: "testnet4", label: "Testnet4", dot: "bg-success" },
-  { value: "testnet3", label: "Testnet3", dot: "bg-warning" },
   { value: "signet", label: "Signet", dot: "bg-info" },
 ];
 

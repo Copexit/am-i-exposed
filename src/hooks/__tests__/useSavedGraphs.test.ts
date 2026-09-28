@@ -44,8 +44,12 @@ describe("useSavedGraphs", () => {
     expect(result.current.graphs).toHaveLength(0);
   });
 
-  it("drops corrupt stored entries instead of returning them", () => {
-    localStorage.setItem("ami-saved-graphs", JSON.stringify([{ id: "bad" }, { ...graph, id: "ok", savedAt: 1 }]));
+  it("drops corrupt or unsupported-network stored entries instead of returning them", () => {
+    localStorage.setItem("ami-saved-graphs", JSON.stringify([
+      { id: "bad" },
+      { ...graph, id: "t3", savedAt: 2, network: "testnet3" },
+      { ...graph, id: "ok", savedAt: 1 },
+    ]));
     const { result } = renderHook(() => useSavedGraphs());
     expect(result.current.graphs.map((g) => g.id)).toEqual(["ok"]);
   });

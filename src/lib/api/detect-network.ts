@@ -15,7 +15,6 @@ const PROBE_NETWORKS: readonly BitcoinNetwork[] = [
   "mainnet",
   "testnet4",
   "signet",
-  "testnet3",
 ];
 
 /**

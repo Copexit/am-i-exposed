@@ -5,22 +5,28 @@ import {
   type BitcoinNetwork,
   DEFAULT_NETWORK,
   isValidNetwork,
+  resolveNetwork,
 } from "@/lib/bitcoin/networks";
 
 const STORAGE_KEY = "ami-network";
 
 function readNetwork(): BitcoinNetwork {
   if (typeof window === "undefined") return DEFAULT_NETWORK;
-  // URL query param takes priority (shared links)
   const params = new URLSearchParams(window.location.search);
   const fromUrl = params.get("network");
-  if (fromUrl && isValidNetwork(fromUrl)) return fromUrl;
-  // Fall back to localStorage
+  let stored: string | null = null;
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored && isValidNetwork(stored)) return stored;
+    stored = localStorage.getItem(STORAGE_KEY);
+    // Drop an unsupported saved value (e.g. the retired "testnet3")
+    if (stored && !isValidNetwork(stored)) localStorage.removeItem(STORAGE_KEY);
   } catch { /* private browsing */ }
-  return DEFAULT_NETWORK;
+  if (fromUrl && !isValidNetwork(fromUrl)) {
+    // Strip an unsupported ?network= so the address bar matches the active network
+    params.delete("network");
+    const qs = params.toString();
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`);
+  }
+  return resolveNetwork(fromUrl, stored);
 }
 
 // External store for network state synced with URL

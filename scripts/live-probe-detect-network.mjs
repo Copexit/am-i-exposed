@@ -14,10 +14,9 @@ const NETWORK_CONFIG = {
   mainnet:  { mempoolBaseUrl: "https://mempool.space/api" },
   testnet4: { mempoolBaseUrl: "https://mempool.space/testnet4/api" },
   signet:   { mempoolBaseUrl: "https://mempool.space/signet/api" },
-  testnet3: { mempoolBaseUrl: "https://mempool.space/testnet/api" },
 };
 
-const PROBE_NETWORKS = ["mainnet", "testnet4", "signet", "testnet3"];
+const PROBE_NETWORKS = ["mainnet", "testnet4", "signet"];
 
 // Mirror of src/lib/api/detect-network.ts detectTxidNetwork().
 async function detectTxidNetwork(txid, fromNetwork, signal) {

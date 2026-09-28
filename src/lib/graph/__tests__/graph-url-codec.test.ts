@@ -76,7 +76,7 @@ describe("graph-url-codec extensions", () => {
       id: "g",
       name: "g",
       savedAt: 0,
-      network: "testnet3",
+      network: "signet",
       rootTxid: B,
       rootTxids: [B, C, "ee".repeat(32)],
       nodes: [
@@ -98,7 +98,7 @@ describe("graph-url-codec extensions", () => {
   it("round-trips roots, edges, positions, labels, annotations and edge labels", () => {
     const decoded = decodeGraphFromUrl(encodeGraphToUrl(rich()) ?? "");
     expect(decoded).toMatchObject({
-      network: "testnet3",
+      network: "signet",
       rootTxid: B,
       rootTxids: [B, C],
       nodes: [
@@ -155,9 +155,9 @@ describe("graph-url-codec extensions", () => {
   const V2_FIXTURE =
     "AgADAAEAAgABAAIDq6urq6urq6urq6urq6urq6urq6urq6urq6urq6urq6v_AgABAw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw8PDw_hAAD__wDNzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3Nzc3NzQEBAAHIAAEAAD_AAADAAAAAAAEAAghleGNoYW5nZQAAAAEAAQACB3BheW1lbnQ";
 
-  it("decodes a v2 link unchanged", () => {
+  it("decodes a v2 link unchanged (its retired testnet3 byte falls back to mainnet)", () => {
     expect(decodeGraphFromUrl(V2_FIXTURE)).toMatchObject({
-      network: "testnet3",
+      network: "mainnet",
       rootTxid: B,
       rootTxids: [B, C],
       nodes: [
