@@ -13,7 +13,6 @@ import { formatBtc, fmtN } from "@/lib/format";
 import { COLORS, V2_LIGHT_PALETTE, hexToRgba } from "@/lib/palette";
 import { useV2Palette } from "../useV2Palette";
 import { useNetwork } from "@/context/NetworkContext";
-import { useExperienceMode } from "@/hooks/useExperienceMode";
 import { useDevMode } from "@/hooks/useDevMode";
 import type { RecentScan } from "@/hooks/useRecentScans";
 import type { Bookmark } from "@/hooks/useBookmarks";
@@ -52,7 +51,6 @@ export function V2Home({
   const { t } = useTranslation();
   const { network } = useNetwork();
   const { devMode } = useDevMode();
-  const { proMode } = useExperienceMode();
   const reduced = useReducedMotion();
   const P = useV2Palette();
   const BG = (a: number) => hexToRgba(P.background, a);
@@ -65,7 +63,7 @@ export function V2Home({
   const [moreOpen, setMoreOpen] = useState(false);
   // Every check the scan runs (heuristics + chain analysis), as on the scan screen.
   const checks = getTxHeuristicSteps().length;
-  const showHistory = scans.length > 0 || proMode;
+  const showHistory = scans.length > 0 || bookmarks.length > 0;
 
   const labels = useMemo<FieldLabel[]>(() => UTXOS.map((u) => {
     const kind = labelKind(u);
@@ -237,14 +235,14 @@ export function V2Home({
             <div className="mt-6 w-full flex justify-center rounded-xl bg-surface-1/75 backdrop-blur-md border border-hairline p-3 text-left">
               <ScanHistory
                 scans={scans}
-                bookmarks={proMode ? bookmarks : []}
+                bookmarks={bookmarks}
                 examples={EXAMPLES}
                 onSelect={onSubmit}
                 onClearScans={onClearScans}
                 onRemoveBookmark={onRemoveBookmark}
                 onClearBookmarks={onClearBookmarks}
-                onExportBookmarks={proMode ? onExportBookmarks : undefined}
-                onImportBookmarks={proMode ? onImportBookmarks : undefined}
+                onExportBookmarks={onExportBookmarks}
+                onImportBookmarks={onImportBookmarks}
               />
             </div>
           )}

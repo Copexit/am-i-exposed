@@ -7,6 +7,7 @@ import { fmtN } from "@/lib/format";
 import type { PreSendResult } from "@/lib/analysis/orchestrator";
 import { FlowShell, NewScanLink } from "./V2FlowUi";
 import { V2FindingGroups } from "./V2FindingGroups";
+import { TipRow } from "../results/TipRow";
 
 interface V2DestinationProps {
   query: string;
@@ -87,6 +88,7 @@ export function V2Destination({ query, preSendResult, onBack, durationMs }: V2De
         {durationMs ? t("presend.disclaimerDuration", { duration: (durationMs / 1000).toFixed(1), defaultValue: " in {{duration}}s" }) : ""}.
         {" "}{t("presend.disclaimerBrowser", { defaultValue: "Analysis ran entirely in your browser. This is a heuristic-based assessment - always verify independently." })}
       </p>
+      <TipRow />
     </FlowShell>
   );
 }

@@ -9,6 +9,7 @@ import { FindingCardBody } from "@/components/FindingCard";
 import { CHAIN_FINDING_IDS } from "@/components/ChainAnalysisPanel";
 import { WalletIcon } from "@/components/ui/WalletIcon";
 import { Collapse } from "@/components/ui/Collapse";
+import { SEVERITY_TOOLTIPS } from "@/components/findingCardConstants";
 import { SEVERITY_BG, SEVERITY_TEXT } from "./severity";
 
 const TEMPORALITY_LABEL = {
@@ -62,9 +63,19 @@ export const FindingItem = memo(function FindingItem({ finding, open, onToggle, 
             <span className="hidden sm:inline text-[11px] text-faint">{t("results.chainBadge", { defaultValue: "Chain" })}</span>
           )}
           {temp && finding.severity !== "good" && (
-            <span className="hidden sm:inline text-[11px] text-faint">{t(temp.key, { defaultValue: temp.def })}</span>
+            <span
+              className="hidden sm:inline text-[11px] text-faint"
+              title={t(`temporalityTooltip.${finding.temporality}`, { defaultValue: temp.def })}
+            >
+              {t(temp.key, { defaultValue: temp.def })}
+            </span>
           )}
-          <span className={`text-xs ${SEVERITY_TEXT[finding.severity]}`}>{severityLabel}</span>
+          <span
+            className={`text-xs ${SEVERITY_TEXT[finding.severity]}`}
+            title={t(`common.severityTooltip.${finding.severity}`, { defaultValue: SEVERITY_TOOLTIPS[finding.severity] })}
+          >
+            {severityLabel}
+          </span>
           <span className={`v2-num text-sm w-9 text-right ${impact > 0 ? "text-severity-good" : impact < 0 ? "text-foreground" : "text-faint"}`}>
             {impact > 0 ? `+${impact}` : impact === 0 ? "0" : impact}
           </span>
