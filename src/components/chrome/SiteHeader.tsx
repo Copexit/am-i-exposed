@@ -76,6 +76,13 @@ export function SiteHeader() {
 
   const navLabel = (key: string, label: string) => t(key, { defaultValue: label });
   const hrefFor = (href: string) => (href === "/graph/" ? graphHref(pathname, hash) : href);
+  // The graph explorer ships analysis code (heuristics, entity data): prefetch it on
+  // intent (hover/focus/touch) instead of on every page view.
+  const prefetchProps = (href: string) => {
+    if (href !== "/graph/") return {};
+    const warm = () => router.prefetch(href);
+    return { prefetch: false, onMouseEnter: warm, onFocus: warm, onTouchStart: warm };
+  };
 
   return (
     <header
@@ -105,6 +112,7 @@ export function SiteHeader() {
               <Link
                 key={item.href}
                 href={hrefFor(item.href)}
+                {...prefetchProps(item.href)}
                 aria-current={active ? "page" : undefined}
                 className={`relative whitespace-nowrap rounded-lg px-2 lg:px-3 py-2 text-[14px] transition-colors ${FOCUS} ${
                   active ? "text-foreground" : "text-muted hover:text-foreground"
@@ -163,6 +171,7 @@ export function SiteHeader() {
                   <li key={item.href}>
                     <Link
                       href={hrefFor(item.href)}
+                      {...prefetchProps(item.href)}
                       onClick={() => setOpen(false)}
                       aria-current={active ? "page" : undefined}
                       className={`flex min-h-14 items-center justify-between rounded-md text-[20px] tracking-tight ${FOCUS} ${

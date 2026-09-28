@@ -6,7 +6,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { AddressInput } from "@/components/AddressInput";
 import { ScanHistory } from "@/components/ScanHistory";
 import { EXAMPLES, truncateId } from "@/lib/constants";
-import { getTxHeuristicSteps } from "@/lib/analysis/orchestrator";
+import { getTxHeuristicSteps } from "@/lib/analysis/heuristic-steps";
 import { SelfHostRow } from "./SelfHostRow";
 import { detectInputType, cleanInput } from "@/lib/analysis/detect-input";
 import { formatBtc, fmtN } from "@/lib/format";

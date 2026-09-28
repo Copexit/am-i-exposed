@@ -6,7 +6,7 @@ import { motion } from "motion/react";
 import { Check, Loader2 } from "lucide-react";
 import { useNetwork } from "@/context/NetworkContext";
 import { CopyButton } from "@/components/ui/CopyButton";
-import type { HeuristicStep } from "@/lib/analysis/orchestrator";
+import type { HeuristicStep } from "@/lib/analysis/heuristic-steps";
 import type { FetchProgress } from "@/hooks/useAnalysis";
 import type { MempoolTransaction } from "@/lib/api/types";
 import { ChecksStrip } from "./ChecksStrip";

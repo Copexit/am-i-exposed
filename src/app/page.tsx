@@ -1,6 +1,6 @@
 "use client";
 
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 import { useScanner } from "@/hooks/useScanner";
@@ -8,10 +8,13 @@ import { InstallPrompt } from "@/components/InstallPrompt";
 import { XpubPrivacyWarning } from "@/components/wallet/XpubPrivacyWarning";
 import { Home } from "@/components/home/Home";
 import { ScanScreen } from "@/components/scan/ScanScreen";
-import { Results } from "@/components/results/Results";
-import { DestinationResult } from "@/components/flows/DestinationResult";
 import { ErrorScreen } from "@/components/flows/ErrorScreen";
 import { WalletLoading } from "@/components/flows/WalletLoading";
+// Result views pull the report UI and its engine helpers: loaded after first paint, not with the route
+const loadResults = () => import("@/components/results/Results");
+const loadDestination = () => import("@/components/flows/DestinationResult");
+const Results = lazy(() => loadResults().then(m => ({ default: m.Results })));
+const DestinationResult = lazy(() => loadDestination().then(m => ({ default: m.DestinationResult })));
 const NetworkSwitchToast = lazy(() => import("@/components/NetworkSwitchToast").then(m => ({ default: m.NetworkSwitchToast })));
 const WalletResults = lazy(() => import("@/components/flows/WalletResults").then(m => ({ default: m.WalletResults })));
 
@@ -28,6 +31,19 @@ export default function ScannerPage() {
     backwardLayers, forwardLayers, boltzmannResult, autoSwitchedNetwork, fromCache, analyze,
   } = analysis;
   const { t } = useTranslation();
+
+  // Warm the result views once the home screen is up, so a scan never waits on them
+  useEffect(() => {
+    void loadResults().catch(() => {});
+    void loadDestination().catch(() => {});
+  }, []);
+
+  const viewFallback = (
+    <div className="flex-1 flex items-center justify-center gap-2 text-sm text-muted py-24">
+      <Loader2 size={16} className="animate-spin text-bitcoin" aria-hidden="true" />
+      {t("common.loading", { defaultValue: "Loading..." })}
+    </div>
+  );
 
   return (
     <div className="flex-1 flex flex-col">
@@ -74,8 +90,8 @@ export default function ScannerPage() {
         )}
 
         {phase === "complete" && query && inputType && result && (
+          <Suspense key="results" fallback={viewFallback}>
           <Results
-            key="results"
             query={query}
             inputType={inputType === "psbt" ? "txid" : inputType as "txid" | "address"}
             result={result}
@@ -102,10 +118,13 @@ export default function ScannerPage() {
               complete: psbtData.complete,
             } : null}
           />
+          </Suspense>
         )}
 
         {phase === "complete" && query && preSendResult && !result && (
-          <DestinationResult key="destination" query={query} preSendResult={preSendResult} onBack={handleBack} durationMs={durationMs} />
+          <Suspense key="destination" fallback={viewFallback}>
+            <DestinationResult query={query} preSendResult={preSendResult} onBack={handleBack} durationMs={durationMs} />
+          </Suspense>
         )}
 
         {phase === "error" && error !== "xpub" && (

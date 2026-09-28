@@ -1,4 +1,4 @@
-import type { HeuristicStep } from "@/lib/analysis/orchestrator";
+import type { HeuristicStep } from "@/lib/analysis/heuristic-steps";
 import type { FetchProgress } from "@/hooks/useAnalysis";
 import type { Severity } from "@/lib/types";
 
