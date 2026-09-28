@@ -1,19 +1,18 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { Settings, ChevronDown, Sun, Moon, Monitor } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { type BitcoinNetwork } from "@/lib/bitcoin/networks";
-import { NetworkSettings } from "@/components/settings/NetworkSettings";
-import { AnalysisSettingsPanel } from "@/components/settings/AnalysisSettingsPanel";
-import { CacheSettingsPanel } from "@/components/settings/CacheSettingsPanel";
-import { WorkspaceSettingsPanel } from "@/components/settings/WorkspaceSettingsPanel";
 import { LocaleSelector } from "@/components/settings/LocaleSelector";
-import { EntityFilterStatus } from "@/components/settings/EntityFilterStatus";
 import { useTheme, type ThemePreference } from "@/hooks/useTheme";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
+
+// Loaded on first hover/focus/open of the settings button, not with the site chrome.
+const loadAdvanced = () => import("@/components/settings/AdvancedSettings");
+const AdvancedSettings = lazy(loadAdvanced);
 
 type NetworkOption = { value: BitcoinNetwork; label: string; dot: string };
 const NETWORKS: [NetworkOption, ...NetworkOption[]] = [
@@ -70,6 +69,8 @@ export function ApiSettings() {
         onClick={() => {
           setOpen(!open);
         }}
+        onPointerEnter={() => void loadAdvanced()}
+        onFocus={() => void loadAdvanced()}
         className="relative inline-flex items-center gap-1.5 text-muted hover:text-foreground transition-colors cursor-pointer p-2 rounded-lg border border-card-border bg-surface-elevated hover:bg-surface-inset"
         aria-label={t("settings.ariaLabel", { defaultValue: "Settings" })}
         aria-expanded={open}
@@ -163,16 +164,9 @@ export function ApiSettings() {
             </div>
           </div>
 
-          <WorkspaceSettingsPanel />
-
-          {/* Advanced API settings - hidden on Umbrel (API is preconfigured) */}
-          {!isUmbrel && (
-            <NetworkSettings onClosePanel={() => setOpen(false)} />
-          )}
-
-          <AnalysisSettingsPanel />
-          <CacheSettingsPanel />
-          <EntityFilterStatus />
+          <Suspense fallback={<div className="h-48" aria-busy="true" />}>
+            <AdvancedSettings isUmbrel={isUmbrel} onClosePanel={() => setOpen(false)} />
+          </Suspense>
 
           {/* Version */}
           <div className="border-t border-card-border pt-2 text-center">
