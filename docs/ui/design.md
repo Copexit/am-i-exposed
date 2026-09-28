@@ -1,8 +1,12 @@
-# am-i.exposed v2 - design spec
+# am-i.exposed - UI design system
 
-v2 is served at `/v2/` next to the classic UI during the beta (noindex, not in
-the sitemap). It shares the analysis engine, hooks and data with classic. Only
-the presentation layer is new.
+The design system of the am-i.exposed web app: principles, tokens, type,
+layout, copy and component rules. Components live in `src/components/`
+(`chrome/`, `home/`, `scan/`, `results/`, `stage/`, `flows/`, `pages/`); results
+read everything they show from the view model in `src/lib/view/`. See
+[development-guide.md](../development-guide.md) for the architecture. (The
+migration parity checklist that lived beside this file until v0.37.0 is in git
+history.)
 
 ## Principles (every review checks these)
 
@@ -23,8 +27,8 @@ the presentation layer is new.
 
 ## Tokens (`src/app/globals.css`)
 
-Dark is `[data-ui="v2"]`; light is `html[data-theme="light"] [data-ui="v2"]`
-(same selector on `<html>`), which wins over dark. JS-drawn surfaces (canvas,
+Dark is `:root` (the default); light is `html[data-theme="light"]`, which wins
+over dark. JS-drawn surfaces (canvas,
 SVG, inline styles) read the same values from `DARK_COLORS` / `LIGHT_COLORS`
 in `src/lib/palette.ts` via `usePalette()`; `palette.test.ts` fails on drift.
 
@@ -34,7 +38,7 @@ in `src/lib/palette.ts` via `usePalette()`; `palette.test.ts` fails on drift.
 | `--surface-1` | `bg-surface-1` | #111114 | #fbfbfc | cards, sections, panels (raised) |
 | `--surface-2` | `bg-surface-2` | #17171b | #e0e4ea | hover and active tints, tracks, wells inside cards |
 | `--surface-float` | `bg-surface-float` | #17171b | #fbfbfc | popovers, tooltips, the home scan field |
-| `--surface-inset` | `bg-surface-inset` | #111114 | #eef0f4 | classic wells (light: card color at page level, recessed inside a card) |
+| `--surface-inset` | `bg-surface-inset` | #111114 | #eef0f4 | wells (light: card color at page level, recessed inside a card) |
 | `--hairline` | `border-hairline` | 7% white | rgba(15,17,21,.14) | dividers, card outlines |
 | `--hairline-strong` | `border-hairline-strong` | 13% white | rgba(15,17,21,.22) | hover/focus outlines, active chips |
 | `--foreground` | `text-foreground` | #f2f2f4 | #15171c | primary text (17.3:1 card, 15.4:1 page) |
@@ -87,7 +91,7 @@ display sizes (`tracking-tight`). Body line-height 1.55, max ~70ch.
 ## Copy
 
 No em dashes anywhere. Never "we/us/our". Never "proprietary". Passive or
-refer to "am-i.exposed". All strings through `t("v2.<area>.<key>", { defaultValue })`;
+refer to "am-i.exposed". All strings through `t("<area>.<key>", { defaultValue })`;
 keys land in all 6 locales before merge (locale-parity test).
 
 ## Component rules
@@ -95,6 +99,5 @@ keys land in all 6 locales before merge (locale-parity test).
 - Reuse engine-facing helpers and heavy components (GraphExplorerPanel,
   LinkabilityHeatmap, TaintPathDiagram, ClusterPanel, CexRiskPanel, ...).
 - Every direct child of an `AnimatePresence` gets a `key` at the call site.
-- Links into the scanner use `scannerHref()` (`src/lib/v2/paths.ts`) so v2
-  users stay in v2.
+- Links into the scanner are plain hash URLs (`/#tx=...`, `/#addr=...`).
 - `data-testid` on key states (verdict, findings, reveal, stage) for e2e.

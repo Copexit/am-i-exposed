@@ -41,11 +41,11 @@ useWalletAnalysis hook
     |   Returns: WalletAuditResult { score, grade, findings, stats }
     |
     v
-WalletAuditResults component
-    |-- Grade card (A+ to F, score out of 100)
-    |-- Stats grid (6 cells: active addresses, txs, UTXOs, balance, reused, dust)
-    |-- Findings list (FindingCard for each wallet-level finding)
-    |-- Coin Selection Advisor (collapsible, uses selectCoins())
+WalletResults component (src/components/flows/)
+    |-- Verdict (grade, score out of 100) and stats
+    |-- Findings list (FindingGroups, wallet-level findings)
+    |-- WalletWorkspace: graph, address table, tx list,
+        Coin Selection Advisor (uses selectCoins())
 ```
 
 ### Key Files
@@ -55,7 +55,8 @@ WalletAuditResults component
 | `src/hooks/useWalletAnalysis.ts` | Hook: derive -> fetch -> audit -> state |
 | `src/lib/bitcoin/descriptor.ts` | Xpub/descriptor parsing and BIP32 address derivation |
 | `src/lib/analysis/wallet-audit.ts` | Wallet-level privacy audit (reuse, hygiene, spending) |
-| `src/components/wallet/WalletAuditResults.tsx` | Dashboard UI with grade, stats, findings |
+| `src/components/flows/WalletResults.tsx` | Wallet result: verdict, stats, worst offender, findings |
+| `src/components/flows/WalletWorkspace.tsx` | Graph, address table, tx list, coin selection |
 | `src/components/wallet/CoinSelector.tsx` | Coin selection advisor within wallet results |
 | `src/app/page.tsx` | Main page orchestration, hash routing (#xpub=...) |
 | `src/lib/analysis/detect-input.ts` | Input type detection (txid, address, psbt, xpub) |
@@ -251,6 +252,8 @@ Only appears when at least one address has issues (reuse, dust, or toxic change)
 
 ### Dashboard Layout (Updated)
 
+_Historical: planned against the original `WalletAuditResults` component. Since v0.37.0 this layout is `src/components/flows/WalletResults.tsx` + `WalletWorkspace.tsx`._
+
 ```
 WalletAuditResults
     |-- Back button
@@ -319,7 +322,7 @@ interface WalletAuditResult {
 | `src/components/wallet/WalletAddressTable.tsx` | NEW | Per-address drill-down table with sorting and expandable rows |
 | `src/components/wallet/WalletTxList.tsx` | NEW | Per-tx deduplicated list with wallet address chips |
 | `src/app/page.tsx` | MODIFY | Add `pendingXpub` state, dialog flow, local API banner, `onScan` prop |
-| `src/components/wallet/WalletAuditResults.tsx` | MODIFY | Add address table, tx list, worst offender card, `onScan` prop |
+| `src/components/wallet/WalletAuditResults.tsx` (now `flows/WalletResults.tsx`) | MODIFY | Add address table, tx list, worst offender card, `onScan` prop |
 | `src/hooks/useWalletAnalysis.ts` | NO CHANGE | Data already available in `addressInfos` |
 | `src/lib/analysis/wallet-audit.ts` | NO CHANGE | Audit logic sufficient for current scope |
 | `src/lib/bitcoin/descriptor.ts` | NO CHANGE | Derivation already supports BIP44/49/84/86 |

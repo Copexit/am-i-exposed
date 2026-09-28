@@ -207,9 +207,9 @@ On non-Umbrel (GitHub Pages), behavior is unchanged - direct call to the Cloudfl
 
 When "available", the app's `NetworkContext` sets `mempoolBaseUrl` to `/api` (relative) instead of `https://mempool.space/api`. The `ConnectionBadge` component shows a green shield with "Local".
 
-### ResultsPanel relative URL fix
+### Relative API URL in the results footer
 
-`ResultsPanel.tsx` constructs a "View on mempool.space" link. When `mempoolBaseUrl` is `/api` (relative), `new URL("/api")` throws. The fix checks `startsWith("/")` first and displays "local API" as hostname.
+`src/components/results/ResultsFooter.tsx` constructs a "View on mempool.space" link. When `mempoolBaseUrl` is `/api` (relative), `new URL("/api")` throws. The fix checks `startsWith("/")` first and displays "local API" as hostname.
 
 ## Local Testing
 

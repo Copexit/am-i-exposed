@@ -13,42 +13,61 @@ Architecture, data flow and conventions for the am-i-exposed web app. For the he
 ```
 src/
 ├── app/                          # Next.js 16 routes (static export)
-│   ├── page.tsx                  # Scanner: hash routing (#tx= / #addr= / #check= / #xpub=), phase machine
-│   ├── layout.tsx                # Root layout: metadata, CSP <meta>, providers
+│   ├── page.tsx                  # Scanner: hash routing (#tx= / #addr= / #check= / #xpub=), one view per phase
+│                                 # (Home, ScanScreen, Results, DestinationResult, ErrorScreen, Wallet*)
+│   ├── layout.tsx                # Root layout: metadata, CSP <meta>, theme pre-paint, providers,
+│                                 # SiteHeader / PrivacyNotice / SiteFooter
 │   ├── globals.css               # Theme tokens (dark default, html[data-theme="light"] overrides)
 │   ├── graph/                    # Standalone graph explorer
 │   ├── observatory/              # CoinJoin Observatory (Whirlpool + WabiSabi stats)
-│   ├── guide/ faq/ glossary/ about/ agents/ setup-guide/ welcome/
+│   ├── guide/ faq/ glossary/ about/ agents/ setup-guide/ welcome/   # Route + metadata layout; body in components/pages
 │   └── */opengraph-image.tsx     # Static OG / Twitter images per route
 ├── components/
-│   ├── ResultsPanel.tsx          # Results layout (score, findings, viz, recommendations)
-│   ├── results/                  # Results sub-sections (findings, sidebar, deep analysis, waterfall)
-│   ├── DiagnosticLoader.tsx      # Step-by-step heuristic progress with running score
-│   ├── ChainAnalysisPanel.tsx    # Chain findings grouped by category
-│   ├── GraphExplorerPanel.tsx    # Graph explorer wrapper (API client, hooks)
+│   ├── chrome/                   # SiteHeader (nav, settings, mobile menu), SiteFooter, PrivacyNotice, nav.ts
+│   ├── home/                     # Home: hero scan field over a live "glass mempool" (GlassField),
+│   │                             # LensExplainer/LensStage, HowItWorks, SelfHostRow, recent scans + bookmarks
+│   ├── scan/                     # ScanScreen: progress while a scan runs (ScanStage, ScanTxLive, ChecksStrip),
+│   │                             # the reveal timeline (useRevealTimeline, RevealSkip)
+│   ├── results/                  # Results: one progressive layout for tx and address results
+│   │   ├── Results.tsx           # Verdict -> evidence -> findings -> explain rail -> context -> analyst tools
+│   │   ├── VerdictBand.tsx, GradeDial.tsx, SectionNav.tsx, ResultActions.tsx
+│   │   ├── EvidencePanel.tsx     # Transaction stage (tx) or address summary
+│   │   ├── FindingsList.tsx, FindingItem.tsx   # Grouped findings, adversary/temporality filters
+│   │   ├── ExplainRail.tsx, ScoreBreakdown.tsx, ExposureMatrix.tsx
+│   │   ├── ContextSection.tsx    # Remediation, recovery, exchange warning
+│   │   ├── AnalystWorkspace.tsx  # Graph explorer + DeepAnalysisTxid (Boltzmann heat map, taint, cluster, CEX risk)
+│   │   └── DeepAnalysisTxid.tsx, DeepAnalysisAddress.tsx, ResultsFooter.tsx, TipRow.tsx
+│   ├── stage/                    # TxStage: inputs -> outputs value flow with engine tags (StageRow, StageDiagram,
+│   │                             # VerticalFlowBand, analyst readings in analyst.ts)
+│   ├── flows/                    # Non-tx results: DestinationResult (pre-send check), ErrorScreen, PsbtBanner,
+│   │                             # WalletLoading / WalletResults / WalletWorkspace, FindingGroups, FlowUi
+│   ├── pages/                    # Subpage bodies (About, Agents, Faq, Glossary, Graph, SetupGuide, Welcome),
+│   │                             # PageFrame (subpage frame), ShareCardButton
+│   ├── GraphExplorerPanel.tsx    # Graph explorer wrapper (API client, expansion hooks)
+│   ├── FindingCard.tsx           # Finding body/tables, reused by findings, CoinSelector, TxBreakdownPanel
 │   ├── ClusterPanel.tsx          # Opt-in address cluster analysis
 │   ├── CexRiskPanel.tsx, cex/    # OFAC + Chainalysis screening
-│   ├── wallet/                   # xpub/descriptor audit views
-│   ├── settings/                 # Network, analysis, cache, workspace, locale, entity filter
+│   ├── ApiSettings.tsx, settings/  # Settings popover: network, analysis, cache, workspace, locale, theme, entity filter
+│   ├── wallet/                   # Wallet building blocks (address table, tx list, coin selector, graph, xpub warning)
 │   ├── guide/                    # Guide page sections (data in src/data/guide/)
 │   ├── observatory/              # Observatory cards, charts, tables
 │   ├── history/                  # Recent scans and bookmarks
-│   ├── ui/                       # Small shared primitives (Tooltip, CopyButton, Spinner, ...)
+│   ├── ui/                       # Small shared primitives (Tooltip, CopyButton, Spinner, Collapse, ...)
 │   └── viz/                      # visx/SVG charts
-│       ├── TxFlowDiagram.tsx, FlowChart.tsx      # Sankey I/O flow (+ Boltzmann overlay)
 │       ├── LinkabilityHeatmap.tsx                # Boltzmann link probability matrix
-│       ├── CoinJoinStructure.tsx                 # CoinJoin structure diagram
 │       ├── TaintPathDiagram.tsx, taint/          # Taint flow diagram
-│       ├── ScoreWaterfall.tsx, SeverityRing.tsx  # Score breakdown, severity distribution
 │       ├── UtxoBubbleChart.tsx, PrivacyTimeline.tsx, FingerprintTimeline.tsx, EntityGraph.tsx
 │       ├── GraphExplorer.tsx, graph/             # OXT-style graph (see docs/adr-oxt-graph.md)
-│       └── shared/svgConstants.ts                # SVG_COLORS, derived from src/lib/palette.ts
+│       └── shared/svgConstants.ts                # SVG colors, derived from src/lib/palette.ts
 ├── context/NetworkContext.tsx    # Selected network and its NETWORK_CONFIG
-├── hooks/                        # React wrappers (useAnalysis, useAnalysisSettings, useBoltzmann,
-│                                 # useGraphExpansion, useWalletAnalysis, useHashRouting, useTheme, ...)
+├── hooks/                        # React wrappers: useScanner (the scanner state machine behind page.tsx),
+│                                 # useAnalysis, useWalletAnalysis, useHashRouting, useBoltzmann,
+│                                 # useGraphExpansion, useAnalysisSettings, useTheme, usePalette, ...
 ├── data/                         # entities.json, ofac-addresses.json, guide/*, glossary, agents
 └── lib/
     ├── types.ts                  # Finding (id: FindingId), ScoringResult, Grade, TxType, ...
+    ├── view/                     # View model: buildResultViewModel (tx-view-model.ts), findings grouping and
+    │                             # filters, exposure matrix, score waterfall, tx I/O rows, verdict taglines
     ├── palette.ts                # Hex colors for JS (SVG, canvas); mirrors globals.css tokens
     ├── severity.ts               # Severity -> Tailwind class maps
     ├── browser.ts                # isBraveBrowser (structurally typed for the CLI)
@@ -99,6 +118,10 @@ src/
 
 `analyzeTransaction` (golden tests, CLI, per-tx address breakdown) and `analyzeTransactionSync` (graph views) use the same `runTxHeuristics` + `finalizeTxResult` pair with less context. Address scans go through `runAddressAnalysis` -> `analyzeAddress` (6 address heuristics + temporal and fingerprint-evolution chain modules, scored with the address base).
 
+## From result to screen
+
+`src/app/page.tsx` renders one view per scanner phase from `useScanner`. A finished tx or address scan goes to `Results`, which builds a `ResultViewModel` with `buildResultViewModel` (`src/lib/view/`). Every number, tag and label on the result reads from that view model or from the engine result; components never re-run heuristics. Heavy tools (graph explorer, Boltzmann heat map, taint, cluster) are lazy-loaded in the analyst workspace. Design rules: [ui/design.md](./ui/design.md).
+
 ## Heuristics
 
 Registered in `src/lib/analysis/heuristic-registry.ts`: **28 transaction-level + 6 address-level = 34**. Impacts and references per heuristic are in [privacy-engine.md](./privacy-engine.md).
@@ -138,11 +161,11 @@ Finding ids are typed: `Finding.id` is `FindingId`, the key union of `FINDING_ME
 
 ## Colors
 
-`src/app/globals.css` defines the tokens; Tailwind semantic classes (`text-severity-high`, `bg-surface-inset`) are the default in className code. JS contexts (SVG, canvas) use `src/lib/palette.ts` (`COLORS`, `LIGHT_COLORS`), which `palette.test.ts` keeps in sync with the CSS.
+`src/app/globals.css` defines the tokens; Tailwind semantic classes (`text-severity-high`, `bg-surface-inset`) are the default in className code. JS contexts (SVG, canvas, inline styles) use `src/lib/palette.ts` (`DARK_COLORS` / `LIGHT_COLORS`, resolved per theme by `usePalette()`; `COLORS` for brand/severity hues and rasterized images), which `palette.test.ts` keeps in sync with the CSS.
 
 - Severity: critical `#ef4444`, high `#f97316`, medium `#eab308`, low `#60a5fa`, good `#28d065`
 - Bitcoin `#f7931a`, danger `#ef4444`, success `#28d065`
-- Dark theme by default; a light theme is available via `html[data-theme="light"]` (`useTheme`).
+- Dark (`:root`) and light (`html[data-theme="light"]`) themes. The theme follows the OS unless System / Light / Dark is picked in settings (`useTheme`, stored in `localStorage["ami-theme"]`); a pre-paint script in `layout.tsx` avoids a flash. Token table: [ui/design.md](./ui/design.md).
 
 ## API endpoints
 
