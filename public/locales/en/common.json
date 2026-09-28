@@ -2396,7 +2396,7 @@
   "scan.checksWaiting": "Start when the data arrives",
   "scan.depth": "Trace depth",
   "scan.elapsed": "Elapsed",
-  "scan.elapsedTimeout": "Elapsed / timeout",
+  "scan.traceTimeLimit": "Trace / time limit",
   "scan.eyebrowAddress": "Scanning address",
   "scan.eyebrowPsbt": "Scanning PSBT",
   "scan.eyebrowTx": "Scanning transaction",

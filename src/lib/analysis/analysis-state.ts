@@ -16,7 +16,10 @@ type AnalysisPhase =
 
 export interface FetchProgress {
   status: "fetching-tx" | "tracing-backward" | "tracing-forward" | "done";
+  /** The chain trace's enforced time budget (both phases), in seconds. */
   timeoutSec: number;
+  /** Epoch ms when the chain trace started: the budget counts from here, not from scan start. */
+  startedAt: number;
   currentDepth: number;
   maxDepth: number;
   txsFetched: number;

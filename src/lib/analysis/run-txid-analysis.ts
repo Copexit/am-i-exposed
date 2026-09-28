@@ -199,7 +199,7 @@ export async function runTxidAnalysis(
     txData: tx,
     usdPrice,
     outspends,
-    fetchProgress: { status: "done", timeoutSec: 0, currentDepth: 0, maxDepth: 0, txsFetched: 0 },
+    fetchProgress: { status: "done", timeoutSec: 0, startedAt: 0, currentDepth: 0, maxDepth: 0, txsFetched: 0 },
     backwardLayers: backwardLayers.length > 0 ? backwardLayers : null,
     forwardLayers: forwardLayers.length > 0 ? forwardLayers : null,
   }));

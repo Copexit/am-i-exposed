@@ -2454,7 +2454,7 @@
   "scan.checksWaiting": "Rozpocznie się po nadejściu danych",
   "scan.depth": "Głębokość śledzenia",
   "scan.elapsed": "Upłynęło",
-  "scan.elapsedTimeout": "Upłynęło / limit czasu",
+  "scan.traceTimeLimit": "Śledzenie / limit czasu",
   "scan.eyebrowAddress": "Skanowanie adresu",
   "scan.eyebrowPsbt": "Skanowanie PSBT",
   "scan.eyebrowTx": "Skanowanie transakcji",
