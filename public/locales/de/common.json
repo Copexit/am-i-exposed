@@ -15,7 +15,7 @@
   "about.cap_5_title": "Wallet-Audit",
   "about.cap_6_desc": "Eine unsignierte Transaktion vor dem Signieren analysieren. Runde Beträge, Script-Unstimmigkeiten und Fingerprinting-Probleme erkennen, solange sie noch behoben werden können.",
   "about.cap_6_title": "PSBT Pre-Broadcast-Prüfung",
-  "about.cap_7_desc": "Transaktionsfluss-Diagramme, Boltzmann-Heatmaps, interaktiver Graph-Explorer, Taint-Pfad-Diagramme, Cluster-Zeitleisten, CoinJoin-Strukturaufschlüsselungen und mehr.",
+  "about.cap_7_desc": "Transaktionsfluss-Diagramme, Boltzmann-Heatmaps, interaktiver Graph-Explorer, Taint-Pfad-Diagramme, Cluster-Zeitleisten und mehr.",
   "about.cap_7_title": "Interaktive Visualisierungen",
   "about.cap_8_desc": "Vollständige Oberflächenübersetzung in Englisch, Spanisch, Portugiesisch, Deutsch, Französisch und Polnisch. Community-Beiträge willkommen.",
   "about.cap_8_title": "6 Sprachen",

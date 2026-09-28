@@ -221,7 +221,7 @@ export function GraphPage() {
   }, [loadWarning]);
 
   return (
-    <div className="relative w-full h-[calc(100dvh-57px)]">
+    <div className="relative w-full h-[calc(100dvh-var(--header-h,57px)-var(--notice-h,0px))]">
       <ChartErrorBoundary>
         <Suspense fallback={null}>
           <GraphExplorer

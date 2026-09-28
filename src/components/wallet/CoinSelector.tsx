@@ -73,7 +73,7 @@ export function CoinSelector({ utxos }: CoinSelectorProps) {
         <div className="flex items-end">
           <button
             type="submit"
-            className="px-4 py-2 bg-bitcoin text-background font-semibold text-sm rounded-lg hover:bg-bitcoin-hover transition-all duration-150 cursor-pointer whitespace-nowrap"
+            className="px-4 py-2 bg-bitcoin text-black font-semibold text-sm rounded-lg hover:bg-bitcoin-hover transition-all duration-150 cursor-pointer whitespace-nowrap"
           >
             {t("wallet.suggest", { defaultValue: "Suggest selection" })}
           </button>

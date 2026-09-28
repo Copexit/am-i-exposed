@@ -34,8 +34,8 @@ src/
 │   │   ├── EvidencePanel.tsx     # Transaction stage (tx) or address summary
 │   │   ├── FindingsList.tsx, FindingItem.tsx   # Grouped findings, adversary/temporality filters
 │   │   ├── ExplainRail.tsx, ScoreBreakdown.tsx, ExposureMatrix.tsx
-│   │   ├── ContextSection.tsx    # Remediation, recovery, exchange warning
-│   │   ├── AnalystWorkspace.tsx  # Graph explorer + DeepAnalysisTxid (Boltzmann heat map, taint, cluster, CEX risk)
+│   │   ├── ContextSection.tsx    # CEX risk, exchange warning, common mistakes, analyst view, remediation, recovery
+│   │   ├── AnalystWorkspace.tsx  # Graph explorer + DeepAnalysisTxid (Boltzmann heat map, taint) / DeepAnalysisAddress (cluster, timelines)
 │   │   └── DeepAnalysisTxid.tsx, DeepAnalysisAddress.tsx, ResultsFooter.tsx, TipRow.tsx
 │   ├── stage/                    # TxStage: inputs -> outputs value flow with engine tags (StageRow, StageDiagram,
 │   │                             # VerticalFlowBand, analyst readings in analyst.ts)

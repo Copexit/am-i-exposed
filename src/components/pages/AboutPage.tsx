@@ -255,7 +255,7 @@ export function AboutPage() {
             </a>
             <Link
               href="/"
-              className="text-sm px-4 py-2.5 rounded-lg bg-bitcoin text-background font-semibold hover:bg-bitcoin-hover transition-all"
+              className="text-sm px-4 py-2.5 rounded-lg bg-bitcoin text-black font-semibold hover:bg-bitcoin-hover transition-all"
             >
               {t("about.scanNow", { defaultValue: "Scan now" })}
             </Link>

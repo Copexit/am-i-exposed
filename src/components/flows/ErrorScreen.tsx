@@ -47,7 +47,7 @@ export function ErrorScreen({ error, query, errorCode, onRetry, onBack }: ErrorS
               <button
                 type="button"
                 onClick={() => { if (query) onRetry?.(query); }}
-                className="inline-flex items-center justify-center gap-2 min-h-[44px] px-4 rounded-lg bg-bitcoin text-background text-sm font-semibold hover:bg-bitcoin-hover transition-colors cursor-pointer sm:order-first"
+                className="inline-flex items-center justify-center gap-2 min-h-[44px] px-4 rounded-lg bg-bitcoin text-black text-sm font-semibold hover:bg-bitcoin-hover transition-colors cursor-pointer sm:order-first"
               >
                 <RotateCw size={14} aria-hidden="true" />
                 {t("page.retry", { defaultValue: "Retry" })}

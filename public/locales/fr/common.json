@@ -15,7 +15,7 @@
   "about.cap_5_title": "Audit de portefeuille",
   "about.cap_6_desc": "Analysez une transaction non signée avant de la signer. Détectez les montants ronds, les discordances de scripts et les problèmes d'empreinte tant qu'ils peuvent encore être corrigés.",
   "about.cap_6_title": "Vérification PSBT pré-diffusion",
-  "about.cap_7_desc": "Diagrammes de flux de transactions, cartes de chaleur Boltzmann, explorateur de graphe interactif, diagrammes de chemins de taint, chronologies de clusters, décompositions de structure CoinJoin et plus.",
+  "about.cap_7_desc": "Diagrammes de flux de transactions, cartes de chaleur Boltzmann, explorateur de graphe interactif, diagrammes de chemins de taint, chronologies de clusters et plus.",
   "about.cap_7_title": "Visualisations interactives",
   "about.cap_8_desc": "Traduction complète de l'interface en anglais, espagnol, portugais, allemand, français et polonais. Les contributions de la communauté sont les bienvenues.",
   "about.cap_8_title": "6 Langues",

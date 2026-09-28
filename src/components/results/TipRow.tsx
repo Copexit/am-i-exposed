@@ -8,7 +8,7 @@ import { COINOS_PAY_URL } from "@/lib/constants";
 export function TipRow() {
   const { t } = useTranslation();
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 rounded-xl border border-bitcoin/25 bg-bitcoin/5 px-4 py-3.5">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 rounded-xl border border-bitcoin/35 bg-bitcoin/5 shadow-(--shadow-card) px-4 py-3.5">
       <div className="flex items-center gap-3 flex-1 min-w-0">
         <span className="grid place-items-center size-9 shrink-0 rounded-full bg-bitcoin/15 text-bitcoin" aria-hidden="true">
           <Heart size={16} />

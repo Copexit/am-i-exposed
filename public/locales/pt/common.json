@@ -15,7 +15,7 @@
   "about.cap_5_title": "Auditoria de Carteira",
   "about.cap_6_desc": "Analise uma transação não assinada antes de assinar. Detecte valores redondos, discrepâncias de scripts e problemas de impressão digital enquanto ainda podem ser corrigidos.",
   "about.cap_6_title": "Verificação PSBT Pré-Transmissão",
-  "about.cap_7_desc": "Diagramas de fluxo de transações, mapas de calor Boltzmann, explorador de grafos interativo, diagramas de caminhos de contaminação, linhas do tempo de clusters, detalhamentos de estrutura CoinJoin e mais.",
+  "about.cap_7_desc": "Diagramas de fluxo de transações, mapas de calor Boltzmann, explorador de grafos interativo, diagramas de caminhos de contaminação, linhas do tempo de clusters e mais.",
   "about.cap_7_title": "Visualizações Interativas",
   "about.cap_8_desc": "Tradução completa da interface em inglês, espanhol, português, alemão, francês e polonês. Contribuições da comunidade são bem-vindas.",
   "about.cap_8_title": "6 Idiomas",
