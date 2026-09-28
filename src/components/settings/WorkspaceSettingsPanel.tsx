@@ -8,6 +8,8 @@ import { useSavedGraphs } from "@/hooks/useSavedGraphs";
 
 export function WorkspaceSettingsPanel() {
   const { t } = useTranslation();
+  const nBookmarks = (count: number) => t("workspace.nBookmarks", { count, defaultValue: "{{count}} bookmarks" });
+  const nGraphs = (count: number) => t("workspace.nGraphs", { count, defaultValue: "{{count}} graphs" });
   const { bookmarks, exportBookmarks, importBookmarks } = useBookmarks();
   const { graphs } = useSavedGraphs();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -24,7 +26,7 @@ export function WorkspaceSettingsPanel() {
       return;
     }
     exportBookmarks();
-    showToast("success", t("workspace.exported", { bookmarks: bookmarks.length, graphs: graphs.length, defaultValue: "Exported {{bookmarks}} bookmarks and {{graphs}} graphs." }));
+    showToast("success", t("workspace.exported", { bookmarks: nBookmarks(bookmarks.length), graphs: nGraphs(graphs.length), defaultValue: "Exported {{bookmarks}} and {{graphs}}." }));
   }, [bookmarks, graphs, exportBookmarks, showToast, t]);
 
   const handleImport = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,7 +55,7 @@ export function WorkspaceSettingsPanel() {
         {t("workspace.title", { defaultValue: "Workspace" })}
       </p>
       <p className="text-[11px] text-muted/70">
-        {t("workspace.itemCount", { bookmarks: bookmarks.length, graphs: graphs.length, defaultValue: "{{bookmarks}} bookmarks and {{graphs}} graphs saved" })}
+        {t("workspace.itemCount", { bookmarks: nBookmarks(bookmarks.length), graphs: nGraphs(graphs.length), defaultValue: "{{bookmarks}} and {{graphs}} saved" })}
       </p>
       <div className="flex gap-2">
         <button

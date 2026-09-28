@@ -6,6 +6,7 @@
  * JS mirrors: DARK_COLORS / LIGHT_COLORS in src/lib/palette.ts.
  */
 :root {
+  color-scheme: dark;
   --background: #0b0b0d;
   --foreground: #f2f2f4;
   --muted: #a6a6b0;
@@ -234,7 +235,8 @@ html[data-theme="light"] body::after { display: none; }
 }
 
 [id] {
-  scroll-margin-top: 96px;
+  /* Clears the sticky header plus the sticky section nav. */
+  scroll-margin-top: calc(var(--header-h, 64px) + 64px);
 }
 
 body {

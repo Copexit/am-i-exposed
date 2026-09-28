@@ -40,7 +40,7 @@ export function SiteFooter() {
           className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px]"
         >
           <Link href="/setup-guide/" className={LINK}>{t("common.setupGuide", { defaultValue: "Setup Guide" })}</Link>
-          <Link href="/agents/" className={LINK}>Agents & CLI</Link>
+          <Link href="/agents/" className={LINK}>{t("common.agentsCli", { defaultValue: "Agents & CLI" })}</Link>
           <a href="https://github.com/Copexit/am-i-exposed" {...ext} className={LINK}>
             <Github size={14} aria-hidden="true" />
             GitHub

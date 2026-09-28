@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NetworkProvider } from "@/context/NetworkContext";
+import { SkipLink } from "@/components/chrome/SkipLink";
 import { I18nProvider } from "@/lib/i18n/I18nProvider";
 import { LangAttributeSync } from "@/lib/i18n/LangAttributeSync";
 import { SiteHeader } from "@/components/chrome/SiteHeader";
@@ -124,13 +125,8 @@ export default function RootLayout({
             }),
           }}
         />
-        <a
-          href="#main-content"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-bitcoin focus:text-black focus:rounded-lg focus:text-sm focus:font-medium"
-        >
-          Skip to main content
-        </a>
         <I18nProvider>
+          <SkipLink />
           <LangAttributeSync />
           <NetworkProvider>
             <SiteHeader />
