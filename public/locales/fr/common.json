@@ -1766,6 +1766,7 @@
   "settings.cacheTitle": "Cache API",
   "settings.connected": "Connecté. Utilisation du point d'accès personnalisé.",
   "settings.connectionFailed": "Connexion échouée",
+  "settings.invalidUrl": "URL invalide. Saisissez une adresse complète en http:// ou https://, par ex. http://localhost:3006/api",
   "settings.corsError": "Connexion échouée. Votre nœud a probablement besoin d'en-têtes CORS. Consultez le guide d'installation ci-dessous.",
   "settings.corsExplanation": "Les instances mempool auto-hébergées ont besoin",
   "settings.corsExplanation2": "pour accepter les requêtes de ce site. Ajoutez ceci à votre configuration nginx mempool :",

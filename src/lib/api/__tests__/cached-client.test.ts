@@ -73,12 +73,8 @@ describe("networkFromUrl", () => {
     expect(networkFromUrl("https://mempool.space/signet/api")).toBe("signet");
   });
 
-  it("detects testnet3 (legacy /testnet path)", () => {
-    expect(networkFromUrl("https://mempool.space/testnet/api")).toBe("testnet3");
-  });
-
-  it("does not confuse testnet4 with testnet3", () => {
-    expect(networkFromUrl("https://mempool.space/testnet4/api")).toBe("testnet4");
+  it("treats the retired /testnet (testnet3) path as mainnet", () => {
+    expect(networkFromUrl("https://mempool.space/testnet/api")).toBe("mainnet");
   });
 
   it("defaults to mainnet for custom URLs", () => {

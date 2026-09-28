@@ -1804,6 +1804,7 @@
   "settings.cacheTitle": "Pamięć podręczna API",
   "settings.connected": "Połączono. Używany jest niestandardowy punkt końcowy.",
   "settings.connectionFailed": "Połączenie nie powiodło się",
+  "settings.invalidUrl": "Nieprawidłowy adres URL. Wpisz pełny adres http:// lub https://, np. http://localhost:3006/api",
   "settings.corsError": "Połączenie nie powiodło się. Twój węzeł prawdopodobnie potrzebuje nagłówków CORS. Patrz przewodnik konfiguracji poniżej.",
   "settings.corsExplanation": "Samodzielnie hostowane instancje mempool potrzebują",
   "settings.corsExplanation2": "aby akceptować żądania z tej witryny. Dodaj to do konfiguracji nginx swojego mempoola:",

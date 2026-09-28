@@ -6,6 +6,7 @@ import { Check, X, Loader2, RotateCcw, ChevronDown, ChevronUp, AlertTriangle } f
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { diagnoseUrl } from "@/lib/api/url-diagnostics";
+import { normalizeApiUrl } from "@/lib/api/normalize-api-url";
 import { abortSignalTimeout } from "@/lib/abort-signal";
 
 type HealthStatus = "idle" | "checking" | "ok" | "error";
@@ -26,20 +27,23 @@ export function NetworkSettings({ onClosePanel }: NetworkSettingsProps) {
 
   // Pre-flight diagnostics on the current input URL
   const diagnostic = useMemo(() => {
-    const trimmed = inputValue.trim().replace(/\/+$/, "");
-    if (!trimmed) return null;
-    try {
-      new URL(trimmed);
-    } catch {
-      return null;
-    }
-    return diagnoseUrl(trimmed);
+    const normalized = normalizeApiUrl(inputValue);
+    return normalized ? diagnoseUrl(normalized) : null;
   }, [inputValue]);
 
   const checkHealth = useCallback(
     async (url: string) => {
-      const trimmed = url.trim().replace(/\/+$/, "");
-      if (!trimmed) return;
+      const trimmed = normalizeApiUrl(url);
+      if (!trimmed) {
+        // Reject before fetching: a non-URL would be requested as a relative path
+        setHealth("error");
+        setErrorHint(
+          t("settings.invalidUrl", {
+            defaultValue: "Invalid URL. Enter a full http:// or https:// address, e.g. http://localhost:3006/api",
+          })
+        );
+        return;
+      }
 
       setHealth("checking");
       setErrorHint("");
@@ -150,6 +154,7 @@ export function NetworkSettings({ onClosePanel }: NetworkSettingsProps) {
               setErrorHint("");
             }}
             placeholder="https://mempool.space/api"
+            aria-invalid={(health === "error" && !normalizeApiUrl(inputValue)) || undefined}
             aria-label={t("settings.apiInputLabel", { defaultValue: "Custom mempool API URL" })}
             className="flex-1 bg-surface-inset border border-card-border rounded-lg px-3 py-2.5 text-sm text-foreground font-mono placeholder:text-muted/70 focus-visible:border-bitcoin/50"
           />
@@ -196,7 +201,7 @@ export function NetworkSettings({ onClosePanel }: NetworkSettingsProps) {
           </div>
         )}
         {health === "error" && (
-          <div className="flex items-start gap-1.5 text-xs text-severity-high">
+          <div role="alert" className="flex items-start gap-1.5 text-xs text-severity-high">
             <X size={14} className="shrink-0 mt-0.5" />
             <span>{errorHint || t("settings.connectionFailed", { defaultValue: "Connection failed" })}</span>
           </div>

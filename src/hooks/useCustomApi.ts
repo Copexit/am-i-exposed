@@ -2,21 +2,13 @@
 
 import { useSyncExternalStore, useCallback } from "react";
 import { createLocalStorageStore } from "./createLocalStorageStore";
-
-function isValidApiUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === "https:" || parsed.protocol === "http:";
-  } catch {
-    return false;
-  }
-}
+import { normalizeApiUrl } from "@/lib/api/normalize-api-url";
 
 const store = createLocalStorageStore<string | null>(
   "ami-custom-api-url",
   null,
   // Validate protocol to prevent data:/javascript: URI injection from localStorage
-  (raw) => (raw && isValidApiUrl(raw) ? raw : null),
+  (raw) => (raw ? normalizeApiUrl(raw) : null),
   (val) => val ?? "",
 );
 
@@ -29,7 +21,7 @@ export function useCustomApi() {
 
   const setCustomUrl = useCallback((url: string | null) => {
     if (url) {
-      store.set(isValidApiUrl(url) ? url : null);
+      store.set(normalizeApiUrl(url));
     } else {
       store.remove();
     }
