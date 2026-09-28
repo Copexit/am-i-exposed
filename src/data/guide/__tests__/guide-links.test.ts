@@ -15,7 +15,7 @@ function sourceFiles(dir: string): string[] {
 }
 
 describe("guide links", () => {
-  it("every /guide#anchor in the app points at a real pathway, combination or section", () => {
+  it("every /guide/#anchor in the app points at a real pathway, combination or section", () => {
     const ids = new Set([...PATHWAYS.map((p) => p.id), ...COMBINED_PATHWAYS.map((c) => c.id), ...SECTION_IDS]);
     const dangling: string[] = [];
     for (const file of sourceFiles(join(process.cwd(), "src"))) {
@@ -24,5 +24,15 @@ describe("guide links", () => {
       }
     }
     expect(dangling).toEqual([]);
+  });
+
+  it("internal guide links use the trailing-slash form /guide/#id (no host redirect)", () => {
+    const slashless: string[] = [];
+    for (const file of sourceFiles(join(process.cwd(), "src"))) {
+      for (const [match] of readFileSync(file, "utf8").matchAll(/["'`]\/guide#[a-z0-9-]*/g)) {
+        slashless.push(`${match.slice(1)} (${file.split("/src/")[1]})`);
+      }
+    }
+    expect(slashless).toEqual([]);
   });
 });
