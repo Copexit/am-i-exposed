@@ -1367,6 +1367,7 @@
   "page.hero_prefix": "Am I ",
   "page.hero_suffix": "exposed?",
   "page.networkAutoSwitched": "Switched to {{network}} to find this transaction.",
+  "page.networkAutoSwitchedAddress": "Switched to {{network}}, the network this address belongs to.",
   "page.new_scan": "New scan",
   "page.presend_fresh": "Fresh address",
   "page.presend_sanctioned": "OFAC sanctioned",

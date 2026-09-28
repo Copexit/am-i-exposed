@@ -146,7 +146,7 @@ export default function ScannerPage() {
       {/* No floating promo or tip toasts: both are inline (home self-host row, results tip row). */}
       <InstallPrompt />
       {phase === "complete" && autoSwitchedNetwork && (
-        <Suspense fallback={null}><NetworkSwitchToast key={query} network={autoSwitchedNetwork} /></Suspense>
+        <Suspense fallback={null}><NetworkSwitchToast key={query} network={autoSwitchedNetwork} kind={inputType === "address" ? "address" : "txid"} /></Suspense>
       )}
 
       {pendingXpub && (

@@ -1405,6 +1405,7 @@
   "page.hero_prefix": "Czy jestem ",
   "page.hero_suffix": "narażony?",
   "page.networkAutoSwitched": "Przełączono na {{network}}, aby znaleźć tę transakcję.",
+  "page.networkAutoSwitchedAddress": "Przełączono na {{network}}, sieć, do której należy ten adres.",
   "page.new_scan": "Nowe skanowanie",
   "page.presend_fresh": "Świeży adres",
   "page.presend_sanctioned": "Sankcjonowany przez OFAC",

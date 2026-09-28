@@ -6,8 +6,8 @@ import { ArrowLeftRight, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { NETWORK_CONFIG, type BitcoinNetwork } from "@/lib/bitcoin/networks";
 
-/** Transient notice shown when a txid lookup auto-switched networks. */
-export function NetworkSwitchToast({ network }: { network: BitcoinNetwork }) {
+/** Transient notice shown when a scan auto-switched networks. */
+export function NetworkSwitchToast({ network, kind = "txid" }: { network: BitcoinNetwork; kind?: "txid" | "address" }) {
   const { t } = useTranslation();
   const [visible, setVisible] = useState(true);
 
@@ -30,10 +30,15 @@ export function NetworkSwitchToast({ network }: { network: BitcoinNetwork }) {
         >
           <ArrowLeftRight size={16} className="text-bitcoin shrink-0" aria-hidden="true" />
           <span className="flex-1">
-            {t("page.networkAutoSwitched", {
-              network: NETWORK_CONFIG[network].label,
-              defaultValue: "Switched to {{network}} to find this transaction.",
-            })}
+            {kind === "address"
+              ? t("page.networkAutoSwitchedAddress", {
+                network: NETWORK_CONFIG[network].label,
+                defaultValue: "Switched to {{network}}, the network this address belongs to.",
+              })
+              : t("page.networkAutoSwitched", {
+                network: NETWORK_CONFIG[network].label,
+                defaultValue: "Switched to {{network}} to find this transaction.",
+              })}
           </span>
           <button
             onClick={() => setVisible(false)}

@@ -1367,6 +1367,7 @@
   "page.hero_prefix": "Suis-je ",
   "page.hero_suffix": "exposé ?",
   "page.networkAutoSwitched": "Passage à {{network}} pour trouver cette transaction.",
+  "page.networkAutoSwitchedAddress": "Passage à {{network}}, le réseau de cette adresse.",
   "page.new_scan": "Nouvelle analyse",
   "page.presend_fresh": "Adresse neuve",
   "page.presend_sanctioned": "Sanctionnée OFAC",

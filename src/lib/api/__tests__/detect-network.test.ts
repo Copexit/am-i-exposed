@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { detectTxidNetwork } from "../detect-network";
+import { detectAddressNetwork, detectTxidNetwork } from "../detect-network";
 
 const VALID_TXID = "a".repeat(64);
 
@@ -112,5 +112,36 @@ describe("detectTxidNetwork", () => {
       const url = typeof call[0] === "string" ? call[0] : call[0].toString();
       expect(url.endsWith("/hex"), `must probe /hex, got ${url}`).toBe(true);
     }
+  });
+});
+
+describe("detectAddressNetwork", () => {
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  const history = (n: number) => new Response(JSON.stringify({ chain_stats: { tx_count: n }, mempool_stats: { tx_count: 0 } }), { status: 200 });
+
+  it("leaves a matching network alone without any request", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await detectAddressNetwork("bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq", "mainnet")).toBeNull();
+    expect(await detectAddressNetwork("tb1qk0vmwuzrxqc6u3calwefye203jtndmdxp5ugpr", "signet")).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("sends a mainnet address scanned on a test network to mainnet", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await detectAddressNetwork("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", "testnet4")).toBe("mainnet");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("picks the test network where a tb1 address has history", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => (String(input).includes("/signet/") ? history(3) : history(0))));
+    expect(await detectAddressNetwork("tb1qk0vmwuzrxqc6u3calwefye203jtndmdxp5ugpr", "mainnet")).toBe("signet");
+  });
+
+  it("falls back to testnet4 when no test network knows the address", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => history(0)));
+    expect(await detectAddressNetwork("tb1qk0vmwuzrxqc6u3calwefye203jtndmdxp5ugpr", "mainnet")).toBe("testnet4");
   });
 });
