@@ -1357,6 +1357,7 @@
   "page.error_title": "Analysis failed",
   "page.example_joinmarket": "JoinMarket CoinJoin",
   "page.example_opreturn": "OP_RETURN data",
+  "page.example_postmix": "Post-mix spend",
   "page.example_satoshi": "Satoshi's address",
   "page.example_stonewall": "Stonewall",
   "page.example_wabisabi": "WabiSabi CoinJoin",

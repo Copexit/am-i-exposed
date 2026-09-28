@@ -40,7 +40,7 @@ export interface HomeProps {
 const UTXOS = buildFieldUtxos(FIELD_TX);
 const SPLIT = (a: number) => `${-a}px 0 ${COLORS.severityLow}, ${a}px 0 ${COLORS.severityCritical}`;
 /** Four specimens spanning the grade range; grades are the ones EXAMPLES declares. */
-const SPECIMEN_KEYS = ["page.example_whirlpool", "page.example_stonewall", "page.example_opreturn", "page.example_satoshi"];
+const SPECIMEN_KEYS = ["page.example_whirlpool", "page.example_postmix", "page.example_opreturn", "page.example_satoshi"];
 const SPECIMENS = EXAMPLES.filter((e) => SPECIMEN_KEYS.includes(e.labelKey));
 const MORE_EXAMPLES = EXAMPLES.filter((e) => !SPECIMEN_KEYS.includes(e.labelKey));
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-bitcoin focus-visible:outline-offset-2";
