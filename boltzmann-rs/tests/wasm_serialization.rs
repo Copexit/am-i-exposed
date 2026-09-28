@@ -54,7 +54,8 @@ fn test_jm_wasm_ae988772() {
 
     let result = boltzmann_rs::compute_boltzmann_joinmarket(
         &inputs, &outputs, fee, 1_067_547, 0.005, 60_000,
-    );
+    )
+    .unwrap_or_else(|_| panic!("ae988772 JM: WASM should return a result"));
 
     assert_ne!(result, JsValue::NULL, "ae988772 JM: WASM returned null result");
     assert!(result.is_object(), "ae988772 JM: result should be a JS object");

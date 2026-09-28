@@ -61,16 +61,22 @@ export function detectJoinMarketForTurbo(
   // pairs, and other false positives. A 1-maker JM round is useless for privacy.
   if (equalCount < 3) return { isJoinMarket: false, denomination: 0 };
 
-  // Each maker must fund the denomination from a single input, so at least
-  // (equalCount - 1) inputs must be >= denomination. The -1 accounts for the
-  // taker, whose individual inputs may be smaller (consolidation).
-  const aboveDenom = inputValues.filter(v => v >= denomination).length;
-  if (aboveDenom < equalCount - 1) return { isJoinMarket: false, denomination: 0 };
-
   if (outputValues.length > 2 * equalCount + 5) return { isJoinMarket: false, denomination: 0 };
 
   const changeCount = outputValues.length - equalCount;
   if (changeCount === 0) return { isJoinMarket: false, denomination: 0 };
+
+  // Every participant funds the denomination. Either each maker does so from a
+  // single input, so at least (equalCount - 1) inputs are >= denomination (the
+  // -1 is the taker, whose inputs may be smaller), or makers combine several
+  // inputs: then every maker still gets a change output and there are at least
+  // as many inputs as participants. boltzmann-rs checks the values against a
+  // participant model and falls back when they do not fit. Batch payments and
+  // consolidations (one or two change outputs) fail both.
+  const aboveDenom = inputValues.filter(v => v >= denomination).length;
+  const singleInputMakers = aboveDenom >= equalCount - 1;
+  const multiInputMakers = changeCount >= equalCount - 1 && inputValues.length >= equalCount;
+  if (!singleInputMakers && !multiInputMakers) return { isJoinMarket: false, denomination: 0 };
 
   return { isJoinMarket: true, denomination };
 }
@@ -96,6 +102,22 @@ export function detectWabiSabiForTurbo(
   const totalEqual = tiers.reduce((sum, [, c]) => sum + c, 0);
 
   return totalEqual >= 10 && tiers.length >= 3;
+}
+
+/**
+ * Whether the exact (DFS) engine can run for this many inputs/outputs.
+ * Mirrors boltzmann-rs `analyze::exact_feasible` (measurements there): beyond
+ * it, preparation needs gigabytes and ignores the timeout, so the worker would
+ * never answer.
+ */
+export function isExactFeasible(nIn: number, nOut: number): boolean {
+  return nIn <= 22 && nOut <= 18 && nIn + nOut <= 32;
+}
+
+/** Whether JoinMarket turbo mode handles the transaction instead of exact DFS. */
+export function usesJoinMarketTurbo(inputValues: number[], outputValues: number[]): boolean {
+  return inputValues.length + outputValues.length >= 10
+    && detectJoinMarketForTurbo(inputValues, outputValues).isJoinMarket;
 }
 
 /** Check if a transaction is eligible for auto Boltzmann computation. */

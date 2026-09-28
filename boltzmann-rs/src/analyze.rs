@@ -133,6 +133,20 @@ pub fn analyze(
     }
 }
 
+/// Whether the exact linker can run for this many inputs/outputs.
+///
+/// Phase 1 allocates 2^n aggregates per side (plus a 2^n_out set per matched
+/// value) and Phase 2 is quadratic in the 2^n_in input aggregates; neither
+/// checks the deadline. Measured natively (release): 16x16 2.6s/370MB,
+/// 18x14 3.3s, 21x11 11s, 22x8 12s/0.9GB; 17x17 1.3GB, while 18x18, 14x20
+/// and 12x22 exhaust 2GB+ and 23x8/24x6 overrun a 20s deadline. The browser
+/// runs one copy per worker, so stay inside the measured-safe envelope.
+/// ponytail: a static size bound; checking the deadline inside Phases 1-2
+/// would let larger but sparse transactions through.
+pub fn exact_feasible(n_in: usize, n_out: usize) -> bool {
+    n_in <= 22 && n_out <= 18 && n_in + n_out <= 32
+}
+
 /// Run the full linker pipeline (phases 1-4).
 pub fn run_linker(
     inputs: &[i64],

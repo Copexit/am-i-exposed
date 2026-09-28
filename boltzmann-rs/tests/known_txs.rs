@@ -941,6 +941,47 @@ fn test_jm_turbo_50_inputs() {
     assert!(cj_prob < 0.5, "50-input JM: CJ cell prob should be well below 50%, got {cj_prob}");
 }
 
+// Real JM tx 6cb2433f (home page example): 23 inputs, 10 x 198_732_961 + 9 changes.
+// Makers fund the denomination from 2-3 inputs (mostly 1 BTC UTXOs), so no
+// single input matches a change. It used to fall back to a degenerate result
+// (every cell 100%) here and to an exact DFS that never finished in the browser.
+#[test]
+fn test_jm_multi_input_makers_6cb2433f() {
+    let inputs = [
+        100_000_000i64, 99_714_485, 100_008_100, 100_000_000, 100_000_000, 100_000_000,
+        70_577_264, 99_690_093, 21_296_812, 99_712_169, 99_690_093, 100_005_800,
+        100_000_000, 28_764_098, 37_955_010, 100_000_000, 99_703_550, 100_000_000,
+        198_873_630, 100_000_000, 79_216_957, 100_000_000, 100_000_000,
+    ];
+    let denomination = 198_732_961i64;
+    let mut outputs = vec![denomination; 10];
+    outputs.extend([80_489_759i64, 29_453_272, 22_583_724, 9_819_186, 1_306_587, 1_278_915, 1_276_615, 985_300, 680_555]);
+    let fee = inputs.iter().sum::<i64>() - outputs.iter().sum::<i64>();
+    assert_eq!(fee, 4538);
+
+    let result = analyze_joinmarket(&inputs, &outputs, fee, denomination, 0.005, 60_000);
+
+    assert_eq!((result.n_inputs, result.n_outputs), (23, 19));
+    assert!(!result.timed_out);
+    assert!(result.elapsed_ms < 5000, "should complete quickly, got {}ms", result.elapsed_ms);
+    assert!(result.nb_cmbn > 1 && result.entropy > 0.0, "should not be degenerate");
+
+    // Sorted order: rows 0-9 CJ, 10.. changes by value; columns inputs by value.
+    // Model-forced links: 80.5M <- 79.2M, 29.5M <- 28.8M, 22.6M <- 21.3M,
+    // 9.8M <- 70.6M + 38.0M (each is in every funding set of that change).
+    assert_eq!(result.deterministic_links, vec![(10, 18), (11, 21), (12, 22), (13, 19), (13, 20)]);
+    let p = &result.mat_lnk_probabilities;
+    for row in &p[..10] {
+        assert!(row.iter().all(|&x| x > 0.0 && x < 0.5), "CJ rows: ambiguous for every input");
+    }
+    // The 1.99 BTC input funds 29.5M or 680k (its maker's other input: ~1 BTC), never 80.5M
+    assert!((p[11][0] - 0.45).abs() < 0.01 && (p[18][0] - 0.51).abs() < 0.01 && p[10][0] == 0.0);
+    // Small changes are funded by pairs of the ~1 BTC inputs: no 100% links there
+    for row in &p[14..] {
+        assert!(row.iter().all(|&x| x < 1.0));
+    }
+}
+
 // ==========================================================================
 // Test: Stonewall transaction 19a79be3...
 // Tx: 19a79be39c05a0956c7d1f9f28ee6f1091096247b0906b6a8536dd7f400f2358

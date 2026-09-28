@@ -24,7 +24,7 @@ import {
   extractTxValues,
 } from "./boltzmann-pool";
 
-import { expandMatrixToTx } from "./boltzmann-detection";
+import { expandMatrixToTx, isExactFeasible } from "./boltzmann-detection";
 
 export { isAutoComputable, extractTxValues };
 
@@ -102,6 +102,9 @@ export async function computeBoltzmann(
       if (r) r.method = "joinmarket";
       return r;
     }
+
+    // The exact engine would never answer (see isExactFeasible)
+    if (!isExactFeasible(nIn, nOut)) return null;
 
     // Determine worker count
     const hwCores = typeof navigator !== "undefined" ? (navigator.hardwareConcurrency || 1) : 1;
