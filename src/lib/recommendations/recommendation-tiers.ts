@@ -92,7 +92,7 @@ export function checkEntityOrigin(tc: TierContext): TierResult {
         detailKey: `primaryRec.entityOrigin.detail.${variant}`,
         detailDefault: ENTITY_DETAIL_DEFAULTS[variant],
         tParams: { entity: entityOrigin },
-        guideLink: "/guide#coin-control",
+        guideLink: "/guide/#coin-control",
       },
       null,
     ];
@@ -118,7 +118,7 @@ export function checkDeterministicFailures(tc: TierContext): TierResult {
           "Switch to a wallet that generates fresh change addresses for every transaction. " +
           "This is a critical privacy failure - the change output is 100% identifiable.",
         tool: pickTool("wallet-switch", ctx.walletGuess),
-        guideLink: "/guide#coin-control",
+        guideLink: "/guide/#coin-control",
       },
       null,
     ];
@@ -137,7 +137,7 @@ export function checkDeterministicFailures(tc: TierContext): TierResult {
           "If you intend to send to this address: ask the receiver to share a new address. " +
           "Address reuse is the most damaging privacy practice in Bitcoin.",
         tool: pickTool("wallet-switch", ctx.walletGuess),
-        guideLink: "/guide#silent-payments",
+        guideLink: "/guide/#silent-payments",
       },
       null,
     ];
@@ -169,7 +169,7 @@ export function checkCriticalFindings(tc: TierContext): TierResult {
           "Many exchanges freeze CoinJoin-tainted deposits. Even if they don't, " +
           "sending privacy-focused coins to a KYC entity links your on-chain history to your identity. " +
           "Never cross KYC and non-KYC paths.",
-        guideLink: "/guide#coinjoin-ln",
+        guideLink: "/guide/#coinjoin-ln",
       },
       null,
     ];
@@ -187,7 +187,7 @@ export function checkCriticalFindings(tc: TierContext): TierResult {
           "Amount correlation can link your CoinJoin input to the consolidated output, " +
           "undoing the mix. Use a single UTXO when spending. If you must consolidate, " +
           "ensure the total does not approximate your original CoinJoin input amount.",
-        guideLink: "/guide#coin-control",
+        guideLink: "/guide/#coin-control",
       },
       null,
     ];
@@ -205,7 +205,7 @@ export function checkCriticalFindings(tc: TierContext): TierResult {
           "Do not join this UTXO with any other in your wallet. " +
           "If you can spend it alone, send it back to the sender.",
         tool: { name: "Sparrow Wallet", url: "https://sparrowwallet.com" },
-        guideLink: "/guide#coin-control",
+        guideLink: "/guide/#coin-control",
       },
       null,
     ];
@@ -235,7 +235,7 @@ export function checkStructuralIssues(tc: TierContext): TierResult {
         detailKey: hasCoinJoin ? "primaryRec.entityOutputCJ.detail" : "primaryRec.entityOutput.detail",
         detailDefault: detail,
         tools: LIGHTNING_TOOLS,
-        guideLink: "/guide#lightning",
+        guideLink: "/guide/#lightning",
       },
       null,
     ];
@@ -257,7 +257,7 @@ export function checkStructuralIssues(tc: TierContext): TierResult {
             detailDefault:
               "If no single UTXO covers the amount and you cannot use UTXOs from the same origin, " +
               "use Stonewall to create ambiguity about which output is the payment.",
-            guideLink: "/guide#stonewall",
+            guideLink: "/guide/#stonewall",
           }
         : null;
     return [
@@ -272,7 +272,7 @@ export function checkStructuralIssues(tc: TierContext): TierResult {
           "Choose a single UTXO that covers the payment. " +
           "If you must consolidate, do it with coins from the same origin.",
         tools: COIN_CONTROL_TOOLS,
-        guideLink: "/guide#coin-control",
+        guideLink: "/guide/#coin-control",
       },
       secondary,
     ];
@@ -292,7 +292,7 @@ export function checkStructuralIssues(tc: TierContext): TierResult {
           "Freeze the change and use a different UTXO for each payment. " +
           "If you need to spend change, use it in collaborative transactions (PayJoin as a receiver, Stonewall) to increase ambiguity.",
         tools: PAYJOIN_TOOLS,
-        guideLink: "/guide#payjoin-v2",
+        guideLink: "/guide/#payjoin-v2",
       },
       null,
     ];
@@ -314,7 +314,7 @@ export function checkStructuralIssues(tc: TierContext): TierResult {
           "Participate in collaborative transactions between sender and receiver " +
           "(PayJoin/Stowaway) to make external analysis significantly harder.",
         tools: PAYJOIN_TOOLS,
-        guideLink: "/guide#payjoin-v2",
+        guideLink: "/guide/#payjoin-v2",
       },
       null,
     ];
@@ -337,7 +337,7 @@ export function checkModerateFindings(tc: TierContext): TierResult {
         headlineDefault: "Keep KYC and non-KYC funds in separate wallets",
         detailKey: "primaryRec.exchangeWithdrawal.detail",
         detailDefault: "Use separate wallets to keep KYC funds apart from non-KYC funds. Never mix these paths.",
-        guideLink: "/guide#coin-control",
+        guideLink: "/guide/#coin-control",
       },
       null,
     ];
@@ -355,7 +355,7 @@ export function checkModerateFindings(tc: TierContext): TierResult {
           "Use change individually - spend it totally or use it in collaborative " +
           "transactions like PayJoin as a receiver to make analysis harder.",
         tools: PAYJOIN_TOOLS,
-        guideLink: "/guide#payjoin-v2",
+        guideLink: "/guide/#payjoin-v2",
       },
       null,
     ];
@@ -375,7 +375,7 @@ export function checkModerateFindings(tc: TierContext): TierResult {
           detailKey: "primaryRec.lowEntropy.detail",
           detailDefault: "Add complexity with collaborative payments: PayJoin/Stowaway or Stonewall.",
           tools: PAYJOIN_TOOLS,
-          guideLink: "/guide#stonewall",
+          guideLink: "/guide/#stonewall",
         },
         null,
       ];
@@ -397,7 +397,7 @@ export function checkModerateFindings(tc: TierContext): TierResult {
           "Round amounts make change detection easier. " +
           "If unavoidable, use Lightning - amounts are not visible on-chain.",
         tools: LIGHTNING_TOOLS,
-        guideLink: "/guide#lightning",
+        guideLink: "/guide/#lightning",
       },
       null,
     ];
@@ -424,7 +424,7 @@ export function checkPositiveFindings(tc: TierContext): TierResult {
           "Stonewall creates ambiguity about which outputs belong to which party. " +
           "To preserve this, spend outputs individually and avoid consolidating them " +
           "with non-Stonewall UTXOs.",
-        guideLink: "/guide#stonewall",
+        guideLink: "/guide/#stonewall",
       },
       null,
     ];
@@ -441,7 +441,7 @@ export function checkPositiveFindings(tc: TierContext): TierResult {
         detailDefault:
           "Keep doing this. Spend post-mix outputs individually when possible. " +
           "Avoid consolidating all mixed UTXOs.",
-        guideLink: "/guide#coin-control",
+        guideLink: "/guide/#coin-control",
       },
       {
         id: "rec-a-plus-cj-ln",
@@ -451,7 +451,7 @@ export function checkPositiveFindings(tc: TierContext): TierResult {
         detailKey: "primaryRec.aPlusCJLn.detail",
         detailDefault:
           "If spending post-mix UTXOs at a centralized exchange, consider doing it via Lightning. Lightning payments are off-chain and invisible to chain analysis.",
-        guideLink: "/guide#lightning",
+        guideLink: "/guide/#lightning",
       },
     ];
   }
@@ -466,7 +466,7 @@ export function checkPositiveFindings(tc: TierContext): TierResult {
         detailKey: "primaryRec.aPlus.detail",
         detailDefault:
           "Consider collaborative transactions (PayJoin) or Lightning for even better privacy.",
-        guideLink: "/guide#payjoin-v2",
+        guideLink: "/guide/#payjoin-v2",
       },
       null,
     ];
@@ -483,7 +483,7 @@ export function checkPositiveFindings(tc: TierContext): TierResult {
         detailDefault: hasCoinJoin
           ? "Good mix. Spend post-mix one UTXO at a time and avoid full consolidation."
           : "Consider CoinJoin, PayJoin, or Lightning for stronger privacy.",
-        guideLink: hasCoinJoin ? "/guide#coin-control" : "/guide#payjoin-v2",
+        guideLink: hasCoinJoin ? "/guide/#coin-control" : "/guide/#payjoin-v2",
       },
       null,
     ];
