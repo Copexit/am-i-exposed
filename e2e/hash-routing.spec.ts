@@ -21,6 +21,22 @@ test.describe("/", () => {
     await expect(page).toHaveURL(new RegExp(`#tx=${txid}`));
   });
 
+  test("browser Back from another page returns to a typed scan's result", async ({ page }) => {
+    const txid = "323df21f0b0756f98336437aa3d2fb87e02b59f1946b714a7b09df04d429dec2";
+    await page.goto("/");
+    await page.locator("[data-testid='address-input']").fill(txid);
+    await page.locator("[data-testid='scan-button']").click();
+    const score = page.locator("[data-testid='score-display']");
+    await expect(score).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole("navigation").getByRole("link", { name: "Guide" }).first().click();
+    await expect(page).toHaveURL(/\/guide\/?$/);
+    await page.goBack();
+
+    await expect(page).toHaveURL(new RegExp(`#tx=${txid}`));
+    await expect(score).toBeVisible({ timeout: 15_000 });
+  });
+
   test("hash URL auto-triggers scan", async ({ page }) => {
     const txid =
       "0b6461de422c46a221db99608fcbe0326e4f2325ebf2a47c9faf660ed61ee6a4";

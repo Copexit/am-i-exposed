@@ -13,6 +13,7 @@ import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { PrivacyNotice } from "./PrivacyNotice";
 import { NAV_ITEMS, isNavActive, graphHref } from "./nav";
 import { useLocationHash } from "./useLocationHash";
+import { setHash } from "@/lib/hash-nav";
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bitcoin";
 
@@ -66,7 +67,7 @@ export function SiteHeader() {
     } else if (window.location.pathname !== "/") {
       router.push("/");
     } else {
-      window.location.hash = "";
+      setHash("");
     }
     setOpen(false);
     clearTimeout(clickTimer.current);

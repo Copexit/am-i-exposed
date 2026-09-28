@@ -13,6 +13,7 @@ import { loadSavedGraph } from "@/lib/graph/graph-loader";
 import { savedGraphStore } from "@/hooks/useSavedGraphs";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { SavedGraph } from "@/lib/graph/saved-graph-types";
+import { setHash } from "@/lib/hash-nav";
 
 const GraphExplorer = lazy(() =>
   import("@/components/viz/GraphExplorer").then((m) => ({ default: m.GraphExplorer })),
@@ -181,7 +182,7 @@ export function GraphPage() {
       } else {
         // First visit - random example (the hashchange handler loads it)
         const example = TX_EXAMPLES[Math.floor(Math.random() * TX_EXAMPLES.length)];
-        if (example) window.location.hash = `txid=${example.input}`;
+        if (example) setHash(`txid=${example.input}`, { replace: true });
       }
     }
   });
@@ -199,7 +200,7 @@ export function GraphPage() {
       const next = `txid=${txid}`;
       // Setting the hash fires hashchange, which loads. Same hash: reload directly.
       if (window.location.hash.slice(1) !== next) {
-        window.location.hash = next;
+        setHash(next);
         return;
       }
       const example = TX_EXAMPLES.find((e) => e.input.toLowerCase() === txid.toLowerCase());
