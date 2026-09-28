@@ -121,7 +121,7 @@ function Panel({ id, title, count, countLabel, open, onToggle, children }: {
           className={`text-faint group-hover:text-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         />
       </button>
-      {/* Heavy bodies mount only when open (same as classic). */}
+      {/* Heavy bodies mount only when open. */}
       {open && <div id={bodyId} className="px-3 sm:px-6 pb-5 min-w-0">{children}</div>}
     </div>
   );

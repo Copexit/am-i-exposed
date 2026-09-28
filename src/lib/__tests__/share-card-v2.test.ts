@@ -3,7 +3,7 @@ import { buildV2CardModel, shortQuery } from "@/lib/share-card";
 import { GRADE_HEX } from "@/lib/constants";
 
 const TXID = "323df21f0b0756f98336437aa3d2fb87e02b59f1946b714a7b09df04d429dec2";
-const base = { grade: "A+" as const, score: 100, query: TXID, inputType: "txid" as const, findingCount: 4 };
+const base = { grade: "A+" as const, score: 100, query: TXID, inputType: "txid" as const };
 
 describe("share card v2 model", () => {
   it("shortens long ids, keeps short ones", () => {
@@ -12,7 +12,7 @@ describe("share card v2 model", () => {
   });
 
   it("resolves grade color, score, id line and labels", () => {
-    const m = buildV2CardModel({ ...base, style: "v2", txType: " Whirlpool CoinJoin ", topLeak: "Round amount" });
+    const m = buildV2CardModel({ ...base, txType: " Whirlpool CoinJoin ", topLeak: "Round amount" });
     expect(m.gradeColor).toBe(GRADE_HEX["A+"]);
     expect(m.score).toBe("100");
     expect(m.scoreFraction).toBe(1);

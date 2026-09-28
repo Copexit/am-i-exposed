@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { usePrivacyNotice } from "@/components/PrivacyNotice";
 
 /**
- * Slim, dismissible clearnet notice under the v2 header (same logic as classic PrivacyNotice).
+ * Slim, dismissible clearnet notice under the header (logic in usePrivacyNotice).
  * `inFlow`: rendered below the sticky header in page flow (phones), so it scrolls away instead of covering content.
  */
 export function V2PrivacyNotice({ inFlow = false }: { inFlow?: boolean }) {

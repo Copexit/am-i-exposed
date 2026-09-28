@@ -11,6 +11,6 @@ describe("Polish plural forms", () => {
     expect(title(2)).toBe("Wykryto 2 adresy objęte sankcjami OFAC");
     expect(title(5)).toBe("Wykryto 5 adresów objętych sankcjami OFAC");
     expect(title(22)).toBe("Wykryto 22 adresy objęte sankcjami OFAC");
-    expect(i18n.t("results.issueCount", { count: 12 })).toBe("12 problemów");
+    expect(i18n.t("cex.addressCount", { count: 12 })).toBe("12 adresów");
   });
 });

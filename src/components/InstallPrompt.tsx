@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "motion/react";
 import { Download, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
-import { APPSTORE_ANNOUNCE_DISMISS_KEY } from "./AppStoreAnnouncement";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -26,6 +25,9 @@ function subscribeStandalone(callback: () => void) {
   mql.addEventListener("change", callback);
   return () => mql.removeEventListener("change", callback);
 }
+
+/** Set once the (retired) app-store announcement was dismissed; still gates the install prompt. */
+const APPSTORE_ANNOUNCE_DISMISS_KEY = "ami-appstore-announcement-dismissed";
 
 /**
  * PWA install prompt - shows a banner suggesting installation

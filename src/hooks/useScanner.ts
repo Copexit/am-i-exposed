@@ -57,7 +57,7 @@ export function getAriaStatus({ walletActive, walletPhase, walletResult, phase, 
 }
 
 /**
- * Scanner page controller shared by the classic and v2 home pages:
+ * Scanner page controller for the home page:
  * analysis state, hash routing, submit/back handlers, recent scans,
  * bookmarks, document title, service worker, keyboard nav, xpub warning.
  */

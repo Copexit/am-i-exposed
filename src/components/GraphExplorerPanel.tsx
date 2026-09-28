@@ -22,8 +22,6 @@ interface GraphExplorerPanelProps {
   outspends?: MempoolOutspend[] | null;
   /** Boltzmann result for the root transaction (linkability edge coloring). */
   boltzmannResult?: BoltzmannWorkerResult | null;
-  /** Compact inline view (v2): analysis tools live in fullscreen only. */
-  compact?: boolean;
 }
 
 /**
@@ -32,7 +30,7 @@ interface GraphExplorerPanelProps {
  *
  * When trace layers are provided, auto-expands up to 2 hops in each direction.
  */
-export function GraphExplorerPanel({ tx, onTxClick, backwardLayers, forwardLayers, outspends, boltzmannResult, compact = false }: GraphExplorerPanelProps) {
+export function GraphExplorerPanel({ tx, onTxClick, backwardLayers, forwardLayers, outspends, boltzmannResult }: GraphExplorerPanelProps) {
   const { network, config } = useNetwork();
 
   // No AbortController signal: the graph is long-lived and expansion requests
@@ -69,7 +67,7 @@ export function GraphExplorerPanel({ tx, onTxClick, backwardLayers, forwardLayer
           onTxClick={onTxClick}
           rootBoltzmannResult={boltzmannResult}
           network={network}
-          compact={compact}
+          compact
         />
       </Suspense>
     </ChartErrorBoundary>

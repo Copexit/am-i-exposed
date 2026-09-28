@@ -2,7 +2,7 @@ import type { Finding, Grade } from "@/lib/types";
 import { getSummarySentiment } from "@/lib/scoring/score";
 
 /** i18n key + English default of the one-line grade tagline ("Poor privacy, significant exposure"). */
-/** Without findings, B and C fall back to their "concerns" variants (classic ScoreDisplay behavior). */
+/** Without findings, B and C fall back to their "concerns" variants. */
 export function gradeTagline(grade: Grade, findings: readonly Finding[] | undefined): { key: string; defaultValue: string } {
   switch (grade) {
     case "A+":

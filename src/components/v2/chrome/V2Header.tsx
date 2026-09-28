@@ -125,7 +125,7 @@ export function V2Header() {
 
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
           <ConnectionBadge />
-          <ApiSettings v2 />
+          <ApiSettings />
           <button
             type="button"
             onClick={() => setOpen((o) => !o)}

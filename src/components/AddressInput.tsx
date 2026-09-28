@@ -123,7 +123,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, place
     }
   };
 
-  const placeholder = placeholderOverride ?? t("input.placeholderScan", { defaultValue: "Paste a Bitcoin address or transaction ID" });
+  const placeholder = placeholderOverride ?? t("v2.home.placeholder", { defaultValue: "Address, txid, xpub or PSBT" });
   const buttonLabel = t("input.buttonScan", { defaultValue: "Scan" });
 
   return (

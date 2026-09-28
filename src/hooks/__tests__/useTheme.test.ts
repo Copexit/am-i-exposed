@@ -23,12 +23,12 @@ beforeEach(() => {
 });
 
 describe("useTheme", () => {
-  it("defaults to dark and toggles to light, persisting and applying it", async () => {
+  it("defaults to dark and switches to light, persisting and applying it", async () => {
     const useTheme = await load();
     const { result } = renderHook(() => useTheme());
     expect(result.current.theme).toBe("dark");
 
-    act(() => result.current.toggleTheme());
+    act(() => result.current.setTheme("light"));
     expect(result.current.theme).toBe("light");
     expect(document.documentElement.dataset.theme).toBe("light");
     expect(localStorage.getItem("ami-theme")).toBe("light");

@@ -45,7 +45,7 @@ export function FindingsList({ visible, title, openIds, onToggle, highlightId, o
   const [adversary, setAdversary] = useState<ReadonlySet<AdversaryTier>>(new Set(ADVERSARY_TIERS));
   const [temporality, setTemporality] = useState<ReadonlySet<TemporalityClass>>(new Set(TEMPORALITIES));
   const [showFilters, setShowFilters] = useState(false);
-  // When a group above is empty, the next one starts open (classic tier rule),
+  // When a group above is empty, the next one starts open (tier rule),
   // so there is always something useful in view.
   const initial = groupFindings(visible);
   const [minorOpen, setMinorOpen] = useState(initial.leaks.length === 0);

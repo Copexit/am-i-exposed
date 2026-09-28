@@ -21,7 +21,6 @@ export function DeepAnalysisAddress({
   addressTxs,
   addressData,
   onScan,
-  proMode = false,
 }: {
   query: string;
   addressUtxos?: MempoolUtxo[] | null;
@@ -29,11 +28,10 @@ export function DeepAnalysisAddress({
   addressTxs: MempoolTransaction[] | null;
   addressData: MempoolAddress | null;
   onScan?: (input: string) => void;
-  proMode?: boolean;
 }) {
   return (
     <>
-      {proMode && addressUtxos && addressUtxos.length > 0 && (
+      {addressUtxos && addressUtxos.length > 0 && (
         <motion.div {...fadeUpVariants} transition={fadeUpTransition(0.42)} className="w-full">
           <ChartErrorBoundary><Suspense fallback={null}><UtxoBubbleChart utxos={addressUtxos} /></Suspense></ChartErrorBoundary>
         </motion.div>
@@ -43,7 +41,7 @@ export function DeepAnalysisAddress({
           <ChartErrorBoundary><Suspense fallback={null}><PrivacyTimeline breakdown={txBreakdown} onScan={onScan} /></Suspense></ChartErrorBoundary>
         </motion.div>
       )}
-      {proMode && addressTxs && addressTxs.length >= 3 && (
+      {addressTxs && addressTxs.length >= 3 && (
         <motion.div {...fadeUpVariants} transition={fadeUpTransition(0.46)} className="w-full">
           <GlowCard className="p-5 sm:p-6">
             <Suspense fallback={null}>
@@ -52,7 +50,7 @@ export function DeepAnalysisAddress({
           </GlowCard>
         </motion.div>
       )}
-      {proMode && txBreakdown && txBreakdown.length > 0 && addressData && (
+      {txBreakdown && txBreakdown.length > 0 && addressData && (
         <motion.div {...fadeUpVariants} transition={fadeUpTransition(0.48)} className="w-full">
           <TxBreakdownPanel
             breakdown={txBreakdown}
@@ -62,7 +60,7 @@ export function DeepAnalysisAddress({
           />
         </motion.div>
       )}
-      {proMode && addressTxs && addressTxs.length > 0 && (
+      {addressTxs && addressTxs.length > 0 && (
         <motion.div {...fadeUpVariants} transition={fadeUpTransition(0.5)} className="w-full">
           <ClusterPanel
             targetAddress={query}

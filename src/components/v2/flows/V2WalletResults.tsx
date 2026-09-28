@@ -6,13 +6,35 @@ import { ChevronRight } from "lucide-react";
 import type { WalletAuditResult, WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import type { DescriptorParseResult } from "@/lib/bitcoin/descriptor";
 import type { UtxoTraceResult } from "@/hooks/useWalletAnalysis";
-import { findWorstOffender } from "@/components/wallet/WalletAuditResults";
 import { CopyButton } from "@/components/ui/CopyButton";
-import { GRADE_COLORS, GRADE_VAR } from "@/lib/constants";
+import { GRADE_COLORS, GRADE_VAR, P2PKH_DUST_LIMIT } from "@/lib/constants";
 import { fmtN } from "@/lib/format";
 import { FlowShell, NewScanLink, Chip } from "./V2FlowUi";
 import { V2FindingGroups } from "./V2FindingGroups";
 import { V2WalletWorkspace } from "./V2WalletWorkspace";
+
+/** Find the worst privacy offender address for the highlight card. */
+function findWorstOffender(addressInfos: WalletAddressInfo[]): {
+  path: string;
+  reuseCount: number;
+  dustCount: number;
+} | null {
+  let worst: { path: string; reuseCount: number; dustCount: number } | null = null;
+  let worstScore = 0;
+
+  for (const info of addressInfos) {
+    if (!info.addressData) continue;
+    const funded = info.addressData.chain_stats.funded_txo_count + info.addressData.mempool_stats.funded_txo_count;
+    const dustCount = info.utxos.filter(u => u.value < P2PKH_DUST_LIMIT).length;
+    const score = (funded > 1 ? funded * 10 : 0) + dustCount * 5;
+    if (score > worstScore) {
+      worstScore = score;
+      worst = { path: info.derived.path, reuseCount: funded > 1 ? funded : 0, dustCount };
+    }
+  }
+
+  return worst;
+}
 
 interface V2WalletResultsProps {
   descriptor: DescriptorParseResult;

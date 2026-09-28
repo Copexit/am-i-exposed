@@ -33,7 +33,7 @@ interface AnalystWorkspaceProps {
   onScan: (input: string) => void;
 }
 
-/** L3: the analyst workspace. Every tool classic reserved for Cypherpunk mode, for everyone. */
+/** L3: the analyst workspace: every analysis tool, for everyone. */
 export function AnalystWorkspace(p: AnalystWorkspaceProps) {
   const { t } = useTranslation();
   const hasTx = p.inputType === "txid" && !!p.txData;
@@ -63,7 +63,7 @@ export function AnalystWorkspace(p: AnalystWorkspaceProps) {
           {showGraph ? (
             <ChartErrorBoundary>
               <Suspense fallback={<div className="h-96 rounded-xl bg-surface-1 animate-pulse" />}>
-                <GraphExplorerPanel tx={p.txData} onTxClick={p.onScan} backwardLayers={p.backwardLayers} forwardLayers={p.forwardLayers} outspends={p.outspends} boltzmannResult={p.boltzmannResult} compact />
+                <GraphExplorerPanel tx={p.txData} onTxClick={p.onScan} backwardLayers={p.backwardLayers} forwardLayers={p.forwardLayers} outspends={p.outspends} boltzmannResult={p.boltzmannResult} />
               </Suspense>
             </ChartErrorBoundary>
           ) : (
@@ -89,7 +89,6 @@ export function AnalystWorkspace(p: AnalystWorkspaceProps) {
           addressTxs={p.addressTxs}
           addressData={p.addressData}
           onScan={p.onScan}
-          proMode
         />
       )}
     </section>

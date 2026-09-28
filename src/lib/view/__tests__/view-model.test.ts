@@ -166,7 +166,7 @@ describe("buildTxIoView", () => {
 });
 
 describe("gradeTagline", () => {
-  it("matches the classic ScoreDisplay selection", async () => {
+  it("picks the tagline variant from grade and findings", async () => {
     const { gradeTagline } = await import("../verdict");
     const neg = [f({ id: "h3-cioh", severity: "high", scoreImpact: -6 })];
     const pos = [f({ id: "h4-whirlpool", severity: "good", scoreImpact: 30 })];

@@ -96,10 +96,5 @@ export function useTheme() {
     syncTheme();
   }, []);
 
-  /** Classic toggle: switches to the explicit opposite of what is shown. */
-  const toggleTheme = useCallback(() => {
-    setTheme(domTheme() === "dark" ? "light" : "dark");
-  }, [setTheme]);
-
-  return { theme, preference, setTheme, toggleTheme };
+  return { theme, preference, setTheme };
 }

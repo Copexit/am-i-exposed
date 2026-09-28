@@ -18,9 +18,9 @@ test.beforeEach(async ({ page }) => {
   await recordFirstPaintTheme(page);
 });
 
-test("theme chosen in v2 settings persists across reloads with no flash", async ({ page }) => {
+test("theme chosen in settings persists across reloads with no flash", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "dark" });
-  await page.goto("/v2/");
+  await page.goto("/");
   const html = page.locator("html");
   await expect(html).not.toHaveAttribute("data-theme", "light");
 
@@ -45,7 +45,7 @@ test("theme chosen in v2 settings persists across reloads with no flash", async 
 
 test("with no stored preference the theme follows the OS, live", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "light" });
-  await page.goto("/v2/");
+  await page.goto("/");
   const html = page.locator("html");
   await expect(html).toHaveAttribute("data-theme", "light");
   expect(await firstTheme(page)).toBe("light");

@@ -57,69 +57,7 @@ vi.mock("@visx/responsive", () => ({
 // Types - minimal mock data builders
 // ---------------------------------------------------------------------------
 
-import type { MempoolTransaction } from "@/lib/api/types";
 import type { Finding } from "@/lib/types";
-
-function makeCoinJoinTx(): MempoolTransaction {
-  const denomSats = 1_000_000;
-  const inputAddresses = [
-    "bc1qaddr1aaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "bc1qaddr2bbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-    "bc1qaddr3cccccccccccccccccccccccccccc",
-    "bc1qaddr4dddddddddddddddddddddddddd",
-    "bc1qaddr5eeeeeeeeeeeeeeeeeeeeeeeeeeee",
-  ];
-
-  const vin = inputAddresses.map((addr, i) => ({
-    txid: `input_txid_${i}`.padEnd(64, "0"),
-    vout: 0,
-    prevout: {
-      scriptpubkey: "0014" + "aa".repeat(20),
-      scriptpubkey_asm: "OP_0 OP_PUSHBYTES_20 " + "aa".repeat(20),
-      scriptpubkey_type: "v0_p2wpkh",
-      scriptpubkey_address: addr,
-      value: denomSats + 500, // denom + fee contribution
-    },
-    scriptsig: "",
-    scriptsig_asm: "",
-    witness: ["3045...01", "02...pub"],
-    is_coinbase: false,
-    sequence: 0xfffffffd,
-  }));
-
-  const vout = inputAddresses.map((_addr, i) => ({
-    scriptpubkey: "0014" + "bb".repeat(20),
-    scriptpubkey_asm: "OP_0 OP_PUSHBYTES_20 " + "bb".repeat(20),
-    scriptpubkey_type: "v0_p2wpkh",
-    scriptpubkey_address: `bc1qout${i}ffffffffffffffffffffffffffffffff`,
-    value: denomSats,
-  }));
-
-  return {
-    txid: "coinjoin_txid".padEnd(64, "0"),
-    version: 1,
-    locktime: 0,
-    size: 900,
-    weight: 2400,
-    fee: 2500,
-    vin,
-    vout,
-    status: { confirmed: true, block_height: 800000, block_time: 1700000000 },
-  };
-}
-
-function makeCoinJoinFindings(): Finding[] {
-  return [
-    {
-      id: "h4-coinjoin",
-      severity: "good",
-      title: "CoinJoin detected",
-      description: "This transaction is a CoinJoin with 5 equal outputs.",
-      recommendation: "No action needed.",
-      scoreImpact: 10,
-    },
-  ];
-}
 
 function makeTaintFindings(): Finding[] {
   return [
@@ -164,40 +102,7 @@ function makeTaintFindings(): Finding[] {
 // ---------------------------------------------------------------------------
 
 // Dynamic imports so mocks are applied first
-const { CoinJoinStructure } = await import("../CoinJoinStructure");
 const { TaintPathDiagram } = await import("../TaintPathDiagram");
-
-describe("CoinJoinStructure smoke test", () => {
-  it("renders without crashing given a mock CoinJoin transaction", () => {
-    const tx = makeCoinJoinTx();
-    const findings = makeCoinJoinFindings();
-
-    expect(() => {
-      render(
-        <CoinJoinStructure tx={tx} findings={findings} />,
-      );
-    }).not.toThrow();
-  });
-
-  it("returns null when findings do not include a CoinJoin finding", () => {
-    const tx = makeCoinJoinTx();
-    const findings: Finding[] = [
-      {
-        id: "h8-address-reuse",
-        severity: "medium",
-        title: "Address reuse",
-        description: "Reused address.",
-        recommendation: "Avoid reuse.",
-        scoreImpact: -5,
-      },
-    ];
-
-    const { container } = render(
-      <CoinJoinStructure tx={tx} findings={findings} />,
-    );
-    expect(container.innerHTML).toBe("");
-  });
-});
 
 describe("TaintPathDiagram smoke test", () => {
   it("renders without crashing given mock taint findings", () => {

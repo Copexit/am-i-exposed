@@ -1,8 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { mockMempoolApi } from "./helpers/mock-api";
 
-// v2-specific behavior. Shared scanner behavior (grades, errors, routing,
-// wallet) is covered for both UIs by the other specs.
+// UI behavior of the scanner. Shared scanner behavior (grades, errors,
+// routing, wallet) is covered by the other specs.
 
 const WHIRLPOOL = "323df21f0b0756f98336437aa3d2fb87e02b59f1946b714a7b09df04d429dec2";
 const LEGACY = "0b6461de422c46a221db99608fcbe0326e4f2325ebf2a47c9faf660ed61ee6a4";
@@ -16,7 +16,7 @@ test("home fetches no transaction or address data before a scan", async ({ page 
   page.on("request", (req) => {
     if (/\/api\/(tx|address)\//.test(req.url())) lookups.push(req.url());
   });
-  await page.goto("/v2/");
+  await page.goto("/");
   await expect(page.getByTestId("v2-home")).toBeVisible();
   await expect(page.getByTestId("address-input")).toBeVisible();
   await page.waitForTimeout(2_000);
@@ -24,7 +24,7 @@ test("home fetches no transaction or address data before a scan", async ({ page 
 });
 
 test("results are progressive: verdict, stage, leaks open, minor signals collapsed", async ({ page }) => {
-  await page.goto(`/v2/#tx=${LEGACY}`);
+  await page.goto(`/#tx=${LEGACY}`);
   const score = page.getByTestId("score-display");
   await expect(score).toHaveAttribute("data-grade", "C", { timeout: 15_000 });
   await expect(page.getByTestId("tx-stage")).toBeVisible();
@@ -37,12 +37,12 @@ test("results are progressive: verdict, stage, leaks open, minor signals collaps
   await minor.click();
   await expect(minor).toHaveAttribute("aria-expanded", "true");
 
-  // Analyst tools are available to everyone (no mode toggle in v2).
+  // Analyst tools are available to everyone (no mode toggle).
   await expect(page.locator("#v2-analyst")).toBeAttached();
 });
 
 test("score breakdown ends at the reported score", async ({ page }) => {
-  await page.goto(`/v2/#tx=${WHIRLPOOL}`);
+  await page.goto(`/#tx=${WHIRLPOOL}`);
   const score = page.getByTestId("score-display");
   await expect(score).toHaveAttribute("data-score", "100", { timeout: 15_000 });
   const breakdown = page.getByTestId("v2-score-breakdown");
@@ -50,7 +50,7 @@ test("score breakdown ends at the reported score", async ({ page }) => {
 });
 
 test("the reveal can be skipped and settles on the final score", async ({ page }) => {
-  await page.goto(`/v2/#tx=${LEGACY}`);
+  await page.goto(`/#tx=${LEGACY}`);
   const skip = page.getByTestId("reveal-skip");
   await expect(skip).toBeVisible({ timeout: 15_000 });
   await skip.click();
@@ -62,26 +62,15 @@ test("reduced motion shows the final result without a reveal", async ({ browser 
   const context = await browser.newContext({ reducedMotion: "reduce" });
   const page = await context.newPage();
   await mockMempoolApi(page);
-  await page.goto(`/v2/#tx=${LEGACY}`);
+  await page.goto(`/#tx=${LEGACY}`);
   await expect(page.getByTestId("score-display")).toHaveAttribute("data-score", "50", { timeout: 15_000 });
   await expect(page.getByTestId("reveal-skip")).toHaveCount(0);
   await context.close();
 });
 
-test("the classic header links to v2 carrying the scan, and v2 links back", async ({ page }) => {
-  await page.goto(`/#tx=${WHIRLPOOL}`);
-  await expect(page.getByTestId("score-display")).toBeVisible({ timeout: 15_000 });
-  const pill = page.getByRole("link", { name: "Try the new am-i.exposed" }).first();
-  await expect(pill).toHaveAttribute("href", `/v2/#tx=${WHIRLPOOL}`);
-
-  await page.goto(`/v2/#tx=${WHIRLPOOL}`);
-  await expect(page.getByTestId("score-display")).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole("link", { name: "Classic", exact: true })).toHaveAttribute("href", `/#tx=${WHIRLPOOL}`);
-});
-
 test("inline graph is compact; analysis tools live in fullscreen", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto(`/v2/#tx=${LEGACY}`);
+  await page.goto(`/#tx=${LEGACY}`);
   const analyst = page.locator("#v2-analyst");
   const fullscreen = analyst.getByTitle("Fullscreen (F)");
   await expect(fullscreen).toBeVisible({ timeout: 20_000 });
@@ -97,7 +86,7 @@ test.describe("home on a phone", () => {
   test.use({ viewport: { width: 390, height: 664 }, hasTouch: true, isMobile: true });
 
   test("lens starts on the wallet view, taps move it, and the notebook trims to the top findings", async ({ page }) => {
-    await page.goto("/v2/");
+    await page.goto("/");
     const lens = page.getByTestId("v2-lens-explainer");
     await lens.scrollIntoViewIfNeeded();
     const wallet = lens.getByRole("button", { name: "Wallet view" });
@@ -129,7 +118,7 @@ test.describe("home on a phone", () => {
   test("the privacy notice scrolls with the page instead of riding in the sticky header", async ({ page }) => {
     // The notice shows on clearnet only; answer the Tor check as a clearnet visitor.
     await page.route("https://tor-check.copexit.workers.dev/**", (r) => r.fulfill({ json: { isTor: false } }));
-    await page.goto("/v2/");
+    await page.goto("/");
     await expect(page.getByTestId("v2-home")).toBeVisible();
     const notice = page.getByText(/Queries are sent to mempool\.space/).locator("visible=true");
     await expect(notice).toBeVisible({ timeout: 15_000 });
@@ -143,7 +132,7 @@ test.describe("home on a phone", () => {
     for (const notice of [false, true]) {
       const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
       await page.route("https://tor-check.copexit.workers.dev/**", (r) => r.fulfill({ json: { isTor: !notice } }));
-      await page.goto("/v2/");
+      await page.goto("/");
       await expect(page.getByTestId("v2-home")).toBeVisible();
       if (notice) await expect(page.getByText(/Queries are sent to mempool\.space/).locator("visible=true")).toBeVisible({ timeout: 15_000 });
       const lens = page.getByTestId("v2-lens-explainer");

@@ -83,7 +83,7 @@ export const FindingItem = memo(function FindingItem({ finding, open, onToggle, 
         </span>
       </button>
       <Collapse open={open}>
-        <FindingCardBody finding={finding} onTxClick={onTxClick} proMode variant="v2" className="pl-5 pr-3 pb-5 pt-1 space-y-3" />
+        <FindingCardBody finding={finding} onTxClick={onTxClick} proMode className="pl-5 pr-3 pb-5 pt-1 space-y-3" />
       </Collapse>
     </article>
   );

@@ -1,6 +1,6 @@
-import type { Grade, Severity } from "@/lib/types";
+import type { Grade } from "@/lib/types";
 import { GRADE_HEX } from "@/lib/constants";
-import { COLORS, HUES, V2_DARK_PALETTE, V2_LIGHT_PALETTE } from "@/lib/palette";
+import { COLORS, V2_DARK_PALETTE, V2_LIGHT_PALETTE } from "@/lib/palette";
 
 /** Theme-dependent keys: the neutrals that differ between dark and light. */
 const SURFACE_KEY_LIST = ["background", "foreground", "muted", "cardBg", "cardBorder", "surfaceInset", "surfaceElevated"] as const;
@@ -79,15 +79,6 @@ export const SVG_COLORS: SvgColorMap = new Proxy(
   },
 );
 
-/** Map severity to hex color for SVG rendering. */
-export const SEVERITY_HEX: Record<Severity, string> = {
-  critical: SVG_COLORS.critical,
-  high: SVG_COLORS.high,
-  medium: SVG_COLORS.medium,
-  low: SVG_COLORS.low,
-  good: SVG_COLORS.good,
-};
-
 /** Grade hex colors for SVG (re-exported from constants for convenience). */
 export const GRADE_HEX_SVG: Record<Grade, string> = GRADE_HEX;
 
@@ -106,37 +97,3 @@ export const ANIMATION_DEFAULTS = {
   duration: 0.4,
   spring: { type: "spring" as const, stiffness: 200, damping: 25 },
 };
-
-/** Gradient color palette for semantic meaning in charts. */
-export const GRADIENT_COLORS = {
-  // Cool (privacy-positive)
-  inputLight: COLORS.severityLow,
-  inputDark: HUES.blue500,
-  mixerLight: COLORS.severityGood,
-  mixerDark: HUES.emerald600,
-
-  // Warm (exposure)
-  outputLight: COLORS.bitcoin,
-  outputDark: COLORS.bitcoinHover,
-  changeLight: COLORS.severityHigh,
-  changeDark: HUES.red600,
-  dustLight: COLORS.severityCritical,
-  dustDark: HUES.red800,
-
-  // Neutral
-  feeLight: HUES.gray500,
-  feeDark: HUES.gray600,
-  baseLight: HUES.gray400,
-  baseDark: HUES.gray500,
-} as const;
-
-/** Lookup from waterfall bar type to gradient ID. */
-export const WATERFALL_GRADIENT_IDS: Record<string, string> = {
-  base: "grad-wf-base",
-  positive: "grad-wf-positive",
-  critical: "grad-wf-critical",
-  high: "grad-wf-high",
-  medium: "grad-wf-medium",
-  low: "grad-wf-low",
-  good: "grad-wf-good",
-} as const;

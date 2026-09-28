@@ -1,10 +1,7 @@
 "use client";
 
 import { useSyncExternalStore, useCallback } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { ShieldAlert, X } from "lucide-react";
 import { useNetwork } from "@/context/NetworkContext";
-import { useTranslation } from "react-i18next";
 
 const STORAGE_KEY = "privacy-notice-dismissed";
 
@@ -25,7 +22,7 @@ function getServerSnapshot(): boolean {
   return true; // Dismissed on server to avoid hydration mismatch
 }
 
-/** Shared visibility/dismiss logic for the clearnet privacy notice (classic + v2). */
+/** Shared visibility/dismiss logic for the clearnet privacy notice. */
 export function usePrivacyNotice() {
   const { torStatus, isCustomApi } = useNetwork();
   const dismissed = useSyncExternalStore(
@@ -41,37 +38,4 @@ export function usePrivacyNotice() {
   }, []);
 
   return { visible: !dismissed && torStatus === "clearnet" && !isCustomApi, dismiss };
-}
-
-export function PrivacyNotice() {
-  const { t } = useTranslation();
-  const { visible, dismiss: handleDismiss } = usePrivacyNotice();
-
-  return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.3 }}
-          className="glass rounded-lg px-3 py-1.5 sm:py-2 mx-4 mb-2 sm:mb-3 max-w-6xl sm:mx-auto w-auto"
-        >
-          <div className="flex items-center gap-2">
-            <ShieldAlert size={16} className="text-warning shrink-0" aria-hidden="true" />
-            <p className="text-xs sm:text-sm text-muted flex-1">
-              {t("common.privacyNotice", { defaultValue: "Queries are sent to mempool.space - your IP is visible. Use Tor or a VPN for stronger privacy." })}
-            </p>
-            <button
-              onClick={handleDismiss}
-              className="text-muted hover:text-foreground transition-colors shrink-0 cursor-pointer p-3 -m-1.5 rounded-lg"
-              aria-label={t("common.dismiss", { defaultValue: "Dismiss" })}
-            >
-              <X size={16} />
-            </button>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
 }

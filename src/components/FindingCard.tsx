@@ -180,32 +180,29 @@ function ChangeSignalBreakdown({ finding, t, proMode }: { finding: Finding; t: (
 /**
  * Expanded detail of a finding: description, change-signal breakdown, tier
  * context, recommendation, hop/consolidation tables, learn-more link and
- * score impact. Shared by the classic FindingCard and the v2 findings list.
+ * score impact. Shared by FindingCard and the findings list.
  */
-export function FindingCardBody({ finding, onTxClick, proMode = false, className, variant = "classic" }: {
+export function FindingCardBody({ finding, onTxClick, proMode = false, className }: {
   finding: Finding;
   onTxClick?: (txid: string) => void;
   proMode?: boolean;
   className?: string;
-  /** v2: quieter, smaller body text under a 15px title. */
-  variant?: "classic" | "v2";
 }) {
-  const v2 = variant === "v2";
   const { t, i18n } = useTranslation();
   const learnMore = FINDING_LEARN_MORE[finding.id];
   return (
     <div id={`finding-detail-${finding.id}`} className={className ?? "px-5 pb-5 space-y-3 border-t border-card-border pt-3"}>
-      <p className={v2 ? "text-sm text-muted leading-relaxed max-w-[75ch]" : "text-base text-foreground leading-relaxed"}>
+      <p className="text-sm text-muted leading-relaxed max-w-[75ch]">
         {t(findingKeys(finding.id, "description", finding.params), { ...finding.params, defaultValue: finding.description })}
       </p>
       <ChangeSignalBreakdown finding={finding} t={t} proMode={proMode} />
       {proMode && <TierContext finding={finding} t={t} />}
       {finding.recommendation && (
-        <div className={v2 ? "border-l-2 border-bitcoin/40 pl-3 py-0.5" : "bg-surface-inset rounded-md px-3 py-2"}>
-          <p className={v2 ? "v2-eyebrow mb-1.5" : "text-xs font-medium text-muted mb-1"}>
+        <div className="border-l-2 border-bitcoin/40 pl-3 py-0.5">
+          <p className="v2-eyebrow mb-1.5">
             {t("finding.recommendationLabel", { defaultValue: "Recommendation" })}
           </p>
-          <p className={v2 ? "text-sm text-foreground/90 leading-relaxed max-w-[75ch]" : "text-base text-foreground/90 leading-relaxed"}>
+          <p className="text-sm text-foreground/90 leading-relaxed max-w-[75ch]">
             {t(findingKeys(finding.id, "recommendation", finding.params), { ...finding.params, defaultValue: finding.recommendation })}
           </p>
         </div>

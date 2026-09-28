@@ -174,7 +174,7 @@ export function V2Home({
             data-locked={locked}
             className="v2-hero-field relative w-full max-w-[680px] mt-6 sm:mt-8 flex flex-col items-center [&_.blur-2xl]:hidden [&_.p-px]:[background:var(--hairline-strong)]! [&:focus-within_.p-px]:[background:color-mix(in_srgb,var(--bitcoin)_45%,transparent)]! data-[locked=true]:[&_.p-px]:[background:color-mix(in_srgb,var(--bitcoin)_85%,transparent)]! data-[locked=true]:[&_.p-px]:shadow-[0_0_0_4px_color-mix(in_srgb,var(--bitcoin)_12%,transparent),0_20px_60px_-20px_color-mix(in_srgb,var(--bitcoin)_35%,transparent)] [&_input]:bg-(--hero-field-bg)! [&_.p-px]:shadow-(--shadow-card) [&_input]:backdrop-blur-md"
           >
-            <AddressInput onSubmit={onSubmit} isLoading={false} inputRef={inputRef} placeholder={t("v2.home.placeholder", { defaultValue: "Address, txid, xpub or PSBT" })} />
+            <AddressInput onSubmit={onSubmit} isLoading={false} inputRef={inputRef} />
           </div>
           {/* Phones fold the idle checks line into the trust row; the live "locked" status shows everywhere. */}
           <p className={`${locked ? "mt-3" : "sm:mt-3"} font-mono text-xs text-faint`} aria-live="polite">

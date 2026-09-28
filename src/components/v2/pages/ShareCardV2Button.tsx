@@ -10,7 +10,6 @@ interface ShareCardV2ButtonProps {
   score: number;
   query: string;
   inputType: "txid" | "address";
-  findingCount: number;
   /** Transaction type label from the view model, if any. */
   txType?: string | null;
   /** Title of the most negative-impact finding, if any. */
@@ -19,7 +18,7 @@ interface ShareCardV2ButtonProps {
 }
 
 /** v2 share card: calm evidence-tag image (grade, score, type, top leak), shared or downloaded. */
-export function ShareCardV2Button({ grade, score, query, inputType, findingCount, txType, topLeak, className }: ShareCardV2ButtonProps) {
+export function ShareCardV2Button({ grade, score, query, inputType, txType, topLeak, className }: ShareCardV2ButtonProps) {
   const { t } = useTranslation();
   const [generating, setGenerating] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -32,12 +31,10 @@ export function ShareCardV2Button({ grade, score, query, inputType, findingCount
     try {
       const { generateShareCard, sharePng } = await import("@/lib/share-card");
       const blob = await generateShareCard({
-        style: "v2",
         grade,
         score,
         query,
         inputType,
-        findingCount,
         txType,
         topLeak,
         v2Labels: {
