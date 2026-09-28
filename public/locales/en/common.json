@@ -2509,5 +2509,12 @@
   "workspace.nGraphs_one": "{{count}} graph",
   "workspace.nGraphs_other": "{{count}} graphs",
   "workspace.imported_one": "Imported {{count}} scan.",
-  "workspace.imported_other": "Imported {{count}} scans."
+  "workspace.imported_other": "Imported {{count}} scans.",
+  "common.cancel": "Cancel",
+  "common.delete": "Delete",
+  "graph.deleteSavedGraph": "Delete saved graph",
+  "graph.savedNodes_one": "{{count}} node",
+  "graph.savedNodes_other": "{{count}} nodes",
+  "guide.tocAriaLabel": "Table of contents",
+  "graph.toxicBadge": "TOXIC"
 }

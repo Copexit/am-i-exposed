@@ -8,6 +8,7 @@ import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) => (opts?.defaultValue as string) ?? key,
+    i18n: { language: "en" },
   }),
 }));
 vi.mock("@/hooks/useTheme", () => ({ useTheme: () => undefined }));

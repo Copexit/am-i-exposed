@@ -48,7 +48,7 @@ export function GuidePage() {
         </div>
 
         {/* TOC */}
-        <nav className="bg-surface-inset rounded-lg px-5 py-4 space-y-1.5" aria-label="Table of contents">
+        <nav className="bg-surface-inset rounded-lg px-5 py-4 space-y-1.5" aria-label={t("guide.tocAriaLabel", { defaultValue: "Table of contents" })}>
           <p className="text-xs font-medium text-muted uppercase tracking-wider mb-2">
             {t("guide.tocTitle", { defaultValue: "Sections" })}
           </p>

@@ -228,7 +228,7 @@
   "common.about": "O aplikacji",
   "common.backToScanner": "Powrót do skanera",
   "common.by": "przez",
-  "common.clearnet": "Clearnet",
+  "common.clearnet": "Sieć jawna",
   "common.close": "Zamknij",
   "common.closeMenu": "Zamknij menu",
   "common.confidence.deterministic": "Pewne",
@@ -2575,5 +2575,14 @@
   "workspace.imported_one": "Zaimportowane skany: {{count}}",
   "workspace.imported_few": "Zaimportowane skany: {{count}}",
   "workspace.imported_many": "Zaimportowane skany: {{count}}",
-  "workspace.imported_other": "Zaimportowane skany: {{count}}"
+  "workspace.imported_other": "Zaimportowane skany: {{count}}",
+  "common.cancel": "Anuluj",
+  "common.delete": "Usuń",
+  "graph.deleteSavedGraph": "Usuń zapisany graf",
+  "graph.savedNodes_one": "{{count}} węzeł",
+  "graph.savedNodes_other": "{{count}} węzła",
+  "graph.savedNodes_few": "{{count}} węzły",
+  "graph.savedNodes_many": "{{count}} węzłów",
+  "guide.tocAriaLabel": "Spis treści",
+  "graph.toxicBadge": "TOKSYCZNE"
 }

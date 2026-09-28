@@ -68,7 +68,7 @@ function scoreAddress(info: WalletAddressInfo): ScoredAddress {
 }
 
 export function WalletAddressTable({ addressInfos, onScan }: WalletAddressTableProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [copiedAddr, setCopiedAddr] = useState<string | null>(null);
 
@@ -245,7 +245,7 @@ export function WalletAddressTable({ addressInfos, onScan }: WalletAddressTableP
                               <div className="flex items-center gap-2">
                                 {tx.status.block_time && (
                                   <span className="text-muted text-[10px]">
-                                    {new Date(tx.status.block_time * 1000).toLocaleDateString()}
+                                    {new Date(tx.status.block_time * 1000).toLocaleDateString(i18n.language)}
                                   </span>
                                 )}
                                 <span className="text-muted">{t("wallet.tx_inOut", { inputs: tx.vin.length, outputs: tx.vout.length, defaultValue: "{{inputs}}in/{{outputs}}out" })}</span>
