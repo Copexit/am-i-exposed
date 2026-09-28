@@ -3,7 +3,7 @@ import { calcVsize } from "@/lib/format";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
 import { analyzeCoinJoin, isCoinJoinFinding } from "@/lib/analysis/heuristics/coinjoin";
 import { analyzeMultisigDetection } from "@/lib/analysis/heuristics/multisig-detection";
-import { NODE_W, NODE_H, COL_GAP, ROW_GAP, MARGIN, ENTITY_CATEGORY_COLORS, HEAT_TIERS, HEAT_FLOOR_COLOR, EXPANDED_NODE_W } from "./constants";
+import { NODE_W, NODE_H, COL_GAP, ROW_GAP, MARGIN, ENTITY_CATEGORY_COLORS, HEAT_TIERS, HEAT_FLOOR_COLOR, EXPANDED_NODE_W, MIN_ZOOM } from "./constants";
 import { calcExpandedHeight } from "./portLayout";
 import type { GraphNode, LayoutNode, LayoutEdge, NodeFilter, ViewTransform } from "./types";
 import type { MempoolTransaction } from "@/lib/api/types";
@@ -336,51 +336,42 @@ export function getViewportDims(dims?: ContainerDims) {
   return { cw: window.innerWidth - padX, ch: window.innerHeight - FALLBACK_PAD_Y };
 }
 
-/** Compute a ViewTransform that centers the root nodes within the viewport. */
-export function computeRootCenterView(roots: LayoutNode[], dims?: ContainerDims): ViewTransform {
-  const { cw, ch } = getViewportDims(dims);
-  if (roots.length === 0) return { x: 0, y: 0, scale: 1 };
-  const avgX = roots.reduce((s, n) => s + n.x + n.width / 2, 0) / roots.length;
-  const avgY = roots.reduce((s, n) => s + n.y + n.height / 2, 0) / roots.length;
-  return { x: cw / 2 - avgX, y: ch / 2 - avgY, scale: 1 };
-}
+/** A laid-out node box, as reported in layoutGraph's nodePositions. */
+export type Box = { x: number; y: number; w: number; h: number };
 
-/** Compute a ViewTransform that fits all layout nodes within the viewport. */
-export function computeFitView(ln: LayoutNode[], dims?: ContainerDims): ViewTransform | null {
-  if (ln.length === 0) return null;
+/** Screen padding kept around fitted nodes (room for the +/x buttons overhanging node edges). */
+const FIT_PAD = 28;
+
+/**
+ * Compute a ViewTransform that fits all boxes within the viewport with
+ * FIT_PAD on every side, never zooming in past maxScale.
+ */
+export function computeFitView(boxes: Box[], dims?: ContainerDims, maxScale = MAX_FIT_SCALE): ViewTransform | null {
+  if (boxes.length === 0) return null;
   const { cw, ch } = getViewportDims(dims);
-  const minX = Math.min(...ln.map((n) => n.x));
-  const minY = Math.min(...ln.map((n) => n.y));
-  const maxX = Math.max(...ln.map((n) => n.x + n.width));
-  const maxY = Math.max(...ln.map((n) => n.y + n.height));
-  const nodesW = maxX - minX;
-  const nodesH = maxY - minY;
-  const s = Math.min(cw / nodesW, ch / nodesH, MAX_FIT_SCALE);
-  const rawX = (cw - nodesW * s) / 2 - minX * s;
-  // Ensure nodes don't clip the left edge on small screens
-  const x = Math.max(rawX, MIN_MARGIN_X - minX * s);
+  const minX = Math.min(...boxes.map((n) => n.x));
+  const minY = Math.min(...boxes.map((n) => n.y));
+  const nodesW = Math.max(...boxes.map((n) => n.x + n.w)) - minX;
+  const nodesH = Math.max(...boxes.map((n) => n.y + n.h)) - minY;
+  const fit = Math.min((cw - 2 * FIT_PAD) / nodesW, (ch - 2 * FIT_PAD) / nodesH, maxScale);
+  const s = Math.max(MIN_ZOOM, fit);
+  // At the zoom floor the graph can still overflow: then keep its left edge in view
+  const x = nodesW * s > cw - 2 * FIT_PAD ? FIT_PAD - minX * s : (cw - nodesW * s) / 2 - minX * s;
   return { x, y: (ch - nodesH * s) / 2 - minY * s, scale: s };
 }
 
+/** Below this scale an automatic fit is unreadable, so only the focus boxes are framed. */
+const MIN_AUTO_FIT_SCALE = 0.45;
+
 /**
- * Initial view for the compact inline canvas: fit when that stays readable
- * (scale >= minScale, never zoom in), otherwise keep minScale and center the root.
+ * Automatic framing after the graph changes: fit everything without zooming in
+ * past 1:1; when that would be unreadably small, frame just `focus` (the roots
+ * plus the newly added nodes) instead.
  */
-export function computeCompactView(ln: LayoutNode[], dims?: ContainerDims, minScale = 0.75): ViewTransform | null {
-  if (ln.length === 0) return null;
-  const { cw, ch } = getViewportDims(dims);
-  const minX = Math.min(...ln.map((n) => n.x));
-  const minY = Math.min(...ln.map((n) => n.y));
-  const nodesW = Math.max(...ln.map((n) => n.x + n.width)) - minX;
-  const nodesH = Math.max(...ln.map((n) => n.y + n.height)) - minY;
-  const s = Math.max(minScale, Math.min(1, cw / nodesW, ch / nodesH));
-  const roots = ln.filter((n) => n.isRoot);
-  const focus = roots.length > 0 ? roots : ln;
-  const cx = focus.reduce((a, n) => a + n.x + n.width / 2, 0) / focus.length;
-  const cy = focus.reduce((a, n) => a + n.y + n.height / 2, 0) / focus.length;
-  const x = nodesW * s <= cw ? (cw - nodesW * s) / 2 - minX * s : cw / 2 - cx * s;
-  const y = nodesH * s <= ch ? (ch - nodesH * s) / 2 - minY * s : ch / 2 - cy * s;
-  return { x, y, scale: s };
+export function computeAutoFitView(boxes: Box[], focus: Box[], dims?: ContainerDims): ViewTransform | null {
+  const all = computeFitView(boxes, dims, 1);
+  if (!all || all.scale >= MIN_AUTO_FIT_SCALE || focus.length === 0) return all;
+  return computeFitView(focus, dims, 1);
 }
 
 // ─── Seeding positions for newly expanded nodes ─────────────────

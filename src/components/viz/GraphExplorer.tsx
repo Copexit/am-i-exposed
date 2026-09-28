@@ -10,7 +10,7 @@ import { useGraphBoltzmann } from "@/hooks/useGraphBoltzmann";
 import { GraphSidebar } from "./graph/GraphSidebar";
 import { MAX_ZOOM, MIN_ZOOM } from "./graph/constants";
 import {
-  layoutGraph, computeFitView, computeCompactView, computeRootCenterView, getViewportDims, findFreeY,
+  layoutGraph, computeFitView, computeAutoFitView, getViewportDims, findFreeY,
   SEED_BACKWARD_DX, SEED_FORWARD_GAP,
 } from "./graph/layout";
 import { CloseIcon } from "./graph/icons";
@@ -187,45 +187,42 @@ export function GraphExplorer(props: GraphExplorerProps) {
   // ─── Layout helpers ────────────────────────────────────
   const hiddenCount = graph.nodeCount - visibleCount;
 
+  // Fit/auto-fit frame the boxes the canvas actually rendered (seeded and
+  // dragged positions, expanded-node sizes), not a separately recomputed layout.
   const handleFitView = useCallback(() => {
-    const { layoutNodes: ln } = layoutGraph(graph.nodes, graph.rootTxid, filter, graph.rootTxids, undefined, true);
-    const vt = computeFitView(ln, containerDimsRef.current);
+    const vt = computeFitView([...nodePositionsRef.current.values()], containerDimsRef.current);
     if (vt) dispatch({ type: "SET_VIEW_TRANSFORM", vt });
-  }, [graph.nodes, graph.rootTxid, filter, graph.rootTxids, dispatch, containerDimsRef]);
+  }, [dispatch, nodePositionsRef, containerDimsRef]);
 
   const handleExpandFullscreen = useCallback(() => {
     pendingFrameRef.current = true;
     expandFullscreen();
   }, [expandFullscreen]);
 
+  // Auto-fit only when the set of visible nodes changes (load, expand, collapse,
+  // new root) or a new canvas mounts; drags and manual pan/zoom are left alone.
+  const fittedKeysRef = useRef<Set<string>>(new Set());
+  const { rootTxid, rootTxids } = graph;
   const onLayoutComplete = useCallback((info: Parameters<typeof handleLayoutComplete>[0]) => {
     handleLayoutComplete(info);
-    if (!pendingFrameRef.current || info.containerHeight <= 0) return;
+    if (info.containerHeight <= 0 || info.nodePositions.size === 0) return;
+    // A new node's seed position lands on the next layout: frame that one instead
+    if (pendingSeedRef.current) return;
+    const prev = fittedKeysRef.current;
+    const keys = new Set(info.nodePositions.keys());
+    const added = prev.size > 0 ? [...keys].filter((k) => !prev.has(k)) : [];
+    const changed = keys.size !== prev.size || added.length > 0;
+    if (!changed && !pendingFrameRef.current) return;
     pendingFrameRef.current = false;
+    fittedKeysRef.current = keys;
     // rAF: run after GraphCanvas's own first-render root centering
     requestAnimationFrame(() => {
-      if (isExpanded) { handleFitView(); return; }
-      const { layoutNodes: ln } = layoutGraph(graph.nodes, graph.rootTxid, filter, graph.rootTxids, graph.expandedNodeTxid, false, nodePositionOverrides);
-      const vt = computeCompactView(ln, containerDimsRef.current);
+      const pos = nodePositionsRef.current;
+      const focus = [rootTxid, ...(rootTxids ?? []), ...added].flatMap((id) => pos.get(id) ?? []);
+      const vt = computeAutoFitView([...pos.values()], focus, containerDimsRef.current);
       if (vt) dispatch({ type: "SET_VIEW_TRANSFORM", vt });
     });
-  }, [handleLayoutComplete, handleFitView, isExpanded, graph.nodes, graph.rootTxid, filter, graph.rootTxids, graph.expandedNodeTxid, nodePositionOverrides, containerDimsRef, dispatch]);
-
-  // Auto-center on root change in alwaysFullscreen mode.
-  // GraphCanvas handles first-render centering (it knows the real container dims).
-  // This effect handles subsequent root changes (e.g., navigating to a new txid).
-  const prevRootRef = useRef<string>("");
-  useEffect(() => {
-    if (!props.alwaysFullscreen || !graph.rootTxid || graph.nodes.size === 0) return;
-    if (prevRootRef.current === graph.rootTxid) return;
-    prevRootRef.current = graph.rootTxid;
-    // Skip if containerDims not yet populated (first render handled by GraphCanvas)
-    const dims = containerDimsRef.current;
-    if (!dims || dims.width === 0) return;
-    const { layoutNodes: ln } = layoutGraph(graph.nodes, graph.rootTxid, filter, graph.rootTxids, undefined, true);
-    const roots = ln.filter((n) => n.isRoot);
-    if (roots.length > 0) dispatch({ type: "SET_VIEW_TRANSFORM", vt: computeRootCenterView(roots, dims) });
-  }, [props.alwaysFullscreen, graph.rootTxid, graph.nodes, filter, graph.rootTxids, dispatch, containerDimsRef]);
+  }, [handleLayoutComplete, rootTxid, rootTxids, nodePositionsRef, containerDimsRef, dispatch]);
 
   // ─── Stable callbacks ──────────────────────────────────
   const { onLoadSavedGraph } = props;
