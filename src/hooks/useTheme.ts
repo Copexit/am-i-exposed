@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore, useCallback, useEffect } from "react";
-import { V2_COLORS, V2_LIGHT_COLORS } from "@/lib/palette";
+import { DARK_COLORS, LIGHT_COLORS } from "@/lib/palette";
 
 type Theme = "dark" | "light";
 /** Stored preference: "system" (key absent) follows prefers-color-scheme live. */
@@ -49,7 +49,7 @@ function applyTheme(theme: Theme) {
   else delete document.documentElement.dataset.theme;
   // Update browser chrome color to match theme
   const meta = document.getElementById("meta-theme-color") as HTMLMetaElement | null;
-  if (meta) meta.content = (theme === "light" ? V2_LIGHT_COLORS : V2_COLORS).background;
+  if (meta) meta.content = (theme === "light" ? LIGHT_COLORS : DARK_COLORS).background;
 }
 
 /** Re-apply the theme and re-render subscribers. */

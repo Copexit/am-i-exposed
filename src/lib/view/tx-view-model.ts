@@ -38,7 +38,7 @@ export interface ViewModelInput {
 }
 
 /**
- * The single source of truth for everything the v2 results UI displays.
+ * The single source of truth for everything the results UI displays.
  * Pure: derives from the engine result and raw data, never re-runs heuristics.
  */
 export function buildResultViewModel({ result, baseScore, tx, outspends, entityName }: ViewModelInput): ResultViewModel {

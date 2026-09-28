@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { V2PageFrame } from "@/components/v2/pages/V2PageFrame";
+import { PageFrame } from "@/components/pages/PageFrame";
 
 interface PageShellProps {
   /** Tailwind spacing class between children (default "space-y-10") */
@@ -11,5 +11,5 @@ interface PageShellProps {
 
 /** Shared layout shell for sub-pages (about, faq, glossary, guide, etc.): the page frame. */
 export function PageShell({ spacing = "space-y-10", children }: PageShellProps) {
-  return <V2PageFrame spacing={spacing}>{children}</V2PageFrame>;
+  return <PageFrame spacing={spacing}>{children}</PageFrame>;
 }

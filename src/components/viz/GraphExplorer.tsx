@@ -412,7 +412,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
     <>
       <motion.div
         initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-        className="v2-canvas relative rounded-xl border border-card-border bg-surface-inset p-4 space-y-3"
+        className="graph-canvas relative rounded-xl border border-card-border bg-surface-inset p-4 space-y-3"
       >
         <GraphToolbar {...toolbarProps} compact={compact} onExpandFullscreen={handleExpandFullscreen} />
 
@@ -429,7 +429,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
         )}
         {compact && !isExpanded && (
           <p className="text-xs text-muted">
-            {t("v2.graph.compactHint", { defaultValue: "Expand any input or output with +, or open fullscreen for heat map, fingerprints and linkability." })}
+            {t("graph.compactHint", { defaultValue: "Expand any input or output with +, or open fullscreen for heat map, fingerprints and linkability." })}
           </p>
         )}
 
@@ -452,7 +452,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
         <div
           role="dialog" aria-modal="true"
           aria-label={t("graphExplorer.fullscreenLabel", { defaultValue: "Transaction graph fullscreen" })}
-          className="v2-canvas-backdrop fixed inset-0 z-[100] bg-card-bg/80 backdrop-blur-sm flex flex-col"
+          className="graph-canvas-backdrop fixed inset-0 z-[100] bg-card-bg/80 backdrop-blur-sm flex flex-col"
           onClick={(e) => { if (e.target === e.currentTarget) collapseFullscreen(); }}
         >
           <button

@@ -6,14 +6,14 @@ import { Loader2 } from "lucide-react";
 import { useScanner } from "@/hooks/useScanner";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { XpubPrivacyWarning } from "@/components/wallet/XpubPrivacyWarning";
-import { V2Home } from "@/components/v2/home/V2Home";
-import { V2Scan } from "@/components/v2/scan/V2Scan";
-import { V2Results } from "@/components/v2/results/V2Results";
-import { V2Destination } from "@/components/v2/flows/V2Destination";
-import { V2Error } from "@/components/v2/flows/V2Error";
-import { V2WalletLoading } from "@/components/v2/flows/V2WalletLoading";
+import { Home } from "@/components/home/Home";
+import { ScanScreen } from "@/components/scan/ScanScreen";
+import { Results } from "@/components/results/Results";
+import { DestinationResult } from "@/components/flows/DestinationResult";
+import { ErrorScreen } from "@/components/flows/ErrorScreen";
+import { WalletLoading } from "@/components/flows/WalletLoading";
 const NetworkSwitchToast = lazy(() => import("@/components/NetworkSwitchToast").then(m => ({ default: m.NetworkSwitchToast })));
-const V2WalletResults = lazy(() => import("@/components/v2/flows/V2WalletResults").then(m => ({ default: m.V2WalletResults })));
+const WalletResults = lazy(() => import("@/components/flows/WalletResults").then(m => ({ default: m.WalletResults })));
 
 export default function ScannerPage() {
   const {
@@ -47,7 +47,7 @@ export default function ScannerPage() {
       */}
       <>
         {phase === "idle" && !pendingHash && !walletActive && (
-          <V2Home
+          <Home
             key="hero"
             onSubmit={handleSubmit}
             inputRef={inputRef}
@@ -62,7 +62,7 @@ export default function ScannerPage() {
         )}
 
         {(phase === "fetching" || phase === "analyzing") && (
-          <V2Scan
+          <ScanScreen
             key="loading"
             query={query ?? ""}
             inputType={inputType}
@@ -74,7 +74,7 @@ export default function ScannerPage() {
         )}
 
         {phase === "complete" && query && inputType && result && (
-          <V2Results
+          <Results
             key="results"
             query={query}
             inputType={inputType === "psbt" ? "txid" : inputType as "txid" | "address"}
@@ -105,15 +105,15 @@ export default function ScannerPage() {
         )}
 
         {phase === "complete" && query && preSendResult && !result && (
-          <V2Destination key="destination" query={query} preSendResult={preSendResult} onBack={handleBack} durationMs={durationMs} />
+          <DestinationResult key="destination" query={query} preSendResult={preSendResult} onBack={handleBack} durationMs={durationMs} />
         )}
 
         {phase === "error" && error !== "xpub" && (
-          <V2Error key="error" error={error} query={query} errorCode={errorCode} onRetry={analyze} onBack={handleBack} />
+          <ErrorScreen key="error" error={error} query={query} errorCode={errorCode} onRetry={analyze} onBack={handleBack} />
         )}
 
         {walletActive && wallet.phase !== "complete" && wallet.phase !== "error" && (
-          <V2WalletLoading
+          <WalletLoading
             key="wallet-loading"
             query={wallet.query}
             phase={wallet.phase as "deriving" | "fetching" | "tracing" | "analyzing"}
@@ -126,7 +126,7 @@ export default function ScannerPage() {
 
         {wallet.phase === "complete" && wallet.descriptor && wallet.result && (
           <Suspense key="wallet-results" fallback={null}>
-            <V2WalletResults
+            <WalletResults
               descriptor={wallet.descriptor}
               result={wallet.result}
               addressInfos={wallet.addressInfos}
@@ -139,7 +139,7 @@ export default function ScannerPage() {
         )}
 
         {wallet.phase === "error" && (
-          <V2Error key="wallet-error" error={wallet.error} onBack={handleBack} />
+          <ErrorScreen key="wallet-error" error={wallet.error} onBack={handleBack} />
         )}
       </>
 

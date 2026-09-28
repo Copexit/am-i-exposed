@@ -1,6 +1,6 @@
 import type { Grade } from "@/lib/types";
 import { GRADE_HEX } from "@/lib/constants";
-import { COLORS, V2_DARK_PALETTE, V2_LIGHT_PALETTE } from "@/lib/palette";
+import { COLORS, DARK_PALETTE, LIGHT_PALETTE } from "@/lib/palette";
 
 /** Theme-dependent keys: the neutrals that differ between dark and light. */
 const SURFACE_KEY_LIST = ["background", "foreground", "muted", "cardBg", "cardBorder", "surfaceInset", "surfaceElevated"] as const;
@@ -9,8 +9,8 @@ type SurfaceColors = Readonly<Record<SurfaceKey, string>>;
 
 const pick = (p: Readonly<Record<SurfaceKey, string>>): SurfaceColors =>
   Object.fromEntries(SURFACE_KEY_LIST.map((k) => [k, p[k]])) as SurfaceColors;
-export const DARK_SURFACES = pick(V2_DARK_PALETTE);
-const LIGHT_SURFACES = pick(V2_LIGHT_PALETTE);
+export const DARK_SURFACES = pick(DARK_PALETTE);
+const LIGHT_SURFACES = pick(LIGHT_PALETTE);
 
 const isLight = () => typeof document !== "undefined" && document.documentElement.dataset.theme === "light";
 
@@ -20,12 +20,12 @@ export function getSurfaceColors(): SurfaceColors {
 }
 
 const LIGHT_TEXT: Record<string, string> = {
-  [COLORS.bitcoin]: V2_LIGHT_PALETTE.bitcoinText,
-  [COLORS.severityCritical]: V2_LIGHT_PALETTE.severityCritical,
-  [COLORS.severityHigh]: V2_LIGHT_PALETTE.severityHigh,
-  [COLORS.severityMedium]: V2_LIGHT_PALETTE.severityMedium,
-  [COLORS.severityLow]: V2_LIGHT_PALETTE.severityLow,
-  [COLORS.severityGood]: V2_LIGHT_PALETTE.severityGood,
+  [COLORS.bitcoin]: LIGHT_PALETTE.bitcoinText,
+  [COLORS.severityCritical]: LIGHT_PALETTE.severityCritical,
+  [COLORS.severityHigh]: LIGHT_PALETTE.severityHigh,
+  [COLORS.severityMedium]: LIGHT_PALETTE.severityMedium,
+  [COLORS.severityLow]: LIGHT_PALETTE.severityLow,
+  [COLORS.severityGood]: LIGHT_PALETTE.severityGood,
 };
 
 /** Text drawn in a mark color: in light, bright marks swap to their AA text shades. */

@@ -13,13 +13,13 @@ const { Passthrough, Empty } = vi.hoisted(() => ({
 vi.mock("@/context/NetworkContext", () => ({ NetworkProvider: Passthrough }));
 vi.mock("@/lib/i18n/I18nProvider", () => ({ I18nProvider: Passthrough }));
 vi.mock("@/lib/i18n/LangAttributeSync", () => ({ LangAttributeSync: Empty }));
-vi.mock("@/components/v2/chrome/V2Header", () => ({ V2Header: Empty }));
-vi.mock("@/components/v2/chrome/V2Footer", () => ({ V2Footer: Empty }));
-vi.mock("@/components/v2/chrome/V2PrivacyNotice", () => ({ V2PrivacyNotice: Empty }));
+vi.mock("@/components/chrome/SiteHeader", () => ({ SiteHeader: Empty }));
+vi.mock("@/components/chrome/SiteFooter", () => ({ SiteFooter: Empty }));
+vi.mock("@/components/chrome/PrivacyNotice", () => ({ PrivacyNotice: Empty }));
 vi.mock("@/components/MempoolDownDialog", () => ({ MempoolDownDialog: Empty }));
 
 import RootLayout from "../layout";
-import { V2_COLORS, V2_LIGHT_COLORS } from "@/lib/palette";
+import { DARK_COLORS, LIGHT_COLORS } from "@/lib/palette";
 
 describe("RootLayout", () => {
   it("has no static connection hints to mempool.space (would leak for Umbrel/Tor/custom API users)", () => {
@@ -32,7 +32,7 @@ describe("RootLayout", () => {
     const html = renderToStaticMarkup(<RootLayout><main /></RootLayout>);
     const code = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]!).find((c) => c.includes("ami-theme"));
     expect(code).toBeDefined();
-    expect(html).toContain(`<meta name="theme-color" content="${V2_COLORS.background}"`);
+    expect(html).toContain(`<meta name="theme-color" content="${DARK_COLORS.background}"`);
     const run = (stored: string | null, osLight: boolean) => {
       const dataset: Record<string, string> = {};
       const meta = { content: "" };
@@ -43,7 +43,7 @@ describe("RootLayout", () => {
       );
       return { theme: dataset.theme, meta: meta.content };
     };
-    expect(run(null, true)).toEqual({ theme: "light", meta: V2_LIGHT_COLORS.background });
+    expect(run(null, true)).toEqual({ theme: "light", meta: LIGHT_COLORS.background });
     expect(run(null, false).theme).toBeUndefined();
     expect(run("light", false).theme).toBe("light");
     expect(run("dark", true).theme).toBeUndefined();

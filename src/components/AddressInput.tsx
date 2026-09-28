@@ -35,7 +35,7 @@ interface AddressInputProps {
   onSubmit: (input: string) => void;
   isLoading: boolean;
   inputRef?: React.RefObject<HTMLInputElement | null>;
-  /** Placeholder override (v2 uses a shorter one that fits a phone). */
+  /** Placeholder override (e.g. a shorter one that fits a phone). */
   placeholder?: string;
 }
 
@@ -123,7 +123,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, place
     }
   };
 
-  const placeholder = placeholderOverride ?? t("v2.home.placeholder", { defaultValue: "Address, txid, xpub or PSBT" });
+  const placeholder = placeholderOverride ?? t("home.placeholder", { defaultValue: "Address, txid, xpub or PSBT" });
   const buttonLabel = t("input.buttonScan", { defaultValue: "Scan" });
 
   return (

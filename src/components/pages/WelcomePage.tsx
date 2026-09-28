@@ -4,7 +4,7 @@ import { Suspense, lazy } from "react";
 import Link from "next/link";
 import { ArrowRight, Github, Server } from "lucide-react";
 import { Trans, useTranslation } from "react-i18next";
-import { V2PageFrame } from "@/components/v2/pages/V2PageFrame";
+import { PageFrame } from "@/components/pages/PageFrame";
 
 const TipJar = lazy(() =>
   import("@/components/TipJar").then((m) => ({ default: m.TipJar }))
@@ -14,7 +14,7 @@ export function WelcomePage() {
   const { t } = useTranslation();
 
   return (
-    <V2PageFrame title={t("v2.pages.welcomeTitle", { defaultValue: "Why am-i.exposed exists" })}>
+    <PageFrame title={t("pages.welcomeTitle", { defaultValue: "Why am-i.exposed exists" })}>
       <div className="flex flex-col">
         <article className="w-full max-w-2xl space-y-14">
 
@@ -149,6 +149,6 @@ export function WelcomePage() {
           </section>
         </article>
       </div>
-    </V2PageFrame>
+    </PageFrame>
   );
 }

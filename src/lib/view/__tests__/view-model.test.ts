@@ -1,7 +1,7 @@
 /**
- * v2 view model: invariants over the real-world corpus and the named fixtures,
+ * View model: invariants over the real-world corpus and the named fixtures,
  * plus focused unit cases. The view model is the single source for everything
- * the v2 UI displays, so these tests pin "every pixel has a source".
+ * the UI displays, so these tests pin "every pixel has a source".
  */
 import { readdirSync, readFileSync } from "fs";
 import { join } from "path";

@@ -2,7 +2,7 @@ import type { Grade } from "@/lib/types";
 import { GRADE_HEX } from "@/lib/constants";
 import { COLORS } from "@/lib/palette";
 
-interface ShareCardV2Labels {
+interface ShareCardLabels {
   privacyScore: string;
   topLeak: string;
   scannedClientSide: string;
@@ -10,7 +10,7 @@ interface ShareCardV2Labels {
   address: string;
 }
 
-const defaultV2Labels: ShareCardV2Labels = {
+const defaultLabels: ShareCardLabels = {
   privacyScore: "PRIVACY SCORE",
   topLeak: "TOP LEAK",
   scannedClientSide: "SCANNED CLIENT-SIDE",
@@ -28,7 +28,7 @@ export interface ShareCardOptions {
   /** Title of the most negative-impact finding, chosen by the caller. */
   topLeak?: string | null;
   /** Label overrides. */
-  v2Labels?: Partial<ShareCardV2Labels>;
+  labels?: Partial<ShareCardLabels>;
 }
 
 /** Short form of a txid/address for the card: first 8 and last 8 characters. */
@@ -37,8 +37,8 @@ export function shortQuery(query: string): string {
 }
 
 /** Everything the card prints, resolved from the options (pure, testable). */
-export function buildV2CardModel(options: ShareCardOptions) {
-  const labels = { ...defaultV2Labels, ...options.v2Labels };
+export function buildCardModel(options: ShareCardOptions) {
+  const labels = { ...defaultLabels, ...options.labels };
   const score = Math.max(0, Math.min(100, Math.round(options.score)));
   return {
     grade: options.grade,
@@ -52,7 +52,7 @@ export function buildV2CardModel(options: ShareCardOptions) {
   };
 }
 
-const V2 = {
+const CARD = {
   bg: "#0b0b0d",
   fg: "#f2f2f4",
   muted: "#a6a6b0",
@@ -76,53 +76,53 @@ function fitText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number):
   return `${text.slice(0, lo).trimEnd()}\u2026`;
 }
 
-function drawV2Card(ctx: CanvasRenderingContext2D, options: ShareCardOptions): void {
-  const m = buildV2CardModel(options);
+function drawCard(ctx: CanvasRenderingContext2D, options: ShareCardOptions): void {
+  const m = buildCardModel(options);
   const L = 80;
   const R = 1120;
 
-  ctx.fillStyle = V2.bg;
+  ctx.fillStyle = CARD.bg;
   ctx.fillRect(0, 0, 1200, 630);
 
   // Wordmark + provenance
   ctx.textBaseline = "alphabetic";
-  ctx.font = `600 30px ${V2.sans}`;
-  ctx.fillStyle = V2.fg;
+  ctx.font = `600 30px ${CARD.sans}`;
+  ctx.fillStyle = CARD.fg;
   ctx.fillText("am-i.", L, 92);
   ctx.fillStyle = COLORS.bitcoin;
   ctx.fillText("exposed", L + ctx.measureText("am-i.").width, 92);
-  ctx.font = `14px ${V2.mono}`;
-  ctx.fillStyle = V2.faint;
+  ctx.font = `14px ${CARD.mono}`;
+  ctx.fillStyle = CARD.faint;
   ctx.textAlign = "right";
   ctx.fillText(m.labels.scannedClientSide, R, 90);
   ctx.textAlign = "left";
 
   // Grade letter
-  ctx.font = `700 200px ${V2.sans}`;
+  ctx.font = `700 200px ${CARD.sans}`;
   ctx.fillStyle = m.gradeColor;
   ctx.fillText(m.grade, L - 8, 330);
   const colX = L + Math.max(ctx.measureText(m.grade).width, 150) + 48;
 
   // Score column
-  ctx.font = `13px ${V2.mono}`;
-  ctx.fillStyle = V2.faint;
+  ctx.font = `13px ${CARD.mono}`;
+  ctx.fillStyle = CARD.faint;
   ctx.fillText(m.labels.privacyScore, colX, 186);
-  ctx.font = `600 64px ${V2.mono}`;
-  ctx.fillStyle = V2.fg;
+  ctx.font = `600 64px ${CARD.mono}`;
+  ctx.fillStyle = CARD.fg;
   ctx.fillText(m.score, colX, 256);
   const scoreW = ctx.measureText(m.score).width;
-  ctx.font = `28px ${V2.mono}`;
-  ctx.fillStyle = V2.faint;
+  ctx.font = `28px ${CARD.mono}`;
+  ctx.fillStyle = CARD.faint;
   ctx.fillText("/100", colX + scoreW + 6, 256);
   // Score track: hairline with the grade-colored share
   const trackW = R - colX;
-  ctx.fillStyle = V2.hairline;
+  ctx.fillStyle = CARD.hairline;
   ctx.fillRect(colX, 280, trackW, 2);
   ctx.fillStyle = m.gradeColor;
   ctx.fillRect(colX, 280, trackW * m.scoreFraction, 2);
   if (m.txType) {
-    ctx.font = `24px ${V2.sans}`;
-    ctx.fillStyle = V2.muted;
+    ctx.font = `24px ${CARD.sans}`;
+    ctx.fillStyle = CARD.muted;
     ctx.fillText(fitText(ctx, m.txType, trackW), colX, 326);
   }
 
@@ -130,8 +130,8 @@ function drawV2Card(ctx: CanvasRenderingContext2D, options: ShareCardOptions): v
   if (m.topLeak) {
     const y = 382;
     const h = 96;
-    ctx.fillStyle = V2.surface;
-    ctx.strokeStyle = V2.hairline;
+    ctx.fillStyle = CARD.surface;
+    ctx.strokeStyle = CARD.hairline;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.roundRect(L + 0.5, y + 0.5, R - L - 1, h - 1, 12);
@@ -141,22 +141,22 @@ function drawV2Card(ctx: CanvasRenderingContext2D, options: ShareCardOptions): v
     ctx.beginPath();
     ctx.roundRect(L + 20, y + 22, 3, h - 44, 2);
     ctx.fill();
-    ctx.font = `13px ${V2.mono}`;
-    ctx.fillStyle = V2.faint;
+    ctx.font = `13px ${CARD.mono}`;
+    ctx.fillStyle = CARD.faint;
     ctx.fillText(m.labels.topLeak, L + 44, y + 38);
-    ctx.font = `500 26px ${V2.sans}`;
-    ctx.fillStyle = V2.fg;
+    ctx.font = `500 26px ${CARD.sans}`;
+    ctx.fillStyle = CARD.fg;
     ctx.fillText(fitText(ctx, m.topLeak, R - L - 72), L + 44, y + 74);
   }
 
   // Footer: id + site
-  ctx.fillStyle = V2.hairline;
+  ctx.fillStyle = CARD.hairline;
   ctx.fillRect(L, 530, R - L, 1);
-  ctx.font = `18px ${V2.mono}`;
-  ctx.fillStyle = V2.muted;
+  ctx.font = `18px ${CARD.mono}`;
+  ctx.fillStyle = CARD.muted;
   ctx.fillText(m.idLine, L, 576);
-  ctx.font = `18px ${V2.sans}`;
-  ctx.fillStyle = V2.faint;
+  ctx.font = `18px ${CARD.sans}`;
+  ctx.fillStyle = CARD.faint;
   ctx.textAlign = "right";
   ctx.fillText("am-i.exposed", R, 576);
   ctx.textAlign = "left";
@@ -178,7 +178,7 @@ export async function generateShareCard(options: ShareCardOptions): Promise<Blob
   canvas.height = 630;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas 2D context not available");
-  drawV2Card(ctx, options);
+  drawCard(ctx, options);
   return canvasToPng(canvas);
 }
 

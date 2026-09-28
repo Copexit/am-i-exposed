@@ -2,8 +2,8 @@
 
 /*
  * "A quiet instrument": calm surfaces, hairlines instead of boxes. Dark is
- * the default; light is html[data-theme="light"]. See docs/v2/design.md.
- * JS mirrors: V2_COLORS / V2_LIGHT_COLORS in src/lib/palette.ts.
+ * the default; light is html[data-theme="light"]. See docs/ui/design.md.
+ * JS mirrors: DARK_COLORS / LIGHT_COLORS in src/lib/palette.ts.
  */
 :root {
   --background: #0b0b0d;
@@ -182,14 +182,14 @@ html[data-theme="light"] {
    * (white), the second recessed: resolve by nesting.
    */
   :is(.bg-surface-inset, .bg-surface-inset\/50, .bg-surface-inset\/40) { background-color: var(--surface-1); }
-  :is(.bg-surface-1, .bg-card-bg, .bg-surface-elevated, .v2-panel, .glass, .v2-canvas) :is(.bg-surface-inset, .bg-surface-inset\/50, .bg-surface-inset\/40) { background-color: var(--surface-inset); }
+  :is(.bg-surface-1, .bg-card-bg, .bg-surface-elevated, .panel, .glass, .graph-canvas) :is(.bg-surface-inset, .bg-surface-inset\/50, .bg-surface-inset\/40) { background-color: var(--surface-inset); }
   /* Home scan field: disabled Scan reads as a quiet grey key, not a washed-out orange one. */
-  .v2-hero-field button:disabled { background: var(--surface-2) !important; color: var(--faint); box-shadow: none !important; opacity: 1; }
-  .v2-readouts { box-shadow: var(--shadow-card); }
-  .v2-readouts > * { background-color: var(--surface-1); }
-  .v2-canvas { box-shadow: var(--shadow-card); border-color: var(--hairline); }
-  .v2-canvas-backdrop { background-color: rgb(236 238 242 / 0.9); backdrop-filter: blur(14px); }
-  .v2-panel {
+  .hero-field button:disabled { background: var(--surface-2) !important; color: var(--faint); box-shadow: none !important; opacity: 1; }
+  .readouts { box-shadow: var(--shadow-card); }
+  .readouts > * { background-color: var(--surface-1); }
+  .graph-canvas { box-shadow: var(--shadow-card); border-color: var(--hairline); }
+  .graph-canvas-backdrop { background-color: rgb(236 238 242 / 0.9); backdrop-filter: blur(14px); }
+  .panel {
     background: var(--surface-1);
     border: 1px solid var(--hairline);
     border-radius: 12px;
@@ -203,10 +203,10 @@ html[data-theme="light"] {
 }
 html[data-theme="light"] body::after { display: none; }
 @media (min-width: 640px) {
-  html[data-theme="light"] .v2-panel { padding: 24px; }
+  html[data-theme="light"] .panel { padding: 24px; }
 }
 
-.v2-num {
+.num {
   font-family: var(--font-geist-mono), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
 }
@@ -218,7 +218,7 @@ html[data-theme="light"] body::after { display: none; }
   display: none;
 }
 
-.v2-eyebrow {
+.eyebrow {
   font-family: var(--font-geist-mono), ui-monospace, monospace;
   font-size: 11px;
   line-height: 1;

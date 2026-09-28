@@ -13,7 +13,7 @@ test("Boltzmann heatmap renders for Whirlpool 5x5 CoinJoin", async ({ page }) =>
 
   // The heat map lives in the analyst tools (open to everyone); Boltzmann
   // auto-computes for <=8x8 transactions.
-  const analyst = page.locator("#v2-analyst");
+  const analyst = page.locator("#analyst");
   await analyst.scrollIntoViewIfNeeded();
   const heatmapTitle = analyst.getByText("Link Probability Matrix");
   await expect(heatmapTitle).toBeVisible({ timeout: 15_000 });
