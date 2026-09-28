@@ -16,5 +16,5 @@ test("switching language to es translates the UI and persists across reloads", a
 
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("lang", "es");
-  await expect(page.getByRole("button", { name: "Configuración de API", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Configuración", exact: true })).toBeVisible();
 });

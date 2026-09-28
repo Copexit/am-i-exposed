@@ -4,8 +4,8 @@ import { SVG_COLORS } from "../shared/svgConstants";
 
 interface Badge {
   label: string;
-  bg: string;
-  fg: string;
+  /** Mark color for the pill tint and outline; the label is always foreground (AA on any tint, both themes). */
+  color: string;
 }
 
 interface NodeBadgesProps {
@@ -16,6 +16,7 @@ interface NodeBadgesProps {
   coinJoinType?: string;
   isOfac?: boolean;
   isToxicMerge: boolean;
+  toxicLabel?: string;
   isUnconfirmed?: boolean;
   unconfirmedLabel?: string;
   /** Space kept clear at the right edge (the heat-map sparkline). */
@@ -30,15 +31,16 @@ export function NodeBadges({
   coinJoinType,
   isOfac,
   isToxicMerge,
+  toxicLabel,
   isUnconfirmed,
   unconfirmedLabel,
   rightInset = 0,
 }: NodeBadgesProps) {
   const badges: Badge[] = [];
-  if (isCoinJoin) badges.push({ label: coinJoinType ?? "CJ", bg: SVG_COLORS.good, fg: SVG_COLORS.background });
-  if (isOfac) badges.push({ label: "OFAC", bg: SVG_COLORS.critical, fg: SVG_COLORS.background });
-  if (isToxicMerge) badges.push({ label: "TOXIC", bg: SVG_COLORS.critical, fg: SVG_COLORS.background });
-  if (isUnconfirmed) badges.push({ label: unconfirmedLabel ?? "Unconfirmed", bg: SVG_COLORS.medium, fg: SVG_COLORS.background });
+  if (isCoinJoin) badges.push({ label: coinJoinType ?? "CJ", color: SVG_COLORS.good });
+  if (isOfac) badges.push({ label: "OFAC", color: SVG_COLORS.critical });
+  if (isToxicMerge) badges.push({ label: toxicLabel ?? "TOXIC", color: SVG_COLORS.critical });
+  if (isUnconfirmed) badges.push({ label: unconfirmedLabel ?? "Unconfirmed", color: SVG_COLORS.medium });
   if (badges.length === 0) return null;
 
   const by = nodeY + 42;
@@ -56,8 +58,8 @@ export function NodeBadges({
     <g style={{ pointerEvents: "none" }}>
       {positioned.map((b) => (
         <g key={b.label} transform={`translate(${b.x}, ${by})`}>
-          <rect width={b.tw} height={12} rx={6} fill={b.bg} fillOpacity={0.3} stroke={b.bg} strokeWidth={0.5} strokeOpacity={0.6} />
-          <text x={b.tw / 2} y={9} textAnchor="middle" fontSize="7" fontWeight="bold" fill={b.fg} fillOpacity={0.85}>{b.label}</text>
+          <rect width={b.tw} height={12} rx={6} fill={b.color} fillOpacity={0.2} stroke={b.color} strokeWidth={0.75} />
+          <text x={b.tw / 2} y={9} textAnchor="middle" fontSize="7" fontWeight="bold" fill={SVG_COLORS.foreground}>{b.label}</text>
         </g>
       ))}
     </g>

@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useAnalysisSettings } from "@/hooks/useAnalysisSettings";
 
 export function AnalysisSettingsPanel() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { settings: analysisSettings, update: updateAnalysis, reset: resetAnalysis, DEFAULTS: ANALYSIS_DEFAULTS } = useAnalysisSettings();
   const [analysisOpen, setAnalysisOpen] = useState(false);
 
@@ -86,7 +86,7 @@ export function AnalysisSettingsPanel() {
               <label htmlFor="analysis-minsats" className="text-xs text-muted">
                 {t("settings.minSats", { defaultValue: "Min sats to trace" })}
               </label>
-              <span className="text-xs font-mono text-foreground tabular-nums">{analysisSettings.minSats.toLocaleString()}</span>
+              <span className="text-xs font-mono text-foreground tabular-nums">{analysisSettings.minSats.toLocaleString(i18n.language)}</span>
             </div>
             <input
               id="analysis-minsats"

@@ -37,7 +37,7 @@ interface Props {
 /* ------------------------------------------------------------------ */
 
 export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   useTheme(); // re-render on theme change for SVG_COLORS
   const { state, compute, autoComputed, isSupported } = useBoltzmann(tx, precomputed);
   const [hoveredCell, setHoveredCell] = useState<{ row: number; col: number } | null>(null);
@@ -215,8 +215,8 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                   <motion.span initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="inline-flex items-center gap-1.5 bg-surface-inset rounded-full px-2.5 py-1 text-xs text-muted">
                     <Hash size={11} />
                     {result.timedOut
-                      ? t("boltzmann.interpretationsPartial", { num: result.nbCmbn.toLocaleString(), defaultValue: "{{num}}+ interpretations (partial)" })
-                      : t("boltzmann.interpretations", { count: result.nbCmbn, num: result.nbCmbn.toLocaleString(), defaultValue: "{{num}} interpretations" })}
+                      ? t("boltzmann.interpretationsPartial", { num: result.nbCmbn.toLocaleString(i18n.language), defaultValue: "{{num}}+ interpretations (partial)" })
+                      : t("boltzmann.interpretations", { count: result.nbCmbn, num: result.nbCmbn.toLocaleString(i18n.language), defaultValue: "{{num}} interpretations" })}
                   </motion.span>
                   <motion.span initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.05 }} className="inline-flex items-center gap-1.5 bg-surface-inset rounded-full px-2.5 py-1 text-xs text-muted" title={isApprox ? t("boltzmann.entropyUpperBoundTooltip", { defaultValue: "Upper bound. True entropy may be slightly lower due to structural approximations." }) : undefined}>
                     <Grid3X3 size={11} />
@@ -385,7 +385,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                     <div className="flex-1 h-1 bg-foreground/[0.06] rounded-full overflow-hidden max-w-[120px]">
                       <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(effPct, 100)}%`, backgroundColor: effPct > 50 ? EFFICIENCY_COLORS.high : effPct > 20 ? EFFICIENCY_COLORS.mid : EFFICIENCY_COLORS.low }} />
                     </div>
-                    <span className="text-muted/40">{t("boltzmann.efficiencyVsPerfect", { prfct: result.nbCmbnPrfctCj.toLocaleString(), defaultValue: "(vs. {{prfct}} perfect CJ)" })}</span>
+                    <span className="text-muted/40">{t("boltzmann.efficiencyVsPerfect", { prfct: result.nbCmbnPrfctCj.toLocaleString(i18n.language), defaultValue: "(vs. {{prfct}} perfect CJ)" })}</span>
                   </motion.div>
                 )}
               </>

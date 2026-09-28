@@ -38,7 +38,7 @@ function Stat({ value, label, tone }: { value: React.ReactNode; label: string; t
 
 /** L0: the verdict. Grade, what it means, the counts that matter, and the one thing to do next. */
 export function VerdictBand({ query, inputType, vm, txData, reveal, checkCount, onRetry }: VerdictBandProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -95,10 +95,10 @@ export function VerdictBand({ query, inputType, vm, txData, reveal, checkCount, 
             )}
             {inputType === "address" && <AddressTypeBadge address={query} />}
             {inputType === "txid" && status?.confirmed && status.block_height != null && (
-              <span className="num">{t("results.blockHeight", { height: status.block_height.toLocaleString(), defaultValue: "Block #{{height}}" })}</span>
+              <span className="num">{t("results.blockHeight", { height: status.block_height.toLocaleString(i18n.language), defaultValue: "Block #{{height}}" })}</span>
             )}
             {inputType === "txid" && status?.confirmed && status.block_time != null && (
-              <span className="num">{new Date(status.block_time * 1000).toLocaleString()}</span>
+              <span className="num">{new Date(status.block_time * 1000).toLocaleString(i18n.language)}</span>
             )}
             {inputType === "txid" && txData && !status?.confirmed && (
               <span className="text-severity-medium">{t("results.unconfirmed", { defaultValue: "Unconfirmed (mempool)" })}</span>

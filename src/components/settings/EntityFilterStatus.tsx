@@ -15,7 +15,7 @@ import {
 } from "@/lib/analysis/entity-filter";
 
 export function EntityFilterStatus() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [, forceUpdate] = useState(0);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<{ loaded: number; total: number } | null>(null);
@@ -103,7 +103,7 @@ export function EntityFilterStatus() {
       {coreStatus === "ready" && (
         <div className="space-y-2">
           <p className="text-[10px] text-muted/60">
-            {addressCount.toLocaleString()} {t("settings.entityAddresses", { defaultValue: "addresses" })}
+            {addressCount.toLocaleString(i18n.language)} {t("settings.entityAddresses", { defaultValue: "addresses" })}
             {buildDate ? ` - ${buildDate.slice(0, 10)}` : ""}
           </p>
 

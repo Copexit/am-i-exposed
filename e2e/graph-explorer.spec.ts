@@ -48,3 +48,25 @@ test("graph page loads a root, expands an input, and restores a saved graph", as
   const saved = page.getByRole("button", { name: /E2E graph/ });
   await expect(saved).toContainText("2 nodes");
 });
+
+test.describe("on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test("graph page reframes after an expand so every node stays inside the canvas", async ({ page }) => {
+    await page.goto(`/graph/#txid=${ROOT.txid}`);
+    await expect(page.getByText(label(ROOT.txid))).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole("button", { name: "Expand inputs" }).first().click();
+    const nodes = page.locator("[data-txid]");
+    await expect(nodes).toHaveCount(2);
+
+    const canvas = page.locator("svg:has([data-txid])");
+    await expect.poll(async () => {
+      const c = await canvas.boundingBox();
+      if (!c) return "no canvas";
+      const boxes = await Promise.all((await nodes.all()).map((n) => n.boundingBox()));
+      const out = boxes.filter((b) => !b || b.x < c.x || b.y < c.y || b.x + b.width > c.x + c.width || b.y + b.height > c.y + c.height);
+      return out.length === 0 ? "all inside" : JSON.stringify({ c, out });
+    }).toBe("all inside");
+  });
+});

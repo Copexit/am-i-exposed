@@ -18,7 +18,7 @@ interface DedupedTx {
 }
 
 export function WalletTxList({ addressInfos, onScan }: WalletTxListProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [expandedTxid, setExpandedTxid] = useState<string | null>(null);
 
   const dedupedTxs = useMemo(() => {
@@ -61,7 +61,7 @@ export function WalletTxList({ addressInfos, onScan }: WalletTxListProps) {
         const isExpanded = expandedTxid === tx.txid;
         const fee = tx.fee ?? 0;
         const date = tx.status.block_time
-          ? new Date(tx.status.block_time * 1000).toLocaleDateString()
+          ? new Date(tx.status.block_time * 1000).toLocaleDateString(i18n.language)
           : t("wallet.unconfirmed", { defaultValue: "Unconfirmed" });
 
         return (

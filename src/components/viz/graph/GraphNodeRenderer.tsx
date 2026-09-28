@@ -131,6 +131,7 @@ export function GraphNodeRenderer({
     return (
       <motion.g
         key={node.txid}
+        data-txid={node.txid}
         initial={{ opacity: 0, scale: 0.92 }}
         animate={{ opacity: nodeOpacity, scale: 1 }}
         transition={{ type: "spring", stiffness: 300, damping: 25, mass: 0.8 }}
@@ -157,6 +158,7 @@ export function GraphNodeRenderer({
   return (
     <motion.g
       key={node.txid}
+      data-txid={node.txid}
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: nodeOpacity, scale: 1 }}
       transition={{ duration: 0.3 }}
@@ -225,6 +227,7 @@ export function GraphNodeRenderer({
         coinJoinType={node.coinJoinType}
         isOfac={node.entityOfac}
         isToxicMerge={toxicMergeNodes.has(node.txid)}
+        toxicLabel={t("graph.toxicBadge", { defaultValue: "TOXIC" })}
         isUnconfirmed={!node.confirmed}
         rightInset={heatMapActive && heatMap.has(node.txid) ? SPARKLINE_MAX_W + 4 : 0}
         unconfirmedLabel={t("graph.unconfirmed", { defaultValue: "Unconfirmed" })}
