@@ -2395,7 +2395,7 @@
   "scan.checksWaiting": "Empezará cuando lleguen los datos",
   "scan.depth": "Profundidad de rastreo",
   "scan.elapsed": "Transcurrido",
-  "scan.elapsedTimeout": "Transcurrido / tiempo límite",
+  "scan.traceTimeLimit": "Rastreo / tiempo límite",
   "scan.eyebrowAddress": "Escaneando dirección",
   "scan.eyebrowPsbt": "Escaneando PSBT",
   "scan.eyebrowTx": "Escaneando transacción",

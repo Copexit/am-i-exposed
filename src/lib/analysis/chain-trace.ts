@@ -106,9 +106,13 @@ export async function runChainTrace(params: ChainTraceParams): Promise<ChainTrac
 
   // Split timeout into two phases so forward tracing always gets a chance
   const halfTimeout = Math.max(settings.timeout * 500, 2000); // ms, at least 2s each
+  // Report the budget actually enforced (the 2s floor can exceed a tiny setting)
+  // and when it started, so the loader never shows a limit the trace does not keep.
+  const timeoutSec = (halfTimeout * 2) / 1000;
+  const startedAt = Date.now();
 
   const progress = (status: FetchProgress["status"], currentDepth: number, txsFetched: number) =>
-    onProgress({ status, timeoutSec: settings.timeout, currentDepth, maxDepth: totalMaxDepth, txsFetched });
+    onProgress({ status, timeoutSec, startedAt, currentDepth, maxDepth: totalMaxDepth, txsFetched });
 
   // Debounced progress updater (only on depth change or every 500ms)
   let lastProgressUpdate = 0;

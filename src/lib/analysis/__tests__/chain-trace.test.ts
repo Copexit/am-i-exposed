@@ -128,6 +128,30 @@ describe("runChainTrace", () => {
     expect(signals[0]?.aborted).toBe(true);
   });
 
+  it("reports the enforced budget and its start time, and finishes within that budget", async () => {
+    vi.useFakeTimers();
+    const hung = (_txid: string, signal?: AbortSignal) =>
+      new Promise<never>((_, reject) => {
+        signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+      });
+    const progress: FetchProgress[] = [];
+    const startedAt = Date.now();
+    // timeout 1s: each phase still gets its 2s floor, so the real budget is 4s
+    const p = runChainTrace({
+      ...params({ getTransaction: hung }, (fp) => progress.push(fp)),
+      api: { getTransaction: hung, getTxOutspends: hung },
+      outspends: null,
+      settings: { ...settings, timeout: 1 },
+    });
+    let done = false;
+    void p.then(() => { done = true; });
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(done).toBe(true);
+    expect((await p).forwardFailed).toBe(true);
+    expect(progress.length).toBeGreaterThan(0);
+    expect(progress.every((fp) => fp.timeoutSec === 4 && fp.startedAt === startedAt)).toBe(true);
+  });
+
   it("aborts the underlying fetch when the backward phase times out", async () => {
     vi.useFakeTimers();
     const fetchSignals: AbortSignal[] = [];
