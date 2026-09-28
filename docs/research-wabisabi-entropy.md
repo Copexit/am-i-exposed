@@ -132,8 +132,19 @@ The tier-decomposed approach produces a full linkability probability matrix:
     P(input_i -> output_j in tier_t) = 0
         if input_i < d_t (ineligible)
 
-For unique outputs (tier size 1):
-    P(input_i -> output_j) = 1.0 if eligible (effective_n = 1)
+For unique outputs (tier size 1) with 2+ eligible inputs, the output is
+treated as one more member of the nearest (by value) multi-output tier with
+k_near outputs:
+
+    n_s = min(k_near + 1, e_s)
+    P(input_i -> output_j) = cell_probability_equal_outputs(n_s) if eligible
+    E_s = log2(boltzmann_equal_outputs(n_s))
+
+A lone standard denomination (e.g. 3^14 = 4,782,969 next to a 5M tier) is
+usually one more participant of that anonymity set, so 1/e_s (1/300) would
+be far too diluted. With exactly 1 eligible input the link is deterministic
+(P = 1.0); if the transaction has no multi-output tier at all, P = 1/e_s and
+E_s = log2(e_s). `boltzmann-rs/tests/wabisabi_audit.rs` mirrors this rule.
 
 For the test WabiSabi transaction (327x279), this produces a 91,233-cell matrix
 in <1ms. Each cell represents the probability that an adversary would assign
