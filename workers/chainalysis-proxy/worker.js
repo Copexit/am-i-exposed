@@ -52,6 +52,19 @@ const handler = {
       });
 
       const body = await res.text();
+      // Chainalysis reports service errors (e.g. its database in read-only mode)
+      // with HTTP 200 and no `identifications`: pass that on as a failure,
+      // never as a result a client could read as "not sanctioned".
+      if (res.ok) {
+        let parsed = null;
+        try { parsed = JSON.parse(body); } catch { /* not JSON */ }
+        if (!parsed || !Array.isArray(parsed.identifications)) {
+          return new Response(JSON.stringify({ error: "Upstream service error" }), {
+            status: 502,
+            headers: { "Content-Type": "application/json", ...corsHeaders(env) },
+          });
+        }
+      }
       return new Response(body, {
         status: res.status,
         headers: {
