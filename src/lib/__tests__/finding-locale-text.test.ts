@@ -333,7 +333,11 @@ describe("finding locale text keeps the heuristic's information", () => {
     it("multi-tier WabiSabi finding reads as WabiSabi in every locale", () => {
       const f = buildWabiSabiMultiTierFinding(120, 150, 6, 90);
       expect(render(f).title).toBe(f.title);
-      for (const lng of LANGS) expect(render(f, lng).title).toContain("WabiSabi");
+      expect(render(f).description).toContain("90");
+      for (const lng of LANGS) {
+        expect(render(f, lng).title).toContain("WabiSabi");
+        expect(render(f, lng).title).toContain("90");
+      }
     });
 
     it("single-input zero entropy states the structural fact in every locale", () => {

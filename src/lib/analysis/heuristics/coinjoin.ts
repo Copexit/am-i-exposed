@@ -89,10 +89,10 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
   const equalOutput = singleOwner ? null : detectEqualOutputs(spendableOutputs.map((o) => o.value));
 
   if (wabiSabi?.isWabiSabi) {
-    const groups = [...countOutputValues(spendableOutputs).entries()].filter(([, c]) => c >= 2);
+    const { tiers, standardOutputs } = wabiSabi.evidence;
     const finding = equalOutput
       ? buildGenericCoinJoinFinding(equalOutput.count, equalOutput.denomination, equalOutput.total, tx.vin.length, true)
-      : buildWabiSabiMultiTierFinding(tx.vin.length, spendableOutputs.length, groups.length, groups.reduce((sum, [, c]) => sum + c, 0));
+      : buildWabiSabiMultiTierFinding(tx.vin.length, spendableOutputs.length, tiers, standardOutputs);
     findings.push({ ...finding, confidence: wabiSabi.confidence ?? finding.confidence });
     findings.push(buildExchangeFlaggingFinding());
     return { findings };

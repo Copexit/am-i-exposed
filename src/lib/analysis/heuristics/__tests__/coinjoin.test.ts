@@ -196,6 +196,16 @@ describe("analyzeCoinJoin", () => {
     expect(findings.find((f) => f.id === "h4-exchange-flagging")).toBeDefined();
   });
 
+  it("titles a WabiSabi round from the classifier's tiers, not repeated values", () => {
+    // Every output a distinct standard denomination: no value repeats, yet a round
+    const outputs = [8_388_608, 4_782_969, 2_000_000, 1_594_323, 1_062_882, 1_000_000, 531_441];
+    const cj = analyzeCoinJoin(makeWabiSabiRound(Array.from({ length: 6 }, (_, i) => 4_000_000 - i * 10_000), outputs))
+      .findings.find((f) => f.id === "h4-coinjoin");
+    expect(cj!.params?.isWabiSabi).toBe(1);
+    expect(cj!.params).toMatchObject({ tiers: 7, standardOutputs: 7, vout: 7 });
+    expect(cj!.title).toBe("WabiSabi CoinJoin: 7 standard denominations, 7 of 7 outputs at a standard denomination");
+  });
+
   it("does not call repeated round amounts WabiSabi (old 10x10 + 3-tier rule)", () => {
     // Exchange-style batch: repeated decimal payouts, BIP69-like ascending order
     const vins = makeDistinctVins(25);

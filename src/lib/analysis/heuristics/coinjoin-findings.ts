@@ -63,18 +63,20 @@ export function buildWhirlpoolFinding(pool: WhirlpoolPool, txTime: number | unde
 export function buildWabiSabiMultiTierFinding(
   vinCount: number,
   voutCount: number,
-  groupCount: number,
-  totalEqual: number,
+  /** Distinct standard denominations present (classifyWabiSabi evidence.tiers). */
+  tiers: number,
+  /** Outputs at a standard denomination (classifyWabiSabi evidence.standardOutputs). */
+  standardOutputs: number,
 ): Finding {
-  const impact = totalEqual >= 20 ? 25 : 20;
+  const impact = standardOutputs >= 20 ? 25 : 20;
   return {
     id: "h4-coinjoin",
     severity: "good",
     confidence: "high",
-    title: `WabiSabi CoinJoin: ${groupCount} denomination tiers, ${totalEqual} equal outputs across ${voutCount} total`,
-    params: { groups: groupCount, totalEqual, vout: voutCount, vin: vinCount, isWabiSabi: 1, _variant: "wabisabi_tiers" },
+    title: `WabiSabi CoinJoin: ${tiers} standard denominations, ${standardOutputs} of ${voutCount} outputs at a standard denomination`,
+    params: { tiers, standardOutputs, vout: voutCount, vin: vinCount, isWabiSabi: 1, _variant: "wabisabi_tiers" },
     description:
-      `This transaction has ${vinCount} inputs and ${voutCount} outputs with ${groupCount} groups of equal-value outputs, ` +
+      `This transaction has ${vinCount} inputs and ${voutCount} outputs, ${standardOutputs} of them at ${tiers} WabiSabi standard denominations, ` +
       "consistent with a WabiSabi (Wasabi Wallet 2.0) CoinJoin using multiple denomination tiers. " +
       "This pattern breaks the link between inputs and outputs, significantly improving privacy.",
     recommendation:
