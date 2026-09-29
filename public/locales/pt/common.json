@@ -448,7 +448,7 @@
   "finding.chain-exchange-input.description": "Uma ou mais entradas remontam a um padrão de saque em lote de exchange. Fundos originários de exchange estão vinculados à identidade KYC.",
   "finding.chain-exchange-input.recommendation": "Considere CoinJoin antes de gastar fundos originários de exchange para quebrar o vínculo entre sua identidade na exchange e a atividade on-chain.",
   "finding.chain-exchange-input.title": "Fundos de entrada originários de saque de exchange",
-  "finding.chain-forward-peel.description": "Saídas de troco alimentam transações posteriores com o mesmo padrão, formando uma peel chain para frente.",
+  "finding.chain-forward-peel.description": "Uma saída desta transação inicia uma peel chain: pelo menos 2 transações consecutivas de 1 entrada e 2 saídas com valores assimétricos, cada uma passando sua saída maior (o troco) para a próxima. Cada salto revela o valor do pagamento e a direção do troco.",
   "finding.chain-forward-peel.recommendation": "Quebre a peel chain usando PayJoin, STONEWALL ou estruturas de transação diferentes.",
   "finding.chain-forward-peel.title": "Peel chain continua adiante",
   "finding.chain-kyc-consolidation-before-cj.description": "Esta transação consolida {{inputCount}} UTXOs de fontes similares antes do CoinJoin. Este é o padrão recomendado para mover fundos KYC para privacidade.",

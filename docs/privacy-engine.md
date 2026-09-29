@@ -975,6 +975,8 @@ Peel chains are one of the simplest and most effective tracing patterns. An adve
 
 **Remediation:** Break the chain pattern by using CoinJoin between payments, varying transaction structure, using multi-output batch payments, or changing coin selection strategies.
 
+**Forward peel chain (`chain-forward-peel`, chain analysis, -5):** fires when an output of the analyzed transaction starts a peel chain of at least 2 consecutive hops found in the forward trace: the spending tx is a peel hop (1 input, 2 spendable outputs, smaller < 30% of the larger) and its larger output (the change) is the single input of another peel hop. A single downstream 1-in-2-out payment is ordinary spending and does not fire (e.g. sweep `8cbe3322...` and batch `aefda8a7...`); consolidation `40b88e16...` does, because its output is peeled by `3c32cc3c...` whose change is peeled again by `3a87bb2f...`. Suppressed when the analyzed transaction is a CoinJoin.
+
 **References**
 - Meiklejohn et al., "A Fistful of Bitcoins: Characterizing Payments Among Men with No Names" (2013) - identifies peel chain patterns
 - Kappos et al., "How to Peel a Million: Validating and Expanding Bitcoin Clusters"

@@ -448,7 +448,7 @@
   "finding.chain-exchange-input.description": "Una o más entradas se rastrean hasta un patrón de retiro por lotes de un exchange. Los fondos de origen en exchanges están vinculados a la identidad KYC.",
   "finding.chain-exchange-input.recommendation": "Considera CoinJoin antes de gastar fondos provenientes de exchanges para romper el vínculo entre tu identidad del exchange y la actividad on-chain.",
   "finding.chain-exchange-input.title": "Los fondos de entrada provienen de un retiro de exchange",
-  "finding.chain-forward-peel.description": "Las salidas de cambio alimentan transacciones posteriores con el mismo patrón, formando una cadena de pelado hacia adelante.",
+  "finding.chain-forward-peel.description": "Una salida de esta transacción inicia una cadena de pelado: al menos 2 transacciones consecutivas de 1 entrada y 2 salidas con valores asimétricos, cada una pasando su salida mayor (el cambio) a la siguiente. Cada salto revela el monto del pago y la dirección del cambio.",
   "finding.chain-forward-peel.recommendation": "Rompe la cadena de pelado usando PayJoin, STONEWALL o estructuras de transacción diferentes.",
   "finding.chain-forward-peel.title": "La cadena de pelado continúa hacia adelante",
   "finding.chain-kyc-consolidation-before-cj.description": "Esta transacción consolida {{inputCount}} UTXOs de fuentes similares antes del CoinJoin. Este es el patrón recomendado para mover fondos KYC hacia privacidad.",

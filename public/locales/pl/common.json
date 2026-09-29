@@ -460,7 +460,7 @@
   "finding.chain-exchange-input.description": "Jedno lub więcej wejść sięga wzorca wypłaty grupowej z giełdy. UTXO pochodzące z giełdy są powiązane z tożsamością KYC.",
   "finding.chain-exchange-input.recommendation": "Rozważ CoinJoin przed wydaniem środków pochodzących z giełdy, aby przerwać powiązanie między twoją tożsamością giełdową a aktywnością on-chain.",
   "finding.chain-exchange-input.title": "Środki wejściowe pochodziły z wypłaty giełdowej",
-  "finding.chain-forward-peel.description": "Wyjścia reszty trafiają do kolejnych transakcji o tym samym wzorcu, tworząc peel chain w przód.",
+  "finding.chain-forward-peel.description": "Wyjście tej transakcji rozpoczyna peel chain: co najmniej 2 kolejne transakcje z 1 wejściem i 2 wyjściami o asymetrycznych wartościach, z których każda przekazuje większe wyjście (resztę) do następnej. Każdy krok ujawnia kwotę płatności i kierunek reszty.",
   "finding.chain-forward-peel.recommendation": "Przerwij peel chain, używając PayJoin, STONEWALL lub innej struktury transakcji.",
   "finding.chain-forward-peel.title": "Peel chain kontynuuje się w przód",
   "finding.chain-kyc-consolidation-before-cj.description": "Ta transakcja konsoliduje {{inputCount}} UTXO z podobnych źródeł przed CoinJoin. To zalecany wzorzec przy przenoszeniu środków KYC do prywatności.",

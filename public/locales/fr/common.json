@@ -448,7 +448,7 @@
   "finding.chain-exchange-input.description": "Une ou plusieurs entrées remontent à un schéma de retrait groupé d'exchange. Les fonds provenant d'un exchange sont liés à une identité KYC.",
   "finding.chain-exchange-input.recommendation": "Envisagez CoinJoin avant de dépenser des fonds provenant d'un exchange pour rompre le lien entre votre identité exchange et votre activité on-chain.",
   "finding.chain-exchange-input.title": "Les fonds en entrée proviennent d'un retrait d'exchange",
-  "finding.chain-forward-peel.description": "Les sorties de monnaie alimentent d'autres transactions avec le même schéma, formant une peel chain continue.",
+  "finding.chain-forward-peel.description": "Une sortie de cette transaction démarre une peel chain : au moins 2 transactions consécutives à 1 entrée et 2 sorties aux valeurs asymétriques, chacune transmettant sa plus grande sortie (la monnaie) à la suivante. Chaque saut révèle le montant du paiement et la direction de la monnaie.",
   "finding.chain-forward-peel.recommendation": "Brisez la peel chain en utilisant PayJoin, STONEWALL ou des structures de transaction différentes.",
   "finding.chain-forward-peel.title": "La peel chain continue en aval",
   "finding.chain-kyc-consolidation-before-cj.description": "Cette transaction consolide {{inputCount}} UTXOs de sources similaires avant CoinJoin. C'est le schéma recommandé pour déplacer des fonds KYC vers la confidentialité.",

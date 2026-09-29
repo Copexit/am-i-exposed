@@ -448,7 +448,7 @@
   "finding.chain-exchange-input.description": "Ein oder mehrere Inputs lassen sich auf ein Börsen-Sammelauszahlungsmuster zurückverfolgen. Gelder mit Börsenherkunft sind mit einer KYC-Identität verknüpft.",
   "finding.chain-exchange-input.recommendation": "Erwäge CoinJoin vor dem Ausgeben von Geldern mit Börsenherkunft, um die Verbindung zwischen Börsenidentität und On-Chain-Aktivität zu brechen.",
   "finding.chain-exchange-input.title": "Input-Gelder stammen aus einer Börsenauszahlung",
-  "finding.chain-forward-peel.description": "Wechselgeld-Outputs fließen in weitere Transaktionen mit demselben Muster und bilden eine Vorwärts-Peel-Chain.",
+  "finding.chain-forward-peel.description": "Ein Output dieser Transaktion startet eine Peel-Chain: mindestens 2 aufeinanderfolgende Transaktionen mit 1 Input und 2 Outputs mit asymmetrischen Werten, die jeweils ihren größeren Output (das Wechselgeld) an die nächste weitergeben. Jeder Schritt offenbart den Zahlungsbetrag und die Richtung des Wechselgelds.",
   "finding.chain-forward-peel.recommendation": "Brich die Peel-Chain durch PayJoin, STONEWALL oder unterschiedliche Transaktionsstrukturen.",
   "finding.chain-forward-peel.title": "Peel-Chain setzt sich vorwärts fort",
   "finding.chain-kyc-consolidation-before-cj.description": "Diese Transaktion konsolidiert {{inputCount}} UTXOs aus ähnlichen Quellen vor einem CoinJoin. Dies ist das empfohlene Muster, um KYC-Gelder in die Privatsphäre zu überführen.",

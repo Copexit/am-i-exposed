@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { readFileSync } from "fs";
+import { join } from "path";
+import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import { analyzeForward } from "../forward";
 import { makeTx, makeVin, makeVout, makeOutspend, resetAddrCounter } from "../../heuristics/__tests__/fixtures/tx-factory";
 beforeEach(() => resetAddrCounter());
@@ -172,30 +175,73 @@ describe("analyzeForward", () => {
     expect(findings.some((f) => f.id === "chain-post-coinjoin-consolidation")).toBe(true);
   });
 
-  it("detects forward peel chain", () => {
+  describe("forward peel chain (2+ consecutive peel hops after this tx)", () => {
     const txid = "b".repeat(64);
     const tx = makeTx({
       txid,
       vin: [makeVin()],
       vout: [makeVout({ value: 90_000 }), makeVout({ value: 10_000 })],
     });
-
-    // Child tx continues the peel: 1 in, 2 out, asymmetric
-    const childTx = makeTx({
+    // Hop 1: 1 in, 2 out, asymmetric; its larger output (80k, vout 0) is the change
+    const child = makeTx({
       vin: [makeVin({ txid, vout: 0 })],
       vout: [makeVout({ value: 80_000 }), makeVout({ value: 9_000 })],
     });
-
-    const outspends = [
-      makeOutspend({ spent: true, txid: childTx.txid }),
-      makeOutspend({ spent: false }),
+    const outspends = [makeOutspend({ spent: true, txid: child.txid }), makeOutspend({ spent: false })];
+    const hop2 = (vout: number) => makeTx({
+      vin: [makeVin({ txid: child.txid, vout })],
+      vout: [makeVout({ value: vout === 0 ? 70_000 : 7_000 }), makeVout({ value: 1_000 })],
+    });
+    const layers = (g: ReturnType<typeof makeTx>) => [
+      { depth: 1, txs: new Map([[child.txid, child]]) },
+      { depth: 2, txs: new Map([[g.txid, g]]) },
     ];
 
-    const childTxs = new Map([[0, childTx]]);
-    const { findings, peelChainOutputs } = analyzeForward(tx, outspends, childTxs);
+    it("flags a chain that keeps peeling the change", () => {
+      const { findings, peelChainOutputs } = analyzeForward(tx, outspends, new Map([[0, child]]), layers(hop2(0)));
+      expect(peelChainOutputs).toContain(0);
+      expect(findings.some((f) => f.id === "chain-forward-peel")).toBe(true);
+    });
 
-    expect(peelChainOutputs).toContain(0);
-    expect(findings.some((f) => f.id === "chain-forward-peel")).toBe(true);
+    it("does not flag a single downstream 1-in-2-out payment", () => {
+      const { findings } = analyzeForward(tx, outspends, new Map([[0, child]]));
+      expect(findings.some((f) => f.id === "chain-forward-peel")).toBe(false);
+    });
+
+    it("does not flag when the next hop spends the payment, not the change", () => {
+      const { findings } = analyzeForward(tx, outspends, new Map([[0, child]]), layers(hop2(1)));
+      expect(findings.some((f) => f.id === "chain-forward-peel")).toBe(false);
+    });
+
+    const real = (name: string) => {
+      const dir = join(__dirname, "../../heuristics/__tests__/fixtures/api-responses");
+      const parent = JSON.parse(readFileSync(join(dir, `${name}.json`), "utf8")) as MempoolTransaction;
+      const fwd = JSON.parse(readFileSync(join(dir, "forward", `${name}.json`), "utf8")) as {
+        outspends: MempoolOutspend[]; children: MempoolTransaction[]; grandchildren: MempoolTransaction[];
+      };
+      const byId = new Map(fwd.children.map((c) => [c.txid, c]));
+      const childTxs = new Map<number, MempoolTransaction>();
+      for (const [i, os] of fwd.outspends.entries()) {
+        const c = os.txid ? byId.get(os.txid) : undefined;
+        if (c) childTxs.set(i, c);
+      }
+      return analyzeForward(parent, fwd.outspends, childTxs, [
+        { depth: 1, txs: byId },
+        { depth: 2, txs: new Map(fwd.grandchildren.map((g) => [g.txid, g])) },
+      ]).findings.some((f) => f.id === "chain-forward-peel");
+    };
+
+    it("sweep 8cbe3322: one 1-in-2-out child, whose change is then merged (no chain)", () => {
+      expect(real("sweep-1in1out")).toBe(false);
+    });
+
+    it("batch aefda8a7: children with one peel-shaped hop each (no chain)", () => {
+      expect(real("batch-payment")).toBe(false);
+    });
+
+    it("consolidation 40b88e16: output peeled by 3c32cc3c, whose change is peeled again by 3a87bb2f (real chain)", () => {
+      expect(real("consolidation-5in1out")).toBe(true);
+    });
   });
 
   it("returns empty for unspent outputs", () => {

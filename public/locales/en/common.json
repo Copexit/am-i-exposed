@@ -448,7 +448,7 @@
   "finding.chain-exchange-input.description": "One or more inputs trace back to an exchange batch withdrawal pattern. Exchange-origin funds are linked to KYC identity.",
   "finding.chain-exchange-input.recommendation": "Consider CoinJoin before spending exchange-origin funds to break the link between your exchange identity and on-chain activity.",
   "finding.chain-exchange-input.title": "Input funds originated from an exchange withdrawal",
-  "finding.chain-forward-peel.description": "Change outputs feed into further transactions with the same pattern, forming a forward peel chain.",
+  "finding.chain-forward-peel.description": "An output of this transaction starts a peel chain: at least 2 consecutive 1-in, 2-out transactions with asymmetric values, each passing its larger output (the change) to the next. Each hop reveals the payment amount and change direction.",
   "finding.chain-forward-peel.recommendation": "Break the peel chain by using PayJoin, STONEWALL, or different transaction structures.",
   "finding.chain-forward-peel.title": "Peel chain continues forward",
   "finding.chain-kyc-consolidation-before-cj.description": "This transaction consolidates {{inputCount}} UTXOs from similar sources before CoinJoin. This is the recommended pattern for moving KYC funds to privacy.",

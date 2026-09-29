@@ -266,7 +266,7 @@ export async function runChainAnalysis(params: ChainAnalysisParams): Promise<voi
   onStep("chain-forward");
   await tick();
   if (childTxsByIdx.size > 0 && outspends) {
-    const forwardResult = analyzeForward(tx, outspends, childTxsByIdx);
+    const forwardResult = analyzeForward(tx, outspends, childTxsByIdx, forwardLayers);
     result.findings.push(...forwardResult.findings);
     onStep("chain-forward", sumImpact(forwardResult.findings));
   } else {
