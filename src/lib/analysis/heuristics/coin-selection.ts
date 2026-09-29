@@ -21,9 +21,18 @@ export const analyzeCoinSelection: TxHeuristic = (tx) => {
 
   // Check for BnB (Branch and Bound) pattern: changeless transaction
   // BnB tries to find an exact-match input set that avoids creating change
+  // Only a payment can be "changeless": 3+ inputs to 1 output is classified as
+  // a consolidation (consolidation-fan-in), and an output back to an input
+  // address is a self-send (h2-self-send). Neither has a change output to
+  // avoid, so neither earns the credit. Sweeps (1-in-1-out) never qualify.
   const spendable = getSpendableOutputs(tx.vout);
-  if (spendable.length === 1 && nonCoinbase.length >= 2) {
-    // Multiple inputs, single output (no change) = likely BnB
+  const inputAddresses = new Set(nonCoinbase.map((v) => v.prevout?.scriptpubkey_address));
+  const [only] = spendable;
+  if (
+    spendable.length === 1 && nonCoinbase.length === 2 &&
+    !(only?.scriptpubkey_address && inputAddresses.has(only.scriptpubkey_address))
+  ) {
+    // Two inputs, single output to a new address (no change) = possible BnB
     findings.push({
       id: "h-coin-selection-bnb",
       severity: "good",

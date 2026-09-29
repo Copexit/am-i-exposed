@@ -1206,10 +1206,10 @@ Receiving funds from an identifiable exchange batch withdrawal links the recipie
 
 Detects three coin selection sub-patterns that reveal wallet software behavior:
 
-**Branch-and-Bound (BnB):** Multiple inputs with a single output and no change. This indicates the wallet found an exact combination of UTXOs to cover the payment, eliminating the change output entirely.
+**Branch-and-Bound (BnB):** Two inputs with a single output to a new address and no change. This indicates the wallet found an exact combination of UTXOs to cover the payment, eliminating the change output entirely. Consolidations are changeless by nature, so they earn no credit: 3+ inputs to 1 output is a consolidation (`consolidation-fan-in`), an output back to an input address is a self-send (`h2-self-send`), and a 1-in-1-out sweep never qualifies.
 
 ```
-if len(tx.inputs) >= 2 and len(spendable_outputs) == 1:
+if len(tx.inputs) == 2 and len(spendable_outputs) == 1 and output.address not in input_addresses:
   flag as changeless transaction (BnB or manual coin selection)
   impact: +3 (good - no change output to trace)
 ```

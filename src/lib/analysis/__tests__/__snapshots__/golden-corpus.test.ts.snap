@@ -22,9 +22,7 @@ exports[`golden corpus - block 850000 > 1a0198d5942a5111 1`] = `
 exports[`golden corpus - block 850000 > 2d2dcc80195541dd 1`] = `
 {
   "findings": [
-    "behavioral-fingerprint-rollup -6",
     "consolidation-fan-in -3",
-    "h-coin-selection-bnb 3",
     "h11-legacy-version 0",
     "h11-no-locktime 0",
     "h11-wallet-fingerprint -3",
@@ -33,16 +31,14 @@ exports[`golden corpus - block 850000 > 2d2dcc80195541dd 1`] = `
     "h6-rbf-signaled 0",
   ],
   "grade": "D",
-  "score": 31,
+  "score": 34,
 }
 `;
 
 exports[`golden corpus - block 850000 > 8ce796fe58a92927 1`] = `
 {
   "findings": [
-    "behavioral-fingerprint-rollup -6",
     "consolidation-fan-in -2",
-    "h-coin-selection-bnb 3",
     "h11-legacy-version 0",
     "h11-no-locktime 0",
     "h11-wallet-fingerprint -3",
@@ -51,7 +47,7 @@ exports[`golden corpus - block 850000 > 8ce796fe58a92927 1`] = `
     "h6-rbf-signaled 0",
   ],
   "grade": "C",
-  "score": 53,
+  "score": 56,
 }
 `;
 
