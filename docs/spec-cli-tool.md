@@ -521,6 +521,7 @@ pub struct BoltzmannResult {
     pub mat_lnk_combinations: Vec<Vec<u64>>,    // raw count matrix [nOut][nIn]
     pub mat_lnk_probabilities: Vec<Vec<f64>>,   // probability matrix [nOut][nIn]
     pub nb_cmbn: u64,                            // total valid interpretations
+    pub nb_cmbn_saturated: bool,                 // true when nb_cmbn is clamped at u64::MAX (show ~2^entropy)
     pub entropy: f64,                            // bits: log2(nb_cmbn)
     pub efficiency: f64,                         // nb_cmbn / perfect_cj_cmbn
     pub nb_cmbn_prfct_cj: u64,                  // combinations for perfect CoinJoin

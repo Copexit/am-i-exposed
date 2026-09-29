@@ -44,6 +44,7 @@ function toResult(raw: unknown): BoltzmannResult {
     matLnkCombinations: result.mat_lnk_combinations ?? [],
     matLnkProbabilities: result.mat_lnk_probabilities ?? [],
     nbCmbn: toNum(result.nb_cmbn),
+    nbCmbnSaturated: result.nb_cmbn_saturated === true,
     entropy: result.entropy ?? 0,
     efficiency: result.efficiency ?? 0,
     nbCmbnPrfctCj: toNum(result.nb_cmbn_prfct_cj),

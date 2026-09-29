@@ -110,6 +110,7 @@
   "boltzmann.entropyUpperBoundTooltip": "Upper bound. True entropy may be slightly lower due to structural approximations.",
   "boltzmann.gridLabel": "In \\ Out",
   "boltzmann.interpretations": "{{num}} interpretation",
+  "boltzmann.interpretationsApprox": "{{num}} interpretations",
   "boltzmann.interpretationsPartial": "{{num}}+ interpretations (partial)",
   "boltzmann.interpretations_other": "{{num}} interpretations",
   "boltzmann.largeTxInfo": "This transaction has {{nIn}} inputs and {{nOut}} outputs. Computation may take a moment.",

@@ -112,6 +112,7 @@
   "boltzmann.entropyUpperBoundTooltip": "Górna granica. Rzeczywista entropia może być nieco niższa z powodu przybliżeń strukturalnych.",
   "boltzmann.gridLabel": "Wej \\ Wyj",
   "boltzmann.interpretations": "{{num}} interpretacja",
+  "boltzmann.interpretationsApprox": "Interpretacje: {{num}}",
   "boltzmann.interpretationsPartial": "Interpretacje: {{num}}+ (częściowo)",
   "boltzmann.interpretations_few": "{{num}} interpretacje",
   "boltzmann.interpretations_many": "{{num}} interpretacji",

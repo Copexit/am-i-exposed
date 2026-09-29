@@ -110,6 +110,7 @@
   "boltzmann.entropyUpperBoundTooltip": "Borne supérieure. L'entropie réelle peut être légèrement plus faible en raison d'approximations structurelles.",
   "boltzmann.gridLabel": "Ent \\ Sor",
   "boltzmann.interpretations": "{{num}} interprétation",
+  "boltzmann.interpretationsApprox": "{{num}} interprétations",
   "boltzmann.interpretationsPartial": "{{num}}+ interprétations (partiel)",
   "boltzmann.interpretations_other": "{{num}} interprétations",
   "boltzmann.largeTxInfo": "Cette transaction a {{nIn}} entrées et {{nOut}} sorties. Le calcul peut prendre un moment.",

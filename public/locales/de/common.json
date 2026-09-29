@@ -110,6 +110,7 @@
   "boltzmann.entropyUpperBoundTooltip": "Obergrenze. Die tatsächliche Entropie kann wegen struktureller Näherungen etwas niedriger sein.",
   "boltzmann.gridLabel": "Ein \\ Aus",
   "boltzmann.interpretations": "{{num}} Interpretation",
+  "boltzmann.interpretationsApprox": "{{num}} Interpretationen",
   "boltzmann.interpretationsPartial": "{{num}}+ Interpretationen (unvollständig)",
   "boltzmann.interpretations_other": "{{num}} Interpretationen",
   "boltzmann.largeTxInfo": "Diese Transaktion hat {{nIn}} Inputs und {{nOut}} Outputs. Die Berechnung kann einen Moment dauern.",

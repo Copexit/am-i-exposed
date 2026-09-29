@@ -110,6 +110,7 @@
   "boltzmann.entropyUpperBoundTooltip": "Limite superior. A entropia real pode ser um pouco menor devido a aproximações estruturais.",
   "boltzmann.gridLabel": "Ent \\ Saí",
   "boltzmann.interpretations": "{{num}} interpretação",
+  "boltzmann.interpretationsApprox": "{{num}} interpretações",
   "boltzmann.interpretationsPartial": "{{num}}+ interpretações (parcial)",
   "boltzmann.interpretations_other": "{{num}} interpretações",
   "boltzmann.largeTxInfo": "Esta transação tem {{nIn}} entradas e {{nOut}} saídas. O cálculo pode demorar um momento.",

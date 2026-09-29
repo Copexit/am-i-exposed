@@ -7,7 +7,8 @@ import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
-    t: (key: string, opts?: Record<string, unknown>) => (opts?.defaultValue as string) ?? key,
+    t: (key: string, opts?: Record<string, unknown>) =>
+      ((opts?.defaultValue as string) ?? key).replace(/\{\{(\w+)\}\}/g, (m, k: string) => String(opts?.[k] ?? m)),
     i18n: { language: "en" },
   }),
 }));
@@ -114,5 +115,14 @@ describe("LinkabilityHeatmap beyond the engine", () => {
     render(<LinkabilityHeatmap tx={makeTx(["bc1qa", "bc1qb"], ["bc1qx", "bc1qy"])} />);
     expect(screen.getByText(/Too complex to compute in the browser/)).toBeTruthy();
     expect(screen.queryByText("Compute Boltzmann LPM")).toBeNull();
+  });
+});
+
+describe("LinkabilityHeatmap interpretation count", () => {
+  it("shows a u64-saturated WabiSabi count as ~2^bits, not as an exact number", () => {
+    boltzmann.result = { ...result(2, 2), nbCmbn: 18446744073709552000, nbCmbnSaturated: true, entropy: 1797.88, method: "wabisabi" };
+    render(<LinkabilityHeatmap tx={makeTx(["bc1qa", "bc1qb"], ["bc1qx", "bc1qy"])} />);
+    expect(screen.getByText(/~2\^1798 interpretations/)).toBeTruthy();
+    expect(screen.queryByText(/18,446,744/)).toBeNull();
   });
 });

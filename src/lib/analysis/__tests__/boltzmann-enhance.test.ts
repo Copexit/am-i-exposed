@@ -60,4 +60,11 @@ describe("enhanceEntropyFinding with a JoinMarket model result", () => {
     expect(f?.description).toContain("model estimate");
     expect(f?.description).not.toContain("upper bound");
   });
+
+  it("never passes a u64-saturated count as the interpretation number", () => {
+    const findings = [entropyFinding(4)];
+    enhanceEntropyFinding(findings, { ...wasm(2, 2), nbCmbn: 18446744073709552000, nbCmbnSaturated: true, entropy: 1797.88, method: "wabisabi" });
+    expect(findings[0]?.params?.interpretations).toBe("2^1798");
+    expect(findings[0]?.description).not.toContain("18,446");
+  });
 });

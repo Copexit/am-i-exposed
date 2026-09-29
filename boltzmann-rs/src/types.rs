@@ -43,6 +43,9 @@ pub struct BoltzmannResult {
     pub mat_lnk_probabilities: Vec<Vec<f64>>,
     /// Total number of valid interpretations (complete mappings).
     pub nb_cmbn: u64,
+    /// True when the real count exceeds u64 and `nb_cmbn` is clamped to
+    /// u64::MAX: `nb_cmbn` is then a floor, not a count (use `entropy`).
+    pub nb_cmbn_saturated: bool,
     /// Entropy in bits: log2(nb_cmbn). 0 when nb_cmbn <= 1.
     pub entropy: f64,
     /// Wallet efficiency: nb_cmbn / nb_cmbn_prfct_cj. 0 when nb_cmbn_prfct_cj is 0.

@@ -8,7 +8,7 @@ import { Grid3X3, Clock, Link, Hash, AlertTriangle } from "lucide-react";
 import { GlowCard } from "@/components/ui/GlowCard";
 import { useBoltzmann } from "@/hooks/useBoltzmann";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
-import { formatSats } from "@/lib/format";
+import { formatSats, fmtInterpretations } from "@/lib/format";
 import { ChartTooltip, useChartTooltip } from "./shared/ChartTooltip";
 import { EFFICIENCY_COLORS, getColorStops, probColor, probLabel } from "./shared/linkabilityColors";
 import { truncAddr, truncAddrSuffix } from "./shared/addressFormat";
@@ -228,7 +228,9 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                     <Hash size={11} />
                     {result.timedOut
                       ? t("boltzmann.interpretationsPartial", { num: result.nbCmbn.toLocaleString(i18n.language), defaultValue: "{{num}}+ interpretations (partial)" })
-                      : t("boltzmann.interpretations", { count: result.nbCmbn, num: result.nbCmbn.toLocaleString(i18n.language), defaultValue: "{{num}} interpretations" })}
+                      : result.nbCmbnSaturated || result.nbCmbn > Number.MAX_SAFE_INTEGER
+                        ? t("boltzmann.interpretationsApprox", { num: fmtInterpretations(result.nbCmbn, result.entropy, true), defaultValue: "{{num}} interpretations" })
+                        : t("boltzmann.interpretations", { count: result.nbCmbn, num: result.nbCmbn.toLocaleString(i18n.language), defaultValue: "{{num}} interpretations" })}
                   </motion.span>
                   <motion.span initial={prefersReducedMotion ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.05 }} className="inline-flex items-center gap-1.5 bg-surface-inset rounded-full px-2.5 py-1 text-xs text-muted" title={entropyTooltip}>
                     <Grid3X3 size={11} />

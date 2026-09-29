@@ -110,6 +110,7 @@
   "boltzmann.entropyUpperBoundTooltip": "Cota superior. La entropía real puede ser algo menor debido a aproximaciones estructurales.",
   "boltzmann.gridLabel": "Ent \\ Sal",
   "boltzmann.interpretations": "{{num}} interpretación",
+  "boltzmann.interpretationsApprox": "{{num}} interpretaciones",
   "boltzmann.interpretationsPartial": "{{num}}+ interpretaciones (parcial)",
   "boltzmann.interpretations_other": "{{num}} interpretaciones",
   "boltzmann.largeTxInfo": "Esta transacción tiene {{nIn}} entradas y {{nOut}} salidas. El cálculo puede tardar un momento.",

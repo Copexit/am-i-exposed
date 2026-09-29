@@ -80,3 +80,14 @@ export function formatUsdValue(sats: number, usdPerBtc: number): string {
   if (usd < 0.01) return "<$0.01";
   return `$${usd.toLocaleString("en-US", { maximumFractionDigits: usd >= 100 ? 0 : 2 })}`;
 }
+
+/**
+ * Boltzmann interpretation count for display. A count the WASM clamped at
+ * u64::MAX (`saturated`) or one past 2^53 is not exact, so it is shown as
+ * ~2^bits from the entropy instead of a misleadingly precise number.
+ */
+export function fmtInterpretations(nbCmbn: number, entropy: number, saturated = false, locale = "en-US"): string {
+  return saturated || nbCmbn > Number.MAX_SAFE_INTEGER
+    ? `~2^${Math.round(entropy)}`
+    : nbCmbn.toLocaleString(locale);
+}
