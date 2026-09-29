@@ -192,6 +192,7 @@ CIOH alone enables the majority of address clustering. A single multi-input tran
 - 20-49 unique input addresses: -35
 - 50+ unique input addresses: -45
 - Exception: CoinJoin pattern detected (H4): 0 (suppressed)
+- Reuse among inputs: when one of the clustered addresses funds 2+ inputs received in separate transactions (consolidation `40b88e16...` spends two UTXOs of `18m5f3qt...`), `h3-cioh` reports it (`reusedCount`, "N reused" in the title). It is not scored separately: CIOH already links those inputs, so the reuse adds no link inside the transaction. When every input comes from one address, `h3-input-reuse` applies instead (-20, or -30 for 5+ receives).
 
 **References**
 - Nakamoto, "Bitcoin: A Peer-to-Peer Electronic Cash System" (2008), Section 10 - "Some linking is still unavoidable with multi-input transactions, which necessarily reveal that their inputs were owned by the same owner."

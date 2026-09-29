@@ -689,6 +689,8 @@
   "finding.h3-cioh.title": "{{count}} direcciones de entrada vinculadas por CIOH",
   "finding.h3-cioh.title.coinjoin": "{{count}} direcciones de entrada vinculadas por CIOH (CoinJoin - esperado)",
   "finding.h3-cioh.title.stonewall": "{{count}} direcciones de entrada en Stonewall (intencional)",
+  "finding.h3-cioh.description.reuse": "Esta transacción combina fondos de {{count}} direcciones diferentes. Los analistas asumirán que las {{count}} direcciones te pertenecen. Esta es una de las técnicas de rastreo más poderosas. {{reusedCount}} de estas direcciones financian varias entradas recibidas en transacciones distintas, lo que prueba en la cadena la reutilización de direcciones: todos los pagos a esa dirección quedan vinculados también.",
+  "finding.h3-cioh.title.reuse": "{{count}} direcciones de entrada vinculadas por CIOH ({{reusedCount}} reutilizadas)",
   "finding.h3-input-reuse.description": "Las {{inputCount}} entradas de esta transacción provienen de la misma dirección, que recibió fondos en {{parentCount}} transacciones distintas. La reutilización de direcciones vincula públicamente cada pago a esa dirección, y gastarlos juntos lo confirma en la cadena.",
   "finding.h3-input-reuse.recommendation": "Usa una billetera que genere una dirección nueva para cada recepción. Nunca compartas la misma dirección dos veces.",
   "finding.h3-input-reuse.title": "Entradas de una dirección reutilizada en {{parentCount}} recepciones",

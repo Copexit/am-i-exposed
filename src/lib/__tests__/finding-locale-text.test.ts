@@ -36,6 +36,7 @@ import { analyzeCoinJoin } from "../analysis/heuristics/coinjoin";
 import { buildWabiSabiMultiTierFinding, buildStonewallFinding } from "../analysis/heuristics/coinjoin-findings";
 import { analyzeChangeDetection } from "../analysis/heuristics/change-detection";
 import { analyzeOpReturn } from "../analysis/heuristics/op-return";
+import { analyzeCioh } from "../analysis/heuristics/cioh";
 
 const locale = (lang: string) =>
   JSON.parse(readFileSync(join(process.cwd(), "public/locales", lang, "common.json"), "utf8")) as Record<string, string>;
@@ -358,6 +359,14 @@ describe("finding locale text keeps the heuristic's information", () => {
       const f = buildStonewallFinding({ denomination: 1_000_000, distinctInputAddresses: 3, whirlpoolOrigin: true }, 3, undefined);
       expect(render(f).title).toBe(f.title);
       for (const lng of LANGS) expect(render(f, lng).title).toContain("Whirlpool");
+    });
+
+    it("h3-cioh on consolidation 40b88e16 reports the address that funds 2 inputs (18m5f3qt...)", () => {
+      const f = analyzeCioh(fixture("consolidation-5in1out")).findings.find((x) => x.id === "h3-cioh")!;
+      expect(f.params?.reusedCount).toBe(1);
+      expect(f.scoreImpact).toBe(-12);
+      for (const lng of LANGS) expect(render(f, lng).title).toMatch(/\b1\b.*\b4\b|\b4\b.*\b1\b/);
+      expect(render(f).title).toContain("reused");
     });
   });
 });
