@@ -14,9 +14,8 @@ import {
   computeBoltzmannJoinMarket,
   type BoltzmannResult,
 } from "../adapters/boltzmann-node";
-import { analyzeCoinJoin } from "@/lib/analysis/heuristics/coinjoin";
 import { fmtInterpretations } from "@/lib/format";
-import { detectWabiSabiForTurbo } from "@/lib/analysis/boltzmann-detection";
+import { detectJoinMarketForTurbo, detectWabiSabiForTurbo, usesJoinMarketTurbo } from "@/lib/analysis/boltzmann-detection";
 import { DEFAULT_ANALYSIS_SETTINGS } from "@/lib/analysis/settings";
 import type { MempoolTransaction } from "@/lib/api/types";
 
@@ -190,7 +189,7 @@ export async function boltzmannForTx(
 
   const mode = detectWabiSabiForTurbo(tx)
     ? { type: "wabisabi" as const, label: "WabiSabi turbo" }
-    : detectBoltzmannMode(analyzeCoinJoin(tx).findings);
+    : detectBoltzmannMode(inputValues, outputValues);
   onProgress(
     `Computing Boltzmann analysis (${inputValues.length}x${outputValues.length}${mode.label ? `, ${mode.label}` : ""})...`,
   );
@@ -207,17 +206,14 @@ export async function boltzmannForTx(
 }
 
 /**
- * Pick the JoinMarket turbo mode from the CoinJoin heuristic findings
- * (WabiSabi routing uses detectWabiSabiForTurbo, like the web app).
- * Reuses the existing analyzeCoinJoin() detection instead of reimplementing it.
+ * Pick the JoinMarket turbo mode with the same detection the web app routes on
+ * (boltzmann-compute.ts). WabiSabi routing uses detectWabiSabiForTurbo.
  */
 function detectBoltzmannMode(
-  findings: import("@/lib/types").Finding[],
+  inputValues: number[],
+  outputValues: number[],
 ): { type: "standard" | "joinmarket"; label?: string; denomination?: number } {
-  for (const f of findings) {
-    if (f.id === "h4-joinmarket" && typeof f.params?.denomination === "number") {
-      return { type: "joinmarket", label: "JoinMarket turbo", denomination: f.params.denomination as number };
-    }
-  }
-  return { type: "standard" };
+  if (!usesJoinMarketTurbo(inputValues, outputValues)) return { type: "standard" };
+  const { denomination } = detectJoinMarketForTurbo(inputValues, outputValues);
+  return { type: "joinmarket", label: "JoinMarket turbo", denomination };
 }

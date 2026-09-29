@@ -134,6 +134,8 @@ export interface ExampleItem {
   labelKey: string;
   labelDefault: string;
   hint: string;
+  /** Translation key for a word hint (grade hints like "A+" need none). */
+  hintKey?: string;
   hintColor: string;
   input: string;
 }
@@ -202,18 +204,18 @@ export const EXAMPLES: ExampleItem[] = [
   },
   // Teaching cases
   {
-    labelKey: "page.example_dust",
-    labelDefault: "Dust attack",
-    hint: "C",
-    hintColor: "text-severity-medium",
-    input: "65551b775ea3bf580667c12629fa776514f9a76a57f04dd735e878dba76dbbdc",
-  },
-  {
     labelKey: "page.example_coinbase",
     labelDefault: "Coinbase",
     hint: "C",
     hintColor: "text-severity-medium",
     input: "6c7edc23fde3cd48aa7aaa5ed3c2a64cf605f4d3364d820d3be54a721b64b92a",
+  },
+  {
+    labelKey: "page.example_dust",
+    labelDefault: "Dust attack",
+    hint: "D",
+    hintColor: "text-severity-high",
+    input: "65551b775ea3bf580667c12629fa776514f9a76a57f04dd735e878dba76dbbdc",
   },
   {
     labelKey: "page.example_opreturn",
@@ -248,6 +250,7 @@ export const EXAMPLES: ExampleItem[] = [
     labelKey: "page.presend_sanctioned",
     labelDefault: "OFAC sanctioned",
     hint: "Critical",
+    hintKey: "common.severity.critical",
     hintColor: "text-severity-critical",
     input: "12QtD5BFwRsdNsAZY76UVE1xyCGNTojH9h",
   },
@@ -256,6 +259,7 @@ export const EXAMPLES: ExampleItem[] = [
     labelDefault: "Fresh address",
     // Destination check (no grade for an unused address), like the OFAC card
     hint: "Low risk",
+    hintKey: "presend.riskLow",
     hintColor: "text-severity-good",
     input: "bc1pes5mfje89xdr6uh4qu6p4m0r8d6nz3tvgagtwgv99yalqwzyhdzqrl3mnu",
   },
@@ -263,6 +267,7 @@ export const EXAMPLES: ExampleItem[] = [
     labelKey: "page.example_wallet",
     labelDefault: "Wallet audit (zpub)",
     hint: "Wallet",
+    hintKey: "walletGuide.colWallet",
     hintColor: "text-bitcoin",
     input: "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs",
   },

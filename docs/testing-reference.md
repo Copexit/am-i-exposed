@@ -4,24 +4,24 @@
 
 Expected scores are the heuristic-only golden values (see the [Score Validation Matrix](#score-validation-matrix)). A live web scan also counts chain and entity findings (parents, children, CoinJoin ancestry, entity proximity), which can move the grade a lot; the **Live web scan** lines record what the site showed on 2026-09-28 with default settings. Re-check them when changing the example hints in `src/lib/constants.ts`.
 
-### Home page examples (live web scan, 2026-09-29)
+### Home page examples (live web scan with the fixed engine, 2026-09-29)
 
 The hints on the home page cards and the "more examples" list must match these. Chain findings change as coins move, so re-audit before changing a hint. The four home cards are also scanned offline by `e2e/home-examples.spec.ts` from recorded fixtures (`api-responses/home/`, captured with `node scripts/capture-fixtures.mjs --home`), which must land on the card's grade.
 
 | Example | Input | Live grade | Notes |
 |---------|-------|------------|-------|
 | Whirlpool (Ashigaru) | `5f0080e3...273cc` | A+ 100 | Home card |
-| Sweep | `8cbe3322...af85a` | C 56 | Home card |
-| Consolidation | `40b88e16...3df18` | D 34 | Home card |
+| Sweep | `8cbe3322...af85a` | C 61 | Home card |
+| Consolidation | `40b88e16...3df18` | D 37 | Home card. CIOH links 4 input addresses (1 reused); the change is peeled forward twice |
 | Address reuse | `4c18b982...c8c3c` | F 24 | Home card. Simple payment whose change returns to the input address |
 | JoinMarket CoinJoin | `6cb2433f...0ed20` | A+ 100 | |
-| Wasabi CoinJoin | `95799bd3...ee144` | A+ 100 | Slow (about 36s), chain trace partial |
+| Wasabi CoinJoin | `95799bd3...ee144` | A+ 100 | WabiSabi round (Kruw coordinator). Slow (about 40s), chain trace partial |
 | Stonewall | `19a79be3...f2358` | A+ 99 | Heuristics alone give B 88; CoinJoin ancestry +5, compartmentalized +3 and CoinJoin in forward chain +3 lift it |
 | Post-mix spend | `8c047658...d041c` | B 81 | Whirlpool output spent alone: CoinJoin input +8, well-compartmentalized +3, CoinJoin in forward chain +3, wallet fingerprint -3 |
-| Dust attack | `65551b77...dbbdc` | C 61 | 564 outputs |
-| Coinbase | `6c7edc23...4b92a` | C 69 | |
+| Coinbase | `6c7edc23...4b92a` | C 69 | Neutral base score |
+| Dust attack | `65551b77...dbbdc` | D 46 | 564 outputs; one input, so 0 entropy |
 | OP_RETURN data | `8bae12b5...15684` | D 47 | |
-| Batch payment | `aefda8a7...96271` | F 20 | |
+| Batch payment | `aefda8a7...96271` | F 24 | Change returns to the input address |
 | WikiLeaks address | `1HB5XMLm...iY36v` | F 0 | Address history partial by design (heavily reused address) |
 | Satoshi's address | `1A1zP1eP...DivfNa` | F 0 | |
 | OFAC sanctioned | `12QtD5BF...jH9h` | Critical | Destination check, no grade |

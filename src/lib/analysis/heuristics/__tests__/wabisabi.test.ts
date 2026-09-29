@@ -104,6 +104,12 @@ describe("classifyWabiSabi on the labelled mainnet corpus", () => {
   });
 });
 
+/** The real WabiSabi rounds among the api-response fixtures (zkSNACKs fb596c9f, Kruw 95799bd3); every other fixture is not one. */
+const KNOWN_ROUND_FIXTURES = new Set([
+  "fb596c9f675471019c60e984b569f9020dac3b2822b16396042b50c890b45e5e",
+  "95799bd39aea897c9b1bdbebd79d4c7bf7d0a7b02425636e8df5283ae6bee144",
+]);
+
 describe("every consumer agrees with the classifier", () => {
   const API = join(FIXTURES, "api-responses");
   const txs = [
@@ -116,7 +122,7 @@ describe("every consumer agrees with the classifier", () => {
     .filter((tx) => Array.isArray(tx.vin));
 
   it.each(txs.map((tx) => [tx.txid.slice(0, 12), tx] as const))("%s", (_id, tx) => {
-    const isWabiSabi = tx.txid === "fb596c9f675471019c60e984b569f9020dac3b2822b16396042b50c890b45e5e";
+    const isWabiSabi = KNOWN_ROUND_FIXTURES.has(tx.txid);
     expect(classifyWabiSabi(tx).isWabiSabi).toBe(isWabiSabi);
     expect(detectWabiSabiForTurbo(tx)).toBe(isWabiSabi);
     expect(analyzeCoinJoin(tx).findings.some((f) => f.params?.isWabiSabi === 1)).toBe(isWabiSabi);

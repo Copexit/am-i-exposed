@@ -193,7 +193,7 @@ export function Home({
               >
                 <span className="flex items-baseline justify-between gap-2">
                   <span className="min-w-0 text-sm leading-snug font-semibold text-foreground hyphens-auto break-words">{t(ex.labelKey, { defaultValue: ex.labelDefault })}</span>
-                  <span className={`text-xl font-extrabold leading-none tracking-tight ${ex.hintColor}`}>{ex.hint}</span>
+                  <span className={`text-xl font-extrabold leading-none tracking-tight ${ex.hintColor}`}>{ex.hintKey ? t(ex.hintKey, { defaultValue: ex.hint }) : ex.hint}</span>
                 </span>
                 <span className="block mt-1.5 num text-[11px] text-faint truncate">{truncateId(ex.input)}</span>
               </button>
@@ -222,7 +222,7 @@ export function Home({
                         className={`inline-flex items-center gap-2 min-h-[44px] rounded-lg border border-hairline bg-surface-1/80 backdrop-blur-md px-3 text-sm text-muted hover:text-foreground hover:border-hairline-strong transition-colors cursor-pointer ${FOCUS}`}
                       >
                         {t(ex.labelKey, { defaultValue: ex.labelDefault })}
-                        <span className={`font-semibold ${ex.hintColor}`}>{ex.hint}</span>
+                        <span className={`font-semibold ${ex.hintColor}`}>{ex.hintKey ? t(ex.hintKey, { defaultValue: ex.hint }) : ex.hint}</span>
                       </button>
                     </li>
                   ))}
