@@ -19,6 +19,16 @@ import simpleLegacyTx from "../heuristics/__tests__/fixtures/api-responses/simpl
 import batchWithdrawalTx from "../heuristics/__tests__/fixtures/api-responses/batch-withdrawal-143.json";
 import dustAttackTx from "../heuristics/__tests__/fixtures/api-responses/dust-attack-555.json";
 import taprootScriptPathTx from "../heuristics/__tests__/fixtures/api-responses/taproot-script-path.json";
+// Example-set transactions (home page / example list)
+import sweepTx from "../heuristics/__tests__/fixtures/api-responses/sweep-1in1out.json";
+import consolidationTx from "../heuristics/__tests__/fixtures/api-responses/consolidation-5in1out.json";
+import reuseTx from "../heuristics/__tests__/fixtures/api-responses/address-reuse-change.json";
+import dust564Tx from "../heuristics/__tests__/fixtures/api-responses/dust-attack-564.json";
+import batchPaymentTx from "../heuristics/__tests__/fixtures/api-responses/batch-payment.json";
+import coinbaseTx from "../heuristics/__tests__/fixtures/api-responses/coinbase-6c7edc23.json";
+import wabisabiLargeTx from "../heuristics/__tests__/fixtures/api-responses/wabisabi-large.json";
+import joinmarket6cbTx from "../heuristics/__tests__/fixtures/api-responses/joinmarket-6cb2433f.json";
+import ashigaruTx from "../heuristics/__tests__/fixtures/api-responses/whirlpool-ashigaru.json";
 
 // --- Address fixtures ---
 import satoshiAddr from "../heuristics/__tests__/fixtures/api-responses/satoshi-genesis-address.json";
@@ -64,6 +74,15 @@ describe("golden test cases - transactions", () => {
     ["Batch withdrawal 143 outputs", batchWithdrawalTx, "C", 59],
     ["Dust attack 555 sats", dustAttackTx, "F", 24],
     ["Taproot script-path spend", taprootScriptPathTx, "D", 46],
+    ["Sweep 8cbe3322", sweepTx, "C", 59],
+    ["Consolidation 40b88e16", consolidationTx, "C", 51],
+    ["Address reuse 4c18b982", reuseTx, "F", 24],
+    ["Dust attack 65551b77 (1 in, 564 out)", dust564Tx, "C", 50],
+    ["Batch payment aefda8a7", batchPaymentTx, "F", 24],
+    ["Coinbase 6c7edc23", coinbaseTx, "C", 70],
+    ["WabiSabi 95799bd3", wabisabiLargeTx, "A+", 100],
+    ["JoinMarket 6cb2433f", joinmarket6cbTx, "A+", 100],
+    ["Whirlpool Ashigaru 5f0080e3", ashigaruTx, "A+", 100],
   ] as const)(
     "%s -> grade %s, score %i",
     async (_name, tx, expectedGrade, expectedScore) => {
