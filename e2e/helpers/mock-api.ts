@@ -27,6 +27,16 @@ const ADDR_MAP: Record<string, string> = {
   "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa": "satoshi-genesis",
 };
 
+/**
+ * Recorded API responses (path -> body) for the home example cards, captured
+ * by `node scripts/capture-fixtures.mjs --home`. Served before the defaults.
+ */
+const HOME_DIR = path.join(FIXTURES_DIR, "home");
+const RECORDED: Record<string, unknown> = Object.assign(
+  {},
+  ...fs.readdirSync(HOME_DIR).map((f) => JSON.parse(fs.readFileSync(path.join(HOME_DIR, f), "utf-8")) as Record<string, unknown>),
+);
+
 function readFixture(name: string): string {
   return fs.readFileSync(path.join(FIXTURES_DIR, `${name}.json`), "utf-8");
 }
@@ -51,6 +61,8 @@ export async function mockMempoolApi(page: Page) {
 
   await page.route("**/api/tx/**/outspends", async (route) => {
     const url = route.request().url();
+    const recorded = RECORDED[`/tx/${url.split("/api/tx/")[1]?.split("?")[0]}`];
+    if (recorded) return route.fulfill(json(recorded));
     const txid = url.split("/api/tx/")[1]?.split("/")[0]?.split("?")[0];
     const fixture = txid ? TX_MAP[txid] : undefined;
     if (fixture) {
@@ -73,6 +85,8 @@ export async function mockMempoolApi(page: Page) {
       return;
     }
     const txid = url.split("/api/tx/")[1]?.split("/")[0]?.split("?")[0];
+    const recorded = RECORDED[`/tx/${txid}`];
+    if (recorded) return route.fulfill(json(recorded));
     const fixture = txid ? TX_MAP[txid] : undefined;
     if (fixture) {
       await route.fulfill({
