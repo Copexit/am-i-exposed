@@ -4,21 +4,26 @@
 
 Expected scores are the heuristic-only golden values (see the [Score Validation Matrix](#score-validation-matrix)). A live web scan also counts chain and entity findings (parents, children, CoinJoin ancestry, entity proximity), which can move the grade a lot; the **Live web scan** lines record what the site showed on 2026-09-28 with default settings. Re-check them when changing the example hints in `src/lib/constants.ts`.
 
-### Home page examples (live web scan, 2026-09-28)
+### Home page examples (live web scan, 2026-09-29)
 
-The hints on the home page cards and the "more examples" list must match these. Chain findings change as coins move, so re-audit before changing a hint.
+The hints on the home page cards and the "more examples" list must match these. Chain findings change as coins move, so re-audit before changing a hint. The four home cards are also scanned offline by `e2e/home-examples.spec.ts` from recorded fixtures (`api-responses/home/`, captured with `node scripts/capture-fixtures.mjs --home`), which must land on the card's grade.
 
 | Example | Input | Live grade | Notes |
 |---------|-------|------------|-------|
-| Whirlpool 5x5 | `323df21f...9dec2` | A+ 100 | Home card |
-| Post-mix spend | `8c047658...d041c` | B 81 | Home card. Whirlpool output spent alone: CoinJoin input +8, well-compartmentalized +3, CoinJoin in forward chain +3, wallet fingerprint -3 |
-| OP_RETURN data | `8bae12b5...15684` | D 47 | Home card |
-| Satoshi's address | `1A1zP1eP...DivfNa` | F 0 | Home card |
-| Whirlpool 8x8 | `f82fa771...8dfc4` | A+ 100 | |
-| Whirlpool 9x9 | `f540e8d8...2b282` | A+ 100 | |
-| WabiSabi CoinJoin | `fb596c9f...45e5e` | A+ 98 | |
-| Stonewall | `19a79be3...f2358` | A+ 99 | Heuristics alone give B 88; CoinJoin ancestry +5, compartmentalized +3 and CoinJoin in forward chain +3 lift it |
+| Whirlpool (Ashigaru) | `5f0080e3...273cc` | A+ 100 | Home card |
+| Sweep | `8cbe3322...af85a` | C 56 | Home card |
+| Consolidation | `40b88e16...3df18` | D 34 | Home card |
+| Address reuse | `4c18b982...c8c3c` | F 24 | Home card. Simple payment whose change returns to the input address |
 | JoinMarket CoinJoin | `6cb2433f...0ed20` | A+ 100 | |
+| Wasabi CoinJoin | `95799bd3...ee144` | A+ 100 | Slow (about 36s), chain trace partial |
+| Stonewall | `19a79be3...f2358` | A+ 99 | Heuristics alone give B 88; CoinJoin ancestry +5, compartmentalized +3 and CoinJoin in forward chain +3 lift it |
+| Post-mix spend | `8c047658...d041c` | B 81 | Whirlpool output spent alone: CoinJoin input +8, well-compartmentalized +3, CoinJoin in forward chain +3, wallet fingerprint -3 |
+| Dust attack | `65551b77...dbbdc` | C 61 | 564 outputs |
+| Coinbase | `6c7edc23...4b92a` | C 69 | |
+| OP_RETURN data | `8bae12b5...15684` | D 47 | |
+| Batch payment | `aefda8a7...96271` | F 20 | |
+| WikiLeaks address | `1HB5XMLm...iY36v` | F 0 | Address history partial by design (heavily reused address) |
+| Satoshi's address | `1A1zP1eP...DivfNa` | F 0 | |
 | OFAC sanctioned | `12QtD5BF...jH9h` | Critical | Destination check, no grade |
 | Fresh address | `bc1pes5m...l3mnu` | Low risk | Destination check, no grade |
 | Wallet audit (zpub) | `zpub6rFR...tZYs` | - | Wallet audit |

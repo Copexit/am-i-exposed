@@ -19,8 +19,11 @@ const GraphExplorer = lazy(() =>
   import("@/components/viz/GraphExplorer").then((m) => ({ default: m.GraphExplorer })),
 );
 
-/** Txid-only examples for random selection on initial load. */
+/** Txid-only examples (label lookup), and the ones quick enough to open as the random first graph. */
 const TX_EXAMPLES = EXAMPLES.filter((e) => TXID_RE.test(e.input));
+// Wasabi (hundreds of inputs) and the dust attack (564 outputs) draw slow, unreadable first graphs.
+const RANDOM_EXCLUDED = new Set(["page.example_wasabi", "page.example_dust"]);
+const RANDOM_EXAMPLES = TX_EXAMPLES.filter((e) => !RANDOM_EXCLUDED.has(e.labelKey));
 
 export function GraphPage() {
   const { t } = useTranslation();
@@ -181,7 +184,7 @@ export function GraphPage() {
         void handleLoadSavedGraph(latestGraph);
       } else {
         // First visit - random example (the hashchange handler loads it)
-        const example = TX_EXAMPLES[Math.floor(Math.random() * TX_EXAMPLES.length)];
+        const example = RANDOM_EXAMPLES[Math.floor(Math.random() * RANDOM_EXAMPLES.length)];
         if (example) setHash(`txid=${example.input}`, { replace: true });
       }
     }

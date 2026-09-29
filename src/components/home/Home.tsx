@@ -40,7 +40,7 @@ export interface HomeProps {
 const UTXOS = buildFieldUtxos(FIELD_TX);
 const SPLIT = (a: number) => `${-a}px 0 ${COLORS.severityLow}, ${a}px 0 ${COLORS.severityCritical}`;
 /** Four specimens spanning the grade range; grades are the ones EXAMPLES declares. */
-const SPECIMEN_KEYS = ["page.example_whirlpool", "page.example_postmix", "page.example_opreturn", "page.example_satoshi"];
+const SPECIMEN_KEYS = ["page.example_whirlpool", "page.example_sweep", "page.example_consolidation", "page.example_reuse"];
 const SPECIMENS = EXAMPLES.filter((e) => SPECIMEN_KEYS.includes(e.labelKey));
 const MORE_EXAMPLES = EXAMPLES.filter((e) => !SPECIMEN_KEYS.includes(e.labelKey));
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-bitcoin focus-visible:outline-offset-2";
@@ -189,10 +189,10 @@ export function Home({
                 key={ex.input}
                 type="button"
                 onClick={() => onSubmit(ex.input)}
-                className={`text-left min-h-[44px] rounded-xl border border-hairline bg-surface-1/80 shadow-(--shadow-sm) backdrop-blur-md px-3 py-2.5 hover:border-hairline-strong hover:-translate-y-0.5 motion-reduce:hover:translate-y-0 transition-[translate,border-color] duration-200 cursor-pointer ${FOCUS}`}
+                className={`flex flex-col justify-between text-left min-h-[44px] rounded-xl border border-hairline bg-surface-1/80 shadow-(--shadow-sm) backdrop-blur-md px-3 py-2.5 hover:border-hairline-strong hover:-translate-y-0.5 motion-reduce:hover:translate-y-0 transition-[translate,border-color] duration-200 cursor-pointer ${FOCUS}`}
               >
                 <span className="flex items-baseline justify-between gap-2">
-                  <span className="text-sm font-semibold text-foreground truncate">{t(ex.labelKey, { defaultValue: ex.labelDefault })}</span>
+                  <span className="min-w-0 text-sm leading-snug font-semibold text-foreground hyphens-auto break-words">{t(ex.labelKey, { defaultValue: ex.labelDefault })}</span>
                   <span className={`text-xl font-extrabold leading-none tracking-tight ${ex.hintColor}`}>{ex.hint}</span>
                 </span>
                 <span className="block mt-1.5 num text-[11px] text-faint truncate">{truncateId(ex.input)}</span>
