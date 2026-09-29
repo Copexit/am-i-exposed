@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import type { MempoolTransaction } from "@/lib/api/types";
 import { analyzeWalletFingerprint } from "../wallet-fingerprint";
 import { makeTx, makeVin, makeCoinbaseVin, makeVout, resetAddrCounter } from "./fixtures/tx-factory";
 
@@ -334,5 +337,28 @@ describe("analyzeWalletFingerprint", () => {
     const f = findings.find((x) => x.id === "h11-wallet-fingerprint");
     expect(f).toBeDefined();
     expect(f!.params?.walletGuess).toBe("Ashigaru Terminal (Whirlpool)");
+  });
+
+  it("does not label a BIP69-sorted 20x20 batch as WabiSabi", () => {
+    // BIP69 is ascending; WabiSabi rounds are sorted descending, so size plus
+    // BIP69 is no Wasabi evidence
+    const hex = (i: number) => i.toString(16).padStart(2, "0").repeat(32);
+    const tx = makeTx({
+      locktime: 0,
+      vin: Array.from({ length: 20 }, (_, i) => makeVin({ txid: hex(i + 1), vout: 0, sequence: 0xfffffffd })),
+      vout: Array.from({ length: 20 }, (_, i) => makeVout({ value: 10_000 * (i + 1), scriptpubkey: "0014" + hex(i + 1).slice(0, 40) })),
+    });
+    const f = analyzeWalletFingerprint(tx).findings.find((x) => x.id === "h11-wallet-fingerprint");
+    expect(f).toBeDefined();
+    expect(String(f!.params?.walletGuess ?? "")).not.toContain("WabiSabi");
+  });
+
+  it.each([
+    ["fb596c9f", "wabisabi-coinjoin"],
+    ["95799bd3", "wabisabi-large"],
+  ])("labels WabiSabi round %s as Wasabi Wallet (WabiSabi)", (_txid, name) => {
+    const tx = JSON.parse(readFileSync(join(__dirname, "fixtures/api-responses", `${name}.json`), "utf8")) as MempoolTransaction;
+    const f = analyzeWalletFingerprint(tx).findings.find((x) => x.id === "h11-wallet-fingerprint");
+    expect(f?.params?.walletGuess).toBe("Wasabi Wallet (WabiSabi)");
   });
 });

@@ -723,7 +723,7 @@ Research shows approximately 45% of transactions carry enough structural signals
 - Bitcoin Core: -5 (large anonymity set, ~40% of network)
 - Electrum: -6 (BIP69 ordering is a strong fingerprint)
 - Ashigaru/Samourai/Sparrow: -7 (niche privacy wallets, small anonymity set)
-- Wasabi Wallet: -7 (distinctive nVersion=1 pattern)
+- Wasabi Wallet: -7 (distinctive nVersion=1 pattern). "Wasabi Wallet (WabiSabi)" is named only when `classifyWabiSabi` recognises the round; WabiSabi rounds are sorted by value descending, so a large BIP69 (ascending) transaction is never labelled WabiSabi
 - Unknown/rare wallet: -8 (very small anonymity set)
 - 3+ signals, no wallet match: -5
 - Minimal signals (1-2): -3
