@@ -21,6 +21,7 @@ import {
   buildExchangeFlaggingFinding,
 } from "./coinjoin-findings";
 import { detectTx0 } from "./coinjoin-premix";
+import { classifyWabiSabi } from "./wabisabi";
 import type { FindingId } from "@/lib/analysis/finding-metadata";
 
 type Tx = Parameters<TxHeuristic>[0];
@@ -49,7 +50,9 @@ function coinJoinCandidates(tx: Tx) {
  *
  * CoinJoins are the ONLY positive privacy signal. Detects:
  * - Whirlpool: exactly 5 equal outputs at known denominations
- * - Wasabi/generic: many equal outputs (3+) with possible coordinator fee
+ * - Wasabi 1.x: ~0.1 BTC base denomination + mixing levels
+ * - WabiSabi (Wasabi 2.x): coordinator structure + standard denominations (wabisabi.ts)
+ * - Generic: many equal outputs (5+) with possible coordinator fee
  * - Equal-output pattern: general collaborative transaction detection
  *
  * Impact: +15 to +30
@@ -73,8 +76,7 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
     return { findings };
   }
 
-  // Wasabi 1.x: base denomination + near-2x mixing levels (checked before
-  // WabiSabi, whose tier heuristic would otherwise also match these rounds)
+  // Wasabi 1.x: base denomination + near-2x mixing levels
   const wasabi1 = singleOwner ? null : detectWasabi1(spendableOutputs);
   if (wasabi1) {
     findings.push(buildWasabi1Finding(wasabi1, tx.vin.length, spendableOutputs.length));
@@ -82,21 +84,18 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
     return { findings };
   }
 
-  // WabiSabi: many inputs + many outputs
-  const isWabiSabi = !singleOwner && tx.vin.length >= 10 && spendableOutputs.length >= 10;
-
+  // WabiSabi (Wasabi 2.x): protocol structure + standard denominations, see wabisabi.ts
+  const wabiSabi = singleOwner ? null : classifyWabiSabi(tx);
   const equalOutput = singleOwner ? null : detectEqualOutputs(spendableOutputs.map((o) => o.value));
 
-  // WabiSabi multi-tier detection: no single 5+ denomination, but multiple groups
-  if (!equalOutput && isWabiSabi) {
-    const counts = countOutputValues(spendableOutputs);
-    const groups = [...counts.entries()].filter(([, c]) => c >= 2);
-    const totalEqual = groups.reduce((sum, [, c]) => sum + c, 0);
-
-    if (totalEqual >= 10 && groups.length >= 3) {
-      findings.push(buildWabiSabiMultiTierFinding(tx.vin.length, spendableOutputs.length, groups.length, totalEqual));
-      return { findings };
-    }
+  if (wabiSabi?.isWabiSabi) {
+    const groups = [...countOutputValues(spendableOutputs).entries()].filter(([, c]) => c >= 2);
+    const finding = equalOutput
+      ? buildGenericCoinJoinFinding(equalOutput.count, equalOutput.denomination, equalOutput.total, tx.vin.length, true)
+      : buildWabiSabiMultiTierFinding(tx.vin.length, spendableOutputs.length, groups.length, groups.reduce((sum, [, c]) => sum + c, 0));
+    findings.push({ ...finding, confidence: wabiSabi.confidence ?? finding.confidence });
+    findings.push(buildExchangeFlaggingFinding());
+    return { findings };
   }
 
   if (equalOutput) {
@@ -128,9 +127,9 @@ export const analyzeCoinJoin: TxHeuristic = (tx) => {
         equalAddresses.size >= count ? "high" : "medium",
       ));
     } else {
-      // Multiple denomination tiers or non-dominant single denom
-      const isActualWabiSabi = isWabiSabi && denomTiers.length >= 3;
-      findings.push(buildGenericCoinJoinFinding(count, denomination, total, tx.vin.length, isActualWabiSabi));
+      // Multiple denomination tiers or non-dominant single denom, but not the
+      // WabiSabi structure: a CoinJoin of unknown implementation
+      findings.push(buildGenericCoinJoinFinding(count, denomination, total, tx.vin.length, false));
     }
   }
 
@@ -202,16 +201,8 @@ export function isCoinJoinTx(tx: Tx): boolean {
   const { outputs: spendable, singleOwner } = coinJoinCandidates(tx);
   const values = spendable.map((o) => o.value);
 
-  // WabiSabi multi-tier
-  const isWabiSabi = !singleOwner && tx.vin.length >= 10 && spendable.length >= 10;
+  if (!singleOwner && classifyWabiSabi(tx).isWabiSabi) return true;
   const equalOutput = singleOwner ? null : detectEqualOutputs(values);
-
-  if (!equalOutput && isWabiSabi) {
-    const counts = countOutputValues(spendable);
-    const groups = [...counts.entries()].filter(([, c]) => c >= 2);
-    const totalEqual = groups.reduce((sum, [, c]) => sum + c, 0);
-    if (totalEqual >= 10 && groups.length >= 3) return true;
-  }
 
   // Equal-output / JoinMarket
   if (equalOutput) return true;

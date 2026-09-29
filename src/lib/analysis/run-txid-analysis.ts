@@ -14,7 +14,7 @@ import { runTxHeuristicSteps, finalizeTxResult } from "@/lib/analysis/orchestrat
 import { getAddressedOutputs } from "@/lib/analysis/heuristics/tx-utils";
 import { ApiError } from "@/lib/api/fetch-with-retry";
 import { needsEnrichment, enrichPrevouts, countNullPrevouts } from "@/lib/api/enrich-prevouts";
-import { computeBoltzmann, isAutoComputable, extractTxValues } from "@/lib/analysis/boltzmann-compute";
+import { computeBoltzmann, isAutoComputable } from "@/lib/analysis/boltzmann-compute";
 import { enhanceEntropyFinding } from "@/lib/analysis/boltzmann-enhance";
 import { enrichBip47Finding, enrichRicochetFinding } from "@/lib/analysis/enrichment";
 import { getAnalysisSettings, type AnalysisSettings } from "@/lib/analysis/settings";
@@ -113,8 +113,7 @@ export async function runTxidAnalysis(
   if (!controller.signal.aborted) setState((prev) => ({ ...prev, txData: tx }));
 
   // Start Boltzmann computation early (in parallel with price/trace fetches)
-  const txValues = extractTxValues(tx);
-  const shouldAutoBoltzmann = isAutoComputable(txValues.inputValues, txValues.outputValues);
+  const shouldAutoBoltzmann = isAutoComputable(tx);
   const boltzmannPromise = shouldAutoBoltzmann
     ? computeBoltzmann(tx, {
         timeoutMs: (analysisSettingsForCache.boltzmannTimeout ?? 300) * 1000,

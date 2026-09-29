@@ -53,7 +53,7 @@ export async function computeBoltzmann(
   if (nIn === 0 || nOut === 0) return null;
 
   // WabiSabi gets a higher limit (tier-decomposed, no DFS)
-  const isWabiSabi = detectWabiSabiForTurbo(inputValues, outputValues);
+  const isWabiSabi = detectWabiSabiForTurbo(tx);
   const maxTotal = isWabiSabi ? MAX_SUPPORTED_TOTAL_WABISABI : MAX_SUPPORTED_TOTAL;
   if (nIn + nOut > maxTotal) return null;
 

@@ -7,6 +7,7 @@
  */
 
 import { countOutputValues, getValuedOutputs } from "./heuristics/tx-utils";
+import { classifyWabiSabi, type WabiSabiTxLike } from "./heuristics/wabisabi";
 
 /** Auto-compute when total UTXOs (inputs + outputs) is under this threshold. */
 const AUTO_COMPUTE_MAX_TOTAL = 20;
@@ -84,27 +85,16 @@ export function detectJoinMarketForTurbo(
   return { isJoinMarket: true, denomination };
 }
 
-/** Detect WabiSabi CoinJoin structure for turbo Boltzmann mode.
- *
- * WabiSabi has 3+ denomination tiers with 10+ total equal outputs.
- * Unlike JoinMarket (single denomination), WabiSabi uses the tier-decomposed
- * Boltzmann approach: per-tier partition formulas combined under independence.
+/**
+ * Whether Boltzmann uses the WabiSabi tier-decomposed mode (per-tier
+ * partition formulas combined under independence, no DFS). Only real
+ * WabiSabi rounds qualify: the same classifier the H4 finding uses, so a
+ * batch payout or a Wasabi 1.x round is never tier-decomposed. Rounds under
+ * 10 inputs or outputs stay on the exact engine, which handles them.
  */
-export function detectWabiSabiForTurbo(
-  inputValues: number[],
-  outputValues: number[],
-): boolean {
-  if (inputValues.length < 10 || outputValues.length < 10) return false;
-
-  const counts = new Map<number, number>();
-  for (const v of outputValues) {
-    if (v > 0) counts.set(v, (counts.get(v) ?? 0) + 1);
-  }
-
-  const tiers = [...counts.entries()].filter(([, c]) => c >= 2);
-  const totalEqual = tiers.reduce((sum, [, c]) => sum + c, 0);
-
-  return totalEqual >= 10 && tiers.length >= 3;
+export function detectWabiSabiForTurbo(tx: WabiSabiTxLike): boolean {
+  const { inputValues, outputValues } = extractTxValues(tx);
+  return inputValues.length >= 10 && outputValues.length >= 10 && classifyWabiSabi(tx).isWabiSabi;
 }
 
 /**
@@ -129,16 +119,14 @@ export function usesJoinMarketTurbo(inputValues: number[], outputValues: number[
 }
 
 /** Check if a transaction is eligible for auto Boltzmann computation. */
-export function isAutoComputable(
-  inputValues: number[],
-  outputValues: number[],
-): boolean {
+export function isAutoComputable(tx: WabiSabiTxLike): boolean {
+  const { inputValues, outputValues } = extractTxValues(tx);
   const nIn = inputValues.length;
   const nOut = outputValues.length;
   if (nIn === 0 || nOut === 0) return false;
   if (nIn + nOut < AUTO_COMPUTE_MAX_TOTAL) return true;
   // WabiSabi turbo: tier-decomposed, handles up to 800 total I/O
-  if (nIn + nOut <= MAX_SUPPORTED_TOTAL_WABISABI && detectWabiSabiForTurbo(inputValues, outputValues)) return true;
+  if (nIn + nOut <= MAX_SUPPORTED_TOTAL_WABISABI && detectWabiSabiForTurbo(tx)) return true;
   if (nIn + nOut > MAX_SUPPORTED_TOTAL) return false;
   return detectJoinMarketForTurbo(inputValues, outputValues).isJoinMarket;
 }
