@@ -570,6 +570,7 @@ Computation: 12ms (no timeout)
     "entropy": 11.32,
     "efficiency": 1.0,
     "nbCombinations": 5120,
+    "nbCombinationsSaturated": false,
     "nbCombinationsPerfectCj": 5120,
     "deterministicLinks": [],
     "timedOut": false,
