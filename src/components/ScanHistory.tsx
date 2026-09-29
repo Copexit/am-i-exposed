@@ -230,7 +230,7 @@ export const ScanHistory = memo(function ScanHistory({
                   {t(ex.labelKey, { defaultValue: ex.labelDefault })}
                 </span>
                 <span className={`text-xs font-bold ${ex.hintColor}`}>
-                  {ex.hint}
+                  {ex.hintKey ? t(ex.hintKey, { defaultValue: ex.hint }) : ex.hint}
                 </span>
               </button>
             ))}

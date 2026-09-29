@@ -1096,3 +1096,19 @@ fn test_tx2_full_summary() {
         out_idx += tier.count;
     }
 }
+
+/// TX1's tier product overflows u64: nb_cmbn is clamped and flagged, while
+/// entropy still carries the real magnitude.
+#[test]
+fn test_tx1_nb_cmbn_saturation_is_flagged() {
+    let inputs = tx1_inputs();
+    let outputs = tx1_outputs();
+    let fee = inputs.iter().sum::<i64>() - outputs.iter().sum::<i64>();
+    let result = analyze_wabisabi(&inputs, &outputs, fee, 30000);
+    assert!(result.entropy > 64.0);
+    assert!(result.nb_cmbn_saturated);
+    assert_eq!(result.nb_cmbn, u64::MAX);
+
+    let small = analyze_wabisabi(&[3000, 3000, 3000], &[1000, 1000, 1000], 6000, 30000);
+    assert!(!small.nb_cmbn_saturated);
+}

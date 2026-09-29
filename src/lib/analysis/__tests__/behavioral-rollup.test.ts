@@ -54,7 +54,7 @@ describe("behavioral fingerprint rollup", () => {
       makeFinding("h11-wallet-fingerprint"),
       makeFinding("h6-round-fee-rate"),
       makeFinding("bip69-detected"),
-      makeFinding("h-coin-selection-bnb"),
+      makeFinding("witness-mixed-types"),
     ];
     applyCrossHeuristicRules(findings);
     const rollup = findings.find((f) => f.id === "behavioral-fingerprint-rollup");
@@ -62,6 +62,17 @@ describe("behavioral fingerprint rollup", () => {
     expect(rollup!.severity).toBe("critical");
     expect(rollup!.scoreImpact).toBe(-12);
     expect(rollup!.params?.signalCount).toBe(4);
+  });
+
+  it("does not count the changeless (BnB) credit as a fingerprint", () => {
+    // A privacy credit (+3) is not a re-identifying penalty: one real signal
+    // plus the credit stays below the 2-signal threshold
+    const findings: Finding[] = [
+      makeFinding("h11-wallet-fingerprint"),
+      makeFinding("h-coin-selection-bnb", 3),
+    ];
+    applyCrossHeuristicRules(findings);
+    expect(findings.some((f) => f.id === "behavioral-fingerprint-rollup")).toBe(false);
   });
 
   it("ignores suppressed behavioral signals (scoreImpact = 0)", () => {

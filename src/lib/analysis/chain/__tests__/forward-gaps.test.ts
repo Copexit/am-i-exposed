@@ -105,10 +105,13 @@ describe("analyzeForward - peel chain edges", () => {
   function peelChild(values: [number, number]) {
     return makeTx({ txid: OTHER(20), vin: [makeVin()], vout: values.map((value) => makeVout({ value })) });
   }
+  // A second peel hop spending the child's larger output (vout 1 in these tests)
+  const nextHop = makeTx({ txid: OTHER(23), vin: [makeVin({ txid: OTHER(20), vout: 1 })], vout: [makeVout({ value: 70_000 }), makeVout({ value: 5_000 })] });
+  const layers = [{ depth: 2, txs: new Map([[nextHop.txid, nextHop]]) }];
 
-  it("flags a 1-in/2-out child with ratio below 0.3", () => {
+  it("flags a 1-in/2-out child with ratio below 0.3 whose change is peeled again", () => {
     const tx = makeTx({ txid: OTHER(21) });
-    const res = analyzeForward(tx, spentBy(OTHER(20), 2, [1]), new Map([[1, peelChild([10_000, 90_000])]]));
+    const res = analyzeForward(tx, spentBy(OTHER(20), 2, [1]), new Map([[1, peelChild([10_000, 90_000])]]), layers);
     expect(res.peelChainOutputs).toEqual([1]);
     const f = res.findings.find((x) => x.id === "chain-forward-peel");
     expect(f?.scoreImpact).toBe(-5);
@@ -117,13 +120,13 @@ describe("analyzeForward - peel chain edges", () => {
 
   it("does not flag a balanced 1-in/2-out child (ratio >= 0.3)", () => {
     const tx = makeTx({ txid: OTHER(21) });
-    const res = analyzeForward(tx, spentBy(OTHER(20), 2, [1]), new Map([[1, peelChild([30_000, 100_000])]]));
+    const res = analyzeForward(tx, spentBy(OTHER(20), 2, [1]), new Map([[1, peelChild([30_000, 100_000])]]), layers);
     expect(res.peelChainOutputs).toEqual([]);
   });
 
   it("does not flag a zero-value output split (ratio 0)", () => {
     const tx = makeTx({ txid: OTHER(21) });
-    const res = analyzeForward(tx, spentBy(OTHER(20), 2, [1]), new Map([[1, peelChild([0, 90_000])]]));
+    const res = analyzeForward(tx, spentBy(OTHER(20), 2, [1]), new Map([[1, peelChild([0, 90_000])]]), layers);
     expect(res.peelChainOutputs).toEqual([]);
   });
 
@@ -133,13 +136,13 @@ describe("analyzeForward - peel chain edges", () => {
       vin: Array.from({ length: 5 }, (_, i) => makeVin({ txid: OTHER(30 + i) })),
       vout: Array.from({ length: 5 }, () => makeVout({ value: 100_000 })),
     });
-    const res = analyzeForward(cj, spentBy(OTHER(20), 5, [0]), new Map([[0, peelChild([10_000, 89_000])]]));
+    const res = analyzeForward(cj, spentBy(OTHER(20), 5, [0]), new Map([[0, peelChild([10_000, 89_000])]]), layers);
     expect(res.peelChainOutputs).toEqual([]);
   });
 
   it("ignores children whose outspend is not marked spent", () => {
     const tx = makeTx({ txid: OTHER(21) });
-    const res = analyzeForward(tx, [makeOutspend(), makeOutspend()], new Map([[1, peelChild([10_000, 90_000])]]));
+    const res = analyzeForward(tx, [makeOutspend(), makeOutspend()], new Map([[1, peelChild([10_000, 90_000])]]), layers);
     expect(res.findings).toEqual([]);
   });
 });

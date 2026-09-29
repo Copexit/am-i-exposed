@@ -6,6 +6,10 @@ import { ApiError } from "@/lib/api/fetch-with-retry";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
 import type { ScoringResult } from "@/lib/types";
 
+// The first test pays for importing the hook's module graph; on a loaded
+// machine (parallel workers) that alone can exceed the 5s default.
+vi.setConfig({ testTimeout: 20_000 });
+
 const m = vi.hoisted(() => ({
   getCachedResult: vi.fn(),
   putCachedResult: vi.fn(),

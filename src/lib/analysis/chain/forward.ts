@@ -5,6 +5,7 @@ import { getSpendableOutputs, countOutputValues } from "../heuristics/tx-utils";
 import { truncateId } from "@/lib/constants";
 import { detectTx0 } from "../heuristics/coinjoin-premix";
 import { fmtN } from "@/lib/format";
+import type { TraceLayer } from "./recursive-trace";
 
 /**
  * Permissive CoinJoin check for suppression only. Catches edge-case remixes
@@ -25,6 +26,20 @@ function isLikelyCoinJoinTx(tx: MempoolTransaction): boolean {
   }
 
   return false;
+}
+
+/**
+ * If `tx` is a peel hop (1 input, 2 spendable outputs, smaller < 30% of the
+ * larger), the vout index of its larger output (the change), else undefined.
+ */
+function peelHopChange(tx: MempoolTransaction): number | undefined {
+  if (tx.vin.length !== 1) return undefined;
+  const spendable = getSpendableOutputs(tx.vout);
+  const [a, b] = spendable;
+  if (spendable.length !== 2 || !a || !b) return undefined;
+  const ratio = Math.min(a.value, b.value) / Math.max(a.value, b.value);
+  if (!(ratio > 0 && ratio < 0.3)) return undefined;
+  return tx.vout.indexOf(a.value >= b.value ? a : b);
 }
 
 /**
@@ -49,6 +64,7 @@ export function analyzeForward(
   tx: MempoolTransaction,
   outspends: MempoolOutspend[],
   childTxs: Map<number, MempoolTransaction>,
+  forwardLayers: TraceLayer[] = [],
 ): ForwardAnalysisResult {
   const findings: Finding[] = [];
   const consolidatedCoinJoinOutputs: number[] = [];
@@ -56,6 +72,14 @@ export function analyzeForward(
   const toxicMergeOutputs: number[] = [];
 
   const txIsCoinJoin = isCoinJoinTx(tx);
+
+  // Deeper forward txs by the outpoint they spend, to follow a peel chain
+  const spenders = new Map<string, MempoolTransaction>();
+  for (const layer of forwardLayers) {
+    for (const t of layer.txs.values()) {
+      for (const v of t.vin) spenders.set(`${v.txid}:${v.vout}`, t);
+    }
+  }
 
   // Track consolidation groups: which child tx consumed which outputs
   const consolidationGroups = new Map<string, number[]>();
@@ -83,19 +107,18 @@ export function analyzeForward(
       }
     }
 
-    // Item 2: Forward peel chain detection
-    // Peel chain pattern: 1 input, 2 outputs, one much larger than the other
+    // Item 2: Forward peel chain detection. A peel chain is a repeated
+    // pattern (see peel-chain.ts): at least 2 consecutive peel hops, each a
+    // 1-in, 2-out tx with asymmetric values whose larger output (the change)
+    // is the single input of the next hop. One downstream 1-in-2-out payment
+    // is ordinary spending, not a chain.
     // Skip when parent tx is a CoinJoin: post-mix outputs spent individually
     // (1-in, 2-out) is normal and expected behavior, not a peel chain.
-    if (!txIsCoinJoin && childTx.vin.length === 1 && childTx.vout.length === 2) {
-      const [out1, out2] = getSpendableOutputs(childTx.vout);
-      if (out1 && out2) {
-        const [v1, v2] = [out1.value, out2.value];
-        const ratio = Math.min(v1, v2) / Math.max(v1, v2);
-        // Peel chain: one output is much smaller (change) - ratio < 0.3
-        if (ratio < 0.3 && ratio > 0) {
-          peelChainOutputs.push(outputIdx);
-        }
+    if (!txIsCoinJoin) {
+      const change = peelHopChange(childTx);
+      const nextHop = change !== undefined ? spenders.get(`${childTx.txid}:${change}`) : undefined;
+      if (nextHop && peelHopChange(nextHop) !== undefined) {
+        peelChainOutputs.push(outputIdx);
       }
     }
   }
@@ -171,9 +194,9 @@ export function analyzeForward(
       severity: "high",
       title: "Peel chain continues forward from this transaction",
       description:
-        "Change outputs from this transaction feed into further transactions with the " +
-        "same pattern (1-in, 2-out, asymmetric values), forming a forward peel chain. " +
-        "Each hop reveals the payment amount and change direction.",
+        "An output of this transaction starts a peel chain: at least 2 consecutive " +
+        "1-in, 2-out transactions with asymmetric values, each passing its larger output (the change) " +
+        "to the next. Each hop reveals the payment amount and change direction.",
       recommendation:
         "Break the peel chain pattern by using different transaction structures. " +
         "Consider PayJoin or STONEWALL for future payments.",

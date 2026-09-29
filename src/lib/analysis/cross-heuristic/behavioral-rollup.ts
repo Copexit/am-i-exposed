@@ -15,7 +15,6 @@ export function applyBehavioralRollup(findings: Finding[]): void {
     "h6-rbf-signaled",
     "h6-fee-segwit-miscalc",
     "bip69-detected",
-    "h-coin-selection-bnb",
     "h-coin-selection-value-asc",
     "h-coin-selection-value-desc",
     "witness-mixed-types",
@@ -24,8 +23,14 @@ export function applyBehavioralRollup(findings: Finding[]): void {
     "witness-mixed-sig-types",
   ];
 
+  // Only signals the engine scores as fingerprint penalties count. The
+  // changeless (Branch-and-Bound) credit is deliberately absent: it is scored
+  // as a privacy gain (+3) and is shared by any exact-amount or send-max spend
+  // (Bitcoin Core, Sparrow, manual coin control), so it cannot also be a
+  // re-identifying fingerprint. Counting it made a changeless payment score
+  // below the same payment with a change output.
   const firedSignals = findings.filter(
-    (f) => behavioralIds.includes(f.id) && f.scoreImpact !== 0,
+    (f) => behavioralIds.includes(f.id) && f.scoreImpact < 0,
   );
 
   if (firedSignals.length >= 2) {

@@ -74,7 +74,9 @@ export function enhanceEntropyFinding(
   // Same scaling as entropy.ts line 186
   const impact = entropyBits < 1 ? 0 : entropyBits < 2 ? 2 : Math.min(Math.floor(entropyBits * 2), 15);
 
-  const interpretationsStr = entropyBits > 40
+  // Past 2^40 (and always when the u64 count saturated) the count is shown as a power of 2
+  const approxCount = entropyBits > 40 || boltzmann.nbCmbnSaturated === true;
+  const interpretationsStr = approxCount
     ? `~2^${Math.round(entropyBits)}`
     : fmtN(boltzmann.nbCmbn);
 
@@ -88,7 +90,7 @@ export function enhanceEntropyFinding(
   const params: Record<string, string | number> = {
     entropy: roundedEntropy,
     method: methodLabel,
-    interpretations: boltzmann.nbCmbn,
+    interpretations: approxCount ? `2^${Math.round(entropyBits)}` : boltzmann.nbCmbn,
     context: entropyBits >= 4 ? "high" : "low",
     entropyPerUtxo: roundTo(entropyBits / nUtxos),
     nUtxos,

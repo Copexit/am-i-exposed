@@ -192,6 +192,7 @@ CIOH alone enables the majority of address clustering. A single multi-input tran
 - 20-49 unique input addresses: -35
 - 50+ unique input addresses: -45
 - Exception: CoinJoin pattern detected (H4): 0 (suppressed)
+- Reuse among inputs: when one of the clustered addresses funds 2+ inputs received in separate transactions (consolidation `40b88e16...` spends two UTXOs of `18m5f3qt...`), `h3-cioh` reports it (`reusedCount`, "N reused" in the title). It is not scored separately: CIOH already links those inputs, so the reuse adds no link inside the transaction. When every input comes from one address, `h3-input-reuse` applies instead (-20, or -30 for 5+ receives).
 
 **References**
 - Nakamoto, "Bitcoin: A Peer-to-Peer Electronic Cash System" (2008), Section 10 - "Some linking is still unavoidable with multi-input transactions, which necessarily reveal that their inputs were owned by the same owner."
@@ -206,7 +207,7 @@ CIOH alone enables the majority of address clustering. A single multi-input tran
 
 CoinJoin is a collaborative transaction protocol where multiple users combine their inputs and outputs into a single transaction. When done correctly, an observer cannot determine which inputs funded which outputs. CoinJoin is the single most effective on-chain privacy technique available today.
 
-Three major CoinJoin implementations are detected:
+The major CoinJoin implementations are detected:
 
 **Whirlpool (Samourai / Sparrow)**
 
@@ -224,20 +225,36 @@ if 5 <= len(spendable) <= 10:
       flag as Whirlpool CoinJoin
 ```
 
-**Wasabi Wallet (WabiSabi)**
+**Wasabi Wallet 2.x (WabiSabi)** - `src/lib/analysis/heuristics/wabisabi.ts`, `classifyWabiSabi`
 
-- Large number of inputs (typically 50-150)
-- Many equal-value outputs forming the anonymity set
-- Additional outputs of varying values (change, coordinator fee)
-- Post-2.0 Wasabi uses the WabiSabi protocol allowing variable denominations and multiple equal-output groups
+One classifier feeds every consumer: the H4 finding (`isWabiSabi: 1`), the CoinJoin suppressions and wallet inference, the `wabisabi-coinjoin` tx type, `isCoinJoinTx`, and Boltzmann's tier-decomposed routing (`detectWabiSabiForTurbo`, rounds of 10+ inputs and 10+ outputs; smaller rounds use the exact engine). A transaction is labelled WabiSabi only when it has the structure the coordinator builds, which follows from the WalletWasabi source:
+
+- **Standard denominations.** `DenominationBuilder.CreateDenominationAmounts` builds the set from six series: 2^n, 3^n, 2*3^n, 10^n, 2*10^n, 5*10^n sats, kept between the round's minimum and maximum output amounts (default `MinRegistrableAmount` 5,000 sats, `MaxRegistrableAmount` 43,000 BTC: 93 values). Denomination outputs carry the exact amount (`Output.FromDenomination`); the mining fee is paid on top. The set is unchanged since v2.0.0.0 (then `AmountDecomposer.CreateDenominationsPlusFees`, refactored in PR #13326, 2024) and identical in the Ginger Wallet fork. Trezor Suite (2022-2024) decomposed through the WalletWasabi middleware and the BTCPay plugin embeds WalletWasabi, so they use the same set. Coordinators may lower the minimum: coinjoin.nl rounds carry 2,187 (3^7) and 4,374 (2*3^7) sat outputs, so the detector accepts denominations from 1,000 sats.
+- **Change and other outputs.** The decomposer prefers changeless decompositions; otherwise a participant gets at most one change output (`CreateNaiveDecomposition` / `CreatePreDecompositions`). The coordinator adds one output for the coordination fee (zkSNACKs: 0.3%, free below 0.01 BTC and for remixes) or, since the fee rate concept was removed (PR #13297, August 2024), for leftovers participants could not decompose (optionally trimmed to a denomination, PR #14881). Payments in a round are arbitrary amounts. In 130 real rounds the lowest share of standard-denomination outputs was 71%.
+- **Ordering and scripts.** `SigningState.SortedInputs` orders inputs by amount descending; `SortedOutputs` merges outputs per scriptPubKey and orders them by value descending. So both lists are descending and no two outputs share a script.
+- **Transaction fields.** `RoundParameters.CreateTransaction` uses NBitcoin defaults: every nSequence final (0xffffffff, no RBF) and nLockTime 0.
+- **Script types.** Inputs may only be P2WPKH or P2TR (`AllowP2wpkhInputs` / `AllowP2trInputs`); clients decompose into P2WPKH / P2TR outputs (a coordinator may accept other output types for payments).
+
+Rules (all must hold):
 
 ```
-if len(tx.inputs) >= 20 and len(tx.outputs) >= 20:
-  value_counts = Counter(o.value for o in tx.outputs)
-  most_common_value, count = value_counts.most_common(1)[0]
-  if count >= 5:
-    flag as probable Wasabi CoinJoin
+structure:  5+ inputs and 5+ outputs; every input a P2WPKH/P2TR prevout (no coinbase)
+            every nSequence == 0xffffffff and nLockTime == 0; no OP_RETURN / zero-value output
+            input values and output values both in descending order
+            no two outputs to the same scriptPubKey; standard outputs paid to P2WPKH/P2TR
+evidence:   >= 60% of outputs at an exact standard denomination
+            >= 2 distinct standard denominations
+            >= 2 outputs at a non-decimal denomination (2^n, 3^n, 2*3^n)
+confidence: high with 20+ inputs and 3+ distinct non-decimal denominations, else medium
 ```
+
+The non-decimal requirement is what separates WabiSabi from lookalikes: exchange withdrawals, payroll and Whirlpool pools use round decimal amounts (100,000, 1,000,000, 5,000,000 sats are also WabiSabi denominations), but nobody else pays 8,388,608 or 4,782,969 sats. The structural rules reject the remaining lookalikes (Wasabi 1.x rounds and batches are not value-sorted; RBF-signalling and address-reusing "standard denomination" transactions fail the sequence and script rules).
+
+A transaction with 5+ equal outputs that fails these rules is still reported as a generic CoinJoin (`isWabiSabi: 0`); one without 5+ equal outputs gets no CoinJoin finding (the older ">= 10 inputs, >= 10 outputs, 3+ repeated values" path labelled exchange batches WabiSabi and is gone).
+
+Evaluation (`__tests__/fixtures/wabisabi-corpus.json`, asserted by `__tests__/wabisabi.test.ts`, plus the repo fixtures and golden corpus): 130 real rounds (zkSNACKs 2023-2024, and kruw, opencoordinator.org/.to, gingerwallet, coinjoin.nl, coinjoiner and smaller 2024 coordinators up to 2026) and 238 negatives (Whirlpool, JoinMarket, Wasabi 1.x rounds, exchange batches, Stonewall, dust, the crocs-muni list of Dumplings false positives, golden corpus). Precision 100% (0 false positives); recall 95.4% (124/130). That recall includes 49 remix ancestors of `fb596c9f...` that are labelled structurally (they are the inputs' parent rounds, not independently attributed); on the 81 independently labelled rounds (LiquiSabi coordinator lists, crocs-muni coordinator labels, Dumplings fixtures, the repo example) recall is 92.6% (75/81), and all 6 misses are in that subset. The thresholds (60% standard outputs, 2 tiers, 2 non-decimal outputs, 5x5 minimum) were chosen on this same corpus, with no held-out split, so these figures are in-sample. The 6 missed rounds are tiny: one 2-input round, and five rounds of 7-9 inputs whose outputs are all one decimal denomination, which is indistinguishable from an equal-output mix and stays generic. The previous rule (10+ inputs and outputs, 3+ repeated values) had precision 95% / recall 87.7% for the finding, and its Boltzmann routing had precision 52% (it tier-decomposed every Wasabi 1.x round).
+
+Sources: WalletWasabi [`DenominationBuilder.cs`](https://github.com/WalletWasabi/WalletWasabi/blob/master/WalletWasabi/WabiSabi/Client/CoinJoin/Client/Decomposer/DenominationBuilder.cs), [`AmountDecomposer.cs`](https://github.com/WalletWasabi/WalletWasabi/blob/master/WalletWasabi/WabiSabi/Client/CoinJoin/Client/Decomposer/AmountDecomposer.cs), [`Output.cs`](https://github.com/WalletWasabi/WalletWasabi/blob/master/WalletWasabi/WabiSabi/Client/CoinJoin/Client/Decomposer/Output.cs), [`SigningState.cs`](https://github.com/WalletWasabi/WalletWasabi/blob/master/WalletWasabi/WabiSabi/Models/MultipartyTransaction/SigningState.cs), [`WabiSabiConfig.cs`](https://github.com/WalletWasabi/WalletWasabi/blob/master/WalletWasabi/WabiSabi/Coordinator/WabiSabiConfig.cs), [v2.0.0.0 `AmountDecomposer.cs`](https://github.com/WalletWasabi/WalletWasabi/blob/v2.0.0.0/WalletWasabi/WabiSabi/Client/AmountDecomposer.cs), PRs [#13297](https://github.com/WalletWasabi/WalletWasabi/pull/13297) and [#14881](https://github.com/WalletWasabi/WalletWasabi/pull/14881); Ginger Wallet [`DenominationBuilder.cs`](https://github.com/GingerPrivacy/GingerWallet/blob/master/WalletWasabi/WabiSabi/Client/CoinJoin/Client/Decomposer/DenominationBuilder.cs); Trezor Suite [`outputDecomposition.ts`](https://github.com/trezor/trezor-suite/blob/develop/packages/coinjoin/src/client/round/outputDecomposition.ts); prior art: Dumplings [`Scanner.cs`](https://github.com/nopara73/Dumplings/blob/master/Dumplings/Scanning/Scanner.cs) (same denominations and ordering, 50+ inputs, > 80% standard outputs). Corpus labels: [LiquiSabi](https://liquisabi.com) round list, [crocs-muni/coinjoin-analysis](https://github.com/crocs-muni/coinjoin-analysis) `data/wasabi2` (coordinator labels and false positives) and its Dumplings fixtures, mempool.space.
 
 **JoinMarket**
 
@@ -264,7 +281,7 @@ CoinJoin is not a silver bullet. Post-mix behavior matters enormously. If a user
 **Scoring impact:** +15 to +30
 
 - Whirlpool-pattern CoinJoin detected: +30
-- Wasabi/WabiSabi multi-tier CoinJoin detected: +20 to +25
+- Wasabi 1.x / WabiSabi CoinJoin detected: +20 to +25
 - Equal-output generic CoinJoin (5+ equal): +15 to +25
 - Stonewall pattern: +15
 - JoinMarket-pattern CoinJoin detected: +15
@@ -287,7 +304,11 @@ Full Boltzmann analysis, as defined by LaurentMT, counts all valid input-to-outp
 
 **Address merging (Boltzmann MERGE_INPUTS / MERGE_OUTPUTS):** before counting, inputs that share an address are merged into one input (values summed), and likewise for outputs, as LaurentMT's Boltzmann tool does with its merge options. Coins controlled by one address belong to one party, so counting them as separate parties would invent interpretations. A single-address self-transfer such as `ebe3d1ad...` (2 inputs and 11 outputs, all on one address) is therefore 1-in-1-out with 0 bits, not 15. The merged counts drive every path below and the reported UTXO count.
 
+The WASM result carries `nb_cmbn` as a u64. The tier-decomposed WabiSabi and JoinMarket model counts are computed in f64 and exceed u64 for large rounds; the count is then clamped to u64::MAX and flagged `nb_cmbn_saturated`, and every display (heat map, graph, entropy finding, CLI) shows it as ~2^entropy instead of the clamped number. Any count past 2^53 is shown the same way, since it is not exact as a JavaScript number.
+
 The WASM Boltzmann link probability matrix is not merged: its rows and columns must map one-to-one to the transaction's inputs and outputs for the heat map, the graph and auto-trace. When the WASM result covers a different number of UTXOs than the merged H5 computation, it does not replace the H5 finding, so the score keeps the merged value while the heat map still shows per-UTXO links.
+
+**Single input:** when the transaction has one input (after address merging), every output is funded by that input, so there is exactly one interpretation and entropy is 0 bits, whatever the output values. Equal-value outputs on a 1-input transaction (a dust fan-out, a payout batch) are not a CoinJoin and earn no entropy credit: 1-in-1-out gets `h5-zero-entropy` (0), 1-in-N-out gets `h5-low-entropy` (-3, method "single input") with confidence `deterministic` and its own text (`_variant: "single_input"`: every output is funded by the one input, 0 bits), since the value is exact rather than estimated. For the same reason a single-owner transaction earns no anonymity-set credit (see Anonymity Set Analysis).
 
 A two-path approach is used:
 
@@ -334,7 +355,7 @@ For partition [2,1,1,1] (one part of 2, three parts of 1): N_term = 5!^2 / (2!^2
 
 For transactions with mixed output values (<= 8x8), the engine enumerates which input funds which output. A mapping is valid if each input can cover the sum of outputs assigned to it. This is a lower bound of the true Boltzmann count but is reasonable for non-CoinJoin transactions.
 
-For large mixed-value transactions (> 8x8), structural estimation is used based on the largest group of equal outputs, applying the Boltzmann partition formula to that group.
+For large mixed-value transactions (> 8x8), structural estimation is used based on the largest group of equal outputs, applying the Boltzmann partition formula to that group. Only an input worth at least the denomination can fund an equal output alone, so k counts those inputs (as Path A does); with n > k equal outputs the same partial-coverage count as Path A applies, log2(B(k) * C(n, k)). This is reported as method "Boltzmann estimate": it is neither exact nor an upper bound, because it ignores how the change outputs constrain the assignment (2 inputs of 1,000,000 sats paying 12 x 100,000 plus a 777,000 change: 198 here, 133 exact). The WASM Boltzmann result replaces it for transactions small enough to compute exactly.
 
 **Incomplete data:** if any non-coinbase input is missing its prevout (e.g. a self-hosted backend that could not enrich it), H5 emits nothing rather than computing on a partial input set, which would misreport the structure (a 2-in-1-out consolidation would look like a 1-in-1-out sweep). Transactions with no valued outputs (OP_RETURN-only burns) are also skipped.
 
@@ -702,7 +723,7 @@ Research shows approximately 45% of transactions carry enough structural signals
 - Bitcoin Core: -5 (large anonymity set, ~40% of network)
 - Electrum: -6 (BIP69 ordering is a strong fingerprint)
 - Ashigaru/Samourai/Sparrow: -7 (niche privacy wallets, small anonymity set)
-- Wasabi Wallet: -7 (distinctive nVersion=1 pattern)
+- Wasabi Wallet: -7 (distinctive nVersion=1 pattern). "Wasabi Wallet (WabiSabi)" is named only when `classifyWabiSabi` recognises the round; WabiSabi rounds are sorted by value descending, so a large BIP69 (ascending) transaction is never labelled WabiSabi
 - Unknown/rare wallet: -8 (very small anonymity set)
 - 3+ signals, no wallet match: -5
 - Minimal signals (1-2): -3
@@ -783,16 +804,20 @@ This is complementary to H4 CoinJoin detection. While H4 determines whether a tr
 **Detection criteria:**
 
 ```
-value_counts = count occurrences of each output value
+value_counts = count occurrences of each output value (non-dust, spendable)
 max_set = largest group of equal-value outputs
 
-if max_set >= 5:
+if distinct input addresses < 2 and max_set >= 2:
+  no finding (one owner funds every output: nothing to hide among)
+elif max_set >= 5:
   "Strong anonymity set" (+5, good)
 elif max_set >= 2:
   "Moderate anonymity set" (+1, low)
 else:
   "No anonymity set - all outputs unique" (-1, low)
 ```
+
+An anonymity set needs several possible owners. With one input (or all inputs on one address) a single party funds every output, so equal output values hide nothing: batch payouts such as `3d81a6b9...` (1 input, 143 outputs) get no `anon-set-moderate` credit.
 
 **Scoring impact:** -1 to +5
 
@@ -970,6 +995,8 @@ Peel chains are one of the simplest and most effective tracing patterns. An adve
 - 3+ consecutive hops detected: -20 (critical)
 
 **Remediation:** Break the chain pattern by using CoinJoin between payments, varying transaction structure, using multi-output batch payments, or changing coin selection strategies.
+
+**Forward peel chain (`chain-forward-peel`, chain analysis, -5):** fires when an output of the analyzed transaction starts a peel chain of at least 2 consecutive hops found in the forward trace: the spending tx is a peel hop (1 input, 2 spendable outputs, smaller < 30% of the larger) and its larger output (the change) is the single input of another peel hop. A single downstream 1-in-2-out payment is ordinary spending and does not fire (e.g. sweep `8cbe3322...` and batch `aefda8a7...`); consolidation `40b88e16...` does, because its output is peeled by `3c32cc3c...` whose change is peeled again by `3a87bb2f...`. Suppressed when the analyzed transaction is a CoinJoin. It only fires when the second hop is inside the forward trace (trace depth and its filters), so a shallow or filtered trace can miss a real peel chain; that errs toward not penalizing.
 
 **References**
 - Meiklejohn et al., "A Fistful of Bitcoins: Characterizing Payments Among Men with No Names" (2013) - identifies peel chain patterns
@@ -1190,6 +1217,8 @@ Receiving funds from an identifiable exchange batch withdrawal links the recipie
 
 **Scoring impact:** -3
 
+One fan-out gets one finding. The generic `consolidation-fan-out` ("Batch payment pattern", -3) needs exactly 1 input; `exchange-withdrawal-pattern` accepts 1-2 inputs. The exchange reading replaces the generic fan-out on the same transaction. When the fan-out is a dust attack (`dust-attack`: most outputs are dust sent to others), the dust attack is the explanation: the exchange readings (`exchange-withdrawal-pattern`, `entity-behavior-exchange`, exchanges do not pay hundreds of dust outputs) and the generic `consolidation-fan-out` are all dropped, and only `dust-attack` (-8) is scored (dust tx `65551b77...`, 1 input to 563 x 547 sats). Such a batch dust attack keeps the `batch-payment` tx type.
+
 **Remediation:** When withdrawing from exchanges, use intermediate wallets or CoinJoin before moving funds to long-term storage. Consider using non-KYC acquisition methods.
 
 ---
@@ -1200,10 +1229,10 @@ Receiving funds from an identifiable exchange batch withdrawal links the recipie
 
 Detects three coin selection sub-patterns that reveal wallet software behavior:
 
-**Branch-and-Bound (BnB):** Multiple inputs with a single output and no change. This indicates the wallet found an exact combination of UTXOs to cover the payment, eliminating the change output entirely.
+**Branch-and-Bound (BnB):** Two inputs with a single output to a new address and no change. This indicates the wallet found an exact combination of UTXOs to cover the payment, eliminating the change output entirely. Consolidations are changeless by nature, so they earn no credit: 3+ inputs to 1 output is a consolidation (`consolidation-fan-in`), an output back to an input address is a self-send (`h2-self-send`), and a 1-in-1-out sweep never qualifies. The credit is not a behavioral-rollup signal (see Behavioral Fingerprint Rollup).
 
 ```
-if len(tx.inputs) >= 2 and len(spendable_outputs) == 1:
+if len(tx.inputs) == 2 and len(spendable_outputs) == 1 and output.address not in input_addresses:
   flag as changeless transaction (BnB or manual coin selection)
   impact: +3 (good - no change output to trace)
 ```
@@ -1661,7 +1690,9 @@ When `h2-same-address-io` fires (partial self-send where change is revealed dete
 
 ### 7. Behavioral Fingerprint Rollup
 
-When 2 or more behavioral sub-signals fire together, their combined fingerprinting power exceeds the sum of individual impacts. The engine detects the following contributing signals: wallet fingerprint (H11), round fee rate, RBF signaling, SegWit fee miscalculation, BIP69 ordering, coin selection patterns, and witness analysis patterns.
+When 2 or more behavioral sub-signals fire together, their combined fingerprinting power exceeds the sum of individual impacts. The engine detects the following contributing signals: wallet fingerprint (H11), round fee rate, RBF signaling, SegWit fee miscalculation, BIP69 ordering, value-ordered coin selection (ascending/descending), and witness analysis patterns. A signal counts only when it is scored as a penalty (`scoreImpact < 0`): a suppressed signal (0) does not count, and neither does a credit.
+
+The changeless Branch-and-Bound credit (`h-coin-selection-bnb`, +3) is not a rollup signal. It is scored as a privacy gain, and a changeless 2-input payment is produced by Bitcoin Core and Sparrow BnB but also by any exact-amount or send-max spend with coin control, so it does not single out a wallet; counting it also made a changeless payment score below the same payment with a change output (credit +3, rollup -6). Consequences: consolidations, which no longer get the false BnB credit, also no longer reach the rollup through it, so they net +3 against the old engine (+3 credit and -6 rollup both gone: golden corpus `2d2dcc80...` D 31 -> D 34 and `8ce796fe...` C 53 -> C 56, consolidation `40b88e16...` heuristics-only D 48 -> C 51; its live and offline web scan stays D because `chain-forward-peel` fires). A real 2-in-1-out changeless payment keeps its +3 and loses one rollup signal: the first Taproot script-path spend `37777def...` goes from 4 signals (-12) to 3 (-6), D 46 -> C 52.
 
 When these signals co-occur:
 

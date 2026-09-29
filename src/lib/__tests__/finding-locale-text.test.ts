@@ -31,17 +31,24 @@ import { enrichBip47Finding } from "../analysis/enrichment";
 import { makeIncompletePrevoutFinding } from "../analysis/analysis-state";
 import { buildCluster } from "../analysis/chain/clustering";
 import type { ApiClient } from "../api/client";
+import type { MempoolTransaction } from "../api/types";
+import { analyzeCoinJoin } from "../analysis/heuristics/coinjoin";
+import { buildWabiSabiMultiTierFinding, buildStonewallFinding } from "../analysis/heuristics/coinjoin-findings";
+import { analyzeChangeDetection } from "../analysis/heuristics/change-detection";
+import { analyzeOpReturn } from "../analysis/heuristics/op-return";
+import { analyzeCioh } from "../analysis/heuristics/cioh";
 
 const locale = (lang: string) =>
   JSON.parse(readFileSync(join(process.cwd(), "public/locales", lang, "common.json"), "utf8")) as Record<string, string>;
 
+const LANGS = ["en", "es", "de", "fr", "pt", "pl"] as const;
 const i18n = i18next.createInstance();
 // initAsync: false - resources are ready synchronously.
 void i18n.init({
   lng: "en",
   fallbackLng: "en",
   initAsync: false,
-  resources: { en: { translation: locale("en") }, es: { translation: locale("es") }, pl: { translation: locale("pl") } },
+  resources: Object.fromEntries(LANGS.map((l) => [l, { translation: locale(l) }])),
   interpolation: { escapeValue: false },
 });
 
@@ -307,6 +314,74 @@ describe("finding locale text keeps the heuristic's information", () => {
       applyCompoundScoringAdjustments([{ id: "h6-rbf-signaled", severity: "low", title: "", description: "", recommendation: "", scoreImpact: -1 }, f]);
       expect(render(f).description).toContain("RBF");
       expect(render(f, "es").description).toContain("RBF");
+    });
+  });
+
+  describe("variant findings show their variant text, not the base key", () => {
+    const fixture = (name: string) =>
+      JSON.parse(readFileSync(join(process.cwd(), "src/lib/analysis/heuristics/__tests__/fixtures/api-responses", `${name}.json`), "utf8")) as MempoolTransaction;
+
+    it.each(["wabisabi-large", "wabisabi-coinjoin"])("%s: h4-coinjoin reads as WabiSabi in every locale", (name) => {
+      const f = analyzeCoinJoin(fixture(name)).findings.find((x) => x.id === "h4-coinjoin")!;
+      expect(render(f).title).toBe(f.title);
+      for (const lng of LANGS) {
+        expect(render(f, lng).title).toContain("WabiSabi");
+        expect(render(f, lng).description).toContain("WabiSabi");
+      }
+    });
+
+    it("multi-tier WabiSabi finding reads as WabiSabi in every locale", () => {
+      const f = buildWabiSabiMultiTierFinding(120, 150, 6, 90);
+      expect(render(f).title).toBe(f.title);
+      expect(render(f).description).toContain("90");
+      for (const lng of LANGS) {
+        expect(render(f, lng).title).toContain("WabiSabi");
+        expect(render(f, lng).title).toContain("90");
+      }
+    });
+
+    it("single-input zero entropy states the structural fact in every locale", () => {
+      const tx = makeTx({ vin: [addrVin("bc1qone", 1_000_000)], vout: [1, 2, 3].map((i) => makeVout({ value: i * 100_000 })) });
+      const f = analyzeEntropy(tx).findings.find((x) => x.id === "h5-low-entropy")!;
+      expect(render(f).title).toBe(f.title);
+      expect(render(f).description).toBe(f.description);
+      for (const lng of LANGS) {
+        expect(render(f, lng).description).toContain("3");
+        expect(render(f, lng).description).toMatch(/0 bit/i);
+      }
+    });
+
+    it("h2-self-send distinguishes consolidation, single-input and all-outputs self-sends", () => {
+      const self = (nIn: number, nOut: number) => makeTx({
+        vin: Array.from({ length: nIn }, () => addrVin("bc1qself", 100_000)),
+        vout: Array.from({ length: nOut }, () => makeVout({ value: 90_000 / nOut, scriptpubkey_address: "bc1qself" })),
+      });
+      const titles = [self(2, 1), self(1, 1), self(1, 2)].map((tx) => {
+        const f = analyzeChangeDetection(tx).findings.find((x) => x.id === "h2-self-send")!;
+        expect(render(f).title).toBe(f.title);
+        return render(f, "es").title;
+      });
+      expect(new Set(titles).size).toBe(3);
+      expect(titles[0]).toContain("consolidación");
+    });
+
+    it("h7-op-return shows the decoded text (OP_RETURN charley 8bae12b5)", () => {
+      const f = analyzeOpReturn(fixture("op-return-charley")).findings[0]!;
+      for (const lng of LANGS) expect(render(f, lng).description).toContain(String(f.params!.decoded));
+    });
+
+    it("h4-stonewall from Whirlpool keeps its Whirlpool title", () => {
+      const f = buildStonewallFinding({ denomination: 1_000_000, distinctInputAddresses: 3, whirlpoolOrigin: true }, 3, undefined);
+      expect(render(f).title).toBe(f.title);
+      for (const lng of LANGS) expect(render(f, lng).title).toContain("Whirlpool");
+    });
+
+    it("h3-cioh on consolidation 40b88e16 reports the address that funds 2 inputs (18m5f3qt...)", () => {
+      const f = analyzeCioh(fixture("consolidation-5in1out")).findings.find((x) => x.id === "h3-cioh")!;
+      expect(f.params?.reusedCount).toBe(1);
+      expect(f.scoreImpact).toBe(-12);
+      for (const lng of LANGS) expect(render(f, lng).title).toMatch(/\b1\b.*\b4\b|\b4\b.*\b1\b/);
+      expect(render(f).title).toContain("reused");
     });
   });
 });

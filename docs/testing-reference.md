@@ -4,21 +4,26 @@
 
 Expected scores are the heuristic-only golden values (see the [Score Validation Matrix](#score-validation-matrix)). A live web scan also counts chain and entity findings (parents, children, CoinJoin ancestry, entity proximity), which can move the grade a lot; the **Live web scan** lines record what the site showed on 2026-09-28 with default settings. Re-check them when changing the example hints in `src/lib/constants.ts`.
 
-### Home page examples (live web scan, 2026-09-28)
+### Home page examples (live web scan with the fixed engine, 2026-09-29)
 
-The hints on the home page cards and the "more examples" list must match these. Chain findings change as coins move, so re-audit before changing a hint.
+The hints on the home page cards and the "more examples" list must match these. Chain findings change as coins move, so re-audit before changing a hint. The four home cards are also scanned offline by `e2e/home-examples.spec.ts` from recorded fixtures (`api-responses/home/`, captured with `node scripts/capture-fixtures.mjs --home`), which must land on the card's grade.
 
 | Example | Input | Live grade | Notes |
 |---------|-------|------------|-------|
-| Whirlpool 5x5 | `323df21f...9dec2` | A+ 100 | Home card |
-| Post-mix spend | `8c047658...d041c` | B 81 | Home card. Whirlpool output spent alone: CoinJoin input +8, well-compartmentalized +3, CoinJoin in forward chain +3, wallet fingerprint -3 |
-| OP_RETURN data | `8bae12b5...15684` | D 47 | Home card |
-| Satoshi's address | `1A1zP1eP...DivfNa` | F 0 | Home card |
-| Whirlpool 8x8 | `f82fa771...8dfc4` | A+ 100 | |
-| Whirlpool 9x9 | `f540e8d8...2b282` | A+ 100 | |
-| WabiSabi CoinJoin | `fb596c9f...45e5e` | A+ 98 | |
-| Stonewall | `19a79be3...f2358` | A+ 99 | Heuristics alone give B 88; CoinJoin ancestry +5, compartmentalized +3 and CoinJoin in forward chain +3 lift it |
+| Whirlpool (Ashigaru) | `5f0080e3...273cc` | A+ 100 | Home card |
+| Sweep | `8cbe3322...af85a` | C 61 | Home card |
+| Consolidation | `40b88e16...3df18` | D 37 | Home card. CIOH links 4 input addresses (1 reused); the change is peeled forward twice |
+| Address reuse | `4c18b982...c8c3c` | F 24 | Home card. Simple payment whose change returns to the input address |
 | JoinMarket CoinJoin | `6cb2433f...0ed20` | A+ 100 | |
+| Wasabi CoinJoin | `95799bd3...ee144` | A+ 96-100 | WabiSabi round (Kruw coordinator). Slow (about 40s), chain trace partial, so the post-mix consolidation finding (-15) appears on some runs and not others |
+| Stonewall | `19a79be3...f2358` | A+ 99 | Heuristics alone give B 88; CoinJoin ancestry +5, compartmentalized +3 and CoinJoin in forward chain +3 lift it |
+| Post-mix spend | `8c047658...d041c` | B 81 | Whirlpool output spent alone: CoinJoin input +8, well-compartmentalized +3, CoinJoin in forward chain +3, wallet fingerprint -3 |
+| Coinbase | `6c7edc23...4b92a` | C 69 | Neutral base score |
+| Dust attack | `65551b77...dbbdc` | D 49 | 564 outputs; one input, so 0 entropy; scored once as a dust attack (the generic fan-out finding is dropped) |
+| OP_RETURN data | `8bae12b5...15684` | D 47 | |
+| Batch payment | `aefda8a7...96271` | F 23 | Change returns to the input address |
+| WikiLeaks address | `1HB5XMLm...iY36v` | F 0 | Address history partial by design (heavily reused address) |
+| Satoshi's address | `1A1zP1eP...DivfNa` | F 0 | |
 | OFAC sanctioned | `12QtD5BF...jH9h` | Critical | Destination check, no grade |
 | Fresh address | `bc1pes5m...l3mnu` | Low risk | Destination check, no grade |
 | Wallet audit (zpub) | `zpub6rFR...tZYs` | - | Wallet audit |
@@ -81,7 +86,7 @@ The hints on the home page cards and the "more examples" list must match these. 
 ### 9. Batched Exchange Withdrawal (143 outputs)
 - **TXID:** `3d81a6b95903dd457d45a2fc998acc42fe96f59ef01157bdcbc331fe451c8d9e`
 - **Pattern:** 1 input, 143 outputs, mixed address types
-- **Expected score (heuristics only):** C 56 (fan-out, exchange withdrawal pattern, script mix)
+- **Expected score (heuristics only):** C 58 (exchange withdrawal pattern, which covers the generic fan-out, script mix; one input funds every output, so no anonymity-set credit)
 - **Live web scan:** F 24 (chain trace often incomplete: the traced exchange txs are large and slow to fetch)
 - https://mempool.space/tx/3d81a6b95903dd457d45a2fc998acc42fe96f59ef01157bdcbc331fe451c8d9e
 
@@ -95,8 +100,8 @@ The hints on the home page cards and the "more examples" list must match these. 
 ### 11. First Taproot Script-Path Spend (achow101, block 709635)
 - **TXID:** `37777defed8717c581b4c0509329550e344bdc14ac38f71fc050096887e535c8`
 - **Pattern:** 2 P2TR inputs, 1 P2WPKH output (script path spend)
-- **Expected score (heuristics only):** D 46 (CIOH, zero-entropy sweep, behavioral fingerprint rollup)
-- **Live web scan:** D 46
+- **Expected score (heuristics only):** C 52 (CIOH, zero-entropy sweep, behavioral fingerprint rollup of 3 signals; the changeless BnB credit is not a rollup signal)
+- **Live web scan:** D 46 before the rollup change (then 4 signals, -12); with 3 signals (-6) expect C 52, not re-scanned
 - https://mempool.space/tx/37777defed8717c581b4c0509329550e344bdc14ac38f71fc050096887e535c8
 
 ## Test Addresses
@@ -120,10 +125,27 @@ Values are asserted by `src/lib/analysis/__tests__/golden-cases.test.ts` (heuris
 | Bare multisig | tx | 70 | F | 11 | h2-same-address-io (-20), h1-round-amount (-16), script-multisig (-8), behavioral-fingerprint-rollup (-6), h3-cioh (-6), h11-wallet-fingerprint (-3), h5-entropy (+2), script-mixed (-1), h-coin-selection-value-asc (-1) |
 | OP_RETURN charley | tx | 70 | D | 49 | h2-self-send (-15), h7-op-return (-5), h11-wallet-fingerprint (-3), script-uniform (+2) |
 | Simple legacy P2PKH | tx | 70 | C | 52 | h2-change-detected (-14), h5-low-entropy (-3), h11-wallet-fingerprint (-3), script-uniform (+2) |
-| Batch withdrawal 143 | tx | 70 | C | 56 | h5-low-entropy (-3), script-mixed (-3), exchange-withdrawal-pattern (-3), h11-wallet-fingerprint (-3), consolidation-fan-out (-3), anon-set-moderate (+1) |
+| Batch withdrawal 143 | tx | 70 | C | 58 | h5-low-entropy (-3), script-mixed (-3), exchange-withdrawal-pattern (-3), h11-wallet-fingerprint (-3) |
 | Dust attack 555 sats | tx | 70 | F | 24 | h2-same-address-io (-20), compound-deterministic-cap (-12), dust-attack (-8), h11-wallet-fingerprint (-5), h5-low-entropy (-3), script-uniform (+2) |
-| Taproot script-path | tx | 70 | D | 46 | behavioral-fingerprint-rollup (-12), h3-cioh (-6), h5-zero-entropy-sweep (-3), h11-wallet-fingerprint (-3), h6-round-fee-rate (-2), witness-mixed-depths (-1), h-coin-selection-bnb (+3) |
+| Taproot script-path | tx | 70 | C | 52 | behavioral-fingerprint-rollup (-6), h3-cioh (-6), h5-zero-entropy-sweep (-3), h11-wallet-fingerprint (-3), h6-round-fee-rate (-2), witness-mixed-depths (-1), h-coin-selection-bnb (+3) |
+| Sweep 8cbe3322 | tx | 70 | C | 59 | behavioral-fingerprint-rollup (-6), h11-wallet-fingerprint (-3), h6-round-fee-rate (-2) |
+| Consolidation 40b88e16 | tx | 70 | C | 51 | h3-cioh (-12, 1 reused address), h11-wallet-fingerprint (-5), consolidation-fan-in (-2) |
+| Address reuse 4c18b982 | tx | 70 | F | 24 | h2-same-address-io (-20), compound-deterministic-cap (-14), h1-round-amount (-8), h5-low-entropy (-3), h11-wallet-fingerprint (-3), script-uniform (+2) |
+| Dust attack 65551b77 (1 in, 564 out) | tx | 70 | C | 53 | dust-attack (-8), h5-low-entropy (-3), script-mixed (-3), h11-wallet-fingerprint (-3) |
+| Batch payment aefda8a7 | tx | 70 | F | 24 | h2-same-address-io (-20), compound-deterministic-cap (-6), behavioral-fingerprint-rollup (-6), h5-low-entropy (-3), script-mixed (-3), h11-wallet-fingerprint (-3), consolidation-fan-out (-3), h6-round-fee-rate (-2) |
+| Coinbase 6c7edc23 | tx | 70 | C | 70 | coinbase-transaction (0) |
+| WabiSabi 95799bd3 | tx | 70 | A+ | 100 | h4-coinjoin (+25, WabiSabi), h5-entropy (+15), anon-set-strong (+5) |
+| JoinMarket 6cb2433f | tx | 70 | A+ | 100 | h4-joinmarket (+25), h5-entropy (+15), anon-set-strong (+5), script-uniform (+2) |
+| Whirlpool Ashigaru 5f0080e3 | tx | 70 | A+ | 100 | h4-whirlpool (+30), h5-entropy (+15), anon-set-strong (+5), script-uniform (+2) |
 | Satoshi's address | addr | 93 | F | 0 | h8-address-reuse (-93), recurring-payment-pattern (-10), high-activity-exchange (-8), temporal-burst-high (-5), h10-p2pkh (-5), spending-high-volume (-3), spending-never-spent (+2) |
+
+### Why the golden values moved (unreleased 0.37.x engine fixes)
+
+- **Consolidations, +3.** The changeless Branch-and-Bound credit (`h-coin-selection-bnb`, +3) no longer fires on 3+ input consolidations or self-sends. On those transactions it had also been the second signal of `behavioral-fingerprint-rollup` (-6, next to `h11-wallet-fingerprint`), so both go and the net is +3: golden corpus `2d2dcc80...` D 31 -> D 34 and `8ce796fe...` C 53 -> C 56, consolidation `40b88e16...` D 48 -> C 51 (heuristics only). The home card stays D: the offline e2e fixtures and the live scan (D 37) add `chain-forward-peel`. The rollup now counts only penalties (`scoreImpact < 0`); the BnB credit is a privacy gain shared by any exact-amount spend, not a wallet fingerprint (docs/privacy-engine.md, Behavioral Fingerprint Rollup).
+- **Taproot script-path `37777def...`, D 46 -> C 52.** A real 2-in-1-out changeless payment keeps its +3 BnB credit, but that credit no longer counts toward the rollup: 3 signals (-6) instead of 4 (-12).
+- **Dust attack `65551b77...`, C 50 -> C 53.** A dust attack explains its fan-out, so `consolidation-fan-out` (-3) is dropped next to `dust-attack` (-8): one finding per fan-out. The tx type stays `batch-payment`.
+- **Batch withdrawal `3d81a6b9...`, C 59 -> C 58.** One input funds all 143 outputs, so the two equal outputs are not an anonymity set (`anon-set-moderate`, +1, needs 2+ input owners).
+- Unchanged but relabelled: 1-input `h5-low-entropy` is now confidence `deterministic` with a single-input text (0 bits by structure).
 
 ## Research References
 

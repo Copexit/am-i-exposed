@@ -20,10 +20,9 @@ export function getCoinJoinType(findings: Finding[]): string | undefined {
   if (cjFinding.id === "h4-stonewall") return "Stonewall";
   if (cjFinding.id === "h4-simplified-stonewall") return "Stonewall";
   if (cjFinding.id === "h4-coinjoin") {
-    // Check if it's WabiSabi by input/output count
-    if (cjFinding.title?.toLowerCase().includes("wabisabi") || cjFinding.title?.toLowerCase().includes("wasabi")) {
-      return "WabiSabi";
-    }
+    // The detector's flags, not the (localizable) title: a Wasabi 1.x round is not WabiSabi
+    if (cjFinding.params?.isWabiSabi === 1) return "WabiSabi";
+    if (cjFinding.params?.isWasabi1 === 1) return "Wasabi 1.x";
     return "CoinJoin";
   }
   return "CoinJoin";

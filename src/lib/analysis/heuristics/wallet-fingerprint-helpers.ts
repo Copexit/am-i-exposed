@@ -139,8 +139,7 @@ export function scoreFingerprintSeverity(
 export function identifyWallet(
   signals: FingerprintSignals,
   spendableValues: number[],
-  vinLength: number,
-  voutLength: number,
+  isWabiSabi: boolean,
   detectWhirlpool: (values: number[]) => { pool: WhirlpoolPool } | null,
 ): string | null {
   const {
@@ -149,19 +148,21 @@ export function identifyWallet(
     isBip69, hasLowR,
   } = signals;
 
+  // A WabiSabi round is built by the coordinator (classifyWabiSabi), sorted by
+  // value descending, so it is never BIP69 (ascending): size plus BIP69 says
+  // nothing about Wasabi.
+  if (isWabiSabi) return "Wasabi Wallet (WabiSabi)";
+
   let walletGuess: string | null = null;
 
   // Check CoinJoin patterns first (most specific)
   if (isBip69) {
     const whirlpoolMatch = detectWhirlpool(spendableValues);
-    const isLargeCoinJoin = vinLength >= 20 && voutLength >= 20;
 
     if (whirlpoolMatch) {
       walletGuess = whirlpoolMatch.pool.era === "ashigaru"
         ? "Ashigaru Terminal (Whirlpool)"
         : "Samourai / Sparrow (Whirlpool)";
-    } else if (isLargeCoinJoin) {
-      walletGuess = "Wasabi Wallet (WabiSabi)";
     } else if (allMax && locktimeZero) {
       walletGuess = "Ashigaru/Samourai";
     } else if (allMaxMinus2) {

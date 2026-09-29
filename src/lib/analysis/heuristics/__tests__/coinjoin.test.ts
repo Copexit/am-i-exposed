@@ -3,7 +3,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import type { MempoolTransaction } from "@/lib/api/types";
 import { analyzeCoinJoin, isCoinJoinFinding, isCoinJoinTx } from "../coinjoin";
-import { makeTx, makeVin, makeVout, resetAddrCounter } from "./fixtures/tx-factory";
+import { makeTx, makeVin, makeVout, makeWabiSabiRound, resetAddrCounter } from "./fixtures/tx-factory";
 // Use literal sat values to keep tests decoupled from the WHIRLPOOL_POOLS layout.
 
 beforeEach(() => resetAddrCounter());
@@ -177,29 +177,54 @@ describe("analyzeCoinJoin", () => {
     expect(findings.find((f) => f.id === "h4-whirlpool")).toBeUndefined();
   });
 
-  // ── WabiSabi multi-tier ──────────────────────────────────────────────
+  // ── WabiSabi ─────────────────────────────────────────────────────────
 
-  it("detects WabiSabi multi-tier (20+ in/out, 3+ groups, 10+ equal total)", () => {
-    // 20 inputs, outputs with multiple denomination tiers
-    const vins = makeDistinctVins(25);
-    const vouts = [
-      // Group 1: 5 equal outputs of 100k
-      ...Array.from({ length: 5 }, () => makeVout({ value: 100_000 })),
-      // Group 2: 4 equal outputs of 200k
-      ...Array.from({ length: 4 }, () => makeVout({ value: 200_000 })),
-      // Group 3: 3 equal outputs of 50k
-      ...Array.from({ length: 3 }, () => makeVout({ value: 50_001 })), // avoid Whirlpool denom
-      // Remaining unique outputs
-      ...Array.from({ length: 13 }, (_, i) => makeVout({ value: 10_000 + i * 1_000 })),
-    ];
-    const tx = makeTx({ vin: vins, vout: vouts });
-    const { findings } = analyzeCoinJoin(tx);
+  // 12 participants decomposing into standard denominations (2^n, 3^n,
+  // 2*3^n, 1-2-5 decimal) plus two change outputs
+  const WABISABI_OUTPUTS = [
+    ...Array(4).fill(8_388_608), ...Array(3).fill(4_782_969), ...Array(3).fill(1_062_882),
+    ...Array(4).fill(1_000_000), ...Array(3).fill(531_441), ...Array(2).fill(262_144), 123_457, 98_765,
+  ];
+  const WABISABI_INPUTS = Array.from({ length: 12 }, (_, i) => 6_000_000 - i * 10_000);
+
+  it("detects a WabiSabi round (standard denominations, coordinator structure)", () => {
+    const { findings } = analyzeCoinJoin(makeWabiSabiRound(WABISABI_INPUTS, WABISABI_OUTPUTS));
     const cj = findings.find((f) => f.id === "h4-coinjoin");
-    expect(cj).toBeDefined();
     expect(cj!.params?.isWabiSabi).toBe(1);
     expect(cj!.scoreImpact).toBeGreaterThanOrEqual(20);
-    // Should also have exchange-flagging
+    expect(cj!.confidence).toBe("medium"); // 12 inputs: a small round
     expect(findings.find((f) => f.id === "h4-exchange-flagging")).toBeDefined();
+  });
+
+  it("titles a WabiSabi round from the classifier's tiers, not repeated values", () => {
+    // Every output a distinct standard denomination: no value repeats, yet a round
+    const outputs = [8_388_608, 4_782_969, 2_000_000, 1_594_323, 1_062_882, 1_000_000, 531_441];
+    const cj = analyzeCoinJoin(makeWabiSabiRound(Array.from({ length: 6 }, (_, i) => 4_000_000 - i * 10_000), outputs))
+      .findings.find((f) => f.id === "h4-coinjoin");
+    expect(cj!.params?.isWabiSabi).toBe(1);
+    expect(cj!.params).toMatchObject({ tiers: 7, standardOutputs: 7, vout: 7 });
+    expect(cj!.title).toBe("WabiSabi CoinJoin: 7 standard denominations, 7 of 7 outputs at a standard denomination");
+  });
+
+  it("does not call repeated round amounts WabiSabi (old 10x10 + 3-tier rule)", () => {
+    // Exchange-style batch: repeated decimal payouts, BIP69-like ascending order
+    const vins = makeDistinctVins(25);
+    const vouts = [
+      ...Array.from({ length: 5 }, () => makeVout({ value: 100_000 })),
+      ...Array.from({ length: 4 }, () => makeVout({ value: 200_000 })),
+      ...Array.from({ length: 3 }, () => makeVout({ value: 50_001 })),
+      ...Array.from({ length: 13 }, (_, i) => makeVout({ value: 10_000 + i * 1_000 })),
+    ];
+    const { findings } = analyzeCoinJoin(makeTx({ vin: vins, vout: vouts }));
+    expect(findings.some((f) => f.params?.isWabiSabi === 1)).toBe(false);
+  });
+
+  it("drops the WabiSabi label when the round breaks the coordinator structure", () => {
+    const round = makeWabiSabiRound(WABISABI_INPUTS, WABISABI_OUTPUTS);
+    const rbf = { ...round, vin: round.vin.map((v) => ({ ...v, sequence: 0xfffffffd })) };
+    expect(analyzeCoinJoin(rbf).findings.some((f) => f.params?.isWabiSabi === 1)).toBe(false);
+    const shuffled = { ...round, vout: [...round.vout].reverse() };
+    expect(analyzeCoinJoin(shuffled).findings.some((f) => f.params?.isWabiSabi === 1)).toBe(false);
   });
 
   // ── Equal output CoinJoin ────────────────────────────────────────────
@@ -358,7 +383,7 @@ describe("analyzeCoinJoin", () => {
     // Should be generic CoinJoin (h4-coinjoin), NOT JoinMarket or WabiSabi
     const cj = findings.find((f) => f.id === "h4-coinjoin");
     expect(cj).toBeDefined();
-    expect(cj!.params?.isWabiSabi).toBe(0); // Only 2 tiers, not WabiSabi (needs 3+)
+    expect(cj!.params?.isWabiSabi).toBe(0); // round amounts, not the WabiSabi structure
     expect(cj!.title).toMatch(/^Likely CoinJoin/);
     expect(findings.find((f) => f.id === "h4-joinmarket")).toBeUndefined();
   });

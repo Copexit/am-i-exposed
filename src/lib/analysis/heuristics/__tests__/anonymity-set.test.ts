@@ -1,12 +1,16 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { analyzeAnonymitySet } from "../anonymity-set";
-import { makeTx, makeCoinbaseVin, makeVout, resetAddrCounter } from "./fixtures/tx-factory";
+import { makeTx, makeCoinbaseVin, makeVin, makeVout, resetAddrCounter } from "./fixtures/tx-factory";
+
+/** Two inputs from different addresses: more than one possible owner. */
+const twoOwners = () => [makeVin(), makeVin()];
 
 beforeEach(() => resetAddrCounter());
 
 describe("analyzeAnonymitySet", () => {
   it("detects strong anonymity set (5+ equal outputs), impact +5", () => {
     const tx = makeTx({
+      vin: twoOwners(),
       vout: Array.from({ length: 5 }, () => makeVout({ value: 5_000_000 })),
     });
     const { findings } = analyzeAnonymitySet(tx);
@@ -18,6 +22,7 @@ describe("analyzeAnonymitySet", () => {
 
   it("detects moderate anonymity set (2-4 equal outputs), impact +1", () => {
     const tx = makeTx({
+      vin: twoOwners(),
       vout: [
         makeVout({ value: 50_000 }),
         makeVout({ value: 50_000 }),
@@ -76,6 +81,7 @@ describe("analyzeAnonymitySet", () => {
   it("does not inflate anonymity set with dust matching real outputs", () => {
     // A dust output matching a real output value shouldn't inflate the set
     const tx = makeTx({
+      vin: twoOwners(),
       vout: [
         makeVout({ value: 50_000 }),
         makeVout({ value: 50_000 }),
@@ -87,5 +93,14 @@ describe("analyzeAnonymitySet", () => {
     expect(findings).toHaveLength(1);
     expect(findings[0]?.id).toBe("anon-set-moderate");
     expect(findings[0]?.params?.count).toBe(2);
+  });
+
+  it("credits no anonymity set when one owner funds every output", () => {
+    // 1 input (or inputs from one address): equal outputs hide nothing
+    const outs = () => Array.from({ length: 5 }, () => makeVout({ value: 5_000_000 }));
+    expect(analyzeAnonymitySet(makeTx({ vout: outs() })).findings).toHaveLength(0);
+    const shared = makeVin();
+    const sameAddr = makeVin({ prevout: { ...shared.prevout! } });
+    expect(analyzeAnonymitySet(makeTx({ vin: [shared, sameAddr], vout: outs() })).findings).toHaveLength(0);
   });
 });

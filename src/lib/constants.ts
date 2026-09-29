@@ -134,53 +134,57 @@ export interface ExampleItem {
   labelKey: string;
   labelDefault: string;
   hint: string;
+  /** Translation key for a word hint (grade hints like "A+" need none). */
+  hintKey?: string;
   hintColor: string;
   input: string;
 }
 
 export const EXAMPLES: ExampleItem[] = [
+  // Home cards (Home.tsx SPECIMEN_KEYS), one per grade band: A+, C, D, F
   {
     labelKey: "page.example_whirlpool",
-    labelDefault: "Whirlpool 5x5",
+    labelDefault: "Whirlpool (Ashigaru)",
     hint: "A+",
     hintColor: "text-severity-good",
-    input: "323df21f0b0756f98336437aa3d2fb87e02b59f1946b714a7b09df04d429dec2",
+    input: "5f0080e3f0acfde005b9c7149f12880be273eea01ca3a3b867f642ac9bf273cc",
   },
   {
-    labelKey: "page.example_whirlpool_8x8",
-    labelDefault: "Whirlpool 8x8",
-    hint: "A+",
-    hintColor: "text-severity-good",
-    input: "f82fa771e355ef46e9744da2407f677ea4372d85b61b4a4d735d88a85798dfc4",
+    labelKey: "page.example_sweep",
+    labelDefault: "Sweep",
+    hint: "C",
+    hintColor: "text-severity-medium",
+    input: "8cbe332206ffc1ea3f3ffb6aeb5ac7306310bd991260de0e09845a45f70af85a",
   },
   {
-    labelKey: "page.example_whirlpool_9x9",
-    labelDefault: "Whirlpool 9x9",
-    hint: "A+",
-    hintColor: "text-severity-good",
-    input: "f540e8d8636bd706cb9c2f5733d26ccfdb151b76d663b2d346785e62c352b282",
+    labelKey: "page.example_consolidation",
+    labelDefault: "Consolidation",
+    hint: "D",
+    hintColor: "text-severity-high",
+    input: "40b88e16fe9881eb89df76265ccf2d46abfd1071a94dae8e413efc0d83d3df18",
   },
   {
-    labelKey: "page.example_wabisabi",
-    labelDefault: "WabiSabi CoinJoin",
-    hint: "A+",
-    hintColor: "text-severity-good",
-    input: "fb596c9f675471019c60e984b569f9020dac3b2822b16396042b50c890b45e5e",
-  },
-  {
-    labelKey: "page.example_satoshi",
-    labelDefault: "Satoshi's address",
+    // Simple payment whose change returns to the input address
+    labelKey: "page.example_reuse",
+    labelDefault: "Address reuse",
     hint: "F",
     hintColor: "text-severity-critical",
-    input: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
+    input: "4c18b982836006cbe54661942f632f10b9cc0072e97a32feeea77abd8c7c8c3c",
+  },
+  // CoinJoins
+  {
+    labelKey: "page.example_joinmarket",
+    labelDefault: "JoinMarket CoinJoin",
+    hint: "A+",
+    hintColor: "text-severity-good",
+    input: "6cb2433f28177a3b07073a0eb34a527ba6d7dd7483cccb394f88321373c0ed20",
   },
   {
-    // Whirlpool output spent alone (1-in-1-out): CoinJoin input, no change, no merge
-    labelKey: "page.example_postmix",
-    labelDefault: "Post-mix spend",
-    hint: "B",
-    hintColor: "text-severity-low",
-    input: "8c04765862e8b6d9c122e83cc361e21ab24f0f4c1f48a37385620b917d0d041c",
+    labelKey: "page.example_wasabi",
+    labelDefault: "Wasabi CoinJoin",
+    hint: "A+",
+    hintColor: "text-severity-good",
+    input: "95799bd39aea897c9b1bdbebd79d4c7bf7d0a7b02425636e8df5283ae6bee144",
   },
   {
     // Live grade includes chain findings (CoinJoin ancestry and forward chain)
@@ -191,11 +195,27 @@ export const EXAMPLES: ExampleItem[] = [
     input: "19a79be39c05a0956c7d1f9f28ee6f1091096247b0906b6a8536dd7f400f2358",
   },
   {
-    labelKey: "page.example_joinmarket",
-    labelDefault: "JoinMarket CoinJoin",
-    hint: "A+",
-    hintColor: "text-severity-good",
-    input: "6cb2433f28177a3b07073a0eb34a527ba6d7dd7483cccb394f88321373c0ed20",
+    // Whirlpool output spent alone (1-in-1-out): CoinJoin input, no change, no merge
+    labelKey: "page.example_postmix",
+    labelDefault: "Post-mix spend",
+    hint: "B",
+    hintColor: "text-severity-low",
+    input: "8c04765862e8b6d9c122e83cc361e21ab24f0f4c1f48a37385620b917d0d041c",
+  },
+  // Teaching cases
+  {
+    labelKey: "page.example_coinbase",
+    labelDefault: "Coinbase",
+    hint: "C",
+    hintColor: "text-severity-medium",
+    input: "6c7edc23fde3cd48aa7aaa5ed3c2a64cf605f4d3364d820d3be54a721b64b92a",
+  },
+  {
+    labelKey: "page.example_dust",
+    labelDefault: "Dust attack",
+    hint: "D",
+    hintColor: "text-severity-high",
+    input: "65551b775ea3bf580667c12629fa776514f9a76a57f04dd735e878dba76dbbdc",
   },
   {
     labelKey: "page.example_opreturn",
@@ -205,9 +225,32 @@ export const EXAMPLES: ExampleItem[] = [
     input: "8bae12b5f4c088d940733dcd1455efc6a3a69cf9340e17a981286d3778615684",
   },
   {
+    labelKey: "page.example_batch",
+    labelDefault: "Batch payment",
+    hint: "F",
+    hintColor: "text-severity-critical",
+    input: "aefda8a740b3afd49b23412eaae746224977db24be31706c050e24e950e96271",
+  },
+  {
+    labelKey: "page.example_wikileaks",
+    labelDefault: "WikiLeaks address",
+    hint: "F",
+    hintColor: "text-severity-critical",
+    input: "1HB5XMLmzFVj8ALj6mfBsbifRoD4miY36v",
+  },
+  {
+    labelKey: "page.example_satoshi",
+    labelDefault: "Satoshi's address",
+    hint: "F",
+    hintColor: "text-severity-critical",
+    input: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa",
+  },
+  // Destination checks and the wallet audit
+  {
     labelKey: "page.presend_sanctioned",
     labelDefault: "OFAC sanctioned",
     hint: "Critical",
+    hintKey: "common.severity.critical",
     hintColor: "text-severity-critical",
     input: "12QtD5BFwRsdNsAZY76UVE1xyCGNTojH9h",
   },
@@ -216,6 +259,7 @@ export const EXAMPLES: ExampleItem[] = [
     labelDefault: "Fresh address",
     // Destination check (no grade for an unused address), like the OFAC card
     hint: "Low risk",
+    hintKey: "presend.riskLow",
     hintColor: "text-severity-good",
     input: "bc1pes5mfje89xdr6uh4qu6p4m0r8d6nz3tvgagtwgv99yalqwzyhdzqrl3mnu",
   },
@@ -223,6 +267,7 @@ export const EXAMPLES: ExampleItem[] = [
     labelKey: "page.example_wallet",
     labelDefault: "Wallet audit (zpub)",
     hint: "Wallet",
+    hintKey: "walletGuide.colWallet",
     hintColor: "text-bitcoin",
     input: "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs",
   },

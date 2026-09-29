@@ -3,6 +3,7 @@ import type { Finding } from "@/lib/types";
 import { isCoinbase, getSpendableOutputs } from "./tx-utils";
 import { detectWhirlpool } from "./coinjoin-detectors";
 import { checkBip69Ordering } from "./bip69";
+import { classifyWabiSabi } from "./wabisabi";
 import {
   detectLowRSignatures,
   getAnonymitySetNote,
@@ -173,7 +174,7 @@ export const analyzeWalletFingerprint: TxHeuristic = (tx) => {
 
   const spendableValues = getSpendableOutputs(tx.vout).map((o) => o.value);
   const walletGuess = identifyWallet(
-    fpSignals, spendableValues, tx.vin.length, tx.vout.length, detectWhirlpool,
+    fpSignals, spendableValues, classifyWabiSabi(tx).isWabiSabi, detectWhirlpool,
   );
 
   // ── Main fingerprint finding ──────────────────────────────────────────────

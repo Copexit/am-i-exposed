@@ -25,6 +25,8 @@ export interface BoltzmannWorkerResult {
   matLnkCombinations: number[][];
   matLnkProbabilities: number[][];
   nbCmbn: number;
+  /** nbCmbn was clamped at u64::MAX: a floor, not a count (use entropy). */
+  nbCmbnSaturated?: boolean;
   entropy: number;
   efficiency: number;
   nbCmbnPrfctCj: number;

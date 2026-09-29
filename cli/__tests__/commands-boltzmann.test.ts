@@ -3,7 +3,10 @@
  * Uses the real WASM bindings (built by wasm-pack --target nodejs).
  */
 import { describe, it, expect } from "vitest";
-import { computeBoltzmann, computeBoltzmannJoinMarket } from "../src/adapters/boltzmann-node";
+import { readFileSync } from "fs";
+import { join } from "path";
+import { computeBoltzmann, computeBoltzmannJoinMarket, computeBoltzmannWabiSabi } from "../src/adapters/boltzmann-node";
+import { fmtInterpretations } from "@/lib/format";
 
 describe("computeBoltzmann - real WASM", () => {
   it("computes entropy for a 5x5 Whirlpool-like tx", async () => {
@@ -115,5 +118,18 @@ describe("computeBoltzmannJoinMarket - real WASM", () => {
     expect(result.deterministicLinks).toEqual([]);
     expect(result.modelLinks).toHaveLength(5);
     expect(result.matLnkProbabilities.flat().every((p) => p >= 0.01 && p <= 0.99)).toBe(true);
+  });
+});
+
+describe("computeBoltzmannWabiSabi - u64 saturation", () => {
+  it("flags the clamped count of WabiSabi fb596c9f and prints ~2^bits, not 18,446,744,...", async () => {
+    const tx = JSON.parse(readFileSync(join(__dirname, "../../src/lib/analysis/heuristics/__tests__/fixtures/api-responses/wabisabi-coinjoin.json"), "utf8")) as {
+      fee: number; vin: { prevout: { value: number } }[]; vout: { value: number }[];
+    };
+    const result = await computeBoltzmannWabiSabi(tx.vin.map((v) => v.prevout.value), tx.vout.map((o) => o.value).filter((v) => v > 0), tx.fee);
+    expect(result.nbCmbnSaturated).toBe(true);
+    const shown = fmtInterpretations(result.nbCmbn, result.entropy, result.nbCmbnSaturated);
+    expect(shown).toMatch(/^~2\^\d+$/);
+    expect(shown).not.toContain("18,446");
   });
 });

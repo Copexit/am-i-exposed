@@ -14,7 +14,8 @@ import {
   computeBoltzmannJoinMarket,
   type BoltzmannResult,
 } from "../adapters/boltzmann-node";
-import { analyzeCoinJoin } from "@/lib/analysis/heuristics/coinjoin";
+import { fmtInterpretations } from "@/lib/format";
+import { detectJoinMarketForTurbo, detectWabiSabiForTurbo, usesJoinMarketTurbo } from "@/lib/analysis/boltzmann-detection";
 import { DEFAULT_ANALYSIS_SETTINGS } from "@/lib/analysis/settings";
 import type { MempoolTransaction } from "@/lib/api/types";
 
@@ -57,6 +58,7 @@ export async function boltzmann(
         entropy: result.entropy,
         efficiency: result.efficiency,
         nbCombinations: result.nbCmbn,
+        nbCombinationsSaturated: result.nbCmbnSaturated === true,
         nbCombinationsPerfectCj: result.nbCmbnPrfctCj,
         deterministicLinks: result.deterministicLinks,
         modelLinks: result.modelLinks ?? [],
@@ -107,7 +109,7 @@ function formatBoltzmannResult(
     `${bold("Efficiency:")}    ${(result.efficiency * 100).toFixed(1)}%`,
   );
   lines.push(
-    `${bold("Combinations:")}  ${result.nbCmbn.toLocaleString("en-US")}`,
+    `${bold("Combinations:")}  ${fmtInterpretations(result.nbCmbn, result.entropy, result.nbCmbnSaturated)}`,
   );
   lines.push(
     `${bold("Det. links:")}    ${result.deterministicLinks.length === 0 ? "None (all probabilistic)" : result.deterministicLinks.length}`,
@@ -185,7 +187,9 @@ export async function boltzmannForTx(
     );
   }
 
-  const mode = detectBoltzmannMode(analyzeCoinJoin(tx).findings);
+  const mode = detectWabiSabiForTurbo(tx)
+    ? { type: "wabisabi" as const, label: "WabiSabi turbo" }
+    : detectBoltzmannMode(inputValues, outputValues);
   onProgress(
     `Computing Boltzmann analysis (${inputValues.length}x${outputValues.length}${mode.label ? `, ${mode.label}` : ""})...`,
   );
@@ -202,19 +206,14 @@ export async function boltzmannForTx(
 }
 
 /**
- * Pick Boltzmann turbo mode based on CoinJoin heuristic findings.
- * Reuses the existing analyzeCoinJoin() detection instead of reimplementing it.
+ * Pick the JoinMarket turbo mode with the same detection the web app routes on
+ * (boltzmann-compute.ts). WabiSabi routing uses detectWabiSabiForTurbo.
  */
 function detectBoltzmannMode(
-  findings: import("@/lib/types").Finding[],
-): { type: "standard" | "wabisabi" | "joinmarket"; label?: string; denomination?: number } {
-  for (const f of findings) {
-    if (f.params?.isWabiSabi === 1) {
-      return { type: "wabisabi", label: "WabiSabi turbo" };
-    }
-    if (f.id === "h4-joinmarket" && typeof f.params?.denomination === "number") {
-      return { type: "joinmarket", label: "JoinMarket turbo", denomination: f.params.denomination as number };
-    }
-  }
-  return { type: "standard" };
+  inputValues: number[],
+  outputValues: number[],
+): { type: "standard" | "joinmarket"; label?: string; denomination?: number } {
+  if (!usesJoinMarketTurbo(inputValues, outputValues)) return { type: "standard" };
+  const { denomination } = detectJoinMarketForTurbo(inputValues, outputValues);
+  return { type: "joinmarket", label: "JoinMarket turbo", denomination };
 }

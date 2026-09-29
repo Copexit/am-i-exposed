@@ -260,6 +260,8 @@ function buildResultMessage(raw, id) {
     matLnkCombinations: toNumMatrix(raw.mat_lnk_combinations),
     matLnkProbabilities: toNumMatrix(raw.mat_lnk_probabilities),
     nbCmbn: toNum(raw.nb_cmbn),
+    // nb_cmbn clamped at u64::MAX: display ~2^entropy, not the number
+    nbCmbnSaturated: raw.nb_cmbn_saturated === true,
     entropy: raw.entropy,
     efficiency: raw.efficiency,
     nbCmbnPrfctCj: toNum(raw.nb_cmbn_prfct_cj),

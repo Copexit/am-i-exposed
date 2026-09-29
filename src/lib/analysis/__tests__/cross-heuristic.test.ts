@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "fs";
+import { join } from "path";
+import type { MempoolTransaction } from "@/lib/api/types";
 import { analyzeTransaction } from "../orchestrator";
-import { makeTx, makeVin, makeVout, resetAddrCounter } from "../heuristics/__tests__/fixtures/tx-factory";
+import { makeTx, makeVin, makeVout, makeWabiSabiRound, resetAddrCounter } from "../heuristics/__tests__/fixtures/tx-factory";
 beforeEach(() => resetAddrCounter());
 
 vi.useFakeTimers();
@@ -121,32 +124,13 @@ describe("cross-heuristic intelligence", () => {
   });
 
   it("infers Wasabi wallet from WabiSabi CoinJoin", async () => {
-    // Build a WabiSabi-like tx
-    const vins = Array.from({ length: 25 }, (_, i) =>
-      makeVin({
-        txid: String(i).padStart(64, "b"),
-        prevout: {
-          scriptpubkey: "",
-          scriptpubkey_asm: "",
-          scriptpubkey_type: "v0_p2wpkh",
-          scriptpubkey_address: `bc1qwb${String(i).padStart(37, "0")}`,
-          value: 500_000,
-        },
-      }),
+    const tx = makeWabiSabiRound(
+      Array.from({ length: 25 }, (_, i) => 4_000_000 - i * 10_000),
+      [
+        ...Array(6).fill(8_388_608), ...Array(5).fill(4_782_969), ...Array(5).fill(1_062_882),
+        ...Array(4).fill(1_000_000), ...Array(5).fill(531_441), 123_457,
+      ],
     );
-    const vouts = [
-      ...Array.from({ length: 5 }, () => makeVout({ value: 100_000 })),
-      ...Array.from({ length: 4 }, () => makeVout({ value: 200_000 })),
-      ...Array.from({ length: 3 }, () => makeVout({ value: 50_001 })),
-      ...Array.from({ length: 13 }, (_, i) => makeVout({ value: 10_000 + i * 1_000 })),
-    ];
-    const tx = makeTx({
-      vin: vins,
-      vout: vouts,
-      locktime: 0, // no nLockTime signal so walletGuess is unset, allowing Wasabi inference
-      fee: 50_000,
-      weight: 5000,
-    });
 
     const resultPromise = analyzeTransaction(tx);
     await vi.advanceTimersByTimeAsync(22 * 100);
@@ -217,3 +201,35 @@ describe("cross-heuristic intelligence", () => {
     expect(cioh!.scoreImpact).toBe(-6);
   });
 });
+
+describe("fan-out findings describe one structure once", () => {
+  const fixture = (name: string) =>
+    JSON.parse(readFileSync(join(__dirname, "../heuristics/__tests__/fixtures/api-responses", `${name}.json`), "utf8")) as MempoolTransaction;
+  const ids = async (tx: MempoolTransaction) => {
+    const p = analyzeTransaction(tx);
+    await vi.runAllTimersAsync();
+    return (await p).findings.map((f) => f.id);
+  };
+
+  it("dust attack 65551b77: a dust fan-out is not an exchange withdrawal, and is penalized once", async () => {
+    const found = await ids(fixture("dust-attack-564"));
+    expect(found).toContain("dust-attack");
+    // The dust attack is the explanation of the fan-out: no generic batch finding
+    expect(found).not.toContain("consolidation-fan-out");
+    expect(found).not.toContain("exchange-withdrawal-pattern");
+    expect(found).not.toContain("entity-behavior-exchange");
+  });
+
+  it("dust attack 65551b77 stays a batch payment without the fan-out finding", async () => {
+    const p = analyzeTransaction(fixture("dust-attack-564"));
+    await vi.runAllTimersAsync();
+    expect((await p).txType).toBe("batch-payment");
+  });
+
+  it("exchange batch 3d81a6b9: the exchange finding covers the generic fan-out", async () => {
+    const found = await ids(fixture("batch-withdrawal-143"));
+    expect(found).toContain("exchange-withdrawal-pattern");
+    expect(found).not.toContain("consolidation-fan-out");
+  });
+});
+
