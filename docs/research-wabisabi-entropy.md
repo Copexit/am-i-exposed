@@ -181,11 +181,12 @@ the web worker via the `"compute-wabisabi"` message type.
 
 ### Detection
 
-WabiSabi transactions are detected by `detectWabiSabiForTurbo()` in
-`boltzmann-pool.ts`:
-- 10+ inputs AND 10+ outputs
-- 3+ denomination tiers (groups of 2+ equal outputs)
-- 10+ total equal outputs across all tiers
+WabiSabi transactions are routed here by `detectWabiSabiForTurbo()` in
+`boltzmann-detection.ts`: 10+ inputs AND 10+ outputs, and `classifyWabiSabi()`
+(`heuristics/wabisabi.ts`, the classifier behind the H4 finding) recognises
+the round: coordinator ordering and transaction fields plus mostly exact
+standard denominations (see docs/privacy-engine.md, H4). Smaller rounds use
+the exact engine.
 
 This detection runs before the JoinMarket check. WabiSabi has a higher
 MAX_SUPPORTED_TOTAL (800 vs 80) because the computation is O(T * n) with no
