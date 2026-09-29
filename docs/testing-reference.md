@@ -15,13 +15,13 @@ The hints on the home page cards and the "more examples" list must match these. 
 | Consolidation | `40b88e16...3df18` | D 37 | Home card. CIOH links 4 input addresses (1 reused); the change is peeled forward twice |
 | Address reuse | `4c18b982...c8c3c` | F 24 | Home card. Simple payment whose change returns to the input address |
 | JoinMarket CoinJoin | `6cb2433f...0ed20` | A+ 100 | |
-| Wasabi CoinJoin | `95799bd3...ee144` | A+ 100 | WabiSabi round (Kruw coordinator). Slow (about 40s), chain trace partial |
+| Wasabi CoinJoin | `95799bd3...ee144` | A+ 96-100 | WabiSabi round (Kruw coordinator). Slow (about 40s), chain trace partial, so the post-mix consolidation finding (-15) appears on some runs and not others |
 | Stonewall | `19a79be3...f2358` | A+ 99 | Heuristics alone give B 88; CoinJoin ancestry +5, compartmentalized +3 and CoinJoin in forward chain +3 lift it |
 | Post-mix spend | `8c047658...d041c` | B 81 | Whirlpool output spent alone: CoinJoin input +8, well-compartmentalized +3, CoinJoin in forward chain +3, wallet fingerprint -3 |
 | Coinbase | `6c7edc23...4b92a` | C 69 | Neutral base score |
-| Dust attack | `65551b77...dbbdc` | D 49 | 564 outputs; one input, so 0 entropy. Scanned D 46 on 2026-09-29 with the generic fan-out (-3) also scored; that finding is now dropped for dust attacks, so +3 (computed, not re-scanned; still D, C starts at 50) |
+| Dust attack | `65551b77...dbbdc` | D 49 | 564 outputs; one input, so 0 entropy; scored once as a dust attack (the generic fan-out finding is dropped) |
 | OP_RETURN data | `8bae12b5...15684` | D 47 | |
-| Batch payment | `aefda8a7...96271` | F 24 | Change returns to the input address |
+| Batch payment | `aefda8a7...96271` | F 23 | Change returns to the input address |
 | WikiLeaks address | `1HB5XMLm...iY36v` | F 0 | Address history partial by design (heavily reused address) |
 | Satoshi's address | `1A1zP1eP...DivfNa` | F 0 | |
 | OFAC sanctioned | `12QtD5BF...jH9h` | Critical | Destination check, no grade |
