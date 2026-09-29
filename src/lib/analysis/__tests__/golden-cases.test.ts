@@ -77,7 +77,7 @@ describe("golden test cases - transactions", () => {
     ["Sweep 8cbe3322", sweepTx, "C", 59],
     ["Consolidation 40b88e16", consolidationTx, "C", 51],
     ["Address reuse 4c18b982", reuseTx, "F", 24],
-    ["Dust attack 65551b77 (1 in, 564 out)", dust564Tx, "C", 50],
+    ["Dust attack 65551b77 (1 in, 564 out)", dust564Tx, "C", 53],
     ["Batch payment aefda8a7", batchPaymentTx, "F", 24],
     ["Coinbase 6c7edc23", coinbaseTx, "C", 70],
     ["WabiSabi 95799bd3", wabisabiLargeTx, "A+", 100],

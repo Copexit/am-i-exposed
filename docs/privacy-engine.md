@@ -1213,7 +1213,7 @@ Receiving funds from an identifiable exchange batch withdrawal links the recipie
 
 **Scoring impact:** -3
 
-The exchange reading replaces the generic `consolidation-fan-out` ("Batch payment pattern", -3) on the same transaction, so one 1-input fan-out is penalized once. When the fan-out is a dust attack (`dust-attack`: most outputs are dust), the exchange readings (`exchange-withdrawal-pattern`, `entity-behavior-exchange`) are dropped instead, since exchanges do not pay hundreds of dust outputs (dust tx `65551b77...`, 1 input to 563 x 547 sats).
+One fan-out gets one finding. The generic `consolidation-fan-out` ("Batch payment pattern", -3) needs exactly 1 input; `exchange-withdrawal-pattern` accepts 1-2 inputs. The exchange reading replaces the generic fan-out on the same transaction. When the fan-out is a dust attack (`dust-attack`: most outputs are dust sent to others), the dust attack is the explanation: the exchange readings (`exchange-withdrawal-pattern`, `entity-behavior-exchange`, exchanges do not pay hundreds of dust outputs) and the generic `consolidation-fan-out` are all dropped, and only `dust-attack` (-8) is scored (dust tx `65551b77...`, 1 input to 563 x 547 sats). Such a batch dust attack keeps the `batch-payment` tx type.
 
 **Remediation:** When withdrawing from exchanges, use intermediate wallets or CoinJoin before moving funds to long-term storage. Consider using non-KYC acquisition methods.
 

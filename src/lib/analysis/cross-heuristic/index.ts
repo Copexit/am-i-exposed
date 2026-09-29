@@ -76,10 +76,13 @@ function applyConsolidationDedup(findings: Finding[], isCoinJoin: boolean): void
     if (idx !== -1) findings.splice(idx, 1);
   }
 
-  // One 1-input fan-out, one finding. A batch that is mostly dust is a dust
-  // attack, not an exchange withdrawal (exchanges do not pay hundreds of dust
-  // outputs), so the behavioral exchange readings go. Otherwise the exchange
-  // finding is the specific reading of the fan-out and replaces the generic one.
+  // One fan-out, one finding. consolidation-fan-out (generic "batch payment")
+  // needs exactly 1 input; exchange-withdrawal-pattern accepts 1-2 inputs.
+  // A dust attack (most outputs are dust sent to others) is the explanation of
+  // the fan-out: exchanges do not pay hundreds of dust outputs, so the exchange
+  // readings and the generic fan-out all go and only the dust attack is scored.
+  // Otherwise the exchange reading is the specific explanation and replaces
+  // the generic fan-out.
   const drop = (id: FindingId) => {
     const idx = findings.findIndex((f) => f.id === id);
     if (idx !== -1) findings.splice(idx, 1);
@@ -87,6 +90,7 @@ function applyConsolidationDedup(findings: Finding[], isCoinJoin: boolean): void
   if (findings.some((f) => f.id === "dust-attack")) {
     drop("exchange-withdrawal-pattern");
     drop("entity-behavior-exchange");
+    drop("consolidation-fan-out");
   } else if (findings.some((f) => f.id === "exchange-withdrawal-pattern")) {
     drop("consolidation-fan-out");
   }
@@ -169,6 +173,11 @@ export function classifyTransactionType(findings: Finding[]): TxType {
   if (has("consolidation-fan-in")) return "consolidation";
   if (has("exchange-withdrawal-pattern")) return "exchange-withdrawal";
   if (has("consolidation-fan-out")) return "batch-payment";
+  // A batch dust attack (5+ dust outputs) replaces the fan-out finding (see
+  // applyConsolidationDedup) but is still a batch of payments
+  if (findings.some((f) => f.id === "dust-attack" && f.scoreImpact !== 0 && String(f.params?.dustIndices ?? "").split(",").length >= 5)) {
+    return "batch-payment";
+  }
   if (has("peel-chain")) return "peel-chain";
 
   return "simple-payment";

@@ -214,9 +214,16 @@ describe("fan-out findings describe one structure once", () => {
   it("dust attack 65551b77: a dust fan-out is not an exchange withdrawal, and is penalized once", async () => {
     const found = await ids(fixture("dust-attack-564"));
     expect(found).toContain("dust-attack");
-    expect(found).toContain("consolidation-fan-out");
+    // The dust attack is the explanation of the fan-out: no generic batch finding
+    expect(found).not.toContain("consolidation-fan-out");
     expect(found).not.toContain("exchange-withdrawal-pattern");
     expect(found).not.toContain("entity-behavior-exchange");
+  });
+
+  it("dust attack 65551b77 stays a batch payment without the fan-out finding", async () => {
+    const p = analyzeTransaction(fixture("dust-attack-564"));
+    await vi.runAllTimersAsync();
+    expect((await p).txType).toBe("batch-payment");
   });
 
   it("exchange batch 3d81a6b9: the exchange finding covers the generic fan-out", async () => {

@@ -19,7 +19,7 @@ The hints on the home page cards and the "more examples" list must match these. 
 | Stonewall | `19a79be3...f2358` | A+ 99 | Heuristics alone give B 88; CoinJoin ancestry +5, compartmentalized +3 and CoinJoin in forward chain +3 lift it |
 | Post-mix spend | `8c047658...d041c` | B 81 | Whirlpool output spent alone: CoinJoin input +8, well-compartmentalized +3, CoinJoin in forward chain +3, wallet fingerprint -3 |
 | Coinbase | `6c7edc23...4b92a` | C 69 | Neutral base score |
-| Dust attack | `65551b77...dbbdc` | D 46 | 564 outputs; one input, so 0 entropy |
+| Dust attack | `65551b77...dbbdc` | D 49 | 564 outputs; one input, so 0 entropy. Scanned D 46 on 2026-09-29 with the generic fan-out (-3) also scored; that finding is now dropped for dust attacks, so +3 (computed, not re-scanned; still D, C starts at 50) |
 | OP_RETURN data | `8bae12b5...15684` | D 47 | |
 | Batch payment | `aefda8a7...96271` | F 24 | Change returns to the input address |
 | WikiLeaks address | `1HB5XMLm...iY36v` | F 0 | Address history partial by design (heavily reused address) |
@@ -131,7 +131,7 @@ Values are asserted by `src/lib/analysis/__tests__/golden-cases.test.ts` (heuris
 | Sweep 8cbe3322 | tx | 70 | C | 59 | behavioral-fingerprint-rollup (-6), h11-wallet-fingerprint (-3), h6-round-fee-rate (-2) |
 | Consolidation 40b88e16 | tx | 70 | C | 51 | h3-cioh (-12, 1 reused address), h11-wallet-fingerprint (-5), consolidation-fan-in (-2) |
 | Address reuse 4c18b982 | tx | 70 | F | 24 | h2-same-address-io (-20), compound-deterministic-cap (-14), h1-round-amount (-8), h5-low-entropy (-3), h11-wallet-fingerprint (-3), script-uniform (+2) |
-| Dust attack 65551b77 (1 in, 564 out) | tx | 70 | C | 50 | dust-attack (-8), h5-low-entropy (-3), script-mixed (-3), h11-wallet-fingerprint (-3), consolidation-fan-out (-3) |
+| Dust attack 65551b77 (1 in, 564 out) | tx | 70 | C | 53 | dust-attack (-8), h5-low-entropy (-3), script-mixed (-3), h11-wallet-fingerprint (-3) |
 | Batch payment aefda8a7 | tx | 70 | F | 24 | h2-same-address-io (-20), compound-deterministic-cap (-6), behavioral-fingerprint-rollup (-6), h5-low-entropy (-3), script-mixed (-3), h11-wallet-fingerprint (-3), consolidation-fan-out (-3), h6-round-fee-rate (-2) |
 | Coinbase 6c7edc23 | tx | 70 | C | 70 | coinbase-transaction (0) |
 | WabiSabi 95799bd3 | tx | 70 | A+ | 100 | h4-coinjoin (+25, WabiSabi), h5-entropy (+15), anon-set-strong (+5) |
