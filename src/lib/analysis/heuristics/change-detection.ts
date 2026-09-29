@@ -158,6 +158,8 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
       }
 
       const isConsolidation = allMatch && spendableOutputs.length === 1;
+      // Wording only: a 1-input self-send is not a consolidation
+      const selfSendVariant = !allMatch ? undefined : isConsolidation ? (tx.vin.length >= 2 ? "consolidation" : "single") : "all";
       const impact = isConsolidation ? -15 : allMatch ? -25 : -20;
       const severity = isConsolidation ? "high" as const : "critical" as const;
       const findingId = !allMatch ? "h2-same-address-io" : "h2-self-send";
@@ -166,8 +168,10 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
         id: findingId,
         severity,
         confidence: "deterministic",
-        title: isConsolidation
+        title: selfSendVariant === "consolidation"
           ? "Self-transfer to input address (consolidation)"
+          : selfSendVariant === "single"
+            ? "Output sent back to the input address"
           : allMatch
             ? "All outputs return to input address"
             : `Same address in input and output - change revealed (${matchCount} of ${totalSpendable} outputs)`,
@@ -176,10 +180,14 @@ export const analyzeChangeDetection: TxHeuristic = (tx, _rawHex?, ctx?) => {
           totalSpendable,
           allMatch: allMatch ? 1 : 0,
           selfSendIndices: selfSendIndices.join(","),
+          ...(selfSendVariant ? { _variant: selfSendVariant } : {}),
         },
-        description: isConsolidation
+        description: selfSendVariant === "consolidation"
           ? "This consolidation sends funds back to an address that was also an input. " +
             "Combined with multiple inputs, this links all input UTXOs together and confirms address ownership."
+          : selfSendVariant === "single"
+            ? "The only spendable output goes back to the address that was spent. " +
+              "The new coin inherits that address's full history, and the address is confirmed as reused by its owner."
           : allMatch
             ? "Every spendable output in this transaction goes back to an address that was also an input. " +
               "This creates a trivial on-chain link between all inputs and outputs. " +
