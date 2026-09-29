@@ -531,13 +531,15 @@ fn build_f64_result(
     }
 
     let entropy = if nb_cmbn_f64 > 1.0 { nb_cmbn_f64.log2() } else { 0.0 };
-    let nb_cmbn_u64 = if nb_cmbn_f64 > u64::MAX as f64 { u64::MAX } else { nb_cmbn_f64.round() as u64 };
+    let nb_cmbn_saturated = nb_cmbn_f64 >= u64::MAX as f64;
+    let nb_cmbn_u64 = if nb_cmbn_saturated { u64::MAX } else { nb_cmbn_f64.round() as u64 };
     let elapsed_ms = (crate::time::now_ms() - start) as u32;
 
     BoltzmannResult {
         mat_lnk_combinations: mat_comb,
         mat_lnk_probabilities: mat_prob,
         nb_cmbn: nb_cmbn_u64,
+        nb_cmbn_saturated,
         entropy,
         efficiency: 0.0,
         nb_cmbn_prfct_cj: 0,

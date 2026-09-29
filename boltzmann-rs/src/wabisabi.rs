@@ -109,7 +109,8 @@ pub fn analyze_wabisabi(
         .filter(|t| t.effective_n >= 2)
         .map(|t| boltzmann_equal_outputs_f64(t.effective_n))
         .product();
-    let nb_cmbn_u64 = if nb_cmbn_f64 > u64::MAX as f64 {
+    let nb_cmbn_saturated = nb_cmbn_f64 >= u64::MAX as f64;
+    let nb_cmbn_u64 = if nb_cmbn_saturated {
         u64::MAX
     } else if nb_cmbn_f64 >= 1.0 {
         nb_cmbn_f64.round() as u64
@@ -123,6 +124,7 @@ pub fn analyze_wabisabi(
         mat_lnk_combinations: mat_comb,
         mat_lnk_probabilities: mat_prob,
         nb_cmbn: nb_cmbn_u64,
+        nb_cmbn_saturated,
         entropy: total_entropy,
         efficiency: 0.0, // Not meaningful for WabiSabi (no single "perfect CJ" reference)
         nb_cmbn_prfct_cj: 0,
@@ -245,6 +247,7 @@ fn degenerate_result(n_in: usize, n_out: usize, fees: i64, start: f64) -> Boltzm
         mat_lnk_combinations: vec![vec![1u64; n_in]; n_out],
         mat_lnk_probabilities: vec![vec![1.0f64; n_in]; n_out],
         nb_cmbn: 1,
+        nb_cmbn_saturated: false,
         entropy: 0.0,
         efficiency: 0.0,
         nb_cmbn_prfct_cj: 0,

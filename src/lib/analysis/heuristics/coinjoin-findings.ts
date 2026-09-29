@@ -72,7 +72,7 @@ export function buildWabiSabiMultiTierFinding(
     severity: "good",
     confidence: "high",
     title: `WabiSabi CoinJoin: ${groupCount} denomination tiers, ${totalEqual} equal outputs across ${voutCount} total`,
-    params: { groups: groupCount, totalEqual, vout: voutCount, vin: vinCount, isWabiSabi: 1 },
+    params: { groups: groupCount, totalEqual, vout: voutCount, vin: vinCount, isWabiSabi: 1, _variant: "wabisabi_tiers" },
     description:
       `This transaction has ${vinCount} inputs and ${voutCount} outputs with ${groupCount} groups of equal-value outputs, ` +
       "consistent with a WabiSabi (Wasabi Wallet 2.0) CoinJoin using multiple denomination tiers. " +
@@ -168,7 +168,7 @@ export function buildGenericCoinJoinFinding(
 ): Finding {
   const impact = count >= 10 ? 25 : count >= 5 ? 20 : 15;
   const label = isActualWabiSabi
-    ? `WabiSabi CoinJoin: ${count} equal outputs across ${total} total`
+    ? `WabiSabi CoinJoin: ${count} equal outputs of ${formatBtc(denomination)} among ${total}`
     : `Likely CoinJoin: ${count} equal outputs of ${formatBtc(denomination)}`;
 
   return {
@@ -176,12 +176,20 @@ export function buildGenericCoinJoinFinding(
     severity: "good",
     confidence: "high",
     title: label,
-    params: { count, denomination: formatBtc(denomination), total, vin: vinCount, isWabiSabi: isActualWabiSabi ? 1 : 0 },
+    params: {
+      count,
+      denomination: formatBtc(denomination),
+      total,
+      vin: vinCount,
+      isWabiSabi: isActualWabiSabi ? 1 : 0,
+      ...(isActualWabiSabi ? { _variant: "wabisabi" } : {}),
+    },
     description:
       (isActualWabiSabi
         ? `This transaction has ${vinCount} inputs and ${total} outputs, consistent with a WabiSabi (Wasabi Wallet 2.0) CoinJoin. `
         : "") +
-      `${count} of ${total} outputs have the same value (${formatBtc(denomination)}). ` +
+      `${count} of ${total} outputs have the same value (${formatBtc(denomination)})` +
+      (isActualWabiSabi ? ", the largest equal-value group among several denomination tiers. " : ". ") +
       "This pattern is characteristic of collaborative CoinJoin transactions that break the " +
       "link between inputs and outputs, significantly improving privacy.",
     recommendation:
@@ -224,6 +232,8 @@ export function buildStonewallFinding(
       denomination: formatBtc(stonewall.denomination),
       distinctAddresses: stonewall.distinctInputAddresses,
       whirlpoolOrigin: stonewall.whirlpoolOrigin ? 1 : 0,
+      vin: vinCount,
+      ...(stonewall.whirlpoolOrigin ? { _variant: "whirlpool" } : {}),
     },
     description:
       `This transaction matches the Stonewall pattern: ${vinCount} inputs from ${stonewall.distinctInputAddresses} distinct address${stonewall.distinctInputAddresses > 1 ? "es" : ""}, ` +

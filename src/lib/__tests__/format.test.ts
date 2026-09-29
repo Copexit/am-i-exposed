@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { formatSats, formatTimeAgo } from "../format";
+import { formatSats, formatTimeAgo, fmtInterpretations } from "../format";
 
 describe("formatSats", () => {
   it("formats basic amounts", () => {
@@ -83,5 +83,19 @@ describe("formatTimeAgo", () => {
       const result = formatTimeAgo(NOW - offset, "en");
       expect(result.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("fmtInterpretations", () => {
+  it("prints an exact count as is", () => {
+    expect(fmtInterpretations(1496, 10.55)).toBe("1,496");
+  });
+
+  it("shows a u64-saturated count as ~2^bits, never as the clamped number", () => {
+    expect(fmtInterpretations(18446744073709552000, 1797.88, true)).toBe("~2^1798");
+  });
+
+  it("treats a count past 2^53 as approximate even without the flag", () => {
+    expect(fmtInterpretations(2 ** 60, 60)).toBe("~2^60");
   });
 });

@@ -102,6 +102,19 @@ export const analyzeCioh: TxHeuristic = (tx) => {
   }
 
   const count = uniqueInputAddresses.size;
+  // Addresses funding 2+ inputs received in separate transactions prove
+  // address reuse on-chain. Reported, not scored: CIOH already links those
+  // inputs, so the reuse adds no link inside this transaction.
+  const parentsByAddress = new Map<string, Set<string>>();
+  for (const vin of tx.vin) {
+    const addr = vin.prevout?.scriptpubkey_address;
+    if (vin.is_coinbase || !addr) continue;
+    const parents = parentsByAddress.get(addr) ?? new Set<string>();
+    parents.add(vin.txid);
+    parentsByAddress.set(addr, parents);
+  }
+  const reusedCount = [...parentsByAddress.values()].filter((p) => p.size >= 2).length;
+
   // Tiered scaling: larger consolidations are worse for privacy
   let impact: number;
   if (count >= 50) impact = 45;
@@ -116,12 +129,16 @@ export const analyzeCioh: TxHeuristic = (tx) => {
         id: "h3-cioh",
         severity: impact >= 25 ? "critical" : impact >= 12 ? "high" : "medium",
         confidence: "high",
-        title: `${count} input addresses clustered via CIOH`,
-        params: { count },
+        title: `${count} input addresses clustered via CIOH` + (reusedCount > 0 ? ` (${reusedCount} reused)` : ""),
+        params: { count, ...(reusedCount > 0 ? { reusedCount, _variant: "reuse" } : {}) },
         description:
           `This transaction combines inputs from ${count} different addresses. ` +
           `Chain analysis firms will assume these ${count} addresses belong to the same entity. ` +
-          `This assumption is probabilistic but widely applied in commercial chain surveillance.`,
+          `This assumption is probabilistic but widely applied in commercial chain surveillance.` +
+          (reusedCount > 0
+            ? ` ${reusedCount} of these addresses fund several inputs received in separate transactions, ` +
+              "which proves address reuse on-chain: every payment to that address is linked as well."
+            : ""),
         recommendation:
           "Use coin control to avoid combining UTXOs from different addresses. If consolidation is necessary, use CoinJoin first to break the link between source addresses.",
         scoreImpact: -impact,

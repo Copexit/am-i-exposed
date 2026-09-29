@@ -454,6 +454,7 @@ pub fn dfs_finalize() -> JsValue {
                         mat_lnk_combinations: vec![],
                         mat_lnk_probabilities: vec![],
                         nb_cmbn: 0,
+                        nb_cmbn_saturated: false,
                         entropy: 0.0,
                         efficiency: 0.0,
                         nb_cmbn_prfct_cj: 0,

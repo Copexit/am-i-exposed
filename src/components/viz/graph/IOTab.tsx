@@ -9,6 +9,7 @@ import { InputRow, OutputRow } from "./OutputRow";
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import { isOpReturnOutput } from "@/lib/analysis/heuristics/tx-utils";
+import { fmtInterpretations } from "@/lib/format";
 import { graphBoltzmannMode } from "@/hooks/useGraphBoltzmann";
 
 export interface IOTabProps {
@@ -147,7 +148,7 @@ export function IOTab({
             </span>
           )}
           <span className="text-xs px-1.5 py-0.5 rounded bg-foreground/10 text-muted">
-            {boltzmannResult.nbCmbn.toLocaleString("en-US")} {t("graph.ioTab.interpretations", { defaultValue: "interpretations" })}
+            {fmtInterpretations(boltzmannResult.nbCmbn, boltzmannResult.entropy, boltzmannResult.nbCmbnSaturated)} {t("graph.ioTab.interpretations", { defaultValue: "interpretations" })}
           </span>
         </div>
       )}

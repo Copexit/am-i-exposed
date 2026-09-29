@@ -185,6 +185,7 @@ export function createMcpServer(): McpServer {
         entropy: result.entropy,
         efficiency: result.efficiency,
         nbCombinations: result.nbCmbn,
+        nbCombinationsSaturated: result.nbCmbnSaturated === true,
         deterministicLinks: result.deterministicLinks,
         modelLinks: result.modelLinks ?? [],
         method: result.method,

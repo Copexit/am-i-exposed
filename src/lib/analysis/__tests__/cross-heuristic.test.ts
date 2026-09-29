@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "fs";
+import { join } from "path";
+import type { MempoolTransaction } from "@/lib/api/types";
 import { analyzeTransaction } from "../orchestrator";
 import { makeTx, makeVin, makeVout, resetAddrCounter } from "../heuristics/__tests__/fixtures/tx-factory";
 beforeEach(() => resetAddrCounter());
@@ -217,3 +220,28 @@ describe("cross-heuristic intelligence", () => {
     expect(cioh!.scoreImpact).toBe(-6);
   });
 });
+
+describe("fan-out findings describe one structure once", () => {
+  const fixture = (name: string) =>
+    JSON.parse(readFileSync(join(__dirname, "../heuristics/__tests__/fixtures/api-responses", `${name}.json`), "utf8")) as MempoolTransaction;
+  const ids = async (tx: MempoolTransaction) => {
+    const p = analyzeTransaction(tx);
+    await vi.runAllTimersAsync();
+    return (await p).findings.map((f) => f.id);
+  };
+
+  it("dust attack 65551b77: a dust fan-out is not an exchange withdrawal, and is penalized once", async () => {
+    const found = await ids(fixture("dust-attack-564"));
+    expect(found).toContain("dust-attack");
+    expect(found).toContain("consolidation-fan-out");
+    expect(found).not.toContain("exchange-withdrawal-pattern");
+    expect(found).not.toContain("entity-behavior-exchange");
+  });
+
+  it("exchange batch 3d81a6b9: the exchange finding covers the generic fan-out", async () => {
+    const found = await ids(fixture("batch-withdrawal-143"));
+    expect(found).toContain("exchange-withdrawal-pattern");
+    expect(found).not.toContain("consolidation-fan-out");
+  });
+});
+

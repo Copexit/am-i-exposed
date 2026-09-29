@@ -183,4 +183,42 @@ describe("analyzeEntropy - UTXOs sharing an address are one party (Boltzmann MER
     expect(findings[0]!.scoreImpact).toBe(0);
     expect(findings[0]!.params?._variant).toBe("merged");
   });
+
+  it("65551b77 (1 input, 563 equal dust outputs) has zero entropy, no positive credit", () => {
+    const tx = JSON.parse(readFileSync(
+      join(__dirname, "fixtures/api-responses/dust-attack-564.json"),
+      "utf-8",
+    )) as MempoolTransaction;
+    const { findings } = analyzeEntropy(tx);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.id).toBe("h5-low-entropy");
+    expect(findings[0]!.params?.entropy).toBe(0);
+    expect(findings[0]!.scoreImpact).toBeLessThanOrEqual(0);
+  });
+
+  it("1-in-N-out with equal outputs has zero entropy (every output is linked to the one input)", () => {
+    for (const n of [2, 3, 12]) {
+      const tx = makeTx({
+        vin: [makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qsrc", value: 10_000_000 } })],
+        vout: Array.from({ length: n }, () => makeVout({ value: 100_000 })),
+      });
+      const [f] = analyzeEntropy(tx).findings;
+      expect(f!.id).toBe("h5-low-entropy");
+      expect(f!.params?.entropy).toBe(0);
+    }
+  });
+
+  it("single-denomination path is bounded by the input count", () => {
+    // 2 inputs, 12 equal outputs + 1 change: at most 2 parties, not 12.
+    // Same partial-coverage bound as the all-equal path: B(2) * C(12, 2) = 3 * 66
+    const tx = makeTx({
+      vin: [
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qa", value: 1_000_000 } }),
+        makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qb", value: 1_000_000 } }),
+      ],
+      vout: [...Array.from({ length: 12 }, () => makeVout({ value: 100_000 })), makeVout({ value: 777_000 })],
+    });
+    const [f] = analyzeEntropy(tx).findings;
+    expect(Number(f!.params?.entropy)).toBeCloseTo(Math.log2(3 * 66), 2);
+  });
 });

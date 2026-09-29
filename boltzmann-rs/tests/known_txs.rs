@@ -1158,3 +1158,29 @@ fn test_timed_out_result_claims_no_deterministic_links() {
     assert!(result.timed_out, "10x10 perfect CoinJoin cannot finish in 1ms");
     assert!(result.deterministic_links.is_empty(), "timed out, yet claimed {:?}", result.deterministic_links);
 }
+
+// 30-party JM: the interpretation count exceeds u64, so nb_cmbn is clamped
+// and must be flagged as saturated (a floor, not a count).
+#[test]
+fn test_jm_turbo_30party_saturates_u64() {
+    let mut inputs: Vec<i64> = (0..29).map(|k| 2_000_000 + k * 100_000).collect();
+    inputs.push(1_015_000);
+    let mut outputs: Vec<i64> = vec![1_000_000; 30];
+    outputs.extend((0..29).map(|k| 2_000_000 + k * 100_000 - 1_001_000));
+    let fee: i64 = inputs.iter().sum::<i64>() - outputs.iter().sum::<i64>();
+
+    let turbo = analyze_joinmarket(&inputs, &outputs, fee, 1_000_000, 0.0, 5_000);
+    assert!(turbo.entropy > 64.0, "30 equal outputs: entropy {} should exceed 64 bits", turbo.entropy);
+    assert!(turbo.nb_cmbn_saturated, "count above u64 must be flagged as saturated");
+    assert_eq!(turbo.nb_cmbn, u64::MAX);
+
+    let small = analyze_joinmarket(
+        &[10_000_000, 7_500_000, 5_000_000, 4_000_000, 3_000_000, 2_500_000, 2_000_000, 1_500_000, 1_200_000, 1_015_000],
+        &[
+            1_000_000, 1_000_000, 1_000_000, 1_000_000, 1_000_000, 1_000_000, 1_000_000, 1_000_000, 1_000_000, 1_000_000,
+            8_999_000, 6_499_000, 3_999_000, 2_999_000, 1_999_000, 1_499_000, 999_000, 499_000, 199_000,
+        ],
+        24_000, 1_000_000, 0.0, 5_000,
+    );
+    assert!(!small.nb_cmbn_saturated, "an exact u64 count is not saturated");
+}

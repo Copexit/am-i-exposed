@@ -15,6 +15,7 @@ import {
   type BoltzmannResult,
 } from "../adapters/boltzmann-node";
 import { analyzeCoinJoin } from "@/lib/analysis/heuristics/coinjoin";
+import { fmtInterpretations } from "@/lib/format";
 import { DEFAULT_ANALYSIS_SETTINGS } from "@/lib/analysis/settings";
 import type { MempoolTransaction } from "@/lib/api/types";
 
@@ -57,6 +58,7 @@ export async function boltzmann(
         entropy: result.entropy,
         efficiency: result.efficiency,
         nbCombinations: result.nbCmbn,
+        nbCombinationsSaturated: result.nbCmbnSaturated === true,
         nbCombinationsPerfectCj: result.nbCmbnPrfctCj,
         deterministicLinks: result.deterministicLinks,
         modelLinks: result.modelLinks ?? [],
@@ -107,7 +109,7 @@ function formatBoltzmannResult(
     `${bold("Efficiency:")}    ${(result.efficiency * 100).toFixed(1)}%`,
   );
   lines.push(
-    `${bold("Combinations:")}  ${result.nbCmbn.toLocaleString("en-US")}`,
+    `${bold("Combinations:")}  ${fmtInterpretations(result.nbCmbn, result.entropy, result.nbCmbnSaturated)}`,
   );
   lines.push(
     `${bold("Det. links:")}    ${result.deterministicLinks.length === 0 ? "None (all probabilistic)" : result.deterministicLinks.length}`,

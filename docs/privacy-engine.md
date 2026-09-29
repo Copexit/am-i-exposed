@@ -192,6 +192,7 @@ CIOH alone enables the majority of address clustering. A single multi-input tran
 - 20-49 unique input addresses: -35
 - 50+ unique input addresses: -45
 - Exception: CoinJoin pattern detected (H4): 0 (suppressed)
+- Reuse among inputs: when one of the clustered addresses funds 2+ inputs received in separate transactions (consolidation `40b88e16...` spends two UTXOs of `18m5f3qt...`), `h3-cioh` reports it (`reusedCount`, "N reused" in the title). It is not scored separately: CIOH already links those inputs, so the reuse adds no link inside the transaction. When every input comes from one address, `h3-input-reuse` applies instead (-20, or -30 for 5+ receives).
 
 **References**
 - Nakamoto, "Bitcoin: A Peer-to-Peer Electronic Cash System" (2008), Section 10 - "Some linking is still unavoidable with multi-input transactions, which necessarily reveal that their inputs were owned by the same owner."
@@ -287,7 +288,11 @@ Full Boltzmann analysis, as defined by LaurentMT, counts all valid input-to-outp
 
 **Address merging (Boltzmann MERGE_INPUTS / MERGE_OUTPUTS):** before counting, inputs that share an address are merged into one input (values summed), and likewise for outputs, as LaurentMT's Boltzmann tool does with its merge options. Coins controlled by one address belong to one party, so counting them as separate parties would invent interpretations. A single-address self-transfer such as `ebe3d1ad...` (2 inputs and 11 outputs, all on one address) is therefore 1-in-1-out with 0 bits, not 15. The merged counts drive every path below and the reported UTXO count.
 
+The WASM result carries `nb_cmbn` as a u64. The tier-decomposed WabiSabi and JoinMarket model counts are computed in f64 and exceed u64 for large rounds; the count is then clamped to u64::MAX and flagged `nb_cmbn_saturated`, and every display (heat map, graph, entropy finding, CLI) shows it as ~2^entropy instead of the clamped number. Any count past 2^53 is shown the same way, since it is not exact as a JavaScript number.
+
 The WASM Boltzmann link probability matrix is not merged: its rows and columns must map one-to-one to the transaction's inputs and outputs for the heat map, the graph and auto-trace. When the WASM result covers a different number of UTXOs than the merged H5 computation, it does not replace the H5 finding, so the score keeps the merged value while the heat map still shows per-UTXO links.
+
+**Single input:** when the transaction has one input (after address merging), every output is funded by that input, so there is exactly one interpretation and entropy is 0 bits, whatever the output values. Equal-value outputs on a 1-input transaction (a dust fan-out, a payout batch) are not a CoinJoin and earn no entropy credit: 1-in-1-out gets `h5-zero-entropy` (0), 1-in-N-out gets `h5-low-entropy` (-3, method "single input").
 
 A two-path approach is used:
 
@@ -334,7 +339,7 @@ For partition [2,1,1,1] (one part of 2, three parts of 1): N_term = 5!^2 / (2!^2
 
 For transactions with mixed output values (<= 8x8), the engine enumerates which input funds which output. A mapping is valid if each input can cover the sum of outputs assigned to it. This is a lower bound of the true Boltzmann count but is reasonable for non-CoinJoin transactions.
 
-For large mixed-value transactions (> 8x8), structural estimation is used based on the largest group of equal outputs, applying the Boltzmann partition formula to that group.
+For large mixed-value transactions (> 8x8), structural estimation is used based on the largest group of equal outputs, applying the Boltzmann partition formula to that group. The group size is bounded by the number of inputs (at most one party per input): with k inputs and n > k equal outputs the same partial-coverage bound as Path A applies, log2(B(k) * C(n, k)).
 
 **Incomplete data:** if any non-coinbase input is missing its prevout (e.g. a self-hosted backend that could not enrich it), H5 emits nothing rather than computing on a partial input set, which would misreport the structure (a 2-in-1-out consolidation would look like a 1-in-1-out sweep). Transactions with no valued outputs (OP_RETURN-only burns) are also skipped.
 
@@ -971,6 +976,8 @@ Peel chains are one of the simplest and most effective tracing patterns. An adve
 
 **Remediation:** Break the chain pattern by using CoinJoin between payments, varying transaction structure, using multi-output batch payments, or changing coin selection strategies.
 
+**Forward peel chain (`chain-forward-peel`, chain analysis, -5):** fires when an output of the analyzed transaction starts a peel chain of at least 2 consecutive hops found in the forward trace: the spending tx is a peel hop (1 input, 2 spendable outputs, smaller < 30% of the larger) and its larger output (the change) is the single input of another peel hop. A single downstream 1-in-2-out payment is ordinary spending and does not fire (e.g. sweep `8cbe3322...` and batch `aefda8a7...`); consolidation `40b88e16...` does, because its output is peeled by `3c32cc3c...` whose change is peeled again by `3a87bb2f...`. Suppressed when the analyzed transaction is a CoinJoin.
+
 **References**
 - Meiklejohn et al., "A Fistful of Bitcoins: Characterizing Payments Among Men with No Names" (2013) - identifies peel chain patterns
 - Kappos et al., "How to Peel a Million: Validating and Expanding Bitcoin Clusters"
@@ -1190,6 +1197,8 @@ Receiving funds from an identifiable exchange batch withdrawal links the recipie
 
 **Scoring impact:** -3
 
+The exchange reading replaces the generic `consolidation-fan-out` ("Batch payment pattern", -3) on the same transaction, so one 1-input fan-out is penalized once. When the fan-out is a dust attack (`dust-attack`: most outputs are dust), the exchange readings (`exchange-withdrawal-pattern`, `entity-behavior-exchange`) are dropped instead, since exchanges do not pay hundreds of dust outputs (dust tx `65551b77...`, 1 input to 563 x 547 sats).
+
 **Remediation:** When withdrawing from exchanges, use intermediate wallets or CoinJoin before moving funds to long-term storage. Consider using non-KYC acquisition methods.
 
 ---
@@ -1200,10 +1209,10 @@ Receiving funds from an identifiable exchange batch withdrawal links the recipie
 
 Detects three coin selection sub-patterns that reveal wallet software behavior:
 
-**Branch-and-Bound (BnB):** Multiple inputs with a single output and no change. This indicates the wallet found an exact combination of UTXOs to cover the payment, eliminating the change output entirely.
+**Branch-and-Bound (BnB):** Two inputs with a single output to a new address and no change. This indicates the wallet found an exact combination of UTXOs to cover the payment, eliminating the change output entirely. Consolidations are changeless by nature, so they earn no credit: 3+ inputs to 1 output is a consolidation (`consolidation-fan-in`), an output back to an input address is a self-send (`h2-self-send`), and a 1-in-1-out sweep never qualifies.
 
 ```
-if len(tx.inputs) >= 2 and len(spendable_outputs) == 1:
+if len(tx.inputs) == 2 and len(spendable_outputs) == 1 and output.address not in input_addresses:
   flag as changeless transaction (BnB or manual coin selection)
   impact: +3 (good - no change output to trace)
 ```

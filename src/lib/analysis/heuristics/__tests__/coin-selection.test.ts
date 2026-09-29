@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { readFileSync } from "fs";
+import { join } from "path";
+import type { MempoolTransaction } from "@/lib/api/types";
 import { analyzeCoinSelection } from "../coin-selection";
 import { makeTx, makeVin, makeVout, resetAddrCounter } from "./fixtures/tx-factory";
 
@@ -43,8 +46,8 @@ describe("analyzeCoinSelection", () => {
     });
 
     const { findings } = analyzeCoinSelection(tx);
-    // Should detect both BnB and ascending
-    expect(findings.find((f) => f.id === "h-coin-selection-bnb")).toBeDefined();
+    // Ascending order; 3 inputs to 1 output is a consolidation, not BnB
+    expect(findings.find((f) => f.id === "h-coin-selection-bnb")).toBeUndefined();
     expect(findings.find((f) => f.id === "h-coin-selection-value-asc")).toBeDefined();
   });
 
@@ -85,5 +88,26 @@ describe("analyzeCoinSelection", () => {
 
     const { findings } = analyzeCoinSelection(tx);
     expect(findings).toHaveLength(0);
+  });
+
+  it("does not credit consolidation 40b88e16 (5 in, 1 out) as Branch-and-Bound", () => {
+    const tx = JSON.parse(readFileSync(join(__dirname, "fixtures/api-responses/consolidation-5in1out.json"), "utf8")) as MempoolTransaction;
+    expect(analyzeCoinSelection(tx).findings.find((f) => f.id === "h-coin-selection-bnb")).toBeUndefined();
+  });
+
+  it("does not credit any 3+-input consolidation as Branch-and-Bound", () => {
+    const tx = makeTx({ vin: [makeVin(), makeVin(), makeVin()], vout: [makeVout({ value: 250_000 })] });
+    expect(analyzeCoinSelection(tx).findings.find((f) => f.id === "h-coin-selection-bnb")).toBeUndefined();
+  });
+
+  it("does not credit a 2-input self-send (output back to an input address)", () => {
+    const tx = makeTx({
+      vin: [
+        makeVin({ prevout: { scriptpubkey: "0014aaa", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qa", value: 50_000 } }),
+        makeVin({ prevout: { scriptpubkey: "0014bbb", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qb", value: 48_500 } }),
+      ],
+      vout: [makeVout({ value: 97_000, scriptpubkey_address: "bc1qa" })],
+    });
+    expect(analyzeCoinSelection(tx).findings.find((f) => f.id === "h-coin-selection-bnb")).toBeUndefined();
   });
 });

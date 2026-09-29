@@ -18,7 +18,7 @@ import type { LayoutNode, LayoutEdge, GraphNode, TooltipData } from "./types";
 import type { MempoolOutspend } from "@/lib/api/types";
 import type { ScoringResult } from "@/lib/types";
 import type { useChartTooltip } from "../shared/ChartTooltip";
-import { isOpReturnOutput } from "@/lib/analysis/heuristics/tx-utils";
+import { txTypeOf, type TxType } from "./tx-type";
 
 // ─── Props ──────────────────────────────────────────────────────
 
@@ -104,6 +104,17 @@ export function GraphNodeRenderer({
   ...labelProps
 }: GraphNodeRendererProps) {
   const { t } = useTranslation();
+  const txTypeLabel = (type: TxType | null): string => {
+    switch (type) {
+      case "coinbase": return t("graph.coinbase", { defaultValue: "coinbase" });
+      case "bip47Notification": return t("graph.bip47Notification", { defaultValue: "BIP47 notification" });
+      case "sweep": return t("graph.txTypeSweep", { defaultValue: "sweep" });
+      case "simpleSend": return t("graph.txTypeSimpleSend", { defaultValue: "simple send" });
+      case "consolidation": return t("graph.txTypeConsolidation", { defaultValue: "consolidation" });
+      case "batch": return t("graph.txTypeBatch", { defaultValue: "batch" });
+      default: return "";
+    }
+  };
 
   const heatScore = heatMapActive ? heatMap.get(node.txid)?.score : undefined;
   const color = getNodeColor(node, heatScore);
@@ -255,15 +266,7 @@ export function GraphNodeRenderer({
       {/* Quick tx type label */}
       {!node.entityLabel && !node.isCoinJoin && node.inputCount > 0 && node.txid !== expandedNodeTxid && (
         <Text x={node.x + 10} y={node.y + 50} fontSize={9} fill={SVG_COLORS.muted} fillOpacity={0.6}>
-          {ricochetHopLabels.get(node.txid) ??
-           (node.tx.vout.some(o => isOpReturnOutput(o) && o.scriptpubkey.replace(/^6a(?:4c..)?/, "").length === 160) &&
-           node.tx.vout.some(o => o.value > 0 && o.value <= 1000) ? t("graph.bip47Notification", { defaultValue: "BIP47 notification" }) :
-           node.inputCount === 1 && node.outputCount === 1 ? t("graph.txTypeSweep", { defaultValue: "sweep" }) :
-           node.inputCount === 1 && node.outputCount === 2 ? t("graph.txTypeSimpleSend", { defaultValue: "simple send" }) :
-           node.inputCount > 1 && node.outputCount === 1 ? t("graph.txTypeConsolidation", { defaultValue: "consolidation" }) :
-           node.inputCount === 1 && node.outputCount > 3 ? t("graph.txTypeBatch", { defaultValue: "batch" }) :
-           node.tx.vin[0]?.is_coinbase ? t("graph.coinbase", { defaultValue: "coinbase" }) :
-           "")}
+          {ricochetHopLabels.get(node.txid) ?? txTypeLabel(txTypeOf(node.tx))}
         </Text>
       )}
 

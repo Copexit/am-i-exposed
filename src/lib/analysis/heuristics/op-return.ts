@@ -45,7 +45,11 @@ export const analyzeOpReturn: TxHeuristic = (tx) => {
       title: protocol
         ? `OP_RETURN: ${protocol} data embedded`
         : "OP_RETURN data embedded in transaction",
-      params: { ...(protocol ? { protocol } : {}), ...(decoded ? { decoded: truncate(decoded, 100) } : {}) },
+      params: {
+        ...(protocol ? { protocol } : {}),
+        ...(decoded ? { decoded: truncate(decoded, 100) } : {}),
+        ...(protocol ? { _variant: "protocol" } : decoded ? { _variant: "decoded" } : {}),
+      },
       description,
       recommendation:
         "Be aware that OP_RETURN data is permanent and public. Avoid transactions that embed unnecessary metadata if privacy is a concern.",
