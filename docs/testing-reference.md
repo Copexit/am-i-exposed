@@ -81,7 +81,7 @@ The hints on the home page cards and the "more examples" list must match these. 
 ### 9. Batched Exchange Withdrawal (143 outputs)
 - **TXID:** `3d81a6b95903dd457d45a2fc998acc42fe96f59ef01157bdcbc331fe451c8d9e`
 - **Pattern:** 1 input, 143 outputs, mixed address types
-- **Expected score (heuristics only):** C 56 (fan-out, exchange withdrawal pattern, script mix)
+- **Expected score (heuristics only):** C 59 (exchange withdrawal pattern, which covers the generic fan-out, script mix)
 - **Live web scan:** F 24 (chain trace often incomplete: the traced exchange txs are large and slow to fetch)
 - https://mempool.space/tx/3d81a6b95903dd457d45a2fc998acc42fe96f59ef01157bdcbc331fe451c8d9e
 
@@ -120,7 +120,7 @@ Values are asserted by `src/lib/analysis/__tests__/golden-cases.test.ts` (heuris
 | Bare multisig | tx | 70 | F | 11 | h2-same-address-io (-20), h1-round-amount (-16), script-multisig (-8), behavioral-fingerprint-rollup (-6), h3-cioh (-6), h11-wallet-fingerprint (-3), h5-entropy (+2), script-mixed (-1), h-coin-selection-value-asc (-1) |
 | OP_RETURN charley | tx | 70 | D | 49 | h2-self-send (-15), h7-op-return (-5), h11-wallet-fingerprint (-3), script-uniform (+2) |
 | Simple legacy P2PKH | tx | 70 | C | 52 | h2-change-detected (-14), h5-low-entropy (-3), h11-wallet-fingerprint (-3), script-uniform (+2) |
-| Batch withdrawal 143 | tx | 70 | C | 56 | h5-low-entropy (-3), script-mixed (-3), exchange-withdrawal-pattern (-3), h11-wallet-fingerprint (-3), consolidation-fan-out (-3), anon-set-moderate (+1) |
+| Batch withdrawal 143 | tx | 70 | C | 59 | h5-low-entropy (-3), script-mixed (-3), exchange-withdrawal-pattern (-3), h11-wallet-fingerprint (-3), anon-set-moderate (+1) |
 | Dust attack 555 sats | tx | 70 | F | 24 | h2-same-address-io (-20), compound-deterministic-cap (-12), dust-attack (-8), h11-wallet-fingerprint (-5), h5-low-entropy (-3), script-uniform (+2) |
 | Taproot script-path | tx | 70 | D | 46 | behavioral-fingerprint-rollup (-12), h3-cioh (-6), h5-zero-entropy-sweep (-3), h11-wallet-fingerprint (-3), h6-round-fee-rate (-2), witness-mixed-depths (-1), h-coin-selection-bnb (+3) |
 | Satoshi's address | addr | 93 | F | 0 | h8-address-reuse (-93), recurring-payment-pattern (-10), high-activity-exchange (-8), temporal-burst-high (-5), h10-p2pkh (-5), spending-high-volume (-3), spending-never-spent (+2) |

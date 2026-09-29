@@ -75,6 +75,21 @@ function applyConsolidationDedup(findings: Finding[], isCoinJoin: boolean): void
     const idx = findings.findIndex((f) => f.id === "h5-zero-entropy-sweep");
     if (idx !== -1) findings.splice(idx, 1);
   }
+
+  // One 1-input fan-out, one finding. A batch that is mostly dust is a dust
+  // attack, not an exchange withdrawal (exchanges do not pay hundreds of dust
+  // outputs), so the behavioral exchange readings go. Otherwise the exchange
+  // finding is the specific reading of the fan-out and replaces the generic one.
+  const drop = (id: FindingId) => {
+    const idx = findings.findIndex((f) => f.id === id);
+    if (idx !== -1) findings.splice(idx, 1);
+  };
+  if (findings.some((f) => f.id === "dust-attack")) {
+    drop("exchange-withdrawal-pattern");
+    drop("entity-behavior-exchange");
+  } else if (findings.some((f) => f.id === "exchange-withdrawal-pattern")) {
+    drop("consolidation-fan-out");
+  }
 }
 
 /**

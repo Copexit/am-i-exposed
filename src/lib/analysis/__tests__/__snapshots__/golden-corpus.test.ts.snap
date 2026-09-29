@@ -151,8 +151,7 @@ exports[`golden corpus - block 850000 > 635b025b146d760d 1`] = `
   "findings": [
     "anon-set-none 0",
     "behavioral-fingerprint-rollup -6",
-    "compound-deterministic-cap -3",
-    "consolidation-fan-out -3",
+    "compound-deterministic-cap -6",
     "entity-behavior-exchange 0",
     "exchange-withdrawal-pattern -3",
     "h11-legacy-version 0",
