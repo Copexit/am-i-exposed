@@ -336,6 +336,17 @@ describe("finding locale text keeps the heuristic's information", () => {
       for (const lng of LANGS) expect(render(f, lng).title).toContain("WabiSabi");
     });
 
+    it("single-input zero entropy states the structural fact in every locale", () => {
+      const tx = makeTx({ vin: [addrVin("bc1qone", 1_000_000)], vout: [1, 2, 3].map((i) => makeVout({ value: i * 100_000 })) });
+      const f = analyzeEntropy(tx).findings.find((x) => x.id === "h5-low-entropy")!;
+      expect(render(f).title).toBe(f.title);
+      expect(render(f).description).toBe(f.description);
+      for (const lng of LANGS) {
+        expect(render(f, lng).description).toContain("3");
+        expect(render(f, lng).description).toMatch(/0 bit/i);
+      }
+    });
+
     it("h2-self-send distinguishes consolidation, single-input and all-outputs self-sends", () => {
       const self = (nIn: number, nOut: number) => makeTx({
         vin: Array.from({ length: nIn }, () => addrVin("bc1qself", 100_000)),

@@ -71,7 +71,7 @@ describe("golden test cases - transactions", () => {
     ["Bare multisig", bareMultisigTx, "F", 11],
     ["OP_RETURN charley loves heidi", opReturnCharleyTx, "D", 49],
     ["Simple legacy P2PKH", simpleLegacyTx, "C", 52],
-    ["Batch withdrawal 143 outputs", batchWithdrawalTx, "C", 59],
+    ["Batch withdrawal 143 outputs", batchWithdrawalTx, "C", 58],
     ["Dust attack 555 sats", dustAttackTx, "F", 24],
     ["Taproot script-path spend", taprootScriptPathTx, "D", 46],
     ["Sweep 8cbe3322", sweepTx, "C", 59],

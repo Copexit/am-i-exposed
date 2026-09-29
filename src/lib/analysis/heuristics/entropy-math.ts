@@ -160,7 +160,7 @@ export function countValidMappings(inputs: number[], outputs: number[]): { count
  */
 export function trySingleDenominationBoltzmann(
   outputs: number[],
-  inputCount: number,
+  inputs: number[],
 ): { entropy: number; method: string } | null {
   if (outputs.length < 5) return null;
 
@@ -184,19 +184,21 @@ export function trySingleDenominationBoltzmann(
   const otherTiers = [...counts.entries()].filter(([v, c]) => v !== bestValue && c >= 2);
   if (otherTiers.length > 0) return null;
 
-  // At most one party per input: with fewer inputs than equal outputs, apply
-  // the same partial-coverage bound as tryBoltzmannEqualOutputs, B(k) * C(n, k).
+  // Only an input worth at least the denomination can fund an equal output on
+  // its own, so k counts those (as tryBoltzmannEqualOutputs does) and, when
+  // k < n, applies the same partial-coverage count B(k) * C(n, k). This is an
+  // estimate, not an exact count or an upper bound: it ignores how the change
+  // outputs constrain the assignment (2 x 1M sats in, 12 x 100k plus a 777k
+  // change out: 198 here, 133 exact). The
+  // WASM Boltzmann result replaces it whenever the transaction is small enough.
   const n = bestCount;
-  const k = Math.min(n, inputCount);
+  const k = Math.min(n, inputs.filter((v) => v >= bestValue).length);
   if (k < 2) return null;
   const outputChoiceCorrection = k < n ? log2Binomial(n, k) : 0;
-  if (k <= 50) {
-    const count = boltzmannEqualOutputs(k);
-    const entropy = (count > 1 ? Math.log2(count) : 0) + outputChoiceCorrection;
-    return { entropy, method: "Boltzmann partition" };
-  }
-  const entropy = estimateBoltzmannEntropy(k) + outputChoiceCorrection;
-  return { entropy, method: "Boltzmann estimate" };
+  const base = k <= 50
+    ? Math.log2(Math.max(boltzmannEqualOutputs(k), 1))
+    : estimateBoltzmannEntropy(k);
+  return { entropy: base + outputChoiceCorrection, method: "Boltzmann estimate" };
 }
 
 // ---- Multi-tier entropy estimate -------------------------------------------

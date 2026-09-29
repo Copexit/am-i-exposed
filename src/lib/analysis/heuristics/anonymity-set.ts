@@ -33,6 +33,7 @@ export const analyzeAnonymitySet: TxHeuristic = (tx) => {
 
   if (outputs.length < 2) return { findings };
 
+
   // Count occurrences of each output value
   const valueCounts = new Map<number, number>();
   for (const out of outputs) {
@@ -57,6 +58,12 @@ export const analyzeAnonymitySet: TxHeuristic = (tx) => {
   if (!maxSet) return { findings };
   const uniqueOutputs = sets.filter((s) => s.count === 1).length;
   const totalSets = sets.length;
+
+  // An anonymity set needs several possible owners. With one input (or all
+  // inputs from one address) a single party funds every output, so equal
+  // values hide nothing and earn no credit.
+  const inputOwners = new Set(tx.vin.map((v) => v.prevout?.scriptpubkey_address ?? `${v.txid}:${v.vout}`));
+  if (inputOwners.size < 2 && maxSet.count >= 2) return { findings };
 
   if (maxSet.count >= 5) {
     // Strong anonymity set

@@ -308,7 +308,7 @@ The WASM result carries `nb_cmbn` as a u64. The tier-decomposed WabiSabi and Joi
 
 The WASM Boltzmann link probability matrix is not merged: its rows and columns must map one-to-one to the transaction's inputs and outputs for the heat map, the graph and auto-trace. When the WASM result covers a different number of UTXOs than the merged H5 computation, it does not replace the H5 finding, so the score keeps the merged value while the heat map still shows per-UTXO links.
 
-**Single input:** when the transaction has one input (after address merging), every output is funded by that input, so there is exactly one interpretation and entropy is 0 bits, whatever the output values. Equal-value outputs on a 1-input transaction (a dust fan-out, a payout batch) are not a CoinJoin and earn no entropy credit: 1-in-1-out gets `h5-zero-entropy` (0), 1-in-N-out gets `h5-low-entropy` (-3, method "single input").
+**Single input:** when the transaction has one input (after address merging), every output is funded by that input, so there is exactly one interpretation and entropy is 0 bits, whatever the output values. Equal-value outputs on a 1-input transaction (a dust fan-out, a payout batch) are not a CoinJoin and earn no entropy credit: 1-in-1-out gets `h5-zero-entropy` (0), 1-in-N-out gets `h5-low-entropy` (-3, method "single input") with confidence `deterministic` and its own text (`_variant: "single_input"`: every output is funded by the one input, 0 bits), since the value is exact rather than estimated. For the same reason a single-owner transaction earns no anonymity-set credit (see Anonymity Set Analysis).
 
 A two-path approach is used:
 
@@ -355,7 +355,7 @@ For partition [2,1,1,1] (one part of 2, three parts of 1): N_term = 5!^2 / (2!^2
 
 For transactions with mixed output values (<= 8x8), the engine enumerates which input funds which output. A mapping is valid if each input can cover the sum of outputs assigned to it. This is a lower bound of the true Boltzmann count but is reasonable for non-CoinJoin transactions.
 
-For large mixed-value transactions (> 8x8), structural estimation is used based on the largest group of equal outputs, applying the Boltzmann partition formula to that group. The group size is bounded by the number of inputs (at most one party per input): with k inputs and n > k equal outputs the same partial-coverage bound as Path A applies, log2(B(k) * C(n, k)).
+For large mixed-value transactions (> 8x8), structural estimation is used based on the largest group of equal outputs, applying the Boltzmann partition formula to that group. Only an input worth at least the denomination can fund an equal output alone, so k counts those inputs (as Path A does); with n > k equal outputs the same partial-coverage count as Path A applies, log2(B(k) * C(n, k)). This is reported as method "Boltzmann estimate": it is neither exact nor an upper bound, because it ignores how the change outputs constrain the assignment (2 inputs of 1,000,000 sats paying 12 x 100,000 plus a 777,000 change: 198 here, 133 exact). The WASM Boltzmann result replaces it for transactions small enough to compute exactly.
 
 **Incomplete data:** if any non-coinbase input is missing its prevout (e.g. a self-hosted backend that could not enrich it), H5 emits nothing rather than computing on a partial input set, which would misreport the structure (a 2-in-1-out consolidation would look like a 1-in-1-out sweep). Transactions with no valued outputs (OP_RETURN-only burns) are also skipped.
 
@@ -807,13 +807,17 @@ This is complementary to H4 CoinJoin detection. While H4 determines whether a tr
 value_counts = count occurrences of each output value
 max_set = largest group of equal-value outputs
 
-if max_set >= 5:
+if distinct input addresses < 2 and max_set >= 2:
+  no finding (one owner funds every output: nothing to hide among)
+elif max_set >= 5:
   "Strong anonymity set" (+5, good)
 elif max_set >= 2:
   "Moderate anonymity set" (+1, low)
 else:
   "No anonymity set - all outputs unique" (-1, low)
 ```
+
+An anonymity set needs several possible owners. With one input (or all inputs on one address) a single party funds every output, so equal output values hide nothing: batch payouts such as `3d81a6b9...` (1 input, 143 outputs) get no `anon-set-moderate` credit.
 
 **Scoring impact:** -1 to +5
 

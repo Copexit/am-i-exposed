@@ -167,7 +167,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
     // Check for single-denomination CoinJoin (JoinMarket) before multi-tier estimate.
     // JoinMarket has one group of equal outputs + unique change outputs.
     // Use Boltzmann on just the equal outputs (change doesn't contribute to mixing entropy).
-    const singleDenomResult = trySingleDenominationBoltzmann(outputs, inputs.length);
+    const singleDenomResult = trySingleDenominationBoltzmann(outputs, inputs);
     if (singleDenomResult !== null) {
       entropyBits = singleDenomResult.entropy;
       method = singleDenomResult.method;
@@ -185,17 +185,25 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
   const roundedEntropy = Math.round(displayEntropy * 100) / 100;
 
   if (roundedEntropy <= 0) {
+    // One input funds every output: exactly one interpretation, a fact of the
+    // structure rather than an estimate
+    const singleInput = inputs.length === 1;
     return {
       findings: [
         {
           id: "h5-low-entropy",
           severity: "medium",
-          confidence: "medium",
-          title: "Very low transaction entropy",
-          params: { entropy: roundedEntropy, method, nUtxos: inputs.length + outputs.length },
-          description:
-            `This transaction has near-zero entropy (${roundedEntropy} bits, via ${method}). ` +
-            "There is essentially only one valid interpretation of the fund flow, making it trivial to trace.",
+          confidence: singleInput ? "deterministic" : "medium",
+          title: singleInput ? "Zero transaction entropy" : "Very low transaction entropy",
+          params: {
+            entropy: roundedEntropy, method, nUtxos: inputs.length + outputs.length,
+            ...(singleInput ? { outputCount: valuedOutputs.length, _variant: "single_input" } : {}),
+          },
+          description: singleInput
+            ? `This transaction is funded by a single input (or inputs from a single address), so all ${valuedOutputs.length} outputs are funded by it. ` +
+              "There is exactly one interpretation of the fund flow (0 bits of entropy), making it trivial to trace."
+            : `This transaction has near-zero entropy (${roundedEntropy} bits, via ${method}). ` +
+              "There is essentially only one valid interpretation of the fund flow, making it trivial to trace.",
           recommendation:
             "Higher entropy transactions are harder to trace. When possible, spend exact amounts to avoid change. Consider using CoinJoin to maximize ambiguity - but note that some exchanges may flag CoinJoin deposits.",
           scoreImpact: -3,

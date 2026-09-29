@@ -205,17 +205,47 @@ describe("analyzeEntropy - UTXOs sharing an address are one party (Boltzmann MER
       const [f] = analyzeEntropy(tx).findings;
       expect(f!.id).toBe("h5-low-entropy");
       expect(f!.params?.entropy).toBe(0);
+      // Exactly 0 by structure, not an estimate
+      expect(f!.confidence).toBe("deterministic");
+      expect(f!.params?._variant).toBe("single_input");
+      expect(f!.params?.outputCount).toBe(n);
     }
   });
 
-  it("single-denomination path is bounded by the input count", () => {
+  it("multi-input zero entropy keeps the generic low-entropy text", () => {
+    // 2 inputs, 2 outputs, no input can fund the big output alone
+    const tx = makeTx({
+      vin: [makeVin({ prevout: { ...makeVin().prevout!, value: 60_000 } }), makeVin({ prevout: { ...makeVin().prevout!, value: 60_000 } })],
+      vout: [makeVout({ value: 100_000 }), makeVout({ value: 15_000 })],
+    });
+    const [f] = analyzeEntropy(tx).findings;
+    expect(f!.id).toBe("h5-low-entropy");
+    expect(f!.confidence).toBe("medium");
+    expect(f!.params?._variant).toBeUndefined();
+  });
+
+  it("single-denomination path is an estimate using the input count", () => {
     // 2 inputs, 12 equal outputs + 1 change: at most 2 parties, not 12.
-    // Same partial-coverage bound as the all-equal path: B(2) * C(12, 2) = 3 * 66
+    // Same partial-coverage count as the all-equal path: B(2) * C(12, 2) = 3 * 66.
+    // Not exact (the true count is 133) and not an upper bound: labelled an estimate.
     const tx = makeTx({
       vin: [
         makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qa", value: 1_000_000 } }),
         makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qb", value: 1_000_000 } }),
       ],
+      vout: [...Array.from({ length: 12 }, () => makeVout({ value: 100_000 })), makeVout({ value: 777_000 })],
+    });
+    const [f] = analyzeEntropy(tx).findings;
+    expect(Number(f!.params?.entropy)).toBeCloseTo(Math.log2(3 * 66), 2);
+    expect(f!.params?.method).toBe("Boltzmann estimate");
+  });
+
+  it("single-denomination path only counts inputs worth at least the denomination", () => {
+    // The 50k input cannot fund a 100k output on its own: still 2 parties
+    const vin = (address: string, value: number) =>
+      makeVin({ prevout: { scriptpubkey: "", scriptpubkey_asm: "", scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: address, value } });
+    const tx = makeTx({
+      vin: [vin("bc1qa", 1_000_000), vin("bc1qb", 1_000_000), vin("bc1qc", 50_000)],
       vout: [...Array.from({ length: 12 }, () => makeVout({ value: 100_000 })), makeVout({ value: 777_000 })],
     });
     const [f] = analyzeEntropy(tx).findings;
