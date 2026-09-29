@@ -100,8 +100,8 @@ The hints on the home page cards and the "more examples" list must match these. 
 ### 11. First Taproot Script-Path Spend (achow101, block 709635)
 - **TXID:** `37777defed8717c581b4c0509329550e344bdc14ac38f71fc050096887e535c8`
 - **Pattern:** 2 P2TR inputs, 1 P2WPKH output (script path spend)
-- **Expected score (heuristics only):** D 46 (CIOH, zero-entropy sweep, behavioral fingerprint rollup)
-- **Live web scan:** D 46
+- **Expected score (heuristics only):** C 52 (CIOH, zero-entropy sweep, behavioral fingerprint rollup of 3 signals; the changeless BnB credit is not a rollup signal)
+- **Live web scan:** D 46 before the rollup change (then 4 signals, -12); with 3 signals (-6) expect C 52, not re-scanned
 - https://mempool.space/tx/37777defed8717c581b4c0509329550e344bdc14ac38f71fc050096887e535c8
 
 ## Test Addresses
@@ -127,7 +127,7 @@ Values are asserted by `src/lib/analysis/__tests__/golden-cases.test.ts` (heuris
 | Simple legacy P2PKH | tx | 70 | C | 52 | h2-change-detected (-14), h5-low-entropy (-3), h11-wallet-fingerprint (-3), script-uniform (+2) |
 | Batch withdrawal 143 | tx | 70 | C | 58 | h5-low-entropy (-3), script-mixed (-3), exchange-withdrawal-pattern (-3), h11-wallet-fingerprint (-3) |
 | Dust attack 555 sats | tx | 70 | F | 24 | h2-same-address-io (-20), compound-deterministic-cap (-12), dust-attack (-8), h11-wallet-fingerprint (-5), h5-low-entropy (-3), script-uniform (+2) |
-| Taproot script-path | tx | 70 | D | 46 | behavioral-fingerprint-rollup (-12), h3-cioh (-6), h5-zero-entropy-sweep (-3), h11-wallet-fingerprint (-3), h6-round-fee-rate (-2), witness-mixed-depths (-1), h-coin-selection-bnb (+3) |
+| Taproot script-path | tx | 70 | C | 52 | behavioral-fingerprint-rollup (-6), h3-cioh (-6), h5-zero-entropy-sweep (-3), h11-wallet-fingerprint (-3), h6-round-fee-rate (-2), witness-mixed-depths (-1), h-coin-selection-bnb (+3) |
 | Sweep 8cbe3322 | tx | 70 | C | 59 | behavioral-fingerprint-rollup (-6), h11-wallet-fingerprint (-3), h6-round-fee-rate (-2) |
 | Consolidation 40b88e16 | tx | 70 | C | 51 | h3-cioh (-12, 1 reused address), h11-wallet-fingerprint (-5), consolidation-fan-in (-2) |
 | Address reuse 4c18b982 | tx | 70 | F | 24 | h2-same-address-io (-20), compound-deterministic-cap (-14), h1-round-amount (-8), h5-low-entropy (-3), h11-wallet-fingerprint (-3), script-uniform (+2) |
@@ -138,6 +138,14 @@ Values are asserted by `src/lib/analysis/__tests__/golden-cases.test.ts` (heuris
 | JoinMarket 6cb2433f | tx | 70 | A+ | 100 | h4-joinmarket (+25), h5-entropy (+15), anon-set-strong (+5), script-uniform (+2) |
 | Whirlpool Ashigaru 5f0080e3 | tx | 70 | A+ | 100 | h4-whirlpool (+30), h5-entropy (+15), anon-set-strong (+5), script-uniform (+2) |
 | Satoshi's address | addr | 93 | F | 0 | h8-address-reuse (-93), recurring-payment-pattern (-10), high-activity-exchange (-8), temporal-burst-high (-5), h10-p2pkh (-5), spending-high-volume (-3), spending-never-spent (+2) |
+
+### Why the golden values moved (unreleased 0.37.x engine fixes)
+
+- **Consolidations, +3.** The changeless Branch-and-Bound credit (`h-coin-selection-bnb`, +3) no longer fires on 3+ input consolidations or self-sends. On those transactions it had also been the second signal of `behavioral-fingerprint-rollup` (-6, next to `h11-wallet-fingerprint`), so both go and the net is +3: golden corpus `2d2dcc80...` D 31 -> D 34 and `8ce796fe...` C 53 -> C 56, consolidation `40b88e16...` D 48 -> C 51 (heuristics only). The home card stays D: the offline e2e fixtures and the live scan (D 37) add `chain-forward-peel`. The rollup now counts only penalties (`scoreImpact < 0`); the BnB credit is a privacy gain shared by any exact-amount spend, not a wallet fingerprint (docs/privacy-engine.md, Behavioral Fingerprint Rollup).
+- **Taproot script-path `37777def...`, D 46 -> C 52.** A real 2-in-1-out changeless payment keeps its +3 BnB credit, but that credit no longer counts toward the rollup: 3 signals (-6) instead of 4 (-12).
+- **Dust attack `65551b77...`, C 50 -> C 53.** A dust attack explains its fan-out, so `consolidation-fan-out` (-3) is dropped next to `dust-attack` (-8): one finding per fan-out. The tx type stays `batch-payment`.
+- **Batch withdrawal `3d81a6b9...`, C 59 -> C 58.** One input funds all 143 outputs, so the two equal outputs are not an anonymity set (`anon-set-moderate`, +1, needs 2+ input owners).
+- Unchanged but relabelled: 1-input `h5-low-entropy` is now confidence `deterministic` with a single-input text (0 bits by structure).
 
 ## Research References
 

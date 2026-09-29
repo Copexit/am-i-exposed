@@ -804,7 +804,7 @@ This is complementary to H4 CoinJoin detection. While H4 determines whether a tr
 **Detection criteria:**
 
 ```
-value_counts = count occurrences of each output value
+value_counts = count occurrences of each output value (non-dust, spendable)
 max_set = largest group of equal-value outputs
 
 if distinct input addresses < 2 and max_set >= 2:
@@ -1229,7 +1229,7 @@ One fan-out gets one finding. The generic `consolidation-fan-out` ("Batch paymen
 
 Detects three coin selection sub-patterns that reveal wallet software behavior:
 
-**Branch-and-Bound (BnB):** Two inputs with a single output to a new address and no change. This indicates the wallet found an exact combination of UTXOs to cover the payment, eliminating the change output entirely. Consolidations are changeless by nature, so they earn no credit: 3+ inputs to 1 output is a consolidation (`consolidation-fan-in`), an output back to an input address is a self-send (`h2-self-send`), and a 1-in-1-out sweep never qualifies.
+**Branch-and-Bound (BnB):** Two inputs with a single output to a new address and no change. This indicates the wallet found an exact combination of UTXOs to cover the payment, eliminating the change output entirely. Consolidations are changeless by nature, so they earn no credit: 3+ inputs to 1 output is a consolidation (`consolidation-fan-in`), an output back to an input address is a self-send (`h2-self-send`), and a 1-in-1-out sweep never qualifies. The credit is not a behavioral-rollup signal (see Behavioral Fingerprint Rollup).
 
 ```
 if len(tx.inputs) == 2 and len(spendable_outputs) == 1 and output.address not in input_addresses:
@@ -1690,7 +1690,9 @@ When `h2-same-address-io` fires (partial self-send where change is revealed dete
 
 ### 7. Behavioral Fingerprint Rollup
 
-When 2 or more behavioral sub-signals fire together, their combined fingerprinting power exceeds the sum of individual impacts. The engine detects the following contributing signals: wallet fingerprint (H11), round fee rate, RBF signaling, SegWit fee miscalculation, BIP69 ordering, coin selection patterns, and witness analysis patterns.
+When 2 or more behavioral sub-signals fire together, their combined fingerprinting power exceeds the sum of individual impacts. The engine detects the following contributing signals: wallet fingerprint (H11), round fee rate, RBF signaling, SegWit fee miscalculation, BIP69 ordering, value-ordered coin selection (ascending/descending), and witness analysis patterns. A signal counts only when it is scored as a penalty (`scoreImpact < 0`): a suppressed signal (0) does not count, and neither does a credit.
+
+The changeless Branch-and-Bound credit (`h-coin-selection-bnb`, +3) is not a rollup signal. It is scored as a privacy gain, and a changeless 2-input payment is produced by Bitcoin Core and Sparrow BnB but also by any exact-amount or send-max spend with coin control, so it does not single out a wallet; counting it also made a changeless payment score below the same payment with a change output (credit +3, rollup -6). Consequences: consolidations, which no longer get the false BnB credit, also no longer reach the rollup through it, so they net +3 against the old engine (+3 credit and -6 rollup both gone: golden corpus `2d2dcc80...` D 31 -> D 34 and `8ce796fe...` C 53 -> C 56, consolidation `40b88e16...` heuristics-only D 48 -> C 51; its live and offline web scan stays D because `chain-forward-peel` fires). A real 2-in-1-out changeless payment keeps its +3 and loses one rollup signal: the first Taproot script-path spend `37777def...` goes from 4 signals (-12) to 3 (-6), D 46 -> C 52.
 
 When these signals co-occur:
 

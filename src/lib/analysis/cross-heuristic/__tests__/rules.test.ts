@@ -338,7 +338,7 @@ describe("applyBehavioralRollup", () => {
       params: { signalCount: 2, signals: "bip69-detected, h6-round-fee-rate" },
     });
 
-    const four = [f("bip69-detected"), f("h6-round-fee-rate"), f("witness-deep-stack"), f("h-coin-selection-bnb")];
+    const four = [f("bip69-detected"), f("h6-round-fee-rate"), f("witness-deep-stack"), f("witness-mixed-types")];
     applyBehavioralRollup(four);
     expect(byId(four, "behavioral-fingerprint-rollup")).toMatchObject({
       severity: "critical",

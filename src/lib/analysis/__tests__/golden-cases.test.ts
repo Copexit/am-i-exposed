@@ -73,7 +73,7 @@ describe("golden test cases - transactions", () => {
     ["Simple legacy P2PKH", simpleLegacyTx, "C", 52],
     ["Batch withdrawal 143 outputs", batchWithdrawalTx, "C", 58],
     ["Dust attack 555 sats", dustAttackTx, "F", 24],
-    ["Taproot script-path spend", taprootScriptPathTx, "D", 46],
+    ["Taproot script-path spend", taprootScriptPathTx, "C", 52],
     ["Sweep 8cbe3322", sweepTx, "C", 59],
     ["Consolidation 40b88e16", consolidationTx, "C", 51],
     ["Address reuse 4c18b982", reuseTx, "F", 24],
