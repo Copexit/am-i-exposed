@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Fetches real mempool.space API responses for reference transactions
 // and saves them as JSON fixtures for deterministic offline testing.
-// Usage: node scripts/capture-fixtures.mjs
+// Usage: node scripts/capture-fixtures.mjs          (everything)
+//        node scripts/capture-fixtures.mjs --home   (home-card fixtures only)
 
 import { writeFileSync, mkdirSync } from "fs";
 
@@ -48,6 +49,56 @@ const CORPUS_TXIDS = [
 const ADDR_CASES = [
   { name: "satoshi-genesis", address: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa" },
 ];
+
+// Home-page example cards (e2e/home-examples.spec.ts). Each fixture maps API
+// path -> response, holding the chain data the scan needs to reach its live
+// score offline: the paths were found by recording a live scan and dropping
+// every response the score does not depend on. Anything not listed is served
+// by the e2e mock's defaults (404 for txs, all-unspent outspends).
+const tx = (id) => `/tx/${id}`;
+const txOut = (id) => [`/tx/${id}`, `/tx/${id}/outspends`];
+const HOME_CASES = [
+  { name: "whirlpool-ashigaru", paths: [tx("5f0080e3f0acfde005b9c7149f12880be273eea01ca3a3b867f642ac9bf273cc")] },
+  {
+    name: "sweep",
+    paths: [
+      ...txOut("8cbe332206ffc1ea3f3ffb6aeb5ac7306310bd991260de0e09845a45f70af85a"),
+      tx("0ed531e738a48eac37669facc0fc69c45a95ed2ed4d0c274f0f484fab3cf9121"),
+      ...txOut("2da7ac667e1b33fad7d5a1ec97dccda19eb5079ed209595ca4a984c35cfbd938"),
+      ...txOut("6b70b7cac1f3a10ce05c878ab5611d34091cc200c0d816f5c75a1714a38e1b17"),
+      ...txOut("d7d4340ca4a413e14d099c7ca14b98cb5725b50c6a4c5e08ff358ccfc9fd00e6"),
+    ],
+  },
+  {
+    name: "consolidation",
+    paths: [
+      ...txOut("40b88e16fe9881eb89df76265ccf2d46abfd1071a94dae8e413efc0d83d3df18"),
+      tx("0db4e42ce3c017469761428c986187b900fc5bd1ad4fef1ce8197de19799339e"),
+      tx("2a8a8b3f4cb650a0caa6bbc3a5614dbe9067e570e28fd777c5394c341467b79e"),
+      ...txOut("3a87bb2fa928a588787b1fffe8408c9d3c74fcbf7b4afe4240c9438703983aec"),
+      ...txOut("3c32cc3cb86b14d34873419aeb5b8bf6ff657a544d41f2ddf7c322db4b518c2d"),
+      tx("b964908a969732a91b94a05387b3f84677cd3f5f55e8f5f2de6a1dfc63c9538e"),
+      ...txOut("d299226f6382a522221500322392539125e77f54083137a5537fb86d85655a68"),
+      tx("e34955216f028d019dade2c80a2e6bb3bcea96eed966e8b47cb0ed3992bac3cb"),
+      tx("f286322e319aa80fd3156f236274a09abc4b14dd6ecea6348c26e754c335f205"),
+    ],
+  },
+  { name: "address-reuse", paths: [tx("4c18b982836006cbe54661942f632f10b9cc0072e97a32feeea77abd8c7c8c3c")] },
+];
+
+mkdirSync(`${DIR}/home`, { recursive: true });
+for (const { name, paths } of HOME_CASES) {
+  const recorded = {};
+  for (const p of paths) {
+    const res = await fetch(`${API}${p}`);
+    if (!res.ok) throw new Error(`${p}: HTTP ${res.status}`);
+    recorded[p] = await res.json();
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  writeFileSync(`${DIR}/home/${name}.json`, JSON.stringify(recorded) + "\n");
+  console.log(`Saved home/${name}`);
+}
+if (process.argv.includes("--home")) process.exit(0);
 
 mkdirSync(DIR, { recursive: true });
 
