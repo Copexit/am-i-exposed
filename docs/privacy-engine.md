@@ -207,7 +207,7 @@ CIOH alone enables the majority of address clustering. A single multi-input tran
 
 CoinJoin is a collaborative transaction protocol where multiple users combine their inputs and outputs into a single transaction. When done correctly, an observer cannot determine which inputs funded which outputs. CoinJoin is the single most effective on-chain privacy technique available today.
 
-Three major CoinJoin implementations are detected:
+The major CoinJoin implementations are detected:
 
 **Whirlpool (Samourai / Sparrow)**
 
@@ -225,20 +225,36 @@ if 5 <= len(spendable) <= 10:
       flag as Whirlpool CoinJoin
 ```
 
-**Wasabi Wallet (WabiSabi)**
+**Wasabi Wallet 2.x (WabiSabi)** - `src/lib/analysis/heuristics/wabisabi.ts`, `classifyWabiSabi`
 
-- Large number of inputs (typically 50-150)
-- Many equal-value outputs forming the anonymity set
-- Additional outputs of varying values (change, coordinator fee)
-- Post-2.0 Wasabi uses the WabiSabi protocol allowing variable denominations and multiple equal-output groups
+One classifier feeds every consumer: the H4 finding (`isWabiSabi: 1`), the CoinJoin suppressions and wallet inference, the `wabisabi-coinjoin` tx type, `isCoinJoinTx`, and Boltzmann's tier-decomposed routing (`detectWabiSabiForTurbo`, rounds of 10+ inputs and 10+ outputs; smaller rounds use the exact engine). A transaction is labelled WabiSabi only when it has the structure the coordinator builds, which follows from the WalletWasabi source:
+
+- **Standard denominations.** `DenominationBuilder.CreateDenominationAmounts` builds the set from six series: 2^n, 3^n, 2*3^n, 10^n, 2*10^n, 5*10^n sats, kept between the round's minimum and maximum output amounts (default `MinRegistrableAmount` 5,000 sats, `MaxRegistrableAmount` 43,000 BTC: 93 values). Denomination outputs carry the exact amount (`Output.FromDenomination`); the mining fee is paid on top. The set is unchanged since v2.0.0.0 (then `AmountDecomposer.CreateDenominationsPlusFees`, refactored in PR #13326, 2024) and identical in the Ginger Wallet fork. Trezor Suite (2022-2024) decomposed through the WalletWasabi middleware and the BTCPay plugin embeds WalletWasabi, so they use the same set. Coordinators may lower the minimum: coinjoin.nl rounds carry 2,187 (3^7) and 4,374 (2*3^7) sat outputs, so the detector accepts denominations from 1,000 sats.
+- **Change and other outputs.** The decomposer prefers changeless decompositions; otherwise a participant gets at most one change output (`CreateNaiveDecomposition` / `CreatePreDecompositions`). The coordinator adds one output for the coordination fee (zkSNACKs: 0.3%, free below 0.01 BTC and for remixes) or, since the fee rate concept was removed (PR #13297, August 2024), for leftovers participants could not decompose (optionally trimmed to a denomination, PR #14881). Payments in a round are arbitrary amounts. In 130 real rounds the lowest share of standard-denomination outputs was 71%.
+- **Ordering and scripts.** `SigningState.SortedInputs` orders inputs by amount descending; `SortedOutputs` merges outputs per scriptPubKey and orders them by value descending. So both lists are descending and no two outputs share a script.
+- **Transaction fields.** `RoundParameters.CreateTransaction` uses NBitcoin defaults: every nSequence final (0xffffffff, no RBF) and nLockTime 0.
+- **Script types.** Inputs may only be P2WPKH or P2TR (`AllowP2wpkhInputs` / `AllowP2trInputs`); clients decompose into P2WPKH / P2TR outputs (a coordinator may accept other output types for payments).
+
+Rules (all must hold):
 
 ```
-if len(tx.inputs) >= 20 and len(tx.outputs) >= 20:
-  value_counts = Counter(o.value for o in tx.outputs)
-  most_common_value, count = value_counts.most_common(1)[0]
-  if count >= 5:
-    flag as probable Wasabi CoinJoin
+structure:  5+ inputs and 5+ outputs; every input a P2WPKH/P2TR prevout (no coinbase)
+            every nSequence == 0xffffffff and nLockTime == 0; no OP_RETURN / zero-value output
+            input values and output values both in descending order
+            no two outputs to the same scriptPubKey; standard outputs paid to P2WPKH/P2TR
+evidence:   >= 60% of outputs at an exact standard denomination
+            >= 2 distinct standard denominations
+            >= 2 outputs at a non-decimal denomination (2^n, 3^n, 2*3^n)
+confidence: high with 20+ inputs and 3+ distinct non-decimal denominations, else medium
 ```
+
+The non-decimal requirement is what separates WabiSabi from lookalikes: exchange withdrawals, payroll and Whirlpool pools use round decimal amounts (100,000, 1,000,000, 5,000,000 sats are also WabiSabi denominations), but nobody else pays 8,388,608 or 4,782,969 sats. The structural rules reject the remaining lookalikes (Wasabi 1.x rounds and batches are not value-sorted; RBF-signalling and address-reusing "standard denomination" transactions fail the sequence and script rules).
+
+A transaction with 5+ equal outputs that fails these rules is still reported as a generic CoinJoin (`isWabiSabi: 0`); one without 5+ equal outputs gets no CoinJoin finding (the older ">= 10 inputs, >= 10 outputs, 3+ repeated values" path labelled exchange batches WabiSabi and is gone).
+
+Evaluation (`__tests__/fixtures/wabisabi-corpus.json`, asserted by `__tests__/wabisabi.test.ts`, plus the repo fixtures and golden corpus): 130 real rounds (zkSNACKs 2023-2024, and kruw, opencoordinator.org/.to, gingerwallet, coinjoin.nl, coinjoiner and smaller 2024 coordinators up to 2026) and 238 negatives (Whirlpool, JoinMarket, Wasabi 1.x rounds, exchange batches, Stonewall, dust, the crocs-muni list of Dumplings false positives, golden corpus). Precision 100% (0 false positives); recall 95.4%. The 6 missed rounds are tiny: one 2-input round, and five rounds of 7-9 inputs whose outputs are all one decimal denomination, which is indistinguishable from an equal-output mix and stays generic. The previous rule (10+ inputs and outputs, 3+ repeated values) had precision 95% / recall 87.7% for the finding, and its Boltzmann routing had precision 52% (it tier-decomposed every Wasabi 1.x round).
+
+Sources: WalletWasabi [`DenominationBuilder.cs`](https://github.com/WalletWasabi/WalletWasabi/blob/master/WalletWasabi/WabiSabi/Client/CoinJoin/Client/Decomposer/DenominationBuilder.cs), [`AmountDecomposer.cs`](https://github.com/WalletWasabi/WalletWasabi/blob/master/WalletWasabi/WabiSabi/Client/CoinJoin/Client/Decomposer/AmountDecomposer.cs), [`Output.cs`](https://github.com/WalletWasabi/WalletWasabi/blob/master/WalletWasabi/WabiSabi/Client/CoinJoin/Client/Decomposer/Output.cs), [`SigningState.cs`](https://github.com/WalletWasabi/WalletWasabi/blob/master/WalletWasabi/WabiSabi/Models/MultipartyTransaction/SigningState.cs), [`WabiSabiConfig.cs`](https://github.com/WalletWasabi/WalletWasabi/blob/master/WalletWasabi/WabiSabi/Coordinator/WabiSabiConfig.cs), [v2.0.0.0 `AmountDecomposer.cs`](https://github.com/WalletWasabi/WalletWasabi/blob/v2.0.0.0/WalletWasabi/WabiSabi/Client/AmountDecomposer.cs), PRs [#13297](https://github.com/WalletWasabi/WalletWasabi/pull/13297) and [#14881](https://github.com/WalletWasabi/WalletWasabi/pull/14881); Ginger Wallet [`DenominationBuilder.cs`](https://github.com/GingerPrivacy/GingerWallet/blob/master/WalletWasabi/WabiSabi/Client/CoinJoin/Client/Decomposer/DenominationBuilder.cs); Trezor Suite [`outputDecomposition.ts`](https://github.com/trezor/trezor-suite/blob/develop/packages/coinjoin/src/client/round/outputDecomposition.ts); prior art: Dumplings [`Scanner.cs`](https://github.com/nopara73/Dumplings/blob/master/Dumplings/Scanning/Scanner.cs) (same denominations and ordering, 50+ inputs, > 80% standard outputs). Corpus labels: [LiquiSabi](https://liquisabi.com) round list, [crocs-muni/coinjoin-analysis](https://github.com/crocs-muni/coinjoin-analysis) `data/wasabi2` (coordinator labels and false positives) and its Dumplings fixtures, mempool.space.
 
 **JoinMarket**
 
@@ -265,7 +281,7 @@ CoinJoin is not a silver bullet. Post-mix behavior matters enormously. If a user
 **Scoring impact:** +15 to +30
 
 - Whirlpool-pattern CoinJoin detected: +30
-- Wasabi/WabiSabi multi-tier CoinJoin detected: +20 to +25
+- Wasabi 1.x / WabiSabi CoinJoin detected: +20 to +25
 - Equal-output generic CoinJoin (5+ equal): +15 to +25
 - Stonewall pattern: +15
 - JoinMarket-pattern CoinJoin detected: +15

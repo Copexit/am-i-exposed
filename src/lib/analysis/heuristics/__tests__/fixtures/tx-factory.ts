@@ -130,3 +130,32 @@ export function makeMultisigAsm(m: number, keys: string[]): string {
   const keyParts = keys.map((k) => `OP_PUSHBYTES_33 ${k}`).join(" ");
   return `OP_PUSHNUM_${m} ${keyParts} OP_PUSHNUM_${keys.length} OP_CHECKMULTISIG`;
 }
+
+/**
+ * A transaction shaped like a WabiSabi coordinator's: P2WPKH inputs and
+ * outputs sorted by value descending, one script per output, final
+ * nSequence, nLockTime 0, nVersion 1.
+ */
+export function makeWabiSabiRound(inputValues: number[], outputValues: number[]): MempoolTransaction {
+  const desc = (v: number[]) => [...v].sort((a, b) => b - a);
+  return makeTx({
+    version: 1,
+    locktime: 0,
+    vin: desc(inputValues).map((value, i) =>
+      makeVin({
+        txid: i.toString(16).padStart(64, "e"),
+        sequence: 0xffffffff,
+        prevout: {
+          scriptpubkey: "0014" + i.toString(16).padStart(40, "e"),
+          scriptpubkey_asm: "",
+          scriptpubkey_type: "v0_p2wpkh",
+          scriptpubkey_address: uniqueAddr(),
+          value,
+        },
+      }),
+    ),
+    vout: desc(outputValues).map((value, i) =>
+      makeVout({ value, scriptpubkey: "0014" + i.toString(16).padStart(40, "f") }),
+    ),
+  });
+}

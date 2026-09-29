@@ -9,7 +9,7 @@ import {
   type BoltzmannWorkerResult,
   type BoltzmannProgress,
 } from "@/lib/analysis/boltzmann-pool";
-import { getBoltzmannEligibility, extractTxValues } from "@/lib/analysis/boltzmann-eligibility";
+import { getBoltzmannEligibility } from "@/lib/analysis/boltzmann-eligibility";
 
 export type { BoltzmannWorkerResult, BoltzmannProgress };
 
@@ -127,7 +127,7 @@ export function useBoltzmann(
     const eligibility = getBoltzmannEligibility(tx);
     if (!eligibility.canCompute) return;
 
-    if (isAutoComputable(eligibility.inputValues, eligibility.outputValues)) {
+    if (isAutoComputable(tx)) {
       const timer = setTimeout(() => void compute(), 0);
       return () => {
         clearTimeout(timer);
@@ -142,8 +142,7 @@ export function useBoltzmann(
 
   const autoComputed = useMemo(() => {
     if (!tx) return false;
-    const { inputValues, outputValues } = extractTxValues(tx);
-    return isAutoComputable(inputValues, outputValues);
+    return isAutoComputable(tx);
   }, [tx]);
 
   const eligibility = useMemo(() => (tx ? getBoltzmannEligibility(tx) : null), [tx]);

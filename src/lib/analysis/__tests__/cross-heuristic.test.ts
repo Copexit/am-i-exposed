@@ -3,7 +3,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import type { MempoolTransaction } from "@/lib/api/types";
 import { analyzeTransaction } from "../orchestrator";
-import { makeTx, makeVin, makeVout, resetAddrCounter } from "../heuristics/__tests__/fixtures/tx-factory";
+import { makeTx, makeVin, makeVout, makeWabiSabiRound, resetAddrCounter } from "../heuristics/__tests__/fixtures/tx-factory";
 beforeEach(() => resetAddrCounter());
 
 vi.useFakeTimers();
@@ -124,32 +124,13 @@ describe("cross-heuristic intelligence", () => {
   });
 
   it("infers Wasabi wallet from WabiSabi CoinJoin", async () => {
-    // Build a WabiSabi-like tx
-    const vins = Array.from({ length: 25 }, (_, i) =>
-      makeVin({
-        txid: String(i).padStart(64, "b"),
-        prevout: {
-          scriptpubkey: "",
-          scriptpubkey_asm: "",
-          scriptpubkey_type: "v0_p2wpkh",
-          scriptpubkey_address: `bc1qwb${String(i).padStart(37, "0")}`,
-          value: 500_000,
-        },
-      }),
+    const tx = makeWabiSabiRound(
+      Array.from({ length: 25 }, (_, i) => 4_000_000 - i * 10_000),
+      [
+        ...Array(6).fill(8_388_608), ...Array(5).fill(4_782_969), ...Array(5).fill(1_062_882),
+        ...Array(4).fill(1_000_000), ...Array(5).fill(531_441), 123_457,
+      ],
     );
-    const vouts = [
-      ...Array.from({ length: 5 }, () => makeVout({ value: 100_000 })),
-      ...Array.from({ length: 4 }, () => makeVout({ value: 200_000 })),
-      ...Array.from({ length: 3 }, () => makeVout({ value: 50_001 })),
-      ...Array.from({ length: 13 }, (_, i) => makeVout({ value: 10_000 + i * 1_000 })),
-    ];
-    const tx = makeTx({
-      vin: vins,
-      vout: vouts,
-      locktime: 0, // no nLockTime signal so walletGuess is unset, allowing Wasabi inference
-      fee: 50_000,
-      weight: 5000,
-    });
 
     const resultPromise = analyzeTransaction(tx);
     await vi.advanceTimersByTimeAsync(22 * 100);

@@ -35,7 +35,7 @@ describe("Boltzmann routing for JoinMarket rounds with multi-input makers", () =
 
   it("auto-computes the example instead of offering the exact engine", () => {
     expect(getBoltzmannEligibility(example).canCompute).toBe(true);
-    expect(isAutoComputable(inputValues, outputValues)).toBe(true);
+    expect(isAutoComputable(example)).toBe(true);
   });
 
   it("sends the example to the JoinMarket worker mode, never to exact DFS", async () => {
@@ -76,7 +76,7 @@ describe("Boltzmann routing for JoinMarket rounds with multi-input makers", () =
     const distinct = outputValues.map((v, i) => v + i);
     const tx = makeTx(inputValues, distinct);
     expect(getBoltzmannEligibility(tx)).toMatchObject({ canCompute: false, reason: "too-large" });
-    expect(isAutoComputable(inputValues, distinct)).toBe(false);
+    expect(isAutoComputable(tx)).toBe(false);
   });
 
   it("keeps sizes the exact engine finishes, including batch payouts with few inputs", () => {

@@ -66,7 +66,7 @@ export function getBoltzmannEligibility(
   }
 
   // 3. Size limit (WabiSabi gets the higher tier-decomposed limit)
-  const isWabiSabi = detectWabiSabiForTurbo(inputValues, outputValues);
+  const isWabiSabi = detectWabiSabiForTurbo(tx);
   const maxTotal = maxTotalOverride ?? (isWabiSabi ? MAX_SUPPORTED_TOTAL_WABISABI : MAX_SUPPORTED_TOTAL);
   const total = inputValues.length + outputValues.length;
 
