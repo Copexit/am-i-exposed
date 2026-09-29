@@ -160,6 +160,7 @@ export function countValidMappings(inputs: number[], outputs: number[]): { count
  */
 export function trySingleDenominationBoltzmann(
   outputs: number[],
+  inputCount: number,
 ): { entropy: number; method: string } | null {
   if (outputs.length < 5) return null;
 
@@ -183,13 +184,18 @@ export function trySingleDenominationBoltzmann(
   const otherTiers = [...counts.entries()].filter(([v, c]) => v !== bestValue && c >= 2);
   if (otherTiers.length > 0) return null;
 
+  // At most one party per input: with fewer inputs than equal outputs, apply
+  // the same partial-coverage bound as tryBoltzmannEqualOutputs, B(k) * C(n, k).
   const n = bestCount;
-  if (n <= 50) {
-    const count = boltzmannEqualOutputs(n);
-    const entropy = count > 1 ? Math.log2(count) : 0;
+  const k = Math.min(n, inputCount);
+  if (k < 2) return null;
+  const outputChoiceCorrection = k < n ? log2Binomial(n, k) : 0;
+  if (k <= 50) {
+    const count = boltzmannEqualOutputs(k);
+    const entropy = (count > 1 ? Math.log2(count) : 0) + outputChoiceCorrection;
     return { entropy, method: "Boltzmann partition" };
   }
-  const entropy = estimateBoltzmannEntropy(n);
+  const entropy = estimateBoltzmannEntropy(k) + outputChoiceCorrection;
   return { entropy, method: "Boltzmann estimate" };
 }
 

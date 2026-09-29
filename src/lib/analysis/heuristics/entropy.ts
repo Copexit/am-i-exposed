@@ -117,7 +117,13 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
   // Check for equal-value outputs (Boltzmann partition path)
   const equalOutputResult = tryBoltzmannEqualOutputs(inputs, outputs);
 
-  if (equalOutputResult !== null) {
+  if (inputs.length === 1) {
+    // One input (or one input address) funds every output, so every output is
+    // deterministically linked to it: one interpretation, 0 bits, whatever the
+    // output values. Equal outputs here are a fan-out, not a CoinJoin.
+    entropyBits = 0;
+    method = "single input";
+  } else if (equalOutputResult !== null) {
     entropyBits = equalOutputResult.entropy;
     method = equalOutputResult.method;
   } else if (
@@ -161,7 +167,7 @@ export const analyzeEntropy: TxHeuristic = (tx) => {
     // Check for single-denomination CoinJoin (JoinMarket) before multi-tier estimate.
     // JoinMarket has one group of equal outputs + unique change outputs.
     // Use Boltzmann on just the equal outputs (change doesn't contribute to mixing entropy).
-    const singleDenomResult = trySingleDenominationBoltzmann(outputs);
+    const singleDenomResult = trySingleDenominationBoltzmann(outputs, inputs.length);
     if (singleDenomResult !== null) {
       entropyBits = singleDenomResult.entropy;
       method = singleDenomResult.method;
