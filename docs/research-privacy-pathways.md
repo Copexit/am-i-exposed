@@ -403,7 +403,7 @@ Yes - Silent Payment outputs are exclusively P2TR. This means:
 ### D5. Recommended Wallets
 
 - **Phoenix** (ACINQ) - Self-custodial, runs a full LN node on mobile, uses trampoline routing. Single LSP dependency on ACINQ.
-- **Breez** - Non-custodial, built-in LSP, designed for everyday payments
+- **Glow** (Breez) - Breez's current app, built on the Breez SDK for Spark. Not a Lightning node wallet: funds live on Spark, a layer 2 where a small set of operators co-signs every transfer, and Lightning payments are bridged from there. The older Breez mobile app (own node plus Breez LSP) is in maintenance mode, so it is no longer listed as a recommended Lightning wallet.
 - **Zeus** - Connects to your own Lightning node, supports Tor, privacy mode to hide sending data. Maximum privacy if you run your own node.
 
 ### D6. LSP Privacy Considerations
@@ -414,7 +414,7 @@ Yes - Silent Payment outputs are exclusively P2TR. This means:
 - The LSP can see payment amounts and timing for channels it opens with users
 - If a user has only one channel (with the LSP), the LSP knows all payment destinations
 - Phoenix users are all connected to ACINQ's node - ACINQ can observe payment patterns
-- Breez integrates its own LSP with similar visibility
+- Spark-based wallets such as Glow trade the LSP relationship for a different one: the Spark operators coordinate every transfer
 - **Mitigation**: Zeus connecting to your own node avoids LSP visibility entirely
 
 ---
@@ -438,6 +438,7 @@ Yes - Silent Payment outputs are exclusively P2TR. This means:
 ### E2. Current Implementations (2025-2026)
 
 - **COMIT (xmr-btc-swap)**: Mature CLI tool for BTC-to-XMR atomic swaps. Limited to BTC->XMR direction only. Uses adaptor signatures. Open source.
+- **eigenwallet** (formerly UnstoppableSwap): Actively maintained fork of COMIT xmr-btc-swap with a desktop GUI (Linux, macOS, Windows), built-in Tor, and a peer-to-peer maker network. Same BTC->XMR direction and adaptor-signature protocol. https://eigenwallet.org, https://github.com/eigenwallet/core
 - **BasicSwap DEX** (Particl): Fully decentralized exchange supporting BTC<->XMR swaps via both HTLC and adaptor signature (PTLC) protocols. No trading fees (only blockchain fees). Uses SMSG network for decentralized order book. Tor integration.
 - **Haveno**: Decentralized P2P exchange built around Monero using multisig escrow (not pure atomic swaps). Supports XMR<->BTC, fiat, stablecoins. Tor by default.
 - **Non-custodial aggregators**: Platforms like Changee, Flashift enabling no-KYC swaps, though these involve custodial risk during the swap window.
@@ -625,7 +626,7 @@ The Monero round-trip achieves the strongest possible chain break available in c
 **What it is:** The strongest available chain break, routing Bitcoin through Monero's opaque ledger.
 
 **Flow:**
-1. Swap BTC to XMR via atomic swap (COMIT, BasicSwap) or non-custodial exchange
+1. Swap BTC to XMR via atomic swap (eigenwallet, BasicSwap) or non-custodial exchange
 2. Wait in Monero (Monero's ring signatures, stealth addresses, RingCT provide full privacy)
 3. Swap XMR back to BTC via another atomic swap
 4. The resulting BTC has zero on-chain link to the original
@@ -714,6 +715,7 @@ Sources:
 - [Phoenix Wallet Trampoline Payments - ACINQ](https://medium.com/@ACINQ/phoenix-wallet-part-4-trampoline-payments-fb1befd027c8)
 - [Best Lightning Wallets 2026 - Coin Bureau](https://coinbureau.com/analysis/best-bitcoin-lightning-wallets)
 - [COMIT xmr-btc-swap - GitHub](https://github.com/comit-network/xmr-btc-swap)
+- [eigenwallet (formerly UnstoppableSwap) - GitHub](https://github.com/eigenwallet/core)
 - [Best XMR Atomic Swaps 2026 - Xgram](https://xgram.io/blog/best-xmr-atomic-swaps-and-community-services-2026)
 - [Monero P2P Exchanges - arXiv](https://arxiv.org/html/2505.02392v2)
 - [BasicSwap DEX - Particl Academy](https://academy.particl.io/en/latest/basicswap-dex/basicswap_explained.html)

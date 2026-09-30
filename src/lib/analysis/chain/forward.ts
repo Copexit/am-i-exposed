@@ -217,7 +217,7 @@ export function analyzeForward(
         "are post-mix outputs, their mixing benefit is lost.",
       recommendation:
         "Never spend toxic change with post-mix UTXOs. Dispose of toxic change via " +
-        "Monero atomic swap (UnstoppableSwap), Lightning channel opening, or submarine swap.",
+        "Monero atomic swap (eigenwallet), Lightning channel opening, or submarine swap.",
       scoreImpact: -20,
       params: { mergeCount: toxicMergeOutputs.length },
       confidence: "deterministic",
