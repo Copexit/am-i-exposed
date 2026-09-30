@@ -75,6 +75,16 @@ describe("buildLinkabilityMatrix - findings", () => {
     expect(buildLinkabilityMatrix(tx([100_000, 100_000, 546], [199_000]))!.findings).toEqual([]);
   });
 
+  it("zero-value txos are not parties: one valued output plus a 0-value anchor, or one valued input plus a 0-value input", () => {
+    // Boltzmann counts only txos with value > 0 (process_tx filter_txos), as H5 does
+    const anchor = buildLinkabilityMatrix(tx([100_000, 50_000], [140_000, 0]))!;
+    expect(anchor.totalInterpretations).toBe(1);
+    expect(anchor.findings).toEqual([]);
+    const zeroIn = buildLinkabilityMatrix(tx([100_000, 0], [48_000, 50_000]))!;
+    expect(zeroIn.totalInterpretations).toBe(1);
+    expect(zeroIn.findings).toEqual([]);
+  });
+
   it("2-in/2-out where both inputs share one address: no finding (single owner, as H5 merges)", () => {
     const t = tx([100_000, 50_000], [90_000, 40_000]);
     const [first, second] = t.vin as [MempoolVin, MempoolVin];

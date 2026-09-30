@@ -211,7 +211,11 @@ The linker itself (`TxosLinker._match_agg_by_val`) lets an input aggregate match
 
 am-i.exposed applies the same rule everywhere a matrix is produced: boltzmann-rs (`analyze::is_single_interpretation`, used by `analyze`, the chunked and ranged WASM entry points, JoinMarket and WabiSabi modes), `computeBoltzmann` before any worker is started (`isSingleInterpretation` / `singleInterpretationResult` in `boltzmann-detection.ts`), and the JS linkability matrix (`chain/linkability.ts`). Transactions with 2+ outputs keep the fee-only reading, as in the reference: for inputs [100,000, 60,000, 300] and outputs [95,000, 58,000] (fee 7,300) both give 5 interpretations and the 300-sat input is linked in only 2 of them.
 
-This changes no score: single-output and single-input transactions are already scored as zero entropy by H5 (`h5-zero-entropy`, `h5-zero-entropy-sweep`, `h5-low-entropy` with `_variant: "single_input"`), the WASM result never overrides those (`boltzmann-enhance` skips `nbCmbn <= 1`), and the `linkability-*` findings skip one-interpretation and one-output transactions.
+For ordinary transactions this changes no score: single-output and single-input transactions are already scored as zero entropy by H5 (`h5-zero-entropy`, `h5-zero-entropy-sweep`, `h5-low-entropy` with `_variant: "single_input"`), the WASM result never overrides those (`boltzmann-enhance` skips `nbCmbn <= 1`), and the `linkability-*` findings skip one-interpretation and one-output transactions.
+
+Two narrow cases do change, both toward the reference and H5 (which already ignores zero-value txos): a transaction with one valued output plus a zero-value spendable output (for example a P2A anchor), and a transaction with one valued input plus a zero-value input. The chain linkability matrix used to count the zero-value txo as a party and could emit `linkability-deterministic` (-3 or -6); it now sees one interpretation and emits nothing.
+
+Because one interpretation needs no enumeration, it is computed at any size: a 100-input consolidation or a 1-input payout to hundreds of outputs shows "1 interpretation, 0 bits" instead of "too complex".
 
 ---
 

@@ -137,6 +137,7 @@ export function isAutoComputable(tx: WabiSabiTxLike): boolean {
   const nIn = inputValues.length;
   const nOut = outputValues.length;
   if (nIn === 0 || nOut === 0) return false;
+  if (isSingleInterpretation(inputValues, outputValues)) return true;
   if (nIn + nOut < AUTO_COMPUTE_MAX_TOTAL) return true;
   // WabiSabi turbo: tier-decomposed, handles up to 800 total I/O
   if (nIn + nOut <= MAX_SUPPORTED_TOTAL_WABISABI && detectWabiSabiForTurbo(tx)) return true;

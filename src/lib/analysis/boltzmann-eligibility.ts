@@ -13,7 +13,7 @@ import {
   detectWabiSabiForTurbo,
 } from "./boltzmann-pool";
 import { extractTxValues } from "./boltzmann-pool";
-import { isExactFeasible, usesJoinMarketTurbo } from "./boltzmann-detection";
+import { isExactFeasible, isSingleInterpretation, usesJoinMarketTurbo } from "./boltzmann-detection";
 import { isCoinbase } from "./heuristics/tx-utils";
 
 export { extractTxValues };
@@ -65,7 +65,12 @@ export function getBoltzmannEligibility(
     return { canCompute: false, reason: "empty", maxTotal: 0, inputValues, outputValues };
   }
 
-  // 3. Size limit (WabiSabi gets the higher tier-decomposed limit)
+  // 3. One interpretation (single input or single output): trivial at any size
+  if (isSingleInterpretation(inputValues, outputValues)) {
+    return { canCompute: true, maxTotal: inputValues.length + outputValues.length, inputValues, outputValues };
+  }
+
+  // 4. Size limit (WabiSabi gets the higher tier-decomposed limit)
   const isWabiSabi = detectWabiSabiForTurbo(tx);
   const maxTotal = maxTotalOverride ?? (isWabiSabi ? MAX_SUPPORTED_TOTAL_WABISABI : MAX_SUPPORTED_TOTAL);
   const total = inputValues.length + outputValues.length;
@@ -74,7 +79,7 @@ export function getBoltzmannEligibility(
     return { canCompute: false, reason: "too-large", maxTotal, inputValues, outputValues };
   }
 
-  // 4. Without a turbo mode the exact engine must be able to finish
+  // 5. Without a turbo mode the exact engine must be able to finish
   const turbo = isWabiSabi || usesJoinMarketTurbo(inputValues, outputValues);
   if (!turbo && !isExactFeasible(inputValues.length, outputValues.length)) {
     return { canCompute: false, reason: "too-large", maxTotal, inputValues, outputValues };

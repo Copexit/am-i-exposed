@@ -344,6 +344,7 @@ describe("finding locale text keeps the heuristic's information", () => {
       const tx = makeTx({ vin: [addrVin("bc1qone", 1_000_000)], vout: [1, 2, 3].map((i) => makeVout({ value: i * 100_000 })) });
       const f = analyzeEntropy(tx).findings.find((x) => x.id === "h5-low-entropy")!;
       expect(render(f).title).toBe(f.title);
+      expect(render(f).description).toBe(f.description);
       for (const lng of LANGS) {
         expect(render(f, lng).description).toContain("3");
         expect(render(f, lng).description).toMatch(/0 bit/i);
