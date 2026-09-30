@@ -106,14 +106,36 @@ export const analyzeCioh: TxHeuristic = (tx) => {
   // address reuse on-chain. Reported, not scored: CIOH already links those
   // inputs, so the reuse adds no link inside this transaction.
   const parentsByAddress = new Map<string, Set<string>>();
+  const inputsByAddress = new Map<string, number>();
   for (const vin of tx.vin) {
     const addr = vin.prevout?.scriptpubkey_address;
     if (vin.is_coinbase || !addr) continue;
     const parents = parentsByAddress.get(addr) ?? new Set<string>();
     parents.add(vin.txid);
     parentsByAddress.set(addr, parents);
+    inputsByAddress.set(addr, (inputsByAddress.get(addr) ?? 0) + 1);
   }
   const reusedCount = [...parentsByAddress.values()].filter((p) => p.size >= 2).length;
+
+  // When inputs outnumber addresses, the title counts both so neither number
+  // is read as the other (40b88e16: 5 inputs from 4 addresses).
+  const repeated = [...inputsByAddress.values()].filter((n) => n >= 2);
+  const inputCount = [...inputsByAddress.values()].reduce((a, b) => a + b, 0);
+  const uses = repeated.length === 1 ? repeated[0]! : undefined;
+  const repeatNote = uses !== undefined
+    ? `1 ${reusedCount > 0 ? "reused " : ""}address funds ${uses} inputs`
+    : `${repeated.length} addresses fund several inputs` + (reusedCount > 0 ? `, ${reusedCount} reused` : "");
+  const title = repeated.length === 0
+    ? `${count} input addresses clustered via CIOH`
+    : `${inputCount} inputs from ${count} addresses linked by CIOH (${repeatNote})`;
+  const params: Record<string, string | number> = repeated.length === 0 ? { count } : {
+    count,
+    inputCount,
+    repeatedCount: repeated.length,
+    ...(uses !== undefined ? { uses } : {}),
+    ...(reusedCount > 0 ? { reusedCount } : {}),
+    _variant: `${reusedCount > 0 ? "reuse" : "repeat"}_${uses !== undefined ? "one" : "many"}`,
+  };
 
   // Tiered scaling: larger consolidations are worse for privacy
   let impact: number;
@@ -129,8 +151,8 @@ export const analyzeCioh: TxHeuristic = (tx) => {
         id: "h3-cioh",
         severity: impact >= 25 ? "critical" : impact >= 12 ? "high" : "medium",
         confidence: "high",
-        title: `${count} input addresses clustered via CIOH` + (reusedCount > 0 ? ` (${reusedCount} reused)` : ""),
-        params: { count, ...(reusedCount > 0 ? { reusedCount, _variant: "reuse" } : {}) },
+        title,
+        params,
         description:
           `This transaction combines inputs from ${count} different addresses. ` +
           `Chain analysis firms will assume these ${count} addresses belong to the same entity. ` +
