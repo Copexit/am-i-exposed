@@ -107,11 +107,12 @@ export function probTextColor(p: number): string {
 }
 
 /** Qualitative label for probability. */
-export function probLabel(p: number): string {
-  if (p >= 1.0) return "Deterministic";
-  if (p >= 0.75) return "Likely";
-  if (p >= 0.50) return "Probable";
-  if (p >= 0.25) return "Ambiguous";
-  if (p > 0) return "Unlikely";
-  return "No link";
+/** Legend label for a link probability: i18n key under `boltzmann.legend.` plus its English default. */
+export function probLabel(p: number): { key: string; label: string } {
+  if (p >= 1.0) return { key: "deterministic", label: "Deterministic" };
+  if (p >= 0.75) return { key: "likely", label: "Likely" };
+  if (p >= 0.50) return { key: "probable", label: "Probable" };
+  if (p >= 0.25) return { key: "ambiguous", label: "Ambiguous" };
+  if (p > 0) return { key: "unlikely", label: "Unlikely" };
+  return { key: "noLink", label: "No link" };
 }

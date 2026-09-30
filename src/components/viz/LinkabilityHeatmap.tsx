@@ -342,7 +342,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                           </div>
                           {tooltipData.prob < 0 ? (
                             <div className="text-sm font-semibold text-muted italic">
-                              N/A - partial result (timed out)
+                              {t("boltzmann.cellPartial", { defaultValue: "N/A - partial result (timed out)" })}
                             </div>
                           ) : (
                             <>
@@ -356,7 +356,7 @@ export function LinkabilityHeatmap({ tx, boltzmannResult: precomputed }: Props) 
                                 )}
                               </div>
                               <div className="text-[10px] font-medium" style={{ color: probColor(tooltipData.prob) }}>
-                                {probLabel(tooltipData.prob)}
+                                {t(`boltzmann.legend.${probLabel(tooltipData.prob).key}`, { defaultValue: probLabel(tooltipData.prob).label })}
                               </div>
                             </>
                           )}
