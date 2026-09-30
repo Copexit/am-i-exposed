@@ -2348,6 +2348,7 @@
   "home.lens_wallet_view": "WALLET-ANSICHT",
   "home.more_examples": "{{count}} weiteres Beispiel",
   "home.more_examples_other": "{{count}} weitere Beispiele",
+  "home.scroll_cue": "So funktioniert es",
   "home.specimens": "Beispiel-Scans",
   "home.status_checks": "{{count}} Transaktionsprüfung läuft lokal in diesem Browser.",
   "home.status_checks_other": "{{count}} Transaktionsprüfungen laufen lokal in diesem Browser.",

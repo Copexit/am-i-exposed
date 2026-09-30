@@ -2400,6 +2400,7 @@
   "home.more_examples_other": "Jeszcze {{count}} przykładu",
   "home.more_examples_few": "Jeszcze {{count}} przykłady",
   "home.more_examples_many": "Jeszcze {{count}} przykładów",
+  "home.scroll_cue": "Zobacz, jak to działa",
   "home.specimens": "Przykładowe skany",
   "home.status_checks": "{{count}} kontrola transakcji działa lokalnie w tej przeglądarce.",
   "home.status_checks_other": "{{count}} kontroli transakcji działa lokalnie w tej przeglądarce.",

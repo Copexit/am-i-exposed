@@ -294,9 +294,14 @@ export function GlassField({ utxos, labels, captions, locked, lockTarget, avoid,
         ctx.lineTo(L.x + Math.cos(a) * (R + 8 + len), L.y + Math.sin(a) * (R + 8 + len));
       }
       ctx.stroke();
-      if (W >= 700 || L.lockA > 0.5) {
-        ctx.font = `500 10px ${mono}`; ctx.fillStyle = light ? P.bitcoinText : ring; ctx.textAlign = "center";
-        ctx.fillText(L.lockA > 0.5 ? cap.locked : cap.inView(inLens.length), L.x, L.y + R + 30);
+      ctx.font = `500 10px ${mono}`;
+      const capText = L.lockA > 0.5 ? cap.locked : cap.inView(inLens.length);
+      const capW = ctx.measureText(capText).width / 2 + 6, capY = L.y + R + 30;
+      // The drifting caption stays off the hero text and controls (trust row, scroll cue).
+      const capClear = L.lockA > 0.5 || !keepOut.some((r) => L.x - capW < r.right && L.x + capW > r.left && capY - 10 < r.bottom && capY + 4 > r.top);
+      if ((W >= 700 || L.lockA > 0.5) && capClear) {
+        ctx.fillStyle = light ? P.bitcoinText : ring; ctx.textAlign = "center";
+        ctx.fillText(capText, L.x, capY);
         ctx.textAlign = "left";
       }
       ctx.globalAlpha = 1;

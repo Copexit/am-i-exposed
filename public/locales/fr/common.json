@@ -2348,6 +2348,7 @@
   "home.lens_wallet_view": "VUE DU PORTEFEUILLE",
   "home.more_examples": "{{count}} exemple supplémentaire",
   "home.more_examples_other": "{{count}} exemples supplémentaires",
+  "home.scroll_cue": "Voir comment ça marche",
   "home.specimens": "Exemples d'analyses",
   "home.status_checks": "{{count}} vérification de transaction s'exécute localement dans ce navigateur.",
   "home.status_checks_other": "{{count}} vérifications de transaction s'exécutent localement dans ce navigateur.",

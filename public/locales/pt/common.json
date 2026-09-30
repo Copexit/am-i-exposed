@@ -2348,6 +2348,7 @@
   "home.lens_wallet_view": "VISÃO DA CARTEIRA",
   "home.more_examples": "mais {{count}} exemplo",
   "home.more_examples_other": "mais {{count}} exemplos",
+  "home.scroll_cue": "Veja como funciona",
   "home.specimens": "Escaneamentos de exemplo",
   "home.status_checks": "{{count}} verificação de transação roda localmente neste navegador.",
   "home.status_checks_other": "{{count}} verificações de transação rodam localmente neste navegador.",
