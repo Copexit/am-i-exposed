@@ -103,7 +103,7 @@ export const RECOMMENDED_WALLETS: WalletEntry[] = [
     payJoin: false,
     bip47: false,
     silentPayments: "send-only",
-    coinControl: "partial",
+    coinControl: true,
     ownNode: true,
     tor: true,
     trackers: 1,

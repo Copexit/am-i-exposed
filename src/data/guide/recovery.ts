@@ -49,5 +49,5 @@ export const RECOVERY_STEPS: RecoveryStep[] = [
 export const RECOVERY_TOOLS = [
   { name: "Sparrow Wallet", url: "https://sparrowwallet.com" },
   { name: "Ashigaru", url: "https://ashigaru.rs" },
-  { name: "UnstoppableSwap", url: "https://unstoppableswap.net" },
+  { name: "eigenwallet", url: "https://eigenwallet.org" },
 ];

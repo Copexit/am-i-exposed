@@ -65,3 +65,12 @@ describe("RECOMMENDED_WALLETS schema", () => {
     }
   });
 });
+
+describe("RECOMMENDED_WALLETS coinControl ground truth", () => {
+  // Manual coin selection ships on Android (5.6.0+), desktop and, since
+  // iOS 5.7.0 (2026-09-28), iOS: help.blockstream.com "Select which coins
+  // to spend" and github.com/Blockstream/green_ios/releases/tag/release_5.7.0
+  it("Blockstream App has full coin control", () => {
+    expect(findWallet("Blockstream App").coinControl).toBe(true);
+  });
+});

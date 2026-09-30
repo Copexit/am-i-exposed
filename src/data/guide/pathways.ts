@@ -38,7 +38,7 @@ export const PATHWAYS: PathwayData[] = [
       { key: "pathways.ln.con6", default: "Path selection favors short, cheap routes with small anonymity sets. Timing analysis and amount correlation can deanonymize payments across hops." },
       { key: "pathways.ln.con7", default: "Your node's public key is a persistent identifier. Anyone who knows it can track your channel opens, capacity changes, and routing behavior - similar to reusing a static address." },
     ],
-    tools: ["Phoenix", "Breez", "Zeus"],
+    tools: ["Phoenix", "Zeus"],
     warnings: [
       {
         key: "pathways.ln.warn1",
@@ -46,7 +46,7 @@ export const PATHWAYS: PathwayData[] = [
       },
       {
         key: "pathways.ln.warn2",
-        default: "For maximum privacy, use Zeus connected to your own Lightning node. Phoenix and Breez route through single LSPs that can observe your payment activity.",
+        default: "For maximum privacy, use Zeus connected to your own Lightning node. Phoenix routes payments through ACINQ's node, its single LSP, which can observe your payment activity. Glow (Breez's current app) is not a Lightning node wallet: it runs on Spark, where a small set of operators co-signs every transfer.",
       },
       {
         key: "pathways.ln.warn3",
@@ -77,7 +77,7 @@ export const PATHWAYS: PathwayData[] = [
       { key: "pathways.xmr.con2", default: "Liquidity limitations on DEX platforms" },
       { key: "pathways.xmr.con3", default: "Slower than Lightning (on-chain settlement on both chains)" },
     ],
-    tools: ["Haveno (DEX)", "UnstoppableSwap", "Unstoppable Wallet"],
+    tools: ["Haveno (DEX)", "eigenwallet", "Unstoppable Wallet"],
     warnings: [
       {
         key: "pathways.xmr.warn1",
@@ -89,7 +89,7 @@ export const PATHWAYS: PathwayData[] = [
       },
       {
         key: "pathways.xmr.warn3",
-        default: "Prefer non-custodial atomic swaps (UnstoppableSwap, Haveno) over custodial exchange services. Custodial services can freeze funds and comply with chain analysis requests. For small amounts, Unstoppable Wallet offers cheaper non-atomic swaps with exchange providers.",
+        default: "Prefer non-custodial atomic swaps (eigenwallet, Haveno) over custodial exchange services. Custodial services can freeze funds and comply with chain analysis requests. For small amounts, Unstoppable Wallet offers cheaper non-atomic swaps with exchange providers.",
       },
     ],
   },
@@ -269,7 +269,7 @@ export const COMBINED_PATHWAYS: CombinedPathwayData[] = [
       },
       {
         key: "pathways.combo.xmr.warn3",
-        default: "Centralized swap risk: custodial services can block or freeze funds. Use atomic swaps (UnstoppableSwap, Haveno) instead, even if fees are higher.",
+        default: "Centralized swap risk: custodial services can block or freeze funds. Use atomic swaps (eigenwallet, Haveno) instead, even if fees are higher.",
       },
       {
         key: "pathways.combo.xmr.warn4",
