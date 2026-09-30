@@ -32,7 +32,8 @@ import { WabiSabiCoordinatorCard } from "../WabiSabiCoordinatorCard";
 import { ObservatoryAttribution } from "../ObservatoryAttribution";
 import { ObservatoryErrorState } from "../ObservatoryErrorState";
 import { RecentCyclesTable } from "../RecentCyclesTable";
-import { projectCoordinators } from "@/lib/observatory/selectors";
+import { RecentRoundsTable } from "../RecentRoundsTable";
+import { projectCoordinators, toRoundRows } from "@/lib/observatory/selectors";
 
 const summary = summaryFixture as WhirlpoolSummary;
 const charts = chartsFixture as WhirlpoolCharts;
@@ -54,16 +55,26 @@ describe("observatory smoke tests", () => {
     expect(container.querySelector("svg")).toBeNull();
   });
 
-  it("ObservatoryHero renders all 4 KPI tiles", () => {
-    const { container } = render(
-      <ObservatoryHero
-        whirlpool={summary}
-        whirlpoolCharts={charts}
-        liquisabi={dashboard}
-        loading={false}
-      />,
-    );
-    expect(container.querySelectorAll("div.rounded-xl").length).toBeGreaterThanOrEqual(4);
+  it("ObservatoryHero renders only the selected protocol's 2 KPI tiles", () => {
+    for (const protocol of ["whirlpool", "wabisabi"] as const) {
+      const { container, unmount } = render(
+        <ObservatoryHero
+          whirlpool={summary}
+          whirlpoolCharts={charts}
+          liquisabi={dashboard}
+          loading={false}
+          protocol={protocol}
+        />,
+      );
+      expect(container.querySelectorAll("div.rounded-xl").length).toBe(2);
+      expect(container.textContent).toMatch(
+        protocol === "whirlpool" ? /Whirlpool lifetime entered/ : /WabiSabi fresh inputs/,
+      );
+      expect(container.textContent).not.toMatch(
+        protocol === "whirlpool" ? /WabiSabi/ : /Whirlpool/,
+      );
+      unmount();
+    }
   });
 
   it("ObservatoryHero renders empty placeholders when data is null and not loading", () => {
@@ -73,6 +84,7 @@ describe("observatory smoke tests", () => {
         whirlpoolCharts={null}
         liquisabi={null}
         loading={false}
+        protocol="wabisabi"
       />,
     );
     expect(container.textContent).not.toMatch(/0\.000 BTC/);
@@ -85,9 +97,10 @@ describe("observatory smoke tests", () => {
         whirlpoolCharts={null}
         liquisabi={null}
         loading={true}
+        protocol="whirlpool"
       />,
     );
-    expect(container.querySelectorAll(".animate-pulse").length).toBe(4);
+    expect(container.querySelectorAll(".animate-pulse").length).toBe(2);
   });
 
   it("WhirlpoolPoolCard renders the pool label, unspent capacity, and sparkline", () => {
@@ -140,6 +153,20 @@ describe("observatory smoke tests", () => {
     expect(hrefs.some((h) => h?.includes("am-i.exposed"))).toBe(false);
   });
 
+  it("RecentRoundsTable renders one same-origin scan link per round with a coordinator name", () => {
+    const rows = toRoundRows(dashboard);
+    const { container, getByText } = render(<RecentRoundsTable rows={rows} total={2} />);
+    const hrefs = Array.from(container.querySelectorAll("a")).map((a) => a.getAttribute("href"));
+    expect(hrefs).toEqual(rows.map((r) => `/#tx=${r.txid}`));
+    expect(getByText("Kruw.io")).toBeTruthy();
+    expect(container.querySelector("time")?.getAttribute("dateTime")).toBe("2026-05-24T16:34:10.000Z");
+  });
+
+  it("RecentRoundsTable renders nothing without rows", () => {
+    const { container } = render(<RecentRoundsTable rows={[]} total={0} />);
+    expect(container.firstChild).toBeNull();
+  });
+
   it("RecentCyclesTable renders nothing when there is no page", () => {
     const { container } = render(<RecentCyclesTable firstPage={null} />);
     expect(container.firstChild).toBeNull();
@@ -172,6 +199,7 @@ describe("observatory smoke tests", () => {
           whirlpoolCharts={charts}
           liquisabi={dashboard}
           loading={false}
+          protocol="whirlpool"
         />
         <WhirlpoolPoolCard pool={summary.pools[0]!} charts={charts} />
         <WhirlpoolPoolCard pool={summary.pools[1]!} charts={charts} />

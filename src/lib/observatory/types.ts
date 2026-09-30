@@ -199,3 +199,16 @@ export interface CycleRow {
   /** Same-origin scanner link, e.g. "/#tx=<txid>". */
   scanHref: string;
 }
+
+/** A recent WabiSabi round shaped for the RecentRoundsTable UI. */
+export interface RoundRow {
+  txid: string;
+  /** Round end time in ms since epoch; null when the upstream value is unparseable. */
+  endedAt: number | null;
+  /** Coordinator display name (LiquiSabi `Name`), falling back to the endpoint host. */
+  coordinatorName: string;
+  inputCount: number;
+  outputCount: number;
+  /** Same-origin scanner link, e.g. "/#tx=<txid>". */
+  scanHref: string;
+}

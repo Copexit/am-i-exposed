@@ -83,7 +83,7 @@
         "ParametersMiningFeeRate": 2.0,
         "RoundStartTime": "2026-05-23T10:00:00+00:00",
         "RoundEndTime": "2026-05-23T10:10:00+00:00",
-        "TxId": "ginger_tx",
+        "TxId": "424f51c9ae3c0000000000000000000000000000000000000000000000000001",
         "FinalMiningFeeRate": 2.0,
         "VirtualSize": 1000,
         "TotalMiningFee": 2000,

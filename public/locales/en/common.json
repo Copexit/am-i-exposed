@@ -2550,5 +2550,12 @@
   "graph.savedNodes_one": "{{count}} node",
   "graph.savedNodes_other": "{{count}} nodes",
   "guide.tocAriaLabel": "Table of contents",
-  "graph.toxicBadge": "TOXIC"
+  "graph.toxicBadge": "TOXIC",
+  "observatory.tabs.label": "CoinJoin protocol",
+  "observatory.tabs.whirlpool": "Whirlpool (Ashigaru)",
+  "observatory.tabs.wabisabi": "WabiSabi (Wasabi)",
+  "observatory.rounds.title": "Recent rounds",
+  "observatory.rounds.inOut": "in {{inputs}} · out {{outputs}}",
+  "observatory.rounds.sectionTitle": "Recent WabiSabi rounds",
+  "observatory.rounds.sectionSubtitle": "Latest coinjoin rounds across all tracked coordinators. Select any round to inspect it in the scanner."
 }

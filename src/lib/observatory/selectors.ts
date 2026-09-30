@@ -10,6 +10,7 @@ import type {
   LiquiSabiGraphEntry,
   CoordinatorView,
   CycleRow,
+  RoundRow,
   SparklinePoint,
   WhirlpoolCharts,
   WhirlpoolSummary,
@@ -134,7 +135,61 @@ export function toCycleRows(page: WhirlpoolTxsPage | null): CycleRow[] {
   }));
 }
 
-// ---------- liquisabi (unchanged) ----------
+// ---------- liquisabi ----------
+
+const TXID_RE = /^[0-9a-f]{64}$/i;
+
+/** Endpoints are compared without scheme case or trailing slashes. */
+function normEndpoint(endpoint: string): string {
+  return endpoint.trim().toLowerCase().replace(/\/+$/, "");
+}
+
+function endpointHost(endpoint: string): string {
+  try {
+    return new URL(endpoint).host;
+  } catch {
+    return endpoint;
+  }
+}
+
+/**
+ * The most recent WabiSabi rounds from the dashboard's first page of
+ * `PaginatedRounds`, newest first, linked to the same-origin scanner.
+ * Rounds without a valid txid are dropped (nothing to scan).
+ */
+export function toRoundRows(
+  dashboard: LiquiSabiDashboard | null,
+  limit = 10,
+): RoundRow[] {
+  const rounds = dashboard?.PaginatedRounds?.Rounds;
+  if (!rounds) return [];
+  const names = new Map<string, string>();
+  for (const c of dashboard.Coordinators ?? []) {
+    const name = c.Coordinator?.Name?.trim();
+    if (name) names.set(normEndpoint(c.Coordinator.Endpoint), name);
+  }
+  const rows: RoundRow[] = [];
+  for (const r of rounds) {
+    if (typeof r.TxId !== "string" || !TXID_RE.test(r.TxId)) continue;
+    const txid = r.TxId.toLowerCase();
+    const ended = Date.parse(r.RoundEndTime);
+    const endpoint = r.CoordinatorEndpoint ?? "";
+    rows.push({
+      txid,
+      endedAt: Number.isNaN(ended) ? null : ended,
+      coordinatorName: names.get(normEndpoint(endpoint)) ?? endpointHost(endpoint),
+      inputCount: r.InputCount ?? 0,
+      outputCount: r.OutputCount ?? 0,
+      scanHref: `/#tx=${txid}`,
+    });
+  }
+  rows.sort((a, b) => (b.endedAt ?? 0) - (a.endedAt ?? 0));
+  // Dedup after sorting so the newest copy of a txid wins.
+  const seen = new Set<string>();
+  return rows
+    .filter((row) => !seen.has(row.txid) && seen.add(row.txid))
+    .slice(0, limit);
+}
 
 export function liquiSabiFreshInputSparkline(
   graph: LiquiSabiGraphEntry[],

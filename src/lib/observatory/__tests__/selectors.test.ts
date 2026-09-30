@@ -7,6 +7,7 @@ import {
   projectCoordinators,
   sumRecentFreshInputs,
   toCycleRows,
+  toRoundRows,
   unpaidCoordinators,
   whirlpool30dDelta,
   whirlpoolLifetimeCycles,
@@ -211,5 +212,57 @@ describe("sumRecentFreshInputs", () => {
 
   it("returns 0 for an empty graph", () => {
     expect(sumRecentFreshInputs([], 7)).toBe(0);
+  });
+});
+
+describe("toRoundRows", () => {
+  const dashboard = dashboardFixture as unknown as LiquiSabiDashboard;
+  const round = dashboard.PaginatedRounds.Rounds[0]!;
+  const hex = (n: number) => n.toString(16).padStart(64, "0");
+
+  it("maps fixture rounds newest first with friendly names and scan links", () => {
+    const rows = toRoundRows(dashboard);
+    expect(rows.map((r) => r.coordinatorName)).toEqual(["Kruw.io", "Gingerwallet"]);
+    expect(rows[0]).toMatchObject({
+      txid: round.TxId,
+      endedAt: Date.parse("2026-05-24T16:34:10+00:00"),
+      inputCount: 287,
+      outputCount: 323,
+      scanHref: `/#tx=${round.TxId}`,
+    });
+  });
+
+  it("limits to the newest N, sorts by end time, and drops invalid or duplicate txids", () => {
+    const rounds = Array.from({ length: 14 }, (_, i) => ({
+      ...round,
+      TxId: hex(i),
+      RoundEndTime: new Date(Date.UTC(2026, 8, 1, i)).toISOString(),
+    }));
+    rounds.push({ ...round, TxId: "not-a-txid" }, { ...round, TxId: hex(13) });
+    const rows = toRoundRows({ ...dashboard, PaginatedRounds: { ...dashboard.PaginatedRounds, Rounds: rounds.reverse() } });
+    expect(rows).toHaveLength(10);
+    expect(rows[0]!.txid).toBe(hex(13));
+    expect(rows[9]!.txid).toBe(hex(4));
+  });
+
+  it("falls back to the endpoint host for unnamed coordinators, matching endpoints loosely", () => {
+    const rows = toRoundRows({
+      ...dashboard,
+      PaginatedRounds: {
+        ...dashboard.PaginatedRounds,
+        Rounds: [
+          { ...round, TxId: hex(1), CoordinatorEndpoint: "https://unknown.example/" },
+          { ...round, TxId: hex(2), CoordinatorEndpoint: "https://COINJOIN.kruw.io" },
+          { ...round, TxId: hex(3), RoundEndTime: "garbage" },
+        ],
+      },
+    });
+    expect(rows.map((r) => r.coordinatorName)).toEqual(["unknown.example", "Kruw.io", "Kruw.io"]);
+    expect(rows[2]!.endedAt).toBeNull();
+  });
+
+  it("returns [] for null or partial data", () => {
+    expect(toRoundRows(null)).toEqual([]);
+    expect(toRoundRows({ ...dashboard, PaginatedRounds: undefined } as unknown as LiquiSabiDashboard)).toEqual([]);
   });
 });
