@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { buildLinkabilityMatrix } from "../linkability";
-import { makeTx, makeVin, makeVout, resetAddrCounter } from "../../heuristics/__tests__/fixtures/tx-factory";
-import type { MempoolVin } from "@/lib/api/types";
+import { makeOpReturnVout, makeTx, makeVin, makeVout, resetAddrCounter } from "../../heuristics/__tests__/fixtures/tx-factory";
+import type { MempoolTransaction, MempoolVin } from "@/lib/api/types";
+import consolidation40b88e16 from "../../heuristics/__tests__/fixtures/api-responses/consolidation-5in1out.json";
 
 beforeEach(() => resetAddrCounter());
 
@@ -162,5 +163,43 @@ describe("buildLinkabilityMatrix - skipped txs", () => {
     const t = tx([100_000, 50_000], [90_000, 40_000]);
     t.vin[1] = { ...t.vin[1]!, prevout: null };
     expect(buildLinkabilityMatrix(t)).toBeNull();
+  });
+});
+
+// LaurentMT's process_tx (boltzmann/utils/tx_processor.py): after dropping
+// zero-value txos, <= 1 input or exactly 1 output means one interpretation and
+// every link deterministic. Expected values match the original Python.
+describe("buildLinkabilityMatrix - reference single-interpretation rule", () => {
+  const allDeterministic = (t: MempoolTransaction) => {
+    const r = buildLinkabilityMatrix(t)!;
+    return {
+      n: r.totalInterpretations,
+      allOne: r.matrix.flat().every((c) => c.probability === 1 && c.deterministic),
+      findings: r.findings,
+    };
+  };
+
+  it("40b88e16 (5-in/1-out, a 31,209-sat input below the 157,002 fee): 1 interpretation", () => {
+    expect(allDeterministic(consolidation40b88e16 as unknown as MempoolTransaction))
+      .toEqual({ n: 1, allOne: true, findings: [] });
+  });
+
+  it("2-in/1-out with a dust input below the fee: 1 interpretation", () => {
+    expect(allDeterministic(tx([100_000, 500], [99_000]))).toEqual({ n: 1, allOne: true, findings: [] });
+  });
+
+  it("1-in/2-out: 1 interpretation", () => {
+    expect(allDeterministic(tx([100_000], [60_000, 39_000]))).toEqual({ n: 1, allOne: true, findings: [] });
+  });
+
+  it("1 spendable output plus a zero-value OP_RETURN: 1 interpretation", () => {
+    const t = tx([50_000, 400], [49_000]);
+    t.vout.push(makeOpReturnVout());
+    expect(allDeterministic(t)).toEqual({ n: 1, allOne: true, findings: [] });
+  });
+
+  it("multi-output: an input below the fee can still fund only the fee (unchanged)", () => {
+    expect(linkCounts([100_000, 60_000, 300], [95_000, 58_000])).toEqual({ n: 5, mat: [[5, 2, 2], [2, 5, 2]] });
+    expect(linkCounts([100_000, 50_000, 300], [90_000, 58_000])).toEqual({ n: 2, mat: [[2, 2, 1], [2, 2, 1]] });
   });
 });

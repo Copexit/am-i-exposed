@@ -43,7 +43,7 @@ pub fn analyze_wabisabi(
     input_values: &[i64],
     output_values: &[i64],
     fees: i64,
-    _timeout_ms: u32,
+    timeout_ms: u32,
 ) -> BoltzmannResult {
     let start = crate::time::now_ms();
 
@@ -60,6 +60,11 @@ pub fn analyze_wabisabi(
 
     if n_in == 0 || n_out == 0 {
         return degenerate_result(n_in.max(1), n_out.max(1), fees, start);
+    }
+
+    // One interpretation (reference entry-point rule): the exact result
+    if crate::analyze::is_single_interpretation(&sorted_inputs, &sorted_outputs) {
+        return crate::analyze::analyze(input_values, output_values, fees, 0.0, timeout_ms);
     }
 
     // Step 1: Group outputs into denomination tiers

@@ -185,7 +185,7 @@ fn joinmarket_paths(
 
     let n_out = sorted_outputs.len();
 
-    if n_in == 0 || n_out == 0 {
+    if n_in == 0 || n_out == 0 || crate::analyze::is_single_interpretation(input_values, &sorted_outputs) {
         // analyze() returns a trivial result without enumerating anything
         return Some(crate::analyze::analyze(
             input_values, output_values, fees, max_cj_intrafees_ratio, timeout_ms,

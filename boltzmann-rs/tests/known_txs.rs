@@ -1184,3 +1184,90 @@ fn test_jm_turbo_30party_saturates_u64() {
     );
     assert!(!small.nb_cmbn_saturated, "an exact u64 count is not saturated");
 }
+
+// ==========================================================================
+// Reference entry-point rule (LaurentMT, boltzmann/utils/tx_processor.py
+// process_tx): after dropping zero-value txos, a tx with <= 1 input or exactly
+// 1 output has one interpretation and every link is deterministic. The bare
+// linker would let an input block below the fee fund only the fee (the empty
+// output aggregate) and count a second interpretation. Expected values below
+// match process_tx(["PRECHECK", "LINKABILITY"]) with and without MERGE_INPUTS.
+// ==========================================================================
+
+/// Assert the single-interpretation result on the monolithic and chunked paths.
+fn assert_single_interpretation(label: &str, inputs: &[i64], outputs: &[i64], fee: i64, n_out: usize) {
+    use boltzmann_rs::test_chunked_analyze;
+    let n_in = inputs.len();
+    let all_ones: Vec<Vec<u64>> = vec![vec![1; n_in]; n_out];
+    for (path, r) in [
+        ("analyze", analyze(inputs, outputs, fee, 0.005, 60_000)),
+        ("chunked", test_chunked_analyze(inputs, outputs, fee, 0.005)),
+    ] {
+        assert_eq!(r.nb_cmbn, 1, "{label} ({path}): nb_cmbn");
+        assert_eq!(r.entropy, 0.0, "{label} ({path}): entropy");
+        assert_eq!(r.mat_lnk_combinations, all_ones, "{label} ({path}): matrix");
+        assert_eq!(r.deterministic_links.len(), n_in * n_out, "{label} ({path}): deterministic links");
+        assert_eq!((r.n_inputs, r.n_outputs), (n_in, n_out), "{label} ({path}): dimensions");
+        assert!(!r.timed_out, "{label} ({path}): timed out");
+    }
+}
+
+// 40b88e16fe9881eb89df76265ccf2d46abfd1071a94dae8e413efc0d83d3df18: the
+// 31,209-sat input is below the 157,002-sat fee. Bare linker: nb_cmbn 2,
+// links [2,2,2,2,1] (that input at 50%); process_tx: nb_cmbn 1.
+#[test]
+fn test_single_output_40b88e16_one_interpretation() {
+    assert_single_interpretation(
+        "40b88e16",
+        &[1_065_685, 2_343_648, 31_209, 3_762_429, 7_065_237],
+        &[14_111_206],
+        157_002,
+        1,
+    );
+}
+
+#[test]
+fn test_single_output_2in_dust_below_fee() {
+    assert_single_interpretation("2-in-1-out", &[100_000, 500], &[99_000], 1_500, 1);
+}
+
+#[test]
+fn test_single_input_fan_out() {
+    assert_single_interpretation("1-in-2-out", &[100_000], &[60_000, 39_000], 1_000, 2);
+}
+
+// A zero-value OP_RETURN is not an output for Boltzmann: 1 spendable output.
+#[test]
+fn test_single_output_plus_zero_value_op_return() {
+    assert_single_interpretation("1-out + OP_RETURN(0)", &[50_000, 400], &[49_000, 0], 1_400, 1);
+}
+
+// JoinMarket and WabiSabi entries apply the same rule.
+#[test]
+fn test_single_output_turbo_entries() {
+    let (ins, outs, fee) = ([1_065_685i64, 2_343_648, 31_209, 3_762_429, 7_065_237], [14_111_206i64], 157_002);
+    let jm = analyze_joinmarket(&ins, &outs, fee, 14_111_206, 0.005, 60_000);
+    let ws = boltzmann_rs::wabisabi::analyze_wabisabi(&ins, &outs, fee, 60_000);
+    for (path, r) in [("joinmarket", jm), ("wabisabi", ws)] {
+        assert_eq!(r.nb_cmbn, 1, "{path}: nb_cmbn");
+        assert_eq!(r.mat_lnk_combinations, vec![vec![1u64; 5]], "{path}: matrix");
+        assert_eq!(r.deterministic_links.len(), 5, "{path}: deterministic links");
+    }
+}
+
+// Multi-output txs keep the fee-only reading, as in the reference: the 300-sat
+// input can fund only the fee. process_tx: nb_cmbn 5, [[5,2,2],[2,5,2]] and
+// nb_cmbn 2, [[2,2,1],[2,2,1]].
+#[test]
+fn test_multi_output_dust_below_fee_unchanged() {
+    assert_boltzmann(
+        "3-in-2-out, dust below fee",
+        &[100_000, 60_000, 300], &[95_000, 58_000], 7_300, 0.0,
+        5, 5f64.log2(), Some(&[&[5, 2, 2], &[2, 5, 2]]),
+    );
+    assert_boltzmann(
+        "3-in-2-out, dust below fee (merged only)",
+        &[100_000, 50_000, 300], &[90_000, 58_000], 2_300, 0.0,
+        2, 1.0, Some(&[&[2, 2, 1], &[2, 2, 1]]),
+    );
+}

@@ -53,6 +53,8 @@ For example, a transaction with inputs [I1=10M, I2=1.38M] and outputs [O1=100k, 
 
 This gives N=3, so entropy E = log2(3) = 1.585 bits.
 
+**Single input or single output:** as in the reference `process_tx` (`boltzmann/utils/tx_processor.py`: `if (len(filtered_ins) <= 1) or (len(filtered_outs) == 1)`, after dropping txos with value <= 0), such a transaction has exactly one interpretation and every link is deterministic, without running the linker. The linker alone would let an input block below the fee fund only the fee (the empty output aggregate) and report a second interpretation of a single-output transaction. For 2+ outputs that fee-only reading stays, as in the reference. See `docs/research-boltzmann-entropy.md` (Deterministic Links).
+
 ### The Link Probability Matrix
 
 For each (input, output) pair, count how many of the N valid interpretations include a link between them:

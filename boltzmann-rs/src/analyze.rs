@@ -40,6 +40,10 @@ pub fn analyze(
         return make_degenerate_result(input_values, output_values, fees, start);
     }
 
+    if is_single_interpretation(&sorted_inputs, &sorted_outputs) {
+        return make_degenerate_result(&sorted_inputs, &sorted_outputs, fees, start);
+    }
+
     // Compute intrafees if ratio > 0
     let (fees_maker, fees_taker) = if max_cj_intrafees_ratio > 0.0 {
         compute_intrafees(&sorted_outputs, max_cj_intrafees_ratio)
@@ -135,6 +139,17 @@ pub fn analyze(
         model_links: Vec::new(),
         method: "exact",
     }
+}
+
+/// LaurentMT's entry-point rule (boltzmann/utils/tx_processor.py `process_tx`:
+/// `if (len(filtered_ins) <= 1) or (len(filtered_outs) == 1)`, where filtering
+/// drops txos with value <= 0): such a tx has one interpretation and every link
+/// is deterministic. The linker alone would let an input block below the fee
+/// fund only the fee (the empty output aggregate) and count a second
+/// interpretation of a single-output tx; that reading stays for 2+ outputs.
+pub fn is_single_interpretation(input_values: &[i64], output_values: &[i64]) -> bool {
+    input_values.iter().filter(|&&v| v > 0).count() <= 1
+        || output_values.iter().filter(|&&v| v > 0).count() == 1
 }
 
 /// Whether the exact linker can run for this many inputs/outputs.
@@ -370,7 +385,8 @@ pub struct PreparedAnalysis {
 /// Prepare a transaction for chunked Boltzmann analysis.
 ///
 /// Sorts values, computes intrafees, and creates Aggregates.
-/// Returns `None` for degenerate transactions (<=1 input or 0 outputs).
+/// Returns `None` for degenerate transactions (no input, no output, or a
+/// single interpretation: see [`is_single_interpretation`]).
 pub fn prepare_analysis(
     input_values: &[i64],
     output_values: &[i64],
@@ -378,7 +394,7 @@ pub fn prepare_analysis(
     max_cj_intrafees_ratio: f64,
 ) -> Option<PreparedAnalysis> {
     let n_in = input_values.len();
-    if n_in == 0 {
+    if n_in == 0 || is_single_interpretation(input_values, output_values) {
         return None;
     }
 

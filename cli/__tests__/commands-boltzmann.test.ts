@@ -133,3 +133,39 @@ describe("computeBoltzmannWabiSabi - u64 saturation", () => {
     expect(shown).not.toContain("18,446");
   });
 });
+
+// LaurentMT's process_tx rule: <= 1 input or exactly 1 output (value > 0) has
+// one interpretation. 40b88e16: the 31,209-sat input is below the 157,002 fee;
+// the bare linker would count it as a fee-only block (nb_cmbn 2, that input 50%).
+describe("single-interpretation rule - real WASM", () => {
+  const ins = [1_065_685, 2_343_648, 31_209, 3_762_429, 7_065_237];
+  const outs = [14_111_206];
+  const fee = 157_002;
+
+  it("compute_boltzmann: 1 interpretation, every link deterministic", async () => {
+    const r = await computeBoltzmann(ins, outs, fee);
+    expect(r.nbCmbn).toBe(1);
+    expect(r.entropy).toBe(0);
+    expect(r.matLnkProbabilities).toEqual([[1, 1, 1, 1, 1]]);
+    expect(r.deterministicLinks).toHaveLength(5);
+  });
+
+  it("prepare_boltzmann_ranged (multi-worker path): each worker returns the same single interpretation", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const wasm = require(join(__dirname, "../wasm/boltzmann_rs.js"));
+    const i64 = (v: number[]) => new BigInt64Array(v.map(BigInt));
+    for (const worker of [0, 1]) {
+      const prep = wasm.prepare_boltzmann_ranged(i64(ins), i64(outs), BigInt(fee), 0n, 0n, 60_000, worker, 2);
+      expect(Number(prep.total_root_branches)).toBe(0);
+      const raw = wasm.dfs_finalize();
+      expect(Number(raw.nb_cmbn)).toBe(1);
+      expect(raw.mat_lnk_combinations.map((row: bigint[]) => row.map(Number))).toEqual([[1, 1, 1, 1, 1]]);
+    }
+  });
+
+  it("a multi-output tx keeps the fee-only reading (as the reference): 5 interpretations", async () => {
+    const r = await computeBoltzmann([100_000, 60_000, 300], [95_000, 58_000], 7_300, 0);
+    expect(r.nbCmbn).toBe(5);
+    expect(r.matLnkCombinations).toEqual([[5, 2, 2], [2, 5, 2]]);
+  });
+});

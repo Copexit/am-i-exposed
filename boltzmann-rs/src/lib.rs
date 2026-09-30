@@ -222,7 +222,7 @@ pub fn prepare_boltzmann_ranged(
     let n_in = sorted_inputs.len();
     let n_out = sorted_outputs.len();
 
-    if n_in == 0 || n_out == 0 {
+    if n_in == 0 || n_out == 0 || analyze::is_single_interpretation(&sorted_inputs, &sorted_outputs) {
         let degenerate = LinkerResult::new_degenerate(n_out.max(1), n_in.max(1));
         let prep = PreparedAnalysis {
             sorted_inputs,

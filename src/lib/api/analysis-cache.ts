@@ -75,7 +75,7 @@ type StoredAnalysisResult = Omit<CachedAnalysisResult, "backwardLayers" | "forwa
  * Cache version - bump when computation logic changes (WASM rebuild, heuristic
  * updates, scoring changes) to invalidate stale cached results.
  */
-const CACHE_VERSION = 6; // v6: 1-input zero entropy, WabiSabi variants and protocol-based detection, u64 saturation flag, peel-chain/BnB/fan-out fixes
+const CACHE_VERSION = 7; // v7: Boltzmann single-interpretation rule (<= 1 input or 1 output: every link deterministic)
 
 /**
  * Build a cache key that embeds the analysis settings affecting results.
