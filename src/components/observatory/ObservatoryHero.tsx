@@ -15,15 +15,19 @@ import type {
   WhirlpoolCharts,
   WhirlpoolSummary,
 } from "@/lib/observatory/types";
+import type { ObservatoryTab } from "@/hooks/useObservatoryTab";
 
 interface ObservatoryHeroProps {
   whirlpool: WhirlpoolSummary | null;
   whirlpoolCharts: WhirlpoolCharts | null;
   liquisabi: LiquiSabiDashboard | null;
   loading: boolean;
+  /** Only the tiles of this protocol are shown. */
+  protocol: ObservatoryTab;
 }
 
 interface Tile {
+  protocol: ObservatoryTab;
   value: string | null;
   labelKey: string;
   defaultLabel: string;
@@ -46,6 +50,7 @@ export function ObservatoryHero({
   whirlpoolCharts,
   liquisabi,
   loading,
+  protocol,
 }: ObservatoryHeroProps) {
   const { t } = useTranslation();
 
@@ -68,32 +73,37 @@ export function ObservatoryHero({
         })
       : null;
 
-  const tiles: Tile[] = [
+  const allTiles: Tile[] = [
     {
+      protocol: "whirlpool",
       value: lifetimeEntered != null ? fmtBtc(lifetimeEntered) : null,
       labelKey: "observatory.hero.totalPoolSize",
       defaultLabel: "Whirlpool lifetime entered",
     },
     {
+      protocol: "whirlpool",
       value: unspent != null ? fmtBtc(unspent) : null,
       labelKey: "observatory.hero.liveUnspent",
       defaultLabel: "Whirlpool unspent (live)",
       sub: delta30dSub,
     },
     {
+      protocol: "wabisabi",
       value: liquisabi ? fmtBtc(fresh24h) : null,
       labelKey: "observatory.hero.freshInputs24h",
       defaultLabel: "WabiSabi fresh inputs (24h)",
     },
     {
+      protocol: "wabisabi",
       value: activeCoordinators != null ? fmtN(activeCoordinators) : null,
       labelKey: "observatory.hero.activeCoordinators",
       defaultLabel: "Active free coordinators",
     },
   ];
+  const tiles = allTiles.filter((tile) => tile.protocol === protocol);
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       {tiles.map((tile) => (
         <div
           key={tile.labelKey}

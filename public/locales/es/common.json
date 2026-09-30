@@ -2545,5 +2545,12 @@
   "graph.savedNodes_one": "{{count}} nodo",
   "graph.savedNodes_other": "{{count}} nodos",
   "guide.tocAriaLabel": "Índice",
-  "graph.toxicBadge": "TÓXICO"
+  "graph.toxicBadge": "TÓXICO",
+  "observatory.tabs.label": "Protocolo de CoinJoin",
+  "observatory.tabs.whirlpool": "Whirlpool (Ashigaru)",
+  "observatory.tabs.wabisabi": "WabiSabi (Wasabi)",
+  "observatory.rounds.title": "Rondas recientes",
+  "observatory.rounds.inOut": "ent. {{inputs}} · sal. {{outputs}}",
+  "observatory.rounds.sectionTitle": "Rondas recientes de WabiSabi",
+  "observatory.rounds.sectionSubtitle": "Últimas rondas de CoinJoin de todos los coordinadores monitorizados. Selecciona cualquier ronda para inspeccionarla en el escáner."
 }
