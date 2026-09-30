@@ -1,8 +1,9 @@
 "use client";
 
-import { Suspense, lazy, useMemo, useRef, useState, type FormEvent, type RefObject } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState, type FormEvent, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, useReducedMotion } from "motion/react";
+import { ChevronDown } from "lucide-react";
 import { AddressInput } from "@/components/AddressInput";
 import { ScanHistory } from "@/components/ScanHistory";
 import { EXAMPLES, truncateId } from "@/lib/constants";
@@ -61,6 +62,20 @@ export function Home({
   const heroRef = useRef<HTMLElement>(null);
   const [locked, setLocked] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const trustRef = useRef<HTMLUListElement>(null);
+  const cueRef = useRef<HTMLButtonElement>(null);
+  const [cueFits, setCueFits] = useState(false);
+  // The "see more" cue sits in the hero's bottom space; where the hero content already fills it (short phones), it hides.
+  useEffect(() => {
+    const hero = heroRef.current, content = contentRef.current, trust = trustRef.current, cue = cueRef.current;
+    if (!hero || !content || !trust || !cue) return;
+    const fit = () => setCueFits(cue.getBoundingClientRect().top - trust.getBoundingClientRect().bottom >= 8);
+    const ro = new ResizeObserver(fit);
+    ro.observe(hero);
+    ro.observe(content);
+    return () => ro.disconnect();
+  }, []);
   // Every check the scan runs (heuristics + chain analysis), as on the scan screen.
   const checks = getTxHeuristicSteps().length;
   const showHistory = scans.length > 0 || bookmarks.length > 0;
@@ -122,7 +137,7 @@ export function Home({
           style={{ background: `radial-gradient(ellipse 50% 46% at 50% 50%, ${BG(0.9)} 0%, ${BG(0.62)} 50%, ${BG(0)} 100%), linear-gradient(180deg, ${BG(0.6)}, ${BG(0)} 16%, ${BG(0)} 82%, ${P.background})` }}
         />
 
-        <div data-keepout className="flex-1 flex flex-col items-center justify-center w-full max-w-[760px] mx-auto px-4 pt-6 sm:pt-14 pb-6 sm:pb-10 text-center">
+        <div ref={contentRef} data-keepout className="flex-1 flex flex-col items-center justify-center w-full max-w-[760px] mx-auto px-4 pt-6 sm:pt-14 pb-6 sm:pb-10 text-center">
           <p className="inline-flex items-center gap-2.5 font-mono text-[9px] min-[360px]:text-[10px] sm:text-[11px] tracking-[0.05em] sm:tracking-[0.16em] whitespace-nowrap uppercase text-muted mb-5">
             <span className="relative flex size-[7px]" aria-hidden="true">
               <span className="absolute inset-0 rounded-full bg-severity-critical opacity-60 motion-safe:animate-ping" />
@@ -253,7 +268,7 @@ export function Home({
             </Suspense>
           )}
 
-          <ul className="mt-5 sm:mt-7 flex flex-wrap justify-center gap-x-5 gap-y-2 font-mono text-xs text-muted">
+          <ul ref={trustRef} className="mt-5 sm:mt-7 flex flex-wrap justify-center gap-x-5 gap-y-2 font-mono text-xs text-muted">
             <li className="flex items-center gap-2">
               <span className="size-1.5 rounded-full bg-severity-good" aria-hidden="true" />
               <span className="sm:hidden">{t("home.trust_checks", { defaultValue: "{{count}} checks, all local", count: checks })}</span>
@@ -267,6 +282,19 @@ export function Home({
               </a>
             </li>
           </ul>
+        </div>
+
+        {/* Zero height, so the cue never pushes the lens below the fold. */}
+        <div data-keepout className="relative h-0">
+          <button
+            ref={cueRef}
+            type="button"
+            onClick={() => (document.getElementById("lens") ?? heroRef.current?.nextElementSibling)?.scrollIntoView()}
+            className={`${cueFits ? "" : "invisible"} group absolute bottom-1 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 min-h-[44px] px-3 whitespace-nowrap font-mono text-[11px] tracking-[0.12em] uppercase text-muted hover:text-foreground transition-colors cursor-pointer rounded-lg ${FOCUS}`}
+          >
+            {t("home.scroll_cue", { defaultValue: "See how it works" })}
+            <ChevronDown aria-hidden="true" className="size-4 transition-transform group-hover:translate-y-0.5 motion-reduce:transition-none" />
+          </button>
         </div>
 
         {/* Phones get this caption at the end of the page instead (see below). */}

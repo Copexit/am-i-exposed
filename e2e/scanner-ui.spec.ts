@@ -82,6 +82,18 @@ test("inline graph is compact; analysis tools live in fullscreen", async ({ page
   await expect(dialog.getByTitle("Heat Map (H)")).toBeVisible();
 });
 
+test("desktop hero shows a see-more cue that scrolls the lens into view", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  const cue = page.getByRole("button", { name: "See how it works" });
+  await expect(cue).toBeVisible();
+  const lens = page.getByTestId("lens-explainer");
+  await expect.poll(async () => (await lens.boundingBox())?.y ?? 0).toBeGreaterThanOrEqual(900);
+  await cue.click();
+  await expect(page.getByRole("heading", { level: 2, name: /What your wallet shows you/ })).toBeInViewport();
+  await expect.poll(async () => (await lens.boundingBox())?.y ?? 900).toBeLessThan(200);
+});
+
 test.describe("home on a phone", () => {
   test.use({ viewport: { width: 390, height: 664 }, hasTouch: true, isMobile: true });
 

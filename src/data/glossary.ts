@@ -107,7 +107,7 @@ export const GLOSSARY_DEFAULTS: Record<string, string> = {
   "glossary.term_stonewall": "Stonewall",
   "glossary.def_stonewall": "A steganographic transaction format from Samourai Wallet (now Ashigaru) that mimics a CoinJoin. Has 2-4 inputs and exactly 4 outputs: 2 equal-valued outputs (one real payment, one decoy) and 2 change outputs. Solo Stonewall uses only the sender's UTXOs. STONEWALLx2 involves a collaborator contributing inputs, making it indistinguishable from a genuine 2-party CoinJoin.",
   "glossary.term_submarine_swap": "Submarine Swap",
-  "glossary.def_submarine_swap": "A trustless atomic exchange between on-chain Bitcoin and Lightning Network payments using Hash Time-Locked Contracts (HTLCs). Allows moving funds between layers without a trusted intermediary. Boltz Exchange is the primary non-custodial provider. Useful for breaking the on-chain trail by converting on-chain UTXOs to Lightning and back.",
+  "glossary.def_submarine_swap": "A trustless atomic exchange between on-chain Bitcoin and Lightning Network payments using Hash Time-Locked Contracts (HTLCs). Allows moving funds between layers without a trusted intermediary. Useful for breaking the on-chain trail by converting on-chain UTXOs to Lightning and back.",
   "glossary.term_sweep": "Sweep",
   "glossary.def_sweep": "A transaction that sends the entire balance of one or more addresses to a single output with no change. Common when migrating wallets or claiming funds. A single-input sweep (1-in-1-out) has zero entropy. A multi-input sweep additionally links all input addresses via the Common Input Ownership Heuristic. Provides zero unlinkability.",
   "glossary.term_script_type": "Script Type",
