@@ -24,7 +24,7 @@ import {
   extractTxValues,
 } from "./boltzmann-pool";
 
-import { expandMatrixToTx, isExactFeasible } from "./boltzmann-detection";
+import { expandMatrixToTx, isExactFeasible, isSingleInterpretation, singleInterpretationResult } from "./boltzmann-detection";
 
 export { isAutoComputable, extractTxValues };
 
@@ -42,8 +42,6 @@ export async function computeBoltzmann(
     signal?: AbortSignal;
   },
 ): Promise<BoltzmannWorkerResult | null> {
-  if (typeof Worker === "undefined") return null;
-
   if (isCoinbase(tx)) return null;
 
   const { inputValues, outputValues } = extractTxValues(tx);
@@ -52,10 +50,16 @@ export async function computeBoltzmann(
 
   if (nIn === 0 || nOut === 0) return null;
 
+  // One interpretation (see isSingleInterpretation): nothing to enumerate, at any size
+  if (isSingleInterpretation(inputValues, outputValues)) return singleInterpretationResult(tx);
+
   // WabiSabi gets a higher limit (tier-decomposed, no DFS)
   const isWabiSabi = detectWabiSabiForTurbo(tx);
   const maxTotal = isWabiSabi ? MAX_SUPPORTED_TOTAL_WABISABI : MAX_SUPPORTED_TOTAL;
   if (nIn + nOut > maxTotal) return null;
+
+
+  if (typeof Worker === "undefined") return null;
 
   // Check for abort before starting workers
   if (opts?.signal?.aborted) return null;

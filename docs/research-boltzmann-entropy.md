@@ -196,6 +196,27 @@ A deterministic link exists when an output can only be funded by one specific in
 
 Detection: If the link probability matrix has any entry LP = 1.0, that link is deterministic. Our current implementation does not compute the full link probability matrix, but the entropy calculation implicitly accounts for deterministic links (they reduce the number of valid interpretations).
 
+### Single-input and single-output transactions (reference entry-point rule)
+
+LaurentMT's original Boltzmann (`Samourai-Wallet/boltzmann`, `boltzmann/utils/tx_processor.py`, `process_tx`) filters out txos with value <= 0 (`filter_txos`: zero-value OP_RETURN outputs and the like) and then, before running the linker:
+
+```python
+if (len(filtered_ins) <= 1) or (len(filtered_outs) == 1):
+    # When entropy = 0, all inputs and outputs are linked and matrix is filled with 1.
+    mat_lnk = None
+    nb_cmbn = 1
+```
+
+The linker itself (`TxosLinker._match_agg_by_val`) lets an input aggregate match the empty output aggregate when its value is at most the fee: a "fee-only" block that funds no output. On a single-output transaction that reading would count a second interpretation whenever some inputs sum to no more than the fee. For consolidation `40b88e16...` (5 inputs, 1 output, fee 157,002 sats, one input of 31,209 sats) the bare linker gives 2 interpretations with that input at 50%, while `process_tx` gives 1 interpretation, every link 1.0. With one output, every input funds it: the fee-only reading is not a different fund flow.
+
+am-i.exposed applies the same rule everywhere a matrix is produced: boltzmann-rs (`analyze::is_single_interpretation`, used by `analyze`, the chunked and ranged WASM entry points, JoinMarket and WabiSabi modes), `computeBoltzmann` before any worker is started (`isSingleInterpretation` / `singleInterpretationResult` in `boltzmann-detection.ts`), and the JS linkability matrix (`chain/linkability.ts`). Transactions with 2+ outputs keep the fee-only reading, as in the reference: for inputs [100,000, 60,000, 300] and outputs [95,000, 58,000] (fee 7,300) both give 5 interpretations and the 300-sat input is linked in only 2 of them.
+
+For ordinary transactions this changes no score: single-output and single-input transactions are already scored as zero entropy by H5 (`h5-zero-entropy`, `h5-zero-entropy-sweep`, `h5-low-entropy` with `_variant: "single_input"`), the WASM result never overrides those (`boltzmann-enhance` skips `nbCmbn <= 1`), and the `linkability-*` findings skip one-interpretation and one-output transactions.
+
+Two narrow cases do change, both toward the reference and H5 (which already ignores zero-value txos): a transaction with one valued output plus a zero-value spendable output (for example a P2A anchor), and a transaction with one valued input plus a zero-value input. The chain linkability matrix used to count the zero-value txo as a party and could emit `linkability-deterministic` (-3 or -6); it now sees one interpretation and emits nothing.
+
+Because one interpretation needs no enumeration, it is computed at any size: a 100-input consolidation or a 1-input payout to hundreds of outputs shows "1 interpretation, 0 bits" instead of "too complex".
+
 ---
 
 ## Steganographic Transactions

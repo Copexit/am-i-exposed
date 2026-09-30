@@ -20,6 +20,7 @@ const TX_MAP: Record<string, string> = {
   "3d81a6b95903dd457d45a2fc998acc42fe96f59ef01157bdcbc331fe451c8d9e": "batch-withdrawal-143",
   "655c533bf059721cec9d3d70b3171a07997991a02fedfa1c9b593abc645e1cc5": "dust-attack-555",
   "37777defed8717c581b4c0509329550e344bdc14ac38f71fc050096887e535c8": "taproot-script-path",
+  "40b88e16fe9881eb89df76265ccf2d46abfd1071a94dae8e413efc0d83d3df18": "consolidation-5in1out",
 };
 
 /** Map of address -> fixture name prefix */

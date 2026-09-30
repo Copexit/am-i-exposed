@@ -16,7 +16,8 @@ import {
 } from "@/lib/analysis/heuristics/__tests__/fixtures/tx-factory";
 import { detectJoinMarketForTurbo } from "@/lib/analysis/boltzmann-pool";
 import { analyzeChangeDetection } from "@/lib/analysis/heuristics/change-detection";
-import { buildSyntheticResult, graphBoltzmannMode } from "@/hooks/useGraphBoltzmann";
+import { graphBoltzmannMode } from "@/hooks/useGraphBoltzmann";
+import { singleInterpretationResult as buildSyntheticResult } from "@/lib/analysis/boltzmann-detection";
 
 beforeEach(() => resetAddrCounter());
 

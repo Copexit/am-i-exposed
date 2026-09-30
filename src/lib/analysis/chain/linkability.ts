@@ -4,6 +4,7 @@ import { isCoinbase, getSpendableOutputs } from "../heuristics/tx-utils";
 import { isCoinJoinTx } from "../heuristics/coinjoin";
 import { roundTo } from "@/lib/format";
 import { mergeByAddress } from "../heuristics/entropy-math";
+import { isSingleInterpretation } from "../boltzmann-detection";
 
 /**
  * Boltzmann Link Probability Matrix (LaurentMT), exact for small txs.
@@ -11,7 +12,9 @@ import { mergeByAddress } from "../heuristics/entropy-math";
  * An interpretation pairs a partition of the inputs with a partition of the
  * outputs (same number of blocks; one input block may fund no output and only
  * pay fee) such that every input block funds its output block
- * (sum(in) >= sum(out); the differences add up to the fee).
+ * (sum(in) >= sum(out); the differences add up to the fee). As in LaurentMT's
+ * process_tx, a tx with <= 1 input or exactly 1 output of value > 0 has one
+ * interpretation, so the fee-only block applies only to 2+ outputs.
  * LPM[i][o] = interpretations in which input i and output o share a block,
  * divided by the number of interpretations N. A link is deterministic when
  * it holds in every interpretation. See docs/research-boltzmann-entropy.md.
@@ -99,41 +102,48 @@ export function buildLinkabilityMatrix(
   const linkCounts: number[][] = Array.from({ length: nIn }, () => new Array(nOut).fill(0));
   let totalInterpretations = 0;
 
-  // Each output partition also comes with one empty block: an input block
-  // that funds no output and only pays fee (Boltzmann's empty aggregate).
-  const outPartitions = setPartitions(nOut).flatMap((p) => {
-    const blocks = p.map((m) => ({ mask: m, sum: maskSum(m, outputValues) }));
-    return [blocks, [...blocks, { mask: 0, sum: 0 }]];
-  });
-  for (const inPart of setPartitions(nIn)) {
-    const inBlocks = inPart.map((m) => ({ mask: m, sum: maskSum(m, inputValues) }));
-    for (const outBlocks of outPartitions) {
-      if (outBlocks.length !== inBlocks.length) continue;
-      // Every bijection input block -> output block where the input block funds it
-      const pairs: Array<[inMask: number, outMask: number]> = [];
-      const match = (k: number, used: number) => {
-        const inBlock = inBlocks[k];
-        if (!inBlock) {
-          // Every input block is paired: one interpretation
-          totalInterpretations++;
-          for (const [inMask, outMask] of pairs) {
-            for (const [i, row] of linkCounts.entries()) {
-              if (!(inMask & (1 << i))) continue;
-              for (const o of row.keys()) {
-                if (outMask & (1 << o)) row[o]!++;
+  // One interpretation (LaurentMT's process_tx rule, see isSingleInterpretation):
+  // every input funds every output of value > 0. Otherwise enumerate.
+  if (isSingleInterpretation(tx.vin.map((v) => v.prevout!.value), spendable.map((o) => o.value))) {
+    totalInterpretations = 1;
+    for (const row of linkCounts) for (const o of row.keys()) row[o] = outputValues[o]! > 0 ? 1 : 0;
+  } else {
+    // Each output partition also comes with one empty block: an input block
+    // that funds no output and only pays fee (Boltzmann's empty aggregate).
+    const outPartitions = setPartitions(nOut).flatMap((p) => {
+      const blocks = p.map((m) => ({ mask: m, sum: maskSum(m, outputValues) }));
+      return [blocks, [...blocks, { mask: 0, sum: 0 }]];
+    });
+    for (const inPart of setPartitions(nIn)) {
+      const inBlocks = inPart.map((m) => ({ mask: m, sum: maskSum(m, inputValues) }));
+      for (const outBlocks of outPartitions) {
+        if (outBlocks.length !== inBlocks.length) continue;
+        // Every bijection input block -> output block where the input block funds it
+        const pairs: Array<[inMask: number, outMask: number]> = [];
+        const match = (k: number, used: number) => {
+          const inBlock = inBlocks[k];
+          if (!inBlock) {
+            // Every input block is paired: one interpretation
+            totalInterpretations++;
+            for (const [inMask, outMask] of pairs) {
+              for (const [i, row] of linkCounts.entries()) {
+                if (!(inMask & (1 << i))) continue;
+                for (const o of row.keys()) {
+                  if (outMask & (1 << o)) row[o]!++;
+                }
               }
             }
+            return;
           }
-          return;
-        }
-        for (const [j, outBlock] of outBlocks.entries()) {
-          if (used & (1 << j) || inBlock.sum < outBlock.sum) continue;
-          pairs.push([inBlock.mask, outBlock.mask]);
-          match(k + 1, used | (1 << j));
-          pairs.pop();
-        }
-      };
-      match(0, 0);
+          for (const [j, outBlock] of outBlocks.entries()) {
+            if (used & (1 << j) || inBlock.sum < outBlock.sum) continue;
+            pairs.push([inBlock.mask, outBlock.mask]);
+            match(k + 1, used | (1 << j));
+            pairs.pop();
+          }
+        };
+        match(0, 0);
+      }
     }
   }
 

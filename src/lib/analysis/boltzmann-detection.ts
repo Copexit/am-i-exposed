@@ -8,6 +8,7 @@
 
 import { countOutputValues, getValuedOutputs } from "./heuristics/tx-utils";
 import { classifyWabiSabi, type WabiSabiTxLike } from "./heuristics/wabisabi";
+import type { BoltzmannWorkerResult } from "./boltzmann-pool";
 
 /** Auto-compute when total UTXOs (inputs + outputs) is under this threshold. */
 const AUTO_COMPUTE_MAX_TOTAL = 20;
@@ -112,6 +113,18 @@ const EXACT_MAX_INPUTS_BY_OUTPUTS: Record<number, number> = {
   11: 19, 12: 18, 13: 16, 14: 14, 15: 12, 16: 10, 17: 9, 18: 8, 19: 7, 20: 6, 21: 4, 22: 2,
 };
 
+/**
+ * LaurentMT's entry-point rule (boltzmann/utils/tx_processor.py `process_tx`:
+ * `if (len(filtered_ins) <= 1) or (len(filtered_outs) == 1)`, filtering drops
+ * txos with value <= 0): such a tx has one interpretation and every link is
+ * deterministic. The linker alone would let an input below the fee fund only
+ * the fee and count a second interpretation of a single-output tx; that
+ * reading stays for 2+ outputs. Mirrors boltzmann-rs `is_single_interpretation`.
+ */
+export function isSingleInterpretation(inputValues: readonly number[], outputValues: readonly number[]): boolean {
+  return inputValues.filter((v) => v > 0).length <= 1 || outputValues.filter((v) => v > 0).length === 1;
+}
+
 /** Whether JoinMarket turbo mode handles the transaction instead of exact DFS. */
 export function usesJoinMarketTurbo(inputValues: number[], outputValues: number[]): boolean {
   return inputValues.length + outputValues.length >= 10
@@ -124,6 +137,7 @@ export function isAutoComputable(tx: WabiSabiTxLike): boolean {
   const nIn = inputValues.length;
   const nOut = outputValues.length;
   if (nIn === 0 || nOut === 0) return false;
+  if (isSingleInterpretation(inputValues, outputValues)) return true;
   if (nIn + nOut < AUTO_COMPUTE_MAX_TOTAL) return true;
   // WabiSabi turbo: tier-decomposed, handles up to 800 total I/O
   if (nIn + nOut <= MAX_SUPPORTED_TOTAL_WABISABI && detectWabiSabiForTurbo(tx)) return true;
@@ -184,4 +198,27 @@ export function extractTxValues(tx: { vin: Array<{ is_coinbase?: boolean; prevou
     .map(v => v.prevout!.value);
   const outputValues = getValuedOutputs(tx.vout).map(o => o.value);
   return { inputValues, outputValues };
+}
+
+/**
+ * The one-interpretation result (see isSingleInterpretation): every input
+ * linked to every output with probability 1, 0 bits. Indexed by raw tx
+ * position like computed results (zero rows for OP_RETURN outputs), with the
+ * same values boltzmann-rs returns for such a tx.
+ */
+export function singleInterpretationResult(tx: ValueTx & { txid: string; fee: number }): BoltzmannWorkerResult {
+  const { inputValues, outputValues } = extractTxValues(tx);
+  const nIn = inputValues.length;
+  const nOut = outputValues.length;
+  const ones = () => outputValues.map(() => inputValues.map(() => 1));
+  return expandMatrixToTx({
+    type: "result", id: tx.txid,
+    matLnkCombinations: ones(), matLnkProbabilities: ones(),
+    nbCmbn: 1, entropy: 0, efficiency: 0, nbCmbnPrfctCj: 0,
+    deterministicLinks: outputValues.flatMap((_, o) => inputValues.map((__, i) => [o, i] as [number, number])),
+    timedOut: false, elapsedMs: 0,
+    nInputs: nIn, nOutputs: nOut,
+    fees: tx.fee, intraFeesMaker: 0, intraFeesTaker: 0,
+    method: "exact",
+  }, tx);
 }

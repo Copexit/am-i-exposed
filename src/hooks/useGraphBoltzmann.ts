@@ -2,12 +2,12 @@
 
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { computeBoltzmann } from "@/lib/analysis/boltzmann-compute";
+import { singleInterpretationResult } from "@/lib/analysis/boltzmann-detection";
 import { detectJoinMarketForTurbo, isPoolBusy } from "@/lib/analysis/boltzmann-pool";
 import type { BoltzmannWorkerResult, BoltzmannProgress } from "@/lib/analysis/boltzmann-pool";
 import type { MempoolTransaction } from "@/lib/api/types";
 import type { GraphNode } from "@/hooks/useGraphExpansion";
-import { getBoltzmannEligibility, extractTxValues } from "@/lib/analysis/boltzmann-eligibility";
-import { expandMatrixToTx } from "@/lib/analysis/boltzmann-detection";
+import { getBoltzmannEligibility } from "@/lib/analysis/boltzmann-eligibility";
 
 interface UseGraphBoltzmannParams {
   nodes: Map<string, GraphNode>;
@@ -32,32 +32,6 @@ interface UseGraphBoltzmannReturn {
 
 /** Graph explorer size cap for Boltzmann (smaller than the single-tx heatmap's). */
 const GRAPH_MAX_TOTAL = 80;
-
-/**
- * Build a synthetic Boltzmann result for 1-input txs (trivially 100% deterministic),
- * indexed by raw tx position like computed results.
- */
-export function buildSyntheticResult(tx: MempoolTransaction): BoltzmannWorkerResult {
-  return expandMatrixToTx(buildSyntheticCompact(tx), tx);
-}
-
-function buildSyntheticCompact(tx: MempoolTransaction): BoltzmannWorkerResult {
-  const { inputValues, outputValues } = extractTxValues(tx);
-  const nIn = inputValues.length;
-  const nOut = outputValues.length;
-  // 1 input -> every output is 100% linked to it
-  const matProb = Array.from({ length: nOut }, () => Array.from({ length: nIn }, () => 1));
-  const matComb = Array.from({ length: nOut }, () => Array.from({ length: nIn }, () => 1));
-  const detLinks: [number, number][] = Array.from({ length: nOut }, (_, oi) => [oi, 0] as [number, number]);
-  return {
-    type: "result", id: tx.txid,
-    matLnkCombinations: matComb, matLnkProbabilities: matProb,
-    nbCmbn: 1, entropy: 0, efficiency: 0, nbCmbnPrfctCj: 1,
-    deterministicLinks: detLinks, timedOut: false, elapsedMs: 0,
-    nInputs: nIn, nOutputs: nOut,
-    fees: tx.fee, intraFeesMaker: 0, intraFeesTaker: 0,
-  };
-}
 
 /**
  * How the graph gets a tx's Boltzmann matrix: synthetic (1 input), eager
@@ -152,7 +126,7 @@ export function useGraphBoltzmann({
   const syntheticCache = useMemo(() => {
     const synthetic = new Map<string, BoltzmannWorkerResult>();
     for (const [txid, node] of nodes) {
-      if (graphBoltzmannMode(node.tx) === "synthetic") synthetic.set(txid, buildSyntheticResult(node.tx));
+      if (graphBoltzmannMode(node.tx) === "synthetic") synthetic.set(txid, singleInterpretationResult(node.tx));
     }
     return synthetic;
   }, [nodes]);

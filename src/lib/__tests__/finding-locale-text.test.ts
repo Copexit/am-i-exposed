@@ -380,8 +380,38 @@ describe("finding locale text keeps the heuristic's information", () => {
       const f = analyzeCioh(fixture("consolidation-5in1out")).findings.find((x) => x.id === "h3-cioh")!;
       expect(f.params?.reusedCount).toBe(1);
       expect(f.scoreImpact).toBe(-12);
-      for (const lng of LANGS) expect(render(f, lng).title).toMatch(/\b1\b.*\b4\b|\b4\b.*\b1\b/);
-      expect(render(f).title).toContain("reused");
+      // 5 inputs from 4 addresses: the counts must not be read as one another
+      expect(f.params).toMatchObject({ count: 4, inputCount: 5, repeatedCount: 1, uses: 2, _variant: "reuse_one" });
+      expect(render(f).title).toBe("5 inputs from 4 addresses linked by CIOH (1 reused address funds 2 inputs)");
+      expect(render(f).title).toBe(f.title);
+      for (const lng of LANGS) {
+        const { title, description } = render(f, lng);
+        expect(title).toMatch(/5.*4.*2/);
+        expect(description).not.toMatch(/\{\{/);
+      }
+    });
+
+    it("h3-cioh variants when inputs outnumber addresses render in every locale with the English source text", () => {
+      const parent = (c: string) => c.repeat(64);
+      const vin = (address: string, txid: string) => ({ ...addrVin(address, 10_000), txid });
+      const cases = {
+        // one address funds 2 inputs received in one tx (a batch): repeated, not reused
+        repeat_one: [vin("bc1qa", parent("1")), vin("bc1qa", parent("1")), vin("bc1qb", parent("2"))],
+        repeat_many: [vin("bc1qa", parent("1")), vin("bc1qa", parent("1")), vin("bc1qb", parent("2")), vin("bc1qb", parent("2"))],
+        reuse_many: [vin("bc1qa", parent("1")), vin("bc1qa", parent("3")), vin("bc1qb", parent("2")), vin("bc1qb", parent("2")), vin("bc1qc", parent("4"))],
+      };
+      for (const [variant, vins] of Object.entries(cases)) {
+        const f = analyzeCioh(makeTx({ vin: vins })).findings.find((x) => x.id === "h3-cioh")!;
+        expect(f.params?._variant).toBe(variant);
+        expect(render(f).title).toBe(f.title);
+        for (const lng of LANGS) expect(render(f, lng).title).not.toMatch(/\{\{/);
+      }
+    });
+
+    it("h3-cioh keeps its plain title when every input has its own address", () => {
+      const f = analyzeCioh(makeTx({ vin: [addrVin("bc1qa", 1), addrVin("bc1qb", 1)] })).findings[0]!;
+      expect(f.params).toEqual({ count: 2 });
+      expect(render(f).title).toBe("2 input addresses linked by CIOH");
     });
   });
 });
