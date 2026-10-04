@@ -10,6 +10,7 @@ import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
 import { useTheme } from "@/hooks/useTheme";
 import { COLORS, HUES, hexToRgba } from "@/lib/palette";
 import { Spinner } from "./ui/Spinner";
+import { InputExtras, useFileDrop } from "./InputExtras";
 
 function InputTypeHint({ value, network }: { value: string; network: BitcoinNetwork }) {
   const { t } = useTranslation();
@@ -22,7 +23,9 @@ function InputTypeHint({ value, network }: { value: string; network: BitcoinNetw
       ? t("input.detectedXpub", { defaultValue: "Extended public key (wallet)" })
       : type === "psbt"
         ? t("input.detectedPsbt", { defaultValue: "PSBT (unsigned transaction)" })
-        : t("input.detectedAddress", { defaultValue: "Bitcoin address" });
+        : type === "rawtx"
+          ? t("input.detectedRawTx", { defaultValue: "Raw transaction" })
+          : t("input.detectedAddress", { defaultValue: "Bitcoin address" });
   return (
     <p className="text-muted text-sm mt-1.5 text-center">
       {t("input.detected", { defaultValue: "Detected:" })}{" "}
@@ -87,7 +90,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, place
       const type = detectInputType(cleaned, network);
       if (type === "invalid") {
         setError(
-          t("input.errorInvalid", { defaultValue: "That doesn't look like a Bitcoin address or txid. Check and try again." }),
+          t("input.errorInvalid", { defaultValue: "That doesn't look like an address, txid, xpub, PSBT or raw transaction. Check and try again." }),
         );
         return;
       }
@@ -97,6 +100,8 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, place
     },
     [onSubmit, network, t],
   );
+
+  const fileDrop = useFileDrop(submit, setError);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -123,12 +128,17 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, place
     }
   };
 
-  const placeholder = placeholderOverride ?? t("home.placeholder", { defaultValue: "Address, txid, xpub or PSBT" });
+  const placeholder = placeholderOverride ?? t("home.placeholder", { defaultValue: "Address, txid, xpub, PSBT or raw tx" });
   const buttonLabel = t("input.buttonScan", { defaultValue: "Scan" });
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-3xl">
-      <div className="relative group">
+      <div
+        className={`relative group rounded-xl ${fileDrop.dragging ? "ring-2 ring-bitcoin/40" : ""}`}
+        onDragOver={fileDrop.onDragOver}
+        onDragLeave={fileDrop.onDragLeave}
+        onDrop={fileDrop.onDrop}
+      >
         {/* Ambient glow behind input */}
         <div
           className="absolute -inset-2 rounded-2xl opacity-30 group-focus-within:opacity-60 transition-opacity duration-500 pointer-events-none blur-2xl"
@@ -194,7 +204,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, place
             aria-expanded={isOpen}
             aria-controls={isOpen ? "address-suggestions" : undefined}
             aria-activedescendant={selectedIndex >= 0 ? `suggestion-${selectedIndex}` : undefined}
-            className="relative w-full glass rounded-[11px] pl-4 pr-24 sm:pl-5 sm:pr-20 py-4
+            className="relative w-full glass rounded-[11px] pl-4 pr-36 sm:pl-5 sm:pr-32 py-4
               font-mono text-sm sm:text-base text-foreground placeholder:text-muted/70
               focus:shadow-[0_0_20px_--alpha(var(--color-bitcoin)/20%)]
               transition-all duration-200 border-0
@@ -220,6 +230,9 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, place
               {buttonLabel}
             </motion.button>
           )}
+        </div>
+        <div className="absolute right-24 top-1/2 -translate-y-1/2 z-10">
+          <InputExtras onPayload={submit} onError={setError} />
         </div>
         {/* Autocomplete dropdown (address prefix or entity name) */}
         {isOpen && suggestions.length > 0 && (
