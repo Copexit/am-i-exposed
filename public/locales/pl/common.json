@@ -2527,6 +2527,7 @@
   "scan.checks": "Kontrole",
   "scan.checksProgress": "{{done}} z {{total}} kontroli ukończonych",
   "scan.checksWaiting": "Rozpocznie się po nadejściu danych",
+  "scan.awaitingIndex": "Właśnie wysłana. Oczekiwanie, aż {{host}} ją zaindeksuje.",
   "scan.depth": "Głębokość śledzenia",
   "scan.elapsed": "Upłynęło",
   "scan.traceTimeLimit": "Śledzenie / limit czasu",

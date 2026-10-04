@@ -2465,6 +2465,7 @@
   "scan.checks": "Vérifications",
   "scan.checksProgress": "{{done}} sur {{total}} vérifications terminées",
   "scan.checksWaiting": "Démarre à l'arrivée des données",
+  "scan.awaitingIndex": "Vient d'être diffusée. En attente de l'indexation par {{host}}.",
   "scan.depth": "Profondeur de traçage",
   "scan.elapsed": "Écoulé",
   "scan.traceTimeLimit": "Traçage / délai",

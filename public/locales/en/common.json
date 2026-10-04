@@ -2465,6 +2465,7 @@
   "scan.checks": "Checks",
   "scan.checksProgress": "{{done}} of {{total}} checks complete",
   "scan.checksWaiting": "Start when the data arrives",
+  "scan.awaitingIndex": "Just broadcast. Waiting for {{host}} to index it.",
   "scan.depth": "Trace depth",
   "scan.elapsed": "Elapsed",
   "scan.traceTimeLimit": "Trace / time limit",

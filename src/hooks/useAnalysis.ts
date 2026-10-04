@@ -76,13 +76,15 @@ export function useAnalysis() {
   }, []);
 
   const analyze = useCallback(
-    async (input: string) => {
+    async (input: string, opts?: { awaitIndexing?: boolean }) => {
       // Cancel any in-flight request
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
       pendingCacheRef.current = null;
       const inputType = detectInputType(input, network);
+      // The signed hex of a previous local scan must not linger once another scan starts
+      if (inputType !== "psbt" && inputType !== "rawtx") localInputRef.current = null;
 
       if (inputType === "invalid") {
         setState({
@@ -225,7 +227,7 @@ export function useAnalysis() {
       // Check analysis result cache before making API calls
       const analysisSettingsForCache = getAnalysisSettings();
       // Keyed per backend: custom/Umbrel/onion results never share an entry with mempool.space
-      const cached = await getCachedResult(cacheKeyPrefix(cfg.mempoolBaseUrl, net), input, analysisSettingsForCache);
+      const cached = opts?.awaitIndexing ? null : await getCachedResult(cacheKeyPrefix(cfg.mempoolBaseUrl, net), input, analysisSettingsForCache);
       // reset() or a newer analyze() ran during the lookup: leave their state alone
       if (controller.signal.aborted) return;
       if (cached) {
@@ -283,6 +285,7 @@ export function useAnalysis() {
           ...prev,
           phase: "complete",
           steps: markAllDone(prev.steps),
+          awaitingIndex: false,
           ...fields,
           durationMs,
         }));
@@ -294,6 +297,7 @@ export function useAnalysis() {
         query: input,
         inputType,
         steps,
+        awaitingIndex: !!opts?.awaitIndexing,
       });
 
       try {
@@ -303,6 +307,7 @@ export function useAnalysis() {
           const txResult = await runTxidAnalysis(input, {
             api,
             controller,
+            awaitIndexing: opts?.awaitIndexing,
             network,
             isCustomApi,
             analysisSettingsForCache,
@@ -377,7 +382,8 @@ export function useAnalysis() {
           err.code === "NOT_FOUND" &&
           inputType === "txid" &&
           !isUmbrel &&
-          !customApiUrl
+          !customApiUrl &&
+          !opts?.awaitIndexing
         ) {
           const detected = await detectTxidNetwork(
             input, network, controller.signal, (n) => configFor(n).mempoolBaseUrl,

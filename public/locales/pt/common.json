@@ -2465,6 +2465,7 @@
   "scan.checks": "Verificações",
   "scan.checksProgress": "{{done}} de {{total}} verificações concluídas",
   "scan.checksWaiting": "Inicia quando os dados chegarem",
+  "scan.awaitingIndex": "Acabou de ser transmitida. A aguardar que {{host}} a indexe.",
   "scan.depth": "Profundidade do rastreamento",
   "scan.elapsed": "Decorrido",
   "scan.traceTimeLimit": "Rastreio / tempo limite",

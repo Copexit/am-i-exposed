@@ -47,6 +47,7 @@ function makeMinimalState(overrides: Partial<AnalysisState> = {}): AnalysisState
     preSendResult: null,
     error: null,
     errorCode: null,
+    awaitingIndex: false,
     durationMs: 1234,
     usdPrice: null,
     outspends: null,

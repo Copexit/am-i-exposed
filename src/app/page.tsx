@@ -29,7 +29,7 @@ export default function ScannerPage() {
     txBreakdown, addressTxs, addressUtxos, preSendResult, error,
     errorCode, durationMs, usdPrice, outspends, localTx, fetchProgress,
     backwardLayers, forwardLayers, boltzmannResult, autoSwitchedNetwork, fromCache, analyze, retryLocal,
-    localLookup, localOutputTxCounts, completeLocalLookup,
+    localLookup, localOutputTxCounts, completeLocalLookup, awaitingIndex,
   } = analysis;
   const { t } = useTranslation();
 
@@ -86,6 +86,7 @@ export default function ScannerPage() {
             phase={phase}
             steps={steps}
             fetchProgress={fetchProgress}
+            awaitingIndex={awaitingIndex}
             txData={inputType === "txid" || localTx ? txData : null}
           />
         )}

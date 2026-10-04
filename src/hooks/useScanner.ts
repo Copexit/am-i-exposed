@@ -170,6 +170,14 @@ export function useScanner() {
     wallet.reset();
   }, [reset, wallet]);
 
+  const handleBroadcastSuccess = useCallback((txid: string) => {
+    // The local tx is dropped with the state reset; from here it is a normal scan
+    skipNextHashChangeRef.current = true;
+    setHash(`tx=${txid}`);
+    wallet.reset();
+    void analyze(txid, { awaitIndexing: true });
+  }, [analyze, wallet, skipNextHashChangeRef]);
+
   const walletActive = wallet.phase !== "idle";
 
   if (pendingHash && (phase !== "idle" || walletActive)) {
@@ -209,6 +217,7 @@ export function useScanner() {
     ariaStatus,
     handleSubmit,
     handleBack,
+    handleBroadcastSuccess,
     handleXpubConfirm,
     handleXpubCancel,
   };

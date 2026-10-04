@@ -173,6 +173,25 @@ describe("useAnalysis", () => {
     expect(m.putCachedResult.mock.calls[0]![0]).toBe("testnet4@http://onion.example/testnet4/api");
   });
 
+  it("awaitIndexing skips the result cache and NOT_FOUND auto-detect, and flags the wait", async () => {
+    m.getCachedResult.mockResolvedValue({ result: result() });
+    m.runTxidAnalysis.mockImplementation(() => new Promise(() => {}));
+    const { result: hook } = renderHook(() => useAnalysis());
+    act(() => { void hook.current.analyze(TXID, { awaitIndexing: true }); });
+    await waitFor(() => expect(m.runTxidAnalysis).toHaveBeenCalled());
+    expect(m.getCachedResult).not.toHaveBeenCalled();
+    expect(m.runTxidAnalysis.mock.calls[0]![1]).toMatchObject({ awaitIndexing: true });
+    expect(hook.current.awaitingIndex).toBe(true);
+  });
+
+  it("awaitIndexing never probes other networks when the tx stays NOT_FOUND", async () => {
+    m.runTxidAnalysis.mockRejectedValue(new ApiError("NOT_FOUND", "nf"));
+    const { result: hook } = renderHook(() => useAnalysis());
+    await act(async () => { await hook.current.analyze(TXID, { awaitIndexing: true }); });
+    expect(m.detectTxidNetwork).not.toHaveBeenCalled();
+    expect(hook.current.phase).toBe("error");
+  });
+
   it("maps API errors through the shared error mapper", async () => {
     m.runTxidAnalysis.mockRejectedValue(new ApiError("RATE_LIMITED", "429"));
     const { result: hook } = renderHook(() => useAnalysis());
