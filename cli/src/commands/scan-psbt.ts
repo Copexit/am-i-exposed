@@ -3,6 +3,7 @@ import { isPSBT } from "@/lib/bitcoin/psbt";
 import { isValidNetwork } from "@/lib/bitcoin/networks";
 import { parseLocalTx, isRawTxHex } from "@/lib/input/local-tx";
 import { bytesToPayload } from "@/lib/input/file";
+import { cleanInput } from "@/lib/analysis/detect-input";
 import { runLocalAnalysis } from "@/lib/analysis/run-local-analysis";
 import type { GlobalOpts } from "../index";
 import { setJsonMode, startSpinner, succeedSpinner } from "../util/progress";
@@ -16,8 +17,8 @@ export async function scanPsbt(
   const isJson = !!opts.json;
   setJsonMode(isJson);
 
-  // Read input: file path (text or binary) or inline payload
-  const data = existsSync(input) ? bytesToPayload(readFileSync(input)) : input.trim();
+  // Read input: file path (text or binary) or inline payload; line-wrapped payloads are unwrapped like the web
+  const data = cleanInput(existsSync(input) ? bytesToPayload(readFileSync(input)) : input);
 
   if (!isPSBT(data) && !isRawTxHex(data)) {
     throw new Error(

@@ -45,6 +45,20 @@ describe("scan psbt - raw transactions", () => {
     expect(out.psbtInfo).toMatchObject({ inputs: 1, outputs: 2, status: "signed" });
   });
 
+  it("reads a line-wrapped base64 PSBT text file", async () => {
+    vi.useRealTimers();
+    const { scanPsbt } = await import("../src/commands/scan-psbt");
+    const dir = mkdtempSync(join(tmpdir(), "aie-wrap-"));
+    const file = join(dir, "tx.psbt");
+    writeFileSync(file, PSBT_COMPLETE.match(/.{1,64}/g)!.join("\r\n") + "\r\n");
+    try {
+      await scanPsbt(file, { json: true, network: "mainnet", entities: false, color: true } as never);
+      expect(JSON.parse(captured.join("\n")).psbtInfo).toMatchObject({ inputs: 1, outputs: 1 });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it("reads a binary .txn file", async () => {
     vi.useRealTimers();
     const { scanPsbt } = await import("../src/commands/scan-psbt");
