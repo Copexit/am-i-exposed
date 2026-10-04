@@ -76,6 +76,14 @@ function needsAmountsFinding(count: number): Finding {
   };
 }
 
+/** Every lookup request failed (backend down): the caller keeps its lookup-free result. */
+export class LookupFailedError extends Error {
+  constructor() {
+    super("Lookup failed: no request succeeded");
+    this.name = "LookupFailedError";
+  }
+}
+
 const abortError = () => new DOMException("Aborted", "AbortError");
 
 export async function runLocalAnalysis(local: LocalTx, deps: LocalAnalysisDeps): Promise<LocalAnalysisResult> {
@@ -85,8 +93,14 @@ export async function runLocalAnalysis(local: LocalTx, deps: LocalAnalysisDeps):
   let parentTxs: Map<string, MempoolTransaction> | undefined;
   let outputTxCounts: Map<string, number> | null = null;
   if (lookup) {
+    let requests = 0;
+    let failures = 0;
+    const track = <T,>(p: Promise<T>) => {
+      requests++;
+      return p.catch(() => { failures++; return null; });
+    };
     const ids = parentIds(tx);
-    const parents = await inBatches(ids, (id) => lookup.getTransaction(id, signal).catch(() => null));
+    const parents = await inBatches(ids, (id) => track(lookup.getTransaction(id, signal)));
     parentTxs = new Map();
     ids.forEach((id, i) => { const p = parents[i]; if (p) parentTxs!.set(id, p); });
     for (const v of tx.vin) {
@@ -97,8 +111,10 @@ export async function runLocalAnalysis(local: LocalTx, deps: LocalAnalysisDeps):
     }
     const addrs = outputAddresses(tx);
     const counts = await inBatches(addrs, (a) =>
-      lookup.getAddress(a, signal).then((d) => d.chain_stats.tx_count + d.mempool_stats.tx_count).catch(() => null),
+      track(lookup.getAddress(a, signal).then((d) => d.chain_stats.tx_count + d.mempool_stats.tx_count)),
     );
+    // An abort is not a backend failure; it falls through to the abort check below
+    if (!signal.aborted && requests > 0 && failures === requests) throw new LookupFailedError();
     outputTxCounts = new Map();
     addrs.forEach((a, i) => { const c = counts[i]; if (c != null) outputTxCounts!.set(a, c); });
   }

@@ -3,7 +3,7 @@ import { base64 } from "@scure/base";
 import { bytesToHex } from "@/lib/bitcoin/hex";
 import { buildPsbt } from "@/lib/input/__tests__/fixtures";
 import { parseLocalTx } from "@/lib/input/local-tx";
-import { runLocalAnalysis } from "../run-local-analysis";
+import { runLocalAnalysis, LookupFailedError } from "../run-local-analysis";
 
 vi.mock("@/lib/analysis/boltzmann-compute", () => ({
   isAutoComputable: () => true,
@@ -46,5 +46,30 @@ describe("runLocalAnalysis", () => {
     expect(r.outputTxCounts?.size).toBe(2);
     expect(r.result.findings.some((f) => f.id === "local-needs-amounts")).toBe(false);
     expect(local.tx.vin[0]!.prevout).toBeNull(); // input LocalTx untouched
+  });
+
+  describe("lookup failures", () => {
+    const setup = () => {
+      const t = buildPsbt({ sign: true }); t.finalize();
+      const local = parseLocalTx(bytesToHex(t.extract()), "mainnet");
+      return { local, parentId: local.tx.vin[0]!.txid };
+    };
+
+    it("throws LookupFailedError when every request fails", async () => {
+      const { local } = setup();
+      const lookup = { getTransaction: vi.fn().mockRejectedValue(new Error("down")), getAddress: vi.fn().mockRejectedValue(new Error("down")) };
+      await expect(runLocalAnalysis(local, { ...deps, lookup: lookup as never })).rejects.toBeInstanceOf(LookupFailedError);
+    });
+
+    it("resolves on a partial failure", async () => {
+      const { local, parentId } = setup();
+      const parent = {
+        txid: parentId, vin: [], status: { confirmed: true, block_height: 800_000 },
+        vout: [{ value: 100_000, scriptpubkey: "0014" + "00".repeat(20), scriptpubkey_type: "v0_p2wpkh", scriptpubkey_address: "bc1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq", scriptpubkey_asm: "" }],
+      };
+      const lookup = { getTransaction: vi.fn().mockResolvedValue(parent), getAddress: vi.fn().mockRejectedValue(new Error("down")) };
+      const r = await runLocalAnalysis(local, { ...deps, lookup: lookup as never });
+      expect(r.tx.vin[0]!.prevout?.value).toBe(100_000);
+    });
   });
 });

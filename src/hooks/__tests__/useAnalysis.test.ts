@@ -43,6 +43,7 @@ vi.mock("@/lib/input/local-tx", () => ({
 vi.mock("@/lib/analysis/run-local-analysis", () => ({
   runLocalAnalysis: m.runLocalAnalysis,
   countLookups: () => ({ inputs: 1, addresses: 2 }),
+  LookupFailedError: class LookupFailedError extends Error {},
 }));
 vi.mock("@/lib/api/mempool", () => ({ createMempoolClient: m.createMempoolClient }));
 vi.mock("@/lib/analysis/entity-filter", () => ({ loadEntityFilter: vi.fn() }));
@@ -264,6 +265,18 @@ describe("useAnalysis", () => {
       expect(m.runLocalAnalysis.mock.calls.length).toBe(calls);
       await act(async () => { finish(outcome(true)); await first; });
       expect(hook.current.localLookup?.status).toBe("done");
+    });
+
+    it("self-hosted backend down: lookup-free result shown, status failed", async () => {
+      m.isUmbrel = true;
+      const { LookupFailedError } = await import("@/lib/analysis/run-local-analysis");
+      m.runLocalAnalysis.mockRejectedValueOnce(new LookupFailedError());
+      const { result: hook } = renderHook(() => useAnalysis());
+      await act(async () => { await hook.current.analyze(INPUT); });
+      expect(m.runLocalAnalysis).toHaveBeenCalledTimes(2);
+      expect(m.runLocalAnalysis).toHaveBeenLastCalledWith(LOCAL_RAW, expect.objectContaining({ lookup: null }));
+      expect(hook.current.phase).toBe("complete");
+      expect(hook.current.localLookup).toEqual({ status: "failed", inputs: 1, addresses: 2 });
     });
 
     it("self-hosted backend: looks up automatically", async () => {

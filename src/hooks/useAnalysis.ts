@@ -173,17 +173,23 @@ export function useAnalysis() {
           txData: local.tx,
         });
         try {
-          const { runLocalAnalysis, countLookups } = await enginePromise;
+          const { runLocalAnalysis, countLookups, LookupFailedError } = await enginePromise;
           const lookups = countLookups(local);
           const wantsLookup = lookups.inputs + lookups.addresses > 0;
           const selfHosted = backendClass({ isUmbrel, customApiUrl }) === "self-hosted";
           const lookup = selfHosted && wantsLookup ? makeLookupClient(cfg.mempoolBaseUrl, controller.signal) : null;
-          const r = await runLocalAnalysis(local, {
-            lookup,
+          const run = (lk: typeof lookup) => runLocalAnalysis(local, {
+            lookup: lk,
             signal: controller.signal,
             onStep,
             boltzmannTimeoutMs: (getAnalysisSettings().boltzmannTimeout ?? 300) * 1000,
             isCustomApi,
+          });
+          // Own node unreachable: show the lookup-free result and let the user retry
+          let lookupFailed = false;
+          const r = await run(lookup).catch((e: unknown) => {
+            if (lookup && e instanceof LookupFailedError) { lookupFailed = true; return run(null); }
+            throw e;
           });
           if (controller.signal.aborted) return;
           // No trace data before broadcast - mark all chain steps as done
@@ -199,7 +205,7 @@ export function useAnalysis() {
             boltzmannResult: r.boltzmannResult,
             boltzmannStatus: r.boltzmannStatus,
             localOutputTxCounts: r.outputTxCounts,
-            localLookup: !wantsLookup ? null : { status: lookup ? "done" : "available", ...lookups },
+            localLookup: !wantsLookup ? null : { status: lookupFailed ? "failed" : lookup ? "done" : "available", ...lookups },
             durationMs: Date.now() - startTime,
           }));
         } catch (err) {
