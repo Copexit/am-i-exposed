@@ -52,6 +52,7 @@ function makeMinimalState(overrides: Partial<AnalysisState> = {}): AnalysisState
     outspends: null,
     localTx: null,
     localLookup: null,
+    localOutputTxCounts: null,
     fetchProgress: null,
     backwardLayers: null,
     forwardLayers: null,

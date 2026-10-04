@@ -88,9 +88,9 @@ export function createMempoolClient(baseUrl: string, options?: MempoolClientOpti
       return get<RecommendedFees>("/v1/fees/recommended");
     },
 
-    getAddress(address: string): Promise<MempoolAddress> {
+    getAddress(address: string, signal?: AbortSignal): Promise<MempoolAddress> {
       assertAddress(address);
-      return get(`/address/${address}`);
+      return get(`/address/${address}`, signal);
     },
 
     async getAddressTxs(address: string, maxPages = 4): Promise<MempoolTransaction[]> {

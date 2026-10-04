@@ -3,7 +3,9 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
-import { createApiClient } from "@/lib/api/client";
+import { createApiClient, isLocalApi } from "@/lib/api/client";
+import { backendClass } from "@/lib/api/backend-class";
+import { createMempoolClient } from "@/lib/api/mempool";
 import { ApiError } from "@/lib/api/fetch-with-retry";
 import { detectAddressNetwork, detectTxidNetwork } from "@/lib/api/detect-network";
 import { mapApiErrorMessage } from "@/lib/api/error-message";
@@ -27,6 +29,11 @@ import {
 // Re-export types that components import from this module
 export type { FetchProgress } from "@/lib/analysis/analysis-state";
 export type { PreSendResult } from "@/lib/analysis/orchestrator";
+
+/** Uncached, IP-linked lookups for a local tx: never createApiClient (IndexedDB cache). */
+function makeLookupClient(baseUrl: string, signal: AbortSignal) {
+  return createMempoolClient(baseUrl, { signal, timeoutMs: isLocalApi(baseUrl) ? 60_000 : 15_000 });
+}
 
 export function useAnalysis() {
   const [state, setState] = useState<AnalysisState>(INITIAL_STATE);
@@ -166,9 +173,13 @@ export function useAnalysis() {
           txData: local.tx,
         });
         try {
-          const { runLocalAnalysis } = await enginePromise;
+          const { runLocalAnalysis, countLookups } = await enginePromise;
+          const lookups = countLookups(local);
+          const wantsLookup = lookups.inputs + lookups.addresses > 0;
+          const selfHosted = backendClass({ isUmbrel, customApiUrl }) === "self-hosted";
+          const lookup = selfHosted && wantsLookup ? makeLookupClient(cfg.mempoolBaseUrl, controller.signal) : null;
           const r = await runLocalAnalysis(local, {
-            lookup: null,
+            lookup,
             signal: controller.signal,
             onStep,
             boltzmannTimeoutMs: (getAnalysisSettings().boltzmannTimeout ?? 300) * 1000,
@@ -187,6 +198,8 @@ export function useAnalysis() {
             txData: r.tx,
             boltzmannResult: r.boltzmannResult,
             boltzmannStatus: r.boltzmannStatus,
+            localOutputTxCounts: r.outputTxCounts,
+            localLookup: !wantsLookup ? null : { status: lookup ? "done" : "available", ...lookups },
             durationMs: Date.now() - startTime,
           }));
         } catch (err) {
@@ -436,10 +449,42 @@ export function useAnalysis() {
     if (localInputRef.current) void analyze(localInputRef.current);
   }, [analyze]);
 
+  /** Consent click on a public backend: re-run the local analysis with an uncached lookup client. */
+  const completeLocalLookup = useCallback(async () => {
+    const local = state.localTx;
+    if (!local || state.localLookup?.status === "running") return;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setState((prev) => ({ ...prev, localLookup: prev.localLookup && { ...prev.localLookup, status: "running" } }));
+    try {
+      const { runLocalAnalysis } = await loadEngine();
+      const r = await runLocalAnalysis(local, {
+        lookup: makeLookupClient(config.mempoolBaseUrl, controller.signal),
+        signal: controller.signal,
+        boltzmannTimeoutMs: (getAnalysisSettings().boltzmannTimeout ?? 300) * 1000,
+        isCustomApi,
+      });
+      if (controller.signal.aborted) return;
+      setState((prev) => ({
+        ...prev,
+        result: r.result,
+        txData: r.tx,
+        boltzmannResult: r.boltzmannResult,
+        boltzmannStatus: r.boltzmannStatus,
+        localOutputTxCounts: r.outputTxCounts,
+        localLookup: prev.localLookup && { ...prev.localLookup, status: "done" },
+      }));
+    } catch {
+      if (controller.signal.aborted) return;
+      setState((prev) => ({ ...prev, localLookup: prev.localLookup && { ...prev.localLookup, status: "failed" } }));
+    }
+  }, [state.localTx, state.localLookup?.status, config, isCustomApi]);
+
   // Abort in-flight requests on unmount
   useEffect(() => {
     return () => { abortRef.current?.abort(); };
   }, []);
 
-  return { ...state, analyze, reset, retryLocal };
+  return { ...state, analyze, reset, retryLocal, completeLocalLookup };
 }

@@ -97,7 +97,7 @@ export async function runLocalAnalysis(local: LocalTx, deps: LocalAnalysisDeps):
     }
     const addrs = outputAddresses(tx);
     const counts = await inBatches(addrs, (a) =>
-      lookup.getAddress(a).then((d) => d.chain_stats.tx_count + d.mempool_stats.tx_count).catch(() => null),
+      lookup.getAddress(a, signal).then((d) => d.chain_stats.tx_count + d.mempool_stats.tx_count).catch(() => null),
     );
     outputTxCounts = new Map();
     addrs.forEach((a, i) => { const c = counts[i]; if (c != null) outputTxCounts!.set(a, c); });

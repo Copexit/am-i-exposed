@@ -49,6 +49,8 @@ export interface AnalysisState {
   localTx: LocalTx | null;
   /** Consented lookup state for a local tx on a public backend. */
   localLookup: { status: "available" | "running" | "done" | "failed"; inputs: number; addresses: number } | null;
+  /** Per-address tx counts from a completed local lookup (null = not looked up). */
+  localOutputTxCounts: Map<string, number> | null;
   /** Progress during fetch/trace phase. */
   fetchProgress: FetchProgress | null;
   /** Backward trace layers from recursive tracing. */
@@ -84,6 +86,7 @@ export const INITIAL_STATE: AnalysisState = {
   outspends: null,
   localTx: null,
   localLookup: null,
+  localOutputTxCounts: null,
   fetchProgress: null,
   backwardLayers: null,
   forwardLayers: null,
