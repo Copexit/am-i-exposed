@@ -1309,7 +1309,7 @@
   "input.detectedPsbt": "PSBT",
   "input.detectedRawTx": "Surowa transakcja",
   "input.openFile": "Otwórz plik PSBT lub transakcji",
-  "input.errorFileTooLarge": "Ten plik jest większy niż 4 MB.",
+  "input.errorFileTooLarge": "Ten plik jest większy niż 2 MB.",
   "input.errorFileUnreadable": "Nie można odczytać tego pliku.",
   "input.detectedTxid": "Identyfikator transakcji",
   "input.detectedXpub": "Rozszerzony klucz publiczny (portfel)",

@@ -19,7 +19,7 @@ describe("bytesToPayload", () => {
 });
 
 describe("readInputFile", () => {
-  it("rejects files over 4 MB", async () => {
+  it("rejects files over 2 MB", async () => {
     const f = new File([new Uint8Array(MAX_FILE_BYTES + 1)], "big.psbt");
     await expect(readInputFile(f)).rejects.toBeInstanceOf(InputFileError);
   });

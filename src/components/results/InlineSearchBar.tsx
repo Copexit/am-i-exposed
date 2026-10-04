@@ -70,24 +70,24 @@ export function InlineSearchBar({ onScan, initialValue }: { onScan: (input: stri
           spellCheck={false}
           autoComplete="off"
           aria-label={t("input.placeholderScan", { defaultValue: "Paste an address, txid, xpub, PSBT or raw transaction" })}
-          className="w-full rounded-lg border border-card-border bg-surface-elevated/50 pl-8 pr-28 py-2 min-h-[44px]
+          className="w-full rounded-lg border border-card-border bg-surface-elevated/50 pl-8 pr-36 py-2 min-h-[44px]
             font-mono text-sm text-foreground placeholder:text-muted/50
             focus:border-bitcoin/40 focus:shadow-[0_0_8px_--alpha(var(--color-bitcoin)/10%)]
             focus-visible:outline-2 focus-visible:outline-bitcoin/50
             transition-all duration-150"
         />
-        <div className="absolute right-14 top-1/2 -translate-y-1/2">
+        <div data-testid="input-actions" className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
           <InputExtras onPayload={submitValue} onError={setError} />
-        </div>
         <button
           type="submit"
           disabled={!value.trim()}
-          className="absolute right-1.5 px-3 py-1 text-xs font-semibold rounded-md
+          className="px-3 py-1 text-xs font-semibold rounded-md
             bg-bitcoin/80 text-black hover:bg-bitcoin transition-colors
             disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
         >
           {t("input.buttonScan", { defaultValue: "Scan" })}
         </button>
+        </div>
       </div>
       {error && <p className="text-danger text-xs mt-1">{error}</p>}
     </form>

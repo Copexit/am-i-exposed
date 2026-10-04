@@ -13,7 +13,7 @@ function useFileReader(onPayload: (text: string) => void, onError: (m: string) =
       onPayload(await readInputFile(file));
     } catch (err) {
       onError(err instanceof InputFileError && err.reason === "too-large"
-        ? t("input.errorFileTooLarge", { defaultValue: "That file is larger than 4 MB." })
+        ? t("input.errorFileTooLarge", { defaultValue: "That file is larger than 2 MB." })
         : t("input.errorFileUnreadable", { defaultValue: "That file could not be read." }));
     }
   }, [onPayload, onError, t]);

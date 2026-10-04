@@ -204,14 +204,15 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, place
             aria-expanded={isOpen}
             aria-controls={isOpen ? "address-suggestions" : undefined}
             aria-activedescendant={selectedIndex >= 0 ? `suggestion-${selectedIndex}` : undefined}
-            className="relative w-full glass rounded-[11px] pl-4 pr-36 sm:pl-5 sm:pr-32 py-4
+            className="relative w-full glass rounded-[11px] pl-4 pr-44 sm:pl-5 sm:pr-48 py-4
               font-mono text-sm sm:text-base text-foreground placeholder:text-muted/70
               focus:shadow-[0_0_20px_--alpha(var(--color-bitcoin)/20%)]
               transition-all duration-200 border-0
               focus-visible:outline-2 focus-visible:outline-bitcoin/50"
           />
         </div>
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10">
+        <div data-testid="input-actions" className="absolute right-3 top-1/2 -translate-y-1/2 z-10 flex items-center gap-1">
+          <InputExtras onPayload={submit} onError={setError} />
           {isLoading ? (
             <Spinner />
           ) : (
@@ -230,9 +231,6 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, place
               {buttonLabel}
             </motion.button>
           )}
-        </div>
-        <div className="absolute right-24 top-1/2 -translate-y-1/2 z-10">
-          <InputExtras onPayload={submit} onError={setError} />
         </div>
         {/* Autocomplete dropdown (address prefix or entity name) */}
         {isOpen && suggestions.length > 0 && (

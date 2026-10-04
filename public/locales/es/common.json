@@ -1269,7 +1269,7 @@
   "input.detectedPsbt": "PSBT",
   "input.detectedRawTx": "Transacción en bruto",
   "input.openFile": "Abrir un archivo PSBT o de transacción",
-  "input.errorFileTooLarge": "Ese archivo ocupa más de 4 MB.",
+  "input.errorFileTooLarge": "Ese archivo ocupa más de 2 MB.",
   "input.errorFileUnreadable": "No se pudo leer ese archivo.",
   "input.detectedTxid": "ID de transacción",
   "input.detectedXpub": "Clave pública extendida (billetera)",

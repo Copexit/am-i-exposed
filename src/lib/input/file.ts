@@ -1,6 +1,6 @@
 import { bytesToHex } from "@/lib/bitcoin/hex";
 
-export const MAX_FILE_BYTES = 4 * 1024 * 1024;
+export const MAX_FILE_BYTES = 2 * 1024 * 1024;
 const PSBT_MAGIC = [0x70, 0x73, 0x62, 0x74, 0xff];
 
 export class InputFileError extends Error {

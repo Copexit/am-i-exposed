@@ -15,3 +15,15 @@ describe("InputExtras", () => {
     await waitFor(() => expect(onPayload).toHaveBeenCalledWith(bytesToHex(bytes)));
   });
 });
+
+describe("search bar layout", () => {
+  it("InlineSearchBar puts the extras and the Scan button in one flex container", async () => {
+    vi.doMock("@/context/NetworkContext", () => ({ useNetwork: () => ({ network: "mainnet" }) }));
+    const { InlineSearchBar } = await import("../results/InlineSearchBar");
+    const { getByTestId, getByRole } = render(<InlineSearchBar onScan={vi.fn()} />);
+    const box = getByTestId("input-actions");
+    expect(box.className).toContain("flex");
+    expect(box.contains(getByTestId("open-file"))).toBe(true);
+    expect(box.contains(getByRole("button", { name: /scan/i }))).toBe(true);
+  });
+});
