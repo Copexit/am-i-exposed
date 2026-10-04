@@ -130,7 +130,13 @@ export function BeforeYouSend({ local, txData, result, lookup, outputTxCounts, o
       {lookup && lookup.status !== "done" && (
         <div className="rounded-lg border border-hairline bg-surface-inset px-3.5 py-3 space-y-2.5">
           <p className="text-sm text-foreground">
-            {t("local.lookupWhy", { inputs: lookup.inputs, addresses: lookup.addresses, host: endpoint, defaultValue: "Complete the analysis: look up {{inputs}} inputs and {{addresses}} addresses on {{host}}." })}
+            {t("local.lookupWhy", {
+              // countLookups().inputs counts unique parent txids, not inputs
+              parents: t("local.lookupParents", { count: lookup.inputs, defaultValue: "{{count}} parent transactions" }),
+              addresses: t("local.lookupAddresses", { count: lookup.addresses, defaultValue: "{{count}} addresses" }),
+              host: endpoint,
+              defaultValue: "Complete the analysis: look up {{parents}} and {{addresses}} on {{host}}.",
+            })}
           </p>
           <p className="text-[13px] text-muted">
             {t("local.lookupReveals", { host: endpoint, defaultValue: "This tells {{host}} which coins you are about to spend and where they go, linked to your IP address unless you use Tor." })}

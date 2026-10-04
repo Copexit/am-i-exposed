@@ -8,8 +8,9 @@ import type { ScoringResult } from "@/lib/types";
 const m = vi.hoisted(() => ({ getRecommendedFees: vi.fn() }));
 vi.mock("react-i18next", async () => {
   const en = (await import("../../../../public/locales/en/common.json")).default as Record<string, string>;
+  // English plurals: the _other form for any count but 1
   const t = (k: string, o: Record<string, unknown> = {}) =>
-    (en[k] ?? (typeof o.defaultValue === "string" ? o.defaultValue : k))
+    ((typeof o.count === "number" && o.count !== 1 ? en[`${k}_other`] : undefined) ?? en[k] ?? (typeof o.defaultValue === "string" ? o.defaultValue : k))
       .replace(/\{\{(\w+)\}\}/g, (raw, name: string) => (name in o ? String(o[name]) : raw));
   return { useTranslation: () => ({ t, i18n: { language: "en" } }) };
 });
@@ -35,13 +36,19 @@ describe("BeforeYouSend", () => {
     const onLookup = vi.fn();
     const props = { local: local(false), txData: null, result, outputTxCounts: null, onLookup, endpoint: "mempool.space" };
     const { rerender } = render(<BeforeYouSend {...props} lookup={{ status: "available", inputs: 3, addresses: 2 }} />);
-    expect(screen.getByTestId("before-you-send").textContent).toContain("look up 3 inputs and 2 addresses on mempool.space");
+    expect(screen.getByTestId("before-you-send").textContent).toContain("look up 3 parent transactions and 2 addresses on mempool.space");
     fireEvent.click(screen.getByTestId("local-lookup"));
     expect(onLookup).toHaveBeenCalledTimes(1);
     rerender(<BeforeYouSend {...props} lookup={{ status: "running", inputs: 3, addresses: 2 }} />);
     expect((screen.getByTestId("local-lookup") as HTMLButtonElement).disabled).toBe(true);
     // Amounts unknown: no fee estimate request
     expect(m.getRecommendedFees).not.toHaveBeenCalled();
+  });
+
+  it("lookup copy uses singular forms for one parent and one address", () => {
+    m.getRecommendedFees.mockReturnValue(new Promise(() => {}));
+    render(<BeforeYouSend local={local(false)} txData={null} result={result} outputTxCounts={null} onLookup={() => {}} endpoint="mempool.space" lookup={{ status: "available", inputs: 1, addresses: 1 }} />);
+    expect(screen.getByTestId("before-you-send").textContent).toContain("look up 1 parent transaction and 1 address on mempool.space");
   });
 
   it("shows status, safety items and a fee hint from the estimates", async () => {
