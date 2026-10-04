@@ -42,7 +42,7 @@ export function ScanScreen({ query, inputType, phase, steps, fetchProgress, txDa
   const elapsed = Math.round((now - start) / 1000);
 
   const isAddress = inputType === "address";
-  const isPsbt = inputType === "psbt";
+  const isPsbt = inputType === "psbt" || inputType === "rawtx";
   const stages = scanStages(inputType, phase, fetchProgress);
   const active = stages.find((s) => s.state === "active")?.id ?? "checks";
   const sum = useMemo(() => summarizeSteps(steps, inputType), [steps, inputType]);
@@ -92,9 +92,11 @@ export function ScanScreen({ query, inputType, phase, steps, fetchProgress, txDa
 
   const eyebrow = isAddress
     ? t("scan.eyebrowAddress", { defaultValue: "Scanning address" })
-    : isPsbt
-      ? t("scan.eyebrowPsbt", { defaultValue: "Scanning PSBT" })
-      : t("scan.eyebrowTx", { defaultValue: "Scanning transaction" });
+    : inputType === "rawtx"
+      ? t("scan.eyebrowRawTx", { defaultValue: "Scanning transaction" })
+      : isPsbt
+        ? t("scan.eyebrowPsbt", { defaultValue: "Scanning PSBT" })
+        : t("scan.eyebrowTx", { defaultValue: "Scanning transaction" });
 
   const running = sum.runningIndex >= 0 ? steps[sum.runningIndex] : undefined;
   const stripLabel = running?.label

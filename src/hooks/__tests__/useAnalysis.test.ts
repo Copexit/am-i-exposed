@@ -16,8 +16,8 @@ const m = vi.hoisted(() => ({
   runTxidAnalysis: vi.fn(),
   detectTxidNetwork: vi.fn(),
   createApiClient: vi.fn(),
-  parsePSBT: vi.fn(),
-  analyzeTransaction: vi.fn(),
+  parseLocalTx: vi.fn(),
+  runLocalAnalysis: vi.fn(),
   setNetwork: vi.fn(),
   host: "http://onion.example",
 }));
@@ -30,10 +30,13 @@ vi.mock("@/lib/analysis/run-txid-analysis", () => ({ runTxidAnalysis: m.runTxidA
 vi.mock("@/lib/analysis/run-address-analysis", () => ({ runAddressAnalysis: vi.fn() }));
 vi.mock("@/lib/api/detect-network", () => ({ detectTxidNetwork: m.detectTxidNetwork }));
 vi.mock("@/lib/api/client", () => ({ createApiClient: m.createApiClient }));
-vi.mock("@/lib/bitcoin/psbt", async (orig) => ({ ...(await orig<object>()), parsePSBT: m.parsePSBT }));
+vi.mock("@/lib/input/local-tx", () => ({
+  parseLocalTx: m.parseLocalTx,
+  localTxLabel: () => ({ key: "local.queryPsbt", inputs: 0, outputs: 0 }),
+}));
+vi.mock("@/lib/analysis/run-local-analysis", () => ({ runLocalAnalysis: m.runLocalAnalysis }));
 vi.mock("@/lib/analysis/entity-filter", () => ({ loadEntityFilter: vi.fn() }));
 vi.mock("@/lib/analysis/orchestrator", () => ({
-  analyzeTransaction: m.analyzeTransaction,
   getTxHeuristicSteps: () => [{ id: "h1", label: "h1", status: "pending" }],
   getAddressHeuristicSteps: () => [{ id: "a1", label: "a1", status: "pending" }],
 }));
@@ -169,20 +172,23 @@ describe("useAnalysis", () => {
 
   it("parses a PSBT against the selected network", async () => {
     const tx = { txid: TXID, vin: [], vout: [] };
-    m.parsePSBT.mockReturnValue({ tx });
-    m.analyzeTransaction.mockResolvedValue(result());
+    m.parseLocalTx.mockReturnValue({ tx });
+    m.runLocalAnalysis.mockResolvedValue({ result: result(), tx, boltzmannResult: null, boltzmannStatus: "idle" });
     const { result: hook } = renderHook(() => useAnalysis());
     await act(async () => { await hook.current.analyze("cHNidP8BAAoCAAAAAAAAAAAAAAAA"); });
 
-    expect(m.parsePSBT).toHaveBeenCalledWith("cHNidP8BAAoCAAAAAAAAAAAAAAAA", "mainnet");
+    expect(m.parseLocalTx).toHaveBeenCalledWith("cHNidP8BAAoCAAAAAAAAAAAAAAAA", "mainnet");
+    expect(hook.current.phase).toBe("complete");
+    expect(hook.current.query).not.toContain("cHNidP");
   });
 
   it("shows the parser's reason when a PSBT fails to parse", async () => {
-    m.parsePSBT.mockImplementation(() => { throw new Error("unexpected end of input"); });
+    m.parseLocalTx.mockImplementation(() => { throw new Error("unexpected end of input"); });
     const { result: hook } = renderHook(() => useAnalysis());
     await act(async () => { await hook.current.analyze("cHNidP8BAAoC"); });
 
     expect(hook.current.phase).toBe("error");
-    expect(hook.current.error).toBe("Failed to parse PSBT: unexpected end of input");
+    expect(hook.current.error).toBe("Could not read this transaction: unexpected end of input");
+    expect(hook.current.query).not.toContain("cHNidP");
   });
 });

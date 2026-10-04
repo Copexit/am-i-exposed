@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useWalletAnalysis } from "@/hooks/useWalletAnalysis";
 import { isXpubOrDescriptor, parseAndDerive } from "@/lib/bitcoin/descriptor";
-import { isPSBT } from "@/lib/bitcoin/psbt";
+import { detectInputType } from "@/lib/analysis/detect-input";
 import { useNetwork } from "@/context/NetworkContext";
 import { useRecentScans } from "@/hooks/useRecentScans";
 import { useBookmarks } from "@/hooks/useBookmarks";
@@ -75,7 +75,7 @@ export function useScanner() {
   const [pendingXpub, setPendingXpub] = useState<string | null>(null);
 
   // Detect third-party API (not Umbrel and no custom API)
-  const { customApiUrl, isUmbrel, config } = useNetwork();
+  const { network, customApiUrl, isUmbrel, config } = useNetwork();
   const isThirdPartyApi = !isUmbrel && !customApiUrl;
 
   // Hash routing (refs, hashchange listener, initial hash detection)
@@ -105,10 +105,11 @@ export function useScanner() {
 
   // Save completed scan to recent history
   useEffect(() => {
-    if (phase === "complete" && query && inputType && result) {
+    // Local PSBT/raw tx scans are never added to history
+    if (phase === "complete" && query && inputType && result && inputType !== "psbt" && inputType !== "rawtx") {
       addScan({
         input: query,
-        type: inputType === "txid" || inputType === "psbt" ? "txid" : "address",
+        type: inputType === "txid" ? "txid" : "address",
         grade: result.grade,
         score: result.score,
       });
@@ -152,14 +153,16 @@ export function useScanner() {
       return;
     }
     // Fire-and-forget: the callee catches its own errors.
-    if (isPSBT(input)) { wallet.reset(); void analyze(input); return; }
+    // PSBT / raw tx: analyzed in memory, never put in the URL hash
+    const kind = detectInputType(input, network);
+    if (kind === "psbt" || kind === "rawtx") { wallet.reset(); void analyze(input); return; }
     const prefix = input.length === 64 ? "tx" : "addr";
     const newHash = `${prefix}=${encodeURIComponent(input)}`;
     const oldHash = window.location.hash.slice(1);
     setHash(newHash);
     // Fire-and-forget: the callee catches its own errors.
     if (oldHash === newHash) { wallet.reset(); void analyze(input); }
-  }, [analyze, isThirdPartyApi, startXpubScan, wallet]);
+  }, [analyze, isThirdPartyApi, network, startXpubScan, wallet]);
 
   const handleBack = useCallback(() => {
     setHash("");

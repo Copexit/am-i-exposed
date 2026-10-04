@@ -23,7 +23,8 @@ export function ResultsFooter({
   result: ScoringResult;
   txBreakdown: TxAnalysisResult[] | null;
   durationMs?: number | null;
-  explorerUrl: string;
+  /** null for local (not broadcast) transactions: no explorer link. */
+  explorerUrl: string | null;
   explorerLabel: string;
   mempoolBaseUrl: string;
   /** Findings shown to the user (defaults to every finding). */
@@ -37,15 +38,17 @@ export function ResultsFooter({
     <motion.div {...fadeUpVariants} transition={fadeUpTransition(0.65)} className="w-full space-y-2 pb-4">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         <ScoringExplainer isAddress={inputType === "address"} />
-        <a
-          href={explorerUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-xs text-bitcoin hover:text-bitcoin-hover transition-colors py-1 -my-1"
-        >
-          {explorerLabel}
-          <ExternalLink size={12} />
-        </a>
+        {explorerUrl && (
+          <a
+            href={explorerUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs text-bitcoin hover:text-bitcoin-hover transition-colors py-1 -my-1"
+          >
+            {explorerLabel}
+            <ExternalLink size={12} />
+          </a>
+        )}
       </div>
 
       <p className="text-xs text-muted/70 leading-relaxed">

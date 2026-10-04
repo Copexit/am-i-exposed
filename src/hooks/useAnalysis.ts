@@ -11,7 +11,7 @@ import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
 import { detectInputType } from "@/lib/analysis/detect-input";
 import { getTxHeuristicSteps, getAddressHeuristicSteps } from "@/lib/analysis/heuristic-steps";
 import { loadEngine } from "@/lib/analysis/load-engine";
-import { parsePSBT } from "@/lib/bitcoin/psbt";
+import { parseLocalTx, localTxLabel, type LocalTx } from "@/lib/input/local-tx";
 import { getAnalysisSettings, type AnalysisSettings } from "@/hooks/useAnalysisSettings";
 import { getCachedResult, putCachedResult } from "@/lib/api/analysis-cache";
 import { cacheKeyPrefix } from "@/lib/api/cache-policy";
@@ -35,6 +35,8 @@ export function useAnalysis() {
   const abortRef = useRef<AbortController | null>(null);
   /** Cache write owed by the analysis that just completed; flushed after the commit. */
   const pendingCacheRef = useRef<{ cacheKey: string; input: string; settings: AnalysisSettings } | null>(null);
+  /** Last local (PSBT/raw tx) input, kept in memory only for retryLocal. */
+  const localInputRef = useRef<string | null>(null);
 
   // Load the engine and the core entity filter on mount (off the critical path)
   useEffect(() => {
@@ -121,37 +123,71 @@ export function useAnalysis() {
         }
       }
 
-      // PSBT: parse locally and run tx heuristics without API calls
-      if (inputType === "psbt") {
+      // PSBT or raw tx: parsed and analyzed in memory. Never cached, never put in the
+      // hash or history; network access only via an explicit lookup.
+      if (inputType === "psbt" || inputType === "rawtx") {
+        localInputRef.current = input;
         const steps = getTxHeuristicSteps(ht);
         const startTime = Date.now();
+        let local: LocalTx;
+        try {
+          local = parseLocalTx(input, network);
+        } catch (err) {
+          // btc-signer messages describe structure, never the input: never interpolate `input`
+          setState({
+            ...INITIAL_STATE,
+            phase: "error",
+            query: inputType === "psbt"
+              ? t("local.kindPsbt", { defaultValue: "PSBT" })
+              : t("local.kindRaw", { defaultValue: "Raw transaction" }),
+            inputType,
+            error: t("errors.local_parse", {
+              message: err instanceof Error ? err.message : "",
+              defaultValue: "Could not read this transaction: {{message}}",
+            }),
+            errorCode: "not-retryable",
+          });
+          return;
+        }
+        const label = localTxLabel(local);
         setState({
           ...INITIAL_STATE,
           phase: "analyzing",
-          query: input.slice(0, 32) + "...",
-          inputType: "psbt",
+          query: t(label.key, {
+            inputs: label.inputs,
+            outputs: label.outputs,
+            defaultValue: label.key === "local.queryPsbt"
+              ? "PSBT · {{inputs}} in · {{outputs}} out"
+              : "Raw transaction · {{inputs}} in · {{outputs}} out",
+          }),
+          inputType,
           steps,
+          localTx: local,
+          txData: local.tx,
         });
-
         try {
-          const psbtResult = parsePSBT(input, network);
-          const { analyzeTransaction } = await enginePromise;
-          const result = await analyzeTransaction(psbtResult.tx, undefined, onStep);
+          const { runLocalAnalysis } = await enginePromise;
+          const r = await runLocalAnalysis(local, {
+            lookup: null,
+            signal: controller.signal,
+            onStep,
+            boltzmannTimeoutMs: (getAnalysisSettings().boltzmannTimeout ?? 300) * 1000,
+            isCustomApi,
+          });
           if (controller.signal.aborted) return;
-          // No trace data for PSBTs - mark all chain steps as done
+          // No trace data before broadcast - mark all chain steps as done
           for (const cid of ["chain-backward", "chain-forward", "chain-cluster", "chain-spending", "chain-entity", "chain-taint"]) {
             onStep(cid); onStep(cid, 0);
           }
-
-          const durationMs = Date.now() - startTime;
           setState((prev) => ({
             ...prev,
             phase: "complete",
             steps: markAllDone(prev.steps),
-            result,
-            txData: psbtResult.tx,
-            psbtData: psbtResult,
-            durationMs,
+            result: r.result,
+            txData: r.tx,
+            boltzmannResult: r.boltzmannResult,
+            boltzmannStatus: r.boltzmannStatus,
+            durationMs: Date.now() - startTime,
           }));
         } catch (err) {
           if (controller.signal.aborted) return;
@@ -159,7 +195,7 @@ export function useAnalysis() {
             ...prev,
             phase: "error",
             error: err instanceof Error
-              ? t("errors.psbt_parse", { message: err.message, defaultValue: "Failed to parse PSBT: {{message}}" })
+              ? t("errors.local_parse", { message: err.message, defaultValue: "Could not read this transaction: {{message}}" })
               : t("errors.unexpected", { defaultValue: "An unexpected error occurred." }),
             errorCode: "not-retryable",
           }));
@@ -392,13 +428,18 @@ export function useAnalysis() {
     abortRef.current?.abort();
     abortRef.current = null;
     pendingCacheRef.current = null;
+    localInputRef.current = null;
     setState(INITIAL_STATE);
   }, []);
+
+  const retryLocal = useCallback(() => {
+    if (localInputRef.current) void analyze(localInputRef.current);
+  }, [analyze]);
 
   // Abort in-flight requests on unmount
   useEffect(() => {
     return () => { abortRef.current?.abort(); };
   }, []);
 
-  return { ...state, analyze, reset };
+  return { ...state, analyze, reset, retryLocal };
 }

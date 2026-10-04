@@ -27,8 +27,8 @@ export default function ScannerPage() {
   const {
     phase, query, inputType, steps, result, txData, addressData,
     txBreakdown, addressTxs, addressUtxos, preSendResult, error,
-    errorCode, durationMs, usdPrice, outspends, psbtData, fetchProgress,
-    backwardLayers, forwardLayers, boltzmannResult, autoSwitchedNetwork, fromCache, analyze,
+    errorCode, durationMs, usdPrice, outspends, localTx, fetchProgress,
+    backwardLayers, forwardLayers, boltzmannResult, autoSwitchedNetwork, fromCache, analyze, retryLocal,
   } = analysis;
   const { t } = useTranslation();
 
@@ -85,7 +85,7 @@ export default function ScannerPage() {
             phase={phase}
             steps={steps}
             fetchProgress={fetchProgress}
-            txData={inputType === "txid" ? txData : null}
+            txData={inputType === "txid" || localTx ? txData : null}
           />
         )}
 
@@ -93,7 +93,7 @@ export default function ScannerPage() {
           <Suspense key="results" fallback={viewFallback}>
           <Results
             query={query}
-            inputType={inputType === "psbt" ? "txid" : inputType as "txid" | "address"}
+            inputType={inputType === "psbt" || inputType === "rawtx" ? "txid" : inputType as "txid" | "address"}
             result={result}
             txData={txData}
             addressData={addressData}
@@ -110,13 +110,8 @@ export default function ScannerPage() {
             forwardLayers={forwardLayers}
             boltzmannResult={boltzmannResult}
             reveal={!fromCache}
-            psbt={psbtData ? {
-              inputCount: psbtData.inputCount,
-              outputCount: psbtData.outputCount,
-              fee: psbtData.fee,
-              feeRate: psbtData.feeRate,
-              complete: psbtData.complete,
-            } : null}
+            local={localTx}
+            onRetryLocal={retryLocal}
           />
           </Suspense>
         )}
