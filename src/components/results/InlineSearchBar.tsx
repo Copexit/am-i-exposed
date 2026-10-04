@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Search } from "lucide-react";
+import { ArrowRight, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { InputExtras, useFileDrop } from "@/components/InputExtras";
@@ -70,7 +70,7 @@ export function InlineSearchBar({ onScan, initialValue }: { onScan: (input: stri
           spellCheck={false}
           autoComplete="off"
           aria-label={t("input.placeholderScan", { defaultValue: "Paste an address, txid, xpub, PSBT or raw transaction" })}
-          className="w-full rounded-lg border border-card-border bg-surface-elevated/50 pl-8 pr-48 py-2 min-h-[44px]
+          className="w-full rounded-lg border border-card-border bg-surface-elevated/50 pl-8 pr-40 sm:pr-48 py-2 min-h-[44px]
             font-mono text-sm text-foreground placeholder:text-muted/50
             focus:border-bitcoin/40 focus:shadow-[0_0_8px_--alpha(var(--color-bitcoin)/10%)]
             focus-visible:outline-2 focus-visible:outline-bitcoin/50
@@ -81,11 +81,13 @@ export function InlineSearchBar({ onScan, initialValue }: { onScan: (input: stri
         <button
           type="submit"
           disabled={!value.trim()}
-          className="px-3 py-1 text-xs font-semibold rounded-md
+          aria-label={t("input.buttonScan", { defaultValue: "Scan" })}
+          className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 sm:px-3 sm:py-1 text-xs font-semibold rounded-md
             bg-bitcoin/80 text-black hover:bg-bitcoin transition-colors
             disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
         >
-          {t("input.buttonScan", { defaultValue: "Scan" })}
+          <ArrowRight size={16} aria-hidden="true" className="sm:hidden" />
+          <span className="hidden sm:inline">{t("input.buttonScan", { defaultValue: "Scan" })}</span>
         </button>
         </div>
       </div>

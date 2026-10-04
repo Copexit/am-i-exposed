@@ -2633,8 +2633,8 @@
   "qr.photoNoCode": "No se encontró ningún código QR en esa foto.",
   "qr.progressParts": "{{received}} de {{total}} partes",
   "qr.progressPercent": "{{percent}}% recibido",
-  "qr.multisig": "Las exportaciones de carteras multifirma aún no están soportadas.",
-  "qr.unsupported": "Este tipo de QR no está soportado.",
+  "qr.multisig": "Las exportaciones de carteras multifirma aún no son compatibles.",
+  "qr.unsupported": "Este tipo de QR no es compatible.",
   "qr.scanAgain": "Escanear de nuevo",
   "qr.switchCamera": "Cambiar de cámara"
 }

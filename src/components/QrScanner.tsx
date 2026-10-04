@@ -25,6 +25,8 @@ export function QrScanner({ onResult, onClose }: { onResult: (text: string) => v
   const assembler = useRef(new QrAssembler());
   const stopRef = useRef<() => void>(() => {});
   const doneRef = useRef(false);
+  const liveRef = useRef(false); // camera loop running
+  const pausedRef = useRef(false); // stopped because the page was hidden
   const currentDevice = useRef<string | undefined>(undefined);
 
   const [secure] = useState(cameraAvailable);
@@ -60,18 +62,28 @@ export function QrScanner({ onResult, onClose }: { onResult: (text: string) => v
   useEffect(() => { dialogRef.current?.focus(); }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
-    const onHidden = () => { if (document.visibilityState === "hidden") close(); };
+    // Hidden page: release the camera but keep the modal (the photo picker hides the page on
+    // Android). Visible again: restart the camera if it was paused; assembled parts are kept.
+    const pause = () => {
+      if (!liveRef.current) return;
+      stopRef.current();
+      pausedRef.current = true;
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") pause();
+      else if (pausedRef.current) { pausedRef.current = false; setRun((n) => n + 1); }
+    };
     document.addEventListener("keydown", onKey);
-    document.addEventListener("visibilitychange", onHidden);
-    window.addEventListener("pagehide", close);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", pause);
     return () => {
       document.removeEventListener("keydown", onKey);
-      document.removeEventListener("visibilitychange", onHidden);
-      window.removeEventListener("pagehide", close);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", pause);
     };
   }, [close]);
 
-  // Camera + decode loop. Restarts on camera switch and on "Scan again".
+  // Camera + decode loop. Restarts on camera switch, "Scan again" and return from a hidden page.
   useEffect(() => {
     if (!secure) return;
     let stopped = false;
@@ -81,16 +93,21 @@ export function QrScanner({ onResult, onClose }: { onResult: (text: string) => v
     let busy = false;
     const stop = () => {
       stopped = true;
+      liveRef.current = false;
       clearInterval(timer);
       stream?.getTracks().forEach((tr) => tr.stop());
       decoder?.close();
       if (videoRef.current) videoRef.current.srcObject = null;
     };
+    const fail = () => {
+      stop();
+      setCameraOff(true);
+      setMessage("decoderFailed");
+    };
     stopRef.current = stop;
-    assembler.current.reset();
-    doneRef.current = false;
 
     void (async () => {
+      if (typeof createImageBitmap !== "function") { fail(); return; }
       try {
         stream = await navigator.mediaDevices.getUserMedia(
           deviceId ? { video: { deviceId: { exact: deviceId } } } : { video: { facingMode: "environment" } },
@@ -102,6 +119,7 @@ export function QrScanner({ onResult, onClose }: { onResult: (text: string) => v
         return;
       }
       if (stopped) { stream.getTracks().forEach((tr) => tr.stop()); return; }
+      liveRef.current = true;
       currentDevice.current = stream.getVideoTracks()[0]?.getSettings().deviceId;
       const video = videoRef.current;
       if (video) {
@@ -111,22 +129,25 @@ export function QrScanner({ onResult, onClose }: { onResult: (text: string) => v
       navigator.mediaDevices.enumerateDevices?.()
         .then((list) => { if (!stopped) setDevices(list.filter((d) => d.kind === "videoinput").map((d) => d.deviceId)); })
         .catch(() => {});
-      const dec = await createFrameDecoder();
+      let dec: Awaited<ReturnType<typeof createFrameDecoder>>;
+      try {
+        dec = await createFrameDecoder();
+      } catch {
+        if (!stopped) fail();
+        return;
+      }
       if (stopped) { dec.close(); return; }
       decoder = dec;
       const tick = async () => {
-        if (busy || stopped || !videoRef.current) return;
+        const v = videoRef.current;
+        if (busy || stopped || !v || v.readyState < 2 || !v.videoWidth) return;
         busy = true;
         try {
-          const bitmap = await createImageBitmap(videoRef.current);
+          const bitmap = await createImageBitmap(v);
           const text = await dec.decode(bitmap).finally(() => bitmap.close());
           if (stopped) return;
           if (text === null) {
-            if (dec.failed) {
-              stop();
-              setCameraOff(true);
-              setMessage("decoderFailed");
-            }
+            if (dec.failed) fail();
             return;
           }
           const s = await assembler.current.push(text);
@@ -184,6 +205,9 @@ export function QrScanner({ onResult, onClose }: { onResult: (text: string) => v
       transition={{ duration: 0.15 }}
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
       onClick={(e) => { if (e.target === e.currentTarget) close(); }}
+      // Portal events bubble to the field: keep drops on the modal away from its file-drop handler.
+      onDragOver={(e) => e.stopPropagation()}
+      onDrop={(e) => e.stopPropagation()}
     >
       <div
         ref={dialogRef}

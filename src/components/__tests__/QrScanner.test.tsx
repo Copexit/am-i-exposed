@@ -40,7 +40,14 @@ beforeEach(() => {
   decoder.failed = false;
   vi.stubGlobal("createImageBitmap", vi.fn(async () => ({ close: vi.fn() })));
   HTMLMediaElement.prototype.play = vi.fn(async () => undefined);
+  Object.defineProperty(HTMLMediaElement.prototype, "readyState", { get: () => 4, configurable: true });
+  Object.defineProperty(HTMLVideoElement.prototype, "videoWidth", { get: () => 640, configurable: true });
 });
+
+function setVisibility(state: "hidden" | "visible") {
+  Object.defineProperty(document, "visibilityState", { value: state, configurable: true });
+  fireEvent(document, new Event("visibilitychange"));
+}
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 describe("QrScanner", () => {
@@ -115,5 +122,56 @@ describe("QrScanner", () => {
     render(<QrScanner onResult={vi.fn()} onClose={vi.fn()} />);
     expect(await screen.findByText(/QR decoder unavailable/)).toBeTruthy();
     expect(document.querySelector('input[type="file"]')).toBeTruthy();
+  });
+
+  it("falls back to photo mode when the decoder fails to load", async () => {
+    const { stop, stream } = fakeStream();
+    setCamera(async () => stream);
+    const { createFrameDecoder } = await import("@/lib/input/qr-decode");
+    vi.mocked(createFrameDecoder).mockRejectedValueOnce(new Error("worker blocked"));
+    render(<QrScanner onResult={vi.fn()} onClose={vi.fn()} />);
+    expect(await screen.findByText(/QR decoder unavailable/)).toBeTruthy();
+    expect(stop).toHaveBeenCalled();
+    expect(document.querySelector('input[type="file"]')).toBeTruthy();
+  });
+
+  it("treats a missing createImageBitmap as decoder unavailable, without asking for the camera", async () => {
+    vi.stubGlobal("createImageBitmap", undefined);
+    const gum = setCamera(async () => fakeStream().stream);
+    render(<QrScanner onResult={vi.fn()} onClose={vi.fn()} />);
+    expect(await screen.findByText(/QR decoder unavailable/)).toBeTruthy();
+    expect(gum).not.toHaveBeenCalled();
+  });
+
+  it("in photo mode a hidden page (system camera app) keeps the modal open", () => {
+    setCamera(async () => fakeStream().stream, false);
+    const onClose = vi.fn();
+    render(<QrScanner onResult={vi.fn()} onClose={onClose} />);
+    setVisibility("hidden");
+    setVisibility("visible");
+    expect(onClose).not.toHaveBeenCalled();
+    expect(document.querySelector('input[type="file"]')).toBeTruthy();
+  });
+
+  it("in camera mode a hidden page stops the tracks without closing, and visible restarts the camera", async () => {
+    const { stop, stream } = fakeStream();
+    const gum = setCamera(async () => stream);
+    const onClose = vi.fn();
+    render(<QrScanner onResult={vi.fn()} onClose={onClose} />);
+    await waitFor(() => expect(decoder.decode).toHaveBeenCalled());
+    setVisibility("hidden");
+    expect(stop).toHaveBeenCalled();
+    expect(decoder.close).toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    setVisibility("visible");
+    await waitFor(() => expect(gum).toHaveBeenCalledTimes(2));
+  });
+
+  it("drops on the modal do not bubble to the field", () => {
+    setCamera(async () => fakeStream().stream, false);
+    const onDrop = vi.fn();
+    render(<div onDrop={onDrop}><QrScanner onResult={vi.fn()} onClose={vi.fn()} /></div>);
+    fireEvent.drop(screen.getByRole("dialog"));
+    expect(onDrop).not.toHaveBeenCalled();
   });
 });

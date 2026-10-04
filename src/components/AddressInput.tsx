@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, useMotionValue, useSpring } from "motion/react";
+import { ArrowRight } from "lucide-react";
 import { useNetwork } from "@/context/NetworkContext";
 import { detectInputType, cleanInput } from "@/lib/analysis/detect-input";
 import { useAddressAutocomplete } from "@/hooks/useAddressAutocomplete";
@@ -204,7 +205,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, place
             aria-expanded={isOpen}
             aria-controls={isOpen ? "address-suggestions" : undefined}
             aria-activedescendant={selectedIndex >= 0 ? `suggestion-${selectedIndex}` : undefined}
-            className="relative w-full glass rounded-[11px] pl-4 pr-56 sm:pl-5 sm:pr-60 py-4
+            className="relative w-full glass rounded-[11px] pl-4 pr-40 sm:pl-5 sm:pr-60 py-4
               font-mono text-sm sm:text-base text-foreground placeholder:text-muted/70
               focus:shadow-[0_0_20px_--alpha(var(--color-bitcoin)/20%)]
               transition-all duration-200 border-0
@@ -224,11 +225,13 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, place
               onMouseMove={handleButtonMouseMove}
               onMouseLeave={handleButtonMouseLeave}
               style={{ background: "var(--bitcoin-gradient)", x: springX, y: springY, boxShadow: isLight ? `0 2px 8px ${hexToRgba(COLORS.bitcoin, 0.3)}` : undefined }}
-              className="px-5 py-2 text-black font-semibold text-sm sm:text-base rounded-lg
+              aria-label={buttonLabel}
+              className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] sm:px-5 py-2 text-black font-semibold text-sm sm:text-base rounded-lg
                 hover:brightness-110 transition-[filter] duration-150 disabled:opacity-30
                 disabled:cursor-not-allowed cursor-pointer focus-visible:ring-2 focus-visible:ring-bitcoin focus-visible:outline-none"
             >
-              {buttonLabel}
+              <ArrowRight size={18} aria-hidden="true" className="sm:hidden" />
+              <span className="hidden sm:inline">{buttonLabel}</span>
             </motion.button>
           )}
         </div>
