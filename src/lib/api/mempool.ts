@@ -15,6 +15,14 @@ function assertAddress(address: string): void {
   if (!ADDR_RE.test(address)) throw new ApiError("INVALID_INPUT", "Invalid address format");
 }
 
+export interface RecommendedFees {
+  fastestFee: number;
+  halfHourFee: number;
+  hourFee: number;
+  economyFee: number;
+  minimumFee: number;
+}
+
 export interface MempoolClientOptions {
   signal?: AbortSignal;
   /** Per-request timeout in ms. Defaults to 15s. Use longer for local Electrs backends. */
@@ -74,6 +82,10 @@ export function createMempoolClient(baseUrl: string, options?: MempoolClientOpti
     getTxHex(txid: string): Promise<string> {
       assertTxid(txid);
       return getText(`/tx/${txid}/hex`);
+    },
+
+    getRecommendedFees(): Promise<RecommendedFees> {
+      return get<RecommendedFees>("/v1/fees/recommended");
     },
 
     getAddress(address: string): Promise<MempoolAddress> {
