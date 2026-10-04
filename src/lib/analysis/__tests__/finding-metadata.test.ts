@@ -71,6 +71,7 @@ describe("FINDING_METADATA coverage", () => {
     for (const file of sourceFiles(join(process.cwd(), "src"))) {
       const text = readFileSync(file, "utf8");
       if (!/\bscoreImpact\b/.test(text)) continue; // only files that build findings
+      if (file.endsWith("pre-broadcast-checklist.ts")) continue; // reads findings; its ids are checklist items
       for (const m of text.matchAll(/\bid:\s*"([a-z0-9-]+)"/g)) {
         const id = m[1];
         if (id && !isNonFinding(id) && !getFindingMeta(id)) missing.add(id);
