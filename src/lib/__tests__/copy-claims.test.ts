@@ -20,6 +20,18 @@ describe("copy claims (broadcast is opt-in)", () => {
     expect(bad).toEqual([]);
   });
 
+  it("no en value says only lookups leave the browser without mentioning broadcast", () => {
+    const bad = Object.entries(en).filter(
+      ([, v]) => /only .*leaves? this browser/i.test(v) && !/broadcast/i.test(v),
+    );
+    expect(bad).toEqual([]);
+  });
+
+  it("welcome.not_p2 and home.how_lead_muted mention broadcast", () => {
+    expect(en["welcome.not_p2"]).toMatch(/broadcast/i);
+    expect(en["home.how_lead_muted"]).toMatch(/broadcast/i);
+  });
+
   it("faq.a_data mentions broadcast", () => {
     expect(en["faq.a_data"]).toMatch(/broadcast/i);
   });
