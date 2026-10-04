@@ -185,7 +185,7 @@ function apiPath(url: string, kind: "tx" | "address"): string[] {
  * (all unspent). Call after mockMempoolApi so these routes take priority;
  * other txids fall through to the fixture mocks.
  */
-export async function mockExtraTxs(page: Page, txs: MockTx[]) {
+export async function mockExtraTxs(page: Page, txs: { txid: string; vout: unknown[] }[]) {
   const byId = new Map(txs.map((tx) => [tx.txid, tx]));
   await page.route("**/api/tx/**", async (route) => {
     const [txid, sub] = apiPath(route.request().url(), "tx");
