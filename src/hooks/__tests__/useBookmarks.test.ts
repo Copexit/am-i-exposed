@@ -242,4 +242,16 @@ describe("useBookmarks", () => {
       expect(importResult.imported).toBe(0);
     });
   });
+
+  it("removes truncated PSBT bookmarks saved by older versions from storage", async () => {
+    localStorage.setItem("bookmarks", JSON.stringify([
+      { input: "cHNidP8BAHECAAAAAXqm...", type: "txid", grade: "C", score: 60, savedAt: 1 },
+      { input: "a".repeat(64), type: "txid", grade: "B", score: 78, savedAt: 2 },
+    ]));
+    const { useBookmarks: fresh } = await import("../useBookmarks");
+    const { result } = renderHook(() => fresh());
+    expect(result.current.bookmarks.map((b) => b.input)).toEqual(["a".repeat(64)]);
+    expect(localStorage.getItem("bookmarks")).not.toContain("cHNidP");
+    expect(localStorage.getItem("bookmarks")).toContain("a".repeat(64));
+  });
 });

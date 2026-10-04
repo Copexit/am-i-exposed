@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore, useCallback } from "react";
+import { useSyncExternalStore, useCallback, useEffect } from "react";
 import { createLocalStorageStore } from "./createLocalStorageStore";
 import { isLocalPayloadPrefix } from "@/lib/analysis/detect-input";
 import { savedGraphStore } from "./useSavedGraphs";
@@ -75,6 +75,9 @@ function mergeGraphs(items: unknown[]): number | null {
 }
 
 export function useBookmarks() {
+  // Remove entries the parser drops (truncated PSBTs saved by older versions) from storage
+  useEffect(() => store.persistParsed(), []);
+
   const bookmarks = useSyncExternalStore(
     store.subscribe,
     store.getSnapshot,

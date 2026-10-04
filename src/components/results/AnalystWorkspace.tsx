@@ -31,6 +31,8 @@ interface AnalystWorkspaceProps {
   forwardLayers?: TraceLayer[] | null;
   boltzmannResult?: BoltzmannWorkerResult | null;
   onScan: (input: string) => void;
+  /** PSBT / raw tx analyzed in memory (not broadcast). */
+  local?: boolean;
 }
 
 /** L3: the analyst workspace: every analysis tool, for everyone. */
@@ -77,7 +79,7 @@ export function AnalystWorkspace(p: AnalystWorkspaceProps) {
               <span aria-hidden="true" className="text-bitcoin">→</span>
             </button>
           )}
-          <DeepAnalysisTxid result={p.result} txData={p.txData} onScan={p.onScan} backwardLayers={p.backwardLayers} forwardLayers={p.forwardLayers} boltzmannResult={p.boltzmannResult} />
+          <DeepAnalysisTxid result={p.result} txData={p.txData} onScan={p.onScan} backwardLayers={p.backwardLayers} forwardLayers={p.forwardLayers} boltzmannResult={p.boltzmannResult} local={p.local} />
         </>
       )}
 

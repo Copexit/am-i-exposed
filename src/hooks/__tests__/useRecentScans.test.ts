@@ -89,5 +89,8 @@ describe("useRecentScans", () => {
     const { useRecentScans: fresh } = await import("../useRecentScans");
     const { result } = renderHook(() => fresh());
     expect(result.current.scans.map((s) => s.input)).toEqual(["a".repeat(64)]);
+    // Removed from storage, not just hidden
+    expect(localStorage.getItem("recent-scans")).not.toContain("cHNidP");
+    expect(localStorage.getItem("recent-scans")).toContain("a".repeat(64));
   });
 });

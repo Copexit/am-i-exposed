@@ -19,6 +19,7 @@ export function DeepAnalysisTxid({
   backwardLayers,
   forwardLayers,
   boltzmannResult,
+  local = false,
 }: {
   result: ScoringResult;
   txData: MempoolTransaction | null;
@@ -26,7 +27,10 @@ export function DeepAnalysisTxid({
   backwardLayers?: TraceLayer[] | null;
   forwardLayers?: TraceLayer[] | null;
   boltzmannResult?: BoltzmannWorkerResult | null;
+  /** PSBT / raw tx: the matrix needs every input amount, never a partial one. */
+  local?: boolean;
 }) {
+  const showMatrix = !!txData && (!local || txData.vin.every((v) => v.prevout));
   return (
     <>
       <motion.div {...fadeUpVariants} transition={fadeUpTransition(0.42)} className="w-full">
@@ -36,7 +40,7 @@ export function DeepAnalysisTxid({
           </Suspense>
         </ChartErrorBoundary>
       </motion.div>
-      {txData && (
+      {txData && showMatrix && (
         <motion.div {...fadeUpVariants} transition={fadeUpTransition(0.43)} className="w-full">
           <ChartErrorBoundary>
             <Suspense fallback={null}>

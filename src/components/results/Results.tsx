@@ -182,6 +182,7 @@ export function Results(props: ResultsProps) {
         </div>
 
         <AnalystWorkspace
+          local={!!local}
           query={query}
           inputType={inputType}
           result={result}
