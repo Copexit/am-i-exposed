@@ -180,7 +180,7 @@ describe("createMempoolClient", () => {
       mockFetch.mockResolvedValueOnce(jsonResponse(fees));
       const result = await createMempoolClient("https://x/api").getRecommendedFees();
       expect(result).toEqual(fees);
-      expect(mockFetch.mock.calls[0][0]).toBe("https://x/api/v1/fees/recommended");
+      expect(mockFetch.mock.calls[0]?.[0]).toBe("https://x/api/v1/fees/recommended");
     });
   });
 });

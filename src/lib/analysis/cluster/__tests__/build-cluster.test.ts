@@ -20,6 +20,7 @@ function makeApi(overrides: Partial<ApiClient> = {}): ApiClient {
     getHistoricalPrice: vi.fn().mockResolvedValue(null),
     getHistoricalEurPrice: vi.fn().mockResolvedValue(null),
     getAddressPrefix: vi.fn().mockResolvedValue([]),
+    getRecommendedFees: vi.fn().mockResolvedValue({ fastestFee: 1, halfHourFee: 1, hourFee: 1, economyFee: 1, minimumFee: 1 }),
     ...overrides,
   };
 }
