@@ -23,9 +23,16 @@ interface BroadcastDialogProps {
   cls: BackendClass;
   onClose: () => void;
   onSuccess: (txid: string) => void;
+  /** A previous attempt ended "unknown": reopen on Check status, never a fresh confirm. */
+  unknownSent?: boolean;
+  /** Reports the "unknown" state so it survives the dialog closing. */
+  onUnknownChange?: (unknown: boolean) => void;
 }
 
-type Phase = "idle" | "sending" | "rejected" | "unknown";
+type Phase = "idle" | "sending" | "rejected" | "unknown" | "mismatch";
+
+/** How long the txid mismatch note stays up before the scan takes over. */
+export const MISMATCH_NOTE_MS = 2000;
 
 const REASON_EN: Record<BroadcastReason, string> = {
   "inputs-missing-or-spent": "One or more inputs are missing or already spent (wrong network, or already sent).",
@@ -34,17 +41,19 @@ const REASON_EN: Record<BroadcastReason, string> = {
 };
 
 /** Confirm step before a signed local tx is sent. One POST per confirm, never retried. */
-export function BroadcastDialog({ local, tx, result, baseUrl, cls, onClose, onSuccess }: BroadcastDialogProps) {
+export function BroadcastDialog({ local, tx, result, baseUrl, cls, onClose, onSuccess, unknownSent = false, onUnknownChange }: BroadcastDialogProps) {
   const { t, i18n } = useTranslation();
   const dialogRef = useRef<HTMLDivElement>(null);
-  const [phase, setPhase] = useState<Phase>("idle");
+  const [phase, setPhase] = useState<Phase>(unknownSent ? "unknown" : "idle");
   const sendingRef = useRef(false); // synchronous guard: React state updates are async
   const [rejection, setRejection] = useState<{ message: string; reason: BroadcastReason } | null>(null);
   const [dryRun, setDryRun] = useState<{ allowed: boolean; reason?: string } | null>(null);
   const [status, setStatus] = useState<"checking" | "not-found" | "error" | null>(null);
 
   const host = endpointHost(baseUrl);
-  const endpointUrl = `${baseUrl.replace(/\/+$/, "")}/tx`;
+  const endpointPath = `${baseUrl.replace(/\/+$/, "")}/tx`;
+  // A relative base (Umbrel "/api") is shown as the absolute URL it resolves to.
+  const endpointUrl = endpointPath.startsWith("/") ? new URL(endpointPath, window.location.origin).href : endpointPath;
   const onion = isOnionUrl(baseUrl);
   const worst = result.findings.filter((f) => f.scoreImpact < 0).sort(compareFindings)[0];
   const critical = worst?.severity === "critical";
@@ -72,24 +81,31 @@ export function BroadcastDialog({ local, tx, result, baseUrl, cls, onClose, onSu
     sendingRef.current = true;
     setPhase("sending");
     setStatus(null);
+    // Focus inside the dialog so global keys (Backspace = back) cannot act mid-send.
+    dialogRef.current?.focus();
     const out = await broadcastTx(baseUrl, local.signedHex, tx.txid);
-    // On a txid mismatch the node's txid is the one to scan.
+    // On a txid mismatch the node's txid is the one to scan; say so briefly first.
+    if (out.kind === "sent" && out.mismatch) {
+      setPhase("mismatch");
+      setTimeout(() => onSuccess(out.txid), MISMATCH_NOTE_MS);
+      return;
+    }
     if (out.kind === "sent" || out.kind === "already-confirmed") { onSuccess(out.txid); return; }
     sendingRef.current = false;
-    if (out.kind === "unknown") { setPhase("unknown"); return; }
+    if (out.kind === "unknown") { setPhase("unknown"); onUnknownChange?.(true); return; }
     setRejection({ message: out.message, reason: out.reason });
     setPhase("rejected");
-  }, [baseUrl, local.signedHex, tx.txid, onSuccess]);
+  }, [baseUrl, local.signedHex, tx.txid, onSuccess, onUnknownChange]);
 
   const checkStatus = useCallback(async () => {
     setStatus("checking");
     const s = await getTxStatus(baseUrl, tx.txid);
     if (s === "mempool" || s === "confirmed") { onSuccess(tx.txid); return; }
     setStatus(s);
-    if (s === "not-found") setPhase("idle");
-  }, [baseUrl, tx.txid, onSuccess]);
+    if (s === "not-found") { setPhase("idle"); onUnknownChange?.(false); }
+  }, [baseUrl, tx.txid, onSuccess, onUnknownChange]);
 
-  const sending = phase === "sending";
+  const sending = phase === "sending" || phase === "mismatch";
   const name = cls === "self-hosted"
     ? t("broadcast.nameNode", { host, defaultValue: "your node ({{host}})" })
     : onion
@@ -153,9 +169,17 @@ export function BroadcastDialog({ local, tx, result, baseUrl, cls, onClose, onSu
                 </li>
               ))}
             </ul>
-            {known && tx.fee > 0 && (
-              <p className="text-xs text-muted num">
+            {!known ? (
+              <p data-testid="broadcast-fee" className="text-xs font-medium text-severity-medium">
+                {t("broadcast.feeUnknown", { defaultValue: "Fee: unknown (input amounts not looked up)" })}
+              </p>
+            ) : tx.fee > 0 ? (
+              <p data-testid="broadcast-fee" className="text-xs text-muted num">
                 {t("psbt.fee", { defaultValue: "Fee" })}: {formatSats(tx.fee, i18n.language)}{vsize > 0 && ` (${Math.round(tx.fee / vsize)} sat/vB)`}
+              </p>
+            ) : (
+              <p data-testid="broadcast-fee" className="text-xs font-medium text-severity-critical num">
+                {t("broadcast.feeZero", { fee: formatSats(tx.fee, i18n.language), defaultValue: "Fee: {{fee}} - nodes will reject this transaction" })}
               </p>
             )}
             <p className="text-xs text-muted">{t("broadcast.projectedGrade", { grade: result.grade, defaultValue: "Projected grade: {{grade}}" })}</p>
@@ -189,6 +213,10 @@ export function BroadcastDialog({ local, tx, result, baseUrl, cls, onClose, onSu
               <p className="font-mono text-xs text-severity-critical break-words">{rejection.message}</p>
               <p className="text-foreground">{t(`broadcast.reason.${rejection.reason}`, { defaultValue: REASON_EN[rejection.reason] })}</p>
             </div>
+          )}
+
+          {phase === "mismatch" && (
+            <p role="status" className="text-severity-medium">{t("broadcast.txidMismatch", { defaultValue: "The node returned a different txid than the one computed here. Opening the node's txid." })}</p>
           )}
 
           {phase === "unknown" && (

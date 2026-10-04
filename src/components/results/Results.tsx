@@ -84,6 +84,9 @@ export function Results(props: ResultsProps) {
   const { devMode } = useDevMode();
   const [broadcastOpen, setBroadcastOpen] = useState(false);
   const closeBroadcast = useCallback(() => setBroadcastOpen(false), []);
+  // Keyed by the local tx so a new scan starts clean; survives the dialog closing.
+  const [unknownFor, setUnknownFor] = useState<typeof local>(null);
+  const onUnknownChange = useCallback((u: boolean) => setUnknownFor(u ? local : null), [local]);
 
   const baseScore = inputType === "address" ? ADDRESS_BASE_SCORE : TX_BASE_SCORE;
   const vm = useMemo(
@@ -153,7 +156,7 @@ export function Results(props: ResultsProps) {
         {local && <Suspense fallback={null}><BeforeYouSend local={local} txData={txData} result={result} lookup={localLookup} outputTxCounts={localOutputTxCounts} onLookup={onLocalLookup ?? (() => {})} endpoint={endpointHost(config.mempoolBaseUrl)} onBroadcast={onBroadcastSuccess ? () => setBroadcastOpen(true) : undefined} /></Suspense>}
         {local && broadcastOpen && onBroadcastSuccess && (
           <Suspense fallback={null}>
-            <BroadcastDialog local={local} tx={txData ?? local.tx} result={result} baseUrl={config.mempoolBaseUrl} cls={backendClass({ isUmbrel, customApiUrl })} onClose={closeBroadcast} onSuccess={onBroadcastSuccess} />
+            <BroadcastDialog local={local} tx={txData ?? local.tx} result={result} baseUrl={config.mempoolBaseUrl} cls={backendClass({ isUmbrel, customApiUrl })} onClose={closeBroadcast} onSuccess={onBroadcastSuccess} unknownSent={unknownFor === local} onUnknownChange={onUnknownChange} />
           </Suspense>
         )}
 

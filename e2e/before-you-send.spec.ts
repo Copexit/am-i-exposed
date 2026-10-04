@@ -55,6 +55,26 @@ test("broadcast: one POST, then the txid scan", async ({ page }) => {
   expect(contentType).toContain("text/plain");
 });
 
+test("broadcast: an unknown outcome survives closing the dialog (no blind retry)", async ({ page }) => {
+  let posts = 0;
+  await page.route("**/api/tx", async (r) => {
+    if (r.request().method() !== "POST") return r.fallback();
+    posts++;
+    await r.abort("failed");
+  });
+  await page.goto("/");
+  await page.getByTestId("address-input").fill(fx.psbtB64);
+  await page.getByTestId("scan-button").click();
+  await page.getByTestId("broadcast-open").click();
+  await page.getByTestId("broadcast-confirm").click();
+  await expect(page.getByTestId("broadcast-check-status")).toBeVisible();
+  await page.getByTestId("broadcast-close").click();
+  await page.getByTestId("broadcast-open").click();
+  await expect(page.getByTestId("broadcast-check-status")).toBeVisible();
+  await expect(page.getByTestId("broadcast-confirm")).toHaveCount(0);
+  expect(posts).toBe(1);
+});
+
 test("file open of a binary PSBT", async ({ page }) => {
   await page.goto("/");
   const buffer = Buffer.from(fx.psbtB64, "base64");

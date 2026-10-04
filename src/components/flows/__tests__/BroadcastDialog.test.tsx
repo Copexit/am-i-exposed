@@ -15,7 +15,7 @@ vi.mock("react-i18next", async () => {
   return { useTranslation: () => ({ t, i18n: { language: "en" } }) };
 });
 
-import { BroadcastDialog } from "../BroadcastDialog";
+import { BroadcastDialog, MISMATCH_NOTE_MS } from "../BroadcastDialog";
 
 afterEach(() => {
   cleanup();
@@ -117,5 +117,66 @@ describe("BroadcastDialog", () => {
     renderDialog({ result: critical as never });
     expect(screen.getByTestId("broadcast-confirm").textContent).toMatch(/Broadcast anyway/);
     expect(screen.getByText(/critical privacy leak/)).toBeTruthy();
+  });
+
+  it("reopened after an unknown outcome: Check status only; not-found clears the flag", async () => {
+    m.getTxStatus.mockResolvedValue("not-found");
+    const onUnknownChange = vi.fn();
+    renderDialog({ unknownSent: true, onUnknownChange });
+    expect(screen.getByTestId("broadcast-check-status")).toBeTruthy();
+    expect(screen.queryByTestId("broadcast-confirm")).toBeNull();
+    fireEvent.click(screen.getByTestId("broadcast-check-status"));
+    await screen.findByTestId("broadcast-confirm");
+    expect(onUnknownChange).toHaveBeenCalledWith(false);
+    expect(m.broadcastTx).not.toHaveBeenCalled();
+  });
+
+  it("an unknown outcome is reported to the parent", async () => {
+    m.broadcastTx.mockResolvedValue({ kind: "unknown" });
+    const onUnknownChange = vi.fn();
+    renderDialog({ onUnknownChange });
+    fireEvent.click(screen.getByTestId("broadcast-confirm"));
+    await waitFor(() => expect(onUnknownChange).toHaveBeenCalledWith(true));
+  });
+
+  it("fee: unknown when an input amount is missing, warning when zero", () => {
+    const noPrevout = { ...TX, fee: 0, vin: [{ ...TX.vin[0], prevout: null }] } as unknown as MempoolTransaction;
+    renderDialog({ tx: noPrevout });
+    expect(screen.getByTestId("broadcast-fee").textContent).toBe("Fee: unknown (input amounts not looked up)");
+    cleanup();
+    renderDialog({ tx: { ...TX, fee: 0 } });
+    expect(screen.getByTestId("broadcast-fee").textContent).toMatch(/nodes will reject this transaction/);
+    cleanup();
+    renderDialog();
+    expect(screen.getByTestId("broadcast-fee").textContent).toMatch(/141/);
+  });
+
+  it("sending moves focus into the dialog", () => {
+    m.broadcastTx.mockReturnValue(new Promise(() => {}));
+    renderDialog();
+    (document.activeElement as HTMLElement | null)?.blur();
+    fireEvent.click(screen.getByTestId("broadcast-confirm"));
+    expect(document.activeElement?.getAttribute("role")).toBe("alertdialog");
+  });
+
+  it("txid mismatch: shows a note, then scans the node's txid", async () => {
+    vi.useFakeTimers();
+    try {
+      m.broadcastTx.mockResolvedValue({ kind: "sent", txid: "c".repeat(64), mismatch: true });
+      const { onSuccess } = renderDialog();
+      fireEvent.click(screen.getByTestId("broadcast-confirm"));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(screen.getByText(/different txid/)).toBeTruthy();
+      expect(onSuccess).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(MISMATCH_NOTE_MS);
+      expect(onSuccess).toHaveBeenCalledWith("c".repeat(64));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("relative (Umbrel) base is shown as an absolute URL", () => {
+    renderDialog({ baseUrl: "/api", cls: "self-hosted" });
+    expect(screen.getByText(new RegExp(`\\(${window.location.origin}/api/tx\\)`))).toBeTruthy();
   });
 });
