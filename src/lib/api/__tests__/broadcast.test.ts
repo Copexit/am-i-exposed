@@ -18,10 +18,23 @@ describe("broadcastTx", () => {
     expect(init.headers).toEqual({ "Content-Type": "text/plain" });
     expect(init.body).toBe("0200");
   });
-  it("never retries a 5xx", async () => {
+  it("never retries a 5xx without RPC code; outcome is unknown", async () => {
     const f = vi.fn().mockResolvedValue(res(502, "Bad gateway"));
-    expect((await broadcastTx("https://x/api", "00", TXID, { fetchImpl: f })).kind).toBe("rejected");
+    expect(await broadcastTx("https://x/api", "00", TXID, { fetchImpl: f })).toEqual({ kind: "unknown" });
     expect(f).toHaveBeenCalledTimes(1);
+  });
+  it("5xx with RPC code keeps the mapping; 4xx without code is rejected", async () => {
+    const f5 = vi.fn().mockResolvedValue(res(500, 'RPC error: {"code":-26,"message":"x"}'));
+    expect(await broadcastTx("https://x/api", "00", TXID, { fetchImpl: f5 })).toMatchObject({ kind: "rejected", reason: "policy" });
+    const f4 = vi.fn().mockResolvedValue(res(400, "nope"));
+    expect(await broadcastTx("https://x/api", "00", TXID, { fetchImpl: f4 })).toMatchObject({ kind: "rejected", reason: "other" });
+  });
+  it("2xx with a non-txid body, a failing body read, or a hanging body -> unknown", async () => {
+    expect(await broadcastTx("https://x/api", "00", TXID, { fetchImpl: vi.fn().mockResolvedValue(res(200, "<html>ok</html>")) })).toEqual({ kind: "unknown" });
+    const bad = { status: 200, ok: true, text: () => Promise.reject(new TypeError("body")) };
+    expect(await broadcastTx("https://x/api", "00", TXID, { fetchImpl: vi.fn().mockResolvedValue(bad) })).toEqual({ kind: "unknown" });
+    const hang = { status: 200, ok: true, text: () => new Promise<string>(() => {}) };
+    expect(await broadcastTx("https://x/api", "00", TXID, { fetchImpl: vi.fn().mockResolvedValue(hang), timeoutMs: 10 })).toEqual({ kind: "unknown" });
   });
   it("maps RPC codes", async () => {
     const body = (code: number, message: string) => `sendrawtransaction RPC error: {"code":${code},"message":"${message}"}`;

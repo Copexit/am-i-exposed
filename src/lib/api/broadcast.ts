@@ -26,27 +26,45 @@ export function parseRpcError(body: string): { code: number | null; message: str
   return { code: null, message: body.trim().slice(0, 300) };
 }
 
-async function send(url: string, init: RequestInit, opts?: SendOpts): Promise<Response> {
+interface Sent { status: number; ok: boolean; body: string }
+
+/** Timeout covers headers AND body; a throw means the outcome is unknown. */
+async function send(url: string, init: RequestInit, opts?: SendOpts): Promise<Sent> {
   const f = opts?.fetchImpl ?? fetch;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(new DOMException("Timed out", "TimeoutError")), opts?.timeoutMs ?? BROADCAST_TIMEOUT_MS);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  // Race so a body that never settles (even if the mock ignores abort) still times out.
+  const timeout = new Promise<never>((_, rej) => {
+    timer = setTimeout(() => {
+      const err = new DOMException("Timed out", "TimeoutError");
+      controller.abort(err);
+      rej(err);
+    }, opts?.timeoutMs ?? BROADCAST_TIMEOUT_MS);
+  });
   try {
-    return await f(url, { ...init, signal: controller.signal });
+    return await Promise.race([
+      (async () => {
+        const r = await f(url, { ...init, signal: controller.signal });
+        return { status: r.status, ok: r.ok, body: (await r.text()).trim() };
+      })(),
+      timeout,
+    ]);
   } finally {
     clearTimeout(timer);
   }
 }
 
 export async function broadcastTx(baseUrl: string, hex: string, expectedTxid: string, opts?: SendOpts): Promise<BroadcastOutcome> {
-  let r: Response;
+  let r: Sent;
   try {
     r = await send(join(baseUrl, "/tx"), { method: "POST", headers: { "Content-Type": "text/plain" }, body: hex }, opts);
   } catch {
     return { kind: "unknown" };
   }
-  const body = (await r.text().catch(() => "")).trim();
-  if (r.ok && TXID_RE.test(body)) return { kind: "sent", txid: body, mismatch: body !== expectedTxid };
-  const { code, message } = parseRpcError(body || `HTTP ${r.status}`);
+  // A 2xx with anything but a txid: the node may have accepted it.
+  if (r.ok) return TXID_RE.test(r.body) ? { kind: "sent", txid: r.body, mismatch: r.body !== expectedTxid } : { kind: "unknown" };
+  const { code, message } = parseRpcError(r.body || `HTTP ${r.status}`);
+  if (code === null && r.status >= 500) return { kind: "unknown" };
   if (code === -27) return { kind: "already-confirmed", txid: expectedTxid };
   const reason: BroadcastReason = code === -25 ? "inputs-missing-or-spent" : code === -26 ? "policy" : "other";
   return { kind: "rejected", code, message, reason };
@@ -56,7 +74,7 @@ export async function testMempoolAccept(baseUrl: string, hex: string, opts?: Sen
   try {
     const r = await send(join(baseUrl, "/txs/test"), { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify([hex]) }, opts);
     if (!r.ok) return null;
-    const [first] = (await r.json()) as { allowed?: boolean; "reject-reason"?: string }[];
+    const [first] = JSON.parse(r.body) as { allowed?: boolean; "reject-reason"?: string }[];
     if (!first || typeof first.allowed !== "boolean") return null;
     return first.allowed ? { allowed: true as const } : { allowed: false as const, reason: first["reject-reason"] ?? "rejected" };
   } catch {
@@ -69,7 +87,7 @@ export async function getTxStatus(baseUrl: string, txid: string, opts?: SendOpts
     const r = await send(join(baseUrl, `/tx/${txid}/status`), { method: "GET" }, opts);
     if (r.status === 404) return "not-found" as const;
     if (!r.ok) return "error" as const;
-    return ((await r.json()) as { confirmed?: boolean }).confirmed ? ("confirmed" as const) : ("mempool" as const);
+    return (JSON.parse(r.body) as { confirmed?: boolean }).confirmed ? ("confirmed" as const) : ("mempool" as const);
   } catch {
     return "error" as const;
   }
