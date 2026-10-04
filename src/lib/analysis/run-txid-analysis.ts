@@ -129,7 +129,7 @@ export async function runTxidAnalysis(
   // Publish the transaction as soon as it is known, so the scan view can draw
   // its real inputs and outputs while enrichment and the chain trace run.
   // Guarded like every update here: a newer scan aborts this one.
-  if (!controller.signal.aborted) setState((prev) => ({ ...prev, txData: tx }));
+  if (!controller.signal.aborted) setState((prev) => ({ ...prev, txData: tx, awaitingIndex: false }));
 
   // Start Boltzmann computation early (in parallel with price/trace fetches)
   const shouldAutoBoltzmann = isAutoComputable(tx);

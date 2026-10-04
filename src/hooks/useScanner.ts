@@ -172,8 +172,9 @@ export function useScanner() {
 
   const handleBroadcastSuccess = useCallback((txid: string) => {
     // The local tx is dropped with the state reset; from here it is a normal scan
-    skipNextHashChangeRef.current = true;
-    setHash(`tx=${txid}`);
+    const newHash = `tx=${txid}`;
+    if (window.location.hash.slice(1) !== newHash) skipNextHashChangeRef.current = true;
+    setHash(newHash);
     wallet.reset();
     void analyze(txid, { awaitIndexing: true });
   }, [analyze, wallet, skipNextHashChangeRef]);

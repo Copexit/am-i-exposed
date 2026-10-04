@@ -4,6 +4,7 @@ import { ApiError } from "@/lib/api/fetch-with-retry";
 import { sumImpact } from "@/lib/scoring/score";
 import { makeTx, makeVin, makeVout, resetAddrCounter } from "../heuristics/__tests__/fixtures/tx-factory";
 import type { Finding } from "@/lib/types";
+import type { AnalysisState } from "@/lib/analysis/analysis-state";
 import type { ApiClient } from "@/lib/api/client";
 import type { MempoolTransaction } from "@/lib/api/types";
 
@@ -99,6 +100,19 @@ describe("runTxidAnalysis awaitIndexing", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("clears awaitingIndex as soon as the tx is found, while the scan is still running", async () => {
+    const tx = makeTestTx();
+    let state = { awaitingIndex: true } as unknown as AnalysisState;
+    const d = { ...deps(makeApi(tx)), awaitIndexing: true };
+    const seen: boolean[] = [];
+    d.setState = (u) => {
+      state = typeof u === "function" ? u(state) : u;
+      seen.push(state.awaitingIndex);
+    };
+    await runTxidAnalysis(tx.txid, d);
+    expect(seen[0]).toBe(false);
   });
 
   it("rejects on the first NOT_FOUND without awaitIndexing", async () => {
