@@ -12,3 +12,4 @@ export { auditWallet } from "./wallet-audit";
 export { buildTraceBarrier } from "./chain-trace";
 export { scanChain, walletChains, collectWalletTxs, traceWalletTxs, UTXO_TRACE_DEPTH } from "@/lib/wallet/scan";
 
+export { runLocalAnalysis, countLookups } from "./run-local-analysis";
