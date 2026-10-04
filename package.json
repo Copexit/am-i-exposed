@@ -4,8 +4,9 @@
   "private": true,
   "packageManager": "pnpm@10.26.1",
   "scripts": {
+    "predev": "node scripts/copy-zxing.mjs",
     "dev": "next dev",
-    "build": "node scripts/generate-sitemap.mjs && next build",
+    "build": "node scripts/copy-zxing.mjs && node scripts/generate-sitemap.mjs && next build",
     "start": "npx serve out",
     "lint": "eslint --max-warnings 0",
     "type-check": "tsc --noEmit",
@@ -47,7 +48,8 @@
     "qrcode.react": "^4.2.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "react-i18next": "^16.6.6"
+    "react-i18next": "^16.6.6",
+    "zxing-wasm": "3.1.4"
   },
   "devDependencies": {
     "@keystonehq/bc-ur-registry": "^0.8.0",

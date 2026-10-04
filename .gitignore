@@ -100,3 +100,6 @@ boltzmann-rs/pkg/
 cli/dist/
 cli/wasm/
 cli/node_modules/
+
+# zxing-wasm build copied by scripts/copy-zxing.mjs
+public/vendor/zxing/

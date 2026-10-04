@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Standalone Node.js sidecar (CommonJS, not part of Next.js app)
     "umbrel/tor-proxy/**",
+    // Copied third-party build (scripts/copy-zxing.mjs)
+    "public/vendor/**",
     // Archived research articles (third-party HTML/JS, not our code)
     "docs/archive/**",
     // Generated WASM glue code
