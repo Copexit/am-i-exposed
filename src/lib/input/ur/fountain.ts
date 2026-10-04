@@ -5,11 +5,16 @@ import { Xoshiro, seedFor } from "./xoshiro";
 
 export interface FountainPart { seqNum: number; seqLen: number; messageLen: number; checksum: number; fragment: Uint8Array }
 
+const MAX_SEQ_LEN = 10_000;
+
 export function parsePart(cbor: Uint8Array): FountainPart {
   const v = decodeCbor(cbor);
   if (!Array.isArray(v) || v.length !== 5) throw new Error("corrupt");
   const [seqNum, seqLen, messageLen, checksum, fragment] = v;
   if (typeof seqNum !== "number" || typeof seqLen !== "number" || typeof messageLen !== "number" || typeof checksum !== "number" || !(fragment instanceof Uint8Array)) throw new Error("corrupt");
+  const ints = [seqNum, seqLen, messageLen, checksum].every(Number.isInteger);
+  // trust boundary (camera input): seqLen is bounded by the frame size and an absolute cap
+  if (!ints || seqNum < 1 || fragment.length === 0 || messageLen < 1 || seqLen < 1 || seqLen > MAX_SEQ_LEN || seqLen !== Math.ceil(messageLen / fragment.length)) throw new Error("corrupt");
   return { seqNum, seqLen, messageLen, checksum, fragment };
 }
 
@@ -41,18 +46,24 @@ export class FountainDecoder {
 
   /** Returns the message when complete, else null. Throws "corrupt" on checksum failure. */
   receive(p: FountainPart): Uint8Array | null {
-    const key = `${p.seqLen}:${p.messageLen}:${p.checksum}`;
+    const key = `${p.seqLen}:${p.messageLen}:${p.checksum}:${p.fragment.length}`;
     if (key !== this.key) {
       this.key = key; this.simple.clear(); this.mixed = [];
       this.seqLen = p.seqLen; this.messageLen = p.messageLen; this.checksum = p.checksum;
     }
-    this.add(new Set(chooseFragments(p.seqNum, p.seqLen, p.checksum)), p.fragment.slice());
-    if (this.simple.size < this.seqLen) return null;
-    const joined = new Uint8Array(this.seqLen * this.simple.get(0)!.length);
-    for (let i = 0; i < this.seqLen; i++) joined.set(this.simple.get(i)!, i * this.simple.get(0)!.length);
-    const msg = joined.slice(0, this.messageLen);
-    if (crc32(msg) !== this.checksum) { this.key = null; throw new Error("corrupt"); }
-    return msg;
+    try {
+      this.add(new Set(chooseFragments(p.seqNum, p.seqLen, p.checksum)), p.fragment.slice());
+      if (this.simple.size < this.seqLen) return null;
+      const size = p.fragment.length;
+      const joined = new Uint8Array(this.seqLen * size);
+      for (let i = 0; i < this.seqLen; i++) joined.set(this.simple.get(i)!, i * size);
+      const msg = joined.slice(0, this.messageLen);
+      if (crc32(msg) !== this.checksum) throw new Error("corrupt");
+      return msg;
+    } catch {
+      this.key = null; // any completion failure clears the sequence so later good parts can start fresh
+      throw new Error("corrupt");
+    }
   }
 
   get progress(): number {

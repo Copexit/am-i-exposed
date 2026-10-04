@@ -15,7 +15,7 @@ const u32 = (n: number) => { const b = new Uint8Array(4); new DataView(b.buffer)
 function hdkeyToKeyExpr(v: Cbor): string {
   const m = asMap(untag(v, 303));
   const key = m.get(3), chain = m.get(4);
-  if (!(key instanceof Uint8Array) || !(chain instanceof Uint8Array)) throw new Error("unsupported-type");
+  if (m.get(2) === true || !(key instanceof Uint8Array) || !(chain instanceof Uint8Array) || key.length !== 33 || chain.length !== 32) throw new Error("unsupported-type");
   const useInfo = m.get(5) ? asMap(untag(m.get(5)!, 305)) : null;
   const testnet = useInfo?.get(2) === 1;
   const origin = m.get(6) ? asMap(untag(m.get(6)!, 304)) : null;
@@ -52,7 +52,7 @@ function outputToDescriptor(v: Cbor): string {
     case 400: {
       const inner = e.value;
       if (isTagged(inner) && inner.tag === 404) return `sh(wpkh(${hdkeyToKeyExpr(inner.value)}))`;
-      if (isTagged(inner) && (inner.tag === 406 || inner.tag === 407)) throw new Error("multisig");
+      if (isTagged(inner) && (inner.tag === 401 || inner.tag === 406 || inner.tag === 407)) throw new Error("multisig");
       throw new Error("unsupported-type");
     }
     case 401: case 406: case 407: throw new Error("multisig");
