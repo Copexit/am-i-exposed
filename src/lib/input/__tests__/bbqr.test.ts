@@ -16,29 +16,30 @@ function encode(data: Uint8Array, enc: "H" | "2" | "Z", type: string, parts: num
 const psbt = buildPsbt({ sign: false, nonWitness: true }).toPSBT();
 const corrupt = { kind: "error", reason: "corrupt" };
 
+
 describe("BbqrDecoder", () => {
   it.each(["H", "2", "Z"] as const)("encoding %s, 3 parts out of order -> PSBT hex", async (enc) => {
     const d = new BbqrDecoder();
     const [a, b, c] = encode(psbt, enc, "P", 3);
-    expect(await d.receive(c)).toEqual({ kind: "progress", received: 1, total: 3 });
-    await d.receive(a);
-    expect(await d.receive(b)).toEqual({ kind: "done", payload: bytesToHex(psbt) });
+    expect(await d.receive(c ?? "")).toEqual({ kind: "progress", received: 1, total: 3 });
+    await d.receive(a ?? "");
+    expect(await d.receive(b ?? "")).toEqual({ kind: "done", payload: bytesToHex(psbt) });
   });
   it("U type -> text", async () => {
     const [p] = encode(new TextEncoder().encode("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"), "2", "U", 1);
-    expect(await new BbqrDecoder().receive(p)).toEqual({ kind: "done", payload: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4" });
+    expect(await new BbqrDecoder().receive(p ?? "")).toEqual({ kind: "done", payload: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4" });
   });
   it("J type is unsupported", async () => {
     const [p] = encode(new TextEncoder().encode("{}"), "2", "J", 1);
-    expect(await new BbqrDecoder().receive(p)).toEqual({ kind: "error", reason: "unsupported-type" });
+    expect(await new BbqrDecoder().receive(p ?? "")).toEqual({ kind: "error", reason: "unsupported-type" });
   });
   it("switching to a new sequence resets (Review Focus 5)", async () => {
     const d = new BbqrDecoder();
-    await d.receive(encode(psbt, "H", "P", 3)[0]);
+    await d.receive(encode(psbt, "H", "P", 3)[0] ?? "");
     const other = buildPsbt({ sign: true }).toPSBT();
     const parts = encode(other, "2", "P", 2);
-    await d.receive(parts[0]);
-    expect(await d.receive(parts[1])).toEqual({ kind: "done", payload: bytesToHex(other) });
+    await d.receive(parts[0] ?? "");
+    expect(await d.receive(parts[1] ?? "")).toEqual({ kind: "done", payload: bytesToHex(other) });
   });
   it("bad headers return corrupt without throwing", async () => {
     const d = new BbqrDecoder();
@@ -50,9 +51,9 @@ describe("BbqrDecoder", () => {
   it("a corrupt frame does not reset an in-progress sequence", async () => {
     const d = new BbqrDecoder();
     const [a, b] = encode(psbt, "2", "P", 2);
-    await d.receive(a);
+    await d.receive(a ?? "");
     expect(await d.receive("B$2P0201!!!!")).toEqual(corrupt);
-    expect(await d.receive(b)).toEqual({ kind: "done", payload: bytesToHex(psbt) });
+    expect(await d.receive(b ?? "")).toEqual({ kind: "done", payload: bytesToHex(psbt) });
   });
   it("garbage base32 -> corrupt", async () => {
     expect(await new BbqrDecoder().receive("B$2P0100ABCDEFG1")).toEqual(corrupt);
