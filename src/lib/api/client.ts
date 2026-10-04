@@ -25,8 +25,8 @@ export function isLocalApi(url: string): boolean {
       host === "[::1]"
     ) return true;
     // RFC-1918 private IP ranges
-    if (host.startsWith("192.168.") || host.startsWith("10.")) return true;
-    if (/^172\.(1[6-9]|2\d|3[01])\./.test(host)) return true;
+    if (/^192\.168(\.\d{1,3}){2}$/.test(host) || /^10(\.\d{1,3}){3}$/.test(host)) return true;
+    if (/^172\.(1[6-9]|2\d|3[01])(\.\d{1,3}){2}$/.test(host)) return true;
     // mDNS / Tor
     if (host.endsWith(".local") || host.endsWith(".onion")) return true;
     return false;
