@@ -259,3 +259,18 @@ Then: preview on :3100 for owner testing, merge, release 0.38.0 (GH Pages, tag, 
 - New: `zxing-wasm` (MIT, reader build only, about 412 KB gz, lazy and self-hosted).
 - Existing reused: `@scure/btc-signer`, `@scure/base`, `@noble/hashes`.
 - Browser APIs: `BarcodeDetector` (optional), `DecompressionStream("deflate-raw")`, `getUserMedia`, `createImageBitmap`.
+
+---
+
+## Plan-time amendments (2026-10-04)
+
+Found while writing `docs/plan-before-you-send.md` against the code; they simplify the design without changing behavior the owner approved.
+
+1. **One canonical string instead of a `resolveInput` union.** File and QR sources convert bytes to the string the text field already accepts (PSBT/raw tx as hex, text as text, UR wallet exports as a descriptor). `detectInputType` gains `"rawtx"`; `parseLocalTx` builds the `LocalTx`. Every source then follows the exact path of a paste.
+2. **Lookup GETs keep the normal retry on 429/5xx.** A retried GET reveals nothing new; they still bypass the IndexedDB cache. Only the broadcast POST is never retried.
+3. **No network-mismatch block before broadcast.** A raw transaction carries no network information, so a mismatch cannot be detected reliably. A wrong-network broadcast is rejected by the node (`-25`, inputs missing), and that message says so.
+4. **No engine flag.** The engine does not penalize missing signatures, so signature fingerprints need no change: the checklist shows "visible only once it is signed" instead. `timing-unconfirmed` is filtered in `runLocalAnalysis`.
+5. **"Before you send" replaces the PSBT banner** and carries the "Projected grade if broadcast" label.
+6. **Unknown input amounts** are reported by a new zero-impact finding `local-needs-amounts`.
+7. **Test-only dev dependencies**: `@ngraveio/bc-ur`, `@keystonehq/bc-ur-registry` and `qrcode` serve as independent reference encoders in tests and the fake-camera video; nothing from them ships.
+8. **zxing-wasm assets** are copied into `public/vendor/zxing/` at `predev`/`build` time (gitignored) rather than committed.
