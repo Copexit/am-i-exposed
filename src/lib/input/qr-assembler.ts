@@ -14,8 +14,11 @@ export class QrAssembler {
   private last: string | null = null;
   private state: AssemblerState = { kind: "idle" };
   private queue: Promise<unknown> = Promise.resolve();
+  private gen = 0;
 
+  /** Synchronous; in-flight pushes from an earlier generation are discarded. */
   reset() {
+    this.gen++;
     this.ur.reset();
     this.bbqr.reset();
     this.last = null;
@@ -24,12 +27,14 @@ export class QrAssembler {
 
   /** Pushes are serialized so overlapping async BBQr calls cannot interleave. */
   push(text: string): Promise<AssemblerState> {
-    const run = this.queue.then(() => this.handle(text));
+    const gen = this.gen;
+    const run = this.queue.then(() => this.handle(text, gen));
     this.queue = run.catch(() => undefined);
     return run;
   }
 
-  private async handle(text: string): Promise<AssemblerState> {
+  private async handle(text: string, gen: number): Promise<AssemblerState> {
+    if (gen !== this.gen) return { kind: "idle" };
     if (text === this.last) return this.state;
     this.last = text;
     if (isUrPart(text)) {
@@ -41,6 +46,7 @@ export class QrAssembler {
     if (isBbqrPart(text)) {
       this.ur.reset();
       const r = await this.bbqr.receive(text);
+      if (gen !== this.gen) return { kind: "idle" };
       if (r.kind === "error") return r.reason === "corrupt" ? this.state : (this.state = { kind: "error", reason: "unsupported-type" });
       return (this.state = r.kind === "done" ? r : { kind: "progress", format: "bbqr", percent: Math.round((r.received / r.total) * 100), received: r.received, total: r.total });
     }

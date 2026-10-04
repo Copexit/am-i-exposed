@@ -68,4 +68,31 @@ describe("QrAssembler", () => {
     const out = new CryptoOutput([ScriptExpressions.WITNESS_SCRIPT_HASH, ScriptExpressions.MULTISIG], new MultiKey(1, [key]));
     expect(await new QrAssembler().push(new UREncoder(out.toUR(), 10_000).nextPart())).toEqual({ kind: "error", reason: "multisig" });
   });
+
+  it("push then immediate reset stays idle", async () => {
+    const a = new QrAssembler();
+    const p = a.push(addr);
+    a.reset();
+    expect(await p).toEqual({ kind: "idle" });
+    expect(await a.push(addr)).toEqual({ kind: "done", payload: addr });
+  });
+
+  it("reset during a pending BBQr inflate yields no late done", async () => {
+    const a = new QrAssembler();
+    const parts = bbqr(psbtA, 2);
+    await a.push(parts[0]!);
+    const p = a.push(parts[1]!);
+    a.reset();
+    expect(await p).toEqual({ kind: "idle" });
+    // decoder is clean too: the first frame alone is progress again, not done
+    expect(await a.push(parts[0]!)).toMatchObject({ kind: "progress", received: 1, total: 2 });
+  });
+
+  it("recovers after an error and after done", async () => {
+    const a = new QrAssembler();
+    const bad = new UREncoder(new CryptoPSBT(Buffer.from(psbtA)).toUR(), 10_000).nextPart().replace("crypto-psbt", "crypto-bogus");
+    expect(await a.push(bad)).toMatchObject({ kind: "error" });
+    expect(await a.push(addr)).toEqual({ kind: "done", payload: addr });
+    expect(await a.push("  " + psbtB.length + "x  ")).toEqual({ kind: "done", payload: psbtB.length + "x" });
+  });
 });
