@@ -55,4 +55,15 @@ describe("BeforeYouSend", () => {
     expect(screen.getByText("No significant leaks found.")).toBeTruthy();
     expect(m.getRecommendedFees).toHaveBeenCalledTimes(1);
   });
+
+  it("offers Broadcast... only for a fully signed tx", () => {
+    m.getRecommendedFees.mockReturnValue(new Promise(() => {}));
+    const onBroadcast = vi.fn();
+    const base = { txData: null, result, lookup: null, outputTxCounts: null, onLookup: () => {}, endpoint: "mempool.space", onBroadcast };
+    const { rerender } = render(<BeforeYouSend {...base} local={{ ...local(true), status: "partial" }} />);
+    expect(screen.queryByTestId("broadcast-open")).toBeNull();
+    rerender(<BeforeYouSend {...base} local={{ ...local(true), status: "signed", signedHex: "0200beef" }} />);
+    fireEvent.click(screen.getByTestId("broadcast-open"));
+    expect(onBroadcast).toHaveBeenCalledTimes(1);
+  });
 });

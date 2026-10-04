@@ -22,7 +22,7 @@ export default function ScannerPage() {
   const {
     analysis, wallet, walletActive, recent, bookmarks: bm, inputRef, pendingHash, pendingXpub,
     xpubAddressCount, apiEndpoint, isThirdPartyApi, isLocalApi, ariaStatus,
-    handleSubmit, handleBack, handleXpubConfirm, handleXpubCancel,
+    handleSubmit, handleBack, handleBroadcastSuccess, handleXpubConfirm, handleXpubCancel,
   } = useScanner();
   const {
     phase, query, inputType, steps, result, txData, addressData,
@@ -117,6 +117,7 @@ export default function ScannerPage() {
             localLookup={localLookup}
             localOutputTxCounts={localOutputTxCounts}
             onLocalLookup={() => { void completeLocalLookup(); }}
+            onBroadcastSuccess={handleBroadcastSuccess}
           />
           </Suspense>
         )}

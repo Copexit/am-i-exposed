@@ -12,7 +12,7 @@ import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 import type { BoltzmannWorkerResult } from "@/hooks/useBoltzmann";
 import type { LocalTx } from "@/lib/input/local-tx";
 import type { AnalysisState } from "@/lib/analysis/analysis-state";
-import { endpointHost } from "@/lib/api/backend-class";
+import { backendClass, endpointHost } from "@/lib/api/backend-class";
 import { TX_BASE_SCORE, ADDRESS_BASE_SCORE } from "@/lib/scoring/score";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
 import { buildResultViewModel } from "@/lib/view/tx-view-model";
@@ -30,6 +30,7 @@ import { EvidencePanel } from "./EvidencePanel";
 import { ExplainRail } from "./ExplainRail";
 import { AnalystWorkspace } from "./AnalystWorkspace";
 import { ContextSection } from "./ContextSection";
+const BroadcastDialog = lazy(() => import("@/components/flows/BroadcastDialog").then((m) => ({ default: m.BroadcastDialog })));
 const BeforeYouSend = lazy(() => import("@/components/flows/BeforeYouSend").then((m) => ({ default: m.BeforeYouSend })));
 
 export interface ResultsProps {
@@ -60,6 +61,8 @@ export interface ResultsProps {
   localLookup?: AnalysisState["localLookup"];
   localOutputTxCounts?: Map<string, number> | null;
   onLocalLookup?: () => void;
+  /** A local tx was broadcast: hand over to the normal txid scan. Without it, no broadcast is offered. */
+  onBroadcastSuccess?: (txid: string) => void;
 }
 
 const entityName = (address: string) => matchEntitySync(address)?.entityName ?? null;
@@ -74,11 +77,13 @@ export function Results(props: ResultsProps) {
     query, inputType, result, txData, addressData, addressTxs, addressUtxos, txBreakdown,
     preSendResult, onScan, onBack, durationMs, usdPrice, outspends, backwardLayers,
     forwardLayers, boltzmannResult, reveal, local, onRetryLocal,
-    localLookup = null, localOutputTxCounts = null, onLocalLookup,
+    localLookup = null, localOutputTxCounts = null, onLocalLookup, onBroadcastSuccess,
   } = props;
   const { t } = useTranslation();
   const { config, customApiUrl, isUmbrel } = useNetwork();
   const { devMode } = useDevMode();
+  const [broadcastOpen, setBroadcastOpen] = useState(false);
+  const closeBroadcast = useCallback(() => setBroadcastOpen(false), []);
 
   const baseScore = inputType === "address" ? ADDRESS_BASE_SCORE : TX_BASE_SCORE;
   const vm = useMemo(
@@ -145,7 +150,12 @@ export function Results(props: ResultsProps) {
           {!local && <ResultActions query={query} inputType={inputType} result={result} vm={vm} />}
         </div>
 
-        {local && <Suspense fallback={null}><BeforeYouSend local={local} txData={txData} result={result} lookup={localLookup} outputTxCounts={localOutputTxCounts} onLookup={onLocalLookup ?? (() => {})} endpoint={endpointHost(config.mempoolBaseUrl)} /></Suspense>}
+        {local && <Suspense fallback={null}><BeforeYouSend local={local} txData={txData} result={result} lookup={localLookup} outputTxCounts={localOutputTxCounts} onLookup={onLocalLookup ?? (() => {})} endpoint={endpointHost(config.mempoolBaseUrl)} onBroadcast={onBroadcastSuccess ? () => setBroadcastOpen(true) : undefined} /></Suspense>}
+        {local && broadcastOpen && onBroadcastSuccess && (
+          <Suspense fallback={null}>
+            <BroadcastDialog local={local} tx={txData ?? local.tx} result={result} baseUrl={config.mempoolBaseUrl} cls={backendClass({ isUmbrel, customApiUrl })} onClose={closeBroadcast} onSuccess={onBroadcastSuccess} />
+          </Suspense>
+        )}
 
         <VerdictBand local={!!local} query={query} inputType={inputType} vm={vm} txData={txData} reveal={timeline} checkCount={checkCount} onRetry={local ? (onRetryLocal ?? (() => {})) : () => onScan(query)} />
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CircleAlert, CircleCheck, FileSignature, Info, Loader2, Search, TriangleAlert } from "lucide-react";
+import { CircleAlert, CircleCheck, FileSignature, Info, Loader2, Search, Send, TriangleAlert } from "lucide-react";
 import { formatSats } from "@/lib/format";
 import { findingKeys } from "@/lib/finding-utils";
 import { createMempoolClient, type RecommendedFees } from "@/lib/api/mempool";
@@ -24,6 +24,8 @@ interface BeforeYouSendProps {
   onLookup: () => void;
   /** Host the lookup goes to, named in the consent copy. */
   endpoint: string;
+  /** Opens the broadcast dialog; the button shows only for a fully signed tx. */
+  onBroadcast?: () => void;
 }
 
 const STATUS = {
@@ -54,7 +56,7 @@ const SAFETY_EN: Record<SafetyItem["id"], string> = {
 };
 
 /** The Before you send panel for a PSBT / raw tx analyzed in memory, before it is broadcast. */
-export function BeforeYouSend({ local, txData, result, lookup, outputTxCounts, onLookup, endpoint }: BeforeYouSendProps) {
+export function BeforeYouSend({ local, txData, result, lookup, outputTxCounts, onLookup, endpoint, onBroadcast }: BeforeYouSendProps) {
   const { t, i18n } = useTranslation();
   const { config } = useNetwork();
   const tx = txData ?? local.tx;
@@ -191,6 +193,20 @@ export function BeforeYouSend({ local, txData, result, lookup, outputTxCounts, o
           </ul>
         </div>
       </div>
+
+      {onBroadcast && local.status === "signed" && local.signedHex && (
+        <div className="pt-4 border-t border-hairline">
+          <button
+            type="button"
+            data-testid="broadcast-open"
+            onClick={onBroadcast}
+            className="inline-flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium rounded-lg bg-bitcoin/10 text-bitcoin hover:bg-bitcoin/20 transition-colors cursor-pointer"
+          >
+            <Send size={15} className="shrink-0" aria-hidden="true" />
+            {t("broadcast.open", { defaultValue: "Broadcast..." })}
+          </button>
+        </div>
+      )}
     </section>
   );
 }
