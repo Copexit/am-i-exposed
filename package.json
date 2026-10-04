@@ -50,6 +50,7 @@
     "react-i18next": "^16.6.6"
   },
   "devDependencies": {
+    "@keystonehq/bc-ur-registry": "^0.8.0",
     "@ngraveio/bc-ur": "^1.1.13",
     "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.3.3",
