@@ -77,9 +77,27 @@ export async function createFrameDecoder(): Promise<FrameDecoder> {
   return (await nativeDecoder()) ?? workerDecoder();
 }
 
+/** Long-side cap for photos: a 48 MP photo would otherwise be a ~190 MB ImageData. */
+export const MAX_PHOTO_SIDE = 2000;
+
+/** Size that fits within `max` on the long side keeping the aspect ratio, or null if it already fits. */
+export function fitWithin(width: number, height: number, max = MAX_PHOTO_SIDE): { width: number; height: number } | null {
+  const long = Math.max(width, height);
+  if (long <= max) return null;
+  const k = max / long;
+  return { width: Math.max(1, Math.round(width * k)), height: Math.max(1, Math.round(height * k)) };
+}
+
 /** Photo fallback (works without a secure context): one static QR from an image file. */
 export async function decodeImageFile(file: File): Promise<string | null> {
-  const bitmap = await createImageBitmap(file);
+  let bitmap = await createImageBitmap(file);
+  const fit = fitWithin(bitmap.width, bitmap.height);
+  if (fit) {
+    // Browsers without resize options return it full size: still decodes, just heavier.
+    const small = await createImageBitmap(bitmap, { resizeWidth: fit.width, resizeHeight: fit.height, resizeQuality: "high" });
+    bitmap.close();
+    bitmap = small;
+  }
   const decoder = await createFrameDecoder();
   try {
     return await decoder.decode(bitmap);

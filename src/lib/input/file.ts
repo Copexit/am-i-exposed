@@ -13,8 +13,10 @@ export class InputFileError extends Error {
 /** File or QR bytes -> the canonical string the text field accepts. */
 export function bytesToPayload(bytes: Uint8Array): string {
   if (PSBT_MAGIC.every((b, i) => bytes[i] === b)) return bytesToHex(bytes);
+  // A UTF-8 BOM (Windows editors) is not part of the text payload
+  const body = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf ? bytes.subarray(3) : bytes;
   try {
-    const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    const text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(body);
     if (/^[\x20-\x7e\t\r\n]*$/.test(text)) return text.trim();
   } catch {
     // not UTF-8: binary

@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { readFileSync } from "node:fs";
-import { createFrameDecoder } from "../qr-decode";
+import { createFrameDecoder, fitWithin, MAX_PHOTO_SIDE } from "../qr-decode";
 
 const fakeImage = { width: 1, height: 1, data: new Uint8ClampedArray(4) } as unknown as ImageData;
 
@@ -118,5 +118,17 @@ describe("qr.worker.js", () => {
     expect(src).toContain("locateFile");
     expect(src).not.toMatch(/jsdelivr|unpkg|cdn/i);
     expect(src).not.toMatch(/https?:\/\//);
+  });
+});
+
+describe("fitWithin (photo downscale)", () => {
+  it("leaves images within the cap alone", () => {
+    expect(fitWithin(1920, 1080)).toBeNull();
+    expect(fitWithin(MAX_PHOTO_SIDE, 10)).toBeNull();
+  });
+  it("scales the long side to the cap, keeping the aspect ratio", () => {
+    expect(fitWithin(8000, 6000)).toEqual({ width: 2000, height: 1500 });
+    expect(fitWithin(6000, 8000)).toEqual({ width: 1500, height: 2000 });
+    expect(fitWithin(40000, 10)).toEqual({ width: 2000, height: 1 });
   });
 });

@@ -11,6 +11,10 @@ describe("bytesToPayload", () => {
   it("text file -> trimmed text", () => {
     expect(bytesToPayload(new TextEncoder().encode("  cHNidP8BAH\n"))).toBe("cHNidP8BAH");
   });
+  it("text file with a UTF-8 BOM -> text without it", () => {
+    const b64 = new TextEncoder().encode("cHNidP8BAH\r\n");
+    expect(bytesToPayload(new Uint8Array([0xef, 0xbb, 0xbf, ...b64]))).toBe("cHNidP8BAH");
+  });
   it("binary raw tx -> hex", () => {
     const t = buildPsbt({ sign: true }); t.finalize();
     const raw = t.extract();
