@@ -2622,5 +2622,19 @@
   "broadcast.confirm": "Senden",
   "broadcast.anyway": "Trotzdem senden",
   "broadcast.sending": "Wird gesendet...",
-  "broadcast.cancel": "Abbrechen"
+  "broadcast.cancel": "Abbrechen",
+  "qr.open": "QR-Code scannen",
+  "qr.title": "QR-Code scannen",
+  "qr.insecure": "Die Kamera benötigt HTTPS, localhost oder die .onion-Adresse. Du kannst stattdessen ein Foto eines statischen QR-Codes aufnehmen; animierte QR-Codes benötigen die Kamera.",
+  "qr.denied": "Der Kamerazugriff wurde blockiert. Erlaube ihn in den Browsereinstellungen oder nimm ein Foto des QR-Codes auf.",
+  "qr.noCamera": "Keine Kamera gefunden. Nimm ein Foto des QR-Codes auf oder füge ihn ein.",
+  "qr.decoderFailed": "QR-Decoder nicht verfügbar: nimm stattdessen ein Foto auf oder füge den Inhalt ein.",
+  "qr.photo": "Foto des QR-Codes aufnehmen",
+  "qr.photoNoCode": "In diesem Foto wurde kein QR-Code gefunden.",
+  "qr.progressParts": "{{received}} von {{total}} Teilen",
+  "qr.progressPercent": "{{percent}}% empfangen",
+  "qr.multisig": "Multisig-Wallet-Exporte werden noch nicht unterstützt.",
+  "qr.unsupported": "Dieser QR-Typ wird nicht unterstützt.",
+  "qr.scanAgain": "Erneut scannen",
+  "qr.switchCamera": "Kamera wechseln"
 }

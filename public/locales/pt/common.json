@@ -2622,5 +2622,19 @@
   "broadcast.confirm": "Transmitir",
   "broadcast.anyway": "Transmitir mesmo assim",
   "broadcast.sending": "Transmitindo...",
-  "broadcast.cancel": "Cancelar"
+  "broadcast.cancel": "Cancelar",
+  "qr.open": "Ler um código QR",
+  "qr.title": "Ler um código QR",
+  "qr.insecure": "A câmera precisa de HTTPS, localhost ou do endereço .onion. Você pode tirar uma foto de um QR estático; QRs animados precisam da câmera.",
+  "qr.denied": "O acesso à câmera foi bloqueado. Permita-o nas configurações do navegador ou tire uma foto do QR.",
+  "qr.noCamera": "Nenhuma câmera encontrada. Tire uma foto do QR ou cole-o.",
+  "qr.decoderFailed": "Leitor de QR indisponível: tire uma foto ou cole o conteúdo.",
+  "qr.photo": "Tirar uma foto do QR",
+  "qr.photoNoCode": "Nenhum código QR encontrado nessa foto.",
+  "qr.progressParts": "{{received}} de {{total}} partes",
+  "qr.progressPercent": "{{percent}}% recebido",
+  "qr.multisig": "Exportações de carteiras multisig ainda não são suportadas.",
+  "qr.unsupported": "Este tipo de QR não é suportado.",
+  "qr.scanAgain": "Ler novamente",
+  "qr.switchCamera": "Trocar de câmera"
 }

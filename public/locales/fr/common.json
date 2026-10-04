@@ -2622,5 +2622,19 @@
   "broadcast.confirm": "Diffuser",
   "broadcast.anyway": "Diffuser quand même",
   "broadcast.sending": "Diffusion...",
-  "broadcast.cancel": "Annuler"
+  "broadcast.cancel": "Annuler",
+  "qr.open": "Scanner un code QR",
+  "qr.title": "Scanner un code QR",
+  "qr.insecure": "La caméra nécessite HTTPS, localhost ou l'adresse .onion. Vous pouvez prendre une photo d'un QR statique ; les QR animés nécessitent la caméra.",
+  "qr.denied": "L'accès à la caméra a été bloqué. Autorisez-le dans les réglages du navigateur, ou prenez une photo du QR.",
+  "qr.noCamera": "Aucune caméra trouvée. Prenez une photo du QR, ou collez-le.",
+  "qr.decoderFailed": "Décodeur QR indisponible : prenez une photo ou collez le contenu.",
+  "qr.photo": "Prendre une photo du QR",
+  "qr.photoNoCode": "Aucun code QR trouvé sur cette photo.",
+  "qr.progressParts": "{{received}} sur {{total}} parties",
+  "qr.progressPercent": "{{percent}} % reçu",
+  "qr.multisig": "Les exports de portefeuilles multisig ne sont pas encore pris en charge.",
+  "qr.unsupported": "Ce type de QR n'est pas pris en charge.",
+  "qr.scanAgain": "Scanner à nouveau",
+  "qr.switchCamera": "Changer de caméra"
 }

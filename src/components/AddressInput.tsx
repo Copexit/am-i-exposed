@@ -204,7 +204,7 @@ export function AddressInput({ onSubmit, isLoading, inputRef: externalRef, place
             aria-expanded={isOpen}
             aria-controls={isOpen ? "address-suggestions" : undefined}
             aria-activedescendant={selectedIndex >= 0 ? `suggestion-${selectedIndex}` : undefined}
-            className="relative w-full glass rounded-[11px] pl-4 pr-44 sm:pl-5 sm:pr-48 py-4
+            className="relative w-full glass rounded-[11px] pl-4 pr-56 sm:pl-5 sm:pr-60 py-4
               font-mono text-sm sm:text-base text-foreground placeholder:text-muted/70
               focus:shadow-[0_0_20px_--alpha(var(--color-bitcoin)/20%)]
               transition-all duration-200 border-0

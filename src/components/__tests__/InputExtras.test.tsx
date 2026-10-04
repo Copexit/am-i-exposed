@@ -14,6 +14,12 @@ describe("InputExtras", () => {
     fireEvent.change(input, { target: { files: [new File([new Uint8Array(bytes)], "tx.psbt")] } });
     await waitFor(() => expect(onPayload).toHaveBeenCalledWith(bytesToHex(bytes)));
   });
+
+  it("the Scan QR button lazy-loads the scanner dialog", async () => {
+    const { getByTestId, findByRole } = render(<InputExtras onPayload={vi.fn()} onError={vi.fn()} />);
+    fireEvent.click(getByTestId("scan-qr"));
+    expect((await findByRole("dialog", {}, { timeout: 5000 })).getAttribute("aria-modal")).toBe("true");
+  });
 });
 
 describe("search bar layout", () => {
@@ -24,6 +30,6 @@ describe("search bar layout", () => {
     const box = getByTestId("input-actions");
     expect(box.className).toContain("flex");
     expect(box.contains(getByTestId("open-file"))).toBe(true);
-    expect(box.contains(getByRole("button", { name: /scan/i }))).toBe(true);
+    expect(box.contains(getByRole("button", { name: /^scan$/i }))).toBe(true);
   });
 });

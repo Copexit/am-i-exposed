@@ -1,9 +1,13 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FileUp } from "lucide-react";
+import { FileUp, ScanLine } from "lucide-react";
 import { readInputFile, InputFileError } from "@/lib/input/file";
+
+const QrScanner = lazy(() => import("./QrScanner").then((m) => ({ default: m.QrScanner })));
+
+const ICON_BUTTON = "inline-flex items-center justify-center min-h-[44px] min-w-[44px] rounded-lg text-muted hover:text-foreground transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-bitcoin focus-visible:outline-none";
 
 function useFileReader(onPayload: (text: string) => void, onError: (m: string) => void) {
   const { t } = useTranslation();
@@ -38,19 +42,21 @@ export function useFileDrop(onPayload: (text: string) => void, onError: (m: stri
   };
 }
 
-/** Icon buttons inside the search fields: open a file (and, from Task 19, scan a QR). */
-export function InputExtras({ onPayload, onError }: { onPayload: (text: string) => void; onError: (m: string) => void; compact?: boolean }) {
+/** Icon buttons inside the search fields: open a file, scan a QR. Both feed the field's paste path. */
+export function InputExtras({ onPayload, onError }: { onPayload: (text: string) => void; onError: (m: string) => void }) {
   const { t } = useTranslation();
   const fileRef = useRef<HTMLInputElement>(null);
   const read = useFileReader(onPayload, onError);
+  const [scanning, setScanning] = useState(false);
   const label = t("input.openFile", { defaultValue: "Open a PSBT or transaction file" });
+  const scanLabel = t("qr.open", { defaultValue: "Scan a QR code" });
   return (
     <div className="flex items-center gap-1">
       <button
         type="button"
         data-testid="open-file"
         onClick={() => fileRef.current?.click()}
-        className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] rounded-lg text-muted hover:text-foreground transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-bitcoin focus-visible:outline-none"
+        className={ICON_BUTTON}
         aria-label={label}
         title={label}
       >
@@ -64,6 +70,21 @@ export function InputExtras({ onPayload, onError }: { onPayload: (text: string) 
         tabIndex={-1}
         onChange={(e) => { void read(e.target.files?.[0]); e.target.value = ""; }}
       />
+      <button
+        type="button"
+        data-testid="scan-qr"
+        onClick={() => setScanning(true)}
+        className={ICON_BUTTON}
+        aria-label={scanLabel}
+        title={scanLabel}
+      >
+        <ScanLine size={18} aria-hidden="true" />
+      </button>
+      {scanning && (
+        <Suspense fallback={null}>
+          <QrScanner onResult={onPayload} onClose={() => setScanning(false)} />
+        </Suspense>
+      )}
     </div>
   );
 }

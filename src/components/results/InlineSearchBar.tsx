@@ -70,7 +70,7 @@ export function InlineSearchBar({ onScan, initialValue }: { onScan: (input: stri
           spellCheck={false}
           autoComplete="off"
           aria-label={t("input.placeholderScan", { defaultValue: "Paste an address, txid, xpub, PSBT or raw transaction" })}
-          className="w-full rounded-lg border border-card-border bg-surface-elevated/50 pl-8 pr-36 py-2 min-h-[44px]
+          className="w-full rounded-lg border border-card-border bg-surface-elevated/50 pl-8 pr-48 py-2 min-h-[44px]
             font-mono text-sm text-foreground placeholder:text-muted/50
             focus:border-bitcoin/40 focus:shadow-[0_0_8px_--alpha(var(--color-bitcoin)/10%)]
             focus-visible:outline-2 focus-visible:outline-bitcoin/50

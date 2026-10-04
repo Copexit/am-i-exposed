@@ -2694,5 +2694,19 @@
   "broadcast.confirm": "Wyślij",
   "broadcast.anyway": "Wyślij mimo to",
   "broadcast.sending": "Wysyłanie...",
-  "broadcast.cancel": "Anuluj"
+  "broadcast.cancel": "Anuluj",
+  "qr.open": "Zeskanuj kod QR",
+  "qr.title": "Zeskanuj kod QR",
+  "qr.insecure": "Kamera wymaga HTTPS, localhost lub adresu .onion. Zamiast tego możesz zrobić zdjęcie statycznego kodu QR; animowane kody QR wymagają kamery.",
+  "qr.denied": "Dostęp do kamery został zablokowany. Zezwól na niego w ustawieniach przeglądarki lub zrób zdjęcie kodu QR.",
+  "qr.noCamera": "Nie znaleziono kamery. Zrób zdjęcie kodu QR lub wklej go.",
+  "qr.decoderFailed": "Dekoder QR niedostępny: zrób zdjęcie lub wklej zawartość.",
+  "qr.photo": "Zrób zdjęcie kodu QR",
+  "qr.photoNoCode": "Na tym zdjęciu nie znaleziono kodu QR.",
+  "qr.progressParts": "{{received}} z {{total}} części",
+  "qr.progressPercent": "Odebrano {{percent}}%",
+  "qr.multisig": "Eksporty portfeli multisig nie są jeszcze obsługiwane.",
+  "qr.unsupported": "Ten typ kodu QR nie jest obsługiwany.",
+  "qr.scanAgain": "Skanuj ponownie",
+  "qr.switchCamera": "Przełącz kamerę"
 }
