@@ -62,7 +62,8 @@ export function AnalystWorkspace(p: AnalystWorkspaceProps) {
 
       {hasTx && p.txData && (
         <>
-          {showGraph ? (
+          {/* Local tx: the explorer fetches neighbours and can bookmark/save the txid, so it stays off. */}
+          {p.local ? null : showGraph ? (
             <ChartErrorBoundary>
               <Suspense fallback={<div className="h-96 rounded-xl bg-surface-1 animate-pulse" />}>
                 <GraphExplorerPanel tx={p.txData} onTxClick={p.onScan} backwardLayers={p.backwardLayers} forwardLayers={p.forwardLayers} outspends={p.outspends} boltzmannResult={p.boltzmannResult} />
