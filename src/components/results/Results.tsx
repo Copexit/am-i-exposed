@@ -11,6 +11,8 @@ import { getTxHeuristicSteps, getAddressHeuristicSteps } from "@/lib/analysis/he
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 import type { BoltzmannWorkerResult } from "@/hooks/useBoltzmann";
 import type { LocalTx } from "@/lib/input/local-tx";
+import type { AnalysisState } from "@/lib/analysis/analysis-state";
+import { endpointHost } from "@/lib/api/backend-class";
 import { TX_BASE_SCORE, ADDRESS_BASE_SCORE } from "@/lib/scoring/score";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
 import { buildResultViewModel } from "@/lib/view/tx-view-model";
@@ -54,6 +56,10 @@ export interface ResultsProps {
   local?: LocalTx | null;
   /** Re-run a local analysis (the query is a label, not something to rescan). */
   onRetryLocal?: () => void;
+  /** Consent lookup state for a local tx (null when not offered). */
+  localLookup?: AnalysisState["localLookup"];
+  localOutputTxCounts?: Map<string, number> | null;
+  onLocalLookup?: () => void;
 }
 
 const entityName = (address: string) => matchEntitySync(address)?.entityName ?? null;
@@ -68,6 +74,7 @@ export function Results(props: ResultsProps) {
     query, inputType, result, txData, addressData, addressTxs, addressUtxos, txBreakdown,
     preSendResult, onScan, onBack, durationMs, usdPrice, outspends, backwardLayers,
     forwardLayers, boltzmannResult, reveal, local, onRetryLocal,
+    localLookup = null, localOutputTxCounts = null, onLocalLookup,
   } = props;
   const { t } = useTranslation();
   const { config, customApiUrl, isUmbrel } = useNetwork();
@@ -138,9 +145,9 @@ export function Results(props: ResultsProps) {
           {!local && <ResultActions query={query} inputType={inputType} result={result} vm={vm} />}
         </div>
 
-        {local && <Suspense fallback={null}><BeforeYouSend local={local} txData={txData} result={result} /></Suspense>}
+        {local && <Suspense fallback={null}><BeforeYouSend local={local} txData={txData} result={result} lookup={localLookup} outputTxCounts={localOutputTxCounts} onLookup={onLocalLookup ?? (() => {})} endpoint={endpointHost(config.mempoolBaseUrl)} /></Suspense>}
 
-        <VerdictBand query={query} inputType={inputType} vm={vm} txData={txData} reveal={timeline} checkCount={checkCount} onRetry={local ? (onRetryLocal ?? (() => {})) : () => onScan(query)} />
+        <VerdictBand local={!!local} query={query} inputType={inputType} vm={vm} txData={txData} reveal={timeline} checkCount={checkCount} onRetry={local ? (onRetryLocal ?? (() => {})) : () => onScan(query)} />
 
         <SectionNav hasAnalyst={inputType === "txid" ? !!txData : true} inputType={inputType} grade={vm.grade} score={vm.score} />
 
@@ -198,7 +205,7 @@ export function Results(props: ResultsProps) {
           onScan={onScan}
         />
 
-        <ContextSection query={query} inputType={inputType} vm={vm} txData={txData} devMode={devMode} />
+        <ContextSection local={!!local} query={query} inputType={inputType} vm={vm} txData={txData} devMode={devMode} />
 
         <ResultsFooter
           inputType={inputType}

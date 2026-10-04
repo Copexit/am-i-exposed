@@ -29,6 +29,7 @@ export default function ScannerPage() {
     txBreakdown, addressTxs, addressUtxos, preSendResult, error,
     errorCode, durationMs, usdPrice, outspends, localTx, fetchProgress,
     backwardLayers, forwardLayers, boltzmannResult, autoSwitchedNetwork, fromCache, analyze, retryLocal,
+    localLookup, localOutputTxCounts, completeLocalLookup,
   } = analysis;
   const { t } = useTranslation();
 
@@ -112,6 +113,9 @@ export default function ScannerPage() {
             reveal={!fromCache}
             local={localTx}
             onRetryLocal={retryLocal}
+            localLookup={localLookup}
+            localOutputTxCounts={localOutputTxCounts}
+            onLocalLookup={() => { void completeLocalLookup(); }}
           />
           </Suspense>
         )}
