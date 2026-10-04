@@ -8,7 +8,7 @@ The engine implements 28 transaction-level heuristics, 6 address-level heuristic
 
 **Why this tool exists now.** In April 2024, OXT.me and KYCP.org ("Know Your Coin Privacy") went offline following the arrest of the Samourai Wallet developers. OXT.me was the gold standard for Boltzmann entropy analysis of Bitcoin transactions, created by LaurentMT as part of OXT Research. KYCP.org provided CoinJoin analysis and entropy calculations accessible to ordinary users. Both are gone. As of today, there is no publicly available tool that combines Boltzmann entropy estimation, wallet fingerprinting detection, and multi-transaction graph analysis in a single interface. am-i.exposed fills that gap.
 
-Everything runs client-side. No server ever sees your query and your results together. The code is open source. Verify, don't trust.
+Everything runs client-side. No server ever sees your query and your results together. Nothing is sent unless you choose to broadcast; broadcasting sends only the signed transaction to the endpoint shown. The code is open source. Verify, don't trust.
 
 ---
 
@@ -1747,11 +1747,11 @@ If mempool.space or any intermediary CDN employs browser fingerprinting (or is c
 
 The following measures minimize the privacy risks of using this tool:
 
-- **All analysis runs client-side.** Your browser fetches raw data from the blockchain API and runs all heuristics locally. No server ever receives your query and your analysis results together. There is no am-i.exposed backend that processes or logs what you are analyzing.
+- **All analysis runs client-side.** Your browser fetches raw data from the blockchain API and runs all heuristics locally. No server ever receives your query and your analysis results together. There is no am-i.exposed backend that processes or logs what you are analyzing. A pasted PSBT or raw transaction is analyzed in memory only: never in the URL, history, bookmarks or cache. For a raw transaction (no input amounts), an optional lookup of the parent transactions and output-address history is automatic on your own node and one explicit click on mempool.space, because it reveals which coins are about to be spent and where they go.
 - **Tor .onion endpoint auto-detection.** When the tool detects that it is running in Tor Browser, it automatically routes API requests to the mempool.space .onion address, keeping your queries within the Tor network.
 - **Strict Referrer-Policy headers.** am-i.exposed sets `Referrer-Policy: no-referrer` to prevent the browser from sending the page URL (which may contain your queried address in the hash) in the Referer header when making API requests.
 - **Content Security Policy.** CSP headers restrict which domains the page can connect to, preventing exfiltration of data to unauthorized endpoints. Only explicitly listed API endpoints are allowed.
-- **No analytics, no tracking, no cookies.** am-i.exposed does not use Google Analytics, Plausible, or any analytics platform. No cookies are set. Recent scan history is stored in localStorage. API responses are cached in IndexedDB for faster repeat analysis. Both can be cleared from Settings. No data is transmitted to any server beyond mempool.space.
+- **No analytics, no tracking, no cookies.** am-i.exposed does not use Google Analytics, Plausible, or any analytics platform. No cookies are set. Recent scan history is stored in localStorage. API responses are cached in IndexedDB for faster repeat analysis. Both can be cleared from Settings. Nothing is sent unless you choose to broadcast. Broadcasting is opt-in, only for a fully signed transaction, after a confirm dialog naming the endpoint (mempool.space, its onion, or your own node), and sends only the signed transaction to that endpoint. The CLI and MCP server stay fully offline (no broadcast, no lookups).
 
 ---
 
@@ -1801,7 +1801,7 @@ The following measures minimize the privacy risks of using this tool:
 
 1. **Open source, client-side analysis.** Every heuristic is documented in this file and implemented in publicly auditable TypeScript. No black boxes. No closed-source algorithms. Fork the code and verify the scoring yourself.
 
-2. **No server ever sees your query and results together.** API calls go directly from your browser to the blockchain data source. The static hosting infrastructure serves files and has no visibility into what is being analyzed. There is nothing to subpoena.
+2. **No server ever sees your query and results together.** API calls go directly from your browser to the blockchain data source, and the only other request is the opt-in broadcast of a signed transaction to the endpoint shown. The static hosting infrastructure serves files and has no visibility into what is being analyzed. There is nothing to subpoena.
 
 3. **Wallet fingerprinting detection.** No other consumer-facing privacy tool currently offers transaction-level wallet fingerprinting. This is a heuristic that chain surveillance firms use routinely, but that has never been exposed to end users in an accessible format until now.
 

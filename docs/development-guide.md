@@ -175,6 +175,8 @@ All requests go to one mempool.space-compatible backend (public, Tor onion, Umbr
 - `GET /address/{addr}`, `/address/{addr}/utxo`, `/address/{addr}/txs` (+ `/txs/chain/{lastTxid}` pagination)
 - `GET /address-prefix/{prefix}` (autocomplete)
 - `GET /v1/historical-price?currency=USD|EUR&timestamp={ts}`
+- `GET /v1/fees/recommended`, `GET /tx/{txid}/status`
+- `POST /tx` (opt-in broadcast, `Content-Type: text/plain`, body = signed hex; never retried or automatic), `POST /txs/test` (dry-run before broadcast)
 
 Base URLs: `https://mempool.space/api`, `/testnet4/api`, `/signet/api`; Tor: `http://mempoolhqx4isw62xs7abwphsq7ldayuidyx2v2oethdhhj6mlo2r6ad.onion/api`. Wallet scans against hosted APIs use a short burst (300ms gaps) followed by a 9s sustained delay per address; local backends are not throttled.
 
@@ -196,7 +198,7 @@ Base URLs: `https://mempool.space/api`, `/testnet4/api`, `/signet/api`; Tor: `ht
 1. Finding ids must be unique; multiple OP_RETURN outputs get `h7-op-return-{n}`.
 2. Whirlpool = 5 equal outputs at a known denomination; WabiSabi = 20+ inputs/outputs.
 3. `fmtN()` (not bare `toLocaleString()`) in analysis text.
-4. PSBTs are analyzed directly, never put in the URL hash.
+4. PSBTs and raw transactions are analyzed in memory: never put in the URL hash, history, bookmarks or cache.
 
 ## Workflow
 

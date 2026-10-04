@@ -7,7 +7,7 @@
 
 **The on-chain privacy scanner you were afraid to run.**
 
-Paste a Bitcoin address, transaction ID, xpub/descriptor, or unsigned PSBT. Get a privacy score 0-100. Find out what the blockchain reveals about you - before someone else does.
+Paste a Bitcoin address, transaction ID, xpub/descriptor, PSBT or raw transaction (or open a .psbt/.txn file, or scan a static, animated BC-UR or BBQr QR code). Get a privacy score 0-100. Find out what the blockchain reveals about you - before someone else does.
 
 *Because Chainalysis already checked.*
 
@@ -31,7 +31,7 @@ For the full technical deep-dive - every heuristic, scoring weight, academic ref
 
 ## How it works
 
-1. Paste a Bitcoin address, txid, xpub/descriptor, or PSBT
+1. Paste a Bitcoin address, txid, xpub/descriptor, PSBT or raw transaction, open a file, or scan a QR code
 2. Your browser fetches transaction data from the mempool.space API
 3. 34 heuristics (28 transaction-level, 6 address-level), 10 chain analysis modules, and entity matching against 364 known services run client-side
 4. Boltzmann entropy is computed on-device using a Rust/WASM engine
@@ -166,9 +166,9 @@ The full entity index covers **30M+ addresses** using a priority-budgeted binary
 
 Full wallet-level privacy audit with BIP44/49/84/86 derivation support. Scans derived addresses across the gap limit and produces an aggregate privacy assessment covering address reuse, UTXO hygiene, spending patterns, fingerprint consistency, and consolidation history.
 
-### PSBT analysis (paste an unsigned PSBT)
+### Before You Send (paste a PSBT or raw transaction)
 
-Pre-broadcast privacy check. Analyze a transaction before signing to catch privacy issues while they can still be fixed - round amounts, script type mismatches, change detection, and wallet fingerprinting.
+Pre-broadcast privacy check, analyzed in memory only. Analyze a transaction before signing to catch privacy issues while they can still be fixed - round amounts, script type mismatches, change detection, and wallet fingerprinting. Broadcast is opt-in and only for a fully signed transaction: nothing is sent unless you choose to broadcast, and broadcasting sends only the signed transaction to the endpoint shown.
 
 ### Cross-heuristic intelligence
 
