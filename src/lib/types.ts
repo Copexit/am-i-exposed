@@ -1,6 +1,6 @@
 import type { FindingId } from "@/lib/analysis/finding-metadata";
 
-export type InputType = "txid" | "address" | "xpub" | "psbt" | "invalid";
+export type InputType = "txid" | "address" | "xpub" | "psbt" | "rawtx" | "invalid";
 
 export type AddressType = "p2pkh" | "p2sh" | "p2wpkh" | "p2wsh" | "p2tr" | "unknown";
 

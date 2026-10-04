@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { detectInputType, cleanInput } from "../detect-input";
+import { base64 } from "@scure/base";
+import { bytesToHex } from "@/lib/bitcoin/hex";
+import { buildPsbt } from "@/lib/input/__tests__/fixtures";
+import { cleanInput, detectInputType, MAX_PAYLOAD_LENGTH } from "../detect-input";
 
 describe("detectInputType", () => {
   // txid: 64 hex chars
@@ -109,11 +112,6 @@ describe("cleanInput", () => {
     expect(cleanInput("  abc  ")).toBe("abc");
   });
 
-  it("truncates at 512 chars", () => {
-    const long = "a".repeat(600);
-    expect(cleanInput(long).length).toBe(512);
-  });
-
   it("extracts txid from URL", () => {
     const txid = "b".repeat(64);
     expect(cleanInput(`https://mempool.space/tx/${txid}`)).toBe(txid);
@@ -122,5 +120,51 @@ describe("cleanInput", () => {
   it("extracts address from URL", () => {
     const addr = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
     expect(cleanInput(`https://mempool.space/address/${addr}`)).toBe(addr);
+  });
+});
+
+describe("cleanInput payloads", () => {
+  it("still caps short, non-payload input at 512 chars", () => {
+    expect(cleanInput("x".repeat(600))).toHaveLength(512);
+  });
+
+  it("keeps a full PSBT longer than 512 chars", () => {
+    const b64 = base64.encode(buildPsbt({ sign: false, nonWitness: true }).toPSBT());
+    expect(b64.length).toBeGreaterThan(512);
+    expect(cleanInput(b64)).toBe(b64);
+  });
+
+  it("joins a line-wrapped base64 PSBT", () => {
+    const b64 = base64.encode(buildPsbt({ sign: false, nonWitness: true }).toPSBT());
+    const wrapped = (b64.match(/.{1,64}/g) ?? []).join("\n") + "\n";
+    expect(cleanInput(wrapped)).toBe(b64);
+    expect(cleanInput((b64.match(/.{1,76}/g) ?? []).join(" "))).toBe(b64);
+  });
+
+  it("caps payloads at MAX_PAYLOAD_LENGTH", () => {
+    expect(cleanInput("cHNidP" + "A".repeat(MAX_PAYLOAD_LENGTH))).toHaveLength(MAX_PAYLOAD_LENGTH);
+  });
+
+  it("takes the address from a BIP21 URI and lowercases uppercase bech32", () => {
+    expect(cleanInput("bitcoin:bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4?amount=0.1")).toBe("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4");
+    expect(cleanInput("BITCOIN:BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4")).toBe("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4");
+    expect(cleanInput("BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4")).toBe("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4");
+  });
+});
+
+describe("detectInputType rawtx", () => {
+  it("detects a signed raw tx", () => {
+    const t = buildPsbt({ sign: true });
+    t.finalize();
+    expect(detectInputType(bytesToHex(t.extract()))).toBe("rawtx");
+  });
+  it("random even hex is invalid, not rawtx", () => {
+    expect(detectInputType("00".repeat(80))).toBe("invalid");
+    expect(detectInputType("0100000000".repeat(30))).toBe("invalid");
+    expect(detectInputType("ff".repeat(1000))).toBe("invalid");
+  });
+  it("64-hex stays a txid and PSBT hex stays psbt", () => {
+    expect(detectInputType("a".repeat(64))).toBe("txid");
+    expect(detectInputType(bytesToHex(buildPsbt({ sign: false }).toPSBT()))).toBe("psbt");
   });
 });
