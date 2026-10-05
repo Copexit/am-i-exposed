@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
+    "test:e2e:videos": "playwright test -c playwright.videos.config.ts",
     "test:e2e:ui": "playwright test --ui",
     "build:wasm": "bash scripts/build-boltzmann-wasm.sh",
     "fetch:osint": "node scripts/fetch-osint-sources.mjs",
