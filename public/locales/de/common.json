@@ -2645,5 +2645,12 @@
   "qr.scanAgain": "Erneut scannen",
   "qr.switchCamera": "Kamera wechseln",
   "video.error": "Das Video konnte nicht geladen werden.",
-  "video.openFile": "Videodatei öffnen"
+  "video.openFile": "Videodatei öffnen",
+  "common.tutorial": "Tutorial",
+  "home.promo_title": "In einer Minute erklärt",
+  "home.promo_play": "Die 1-Minuten-Übersicht abspielen",
+  "home.promo_video": "am-i.exposed in einer Minute",
+  "home.promo_tutorial_link": "Das 5-Minuten-Tutorial ansehen",
+  "about.tutorial_link": "Neu hier? Sieh dir das 5-Minuten-Tutorial an.",
+  "welcome.tutorial_link": "Neu hier? Sieh dir das 5-Minuten-Tutorial an."
 }

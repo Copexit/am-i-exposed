@@ -2645,5 +2645,12 @@
   "qr.scanAgain": "Scanner à nouveau",
   "qr.switchCamera": "Changer de caméra",
   "video.error": "La vidéo n'a pas pu être chargée.",
-  "video.openFile": "Ouvrir le fichier vidéo"
+  "video.openFile": "Ouvrir le fichier vidéo",
+  "common.tutorial": "Tutoriel",
+  "home.promo_title": "Découvrez-le en une minute",
+  "home.promo_play": "Lire l'aperçu d'une minute",
+  "home.promo_video": "am-i.exposed en une minute",
+  "home.promo_tutorial_link": "Regarder le tutoriel de 5 minutes",
+  "about.tutorial_link": "Nouveau ici ? Regardez le tutoriel de 5 minutes.",
+  "welcome.tutorial_link": "Nouveau ici ? Regardez le tutoriel de 5 minutes."
 }

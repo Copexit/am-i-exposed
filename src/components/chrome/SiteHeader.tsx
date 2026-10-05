@@ -11,7 +11,7 @@ import { ApiSettings } from "@/components/ApiSettings";
 import { useDevMode } from "@/hooks/useDevMode";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { PrivacyNotice } from "./PrivacyNotice";
-import { NAV_ITEMS, isNavActive, graphHref } from "./nav";
+import { navItems, isNavActive, graphHref } from "./nav";
 import { useLocationHash } from "./useLocationHash";
 import { setHash } from "@/lib/hash-nav";
 
@@ -106,7 +106,7 @@ export function SiteHeader() {
         </div>
 
         <nav aria-label={t("common.mainNavigation", { defaultValue: "Main navigation" })} className="hidden md:flex items-center gap-0.5 min-w-0">
-          {NAV_ITEMS.map((item) => {
+          {navItems().map((item) => {
             const active = isNavActive(item.href, pathname);
             return (
               <Link
@@ -165,7 +165,7 @@ export function SiteHeader() {
             style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
           >
             <ul className="divide-y divide-hairline">
-              {NAV_ITEMS.map((item) => {
+              {navItems().map((item) => {
                 const active = isNavActive(item.href, pathname);
                 return (
                   <li key={item.href}>

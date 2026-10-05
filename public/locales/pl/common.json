@@ -2721,5 +2721,12 @@
   "qr.scanAgain": "Skanuj ponownie",
   "qr.switchCamera": "Przełącz kamerę",
   "video.error": "Nie udało się wczytać wideo.",
-  "video.openFile": "Otwórz plik wideo"
+  "video.openFile": "Otwórz plik wideo",
+  "common.tutorial": "Samouczek",
+  "home.promo_title": "Zobacz to w minutę",
+  "home.promo_play": "Odtwórz przegląd w 1 minutę",
+  "home.promo_video": "am-i.exposed w minutę",
+  "home.promo_tutorial_link": "Obejrzyj 5-minutowy samouczek",
+  "about.tutorial_link": "Nowy tutaj? Obejrzyj 5-minutowy samouczek.",
+  "welcome.tutorial_link": "Nowy tutaj? Obejrzyj 5-minutowy samouczek."
 }

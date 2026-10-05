@@ -1,6 +1,8 @@
 "use client";
 
 import { useTranslation } from "react-i18next";
+import { VIDEOS_ENABLED } from "@/lib/media/videos-enabled";
+import { PromoCard } from "./PromoCard";
 import { GRADE_VAR } from "@/lib/constants";
 
 const GRADES = ["A+", "B", "C", "D", "F"] as const;
@@ -55,6 +57,7 @@ export function HowItWorks({ checks }: { checks: number }) {
         {t("home.how_lead", { defaultValue: "Three steps." })}{" "}
         <span className="text-muted">{t("home.how_lead_muted", { defaultValue: "Only the blockchain lookup ever leaves this browser." })}</span>
       </p>
+      {VIDEOS_ENABLED && <PromoCard />}
       <ol className="grid md:grid-cols-3 border-t border-hairline">
         {steps.map((s, i) => (
           // Phones: glyph on top, then "01 Title" on one line and the body indented under the title. md+: the stacked column.

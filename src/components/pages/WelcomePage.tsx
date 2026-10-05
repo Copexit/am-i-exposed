@@ -4,6 +4,7 @@ import { Suspense, lazy } from "react";
 import Link from "next/link";
 import { ArrowRight, Github, Server } from "lucide-react";
 import { Trans, useTranslation } from "react-i18next";
+import { VIDEOS_ENABLED } from "@/lib/media/videos-enabled";
 import { PageFrame } from "@/components/pages/PageFrame";
 
 const TipJar = lazy(() =>
@@ -128,6 +129,11 @@ export function WelcomePage() {
               {t("welcome.cta", { defaultValue: "Scan your first transaction" })}
               <ArrowRight size={18} />
             </Link>
+            {VIDEOS_ENABLED && (
+              <Link href="/tutorial/" className="text-sm text-muted hover:text-foreground transition-colors">
+                {t("welcome.tutorial_link", { defaultValue: "New here? Watch the 5-minute tutorial." })}
+              </Link>
+            )}
             <div className="flex items-center gap-6">
               <a
                 href="https://github.com/Copexit/am-i-exposed"
