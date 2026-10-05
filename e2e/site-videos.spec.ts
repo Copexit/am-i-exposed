@@ -54,6 +54,16 @@ test("desktop: click plays the 16x9 promo", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", PLAY_PROMO).click();
   await expect.poll(() => m.mp4()).toContain("/media/promo-en-16x9.mp4");
+  await expect(page.locator("video")).toBeFocused();
+});
+
+test("header: Tutorial sits in the desktop bar only from lg", async ({ page }) => {
+  const nav = page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Tutorial" });
+  await page.setViewportSize({ width: 820, height: 900 });
+  await page.goto("/");
+  await expect(nav).toBeHidden();
+  await page.setViewportSize(DESKTOP);
+  await expect(nav).toBeVisible();
 });
 
 test("ami-language=es plays the es promo", async ({ page }) => {
@@ -113,4 +123,5 @@ test("chapter click mounts the video and seeks to the chapter start", async ({ p
 test("tutorial examples are links", async ({ page }) => {
   await page.goto("/tutorial/");
   await expect(page.locator('a[href^="/#tx="], a[href^="/#addr="]').first()).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Breadcrumb" }).locator('[aria-current="page"]')).toHaveText("Tutorial");
 });
