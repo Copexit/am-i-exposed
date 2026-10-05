@@ -11,6 +11,8 @@ const nextConfig: NextConfig = {
   agentRules: false,
   env: {
     NEXT_PUBLIC_APP_VERSION: pkg.version,
+    // always defined, so VIDEOS_ENABLED folds to a constant and flag-off bundles drop the video code
+    NEXT_PUBLIC_VIDEOS: process.env.NEXT_PUBLIC_VIDEOS ?? "",
   },
 };
 
