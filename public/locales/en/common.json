@@ -2643,5 +2643,7 @@
   "qr.multisig": "Multisig wallet exports are not supported yet.",
   "qr.unsupported": "This QR type is not supported.",
   "qr.scanAgain": "Scan again",
-  "qr.switchCamera": "Switch camera"
+  "qr.switchCamera": "Switch camera",
+  "video.error": "The video could not be loaded.",
+  "video.openFile": "Open the video file"
 }

@@ -2719,5 +2719,7 @@
   "qr.multisig": "Eksporty portfeli multisig nie są jeszcze obsługiwane.",
   "qr.unsupported": "Ten typ kodu QR nie jest obsługiwany.",
   "qr.scanAgain": "Skanuj ponownie",
-  "qr.switchCamera": "Przełącz kamerę"
+  "qr.switchCamera": "Przełącz kamerę",
+  "video.error": "Nie udało się wczytać wideo.",
+  "video.openFile": "Otwórz plik wideo"
 }

@@ -2643,5 +2643,7 @@
   "qr.multisig": "Exportações de carteiras multisig ainda não são suportadas.",
   "qr.unsupported": "Este tipo de QR não é suportado.",
   "qr.scanAgain": "Ler novamente",
-  "qr.switchCamera": "Trocar de câmera"
+  "qr.switchCamera": "Trocar de câmera",
+  "video.error": "Não foi possível carregar o vídeo.",
+  "video.openFile": "Abrir o arquivo de vídeo"
 }

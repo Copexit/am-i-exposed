@@ -2643,5 +2643,7 @@
   "qr.multisig": "Las exportaciones de monederos multifirma aún no son compatibles.",
   "qr.unsupported": "Este tipo de QR no es compatible.",
   "qr.scanAgain": "Escanear de nuevo",
-  "qr.switchCamera": "Cambiar de cámara"
+  "qr.switchCamera": "Cambiar de cámara",
+  "video.error": "No se ha podido cargar el vídeo.",
+  "video.openFile": "Abre el archivo de vídeo"
 }

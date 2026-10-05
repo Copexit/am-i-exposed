@@ -2643,5 +2643,7 @@
   "qr.multisig": "Les exports de portefeuilles multisig ne sont pas encore pris en charge.",
   "qr.unsupported": "Ce type de QR n'est pas pris en charge.",
   "qr.scanAgain": "Scanner à nouveau",
-  "qr.switchCamera": "Changer de caméra"
+  "qr.switchCamera": "Changer de caméra",
+  "video.error": "La vidéo n'a pas pu être chargée.",
+  "video.openFile": "Ouvrir le fichier vidéo"
 }
