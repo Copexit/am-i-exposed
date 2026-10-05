@@ -7,6 +7,7 @@ import { motion } from "motion/react";
 import { Camera, RefreshCw, SwitchCamera, X } from "lucide-react";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { QrAssembler, type AssemblerState } from "@/lib/input/qr-assembler";
+import { hasFinePointerOnly, shouldMirrorPreview } from "@/lib/input/camera-mirror";
 import { createFrameDecoder, decodeImageFile } from "@/lib/input/qr-decode";
 
 const FRAME_MS = 120;
@@ -36,6 +37,7 @@ export function QrScanner({ onResult, onClose }: { onResult: (text: string) => v
   const [devices, setDevices] = useState<string[]>([]);
   const [deviceId, setDeviceId] = useState<string | undefined>(undefined);
   const [run, setRun] = useState(0);
+  const [mirror, setMirror] = useState(false); // CSS-only: decoding reads raw frames from the <video>
 
   // Latest callbacks in a ref so a parent re-render never restarts the camera.
   const cb = useRef({ onResult, onClose });
@@ -120,7 +122,10 @@ export function QrScanner({ onResult, onClose }: { onResult: (text: string) => v
       }
       if (stopped) { stream.getTracks().forEach((tr) => tr.stop()); return; }
       liveRef.current = true;
-      currentDevice.current = stream.getVideoTracks()[0]?.getSettings().deviceId;
+      const track = stream.getVideoTracks()[0];
+      const settings = track?.getSettings();
+      currentDevice.current = settings?.deviceId;
+      setMirror(shouldMirrorPreview({ facingMode: settings?.facingMode, label: track?.label, finePointer: hasFinePointerOnly() }));
       const video = videoRef.current;
       if (video) {
         video.srcObject = stream;
@@ -234,7 +239,7 @@ export function QrScanner({ onResult, onClose }: { onResult: (text: string) => v
         </div>
 
         {!cameraOff && (
-          <video ref={videoRef} playsInline muted autoPlay className="w-full aspect-square object-cover bg-black" />
+          <video ref={videoRef} playsInline muted autoPlay className={`w-full aspect-square object-cover bg-black${mirror ? " -scale-x-100" : ""}`} />
         )}
 
         <div className="p-5 space-y-3 text-sm" aria-live="polite">
