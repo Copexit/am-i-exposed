@@ -14,10 +14,12 @@ const tracks = [
   { lang: "en", label: "English", src: "/media/t-en.vtt", default: true },
   { lang: "es", label: "Español", src: "/media/t-es.vtt", default: false },
 ];
-const resolve = vi.fn(() => ({ src: "/media/a.mp4", poster: "/media/a.webp", aspect: "9/16" as const }));
+const A = { src: "/media/a.mp4", poster: "/media/a.webp", aspect: "9/16" as const };
+const resolve = vi.fn(() => A);
 const props = { resolve, poster: "/media/p.webp", aspect: "16/9" as const, tracks, playLabel: "Play promo", videoLabel: "Promo video" };
 
 beforeEach(() => {
+  resolve.mockReset().mockImplementation(() => A);
   vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
   vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
   vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
