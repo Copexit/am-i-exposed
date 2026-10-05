@@ -25,17 +25,31 @@ export const PosterVideo = forwardRef<PosterVideoHandle, PosterVideoProps>(funct
   const { t } = useTranslation();
   const [media, setMedia] = useState<Resolved | null>(null);
   const [failed, setFailed] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const pending = useRef<number | null>(null);
   const mounted = useRef(false);
 
   const start = useCallback(() => {
     if (mounted.current) return;
-    mounted.current = true; // resolved once; rotation mid-play keeps the source
-    setMedia(resolve());
+    try {
+      const m = resolve();
+      mounted.current = true; // resolved once; rotation mid-play keeps the source
+      setMedia(m);
+    } catch {
+      // stay on the poster; a later click retries
+    }
   }, [resolve]);
 
   const play = (v: HTMLVideoElement) => { v.play()?.catch(() => {}); };
+
+  // Runs in the same commit as the click/seek gesture, so play() keeps user activation (iOS Safari).
+  const attach = useCallback((v: HTMLVideoElement | null) => {
+    videoRef.current = v;
+    if (!v) return;
+    if (pending.current !== null) v.currentTime = pending.current; // re-applied on loadedmetadata if ignored
+    play(v);
+    v.focus();
+  }, []);
 
   useImperativeHandle(ref, () => ({
     seek(seconds: number) {
@@ -48,8 +62,9 @@ export const PosterVideo = forwardRef<PosterVideoHandle, PosterVideoProps>(funct
 
   const a = media?.aspect ?? aspect;
   const portrait = a === "9/16";
-  const box = `relative overflow-hidden rounded-2xl border border-hairline bg-surface-inset ${
-    portrait ? "mx-auto max-h-[80vh] w-auto" : "w-full"
+  // portrait: width capped so height (via aspect-ratio) never exceeds 80vh
+  const box = `relative mx-auto overflow-hidden rounded-2xl border border-hairline bg-surface-inset ${
+    portrait ? "w-[min(100%,calc(80vh*9/16))]" : "w-full"
   } ${className ?? ""}`;
   const style = { aspectRatio: a.replace("/", " / ") };
 
@@ -84,7 +99,7 @@ export const PosterVideo = forwardRef<PosterVideoHandle, PosterVideoProps>(funct
   return (
     <div className={box} style={style}>
       <video
-        ref={videoRef}
+        ref={attach}
         src={media.src}
         poster={media.poster}
         controls
@@ -92,13 +107,13 @@ export const PosterVideo = forwardRef<PosterVideoHandle, PosterVideoProps>(funct
         autoPlay
         preload="none"
         aria-label={videoLabel}
+        tabIndex={-1}
         className="h-full w-full bg-black"
         onError={() => setFailed(true)}
         onLoadedMetadata={(e) => {
           if (pending.current === null) return;
           e.currentTarget.currentTime = pending.current;
           pending.current = null;
-          play(e.currentTarget);
         }}
       >
         {tracks?.map((tr) => (

@@ -15,7 +15,7 @@ const tracks = [
   { lang: "es", label: "Español", src: "/media/t-es.vtt", default: false },
 ];
 const A = { src: "/media/a.mp4", poster: "/media/a.webp", aspect: "9/16" as const };
-const resolve = vi.fn(() => A);
+const resolve = vi.fn((): { src: string; poster: string; aspect: "16/9" | "9/16" } => A);
 const props = { resolve, poster: "/media/p.webp", aspect: "16/9" as const, tracks, playLabel: "Play promo", videoLabel: "Promo video" };
 
 beforeEach(() => {
@@ -50,13 +50,32 @@ describe("PosterVideo", () => {
     expect(t.length).toBe(2);
     expect(v.querySelectorAll("track[default]").length).toBe(1);
     expect(resolve).toHaveBeenCalledTimes(1);
+    expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(v);
+  });
+
+  it("sizes the portrait box by height and the 16:9 box by width", () => {
+    const { container, unmount } = render(<PosterVideo {...props} />);
+    expect((container.firstElementChild as HTMLElement).className).toContain("w-full");
+    fireEvent.click(screen.getByRole("button", { name: "Play promo" }));
+    expect((container.firstElementChild as HTMLElement).className).toContain("w-[min(100%,calc(80vh*9/16))]");
+    unmount();
+  });
+
+  it("stays on the poster if resolve throws, then retries", () => {
+    const { container } = render(<PosterVideo {...props} />);
+    resolve.mockImplementationOnce(() => { throw new Error("x"); });
+    fireEvent.click(screen.getByRole("button", { name: "Play promo" }));
+    expect(container.querySelector("video")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Play promo" }));
+    expect(container.querySelector("video")).toBeTruthy();
   });
 
   it("never re-resolves after mounting", () => {
     const ref = createRef<PosterVideoHandle>();
     const { container } = render(<PosterVideo {...props} ref={ref} />);
     fireEvent.click(screen.getByRole("button", { name: "Play promo" }));
-    resolve.mockReturnValueOnce({ src: "/media/b.mp4", poster: "/media/b.webp", aspect: "16/9" as never });
+    resolve.mockReturnValueOnce({ src: "/media/b.mp4", poster: "/media/b.webp", aspect: "16/9" as const });
     act(() => ref.current?.seek(5));
     expect(resolve).toHaveBeenCalledTimes(1);
     expect(container.querySelector("video")?.getAttribute("src")).toBe("/media/a.mp4");
@@ -81,7 +100,8 @@ describe("PosterVideo", () => {
     expect(v).toBeTruthy();
     fireEvent.loadedMetadata(v);
     expect(v.currentTime).toBe(42);
-    expect(HTMLMediaElement.prototype.play).toHaveBeenCalled();
+    expect(resolve).toHaveBeenCalledTimes(1);
+    expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1);
   });
 
   it("seek on a mounted video sets currentTime at once", () => {
