@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { StrictMode } from "react";
-import { renderHook, act, cleanup } from "@testing-library/react";
+import { renderHook, act, cleanup, waitFor } from "@testing-library/react";
 import { ApiError } from "@/lib/api/fetch-with-retry";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
 import type { ScoringResult } from "@/lib/types";
@@ -16,9 +16,12 @@ const m = vi.hoisted(() => ({
   runTxidAnalysis: vi.fn(),
   detectTxidNetwork: vi.fn(),
   createApiClient: vi.fn(),
-  parsePSBT: vi.fn(),
-  analyzeTransaction: vi.fn(),
+  parseLocalTx: vi.fn(),
+  runLocalAnalysis: vi.fn(),
   setNetwork: vi.fn(),
+  createMempoolClient: vi.fn(),
+  lookupClient: { tag: "lookup" },
+  isUmbrel: false,
   host: "http://onion.example",
 }));
 
@@ -29,11 +32,22 @@ vi.mock("@/lib/api/analysis-cache", () => ({
 vi.mock("@/lib/analysis/run-txid-analysis", () => ({ runTxidAnalysis: m.runTxidAnalysis }));
 vi.mock("@/lib/analysis/run-address-analysis", () => ({ runAddressAnalysis: vi.fn() }));
 vi.mock("@/lib/api/detect-network", () => ({ detectTxidNetwork: m.detectTxidNetwork }));
-vi.mock("@/lib/api/client", () => ({ createApiClient: m.createApiClient }));
-vi.mock("@/lib/bitcoin/psbt", async (orig) => ({ ...(await orig<object>()), parsePSBT: m.parsePSBT }));
+vi.mock("@/lib/api/client", () => ({
+  createApiClient: m.createApiClient,
+  isLocalApi: (u: string) => u.includes("umbrel") || u.includes("localhost"),
+}));
+vi.mock("@/lib/input/local-tx", () => ({
+  parseLocalTx: m.parseLocalTx,
+  localTxLabel: () => ({ key: "local.queryPsbt", inputs: 0, outputs: 0 }),
+}));
+vi.mock("@/lib/analysis/run-local-analysis", () => ({
+  runLocalAnalysis: m.runLocalAnalysis,
+  countLookups: () => ({ inputs: 1, addresses: 2 }),
+  LookupFailedError: class LookupFailedError extends Error {},
+}));
+vi.mock("@/lib/api/mempool", () => ({ createMempoolClient: m.createMempoolClient }));
 vi.mock("@/lib/analysis/entity-filter", () => ({ loadEntityFilter: vi.fn() }));
 vi.mock("@/lib/analysis/orchestrator", () => ({
-  analyzeTransaction: m.analyzeTransaction,
   getTxHeuristicSteps: () => [{ id: "h1", label: "h1", status: "pending" }],
   getAddressHeuristicSteps: () => [{ id: "a1", label: "a1", status: "pending" }],
 }));
@@ -56,7 +70,7 @@ vi.mock("@/context/NetworkContext", () => ({
     get config() { return onionConfigFor("mainnet"); },
     configFor: onionConfigFor,
     customApiUrl: null,
-    isUmbrel: false,
+    get isUmbrel() { return m.isUmbrel; },
     isCustomApi: false,
   }),
 }));
@@ -71,6 +85,8 @@ const txOutcome = (r: ScoringResult) => ({ result: r, boltzmannResult: null, bol
 beforeEach(() => {
   vi.clearAllMocks();
   m.host = "http://onion.example";
+  m.isUmbrel = false;
+  m.createMempoolClient.mockReturnValue(m.lookupClient);
   m.getCachedResult.mockResolvedValue(null);
   m.putCachedResult.mockResolvedValue(undefined);
   m.createApiClient.mockReturnValue({});
@@ -157,6 +173,25 @@ describe("useAnalysis", () => {
     expect(m.putCachedResult.mock.calls[0]![0]).toBe("testnet4@http://onion.example/testnet4/api");
   });
 
+  it("awaitIndexing skips the result cache and NOT_FOUND auto-detect, and flags the wait", async () => {
+    m.getCachedResult.mockResolvedValue({ result: result() });
+    m.runTxidAnalysis.mockImplementation(() => new Promise(() => {}));
+    const { result: hook } = renderHook(() => useAnalysis());
+    act(() => { void hook.current.analyze(TXID, { awaitIndexing: true }); });
+    await waitFor(() => expect(m.runTxidAnalysis).toHaveBeenCalled());
+    expect(m.getCachedResult).not.toHaveBeenCalled();
+    expect(m.runTxidAnalysis.mock.calls[0]![1]).toMatchObject({ awaitIndexing: true });
+    expect(hook.current.awaitingIndex).toBe(true);
+  });
+
+  it("awaitIndexing never probes other networks when the tx stays NOT_FOUND", async () => {
+    m.runTxidAnalysis.mockRejectedValue(new ApiError("NOT_FOUND", "nf"));
+    const { result: hook } = renderHook(() => useAnalysis());
+    await act(async () => { await hook.current.analyze(TXID, { awaitIndexing: true }); });
+    expect(m.detectTxidNetwork).not.toHaveBeenCalled();
+    expect(hook.current.phase).toBe("error");
+  });
+
   it("maps API errors through the shared error mapper", async () => {
     m.runTxidAnalysis.mockRejectedValue(new ApiError("RATE_LIMITED", "429"));
     const { result: hook } = renderHook(() => useAnalysis());
@@ -169,20 +204,106 @@ describe("useAnalysis", () => {
 
   it("parses a PSBT against the selected network", async () => {
     const tx = { txid: TXID, vin: [], vout: [] };
-    m.parsePSBT.mockReturnValue({ tx });
-    m.analyzeTransaction.mockResolvedValue(result());
+    m.parseLocalTx.mockReturnValue({ tx });
+    m.runLocalAnalysis.mockResolvedValue({ result: result(), tx, boltzmannResult: null, boltzmannStatus: "idle" });
     const { result: hook } = renderHook(() => useAnalysis());
     await act(async () => { await hook.current.analyze("cHNidP8BAAoCAAAAAAAAAAAAAAAA"); });
 
-    expect(m.parsePSBT).toHaveBeenCalledWith("cHNidP8BAAoCAAAAAAAAAAAAAAAA", "mainnet");
+    expect(m.parseLocalTx).toHaveBeenCalledWith("cHNidP8BAAoCAAAAAAAAAAAAAAAA", "mainnet");
+    expect(hook.current.phase).toBe("complete");
+    expect(hook.current.query).not.toContain("cHNidP");
   });
 
   it("shows the parser's reason when a PSBT fails to parse", async () => {
-    m.parsePSBT.mockImplementation(() => { throw new Error("unexpected end of input"); });
+    m.parseLocalTx.mockImplementation(() => { throw new Error("unexpected end of input"); });
     const { result: hook } = renderHook(() => useAnalysis());
     await act(async () => { await hook.current.analyze("cHNidP8BAAoC"); });
 
     expect(hook.current.phase).toBe("error");
-    expect(hook.current.error).toBe("Failed to parse PSBT: unexpected end of input");
+    expect(hook.current.error).toBe("Could not read this transaction: unexpected end of input");
+    expect(hook.current.query).not.toContain("cHNidP");
+  });
+
+  describe("local tx lookups", () => {
+    const INPUT = "cHNidP8BAAoCAAAAAAAAAAAAAAAA";
+    const LOCAL_RAW = {
+      source: "raw", status: "signed", signedHex: "00", psbt: null, missingPrevouts: [0],
+      tx: {
+        txid: TXID,
+        vin: [{ txid: "b".repeat(64), vout: 0, prevout: null }],
+        vout: [{ value: 1000, scriptpubkey_address: "bc1qaaa" }, { value: 500, scriptpubkey_address: "bc1qbbb" }],
+      },
+    };
+    const outcome = (lookedUp: boolean) => ({
+      result: result(), tx: LOCAL_RAW.tx, lookedUp, outputTxCounts: null, boltzmannResult: null, boltzmannStatus: "idle",
+    });
+    beforeEach(() => {
+      m.parseLocalTx.mockReturnValue(LOCAL_RAW);
+      m.runLocalAnalysis.mockResolvedValue(outcome(false));
+    });
+
+    it("public backend: local tx analyzed without network, lookup offered", async () => {
+      const { result: hook } = renderHook(() => useAnalysis());
+      await act(async () => { await hook.current.analyze(INPUT); });
+      expect(m.runLocalAnalysis).toHaveBeenCalledWith(LOCAL_RAW, expect.objectContaining({ lookup: null }));
+      expect(hook.current.localLookup).toEqual({ status: "available", inputs: 1, addresses: 2 });
+      expect(m.createMempoolClient).not.toHaveBeenCalled();
+    });
+
+    it("completeLocalLookup re-runs with an uncached client", async () => {
+      const { result: hook } = renderHook(() => useAnalysis());
+      await act(async () => { await hook.current.analyze(INPUT); });
+      m.runLocalAnalysis.mockResolvedValue(outcome(true));
+      await act(async () => { await hook.current.completeLocalLookup(); });
+      expect(m.createMempoolClient).toHaveBeenCalledWith(expect.stringContaining("/api"), expect.objectContaining({ timeoutMs: expect.any(Number) }));
+      expect(m.runLocalAnalysis).toHaveBeenLastCalledWith(LOCAL_RAW, expect.objectContaining({ lookup: m.lookupClient }));
+      expect(hook.current.localLookup?.status).toBe("done");
+      expect(m.createApiClient).not.toHaveBeenCalled();
+    });
+
+    it("a failed lookup keeps the result and allows a retry", async () => {
+      const { result: hook } = renderHook(() => useAnalysis());
+      await act(async () => { await hook.current.analyze(INPUT); });
+      m.runLocalAnalysis.mockRejectedValue(new Error("down"));
+      await act(async () => { await hook.current.completeLocalLookup(); });
+      expect(hook.current.localLookup?.status).toBe("failed");
+      expect(hook.current.phase).toBe("complete");
+      expect(hook.current.result).not.toBeNull();
+    });
+
+    it("ignores a second completeLocalLookup while one is running", async () => {
+      const { result: hook } = renderHook(() => useAnalysis());
+      await act(async () => { await hook.current.analyze(INPUT); });
+      let finish!: (v: unknown) => void;
+      m.runLocalAnalysis.mockReturnValue(new Promise((r) => { finish = r; }));
+      let first!: Promise<void>;
+      await act(async () => { first = hook.current.completeLocalLookup(); await Promise.resolve(); });
+      await waitFor(() => expect(m.runLocalAnalysis).toHaveBeenCalledTimes(2));
+      const calls = m.runLocalAnalysis.mock.calls.length;
+      await act(async () => { await hook.current.completeLocalLookup(); });
+      expect(m.runLocalAnalysis.mock.calls.length).toBe(calls);
+      await act(async () => { finish(outcome(true)); await first; });
+      expect(hook.current.localLookup?.status).toBe("done");
+    });
+
+    it("self-hosted backend down: lookup-free result shown, status failed", async () => {
+      m.isUmbrel = true;
+      const { LookupFailedError } = await import("@/lib/analysis/run-local-analysis");
+      m.runLocalAnalysis.mockRejectedValueOnce(new LookupFailedError());
+      const { result: hook } = renderHook(() => useAnalysis());
+      await act(async () => { await hook.current.analyze(INPUT); });
+      expect(m.runLocalAnalysis).toHaveBeenCalledTimes(2);
+      expect(m.runLocalAnalysis).toHaveBeenLastCalledWith(LOCAL_RAW, expect.objectContaining({ lookup: null }));
+      expect(hook.current.phase).toBe("complete");
+      expect(hook.current.localLookup).toEqual({ status: "failed", inputs: 1, addresses: 2 });
+    });
+
+    it("self-hosted backend: looks up automatically", async () => {
+      m.isUmbrel = true;
+      const { result: hook } = renderHook(() => useAnalysis());
+      await act(async () => { await hook.current.analyze(INPUT); });
+      expect(m.runLocalAnalysis).toHaveBeenCalledWith(LOCAL_RAW, expect.objectContaining({ lookup: m.lookupClient }));
+      expect(hook.current.localLookup?.status).toBe("done");
+    });
   });
 });

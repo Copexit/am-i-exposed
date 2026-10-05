@@ -98,6 +98,11 @@ export function withCachePolicy(
       return withCache(`${prefix}:txhex:${txid}`, () => inner.getTxHex(txid));
     },
 
+    // Fee estimates go stale in minutes: deliberately uncached.
+    getRecommendedFees() {
+      return inner.getRecommendedFees();
+    },
+
     getAddress(address: string) {
       return withCache(
         `${prefix}:addr:${address}`,

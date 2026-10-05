@@ -17,10 +17,12 @@ interface ContextSectionProps {
   vm: ResultViewModel;
   txData: MempoolTransaction | null;
   devMode: boolean;
+  /** Local tx (not broadcast): no exchange screening, which would send its addresses out. */
+  local?: boolean;
 }
 
 /** Before you act: exchange screening, exchange CoinJoin policies, mistakes, the analyst's reading, fixes. */
-export function ContextSection({ query, inputType, vm, txData, devMode }: ContextSectionProps) {
+export function ContextSection({ query, inputType, vm, txData, devMode, local = false }: ContextSectionProps) {
   const { t } = useTranslation();
   return (
     <section aria-labelledby="context-title" className="space-y-5 pt-10 border-t border-hairline" data-testid="context">
@@ -32,7 +34,7 @@ export function ContextSection({ query, inputType, vm, txData, devMode }: Contex
       </div>
       <div className="grid gap-4 lg:grid-cols-2 items-start">
         <div className="space-y-4 min-w-0">
-          <CexRiskPanel query={query} inputType={inputType} txData={txData} isCoinJoin={vm.isCoinJoin} />
+          {!local && <CexRiskPanel query={query} inputType={inputType} txData={txData} isCoinJoin={vm.isCoinJoin} />}
           {vm.isCoinJoin && <ExchangeWarningPanel />}
         </div>
         <div className="space-y-4 min-w-0">

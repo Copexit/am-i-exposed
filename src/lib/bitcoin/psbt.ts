@@ -9,10 +9,11 @@
  * heuristics can analyze it.
  */
 
-import { Transaction, Address, OutScript, NETWORK, TEST_NETWORK } from "@scure/btc-signer";
+import { Transaction, NETWORK, TEST_NETWORK } from "@scure/btc-signer";
 import { base64 } from "@scure/base";
 import { bytesToHex, hexToBytes } from "./hex";
 import type { BitcoinNetwork } from "./networks";
+import { describeScript, INPUT_VSIZE, scriptSigAsm } from "./tx-convert";
 import type { MempoolTransaction, MempoolVin, MempoolVout } from "@/lib/api/types";
 
 // ---------- Types ----------
@@ -41,46 +42,6 @@ export interface PSBTParseResult {
 }
 
 // ---------- Helpers ----------
-
-/** btc-signer OutScript type -> mempool.space scriptpubkey_type */
-const MEMPOOL_SCRIPT_TYPE: Record<string, string> = {
-  pk: "p2pk",
-  pkh: "p2pkh",
-  sh: "p2sh",
-  wpkh: "v0_p2wpkh",
-  wsh: "v0_p2wsh",
-  tr: "v1_p2tr",
-  ms: "multisig",
-  p2a: "anchor",
-};
-
-/** Rough per-input vsize by prevout type, for PSBTs that are not finalized yet. */
-const INPUT_VSIZE: Record<string, number> = {
-  p2pkh: 148,
-  p2sh: 91, // assumes P2SH-P2WPKH
-  v0_p2wpkh: 68,
-  v1_p2tr: 58,
-};
-
-type BtcNetwork = typeof NETWORK;
-
-/** Describe an output script the way the mempool.space API does. */
-function describeScript(script: Uint8Array, net: BtcNetwork) {
-  const scriptpubkey = bytesToHex(script);
-  if (script[0] === 0x6a) {
-    return { scriptpubkey, scriptpubkey_type: "op_return", scriptpubkey_address: "" };
-  }
-  let scriptpubkey_type = "unknown";
-  let scriptpubkey_address = "";
-  try {
-    const decoded = OutScript.decode(script);
-    scriptpubkey_type = MEMPOOL_SCRIPT_TYPE[decoded.type] ?? "unknown";
-    scriptpubkey_address = Address(net).encode(decoded);
-  } catch {
-    // Non-standard script or a type without an address (p2pk, bare multisig)
-  }
-  return { scriptpubkey, scriptpubkey_type, scriptpubkey_address };
-}
 
 /**
  * Output scripts do not encode the network, so fall back to BIP32 derivation
@@ -173,7 +134,7 @@ export function parsePSBT(input: string, network?: BitcoinNetwork): PSBTParseRes
       vout: inp.index ?? 0,
       prevout,
       scriptsig: inp.finalScriptSig ? bytesToHex(inp.finalScriptSig) : "",
-      scriptsig_asm: "",
+      scriptsig_asm: scriptSigAsm(inp.finalScriptSig),
       witness: inp.finalScriptWitness?.map(bytesToHex) ?? [],
       is_coinbase: false,
       sequence: inp.sequence ?? 0xffffffff,

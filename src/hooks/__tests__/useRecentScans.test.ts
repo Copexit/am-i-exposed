@@ -80,4 +80,17 @@ describe("useRecentScans", () => {
     expect(result.current.scans[0]?.input).toBe("tx1");
     expect(result.current.scans[0]?.grade).toBe("A+");
   });
+
+  it("drops truncated PSBT entries saved by older versions", async () => {
+    localStorage.setItem("recent-scans", JSON.stringify([
+      { input: "cHNidP8BAHECAAAAAXqm...", type: "txid", grade: "C", score: 60, timestamp: 1 },
+      { input: "a".repeat(64), type: "txid", grade: "B", score: 78, timestamp: 2 },
+    ]));
+    const { useRecentScans: fresh } = await import("../useRecentScans");
+    const { result } = renderHook(() => fresh());
+    expect(result.current.scans.map((s) => s.input)).toEqual(["a".repeat(64)]);
+    // Removed from storage, not just hidden
+    expect(localStorage.getItem("recent-scans")).not.toContain("cHNidP");
+    expect(localStorage.getItem("recent-scans")).toContain("a".repeat(64));
+  });
 });

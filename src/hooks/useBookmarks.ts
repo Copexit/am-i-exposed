@@ -1,7 +1,8 @@
 "use client";
 
-import { useSyncExternalStore, useCallback } from "react";
+import { useSyncExternalStore, useCallback, useEffect } from "react";
 import { createLocalStorageStore } from "./createLocalStorageStore";
+import { isLocalPayloadPrefix } from "@/lib/analysis/detect-input";
 import { savedGraphStore } from "./useSavedGraphs";
 import { validateSavedGraph } from "@/lib/graph/saved-graph-types";
 import type { SavedGraph } from "@/lib/graph/saved-graph-types";
@@ -19,6 +20,8 @@ function isValidBookmark(b: unknown): b is Bookmark {
   return (
     typeof b === "object" && b !== null &&
     typeof (b as Bookmark).input === "string" &&
+    // Truncated PSBT entries saved by older versions (and imports of them) are dropped
+    !isLocalPayloadPrefix((b as Bookmark).input) &&
     ((b as Bookmark).type === "txid" || (b as Bookmark).type === "address") &&
     typeof (b as Bookmark).grade === "string" &&
     typeof (b as Bookmark).score === "number" &&
@@ -72,6 +75,9 @@ function mergeGraphs(items: unknown[]): number | null {
 }
 
 export function useBookmarks() {
+  // Remove entries the parser drops (truncated PSBTs saved by older versions) from storage
+  useEffect(() => store.persistParsed(), []);
+
   const bookmarks = useSyncExternalStore(
     store.subscribe,
     store.getSnapshot,

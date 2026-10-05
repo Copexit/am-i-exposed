@@ -17,7 +17,7 @@ export function scanStages(
   fp: FetchProgress | null,
 ): Stage[] {
   const ids: StageId[] =
-    inputType === "psbt" ? ["checks"]
+    inputType === "psbt" || inputType === "rawtx" ? ["checks"]
       : inputType === "address" ? ["fetch", "checks"]
         : ["fetch", "trace-back", "trace-fwd", "checks"];
   let current: StageId = "fetch";

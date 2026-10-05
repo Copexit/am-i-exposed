@@ -10,6 +10,9 @@ import type { PreSendResult } from "@/lib/analysis/orchestrator";
 import { getTxHeuristicSteps, getAddressHeuristicSteps } from "@/lib/analysis/heuristic-steps";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 import type { BoltzmannWorkerResult } from "@/hooks/useBoltzmann";
+import type { LocalTx } from "@/lib/input/local-tx";
+import type { AnalysisState } from "@/lib/analysis/analysis-state";
+import { backendClass, endpointHost } from "@/lib/api/backend-class";
 import { TX_BASE_SCORE, ADDRESS_BASE_SCORE } from "@/lib/scoring/score";
 import { matchEntitySync } from "@/lib/analysis/entity-filter/entity-match";
 import { buildResultViewModel } from "@/lib/view/tx-view-model";
@@ -27,7 +30,8 @@ import { EvidencePanel } from "./EvidencePanel";
 import { ExplainRail } from "./ExplainRail";
 import { AnalystWorkspace } from "./AnalystWorkspace";
 import { ContextSection } from "./ContextSection";
-const PsbtBanner = lazy(() => import("@/components/flows/PsbtBanner").then((m) => ({ default: m.PsbtBanner })));
+const BroadcastDialog = lazy(() => import("@/components/flows/BroadcastDialog").then((m) => ({ default: m.BroadcastDialog })));
+const BeforeYouSend = lazy(() => import("@/components/flows/BeforeYouSend").then((m) => ({ default: m.BeforeYouSend })));
 
 export interface ResultsProps {
   query: string;
@@ -49,8 +53,16 @@ export interface ResultsProps {
   boltzmannResult?: BoltzmannWorkerResult | null;
   /** Play the Reveal (fresh scans); false for cached results. */
   reveal: boolean;
-  /** PSBT scans: shown as a banner above the verdict. */
-  psbt?: { inputCount: number; outputCount: number; fee: number; feeRate: number; complete: boolean } | null;
+  /** PSBT / raw tx analyzed in memory: shows the Before you send panel, hides sharing and explorer links. */
+  local?: LocalTx | null;
+  /** Re-run a local analysis (the query is a label, not something to rescan). */
+  onRetryLocal?: () => void;
+  /** Consent lookup state for a local tx (null when not offered). */
+  localLookup?: AnalysisState["localLookup"];
+  localOutputTxCounts?: Map<string, number> | null;
+  onLocalLookup?: () => void;
+  /** A local tx was broadcast: hand over to the normal txid scan. Without it, no broadcast is offered. */
+  onBroadcastSuccess?: (txid: string) => void;
 }
 
 const entityName = (address: string) => matchEntitySync(address)?.entityName ?? null;
@@ -64,11 +76,17 @@ export function Results(props: ResultsProps) {
   const {
     query, inputType, result, txData, addressData, addressTxs, addressUtxos, txBreakdown,
     preSendResult, onScan, onBack, durationMs, usdPrice, outspends, backwardLayers,
-    forwardLayers, boltzmannResult, reveal, psbt,
+    forwardLayers, boltzmannResult, reveal, local, onRetryLocal,
+    localLookup = null, localOutputTxCounts = null, onLocalLookup, onBroadcastSuccess,
   } = props;
   const { t } = useTranslation();
   const { config, customApiUrl, isUmbrel } = useNetwork();
   const { devMode } = useDevMode();
+  const [broadcastOpen, setBroadcastOpen] = useState(false);
+  const closeBroadcast = useCallback(() => setBroadcastOpen(false), []);
+  // Keyed by the local tx so a new scan starts clean; survives the dialog closing.
+  const [unknownFor, setUnknownFor] = useState<typeof local>(null);
+  const onUnknownChange = useCallback((u: boolean) => setUnknownFor(u ? local : null), [local]);
 
   const baseScore = inputType === "address" ? ADDRESS_BASE_SCORE : TX_BASE_SCORE;
   const vm = useMemo(
@@ -131,13 +149,18 @@ export function Results(props: ResultsProps) {
             <ArrowLeft size={15} aria-hidden="true" />
             {t("results.newScan", { defaultValue: "New scan" })}
           </button>
-          <div className="flex-1 min-w-0"><InlineSearchBar onScan={onScan} initialValue={query} /></div>
-          <ResultActions query={query} inputType={inputType} result={result} vm={vm} />
+          <div className="flex-1 min-w-0"><InlineSearchBar onScan={onScan} initialValue={local ? "" : query} /></div>
+          {!local && <ResultActions query={query} inputType={inputType} result={result} vm={vm} />}
         </div>
 
-        {psbt && <Suspense fallback={null}><PsbtBanner {...psbt} /></Suspense>}
+        {local && <Suspense fallback={null}><BeforeYouSend local={local} txData={txData} result={result} lookup={localLookup} outputTxCounts={localOutputTxCounts} onLookup={onLocalLookup ?? (() => {})} endpoint={endpointHost(config.mempoolBaseUrl)} onBroadcast={onBroadcastSuccess ? () => setBroadcastOpen(true) : undefined} /></Suspense>}
+        {local && broadcastOpen && onBroadcastSuccess && (
+          <Suspense fallback={null}>
+            <BroadcastDialog local={local} tx={txData ?? local.tx} result={result} baseUrl={config.mempoolBaseUrl} cls={backendClass({ isUmbrel, customApiUrl })} onClose={closeBroadcast} onSuccess={onBroadcastSuccess} unknownSent={unknownFor === local} onUnknownChange={onUnknownChange} />
+          </Suspense>
+        )}
 
-        <VerdictBand query={query} inputType={inputType} vm={vm} txData={txData} reveal={timeline} checkCount={checkCount} onRetry={() => onScan(query)} />
+        <VerdictBand local={!!local} query={query} inputType={inputType} vm={vm} txData={txData} reveal={timeline} checkCount={checkCount} onRetry={local ? (onRetryLocal ?? (() => {})) : () => onScan(query)} />
 
         <SectionNav hasAnalyst={inputType === "txid" ? !!txData : true} inputType={inputType} grade={vm.grade} score={vm.score} />
 
@@ -179,6 +202,7 @@ export function Results(props: ResultsProps) {
         </div>
 
         <AnalystWorkspace
+          local={!!local}
           query={query}
           inputType={inputType}
           result={result}
@@ -194,14 +218,14 @@ export function Results(props: ResultsProps) {
           onScan={onScan}
         />
 
-        <ContextSection query={query} inputType={inputType} vm={vm} txData={txData} devMode={devMode} />
+        <ContextSection local={!!local} query={query} inputType={inputType} vm={vm} txData={txData} devMode={devMode} />
 
         <ResultsFooter
           inputType={inputType}
           result={result}
           txBreakdown={txBreakdown}
           durationMs={durationMs}
-          explorerUrl={explorerUrl}
+          explorerUrl={local ? null : explorerUrl}
           explorerLabel={explorerLabel}
           mempoolBaseUrl={config.mempoolBaseUrl}
           findingCount={vm.visible.length}

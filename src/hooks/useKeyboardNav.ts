@@ -38,8 +38,8 @@ export function useKeyboardNav({
       // (e.g. closing fullscreen overlays) to avoid conflicts.
       if (e.key === "Escape") return;
 
-      // Don't interfere with typing in inputs
-      if (isInput) return;
+      // Don't interfere with typing in inputs, or with an open modal dialog
+      if (isInput || document.querySelector('[aria-modal="true"]')) return;
 
       // / or Ctrl+K: focus search
       if (e.key === "/" || (e.key === "k" && (e.metaKey || e.ctrlKey))) {

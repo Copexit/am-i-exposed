@@ -35,6 +35,8 @@
 - **[TODO.md](./TODO.md)** - Open backlog
 - **[spec-cli-tool.md](./spec-cli-tool.md)** - CLI tool requirements, architecture, commands, JSON schemas
 - **[spec-custom-api-endpoint.md](./spec-custom-api-endpoint.md)** - Custom mempool API URL feature
+- **[spec-before-you-send.md](./spec-before-you-send.md)** - PSBT and raw tx analysis before broadcast, QR/file input, opt-in broadcast (0.38.0)
+- **[plan-before-you-send.md](./plan-before-you-send.md)** - Task-by-task implementation plan for the spec above
 - **[tx-graph-roadmap.md](./tx-graph-roadmap.md)** - Transaction graph roadmap
 
 ## Research Archive

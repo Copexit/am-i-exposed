@@ -63,5 +63,14 @@ export function createLocalStorageStore<T>(
     window.dispatchEvent(new StorageEvent("storage"));
   }
 
-  return { getSnapshot, getServerSnapshot, subscribe, set, remove };
+  /**
+   * Write back the parsed value when parsing dropped stored entries (e.g. legacy
+   * ones the parser filters out), so they are removed from storage, not just hidden.
+   */
+  function persistParsed(): void {
+    const value = getSnapshot();
+    if (cachedRaw && value !== defaultValue && serialize(value) !== cachedRaw) set(value);
+  }
+
+  return { getSnapshot, getServerSnapshot, subscribe, set, remove, persistParsed };
 }

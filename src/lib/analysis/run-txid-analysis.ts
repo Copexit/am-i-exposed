@@ -12,6 +12,7 @@
 
 import { runTxHeuristicSteps, finalizeTxResult } from "@/lib/analysis/orchestrator";
 import { getAddressedOutputs } from "@/lib/analysis/heuristics/tx-utils";
+import { abortableSleep } from "@/lib/abort-signal";
 import { ApiError } from "@/lib/api/fetch-with-retry";
 import { needsEnrichment, enrichPrevouts, countNullPrevouts } from "@/lib/api/enrich-prevouts";
 import { computeBoltzmann, isAutoComputable } from "@/lib/analysis/boltzmann-compute";
@@ -42,10 +43,26 @@ export const ANALYSIS_INCOMPLETE_FINDING: Finding = {
   scoreImpact: 0,
 };
 
+export const INDEX_WAIT = { attempts: 10, delayMs: 3000 } as const;
+
+/** Right after a broadcast the backend may not have indexed the tx yet. */
+async function getTxAwaitingIndex(api: ApiClient, txid: string, signal: AbortSignal): Promise<MempoolTransaction> {
+  for (let i = 0; ; i++) {
+    try {
+      return await api.getTransaction(txid);
+    } catch (err) {
+      if (!(err instanceof ApiError && err.code === "NOT_FOUND") || i >= INDEX_WAIT.attempts - 1) throw err;
+      await abortableSleep(INDEX_WAIT.delayMs, signal);
+    }
+  }
+}
+
 /** Dependencies injected from the React hook layer. */
 export interface TxidAnalysisDeps {
   api: ApiClient;
   controller: AbortController;
+  /** Retry NOT_FOUND on the txid fetch (tx just broadcast, not indexed yet). */
+  awaitIndexing?: boolean;
   network: string;
   isCustomApi: boolean;
   analysisSettingsForCache: AnalysisSettings;
@@ -97,7 +114,9 @@ export async function runTxidAnalysis(
     isCustomApi ? p.catch(() => null) : optional(p);
 
   // Raw hex is not fetched: no heuristic reads it (low-R uses vin witness/scriptsig)
-  const tx = await api.getTransaction(txid);
+  const tx = deps.awaitIndexing
+    ? await getTxAwaitingIndex(api, txid, controller.signal)
+    : await api.getTransaction(txid);
 
   // Enrich missing prevout data for self-hosted mempool backends
   if (needsEnrichment([tx])) {
@@ -110,7 +129,7 @@ export async function runTxidAnalysis(
   // Publish the transaction as soon as it is known, so the scan view can draw
   // its real inputs and outputs while enrichment and the chain trace run.
   // Guarded like every update here: a newer scan aborts this one.
-  if (!controller.signal.aborted) setState((prev) => ({ ...prev, txData: tx }));
+  if (!controller.signal.aborted) setState((prev) => ({ ...prev, txData: tx, awaitingIndex: false }));
 
   // Start Boltzmann computation early (in parallel with price/trace fetches)
   const shouldAutoBoltzmann = isAutoComputable(tx);

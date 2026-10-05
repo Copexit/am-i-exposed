@@ -2,7 +2,7 @@ import type { ScoringResult, InputType, TxAnalysisResult, Finding } from "@/lib/
 import type { MempoolTransaction, MempoolAddress, MempoolUtxo, MempoolOutspend } from "@/lib/api/types";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import type { HeuristicStep, PreSendResult } from "@/lib/analysis/orchestrator";
-import type { PSBTParseResult } from "@/lib/bitcoin/psbt";
+import type { LocalTx } from "@/lib/input/local-tx";
 import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
 import { enrichFindingsWithMetadata } from "@/lib/analysis/finding-metadata";
@@ -45,8 +45,14 @@ export interface AnalysisState {
   usdPrice: number | null;
   /** Per-output spend status (null = not fetched yet). */
   outspends: MempoolOutspend[] | null;
-  /** Parsed PSBT metadata (only set when input is a PSBT). */
-  psbtData: PSBTParseResult | null;
+  /** In-memory PSBT/raw tx being analyzed (never persisted). */
+  localTx: LocalTx | null;
+  /** Consented lookup state for a local tx on a public backend. */
+  localLookup: { status: "available" | "running" | "done" | "failed"; inputs: number; addresses: number } | null;
+  /** Per-address tx counts from a completed local lookup (null = not looked up). */
+  localOutputTxCounts: Map<string, number> | null;
+  /** Just broadcast: waiting for the backend to index the tx. */
+  awaitingIndex: boolean;
   /** Progress during fetch/trace phase. */
   fetchProgress: FetchProgress | null;
   /** Backward trace layers from recursive tracing. */
@@ -80,7 +86,10 @@ export const INITIAL_STATE: AnalysisState = {
   durationMs: null,
   usdPrice: null,
   outspends: null,
-  psbtData: null,
+  localTx: null,
+  localLookup: null,
+  localOutputTxCounts: null,
+  awaitingIndex: false,
   fetchProgress: null,
   backwardLayers: null,
   forwardLayers: null,

@@ -237,6 +237,7 @@ export const FINDING_METADATA = {
 
   // ── API / Infrastructure ────────────────────────────────────────────
   "api-incomplete-prevout":    { adversaryTiers: [P], temporality: "historical" },
+  "local-needs-amounts":       { adversaryTiers: [P], temporality: "historical" },
   "analysis-incomplete":       { adversaryTiers: [P], temporality: "historical" },
   "address-utxos-unavailable": { adversaryTiers: [P], temporality: "historical" },
   "wallet-scan-partial":       { adversaryTiers: [P], temporality: "historical" },

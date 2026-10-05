@@ -12,5 +12,9 @@ describe("Polish plural forms", () => {
     expect(title(5)).toBe("Wykryto 5 adresów objętych sankcjami OFAC");
     expect(title(22)).toBe("Wykryto 22 adresy objęte sankcjami OFAC");
     expect(i18n.t("cex.addressCount", { count: 12 })).toBe("12 adresów");
+    expect(i18n.t("local.lookupParents", { count: 1 })).toBe("1 transakcję nadrzędną");
+    expect(i18n.t("local.lookupParents", { count: 3 })).toBe("3 transakcje nadrzędne");
+    expect(i18n.t("local.lookupParents", { count: 5 })).toBe("5 transakcji nadrzędnych");
+    expect(i18n.t("local.lookupAddresses", { count: 22 })).toBe("22 adresy");
   });
 });

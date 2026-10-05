@@ -25,6 +25,8 @@ interface VerdictBandProps {
   reveal: RevealState;
   checkCount: number;
   onRetry: () => void;
+  /** Local tx: query is a label (not a txid to copy) and the tx is not in the mempool. */
+  local?: boolean;
 }
 
 function Stat({ value, label, tone }: { value: React.ReactNode; label: string; tone?: string }) {
@@ -37,7 +39,7 @@ function Stat({ value, label, tone }: { value: React.ReactNode; label: string; t
 }
 
 /** L0: the verdict. Grade, what it means, the counts that matter, and the one thing to do next. */
-export function VerdictBand({ query, inputType, vm, txData, reveal, checkCount, onRetry }: VerdictBandProps) {
+export function VerdictBand({ query, inputType, vm, txData, reveal, checkCount, onRetry, local = false }: VerdictBandProps) {
   const { t, i18n } = useTranslation();
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -69,6 +71,9 @@ export function VerdictBand({ query, inputType, vm, txData, reveal, checkCount, 
       <div className="min-w-0 space-y-6">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            {local ? (
+              <span data-testid="local-query" className="num text-xs text-muted truncate max-w-full">{query}</span>
+            ) : (
             <button
               type="button"
               onClick={() => {
@@ -86,6 +91,7 @@ export function VerdictBand({ query, inputType, vm, txData, reveal, checkCount, 
               <span className="truncate">{query}</span>
               {copied ? <Check size={13} className="shrink-0 text-severity-good" /> : <Copy size={13} className="shrink-0 opacity-50 group-hover:opacity-100" />}
             </button>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
             {showType && (
@@ -100,7 +106,7 @@ export function VerdictBand({ query, inputType, vm, txData, reveal, checkCount, 
             {inputType === "txid" && status?.confirmed && status.block_time != null && (
               <span className="num">{new Date(status.block_time * 1000).toLocaleString(i18n.language)}</span>
             )}
-            {inputType === "txid" && txData && !status?.confirmed && (
+            {inputType === "txid" && txData && !local && !status?.confirmed && (
               <span className="text-severity-medium">{t("results.unconfirmed", { defaultValue: "Unconfirmed (mempool)" })}</span>
             )}
           </div>

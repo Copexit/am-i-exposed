@@ -1,7 +1,10 @@
 import { existsSync, readFileSync } from "fs";
-import { parsePSBT, isPSBT } from "@/lib/bitcoin/psbt";
+import { isPSBT } from "@/lib/bitcoin/psbt";
 import { isValidNetwork } from "@/lib/bitcoin/networks";
-import { analyzeTransaction } from "@/lib/analysis/orchestrator";
+import { parseLocalTx, isRawTxHex } from "@/lib/input/local-tx";
+import { bytesToPayload } from "@/lib/input/file";
+import { cleanInput } from "@/lib/analysis/detect-input";
+import { runLocalAnalysis } from "@/lib/analysis/run-local-analysis";
 import type { GlobalOpts } from "../index";
 import { setJsonMode, startSpinner, succeedSpinner } from "../util/progress";
 import { formatTxResult } from "../output/formatter";
@@ -14,36 +17,37 @@ export async function scanPsbt(
   const isJson = !!opts.json;
   setJsonMode(isJson);
 
-  // Read input: file path or raw base64
-  let psbtData: string;
-  if (existsSync(input)) {
-    psbtData = readFileSync(input, "utf-8").trim();
-  } else {
-    psbtData = input.trim();
-  }
+  // Read input: file path (text or binary) or inline payload; line-wrapped payloads are unwrapped like the web
+  const data = cleanInput(existsSync(input) ? bytesToPayload(readFileSync(input)) : input);
 
-  if (!isPSBT(psbtData)) {
+  if (!isPSBT(data) && !isRawTxHex(data)) {
     throw new Error(
-      "Invalid PSBT: input is not a valid PSBT (expected base64 or hex format)",
+      "Invalid input: expected a PSBT (base64/hex/binary) or a raw transaction (hex/binary)",
     );
   }
 
-  startSpinner("Parsing PSBT...");
+  startSpinner("Parsing transaction...");
   // Encode addresses for the selected network, like the web
   const network = opts.network ?? "mainnet";
-  const parsed = parsePSBT(psbtData, isValidNetwork(network) ? network : undefined);
+  const local = parseLocalTx(data, isValidNetwork(network) ? network : "mainnet");
 
-  // Analyze the parsed transaction
-  const result = await analyzeTransaction(parsed.tx);
+  // Offline: no lookup client; Boltzmann has no Worker in Node so it is skipped
+  const { result, tx } = await runLocalAnalysis(local, {
+    lookup: null,
+    signal: new AbortController().signal,
+    boltzmannTimeoutMs: 0,
+    isCustomApi: false,
+  });
 
-  succeedSpinner("PSBT analysis complete");
+  succeedSpinner("Analysis complete");
 
   // Build PSBT info
   const psbtInfo: Record<string, unknown> = {
-    inputs: parsed.tx.vin.length,
-    outputs: parsed.tx.vout.length,
-    estimatedFee: parsed.tx.fee ?? null,
-    estimatedVsize: parsed.tx.weight ? Math.ceil(parsed.tx.weight / 4) : null,
+    status: local.status,
+    inputs: tx.vin.length,
+    outputs: tx.vout.length,
+    estimatedFee: tx.fee ?? null,
+    estimatedVsize: tx.weight ? Math.ceil(tx.weight / 4) : null,
   };
 
   // Output
@@ -51,6 +55,6 @@ export async function scanPsbt(
     psbtJson(input, result, psbtInfo, network);
   } else {
     // Reuse tx formatter with a synthetic "PSBT" label
-    console.log(formatTxResult("(PSBT - unsigned)", result, parsed.tx, network));
+    console.log(formatTxResult(local.source === "psbt" ? "(PSBT)" : "(raw transaction)", result, tx, network));
   }
 }

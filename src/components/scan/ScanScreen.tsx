@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { Check, Loader2 } from "lucide-react";
 import { useNetwork } from "@/context/NetworkContext";
+import { endpointHost } from "@/lib/api/backend-class";
 import { CopyButton } from "@/components/ui/CopyButton";
 import type { HeuristicStep } from "@/lib/analysis/heuristic-steps";
 import type { FetchProgress } from "@/hooks/useAnalysis";
@@ -21,6 +22,8 @@ export interface ScanScreenProps {
   fetchProgress: FetchProgress | null;
   /** The transaction, once fetched (drawn live while the trace runs). */
   txData?: MempoolTransaction | null;
+  /** Just broadcast: the backend has not indexed the tx yet. */
+  awaitingIndex?: boolean;
 }
 
 /**
@@ -28,7 +31,7 @@ export interface ScanScreenProps {
  * only through live signals (source, stage, depth, txs fetched, elapsed vs
  * timeout, per-check progress and the running score).
  */
-export function ScanScreen({ query, inputType, phase, steps, fetchProgress, txData }: ScanScreenProps) {
+export function ScanScreen({ query, inputType, phase, steps, fetchProgress, txData, awaitingIndex }: ScanScreenProps) {
   const { t } = useTranslation();
   const { isUmbrel, customApiUrl, config, torStatus } = useNetwork();
   const [start] = useState(() => Date.now());
@@ -42,7 +45,7 @@ export function ScanScreen({ query, inputType, phase, steps, fetchProgress, txDa
   const elapsed = Math.round((now - start) / 1000);
 
   const isAddress = inputType === "address";
-  const isPsbt = inputType === "psbt";
+  const isPsbt = inputType === "psbt" || inputType === "rawtx";
   const stages = scanStages(inputType, phase, fetchProgress);
   const active = stages.find((s) => s.state === "active")?.id ?? "checks";
   const sum = useMemo(() => summarizeSteps(steps, inputType), [steps, inputType]);
@@ -80,7 +83,9 @@ export function ScanScreen({ query, inputType, phase, steps, fetchProgress, txDa
   };
 
   const host = apiHost(config.mempoolBaseUrl);
-  const source = isPsbt
+  const source = awaitingIndex
+    ? t("scan.awaitingIndex", { host: endpointHost(config.mempoolBaseUrl), defaultValue: "Just broadcast. Waiting for {{host}} to index it." })
+    : isPsbt
     ? t("scan.sourcePsbt", { defaultValue: "Parsed in this browser, nothing is sent" })
     : isUmbrel
       ? t("scan.sourceLocal", { defaultValue: "Your local mempool node" })
@@ -92,9 +97,11 @@ export function ScanScreen({ query, inputType, phase, steps, fetchProgress, txDa
 
   const eyebrow = isAddress
     ? t("scan.eyebrowAddress", { defaultValue: "Scanning address" })
-    : isPsbt
-      ? t("scan.eyebrowPsbt", { defaultValue: "Scanning PSBT" })
-      : t("scan.eyebrowTx", { defaultValue: "Scanning transaction" });
+    : inputType === "rawtx"
+      ? t("scan.eyebrowRawTx", { defaultValue: "Scanning transaction" })
+      : isPsbt
+        ? t("scan.eyebrowPsbt", { defaultValue: "Scanning PSBT" })
+        : t("scan.eyebrowTx", { defaultValue: "Scanning transaction" });
 
   const running = sum.runningIndex >= 0 ? steps[sum.runningIndex] : undefined;
   const stripLabel = running?.label

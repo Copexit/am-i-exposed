@@ -3,7 +3,9 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
-import { createApiClient } from "@/lib/api/client";
+import { createApiClient, isLocalApi } from "@/lib/api/client";
+import { backendClass } from "@/lib/api/backend-class";
+import { createMempoolClient } from "@/lib/api/mempool";
 import { ApiError } from "@/lib/api/fetch-with-retry";
 import { detectAddressNetwork, detectTxidNetwork } from "@/lib/api/detect-network";
 import { mapApiErrorMessage } from "@/lib/api/error-message";
@@ -11,7 +13,7 @@ import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
 import { detectInputType } from "@/lib/analysis/detect-input";
 import { getTxHeuristicSteps, getAddressHeuristicSteps } from "@/lib/analysis/heuristic-steps";
 import { loadEngine } from "@/lib/analysis/load-engine";
-import { parsePSBT } from "@/lib/bitcoin/psbt";
+import { parseLocalTx, localTxLabel, type LocalTx } from "@/lib/input/local-tx";
 import { getAnalysisSettings, type AnalysisSettings } from "@/hooks/useAnalysisSettings";
 import { getCachedResult, putCachedResult } from "@/lib/api/analysis-cache";
 import { cacheKeyPrefix } from "@/lib/api/cache-policy";
@@ -28,6 +30,11 @@ import {
 export type { FetchProgress } from "@/lib/analysis/analysis-state";
 export type { PreSendResult } from "@/lib/analysis/orchestrator";
 
+/** Uncached, IP-linked lookups for a local tx: never createApiClient (IndexedDB cache). */
+function makeLookupClient(baseUrl: string, signal: AbortSignal) {
+  return createMempoolClient(baseUrl, { signal, timeoutMs: isLocalApi(baseUrl) ? 60_000 : 15_000 });
+}
+
 export function useAnalysis() {
   const [state, setState] = useState<AnalysisState>(INITIAL_STATE);
   const { network, setNetwork, config, configFor, customApiUrl, isUmbrel, isCustomApi } = useNetwork();
@@ -35,6 +42,8 @@ export function useAnalysis() {
   const abortRef = useRef<AbortController | null>(null);
   /** Cache write owed by the analysis that just completed; flushed after the commit. */
   const pendingCacheRef = useRef<{ cacheKey: string; input: string; settings: AnalysisSettings } | null>(null);
+  /** Last local (PSBT/raw tx) input, kept in memory only for retryLocal. */
+  const localInputRef = useRef<string | null>(null);
 
   // Load the engine and the core entity filter on mount (off the critical path)
   useEffect(() => {
@@ -67,13 +76,15 @@ export function useAnalysis() {
   }, []);
 
   const analyze = useCallback(
-    async (input: string) => {
+    async (input: string, opts?: { awaitIndexing?: boolean }) => {
       // Cancel any in-flight request
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
       pendingCacheRef.current = null;
       const inputType = detectInputType(input, network);
+      // The signed hex of a previous local scan must not linger once another scan starts
+      if (inputType !== "psbt" && inputType !== "rawtx") localInputRef.current = null;
 
       if (inputType === "invalid") {
         setState({
@@ -121,37 +132,83 @@ export function useAnalysis() {
         }
       }
 
-      // PSBT: parse locally and run tx heuristics without API calls
-      if (inputType === "psbt") {
+      // PSBT or raw tx: parsed and analyzed in memory. Never cached, never put in the
+      // hash or history; network access only via an explicit lookup.
+      if (inputType === "psbt" || inputType === "rawtx") {
+        localInputRef.current = input;
         const steps = getTxHeuristicSteps(ht);
         const startTime = Date.now();
+        let local: LocalTx;
+        try {
+          local = parseLocalTx(input, network);
+        } catch (err) {
+          // btc-signer messages describe structure, never the input: never interpolate `input`
+          setState({
+            ...INITIAL_STATE,
+            phase: "error",
+            query: inputType === "psbt"
+              ? t("local.kindPsbt", { defaultValue: "PSBT" })
+              : t("local.kindRaw", { defaultValue: "Raw transaction" }),
+            inputType,
+            error: t("errors.local_parse", {
+              message: err instanceof Error ? err.message : "",
+              defaultValue: "Could not read this transaction: {{message}}",
+            }),
+            errorCode: "not-retryable",
+          });
+          return;
+        }
+        const label = localTxLabel(local);
         setState({
           ...INITIAL_STATE,
           phase: "analyzing",
-          query: input.slice(0, 32) + "...",
-          inputType: "psbt",
+          query: t(label.key, {
+            inputs: label.inputs,
+            outputs: label.outputs,
+            defaultValue: label.key === "local.queryPsbt"
+              ? "PSBT · {{inputs}} in · {{outputs}} out"
+              : "Raw transaction · {{inputs}} in · {{outputs}} out",
+          }),
+          inputType,
           steps,
+          localTx: local,
+          txData: local.tx,
         });
-
         try {
-          const psbtResult = parsePSBT(input, network);
-          const { analyzeTransaction } = await enginePromise;
-          const result = await analyzeTransaction(psbtResult.tx, undefined, onStep);
+          const { runLocalAnalysis, countLookups, LookupFailedError } = await enginePromise;
+          const lookups = countLookups(local);
+          const wantsLookup = lookups.inputs + lookups.addresses > 0;
+          const selfHosted = backendClass({ isUmbrel, customApiUrl }) === "self-hosted";
+          const lookup = selfHosted && wantsLookup ? makeLookupClient(cfg.mempoolBaseUrl, controller.signal) : null;
+          const run = (lk: typeof lookup) => runLocalAnalysis(local, {
+            lookup: lk,
+            signal: controller.signal,
+            onStep,
+            boltzmannTimeoutMs: (getAnalysisSettings().boltzmannTimeout ?? 300) * 1000,
+            isCustomApi,
+          });
+          // Own node unreachable: show the lookup-free result and let the user retry
+          let lookupFailed = false;
+          const r = await run(lookup).catch((e: unknown) => {
+            if (lookup && e instanceof LookupFailedError) { lookupFailed = true; return run(null); }
+            throw e;
+          });
           if (controller.signal.aborted) return;
-          // No trace data for PSBTs - mark all chain steps as done
+          // No trace data before broadcast - mark all chain steps as done
           for (const cid of ["chain-backward", "chain-forward", "chain-cluster", "chain-spending", "chain-entity", "chain-taint"]) {
             onStep(cid); onStep(cid, 0);
           }
-
-          const durationMs = Date.now() - startTime;
           setState((prev) => ({
             ...prev,
             phase: "complete",
             steps: markAllDone(prev.steps),
-            result,
-            txData: psbtResult.tx,
-            psbtData: psbtResult,
-            durationMs,
+            result: r.result,
+            txData: r.tx,
+            boltzmannResult: r.boltzmannResult,
+            boltzmannStatus: r.boltzmannStatus,
+            localOutputTxCounts: r.outputTxCounts,
+            localLookup: !wantsLookup ? null : { status: lookupFailed ? "failed" : lookup ? "done" : "available", ...lookups },
+            durationMs: Date.now() - startTime,
           }));
         } catch (err) {
           if (controller.signal.aborted) return;
@@ -159,7 +216,7 @@ export function useAnalysis() {
             ...prev,
             phase: "error",
             error: err instanceof Error
-              ? t("errors.psbt_parse", { message: err.message, defaultValue: "Failed to parse PSBT: {{message}}" })
+              ? t("errors.local_parse", { message: err.message, defaultValue: "Could not read this transaction: {{message}}" })
               : t("errors.unexpected", { defaultValue: "An unexpected error occurred." }),
             errorCode: "not-retryable",
           }));
@@ -170,7 +227,7 @@ export function useAnalysis() {
       // Check analysis result cache before making API calls
       const analysisSettingsForCache = getAnalysisSettings();
       // Keyed per backend: custom/Umbrel/onion results never share an entry with mempool.space
-      const cached = await getCachedResult(cacheKeyPrefix(cfg.mempoolBaseUrl, net), input, analysisSettingsForCache);
+      const cached = opts?.awaitIndexing ? null : await getCachedResult(cacheKeyPrefix(cfg.mempoolBaseUrl, net), input, analysisSettingsForCache);
       // reset() or a newer analyze() ran during the lookup: leave their state alone
       if (controller.signal.aborted) return;
       if (cached) {
@@ -228,6 +285,7 @@ export function useAnalysis() {
           ...prev,
           phase: "complete",
           steps: markAllDone(prev.steps),
+          awaitingIndex: false,
           ...fields,
           durationMs,
         }));
@@ -239,6 +297,7 @@ export function useAnalysis() {
         query: input,
         inputType,
         steps,
+        awaitingIndex: !!opts?.awaitIndexing,
       });
 
       try {
@@ -248,6 +307,7 @@ export function useAnalysis() {
           const txResult = await runTxidAnalysis(input, {
             api,
             controller,
+            awaitIndexing: opts?.awaitIndexing,
             network,
             isCustomApi,
             analysisSettingsForCache,
@@ -322,7 +382,8 @@ export function useAnalysis() {
           err.code === "NOT_FOUND" &&
           inputType === "txid" &&
           !isUmbrel &&
-          !customApiUrl
+          !customApiUrl &&
+          !opts?.awaitIndexing
         ) {
           const detected = await detectTxidNetwork(
             input, network, controller.signal, (n) => configFor(n).mempoolBaseUrl,
@@ -392,13 +453,50 @@ export function useAnalysis() {
     abortRef.current?.abort();
     abortRef.current = null;
     pendingCacheRef.current = null;
+    localInputRef.current = null;
     setState(INITIAL_STATE);
   }, []);
+
+  const retryLocal = useCallback(() => {
+    if (localInputRef.current) void analyze(localInputRef.current);
+  }, [analyze]);
+
+  /** Consent click on a public backend: re-run the local analysis with an uncached lookup client. */
+  const completeLocalLookup = useCallback(async () => {
+    const local = state.localTx;
+    if (!local || state.localLookup?.status === "running") return;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setState((prev) => ({ ...prev, localLookup: prev.localLookup && { ...prev.localLookup, status: "running" } }));
+    try {
+      const { runLocalAnalysis } = await loadEngine();
+      const r = await runLocalAnalysis(local, {
+        lookup: makeLookupClient(config.mempoolBaseUrl, controller.signal),
+        signal: controller.signal,
+        boltzmannTimeoutMs: (getAnalysisSettings().boltzmannTimeout ?? 300) * 1000,
+        isCustomApi,
+      });
+      if (controller.signal.aborted) return;
+      setState((prev) => ({
+        ...prev,
+        result: r.result,
+        txData: r.tx,
+        boltzmannResult: r.boltzmannResult,
+        boltzmannStatus: r.boltzmannStatus,
+        localOutputTxCounts: r.outputTxCounts,
+        localLookup: prev.localLookup && { ...prev.localLookup, status: "done" },
+      }));
+    } catch {
+      if (controller.signal.aborted) return;
+      setState((prev) => ({ ...prev, localLookup: prev.localLookup && { ...prev.localLookup, status: "failed" } }));
+    }
+  }, [state.localTx, state.localLookup?.status, config, isCustomApi]);
 
   // Abort in-flight requests on unmount
   useEffect(() => {
     return () => { abortRef.current?.abort(); };
   }, []);
 
-  return { ...state, analyze, reset };
+  return { ...state, analyze, reset, retryLocal, completeLocalLookup };
 }

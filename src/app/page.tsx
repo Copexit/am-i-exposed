@@ -22,13 +22,14 @@ export default function ScannerPage() {
   const {
     analysis, wallet, walletActive, recent, bookmarks: bm, inputRef, pendingHash, pendingXpub,
     xpubAddressCount, apiEndpoint, isThirdPartyApi, isLocalApi, ariaStatus,
-    handleSubmit, handleBack, handleXpubConfirm, handleXpubCancel,
+    handleSubmit, handleBack, handleBroadcastSuccess, handleXpubConfirm, handleXpubCancel,
   } = useScanner();
   const {
     phase, query, inputType, steps, result, txData, addressData,
     txBreakdown, addressTxs, addressUtxos, preSendResult, error,
-    errorCode, durationMs, usdPrice, outspends, psbtData, fetchProgress,
-    backwardLayers, forwardLayers, boltzmannResult, autoSwitchedNetwork, fromCache, analyze,
+    errorCode, durationMs, usdPrice, outspends, localTx, fetchProgress,
+    backwardLayers, forwardLayers, boltzmannResult, autoSwitchedNetwork, fromCache, analyze, retryLocal,
+    localLookup, localOutputTxCounts, completeLocalLookup, awaitingIndex,
   } = analysis;
   const { t } = useTranslation();
 
@@ -85,7 +86,8 @@ export default function ScannerPage() {
             phase={phase}
             steps={steps}
             fetchProgress={fetchProgress}
-            txData={inputType === "txid" ? txData : null}
+            awaitingIndex={awaitingIndex}
+            txData={inputType === "txid" || localTx ? txData : null}
           />
         )}
 
@@ -93,7 +95,7 @@ export default function ScannerPage() {
           <Suspense key="results" fallback={viewFallback}>
           <Results
             query={query}
-            inputType={inputType === "psbt" ? "txid" : inputType as "txid" | "address"}
+            inputType={inputType === "psbt" || inputType === "rawtx" ? "txid" : inputType as "txid" | "address"}
             result={result}
             txData={txData}
             addressData={addressData}
@@ -110,13 +112,12 @@ export default function ScannerPage() {
             forwardLayers={forwardLayers}
             boltzmannResult={boltzmannResult}
             reveal={!fromCache}
-            psbt={psbtData ? {
-              inputCount: psbtData.inputCount,
-              outputCount: psbtData.outputCount,
-              fee: psbtData.fee,
-              feeRate: psbtData.feeRate,
-              complete: psbtData.complete,
-            } : null}
+            local={localTx}
+            onRetryLocal={retryLocal}
+            localLookup={localLookup}
+            localOutputTxCounts={localOutputTxCounts}
+            onLocalLookup={() => { void completeLocalLookup(); }}
+            onBroadcastSuccess={handleBroadcastSuccess}
           />
           </Suspense>
         )}

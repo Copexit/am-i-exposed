@@ -1,7 +1,8 @@
 "use client";
 
-import { useSyncExternalStore, useCallback } from "react";
+import { useSyncExternalStore, useCallback, useEffect } from "react";
 import { createLocalStorageStore } from "./createLocalStorageStore";
+import { isLocalPayloadPrefix } from "@/lib/analysis/detect-input";
 
 export interface RecentScan {
   input: string;
@@ -18,11 +19,17 @@ const store = createLocalStorageStore<RecentScan[]>(
   [],
   (raw) => {
     const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    // Drop truncated PSBT entries saved by older versions
+    return Array.isArray(parsed)
+      ? parsed.filter((s: RecentScan) => typeof s?.input === "string" && !isLocalPayloadPrefix(s.input))
+      : [];
   },
 );
 
 export function useRecentScans() {
+  // Remove entries the parser drops (truncated PSBTs saved by older versions) from storage
+  useEffect(() => store.persistParsed(), []);
+
   const scans = useSyncExternalStore(
     store.subscribe,
     store.getSnapshot,

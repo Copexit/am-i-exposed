@@ -31,6 +31,8 @@ interface AnalystWorkspaceProps {
   forwardLayers?: TraceLayer[] | null;
   boltzmannResult?: BoltzmannWorkerResult | null;
   onScan: (input: string) => void;
+  /** PSBT / raw tx analyzed in memory (not broadcast). */
+  local?: boolean;
 }
 
 /** L3: the analyst workspace: every analysis tool, for everyone. */
@@ -60,7 +62,8 @@ export function AnalystWorkspace(p: AnalystWorkspaceProps) {
 
       {hasTx && p.txData && (
         <>
-          {showGraph ? (
+          {/* Local tx: the explorer fetches neighbours and can bookmark/save the txid, so it stays off. */}
+          {p.local ? null : showGraph ? (
             <ChartErrorBoundary>
               <Suspense fallback={<div className="h-96 rounded-xl bg-surface-1 animate-pulse" />}>
                 <GraphExplorerPanel tx={p.txData} onTxClick={p.onScan} backwardLayers={p.backwardLayers} forwardLayers={p.forwardLayers} outspends={p.outspends} boltzmannResult={p.boltzmannResult} />
@@ -77,7 +80,7 @@ export function AnalystWorkspace(p: AnalystWorkspaceProps) {
               <span aria-hidden="true" className="text-bitcoin">→</span>
             </button>
           )}
-          <DeepAnalysisTxid result={p.result} txData={p.txData} onScan={p.onScan} backwardLayers={p.backwardLayers} forwardLayers={p.forwardLayers} boltzmannResult={p.boltzmannResult} />
+          <DeepAnalysisTxid result={p.result} txData={p.txData} onScan={p.onScan} backwardLayers={p.backwardLayers} forwardLayers={p.forwardLayers} boltzmannResult={p.boltzmannResult} local={p.local} />
         </>
       )}
 

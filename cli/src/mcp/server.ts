@@ -13,11 +13,13 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-import { analyzeTransaction, analyzeAddress } from "@/lib/analysis/orchestrator";
+import { analyzeAddress } from "@/lib/analysis/orchestrator";
 import { selectRecommendations } from "@/lib/recommendations/primary-recommendation";
 import { DEFAULT_ANALYSIS_SETTINGS } from "@/lib/analysis/settings";
 import { getAddressType } from "@/lib/bitcoin/address-type";
-import { parsePSBT, isPSBT } from "@/lib/bitcoin/psbt";
+import { isPSBT } from "@/lib/bitcoin/psbt";
+import { parseLocalTx, isRawTxHex } from "@/lib/input/local-tx";
+import { runLocalAnalysis } from "@/lib/analysis/run-local-analysis";
 import { parseXpub } from "@/lib/bitcoin/descriptor";
 import { auditWallet } from "@/lib/analysis/wallet-audit";
 import { initEntityFilter } from "../adapters/entity-loader";
@@ -111,23 +113,31 @@ export function createMcpServer(): McpServer {
 
   server.tool(
     "scan_psbt",
-    "Analyze an unsigned Bitcoin transaction (PSBT) BEFORE broadcasting. Requires zero network access. The key tool for checking transaction privacy before sending.",
+    "Analyze a PSBT or raw transaction (hex or base64) before broadcasting. Offline: no network access.",
     {
-      psbt: z.string().describe("PSBT data as base64 or hex string"),
-      network: network.describe("Bitcoin network, used to encode the PSBT's addresses"),
+      psbt: z.string().describe("PSBT (base64 or hex) or raw transaction (hex)"),
+      network: network.describe("Bitcoin network, used to encode the transaction's addresses"),
     },
     async ({ psbt, network }) => {
-      if (!isPSBT(psbt)) {
-        throw new Error("Invalid PSBT format");
+      const data = psbt.trim();
+      if (!isPSBT(data) && !isRawTxHex(data)) {
+        throw new Error("Invalid input: expected a PSBT (base64/hex) or a raw transaction (hex)");
       }
-      const parsed = parsePSBT(psbt, network);
-      const result = await analyzeTransaction(parsed.tx);
+      const local = parseLocalTx(data, network);
+      // Offline: no lookup; Boltzmann has no Worker in Node so it is skipped
+      const { result, tx } = await runLocalAnalysis(local, {
+        lookup: null,
+        signal: new AbortController().signal,
+        boltzmannTimeoutMs: 0,
+        isCustomApi: false,
+      });
 
       return textResult({
         score: result.score, grade: result.grade, txType: result.txType,
-        inputs: parsed.tx.vin.length,
-        outputs: parsed.tx.vout.length,
-        estimatedFee: parsed.tx.fee ?? null,
+        status: local.status,
+        inputs: tx.vin.length,
+        outputs: tx.vout.length,
+        estimatedFee: tx.fee ?? null,
         findings: result.findings,
       });
     },
