@@ -1949,6 +1949,7 @@
   "setup.umbrel_step1": "Öffne den App Store in deinem Umbrel-Dashboard",
   "setup.umbrel_step2": "Suche nach am-i.exposed",
   "setup.umbrel_step3": "Klicke auf Installieren",
+  "setup.start9_store_link": "Im Start9 Marketplace ansehen",
   "setup.umbrel_store_link": "Im Umbrel App Store ansehen",
   "setup.umbrel_title": "Umbrel",
   "setup.verify_step1": "Auf das Zahnrad-Symbol in der Kopfzeile klicken und die URL eingeben (z.B. http://localhost:3006/api)",
