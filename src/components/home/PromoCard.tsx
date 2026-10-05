@@ -43,9 +43,10 @@ export function PromoCard() {
         className="lg:col-span-7 lg:row-start-1 lg:row-span-2"
       />
       <div className="lg:col-start-8 lg:col-span-5 lg:row-start-2 lg:self-start">
+        {/* lg CTA: text-black! beats the light-theme .text-bitcoin remap in globals.css */}
         <Link
           href="/tutorial/"
-          className="mt-3 lg:mt-0 inline-flex items-center gap-2 text-sm text-bitcoin hover:underline lg:rounded-lg lg:bg-bitcoin lg:px-4 lg:py-2.5 lg:font-semibold lg:text-black lg:hover:no-underline lg:hover:bg-bitcoin-hover transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bitcoin"
+          className="mt-3 lg:mt-0 inline-flex items-center gap-2 text-sm text-bitcoin hover:underline lg:rounded-lg lg:bg-bitcoin lg:px-4 lg:py-2.5 lg:font-semibold lg:text-black! lg:hover:no-underline lg:hover:bg-bitcoin-hover transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bitcoin"
         >
           {t("home.promo_tutorial_link", { defaultValue: "Watch the 5-minute tutorial" })}
           <ArrowRight size={16} aria-hidden="true" className="hidden lg:block" />
