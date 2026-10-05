@@ -4,7 +4,7 @@ import { Terminal, Shield, ExternalLink } from "lucide-react";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { useTranslation } from "react-i18next";
 import { CADDY_SNIPPET } from "./setup-guide-data";
-import { UMBREL_APP_URL } from "@/lib/external-links";
+import { UMBREL_APP_URL, STARTOS_MARKETPLACE_URL } from "@/lib/external-links";
 
 export function UmbrelSection() {
   const { t } = useTranslation();
@@ -107,6 +107,15 @@ export function Start9Section() {
             </span>
           </li>
         </ol>
+        <a
+          href={STARTOS_MARKETPLACE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-bitcoin hover:text-bitcoin/80 transition-colors"
+        >
+          <ExternalLink size={14} aria-hidden="true" />
+          {t("setup.start9_store_link", { defaultValue: "View on the Start9 Marketplace" })}
+        </a>
         <p className="text-muted leading-relaxed">
           {t("setup.start9_app_footer", { defaultValue: "The app detects your local mempool automatically. Prefer to use the am-i.exposed website with your StartOS node instead? See the manual setup below." })}
         </p>

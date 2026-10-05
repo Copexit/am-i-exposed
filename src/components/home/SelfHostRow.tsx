@@ -2,7 +2,7 @@
 
 import { useTranslation } from "react-i18next";
 import { Server } from "lucide-react";
-import { UMBREL_APP_URL, STARTOS_SETUP_ANCHOR } from "@/lib/external-links";
+import { UMBREL_APP_URL, STARTOS_MARKETPLACE_URL } from "@/lib/external-links";
 
 /** The self-host announcement as a quiet row at the end of the home page (no floating toast). */
 export function SelfHostRow() {
@@ -17,7 +17,7 @@ export function SelfHostRow() {
           <a href={UMBREL_APP_URL} target="_blank" rel="noopener noreferrer" className="text-bitcoin hover:underline underline-offset-4 py-0.5 -my-0.5">
             {t("appstore.cta_umbrel", { defaultValue: "Umbrel" })}
           </a>
-          <a href={STARTOS_SETUP_ANCHOR} className="text-bitcoin hover:underline underline-offset-4 py-0.5 -my-0.5">
+          <a href={STARTOS_MARKETPLACE_URL} target="_blank" rel="noopener noreferrer" className="text-bitcoin hover:underline underline-offset-4 py-0.5 -my-0.5">
             {t("appstore.cta_startos", { defaultValue: "StartOS" })}
           </a>
         </span>
