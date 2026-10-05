@@ -9,9 +9,11 @@ const BASE_NAV = [
   { href: "/about/", key: "common.about", label: "About" },
 ] as const;
 
-/** Tutorial is appended only on builds that ship the videos. */
-export function navItems(): readonly { href: string; key: string; label: string }[] {
-  return VIDEOS_ENABLED ? [...BASE_NAV, { href: "/tutorial/", key: "common.tutorial", label: "Tutorial" }] : BASE_NAV;
+export interface NavItem { href: string; key: string; label: string; /** desktop bar only: hidden below this breakpoint (mobile menu always lists it) */ hiddenBelow?: "lg" }
+
+/** Tutorial is appended only on builds that ship the videos. From md to lg the bar has no room for a 6th item in long locales (pl). */
+export function navItems(): readonly NavItem[] {
+  return VIDEOS_ENABLED ? [...BASE_NAV, { href: "/tutorial/", key: "common.tutorial", label: "Tutorial", hiddenBelow: "lg" }] : BASE_NAV;
 }
 
 const strip = (p: string) => p.replace(/\/+$/, "") || "/";

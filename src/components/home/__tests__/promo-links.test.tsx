@@ -74,6 +74,7 @@ describe("Tutorial links", () => {
     mm(false);
     const want = on ? 1 : 0;
     expect(navItems().some((i) => i.href === "/tutorial/")).toBe(on);
+    if (on) expect(navItems().find((i) => i.href === "/tutorial/")?.hiddenBelow).toBe("lg");
     expect(tutorialLinks(render(<SiteFooter />).container)).toBe(want);
     cleanup();
     expect(tutorialLinks(render(<AboutPage />).container)).toBe(want);

@@ -114,7 +114,7 @@ export function SiteHeader() {
                 href={hrefFor(item.href)}
                 {...prefetchProps(item.href)}
                 aria-current={active ? "page" : undefined}
-                className={`relative whitespace-nowrap rounded-lg px-2 lg:px-3 py-2 text-[14px] transition-colors ${FOCUS} ${
+                className={`relative ${item.hiddenBelow === "lg" ? "hidden lg:inline-flex" : ""} whitespace-nowrap rounded-lg px-2 lg:px-3 py-2 text-[14px] transition-colors ${FOCUS} ${
                   active ? "text-foreground" : "text-muted hover:text-foreground"
                 }`}
               >
