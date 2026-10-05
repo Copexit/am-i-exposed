@@ -2652,5 +2652,20 @@
   "home.promo_video": "am-i.exposed en un minuto",
   "home.promo_tutorial_link": "Mira el tutorial de 5 minutos",
   "about.tutorial_link": "¿Eres nuevo? Mira el tutorial de 5 minutos.",
-  "welcome.tutorial_link": "¿Eres nuevo? Mira el tutorial de 5 minutos."
+  "welcome.tutorial_link": "¿Eres nuevo? Mira el tutorial de 5 minutos.",
+  "tutorial.title": "Cómo usar am-i.exposed",
+  "tutorial.intro": "Un recorrido de 5 minutos por la herramienta real: escanear una transacción, leer los hallazgos, un ejemplo de CoinJoin, las herramientas de analista y comprobar una dirección.",
+  "tutorial.play": "Reproducir el tutorial",
+  "tutorial.video": "Tutorial de am-i.exposed",
+  "tutorial.chapters": "Capítulos",
+  "tutorial.jump": "Ir a {{time}}, {{title}}",
+  "tutorial.chapter.intro": "Qué es am-i.exposed",
+  "tutorial.chapter.home": "La página de inicio",
+  "tutorial.chapter.scan-tx": "Escanear una transacción",
+  "tutorial.chapter.coinjoin": "Un buen ejemplo: CoinJoin",
+  "tutorial.chapter.analyst": "Herramientas de analista",
+  "tutorial.chapter.address": "Comprobar una dirección",
+  "tutorial.chapter.more-privacy": "Más privacidad",
+  "tutorial.try_title": "Pruébalo tú mismo",
+  "tutorial.unavailable": "El tutorial en vídeo está disponible en am-i.exposed."
 }
