@@ -12,3 +12,4 @@ workers
 .github
 docker-compose*.yml
 Dockerfile*
+public/media

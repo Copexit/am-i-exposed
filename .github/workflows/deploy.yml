@@ -36,6 +36,8 @@ jobs:
       - run: pnpm test
 
       - run: pnpm build
+        env:
+          NEXT_PUBLIC_VIDEOS: "1"
 
       - uses: actions/upload-pages-artifact@v3
         with:
