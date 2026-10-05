@@ -19,15 +19,15 @@ function trackMedia(page: Page) {
 const setLang = (page: Page, lang: string) =>
   page.addInitScript((l) => localStorage.setItem("ami-language", l), lang);
 
-/** Played source: the <video> src, or the error link's href when the codec is unsupported. */
-async function playedSrc(page: Page): Promise<string | null> {
-  const v = page.locator("video");
-  if (await v.count()) return v.getAttribute("src");
-  return page.locator('a[href^="/media/"][target="_blank"]').getAttribute("href");
-}
-
 test.beforeEach(async ({ page }) => {
   await mockMempoolApi(page);
+});
+
+// This suite requires H.264 playback: fail loudly rather than pass vacuously.
+test.beforeEach(async ({ page }) => {
+  await page.goto("/about/");
+  const h264 = await page.evaluate(() => document.createElement("video").canPlayType('video/mp4; codecs="avc1.64001f"'));
+  expect(h264, "this browser cannot play H.264; the site-videos suite needs it").not.toBe("");
 });
 
 const DE_PLAY = "Tutorial abspielen";
@@ -63,7 +63,6 @@ test("ami-language=es plays the es promo", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Reproducir el resumen de 1 minuto" }).click();
   await expect.poll(() => m.mp4()).toContain("/media/promo-es-9x16.mp4");
-  await page.setViewportSize(DESKTOP);
 });
 
 test("rotating after playback started keeps the same source", async ({ page }) => {
@@ -74,7 +73,8 @@ test("rotating after playback started keeps the same source", async ({ page }) =
   await expect.poll(() => m.mp4()).toEqual(["/media/promo-en-9x16.mp4"]);
   await page.setViewportSize({ width: 844, height: 390 });
   await page.waitForTimeout(500);
-  expect(await playedSrc(page)).toBe("/media/promo-en-9x16.mp4");
+  await expect(page.locator("video")).toHaveCount(1);
+  await expect(page.locator("video")).toHaveAttribute("src", "/media/promo-en-9x16.mp4");
   expect(new Set(m.mp4())).toEqual(new Set(["/media/promo-en-9x16.mp4"]));
 });
 
@@ -87,11 +87,9 @@ test("/tutorial with ami-language=de: en video, de subtitles default", async ({ 
   expect(m.mp4()).toEqual([]);
   await page.getByRole("button", { name: DE_PLAY }).click();
   await expect.poll(() => m.mp4()).toContain("/media/tutorial-en-16x9.mp4");
-  // tracks live inside the <video>; if the codec failed the element is gone, so assert only when present
-  if (await page.locator("video").count()) {
-    await expect(page.locator('video track[srclang="de"]')).toHaveAttribute("default", "");
-    await expect(page.locator("video track[default]")).toHaveCount(1);
-  }
+  await expect(page.locator("video")).toHaveCount(1);
+  await expect(page.locator('video track[srclang="de"]')).toHaveAttribute("default", "");
+  await expect(page.locator("video track[default]")).toHaveCount(1);
 });
 
 test("chapter click mounts the video and seeks to the chapter start", async ({ page }) => {
@@ -100,15 +98,16 @@ test("chapter click mounts the video and seeks to the chapter start", async ({ p
   await page.goto("/tutorial/");
   await page.getByRole("button", { name: /^Jump to \d+:\d\d, Scanning a transaction$/ }).click();
   await expect.poll(() => m.mp4()).toContain("/media/tutorial-en-16x9.mp4");
-  // if the browser can decode it, currentTime lands near the chapter start (en: scan-tx)
   const label = await page.getByRole("button", { name: /^Jump to \d+:\d\d, Scanning a transaction$/ }).getAttribute("aria-label");
   const [mm = 0, ss = 0] = label!.match(/(\d+):(\d\d)/)!.slice(1).map(Number);
   const start = mm * 60 + ss;
-  if (await page.locator("video").count()) {
-    await expect
-      .poll(() => page.locator("video").evaluate((v: HTMLVideoElement) => v.currentTime), { timeout: 10_000 })
-      .toBeGreaterThan(start - 2);
-  }
+  await expect(page.locator("video")).toHaveCount(1);
+  await expect
+    .poll(() => page.locator("video").evaluate((v: HTMLVideoElement) => v.currentTime), { timeout: 10_000 })
+    .toBeGreaterThanOrEqual(start - 1);
+  await expect
+    .poll(() => page.locator("video").evaluate((v: HTMLVideoElement) => v.currentTime))
+    .toBeLessThanOrEqual(start + 5);
 });
 
 test("tutorial examples are links", async ({ page }) => {

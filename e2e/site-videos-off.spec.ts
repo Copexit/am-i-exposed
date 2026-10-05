@@ -18,6 +18,7 @@ test("home has no promo, no Tutorial link, no /media/ request", async ({ page })
   const media = trackMedia(page);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/");
+  await expect(page.getByPlaceholder(/Address, txid/)).toBeVisible(); // rendered and hydrated
   await expect(page.getByRole("button", { name: "Play the 1-minute overview" })).toHaveCount(0);
   await expect(page.locator('a[href="/tutorial/"]')).toHaveCount(0);
   await expect(page.locator("video")).toHaveCount(0);
