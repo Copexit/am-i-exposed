@@ -37,6 +37,7 @@ describe("PosterVideo", () => {
   });
 
   it("mounts the video on click with resolved src and one default track", () => {
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
     const { container } = render(<PosterVideo {...props} />);
     fireEvent.click(screen.getByRole("button", { name: "Play promo" }));
     const v = container.querySelector("video") as HTMLVideoElement;
@@ -51,7 +52,9 @@ describe("PosterVideo", () => {
     expect(v.querySelectorAll("track[default]").length).toBe(1);
     expect(resolve).toHaveBeenCalledTimes(1);
     expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(1);
-    expect(document.activeElement).toBe(v);
+    // jsdom does not treat <video controls> as focusable; browsers do (asserted in e2e)
+    expect(focus.mock.contexts).toContain(v);
+    expect(v.hasAttribute("tabindex")).toBe(false); // UA controls stay in Tab order
   });
 
   it("sizes the portrait box by height and the 16:9 box by width", () => {
@@ -110,5 +113,15 @@ describe("PosterVideo", () => {
     fireEvent.click(screen.getByRole("button", { name: "Play promo" }));
     act(() => ref.current?.seek(7));
     expect((container.querySelector("video") as HTMLVideoElement).currentTime).toBe(7);
+  });
+
+  it("a seek after mounting drops the pending start seek", () => {
+    const ref = createRef<PosterVideoHandle>();
+    const { container } = render(<PosterVideo {...props} ref={ref} />);
+    act(() => ref.current?.seek(42));
+    const v = container.querySelector("video") as HTMLVideoElement;
+    act(() => ref.current?.seek(7));
+    fireEvent.loadedMetadata(v);
+    expect(v.currentTime).toBe(7);
   });
 });

@@ -55,6 +55,7 @@ export const PosterVideo = forwardRef<PosterVideoHandle, PosterVideoProps>(funct
     seek(seconds: number) {
       const v = videoRef.current;
       if (!v) { pending.current = seconds; start(); return; }
+      pending.current = null; // a later loadedmetadata must not re-apply an older chapter
       v.currentTime = seconds;
       play(v);
     },
@@ -107,7 +108,6 @@ export const PosterVideo = forwardRef<PosterVideoHandle, PosterVideoProps>(funct
         autoPlay
         preload="none"
         aria-label={videoLabel}
-        tabIndex={-1}
         className="h-full w-full bg-black"
         onError={() => setFailed(true)}
         onLoadedMetadata={(e) => {
