@@ -153,29 +153,10 @@ export function Home({
                 className="inline-block"
                 initial={{ textShadow: "0 0 0 transparent" }}
                 animate={{ textShadow: reduced ? GLOW : [SPLIT(3), SPLIT(-2), GLOW] }}
-                transition={{ delay: 0.9, duration: 0.5, times: [0, 0.3, 1] }}
+                transition={{ delay: 0.3, duration: 0.5, times: [0, 0.3, 1] }}
               >
                 {t("page.hero_suffix", { defaultValue: "exposed?" })}
               </motion.span>
-              {/* CSS (not JS) hides the redaction for reduced motion, so SSR and client markup match. */}
-              <>
-                  <motion.span
-                    aria-hidden="true"
-                    className="absolute -left-[0.04em] -right-[0.06em] top-[0.12em] bottom-[0.02em] bg-background border border-hairline-strong origin-right motion-reduce:hidden"
-                    initial={{ scaleX: 1 }}
-                    animate={{ scaleX: 0 }}
-                    transition={{ delay: 0.7, duration: 0.9, ease: [0.7, 0, 0.2, 1] }}
-                  />
-                  <motion.span
-                    aria-hidden="true"
-                    className="absolute inset-x-0 top-1/2 -translate-y-[40%] font-mono font-semibold text-[clamp(9px,1.1vw,12px)] tracking-[0.35em] text-faint motion-reduce:hidden"
-                    initial={{ opacity: 1 }}
-                    animate={{ opacity: 0 }}
-                    transition={{ delay: 0.7, duration: 0.25 }}
-                  >
-                    REDACTED
-                  </motion.span>
-              </>
             </span>
           </h1>
 
