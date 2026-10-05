@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Generates sitemap.xml with git-based lastmod dates
 import { execSync } from "child_process";
-import { writeFileSync } from "fs";
+import { writeFileSync, existsSync } from "fs";
 
 const PAGES = [
   { path: "/", priority: "1.0", changefreq: "weekly", source: "src/app/page.tsx" },
@@ -15,6 +15,10 @@ const PAGES = [
   { path: "/agents/", priority: "0.6", changefreq: "monthly", source: "src/app/agents/page.tsx" },
   { path: "/welcome/", priority: "0.5", changefreq: "yearly", source: "src/app/welcome/page.tsx" },
 ];
+
+// Video tutorial page exists only on the Pages build (flag on) once its source is present.
+const TUTORIAL = { path: "/tutorial/", priority: "0.7", changefreq: "monthly", source: "src/app/tutorial/page.tsx" };
+if (process.env.NEXT_PUBLIC_VIDEOS === "1" && existsSync(TUTORIAL.source)) PAGES.push(TUTORIAL);
 
 function getLastMod(file) {
   try {

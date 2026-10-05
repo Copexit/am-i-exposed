@@ -21,7 +21,9 @@ import {
   HardDrive,
   ExternalLink,
   ScrollText,
+  PlayCircle,
 } from "lucide-react";
+import { VIDEOS_ENABLED } from "@/lib/media/videos-enabled";
 import { useTranslation } from "react-i18next";
 import { PageShell } from "@/components/PageShell";
 
@@ -234,6 +236,15 @@ export function AboutPage() {
                 <ScrollText size={16} />
                 {t("about.welcome_link", { defaultValue: "Why This Exists" })}
               </Link>
+              {VIDEOS_ENABLED && (
+                <Link
+                  href="/tutorial/"
+                  className="inline-flex items-center gap-1.5 text-sm px-4 py-2.5 rounded-lg bg-surface-elevated border border-card-border text-foreground hover:border-bitcoin/30 transition-all"
+                >
+                  <PlayCircle size={16} />
+                  {t("about.tutorial_link", { defaultValue: "New here? Watch the 5-minute tutorial." })}
+                </Link>
+              )}
             </div>
           </div>
         </section>

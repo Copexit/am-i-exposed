@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Github } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { VIDEOS_ENABLED } from "@/lib/media/videos-enabled";
 
 const LINK = "inline-flex items-center gap-1.5 py-2 text-muted hover:text-foreground transition-colors rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bitcoin";
 
@@ -40,6 +41,7 @@ export function SiteFooter() {
           className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px]"
         >
           <Link href="/setup-guide/" className={LINK}>{t("common.setupGuide", { defaultValue: "Setup Guide" })}</Link>
+          {VIDEOS_ENABLED && <Link href="/tutorial/" className={LINK}>{t("common.tutorial", { defaultValue: "Tutorial" })}</Link>}
           <Link href="/agents/" className={LINK}>{t("common.agentsCli", { defaultValue: "Agents & CLI" })}</Link>
           <a href="https://github.com/Copexit/am-i-exposed" {...ext} className={LINK}>
             <Github size={14} aria-hidden="true" />

@@ -114,6 +114,8 @@ When adding a finding or a UI string, add the English key first; the parity test
 
 Config: `playwright.config.ts`. Tests in `e2e/*.spec.ts` run in Chromium against the static export served on port 3333 (`npx serve out -l 3333`, without `-s` so routes like `/graph/` are served as their own pages), so run `pnpm build` first.
 
+Site videos: `e2e/site-videos-off.spec.ts` runs in the default suite (flag off: no video UI, no `/media/` request). The flag-on suite `e2e/site-videos.spec.ts` needs a `NEXT_PUBLIC_VIDEOS=1` export: `bash scripts/build-videos-e2e.sh` (builds it into `out-videos/`, then rebuilds `out/`), then `pnpm test:e2e:videos` (`playwright.videos.config.ts`, port 3334, real media files). It is not part of CI or `pnpm test:e2e`.
+
 `e2e/helpers/mock-api.ts` (`mockMempoolApi(page)`) makes the tests fully offline:
 
 - A catch-all route is registered first (lowest priority) and aborts every request to a non-localhost host, so nothing can reach the real network.

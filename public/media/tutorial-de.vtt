@@ -1,0 +1,297 @@
+WEBVTT
+
+1
+00:00:06.553 --> 00:00:11.327
+Das ist am-i.exposed: ein kostenloser Open-Source-Privatsphäre-Scanner für Bitcoin.
+
+2
+00:00:11.487 --> 00:00:16.024
+Er zeigt, was ein Chain-Analyst über deine Transaktion oder deine Adresse sehen kann.
+
+3
+00:00:16.187 --> 00:00:18.644
+Die gesamte Analyse läuft in deinem Browser.
+
+4
+00:00:18.644 --> 00:00:23.439
+Nur Blockchain-Daten werden abgerufen, von mempool.space oder von deinem eigenen Node.
+
+5
+00:00:23.620 --> 00:00:29.014
+Dieser Hinweis erinnert: Im offenen Netz sieht mempool.space deine IP.
+
+6
+00:00:29.014 --> 00:00:31.684
+Für mehr Privatsphäre nutze Tor oder ein VPN.
+
+7
+00:00:35.487 --> 00:00:39.526
+Im Suchfeld kannst du eine Adresse, eine Transaktions-ID,
+
+8
+00:00:39.526 --> 00:00:44.081
+einen xpub oder Descriptor und sogar eine PSBT vor dem Senden einfügen.
+
+9
+00:00:44.253 --> 00:00:47.905
+Darunter stehen echte Beispiele mit Noten von A plus bis F.
+
+10
+00:00:48.087 --> 00:00:49.750
+Und hier weitere Beispiele:
+
+11
+00:00:49.750 --> 00:00:53.881
+CoinJoins, ein Dust-Angriff, Satoshis Adresse oder eine neue Adresse.
+
+12
+00:00:54.053 --> 00:00:58.586
+Scrolle nach unten: Die Analysten-Lupe vergleicht zwei Ansichten einer echten Transaktion.
+
+13
+00:00:58.753 --> 00:01:01.108
+Die Wallet-Ansicht zeigt Inputs und Outputs.
+
+14
+00:01:01.108 --> 00:01:05.838
+Die Analysten-Ansicht markiert die wahrscheinliche Zahlung, das wahrscheinliche Wechselgeld und was durchgesickert ist.
+
+15
+00:01:09.753 --> 00:01:12.342
+Füge eine Transaktions-ID ein und drücke Scan.
+
+16
+00:01:12.453 --> 00:01:14.407
+Während des Scans siehst du jede Phase:
+
+17
+00:01:14.407 --> 00:01:18.340
+Die Transaktion wird geladen, dann werden Inputs und Outputs verfolgt.
+
+18
+00:01:18.520 --> 00:01:22.882
+Danach folgen die 34 Prüfungen. Grün erhöht den Score, Rot senkt ihn.
+
+19
+00:01:23.053 --> 00:01:28.417
+Hier das Urteil: ein F, 24 von 100. Kritische Privatsphäre-Mängel.
+
+20
+00:01:28.587 --> 00:01:32.403
+Zwölf Probleme. Neun stehen bereits on-chain und sind nicht rückgängig zu machen;
+
+21
+00:01:32.403 --> 00:01:34.439
+drei sind Gewohnheiten, die du ändern kannst.
+
+22
+00:01:34.620 --> 00:01:37.465
+Die wichtigste Empfehlung kommt direkt zur Sache:
+
+23
+00:01:37.465 --> 00:01:40.367
+Deine Wallet sendet das Wechselgeld an die Input-Adresse zurück.
+
+24
+00:01:40.367 --> 00:01:43.120
+Nutze eine, die neue Wechselgeld-Adressen erzeugt.
+
+25
+00:01:43.387 --> 00:01:45.535
+Diese Leiste führt zu jedem Bereich:
+
+26
+00:01:45.535 --> 00:01:49.284
+Übersicht, Transaktion, Befunde, Score und Analysten-Tools.
+
+27
+00:01:49.453 --> 00:01:52.076
+Der Fluss zeigt einen Input und zwei Outputs.
+
+28
+00:01:52.076 --> 00:01:56.675
+Einer geht an dieselbe Input-Adresse zurück: Das Wechselgeld ist offengelegt.
+
+29
+00:01:56.853 --> 00:02:00.651
+Linkability färbt den Fluss nach der Boltzmann-Verknüpfungswahrscheinlichkeit.
+
+30
+00:02:00.651 --> 00:02:03.154
+Hier sind beide Verknüpfungen deterministisch.
+
+31
+00:02:03.320 --> 00:02:05.309
+Die Analysten-Ansicht ergänzt ihre Deutung:
+
+32
+00:02:05.309 --> 00:02:08.601
+Dieser Output geht an eine Adresse zurück, die dem Sender gehört.
+
+33
+00:02:08.753 --> 00:02:11.994
+In den Belegen stehen die Lecks zuerst. Dieses ist kritisch:
+
+34
+00:02:11.994 --> 00:02:16.816
+Dieselbe Adresse bei Input und Output verrät das Wechselgeld mit Gewissheit.
+
+35
+00:02:16.987 --> 00:02:18.976
+Jeder Befund zeigt seine Konfidenz,
+
+36
+00:02:18.976 --> 00:02:22.136
+wer ihn ausnutzen kann und ob er schon on-chain ist,
+
+37
+00:02:22.136 --> 00:02:24.200
+dazu eine konkrete Empfehlung.
+
+38
+00:02:24.353 --> 00:02:27.392
+Darunter folgen die kleineren Signale und die Stärken der Privatsphäre.
+
+39
+00:02:27.553 --> 00:02:29.575
+Die Aufschlüsselung erklärt den Score:
+
+40
+00:02:29.575 --> 00:02:33.746
+Er beginnt bei einer Basis von 70, und jeder Befund addiert oder subtrahiert.
+
+41
+00:02:33.920 --> 00:02:36.826
+Die Expositionstabelle zeigt, wer jedes Leck sehen kann:
+
+42
+00:02:36.826 --> 00:02:40.380
+die Öffentlichkeit, Firmen, die deine Identität kennen, oder ein Staat.
+
+43
+00:02:44.587 --> 00:02:48.488
+Zum Kontrast: Scanne einen Whirlpool-CoinJoin mit Ashigaru.
+
+44
+00:02:48.353 --> 00:02:52.986
+Fünf Inputs und fünf identische Outputs zu je 2.500.000 Satoshi.
+
+45
+00:02:55.920 --> 00:03:01.624
+Ergebnis: A plus, 100 von 100. Der CoinJoin wird erkannt und gibt Punkte.
+
+46
+00:03:01.787 --> 00:03:04.148
+Die Link Probability Matrix wird in
+
+47
+00:03:04.148 --> 00:03:06.759
+deinem Browser mit dem Boltzmann-Algorithmus berechnet.
+
+48
+00:03:06.920 --> 00:03:11.932
+1.496 gültige Interpretationen und 10,55 Bit Entropie.
+
+49
+00:03:11.932 --> 00:03:17.657
+Jeder Input könnte jedem Output gehören, ohne deterministische Verknüpfung.
+
+50
+00:03:21.753 --> 00:03:23.307
+Zurück zur F-Transaktion.
+
+51
+00:03:23.307 --> 00:03:27.622
+Unter Analysten-Tools lässt dich der Graph den Coins Hop für Hop folgen.
+
+52
+00:03:27.987 --> 00:03:33.115
+Drücke das Plus, um einen Hop zu erweitern. Dieser Input stammt von Huobi, einer bekannten Börse.
+
+53
+00:03:33.287 --> 00:03:37.379
+Der Vollbildmodus bietet mehr Tools: die Heatmap, Fingerprints und Verknüpfungen.
+
+54
+00:03:37.553 --> 00:03:40.856
+Die Heatmap färbt jede Transaktion nach ihrem Privatsphäre-Score.
+
+55
+00:03:41.020 --> 00:03:45.083
+Und der Taint-Fluss zeigt, wie diese Gelder vier Hops später Binance erreichen.
+
+56
+00:03:48.887 --> 00:03:52.181
+Bevor du Bitcoin sendest, füge die Zieladresse ein.
+
+57
+00:03:52.153 --> 00:03:57.166
+Diese wurde nie benutzt: geringes Risiko. Ein Senden dorthin erzeugt keine Adresswiederverwendung.
+
+58
+00:03:57.320 --> 00:04:02.727
+Dagegen bekommt eine stark wiederverwendete Adresse wie Satoshis ein F mit null Punkten.
+
+59
+00:04:02.887 --> 00:04:07.946
+Ihr Zielrisiko ist kritisch: Sie hat zehntausende Male Geld erhalten.
+
+60
+00:04:07.946 --> 00:04:10.756
+Dorthin zu senden würde deine Transaktion verknüpfen.
+
+61
+00:04:14.853 --> 00:04:19.589
+Aus jedem Ergebnis kannst du es in lokalen Lesezeichen speichern oder einen Link oder Bericht teilen.
+
+62
+00:04:20.053 --> 00:04:24.367
+In den Einstellungen wählst du das Netzwerk: Mainnet, testnet4 oder signet.
+
+63
+00:04:24.520 --> 00:04:27.300
+Unter Erweitert kannst du deine eigene mempool-Instanz nutzen,
+
+64
+00:04:27.300 --> 00:04:29.700
+damit deine Abfragen dein Netzwerk nie verlassen.
+
+65
+00:04:29.853 --> 00:04:32.897
+Öffne die Seite im Tor Browser, und er wird erkannt,
+
+66
+00:04:32.897 --> 00:04:36.508
+und Abfragen laufen über die Onion-Adresse von mempool.space.
+
+67
+00:04:36.687 --> 00:04:39.265
+Und wenn du einen Umbrel- oder StartOS-Node betreibst,
+
+68
+00:04:39.265 --> 00:04:42.849
+installiere am-i.exposed mit einem Klick aus dessen App Store.
+
+69
+00:04:43.020 --> 00:04:45.121
+Der Guide bündelt Privatsphäre-Techniken,
+
+70
+00:04:45.121 --> 00:04:48.080
+einen Wallet-Vergleich und die häufigsten Fehler.
+
+71
+00:04:49.187 --> 00:04:50.904
+Und er funktioniert auch auf deinem Handy.
+
+72
+00:04:52.020 --> 00:04:55.002
+Die Chain ist öffentlich, und jemand schaut immer zu.
+
+73
+00:04:55.002 --> 00:04:57.144
+Scanne sie, bevor es jemand anderes tut.
+
+74
+00:04:59.020 --> 00:05:02.517
+am-i.exposed: kostenlos, Open Source und ohne Tracking.
