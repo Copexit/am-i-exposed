@@ -2605,6 +2605,7 @@
   "stage.outputs": "Wyjścia · {{n}}",
   "stage.scanAddress": "Skanuj adres {{address}}",
   "stage.showIndividual": "Pokaż pojedyncze wyjścia",
+  "stage.showGrouped": "Grupuj równe wyjścia",
   "stage.spent": "wydane",
   "stage.tag.anonSet": "1 z {{n}}",
   "stage.tag.anonSetFact": "{{n}} wyjść ma dokładnie taką samą wartość",

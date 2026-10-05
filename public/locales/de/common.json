@@ -2537,6 +2537,7 @@
   "stage.outputs": "Outputs · {{n}}",
   "stage.scanAddress": "Adresse {{address}} scannen",
   "stage.showIndividual": "Einzelne Outputs anzeigen",
+  "stage.showGrouped": "Gleiche Outputs gruppieren",
   "stage.spent": "ausgegeben",
   "stage.tag.anonSet": "1 von {{n}}",
   "stage.tag.anonSetFact": "{{n}} Outputs teilen diesen exakten Wert",

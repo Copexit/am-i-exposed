@@ -12,7 +12,7 @@ import { buildBoltzmannLookup, type BoltzmannLookup } from "@/components/viz/bui
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import type { ResultViewModel } from "@/lib/view/tx-view-model";
-import { buildStageRows, type StageSide } from "./stage-layout";
+import { buildStageRows, groupsTiers, type StageSide } from "./stage-layout";
 import { buildAnalystReadings, type TxReadings } from "./analyst";
 import { StageContext, type StageCtx } from "./StageContext";
 import { StageDiagram } from "./StageDiagram";
@@ -48,6 +48,9 @@ export function TxStage({ tx, vm, outspends, usdPrice, boltzmannResult, onAddres
   const [linkMode, setLinkMode] = useState(false);
   const [analyst, setAnalyst] = useState(false);
   const [open, setOpen] = useState<Record<StageSide, boolean>>({ input: false, output: false });
+  // Showing every row (fullscreen, "+N more") keeps a CoinJoin's equal outputs grouped;
+  // only the explicit "Show individual outputs" lists them one by one.
+  const [individual, setIndividual] = useState(false);
   const { isExpanded: full, expand, collapse } = useFullscreen();
   const [tip, setTip] = useState<{ text: string; x: number; y: number } | null>(null);
 
@@ -91,6 +94,7 @@ export function TxStage({ tx, vm, outspends, usdPrice, boltzmannResult, onAddres
     <StageBody
       tx={tx} vm={vm} outspends={outspends} usdPrice={usdPrice} lookup={lookup} linkMode={linkMode} readings={readings}
       open={forceAll ? { input: true, output: true } : open} setOpen={setOpen} scroll={!forceAll}
+      individual={individual} setIndividual={setIndividual}
       onAddressClick={onAddressClick}
     />
   );
@@ -161,12 +165,15 @@ interface StageBodyProps {
   readings: TxReadings | null;
   open: Record<StageSide, boolean>;
   setOpen: React.Dispatch<React.SetStateAction<Record<StageSide, boolean>>>;
+  /** Equal CoinJoin outputs listed one by one instead of as tiers. */
+  individual: boolean;
+  setIndividual: (v: boolean) => void;
   /** Cap the height and scroll inside (inline stage); the fullscreen view scrolls itself. */
   scroll: boolean;
   onAddressClick?: (address: string) => void;
 }
 
-function StageBody({ tx, vm, outspends, usdPrice, lookup, linkMode, readings, open, setOpen, scroll, onAddressClick }: StageBodyProps) {
+function StageBody({ tx, vm, outspends, usdPrice, lookup, linkMode, readings, open, setOpen, individual, setIndividual, scroll, onAddressClick }: StageBodyProps) {
   const { t, i18n } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -185,7 +192,7 @@ function StageBody({ tx, vm, outspends, usdPrice, lookup, linkMode, readings, op
     [io.outputs, outspends],
   );
   // Tiers group a CoinJoin's equal outputs; linkability needs individual outputs.
-  const grouped = vm.isCoinJoin && !open.output && !linkMode;
+  const grouped = groupsTiers(vm.isCoinJoin, individual, linkMode);
   const inRows = useMemo(() => buildStageRows(io.inputs, "input", { groupTiers: false, limit: open.input ? null : LIMIT }), [io.inputs, open.input]);
   const outRows = useMemo(() => buildStageRows(outputs, "output", { groupTiers: grouped, limit: open.output ? null : LIMIT }), [outputs, grouped, open.output]);
   const onShowMore = useCallback((side: StageSide) => setOpen((o) => ({ ...o, [side]: true })), [setOpen]);
@@ -211,10 +218,13 @@ function StageBody({ tx, vm, outspends, usdPrice, lookup, linkMode, readings, op
         <span className="num">{t("stage.weight", { weight: tx.weight.toLocaleString(lang), defaultValue: "{{weight}} WU" })}</span>
         <span className="flex-1" />
         {grouped && outRows.some((r) => r.kind === "tier") && (
-          <FooterButton onClick={() => onShowMore("output")}>{t("stage.showIndividual", { defaultValue: "Show individual outputs" })}</FooterButton>
+          <FooterButton onClick={() => { setIndividual(true); onShowMore("output"); }}>{t("stage.showIndividual", { defaultValue: "Show individual outputs" })}</FooterButton>
+        )}
+        {vm.isCoinJoin && individual && !linkMode && (
+          <FooterButton onClick={() => setIndividual(false)}>{t("stage.showGrouped", { defaultValue: "Group equal outputs" })}</FooterButton>
         )}
         {scroll && (open.input || open.output) && (
-          <FooterButton onClick={() => setOpen({ input: false, output: false })}>{t("stage.collapse", { defaultValue: "Collapse" })}</FooterButton>
+          <FooterButton onClick={() => { setOpen({ input: false, output: false }); setIndividual(false); }}>{t("stage.collapse", { defaultValue: "Collapse" })}</FooterButton>
         )}
       </footer>
     </div>

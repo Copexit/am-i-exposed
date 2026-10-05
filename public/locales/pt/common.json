@@ -2537,6 +2537,7 @@
   "stage.outputs": "Saídas · {{n}}",
   "stage.scanAddress": "Escanear endereço {{address}}",
   "stage.showIndividual": "Mostrar saídas individuais",
+  "stage.showGrouped": "Agrupar saídas iguais",
   "stage.spent": "gasto",
   "stage.tag.anonSet": "1 de {{n}}",
   "stage.tag.anonSetFact": "{{n}} saídas compartilham exatamente este valor",
