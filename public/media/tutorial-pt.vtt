@@ -1,0 +1,297 @@
+WEBVTT
+
+1
+00:00:06.553 --> 00:00:11.327
+Este é o am-i.exposed: um scanner de privacidade para Bitcoin, gratuito e de código aberto.
+
+2
+00:00:11.487 --> 00:00:16.024
+Mostra o que um analista de blockchain consegue ver sobre sua transação ou seu endereço.
+
+3
+00:00:16.187 --> 00:00:18.644
+Toda a análise roda no seu navegador.
+
+4
+00:00:18.644 --> 00:00:23.439
+Apenas dados da blockchain são buscados, do mempool.space ou do seu próprio nó.
+
+5
+00:00:23.620 --> 00:00:29.014
+Este aviso lembra que, na rede aberta, o mempool.space vê o seu IP.
+
+6
+00:00:29.014 --> 00:00:31.684
+Para mais privacidade, use Tor ou uma VPN.
+
+7
+00:00:35.487 --> 00:00:39.526
+Na caixa de busca você pode colar um endereço, um ID de transação,
+
+8
+00:00:39.526 --> 00:00:44.081
+uma xpub ou um descriptor, e até uma PSBT antes de transmiti-la.
+
+9
+00:00:44.253 --> 00:00:47.905
+Abaixo há exemplos reais, com notas de A mais até F.
+
+10
+00:00:48.087 --> 00:00:49.750
+E aqui estão mais exemplos:
+
+11
+00:00:49.750 --> 00:00:53.881
+CoinJoins, um ataque de poeira, o endereço do Satoshi ou um endereço novo.
+
+12
+00:00:54.053 --> 00:00:58.586
+Role para baixo: a lupa do analista compara duas visões de uma transação real.
+
+13
+00:00:58.753 --> 00:01:01.108
+A visão da carteira mostra entradas e saídas.
+
+14
+00:01:01.108 --> 00:01:05.838
+A visão do analista marca o provável pagamento, o provável troco e o que vazou.
+
+15
+00:01:09.753 --> 00:01:12.342
+Cole um ID de transação e pressione Scan.
+
+16
+00:01:12.453 --> 00:01:14.407
+Durante a análise, você vê cada etapa:
+
+17
+00:01:14.407 --> 00:01:18.340
+buscar a transação, depois rastrear suas entradas e saídas.
+
+18
+00:01:18.520 --> 00:01:22.882
+Em seguida vêm as 34 verificações. Verde aumenta a pontuação, vermelho diminui.
+
+19
+00:01:23.053 --> 00:01:28.417
+Aqui está o veredito: um F, 24 de 100. Falhas críticas de privacidade.
+
+20
+00:01:28.587 --> 00:01:32.403
+Doze problemas. Nove já estão on-chain e não podem ser desfeitos;
+
+21
+00:01:32.403 --> 00:01:34.439
+três são hábitos que você pode corrigir.
+
+22
+00:01:34.620 --> 00:01:37.465
+A principal recomendação vai direto ao ponto:
+
+23
+00:01:37.465 --> 00:01:40.367
+sua carteira envia o troco de volta ao endereço de entrada.
+
+24
+00:01:40.367 --> 00:01:43.120
+Use uma que crie novos endereços de troco.
+
+25
+00:01:43.387 --> 00:01:45.535
+Esta barra leva a cada seção:
+
+26
+00:01:45.535 --> 00:01:49.284
+visão geral, transação, achados, pontuação e ferramentas do analista.
+
+27
+00:01:49.453 --> 00:01:52.076
+O fluxo mostra uma entrada e duas saídas.
+
+28
+00:01:52.076 --> 00:01:56.675
+Uma volta ao mesmo endereço de entrada: o troco fica exposto.
+
+29
+00:01:56.853 --> 00:02:00.651
+A rastreabilidade colore o fluxo pela probabilidade de vínculo de Boltzmann.
+
+30
+00:02:00.651 --> 00:02:03.154
+Aqui, os dois vínculos são determinísticos.
+
+31
+00:02:03.320 --> 00:02:05.309
+A visão do analista acrescenta sua leitura:
+
+32
+00:02:05.309 --> 00:02:08.601
+esta saída volta a um endereço que pertence ao remetente.
+
+33
+00:02:08.753 --> 00:02:11.994
+Nas evidências, os vazamentos vêm primeiro. Este é crítico:
+
+34
+00:02:11.994 --> 00:02:16.816
+o mesmo endereço na entrada e na saída revela o troco com certeza.
+
+35
+00:02:16.987 --> 00:02:18.976
+Cada achado mostra sua confiança,
+
+36
+00:02:18.976 --> 00:02:22.136
+quem pode explorá-lo e se já está on-chain,
+
+37
+00:02:22.136 --> 00:02:24.200
+além de uma recomendação concreta.
+
+38
+00:02:24.353 --> 00:02:27.392
+Abaixo estão os sinais menores e os pontos fortes de privacidade.
+
+39
+00:02:27.553 --> 00:02:29.575
+O detalhamento explica a pontuação:
+
+40
+00:02:29.575 --> 00:02:33.746
+parte de uma base de 70, e cada achado soma ou subtrai.
+
+41
+00:02:33.920 --> 00:02:36.826
+E a tabela de exposição mostra quem pode ver cada vazamento:
+
+42
+00:02:36.826 --> 00:02:40.380
+o público, empresas que conhecem sua identidade, ou um Estado.
+
+43
+00:02:44.587 --> 00:02:48.488
+Para contraste, analise um CoinJoin Whirlpool feito com o Ashigaru.
+
+44
+00:02:48.353 --> 00:02:52.986
+Cinco entradas e cinco saídas idênticas de 2.500.000 satoshis.
+
+45
+00:02:55.920 --> 00:03:01.624
+Resultado: A mais, 100 de 100. O CoinJoin é reconhecido e ganha pontos.
+
+46
+00:03:01.787 --> 00:03:04.148
+A Link Probability Matrix é calculada no
+
+47
+00:03:04.148 --> 00:03:06.759
+seu navegador com o algoritmo de Boltzmann.
+
+48
+00:03:06.920 --> 00:03:11.932
+1.496 interpretações válidas e 10,55 bits de entropia.
+
+49
+00:03:11.932 --> 00:03:17.657
+Qualquer entrada pode pertencer a qualquer saída, sem vínculo determinístico.
+
+50
+00:03:21.753 --> 00:03:23.307
+De volta à transação F.
+
+51
+00:03:23.307 --> 00:03:27.622
+Em Ferramentas do analista, o grafo permite seguir as moedas salto a salto.
+
+52
+00:03:27.987 --> 00:03:33.115
+Pressione o mais para expandir um salto. Esta entrada vem da Huobi, uma exchange conhecida.
+
+53
+00:03:33.287 --> 00:03:37.379
+A tela cheia oferece mais ferramentas: o mapa de calor, impressões digitais e vínculos.
+
+54
+00:03:37.553 --> 00:03:40.856
+O mapa de calor colore cada transação pela sua pontuação de privacidade.
+
+55
+00:03:41.020 --> 00:03:45.083
+E o fluxo de contaminação mostra como esses fundos chegam à Binance quatro saltos depois.
+
+56
+00:03:48.887 --> 00:03:52.181
+Antes de enviar bitcoin, cole o endereço de destino.
+
+57
+00:03:52.153 --> 00:03:57.166
+Este nunca foi usado: risco baixo. Enviar para cá não cria reutilização de endereço.
+
+58
+00:03:57.320 --> 00:04:02.727
+Já um endereço muito reutilizado, como o do Satoshi, recebe F com zero pontos.
+
+59
+00:04:02.887 --> 00:04:07.946
+O risco de destino é crítico: ele recebeu fundos dezenas de milhares de vezes.
+
+60
+00:04:07.946 --> 00:04:10.756
+Enviar para lá vincularia sua transação.
+
+61
+00:04:14.853 --> 00:04:19.589
+De qualquer resultado você pode salvá-lo nos favoritos locais, ou compartilhar um link ou relatório.
+
+62
+00:04:20.053 --> 00:04:24.367
+Nas configurações você escolhe a rede: mainnet, testnet4 ou signet.
+
+63
+00:04:24.520 --> 00:04:27.300
+Em Avançado você pode usar sua própria instância do mempool,
+
+64
+00:04:27.300 --> 00:04:29.700
+para que suas consultas nunca saiam da sua rede.
+
+65
+00:04:29.853 --> 00:04:32.897
+Abra o site no Tor Browser e ele é detectado,
+
+66
+00:04:32.897 --> 00:04:36.508
+e as consultas passam pelo endereço onion do mempool.space.
+
+67
+00:04:36.687 --> 00:04:39.265
+E se você roda um nó Umbrel ou StartOS,
+
+68
+00:04:39.265 --> 00:04:42.849
+instale o am-i.exposed pela loja de apps com um clique.
+
+69
+00:04:43.020 --> 00:04:45.121
+O guia reúne técnicas de privacidade,
+
+70
+00:04:45.121 --> 00:04:48.080
+uma comparação de carteiras e os erros mais comuns.
+
+71
+00:04:49.187 --> 00:04:50.904
+E funciona no seu celular também.
+
+72
+00:04:52.020 --> 00:04:55.002
+A cadeia é pública, e sempre há alguém observando.
+
+73
+00:04:55.002 --> 00:04:57.144
+Escaneie-a antes que outra pessoa o faça.
+
+74
+00:04:59.020 --> 00:05:02.517
+am-i.exposed: gratuito, código aberto e sem rastreamento.

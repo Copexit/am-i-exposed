@@ -1,0 +1,297 @@
+WEBVTT
+
+1
+00:00:06.553 --> 00:00:11.327
+This is am-i.exposed: a free, open-source privacy scanner for Bitcoin.
+
+2
+00:00:11.487 --> 00:00:16.024
+It shows you what a chain analyst can see about your transaction or your address.
+
+3
+00:00:16.187 --> 00:00:18.644
+The whole analysis runs in your browser.
+
+4
+00:00:18.644 --> 00:00:23.439
+Only blockchain data is fetched, from mempool.space or from your own node.
+
+5
+00:00:23.620 --> 00:00:29.014
+This notice reminds you that, on the open network, mempool.space sees your IP.
+
+6
+00:00:29.014 --> 00:00:31.684
+For more privacy, use Tor or a VPN.
+
+7
+00:00:35.487 --> 00:00:39.526
+In the search box you can paste an address, a transaction ID,
+
+8
+00:00:39.526 --> 00:00:44.081
+an xpub or a descriptor, and even a PSBT before you broadcast it.
+
+9
+00:00:44.253 --> 00:00:47.905
+Below are real examples, with grades from A plus down to F.
+
+10
+00:00:48.087 --> 00:00:49.750
+And here are more examples:
+
+11
+00:00:49.750 --> 00:00:53.881
+CoinJoins, a dust attack, Satoshi's address or a fresh address.
+
+12
+00:00:54.053 --> 00:00:58.586
+Scroll down, and the analyst lens compares two views of a real transaction.
+
+13
+00:00:58.753 --> 00:01:01.108
+The wallet view shows inputs and outputs.
+
+14
+00:01:01.108 --> 00:01:05.838
+The analyst view marks the likely payment, the likely change, and what leaked.
+
+15
+00:01:09.753 --> 00:01:12.342
+Paste a transaction ID and press Scan.
+
+16
+00:01:12.453 --> 00:01:14.407
+While it scans, you see each stage:
+
+17
+00:01:14.407 --> 00:01:18.340
+fetching the transaction, then tracing its inputs and its outputs.
+
+18
+00:01:18.520 --> 00:01:22.882
+Then come the 34 checks. Green raises the score, red lowers it.
+
+19
+00:01:23.053 --> 00:01:28.417
+Here is the verdict: an F, 24 out of 100. Critical privacy failures.
+
+20
+00:01:28.587 --> 00:01:32.403
+Twelve issues. Nine are already on-chain and cannot be undone;
+
+21
+00:01:32.403 --> 00:01:34.439
+three are habits you can fix.
+
+22
+00:01:34.620 --> 00:01:37.465
+The top recommendation gets straight to the point:
+
+23
+00:01:37.465 --> 00:01:40.367
+your wallet sends change back to the input address.
+
+24
+00:01:40.367 --> 00:01:43.120
+Use one that creates fresh change addresses.
+
+25
+00:01:43.387 --> 00:01:45.535
+This bar takes you to each section:
+
+26
+00:01:45.535 --> 00:01:49.284
+overview, transaction, findings, score and analyst tools.
+
+27
+00:01:49.453 --> 00:01:52.076
+The flow shows one input and two outputs.
+
+28
+00:01:52.076 --> 00:01:56.675
+One goes back to the very same input address: the change is exposed.
+
+29
+00:01:56.853 --> 00:02:00.651
+Linkability colours the flow by Boltzmann link probability.
+
+30
+00:02:00.651 --> 00:02:03.154
+Here, both links are deterministic.
+
+31
+00:02:03.320 --> 00:02:05.309
+The analyst view adds its reading:
+
+32
+00:02:05.309 --> 00:02:08.601
+this output goes back to an address the sender owns.
+
+33
+00:02:08.753 --> 00:02:11.994
+In the evidence, leaks come first. This one is critical:
+
+34
+00:02:11.994 --> 00:02:16.816
+the same address on the input and the output reveals the change with certainty.
+
+35
+00:02:16.987 --> 00:02:18.976
+Each finding shows its confidence,
+
+36
+00:02:18.976 --> 00:02:22.136
+who can exploit it and whether it is already on-chain,
+
+37
+00:02:22.136 --> 00:02:24.200
+plus a concrete recommendation.
+
+38
+00:02:24.353 --> 00:02:27.392
+Below are the minor signals and the privacy strengths.
+
+39
+00:02:27.553 --> 00:02:29.575
+The breakdown explains the score:
+
+40
+00:02:29.575 --> 00:02:33.746
+it starts from a base of 70, and each finding adds or subtracts.
+
+41
+00:02:33.920 --> 00:02:36.826
+And the exposure table shows who can see each leak:
+
+42
+00:02:36.826 --> 00:02:40.380
+the public, companies that know your identity, or a state.
+
+43
+00:02:44.587 --> 00:02:48.488
+For contrast, scan a Whirlpool CoinJoin made with Ashigaru.
+
+44
+00:02:48.353 --> 00:02:52.986
+Five inputs and five identical outputs of 2,500,000 satoshis.
+
+45
+00:02:55.920 --> 00:03:01.624
+Result: A plus, 100 out of 100. The CoinJoin is recognized and scores points.
+
+46
+00:03:01.787 --> 00:03:04.148
+The Link Probability Matrix is computed in
+
+47
+00:03:04.148 --> 00:03:06.759
+your browser with the Boltzmann algorithm.
+
+48
+00:03:06.920 --> 00:03:11.932
+1,496 valid interpretations and 10.55 bits of entropy.
+
+49
+00:03:11.932 --> 00:03:17.657
+Any input could own any output, with no deterministic link.
+
+50
+00:03:21.753 --> 00:03:23.307
+Back to the F transaction.
+
+51
+00:03:23.307 --> 00:03:27.622
+Under Analyst tools, the graph lets you follow the coins hop by hop.
+
+52
+00:03:27.987 --> 00:03:33.115
+Press the plus to expand a hop. This input comes from Huobi, a known exchange.
+
+53
+00:03:33.287 --> 00:03:37.379
+Full screen gives you more tools: the heat map, fingerprints and links.
+
+54
+00:03:37.553 --> 00:03:40.856
+The heat map colours each transaction by its privacy score.
+
+55
+00:03:41.020 --> 00:03:45.083
+And the taint flow shows how these funds reach Binance four hops later.
+
+56
+00:03:48.887 --> 00:03:52.181
+Before you send bitcoin, paste the destination address.
+
+57
+00:03:52.153 --> 00:03:57.166
+This one has never been used: low risk. Sending here creates no address reuse.
+
+58
+00:03:57.320 --> 00:04:02.727
+By contrast, a heavily reused address, like Satoshi's, gets an F with zero points.
+
+59
+00:04:02.887 --> 00:04:07.946
+Its destination risk is critical: it has received funds tens of thousands of times.
+
+60
+00:04:07.946 --> 00:04:10.756
+Sending there would link your transaction.
+
+61
+00:04:14.853 --> 00:04:19.589
+From any result you can save it to local bookmarks, or share a link or a report.
+
+62
+00:04:20.053 --> 00:04:24.367
+In the settings you choose the network: mainnet, testnet4 or signet.
+
+63
+00:04:24.520 --> 00:04:27.300
+Under Advanced you can use your own mempool instance,
+
+64
+00:04:27.300 --> 00:04:29.700
+so your queries never leave your network.
+
+65
+00:04:29.853 --> 00:04:32.897
+Open the site in Tor Browser and it is detected,
+
+66
+00:04:32.897 --> 00:04:36.508
+and queries go through mempool.space's onion address.
+
+67
+00:04:36.687 --> 00:04:39.265
+And if you run an Umbrel or StartOS node,
+
+68
+00:04:39.265 --> 00:04:42.849
+install am-i.exposed from its app store in one click.
+
+69
+00:04:43.020 --> 00:04:45.121
+The guide collects privacy techniques,
+
+70
+00:04:45.121 --> 00:04:48.080
+a wallet comparison and the most common mistakes.
+
+71
+00:04:49.187 --> 00:04:50.904
+And it works on your phone, too.
+
+72
+00:04:52.020 --> 00:04:55.002
+The chain is public, and someone is always watching.
+
+73
+00:04:55.002 --> 00:04:57.144
+Scan it before someone else does.
+
+74
+00:04:59.020 --> 00:05:02.517
+am-i.exposed: free, open source, and no tracking.
