@@ -230,3 +230,8 @@ export function layoutVerticalFlow(
 
   return { ribbons: [...side(ins, "input"), ...side(outs, "output")], junction: { x0: jx0, x1: jx0 + jw, y: my } };
 }
+
+/** Whether a CoinJoin's equal outputs are drawn as tiers: not when listed individually or in linkability mode (which needs single outputs). */
+export function groupsTiers(isCoinJoin: boolean, individual: boolean, linkMode: boolean): boolean {
+  return isCoinJoin && !individual && !linkMode;
+}
