@@ -1,11 +1,11 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageShell } from "@/components/PageShell";
 import { PosterVideo, type PosterVideoHandle } from "@/components/media/PosterVideo";
 import { VIDEOS_ENABLED } from "@/lib/media/videos-enabled";
-import { pickVideoLang, subtitleTracks, tutorialSource } from "@/lib/media/video-sources";
+import { pickVideoLang, subtitleTracks, tutorialSource, type VideoLang } from "@/lib/media/video-sources";
 import { TUTORIAL_CHAPTERS, formatTime } from "@/lib/media/tutorial-chapters";
 import { EXAMPLES } from "@/lib/constants";
 
@@ -22,6 +22,8 @@ const TRY = TRY_LABELS.map((k) => EXAMPLES.find((e) => e.labelKey === k)).filter
 export function TutorialPage() {
   const { t, i18n } = useTranslation();
   const ref = useRef<PosterVideoHandle>(null);
+  // Language of the mounted video: chapter times must keep matching it after a UI language switch.
+  const [playedLang, setPlayedLang] = useState<VideoLang | null>(null);
 
   if (!VIDEOS_ENABLED) {
     return (
@@ -34,7 +36,7 @@ export function TutorialPage() {
     );
   }
 
-  const lang = pickVideoLang(i18n.language);
+  const lang = playedLang ?? pickVideoLang(i18n.language);
   const src = tutorialSource(lang);
 
   return (
@@ -46,7 +48,7 @@ export function TutorialPage() {
 
       <PosterVideo
         ref={ref}
-        resolve={() => src}
+        resolve={() => { setPlayedLang(lang); return src; }}
         poster={src.poster}
         aspect={src.aspect}
         tracks={subtitleTracks(i18n.language)}
@@ -69,8 +71,7 @@ export function TutorialPage() {
                   className={`min-h-[44px] w-full rounded-lg px-3 text-left text-sm text-muted hover:text-foreground transition-colors cursor-pointer ${FOCUS}`}
                 >
                   <span className="num text-bitcoin">{time}</span>
-                  {"  "}
-                  {title}
+                  <span className="ml-2">{title}</span>
                 </button>
               </li>
             );

@@ -51,6 +51,18 @@ describe("TutorialPage", () => {
     expect(v.currentTime).toBeCloseTo(161.43);
   });
 
+  it("chapter times follow the mounted video after a UI language switch", () => {
+    h.lang = "es";
+    const { container, rerender } = render(<TutorialPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Reproducir el tutorial" }));
+    h.lang = "en";
+    rerender(<TutorialPage />);
+    const v = container.querySelector("video") as HTMLVideoElement;
+    expect(v.getAttribute("src")).toBe("/media/tutorial-es-16x9.mp4");
+    fireEvent.click(screen.getByRole("button", { name: "Jump to 2:49, A good example: CoinJoin" }));
+    expect(v.currentTime).toBeCloseTo(169.3);
+  });
+
   it("lists the four example scans", () => {
     const { container } = render(<TutorialPage />);
     const hrefs = [...container.querySelectorAll("a")].map((a) => a.getAttribute("href"));

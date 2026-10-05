@@ -22,6 +22,8 @@ function useSection(segment: string): { eyebrow: string; width: string } {
       return { eyebrow: t("pages.section.selfHost", { defaultValue: "Self-host" }), width: "max-w-4xl" };
     case "agents":
       return { eyebrow: t("pages.section.agents", { defaultValue: "Developers" }), width: "max-w-4xl" };
+    case "tutorial":
+      return { eyebrow: t("common.tutorial", { defaultValue: "Tutorial" }), width: "max-w-4xl" };
     case "observatory":
       return { eyebrow: t("pages.section.observatory", { defaultValue: "CoinJoin observatory" }), width: "max-w-6xl" };
     default:
