@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { auditWallet, type WalletAddressInfo } from "../wallet-audit";
-import type { MempoolAddress, MempoolUtxo } from "@/lib/api/types";
+import type { MempoolAddress, MempoolTransaction, MempoolUtxo } from "@/lib/api/types";
 import type { DerivedAddress } from "@/lib/bitcoin/descriptor";
 
 function makeAddr(
@@ -122,6 +122,21 @@ describe("auditWallet", () => {
     const mixedFinding = result.findings.find(f => f.id === "wallet-mixed-script-utxos");
     expect(mixedFinding).toBeDefined();
     expect(mixedFinding?.params?.scriptTypes).toBe(2);
+  });
+
+  it("counts a consolidation only when 3+ inputs are the wallet's own", () => {
+    const tx = (txid: string, inputAddrs: string[]) => ({
+      txid,
+      vin: inputAddrs.map((a) => ({ prevout: { scriptpubkey_address: a, value: 1000 } })),
+      vout: [{ scriptpubkey_address: "bc1qaddr0", value: 2000 }],
+    }) as unknown as MempoolTransaction;
+    const own = tx("own", ["bc1qaddr1", "bc1qaddr2", "bc1qaddr3"]);
+    const received = tx("received", ["bc1qother1", "bc1qother2", "bc1qother3"]);
+    const addresses = ["bc1qaddr0", "bc1qaddr1", "bc1qaddr2", "bc1qaddr3"].map((a, i) => makeAddr(a, i, 1));
+    addresses[0]!.txs = [own, received];
+
+    const finding = auditWallet(addresses).findings.find(f => f.id === "wallet-consolidation-history");
+    expect(finding?.params?.consolidationCount).toBe(1);
   });
 
   it("calculates total balance correctly", () => {

@@ -200,14 +200,17 @@ function checkSpendingPatterns(addresses: WalletAddressInfo[]): Finding[] {
   // Collect all unique transactions where this wallet is the sender
   const allTxIds = new Set<string>();
   const consolidationTxs: MempoolTransaction[] = [];
+  const own = new Set(addresses.map((a) => a.derived.address));
 
   for (const addr of addresses) {
     for (const tx of addr.txs) {
       if (allTxIds.has(tx.txid)) continue;
       allTxIds.add(tx.txid);
 
-      // Check if this is a consolidation (multiple wallet addresses as inputs)
-      if (tx.vin.length >= 3 && tx.vout.length <= 2) {
+      // A consolidation spends 3+ of this wallet's own coins into few outputs;
+      // someone else's consolidation that merely paid the wallet does not count
+      const ownInputs = tx.vin.filter((v) => v.prevout && own.has(v.prevout.scriptpubkey_address)).length;
+      if (ownInputs >= 3 && tx.vout.length <= 2) {
         consolidationTxs.push(tx);
       }
     }
