@@ -16,5 +16,8 @@ describe("Polish plural forms", () => {
     expect(i18n.t("local.lookupParents", { count: 3 })).toBe("3 transakcje nadrzędne");
     expect(i18n.t("local.lookupParents", { count: 5 })).toBe("5 transakcji nadrzędnych");
     expect(i18n.t("local.lookupAddresses", { count: 22 })).toBe("22 adresy");
+    expect(i18n.t("services.outOf", { count: 1 })).toBe("1 moneta wyszła z zarejestrowanych CoinJoinów");
+    expect(i18n.t("services.outOf", { count: 3 })).toBe("3 monety wyszły z zarejestrowanych CoinJoinów");
+    expect(i18n.t("services.outOf", { count: 5 })).toBe("5 monet wyszło z zarejestrowanych CoinJoinów");
   });
 });

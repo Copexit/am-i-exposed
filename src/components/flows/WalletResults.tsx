@@ -186,7 +186,7 @@ export function WalletResults({ descriptor, result, addressInfos, utxoTraces, on
         <div className="lg:col-span-8 min-w-0">
           <FindingGroups findings={result.findings} onTxClick={onScan} />
           {serviceTxids.length > 0 && (
-            <div className="mt-8">
+            <div className="mt-8 empty:hidden">
               <ServiceCheck txids={serviceTxids} mode="wallet-like" totalAvailable={serviceTotal} isLocalCoinJoin={isLocalCoinJoin} onScan={onScan} />
             </div>
           )}

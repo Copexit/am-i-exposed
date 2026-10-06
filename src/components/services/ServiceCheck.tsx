@@ -29,14 +29,16 @@ const btnCls =
 /** Opt-in Wabisator lookup: which WabiSabi coordinator ran a round, where coins came from or went. */
 export function ServiceCheck({ txids, mode, totalAvailable, isLocalCoinJoin, onScan }: ServiceCheckProps) {
   const { t } = useTranslation();
-  const { isUmbrel } = useNetwork();
+  const { isUmbrel, network } = useNetwork();
   const { phase, done, total, results, summary, start, retryFailed } = useServiceCheck(txids, isLocalCoinJoin);
+  // Wabisator only indexes mainnet rounds.
+  if (network !== "mainnet") return null;
 
   const coverage = (
     <p className="text-[13px] text-muted leading-relaxed">
       {t("services.coverage", {
         defaultValue:
-          "Covers the WabiSabi coordinators Wabisator monitors (Kruw, OpenCoordinator, GingerWallet and others). No record does not rule out Whirlpool, JoinMarket or unmonitored coordinators.",
+          "Covers the WabiSabi coordinators Wabisator monitors (Kruw, OpenCoordinator, GingerWallet and others). No record here does not rule out Whirlpool, JoinMarket or unmonitored coordinators.",
       })}
     </p>
   );
@@ -46,14 +48,28 @@ export function ServiceCheck({ txids, mode, totalAvailable, isLocalCoinJoin, onS
     </button>
   );
 
+  const failedLine = (count: number) => (
+    <div className="flex flex-wrap items-center gap-3">
+      <p className="text-sm text-muted">
+        {t("services.failedCount", { count, defaultValue: "{{count}} transaction could not be checked.", defaultValue_other: "{{count}} transactions could not be checked." })}
+      </p>
+      {retry}
+    </div>
+  );
+
   let body: ReactNode = null;
   if (phase === "idle") {
     body = (
       <>
         <p className="text-sm text-foreground leading-relaxed">
-          {t("services.desc", {
-            defaultValue: "See whether this was part of a WabiSabi CoinJoin, which coordinator ran it, and where the coins came from or went.",
-          })}
+          {mode === "tx"
+            ? t("services.desc", {
+                defaultValue: "See whether this was part of a WabiSabi CoinJoin, which coordinator ran it, and where the coins came from or went.",
+              })
+            : t("services.descMany", {
+                defaultValue:
+                  "See whether these transactions took part in WabiSabi CoinJoins, which coordinators ran them, and where the coins came from or went.",
+              })}
         </p>
         <p className="text-[13px] text-muted leading-relaxed">
           {isUmbrel
@@ -66,6 +82,14 @@ export function ServiceCheck({ txids, mode, totalAvailable, isLocalCoinJoin, onS
                 defaultValue:
                   "Sends {{count}} transaction ID(s) to Wabisator (wabisator.com) through the am-i.exposed relay. Your IP address is not shared with Wabisator. Nothing is stored.",
               })}
+          {mode === "wallet-like" && (
+            <>
+              {" "}
+              {t("services.privacyCluster", {
+                defaultValue: "Checking several transactions together lets Wabisator see that they belong to one wallet.",
+              })}
+            </>
+          )}
         </p>
         {mode === "wallet-like" && totalAvailable !== undefined && totalAvailable > txids.length && (
           <p className="text-[13px] text-muted">
@@ -96,17 +120,7 @@ export function ServiceCheck({ txids, mode, totalAvailable, isLocalCoinJoin, onS
   } else if (mode === "tx") {
     const r = results[0];
     if (r?.kind === "coinjoin") body = <RoundView r={r} onScan={onScan} />;
-    else if (r?.kind === "linked")
-      body = (
-        <>
-          {r.outOf.length > 0 && (
-            <CoinList title={t("services.outOf", { count: r.outOf.length, defaultValue: "{{count}} coins came out of recorded CoinJoins" })} coins={r.outOf} onScan={onScan} />
-          )}
-          {r.into.length > 0 && (
-            <CoinList title={t("services.into", { count: r.into.length, defaultValue: "{{count}} coins went into recorded CoinJoins" })} coins={r.into} onScan={onScan} />
-          )}
-        </>
-      );
+    else if (r?.kind === "linked") body = <LinkedView r={r} onScan={onScan} />;
     else if (r?.kind === "error")
       body = (
         <>
@@ -121,6 +135,20 @@ export function ServiceCheck({ txids, mode, totalAvailable, isLocalCoinJoin, onS
           {coverage}
         </>
       );
+  } else if (summary && summary.rounds.length === 0 && summary.linked.length === 0) {
+    body = (
+      <>
+        {summary.checked > 0 && (
+          <>
+            <p className="text-sm text-foreground">
+              {t("services.noneMany", { defaultValue: "No recorded WabiSabi CoinJoin activity for these transactions." })}
+            </p>
+            {coverage}
+          </>
+        )}
+        {summary.failed > 0 && failedLine(summary.failed)}
+      </>
+    );
   } else if (summary) {
     const intoSats = summary.into.reduce((a, g) => a + g.sats, 0);
     body = (
@@ -142,7 +170,8 @@ export function ServiceCheck({ txids, mode, totalAvailable, isLocalCoinJoin, onS
             <p className="text-sm text-foreground leading-relaxed">
               {t("services.postMixWarning", {
                 count: summary.postMixMerges.length,
-                defaultValue: "{{count}} transactions spent coins from different CoinJoin outputs together, which links them again.",
+                defaultValue: "{{count}} transaction spent coins from different CoinJoin outputs together, which links them again.",
+                defaultValue_other: "{{count}} transactions spent coins from different CoinJoin outputs together, which links them again.",
               })}
             </p>
             <ul className="divide-y divide-hairline">
@@ -154,12 +183,30 @@ export function ServiceCheck({ txids, mode, totalAvailable, isLocalCoinJoin, onS
             </ul>
           </div>
         )}
-        {summary.failed > 0 && (
-          <div className="flex flex-wrap items-center gap-3">
-            <p className="text-sm text-muted">{t("services.failedCount", { count: summary.failed, defaultValue: "{{count}} could not be checked." })}</p>
-            {retry}
-          </div>
-        )}
+        <div className="space-y-1">
+          <p className="text-sm text-foreground">{t("services.found", { defaultValue: "Transactions with recorded CoinJoin activity" })}</p>
+          <ul className="divide-y divide-hairline">
+            {summary.rounds.map((r) => (
+              <TxItem key={r.txid} txid={r.txid} onScan={onScan} meta={<><span>{r.coordinator.name}</span>{r.time > 0 && <span className="num">{fmtTime(r.time)}</span>}</>}>
+                <RoundView r={r} onScan={onScan} />
+              </TxItem>
+            ))}
+            {summary.linked.map((l) => {
+              const coins = [...l.outOf, ...l.into];
+              return (
+                <TxItem
+                  key={l.txid}
+                  txid={l.txid}
+                  onScan={onScan}
+                  meta={<><span>{[...new Set(coins.map((c) => c.name))].join(", ")}</span><span className="num">{fmtSats(coins.reduce((a, c) => a + c.sats, 0))}</span></>}
+                >
+                  <LinkedView r={l} onScan={onScan} />
+                </TxItem>
+              );
+            })}
+          </ul>
+        </div>
+        {summary.failed > 0 && failedLine(summary.failed)}
       </>
     );
   }
@@ -228,7 +275,8 @@ function RoundView({ r, onScan }: { r: CoinjoinResult; onScan: (txid: string) =>
         <p className="text-[13px] text-severity-medium leading-relaxed">
           {t("services.nonStandard", {
             count: r.nonStandardOutputs,
-            defaultValue: "{{count}} non-standard outputs: change outputs like these are the linkable ones.",
+            defaultValue: "{{count}} non-standard output: change outputs like this are the linkable ones.",
+            defaultValue_other: "{{count}} non-standard outputs: change outputs like these are the linkable ones.",
           })}
         </p>
       )}
@@ -248,21 +296,73 @@ function Tile({ label, value, warn = false, children }: { label: string; value: 
   );
 }
 
-function Row({ txid, onScan, children }: { txid: string; onScan: (txid: string) => void; children?: ReactNode }) {
+function ScanButton({ txid, onScan }: { txid: string; onScan: (txid: string) => void }) {
   const { t } = useTranslation();
+  return (
+    <button
+      type="button"
+      onClick={() => onScan(txid)}
+      aria-label={`${t("services.scan", { defaultValue: "Scan" })} ${txid}`}
+      className="shrink-0 min-h-[44px] px-2 -mr-2 text-bitcoin hover:underline underline-offset-2 cursor-pointer"
+    >
+      {t("services.scan", { defaultValue: "Scan" })}
+    </button>
+  );
+}
+
+function Row({ txid, onScan, children }: { txid: string; onScan: (txid: string) => void; children?: ReactNode }) {
   return (
     <li className="flex items-center gap-3 py-1.5 text-[13px]">
       <span className="num text-foreground shrink-0">{shortTx(txid)}</span>
       <span className="flex-1 min-w-0 flex flex-wrap gap-x-3 text-muted">{children}</span>
-      <button
-        type="button"
-        onClick={() => onScan(txid)}
-        aria-label={`${t("services.scan", { defaultValue: "Scan" })} ${txid}`}
-        className="shrink-0 min-h-[44px] px-2 -mr-2 text-bitcoin hover:underline underline-offset-2 cursor-pointer"
-      >
-        {t("services.scan", { defaultValue: "Scan" })}
-      </button>
+      <ScanButton txid={txid} onScan={onScan} />
     </li>
+  );
+}
+
+/** Summary-list row: expands to the same detail view tx mode shows. */
+function TxItem({ txid, meta, onScan, children }: { txid: string; meta: ReactNode; onScan: (txid: string) => void; children: ReactNode }) {
+  return (
+    <li className="flex items-start gap-3 text-[13px]">
+      <details className="flex-1 min-w-0">
+        <summary className="min-h-[44px] flex items-center gap-3 cursor-pointer">
+          <span className="num text-foreground shrink-0">{shortTx(txid)}</span>
+          <span className="min-w-0 flex flex-wrap gap-x-3 text-muted">{meta}</span>
+        </summary>
+        <div className="space-y-4 pt-2 pb-4">{children}</div>
+      </details>
+      <ScanButton txid={txid} onScan={onScan} />
+    </li>
+  );
+}
+
+function LinkedView({ r, onScan }: { r: Extract<TxAttribution, { kind: "linked" }>; onScan: (txid: string) => void }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      {r.outOf.length > 0 && (
+        <CoinList
+          title={t("services.outOf", {
+            count: r.outOf.length,
+            defaultValue: "{{count}} coin came out of recorded CoinJoins",
+            defaultValue_other: "{{count}} coins came out of recorded CoinJoins",
+          })}
+          coins={r.outOf}
+          onScan={onScan}
+        />
+      )}
+      {r.into.length > 0 && (
+        <CoinList
+          title={t("services.into", {
+            count: r.into.length,
+            defaultValue: "{{count}} coin went into recorded CoinJoins",
+            defaultValue_other: "{{count}} coins went into recorded CoinJoins",
+          })}
+          coins={r.into}
+          onScan={onScan}
+        />
+      )}
+    </>
   );
 }
 
