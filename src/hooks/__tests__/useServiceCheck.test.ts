@@ -43,4 +43,40 @@ describe("useServiceCheck", () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(result.current.results).toEqual([]);
   });
+  it("aborts the in-flight lookup's signal on a new txid set and on unmount", () => {
+    const signals: AbortSignal[] = [];
+    lookupTx.mockImplementation((_txid: string, ctx: { signal: AbortSignal }) => { signals.push(ctx.signal); return new Promise(() => {}); });
+    const { result, rerender, unmount } = renderHook(({ ids }) => useServiceCheck(ids, () => false), { initialProps: { ids: [A] } });
+    act(() => result.current.start());
+    return waitFor(() => expect(signals).toHaveLength(1)).then(() => {
+      expect(signals[0]!.aborted).toBe(false);
+      rerender({ ids: [B] });
+      expect(signals[0]!.aborted).toBe(true);
+      act(() => result.current.start());
+      return waitFor(() => expect(signals).toHaveLength(2)).then(() => {
+        unmount();
+        expect(signals[1]!.aborted).toBe(true);
+      });
+    });
+  });
+  it("returning to an aborted txid set shows the consent state again", () => {
+    lookupTx.mockImplementation(() => new Promise(() => {}));
+    const { result, rerender } = renderHook(({ ids }) => useServiceCheck(ids, () => false), { initialProps: { ids: [A] } });
+    act(() => result.current.start());
+    expect(result.current.phase).toBe("running");
+    rerender({ ids: [B] });
+    rerender({ ids: [A] });
+    expect(result.current.phase).toBe("idle");
+    expect(result.current.results).toEqual([]);
+  });
+  it("returning to a completed txid set shows the consent state again", async () => {
+    lookupTx.mockImplementation(async (txid: string) => ({ kind: "none", txid }));
+    const { result, rerender } = renderHook(({ ids }) => useServiceCheck(ids, () => false), { initialProps: { ids: [A] } });
+    act(() => result.current.start());
+    await waitFor(() => expect(result.current.phase).toBe("done"));
+    rerender({ ids: [B] });
+    rerender({ ids: [A] });
+    expect(result.current.phase).toBe("idle");
+    expect(result.current.results).toEqual([]);
+  });
 });

@@ -34,7 +34,15 @@ export function useServiceCheck(txids: string[], isLocalCoinJoin: (txid: string)
   const [state, setState] = useState<State>({ key, phase: "idle", done: 0, total: 0, results: [] });
   const ctrlRef = useRef<AbortController | null>(null);
 
-  useEffect(() => () => ctrlRef.current?.abort(), [key]);
+  // A new txid set (or unmount) aborts and forgets the run, so returning to an
+  // earlier set shows the consent state again.
+  useEffect(
+    () => () => {
+      ctrlRef.current?.abort();
+      setState({ key: "", phase: "idle", done: 0, total: 0, results: [] });
+    },
+    [key],
+  );
 
   const run = useCallback(
     async (ids: string[], base: TxAttribution[]) => {
