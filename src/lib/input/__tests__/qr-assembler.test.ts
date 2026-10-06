@@ -33,6 +33,15 @@ describe("QrAssembler", () => {
     expect(await a.push(" {not json} ")).toEqual({ kind: "done", payload: "{not json}" });
   });
 
+  it("multisig-only wallet JSON (plain frame or BBQr J) -> error multisig", async () => {
+    const { json } = coldcardJson({ withMultisig: true });
+    for (const k of ["bip44", "bip49", "bip84", "bip86"]) delete json[k];
+    const text = JSON.stringify(json);
+    expect(await new QrAssembler().push(text)).toEqual({ kind: "error", reason: "multisig" });
+    const body = base32.encode(new Uint8Array(deflateRawSync(new TextEncoder().encode(text), { windowBits: 10 }))).replace(/=+$/, "");
+    expect(await new QrAssembler().push(`B$ZJ0100${body}`)).toEqual({ kind: "error", reason: "multisig" });
+  });
+
   it("UR multipart with a garbage frame and repeats still completes", async () => {
     const a = new QrAssembler();
     const enc = urEnc(psbtA);

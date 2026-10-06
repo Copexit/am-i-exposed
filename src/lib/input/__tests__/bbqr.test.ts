@@ -36,6 +36,12 @@ describe("BbqrDecoder", () => {
     expect(await d.receive(a ?? "")).toEqual({ kind: "progress", received: 1, total: 2 });
     expect(await d.receive(b ?? "")).toEqual({ kind: "done", payload: (json.bip84 as { desc: string }).desc });
   });
+  it("J type multisig-only export -> multisig error", async () => {
+    const { json } = coldcardJson({ withMultisig: true });
+    for (const k of ["bip44", "bip49", "bip84", "bip86"]) delete json[k];
+    const [p] = encode(new TextEncoder().encode(JSON.stringify(json)), "Z", "J", 1);
+    expect(await new BbqrDecoder().receive(p ?? "")).toEqual({ kind: "error", reason: "multisig" });
+  });
   it("J type without a usable wallet is unsupported", async () => {
     const [p] = encode(new TextEncoder().encode("{}"), "2", "J", 1);
     expect(await new BbqrDecoder().receive(p ?? "")).toEqual({ kind: "error", reason: "unsupported-type" });

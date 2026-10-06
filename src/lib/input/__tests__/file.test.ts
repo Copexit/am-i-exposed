@@ -32,6 +32,13 @@ describe("readInputFile", () => {
     const f = new File([new Uint8Array(MAX_FILE_BYTES + 1)], "big.psbt");
     await expect(readInputFile(f)).rejects.toBeInstanceOf(InputFileError);
   });
+  it("a multisig-only wallet export is rejected with reason multisig", async () => {
+    const { json } = coldcardJson({ withMultisig: true });
+    for (const k of ["bip44", "bip49", "bip84", "bip86"]) delete json[k];
+    const bytes = new TextEncoder().encode(JSON.stringify(json));
+    expect(() => bytesToPayload(bytes)).toThrow(InputFileError);
+    await expect(readInputFile(new File([bytes], "wallet.json"))).rejects.toMatchObject({ reason: "multisig" });
+  });
   it("reads a .psbt file", async () => {
     const bytes = buildPsbt({ sign: false }).toPSBT();
     expect(await readInputFile(new File([new Uint8Array(bytes)], "tx.psbt"))).toBe(bytesToHex(bytes));

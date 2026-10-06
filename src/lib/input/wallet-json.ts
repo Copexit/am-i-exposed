@@ -52,17 +52,33 @@ function fromCore(list: unknown[]): string | null {
   return descs.sort((a, b) => rank(a) - rank(b))[0] ?? null;
 }
 
+/** Returned when the export holds only multisig wallets (shown as the "multisig not supported" error). */
+export const MULTISIG = "multisig" as const;
+
+/** Multisig markers: Coldcard bip48_* / bip45 / p2wsh / p2sh sections, multi() descriptors, Electrum "2of3". */
+function hasMultisig(j: unknown): boolean {
+  if (Array.isArray(j)) return j.some((d) => isObj(d) && /multi\(/.test(str(d.desc)));
+  if (!isObj(j)) return false;
+  if (Array.isArray(j.descriptors)) return hasMultisig(j.descriptors);
+  return Object.keys(j).some((k) => /^(bip48_|bip45|p2wsh|p2sh)/.test(k)) || /^\d+of\d+$/.test(str(j.wallet_type));
+}
+
 /**
  * Wallet-export JSON (Coldcard, Sparrow, Bitcoin Core, Electrum, Wasabi) -> a
- * descriptor or extended public key the text field accepts, or null. Only
+ * descriptor or extended public key the text field accepts, MULTISIG when
+ * only multisig wallets are in it, or null. Only
  * values accepted by isXpubOrDescriptor are returned, so private keys
  * (xprv/tprv/zprv, or a descriptor holding one) can never come out.
  */
-export function walletJsonToPayload(text: string): string | null {
+export function walletJsonToPayload(text: string): string | typeof MULTISIG | null {
   const t = text.trim();
   if (!/^[{[]/.test(t)) return null;
   let j: unknown;
   try { j = JSON.parse(t); } catch { return null; }
+  return singleSig(j) ?? (hasMultisig(j) ? MULTISIG : null);
+}
+
+function singleSig(j: unknown): string | null {
   if (Array.isArray(j)) return fromCore(j);
   if (!isObj(j)) return null;
   if (Array.isArray(j.descriptors)) return fromCore(j.descriptors);

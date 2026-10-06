@@ -1,12 +1,12 @@
 import { base32 } from "@scure/base";
 import { hexToBytes } from "@/lib/bitcoin/hex";
 import { bytesToPayload } from "./file";
-import { walletJsonToPayload } from "./wallet-json";
+import { walletJsonToPayload, MULTISIG } from "./wallet-json";
 
 export type BbqrResult =
   | { kind: "progress"; received: number; total: number }
   | { kind: "done"; payload: string }
-  | { kind: "error"; reason: "unsupported-type" | "corrupt" };
+  | { kind: "error"; reason: "unsupported-type" | "multisig" | "corrupt" };
 
 const HEADER_RE = /^B\$([H2Z])([A-Z])([0-9A-Z]{2})([0-9A-Z]{2})(.*)$/s;
 const BODY_RE = { H: /^[0-9A-Fa-f]+$/, "2": /^[A-Z2-7]+$/, Z: /^[A-Z2-7]+$/ } as const;
@@ -80,6 +80,7 @@ export class BbqrDecoder {
     if (type === "U") return { kind: "done", payload: new TextDecoder().decode(bytes).trim() };
     // Wallet exports (Coldcard Q "Export Wallet"): only a single-sig descriptor/xpub is taken from the JSON.
     const wallet = type === "J" ? walletJsonToPayload(new TextDecoder().decode(bytes)) : null;
+    if (wallet === MULTISIG) return { kind: "error", reason: "multisig" };
     if (wallet) return { kind: "done", payload: wallet };
     return { kind: "error", reason: "unsupported-type" };
   }

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { p2wpkh, NETWORK, TEST_NETWORK } from "@scure/btc-signer";
 import { descriptorChecksum, parseAndDerive } from "@/lib/bitcoin/descriptor";
 import { coldcardJson } from "./fixtures";
-import { walletJsonToPayload } from "../wallet-json";
+import { walletJsonToPayload, MULTISIG } from "../wallet-json";
 
 const firstReceive = (acct: { deriveChild: (i: number) => { deriveChild: (i: number) => { publicKey: Uint8Array | null } } }, testnet = false) =>
   p2wpkh(acct.deriveChild(0).deriveChild(0).publicKey!, testnet ? TEST_NETWORK : NETWORK).address;
@@ -46,10 +46,20 @@ describe("walletJsonToPayload", () => {
     expect(parsed.receiveAddresses[0]?.address).toBe(firstReceive(accounts.bip84!, true));
   });
 
-  it("only multisig sections -> null", () => {
-    const { json } = coldcardJson({ withMultisig: true });
+  it("multisig-only exports -> MULTISIG; single-sig wins when both are present", () => {
+    const { json, master, xfp } = coldcardJson({ withMultisig: true });
+    expect(walletJsonToPayload(JSON.stringify(json))).toMatch(/^wpkh\(/);
     for (const k of ["bip44", "bip49", "bip84", "bip86"]) delete json[k];
-    expect(walletJsonToPayload(JSON.stringify(json))).toBeNull();
+    expect(walletJsonToPayload(JSON.stringify(json))).toBe(MULTISIG);
+    // Coldcard multisig xpub export (Settings > Multisig > Export XPUB)
+    const ms = master.derive("m/48'/0'/0'/2'").publicExtendedKey;
+    expect(walletJsonToPayload(JSON.stringify({ xfp, p2wsh_deriv: "m/48'/0'/0'/2'", p2wsh: ms, p2sh_p2wsh: ms }))).toBe(MULTISIG);
+    // Bitcoin Core multisig descriptors
+    expect(walletJsonToPayload(JSON.stringify({ descriptors: [{ desc: `wsh(sortedmulti(2,${ms}/0/*,${ms}/1/*))#aaaaaaaa`, internal: false }] }))).toBe(MULTISIG);
+    expect(walletJsonToPayload(JSON.stringify([{ desc: `sh(multi(1,${ms}/0/*))` }]))).toBe(MULTISIG);
+    // Electrum 2-of-3
+    expect(walletJsonToPayload(JSON.stringify({ wallet_type: "2of3", "x1/": { xpub: ms }, "x2/": { xpub: ms } }))).toBe(MULTISIG);
+    expect(walletJsonToPayload(JSON.stringify({ wallet_type: "standard" }))).toBeNull();
   });
 
   it("never returns private keys", () => {
