@@ -70,6 +70,12 @@ test("bare xpub: address type detected from history, other types offered", async
   await expect(page.getByText("Address type detected from on-chain history")).toBeVisible();
   await expect(page.getByRole("button", { name: "p2tr", exact: true })).toBeVisible();
   // Gap limit 2 (set in beforeEach) is below the standard 20: offered a full rescan
-  await expect(page.getByRole("button", { name: "Rescan with 20" })).toBeVisible();
+  const row = page.getByTestId("rescan-gap-row");
+  for (const n of ["20", "50", "100"]) await expect(row.getByRole("button", { name: n, exact: true })).toBeVisible();
   await page.screenshot({ path: "test-results/bare-xpub.png", fullPage: false });
+  // Rescanning with 50 re-runs the scan; 20 is below it, so only 50 and 100 remain offered
+  await row.getByRole("button", { name: "50", exact: true }).click();
+  await expect(page.getByText("Wallet Privacy Audit")).toBeVisible({ timeout: 20_000 });
+  await expect(stat(page, "Total balance")).toHaveText("39,852,779 sats");
+  await expect(page.getByTestId("rescan-gap-row").getByRole("button", { name: "20", exact: true })).toHaveCount(0);
 });
