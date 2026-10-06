@@ -264,7 +264,7 @@ export function QrScanner({ onResult, onClose }: { onResult: (text: string) => v
           )}
           {cameraOff && !secure && (
             <p className="text-muted">
-              {t("qr.insecure", { defaultValue: "The camera needs HTTPS, localhost or the .onion address. You can take a photo of a static QR instead; animated QRs need the camera." })}
+              {t("qr.insecure", { defaultValue: "The camera is not available here: browsers only allow it over HTTPS or localhost, and Tor Browser turns it off. You can take a photo of a static QR instead; animated QRs need the camera." })}
             </p>
           )}
           {message && <p className="text-muted">{messageText[message]}</p>}

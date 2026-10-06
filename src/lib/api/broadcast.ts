@@ -19,8 +19,10 @@ export function parseRpcError(body: string): { code: number | null; message: str
   const json = body.match(/\{.*\}/s)?.[0];
   if (json) {
     try {
-      const e = JSON.parse(json) as { code?: unknown; message?: unknown };
+      const e = JSON.parse(json) as { code?: unknown; message?: unknown; error?: unknown };
       if (typeof e.code === "number") return { code: e.code, message: typeof e.message === "string" ? e.message : body };
+      // Self-hosted mempool wraps the node error: {"error":"sendrawtransaction RPC error: {\"code\":-27}"}
+      if (typeof e.error === "string") return parseRpcError(e.error);
     } catch { /* fall through */ }
   }
   return { code: null, message: body.trim().slice(0, 300) };

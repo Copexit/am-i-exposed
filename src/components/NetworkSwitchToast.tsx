@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { NETWORK_CONFIG, type BitcoinNetwork } from "@/lib/bitcoin/networks";
 
 /** Transient notice shown when a scan auto-switched networks. */
-export function NetworkSwitchToast({ network, kind = "txid" }: { network: BitcoinNetwork; kind?: "txid" | "address" }) {
+export function NetworkSwitchToast({ network, kind = "txid" }: { network: BitcoinNetwork; kind?: "txid" | "address" | "wallet" }) {
   const { t } = useTranslation();
   const [visible, setVisible] = useState(true);
 
@@ -30,7 +30,12 @@ export function NetworkSwitchToast({ network, kind = "txid" }: { network: Bitcoi
         >
           <ArrowLeftRight size={16} className="text-bitcoin shrink-0" aria-hidden="true" />
           <span className="flex-1">
-            {kind === "address"
+            {kind === "wallet"
+              ? t("page.networkAutoSwitchedWallet", {
+                network: NETWORK_CONFIG[network].label,
+                defaultValue: "Switched to {{network}}, the network this wallet belongs to.",
+              })
+              : kind === "address"
               ? t("page.networkAutoSwitchedAddress", {
                 network: NETWORK_CONFIG[network].label,
                 defaultValue: "Switched to {{network}}, the network this address belongs to.",
