@@ -96,3 +96,17 @@ describe("fail-closed class handling", () => {
     expect(cacheStore.size).toBe(0);
   });
 });
+
+describe("GET query validation", () => {
+  const svc = createSvc({ services: [{ id: "q", base: "https://q.dev", routes: [
+    { path: "/g", http: "GET", class: "lookup", query: { tx: "txid" } },
+  ] }] });
+  it("400s an invalid txid query value without fetching", async () => {
+    const f = vi.spyOn(globalThis, "fetch");
+    const url = "https://w.dev/svc/q/g?tx=zz";
+    const res = await svc(new Request(url), new URL(url), ctx, {});
+    expect(res.status).toBe(400);
+    expect((await res.json()).error.code).toBe("BAD_PARAMS");
+    expect(f).not.toHaveBeenCalled();
+  });
+});

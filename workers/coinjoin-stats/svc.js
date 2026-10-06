@@ -38,7 +38,10 @@ async function handle(reg, request, url, ctx, cors) {
     if (route.class !== "aggregate" && route.class !== "lookup") return misconfigured(cors);
     const qs = new URLSearchParams();
     for (const [name, kind] of Object.entries(route.query ?? {})) {
-      if (url.searchParams.has(name)) qs.set(name, validateParam(kind, url.searchParams.get(name)));
+      if (!url.searchParams.has(name)) continue;
+      const v = validateParam(kind, url.searchParams.get(name));
+      if (v === null) return err(400, "BAD_PARAMS", "Invalid params", cors);
+      qs.set(name, v);
     }
     const query = qs.toString();
     return forward({

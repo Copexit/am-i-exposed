@@ -23,7 +23,7 @@ function createHandler({
 
   const handleSvc = createSvcHandler({ fetchViaAgent, services, logger });
 
-  return async function handler(req, res) {
+  async function dispatch(req, res) {
     if (req.url === "/health") {
       res.writeHead(200, { "Content-Type": "text/plain", "Cache-Control": "no-store" });
       res.end("ok");
@@ -70,6 +70,19 @@ function createHandler({
       logger.error(`Tor proxy error: ${err.message}`);
       res.writeHead(502, { "Content-Type": "application/json", "Cache-Control": "no-store" });
       res.end(JSON.stringify({ error: "Tor proxy upstream request failed" }));
+    }
+  }
+
+  // Never rejects: server.js has no catch and an unhandled rejection kills the process on Node 22.
+  return async function handler(req, res) {
+    try {
+      await dispatch(req, res);
+    } catch (err) {
+      logger.error(`Tor proxy internal error: ${err.message}`);
+      if (!res.headersSent) {
+        res.writeHead(500, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+        res.end(JSON.stringify({ error: { code: "INTERNAL", message: "Internal error" } }));
+      }
     }
   };
 }

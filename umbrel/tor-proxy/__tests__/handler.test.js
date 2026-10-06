@@ -156,6 +156,37 @@ describe("tor-proxy handler", () => {
     expect(fetchViaAgent).not.toHaveBeenCalled();
   });
 
+  it("400s an invalid txid GET query value without calling upstream", async () => {
+    const services = [{ id: "q", base: "https://q.example", routes: [{ path: "/g", http: "GET", class: "lookup", query: { tx: "txid" } }] }];
+    const fetchViaAgent = vi.fn();
+    const handler = createHandler({ fetchViaAgent, services, logger: silentLogger });
+    const res = makeRes();
+    await handler(makeReq({ url: "/svc/q/g?tx=zz" }), res);
+    expect(res.status()).toBe(400);
+    expect(JSON.parse(res.body()).error.code).toBe("BAD_PARAMS");
+    expect(fetchViaAgent).not.toHaveBeenCalled();
+  });
+
+  it("answers 400 BAD_REQUEST when the request stream errors, without throwing", async () => {
+    const handler = createHandler({ fetchViaAgent: vi.fn(), logger: silentLogger });
+    const req = new Readable({ read() { this.destroy(new Error("aborted")); } });
+    req.url = "/svc/wabisator/api.php";
+    req.method = "POST";
+    const res = makeRes();
+    await expect(handler(req, res)).resolves.toBeUndefined();
+    expect(res.status()).toBe(400);
+    expect(JSON.parse(res.body()).error.code).toBe("BAD_REQUEST");
+    expect(res.headers()["Cache-Control"]).toBe("no-store");
+  });
+
+  it("never rejects: an internal failure becomes 500 INTERNAL", async () => {
+    const services = [{ id: "z", base: "https://z.example", routes: null }];
+    const handler = createHandler({ fetchViaAgent: vi.fn(), services, logger: silentLogger });
+    const res = makeRes();
+    await expect(handler(makeReq({ url: "/svc/z/g" }), res)).resolves.toBeUndefined();
+    expect(res.status()).toBe(500);
+  });
+
   it("prefers the onion upstream when the service declares one", async () => {
     const services = [{ id: "o", base: "https://o.example", onion: "http://o.onion", routes: [{ path: "/g", http: "GET", class: "aggregate" }] }];
     const fetchViaAgent = vi.fn().mockResolvedValue("{}");

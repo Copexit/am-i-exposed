@@ -74,7 +74,10 @@ function createSvcHandler({ fetchViaAgent, services, logger = console }) {
       if (route.class !== "aggregate" && route.class !== "lookup") return misconfigured(res);
       const qs = new URLSearchParams();
       for (const [name, kind] of Object.entries(route.query ?? {})) {
-        if (url.searchParams.has(name)) qs.set(name, validateParam(kind, url.searchParams.get(name)));
+        if (!url.searchParams.has(name)) continue;
+        const v = validateParam(kind, url.searchParams.get(name));
+        if (v === null) return fail(res, 400, "BAD_PARAMS", "Invalid params");
+        qs.set(name, v);
       }
       const query = qs.toString();
       return forward(res, service, route, path + (query ? "?" + query : ""), { method: "GET" });
@@ -85,7 +88,7 @@ function createSvcHandler({ fetchViaAgent, services, logger = console }) {
       text = await readBody(req);
     } catch (err) {
       if (err.tooLarge) return fail(res, 413, "TOO_LARGE", "Request body too large");
-      throw err;
+      return fail(res, 400, "BAD_REQUEST", "Could not read request body");
     }
     let body;
     try {
