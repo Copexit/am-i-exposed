@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { useServiceCheck } from "@/hooks/useServiceCheck";
@@ -23,6 +23,7 @@ const shortTx = (txid: string) => `${txid.slice(0, 8)}…${txid.slice(-8)}`;
 const fmtTime = (unix: number) => new Date(unix * 1000).toLocaleString();
 const fmtSats = (sats: number) => `${fmtN(sats)} sats`;
 const btcToSats = (btc: number) => Math.round(btc * SATS_PER_BTC);
+const warnBoxCls = "rounded-lg border border-severity-medium/40 bg-severity-medium/10 p-4 space-y-2";
 const btnCls =
   "inline-flex items-center justify-center min-h-[44px] px-4 rounded-lg border border-hairline-strong text-sm text-foreground hover:border-bitcoin hover:text-bitcoin transition-colors cursor-pointer";
 
@@ -75,12 +76,15 @@ export function ServiceCheck({ txids, mode, totalAvailable, isLocalCoinJoin, onS
           {isUmbrel
             ? t("services.privacyTor", {
                 count: txids.length,
-                defaultValue: "Sends {{count}} transaction ID(s) to Wabisator (wabisator.com) through Tor from your node. Nothing is stored.",
+                defaultValue: "Sends {{count}} transaction ID to Wabisator (wabisator.com) through Tor from your node. Nothing is stored.",
+                defaultValue_other: "Sends {{count}} transaction IDs to Wabisator (wabisator.com) through Tor from your node. Nothing is stored.",
               })
             : t("services.privacyPublic", {
                 count: txids.length,
                 defaultValue:
-                  "Sends {{count}} transaction ID(s) to Wabisator (wabisator.com) through the am-i.exposed relay. Your IP address is not shared with Wabisator. Nothing is stored.",
+                  "Sends {{count}} transaction ID to Wabisator (wabisator.com) through the am-i.exposed relay. Your IP address is not shared with Wabisator. Nothing is stored.",
+                defaultValue_other:
+                  "Sends {{count}} transaction IDs to Wabisator (wabisator.com) through the am-i.exposed relay. Your IP address is not shared with Wabisator. Nothing is stored.",
               })}
           {mode === "wallet-like" && (
             <>
@@ -120,7 +124,7 @@ export function ServiceCheck({ txids, mode, totalAvailable, isLocalCoinJoin, onS
   } else if (mode === "tx") {
     const r = results[0];
     if (r?.kind === "coinjoin") body = <RoundView r={r} onScan={onScan} />;
-    else if (r?.kind === "linked") body = <LinkedView r={r} onScan={onScan} />;
+    else if (r?.kind === "linked") body = <LinkedView r={r} onScan={onScan} postMix={r.outOf.length >= 2 && !isLocalCoinJoin(r.txid)} />;
     else if (r?.kind === "error")
       body = (
         <>
@@ -166,7 +170,7 @@ export function ServiceCheck({ txids, mode, totalAvailable, isLocalCoinJoin, onS
           <Tile label={t("services.tilePostMix", { defaultValue: "Post-mix merges" })} value={fmtN(summary.postMixMerges.length)} warn={summary.postMixMerges.length > 0} />
         </dl>
         {summary.postMixMerges.length > 0 && (
-          <div className="rounded-lg border border-severity-medium/40 bg-severity-medium/10 p-4 space-y-2">
+          <div className={warnBoxCls}>
             <p className="text-sm text-foreground leading-relaxed">
               {t("services.postMixWarning", {
                 count: summary.postMixMerges.length,
@@ -177,7 +181,7 @@ export function ServiceCheck({ txids, mode, totalAvailable, isLocalCoinJoin, onS
             <ul className="divide-y divide-hairline">
               {summary.postMixMerges.map((m) => (
                 <Row key={m.txid} txid={m.txid} onScan={onScan}>
-                  <span className="num">{fmtN(m.coins)}</span>
+                  <span className="num">{countLabel(t, m.coins, m.rounds)}</span>
                 </Row>
               ))}
             </ul>
@@ -266,7 +270,7 @@ function RoundView({ r, onScan }: { r: CoinjoinResult; onScan: (txid: string) =>
           <span className="text-[13px] text-muted">{t("services.remixFrom", { defaultValue: "Remixed from" })}</span>
           {r.remixFrom.map((g) => (
             <Chip key={g.coordinator}>
-              {g.name} {formatBtc(btcToSats(g.btc))} · {fmtN(g.coins)}
+              {g.name} {formatBtc(btcToSats(g.btc))} · {coinCount(t, g.coins)}
             </Chip>
           ))}
         </div>
@@ -336,10 +340,22 @@ function TxItem({ txid, meta, onScan, children }: { txid: string; meta: ReactNod
   );
 }
 
-function LinkedView({ r, onScan }: { r: Extract<TxAttribution, { kind: "linked" }>; onScan: (txid: string) => void }) {
+function LinkedView({ r, onScan, postMix = false }: { r: Extract<TxAttribution, { kind: "linked" }>; onScan: (txid: string) => void; postMix?: boolean }) {
   const { t } = useTranslation();
   return (
     <>
+      {postMix && (
+        <div className={warnBoxCls}>
+          <p className="text-sm text-foreground leading-relaxed">
+            {t("services.postMixTx", {
+              count: new Set(r.outOf.map((c) => c.roundTxid)).size,
+              coins: r.outOf.length,
+              defaultValue: "This transaction spent {{coins}} coins from {{count}} CoinJoin round together, which links them again.",
+              defaultValue_other: "This transaction spent {{coins}} coins from {{count}} CoinJoin rounds together, which links them again.",
+            })}
+          </p>
+        </div>
+      )}
       {r.outOf.length > 0 && (
         <CoinList
           title={t("services.outOf", {
@@ -386,19 +402,47 @@ function RoundList({ title, rounds, onScan }: { title: string; rounds: RoundRef[
   );
 }
 
+type TFn = ReturnType<typeof useTranslation>["t"];
+const coinCount = (t: TFn, count: number) =>
+  t("services.coinCount", { count, defaultValue: "{{count}} coin", defaultValue_other: "{{count}} coins" });
+const countLabel = (t: TFn, coins: number, rounds: number) =>
+  `${coinCount(t, coins)} · ${t("services.roundCount", { count: rounds, defaultValue: "{{count}} round", defaultValue_other: "{{count}} rounds" })}`;
+
+const VISIBLE_ROUNDS = 5;
+
+/** Coins grouped by the round they came from or went into, largest first. */
 function CoinList({ title, coins, onScan }: { title: string; coins: CoinRef[]; onScan: (txid: string) => void }) {
+  const { t } = useTranslation();
+  const [showAll, setShowAll] = useState(false);
+  const m = new Map<string, { txid: string; name: string; time: number; coins: number; sats: number }>();
+  for (const c of coins) {
+    const g = m.get(c.roundTxid) ?? { txid: c.roundTxid, name: c.name, time: c.time, coins: 0, sats: 0 };
+    g.coins++;
+    g.sats += c.sats;
+    m.set(c.roundTxid, g);
+  }
+  const rounds = [...m.values()].sort((a, b) => b.sats - a.sats);
   return (
     <div className="space-y-1">
       <p className="text-sm text-foreground">{title}</p>
+      <p className="text-[13px] text-muted">
+        {t("services.fromRounds", { count: rounds.length, defaultValue: "from {{count}} round", defaultValue_other: "from {{count}} rounds" })}
+      </p>
       <ul className="divide-y divide-hairline">
-        {coins.map((c) => (
-          <Row key={`${c.roundTxid}:${c.index}`} txid={c.roundTxid} onScan={onScan}>
-            <span>{c.name}</span>
-            <span className="num">{fmtTime(c.time)}</span>
-            <span className="num">{fmtSats(c.sats)}</span>
+        {(showAll ? rounds : rounds.slice(0, VISIBLE_ROUNDS)).map((g) => (
+          <Row key={g.txid} txid={g.txid} onScan={onScan}>
+            <span>{g.name}</span>
+            {g.time > 0 && <span className="num">{fmtTime(g.time)}</span>}
+            <span className="num">{coinCount(t, g.coins)}</span>
+            <span className="num">{fmtSats(g.sats)}</span>
           </Row>
         ))}
       </ul>
+      {!showAll && rounds.length > VISIBLE_ROUNDS && (
+        <button type="button" onClick={() => setShowAll(true)} className={btnCls}>
+          {t("services.showAllRounds", { count: rounds.length, defaultValue: "Show all {{count}} round", defaultValue_other: "Show all {{count}} rounds" })}
+        </button>
+      )}
     </div>
   );
 }

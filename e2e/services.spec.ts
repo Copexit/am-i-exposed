@@ -25,7 +25,7 @@ test("tx scan: nothing is sent until the check is clicked", async ({ page }) => 
 test("address scan: privacy line caps the count, click shows a result", async ({ page }) => {
   await mockWabisator(page);
   await page.goto(`/#addr=${GENESIS}`);
-  const line = page.getByText(/Sends \d+ transaction ID\(s\) to Wabisator/);
+  const line = page.getByText(/Sends \d+ transaction IDs? to Wabisator/);
   await expect(line).toBeVisible({ timeout: 15_000 });
   const n = Number(/Sends (\d+)/.exec((await line.textContent()) ?? "")?.[1]);
   expect(n).toBeGreaterThan(0);
