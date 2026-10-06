@@ -42,6 +42,10 @@ describe("broadcastTx", () => {
     expect(await run(body(-25, "bad-txns-inputs-missingorspent"))).toMatchObject({ kind: "rejected", code: -25, reason: "inputs-missing-or-spent" });
     expect(await run(body(-26, "min relay fee not met"))).toMatchObject({ kind: "rejected", reason: "policy" });
     expect(await run(body(-27, "Transaction already in block chain"))).toEqual({ kind: "already-confirmed", txid: TXID });
+    // Umbrel's mempool backend: JSON-wrapped, escaped, no message
+    expect(await run('{"error":"sendrawtransaction RPC error: {\\"code\\":-27}"}')).toEqual({ kind: "already-confirmed", txid: TXID });
+    expect(await run('{"error":"sendrawtransaction RPC error: {\\"code\\":-25,\\"message\\":\\"bad-txns-inputs-missingorspent\\"}"}'))
+      .toMatchObject({ kind: "rejected", code: -25, message: "bad-txns-inputs-missingorspent", reason: "inputs-missing-or-spent" });
   });
   it("flags a txid mismatch", async () => {
     const out = await broadcastTx("https://x/api", "00", TXID, { fetchImpl: vi.fn().mockResolvedValue(res(200, "c".repeat(64))) });
