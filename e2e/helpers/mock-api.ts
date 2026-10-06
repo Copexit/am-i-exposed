@@ -248,3 +248,45 @@ export async function mockObservatoryApi(page: Page) {
     await route.fulfill({ status: 200, headers: cors, body, contentType: "application/json" });
   });
 }
+
+const WABISATOR_FIXTURES = path.join(__dirname, "../../src/lib/services/__tests__/fixtures");
+const readWabisator = (name: string) =>
+  JSON.parse(fs.readFileSync(path.join(WABISATOR_FIXTURES, `wabisator-${name}.json`), "utf-8")) as {
+    result: Record<string, unknown> & { Query?: string; Matches?: { TxId: string }[]; Transaction?: Record<string, unknown> | null };
+  };
+
+/**
+ * Wabisator JSON-RPC mock (via the hosted relay). `known` maps a txid to the
+ * fixture its `search`/`coinjoin` calls are answered from (query rewritten to
+ * that txid); every other txid is answered as unknown. `limitOutOf` truncates
+ * the post-mix OutOf list. Returns the JSON-RPC methods received, in order.
+ */
+export async function mockWabisator(
+  page: Page,
+  known: Record<string, "coinjoin" | "postmix"> = {},
+  opts: { limitOutOf?: number } = {},
+): Promise<string[]> {
+  const methods: string[] = [];
+  const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "*" };
+  await page.route("https://coinjoin-stats.copexit.workers.dev/svc/wabisator/api.php", async (route) => {
+    const req = route.request();
+    if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
+    const rpc = req.postDataJSON() as { id: number; method: string; params: { query?: string; txId?: string } };
+    methods.push(rpc.method);
+    const txid = rpc.params.query ?? rpc.params.txId ?? "";
+    const kind = known[txid];
+    let env;
+    if (rpc.method === "coinjoin") {
+      env = readWabisator("coinjoin");
+    } else {
+      env = readWabisator(kind === "coinjoin" ? "search-coinjoin" : kind === "postmix" ? "search-postmix" : "search-unknown");
+      env.result.Query = txid;
+      for (const m of env.result.Matches ?? []) m.TxId = txid;
+      if (env.result.Transaction) env.result.Transaction.TxId = txid;
+      const t = env.result.Transaction as { OutOf?: unknown[] } | null | undefined;
+      if (kind === "postmix" && opts.limitOutOf !== undefined && t?.OutOf) t.OutOf = t.OutOf.slice(0, opts.limitOutOf);
+    }
+    await route.fulfill({ status: 200, headers: cors, contentType: "application/json", body: JSON.stringify({ ...env, id: rpc.id }) });
+  });
+  return methods;
+}

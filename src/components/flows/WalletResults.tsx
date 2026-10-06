@@ -11,6 +11,9 @@ import { GRADE_COLORS, GRADE_VAR, P2PKH_DUST_LIMIT } from "@/lib/constants";
 import { fmtN } from "@/lib/format";
 import { FlowShell, NewScanLink, Chip } from "./FlowUi";
 import { FindingGroups } from "./FindingGroups";
+import { ServiceCheck } from "@/components/services/ServiceCheck";
+import { selectTxids, WALLET_CAP } from "@/lib/services/wabisabi-attribution";
+import { isCoinJoinTx } from "@/lib/analysis/heuristics/coinjoin";
 import { WalletWorkspace } from "./WalletWorkspace";
 
 /** Find the worst privacy offender address for the highlight card. */
@@ -63,6 +66,13 @@ const WRAP: Record<ScriptType, (k: string) => string> = {
 export function WalletResults({ descriptor, result, addressInfos, utxoTraces, onBack, onScan, durationMs, scriptTypeDetected, gapLimit, onRescanGap }: WalletResultsProps) {
   const { t } = useTranslation();
   const [addressesOpen, setAddressesOpen] = useState(false);
+  const { serviceTxids, serviceTotal, isLocalCoinJoin } = useMemo(() => {
+    const txs = addressInfos.flatMap((i) => i.txs);
+    const txids = selectTxids(txs, WALLET_CAP);
+    const chosen = new Set(txids);
+    const cj = new Set(txs.filter((t) => chosen.has(t.txid) && isCoinJoinTx(t)).map((t) => t.txid));
+    return { serviceTxids: txids, serviceTotal: new Set(txs.map((t) => t.txid)).size, isLocalCoinJoin: (txid: string) => cj.has(txid) };
+  }, [addressInfos]);
   const worst = useMemo(() => findWorstOffender(addressInfos), [addressInfos]);
   const showWorst = !!worst && (worst.reuseCount > 0 || worst.dustCount > 0);
   const derivedCount = descriptor.receiveAddresses.length + descriptor.changeAddresses.length;
@@ -175,6 +185,11 @@ export function WalletResults({ descriptor, result, addressInfos, utxoTraces, on
       <div className="grid gap-10 lg:grid-cols-12 lg:gap-8 items-start">
         <div className="lg:col-span-8 min-w-0">
           <FindingGroups findings={result.findings} onTxClick={onScan} />
+          {serviceTxids.length > 0 && (
+            <div className="mt-8">
+              <ServiceCheck txids={serviceTxids} mode="wallet-like" totalAvailable={serviceTotal} isLocalCoinJoin={isLocalCoinJoin} onScan={onScan} />
+            </div>
+          )}
         </div>
         <aside className="lg:col-span-4 lg:sticky lg:top-24 rounded-xl border border-hairline p-5 space-y-4">
           <span className="eyebrow">{t("flows.auditScope", { defaultValue: "Audit scope" })}</span>

@@ -30,6 +30,9 @@ import { EvidencePanel } from "./EvidencePanel";
 import { ExplainRail } from "./ExplainRail";
 import { AnalystWorkspace } from "./AnalystWorkspace";
 import { ContextSection } from "./ContextSection";
+import { ServiceCheck } from "@/components/services/ServiceCheck";
+import { selectTxids, ADDRESS_CAP } from "@/lib/services/wabisabi-attribution";
+import { isCoinJoinTx } from "@/lib/analysis/heuristics/coinjoin";
 const BroadcastDialog = lazy(() => import("@/components/flows/BroadcastDialog").then((m) => ({ default: m.BroadcastDialog })));
 const BeforeYouSend = lazy(() => import("@/components/flows/BeforeYouSend").then((m) => ({ default: m.BeforeYouSend })));
 
@@ -89,6 +92,16 @@ export function Results(props: ResultsProps) {
   const onUnknownChange = useCallback((u: boolean) => setUnknownFor(u ? local : null), [local]);
 
   const baseScore = inputType === "address" ? ADDRESS_BASE_SCORE : TX_BASE_SCORE;
+  const serviceTxids = useMemo(
+    () => (inputType === "txid" ? (txData ? [txData.txid] : []) : selectTxids(addressTxs ?? [], ADDRESS_CAP)),
+    [inputType, txData, addressTxs],
+  );
+  const isLocalCoinJoin = useMemo(() => {
+    if (inputType === "txid") return () => !!txData && isCoinJoinTx(txData);
+    const set = new Set((addressTxs ?? []).filter(isCoinJoinTx).map((t) => t.txid));
+    return (txid: string) => set.has(txid);
+  }, [inputType, txData, addressTxs]);
+  const serviceTotal = addressData ? addressData.chain_stats.tx_count + addressData.mempool_stats.tx_count : undefined;
   const vm = useMemo(
     () => buildResultViewModel({ result, baseScore, tx: txData, outspends, entityName }),
     [result, baseScore, txData, outspends],
@@ -218,6 +231,15 @@ export function Results(props: ResultsProps) {
           onScan={onScan}
         />
 
+        {!local && serviceTxids.length > 0 && (
+          <ServiceCheck
+            txids={serviceTxids}
+            mode={inputType === "txid" ? "tx" : "wallet-like"}
+            totalAvailable={inputType === "txid" ? undefined : serviceTotal}
+            isLocalCoinJoin={isLocalCoinJoin}
+            onScan={onScan}
+          />
+        )}
         <ContextSection local={!!local} query={query} inputType={inputType} vm={vm} txData={txData} devMode={devMode} />
 
         <ResultsFooter
