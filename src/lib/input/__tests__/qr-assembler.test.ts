@@ -31,6 +31,7 @@ describe("QrAssembler", () => {
     const a = new QrAssembler();
     expect(await a.push(JSON.stringify(json))).toEqual({ kind: "done", payload: (json.bip84 as { desc: string }).desc });
     expect(await a.push(" {not json} ")).toEqual({ kind: "done", payload: "{not json}" });
+    expect(await a.push('{"p2sh_foo":1}')).toEqual({ kind: "done", payload: '{"p2sh_foo":1}' });
   });
 
   it("multisig-only wallet JSON (plain frame or BBQr J) -> error multisig", async () => {

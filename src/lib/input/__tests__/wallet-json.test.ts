@@ -25,6 +25,15 @@ describe("walletJsonToPayload", () => {
     expect(walletJsonToPayload(JSON.stringify(json, null, 2))).toBe((json.bip84 as { desc: string }).desc);
   });
 
+  it("Coldcard desc with a bad checksum -> descriptor rebuilt from xfp/deriv/xpub", () => {
+    const { json, xfp, accounts } = coldcardJson({ desc: true });
+    const sec = json.bip84 as { desc: string };
+    sec.desc = sec.desc.replace(/#.*/, "#aaaaaaaa");
+    const out = walletJsonToPayload(JSON.stringify(json))!;
+    expect(out).toBe(withSum(`wpkh([${xfp.toLowerCase()}/84h/0h/0h]${accounts.bip84!.publicExtendedKey}/<0;1>/*)`));
+    expect(parseAndDerive(out, 1).receiveAddresses[0]?.address).toBe(firstReceive(accounts.bip84!));
+  });
+
   it("falls through bip84 -> bip86 -> bip49 -> bip44", () => {
     const { json } = coldcardJson({ desc: true });
     delete json.bip84;
@@ -60,6 +69,11 @@ describe("walletJsonToPayload", () => {
     // Electrum 2-of-3
     expect(walletJsonToPayload(JSON.stringify({ wallet_type: "2of3", "x1/": { xpub: ms }, "x2/": { xpub: ms } }))).toBe(MULTISIG);
     expect(walletJsonToPayload(JSON.stringify({ wallet_type: "standard" }))).toBeNull();
+    // Arbitrary JSON with look-alike keys is not a wallet export
+    expect(walletJsonToPayload(JSON.stringify({ p2sh_foo: 1 }))).toBeNull();
+    expect(walletJsonToPayload(JSON.stringify({ bip48_1: "x" }))).toBeNull();
+    expect(walletJsonToPayload(JSON.stringify([{ desc: "multi(1,abc)" }]))).toBeNull();
+    expect(walletJsonToPayload(JSON.stringify({ wallet_type: "2of3" }))).toBeNull();
   });
 
   it("never returns private keys", () => {

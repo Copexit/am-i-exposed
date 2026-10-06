@@ -14,12 +14,17 @@ const SECTIONS = [
 // No wrapper is a prefix of another ("wpkh(" vs "sh(wpkh(" vs "pkh("), so startsWith ranks exactly.
 const rank = (desc: string) => SECTIONS.findIndex((s) => desc.startsWith(s.open));
 
+const checksumOk = (desc: string) => {
+  const [body = "", chk] = desc.split("#");
+  return chk === undefined || chk === descriptorChecksum(body);
+};
+
 /** A receive-only "/0/*" descriptor is widened to "/<0;1>/*" so change addresses are audited too. */
 function widen(desc: string): string | null {
   if (!isXpubOrDescriptor(desc)) return null;
-  const [body = "", chk] = desc.split("#");
+  const [body = ""] = desc.split("#");
   // A bad checksum is left for the parser to report, never silently replaced.
-  if (!/\/0\/\*\)+$/.test(body) || (chk !== undefined && chk !== descriptorChecksum(body))) return desc;
+  if (!/\/0\/\*\)+$/.test(body) || !checksumOk(desc)) return desc;
   const wide = body.replace(/\/0\/\*(\)+)$/, "/<0;1>/*$1");
   return `${wide}#${descriptorChecksum(wide) ?? ""}`;
 }
@@ -30,7 +35,9 @@ function fromColdcard(j: Json): string | null {
   for (const s of SECTIONS) {
     const sec = j[s.key];
     if (!isObj(sec)) continue;
-    const desc = widen(str(sec.desc));
+    // A desc with a bad checksum falls through to the one built from xfp/deriv/xpub.
+    const raw = str(sec.desc);
+    const desc = checksumOk(raw) ? widen(raw) : null;
     if (desc) return desc;
     const xpub = str(sec.xpub);
     const deriv = str(sec.deriv);
@@ -55,12 +62,18 @@ function fromCore(list: unknown[]): string | null {
 /** Returned when the export holds only multisig wallets (shown as the "multisig not supported" error). */
 export const MULTISIG = "multisig" as const;
 
-/** Multisig markers: Coldcard bip48_* / bip45 / p2wsh / p2sh sections, multi() descriptors, Electrum "2of3". */
+/**
+ * Multisig wallet-export markers, only on JSON that looks like a wallet export:
+ * Coldcard bip48_* / bip45 / p2wsh / p2sh sections (with an xfp, or a section
+ * holding xpub/deriv), multi() descriptors over an xpub, Electrum "2of3" with x1/.
+ */
 function hasMultisig(j: unknown): boolean {
-  if (Array.isArray(j)) return j.some((d) => isObj(d) && /multi\(/.test(str(d.desc)));
+  if (Array.isArray(j)) return j.some((d) => isObj(d) && /multi\(.*[xyztuv]pub/.test(str(d.desc)));
   if (!isObj(j)) return false;
   if (Array.isArray(j.descriptors)) return hasMultisig(j.descriptors);
-  return Object.keys(j).some((k) => /^(bip48_|bip45|p2wsh|p2sh)/.test(k)) || /^\d+of\d+$/.test(str(j.wallet_type));
+  const coldcard = Object.entries(j).some(([k, v]) =>
+    /^(bip48_|bip45|p2wsh|p2sh)/.test(k) && ("xfp" in j || (isObj(v) && ("xpub" in v || "deriv" in v))));
+  return coldcard || (/^\d+of\d+$/.test(str(j.wallet_type)) && isObj(j["x1/"]));
 }
 
 /**
