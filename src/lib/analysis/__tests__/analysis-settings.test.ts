@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { DEFAULT_ANALYSIS_SETTINGS, getAnalysisSettings } from "@/lib/analysis/settings";
+import { DEFAULT_ANALYSIS_SETTINGS, getAnalysisSettings, clampGapLimit, gapLimitToStep, stepToGapLimit } from "@/lib/analysis/settings";
 
 describe("analysis settings store", () => {
   it("has the documented defaults", () => {
@@ -37,5 +37,34 @@ describe("analysis settings store", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  it("clamps the gap limit to 1..1000", () => {
+    expect(clampGapLimit(1000)).toBe(1000);
+    expect(clampGapLimit(1001)).toBe(1000);
+    expect(clampGapLimit(0)).toBe(1);
+    expect(clampGapLimit("abc")).toBe(5);
+  });
+
+  it("clamps a stored gap limit on load", async () => {
+    vi.stubGlobal("window", {
+      localStorage: { getItem: () => JSON.stringify({ walletGapLimit: 5000 }), setItem: () => {} },
+    });
+    vi.resetModules();
+    try {
+      expect((await import("@/lib/analysis/settings")).getAnalysisSettings().walletGapLimit).toBe(1000);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("maps slider steps to gap limits and back (nearest step for unknown values)", () => {
+    expect(stepToGapLimit(0)).toBe(1);
+    expect(stepToGapLimit(16)).toBe(1000);
+    expect(stepToGapLimit(99)).toBe(1000);
+    expect(gapLimitToStep(20)).toBe(6);
+    expect(gapLimitToStep(1000)).toBe(16);
+    expect(gapLimitToStep(250)).toBe(gapLimitToStep(200));
+    expect(gapLimitToStep(4)).toBe(gapLimitToStep(3));
   });
 });
