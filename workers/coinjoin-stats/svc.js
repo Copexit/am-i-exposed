@@ -20,15 +20,22 @@ export function validateParam(kind, value) {
   return String(!Number.isFinite(n) || n < 1 ? 1 : Math.min(n, 10000));
 }
 
-export async function handleSvc(request, url, ctx, cors) {
+export const createSvc = (reg) => (request, url, ctx, cors) => handle(reg, request, url, ctx, cors);
+export const handleSvc = createSvc(registry);
+
+const misconfigured = (cors) => err(500, "MISCONFIGURED", "Service registry misconfigured", cors);
+
+async function handle(reg, request, url, ctx, cors) {
   const m = url.pathname.match(/^\/svc\/([^/]+)(\/.*)$/);
-  const service = m && registry.services.find((s) => s.id === m[1]);
+  const service = m && reg.services.find((s) => s.id === m[1]);
   const route = service?.routes.find((r) => r.path === m[2] && r.http === request.method);
   if (!route) return err(404, "NOT_FOUND", "Unknown service route", cors);
   const id = service.id;
   const path = route.path;
 
   if (request.method === "GET") {
+    // Fail closed: only an exact "aggregate" is cached, only "lookup" is no-store.
+    if (route.class !== "aggregate" && route.class !== "lookup") return misconfigured(cors);
     const qs = new URLSearchParams();
     for (const [name, kind] of Object.entries(route.query ?? {})) {
       if (url.searchParams.has(name)) qs.set(name, validateParam(kind, url.searchParams.get(name)));
@@ -38,7 +45,7 @@ export async function handleSvc(request, url, ctx, cors) {
       ctx, cors, route,
       upstream: service.base + path + (query ? "?" + query : ""),
       init: { headers: { Accept: "application/json" } },
-      cacheUrl: `https://cache.local/svc/${id}${path}?${query}`,
+      cacheUrl: route.class === "aggregate" ? `https://cache.local/svc/${id}${path}?${query}` : null,
       ttl: route.ttl,
     });
   }
@@ -55,6 +62,7 @@ export async function handleSvc(request, url, ctx, cors) {
   const rpc = body && body.jsonrpc === "2.0" && typeof body.method === "string"
     && Object.hasOwn(route.rpc, body.method) ? route.rpc[body.method] : null;
   if (!rpc) return err(400, "DISALLOWED", "Invalid or disallowed method", cors);
+  if (rpc.class !== "aggregate" && rpc.class !== "lookup") return misconfigured(cors);
   const method = body.method;
 
   let params;

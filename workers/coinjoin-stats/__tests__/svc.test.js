@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import handler from "../worker.js";
+import { createSvc } from "../svc.js";
 
 const env = { ALLOWED_ORIGIN: "https://am-i.exposed" };
 const cacheStore = new Map();
@@ -72,5 +73,26 @@ describe("/svc route", () => {
   it("legacy routes still answer", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(ok({ pools: [] }));
     expect((await handler.fetch(new Request("https://w.dev/whirlpool/summary"), env, ctx)).status).toBe(200);
+  });
+});
+
+describe("fail-closed class handling", () => {
+  const fake = { services: [{ id: "x", base: "https://x.dev", routes: [
+    { path: "/rpc", http: "POST", rpc: { typo: { class: "lookpu", ttl: 60, params: { query: "txid" } }, none: {} } },
+    { path: "/get", http: "GET" },
+  ] }] };
+  const svc = createSvc(fake);
+  const call = (path, init) => svc(new Request(`https://w.dev${path}`, init), new URL(`https://w.dev${path}`), ctx, {});
+
+  it("500s unknown or missing class without fetching or caching", async () => {
+    const f = vi.spyOn(globalThis, "fetch");
+    for (const method of ["typo", "none"]) {
+      const res = await call("/svc/x/rpc", { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", method, params: { query: TX } }) });
+      expect(res.status).toBe(500);
+      expect((await res.json()).error.code).toBe("MISCONFIGURED");
+    }
+    expect((await call("/svc/x/get", { method: "GET" })).status).toBe(500);
+    expect(f).not.toHaveBeenCalled();
+    expect(cacheStore.size).toBe(0);
   });
 });
