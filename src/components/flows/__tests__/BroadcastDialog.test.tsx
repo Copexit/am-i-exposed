@@ -104,6 +104,20 @@ describe("BroadcastDialog", () => {
     expect(screen.getByText(/already spent/)).toBeTruthy();
   });
 
+  it("already confirmed: says nothing was broadcast, opens the tx only on request, never offers a resend", async () => {
+    m.broadcastTx.mockResolvedValue({ kind: "already-confirmed", txid: TX.txid });
+    const { onSuccess, onClose } = renderDialog();
+    fireEvent.click(screen.getByTestId("broadcast-confirm"));
+    expect(await screen.findByText("This transaction is already in the blockchain. Nothing new was broadcast.")).toBeTruthy();
+    expect(screen.queryByTestId("broadcast-confirm")).toBeNull();
+    expect(onSuccess).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText("Close"));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByTestId("broadcast-open-confirmed"));
+    expect(onSuccess).toHaveBeenCalledWith(TX.txid);
+    expect(m.broadcastTx).toHaveBeenCalledTimes(1);
+  });
+
   it("self-hosted: runs the dry-run and names the node", async () => {
     m.testMempoolAccept.mockResolvedValue({ allowed: false, reason: "min relay fee not met" });
     renderDialog({ baseUrl: "http://192.168.1.5:3006/api", cls: "self-hosted" });

@@ -16,9 +16,12 @@ function useFileReader(onPayload: (text: string) => void, onError: (m: string) =
     try {
       onPayload(await readInputFile(file));
     } catch (err) {
-      onError(err instanceof InputFileError && err.reason === "too-large"
+      const reason = err instanceof InputFileError ? err.reason : "unreadable";
+      onError(reason === "too-large"
         ? t("input.errorFileTooLarge", { defaultValue: "That file is larger than 2 MB." })
-        : t("input.errorFileUnreadable", { defaultValue: "That file could not be read." }));
+        : reason === "multisig"
+          ? t("qr.multisig", { defaultValue: "Multisig wallet exports are not supported yet." })
+          : t("input.errorFileUnreadable", { defaultValue: "That file could not be read." }));
     }
   }, [onPayload, onError, t]);
 }

@@ -5,7 +5,7 @@ import { UREncoder } from "@ngraveio/bc-ur";
 import { CryptoPSBT, CryptoHDKey, CryptoKeypath, PathComponent, CryptoCoinInfo, CryptoOutput, ScriptExpressions, MultiKey } from "@keystonehq/bc-ur-registry";
 import { HDKey } from "@scure/bip32";
 import { bytesToHex } from "@/lib/bitcoin/hex";
-import { buildPsbt } from "./fixtures";
+import { buildPsbt, coldcardJson } from "./fixtures";
 import { QrAssembler } from "../qr-assembler";
 
 const b36 = (n: number) => n.toString(36).toUpperCase().padStart(2, "0");
@@ -24,6 +24,23 @@ describe("QrAssembler", () => {
     const a = new QrAssembler();
     expect(await a.push(`  ${addr}\n`)).toEqual({ kind: "done", payload: addr });
     expect(await a.push(`bitcoin:${addr.toUpperCase()}?amount=1`)).toEqual({ kind: "done", payload: `bitcoin:${addr.toUpperCase()}?amount=1` });
+  });
+
+  it("plain JSON wallet export frame -> descriptor; other JSON-looking text passes through", async () => {
+    const { json } = coldcardJson({ desc: true });
+    const a = new QrAssembler();
+    expect(await a.push(JSON.stringify(json))).toEqual({ kind: "done", payload: (json.bip84 as { desc: string }).desc });
+    expect(await a.push(" {not json} ")).toEqual({ kind: "done", payload: "{not json}" });
+    expect(await a.push('{"p2sh_foo":1}')).toEqual({ kind: "done", payload: '{"p2sh_foo":1}' });
+  });
+
+  it("multisig-only wallet JSON (plain frame or BBQr J) -> error multisig", async () => {
+    const { json } = coldcardJson({ withMultisig: true });
+    for (const k of ["bip44", "bip49", "bip84", "bip86"]) delete json[k];
+    const text = JSON.stringify(json);
+    expect(await new QrAssembler().push(text)).toEqual({ kind: "error", reason: "multisig" });
+    const body = base32.encode(new Uint8Array(deflateRawSync(new TextEncoder().encode(text), { windowBits: 10 }))).replace(/=+$/, "");
+    expect(await new QrAssembler().push(`B$ZJ0100${body}`)).toEqual({ kind: "error", reason: "multisig" });
   });
 
   it("UR multipart with a garbage frame and repeats still completes", async () => {

@@ -1,5 +1,6 @@
 import { UrDecoder, isUrPart } from "./ur";
 import { BbqrDecoder, isBbqrPart } from "./bbqr";
+import { walletJsonToPayload, MULTISIG } from "./wallet-json";
 
 export type AssemblerState =
   | { kind: "idle" }
@@ -47,9 +48,11 @@ export class QrAssembler {
       this.ur.reset();
       const r = await this.bbqr.receive(text);
       if (gen !== this.gen) return { kind: "idle" };
-      if (r.kind === "error") return r.reason === "corrupt" ? this.state : (this.state = { kind: "error", reason: "unsupported-type" });
+      if (r.kind === "error") return r.reason === "corrupt" ? this.state : (this.state = { kind: "error", reason: r.reason });
       return (this.state = r.kind === "done" ? r : { kind: "progress", format: "bbqr", percent: Math.round((r.received / r.total) * 100), received: r.received, total: r.total });
     }
-    return (this.state = { kind: "done", payload: text.trim() });
+    const wallet = walletJsonToPayload(text);
+    if (wallet === MULTISIG) return (this.state = { kind: "error", reason: "multisig" });
+    return (this.state = { kind: "done", payload: wallet ?? text.trim() });
   }
 }

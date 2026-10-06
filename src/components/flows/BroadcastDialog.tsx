@@ -29,13 +29,13 @@ interface BroadcastDialogProps {
   onUnknownChange?: (unknown: boolean) => void;
 }
 
-type Phase = "idle" | "sending" | "rejected" | "unknown" | "mismatch";
+type Phase = "idle" | "sending" | "rejected" | "unknown" | "mismatch" | "confirmed";
 
 /** How long the txid mismatch note stays up before the scan takes over. */
 export const MISMATCH_NOTE_MS = 2000;
 
 const REASON_EN: Record<BroadcastReason, string> = {
-  "inputs-missing-or-spent": "One or more inputs are missing or already spent (wrong network, or already sent).",
+  "inputs-missing-or-spent": "One or more inputs are missing or already spent: wrong network, or the coins were already spent by this or another transaction.",
   policy: "The node rejected it by policy: fee too low, not final yet, or it conflicts with a transaction in the mempool.",
   other: "The node rejected the transaction.",
 };
@@ -90,8 +90,10 @@ export function BroadcastDialog({ local, tx, result, baseUrl, cls, onClose, onSu
       setTimeout(() => onSuccess(out.txid), MISMATCH_NOTE_MS);
       return;
     }
-    if (out.kind === "sent" || out.kind === "already-confirmed") { onSuccess(out.txid); return; }
+    if (out.kind === "sent") { onSuccess(out.txid); return; }
     sendingRef.current = false;
+    // Nothing was broadcast: say so instead of silently opening the tx.
+    if (out.kind === "already-confirmed") { setPhase("confirmed"); return; }
     if (out.kind === "unknown") { setPhase("unknown"); onUnknownChange?.(true); return; }
     setRejection({ message: out.message, reason: out.reason });
     setPhase("rejected");
@@ -219,6 +221,12 @@ export function BroadcastDialog({ local, tx, result, baseUrl, cls, onClose, onSu
             <p role="status" className="text-severity-medium">{t("broadcast.txidMismatch", { defaultValue: "The node returned a different txid than the one computed here. Opening the node's txid." })}</p>
           )}
 
+          {phase === "confirmed" && (
+            <p role="status" data-testid="broadcast-already-confirmed" className="text-foreground">
+              {t("broadcast.alreadyConfirmed", { defaultValue: "This transaction is already in the blockchain. Nothing new was broadcast." })}
+            </p>
+          )}
+
           {phase === "unknown" && (
             <div role="alert" className="space-y-1.5">
               <p className="text-severity-medium">{t("broadcast.unknown", { defaultValue: "It is unknown whether the transaction was sent. Check its status before trying again." })}</p>
@@ -257,9 +265,19 @@ export function BroadcastDialog({ local, tx, result, baseUrl, cls, onClose, onSu
                 {t("broadcast.checkStatus", { defaultValue: "Check status" })}
               </button>
             )}
+            {phase === "confirmed" && (
+              <button
+                type="button"
+                data-testid="broadcast-open-confirmed"
+                onClick={() => onSuccess(tx.txid)}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 font-semibold text-sm rounded-lg bg-bitcoin/90 hover:bg-bitcoin text-black transition-colors cursor-pointer"
+              >
+                {t("broadcast.openConfirmed", { defaultValue: "Open the transaction" })}
+              </button>
+            )}
             {!sending && (
               <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-muted hover:text-foreground transition-colors cursor-pointer">
-                {t("broadcast.cancel", { defaultValue: "Cancel" })}
+                {phase === "confirmed" ? t("common.close", { defaultValue: "Close" }) : t("broadcast.cancel", { defaultValue: "Cancel" })}
               </button>
             )}
           </div>
