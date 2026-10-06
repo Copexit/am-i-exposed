@@ -31,7 +31,7 @@ test("address scan: privacy line caps the count, click shows a result", async ({
   expect(n).toBeGreaterThan(0);
   expect(n).toBeLessThanOrEqual(10);
   await page.getByRole("button", CHECK).click();
-  await expect(page.getByText("Post-mix merges")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("No recorded WabiSabi CoinJoin activity for these transactions.")).toBeVisible({ timeout: 20_000 });
 });
 
 test("fresh address with no transactions renders no card", async ({ page }) => {
@@ -74,7 +74,7 @@ for (const [label, limitOutOf, warned] of [
     await page.goto(`/#xpub=${ZPUB}`);
     await page.getByRole("button", CHECK).click({ timeout: 25_000 });
     await expect(page.getByText("Post-mix merges", { exact: true })).toBeVisible({ timeout: 20_000 });
-    const warning = page.getByText(/transactions spent coins from different CoinJoin outputs/);
+    const warning = page.getByText(/transactions? spent coins from different CoinJoin outputs/);
     if (warned) await expect(warning).toBeVisible();
     else await expect(warning).toHaveCount(0);
   });
