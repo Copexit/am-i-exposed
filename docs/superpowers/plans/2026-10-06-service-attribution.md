@@ -23,7 +23,7 @@
   - `pnpm lint` (0 warnings)
   - the touched test files pass (`pnpm vitest run <files>`)
 - **TypeScript:** strict, no `any`.
-- **No em dashes** (U+2014, `—`, `&mdash;`) anywhere: code, comments, copy, JSON, docs. Use ` - ` or a comma.
+- **No em dashes** (U+2014, its \u escape, the HTML entity) anywhere: code, comments, copy, JSON, docs. Use ` - ` or a comma.
 - **UI copy:**
   - Never "we", "us", "our". Use passive voice or the tool name ("am-i.exposed").
   - Spanish uses Castilian tuteo.
