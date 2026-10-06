@@ -21,6 +21,16 @@ The `?page=` query on `/whirlpool/txs` is forwarded (clamped to a positive integ
 
 The JSON-RPC method is allowlisted server-side. Any future method (e.g. `coords`, `rounds-paginated`) must be added to `ALLOWED_LIQUISABI_METHODS` in `worker.js` and reviewed.
 
+## /svc route
+
+`/svc/<id>/<path>` is a registry-driven proxy. Services, routes, JSON-RPC methods, classes and TTLs are read from `src/lib/services/registry.json` (shared with the frontend), so adding a service needs no worker code change.
+
+- `aggregate` calls are edge-cached for the registry `ttl`.
+- `lookup` calls (carrying a user txid) are validated, forwarded with a rebuilt JSON-RPC body, and answered with `Cache-Control: no-store`. They never touch the edge cache.
+- Unknown services/routes give 404, bodies over 64 KB give 413, bad params 400, upstream failures 502.
+
+The legacy `/whirlpool/*` and `/liquisabi/api` routes are kept for one release.
+
 ## Setup
 
 ```bash

@@ -11,6 +11,8 @@
  * Worker only adds CORS + its own cache contract.
  */
 
+import { handleSvc, readLimited } from "./svc.js";
+
 const WHIRLPOOLSTATS_BASE = "https://whirlpoolstats.xyz/api";
 const LIQUISABI_URL = "https://liquisabi.com/api";
 
@@ -60,6 +62,8 @@ const handler = {
     }
 
     const url = new URL(request.url);
+
+    if (url.pathname.startsWith("/svc/")) return handleSvc(request, url, ctx, cors);
 
     if (request.method === "GET") {
       const wpMatch = url.pathname.match(WHIRLPOOL_PATH_RE);
@@ -205,33 +209,6 @@ async function handleLiquiSabi(request, ctx, cors) {
 }
 
 // ---------- Plumbing ----------
-
-async function readLimited(response, cap) {
-  const reader = response.body?.getReader();
-  if (!reader) return await response.text();
-  const chunks = [];
-  let total = 0;
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    total += value.length;
-    if (total > cap) {
-      try { await reader.cancel(); } catch { /* ignore */ }
-      return null;
-    }
-    chunks.push(value);
-  }
-  return new TextDecoder().decode(concat(chunks));
-}
-
-function concat(chunks) {
-  let total = 0;
-  for (const c of chunks) total += c.length;
-  const out = new Uint8Array(total);
-  let off = 0;
-  for (const c of chunks) { out.set(c, off); off += c.length; }
-  return out;
-}
 
 function errorResponse(code, message, cors) {
   return new Response(

@@ -1,0 +1,76 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import handler from "../worker.js";
+
+const env = { ALLOWED_ORIGIN: "https://am-i.exposed" };
+const cacheStore = new Map();
+globalThis.caches = { default: {
+  async match(req) { return cacheStore.get(req.url) ?? null; },
+  async put(req, res) { cacheStore.set(req.url, res); },
+} };
+const ctx = { waitUntil: (p) => p };
+const TX = "c575fb58fc4221882a281ceebe051131b2cc397f738156a93877c93639909cea";
+const ok = (body) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+const post = (path, body) => handler.fetch(new Request(`https://w.dev${path}`, {
+  method: "POST", headers: { "Content-Type": "application/json", Origin: "https://am-i.exposed" }, body: JSON.stringify(body),
+}), env, ctx);
+
+beforeEach(() => { cacheStore.clear(); vi.restoreAllMocks(); });
+
+describe("/svc route", () => {
+  it("forwards a lookup with normalized params, rebuilt body, no-store, no cache", async () => {
+    const f = vi.spyOn(globalThis, "fetch").mockResolvedValue(ok({ jsonrpc: "2.0", id: 1, result: { Matches: [] } }));
+    const res = await post("/svc/wabisator/api.php", { jsonrpc: "2.0", id: 7, method: "search", params: { query: TX.toUpperCase() }, extra: "x" });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("https://am-i.exposed");
+    const [url, init] = f.mock.calls[0];
+    expect(url).toBe("https://wabisator.com/api.php");
+    expect(JSON.parse(init.body)).toEqual({ jsonrpc: "2.0", id: 1, method: "search", params: { query: TX } });
+    expect(cacheStore.size).toBe(0);
+  });
+
+  it("rejects lookups with bad or extra params", async () => {
+    const f = vi.spyOn(globalThis, "fetch");
+    for (const params of [{ query: "nope" }, { query: TX, more: 1 }, {}, null]) {
+      const res = await post("/svc/wabisator/api.php", { jsonrpc: "2.0", method: "search", params });
+      expect(res.status).toBe(400);
+    }
+    expect(f).not.toHaveBeenCalled();
+  });
+
+  it("rejects methods not in the registry", async () => {
+    const res = await post("/svc/wabisator/api.php", { jsonrpc: "2.0", method: "graph", params: {} });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error.code).toBe("DISALLOWED");
+  });
+
+  it("caches aggregate RPC per method and params", async () => {
+    const f = vi.spyOn(globalThis, "fetch").mockResolvedValue(ok({ jsonrpc: "2.0", id: 1, result: { a: 1 } }));
+    await post("/svc/wabisator/api.php", { jsonrpc: "2.0", method: "dashboard", params: {} });
+    const res = await post("/svc/wabisator/api.php", { jsonrpc: "2.0", method: "dashboard", params: {} });
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=60");
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+
+  it("GET forwards only declared, validated query params", async () => {
+    const f = vi.spyOn(globalThis, "fetch").mockResolvedValue(ok({ items: [] }));
+    const res = await handler.fetch(new Request("https://w.dev/svc/whirlpoolstats/txs?page=0&evil=1"), env, ctx);
+    expect(res.status).toBe(200);
+    expect(f.mock.calls[0][0]).toBe("https://whirlpoolstats.xyz/api/txs?page=1");
+  });
+
+  it("404s unknown services and routes; 413 on huge bodies; 502 on upstream errors", async () => {
+    expect((await handler.fetch(new Request("https://w.dev/svc/nope/x"), env, ctx)).status).toBe(404);
+    expect((await handler.fetch(new Request("https://w.dev/svc/whirlpoolstats/admin"), env, ctx)).status).toBe(404);
+    const big = await post("/svc/wabisator/api.php", { jsonrpc: "2.0", method: "dashboard", params: { pad: "x".repeat(70_000) } });
+    expect(big.status).toBe(413);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("down", { status: 503 }));
+    const bad = await post("/svc/wabisator/api.php", { jsonrpc: "2.0", method: "search", params: { query: TX } });
+    expect(bad.status).toBe(502);
+  });
+
+  it("legacy routes still answer", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(ok({ pools: [] }));
+    expect((await handler.fetch(new Request("https://w.dev/whirlpool/summary"), env, ctx)).status).toBe(200);
+  });
+});
