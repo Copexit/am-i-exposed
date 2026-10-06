@@ -237,10 +237,10 @@ export async function mockObservatoryApi(page: Page) {
     if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
     const { pathname } = new URL(req.url());
     let body: string | null = null;
-    if (pathname === "/whirlpool/summary") body = readObservatory("whirlpool-summary");
-    else if (pathname === "/whirlpool/charts") body = readObservatory("whirlpool-charts");
-    else if (pathname === "/whirlpool/txs") body = readObservatory("whirlpool-txs");
-    else if (pathname === "/liquisabi/api") {
+    if (pathname === "/svc/whirlpoolstats/summary") body = readObservatory("whirlpool-summary");
+    else if (pathname === "/svc/whirlpoolstats/charts") body = readObservatory("whirlpool-charts");
+    else if (pathname === "/svc/whirlpoolstats/txs") body = readObservatory("whirlpool-txs");
+    else if (pathname === "/svc/liquisabi/api") {
       const { id } = req.postDataJSON() as { id: number };
       body = `{"jsonrpc":"2.0","id":${id},"result":${readObservatory("liquisabi-dashboard")}}`;
     }
