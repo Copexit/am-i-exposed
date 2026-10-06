@@ -168,6 +168,9 @@ export default function ScannerPage() {
       {phase === "complete" && autoSwitchedNetwork && (
         <Suspense fallback={null}><NetworkSwitchToast key={query} network={autoSwitchedNetwork} kind={inputType === "address" ? "address" : "txid"} /></Suspense>
       )}
+      {wallet.autoSwitchedNetwork && (
+        <Suspense fallback={null}><NetworkSwitchToast key={wallet.query} network={wallet.autoSwitchedNetwork} kind="wallet" /></Suspense>
+      )}
 
       {pendingXpub && (
         <XpubPrivacyWarning

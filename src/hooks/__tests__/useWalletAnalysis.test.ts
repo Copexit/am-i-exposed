@@ -3,10 +3,19 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { renderHook, act, cleanup } from "@testing-library/react";
 import { NETWORK_CONFIG } from "@/lib/bitcoin/networks";
 
+import { HDKey } from "@scure/bip32";
+import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
+
+const net = vi.hoisted(() => ({ isUmbrel: false, setNetwork: vi.fn(), detected: null as string | null }));
 vi.mock("@/context/NetworkContext", () => ({
-  useNetwork: () => ({ config: NETWORK_CONFIG.mainnet, isUmbrel: false, isCustomApi: false }),
+  useNetwork: () => ({
+    network: "mainnet", setNetwork: net.setNetwork, config: NETWORK_CONFIG.mainnet,
+    configFor: (n: BitcoinNetwork) => NETWORK_CONFIG[n], customApiUrl: null, isUmbrel: net.isUmbrel, isCustomApi: false,
+  }),
 }));
-vi.mock("@/lib/api/client", () => ({ createApiClient: () => ({}), isLocalApi: () => false }));
+const createApiClient = vi.hoisted(() => vi.fn(() => ({})));
+vi.mock("@/lib/api/client", () => ({ createApiClient, isLocalApi: () => false }));
+vi.mock("@/lib/api/detect-network", () => ({ detectAddressNetwork: vi.fn(async () => net.detected) }));
 // Echo the key so the test sees which translation was requested
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 
@@ -27,5 +36,30 @@ describe("useWalletAnalysis descriptor errors", () => {
     await act(async () => { await result.current.analyze(input); });
     expect(result.current.phase).toBe("error");
     expect(result.current.error).toBe(key);
+  });
+});
+
+// Testnet account key (tpub version bytes)
+const TPUB = HDKey.fromMasterSeed(new Uint8Array(32).fill(1), { private: 0x04358394, public: 0x043587cf }).publicExtendedKey;
+
+describe("useWalletAnalysis key on another network", () => {
+  afterEach(() => { net.isUmbrel = false; net.detected = null; net.setNetwork.mockClear(); createApiClient.mockClear(); });
+
+  it("self-hosted mainnet backend: clear error, nothing fetched", async () => {
+    net.isUmbrel = true;
+    const { result } = renderHook(() => useWalletAnalysis());
+    await act(async () => { await result.current.analyze(TPUB); });
+    expect(result.current.phase).toBe("error");
+    expect(result.current.error).toBe("errors.walletWrongNetwork");
+    expect(createApiClient).not.toHaveBeenCalled();
+  });
+
+  it("public mempool.space: switches to the key's network and scans there", async () => {
+    net.detected = "signet";
+    const { result } = renderHook(() => useWalletAnalysis());
+    await act(async () => { await result.current.analyze(TPUB); });
+    expect(net.setNetwork).toHaveBeenCalledWith("signet");
+    expect(createApiClient).toHaveBeenCalledWith(NETWORK_CONFIG.signet, expect.anything());
+    expect(result.current.autoSwitchedNetwork).toBe("signet");
   });
 });

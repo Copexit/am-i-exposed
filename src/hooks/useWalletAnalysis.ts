@@ -7,6 +7,7 @@ import { createApiClient, isLocalApi } from "@/lib/api/client";
 import { getAnalysisSettings } from "@/hooks/useAnalysisSettings";
 import {
   parseXpub,
+  deriveOneAddress,
   type DescriptorParseResult,
   type ScriptType,
 } from "@/lib/bitcoin/descriptor";
@@ -14,6 +15,8 @@ import type { WalletAuditResult, WalletAddressInfo } from "@/lib/analysis/wallet
 import type { UtxoTraceResult } from "@/lib/wallet/scan";
 import { mapApiErrorMessage } from "@/lib/api/error-message";
 import { loadEngine } from "@/lib/analysis/load-engine";
+import { detectAddressNetwork } from "@/lib/api/detect-network";
+import { NETWORK_CONFIG, type BitcoinNetwork } from "@/lib/bitcoin/networks";
 
 export type { UtxoTraceResult } from "@/lib/wallet/scan";
 
@@ -50,6 +53,8 @@ interface WalletAnalysisState {
   error: string | null;
   /** Duration in ms */
   durationMs: number | null;
+  /** Set when the key belongs to another network and the scan switched to it */
+  autoSwitchedNetwork: BitcoinNetwork | null;
 }
 
 const INITIAL_STATE: WalletAnalysisState = {
@@ -64,6 +69,7 @@ const INITIAL_STATE: WalletAnalysisState = {
   traceProgress: null,
   error: null,
   durationMs: null,
+  autoSwitchedNetwork: null,
 };
 
 // ---------- Hook ----------
@@ -71,7 +77,7 @@ const INITIAL_STATE: WalletAnalysisState = {
 export function useWalletAnalysis() {
   const [state, setState] = useState<WalletAnalysisState>(INITIAL_STATE);
   const { t } = useTranslation();
-  const { config, isUmbrel, isCustomApi } = useNetwork();
+  const { network, setNetwork, config, configFor, customApiUrl, isUmbrel, isCustomApi } = useNetwork();
   const abortRef = useRef<AbortController | null>(null);
 
   const analyze = useCallback(
@@ -91,6 +97,29 @@ export function useWalletAnalysis() {
         // Step 1: Parse xpub/descriptor (no address derivation yet)
         const parsed = parseXpub(input, scriptTypeOverride);
 
+        // A key for another network (tpub on mainnet, xpub on signet): on public
+        // mempool.space scan where its addresses live, like a single address does.
+        // A self-hosted or custom backend cannot answer for another network.
+        let cfg = config;
+        let switchedTo: BitcoinNetwork | null = null;
+        if ((parsed.network === "mainnet") !== (network === "mainnet")) {
+          const first = deriveOneAddress(parsed, parsed.singleChain === 1 ? 1 : 0, 0).address;
+          const detected = isUmbrel || customApiUrl
+            ? null
+            : await detectAddressNetwork(first, network, controller.signal, (n) => configFor(n).mempoolBaseUrl);
+          if (controller.signal.aborted) return;
+          if (!detected) {
+            throw new Error(t("errors.walletWrongNetwork", {
+              keyNetwork: parsed.network === "mainnet" ? "Mainnet" : "Testnet/Signet",
+              network: NETWORK_CONFIG[network].label,
+              defaultValue: "This key belongs to {{keyNetwork}}, but the connected backend serves {{network}}. Its addresses cannot be looked up there.",
+            }));
+          }
+          cfg = configFor(detected);
+          switchedTo = detected;
+          setNetwork(detected);
+        }
+
         setState(prev => ({
           ...prev,
           phase: "fetching",
@@ -102,6 +131,7 @@ export function useWalletAnalysis() {
             xpub: parsed.xpub,
           },
           progress: { fetched: 0, total: 0 },
+          autoSwitchedNetwork: switchedTo,
         }));
 
         const {
@@ -110,8 +140,8 @@ export function useWalletAnalysis() {
         if (controller.signal.aborted) return;
 
         // Step 2: Incrementally derive + fetch addresses.
-        const api = createApiClient(config, controller.signal);
-        const localApi = isLocalApi(config.mempoolBaseUrl);
+        const api = createApiClient(cfg, controller.signal);
+        const localApi = isLocalApi(cfg.mempoolBaseUrl);
         const { walletGapLimit, minSats } = getAnalysisSettings();
         const allInfos: WalletAddressInfo[] = [];
         const failedAddresses: string[] = [];
@@ -226,7 +256,7 @@ export function useWalletAnalysis() {
         }));
       }
     },
-    [config, t, isUmbrel, isCustomApi],
+    [network, setNetwork, config, configFor, customApiUrl, t, isUmbrel, isCustomApi],
   );
 
   // Abort in-flight requests on unmount
