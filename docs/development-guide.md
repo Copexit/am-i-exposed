@@ -180,6 +180,16 @@ All requests go to one mempool.space-compatible backend (public, Tor onion, Umbr
 
 Base URLs: `https://mempool.space/api`, `/testnet4/api`, `/signet/api`; Tor: `http://mempoolhqx4isw62xs7abwphsq7ldayuidyx2v2oethdhhj6mlo2r6ad.onion/api`. Wallet scans against hosted APIs use a short burst (300ms gaps) followed by a 9s sustained delay per address; local backends are not throttled.
 
+## Services
+
+Third-party services (Wabisator, Whirlpool stats, LiquiSabi) are never called directly by the browser.
+
+- **Registry:** `src/lib/services/registry.json` is the single source of truth (service, base URL, routes, RPC methods, param validators). The worker bundles it; the sidecar ships a committed copy (`umbrel/tor-proxy/services.json`).
+- **`/svc` routes:** `/svc/<service>/<path>` on the coinjoin-stats worker (public site, `workers/coinjoin-stats/svc.js`) and `/tor-proxy/svc/...` on the Tor sidecar (self-hosted, `umbrel/tor-proxy/svc.js`). Legacy worker routes (`/whirlpool/*`, `/liquisabi/api`) stay.
+- **Classes:** `aggregate` routes carry no user data and may be cached. `lookup` routes carry a user txid: never cached, never retried automatically.
+- **`LookupConsent`:** `src/lib/services/consent.ts`. A lookup request is refused unless the caller holds a consent minted by `grantLookupConsent` for exactly those txids (normalized). The consent is granted by the click on the card.
+- **Where the card is mounted:** `ServiceCheck` (`src/components/services/`) in `Results.tsx` (tx and address results, not local PSBT/raw-tx results) and `WalletResults.tsx`. It is not rendered with 0 eligible txids, never starts on its own, and results never touch scores, caches, history, URL or exports. Caps: 10 txids per address, 50 per wallet (`selectTxids`).
+
 ## Key design decisions
 
 1. Static export (`output: "export"`), GitHub Pages; CSP via `<meta>`.

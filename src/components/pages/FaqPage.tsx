@@ -102,7 +102,7 @@ const DEFAULTS: Record<string, string> = {
   "faq.q_cioh": "What is the Common Input Ownership Heuristic?",
   "faq.a_cioh": "If a Bitcoin transaction spends multiple inputs, all inputs are assumed to belong to the same entity. This is the foundational clustering heuristic used by chain surveillance firms like Chainalysis and Elliptic to link addresses together. CoinJoin is the primary way to break this assumption.",
   "faq.q_data": "Does am-i.exposed store my data?",
-  "faq.a_data": "No data is sent to any server beyond the mempool.space API for blockchain data. Fetched data is stored locally in your browser (IndexedDB) to avoid repeated requests, which further improves both privacy and performance of analysis. This cache can be cleared or disabled from Settings at any time. No analytics, no cookies, no tracking.",
+  "faq.a_data": "No data is sent to any server beyond the mempool.space API for blockchain data. Two optional checks run only when clicked: Chainalysis screening and the CoinJoin services check (Wabisator), both through a relay or Tor so your IP address is not shared. Fetched data is stored locally in your browser (IndexedDB) to avoid repeated requests, which further improves both privacy and performance of analysis. This cache can be cleared or disabled from Settings at any time. No analytics, no cookies, no tracking.",
 };
 
 export function FaqPage() {

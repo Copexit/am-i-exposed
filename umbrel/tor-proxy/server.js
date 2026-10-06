@@ -18,7 +18,7 @@ const agent = new SocksProxyAgent(
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RESPONSE_BYTES = 1024 * 1024; // 1 MB limit to prevent memory exhaustion
 
-function fetchViaAgent(url, { method = "GET", body, contentType } = {}) {
+function fetchViaAgent(url, { method = "GET", body, contentType, timeoutMs = REQUEST_TIMEOUT_MS } = {}) {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
     const headers = { Accept: "application/json" };
@@ -34,7 +34,7 @@ function fetchViaAgent(url, { method = "GET", body, contentType } = {}) {
         method,
         agent,
         headers,
-        timeout: REQUEST_TIMEOUT_MS,
+        timeout: timeoutMs,
       },
       (res) => {
         const chunks = [];

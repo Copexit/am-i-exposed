@@ -1,0 +1,448 @@
+"use client";
+
+import { useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
+import { useNetwork } from "@/context/NetworkContext";
+import { useServiceCheck } from "@/hooks/useServiceCheck";
+import { fmtN, formatBtc } from "@/lib/format";
+import { SATS_PER_BTC } from "@/lib/constants";
+import type { CoinRef, RoundRef, TxAttribution } from "@/lib/services/wabisabi-attribution";
+import { Chip } from "@/components/flows/FlowUi";
+
+interface ServiceCheckProps {
+  txids: string[];
+  mode: "tx" | "wallet-like";
+  totalAvailable?: number;
+  isLocalCoinJoin: (txid: string) => boolean;
+  onScan: (txid: string) => void;
+}
+
+type CoinjoinResult = Extract<TxAttribution, { kind: "coinjoin" }>;
+
+const shortTx = (txid: string) => `${txid.slice(0, 8)}…${txid.slice(-8)}`;
+const fmtTime = (unix: number) => new Date(unix * 1000).toLocaleString();
+const fmtSats = (sats: number) => `${fmtN(sats)} sats`;
+const btcToSats = (btc: number) => Math.round(btc * SATS_PER_BTC);
+const warnBoxCls = "rounded-lg border border-severity-medium/40 bg-severity-medium/10 p-4 space-y-2";
+const btnCls =
+  "inline-flex items-center justify-center min-h-[44px] px-4 rounded-lg border border-hairline-strong text-sm text-foreground hover:border-bitcoin hover:text-bitcoin transition-colors cursor-pointer";
+
+/** Opt-in Wabisator lookup: which WabiSabi coordinator ran a round, where coins came from or went. */
+export function ServiceCheck({ txids, mode, totalAvailable, isLocalCoinJoin, onScan }: ServiceCheckProps) {
+  const { t } = useTranslation();
+  const { isUmbrel, network } = useNetwork();
+  const { phase, done, total, results, summary, start, retryFailed } = useServiceCheck(txids, isLocalCoinJoin);
+  // Wabisator only indexes mainnet rounds.
+  if (network !== "mainnet") return null;
+
+  const coverage = (
+    <p className="text-[13px] text-muted leading-relaxed">
+      {t("services.coverage", {
+        defaultValue:
+          "Covers the WabiSabi coordinators Wabisator monitors (Kruw, OpenCoordinator, GingerWallet and others). No record here does not rule out Whirlpool, JoinMarket or unmonitored coordinators.",
+      })}
+    </p>
+  );
+  const retry = (
+    <button type="button" onClick={retryFailed} className={btnCls}>
+      {t("services.retry", { defaultValue: "Retry" })}
+    </button>
+  );
+
+  const failedLine = (count: number) => (
+    <div className="flex flex-wrap items-center gap-3">
+      <p className="text-sm text-muted">
+        {t("services.failedCount", { count, defaultValue: "{{count}} transaction could not be checked.", defaultValue_other: "{{count}} transactions could not be checked." })}
+      </p>
+      {retry}
+    </div>
+  );
+
+  let body: ReactNode = null;
+  if (phase === "idle") {
+    body = (
+      <>
+        <p className="text-sm text-foreground leading-relaxed">
+          {mode === "tx"
+            ? t("services.desc", {
+                defaultValue: "See whether this was part of a WabiSabi CoinJoin, which coordinator ran it, and where the coins came from or went.",
+              })
+            : t("services.descMany", {
+                defaultValue:
+                  "See whether these transactions took part in WabiSabi CoinJoins, which coordinators ran them, and where the coins came from or went.",
+              })}
+        </p>
+        <p className="text-[13px] text-muted leading-relaxed">
+          {isUmbrel
+            ? t("services.privacyTor", {
+                count: txids.length,
+                defaultValue: "Sends {{count}} transaction ID to Wabisator (wabisator.com) through Tor from your node. Nothing is stored.",
+                defaultValue_other: "Sends {{count}} transaction IDs to Wabisator (wabisator.com) through Tor from your node. Nothing is stored.",
+              })
+            : t("services.privacyPublic", {
+                count: txids.length,
+                defaultValue:
+                  "Sends {{count}} transaction ID to Wabisator (wabisator.com) through the am-i.exposed relay. Your IP address is not shared with Wabisator. Nothing is stored.",
+                defaultValue_other:
+                  "Sends {{count}} transaction IDs to Wabisator (wabisator.com) through the am-i.exposed relay. Your IP address is not shared with Wabisator. Nothing is stored.",
+              })}
+          {mode === "wallet-like" && (
+            <>
+              {" "}
+              {t("services.privacyCluster", {
+                defaultValue: "Checking several transactions together lets Wabisator see that they belong to one wallet.",
+              })}
+            </>
+          )}
+        </p>
+        {mode === "wallet-like" && totalAvailable !== undefined && totalAvailable > txids.length && (
+          <p className="text-[13px] text-muted">
+            {t("services.capped", {
+              count: txids.length,
+              total: totalAvailable,
+              defaultValue: "Checks the {{count}} most recent of {{total}} transactions.",
+            })}
+          </p>
+        )}
+        {coverage}
+        <button type="button" onClick={start} className={btnCls}>
+          {t("services.check", { defaultValue: "Check CoinJoin services" })}
+        </button>
+      </>
+    );
+  } else if (phase === "running") {
+    body = (
+      <div className="space-y-2">
+        <p className="num text-sm text-muted" aria-live="polite">
+          {t("services.progress", { done, total, defaultValue: "Checked {{done}} of {{total}}" })}
+        </p>
+        <div className="h-1.5 rounded-full bg-surface-inset overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done}>
+          <div className="h-full bg-bitcoin transition-[width]" style={{ width: `${total ? (done / total) * 100 : 0}%` }} />
+        </div>
+      </div>
+    );
+  } else if (mode === "tx") {
+    const r = results[0];
+    if (r?.kind === "coinjoin") body = <RoundView r={r} onScan={onScan} />;
+    else if (r?.kind === "linked") body = <LinkedView r={r} onScan={onScan} postMix={r.outOf.length >= 2 && !isLocalCoinJoin(r.txid)} />;
+    else if (r?.kind === "error")
+      body = (
+        <>
+          <p className="text-sm text-muted">{t("services.error", { defaultValue: "Wabisator could not be reached. Local results are unaffected." })}</p>
+          {retry}
+        </>
+      );
+    else
+      body = (
+        <>
+          <p className="text-sm text-foreground">{t("services.none", { defaultValue: "No recorded WabiSabi CoinJoin activity for this transaction." })}</p>
+          {coverage}
+        </>
+      );
+  } else if (summary && summary.rounds.length === 0 && summary.linked.length === 0) {
+    body = (
+      <>
+        {summary.checked > 0 && (
+          <>
+            <p className="text-sm text-foreground">
+              {t("services.noneMany", { defaultValue: "No recorded WabiSabi CoinJoin activity for these transactions." })}
+            </p>
+            {coverage}
+          </>
+        )}
+        {summary.failed > 0 && failedLine(summary.failed)}
+      </>
+    );
+  } else if (summary) {
+    const intoSats = summary.into.reduce((a, g) => a + g.sats, 0);
+    body = (
+      <>
+        <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-5">
+          <Tile label={t("services.tileRounds", { defaultValue: "CoinJoin rounds" })} value={fmtN(summary.rounds.length)} />
+          <Tile label={t("services.tileOutOf", { defaultValue: "Out of CoinJoins" })} value={fmtSats(summary.outOf.reduce((a, g) => a + g.sats, 0))}>
+            {summary.outOf.map((g) => (
+              <span key={g.coordinator} className="block text-[12px] text-muted truncate">
+                {g.name}: <span className="num">{fmtSats(g.sats)}</span>
+              </span>
+            ))}
+          </Tile>
+          <Tile label={t("services.tileInto", { defaultValue: "Into CoinJoins" })} value={fmtSats(intoSats)} />
+          <Tile label={t("services.tilePostMix", { defaultValue: "Post-mix merges" })} value={fmtN(summary.postMixMerges.length)} warn={summary.postMixMerges.length > 0} />
+        </dl>
+        {summary.postMixMerges.length > 0 && (
+          <div className={warnBoxCls}>
+            <p className="text-sm text-foreground leading-relaxed">
+              {t("services.postMixWarning", {
+                count: summary.postMixMerges.length,
+                defaultValue: "{{count}} transaction spent coins from different CoinJoin outputs together, which links them again.",
+                defaultValue_other: "{{count}} transactions spent coins from different CoinJoin outputs together, which links them again.",
+              })}
+            </p>
+            <ul className="divide-y divide-hairline">
+              {summary.postMixMerges.map((m) => (
+                <Row key={m.txid} txid={m.txid} onScan={onScan}>
+                  <span className="num">{countLabel(t, m.coins, m.rounds)}</span>
+                </Row>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div className="space-y-1">
+          <p className="text-sm text-foreground">{t("services.found", { defaultValue: "Transactions with recorded CoinJoin activity" })}</p>
+          <ul className="divide-y divide-hairline">
+            {summary.rounds.map((r) => (
+              <TxItem key={r.txid} txid={r.txid} onScan={onScan} meta={<><span>{r.coordinator.name}</span>{r.time > 0 && <span className="num">{fmtTime(r.time)}</span>}</>}>
+                <RoundView r={r} onScan={onScan} />
+              </TxItem>
+            ))}
+            {summary.linked.map((l) => {
+              const coins = [...l.outOf, ...l.into];
+              return (
+                <TxItem
+                  key={l.txid}
+                  txid={l.txid}
+                  onScan={onScan}
+                  meta={<><span>{[...new Set(coins.map((c) => c.name))].join(", ")}</span><span className="num">{fmtSats(coins.reduce((a, c) => a + c.sats, 0))}</span></>}
+                >
+                  <LinkedView r={l} onScan={onScan} />
+                </TxItem>
+              );
+            })}
+          </ul>
+        </div>
+        {summary.failed > 0 && failedLine(summary.failed)}
+      </>
+    );
+  }
+
+  return (
+    <section id="services" className="rounded-xl border border-hairline p-5 sm:p-6 space-y-4">
+      <p className="eyebrow">{t("services.eyebrow", { defaultValue: "CoinJoin services" })}</p>
+      {body}
+    </section>
+  );
+}
+
+function RoundView({ r, onScan }: { r: CoinjoinResult; onScan: (txid: string) => void }) {
+  const { t } = useTranslation();
+  const o = r.inputOrigins;
+  const originTotal = o.fresh + o.remix + o.other;
+  const origins = [
+    { key: "fresh", label: t("services.fresh", { defaultValue: "Fresh" }), n: o.fresh, cls: "bg-bitcoin" },
+    { key: "remix", label: t("services.remixed", { defaultValue: "Remixed" }), n: o.remix, cls: "bg-severity-low" },
+    { key: "other", label: t("services.other", { defaultValue: "Other" }), n: o.other, cls: "bg-faint" },
+  ];
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        <Chip>{r.coordinator.name}</Chip>
+        {r.time > 0 && <span className="num text-[13px] text-muted">{fmtTime(r.time)}</span>}
+        {r.isBlame && (
+          <span className="text-[11px] uppercase tracking-wider text-severity-medium border border-severity-medium/40 rounded px-1.5 py-1 leading-none">
+            {t("services.blame", { defaultValue: "Blame round" })}
+          </span>
+        )}
+      </div>
+      <dl className="grid grid-cols-2 sm:grid-cols-5 gap-x-6 gap-y-4">
+        <Tile label={t("services.feeRate", { defaultValue: "Fee rate" })} value={`${fmtN(r.feeRate)} sat/vB`} />
+        <Tile label={t("services.inputs", { defaultValue: "Inputs" })} value={fmtN(r.inputs)} />
+        <Tile label={t("services.outputs", { defaultValue: "Outputs" })} value={fmtN(r.outputs)} />
+        <Tile label={t("services.anonsetIn", { defaultValue: "Avg. input anonset" })} value={r.anonsetIn.toFixed(1)} />
+        <Tile label={t("services.anonsetOut", { defaultValue: "Avg. output anonset" })} value={r.anonsetOut.toFixed(1)} />
+      </dl>
+      {originTotal > 0 && (
+        <div className="space-y-2">
+          <div className="flex h-2 rounded-full overflow-hidden bg-surface-inset" aria-hidden="true">
+            {origins.map((s) => s.n > 0 && <div key={s.key} className={s.cls} style={{ width: `${(s.n / originTotal) * 100}%` }} />)}
+          </div>
+          <ul className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted">
+            {origins.map((s) => (
+              <li key={s.key} className="inline-flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${s.cls}`} aria-hidden="true" />
+                {s.label} <span className="num text-foreground">{fmtN(s.n)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {r.remixFrom.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[13px] text-muted">{t("services.remixFrom", { defaultValue: "Remixed from" })}</span>
+          {r.remixFrom.map((g) => (
+            <Chip key={g.coordinator}>
+              {g.name} {formatBtc(btcToSats(g.btc))} · {coinCount(t, g.coins)}
+            </Chip>
+          ))}
+        </div>
+      )}
+      {r.nonStandardOutputs > 0 && (
+        <p className="text-[13px] text-severity-medium leading-relaxed">
+          {t("services.nonStandard", {
+            count: r.nonStandardOutputs,
+            defaultValue: "{{count}} non-standard output: change outputs like this are the linkable ones.",
+            defaultValue_other: "{{count}} non-standard outputs: change outputs like these are the linkable ones.",
+          })}
+        </p>
+      )}
+      <RoundList title={t("services.remixedFromRounds", { defaultValue: "Rounds its coins came from" })} rounds={r.remixedFromRounds} onScan={onScan} />
+      <RoundList title={t("services.remixedIntoRounds", { defaultValue: "Rounds its coins went into" })} rounds={r.remixedIntoRounds} onScan={onScan} />
+    </>
+  );
+}
+
+function Tile({ label, value, warn = false, children }: { label: string; value: string; warn?: boolean; children?: ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[13px] text-muted">{label}</dt>
+      <dd className={`num text-lg mt-1 break-words ${warn ? "text-severity-medium" : "text-foreground"}`}>{value}</dd>
+      {children && <dd className="mt-1">{children}</dd>}
+    </div>
+  );
+}
+
+function ScanButton({ txid, onScan }: { txid: string; onScan: (txid: string) => void }) {
+  const { t } = useTranslation();
+  return (
+    <button
+      type="button"
+      onClick={() => onScan(txid)}
+      aria-label={`${t("services.scan", { defaultValue: "Scan" })} ${txid}`}
+      className="shrink-0 min-h-[44px] px-2 -mr-2 text-bitcoin hover:underline underline-offset-2 cursor-pointer"
+    >
+      {t("services.scan", { defaultValue: "Scan" })}
+    </button>
+  );
+}
+
+function Row({ txid, onScan, children }: { txid: string; onScan: (txid: string) => void; children?: ReactNode }) {
+  return (
+    <li className="flex items-center gap-3 py-1.5 text-[13px]">
+      <span className="num text-foreground shrink-0">{shortTx(txid)}</span>
+      <span className="flex-1 min-w-0 flex flex-wrap gap-x-3 text-muted">{children}</span>
+      <ScanButton txid={txid} onScan={onScan} />
+    </li>
+  );
+}
+
+/** Summary-list row: expands to the same detail view tx mode shows. */
+function TxItem({ txid, meta, onScan, children }: { txid: string; meta: ReactNode; onScan: (txid: string) => void; children: ReactNode }) {
+  return (
+    <li className="flex items-start gap-3 text-[13px]">
+      <details className="flex-1 min-w-0">
+        <summary className="min-h-[44px] flex items-center gap-3 cursor-pointer">
+          <span className="num text-foreground shrink-0">{shortTx(txid)}</span>
+          <span className="min-w-0 flex flex-wrap gap-x-3 text-muted">{meta}</span>
+        </summary>
+        <div className="space-y-4 pt-2 pb-4">{children}</div>
+      </details>
+      <ScanButton txid={txid} onScan={onScan} />
+    </li>
+  );
+}
+
+function LinkedView({ r, onScan, postMix = false }: { r: Extract<TxAttribution, { kind: "linked" }>; onScan: (txid: string) => void; postMix?: boolean }) {
+  const { t } = useTranslation();
+  return (
+    <>
+      {postMix && (
+        <div className={warnBoxCls}>
+          <p className="text-sm text-foreground leading-relaxed">
+            {t("services.postMixTx", {
+              count: new Set(r.outOf.map((c) => c.roundTxid)).size,
+              coins: r.outOf.length,
+              defaultValue: "This transaction spent {{coins}} coins from {{count}} CoinJoin round together, which links them again.",
+              defaultValue_other: "This transaction spent {{coins}} coins from {{count}} CoinJoin rounds together, which links them again.",
+            })}
+          </p>
+        </div>
+      )}
+      {r.outOf.length > 0 && (
+        <CoinList
+          title={t("services.outOf", {
+            count: r.outOf.length,
+            defaultValue: "{{count}} coin came out of recorded CoinJoins",
+            defaultValue_other: "{{count}} coins came out of recorded CoinJoins",
+          })}
+          coins={r.outOf}
+          onScan={onScan}
+        />
+      )}
+      {r.into.length > 0 && (
+        <CoinList
+          title={t("services.into", {
+            count: r.into.length,
+            defaultValue: "{{count}} coin went into recorded CoinJoins",
+            defaultValue_other: "{{count}} coins went into recorded CoinJoins",
+          })}
+          coins={r.into}
+          onScan={onScan}
+        />
+      )}
+    </>
+  );
+}
+
+function RoundList({ title, rounds, onScan }: { title: string; rounds: RoundRef[]; onScan: (txid: string) => void }) {
+  if (rounds.length === 0) return null;
+  return (
+    <details className="group border-t border-hairline pt-2">
+      <summary className="min-h-[44px] flex items-center gap-2 text-sm text-foreground cursor-pointer">
+        {title} <span className="num text-muted">{fmtN(rounds.length)}</span>
+      </summary>
+      <ul className="divide-y divide-hairline">
+        {rounds.map((r) => (
+          <Row key={r.txid} txid={r.txid} onScan={onScan}>
+            <span>{r.name}</span>
+            <span className="num">{fmtTime(r.time)}</span>
+            <span className="num">{formatBtc(btcToSats(r.btc))}</span>
+          </Row>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+type TFn = ReturnType<typeof useTranslation>["t"];
+const coinCount = (t: TFn, count: number) =>
+  t("services.coinCount", { count, defaultValue: "{{count}} coin", defaultValue_other: "{{count}} coins" });
+const countLabel = (t: TFn, coins: number, rounds: number) =>
+  `${coinCount(t, coins)} · ${t("services.roundCount", { count: rounds, defaultValue: "{{count}} round", defaultValue_other: "{{count}} rounds" })}`;
+
+const VISIBLE_ROUNDS = 5;
+
+/** Coins grouped by the round they came from or went into, largest first. */
+function CoinList({ title, coins, onScan }: { title: string; coins: CoinRef[]; onScan: (txid: string) => void }) {
+  const { t } = useTranslation();
+  const [showAll, setShowAll] = useState(false);
+  const m = new Map<string, { txid: string; name: string; time: number; coins: number; sats: number }>();
+  for (const c of coins) {
+    const g = m.get(c.roundTxid) ?? { txid: c.roundTxid, name: c.name, time: c.time, coins: 0, sats: 0 };
+    g.coins++;
+    g.sats += c.sats;
+    m.set(c.roundTxid, g);
+  }
+  const rounds = [...m.values()].sort((a, b) => b.sats - a.sats);
+  return (
+    <div className="space-y-1">
+      <p className="text-sm text-foreground">{title}</p>
+      <p className="text-[13px] text-muted">
+        {t("services.fromRounds", { count: rounds.length, defaultValue: "from {{count}} round", defaultValue_other: "from {{count}} rounds" })}
+      </p>
+      <ul className="divide-y divide-hairline">
+        {(showAll ? rounds : rounds.slice(0, VISIBLE_ROUNDS)).map((g) => (
+          <Row key={g.txid} txid={g.txid} onScan={onScan}>
+            <span>{g.name}</span>
+            {g.time > 0 && <span className="num">{fmtTime(g.time)}</span>}
+            <span className="num">{coinCount(t, g.coins)}</span>
+            <span className="num">{fmtSats(g.sats)}</span>
+          </Row>
+        ))}
+      </ul>
+      {!showAll && rounds.length > VISIBLE_ROUNDS && (
+        <button type="button" onClick={() => setShowAll(true)} className={btnCls}>
+          {t("services.showAllRounds", { count: rounds.length, defaultValue: "Show all {{count}} round", defaultValue_other: "Show all {{count}} rounds" })}
+        </button>
+      )}
+    </div>
+  );
+}

@@ -2,172 +2,49 @@
  * Pure request-handler factory for the tor-proxy sidecar.
  *
  * Split out from server.js so it can be unit-tested without pulling in the
- * socks-proxy-agent dependency. Whirlpool routes reverse-proxy the rich JSON
- * from whirlpoolstats.xyz/api/* verbatim through Tor.
+ * socks-proxy-agent dependency.
  */
 
+const { createSvcHandler } = require("./svc");
+
 const UPSTREAM_BASE_DEFAULT = "https://chainalysis-proxy.copexit.workers.dev";
-const WHIRLPOOLSTATS_BASE_DEFAULT = "https://whirlpoolstats.xyz/api";
-const LIQUISABI_URL_DEFAULT = "https://liquisabi.com/api";
 
 const ADDR_RE = /^\/chainalysis\/address\/([13mn2][a-km-zA-HJ-NP-Z1-9]{25,34}|(bc1|tb1)[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{39,87})$/;
-const OBSERVATORY_WHIRLPOOL_RE = /^\/observatory\/whirlpool\/(summary|charts|txs)(?:\?.*)?$/;
-const OBSERVATORY_LIQUISABI_PATH = "/observatory/liquisabi/api";
-const ALLOWED_LIQUISABI_METHODS = new Set(["dashboard"]);
-
-const WHIRLPOOL_TIMEOUT_MS = { summary: 20_000, charts: 60_000, txs: 30_000 };
-
-function clampPage(raw) {
-  const n = parseInt(raw ?? "1", 10);
-  if (!Number.isFinite(n) || n < 1) return 1;
-  return Math.min(n, 10_000);
-}
-
-function readJsonBody(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    let total = 0;
-    req.on("data", (chunk) => {
-      total += chunk.length;
-      if (total > 64 * 1024) {
-        reject(new Error("Request body too large"));
-        return;
-      }
-      chunks.push(chunk);
-    });
-    req.on("end", () => {
-      const text = Buffer.concat(chunks).toString();
-      try {
-        resolve(text ? JSON.parse(text) : {});
-      } catch {
-        reject(new Error("Invalid JSON body"));
-      }
-    });
-    req.on("error", reject);
-  });
-}
-
-function structuredError(code, message) {
-  return JSON.stringify({ error: { code, message } });
-}
 
 function createHandler({
   fetchViaAgent,
   upstreamBase = UPSTREAM_BASE_DEFAULT,
-  whirlpoolStatsBase = WHIRLPOOLSTATS_BASE_DEFAULT,
-  liquiSabiUrl = LIQUISABI_URL_DEFAULT,
   logger = console,
+  services = require("./services.json").services,
 } = {}) {
   if (typeof fetchViaAgent !== "function") {
     throw new Error("fetchViaAgent is required");
   }
 
-  async function handleWhirlpool(req, res, segment) {
-    let query = "";
-    if (segment === "txs") {
-      const parsed = new URL(req.url, "http://localhost");
-      query = `?page=${clampPage(parsed.searchParams.get("page"))}`;
-    }
-    try {
-      const body = await fetchViaAgent(`${whirlpoolStatsBase}/${segment}${query}`, {
-        accept: "application/json",
-        timeoutMs: WHIRLPOOL_TIMEOUT_MS[segment] ?? 30_000,
-      });
-      res.writeHead(200, {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store",
-      });
-      res.end(body);
-    } catch (err) {
-      logger.error(`Observatory whirlpool ${segment} error: ${err.message}`);
-      res.writeHead(502, { "Content-Type": "application/json" });
-      res.end(structuredError("UPSTREAM_DOWN", "Tor proxy upstream request failed"));
-    }
-  }
+  const handleSvc = createSvcHandler({ fetchViaAgent, services, logger });
 
-  async function handleObservatoryLiquiSabi(req, res) {
-    let body;
-    try {
-      body = await readJsonBody(req);
-    } catch (err) {
-      res.writeHead(400, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: err.message }));
-      return;
-    }
-    if (
-      !body ||
-      body.jsonrpc !== "2.0" ||
-      typeof body.method !== "string" ||
-      !ALLOWED_LIQUISABI_METHODS.has(body.method)
-    ) {
-      res.writeHead(400, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Invalid or disallowed method" }));
-      return;
-    }
-    const forwardBody = JSON.stringify({
-      jsonrpc: "2.0",
-      method: body.method,
-      params: body.params || {},
-      id: 1,
-    });
-    try {
-      const upstream = await fetchViaAgent(liquiSabiUrl, {
-        method: "POST",
-        body: forwardBody,
-      });
-      res.writeHead(200, {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store",
-      });
-      res.end(upstream);
-    } catch (err) {
-      logger.error(`Observatory liquisabi error: ${err.message}`);
-      res.writeHead(502, { "Content-Type": "application/json" });
-      res.end(structuredError("UPSTREAM_DOWN", "Tor proxy upstream request failed"));
-    }
-  }
-
-  return async function handler(req, res) {
+  async function dispatch(req, res) {
     if (req.url === "/health") {
-      res.writeHead(200, { "Content-Type": "text/plain" });
+      res.writeHead(200, { "Content-Type": "text/plain", "Cache-Control": "no-store" });
       res.end("ok");
       return;
     }
 
-    if (req.url === OBSERVATORY_LIQUISABI_PATH) {
-      if (req.method !== "POST") {
-        res.writeHead(405, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Method not allowed" }));
-        return;
-      }
-      await handleObservatoryLiquiSabi(req, res);
-      return;
-    }
-
-    const wpMatch = req.url.match(OBSERVATORY_WHIRLPOOL_RE);
-    if (wpMatch) {
-      if (req.method !== "GET") {
-        res.writeHead(405, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Method not allowed" }));
-        return;
-      }
-      await handleWhirlpool(req, res, wpMatch[1]);
-      return;
-    }
+    if (req.url.startsWith("/svc/")) return handleSvc(req, res);
 
     if (req.method !== "GET") {
-      res.writeHead(405, { "Content-Type": "application/json" });
+      res.writeHead(405, { "Content-Type": "application/json", "Cache-Control": "no-store" });
       res.end(JSON.stringify({ error: "Method not allowed" }));
       return;
     }
 
     const match = req.url.match(ADDR_RE);
     if (!match) {
-      res.writeHead(400, { "Content-Type": "application/json" });
+      res.writeHead(400, { "Content-Type": "application/json", "Cache-Control": "no-store" });
       res.end(
         JSON.stringify({
           error:
-            "Invalid path. Use /chainalysis/address/{btc_address} or /observatory/...",
+            "Invalid path. Use /chainalysis/address/{btc_address} or /svc/...",
         }),
       );
       return;
@@ -186,21 +63,28 @@ function createHandler({
       // The upstream worker's per-IP quota is shared per Tor exit: pass the
       // 429 through so the UI can say "retry shortly" instead of "sidecar down".
       if (err.status === 429) {
-        res.writeHead(429, { "Content-Type": "application/json", "Retry-After": "60" });
+        res.writeHead(429, { "Content-Type": "application/json", "Cache-Control": "no-store", "Retry-After": "60" });
         res.end(JSON.stringify({ error: "Rate limit exceeded" }));
         return;
       }
       logger.error(`Tor proxy error: ${err.message}`);
-      res.writeHead(502, { "Content-Type": "application/json" });
+      res.writeHead(502, { "Content-Type": "application/json", "Cache-Control": "no-store" });
       res.end(JSON.stringify({ error: "Tor proxy upstream request failed" }));
+    }
+  }
+
+  // Never rejects: server.js has no catch and an unhandled rejection kills the process on Node 22.
+  return async function handler(req, res) {
+    try {
+      await dispatch(req, res);
+    } catch (err) {
+      logger.error(`Tor proxy internal error: ${err.message}`);
+      if (!res.headersSent) {
+        res.writeHead(500, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+        res.end(JSON.stringify({ error: { code: "INTERNAL", message: "Internal error" } }));
+      }
     }
   };
 }
 
-module.exports = {
-  createHandler,
-  ALLOWED_LIQUISABI_METHODS,
-  ADDR_RE,
-  OBSERVATORY_WHIRLPOOL_RE,
-  OBSERVATORY_LIQUISABI_PATH,
-};
+module.exports = { createHandler, ADDR_RE };

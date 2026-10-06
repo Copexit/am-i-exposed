@@ -1,0 +1,48 @@
+{
+  "services": [
+    {
+      "id": "wabisator",
+      "name": "Wabisator",
+      "kind": "data-provider",
+      "homepage": "https://wabisator.com",
+      "base": "https://wabisator.com",
+      "routes": [
+        {
+          "path": "/api.php",
+          "http": "POST",
+          "rpc": {
+            "dashboard": { "class": "aggregate", "ttl": 60 },
+            "coordinators-status": { "class": "aggregate", "ttl": 15 },
+            "flow-map": { "class": "aggregate", "ttl": 60 },
+            "volume-history": { "class": "aggregate", "ttl": 600 },
+            "rounds-paginated": { "class": "aggregate", "ttl": 60 },
+            "coinjoin": { "class": "lookup", "params": { "txId": "txid" } },
+            "search": { "class": "lookup", "params": { "query": "txid" } }
+          }
+        }
+      ]
+    },
+    {
+      "id": "liquisabi",
+      "name": "LiquiSabi",
+      "kind": "data-provider",
+      "homepage": "https://liquisabi.com",
+      "base": "https://liquisabi.com",
+      "routes": [
+        { "path": "/api", "http": "POST", "rpc": { "dashboard": { "class": "aggregate", "ttl": 60 } } }
+      ]
+    },
+    {
+      "id": "whirlpoolstats",
+      "name": "whirlpoolstats.xyz",
+      "kind": "data-provider",
+      "homepage": "https://whirlpoolstats.xyz",
+      "base": "https://whirlpoolstats.xyz/api",
+      "routes": [
+        { "path": "/summary", "http": "GET", "class": "aggregate", "ttl": 60, "timeoutMs": 20000 },
+        { "path": "/charts", "http": "GET", "class": "aggregate", "ttl": 120, "timeoutMs": 60000 },
+        { "path": "/txs", "http": "GET", "class": "aggregate", "ttl": 60, "timeoutMs": 30000, "query": { "page": "page" } }
+      ]
+    }
+  ]
+}
