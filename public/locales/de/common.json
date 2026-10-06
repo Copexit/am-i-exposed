@@ -1859,6 +1859,7 @@
   "settings.timeout": "Zeitüberschreitung (10s)",
   "settings.title": "Einstellungen",
   "settings.walletGapLimit": "Wallet-Scan Lückenlimit",
+  "settings.walletGapLimitHostedNote": "Große Lückenlimits scannen viele Adressen. Über die öffentliche API (etwa 1 Adresse alle 9 s nach den ersten) kann das Stunden dauern; ein eigener Node ist deutlich schneller.",
   "setup.advanced_intro": "Die offizielle Umbrel- oder StartOS-App erledigt all das automatisch. Diese Schritte sind nur für Docker, Bare-Metal oder benutzerdefinierte Mempool-Setups - oder wenn du die am-i.exposed-Website der nativen App vorziehst.",
   "setup.advanced_title": "Erweitert: manuelle Einrichtung",
   "setup.bare_metal_desc": "Bearbeite die Mempool-nginx-Konfiguration direkt. Der Standard-Speicherort ist typischerweise /etc/nginx/conf.d/nginx-mempool.conf oder wo immer sie bei der Installation abgelegt wurde.",

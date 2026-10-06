@@ -1859,6 +1859,7 @@
   "settings.timeout": "Tempo limite (10s)",
   "settings.title": "Configurações",
   "settings.walletGapLimit": "Limite de lacuna do escaneamento de carteira",
+  "settings.walletGapLimitHostedNote": "Limites de lacuna grandes escaneiam muitos endereços. Na API pública (cerca de 1 endereço a cada 9 s após os primeiros) isso pode levar horas; um nó próprio é muito mais rápido.",
   "setup.advanced_intro": "O app oficial do Umbrel ou StartOS cuida de tudo isso automaticamente. Estes passos são apenas para Docker, bare-metal ou instâncias de mempool personalizadas - ou se você preferir o site do am-i.exposed em vez do app nativo.",
   "setup.advanced_title": "Avançado: configuração manual",
   "setup.bare_metal_desc": "Edite a configuração nginx do seu mempool diretamente. O local padrão é tipicamente /etc/nginx/conf.d/nginx-mempool.conf ou onde você o colocou durante a instalação.",

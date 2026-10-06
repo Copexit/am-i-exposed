@@ -1901,6 +1901,7 @@
   "settings.timeout": "Limit czasu (10s)",
   "settings.title": "Ustawienia",
   "settings.walletGapLimit": "Gap limit skanu portfela",
+  "settings.walletGapLimitHostedNote": "Duże gap limity skanują wiele adresów. W publicznym API (około 1 adres na 9 s po pierwszych kilku) może to trwać godzinami; własny węzeł jest znacznie szybszy.",
   "setup.advanced_intro": "Oficjalna aplikacja Umbrel lub StartOS robi to wszystko automatycznie. Te kroki są tylko dla Dockera, bare-metal lub niestandardowych instancji mempool - lub jeśli wolisz stronę am-i.exposed od natywnej aplikacji.",
   "setup.advanced_title": "Zaawansowane: konfiguracja ręczna",
   "setup.bare_metal_desc": "Edytuj bezpośrednio konfigurację nginx swojego mempoola. Domyślnie znajduje się ona zwykle w /etc/nginx/conf.d/nginx-mempool.conf lub tam, gdzie umieszczono ją podczas instalacji.",

@@ -15,7 +15,7 @@ export interface AnalysisSettings {
   skipCoinJoins: boolean;
   /** Analysis timeout in seconds (1-600, default 30) */
   timeout: number;
-  /** Wallet scan gap limit: consecutive unused addresses before stopping (1-100, default 5) */
+  /** Wallet scan gap limit: consecutive unused addresses before stopping (1-1000, default 5) */
   walletGapLimit: number;
   /** Persist API cache in IndexedDB across sessions (default true) */
   enableCache: boolean;
@@ -33,6 +33,31 @@ export const DEFAULT_ANALYSIS_SETTINGS: AnalysisSettings = {
   enableCache: true,
   boltzmannTimeout: 300,
 };
+
+export const MAX_GAP_LIMIT = 1000;
+
+/** Clamp to an integer in 1..MAX_GAP_LIMIT; non-numbers fall back to the default. */
+export function clampGapLimit(n: unknown): number {
+  const v = Math.round(Number(n));
+  return Number.isFinite(v) ? Math.min(MAX_GAP_LIMIT, Math.max(1, v)) : DEFAULT_ANALYSIS_SETTINGS.walletGapLimit;
+}
+
+/** Slider steps for the gap limit (slider index -> value). */
+export const GAP_LIMIT_STEPS = [1, 2, 3, 5, 10, 15, 20, 30, 50, 75, 100, 150, 200, 300, 500, 750, 1000] as const;
+
+/** Index of the step nearest to a gap limit (display only). */
+export function gapLimitToStep(limit: number): number {
+  let best = 0;
+  let bestDist = Infinity;
+  GAP_LIMIT_STEPS.forEach((s, i) => {
+    if (Math.abs(s - limit) < bestDist) { best = i; bestDist = Math.abs(s - limit); }
+  });
+  return best;
+}
+
+export function stepToGapLimit(index: number): number {
+  return GAP_LIMIT_STEPS[Math.min(GAP_LIMIT_STEPS.length - 1, Math.max(0, Math.round(index)))] as number;
+}
 
 const STORAGE_KEY = "analysis-settings";
 
@@ -55,6 +80,7 @@ export function getAnalysisSettings(): AnalysisSettings {
     cachedSettings = raw
       ? { ...DEFAULT_ANALYSIS_SETTINGS, ...JSON.parse(raw) }
       : DEFAULT_ANALYSIS_SETTINGS;
+    cachedSettings = { ...cachedSettings!, walletGapLimit: clampGapLimit(cachedSettings!.walletGapLimit) };
   } catch {
     cachedSettings = DEFAULT_ANALYSIS_SETTINGS;
   }

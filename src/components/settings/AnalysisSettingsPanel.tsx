@@ -4,10 +4,15 @@ import { RotateCcw, Sliders, ChevronDown, ChevronUp } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useAnalysisSettings } from "@/hooks/useAnalysisSettings";
+import { useNetwork } from "@/context/NetworkContext";
+import { backendClass } from "@/lib/api/backend-class";
+import { GAP_LIMIT_STEPS, gapLimitToStep, stepToGapLimit } from "@/lib/analysis/settings";
 
 export function AnalysisSettingsPanel() {
   const { t, i18n } = useTranslation();
   const { settings: analysisSettings, update: updateAnalysis, reset: resetAnalysis, DEFAULTS: ANALYSIS_DEFAULTS } = useAnalysisSettings();
+  const { isUmbrel, customApiUrl } = useNetwork();
+  const hosted = backendClass({ isUmbrel, customApiUrl }) === "public";
   const [analysisOpen, setAnalysisOpen] = useState(false);
 
   const isCustomized =
@@ -141,18 +146,24 @@ export function AnalysisSettingsPanel() {
             <input
               id="analysis-gaplimit"
               type="range"
-              min={1}
-              max={100}
+              min={0}
+              max={GAP_LIMIT_STEPS.length - 1}
               step={1}
-              value={analysisSettings.walletGapLimit}
-              onChange={(e) => updateAnalysis({ walletGapLimit: Number(e.target.value) })}
+              value={gapLimitToStep(analysisSettings.walletGapLimit)}
+              onChange={(e) => updateAnalysis({ walletGapLimit: stepToGapLimit(Number(e.target.value)) })}
               className="w-full h-1.5 bg-surface-inset rounded-full appearance-none cursor-pointer accent-bitcoin"
             />
             <div className="flex justify-between text-[10px] text-muted/60 mt-0.5">
               <span>1</span>
-              <span>50</span>
+              <span>20</span>
               <span>100</span>
+              <span>1000</span>
             </div>
+            {hosted && analysisSettings.walletGapLimit >= 100 && (
+              <p className="text-[11px] text-muted mt-1">
+                {t("settings.walletGapLimitHostedNote", { defaultValue: "Large gap limits scan many addresses. On the public API (about 1 address every 9 s after the first few) this can take hours; a self-hosted node is much faster." })}
+              </p>
+            )}
           </div>
 
           {/* Boltzmann timeout slider */}
