@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronRight } from "lucide-react";
 import type { WalletAuditResult, WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import type { DescriptorParseResult, ScriptType } from "@/lib/bitcoin/descriptor";
-import { STANDARD_GAP_LIMIT, type UtxoTraceResult } from "@/hooks/useWalletAnalysis";
+import { RESCAN_GAP_LIMITS, type UtxoTraceResult } from "@/hooks/useWalletAnalysis";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { GRADE_COLORS, GRADE_VAR, P2PKH_DUST_LIMIT } from "@/lib/constants";
 import { fmtN } from "@/lib/format";
@@ -48,7 +48,7 @@ interface WalletResultsProps {
   scriptTypeDetected?: boolean;
   gapLimit?: number | null;
   /** Rescan with the standard gap limit (offered when the scan used a lower one) */
-  onRescanGap?: () => void;
+  onRescanGap?: (gapLimit: number) => void;
 }
 
 /** Wallet (xpub / descriptor) audit: verdict band, grouped findings, analyst workspace. */
@@ -184,15 +184,23 @@ export function WalletResults({ descriptor, result, addressInfos, utxoTraces, on
             <ScopeRow label={t("flows.network", { defaultValue: "Network" })} value={descriptor.network} />
             {gapLimit != null && <ScopeRow label={t("wallet.gapLimit", { defaultValue: "Gap limit" })} value={fmtN(gapLimit)} />}
           </dl>
-          {gapLimit != null && gapLimit < STANDARD_GAP_LIMIT && onRescanGap && (
+          {gapLimit != null && gapLimit < Math.max(...RESCAN_GAP_LIMITS) && onRescanGap && (
             <p className="text-[13px] text-muted leading-relaxed">
               {t("wallet.gapLimitNote", {
                 gapLimit,
                 defaultValue: "The scan stopped after {{gapLimit}} unused addresses in a row, so later addresses and part of the balance may be missing.",
               })}{" "}
-              <button type="button" onClick={onRescanGap} className="underline underline-offset-2 text-foreground hover:text-bitcoin cursor-pointer">
-                {t("wallet.rescanGap", { gapLimit: STANDARD_GAP_LIMIT, defaultValue: "Rescan with {{gapLimit}}" })}
-              </button>
+              <span data-testid="rescan-gap-row">
+                {t("wallet.rescanWith", { defaultValue: "Rescan with:" })}{" "}
+                {RESCAN_GAP_LIMITS.filter((n) => n > gapLimit).map((n, i) => (
+                  <span key={n}>
+                    {i > 0 && " \u00b7 "}
+                    <button type="button" onClick={() => onRescanGap(n)} className="underline underline-offset-2 text-foreground hover:text-bitcoin cursor-pointer">
+                      {n}
+                    </button>
+                  </span>
+                ))}
+              </span>
             </p>
           )}
           <p className="text-[13px] text-muted leading-relaxed border-t border-hairline pt-4">

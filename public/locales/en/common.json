@@ -2099,7 +2099,7 @@
   "wallet.scanAs": "Address type detected from on-chain history. Scan as:",
   "wallet.gapLimit": "Gap limit",
   "wallet.gapLimitNote": "The scan stopped after {{gapLimit}} unused addresses in a row, so later addresses and part of the balance may be missing.",
-  "wallet.rescanGap": "Rescan with {{gapLimit}}",
+  "wallet.rescanWith": "Rescan with:",
   "wallet.change": "Change:",
   "wallet.change_label": "change",
   "wallet.coinSelection": "Coin Selection Advisor",

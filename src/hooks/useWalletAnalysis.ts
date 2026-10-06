@@ -65,6 +65,8 @@ interface WalletAnalysisState {
 
 /** Wallet software's usual gap limit; used on self-hosted backends, which have no throttle. */
 export const STANDARD_GAP_LIMIT = 20;
+/** Gap limits offered for a rescan (only those above the limit used are shown). */
+export const RESCAN_GAP_LIMITS = [20, 50, 100] as const;
 
 const INITIAL_STATE: WalletAnalysisState = {
   phase: "idle",
