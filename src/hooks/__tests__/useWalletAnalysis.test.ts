@@ -17,7 +17,8 @@ vi.mock("@/context/NetworkContext", () => ({
 const createApiClient = vi.hoisted(() => vi.fn(() => ({
   getAddress: async () => ({ chain_stats: { tx_count: 0 }, mempool_stats: { tx_count: 0 } }),
 })));
-vi.mock("@/lib/api/client", () => ({ createApiClient, isLocalApi: () => false }));
+const local = vi.hoisted(() => ({ api: false }));
+vi.mock("@/lib/api/client", () => ({ createApiClient, isLocalApi: () => local.api }));
 vi.mock("@/lib/api/detect-network", () => ({ detectAddressNetwork: vi.fn(async () => net.detected) }));
 // Echo the key so the test sees which translation was requested
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
@@ -68,4 +69,19 @@ describe("useWalletAnalysis key on another network", () => {
     expect(result.current.scriptTypeDetected).toBe(true);
     expect(result.current.descriptor?.scriptType).toBe("p2wpkh");
   });
+});
+
+describe("useWalletAnalysis gap limit", () => {
+  afterEach(() => { local.api = false; net.detected = null; });
+  // A mainnet xpub on the mainnet backend: no network switch
+  const XPUB = HDKey.fromMasterSeed(new Uint8Array(32).fill(2)).publicExtendedKey;
+  const run = async (gap?: number) => {
+    const { result } = renderHook(() => useWalletAnalysis());
+    await act(async () => { await result.current.analyze(XPUB, undefined, gap); });
+    return result.current.gapLimit;
+  };
+
+  it("hosted API: the saved default (5)", async () => { expect(await run()).toBe(5); });
+  it("self-hosted API: the wallet standard (20)", async () => { local.api = true; expect(await run()).toBe(20); });
+  it("rescan override wins", async () => { expect(await run(20)).toBe(20); });
 });

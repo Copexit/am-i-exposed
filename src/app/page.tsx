@@ -4,6 +4,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 import { useScanner } from "@/hooks/useScanner";
+import { STANDARD_GAP_LIMIT } from "@/hooks/useWalletAnalysis";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { XpubPrivacyWarning } from "@/components/wallet/XpubPrivacyWarning";
 import { Home } from "@/components/home/Home";
@@ -155,6 +156,8 @@ export default function ScannerPage() {
               onScan={handleSubmit}
               durationMs={wallet.durationMs}
               scriptTypeDetected={wallet.scriptTypeDetected}
+              gapLimit={wallet.gapLimit}
+              onRescanGap={() => { if (wallet.query) void wallet.analyze(wallet.query, undefined, STANDARD_GAP_LIMIT); }}
             />
           </Suspense>
         )}

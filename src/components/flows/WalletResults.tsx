@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { ChevronRight } from "lucide-react";
 import type { WalletAuditResult, WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import type { DescriptorParseResult, ScriptType } from "@/lib/bitcoin/descriptor";
-import type { UtxoTraceResult } from "@/hooks/useWalletAnalysis";
+import { STANDARD_GAP_LIMIT, type UtxoTraceResult } from "@/hooks/useWalletAnalysis";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { GRADE_COLORS, GRADE_VAR, P2PKH_DUST_LIMIT } from "@/lib/constants";
 import { fmtN } from "@/lib/format";
@@ -46,6 +46,9 @@ interface WalletResultsProps {
   durationMs: number | null;
   /** A bare xpub/tpub whose address type was guessed: offer the other types */
   scriptTypeDetected?: boolean;
+  gapLimit?: number | null;
+  /** Rescan with the standard gap limit (offered when the scan used a lower one) */
+  onRescanGap?: () => void;
 }
 
 /** Wallet (xpub / descriptor) audit: verdict band, grouped findings, analyst workspace. */
@@ -57,7 +60,7 @@ const WRAP: Record<ScriptType, (k: string) => string> = {
   "p2pkh": (k) => `pkh(${k})`,
 };
 
-export function WalletResults({ descriptor, result, addressInfos, utxoTraces, onBack, onScan, durationMs, scriptTypeDetected }: WalletResultsProps) {
+export function WalletResults({ descriptor, result, addressInfos, utxoTraces, onBack, onScan, durationMs, scriptTypeDetected, gapLimit, onRescanGap }: WalletResultsProps) {
   const { t } = useTranslation();
   const [addressesOpen, setAddressesOpen] = useState(false);
   const worst = useMemo(() => findWorstOffender(addressInfos), [addressInfos]);
@@ -179,7 +182,19 @@ export function WalletResults({ descriptor, result, addressInfos, utxoTraces, on
             <ScopeRow label={t("flows.receiveChain", { defaultValue: "Receive chain" })} value={fmtN(descriptor.receiveAddresses.length)} />
             <ScopeRow label={t("flows.changeChain", { defaultValue: "Change chain" })} value={fmtN(descriptor.changeAddresses.length)} />
             <ScopeRow label={t("flows.network", { defaultValue: "Network" })} value={descriptor.network} />
+            {gapLimit != null && <ScopeRow label={t("wallet.gapLimit", { defaultValue: "Gap limit" })} value={fmtN(gapLimit)} />}
           </dl>
+          {gapLimit != null && gapLimit < STANDARD_GAP_LIMIT && onRescanGap && (
+            <p className="text-[13px] text-muted leading-relaxed">
+              {t("wallet.gapLimitNote", {
+                gapLimit,
+                defaultValue: "The scan stopped after {{gapLimit}} unused addresses in a row, so later addresses and part of the balance may be missing.",
+              })}{" "}
+              <button type="button" onClick={onRescanGap} className="underline underline-offset-2 text-foreground hover:text-bitcoin cursor-pointer">
+                {t("wallet.rescanGap", { gapLimit: STANDARD_GAP_LIMIT, defaultValue: "Rescan with {{gapLimit}}" })}
+              </button>
+            </p>
+          )}
           <p className="text-[13px] text-muted leading-relaxed border-t border-hairline pt-4">
             {durationMs
               ? t("wallet.auditFooterWithDuration", {
