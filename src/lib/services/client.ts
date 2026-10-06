@@ -17,7 +17,8 @@ export async function serviceRpc<T>(
 ): Promise<T> {
   const spec = findRpc(serviceId, path, method);
   if (!spec) throw new Error("Unknown service method");
-  const sent: Record<string, unknown> = { ...params };
+  // Lookups send exactly the declared (validated) keys; aggregates forward as given.
+  const sent: Record<string, unknown> = spec.class === "lookup" ? {} : { ...params };
   const txids: string[] = [];
   for (const [key, kind] of Object.entries(spec.params ?? {})) {
     const v = validateParam(kind, params[key]);

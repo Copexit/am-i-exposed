@@ -33,6 +33,15 @@ describe("serviceRpc consent", () => {
     expect(f.mock.calls[0]![0]).toBe("https://coinjoin-stats.copexit.workers.dev/svc/wabisator/api.php");
     expect(JSON.parse(String(f.mock.calls[0]![1]!.body)).params).toEqual({ query: TX });
   });
+  it("lookup sends only declared keys; a missing declared key throws before fetch", async () => {
+    const f = vi.spyOn(globalThis, "fetch").mockResolvedValue(rpcOk({ Matches: [] }));
+    const c = grantLookupConsent("wabisator", [TX]);
+    await serviceRpc("wabisator", "/api.php", "search", { query: TX, txId: "ab".repeat(32) }, { isUmbrel: false, consent: c });
+    expect(JSON.parse(String(f.mock.calls[0]![1]!.body)).params).toEqual({ query: TX });
+    f.mockClear();
+    await expect(serviceRpc("wabisator", "/api.php", "search", {}, { isUmbrel: false, consent: c })).rejects.toThrow();
+    expect(f).not.toHaveBeenCalled();
+  });
   it("aggregate methods need no consent; unknown methods throw", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(rpcOk({ ok: 1 }));
     await expect(serviceRpc("wabisator", "/api.php", "dashboard", {}, { isUmbrel: true })).resolves.toEqual({ ok: 1 });
