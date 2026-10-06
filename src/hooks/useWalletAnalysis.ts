@@ -5,9 +5,11 @@ import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
 import { createApiClient, isLocalApi } from "@/lib/api/client";
 import { getAnalysisSettings } from "@/hooks/useAnalysisSettings";
+import { DEFAULT_ANALYSIS_SETTINGS } from "@/lib/analysis/settings";
 import {
   parseXpub,
   deriveOneAddress,
+  isDescriptor,
   type DescriptorParseResult,
   type ScriptType,
 } from "@/lib/bitcoin/descriptor";
@@ -55,7 +57,14 @@ interface WalletAnalysisState {
   durationMs: number | null;
   /** Set when the key belongs to another network and the scan switched to it */
   autoSwitchedNetwork: BitcoinNetwork | null;
+  /** The address type of a bare xpub/tpub was guessed from on-chain history */
+  scriptTypeDetected: boolean;
+  /** Consecutive unused addresses the scan stopped after */
+  gapLimit: number | null;
 }
+
+/** Wallet software's usual gap limit; used on self-hosted backends, which have no throttle. */
+export const STANDARD_GAP_LIMIT = 20;
 
 const INITIAL_STATE: WalletAnalysisState = {
   phase: "idle",
@@ -70,6 +79,8 @@ const INITIAL_STATE: WalletAnalysisState = {
   error: null,
   durationMs: null,
   autoSwitchedNetwork: null,
+  scriptTypeDetected: false,
+  gapLimit: null,
 };
 
 // ---------- Hook ----------
@@ -81,7 +92,7 @@ export function useWalletAnalysis() {
   const abortRef = useRef<AbortController | null>(null);
 
   const analyze = useCallback(
-    async (input: string, scriptTypeOverride?: ScriptType) => {
+    async (input: string, scriptTypeOverride?: ScriptType, gapLimitOverride?: number) => {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
@@ -95,7 +106,7 @@ export function useWalletAnalysis() {
 
       try {
         // Step 1: Parse xpub/descriptor (no address derivation yet)
-        const parsed = parseXpub(input, scriptTypeOverride);
+        let parsed = parseXpub(input, scriptTypeOverride);
 
         // A key for another network (tpub on mainnet, xpub on signet): on public
         // mempool.space scan where its addresses live, like a single address does.
@@ -120,6 +131,17 @@ export function useWalletAnalysis() {
           setNetwork(detected);
         }
 
+        const engine = await loadEngine();
+        if (controller.signal.aborted) return;
+        const api = createApiClient(cfg, controller.signal);
+
+        // A bare xpub/tpub (the "legacy" prefix) can be any address type
+        const bareKey = !scriptTypeOverride && !isDescriptor(input) && parsed.scriptType === "p2pkh";
+        if (bareKey) {
+          parsed = { ...parsed, scriptType: await engine.detectScriptType(parsed, api) };
+          if (controller.signal.aborted) return;
+        }
+
         setState(prev => ({
           ...prev,
           phase: "fetching",
@@ -132,17 +154,20 @@ export function useWalletAnalysis() {
           },
           progress: { fetched: 0, total: 0 },
           autoSwitchedNetwork: switchedTo,
+          scriptTypeDetected: bareKey,
         }));
 
         const {
           scanChain, walletChains, collectWalletTxs, traceWalletTxs, UTXO_TRACE_DEPTH, auditWallet, buildTraceBarrier,
-        } = await loadEngine();
-        if (controller.signal.aborted) return;
+        } = engine;
 
         // Step 2: Incrementally derive + fetch addresses.
-        const api = createApiClient(cfg, controller.signal);
         const localApi = isLocalApi(cfg.mempoolBaseUrl);
-        const { walletGapLimit, minSats } = getAnalysisSettings();
+        const { walletGapLimit: saved, minSats } = getAnalysisSettings();
+        // The low default keeps hosted scans short (throttled); a self-hosted backend scans like a wallet
+        const walletGapLimit = gapLimitOverride
+          ?? (localApi && saved === DEFAULT_ANALYSIS_SETTINGS.walletGapLimit ? STANDARD_GAP_LIMIT : saved);
+        setState(prev => ({ ...prev, gapLimit: walletGapLimit }));
         const allInfos: WalletAddressInfo[] = [];
         const failedAddresses: string[] = [];
         let fetched = 0;
