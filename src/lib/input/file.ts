@@ -1,4 +1,5 @@
 import { bytesToHex } from "@/lib/bitcoin/hex";
+import { walletJsonToPayload } from "./wallet-json";
 
 export const MAX_FILE_BYTES = 2 * 1024 * 1024;
 const PSBT_MAGIC = [0x70, 0x73, 0x62, 0x74, 0xff];
@@ -17,6 +18,9 @@ export function bytesToPayload(bytes: Uint8Array): string {
   const body = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf ? bytes.subarray(3) : bytes;
   try {
     const text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(body);
+    // Wallet-export JSON may carry non-ASCII labels; only its descriptor/xpub is kept.
+    const wallet = walletJsonToPayload(text);
+    if (wallet) return wallet;
     if (/^[\x20-\x7e\t\r\n]*$/.test(text)) return text.trim();
   } catch {
     // not UTF-8: binary

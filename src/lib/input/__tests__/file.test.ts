@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { bytesToHex } from "@/lib/bitcoin/hex";
-import { buildPsbt } from "./fixtures";
+import { buildPsbt, coldcardJson } from "./fixtures";
 import { bytesToPayload, readInputFile, MAX_FILE_BYTES, InputFileError } from "../file";
 
 describe("bytesToPayload", () => {
@@ -14,6 +14,11 @@ describe("bytesToPayload", () => {
   it("text file with a UTF-8 BOM -> text without it", () => {
     const b64 = new TextEncoder().encode("cHNidP8BAH\r\n");
     expect(bytesToPayload(new Uint8Array([0xef, 0xbb, 0xbf, ...b64]))).toBe("cHNidP8BAH");
+  });
+  it("wallet export .json (non-ASCII label) -> descriptor", () => {
+    const { json } = coldcardJson({ desc: true });
+    const text = JSON.stringify({ ...json, label: "Cartera fría" }, null, 2);
+    expect(bytesToPayload(new TextEncoder().encode(text))).toBe((json.bip84 as { desc: string }).desc);
   });
   it("binary raw tx -> hex", () => {
     const t = buildPsbt({ sign: true }); t.finalize();

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { deflateRawSync } from "node:zlib";
 import { base32 } from "@scure/base";
 import { bytesToHex } from "@/lib/bitcoin/hex";
-import { buildPsbt } from "./fixtures";
+import { buildPsbt, coldcardJson } from "./fixtures";
 import { BbqrDecoder } from "../bbqr";
 
 const b36 = (n: number) => n.toString(36).toUpperCase().padStart(2, "0");
@@ -29,7 +29,14 @@ describe("BbqrDecoder", () => {
     const [p] = encode(new TextEncoder().encode("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"), "2", "U", 1);
     expect(await new BbqrDecoder().receive(p ?? "")).toEqual({ kind: "done", payload: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4" });
   });
-  it("J type is unsupported", async () => {
+  it("J type: Coldcard Q wallet export (zlib, 2 parts) -> descriptor", async () => {
+    const { json } = coldcardJson({ desc: true, withMultisig: true });
+    const d = new BbqrDecoder();
+    const [a, b] = encode(new TextEncoder().encode(JSON.stringify(json)), "Z", "J", 2);
+    expect(await d.receive(a ?? "")).toEqual({ kind: "progress", received: 1, total: 2 });
+    expect(await d.receive(b ?? "")).toEqual({ kind: "done", payload: (json.bip84 as { desc: string }).desc });
+  });
+  it("J type without a usable wallet is unsupported", async () => {
     const [p] = encode(new TextEncoder().encode("{}"), "2", "J", 1);
     expect(await new BbqrDecoder().receive(p ?? "")).toEqual({ kind: "error", reason: "unsupported-type" });
   });
