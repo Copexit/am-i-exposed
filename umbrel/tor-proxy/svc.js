@@ -53,7 +53,8 @@ function createSvcHandler({ fetchViaAgent, services, logger = console }) {
       send(res, 200, body);
     } catch (err) {
       if (err.status === 429) return fail(res, 429, "RATE_LIMITED", "Upstream rate limit", { "Retry-After": "60" });
-      logger.error(`Svc ${service.id} error: ${err.message}`);
+      // Never log err.message: it can carry upstream text (a txid).
+      logger.error(`Svc ${service.id} ${route.path} error: ${err.status ?? err.code ?? "failed"}`);
       fail(res, 502, "UPSTREAM_DOWN", "Tor proxy upstream request failed");
     }
   };

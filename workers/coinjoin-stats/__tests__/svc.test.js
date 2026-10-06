@@ -4,9 +4,11 @@ import { createSvc } from "../svc.js";
 
 const env = { ALLOWED_ORIGIN: "https://am-i.exposed" };
 const cacheStore = new Map();
+// Models Cloudflare's Cache API, which ignores URL fragments.
+const cacheKey = (req) => { const u = new URL(req.url); u.hash = ""; return u.href; };
 globalThis.caches = { default: {
-  async match(req) { return cacheStore.get(req.url) ?? null; },
-  async put(req, res) { cacheStore.set(req.url, res); },
+  async match(req) { return cacheStore.get(cacheKey(req)) ?? null; },
+  async put(req, res) { cacheStore.set(cacheKey(req), res); },
 } };
 const ctx = { waitUntil: (p) => p };
 const TX = "c575fb58fc4221882a281ceebe051131b2cc397f738156a93877c93639909cea";
@@ -68,6 +70,7 @@ describe("/svc route", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("down", { status: 503 }));
     const bad = await post("/svc/wabisator/api.php", { jsonrpc: "2.0", method: "search", params: { query: TX } });
     expect(bad.status).toBe(502);
+    expect(bad.headers.get("Cache-Control")).toBe("no-store");
   });
 
   it("legacy routes still answer", async () => {
@@ -94,6 +97,23 @@ describe("fail-closed class handling", () => {
     expect((await call("/svc/x/get", { method: "GET" })).status).toBe(500);
     expect(f).not.toHaveBeenCalled();
     expect(cacheStore.size).toBe(0);
+  });
+});
+
+describe("aggregate cache key", () => {
+  const svc = createSvc({ services: [{ id: "a", base: "https://a.dev", routes: [
+    { path: "/rpc", http: "POST", rpc: { one: { class: "aggregate", ttl: 60 }, two: { class: "aggregate", ttl: 60 } } },
+  ] }] });
+  const call = (method) => svc(new Request("https://w.dev/svc/a/rpc", { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", method, params: {} }) }),
+    new URL("https://w.dev/svc/a/rpc"), ctx, {});
+
+  it("keeps different methods on the same path in separate cache entries", async () => {
+    const f = vi.spyOn(globalThis, "fetch").mockImplementation(async () => ok({ result: 1 }));
+    await call("one");
+    await call("two");
+    await call("one");
+    expect(f).toHaveBeenCalledTimes(2);
+    expect(cacheStore.size).toBe(2);
   });
 });
 

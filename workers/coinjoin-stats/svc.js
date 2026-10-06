@@ -63,7 +63,7 @@ async function handle(reg, request, url, ctx, cors) {
     return err(400, "BAD_JSON", "Invalid JSON body", cors);
   }
   const rpc = body && body.jsonrpc === "2.0" && typeof body.method === "string"
-    && Object.hasOwn(route.rpc, body.method) ? route.rpc[body.method] : null;
+    && Object.hasOwn(route.rpc ?? {}, body.method) ? route.rpc[body.method] : null;
   if (!rpc) return err(400, "DISALLOWED", "Invalid or disallowed method", cors);
   if (rpc.class !== "aggregate" && rpc.class !== "lookup") return misconfigured(cors);
   const method = body.method;
@@ -95,7 +95,8 @@ async function handle(reg, request, url, ctx, cors) {
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
     },
-    cacheUrl: lookup ? null : `https://cache.local/svc/${id}${path}#${method}:${JSON.stringify(params)}`,
+    // Query string, not a fragment: the Cache API ignores fragments.
+    cacheUrl: lookup ? null : `https://cache.local/svc/${id}${path}?m=${encodeURIComponent(method)}&p=${encodeURIComponent(JSON.stringify(params))}`,
     ttl: rpc.ttl,
   });
 }
@@ -133,7 +134,7 @@ async function forward({ ctx, cors, route, upstream, init, cacheUrl, ttl }) {
 function err(status, code, message, cors) {
   return new Response(JSON.stringify({ error: { code, message } }), {
     status,
-    headers: { "Content-Type": "application/json", ...cors },
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...cors },
   });
 }
 

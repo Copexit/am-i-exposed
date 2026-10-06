@@ -134,6 +134,19 @@ describe("tor-proxy handler", () => {
     expect(r2.headers()["Retry-After"]).toBe("60");
   });
 
+  it("never logs upstream response text (it can carry a txid)", async () => {
+    const logger = { error: vi.fn(), info: () => {} };
+    const fetchViaAgent = vi.fn().mockRejectedValue(Object.assign(new Error(`Upstream 500: {"query":"${TX}"}`), { status: 500 }));
+    const handler = createHandler({ fetchViaAgent, logger });
+    await handler(makeReq({ url: "/svc/wabisator/api.php", method: "POST",
+      body: JSON.stringify({ jsonrpc: "2.0", method: "search", params: { query: TX } }) }), makeRes());
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    const line = logger.error.mock.calls[0][0];
+    expect(line).toContain("wabisator");
+    expect(line).toContain("500");
+    expect(line).not.toContain(TX);
+  });
+
   it("fails closed on a missing or unknown class (GET and POST) without calling upstream", async () => {
     const services = [{ id: "bad", base: "https://bad.example", onion: "http://bad.onion", routes: [
       { path: "/g", http: "GET" },
