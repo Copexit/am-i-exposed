@@ -37,6 +37,24 @@ describe("lookupTx", () => {
     expect(r.remixedIntoRounds).toHaveLength(41);
     expect(r.anonsetOut).toBeCloseTo(11.54);
   });
+  it("normalizes an uppercase txid", async () => {
+    mockWabisator({ [`search:${CJ}`]: fx("wabisator-search-coinjoin"), [`coinjoin:${CJ}`]: fx("wabisator-coinjoin") });
+    const r = await lookupTx(CJ.toUpperCase(), ctx([CJ]));
+    expect(r.kind).toBe("coinjoin");
+    expect(r.txid).toBe(CJ);
+  });
+  it("tolerates a null Transaction and missing RoundEndTime", async () => {
+    const j = JSON.parse(fx("wabisator-coinjoin"));
+    j.result.Transaction = null;
+    delete j.result.Coinjoin.RoundEndTime;
+    mockWabisator({ [`search:${CJ}`]: fx("wabisator-search-coinjoin"), [`coinjoin:${CJ}`]: JSON.stringify(j) });
+    const r = await lookupTx(CJ, ctx([CJ]));
+    expect(r.kind).toBe("coinjoin");
+    if (r.kind === "coinjoin") {
+      expect(r.inputOrigins).toEqual({ fresh: 0, remix: 0, other: 0 });
+      expect(r.nonStandardOutputs).toBe(0);
+    }
+  });
   it("maps a post-mix consolidation as linked", async () => {
     mockWabisator({ [`search:${POST}`]: fx("wabisator-search-postmix") });
     const r = await lookupTx(POST, ctx([POST]));

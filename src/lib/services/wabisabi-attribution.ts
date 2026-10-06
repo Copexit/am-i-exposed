@@ -1,5 +1,6 @@
 import { ApiError } from "@/lib/api/fetch-with-retry";
 import { serviceRpc } from "./client";
+import { validateParam } from "./registry";
 import type { LookupConsent } from "./consent";
 
 export interface RoundRef { txid: string; coordinator: string; name: string; time: number; btc: number }
@@ -30,7 +31,7 @@ interface WabiCoinjoinResult {
   };
   RemixedFrom?: WabiRound[];
   RemixedInto?: WabiRound[];
-  Transaction: { Inputs?: { Origin?: string }[]; Outputs?: { Standard?: boolean }[]; BlockTime?: number };
+  Transaction?: { Inputs?: { Origin?: string }[]; Outputs?: { Standard?: boolean }[]; BlockTime?: number } | null;
 }
 
 const toRound = (r: WabiRound): RoundRef => ({ txid: r.TxId, coordinator: r.Coordinator, name: r.Name, time: r.Time, btc: r.Btc });
@@ -40,7 +41,7 @@ const toCoins = (l: WabiLink[] | undefined, idx: "Vin" | "Vout"): CoinRef[] =>
 function mapCoinjoin(txid: string, r: WabiCoinjoinResult): TxAttribution {
   const cj = r.Coinjoin;
   const origins = { fresh: 0, remix: 0, other: 0 };
-  for (const i of r.Transaction.Inputs ?? []) origins[i.Origin === "fresh" || i.Origin === "remix" ? i.Origin : "other"]++;
+  for (const i of r.Transaction?.Inputs ?? []) origins[i.Origin === "fresh" || i.Origin === "remix" ? i.Origin : "other"]++;
   const byCoord = new Map<string, { coordinator: string; name: string; btc: number; coins: number }>();
   for (const f of r.RemixedFrom ?? []) {
     const g = byCoord.get(f.Coordinator) ?? { coordinator: f.Coordinator, name: f.Name, btc: 0, coins: 0 };
@@ -53,7 +54,7 @@ function mapCoinjoin(txid: string, r: WabiCoinjoinResult): TxAttribution {
     kind: "coinjoin", txid,
     coordinator: { key: cj.Coordinator, name: cj.CoordinatorName },
     roundId: cj.RoundId,
-    time: Number.isFinite(iso) ? Math.floor(iso / 1000) : (r.Transaction.BlockTime ?? 0),
+    time: Number.isFinite(iso) ? Math.floor(iso / 1000) : (r.Transaction?.BlockTime ?? 0),
     isBlame: cj.IsBlame, feeRate: cj.FinalMiningFeeRate,
     inputs: cj.InputCount, outputs: cj.OutputCount,
     anonsetIn: cj.AverageStandardInputsAnonSet, anonsetOut: cj.AverageStandardOutputsAnonSet,
@@ -61,11 +62,13 @@ function mapCoinjoin(txid: string, r: WabiCoinjoinResult): TxAttribution {
     remixFrom: [...byCoord.values()].sort((a, b) => b.btc - a.btc),
     remixedFromRounds: (r.RemixedFrom ?? []).map(toRound),
     remixedIntoRounds: (r.RemixedInto ?? []).map(toRound),
-    nonStandardOutputs: (r.Transaction.Outputs ?? []).filter((o) => o.Standard === false).length,
+    nonStandardOutputs: (r.Transaction?.Outputs ?? []).filter((o) => o.Standard === false).length,
   };
 }
 
-export async function lookupTx(txid: string, ctx: AttributionCtx): Promise<TxAttribution> {
+export async function lookupTx(rawTxid: string, ctx: AttributionCtx): Promise<TxAttribution> {
+  const txid = validateParam("txid", rawTxid);
+  if (txid === null) return { kind: "error", txid: rawTxid, message: "Invalid txid" };
   const opts = { isUmbrel: ctx.isUmbrel, signal: ctx.signal, consent: ctx.consent };
   try {
     const s = await serviceRpc<WabiSearchResult>("wabisator", "/api.php", "search", { query: txid }, opts);
