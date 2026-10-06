@@ -2638,7 +2638,7 @@
   "broadcast.openConfirmed": "Open the transaction",
   "qr.open": "Scan a QR code",
   "qr.title": "Scan a QR code",
-  "qr.insecure": "The camera needs HTTPS, localhost or the .onion address. You can take a photo of a static QR instead; animated QRs need the camera.",
+  "qr.insecure": "The camera is not available here: browsers only allow it over HTTPS or localhost, and Tor Browser turns it off. You can take a photo of a static QR instead; animated QRs need the camera.",
   "qr.denied": "Camera access was blocked. Allow it in the browser settings, or take a photo of the QR.",
   "qr.noCamera": "No camera found. Take a photo of the QR, or paste it.",
   "qr.decoderFailed": "QR decoder unavailable: take a photo or paste instead.",

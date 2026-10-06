@@ -2638,7 +2638,7 @@
   "broadcast.openConfirmed": "Abrir a transação",
   "qr.open": "Ler um código QR",
   "qr.title": "Ler um código QR",
-  "qr.insecure": "A câmera precisa de HTTPS, localhost ou do endereço .onion. Você pode tirar uma foto de um QR estático; QRs animados precisam da câmera.",
+  "qr.insecure": "A câmara não está disponível aqui: os navegadores só a permitem com HTTPS ou localhost, e o Tor Browser desativa-a. Pode tirar uma foto de um QR estático; os QR animados precisam da câmara.",
   "qr.denied": "O acesso à câmera foi bloqueado. Permita-o nas configurações do navegador ou tire uma foto do QR.",
   "qr.noCamera": "Nenhuma câmera encontrada. Tire uma foto do QR ou cole-o.",
   "qr.decoderFailed": "Leitor de QR indisponível: tire uma foto ou cole o conteúdo.",

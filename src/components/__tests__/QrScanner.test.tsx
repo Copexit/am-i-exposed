@@ -54,7 +54,7 @@ describe("QrScanner", () => {
   it("without a secure context offers only the photo input and never asks for the camera", () => {
     const gum = setCamera(async () => fakeStream().stream, false);
     const { container } = render(<QrScanner onResult={vi.fn()} onClose={vi.fn()} />);
-    expect(screen.getByText(/camera needs HTTPS/)).toBeTruthy();
+    expect(screen.getByText(/camera is not available here/)).toBeTruthy();
     expect(container.ownerDocument.querySelector('input[type="file"][accept="image/*"]')).toBeTruthy();
     expect(gum).not.toHaveBeenCalled();
   });

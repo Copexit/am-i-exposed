@@ -2714,7 +2714,7 @@
   "broadcast.openConfirmed": "Otwórz transakcję",
   "qr.open": "Zeskanuj kod QR",
   "qr.title": "Zeskanuj kod QR",
-  "qr.insecure": "Kamera wymaga HTTPS, localhost lub adresu .onion. Zamiast tego możesz zrobić zdjęcie statycznego kodu QR; animowane kody QR wymagają kamery.",
+  "qr.insecure": "Kamera nie jest tu dostępna: przeglądarki zezwalają na nią tylko przez HTTPS lub localhost, a Tor Browser ją wyłącza. Możesz zamiast tego zrobić zdjęcie statycznego kodu QR; animowane kody QR wymagają kamery.",
   "qr.denied": "Dostęp do kamery został zablokowany. Zezwól na niego w ustawieniach przeglądarki lub zrób zdjęcie kodu QR.",
   "qr.noCamera": "Nie znaleziono kamery. Zrób zdjęcie kodu QR lub wklej go.",
   "qr.decoderFailed": "Dekoder QR niedostępny: zrób zdjęcie lub wklej zawartość.",
