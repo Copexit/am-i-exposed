@@ -2140,6 +2140,7 @@
   "wallet.auditFooter": "Audyt portfela zakończony. Przeanalizowane wyprowadzone adresy: {{addressCount}}. Cała analiza przebiegła w przeglądarce.",
   "wallet.auditFooterWithDuration": "Audyt portfela zakończony w {{duration}}s. Przeanalizowane wyprowadzone adresy: {{addressCount}}. Cała analiza przebiegła w przeglądarce.",
   "wallet.auditTitle": "Audyt prywatności portfela",
+  "wallet.scanAs": "Typ adresu wykryty na podstawie historii w łańcuchu. Skanuj jako:",
   "wallet.change": "Reszta:",
   "wallet.change_label": "reszta",
   "wallet.coinSelection": "Doradca wyboru monet",

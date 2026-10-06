@@ -57,3 +57,17 @@ test("xpub scan finds the one funded address and renders the wallet audit", asyn
   expect(requested.has(FIRST_ADDRESS)).toBe(true);
   expect(requested.size).toBe(5);
 });
+
+// The same account as a bare "xpub" (legacy prefix, as most wallets export it)
+const XPUB =
+  "xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V";
+
+test("bare xpub: address type detected from history, other types offered", async ({ page }) => {
+  await page.goto(`/#xpub=${XPUB}`);
+
+  await expect(page.getByText("Wallet Privacy Audit")).toBeVisible({ timeout: 20_000 });
+  await expect(stat(page, "Total balance")).toHaveText("39,852,779 sats");
+  await expect(page.getByText("Address type detected from on-chain history")).toBeVisible();
+  await expect(page.getByRole("button", { name: "p2tr", exact: true })).toBeVisible();
+  await page.screenshot({ path: "test-results/bare-xpub.png", fullPage: false });
+});

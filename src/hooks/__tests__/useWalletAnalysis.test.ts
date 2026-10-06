@@ -13,7 +13,10 @@ vi.mock("@/context/NetworkContext", () => ({
     configFor: (n: BitcoinNetwork) => NETWORK_CONFIG[n], customApiUrl: null, isUmbrel: net.isUmbrel, isCustomApi: false,
   }),
 }));
-const createApiClient = vi.hoisted(() => vi.fn(() => ({})));
+// No address has history: a bare key falls back to native segwit
+const createApiClient = vi.hoisted(() => vi.fn(() => ({
+  getAddress: async () => ({ chain_stats: { tx_count: 0 }, mempool_stats: { tx_count: 0 } }),
+})));
 vi.mock("@/lib/api/client", () => ({ createApiClient, isLocalApi: () => false }));
 vi.mock("@/lib/api/detect-network", () => ({ detectAddressNetwork: vi.fn(async () => net.detected) }));
 // Echo the key so the test sees which translation was requested
@@ -61,5 +64,8 @@ describe("useWalletAnalysis key on another network", () => {
     expect(net.setNetwork).toHaveBeenCalledWith("signet");
     expect(createApiClient).toHaveBeenCalledWith(NETWORK_CONFIG.signet, expect.anything());
     expect(result.current.autoSwitchedNetwork).toBe("signet");
+    // A bare tpub is not assumed legacy
+    expect(result.current.scriptTypeDetected).toBe(true);
+    expect(result.current.descriptor?.scriptType).toBe("p2wpkh");
   });
 });

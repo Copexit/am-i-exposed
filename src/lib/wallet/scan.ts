@@ -5,7 +5,7 @@ import {
 import type { MempoolTransaction, MempoolOutspend } from "@/lib/api/types";
 import { traceBackward, traceForward, type TraceLayer, type EntityBarrierCheck } from "@/lib/analysis/chain/recursive-trace";
 import type { WalletAddressInfo } from "@/lib/analysis/wallet-audit";
-import type { DerivedAddress } from "@/lib/bitcoin/descriptor";
+import type { DerivedAddress, ScriptType } from "@/lib/bitcoin/descriptor";
 import type { MempoolClient } from "@/lib/api/mempool";
 import { ApiError } from "@/lib/api/fetch-with-retry";
 
@@ -46,6 +46,22 @@ async function fetchAddress(
     api.getAddressTxs(derived.address),
   ]);
   return { derived, addressData, utxos, txs };
+}
+
+/** Address types a bare xpub/tpub is tried as, in preference order. */
+export const BARE_KEY_TYPES: readonly ScriptType[] = ["p2wpkh", "p2tr", "p2sh-p2wpkh", "p2pkh"];
+
+/**
+ * A bare xpub/tpub says "legacy" by SLIP-132, but most wallets export it for
+ * every address type. The first type whose first receive address has history
+ * wins; a wallet with none is scanned as native segwit.
+ */
+export async function detectScriptType(parsed: ParsedXpub, api: MempoolClient): Promise<ScriptType> {
+  const used = await Promise.all(BARE_KEY_TYPES.map(async (scriptType) => {
+    const { chain_stats, mempool_stats } = await api.getAddress(deriveOneAddress({ ...parsed, scriptType }, 0, 0).address);
+    return chain_stats.tx_count + mempool_stats.tx_count > 0;
+  }));
+  return BARE_KEY_TYPES[used.indexOf(true)] ?? "p2wpkh";
 }
 
 /** Chains to scan: both, or only the one a descriptor fixes (e.g. `.../0/*`). */

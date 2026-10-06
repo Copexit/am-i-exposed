@@ -2096,6 +2096,7 @@
   "wallet.auditFooter": "Audit du portefeuille terminé. {{addressCount}} adresses dérivées analysées. Toute l'analyse a été exécutée entièrement dans le navigateur.",
   "wallet.auditFooterWithDuration": "Audit du portefeuille terminé en {{duration}}s. {{addressCount}} adresses dérivées analysées. Toute l'analyse a été exécutée entièrement dans le navigateur.",
   "wallet.auditTitle": "Audit de confidentialité du portefeuille",
+  "wallet.scanAs": "Type d'adresse détecté d'après l'historique on-chain. Analyser comme :",
   "wallet.change": "Monnaie :",
   "wallet.change_label": "monnaie",
   "wallet.coinSelection": "Conseiller de sélection de pièces",

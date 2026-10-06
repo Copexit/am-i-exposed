@@ -2096,6 +2096,7 @@
   "wallet.auditFooter": "Auditoria de carteira concluída. {{addressCount}} endereços derivados foram analisados. Toda a análise foi executada inteiramente no navegador.",
   "wallet.auditFooterWithDuration": "Auditoria de carteira concluída em {{duration}}s. {{addressCount}} endereços derivados foram analisados. Toda a análise foi executada inteiramente no navegador.",
   "wallet.auditTitle": "Auditoria de Privacidade da Carteira",
+  "wallet.scanAs": "Tipo de endereço detetado pelo histórico na cadeia. Analisar como:",
   "wallet.change": "Troco:",
   "wallet.change_label": "troco",
   "wallet.coinSelection": "Consultor de Seleção de Moedas",

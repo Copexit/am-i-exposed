@@ -2096,6 +2096,7 @@
   "wallet.auditFooter": "Auditoría de billetera completada. Se analizaron {{addressCount}} direcciones derivadas. Todo el análisis se ejecutó completamente en el navegador.",
   "wallet.auditFooterWithDuration": "Auditoría de billetera completada en {{duration}}s. Se analizaron {{addressCount}} direcciones derivadas. Todo el análisis se ejecutó completamente en el navegador.",
   "wallet.auditTitle": "Auditoría de Privacidad de Billetera",
+  "wallet.scanAs": "Tipo de dirección detectado por el historial en la cadena. Escanear como:",
   "wallet.change": "Cambio:",
   "wallet.change_label": "cambio",
   "wallet.coinSelection": "Asesor de selección de monedas",

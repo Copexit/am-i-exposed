@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight } from "lucide-react";
 import type { WalletAuditResult, WalletAddressInfo } from "@/lib/analysis/wallet-audit";
-import type { DescriptorParseResult } from "@/lib/bitcoin/descriptor";
+import type { DescriptorParseResult, ScriptType } from "@/lib/bitcoin/descriptor";
 import type { UtxoTraceResult } from "@/hooks/useWalletAnalysis";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { GRADE_COLORS, GRADE_VAR, P2PKH_DUST_LIMIT } from "@/lib/constants";
@@ -44,10 +44,20 @@ interface WalletResultsProps {
   onBack: () => void;
   onScan: (input: string) => void;
   durationMs: number | null;
+  /** A bare xpub/tpub whose address type was guessed: offer the other types */
+  scriptTypeDetected?: boolean;
 }
 
 /** Wallet (xpub / descriptor) audit: verdict band, grouped findings, analyst workspace. */
-export function WalletResults({ descriptor, result, addressInfos, utxoTraces, onBack, onScan, durationMs }: WalletResultsProps) {
+/** Descriptor wrappers to rescan a bare key as a chosen address type. */
+const WRAP: Record<ScriptType, (k: string) => string> = {
+  "p2wpkh": (k) => `wpkh(${k})`,
+  "p2tr": (k) => `tr(${k})`,
+  "p2sh-p2wpkh": (k) => `sh(wpkh(${k}))`,
+  "p2pkh": (k) => `pkh(${k})`,
+};
+
+export function WalletResults({ descriptor, result, addressInfos, utxoTraces, onBack, onScan, durationMs, scriptTypeDetected }: WalletResultsProps) {
   const { t } = useTranslation();
   const [addressesOpen, setAddressesOpen] = useState(false);
   const worst = useMemo(() => findWorstOffender(addressInfos), [addressInfos]);
@@ -91,6 +101,17 @@ export function WalletResults({ descriptor, result, addressInfos, utxoTraces, on
               <span className="eyebrow">{t("wallet.auditTitle", { defaultValue: "Wallet Privacy Audit" })}</span>
               <Chip>{descriptor.scriptType}</Chip>
             </div>
+            {scriptTypeDetected && (
+              <p className="text-xs text-muted">
+                {t("wallet.scanAs", { defaultValue: "Address type detected from on-chain history. Scan as:" })}{" "}
+                {(Object.keys(WRAP) as ScriptType[]).filter((s) => s !== descriptor.scriptType).map((s, i) => (
+                  <span key={s}>
+                    {i > 0 && " · "}
+                    <button type="button" onClick={() => onScan(WRAP[s](descriptor.xpub))} className="underline underline-offset-2 text-foreground hover:text-bitcoin cursor-pointer">{s}</button>
+                  </span>
+                ))}
+              </p>
+            )}
             <div className="flex items-end gap-4">
               <span
                 className={`text-[80px] sm:text-[96px] leading-[0.85] font-semibold tracking-tight ${GRADE_COLORS[result.grade]}`}

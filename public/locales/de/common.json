@@ -2096,6 +2096,7 @@
   "wallet.auditFooter": "Wallet-Audit abgeschlossen. {{addressCount}} abgeleitete Adressen analysiert. Die gesamte Analyse lief vollständig im Browser.",
   "wallet.auditFooterWithDuration": "Wallet-Audit in {{duration}}s abgeschlossen. {{addressCount}} abgeleitete Adressen analysiert. Die gesamte Analyse lief vollständig im Browser.",
   "wallet.auditTitle": "Wallet-Datenschutz-Audit",
+  "wallet.scanAs": "Adresstyp anhand der On-Chain-Historie erkannt. Scannen als:",
   "wallet.change": "Wechselgeld:",
   "wallet.change_label": "Wechselgeld",
   "wallet.coinSelection": "Coin-Selection-Berater",

@@ -154,6 +154,7 @@ export default function ScannerPage() {
               onBack={handleBack}
               onScan={handleSubmit}
               durationMs={wallet.durationMs}
+              scriptTypeDetected={wallet.scriptTypeDetected}
             />
           </Suspense>
         )}
