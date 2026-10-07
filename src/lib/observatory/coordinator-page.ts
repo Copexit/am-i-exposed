@@ -9,7 +9,8 @@ const RANGE_DAYS: Record<HistoryRange, number> = { "30d": 30, "90d": 90, "1y": 3
 export function coordinatorKpis(key: string, flow: FlowMap, history: VolumeHistory | null): CoordinatorKpis {
   const c = flow.Coordinators.find((x) => x.Key === key);
   let w = 0, sum = 0;
-  for (const cj of flow.Coinjoins) if (cj.Coordinator === key) { w += cj.Volume; sum += cj.Anonset * cj.Volume; }
+  // Unanalysed CoinJoins carry a placeholder anonset of 0, so they would drag the average down.
+  for (const cj of flow.Coinjoins) if (cj.Coordinator === key && cj.Analyzed) { w += cj.Volume; sum += cj.Anonset * cj.Volume; }
   const h = history?.Coordinators[key];
   return {
     volume: c?.Volume ?? 0,

@@ -23,6 +23,12 @@ describe("coordinatorKpis", () => {
     expect(k.allTimeVolume).toBe(kruwHistory.TotalVolume);
     expect(k.ath).toEqual({ date: kruwHistory.Ath.Date, volume: kruwHistory.Ath.Volume });
   });
+  it("leaves unanalysed CoinJoins (anonset placeholder 0) out of the average anonset", () => {
+    const cjs = flow7d.Coinjoins.filter((x) => x.Coordinator === "kruw" && x.Analyzed);
+    expect(flow7d.Coinjoins.some((x) => x.Coordinator === "kruw" && !x.Analyzed)).toBe(true);
+    const expected = cjs.reduce((s, x) => s + x.Anonset * x.Volume, 0) / cjs.reduce((s, x) => s + x.Volume, 0);
+    expect(coordinatorKpis("kruw", flow7d, null).avgAnonset).toBeCloseTo(expected, 9);
+  });
   it("returns zeros and nulls for an idle or unknown coordinator", () => {
     expect(coordinatorKpis("coinjoin_nl", flow1d, null)).toMatchObject({ volume: 0, avgAnonset: null, allTimeVolume: null, ath: null });
     expect(coordinatorKpis("nope", flow1d, history)).toMatchObject({ volume: 0, coinjoins: 0, avgAnonset: null, ath: null });

@@ -18,6 +18,7 @@ import { SkyMap, skyCardClass, useMedia, useReducedMotion, useSkyClock } from ".
 import { Timeline } from "./Timeline";
 import { Ticker } from "./Ticker";
 import { LiveBoard } from "./LiveBoard";
+import { CoordinatorPage } from "./CoordinatorPage";
 
 const FADE = "motion-safe:animate-[obs-fade_250ms_ease-out]";
 const BONE = "rounded bg-surface-2 motion-safe:animate-pulse";
@@ -328,6 +329,13 @@ export function WabiSabiTab() {
   useEffect(() => {
     if (dataLoaded && obs.coordinator && !coordinatorKnown) setObs({ coordinator: null });
   }, [dataLoaded, obs.coordinator, coordinatorKnown, setObs]);
+  const coordinatorStatus = status.data?.Coordinators.find((c) => c.Key === obs.coordinator) ?? null;
+  const closeCoordinator = useCallback(() => {
+    const key = obs.coordinator;
+    setObs({ coordinator: null });
+    // The inline page's close button disappears; hand focus to the chip unless the sheet already restored it.
+    requestAnimationFrame(() => { if (document.activeElement === document.body) document.getElementById(`obs-chip-${key}`)?.focus(); });
+  }, [obs.coordinator, setObs]);
 
   return (
     <div className="space-y-10 sm:space-y-14">
@@ -389,6 +397,7 @@ export function WabiSabiTab() {
             ? coordinators.map((s) => (
                 <button
                   key={s.key}
+                  id={`obs-chip-${s.key}`}
                   type="button"
                   aria-pressed={obs.coordinator === s.key}
                   onClick={() => setObs({ coordinator: obs.coordinator === s.key ? null : s.key })}
@@ -400,7 +409,11 @@ export function WabiSabiTab() {
               ))
             : [96, 120, 84, 132, 100].map((w) => <span key={w} aria-hidden="true" className={`h-10 rounded-lg ${BONE}`} style={{ width: `${w}px` }} />)}
         </div>
-        {obs.coordinator && (coordinatorKnown || !dataLoaded) && <CoordinatorSkeleton />}
+        {obs.coordinator && scene && flow.data && coordinatorKnown ? (
+          <CoordinatorPage key={obs.coordinator} coordinatorKey={obs.coordinator} scene={scene} flow={flow.data} status={coordinatorStatus} onClose={closeCoordinator} />
+        ) : (
+          obs.coordinator && !dataLoaded && <CoordinatorSkeleton />
+        )}
       </Section>
 
       <Section

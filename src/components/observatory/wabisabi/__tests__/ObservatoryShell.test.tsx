@@ -29,6 +29,8 @@ const hooks = vi.hoisted(() => ({ flow: null as unknown, status: null as unknown
 vi.mock("@/hooks/useWabisator", () => ({
   useFlowMap: (period: number) => { hooks.flowPeriods.push(period); return hooks.flow; },
   useCoordinatorsStatus: () => hooks.status,
+  useVolumeHistory: () => ({ data: null, error: null, loading: true, updatedAt: null, refresh: () => {} }),
+  useRounds: () => ({ data: null, error: null, loading: true, updatedAt: null, refresh: () => {} }),
 }));
 const whirlpoolFetch = vi.hoisted(() => vi.fn());
 vi.mock("@/hooks/useObservatory", () => ({
@@ -95,8 +97,10 @@ describe("Observatory tab shell", () => {
     act(() => kruw.click());
     expect(window.location.hash).toBe("#wabisabi&coordinator=kruw");
     expect(screen.getByRole("button", { name: "Kruw" }).getAttribute("aria-pressed")).toBe("true");
+    expect(document.getElementById("obs-coord-kruw-title")?.textContent).toBe("Kruw");
     act(() => screen.getByRole("button", { name: "Kruw" }).click());
     expect(window.location.hash).toBe("#wabisabi");
+    expect(document.getElementById("obs-coord-kruw-title")).toBeNull();
   });
 
   it("renders gracefully for an unknown coordinator and a malformed txid, dropping the unknown key", () => {
@@ -111,6 +115,7 @@ describe("Observatory tab shell", () => {
 
   it("keeps the coordinator skeleton while the coordinators are still loading", () => {
     window.history.replaceState(null, "", "/observatory/#wabisabi&coordinator=kruw");
+    hooks.flow = polled<FlowMap>(null);
     hooks.status = polled<CoordinatorsStatus>(null);
     const { container } = render(<ObservatoryPage />);
     expect(window.location.hash).toBe("#wabisabi&coordinator=kruw");
