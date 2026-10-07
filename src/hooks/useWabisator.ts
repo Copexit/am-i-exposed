@@ -64,21 +64,21 @@ export function usePolled<T>(key: string | null, fetcher: (signal: AbortSignal) 
 }
 
 export function useFlowMap(period: Period): Polled<FlowMap> {
-  const { isUmbrel } = useNetwork();
-  return usePolled(`flow:${period}:${isUmbrel}`, (signal) => getFlowMap(period, { isUmbrel, signal }), REFRESH_MS.flowMap[period]);
+  const { isUmbrel, apiReady } = useNetwork();
+  return usePolled(apiReady ? `flow:${period}:${isUmbrel}` : null, (signal) => getFlowMap(period, { isUmbrel, signal }), REFRESH_MS.flowMap[period]);
 }
 
 export function useCoordinatorsStatus(): Polled<CoordinatorsStatus> {
-  const { isUmbrel } = useNetwork();
-  return usePolled(`status:${isUmbrel}`, (signal) => getCoordinatorsStatus({ isUmbrel, signal }), REFRESH_MS.status);
+  const { isUmbrel, apiReady } = useNetwork();
+  return usePolled(apiReady ? `status:${isUmbrel}` : null, (signal) => getCoordinatorsStatus({ isUmbrel, signal }), REFRESH_MS.status);
 }
 
 export function useVolumeHistory(): Polled<VolumeHistory> {
-  const { isUmbrel } = useNetwork();
-  return usePolled(`volume:${isUmbrel}`, (signal) => getVolumeHistory({ isUmbrel, signal }), REFRESH_MS.volume);
+  const { isUmbrel, apiReady } = useNetwork();
+  return usePolled(apiReady ? `volume:${isUmbrel}` : null, (signal) => getVolumeHistory({ isUmbrel, signal }), REFRESH_MS.volume);
 }
 
 export function useRounds(coordinator: string | null, page: number): Polled<RoundsPage> {
-  const { isUmbrel } = useNetwork();
-  return usePolled(coordinator === null ? null : `rounds:${coordinator}:${page}:${isUmbrel}`, (signal) => getRounds(coordinator ?? "", page, { isUmbrel, signal }), REFRESH_MS.rounds);
+  const { isUmbrel, apiReady } = useNetwork();
+  return usePolled(!apiReady || coordinator === null ? null : `rounds:${coordinator}:${page}:${isUmbrel}`, (signal) => getRounds(coordinator ?? "", page, { isUmbrel, signal }), REFRESH_MS.rounds);
 }

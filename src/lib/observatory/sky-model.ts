@@ -2,7 +2,7 @@ import { coordinatorColorToken } from "./coordinator-palette";
 import type { Period } from "./wabisator-client";
 import type { CoordinatorsStatus, FlowMap } from "./wabisator-types";
 
-export interface Star { key: string; name: string; x: number; y: number; r: number; colorToken: string; volume: number; coinjoins: number; online: boolean }
+export interface Star { key: string; name: string; x: number; y: number; r: number; colorToken: string; volume: number; coinjoins: number; freshBtc: number; remixIn: number; remixOut: number; internalRemix: number; online: boolean }
 export interface SkyEvent { txid: string; t: number; star: string; volume: number; inputs: number; outputs: number; anonset: number; feeRate: number; freshBtc: number; remixes: { from: string; btc: number; coins: number }[] }
 export interface Bin { t0: number; t1: number; volume: number; count: number }
 export interface Flow { from: string; to: string; btc: number; coins: number; internal: boolean }
@@ -85,6 +85,10 @@ export function buildScene(flow: FlowMap, status: CoordinatorsStatus | null, bin
       colorToken: coordinatorColorToken(key),
       volume,
       coinjoins: f?.Coinjoins ?? 0,
+      freshBtc: f?.FreshBtc ?? 0,
+      remixIn: f?.RemixInBtc ?? 0,
+      remixOut: f?.RemixOutBtc ?? 0,
+      internalRemix: f?.InternalRemixBtc ?? 0,
       online: (s?.Status ?? f?.Status) === "Online",
     };
   });

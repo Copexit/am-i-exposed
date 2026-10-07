@@ -1,9 +1,15 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { renderHook, act, cleanup } from "@testing-library/react";
-import { usePolled } from "../useWabisator";
+import { useCoordinatorsStatus, usePolled } from "../useWabisator";
+import { getCoordinatorsStatus } from "@/lib/observatory/wabisator-client";
 
-vi.mock("@/context/NetworkContext", () => ({ useNetwork: () => ({ isUmbrel: false }) }));
+const network = vi.hoisted(() => ({ isUmbrel: false, apiReady: true }));
+vi.mock("@/context/NetworkContext", () => ({ useNetwork: () => network }));
+vi.mock("@/lib/observatory/wabisator-client", async (orig) => ({
+  ...(await orig<typeof import("@/lib/observatory/wabisator-client")>()),
+  getCoordinatorsStatus: vi.fn().mockResolvedValue({ UpdatedAt: "", Coordinators: [] }),
+}));
 
 const setVisibility = (v: "visible" | "hidden") => {
   Object.defineProperty(document, "visibilityState", { configurable: true, get: () => v });
@@ -73,5 +79,18 @@ describe("usePolled", () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(3000); });
     expect(f).not.toHaveBeenCalled();
     expect(result.current.loading).toBe(false);
+  });
+});
+
+describe("Wabisator hooks", () => {
+  it("send nothing until the network config settles (an Umbrel user must never hit the public worker)", async () => {
+    network.apiReady = false;
+    const { rerender } = renderHook(() => useCoordinatorsStatus());
+    await act(async () => { await vi.advanceTimersByTimeAsync(20_000); });
+    expect(getCoordinatorsStatus).not.toHaveBeenCalled();
+    Object.assign(network, { isUmbrel: true, apiReady: true });
+    rerender();
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(vi.mocked(getCoordinatorsStatus).mock.calls[0]?.[0]).toMatchObject({ isUmbrel: true });
   });
 });

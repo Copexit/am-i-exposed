@@ -1,33 +1,34 @@
 "use client";
 
-import { ExternalLink, WifiOff } from "lucide-react";
+import { ExternalLink, RotateCw, WifiOff } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { formatTimeAgo } from "@/lib/format";
 
 interface ObservatoryErrorStateProps {
   /** Which upstream this card represents (selects copy + link). */
-  source: "whirlpool" | "liquisabi";
+  source: Source;
   /** Unix-ms timestamp of the last successful fetch, if any. */
   staleAt?: number | null;
   locale?: string;
+  /** Shows a retry button when given. */
+  onRetry?: () => void;
 }
 
-const SOURCE_URLS: Record<"whirlpool" | "liquisabi", string> = {
+type Source = "whirlpool" | "wabisator";
+
+const SOURCE_URLS: Record<Source, string> = {
   whirlpool: "https://whirlpoolstats.xyz",
-  liquisabi: "https://liquisabi.com",
+  wabisator: "https://wabisator.com",
 };
 
-const SOURCE_LABELS: Record<
-  "whirlpool" | "liquisabi",
-  { sourceKey: string; sourceDefault: string }
-> = {
+const SOURCE_LABELS: Record<Source, { sourceKey: string; sourceDefault: string }> = {
   whirlpool: {
     sourceKey: "observatory.attribution.openWhirlpool",
     sourceDefault: "Open whirlpoolstats.xyz",
   },
-  liquisabi: {
-    sourceKey: "observatory.attribution.openLiquiSabi",
-    sourceDefault: "Open liquisabi.com",
+  wabisator: {
+    sourceKey: "observatory.attribution.openWabisator",
+    sourceDefault: "Open wabisator.com",
   },
 };
 
@@ -35,6 +36,7 @@ export function ObservatoryErrorState({
   source,
   staleAt,
   locale = "en",
+  onRetry,
 }: ObservatoryErrorStateProps) {
   const { t } = useTranslation();
   const meta = SOURCE_LABELS[source];
@@ -57,15 +59,27 @@ export function ObservatoryErrorState({
               })}
         </span>
       </div>
-      <a
-        href={SOURCE_URLS[source]}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg bg-surface-inset border border-card-border text-foreground hover:border-bitcoin/30 transition-all"
-      >
-        {t(meta.sourceKey, { defaultValue: meta.sourceDefault })}
-        <ExternalLink size={12} className="text-muted" />
-      </a>
+      <div className="flex flex-wrap gap-3">
+        {onRetry && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="inline-flex items-center gap-1.5 min-h-10 text-sm px-3 py-2 rounded-lg bg-surface-inset border border-card-border text-foreground hover:border-bitcoin/30 transition-all cursor-pointer"
+          >
+            <RotateCw size={12} className="text-muted" aria-hidden="true" />
+            {t("observatory.errors.retry", { defaultValue: "Try again" })}
+          </button>
+        )}
+        <a
+          href={SOURCE_URLS[source]}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg bg-surface-inset border border-card-border text-foreground hover:border-bitcoin/30 transition-all"
+        >
+          {t(meta.sourceKey, { defaultValue: meta.sourceDefault })}
+          <ExternalLink size={12} className="text-muted" />
+        </a>
+      </div>
     </div>
   );
 }

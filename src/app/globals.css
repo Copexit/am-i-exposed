@@ -119,14 +119,18 @@ html[data-theme="light"] {
  * theme's ink card), so these do not change per theme. Kruw is gold, not --bitcoin.
  * --coord-<key>-fg: marks on cards, charts and legends; the sky colour in dark, L~0.55 in light
  * (>= 4:1 on --card-bg).
+ * --obs-sky: the map canvas, near-black in dark and a deep-ink card in light; --obs-sky-fg is
+ * text and faint marks drawn on it (both themes).
  */
 :root {
+  --obs-sky: #060709;
+  --obs-sky-fg: #e6e9f0;
   --coord-kruw: #e8af4f;
   --coord-opencoordinator: #31d5c5;
   --coord-gingerwallet: #ff9988;
-  --coord-coinjoin_nl: #b7adff;
+  --coord-coinjoin_nl: #aeb1ff;
   --coord-coinjoiner: #9fcb6f;
-  --coord-swisscoordinator: #e89ce5;
+  --coord-swisscoordinator: #f299d5;
   --coord-openwasabi: #5fc6ff;
   --coord-other: #b2bbc8;
   --coord-kruw-fg: var(--coord-kruw);
@@ -140,12 +144,13 @@ html[data-theme="light"] {
 }
 
 html[data-theme="light"] {
+  --obs-sky: #131726;
   --coord-kruw-fg: #9a6500;
   --coord-opencoordinator-fg: #00897b;
   --coord-gingerwallet-fg: #b14f42;
-  --coord-coinjoin_nl-fg: #6f63b8;
+  --coord-coinjoin_nl-fg: #6766ba;
   --coord-coinjoiner-fg: #588021;
-  --coord-swisscoordinator-fg: #995398;
+  --coord-swisscoordinator-fg: #a25089;
   --coord-openwasabi-fg: #007ab4;
   --coord-other-fg: #6a727d;
 }
@@ -348,6 +353,12 @@ select:focus-visible {
   syntax: "<angle>";
   initial-value: 0deg;
   inherits: false;
+}
+
+/* Observatory: values and sections fade in instead of popping. */
+@keyframes obs-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes border-rotate {

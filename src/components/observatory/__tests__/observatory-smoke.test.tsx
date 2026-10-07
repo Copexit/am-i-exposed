@@ -4,10 +4,8 @@ import React from "react";
 import { render } from "@testing-library/react";
 import summaryFixture from "@/lib/observatory/__tests__/fixtures/whirlpool-summary.json";
 import chartsFixture from "@/lib/observatory/__tests__/fixtures/whirlpool-charts.json";
-import dashboardFixture from "@/lib/observatory/__tests__/fixtures/liquisabi-dashboard.json";
 import txsFixture from "@/lib/observatory/__tests__/fixtures/whirlpool-txs.json";
 import type {
-  LiquiSabiDashboard,
   WhirlpoolCharts,
   WhirlpoolSummary,
   WhirlpoolTxsPage,
@@ -28,16 +26,12 @@ vi.mock("@/context/NetworkContext", () => ({
 import { Sparkline } from "../Sparkline";
 import { ObservatoryHero } from "../ObservatoryHero";
 import { WhirlpoolPoolCard } from "../WhirlpoolPoolCard";
-import { WabiSabiCoordinatorCard } from "../WabiSabiCoordinatorCard";
 import { ObservatoryAttribution } from "../ObservatoryAttribution";
 import { ObservatoryErrorState } from "../ObservatoryErrorState";
 import { RecentCyclesTable } from "../RecentCyclesTable";
-import { RecentRoundsTable } from "../RecentRoundsTable";
-import { projectCoordinators, toRoundRows } from "@/lib/observatory/selectors";
 
 const summary = summaryFixture as WhirlpoolSummary;
 const charts = chartsFixture as WhirlpoolCharts;
-const dashboard = dashboardFixture as unknown as LiquiSabiDashboard;
 const txs = txsFixture as WhirlpoolTxsPage;
 
 describe("observatory smoke tests", () => {
@@ -55,26 +49,13 @@ describe("observatory smoke tests", () => {
     expect(container.querySelector("svg")).toBeNull();
   });
 
-  it("ObservatoryHero renders only the selected protocol's 2 KPI tiles", () => {
-    for (const protocol of ["whirlpool", "wabisabi"] as const) {
-      const { container, unmount } = render(
-        <ObservatoryHero
-          whirlpool={summary}
-          whirlpoolCharts={charts}
-          liquisabi={dashboard}
-          loading={false}
-          protocol={protocol}
-        />,
-      );
-      expect(container.querySelectorAll("div.rounded-xl").length).toBe(2);
-      expect(container.textContent).toMatch(
-        protocol === "whirlpool" ? /Whirlpool lifetime entered/ : /WabiSabi fresh inputs/,
-      );
-      expect(container.textContent).not.toMatch(
-        protocol === "whirlpool" ? /WabiSabi/ : /Whirlpool/,
-      );
-      unmount();
-    }
+  it("ObservatoryHero renders the 2 Whirlpool KPI tiles", () => {
+    const { container } = render(
+      <ObservatoryHero whirlpool={summary} whirlpoolCharts={charts} loading={false} />,
+    );
+    expect(container.querySelectorAll("div.rounded-xl").length).toBe(2);
+    expect(container.textContent).toMatch(/Whirlpool lifetime entered/);
+    expect(container.textContent).not.toMatch(/WabiSabi/);
   });
 
   it("ObservatoryHero renders empty placeholders when data is null and not loading", () => {
@@ -82,9 +63,7 @@ describe("observatory smoke tests", () => {
       <ObservatoryHero
         whirlpool={null}
         whirlpoolCharts={null}
-        liquisabi={null}
         loading={false}
-        protocol="wabisabi"
       />,
     );
     expect(container.textContent).not.toMatch(/0\.000 BTC/);
@@ -95,9 +74,7 @@ describe("observatory smoke tests", () => {
       <ObservatoryHero
         whirlpool={null}
         whirlpoolCharts={null}
-        liquisabi={null}
         loading={true}
-        protocol="whirlpool"
       />,
     );
     expect(container.querySelectorAll(".animate-pulse").length).toBe(2);
@@ -113,33 +90,14 @@ describe("observatory smoke tests", () => {
     expect(container.textContent).toMatch(/13\.65 BTC/);
   });
 
-  it("WabiSabiCoordinatorCard renders coordinator name and fresh-input share", () => {
-    const views = projectCoordinators(dashboard);
-    const kruw = views.find((v) => v.name === "Kruw.io")!;
-    const { getByText } = render(
-      <WabiSabiCoordinatorCard coordinator={kruw} avgAnonIn={3.9} avgAnonOut={6.9} />,
-    );
-    expect(getByText("Kruw.io")).toBeTruthy();
-    expect(getByText("99.72%")).toBeTruthy();
-  });
-
-  it("WabiSabiCoordinatorCard flags a paid coordinator", () => {
-    const views = projectCoordinators(dashboard);
-    const ginger = views.find((v) => v.name === "Gingerwallet")!;
-    const { getByText } = render(
-      <WabiSabiCoordinatorCard coordinator={ginger} avgAnonIn={null} avgAnonOut={null} />,
-    );
-    expect(getByText("Paid")).toBeTruthy();
-  });
-
-  it("ObservatoryAttribution renders both data-source link-outs at the new whirlpoolstats URL", () => {
+  it("ObservatoryAttribution links out to whirlpoolstats.xyz and wabisator.com", () => {
     const { container } = render(
       <ObservatoryAttribution lastUpdatedAt={1_700_000_000_000} locale="en" />,
     );
     const links = container.querySelectorAll("a[href]");
     const hrefs = Array.from(links).map((a) => a.getAttribute("href"));
     expect(hrefs).toContain("https://whirlpoolstats.xyz");
-    expect(hrefs).toContain("https://liquisabi.com");
+    expect(hrefs).toContain("https://wabisator.com");
   });
 
   it("RecentCyclesTable renders one same-origin scan link per cycle", () => {
@@ -153,20 +111,6 @@ describe("observatory smoke tests", () => {
     expect(hrefs.some((h) => h?.includes("am-i.exposed"))).toBe(false);
   });
 
-  it("RecentRoundsTable renders one same-origin scan link per round with a coordinator name", () => {
-    const rows = toRoundRows(dashboard);
-    const { container, getByText } = render(<RecentRoundsTable rows={rows} total={2} />);
-    const hrefs = Array.from(container.querySelectorAll("a")).map((a) => a.getAttribute("href"));
-    expect(hrefs).toEqual(rows.map((r) => `/#tx=${r.txid}`));
-    expect(getByText("Kruw.io")).toBeTruthy();
-    expect(container.querySelector("time")?.getAttribute("dateTime")).toBe("2026-05-24T16:34:10.000Z");
-  });
-
-  it("RecentRoundsTable renders nothing without rows", () => {
-    const { container } = render(<RecentRoundsTable rows={[]} total={0} />);
-    expect(container.firstChild).toBeNull();
-  });
-
   it("RecentCyclesTable renders nothing when there is no page", () => {
     const { container } = render(<RecentCyclesTable firstPage={null} />);
     expect(container.firstChild).toBeNull();
@@ -178,15 +122,19 @@ describe("observatory smoke tests", () => {
     expect(container.querySelectorAll("li").length).toBe(1);
   });
 
-  it("ObservatoryErrorState links to the right source per variant", () => {
+  it("ObservatoryErrorState links to the right source per variant, with an optional retry", () => {
     const { container: wp } = render(
       <ObservatoryErrorState source="whirlpool" staleAt={null} />,
     );
     expect(wp.querySelector('a[href="https://whirlpoolstats.xyz"]')).toBeTruthy();
-    const { container: ls } = render(
-      <ObservatoryErrorState source="liquisabi" staleAt={null} />,
+    expect(wp.querySelector("button")).toBeNull();
+    const onRetry = vi.fn();
+    const { container: ws } = render(
+      <ObservatoryErrorState source="wabisator" staleAt={null} onRetry={onRetry} />,
     );
-    expect(ls.querySelector('a[href="https://liquisabi.com"]')).toBeTruthy();
+    expect(ws.querySelector('a[href="https://wabisator.com"]')).toBeTruthy();
+    ws.querySelector("button")!.click();
+    expect(onRetry).toHaveBeenCalledOnce();
   });
 
   it("no rendered text contains the literal substring 'observatory.whirlpool.'", () => {
@@ -197,9 +145,7 @@ describe("observatory smoke tests", () => {
         <ObservatoryHero
           whirlpool={summary}
           whirlpoolCharts={charts}
-          liquisabi={dashboard}
           loading={false}
-          protocol="whirlpool"
         />
         <WhirlpoolPoolCard pool={summary.pools[0]!} charts={charts} />
         <WhirlpoolPoolCard pool={summary.pools[1]!} charts={charts} />

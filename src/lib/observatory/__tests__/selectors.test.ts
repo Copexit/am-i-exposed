@@ -1,14 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  activeCoordinators,
   downsampleSeries,
-  inactiveCoordinators,
-  liquiSabiFreshInputSparkline,
-  projectCoordinators,
-  sumRecentFreshInputs,
   toCycleRows,
-  toRoundRows,
-  unpaidCoordinators,
   whirlpool30dDelta,
   whirlpoolLifetimeCycles,
   whirlpoolLifetimeEntered,
@@ -18,10 +11,7 @@ import {
 import chartsFixture from "./fixtures/whirlpool-charts.json";
 import summaryFixture from "./fixtures/whirlpool-summary.json";
 import txsFixture from "./fixtures/whirlpool-txs.json";
-import dashboardFixture from "./fixtures/liquisabi-dashboard.json";
 import type {
-  CoordinatorView,
-  LiquiSabiDashboard,
   WhirlpoolCharts,
   WhirlpoolSummary,
   WhirlpoolTxsPage,
@@ -30,20 +20,6 @@ import type {
 const charts = chartsFixture as WhirlpoolCharts;
 const summary = summaryFixture as WhirlpoolSummary;
 const txs = txsFixture as WhirlpoolTxsPage;
-const dashboard = dashboardFixture as unknown as LiquiSabiDashboard;
-
-function view(overrides: Partial<CoordinatorView>): CoordinatorView {
-  return {
-    endpoint: "https://example.test/",
-    name: "Example",
-    readMore: "",
-    description: "",
-    freshInputPercent: 0,
-    roundCount: 0,
-    isPaid: false,
-    ...overrides,
-  };
-}
 
 describe("downsampleSeries", () => {
   it("returns the original points when below the max", () => {
@@ -138,131 +114,5 @@ describe("toCycleRows", () => {
 
   it("returns [] for a null page", () => {
     expect(toCycleRows(null)).toEqual([]);
-  });
-});
-
-describe("liquiSabiFreshInputSparkline", () => {
-  it("treats null Averages entries as zero", () => {
-    const points = liquiSabiFreshInputSparkline(dashboard.Graph);
-    expect(points).toHaveLength(3);
-    expect(points[1]?.y).toBe(0);
-    expect(points[0]?.y).toBeCloseTo(5.5);
-    expect(points[2]?.y).toBeCloseTo(7.2);
-  });
-
-  it("returns [] for an empty graph", () => {
-    expect(liquiSabiFreshInputSparkline([])).toEqual([]);
-  });
-});
-
-describe("projectCoordinators", () => {
-  it("flags coordinators with a positive coordination fee as paid", () => {
-    const views = projectCoordinators(dashboard);
-    expect(views).toHaveLength(3);
-    const kruw = views.find((v) => v.name === "Kruw.io");
-    const ginger = views.find((v) => v.name === "Gingerwallet");
-    expect(kruw?.isPaid).toBe(false);
-    expect(ginger?.isPaid).toBe(true);
-  });
-
-  it("sorts by fresh-input share descending", () => {
-    const views = projectCoordinators(dashboard);
-    expect(views[0]?.name).toBe("Kruw.io");
-    expect(views.at(-1)?.name).toBe("Gingerwallet");
-  });
-});
-
-describe("unpaidCoordinators", () => {
-  it("filters paid coordinators out", () => {
-    const views = projectCoordinators(dashboard);
-    const free = unpaidCoordinators(views);
-    expect(free.map((v) => v.name)).toEqual(["Kruw.io", "OpenCoordinator"]);
-  });
-});
-
-describe("activeCoordinators / inactiveCoordinators", () => {
-  const views = [
-    view({ name: "Live", roundCount: 42 }),
-    view({ name: "Idle", roundCount: 0 }),
-    view({ name: "AlsoLive", roundCount: 1 }),
-  ];
-
-  it("keeps only coordinators with rounds in the last 30 days", () => {
-    expect(activeCoordinators(views).map((v) => v.name)).toEqual([
-      "Live",
-      "AlsoLive",
-    ]);
-  });
-
-  it("keeps only coordinators idle for 30+ days", () => {
-    expect(inactiveCoordinators(views).map((v) => v.name)).toEqual(["Idle"]);
-  });
-
-  it("partitions the fixture coordinators (all active) with none idle", () => {
-    const projected = projectCoordinators(dashboard);
-    expect(activeCoordinators(projected)).toHaveLength(3);
-    expect(inactiveCoordinators(projected)).toHaveLength(0);
-  });
-});
-
-describe("sumRecentFreshInputs", () => {
-  it("sums fresh inputs across the recent window, skipping null entries", () => {
-    expect(sumRecentFreshInputs(dashboard.Graph, 3)).toBeCloseTo(12.7);
-  });
-
-  it("returns 0 for an empty graph", () => {
-    expect(sumRecentFreshInputs([], 7)).toBe(0);
-  });
-});
-
-describe("toRoundRows", () => {
-  const dashboard = dashboardFixture as unknown as LiquiSabiDashboard;
-  const round = dashboard.PaginatedRounds.Rounds[0]!;
-  const hex = (n: number) => n.toString(16).padStart(64, "0");
-
-  it("maps fixture rounds newest first with friendly names and scan links", () => {
-    const rows = toRoundRows(dashboard);
-    expect(rows.map((r) => r.coordinatorName)).toEqual(["Kruw.io", "Gingerwallet"]);
-    expect(rows[0]).toMatchObject({
-      txid: round.TxId,
-      endedAt: Date.parse("2026-05-24T16:34:10+00:00"),
-      inputCount: 287,
-      outputCount: 323,
-      scanHref: `/#tx=${round.TxId}`,
-    });
-  });
-
-  it("limits to the newest N, sorts by end time, and drops invalid or duplicate txids", () => {
-    const rounds = Array.from({ length: 14 }, (_, i) => ({
-      ...round,
-      TxId: hex(i),
-      RoundEndTime: new Date(Date.UTC(2026, 8, 1, i)).toISOString(),
-    }));
-    rounds.push({ ...round, TxId: "not-a-txid" }, { ...round, TxId: hex(13) });
-    const rows = toRoundRows({ ...dashboard, PaginatedRounds: { ...dashboard.PaginatedRounds, Rounds: rounds.reverse() } });
-    expect(rows).toHaveLength(10);
-    expect(rows[0]!.txid).toBe(hex(13));
-    expect(rows[9]!.txid).toBe(hex(4));
-  });
-
-  it("falls back to the endpoint host for unnamed coordinators, matching endpoints loosely", () => {
-    const rows = toRoundRows({
-      ...dashboard,
-      PaginatedRounds: {
-        ...dashboard.PaginatedRounds,
-        Rounds: [
-          { ...round, TxId: hex(1), CoordinatorEndpoint: "https://unknown.example/" },
-          { ...round, TxId: hex(2), CoordinatorEndpoint: "https://COINJOIN.kruw.io" },
-          { ...round, TxId: hex(3), RoundEndTime: "garbage" },
-        ],
-      },
-    });
-    expect(rows.map((r) => r.coordinatorName)).toEqual(["unknown.example", "Kruw.io", "Kruw.io"]);
-    expect(rows[2]!.endedAt).toBeNull();
-  });
-
-  it("returns [] for null or partial data", () => {
-    expect(toRoundRows(null)).toEqual([]);
-    expect(toRoundRows({ ...dashboard, PaginatedRounds: undefined } as unknown as LiquiSabiDashboard)).toEqual([]);
   });
 });

@@ -38,7 +38,6 @@ vi.mock("@/hooks/useObservatory", () => ({
       charts,
       txs: null,
     },
-    liquisabi: null,
     loading: false,
     error: null,
     lastUpdatedAt: null,
@@ -56,6 +55,7 @@ globalThis.ResizeObserver ??= class {
 
 describe("ObservatoryPage whirlpool trend footer", () => {
   it("reports the 0.025 pool values regardless of upstream pool order", () => {
+    window.history.replaceState(null, "", "/observatory/#whirlpool");
     render(<ObservatoryPage />);
     // 0.025_BTC_Pool capacity series runs 0.05 -> 13.65 in the fixture
     expect(screen.getByText(/0\.025 pool: start 0\.05 BTC · end 13\.65 BTC/)).toBeTruthy();

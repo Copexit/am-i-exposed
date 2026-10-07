@@ -227,8 +227,8 @@ const readObservatory = (name: string) =>
   fs.readFileSync(path.join(OBSERVATORY_FIXTURES, `${name}.json`), "utf-8");
 
 /**
- * Observatory mock: the hosted Cloudflare Worker's whirlpool JSON routes and
- * the LiquiSabi JSON-RPC `dashboard` call, served from the unit-test fixtures.
+ * Observatory mock: the hosted Cloudflare Worker's whirlpool JSON routes,
+ * served from the unit-test fixtures.
  */
 export async function mockObservatoryApi(page: Page) {
   const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "*" };
@@ -240,10 +240,6 @@ export async function mockObservatoryApi(page: Page) {
     if (pathname === "/svc/whirlpoolstats/summary") body = readObservatory("whirlpool-summary");
     else if (pathname === "/svc/whirlpoolstats/charts") body = readObservatory("whirlpool-charts");
     else if (pathname === "/svc/whirlpoolstats/txs") body = readObservatory("whirlpool-txs");
-    else if (pathname === "/svc/liquisabi/api") {
-      const { id } = req.postDataJSON() as { id: number };
-      body = `{"jsonrpc":"2.0","id":${id},"result":${readObservatory("liquisabi-dashboard")}}`;
-    }
     if (body === null) return route.fulfill({ status: 404, headers: cors, body: "not found" });
     await route.fulfill({ status: 200, headers: cors, body, contentType: "application/json" });
   });

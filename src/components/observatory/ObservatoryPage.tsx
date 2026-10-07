@@ -6,52 +6,36 @@ import { PageShell } from "@/components/PageShell";
 import { useNetwork } from "@/context/NetworkContext";
 import { useObservatory } from "@/hooks/useObservatory";
 import { useChainTip } from "@/hooks/useChainTip";
-import {
-  OBSERVATORY_TABS,
-  useObservatoryTab,
-  type ObservatoryTab,
-} from "@/hooks/useObservatoryTab";
+import { OBSERVATORY_TABS, useObsState, type ObservatoryTab } from "@/hooks/useObsState";
 import { ObservatoryHero } from "@/components/observatory/ObservatoryHero";
 import { WhirlpoolPoolCard } from "@/components/observatory/WhirlpoolPoolCard";
-import { WabiSabiCoordinatorCard } from "@/components/observatory/WabiSabiCoordinatorCard";
 import { RecentCyclesTable } from "@/components/observatory/RecentCyclesTable";
-import { RecentRoundsTable } from "@/components/observatory/RecentRoundsTable";
 import { ObservatoryAttribution } from "@/components/observatory/ObservatoryAttribution";
 import { ObservatoryErrorState } from "@/components/observatory/ObservatoryErrorState";
 import { TrendChart, type TrendSeries } from "@/components/observatory/TrendChart";
 import { TrendCard } from "@/components/observatory/TrendCard";
 import { ObservatoryPageHeader } from "@/components/observatory/ObservatoryPageHeader";
 import { SyncPill } from "@/components/observatory/SyncPill";
-import { InactiveCoordinators } from "@/components/observatory/InactiveCoordinators";
 import { SkeletonCards } from "@/components/observatory/SkeletonCards";
+import { WabiSabiTab } from "@/components/observatory/wabisabi/WabiSabiTab";
 import {
-  activeCoordinators,
-  inactiveCoordinators,
-  liquiSabiFreshInputSparkline,
-  projectCoordinators,
-  toRoundRows,
   whirlpoolLifetimeCycles,
   whirlpoolLifetimeEntered,
   whirlpoolSparkline,
 } from "@/lib/observatory/selectors";
 import { fmtN } from "@/lib/format";
-import { COLORS } from "@/lib/palette";
-import type { LiquiSabiGraphEntry } from "@/lib/observatory/types";
 
 function fmtBtc(value: number): string {
   return `${value.toFixed(3).replace(/\.?0+$/, "")} BTC`;
 }
 
 export function ObservatoryPage() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { network } = useNetwork();
-  const tipHeight = useChainTip();
-  const { whirlpool, liquisabi, loading, lastUpdatedAt } = useObservatory();
-  const [tab, selectTab] = useObservatoryTab();
+  const [obs, setObs] = useObsState();
+  const tab = obs.tab as ObservatoryTab;
 
-  const isMainnet = network === "mainnet";
-
-  if (!isMainnet) {
+  if (network !== "mainnet") {
     return (
       <PageShell>
         <ObservatoryPageHeader showMainnetBadge={false} />
@@ -65,14 +49,79 @@ export function ObservatoryPage() {
     );
   }
 
-  const allCoordinators = liquisabi ? projectCoordinators(liquisabi) : [];
-  const activeCoords = activeCoordinators(allCoordinators);
-  const inactiveCoords = inactiveCoordinators(allCoordinators);
-  const wabisabiSparkline = liquisabi
-    ? liquiSabiFreshInputSparkline(liquisabi.Graph)
-    : [];
+  // Display order is OBSERVATORY_TABS (WabiSabi first, the default); a new protocol is one entry.
+  const tabs: { id: ObservatoryTab; label: string }[] = OBSERVATORY_TABS.map((id) => ({
+    id,
+    label: {
+      wabisabi: t("observatory.tabs.wabisabi", { defaultValue: "WabiSabi (Wasabi)" }),
+      whirlpool: t("observatory.tabs.whirlpool", { defaultValue: "Whirlpool (Ashigaru)" }),
+    }[id],
+  }));
+  const selectTab = (id: ObservatoryTab) => setObs({ tab: id });
 
-  const roundRows = toRoundRows(liquisabi);
+  const onTabKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const i = tabs.findIndex((x) => x.id === tab);
+    const n = tabs.length;
+    const next =
+      e.key === "ArrowRight" ? tabs[(i + 1) % n]
+      : e.key === "ArrowLeft" ? tabs[(i - 1 + n) % n]
+      : e.key === "Home" ? tabs[0]
+      : e.key === "End" ? tabs[n - 1]
+      : undefined;
+    if (!next) return;
+    e.preventDefault();
+    selectTab(next.id);
+    document.getElementById(`observatory-tab-${next.id}`)?.focus();
+  };
+
+  return (
+    <PageShell>
+      <ObservatoryPageHeader showMainnetBadge />
+
+      <div
+        role="tablist"
+        aria-label={t("observatory.tabs.label", { defaultValue: "CoinJoin protocol" })}
+        onKeyDown={onTabKeyDown}
+        className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-surface-inset border border-card-border sm:inline-grid"
+      >
+        {tabs.map(({ id, label }) => (
+          <button
+            key={id}
+            id={`observatory-tab-${id}`}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            aria-controls="observatory-panel"
+            tabIndex={tab === id ? 0 : -1}
+            onClick={() => selectTab(id)}
+            className={`rounded-md px-3 sm:px-5 py-2 min-h-10 text-sm font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bitcoin ${
+              tab === id
+                ? "bg-surface-elevated text-foreground shadow-sm ring-1 ring-hairline-strong"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div
+        id="observatory-panel"
+        role="tabpanel"
+        aria-labelledby={`observatory-tab-${tab}`}
+        className="space-y-8"
+      >
+        {tab === "whirlpool" ? <WhirlpoolTab /> : <WabiSabiTab />}
+      </div>
+    </PageShell>
+  );
+}
+
+/** The Whirlpool tab (whirlpoolstats.xyz). Fetches only while it is shown. */
+function WhirlpoolTab() {
+  const { t, i18n } = useTranslation();
+  const tipHeight = useChainTip();
+  const { whirlpool, loading, lastUpdatedAt } = useObservatory();
 
   const summary = whirlpool?.summary ?? null;
   const charts = whirlpool?.charts ?? null;
@@ -105,259 +154,110 @@ export function ObservatoryPage() {
   const whirlpoolTrendTitle = t("observatory.trends.whirlpoolCapacity", {
     defaultValue: "Whirlpool capacity per block",
   });
-  const wabisabiTrendTitle = t("observatory.trends.wabisabiFreshInputs", {
-    defaultValue: "WabiSabi fresh inputs (BTC/day)",
-  });
-
-  const tabLabels: Record<ObservatoryTab, string> = {
-    whirlpool: t("observatory.tabs.whirlpool", { defaultValue: "Whirlpool (Ashigaru)" }),
-    wabisabi: t("observatory.tabs.wabisabi", { defaultValue: "WabiSabi (Wasabi)" }),
-  };
-
-  const onTabKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    const i = OBSERVATORY_TABS.indexOf(tab);
-    const n = OBSERVATORY_TABS.length;
-    const next =
-      e.key === "ArrowRight" ? OBSERVATORY_TABS[(i + 1) % n]
-      : e.key === "ArrowLeft" ? OBSERVATORY_TABS[(i - 1 + n) % n]
-      : e.key === "Home" ? OBSERVATORY_TABS[0]
-      : e.key === "End" ? OBSERVATORY_TABS[n - 1]
-      : undefined;
-    if (!next) return;
-    e.preventDefault();
-    selectTab(next);
-    document.getElementById(`observatory-tab-${next}`)?.focus();
-  };
 
   return (
-    <PageShell>
-      <ObservatoryPageHeader showMainnetBadge />
+    <>
+      <ObservatoryHero
+        whirlpool={summary}
+        whirlpoolCharts={charts}
+        loading={loading}
+      />
 
-      <div
-        role="tablist"
-        aria-label={t("observatory.tabs.label", { defaultValue: "CoinJoin protocol" })}
-        onKeyDown={onTabKeyDown}
-        className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-surface-inset border border-card-border sm:inline-grid"
-      >
-        {OBSERVATORY_TABS.map((id) => (
-          <button
-            key={id}
-            id={`observatory-tab-${id}`}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            aria-controls="observatory-panel"
-            tabIndex={tab === id ? 0 : -1}
-            onClick={() => selectTab(id)}
-            className={`rounded-md px-3 sm:px-5 py-2 text-sm font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bitcoin ${
-              tab === id
-                ? "bg-surface-elevated text-foreground shadow-sm ring-1 ring-hairline-strong"
-                : "text-muted hover:text-foreground"
-            }`}
-          >
-            {tabLabels[id]}
-          </button>
-        ))}
-      </div>
-
-      <div
-        id="observatory-panel"
-        role="tabpanel"
-        aria-labelledby={`observatory-tab-${tab}`}
-        className="space-y-8"
-      >
-        <ObservatoryHero
-          whirlpool={summary}
-          whirlpoolCharts={charts}
-          liquisabi={liquisabi}
-          loading={loading}
-          protocol={tab}
-        />
-
-        {tab === "whirlpool" ? (
-          <>
-            <section className="space-y-4">
-              <div className="space-y-1">
-                <div className="flex items-baseline justify-between gap-3 flex-wrap">
-                  <h2 className="text-xl font-semibold text-foreground">
-                    {t("observatory.whirlpool.title", { defaultValue: "Whirlpool pools" })}
-                  </h2>
-                  {summary && (
-                    <SyncPill
-                      lagBlocks={lagBlocks}
-                      upstreamBlock={whirlpoolUpstreamBlock}
-                    />
-                  )}
-                </div>
-                {summary && lifetimeEntered != null && lifetimeCycles != null && (
-                  <p className="text-sm text-muted">
-                    {t("observatory.whirlpool.lifetimeSubtitle", {
-                      defaultValue:
-                        "Lifetime entered: {{total}} across {{cycles}} cycles",
-                      total: fmtBtc(lifetimeEntered),
-                      cycles: fmtN(lifetimeCycles),
-                    })}
-                  </p>
-                )}
-              </div>
-              {loading && !whirlpool ? (
-                <SkeletonCards count={2} />
-              ) : whirlpool ? (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {whirlpool.summary.pools.map((pool) => (
-                    <WhirlpoolPoolCard
-                      key={pool.pool}
-                      pool={pool}
-                      charts={whirlpool.charts}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <ObservatoryErrorState source="whirlpool" staleAt={lastUpdatedAt} />
-              )}
-            </section>
-
-            {whirlpool?.txs && whirlpool.txs.items.length > 0 && (
-              <section className="space-y-4">
-                <div className="space-y-1">
-                  <h2 className="text-xl font-semibold text-foreground">
-                    {t("observatory.cycles.sectionTitle", {
-                      defaultValue: "Recent Whirlpool cycles",
-                    })}
-                  </h2>
-                  <p className="text-sm text-muted">
-                    {t("observatory.cycles.sectionSubtitle", {
-                      defaultValue:
-                        "Latest coinjoin cycles and TX0 activity. Select any cycle to inspect it in the scanner.",
-                    })}
-                  </p>
-                </div>
-                <RecentCyclesTable firstPage={whirlpool.txs} />
-              </section>
+      <section className="space-y-4">
+        <div className="space-y-1">
+          <div className="flex items-baseline justify-between gap-3 flex-wrap">
+            <h2 className="text-xl font-semibold text-foreground">
+              {t("observatory.whirlpool.title", { defaultValue: "Whirlpool pools" })}
+            </h2>
+            {summary && (
+              <SyncPill
+                lagBlocks={lagBlocks}
+                upstreamBlock={whirlpoolUpstreamBlock}
+              />
             )}
-
-            <section className="space-y-4">
-              <h2 className="text-xl font-semibold text-foreground">
-                {t("observatory.trends.title", { defaultValue: "30-day trends" })}
-              </h2>
-              <TrendCard
-                title={whirlpoolTrendTitle}
-                ys={whirlpoolYs}
-                ready={!!whirlpool}
-                loading={loading}
-                footer={refStart != null && refEnd != null && (
-                  <div className="text-xs text-muted">
-                    {t("observatory.trends.startEndDelta", {
-                      defaultValue:
-                        "0.025 pool: start {{start}} BTC · end {{end}} BTC · Δ {{delta}} BTC",
-                      start: refStart.toFixed(2),
-                      end: refEnd.toFixed(2),
-                      delta: (refEnd >= refStart ? "+" : "") + (refEnd - refStart).toFixed(2),
-                    })}
-                  </div>
-                )}
-              >
-                <TrendChart
-                  series={whirlpoolSeries}
-                  unit="BTC"
-                  formatX={(v) => `#${Math.round(v).toLocaleString("en-US")}`}
-                  height={220}
-                  ariaLabel={whirlpoolTrendTitle}
-                />
-              </TrendCard>
-            </section>
-          </>
+          </div>
+          {summary && lifetimeEntered != null && lifetimeCycles != null && (
+            <p className="text-sm text-muted">
+              {t("observatory.whirlpool.lifetimeSubtitle", {
+                defaultValue:
+                  "Lifetime entered: {{total}} across {{cycles}} cycles",
+                total: fmtBtc(lifetimeEntered),
+                cycles: fmtN(lifetimeCycles),
+              })}
+            </p>
+          )}
+        </div>
+        {loading && !whirlpool ? (
+          <SkeletonCards count={2} />
+        ) : whirlpool ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {whirlpool.summary.pools.map((pool) => (
+              <WhirlpoolPoolCard
+                key={pool.pool}
+                pool={pool}
+                charts={whirlpool.charts}
+              />
+            ))}
+          </div>
         ) : (
-          <>
-            <section className="space-y-4">
-              <h2 className="text-xl font-semibold text-foreground">
-                {t("observatory.wabisabi.title", { defaultValue: "WabiSabi coordinators" })}
-              </h2>
-              {loading && !liquisabi ? (
-                <SkeletonCards count={3} />
-              ) : liquisabi ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {activeCoords.map((c) => (
-                      <WabiSabiCoordinatorCard
-                        key={c.endpoint}
-                        coordinator={c}
-                        avgAnonIn={liquisabi.Summary?.AverageStandardInputsAnonSet ?? null}
-                        avgAnonOut={liquisabi.Summary?.AverageStandardOutputsAnonSet ?? null}
-                      />
-                    ))}
-                  </div>
-                  <InactiveCoordinators
-                    coordinators={inactiveCoords}
-                    avgAnonIn={liquisabi.Summary?.AverageStandardInputsAnonSet ?? null}
-                    avgAnonOut={liquisabi.Summary?.AverageStandardOutputsAnonSet ?? null}
-                  />
-                </div>
-              ) : (
-                <ObservatoryErrorState source="liquisabi" staleAt={lastUpdatedAt} />
-              )}
-            </section>
-
-            {roundRows.length > 0 && (
-              <section className="space-y-4">
-                <div className="space-y-1">
-                  <h2 className="text-xl font-semibold text-foreground">
-                    {t("observatory.rounds.sectionTitle", {
-                      defaultValue: "Recent WabiSabi rounds",
-                    })}
-                  </h2>
-                  <p className="text-sm text-muted">
-                    {t("observatory.rounds.sectionSubtitle", {
-                      defaultValue:
-                        "Latest coinjoin rounds across all tracked coordinators. Select any round to inspect it in the scanner.",
-                    })}
-                  </p>
-                </div>
-                <RecentRoundsTable
-                  rows={roundRows}
-                  total={liquisabi?.PaginatedRounds?.TotalCount ?? 0}
-                />
-              </section>
-            )}
-
-            <section className="space-y-4">
-              <h2 className="text-xl font-semibold text-foreground">
-                {t("observatory.trends.title", { defaultValue: "30-day trends" })}
-              </h2>
-              <TrendCard
-                title={wabisabiTrendTitle}
-                ys={wabisabiSparkline.map((p) => p.y)}
-                ready={!!liquisabi}
-                loading={loading}
-              >
-                <TrendChart
-                  points={wabisabiSparkline}
-                  color={COLORS.severityHigh}
-                  unit="BTC"
-                  formatX={(v) => labelFromGraph(liquisabi?.Graph, v)}
-                  height={220}
-                  ariaLabel={wabisabiTrendTitle}
-                />
-              </TrendCard>
-            </section>
-          </>
+          <ObservatoryErrorState source="whirlpool" staleAt={lastUpdatedAt} />
         )}
-      </div>
+      </section>
+
+      {whirlpool?.txs && whirlpool.txs.items.length > 0 && (
+        <section className="space-y-4">
+          <div className="space-y-1">
+            <h2 className="text-xl font-semibold text-foreground">
+              {t("observatory.cycles.sectionTitle", {
+                defaultValue: "Recent Whirlpool cycles",
+              })}
+            </h2>
+            <p className="text-sm text-muted">
+              {t("observatory.cycles.sectionSubtitle", {
+                defaultValue:
+                  "Latest coinjoin cycles and TX0 activity. Select any cycle to inspect it in the scanner.",
+              })}
+            </p>
+          </div>
+          <RecentCyclesTable firstPage={whirlpool.txs} />
+        </section>
+      )}
+
+      <section className="space-y-4">
+        <h2 className="text-xl font-semibold text-foreground">
+          {t("observatory.trends.title", { defaultValue: "30-day trends" })}
+        </h2>
+        <TrendCard
+          title={whirlpoolTrendTitle}
+          ys={whirlpoolYs}
+          ready={!!whirlpool}
+          loading={loading}
+          footer={refStart != null && refEnd != null && (
+            <div className="text-xs text-muted">
+              {t("observatory.trends.startEndDelta", {
+                defaultValue:
+                  "0.025 pool: start {{start}} BTC · end {{end}} BTC · Δ {{delta}} BTC",
+                start: refStart.toFixed(2),
+                end: refEnd.toFixed(2),
+                delta: (refEnd >= refStart ? "+" : "") + (refEnd - refStart).toFixed(2),
+              })}
+            </div>
+          )}
+        >
+          <TrendChart
+            series={whirlpoolSeries}
+            unit="BTC"
+            formatX={(v) => `#${Math.round(v).toLocaleString("en-US")}`}
+            height={220}
+            ariaLabel={whirlpoolTrendTitle}
+          />
+        </TrendCard>
+      </section>
 
       <ObservatoryAttribution
         lastUpdatedAt={lastUpdatedAt}
         locale={i18n.language || "en"}
       />
-    </PageShell>
+    </>
   );
-}
-
-/** Map an index into the LiquiSabi graph back to its Date label (e.g. "23/05"). */
-function labelFromGraph(
-  graph: LiquiSabiGraphEntry[] | undefined,
-  index: number,
-): string {
-  if (!graph || graph.length === 0) return "";
-  const i = Math.max(0, Math.min(graph.length - 1, Math.round(index)));
-  return graph[i]?.Date ?? "";
 }

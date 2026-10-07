@@ -2,16 +2,17 @@ import type { Metadata } from "next";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 
 export const metadata: Metadata = {
-  title: "CoinJoin Observatory - Live Whirlpool & WabiSabi stats | am-i.exposed",
+  title: "CoinJoin Observatory: live WabiSabi map and coordinators | am-i.exposed",
   description:
-    "Live Bitcoin CoinJoin activity for Ashigaru Whirlpool pools and WabiSabi coordinators. Sourced from whirlpoolstats.xyz and liquisabi.com.",
+    "A live map of Bitcoin CoinJoins across the public WabiSabi coordinators: volume, live rounds, coordinator history and remix flows, sourced from Wabisator. Ashigaru Whirlpool pools from whirlpoolstats.xyz.",
   keywords: [
     "whirlpool stats",
     "wabisabi coordinator status",
     "bitcoin coinjoin volume",
     "ashigaru pool size",
     "kruw coordinator",
-    "liquisabi",
+    "wabisator",
+    "coinjoin map",
   ],
   alternates: {
     canonical: "https://am-i.exposed/observatory/",
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "CoinJoin Observatory | am-i.exposed",
     description:
-      "Live Whirlpool and WabiSabi stats, sourced from whirlpoolstats.xyz and liquisabi.com.",
+      "A live map of WabiSabi CoinJoins and coordinators (Wabisator), plus Whirlpool pools (whirlpoolstats.xyz).",
     url: "https://am-i.exposed/observatory/",
     type: "article",
     siteName: "am-i.exposed",
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "CoinJoin Observatory | am-i.exposed",
     description:
-      "Live Whirlpool and WabiSabi stats, sourced from whirlpoolstats.xyz and liquisabi.com.",
+      "A live map of WabiSabi CoinJoins and coordinators (Wabisator), plus Whirlpool pools (whirlpoolstats.xyz).",
   },
 };
 

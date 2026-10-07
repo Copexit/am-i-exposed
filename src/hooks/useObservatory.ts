@@ -8,9 +8,7 @@ import {
   getWhirlpoolSummary,
   getWhirlpoolTxs,
 } from "@/lib/observatory/whirlpool-client";
-import { getLiquiSabiDashboard } from "@/lib/observatory/liquisabi-client";
 import type {
-  LiquiSabiDashboard,
   WhirlpoolCharts,
   WhirlpoolSummary,
   WhirlpoolTxsPage,
@@ -25,7 +23,6 @@ export interface WhirlpoolBundle {
 
 export interface UseObservatoryResult {
   whirlpool: WhirlpoolBundle | null;
-  liquisabi: LiquiSabiDashboard | null;
   loading: boolean;
   error: string | null;
   lastUpdatedAt: number | null;
@@ -35,7 +32,6 @@ export interface UseObservatoryResult {
 interface ObservatoryState {
   forKey: string;
   whirlpool: WhirlpoolBundle | null;
-  liquisabi: LiquiSabiDashboard | null;
   error: string | null;
   lastUpdatedAt: number | null;
 }
@@ -43,13 +39,12 @@ interface ObservatoryState {
 const INITIAL_STATE: ObservatoryState = {
   forKey: "",
   whirlpool: null,
-  liquisabi: null,
   error: null,
   lastUpdatedAt: null,
 };
 
 /**
- * Page-level hook. Fetches the three upstream endpoints in parallel via the
+ * Whirlpool tab hook. Fetches the three whirlpoolstats endpoints in parallel via the
  * routing chosen by NetworkContext (CF Worker on hosted, tor-proxy sidecar on
  * Umbrel). Tab-focus revalidation; no background polling.
  */
@@ -81,11 +76,10 @@ export function useObservatory(): UseObservatoryResult {
     void Promise.allSettled([
       getWhirlpoolSummary(endpoints.whirlpoolBase, controller.signal),
       getWhirlpoolCharts(endpoints.whirlpoolBase, controller.signal),
-      getLiquiSabiDashboard(endpoints.liquiSabiUrl, controller.signal),
       getWhirlpoolTxs(endpoints.whirlpoolBase, 1, controller.signal),
     ]).then((results) => {
       if (cancelled) return;
-      const [summaryRes, chartsRes, lsRes, txsRes] = results;
+      const [summaryRes, chartsRes, txsRes] = results;
       const whirlpool: WhirlpoolBundle | null =
         summaryRes.status === "fulfilled" && chartsRes.status === "fulfilled"
           ? {
@@ -94,13 +88,11 @@ export function useObservatory(): UseObservatoryResult {
               txs: txsRes.status === "fulfilled" ? txsRes.value : null,
             }
           : null;
-      const liquisabi: LiquiSabiDashboard | null =
-        lsRes.status === "fulfilled" ? lsRes.value : null;
-      const anySuccess = whirlpool != null || liquisabi != null;
+      const anySuccess = whirlpool != null;
       // `txs` is a nice-to-have for the cycles table; base the "everything is
       // down" decision on the data-bearing upstreams only, and report the
       // first one that actually rejected (not always summary).
-      const dataResults = [summaryRes, chartsRes, lsRes];
+      const dataResults = [summaryRes, chartsRes];
       const allFailed = dataResults.every((r) => r.status === "rejected");
       const firstRejected = dataResults.find(
         (r) => r.status === "rejected",
@@ -110,7 +102,6 @@ export function useObservatory(): UseObservatoryResult {
       setState((prev) => ({
         forKey: currentKey,
         whirlpool,
-        liquisabi,
         error,
         // Only refresh the timestamp when at least one upstream actually
         // delivered data. Otherwise keep the prior value so the UI can show
@@ -137,7 +128,6 @@ export function useObservatory(): UseObservatoryResult {
 
   return {
     whirlpool: state.whirlpool,
-    liquisabi: state.liquisabi,
     loading,
     error: loading ? null : state.error,
     lastUpdatedAt: state.lastUpdatedAt,
