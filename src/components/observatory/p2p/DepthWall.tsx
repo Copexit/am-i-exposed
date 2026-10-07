@@ -218,7 +218,7 @@ function Chart({ market, side, width, height, names, wide }: { market: Market; s
                     width={Math.max(0.5, w)}
                     height={Math.max(0, ih - top)}
                     fill={p.offer ? hostColorVar(p.offer.venue, p.offer.host, false) : "var(--faint)"}
-                    fillOpacity={active === p ? 0.55 : 0.22}
+                    fillOpacity={active === p ? 0.8 : 0.42}
                   />
                 ))}
                 <path d={stepPath(pts, dir)} fill="none" stroke="var(--foreground)" strokeOpacity={0.55} strokeWidth={1.25} />

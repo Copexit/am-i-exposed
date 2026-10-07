@@ -31,7 +31,9 @@ export function VenueBadge({ offer, names }: { offer: P2pOffer; names: Map<strin
       <span aria-hidden="true" className="h-4 w-1 shrink-0 rounded-full" style={{ background: color }} />
       <span className="min-w-0">
         <span className="block text-sm text-foreground leading-tight">{VENUE_LABEL[offer.venue]}</span>
-        <span className="block truncate text-xs text-faint leading-tight" title={offer.venue === "mostro" ? offer.host.slice(0, 16) : undefined}>{hostName(names, offer)}</span>
+        {offer.venue !== "hodlhodl" && (
+          <span className="block truncate text-xs text-faint leading-tight" title={offer.venue === "mostro" ? offer.host.slice(0, 16) : undefined}>{hostName(names, offer)}</span>
+        )}
       </span>
     </span>
   );

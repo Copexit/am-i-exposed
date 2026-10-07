@@ -4,9 +4,10 @@ import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { RotateCw, WifiOff } from "lucide-react";
 import { useNetwork } from "@/context/NetworkContext";
+import type { Venue } from "@/lib/observatory/p2p/types";
 import { useObsState } from "@/hooks/useObsState";
 import { useP2p } from "@/hooks/useP2p";
-import { buildMarkets, defaultCurrency, filterVenues, headline as buildHeadline, makerSide } from "@/lib/observatory/p2p/market";
+import { buildMarkets, defaultCurrency, filterVenues, headline as buildHeadline, makerSide, premiumBoard } from "@/lib/observatory/p2p/market";
 import { Section, SubNav } from "@/components/observatory/ObsSections";
 import { P2pHeadline } from "./P2pHeadline";
 import { SourceStrip } from "./SourceStrip";
@@ -14,6 +15,8 @@ import { MarketSelector, type MarketPatch } from "./MarketSelector";
 import { P2pFooter } from "./P2pFooter";
 import { DepthWall } from "./DepthWall";
 import { OfferList } from "./OfferList";
+import { PremiumBoard } from "./PremiumBoard";
+import { VenueSection } from "./VenueSection";
 import { BONE } from "./p2p-ui";
 
 function AllDown({ onRetry }: { onRetry: () => void }) {
@@ -76,6 +79,13 @@ export function P2pTab() {
     .slice(0, 3)
     .map((m) => m.c), [shown, cur, maker]);
 
+  const board = useMemo(() => premiumBoard(markets, obs.side), [markets, obs.side]);
+  const onBoard = useCallback((c: string, v: Venue) => {
+    setObs({ cur: c, venue: [v] });
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    requestAnimationFrame(() => document.getElementById("p2p-markets")?.scrollIntoView?.({ behavior: reduce ? "auto" : "smooth", block: "start" }));
+  }, [setObs]);
+
   const onChange = useCallback((patch: MarketPatch) => setObs(patch), [setObs]);
   const retry = useCallback(() => { for (const s of sources) s.refresh(); }, [sources]);
 
@@ -128,7 +138,7 @@ export function P2pTab() {
             title={t("observatory.p2p.premiums.title", { defaultValue: "Premiums by currency" })}
             lead={t("observatory.p2p.premiums.lead", { defaultValue: "Median premium over the index in each market and venue. Pick a cell to open that market." })}
           >
-            <BlockSkeleton />
+            {loading ? <BlockSkeleton /> : <PremiumBoard rows={board} side={obs.side} onSelect={onBoard} />}
           </Section>
 
           <Section
@@ -136,7 +146,7 @@ export function P2pTab() {
             title={t("observatory.p2p.venues.title", { defaultValue: "Venues and coordinators" })}
             lead={t("observatory.p2p.venues.lead", { defaultValue: "Who runs the order books, whether they answer, and what they charge." })}
           >
-            <BlockSkeleton />
+            {loading ? <BlockSkeleton /> : <VenueSection hosts={hosts} isUmbrel={isUmbrel} highlight={obs.coordinator} />}
           </Section>
 
           <Section
