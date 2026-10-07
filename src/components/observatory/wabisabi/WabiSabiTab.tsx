@@ -17,6 +17,7 @@ import { TableView } from "./TableView";
 import { SkyMap, skyCardClass, useMedia, useReducedMotion, useSkyClock } from "./SkyMap";
 import { Timeline } from "./Timeline";
 import { Ticker } from "./Ticker";
+import { LiveBoard } from "./LiveBoard";
 
 const FADE = "motion-safe:animate-[obs-fade_250ms_ease-out]";
 const BONE = "rounded bg-surface-2 motion-safe:animate-pulse";
@@ -314,6 +315,12 @@ export function WabiSabiTab() {
     </div>
   );
 
+  const openCoordinator = useCallback((key: string) => {
+    setObs({ coordinator: key });
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    requestAnimationFrame(() => document.getElementById("obs-coordinator")?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" }));
+  }, [setObs]);
+
   const coordinators = scene ? [...scene.stars].sort((a, b) => b.volume - a.volume || a.name.localeCompare(b.name)) : null;
   // Until the coordinators load the key may be valid; afterwards an unknown key is dropped quietly.
   const dataLoaded = !!scene && !!status.data;
@@ -369,7 +376,7 @@ export function WabiSabiTab() {
         title={t("observatory.wabisabi.live.title", { defaultValue: "Live rounds" })}
         lead={t("observatory.wabisabi.live.lead", { defaultValue: "Rounds open right now on each coordinator, with their phase and inputs." })}
       >
-        <LiveSkeleton />
+        <LiveBoard status={status} onOpenCoordinator={openCoordinator} skeleton={<LiveSkeleton />} />
       </Section>
 
       <Section
