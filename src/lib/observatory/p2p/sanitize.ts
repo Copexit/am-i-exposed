@@ -35,9 +35,22 @@ export function sanitizeMethods(raw: string[], max = 4, maxChars = 32): string[]
   return out;
 }
 
+const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: "\"", apos: "'", nbsp: " " };
+
+function decodeEntities(s: string): string {
+  return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e: string) => {
+    if (e[0] === "#") {
+      const n = e[1] === "x" || e[1] === "X" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+      return n > 31 && n < 0x110000 && !(n >= 0xd800 && n < 0xe000) ? String.fromCodePoint(n) : " ";
+    }
+    return ENTITIES[e.toLowerCase()] ?? " ";
+  });
+}
+
 /** Default 140 chars; empty -> null. */
 export function sanitizeNotice(s: string, max = 140): string | null {
   if (typeof s !== "string") return null;
   // Coordinators write notices in HTML: keep the text only.
-  return clean(s.replace(/<[^>]*>/g, " ").replace(/&[a-z]+;|&#\d+;/gi, " "), max) || null;
+  // Entities decode to text only: the result is rendered as a React text node, never as HTML.
+  return clean(decodeEntities(s.replace(/<[^>]*>/g, " ")), max) || null;
 }

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, waitFor, cleanup } from "@testing-library/react";
+import { act, renderHook, waitFor, cleanup } from "@testing-library/react";
 import {
   NOW, robosatsOrders, mostroOrders, mostroInfo, templeInfo, lakeInfo, templeLimits, hodl0, hodl500,
 } from "@/lib/observatory/p2p/__tests__/fixtures";
@@ -83,5 +83,35 @@ describe("useP2p", () => {
     await waitFor(() => expect(result.current.offers.length).toBeGreaterThan(100));
     expect(result.current.index).toBeNull();
     expect(result.current.offers.some((o) => o.venue === "robosats" && o.premium !== null)).toBe(true);
+  });
+});
+
+describe("useP2p outages", () => {
+  it("a failed snapshot (every relay timed out) keeps the last good book", async () => {
+    let fail = false;
+    serve();
+    const base = globalThis.fetch as unknown as (u: string) => Promise<unknown>;
+    vi.stubGlobal("fetch", vi.fn(async (u: string) => (fail && u.includes("/svc/robosats-nostr/orders") ? { ok: false, status: 502, json: async () => ({}) } : base(u))));
+    const { result } = renderHook(() => useP2p());
+    await waitFor(() => expect(result.current.offers.some((o) => o.venue === "robosats")).toBe(true));
+    const before = result.current.offers.filter((o) => o.venue === "robosats").length;
+    fail = true;
+    act(() => result.current.sources.find((s) => s.id === "robosats")!.refresh());
+    await waitFor(() => expect((globalThis.fetch as unknown as { mock: { calls: string[][] } }).mock.calls.filter((c) => c[0]!.includes("robosats-nostr")).length).toBeGreaterThan(1));
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    expect(result.current.offers.filter((o) => o.venue === "robosats")).toHaveLength(before);
+  });
+
+  it("HodlHodl offers leave the book once the source is stale", async () => {
+    vi.useRealTimers();
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"], shouldAdvanceTime: true, now: NOW * 1000 });
+    serve();
+    const { result } = renderHook(() => useP2p());
+    await waitFor(() => expect(result.current.offers.some((o) => o.venue === "hodlhodl")).toBe(true));
+    serve({ hodlhodl: "fail" });
+    vi.setSystemTime(NOW * 1000 + 4 * 60_000);
+    await act(async () => { await vi.advanceTimersByTimeAsync(61_000); });
+    await waitFor(() => expect(result.current.sources.find((s) => s.id === "hodlhodl")!.state).toBe("stale"));
+    expect(result.current.offers.some((o) => o.venue === "hodlhodl")).toBe(false);
   });
 });

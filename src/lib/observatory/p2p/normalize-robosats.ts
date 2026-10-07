@@ -1,6 +1,6 @@
 import { SERVICES } from "@/lib/services/registry";
 import { tag } from "./nostr-verify";
-import { fiatRange, num, pricing, toLayer } from "./normalize-common";
+import { currencyCode, fiatRange, num, pricing, toLayer } from "./normalize-common";
 import { sanitizeMethods, sanitizeNotice } from "./sanitize";
 import type { DailyVolume, IndexPrices, NostrEvent, P2pOffer, RoboHistorical, RoboInfo, RoboLimits, VenueHost } from "./types";
 
@@ -25,11 +25,10 @@ export function robosatsOffers(events: NostrEvent[], index: IndexPrices | null, 
     const side = tag(e, "k")?.[0];
     const d = tag(e, "d")?.[0];
     if ((side !== "buy" && side !== "sell") || !d) continue;
-    const currency = (tag(e, "f")?.[0] ?? "").toUpperCase();
+    const currency = currencyCode(tag(e, "f")?.[0]);
     if (!currency) continue;
     const { fiatMin, fiatMax } = fiatRange(tag(e, "fa"));
-    const premium = num(tag(e, "premium")?.[0]);
-    const { price, satsMax } = pricing(currency, premium, fiatMax, num(tag(e, "amt")?.[0]), index);
+    const { price, premium, satsMax } = pricing(currency, num(tag(e, "premium")?.[0]), fiatMin, fiatMax, num(tag(e, "amt")?.[0]), index);
     const source = tag(e, "source")?.[0] ?? "";
     out.push({
       id: `robosats:${coord.key}:${d}`,

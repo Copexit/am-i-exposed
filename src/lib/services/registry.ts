@@ -33,7 +33,14 @@ export interface ServiceDef {
   relays?: string[];
   onionRelays?: string[];
   /** UI metadata for the Observatory P2P tab; nothing else reads it. */
-  p2p?: { venue: "robosats" | "mostro" | "hodlhodl"; key: string; pubkey?: string };
+  p2p?: {
+    venue: "robosats" | "mostro" | "hodlhodl";
+    key: string;
+    pubkey?: string;
+    /** Mostro: listed instance pubkeys (anyone can publish y=mostro events; unlisted ones are shown but kept out of stats). */
+    instances?: { pubkey: string; name: string }[];
+    instancesSource?: string;
+  };
   routes: ServiceRoute[];
 }
 

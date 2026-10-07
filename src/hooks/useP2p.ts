@@ -81,13 +81,20 @@ export function useP2p(): P2pData {
   return useMemo(() => {
     const nowSec = Math.floor(now / 1000);
     const index = limits.data;
-    const live = (o: P2pOffer) => o.expiresAt === null || o.expiresAt > nowSec;
+    // Expiry is judged on the snapshot's clock (fetchedAt), advanced only by the time elapsed since it
+    // arrived, so a wrong device clock never empties or overfills the book (spec ruling 20).
+    const liveAt = (p: Polled<Verified>) => {
+      const ref = (p.data?.fetchedAt ?? 0) + Math.max(0, Math.floor((now - (p.updatedAt ?? now)) / 1000));
+      return (o: P2pOffer) => o.expiresAt === null || o.expiresAt > ref;
+    };
 
-    const rs = rsOrders.data ? robosatsOffers(rsOrders.data.events, index, rsOrders.data.fetchedAt).filter(live) : [];
+    const rs = rsOrders.data ? robosatsOffers(rsOrders.data.events, index, rsOrders.data.fetchedAt).filter(liveAt(rsOrders)) : [];
     const mo = moOrders.data && moInfo.data
-      ? mostroOffers(moOrders.data.events, moInfo.data.events, index, moOrders.data.fetchedAt).filter(live)
+      ? mostroOffers(moOrders.data.events, moInfo.data.events, index, moOrders.data.fetchedAt).filter(liveAt(moOrders))
       : [];
-    const hh = hodl.data ? hodlhodlOffers(hodl.data.pages as HodlPage[], index, hodl.data.at) : [];
+    // HodlHodl offers carry no expiry: once the source is stale they leave the book.
+    const hodlStale = baseState(hodl, P2P_REFRESH_MS.hodlhodl, now) === "stale";
+    const hh = hodl.data && !hodlStale ? hodlhodlOffers(hodl.data.pages as HodlPage[], index, hodl.data.at) : [];
     const offers = [...rs, ...mo, ...hh];
 
     const reachable = new Set(reachableRobosats(isUmbrel));

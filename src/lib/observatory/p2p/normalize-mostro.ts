@@ -1,10 +1,18 @@
+import { getService } from "@/lib/services/registry";
 import { latestReplaceable, tag } from "./nostr-verify";
-import { fiatRange, num, pricing, toLayer } from "./normalize-common";
+import { currencyCode, fiatRange, num, pricing, toLayer } from "./normalize-common";
 import { indexFor } from "./market";
 import { sanitizeMethods, sanitizeNotice } from "./sanitize";
 import type { DailyVolume, IndexPrices, NostrEvent, P2pOffer, VenueHost } from "./types";
 
 const DAY = 86_400;
+/** Instances whose latest info is older than this are dead and not listed. */
+const DEAD_AFTER = 30 * DAY;
+
+/** Listed Mostro instance pubkeys (registry `mostro-nostr.p2p.instances`). */
+export const MOSTRO_INSTANCES: ReadonlySet<string> = new Set(
+  (getService("mostro-nostr")?.p2p?.instances ?? []).map((i) => i.pubkey),
+);
 const ACTIVE_WINDOW = 48 * 3600;
 
 function liveOrders(orders: NostrEvent[], info: NostrEvent[], nowSec: number): NostrEvent[] {
@@ -24,11 +32,10 @@ export function mostroOffers(orders: NostrEvent[], info: NostrEvent[], index: In
   for (const e of liveOrders(orders, info, nowSec)) {
     const side = tag(e, "k")?.[0];
     const d = tag(e, "d")?.[0];
-    const currency = (tag(e, "f")?.[0] ?? "").toUpperCase();
+    const currency = currencyCode(tag(e, "f")?.[0]);
     if ((side !== "buy" && side !== "sell") || !d || !currency) continue;
     const { fiatMin, fiatMax } = fiatRange(tag(e, "fa"));
-    const premium = num(tag(e, "premium")?.[0]);
-    const { price, satsMax } = pricing(currency, premium, fiatMax, num(tag(e, "amt")?.[0]), index);
+    const { price, premium, satsMax } = pricing(currency, num(tag(e, "premium")?.[0]), fiatMin, fiatMax, num(tag(e, "amt")?.[0]), index);
     out.push({
       id: `mostro:${e.pubkey}:${d}`,
       venue: "mostro",
@@ -46,6 +53,7 @@ export function mostroOffers(orders: NostrEvent[], info: NostrEvent[], index: In
       createdAt: num(tag(e, "published_at")?.[0]) ?? e.created_at,
       expiresAt: num(tag(e, "expires_at")?.[0]),
       link: null,
+      ...(MOSTRO_INSTANCES.has(e.pubkey) ? {} : { unlisted: true }),
     });
   }
   return out;
@@ -54,9 +62,9 @@ export function mostroOffers(orders: NostrEvent[], info: NostrEvent[], index: In
 export function mostroHosts(orders: NostrEvent[], info: NostrEvent[], nowSec: number): VenueHost[] {
   const latestInfo = new Map<string, NostrEvent>();
   for (const e of info) {
-    // Instances on regtest or testnet are not markets.
+    // Instances on regtest or testnet are not markets; silent ones are dead.
     const net = tag(e, "lnd_networks")?.[0];
-    if (net && net !== "mainnet") continue;
+    if ((net && net !== "mainnet") || nowSec - e.created_at > DEAD_AFTER) continue;
     const cur = latestInfo.get(e.pubkey);
     if (!cur || e.created_at > cur.created_at) latestInfo.set(e.pubkey, e);
   }
@@ -90,21 +98,22 @@ export function mostroHosts(orders: NostrEvent[], info: NostrEvent[], nowSec: nu
       notice: null,
       lastSeen: i.created_at,
       currencies,
+      ...(MOSTRO_INSTANCES.has(i.pubkey) ? {} : { unlisted: true }),
     } satisfies VenueHost;
   });
 }
 
 const utcDay = (sec: number) => new Date(sec * 1000).toISOString().slice(0, 10);
 
-/** Completed trades per UTC day, last `days` days ending today, zero-filled. */
-export function mostroDaily(trades: NostrEvent[], index: IndexPrices | null, nowSec: number, days = 7): DailyVolume[] {
+/** Completed trades of listed instances per UTC day, last `days` days ending today, zero-filled. */
+export function mostroDaily(trades: NostrEvent[], index: IndexPrices | null, nowSec: number, days = 7, authors: ReadonlySet<string> = MOSTRO_INSTANCES): DailyVolume[] {
   const bins = new Map<string, DailyVolume>();
   for (let i = days - 1; i >= 0; i--) {
     const date = utcDay(nowSec - i * DAY);
     bins.set(date, { date, btc: 0, trades: 0 });
   }
   for (const e of latestReplaceable(trades)) {
-    if (tag(e, "y")?.[0] !== "mostro" || tag(e, "s")?.[0] !== "success" || tag(e, "network")?.[0] !== "mainnet") continue;
+    if (!authors.has(e.pubkey) || tag(e, "y")?.[0] !== "mostro" || tag(e, "s")?.[0] !== "success" || tag(e, "network")?.[0] !== "mainnet") continue;
     const bin = bins.get(utcDay(e.created_at));
     if (!bin) continue;
     bin.trades += 1;

@@ -79,10 +79,13 @@ describe("markets", () => {
   it("headline counts hosts up over total and liquidity across markets", () => {
     const hosts = [robosatsHost("temple", templeInfo, 1, true), robosatsHost("bazaar", null, 1, false), ...mostroHosts(mostroOrders.events, mostroInfo.events, NOW), hodlhodlHost(hodl, true)];
     const h = headline(markets, hosts, "EUR");
-    expect(h.hostsOnline).toBe(hosts.filter((x) => x.status === "up").length);
-    expect(h.hostsTotal).toBe(hosts.length);
+    const eligible = hosts.filter((x) => x.status !== "unknown" && !x.unlisted);
+    expect(h.hostsOnline).toBe(eligible.filter((x) => x.status === "up").length);
+    expect(h.hostsTotal).toBe(eligible.length);
+    expect(h.hostsTotal).toBeLessThan(hosts.length);
+    expect(h.liquiditySats).toBe([...markets.values()].reduce((s, m) => s + m.liquiditySats.buy, 0));
     expect(h.venuesOnline).toBe(3);
-    expect(h.liquiditySats).toBeGreaterThan(1e8);
+    expect(h.liquiditySats).toBeGreaterThan(1e7);
     expect(h.cheapestBuy).toEqual({ currency: "EUR", premium: markets.get("EUR")!.bestBuy!.premium });
     expect(headline(new Map(), [], null).cheapestBuy).toBeNull();
   });
@@ -95,5 +98,22 @@ describe("markets", () => {
     const c = depthClip(pts);
     expect(c.above).toBe(1);
     expect(c.points.some((p) => p.premium === 500)).toBe(false);
+  });
+});
+
+describe("unlisted Mostro instances", () => {
+  it("stay in the list but never shape the best offer, medians, depth, board or headline", () => {
+    const usd = markets.get("USD")!;
+    const fake: P2pOffer = { ...usd.offers.find((o) => o.side === "sell")!, id: "mostro:x:1", venue: "mostro", host: "ab".repeat(32), premium: -50, satsMax: 1e9, unlisted: true };
+    const m2 = buildMarkets([...offers, fake], index);
+    const u = m2.get("USD")!;
+    expect(u.offers).toContain(fake);
+    expect(u.bestBuy!.premium).toBe(usd.bestBuy!.premium);
+    expect(u.medianPremium).toEqual(usd.medianPremium);
+    expect(u.depth.sell.some((p) => p.offer === fake)).toBe(false);
+    expect(u.liquiditySats).toEqual(usd.liquiditySats);
+    const row = premiumBoard(m2, "buy").find((r) => r.currency === "USD")!;
+    expect(row.cells.mostro.offers).toBe(premiumBoard(markets, "buy").find((r) => r.currency === "USD")!.cells.mostro.offers);
+    expect(headline(m2, [], "USD").cheapestBuy).toEqual(headline(markets, [], "USD").cheapestBuy);
   });
 });

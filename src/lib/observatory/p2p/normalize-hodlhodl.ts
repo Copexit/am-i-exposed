@@ -1,5 +1,5 @@
 import { computePremium, indexFor } from "./market";
-import { num } from "./normalize-common";
+import { currencyCode, num } from "./normalize-common";
 import { sanitizeMethods } from "./sanitize";
 import type { HodlPage, IndexPrices, P2pOffer, VenueHost } from "./types";
 
@@ -10,7 +10,8 @@ export function hodlhodlOffers(pages: HodlPage[], index: IndexPrices | null, now
     for (const o of page.offers ?? []) {
       if (o.asset_layer !== "BTC" || o.working_now === false || out.has(o.id)) continue;
       if (o.side !== "buy" && o.side !== "sell") continue;
-      const currency = String(o.currency_code ?? "").toUpperCase();
+      const currency = currencyCode(String(o.currency_code ?? ""));
+      if (!currency) continue;
       const price = num(o.price);
       const idx = indexFor(currency, index);
       const dev = num(o.exchange_price_deviation);

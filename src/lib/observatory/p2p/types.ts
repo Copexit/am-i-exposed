@@ -29,6 +29,8 @@ export interface P2pOffer {
   createdAt: number;
   expiresAt: number | null;
   link: string | null;
+  /** Mostro: the instance is not in the registry allowlist; shown, but kept out of stats. */
+  unlisted?: boolean;
 }
 
 export interface VenueHost {
@@ -52,6 +54,8 @@ export interface VenueHost {
   /** RoboSats notice_severity is warning or above: shown in amber. */
   noticeWarn?: boolean;
   lastSeen: number | null;
+  /** Mostro: not in the registry allowlist */
+  unlisted?: boolean;
   /** Mostro: fiat currencies the instance accepts (empty = any) */
   currencies?: string[];
 }

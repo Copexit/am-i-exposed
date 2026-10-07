@@ -23,6 +23,7 @@ function median(xs: number[]): number | null {
   return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2;
 }
 
+const listed = (o: P2pOffer) => !o.unlisted;
 const premiums = (offers: P2pOffer[]) => offers.flatMap((o) => (o.premium === null ? [] : [o.premium]));
 const sumSats = (offers: P2pOffer[]) => offers.reduce((s, o) => s + (o.satsMax ?? 0), 0);
 /** Nulls last. */
@@ -46,19 +47,22 @@ export function buildMarkets(offers: P2pOffer[], index: IndexPrices | null): Map
   for (const [currency, list] of groups) {
     const sells = list.filter((o) => o.side === "sell").sort(byPremium(1));
     const buys = list.filter((o) => o.side === "buy").sort(byPremium(-1));
+    // Unlisted Mostro instances stay in the list but never shape a statistic.
+    const lSells = sells.filter(listed);
+    const lBuys = buys.filter(listed);
     const byVenue = Object.fromEntries(VENUE_LIST.map((v) => {
-      const vs = list.filter((o) => o.venue === v);
+      const vs = list.filter((o) => o.venue === v && listed(o));
       return [v, { offers: vs.length, liquiditySats: sumSats(vs), medianPremium: median(premiums(vs)) }];
     })) as Market["byVenue"];
     out.set(currency, {
       currency,
       index: indexFor(currency, index),
       offers: [...sells, ...buys],
-      bestBuy: sells.find((o) => o.premium !== null) ?? null,
-      bestSell: buys.find((o) => o.premium !== null) ?? null,
-      medianPremium: { buy: median(premiums(sells)), sell: median(premiums(buys)) },
-      liquiditySats: { buy: sumSats(sells), sell: sumSats(buys) },
-      depth: { sell: depth(sells), buy: depth(buys) },
+      bestBuy: lSells.find((o) => o.premium !== null) ?? null,
+      bestSell: lBuys.find((o) => o.premium !== null) ?? null,
+      medianPremium: { buy: median(premiums(lSells)), sell: median(premiums(lBuys)) },
+      liquiditySats: { buy: sumSats(lSells), sell: sumSats(lBuys) },
+      depth: { sell: depth(lSells), buy: depth(lBuys) },
       byVenue,
     });
   }
@@ -92,7 +96,7 @@ export function premiumBoard(markets: Map<string, Market>, side: "buy" | "sell",
   const maker = makerSide(side);
   return [...markets.values()]
     .filter((m) => m.index !== null)
-    .map((m) => ({ m, list: m.offers.filter((o) => o.side === maker) }))
+    .map((m) => ({ m, list: m.offers.filter((o) => o.side === maker && listed(o)) }))
     .filter((r) => r.list.length > 0)
     .sort((a, b) => b.list.length - a.list.length || a.m.currency.localeCompare(b.m.currency))
     .slice(0, top)
@@ -106,11 +110,13 @@ export function premiumBoard(markets: Map<string, Market>, side: "buy" | "sell",
 }
 
 export interface Headline {
+  /** BTC actually for sale: the sum of maker sell offers' maximums (an upper bound). */
   liquiditySats: number;
   /** Keyed by visitor intent: buy = sats in maker sell offers. */
   liquidity: { buy: number; sell: number };
   offers: { buy: number; sell: number };
   venuesOnline: number;
+  /** Hosts up, over hosts that can be up from this deployment (no Tor-only, unlisted or dead ones). */
   hostsOnline: number;
   hostsTotal: number;
   cheapestBuy: { currency: string; premium: number } | null;
@@ -121,21 +127,22 @@ export interface Headline {
 
 export function headline(markets: Map<string, Market>, hosts: VenueHost[], currency: string | null): Headline {
   const all = [...markets.values()];
-  const venues = new Set(all.flatMap((m) => m.offers.map((o) => o.venue)));
+  const venues = new Set(all.flatMap((m) => m.offers.filter(listed).map((o) => o.venue)));
   const m = currency ? markets.get(currency) : undefined;
+  const eligible = hosts.filter((h) => h.status !== "unknown" && !h.unlisted);
   return {
-    liquiditySats: all.reduce((s, x) => s + x.liquiditySats.buy + x.liquiditySats.sell, 0),
+    liquiditySats: all.reduce((s, x) => s + x.liquiditySats.buy, 0),
     liquidity: {
       buy: all.reduce((s, x) => s + x.liquiditySats.buy, 0),
       sell: all.reduce((s, x) => s + x.liquiditySats.sell, 0),
     },
     offers: {
-      buy: all.reduce((s, x) => s + x.offers.filter((o) => o.side === "sell").length, 0),
-      sell: all.reduce((s, x) => s + x.offers.filter((o) => o.side === "buy").length, 0),
+      buy: all.reduce((s, x) => s + x.offers.filter((o) => o.side === "sell" && listed(o)).length, 0),
+      sell: all.reduce((s, x) => s + x.offers.filter((o) => o.side === "buy" && listed(o)).length, 0),
     },
     venuesOnline: venues.size,
-    hostsOnline: hosts.filter((h) => h.status === "up").length,
-    hostsTotal: hosts.length,
+    hostsOnline: eligible.filter((h) => h.status === "up").length,
+    hostsTotal: eligible.length,
     cheapestBuy: m?.bestBuy?.premium != null ? { currency: m.currency, premium: m.bestBuy.premium } : null,
     cheapestSell: m?.bestSell?.premium != null ? { currency: m.currency, premium: m.bestSell.premium } : null,
     medianBuy: m?.medianPremium.buy ?? null,

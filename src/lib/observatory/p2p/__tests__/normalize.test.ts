@@ -80,7 +80,7 @@ describe("Mostro", () => {
 
   it("instance status: live orders give up, stale info with no orders gives down", () => {
     const hosts = mostroHosts(mostroOrders.events, mostroInfo.events, NOW);
-    const mainnet = mostroInfo.events.filter((e) => (tag(e, "lnd_networks")?.[0] ?? "mainnet") === "mainnet");
+    const mainnet = mostroInfo.events.filter((e) => (tag(e, "lnd_networks")?.[0] ?? "mainnet") === "mainnet" && NOW - e.created_at <= 30 * 86400);
     expect(hosts.length).toBe(new Set(mainnet.map((e) => e.pubkey)).size);
     expect(hosts.length).toBeLessThan(new Set(mostroInfo.events.map((e) => e.pubkey)).size);
     const withOrders = hosts.filter((h) => h.inBook > 0);
@@ -140,5 +140,51 @@ describe("HodlHodl", () => {
     expect(h.inBook).toBe(offers.length);
     expect(h.makerFeePct).toBeGreaterThan(0);
     expect(hodlhodlHost([], false).status).toBe("down");
+  });
+});
+
+describe("review fixes", () => {
+  const brl = index.prices.BRL!;
+  const ordersBy = (pred: (e: (typeof mostroOrders.events)[number]) => boolean) => mostroOrders.events.filter(pred);
+  const isBrlFixed = (amt: string, side: string) => (e: (typeof mostroOrders.events)[number]) =>
+    tag(e, "f")?.[0] === "BRL" && tag(e, "amt")?.[0] === amt && tag(e, "k")?.[0] === side;
+
+  it("fixed-price orders (sats for a fixed fiat amount) get a premium computed against the index", () => {
+    const offers = mostroOffers(mostroOrders.events, mostroInfo.events, index, NOW);
+    const sell = ordersBy(isBrlFixed("122", "sell"))[0]!;
+    const buy = ordersBy(isBrlFixed("566872", "buy"))[0]!;
+    const o1 = offers.find((o) => o.id.endsWith(tag(sell, "d")![0]!))!;
+    const o2 = offers.find((o) => o.id.endsWith(tag(buy, "d")![0]!))!;
+    expect(o1.premium).toBeCloseTo(((1 / 122) * 1e8 / brl - 1) * 100, 6);
+    expect(o1.premium!).toBeGreaterThan(90);
+    expect(o2.premium).toBeCloseTo(((500 / 566872) * 1e8 / brl - 1) * 100, 6);
+    expect(o2.premium!).toBeLessThan(-75);
+    expect(o1.satsMax).toBe(122);
+    // RoboSats follows the same rule.
+    const e = structuredClone(robosatsOrders.events.find((x) => tag(x, "f")?.[0] === "USD")!);
+    e.tags = e.tags.map((t) => (t[0] === "amt" ? ["amt", "100000"] : t[0] === "fa" ? ["fa", "100"] : t[0] === "premium" ? ["premium", "0"] : t));
+    const [r] = robosatsOffers([e], index, NOW);
+    expect(r!.premium).toBeCloseTo((100 / 0.001 / index.prices.USD! - 1) * 100, 6);
+  });
+
+  it("spoofed currency codes are dropped", () => {
+    const e = structuredClone(mostroOrders.events[0]!);
+    e.tags = e.tags.map((t) => (t[0] === "f" ? ["f", "<b>x</b>"] : t));
+    expect(mostroOffers([e], mostroInfo.events, index, NOW)).toEqual([]);
+  });
+
+  it("an instance outside the allowlist is marked unlisted; its trades never count; dead info is dropped", () => {
+    const fake = "ab".repeat(32);
+    const order = { ...structuredClone(ordersBy((e) => tag(e, "network")?.[0] === "mainnet" && Number(tag(e, "expires_at")?.[0]) > NOW)[0]!), pubkey: fake };
+    const info = { ...structuredClone(mostroInfo.events[0]!), pubkey: fake, created_at: NOW - 60 };
+    const offers = mostroOffers([order], [info], index, NOW);
+    expect(offers).toHaveLength(1);
+    expect(offers[0]!.unlisted).toBe(true);
+    expect(mostroHosts([order], [info], NOW)[0]!.unlisted).toBe(true);
+    expect(mostroOffers(mostroOrders.events, mostroInfo.events, index, NOW).some((o) => o.unlisted)).toBe(false);
+    const trade = { ...structuredClone(mostroTrades.events.find((t) => tag(t, "network")?.[0] === "mainnet" && t.created_at > NOW - 86400)!), pubkey: fake };
+    expect(mostroDaily([trade], index, NOW).reduce((s, d) => s + d.trades, 0)).toBe(0);
+    const dead = { ...info, pubkey: "cd".repeat(32), created_at: NOW - 40 * 86400 };
+    expect(mostroHosts([], [dead], NOW)).toEqual([]);
   });
 });
