@@ -171,6 +171,7 @@ export function createMcpServer(): McpServer {
         totalBalance: result.totalBalance,
         reusedAddresses: result.reusedAddresses,
         dustUtxos: result.dustUtxos,
+        utxoOrigins: result.utxoOrigins,
         failedAddresses: failed,
         findings: result.findings,
       });

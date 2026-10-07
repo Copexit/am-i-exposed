@@ -128,6 +128,25 @@ describe("formatAddressResult", () => {
 });
 
 describe("formatWalletResult", () => {
+  it("lists coin origins when there are UTXOs", () => {
+    const origins = utxoOrigins(buildWalletGraph([]), []);
+    origins.mixed = { count: 3, sats: 3_000_000 };
+    origins["coinjoin-change"] = { count: 1, sats: 995_000 };
+    const result: WalletAuditResult = {
+      score: 52, grade: "C", findings: [], activeAddresses: 5, totalTxs: 9, totalUtxos: 4,
+      totalBalance: 3_995_000, reusedAddresses: 0, dustUtxos: 0, utxoOrigins: origins,
+    };
+    expect(formatWalletResult("zpub6abc...", result, "mainnet")).toContain("3 mixed, 1 CoinJoin change");
+  });
+
+  it("omits coin origins without UTXOs", () => {
+    const result: WalletAuditResult = {
+      score: 70, grade: "C", findings: [], activeAddresses: 0, totalTxs: 0, totalUtxos: 0,
+      totalBalance: 0, reusedAddresses: 0, dustUtxos: 0, utxoOrigins: utxoOrigins(buildWalletGraph([]), []),
+    };
+    expect(formatWalletResult("zpub6abc...", result, "mainnet")).not.toContain("Coin origins");
+  });
+
   it("includes wallet stats", () => {
     const result: WalletAuditResult = {
       score: 65,

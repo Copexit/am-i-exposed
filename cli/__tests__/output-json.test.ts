@@ -132,6 +132,7 @@ describe("walletJson", () => {
     expect(parsed.walletInfo.activeAddresses).toBe(15);
     expect(parsed.walletInfo.reusedAddresses).toBe(2);
     expect(parsed.walletInfo.totalBalance).toBe(500000);
+    expect(parsed.walletInfo.utxoOrigins.received).toEqual({ count: 0, sats: 0 });
     expect(parsed.failedAddresses).toEqual([]);
   });
 
