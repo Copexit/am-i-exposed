@@ -73,6 +73,49 @@ describe("/svc route", () => {
     expect(bad.headers.get("Cache-Control")).toBe("no-store");
   });
 
+  it("hodlhodl: forwards validated offset plus fixed limit", async () => {
+    const f = vi.spyOn(globalThis, "fetch").mockResolvedValue(ok({ status: "success", offers: [] }));
+    const res = await handler.fetch(new Request("https://w.dev/svc/hodlhodl/api/v1/offers?pagination%5Boffset%5D=230&pagination%5Blimit%5D=9999&x=1"), env, ctx);
+    expect(res.status).toBe(200);
+    const u = new URL(f.mock.calls[0][0]);
+    expect(u.origin + u.pathname).toBe("https://hodlhodl.com/api/v1/offers");
+    expect(u.searchParams.get("pagination[offset]")).toBe("200");
+    expect(u.searchParams.get("pagination[limit]")).toBe("100");
+    expect(u.searchParams.has("x")).toBe(false);
+  });
+
+  it("onion-only service answers 404 ONION_ONLY without fetching", async () => {
+    const f = vi.spyOn(globalThis, "fetch");
+    const res = await handler.fetch(new Request("https://w.dev/svc/robosats-bazaar/api/info/"), env, ctx);
+    expect(res.status).toBe(404);
+    expect((await res.json()).error.code).toBe("ONION_ONLY");
+    expect(f).not.toHaveBeenCalled();
+  });
+
+  it("robosats clearnet info is edge-cached with its ttl", async () => {
+    const f = vi.spyOn(globalThis, "fetch").mockResolvedValue(ok({ version: { major: 0 } }));
+    await handler.fetch(new Request("https://w.dev/svc/robosats-temple/api/info/"), env, ctx);
+    const res = await handler.fetch(new Request("https://w.dev/svc/robosats-temple/api/info/"), env, ctx);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=60");
+    expect(f).toHaveBeenCalledTimes(1);
+    expect(f.mock.calls[0][0]).toBe("https://unsafe.templeofsats.org/api/info/");
+  });
+
+  it("a nostr route declared as POST or lookup is MISCONFIGURED", async () => {
+    const f = vi.spyOn(globalThis, "fetch");
+    const filter = { kinds: [1], limit: 1 };
+    const svc = createSvc({ services: [
+      { id: "n", relays: ["wss://r"], routes: [{ path: "/o", http: "GET", class: "lookup", nostr: { filter } }] },
+      { id: "p", relays: ["wss://r"], routes: [{ path: "/o", http: "POST", class: "aggregate", nostr: { filter } }] },
+    ] });
+    const res = await svc(new Request("https://w.dev/svc/n/o"), new URL("https://w.dev/svc/n/o"), ctx, {});
+    expect(res.status).toBe(500);
+    const post2 = await svc(new Request("https://w.dev/svc/p/o", { method: "POST", body: "{}" }), new URL("https://w.dev/svc/p/o"), ctx, {});
+    expect(post2.status).toBe(500);
+    expect(f).not.toHaveBeenCalled();
+  });
+
   it("legacy routes still answer", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(ok({ pools: [] }));
     expect((await handler.fetch(new Request("https://w.dev/whirlpool/summary"), env, ctx)).status).toBe(200);
