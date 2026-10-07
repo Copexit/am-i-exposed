@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   downsampleSeries,
+  lastCycleBlocks,
   toCycleRows,
   whirlpool30dDelta,
   whirlpoolLifetimeCycles,
@@ -114,5 +115,15 @@ describe("toCycleRows", () => {
 
   it("returns [] for a null page", () => {
     expect(toCycleRows(null)).toEqual([]);
+  });
+});
+
+describe("lastCycleBlocks", () => {
+  it("returns the highest block per pool", () => {
+    expect(lastCycleBlocks(txs)["0.025_BTC_Pool"]).toBe(957584);
+    expect(Object.keys(lastCycleBlocks(txs)).sort()).toEqual(["0.025_BTC_Pool", "0.25_BTC_Pool"]);
+  });
+  it("returns {} for null", () => {
+    expect(lastCycleBlocks(null)).toEqual({});
   });
 });

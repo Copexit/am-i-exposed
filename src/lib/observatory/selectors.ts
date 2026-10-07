@@ -130,3 +130,14 @@ export function toCycleRows(page: WhirlpoolTxsPage | null): CycleRow[] {
     scanHref: `/#tx=${tx.txid}`,
   }));
 }
+
+/** Highest block height of each pool's cycles in a txs page (pool id -> block). */
+export function lastCycleBlocks(page: WhirlpoolTxsPage | null): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const tx of page?.items ?? []) {
+    if (!(tx.pool_name in out) || tx.block_height > out[tx.pool_name]!) {
+      out[tx.pool_name] = tx.block_height;
+    }
+  }
+  return out;
+}

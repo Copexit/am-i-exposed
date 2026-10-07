@@ -19,6 +19,7 @@ import { SyncPill } from "@/components/observatory/SyncPill";
 import { SkeletonCards } from "@/components/observatory/SkeletonCards";
 import { WabiSabiTab } from "@/components/observatory/wabisabi/WabiSabiTab";
 import {
+  lastCycleBlocks,
   whirlpoolLifetimeCycles,
   whirlpoolLifetimeEntered,
   whirlpoolSparkline,
@@ -132,6 +133,7 @@ function WhirlpoolTab() {
   const lifetimeEntered = summary ? whirlpoolLifetimeEntered(summary) : null;
   const lifetimeCycles = summary ? whirlpoolLifetimeCycles(summary) : null;
 
+  const lastCjBlocks = lastCycleBlocks(whirlpool?.txs ?? null);
   const whirlpoolUpstreamBlock = summary?.tip_height ?? null;
   const lagBlocks =
     tipHeight != null && whirlpoolUpstreamBlock != null
@@ -179,6 +181,14 @@ function WhirlpoolTab() {
               />
             )}
           </div>
+          {tipHeight != null && (
+            <p className="text-sm text-muted tabular-nums">
+              {t("observatory.whirlpool.currentBlock", {
+                defaultValue: "Current block: {{block}}",
+                block: tipHeight.toLocaleString("en-US"),
+              })}
+            </p>
+          )}
           {summary && lifetimeEntered != null && lifetimeCycles != null && (
             <p className="text-sm text-muted">
               {t("observatory.whirlpool.lifetimeSubtitle", {
@@ -199,6 +209,8 @@ function WhirlpoolTab() {
                 key={pool.pool}
                 pool={pool}
                 charts={whirlpool.charts}
+                lastCjBlock={lastCjBlocks[pool.pool] ?? null}
+                tipHeight={tipHeight}
               />
             ))}
           </div>
