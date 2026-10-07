@@ -48,7 +48,7 @@ export function P2pHeadline({ headline, currency, side, loading }: Props) {
         : rel === "above" ? t("observatory.p2p.headline.bestSellAbove", { defaultValue: "Best to sell in {{currency}}: {{premium}} above the index.", currency: c, premium: pr })
           : rel === "below" ? t("observatory.p2p.headline.bestSellBelow", { defaultValue: "Best to sell in {{currency}}: {{premium}} below the index.", currency: c, premium: pr })
             : t("observatory.p2p.headline.bestSellAt", { defaultValue: "Best to sell in {{currency}}: at the index.", currency: c });
-    sentence = <>{rich(lead, nodes)}{tail && <> {rich(tail, nodes)}</>}</>;
+    sentence = headline.liquiditySats > 0 ? <>{rich(lead, nodes)}{tail && <> {rich(tail, nodes)}</>}</> : tail && rich(tail, nodes);
   } else if (!loading) {
     sentence = t("observatory.p2p.headline.none", { defaultValue: "No KYC-free offers could be loaded right now." });
   }

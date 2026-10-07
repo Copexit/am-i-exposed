@@ -98,6 +98,11 @@ describe("nostr snapshot", () => {
     expect(snap.relays.map((r) => r.status)).toEqual(["error", "error"]);
   });
 
+  it("an informational NOTICE before EOSE keeps the relay healthy", async () => {
+    const snap = await snapshot({ relays: [R1], filter: FILTER, timeoutMs: 1000, openSocket: fakeRelay(() => [["NOTICE", "welcome"], ["EOSE", "s"]]), nowSec: 1 });
+    expect(snap.relays[0].status).toBe("eose");
+  });
+
   it("caps at 3,000 events", async () => {
     const frames = Array.from({ length: 3500 }, (_, i) => ["EVENT", "s", ev(i + 1)]);
     frames.push(["EOSE", "s"]);

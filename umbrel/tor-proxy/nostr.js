@@ -66,9 +66,9 @@ async function snapshot({ relays, filter, timeoutMs = DEFAULT_TIMEOUT_MS, openSo
           let msg;
           try { msg = JSON.parse(typeof data === "string" ? data : String(data)); } catch { return; }
           if (!Array.isArray(msg)) return;
-          // A refusal (CLOSED, or a NOTICE before EOSE: auth, rate limit) is not a healthy answer.
+          // A refusal (CLOSED, or an auth/rate-limit NOTICE before EOSE) is not a healthy answer; other notices are informational.
           if (msg[0] === "CLOSED") return finish("error");
-          if (msg[0] === "NOTICE") { notice = true; return; }
+          if (msg[0] === "NOTICE") { if (/auth|rate|limit|restrict|block|denied/i.test(String(msg[1]))) notice = true; return; }
           if (msg[0] === "EOSE") return finish(notice ? "error" : "eose");
           if (msg[0] !== "EVENT" || msg[1] !== "s" || !validEvent(msg[2], filter.kinds)) return;
           count++;
