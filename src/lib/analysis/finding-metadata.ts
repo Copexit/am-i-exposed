@@ -255,6 +255,8 @@ export const FINDING_METADATA = {
   "wallet-utxo-bloat":            { adversaryTiers: [P],       temporality: "active_risk" },
   "wallet-toxic-change":          { adversaryTiers: [P, K],    temporality: "active_risk" },
   "wallet-consolidation-history": { adversaryTiers: [P, K],    temporality: "historical" },
+  "wallet-postmix-merge":         { adversaryTiers: [P, K, S], temporality: "historical" },
+  "wallet-change-merge":          { adversaryTiers: [P, K],    temporality: "historical" },
 } satisfies Record<string, FindingMeta>;
 
 /**

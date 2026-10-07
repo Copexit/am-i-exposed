@@ -19,5 +19,9 @@ describe("Polish plural forms", () => {
     expect(i18n.t("services.outOf", { count: 1 })).toBe("1 moneta wyszła z zarejestrowanych CoinJoinów");
     expect(i18n.t("services.outOf", { count: 3 })).toBe("3 monety wyszły z zarejestrowanych CoinJoinów");
     expect(i18n.t("services.outOf", { count: 5 })).toBe("5 monet wyszło z zarejestrowanych CoinJoinów");
+    const merge = (count: number) => i18n.t("finding.wallet-change-merge.title", { count });
+    expect(merge(1)).toBe("1 wydatek połączył resztę z innymi monetami");
+    expect(merge(3)).toBe("3 wydatki połączyły resztę z innymi monetami");
+    expect(merge(5)).toBe("5 wydatków połączyło resztę z innymi monetami");
   });
 });
