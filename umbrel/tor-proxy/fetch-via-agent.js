@@ -7,6 +7,11 @@ function createFetchViaAgent({ http, https, agent, maxBytes, defaultTimeoutMs })
     return new Promise((resolve, reject) => {
       const parsed = new URL(url);
       const isHttp = parsed.protocol === "http:";
+      // Plain http only inside Tor (onion services are end-to-end encrypted); clearnet must be https.
+      if ((isHttp && !parsed.hostname.endsWith(".onion")) || (!isHttp && parsed.protocol !== "https:")) {
+        reject(new Error("Plain http is only allowed for .onion hosts"));
+        return;
+      }
       const headers = { Accept: "application/json" };
       if (body) {
         headers["Content-Type"] = contentType || "application/json";

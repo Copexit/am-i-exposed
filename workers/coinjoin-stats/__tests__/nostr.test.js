@@ -86,6 +86,18 @@ describe("nostr snapshot", () => {
     expect(snap.relays[0].count).toBe(2);
   });
 
+  it("drops events over 16 KiB", async () => {
+    const frames = [["EVENT", "s", ev(1, { content: "x".repeat(17 * 1024) })], ["EVENT", "s", ev(2, { tags: [["pm", "y".repeat(17 * 1024)]] })], ["EVENT", "s", ev(3)], ["EOSE", "s"]];
+    const snap = await snapshot({ relays: [R1], filter: FILTER, timeoutMs: 1000, openSocket: fakeRelay(() => frames), nowSec: 1 });
+    expect(snap.events.map((e) => e.id)).toEqual([hex(3)]);
+  });
+
+  it("a refusal (CLOSED, or NOTICE before EOSE) is an error, not a healthy relay", async () => {
+    const open = fakeRelay((u) => (u === R1 ? [["CLOSED", "s", "auth-required: x"]] : [["NOTICE", "rate limited"], ["EOSE", "s"]]));
+    const snap = await snapshot({ relays: [R1, R2], filter: FILTER, timeoutMs: 1000, openSocket: open, nowSec: 1 });
+    expect(snap.relays.map((r) => r.status)).toEqual(["error", "error"]);
+  });
+
   it("caps at 3,000 events", async () => {
     const frames = Array.from({ length: 3500 }, (_, i) => ["EVENT", "s", ev(i + 1)]);
     frames.push(["EOSE", "s"]);
@@ -133,13 +145,36 @@ describe("handleNostr", () => {
     expect(cacheStore.size).toBe(0);
   });
 
-  it("502 UPSTREAM_HTTP past 4 MiB", async () => {
+  it("stops collecting at the byte cap, so the body stays under 4 MiB", async () => {
     const big = "x".repeat(2000);
     const frames = Array.from({ length: 2500 }, (_, i) => ["EVENT", "s", ev(i + 1, { content: big })]);
     frames.push(["EOSE", "s"]);
     const res = await handleNostr({ service, route, ctx, cors: {}, openSocket: fakeRelay(() => frames) });
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text.length).toBeLessThan(4 * 1024 * 1024);
+    const n = JSON.parse(text).events.length;
+    expect(n).toBeGreaterThan(1000);
+    expect(n).toBeLessThan(2500);
+  });
+
+  it("every relay timing out is a 502, never an empty cached book", async () => {
+    vi.useFakeTimers();
+    const p = handleNostr({ service, route, ctx, cors: {}, openSocket: fakeRelay(() => "hang") });
+    await vi.advanceTimersByTimeAsync(1000);
+    const res = await p;
     expect(res.status).toBe(502);
-    expect((await res.json()).error.code).toBe("UPSTREAM_HTTP");
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
+    expect(cacheStore.size).toBe(0);
+  });
+
+  it("one relay completing is enough; the others' timeouts are reported", async () => {
+    vi.useFakeTimers();
+    const p = handleNostr({ service, route, ctx, cors: {}, openSocket: fakeRelay((u) => (u === R1 ? [["EVENT", "s", ev(1)], ["EOSE", "s"]] : "hang")) });
+    await vi.advanceTimersByTimeAsync(1000);
+    const res = await p;
+    expect(res.status).toBe(200);
+    expect((await res.json()).relays.map((r) => r.status)).toEqual(["eose", "timeout"]);
   });
 });
 

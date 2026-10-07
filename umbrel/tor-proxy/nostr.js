@@ -7,6 +7,10 @@
 
 const MAX_EVENTS = 3000;
 const MAX_BYTES = 4 * 1024 * 1024;
+/** Real orders are under 2 KiB; anything near this is junk or an attack. */
+const MAX_EVENT_BYTES = 16 * 1024;
+/** Collection stops here so the snapshot body stays under MAX_BYTES with its envelope. */
+const COLLECT_BYTES = MAX_BYTES - 64 * 1024;
 const DEFAULT_TIMEOUT_MS = 8000;
 const HEX64 = /^[0-9a-f]{64}$/;
 const HEX128 = /^[0-9a-f]{128}$/;
@@ -29,16 +33,19 @@ function validEvent(ev, kinds) {
     && Number.isInteger(ev.created_at)
     && Number.isInteger(ev.kind) && kinds.includes(ev.kind)
     && Array.isArray(ev.tags)
-    && typeof ev.content === "string";
+    && typeof ev.content === "string"
+    && ev.content.length + JSON.stringify(ev.tags).length <= MAX_EVENT_BYTES;
 }
 
 /** Opens every relay, REQ, collects until EOSE/CLOSED/error/timeout. Never throws. */
 async function snapshot({ relays, filter, timeoutMs = DEFAULT_TIMEOUT_MS, openSocket, nowSec }) {
   const seen = new Map();
+  let bytes = 0;
   const collect = (url) => new Promise((resolve) => {
     let sock = null;
     let count = 0;
     let done = false;
+    let notice = false;
     const finish = (status) => {
       if (done) return;
       done = true;
@@ -59,10 +66,17 @@ async function snapshot({ relays, filter, timeoutMs = DEFAULT_TIMEOUT_MS, openSo
           let msg;
           try { msg = JSON.parse(typeof data === "string" ? data : String(data)); } catch { return; }
           if (!Array.isArray(msg)) return;
-          if (msg[0] === "EOSE" || msg[0] === "CLOSED") return finish("eose");
+          // A refusal (CLOSED, or a NOTICE before EOSE: auth, rate limit) is not a healthy answer.
+          if (msg[0] === "CLOSED") return finish("error");
+          if (msg[0] === "NOTICE") { notice = true; return; }
+          if (msg[0] === "EOSE") return finish(notice ? "error" : "eose");
           if (msg[0] !== "EVENT" || msg[1] !== "s" || !validEvent(msg[2], filter.kinds)) return;
           count++;
-          if (!seen.has(msg[2].id) && seen.size < MAX_EVENTS) seen.set(msg[2].id, msg[2]);
+          if (seen.has(msg[2].id) || seen.size >= MAX_EVENTS) return;
+          const size = JSON.stringify(msg[2]).length;
+          if (bytes + size > COLLECT_BYTES) return;
+          bytes += size;
+          seen.set(msg[2].id, msg[2]);
         });
         s.onError(() => finish("error"));
         s.onClose(() => finish("error"));
@@ -80,14 +94,24 @@ function createNostrRoute({ openSocket, now = Date.now }) {
   return async function nostrRoute(res, service, route) {
     const nowSec = Math.floor(now() / 1000);
     const filter = buildFilter(route, nowSec);
-    const relays = service.onionRelays?.length ? service.onionRelays : (service.relays ?? []);
+    const listed = service.onionRelays?.length ? service.onionRelays : (service.relays ?? []);
+    // Plain ws:// only for .onion relays (Tor encrypts end to end); clearnet relays must be wss://.
+    const relays = listed.filter((u) => {
+      try {
+        const p = new URL(u);
+        return p.protocol === "wss:" || (p.protocol === "ws:" && p.hostname.endsWith(".onion"));
+      } catch {
+        return false;
+      }
+    });
     const snap = await snapshot({ relays, filter, timeoutMs: route.timeoutMs ?? DEFAULT_TIMEOUT_MS, openSocket, nowSec });
     const headers = { "Content-Type": "application/json", "Cache-Control": "no-store" };
     const fail = (code, message) => {
       res.writeHead(502, headers);
       res.end(JSON.stringify({ error: { code, message } }));
     };
-    if (snap.relays.every((r) => r.status === "error")) return fail("UPSTREAM_DOWN", "Every relay failed");
+    // Only a snapshot that at least one relay completed is a book; timeouts alone must not replace good data.
+    if (!snap.relays.some((r) => r.status === "eose")) return fail("UPSTREAM_DOWN", "No relay completed the request");
     const body = JSON.stringify(snap);
     if (Buffer.byteLength(body) > MAX_BYTES) return fail("UPSTREAM_HTTP", "Response payload too large");
     res.writeHead(200, headers);

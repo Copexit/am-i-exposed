@@ -37,6 +37,13 @@ describe("fetchViaAgent", () => {
     expect(calls[1].opts.path).toBe("/api/v1/offers?pagination%5Boffset%5D=0");
   });
 
+  it("refuses plain http to a clearnet host", async () => {
+    const calls = [];
+    const f = createFetchViaAgent({ http: fakeModule("http", calls), https: fakeModule("https", calls), agent, maxBytes: 1024, defaultTimeoutMs: 1000 });
+    await expect(f("http://hodlhodl.com/api/v1/offers")).rejects.toThrow(".onion");
+    expect(calls).toHaveLength(0);
+  });
+
   it("rejects past maxBytes and on non-2xx with the status", async () => {
     const big = createFetchViaAgent({ http: fakeModule("http", [], { chunks: ["x".repeat(600), "x".repeat(600)] }), https: null, agent, maxBytes: 1024, defaultTimeoutMs: 1000 });
     await expect(big("http://a.onion/")).rejects.toThrow("too large");

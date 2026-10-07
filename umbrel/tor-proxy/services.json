@@ -465,7 +465,50 @@
       ],
       "p2p": {
         "venue": "mostro",
-        "key": "mostro"
+        "key": "mostro",
+        "instancesSource": "Mainnet instances with both live orders and completed trades on relay.mostro.network, nos.lol and relay.damus.io, recorded 2026-10-07 (src/lib/observatory/__tests__/fixtures/p2p/nostr). Add an instance by PR after checking it trades.",
+        "instances": [
+          {
+            "pubkey": "82fa8cb978b43c79b2156585bac2c011176a21d2aead6d9f7c575c005be88390",
+            "name": "Mostro"
+          },
+          {
+            "pubkey": "00000978acc594c506976c655b6decbf2d4af25ffdaa6680f2a9568b0a88441b",
+            "name": "MostroColomBia"
+          },
+          {
+            "pubkey": "0000cc02101ec29eea9ce623258752b9d7da66c27845ed26846dd0b0fc736b40",
+            "name": "NostroMostro"
+          },
+          {
+            "pubkey": "00000235a3e904cfe1213a8a54d6f1ec1bef7cc6bfaabd6193e82931ccf1366a",
+            "name": "Kmbalache"
+          },
+          {
+            "pubkey": "00037abd44e7a846689e230d5446abcd0d56a344fa81fff85c09d1929feda486",
+            "name": "Mostro Brasil"
+          },
+          {
+            "pubkey": "afe3de9aa8616d7c2e62eb336d3a127cf9daa9b4482ab1e9361d5c175d3b8cf3",
+            "name": "Barattolo P2P"
+          },
+          {
+            "pubkey": "000009ee1e4b1dc7add19ab30e4ef854d7b562e208b62686fd9002b50b24dabb",
+            "name": "Mostro Venezuela"
+          },
+          {
+            "pubkey": "00003f6be51b51a1a0cf9c94232ab1bba1f5c1bfd5a0e8687e9647558536b791",
+            "name": "Mostro Mexico"
+          },
+          {
+            "pubkey": "b3626fe91b602bdbca3673bec0855221f41dc8f6d0e4027e51eaa525d68d87f2",
+            "name": "MostrAR"
+          },
+          {
+            "pubkey": "da23a31d75572138ab8149911a04224812a34bda679caba7cb1824fdf7c592ec",
+            "name": "MostroEuropa"
+          }
+        ]
       }
     },
     {

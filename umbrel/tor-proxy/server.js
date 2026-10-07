@@ -31,7 +31,7 @@ const fetchViaAgent = createFetchViaAgent({
 /** ws through the same Tor agent, adapted to the { send, close, onMessage, onClose, onError } shape. */
 function openSocket(url) {
   return new Promise((resolve, reject) => {
-    const ws = new WebSocket(url, { agent, handshakeTimeout: 15000 });
+    const ws = new WebSocket(url, { agent, handshakeTimeout: 15000, maxPayload: 256 * 1024 });
     ws.once("open", () =>
       resolve({
         send: (s) => ws.send(s),

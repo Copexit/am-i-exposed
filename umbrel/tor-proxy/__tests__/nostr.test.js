@@ -73,6 +73,29 @@ describe("sidecar nostr snapshot", () => {
     expect(snap.events.some((e) => e.kind !== 38383)).toBe(false);
   });
 
+  it("all relays timing out is a 502; oversized events are dropped; CLOSED is an error", async () => {
+    vi.useFakeTimers();
+    const route = { path: "/orders", ttl: 30, timeoutMs: 1000, nostr: { filter: FILTER } };
+    const res = makeRes();
+    const p = createNostrRoute({ openSocket: fakeRelay(() => "hang") })(res, { relays: [R1, R2] }, route);
+    await vi.advanceTimersByTimeAsync(1000);
+    await p;
+    expect(res.out.status).toBe(502);
+    expect(res.out.headers["Cache-Control"]).toBe("no-store");
+    vi.useRealTimers();
+    const frames = [["EVENT", "s", ev(1, { content: "x".repeat(17 * 1024) })], ["EVENT", "s", ev(2)], ["EOSE", "s"]];
+    const snap = await snapshot({ relays: [R1, R2], filter: FILTER, timeoutMs: 1000, openSocket: fakeRelay((u) => (u === R1 ? frames : [["CLOSED", "s", "no"]])), nowSec: 1 });
+    expect(snap.events.map((e) => e.id)).toEqual([hex(2)]);
+    expect(snap.relays.map((r) => r.status)).toEqual(["eose", "error"]);
+  });
+
+  it("plain ws:// is used only for .onion relays", async () => {
+    const open = fakeRelay(() => [["EOSE", "s"]]);
+    const res = makeRes();
+    await createNostrRoute({ openSocket: open })(res, { onionRelays: ["ws://clear.example/relay/", "ws://x.onion/relay/"] }, { path: "/o", ttl: 30, nostr: { filter: FILTER } });
+    expect(open.sockets.map((s) => s.url)).toEqual(["ws://x.onion/relay/"]);
+  });
+
   it("buildFilter rounds since to the TTL", () => {
     const route = { ttl: 600, nostr: { filter: FILTER, sinceSeconds: 604800 } };
     expect(buildFilter(route, 1791386100).since).toBe(1791385800 - 604800);
