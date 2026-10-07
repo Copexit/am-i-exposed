@@ -151,7 +151,7 @@ export function MostroInstances({ hosts, highlight }: { hosts: VenueHost[]; high
               <th scope="col" className="hidden px-3 py-2 font-normal md:table-cell">{t("observatory.p2p.venues.limits", { defaultValue: "Order size" })}</th>
               <th scope="col" className="hidden px-3 py-2 font-normal lg:table-cell">{t("observatory.p2p.venues.currencies", { defaultValue: "Currencies" })}</th>
               <th scope="col" className="px-3 py-2 font-normal text-right">{t("observatory.p2p.venues.offers", { defaultValue: "Offers" })}</th>
-              <th scope="col" className="px-3 py-2 font-normal text-right">{t("observatory.p2p.venues.lastSeen", { defaultValue: "Last seen" })}</th>
+              <th scope="col" className="hidden px-3 py-2 font-normal text-right sm:table-cell">{t("observatory.p2p.venues.lastSeen", { defaultValue: "Last seen" })}</th>
             </tr>
           </thead>
           <tbody>
@@ -164,7 +164,7 @@ export function MostroInstances({ hosts, highlight }: { hosts: VenueHost[]; high
                 <td className="num hidden px-3 py-2 text-muted whitespace-nowrap md:table-cell">{h.minSats !== null && h.maxSats !== null ? `${fmtCount(h.minSats, locale)} - ${fmtCount(h.maxSats, locale)} sats` : DASH}</td>
                 <td className="num hidden max-w-[10rem] truncate px-3 py-2 text-muted lg:table-cell" title={h.currencies?.join(", ")}>{h.currencies?.length ? h.currencies.slice(0, 4).join(" ") + (h.currencies.length > 4 ? ` +${h.currencies.length - 4}` : "") : t("observatory.p2p.venues.anyCurrency", { defaultValue: "Any" })}</td>
                 <td className="num px-3 py-2 text-right text-foreground">{fmtCount(h.inBook, locale)}</td>
-                <td className="num px-3 py-2 text-right text-faint whitespace-nowrap">{seen(h.lastSeen)}</td>
+                <td className="num hidden px-3 py-2 text-right text-faint whitespace-nowrap sm:table-cell">{seen(h.lastSeen)}</td>
               </tr>
             ))}
           </tbody>
