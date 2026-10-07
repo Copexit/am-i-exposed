@@ -107,6 +107,8 @@ export function premiumBoard(markets: Map<string, Market>, side: "buy" | "sell",
 
 export interface Headline {
   liquiditySats: number;
+  /** Keyed by visitor intent: buy = sats in maker sell offers. */
+  liquidity: { buy: number; sell: number };
   offers: { buy: number; sell: number };
   venuesOnline: number;
   hostsOnline: number;
@@ -114,6 +116,7 @@ export interface Headline {
   cheapestBuy: { currency: string; premium: number } | null;
   cheapestSell: { currency: string; premium: number } | null;
   medianBuy: number | null;
+  medianSell: number | null;
 }
 
 export function headline(markets: Map<string, Market>, hosts: VenueHost[], currency: string | null): Headline {
@@ -122,6 +125,10 @@ export function headline(markets: Map<string, Market>, hosts: VenueHost[], curre
   const m = currency ? markets.get(currency) : undefined;
   return {
     liquiditySats: all.reduce((s, x) => s + x.liquiditySats.buy + x.liquiditySats.sell, 0),
+    liquidity: {
+      buy: all.reduce((s, x) => s + x.liquiditySats.buy, 0),
+      sell: all.reduce((s, x) => s + x.liquiditySats.sell, 0),
+    },
     offers: {
       buy: all.reduce((s, x) => s + x.offers.filter((o) => o.side === "sell").length, 0),
       sell: all.reduce((s, x) => s + x.offers.filter((o) => o.side === "buy").length, 0),
@@ -132,6 +139,7 @@ export function headline(markets: Map<string, Market>, hosts: VenueHost[], curre
     cheapestBuy: m?.bestBuy?.premium != null ? { currency: m.currency, premium: m.bestBuy.premium } : null,
     cheapestSell: m?.bestSell?.premium != null ? { currency: m.currency, premium: m.bestSell.premium } : null,
     medianBuy: m?.medianPremium.buy ?? null,
+    medianSell: m?.medianPremium.sell ?? null,
   };
 }
 

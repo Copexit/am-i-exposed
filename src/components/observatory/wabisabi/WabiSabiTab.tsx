@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Map as MapIcon, Table2 } from "lucide-react";
 import { useCoordinatorsStatus, useFlowMap } from "@/hooks/useWabisator";
@@ -22,84 +22,11 @@ import { LiveBoard } from "./LiveBoard";
 import { CoordinatorPage } from "./CoordinatorPage";
 import { RemixFlows } from "./RemixFlows";
 import { ObsSearch } from "./ObsSearch";
+import { Section, SubNav } from "@/components/observatory/ObsSections";
 
 const FADE = "motion-safe:animate-[obs-fade_250ms_ease-out]";
 const BONE = "rounded bg-surface-2 motion-safe:animate-pulse";
 const CHIP = "inline-flex items-center gap-2 min-h-10 px-3 rounded-lg text-sm transition-colors duration-200 cursor-pointer";
-
-/** One page section. Later tasks mount their component as `children` in place of the skeleton. */
-function Section({ id, title, lead, hideTitle, describedBy, children }: { id: string; title: string; lead?: string; hideTitle?: boolean; describedBy?: string; children: ReactNode }) {
-  return (
-    <section id={id} aria-labelledby={`${id}-title`} aria-describedby={describedBy} className={hideTitle ? "" : "space-y-5 pt-2"}>
-      {hideTitle ? (
-        <h2 id={`${id}-title`} className="sr-only">{title}</h2>
-      ) : (
-        <div className="space-y-1.5 max-w-2xl">
-          <h2 id={`${id}-title`} className="text-xl sm:text-[22px] font-semibold tracking-tight text-foreground text-balance">{title}</h2>
-          {lead && <p className="text-sm text-muted leading-relaxed">{lead}</p>}
-        </div>
-      )}
-      {children}
-    </section>
-  );
-}
-
-/** Sticky in-page chips; highlights the section in view. `aside` sits at the right end (the search, from 1024 px). */
-function SubNav({ items, aside }: { items: { id: string; label: string }[]; aside?: ReactNode }) {
-  const { t } = useTranslation();
-  const [active, setActive] = useState(items[0]?.id);
-  const ids = items.map((i) => i.id).join(",");
-  useEffect(() => {
-    if (typeof IntersectionObserver === "undefined") return;
-    const list = ids.split(",");
-    // The last section may be too short to reach the observed band: at the page bottom it is the active one.
-    const atBottom = () => window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (atBottom()) return setActive(list.at(-1));
-        const top = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-        if (top) setActive(top.target.id);
-      },
-      { rootMargin: "-120px 0px -60% 0px" },
-    );
-    for (const id of list) {
-      const el = document.getElementById(id);
-      if (el) io.observe(el);
-    }
-    const onScroll = () => { if (atBottom()) setActive(list.at(-1)); };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => { io.disconnect(); window.removeEventListener("scroll", onScroll); };
-  }, [ids]);
-
-  return (
-    <nav
-      aria-label={t("observatory.wabisabi.nav.label", { defaultValue: "WabiSabi sections" })}
-      className="sticky top-[var(--header-h,56px)] z-30 mb-3 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-0.5 bg-background/85 backdrop-blur border-b border-hairline"
-    >
-      <div className="flex items-center justify-between gap-6">
-        <ul className="flex min-w-0 gap-1 overflow-x-auto no-scrollbar">
-          {items.map((s) => (
-            <li key={s.id}>
-              <a
-                href={`#${s.id}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-                  document.getElementById(s.id)?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
-                }}
-                aria-current={active === s.id ? "true" : undefined}
-                className={`inline-flex items-center min-h-10 px-3 rounded-md text-sm whitespace-nowrap transition-colors duration-200 ${active === s.id ? "bg-surface-2 text-foreground" : "text-muted hover:text-foreground"}`}
-              >
-                {s.label}
-              </a>
-            </li>
-          ))}
-        </ul>
-        {aside}
-      </div>
-    </nav>
-  );
-}
 
 // ---------- skeletons shaped like the content later tasks mount ----------
 
@@ -436,7 +363,7 @@ export function WabiSabiTab() {
         {!wide && search}
       </header>
 
-      <SubNav items={nav} aside={wide ? <div className="w-[360px] shrink-0">{search}</div> : undefined} />
+      <SubNav label={t("observatory.wabisabi.nav.label", { defaultValue: "WabiSabi sections" })} items={nav} aside={wide ? <div className="w-[360px] shrink-0">{search}</div> : undefined} />
 
       <Section id="obs-map" title={t("observatory.wabisabi.map.title", { defaultValue: "The CoinJoin map" })} hideTitle describedBy="obs-map-caption">
         <div className="flex flex-col gap-4 sm:gap-5">
