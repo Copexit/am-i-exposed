@@ -80,7 +80,9 @@ describe("Mostro", () => {
 
   it("instance status: live orders give up, stale info with no orders gives down", () => {
     const hosts = mostroHosts(mostroOrders.events, mostroInfo.events, NOW);
-    expect(hosts.length).toBe(new Set(mostroInfo.events.map((e) => e.pubkey)).size);
+    const mainnet = mostroInfo.events.filter((e) => (tag(e, "lnd_networks")?.[0] ?? "mainnet") === "mainnet");
+    expect(hosts.length).toBe(new Set(mainnet.map((e) => e.pubkey)).size);
+    expect(hosts.length).toBeLessThan(new Set(mostroInfo.events.map((e) => e.pubkey)).size);
     const withOrders = hosts.filter((h) => h.inBook > 0);
     expect(withOrders.length).toBeGreaterThan(0);
     expect(withOrders.every((h) => h.status === "up")).toBe(true);

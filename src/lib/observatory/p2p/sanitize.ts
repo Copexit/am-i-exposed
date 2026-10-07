@@ -38,5 +38,6 @@ export function sanitizeMethods(raw: string[], max = 4, maxChars = 32): string[]
 /** Default 140 chars; empty -> null. */
 export function sanitizeNotice(s: string, max = 140): string | null {
   if (typeof s !== "string") return null;
-  return clean(s, max) || null;
+  // Coordinators write notices in HTML: keep the text only.
+  return clean(s.replace(/<[^>]*>/g, " ").replace(/&[a-z]+;|&#\d+;/gi, " "), max) || null;
 }

@@ -3082,5 +3082,8 @@
   "observatory.p2p.volume.mostro": "Operaciones completadas en Mostro",
   "observatory.p2p.volume.mostroLead": "Vistas en relays públicos, últimos 7 días. Los relays limitan cuánto historial devuelven, así que no se muestran días anteriores.",
   "observatory.p2p.volume.mostroNone": "No se ha podido leer ninguna operación completada de los relays.",
-  "observatory.p2p.volume.hodlhodl": "HodlHodl no publica datos de volumen."
+  "observatory.p2p.volume.hodlhodl": "HodlHodl no publica datos de volumen.",
+  "observatory.p2p.venues.torOnlyLead": "Solo accesibles por Tor: estadísticas completas en un nodo propio. Las ofertas en el libro salen de sus órdenes firmadas en Nostr.",
+  "observatory.p2p.venues.offersShort_one": "{{count}} oferta",
+  "observatory.p2p.venues.offersShort_other": "{{count}} ofertas"
 }

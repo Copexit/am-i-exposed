@@ -441,6 +441,12 @@ select:focus-visible {
 }
 
 /* Observatory: values and sections fade in instead of popping. */
+/* P2P depth wall draw-in, left to right (used with motion-safe: only). */
+@keyframes p2p-wall-in {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
 @keyframes obs-fade {
   from { opacity: 0; }
   to { opacity: 1; }

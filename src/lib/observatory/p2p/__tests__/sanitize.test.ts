@@ -22,5 +22,6 @@ describe("sanitizeNotice", () => {
   it("returns null for empty and strips links", () => {
     expect(sanitizeNotice("")).toBeNull();
     expect(sanitizeNotice("Maintenance tonight, see https://x.example")).toBe("Maintenance tonight, see");
+    expect(sanitizeNotice("\n<h1>PIX <small>(BRL)</small></h1>\n<p>Ask for the name.</p>")).toBe("PIX (BRL) Ask for the name");
   });
 });

@@ -3082,5 +3082,8 @@
   "observatory.p2p.volume.mostro": "Mostro completed trades",
   "observatory.p2p.volume.mostroLead": "Seen on public relays, last 7 days. Relays cap how far back they answer, so older days are not shown.",
   "observatory.p2p.volume.mostroNone": "No completed trades could be read from the relays.",
-  "observatory.p2p.volume.hodlhodl": "HodlHodl publishes no volume data."
+  "observatory.p2p.volume.hodlhodl": "HodlHodl publishes no volume data.",
+  "observatory.p2p.venues.torOnlyLead": "Reachable only through Tor: full stats on a self-hosted node. Offers in the book come from their signed Nostr orders.",
+  "observatory.p2p.venues.offersShort_one": "{{count}} offer",
+  "observatory.p2p.venues.offersShort_other": "{{count}} offers"
 }

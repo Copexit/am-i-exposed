@@ -49,6 +49,8 @@ export interface VenueHost {
   robotsToday: number | null;
   premium24h: number | null;
   notice: string | null;
+  /** RoboSats notice_severity is warning or above: shown in amber. */
+  noticeWarn?: boolean;
   lastSeen: number | null;
   /** Mostro: fiat currencies the instance accepts (empty = any) */
   currencies?: string[];

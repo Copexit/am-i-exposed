@@ -3082,5 +3082,8 @@
   "observatory.p2p.volume.mostro": "Abgeschlossene Mostro-Trades",
   "observatory.p2p.volume.mostroLead": "Auf öffentlichen Relays gesehen, letzte 7 Tage. Relays begrenzen, wie weit sie zurück antworten, daher fehlen ältere Tage.",
   "observatory.p2p.volume.mostroNone": "Von den Relays konnten keine abgeschlossenen Trades gelesen werden.",
-  "observatory.p2p.volume.hodlhodl": "HodlHodl veröffentlicht keine Volumendaten."
+  "observatory.p2p.volume.hodlhodl": "HodlHodl veröffentlicht keine Volumendaten.",
+  "observatory.p2p.venues.torOnlyLead": "Nur über Tor erreichbar: vollständige Statistiken auf einem eigenen Knoten. Die Angebote im Orderbuch stammen aus ihren signierten Nostr-Orders.",
+  "observatory.p2p.venues.offersShort_one": "{{count}} Angebot",
+  "observatory.p2p.venues.offersShort_other": "{{count}} Angebote"
 }

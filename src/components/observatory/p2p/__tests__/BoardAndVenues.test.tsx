@@ -21,6 +21,10 @@ describe("PremiumBoard", () => {
     expect(onSelect).toHaveBeenCalledWith("EUR", "mostro");
     for (const r of rows) {
       const priced = (["robosats", "mostro", "hodlhodl"] as const).filter((v) => r.cells[v].median !== null);
+      if (priced.length < 2) {
+        expect(screen.getByTestId(`p2p-cell-${r.currency}-${priced[0]}`).getAttribute("data-best")).toBeNull();
+        continue;
+      }
       const best = priced.reduce((a, b) => (r.cells[b].median! < r.cells[a].median! ? b : a));
       expect(screen.getByTestId(`p2p-cell-${r.currency}-${best}`).getAttribute("data-best")).toBe("true");
     }
@@ -32,7 +36,8 @@ describe("VenueSection", () => {
     render(<VenueSection hosts={data.hosts} isUmbrel={false} highlight={null} />);
     const bazaar = screen.getByTestId("p2p-coord-bazaar");
     expect(bazaar.textContent).toContain("Tor only");
-    expect(bazaar.textContent).toContain("Full stats on a self-hosted node");
+    expect(document.body.textContent).toContain("full stats on a self-hosted node");
+    expect(bazaar.textContent).not.toContain("Maker / taker fee");
     const temple = screen.getByTestId("p2p-coord-temple");
     expect(temple.textContent).toContain("0.025%");
     expect(temple.textContent).toContain("192.30 BTC");

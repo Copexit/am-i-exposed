@@ -74,6 +74,7 @@ export function robosatsHost(key: string, info: RoboInfo | null, inBook: number,
     robotsToday: info?.active_robots_today ?? null,
     premium24h: info?.last_day_nonkyc_btc_premium ?? null,
     notice: info && sev && sev !== "none" ? sanitizeNotice(info.notice_message) : null,
+    noticeWarn: ["warning", "error", "critical"].includes(sev),
     lastSeen: null,
   };
 }

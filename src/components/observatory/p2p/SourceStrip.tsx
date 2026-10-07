@@ -51,7 +51,7 @@ function Chip({ source }: { source: SourceStatus }) {
       data-state={source.state}
       title={detail.length ? detail.join("\n") : undefined}
       aria-describedby={detail.length ? id : undefined}
-      className="inline-flex shrink-0 items-center gap-2 min-h-8 rounded-full border border-hairline bg-surface-1/60 pl-2.5 pr-3 text-xs text-muted"
+      className="relative inline-flex shrink-0 items-center gap-2 min-h-8 rounded-full border border-hairline bg-surface-1/60 pl-2.5 pr-3 text-xs text-muted"
     >
       <span aria-hidden="true" className={`size-1.5 rounded-full ${DOT[source.state]}`} />
       <span className="text-foreground">{label}</span>
@@ -69,7 +69,7 @@ export function SourceStrip({ sources }: { sources: SourceStatus[] }) {
     <NowProvider>
       <ul
         aria-label={t("observatory.p2p.sources.label", { defaultValue: "Data sources" })}
-        className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar sm:mx-0 sm:flex-wrap sm:px-0"
+        className="relative -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 no-scrollbar sm:mx-0 sm:flex-wrap sm:px-0"
       >
         {sources.map((s) => <Chip key={s.id} source={s} />)}
       </ul>

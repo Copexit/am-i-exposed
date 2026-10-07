@@ -74,7 +74,7 @@ export function P2pVolume({ history, isUmbrel, today }: { history: P2pHistory; i
           <div aria-hidden="true" className={`h-[260px] ${BONE} rounded-xl`} />
         )}
         {share.length > 0 && (
-          <ul aria-label={t("observatory.p2p.volume.shares", { defaultValue: "Share of volume by coordinator" })} className="grid gap-2 sm:grid-cols-2">
+          <ul aria-label={t("observatory.p2p.volume.shares", { defaultValue: "Share of volume by coordinator" })} className="grid gap-x-10 gap-y-3 sm:grid-cols-2">
             {share.map((s) => (
               <li key={s.key} className="space-y-1">
                 <div className="flex items-baseline justify-between gap-2 text-sm">
@@ -104,7 +104,7 @@ export function P2pVolume({ history, isUmbrel, today }: { history: P2pHistory; i
               <li key={d.date} className="flex flex-col items-center gap-1.5" aria-label={`${d.date}: ${trades(d.trades)}, ${fmtBtc(d.btc, locale)} BTC`}>
                 <span className="num text-xs text-foreground">{fmtCount(d.trades, locale)}</span>
                 <div className="flex h-28 w-full items-end rounded-md bg-surface-2/60">
-                  <div className="w-full rounded-md transition-[height] duration-500 ease-out" style={{ height: `${Math.max(d.trades ? 4 : 0, (d.trades / maxMostro) * 100)}%`, background: venueColorVar("mostro") }} />
+                  <div className="w-full rounded-md opacity-75 transition-[height] duration-500 ease-out" style={{ height: `${Math.max(d.trades ? 4 : 0, (d.trades / maxMostro) * 100)}%`, background: venueColorVar("mostro") }} />
                 </div>
                 <span className="text-[11px] text-faint">{day.format(Date.parse(`${d.date}T00:00:00Z`))}</span>
                 <span className="num hidden text-[11px] text-faint sm:block">{`${fmtBtc(d.btc, locale)} BTC`}</span>

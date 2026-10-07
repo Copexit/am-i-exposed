@@ -3222,5 +3222,10 @@
   "observatory.p2p.volume.mostro": "Zakończone transakcje Mostro",
   "observatory.p2p.volume.mostroLead": "Widoczne na publicznych przekaźnikach, ostatnie 7 dni. Przekaźniki ograniczają zakres odpowiedzi, więc starsze dni nie są pokazywane.",
   "observatory.p2p.volume.mostroNone": "Nie udało się odczytać zakończonych transakcji z przekaźników.",
-  "observatory.p2p.volume.hodlhodl": "HodlHodl nie publikuje danych o wolumenie."
+  "observatory.p2p.volume.hodlhodl": "HodlHodl nie publikuje danych o wolumenie.",
+  "observatory.p2p.venues.torOnlyLead": "Dostępni tylko przez Tor: pełne statystyki na własnym węźle. Oferty w księdze pochodzą z ich podpisanych zleceń Nostr.",
+  "observatory.p2p.venues.offersShort_one": "{{count}} oferta",
+  "observatory.p2p.venues.offersShort_few": "{{count}} oferty",
+  "observatory.p2p.venues.offersShort_many": "{{count}} ofert",
+  "observatory.p2p.venues.offersShort_other": "{{count}} oferty"
 }

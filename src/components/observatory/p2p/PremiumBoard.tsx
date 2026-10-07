@@ -22,7 +22,8 @@ function bestOf(row: BoardRow, side: "buy" | "sell"): Venue | null {
     const b = best ? row.cells[best].median! : null;
     if (m !== null && (b === null || (side === "buy" ? m < b : m > b))) best = v;
   }
-  return best;
+  // A lone price is not "best" of anything.
+  return VENUES.filter((v) => row.cells[v].median !== null).length > 1 ? best : null;
 }
 
 /** Shade by distance from the row's best cell, with the severity tokens (never hex). */
@@ -38,7 +39,7 @@ export function PremiumBoard({ rows, side, onSelect }: Props) {
   if (!rows.length) return null;
 
   return (
-    <div className="space-y-3">
+    <div className="max-w-4xl space-y-3">
       <div role="group" aria-label={t("observatory.p2p.selector.venues", { defaultValue: "Venues" })} className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-surface-inset border border-card-border sm:hidden">
         {VENUES.map((v) => (
           <button key={v} type="button" aria-pressed={mobileVenue === v} onClick={() => setMobileVenue(v)} className={`${CHIP} justify-center ${mobileVenue === v ? CHIP_ON : CHIP_OFF}`}>

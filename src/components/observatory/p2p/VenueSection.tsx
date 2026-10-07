@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Info } from "lucide-react";
 import type { VenueHost } from "@/lib/observatory/p2p/types";
 import { fmtPremium, fmtSatsBtc } from "@/lib/observatory/p2p/p2p-format";
 import { hostColorVar, venueFgVar } from "@/lib/observatory/p2p/venue-palette";
@@ -96,9 +96,9 @@ export function RobosatsCoordinatorCard({ host, highlighted }: { host: VenueHost
         <StatusPill status={host.status} />
       </div>
       {host.notice && (
-        <p className="flex items-start gap-1.5 text-xs text-warning">
-          <AlertTriangle size={12} aria-hidden="true" className="mt-0.5 shrink-0" />
-          {host.notice}
+        <p title={host.notice} className={`flex items-start gap-1.5 text-xs ${host.noticeWarn ? "text-warning" : "text-muted"}`}>
+          {host.noticeWarn ? <AlertTriangle size={12} aria-hidden="true" className="mt-0.5 shrink-0" /> : <Info size={12} aria-hidden="true" className="mt-0.5 shrink-0 text-faint" />}
+          <span className="line-clamp-2">{host.notice}</span>
         </p>
       )}
       <dl className="grid grid-cols-2 gap-x-3 gap-y-2.5">
@@ -133,23 +133,23 @@ export function MostroInstances({ hosts, highlight }: { hosts: VenueHost[]; high
   const seen = (s: number | null) => {
     if (s === null) return DASH;
     // Relative to the newest info event in the snapshot, so it never depends on the visitor clock.
-    const h = Math.max(0, Math.floor((newest - s) / 3600));
-    return h < 24 ? rtf.format(-h, "hour") : rtf.format(-Math.floor(h / 24), "day");
+    const m = Math.max(0, Math.floor((newest - s) / 60));
+    return m < 60 ? rtf.format(-Math.max(1, m), "minute") : m < 1440 ? rtf.format(-Math.floor(m / 60), "hour") : rtf.format(-Math.floor(m / 1440), "day");
   };
 
   return (
     <div className="space-y-2">
       <div className="overflow-x-auto rounded-xl border border-hairline">
-        <table className="w-full min-w-[640px] text-sm" data-testid="p2p-mostro">
+        <table className="w-full text-sm sm:min-w-[640px]" data-testid="p2p-mostro">
           <caption className="sr-only">{t("observatory.p2p.venues.mostroCaption", { defaultValue: "Mostro instances seen on public relays" })}</caption>
           <thead className="bg-surface-inset text-left text-xs text-faint">
             <tr>
               <th scope="col" className="px-3 py-2 font-normal">{t("observatory.p2p.venues.instance", { defaultValue: "Instance" })}</th>
               <th scope="col" className="px-3 py-2 font-normal">{t("observatory.p2p.venues.status", { defaultValue: "Status" })}</th>
-              <th scope="col" className="px-3 py-2 font-normal">{t("observatory.p2p.venues.version", { defaultValue: "Version" })}</th>
+              <th scope="col" className="hidden px-3 py-2 font-normal sm:table-cell">{t("observatory.p2p.venues.version", { defaultValue: "Version" })}</th>
               <th scope="col" className="px-3 py-2 font-normal text-right">{t("observatory.p2p.venues.fee", { defaultValue: "Fee" })}</th>
-              <th scope="col" className="px-3 py-2 font-normal">{t("observatory.p2p.venues.limits", { defaultValue: "Order size" })}</th>
-              <th scope="col" className="px-3 py-2 font-normal">{t("observatory.p2p.venues.currencies", { defaultValue: "Currencies" })}</th>
+              <th scope="col" className="hidden px-3 py-2 font-normal md:table-cell">{t("observatory.p2p.venues.limits", { defaultValue: "Order size" })}</th>
+              <th scope="col" className="hidden px-3 py-2 font-normal lg:table-cell">{t("observatory.p2p.venues.currencies", { defaultValue: "Currencies" })}</th>
               <th scope="col" className="px-3 py-2 font-normal text-right">{t("observatory.p2p.venues.offers", { defaultValue: "Offers" })}</th>
               <th scope="col" className="px-3 py-2 font-normal text-right">{t("observatory.p2p.venues.lastSeen", { defaultValue: "Last seen" })}</th>
             </tr>
@@ -159,10 +159,10 @@ export function MostroInstances({ hosts, highlight }: { hosts: VenueHost[]; high
               <tr key={h.key} id={`p2p-host-${h.key}`} data-testid="p2p-mostro-row" className={`border-t border-hairline ${h.key === highlight ? "bg-bitcoin/10" : ""} ${h.status === "up" ? "" : "text-faint"}`}>
                 <td className="max-w-[12rem] truncate px-3 py-2 text-foreground" title={h.key.slice(0, 16)}>{h.name}</td>
                 <td className="px-3 py-2"><StatusPill status={h.status} /></td>
-                <td className="num px-3 py-2 text-muted">{h.version ?? DASH}</td>
+                <td className="num hidden px-3 py-2 text-muted sm:table-cell">{h.version ?? DASH}</td>
                 <td className="num px-3 py-2 text-right text-muted">{pct(h.makerFeePct, locale)}</td>
-                <td className="num px-3 py-2 text-muted whitespace-nowrap">{h.minSats !== null && h.maxSats !== null ? `${fmtCount(h.minSats, locale)} - ${fmtCount(h.maxSats, locale)} sats` : DASH}</td>
-                <td className="num max-w-[10rem] truncate px-3 py-2 text-muted" title={h.currencies?.join(", ")}>{h.currencies?.length ? h.currencies.slice(0, 4).join(" ") + (h.currencies.length > 4 ? ` +${h.currencies.length - 4}` : "") : t("observatory.p2p.venues.anyCurrency", { defaultValue: "Any" })}</td>
+                <td className="num hidden px-3 py-2 text-muted whitespace-nowrap md:table-cell">{h.minSats !== null && h.maxSats !== null ? `${fmtCount(h.minSats, locale)} - ${fmtCount(h.maxSats, locale)} sats` : DASH}</td>
+                <td className="num hidden max-w-[10rem] truncate px-3 py-2 text-muted lg:table-cell" title={h.currencies?.join(", ")}>{h.currencies?.length ? h.currencies.slice(0, 4).join(" ") + (h.currencies.length > 4 ? ` +${h.currencies.length - 4}` : "") : t("observatory.p2p.venues.anyCurrency", { defaultValue: "Any" })}</td>
                 <td className="num px-3 py-2 text-right text-foreground">{fmtCount(h.inBook, locale)}</td>
                 <td className="num px-3 py-2 text-right text-faint whitespace-nowrap">{seen(h.lastSeen)}</td>
               </tr>
@@ -211,6 +211,8 @@ export function VenueSection({ hosts, isUmbrel, highlight }: Props) {
   const mostro = hosts.filter((h) => h.venue === "mostro");
   const hodl = hosts.find((h) => h.venue === "hodlhodl");
   const up = robo.filter((h) => h.status === "up").length;
+  const full = robo.filter((h) => h.status !== "unknown").sort((a, b) => b.inBook - a.inBook);
+  const torOnly = robo.filter((h) => h.status === "unknown").sort((a, b) => b.inBook - a.inBook);
 
   return (
     <div className="space-y-10">
@@ -221,11 +223,34 @@ export function VenueSection({ hosts, isUmbrel, highlight }: Props) {
           explainer={t("observatory.p2p.venues.robosatsExplainer", { defaultValue: "Lightning hold invoices and fidelity bonds; a federation of independent coordinators." })}
           aside={!isUmbrel && <p className="text-xs text-faint">{t("observatory.p2p.venues.torNote", { defaultValue: "{{up}} of {{count}} reachable from the public site", up, count: robo.length })}</p>}
         />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {[...robo].sort((a, b) => Number(a.status === "unknown") - Number(b.status === "unknown") || b.inBook - a.inBook).map((h) => (
-            <RobosatsCoordinatorCard key={h.key} host={h} highlighted={highlight === h.key} />
-          ))}
+        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {full.map((h) => <RobosatsCoordinatorCard key={h.key} host={h} highlighted={highlight === h.key} />)}
         </div>
+        {torOnly.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs text-faint">{t("observatory.p2p.venues.torOnlyLead", { defaultValue: "Reachable only through Tor: full stats on a self-hosted node. Offers in the book come from their signed Nostr orders." })}</p>
+            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {torOnly.map((h) => (
+                <li
+                  key={h.key}
+                  id={`p2p-host-${h.key}`}
+                  data-testid={`p2p-coord-${h.key}`}
+                  data-highlighted={highlight === h.key || undefined}
+                  className={`flex items-center justify-between gap-3 rounded-lg border border-hairline bg-surface-1 px-3 py-2.5 ${highlight === h.key ? "ring-2 ring-bitcoin/70" : ""}`}
+                >
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span aria-hidden="true" className="h-4 w-1 shrink-0 rounded-full" style={{ background: hostColorVar("robosats", h.key) }} />
+                    <span className="truncate text-sm text-foreground">{h.name}</span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-3">
+                    <span className="num text-xs text-muted" title={t("observatory.p2p.venues.inBook", { defaultValue: "Offers in the book" })}>{t("observatory.p2p.venues.offersShort", { defaultValue: "{{count}} offers", count: h.inBook })}</span>
+                    <StatusPill status={h.status} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {mostro.length > 0 && (

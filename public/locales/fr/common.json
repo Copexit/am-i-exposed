@@ -3082,5 +3082,8 @@
   "observatory.p2p.volume.mostro": "Échanges conclus sur Mostro",
   "observatory.p2p.volume.mostroLead": "Vus sur les relais publics, 7 derniers jours. Les relais limitent l'historique renvoyé, les jours plus anciens ne sont donc pas affichés.",
   "observatory.p2p.volume.mostroNone": "Aucun échange conclu n'a pu être lu sur les relais.",
-  "observatory.p2p.volume.hodlhodl": "HodlHodl ne publie aucune donnée de volume."
+  "observatory.p2p.volume.hodlhodl": "HodlHodl ne publie aucune donnée de volume.",
+  "observatory.p2p.venues.torOnlyLead": "Joignables uniquement via Tor : statistiques complètes sur un nœud auto-hébergé. Les offres au carnet viennent de leurs ordres Nostr signés.",
+  "observatory.p2p.venues.offersShort_one": "{{count}} offre",
+  "observatory.p2p.venues.offersShort_other": "{{count}} offres"
 }

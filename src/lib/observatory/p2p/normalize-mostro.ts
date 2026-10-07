@@ -54,6 +54,9 @@ export function mostroOffers(orders: NostrEvent[], info: NostrEvent[], index: In
 export function mostroHosts(orders: NostrEvent[], info: NostrEvent[], nowSec: number): VenueHost[] {
   const latestInfo = new Map<string, NostrEvent>();
   for (const e of info) {
+    // Instances on regtest or testnet are not markets.
+    const net = tag(e, "lnd_networks")?.[0];
+    if (net && net !== "mainnet") continue;
     const cur = latestInfo.get(e.pubkey);
     if (!cur || e.created_at > cur.created_at) latestInfo.set(e.pubkey, e);
   }

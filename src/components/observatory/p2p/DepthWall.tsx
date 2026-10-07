@@ -2,7 +2,6 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { motion } from "motion/react";
 import { ParentSize } from "@visx/responsive";
 import { scaleLinear } from "@visx/scale";
 import { Group } from "@visx/group";
@@ -194,20 +193,11 @@ function Chart({ market, side, width, height, names, wide }: { market: Market; s
         className="block overflow-visible text-faint"
         data-animated={reduced ? "false" : "true"}
       >
-        <defs>
-          <clipPath id={`p2p-wall-clip-${market.currency}`}>
-            {reduced ? (
-              <rect x={0} y={-MARGIN.top} width={iw} height={height} />
-            ) : (
-              <motion.rect key={`${market.currency}-${side}`} x={0} y={-MARGIN.top} height={height} initial={{ width: 0 }} animate={{ width: iw }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }} />
-            )}
-          </clipPath>
-        </defs>
         <Group left={MARGIN.left} top={MARGIN.top}>
           {y.ticks(4).map((v) => (
             <line key={v} x1={0} x2={iw} y1={y(v)} y2={y(v)} stroke="var(--hairline)" />
           ))}
-          <g clipPath={`url(#p2p-wall-clip-${market.currency})`}>
+          <g key={`${market.currency}-${side}`} className={reduced ? "" : "motion-safe:animate-[p2p-wall-in_700ms_cubic-bezier(0.22,1,0.36,1)]"}>
             {sides.map(({ key, pts, dir }) => (
               <g key={key} opacity={key === maker ? 1 : 0.28}>
                 {steps(pts, dir).map(({ p, left, w, top }) => (
