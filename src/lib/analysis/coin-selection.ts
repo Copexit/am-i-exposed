@@ -76,6 +76,8 @@ export interface CoinSelectionPlan {
   fee: number;
   /** Change in sats, 0 when changeless */
   change: number;
+  /** Changeless only: leftover sats added to the fee instead of a dust-sized change output */
+  absorbed: number;
   /** Distinct on-chain origins among the selected coins */
   origins: number;
   warnings: PlanWarning[];
@@ -293,15 +295,23 @@ function groupByOrigin(cands: Candidate[]): Candidate[][] {
   return [...groups.values()];
 }
 
+/** Single-coin change at least this many times the payment counts as "much larger". */
+const BIG_CHANGE_RATIO = 3;
+
 /**
- * Recommend "No change" over "Single coin" when it reveals nothing new (its coins
- * already share one origin), or when the single coin's change is toxic or at least
- * as large as the payment (a big change output is easy to follow). Never when
- * "No change" carries a high-severity warning (it would merge CoinJoin outputs).
+ * Recommend "No change" over "Single coin" when
+ *   (a) its coins already share one origin (no new source of funds is linked), or
+ *   (b) the single coin's change would be toxic, or
+ *   (c) it links exactly 2 origins, holds no CoinJoin coin, and the single coin's
+ *       change is at least BIG_CHANGE_RATIO times the payment (an output that
+ *       large is easy to follow and carries most of the wallet's funds).
+ * Never when it merges 2+ CoinJoin outputs or carries another high-severity warning.
  */
 export function recommendNoChange(single: CoinSelectionPlan, noChange: CoinSelectionPlan): boolean {
-  if (noChange.warnings.some(w => w.severity === "high")) return false;
-  return noChange.origins === 1 || changeClass(single.change) === 2 || single.change >= single.paymentAmount;
+  const cj = noChange.selected.filter(c => c.fromCoinJoin).length;
+  if (cj > 1 || noChange.warnings.some(w => w.severity === "high")) return false;
+  if (noChange.origins === 1 || changeClass(single.change) === 2) return true;
+  return noChange.origins === 2 && cj === 0 && single.change >= BIG_CHANGE_RATIO * single.paymentAmount;
 }
 
 // ---------- Plans ----------
@@ -310,14 +320,17 @@ function buildPlan(strategy: PlanStrategy, picked: Candidate[], amount: number, 
   const coins = picked.map(c => c.coin);
   const inputTotal = picked.reduce((s, c) => s + c.value, 0);
   // Callers only pass sets that pay.
-  const { fee, change } = settle(inputTotal, picked.reduce((s, c) => s + c.vb, 0), amount, feeRate)!;
+  const inVb = picked.reduce((s, c) => s + c.vb, 0);
+  const { fee, change } = settle(inputTotal, inVb, amount, feeRate)!;
+  const absorbed = change === 0 ? fee - Math.ceil((inVb + BASE_VB + OUTPUT_VB) * feeRate) : 0;
   const origins = new Set(picked.map(c => c.origin)).size;
   const warnings: PlanWarning[] = [];
 
   const cj = coins.filter(c => c.fromCoinJoin);
   if (cj.length > 0 && cj.length < coins.length) {
     warnings.push({ id: "coinjoin-mix", severity: "high", count: cj.length });
-  } else if (new Set(cj.map(c => c.utxo.txid)).size > 1) {
+  } else if (cj.length > 1) {
+    // Even outputs of one CoinJoin: spending them together links them again.
     warnings.push({ id: "coinjoin-merge", severity: "high", count: cj.length });
   }
   if (origins > 1) warnings.push({ id: "merges-origins", severity: "medium", count: origins });
@@ -325,7 +338,7 @@ function buildPlan(strategy: PlanStrategy, picked: Candidate[], amount: number, 
   const scripts = new Set(coins.map(c => scriptType(c.address))).size;
   if (scripts > 1) warnings.push({ id: "mixed-scripts", severity: "low", count: scripts });
 
-  return { strategy, selected: withHints(coins), inputTotal, paymentAmount: amount, fee, change, origins, warnings };
+  return { strategy, selected: withHints(coins), inputTotal, paymentAmount: amount, fee, change, absorbed, origins, warnings };
 }
 
 /**

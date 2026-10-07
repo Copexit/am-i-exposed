@@ -47,7 +47,7 @@ describe("WalletUtxoList", () => {
   ];
 
   it("lists every coin by amount, with badges, ages, hints and a total", () => {
-    render(<WalletUtxoList addressInfos={wallet} />);
+    render(<WalletUtxoList addressInfos={wallet} onScan={() => {}} />);
     expect(amounts()).toEqual(["120,000", "50,000", "1,000", "300"]);
     const [top, second, third, last] = screen.getAllByTestId("utxo-row");
     expect(within(top!).getByText("change")).toBeTruthy();
@@ -64,29 +64,42 @@ describe("WalletUtxoList", () => {
     expect(screen.getByTestId("utxo-total").textContent).toContain("4 UTXOs");
   });
 
-  it("links only valid txids to a scan and shortens the outpoint with the full value on title", () => {
-    render(<WalletUtxoList addressInfos={wallet} />);
-    const links = screen.getAllByRole("link");
-    expect(links.map(a => a.getAttribute("href"))).toEqual([`/#tx=${TXID("a")}`, `/#tx=${TXID("a")}`, `/#tx=${TXID("b")}`]);
-    expect(links[0]!.getAttribute("title")).toBe(`${TXID("a")}:2`);
-    expect(links[0]!.textContent).toBe("aaaaaaaa...aaaa:2");
-    expect(screen.getAllByTestId("utxo-row")[2]!.querySelector("a")).toBeNull();
+  it("scans only valid txids through onScan, with the full outpoint on title, and labels the copy button", () => {
+    const onScan = vi.fn();
+    render(<WalletUtxoList addressInfos={wallet} onScan={onScan} />);
+    const scans = screen.getAllByRole("button", { name: /^Scan the funding transaction of / });
+    expect(scans).toHaveLength(3);
+    expect(scans[0]!.getAttribute("title")).toBe(`${TXID("a")}:2`);
+    expect(scans[0]!.textContent).toBe("aaaaaaaa...aaaa:2");
+    fireEvent.click(scans[0]!);
+    expect(onScan).toHaveBeenCalledWith(TXID("a"));
+    const third = screen.getAllByTestId("utxo-row")[2]!;
+    expect(within(third).queryByRole("button", { name: /^Scan/ })).toBeNull();
+    expect(within(third).getByRole("button", { name: "Copy not-a-txid:0" }).getAttribute("type")).toBe("button");
+  });
+
+  it("exposes column labels to screen readers as a table", () => {
+    render(<WalletUtxoList addressInfos={wallet} onScan={() => {}} />);
+    const table = screen.getByRole("table", { name: "Coins (UTXOs)" });
+    expect(within(table).getAllByRole("columnheader").map(h => h.textContent)).toEqual(["#", "Coin", "Amount", "Address", "Age", "Origin"]);
+    expect(within(within(table).getAllByRole("row")[1]!).getAllByRole("cell")).toHaveLength(6);
   });
 
   it("sorts by amount both ways and by age", () => {
-    render(<WalletUtxoList addressInfos={wallet} />);
-    fireEvent.click(screen.getByRole("button", { name: "Amount" }));
+    render(<WalletUtxoList addressInfos={wallet} onScan={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Amount, largest first" }));
     expect(amounts()).toEqual(["300", "1,000", "50,000", "120,000"]);
+    expect(screen.getByRole("button", { name: "Amount, smallest first" })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Age" }));
     // Oldest first, ties by amount; unconfirmed last
     expect(amounts()).toEqual(["120,000", "50,000", "300", "1,000"]);
-    fireEvent.click(screen.getByRole("button", { name: "Age" }));
+    fireEvent.click(screen.getByRole("button", { name: "Age, oldest first" }));
     expect(amounts()).toEqual(["1,000", "300", "120,000", "50,000"]);
   });
 
   it("collapses to 20 rows with Show all N", () => {
     const many = [info("bc1qmanyaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "0/0", Array.from({ length: 25 }, (_, i) => ({ txid: TXID("c"), vout: i, value: 10_000 + i, height: 899_500 })))];
-    render(<WalletUtxoList addressInfos={many} />);
+    render(<WalletUtxoList addressInfos={many} onScan={() => {}} />);
     expect(screen.getAllByTestId("utxo-row")).toHaveLength(20);
     fireEvent.click(screen.getByRole("button", { name: "Show all 25" }));
     expect(screen.getAllByTestId("utxo-row")).toHaveLength(25);

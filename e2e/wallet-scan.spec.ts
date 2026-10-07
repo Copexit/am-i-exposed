@@ -146,11 +146,14 @@ test("coins (UTXOs) section lists every coin, sortable, with totals and scan lin
   await expect(changeRow.getByText("change", { exact: true })).toBeVisible();
   await expect(changeRow.getByText("1/0", { exact: true })).toBeVisible();
   await expect(changeRow.getByText("10 confirmations")).toBeVisible();
-  await expect(changeRow.getByRole("link")).toHaveAttribute("href", `/#tx=${"e1".repeat(32)}`);
   await expect(list.getByTestId("utxo-row").nth(2).getByText("Reused address")).toBeVisible();
 
-  await list.getByRole("button", { name: "Amount" }).click();
+  await list.getByRole("button", { name: "Amount, largest first" }).click();
   await expect(amounts.first()).toHaveText("200,000 sats");
+
+  // The outpoint opens a scan of the funding tx in place
+  await list.getByRole("button", { name: `Scan the funding transaction of ${"e1".repeat(32)}:0` }).click();
+  await expect(page).toHaveURL(new RegExp(`#tx=${"e1".repeat(32)}`));
 });
 
 test("coin selection advisor: a no-change plan next to the single coin", async ({ page }) => {
@@ -164,6 +167,6 @@ test("coin selection advisor: a no-change plan next to the single coin", async (
 
   const noChange = page.getByTestId("coin-plan-no-change");
   await expect(noChange.getByText("Recommended")).toBeVisible();
-  await expect(noChange.getByText(/already linked, so nothing new is revealed/)).toBeVisible();
+  await expect(noChange.getByText(/no new source of funds is linked/)).toBeVisible();
   await expect(page.getByTestId("coin-plan-single-coin").getByText(/change output that observers can follow/)).toBeVisible();
 });

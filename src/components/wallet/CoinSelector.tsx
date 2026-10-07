@@ -10,7 +10,7 @@ import {
 } from "@/lib/analysis/coin-selection";
 import { fmtN } from "@/lib/format";
 import { SEVERITY_STYLES } from "@/components/findingCardConstants";
-import { HintChip } from "./WalletUtxoList";
+import { HintChip } from "./HintChip";
 
 const FIELD = "w-full h-10 bg-surface-inset border border-card-border rounded-lg px-3 text-sm text-foreground num placeholder:text-faint focus:border-bitcoin/50 focus-visible:outline-none transition-colors";
 
@@ -132,6 +132,11 @@ function PlanCard({ plan, recommended }: { plan: CoinSelectionPlan; recommended:
           )}
         </div>
         <p className="text-sm text-muted leading-relaxed">{t(`wallet.coinSel.note.${note}`)}</p>
+        {plan.absorbed > 0 && (
+          <p className="text-[13px] text-muted leading-relaxed">
+            {t("wallet.coinSel.absorbed", { amount: fmtN(plan.absorbed), defaultValue: "The fee includes {{amount}} sats of leftover that would otherwise be dust change." })}
+          </p>
+        )}
       </div>
 
       <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3 max-w-2xl">

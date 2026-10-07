@@ -16,6 +16,8 @@ interface CopyButtonProps {
   iconSize?: number;
   /** Additional class names. */
   className?: string;
+  /** Accessible name, e.g. what gets copied (defaults to "Copy"). */
+  label?: string;
 }
 
 /**
@@ -27,6 +29,7 @@ export function CopyButton({
   variant = "overlay",
   iconSize,
   className,
+  label,
 }: CopyButtonProps) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
@@ -54,9 +57,11 @@ export function CopyButton({
   if (variant === "inline") {
     return (
       <button
+        type="button"
         className={`text-muted/60 hover:text-foreground transition-colors cursor-pointer ${className ?? ""}`}
         onClick={handleCopy}
-        title={t("common.copy", { defaultValue: "Copy" })}
+        title={label ?? t("common.copy", { defaultValue: "Copy" })}
+        aria-label={label}
       >
         {copied ? <Check size={size} /> : <Copy size={size} />}
       </button>

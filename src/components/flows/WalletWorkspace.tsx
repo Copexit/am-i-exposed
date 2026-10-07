@@ -87,7 +87,7 @@ export function WalletWorkspace({ result, addressInfos, utxoTraces, onScan, addr
             open={utxosOpen}
             onToggle={() => setUtxosOpen(o => !o)}
           >
-            <WalletUtxoList addressInfos={addressInfos} />
+            <WalletUtxoList addressInfos={addressInfos} onScan={onScan} />
           </Panel>
         )}
 

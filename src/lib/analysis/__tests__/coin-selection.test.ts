@@ -216,7 +216,8 @@ describe("adviseCoinSelection: no-change plan", () => {
     const [noChange, single] = a.plans;
     expect(values(noChange!)).toEqual([41_000, 20_000]);
     expect(noChange!.change).toBe(0);
-    expect(noChange!.fee).toBe(1_000); // leftover absorbed
+    expect(noChange!.fee).toBe(1_000);
+    expect(noChange!.absorbed).toBe(823); // 1,000 minus the 177-sat fee of a 1-output tx
     expect(single!.change).toBeGreaterThan(400_000);
   });
 
@@ -252,19 +253,53 @@ describe("adviseCoinSelection: no-change plan", () => {
     expect(p.plans[0]!.origins).toBe(1);
   });
 
-  it("recommends: same origin, or change toxic or >= payment; otherwise single coin", () => {
-    // Single 150k leaves ~49.8k change, below the 100k payment: single coin stays first
-    expect(strategies(adviseCoinSelection([coin(150_000), coin(60_000), coin(40_200)], 100_000, 1))).toEqual(["single-coin", "no-change"]);
-    // Single 300k leaves ~199.8k, at least the payment: no change first
-    expect(strategies(adviseCoinSelection([coin(300_000), coin(60_000), coin(40_200)], 100_000, 1))).toEqual(["no-change", "single-coin"]);
-    // Single 105k leaves toxic change: no change first
-    expect(strategies(adviseCoinSelection([coin(105_000), coin(60_000), coin(40_200)], 100_000, 1))).toEqual(["no-change", "single-coin"]);
-    // Same origin wins even when the change is moderate
+  it("recommends (a) a same-origin set, even with moderate change", () => {
     expect(strategies(adviseCoinSelection([coin(150_000), coin(60_000, { address: "bc1qx" }), coin(40_200, { address: "bc1qx" })], 100_000, 1)))
       .toEqual(["no-change", "single-coin"]);
-    // Never over a plan that merges CoinJoin outputs with other coins
-    expect(strategies(adviseCoinSelection([coin(300_000), coin(60_000, { fromCoinJoin: true }), coin(40_200)], 100_000, 1)))
+  });
+
+  it("recommends (b) when the single coin's change would be toxic", () => {
+    expect(strategies(adviseCoinSelection([coin(105_000), coin(60_000), coin(40_200)], 100_000, 1))).toEqual(["no-change", "single-coin"]);
+  });
+
+  it("recommends (c) 2 plain origins only when the change is at least 3x the payment", () => {
+    // 450k leaves 349,860 (>= 300k): no change first
+    expect(strategies(adviseCoinSelection([coin(450_000), coin(60_000), coin(40_200)], 100_000, 1))).toEqual(["no-change", "single-coin"]);
+    // 400k leaves 299,860 (< 300k): single coin first
+    expect(strategies(adviseCoinSelection([coin(400_000), coin(60_000), coin(40_200)], 100_000, 1))).toEqual(["single-coin", "no-change"]);
+  });
+
+  it("keeps the single coin first when change and payment are near-equal", () => {
+    // 210k leaves 109,860 against a 100k payment
+    expect(strategies(adviseCoinSelection([coin(210_000), coin(60_000), coin(40_200)], 100_000, 1))).toEqual(["single-coin", "no-change"]);
+  });
+
+  it("keeps the single coin first when No change merges 3 unrelated origins, even with huge change", () => {
+    const a = plans(adviseCoinSelection([coin(1_000_000), coin(40_000), coin(35_000), coin(25_300)], 100_000, 1));
+    expect(a.plans.map(p => p.strategy)).toEqual(["single-coin", "no-change"]);
+    expect(a.plans[1]!.origins).toBe(3);
+  });
+
+  it("never recommends merging CoinJoin outputs, even two of the same CoinJoin", () => {
+    const a = plans(adviseCoinSelection([
+      coin(500_000),
+      coin(41_000, { txid: "cj", fromCoinJoin: true }),
+      coin(20_000, { txid: "cj", fromCoinJoin: true }),
+    ], 60_000, 1));
+    expect(a.plans.map(p => p.strategy)).toEqual(["single-coin", "no-change"]);
+    expect(a.plans[1]!.warnings[0]).toMatchObject({ id: "coinjoin-merge", severity: "high", count: 2 });
+    // Mixed with a plain coin
+    expect(strategies(adviseCoinSelection([coin(450_000), coin(60_000, { fromCoinJoin: true }), coin(40_200)], 100_000, 1)))
       .toEqual(["single-coin", "no-change"]);
+  });
+
+  it("window edges at 1 sat/vB: upper edge included, 1 sat past excluded, 1 sat short of the lower edge excluded", () => {
+    // 2 P2WPKH inputs paying 100k: pays from 100,177, changeless up to 101,208
+    const pair = (x: number) => plans(adviseCoinSelection([coin(1_000_000), coin(60_000), coin(x)], 100_000, 1)).plans.find(p => p.strategy === "no-change");
+    expect(pair(41_208)).toMatchObject({ change: 0, fee: 1_208, absorbed: 1_031 });
+    expect(pair(41_209)).toBeUndefined();
+    expect(pair(40_177)).toMatchObject({ change: 0, fee: 177, absorbed: 0 });
+    expect(pair(40_176)).toBeUndefined();
   });
 
   it("no extra plan when the single coin is already changeless", () => {
