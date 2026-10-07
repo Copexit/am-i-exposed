@@ -119,6 +119,33 @@ describe("Observatory tab shell", () => {
     expect(screen.getByText("Loading the map")).toBeTruthy();
   });
 
+  it("does not leave the coordinator page dimmed when the next period fails to load", () => {
+    window.history.replaceState(null, "", "/observatory/#wabisabi&coordinator=kruw");
+    hooks.flowByPeriod[7] = polled<FlowMap>(null, new Error("down"));
+    render(<ObservatoryPage />);
+    act(() => { fireEvent.click(within(screen.getByRole("group", { name: "Period" })).getByRole("button", { name: "7 d" })); });
+    expect(hooks.flowPeriods.at(-1)).toBe(7);
+    expect(document.getElementById("obs-coord-kruw-title")?.textContent).toBe("Kruw");
+    expect(screen.getByTestId("kpi-volume").closest("dl")?.getAttribute("aria-busy")).toBe("false");
+  });
+
+  it("mounts the remix flows and the search; a found txid sets tx= without any request", () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    render(<ObservatoryPage />);
+    expect(screen.getByTestId("obs-chord")).toBeTruthy();
+    const txid = (flowEnv.result as FlowMap).Coinjoins[0]!.TxId;
+    const input = screen.getByPlaceholderText("Search a CoinJoin txid or a date");
+    act(() => {
+      fireEvent.change(input, { target: { value: txid } });
+      fireEvent.submit(input.closest("form")!);
+    });
+    expect(window.location.hash).toBe(`#wabisabi&tx=${txid}`);
+    expect(screen.getByTestId("obs-search-result").dataset.state).toBe("found");
+    expect(fetchSpy).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
   it("renders gracefully for an unknown coordinator and a malformed txid, dropping the unknown key", () => {
     window.history.replaceState(null, "", "/observatory/#wabisabi&coordinator=nope&tx=zz");
     const before = window.history.length;

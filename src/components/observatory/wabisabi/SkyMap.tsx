@@ -5,7 +5,8 @@ import { useTranslation } from "react-i18next";
 import { ArrowUpRight, X } from "lucide-react";
 import { useTheme } from "@/hooks/useTheme";
 import { MAX_LIVE_PARTICLES, REPLAY_SECONDS, replayTime, type Scene, type SkyEvent, type Star } from "@/lib/observatory/sky-model";
-import { coordinatorColorVar } from "@/lib/observatory/coordinator-palette";
+import { coordinatorColorVar, coordinatorFgVar } from "@/lib/observatory/coordinator-palette";
+import { TXID_RE } from "@/lib/constants";
 import { fmtBtc, fmtCount } from "@/lib/observatory/obs-format";
 import type { Period } from "@/lib/observatory/wabisator-client";
 import { usePeriodLabel } from "./StatsStrip";
@@ -145,7 +146,7 @@ function useFmt() {
 }
 
 /** A CoinJoin's facts; with `onClose`, the pinned card with the analyze link. */
-export function EventDetails({ event, star, withDate, onClose }: { event: SkyEvent; star: Star | undefined; withDate: boolean; onClose?: () => void }) {
+export function EventDetails({ event, star, withDate, onClose, tone = "sky" }: { event: SkyEvent; star: Star | undefined; withDate: boolean; onClose?: () => void; tone?: "sky" | "page" }) {
   const { t } = useTranslation();
   const f = useFmt();
   return (
@@ -153,7 +154,7 @@ export function EventDetails({ event, star, withDate, onClose }: { event: SkyEve
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="flex items-center gap-2 font-medium text-foreground">
-            <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ background: coordinatorColorVar(event.star) }} />
+            <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ background: tone === "page" ? coordinatorFgVar(event.star) : coordinatorColorVar(event.star) }} />
             <span className="truncate">{star?.name ?? event.star}</span>
           </p>
           <p className="num mt-0.5 text-faint">{f.time(event.t, withDate)}</p>
@@ -180,7 +181,7 @@ export function EventDetails({ event, star, withDate, onClose }: { event: SkyEve
       ) : (
         <p className="text-muted">{t("observatory.wabisabi.event.notAnalyzed", { defaultValue: "Not analysed yet" })}</p>
       )}
-      {onClose && (
+      {onClose && TXID_RE.test(event.txid) && (
         <a
           href={`/#tx=${event.txid}`}
           className="mt-1 inline-flex min-h-10 items-center gap-1.5 rounded-lg text-sm font-medium text-bitcoin-text transition-colors hover:text-bitcoin focus-visible:outline-2 focus-visible:outline-bitcoin"

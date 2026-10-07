@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Map as MapIcon, Search, Table2 } from "lucide-react";
+import { Map as MapIcon, Table2 } from "lucide-react";
 import { useCoordinatorsStatus, useFlowMap } from "@/hooks/useWabisator";
 import { useObsState } from "@/hooks/useObsState";
-import { buildScene, layoutStars, replayTime, type Scene, type SceneStatus } from "@/lib/observatory/sky-model";
+import { REPLAY_SECONDS, buildScene, layoutStars, replayProgress, replayTime, type Scene, type SceneStatus, type SkyEvent } from "@/lib/observatory/sky-model";
 import type { Period } from "@/lib/observatory/wabisator-client";
 import type { ObsState } from "@/lib/observatory/obs-hash";
 import type { FlowMap } from "@/lib/observatory/wabisator-types";
@@ -20,6 +20,8 @@ import { Timeline } from "./Timeline";
 import { Ticker } from "./Ticker";
 import { LiveBoard } from "./LiveBoard";
 import { CoordinatorPage } from "./CoordinatorPage";
+import { RemixFlows } from "./RemixFlows";
+import { ObsSearch } from "./ObsSearch";
 
 const FADE = "motion-safe:animate-[obs-fade_250ms_ease-out]";
 const BONE = "rounded bg-surface-2 motion-safe:animate-pulse";
@@ -201,15 +203,26 @@ function FlowsSkeleton() {
 
 // ---------- the map view ----------
 
+/** A playhead request from the search; `n` makes repeated searches for the same time distinct. */
+type Seek = { t: number; lead: number; n: number };
+
 /**
  * Map, timeline and ticker around one replay clock. Its own component so the clock's 10 Hz
  * progress re-renders only this, not the whole tab.
  */
-function SkyView({ scene, period, tx, coordinator, setObs }: { scene: Scene | null; period: Period; tx: string | null; coordinator: string | null; setObs: (patch: Partial<ObsState>) => void }) {
+function SkyView({ scene, period, tx, coordinator, setObs, seek }: { scene: Scene | null; period: Period; tx: string | null; coordinator: string | null; setObs: (patch: Partial<ObsState>) => void; seek: Seek | null }) {
   const { theme } = useTheme();
   const reduced = useReducedMotion();
   const wide = useMedia("(min-width: 1024px)");
   const sky = useSkyClock(period, reduced);
+  // A search moves the playhead: to a date, or just before a found CoinJoin so its pulse plays.
+  const { scrub } = sky;
+  useEffect(() => {
+    if (!seek || !scene) return;
+    scrub(Math.max(0, replayProgress(seek.t, scene) - seek.lead / REPLAY_SECONDS[period]));
+    // Only a new seek (its nonce) moves the playhead, not a scene refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seek?.n]);
   const selectStar = useCallback((key: string) => {
     setObs({ coordinator: key });
     requestAnimationFrame(() => document.getElementById("obs-coordinator")?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" }));
@@ -329,6 +342,23 @@ export function WabiSabiTab() {
     requestAnimationFrame(() => document.getElementById("obs-coordinator")?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" }));
   }, [setObs]);
 
+  // Search: highlight a found CoinJoin on the map and ticker, or move the playhead to a date.
+  const [seek, setSeek] = useState<Seek | null>(null);
+  const showMap = useCallback(() => {
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    requestAnimationFrame(() => document.getElementById("obs-map")?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" }));
+  }, []);
+  const onFound = useCallback((e: SkyEvent) => {
+    setObs(table ? { tx: e.txid, view: "map" } : { tx: e.txid });
+    setSeek((s) => ({ t: e.t, lead: 1.5, n: (s?.n ?? 0) + 1 }));
+    showMap();
+  }, [setObs, showMap, table]);
+  const onJumpTo = useCallback((t: number) => {
+    if (table) setObs({ view: "map" });
+    setSeek((s) => ({ t, lead: 0, n: (s?.n ?? 0) + 1 }));
+    showMap();
+  }, [setObs, showMap, table]);
+
   const coordinators = keptScene ? [...keptScene.stars].sort((a, b) => b.volume - a.volume || a.name.localeCompare(b.name)) : null;
   // Until the coordinators load the key may be valid; afterwards an unknown key is dropped quietly.
   const dataLoaded = !!keptScene && !!status.data;
@@ -359,11 +389,7 @@ export function WabiSabiTab() {
             })}
           </p>
         </div>
-        {/* Search slot (Task 7): same footprint as the final field. */}
-        <div aria-hidden="true" className="flex h-11 w-full lg:w-96 items-center gap-2.5 rounded-lg border border-hairline bg-surface-1 shadow-(--shadow-card) px-3">
-          <Search size={16} className="text-faint" />
-          <span className={`h-3 w-40 ${BONE}`} />
-        </div>
+        <ObsSearch scene={scene} period={obs.period} onFound={onFound} onJumpTo={onJumpTo} onSwitchPeriod={(p) => setObs({ period: p, tx: null })} />
       </header>
 
       <SubNav items={nav} />
@@ -382,7 +408,7 @@ export function WabiSabiTab() {
             {scene ? <TableView scene={scene} /> : <TableSkeleton />}
           </div>
         ) : (
-          <SkyView scene={scene} period={obs.period} tx={obs.tx} coordinator={obs.coordinator} setObs={setObs} />
+          <SkyView scene={scene} period={obs.period} tx={obs.tx} coordinator={obs.coordinator} setObs={setObs} seek={seek} />
         )}
       </Section>
 
@@ -417,7 +443,7 @@ export function WabiSabiTab() {
             : [96, 120, 84, 132, 100].map((w) => <span key={w} aria-hidden="true" className={`h-10 rounded-lg ${BONE}`} style={{ width: `${w}px` }} />)}
         </div>
         {obs.coordinator && keptScene && keptFlow && coordinatorKnown ? (
-          <CoordinatorPage key={obs.coordinator} coordinatorKey={obs.coordinator} scene={keptScene} flow={keptFlow} status={coordinatorStatus} onClose={closeCoordinator} stale={!flow.data} />
+          <CoordinatorPage key={obs.coordinator} coordinatorKey={obs.coordinator} scene={keptScene} flow={keptFlow} status={coordinatorStatus} onClose={closeCoordinator} stale={!flow.data && !flow.error} />
         ) : (
           obs.coordinator && !dataLoaded && <CoordinatorSkeleton />
         )}
@@ -426,9 +452,9 @@ export function WabiSabiTab() {
       <Section
         id="obs-flows"
         title={t("observatory.wabisabi.flows.title", { defaultValue: "Remix flows" })}
-        lead={t("observatory.wabisabi.flows.lead", { defaultValue: "Coins that left one coordinator's CoinJoins and entered another's, in the last {{period}}.", period: periodLabel })}
+        lead={t("observatory.wabisabi.flows.lead", { defaultValue: "Where remixed coins went in the last {{period}}: on to another coordinator, or back into the same one.", period: periodLabel })}
       >
-        <FlowsSkeleton />
+        {scene ? <RemixFlows scene={scene} onOpenCoordinator={openCoordinator} /> : flowFailed ? null : <FlowsSkeleton />}
       </Section>
 
       <ObservatoryAttribution lastUpdatedAt={flow.updatedAt} locale={i18n.language || "en"} />
