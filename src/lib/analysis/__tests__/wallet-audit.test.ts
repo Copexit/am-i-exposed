@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { auditWallet, type WalletAddressInfo } from "../wallet-audit";
 import type { MempoolAddress, MempoolTransaction, MempoolUtxo } from "@/lib/api/types";
 import type { DerivedAddress } from "@/lib/bitcoin/descriptor";
+import { History, recv, chg, ext, walletAddrs } from "./fixtures/wallet-history";
 
 function makeAddr(
   address: string,
@@ -173,5 +174,32 @@ describe("auditWallet", () => {
     const partial = auditWallet([], ["a1", "a2"]).findings.find(f => f.id === "wallet-scan-partial");
     expect(partial).toMatchObject({ severity: "low", scoreImpact: 0, params: { count: 2 } });
     expect(auditWallet([]).findings.some(f => f.id === "wallet-scan-partial")).toBe(false);
+  });
+});
+
+describe("auditWallet: wallet heuristics", () => {
+  it("a merge counted as change merge is not also a consolidation", () => {
+    const h = new History();
+    const [, change] = h.tx([h.receive(recv(0), 1_000_000, 100)], [{ address: ext(1), value: 200_007 }, { address: chg(0), value: 798_000 }], 101);
+    h.tx([change!, h.receive(recv(1), 100_000, 102), h.receive(recv(2), 100_000, 103)], [{ address: ext(2), value: 990_000 }], 104);
+    const ids = auditWallet(h.infos(walletAddrs(3))).findings.map((f) => f.id);
+    expect(ids).toContain("wallet-change-merge");
+    expect(ids).not.toContain("wallet-consolidation-history");
+  });
+
+  it("an empty wallet gets no wallet-heuristic findings and zero origins", () => {
+    const r = auditWallet([]);
+    expect(r.findings).toEqual([]);
+    expect(r.score).toBe(70);
+    expect(r.utxoOrigins.received).toEqual({ count: 0, sats: 0 });
+  });
+
+  it("new findings carry metadata", () => {
+    const h = new History();
+    const [, change] = h.tx([h.receive(recv(0), 1_000_000, 100)], [{ address: ext(1), value: 200_007 }, { address: chg(0), value: 798_000 }], 101);
+    h.tx([change!, h.receive(recv(1), 100_000, 102)], [{ address: ext(2), value: 890_000 }], 103);
+    const f = auditWallet(h.infos(walletAddrs(2))).findings.find((x) => x.id === "wallet-change-merge");
+    expect(f?.adversaryTiers).toEqual(["passive_observer", "kyc_exchange"]);
+    expect(f?.temporality).toBe("historical");
   });
 });

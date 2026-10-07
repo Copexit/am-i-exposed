@@ -5,6 +5,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import type { ScoringResult } from "@/lib/types";
 import type { PrimaryRec } from "@/lib/recommendations/primary-recommendation";
 import type { WalletAuditResult } from "@/lib/analysis/wallet-audit";
+import { buildWalletGraph, utxoOrigins } from "@/lib/analysis/wallet-behavior";
 import { makeTx } from "@/lib/analysis/heuristics/__tests__/fixtures/tx-factory";
 import pkg from "../package.json";
 
@@ -121,6 +122,7 @@ describe("walletJson", () => {
       totalBalance: 500000,
       reusedAddresses: 2,
       dustUtxos: 0,
+      utxoOrigins: utxoOrigins(buildWalletGraph([]), []),
     };
 
     walletJson("zpub6abc", result, "mainnet");
@@ -138,6 +140,7 @@ describe("walletJson", () => {
     const result: WalletAuditResult = {
       score: 70, grade: "C", findings: [], activeAddresses: 0, totalTxs: 0,
       totalUtxos: 0, totalBalance: 0, reusedAddresses: 0, dustUtxos: 0,
+      utxoOrigins: utxoOrigins(buildWalletGraph([]), []),
     };
     walletJson("zpub6abc", result, "mainnet", undefined, ["bc1qfailed"]);
     expect(JSON.parse(captured[0]).failedAddresses).toEqual(["bc1qfailed"]);

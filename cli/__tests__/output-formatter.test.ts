@@ -6,6 +6,7 @@ import { formatTxResult, formatAddressResult, formatWalletResult } from "../src/
 import type { ScoringResult } from "@/lib/types";
 import type { PrimaryRec } from "@/lib/recommendations/primary-recommendation";
 import type { WalletAuditResult } from "@/lib/analysis/wallet-audit";
+import { buildWalletGraph, utxoOrigins } from "@/lib/analysis/wallet-behavior";
 import { makeTx, makeVin, makeVout } from "@/lib/analysis/heuristics/__tests__/fixtures/tx-factory";
 
 describe("formatTxResult", () => {
@@ -138,6 +139,7 @@ describe("formatWalletResult", () => {
       totalBalance: 1500000,
       reusedAddresses: 3,
       dustUtxos: 1,
+      utxoOrigins: utxoOrigins(buildWalletGraph([]), []),
     };
     const output = formatWalletResult("zpub6abc...", result, "mainnet");
     expect(output).toContain("22");
