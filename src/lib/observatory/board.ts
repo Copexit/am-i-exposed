@@ -53,12 +53,14 @@ function card(c: StatusCoordinator, receivedAt: number): BoardCard {
 
 /**
  * `receivedAt` is the ms timestamp the status arrived. Countdowns count from the snapshot's own
- * `UpdatedAt` when it parses (a cached snapshot can be ~25 s old), never later than receipt.
+ * `UpdatedAt` when it parses and is within a minute of receipt (a cached snapshot can be ~25 s old;
+ * a larger gap is clock skew), never later than receipt.
  * Active = online with 24 h volume or open rounds.
  */
 export function buildBoard(status: CoordinatorsStatus, receivedAt: number): { active: BoardCard[]; inactive: BoardCard[] } {
   const updated = Date.parse(status.UpdatedAt);
-  const anchor = Number.isFinite(updated) ? Math.min(updated, receivedAt) : receivedAt;
+  // UpdatedAt is the server's clock, receivedAt the client's: beyond a minute apart, trust the client.
+  const anchor = Number.isFinite(updated) && Math.abs(receivedAt - updated) <= 60_000 ? Math.min(updated, receivedAt) : receivedAt;
   const cards = status.Coordinators.map((c) => card(c, anchor)).sort((a, b) => b.volume24h - a.volume24h);
   const isActive = (c: BoardCard) => c.online && (c.volume24h > 0 || c.rounds.length > 0);
   return { active: cards.filter(isActive), inactive: cards.filter((c) => !isActive(c)) };

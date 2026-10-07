@@ -236,7 +236,7 @@ type Seek = { t: number; lead: number };
  * Map, timeline and ticker around one replay clock. Its own component so the clock's 10 Hz
  * progress re-renders only this, not the whole tab.
  */
-function SkyView({ scene, period, tx, coordinator, setObs, seek, onSeeked, controls }: { scene: Scene | null; period: Period; tx: string | null; coordinator: string | null; setObs: (patch: Partial<ObsState>) => void; seek: Seek | null; onSeeked: () => void; controls: ReactNode }) {
+function SkyView({ scene, period, tx, coordinator, setObs, seek, onSeeked }: { scene: Scene | null; period: Period; tx: string | null; coordinator: string | null; setObs: (patch: Partial<ObsState>) => void; seek: Seek | null; onSeeked: () => void }) {
   const { theme } = useTheme();
   const reduced = useReducedMotion();
   const wide = useMedia("(min-width: 1024px)");
@@ -267,7 +267,8 @@ function SkyView({ scene, period, tx, coordinator, setObs, seek, onSeeked, contr
     );
 
   return (
-    <div className={`space-y-4 sm:space-y-5 ${FADE}`}>
+    // `contents`: map, timeline and ticker are items of the tab's map column, so its one view toggle can sit between them.
+    <div className="contents">
       {scene ? (
         <SkyMap
           scene={scene}
@@ -301,15 +302,11 @@ function SkyView({ scene, period, tx, coordinator, setObs, seek, onSeeked, contr
           onScrub={sky.scrub}
           onTogglePlay={sky.toggle}
           onPeriod={(p) => setObs({ period: p, tx: null })}
-          extra={controls}
         />
       ) : (
-        <div className="space-y-3">
-          <TimelineSkeleton />
-          <div className="flex justify-end">{controls}</div>
-        </div>
+        <TimelineSkeleton />
       )}
-      {!wide && ticker("page")}
+      {!wide && <div className="order-2">{ticker("page")}</div>}
     </div>
   );
 }
@@ -442,17 +439,21 @@ export function WabiSabiTab() {
       <SubNav items={nav} aside={wide ? <div className="w-[360px] shrink-0">{search}</div> : undefined} />
 
       <Section id="obs-map" title={t("observatory.wabisabi.map.title", { defaultValue: "The CoinJoin map" })} hideTitle describedBy="obs-map-caption">
-        {flowFailed ? (
-          <ObservatoryErrorState source="wabisator" onRetry={flow.refresh} locale={i18n.language || "en"} />
-        ) : table ? (
-          <div className={`space-y-6 ${FADE}`}>
-            <div className="flex justify-end">{viewToggle}</div>
-            <StatsStrip totals={scene?.totals ?? null} period={obs.period} />
-            {scene ? <TableView scene={scene} /> : <TableSkeleton />}
-          </div>
-        ) : (
-          <SkyView scene={scene} period={obs.period} tx={obs.tx} coordinator={obs.coordinator} setObs={setObs} seek={seek} onSeeked={onSeeked} controls={viewToggle} />
-        )}
+        <div className="flex flex-col gap-4 sm:gap-5">
+          {flowFailed ? (
+            <ObservatoryErrorState source="wabisator" onRetry={flow.refresh} locale={i18n.language || "en"} />
+          ) : table ? (
+            <div className={`space-y-6 ${FADE}`}>
+              <StatsStrip totals={scene?.totals ?? null} period={obs.period} />
+              {scene ? <TableView scene={scene} /> : <TableSkeleton />}
+            </div>
+          ) : (
+            <SkyView scene={scene} period={obs.period} tx={obs.tx} coordinator={obs.coordinator} setObs={setObs} seek={seek} onSeeked={onSeeked} />
+          )}
+          {/* One slot for the toggle whatever the view or loading state, so its buttons (and focus) persist:
+              under the timeline on the map, above the tables in table view. */}
+          <div className={`flex justify-end ${table ? "order-first" : "order-1"} ${flowFailed ? "hidden" : ""}`}>{viewToggle}</div>
+        </div>
       </Section>
 
       <Section

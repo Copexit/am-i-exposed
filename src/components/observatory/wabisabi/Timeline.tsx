@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { useRef, type KeyboardEvent, type PointerEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { Pause, Play } from "lucide-react";
 import { replayTime, type Scene } from "@/lib/observatory/sky-model";
@@ -15,8 +15,6 @@ export interface TimelineProps {
   onScrub: (p: number) => void;
   onTogglePlay: () => void;
   onPeriod: (p: Period) => void;
-  /** Extra controls after the period switch (the Map/Table toggle). */
-  extra?: ReactNode;
 }
 
 const PERIODS: Period[] = [1, 7, 30];
@@ -26,7 +24,7 @@ const BTN = "inline-flex items-center justify-center min-h-10 rounded-lg transit
  * The replay timeline: the period's volume histogram doubling as a scrubber (played part
  * brighter, a thin playhead), play/pause, the LIVE pill and the period switch.
  */
-export function Timeline({ scene, period, progress, playing, live, onScrub, onTogglePlay, onPeriod, extra }: TimelineProps) {
+export function Timeline({ scene, period, progress, playing, live, onScrub, onTogglePlay, onPeriod }: TimelineProps) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language || "en";
   const trackRef = useRef<HTMLDivElement>(null);
@@ -125,21 +123,18 @@ export function Timeline({ scene, period, progress, playing, live, onScrub, onTo
           </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div role="group" aria-label={t("observatory.wabisabi.timeline.period", { defaultValue: "Period" })} className="inline-flex gap-1 p-1 rounded-lg bg-surface-inset border border-card-border">
-            {PERIODS.map((p) => (
-              <button
-                key={p}
-                type="button"
-                aria-pressed={period === p}
-                onClick={() => onPeriod(p)}
-                className={`${BTN} num px-3 text-sm ${period === p ? "bg-surface-elevated text-foreground shadow-sm ring-1 ring-hairline-strong" : "text-muted hover:text-foreground"}`}
-              >
-                {t(`observatory.wabisabi.period.${p}`, { defaultValue: p === 1 ? "24 h" : `${p} d` })}
-              </button>
-            ))}
-          </div>
-          {extra}
+        <div role="group" aria-label={t("observatory.wabisabi.timeline.period", { defaultValue: "Period" })} className="inline-flex gap-1 p-1 rounded-lg bg-surface-inset border border-card-border">
+          {PERIODS.map((p) => (
+            <button
+              key={p}
+              type="button"
+              aria-pressed={period === p}
+              onClick={() => onPeriod(p)}
+              className={`${BTN} num px-3 text-sm ${period === p ? "bg-surface-elevated text-foreground shadow-sm ring-1 ring-hairline-strong" : "text-muted hover:text-foreground"}`}
+            >
+              {t(`observatory.wabisabi.period.${p}`, { defaultValue: p === 1 ? "24 h" : `${p} d` })}
+            </button>
+          ))}
         </div>
       </div>
     </div>

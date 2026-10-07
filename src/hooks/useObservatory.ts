@@ -49,7 +49,7 @@ const INITIAL_STATE: ObservatoryState = {
  * Umbrel). Tab-focus revalidation; no background polling.
  */
 export function useObservatory(): UseObservatoryResult {
-  // Until the network config settles an Umbrel user looks hosted: wait, or the
+  // Until the route is known (routeReady: Umbrel or not) an Umbrel user looks hosted: wait, or the
   // first render would send their IP to the public Cloudflare worker.
   const { isUmbrel, routeReady: ready } = useNetwork();
   const [state, setState] = useState<ObservatoryState>(INITIAL_STATE);

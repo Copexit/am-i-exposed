@@ -51,6 +51,11 @@ describe("buildBoard", () => {
     const updated = Date.parse(status.UpdatedAt);
     const late = buildBoard(status, updated + 25_000).active.find((c) => c.key === "kruw")!;
     expect(late.rounds.find((r) => r.phase === "OutputRegistration")!.closesAt).toBe(updated - 111_000);
+    // A client clock 5 min fast: the server time is not trusted, so the open rounds still count down.
+    const fast = updated + 5 * 60_000;
+    const skewed = buildBoard(status, fast).active.flatMap((c) => c.rounds).filter((r) => r.phase === "InputRegistration");
+    expect(skewed.some((r) => countdownLabel(r.closesAt, fast).kind === "time")).toBe(true);
+    expect(buildBoard(status, fast).active.find((c) => c.key === "kruw")!.rounds.find((r) => r.phase === "OutputRegistration")!.closesAt).toBe(fast - 111_000);
     const bad = buildBoard({ ...status, UpdatedAt: "" }, at).active.find((c) => c.key === "kruw")!;
     expect(bad.rounds.find((r) => r.phase === "OutputRegistration")!.closesAt).toBe(at - 111_000);
   });

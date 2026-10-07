@@ -217,6 +217,27 @@ describe("Observatory tab shell", () => {
     expect(container.querySelector("#obs-coordinator [aria-hidden='true'].rounded-xl")).toBeTruthy();
   });
 
+  it("keeps one Map/Table toggle mounted across view switches and the loading-to-loaded transition", () => {
+    hooks.flow = polled<FlowMap>(null);
+    const { rerender } = render(<ObservatoryPage />);
+    const table = screen.getByRole("button", { name: "Table" });
+    const map = screen.getByRole("button", { name: "Map" });
+    hooks.flow = polled(flowEnv.result as FlowMap);
+    rerender(<ObservatoryPage />);
+    expect(screen.getByRole("button", { name: "Table" })).toBe(table);
+    // Keyboard activation (Enter/Space on a native button is a click): focus stays on the pressed button.
+    table.focus();
+    act(() => { fireEvent.click(table); });
+    expect(screen.getByRole("table", { name: /Coordinators/ })).toBeTruthy();
+    expect(document.activeElement).toBe(table);
+    expect(table.getAttribute("aria-pressed")).toBe("true");
+    map.focus();
+    act(() => { fireEvent.click(map); });
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(document.activeElement).toBe(map);
+    expect(screen.getByRole("button", { name: "Table" })).toBe(table);
+  });
+
   it("shows skeletons while loading, and a calm error panel with retry when the map fails", () => {
     hooks.flow = polled<FlowMap>(null);
     hooks.status = polled<CoordinatorsStatus>(null);
