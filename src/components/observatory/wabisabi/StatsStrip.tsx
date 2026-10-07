@@ -32,8 +32,8 @@ export function StatsStrip({ totals, period }: { totals: FlowMap["Totals"] | nul
       className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3"
     >
       {tiles.map((tile) => (
-        <div key={tile.id} data-testid={`obs-stat-${tile.id}`} className="glass min-w-0 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3.5">
-          <dt className="eyebrow truncate">{tile.label}</dt>
+        <div key={tile.id} data-testid={`obs-stat-${tile.id}`} className="glass min-w-0 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3.5 flex flex-col justify-between">
+          <dt className="eyebrow !leading-tight text-balance">{tile.label}</dt>
           <dd className="mt-2 flex items-baseline gap-1.5 min-w-0">
             {tile.value != null ? (
               <>

@@ -33,7 +33,7 @@ describe("StatsStrip", () => {
 
   it("shows zeros for an empty period and skeletons while loading", () => {
     const { rerender, container } = render(<StatsStrip totals={{ Volume: 0, Coinjoins: 0, FreshBtc: 0, CrossRemixBtc: 0, InternalRemixBtc: 0 }} period={1} />);
-    expect(screen.getByTestId("obs-stat-volume").textContent).toBe("Volume0.0000BTC");
+    expect(screen.getByTestId("obs-stat-volume").textContent).toBe("Volume0BTC");
     expect(screen.getByTestId("obs-stat-coinjoins").textContent).toBe("CoinJoins0");
     rerender(<StatsStrip totals={null} period={1} />);
     expect(container.querySelectorAll(".animate-pulse, [class*='animate-pulse']")).toHaveLength(4);
@@ -43,5 +43,6 @@ describe("StatsStrip", () => {
     expect(fmtBtc(1234.567, "en")).toBe("1,234.57");
     expect(fmtBtc(0.063772, "en")).toBe("0.0638");
     expect(fmtBtc(1, "de")).toBe("1,00");
+    expect(fmtBtc(0, "en")).toBe("0");
   });
 });

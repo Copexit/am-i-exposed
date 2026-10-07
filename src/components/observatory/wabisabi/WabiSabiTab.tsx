@@ -63,7 +63,11 @@ function SubNav({ items }: { items: { id: string; label: string }[] }) {
           <li key={s.id}>
             <a
               href={`#${s.id}`}
-              onClick={(e) => { e.preventDefault(); document.getElementById(s.id)?.scrollIntoView({ behavior: "smooth", block: "start" }); }}
+              onClick={(e) => {
+                e.preventDefault();
+                const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+                document.getElementById(s.id)?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+              }}
               aria-current={active === s.id ? "true" : undefined}
               className={`inline-flex items-center min-h-10 px-3 rounded-md text-sm whitespace-nowrap transition-colors duration-200 ${active === s.id ? "bg-surface-2 text-foreground" : "text-muted hover:text-foreground"}`}
             >
@@ -217,7 +221,7 @@ export function WabiSabiTab() {
           type="button"
           aria-pressed={obs.view === id}
           onClick={() => setObs({ view: id })}
-          className={`${CHIP} !min-h-9 ${obs.view === id ? "bg-surface-elevated text-foreground shadow-sm ring-1 ring-hairline-strong" : "text-muted hover:text-foreground"}`}
+          className={`${CHIP} ${obs.view === id ? "bg-surface-elevated text-foreground shadow-sm ring-1 ring-hairline-strong" : "text-muted hover:text-foreground"}`}
         >
           <Icon size={14} aria-hidden="true" />
           {label}
@@ -227,6 +231,12 @@ export function WabiSabiTab() {
   );
 
   const coordinators = scene ? [...scene.stars].sort((a, b) => b.volume - a.volume || a.name.localeCompare(b.name)) : null;
+  // Until the coordinators load the key may be valid; afterwards an unknown key is dropped quietly.
+  const dataLoaded = !!scene && !!status.data;
+  const coordinatorKnown = !!obs.coordinator && !!coordinators?.some((s) => s.key === obs.coordinator);
+  useEffect(() => {
+    if (dataLoaded && obs.coordinator && !coordinatorKnown) setObs({ coordinator: null });
+  }, [dataLoaded, obs.coordinator, coordinatorKnown, setObs]);
 
   return (
     <div className="space-y-10 sm:space-y-14">
@@ -307,7 +317,7 @@ export function WabiSabiTab() {
               ))
             : [96, 120, 84, 132, 100].map((w) => <span key={w} aria-hidden="true" className={`h-10 rounded-lg ${BONE}`} style={{ width: `${w}px` }} />)}
         </div>
-        {obs.coordinator && <CoordinatorSkeleton />}
+        {obs.coordinator && (coordinatorKnown || !dataLoaded) && <CoordinatorSkeleton />}
       </Section>
 
       <Section

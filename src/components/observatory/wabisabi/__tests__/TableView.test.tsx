@@ -34,7 +34,7 @@ describe("TableView", () => {
     expect(kruw).toEqual(["Online", "853.68", "57", "46.85", "17.22", "0.0638", "774.33"]);
     // An offline coordinator with no activity in the period is listed with zeros.
     const swiss = rows.find((r) => r.textContent?.includes("SwissCoordinator"))!;
-    expect(within(swiss).getAllByRole("cell").map((c) => c.textContent)).toEqual(["Offline", "0.0000", "0", "0.0000", "0.0000", "0.0000", "0.0000"]);
+    expect(within(swiss).getAllByRole("cell").map((c) => c.textContent)).toEqual(["Offline", "0", "0", "0", "0", "0", "0"]);
   });
 
   it("lists the remix flows by BTC, with coordinator names", () => {

@@ -99,10 +99,22 @@ describe("Observatory tab shell", () => {
     expect(window.location.hash).toBe("#wabisabi");
   });
 
-  it("renders gracefully for an unknown coordinator and a malformed txid", () => {
+  it("renders gracefully for an unknown coordinator and a malformed txid, dropping the unknown key", () => {
     window.history.replaceState(null, "", "/observatory/#wabisabi&coordinator=nope&tx=zz");
-    render(<ObservatoryPage />);
+    const before = window.history.length;
+    const { container } = render(<ObservatoryPage />);
     expect(document.querySelector("#obs-map")).toBeTruthy();
+    expect(window.location.hash).toBe("#wabisabi");
+    expect(window.history.length).toBe(before);
+    expect(container.querySelector("#obs-coordinator [aria-hidden='true'].rounded-xl")).toBeNull();
+  });
+
+  it("keeps the coordinator skeleton while the coordinators are still loading", () => {
+    window.history.replaceState(null, "", "/observatory/#wabisabi&coordinator=kruw");
+    hooks.status = polled<CoordinatorsStatus>(null);
+    const { container } = render(<ObservatoryPage />);
+    expect(window.location.hash).toBe("#wabisabi&coordinator=kruw");
+    expect(container.querySelector("#obs-coordinator [aria-hidden='true'].rounded-xl")).toBeTruthy();
   });
 
   it("shows skeletons while loading, and a calm error panel with retry when the map fails", () => {
