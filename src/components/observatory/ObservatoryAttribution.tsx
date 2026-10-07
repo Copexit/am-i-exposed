@@ -52,13 +52,13 @@ export function ObservatoryAttribution({
             <ExternalLink size={12} className="text-muted" />
           </a>
           <a
-            href="https://liquisabi.com"
+            href="https://wabisator.com"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg bg-surface-inset border border-card-border text-foreground hover:border-bitcoin/30 transition-all"
           >
-            {t("observatory.attribution.openLiquiSabi", {
-              defaultValue: "Open liquisabi.com",
+            {t("observatory.attribution.openWabisator", {
+              defaultValue: "Open wabisator.com",
             })}
             <ExternalLink size={12} className="text-muted" />
           </a>

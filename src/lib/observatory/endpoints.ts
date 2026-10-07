@@ -1,7 +1,8 @@
 /**
- * Sole source of truth for which URLs the observatory hits at runtime.
+ * Sole source of truth for which URLs the Whirlpool tab hits at runtime
+ * (WabiSabi data goes through serviceRpc, see wabisator-client.ts).
  *
- * Both go through the generic /svc/<id> route (worker on the public site,
+ * Whirlpool goes through the generic /svc/<id> route (worker on the public site,
  * tor-proxy sidecar when self-hosted).
  *
  * Decision is driven by NetworkContext.isUmbrel.
@@ -11,7 +12,6 @@ import { serviceUrl } from "@/lib/services/route";
 
 export interface ObservatoryEndpoints {
   whirlpoolBase: string;
-  liquiSabiUrl: string;
 }
 
 export function getObservatoryEndpoints({
@@ -21,6 +21,5 @@ export function getObservatoryEndpoints({
 }): ObservatoryEndpoints {
   return {
     whirlpoolBase: serviceUrl("whirlpoolstats", "", { isUmbrel }),
-    liquiSabiUrl: serviceUrl("liquisabi", "/api", { isUmbrel }),
   };
 }

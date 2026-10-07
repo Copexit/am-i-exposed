@@ -45,7 +45,7 @@ function marginFor(width: number) {
   return { top: 16, right: 16, bottom: 28, left: 56 };
 }
 
-const tooltipStyles: React.CSSProperties = {
+export const tooltipStyles: React.CSSProperties = {
   ...defaultStyles,
   background: "var(--surface-elevated)",
   border: "1px solid var(--card-border)",

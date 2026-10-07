@@ -103,7 +103,7 @@ src/
     ├── recommendations/          # Primary recommendation cascade, remediation actions
     ├── graph/                    # Graph reducer, expansion ops, auto-trace, URL codec, saved graphs
     ├── wallet/scan.ts            # Gap-limit address scan with hosted-API throttling
-    ├── observatory/              # whirlpoolstats / liquisabi clients, cache, selectors
+    ├── observatory/              # whirlpool + Wabisator clients, cache, sky/board/coordinator models, URL state
     └── i18n/                     # i18next config and React provider
 ```
 
@@ -182,13 +182,23 @@ Base URLs: `https://mempool.space/api`, `/testnet4/api`, `/signet/api`; Tor: `ht
 
 ## Services
 
-Third-party services (Wabisator, Whirlpool stats, LiquiSabi) are never called directly by the browser.
+Third-party services (Wabisator, Whirlpool stats) are never called directly by the browser.
 
 - **Registry:** `src/lib/services/registry.json` is the single source of truth (service, base URL, routes, RPC methods, param validators). The worker bundles it; the sidecar ships a committed copy (`umbrel/tor-proxy/services.json`).
-- **`/svc` routes:** `/svc/<service>/<path>` on the coinjoin-stats worker (public site, `workers/coinjoin-stats/svc.js`) and `/tor-proxy/svc/...` on the Tor sidecar (self-hosted, `umbrel/tor-proxy/svc.js`). Legacy worker routes (`/whirlpool/*`, `/liquisabi/api`) stay.
+- **`/svc` routes:** `/svc/<service>/<path>` on the coinjoin-stats worker (public site, `workers/coinjoin-stats/svc.js`) and `/tor-proxy/svc/...` on the Tor sidecar (self-hosted, `umbrel/tor-proxy/svc.js`). Legacy worker routes (`/whirlpool/*`) stay.
 - **Classes:** `aggregate` routes carry no user data and may be cached. `lookup` routes carry a user txid: never cached, never retried automatically.
 - **`LookupConsent`:** `src/lib/services/consent.ts`. A lookup request is refused unless the caller holds a consent minted by `grantLookupConsent` for exactly those txids (normalized). The consent is granted by the click on the card.
 - **Where the card is mounted:** `ServiceCheck` (`src/components/services/`) in `Results.tsx` (tx and address results, not local PSBT/raw-tx results) and `WalletResults.tsx`. It is not rendered with 0 eligible txids, never starts on its own, and results never touch scores, caches, history, URL or exports. Caps: 10 txids per address, 50 per wallet (`selectTxids`).
+
+## Observatory (WabiSabi tab)
+
+Backed by Wabisator, not LiquiSabi. Only the four aggregate RPC methods are used; a visitor txid is never sent (search runs on the loaded data).
+
+- **Data:** `src/lib/observatory/wabisator-client.ts` calls `serviceRpc("wabisator", "/api.php", ...)` for `flow-map` (`until` floored to 300 s, `since = until - days*86400`), `coordinators-status`, `volume-history`, `rounds-paginated`. Hooks in `src/hooks/useWabisator.ts` poll only while the page is visible and keep the last good data on failure (flow-map 20/60/120 s for 1/7/30 d, status 10 s, volume 600 s, rounds 60 s).
+- **Models:** `sky-model.ts` (scene, star layout, replay clock, particle caps), `board.ts` (live round cards), `coordinator-page.ts`, `obs-search.ts` (txid/date), `coordinator-palette.ts`, `obs-format.ts`.
+- **Components:** `src/components/observatory/wabisabi/`: `WabiSabiTab` (sections, sticky sub-nav with scroll-spy), `SkyMap` + `sky-renderer` (canvas), `Timeline`, `Ticker`, `StatsStrip`, `TableView`, `LiveBoard`/`RoundRow`, `CoordinatorPage` (`VolumeHistoryChart`, `RoundsTable`), `RemixFlows`, `ObsSearch`.
+- **URL state:** `useObsState` / `obs-hash.ts`: `#wabisabi&period=1|7|30&coordinator=<key>&tx=<txid>&view=map|table`. Unknown coordinators and malformed txids are dropped.
+- **e2e:** `mockObservatoryApi` serves the aggregate methods from `src/lib/observatory/__tests__/fixtures/wabisator/`.
 
 ## Key design decisions
 

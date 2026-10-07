@@ -8,7 +8,7 @@
  *   - GET /api/charts  - per-block time series (capacity, entered, utxos)
  *   - GET /api/txs     - paginated coinjoin cycle history (TX0 activity)
  *
- * WabiSabi data is the unchanged LiquiSabi JSON-RPC `dashboard` method.
+ * WabiSabi data comes from Wabisator, see wabisator-types.ts.
  */
 
 // ---------- whirlpool (from whirlpoolstats.xyz/api via Worker/sidecar) ----------
@@ -107,82 +107,7 @@ export interface WhirlpoolTxsPage {
   total_pages: number;
 }
 
-// ---------- liquisabi.com ----------
-
-export interface LiquiSabiSavedRound {
-  CoordinatorEndpoint: string;
-  EstimatedCoordinatorEarningsSats: number;
-  RoundId: string;
-  IsBlame: boolean;
-  CoordinationFeeRate: number;
-  MinInputCount: number;
-  ParametersMiningFeeRate: number;
-  RoundStartTime: string;
-  RoundEndTime: string;
-  TxId: string;
-  FinalMiningFeeRate: number;
-  VirtualSize: number;
-  TotalMiningFee: number;
-  InputCount: number;
-  TotalInputAmount: number;
-  FreshInputsEstimateBtc: number;
-  AverageStandardInputsAnonSet: number;
-  OutputCount: number;
-  TotalOutputAmount: number;
-  ChangeOutputsAmountRatio: number;
-  AverageStandardOutputsAnonSet: number;
-  TotalLeftovers: number;
-}
-
-export interface LiquiSabiCoordinatorMeta {
-  PubKey: string;
-  Endpoint: string;
-  LastUpdate: string;
-  Name: string;
-  Content: string;
-  ReadMore: string;
-  AbsoluteMinInputCount: string;
-}
-
-export interface LiquiSabiCoordinator {
-  Coordinator: LiquiSabiCoordinatorMeta;
-  FreshInputPercent: number;
-  NbRounds: number;
-}
-
-export interface LiquiSabiGraphEntry {
-  Date: string;
-  Averages: LiquiSabiSavedRound | null;
-}
-
-export interface LiquiSabiPaginatedRounds {
-  Rounds: LiquiSabiSavedRound[];
-  TotalCount: number;
-  Page: number;
-  PageSize: number;
-  TotalPages: number;
-  Statistics: unknown;
-}
-
-export interface LiquiSabiDashboard {
-  Summary: LiquiSabiSavedRound | null;
-  Totals: LiquiSabiSavedRound | null;
-  PaginatedRounds: LiquiSabiPaginatedRounds;
-  Graph: LiquiSabiGraphEntry[];
-  Coordinators: LiquiSabiCoordinator[];
-}
-
 // ---------- aggregated view models ----------
-
-export interface CoordinatorView {
-  endpoint: string;
-  name: string;
-  readMore: string;
-  description: string;
-  freshInputPercent: number;
-  roundCount: number;
-  isPaid: boolean;
-}
 
 export interface SparklinePoint {
   x: number;
@@ -196,19 +121,6 @@ export interface CycleRow {
   poolLabel: string;
   poolColor: string;
   tx0Count: number;
-  /** Same-origin scanner link, e.g. "/#tx=<txid>". */
-  scanHref: string;
-}
-
-/** A recent WabiSabi round shaped for the RecentRoundsTable UI. */
-export interface RoundRow {
-  txid: string;
-  /** Round end time in ms since epoch; null when the upstream value is unparseable. */
-  endedAt: number | null;
-  /** Coordinator display name (LiquiSabi `Name`), falling back to the endpoint host. */
-  coordinatorName: string;
-  inputCount: number;
-  outputCount: number;
   /** Same-origin scanner link, e.g. "/#tx=<txid>". */
   scanHref: string;
 }

@@ -111,6 +111,53 @@ html[data-theme="light"] {
   color-scheme: light;
 }
 
+/*
+ * Observatory coordinator palette, read by src/lib/observatory/coordinator-palette.ts and the
+ * sky canvas (getComputedStyle). Kept out of the main token blocks: palette.ts does not mirror it.
+ * --coord-<key>: sky colours, OKLCH L~0.79 C~0.13 with hues spread around the wheel so every star
+ * reads equally bright. Both themes draw the sky on a dark canvas (near-black, or the light
+ * theme's ink card), so these do not change per theme. Kruw is gold, not --bitcoin.
+ * --coord-<key>-fg: marks on cards, charts and legends; the sky colour in dark, L~0.55 in light
+ * (>= 4:1 on --card-bg).
+ * --obs-sky: the map canvas, near-black in dark and a deep-ink card in light; --obs-sky-fg is
+ * text and faint marks drawn on it (both themes); --obs-sky-edge is the vignette colour (the page
+ * in dark, so the sky dissolves into it; a deeper ink in light).
+ */
+:root {
+  --obs-sky: #060709;
+  --obs-sky-fg: #e6e9f0;
+  --obs-sky-edge: var(--background);
+  --coord-kruw: #e8af4f;
+  --coord-opencoordinator: #31d5c5;
+  --coord-gingerwallet: #ff9988;
+  --coord-coinjoin_nl: #aeb1ff;
+  --coord-coinjoiner: #9fcb6f;
+  --coord-swisscoordinator: #f299d5;
+  --coord-openwasabi: #5fc6ff;
+  --coord-other: #b2bbc8;
+  --coord-kruw-fg: var(--coord-kruw);
+  --coord-opencoordinator-fg: var(--coord-opencoordinator);
+  --coord-gingerwallet-fg: var(--coord-gingerwallet);
+  --coord-coinjoin_nl-fg: var(--coord-coinjoin_nl);
+  --coord-coinjoiner-fg: var(--coord-coinjoiner);
+  --coord-swisscoordinator-fg: var(--coord-swisscoordinator);
+  --coord-openwasabi-fg: var(--coord-openwasabi);
+  --coord-other-fg: var(--coord-other);
+}
+
+html[data-theme="light"] {
+  --obs-sky: #131726;
+  --obs-sky-edge: #05070d;
+  --coord-kruw-fg: #9a6500;
+  --coord-opencoordinator-fg: #00897b;
+  --coord-gingerwallet-fg: #b14f42;
+  --coord-coinjoin_nl-fg: #6766ba;
+  --coord-coinjoiner-fg: #588021;
+  --coord-swisscoordinator-fg: #a25089;
+  --coord-openwasabi-fg: #007ab4;
+  --coord-other-fg: #6a727d;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -305,10 +352,52 @@ select:focus-visible {
   box-shadow: var(--glass-shadow);
 }
 
+/*
+ * Everything drawn on the Observatory sky (stats, ticker, tooltips) reads as dark glass in both
+ * themes: the dark-theme surface and text tokens, scoped to the sky. --obs-panel is the near-opaque
+ * surface of tooltips and pinned cards, so canvas labels never bleed through.
+ */
+.obs-sky-scope {
+  color-scheme: dark;
+  --foreground: #f2f2f4;
+  --muted: #a6a6b0;
+  --faint: #70707b;
+  --surface-1: #111114;
+  --surface-2: #17171b;
+  --surface-inset: #111114;
+  --surface-elevated: #1d1d22;
+  --hairline: rgba(255, 255, 255, 0.07);
+  --hairline-strong: rgba(255, 255, 255, 0.13);
+  --card-bg: #17171b;
+  --card-border: rgba(255, 255, 255, 0.1);
+  --bitcoin-text: #f7931a;
+  --success: #28d065;
+  --glass-bg: rgba(14, 15, 20, 0.62);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 12px 40px rgba(0, 0, 0, 0.35);
+  --overlay-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  --shadow-sm: 0 0 #0000;
+  --shadow-card: 0 0 #0000;
+  --obs-panel: rgba(16, 17, 23, 0.94);
+  color: var(--foreground);
+}
+
 @property --border-angle {
   syntax: "<angle>";
   initial-value: 0deg;
   inherits: false;
+}
+
+/* Observatory: values and sections fade in instead of popping. */
+@keyframes obs-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Observatory: the calm halo of an online coordinator's status dot. */
+@keyframes obs-breathe {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  60% { opacity: 0; transform: scale(2.4); }
 }
 
 @keyframes border-rotate {

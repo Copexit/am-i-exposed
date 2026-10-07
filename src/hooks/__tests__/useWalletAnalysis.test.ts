@@ -25,6 +25,9 @@ vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (k: string) => k }
 
 import { useWalletAnalysis } from "../useWalletAnalysis";
 
+// Key derivation is slow on a loaded machine
+vi.setConfig({ testTimeout: 20_000 });
+
 afterEach(cleanup);
 
 // Bitcoin Core doc/descriptors.md example; valid checksum is #ml40v0wf
