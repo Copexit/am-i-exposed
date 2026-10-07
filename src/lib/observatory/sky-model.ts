@@ -107,12 +107,37 @@ export function buildScene(flow: FlowMap, status: CoordinatorsStatus | null, bin
   return { since, until, stars, events, bins, flows, totals: flow.Totals, empty: events.length === 0 };
 }
 
-/** Particles per CoinJoin (txid -> count), log-scaled by BTC volume, scaled down so the total stays <= cap. */
+/** Max particles alive on screen at once, enforced by the renderer. */
+export const MAX_LIVE_PARTICLES = { desktop: 2200, mobile: 900 } as const;
+
+/**
+ * Particles to spawn per CoinJoin over the replay (txid -> count). Each event wants
+ * max(1, round(6 * ln(1 + BTC))). If the wants exceed `cap`, the total is exactly `cap`:
+ * with more events than cap, the `cap` largest get 1 each; otherwise every event gets 1 and the
+ * rest is split by largest remainder over the extra wants. Bigger events never get fewer.
+ */
 export function particleBudget(events: SkyEvent[], cap: number): Map<string, number> {
-  const weighted = events.map((e) => Math.max(1, Math.round(6 * Math.log1p(Math.max(0, e.volume)))));
-  const total = weighted.reduce((s, n) => s + n, 0);
-  const k = total > cap ? Math.max(0, cap) / total : 1;
-  return new Map(events.map((e, i) => [e.txid, Math.floor(weighted[i]! * k)]));
+  const want = events.map((e) => Math.max(1, Math.round(6 * Math.log1p(Math.max(0, e.volume)))));
+  const total = want.reduce((s, n) => s + n, 0);
+  if (total <= cap) return new Map(events.map((e, i) => [e.txid, want[i]!]));
+  const budget = Math.max(0, Math.floor(cap));
+  // Largest first; ties by txid so the result does not depend on input order.
+  const order = events.map((_, i) => i).sort((i, j) => events[j]!.volume - events[i]!.volume || (events[i]!.txid < events[j]!.txid ? -1 : 1));
+  const alloc = new Array<number>(events.length).fill(0);
+  if (events.length >= budget) {
+    for (const i of order.slice(0, budget)) alloc[i] = 1;
+  } else {
+    const extra = want.map((w) => w - 1);
+    const extraTotal = extra.reduce((s, n) => s + n, 0);
+    const spare = budget - events.length; // < extraTotal, because total > cap
+    const exact = extra.map((x) => (spare * x) / extraTotal);
+    let left = spare;
+    exact.forEach((x, i) => { alloc[i] = 1 + Math.floor(x); left -= Math.floor(x); });
+    // Hand out the remainder by fractional part; `order` breaks ties toward bigger events.
+    const byFrac = [...order].sort((i, j) => (exact[j]! % 1) - (exact[i]! % 1));
+    for (const i of byFrac.slice(0, left)) alloc[i]! += 1;
+  }
+  return new Map(events.map((e, i) => [e.txid, alloc[i]!]));
 }
 
 export function replayTime(progress: number, scene: Scene): number {

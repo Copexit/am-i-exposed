@@ -114,30 +114,40 @@ html[data-theme="light"] {
 /*
  * Observatory coordinator palette, read by src/lib/observatory/coordinator-palette.ts and the
  * sky canvas (getComputedStyle). Kept out of the main token blocks: palette.ts does not mirror it.
- * Dark: OKLCH L~0.79 C~0.13, hues spread around the wheel so every star reads equally bright on
- * the near-black sky. Kruw is gold, not --bitcoin.
+ * --coord-<key>: sky colours, OKLCH L~0.79 C~0.13 with hues spread around the wheel so every star
+ * reads equally bright. Both themes draw the sky on a dark canvas (near-black, or the light
+ * theme's ink card), so these do not change per theme. Kruw is gold, not --bitcoin.
+ * --coord-<key>-fg: marks on cards, charts and legends; the sky colour in dark, L~0.55 in light
+ * (>= 4:1 on --card-bg).
  */
 :root {
   --coord-kruw: #e8af4f;
   --coord-opencoordinator: #31d5c5;
   --coord-gingerwallet: #ff9988;
-  --coord-coinjoin_nl: #c5a8ff;
+  --coord-coinjoin_nl: #b7adff;
   --coord-coinjoiner: #9fcb6f;
-  --coord-swisscoordinator: #f997c6;
+  --coord-swisscoordinator: #e89ce5;
   --coord-openwasabi: #5fc6ff;
   --coord-other: #b2bbc8;
+  --coord-kruw-fg: var(--coord-kruw);
+  --coord-opencoordinator-fg: var(--coord-opencoordinator);
+  --coord-gingerwallet-fg: var(--coord-gingerwallet);
+  --coord-coinjoin_nl-fg: var(--coord-coinjoin_nl);
+  --coord-coinjoiner-fg: var(--coord-coinjoiner);
+  --coord-swisscoordinator-fg: var(--coord-swisscoordinator);
+  --coord-openwasabi-fg: var(--coord-openwasabi);
+  --coord-other-fg: var(--coord-other);
 }
 
-/* Light: same hues at L~0.72 C~0.14, still luminous on the ink sky card and solid as marks on white. */
 html[data-theme="light"] {
-  --coord-kruw: #d49824;
-  --coord-opencoordinator: #00c0b0;
-  --coord-gingerwallet: #ef806f;
-  --coord-coinjoin_nl: #b090f0;
-  --coord-coinjoiner: #87b651;
-  --coord-swisscoordinator: #e57db1;
-  --coord-openwasabi: #39b0f1;
-  --coord-other: #9ca5b1;
+  --coord-kruw-fg: #9a6500;
+  --coord-opencoordinator-fg: #00897b;
+  --coord-gingerwallet-fg: #b14f42;
+  --coord-coinjoin_nl-fg: #6f63b8;
+  --coord-coinjoiner-fg: #588021;
+  --coord-swisscoordinator-fg: #995398;
+  --coord-openwasabi-fg: #007ab4;
+  --coord-other-fg: #6a727d;
 }
 
 @theme inline {
