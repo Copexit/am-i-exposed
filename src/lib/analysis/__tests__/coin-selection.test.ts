@@ -200,6 +200,130 @@ describe("adviseCoinSelection", () => {
   });
 });
 
+describe("adviseCoinSelection: no-change plan", () => {
+  const strategies = (a: CoinSelectionAdvice) => plans(a).plans.map(p => p.strategy);
+
+  it("tester case 1: 60k cannot pay 60k plus fee alone, so 35k + 26k pay it with no change", () => {
+    const a = plans(adviseCoinSelection([coin(60_000), coin(35_000), coin(26_000)], 60_000, 1));
+    expect(a.plans.map(p => p.strategy)).toEqual(["fewest-coins"]);
+    expect(values(a.plans[0]!)).toEqual([35_000, 26_000]);
+    expect(a.plans[0]!.change).toBe(0);
+  });
+
+  it("tester case 2: one big coin pays with big change, a changeless pair is shown and recommended", () => {
+    const a = plans(adviseCoinSelection([coin(500_000), coin(41_000), coin(20_000)], 60_000, 1));
+    expect(a.plans.map(p => p.strategy)).toEqual(["no-change", "single-coin"]);
+    const [noChange, single] = a.plans;
+    expect(values(noChange!)).toEqual([41_000, 20_000]);
+    expect(noChange!.change).toBe(0);
+    expect(noChange!.fee).toBe(1_000);
+    expect(noChange!.absorbed).toBe(823); // 1,000 minus the 177-sat fee of a 1-output tx
+    expect(single!.change).toBeGreaterThan(400_000);
+  });
+
+  it("finds an exact match within the window and ignores sums past it", () => {
+    // Window at 1 sat/vB for 2 P2WPKH inputs: sum in [100,177, ~101,208]
+    expect(values(plans(adviseCoinSelection([coin(1_000_000), coin(60_000), coin(40_177)], 100_000, 1)).plans[0]!)).toEqual([60_000, 40_177]);
+    // 60k + 41.3k leaves 1,092 sats of change after the 2-output fee: not changeless
+    expect(strategies(adviseCoinSelection([coin(1_000_000), coin(60_000), coin(41_300)], 100_000, 1))).toEqual(["single-coin"]);
+    // Below the target: cannot pay
+    expect(strategies(adviseCoinSelection([coin(1_000_000), coin(60_000), coin(40_100)], 100_000, 1))).toEqual(["single-coin"]);
+  });
+
+  it("uses up to 3 inputs and never 4", () => {
+    const three = plans(adviseCoinSelection([coin(1_000_000), coin(40_000), coin(35_000), coin(25_300)], 100_000, 1)).plans;
+    expect(three.find(p => p.strategy === "no-change")!.selected).toHaveLength(3);
+    expect(strategies(adviseCoinSelection([coin(1_000_000), coin(25_000), coin(25_000), coin(25_000), coin(25_300)], 100_000, 1))).toEqual(["single-coin"]);
+  });
+
+  it("prefers fewer inputs, then the least fee", () => {
+    const p = plans(adviseCoinSelection([coin(1_000_000), coin(60_000), coin(40_900), coin(40_200), coin(30_000), coin(20_000), coin(10_300)], 100_000, 1))
+      .plans.find(x => x.strategy === "no-change")!;
+    expect(values(p)).toEqual([60_000, 40_200]);
+  });
+
+  it("prefers a same-origin set even with more inputs", () => {
+    const addr = "bc1qsameorigin";
+    const p = plans(adviseCoinSelection([
+      coin(1_000_000), coin(60_000), coin(40_200),
+      coin(50_000, { address: addr }), coin(30_000, { address: addr }), coin(20_300, { address: addr }),
+    ], 100_000, 1));
+    expect(p.plans.map(x => x.strategy)).toEqual(["no-change", "single-coin"]);
+    expect(p.plans[0]!.selected.every(s => s.address === addr)).toBe(true);
+    expect(p.plans[0]!.origins).toBe(1);
+  });
+
+  it("recommends (a) a same-origin set, even with moderate change", () => {
+    expect(strategies(adviseCoinSelection([coin(150_000), coin(60_000, { address: "bc1qx" }), coin(40_200, { address: "bc1qx" })], 100_000, 1)))
+      .toEqual(["no-change", "single-coin"]);
+  });
+
+  it("recommends (b) when the single coin's change would be toxic", () => {
+    expect(strategies(adviseCoinSelection([coin(105_000), coin(60_000), coin(40_200)], 100_000, 1))).toEqual(["no-change", "single-coin"]);
+  });
+
+  it("recommends (c) 2 plain origins only when the change is at least 3x the payment", () => {
+    // 450k leaves 349,860 (>= 300k): no change first
+    expect(strategies(adviseCoinSelection([coin(450_000), coin(60_000), coin(40_200)], 100_000, 1))).toEqual(["no-change", "single-coin"]);
+    // 400k leaves 299,860 (< 300k): single coin first
+    expect(strategies(adviseCoinSelection([coin(400_000), coin(60_000), coin(40_200)], 100_000, 1))).toEqual(["single-coin", "no-change"]);
+  });
+
+  it("keeps the single coin first when change and payment are near-equal", () => {
+    // 210k leaves 109,860 against a 100k payment
+    expect(strategies(adviseCoinSelection([coin(210_000), coin(60_000), coin(40_200)], 100_000, 1))).toEqual(["single-coin", "no-change"]);
+  });
+
+  it("keeps the single coin first when No change merges 3 unrelated origins, even with huge change", () => {
+    const a = plans(adviseCoinSelection([coin(1_000_000), coin(40_000), coin(35_000), coin(25_300)], 100_000, 1));
+    expect(a.plans.map(p => p.strategy)).toEqual(["single-coin", "no-change"]);
+    expect(a.plans[1]!.origins).toBe(3);
+  });
+
+  it("never recommends merging CoinJoin outputs, even two of the same CoinJoin", () => {
+    const a = plans(adviseCoinSelection([
+      coin(500_000),
+      coin(41_000, { txid: "cj", fromCoinJoin: true }),
+      coin(20_000, { txid: "cj", fromCoinJoin: true }),
+    ], 60_000, 1));
+    expect(a.plans.map(p => p.strategy)).toEqual(["single-coin", "no-change"]);
+    expect(a.plans[1]!.warnings[0]).toMatchObject({ id: "coinjoin-merge", severity: "high", count: 2 });
+    // Mixed with a plain coin
+    expect(strategies(adviseCoinSelection([coin(450_000), coin(60_000, { fromCoinJoin: true }), coin(40_200)], 100_000, 1)))
+      .toEqual(["single-coin", "no-change"]);
+  });
+
+  it("window edges at 1 sat/vB: upper edge included, 1 sat past excluded, 1 sat short of the lower edge excluded", () => {
+    // 2 P2WPKH inputs paying 100k: pays from 100,177, changeless up to 101,208
+    const pair = (x: number) => plans(adviseCoinSelection([coin(1_000_000), coin(60_000), coin(x)], 100_000, 1)).plans.find(p => p.strategy === "no-change");
+    expect(pair(41_208)).toMatchObject({ change: 0, fee: 1_208, absorbed: 1_031 });
+    expect(pair(41_209)).toBeUndefined();
+    expect(pair(40_177)).toMatchObject({ change: 0, fee: 177, absorbed: 0 });
+    expect(pair(40_176)).toBeUndefined();
+  });
+
+  it("no extra plan when the single coin is already changeless", () => {
+    expect(strategies(adviseCoinSelection([coin(100_500), coin(60_000), coin(40_200)], 100_000, 1))).toEqual(["single-coin"]);
+  });
+
+  it("stays fast with 3,000 coins and no changeless set", () => {
+    // Even values: every pair and triple misses an odd window
+    const many = Array.from({ length: 3_000 }, (_, i) => coin(2_000 + i * 2));
+    const start = performance.now();
+    const a = plans(adviseCoinSelection([coin(10_000_000), ...many], 9_990_000, 3));
+    expect(performance.now() - start).toBeLessThan(1_500);
+    expect(a.plans[0]!.strategy).toBe("single-coin");
+  });
+
+  it("stays fast with 3,000 coins and finds a changeless triple", () => {
+    const many = Array.from({ length: 3_000 }, (_, i) => coin(5_000 + i * 7));
+    const start = performance.now();
+    const a = plans(adviseCoinSelection([coin(5_000_000), ...many], 40_000, 2));
+    expect(performance.now() - start).toBeLessThan(1_500);
+    expect(a.plans.some(p => p.strategy === "no-change" && p.change === 0)).toBe(true);
+  });
+});
+
 describe("buildCoinInputs", () => {
   it("marks CoinJoin funding txs and reused addresses", () => {
     const cjTx = {

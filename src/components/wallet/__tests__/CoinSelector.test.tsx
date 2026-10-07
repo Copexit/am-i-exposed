@@ -62,6 +62,36 @@ describe("CoinSelector", () => {
     expect(screen.getByText("Advanced: Stonewall")).toBeTruthy();
   });
 
+  it("shows a recommended No change plan next to the single coin, with the trade-off", () => {
+    run([coin(500_000, "big", "bc1qbig"), coin(41_000, "p1", "bc1qp1"), coin(20_000, "p2", "bc1qp2")], "60000");
+    const noChange = screen.getByTestId("coin-plan-no-change");
+    const single = screen.getByTestId("coin-plan-single-coin");
+    expect(noChange.compareDocumentPosition(single) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(noChange).getByText("Recommended")).toBeTruthy();
+    expect(within(noChange).getByText(/Leaves no change output to follow, but spending these coins together links them/)).toBeTruthy();
+    expect(within(within(noChange).getAllByRole("list")[0]!).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(noChange).getByText("The fee includes 823 sats of leftover, too small to be worth a change output.")).toBeTruthy();
+    expect(within(single).queryByText("Recommended")).toBeNull();
+    expect(within(single).getByText(/leaves a change output that observers can follow/)).toBeTruthy();
+  });
+
+  it("says no new source of funds is linked when the no-change coins share an address", () => {
+    run([coin(150_000, "big", "bc1qbig"), coin(41_000, "p1", "bc1qsame"), coin(20_000, "p2", "bc1qsame")], "60000");
+    expect(within(screen.getByTestId("coin-plan-no-change")).getByText(/already share an address or a funding transaction made by this wallet/)).toBeTruthy();
+  });
+
+  it("uses the same copy for self-funded coins of one tx, recommended", () => {
+    run([
+      coin(150_000, "big", "bc1qbig"),
+      { ...coin(41_000, "self", "bc1qc1", { selfFunded: true }) },
+      { ...coin(20_000, "self", "bc1qc2", { selfFunded: true }), utxo: { txid: "self".padEnd(64, "0"), vout: 1, value: 20_000, status: { confirmed: true } } },
+    ], "60000");
+    const plan = screen.getByTestId("coin-plan-no-change");
+    expect(within(plan).getByText("Recommended")).toBeTruthy();
+    expect(within(plan).getByText(/no new source of funds is linked/)).toBeTruthy();
+    expect(within(plan).getByText("Same tx as #2")).toBeTruthy();
+  });
+
   it("shows inline feedback for an invalid amount and drops the old advice", () => {
     run([coin(100_000, "aa", "bc1qa")], "20000");
     expect(screen.getByTestId("coin-plan-single-coin")).toBeTruthy();
