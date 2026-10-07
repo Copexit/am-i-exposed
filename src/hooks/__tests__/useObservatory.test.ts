@@ -4,7 +4,7 @@ import "fake-indexeddb/auto";
 import { renderHook, waitFor } from "@testing-library/react";
 import { _resetForTest } from "@/lib/api/idb-cache";
 
-const network = { isUmbrel: false, apiReady: true };
+const network = { isUmbrel: false, routeReady: true };
 vi.mock("@/context/NetworkContext", () => ({
   useNetwork: () => network,
 }));
@@ -35,7 +35,7 @@ beforeEach(async () => {
     total_pages: 0,
   } as never);
   await _resetForTest();
-  Object.assign(network, { isUmbrel: false, apiReady: true });
+  Object.assign(network, { isUmbrel: false, routeReady: true });
 });
 
 afterEach(() => {
@@ -44,12 +44,12 @@ afterEach(() => {
 
 describe("useObservatory", () => {
   it("fetches nothing until the network config settles (an Umbrel user must never hit the public worker)", async () => {
-    Object.assign(network, { isUmbrel: false, apiReady: false });
+    Object.assign(network, { isUmbrel: false, routeReady: false });
     const { rerender } = renderHook(() => useObservatory());
     await new Promise((r) => setTimeout(r, 10));
     expect(getWhirlpoolSummary).not.toHaveBeenCalled();
 
-    Object.assign(network, { isUmbrel: true, apiReady: true });
+    Object.assign(network, { isUmbrel: true, routeReady: true });
     rerender();
     await waitFor(() => expect(getWhirlpoolSummary).toHaveBeenCalled());
     expect(String(vi.mocked(getWhirlpoolSummary).mock.calls[0]?.[0])).not.toContain("workers.dev");

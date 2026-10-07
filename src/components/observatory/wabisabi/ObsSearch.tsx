@@ -41,6 +41,8 @@ export function ObsSearch({ scene, period, onFound, onJumpTo, onSwitchPeriod }: 
   const [query, setQuery] = useState<SearchQuery | null>(null);
   const [result, setResult] = useState<SearchResult | null>(null);
   const [ranAt, setRanAt] = useState(0);
+  // A query queued until its period's data arrives (submitted while loading, or after a period switch).
+  const [waiting, setWaiting] = useState(false);
   const suggestedLabel = usePeriodLabel(result?.kind === "out-of-period" && result.suggested ? result.suggested : period);
   const panelId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -64,6 +66,7 @@ export function ObsSearch({ scene, period, onFound, onJumpTo, onSwitchPeriod }: 
     const pending = pendingRef.current;
     if (!pending || !scene || pending.p !== period) return;
     pendingRef.current = null;
+    setWaiting(false);
     run(pending.q, scene);
     // run is recreated every render; the scene arriving is the trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -71,10 +74,10 @@ export function ObsSearch({ scene, period, onFound, onJumpTo, onSwitchPeriod }: 
 
   // A popover: a press anywhere else dismisses it.
   const rootRef = useRef<HTMLDivElement>(null);
-  const open = !!result;
+  const open = !!result || waiting;
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: PointerEvent) => { if (!rootRef.current?.contains(e.target as Node)) setResult(null); };
+    const onDown = (e: PointerEvent) => { if (!rootRef.current?.contains(e.target as Node)) { setResult(null); setWaiting(false); } };
     document.addEventListener("pointerdown", onDown);
     return () => document.removeEventListener("pointerdown", onDown);
   }, [open]);
@@ -82,13 +85,18 @@ export function ObsSearch({ scene, period, onFound, onJumpTo, onSwitchPeriod }: 
   const submit = () => {
     const q = parseSearch(value);
     setQuery(q);
+    pendingRef.current = null;
+    setWaiting(false);
     if (q.kind === "invalid") setResult(q);
     else if (!scene) {
       pendingRef.current = { q, p: period };
+      setWaiting(true);
       setResult(null);
     } else run(q, scene);
   };
   const clear = () => {
+    pendingRef.current = null;
+    setWaiting(false);
     setResult(null);
     setQuery(null);
     inputRef.current?.focus();
@@ -131,6 +139,8 @@ export function ObsSearch({ scene, period, onFound, onJumpTo, onSwitchPeriod }: 
           onClick={() => {
             if (!query || !result.suggested) return;
             pendingRef.current = { q: query, p: result.suggested };
+            setWaiting(true);
+            setResult(null);
             onSwitchPeriod(result.suggested);
           }}
         >
@@ -153,12 +163,16 @@ export function ObsSearch({ scene, period, onFound, onJumpTo, onSwitchPeriod }: 
     );
   }
 
+  if (!body && waiting) {
+    body = <p className="text-muted">{t("observatory.wabisabi.search.waiting", { defaultValue: "Waiting for data..." })}</p>;
+  }
+
   return (
     <div
       ref={rootRef}
-      className="relative w-full lg:w-[400px]"
+      className="relative w-full"
       onKeyDown={(e) => {
-        if (e.key === "Escape" && result) {
+        if (e.key === "Escape" && (result || waiting)) {
           e.preventDefault();
           clear();
         }
@@ -185,7 +199,7 @@ export function ObsSearch({ scene, period, onFound, onJumpTo, onSwitchPeriod }: 
           placeholder={t("observatory.wabisabi.search.placeholder", { defaultValue: "Search a CoinJoin txid or a date" })}
           aria-label={t("observatory.wabisabi.search.placeholder", { defaultValue: "Search a CoinJoin txid or a date" })}
           aria-controls={panelId}
-          aria-describedby={result ? panelId : undefined}
+          aria-describedby={result || waiting ? panelId : undefined}
           spellCheck={false}
           autoComplete="off"
           className="h-full min-w-0 flex-1 bg-transparent px-1.5 text-sm text-foreground placeholder:text-faint outline-none focus-visible:!outline-none focus-visible:!shadow-none [&::-webkit-search-cancel-button]:hidden"
@@ -202,9 +216,9 @@ export function ObsSearch({ scene, period, onFound, onJumpTo, onSwitchPeriod }: 
       <div id={panelId} role="status" aria-live="polite" className="absolute inset-x-0 top-full z-[35] mt-2">
         {body && (
           <div
-            key={result?.kind}
+            key={result?.kind ?? "waiting"}
             data-testid="obs-search-result"
-            data-state={result?.kind}
+            data-state={result?.kind ?? "waiting"}
             className="relative rounded-xl border border-card-border bg-surface-elevated p-4 pr-12 text-sm shadow-(--overlay-shadow) motion-safe:animate-[obs-fade_180ms_ease-out]"
           >
             <button

@@ -1,13 +1,15 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-export function ObservatoryPageHeader({ showMainnetBadge }: { showMainnetBadge: boolean }) {
+/** Compact page header: title and badge, `aside` (the protocol switch) beside them from 1024 px, then a one-line description. */
+export function ObservatoryPageHeader({ showMainnetBadge, aside }: { showMainnetBadge: boolean; aside?: ReactNode }) {
   const { t } = useTranslation();
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-3 flex-wrap">
-        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
+    <div className="grid gap-y-1 lg:grid-cols-[1fr_auto] lg:items-center lg:gap-x-8">
+      <div className="flex items-center gap-3 flex-wrap lg:col-start-1 lg:row-start-1">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
           {t("observatory.pageTitle", { defaultValue: "CoinJoin Observatory" })}
         </h1>
         {showMainnetBadge && (
@@ -16,12 +18,13 @@ export function ObservatoryPageHeader({ showMainnetBadge }: { showMainnetBadge: 
           </span>
         )}
       </div>
-      <p className="text-muted text-lg leading-relaxed max-w-3xl">
+      <p className="text-sm text-muted leading-relaxed text-pretty lg:col-span-2 lg:row-start-2">
         {t("observatory.pageDescription", {
           defaultValue:
             "Live activity for Bitcoin's two leading open-source CoinJoin protocols, sourced from independent community projects.",
         })}
       </p>
+      {aside && <div className="mt-3 lg:mt-0 lg:col-start-2 lg:row-start-1">{aside}</div>}
     </div>
   );
 }

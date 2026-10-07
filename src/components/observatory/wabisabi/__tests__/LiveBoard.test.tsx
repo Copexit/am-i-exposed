@@ -20,8 +20,9 @@ vi.mock("react-i18next", () => ({
 import { LiveBoard } from "../LiveBoard";
 import { fmtClock } from "../RoundRow";
 
-const fixture = statusEnv.result as CoordinatorsStatus;
 const NOW = Date.UTC(2026, 9, 7, 12, 0, 0);
+// A fresh snapshot: countdowns are anchored at UpdatedAt (see board.test.ts for a stale one).
+const fixture = { ...(statusEnv.result as CoordinatorsStatus), UpdatedAt: new Date(NOW).toISOString() };
 
 const polled = (data: CoordinatorsStatus | null, extra: Partial<Polled<CoordinatorsStatus>> = {}): Polled<CoordinatorsStatus> =>
   ({ data, error: null, loading: !data, updatedAt: data ? NOW : null, refresh: () => {}, ...extra });

@@ -23,7 +23,7 @@ export function StatsStrip({ totals, period }: { totals: FlowMap["Totals"] | nul
     { id: "volume", label: t("observatory.wabisabi.stats.volume", { defaultValue: "Volume" }), value: totals && fmtBtc(totals.Volume, locale), unit: "BTC" },
     { id: "coinjoins", label: t("observatory.wabisabi.stats.coinjoins", { defaultValue: "CoinJoins" }), value: totals && fmtCount(totals.Coinjoins, locale), unit: null },
     { id: "fresh", label: t("observatory.wabisabi.stats.fresh", { defaultValue: "Fresh bitcoin" }), value: totals && fmtBtc(totals.FreshBtc, locale), unit: "BTC" },
-    { id: "remix", label: t("observatory.wabisabi.stats.crossRemix", { defaultValue: "Cross-coordinator remix" }), value: totals && fmtBtc(totals.CrossRemixBtc, locale), unit: "BTC" },
+    { id: "remix", label: t("observatory.wabisabi.stats.crossRemix", { defaultValue: "Cross remix" }), value: totals && fmtBtc(totals.CrossRemixBtc, locale), unit: "BTC" },
   ];
 
   return (

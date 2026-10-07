@@ -100,6 +100,24 @@ describe("SkyMap", () => {
     expect(raf).not.toHaveBeenCalled();
   });
 
+  it("skips redrawing while paused, and draws again once playing with something moving", () => {
+    setMotion(false);
+    const clock = new SkyClock(60, 0, 0);
+    clock.toggle(0); // paused
+    expect(clock.playing).toBe(false);
+    const clear = vi.fn();
+    (ctx as Record<string, unknown>).clearRect = clear;
+    mount({ clock, selected: "kruw" });
+    const frame = (raf.mock.calls[0] as unknown as [(ts: number) => void])[0];
+    clear.mockClear();
+    act(() => { frame(16); frame(32); frame(48); });
+    expect(clear).not.toHaveBeenCalled();
+    clock.toggle(48); // playing: the selection ring orbits
+    act(() => { frame(64); frame(80); });
+    expect(clear).toHaveBeenCalledTimes(2);
+    delete (ctx as Record<string, unknown>).clearRect;
+  });
+
   it("notes an empty period over still stars", () => {
     setMotion(false);
     const empty = buildScene({ ...flow, Coinjoins: [], Links: [] }, null);
@@ -112,7 +130,7 @@ describe("SkyMap", () => {
     setMotion(false);
     const ev = { ...scene.events[0]!, txid: "f".repeat(64), analyzed: false, inputs: 0, anonset: 0 };
     render(<SkyMap scene={{ ...scene, events: [...scene.events, ev] }} period={1} clock={new SkyClock(60, 0, 0)} highlightTx={ev.txid} onSelectStar={() => {}} onSelectEvent={() => {}} />);
-    const card = screen.getByRole("dialog", { name: "CoinJoin details" });
+    const card = screen.getByRole("group", { name: "CoinJoin details" });
     expect(card.textContent).toContain("Not analysed yet");
     expect(card.textContent).not.toContain("Inputs");
   });
@@ -121,7 +139,7 @@ describe("SkyMap", () => {
     setMotion(false);
     const ev = scene.events[0]!;
     const { onSelectEvent } = mount({ highlightTx: ev.txid });
-    const card = screen.getByRole("dialog", { name: "CoinJoin details" });
+    const card = screen.getByRole("group", { name: "CoinJoin details" });
     expect(card.querySelector("a")?.getAttribute("href")).toBe(`/#tx=${ev.txid}`);
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(onSelectEvent).toHaveBeenCalledWith(null);

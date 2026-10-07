@@ -31,6 +31,8 @@ test("switching to 7 d updates the CoinJoins stat", async ({ page }) => {
 
 test("table view lists Kruw", async ({ page }) => {
   await page.goto("/observatory/");
+  // The toggle sits in the timeline row, which replaces its skeleton once the data is in.
+  await expect(coinjoins(page)).toContainText(/[1-9]/, { timeout: 15_000 });
   await page.getByRole("button", { name: "Table", exact: true }).click();
   await expect(page.getByRole("rowheader", { name: /Kruw/ }).first()).toBeVisible({ timeout: 15_000 });
 });

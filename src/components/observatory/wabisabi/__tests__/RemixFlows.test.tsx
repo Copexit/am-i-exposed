@@ -30,11 +30,19 @@ describe("RemixFlows", () => {
     render(<RemixFlows scene={scene} onOpenCoordinator={() => {}} />);
     const total = screen.getByTestId("obs-flows-total");
     expect(total.textContent).toContain("26.68");
-    expect(total.textContent).toContain("Only 0.44% of all remixed bitcoin moved to another coordinator");
+    expect(total.textContent).toContain("0.44% of all remixed bitcoin moved to another coordinator");
     const bar = screen.getByTestId("obs-flows-share");
     expect((bar.querySelector('[data-part="cross"]') as HTMLElement).style.width).toBe(`${(100 * scene.totals.CrossRemixBtc) / (scene.totals.CrossRemixBtc + scene.totals.InternalRemixBtc)}%`);
     expect(bar.textContent).toContain("Between coordinators0.44%");
     expect(bar.textContent).toContain("Internal remix99.6%");
+  });
+
+  it("draws no cross part in the share bar when nothing crossed", () => {
+    const none = { ...scene, totals: { ...scene.totals, CrossRemixBtc: 0 } };
+    render(<RemixFlows scene={none} onOpenCoordinator={() => {}} />);
+    const bar = screen.getByTestId("obs-flows-share");
+    expect(bar.querySelector('[data-part="cross"]')).toBeNull();
+    expect(bar.querySelector('[data-part="internal"]')).not.toBeNull();
   });
 
   it("ranks flows in two lists: between coordinators, then internal remix", () => {

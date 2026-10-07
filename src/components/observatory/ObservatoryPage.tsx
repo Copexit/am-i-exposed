@@ -75,35 +75,38 @@ export function ObservatoryPage() {
   };
 
   return (
-    <PageShell>
-      <ObservatoryPageHeader showMainnetBadge />
-
-      <div
-        role="tablist"
-        aria-label={t("observatory.tabs.label", { defaultValue: "CoinJoin protocol" })}
-        onKeyDown={onTabKeyDown}
-        className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-surface-inset border border-card-border sm:inline-grid"
-      >
-        {tabs.map(({ id, label }) => (
-          <button
-            key={id}
-            id={`observatory-tab-${id}`}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            aria-controls="observatory-panel"
-            tabIndex={tab === id ? 0 : -1}
-            onClick={() => selectTab(id)}
-            className={`rounded-md px-3 sm:px-5 py-2 min-h-10 text-sm font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bitcoin ${
-              tab === id
-                ? "bg-surface-elevated text-foreground shadow-sm ring-1 ring-hairline-strong"
-                : "text-muted hover:text-foreground"
-            }`}
+    <PageShell spacing="space-y-4 sm:space-y-5" compact>
+      <ObservatoryPageHeader
+        showMainnetBadge
+        aside={
+          <div
+            role="tablist"
+            aria-label={t("observatory.tabs.label", { defaultValue: "CoinJoin protocol" })}
+            onKeyDown={onTabKeyDown}
+            className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-surface-inset border border-card-border sm:inline-grid"
           >
-            {label}
-          </button>
-        ))}
-      </div>
+            {tabs.map(({ id, label }) => (
+              <button
+                key={id}
+                id={`observatory-tab-${id}`}
+                type="button"
+                role="tab"
+                aria-selected={tab === id}
+                aria-controls="observatory-panel"
+                tabIndex={tab === id ? 0 : -1}
+                onClick={() => selectTab(id)}
+                className={`rounded-md px-3 sm:px-5 py-2 min-h-10 text-sm font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bitcoin ${
+                  tab === id
+                    ? "bg-surface-elevated text-foreground shadow-sm ring-1 ring-hairline-strong"
+                    : "text-muted hover:text-foreground"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
       <div
         id="observatory-panel"

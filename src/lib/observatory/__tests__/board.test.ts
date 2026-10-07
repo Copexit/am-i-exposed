@@ -47,6 +47,20 @@ describe("buildBoard", () => {
     expect(kruw.rounds.find((r) => r.phase === "Ended")!.blame).toBe(true);
     expect(kruw.rules.map((r) => r.label)).toEqual(["Minimum Inputs", "Allowed Input Types", "Allowed Input Amounts", "Mining Fee Rate"]);
   });
+  it("anchors countdowns at the snapshot's UpdatedAt, not at a later receipt", () => {
+    const updated = Date.parse(status.UpdatedAt);
+    const late = buildBoard(status, updated + 25_000).active.find((c) => c.key === "kruw")!;
+    expect(late.rounds.find((r) => r.phase === "OutputRegistration")!.closesAt).toBe(updated - 111_000);
+    const bad = buildBoard({ ...status, UpdatedAt: "" }, at).active.find((c) => c.key === "kruw")!;
+    expect(bad.rounds.find((r) => r.phase === "OutputRegistration")!.closesAt).toBe(at - 111_000);
+  });
+  it("keeps only http(s) ReadMore links", () => {
+    const base = status.Coordinators.find((c) => c.Key === "kruw")!;
+    const link = (ReadMore: string) => buildBoard({ ...status, Coordinators: [{ ...base, ReadMore }] }, at).active[0]!.readMore;
+    expect(link("javascript:alert(1)")).toBe("");
+    expect(link("/relative")).toBe("");
+    expect(link("https://kruw.io")).toBe("https://kruw.io");
+  });
   it("falls back to Config minimum, then 0, when AbsoluteMinInputCount is null", () => {
     const base = status.Coordinators.find((c) => c.Key === "kruw")!;
     const fromConfig = buildBoard({ ...status, Coordinators: [{ ...base, AbsoluteMinInputCount: null }] }, at).active[0]!;

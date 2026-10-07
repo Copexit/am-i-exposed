@@ -8,7 +8,7 @@ import { useVolumeHistory } from "@/hooks/useWabisator";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { coordinatorKpis, largestCoinjoins, remixPartners, volumeSeries, type HistoryRange } from "@/lib/observatory/coordinator-page";
 import { coordinatorFgVar } from "@/lib/observatory/coordinator-palette";
-import { fmtBtc, fmtCount } from "@/lib/observatory/obs-format";
+import { fmtBtc, fmtCount, safeHttpUrl } from "@/lib/observatory/obs-format";
 import { TXID_RE } from "@/lib/constants";
 import type { Flow, Scene, Star } from "@/lib/observatory/sky-model";
 import type { Period } from "@/lib/observatory/wabisator-client";
@@ -128,6 +128,7 @@ function Body({ coordinatorKey: key, scene, flow, status, star, titleId, color, 
   const day = (iso: string) => new Intl.DateTimeFormat(locale, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" }).format(Date.parse(`${iso}T00:00:00Z`));
   const dim = `transition-opacity duration-300 ${stale ? "opacity-50" : ""}`;
   const fees = status?.Fees && status.Fees !== "N/A" ? status.Fees : null;
+  const readMore = safeHttpUrl(status?.ReadMore);
   const rangeLabel: Record<HistoryRange, string> = {
     "30d": t("observatory.wabisabi.coord.range.30d", { defaultValue: "30 d" }),
     "90d": t("observatory.wabisabi.coord.range.90d", { defaultValue: "90 d" }),
@@ -171,9 +172,9 @@ function Body({ coordinatorKey: key, scene, flow, status, star, titleId, color, 
               <span className="text-foreground">{fees}</span>
             </span>
           )}
-          {status?.ReadMore && (
+          {readMore && (
             <a
-              href={status.ReadMore}
+              href={readMore}
               target="_blank"
               rel="noopener noreferrer"
               className={`inline-flex min-h-10 items-center gap-1 rounded-md px-2 text-sm text-muted transition-colors duration-200 hover:text-foreground ${FOCUS}`}

@@ -185,7 +185,7 @@ function Inactive({ cards, onOpen }: { cards: BoardCard[]; onOpen: (key: string)
                 <span className="shrink-0 text-xs text-muted">
                   {c.online
                     ? t("observatory.wabisabi.live.idle", { defaultValue: "No activity in 24 h" })
-                    : t("observatory.wabisabi.live.offline", { defaultValue: "Offline" })}
+                    : t("observatory.wabisabi.offline", { defaultValue: "Offline" })}
                 </span>
               </button>
             </li>

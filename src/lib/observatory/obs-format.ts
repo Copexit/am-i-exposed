@@ -7,3 +7,14 @@ export function fmtBtc(btc: number, locale: string): string {
 
 /** Integer count with locale grouping. */
 export const fmtCount = (n: number, locale: string): string => Math.round(n).toLocaleString(locale);
+
+/** `url` if it is an absolute http(s) URL, else null: upstream links never become `javascript:` or relative hrefs. */
+export function safeHttpUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    return u.protocol === "https:" || u.protocol === "http:" ? url : null;
+  } catch {
+    return null;
+  }
+}

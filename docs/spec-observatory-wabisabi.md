@@ -52,7 +52,7 @@ All requests use aggregate Wabisator methods through `serviceRpc` (`/svc/wabisat
 
 | Method | Use | Params | Refresh |
 |---|---|---|---|
-| `flow-map` | map, stats, flows, largest, search | `{ since, until }` unix seconds; until rounded down to 5 minutes (since = until minus the period) so the worker edge cache is shared | 24 h: 20 s, 7 d: 60 s, 30 d: 120 s while visible |
+| `flow-map` | map, stats, flows, largest, search | `{ since, until }` unix seconds; until rounded down to 5 minutes (since = until minus the period) so the worker edge cache is shared | 24 h: 60 s (matches the worker edge TTL), 7 d: 60 s, 30 d: 120 s while visible |
 | `coordinators-status` | live board, star status | `{}` | 10 s while the tab is visible |
 | `volume-history` | coordinator pages, all-time charts | `{}` | 10 min |
 | `rounds-paginated` | coordinator rounds table | `{ coordinatorEndpoint: [key], page, pageSize: 25 }` | 60 s, on demand |
@@ -93,7 +93,8 @@ Client data layer: `src/lib/observatory/wabisator-client.ts`.
   - `&view=table`
 
   Back and forward restore state.
-- **Sticky sub-navigation (WabiSabi):** Map, Live rounds, Coordinators, Flows, with section anchors.
+- **Sticky sub-navigation (WabiSabi):** Map, Live rounds, Coordinators, Flows, with section anchors; the last one is active at the page bottom. From 1024 px the search sits at its right end.
+- **Compact header:** title, badge and protocol switch on one row from 1024 px, a one-line description, then a one-line WabiSabi caption. The map is the first section with no visible heading; the Map/Table toggle sits in the timeline's control row. The map's top edge stays above about 380 px at 1440x900 and above the fold at 390x844.
 
 ### 1. Map ("sky")
 
@@ -169,7 +170,7 @@ An in-page section shown when `coordinator=` is set, with a close button and key
 
 ### 5. Search
 
-A search field in the WabiSabi header, accepting a txid or a date.
+A search field (in the sticky sub-navigation from 1024 px, under the WabiSabi caption below that), accepting a txid or a date. A query submitted while its period loads shows a short "Waiting for data..." cue and runs once the data is in.
 
 - **txid in the loaded period data:** highlight the CoinJoin (scroll the replay to it, pulse it, set `tx=`) and show its card.
 - **txid not in the loaded data:** say it is not a recorded CoinJoin in this period, and offer "Analyze in am-i.exposed" (`/#tx=...`). Nothing is sent anywhere.

@@ -74,7 +74,7 @@ export function ObservatoryErrorState({
           href={SOURCE_URLS[source]}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg bg-surface-inset border border-card-border text-foreground hover:border-bitcoin/30 transition-all"
+          className="inline-flex items-center gap-1.5 min-h-10 text-sm px-3 py-2 rounded-lg bg-surface-inset border border-card-border text-foreground hover:border-bitcoin/30 transition-all"
         >
           {t(meta.sourceKey, { defaultValue: meta.sourceDefault })}
           <ExternalLink size={12} className="text-muted" />

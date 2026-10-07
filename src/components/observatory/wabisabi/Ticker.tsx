@@ -6,6 +6,7 @@ import { ArrowUpRight } from "lucide-react";
 import type { Scene } from "@/lib/observatory/sky-model";
 import { coordinatorColorVar, coordinatorFgVar } from "@/lib/observatory/coordinator-palette";
 import { fmtBtc, fmtCount } from "@/lib/observatory/obs-format";
+import { TXID_RE } from "@/lib/constants";
 
 export interface TickerProps {
   scene: Scene;
@@ -79,7 +80,7 @@ export function Ticker({ scene, time, highlightTx, onSelect, tone, withDate, red
                         : `${clock(e.t)} · ${t("observatory.wabisabi.event.notAnalyzed", { defaultValue: "Not analysed yet" })}`}
                     </span>
                   </button>
-                  {on && (
+                  {on && TXID_RE.test(e.txid) && (
                     <a href={`/#tx=${e.txid}`} className={`ml-[26px] inline-flex min-h-10 items-center gap-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-bitcoin ${c.link}`}>
                       {t("observatory.wabisabi.event.analyze", { defaultValue: "Analyze in am-i.exposed" })}
                       <ArrowUpRight size={14} aria-hidden="true" />

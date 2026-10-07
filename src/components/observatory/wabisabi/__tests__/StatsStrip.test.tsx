@@ -28,7 +28,7 @@ describe("StatsStrip", () => {
     expect(screen.getByTestId("obs-stat-volume").textContent).toBe("Volume862.75BTC");
     expect(screen.getByTestId("obs-stat-coinjoins").textContent).toBe("CoinJoins91");
     expect(screen.getByTestId("obs-stat-fresh").textContent).toBe("Fresh bitcoin47.08BTC");
-    expect(screen.getByTestId("obs-stat-remix").textContent).toBe("Cross-coordinator remix17.28BTC");
+    expect(screen.getByTestId("obs-stat-remix").textContent).toBe("Cross remix17.28BTC");
   });
 
   it("shows zeros for an empty period and skeletons while loading", () => {

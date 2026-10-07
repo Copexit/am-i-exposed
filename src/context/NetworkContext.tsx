@@ -48,6 +48,11 @@ interface NetworkContextValue {
    * instead of the local node or the onion.
    */
   apiReady: boolean;
+  /**
+   * `isUmbrel` is final (Umbrel known, or the local API probe settled). Enough for
+   * services routed only by isUmbrel (Observatory), which need not wait for Tor detection.
+   */
+  routeReady: boolean;
 }
 
 const NetworkContext = createContext<NetworkContextValue>({
@@ -62,6 +67,7 @@ const NetworkContext = createContext<NetworkContextValue>({
   isUmbrel: false,
   isCustomApi: false,
   apiReady: false,
+  routeReady: false,
 });
 
 interface ResolveOptions {
@@ -178,6 +184,7 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
       isUmbrel,
       isCustomApi: !!customUrl || isUmbrel,
       apiReady: (isUmbrel || localApiStatus !== "checking") && torStatus !== "checking",
+      routeReady: isUmbrel || localApiStatus !== "checking",
     }),
     [network, setNetwork, config, configFor, customUrl, setCustomUrl, torStatus, localApiStatus, isUmbrel],
   );

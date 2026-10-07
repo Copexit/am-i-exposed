@@ -203,7 +203,7 @@ function StarDetails({ star }: { star: Star }) {
         <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ background: coordinatorColorVar(star.key) }} />
         {star.name}
         <span className={`ml-auto eyebrow ${star.online ? "!text-success" : ""}`}>
-          {star.online ? t("observatory.wabisabi.map.online", { defaultValue: "Online" }) : t("observatory.wabisabi.map.offline", { defaultValue: "Offline" })}
+          {star.online ? t("observatory.wabisabi.online", { defaultValue: "Online" }) : t("observatory.wabisabi.offline", { defaultValue: "Offline" })}
         </span>
       </p>
       <dl className="space-y-1">
@@ -344,16 +344,23 @@ export function SkyMap({ scene, period, clock, highlightTx, selected = null, onS
       drawBackdrop(bctx, layout, { palette: look.palette, scene, reduced, bleed: theme === "dark" });
     }
     const cap = mobile ? MAX_LIVE_PARTICLES.mobile : MAX_LIVE_PARTICLES.desktop;
+    // What the canvas shows now: a frame is skipped when it would draw the same picture (battery).
+    let drawn: { ui: unknown; epoch: number } | null = null;
     drawRef.current = (dt: number) => {
       const dyn = dynRef.current;
+      const ui = uiRef.current;
       if (!reduced) {
         const p = clock.progress(nowMs());
         const clockT = p >= 1 ? Infinity : replayTime(p, scene);
         if (clock.playing || dyn.epoch !== clock.epoch) step(dyn, layout, scene, clockT, clock.playing ? dt : 0, cap, clock.epoch);
+        // Paused freezes everything; playing with no particles, pulses or rings moves nothing either.
+        const still = !clock.playing || (dyn.particles.length === 0 && dyn.pulses.length === 0 && !ui.hover && !ui.selected && !ui.highlight);
+        if (still && drawn?.ui === ui && drawn.epoch === dyn.epoch) return;
       }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, box.w, box.h);
-      drawFrame(ctx, layout, reduced ? createDynamics() : dyn, look.palette, bctx ? bg : null, uiRef.current);
+      drawFrame(ctx, layout, reduced ? createDynamics() : dyn, look.palette, bctx ? bg : null, ui);
+      drawn = { ui, epoch: dyn.epoch };
     };
     drawRef.current(0);
   }, [layout, look, box, reduced, scene, theme, mobile, clock]);
@@ -507,7 +514,7 @@ export function SkyMap({ scene, period, clock, highlightTx, selected = null, onS
             key={cardEvent.txid}
             id="obs-event-card"
             tabIndex={-1}
-            role="dialog"
+            role="group"
             aria-label={t("observatory.wabisabi.event.label", { defaultValue: "CoinJoin details" })}
             className={`absolute z-20 w-64 ${TIP}`}
             style={{ left: -9999, top: 0 }}

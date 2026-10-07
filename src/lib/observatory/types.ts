@@ -7,7 +7,7 @@
  *   - GET /api/summary - per-pool stats + sync metadata
  *   - GET /api/charts  - per-block time series (capacity, entered, utxos)
  *   - GET /api/txs     - paginated coinjoin cycle history (TX0 activity)
-
+ *
  * WabiSabi data comes from Wabisator, see wabisator-types.ts.
  */
 

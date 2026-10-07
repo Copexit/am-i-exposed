@@ -1,4 +1,5 @@
 import type { CoordinatorsStatus, StatusCoordinator } from "./wabisator-types";
+import { safeHttpUrl } from "./obs-format";
 
 export const PHASES: readonly string[] = ["InputRegistration", "ConnectionConfirmation", "OutputRegistration", "TransactionSigning", "Ended"];
 
@@ -30,7 +31,7 @@ function card(c: StatusCoordinator, receivedAt: number): BoardCard {
     name: c.Name,
     online: c.Status === "Online",
     fees: c.Fees,
-    readMore: c.ReadMore,
+    readMore: safeHttpUrl(c.ReadMore) ?? "",
     rules: RULE_KEYS.filter((k) => c.Config?.[k] != null).map((k) => ({ label: k, value: String(c.Config?.[k]) })),
     volume24h: c.Volume24h,
     coinjoins24h: c.Coinjoins24h,
@@ -50,9 +51,15 @@ function card(c: StatusCoordinator, receivedAt: number): BoardCard {
   };
 }
 
-/** `receivedAt` is the ms timestamp the status arrived. Active = online with 24 h volume or open rounds. */
+/**
+ * `receivedAt` is the ms timestamp the status arrived. Countdowns count from the snapshot's own
+ * `UpdatedAt` when it parses (a cached snapshot can be ~25 s old), never later than receipt.
+ * Active = online with 24 h volume or open rounds.
+ */
 export function buildBoard(status: CoordinatorsStatus, receivedAt: number): { active: BoardCard[]; inactive: BoardCard[] } {
-  const cards = status.Coordinators.map((c) => card(c, receivedAt)).sort((a, b) => b.volume24h - a.volume24h);
+  const updated = Date.parse(status.UpdatedAt);
+  const anchor = Number.isFinite(updated) ? Math.min(updated, receivedAt) : receivedAt;
+  const cards = status.Coordinators.map((c) => card(c, anchor)).sort((a, b) => b.volume24h - a.volume24h);
   const isActive = (c: BoardCard) => c.online && (c.volume24h > 0 || c.rounds.length > 0);
   return { active: cards.filter(isActive), inactive: cards.filter((c) => !isActive(c)) };
 }

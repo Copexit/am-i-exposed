@@ -67,8 +67,10 @@ describe("ObsSearch", () => {
     fireEvent.change(input, { target: { value: event.txid } });
     fireEvent.submit(input.closest("form")!);
     expect(props.onFound).not.toHaveBeenCalled();
+    expect(screen.getByTestId("obs-search-result").textContent).toContain("Waiting for data...");
     rerender(<ObsSearch scene={scene1} period={1} {...props} />);
     expect(props.onFound).toHaveBeenCalledWith(event);
+    expect(screen.queryByTestId("obs-search-result")).toBeNull();
   });
 
   it("a moment past the data's last refresh is clamped into the period, not offered as a switch", () => {

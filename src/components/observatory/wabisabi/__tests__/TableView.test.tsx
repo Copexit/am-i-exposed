@@ -37,13 +37,16 @@ describe("TableView", () => {
     expect(within(swiss).getAllByRole("cell").map((c) => c.textContent)).toEqual(["Offline", "0", "0", "0", "0", "0", "0"]);
   });
 
-  it("lists the remix flows by BTC, with coordinator names", () => {
+  it("lists the remix flows between coordinators by BTC (internal remix is the other table's column)", () => {
     render(<TableView scene={scene} />);
-    const table = screen.getByRole("table", { name: /Remix flows/ });
+    const table = screen.getByRole("table", { name: /Remix flows between coordinators/ });
     const rows = within(table).getAllByRole("row").slice(1);
-    expect(rows).toHaveLength(5);
-    expect([...rows[0]!.querySelectorAll("th, td")].map((c) => c.textContent)).toEqual(["Kruw", "Kruw", "774.33", "11,347"]);
-    expect([...rows[1]!.querySelectorAll("th, td")].map((c) => c.textContent)).toEqual(["OpenCoordinator", "Kruw", "17.22", "287"]);
+    expect(rows).toHaveLength(2);
+    expect([...rows[0]!.querySelectorAll("th, td")].map((c) => c.textContent)).toEqual(["OpenCoordinator", "Kruw", "17.22", "287"]);
+    for (const r of rows) {
+      const [from, to] = [...r.querySelectorAll("th, td")].map((c) => c.textContent);
+      expect(from).not.toBe(to);
+    }
   });
 
   it("says so when the period has no remix flows", () => {

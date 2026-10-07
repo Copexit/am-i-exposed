@@ -36,19 +36,21 @@ interface PageFrameProps {
   title?: string;
   /** Tailwind spacing class between children (default "space-y-10"). */
   spacing?: string;
+  /** Tighter top padding and breadcrumb margin, for pages whose first screen is the content (Observatory). */
+  compact?: boolean;
   children: ReactNode;
 }
 
 /** Calm frame for knowledge and info pages: breadcrumb eyebrow, measured width. */
-export function PageFrame({ title, spacing = "space-y-10", children }: PageFrameProps) {
+export function PageFrame({ title, spacing = "space-y-10", compact = false, children }: PageFrameProps) {
   const { t } = useTranslation();
   const segment = (usePathname() ?? "").split("/")[1] ?? "";
   const { eyebrow, width } = useSection(segment);
 
   return (
-    <div className="flex-1 w-full px-4 sm:px-6 lg:px-8 pt-6 sm:pt-10 pb-12">
+    <div className={`flex-1 w-full px-4 sm:px-6 lg:px-8 pb-12 ${compact ? "pt-3 sm:pt-5" : "pt-6 sm:pt-10"}`}>
       <div className={`mx-auto w-full ${width}`}>
-        <nav aria-label={t("pages.breadcrumb", { defaultValue: "Breadcrumb" })} className="eyebrow flex items-center gap-2 mb-6 sm:mb-8">
+        <nav aria-label={t("pages.breadcrumb", { defaultValue: "Breadcrumb" })} className={`eyebrow flex items-center gap-2 ${compact ? "mb-2 sm:mb-3" : "mb-6 sm:mb-8"}`}>
           <Link
             href="/"
             className="inline-flex items-center min-h-11 hover:text-foreground transition-colors rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bitcoin"

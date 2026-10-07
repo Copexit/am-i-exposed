@@ -19,7 +19,8 @@ export function TableView({ scene }: { scene: Scene }) {
   const btc = (v: number) => fmtBtc(v, locale);
   const stars = [...scene.stars].sort((a, b) => b.volume - a.volume || a.name.localeCompare(b.name));
   const nameOf = new Map(scene.stars.map((s) => [s.key, s.name]));
-  const flows = [...scene.flows].sort((a, b) => b.btc - a.btc);
+  // Internal remix is the coordinators table's own column; this table is only flows between coordinators.
+  const flows = scene.flows.filter((f) => !f.internal).sort((a, b) => b.btc - a.btc);
 
   const coordCols = [
     t("observatory.wabisabi.table.status", { defaultValue: "Status" }),

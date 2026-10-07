@@ -22,7 +22,7 @@ vi.mock("react-i18next", () => ({
     i18n: { language: "en" },
   }),
 }));
-vi.mock("@/context/NetworkContext", () => ({ useNetwork: () => ({ network: "mainnet", isUmbrel: false, apiReady: true }) }));
+vi.mock("@/context/NetworkContext", () => ({ useNetwork: () => ({ network: "mainnet", isUmbrel: false, routeReady: true }) }));
 vi.mock("@/hooks/useChainTip", () => ({ useChainTip: () => null }));
 vi.mock("@/components/PageShell", () => ({ PageShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
 
@@ -163,7 +163,7 @@ describe("Observatory tab shell", () => {
       expect(window.location.hash).toBe(`#wabisabi&tx=${ev.txid}`);
       expect(screen.queryByTestId("obs-search-result")).toBeNull();
       const card = document.getElementById("obs-event-card")!;
-      expect(card.getAttribute("role")).toBe("dialog");
+      expect(card.getAttribute("role")).toBe("group");
       // The playhead sits 1.5 s of replay before the CoinJoin, so its pulse plays.
       expect(Number(slider().getAttribute("aria-valuenow"))).toBe(Math.round(100 * Math.max(0, replayProgress(ev.t, scene1) - 1.5 / 60)));
       // The replay keeps playing from there while focus moves to the card.

@@ -6,7 +6,8 @@ export type Period = 1 | 7 | 30;
 interface Opts { isUmbrel: boolean; signal?: AbortSignal }
 
 export const REFRESH_MS = {
-  flowMap: { 1: 20_000, 7: 60_000, 30: 120_000 } as Record<Period, number>,
+  // 1 d matches the worker's 60 s edge TTL; faster polls would only re-read its cache.
+  flowMap: { 1: 60_000, 7: 60_000, 30: 120_000 } as Record<Period, number>,
   status: 10_000,
   volume: 600_000,
   rounds: 60_000,
@@ -21,11 +22,13 @@ export function flowMapWindow(period: Period, nowSec: number): { since: number; 
 }
 
 // The cache entry is written after the fetch, so TTL == interval would make every second poll a cache hit.
-const call = <T>(method: string, params: Record<string, unknown>, interval: number, { isUmbrel, signal }: Opts) =>
-  withObservatoryCache(`wabisator:${method}:${JSON.stringify(params)}`, () => serviceRpc<T>("wabisator", "/api.php", method, params, { isUmbrel, signal }), Math.max(1000, interval - 1000));
+// `cacheKey` must be stable over time: idb-cache only evicts on same-key reads, so a key that drifts
+// (e.g. the flow-map window) would orphan one entry per window.
+const call = <T>(method: string, params: Record<string, unknown>, interval: number, { isUmbrel, signal }: Opts, cacheKey = JSON.stringify(params)) =>
+  withObservatoryCache(`wabisator:${method}:${cacheKey}`, () => serviceRpc<T>("wabisator", "/api.php", method, params, { isUmbrel, signal }), Math.max(1000, interval - 1000));
 
 export function getFlowMap(period: Period, opts: Opts & { nowSec?: number }): Promise<FlowMap> {
-  return call("flow-map", flowMapWindow(period, opts.nowSec ?? Date.now() / 1000), REFRESH_MS.flowMap[period], opts);
+  return call("flow-map", flowMapWindow(period, opts.nowSec ?? Date.now() / 1000), REFRESH_MS.flowMap[period], opts, String(period));
 }
 
 export const getCoordinatorsStatus = (opts: Opts): Promise<CoordinatorsStatus> =>

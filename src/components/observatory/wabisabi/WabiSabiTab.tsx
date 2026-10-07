@@ -28,65 +28,75 @@ const BONE = "rounded bg-surface-2 motion-safe:animate-pulse";
 const CHIP = "inline-flex items-center gap-2 min-h-10 px-3 rounded-lg text-sm transition-colors duration-200 cursor-pointer";
 
 /** One page section. Later tasks mount their component as `children` in place of the skeleton. */
-function Section({ id, title, lead, action, children }: { id: string; title: string; lead?: string; action?: ReactNode; children: ReactNode }) {
+function Section({ id, title, lead, hideTitle, describedBy, children }: { id: string; title: string; lead?: string; hideTitle?: boolean; describedBy?: string; children: ReactNode }) {
   return (
-    <section id={id} aria-labelledby={`${id}-title`} className="space-y-5 pt-2">
-      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+    <section id={id} aria-labelledby={`${id}-title`} aria-describedby={describedBy} className={hideTitle ? "" : "space-y-5 pt-2"}>
+      {hideTitle ? (
+        <h2 id={`${id}-title`} className="sr-only">{title}</h2>
+      ) : (
         <div className="space-y-1.5 max-w-2xl">
           <h2 id={`${id}-title`} className="text-xl sm:text-[22px] font-semibold tracking-tight text-foreground text-balance">{title}</h2>
           {lead && <p className="text-sm text-muted leading-relaxed">{lead}</p>}
         </div>
-        {action}
-      </div>
+      )}
       {children}
     </section>
   );
 }
 
-/** Sticky in-page chips; highlights the section in view. */
-function SubNav({ items }: { items: { id: string; label: string }[] }) {
+/** Sticky in-page chips; highlights the section in view. `aside` sits at the right end (the search, from 1024 px). */
+function SubNav({ items, aside }: { items: { id: string; label: string }[]; aside?: ReactNode }) {
   const { t } = useTranslation();
   const [active, setActive] = useState(items[0]?.id);
   const ids = items.map((i) => i.id).join(",");
   useEffect(() => {
     if (typeof IntersectionObserver === "undefined") return;
+    const list = ids.split(",");
+    // The last section may be too short to reach the observed band: at the page bottom it is the active one.
+    const atBottom = () => window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
     const io = new IntersectionObserver(
       (entries) => {
+        if (atBottom()) return setActive(list.at(-1));
         const top = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
         if (top) setActive(top.target.id);
       },
       { rootMargin: "-120px 0px -60% 0px" },
     );
-    for (const id of ids.split(",")) {
+    for (const id of list) {
       const el = document.getElementById(id);
       if (el) io.observe(el);
     }
-    return () => io.disconnect();
+    const onScroll = () => { if (atBottom()) setActive(list.at(-1)); };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => { io.disconnect(); window.removeEventListener("scroll", onScroll); };
   }, [ids]);
 
   return (
     <nav
       aria-label={t("observatory.wabisabi.nav.label", { defaultValue: "WabiSabi sections" })}
-      className="sticky top-[var(--header-h,56px)] z-30 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-1.5 bg-background/85 backdrop-blur border-b border-hairline"
+      className="sticky top-[var(--header-h,56px)] z-30 mb-3 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-0.5 bg-background/85 backdrop-blur border-b border-hairline"
     >
-      <ul className="flex gap-1 overflow-x-auto no-scrollbar">
-        {items.map((s) => (
-          <li key={s.id}>
-            <a
-              href={`#${s.id}`}
-              onClick={(e) => {
-                e.preventDefault();
-                const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-                document.getElementById(s.id)?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
-              }}
-              aria-current={active === s.id ? "true" : undefined}
-              className={`inline-flex items-center min-h-10 px-3 rounded-md text-sm whitespace-nowrap transition-colors duration-200 ${active === s.id ? "bg-surface-2 text-foreground" : "text-muted hover:text-foreground"}`}
-            >
-              {s.label}
-            </a>
-          </li>
-        ))}
-      </ul>
+      <div className="flex items-center justify-between gap-6">
+        <ul className="flex min-w-0 gap-1 overflow-x-auto no-scrollbar">
+          {items.map((s) => (
+            <li key={s.id}>
+              <a
+                href={`#${s.id}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+                  document.getElementById(s.id)?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+                }}
+                aria-current={active === s.id ? "true" : undefined}
+                className={`inline-flex items-center min-h-10 px-3 rounded-md text-sm whitespace-nowrap transition-colors duration-200 ${active === s.id ? "bg-surface-2 text-foreground" : "text-muted hover:text-foreground"}`}
+              >
+                {s.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+        {aside}
+      </div>
     </nav>
   );
 }
@@ -185,17 +195,33 @@ function CoordinatorSkeleton() {
   );
 }
 
+/** Shaped like RemixFlows: the total, the share bar, then two columns of ranked bars. */
 function FlowsSkeleton() {
   return (
-    <div aria-hidden="true" className="rounded-xl border border-hairline bg-surface-1 shadow-(--shadow-card) p-4 sm:p-6">
-      <div className="hidden sm:flex items-center gap-10">
-        <div className="size-64 shrink-0 rounded-full border-[18px] border-surface-2 motion-safe:animate-pulse" />
-        <div className="flex-1 space-y-3">
-          {[70, 55, 40, 30, 20].map((w) => <div key={w} className={`h-4 ${BONE}`} style={{ width: `${w}%` }} />)}
+    <div aria-hidden="true" className="rounded-xl border border-hairline bg-surface-1 shadow-(--shadow-card) p-5 sm:p-8 space-y-8 sm:space-y-10">
+      <div className="space-y-5">
+        <div className="space-y-2.5">
+          <span className={`block h-3 w-44 ${BONE}`} />
+          <span className={`block h-10 w-56 ${BONE}`} />
+          <span className={`block h-4 w-full max-w-xl ${BONE}`} />
+        </div>
+        <div className="flex h-3 gap-[3px]">
+          <span className={`h-full w-[30%] !rounded-l-full ${BONE}`} />
+          <span className={`h-full flex-1 !rounded-r-full ${BONE}`} />
         </div>
       </div>
-      <div className="sm:hidden space-y-3">
-        {[90, 60, 35, 20].map((w) => <div key={w} className={`h-6 ${BONE}`} style={{ width: `${w}%` }} />)}
+      <div className="grid gap-x-12 gap-y-8 sm:grid-cols-2">
+        {[0, 1].map((c) => (
+          <div key={c} className="space-y-4">
+            <span className={`block h-3 w-32 ${BONE}`} />
+            {[100, 72, 50, 34].map((w) => (
+              <div key={w} className="space-y-1.5">
+                <div className="flex justify-between gap-3"><span className={`h-4 w-36 ${BONE}`} /><span className={`h-4 w-16 ${BONE}`} /></div>
+                <div className={`h-1.5 !rounded-full ${BONE}`} style={{ width: `${w}%` }} />
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -210,7 +236,7 @@ type Seek = { t: number; lead: number };
  * Map, timeline and ticker around one replay clock. Its own component so the clock's 10 Hz
  * progress re-renders only this, not the whole tab.
  */
-function SkyView({ scene, period, tx, coordinator, setObs, seek, onSeeked }: { scene: Scene | null; period: Period; tx: string | null; coordinator: string | null; setObs: (patch: Partial<ObsState>) => void; seek: Seek | null; onSeeked: () => void }) {
+function SkyView({ scene, period, tx, coordinator, setObs, seek, onSeeked, controls }: { scene: Scene | null; period: Period; tx: string | null; coordinator: string | null; setObs: (patch: Partial<ObsState>) => void; seek: Seek | null; onSeeked: () => void; controls: ReactNode }) {
   const { theme } = useTheme();
   const reduced = useReducedMotion();
   const wide = useMedia("(min-width: 1024px)");
@@ -275,9 +301,13 @@ function SkyView({ scene, period, tx, coordinator, setObs, seek, onSeeked }: { s
           onScrub={sky.scrub}
           onTogglePlay={sky.toggle}
           onPeriod={(p) => setObs({ period: p, tx: null })}
+          extra={controls}
         />
       ) : (
-        <TimelineSkeleton />
+        <div className="space-y-3">
+          <TimelineSkeleton />
+          <div className="flex justify-end">{controls}</div>
+        </div>
       )}
       {!wide && ticker("page")}
     </div>
@@ -385,41 +415,43 @@ export function WabiSabiTab() {
     requestAnimationFrame(() => { if (document.activeElement === document.body) document.getElementById(`obs-chip-${key}`)?.focus(); });
   }, [obs.coordinator, setObs]);
 
+  // One search box: in the sticky nav from 1024 px, under the caption below that.
+  const wide = useMedia("(min-width: 1024px)");
+  const search = <ObsSearch scene={scene} period={obs.period} onFound={onFound} onJumpTo={onJumpTo} onSwitchPeriod={(p) => setObs({ period: p, tx: null })} />;
+
   return (
     <div className="space-y-10 sm:space-y-14">
-      <header className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-3 max-w-2xl">
-          <p className="eyebrow flex items-center gap-2">
+      <header className="mb-3 flex flex-col gap-3">
+        <p id="obs-map-caption" className="text-sm leading-relaxed text-muted text-pretty">
+          <span className="eyebrow mr-2 inline-flex items-center gap-2 !text-foreground">
             <span aria-hidden="true" className="size-1.5 rounded-full bg-success motion-safe:animate-pulse" />
             {t("observatory.wabisabi.header.eyebrow", { defaultValue: "WabiSabi, live" })}
-          </p>
-          <p className="text-lg sm:text-xl leading-relaxed text-foreground text-balance">
-            {t("observatory.wabisabi.header.lead", {
-              defaultValue: "Every CoinJoin of the last {{period}} on the public WabiSabi coordinators, replayed and then followed live.",
-              period: periodLabel,
-            })}
-          </p>
-        </div>
-        <ObsSearch scene={scene} period={obs.period} onFound={onFound} onJumpTo={onJumpTo} onSwitchPeriod={(p) => setObs({ period: p, tx: null })} />
+          </span>
+          {t("observatory.wabisabi.header.lead", {
+            defaultValue: "Every CoinJoin of the last {{period}} on the public WabiSabi coordinators, replayed and then followed live.",
+            period: periodLabel,
+          })}
+          <span className="sr-only">
+            {" "}
+            {t("observatory.wabisabi.map.lead", { defaultValue: "One star per coordinator, sized by volume. Pulses are CoinJoins; particles are fresh and remixed coins." })}
+          </span>
+        </p>
+        {!wide && search}
       </header>
 
-      <SubNav items={nav} />
+      <SubNav items={nav} aside={wide ? <div className="w-[360px] shrink-0">{search}</div> : undefined} />
 
-      <Section
-        id="obs-map"
-        title={t("observatory.wabisabi.map.title", { defaultValue: "The CoinJoin map" })}
-        lead={t("observatory.wabisabi.map.lead", { defaultValue: "One star per coordinator, sized by volume. Pulses are CoinJoins; particles are fresh and remixed coins." })}
-        action={viewToggle}
-      >
+      <Section id="obs-map" title={t("observatory.wabisabi.map.title", { defaultValue: "The CoinJoin map" })} hideTitle describedBy="obs-map-caption">
         {flowFailed ? (
           <ObservatoryErrorState source="wabisator" onRetry={flow.refresh} locale={i18n.language || "en"} />
         ) : table ? (
           <div className={`space-y-6 ${FADE}`}>
+            <div className="flex justify-end">{viewToggle}</div>
             <StatsStrip totals={scene?.totals ?? null} period={obs.period} />
             {scene ? <TableView scene={scene} /> : <TableSkeleton />}
           </div>
         ) : (
-          <SkyView scene={scene} period={obs.period} tx={obs.tx} coordinator={obs.coordinator} setObs={setObs} seek={seek} onSeeked={onSeeked} />
+          <SkyView scene={scene} period={obs.period} tx={obs.tx} coordinator={obs.coordinator} setObs={setObs} seek={seek} onSeeked={onSeeked} controls={viewToggle} />
         )}
       </Section>
 

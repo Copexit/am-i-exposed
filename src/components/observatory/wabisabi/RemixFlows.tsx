@@ -132,7 +132,7 @@ export function RemixFlows({ scene, onOpenCoordinator }: RemixFlowsProps) {
           {remixed > 0 && (
             <p className="max-w-2xl text-sm sm:text-base text-muted leading-relaxed text-pretty">
               {t("observatory.wabisabi.flows.share", {
-                defaultValue: "Only {{share}} of all remixed bitcoin moved to another coordinator. The other {{rest}} was remixed where it was already mixed.",
+                defaultValue: "{{share}} of all remixed bitcoin moved to another coordinator. The other {{rest}} was remixed where it was already mixed.",
                 share: f.pct(share),
                 rest: f.pct(1 - share),
               })}
@@ -143,8 +143,8 @@ export function RemixFlows({ scene, onOpenCoordinator }: RemixFlowsProps) {
         {remixed > 0 && (
           <div className="space-y-2.5" data-testid="obs-flows-share">
             <div aria-hidden="true" className="flex h-3 gap-[3px]">
-              <span data-part="cross" className="h-full rounded-l-full bg-bitcoin" style={{ width: `${100 * share}%`, minWidth: 4 }} />
-              <span data-part="internal" className="h-full flex-1 rounded-r-full bg-faint/45" />
+              {share > 0 && <span data-part="cross" className={`h-full rounded-l-full bg-bitcoin ${share < 1 ? "" : "rounded-r-full"}`} style={{ width: `${100 * share}%`, minWidth: 4 }} />}
+              {share < 1 && <span data-part="internal" className={`h-full flex-1 rounded-r-full bg-faint/45 ${share > 0 ? "" : "rounded-l-full"}`} />}
             </div>
             <dl className="flex flex-wrap justify-between gap-x-6 gap-y-1 text-sm">
               <div className="flex items-center gap-2">

@@ -47,17 +47,21 @@ describe("wabisator client", () => {
     expect((await getRounds("kruw", 2, { isUmbrel: false })).Rounds.length).toBeGreaterThan(0);
     expect(sent().body).toMatchObject({ method: "rounds-paginated", params: { coordinatorEndpoint: ["kruw"], page: 2, pageSize: 25 } });
   });
-  it("cache key carries since/until and TTL is interval - 1000", async () => {
+  it("flow-map cache key depends on the period only, not on nowSec; TTL is interval - 1000", async () => {
     reply(flow1d);
     await getFlowMap(7, { isUmbrel: false, nowSec: 1_000_000_123 });
     const [key, ttl] = cacheSpy.mock.calls.at(-1) as [string, number];
-    expect(key).toContain("flow-map");
-    expect(key).toContain("999999900");
-    expect(key).toContain(String(999_999_900 - 7 * 86400));
+    reply(flow1d);
+    await getFlowMap(7, { isUmbrel: false, nowSec: 1_000_000_123 + 3 * 86400 });
+    expect(cacheSpy.mock.calls.at(-1)?.[0]).toBe(key);
+    expect(key).toBe("wabisator:flow-map:7");
     expect(ttl).toBe(59_000);
+    reply(flow1d);
+    await getFlowMap(1, { isUmbrel: false, nowSec: 1_000_000_123 });
+    expect(cacheSpy.mock.calls.at(-1)?.[0]).toBe("wabisator:flow-map:1");
   });
   it("refresh intervals match the spec", () => {
-    expect(REFRESH_MS.flowMap).toEqual({ 1: 20_000, 7: 60_000, 30: 120_000 });
+    expect(REFRESH_MS.flowMap).toEqual({ 1: 60_000, 7: 60_000, 30: 120_000 });
     expect([REFRESH_MS.status, REFRESH_MS.volume, REFRESH_MS.rounds]).toEqual([10_000, 600_000, 60_000]);
   });
 });

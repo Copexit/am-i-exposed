@@ -110,6 +110,19 @@ describe("NetworkProvider", () => {
     return renderHook(() => useNetwork(), { wrapper });
   }
 
+  it("routeReady on Umbrel never reports a non-Umbrel route first", async () => {
+    mockFetch(UMBREL_ROUTES);
+    const { NetworkProvider, useNetwork } = await import("@/context/NetworkContext");
+    const seen: { routeReady: boolean; isUmbrel: boolean }[] = [];
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <StrictMode><NetworkProvider>{children}</NetworkProvider></StrictMode>
+    );
+    renderHook(() => { const n = useNetwork(); seen.push({ routeReady: n.routeReady, isUmbrel: n.isUmbrel }); }, { wrapper });
+    await flush(15_000);
+    expect(seen.some((s) => s.routeReady)).toBe(true);
+    expect(seen.filter((s) => s.routeReady).every((s) => s.isUmbrel)).toBe(true);
+  });
+
   it("never contacts the Tor check worker or the .onion probe on Umbrel", async () => {
     const fetchFn = mockFetch(UMBREL_ROUTES);
     const { result } = await renderNetwork();
@@ -140,9 +153,12 @@ describe("NetworkProvider", () => {
     });
     const { result } = await renderNetwork();
     expect(result.current.apiReady).toBe(false);
+    expect(result.current.routeReady).toBe(false);
     await flush(100); // local probe settled, Tor still checking
     expect(result.current.localApiStatus).not.toBe("checking");
     expect(result.current.apiReady).toBe(false);
+    expect(result.current.routeReady).toBe(true); // Observatory routing does not wait for Tor
+    expect(result.current.isUmbrel).toBe(false);
     await flush(15_000);
     expect(result.current.torStatus).toBe("tor");
     expect(result.current.apiReady).toBe(true);
