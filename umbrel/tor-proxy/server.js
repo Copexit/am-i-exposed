@@ -1,7 +1,9 @@
 const http = require("http");
 const https = require("https");
 const { SocksProxyAgent } = require("socks-proxy-agent");
+const WebSocket = require("ws");
 const { createHandler } = require("./handler");
+const { createFetchViaAgent } = require("./fetch-via-agent");
 
 const PORT = parseInt(process.env.PORT || "3001", 10);
 const TOR_PROXY_IP = process.env.TOR_PROXY_IP || "10.21.21.11";
@@ -18,57 +20,32 @@ const agent = new SocksProxyAgent(
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024; // 4 MiB cap (30-day Wabisator flow-map is ~0.9 MB)
 
-function fetchViaAgent(url, { method = "GET", body, contentType, timeoutMs = REQUEST_TIMEOUT_MS } = {}) {
+const fetchViaAgent = createFetchViaAgent({
+  http,
+  https,
+  agent,
+  maxBytes: MAX_RESPONSE_BYTES,
+  defaultTimeoutMs: REQUEST_TIMEOUT_MS,
+});
+
+/** ws through the same Tor agent, adapted to the { send, close, onMessage, onClose, onError } shape. */
+function openSocket(url) {
   return new Promise((resolve, reject) => {
-    const parsed = new URL(url);
-    const headers = { Accept: "application/json" };
-    if (body) {
-      headers["Content-Type"] = contentType || "application/json";
-      headers["Content-Length"] = Buffer.byteLength(body);
-    }
-    const req = https.request(
-      {
-        hostname: parsed.hostname,
-        port: parsed.port || 443,
-        path: parsed.pathname + parsed.search,
-        method,
-        agent,
-        headers,
-        timeout: timeoutMs,
-      },
-      (res) => {
-        const chunks = [];
-        let totalBytes = 0;
-        res.on("data", (chunk) => {
-          totalBytes += chunk.length;
-          if (totalBytes > MAX_RESPONSE_BYTES) {
-            req.destroy();
-            reject(new Error("Upstream response too large"));
-            return;
-          }
-          chunks.push(chunk);
-        });
-        res.on("end", () => {
-          const out = Buffer.concat(chunks).toString();
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            resolve(out);
-          } else {
-            reject(Object.assign(new Error(`Upstream ${res.statusCode}: ${out.slice(0, 200)}`), { status: res.statusCode }));
-          }
-        });
-      },
+    const ws = new WebSocket(url, { agent, handshakeTimeout: 15000 });
+    ws.once("open", () =>
+      resolve({
+        send: (s) => ws.send(s),
+        close: () => ws.close(),
+        onMessage: (fn) => ws.on("message", (data) => fn(data.toString())),
+        onClose: (fn) => ws.on("close", () => fn()),
+        onError: (fn) => ws.on("error", () => fn()),
+      }),
     );
-    req.on("error", reject);
-    req.on("timeout", () => {
-      req.destroy();
-      reject(new Error("Upstream request timed out"));
-    });
-    if (body) req.write(body);
-    req.end();
+    ws.once("error", reject);
   });
 }
 
-const handler = createHandler({ fetchViaAgent, upstreamBase: UPSTREAM_BASE });
+const handler = createHandler({ fetchViaAgent, openSocket, upstreamBase: UPSTREAM_BASE });
 
 const server = http.createServer(handler);
 

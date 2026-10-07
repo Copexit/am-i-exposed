@@ -3,6 +3,8 @@
  * workers/coinjoin-stats/svc.js validation (CommonJS, no cache: every response
  * is no-store). The upstream is service.onion ?? service.base.
  */
+const { createNostrRoute } = require("./nostr");
+
 const MAX_REQUEST_BYTES = 64 * 1024;
 const MAX_PARAMS_JSON = 2048;
 const DEFAULT_TIMEOUT_MS = 30000;
@@ -48,7 +50,8 @@ function send(res, status, body, extra = {}) {
 const fail = (res, status, code, message, extra) =>
   send(res, status, JSON.stringify({ error: { code, message } }), extra);
 
-function createSvcHandler({ fetchViaAgent, services, logger = console }) {
+function createSvcHandler({ fetchViaAgent, services, logger = console, openSocket }) {
+  const nostrRoute = openSocket ? createNostrRoute({ openSocket }) : null;
   const forward = async (res, service, route, path, init) => {
     try {
       const body = await fetchViaAgent((service.onion ?? service.base) + path, {
@@ -75,6 +78,12 @@ function createSvcHandler({ fetchViaAgent, services, logger = console }) {
     if (!route) return fail(res, 405, "METHOD_NOT_ALLOWED", "Method not allowed");
     const path = route.path;
     const upstreamBase = service.onion ?? service.base;
+
+    if (route.nostr) {
+      // Fail closed: a nostr snapshot is only ever a GET aggregate with registry filters.
+      if (req.method !== "GET" || route.class !== "aggregate" || !nostrRoute) return misconfigured(res);
+      return nostrRoute(res, service, route);
+    }
 
     if (req.method === "GET") {
       // Fail closed: only "aggregate" and "lookup" are valid classes.

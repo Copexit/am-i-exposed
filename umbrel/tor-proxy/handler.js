@@ -16,12 +16,13 @@ function createHandler({
   upstreamBase = UPSTREAM_BASE_DEFAULT,
   logger = console,
   services = require("./services.json").services,
+  openSocket,
 } = {}) {
   if (typeof fetchViaAgent !== "function") {
     throw new Error("fetchViaAgent is required");
   }
 
-  const handleSvc = createSvcHandler({ fetchViaAgent, services, logger });
+  const handleSvc = createSvcHandler({ fetchViaAgent, services, logger, openSocket });
 
   async function dispatch(req, res) {
     if (req.url === "/health") {
