@@ -16,7 +16,7 @@ const agent = new SocksProxyAgent(
 );
 
 const REQUEST_TIMEOUT_MS = 30_000;
-const MAX_RESPONSE_BYTES = 1024 * 1024; // 1 MB limit to prevent memory exhaustion
+const MAX_RESPONSE_BYTES = 4 * 1024 * 1024; // 4 MiB cap (30-day Wabisator flow-map is ~0.9 MB)
 
 function fetchViaAgent(url, { method = "GET", body, contentType, timeoutMs = REQUEST_TIMEOUT_MS } = {}) {
   return new Promise((resolve, reject) => {
