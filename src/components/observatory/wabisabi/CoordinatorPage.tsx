@@ -9,6 +9,7 @@ import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { coordinatorKpis, largestCoinjoins, remixPartners, volumeSeries, type HistoryRange } from "@/lib/observatory/coordinator-page";
 import { coordinatorFgVar } from "@/lib/observatory/coordinator-palette";
 import { fmtBtc, fmtCount } from "@/lib/observatory/obs-format";
+import { TXID_RE } from "@/lib/constants";
 import type { Flow, Scene, Star } from "@/lib/observatory/sky-model";
 import type { Period } from "@/lib/observatory/wabisator-client";
 import type { FlowMap, StatusCoordinator } from "@/lib/observatory/wabisator-types";
@@ -24,6 +25,8 @@ export interface CoordinatorPageProps {
   /** The tab's coordinators-status entry (fees, website); null until it loads or when absent. */
   status: StatusCoordinator | null;
   onClose: () => void;
+  /** The next period's flow-map is loading: `flow` and `scene` are the previous period's, shown dimmed. */
+  stale?: boolean;
 }
 
 const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bitcoin";
@@ -41,11 +44,14 @@ export function CoordinatorPage(props: CoordinatorPageProps) {
   return star ? <Page {...props} star={star} /> : null;
 }
 
-function Page({ coordinatorKey: key, scene, flow, status, onClose, star }: CoordinatorPageProps & { star: Star }) {
+function Page({ coordinatorKey: key, scene, flow, status, onClose, star, stale = false }: CoordinatorPageProps & { star: Star }) {
   const { t } = useTranslation();
   const sheet = useMedia("(max-width: 639px)");
   const titleId = `obs-coord-${key}-title`;
   const color = coordinatorFgVar(key);
+  // Held here, not in Body: crossing 640 px swaps the sheet and the inline card, which remounts Body.
+  const [range, setRange] = useState<HistoryRange>("1y");
+  const [roundsPage, setRoundsPage] = useState(1);
 
   const close = (
     <button
@@ -57,7 +63,7 @@ function Page({ coordinatorKey: key, scene, flow, status, onClose, star }: Coord
       <X size={18} aria-hidden="true" />
     </button>
   );
-  const body = <Body coordinatorKey={key} scene={scene} flow={flow} status={status} star={star} titleId={titleId} color={color} close={sheet ? null : close} />;
+  const body = <Body coordinatorKey={key} scene={scene} flow={flow} status={status} star={star} stale={stale} range={range} onRange={setRange} roundsPage={roundsPage} onRoundsPage={setRoundsPage} titleId={titleId} color={color} close={sheet ? null : close} />;
 
   return sheet ? (
     <Sheet titleId={titleId} name={star.name} color={color} onClose={onClose} close={close}>{body}</Sheet>
@@ -104,11 +110,10 @@ function Sheet({ titleId, name, color, onClose, close, children }: { titleId: st
   );
 }
 
-function Body({ coordinatorKey: key, scene, flow, status, star, titleId, color, close }: Omit<CoordinatorPageProps, "onClose"> & { star: Star; titleId: string; color: string; close: ReactNode }) {
+function Body({ coordinatorKey: key, scene, flow, status, star, titleId, color, close, stale = false, range, onRange: setRange, roundsPage, onRoundsPage }: Omit<CoordinatorPageProps, "onClose"> & { star: Star; titleId: string; color: string; close: ReactNode; range: HistoryRange; onRange: (r: HistoryRange) => void; roundsPage: number; onRoundsPage: (p: number) => void }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language || "en";
   const history = useVolumeHistory();
-  const [range, setRange] = useState<HistoryRange>("1y");
   const period = Math.round((scene.until - scene.since) / 86_400) as Period;
   const periodLabel = usePeriodLabel(period);
 
@@ -121,6 +126,7 @@ function Body({ coordinatorKey: key, scene, flow, status, star, titleId, color, 
 
   const share = scene.totals.Volume > 0 ? kpis.volume / scene.totals.Volume : 0;
   const day = (iso: string) => new Intl.DateTimeFormat(locale, { year: "numeric", month: "short", day: "numeric", timeZone: "UTC" }).format(Date.parse(`${iso}T00:00:00Z`));
+  const dim = `transition-opacity duration-300 ${stale ? "opacity-50" : ""}`;
   const fees = status?.Fees && status.Fees !== "N/A" ? status.Fees : null;
   const rangeLabel: Record<HistoryRange, string> = {
     "30d": t("observatory.wabisabi.coord.range.30d", { defaultValue: "30 d" }),
@@ -145,7 +151,7 @@ function Body({ coordinatorKey: key, scene, flow, status, star, titleId, color, 
           </div>
           {close}
         </div>
-        <p className="max-w-3xl text-base leading-relaxed text-muted text-pretty sm:text-lg">
+        <p className={`max-w-3xl text-base leading-relaxed text-muted text-pretty sm:text-lg ${dim}`}>
           {kpis.coinjoins > 0
             ? t("observatory.wabisabi.coord.lead", {
                 defaultValue: "{{volume}} BTC across {{coinjoinsFormatted}} CoinJoins in the last {{period}}, {{share}} of all WabiSabi volume tracked.",
@@ -180,7 +186,7 @@ function Body({ coordinatorKey: key, scene, flow, status, star, titleId, color, 
       </header>
 
       {/* ---------- KPIs ---------- */}
-      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-hairline bg-hairline lg:grid-cols-4">
+      <dl aria-busy={stale} className={`${dim} grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-hairline bg-hairline lg:grid-cols-4`}>
         <Kpi id="volume" label={t("observatory.wabisabi.coord.kpi.volume", { defaultValue: "Volume" })} value={fmtBtc(kpis.volume, locale)} unit="BTC"
           caption={t("observatory.wabisabi.coord.kpi.volumeCaption", { defaultValue: "Last {{period}}", period: periodLabel })} />
         <Kpi id="coinjoins" label={t("observatory.wabisabi.stats.coinjoins", { defaultValue: "CoinJoins" })} value={fmtCount(kpis.coinjoins, locale)}
@@ -188,7 +194,8 @@ function Body({ coordinatorKey: key, scene, flow, status, star, titleId, color, 
         <Kpi id="fresh" label={t("observatory.wabisabi.stats.fresh", { defaultValue: "Fresh bitcoin" })} value={fmtBtc(kpis.freshBtc, locale)} unit="BTC"
           caption={t("observatory.wabisabi.coord.kpi.freshCaption", { defaultValue: "Coins mixing for the first time" })} />
         <Kpi id="anonset" label={t("observatory.wabisabi.coord.kpi.anonset", { defaultValue: "Average anonset" })}
-          value={kpis.avgAnonset == null ? "0" : kpis.avgAnonset.toLocaleString(locale, { maximumFractionDigits: 1 })}
+          value={kpis.avgAnonset == null ? t("observatory.wabisabi.event.notAnalyzed", { defaultValue: "Not analysed yet" }) : kpis.avgAnonset.toLocaleString(locale, { maximumFractionDigits: 1 })}
+          quiet={kpis.avgAnonset == null}
           caption={t("observatory.wabisabi.coord.kpi.anonsetCaption", { defaultValue: "Outputs, weighted by volume" })} />
         <Kpi id="remixIn" label={t("observatory.wabisabi.map.remixIn", { defaultValue: "Remix in" })} value={fmtBtc(kpis.remixIn, locale)} unit="BTC"
           caption={t("observatory.wabisabi.coord.kpi.remixInCaption", { defaultValue: "From other coordinators" })} />
@@ -227,6 +234,7 @@ function Body({ coordinatorKey: key, scene, flow, status, star, titleId, color, 
             <VolumeHistoryChart
               points={series}
               ath={kpis.ath}
+              partialLast={series.at(-1)?.date === today}
               color={color}
               height={280}
               label={t("observatory.wabisabi.coord.chartLabel", { defaultValue: "Daily volume of {{name}}, {{range}}", name: star.name, range: rangeLabel[range] })}
@@ -242,10 +250,10 @@ function Body({ coordinatorKey: key, scene, flow, status, star, titleId, color, 
       </Block>
 
       {/* ---------- largest and partners ---------- */}
-      <div className="grid gap-10 sm:gap-12 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-14">
+      <div aria-busy={stale} className={`grid gap-10 sm:gap-12 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-14 ${dim}`}>
         <Block
           title={t("observatory.wabisabi.coord.largest", { defaultValue: "Largest CoinJoins" })}
-          lead={t("observatory.wabisabi.coord.largestLead", { defaultValue: "The biggest of the last {{period}}, by volume.", period: periodLabel })}
+          lead={t("observatory.wabisabi.coord.largestLead", { defaultValue: "The biggest of the last {{period}}, by volume. Times in your local time.", period: periodLabel })}
         >
           <Largest coinjoins={largest} color={color} period={period} />
         </Block>
@@ -265,9 +273,9 @@ function Body({ coordinatorKey: key, scene, flow, status, star, titleId, color, 
       {/* ---------- rounds ---------- */}
       <Block
         title={t("observatory.wabisabi.rounds.caption", { defaultValue: "Recent rounds" })}
-        lead={t("observatory.wabisabi.coord.roundsLead", { defaultValue: "Every finished round, newest first. Refreshed each minute." })}
+        lead={t("observatory.wabisabi.coord.roundsLead", { defaultValue: "Every finished round, newest first, in your local time. Refreshed each minute." })}
       >
-        <RoundsTable key={key} coordinatorKey={key} />
+        <RoundsTable coordinatorKey={key} page={roundsPage} onPage={onRoundsPage} />
       </Block>
     </div>
   );
@@ -288,12 +296,14 @@ function Block({ title, lead, action, children }: { title: string; lead?: string
   );
 }
 
-function Kpi({ id, label, value, unit, caption, accent }: { id: string; label: string; value: string | null; unit?: string; caption?: string | null; accent?: string }) {
+function Kpi({ id, label, value, unit, caption, accent, quiet }: { id: string; label: string; value: string | null; unit?: string; caption?: string | null; accent?: string; quiet?: boolean }) {
   return (
     <div data-testid={`kpi-${id}`} className="flex min-w-0 flex-col gap-2 bg-surface-1 px-4 py-4 sm:px-5 sm:py-5">
       <dt className="eyebrow !leading-tight text-balance">{label}</dt>
       <dd className="flex min-w-0 flex-col gap-1.5">
-        {value != null ? (
+        {quiet ? (
+          <span className={`text-base leading-7 text-muted ${FADE}`}>{value}</span>
+        ) : value != null ? (
           <span className={`flex flex-wrap items-baseline gap-x-1.5 ${FADE}`}>
             <span className="num text-2xl leading-none tracking-tight text-foreground sm:text-[28px]" style={accent ? { color: accent } : undefined}>{value}</span>
             {unit && <span className="num text-[11px] text-muted">{unit}</span>}
@@ -341,14 +351,18 @@ function Largest({ coinjoins, color, period }: { coinjoins: FlowMap["Coinjoins"]
                 : t("observatory.wabisabi.event.notAnalyzed", { defaultValue: "Not analysed yet" })}
             </p>
           </div>
-          <a
-            href={`/#tx=${c.TxId}`}
-            aria-label={`${analyze}: ${shortTxid(c.TxId)}`}
-            title={`${analyze}: ${c.TxId}`}
-            className={`inline-flex size-10 items-center justify-center rounded-lg text-muted transition-colors duration-200 hover:bg-surface-2 hover:text-foreground ${FOCUS}`}
-          >
-            <ArrowUpRight size={16} aria-hidden="true" />
-          </a>
+          {TXID_RE.test(c.TxId) ? (
+            <a
+              href={`/#tx=${c.TxId}`}
+              aria-label={`${analyze}: ${shortTxid(c.TxId)}`}
+              title={`${analyze}: ${c.TxId}`}
+              className={`inline-flex size-10 items-center justify-center rounded-lg text-muted transition-colors duration-200 hover:bg-surface-2 hover:text-foreground ${FOCUS}`}
+            >
+              <ArrowUpRight size={16} aria-hidden="true" />
+            </a>
+          ) : (
+            <span aria-hidden="true" className="size-10" />
+          )}
         </li>
       ))}
     </ol>

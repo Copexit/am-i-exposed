@@ -2860,7 +2860,7 @@
   "observatory.wabisabi.coord.chartCoinjoins_other": "{{formatted}} CoinJoins",
   "observatory.wabisabi.coord.athMarker": "Record historique, {{volume}} BTC",
   "observatory.wabisabi.coord.largest": "Plus gros CoinJoins",
-  "observatory.wabisabi.coord.largestLead": "Les plus gros des derniers {{period}}, par volume.",
+  "observatory.wabisabi.coord.largestLead": "Les plus gros des derniers {{period}}, par volume. Heures en heure locale.",
   "observatory.wabisabi.coord.noCoinjoins": "Aucun CoinJoin sur cette période.",
   "observatory.wabisabi.coord.cjMeta": "{{inputs}} entrées · {{outputs}} sorties · anonset {{anonset}}",
   "observatory.wabisabi.coord.partners": "Partenaires de remix",
@@ -2871,7 +2871,7 @@
   "observatory.wabisabi.coord.outEmpty": "Aucune pièce partie vers d'autres coordinateurs.",
   "observatory.wabisabi.coord.coins_one": "{{formatted}} pièce",
   "observatory.wabisabi.coord.coins_other": "{{formatted}} pièces",
-  "observatory.wabisabi.coord.roundsLead": "Chaque round terminé, le plus récent en premier. Actualisé chaque minute.",
+  "observatory.wabisabi.coord.roundsLead": "Chaque round terminé, le plus récent en premier, en heure locale. Actualisé chaque minute.",
   "observatory.wabisabi.rounds.caption": "Rounds récents",
   "observatory.wabisabi.rounds.time": "Heure",
   "observatory.wabisabi.rounds.io": "Entrées / sorties",
@@ -2887,5 +2887,7 @@
   "observatory.wabisabi.rounds.total_other": "{{formatted}} rounds au total",
   "observatory.wabisabi.rounds.prev": "Page précédente",
   "observatory.wabisabi.rounds.next": "Page suivante",
-  "observatory.wabisabi.rounds.page": "Page {{page}} sur {{total}}"
+  "observatory.wabisabi.rounds.page": "Page {{page}} sur {{total}}",
+  "observatory.wabisabi.rounds.blameInfo": "Round blame : une nouvelle tentative après l'échec d'un round précédent",
+  "observatory.wabisabi.coord.partialDay": "Journée en cours"
 }

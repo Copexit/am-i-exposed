@@ -42,14 +42,22 @@ const rounds = roundsEnv.result as unknown as RoundsPage;
 const scene = buildScene(flow, status);
 const kruwStatus = status.Coordinators.find((c) => c.Key === "kruw")!;
 
+const media = { mobile: false, listeners: new Set<() => void>() };
 const setMobile = (mobile: boolean) => {
-  window.matchMedia = ((q: string) => ({ matches: mobile && q.includes("max-width"), addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia;
+  media.mobile = mobile;
+  window.matchMedia = ((q: string) => ({
+    matches: media.mobile && q.includes("max-width"),
+    addEventListener: (_: string, cb: () => void) => media.listeners.add(cb),
+    removeEventListener: (_: string, cb: () => void) => media.listeners.delete(cb),
+  })) as unknown as typeof window.matchMedia;
+  for (const cb of [...media.listeners]) cb();
 };
 
 const renderPage = (key = "kruw", onClose = vi.fn()) =>
   render(<CoordinatorPage coordinatorKey={key} scene={scene} flow={flow} status={status.Coordinators.find((c) => c.Key === key) ?? null} onClose={onClose} />);
 
 beforeEach(() => {
+  media.listeners.clear();
   hooks.history = polled(history);
   hooks.rounds = polled(rounds);
   hooks.roundsCalls = [];
@@ -106,6 +114,8 @@ describe("CoordinatorPage", () => {
     const last = history.Coordinators.kruw!.Daily.at(-1)!;
     expect(tip.textContent).toContain("249.41");
     expect(tip.textContent).toContain(`${last.Coinjoins} CoinJoins`);
+    expect(tip.textContent).toContain("Day in progress");
+    expect(chart.textContent).toMatch(/\b2026\b/);
     act(() => { fireEvent.keyDown(chart, { key: "Home" }); });
     expect(screen.getByTestId("chart-tooltip").textContent).toContain(`${history.Coordinators.kruw!.Daily[0]!.Coinjoins} CoinJoins`);
   });
@@ -126,9 +136,37 @@ describe("CoordinatorPage", () => {
     expect(rows).toHaveLength(25);
     const first = rounds.Rounds[0]!;
     expect(rows[0]!.textContent).toContain("25.74");
-    expect(rows[0]!.textContent).toContain("Blame");
+    const blame = within(rows[0]!).getByRole("img", { name: "Blame round: a retry after a previous round failed" });
+    expect(blame.textContent).toBe("Blame");
+    expect(blame.getAttribute("title")).toBe("Blame round: a retry after a previous round failed");
+    expect(blame.className).not.toMatch(/warning/);
     expect(within(rows[0]!).getByRole("link").getAttribute("href")).toBe(`/#tx=${first.TxId}`);
     expect(screen.getByText("Page 1 of 911")).toBeTruthy();
+  });
+
+  it("links only well-formed txids to the analyzer", () => {
+    hooks.rounds = polled<RoundsPage>({ ...rounds, Rounds: [{ ...rounds.Rounds[0]!, TxId: "zz" }, ...rounds.Rounds.slice(1)] });
+    const kruw = flow.Coinjoins.filter((c) => c.Coordinator === "kruw").sort((a, b) => b.Volume - a.Volume)[0]!;
+    const badFlow: FlowMap = { ...flow, Coinjoins: flow.Coinjoins.map((c) => (c === kruw ? { ...c, TxId: "not-a-txid" } : c)) };
+    render(<CoordinatorPage coordinatorKey="kruw" scene={scene} flow={badFlow} status={kruwStatus} onClose={vi.fn()} />);
+    const rows = within(screen.getByRole("table", { name: /Recent rounds/ })).getAllByRole("row").slice(1);
+    expect(within(rows[0]!).queryByRole("link")).toBeNull();
+    expect(within(rows[1]!).getByRole("link")).toBeTruthy();
+    const items = within(screen.getByRole("list", { name: "Largest CoinJoins" })).getAllByRole("listitem");
+    expect(within(items[0]!).queryByRole("link")).toBeNull();
+    expect(within(items[1]!).getByRole("link")).toBeTruthy();
+    expect(document.querySelector('a[href="/#tx=zz"], a[href="/#tx=not-a-txid"]')).toBeNull();
+  });
+
+  it("shows an error with retry when a later rounds page fails, keeping the pagination", () => {
+    renderPage();
+    const failed: Polled<RoundsPage> = { data: null, error: new Error("down"), loading: false, updatedAt: null, refresh: vi.fn() };
+    hooks.rounds = failed;
+    act(() => { fireEvent.click(screen.getByRole("button", { name: "Next page" })); });
+    expect(screen.queryByRole("table", { name: /Recent rounds/ })).toBeNull();
+    act(() => { fireEvent.click(screen.getByRole("button", { name: /Try again/ })); });
+    expect(failed.refresh).toHaveBeenCalled();
+    expect(screen.getByText("Page 2 of 911")).toBeTruthy();
   });
 
   it("paginates: Next asks useRounds for the next page, Previous is disabled on page 1", () => {
@@ -159,6 +197,33 @@ describe("CoordinatorPage", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the chart range and rounds page when the layout switches between inline and sheet", () => {
+    renderPage();
+    act(() => { fireEvent.click(screen.getByRole("button", { name: "30 d" })); });
+    act(() => { fireEvent.click(screen.getByRole("button", { name: "Next page" })); });
+    act(() => setMobile(true));
+    const dialog = screen.getByRole("dialog", { name: "Kruw" });
+    expect(within(dialog).getByRole("button", { name: "30 d" }).getAttribute("aria-pressed")).toBe("true");
+    expect(within(dialog).getByText("Page 2 of 911")).toBeTruthy();
+    expect(hooks.roundsCalls.at(-1)).toEqual(["kruw", 2]);
+  });
+
+  it("restores focus and page scrolling when the sheet closes", () => {
+    setMobile(true);
+    const opener = document.createElement("button");
+    document.body.appendChild(opener);
+    opener.focus();
+    const page = <CoordinatorPage coordinatorKey="kruw" scene={scene} flow={flow} status={kruwStatus} onClose={vi.fn()} />;
+    const { rerender } = render(<div>{page}</div>);
+    expect(document.body.style.overflow).toBe("hidden");
+    expect(document.activeElement).not.toBe(opener);
+    rerender(<div />);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.body.style.overflow).toBe("");
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  });
+
   it("is inline on desktop and closes with its button", () => {
     const onClose = vi.fn();
     renderPage("kruw", onClose);
@@ -172,6 +237,7 @@ describe("CoordinatorPage", () => {
     expect(screen.getByRole("heading", { level: 3, name: "SwissCoordinator" })).toBeTruthy();
     expect(screen.getByTestId("kpi-volume").textContent).toContain("0");
     expect(screen.getByText("No CoinJoins in this period.")).toBeTruthy();
+    expect(screen.getByTestId("kpi-anonset").textContent).toContain("Not analysed yet");
   });
 
   it("renders nothing for an unknown coordinator", () => {

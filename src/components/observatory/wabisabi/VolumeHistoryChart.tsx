@@ -23,6 +23,8 @@ interface VolumeHistoryChartProps {
   color: string;
   /** Accessible summary of what the chart shows. */
   label: string;
+  /** The last point is today's UTC day, still in progress: drawn dashed so the line does not read as a crash. */
+  partialLast?: boolean;
   height?: number;
 }
 
@@ -52,7 +54,7 @@ export function VolumeHistoryChart({ points, height = 260, ...rest }: VolumeHist
   );
 }
 
-function Inner({ points, ath, color, label, width, height }: VolumeHistoryChartProps & { width: number; height: number }) {
+function Inner({ points, ath, color, label, partialLast = false, width, height }: VolumeHistoryChartProps & { width: number; height: number }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language || "en";
   const gradId = `vh-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`;
@@ -65,7 +67,7 @@ function Inner({ points, ath, color, label, width, height }: VolumeHistoryChartP
 
   const spanDays = (ms(points.at(-1)!.date) - ms(points[0]!.date)) / 86_400_000;
   const fmt = useMemo(() => ({
-    tick: new Intl.DateTimeFormat(locale, spanDays > 120 ? { month: "short", year: "2-digit", timeZone: "UTC" } : { month: "short", day: "numeric", timeZone: "UTC" }),
+    tick: new Intl.DateTimeFormat(locale, spanDays > 120 ? { month: "short", year: "numeric", timeZone: "UTC" } : { month: "short", day: "numeric", timeZone: "UTC" }),
     long: new Intl.DateTimeFormat(locale, { weekday: "short", year: "numeric", month: "short", day: "numeric", timeZone: "UTC" }),
     y: new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 1 }),
   }), [locale, spanDays]);
@@ -78,6 +80,12 @@ function Inner({ points, ath, color, label, width, height }: VolumeHistoryChartP
     };
   }, [points, iw, ih]);
 
+  // Greedy: keep a tick only when its label clears the previous one ("Oct 2026" is ~60 px).
+  const xTicks = x.ticks(iw > 520 ? 6 : 4).reduce<Date[]>((kept, d) => {
+    const prev = kept.at(-1);
+    if (!prev || x(d) - x(prev) >= 84) kept.push(d);
+    return kept;
+  }, []);
   const px = (p: HistoryPoint) => x(ms(p.date));
   const py = (p: HistoryPoint) => y(p.volume);
 
@@ -95,11 +103,15 @@ function Inner({ points, ath, color, label, width, height }: VolumeHistoryChartP
     setActive(Math.min(last, Math.max(0, next)));
   };
 
+  const partial = partialLast && points.length > 1;
+  const solid = partial ? points.slice(0, -1) : points;
+  const inProgress = t("observatory.wabisabi.coord.partialDay", { defaultValue: "Day in progress" });
   const athIdx = ath ? points.findIndex((p) => p.date === ath.date) : -1;
   const athPt = athIdx >= 0 ? points[athIdx]! : null;
   const hover = active !== null ? points[active] ?? null : null;
+  const hoverPartial = partial && active === points.length - 1;
   const tipText = hover
-    ? `${fmt.long.format(ms(hover.date))}: ${fmtBtc(hover.volume, locale)} BTC, ${t("observatory.wabisabi.coord.chartCoinjoins", { defaultValue: "{{formatted}} CoinJoins", count: hover.coinjoins, formatted: fmtCount(hover.coinjoins, locale) })}`
+    ? `${fmt.long.format(ms(hover.date))}${hoverPartial ? ` (${inProgress})` : ""}: ${fmtBtc(hover.volume, locale)} BTC, ${t("observatory.wabisabi.coord.chartCoinjoins", { defaultValue: "{{formatted}} CoinJoins", count: hover.coinjoins, formatted: fmtCount(hover.coinjoins, locale) })}`
     : "";
 
   return (
@@ -127,16 +139,21 @@ function Inner({ points, ath, color, label, width, height }: VolumeHistoryChartP
           {y.ticks(4).map((v) => (
             <line key={v} x1={0} x2={iw} y1={y(v)} y2={y(v)} stroke="currentColor" strokeOpacity={v === 0 ? 0.3 : 0.1} strokeDasharray={v === 0 ? undefined : "2,3"} />
           ))}
-          <AreaClosed data={points} x={px} y={py} yScale={y} curve={curveMonotoneX} stroke="none" fill={`url(#${gradId})`} />
-          <LinePath data={points} x={px} y={py} curve={curveMonotoneX} style={{ stroke: color }} strokeWidth={1.75} strokeLinejoin="round" fill="none" />
+          <AreaClosed data={solid} x={px} y={py} yScale={y} curve={curveMonotoneX} stroke="none" fill={`url(#${gradId})`} />
+          <LinePath data={solid} x={px} y={py} curve={curveMonotoneX} style={{ stroke: color }} strokeWidth={1.75} strokeLinejoin="round" fill="none" />
+          {partial && <LinePath data={points.slice(-2)} x={px} y={py} style={{ stroke: color }} strokeOpacity={0.6} strokeWidth={1.5} strokeDasharray="3,3" fill="none" />}
           <AxisBottom
             top={ih}
             scale={x}
-            numTicks={iw > 520 ? 6 : 3}
+            tickValues={xTicks}
             tickFormat={(v) => fmt.tick.format(v instanceof Date ? v : new Date(Number(v)))}
             hideAxisLine
             hideTicks
-            tickLabelProps={() => ({ fill: "currentColor", fontSize: 11, textAnchor: "middle", dy: 6, className: "num" })}
+            // Edge labels anchor inward so "Oct 2026" is never clipped at the chart's side.
+            tickLabelProps={(v) => {
+              const tx = x(v instanceof Date ? v : new Date(Number(v)));
+              return { fill: "currentColor", fontSize: 11, textAnchor: tx > iw - 32 ? "end" : tx < 32 ? "start" : "middle", dy: 6, className: "num" };
+            }}
           />
           <AxisLeft
             scale={y}
@@ -170,7 +187,10 @@ function Inner({ points, ath, color, label, width, height }: VolumeHistoryChartP
       {hover && (
         <TooltipWithBounds top={margin.top + py(hover)} left={margin.left + px(hover)} style={tooltipStyles}>
           <div data-testid="chart-tooltip" className="space-y-0.5">
-            <div className="text-[11px] text-muted">{fmt.long.format(ms(hover.date))}</div>
+            <div className="text-[11px] text-muted">
+              {fmt.long.format(ms(hover.date))}
+              {hoverPartial && <span className="ml-1.5 rounded bg-surface-2 px-1 py-px text-[10px]">{inProgress}</span>}
+            </div>
             <div className="num text-sm font-semibold text-foreground">{fmtBtc(hover.volume, locale)} BTC</div>
             <div className="num text-[11px] text-muted">{t("observatory.wabisabi.coord.chartCoinjoins", { defaultValue: "{{formatted}} CoinJoins", count: hover.coinjoins, formatted: fmtCount(hover.coinjoins, locale) })}</div>
           </div>

@@ -8,6 +8,7 @@ import { useObsState } from "@/hooks/useObsState";
 import { buildScene, layoutStars, replayTime, type Scene, type SceneStatus } from "@/lib/observatory/sky-model";
 import type { Period } from "@/lib/observatory/wabisator-client";
 import type { ObsState } from "@/lib/observatory/obs-hash";
+import type { FlowMap } from "@/lib/observatory/wabisator-types";
 import { useTheme } from "@/hooks/useTheme";
 import { KNOWN_COORDINATORS, coordinatorColorVar, coordinatorFgVar } from "@/lib/observatory/coordinator-palette";
 import { ObservatoryAttribution } from "@/components/observatory/ObservatoryAttribution";
@@ -288,7 +289,13 @@ export function WabiSabiTab() {
     () => (statusKey ? { Coordinators: statusKey.split("\n").map((l) => { const [Key = "", Name = "", Status = ""] = l.split("\t"); return { Key, Name, Status }; }) } : null),
     [statusKey],
   );
-  const scene: Scene | null = useMemo(() => (flow.data ? buildScene(flow.data, sceneStatus) : null), [flow.data, sceneStatus]);
+  // The last good flow-map survives a period switch, so the coordinator page and chooser stay mounted
+  // (chart range, rounds page) while the next period loads; the map and stats show their loading state.
+  const [lastFlow, setLastFlow] = useState<FlowMap | null>(null);
+  if (flow.data && flow.data !== lastFlow) setLastFlow(flow.data);
+  const keptFlow = flow.data ?? lastFlow;
+  const keptScene: Scene | null = useMemo(() => (keptFlow ? buildScene(keptFlow, sceneStatus) : null), [keptFlow, sceneStatus]);
+  const scene = flow.data ? keptScene : null;
   const periodLabel = usePeriodLabel(obs.period);
   const flowFailed = !flow.data && !!flow.error;
   const table = obs.view === "table";
@@ -322,9 +329,9 @@ export function WabiSabiTab() {
     requestAnimationFrame(() => document.getElementById("obs-coordinator")?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" }));
   }, [setObs]);
 
-  const coordinators = scene ? [...scene.stars].sort((a, b) => b.volume - a.volume || a.name.localeCompare(b.name)) : null;
+  const coordinators = keptScene ? [...keptScene.stars].sort((a, b) => b.volume - a.volume || a.name.localeCompare(b.name)) : null;
   // Until the coordinators load the key may be valid; afterwards an unknown key is dropped quietly.
-  const dataLoaded = !!scene && !!status.data;
+  const dataLoaded = !!keptScene && !!status.data;
   const coordinatorKnown = !!obs.coordinator && !!coordinators?.some((s) => s.key === obs.coordinator);
   useEffect(() => {
     if (dataLoaded && obs.coordinator && !coordinatorKnown) setObs({ coordinator: null });
@@ -409,8 +416,8 @@ export function WabiSabiTab() {
               ))
             : [96, 120, 84, 132, 100].map((w) => <span key={w} aria-hidden="true" className={`h-10 rounded-lg ${BONE}`} style={{ width: `${w}px` }} />)}
         </div>
-        {obs.coordinator && scene && flow.data && coordinatorKnown ? (
-          <CoordinatorPage key={obs.coordinator} coordinatorKey={obs.coordinator} scene={scene} flow={flow.data} status={coordinatorStatus} onClose={closeCoordinator} />
+        {obs.coordinator && keptScene && keptFlow && coordinatorKnown ? (
+          <CoordinatorPage key={obs.coordinator} coordinatorKey={obs.coordinator} scene={keptScene} flow={keptFlow} status={coordinatorStatus} onClose={closeCoordinator} stale={!flow.data} />
         ) : (
           obs.coordinator && !dataLoaded && <CoordinatorSkeleton />
         )}

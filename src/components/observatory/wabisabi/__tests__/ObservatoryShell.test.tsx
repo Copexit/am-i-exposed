@@ -25,9 +25,9 @@ vi.mock("@/hooks/useChainTip", () => ({ useChainTip: () => null }));
 vi.mock("@/components/PageShell", () => ({ PageShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div> }));
 
 const polled = <T,>(data: T | null, error: Error | null = null): Polled<T> => ({ data, error, loading: false, updatedAt: data ? 1_700_000_000_000 : null, refresh: vi.fn() });
-const hooks = vi.hoisted(() => ({ flow: null as unknown, status: null as unknown, flowPeriods: [] as number[] }));
+const hooks = vi.hoisted(() => ({ flow: null as unknown, status: null as unknown, flowPeriods: [] as number[], flowByPeriod: {} as Record<number, unknown> }));
 vi.mock("@/hooks/useWabisator", () => ({
-  useFlowMap: (period: number) => { hooks.flowPeriods.push(period); return hooks.flow; },
+  useFlowMap: (period: number) => { hooks.flowPeriods.push(period); return hooks.flowByPeriod[period] ?? hooks.flow; },
   useCoordinatorsStatus: () => hooks.status,
   useVolumeHistory: () => ({ data: null, error: null, loading: true, updatedAt: null, refresh: () => {} }),
   useRounds: () => ({ data: null, error: null, loading: true, updatedAt: null, refresh: () => {} }),
@@ -49,6 +49,7 @@ beforeEach(() => {
   hooks.flow = polled(flowEnv.result as FlowMap);
   hooks.status = polled(statusEnv.result as CoordinatorsStatus);
   hooks.flowPeriods = [];
+  hooks.flowByPeriod = {};
   whirlpoolFetch.mockClear();
 });
 
@@ -101,6 +102,21 @@ describe("Observatory tab shell", () => {
     act(() => screen.getByRole("button", { name: "Kruw" }).click());
     expect(window.location.hash).toBe("#wabisabi");
     expect(document.getElementById("obs-coord-kruw-title")).toBeNull();
+  });
+
+  it("keeps the coordinator page mounted, with its chart range, while the next period loads", () => {
+    window.history.replaceState(null, "", "/observatory/#wabisabi&coordinator=kruw");
+    hooks.flowByPeriod[7] = polled<FlowMap>(null);
+    render(<ObservatoryPage />);
+    const range = () => screen.getByRole("group", { name: "Range" });
+    act(() => { fireEvent.click(within(range()).getByRole("button", { name: "30 d" })); });
+    act(() => { fireEvent.click(within(screen.getByRole("group", { name: "Period" })).getByRole("button", { name: "7 d" })); });
+    expect(hooks.flowPeriods.at(-1)).toBe(7);
+    expect(document.getElementById("obs-coord-kruw-title")?.textContent).toBe("Kruw");
+    expect(within(range()).getByRole("button", { name: "30 d" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByTestId("kpi-volume").closest("dl")?.getAttribute("aria-busy")).toBe("true");
+    // The map itself shows its loading state rather than the old period.
+    expect(screen.getByText("Loading the map")).toBeTruthy();
   });
 
   it("renders gracefully for an unknown coordinator and a malformed txid, dropping the unknown key", () => {
