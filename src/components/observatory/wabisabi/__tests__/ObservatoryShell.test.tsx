@@ -59,7 +59,7 @@ describe("Observatory tab shell", () => {
   it("opens on WabiSabi first, with its sections in order and the period stats", () => {
     render(<ObservatoryPage />);
     const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual(["WabiSabi (Wasabi)", "Whirlpool (Ashigaru)"]);
+    expect(tabs.map((t) => t.textContent)).toEqual(["WabiSabi (Wasabi)", "Whirlpool (Ashigaru)", "P2P markets"]);
     expect(tabs[0]!.getAttribute("aria-selected")).toBe("true");
     const ids = [...document.querySelectorAll("section[id^=obs-]")].map((s) => s.id);
     expect(ids).toEqual(["obs-map", "obs-live", "obs-coordinator", "obs-flows"]);

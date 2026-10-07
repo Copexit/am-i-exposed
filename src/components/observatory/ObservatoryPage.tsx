@@ -56,6 +56,7 @@ export function ObservatoryPage() {
     label: {
       wabisabi: t("observatory.tabs.wabisabi", { defaultValue: "WabiSabi (Wasabi)" }),
       whirlpool: t("observatory.tabs.whirlpool", { defaultValue: "Whirlpool (Ashigaru)" }),
+      p2p: t("observatory.tabs.p2p", { defaultValue: "P2P markets" }),
     }[id],
   }));
   const selectTab = (id: ObservatoryTab) => setObs({ tab: id });

@@ -1,8 +1,21 @@
 import type { Period } from "./wabisator-client";
+import { VENUES, type Venue } from "./p2p/types";
 
-export interface ObsState { tab: string; period: Period; coordinator: string | null; tx: string | null; view: "map" | "table" }
+export interface ObsState {
+  tab: string;
+  period: Period;
+  coordinator: string | null;
+  tx: string | null;
+  view: "map" | "table";
+  /** P2P market currency (3 to 5 uppercase letters) */
+  cur: string | null;
+  /** P2P visitor intent: "buy" lists sell offers */
+  side: "buy" | "sell";
+  /** P2P venue filter; default all three */
+  venue: Venue[];
+}
 
-const DEFAULTS: ObsState = { tab: "wabisabi", period: 1, coordinator: null, tx: null, view: "map" };
+const DEFAULTS: ObsState = { tab: "wabisabi", period: 1, coordinator: null, tx: null, view: "map", cur: null, side: "buy", venue: [...VENUES] };
 
 function decode(s: string): string {
   try { return decodeURIComponent(s); } catch { return s; }
@@ -20,15 +33,34 @@ export function parseObsHash(hash: string, knownTabs: readonly string[]): ObsSta
     coordinator: params.get("coordinator") || null,
     tx: /^[0-9a-f]{64}$/.test(tx) ? tx : null,
     view: params.get("view") === "table" ? "table" : "map",
+    cur: parseCur(params.get("cur")),
+    side: params.get("side") === "sell" ? "sell" : "buy",
+    venue: parseVenues(params.get("venue")),
   };
 }
 
+function parseCur(v: string | undefined): string | null {
+  const c = (v ?? "").toUpperCase();
+  return /^[A-Z]{3,5}$/.test(c) ? c : null;
+}
+
+function parseVenues(v: string | undefined): Venue[] {
+  const picked = new Set((v ?? "").split(","));
+  const out = VENUES.filter((x) => picked.has(x));
+  return out.length ? out : [...VENUES];
+}
+
 /** "#wabisabi&period=7&coordinator=kruw"; default values are omitted. */
-export function serializeObsHash(s: ObsState): string {
+export function serializeObsHash(input: Omit<ObsState, "cur" | "side" | "venue"> & Partial<Pick<ObsState, "cur" | "side" | "venue">>): string {
+  const s: ObsState = { ...DEFAULTS, ...input };
   const parts = [s.tab];
   if (s.period !== DEFAULTS.period) parts.push(`period=${s.period}`);
   if (s.coordinator) parts.push(`coordinator=${encodeURIComponent(s.coordinator)}`);
   if (s.tx) parts.push(`tx=${s.tx}`);
   if (s.view !== DEFAULTS.view) parts.push(`view=${s.view}`);
+  if (s.cur) parts.push(`cur=${s.cur}`);
+  if (s.side !== DEFAULTS.side) parts.push(`side=${s.side}`);
+  const venues = VENUES.filter((v) => s.venue.includes(v));
+  if (venues.length && venues.length < VENUES.length) parts.push(`venue=${venues.join(",")}`);
   return `#${parts.join("&")}`;
 }

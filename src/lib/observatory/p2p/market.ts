@@ -1,9 +1,10 @@
-import type { IndexPrices } from "./types";
+import type { DepthPoint, IndexPrices, Market, P2pOffer, Side, Venue, VenueHost } from "./types";
 
 export const STABLE_TO_FIAT: Record<string, string> = { USDT: "USD", USDC: "USD" };
 
-/** Fiat per BTC for a currency; USDT/USDC use the USD index. */
+/** Fiat per BTC for a currency; USDT/USDC use the USD index; "BTC" (RoboSats swaps) is never priced. */
 export function indexFor(code: string, index: IndexPrices | null): number | null {
+  if (code === "BTC") return null;
   const v = index?.prices[STABLE_TO_FIAT[code] ?? code];
   return typeof v === "number" && v > 0 ? v : null;
 }
@@ -11,4 +12,145 @@ export function indexFor(code: string, index: IndexPrices | null): number | null
 /** (price / idx - 1) * 100 */
 export function computePremium(price: number, idx: number): number {
   return (price / idx - 1) * 100;
+}
+
+const VENUE_LIST: readonly Venue[] = ["robosats", "mostro", "hodlhodl"];
+
+function median(xs: number[]): number | null {
+  if (!xs.length) return null;
+  const s = [...xs].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2;
+}
+
+const premiums = (offers: P2pOffer[]) => offers.flatMap((o) => (o.premium === null ? [] : [o.premium]));
+const sumSats = (offers: P2pOffer[]) => offers.reduce((s, o) => s + (o.satsMax ?? 0), 0);
+/** Nulls last. */
+const byPremium = (dir: 1 | -1) => (a: P2pOffer, b: P2pOffer) =>
+  a.premium === null ? (b.premium === null ? 0 : 1) : b.premium === null ? -1 : (a.premium - b.premium) * dir;
+
+function depth(offers: P2pOffer[]): DepthPoint[] {
+  let cum = 0;
+  return offers
+    .filter((o) => o.premium !== null && o.satsMax !== null)
+    .map((o) => ({ premium: o.premium!, cumSats: (cum += o.satsMax!), offer: o }));
+}
+
+/** Maker side listed for a visitor intent: buying BTC lists sell offers. */
+export const makerSide = (intent: "buy" | "sell"): Side => (intent === "buy" ? "sell" : "buy");
+
+export function buildMarkets(offers: P2pOffer[], index: IndexPrices | null): Map<string, Market> {
+  const groups = new Map<string, P2pOffer[]>();
+  for (const o of offers) groups.set(o.currency, [...(groups.get(o.currency) ?? []), o]);
+  const out = new Map<string, Market>();
+  for (const [currency, list] of groups) {
+    const sells = list.filter((o) => o.side === "sell").sort(byPremium(1));
+    const buys = list.filter((o) => o.side === "buy").sort(byPremium(-1));
+    const byVenue = Object.fromEntries(VENUE_LIST.map((v) => {
+      const vs = list.filter((o) => o.venue === v);
+      return [v, { offers: vs.length, liquiditySats: sumSats(vs), medianPremium: median(premiums(vs)) }];
+    })) as Market["byVenue"];
+    out.set(currency, {
+      currency,
+      index: indexFor(currency, index),
+      offers: [...sells, ...buys],
+      bestBuy: sells.find((o) => o.premium !== null) ?? null,
+      bestSell: buys.find((o) => o.premium !== null) ?? null,
+      medianPremium: { buy: median(premiums(sells)), sell: median(premiums(buys)) },
+      liquiditySats: { buy: sumSats(sells), sell: sumSats(buys) },
+      depth: { sell: depth(sells), buy: depth(buys) },
+      byVenue,
+    });
+  }
+  return out;
+}
+
+/** Currencies by offer count desc, then code; unpriced markets last. */
+export function marketOrder(markets: Map<string, Market>): string[] {
+  return [...markets.values()]
+    .sort((a, b) => Number(a.index === null) - Number(b.index === null) || b.offers.length - a.offers.length || a.currency.localeCompare(b.currency))
+    .map((m) => m.currency);
+}
+
+const LOCALE_CURRENCY: Record<string, string> = { en: "USD", es: "EUR", pt: "BRL", de: "EUR", fr: "EUR", pl: "PLN" };
+
+/** Locale default market, else the market with the most offers when the default has fewer than 3. */
+export function defaultCurrency(locale: string, markets: Map<string, Market>): string | null {
+  const code = LOCALE_CURRENCY[locale.slice(0, 2).toLowerCase()] ?? "USD";
+  if ((markets.get(code)?.offers.length ?? 0) >= 3) return code;
+  return marketOrder(markets)[0] ?? null;
+}
+
+export function filterVenues(offers: P2pOffer[], venues: readonly Venue[]): P2pOffer[] {
+  return venues.length === VENUE_LIST.length ? offers : offers.filter((o) => venues.includes(o.venue));
+}
+
+export interface BoardRow { currency: string; cells: Record<Venue, { median: number | null; offers: number }> }
+
+/** side = visitor intent; rows are the top priced markets by offers on that side. */
+export function premiumBoard(markets: Map<string, Market>, side: "buy" | "sell", top = 12): BoardRow[] {
+  const maker = makerSide(side);
+  return [...markets.values()]
+    .filter((m) => m.index !== null)
+    .map((m) => ({ m, list: m.offers.filter((o) => o.side === maker) }))
+    .filter((r) => r.list.length > 0)
+    .sort((a, b) => b.list.length - a.list.length || a.m.currency.localeCompare(b.m.currency))
+    .slice(0, top)
+    .map(({ m, list }) => ({
+      currency: m.currency,
+      cells: Object.fromEntries(VENUE_LIST.map((v) => {
+        const vs = list.filter((o) => o.venue === v);
+        return [v, { median: median(premiums(vs)), offers: vs.length }];
+      })) as BoardRow["cells"],
+    }));
+}
+
+export interface Headline {
+  liquiditySats: number;
+  offers: { buy: number; sell: number };
+  venuesOnline: number;
+  hostsOnline: number;
+  hostsTotal: number;
+  cheapestBuy: { currency: string; premium: number } | null;
+  cheapestSell: { currency: string; premium: number } | null;
+  medianBuy: number | null;
+}
+
+export function headline(markets: Map<string, Market>, hosts: VenueHost[], currency: string | null): Headline {
+  const all = [...markets.values()];
+  const venues = new Set(all.flatMap((m) => m.offers.map((o) => o.venue)));
+  const m = currency ? markets.get(currency) : undefined;
+  return {
+    liquiditySats: all.reduce((s, x) => s + x.liquiditySats.buy + x.liquiditySats.sell, 0),
+    offers: {
+      buy: all.reduce((s, x) => s + x.offers.filter((o) => o.side === "sell").length, 0),
+      sell: all.reduce((s, x) => s + x.offers.filter((o) => o.side === "buy").length, 0),
+    },
+    venuesOnline: venues.size,
+    hostsOnline: hosts.filter((h) => h.status === "up").length,
+    hostsTotal: hosts.length,
+    cheapestBuy: m?.bestBuy?.premium != null ? { currency: m.currency, premium: m.bestBuy.premium } : null,
+    cheapestSell: m?.bestSell?.premium != null ? { currency: m.currency, premium: m.bestSell.premium } : null,
+    medianBuy: m?.medianPremium.buy ?? null,
+  };
+}
+
+function percentile(sorted: number[], p: number): number {
+  const i = ((sorted.length - 1) * p) / 100;
+  const lo = Math.floor(i);
+  const hi = Math.ceil(i);
+  return sorted[lo]! + (sorted[hi]! - sorted[lo]!) * (i - lo);
+}
+
+/** Keeps points inside the lo..hi premium percentiles; counts the rest as "beyond" each edge. */
+export function depthClip(points: DepthPoint[], lo = 2, hi = 98): { points: DepthPoint[]; below: number; above: number } {
+  if (points.length < 3) return { points, below: 0, above: 0 };
+  const sorted = points.map((p) => p.premium).sort((a, b) => a - b);
+  const min = percentile(sorted, lo);
+  const max = percentile(sorted, hi);
+  return {
+    points: points.filter((p) => p.premium >= min && p.premium <= max),
+    below: points.filter((p) => p.premium < min).length,
+    above: points.filter((p) => p.premium > max).length,
+  };
 }
