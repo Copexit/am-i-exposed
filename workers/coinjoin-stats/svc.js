@@ -4,6 +4,7 @@
  * aggregate: edge-cached. lookup: carries a user txid, never cached.
  */
 import registry from "../../src/lib/services/registry.json";
+import { handleNostr } from "./nostr.js";
 
 const MAX_UPSTREAM_BYTES = 4 * 1024 * 1024;
 const MAX_REQUEST_BYTES = 64 * 1024;
@@ -27,9 +28,6 @@ export function validateParam(kind, value) {
 
 export const createSvc = (reg) => (request, url, ctx, cors) => handle(reg, request, url, ctx, cors);
 export const handleSvc = createSvc(registry);
-
-// Replaced by the Nostr snapshot handler.
-const handleNostr = ({ cors }) => err(501, "NOT_IMPLEMENTED", "Nostr routes are not implemented", cors);
 
 const misconfigured = (cors) => err(500, "MISCONFIGURED", "Service registry misconfigured", cors);
 
