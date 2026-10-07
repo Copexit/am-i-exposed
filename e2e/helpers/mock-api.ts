@@ -226,11 +226,17 @@ const OBSERVATORY_FIXTURES = path.join(__dirname, "../../src/lib/observatory/__t
 const readObservatory = (name: string) =>
   fs.readFileSync(path.join(OBSERVATORY_FIXTURES, `${name}.json`), "utf-8");
 
+const readWabiAgg = (name: string) =>
+  fs.readFileSync(path.join(OBSERVATORY_FIXTURES, "wabisator", `${name}.json`), "utf-8");
+
 /**
- * Observatory mock: the hosted Cloudflare Worker's whirlpool JSON routes,
- * served from the unit-test fixtures.
+ * Observatory mock: the hosted Cloudflare Worker's whirlpool JSON routes and the Wabisator
+ * aggregate JSON-RPC methods (flow-map, coordinators-status, volume-history, rounds-paginated),
+ * served from the unit-test fixtures. Returns every Wabisator request body, as received.
+ * (A later mockWabisator route takes priority for the same URL.)
  */
-export async function mockObservatoryApi(page: Page) {
+export async function mockObservatoryApi(page: Page): Promise<string[]> {
+  const bodies: string[] = [];
   const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "*" };
   await page.route("https://coinjoin-stats.copexit.workers.dev/**", async (route) => {
     const req = route.request();
@@ -240,9 +246,22 @@ export async function mockObservatoryApi(page: Page) {
     if (pathname === "/svc/whirlpoolstats/summary") body = readObservatory("whirlpool-summary");
     else if (pathname === "/svc/whirlpoolstats/charts") body = readObservatory("whirlpool-charts");
     else if (pathname === "/svc/whirlpoolstats/txs") body = readObservatory("whirlpool-txs");
+    else if (pathname === "/svc/wabisator/api.php") {
+      bodies.push(req.postData() ?? "");
+      const rpc = req.postDataJSON() as { id: number; method: string; params: { since?: number; until?: number } };
+      const { since, until } = rpc.params;
+      const fixture =
+        rpc.method === "flow-map" ? (until !== undefined && since !== undefined && until - since === 86400 ? "flow-map-1d" : "flow-map-7d")
+        : rpc.method === "coordinators-status" ? "coordinators-status"
+        : rpc.method === "volume-history" ? "volume-history"
+        : rpc.method === "rounds-paginated" ? "rounds-kruw"
+        : null;
+      if (fixture) body = JSON.stringify({ ...JSON.parse(readWabiAgg(fixture)), id: rpc.id });
+    }
     if (body === null) return route.fulfill({ status: 404, headers: cors, body: "not found" });
     await route.fulfill({ status: 200, headers: cors, body, contentType: "application/json" });
   });
+  return bodies;
 }
 
 const WABISATOR_FIXTURES = path.join(__dirname, "../../src/lib/services/__tests__/fixtures");
