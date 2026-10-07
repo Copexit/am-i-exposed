@@ -1,16 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Map as MapIcon, Search, Table2 } from "lucide-react";
 import { useCoordinatorsStatus, useFlowMap } from "@/hooks/useWabisator";
 import { useObsState } from "@/hooks/useObsState";
-import { buildScene, layoutStars, type Scene } from "@/lib/observatory/sky-model";
+import { buildScene, layoutStars, replayTime, type Scene } from "@/lib/observatory/sky-model";
+import { useTheme } from "@/hooks/useTheme";
 import { KNOWN_COORDINATORS, coordinatorColorVar, coordinatorFgVar } from "@/lib/observatory/coordinator-palette";
 import { ObservatoryAttribution } from "@/components/observatory/ObservatoryAttribution";
 import { ObservatoryErrorState } from "@/components/observatory/ObservatoryErrorState";
 import { StatsStrip, usePeriodLabel } from "./StatsStrip";
 import { TableView } from "./TableView";
+import { SkyMap, skyCardClass, useMedia, useReducedMotion, useSkyClock } from "./SkyMap";
+import { Timeline } from "./Timeline";
+import { Ticker } from "./Ticker";
 
 const FADE = "motion-safe:animate-[obs-fade_250ms_ease-out]";
 const BONE = "rounded bg-surface-2 motion-safe:animate-pulse";
@@ -205,6 +209,28 @@ export function WabiSabiTab() {
   const periodLabel = usePeriodLabel(obs.period);
   const flowFailed = !flow.data && !!flow.error;
   const table = obs.view === "table";
+  const { theme } = useTheme();
+  const reduced = useReducedMotion();
+  const wide = useMedia("(min-width: 1024px)");
+  const sky = useSkyClock(obs.period, reduced);
+  const selectStar = useCallback((key: string) => {
+    setObs({ coordinator: key });
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    requestAnimationFrame(() => document.getElementById("obs-coordinator")?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" }));
+  }, [setObs]);
+  const selectEvent = useCallback((tx: string | null) => setObs({ tx }), [setObs]);
+  const ticker = (tone: "sky" | "page") =>
+    scene && (
+      <Ticker
+        scene={scene}
+        time={sky.live ? Infinity : replayTime(sky.progress, scene)}
+        highlightTx={obs.tx}
+        onSelect={selectEvent}
+        tone={tone}
+        withDate={obs.period !== 1}
+        reduced={reduced}
+      />
+    );
 
   const nav = [
     { id: "obs-map", label: t("observatory.wabisabi.nav.map", { defaultValue: "Map" }) },
@@ -276,14 +302,43 @@ export function WabiSabiTab() {
             {scene ? <TableView scene={scene} /> : <TableSkeleton />}
           </div>
         ) : (
-          <div className={`space-y-3 ${FADE}`}>
-            <div className="relative isolate overflow-hidden rounded-2xl bg-(--obs-sky) ring-1 ring-hairline h-[60vh] min-h-[440px] sm:h-[70vh] sm:min-h-[520px] max-h-[820px]">
-              <MapSkeleton loading={!scene} />
-              <div className="absolute inset-x-0 bottom-0 p-3 sm:p-5 bg-gradient-to-t from-(--obs-sky) to-transparent">
-                <StatsStrip totals={scene?.totals ?? null} period={obs.period} />
+          <div className={`space-y-4 sm:space-y-5 ${FADE}`}>
+            {scene ? (
+              <SkyMap
+                scene={scene}
+                period={obs.period}
+                clock={sky.clock}
+                highlightTx={obs.tx}
+                selected={obs.coordinator}
+                onSelectStar={selectStar}
+                onSelectEvent={selectEvent}
+                aside={wide ? ticker("sky") : undefined}
+              >
+                <StatsStrip totals={scene.totals} period={obs.period} />
+              </SkyMap>
+            ) : (
+              <div className={skyCardClass(theme)}>
+                <MapSkeleton loading />
+                <div className="absolute inset-x-0 bottom-0 p-3 sm:p-5 bg-gradient-to-t from-(--obs-sky) to-transparent">
+                  <StatsStrip totals={null} period={obs.period} />
+                </div>
               </div>
-            </div>
-            <TimelineSkeleton />
+            )}
+            {scene ? (
+              <Timeline
+                scene={scene}
+                period={obs.period}
+                progress={sky.progress}
+                playing={sky.playing}
+                live={sky.live}
+                onScrub={sky.scrub}
+                onTogglePlay={sky.toggle}
+                onPeriod={(period) => setObs({ period, tx: null })}
+              />
+            ) : (
+              <TimelineSkeleton />
+            )}
+            {!wide && ticker("page")}
           </div>
         )}
       </Section>

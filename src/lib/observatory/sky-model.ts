@@ -18,7 +18,7 @@ const R_MIN = 0.012;
 const R_MAX = 0.06;
 
 /** FNV-1a 32-bit, mapped to [0, 1). */
-function hash01(s: string): number {
+export function hash01(s: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193);
   return (h >>> 0) / 2 ** 32;
