@@ -6,12 +6,14 @@ import { RotateCw, WifiOff } from "lucide-react";
 import { useNetwork } from "@/context/NetworkContext";
 import { useObsState } from "@/hooks/useObsState";
 import { useP2p } from "@/hooks/useP2p";
-import { buildMarkets, defaultCurrency, filterVenues, headline as buildHeadline } from "@/lib/observatory/p2p/market";
+import { buildMarkets, defaultCurrency, filterVenues, headline as buildHeadline, makerSide } from "@/lib/observatory/p2p/market";
 import { Section, SubNav } from "@/components/observatory/ObsSections";
 import { P2pHeadline } from "./P2pHeadline";
 import { SourceStrip } from "./SourceStrip";
 import { MarketSelector, type MarketPatch } from "./MarketSelector";
 import { P2pFooter } from "./P2pFooter";
+import { DepthWall } from "./DepthWall";
+import { OfferList } from "./OfferList";
 import { BONE } from "./p2p-ui";
 
 function AllDown({ onRetry }: { onRetry: () => void }) {
@@ -64,6 +66,16 @@ export function P2pTab() {
   const head = useMemo(() => (offers.length ? buildHeadline(markets, hosts, cur) : null), [markets, hosts, cur, offers.length]);
   const shown = useMemo(() => buildMarkets(filterVenues(offers, obs.venue), index), [offers, obs.venue, index]);
 
+  const market = cur ? shown.get(cur) ?? null : null;
+  const maker = makerSide(obs.side);
+  const nearest = useMemo(() => [...shown.values()]
+    .filter((m) => m.currency !== cur && m.index !== null)
+    .map((m) => ({ c: m.currency, n: m.offers.filter((o) => o.side === maker).length }))
+    .filter((m) => m.n > 0)
+    .sort((a, b) => b.n - a.n)
+    .slice(0, 3)
+    .map((m) => m.c), [shown, cur, maker]);
+
   const onChange = useCallback((patch: MarketPatch) => setObs(patch), [setObs]);
   const retry = useCallback(() => { for (const s of sources) s.refresh(); }, [sources]);
 
@@ -93,7 +105,22 @@ export function P2pTab() {
             lead={t("observatory.p2p.markets.lead", { defaultValue: "Every live offer in one currency, by premium over the index. Pick what you want to do and where." })}
           >
             <MarketSelector markets={shown} cur={cur} side={obs.side} venues={obs.venue} onChange={onChange} />
-            <BlockSkeleton h={320} />
+            {loading ? (
+              <BlockSkeleton h={320} />
+            ) : (
+              <>
+                <DepthWall
+                  market={market}
+                  side={obs.side}
+                  view={obs.view}
+                  hosts={hosts}
+                  nearest={nearest}
+                  onView={(view) => setObs({ view })}
+                  onPickCurrency={(c) => setObs({ cur: c })}
+                />
+                <OfferList market={market} side={obs.side} hosts={hosts} nowSec={data.nowSec} />
+              </>
+            )}
           </Section>
 
           <Section
