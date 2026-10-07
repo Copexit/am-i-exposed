@@ -255,12 +255,6 @@ export const FINDING_METADATA = {
   "wallet-utxo-bloat":            { adversaryTiers: [P],       temporality: "active_risk" },
   "wallet-toxic-change":          { adversaryTiers: [P, K],    temporality: "active_risk" },
   "wallet-consolidation-history": { adversaryTiers: [P, K],    temporality: "historical" },
-
-  // ── Coin Selection (PSBT planning) ──────────────────────────────────
-  "coin-select-exact-match":     { adversaryTiers: [P],       temporality: "active_risk" },
-  "coin-select-toxic-change":    { adversaryTiers: [P, K],    temporality: "active_risk" },
-  "coin-select-mixed-scripts":   { adversaryTiers: [P],       temporality: "active_risk" },
-  "coin-select-multiple-inputs": { adversaryTiers: [P, K, S], temporality: "active_risk" },
 } satisfies Record<string, FindingMeta>;
 
 /**

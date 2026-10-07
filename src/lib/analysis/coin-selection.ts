@@ -1,26 +1,30 @@
 /**
  * Coin Selection Advisor
  *
- * Given a set of UTXOs and a target payment amount, recommends which UTXOs
- * to spend with privacy as the primary optimization criterion.
+ * Given the wallet's UTXOs and a payment amount, recommends which coins to
+ * spend with privacy as the primary criterion.
  *
- * Strategies:
- * 1. Exact match (BnB-style) - no change output, best privacy
- * 2. Single UTXO - simple, no input clustering
- * 3. Minimal change - if exact match impossible, minimize change
+ * - One coin covers it: the smallest coin that does (changeless when the
+ *   leftover is small enough to give to the fee).
+ * - No single coin covers it: up to two ranked multi-coin plans
+ *     "same-origin":  coins already linked on chain (same address, or same
+ *                     non-CoinJoin funding tx), so merging reveals nothing new
+ *     "fewest-coins": the minimum number of coins, preferring changeless
+ *                     sets, then fewer distinct origins, then less change
+ *   plus a Stonewall hint (not built here).
+ * - "Insufficient" only when every spendable coin together cannot pay
+ *   amount + fee, reported with the shortfall.
  *
- * Privacy rules:
- * - Prefer same-script-type UTXOs (avoid mixing P2WPKH + P2TR)
- * - Avoid merging UTXOs from different origins (cluster awareness)
- * - Flag when change is small enough to absorb into fee
- * - Warn about toxic change (change < 10,000 sats)
+ * Dust coins are never selected: they may come from a dust attack.
+ * Origins come from what the chain shows (funding tx, address, CoinJoin,
+ * address reuse); the app has no user labels.
  */
 
 import type { MempoolUtxo } from "@/lib/api/types";
-import type { Finding } from "@/lib/types";
-import { fmtN } from "@/lib/format";
-import { enrichFindingsWithMetadata } from "./finding-metadata";
-import { TOXIC_CHANGE_THRESHOLD } from "@/lib/constants";
+import type { Severity } from "@/lib/types";
+import type { WalletAddressInfo } from "./wallet-audit";
+import { isCoinJoinTx } from "./heuristics/coinjoin";
+import { P2PKH_DUST_LIMIT, TOXIC_CHANGE_THRESHOLD } from "@/lib/constants";
 
 // ---------- Types ----------
 
@@ -28,345 +32,291 @@ export interface CoinSelectionInput {
   utxo: MempoolUtxo;
   /** Address this UTXO belongs to */
   address: string;
-  /** Optional origin label (e.g. "exchange", "coinjoin", "p2p") */
-  origin?: string;
+  /** The funding transaction is a CoinJoin */
+  fromCoinJoin?: boolean;
+  /** The address has been funded more than once */
+  reusedAddress?: boolean;
 }
 
-export interface CoinSelectionResult {
-  /** Selected UTXOs to spend */
-  selected: CoinSelectionInput[];
-  /** Total input value (sats) */
-  inputTotal: number;
-  /** Payment amount (sats) */
-  paymentAmount: number;
-  /** Change amount (sats) - 0 for exact match */
-  changeAmount: number;
-  /** Estimated fee (sats) */
-  estimatedFee: number;
-  /** Strategy used */
-  strategy: "exact-match" | "single-utxo" | "minimal-change";
-  /** Privacy findings/warnings for this selection */
-  findings: Finding[];
+/** Where a selected coin comes from. `with` is the 1-based row of the related coin. */
+export type OriginHint =
+  | { kind: "coinjoin" }
+  | { kind: "same-tx"; with: number }
+  | { kind: "same-address"; with: number }
+  | { kind: "reused-address" };
+
+export interface SelectedCoin extends CoinSelectionInput {
+  hints: OriginHint[];
 }
+
+export type PlanWarningId = "coinjoin-mix" | "coinjoin-merge" | "merges-origins" | "toxic-change" | "mixed-scripts";
+
+export interface PlanWarning {
+  id: PlanWarningId;
+  severity: Severity;
+  /** Number shown in the message (coins, origins, change sats, script types) */
+  count: number;
+}
+
+export type PlanStrategy = "single-coin" | "same-origin" | "fewest-coins";
+
+export interface CoinSelectionPlan {
+  strategy: PlanStrategy;
+  selected: SelectedCoin[];
+  inputTotal: number;
+  paymentAmount: number;
+  /** Fee in sats; includes any leftover absorbed when there is no change */
+  fee: number;
+  /** Change in sats, 0 when changeless */
+  change: number;
+  /** Distinct on-chain origins among the selected coins */
+  origins: number;
+  warnings: PlanWarning[];
+}
+
+export type CoinSelectionAdvice =
+  | {
+      kind: "plans";
+      /** Ranked best first */
+      plans: CoinSelectionPlan[];
+      /** Multi-coin case: whether the wallet holds roughly enough for a Stonewall. null for one coin. */
+      stonewall: boolean | null;
+      dustExcluded: number;
+    }
+  | { kind: "insufficient"; spendable: number; shortfall: number; dustExcluded: number };
 
 // ---------- Fee estimation ----------
 
+function scriptType(address: string): "p2tr" | "p2wpkh" | "p2sh" | "p2pkh" {
+  if (address.startsWith("bc1p") || address.startsWith("tb1p")) return "p2tr";
+  if (address.startsWith("bc1q") || address.startsWith("tb1q")) return "p2wpkh";
+  if (address.startsWith("3") || address.startsWith("2")) return "p2sh";
+  return "p2pkh";
+}
+
 /** Estimated vbytes per input by script type. */
-function inputVbytes(address: string): number {
-  if (address.startsWith("bc1p") || address.startsWith("tb1p")) return 58; // P2TR
-  if (address.startsWith("bc1q") || address.startsWith("tb1q")) return 68; // P2WPKH
-  if (address.startsWith("3") || address.startsWith("2")) return 91; // P2SH-P2WPKH
-  return 148; // P2PKH
+const INPUT_VB = { p2tr: 58, p2wpkh: 68, p2sh: 91, p2pkh: 148 } as const;
+
+/** ~31 vbytes per output + 10 base overhead. */
+function estimateFee(inputs: CoinSelectionInput[], outputCount: number, feeRate: number): number {
+  const vb = inputs.reduce((s, i) => s + INPUT_VB[scriptType(i.address)], 0) + 10 + outputCount * 31;
+  return Math.ceil(vb * feeRate);
 }
 
-/** Estimated vbytes for outputs (change + payment). */
-function outputVbytes(outputCount: number): number {
-  // ~31 vbytes per P2WPKH output + 10 base overhead
-  return 10 + outputCount * 31;
+/** Leftover at or below this goes to the fee instead of a change output. */
+const CHANGELESS_TOLERANCE = 1000;
+/** Search budget per subset search. */
+const MAX_ITERATIONS = 100_000;
+
+/** Fee and change for spending `coins`, or null when they cannot pay. */
+function settle(coins: CoinSelectionInput[], amount: number, feeRate: number): { fee: number; change: number } | null {
+  const total = coins.reduce((s, c) => s + c.utxo.value, 0);
+  if (total - amount - estimateFee(coins, 1, feeRate) < 0) return null;
+  const change = total - amount - estimateFee(coins, 2, feeRate);
+  if (change > CHANGELESS_TOLERANCE) return { fee: total - amount - change, change };
+  return { fee: total - amount, change: 0 };
 }
 
-/** Estimate transaction fee in sats. */
-function estimateFee(
-  inputs: CoinSelectionInput[],
-  outputCount: number,
-  feeRate: number,
-): number {
-  const inputsVb = inputs.reduce((s, i) => s + inputVbytes(i.address), 0);
-  const totalVb = inputsVb + outputVbytes(outputCount);
-  return Math.ceil(totalVb * feeRate);
+// ---------- Origins ----------
+
+/** Union-find over coins: same address, or same non-CoinJoin funding tx. */
+function originIds(coins: CoinSelectionInput[]): number[] {
+  const parent = coins.map((_, i) => i);
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i]!)));
+  const firstBy = new Map<string, number>();
+  coins.forEach((c, i) => {
+    // Two outputs of one CoinJoin are not known to share an owner: never a link.
+    const keys = [`a:${c.address}`, ...(c.fromCoinJoin ? [] : [`t:${c.utxo.txid}`])];
+    for (const k of keys) {
+      const j = firstBy.get(k);
+      if (j === undefined) firstBy.set(k, i);
+      else parent[find(i)] = find(j);
+    }
+  });
+  return coins.map((_, i) => find(i));
 }
 
-// ---------- Selection strategies ----------
+function withHints(coins: CoinSelectionInput[]): SelectedCoin[] {
+  return coins.map((c, i) => {
+    const hints: OriginHint[] = [];
+    if (c.fromCoinJoin) hints.push({ kind: "coinjoin" });
+    const sameTx = coins.findIndex((o, j) => j !== i && o.utxo.txid === c.utxo.txid);
+    if (sameTx >= 0) hints.push({ kind: "same-tx", with: sameTx + 1 });
+    const sameAddr = coins.findIndex((o, j) => j !== i && o.address === c.address);
+    if (sameAddr >= 0) hints.push({ kind: "same-address", with: sameAddr + 1 });
+    if (c.reusedAddress) hints.push({ kind: "reused-address" });
+    return { ...c, hints };
+  });
+}
 
-/** Maximum number of UTXOs to consider in BnB search. */
-const BNB_MAX_INPUTS = 15;
-/** Maximum iterations for BnB search. */
-const BNB_MAX_ITERATIONS = 100_000;
-/** Tolerance for "exact match" - change smaller than this is absorbed into fee. */
-const EXACT_MATCH_TOLERANCE = 1000; // 1000 sats
+// ---------- Search ----------
+
+interface Candidate {
+  coin: CoinSelectionInput;
+  origin: number;
+}
+
+type RankKey = [hasChange: number, origins: number, leftover: number];
+const better = (a: RankKey, b: RankKey) =>
+  a[0] !== b[0] ? a[0] < b[0] : a[1] !== b[1] ? a[1] < b[1] : a[2] < b[2];
 
 /**
- * Branch and Bound (BnB) search for an exact match (no change).
- * Returns the subset of UTXOs that sum to target +/- tolerance, or null.
+ * Best set of the minimum possible size that pays amount + fee.
+ * Rank: changeless first, then fewer distinct origins, then less change (or overpay).
+ * Candidates must be sorted by value descending.
  */
-function bnbSearch(
-  candidates: CoinSelectionInput[],
-  target: number,
-  feeRate: number,
-): CoinSelectionInput[] | null {
-  // Sort descending by value for efficient pruning
-  const sorted = [...candidates]
-    .sort((a, b) => b.utxo.value - a.utxo.value)
-    .slice(0, BNB_MAX_INPUTS);
-
-  let best: CoinSelectionInput[] | null = null;
-  let bestWaste = Infinity;
-  let iterations = 0;
-
-  // Precompute suffix sums for O(1) remaining-value lookups
-  // suffixSum[i] = total value of sorted[i..]; suffixSum[sorted.length] = 0
-  const suffixSum = new Array<number>(sorted.length + 1).fill(0);
-  for (let i = sorted.length - 1; i >= 0; i--) {
-    suffixSum[i] = suffixSum[i + 1]! + sorted[i]!.utxo.value;
+function fewestCoins(cands: Candidate[], amount: number, feeRate: number): Candidate[] | null {
+  // Smallest k whose k largest coins can pay.
+  let k = 0;
+  for (let i = 1; i <= cands.length && k === 0; i++) {
+    if (settle(cands.slice(0, i).map(c => c.coin), amount, feeRate)) k = i;
   }
+  if (k === 0) return null;
 
-  function search(index: number, selected: CoinSelectionInput[], currentSum: number): void {
-    if (iterations++ > BNB_MAX_ITERATIONS) return;
+  const suffix = new Array<number>(cands.length + 1).fill(0);
+  for (let i = cands.length - 1; i >= 0; i--) suffix[i] = suffix[i + 1]! + cands[i]!.coin.utxo.value;
+  const minFee = Math.ceil((k * INPUT_VB.p2tr + 41) * feeRate);
 
-    const fee = estimateFee(selected, 1, feeRate); // 1 output (no change)
-    const needed = target + fee;
-    const waste = currentSum - needed;
+  let best: Candidate[] | null = null;
+  let bestKey: RankKey = [Infinity, Infinity, Infinity];
+  let iterations = 0;
+  const chosen: Candidate[] = [];
 
-    // Found a valid solution
-    if (waste >= 0 && waste <= EXACT_MATCH_TOLERANCE) {
-      if (waste < bestWaste) {
-        bestWaste = waste;
-        best = [...selected];
+  // ponytail: capped k-subset DFS. The first leaf is the top-k set, so a result always
+  // exists; past the cap on huge wallets the pick is good, not provably best.
+  function dfs(index: number, sum: number): void {
+    if (iterations++ > MAX_ITERATIONS) return;
+    const need = k - chosen.length;
+    if (need === 0) {
+      const s = settle(chosen.map(c => c.coin), amount, feeRate);
+      if (!s) return;
+      const key: RankKey = [s.change > 0 ? 1 : 0, new Set(chosen.map(c => c.origin)).size, s.change || s.fee];
+      if (better(key, bestKey)) {
+        bestKey = key;
+        best = [...chosen];
       }
       return;
     }
-
-    // Overshoot too much
-    if (waste > EXACT_MATCH_TOLERANCE) return;
-
-    // No more candidates
-    const candidate = sorted[index];
-    const remaining = suffixSum[index];
-    if (!candidate || remaining === undefined) return;
-
-    // Remaining sum can't reach target
-    if (currentSum + remaining < needed) return;
-
-    // Branch: include current
-    selected.push(candidate);
-    search(index + 1, selected, currentSum + candidate.utxo.value);
-    selected.pop();
-
-    // Branch: exclude current
-    search(index + 1, selected, currentSum);
+    if (cands.length - index < need) return;
+    // Sorted descending: the next `need` coins are the largest still reachable.
+    if (sum + suffix[index]! - suffix[index + need]! < amount + minFee) return;
+    chosen.push(cands[index]!);
+    dfs(index + 1, sum + cands[index]!.coin.utxo.value);
+    chosen.pop();
+    dfs(index + 1, sum);
   }
-
-  search(0, [], 0);
+  dfs(0, 0);
   return best;
 }
 
-/**
- * Find the single best UTXO that covers the target amount.
- * Prefers the smallest UTXO that is large enough.
- */
-function singleUtxoSelection(
-  candidates: CoinSelectionInput[],
-  target: number,
-  feeRate: number,
-): CoinSelectionInput | null {
-  let best: CoinSelectionInput | null = null;
-  let bestExcess = Infinity;
+// ---------- Plans ----------
 
-  for (const c of candidates) {
-    const fee = estimateFee([c], 2, feeRate); // 2 outputs (payment + change)
-    const excess = c.utxo.value - target - fee;
-    if (excess >= 0 && excess < bestExcess) {
-      bestExcess = excess;
-      best = c;
-    }
+function buildPlan(strategy: PlanStrategy, picked: Candidate[], amount: number, feeRate: number): CoinSelectionPlan {
+  const coins = picked.map(c => c.coin);
+  // Callers only pass sets that pay.
+  const { fee, change } = settle(coins, amount, feeRate)!;
+  const origins = new Set(picked.map(c => c.origin)).size;
+  const warnings: PlanWarning[] = [];
+
+  const cj = coins.filter(c => c.fromCoinJoin);
+  if (cj.length > 0 && cj.length < coins.length) {
+    warnings.push({ id: "coinjoin-mix", severity: "high", count: cj.length });
+  } else if (new Set(cj.map(c => c.utxo.txid)).size > 1) {
+    warnings.push({ id: "coinjoin-merge", severity: "high", count: cj.length });
   }
+  if (origins > 1) warnings.push({ id: "merges-origins", severity: "medium", count: origins });
+  if (change > 0 && change < TOXIC_CHANGE_THRESHOLD) warnings.push({ id: "toxic-change", severity: "medium", count: change });
+  const scripts = new Set(coins.map(c => scriptType(c.address))).size;
+  if (scripts > 1) warnings.push({ id: "mixed-scripts", severity: "low", count: scripts });
 
-  return best;
+  return {
+    strategy,
+    selected: withHints(coins),
+    inputTotal: coins.reduce((s, c) => s + c.utxo.value, 0),
+    paymentAmount: amount,
+    fee,
+    change,
+    origins,
+    warnings,
+  };
 }
 
-/**
- * Greedy selection: add UTXOs until we have enough, preferring same script type.
- */
-function greedySelection(
-  candidates: CoinSelectionInput[],
-  target: number,
-  feeRate: number,
-): CoinSelectionInput[] | null {
-  // Sort by value descending (spend fewest inputs)
-  const sorted = [...candidates].sort((a, b) => b.utxo.value - a.utxo.value);
-  const selected: CoinSelectionInput[] = [];
-  let total = 0;
-
-  for (const c of sorted) {
-    selected.push(c);
-    total += c.utxo.value;
-    const fee = estimateFee(selected, 2, feeRate);
-    if (total >= target + fee) return selected;
-  }
-
-  return null; // Insufficient funds
-}
-
-// ---------- Privacy checks ----------
-
-function generateFindings(result: CoinSelectionResult): Finding[] {
-  const findings: Finding[] = [];
-
-  // Exact match - great privacy
-  if (result.strategy === "exact-match") {
-    findings.push({
-      id: "coin-select-exact-match",
-      severity: "good",
-      confidence: "deterministic",
-      title: "Exact match - no change output",
-      description:
-        "An exact combination of UTXOs was found that matches the payment amount plus fee. " +
-        "No change output is needed, which provides optimal privacy.",
-      recommendation: "Proceed with this selection.",
-      scoreImpact: 0,
-    });
-  }
-
-  // Toxic change warning
-  if (result.changeAmount > 0 && result.changeAmount < TOXIC_CHANGE_THRESHOLD) {
-    findings.push({
-      id: "coin-select-toxic-change",
-      severity: "high",
-      confidence: "deterministic",
-      title: `Small change: ${fmtN(result.changeAmount)} sats`,
-      description:
-        `This selection would create a change output of only ${fmtN(result.changeAmount)} sats. ` +
-        "Small change outputs are uneconomical to spend and can link future transactions.",
-      recommendation:
-        "Consider absorbing the change into the fee, or select different UTXOs. " +
-        "If the change is very small, sending it to a swap service is another option.",
-      scoreImpact: 0,
-      params: { changeAmount: result.changeAmount },
-    });
-  }
-
-  // Mixed script types in inputs
-  const scriptTypes = new Set(
-    result.selected.map(s => {
-      if (s.address.startsWith("bc1p") || s.address.startsWith("tb1p")) return "p2tr";
-      if (s.address.startsWith("bc1q") || s.address.startsWith("tb1q")) return "p2wpkh";
-      if (s.address.startsWith("3") || s.address.startsWith("2")) return "p2sh";
-      return "p2pkh";
-    }),
-  );
-  if (scriptTypes.size > 1) {
-    findings.push({
-      id: "coin-select-mixed-scripts",
-      severity: "medium",
-      confidence: "deterministic",
-      title: "Mixed script types in inputs",
-      description:
-        `This selection uses inputs from ${scriptTypes.size} different script types (${[...scriptTypes].join(", ")}). ` +
-        "Mixed script types make the transaction more identifiable.",
-      recommendation:
-        "If possible, select UTXOs of the same script type.",
-      scoreImpact: 0,
-      params: { scriptTypes: scriptTypes.size },
-    });
-  }
-
-  // Multiple inputs (CIOH implication)
-  if (result.selected.length > 1) {
-    findings.push({
-      id: "coin-select-multiple-inputs",
-      severity: "low",
-      confidence: "deterministic",
-      title: `${result.selected.length} inputs - common input ownership revealed`,
-      description:
-        `Spending ${result.selected.length} UTXOs together reveals that these addresses ` +
-        "belong to the same wallet (Common Input Ownership Heuristic).",
-      recommendation:
-        "When privacy is critical, prefer single-input transactions.",
-      scoreImpact: 0,
-      params: { inputCount: result.selected.length },
-    });
-  }
-
-  enrichFindingsWithMetadata(findings);
-  return findings;
-}
-
-// ---------- Public API ----------
+const sameSet = (a: Candidate[], b: Candidate[]) => a.length === b.length && a.every(x => b.includes(x));
 
 /**
- * Recommend optimal UTXO selection for a payment.
+ * Recommend which coins to spend for a payment.
  *
- * @param utxos - Available UTXOs with address info
- * @param paymentAmount - Target payment amount in sats
- * @param feeRate - Fee rate in sat/vB (default 5)
+ * @param utxos - Wallet UTXOs with address and origin info
+ * @param paymentAmount - Payment amount in sats (> 0)
+ * @param feeRate - Fee rate in sat/vB (> 0)
  */
-export function selectCoins(
+export function adviseCoinSelection(
   utxos: CoinSelectionInput[],
   paymentAmount: number,
   feeRate = 5,
-): CoinSelectionResult | null {
-  if (utxos.length === 0 || paymentAmount <= 0) return null;
+): CoinSelectionAdvice {
+  const spendableCoins = utxos.filter(u => u.utxo.value >= P2PKH_DUST_LIMIT);
+  const dustExcluded = utxos.length - spendableCoins.length;
+  const origin = originIds(spendableCoins);
+  const cands: Candidate[] = spendableCoins
+    .map((coin, i) => ({ coin, origin: origin[i]! }))
+    .sort((a, b) => b.coin.utxo.value - a.coin.utxo.value);
 
-  // Strategy 1: Try BnB exact match (no change)
-  const bnb = bnbSearch(utxos, paymentAmount, feeRate);
-  if (bnb) {
-    const fee = estimateFee(bnb, 1, feeRate);
-    const inputTotal = bnb.reduce((s, u) => s + u.utxo.value, 0);
-    const result: CoinSelectionResult = {
-      selected: bnb,
-      inputTotal,
-      paymentAmount,
-      changeAmount: inputTotal - paymentAmount - fee,
-      estimatedFee: fee,
-      strategy: "exact-match",
-      findings: [],
-    };
-    result.findings = generateFindings(result);
-    return result;
+  const spendable = cands.reduce((s, c) => s + c.coin.utxo.value, 0);
+  if (!settle(cands.map(c => c.coin), paymentAmount, feeRate)) {
+    const fee = estimateFee(cands.map(c => c.coin), 1, feeRate);
+    return { kind: "insufficient", spendable, shortfall: paymentAmount + fee - spendable, dustExcluded };
   }
 
-  // Strategy 2: Try single UTXO
-  const single = singleUtxoSelection(utxos, paymentAmount, feeRate);
+  // One coin: the smallest that pays (sorted descending, so the last match).
+  const single = cands.filter(c => settle([c.coin], paymentAmount, feeRate)).at(-1);
   if (single) {
-    const fee = estimateFee([single], 2, feeRate);
-    const inputTotal = single.utxo.value;
-    const changeAmount = inputTotal - paymentAmount - fee;
-
-    // If change is tiny, absorb into fee (treat as exact match)
-    if (changeAmount <= EXACT_MATCH_TOLERANCE) {
-      const result: CoinSelectionResult = {
-        selected: [single],
-        inputTotal,
-        paymentAmount,
-        changeAmount: 0,
-        estimatedFee: inputTotal - paymentAmount,
-        strategy: "exact-match",
-        findings: [],
-      };
-      result.findings = generateFindings(result);
-      return result;
-    }
-
-    const result: CoinSelectionResult = {
-      selected: [single],
-      inputTotal,
-      paymentAmount,
-      changeAmount,
-      estimatedFee: fee,
-      strategy: "single-utxo",
-      findings: [],
-    };
-    result.findings = generateFindings(result);
-    return result;
+    return { kind: "plans", plans: [buildPlan("single-coin", [single], paymentAmount, feeRate)], stonewall: null, dustExcluded };
   }
 
-  // Strategy 3: Greedy selection
-  const greedy = greedySelection(utxos, paymentAmount, feeRate);
-  if (!greedy) return null; // Insufficient funds
+  // The full set pays, so a fewest-coins set always exists.
+  const fewest = fewestCoins(cands, paymentAmount, feeRate)!;
+  const fewestPlan = buildPlan("fewest-coins", fewest, paymentAmount, feeRate);
+  const plans: CoinSelectionPlan[] = [];
 
-  const fee = estimateFee(greedy, 2, feeRate);
-  const inputTotal = greedy.reduce((s, u) => s + u.utxo.value, 0);
-  const changeAmount = inputTotal - paymentAmount - fee;
+  if (fewestPlan.origins > 1) {
+    let bestGroup: Candidate[] | null = null;
+    for (const id of new Set(cands.map(c => c.origin))) {
+      const pick = fewestCoins(cands.filter(c => c.origin === id), paymentAmount, feeRate);
+      if (pick && (!bestGroup || pick.length < bestGroup.length)) bestGroup = pick;
+    }
+    if (bestGroup && !sameSet(bestGroup, fewest)) plans.push(buildPlan("same-origin", bestGroup, paymentAmount, feeRate));
+  }
+  plans.push(fewestPlan);
 
-  const result: CoinSelectionResult = {
-    selected: greedy,
-    inputTotal,
-    paymentAmount,
-    changeAmount: Math.max(0, changeAmount),
-    estimatedFee: fee,
-    strategy: "minimal-change",
-    findings: [],
+  // Stonewall pays the amount twice (payment + decoy), each side funded by its own coins.
+  const stonewall = spendable >= 2 * (paymentAmount + fewestPlan.fee);
+  return { kind: "plans", plans, stonewall, dustExcluded };
+}
+
+// ---------- Wallet data ----------
+
+/** Flatten wallet scan data into selector inputs with on-chain origin info. */
+export function buildCoinInputs(infos: WalletAddressInfo[]): CoinSelectionInput[] {
+  const txById = new Map(infos.flatMap(i => i.txs.map(tx => [tx.txid, tx] as const)));
+  const cj = new Map<string, boolean>();
+  const isCj = (txid: string) => {
+    let v = cj.get(txid);
+    if (v === undefined) {
+      const tx = txById.get(txid);
+      v = tx ? isCoinJoinTx(tx) : false;
+      cj.set(txid, v);
+    }
+    return v;
   };
-  result.findings = generateFindings(result);
-  return result;
+  return infos.flatMap(info => {
+    const d = info.addressData;
+    const funded = d ? d.chain_stats.funded_txo_count + d.mempool_stats.funded_txo_count : info.utxos.length;
+    return info.utxos.map(utxo => ({
+      utxo,
+      address: info.derived.address,
+      fromCoinJoin: isCj(utxo.txid),
+      reusedAddress: funded > 1,
+    }));
+  });
 }
