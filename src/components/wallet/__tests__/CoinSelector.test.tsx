@@ -36,10 +36,10 @@ describe("CoinSelector", () => {
   });
 
   it("shows the best single coin as a summary with one clean row", () => {
-    run([coin(100_000, "aa", "bc1qa"), coin(30_000, "bb", "bc1qb")], "20000");
+    run([coin(100_000, "aa", "bc1qa"), coin(40_000, "bb", "bc1qb")], "20000");
     const plan = screen.getByTestId("coin-plan-single-coin");
     expect(within(plan).getByText("Best single coin")).toBeTruthy();
-    expect(within(plan).getByText("30,000 sats")).toBeTruthy();
+    expect(within(plan).getByText("40,000 sats")).toBeTruthy();
     expect(within(within(plan).getAllByRole("list")[0]!).getAllByRole("listitem")).toHaveLength(1);
     expect(plan.textContent).not.toContain("|");
   });
@@ -60,6 +60,20 @@ describe("CoinSelector", () => {
     const fewest = screen.getByTestId("coin-plan-fewest-coins");
     expect(within(fewest).getByText(/Joins 2 unrelated origins/)).toBeTruthy();
     expect(screen.getByText("Advanced: Stonewall")).toBeTruthy();
+  });
+
+  it("shows inline feedback for an invalid amount and drops the old advice", () => {
+    run([coin(100_000, "aa", "bc1qa")], "20000");
+    expect(screen.getByTestId("coin-plan-single-coin")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Amount (sats)"), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Suggest selection" }));
+    expect(screen.getByRole("alert").textContent).toContain("Enter a whole amount");
+    expect(screen.queryByTestId("coin-plan-single-coin")).toBeNull();
+  });
+
+  it("announces one short summary line instead of the whole result", () => {
+    run([coin(100_000, "aa", "bc1qa")], "20000");
+    expect(screen.getByRole("status").textContent).toBe("Options found: 1. Recommended: Best single coin.");
   });
 
   it("says insufficient only when the whole wallet cannot pay, with the shortfall", () => {

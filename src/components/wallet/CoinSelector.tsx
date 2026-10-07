@@ -23,10 +23,8 @@ export function CoinSelector({ utxos }: { utxos: CoinSelectionInput[] }) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const amountSats = parseInt(amount, 10);
-    const rate = parseFloat(feeRate);
-    if (isNaN(amountSats) || amountSats <= 0 || isNaN(rate) || rate <= 0) return;
-    setAdvice(adviseCoinSelection(utxos, amountSats, rate));
+    // Empty fields become NaN (not 0) so they read as invalid.
+    setAdvice(adviseCoinSelection(utxos, amount.trim() ? Number(amount) : NaN, feeRate.trim() ? Number(feeRate) : NaN));
   }
 
   return (
@@ -43,7 +41,7 @@ export function CoinSelector({ utxos }: { utxos: CoinSelectionInput[] }) {
           <label htmlFor={`${id}-fee`} className="block text-[13px] text-muted mb-1.5">
             {t("wallet.coinSel.feeRate", { defaultValue: "Fee (sat/vB)" })}
           </label>
-          <input id={`${id}-fee`} type="number" inputMode="decimal" value={feeRate} onChange={e => setFeeRate(e.target.value)} placeholder="5" min="1" step="0.1" className={FIELD} />
+          <input id={`${id}-fee`} type="number" inputMode="decimal" value={feeRate} onChange={e => setFeeRate(e.target.value)} placeholder="5" min="0.1" step="any" className={FIELD} />
         </div>
         <button
           type="submit"
@@ -52,6 +50,12 @@ export function CoinSelector({ utxos }: { utxos: CoinSelectionInput[] }) {
           {t("wallet.suggest", { defaultValue: "Suggest selection" })}
         </button>
       </form>
+
+      {advice?.kind === "invalid" && (
+        <p role="alert" className="text-sm text-severity-high">
+          {t("wallet.coinSel.invalid", { defaultValue: "Enter a whole amount in sats and a fee rate above zero." })}
+        </p>
+      )}
 
       {advice?.kind === "insufficient" && (
         <p role="status" className="rounded-lg border border-severity-high/25 bg-severity-high/5 px-4 py-3 text-sm text-foreground">
@@ -64,7 +68,14 @@ export function CoinSelector({ utxos }: { utxos: CoinSelectionInput[] }) {
       )}
 
       {advice?.kind === "plans" && (
-        <div className="space-y-3" role="status">
+        <div className="space-y-3">
+          <p role="status" className="sr-only">
+            {t("wallet.coinSel.summary", {
+              count: advice.plans.length,
+              strategy: t(`wallet.coinSel.strategy.${advice.plans[0]!.strategy}`),
+              defaultValue: "Options found: {{count}}. Recommended: {{strategy}}.",
+            })}
+          </p>
           {advice.plans.map((plan, i) => (
             <PlanCard key={plan.strategy} plan={plan} recommended={i === 0 && advice.plans.length > 1} />
           ))}
@@ -80,7 +91,13 @@ export function CoinSelector({ utxos }: { utxos: CoinSelectionInput[] }) {
         </div>
       )}
 
-      {advice && advice.dustExcluded > 0 && (
+      {advice && advice.kind !== "invalid" && advice.uneconomical > 0 && (
+        <p className="text-[13px] text-muted">
+          {t("wallet.coinSel.uneconomical", { count: advice.uneconomical, defaultValue: "Coins left out because they cost more in fee than they are worth at this fee rate: {{count}}." })}
+        </p>
+      )}
+
+      {advice && advice.kind !== "invalid" && advice.dustExcluded > 0 && (
         <p className="text-[13px] text-muted">
           {t("wallet.coinSel.dustExcluded", { count: advice.dustExcluded, defaultValue: "Dust coins left out: {{count}}. They may come from a dust attack, and spending them links them to the rest of the wallet." })}
         </p>
@@ -91,11 +108,12 @@ export function CoinSelector({ utxos }: { utxos: CoinSelectionInput[] }) {
 
 function PlanCard({ plan, recommended }: { plan: CoinSelectionPlan; recommended: boolean }) {
   const { t } = useTranslation();
+  const sats = t("common.sats", { defaultValue: "sats" });
   const note = plan.strategy === "single-coin" ? "single" : plan.origins === 1 ? "linked" : "merge";
   const stats = [
     { label: t("wallet.coinSel.inputs", { defaultValue: "Inputs" }), value: fmtN(plan.selected.length) },
-    { label: t("wallet.coinSel.fee", { defaultValue: "Fee" }), value: `${fmtN(plan.fee)} sats` },
-    { label: t("wallet.coinSel.change", { defaultValue: "Change" }), value: plan.change > 0 ? `${fmtN(plan.change)} sats` : t("wallet.coinSel.noChange", { defaultValue: "No change" }) },
+    { label: t("wallet.coinSel.fee", { defaultValue: "Fee" }), value: `${fmtN(plan.fee)} ${sats}` },
+    { label: t("wallet.coinSel.change", { defaultValue: "Change" }), value: plan.change > 0 ? `${fmtN(plan.change)} ${sats}` : t("wallet.coinSel.noChange", { defaultValue: "No change" }) },
     { label: t("wallet.coinSel.origins", { defaultValue: "Origins" }), value: fmtN(plan.origins) },
   ];
 
@@ -138,7 +156,7 @@ function PlanCard({ plan, recommended }: { plan: CoinSelectionPlan; recommended:
                   </div>
                 )}
               </div>
-              <span className="num text-[13px] text-foreground text-right shrink-0">{fmtN(c.utxo.value)} sats</span>
+              <span className="num text-[13px] text-foreground text-right shrink-0">{fmtN(c.utxo.value)} {sats}</span>
             </li>
           ))}
         </ol>

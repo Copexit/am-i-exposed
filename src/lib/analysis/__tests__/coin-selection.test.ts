@@ -20,17 +20,24 @@ function plans(advice: CoinSelectionAdvice) {
 const values = (p: { selected: CoinSelectionInput[] }) => p.selected.map(s => s.utxo.value).sort((a, b) => b - a);
 
 describe("adviseCoinSelection", () => {
-  it("single coin: picks the smallest coin that pays, with change", () => {
+  it("single coin: prefers spendable change over the smallest coin leaving toxic change", () => {
     const a = plans(adviseCoinSelection([coin(100_000), coin(50_000), coin(25_000)], 20_000, 5));
     expect(a.plans).toHaveLength(1);
     const [p] = a.plans;
     expect(p!.strategy).toBe("single-coin");
-    expect(values(p!)).toEqual([25_000]);
+    // 25k would leave 4,300 sats of toxic change; 50k leaves 29,300
+    expect(values(p!)).toEqual([50_000]);
     // 1-in 2-out P2WPKH at 5 sat/vB: (68 + 10 + 62) * 5 = 700
     expect(p!.fee).toBe(700);
-    expect(p!.change).toBe(4_300);
-    expect(p!.warnings.map(w => w.id)).toEqual(["toxic-change"]);
+    expect(p!.change).toBe(29_300);
+    expect(p!.warnings).toEqual([]);
     expect(a.stonewall).toBeNull();
+  });
+
+  it("single coin: still the smallest coin when every option leaves toxic change", () => {
+    const p = plans(adviseCoinSelection([coin(28_000), coin(25_000)], 20_000, 5)).plans[0]!;
+    expect(values(p)).toEqual([25_000]);
+    expect(p.warnings.map(w => w.id)).toEqual(["toxic-change"]);
   });
 
   it("single coin: a small leftover goes to the fee (changeless)", () => {
@@ -60,8 +67,8 @@ describe("adviseCoinSelection", () => {
     // Same value pairs; 30k+30k from one tx are one origin.
     const a = plans(adviseCoinSelection([
       coin(30_000, { txid: "solo" }),
-      coin(30_000, { txid: "shared" }),
-      coin(30_000, { txid: "shared" }),
+      coin(30_000, { txid: "shared", selfFunded: true }),
+      coin(30_000, { txid: "shared", selfFunded: true }),
     ], 50_000, 1));
     expect(a.plans).toHaveLength(1);
     const p = a.plans[0]!;
@@ -69,6 +76,44 @@ describe("adviseCoinSelection", () => {
     expect(p.origins).toBe(1);
     expect(p.warnings.map(w => w.id)).not.toContain("merges-origins");
     expect(p.selected[0]!.hints).toContainEqual({ kind: "same-tx", with: 2 });
+  });
+
+  it("multi-coin: prefers non-toxic change over the least change", () => {
+    // 40k+22.5k leaves 2,292 sats (toxic); 40k+35k leaves 14,792
+    const p = plans(adviseCoinSelection([coin(40_000), coin(35_000), coin(22_500)], 60_000, 1)).plans.at(-1)!;
+    expect(values(p)).toEqual([40_000, 35_000]);
+    expect(p.warnings.map(w => w.id)).not.toContain("toxic-change");
+  });
+
+  it("outputs of a batch payout received from someone else are not one origin", () => {
+    const a = plans(adviseCoinSelection([
+      coin(30_000, { txid: "batch" }),
+      coin(30_000, { txid: "batch" }),
+    ], 50_000, 1));
+    expect(a.plans).toHaveLength(1);
+    expect(a.plans[0]!.origins).toBe(2);
+    expect(a.plans[0]!.selected[0]!.hints).toContainEqual({ kind: "same-tx", with: 2 });
+  });
+
+  it("outputs of a tx the wallet created itself are one origin", () => {
+    const p = plans(adviseCoinSelection([
+      coin(30_000, { txid: "self", selfFunded: true }),
+      coin(30_000, { txid: "self", selfFunded: true }),
+    ], 50_000, 1)).plans[0]!;
+    expect(p.origins).toBe(1);
+  });
+
+  it("leaves out coins worth less than their own input fee", () => {
+    // At 50 sat/vB a P2WPKH input costs 3,400 sats: the 1,000-sat coins only add fee
+    const a = plans(adviseCoinSelection([coin(100_000), ...Array.from({ length: 20 }, () => coin(1_000))], 50_000, 50));
+    expect(a.uneconomical).toBe(20);
+    expect(values(a.plans[0]!)).toEqual([100_000]);
+  });
+
+  it("rejects a non-positive or non-finite amount or fee rate", () => {
+    for (const [amount, rate] of [[0, 5], [-1, 5], [Number.NaN, 5], [1.5, 5], [1000, 0], [1000, Number.POSITIVE_INFINITY]] as const) {
+      expect(adviseCoinSelection([coin(50_000)], amount, rate)).toEqual({ kind: "invalid" });
+    }
   });
 
   it("offers a same-origin set first when the fewest set merges origins", () => {
@@ -138,6 +183,14 @@ describe("adviseCoinSelection", () => {
     expect(plans(adviseCoinSelection([coin(40_000), coin(40_000)], 60_000, 1)).stonewall).toBe(false);
   });
 
+  it("stays fast with thousands of coins in same-tx groups", () => {
+    const many = Array.from({ length: 3_000 }, (_, i) => coin(10_000 + (i % 150) * 13, { txid: `grp${i % 20}`, selfFunded: true }));
+    const start = performance.now();
+    const a = plans(adviseCoinSelection(many, 400_000, 2));
+    expect(performance.now() - start).toBeLessThan(1_500);
+    expect(a.plans.map(p => p.strategy)).toContain("fewest-coins");
+  });
+
   it("stays fast on large wallets", () => {
     const many = Array.from({ length: 400 }, (_, i) => coin(1_000 + i * 37));
     const start = performance.now();
@@ -162,6 +215,20 @@ describe("buildCoinInputs", () => {
       utxos: [{ txid: "cjtx", vout: 0, value: 100_000, status: { confirmed: true } }],
     }] as unknown as WalletAddressInfo[];
     const [c] = buildCoinInputs(infos);
-    expect(c).toMatchObject({ address: "bc1qout0", fromCoinJoin: true, reusedAddress: true });
+    expect(c).toMatchObject({ address: "bc1qout0", fromCoinJoin: true, selfFunded: false, reusedAddress: true });
+  });
+
+  it("marks funding txs that spent the wallet's own coins as self-funded", () => {
+    const selfTx = {
+      txid: "selftx",
+      vin: [{ txid: "prev", vout: 0, prevout: { value: 90_000, scriptpubkey_address: "bc1qmine", scriptpubkey_type: "v0_p2wpkh" } }],
+      vout: [{ value: 50_000, scriptpubkey_address: "bc1qmerchant" }, { value: 39_000, scriptpubkey_address: "bc1qchange" }],
+      status: { confirmed: true },
+    };
+    const infos = [
+      { derived: { address: "bc1qmine" }, addressData: null, txs: [selfTx], utxos: [] },
+      { derived: { address: "bc1qchange" }, addressData: null, txs: [selfTx], utxos: [{ txid: "selftx", vout: 1, value: 39_000, status: { confirmed: true } }] },
+    ] as unknown as WalletAddressInfo[];
+    expect(buildCoinInputs(infos)[0]).toMatchObject({ selfFunded: true, fromCoinJoin: false, reusedAddress: false });
   });
 });
