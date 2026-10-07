@@ -134,7 +134,7 @@ function PlanCard({ plan, recommended }: { plan: CoinSelectionPlan; recommended:
         <p className="text-sm text-muted leading-relaxed">{t(`wallet.coinSel.note.${note}`)}</p>
         {plan.absorbed > 0 && (
           <p className="text-[13px] text-muted leading-relaxed">
-            {t("wallet.coinSel.absorbed", { amount: fmtN(plan.absorbed), defaultValue: "The fee includes {{amount}} sats of leftover that would otherwise be dust change." })}
+            {t("wallet.coinSel.absorbed", { amount: fmtN(plan.absorbed), defaultValue: "The fee includes {{amount}} sats of leftover, too small to be worth a change output." })}
           </p>
         )}
       </div>

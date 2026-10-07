@@ -2167,7 +2167,7 @@
   "wallet.coinSel.note.singleChange": "Gasta una sola moneda, así que ninguna otra queda vinculada a este pago, pero deja una salida de cambio que cualquier observador puede seguir.",
   "wallet.coinSel.note.noChange": "No deja ninguna salida de cambio que seguir, pero gastar estas monedas juntas las vincula a un mismo dueño.",
   "wallet.coinSel.note.noChangeLinked": "No deja ninguna salida de cambio que seguir. Estas monedas ya comparten una dirección o una transacción de origen hecha por este monedero, así que no se vincula ninguna fuente de fondos nueva.",
-  "wallet.coinSel.absorbed": "La comisión incluye {{amount}} sats sobrantes que, si no, serían un cambio de polvo.",
+  "wallet.coinSel.absorbed": "La comisión incluye {{amount}} sats sobrantes, demasiado pocos para que merezca la pena un cambio.",
   "wallet.utxos.title": "Monedas (UTXOs)",
   "wallet.utxos.sortBy": "Ordenar por",
   "wallet.utxos.amount": "Monto",

@@ -2167,7 +2167,7 @@
   "wallet.coinSel.note.singleChange": "Spends one coin, so no other coins get linked to this payment, but it leaves a change output that observers can follow.",
   "wallet.coinSel.note.noChange": "Leaves no change output to follow, but spending these coins together links them as one owner.",
   "wallet.coinSel.note.noChangeLinked": "Leaves no change output to follow. These coins already share an address or a funding transaction made by this wallet, so no new source of funds is linked.",
-  "wallet.coinSel.absorbed": "The fee includes {{amount}} sats of leftover that would otherwise be dust change.",
+  "wallet.coinSel.absorbed": "The fee includes {{amount}} sats of leftover, too small to be worth a change output.",
   "wallet.utxos.title": "Coins (UTXOs)",
   "wallet.utxos.sortBy": "Sort by",
   "wallet.utxos.amount": "Amount",

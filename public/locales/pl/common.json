@@ -2235,7 +2235,7 @@
   "wallet.coinSel.note.singleChange": "Wydaje jedną monetę, więc żadne inne monety nie zostają powiązane z tą płatnością, ale zostaje wyjście reszty, które obserwatorzy mogą śledzić.",
   "wallet.coinSel.note.noChange": "Nie zostawia wyjścia reszty do śledzenia, ale wydanie tych monet razem przypisuje je jednemu właścicielowi.",
   "wallet.coinSel.note.noChangeLinked": "Nie zostawia wyjścia reszty do śledzenia. Te monety już dzielą adres lub transakcję źródłową utworzoną przez ten portfel, więc żadne nowe źródło środków nie zostaje powiązane.",
-  "wallet.coinSel.absorbed": "Opłata obejmuje {{amount}} sat nadwyżki, która inaczej byłaby resztą typu pył.",
+  "wallet.coinSel.absorbed": "Opłata obejmuje {{amount}} sat nadwyżki, zbyt mało, by opłacało się tworzyć wyjście reszty.",
   "wallet.utxos.title": "Monety (UTXO)",
   "wallet.utxos.sortBy": "Sortuj według",
   "wallet.utxos.amount": "Kwota",

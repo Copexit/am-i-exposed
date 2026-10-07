@@ -2167,7 +2167,7 @@
   "wallet.coinSel.note.singleChange": "Gibt eine einzige Münze aus, daher werden keine weiteren Münzen mit dieser Zahlung verknüpft, aber es bleibt eine Wechselgeld-Ausgabe, der Beobachter folgen können.",
   "wallet.coinSel.note.noChange": "Hinterlässt keine Wechselgeld-Ausgabe, der man folgen kann, aber gemeinsam ausgegeben werden diese Münzen einem Besitzer zugeordnet.",
   "wallet.coinSel.note.noChangeLinked": "Hinterlässt keine Wechselgeld-Ausgabe, der man folgen kann. Diese Münzen teilen bereits eine Adresse oder eine von dieser Wallet erstellte Funding-Transaktion, daher wird keine neue Geldquelle verknüpft.",
-  "wallet.coinSel.absorbed": "Die Gebühr enthält {{amount}} sats Rest, die sonst Dust-Wechselgeld wären.",
+  "wallet.coinSel.absorbed": "Die Gebühr enthält {{amount}} sats Rest, zu wenig, um einen Wechselgeld-Output zu lohnen.",
   "wallet.utxos.title": "Münzen (UTXOs)",
   "wallet.utxos.sortBy": "Sortieren nach",
   "wallet.utxos.amount": "Betrag",

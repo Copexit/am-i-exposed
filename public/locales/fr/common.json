@@ -2167,7 +2167,7 @@
   "wallet.coinSel.note.singleChange": "Dépense une seule pièce : aucune autre pièce n'est liée à ce paiement, mais il reste une sortie de monnaie que les observateurs peuvent suivre.",
   "wallet.coinSel.note.noChange": "Ne laisse aucune sortie de monnaie à suivre, mais dépenser ces pièces ensemble les attribue à un même propriétaire.",
   "wallet.coinSel.note.noChangeLinked": "Ne laisse aucune sortie de monnaie à suivre. Ces pièces partagent déjà une adresse ou une transaction d'origine créée par ce portefeuille, donc aucune nouvelle source de fonds n'est liée.",
-  "wallet.coinSel.absorbed": "Les frais incluent {{amount}} sats de reliquat qui seraient sinon une monnaie de poussière.",
+  "wallet.coinSel.absorbed": "Les frais incluent {{amount}} sats de reliquat, trop peu pour justifier une sortie de monnaie.",
   "wallet.utxos.title": "Pièces (UTXO)",
   "wallet.utxos.sortBy": "Trier par",
   "wallet.utxos.amount": "Montant",

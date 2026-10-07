@@ -70,7 +70,7 @@ describe("CoinSelector", () => {
     expect(within(noChange).getByText("Recommended")).toBeTruthy();
     expect(within(noChange).getByText(/Leaves no change output to follow, but spending these coins together links them/)).toBeTruthy();
     expect(within(within(noChange).getAllByRole("list")[0]!).getAllByRole("listitem")).toHaveLength(2);
-    expect(within(noChange).getByText("The fee includes 823 sats of leftover that would otherwise be dust change.")).toBeTruthy();
+    expect(within(noChange).getByText("The fee includes 823 sats of leftover, too small to be worth a change output.")).toBeTruthy();
     expect(within(single).queryByText("Recommended")).toBeNull();
     expect(within(single).getByText(/leaves a change output that observers can follow/)).toBeTruthy();
   });
