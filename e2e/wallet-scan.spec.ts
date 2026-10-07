@@ -128,3 +128,42 @@ test("coin selection advisor: multi-coin plans when no single coin pays", async 
   await page.getByRole("button", { name: "Suggest selection" }).click();
   await expect(page.getByText(/Not enough funds\. The spendable balance is 1,850,000 sats/)).toBeVisible();
 });
+
+test("coins (UTXOs) section lists every coin, sortable, with totals and scan links", async ({ page }) => {
+  await mockMultiCoinWallet(page);
+  const height = (fundingTx.status as { block_height: number }).block_height;
+  await page.route("**/api/blocks/tip/height", (route) => route.fulfill({ body: String(height + 9), contentType: "text/plain" }));
+  await page.goto(`/#xpub=${ZPUB}`);
+  await expect(stat(page, "Total balance")).toHaveText("1,850,000 sats", { timeout: 20_000 });
+
+  await page.getByRole("button", { name: /Coins \(UTXOs\)/ }).click();
+  const list = page.getByTestId("utxo-list");
+  const amounts = list.getByTestId("utxo-amount");
+  await expect(amounts).toHaveText(["600,000 sats", "500,000 sats", "300,000 sats", "250,000 sats", "200,000 sats"]);
+  await expect(list.getByTestId("utxo-total")).toContainText("1,850,000 sats");
+
+  const changeRow = list.getByTestId("utxo-row").nth(1);
+  await expect(changeRow.getByText("change", { exact: true })).toBeVisible();
+  await expect(changeRow.getByText("1/0", { exact: true })).toBeVisible();
+  await expect(changeRow.getByText("10 confirmations")).toBeVisible();
+  await expect(changeRow.getByRole("link")).toHaveAttribute("href", `/#tx=${"e1".repeat(32)}`);
+  await expect(list.getByTestId("utxo-row").nth(2).getByText("Reused address")).toBeVisible();
+
+  await list.getByRole("button", { name: "Amount" }).click();
+  await expect(amounts.first()).toHaveText("200,000 sats");
+});
+
+test("coin selection advisor: a no-change plan next to the single coin", async ({ page }) => {
+  await mockMultiCoinWallet(page);
+  await page.goto(`/#xpub=${ZPUB}`);
+  await expect(stat(page, "Total balance")).toHaveText("1,850,000 sats", { timeout: 20_000 });
+
+  await page.getByRole("button", { name: /Coin Selection Advisor/ }).click();
+  await page.getByLabel("Amount (sats)").fill("449000");
+  await page.getByRole("button", { name: "Suggest selection" }).click();
+
+  const noChange = page.getByTestId("coin-plan-no-change");
+  await expect(noChange.getByText("Recommended")).toBeVisible();
+  await expect(noChange.getByText(/already linked, so nothing new is revealed/)).toBeVisible();
+  await expect(page.getByTestId("coin-plan-single-coin").getByText(/change output that observers can follow/)).toBeVisible();
+});

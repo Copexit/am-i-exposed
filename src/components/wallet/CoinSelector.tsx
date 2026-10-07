@@ -7,10 +7,10 @@ import {
   type CoinSelectionAdvice,
   type CoinSelectionInput,
   type CoinSelectionPlan,
-  type OriginHint,
 } from "@/lib/analysis/coin-selection";
 import { fmtN } from "@/lib/format";
 import { SEVERITY_STYLES } from "@/components/findingCardConstants";
+import { HintChip } from "./WalletUtxoList";
 
 const FIELD = "w-full h-10 bg-surface-inset border border-card-border rounded-lg px-3 text-sm text-foreground num placeholder:text-faint focus:border-bitcoin/50 focus-visible:outline-none transition-colors";
 
@@ -109,7 +109,10 @@ export function CoinSelector({ utxos }: { utxos: CoinSelectionInput[] }) {
 function PlanCard({ plan, recommended }: { plan: CoinSelectionPlan; recommended: boolean }) {
   const { t } = useTranslation();
   const sats = t("common.sats", { defaultValue: "sats" });
-  const note = plan.strategy === "single-coin" ? "single" : plan.origins === 1 ? "linked" : "merge";
+  const note =
+    plan.strategy === "single-coin" ? (plan.change > 0 ? "singleChange" : "single")
+    : plan.strategy === "no-change" ? (plan.origins === 1 ? "noChangeLinked" : "noChange")
+    : plan.origins === 1 ? "linked" : "merge";
   const stats = [
     { label: t("wallet.coinSel.inputs", { defaultValue: "Inputs" }), value: fmtN(plan.selected.length) },
     { label: t("wallet.coinSel.fee", { defaultValue: "Fee" }), value: `${fmtN(plan.fee)} ${sats}` },
@@ -173,18 +176,5 @@ function PlanCard({ plan, recommended }: { plan: CoinSelectionPlan; recommended:
         </ul>
       )}
     </section>
-  );
-}
-
-function HintChip({ hint }: { hint: OriginHint }) {
-  const { t } = useTranslation();
-  const tone =
-    hint.kind === "coinjoin" ? "text-severity-good border-severity-good/30"
-    : hint.kind === "reused-address" ? "text-severity-high border-severity-high/30"
-    : "text-muted border-hairline-strong";
-  return (
-    <span className={`text-[11px] leading-none whitespace-nowrap border rounded px-1.5 py-1 ${tone}`}>
-      {t(`wallet.coinSel.hint.${hint.kind}`, { n: "with" in hint ? hint.with : 0 })}
-    </span>
   );
 }

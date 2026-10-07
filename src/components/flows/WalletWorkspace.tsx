@@ -6,6 +6,7 @@ import { ChevronDown } from "lucide-react";
 import type { WalletAuditResult, WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import type { UtxoTraceResult } from "@/hooks/useWalletAnalysis";
 import { CoinSelector } from "@/components/wallet/CoinSelector";
+import { WalletUtxoList } from "@/components/wallet/WalletUtxoList";
 import { fmtN } from "@/lib/format";
 import { buildCoinInputs } from "@/lib/analysis/coin-selection";
 
@@ -25,6 +26,7 @@ export function WalletWorkspace({ result, addressInfos, utxoTraces, onScan, addr
   const { t } = useTranslation();
   const [txsOpen, setTxsOpen] = useState(false);
   const [coinsOpen, setCoinsOpen] = useState(false);
+  const [utxosOpen, setUtxosOpen] = useState(false);
   const allUtxos = useMemo(() => buildCoinInputs(addressInfos), [addressInfos]);
   const hasTxs = result.totalTxs > 0;
 
@@ -75,6 +77,17 @@ export function WalletWorkspace({ result, addressInfos, utxoTraces, onScan, addr
             <Suspense fallback={<Loading />}>
               <WalletTxList addressInfos={addressInfos} onScan={onScan} />
             </Suspense>
+          </Panel>
+        )}
+
+        {allUtxos.length > 0 && (
+          <Panel
+            title={t("wallet.utxos.title", { defaultValue: "Coins (UTXOs)" })}
+            count={allUtxos.length}
+            open={utxosOpen}
+            onToggle={() => setUtxosOpen(o => !o)}
+          >
+            <WalletUtxoList addressInfos={addressInfos} />
           </Panel>
         )}
 
