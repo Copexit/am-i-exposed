@@ -39,6 +39,8 @@
 - **[plan-before-you-send.md](./plan-before-you-send.md)** - Task-by-task implementation plan for the spec above
 - **[spec-observatory-p2p.md](./spec-observatory-p2p.md)** - Observatory P2P markets tab: RoboSats, Mostro and HodlHodl offers, premiums, venue health, volume (0.41.0)
 - **[superpowers/plans/2026-10-07-observatory-p2p.md](./superpowers/plans/2026-10-07-observatory-p2p.md)** - Task-by-task implementation plan for the spec above
+- **[spec-wallet-heuristics.md](./spec-wallet-heuristics.md)** - Wallet-level heuristics: post-mix and change merges, change exposure, peel chains, coin origins (0.41.0)
+- **[superpowers/plans/2026-10-07-wallet-heuristics.md](./superpowers/plans/2026-10-07-wallet-heuristics.md)** - Task-by-task implementation plan for the spec above
 - **[spec-site-videos.md](./spec-site-videos.md)** - Promo on the home page and /tutorial page, GitHub Pages only
 - **[tx-graph-roadmap.md](./tx-graph-roadmap.md)** - Transaction graph roadmap
 

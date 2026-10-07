@@ -55,6 +55,8 @@ WalletResults component (src/components/flows/)
 | `src/hooks/useWalletAnalysis.ts` | Hook: derive -> fetch -> audit -> state |
 | `src/lib/bitcoin/descriptor.ts` | Xpub/descriptor parsing and BIP32 address derivation |
 | `src/lib/analysis/wallet-audit.ts` | Wallet-level privacy audit (reuse, hygiene, spending) |
+| `src/lib/analysis/wallet-behavior.ts` | Behaviour model: tx graph, coin origin classes, solo spends, simple payments, UTXO origins |
+| `src/lib/analysis/wallet-heuristics.ts` | Wallet-level heuristics: post-mix merge, change merge, change exposure, peel chain, coins kept apart |
 | `src/components/flows/WalletResults.tsx` | Wallet result: verdict, stats, worst offender, findings |
 | `src/components/flows/WalletWorkspace.tsx` | Graph, address table, tx list, coin selection |
 | `src/components/wallet/CoinSelector.tsx` | Coin selection advisor within wallet results |
@@ -73,6 +75,13 @@ WalletResults component (src/components/flows/)
 | Consolidation history | Transactions with 3+ inputs and 1-2 outputs | -3 to -5 |
 | No reuse (positive) | All active addresses used exactly once | +5 |
 | Uniform script (positive) | All UTXOs use same script type | +3 |
+| Post-mix merge | CoinJoin output spent with other coins | -8 to -20 |
+| Change merge | Change spent with a coin from another tx | -4 to -10 |
+| Change exposure | Payments whose change a standard rule identifies | -2 to -6 |
+| Peel chain | 3+ payments each spending only the previous change | -3 to -6 |
+| Coins kept apart (positive) | 3+ spends, no merges | +3 |
+
+Consolidations already counted as a merge (post-mix or change merge) are not counted again as consolidation history. The wallet-level heuristics are described in [privacy-engine.md](./privacy-engine.md#wallet-level-heuristics).
 
 ### API Call Budget
 

@@ -4,7 +4,7 @@
 
 This document describes the privacy analysis engine behind **am-i.exposed**, an open-source, client-side Bitcoin privacy scanner. It is intended for cypherpunks, privacy researchers, wallet developers, and anyone who wants to understand exactly how their Bitcoin transactions are being analyzed - by this tool, and by adversaries.
 
-The engine implements 28 transaction-level heuristics, 6 address-level heuristics, and 12 chain analysis modules that evaluate the on-chain privacy of Bitcoin addresses and transactions. These are the same techniques - sometimes simplified, sometimes extended - that chain surveillance firms use to cluster addresses, trace fund flows, and deanonymize users.
+The engine implements 28 transaction-level heuristics, 6 address-level heuristics, 5 wallet-level heuristics, and 12 chain analysis modules that evaluate the on-chain privacy of Bitcoin addresses and transactions. These are the same techniques - sometimes simplified, sometimes extended - that chain surveillance firms use to cluster addresses, trace fund flows, and deanonymize users.
 
 **Why this tool exists now.** In April 2024, OXT.me and KYCP.org ("Know Your Coin Privacy") went offline following the arrest of the Samourai Wallet developers. OXT.me was the gold standard for Boltzmann entropy analysis of Bitcoin transactions, created by LaurentMT as part of OXT Research. KYCP.org provided CoinJoin analysis and entropy calculations accessible to ordinary users. Both are gone. As of today, there is no publicly available tool that combines Boltzmann entropy estimation, wallet fingerprinting detection, and multi-transaction graph analysis in a single interface. am-i.exposed fills that gap.
 
@@ -1554,6 +1554,80 @@ High-activity addresses are more likely to be monitored by chain analysis firms,
 
 ---
 
+## Wallet-Level Heuristics
+
+Wallet audits (xpub/descriptor, `src/lib/analysis/wallet-audit.ts`) know something no single-transaction analysis knows: which addresses are the wallet's and which outputs were its change. Five heuristics use that ground truth to score what the wallet did across its history (spec: [spec-wallet-heuristics.md](./spec-wallet-heuristics.md)). They are pure functions of the scan data (no extra API calls, no traces), so the web app, the CLI (`scan xpub`) and the MCP `scan_wallet` tool return identical results.
+
+**Behaviour model** (`src/lib/analysis/wallet-behavior.ts`). Every scanned tx is deduplicated by txid. Each output paid to a wallet address gets one class from its funding tx (first match):
+
+| Class | Rule |
+|---|---|
+| `unknown` | The funding tx is not in the scanned history (address history truncated at 100 txs). |
+| `mixed` | The funding tx is a CoinJoin (`isCoinJoinTx`, including Stonewall) and the coin's value equals another output's value. |
+| `coinjoin-change` | The funding tx is a CoinJoin and the value is unique, or the coin is a Whirlpool tx0's toxic change. |
+| `received` | No input of the funding tx is the wallet's. |
+| `change` | The wallet funded the tx and it also paid an outside address. |
+| `self` | The wallet funded the tx and every addressed output is the wallet's. |
+
+- **Solo spends:** every input is the wallet's and the tx is not a CoinJoin. A tx with any outside input (collaborative, PayJoin-shaped, a CoinJoin someone else built) is skipped by every check and never labelled; PayJoin is never detected (see Non-Heuristics).
+- **Simple payments:** solo spends with exactly one addressed output to the wallet (the change) and one to someone else, excluding tx0s.
+- `unknown` never triggers a finding, so missing history cannot cause a false positive.
+- The audit also reports `utxoOrigins`: unspent coins by class (count and sats), shown as the "Coin origins" bar on the wallet result and in CLI text/JSON output. Holding mixed and unmixed coins is shown, not scored.
+
+### W1: Post-Mix Merge (`wallet-postmix-merge`)
+
+**Mechanism:** A solo spend with 2+ inputs, at least one `mixed`. Variant `unmixed`: another input is a known non-mixed class (`coinjoin-change`, `change`, `self`, `received`). Variant `mixed`: every other input is `mixed` or `unknown` (including two outputs of the same CoinJoin).
+
+**Privacy impact:** CIOH (Meiklejohn et al. 2013, Androulaki et al. 2013) links every input of a non-CoinJoin spend. Merging a mixed output with an unmixed coin ties it to that coin's history, the post-mix failure documented by OXT Research, the Whirlpool "doxxic change" guidance and Wasabi's coin control docs; Möser and Böhme (2017) measured that such merges deanonymize a large share of CoinJoin outputs. Merging only mixed outputs intersects their anonymity sets (LaurentMT, Boltzmann).
+
+**Detection:** `checkMerges` in `wallet-heuristics.ts`, over the input classes from `coinClass`.
+
+**Impact:** critical -20 (2+ `unmixed` spends), critical -15 (1), high -12 (2+ `mixed`-only spends), high -8 (1). One finding; the title counts the variant's spends.
+
+### W2: Change Merged With Other Coins (`wallet-change-merge`)
+
+**Mechanism:** A solo spend with 2+ inputs, no `mixed` input, inputs from 2+ distinct funding txs, and at least one `change` or `coinjoin-change` input. A spend counted by W1 is not counted here.
+
+**Privacy impact:** Change carries the history of the payment that created it. The recipient, and anyone applying standard change rules (Meiklejohn 2013, Kappos et al. 2022), already attribute it to the sender. Spending it with a coin from another transaction hands that coin and its source to the same observers and joins the two clusters. Merging outputs of one transaction adds no new source and does not count. Receipts-only merges are not newly penalized (3+ input merges are already `wallet-consolidation-history`, and the tx view shows `h3-cioh`).
+
+**Detection:** `checkMerges` in `wallet-heuristics.ts`.
+
+**Impact:** medium -4 (1 spend), high -7 (2-4), high -10 (5+).
+
+### W3: Change Exposure (`wallet-change-exposed`)
+
+**Mechanism:** Over the wallet's simple payments, counts those where a standard change rule points at the **real** change: `type` (the change shares every input's address type and the payment's type differs), `round` (the payment is round and the change is not, H1), `optimal` (2+ inputs, the change is smaller than every input and the payment is not; Nick 2015). A rule that fires on the wrong output does not count.
+
+**Privacy impact:** These are the rules chain analysts run at scale (validated against ground truth by Kappos et al. 2022). A wallet whose habits make them right lets anyone follow its change from payment to payment. This folds in round-payment habits and script-type mixing across spends, which matter only because they expose change.
+
+**Detection:** `checkChangeExposure` in `wallet-heuristics.ts`, over `simplePayments`.
+
+**Impact:** by ratio exposed/payments: high -6 (> 50%), medium -4 (> 20%), low -2 (any), no finding when none.
+
+### W4: Peel Chain, Wallet Level (`wallet-peel-chain`)
+
+**Mechanism:** Single-input simple payments linked when one spends the previous one's change. The longest chain counts if it has 3+ payments.
+
+**Privacy impact:** Peel chains are the main way analysts follow a wallet through its payments (Kappos et al. 2022, "How to Peel a Million"). With the wallet's ground truth the chain is exact: identify one payment and the rest follow.
+
+**Detection:** `checkPeelChains` in `wallet-heuristics.ts`.
+
+**Impact:** high -6 (6+ payments), medium -3 (3-5). Below tx-level Peel Chain Detection because W3 already scores how detectable each hop's change is.
+
+### W5: Coins Kept Apart (`wallet-no-merge`)
+
+**Mechanism:** 3+ solo spends, and none counted by W1, W2 or `wallet-consolidation-history`.
+
+**Privacy impact:** Rewards the coin control the other findings teach (mirrors `wallet-no-reuse` +5 and `wallet-uniform-script` +3).
+
+**Detection:** `checkNoMerge` in `wallet-heuristics.ts`.
+
+**Impact:** good, +3.
+
+**Deduplication:** each solo spend is counted under at most one merge finding, in the order W1, W2, `wallet-consolidation-history`. W3, W4 and W5 are separate facts and stack.
+
+---
+
 ## Scoring Model
 
 ### Base Score
@@ -1561,6 +1635,8 @@ High-activity addresses are more likely to be monitored by chain analysis firms,
 Every transaction analysis begins with a base score of **70**. This represents a "typical" Bitcoin transaction with no obviously good or bad privacy characteristics. The base score is set above the midpoint (50) because most transactions do not have catastrophic privacy failures - they have the normal, baseline level of exposure inherent in using a transparent public blockchain.
 
 For address-level analysis, the base score is **93**, reflecting the smaller number of heuristics (6) and their limited positive impact range (max +9).
+
+For wallet audits (xpub/descriptor), the base score is **70**, the same as transactions; wallet checks and wallet-level heuristics add their impacts to it.
 
 ### Score Calculation
 
@@ -1618,6 +1694,11 @@ All heuristic impacts are summed. Negative impacts indicate privacy weaknesses. 
 | - | Coinbase Detection | TX | 0 | 0 |
 | - | Recurring Payments | Addr | -5 | -10 |
 | - | High Activity Detection | Addr | -3 | -8 |
+| W1 | Post-Mix Merge | Wallet | -8 | -20 |
+| W2 | Change Merged With Other Coins | Wallet | -4 | -10 |
+| W3 | Change Exposure | Wallet | -2 | -6 |
+| W4 | Peel Chain (Wallet) | Wallet | -3 | -6 |
+| W5 | Coins Kept Apart | Wallet | +3 | +3 |
 
 ### Score Design Properties
 

@@ -196,6 +196,16 @@ Dynamic finding IDs (e.g., `h7-op-return-0`, `h7-op-return-1`) fall back to pref
 | `prospective-wallet-migration` | passive, kyc | ongoing_pattern | Wallet migration detected |
 | `prospective-mixed-fingerprints`, `prospective-fingerprint-change`, `prospective-script-diversity` | passive | ongoing_pattern | Fingerprint evolution |
 
+### Wallet-Level Heuristics
+
+| Finding ID(s) | Adversary | Temporality | Rationale |
+|---|---|---|---|
+| `wallet-postmix-merge` | passive, kyc, state | historical | CIOH re-links CoinJoin outputs; already on-chain |
+| `wallet-change-merge` | passive, kyc | historical | Change and another coin joined in one past spend |
+| `wallet-change-exposed` | passive | ongoing_pattern | Payment habits that keep revealing change |
+| `wallet-peel-chain` | passive, kyc | ongoing_pattern | Repeated spend-the-change behaviour |
+| `wallet-no-merge` | passive | ongoing_pattern | Coin control habit (positive) |
+
 ### Cross-Heuristic & Infrastructure
 
 | Finding ID(s) | Adversary | Temporality | Rationale |
