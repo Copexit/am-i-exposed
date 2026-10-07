@@ -408,3 +408,4 @@ Bisq (no public source), Peach (suspended), trade execution, per-trader data, pr
 17. **History and Mostro trades load lazily** when the Volume section approaches the viewport, to keep the first paint to orders, info and index.
 18. **`usePolled` moves to its own file**; the WabiSabi hooks re-export it. No new polling code.
 19. **No new frontend dependency.** visx, motion, noble and i18next cover everything; the only new package is `ws` in the sidecar.
+20. **Expiry is judged against the snapshot's `fetchedAt`, not the visitor's clock**, so a wrong device clock or an edge-cached snapshot never empties or overfills the book; offers kept from a stale snapshot are dropped once the visitor's clock passes their `expiresAt`.
