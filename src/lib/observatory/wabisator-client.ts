@@ -20,8 +20,9 @@ export function flowMapWindow(period: Period, nowSec: number): { since: number; 
   return { since: until - period * 86400, until };
 }
 
-const call = <T>(method: string, params: Record<string, unknown>, ttl: number, { isUmbrel, signal }: Opts) =>
-  withObservatoryCache(`wabisator:${method}:${JSON.stringify(params)}`, () => serviceRpc<T>("wabisator", "/api.php", method, params, { isUmbrel, signal }), ttl);
+// The cache entry is written after the fetch, so TTL == interval would make every second poll a cache hit.
+const call = <T>(method: string, params: Record<string, unknown>, interval: number, { isUmbrel, signal }: Opts) =>
+  withObservatoryCache(`wabisator:${method}:${JSON.stringify(params)}`, () => serviceRpc<T>("wabisator", "/api.php", method, params, { isUmbrel, signal }), Math.max(1000, interval - 1000));
 
 export function getFlowMap(period: Period, opts: Opts & { nowSec?: number }): Promise<FlowMap> {
   return call("flow-map", flowMapWindow(period, opts.nowSec ?? Date.now() / 1000), REFRESH_MS.flowMap[period], opts);

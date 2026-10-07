@@ -30,20 +30,25 @@ export function usePolled<T>(key: string | null, fetcher: (signal: AbortSignal) 
     let last = 0;
     let disposed = false;
 
+    let inFlight = false;
+    // Replaces any in-flight request (manual refresh); ticks use tick() so slow requests are not discarded.
     const run = () => {
       ctrl?.abort();
       const c = (ctrl = new AbortController());
+      inFlight = true;
       last = Date.now();
+      const done = () => { if (ctrl === c) inFlight = false; };
       fetcherRef.current(c.signal).then(
-        (data) => { if (!c.signal.aborted && !disposed) setState((s) => ({ ...s, data, error: null, loading: false, updatedAt: Date.now() })); },
-        (e: unknown) => { if (!c.signal.aborted && !disposed) setState((s) => ({ ...s, error: e instanceof Error ? e : new Error(String(e)), loading: false })); },
+        (data) => { done(); if (!c.signal.aborted && !disposed) setState((s) => ({ ...s, data, error: null, loading: false, updatedAt: Date.now() })); },
+        (e: unknown) => { done(); if (!c.signal.aborted && !disposed) setState((s) => ({ ...s, error: e instanceof Error ? e : new Error(String(e)), loading: false })); },
       );
     };
-    const start = () => { if (timer === undefined) timer = setInterval(run, intervalMs); };
+    const tick = () => { if (!inFlight) run(); };
+    const start = () => { if (timer === undefined) timer = setInterval(tick, intervalMs); };
     const stop = () => { clearInterval(timer); timer = undefined; };
     const onVis = () => {
       if (!visible()) return stop();
-      if (Date.now() - last >= intervalMs) run();
+      if (Date.now() - last >= intervalMs) tick();
       start();
     };
 

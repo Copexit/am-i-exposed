@@ -44,6 +44,29 @@ describe("usePolled", () => {
     expect(signals[0]!.aborted).toBe(true);
     expect(signals[1]!.aborted).toBe(false);
   });
+  it("does not stack requests while one is in flight", async () => {
+    const f = vi.fn(() => new Promise<number>(() => {}));
+    renderHook(() => usePolled("k", f, 1000));
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+  it("a slow fetcher (>1 interval) still lands its data", async () => {
+    const f = vi.fn(() => new Promise<string>((r) => setTimeout(() => r("slow"), 1500)));
+    const { result } = renderHook(() => usePolled("k", f, 1000));
+    await act(async () => { await vi.advanceTimersByTimeAsync(1600); });
+    expect(result.current.data).toBe("slow");
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+  it("unmount aborts the in-flight signal and sets no state", async () => {
+    let sig!: AbortSignal;
+    let resolve!: (v: string) => void;
+    const f = vi.fn((s: AbortSignal) => { sig = s; return new Promise<string>((r) => { resolve = r; }); });
+    const { unmount, result } = renderHook(() => usePolled("k", f, 1000));
+    unmount();
+    expect(sig.aborted).toBe(true);
+    await act(async () => { resolve("late"); await vi.advanceTimersByTimeAsync(0); });
+    expect(result.current.data).toBeNull();
+  });
   it("is idle with a null key", async () => {
     const f = vi.fn().mockResolvedValue(1);
     const { result } = renderHook(() => usePolled(null, f, 1000));

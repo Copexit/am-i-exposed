@@ -4,7 +4,8 @@ import status from "./fixtures/wabisator/coordinators-status.json";
 import volume from "./fixtures/wabisator/volume-history.json";
 import rounds from "./fixtures/wabisator/rounds-kruw.json";
 
-vi.mock("../cache", () => ({ withObservatoryCache: (_k: string, fn: () => Promise<unknown>) => fn() }));
+const cacheSpy = vi.hoisted(() => vi.fn());
+vi.mock("../cache", () => ({ withObservatoryCache: (k: string, fn: () => Promise<unknown>, ttl: number) => { cacheSpy(k, ttl); return fn(); } }));
 import { flowMapWindow, getFlowMap, getCoordinatorsStatus, getVolumeHistory, getRounds, REFRESH_MS } from "../wabisator-client";
 
 const fetchMock = vi.fn();
@@ -45,6 +46,15 @@ describe("wabisator client", () => {
     reply(rounds);
     expect((await getRounds("kruw", 2, { isUmbrel: false })).Rounds.length).toBeGreaterThan(0);
     expect(sent().body).toMatchObject({ method: "rounds-paginated", params: { coordinatorEndpoint: ["kruw"], page: 2, pageSize: 25 } });
+  });
+  it("cache key carries since/until and TTL is interval - 1000", async () => {
+    reply(flow1d);
+    await getFlowMap(7, { isUmbrel: false, nowSec: 1_000_000_123 });
+    const [key, ttl] = cacheSpy.mock.calls.at(-1) as [string, number];
+    expect(key).toContain("flow-map");
+    expect(key).toContain("999999900");
+    expect(key).toContain(String(999_999_900 - 7 * 86400));
+    expect(ttl).toBe(59_000);
   });
   it("refresh intervals match the spec", () => {
     expect(REFRESH_MS.flowMap).toEqual({ 1: 20_000, 7: 60_000, 30: 120_000 });
