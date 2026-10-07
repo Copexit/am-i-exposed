@@ -199,6 +199,8 @@ export interface MockAddressData {
   txs: MockTx[];
   utxos: unknown[];
   fundedSats: number;
+  /** Funded output count (defaults to txs.length, which marks a receive-then-spend address as reused) */
+  fundedCount?: number;
 }
 
 /**
@@ -212,11 +214,12 @@ export async function mockWalletAddresses(page: Page, funded: Record<string, Moc
     const data = funded[addr];
     if (sub === "txs") return route.fulfill(json(more || !data ? [] : data.txs));
     if (sub === "utxo") return route.fulfill(json(data?.utxos ?? []));
-    const n = data ? data.txs.length : 0;
+    const txCount = data ? data.txs.length : 0;
+    const n = data?.fundedCount ?? txCount;
     const sats = data?.fundedSats ?? 0;
     await route.fulfill(json({
       address: addr,
-      chain_stats: { funded_txo_count: n, funded_txo_sum: sats, spent_txo_count: 0, spent_txo_sum: 0, tx_count: n },
+      chain_stats: { funded_txo_count: n, funded_txo_sum: sats, spent_txo_count: 0, spent_txo_sum: 0, tx_count: txCount },
       mempool_stats: { funded_txo_count: 0, funded_txo_sum: 0, spent_txo_count: 0, spent_txo_sum: 0, tx_count: 0 },
     }));
   });

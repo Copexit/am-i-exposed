@@ -170,3 +170,41 @@ test("coin selection advisor: a no-change plan next to the single coin", async (
   await expect(noChange.getByText(/no new source of funds is linked/)).toBeVisible();
   await expect(page.getByTestId("coin-plan-single-coin").getByText(/change output that observers can follow/)).toBeVisible();
 });
+
+const OUTSIDE_1 = "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh";
+const OUTSIDE_2 = "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq";
+
+/** A wallet-built tx spending `inputs` (outputs of earlier mock txs) to `outputs`. */
+function spend(txidByte: string, inputs: { tx: typeof fundingTx; vout: number }[], outputs: { address: string; value: number }[]) {
+  const tx = structuredClone(fundingTx);
+  tx.txid = txidByte.repeat(32);
+  tx.vin = inputs.map(({ tx: parent, vout }) => ({ ...structuredClone(fundingTx.vin[0]!), txid: parent.txid, vout, prevout: { ...parent.vout[vout]! } }));
+  tx.vout = outputs.map((o) => ({ ...structuredClone(fundingTx.vout[0]!), scriptpubkey_address: o.address, scriptpubkey_type: "v0_p2wpkh", value: o.value }));
+  return tx;
+}
+
+test("wallet heuristics: change merged with a receipt is flagged and links to the tx", async ({ page }) => {
+  const r1 = payTo("c1", FIRST_ADDRESS, 300_000);
+  const r2 = payTo("d1", SECOND_ADDRESS, 600_000);
+  const p1 = spend("e1", [{ tx: r1, vout: 0 }], [{ address: OUTSIDE_1, value: 200_000 }, { address: CHANGE_ADDRESS, value: 99_000 }]);
+  const m1 = spend("f1", [{ tx: p1, vout: 1 }, { tx: r2, vout: 0 }], [{ address: OUTSIDE_2, value: 690_000 }]);
+  await mockExtraTxs(page, [r1, r2, p1, m1]);
+  await mockWalletAddresses(page, {
+    [FIRST_ADDRESS]: { txs: [p1, r1], utxos: [], fundedSats: 300_000, fundedCount: 1 },
+    [SECOND_ADDRESS]: { txs: [m1, r2], utxos: [], fundedSats: 600_000, fundedCount: 1 },
+    [CHANGE_ADDRESS]: { txs: [m1, p1], utxos: [], fundedSats: 99_000, fundedCount: 1 },
+  });
+
+  await page.goto(`/#xpub=${ZPUB}`);
+  await expect(page.getByText("Wallet Privacy Audit")).toBeVisible({ timeout: 20_000 });
+  // A medium finding sits in the collapsed "Minor signals" group (the round payment's
+  // change exposure is the open, high one)
+  await page.getByRole("button", { name: /Minor signals/ }).click();
+  const finding = page.getByRole("button", { name: /1 spend merged change with other coins/ });
+  await expect(finding).toBeVisible();
+  await finding.click();
+  const refs = page.getByTestId("finding-tx-refs");
+  await expect(refs).toBeVisible();
+  await refs.getByRole("button").first().click();
+  await expect(page).toHaveURL(new RegExp(`#tx=${"f1".repeat(32)}`));
+});
