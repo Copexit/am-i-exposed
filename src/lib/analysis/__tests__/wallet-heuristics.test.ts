@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { History, coinJoin, recv, chg, ext, walletAddrs, type Coin } from "./fixtures/wallet-history";
+import { History, coinJoin, recv, chg, ext, extTaproot, walletAddrs, type Coin } from "./fixtures/wallet-history";
 import { buildWalletGraph, simplePayments, soloSpends } from "../wallet-behavior";
-import { checkMerges, txRefs, MAX_TX_REFS } from "../wallet-heuristics";
+import { checkMerges, checkChangeExposure, checkPeelChains, checkNoMerge, txRefs, MAX_TX_REFS } from "../wallet-heuristics";
 
 const run = (h: History, n = 8) => {
   const g = buildWalletGraph(h.infos(walletAddrs(n)));
@@ -86,5 +86,82 @@ describe("checkMerges", () => {
     const { findings, merged } = checkMerges(run(h).g, run(h).spends);
     expect(findings).toEqual([]);
     expect(merged.size).toBe(0);
+  });
+});
+
+describe("checkChangeExposure", () => {
+  it("counts only rules that point at the real change, by ratio", () => {
+    const h = new History();
+    // type: payment to Taproot, change P2WPKH like the input
+    pay(h, h.receive(recv(0), 1_000_000, 100), 123_457, chg(0), 101, extTaproot(1));
+    // round payment, non-round change
+    pay(h, h.receive(recv(1), 1_000_000, 102), 200_000, chg(1), 103);
+    // optimal: change 48,000 below both inputs, payment above
+    h.tx([h.receive(recv(2), 500_000, 104), h.receive(recv(3), 600_000, 105)], [{ address: ext(2), value: 1_051_003 }, { address: chg(2), value: 48_000 }], 106);
+    // not exposed: same types, non-round, single input
+    pay(h, h.receive(recv(4), 1_000_000, 107), 123_457, chg(3), 108);
+    // a rule that would point at the payment does not count: round change, non-round payment
+    pay(h, h.receive(recv(5), 1_001_000, 109), 123_457, chg(4), 110);
+    const { payments } = run(h);
+    expect(payments).toHaveLength(5);
+    const [f] = checkChangeExposure(payments);
+    expect(f!.params).toMatchObject({ exposed: 3, payments: 5, ratio: 60, byType: 1, byRound: 1, byOptimal: 1 });
+    expect([f!.severity, f!.scoreImpact]).toEqual(["high", -6]);
+  });
+
+  it("medium above 20%, low otherwise, nothing when none exposed", () => {
+    const h = new History();
+    pay(h, h.receive(recv(0), 1_000_000, 100), 200_000, chg(0), 101); // exposed (round)
+    for (let i = 1; i < 5; i++) pay(h, h.receive(recv(i), 1_000_000, 100 + i * 2), 123_457, chg(i), 101 + i * 2);
+    expect(checkChangeExposure(run(h).payments)[0]!.scoreImpact).toBe(-2); // 1 of 5 = 20%, not above
+    pay(h, h.receive(recv(6), 1_000_000, 120), 300_000, chg(6), 121);
+    expect(checkChangeExposure(run(h).payments)[0]!.scoreImpact).toBe(-4); // 2 of 6
+    expect(checkChangeExposure([])).toEqual([]);
+  });
+});
+
+describe("checkPeelChains", () => {
+  const chain = (h: History, start: Coin, n: number, changeBase: number, height: number) => {
+    let coin = start;
+    const ids: string[] = [];
+    for (let i = 0; i < n; i++) {
+      const out = pay(h, coin, 10_007 + i, chg(changeBase + i), height + i);
+      ids.push(out[0]!.txid);
+      coin = out[1]!;
+    }
+    return ids;
+  };
+
+  it("no finding below 3 payments; medium -3 at 3; high -6 at 6; reports the longest chain in order", () => {
+    const h = new History();
+    chain(h, h.receive(recv(0), 5_000_000, 100), 2, 0, 101);
+    expect(checkPeelChains(run(h, 20).payments)).toEqual([]);
+
+    const ids3 = chain(h, h.receive(recv(1), 5_000_000, 110), 3, 2, 111);
+    let [f] = checkPeelChains(run(h, 20).payments);
+    expect([f!.severity, f!.scoreImpact, f!.params?.count, f!.params?.chains]).toEqual(["medium", -3, 3, 1]);
+    expect(JSON.parse(String(f!.params!._txids))).toEqual(ids3);
+
+    const ids6 = chain(h, h.receive(recv(2), 5_000_000, 120), 6, 5, 121);
+    [f] = checkPeelChains(run(h, 20).payments);
+    expect([f!.severity, f!.scoreImpact, f!.params?.count, f!.params?.chains]).toEqual(["high", -6, 6, 2]);
+    expect(JSON.parse(String(f!.params!._txids))).toEqual(ids6);
+  });
+
+  it("a multi-input payment breaks the chain", () => {
+    const h = new History();
+    const [, c0] = pay(h, h.receive(recv(0), 5_000_000, 100), 10_007, chg(0), 101);
+    const [, c1] = pay(h, c0!, 10_009, chg(1), 102);
+    const [, c2] = h.tx([c1!, h.receive(recv(1), 50_000, 103)], [{ address: ext(1), value: 60_011 }, { address: chg(2), value: c1!.value - 11_000 }], 104);
+    pay(h, c2!, 10_013, chg(3), 105);
+    expect(checkPeelChains(run(h).payments)).toEqual([]);
+  });
+});
+
+describe("checkNoMerge", () => {
+  it("rewards 3+ spends without merges", () => {
+    expect(checkNoMerge(3, false).map((f) => [f.id, f.severity, f.scoreImpact])).toEqual([["wallet-no-merge", "good", 3]]);
+    expect(checkNoMerge(2, false)).toEqual([]);
+    expect(checkNoMerge(5, true)).toEqual([]);
   });
 });

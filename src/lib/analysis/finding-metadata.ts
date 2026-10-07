@@ -257,6 +257,9 @@ export const FINDING_METADATA = {
   "wallet-consolidation-history": { adversaryTiers: [P, K],    temporality: "historical" },
   "wallet-postmix-merge":         { adversaryTiers: [P, K, S], temporality: "historical" },
   "wallet-change-merge":          { adversaryTiers: [P, K],    temporality: "historical" },
+  "wallet-change-exposed":        { adversaryTiers: [P],       temporality: "ongoing_pattern" },
+  "wallet-peel-chain":            { adversaryTiers: [P, K],    temporality: "ongoing_pattern" },
+  "wallet-no-merge":              { adversaryTiers: [P],       temporality: "ongoing_pattern" },
 } satisfies Record<string, FindingMeta>;
 
 /**

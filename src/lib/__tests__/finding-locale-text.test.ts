@@ -37,9 +37,9 @@ import { buildWabiSabiMultiTierFinding, buildStonewallFinding } from "../analysi
 import { analyzeChangeDetection } from "../analysis/heuristics/change-detection";
 import { analyzeOpReturn } from "../analysis/heuristics/op-return";
 import { analyzeCioh } from "../analysis/heuristics/cioh";
-import { History, coinJoin, recv, chg, ext, walletAddrs } from "../analysis/__tests__/fixtures/wallet-history";
-import { buildWalletGraph, soloSpends } from "../analysis/wallet-behavior";
-import { checkMerges } from "../analysis/wallet-heuristics";
+import { History, coinJoin, recv, chg, ext, walletAddrs, goldenWallet } from "../analysis/__tests__/fixtures/wallet-history";
+import { buildWalletGraph, simplePayments, soloSpends } from "../analysis/wallet-behavior";
+import { checkChangeExposure, checkMerges, checkNoMerge, checkPeelChains } from "../analysis/wallet-heuristics";
 
 const locale = (lang: string) =>
   JSON.parse(readFileSync(join(process.cwd(), "public/locales", lang, "common.json"), "utf8")) as Record<string, string>;
@@ -448,6 +448,33 @@ describe("wallet merge findings render in every locale", () => {
           expect(v).not.toMatch(/\{\{|^finding\./);
         }
         if (lng !== "en") expect(text.description).not.toBe(f.description);
+      }
+    }
+  });
+});
+
+describe("wallet pattern findings render in every locale", () => {
+  const patterns = () => {
+    const infos = goldenWallet();
+    const g = buildWalletGraph(infos);
+    const payments = simplePayments(g, soloSpends(g));
+    return [...checkChangeExposure(payments), ...checkPeelChains(payments), ...checkNoMerge(3, false)];
+  };
+
+  it("English locale text equals the code's English text", () => {
+    const fs = patterns();
+    expect(fs.map((f) => f.id)).toEqual(["wallet-change-exposed", "wallet-peel-chain", "wallet-no-merge"]);
+    for (const f of fs) {
+      expect(render(f).title).toBe(f.title);
+      expect(render(f).description).toBe(f.description);
+      expect(render(f).recommendation).toBe(f.recommendation);
+    }
+  });
+
+  it("every locale resolves title, description and recommendation", () => {
+    for (const f of patterns()) {
+      for (const lng of LANGS) {
+        for (const v of Object.values(render(f, lng))) expect(v).not.toMatch(/\{\{|^finding\./);
       }
     }
   });
