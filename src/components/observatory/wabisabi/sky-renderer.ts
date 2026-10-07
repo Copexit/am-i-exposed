@@ -71,8 +71,8 @@ export function quadPoint(ax: number, ay: number, cx: number, cy: number, bx: nu
 export interface LabelItem { key: string; x: number; y: number; r: number; name: string; vol: string; nameW: number; volW: number; weight: number }
 export type LabelSide = "below" | "above" | "right" | "left";
 export interface LabelBox { key: string; x: number; y: number; w: number; h: number; side: LabelSide; showVolume: boolean; name: string; vol: string }
-/** pad: from a star's clear radius to its label; sep: min gap between two labels. */
-export interface LabelMetrics { nameH: number; volH: number; gap: number; pad: number; sep: number }
+/** pad: from a star's clear radius to its label; sep / sepX: min vertical / horizontal gap between two labels (side by side they need more, or they read as one line). */
+export interface LabelMetrics { nameH: number; volH: number; gap: number; pad: number; sep: number; sepX: number }
 
 const SIDES: LabelSide[] = ["below", "above", "right", "left"];
 
@@ -108,7 +108,7 @@ export function placeLabels(items: LabelItem[], bounds: Rect, m: LabelMetrics): 
   });
   const placed: LabelBox[] = [];
   const cost = (b: LabelBox) => {
-    const pad = { x: b.x - m.sep, y: b.y - m.sep, w: b.w + 2 * m.sep, h: b.h + 2 * m.sep };
+    const pad = { x: b.x - m.sepX, y: b.y - m.sep, w: b.w + 2 * m.sepX, h: b.h + 2 * m.sep };
     return placed.reduce((s, p) => s + area(pad, p), 0) + discs.reduce((s, d) => s + area(b, d), 0);
   };
   const inside = (b: LabelBox) => b.x >= bounds.x0 && b.y >= bounds.y0 && b.x + b.w <= bounds.x1 && b.y + b.h <= bounds.y1;
@@ -136,7 +136,7 @@ export function placeLabels(items: LabelItem[], bounds: Rect, m: LabelMetrics): 
 export interface StarPx { key: string; x: number; y: number; r: number; tone: string; online: boolean; volume: number }
 export interface SkyLayout { view: SkyView; plot: Rect; stars: StarPx[]; byKey: Map<string, StarPx>; labels: LabelBox[]; fonts: SkyFonts; nameSize: number; maxEventVol: number }
 
-export const labelMetrics = (mobile: boolean): LabelMetrics => (mobile ? { nameH: 12, volH: 10, gap: 3, pad: 4, sep: 4 } : { nameH: 13, volH: 11, gap: 4, pad: 6, sep: 6 });
+export const labelMetrics = (mobile: boolean): LabelMetrics => (mobile ? { nameH: 12, volH: 10, gap: 3, pad: 4, sep: 4, sepX: 10 } : { nameH: 13, volH: 11, gap: 4, pad: 6, sep: 6, sepX: 12 });
 
 /** Pixel layout of the stars and labels for a view. Pure; recomputed on scene, size or font change. */
 export function layoutSky(scene: Scene, view: SkyView, fonts: SkyFonts, volText: (key: string, volume: number) => string, measure: (text: string, font: string) => number): SkyLayout {
@@ -270,7 +270,7 @@ function spawn(dyn: SkyDynamics, layout: SkyLayout, e: SkyEvent, cap: number) {
     const dur = 1.15 + rand() * 0.75;
     const born = dyn.animT + ARRIVE - dur + (rand() - 0.5) * 0.5;
     if (src.from === e.star) {
-      dyn.particles.push({ orbit: true, tone: target.tone, ax: target.x / w, ay: target.y / h, cx: rand() * Math.PI * 2, cy: rand() < 0.5 ? -1 : 1, bx: target.r * (1.8 + rand() * 1.2), by: target.r * 0.95, born, dur: dur + 0.6 });
+      dyn.particles.push({ orbit: true, tone: target.tone, ax: target.x / w, ay: target.y / h, cx: rand() * Math.PI * 2, cy: rand() < 0.5 ? -1 : 1, bx: Math.min(clearRadius(target.r) - 8, target.r * (1.4 + rand() * 0.6)), by: target.r * 0.95, born, dur: dur + 0.6 });
       continue;
     }
     const from = src.from ? layout.byKey.get(src.from) : undefined;

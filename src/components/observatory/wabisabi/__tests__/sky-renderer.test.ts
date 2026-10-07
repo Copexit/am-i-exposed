@@ -3,14 +3,14 @@ import flowEnv from "@/lib/observatory/__tests__/fixtures/wabisator/flow-map-1d.
 import { buildScene, type Scene } from "@/lib/observatory/sky-model";
 import type { FlowMap } from "@/lib/observatory/wabisator-types";
 import {
-  SkyClock, clearRadius, createDynamics, curveControl, edgeEntry, layoutSky, placeLabels, quadPoint, resolveColor, resolvePalette, step,
+  SkyClock, clearRadius, createDynamics, curveControl, labelMetrics, edgeEntry, layoutSky, placeLabels, quadPoint, resolveColor, resolvePalette, step,
   type LabelItem, type Rect,
 } from "../sky-renderer";
 
 const scene: Scene = buildScene(flowEnv.result as unknown as FlowMap, null);
 const measure = (text: string) => text.length * 6;
 const bounds: Rect = { x0: 0, y0: 0, x1: 400, y1: 300 };
-const metrics = { nameH: 12, volH: 10, gap: 3, pad: 6, sep: 6 };
+const metrics = { nameH: 12, volH: 10, gap: 3, pad: 6, sep: 6, sepX: 12 };
 const overlap = (a: { x: number; y: number; w: number; h: number }, b: typeof a) =>
   a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
@@ -60,6 +60,22 @@ describe("clear radius", () => {
         const nx = Math.max(l.x, Math.min(it.x, l.x + l.w)), ny = Math.max(l.y, Math.min(it.y, l.y + l.h));
         expect(Math.hypot(nx - it.x, ny - it.y)).toBeGreaterThanOrEqual(clearRadius(it.r) - 2);
       }
+    }
+  });
+});
+
+describe("label gaps", () => {
+  it("keeps side-by-side labels at least sepX apart, stacked ones at least sep", () => {
+    // Two stars on one row: labels below would sit on the same baseline 8 px apart.
+    const items = [item("Noderunners", 150, 100, 2), item("SwissCoordinator", 239, 100, 1)];
+    const [a, b] = placeLabels(items, bounds, metrics);
+    const yOverlap = a!.y < b!.y + b!.h && b!.y < a!.y + a!.h;
+    if (yOverlap) {
+      const gap = Math.max(b!.x - (a!.x + a!.w), a!.x - (b!.x + b!.w));
+      expect(gap).toBeGreaterThanOrEqual(metrics.sepX);
+    } else {
+      const gap = Math.max(b!.y - (a!.y + a!.h), a!.y - (b!.y + b!.h));
+      expect(gap).toBeGreaterThanOrEqual(metrics.sep);
     }
   });
 });
@@ -136,6 +152,19 @@ describe("step", () => {
     step(dyn, layout, scene, scene.until, 0.016, 50, 0);
     expect(dyn.pulses.length).toBeGreaterThan(0);
     expect(dyn.particles.length).toBeLessThanOrEqual(50);
+  });
+
+  it("keeps internal-remix orbits inside the star's clear radius, off the label", () => {
+    const dyn = createDynamics();
+    step(dyn, layout, scene, scene.since - 1, 0.016, 2200, 0);
+    step(dyn, layout, scene, scene.until, 0.016, 2200, 0);
+    const orbits = dyn.particles.filter((p) => p.orbit);
+    expect(orbits.length).toBeGreaterThan(0);
+    const pad = labelMetrics(false).pad;
+    for (const p of orbits) {
+      const star = layout.stars.find((s) => Math.abs(s.x / 800 - p.ax) < 1e-9 && Math.abs(s.y / 500 - p.ay) < 1e-9)!;
+      expect(Math.max(p.bx, p.by)).toBeLessThan(clearRadius(star.r) - pad);
+    }
   });
 
   it("does not replay the past on a jump: a new epoch starts after the clock", () => {
