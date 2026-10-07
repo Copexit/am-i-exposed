@@ -297,7 +297,7 @@ The Observatory tab list becomes `wabisabi`, `whirlpool`, `p2p`. The tablist lab
    - HodlHodl: one card (offers, currencies, typical fee, on-chain multisig escrow).
    - Each venue has a one-line explainer (escrow model: Lightning hold invoices and bonds, Mostro hold invoices over Nostr, HodlHodl 2-of-3 on-chain multisig).
 7. **Volume history.**
-   - RoboSats daily volume stacked by coordinator, ranges 30 d, 90 d, 1 y, All, with an all-time-high marker; built on the existing `TrendChart` style (visx). Public site: the clearnet coordinators only, labelled "2 of 7 coordinators (the rest are reachable through Tor on a self-hosted node)". Self-hosted: all reachable coordinators.
+   - RoboSats daily federation volume (sum of reachable coordinators), ranges 30 d, 90 d, 1 y, All, with an all-time-high marker, reusing the WabiSabi `VolumeHistoryChart`; under it, per-coordinator share bars for the selected range. Public site: the clearnet coordinators only, labelled "2 of 7 coordinators (the rest are reachable through Tor on a self-hosted node)". Self-hosted: all reachable coordinators.
    - Mostro completed trades as bars for the last 7 days (count and BTC), labelled "seen on public relays".
    - HodlHodl: "HodlHodl publishes no volume data."
 8. **Attribution and privacy footer.** Sources with links, "Data is fetched through the am-i.exposed relay (or Tor on a self-hosted node). No request from this page carries anything about the visitor." The index source ("index: RoboSats coordinator price, median of blockchain.info and yadio.io").
