@@ -197,3 +197,47 @@ export function ConsolidationTable({
     </div>
   );
 }
+
+// ─── Transactions behind a wallet finding ───────────────────────────────
+
+/** The txids a wallet finding is about (`params._txids`, a JSON array), each opening its analysis. */
+export function TxRefList({ txidsJson, more, onTxClick }: {
+  txidsJson: string;
+  more: number;
+  onTxClick?: (txid: string) => void;
+}) {
+  const { t } = useTranslation();
+  let txids: string[];
+  try {
+    const parsed: unknown = JSON.parse(txidsJson);
+    txids = Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return null;
+  }
+  if (txids.length === 0) return null;
+  return (
+    <div data-testid="finding-tx-refs" className="rounded-md border border-card-border px-3 py-2">
+      <p className="eyebrow mb-1">{t("finding.txRefs", { defaultValue: "Transactions" })}</p>
+      <ul className="flex flex-wrap gap-x-4">
+        {txids.map((txid) => (
+          <li key={txid}>
+            {onTxClick ? (
+              <button
+                type="button"
+                onClick={() => onTxClick(txid)}
+                className="inline-flex items-center min-h-[40px] font-mono text-xs text-bitcoin hover:text-bitcoin-hover transition-colors cursor-pointer"
+              >
+                {truncateId(txid, 8)}
+              </button>
+            ) : (
+              <span className="inline-flex items-center min-h-[40px] font-mono text-xs text-foreground/70">{truncateId(txid, 8)}</span>
+            )}
+          </li>
+        ))}
+      </ul>
+      {more > 0 && (
+        <p className="text-xs text-muted">{t("finding.txRefsMore", { count: more, defaultValue: "and {{count}} more" })}</p>
+      )}
+    </div>
+  );
+}

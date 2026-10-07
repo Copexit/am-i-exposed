@@ -9,7 +9,7 @@ import { highestAdversaryTier } from "@/lib/analysis/finding-metadata";
 import { WalletIcon } from "@/components/ui/WalletIcon";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { findingKeys } from "@/lib/finding-utils";
-import { RicochetHopTable, ConsolidationTable } from "./FindingCardTables";
+import { RicochetHopTable, ConsolidationTable, TxRefList } from "./FindingCardTables";
 import type { FindingId } from "@/lib/analysis/finding-metadata";
 import { Collapse } from "./ui/Collapse";
 import {
@@ -222,6 +222,9 @@ export function FindingCardBody({ finding, onTxClick, detailed = false, classNam
           lang={i18n.language}
           onTxClick={onTxClick}
         />
+      )}
+      {typeof finding.params?._txids === "string" && (
+        <TxRefList txidsJson={finding.params._txids} more={Number(finding.params.more ?? 0)} onTxClick={onTxClick} />
       )}
       <div className="flex items-center justify-between">
         {learnMore && (
