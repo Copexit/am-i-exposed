@@ -31,6 +31,7 @@ export function CoinOrigins({ origins }: { origins: OriginCounts }) {
   const totalSats = present.reduce((s, c) => s + origins[c].sats, 0);
   if (totalCount === 0) return null;
   const label = (c: CoinClass) => t(`wallet.origin.${c}`, { defaultValue: LABEL[c] });
+  const sats = t("common.sats", { defaultValue: "sats" });
   return (
     <div data-testid="coin-origins" className="space-y-2">
       <span className="text-[13px] text-muted">{t("wallet.coinOrigins", { defaultValue: "Coin origins" })}</span>
@@ -40,7 +41,7 @@ export function CoinOrigins({ origins }: { origins: OriginCounts }) {
         className="flex h-2 w-full overflow-hidden rounded-full bg-surface-inset"
       >
         {present.map((c) => (
-          <span key={c} className={TONE[c]} style={{ width: `${totalSats > 0 ? (origins[c].sats / totalSats) * 100 : 100 / present.length}%` }} />
+          <span key={c} className={TONE[c]} style={{ width: `${(origins[c].sats / totalSats) * 100}%` }} />
         ))}
       </div>
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
@@ -48,7 +49,7 @@ export function CoinOrigins({ origins }: { origins: OriginCounts }) {
           <li key={c} className="flex items-center gap-1.5">
             <span aria-hidden="true" className={`h-2 w-2 rounded-full ${TONE[c]}`} />
             <span className="text-foreground">{label(c)}</span>
-            <span className="num">{fmtN(origins[c].count)} · {fmtN(origins[c].sats)} sats</span>
+            <span className="num">{fmtN(origins[c].count)} · {fmtN(origins[c].sats)} {sats}</span>
           </li>
         ))}
       </ul>

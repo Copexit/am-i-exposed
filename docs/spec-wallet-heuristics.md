@@ -41,6 +41,7 @@ Everything comes from `WalletAddressInfo[]` (`derived`, `addressData`, `txs`, `u
 - **The wallet's addresses:** every scanned derived address (both chains, or the one chain a descriptor fixes).
 - **The wallet's transactions:** the union of every address's `txs`, deduplicated by txid. Each tx carries `vin[].prevout` (address, value), `vout[]`, `status.block_height`.
 - **Limits:** `getAddressTxs` stops at 4 pages (100 txs) per address, so a heavily reused address can have a truncated history. A coin whose funding tx is not in the scanned history has class `unknown`, and `unknown` never triggers a finding (no false positive from missing data).
+- **Gap limit:** Own addresses beyond the scanned gap limit look external: a self-transfer to them reads as a payment, which can turn `self` into `change` and add change-exposure or peel-chain hits. The "Rescan with" larger gap limit control is the remedy.
 
 ### The behaviour model (`src/lib/analysis/wallet-behavior.ts`)
 
@@ -48,7 +49,8 @@ Everything comes from `WalletAddressInfo[]` (`derived`, `addressData`, `txs`, `u
 
 | Class | Rule (first match) |
 |---|---|
-| `unknown` | The funding tx is not in the scanned history. |
+| `unknown` | The funding tx is not in the scanned history, or the wallet funded only part of it (some inputs are outside: collaborative, PayJoin-shaped). |
+| `received` (from a CoinJoin) | The funding tx is a CoinJoin with no wallet input and is not Whirlpool (a JoinMarket taker or a payment inside a round paid the wallet). |
 | `mixed` | The funding tx is a CoinJoin (`isCoinJoinTx`) and the coin's value equals at least one other output's value in it. |
 | `coinjoin-change` | The funding tx is a CoinJoin and the value is unique in it, or the coin is a Whirlpool tx0's toxic change (`detectTx0(tx).toxicChange`). |
 | `received` | No input of the funding tx is the wallet's. |
@@ -57,6 +59,8 @@ Everything comes from `WalletAddressInfo[]` (`derived`, `addressData`, `txs`, `u
 
 Rulings:
 - `isCoinJoinTx` covers Stonewall and simplified Stonewall. A Stonewall's equal output is `mixed`: it carries the Stonewall's ambiguity. Its other wallet output is `coinjoin-change`.
+- A CoinJoin funded only by the wallet counts as one only when an equal-value output returns to the wallet (a solo Stonewall's decoy). An own batch paying several people the same amount is a solo spend (final review I3).
+- Whirlpool mixes into a separate postmix account with no input from it, so a Whirlpool output with no wallet input stays `mixed` (final review I1).
 - WabiSabi rounds use standard denominations, so equal values are the anonymity set. A unique-value output is the round's change.
 
 **Solo spends.** A transaction the wallet built alone:
@@ -118,6 +122,8 @@ This is in line with tx-level Post-Mix Consolidation (-12 to -18).
 
 **Params:** `count`, `_txids`, `more`.
 
+**Already-linked coins do not count.** A change input merged only with coins from its own funding tx or on its own address adds no new link and is skipped. Deeper linkage (both coins descending from one consolidation) still counts; a union-find over solo-spend ancestry can be added if it shows up in feedback.
+
 **Receipts-only merges are not newly penalized.** Merging two `received` coins also links them, but:
 - it is the baseline cost of spending from a wallet with many small receipts;
 - 3+ input merges are already scored by `wallet-consolidation-history`;
@@ -169,7 +175,7 @@ This is below tx-level (-15 to -20) because W3 already scores how detectable eac
 
 ### W5: Coins kept apart (`wallet-no-merge`, good)
 
-**What:** 3+ solo spends, and none counted by W1, W2 or `wallet-consolidation-history`.
+**What:** 3+ solo spends, none counted by W1, W2 or `wallet-consolidation-history`, and no W4 peel chain (a peel chain links the payments anyway; final review I4).
 
 **Score:** good, +3. This mirrors `wallet-no-reuse` (+5) and `wallet-uniform-script` (+3), and rewards the coin control the other findings teach.
 

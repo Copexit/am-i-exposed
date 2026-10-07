@@ -322,12 +322,14 @@ export function auditWallet(addresses: WalletAddressInfo[], failedAddresses: str
   const merges = checkMerges(graph, spends);
   findings.push(...merges.findings);
   findings.push(...checkChangeExposure(payments));
-  findings.push(...checkPeelChains(payments));
+  const peel = checkPeelChains(payments);
+  findings.push(...peel);
   // A spend counted as a merge (W1/W2) is not counted again as a consolidation
   const consolidations = checkSpendingPatterns(addresses, merges.merged);
   findings.push(...consolidations);
   findings.push(...checkGoodPractices(addresses));
-  findings.push(...checkNoMerge(spends.length, merges.merged.size > 0 || consolidations.length > 0));
+  // No "coins kept apart" credit next to a peel chain: the payments are linked anyway
+  findings.push(...checkNoMerge(spends.length, merges.merged.size > 0 || consolidations.length > 0 || peel.length > 0));
   if (failedAddresses.length > 0) {
     // Rendered via finding.wallet-scan-partial.* keys, English fallback here
     const count = failedAddresses.length;

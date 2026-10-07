@@ -1562,8 +1562,9 @@ Wallet audits (xpub/descriptor, `src/lib/analysis/wallet-audit.ts`) know somethi
 
 | Class | Rule |
 |---|---|
-| `unknown` | The funding tx is not in the scanned history (address history truncated at 100 txs). |
-| `mixed` | The funding tx is a CoinJoin (`isCoinJoinTx`, including Stonewall) and the coin's value equals another output's value. |
+| `unknown` | The funding tx is not in the scanned history (address history truncated at 100 txs), or the wallet funded only part of it (outside inputs: never labelled). |
+| `received` | The funding tx is someone else's CoinJoin (no wallet input, not Whirlpool), e.g. a JoinMarket taker paying the wallet. |
+| `mixed` | The funding tx is a CoinJoin (`isCoinJoinTx`, including Stonewall) and the coin's value equals another output's value. A tx funded only by the wallet counts as a CoinJoin only when an equal-value output returns to the wallet, so an own equal-amount batch is a solo spend. |
 | `coinjoin-change` | The funding tx is a CoinJoin and the value is unique, or the coin is a Whirlpool tx0's toxic change. |
 | `received` | No input of the funding tx is the wallet's. |
 | `change` | The wallet funded the tx and it also paid an outside address. |
@@ -1572,6 +1573,7 @@ Wallet audits (xpub/descriptor, `src/lib/analysis/wallet-audit.ts`) know somethi
 - **Solo spends:** every input is the wallet's and the tx is not a CoinJoin. A tx with any outside input (collaborative, PayJoin-shaped, a CoinJoin someone else built) is skipped by every check and never labelled; PayJoin is never detected (see Non-Heuristics).
 - **Simple payments:** solo spends with exactly one addressed output to the wallet (the change) and one to someone else, excluding tx0s.
 - `unknown` never triggers a finding, so missing history cannot cause a false positive.
+- **Gap limit:** Own addresses beyond the scanned gap limit look external: a self-transfer to them reads as a payment, which can turn `self` into `change` and add change-exposure or peel-chain hits. The "Rescan with" larger gap limit control is the remedy.
 - The audit also reports `utxoOrigins`: unspent coins by class (count and sats), shown as the "Coin origins" bar on the wallet result and in CLI text/JSON output. Holding mixed and unmixed coins is shown, not scored.
 
 ### W1: Post-Mix Merge (`wallet-postmix-merge`)
@@ -1588,7 +1590,7 @@ Wallet audits (xpub/descriptor, `src/lib/analysis/wallet-audit.ts`) know somethi
 
 **Mechanism:** A solo spend with 2+ inputs, no `mixed` input, inputs from 2+ distinct funding txs, and at least one `change` or `coinjoin-change` input. A spend counted by W1 is not counted here.
 
-**Privacy impact:** Change carries the history of the payment that created it. The recipient, and anyone applying standard change rules (Meiklejohn 2013, Kappos et al. 2022), already attribute it to the sender. Spending it with a coin from another transaction hands that coin and its source to the same observers and joins the two clusters. Merging outputs of one transaction adds no new source and does not count. Receipts-only merges are not newly penalized (3+ input merges are already `wallet-consolidation-history`, and the tx view shows `h3-cioh`).
+**Privacy impact:** Change carries the history of the payment that created it. The recipient, and anyone applying standard change rules (Meiklejohn 2013, Kappos et al. 2022), already attribute it to the sender. Spending it with a coin from another transaction hands that coin and its source to the same observers and joins the two clusters. Merging outputs of one transaction, or coins on the change's own address, adds no new link and does not count. Receipts-only merges are not newly penalized (3+ input merges are already `wallet-consolidation-history`, and the tx view shows `h3-cioh`).
 
 **Detection:** `checkMerges` in `wallet-heuristics.ts`.
 
@@ -1616,7 +1618,7 @@ Wallet audits (xpub/descriptor, `src/lib/analysis/wallet-audit.ts`) know somethi
 
 ### W5: Coins Kept Apart (`wallet-no-merge`)
 
-**Mechanism:** 3+ solo spends, and none counted by W1, W2 or `wallet-consolidation-history`.
+**Mechanism:** 3+ solo spends, none counted by W1, W2 or `wallet-consolidation-history`, and no W4 peel chain.
 
 **Privacy impact:** Rewards the coin control the other findings teach (mirrors `wallet-no-reuse` +5 and `wallet-uniform-script` +3).
 

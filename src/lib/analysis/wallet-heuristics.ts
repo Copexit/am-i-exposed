@@ -16,6 +16,17 @@ export function txRefs(txids: readonly string[]): { _txids: string; more: number
 }
 
 /**
+ * W2: a change input spent with a coin not already linked to it. A coin from
+ * the same funding tx or on the same address adds no new link.
+ */
+function mergesChange(tx: MempoolTransaction, classes: readonly string[]): boolean {
+  const addr = (i: number) => tx.vin[i]!.prevout?.scriptpubkey_address;
+  return tx.vin.some((c, i) =>
+    (classes[i] === "change" || classes[i] === "coinjoin-change") &&
+    tx.vin.some((o, j) => j !== i && o.txid !== c.txid && addr(j) !== addr(i)));
+}
+
+/**
  * W1 post-mix merge and W2 change merge. Each spend counts once, under the
  * worse of the two; `merged` lets the consolidation check skip them.
  */
@@ -28,7 +39,7 @@ export function checkMerges(g: WalletGraph, spends: readonly MempoolTransaction[
     const classes = tx.vin.map((v) => coinClass(g, v.txid, v.vout));
     if (classes.includes("mixed")) {
       (classes.some((c) => c !== "mixed" && c !== "unknown") ? unmixed : mixedOnly).push(tx.txid);
-    } else if (new Set(tx.vin.map((v) => v.txid)).size >= 2 && classes.some((c) => c === "change" || c === "coinjoin-change")) {
+    } else if (mergesChange(tx, classes)) {
       change.push(tx.txid);
     }
   }
@@ -160,9 +171,9 @@ export function checkPeelChains(payments: readonly SimplePayment[]): Finding[] {
   }];
 }
 
-/** Good practice: 3+ solo spends and none merged change, CoinJoin outputs or many coins. */
-export function checkNoMerge(spendCount: number, anyMerge: boolean): Finding[] {
-  if (spendCount < 3 || anyMerge) return [];
+/** Good practice: 3+ solo spends, none merged change, CoinJoin outputs or many coins, and no peel chain. */
+export function checkNoMerge(spendCount: number, anyMergeOrPeel: boolean): Finding[] {
+  if (spendCount < 3 || anyMergeOrPeel) return [];
   return [{
     id: "wallet-no-merge",
     severity: "good",

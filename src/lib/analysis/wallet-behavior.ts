@@ -7,7 +7,9 @@
 import type { MempoolTransaction, MempoolVout } from "@/lib/api/types";
 import type { WalletAddressInfo } from "./wallet-audit";
 import { isCoinJoinTx } from "./heuristics/coinjoin";
-import { detectTx0 } from "./heuristics/coinjoin-premix";
+import { detectTx0, type Tx0Match } from "./heuristics/coinjoin-premix";
+import { detectWhirlpool } from "./heuristics/coinjoin-detectors";
+import { getSpendableOutputs } from "./heuristics/tx-utils";
 
 export type CoinClass = "mixed" | "coinjoin-change" | "change" | "self" | "received" | "unknown";
 export const COIN_CLASSES: readonly CoinClass[] = ["mixed", "coinjoin-change", "change", "self", "received", "unknown"];
@@ -17,21 +19,39 @@ export interface WalletGraph {
   own: ReadonlySet<string>;
   /** Every scanned tx once, by txid */
   txs: ReadonlyMap<string, MempoolTransaction>;
-  /** isCoinJoinTx, memoized per txid */
+  /**
+   * isCoinJoinTx, memoized per txid. A tx funded only by the wallet counts
+   * only when an equal-value output returns to the wallet (a solo Stonewall's
+   * decoy): an own batch paying several people the same amount is not one.
+   */
   isCoinJoin: (tx: MempoolTransaction) => boolean;
+  /** detectTx0, memoized per txid */
+  tx0: (tx: MempoolTransaction) => Tx0Match | null;
 }
 
 export function buildWalletGraph(infos: readonly WalletAddressInfo[]): WalletGraph {
   const own = new Set(infos.map((i) => i.derived.address));
   const txs = new Map<string, MempoolTransaction>();
   for (const info of infos) for (const tx of info.txs) if (!txs.has(tx.txid)) txs.set(tx.txid, tx);
-  const memo = new Map<string, boolean>();
+  const mine = (a: string | undefined) => a !== undefined && own.has(a);
+  const coinJoinTx = (tx: MempoolTransaction) => {
+    if (!isCoinJoinTx(tx)) return false;
+    if (!tx.vin.every((v) => mine(v.prevout?.scriptpubkey_address))) return true;
+    return tx.vout.some((o) => mine(o.scriptpubkey_address) && tx.vout.some((p) => p !== o && p.value === o.value));
+  };
+  const cjMemo = new Map<string, boolean>();
   const isCoinJoin = (tx: MempoolTransaction) => {
-    let v = memo.get(tx.txid);
-    if (v === undefined) memo.set(tx.txid, (v = isCoinJoinTx(tx)));
+    let v = cjMemo.get(tx.txid);
+    if (v === undefined) cjMemo.set(tx.txid, (v = coinJoinTx(tx)));
     return v;
   };
-  return { own, txs, isCoinJoin };
+  const tx0Memo = new Map<string, Tx0Match | null>();
+  const tx0 = (tx: MempoolTransaction) => {
+    let v = tx0Memo.get(tx.txid);
+    if (v === undefined) tx0Memo.set(tx.txid, (v = detectTx0(tx)));
+    return v;
+  };
+  return { own, txs, isCoinJoin, tx0 };
 }
 
 export const isOwn = (g: WalletGraph, address: string | undefined): boolean =>
@@ -39,17 +59,25 @@ export const isOwn = (g: WalletGraph, address: string | undefined): boolean =>
 
 /**
  * Where output `vout` of `txid` came from. "unknown" when that tx is not in
- * the scanned history (truncated history): unknown never triggers a finding.
+ * the scanned history (truncated history), or when the wallet funded only
+ * part of it (collaborative or PayJoin-shaped: never labelled). Unknown never
+ * triggers a finding.
  */
 export function coinClass(g: WalletGraph, txid: string, vout: number): CoinClass {
   const tx = g.txs.get(txid);
   const out = tx?.vout[vout];
   if (!tx || !out) return "unknown";
+  const ownInputs = tx.vin.filter((v) => isOwn(g, v.prevout?.scriptpubkey_address)).length;
   if (g.isCoinJoin(tx)) {
+    // Paid by someone else's CoinJoin (a JoinMarket taker, a payment in a
+    // round): a receipt. Whirlpool still mixes into another account (postmix)
+    // with no input from it, so its equal outputs stay mixed.
+    if (ownInputs === 0 && !detectWhirlpool(getSpendableOutputs(tx.vout).map((o) => o.value))) return "received";
     return tx.vout.filter((o) => o.value === out.value).length >= 2 ? "mixed" : "coinjoin-change";
   }
-  if (!tx.vin.some((v) => isOwn(g, v.prevout?.scriptpubkey_address))) return "received";
-  const toxic = detectTx0(tx)?.toxicChange;
+  if (ownInputs === 0) return "received";
+  if (ownInputs < tx.vin.length) return "unknown";
+  const toxic = g.tx0(tx)?.toxicChange;
   if (toxic && tx.vout.indexOf(toxic) === vout) return "coinjoin-change";
   const paysOthers = tx.vout.some((o) => o.scriptpubkey_address !== undefined && !g.own.has(o.scriptpubkey_address));
   return paysOthers ? "change" : "self";
@@ -84,7 +112,7 @@ export function simplePayments(g: WalletGraph, spends: readonly MempoolTransacti
     const addressed = tx.vout.filter((o) => o.scriptpubkey_address !== undefined);
     const mine = addressed.filter((o) => isOwn(g, o.scriptpubkey_address));
     const theirs = addressed.filter((o) => !isOwn(g, o.scriptpubkey_address));
-    if (mine.length !== 1 || theirs.length !== 1 || detectTx0(tx)) continue;
+    if (mine.length !== 1 || theirs.length !== 1 || g.tx0(tx)) continue;
     out.push({ tx, change: mine[0]!, payment: theirs[0]! });
   }
   return out;

@@ -3,6 +3,8 @@ import { auditWallet, type WalletAddressInfo } from "../wallet-audit";
 import type { MempoolAddress, MempoolTransaction, MempoolUtxo } from "@/lib/api/types";
 import type { DerivedAddress } from "@/lib/bitcoin/descriptor";
 import { History, recv, chg, ext, walletAddrs } from "./fixtures/wallet-history";
+import { buildWalletGraph, coinClass } from "../wallet-behavior";
+import { isCoinJoinTx } from "../heuristics/coinjoin";
 
 function makeAddr(
   address: string,
@@ -201,5 +203,66 @@ describe("auditWallet: wallet heuristics", () => {
     const f = auditWallet(h.infos(walletAddrs(2))).findings.find((x) => x.id === "wallet-change-merge");
     expect(f?.adversaryTiers).toEqual(["passive_observer", "kyc_exchange"]);
     expect(f?.temporality).toBe("historical");
+  });
+});
+
+describe("auditWallet: final-review probe wallets (false-positive regressions)", () => {
+  const ids = (h: History, n = 4) => auditWallet(h.infos(walletAddrs(n))).findings.map((f) => f.id);
+  const outsiders = (n: number, value: number) => Array.from({ length: n }, (_, i) => ({ address: ext(300 + i), value }));
+
+  it("I1: a coin paid by someone else's CoinJoin is a receipt; merging it is not a post-mix merge", () => {
+    const h = new History();
+    const cj = h.tx(outsiders(5, 1_300_000), [recv(0), ext(1), ext(2), ext(3), ext(4)].map((address) => ({ address, value: 1_234_567 })), 100);
+    expect(isCoinJoinTx(h.txs[0]!)).toBe(true); // fixture guard
+    h.tx([cj[0]!, h.receive(recv(1), 100_000, 101)], [{ address: ext(5), value: 1_330_000 }], 102);
+    const infos = h.infos(walletAddrs(2));
+    expect(coinClass(buildWalletGraph(infos), cj[0]!.txid, 0)).toBe("received");
+    expect(ids(h, 2)).not.toContain("wallet-postmix-merge");
+  });
+
+  it("I1: a Whirlpool mix into the wallet with no wallet input still yields mixed coins", () => {
+    const h = new History();
+    const mix = h.tx(outsiders(5, 1_000_000), [recv(0), ext(1), ext(2), ext(3), ext(4)].map((address) => ({ address, value: 1_000_000 })), 100);
+    h.tx([mix[0]!, h.receive(recv(1), 100_000, 101)], [{ address: ext(5), value: 1_090_000 }], 102);
+    expect(ids(h, 2)).toContain("wallet-postmix-merge");
+  });
+
+  it("I2: an output of a tx the wallet only partly funded is unknown, so merging it is not a change merge", () => {
+    const h = new History();
+    const a = h.receive(recv(0), 500_000, 100);
+    const [pj] = h.tx([a, { address: ext(9), value: 300_000 }], [{ address: recv(1), value: 790_000 }, { address: ext(10), value: 9_000 }], 101);
+    h.tx([pj!, h.receive(recv(2), 100_000, 102)], [{ address: ext(5), value: 880_000 }], 103);
+    const infos = h.infos(walletAddrs(3));
+    expect(coinClass(buildWalletGraph(infos), pj!.txid, 0)).toBe("unknown");
+    expect(ids(h, 3)).not.toContain("wallet-change-merge");
+  });
+
+  it("I3: an own batch paying two people the same amount is a solo spend, not a CoinJoin", () => {
+    const h = new History();
+    const [, c0] = h.tx([h.receive(recv(0), 1_000_000, 100)], [{ address: ext(1), value: 200_007 }, { address: chg(0), value: 798_000 }], 101);
+    const batch = h.tx([c0!, h.receive(recv(1), 700_000, 102)], [{ address: ext(2), value: 600_000 }, { address: ext(3), value: 600_000 }, { address: chg(1), value: 297_000 }], 103);
+    expect(isCoinJoinTx(h.txs.find((t) => t.txid === batch[0]!.txid)!)).toBe(true); // fixture guard: the generic detector matches
+    const infos = h.infos(walletAddrs(2));
+    const r = auditWallet(infos);
+    expect(r.findings.map((f) => f.id)).toContain("wallet-change-merge");
+    expect(r.utxoOrigins["coinjoin-change"].count).toBe(0);
+    expect(r.utxoOrigins.change).toEqual({ count: 1, sats: 297_000 });
+  });
+
+  it("I4: a peel chain gets no 'coins kept apart' credit", () => {
+    const h = new History();
+    let coin = h.receive(recv(0), 5_000_000, 100);
+    for (let i = 0; i < 3; i++) coin = h.tx([coin], [{ address: ext(i), value: 10_007 + i }, { address: chg(i), value: coin.value - 11_007 - i }], 101 + i)[1]!;
+    const found = ids(h, 3);
+    expect(found).toContain("wallet-peel-chain");
+    expect(found).not.toContain("wallet-no-merge");
+  });
+
+  it("M1: change merged with a coin on its own address adds no new link", () => {
+    const h = new History();
+    const [, c0] = h.tx([h.receive(recv(0), 1_000_000, 100)], [{ address: ext(1), value: 200_007 }, { address: chg(0), value: 798_000 }], 101);
+    const again = h.tx([{ address: ext(50), value: 60_000 }], [{ address: chg(0), value: 50_000 }], 102)[0]!;
+    h.tx([c0!, again], [{ address: ext(2), value: 840_000 }], 103);
+    expect(ids(h, 1)).not.toContain("wallet-change-merge");
   });
 });
