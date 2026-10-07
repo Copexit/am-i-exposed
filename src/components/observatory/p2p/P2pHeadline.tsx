@@ -28,19 +28,27 @@ export function P2pHeadline({ headline, currency, side, loading }: Props) {
 
   let sentence: ReactNode;
   if (has) {
+    const abs = best ? fmtPremium(Math.abs(best.premium), locale).replace(/^[+\u2212-]/, "") : "";
     const nodes = {
       btc: strong(`${fmtSatsBtc(headline.liquiditySats, locale)} BTC`),
       venues: strong(fmtCount(headline.venuesOnline, locale)),
       currency: strong(currency ?? ""),
-      premium: best ? strong(fmtPremium(best.premium, locale), premiumTone(best.premium, side)) : null,
+      premium: best ? strong(abs, premiumTone(best.premium, side)) : null,
     };
-    const base = { btc: mark("btc"), venues: mark("venues"), count: headline.venuesOnline };
-    const text = best && currency
-      ? side === "buy"
-        ? t("observatory.p2p.headline.sentenceBuy", { defaultValue: "{{btc}} on offer without KYC across {{venues}} venues, cheapest to buy in {{currency}} at {{premium}} over the index.", ...base, currency: mark("currency"), premium: mark("premium") })
-        : t("observatory.p2p.headline.sentenceSell", { defaultValue: "{{btc}} on offer without KYC across {{venues}} venues, best to sell in {{currency}} at {{premium}} over the index.", ...base, currency: mark("currency"), premium: mark("premium") })
-      : t("observatory.p2p.headline.sentence", { defaultValue: "{{btc}} on offer without KYC across {{venues}} venues.", ...base });
-    sentence = rich(text, nodes);
+    const lead = t("observatory.p2p.headline.forSale", { defaultValue: "Up to {{btc}} for sale without KYC across {{venues}} venues.", btc: mark("btc"), venues: mark("venues"), count: headline.venuesOnline });
+    // Sign as words: "6.0% below the index", never "-6.0% over".
+    const rel = !best ? null : Math.abs(best.premium) < 0.05 ? "at" : best.premium > 0 ? "above" : "below";
+    const c = mark("currency");
+    const pr = mark("premium");
+    const tail = !best || !currency || !rel ? null
+      : side === "buy"
+        ? rel === "above" ? t("observatory.p2p.headline.cheapestAbove", { defaultValue: "Cheapest to buy in {{currency}}: {{premium}} above the index.", currency: c, premium: pr })
+          : rel === "below" ? t("observatory.p2p.headline.cheapestBelow", { defaultValue: "Cheapest to buy in {{currency}}: {{premium}} below the index.", currency: c, premium: pr })
+            : t("observatory.p2p.headline.cheapestAt", { defaultValue: "Cheapest to buy in {{currency}}: at the index.", currency: c })
+        : rel === "above" ? t("observatory.p2p.headline.bestSellAbove", { defaultValue: "Best to sell in {{currency}}: {{premium}} above the index.", currency: c, premium: pr })
+          : rel === "below" ? t("observatory.p2p.headline.bestSellBelow", { defaultValue: "Best to sell in {{currency}}: {{premium}} below the index.", currency: c, premium: pr })
+            : t("observatory.p2p.headline.bestSellAt", { defaultValue: "Best to sell in {{currency}}: at the index.", currency: c });
+    sentence = <>{rich(lead, nodes)}{tail && <> {rich(tail, nodes)}</>}</>;
   } else if (!loading) {
     sentence = t("observatory.p2p.headline.none", { defaultValue: "No KYC-free offers could be loaded right now." });
   }
@@ -71,9 +79,9 @@ export function P2pHeadline({ headline, currency, side, loading }: Props) {
     },
     {
       id: "online",
-      label: t("observatory.p2p.tiles.online", { defaultValue: "Hosts online" }),
+      label: t("observatory.p2p.tiles.online", { defaultValue: "Online now" }),
       value: v(headline && headline.hostsTotal ? `${fmtCount(headline.hostsOnline, locale)} / ${fmtCount(headline.hostsTotal, locale)}` : null),
-      sub: has ? t("observatory.p2p.tiles.onlineSub", { defaultValue: "coordinators and instances" }) : undefined,
+      sub: has ? t("observatory.p2p.tiles.onlineSub", { defaultValue: "of reachable coordinators and instances" }) : undefined,
     },
   ];
 

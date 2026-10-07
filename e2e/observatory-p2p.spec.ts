@@ -15,7 +15,7 @@ const headline = (page: Page) => page.getByTestId("p2p-headline");
 test("P2P tab: headline with liquidity, four sources, the wall and offers", async ({ page }) => {
   await page.goto("/observatory/#p2p");
   await expect(page.getByRole("tab", { name: "P2P markets" })).toHaveAttribute("aria-selected", "true");
-  await expect(headline(page)).toContainText(/[1-9][\d.,]* BTC on offer without KYC/, { timeout: 20_000 });
+  await expect(headline(page)).toContainText(/Up to [1-9][\d.,]* BTC for sale without KYC/, { timeout: 20_000 });
   await expect(page.locator("[data-testid^=p2p-source-]")).toHaveCount(4);
   await expect(page.locator("#p2p-markets svg[role=img]")).toBeVisible();
   await expect(rows(page).first()).toBeVisible();

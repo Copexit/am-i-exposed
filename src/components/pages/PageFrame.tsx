@@ -38,11 +38,13 @@ interface PageFrameProps {
   spacing?: string;
   /** Tighter top padding and breadcrumb margin, for pages whose first screen is the content (Observatory). */
   compact?: boolean;
+  /** Overrides the section name in the breadcrumb (a tab with its own title). */
+  eyebrow?: string;
   children: ReactNode;
 }
 
 /** Calm frame for knowledge and info pages: breadcrumb eyebrow, measured width. */
-export function PageFrame({ title, spacing = "space-y-10", compact = false, children }: PageFrameProps) {
+export function PageFrame({ title, spacing = "space-y-10", compact = false, eyebrow: eyebrowOverride, children }: PageFrameProps) {
   const { t } = useTranslation();
   const segment = (usePathname() ?? "").split("/")[1] ?? "";
   const { eyebrow, width } = useSection(segment);
@@ -58,7 +60,7 @@ export function PageFrame({ title, spacing = "space-y-10", compact = false, chil
             {t("pages.scanner", { defaultValue: "Scanner" })}
           </Link>
           <span aria-hidden="true">/</span>
-          <span aria-current="page" className="text-muted">{eyebrow}</span>
+          <span aria-current="page" className="text-muted">{eyebrowOverride ?? eyebrow}</span>
         </nav>
         {title && (
           <h1 className="text-[28px] sm:text-[40px] leading-tight font-semibold tracking-tight text-foreground text-balance mb-10">

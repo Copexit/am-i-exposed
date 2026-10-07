@@ -43,7 +43,7 @@ describe("P2P tab shell", () => {
     expect(screen.getByRole("tab", { name: "P2P markets" }).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByRole("tablist").getAttribute("aria-label")).toBe("Observatory section");
     expect([...document.querySelectorAll("section[id^=p2p-]")].map((s) => s.id)).toEqual(["p2p-headline", "p2p-markets", "p2p-premiums", "p2p-venues", "p2p-volume"]);
-    expect(screen.getByTestId("p2p-headline").textContent).toMatch(/[1-9][\d.,]* BTC on offer without KYC across 3 venues/);
+    expect(screen.getByTestId("p2p-headline").textContent).toMatch(/^Up to [1-9][\d.,]* BTC for sale without KYC across 3 venues\./);
     act(() => { fireEvent.keyDown(screen.getByRole("tablist"), { key: "ArrowRight" }); });
     expect(window.location.hash).toBe("#wabisabi");
     act(() => { fireEvent.keyDown(screen.getByRole("tablist"), { key: "ArrowLeft" }); });
@@ -58,7 +58,7 @@ describe("P2P tab shell", () => {
     const chips = screen.getByRole("list", { name: "Currency" });
     act(() => { fireEvent.click(within(chips).getByRole("button", { name: /^EUR/ })); });
     expect(window.location.hash).toBe("#p2p&cur=EUR");
-    expect(screen.getByTestId("p2p-headline").textContent).toContain("buy in EUR");
+    expect(screen.getByTestId("p2p-headline").textContent).toContain("Cheapest to buy in EUR");
   });
 
   it("all sources down with no data: calm panel with retry, tiles show dashes", () => {
@@ -79,8 +79,10 @@ describe("P2pHeadline", () => {
     render(<P2pHeadline headline={h} currency="EUR" side="buy" loading={false} />);
     const text = screen.getByTestId("p2p-headline").textContent ?? "";
     expect(text).toContain("EUR");
-    expect(text).toContain(fmtPremium(data.markets.get("EUR")!.bestBuy!.premium!, "en"));
-    expect(text).not.toMatch(/^0 BTC/);
+    const p = data.markets.get("EUR")!.bestBuy!.premium!;
+    expect(text).toContain(`${fmtPremium(Math.abs(p), "en").replace(/^[+\u2212-]/, "")} ${p < 0 ? "below" : "above"} the index`);
+    expect(text).not.toMatch(/[\u2212-]\d[\d.]*% (above|over)/);
+    expect(text).toMatch(/^Up to [1-9]/);
   });
   it("without data shows dashes, not zeros", () => {
     render(<P2pHeadline headline={null} currency={null} side="buy" loading={false} />);

@@ -8,6 +8,7 @@ import { fmtPremium, fmtSatsBtc } from "@/lib/observatory/p2p/p2p-format";
 import { hostColorVar, venueFgVar } from "@/lib/observatory/p2p/venue-palette";
 import { fmtBtc, fmtCount } from "@/lib/observatory/obs-format";
 import { DASH, FADE } from "./p2p-ui";
+import { UnlistedChip } from "./offer-facts";
 
 interface Props {
   hosts: VenueHost[];
@@ -157,7 +158,9 @@ export function MostroInstances({ hosts, highlight }: { hosts: VenueHost[]; high
           <tbody>
             {rows.map((h) => (
               <tr key={h.key} id={`p2p-host-${h.key}`} data-testid="p2p-mostro-row" className={`border-t border-hairline ${h.key === highlight ? "bg-bitcoin/10" : ""} ${h.status === "up" ? "" : "text-faint"}`}>
-                <td className="max-w-[12rem] truncate px-3 py-2 text-foreground" title={h.key.slice(0, 16)}>{h.name}</td>
+                <td className="max-w-[14rem] px-3 py-2 text-foreground" title={h.key.slice(0, 16)}>
+                  <span className="flex items-center gap-2"><span className="truncate">{h.name}</span>{h.unlisted && <UnlistedChip />}</span>
+                </td>
                 <td className="px-3 py-2"><StatusPill status={h.status} /></td>
                 <td className="num hidden px-3 py-2 text-muted sm:table-cell">{h.version ?? DASH}</td>
                 <td className="num px-3 py-2 text-right text-muted">{pct(h.makerFeePct, locale)}</td>

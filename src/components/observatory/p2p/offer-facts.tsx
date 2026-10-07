@@ -24,6 +24,18 @@ export function premiumTone(p: number | null, median: number | null, intent: "bu
   return worse <= 0 ? "text-severity-good" : worse <= 3 ? "text-severity-medium" : "text-severity-high";
 }
 
+export function UnlistedChip() {
+  const { t } = useTranslation();
+  return (
+    <span
+      title={t("observatory.p2p.offer.unlistedHint", { defaultValue: "This Mostro instance is not on the am-i.exposed list of known instances. Its offers are shown but left out of the headline, medians and the premium board." })}
+      className="inline-flex shrink-0 items-center rounded-md border border-severity-medium/40 px-1.5 py-px text-[10px] leading-tight text-severity-medium"
+    >
+      {t("observatory.p2p.offer.unlisted", { defaultValue: "Unlisted instance" })}
+    </span>
+  );
+}
+
 export function VenueBadge({ offer, names }: { offer: P2pOffer; names: Map<string, string> }) {
   const color = hostColorVar(offer.venue, offer.host);
   return (
@@ -34,6 +46,7 @@ export function VenueBadge({ offer, names }: { offer: P2pOffer; names: Map<strin
         {offer.venue !== "hodlhodl" && (
           <span className="block truncate text-xs text-faint leading-tight" title={offer.venue === "mostro" ? offer.host.slice(0, 16) : undefined}>{hostName(names, offer)}</span>
         )}
+        {offer.unlisted && <span className="mt-0.5 block"><UnlistedChip /></span>}
       </span>
     </span>
   );

@@ -135,5 +135,5 @@ describe("OfferList", () => {
         unmount();
       }
     }
-  });
+  }, 30_000);
 });

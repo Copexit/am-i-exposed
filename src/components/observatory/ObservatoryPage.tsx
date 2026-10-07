@@ -61,6 +61,8 @@ export function ObservatoryPage() {
     }[id],
   }));
   const selectTab = (id: ObservatoryTab) => setObs({ tab: id });
+  const p2p = tab === "p2p";
+  const p2pTitle = t("observatory.p2p.pageTitle", { defaultValue: "P2P markets" });
 
   const onTabKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const i = tabs.findIndex((x) => x.id === tab);
@@ -78,9 +80,11 @@ export function ObservatoryPage() {
   };
 
   return (
-    <PageShell spacing="space-y-4 sm:space-y-5" compact>
+    <PageShell spacing="space-y-4 sm:space-y-5" compact eyebrow={p2p ? p2pTitle : undefined}>
       <ObservatoryPageHeader
         showMainnetBadge
+        title={p2p ? p2pTitle : undefined}
+        description={p2p ? t("observatory.p2p.pageDescription", { defaultValue: "Live KYC-free bitcoin offers from RoboSats, Mostro and HodlHodl, fetched through a relay or Tor, never from your browser." }) : undefined}
         aside={
           <div
             role="tablist"
