@@ -1,6 +1,6 @@
 {
   "name": "am-i-exposed",
-  "version": "0.39.1",
+  "version": "0.40.0",
   "description": "Bitcoin privacy scanner - analyze transactions, addresses, and wallets for chain analysis exposure",
   "bin": {
     "am-i-exposed": "./dist/index.js"
