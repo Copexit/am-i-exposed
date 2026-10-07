@@ -2814,7 +2814,7 @@
   "observatory.wabisabi.live.showInactive": "Afficher {{count}} inactifs",
   "observatory.wabisabi.live.idle": "Aucune activité sur 24 h",
   "observatory.wabisabi.live.offline": "Hors ligne",
-  "observatory.wabisabi.live.summary": "Coordinateurs actifs : {{coordinators}} · Rounds en cours : {{rounds}}",
+  "observatory.wabisabi.live.summary": "Coordinateurs actifs : {{coordinators}} · Rounds : {{rounds}}",
   "observatory.wabisabi.live.empty": "Aucun coordinateur ne mène de round pour le moment. Le tableau se met à jour tout seul.",
   "observatory.wabisabi.live.closing": "clôture",
   "observatory.wabisabi.live.closesIn": "L'enregistrement des entrées se ferme dans",
@@ -2825,6 +2825,9 @@
   "observatory.wabisabi.phase.ended": "Terminé",
   "observatory.wabisabi.live.step": "(étape {{step}} sur {{total}})",
   "observatory.wabisabi.live.blame": "Round de blâme",
-  "observatory.wabisabi.live.inputsOfMin": "{{inputs}} entrées, {{min}} nécessaires pour démarrer",
-  "observatory.wabisabi.live.inputs": "{{inputs}} entrées"
+  "observatory.wabisabi.live.inputsOfMin": "{{inputs}} entrée, {{min}} nécessaires pour démarrer",
+  "observatory.wabisabi.live.inputs": "{{inputs}} entrée",
+  "observatory.wabisabi.live.inputs_other": "{{inputs}} entrées",
+  "observatory.wabisabi.live.inputsOfMin_other": "{{inputs}} entrées, {{min}} nécessaires pour démarrer",
+  "observatory.wabisabi.live.overMin": "{{extra}} au-dessus du minimum"
 }

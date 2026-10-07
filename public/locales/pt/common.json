@@ -2814,7 +2814,7 @@
   "observatory.wabisabi.live.showInactive": "Mostrar {{count}} inativos",
   "observatory.wabisabi.live.idle": "Sem atividade em 24 h",
   "observatory.wabisabi.live.offline": "Offline",
-  "observatory.wabisabi.live.summary": "Coordenadores ativos: {{coordinators}} · Rodadas em andamento: {{rounds}}",
+  "observatory.wabisabi.live.summary": "Coordenadores ativos: {{coordinators}} · Rodadas: {{rounds}}",
   "observatory.wabisabi.live.empty": "Nenhum coordenador está executando rodadas agora. O painel se atualiza sozinho.",
   "observatory.wabisabi.live.closing": "fechando",
   "observatory.wabisabi.live.closesIn": "O registro de entradas fecha em",
@@ -2825,6 +2825,9 @@
   "observatory.wabisabi.phase.ended": "Encerrada",
   "observatory.wabisabi.live.step": "(etapa {{step}} de {{total}})",
   "observatory.wabisabi.live.blame": "Rodada de culpa",
-  "observatory.wabisabi.live.inputsOfMin": "{{inputs}} entradas, {{min}} necessárias para começar",
-  "observatory.wabisabi.live.inputs": "{{inputs}} entradas"
+  "observatory.wabisabi.live.inputsOfMin": "{{inputs}} entrada, {{min}} necessárias para começar",
+  "observatory.wabisabi.live.inputs": "{{inputs}} entrada",
+  "observatory.wabisabi.live.inputs_other": "{{inputs}} entradas",
+  "observatory.wabisabi.live.inputsOfMin_other": "{{inputs}} entradas, {{min}} necessárias para começar",
+  "observatory.wabisabi.live.overMin": "{{extra}} acima do mínimo"
 }

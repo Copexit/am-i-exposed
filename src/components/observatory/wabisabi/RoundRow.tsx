@@ -17,8 +17,18 @@ const NowContext = createContext<number>(0);
 export function NowProvider({ children }: { children: ReactNode }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
+    // Paused while the page is hidden; resyncs at once when it is visible again.
+    let id: ReturnType<typeof setInterval> | undefined;
+    const sync = () => {
+      clearInterval(id);
+      id = undefined;
+      if (document.visibilityState !== "visible") return;
+      setNow(Date.now());
+      id = setInterval(() => setNow(Date.now()), 1000);
+    };
+    sync();
+    document.addEventListener("visibilitychange", sync);
+    return () => { clearInterval(id); document.removeEventListener("visibilitychange", sync); };
   }, []);
   return <NowContext.Provider value={now}>{children}</NowContext.Provider>;
 }
@@ -72,7 +82,7 @@ export function RoundRow({ round, color }: { round: BoardRound; color: string })
   const { inputs, min, phaseIndex } = round;
   const ended = phaseIndex === PHASES.length - 1;
   const scale = Math.max(min, inputs, 1);
-  const filled = Math.min(inputs, min || inputs) / scale;
+  const filled = Math.min(inputs, min) / scale;
   const over = min > 0 && inputs > min ? (inputs - min) / scale : 0;
   const count = min > 0 ? `${fmtCount(inputs, locale)} / ${fmtCount(min, locale)}` : fmtCount(inputs, locale);
   const bar = "absolute inset-y-0 rounded-full motion-safe:transition-[left,width] motion-safe:duration-700 motion-safe:ease-out";
@@ -106,16 +116,22 @@ export function RoundRow({ round, color }: { round: BoardRound; color: string })
         <span className="ml-auto">{phaseIndex <= 0 && <Countdown closesAt={round.closesAt} />}</span>
       </div>
       <div className="flex items-center gap-3">
-        <div aria-hidden="true" className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
-          {min > 0 && <span className={`${bar} left-0`} style={{ width: `${filled * 100}%`, background: color }} />}
-          <span className={bar} style={{ left: `${(min / scale) * 100}%`, width: `${over * 100}%`, background: `color-mix(in srgb, ${color} 40%, transparent)` }} />
-        </div>
-        <span className={`num shrink-0 text-xs ${min > 0 && inputs >= min ? "text-foreground" : "text-muted"}`}>
+        {/* Unknown minimum (0): no track, only the count. */}
+        {min > 0 && (
+          <div aria-hidden="true" className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
+            <span className={`${bar} left-0`} style={{ width: `${filled * 100}%`, background: color }} />
+            <span className={bar} style={{ left: `${(min / scale) * 100}%`, width: `${over * 100}%`, background: `color-mix(in srgb, ${color} 40%, transparent)` }} />
+            {/* The minimum, as a cut in the bar: legible on any coordinator colour and on faded Ended rows. */}
+            {over > 0 && <span className="absolute inset-y-0 w-0.5 -translate-x-1/2 bg-surface-1 motion-safe:transition-[left] motion-safe:duration-700 motion-safe:ease-out" style={{ left: `${(min / scale) * 100}%` }} />}
+          </div>
+        )}
+        <span className={`num shrink-0 text-xs ${min > 0 ? "" : "ml-auto"} ${min > 0 && inputs >= min ? "text-foreground" : "text-muted"}`}>
           <span aria-hidden="true">{count}</span>
           <span className="sr-only">
             {min > 0
-              ? t("observatory.wabisabi.live.inputsOfMin", { defaultValue: "{{inputs}} inputs, {{min}} needed to start", inputs: fmtCount(inputs, locale), min: fmtCount(min, locale) })
-              : t("observatory.wabisabi.live.inputs", { defaultValue: "{{inputs}} inputs", inputs: fmtCount(inputs, locale) })}
+              ? t("observatory.wabisabi.live.inputsOfMin", { defaultValue: "{{inputs}} inputs, {{min}} needed to start", count: inputs, inputs: fmtCount(inputs, locale), min: fmtCount(min, locale) })
+              : t("observatory.wabisabi.live.inputs", { defaultValue: "{{inputs}} inputs", count: inputs, inputs: fmtCount(inputs, locale) })}
+            {over > 0 && `, ${t("observatory.wabisabi.live.overMin", { defaultValue: "{{extra}} above the minimum", extra: fmtCount(inputs - min, locale) })}`}
           </span>
         </span>
       </div>

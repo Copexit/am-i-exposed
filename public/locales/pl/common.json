@@ -2914,7 +2914,7 @@
   "observatory.wabisabi.live.showInactive": "Pokaż nieaktywne ({{count}})",
   "observatory.wabisabi.live.idle": "Brak aktywności w 24 h",
   "observatory.wabisabi.live.offline": "Offline",
-  "observatory.wabisabi.live.summary": "Aktywni koordynatorzy: {{coordinators}} · Rundy w toku: {{rounds}}",
+  "observatory.wabisabi.live.summary": "Aktywni koordynatorzy: {{coordinators}} · Rundy: {{rounds}}",
   "observatory.wabisabi.live.empty": "Żaden koordynator nie prowadzi teraz rund. Tablica odświeża się sama.",
   "observatory.wabisabi.live.closing": "zamykanie",
   "observatory.wabisabi.live.closesIn": "Rejestracja wejść zamyka się za",
@@ -2925,6 +2925,13 @@
   "observatory.wabisabi.phase.ended": "Zakończona",
   "observatory.wabisabi.live.step": "(krok {{step}} z {{total}})",
   "observatory.wabisabi.live.blame": "Runda blame",
-  "observatory.wabisabi.live.inputsOfMin": "{{inputs}} wejść, {{min}} potrzebnych do startu",
-  "observatory.wabisabi.live.inputs": "{{inputs}} wejść"
+  "observatory.wabisabi.live.inputsOfMin": "{{inputs}} wejście, do startu potrzeba {{min}}",
+  "observatory.wabisabi.live.inputs": "{{inputs}} wejście",
+  "observatory.wabisabi.live.inputs_few": "{{inputs}} wejścia",
+  "observatory.wabisabi.live.inputs_many": "{{inputs}} wejść",
+  "observatory.wabisabi.live.inputs_other": "{{inputs}} wejścia",
+  "observatory.wabisabi.live.inputsOfMin_few": "{{inputs}} wejścia, do startu potrzeba {{min}}",
+  "observatory.wabisabi.live.inputsOfMin_many": "{{inputs}} wejść, do startu potrzeba {{min}}",
+  "observatory.wabisabi.live.inputsOfMin_other": "{{inputs}} wejścia, do startu potrzeba {{min}}",
+  "observatory.wabisabi.live.overMin": "{{extra}} ponad minimum"
 }

@@ -2814,7 +2814,7 @@
   "observatory.wabisabi.live.showInactive": "Show {{count}} inactive",
   "observatory.wabisabi.live.idle": "No activity in 24 h",
   "observatory.wabisabi.live.offline": "Offline",
-  "observatory.wabisabi.live.summary": "Active coordinators: {{coordinators}} · Rounds in progress: {{rounds}}",
+  "observatory.wabisabi.live.summary": "Active coordinators: {{coordinators}} · Rounds: {{rounds}}",
   "observatory.wabisabi.live.empty": "No coordinator is running rounds right now. The board updates on its own.",
   "observatory.wabisabi.live.closing": "closing",
   "observatory.wabisabi.live.closesIn": "Input registration closes in",
@@ -2825,6 +2825,9 @@
   "observatory.wabisabi.phase.ended": "Ended",
   "observatory.wabisabi.live.step": "(step {{step}} of {{total}})",
   "observatory.wabisabi.live.blame": "Blame round",
-  "observatory.wabisabi.live.inputsOfMin": "{{inputs}} inputs, {{min}} needed to start",
-  "observatory.wabisabi.live.inputs": "{{inputs}} inputs"
+  "observatory.wabisabi.live.inputsOfMin": "{{inputs}} input, {{min}} needed to start",
+  "observatory.wabisabi.live.inputs": "{{inputs}} input",
+  "observatory.wabisabi.live.inputs_other": "{{inputs}} inputs",
+  "observatory.wabisabi.live.inputsOfMin_other": "{{inputs}} inputs, {{min}} needed to start",
+  "observatory.wabisabi.live.overMin": "{{extra}} above the minimum"
 }

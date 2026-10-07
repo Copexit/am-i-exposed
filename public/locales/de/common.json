@@ -2814,7 +2814,7 @@
   "observatory.wabisabi.live.showInactive": "{{count}} inaktive anzeigen",
   "observatory.wabisabi.live.idle": "Keine Aktivität in 24 h",
   "observatory.wabisabi.live.offline": "Offline",
-  "observatory.wabisabi.live.summary": "Aktive Koordinatoren: {{coordinators}} · Laufende Runden: {{rounds}}",
+  "observatory.wabisabi.live.summary": "Aktive Koordinatoren: {{coordinators}} · Runden: {{rounds}}",
   "observatory.wabisabi.live.empty": "Gerade führt kein Koordinator Runden durch. Die Übersicht aktualisiert sich selbst.",
   "observatory.wabisabi.live.closing": "schließt",
   "observatory.wabisabi.live.closesIn": "Input-Registrierung schließt in",
@@ -2825,6 +2825,9 @@
   "observatory.wabisabi.phase.ended": "Beendet",
   "observatory.wabisabi.live.step": "(Schritt {{step}} von {{total}})",
   "observatory.wabisabi.live.blame": "Blame-Runde",
-  "observatory.wabisabi.live.inputsOfMin": "{{inputs}} Inputs, {{min}} zum Start nötig",
-  "observatory.wabisabi.live.inputs": "{{inputs}} Inputs"
+  "observatory.wabisabi.live.inputsOfMin": "{{inputs}} Input, {{min}} zum Start nötig",
+  "observatory.wabisabi.live.inputs": "{{inputs}} Input",
+  "observatory.wabisabi.live.inputs_other": "{{inputs}} Inputs",
+  "observatory.wabisabi.live.inputsOfMin_other": "{{inputs}} Inputs, {{min}} zum Start nötig",
+  "observatory.wabisabi.live.overMin": "{{extra}} über dem Minimum"
 }

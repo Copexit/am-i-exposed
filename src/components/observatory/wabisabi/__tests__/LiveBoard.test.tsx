@@ -104,7 +104,7 @@ describe("LiveBoard", () => {
     vi.useFakeTimers({ now: NOW });
     renderBoard(polled(single([round({ InputCount: 273, IsBlameRound: true, Phase: "OutputRegistration" })])));
     expect(screen.getByText("273 / 100")).toBeTruthy();
-    expect(screen.getByText("273 inputs, 100 needed to start")).toBeTruthy();
+    expect(screen.getByText("273 inputs, 100 needed to start, 173 above the minimum")).toBeTruthy();
     expect(screen.getByText("Blame round")).toBeTruthy();
     expect(screen.getByText("Output registration")).toBeTruthy();
   });
@@ -125,6 +125,49 @@ describe("LiveBoard", () => {
     renderBoard(polled({ UpdatedAt: "", Coordinators: fixture.Coordinators.filter((c) => c.Status !== "Online") }));
     expect(screen.getByText(/No coordinator is running rounds right now/)).toBeTruthy();
     expect(screen.queryAllByRole("article")).toHaveLength(0);
+  });
+
+  it("shows the raw count and no track when the minimum is unknown", () => {
+    vi.useFakeTimers({ now: NOW });
+    const s = single([round({ InputCount: 7 })]);
+    s.Coordinators[0] = { ...s.Coordinators[0]!, AbsoluteMinInputCount: null, Config: null };
+    const { container } = renderBoard(polled(s));
+    expect(screen.getByText("7 inputs")).toBeTruthy();
+    expect(container.querySelector(".bg-surface-2.rounded-full")).toBeNull();
+  });
+
+  it("keeps an online card with 24 h volume but no rounds, and says no round is open", () => {
+    vi.useFakeTimers({ now: NOW });
+    renderBoard(polled(single([])));
+    const card = screen.getByRole("article");
+    expect(within(card).getByRole("heading", { level: 3 }).textContent).toBe("Kruw");
+    expect(within(card).getByText("853.68")).toBeTruthy();
+    expect(within(card).getByText("No round open right now.")).toBeTruthy();
+  });
+
+  it("shows the error panel with retry when the first load fails", () => {
+    const refresh = vi.fn();
+    renderBoard(polled(null, { error: new Error("down"), loading: false, refresh }));
+    expect(screen.queryByTestId("skeleton")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Try again/ }));
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("pauses the clock while the page is hidden and resyncs when it is visible", () => {
+    vi.useFakeTimers({ now: NOW });
+    let state: DocumentVisibilityState = "visible";
+    const spy = vi.spyOn(document, "visibilityState", "get").mockImplementation(() => state);
+    renderBoard(polled(single([round({ InputRegistrationRemaining: "0d 0h 2m 0s" })])));
+    expect(screen.getByText("2:00")).toBeTruthy();
+    state = "hidden";
+    act(() => { document.dispatchEvent(new Event("visibilitychange")); });
+    expect(vi.getTimerCount()).toBe(0);
+    act(() => { vi.advanceTimersByTime(30_000); });
+    expect(screen.getByText("2:00")).toBeTruthy();
+    state = "visible";
+    act(() => { document.dispatchEvent(new Event("visibilitychange")); });
+    expect(screen.getByText("1:30")).toBeTruthy();
+    spy.mockRestore();
   });
 
   it("formats the clock", () => {

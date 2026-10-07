@@ -32,6 +32,7 @@ function useRuleLabel(): (raw: string) => string {
     "Allowed Input Amounts": t("observatory.wabisabi.rule.amounts", { defaultValue: "Amounts" }),
     "Mining Fee Rate": t("observatory.wabisabi.rule.miningFee", { defaultValue: "Mining fee" }),
   };
+  // board.ts only passes its RULE_KEYS, all mapped above; the raw label is the type-safe default.
   return (raw) => labels[raw] ?? raw;
 }
 
@@ -104,29 +105,29 @@ function Card({ card, onOpen, reduced }: { card: BoardCard; onOpen: (key: string
         <h4 className="eyebrow border-t border-hairline pt-3.5">
           {t("observatory.wabisabi.live.rounds", { defaultValue: "Rounds" })} <span className="num">{card.rounds.length}</span>
         </h4>
-        {card.rounds.length === 0 ? (
-          <p className="py-3.5 text-sm text-muted">{t("observatory.wabisabi.live.noRounds", { defaultValue: "No round open right now." })}</p>
-        ) : (
-          <ul className="divide-y divide-hairline">
-            <AnimatePresence initial={false}>
-              {card.rounds.map((r) => (
-                <motion.li
-                  key={r.id}
-                  layout={reduced ? false : "position"}
-                  initial={reduced ? false : { opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={reduced ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, height: 0, overflow: "hidden" }}
-                  transition={{ duration: 0.45, ease: EASE }}
-                >
-                  <RoundRow round={r} color={color} />
-                </motion.li>
-              ))}
-            </AnimatePresence>
-          </ul>
+        {card.rounds.length === 0 && (
+          <p className="py-3.5 text-sm text-muted motion-safe:animate-[obs-fade_300ms_ease-out]">{t("observatory.wabisabi.live.noRounds", { defaultValue: "No round open right now." })}</p>
         )}
+        {/* Always mounted, so the first round fades in and the last one fades out. */}
+        <ul className="divide-y divide-hairline">
+          <AnimatePresence initial={false}>
+            {card.rounds.map((r) => (
+              <motion.li
+                key={r.id}
+                layout={reduced ? false : "position"}
+                initial={reduced ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduced ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, height: 0, overflow: "hidden" }}
+                transition={{ duration: 0.45, ease: EASE }}
+              >
+                <RoundRow round={r} color={color} />
+              </motion.li>
+            ))}
+          </AnimatePresence>
+        </ul>
       </div>
 
-      <div className="mt-auto px-4 pb-4 pl-5 pt-1 sm:px-5 sm:pl-6">
+      <div className="px-4 pb-4 pl-5 pt-1 sm:px-5 sm:pl-6">
         <ul className="flex flex-wrap gap-1.5" aria-label={t("observatory.wabisabi.live.rules", { defaultValue: "Rules" })}>
           {chips.map((c) => (
             <li key={c.label} className="inline-flex max-w-full flex-wrap items-baseline gap-x-1.5 rounded-md border border-hairline bg-surface-inset px-2 py-1 text-[11px] leading-snug">
@@ -137,7 +138,7 @@ function Card({ card, onOpen, reduced }: { card: BoardCard; onOpen: (key: string
         </ul>
       </div>
 
-      <div className="border-t border-hairline px-2 py-1.5 sm:px-3">
+      <div className="mt-auto border-t border-hairline px-2 py-1.5 sm:px-3">
         <button
           type="button"
           onClick={() => onOpen(card.key)}
@@ -207,7 +208,8 @@ export function LiveBoard({ status, onOpenCoordinator, skeleton }: LiveBoardProp
       ? <ObservatoryErrorState source="wabisator" onRetry={status.refresh} locale={i18n.language || "en"} />
       : <>{skeleton}</>;
   }
-  const openRounds = board.active.reduce((n, c) => n + c.rounds.filter((r) => r.phase !== "Ended").length, 0);
+  // The same count as the card headers add up to.
+  const rounds = board.active.reduce((n, c) => n + c.rounds.length, 0);
 
   return (
     <NowProvider>
@@ -215,7 +217,7 @@ export function LiveBoard({ status, onOpenCoordinator, skeleton }: LiveBoardProp
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-muted">
           <span className="inline-flex items-center gap-2">
             <Radio size={14} aria-hidden="true" className="text-success" />
-            {t("observatory.wabisabi.live.summary", { defaultValue: "Active coordinators: {{coordinators}} · Rounds in progress: {{rounds}}", coordinators: board.active.length, rounds: openRounds })}
+            {t("observatory.wabisabi.live.summary", { defaultValue: "Active coordinators: {{coordinators}} · Rounds: {{rounds}}", coordinators: board.active.length, rounds })}
           </span>
           <Refreshed at={status.updatedAt} />
         </div>
