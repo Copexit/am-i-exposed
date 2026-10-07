@@ -14,7 +14,10 @@ import type {
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) =>
-      (opts?.defaultValue as string) ?? key,
+      ((opts?.defaultValue as string) ?? key).replace(
+        /\{\{(\w+)\}\}/g,
+        (m, k: string) => (opts && k in opts ? String(opts[k]) : m),
+      ),
     i18n: { language: "en" },
   }),
 }));
@@ -88,6 +91,19 @@ describe("observatory smoke tests", () => {
     expect(container.querySelector("svg")).toBeTruthy();
     // Headline = summary unspent_btc for the 0.025 pool = 13.65 BTC.
     expect(container.textContent).toMatch(/13\.65 BTC/);
+  });
+
+  it("WhirlpoolPoolCard shows last CoinJoin block and blocks ago when the tip is known", () => {
+    const { container, rerender } = render(
+      <WhirlpoolPoolCard pool={summary.pools[0]!} charts={charts} lastCjBlock={957584} tipHeight={957590} />,
+    );
+    expect(container.textContent).toMatch(/957,584/);
+    expect(container.textContent).toMatch(/6 blocks ago/);
+    rerender(<WhirlpoolPoolCard pool={summary.pools[0]!} charts={charts} lastCjBlock={957584} tipHeight={null} />);
+    expect(container.textContent).toMatch(/957,584/);
+    expect(container.textContent).not.toMatch(/ago/);
+    rerender(<WhirlpoolPoolCard pool={summary.pools[0]!} charts={charts} />);
+    expect(container.textContent).not.toMatch(/Last CoinJoin/);
   });
 
   it("ObservatoryAttribution links out to whirlpoolstats.xyz and wabisator.com", () => {

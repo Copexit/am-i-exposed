@@ -16,13 +16,17 @@ interface WhirlpoolPoolCardProps {
   pool: WhirlpoolPoolStats;
   /** Full charts payload, used for the inline sparkline + 30d delta. */
   charts: WhirlpoolCharts | null;
+  /** Block of this pool's most recent known CoinJoin, if any. */
+  lastCjBlock?: number | null;
+  /** Current chain tip; hides the "blocks ago" part when null. */
+  tipHeight?: number | null;
 }
 
 function fmtBtc(value: number): string {
   return `${value.toFixed(3).replace(/\.?0+$/, "")} BTC`;
 }
 
-export function WhirlpoolPoolCard({ pool, charts }: WhirlpoolPoolCardProps) {
+export function WhirlpoolPoolCard({ pool, charts, lastCjBlock = null, tipHeight = null }: WhirlpoolPoolCardProps) {
   const { t } = useTranslation();
   const points = charts ? whirlpoolSparkline(charts, pool.pool) : [];
   const delta30d = charts ? whirlpool30dDelta(charts, pool.pool) : null;
@@ -51,6 +55,24 @@ export function WhirlpoolPoolCard({ pool, charts }: WhirlpoolPoolCardProps) {
           {t("observatory.whirlpool.cyclesLifetime", { defaultValue: "cycles" })}
         </span>
       </div>
+
+      {lastCjBlock != null && (
+        <div className="text-xs text-muted tabular-nums -mt-2">
+          {t("observatory.whirlpool.lastCoinjoin", {
+            defaultValue: "Last CoinJoin: block {{block}}",
+            block: lastCjBlock.toLocaleString("en-US"),
+          })}
+          {tipHeight != null && tipHeight >= lastCjBlock && (
+            <>
+              {" · "}
+              {t("observatory.whirlpool.blocksAgo", {
+                defaultValue: "{{count}} blocks ago",
+                count: tipHeight - lastCjBlock,
+              })}
+            </>
+          )}
+        </div>
+      )}
 
       <div className="space-y-1">
         <div className="flex items-baseline justify-between gap-2 flex-wrap">
