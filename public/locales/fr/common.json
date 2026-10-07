@@ -2760,6 +2760,7 @@
   "observatory.wabisabi.event.anonset": "Anonset",
   "observatory.wabisabi.event.feeRate": "Taux de frais",
   "observatory.wabisabi.event.analyze": "Analyser dans am-i.exposed",
+  "observatory.wabisabi.event.notAnalyzed": "Pas encore analysé",
   "observatory.wabisabi.timeline.scrub": "Position de la relecture",
   "observatory.wabisabi.timeline.play": "Lire",
   "observatory.wabisabi.timeline.pause": "Pause",

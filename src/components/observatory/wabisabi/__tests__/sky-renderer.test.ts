@@ -3,14 +3,14 @@ import flowEnv from "@/lib/observatory/__tests__/fixtures/wabisator/flow-map-1d.
 import { buildScene, type Scene } from "@/lib/observatory/sky-model";
 import type { FlowMap } from "@/lib/observatory/wabisator-types";
 import {
-  SkyClock, createDynamics, curveControl, edgeEntry, layoutSky, placeLabels, quadPoint, resolveColor, resolvePalette, step,
+  SkyClock, clearRadius, createDynamics, curveControl, edgeEntry, layoutSky, placeLabels, quadPoint, resolveColor, resolvePalette, step,
   type LabelItem, type Rect,
 } from "../sky-renderer";
 
 const scene: Scene = buildScene(flowEnv.result as unknown as FlowMap, null);
 const measure = (text: string) => text.length * 6;
 const bounds: Rect = { x0: 0, y0: 0, x1: 400, y1: 300 };
-const metrics = { nameH: 12, volH: 10, gap: 3, pad: 6 };
+const metrics = { nameH: 12, volH: 10, gap: 3, pad: 6, sep: 6 };
 const overlap = (a: { x: number; y: number; w: number; h: number }, b: typeof a) =>
   a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
@@ -37,13 +37,29 @@ describe("placeLabels", () => {
   });
 
   it("hides volumes before letting names collide when crowded", () => {
-    const items = [item("alpha", 100, 40, 5), item("bravo", 100, 72, 4), item("charlie", 100, 104, 3), item("delta", 60, 72, 2), item("echo", 140, 72, 1)];
+    const items = [item("alpha", 200, 40, 5), item("bravo", 200, 110, 4), item("charlie", 200, 180, 3), item("delta", 130, 110, 2), item("echo", 270, 110, 1)];
     const ls = placeLabels(items, bounds, metrics);
-    for (let i = 0; i < ls.length; i++) for (let j = i + 1; j < ls.length; j++) expect(overlap(ls[i]!, ls[j]!)).toBe(false);
+    const grown = (l: (typeof ls)[number]) => ({ x: l.x - 3, y: l.y - 3, w: l.w + 6, h: l.h + 6 });
+    for (let i = 0; i < ls.length; i++) for (let j = i + 1; j < ls.length; j++) expect(overlap(grown(ls[i]!), grown(ls[j]!))).toBe(false);
     expect(ls.some((l) => !l.showVolume)).toBe(true);
     for (const l of ls) {
       expect(l.x).toBeGreaterThanOrEqual(0);
       expect(l.x + l.w).toBeLessThanOrEqual(400);
+    }
+  });
+});
+
+describe("clear radius", () => {
+  it("keeps labels off every star's rings", () => {
+    expect(clearRadius(4)).toBe(18);
+    expect(clearRadius(20)).toBe(44);
+    expect(clearRadius(30)).toBe(58);
+    const items = [item("alpha", 120, 120, 2), item("bravo", 190, 120, 1)];
+    for (const l of placeLabels(items, bounds, metrics)) {
+      for (const it of items) {
+        const nx = Math.max(l.x, Math.min(it.x, l.x + l.w)), ny = Math.max(l.y, Math.min(it.y, l.y + l.h));
+        expect(Math.hypot(nx - it.x, ny - it.y)).toBeGreaterThanOrEqual(clearRadius(it.r) - 2);
+      }
     }
   });
 });
@@ -81,9 +97,16 @@ describe("colours", () => {
     const vars: Record<string, string> = { "--obs-sky": "#060709", "--obs-sky-fg": "#e6e9f0", "--coord-kruw": "#e8af4f" };
     const p = resolvePalette((n) => vars[n] ?? "", ["--coord-kruw", "--coord-other"]);
     expect(p.sky).toBe("#060709");
+    expect(p.edge).toBe("#060709");
     expect(p.tone("--coord-kruw")).toBe("#e8af4f");
     expect(p.tone("--coord-other")).toBe("#e6e9f0");
     expect(p.tone("--coord-missing")).toBe("#e6e9f0");
+  });
+
+  it("falls back to the page tokens when the sky tokens are missing", () => {
+    const vars: Record<string, string> = { "--background": "#0b0b0d", "--foreground": "#f2f2f4", "--obs-sky-edge": "#05070d" };
+    const p = resolvePalette((n) => vars[n] ?? "", []);
+    expect([p.sky, p.fg, p.edge]).toEqual(["#0b0b0d", "#f2f2f4", "#05070d"]);
   });
 });
 

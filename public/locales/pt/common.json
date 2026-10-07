@@ -2760,6 +2760,7 @@
   "observatory.wabisabi.event.anonset": "Anonset",
   "observatory.wabisabi.event.feeRate": "Taxa de comissão",
   "observatory.wabisabi.event.analyze": "Analisar no am-i.exposed",
+  "observatory.wabisabi.event.notAnalyzed": "Ainda não analisado",
   "observatory.wabisabi.timeline.scrub": "Posição da reprodução",
   "observatory.wabisabi.timeline.play": "Reproduzir",
   "observatory.wabisabi.timeline.pause": "Pausar",

@@ -79,6 +79,14 @@ describe("Ticker", () => {
     expect(screen.getByRole("link", { name: "Analyze in am-i.exposed" }).getAttribute("href")).toBe(`/#tx=${scene.events[9]!.txid}`);
   });
 
+  it("shows Not analysed yet for an undecoded CoinJoin", () => {
+    const ev = { ...scene.events[0]!, txid: "e".repeat(64), t: scene.until, analyzed: false, inputs: 0, anonset: 0 };
+    render(<Ticker scene={{ ...scene, events: [...scene.events, ev] }} time={Infinity} highlightTx={null} onSelect={() => {}} tone="sky" withDate={false} reduced />);
+    const first = screen.getAllByRole("button")[0]!;
+    expect(first.textContent).toContain("Not analysed yet");
+    expect(first.textContent).not.toContain("inputs");
+  });
+
   it("says so before the first CoinJoin", () => {
     render(<Ticker scene={scene} time={scene.since - 1} highlightTx={null} onSelect={() => {}} tone="sky" withDate={false} reduced />);
     expect(screen.getByText("No CoinJoins yet at this point of the replay.")).toBeTruthy();

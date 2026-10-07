@@ -69,12 +69,14 @@ export function Ticker({ scene, time, highlightTx, onSelect, tone, withDate, red
                     <span className={`truncate text-sm ${c.name}`}>{names.get(e.star) ?? e.star}</span>
                     <span className={`num text-sm ${c.name}`}>{fmtBtc(e.volume, locale)} <span className={c.meta}>BTC</span></span>
                     <span className={`num col-start-2 col-span-2 truncate text-[11px] ${c.meta}`}>
-                      {t("observatory.wabisabi.ticker.meta", {
-                        defaultValue: "{{time}} · {{inputs}} inputs · anonset {{anonset}}",
-                        time: clock(e.t),
-                        inputs: fmtCount(e.inputs, locale),
-                        anonset: e.anonset.toLocaleString(locale, { maximumFractionDigits: 1 }),
-                      })}
+                      {e.analyzed
+                        ? t("observatory.wabisabi.ticker.meta", {
+                            defaultValue: "{{time}} · {{inputs}} inputs · anonset {{anonset}}",
+                            time: clock(e.t),
+                            inputs: fmtCount(e.inputs, locale),
+                            anonset: e.anonset.toLocaleString(locale, { maximumFractionDigits: 1 }),
+                          })
+                        : `${clock(e.t)} · ${t("observatory.wabisabi.event.notAnalyzed", { defaultValue: "Not analysed yet" })}`}
                     </span>
                   </button>
                   {on && (

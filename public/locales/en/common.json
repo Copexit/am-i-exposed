@@ -2760,6 +2760,7 @@
   "observatory.wabisabi.event.anonset": "Anonset",
   "observatory.wabisabi.event.feeRate": "Fee rate",
   "observatory.wabisabi.event.analyze": "Analyze in am-i.exposed",
+  "observatory.wabisabi.event.notAnalyzed": "Not analysed yet",
   "observatory.wabisabi.timeline.scrub": "Replay position",
   "observatory.wabisabi.timeline.play": "Play",
   "observatory.wabisabi.timeline.pause": "Pause",

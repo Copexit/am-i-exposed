@@ -100,10 +100,21 @@ describe("layoutStars", () => {
     for (const p of pos) for (const v of [p.x, p.y]) { expect(v).toBeGreaterThanOrEqual(0.08); expect(v).toBeLessThanOrEqual(0.92); }
     for (let i = 0; i < pos.length; i++) for (let j = i + 1; j < pos.length; j++) expect(Math.hypot(pos[i]!.x - pos[j]!.x, pos[i]!.y - pos[j]!.y)).toBeGreaterThanOrEqual(0.18);
   });
+  it("spreads stars over the sky, not along a diagonal", () => {
+    const ks = [...KNOWN_COORDINATORS, ...Array.from({ length: 13 }, (_, i) => `coord-${i}.example`)];
+    const pos = Object.values(layoutStars(ks, {}));
+    const mean = (a: number[]) => a.reduce((s, v) => s + v, 0) / a.length;
+    const xs = pos.map((p) => p.x), ys = pos.map((p) => p.y);
+    const mx = mean(xs), my = mean(ys);
+    const cov = mean(xs.map((x, i) => (x - mx) * (ys[i]! - my)));
+    const sd = (a: number[], m: number) => Math.sqrt(mean(a.map((v) => (v - m) ** 2)));
+    expect(Math.abs(cov / (sd(xs, mx) * sd(ys, my)))).toBeLessThan(0.5);
+    expect((Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys))).toBeGreaterThanOrEqual(0.6);
+  });
 });
 
 describe("particleBudget", () => {
-  const ev = (i: number, volume: number): SkyEvent => ({ txid: `t${String(i).padStart(5, "0")}`, t: i, star: "kruw", volume, inputs: 1, outputs: 1, anonset: 1, feeRate: 1, freshBtc: 0, remixes: [] });
+  const ev = (i: number, volume: number): SkyEvent => ({ txid: `t${String(i).padStart(5, "0")}`, t: i, star: "kruw", volume, inputs: 1, outputs: 1, anonset: 1, feeRate: 1, freshBtc: 0, remixes: [], analyzed: true });
   const sum = (m: Map<string, number>) => [...m.values()].reduce((s, n) => s + n, 0);
   const monotonic = (events: SkyEvent[], m: Map<string, number>) => {
     const sorted = [...events].sort((a, b) => a.volume - b.volume);

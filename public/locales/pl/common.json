@@ -2860,6 +2860,7 @@
   "observatory.wabisabi.event.anonset": "Anonset",
   "observatory.wabisabi.event.feeRate": "Stawka opłaty",
   "observatory.wabisabi.event.analyze": "Analizuj w am-i.exposed",
+  "observatory.wabisabi.event.notAnalyzed": "Jeszcze nie przeanalizowano",
   "observatory.wabisabi.timeline.scrub": "Pozycja odtwarzania",
   "observatory.wabisabi.timeline.play": "Odtwórz",
   "observatory.wabisabi.timeline.pause": "Wstrzymaj",

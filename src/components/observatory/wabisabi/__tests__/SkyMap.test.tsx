@@ -75,13 +75,17 @@ describe("SkyMap", () => {
     expect(screen.getAllByRole("button", { name: /in the last 24 h$/ })).toHaveLength(scene.stars.length);
   });
 
-  it("selects a coordinator with Enter and shows its tooltip on focus", () => {
+  it("selects a coordinator from its native button and describes it with the focus tooltip", () => {
     setMotion(false);
     const { onSelectStar } = mount();
     const kruw = screen.getByRole("button", { name: /^Kruw,/ });
+    // A native <button>: Enter and Space activate it as a click.
+    expect(kruw.tagName).toBe("BUTTON");
     fireEvent.focus(kruw);
-    expect(screen.getByRole("tooltip").textContent).toContain("Online");
-    fireEvent.keyDown(kruw, { key: "Enter" });
+    const tip = screen.getByRole("tooltip");
+    expect(tip.textContent).toContain("Online");
+    expect(kruw.getAttribute("aria-describedby")).toBe(tip.id);
+    fireEvent.click(kruw);
     expect(onSelectStar).toHaveBeenCalledWith("kruw");
   });
 
@@ -102,6 +106,15 @@ describe("SkyMap", () => {
     render(<SkyMap scene={empty} period={7} clock={new SkyClock(90, 0, 0)} highlightTx={null} onSelectStar={() => {}} onSelectEvent={() => {}} />);
     expect(screen.getByText("No CoinJoins in this period")).toBeTruthy();
     expect(screen.getByRole("img").getAttribute("aria-label")).toBe("CoinJoin map for the last 7 d: no CoinJoins.");
+  });
+
+  it("says a CoinJoin is not analysed yet instead of showing zeros", () => {
+    setMotion(false);
+    const ev = { ...scene.events[0]!, txid: "f".repeat(64), analyzed: false, inputs: 0, anonset: 0 };
+    render(<SkyMap scene={{ ...scene, events: [...scene.events, ev] }} period={1} clock={new SkyClock(60, 0, 0)} highlightTx={ev.txid} onSelectStar={() => {}} onSelectEvent={() => {}} />);
+    const card = screen.getByRole("dialog", { name: "CoinJoin details" });
+    expect(card.textContent).toContain("Not analysed yet");
+    expect(card.textContent).not.toContain("Inputs");
   });
 
   it("pins the highlighted CoinJoin with an analyze link and closes it", () => {
@@ -127,5 +140,12 @@ describe("useSkyClock", () => {
     expect(result.current.clock.replaySec).toBe(90);
     rerender({ period: 7, reduced: true });
     expect(result.current.live).toBe(true);
+    expect(result.current.playing).toBe(false);
+    act(() => result.current.scrub(0.3));
+    expect(result.current.progress).toBe(0.3);
+    expect(result.current.playing).toBe(false);
+    rerender({ period: 30, reduced: true });
+    expect(result.current.live).toBe(true);
+    expect(result.current.playing).toBe(false);
   });
 });

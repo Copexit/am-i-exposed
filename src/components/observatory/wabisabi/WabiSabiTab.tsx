@@ -5,7 +5,9 @@ import { useTranslation } from "react-i18next";
 import { Map as MapIcon, Search, Table2 } from "lucide-react";
 import { useCoordinatorsStatus, useFlowMap } from "@/hooks/useWabisator";
 import { useObsState } from "@/hooks/useObsState";
-import { buildScene, layoutStars, replayTime, type Scene } from "@/lib/observatory/sky-model";
+import { buildScene, layoutStars, replayTime, type Scene, type SceneStatus } from "@/lib/observatory/sky-model";
+import type { Period } from "@/lib/observatory/wabisator-client";
+import type { ObsState } from "@/lib/observatory/obs-hash";
 import { useTheme } from "@/hooks/useTheme";
 import { KNOWN_COORDINATORS, coordinatorColorVar, coordinatorFgVar } from "@/lib/observatory/coordinator-palette";
 import { ObservatoryAttribution } from "@/components/observatory/ObservatoryAttribution";
@@ -194,6 +196,79 @@ function FlowsSkeleton() {
   );
 }
 
+// ---------- the map view ----------
+
+/**
+ * Map, timeline and ticker around one replay clock. Its own component so the clock's 10 Hz
+ * progress re-renders only this, not the whole tab.
+ */
+function SkyView({ scene, period, tx, coordinator, setObs }: { scene: Scene | null; period: Period; tx: string | null; coordinator: string | null; setObs: (patch: Partial<ObsState>) => void }) {
+  const { theme } = useTheme();
+  const reduced = useReducedMotion();
+  const wide = useMedia("(min-width: 1024px)");
+  const sky = useSkyClock(period, reduced);
+  const selectStar = useCallback((key: string) => {
+    setObs({ coordinator: key });
+    requestAnimationFrame(() => document.getElementById("obs-coordinator")?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" }));
+  }, [setObs, reduced]);
+  const selectEvent = useCallback((next: string | null) => setObs({ tx: next }), [setObs]);
+  const ticker = (tone: "sky" | "page") =>
+    scene && (
+      <Ticker
+        scene={scene}
+        time={sky.live ? Infinity : replayTime(sky.progress, scene)}
+        highlightTx={tx}
+        onSelect={selectEvent}
+        tone={tone}
+        withDate={period !== 1}
+        reduced={reduced}
+      />
+    );
+
+  return (
+    <div className={`space-y-4 sm:space-y-5 ${FADE}`}>
+      {scene ? (
+        <SkyMap
+          scene={scene}
+          period={period}
+          clock={sky.clock}
+          highlightTx={tx}
+          selected={coordinator}
+          onSelectStar={selectStar}
+          onSelectEvent={selectEvent}
+          aside={wide ? ticker("sky") : undefined}
+        >
+          <StatsStrip totals={scene.totals} period={period} />
+        </SkyMap>
+      ) : (
+        <div className={skyCardClass(theme)}>
+          <div className="obs-sky-scope absolute inset-0">
+            <MapSkeleton loading />
+            <div className="absolute inset-x-0 bottom-0 p-3 sm:p-5 bg-gradient-to-t from-(--obs-sky) to-transparent">
+              <StatsStrip totals={null} period={period} />
+            </div>
+          </div>
+        </div>
+      )}
+      {scene ? (
+        <Timeline
+          scene={scene}
+          period={period}
+          progress={sky.progress}
+          playing={sky.playing}
+          live={sky.live}
+          onScrub={sky.scrub}
+          onTogglePlay={sky.toggle}
+          onPeriod={(p) => setObs({ period: p, tx: null })}
+        />
+      ) : (
+        <TimelineSkeleton />
+      )}
+      {!wide && ticker("page")}
+    </div>
+  );
+}
+
 // ---------- the tab ----------
 
 /**
@@ -205,33 +280,16 @@ export function WabiSabiTab() {
   const [obs, setObs] = useObsState();
   const flow = useFlowMap(obs.period);
   const status = useCoordinatorsStatus();
-  const scene: Scene | null = useMemo(() => (flow.data ? buildScene(flow.data, status.data) : null), [flow.data, status.data]);
+  // The 10 s status poll only changes the scene when a name or online state does.
+  const statusKey = status.data?.Coordinators.map((c) => `${c.Key}\t${c.Name}\t${c.Status}`).join("\n") ?? "";
+  const sceneStatus: SceneStatus | null = useMemo(
+    () => (statusKey ? { Coordinators: statusKey.split("\n").map((l) => { const [Key = "", Name = "", Status = ""] = l.split("\t"); return { Key, Name, Status }; }) } : null),
+    [statusKey],
+  );
+  const scene: Scene | null = useMemo(() => (flow.data ? buildScene(flow.data, sceneStatus) : null), [flow.data, sceneStatus]);
   const periodLabel = usePeriodLabel(obs.period);
   const flowFailed = !flow.data && !!flow.error;
   const table = obs.view === "table";
-  const { theme } = useTheme();
-  const reduced = useReducedMotion();
-  const wide = useMedia("(min-width: 1024px)");
-  const sky = useSkyClock(obs.period, reduced);
-  const selectStar = useCallback((key: string) => {
-    setObs({ coordinator: key });
-    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    requestAnimationFrame(() => document.getElementById("obs-coordinator")?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" }));
-  }, [setObs]);
-  const selectEvent = useCallback((tx: string | null) => setObs({ tx }), [setObs]);
-  const ticker = (tone: "sky" | "page") =>
-    scene && (
-      <Ticker
-        scene={scene}
-        time={sky.live ? Infinity : replayTime(sky.progress, scene)}
-        highlightTx={obs.tx}
-        onSelect={selectEvent}
-        tone={tone}
-        withDate={obs.period !== 1}
-        reduced={reduced}
-      />
-    );
-
   const nav = [
     { id: "obs-map", label: t("observatory.wabisabi.nav.map", { defaultValue: "Map" }) },
     { id: "obs-live", label: t("observatory.wabisabi.nav.live", { defaultValue: "Live rounds" }) },
@@ -302,44 +360,7 @@ export function WabiSabiTab() {
             {scene ? <TableView scene={scene} /> : <TableSkeleton />}
           </div>
         ) : (
-          <div className={`space-y-4 sm:space-y-5 ${FADE}`}>
-            {scene ? (
-              <SkyMap
-                scene={scene}
-                period={obs.period}
-                clock={sky.clock}
-                highlightTx={obs.tx}
-                selected={obs.coordinator}
-                onSelectStar={selectStar}
-                onSelectEvent={selectEvent}
-                aside={wide ? ticker("sky") : undefined}
-              >
-                <StatsStrip totals={scene.totals} period={obs.period} />
-              </SkyMap>
-            ) : (
-              <div className={skyCardClass(theme)}>
-                <MapSkeleton loading />
-                <div className="absolute inset-x-0 bottom-0 p-3 sm:p-5 bg-gradient-to-t from-(--obs-sky) to-transparent">
-                  <StatsStrip totals={null} period={obs.period} />
-                </div>
-              </div>
-            )}
-            {scene ? (
-              <Timeline
-                scene={scene}
-                period={obs.period}
-                progress={sky.progress}
-                playing={sky.playing}
-                live={sky.live}
-                onScrub={sky.scrub}
-                onTogglePlay={sky.toggle}
-                onPeriod={(period) => setObs({ period, tx: null })}
-              />
-            ) : (
-              <TimelineSkeleton />
-            )}
-            {!wide && ticker("page")}
-          </div>
+          <SkyView scene={scene} period={obs.period} tx={obs.tx} coordinator={obs.coordinator} setObs={setObs} />
         )}
       </Section>
 

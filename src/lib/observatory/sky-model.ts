@@ -1,9 +1,13 @@
 import { coordinatorColorToken } from "./coordinator-palette";
 import type { Period } from "./wabisator-client";
-import type { CoordinatorsStatus, FlowMap } from "./wabisator-types";
+import type { FlowMap, StatusCoordinator } from "./wabisator-types";
+
+/** The only status fields the scene reads (any CoordinatorsStatus fits). */
+export type SceneStatus = { Coordinators: Pick<StatusCoordinator, "Key" | "Name" | "Status">[] };
 
 export interface Star { key: string; name: string; x: number; y: number; r: number; colorToken: string; volume: number; coinjoins: number; freshBtc: number; remixIn: number; remixOut: number; internalRemix: number; online: boolean }
-export interface SkyEvent { txid: string; t: number; star: string; volume: number; inputs: number; outputs: number; anonset: number; feeRate: number; freshBtc: number; remixes: { from: string; btc: number; coins: number }[] }
+/** `analyzed` false: Wabisator has not decoded the transaction yet, so inputs, outputs, anonset and fee are placeholders. */
+export interface SkyEvent { txid: string; t: number; star: string; volume: number; inputs: number; outputs: number; anonset: number; feeRate: number; freshBtc: number; remixes: { from: string; btc: number; coins: number }[]; analyzed: boolean }
 export interface Bin { t0: number; t1: number; volume: number; count: number }
 export interface Flow { from: string; to: string; btc: number; coins: number; internal: boolean }
 export interface Scene { since: number; until: number; stars: Star[]; events: SkyEvent[]; bins: Bin[]; flows: Flow[]; totals: FlowMap["Totals"]; empty: boolean }
@@ -34,7 +38,7 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
  */
 export function layoutStars(keys: string[], _volumes: Record<string, number>): Record<string, { x: number; y: number }> {
   const ks = [...new Set(keys)].sort();
-  const pts = ks.map((k) => ({ k, x: LO + hash01(`${k}:x`) * (HI - LO), y: LO + hash01(`${k}:y`) * (HI - LO)}));
+  const pts = ks.map((k) => ({ k, x: LO + hash01(`x:${k}`) * (HI - LO), y: LO + hash01(`y:${k}`) * (HI - LO)}));
   for (let iter = 0; iter < 300; iter++) {
     let moved = false;
     for (let i = 0; i < pts.length; i++) {
@@ -61,7 +65,7 @@ export function layoutStars(keys: string[], _volumes: Record<string, number>): R
 const toSec = (iso: string) => Math.floor(Date.parse(iso) / 1000);
 
 /** Precomputes everything the sky draws. O(coinjoins + coordinators). */
-export function buildScene(flow: FlowMap, status: CoordinatorsStatus | null, binCount = 96): Scene {
+export function buildScene(flow: FlowMap, status: SceneStatus | null, binCount = 96): Scene {
   const since = toSec(flow.Since);
   const until = toSec(flow.Until);
   const statusBy = new Map((status?.Coordinators ?? []).map((c) => [c.Key, c]));
@@ -97,6 +101,7 @@ export function buildScene(flow: FlowMap, status: CoordinatorsStatus | null, bin
     txid: c.TxId, t: c.Time, star: c.Coordinator, volume: c.Volume, inputs: c.Inputs, outputs: c.Outputs,
     anonset: c.Anonset, feeRate: c.FeeRate, freshBtc: c.FreshBtc,
     remixes: c.Remixes.map((r) => ({ from: r.From, btc: r.Btc, coins: r.Coins })),
+    analyzed: c.Analyzed !== false,
   })).sort((a, b) => a.t - b.t);
 
   const span = Math.max(1, until - since);

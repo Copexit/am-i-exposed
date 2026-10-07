@@ -20,24 +20,25 @@ export function resolveColor(raw: string | null | undefined, fallback: string): 
   return fallback;
 }
 
-export interface SkyPalette { sky: string; fg: string; tone: (token: string) => string }
+export interface SkyPalette { sky: string; fg: string; edge: string; tone: (token: string) => string }
 
-// Last resort only, when the tokens in globals.css are missing.
-const FALLBACK_SKY = "#000000";
-const FALLBACK_FG = "#ffffff";
-
-/** Resolves the sky tokens once per theme. Unknown or missing star tokens use --coord-other, then the sky foreground. */
+/**
+ * Resolves the sky tokens once per theme. Each falls back to a broader token (the sky to the page
+ * background, its foreground to the page foreground, the vignette edge to the sky); unknown or
+ * missing star tokens use --coord-other, then the sky foreground.
+ */
 export function resolvePalette(read: (name: string) => string, tokens: string[]): SkyPalette {
-  const sky = resolveColor(read("--obs-sky"), FALLBACK_SKY);
-  const fg = resolveColor(read("--obs-sky-fg"), FALLBACK_FG);
+  const sky = resolveColor(read("--obs-sky"), resolveColor(read("--background"), ""));
+  const fg = resolveColor(read("--obs-sky-fg"), resolveColor(read("--foreground"), ""));
+  const edge = resolveColor(read("--obs-sky-edge"), sky);
   const other = resolveColor(read("--coord-other"), fg);
   const map = new Map(tokens.map((t) => [t, resolveColor(read(t), other)]));
-  return { sky, fg, tone: (t) => map.get(t) ?? other };
+  return { sky, fg, edge, tone: (t) => map.get(t) ?? other };
 }
 
 /** `#rrggbb` plus alpha as rgba(). */
 export function rgba(hex: string, a: number): string {
-  const n = parseInt(hex.slice(1), 16);
+  const n = parseInt(hex.slice(1), 16) || 0;
   return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${Math.max(0, Math.min(1, a)).toFixed(3)})`;
 }
 
@@ -70,14 +71,18 @@ export function quadPoint(ax: number, ay: number, cx: number, cy: number, bx: nu
 export interface LabelItem { key: string; x: number; y: number; r: number; name: string; vol: string; nameW: number; volW: number; weight: number }
 export type LabelSide = "below" | "above" | "right" | "left";
 export interface LabelBox { key: string; x: number; y: number; w: number; h: number; side: LabelSide; showVolume: boolean; name: string; vol: string }
-export interface LabelMetrics { nameH: number; volH: number; gap: number; pad: number }
+/** pad: from a star's clear radius to its label; sep: min gap between two labels. */
+export interface LabelMetrics { nameH: number; volH: number; gap: number; pad: number; sep: number }
 
 const SIDES: LabelSide[] = ["below", "above", "right", "left"];
+
+/** Room a star needs around it: its glow core, the hover/selection orbit and the highlight ring. */
+export const clearRadius = (r: number) => Math.max(r + 14, Math.min(r * 2.2, r + 28));
 
 function candidate(it: LabelItem, side: LabelSide, withVol: boolean, m: LabelMetrics): LabelBox {
   const w = withVol ? Math.max(it.nameW, it.volW) : it.nameW;
   const h = withVol ? m.nameH + m.gap + m.volH : m.nameH;
-  const off = it.r + m.pad;
+  const off = clearRadius(it.r) + m.pad;
   const pos = side === "below" ? { x: it.x - w / 2, y: it.y + off }
     : side === "above" ? { x: it.x - w / 2, y: it.y - off - h }
     : side === "right" ? { x: it.x + off, y: it.y - h / 2 }
@@ -96,11 +101,15 @@ const area = (a: { x: number; y: number; w: number; h: number }, b: typeof a) =>
  */
 export function placeLabels(items: LabelItem[], bounds: Rect, m: LabelMetrics): LabelBox[] {
   const order = [...items].sort((a, b) => b.weight - a.weight || (a.key < b.key ? -1 : 1));
-  const discs = items.map((s) => ({ x: s.x - s.r - 2, y: s.y - s.r - 2, w: 2 * s.r + 4, h: 2 * s.r + 4 }));
+  const discs = items.map((s) => {
+    // Keep a label clear of other stars' rings, but allow it under their outer glow.
+    const c = clearRadius(s.r) - 2;
+    return { x: s.x - c, y: s.y - c, w: 2 * c, h: 2 * c };
+  });
   const placed: LabelBox[] = [];
   const cost = (b: LabelBox) => {
-    const pad = { x: b.x - 2, y: b.y - 1, w: b.w + 4, h: b.h + 2 };
-    return placed.reduce((s, p) => s + area(pad, p), 0) + discs.reduce((s, d) => s + area(pad, d), 0);
+    const pad = { x: b.x - m.sep, y: b.y - m.sep, w: b.w + 2 * m.sep, h: b.h + 2 * m.sep };
+    return placed.reduce((s, p) => s + area(pad, p), 0) + discs.reduce((s, d) => s + area(b, d), 0);
   };
   const inside = (b: LabelBox) => b.x >= bounds.x0 && b.y >= bounds.y0 && b.x + b.w <= bounds.x1 && b.y + b.h <= bounds.y1;
   for (const it of order) {
@@ -127,7 +136,7 @@ export function placeLabels(items: LabelItem[], bounds: Rect, m: LabelMetrics): 
 export interface StarPx { key: string; x: number; y: number; r: number; tone: string; online: boolean; volume: number }
 export interface SkyLayout { view: SkyView; plot: Rect; stars: StarPx[]; byKey: Map<string, StarPx>; labels: LabelBox[]; fonts: SkyFonts; nameSize: number; maxEventVol: number }
 
-export const labelMetrics = (mobile: boolean): LabelMetrics => (mobile ? { nameH: 12, volH: 10, gap: 3, pad: 6 } : { nameH: 13, volH: 11, gap: 4, pad: 8 });
+export const labelMetrics = (mobile: boolean): LabelMetrics => (mobile ? { nameH: 12, volH: 10, gap: 3, pad: 4, sep: 4 } : { nameH: 13, volH: 11, gap: 4, pad: 6, sep: 6 });
 
 /** Pixel layout of the stars and labels for a view. Pure; recomputed on scene, size or font change. */
 export function layoutSky(scene: Scene, view: SkyView, fonts: SkyFonts, volText: (key: string, volume: number) => string, measure: (text: string, font: string) => number): SkyLayout {
@@ -350,7 +359,8 @@ function flowPath(ctx: CanvasRenderingContext2D, a: StarPx, b: StarPx) {
   ctx.quadraticCurveTo(c.x, c.y, b.x, b.y);
 }
 
-export interface BackdropOpts { palette: SkyPalette; scene: Scene; reduced: boolean; edge: string | null }
+/** bleed: the sky dissolves into the page (dark theme) instead of deepening at its card edge. */
+export interface BackdropOpts { palette: SkyPalette; scene: Scene; reduced: boolean; bleed: boolean }
 
 /**
  * The still layer, drawn once per scene, size or theme: sky, nebula tint, grain, vignette, flow
@@ -377,8 +387,8 @@ export function drawBackdrop(ctx: CanvasRenderingContext2D, layout: SkyLayout, o
 
   // Vignette: in dark the sky dissolves into the page; in light it deepens toward the card edge.
   const vg = ctx.createRadialGradient(w / 2, h * 0.42, Math.min(w, h) * 0.3, w / 2, h * 0.5, Math.hypot(w, h) * 0.62);
-  vg.addColorStop(0, rgba(o.edge ?? palette.sky, 0));
-  vg.addColorStop(1, rgba(o.edge ?? FALLBACK_SKY, o.edge ? 0.9 : 0.45));
+  vg.addColorStop(0, rgba(palette.edge, 0));
+  vg.addColorStop(1, rgba(palette.edge, o.bleed ? 0.9 : 0.55));
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, w, h);
 
@@ -560,7 +570,7 @@ export function drawFrame(ctx: CanvasRenderingContext2D, layout: SkyLayout, dyn:
     ctx.lineWidth = 1.5;
     ctx.setLineDash([3, 4]);
     ctx.beginPath();
-    ctx.arc(hs.x, hs.y, hs.r + 14 + 3 * b, 0, Math.PI * 2);
+    ctx.arc(hs.x, hs.y, hs.r + 10 + 2 * b, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
   }

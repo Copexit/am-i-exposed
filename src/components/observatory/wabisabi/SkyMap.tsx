@@ -10,7 +10,7 @@ import { fmtBtc, fmtCount } from "@/lib/observatory/obs-format";
 import type { Period } from "@/lib/observatory/wabisator-client";
 import { usePeriodLabel } from "./StatsStrip";
 import {
-  SkyClock, createDynamics, drawBackdrop, drawFrame, layoutSky, pulseAt, resolveColor, resolvePalette, step,
+  SkyClock, createDynamics, drawBackdrop, drawFrame, layoutSky, pulseAt, resolvePalette, step,
   type SkyFonts, type SkyLayout, type SkyPalette,
 } from "./sky-renderer";
 
@@ -37,30 +37,27 @@ const nowMs = () => (typeof performance !== "undefined" ? performance.now() : Da
 /**
  * The replay clock: progress runs 0 to 1 over REPLAY_SECONDS[period], then the map is live.
  * The clock object is mutated in place (the canvas loop reads it every frame); `progress` is a
- * 10 Hz React mirror for the timeline and the ticker. Reduced motion starts live.
+ * 10 Hz React mirror for the timeline and the ticker. Reduced motion starts live and paused, so
+ * scrubbing only moves the playhead; Play still runs the replay for the ticker and timeline.
  */
 export function useSkyClock(period: Period, reduced: boolean) {
-  const [clock] = useState(() => new SkyClock(REPLAY_SECONDS[period], reduced ? 1 : 0, nowMs()));
+  const [clock] = useState(() => new SkyClock(REPLAY_SECONDS[period], 0, nowMs()));
   const [progress, setProgress] = useState(() => clock.progress(nowMs()));
   const [playing, setPlaying] = useState(true);
-  const [seenPeriod, setSeenPeriod] = useState(period);
-  const [seenReduced, setSeenReduced] = useState(reduced);
+  const [seen, setSeen] = useState({ period, reduced: false });
 
-  // A new period restarts the replay (reset during render, so no frame shows the old progress).
-  if (seenPeriod !== period) {
-    setSeenPeriod(period);
-    clock.restart(REPLAY_SECONDS[period], reduced ? 1 : 0, nowMs());
-    setPlaying(true);
-    setProgress(clock.anchor);
-  }
-
-  // The media query resolves after hydration: reduced motion, once known, starts live.
-  if (seenReduced !== reduced) {
-    setSeenReduced(reduced);
+  // A new period restarts the replay; reduced motion (known only after hydration) parks it at live.
+  // Reset during render, so no frame shows the old progress.
+  if (seen.period !== period || seen.reduced !== reduced) {
+    setSeen({ period, reduced });
+    const now = nowMs();
+    if (seen.period !== period) clock.restart(REPLAY_SECONDS[period], 0, now);
     if (reduced) {
-      clock.jump(1, nowMs());
-      setProgress(1);
+      if (clock.playing) clock.toggle(now);
+      clock.jump(1, now);
     }
+    setPlaying(clock.playing);
+    setProgress(clock.anchor);
   }
 
   const live = progress >= 1;
@@ -94,7 +91,7 @@ function measure(text: string, font: string): number {
   return measureCtx.measureText(text).width;
 }
 
-function readTheme(): { palette: (tokens: string[]) => SkyPalette; fonts: SkyFonts; page: string } {
+function readTheme(): { palette: (tokens: string[]) => SkyPalette; fonts: SkyFonts } {
   const root = getComputedStyle(document.documentElement);
   const body = getComputedStyle(document.body);
   const read = (n: string) => root.getPropertyValue(n) || body.getPropertyValue(n);
@@ -102,11 +99,10 @@ function readTheme(): { palette: (tokens: string[]) => SkyPalette; fonts: SkyFon
   return {
     palette: (tokens) => resolvePalette(read, tokens),
     fonts: { sans: body.fontFamily || "system-ui, sans-serif", mono: mono ? `${mono}, ui-monospace, monospace` : "ui-monospace, monospace" },
-    page: resolveColor(read("--background"), ""),
   };
 }
 
-const TIP = "glass rounded-xl px-3.5 py-3 text-xs shadow-(--overlay-shadow) motion-safe:animate-[obs-fade_180ms_ease-out]";
+const TIP = "rounded-xl border border-(--glass-border) bg-(--obs-panel) backdrop-blur-md px-3.5 py-3 text-xs shadow-(--overlay-shadow) motion-safe:animate-[obs-fade_180ms_ease-out]";
 
 /** Positions a panel beside an anchor point, flipping and clamping so the map never clips it. */
 function useAnchored(ref: React.RefObject<HTMLElement | null>, anchor: { x: number; y: number; r: number } | null, box: { w: number; h: number }, prefer: "right" | "left") {
@@ -174,12 +170,16 @@ export function EventDetails({ event, star, withDate, onClose }: { event: SkyEve
         )}
       </div>
       <p className="num text-xl leading-none text-foreground">{f.btc(event.volume)}</p>
-      <dl className="space-y-1">
-        <Row label={t("observatory.wabisabi.event.inputs", { defaultValue: "Inputs" })} value={f.count(event.inputs)} />
-        <Row label={t("observatory.wabisabi.event.outputs", { defaultValue: "Outputs" })} value={f.count(event.outputs)} />
-        <Row label={t("observatory.wabisabi.event.anonset", { defaultValue: "Anonset" })} value={event.anonset.toLocaleString(f.locale, { maximumFractionDigits: 1 })} />
-        <Row label={t("observatory.wabisabi.event.feeRate", { defaultValue: "Fee rate" })} value={`${event.feeRate.toLocaleString(f.locale, { maximumFractionDigits: 2 })} sat/vB`} />
-      </dl>
+      {event.analyzed ? (
+        <dl className="space-y-1">
+          <Row label={t("observatory.wabisabi.event.inputs", { defaultValue: "Inputs" })} value={f.count(event.inputs)} />
+          <Row label={t("observatory.wabisabi.event.outputs", { defaultValue: "Outputs" })} value={f.count(event.outputs)} />
+          <Row label={t("observatory.wabisabi.event.anonset", { defaultValue: "Anonset" })} value={event.anonset.toLocaleString(f.locale, { maximumFractionDigits: 1 })} />
+          <Row label={t("observatory.wabisabi.event.feeRate", { defaultValue: "Fee rate" })} value={`${event.feeRate.toLocaleString(f.locale, { maximumFractionDigits: 2 })} sat/vB`} />
+        </dl>
+      ) : (
+        <p className="text-muted">{t("observatory.wabisabi.event.notAnalyzed", { defaultValue: "Not analysed yet" })}</p>
+      )}
       {onClose && (
         <a
           href={`/#tx=${event.txid}`}
@@ -289,7 +289,7 @@ export function SkyMap({ scene, period, clock, highlightTx, selected = null, onS
   const look = useMemo(() => {
     if (typeof document === "undefined") return null;
     const th = readTheme();
-    return { palette: th.palette(tokenKey.split(",")), fonts: th.fonts, page: th.page };
+    return { palette: th.palette(tokenKey.split(",")), fonts: th.fonts };
     // theme and fontsReady are triggers: the values come from the DOM.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [theme, tokenKey, fontsReady]);
@@ -340,7 +340,7 @@ export function SkyMap({ scene, period, clock, highlightTx, selected = null, onS
     const bctx = bg.getContext("2d");
     if (bctx) {
       bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      drawBackdrop(bctx, layout, { palette: look.palette, scene, reduced, edge: theme === "dark" ? look.page || null : null });
+      drawBackdrop(bctx, layout, { palette: look.palette, scene, reduced, bleed: theme === "dark" });
     }
     const cap = mobile ? MAX_LIVE_PARTICLES.mobile : MAX_LIVE_PARTICLES.desktop;
     drawRef.current = (dt: number) => {
@@ -416,8 +416,10 @@ export function SkyMap({ scene, period, clock, highlightTx, selected = null, onS
   const cardEvent = highlightEvent;
   const cardPx = cardEvent ? layout?.byKey.get(cardEvent.star) ?? null : null;
   const pulsePx = pulseEvent && !cardEvent ? layout?.byKey.get(pulseEvent.star) ?? null : null;
-  useAnchored(tipRef, hoverPx ?? pulsePx, box, "right");
-  useAnchored(cardRef, cardPx, box, "left");
+  // Panels stay in the open sky: clear of the ticker aside and the stats strip.
+  const open = { w: box.w - box.right, h: box.h - box.bottom };
+  useAnchored(tipRef, hoverPx ?? pulsePx, open, "right");
+  useAnchored(cardRef, cardPx, open, "left");
 
   const top = [...scene.stars].sort((a, b) => b.volume - a.volume)[0];
   const aria = scene.empty
@@ -436,82 +438,81 @@ export function SkyMap({ scene, period, clock, highlightTx, selected = null, onS
       data-testid="obs-sky"
       className={skyCardClass(theme)}
     >
-      <canvas
-        ref={canvasRef}
-        role="img"
-        aria-label={aria}
-        className={`absolute inset-0 size-full ${pulseHover ? "cursor-pointer" : ""}`}
-        onPointerMove={onPointerMove}
-        onPointerLeave={() => setPulseHover(null)}
-        onClick={onCanvasClick}
-      />
+      {/* Dark-glass tokens for everything on the sky; the card frame above keeps the page tokens. */}
+      <div className="obs-sky-scope absolute inset-0">
+        <canvas
+          ref={canvasRef}
+          role="img"
+          aria-label={aria}
+          className={`absolute inset-0 size-full ${pulseHover ? "cursor-pointer" : ""}`}
+          onPointerMove={onPointerMove}
+          onPointerLeave={() => setPulseHover(null)}
+          onClick={onCanvasClick}
+        />
 
-      {scene.empty && layout && (
-        <p
-          className="pointer-events-none absolute inset-x-0 text-center eyebrow !text-(--obs-sky-fg)/70 motion-safe:animate-[obs-fade_400ms_ease-out]"
-          style={{ top: (layout.plot.y0 + layout.plot.y1) / 2 - 6 }}
-        >
-          {t("observatory.wabisabi.map.empty", { defaultValue: "No CoinJoins in this period" })}
-        </p>
-      )}
+        {scene.empty && layout && (
+          <p
+            className="pointer-events-none absolute inset-x-0 text-center eyebrow !text-(--obs-sky-fg)/70 motion-safe:animate-[obs-fade_400ms_ease-out]"
+            style={{ top: (layout.plot.y0 + layout.plot.y1) / 2 - 6 }}
+          >
+            {t("observatory.wabisabi.map.empty", { defaultValue: "No CoinJoins in this period" })}
+          </p>
+        )}
 
-      {layout?.stars.map((s) => {
-        const star = starByKey.get(s.key)!;
-        const size = Math.max(40, 2 * s.r + 12);
-        return (
-          <button
-            key={s.key}
-            type="button"
-            aria-label={t("observatory.wabisabi.map.star", { defaultValue: "{{name}}, {{volume}} in the last {{period}}", name: star.name, volume: f.btc(star.volume), period: periodLabel })}
-            aria-pressed={selected === s.key}
-            className="absolute rounded-full bg-transparent cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--obs-sky-fg)"
-            style={{ left: s.x - size / 2, top: s.y - size / 2, width: size, height: size }}
-            onPointerEnter={() => setHover(s.key)}
-            onPointerLeave={() => setHover((h) => (h === s.key ? null : h))}
-            onFocus={() => setHover(s.key)}
-            onBlur={() => setHover((h) => (h === s.key ? null : h))}
-            onClick={() => onSelectStar(s.key)}
-            onKeyDown={(e) => {
-              if (e.key !== "Enter" && e.key !== " ") return;
-              e.preventDefault();
-              onSelectStar(s.key);
-            }}
-          />
-        );
-      })}
+        {layout?.stars.map((s) => {
+          const star = starByKey.get(s.key)!;
+          const size = Math.max(40, 2 * s.r + 12);
+          return (
+            <button
+              key={s.key}
+              type="button"
+              aria-label={t("observatory.wabisabi.map.star", { defaultValue: "{{name}}, {{volume}} in the last {{period}}", name: star.name, volume: f.btc(star.volume), period: periodLabel })}
+              aria-pressed={selected === s.key}
+              aria-describedby={hover === s.key ? "obs-sky-tip" : undefined}
+              className="absolute rounded-full bg-transparent cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--obs-sky-fg)"
+              style={{ left: s.x - size / 2, top: s.y - size / 2, width: size, height: size }}
+              onPointerEnter={() => setHover(s.key)}
+              onPointerLeave={() => setHover((h) => (h === s.key ? null : h))}
+              onFocus={() => setHover(s.key)}
+              onBlur={() => setHover((h) => (h === s.key ? null : h))}
+              onClick={() => onSelectStar(s.key)}
+            />
+          );
+        })}
 
-      {aside && (
-        <div
-          ref={asideRef}
-          className="absolute right-0 top-0 w-[360px] overflow-hidden p-5 [mask-image:linear-gradient(to_bottom,black_85%,transparent)]"
-          style={{ bottom: box.bottom }}
-        >
-          {aside}
+        {aside && (
+          <div
+            ref={asideRef}
+            className="absolute right-0 top-0 w-[360px] overflow-hidden p-5 [mask-image:linear-gradient(to_bottom,black_85%,transparent)]"
+            style={{ bottom: box.bottom }}
+          >
+            {aside}
+          </div>
+        )}
+
+        <div ref={overlayRef} className="absolute inset-x-0 bottom-0 p-3 sm:p-5 bg-gradient-to-t from-(--obs-sky)/80 to-transparent">
+          {children}
         </div>
-      )}
 
-      <div ref={overlayRef} className="absolute inset-x-0 bottom-0 p-3 sm:p-5 bg-gradient-to-t from-(--obs-sky)/80 to-transparent">
-        {children}
+        {(hoverStar || (pulseEvent && !cardEvent)) && (
+          <div ref={tipRef} id="obs-sky-tip" role="tooltip" key={hover ?? pulseHover} className={`pointer-events-none absolute z-10 ${TIP}`} style={{ left: -9999, top: 0 }}>
+            {hoverStar ? <StarDetails star={hoverStar} /> : pulseEvent && <EventDetails event={pulseEvent} star={starByKey.get(pulseEvent.star)} withDate={withDate} />}
+          </div>
+        )}
+
+        {cardEvent && (
+          <div
+            ref={cardRef}
+            key={cardEvent.txid}
+            role="dialog"
+            aria-label={t("observatory.wabisabi.event.label", { defaultValue: "CoinJoin details" })}
+            className={`absolute z-20 w-64 ${TIP}`}
+            style={{ left: -9999, top: 0 }}
+          >
+            <EventDetails event={cardEvent} star={starByKey.get(cardEvent.star)} withDate={withDate} onClose={() => onSelectEvent(null)} />
+          </div>
+        )}
       </div>
-
-      {(hoverStar || (pulseEvent && !cardEvent)) && (
-        <div ref={tipRef} role="tooltip" key={hover ?? pulseHover} className={`pointer-events-none absolute z-10 ${TIP}`} style={{ left: -9999, top: 0 }}>
-          {hoverStar ? <StarDetails star={hoverStar} /> : pulseEvent && <EventDetails event={pulseEvent} star={starByKey.get(pulseEvent.star)} withDate={withDate} />}
-        </div>
-      )}
-
-      {cardEvent && (
-        <div
-          ref={cardRef}
-          key={cardEvent.txid}
-          role="dialog"
-          aria-label={t("observatory.wabisabi.event.label", { defaultValue: "CoinJoin details" })}
-          className={`absolute z-20 w-64 ${TIP}`}
-          style={{ left: -9999, top: 0 }}
-        >
-          <EventDetails event={cardEvent} star={starByKey.get(cardEvent.star)} withDate={withDate} onClose={() => onSelectEvent(null)} />
-        </div>
-      )}
     </div>
   );
 }
