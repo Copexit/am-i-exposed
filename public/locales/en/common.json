@@ -3070,5 +3070,17 @@
   "observatory.p2p.board.captionSell": "Median premium to sell BTC, by currency and venue",
   "observatory.p2p.board.cell_one": "{{cur}} on {{venue}}: median {{premium}}, {{count}} offer",
   "observatory.p2p.board.cell_other": "{{cur}} on {{venue}}: median {{premium}}, {{count}} offers",
-  "observatory.p2p.board.note": "Best cell per currency is outlined. Small figures are offer counts."
+  "observatory.p2p.board.note": "Best cell per currency is outlined. Small figures are offer counts.",
+  "observatory.p2p.volume.trades_one": "{{formatted}} trade",
+  "observatory.p2p.volume.trades_other": "{{formatted}} trades",
+  "observatory.p2p.volume.robosats": "RoboSats daily volume",
+  "observatory.p2p.volume.coverage": "{{n}} of {{total}} coordinators",
+  "observatory.p2p.volume.torNote": "(the rest are reachable through Tor on a self-hosted node)",
+  "observatory.p2p.volume.empty": "No volume history for this range.",
+  "observatory.p2p.volume.chartLabel": "RoboSats daily volume, {{range}}",
+  "observatory.p2p.volume.shares": "Share of volume by coordinator",
+  "observatory.p2p.volume.mostro": "Mostro completed trades",
+  "observatory.p2p.volume.mostroLead": "Seen on public relays, last 7 days. Relays cap how far back they answer, so older days are not shown.",
+  "observatory.p2p.volume.mostroNone": "No completed trades could be read from the relays.",
+  "observatory.p2p.volume.hodlhodl": "HodlHodl publishes no volume data."
 }

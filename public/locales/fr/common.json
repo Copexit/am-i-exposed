@@ -3070,5 +3070,17 @@
   "observatory.p2p.board.captionSell": "Prime médiane pour vendre des BTC, par devise et plateforme",
   "observatory.p2p.board.cell_one": "{{cur}} sur {{venue}} : médiane {{premium}}, {{count}} offre",
   "observatory.p2p.board.cell_other": "{{cur}} sur {{venue}} : médiane {{premium}}, {{count}} offres",
-  "observatory.p2p.board.note": "La meilleure cellule par devise est encadrée. Les petits chiffres sont le nombre d'offres."
+  "observatory.p2p.board.note": "La meilleure cellule par devise est encadrée. Les petits chiffres sont le nombre d'offres.",
+  "observatory.p2p.volume.trades_one": "{{formatted}} échange",
+  "observatory.p2p.volume.trades_other": "{{formatted}} échanges",
+  "observatory.p2p.volume.robosats": "Volume quotidien de RoboSats",
+  "observatory.p2p.volume.coverage": "{{n}} coordinateurs sur {{total}}",
+  "observatory.p2p.volume.torNote": "(les autres sont joignables via Tor sur un nœud auto-hébergé)",
+  "observatory.p2p.volume.empty": "Aucun historique de volume pour cette période.",
+  "observatory.p2p.volume.chartLabel": "Volume quotidien de RoboSats, {{range}}",
+  "observatory.p2p.volume.shares": "Part du volume par coordinateur",
+  "observatory.p2p.volume.mostro": "Échanges conclus sur Mostro",
+  "observatory.p2p.volume.mostroLead": "Vus sur les relais publics, 7 derniers jours. Les relais limitent l'historique renvoyé, les jours plus anciens ne sont donc pas affichés.",
+  "observatory.p2p.volume.mostroNone": "Aucun échange conclu n'a pu être lu sur les relais.",
+  "observatory.p2p.volume.hodlhodl": "HodlHodl ne publie aucune donnée de volume."
 }

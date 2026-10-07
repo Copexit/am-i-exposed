@@ -3208,5 +3208,19 @@
   "observatory.p2p.board.cell_few": "{{cur}} na {{venue}}: mediana {{premium}}, {{count}} oferty",
   "observatory.p2p.board.cell_many": "{{cur}} na {{venue}}: mediana {{premium}}, {{count}} ofert",
   "observatory.p2p.board.cell_other": "{{cur}} na {{venue}}: mediana {{premium}}, {{count}} oferty",
-  "observatory.p2p.board.note": "Najlepsza komórka dla każdej waluty jest obramowana. Małe liczby to liczba ofert."
+  "observatory.p2p.board.note": "Najlepsza komórka dla każdej waluty jest obramowana. Małe liczby to liczba ofert.",
+  "observatory.p2p.volume.trades_one": "{{formatted}} transakcja",
+  "observatory.p2p.volume.trades_few": "{{formatted}} transakcje",
+  "observatory.p2p.volume.trades_many": "{{formatted}} transakcji",
+  "observatory.p2p.volume.trades_other": "{{formatted}} transakcji",
+  "observatory.p2p.volume.robosats": "Dzienny wolumen RoboSats",
+  "observatory.p2p.volume.coverage": "{{n}} z {{total}} koordynatorów",
+  "observatory.p2p.volume.torNote": "(pozostali są dostępni przez Tor na własnym węźle)",
+  "observatory.p2p.volume.empty": "Brak historii wolumenu dla tego zakresu.",
+  "observatory.p2p.volume.chartLabel": "Dzienny wolumen RoboSats, {{range}}",
+  "observatory.p2p.volume.shares": "Udział w wolumenie według koordynatora",
+  "observatory.p2p.volume.mostro": "Zakończone transakcje Mostro",
+  "observatory.p2p.volume.mostroLead": "Widoczne na publicznych przekaźnikach, ostatnie 7 dni. Przekaźniki ograniczają zakres odpowiedzi, więc starsze dni nie są pokazywane.",
+  "observatory.p2p.volume.mostroNone": "Nie udało się odczytać zakończonych transakcji z przekaźników.",
+  "observatory.p2p.volume.hodlhodl": "HodlHodl nie publikuje danych o wolumenie."
 }

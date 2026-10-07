@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { RotateCw, WifiOff } from "lucide-react";
 import { useNetwork } from "@/context/NetworkContext";
 import type { Venue } from "@/lib/observatory/p2p/types";
 import { useObsState } from "@/hooks/useObsState";
-import { useP2p } from "@/hooks/useP2p";
+import { useP2p, useP2pHistory } from "@/hooks/useP2p";
 import { buildMarkets, defaultCurrency, filterVenues, headline as buildHeadline, makerSide, premiumBoard } from "@/lib/observatory/p2p/market";
 import { Section, SubNav } from "@/components/observatory/ObsSections";
 import { P2pHeadline } from "./P2pHeadline";
@@ -17,6 +17,7 @@ import { DepthWall } from "./DepthWall";
 import { OfferList } from "./OfferList";
 import { PremiumBoard } from "./PremiumBoard";
 import { VenueSection } from "./VenueSection";
+import { P2pVolume } from "./P2pVolume";
 import { BONE } from "./p2p-ui";
 
 function AllDown({ onRetry }: { onRetry: () => void }) {
@@ -78,6 +79,19 @@ export function P2pTab() {
     .sort((a, b) => b.n - a.n)
     .slice(0, 3)
     .map((m) => m.c), [shown, cur, maker]);
+
+  // History loads lazily, when the Volume section approaches the viewport.
+  const [volumeNear, setVolumeNear] = useState(() => typeof IntersectionObserver === "undefined");
+  useEffect(() => {
+    if (volumeNear) return;
+    const el = document.getElementById("p2p-volume");
+    if (!el) return;
+    const io = new IntersectionObserver((e) => { if (e.some((x) => x.isIntersecting)) setVolumeNear(true); }, { rootMargin: "600px 0px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [volumeNear, allDown]);
+  const history = useP2pHistory(volumeNear);
+  const today = new Date(data.nowSec * 1000).toISOString().slice(0, 10);
 
   const board = useMemo(() => premiumBoard(markets, obs.side), [markets, obs.side]);
   const onBoard = useCallback((c: string, v: Venue) => {
@@ -154,7 +168,7 @@ export function P2pTab() {
             title={t("observatory.p2p.volume.title", { defaultValue: "Volume" })}
             lead={t("observatory.p2p.volume.lead", { defaultValue: "Completed trades over time, where venues publish them." })}
           >
-            <BlockSkeleton />
+            <P2pVolume history={history} isUmbrel={isUmbrel} today={today} />
           </Section>
         </>
       )}

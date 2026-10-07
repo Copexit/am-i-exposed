@@ -3070,5 +3070,17 @@
   "observatory.p2p.board.captionSell": "Prima mediana para vender BTC, por moneda y plataforma",
   "observatory.p2p.board.cell_one": "{{cur}} en {{venue}}: mediana {{premium}}, {{count}} oferta",
   "observatory.p2p.board.cell_other": "{{cur}} en {{venue}}: mediana {{premium}}, {{count}} ofertas",
-  "observatory.p2p.board.note": "La mejor celda de cada moneda aparece resaltada. Las cifras pequeñas son el número de ofertas."
+  "observatory.p2p.board.note": "La mejor celda de cada moneda aparece resaltada. Las cifras pequeñas son el número de ofertas.",
+  "observatory.p2p.volume.trades_one": "{{formatted}} operación",
+  "observatory.p2p.volume.trades_other": "{{formatted}} operaciones",
+  "observatory.p2p.volume.robosats": "Volumen diario de RoboSats",
+  "observatory.p2p.volume.coverage": "{{n}} de {{total}} coordinadores",
+  "observatory.p2p.volume.torNote": "(el resto es accesible por Tor en un nodo propio)",
+  "observatory.p2p.volume.empty": "No hay historial de volumen para este rango.",
+  "observatory.p2p.volume.chartLabel": "Volumen diario de RoboSats, {{range}}",
+  "observatory.p2p.volume.shares": "Cuota de volumen por coordinador",
+  "observatory.p2p.volume.mostro": "Operaciones completadas en Mostro",
+  "observatory.p2p.volume.mostroLead": "Vistas en relays públicos, últimos 7 días. Los relays limitan cuánto historial devuelven, así que no se muestran días anteriores.",
+  "observatory.p2p.volume.mostroNone": "No se ha podido leer ninguna operación completada de los relays.",
+  "observatory.p2p.volume.hodlhodl": "HodlHodl no publica datos de volumen."
 }

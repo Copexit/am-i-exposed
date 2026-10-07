@@ -3070,5 +3070,17 @@
   "observatory.p2p.board.captionSell": "Median-Aufschlag beim BTC-Verkauf, nach Währung und Plattform",
   "observatory.p2p.board.cell_one": "{{cur}} auf {{venue}}: Median {{premium}}, {{count}} Angebot",
   "observatory.p2p.board.cell_other": "{{cur}} auf {{venue}}: Median {{premium}}, {{count}} Angebote",
-  "observatory.p2p.board.note": "Die beste Zelle je Währung ist umrandet. Kleine Zahlen sind die Anzahl der Angebote."
+  "observatory.p2p.board.note": "Die beste Zelle je Währung ist umrandet. Kleine Zahlen sind die Anzahl der Angebote.",
+  "observatory.p2p.volume.trades_one": "{{formatted}} Trade",
+  "observatory.p2p.volume.trades_other": "{{formatted}} Trades",
+  "observatory.p2p.volume.robosats": "Tägliches RoboSats-Volumen",
+  "observatory.p2p.volume.coverage": "{{n}} von {{total}} Koordinatoren",
+  "observatory.p2p.volume.torNote": "(die übrigen sind über Tor auf einem eigenen Knoten erreichbar)",
+  "observatory.p2p.volume.empty": "Kein Volumenverlauf für diesen Zeitraum.",
+  "observatory.p2p.volume.chartLabel": "Tägliches RoboSats-Volumen, {{range}}",
+  "observatory.p2p.volume.shares": "Volumenanteil je Koordinator",
+  "observatory.p2p.volume.mostro": "Abgeschlossene Mostro-Trades",
+  "observatory.p2p.volume.mostroLead": "Auf öffentlichen Relays gesehen, letzte 7 Tage. Relays begrenzen, wie weit sie zurück antworten, daher fehlen ältere Tage.",
+  "observatory.p2p.volume.mostroNone": "Von den Relays konnten keine abgeschlossenen Trades gelesen werden.",
+  "observatory.p2p.volume.hodlhodl": "HodlHodl veröffentlicht keine Volumendaten."
 }

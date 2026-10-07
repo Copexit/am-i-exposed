@@ -26,6 +26,10 @@ interface VolumeHistoryChartProps {
   /** The last point is today's UTC day, still in progress: drawn dashed so the line does not read as a crash. */
   partialLast?: boolean;
   height?: number;
+  /** Count line in the tooltip; defaults to "N CoinJoins". */
+  countLabel?: (count: number) => string;
+  /** Text when there are no points; defaults to the CoinJoin wording. */
+  emptyLabel?: string;
 }
 
 const ms = (d: string) => Date.parse(`${d}T00:00:00Z`);
@@ -36,12 +40,12 @@ const FOCUS = "focus-visible:outline-2 focus-visible:outline-offset-4 focus-visi
  * Daily volume as a crisp line over a soft area in the coordinator colour, the all-time high
  * annotated, and a tooltip on hover, touch or keyboard (arrows, Home, End).
  */
-export function VolumeHistoryChart({ points, height = 260, ...rest }: VolumeHistoryChartProps) {
+export function VolumeHistoryChart({ points, height = 260, emptyLabel, ...rest }: VolumeHistoryChartProps) {
   const { t } = useTranslation();
   if (points.length === 0) {
     return (
       <div data-testid="volume-chart" data-points={0} style={{ height }} className="grid place-items-center rounded-lg border border-dashed border-hairline text-sm text-muted">
-        {t("observatory.wabisabi.coord.noHistory", { defaultValue: "No CoinJoin history for this range." })}
+        {emptyLabel ?? t("observatory.wabisabi.coord.noHistory", { defaultValue: "No CoinJoin history for this range." })}
       </div>
     );
   }
@@ -54,7 +58,7 @@ export function VolumeHistoryChart({ points, height = 260, ...rest }: VolumeHist
   );
 }
 
-function Inner({ points, ath, color, label, partialLast = false, width, height }: VolumeHistoryChartProps & { width: number; height: number }) {
+function Inner({ points, ath, color, label, partialLast = false, countLabel, width, height }: VolumeHistoryChartProps & { width: number; height: number }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language || "en";
   const gradId = `vh-${useId().replace(/[^a-zA-Z0-9-]/g, "")}`;
@@ -111,7 +115,7 @@ function Inner({ points, ath, color, label, partialLast = false, width, height }
   const hover = active !== null ? points[active] ?? null : null;
   const hoverPartial = partial && active === points.length - 1;
   const tipText = hover
-    ? `${fmt.long.format(ms(hover.date))}${hoverPartial ? ` (${inProgress})` : ""}: ${fmtBtc(hover.volume, locale)} BTC, ${t("observatory.wabisabi.coord.chartCoinjoins", { defaultValue: "{{formatted}} CoinJoins", count: hover.coinjoins, formatted: fmtCount(hover.coinjoins, locale) })}`
+    ? `${fmt.long.format(ms(hover.date))}${hoverPartial ? ` (${inProgress})` : ""}: ${fmtBtc(hover.volume, locale)} BTC, ${(countLabel ? countLabel(hover.coinjoins) : t("observatory.wabisabi.coord.chartCoinjoins", { defaultValue: "{{formatted}} CoinJoins", count: hover.coinjoins, formatted: fmtCount(hover.coinjoins, locale) }))}`
     : "";
 
   return (
@@ -192,7 +196,7 @@ function Inner({ points, ath, color, label, partialLast = false, width, height }
               {hoverPartial && <span className="ml-1.5 rounded bg-surface-2 px-1 py-px text-[10px]">{inProgress}</span>}
             </div>
             <div className="num text-sm font-semibold text-foreground">{fmtBtc(hover.volume, locale)} BTC</div>
-            <div className="num text-[11px] text-muted">{t("observatory.wabisabi.coord.chartCoinjoins", { defaultValue: "{{formatted}} CoinJoins", count: hover.coinjoins, formatted: fmtCount(hover.coinjoins, locale) })}</div>
+            <div className="num text-[11px] text-muted">{(countLabel ? countLabel(hover.coinjoins) : t("observatory.wabisabi.coord.chartCoinjoins", { defaultValue: "{{formatted}} CoinJoins", count: hover.coinjoins, formatted: fmtCount(hover.coinjoins, locale) }))}</div>
           </div>
         </TooltipWithBounds>
       )}
