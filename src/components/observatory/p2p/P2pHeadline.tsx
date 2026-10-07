@@ -107,7 +107,7 @@ export function P2pHeadline({ headline, currency, side, loading }: Props) {
                 <span aria-hidden="true" className={`block h-5 sm:h-6 w-20 sm:w-24 ${BONE}`} />
               )}
             </dd>
-            {tile.sub && <dd className="mt-1.5 truncate text-xs text-faint">{tile.sub}</dd>}
+            {tile.sub && <dd className="mt-1.5 text-xs leading-snug text-faint">{tile.sub}</dd>}
           </div>
         ))}
       </dl>

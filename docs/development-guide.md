@@ -19,7 +19,7 @@ src/
 │                                 # SiteHeader / PrivacyNotice / SiteFooter
 │   ├── globals.css               # Theme tokens (dark default, html[data-theme="light"] overrides)
 │   ├── graph/                    # Standalone graph explorer
-│   ├── observatory/              # CoinJoin Observatory (Whirlpool + WabiSabi stats)
+│   ├── observatory/              # Observatory (WabiSabi, Whirlpool, P2P markets)
 │   ├── guide/ faq/ glossary/ about/ agents/ setup-guide/ welcome/   # Route + metadata layout; body in components/pages
 │   └── */opengraph-image.tsx     # Static OG / Twitter images per route
 ├── components/
@@ -199,6 +199,17 @@ Backed by Wabisator, not LiquiSabi. Only the four aggregate RPC methods are used
 - **Components:** `src/components/observatory/wabisabi/`: `WabiSabiTab` (sections, sticky sub-nav with scroll-spy), `SkyMap` + `sky-renderer` (canvas), `Timeline`, `Ticker`, `StatsStrip`, `TableView`, `LiveBoard`/`RoundRow`, `CoordinatorPage` (`VolumeHistoryChart`, `RoundsTable`), `RemixFlows`, `ObsSearch`.
 - **URL state:** `useObsState` / `obs-hash.ts`: `#wabisabi&period=1|7|30&coordinator=<key>&tx=<txid>&view=map|table`. Unknown coordinators and malformed txids are dropped.
 - **e2e:** `mockObservatoryApi` serves the aggregate methods from `src/lib/observatory/__tests__/fixtures/wabisator/`.
+
+## Observatory (P2P markets tab)
+
+Live KYC-free offers from RoboSats (whole federation), Mostro and HodlHodl. Spec: `docs/spec-observatory-p2p.md`. Every route is `aggregate`; nothing about the visitor is sent.
+
+- **Registry capabilities:** services may omit `base` (onion-only RoboSats coordinators: the worker answers `404 ONION_ONLY`, the client never asks it; `isReachable(service, isUmbrel)` decides), list `relays` / `onionRelays`, and routes may carry `fixedQuery` (appended, never overridable) and the `offset` validator (HodlHodl pagination). A route with a `nostr` block makes the proxy run that fixed filter against the relays and return one snapshot `{ events, relays, fetchedAt }` (`workers/coinjoin-stats/nostr.js`, `umbrel/tor-proxy/nostr.js`); it must be GET `aggregate`.
+- **Pure modules:** `src/lib/observatory/p2p/`: `nostr-verify.ts` (NIP-01 id + BIP-340 Schnorr, verified in the browser), `normalize-robosats.ts` / `normalize-mostro.ts` / `normalize-hodlhodl.ts` (one `P2pOffer` schema; trader names, content, titles and descriptions are never read), `sanitize.ts` (payment methods and notices), `market.ts` (index, markets, depth, board, headline), `volume.ts`.
+- **Data:** `p2p-client.ts` + `src/hooks/useP2p.ts` (`useP2p`, `useP2pHistory`), polled with `src/hooks/usePolled.ts`: orders 30 s, coordinator info 60 s, index and Mostro info 300 s, HodlHodl 60 s; history (1 h) and Mostro trades (600 s) load when the Volume section nears the viewport. Each source reports `ok`, `partial`, `stale`, `down` or `loading`.
+- **Components:** `src/components/observatory/p2p/`: `P2pTab`, `P2pHeadline`, `SourceStrip`, `MarketSelector`, `DepthWall`, `OfferList` (+ `offer-facts`), `PremiumBoard`, `VenueSection`, `P2pVolume`, `P2pFooter`. Colours: `--p2p-*` tokens in `globals.css`, read through `venue-palette.ts`.
+- **URL state:** `#p2p&cur=EUR&side=sell&venue=robosats,mostro&view=table&coordinator=<key>`; `cur`, `side` and `venue` replace the history entry.
+- **e2e:** `mockObservatoryApi` also serves the P2P routes from `src/lib/observatory/__tests__/fixtures/p2p/` (signed sample for both order snapshots, since redacted events fail verification); `failP2pRoute` makes one route 502.
 
 ## Key design decisions
 

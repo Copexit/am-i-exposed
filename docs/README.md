@@ -37,6 +37,8 @@
 - **[spec-custom-api-endpoint.md](./spec-custom-api-endpoint.md)** - Custom mempool API URL feature
 - **[spec-before-you-send.md](./spec-before-you-send.md)** - PSBT and raw tx analysis before broadcast, QR/file input, opt-in broadcast (0.38.0)
 - **[plan-before-you-send.md](./plan-before-you-send.md)** - Task-by-task implementation plan for the spec above
+- **[spec-observatory-p2p.md](./spec-observatory-p2p.md)** - Observatory P2P markets tab: RoboSats, Mostro and HodlHodl offers, premiums, venue health, volume (0.41.0)
+- **[superpowers/plans/2026-10-07-observatory-p2p.md](./superpowers/plans/2026-10-07-observatory-p2p.md)** - Task-by-task implementation plan for the spec above
 - **[spec-site-videos.md](./spec-site-videos.md)** - Promo on the home page and /tutorial page, GitHub Pages only
 - **[tx-graph-roadmap.md](./tx-graph-roadmap.md)** - Transaction graph roadmap
 
