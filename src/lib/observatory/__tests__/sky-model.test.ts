@@ -4,7 +4,7 @@ import { describe, it, expect } from "vitest";
 import flow1dEnv from "./fixtures/wabisator/flow-map-1d.json";
 import flow7dEnv from "./fixtures/wabisator/flow-map-7d.json";
 import statusEnv from "./fixtures/wabisator/coordinators-status.json";
-import { MAX_LIVE_PARTICLES, buildScene, layoutStars, particleBudget, replayProgress, replayTime, type SkyEvent, type Star } from "../sky-model";
+import { MAX_LIVE_PARTICLES, buildScene, layoutStars, particleBudget, rankFlows, replayProgress, replayTime, type SkyEvent, type Star } from "../sky-model";
 import { KNOWN_COORDINATORS, coordinatorColorToken, coordinatorColorVar, coordinatorFgVar } from "../coordinator-palette";
 import type { CoordinatorsStatus, FlowMap } from "../wabisator-types";
 
@@ -148,5 +148,16 @@ describe("particleBudget", () => {
   });
   it("handles a zero cap", () => {
     expect(sum(particleBudget([ev(1, 5), ev(2, 1)], 0))).toBe(0);
+  });
+});
+
+describe("rankFlows", () => {
+  it("ranks cross flows by BTC, then internal remix, dropping zero flows", () => {
+    const { cross, internal } = rankFlows(buildScene(flow7d, null).flows);
+    expect(cross.map((x) => `${x.from}>${x.to}`).slice(0, 2)).toEqual(["opencoordinator>kruw", "kruw>opencoordinator"]);
+    expect(cross.every((x, i) => i === 0 || cross[i - 1]!.btc >= x.btc)).toBe(true);
+    expect(cross.every((x) => !x.internal)).toBe(true);
+    expect(internal[0]!.from).toBe("kruw");
+    expect(internal.every((x) => x.internal && x.btc > 0)).toBe(true);
   });
 });

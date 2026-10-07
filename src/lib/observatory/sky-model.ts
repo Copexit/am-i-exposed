@@ -157,3 +157,9 @@ export function replayProgress(t: number, scene: Scene): number {
   const span = scene.until - scene.since;
   return span > 0 ? clamp((t - scene.since) / span, 0, 1) : 1;
 }
+
+/** Ranked flows for the flows section: between coordinators, and internal remix, by BTC. Zero flows dropped. */
+export function rankFlows(flows: Flow[]): { cross: Flow[]; internal: Flow[] } {
+  const live = flows.filter((f) => f.btc > 0).sort((a, b) => b.btc - a.btc || b.coins - a.coins);
+  return { cross: live.filter((f) => !f.internal), internal: live.filter((f) => f.internal) };
+}

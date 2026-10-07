@@ -2892,20 +2892,13 @@
   "observatory.wabisabi.coord.partialDay": "Día en curso",
   "observatory.wabisabi.flows.coins_one": "{{formatted}} moneda",
   "observatory.wabisabi.flows.coins_other": "{{formatted}} monedas",
-  "observatory.wabisabi.flows.in": "Entrada desde otros",
-  "observatory.wabisabi.flows.out": "Salida hacia otros",
   "observatory.wabisabi.flows.internal": "Remezcla interna",
-  "observatory.wabisabi.flows.hint": "Pasa el cursor o el foco por un coordinador para seguir sus flujos. Selecciónalo para abrir su página.",
-  "observatory.wabisabi.flows.chordAria": "Diagrama de flujos de remezcla: {{coordinators}} coordinadores, {{flows}} flujos entre ellos.",
   "observatory.wabisabi.flows.totalLabel": "Cruzado entre coordinadores",
   "observatory.wabisabi.flows.share": "Solo el {{share}} de todo el bitcoin remezclado pasó a otro coordinador. El {{rest}} restante se remezcló donde ya se había mezclado.",
-  "observatory.wabisabi.flows.legend": "Coordinadores del diagrama",
-  "observatory.wabisabi.flows.legendItem": "{{name}}: {{total}} en total. Abre su página.",
   "observatory.wabisabi.flows.between": "Entre coordinadores",
   "observatory.wabisabi.search.label": "Buscar en el Observatorio",
   "observatory.wabisabi.search.placeholder": "Busca un txid de CoinJoin o una fecha",
   "observatory.wabisabi.search.submit": "Buscar",
-  "observatory.wabisabi.search.found": "Encontrado en {{period}}",
   "observatory.wabisabi.search.notFound": "No es un CoinJoin WabiSabi registrado en {{period}}.",
   "observatory.wabisabi.search.notFoundNote": "La búsqueda se hizo en esta página: el txid no se ha enviado a ningún sitio. Aun así puedes analizarlo por separado.",
   "observatory.wabisabi.search.jumped": "Reproducción movida a {{date}}.",
@@ -2914,5 +2907,6 @@
   "observatory.wabisabi.search.future": "{{date}} está en el futuro.",
   "observatory.wabisabi.search.tooOld": "{{date}} es de hace más de 30 días. El Observatorio cubre los últimos 30 días.",
   "observatory.wabisabi.search.invalid": "Introduce un txid de 64 caracteres o una fecha UTC como 2026-10-07 o 2026-10-07 14:30.",
-  "observatory.wabisabi.flows.stayed": "remezclado en el mismo coordinador"
+  "observatory.wabisabi.flows.row": "De {{from}} a {{to}}: {{btc}}, {{coins}}. Abre {{from}}.",
+  "observatory.wabisabi.flows.rowInternal": "{{from}}, remezcla interna: {{btc}}, {{coins}}. Abre {{from}}."
 }

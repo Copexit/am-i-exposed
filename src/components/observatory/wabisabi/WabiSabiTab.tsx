@@ -203,14 +203,14 @@ function FlowsSkeleton() {
 
 // ---------- the map view ----------
 
-/** A playhead request from the search; `n` makes repeated searches for the same time distinct. */
-type Seek = { t: number; lead: number; n: number };
+/** A playhead request from the search: applied once (also when the map mounts for it), then cleared. */
+type Seek = { t: number; lead: number };
 
 /**
  * Map, timeline and ticker around one replay clock. Its own component so the clock's 10 Hz
  * progress re-renders only this, not the whole tab.
  */
-function SkyView({ scene, period, tx, coordinator, setObs, seek }: { scene: Scene | null; period: Period; tx: string | null; coordinator: string | null; setObs: (patch: Partial<ObsState>) => void; seek: Seek | null }) {
+function SkyView({ scene, period, tx, coordinator, setObs, seek, onSeeked }: { scene: Scene | null; period: Period; tx: string | null; coordinator: string | null; setObs: (patch: Partial<ObsState>) => void; seek: Seek | null; onSeeked: () => void }) {
   const { theme } = useTheme();
   const reduced = useReducedMotion();
   const wide = useMedia("(min-width: 1024px)");
@@ -220,9 +220,8 @@ function SkyView({ scene, period, tx, coordinator, setObs, seek }: { scene: Scen
   useEffect(() => {
     if (!seek || !scene) return;
     scrub(Math.max(0, replayProgress(seek.t, scene) - seek.lead / REPLAY_SECONDS[period]));
-    // Only a new seek (its nonce) moves the playhead, not a scene refresh.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seek?.n]);
+    onSeeked();
+  }, [seek, scene, scrub, period, onSeeked]);
   const selectStar = useCallback((key: string) => {
     setObs({ coordinator: key });
     requestAnimationFrame(() => document.getElementById("obs-coordinator")?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" }));
@@ -287,6 +286,13 @@ function SkyView({ scene, period, tx, coordinator, setObs, seek }: { scene: Scen
 
 // ---------- the tab ----------
 
+/** Focuses an element that may take a few frames to appear (about half a second at most). */
+function focusWhenReady(id: string, frames = 30) {
+  const el = document.getElementById(id);
+  if (el) el.focus({ preventScroll: true });
+  else if (frames > 0) requestAnimationFrame(() => focusWhenReady(id, frames - 1));
+}
+
 /**
  * The WabiSabi tab: header with search, sticky sub-nav, then map, live rounds, coordinator and
  * flows sections, each a slot the later components mount into without re-layout.
@@ -344,18 +350,23 @@ export function WabiSabiTab() {
 
   // Search: highlight a found CoinJoin on the map and ticker, or move the playhead to a date.
   const [seek, setSeek] = useState<Seek | null>(null);
-  const showMap = useCallback(() => {
+  const onSeeked = useCallback(() => setSeek(null), []);
+  const showMap = useCallback((then?: () => void) => {
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    requestAnimationFrame(() => document.getElementById("obs-map")?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" }));
+    requestAnimationFrame(() => {
+      document.getElementById("obs-map")?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+      then?.();
+    });
   }, []);
   const onFound = useCallback((e: SkyEvent) => {
     setObs(table ? { tx: e.txid, view: "map" } : { tx: e.txid });
-    setSeek((s) => ({ t: e.t, lead: 1.5, n: (s?.n ?? 0) + 1 }));
-    showMap();
+    setSeek({ t: e.t, lead: 1.5 });
+    // Hand focus to the map's pinned card once it has rendered (it needs the map's layout).
+    showMap(() => focusWhenReady("obs-event-card"));
   }, [setObs, showMap, table]);
   const onJumpTo = useCallback((t: number) => {
     if (table) setObs({ view: "map" });
-    setSeek((s) => ({ t, lead: 0, n: (s?.n ?? 0) + 1 }));
+    setSeek({ t, lead: 0 });
     showMap();
   }, [setObs, showMap, table]);
 
@@ -408,7 +419,7 @@ export function WabiSabiTab() {
             {scene ? <TableView scene={scene} /> : <TableSkeleton />}
           </div>
         ) : (
-          <SkyView scene={scene} period={obs.period} tx={obs.tx} coordinator={obs.coordinator} setObs={setObs} seek={seek} />
+          <SkyView scene={scene} period={obs.period} tx={obs.tx} coordinator={obs.coordinator} setObs={setObs} seek={seek} onSeeked={onSeeked} />
         )}
       </Section>
 

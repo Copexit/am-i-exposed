@@ -3006,20 +3006,13 @@
   "observatory.wabisabi.flows.coins_few": "{{formatted}} monety",
   "observatory.wabisabi.flows.coins_many": "{{formatted}} monet",
   "observatory.wabisabi.flows.coins_other": "{{formatted}} monety",
-  "observatory.wabisabi.flows.in": "Przychodzące od innych",
-  "observatory.wabisabi.flows.out": "Wychodzące do innych",
   "observatory.wabisabi.flows.internal": "Remiks wewnętrzny",
-  "observatory.wabisabi.flows.hint": "Najedź na koordynatora lub ustaw na nim fokus, aby prześledzić jego przepływy. Wybierz go, aby otworzyć jego stronę.",
-  "observatory.wabisabi.flows.chordAria": "Diagram przepływów remiksu: koordynatorzy: {{coordinators}}, przepływy między nimi: {{flows}}.",
   "observatory.wabisabi.flows.totalLabel": "Przeszło między koordynatorami",
   "observatory.wabisabi.flows.share": "Tylko {{share}} całego remiksowanego bitcoina trafiło do innego koordynatora. Pozostałe {{rest}} zremiksowano tam, gdzie już było miksowane.",
-  "observatory.wabisabi.flows.legend": "Koordynatorzy na diagramie",
-  "observatory.wabisabi.flows.legendItem": "{{name}}: łącznie {{total}}. Otwórz jego stronę.",
   "observatory.wabisabi.flows.between": "Między koordynatorami",
   "observatory.wabisabi.search.label": "Szukaj w Obserwatorium",
   "observatory.wabisabi.search.placeholder": "Szukaj txid CoinJoina lub daty",
   "observatory.wabisabi.search.submit": "Szukaj",
-  "observatory.wabisabi.search.found": "Znaleziono w okresie {{period}}",
   "observatory.wabisabi.search.notFound": "To nie jest odnotowany CoinJoin WabiSabi z okresu {{period}}.",
   "observatory.wabisabi.search.notFoundNote": "Wyszukiwanie odbyło się na tej stronie: txid nie został nigdzie wysłany. Nadal można go przeanalizować osobno.",
   "observatory.wabisabi.search.jumped": "Odtwarzanie przesunięte na {{date}}.",
@@ -3028,5 +3021,6 @@
   "observatory.wabisabi.search.future": "{{date}} to data z przyszłości.",
   "observatory.wabisabi.search.tooOld": "{{date}} to ponad 30 dni temu. Obserwatorium obejmuje ostatnie 30 dni.",
   "observatory.wabisabi.search.invalid": "Wpisz 64-znakowy txid lub datę UTC, np. 2026-10-07 albo 2026-10-07 14:30.",
-  "observatory.wabisabi.flows.stayed": "zremiksowane u tego samego koordynatora"
+  "observatory.wabisabi.flows.row": "Z {{from}} do {{to}}: {{btc}}, {{coins}}. Otwórz {{from}}.",
+  "observatory.wabisabi.flows.rowInternal": "{{from}}, remiks wewnętrzny: {{btc}}, {{coins}}. Otwórz {{from}}."
 }

@@ -6,7 +6,6 @@ import { ArrowRight, ArrowUpRight, Search, X } from "lucide-react";
 import { parseSearch, resolveSearch, type SearchQuery, type SearchResult } from "@/lib/observatory/obs-search";
 import type { Scene, SkyEvent } from "@/lib/observatory/sky-model";
 import type { Period } from "@/lib/observatory/wabisator-client";
-import { EventDetails } from "./SkyMap";
 import { usePeriodLabel } from "./StatsStrip";
 
 export interface ObsSearchProps {
@@ -48,14 +47,18 @@ export function ObsSearch({ scene, period, onFound, onJumpTo, onSwitchPeriod }: 
 
   const run = (q: SearchQuery, s: Scene) => {
     const now = Date.now() / 1000;
-    const r = resolveSearch(q, s, now);
+    let r = resolveSearch(q, s, now);
+    // The period that would hold it is this one (a moment past the data's last refresh): clamp.
+    if (r.kind === "out-of-period" && r.suggested === period) r = { kind: "in-period", t: Math.min(Math.max(r.t, s.since), s.until) };
     setRanAt(now);
-    setResult(r);
+    // Found: the map's pinned card and the ticker take over, so the panel stays closed.
+    setResult(r.kind === "found" ? null : r);
     if (r.kind === "found") onFound(r.event);
     if (r.kind === "in-period") onJumpTo(r.t);
   };
 
-  // After switching to a suggested period, finish the search once that period's data is in.
+  // Finish a search once its period's data is in: after switching to a suggested period, or when
+  // submitted while the data was still loading.
   const pendingRef = useRef<{ q: SearchQuery; p: Period } | null>(null);
   useEffect(() => {
     const pending = pendingRef.current;
@@ -79,8 +82,11 @@ export function ObsSearch({ scene, period, onFound, onJumpTo, onSwitchPeriod }: 
   const submit = () => {
     const q = parseSearch(value);
     setQuery(q);
-    if (q.kind === "invalid" || !scene) setResult(q.kind === "invalid" ? q : null);
-    else run(q, scene);
+    if (q.kind === "invalid") setResult(q);
+    else if (!scene) {
+      pendingRef.current = { q, p: period };
+      setResult(null);
+    } else run(q, scene);
   };
   const clear = () => {
     setResult(null);
@@ -94,14 +100,7 @@ export function ObsSearch({ scene, period, onFound, onJumpTo, onSwitchPeriod }: 
   };
 
   let body: ReactNode = null;
-  if (result?.kind === "found" && scene) {
-    body = (
-      <div className="space-y-2">
-        <p className="eyebrow !text-success">{t("observatory.wabisabi.search.found", { defaultValue: "Found in the last {{period}}", period: periodLabel })}</p>
-        <EventDetails event={result.event} star={scene.stars.find((s) => s.key === result.event.star)} withDate={period !== 1} onClose={clear} tone="page" />
-      </div>
-    );
-  } else if (result?.kind === "not-found") {
+  if (result?.kind === "not-found") {
     body = (
       <div className="space-y-2">
         <p className="font-medium text-foreground text-pretty">
@@ -155,7 +154,16 @@ export function ObsSearch({ scene, period, onFound, onJumpTo, onSwitchPeriod }: 
   }
 
   return (
-    <div ref={rootRef} className="relative w-full lg:w-[400px]">
+    <div
+      ref={rootRef}
+      className="relative w-full lg:w-[400px]"
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && result) {
+          e.preventDefault();
+          clear();
+        }
+      }}
+    >
       <form
         role="search"
         aria-label={t("observatory.wabisabi.search.label", { defaultValue: "Search the Observatory" })}
@@ -173,12 +181,6 @@ export function ObsSearch({ scene, period, onFound, onJumpTo, onSwitchPeriod }: 
           onChange={(e) => {
             setValue(e.target.value);
             if (result) setResult(null);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Escape" && result) {
-              e.preventDefault();
-              setResult(null);
-            }
           }}
           placeholder={t("observatory.wabisabi.search.placeholder", { defaultValue: "Search a CoinJoin txid or a date" })}
           aria-label={t("observatory.wabisabi.search.placeholder", { defaultValue: "Search a CoinJoin txid or a date" })}
@@ -200,21 +202,19 @@ export function ObsSearch({ scene, period, onFound, onJumpTo, onSwitchPeriod }: 
       <div id={panelId} role="status" aria-live="polite" className="absolute inset-x-0 top-full z-[35] mt-2">
         {body && (
           <div
-            key={result?.kind === "found" ? result.event.txid : result?.kind}
+            key={result?.kind}
             data-testid="obs-search-result"
             data-state={result?.kind}
-            className={`relative rounded-xl border border-card-border bg-surface-elevated p-4 text-sm ${result?.kind === "found" ? "" : "pr-12"} shadow-(--overlay-shadow) motion-safe:animate-[obs-fade_180ms_ease-out]`}
+            className="relative rounded-xl border border-card-border bg-surface-elevated p-4 pr-12 text-sm shadow-(--overlay-shadow) motion-safe:animate-[obs-fade_180ms_ease-out]"
           >
-            {result?.kind !== "found" && (
-              <button
-                type="button"
-                onClick={clear}
-                aria-label={t("observatory.wabisabi.event.close", { defaultValue: "Close" })}
-                className="absolute right-1 top-1 inline-flex size-10 items-center justify-center rounded-lg text-muted transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-bitcoin cursor-pointer"
-              >
-                <X size={16} aria-hidden="true" />
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={clear}
+              aria-label={t("observatory.wabisabi.event.close", { defaultValue: "Close" })}
+              className="absolute right-1 top-1 inline-flex size-10 items-center justify-center rounded-lg text-muted transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-bitcoin cursor-pointer"
+            >
+              <X size={16} aria-hidden="true" />
+            </button>
             {body}
           </div>
         )}

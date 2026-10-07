@@ -52,18 +52,32 @@ function setup(scene = scene1, period: 1 | 7 = 1) {
 }
 
 describe("ObsSearch", () => {
-  it("found: highlights the CoinJoin and shows its card with the analyze link, with no request", () => {
+  it("found: hands the CoinJoin to the map and closes the panel (no duplicate card), with no request", () => {
     const s = setup();
     s.search(event.txid.toUpperCase());
     expect(s.onFound).toHaveBeenCalledWith(event);
-    const p = s.panel()!;
-    expect(p.dataset.state).toBe("found");
-    expect(p.textContent).toContain("Found in the last 24 h");
-    expect(p.textContent).toContain(scene1.stars.find((x) => x.key === event.star)!.name);
-    expect(p.textContent).toContain("Inputs");
-    expect(p.textContent).toContain("Anonset");
-    expect(p.querySelector("a")?.getAttribute("href")).toBe(`/#tx=${event.txid}`);
+    expect(s.panel()).toBeNull();
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("a search submitted while the period loads runs once the data is in", () => {
+    const props = { onFound: vi.fn(), onJumpTo: vi.fn(), onSwitchPeriod: vi.fn() };
+    const { rerender } = render(<ObsSearch scene={null} period={1} {...props} />);
+    const input = screen.getByPlaceholderText("Search a CoinJoin txid or a date");
+    fireEvent.change(input, { target: { value: event.txid } });
+    fireEvent.submit(input.closest("form")!);
+    expect(props.onFound).not.toHaveBeenCalled();
+    rerender(<ObsSearch scene={scene1} period={1} {...props} />);
+    expect(props.onFound).toHaveBeenCalledWith(event);
+  });
+
+  it("a moment past the data's last refresh is clamped into the period, not offered as a switch", () => {
+    const s = setup();
+    // until is 07:40; the clock says 08:00, so 07:55 belongs to the current 24 h period.
+    s.search("2026-10-07 07:55");
+    expect(s.onJumpTo).toHaveBeenCalledWith(scene1.until);
+    expect(s.panel()!.dataset.state).toBe("in-period");
+    expect(screen.queryByRole("button", { name: /Show the last/ })).toBeNull();
   });
 
   it("not-found: says so and offers the analyze link, sending nothing anywhere", () => {
@@ -116,6 +130,10 @@ describe("ObsSearch", () => {
     expect(s.panel()!.dataset.state).toBe("invalid");
     expect(s.panel()!.textContent).toContain("Enter a 64-character txid");
     fireEvent.keyDown(screen.getByPlaceholderText("Search a CoinJoin txid or a date"), { key: "Escape" });
+    expect(s.panel()).toBeNull();
+    // Escape also works from inside the panel.
+    s.search("still not");
+    fireEvent.keyDown(screen.getByRole("button", { name: "Close" }), { key: "Escape" });
     expect(s.panel()).toBeNull();
     s.search("2026-02-30");
     fireEvent.click(screen.getByRole("button", { name: "Close" }));

@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import React from "react";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import flowEnv from "@/lib/observatory/__tests__/fixtures/wabisator/flow-map-1d.json";
+import flow7dEnv from "@/lib/observatory/__tests__/fixtures/wabisator/flow-map-7d.json";
+import { buildScene, replayProgress } from "@/lib/observatory/sky-model";
 import statusEnv from "@/lib/observatory/__tests__/fixtures/wabisator/coordinators-status.json";
 import summaryFixture from "@/lib/observatory/__tests__/fixtures/whirlpool-summary.json";
 import chartsFixture from "@/lib/observatory/__tests__/fixtures/whirlpool-charts.json";
@@ -129,21 +131,71 @@ describe("Observatory tab shell", () => {
     expect(screen.getByTestId("kpi-volume").closest("dl")?.getAttribute("aria-busy")).toBe("false");
   });
 
-  it("mounts the remix flows and the search; a found txid sets tx= without any request", () => {
-    const fetchSpy = vi.fn();
-    vi.stubGlobal("fetch", fetchSpy);
-    render(<ObservatoryPage />);
-    expect(screen.getByTestId("obs-chord")).toBeTruthy();
-    const txid = (flowEnv.result as FlowMap).Coinjoins[0]!.TxId;
-    const input = screen.getByPlaceholderText("Search a CoinJoin txid or a date");
-    act(() => {
-      fireEvent.change(input, { target: { value: txid } });
-      fireEvent.submit(input.closest("form")!);
+  describe("search", () => {
+    const slider = () => screen.getByRole("slider", { name: "Replay position" });
+    const search = (q: string) => {
+      const input = screen.getByPlaceholderText("Search a CoinJoin txid or a date");
+      act(() => {
+        fireEvent.change(input, { target: { value: q } });
+        fireEvent.submit(input.closest("form")!);
+      });
+    };
+    const flow1 = flowEnv.result as FlowMap;
+    const scene1 = buildScene(flow1, statusEnv.result as CoordinatorsStatus);
+    let fetchSpy: ReturnType<typeof vi.fn>;
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-10-07T08:00:00Z"));
+      fetchSpy = vi.fn();
+      vi.stubGlobal("fetch", fetchSpy);
+      Element.prototype.scrollIntoView = vi.fn();
     });
-    expect(window.location.hash).toBe(`#wabisabi&tx=${txid}`);
-    expect(screen.getByTestId("obs-search-result").dataset.state).toBe("found");
-    expect(fetchSpy).not.toHaveBeenCalled();
-    vi.unstubAllGlobals();
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    });
+
+    it("mounts the flows; a found txid sets tx=, closes the panel and focuses the map's pinned card, with no request", async () => {
+      render(<ObservatoryPage />);
+      expect(screen.getAllByTestId("obs-flow-bars").length).toBe(2);
+      const ev = scene1.events[10]!;
+      search(ev.txid);
+      expect(window.location.hash).toBe(`#wabisabi&tx=${ev.txid}`);
+      expect(screen.queryByTestId("obs-search-result")).toBeNull();
+      const card = document.getElementById("obs-event-card")!;
+      expect(card.getAttribute("role")).toBe("dialog");
+      // The playhead sits 1.5 s of replay before the CoinJoin, so its pulse plays.
+      expect(Number(slider().getAttribute("aria-valuenow"))).toBe(Math.round(100 * Math.max(0, replayProgress(ev.t, scene1) - 1.5 / 60)));
+      // The replay keeps playing from there while focus moves to the card.
+      await waitFor(() => expect(document.activeElement).toBe(card));
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it("a found txid from the table view returns to the map, and the seek applies once", () => {
+      window.history.replaceState(null, "", "/observatory/#wabisabi&view=table");
+      render(<ObservatoryPage />);
+      const ev = scene1.events[60]!;
+      search(ev.txid);
+      expect(window.location.hash).toBe(`#wabisabi&tx=${ev.txid}`);
+      const at = Math.round(100 * (replayProgress(ev.t, scene1) - 1.5 / 60));
+      expect(at).toBeGreaterThan(10);
+      expect(Number(slider().getAttribute("aria-valuenow"))).toBe(at);
+      // Map -> table -> map: a fresh replay, not the old search position.
+      act(() => screen.getByRole("button", { name: "Table" }).click());
+      act(() => screen.getByRole("button", { name: "Map" }).click());
+      expect(Number(slider().getAttribute("aria-valuenow"))).toBe(0);
+    });
+
+    it("an out-of-period date switches period and ends with the playhead at the searched time", () => {
+      hooks.flowByPeriod[7] = polled(flow7dEnv.result as unknown as FlowMap);
+      render(<ObservatoryPage />);
+      search("2026-10-02");
+      act(() => { fireEvent.click(screen.getByRole("button", { name: /Show the last 7 d/ })); });
+      expect(hooks.flowPeriods.at(-1)).toBe(7);
+      const scene7 = buildScene(flow7dEnv.result as unknown as FlowMap, null);
+      expect(Number(slider().getAttribute("aria-valuenow"))).toBe(Math.round(100 * replayProgress(Date.UTC(2026, 9, 2) / 1000, scene7)));
+      expect(screen.getByTestId("obs-search-result").dataset.state).toBe("in-period");
+    });
   });
 
   it("renders gracefully for an unknown coordinator and a malformed txid, dropping the unknown key", () => {

@@ -2892,20 +2892,13 @@
   "observatory.wabisabi.coord.partialDay": "Day in progress",
   "observatory.wabisabi.flows.coins_one": "{{formatted}} coin",
   "observatory.wabisabi.flows.coins_other": "{{formatted}} coins",
-  "observatory.wabisabi.flows.in": "In from others",
-  "observatory.wabisabi.flows.out": "Out to others",
   "observatory.wabisabi.flows.internal": "Internal remix",
-  "observatory.wabisabi.flows.hint": "Hover or focus a coordinator to trace its flows. Select it to open its page.",
-  "observatory.wabisabi.flows.chordAria": "Remix flow diagram: {{coordinators}} coordinators, {{flows}} flows between them.",
   "observatory.wabisabi.flows.totalLabel": "Crossed between coordinators",
   "observatory.wabisabi.flows.share": "Only {{share}} of all remixed bitcoin moved to another coordinator. The other {{rest}} was remixed where it was already mixed.",
-  "observatory.wabisabi.flows.legend": "Coordinators in the diagram",
-  "observatory.wabisabi.flows.legendItem": "{{name}}: {{total}} through it. Open its page.",
   "observatory.wabisabi.flows.between": "Between coordinators",
   "observatory.wabisabi.search.label": "Search the Observatory",
   "observatory.wabisabi.search.placeholder": "Search a CoinJoin txid or a date",
   "observatory.wabisabi.search.submit": "Search",
-  "observatory.wabisabi.search.found": "Found in the last {{period}}",
   "observatory.wabisabi.search.notFound": "Not a recorded WabiSabi CoinJoin in the last {{period}}.",
   "observatory.wabisabi.search.notFoundNote": "The search ran in this page: the txid was not sent anywhere. It can still be analyzed on its own.",
   "observatory.wabisabi.search.jumped": "Replay moved to {{date}}.",
@@ -2914,5 +2907,6 @@
   "observatory.wabisabi.search.future": "{{date}} is in the future.",
   "observatory.wabisabi.search.tooOld": "{{date}} is more than 30 days ago. The Observatory covers the last 30 days.",
   "observatory.wabisabi.search.invalid": "Enter a 64-character txid, or a UTC date such as 2026-10-07 or 2026-10-07 14:30.",
-  "observatory.wabisabi.flows.stayed": "remixed at the same coordinator"
+  "observatory.wabisabi.flows.row": "{{from}} to {{to}}: {{btc}}, {{coins}}. Open {{from}}.",
+  "observatory.wabisabi.flows.rowInternal": "{{from}}, internal remix: {{btc}}, {{coins}}. Open {{from}}."
 }
