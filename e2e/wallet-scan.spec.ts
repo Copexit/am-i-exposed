@@ -79,3 +79,52 @@ test("bare xpub: address type detected from history, other types offered", async
   await expect(stat(page, "Total balance")).toHaveText("39,852,779 sats");
   await expect(page.getByTestId("rescan-gap-row").getByRole("button", { name: "20", exact: true })).toHaveCount(0);
 });
+
+// BIP-84 test vector: second receive address and first change address
+const SECOND_ADDRESS = "bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g";
+const CHANGE_ADDRESS = "bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el";
+
+/** A copy of the funding tx paying `value` to `address`, with its own txid. */
+function payTo(txidByte: string, address: string, value: number) {
+  const tx = structuredClone(fundingTx);
+  tx.txid = txidByte.repeat(32);
+  Object.assign(tx.vout[0]!, { scriptpubkey_address: address, value });
+  return tx;
+}
+
+/** Five coins on three addresses: no single coin pays 700,000 sats, the wallet does. */
+async function mockMultiCoinWallet(page: import("@playwright/test").Page) {
+  const own = [payTo("c1", FIRST_ADDRESS, 300_000), payTo("c2", FIRST_ADDRESS, 250_000), payTo("c3", FIRST_ADDRESS, 200_000)];
+  const other = payTo("d1", SECOND_ADDRESS, 600_000);
+  const change = payTo("e1", CHANGE_ADDRESS, 500_000);
+  const utxo = (tx: typeof other) => ({ txid: tx.txid, vout: 0, value: tx.vout[0]!.value, status: tx.status });
+  await mockExtraTxs(page, [...own, other, change]);
+  await mockWalletAddresses(page, {
+    [FIRST_ADDRESS]: { txs: own, utxos: own.map(utxo), fundedSats: 750_000 },
+    [SECOND_ADDRESS]: { txs: [other], utxos: [utxo(other)], fundedSats: 600_000 },
+    [CHANGE_ADDRESS]: { txs: [change], utxos: [utxo(change)], fundedSats: 500_000 },
+  });
+}
+
+test("coin selection advisor: multi-coin plans when no single coin pays", async ({ page }) => {
+  await mockMultiCoinWallet(page);
+  await page.goto(`/#xpub=${ZPUB}`);
+  await expect(stat(page, "Total balance")).toHaveText("1,850,000 sats", { timeout: 20_000 });
+
+  await page.getByRole("button", { name: /Coin Selection Advisor/ }).click();
+  await page.getByLabel("Amount (sats)").fill("700000");
+  await page.getByRole("button", { name: "Suggest selection" }).click();
+
+  const same = page.getByTestId("coin-plan-same-origin");
+  await expect(same).toBeVisible();
+  await expect(same.getByText("Recommended")).toBeVisible();
+  await expect(same.getByRole("listitem")).toHaveCount(3);
+  await expect(page.getByTestId("coin-plan-fewest-coins").getByText(/Joins 2 unrelated origins/)).toBeVisible();
+  await expect(page.getByText("Advanced: Stonewall")).toBeVisible();
+  await expect(page.getByText(/Not enough funds/)).toHaveCount(0);
+
+  // Above the whole balance: insufficient, with the shortfall
+  await page.getByLabel("Amount (sats)").fill("2000000");
+  await page.getByRole("button", { name: "Suggest selection" }).click();
+  await expect(page.getByText(/Not enough funds\. The spendable balance is 1,850,000 sats/)).toBeVisible();
+});

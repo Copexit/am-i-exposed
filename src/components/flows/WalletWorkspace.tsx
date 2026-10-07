@@ -1,12 +1,13 @@
 "use client";
 
-import { lazy, Suspense, useId, useState, type ReactNode } from "react";
+import { lazy, Suspense, useId, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown } from "lucide-react";
 import type { WalletAuditResult, WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import type { UtxoTraceResult } from "@/hooks/useWalletAnalysis";
 import { CoinSelector } from "@/components/wallet/CoinSelector";
 import { fmtN } from "@/lib/format";
+import { buildCoinInputs } from "@/lib/analysis/coin-selection";
 
 const WalletAddressTable = lazy(() => import("@/components/wallet/WalletAddressTable").then(m => ({ default: m.WalletAddressTable })));
 const WalletTxList = lazy(() => import("@/components/wallet/WalletTxList").then(m => ({ default: m.WalletTxList })));
@@ -24,7 +25,7 @@ export function WalletWorkspace({ result, addressInfos, utxoTraces, onScan, addr
   const { t } = useTranslation();
   const [txsOpen, setTxsOpen] = useState(false);
   const [coinsOpen, setCoinsOpen] = useState(false);
-  const allUtxos = addressInfos.flatMap(a => a.utxos.map(utxo => ({ utxo, address: a.derived.address })));
+  const allUtxos = useMemo(() => buildCoinInputs(addressInfos), [addressInfos]);
   const hasTxs = result.totalTxs > 0;
 
   if (!hasTxs && result.activeAddresses === 0 && allUtxos.length === 0) return null;
