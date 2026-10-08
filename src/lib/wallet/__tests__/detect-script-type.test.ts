@@ -3,8 +3,8 @@ import { parseXpub, deriveOneAddress, type ScriptType } from "@/lib/bitcoin/desc
 import type { MempoolClient } from "@/lib/api/mempool";
 import { detectScriptType } from "../scan";
 
-// A tester's Coldcard testnet account (BIP84, 84h/1h/0h) exported as a bare tpub
-const TPUB = "tpubDCneqSFLYM6RosqUa8QhKHGqc8YXFxydumMeJUSZ71SHyrjcyP7NzfoLgqWSFWaLjn1rzMBeecyF2sdta4kircxbTujFfPZibZ1UgvtrBbQ";
+// A synthetic BIP84 testnet account (84h/1h/0h from a fixed test seed) exported as a bare tpub
+const TPUB = "tpubDCBVmvPqwyD5EZfHGe3Sz7ZjM822jrWC2npTFZre9NQKnaRtWz9BtqhXo1HQ4uwc9QcoPE7pD5ZpcQCTig5AMLREB9kQTkvc3rcNTKiKjVF";
 const parsed = parseXpub(TPUB);
 const first = (scriptType: ScriptType) => deriveOneAddress({ ...parsed, scriptType }, 0, 0).address;
 
