@@ -77,10 +77,13 @@ server {
     #   On Umbrel this is unset (the host:port heuristic works because Umbrel
     #   routes the app_proxy port directly to mempool). On StartOS the packager
     #   must pass it because each service has its own hostname (see issue #95).
+    # bitcoinNetwork: optional hint, Umbrel's APP_BITCOIN_NETWORK (mainnet, testnet,
+    #   testnet4, signet, regtest). The app asks the node itself (genesis block hash
+    #   of /api/block-height/0); the hint is used only when that check fails.
     location = /api/local-info {
         access_log off;
         default_type application/json;
-        return 200 '{"mempoolPort":"${APP_MEMPOOL_PORT}","mempoolOnion":"${APP_MEMPOOL_HIDDEN_SERVICE}","mempoolExternalUrl":"${APP_MEMPOOL_EXTERNAL_URL}"}';
+        return 200 '{"mempoolPort":"${APP_MEMPOOL_PORT}","mempoolOnion":"${APP_MEMPOOL_HIDDEN_SERVICE}","mempoolExternalUrl":"${APP_MEMPOOL_EXTERNAL_URL}","bitcoinNetwork":"${APP_BITCOIN_NETWORK}"}';
     }
 
     # Health check endpoint

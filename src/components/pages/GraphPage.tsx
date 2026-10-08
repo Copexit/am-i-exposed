@@ -29,7 +29,7 @@ export function GraphPage() {
   const { t } = useTranslation();
   const router = useRouter();
   // Initial load waits (apiReady) until the backend is known (Umbrel / Tor onion / clearnet)
-  const { network, config, configFor, setNetwork, isUmbrel, apiReady } = useNetwork();
+  const { network, config, configFor, setNetwork, networkPinned, apiReady } = useNetwork();
   const api = useMemo(() => createApiClient(config), [config]);
 
   const graph = useGraphExpansion(api);
@@ -83,8 +83,8 @@ export function GraphPage() {
   const handleLoadSavedGraph = useCallback(
     async (saved: SavedGraph) => {
       if (saved.network !== network) {
-        // Umbrel serves only its node's network: refuse instead of switching
-        if (isUmbrel) {
+        // A self-hosted backend serves only its node's network: refuse instead of switching
+        if (networkPinned) {
           setSearchError(
             t("graphSaveLoad.networkUnavailable", {
               network: saved.network,
@@ -152,7 +152,7 @@ export function GraphPage() {
         }
       }
     },
-    [configFor, network, isUmbrel, setNetwork, loadGraph, t],
+    [configFor, network, networkPinned, setNetwork, loadGraph, t],
   );
 
   // Hash-based routing: #txid=<hex> or #graph=<base64url>.

@@ -24,7 +24,7 @@ const NETWORKS: [NetworkOption, ...NetworkOption[]] = [
 /** Settings panel: network, language, theme (System / Light / Dark), API, analysis, cache, entity data. */
 export function ApiSettings() {
   const { t } = useTranslation();
-  const { network, setNetwork, customApiUrl, isUmbrel } = useNetwork();
+  const { network, setNetwork, customApiUrl, isUmbrel, networkPinned } = useNetwork();
   const { preference, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -104,8 +104,7 @@ export function ApiSettings() {
 
           {/* Network & Language row */}
           <div className="flex items-center gap-3">
-            {/* Network selector - hidden on Umbrel (network is preconfigured) */}
-            {!isUmbrel && (
+            {/* Network selector - a self-hosted backend serves one network: the others are disabled */}
             <div className="flex-1">
               <label className="text-xs font-medium text-muted uppercase tracking-wider block mb-1.5">
                 {t("settings.network", { defaultValue: "Network" })}
@@ -118,7 +117,7 @@ export function ApiSettings() {
                   aria-label={t("common.selectNetwork", { defaultValue: "Select Bitcoin network" })}
                 >
                   {NETWORKS.map((n) => (
-                    <option key={n.value} value={n.value}>
+                    <option key={n.value} value={n.value} disabled={networkPinned && n.value !== network}>
                       {n.label}
                     </option>
                   ))}
@@ -132,7 +131,6 @@ export function ApiSettings() {
                 />
               </div>
             </div>
-            )}
 
             {/* Language selector */}
             <LocaleSelector />

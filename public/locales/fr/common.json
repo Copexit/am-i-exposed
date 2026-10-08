@@ -3474,5 +3474,9 @@
   "guide.checklist.rule6": "N'envoyez jamais à une adresse déjà utilisée. Demandez-en une nouvelle.",
   "guide.checklist.rule7": "Méfiez-vous des montants ronds et d'une adresse de destination d'un type différent du vôtre : les deux révèlent quelle sortie est votre monnaie. Payer on-chain via un swap depuis Lightning évite les deux.",
   "guide.checklist.rule8": "Vous payez un montant rond ? Augmentez un peu les frais pour que la monnaie soit ronde aussi : la règle du montant rond ne distingue alors plus le paiement de la monnaie.",
-  "guide.checklist.rule9": "Quand une fusion est inévitable, ne fusionner que des sorties CoinJoin est le moins mauvais : elles n'ont pas d'historique. Cela les relie quand même et réduit leur anonymat, ce n'est donc jamais bon."
+  "guide.checklist.rule9": "Quand une fusion est inévitable, ne fusionner que des sorties CoinJoin est le moins mauvais : elles n'ont pas d'historique. Cela les relie quand même et réduit leur anonymat, ce n'est donc jamais bon.",
+  "settings.connectedNetwork": "Connecté : {{network}}. Utilisation du point d'accès personnalisé.",
+  "backend.unsupportedTitle": "Réseau non pris en charge",
+  "backend.unsupportedBody": "Le serveur connecté sert {{chain}}, qui n'est pas pris en charge. am-i.exposed fonctionne avec des serveurs Mainnet, Testnet4 et Signet. Basculez le nœud sur l'un d'eux ou utilisez un autre serveur.",
+  "backend.unknownChain": "une chaîne inconnue"
 }

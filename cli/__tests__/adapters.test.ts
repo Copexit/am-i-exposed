@@ -1,10 +1,10 @@
 /**
  * Tests for CLI adapters - entity loader, API utilities.
  */
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { existsSync } from "fs";
 import { join } from "path";
-import { resolveApiUrl } from "../src/util/api";
+import { networkForApi, resolveApiUrl } from "../src/util/api";
 import { DATA_DIR, WASM_DIR } from "../src/util/data-dir";
 import type { GlobalOpts } from "../src/index";
 
@@ -88,5 +88,32 @@ describe("entity filter - filesystem loading", () => {
       expect(typeof filter.has).toBe("function");
       expect(filter.meta.addressCount).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("networkForApi", () => {
+  const SIGNET = "00000008819873e925422c1ff0f99f7cc9bbb232af63a077a480a3633bee1ef6";
+  const REGTEST = "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206";
+  afterEach(() => vi.unstubAllGlobals());
+  const serve = (body: string, status = 200) =>
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(body, { status })));
+
+  it("uses the chain the custom API reports when --network was not given", async () => {
+    serve(SIGNET);
+    expect(await networkForApi("http://signet-a.local/api", { explicit: false, fallback: "mainnet", cache: false })).toBe("signet");
+  });
+
+  it("rejects an explicit --network that does not match the API", async () => {
+    serve(SIGNET);
+    await expect(networkForApi("http://signet-b.local/api", { explicit: true, fallback: "mainnet", cache: false }))
+      .rejects.toThrow(/serves signet/);
+  });
+
+  it("rejects an unsupported chain, and keeps --network when the API cannot be asked", async () => {
+    serve(REGTEST);
+    await expect(networkForApi("http://regtest.local/api", { explicit: false, fallback: "mainnet", cache: false }))
+      .rejects.toThrow(/Regtest/);
+    serve("not found", 404);
+    expect(await networkForApi("http://old.local/api", { explicit: true, fallback: "testnet4", cache: false })).toBe("testnet4");
   });
 });

@@ -4,22 +4,28 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useNetwork } from "@/context/NetworkContext";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import { UNSUPPORTED_CHAIN_LABEL } from "@/lib/api/backend-network";
 
 /**
  * Blocking overlay shown when the app is running on a self-hosted backend
- * (Umbrel, StartOS, or a manual install) but the local mempool API is unreachable.
+ * (Umbrel, StartOS, or a manual install) but the local mempool API is unreachable,
+ * or when the backend (also a custom URL) serves a chain the app does not support.
  *
  * Covers the entire viewport so the user can't miss it.
  * They can dismiss it (button or Escape) to poke around, but the warning is clear.
  */
 export function MempoolDownDialog() {
-  const { isUmbrel, localApiStatus } = useNetwork();
+  const { isUmbrel, localApiStatus, unsupportedChain } = useNetwork();
   const { t } = useTranslation();
   const [dismissed, setDismissed] = useState(false);
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const reloadRef = useRef<HTMLButtonElement>(null);
-  const open = isUmbrel && localApiStatus === "unavailable" && !dismissed;
+  const down = isUmbrel && localApiStatus === "unavailable";
+  const open = (down || !!unsupportedChain) && !dismissed;
+  const chainName = unsupportedChain === "testnet3" || unsupportedChain === "regtest"
+    ? UNSUPPORTED_CHAIN_LABEL[unsupportedChain]
+    : t("backend.unknownChain", { defaultValue: "an unrecognized chain" });
 
   useEffect(() => {
     if (!open) return;
@@ -66,10 +72,21 @@ export function MempoolDownDialog() {
             <AlertTriangle size={24} className="text-warning" />
           </div>
           <h2 id={titleId} className="text-lg font-semibold text-foreground">
-            {t("umbrel.mempoolDownTitle", { defaultValue: "Mempool Unreachable" })}
+            {down
+              ? t("umbrel.mempoolDownTitle", { defaultValue: "Mempool Unreachable" })
+              : t("backend.unsupportedTitle", { defaultValue: "Unsupported Network" })}
           </h2>
         </div>
 
+        {!down ? (
+          <p className="text-sm text-muted leading-relaxed">
+            {t("backend.unsupportedBody", {
+              chain: chainName,
+              defaultValue:
+                "The connected backend serves {{chain}}, which is not supported. am-i.exposed works with Mainnet, Testnet4 and Signet backends. Switch the node to one of them, or use another backend.",
+            })}
+          </p>
+        ) : (<>
         <p className="text-sm text-muted leading-relaxed">
           {t("umbrel.mempoolDownBody", {
             defaultValue:
@@ -99,6 +116,7 @@ export function MempoolDownDialog() {
             </li>
           </ol>
         </div>
+        </>)}
 
         <button
           ref={reloadRef}

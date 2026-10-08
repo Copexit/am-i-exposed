@@ -3668,5 +3668,9 @@
   "guide.checklist.rule6": "Nigdy nie wysyłaj na adres, który był już używany. Poproś o nowy.",
   "guide.checklist.rule7": "Uważaj na okrągłe kwoty i na adres odbiorcy innego typu niż Twój: oba zdradzają, które wyjście jest Twoją resztą. Płatność on-chain przez swap z Lightning unika obu.",
   "guide.checklist.rule8": "Płacisz okrągłą kwotę? Podnieś nieco opłatę, aby reszta też była okrągła: wtedy zasada okrągłej kwoty nie odróżni płatności od reszty.",
-  "guide.checklist.rule9": "Gdy łączenia nie da się uniknąć, łączenie tylko wyjść CoinJoin jest najmniej złe: nie mają historii. Nadal je jednak wiąże i zmniejsza ich anonimowość, więc nigdy nie jest dobre."
+  "guide.checklist.rule9": "Gdy łączenia nie da się uniknąć, łączenie tylko wyjść CoinJoin jest najmniej złe: nie mają historii. Nadal je jednak wiąże i zmniejsza ich anonimowość, więc nigdy nie jest dobre.",
+  "settings.connectedNetwork": "Połączono: {{network}}. Używany jest własny endpoint.",
+  "backend.unsupportedTitle": "Nieobsługiwana sieć",
+  "backend.unsupportedBody": "Podłączony serwer obsługuje {{chain}}, która nie jest wspierana. am-i.exposed działa z serwerami Mainnet, Testnet4 i Signet. Przełącz węzeł na jedną z nich lub użyj innego serwera.",
+  "backend.unknownChain": "nieznany łańcuch"
 }

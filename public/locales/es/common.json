@@ -3474,5 +3474,9 @@
   "guide.checklist.rule6": "Nunca envíes a una dirección ya usada. Pide una nueva.",
   "guide.checklist.rule7": "Vigila los importes redondos y una dirección de destino de un tipo distinto al tuyo: ambos revelan cuál es tu cambio. Pagar on-chain mediante un swap desde Lightning evita las dos cosas.",
   "guide.checklist.rule8": "¿Pagas un importe redondo? Sube un poco la comisión para que el cambio también sea redondo: así la regla del importe redondo no distingue el pago del cambio.",
-  "guide.checklist.rule9": "Cuando una fusión es inevitable, fusionar solo salidas de CoinJoin es lo menos malo: no tienen historial. Aun así las vincula y reduce su anonimato, así que nunca es bueno."
+  "guide.checklist.rule9": "Cuando una fusión es inevitable, fusionar solo salidas de CoinJoin es lo menos malo: no tienen historial. Aun así las vincula y reduce su anonimato, así que nunca es bueno.",
+  "settings.connectedNetwork": "Conectado: {{network}}. Usando endpoint personalizado.",
+  "backend.unsupportedTitle": "Red no compatible",
+  "backend.unsupportedBody": "El servidor conectado sirve {{chain}}, que no es compatible. am-i.exposed funciona con servidores de Mainnet, Testnet4 y Signet. Cambia el nodo a una de ellas o usa otro servidor.",
+  "backend.unknownChain": "una cadena desconocida"
 }

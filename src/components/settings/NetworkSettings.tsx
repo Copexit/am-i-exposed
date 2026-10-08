@@ -8,6 +8,9 @@ import { useNetwork } from "@/context/NetworkContext";
 import { diagnoseUrl } from "@/lib/api/url-diagnostics";
 import { normalizeApiUrl } from "@/lib/api/normalize-api-url";
 import { abortSignalTimeout } from "@/lib/abort-signal";
+import { detectBackendChain, isSupportedChain } from "@/lib/api/backend-network";
+import { idbChainStore } from "@/lib/api/idb-cache";
+import { NETWORK_CONFIG } from "@/lib/bitcoin/networks";
 
 type HealthStatus = "idle" | "checking" | "ok" | "error";
 
@@ -17,7 +20,7 @@ interface NetworkSettingsProps {
 
 export function NetworkSettings({ onClosePanel }: NetworkSettingsProps) {
   const { t } = useTranslation();
-  const { customApiUrl, setCustomApiUrl } = useNetwork();
+  const { customApiUrl, setCustomApiUrl, backendChain } = useNetwork();
   const [inputValue, setInputValue] = useState(customApiUrl ?? "");
   const [health, setHealth] = useState<HealthStatus>(customApiUrl ? "ok" : "idle");
   const [errorHint, setErrorHint] = useState("");
@@ -53,6 +56,8 @@ export function NetworkSettings({ onClosePanel }: NetworkSettingsProps) {
           signal: abortSignalTimeout(10000),
         });
         if (res.ok) {
+          // Re-ask which chain the backend serves (it may have been repointed)
+          await detectBackendChain(trimmed, { store: idbChainStore, refresh: true });
           setHealth("ok");
           setCustomApiUrl(trimmed);
         } else {
@@ -197,7 +202,12 @@ export function NetworkSettings({ onClosePanel }: NetworkSettingsProps) {
         {health === "ok" && (
           <div className="flex items-center gap-1.5 text-xs text-severity-good">
             <Check size={14} />
-            {t("settings.connected", { defaultValue: "Connected. Using custom endpoint." })}
+            {backendChain && isSupportedChain(backendChain)
+              ? t("settings.connectedNetwork", {
+                  network: NETWORK_CONFIG[backendChain].label,
+                  defaultValue: "Connected: {{network}}. Using custom endpoint.",
+                })
+              : t("settings.connected", { defaultValue: "Connected. Using custom endpoint." })}
           </div>
         )}
         {health === "error" && (

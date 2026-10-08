@@ -4,7 +4,10 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import {
@@ -17,13 +20,59 @@ import { useUrlState } from "@/hooks/useUrlState";
 import { useCustomApi } from "@/hooks/useCustomApi";
 import { useTorDetection, canUseOnionEndpoint, type TorStatus } from "@/hooks/useTorDetection";
 import { useLocalApi, type LocalApiStatus } from "@/hooks/useLocalApi";
+import {
+  detectBackendChain,
+  isSupportedChain,
+  knownBackendChain,
+  subscribeBackendChains,
+  type BackendChain,
+} from "@/lib/api/backend-network";
+import { idbChainStore } from "@/lib/api/idb-cache";
 
 /**
- * Network served by the Umbrel backend. /api/local-info does not expose the
- * node's network and the local mempool runs mainnet, so the app pins it there
- * (?network= and saved-graph networks are ignored).
+ * Which network the app runs on. A self-hosted backend (Umbrel / StartOS, or a
+ * custom URL) serves one chain, read from its genesis block hash
+ * (backend-network.ts): a supported one pins the network (?network= and
+ * saved-graph networks apply only when they match), an unsupported one
+ * (testnet3, regtest, an unknown genesis) is reported, not treated as mainnet.
+ * Umbrel falls back to the packager hint, then mainnet, when the node cannot
+ * be asked; a custom URL that cannot be asked keeps the selected network.
  */
-export const UMBREL_NETWORK: BitcoinNetwork = DEFAULT_NETWORK;
+export function resolveBackendNetwork(
+  chain: BackendChain | null | undefined,
+  { isUmbrel, selected }: { isUmbrel: boolean; selected: BitcoinNetwork },
+): { network: BitcoinNetwork; pinned: boolean; unsupportedChain: BackendChain | null } {
+  if (chain && isSupportedChain(chain)) return { network: chain, pinned: true, unsupportedChain: null };
+  return {
+    network: isUmbrel ? DEFAULT_NETWORK : selected,
+    pinned: isUmbrel,
+    unsupportedChain: chain ?? null,
+  };
+}
+
+/**
+ * Chain of a custom API URL: detected once per URL (memory, then IndexedDB).
+ * undefined while checking, null when there is no URL or it could not be asked.
+ */
+function useCustomBackendChain(customUrl: string | null): BackendChain | null | undefined {
+  const known = useSyncExternalStore(
+    subscribeBackendChains,
+    () => (customUrl ? knownBackendChain(customUrl) : undefined),
+    () => undefined,
+  );
+  // The URL whose check failed: the app keeps the selected network for it
+  const [failed, setFailed] = useState<string | null>(null);
+  useEffect(() => {
+    if (!customUrl || knownBackendChain(customUrl)) return;
+    const ac = new AbortController();
+    void detectBackendChain(customUrl, { store: idbChainStore, signal: ac.signal }).then((chain) => {
+      if (!chain && !ac.signal.aborted) setFailed(customUrl);
+    });
+    return () => ac.abort();
+  }, [customUrl]);
+  if (!customUrl) return null;
+  return known ?? (failed === customUrl ? null : undefined);
+}
 
 interface NetworkContextValue {
   network: BitcoinNetwork;
@@ -53,6 +102,15 @@ interface NetworkContextValue {
    * services routed only by isUmbrel (Observatory), which need not wait for Tor detection.
    */
   routeReady: boolean;
+  /** The network is set by the backend (Umbrel, or a custom URL that reported a supported chain). */
+  networkPinned: boolean;
+  /**
+   * Chain the self-hosted backend reported: undefined while checking, null when
+   * unknown (public mempool.space, or the backend could not be asked).
+   */
+  backendChain: BackendChain | null | undefined;
+  /** The backend serves a chain the app does not support (testnet3, regtest, unknown genesis). */
+  unsupportedChain: BackendChain | null;
 }
 
 const NetworkContext = createContext<NetworkContextValue>({
@@ -68,6 +126,9 @@ const NetworkContext = createContext<NetworkContextValue>({
   isCustomApi: false,
   apiReady: false,
   routeReady: false,
+  networkPinned: false,
+  backendChain: null,
+  unsupportedChain: null,
 });
 
 interface ResolveOptions {
@@ -142,6 +203,7 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
   const { customUrl, setCustomUrl } = useCustomApi();
   const localApi = useLocalApi();
   const { isUmbrel, mempoolPort, mempoolOnion, mempoolExternalUrl } = localApi;
+  const customChain = useCustomBackendChain(isUmbrel ? null : customUrl);
   const localApiStatus = localApi.status;
   // Hold Tor detection until the local API probe settles. On Umbrel or with a
   // custom API (own node) it never fires: resolveNetworkConfig ignores Tor there,
@@ -150,13 +212,14 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
   const skipTor = isUmbrel || !!customUrl;
   const torStatus = useTorDetection(skipTor, !skipTor && localApiStatus === "checking");
 
-  const network = isUmbrel ? UMBREL_NETWORK : url.network;
+  const backendChain = isUmbrel ? localApi.chain : customChain;
+  const { network, pinned, unsupportedChain } = resolveBackendNetwork(backendChain, { isUmbrel, selected: url.network });
   const urlSetNetwork = url.setNetwork;
   const setNetwork = useCallback(
     (n: BitcoinNetwork) => {
-      if (!isUmbrel) urlSetNetwork(n);
+      if (!pinned) urlSetNetwork(n);
     },
-    [isUmbrel, urlSetNetwork],
+    [pinned, urlSetNetwork],
   );
 
   const configFor = useCallback(
@@ -183,10 +246,14 @@ export function NetworkProvider({ children }: { children: ReactNode }) {
       localApiStatus,
       isUmbrel,
       isCustomApi: !!customUrl || isUmbrel,
-      apiReady: (isUmbrel || localApiStatus !== "checking") && torStatus !== "checking",
+      // On Umbrel the node's chain is known once its probe settles; a custom URL waits for its check
+      apiReady: localApiStatus !== "checking" && torStatus !== "checking" && backendChain !== undefined,
       routeReady: isUmbrel || localApiStatus !== "checking",
+      networkPinned: pinned,
+      backendChain,
+      unsupportedChain,
     }),
-    [network, setNetwork, config, configFor, customUrl, setCustomUrl, torStatus, localApiStatus, isUmbrel],
+    [network, setNetwork, config, configFor, customUrl, setCustomUrl, torStatus, localApiStatus, isUmbrel, pinned, backendChain, unsupportedChain],
   );
 
   return (
