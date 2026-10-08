@@ -13,6 +13,7 @@ import { withLabels } from "@/lib/wallet/labels";
 import type { Bip329Record } from "@/lib/wallet/bip329";
 import { useWalletLabels } from "@/components/wallet/WalletLabels";
 import { WalletLabelsPanel } from "@/components/wallet/WalletLabelsPanel";
+import { useCoinControl } from "@/components/wallet/useCoinControl";
 
 const WalletAddressTable = lazy(() => import("@/components/wallet/WalletAddressTable").then(m => ({ default: m.WalletAddressTable })));
 const WalletTxList = lazy(() => import("@/components/wallet/WalletTxList").then(m => ({ default: m.WalletTxList })));
@@ -35,11 +36,13 @@ export function WalletWorkspace({ result, addressInfos, utxoTraces, onScan, addr
 }) {
   const { t } = useTranslation();
   const [txsOpen, setTxsOpen] = useState(false);
-  const [coinsOpen, setCoinsOpen] = useState(false);
-  const [utxosOpen, setUtxosOpen] = useState(false);
   const [labelsOpen, setLabelsOpen] = useState(false);
   const labels = useWalletLabels();
   const allUtxos = useMemo(() => withLabels(buildCoinInputs(addressInfos), labels), [addressInfos, labels]);
+  const coinControl = useCoinControl(xpub, allUtxos);
+  // Coins selected in the URL: the list opens on them.
+  const [utxosOpen, setUtxosOpen] = useState(coinControl.selected.size > 0);
+  const [coinsOpen, setCoinsOpen] = useState(false);
   const hasTxs = result.totalTxs > 0;
 
   if (!hasTxs && result.activeAddresses === 0 && allUtxos.length === 0) return null;
@@ -112,7 +115,10 @@ export function WalletWorkspace({ result, addressInfos, utxoTraces, onScan, addr
             open={utxosOpen}
             onToggle={() => setUtxosOpen(o => !o)}
           >
-            <WalletUtxoList addressInfos={addressInfos} onScan={onScan} accountPath={accountPath} />
+            <WalletUtxoList addressInfos={addressInfos} onScan={onScan} accountPath={accountPath} control={coinControl} onCompare={() => setCoinsOpen(true)} onImportLabels={() => {
+              setLabelsOpen(true);
+              requestAnimationFrame(() => document.getElementById("wallet-labels")?.scrollIntoView({ block: "start", behavior: "smooth" }));
+            }} />
           </Panel>
         )}
 
@@ -124,7 +130,7 @@ export function WalletWorkspace({ result, addressInfos, utxoTraces, onScan, addr
             open={coinsOpen}
             onToggle={() => setCoinsOpen(o => !o)}
           >
-            <CoinSelector utxos={allUtxos} />
+            <CoinSelector utxos={allUtxos} control={coinControl} />
           </Panel>
         )}
       </div>

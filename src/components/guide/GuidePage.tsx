@@ -73,7 +73,7 @@ export function GuidePage() {
             { id: "common-mistakes", label: t("guide.toc.mistakes", { defaultValue: "Common mistakes" }) },
             { id: "recovery-playbook", label: t("guide.toc.recovery", { defaultValue: "Recovery playbook" }) },
             { id: "maintaining-privacy", label: t("guide.toc.maintaining", { defaultValue: "Maintaining privacy" }) },
-            { id: "labeling-coins", label: t("guide.toc.labeling", { defaultValue: "How to label coins" }) },
+            { id: "labeling-coins", label: t("guide.toc.labeling", { defaultValue: "Labeling recommendations" }) },
           ].map((item) => (
             <a
               key={item.id}
