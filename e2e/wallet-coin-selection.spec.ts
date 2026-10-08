@@ -78,10 +78,65 @@ for (const width of [1440, 390]) {
     await expect(first.getByText("591,429 sats")).toBeVisible();
     await expect(first.getByText("134,361 sats")).toBeVisible();
     await expect(first.getByTestId("plan-reason")).toHaveText("Joins coins an observer can probably already link.");
-    const single = page.getByTestId("coin-plan-single-coin");
-    await expect(single.getByText("99,000,000 sats")).toBeVisible();
+    const single = page.getByTestId("coin-plan-single-coin").filter({ hasText: "99,000,000 sats" });
     await expect(single.getByTestId("plan-reason")).toHaveText("Leaves change 164x the payment: most of the coin's value stays on change linked to this payment.");
-    await expect(page.getByText("15,240,920 sats", { exact: true }).locator("xpath=ancestor::section[starts-with(@data-testid,'coin-plan-')]")).toHaveCount(0);
+    // The CoinJoin change coin is an option too, last, with its warning
+    const cj = page.locator("[data-testid^='coin-plan-']").nth(2);
+    await expect(cj.getByText("15,240,920 sats", { exact: true })).toBeVisible();
+    await expect(cj.getByText(/Spends CoinJoin change, which is not mixed/)).toBeVisible();
     await shot(page, page.getByTestId("coin-selector"), `test-results/wa-selector-${width}.png`);
+  });
+}
+
+/** No element wider than the viewport (no horizontal page scroll). */
+const noHorizontalScroll = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+
+for (const width of [1440, 390]) {
+  test(`coin control at ${width}px: criterion, ticked coins, summary with warnings, compare`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`/#xpub=${ZPUB}`);
+    await expect(page.getByText("Wallet Privacy Audit")).toBeVisible({ timeout: 20_000 });
+
+    // Advisor first: choose a criterion
+    await page.getByRole("button", { name: /Coin Selection Advisor/ }).click();
+    const selector = page.getByTestId("coin-selector");
+    await selector.getByLabel("Amount (sats)").fill("600000");
+    await selector.getByRole("button", { name: "Suggest selection" }).click();
+    await selector.getByRole("button", { name: "Least change" }).click();
+    await expect(selector.getByRole("button", { name: "Least change" })).toHaveAttribute("aria-pressed", "true");
+    await expect(selector.getByText("Recommended", { exact: true })).toHaveCount(0);
+    const plans = selector.locator("[data-testid^='coin-plan-']");
+    await expect(plans.nth(1).getByText("15,240,920 sats", { exact: true })).toBeVisible();
+    expect(new URLSearchParams(new URL(page.url()).hash.slice(1)).get("rank")).toBe("least-change");
+
+    // Tick coins in the UTXO list: the CoinJoin change coin and the 591,429 coin
+    await page.getByRole("button", { name: /Coins \(UTXOs\)/ }).click();
+    const list = page.getByTestId("utxo-list");
+    await list.getByRole("checkbox", { name: /\(15,240,920 sats\)/ }).check();
+    await list.getByRole("checkbox", { name: /\(591,429 sats\)/ }).check();
+    const bar = page.getByTestId("coin-control-bar");
+    await expect(bar.getByRole("status")).toHaveText("2 coins selected · 15,832,349 sats");
+    // The selector's amount is shared
+    await expect(bar.getByLabel("Amount (sats)")).toHaveValue("600000");
+    await expect(bar.getByText("1 probable")).toBeVisible();
+    await expect(bar.getByText(/Spends CoinJoin change, which is not mixed/)).toBeVisible();
+    await expect(bar).toHaveCSS("position", "sticky");
+    expect(await noHorizontalScroll(page)).toBe(true);
+    await page.screenshot({ path: `test-results/we-control-${width}.png` });
+
+    // Compare: the manual set among the suggestions, ranked under Least change
+    await bar.getByRole("button", { name: "Compare with suggestions" }).click();
+    const manual = page.getByTestId("coin-plan-manual");
+    await expect(manual).toBeVisible();
+    await expect(manual.getByTestId("manual-rank")).toHaveText("3 of 4 · Least change");
+    await expect(manual.getByText(/Spends CoinJoin change/)).toBeVisible();
+    expect(await noHorizontalScroll(page)).toBe(true);
+    await shot(page, page.getByTestId("coin-selector"), `test-results/we-compare-${width}.png`);
+
+    // The URL keeps the coins: a reload restores them
+    expect(new URLSearchParams(new URL(page.url()).hash.slice(1)).get("coins")!.split(",")).toHaveLength(2);
+    await page.reload();
+    await expect(page.getByText("Wallet Privacy Audit")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId("coin-control-bar").getByRole("status")).toHaveText("2 coins selected · 15,832,349 sats");
   });
 }
