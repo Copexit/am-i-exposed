@@ -54,6 +54,16 @@ describe("saved wallets", () => {
     expect(meta!.size).toBeGreaterThan(0);
   });
 
+  it("round-trips graph traces (their layers are Maps)", async () => {
+    const s = snapshot();
+    const tx = s.infos[0]!.txs[0]!;
+    const trace = { tx, backward: [{ depth: 1, txs: new Map([[tx.txid, tx]]) }], forward: [], outspends: [{ spent: false }] };
+    await saveSnapshot(KEY, ZPUB, BASE, { ...s, traces: [[tx.txid, trace]] });
+    const back = (await loadSnapshot(KEY, ZPUB))!.traces[0]![1];
+    expect(back.backward[0]!.txs).toBeInstanceOf(Map);
+    expect(back.backward[0]!.txs.get(tx.txid)).toEqual(tx);
+  });
+
   it("never stores the xpub: hashed key, placeholder for the wallet's own xpub label", async () => {
     expect(KEY).toMatch(/^[0-9a-f]{64}$/);
     expect(walletKey({ ...parsed, scriptType: "p2tr" }, BASE)).not.toBe(KEY);

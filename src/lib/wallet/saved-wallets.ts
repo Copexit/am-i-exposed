@@ -18,6 +18,7 @@ import type { ParsedXpub, ScriptType, DerivedAddress } from "@/lib/bitcoin/descr
 import type { WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import type { MempoolAddress, MempoolTransaction, MempoolUtxo } from "@/lib/api/types";
 import type { UtxoTraceResult } from "@/lib/wallet/scan";
+import type { TraceLayer } from "@/lib/analysis/chain/recursive-trace";
 import type { Bip329Record } from "@/lib/wallet/bip329";
 import { cacheKeyPrefix } from "@/lib/api/cache-policy";
 import { getAnalysisSettings } from "@/lib/analysis/settings";
@@ -63,11 +64,19 @@ export interface SavedWalletMeta {
   size: number;
 }
 
+/** A trace layer's Map as a plain array (JSON drops Maps). */
+type StoredLayer = { depth: number; txs: MempoolTransaction[] };
+type StoredTrace = Omit<UtxoTraceResult, "backward" | "forward"> & { backward: StoredLayer[]; forward: StoredLayer[] };
+
 /** Stored layout: each tx once, addresses refer to it by txid. */
-interface StoredSnapshot extends Omit<WalletSnapshot, "infos"> {
+interface StoredSnapshot extends Omit<WalletSnapshot, "infos" | "traces"> {
   addresses: { derived: DerivedAddress; addressData: MempoolAddress | null; utxos: MempoolUtxo[]; txids: string[] }[];
   txs: Record<string, MempoolTransaction>;
+  traces: [string, StoredTrace][];
 }
+
+const layersOut = (ls: TraceLayer[]): StoredLayer[] => ls.map(l => ({ depth: l.depth, txs: [...l.txs.values()] }));
+const layersIn = (ls: StoredLayer[]): TraceLayer[] => ls.map(l => ({ depth: l.depth, txs: new Map(l.txs.map(t => [t.txid, t])) }));
 
 export class SavedWalletError extends Error {
   constructor(public code: "tooLarge" | "quota", public size = 0) {
@@ -102,7 +111,8 @@ function toStored(s: WalletSnapshot, xpub: string): StoredSnapshot {
   });
   const labels = s.labels.flatMap(r => r.type !== "xpub" ? [r] : r.ref === xpub ? [{ ...r, ref: SELF_XPUB }] : []);
   const { infos: _infos, ...rest } = s;
-  return { ...rest, labels, addresses, txs };
+  const traces = s.traces.map(([id, t]): [string, StoredTrace] => [id, { ...t, backward: layersOut(t.backward), forward: layersOut(t.forward) }]);
+  return { ...rest, labels, addresses, txs, traces };
 }
 
 function fromStored(s: StoredSnapshot, xpub: string): WalletSnapshot {
@@ -115,6 +125,7 @@ function fromStored(s: StoredSnapshot, xpub: string): WalletSnapshot {
       utxos: a.utxos,
       txs: a.txids.flatMap(id => txs[id] ? [txs[id]] : []),
     })),
+    traces: s.traces.map(([id, t]): [string, UtxoTraceResult] => [id, { ...t, backward: layersIn(t.backward), forward: layersIn(t.forward) }]),
     labels: s.labels.map(r => r.type === "xpub" && r.ref === SELF_XPUB ? { ...r, ref: xpub } : r),
   };
 }
