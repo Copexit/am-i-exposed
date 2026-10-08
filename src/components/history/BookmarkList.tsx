@@ -28,12 +28,12 @@ export const BookmarkList = memo(function BookmarkList({
   const [confirming, setConfirming] = useState<string | null>(null);
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap items-start gap-2">
       {bookmarks.map((bm) => (
         <Fragment key={bm.input}>
         <div
           data-testid={bm.type === "wallet" ? "wallet-bookmark-item" : undefined}
-          className="inline-flex items-center gap-2 px-3 py-2.5 rounded-lg bg-surface-elevated/50
+          className="inline-flex items-center gap-2 max-w-full min-w-0 px-3 py-2.5 rounded-lg bg-surface-elevated/50
             border border-card-border hover:border-card-border hover:bg-surface-elevated
             transition-all text-xs group"
         >
