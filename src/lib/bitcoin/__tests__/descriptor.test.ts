@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+  accountPathOf,
+  parseXpub,
   parseAndDerive,
   isExtendedPubkey,
   isDescriptor,
@@ -233,5 +235,15 @@ describe("parseAndDerive - descriptor syntax", () => {
   it("does not claim unsupported descriptor types", () => {
     expect(isDescriptor(`sh(wsh(multi(1,${ZPUB}/0/*)))`)).toBe(false);
     expect(isDescriptor(`wsh(multi(1,${ZPUB}/0/*))`)).toBe(false);
+  });
+});
+
+describe("accountPathOf", () => {
+  const ZPUB = "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs";
+  it("uses the standard path of an account-level key", () => {
+    expect(accountPathOf(parseXpub(ZPUB))).toBe("m/84'/0'/0'");
+  });
+  it("prefers a descriptor's key origin, normalising h to '", () => {
+    expect(accountPathOf(parseXpub(`wpkh([deadbeef/84h/1h/2h]${ZPUB}/<0;1>/*)`))).toBe("m/84'/1'/2'");
   });
 });

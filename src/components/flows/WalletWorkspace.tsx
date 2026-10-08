@@ -15,8 +15,10 @@ const WalletTxList = lazy(() => import("@/components/wallet/WalletTxList").then(
 const WalletGraphExplorerPanel = lazy(() => import("@/components/wallet/WalletGraphExplorerPanel").then(m => ({ default: m.WalletGraphExplorerPanel })));
 
 /** Analyst workspace: wallet graph, address table, tx history, coin selection. */
-export function WalletWorkspace({ result, addressInfos, utxoTraces, onScan, addressesOpen, onAddressesOpenChange }: {
+export function WalletWorkspace({ result, addressInfos, utxoTraces, onScan, addressesOpen, onAddressesOpenChange, accountPath }: {
   result: WalletAuditResult;
+  /** Account derivation path when known, for the UTXO list's path tooltips */
+  accountPath?: string;
   addressInfos: WalletAddressInfo[];
   utxoTraces: Map<string, UtxoTraceResult> | null;
   onScan: (input: string) => void;
@@ -87,7 +89,7 @@ export function WalletWorkspace({ result, addressInfos, utxoTraces, onScan, addr
             open={utxosOpen}
             onToggle={() => setUtxosOpen(o => !o)}
           >
-            <WalletUtxoList addressInfos={addressInfos} onScan={onScan} />
+            <WalletUtxoList addressInfos={addressInfos} onScan={onScan} accountPath={accountPath} />
           </Panel>
         )}
 

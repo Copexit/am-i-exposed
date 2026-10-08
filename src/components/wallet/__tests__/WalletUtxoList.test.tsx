@@ -14,6 +14,7 @@ vi.mock("react-i18next", async () => {
 vi.mock("@/hooks/useChainTip", () => ({ useChainTip: () => 900_000 }));
 
 import { WalletUtxoList } from "../WalletUtxoList";
+import { testerHistory } from "@/lib/analysis/__tests__/fixtures/wallet-history";
 
 afterEach(cleanup);
 
@@ -81,8 +82,8 @@ describe("WalletUtxoList", () => {
   it("exposes column labels to screen readers as a table", () => {
     render(<WalletUtxoList addressInfos={wallet} onScan={() => {}} />);
     const table = screen.getByRole("table", { name: "Coins (UTXOs)" });
-    expect(within(table).getAllByRole("columnheader").map(h => h.textContent)).toEqual(["#", "Coin", "Amount", "Address", "Age", "Origin"]);
-    expect(within(within(table).getAllByRole("row")[1]!).getAllByRole("cell")).toHaveLength(6);
+    expect(within(table).getAllByRole("columnheader").map(h => h.textContent)).toEqual(["#", "Coin", "Amount", "Path", "Address", "Age", "Origin"]);
+    expect(within(within(table).getAllByRole("row")[1]!).getAllByRole("cell")).toHaveLength(7);
   });
 
   it("sorts by amount both ways and by age", () => {
@@ -106,5 +107,21 @@ describe("WalletUtxoList", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show fewer" }));
     expect(screen.getAllByTestId("utxo-row")).toHaveLength(20);
     expect(screen.getByTestId("utxo-total").textContent).toContain(`${(25 * 10_000 + 300).toLocaleString("en-US")} sats`);
+  });
+
+  it("titles the path with the chain, index and full derivation, and shows each coin's origin class", () => {
+    render(<WalletUtxoList addressInfos={wallet} onScan={() => {}} accountPath="m/84'/0'/0'" />);
+    const top = screen.getAllByTestId("utxo-row")[0]!;
+    expect(within(top).getByTitle("Change chain, index 3 (m/84'/0'/0'/1/3)")).toBeTruthy();
+    expect(within(top).getByText("Unknown origin")).toBeTruthy();
+  });
+
+  it("labels CoinJoin change as CoinJoin change, never as mixed (tester wallet)", () => {
+    const { h, addresses } = testerHistory();
+    render(<WalletUtxoList addressInfos={h.infos(addresses)} onScan={() => {}} />);
+    const cj = screen.getAllByTestId("utxo-row").find(r => r.textContent!.includes("15,240,920"))!;
+    expect(within(cj).getByText("CoinJoin change")).toBeTruthy();
+    expect(within(cj).queryByText("Mixed (CoinJoin)")).toBeNull();
+    expect(screen.getAllByText("Change").length).toBe(10);
   });
 });

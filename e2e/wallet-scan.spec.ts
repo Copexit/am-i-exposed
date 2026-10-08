@@ -119,7 +119,7 @@ test("coin selection advisor: multi-coin plans when no single coin pays", async 
   await expect(same).toBeVisible();
   await expect(same.getByText("Recommended")).toBeVisible();
   await expect(same.getByRole("listitem")).toHaveCount(3);
-  await expect(page.getByTestId("coin-plan-fewest-coins").getByText(/Joins 2 unrelated origins/)).toBeVisible();
+  await expect(page.getByTestId("coin-plan-multi-coin").getByText(/Joins 2 unrelated origins/)).toBeVisible();
   await expect(page.getByText("Advanced: Stonewall")).toBeVisible();
   await expect(page.getByText(/Not enough funds/)).toHaveCount(0);
 
@@ -156,7 +156,7 @@ test("coins (UTXOs) section lists every coin, sortable, with totals and scan lin
   await expect(page).toHaveURL(new RegExp(`#tx=${"e1".repeat(32)}`));
 });
 
-test("coin selection advisor: a no-change plan next to the single coin", async ({ page }) => {
+test("coin selection advisor: a no-change set of already linked coins stands alone", async ({ page }) => {
   await mockMultiCoinWallet(page);
   await page.goto(`/#xpub=${ZPUB}`);
   await expect(stat(page, "Total balance")).toHaveText("1,850,000 sats", { timeout: 20_000 });
@@ -165,10 +165,11 @@ test("coin selection advisor: a no-change plan next to the single coin", async (
   await page.getByLabel("Amount (sats)").fill("449000");
   await page.getByRole("button", { name: "Suggest selection" }).click();
 
+  // 250,000 + 200,000 on one address pay it with no change: nothing to trade off, so no other plan
   const noChange = page.getByTestId("coin-plan-no-change");
-  await expect(noChange.getByText("Recommended")).toBeVisible();
-  await expect(noChange.getByText(/no new source of funds is linked/)).toBeVisible();
-  await expect(page.getByTestId("coin-plan-single-coin").getByText(/change output that observers can follow/)).toBeVisible();
+  await expect(noChange.getByText(/so no change output is created that anyone can follow/)).toBeVisible();
+  await expect(noChange.getByTestId("plan-reason")).toHaveText("Links nothing new and leaves no change.");
+  await expect(page.getByTestId("coin-plan-single-coin")).toHaveCount(0);
 });
 
 const OUTSIDE_1 = "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh";
