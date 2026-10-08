@@ -23,6 +23,7 @@ import { P2PKH_DUST_LIMIT, TOXIC_CHANGE_THRESHOLD } from "@/lib/constants";
 import type { MempoolAddress, MempoolTransaction, MempoolUtxo } from "@/lib/api/types";
 import type { DerivedAddress } from "@/lib/bitcoin/descriptor";
 import { buildWalletGraph, simplePayments, soloSpends, utxoOrigins, type OriginCounts } from "./wallet-behavior";
+import { buildClusters } from "./wallet-clusters";
 import { checkChangeExposure, checkMerges, checkNoMerge, checkPeelChains } from "./wallet-heuristics";
 
 // ---------- Types ----------
@@ -319,7 +320,7 @@ export function auditWallet(addresses: WalletAddressInfo[], failedAddresses: str
   const graph = buildWalletGraph(addresses);
   const spends = soloSpends(graph);
   const payments = simplePayments(graph, spends);
-  const merges = checkMerges(graph, spends);
+  const merges = checkMerges(graph, spends, buildClusters(graph));
   findings.push(...merges.findings);
   findings.push(...checkChangeExposure(payments));
   const peel = checkPeelChains(payments);

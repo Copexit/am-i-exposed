@@ -7,6 +7,7 @@ import { getAddressType } from "@/lib/bitcoin/address-type";
 import { isRoundAmount } from "./heuristics/round-amount";
 import { coinClass, type SimplePayment, type WalletGraph } from "./wallet-behavior";
 import type { MempoolTransaction } from "@/lib/api/types";
+import { buildClusters, type WalletClusters } from "./wallet-clusters";
 
 /** Txids listed on a finding card; the rest are counted in `more`. */
 export const MAX_TX_REFS = 10;
@@ -16,21 +17,25 @@ export function txRefs(txids: readonly string[]): { _txids: string; more: number
 }
 
 /**
- * W2: a change input spent with a coin not already linked to it. A coin from
- * the same funding tx or on the same address adds no new link.
+ * W2: a change input spent with a coin from another linkage cluster
+ * (wallet-clusters). Coins on its address, from its funding tx or descending
+ * from the same wallet-owned coins add no new link.
  */
-function mergesChange(tx: MempoolTransaction, classes: readonly string[]): boolean {
-  const addr = (i: number) => tx.vin[i]!.prevout?.scriptpubkey_address;
-  return tx.vin.some((c, i) =>
-    (classes[i] === "change" || classes[i] === "coinjoin-change") &&
-    tx.vin.some((o, j) => j !== i && o.txid !== c.txid && addr(j) !== addr(i)));
+function mergesChange(classes: readonly string[], before: readonly string[] | undefined): boolean {
+  if (!before) return false;
+  return classes.some((c, i) =>
+    (c === "change" || c === "coinjoin-change") && before.some((o, j) => j !== i && o !== before[i]));
 }
 
 /**
  * W1 post-mix merge and W2 change merge. Each spend counts once, under the
  * worse of the two; `merged` lets the consolidation check skip them.
  */
-export function checkMerges(g: WalletGraph, spends: readonly MempoolTransaction[]): { findings: Finding[]; merged: Set<string> } {
+export function checkMerges(
+  g: WalletGraph,
+  spends: readonly MempoolTransaction[],
+  clusters: WalletClusters = buildClusters(g),
+): { findings: Finding[]; merged: Set<string> } {
   const unmixed: string[] = [];
   const mixedOnly: string[] = [];
   const change: string[] = [];
@@ -39,7 +44,7 @@ export function checkMerges(g: WalletGraph, spends: readonly MempoolTransaction[
     const classes = tx.vin.map((v) => coinClass(g, v.txid, v.vout));
     if (classes.includes("mixed")) {
       (classes.some((c) => c !== "mixed" && c !== "unknown") ? unmixed : mixedOnly).push(tx.txid);
-    } else if (mergesChange(tx, classes)) {
+    } else if (mergesChange(classes, clusters.linking.get(tx.txid))) {
       change.push(tx.txid);
     }
   }
