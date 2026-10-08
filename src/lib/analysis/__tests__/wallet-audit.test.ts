@@ -266,3 +266,16 @@ describe("auditWallet: final-review probe wallets (false-positive regressions)",
     expect(ids(h, 1)).not.toContain("wallet-change-merge");
   });
 });
+
+describe("auditWallet totals and coin origins agree", () => {
+  it("counts every UTXO once, also on addresses without stats", async () => {
+    const { History, recv, walletAddrs } = await import("./fixtures/wallet-history");
+    const h = new History();
+    h.receive(recv(0), 50_000, 100);
+    h.receive(recv(1), 70_000, 101);
+    const infos = h.infos(walletAddrs(2)).map((i, n) => (n === 1 ? { ...i, addressData: null } : i));
+    const r = auditWallet(infos);
+    const sum = Object.values(r.utxoOrigins).reduce((s, x) => s + x.count, 0);
+    expect([r.totalUtxos, sum, r.totalBalance]).toEqual([2, 2, 120_000]);
+  });
+});

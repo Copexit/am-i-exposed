@@ -359,6 +359,12 @@ export function auditWallet(addresses: WalletAddressInfo[], failedAddresses: str
   const seenTxIds = new Set<string>();
 
   for (const addr of addresses) {
+    // UTXOs count even without address stats, so the totals match the coin origins
+    for (const utxo of addr.utxos) {
+      totalUtxos++;
+      totalBalance += utxo.value;
+      if (utxo.value < P2PKH_DUST_LIMIT) dustUtxos++;
+    }
     if (!addr.addressData) continue;
     const txCount = addr.addressData.chain_stats.tx_count + addr.addressData.mempool_stats.tx_count;
     if (txCount > 0) activeAddresses++;
@@ -370,12 +376,6 @@ export function auditWallet(addresses: WalletAddressInfo[], failedAddresses: str
         seenTxIds.add(tx.txid);
         totalTxs++;
       }
-    }
-
-    for (const utxo of addr.utxos) {
-      totalUtxos++;
-      totalBalance += utxo.value;
-      if (utxo.value < P2PKH_DUST_LIMIT) dustUtxos++;
     }
   }
 
