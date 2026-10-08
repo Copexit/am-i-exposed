@@ -45,7 +45,7 @@ WalletResults component (src/components/flows/)
     |-- Verdict (grade, score out of 100) and stats
     |-- Findings list (FindingGroups, wallet-level findings)
     |-- WalletWorkspace: graph, address table, tx list,
-        Coin Selection Advisor (uses selectCoins())
+        Coin Selection Advisor (adviseCoinSelection(), see coin-selection.ts)
 ```
 
 ### Key Files

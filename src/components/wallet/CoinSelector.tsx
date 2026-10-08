@@ -77,7 +77,7 @@ export function CoinSelector({ utxos }: { utxos: CoinSelectionInput[] }) {
             })}
           </p>
           {advice.plans.map((plan, i) => (
-            <PlanCard key={plan.strategy} plan={plan} recommended={i === 0 && advice.plans.length > 1} />
+            <PlanCard key={i} plan={plan} recommended={i === 0 && advice.plans.length > 1} />
           ))}
           {advice.stonewall !== null && (
             <div className="rounded-lg border border-dashed border-hairline-strong px-4 py-3 text-sm space-y-2">
@@ -111,13 +111,20 @@ function PlanCard({ plan, recommended }: { plan: CoinSelectionPlan; recommended:
   const sats = t("common.sats", { defaultValue: "sats" });
   const note =
     plan.strategy === "single-coin" ? (plan.change > 0 ? "singleChange" : "single")
-    : plan.strategy === "no-change" ? (plan.origins === 1 ? "noChangeLinked" : "noChange")
-    : plan.origins === 1 ? "linked" : "merge";
+    : plan.strategy === "no-change" ? "noChange"
+    : plan.strategy === "same-origin" ? "linked"
+    : plan.strategy === "probably-linked" ? "probablyLinked" : "merge";
   const stats = [
     { label: t("wallet.coinSel.inputs", { defaultValue: "Inputs" }), value: fmtN(plan.selected.length) },
     { label: t("wallet.coinSel.fee", { defaultValue: "Fee" }), value: `${fmtN(plan.fee)} ${sats}` },
     { label: t("wallet.coinSel.change", { defaultValue: "Change" }), value: plan.change > 0 ? `${fmtN(plan.change)} ${sats}` : t("wallet.coinSel.noChange", { defaultValue: "No change" }) },
-    { label: t("wallet.coinSel.origins", { defaultValue: "Origins" }), value: fmtN(plan.origins) },
+    {
+      label: t("wallet.coinSel.origins", { defaultValue: "Origins" }),
+      // Coins only probably linked count as one origin, said so
+      value: plan.strategy === "probably-linked"
+        ? t("wallet.coinSel.originsProbable", { count: plan.groups, n: fmtN(plan.groups), defaultValue: "{{n}} (probably linked)" })
+        : fmtN(plan.groups),
+    },
   ];
 
   return (
@@ -132,6 +139,9 @@ function PlanCard({ plan, recommended }: { plan: CoinSelectionPlan; recommended:
           )}
         </div>
         <p className="text-sm text-muted leading-relaxed">{t(`wallet.coinSel.note.${note}`)}</p>
+        <p data-testid="plan-reason" className="text-sm text-foreground leading-relaxed">
+          {t(`wallet.coinSel.reason.${plan.reason}`, { count: plan.groups, ratio: fmtN(Math.round(plan.change / plan.paymentAmount)) })}
+        </p>
         {plan.absorbed > 0 && (
           <p className="text-[13px] text-muted leading-relaxed">
             {t("wallet.coinSel.absorbed", { amount: fmtN(plan.absorbed), defaultValue: "The fee includes {{amount}} sats of leftover, too small to be worth a change output." })}

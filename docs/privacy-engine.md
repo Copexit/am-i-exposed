@@ -1574,7 +1574,8 @@ Wallet audits (xpub/descriptor, `src/lib/analysis/wallet-audit.ts`) know somethi
 - **Simple payments:** solo spends with exactly one addressed output to the wallet (the change) and one to someone else, excluding tx0s.
 - `unknown` never triggers a finding, so missing history cannot cause a false positive.
 - **Gap limit:** Own addresses beyond the scanned gap limit look external: a self-transfer to them reads as a payment, which can turn `self` into `change` and add change-exposure or peel-chain hits. The "Rescan with" larger gap limit control is the remedy.
-- The audit also reports `utxoOrigins`: unspent coins by class (count and sats), shown as the "Coin origins" bar on the wallet result and in CLI text/JSON output. Holding mixed and unmixed coins is shown, not scored.
+- The audit also reports `utxoOrigins`: unspent coins by class (count and sats), shown as the "Coin origins" bar on the wallet result and in CLI text/JSON output. Every unspent coin is in exactly one class, so the counts sum to the UTXO total. The UTXO list and the coin selection advisor show the same class per coin (a `mixed` coin is "Mixed (CoinJoin)", a `coinjoin-change` coin is "CoinJoin change", never mixed). Holding mixed and unmixed coins is shown, not scored.
+- **Linkage clusters** (`src/lib/analysis/wallet-clusters.ts`): union-finds over the wallet's coins of what its history already links on-chain, in two tiers. **Certain:** the same address; inputs co-spent in a solo spend; a solo spend with exactly one wallet output (that output joins its inputs); a CoinJoin's `coinjoin-change` with the wallet's inputs of that CoinJoin when those inputs were one certain cluster. **Inferred** (adds to certain): a solo spend with 2+ wallet outputs joins them with each other and its inputs, and so their descendants; an observer has to guess which output was the change. A `mixed` output, a receipt from outside and any tx with an outside input never link. The coin selection advisor treats a certain link as free and an inferred one as half a link; W2 counts merges across certain clusters and scores those within one inferred cluster a notch lower.
 
 ### W1: Post-Mix Merge (`wallet-postmix-merge`)
 
@@ -1588,9 +1589,9 @@ Wallet audits (xpub/descriptor, `src/lib/analysis/wallet-audit.ts`) know somethi
 
 ### W2: Change Merged With Other Coins (`wallet-change-merge`)
 
-**Mechanism:** A solo spend with 2+ inputs, no `mixed` input, inputs from 2+ distinct funding txs, and at least one `change` or `coinjoin-change` input. A spend counted by W1 is not counted here.
+**Mechanism:** A solo spend with 2+ inputs, no `mixed` input, and at least one `change` or `coinjoin-change` input that sat in a different certain linkage cluster from another input just before the spend (clusters built parents first). A spend counted by W1 is not counted here. When every counted spend merged only within one inferred cluster (coins from the same payment's outputs), the finding drops a notch: low -2 (1 spend), medium -4 (2-4), medium -7 (5+).
 
-**Privacy impact:** Change carries the history of the payment that created it. The recipient, and anyone applying standard change rules (Meiklejohn 2013, Kappos et al. 2022), already attribute it to the sender. Spending it with a coin from another transaction hands that coin and its source to the same observers and joins the two clusters. Merging outputs of one transaction, or coins on the change's own address, adds no new link and does not count. Receipts-only merges are not newly penalized (3+ input merges are already `wallet-consolidation-history`, and the tx view shows `h3-cioh`).
+**Privacy impact:** Change carries the history of the payment that created it. The recipient, and anyone applying standard change rules (Meiklejohn 2013, Kappos et al. 2022), already attribute it to the sender. Spending it with a coin from another transaction hands that coin and its source to the same observers and joins the two clusters. Merging coins the history certainly links (coins on the change's own address, coins co-spent with it, coins descending from it through single-output spends) adds no new link and does not count. Merging two outputs of one payment, or their descendants, confirms to anyone that both were the wallet's (so which output was the change): it counts, a notch lower. Receipts-only merges are not newly penalized (3+ input merges are already `wallet-consolidation-history`, and the tx view shows `h3-cioh`).
 
 **Detection:** `checkMerges` in `wallet-heuristics.ts`.
 
@@ -1598,7 +1599,7 @@ Wallet audits (xpub/descriptor, `src/lib/analysis/wallet-audit.ts`) know somethi
 
 ### W3: Change Exposure (`wallet-change-exposed`)
 
-**Mechanism:** Over the wallet's simple payments, counts those where a standard change rule points at the **real** change: `type` (the change shares every input's address type and the payment's type differs), `round` (the payment is round and the change is not, H1), `optimal` (2+ inputs, the change is smaller than every input and the payment is not; Nick 2015). A rule that fires on the wrong output does not count.
+**Mechanism:** Over the wallet's simple payments, counts those where a standard change rule points at the **real** change: `type` (the change shares every input's address type and the payment's type differs), `round` (the payment is round and the change is not, H1), `optimal` (2+ inputs, the change is smaller than every input and the payment is not; Nick 2015). A payment counts only when at least one rule picks the change and no rule picks the payment: facing contradicting rules (a Taproot payment with a round change, say) an analyst cannot tell, so that payment is not exposed.
 
 **Privacy impact:** These are the rules chain analysts run at scale (validated against ground truth by Kappos et al. 2022). A wallet whose habits make them right lets anyone follow its change from payment to payment. This folds in round-payment habits and script-type mixing across spends, which matter only because they expose change.
 

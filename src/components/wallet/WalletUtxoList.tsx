@@ -16,26 +16,57 @@ const COLLAPSED_ROWS = 20;
 
 type SortKey = "amount" | "age";
 
-const COLS = "md:grid-cols-[2.25rem_minmax(0,1.1fr)_minmax(0,1.3fr)_8rem_minmax(0,1.4fr)_9.5rem]";
+const COLS = "md:grid-cols-[2.25rem_minmax(0,1.1fr)_6.5rem_minmax(0,1fr)_8rem_minmax(0,1.4fr)_9.5rem]";
 const MOBILE_FULL = "col-start-2 col-span-2 md:col-start-auto md:col-span-1";
 
 /** Every coin of the wallet: amount, outpoint, address, age and origin hints. */
-export function WalletUtxoList({ addressInfos, onScan }: { addressInfos: WalletAddressInfo[]; onScan: (txid: string) => void }) {
+export function WalletUtxoList({ addressInfos, onScan, accountPath }: {
+  addressInfos: WalletAddressInfo[];
+  onScan: (txid: string) => void;
+  /** Account derivation path (e.g. m/84'/1'/0') when known */
+  accountPath?: string;
+}) {
   const { t } = useTranslation();
   const tip = useChainTip();
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: "amount", desc: true });
   const [showAll, setShowAll] = useState(false);
 
   // Row numbers (#n, also used by the hints) follow the amount order and stay with the coin when re-sorted.
-  const rows = useMemo(() => {
+  const { rows, allLinked } = useMemo(() => {
     const derived = new Map(addressInfos.map(i => [i.derived.address, i.derived]));
     const coins = buildCoinInputs(addressInfos).sort((a, b) => b.utxo.value - a.utxo.value);
-    return withHints(coins).map((c, i) => {
-      const hints: Hint[] = [...c.hints];
+    // Linkage groups (inferred clusters, wallet-clusters.ts). One group for the whole
+    // wallet is said once above the list; otherwise each group of 2+ coins gets a letter,
+    // with a "?" when only probably linked (it spans several certain clusters).
+    const groupOf = (c: (typeof coins)[number]) => c.group ?? `${c.utxo.txid}:${c.utxo.vout}`;
+    const members = new Map<string, typeof coins>();
+    for (const c of coins) {
+      const m = members.get(groupOf(c));
+      if (m) m.push(c);
+      else members.set(groupOf(c), [c]);
+    }
+    const certainOne = (m: typeof coins) => new Set(m.map(c => c.cluster)).size === 1;
+    const one = coins.length > 1 && members.size === 1;
+    const letters = new Map<string, string>();
+    for (const [g, m] of members) {
+      const i = letters.size;
+      if (m.length > 1) letters.set(g, i < 26 ? String.fromCharCode(65 + i) : String(i + 1));
+    }
+    const linkKinds = new Set<Hint["kind"]>(["linked", "probably-linked", ...(one ? (["same-tx", "same-address"] as const) : [])]);
+    const rows = withHints(coins).map((c, i) => {
+      const d = derived.get(c.address);
+      const hints: Hint[] = c.hints.filter(h => !linkKinds.has(h.kind));
+      // Each coin shows its origin class as counted in the coin-origins bar, unless the chain chip already says it.
+      if (c.origin && c.origin !== "mixed" && c.origin !== "coinjoin-change" && !(c.origin === "change" && d?.isChange)) {
+        hints.unshift({ kind: "class", origin: c.origin });
+      }
+      const letter = one ? undefined : letters.get(groupOf(c));
+      if (letter) hints.push({ kind: "group", letter, inferred: !certainOne(members.get(groupOf(c))!) });
       if (c.utxo.value < P2PKH_DUST_LIMIT) hints.push({ kind: "dust" });
       else if (c.utxo.value <= INPUT_VB[scriptType(c.address)] * REFERENCE_FEE_RATE) hints.push({ kind: "uneconomical" });
-      return { ...c, hints, n: i + 1, derived: derived.get(c.address) };
+      return { ...c, hints, n: i + 1, derived: d };
     });
+    return { rows, allLinked: !one ? null : certainOne(coins) ? "certain" as const : "inferred" as const };
   }, [addressInfos]);
 
   const sorted = useMemo(() => {
@@ -48,6 +79,13 @@ export function WalletUtxoList({ addressInfos, onScan }: { addressInfos: WalletA
   const total = rows.reduce((s, r) => s + r.utxo.value, 0);
   const visible = showAll ? sorted : sorted.slice(0, COLLAPSED_ROWS);
   const sats = t("common.sats", { defaultValue: "sats" });
+  const pathTitle = (d: (typeof rows)[number]["derived"]) =>
+    d && t("wallet.utxos.pathTitle", {
+      chain: d.isChange ? t("wallet.utxos.chainChange", { defaultValue: "Change chain" }) : t("wallet.utxos.chainReceive", { defaultValue: "Receive chain" }),
+      index: d.index,
+      path: accountPath ? `${accountPath}/${d.path}` : d.path,
+      defaultValue: "{{chain}}, index {{index}} ({{path}})",
+    });
   const confirmations = (count: number) => t("wallet.utxos.confirmations", { count, n: fmtN(count), defaultValue: "{{n}} confirmations" });
 
   const SORT_LABEL = {
@@ -73,6 +111,13 @@ export function WalletUtxoList({ addressInfos, onScan }: { addressInfos: WalletA
 
   return (
     <div className="space-y-3" data-testid="utxo-list">
+      {allLinked && (
+        <p data-testid="utxo-all-linked" className="text-[13px] text-muted">
+          {allLinked === "certain"
+            ? t("wallet.utxos.allLinked", { count: rows.length, defaultValue: "All {{count}} coins are linked by this wallet's history." })
+            : t("wallet.utxos.allProbablyLinked", { count: rows.length, defaultValue: "All {{count}} coins are probably linked by this wallet's history." })}
+        </p>
+      )}
       <div className="flex items-center gap-1 flex-wrap">
         <span className="text-[13px] text-muted mr-1">{t("wallet.utxos.sortBy", { defaultValue: "Sort by" })}</span>
         {sortButton("amount", t("wallet.utxos.amount", { defaultValue: "Amount" }))}
@@ -86,6 +131,9 @@ export function WalletUtxoList({ addressInfos, onScan }: { addressInfos: WalletA
           <span role="columnheader">#</span>
           <span role="columnheader">{t("wallet.utxos.coin", { defaultValue: "Coin" })}</span>
           <span role="columnheader" className="text-right md:order-last">{t("wallet.utxos.amount", { defaultValue: "Amount" })}</span>
+          <span role="columnheader" title={t("wallet.utxos.pathHeaderTitle", { defaultValue: "Derivation path: chain (0 receive, 1 change) and index" })}>
+            {t("wallet.utxos.path", { defaultValue: "Path" })}
+          </span>
           <span role="columnheader">{t("wallet.utxos.address", { defaultValue: "Address" })}</span>
           <span role="columnheader">{t("wallet.utxos.age", { defaultValue: "Age" })}</span>
           <span role="columnheader">{t("wallet.utxos.origin", { defaultValue: "Origin" })}</span>
@@ -135,13 +183,18 @@ export function WalletUtxoList({ addressInfos, onScan }: { addressInfos: WalletA
                 <span role="cell" data-testid="utxo-amount" className="num text-[13px] text-foreground text-right whitespace-nowrap col-start-3 row-start-1 md:col-start-auto md:row-start-auto md:order-last">
                   {fmtN(value)} {sats}
                 </span>
-                <span role="cell" className={`flex items-center gap-2 min-w-0 ${MOBILE_FULL}`}>
+                <span role="cell" className="flex items-center gap-2 min-w-0 col-start-2 md:col-start-auto" title={pathTitle(r.derived)}>
                   {r.derived && (
-                    <span className={`text-[11px] leading-none rounded px-1.5 py-1 shrink-0 ${r.derived.isChange ? "bg-surface-2 text-muted" : "bg-bitcoin/10 text-bitcoin"}`}>
-                      {r.derived.isChange ? t("wallet.change_label", { defaultValue: "change" }) : t("wallet.receive_label", { defaultValue: "receive" })}
-                    </span>
+                    <>
+                      <span className={`text-[11px] leading-none rounded px-1.5 py-1 shrink-0 ${r.derived.isChange ? "bg-surface-2 text-muted" : "bg-bitcoin/10 text-bitcoin"}`}>
+                        {r.derived.isChange ? t("wallet.change_label", { defaultValue: "change" }) : t("wallet.receive_label", { defaultValue: "receive" })}
+                      </span>
+                      <span className="num text-[12px] text-muted shrink-0">{r.derived.path}</span>
+                      <span className="sr-only">{pathTitle(r.derived)}</span>
+                    </>
                   )}
-                  {r.derived && <span className="num text-[12px] text-muted shrink-0">{r.derived.path}</span>}
+                </span>
+                <span role="cell" className="flex items-center justify-end md:justify-start min-w-0 col-start-3 md:col-start-auto">
                   <span className="num text-[12px] text-muted truncate" title={r.address}>{r.address.slice(0, 8)}...{r.address.slice(-6)}</span>
                 </span>
                 <span role="cell" className={`text-[12px] md:text-[13px] ${status.confirmed ? "text-muted" : "text-severity-medium"} ${MOBILE_FULL}`}>{age}</span>

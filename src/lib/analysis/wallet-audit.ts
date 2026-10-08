@@ -23,6 +23,7 @@ import { P2PKH_DUST_LIMIT, TOXIC_CHANGE_THRESHOLD } from "@/lib/constants";
 import type { MempoolAddress, MempoolTransaction, MempoolUtxo } from "@/lib/api/types";
 import type { DerivedAddress } from "@/lib/bitcoin/descriptor";
 import { buildWalletGraph, simplePayments, soloSpends, utxoOrigins, type OriginCounts } from "./wallet-behavior";
+import { buildClusters } from "./wallet-clusters";
 import { checkChangeExposure, checkMerges, checkNoMerge, checkPeelChains } from "./wallet-heuristics";
 
 // ---------- Types ----------
@@ -319,7 +320,7 @@ export function auditWallet(addresses: WalletAddressInfo[], failedAddresses: str
   const graph = buildWalletGraph(addresses);
   const spends = soloSpends(graph);
   const payments = simplePayments(graph, spends);
-  const merges = checkMerges(graph, spends);
+  const merges = checkMerges(graph, spends, buildClusters(graph));
   findings.push(...merges.findings);
   findings.push(...checkChangeExposure(payments));
   const peel = checkPeelChains(payments);
@@ -358,6 +359,12 @@ export function auditWallet(addresses: WalletAddressInfo[], failedAddresses: str
   const seenTxIds = new Set<string>();
 
   for (const addr of addresses) {
+    // UTXOs count even without address stats, so the totals match the coin origins
+    for (const utxo of addr.utxos) {
+      totalUtxos++;
+      totalBalance += utxo.value;
+      if (utxo.value < P2PKH_DUST_LIMIT) dustUtxos++;
+    }
     if (!addr.addressData) continue;
     const txCount = addr.addressData.chain_stats.tx_count + addr.addressData.mempool_stats.tx_count;
     if (txCount > 0) activeAddresses++;
@@ -369,12 +376,6 @@ export function auditWallet(addresses: WalletAddressInfo[], failedAddresses: str
         seenTxIds.add(tx.txid);
         totalTxs++;
       }
-    }
-
-    for (const utxo of addr.utxos) {
-      totalUtxos++;
-      totalBalance += utxo.value;
-      if (utxo.value < P2PKH_DUST_LIMIT) dustUtxos++;
     }
   }
 

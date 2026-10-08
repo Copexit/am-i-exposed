@@ -6,7 +6,8 @@ import type { Finding, Severity } from "@/lib/types";
 import { getAddressType } from "@/lib/bitcoin/address-type";
 import { isRoundAmount } from "./heuristics/round-amount";
 import { coinClass, type SimplePayment, type WalletGraph } from "./wallet-behavior";
-import type { MempoolTransaction } from "@/lib/api/types";
+import type { MempoolTransaction, MempoolVout } from "@/lib/api/types";
+import { buildClusters, type WalletClusters } from "./wallet-clusters";
 
 /** Txids listed on a finding card; the rest are counted in `more`. */
 export const MAX_TX_REFS = 10;
@@ -16,31 +17,52 @@ export function txRefs(txids: readonly string[]): { _txids: string; more: number
 }
 
 /**
- * W2: a change input spent with a coin not already linked to it. A coin from
- * the same funding tx or on the same address adds no new link.
+ * W2: a change input spent with a coin from another certain linkage cluster
+ * (wallet-clusters). Coins on its address, co-spent with it before or
+ * descending from it through single-output spends add no new link.
+ * "inferred" when every such coin was in its inferred cluster (they come
+ * from the same payment, but an observer had to guess which output was the
+ * change): still a merge, scored a notch lower.
  */
-function mergesChange(tx: MempoolTransaction, classes: readonly string[]): boolean {
-  const addr = (i: number) => tx.vin[i]!.prevout?.scriptpubkey_address;
-  return tx.vin.some((c, i) =>
-    (classes[i] === "change" || classes[i] === "coinjoin-change") &&
-    tx.vin.some((o, j) => j !== i && o.txid !== c.txid && addr(j) !== addr(i)));
+function mergesChange(
+  classes: readonly string[],
+  link: { certain: readonly string[]; inferred: readonly string[] } | undefined,
+): "certain" | "inferred" | null {
+  if (!link) return null;
+  let merged = false;
+  for (const [i, c] of classes.entries()) {
+    if (c !== "change" && c !== "coinjoin-change") continue;
+    for (let j = 0; j < classes.length; j++) {
+      if (j === i || link.certain[j] === link.certain[i]) continue;
+      if (link.inferred[j] !== link.inferred[i]) return "certain";
+      merged = true;
+    }
+  }
+  return merged ? "inferred" : null;
 }
 
 /**
  * W1 post-mix merge and W2 change merge. Each spend counts once, under the
  * worse of the two; `merged` lets the consolidation check skip them.
  */
-export function checkMerges(g: WalletGraph, spends: readonly MempoolTransaction[]): { findings: Finding[]; merged: Set<string> } {
+export function checkMerges(
+  g: WalletGraph,
+  spends: readonly MempoolTransaction[],
+  clusters: WalletClusters = buildClusters(g),
+): { findings: Finding[]; merged: Set<string> } {
   const unmixed: string[] = [];
   const mixedOnly: string[] = [];
   const change: string[] = [];
+  let inferredOnly = 0;
   for (const tx of spends) {
     if (tx.vin.length < 2) continue;
     const classes = tx.vin.map((v) => coinClass(g, v.txid, v.vout));
     if (classes.includes("mixed")) {
       (classes.some((c) => c !== "mixed" && c !== "unknown") ? unmixed : mixedOnly).push(tx.txid);
-    } else if (mergesChange(tx, classes)) {
-      change.push(tx.txid);
+    } else {
+      const m = mergesChange(classes, clusters.linking.get(tx.txid));
+      if (m) change.push(tx.txid);
+      if (m === "inferred") inferredOnly++;
     }
   }
 
@@ -73,9 +95,13 @@ export function checkMerges(g: WalletGraph, spends: readonly MempoolTransaction[
   }
   if (change.length > 0) {
     const count = change.length;
+    // Severity and score follow the certain merges; one notch lower only when there are none
+    const certainCount = count - inferredOnly;
+    const soft = certainCount === 0;
+    const n = soft ? count : certainCount;
     findings.push({
       id: "wallet-change-merge",
-      severity: count > 1 ? "high" : "medium",
+      severity: soft ? (n > 1 ? "medium" : "low") : n > 1 ? "high" : "medium",
       confidence: "high",
       title: `${count} spend${count > 1 ? "s" : ""} merged change with other coins`,
       description:
@@ -85,28 +111,43 @@ export function checkMerges(g: WalletGraph, spends: readonly MempoolTransaction[
       recommendation:
         "Use coin control: spend change on its own or with coins from the same transaction. " +
         "When a payment needs more, spend the change completely in a payment that leaves no new change, or run it through a CoinJoin first.",
-      scoreImpact: count >= 5 ? -10 : count > 1 ? -7 : -4,
-      params: { count, ...txRefs(change) },
+      scoreImpact: soft ? (n >= 5 ? -7 : n > 1 ? -4 : -2) : n >= 5 ? -10 : n > 1 ? -7 : -4,
+      params: { count, inferredCount: inferredOnly, ...txRefs(change) },
     });
   }
   return { findings, merged: new Set([...postmix, ...change]) };
 }
 
-/** W3: in how many simple payments a standard change rule points at the real change. */
+/**
+ * The standard change rules for a 2-output payment, asked of output `a`
+ * against output `b`: does each rule pick `a` as the change?
+ */
+function rulesPick(tx: MempoolTransaction, a: MempoolVout, b: MempoolVout): { type: boolean; round: boolean; optimal: boolean } {
+  const at = getAddressType(a.scriptpubkey_address!);
+  const minIn = Math.min(...tx.vin.map((v) => v.prevout!.value));
+  return {
+    type: at !== getAddressType(b.scriptpubkey_address!) && tx.vin.every((v) => getAddressType(v.prevout!.scriptpubkey_address!) === at),
+    round: isRoundAmount(b.value) && !isRoundAmount(a.value),
+    optimal: tx.vin.length >= 2 && a.value < minIn && b.value >= minIn,
+  };
+}
+
+/**
+ * W3: in how many simple payments the standard change rules point at the
+ * real change. A payment counts when at least one rule picks the change and
+ * none picks the payment: with contradicting rules an analyst cannot tell.
+ */
 export function checkChangeExposure(payments: readonly SimplePayment[]): Finding[] {
   let byType = 0, byRound = 0, byOptimal = 0;
   const exposedTxids: string[] = [];
   for (const { tx, change, payment } of payments) {
-    const ct = getAddressType(change.scriptpubkey_address!);
-    const type = ct !== getAddressType(payment.scriptpubkey_address!)
-      && tx.vin.every((v) => getAddressType(v.prevout!.scriptpubkey_address!) === ct);
-    const round = isRoundAmount(payment.value) && !isRoundAmount(change.value);
-    const minIn = Math.min(...tx.vin.map((v) => v.prevout!.value));
-    const optimal = tx.vin.length >= 2 && change.value < minIn && payment.value >= minIn;
-    if (type) byType++;
-    if (round) byRound++;
-    if (optimal) byOptimal++;
-    if (type || round || optimal) exposedTxids.push(tx.txid);
+    const right = rulesPick(tx, change, payment);
+    const wrong = rulesPick(tx, payment, change);
+    if (wrong.type || wrong.round || wrong.optimal || !(right.type || right.round || right.optimal)) continue;
+    if (right.type) byType++;
+    if (right.round) byRound++;
+    if (right.optimal) byOptimal++;
+    exposedTxids.push(tx.txid);
   }
   const exposed = exposedTxids.length;
   if (exposed === 0) return [];

@@ -47,6 +47,8 @@ export interface DescriptorParseResult {
   changeAddresses: DerivedAddress[];
   /** The raw xpub/ypub/zpub string */
   xpub: string;
+  /** Account derivation path (e.g. m/84'/0'/0') when known, see accountPathOf */
+  accountPath?: string;
 }
 
 // ---------- Version byte detection ----------
@@ -242,13 +244,15 @@ const DESCRIPTOR_WRAPPERS: { open: string; close: string; scriptType: ScriptType
 
 /** Key expression: optional [fingerprint/origin], xpub, optional /0/*, /1/* or /<0;1>/* (BIP-389) */
 const DESCRIPTOR_KEY_RE =
-  /^(?:\[[a-fA-F0-9]{8}(?:\/\d+['h]?)*\])?([xyztuv]pub[1-9A-HJ-NP-Za-km-z]+)(?:\/(0|1|<0;1>)\/\*)?$/;
+  /^(?:\[[a-fA-F0-9]{8}((?:\/\d+['h]?)*)\])?([xyztuv]pub[1-9A-HJ-NP-Za-km-z]+)(?:\/(0|1|<0;1>)\/\*)?$/;
 
 interface ParsedDescriptor {
   scriptType: ScriptType;
   xpub: string;
   /** Fixed chain index from descriptor (e.g. 0 for receive, 1 for change) */
   chainIndex?: number;
+  /** Key origin path from "[fingerprint/84'/0'/0']", as "/84'/0'/0'" */
+  origin?: string;
   /** The "#..." checksum suffix, if present (not yet validated) */
   checksum?: string;
   /** Descriptor without the checksum suffix */
@@ -265,12 +269,12 @@ function matchDescriptor(descriptor: string): ParsedDescriptor | null {
   const wrapper = DESCRIPTOR_WRAPPERS.find((w) => body.startsWith(w.open) && body.endsWith(w.close));
   if (!wrapper) return null;
   const m = DESCRIPTOR_KEY_RE.exec(body.slice(wrapper.open.length, body.length - wrapper.close.length));
-  const [, xpub, chain] = m ?? [];
+  const [, origin, xpub, chain] = m ?? [];
   if (!xpub) return null;
 
   // "<0;1>" (multipath) derives both chains, same as no chain at all
   const chainIndex = chain !== undefined && chain !== "<0;1>" ? parseInt(chain, 10) : undefined;
-  return { scriptType: wrapper.scriptType, xpub, chainIndex, checksum, body };
+  return { scriptType: wrapper.scriptType, xpub, chainIndex, origin: origin || undefined, checksum, body };
 }
 
 function parseDescriptor(descriptor: string): ParsedDescriptor | null {
@@ -318,6 +322,8 @@ export interface ParsedXpub {
   xpub: string;
   /** If set, only derive this chain (0=receive, 1=change). */
   singleChain?: number;
+  /** Key origin path from a descriptor, as "/84'/0'/0'" */
+  origin?: string;
 }
 
 /**
@@ -332,6 +338,7 @@ export function parseXpub(
   let scriptType: ScriptType;
   let network: "mainnet" | "testnet";
   let singleChain: number | undefined;
+  let origin: string | undefined;
   let publicVersion: number;
   let privateVersion: number;
 
@@ -340,6 +347,7 @@ export function parseXpub(
     xpubStr = desc.xpub;
     scriptType = desc.scriptType;
     singleChain = desc.chainIndex;
+    origin = desc.origin;
     const version = detectXpubVersion(desc.xpub);
     network = version.network;
     publicVersion = version.publicVersion;
@@ -360,7 +368,22 @@ export function parseXpub(
     private: privateVersion,
   });
 
-  return { hdKey, scriptType, network, xpub: xpubStr, singleChain };
+  return { hdKey, scriptType, network, xpub: xpubStr, singleChain, origin };
+}
+
+const PURPOSE: Record<ScriptType, number> = { "p2pkh": 44, "p2sh-p2wpkh": 49, "p2wpkh": 84, "p2tr": 86 };
+const HARDENED = 0x80000000;
+
+/**
+ * Account derivation path: the descriptor's key origin when given, else the
+ * standard BIP44/49/84/86 path for an account-level key (depth 3, hardened
+ * index), else undefined.
+ */
+export function accountPathOf(parsed: ParsedXpub): string | undefined {
+  if (parsed.origin) return `m${parsed.origin.replace(/h/g, "'")}`;
+  const { depth, index } = parsed.hdKey;
+  if (depth !== 3 || index < HARDENED) return undefined;
+  return `m/${PURPOSE[parsed.scriptType]}'/${parsed.network === "mainnet" ? 0 : 1}'/${index - HARDENED}'`;
 }
 
 /**

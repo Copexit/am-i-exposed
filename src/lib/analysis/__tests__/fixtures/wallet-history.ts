@@ -104,3 +104,62 @@ export const walletAddrs = (n: number) => [
   ...Array.from({ length: n }, (_, i) => ({ address: recv(i), isChange: false, index: i })),
   ...Array.from({ length: n }, (_, i) => ({ address: chg(i), isChange: true, index: i })),
 ];
+
+/** The tester's signet wallet (wave A report): coins kept by 10 payments, plus CoinJoin change. */
+export const TESTER_KEPT = [19_990_000_000, 9_990_000_000, 4_990_000_000, 4_920_000_000, 2_650_000_000, 1_240_000_000, 700_000_000, 99_000_000, 591_429, 134_361];
+export const TESTER_CJ_CHANGE = 15_240_920;
+
+/**
+ * The tester's wallet replayed: one faucet receipt on `receive`, then 10
+ * payments each keeping a coin on change(2i) and passing the rest to
+ * change(2i+1); the last rest enters a CoinJoin whose mixed output leaves the
+ * wallet (a postmix account elsewhere) and whose change returns to change(cjIndex).
+ * Returns the history and the wallet's addresses, in scan order.
+ */
+export function testerHistory(receive = recv(0), change: (i: number) => string = chg, cjIndex = 146) {
+  const h = new History();
+  const fee = 1_000;
+  const denom = 10_000_000;
+  const pays = TESTER_KEPT.map((_, i) => 1_000_000 + i * 7_919);
+  const lastRest = denom + TESTER_CJ_CHANGE + 5_000;
+  let coin = h.receive(receive, lastRest + TESTER_KEPT.reduce((s, v) => s + v, 0) + pays.reduce((s, v) => s + v, 0) + TESTER_KEPT.length * fee, 100);
+  TESTER_KEPT.forEach((kept, i) => {
+    const rest = coin.value - pays[i]! - kept - fee;
+    coin = h.tx([coin], [{ address: ext(i), value: pays[i]! }, { address: change(2 * i), value: kept }, { address: change(2 * i + 1), value: rest }], 101 + i)[2]!;
+  });
+  const others = [1, 2, 3, 4].map((i) => ({ address: ext(500 + i), value: denom + 50_000 }));
+  h.tx([coin, ...others], [...[0, 1, 2, 3, 4].map((i) => ({ address: ext(600 + i), value: denom })), { address: change(cjIndex), value: TESTER_CJ_CHANGE }], 120);
+  const addresses = [
+    { address: receive, isChange: false, index: 0 },
+    ...Array.from({ length: 2 * TESTER_KEPT.length }, (_, i) => ({ address: change(i), isChange: true, index: i })),
+    { address: change(cjIndex), isChange: true, index: cjIndex },
+  ];
+  return { h, addresses };
+}
+
+/**
+ * Peel-shaped variant of the tester's wallet: every tx has exactly one wallet
+ * output. Each coin is the change of one payment from its own receipt, and the
+ * CoinJoin change comes from one more receipt. With one wallet output per tx
+ * two unspent coins can only share a certain cluster through address reuse,
+ * so the links here are certain but each coin is its own cluster.
+ */
+export function testerPeelHistory(receive: (i: number) => string = recv, change: (i: number) => string = chg, cjIndex = 146) {
+  const h = new History();
+  const fee = 1_000;
+  const denom = 10_000_000;
+  TESTER_KEPT.forEach((kept, i) => {
+    const pay = 1_000_000 + i * 7_919;
+    const r = h.receive(receive(i), kept + pay + fee, 100 + 2 * i);
+    h.tx([r], [{ address: ext(i), value: pay }, { address: change(i), value: kept }], 101 + 2 * i);
+  });
+  const r = h.receive(receive(TESTER_KEPT.length), denom + TESTER_CJ_CHANGE + 5_000, 130);
+  const others = [1, 2, 3, 4].map((i) => ({ address: ext(500 + i), value: denom + 50_000 }));
+  h.tx([r, ...others], [...[0, 1, 2, 3, 4].map((i) => ({ address: ext(600 + i), value: denom })), { address: change(cjIndex), value: TESTER_CJ_CHANGE }], 131);
+  const addresses = [
+    ...Array.from({ length: TESTER_KEPT.length + 1 }, (_, i) => ({ address: receive(i), isChange: false, index: i })),
+    ...Array.from({ length: TESTER_KEPT.length }, (_, i) => ({ address: change(i), isChange: true, index: i })),
+    { address: change(cjIndex), isChange: true, index: cjIndex },
+  ];
+  return { h, addresses };
+}

@@ -49,7 +49,7 @@ describe("adviseCoinSelection", () => {
   it("no single coin pays but the wallet does: fewest coins, never insufficient", () => {
     const a = plans(adviseCoinSelection([coin(35_000), coin(30_000), coin(20_000), coin(5_000)], 60_000, 5));
     const p = a.plans.at(-1)!;
-    expect(p.strategy).toBe("fewest-coins");
+    expect(p.strategy).toBe("multi-coin");
     expect(p.selected).toHaveLength(2);
     expect(values(p)).toEqual([35_000, 30_000]);
     expect(p.warnings.map(w => w.id)).toContain("merges-origins");
@@ -58,7 +58,7 @@ describe("adviseCoinSelection", () => {
   it("fewest coins prefers a changeless set of the same size", () => {
     // 40k+30k leaves change; 40k+21k lands within the changeless tolerance.
     const a = plans(adviseCoinSelection([coin(40_000), coin(30_000), coin(21_000)], 60_000, 1));
-    const p = a.plans.at(-1)!;
+    const p = a.plans[0]!;
     expect(values(p)).toEqual([40_000, 21_000]);
     expect(p.change).toBe(0);
   });
@@ -67,10 +67,10 @@ describe("adviseCoinSelection", () => {
     // Same value pairs; 30k+30k from one tx are one origin.
     const a = plans(adviseCoinSelection([
       coin(30_000, { txid: "solo" }),
-      coin(30_000, { txid: "shared", selfFunded: true }),
-      coin(30_000, { txid: "shared", selfFunded: true }),
+      coin(30_000, { txid: "shared", cluster: "shared" }),
+      coin(30_000, { txid: "shared", cluster: "shared" }),
     ], 50_000, 1));
-    expect(a.plans).toHaveLength(1);
+    expect(a.plans.map(p => p.strategy)).toEqual(["same-origin", "multi-coin"]);
     const p = a.plans[0]!;
     expect(p.selected.every(s => s.utxo.txid === "shared")).toBe(true);
     expect(p.origins).toBe(1);
@@ -97,8 +97,8 @@ describe("adviseCoinSelection", () => {
 
   it("outputs of a tx the wallet created itself are one origin", () => {
     const p = plans(adviseCoinSelection([
-      coin(30_000, { txid: "self", selfFunded: true }),
-      coin(30_000, { txid: "self", selfFunded: true }),
+      coin(30_000, { txid: "self", cluster: "self" }),
+      coin(30_000, { txid: "self", cluster: "self" }),
     ], 50_000, 1)).plans[0]!;
     expect(p.origins).toBe(1);
   });
@@ -125,7 +125,7 @@ describe("adviseCoinSelection", () => {
       coin(25_000, { address: addr }),
       coin(20_000, { address: addr }),
     ], 70_000, 1));
-    expect(a.plans.map(p => p.strategy)).toEqual(["same-origin", "fewest-coins"]);
+    expect(a.plans.map(p => p.strategy)).toEqual(["same-origin", "multi-coin"]);
     const same = a.plans[0]!;
     expect(same.selected.every(s => s.address === addr)).toBe(true);
     expect(same.selected).toHaveLength(3);
@@ -136,8 +136,8 @@ describe("adviseCoinSelection", () => {
 
   it("outputs of one CoinJoin are not treated as the same origin", () => {
     const a = plans(adviseCoinSelection([
-      coin(50_000, { txid: "cj", fromCoinJoin: true }),
-      coin(50_000, { txid: "cj", fromCoinJoin: true }),
+      coin(50_000, { txid: "cj", origin: "mixed" }),
+      coin(50_000, { txid: "cj", origin: "mixed" }),
     ], 80_000, 1));
     const p = a.plans[0]!;
     expect(p.origins).toBe(2);
@@ -145,12 +145,12 @@ describe("adviseCoinSelection", () => {
   });
 
   it("warns when CoinJoin outputs are mixed with other coins", () => {
-    const p = plans(adviseCoinSelection([coin(50_000, { fromCoinJoin: true }), coin(40_000)], 80_000, 1)).plans[0]!;
+    const p = plans(adviseCoinSelection([coin(50_000, { origin: "mixed" }), coin(40_000)], 80_000, 1)).plans[0]!;
     expect(p.warnings[0]).toMatchObject({ id: "coinjoin-mix", severity: "high" });
   });
 
   it("warns when outputs of different CoinJoins are merged", () => {
-    const p = plans(adviseCoinSelection([coin(50_000, { fromCoinJoin: true }), coin(50_000, { fromCoinJoin: true })], 80_000, 1)).plans[0]!;
+    const p = plans(adviseCoinSelection([coin(50_000, { origin: "mixed" }), coin(50_000, { origin: "mixed" })], 80_000, 1)).plans[0]!;
     expect(p.warnings[0]).toMatchObject({ id: "coinjoin-merge" });
   });
 
@@ -184,11 +184,11 @@ describe("adviseCoinSelection", () => {
   });
 
   it("stays fast with thousands of coins in same-tx groups", () => {
-    const many = Array.from({ length: 3_000 }, (_, i) => coin(10_000 + (i % 150) * 13, { txid: `grp${i % 20}`, selfFunded: true }));
+    const many = Array.from({ length: 3_000 }, (_, i) => coin(10_000 + (i % 150) * 13, { txid: `grp${i % 20}`, cluster: `grp${i % 20}` }));
     const start = performance.now();
     const a = plans(adviseCoinSelection(many, 400_000, 2));
     expect(performance.now() - start).toBeLessThan(1_500);
-    expect(a.plans.map(p => p.strategy)).toContain("fewest-coins");
+    expect(a.plans[0]!.strategy).toBe("same-origin");
   });
 
   it("stays fast on large wallets", () => {
@@ -205,7 +205,7 @@ describe("adviseCoinSelection: no-change plan", () => {
 
   it("tester case 1: 60k cannot pay 60k plus fee alone, so 35k + 26k pay it with no change", () => {
     const a = plans(adviseCoinSelection([coin(60_000), coin(35_000), coin(26_000)], 60_000, 1));
-    expect(a.plans.map(p => p.strategy)).toEqual(["fewest-coins"]);
+    expect(a.plans.map(p => p.strategy)).toEqual(["no-change", "multi-coin"]);
     expect(values(a.plans[0]!)).toEqual([35_000, 26_000]);
     expect(a.plans[0]!.change).toBe(0);
   });
@@ -225,7 +225,7 @@ describe("adviseCoinSelection: no-change plan", () => {
     // Window at 1 sat/vB for 2 P2WPKH inputs: sum in [100,177, ~101,208]
     expect(values(plans(adviseCoinSelection([coin(1_000_000), coin(60_000), coin(40_177)], 100_000, 1)).plans[0]!)).toEqual([60_000, 40_177]);
     // 60k + 41.3k leaves 1,092 sats of change after the 2-output fee: not changeless
-    expect(strategies(adviseCoinSelection([coin(1_000_000), coin(60_000), coin(41_300)], 100_000, 1))).toEqual(["single-coin"]);
+    expect(strategies(adviseCoinSelection([coin(1_000_000), coin(60_000), coin(41_300)], 100_000, 1))).toEqual(["single-coin", "multi-coin"]);
     // Below the target: cannot pay
     expect(strategies(adviseCoinSelection([coin(1_000_000), coin(60_000), coin(40_100)], 100_000, 1))).toEqual(["single-coin"]);
   });
@@ -248,14 +248,15 @@ describe("adviseCoinSelection: no-change plan", () => {
       coin(1_000_000), coin(60_000), coin(40_200),
       coin(50_000, { address: addr }), coin(30_000, { address: addr }), coin(20_300, { address: addr }),
     ], 100_000, 1));
-    expect(p.plans.map(x => x.strategy)).toEqual(["no-change", "single-coin"]);
+    // Links nothing new and leaves no change: shown alone
+    expect(p.plans.map(x => x.strategy)).toEqual(["no-change"]);
     expect(p.plans[0]!.selected.every(s => s.address === addr)).toBe(true);
     expect(p.plans[0]!.origins).toBe(1);
   });
 
   it("recommends (a) a same-origin set, even with moderate change", () => {
     expect(strategies(adviseCoinSelection([coin(150_000), coin(60_000, { address: "bc1qx" }), coin(40_200, { address: "bc1qx" })], 100_000, 1)))
-      .toEqual(["no-change", "single-coin"]);
+      .toEqual(["no-change"]);
   });
 
   it("recommends (b) when the single coin's change would be toxic", () => {
@@ -283,14 +284,17 @@ describe("adviseCoinSelection: no-change plan", () => {
   it("never recommends merging CoinJoin outputs, even two of the same CoinJoin", () => {
     const a = plans(adviseCoinSelection([
       coin(500_000),
-      coin(41_000, { txid: "cj", fromCoinJoin: true }),
-      coin(20_000, { txid: "cj", fromCoinJoin: true }),
+      coin(41_000, { txid: "cj", origin: "mixed" }),
+      coin(20_000, { txid: "cj", origin: "mixed" }),
     ], 60_000, 1));
-    expect(a.plans.map(p => p.strategy)).toEqual(["single-coin", "no-change"]);
-    expect(a.plans[1]!.warnings[0]).toMatchObject({ id: "coinjoin-merge", severity: "high", count: 2 });
+    // A high-severity plan is shown only when nothing else pays
+    expect(a.plans.map(p => p.strategy)).toEqual(["single-coin"]);
     // Mixed with a plain coin
-    expect(strategies(adviseCoinSelection([coin(450_000), coin(60_000, { fromCoinJoin: true }), coin(40_200)], 100_000, 1)))
-      .toEqual(["single-coin", "no-change"]);
+    expect(strategies(adviseCoinSelection([coin(450_000), coin(60_000, { origin: "mixed" }), coin(40_200)], 100_000, 1)))
+      .toEqual(["single-coin"]);
+    const only = plans(adviseCoinSelection([coin(41_000, { txid: "cj", origin: "mixed" }), coin(20_000, { txid: "cj", origin: "mixed" })], 60_000, 1)).plans;
+    expect(only.map(p => [p.strategy, p.reason])).toEqual([["no-change", "fallback"]]);
+    expect(only[0]!.warnings[0]).toMatchObject({ id: "coinjoin-merge", severity: "high", count: 2 });
   });
 
   it("window edges at 1 sat/vB: upper edge included, 1 sat past excluded, 1 sat short of the lower edge excluded", () => {
@@ -339,10 +343,10 @@ describe("buildCoinInputs", () => {
       utxos: [{ txid: "cjtx", vout: 0, value: 100_000, status: { confirmed: true } }],
     }] as unknown as WalletAddressInfo[];
     const [c] = buildCoinInputs(infos);
-    expect(c).toMatchObject({ address: "bc1qout0", fromCoinJoin: true, selfFunded: false, reusedAddress: true });
+    expect(c).toMatchObject({ address: "bc1qout0", origin: "mixed", reusedAddress: true });
   });
 
-  it("marks funding txs that spent the wallet's own coins as self-funded", () => {
+  it("links outputs of a tx the wallet funded to its inputs (one cluster) and classes them as change", () => {
     const selfTx = {
       txid: "selftx",
       vin: [{ txid: "prev", vout: 0, prevout: { value: 90_000, scriptpubkey_address: "bc1qmine", scriptpubkey_type: "v0_p2wpkh" } }],
@@ -352,7 +356,99 @@ describe("buildCoinInputs", () => {
     const infos = [
       { derived: { address: "bc1qmine" }, addressData: null, txs: [selfTx], utxos: [] },
       { derived: { address: "bc1qchange" }, addressData: null, txs: [selfTx], utxos: [{ txid: "selftx", vout: 1, value: 39_000, status: { confirmed: true } }] },
+      { derived: { address: "bc1qmine2" }, addressData: null, txs: [], utxos: [{ txid: "other", vout: 0, value: 5_000, status: { confirmed: true } }] },
     ] as unknown as WalletAddressInfo[];
-    expect(buildCoinInputs(infos)[0]).toMatchObject({ selfFunded: true, fromCoinJoin: false, reusedAddress: false });
+    const [change, other] = buildCoinInputs(infos);
+    expect(change).toMatchObject({ origin: "change", reusedAddress: false });
+    expect(other!.origin).toBe("unknown");
+    expect(change!.cluster).not.toBe(other!.cluster);
+  });
+});
+
+describe("adviseCoinSelection: privacy cost ranking", () => {
+  it("mixed outputs: spent whole when they match, never for a small payment with large change unless nothing else pays", () => {
+    // A mixed coin that matches the payment is the best plan
+    const exact = plans(adviseCoinSelection([coin(500_000), coin(100_200, { origin: "mixed" })], 100_000, 1)).plans;
+    expect(exact.map(p => [p.strategy, p.reason])).toEqual([["single-coin", "clean"]]);
+    expect(exact[0]!.selected[0]!.origin).toBe("mixed");
+    // Small payment: the mixed coin would leave change larger than the payment
+    const small = plans(adviseCoinSelection([coin(1_000_000, { origin: "mixed" }), coin(300_000), coin(30_000)], 50_000, 1)).plans;
+    expect(small.every(p => p.selected.every(c => c.origin !== "mixed"))).toBe(true);
+    // Nothing else pays: shown, with a warning
+    const only = plans(adviseCoinSelection([coin(1_000_000, { origin: "mixed" }), coin(30_000)], 50_000, 1)).plans;
+    expect(only.map(p => p.reason)).toEqual(["fallback"]);
+    expect(only[0]!.warnings[0]).toMatchObject({ id: "mixed-change", severity: "high" });
+  });
+
+  it("CoinJoin change is not mixed: flagged, its change costs, and it loses to a clean coin", () => {
+    const a = plans(adviseCoinSelection([coin(400_000, { origin: "coinjoin-change" }), coin(450_000)], 100_000, 1));
+    expect(values(a.plans[0]!)).toEqual([450_000]);
+    const cj = plans(adviseCoinSelection([coin(400_000, { origin: "coinjoin-change" })], 100_000, 1)).plans[0]!;
+    expect(cj.reason).toBe("bad-change");
+    expect(cj.warnings.map(w => w.id)).toContain("coinjoin-change");
+    expect(cj.selected[0]!.hints).toEqual([{ kind: "coinjoin-change" }]);
+  });
+
+  it("evaluates multi-coin sets even when one coin covers, and merging within a cluster is free", () => {
+    const a = plans(adviseCoinSelection([
+      coin(5_000_000, { cluster: "k" }),
+      coin(75_000, { cluster: "k" }),
+      coin(40_000, { cluster: "k" }),
+    ], 100_000, 1));
+    expect(a.plans[0]!.strategy).toBe("same-origin");
+    expect(values(a.plans[0]!)).toEqual([75_000, 40_000]);
+    expect(a.plans[0]!.origins).toBe(1);
+    expect(a.plans[0]!.selected[1]!.hints).toContainEqual({ kind: "linked", with: 1 });
+    expect(a.plans.map(p => p.strategy)).toContain("single-coin");
+  });
+
+  it("returns at most 3 plans, one per strategy, each with a reason", () => {
+    const a = plans(adviseCoinSelection([
+      coin(5_000_000), coin(70_000, { cluster: "k" }), coin(40_000, { cluster: "k" }), coin(60_000), coin(40_250),
+    ], 100_000, 1));
+    expect(a.plans.length).toBeLessThanOrEqual(3);
+    expect(new Set(a.plans.map(p => p.strategy)).size).toBe(a.plans.length);
+    for (const p of a.plans) expect(["links", "bad-change", "big-change", "clean", "small-change"]).toContain(p.reason);
+  });
+
+  it("on equal cost spends CoinJoin change (toxic anyway) before a mixed output", () => {
+    const a = plans(adviseCoinSelection([coin(1_000_000, { origin: "mixed" }), coin(1_000_000, { origin: "coinjoin-change" })], 900_000, 1));
+    expect(a.plans[0]!.selected[0]!.origin).toBe("coinjoin-change");
+  });
+
+  it("an inferred link (same payment's outputs) costs half a link", () => {
+    const a = plans(adviseCoinSelection([
+      coin(5_000_000), coin(75_000, { cluster: "a", group: "k" }), coin(40_000, { cluster: "b", group: "k" }),
+    ], 100_000, 1));
+    expect([a.plans[0]!.strategy, a.plans[0]!.reason, a.plans[0]!.origins, a.plans[0]!.groups, a.plans[0]!.cost]).toEqual(["probably-linked", "inferred-links", 2, 1, 10]);
+    expect(a.plans[0]!.selected[1]!.hints).toContainEqual({ kind: "probably-linked", with: 1 });
+    expect(a.plans[0]!.warnings.map(w => w.id)).not.toContain("merges-origins");
+  });
+
+  it("the big-change cost grows with the ratio past 10x, capped at half a link more", () => {
+    const cost = (big: number) => plans(adviseCoinSelection([coin(big)], 100_000, 1)).plans[0]!.cost;
+    expect(cost(500_000)).toBe(4 + 9); // ~4x
+    expect(cost(1_100_000)).toBeCloseTo(4 + 9, 0); // ~10x
+    expect(cost(2_100_000)).toBeCloseTo(4 + 9 + 12 * Math.log10(2), 1); // ~20x
+    expect(cost(100_000_000)).toBe(4 + 9 + 6); // ~1000x: capped
+  });
+
+  it("never prefers merging 3 unrelated receipts over one big coin", () => {
+    const a = plans(adviseCoinSelection([coin(100_000_000), coin(40_000), coin(40_000), coin(40_000)], 100_000, 1));
+    expect(values(a.plans[0]!)).toEqual([100_000_000]);
+    const five = plans(adviseCoinSelection([coin(1_000_000_000), ...Array.from({ length: 5 }, () => coin(30_000))], 140_000, 1));
+    expect(values(five.plans[0]!)).toEqual([1_000_000_000]);
+  });
+
+  it("stays fast with about 1,000 coins across clusters and origins", () => {
+    const origins = ["change", "received", "self", "mixed", "coinjoin-change", "unknown"] as const;
+    const many = Array.from({ length: 1_000 }, (_, i) =>
+      coin(20_000 + ((i * 7_919) % 5_000_000), { cluster: `k${i % 37}`, origin: origins[i % origins.length] }));
+    for (const amount of [50_000, 600_000, 3_000_000, 40_000_000, 600_000_000]) {
+      const start = performance.now();
+      const a = adviseCoinSelection(many, amount, 5);
+      expect(performance.now() - start).toBeLessThan(1_000);
+      expect(a.kind).not.toBe("invalid");
+    }
   });
 });

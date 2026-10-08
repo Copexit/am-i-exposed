@@ -243,6 +243,7 @@ export function WalletResults({ descriptor, result, addressInfos, utxoTraces, on
         onScan={onScan}
         addressesOpen={addressesOpen}
         onAddressesOpenChange={setAddressesOpen}
+        accountPath={descriptor.accountPath}
       />
     </FlowShell>
   );

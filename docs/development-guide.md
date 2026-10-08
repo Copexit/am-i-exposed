@@ -94,7 +94,8 @@ src/
     │   ├── cluster/              # Opt-in address cluster builder
     │   ├── boltzmann-*.ts        # WASM worker pool, eligibility, compute, entropy enhancement
     │   ├── wallet-audit.ts       # Wallet-level aggregate audit
-    │   ├── coin-selection.ts     # Coin selection advisor
+    │   ├── coin-selection.ts     # Coin selection advisor (privacy-cost ranking over linkage clusters)
+    │   ├── wallet-clusters.ts    # Linkage clusters: coins the wallet's history already links (W2, advisor)
     │   └── detect-input.ts       # Input type detection (txid, address, xpub, descriptor, PSBT)
     ├── api/                      # mempool client, retry, rate limit, IndexedDB cache, cache policy,
     │                             # prevout enrichment, network auto-detect, error messages

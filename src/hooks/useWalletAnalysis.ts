@@ -8,6 +8,7 @@ import { getAnalysisSettings } from "@/hooks/useAnalysisSettings";
 import { DEFAULT_ANALYSIS_SETTINGS } from "@/lib/analysis/settings";
 import {
   parseXpub,
+  accountPathOf,
   deriveOneAddress,
   isDescriptor,
   type DescriptorParseResult,
@@ -153,6 +154,7 @@ export function useWalletAnalysis() {
             receiveAddresses: [],
             changeAddresses: [],
             xpub: parsed.xpub,
+            accountPath: accountPathOf(parsed),
           },
           progress: { fetched: 0, total: 0 },
           autoSwitchedNetwork: switchedTo,
@@ -206,6 +208,7 @@ export function useWalletAnalysis() {
           receiveAddresses,
           changeAddresses,
           xpub: parsed.xpub,
+          accountPath: accountPathOf(parsed),
         };
 
         // Step 2.5: Trace wallet tx provenance concurrently

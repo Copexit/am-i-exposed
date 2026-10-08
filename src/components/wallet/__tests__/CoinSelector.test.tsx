@@ -38,13 +38,13 @@ describe("CoinSelector", () => {
   it("shows the best single coin as a summary with one clean row", () => {
     run([coin(100_000, "aa", "bc1qa"), coin(40_000, "bb", "bc1qb")], "20000");
     const plan = screen.getByTestId("coin-plan-single-coin");
-    expect(within(plan).getByText("Best single coin")).toBeTruthy();
+    expect(within(plan).getByText("Single coin")).toBeTruthy();
     expect(within(plan).getByText("40,000 sats")).toBeTruthy();
     expect(within(within(plan).getAllByRole("list")[0]!).getAllByRole("listitem")).toHaveLength(1);
     expect(plan.textContent).not.toContain("|");
   });
 
-  it("offers same-origin and fewest-coins plans plus a Stonewall note when no coin pays alone", () => {
+  it("offers already-linked and several-coins plans plus a Stonewall note when no coin pays alone", () => {
     run([
       coin(60_000, "c1", "bc1qx"),
       coin(50_000, "c2", "bc1qy"),
@@ -57,7 +57,7 @@ describe("CoinSelector", () => {
     expect(within(same).getByText("Recommended")).toBeTruthy();
     expect(within(same).getAllByText("Same address as #1").length).toBeGreaterThan(0);
     expect(within(same).getByText("Reused address")).toBeTruthy();
-    const fewest = screen.getByTestId("coin-plan-fewest-coins");
+    const fewest = screen.getByTestId("coin-plan-multi-coin");
     expect(within(fewest).getByText(/Joins 2 unrelated origins/)).toBeTruthy();
     expect(screen.getByText("Advanced: Stonewall")).toBeTruthy();
   });
@@ -68,27 +68,28 @@ describe("CoinSelector", () => {
     const single = screen.getByTestId("coin-plan-single-coin");
     expect(noChange.compareDocumentPosition(single) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(noChange).getByText("Recommended")).toBeTruthy();
-    expect(within(noChange).getByText(/Leaves no change output to follow, but spending these coins together links them/)).toBeTruthy();
+    expect(within(noChange).getByText("Coins whose total equals the payment plus fee, so no change output is created that anyone can follow.")).toBeTruthy();
+    expect(within(noChange).getByTestId("plan-reason").textContent).toMatch(/^Links 2 group/);
     expect(within(within(noChange).getAllByRole("list")[0]!).getAllByRole("listitem")).toHaveLength(2);
     expect(within(noChange).getByText("The fee includes 823 sats of leftover, too small to be worth a change output.")).toBeTruthy();
     expect(within(single).queryByText("Recommended")).toBeNull();
     expect(within(single).getByText(/leaves a change output that observers can follow/)).toBeTruthy();
   });
 
-  it("says no new source of funds is linked when the no-change coins share an address", () => {
+  it("shows a no-change set on one address alone: it links nothing new", () => {
     run([coin(150_000, "big", "bc1qbig"), coin(41_000, "p1", "bc1qsame"), coin(20_000, "p2", "bc1qsame")], "60000");
-    expect(within(screen.getByTestId("coin-plan-no-change")).getByText(/already share an address or a funding transaction made by this wallet/)).toBeTruthy();
+    expect(screen.queryByTestId("coin-plan-single-coin")).toBeNull();
+    expect(within(screen.getByTestId("coin-plan-no-change")).getByTestId("plan-reason").textContent).toBe("Links nothing new and leaves no change.");
   });
 
-  it("uses the same copy for self-funded coins of one tx, recommended", () => {
+  it("uses the same copy for linked coins of one tx", () => {
     run([
       coin(150_000, "big", "bc1qbig"),
-      { ...coin(41_000, "self", "bc1qc1", { selfFunded: true }) },
-      { ...coin(20_000, "self", "bc1qc2", { selfFunded: true }), utxo: { txid: "self".padEnd(64, "0"), vout: 1, value: 20_000, status: { confirmed: true } } },
+      { ...coin(41_000, "self", "bc1qc1", { cluster: "self" }) },
+      { ...coin(20_000, "self", "bc1qc2", { cluster: "self" }), utxo: { txid: "self".padEnd(64, "0"), vout: 1, value: 20_000, status: { confirmed: true } } },
     ], "60000");
     const plan = screen.getByTestId("coin-plan-no-change");
-    expect(within(plan).getByText("Recommended")).toBeTruthy();
-    expect(within(plan).getByText(/no new source of funds is linked/)).toBeTruthy();
+    expect(within(plan).getByText("Links nothing new and leaves no change.")).toBeTruthy();
     expect(within(plan).getByText("Same tx as #2")).toBeTruthy();
   });
 
@@ -103,7 +104,7 @@ describe("CoinSelector", () => {
 
   it("announces one short summary line instead of the whole result", () => {
     run([coin(100_000, "aa", "bc1qa")], "20000");
-    expect(screen.getByRole("status").textContent).toBe("Options found: 1. Recommended: Best single coin.");
+    expect(screen.getByRole("status").textContent).toBe("Options found: 1. Recommended: Single coin.");
   });
 
   it("says insufficient only when the whole wallet cannot pay, with the shortfall", () => {
