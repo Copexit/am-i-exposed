@@ -53,7 +53,7 @@ describe("adviseCoinSelection", () => {
   });
 
   it("no single coin pays but the wallet does: fewest coins, never insufficient", () => {
-    const a = plans(adviseCoinSelection([coin(35_000), coin(30_000), coin(20_000), coin(5_000)], 60_000, 5));
+    const a = plans(adviseCoinSelection([coin(35_000), coin(30_000), coin(20_000), coin(5_000)], 60_000, 5, NO_ABSORB));
     const p = a.plans.at(-1)!;
     expect(p.strategy).toBe("multi-coin");
     expect(p.selected).toHaveLength(2);
@@ -571,26 +571,24 @@ describe("adviseCoinSelection: small change paid to miners (no-change variant)",
     const single = a.plans.find(p => values(p)[0] === 2_399_400 && !p.absorbsChange)!;
     expect([single.change, single.cost > first!.cost]).toEqual([2_298_700, true]);
     expect(a.plans.indexOf(single)).toBeGreaterThan(0);
-    // The same pair with its 1,917 sats of change is still listed, and points to the variant
-    const withChange = a.plans.find(p => values(p).join() === "64332,38625" && !p.absorbsChange);
-    if (withChange) expect(withChange.warnings.map(w => w.id)).toContain("absorb-change");
+    // The same pair with its 1,917 sats of toxic change is not listed next to its no-change twin
+    expect(a.plans.some(p => values(p).join() === "64332,38625" && !p.absorbsChange)).toBe(false);
     // Manual: the same coins, absorb asked, give the same plan
     const e = evaluateSelection(w, new Set(first!.selected.map(outpointOf)), 100_000, 5, { absorb: true });
     expect(e).toEqual({ kind: "plan", plan: first });
   });
 
-  it("the original small-change plan says so and offers the variant; manual selection offers it too", () => {
+  it("manual selection: the small-change plan as picked, the variant when asked and within the max extra fee", () => {
     const w = replica();
     const pair = new Set([outpointOf(w[3]!), outpointOf(w[4]!)]);
     const plain = evaluateSelection(w, pair, 100_000, 5);
     if (plain.kind !== "plan") throw new Error(plain.kind);
     expect([plain.plan.change, plain.plan.fee]).toEqual([1_917, 1_040]);
-    expect(plain.plan.warnings.find(x => x.id === "absorb-change")).toMatchObject({ severity: "low", count: 1_917 });
+    expect(plain.plan.warnings.map(x => x.id)).toContain("toxic-change");
     // Above the max extra fee: no variant, no pointer
     const strict = evaluateSelection(w, pair, 100_000, 5, { maxAbsorb: 1_000, absorb: true });
     if (strict.kind !== "plan") throw new Error(strict.kind);
     expect([strict.plan.absorbsChange, strict.plan.change]).toEqual([false, 1_917]);
-    expect(strict.plan.warnings.map(x => x.id)).not.toContain("absorb-change");
   });
 
   it("notes an extra fee above 10% of the payment but keeps the variant; max 0 turns variants off", () => {
@@ -605,11 +603,11 @@ describe("adviseCoinSelection: max extra fee counts the saved change output", ()
   it("at 50 sat/vB, 3,000 sats of change is absorbable (4,550 extra), 4,000 is not (5,550 > 5,000)", () => {
     const v = plans(adviseCoinSelection([coin(110_000)], 100_000, 50)).plans;
     expect(v.find(p => p.absorbsChange)).toMatchObject({ absorbed: 4_550, fee: 10_000, change: 0 });
-    expect(v.find(p => !p.absorbsChange)!.warnings.map(w => w.id)).toContain("absorb-change");
+    // Its 3,000 sats of toxic change are not listed next to the twin
+    expect(v.some(p => !p.absorbsChange)).toBe(false);
     const none = plans(adviseCoinSelection([coin(111_000)], 100_000, 50)).plans;
     expect(none.some(p => p.absorbsChange)).toBe(false);
     expect(none[0]!.change).toBe(4_000);
-    expect(none[0]!.warnings.map(w => w.id)).not.toContain("absorb-change");
   });
 });
 

@@ -95,7 +95,7 @@ export interface SelectedCoin extends CoinSelectionInput {
 
 export type PlanWarningId =
   | "coinjoin-mix" | "coinjoin-merge" | "mixed-change" | "coinjoin-change" | "merges-origins" | "toxic-change" | "mixed-scripts"
-  | "absorb-change" | "extra-fee"
+  | "extra-fee"
   | "label-kyc" | "label-coinjoin" | "label-origins" | "label-toxic";
 
 /**
@@ -595,12 +595,13 @@ function score(picked: Candidate[], amount: number, feeRate: number, absorbMax =
   if (mixed && picked.length > 1 && !mixedOnly) cost += COST.coinjoinMerge;
   if (s.change > 0) cost += COST.change;
   if (badChange) cost += COST.badChange;
-  cost += bigChangeCost(s.change / amount);
+  // Rule 1: the recipient already knows the coin, so its large change reveals nothing new to it.
+  const known = knownSet.size > 0 && picked.every(c => knownSet.has(outpointOf(c.coin)));
+  if (!known) cost += bigChangeCost(s.change / amount);
   const severe = mixed && ((picked.length > 1 && !mixedOnly) || s.change >= amount);
   const labels = labelVerdict(picked.map(c => c.coin), picked.map(c => c.group));
   cost += labels.cost;
   // Rule 1: paying with coins the recipient already knows tells it nothing new about your activity.
-  const known = knownSet.size > 0 && picked.every(c => knownSet.has(outpointOf(c.coin)));
   if (known) cost -= COST.known;
   // The extra fee costs in proportion to the payment, so a large donation never wins by default.
   if (absorbs) cost += COST.extraFee * (s.fee - Math.ceil((picked.reduce((t, c) => t + c.vb, 0) + BASE_VB + OUTPUT_VB) * feeRate)) / amount;
@@ -768,7 +769,7 @@ function decisionPath(x: Scored, coins: readonly CoinSelectionInput[], change: n
   const ratio = Math.round(change / amount);
   if (!single) {
     steps.push(change === 0 ? (absorbed > 0 && x.absorbs ? { rule: 4, id: "merge-absorbed", ok: true, amount: absorbed } : { rule: 4, id: "merge-no-change", ok: true })
-      : change <= amount ? { rule: 4, id: "merge-small-change", ok: true, amount: change }
+      : change <= amount ? { rule: 4, id: "merge-small-change", ok: change >= TOXIC_CHANGE_THRESHOLD, amount: change }
       : { rule: 4, id: "merge-big-change", ok: false, n: Math.max(1, ratio) });
     steps.push(x.groups === 1 ? { rule: 5, id: "already-linked", ok: true }
       : x.observer ? { rule: 5, id: "same-observer", ok: true, name: x.observer }
@@ -803,8 +804,6 @@ function buildPlan(x: Scored, amount: number, feeRate: number, fallback: boolean
   if (cjChange > 0) warnings.push({ id: "coinjoin-change", severity: "medium", count: cjChange });
   if (groups > 1) warnings.push({ id: "merges-origins", severity: "medium", count: groups });
   if (change > 0 && change < TOXIC_CHANGE_THRESHOLD) warnings.push({ id: "toxic-change", severity: "medium", count: change });
-  // Small change: the no-change variant (listed too) pays it to miners instead.
-  if (change > 0 && absorbedIf(change, feeRate) <= maxAbsorb) warnings.push({ id: "absorb-change", severity: "low", count: change });
   if (x.absorbs && absorbed > EXTRA_FEE_NOTE * amount) warnings.push({ id: "extra-fee", severity: "low", count: Math.round((absorbed / amount) * 100) });
   const scripts = new Set(coins.map(c => scriptType(c.address))).size;
   if (scripts > 1) warnings.push({ id: "mixed-scripts", severity: "low", count: scripts });
@@ -889,9 +888,10 @@ export function adviseCoinSelection(
     if (seen.has(id)) continue;
     seen.add(id);
     const x = score(set, paymentAmount, feeRate, 0, known);
-    if (x) scored.push(x);
-    // Small change: also the same coins with the change paid to miners.
+    // Small change: also the same coins with the change paid to miners. Toxic change with that
+    // twin is not kept: the twin is the same coins without a change output nobody should create.
     const v = maxAbsorb > 0 ? score(set, paymentAmount, feeRate, maxAbsorb, known) : null;
+    if (x && !(v && x.change < TOXIC_CHANGE_THRESHOLD)) scored.push(x);
     if (v) scored.push(v);
   }
 

@@ -65,7 +65,8 @@ describe("CoinSelector", () => {
     const same = screen.getAllByTestId(/^coin-plan-/)[0]!;
     expect(within(same).getByTestId("plan-absorbs").textContent).toBe("No change: +4,755 sats to miners");
     expect(within(same).getByText("Recommended")).toBeTruthy();
-    expect(within(screen.getByTestId("coin-plan-same-origin")).getByText(/Leaves only/)).toBeTruthy();
+    // Its toxic-change twin (4,600 sats of change) is not listed
+    expect(screen.queryByTestId("coin-plan-same-origin")).toBeNull();
     expect(within(same).getAllByText("Same address as #1").length).toBeGreaterThan(0);
     expect(within(same).getByText("Reused address")).toBeTruthy();
     const fewest = screen.getAllByTestId("coin-plan-multi-coin")[0]!;

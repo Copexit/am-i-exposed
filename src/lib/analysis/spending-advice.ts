@@ -45,15 +45,18 @@ export interface RecipientHistory {
 /** What the wallet's history says about a recipient address (local, no requests). */
 export function recipientHistory(infos: readonly WalletAddressInfo[], coins: readonly CoinSelectionInput[], recipient: string): RecipientHistory {
   const g = buildWalletGraph(infos);
+  const known = new Map<string, KnownWhy>();
   const sentTx = new Set<string>();
   const paidTx = new Set<string>();
   for (const tx of g.txs.values()) {
     if (tx.vin.some((v) => v.prevout?.scriptpubkey_address === recipient)) sentTx.add(tx.txid);
     else if (tx.vout.some((o) => o.scriptpubkey_address === recipient) && tx.vin.some((v) => isOwn(g, v.prevout?.scriptpubkey_address))) paidTx.add(tx.txid);
   }
-  const known = new Map<string, KnownWhy>();
+  // Paying one of the wallet's own addresses: nobody outside learns anything, so no coin is "known".
+  if (g.own.has(recipient)) return { sent: sentTx.size, paid: paidTx.size, known };
   for (const c of coins) {
-    if (sentTx.has(c.utxo.txid)) known.set(outpointOf(c), "sent");
+    // A CoinJoin the recipient took part in does not tell it which mixed output is yours.
+    if (sentTx.has(c.utxo.txid) && c.origin !== "mixed") known.set(outpointOf(c), "sent");
     else if (paidTx.has(c.utxo.txid)) known.set(outpointOf(c), "paid");
   }
   const direct = coins.filter((c) => known.has(outpointOf(c)));

@@ -66,6 +66,34 @@ describe("rule 1: coins the recipient already knows", () => {
     expect(other.path[0]).toEqual({ rule: 1, id: "known-unused", ok: false, n: 1 });
   });
 
+  it("a known coin with change 20x the payment beats an unknown coin with ordinary change (no big-change cost when known)", () => {
+    const big = coin(2_000_000);
+    const p = plans(adviseCoinSelection([big, coin(115_000)], 100_000, 1, NO_ABSORB, { known: new Set([outpointOf(big)]) }));
+    expect(values(p[0]!)).toEqual([2_000_000]);
+    expect(p[0]!.cost).toBe(4 - 12);
+    expect(p[0]!.reason).toBe("recipient-knows");
+  });
+
+  it("does not count a mixed output of a CoinJoin the recipient took part in", () => {
+    const h = new History();
+    const outs = h.tx(
+      [{ address: ext(77), value: 1_010_000 }, { address: ext(80), value: 1_010_000 }],
+      [{ address: recv(0), value: 1_000_000 }, { address: ext(81), value: 1_000_000 }],
+      100,
+    );
+    const infos = h.infos([{ address: recv(0), isChange: false, index: 0 }]);
+    const coins = buildCoinInputs(infos).map(c => ({ ...c, origin: "mixed" as const }));
+    const r = recipientHistory(infos, coins, ext(77));
+    expect(r.sent).toBe(1);
+    expect(r.known.size).toBe(0);
+    expect(outs).toHaveLength(2);
+  });
+
+  it("knows no coin when the recipient is the wallet's own address", () => {
+    const { infos, coins } = recipientWallet();
+    expect(recipientHistory(infos, coins, recv(2)).known.size).toBe(0);
+  });
+
   it("evaluates a manual selection with the same bonus", () => {
     const { infos, coins, known } = recipientWallet();
     const k = new Set(recipientHistory(infos, coins, ext(77)).known.keys());
@@ -105,6 +133,9 @@ describe("rule 4: consolidation with small change vs one coin with big change (P
     expect(values(p[0]!)).toEqual([70_000, 50_000]);
     expect(p[0]!.cost).toBe(12 + 4);
     expect(p[0]!.path).toContainEqual({ rule: 4, id: "merge-small-change", ok: true, amount: p[0]!.change });
+    // Toxic small change does not pass the step
+    const toxic = plans(adviseCoinSelection([coin(70_000), coin(35_000)], 100_000, 1, NO_ABSORB))[0]!;
+    expect(toxic.path).toContainEqual({ rule: 4, id: "merge-small-change", ok: false, amount: toxic.change });
     const single = p.find(x => x.selected.length === 1)!;
     expect(single.cost).toBe(4 + 9 + 6);
     expect(single.path).toContainEqual({ rule: 4, id: "huge-change", ok: false, n: 19 });

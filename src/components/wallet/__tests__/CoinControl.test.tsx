@@ -127,7 +127,6 @@ describe("manual coin control: small change", () => {
     fireEvent.click(box(134_361));
     fireEvent.change(within(bar()).getByLabelText("Amount (sats)"), { target: { value: "720000" } });
     expect(within(bar()).getByText("4,750 sats")).toBeTruthy();
-    expect(within(bar()).getByText(/Leaves only 4,750 sats of change/)).toBeTruthy();
     fireEvent.click(within(bar()).getByLabelText("Pay the 4,750 sats of change to miners (no change)"));
     expect(within(bar()).getByText("No change")).toBeTruthy();
     expect(within(bar()).getByText("5,790 sats")).toBeTruthy();
