@@ -46,7 +46,8 @@ export interface Bip329ParseResult {
 const HEX64 = /^[0-9a-f]{64}$/;
 const OUTPOINT = /^[0-9a-f]{64}:\d{1,10}$/;
 const PUBKEY = /^(?:[0-9a-f]{64}|0[23][0-9a-f]{64}|04[0-9a-f]{128})$/;
-const BECH32 = /^(?:bc|tb|bcrt)1[02-9ac-hj-np-z]{8,87}$/;
+const BECH32_HRP = /^(?:bc|tb|bcrt)1/i;
+const ADDR = /^[a-zA-Z0-9]{14,90}$/;
 const BASE58 = /^[1-9A-HJ-NP-Za-km-z]{25,111}$/;
 const XPUB = /^[xyzXYZtuvUV]pub[1-9A-HJ-NP-Za-km-z]{100,112}$/;
 const SPSCAN = /^t?spscan1[02-9ac-hj-np-z]{8,}$/;
@@ -60,8 +61,8 @@ export function normalizeRef(type: Bip329Type, ref: string): string | null {
     case "output": return OUTPOINT.test(r.toLowerCase()) ? r.toLowerCase() : null;
     case "pubkey": return PUBKEY.test(r.toLowerCase()) ? r.toLowerCase() : null;
     case "addr": {
-      const lower = r.toLowerCase();
-      if (BECH32.test(lower) && (r === lower || r === r.toUpperCase())) return lower;
+      // Shape only (the wallet match is the real check). Bech32 is lowercased; mixed case is invalid (BIP173).
+      if (BECH32_HRP.test(r)) return (r === r.toLowerCase() || r === r.toUpperCase()) && ADDR.test(r) ? r.toLowerCase() : null;
       return BASE58.test(r) ? r : null;
     }
     case "xpub": return XPUB.test(r) ? r : null;

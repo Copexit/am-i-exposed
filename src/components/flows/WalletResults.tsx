@@ -16,6 +16,9 @@ import { ServiceCheck } from "@/components/services/ServiceCheck";
 import { selectTxids, WALLET_CAP } from "@/lib/services/wabisabi-attribution";
 import { isCoinJoinTx } from "@/lib/analysis/heuristics/coinjoin";
 import { WalletWorkspace } from "./WalletWorkspace";
+import { WalletLabelsContext } from "@/components/wallet/WalletLabels";
+import { matchLabels } from "@/lib/wallet/labels";
+import type { Bip329Record } from "@/lib/wallet/bip329";
 
 /** Find the worst privacy offender address for the highlight card. */
 function findWorstOffender(addressInfos: WalletAddressInfo[]): {
@@ -67,6 +70,13 @@ const WRAP: Record<ScriptType, (k: string) => string> = {
 export function WalletResults({ descriptor, result, addressInfos, utxoTraces, onBack, onScan, durationMs, scriptTypeDetected, gapLimit, onRescanGap }: WalletResultsProps) {
   const { t } = useTranslation();
   const [addressesOpen, setAddressesOpen] = useState(false);
+  // BIP329 labels: memory only, as imported (lib/wallet/bip329). One serializable array, so a later
+  // version can persist it per wallet.
+  const [labelRecords, setLabelRecords] = useState<Bip329Record[]>([]);
+  const labels = useMemo(
+    () => (labelRecords.length > 0 ? matchLabels(labelRecords, addressInfos, descriptor.xpub) : null),
+    [labelRecords, addressInfos, descriptor.xpub],
+  );
   const { serviceTxids, serviceTotal, isLocalCoinJoin } = useMemo(() => {
     const txs = addressInfos.flatMap((i) => i.txs);
     const txids = selectTxids(txs, WALLET_CAP);
@@ -94,6 +104,7 @@ export function WalletResults({ descriptor, result, addressInfos, utxoTraces, on
   ];
 
   return (
+    <WalletLabelsContext.Provider value={labels}>
     <FlowShell className="py-6 sm:py-10 space-y-10" testId="wallet-results">
       <NewScanLink onBack={onBack} />
 
@@ -244,8 +255,12 @@ export function WalletResults({ descriptor, result, addressInfos, utxoTraces, on
         addressesOpen={addressesOpen}
         onAddressesOpenChange={setAddressesOpen}
         accountPath={descriptor.accountPath}
+        xpub={descriptor.xpub}
+        labelRecords={labelRecords}
+        onLabelsChange={setLabelRecords}
       />
     </FlowShell>
+    </WalletLabelsContext.Provider>
   );
 }
 

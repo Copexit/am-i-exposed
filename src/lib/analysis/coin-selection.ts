@@ -58,6 +58,10 @@ export interface CoinSelectionInput {
   labelTags?: readonly LabelTag[];
   /** Wallet label origin keys ("kyc:bitstamp"), own or inherited */
   labelOrigins?: readonly string[];
+  /** Wallet label text (the output's, else its address's) */
+  label?: string;
+  /** Frozen by a label (spendable: false): left out unless the user includes frozen coins */
+  frozen?: boolean;
 }
 
 /** Where a selected coin comes from. `with` is the 1-based row of the related coin. */

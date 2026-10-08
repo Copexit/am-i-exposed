@@ -89,6 +89,8 @@ export interface WalletLabels {
   addr: ReadonlyMap<string, string>;
   /** Unspent coins with a label, a tag or a freeze, by "txid:vout" */
   coins: ReadonlyMap<string, CoinLabel>;
+  /** Display name of each origin key (the counterparty as first written) */
+  originNames: ReadonlyMap<string, string>;
 }
 
 /** Match records against the scanned wallet and resolve each unspent coin's label. */
@@ -117,6 +119,7 @@ export function matchLabels(records: readonly Bip329Record[], infos: readonly Wa
 
   // Own label first; a coin with no origin tag that the wallet funded inherits its inputs' origins (rule 4).
   const memo = new Map<string, { tags: LabelTag[]; origins: string[] }>();
+  const originNames = new Map<string, string>();
   const resolve = (txid: string, vout: number, depth: number): { tags: LabelTag[]; origins: string[] } => {
     const k = `${txid}:${vout}`;
     const hit = memo.get(k);
@@ -125,6 +128,7 @@ export function matchLabels(records: readonly Bip329Record[], infos: readonly Wa
     const text = outputs.get(k)?.label ?? addr.get(fundTx?.vout[vout]?.scriptpubkey_address ?? "");
     const own = text ? parseLabel(text) : { tags: [], who: "" };
     let tags = own.tags, origins = originKeys(own);
+    for (const o of origins) if (!originNames.has(o)) originNames.set(o, own.who);
     const cls = coinClass(g, txid, vout);
     if (origins.length === 0 && fundTx && depth < 1000 && (cls === "change" || cls === "self" || cls === "coinjoin-change")) {
       const parents = fundTx.vin.map((v) => resolve(v.txid, v.vout, depth + 1));
@@ -153,7 +157,7 @@ export function matchLabels(records: readonly Bip329Record[], infos: readonly Wa
       });
     }
   }
-  return { records, applied, unmatched: records.length - applied, tx, addr, coins };
+  return { records, applied, unmatched: records.length - applied, tx, addr, coins, originNames };
 }
 
 // ---------- Export ----------
@@ -222,4 +226,16 @@ export function exportRecords(
 /** Export filename: a short hash of the xpub (not a BIP32 fingerprint, which a bare xpub does not carry). */
 export function labelsFilename(xpub: string): string {
   return `${bytesToHex(sha256(new TextEncoder().encode(xpub))).slice(0, 8)}-labels.jsonl`;
+}
+
+/** Selector inputs with each coin's label, tags, origins and freeze. */
+export function withLabels<T extends { utxo: { txid: string; vout: number } }>(coins: readonly T[], labels: WalletLabels | null): (T & {
+  label?: string; labelTags?: readonly LabelTag[]; labelOrigins?: readonly string[]; frozen?: boolean;
+})[] {
+  if (!labels) return [...coins];
+  return coins.map((c) => {
+    const l = labels.coins.get(`${c.utxo.txid}:${c.utxo.vout}`);
+    if (!l) return c;
+    return { ...c, label: l.text, labelTags: l.tags, labelOrigins: l.origins, ...(l.frozen ? { frozen: true } : {}) };
+  });
 }

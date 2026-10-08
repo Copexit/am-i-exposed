@@ -11,6 +11,8 @@ import {
 import { fmtN } from "@/lib/format";
 import { SEVERITY_STYLES } from "@/components/findingCardConstants";
 import { HintChip } from "./HintChip";
+import { LabelTagChip, LabelText } from "./WalletLabels";
+import { Check, X } from "lucide-react";
 
 const FIELD = "w-full h-10 bg-surface-inset border border-card-border rounded-lg px-3 text-sm text-foreground num placeholder:text-faint focus:border-bitcoin/50 focus-visible:outline-none transition-colors";
 
@@ -20,11 +22,18 @@ export function CoinSelector({ utxos }: { utxos: CoinSelectionInput[] }) {
   const [amount, setAmount] = useState("");
   const [feeRate, setFeeRate] = useState("5");
   const [advice, setAdvice] = useState<CoinSelectionAdvice | null>(null);
+  const [includeFrozen, setIncludeFrozen] = useState(false);
+  const frozen = utxos.filter(u => u.frozen).length;
+
+  function run(withFrozen: boolean) {
+    // Empty fields become NaN (not 0) so they read as invalid.
+    const coins = withFrozen ? utxos : utxos.filter(u => !u.frozen);
+    setAdvice(adviseCoinSelection(coins, amount.trim() ? Number(amount) : NaN, feeRate.trim() ? Number(feeRate) : NaN));
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // Empty fields become NaN (not 0) so they read as invalid.
-    setAdvice(adviseCoinSelection(utxos, amount.trim() ? Number(amount) : NaN, feeRate.trim() ? Number(feeRate) : NaN));
+    run(includeFrozen);
   }
 
   return (
@@ -50,6 +59,18 @@ export function CoinSelector({ utxos }: { utxos: CoinSelectionInput[] }) {
           {t("wallet.suggest", { defaultValue: "Suggest selection" })}
         </button>
       </form>
+
+      {frozen > 0 && (
+        <label className="flex items-center gap-2 min-h-10 text-[13px] text-muted cursor-pointer w-fit">
+          <input
+            type="checkbox"
+            checked={includeFrozen}
+            onChange={e => { setIncludeFrozen(e.target.checked); if (advice) run(e.target.checked); }}
+            className="size-4 accent-bitcoin"
+          />
+          {t("wallet.labels.includeFrozen", { count: frozen, n: fmtN(frozen), defaultValue: "Include frozen coins ({{n}})" })}
+        </label>
+      )}
 
       {advice?.kind === "invalid" && (
         <p role="alert" className="text-sm text-severity-high">
@@ -168,8 +189,11 @@ function PlanCard({ plan, recommended }: { plan: CoinSelectionPlan; recommended:
                 <span className="num text-[13px] text-foreground block truncate" title={`${c.utxo.txid}:${c.utxo.vout}`}>
                   {c.utxo.txid.slice(0, 8)}...{c.utxo.txid.slice(-4)}:{c.utxo.vout}
                 </span>
-                {c.hints.length > 0 && (
+                {c.label && <LabelText text={c.label} className="block" />}
+                {(c.hints.length > 0 || (c.labelTags?.length ?? 0) > 0 || c.frozen) && (
                   <div className="flex flex-wrap gap-1.5">
+                    {c.labelTags?.map(tag => <LabelTagChip key={tag} tag={tag} />)}
+                    {c.frozen && <HintChip hint={{ kind: "frozen" }} />}
                     {c.hints.map(h => <HintChip key={h.kind} hint={h} />)}
                   </div>
                 )}
@@ -179,6 +203,21 @@ function PlanCard({ plan, recommended }: { plan: CoinSelectionPlan; recommended:
           ))}
         </ol>
       </div>
+
+      {plan.labelRules.length > 0 && (
+        <div data-testid="plan-label-rules" className="space-y-1.5">
+          <span className="eyebrow block">{t("wallet.labels.rules", { defaultValue: "Label rules" })}</span>
+          <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
+            {plan.labelRules.map(r => (
+              <li key={r.id} className={`inline-flex items-center gap-1.5 text-[13px] ${r.ok ? "text-severity-good" : "text-severity-critical"}`}>
+                {r.ok ? <Check size={14} aria-hidden="true" /> : <X size={14} aria-hidden="true" />}
+                <span className="sr-only">{r.ok ? t("wallet.labels.ruleOk", { defaultValue: "Respected:" }) : t("wallet.labels.ruleBroken", { defaultValue: "Broken:" })}</span>
+                {t(`wallet.labels.rule.${r.id}`)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {plan.warnings.length > 0 && (
         <ul className="space-y-1.5">

@@ -7,6 +7,8 @@ import { ChevronDown, Copy, Check, Search } from "lucide-react";
 import { P2PKH_DUST_LIMIT, TOXIC_CHANGE_THRESHOLD } from "@/lib/constants";
 import { copyToClipboard } from "@/lib/clipboard";
 import type { WalletAddressInfo } from "@/lib/analysis/wallet-audit";
+import { parseLabel } from "@/lib/wallet/labels";
+import { LabelTagChip, LabelText, useWalletLabels } from "./WalletLabels";
 
 interface WalletAddressTableProps {
   addressInfos: WalletAddressInfo[];
@@ -71,6 +73,7 @@ export function WalletAddressTable({ addressInfos, onScan }: WalletAddressTableP
   const { t, i18n } = useTranslation();
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [copiedAddr, setCopiedAddr] = useState<string | null>(null);
+  const labels = useWalletLabels();
 
   const scored = useMemo(() => {
     const items = addressInfos.map(scoreAddress);
@@ -97,6 +100,7 @@ export function WalletAddressTable({ addressInfos, onScan }: WalletAddressTableP
         const isExpanded = expandedIdx === idx;
         const statusMeta = STATUS_KEY[item.status];
         const statusClass = STATUS_CLASS[item.status];
+        const label = labels?.addr.get(addr);
 
         return (
           <div key={addr} className="rounded-lg border border-card-border overflow-hidden">
@@ -124,9 +128,13 @@ export function WalletAddressTable({ addressInfos, onScan }: WalletAddressTableP
                   : t("wallet.receive_label", { defaultValue: "receive" })}
               </span>
 
-              {/* Truncated address */}
-              <span className="font-mono text-xs text-foreground/80 truncate flex-1 min-w-0">
-                {addr.slice(0, 12)}...{addr.slice(-6)}
+              {/* Truncated address, and its label */}
+              <span className="flex items-center gap-2 flex-1 min-w-0">
+                <span className="font-mono text-xs text-foreground/80 truncate shrink-0 max-w-full">
+                  {addr.slice(0, 12)}...{addr.slice(-6)}
+                </span>
+                {label && parseLabel(label).tags.slice(0, 1).map(tag => <LabelTagChip key={tag} tag={tag} />)}
+                {label && <LabelText text={label} className="hidden sm:block" />}
               </span>
 
               {/* TX count */}
@@ -158,6 +166,8 @@ export function WalletAddressTable({ addressInfos, onScan }: WalletAddressTableP
                   className="overflow-hidden"
                 >
                   <div className="px-4 pb-4 pt-1 space-y-3 border-t border-card-border">
+                    {label && <p data-testid="address-label" className="text-sm text-foreground break-words">{label}</p>}
+
                     {/* Full address */}
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs text-foreground/90 break-all flex-1">
