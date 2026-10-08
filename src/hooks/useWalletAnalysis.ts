@@ -72,6 +72,8 @@ interface WalletAnalysisState {
   labels: Bip329Record[];
   /** Set while the results come from (or were written to) a saved snapshot */
   saved: SavedStatus | null;
+  /** Hashed id of this wallet's saved scan (set whether or not one exists) */
+  snapshotKey: string | null;
   /** The scan could not be saved on this device */
   saveError: { code: SavedWalletError["code"]; size: number } | null;
 }
@@ -106,6 +108,7 @@ const INITIAL_STATE: WalletAnalysisState = {
   gapLimit: null,
   labels: [],
   saved: null,
+  snapshotKey: null,
   saveError: null,
 };
 
@@ -221,6 +224,7 @@ export function useWalletAnalysis() {
             accountPath: accountPathOf(parsed),
           },
           progress: { fetched: 0, total: 0 },
+          snapshotKey: key,
           autoSwitchedNetwork: switchedTo,
           scriptTypeDetected: bareKey,
         }));

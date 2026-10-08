@@ -1,12 +1,13 @@
 "use client";
 
-import { Database, Trash2, X } from "lucide-react";
+import { Database, Star, Trash2, X } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { idbCount, idbClear } from "@/lib/api/idb-cache";
 import { useAnalysisSettings } from "@/hooks/useAnalysisSettings";
 import { clearSavedWallets, forgetWallet, listSavedWallets, type SavedWalletMeta } from "@/lib/wallet/saved-wallets";
 import { formatSize, formatTimeAgo } from "@/lib/format";
+import { useBookmarks } from "@/hooks/useBookmarks";
 
 export function CacheSettingsPanel() {
   const { t, i18n } = useTranslation();
@@ -14,6 +15,9 @@ export function CacheSettingsPanel() {
   const [count, setCount] = useState<number | null>(null);
   const [wallets, setWallets] = useState<SavedWalletMeta[]>([]);
   const [clearing, setClearing] = useState(false);
+  const { bookmarks, removeWalletBookmarks } = useBookmarks();
+  const walletBookmarks = bookmarks.filter((b) => b.type === "wallet");
+  const bookmarkFor = (key: string) => walletBookmarks.find((b) => b.snapshotKey === key);
 
   const refreshCount = useCallback(() => {
     idbCount().then(setCount).catch(() => setCount(0));
@@ -104,7 +108,13 @@ export function CacheSettingsPanel() {
           <ul className="mt-1 space-y-0.5" data-testid="saved-wallets">
             {wallets.map((w) => (
               <li key={w.key} className="flex items-center gap-2 text-[11px] text-muted">
-                <span className="font-mono text-foreground" title={t("settings.savedWalletId", { defaultValue: "Wallet ID (hash, not the key)" })}>{w.key.slice(0, 8)}</span>
+                <span className="font-mono text-foreground" title={t("settings.savedWalletId", { defaultValue: "Wallet ID (a hash, not the key)" })}>{w.key.slice(0, 8)}</span>
+                {bookmarkFor(w.key) && (
+                  <span className="inline-flex items-center gap-0.5 text-bitcoin" title={t("settings.bookmarked", { defaultValue: "Bookmarked" })}>
+                    <Star size={10} className="fill-bitcoin" aria-label={t("settings.bookmarked", { defaultValue: "Bookmarked" })} />
+                    {bookmarkFor(w.key)?.label}
+                  </span>
+                )}
                 <span className="flex-1 min-w-0 truncate">
                   {w.scriptType} · {w.backend.split("@")[0]} · {formatTimeAgo(Math.floor(w.scannedAt / 1000), i18n.language)} · {formatSize(w.size)}
                 </span>
@@ -121,6 +131,17 @@ export function CacheSettingsPanel() {
             ))}
           </ul>
         </div>
+      )}
+
+      {walletBookmarks.length > 0 && (
+        <button
+          type="button"
+          onClick={removeWalletBookmarks}
+          className="mt-2 inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
+        >
+          <Trash2 size={12} />
+          {t("settings.removeWalletBookmarks", { count: walletBookmarks.length, defaultValue: "Remove all wallet bookmarks ({{count}})" })}
+        </button>
       )}
 
       <p className="text-[10px] text-muted/60 mt-1">

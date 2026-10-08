@@ -34,7 +34,7 @@ export interface HomeProps {
   onClearScans: () => void;
   onRemoveBookmark: (id: string) => void;
   onClearBookmarks: () => void;
-  onExportBookmarks?: () => void;
+  onExportBookmarks?: (opts?: { includeWallets?: boolean }) => void;
   onImportBookmarks?: ((json: string) => { imported: number; error?: string }) | undefined;
 }
 

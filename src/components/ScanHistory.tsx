@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { RecentScans } from "./RecentScans";
 import { BookmarkList } from "./history/BookmarkList";
 import { HistoryTab } from "./history/HistoryTab";
+import { ExportWalletsPrompt } from "./history/ExportWalletsPrompt";
 import type { RecentScan } from "@/hooks/useRecentScans";
 import type { Bookmark } from "@/hooks/useBookmarks";
 import type { ExampleItem } from "@/lib/constants";
@@ -19,7 +20,7 @@ interface ScanHistoryProps {
   onClearScans?: () => void;
   onRemoveBookmark: (input: string) => void;
   onClearBookmarks: () => void;
-  onExportBookmarks?: () => void;
+  onExportBookmarks?: (opts?: { includeWallets?: boolean }) => void;
   onImportBookmarks?: (json: string) => { imported: number; error?: string };
 }
 
@@ -47,6 +48,8 @@ export const ScanHistory = memo(function ScanHistory({
         : "recent";
   const [tab, setTab] = useState<Tab>(defaultTab);
 
+  const [exportPrompt, setExportPrompt] = useState(false);
+  const walletCount = bookmarks.filter((b) => b.type === "wallet").length;
   const [importFeedback, setImportFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -158,7 +161,7 @@ export const ScanHistory = memo(function ScanHistory({
           )}
           {tab === "bookmarks" && bookmarks.length > 0 && onExportBookmarks && (
             <button
-              onClick={onExportBookmarks}
+              onClick={() => (walletCount > 0 ? setExportPrompt(true) : onExportBookmarks())}
               className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer p-1"
               title={t("history.exportBookmarks", { defaultValue: "Export bookmarks as JSON" })}
               aria-label={t("history.exportBookmarks", { defaultValue: "Export bookmarks as JSON" })}
@@ -200,6 +203,15 @@ export const ScanHistory = memo(function ScanHistory({
 
       {tab === "bookmarks" && (
         <div role="tabpanel" id="panel-bookmarks" aria-labelledby="tab-bookmarks">
+        {exportPrompt && onExportBookmarks && (
+          <div className="mb-2">
+            <ExportWalletsPrompt
+              walletCount={walletCount}
+              onExport={(includeWallets) => { onExportBookmarks({ includeWallets }); setExportPrompt(false); }}
+              onCancel={() => setExportPrompt(false)}
+            />
+          </div>
+        )}
         {importFeedback && (
           <p className={`text-xs mb-2 px-1 ${importFeedback.type === "error" ? "text-severity-critical" : "text-severity-good"}`} role="status">
             {importFeedback.message}

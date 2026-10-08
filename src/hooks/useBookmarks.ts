@@ -6,14 +6,33 @@ import { isLocalPayloadPrefix } from "@/lib/analysis/detect-input";
 import { savedGraphStore } from "./useSavedGraphs";
 import { validateSavedGraph } from "@/lib/graph/saved-graph-types";
 import type { SavedGraph } from "@/lib/graph/saved-graph-types";
+import { parseXpub } from "@/lib/bitcoin/descriptor";
 
 export interface Bookmark {
+  /** txid, address, or (type "wallet") the raw xpub/descriptor, stored only after an explicit opt-in */
   input: string;
-  type: "txid" | "address";
+  type: "txid" | "address" | "wallet";
   grade: string;
   score: number;
+  /** User label (a wallet bookmark's name) */
   label?: string;
   savedAt: number;
+  /** Wallet only: address type, network, and the hashed key of its saved scan */
+  scriptType?: string;
+  network?: string;
+  snapshotKey?: string;
+}
+
+/** A wallet entry must carry a key that parses (checksum included). */
+function isValidWallet(b: Bookmark): boolean {
+  if (typeof b.scriptType !== "string" || typeof b.network !== "string") return false;
+  if (b.snapshotKey !== undefined && !/^[0-9a-f]{64}$/.test(b.snapshotKey)) return false;
+  try {
+    parseXpub(b.input);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function isValidBookmark(b: unknown): b is Bookmark {
@@ -22,7 +41,8 @@ function isValidBookmark(b: unknown): b is Bookmark {
     typeof (b as Bookmark).input === "string" &&
     // Truncated PSBT entries saved by older versions (and imports of them) are dropped
     !isLocalPayloadPrefix((b as Bookmark).input) &&
-    ((b as Bookmark).type === "txid" || (b as Bookmark).type === "address") &&
+    ((b as Bookmark).type === "txid" || (b as Bookmark).type === "address" ||
+      ((b as Bookmark).type === "wallet" && isValidWallet(b as Bookmark))) &&
     typeof (b as Bookmark).grade === "string" &&
     typeof (b as Bookmark).score === "number" &&
     typeof (b as Bookmark).savedAt === "number"
@@ -118,9 +138,13 @@ export function useBookmarks() {
     store.remove();
   }, []);
 
-  /** Export workspace (bookmarks + saved graphs) as a single JSON file. */
-  const exportBookmarks = useCallback(() => {
-    const bookmarkData = store.getSnapshot();
+  const removeWalletBookmarks = useCallback(() => {
+    store.set(store.getSnapshot().filter((b) => b.type !== "wallet"));
+  }, []);
+
+  /** Export workspace (bookmarks + saved graphs) as a single JSON file. Wallet keys only when asked. */
+  const exportBookmarks = useCallback(({ includeWallets = false }: { includeWallets?: boolean } = {}) => {
+    const bookmarkData = store.getSnapshot().filter((b) => includeWallets || b.type !== "wallet");
     const graphData = savedGraphStore.getSnapshot();
     const workspace = { version: 1, bookmarks: bookmarkData, graphs: graphData };
     const json = JSON.stringify(workspace, null, 2);
@@ -183,5 +207,5 @@ export function useBookmarks() {
     [],
   );
 
-  return { bookmarks, isBookmarked, addBookmark, removeBookmark, updateLabel, clearBookmarks, exportBookmarks, importBookmarks };
+  return { bookmarks, isBookmarked, addBookmark, removeBookmark, updateLabel, clearBookmarks, removeWalletBookmarks, exportBookmarks, importBookmarks };
 }

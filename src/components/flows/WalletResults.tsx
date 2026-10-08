@@ -7,6 +7,7 @@ import type { WalletAuditResult, WalletAddressInfo } from "@/lib/analysis/wallet
 import type { DescriptorParseResult, ScriptType } from "@/lib/bitcoin/descriptor";
 import { RESCAN_GAP_LIMITS, type UtxoTraceResult, type SavedStatus } from "@/hooks/useWalletAnalysis";
 import { SavedScanBar } from "@/components/wallet/SavedScanBar";
+import { WalletBookmarkButton } from "@/components/wallet/WalletBookmarkButton";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { GRADE_COLORS, GRADE_VAR, P2PKH_DUST_LIMIT } from "@/lib/constants";
 import { fmtN } from "@/lib/format";
@@ -64,6 +65,9 @@ interface WalletResultsProps {
   saveError?: { code: "tooLarge" | "quota"; size: number } | null;
   onFullRescan?: () => void;
   onForget?: () => void;
+  /** The xpub/descriptor as entered (for an opt-in bookmark) */
+  query?: string | null;
+  snapshotKey?: string | null;
 }
 
 /** Wallet (xpub / descriptor) audit: verdict band, grouped findings, analyst workspace. */
@@ -75,7 +79,7 @@ const WRAP: Record<ScriptType, (k: string) => string> = {
   "p2pkh": (k) => `pkh(${k})`,
 };
 
-export function WalletResults({ descriptor, result, addressInfos, utxoTraces, onBack, onScan, durationMs, scriptTypeDetected, gapLimit, onRescanGap, labelRecords, onLabelsChange, saved, saveError, onFullRescan, onForget }: WalletResultsProps) {
+export function WalletResults({ descriptor, result, addressInfos, utxoTraces, onBack, onScan, durationMs, scriptTypeDetected, gapLimit, onRescanGap, labelRecords, onLabelsChange, saved, saveError, onFullRescan, onForget, query, snapshotKey }: WalletResultsProps) {
   const { t } = useTranslation();
   const [addressesOpen, setAddressesOpen] = useState(false);
   const labels = useMemo(
@@ -113,9 +117,14 @@ export function WalletResults({ descriptor, result, addressInfos, utxoTraces, on
     <FlowShell className="py-6 sm:py-10 space-y-10" testId="wallet-results">
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
         <NewScanLink onBack={onBack} />
-        {(saved || saveError) && (
-          <SavedScanBar saved={saved ?? null} saveError={saveError ?? null} onFullRescan={onFullRescan} onForget={onForget} />
-        )}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {(saved || saveError) && (
+            <SavedScanBar saved={saved ?? null} saveError={saveError ?? null} onFullRescan={onFullRescan} onForget={onForget} />
+          )}
+          {query && (
+            <WalletBookmarkButton input={query} scriptType={descriptor.scriptType} grade={result.grade} score={result.score} snapshotKey={snapshotKey ?? null} />
+          )}
+        </div>
       </div>
 
       {/* Verdict band */}

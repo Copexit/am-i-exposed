@@ -163,6 +163,8 @@ export default function ScannerPage() {
               saveError={wallet.saveError}
               onFullRescan={() => { if (wallet.query) void wallet.analyze(wallet.query, undefined, undefined, { fullRescan: true }); }}
               onForget={() => void wallet.forget()}
+              query={wallet.query}
+              snapshotKey={wallet.snapshotKey}
             />
           </Suspense>
         )}
