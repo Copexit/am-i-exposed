@@ -349,7 +349,8 @@ function labelChecks(
   const chainOf = new Map(infos.map((i) => [i.derived.address, i.derived.isChange]));
   for (const [k, c] of byKey) {
     const l = coins.get(k);
-    const own = l?.text ? parseLabel(l.text) : null;
+    // A spend's tx label shown on its change describes the payment, not this coin: no checks on it
+    const own = l?.text && !(l.source === "tx" && chainOf.get(c.address)) ? parseLabel(l.text) : null;
     const mixed = c.origin === "mixed";
     if (own?.tags.includes("cj") && !mixed) add("cj-not-mixed", k);
     if (mixed && originPrefixInUse && !l?.tags.includes("cj")) add("mixed-unlabeled", k);

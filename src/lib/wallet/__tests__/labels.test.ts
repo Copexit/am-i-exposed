@@ -187,6 +187,15 @@ describe("label checks", () => {
     expect(m.checks.find(c => c.id === "mixed-unlabeled")!.refs).toEqual([`${outs[0]!.txid}:0`]);
   });
 
+  it("runs no label checks on change that only shows a spend's tx label", () => {
+    const h = new History();
+    const a = h.receive(recv(0), 400_000, 100);
+    const [, change] = h.tx([a], [{ address: ext(1), value: 100_000 }, { address: chg(0), value: 299_000 }], 101);
+    const infos = h.infos([{ address: recv(0), isChange: false, index: 0 }, { address: chg(0), isChange: true, index: 0 }]);
+    const m = matchLabels([{ type: "tx", ref: change.txid, label: "[CJ] paid into a Whirlpool mix" }], infos);
+    expect(m.checks.find(c => c.id === "cj-not-mixed")).toBeUndefined();
+  });
+
   it("flags [KYC] and [noKYC] coins already linked on-chain, and a freeze on a spent output", () => {
     const h = new History();
     const k = h.receive(recv(0), 400_000, 100);
