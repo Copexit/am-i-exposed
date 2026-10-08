@@ -3473,7 +3473,6 @@
   "wallet.coinSel.learn.links": "Que {{n}} groupes de pièces que rien ne reliait appartiennent au même portefeuille",
   "wallet.coinSel.learn.links-none": "Rien de nouveau sur les pièces qui vont ensemble",
   "wallet.coinSel.learn.single": "Rien sur vos autres pièces",
-  "wallet.coinSel.learn.probable": "La confirmation de {{n}} liens probables",
   "wallet.coinSel.learn.recipient-known": "Le destinataire : rien de nouveau, il connaît déjà ces pièces",
   "wallet.coinSel.learn.recipient": "Le destinataire : que vous détenez au moins {{amount}} sats dans ces pièces",
   "wallet.coinSel.learn.change-none": "Aucune sortie de monnaie à suivre",
@@ -3497,7 +3496,6 @@
   "wallet.coinSel.path.detect-none": "Les règles du montant rond et du type d'adresse ne désignent pas la monnaie",
   "wallet.coinSel.path.detect-round": "Monnaie repérable : montant du paiement rond",
   "wallet.coinSel.path.detect-type": "Monnaie repérable : type d'adresse différent",
-  "wallet.coinSel.path.probable": "Confirme {{n}} liens probables",
   "wallet.coinSel.warn.change-merge": "Fusionne la pièce de monnaie #{{count}} avec d'autres pièces : un observateur qui a repéré la monnaie la relie maintenant à elles. Dépensez la monnaie seule, sans monnaie si possible, ou déplacez-la avec un swap Lightning.",
   "wallet.coinSel.alert.change-alone.title": "Monnaie dépensée seule",
   "wallet.coinSel.alert.change-alone.body": "Les pièces qui ne sont pas de la monnaie totalisent {{amount}} sats, pas assez pour ce paiement, donc le premier plan dépense une pièce de monnaie seule. Pour laisser moins de monnaie, fractionnez le paiement ou payez-en une partie via un swap Lightning.",
@@ -3514,7 +3512,7 @@
   "guide.checklist.rankE": "Monnaie que désignerait la règle du montant rond ou celle du type d'adresse : moins de règles d'abord.",
   "guide.checklist.rankF": "Liens probables confirmés : moins d'abord.",
   "guide.checklist.rankG": "Entrées : moins d'abord.",
-  "guide.checklist.rankH": "Frais, y compris le reste laissé aux mineurs : plus bas d'abord. Une différence de moins de 1 000 sats ou de 1 % du paiement ne compte pas.",
+  "guide.checklist.rankH": "Frais, y compris le reste laissé aux mineurs : plus bas d'abord. Une différence de moins de 1 000 sats ou de 1 % du paiement, selon le plus grand des deux, ne compte pas.",
   "wallet.coinSel.path.change-toxic": "Monnaie toxique : {{amount}} sats, difficile à dépenser ensuite",
   "wallet.coinSel.noClean.title": "Aucune option propre",
   "wallet.coinSel.noClean.intro": "Les deux meilleurs plans laissent fuiter quelque chose d'important, aucun n'est donc recommandé. Comparez ce que chacun révèle et évite, et choisissez :",
@@ -3535,7 +3533,11 @@
   "wallet.coinSel.avoid.less-change": "Une monnaie de {{other}} sats ({{amount}} ici)",
   "wallet.coinSel.avoid.undetectable": "Une monnaie que désignent les règles du montant rond ou du type d'adresse",
   "wallet.coinSel.avoid.fewer-probable": "De confirmer plus de liens probables",
-  "wallet.coinSel.avoid.fewer-inputs": "Plus d'entrées ({{n}} ici)",
+  "wallet.coinSel.avoid.fewer-inputs": "Plus d'entrées ({{other}} dans l'autre option)",
   "wallet.coinSel.avoid.lower-fee": "Des frais de {{other}} sats ({{amount}} ici)",
-  "wallet.coinControl.chose": "Vous avez choisi l'{{option}}"
+  "wallet.coinControl.chose": "Vous avez choisi l'{{option}}",
+  "wallet.coinSel.path.probable_one": "Confirme 1 lien probable",
+  "wallet.coinSel.path.probable_other": "Confirme {{n}} liens probables",
+  "wallet.coinSel.learn.probable_one": "La confirmation de 1 lien probable",
+  "wallet.coinSel.learn.probable_other": "La confirmation de {{n}} liens probables"
 }

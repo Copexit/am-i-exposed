@@ -172,7 +172,7 @@ const RANK_EN: Record<(typeof RANK)[number], string> = {
   E: "Change that the round-amount or address-type rule would point at: fewer such rules first.",
   F: "Probable links confirmed: fewer first.",
   G: "Inputs: fewer first.",
-  H: "Fee, including leftover paid to miners: lower first. A difference below 1,000 sats or 1% of the payment counts as none.",
+  H: "Fee, including leftover paid to miners: lower first. A difference below 1,000 sats or 1% of the payment, whichever is larger, counts as none.",
 };
 
 /** Spending checklist: the decision tree the coin selection advisor follows, linked from the selector. */

@@ -3473,7 +3473,6 @@
   "wallet.coinSel.learn.links": "That {{n}} groups of coins nothing linked before belong to one wallet",
   "wallet.coinSel.learn.links-none": "Nothing new about which coins belong together",
   "wallet.coinSel.learn.single": "Nothing about your other coins",
-  "wallet.coinSel.learn.probable": "A confirmation of {{n}} probable links",
   "wallet.coinSel.learn.recipient-known": "The recipient: nothing new, it already knows these coins",
   "wallet.coinSel.learn.recipient": "The recipient: that you hold at least {{amount}} sats in these coins",
   "wallet.coinSel.learn.change-none": "No change output to follow",
@@ -3497,7 +3496,6 @@
   "wallet.coinSel.path.detect-none": "Change not pointed at by the round-amount or address-type rules",
   "wallet.coinSel.path.detect-round": "Change detectable: round payment amount",
   "wallet.coinSel.path.detect-type": "Change detectable: different address type",
-  "wallet.coinSel.path.probable": "Confirms {{n}} probable links",
   "wallet.coinSel.warn.change-merge": "Merges change coin #{{count}} with other coins: an observer who identified the change now links it to them. Spend change alone, without change if possible, or move it with a Lightning swap.",
   "wallet.coinSel.alert.change-alone.title": "Change spent on its own",
   "wallet.coinSel.alert.change-alone.body": "Coins that are not change add up to {{amount}} sats, not enough for this payment, so the first plan spends one change coin alone. To leave less change, split the payment or pay part of it via a Lightning swap.",
@@ -3514,7 +3512,7 @@
   "guide.checklist.rankE": "Change that the round-amount or address-type rule would point at: fewer such rules first.",
   "guide.checklist.rankF": "Probable links confirmed: fewer first.",
   "guide.checklist.rankG": "Inputs: fewer first.",
-  "guide.checklist.rankH": "Fee, including leftover paid to miners: lower first. A difference below 1,000 sats or 1% of the payment counts as none.",
+  "guide.checklist.rankH": "Fee, including leftover paid to miners: lower first. A difference below 1,000 sats or 1% of the payment, whichever is larger, counts as none.",
   "wallet.coinSel.path.change-toxic": "Toxic change: {{amount}} sats, hard to spend later",
   "wallet.coinSel.noClean.title": "No clean option",
   "wallet.coinSel.noClean.intro": "Both of the best plans leak something significant, so neither is recommended. Compare what each one reveals and avoids, and choose:",
@@ -3535,7 +3533,11 @@
   "wallet.coinSel.avoid.less-change": "Change of {{other}} sats ({{amount}} here)",
   "wallet.coinSel.avoid.undetectable": "Change that the round-amount or address-type rule points at",
   "wallet.coinSel.avoid.fewer-probable": "Confirming more probable links",
-  "wallet.coinSel.avoid.fewer-inputs": "More inputs ({{n}} here)",
+  "wallet.coinSel.avoid.fewer-inputs": "More inputs ({{other}} in the other option)",
   "wallet.coinSel.avoid.lower-fee": "A fee of {{other}} sats ({{amount}} here)",
-  "wallet.coinControl.chose": "You chose {{option}}"
+  "wallet.coinControl.chose": "You chose {{option}}",
+  "wallet.coinSel.path.probable_one": "Confirms 1 probable link",
+  "wallet.coinSel.path.probable_other": "Confirms {{n}} probable links",
+  "wallet.coinSel.learn.probable_one": "A confirmation of 1 probable link",
+  "wallet.coinSel.learn.probable_other": "A confirmation of {{n}} probable links"
 }

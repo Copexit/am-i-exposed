@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  adviseCoinSelection, comparePrivacy, buildCoinInputs, evaluateSelection, outpointOf, rankPlans, MAX_PLANS, PLAN_CRITERIA,
+  adviseCoinSelection, comparePrivacy, noCleanOption, buildCoinInputs, evaluateSelection, outpointOf, rankPlans, MAX_PLANS, PLAN_CRITERIA,
   type CoinSelectionInput, type CoinSelectionAdvice, type CoinSelectionPlan,
 } from "../coin-selection";
 import type { WalletAddressInfo } from "../wallet-audit";
@@ -628,3 +628,65 @@ describe("evaluateSelection: the advisor's coin set", () => {
     expect(withFrozen.plan.groups).toBe(1);
   });
 });
+
+describe("Privacy first is a total order", () => {
+  /** A plan with only the facts the ranking reads; the fee quantized from the lowest fee among the plans. */
+  const plan = (fee: number, change: number, id: string): CoinSelectionPlan => ({
+    strategy: "single-coin", fallback: false,
+    facts: { violations: [], known: false, links: 0, softLinks: false, change: "small", detectable: [], probable: 0, inputs: 1, fee },
+    selected: [{ utxo: { txid: id, vout: 0, value: 1, status: { confirmed: true } }, address: "x", hints: [] }],
+    inputTotal: 0, paymentAmount: 50_000, fee, change, absorbed: 0, absorbsChange: false, origins: 1, groups: 1, warnings: [], labelRules: [], path: [],
+  });
+  const permutations = <T,>(xs: T[]): T[][] => xs.length <= 1 ? [xs] : xs.flatMap((x, i) => permutations([...xs.slice(0, i), ...xs.slice(i + 1)]).map(p => [x, ...p]));
+  const key = (ps: CoinSelectionPlan[]) => ps.map(p => p.selected[0]!.utxo.txid).join();
+
+  it("the review's cycle (fee/change 0/3000, 900/2000, 1800/1000 at 50k) ranks the same for every input order", () => {
+    const ps = [plan(0, 3_000, "A"), plan(900, 2_000, "B"), plan(1_800, 1_000, "C")];
+    const orders = new Set(permutations(ps).map(p => key(rankPlans(p, "privacy"))));
+    // A and B share the first fee step (under 1,000 sats from the lowest): less change first; C is a step up
+    expect([...orders]).toEqual(["B,A,C"]);
+  });
+
+  it("randomized: any set of plans ranks the same whatever the input order, under every criterion", () => {
+    let seed = 7;
+    const rnd = (n: number) => { seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648; return seed % n; };
+    for (let round = 0; round < 200; round++) {
+      const ps = Array.from({ length: 5 }, (_, i) => {
+        const p = plan(rnd(4_000), rnd(5_000), `p${i}`);
+        p.facts = { ...p.facts, links: rnd(3), inputs: 1 + rnd(3), change: (["none", "small", "big"] as const)[rnd(3)]! };
+        return p;
+      });
+      for (const c of PLAN_CRITERIA) {
+        const expected = key(rankPlans(ps, c));
+        for (let k = 0; k < 6; k++) {
+          const shuffled = [...ps].sort(() => rnd(3) - 1);
+          expect(key(rankPlans(shuffled, c))).toBe(expected);
+        }
+      }
+    }
+  });
+});
+
+describe("No clean option", () => {
+  it("never offers the same coins twice: Option B is the first plan with other coins, or no panel", () => {
+    // Two change coins pay only together: the merge with change and its no-change twin are the same coins
+    const a = plans(adviseCoinSelection([coin(70_000, { origin: "change" }), coin(45_000, { origin: "change" })], 100_000, 2, 20_000));
+    expect(new Set(a.plans.map(p => p.selected.map(outpointOf).sort().join())).size).toBe(1);
+    expect(noCleanOption(a.plans)).toBeNull();
+  });
+});
+
+describe("sibling merges count once", () => {
+  it("both outputs of one self-transfer, even with no inferred cluster joining them: one violation, no link, no guard", () => {
+    const sib = [
+      coin(60_000, { txid: "selfx", origin: "self", cluster: "a" }),
+      { ...coin(50_000, { txid: "selfx", origin: "self", cluster: "b" }), utxo: { txid: "selfx", vout: 1, value: 50_000, status: { confirmed: true } } },
+    ];
+    const e = evaluateSelection(sib, new Set(sib.map(outpointOf)), 100_000, 1);
+    if (e.kind !== "plan") throw new Error(e.kind);
+    expect(e.plan.facts).toMatchObject({ violations: ["same-tx"], links: 0, probable: 0 });
+    expect(e.plan.groups).toBe(1);
+    expect(e.plan.warnings.map(w => w.id)).not.toContain("merges-origins");
+  });
+});
+

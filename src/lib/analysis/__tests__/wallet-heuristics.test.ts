@@ -52,6 +52,17 @@ describe("checkMerges", () => {
     expect(f[0]!.scoreImpact).toBe(-12);
   });
 
+  it("W2: merging the outputs of a self-transfer counts (self-transfer outputs are change, as in the coin selector)", () => {
+    const h = new History();
+    const r = h.receive(recv(0), 1_000_000, 100);
+    const [a, b] = h.tx([r], [{ address: chg(0), value: 600_000 }, { address: recv(1), value: 399_000 }], 101);
+    const m = h.tx([a!, b!], [{ address: ext(1), value: 998_000 }], 102);
+    const f = checkMerges(run(h).g, run(h).spends).findings;
+    // Both outputs of one tx: within one inferred cluster, so a notch lower
+    expect(f.map((x) => [x.id, x.severity, x.scoreImpact])).toEqual([["wallet-change-merge", "low", -2]]);
+    expect(JSON.parse(String(f[0]!.params!._txids))).toEqual([m[0]!.txid]);
+  });
+
   it("W1: an unknown-origin input does not make the merge 'unmixed'", () => {
     const h = new History();
     const r = h.receive(recv(0), 2_000_000, 100);

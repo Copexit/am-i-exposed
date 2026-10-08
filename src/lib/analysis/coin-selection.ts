@@ -46,7 +46,8 @@
  * new; merging within one inferred cluster (descendants of one payment's
  * outputs) confirms a probable link. Sibling outputs of one transaction are
  * not "probably linked" here: spending them together reveals the transaction
- * paid the wallet itself, a hard violation and a new certain link.
+ * paid the wallet itself, a hard violation (same-tx), counted once: not also a
+ * change merge, a new link, a probable link or a group in the 3-group guard.
  *
  * Never selected: dust (may come from a dust attack) and coins worth no more
  * than their own input fee at the given rate.
@@ -135,7 +136,7 @@ export type PlanStrategy = "single-coin" | "no-change" | "same-origin" | "probab
 export type ViolationId = "kyc" | "coinjoin" | "change-merge" | "same-tx" | "toxic";
 export const VIOLATIONS: readonly ViolationId[] = ["kyc", "coinjoin", "change-merge", "same-tx", "toxic"];
 
-/** Change class (tier d). */
+/** Change class (tier c). */
 export type ChangeClass = "none" | "small" | "big" | "huge" | "toxic";
 const CHANGE_ORDER: Record<ChangeClass, number> = { none: 0, small: 1, big: 2, huge: 3, toxic: 4 };
 
@@ -547,13 +548,13 @@ const isChangeCoin = (c: CoinSelectionInput) => isChangeClass(c.origin);
  * distinct certain origins among the picked coins, minus one. Outputs of someone else's tx (a CoinJoin,
  * a batch payout) are not siblings in this sense: they reveal no payment to yourself.
  */
-function siblingLinks(picked: readonly Candidate[]): number {
+function siblingLinks(picked: readonly Candidate[], by: (c: Candidate) => number = c => c.group): number {
   const byTx = new Map<string, Set<number>>();
   for (const c of picked) {
     if (!isChangeCoin(c.coin)) continue;
     const g = byTx.get(c.coin.utxo.txid);
-    if (g) g.add(c.group);
-    else byTx.set(c.coin.utxo.txid, new Set([c.group]));
+    if (g) g.add(by(c));
+    else byTx.set(c.coin.utxo.txid, new Set([by(c)]));
   }
   let n = 0;
   for (const g of byTx.values()) n += g.size - 1;
@@ -600,7 +601,10 @@ function score(picked: Candidate[], amount: number, feeRate: number, absorbMax: 
   // so that payment was to the wallet itself: the same-tx violation, counted once (not also as a
   // probable link, nor as a change merge, which describe the same coin pair).
   const siblings = siblingLinks(picked);
-  const groups = new Set(picked.map(c => c.loose)).size;
+  /** Sibling links between different inferred groups (the rest sit inside one inferred group) */
+  const looseSiblings = siblingLinks(picked, c => c.loose);
+  // Groups after the merge; siblings count once, as the same-tx violation, not as separate groups.
+  const groups = new Set(picked.map(c => c.loose)).size - looseSiblings;
   const mixedCount = coins.filter(c => c.origin === "mixed").length;
   const mixed = mixedCount > 0;
   const mixedOnly = picked.length > 1 && mixedCount === picked.length;
@@ -630,6 +634,7 @@ function score(picked: Candidate[], amount: number, feeRate: number, absorbMax: 
   const facts: PlanFacts = {
     violations,
     known: knownSet.size > 0 && coins.every(c => knownSet.has(outpointOf(c))),
+    // Siblings in different inferred groups (no inferred cluster joined them) are counted by same-tx, not here.
     links: groups - 1,
     softLinks: groups > 1 && (mixedOnly || sharedObserver(coins) !== undefined),
     change,
@@ -737,8 +742,15 @@ type Tier = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h";
 /** Tier c: the change class, a merge joining 3+ unrelated groups (2+ new links) counting as at least "big" (guard). */
 const changeRank = (f: PlanFacts) => Math.max(CHANGE_ORDER[f.change], f.links >= 2 ? CHANGE_ORDER.big : 0);
 
+/**
+ * Tier h compares fees in steps of feeTolerance from the lowest fee among the
+ * plans compared (`minFee`): a quantized fee keeps the order total (a raw
+ * "difference below the tolerance counts as none" is not transitive).
+ */
+const feeStep = (p: CoinSelectionPlan, minFee: number) => Math.floor((p.facts.fee - minFee) / feeTolerance(p.paymentAmount));
+
 /** Privacy first, step by step: the guide's order (see the module comment and the guide's "How plans are ranked"). */
-const STEPS: [Tier, (a: CoinSelectionPlan, b: CoinSelectionPlan) => number][] = [
+const STEPS: [Tier, (a: CoinSelectionPlan, b: CoinSelectionPlan, minFee: number) => number][] = [
   ["a", (a, b) => a.facts.violations.length - b.facts.violations.length],
   ["b", (a, b) => Number(!a.facts.known) - Number(!b.facts.known)],
   ["c", (a, b) => changeRank(a.facts) - changeRank(b.facts)],
@@ -746,19 +758,25 @@ const STEPS: [Tier, (a: CoinSelectionPlan, b: CoinSelectionPlan) => number][] = 
   ["e", (a, b) => a.facts.detectable.length - b.facts.detectable.length],
   ["f", (a, b) => a.facts.probable - b.facts.probable],
   ["g", (a, b) => a.facts.inputs - b.facts.inputs],
-  // A fee difference below feeTolerance counts as none; then less change.
-  ["h", (a, b) => { const d = a.facts.fee - b.facts.fee; return (Math.abs(d) < feeTolerance(a.paymentAmount) ? 0 : d) || a.change - b.change; }],
+  // Fee in steps of the tolerance; then less change, then the coins (a total order).
+  ["h", (a, b, minFee) => feeStep(a, minFee) - feeStep(b, minFee) || a.change - b.change || (coinsKey(a) < coinsKey(b) ? -1 : coinsKey(a) > coinsKey(b) ? 1 : 0)],
 ];
 
-/** Privacy first: the first step at which two plans differ decides. */
-export function comparePrivacy(a: CoinSelectionPlan, b: CoinSelectionPlan): number {
-  for (const [, cmp] of STEPS) { const d = cmp(a, b); if (d !== 0) return d; }
+const coinsKey = (p: CoinSelectionPlan) => p.selected.map(outpointOf).sort().join() + (p.absorbsChange ? "+" : "");
+
+/**
+ * Privacy first: the first step at which two plans differ decides. `minFee` is
+ * the lowest fee among the plans being ranked (rankPlans passes it); by default
+ * the lower of the two.
+ */
+export function comparePrivacy(a: CoinSelectionPlan, b: CoinSelectionPlan, minFee = Math.min(a.facts.fee, b.facts.fee)): number {
+  for (const [, cmp] of STEPS) { const d = cmp(a, b, minFee); if (d !== 0) return d; }
   return 0;
 }
 
 /** The step (tier) at which `a` ranks before `b`, or null when they tie. */
-export function decidingTier(a: CoinSelectionPlan, b: CoinSelectionPlan): Tier | null {
-  for (const [tier, cmp] of STEPS) if (cmp(a, b) !== 0) return tier;
+export function decidingTier(a: CoinSelectionPlan, b: CoinSelectionPlan, minFee = Math.min(a.facts.fee, b.facts.fee)): Tier | null {
+  for (const [tier, cmp] of STEPS) if (cmp(a, b, minFee) !== 0) return tier;
   return null;
 }
 
@@ -766,7 +784,8 @@ export function decidingTier(a: CoinSelectionPlan, b: CoinSelectionPlan): Tier |
 export type AvoidItem =
   | { id: "violation"; violation: ViolationId }
   | { id: "recipient" | "no-links" | "no-change" | "undetectable" | "fewer-probable" }
-  | { id: "fewer-links" | "fewer-inputs"; n: number }
+  | { id: "fewer-links"; n: number }
+  | { id: "fewer-inputs"; n: number; other: number }
   | { id: "less-change"; amount: number; other: number }
   | { id: "lower-fee"; amount: number; other: number };
 
@@ -779,7 +798,7 @@ export function planAvoids(plan: CoinSelectionPlan, other: CoinSelectionPlan): A
   if (changeRank(f) < changeRank(o)) out.push(plan.change === 0 ? { id: "no-change" } : { id: "less-change", amount: plan.change, other: other.change });
   if (f.detectable.length < o.detectable.length) out.push({ id: "undetectable" });
   if (f.probable < o.probable) out.push({ id: "fewer-probable" });
-  if (f.inputs < o.inputs) out.push({ id: "fewer-inputs", n: f.inputs });
+  if (f.inputs < o.inputs) out.push({ id: "fewer-inputs", n: f.inputs, other: o.inputs });
   if (o.fee - f.fee >= feeTolerance(plan.paymentAmount)) out.push({ id: "lower-fee", amount: f.fee, other: o.fee });
   return out;
 }
@@ -794,23 +813,30 @@ export const significantLeak = (p: CoinSelectionPlan) => p.facts.violations.leng
  * `plans` must be in Privacy-first order.
  */
 export function noCleanOption(plans: readonly CoinSelectionPlan[]): { first: CoinSelectionPlan; second: CoinSelectionPlan; tier: Tier | null } | null {
-  const [first, second] = plans;
-  if (!first || !second || !significantLeak(first) || !significantLeak(second)) return null;
+  const first = plans[0];
+  if (!first || !significantLeak(first)) return null;
+  // The best alternative with other coins: the same coins with and without change are one option.
+  const coins = (p: CoinSelectionPlan) => p.selected.map(outpointOf).sort().join();
+  const second = plans.find(p => coins(p) !== coins(first));
+  if (!second || !significantLeak(second)) return null;
   return { first, second, tier: decidingTier(first, second) };
 }
 
-const CRITERION_ORDER: Record<PlanCriterion, (a: CoinSelectionPlan, b: CoinSelectionPlan) => number> = {
+type Order = (a: CoinSelectionPlan, b: CoinSelectionPlan, minFee: number) => number;
+const CRITERION_ORDER: Record<PlanCriterion, Order> = {
   privacy: comparePrivacy,
-  "least-change": (a, b) => a.change - b.change || comparePrivacy(a, b),
+  "least-change": (a, b, m) => a.change - b.change || comparePrivacy(a, b, m),
   // Changeless plans first, each side by privacy (unlike least change, the rest is not ordered by change)
-  "no-change": (a, b) => Number(a.change > 0) - Number(b.change > 0) || comparePrivacy(a, b),
-  "fewest-coins": (a, b) => a.selected.length - b.selected.length || comparePrivacy(a, b),
-  "lowest-fee": (a, b) => a.fee - b.fee || comparePrivacy(a, b),
+  "no-change": (a, b, m) => Number(a.change > 0) - Number(b.change > 0) || comparePrivacy(a, b, m),
+  "fewest-coins": (a, b, m) => a.selected.length - b.selected.length || comparePrivacy(a, b, m),
+  "lowest-fee": (a, b, m) => a.fee - b.fee || comparePrivacy(a, b, m),
 };
 
 /** The plans ordered by a criterion, best first (a new array). */
 export function rankPlans<P extends CoinSelectionPlan>(plans: readonly P[], criterion: PlanCriterion): P[] {
-  return [...plans].sort(CRITERION_ORDER[criterion]);
+  const minFee = Math.min(...plans.map(p => p.facts.fee));
+  const order = CRITERION_ORDER[criterion];
+  return [...plans].sort((a, b) => order(a, b, minFee));
 }
 
 /** The facts as numbers, lower is better, in tier order; the fee (index FEE) compares with a tolerance; then change. */

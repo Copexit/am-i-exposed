@@ -480,10 +480,10 @@ export function ObserverLearns({ plan }: { plan: CoinSelectionPlan }) {
   const f = plan.facts;
   const ratio = fmtRatio(plan.change, plan.paymentAmount, i18n.language);
   const changeRow = plan.warnings.find(w => w.id === "change-merge")?.count ?? 0;
-  const items: { key: string; params?: Record<string, string> }[] = [
+  const items: { key: string; params?: Record<string, string | number> }[] = [
     ...f.violations.map(v => ({ key: `violation.${v}`, params: { n: fmtN(changeRow) } })),
     f.links > 0 ? { key: "links", params: { n: fmtN(plan.groups) } } : { key: plan.selected.length > 1 ? "links-none" : "single" },
-    ...(f.probable > 0 ? [{ key: "probable", params: { n: fmtN(f.probable) } }] : []),
+    ...(f.probable > 0 ? [{ key: "probable", params: { n: fmtN(f.probable), count: f.probable } }] : []),
     f.known ? { key: "recipient-known" } : { key: "recipient", params: { amount: fmtN(plan.inputTotal) } },
     plan.change === 0 ? { key: "change-none" } : { key: "change", params: { amount: fmtN(plan.change), ratio } },
     ...f.detectable.map(d => ({ key: `detect-${d}` })),
@@ -524,6 +524,7 @@ function DecisionPath({ plan }: { plan: CoinSelectionPlan }) {
             <span className="text-foreground/90 min-w-0">
               {t(s.violation ? `wallet.coinSel.path.violation.${s.violation}` : `wallet.coinSel.path.${s.id}`, {
                 n: fmtN(s.n ?? 0), amount: fmtN(s.amount ?? 0), ratio: fmtRatio(s.amount ?? 0, plan.paymentAmount, i18n.language),
+                ...(s.id === "probable" ? { count: s.n ?? 0 } : {}),
               })}
             </span>
           </li>

@@ -3473,7 +3473,6 @@
   "wallet.coinSel.learn.links": "Que {{n}} grupos de moedas que nada ligava são da mesma carteira",
   "wallet.coinSel.learn.links-none": "Nada novo sobre quais moedas andam juntas",
   "wallet.coinSel.learn.single": "Nada sobre suas outras moedas",
-  "wallet.coinSel.learn.probable": "A confirmação de {{n}} ligações prováveis",
   "wallet.coinSel.learn.recipient-known": "O destinatário: nada novo, ele já conhece estas moedas",
   "wallet.coinSel.learn.recipient": "O destinatário: que você tem pelo menos {{amount}} sats nestas moedas",
   "wallet.coinSel.learn.change-none": "Nenhuma saída de troco para seguir",
@@ -3497,7 +3496,6 @@
   "wallet.coinSel.path.detect-none": "As regras do valor redondo e do tipo de endereço não apontam o troco",
   "wallet.coinSel.path.detect-round": "Troco detectável: valor do pagamento redondo",
   "wallet.coinSel.path.detect-type": "Troco detectável: tipo de endereço diferente",
-  "wallet.coinSel.path.probable": "Confirma {{n}} ligações prováveis",
   "wallet.coinSel.warn.change-merge": "Funde a moeda de troco #{{count}} com outras moedas: um observador que identificou o troco agora a liga a elas. Gaste o troco sozinho, sem troco se possível, ou mova-o com um swap de Lightning.",
   "wallet.coinSel.alert.change-alone.title": "Troco gasto sozinho",
   "wallet.coinSel.alert.change-alone.body": "As moedas que não são troco somam {{amount}} sats, não bastam para este pagamento, então o primeiro plano gasta uma moeda de troco sozinha. Para deixar menos troco, divida o pagamento ou pague uma parte via um swap de Lightning.",
@@ -3514,7 +3512,7 @@
   "guide.checklist.rankE": "Troco que a regra do valor redondo ou do tipo de endereço apontaria: menos regras primeiro.",
   "guide.checklist.rankF": "Ligações prováveis confirmadas: menos primeiro.",
   "guide.checklist.rankG": "Entradas: menos primeiro.",
-  "guide.checklist.rankH": "Taxa, incluindo o que vai para os mineradores: menor primeiro. Uma diferença abaixo de 1.000 sats ou de 1% do pagamento conta como nenhuma.",
+  "guide.checklist.rankH": "Taxa, incluindo o que vai para os mineradores: menor primeiro. Uma diferença abaixo de 1.000 sats ou de 1% do pagamento, o que for maior, conta como nenhuma.",
   "wallet.coinSel.path.change-toxic": "Troco tóxico: {{amount}} sats, difícil de gastar depois",
   "wallet.coinSel.noClean.title": "Nenhuma opção limpa",
   "wallet.coinSel.noClean.intro": "Os dois melhores planos vazam algo importante, então nenhum é recomendado. Compare o que cada um revela e evita, e escolha:",
@@ -3535,7 +3533,11 @@
   "wallet.coinSel.avoid.less-change": "Um troco de {{other}} sats ({{amount}} aqui)",
   "wallet.coinSel.avoid.undetectable": "Troco apontado pelas regras do valor redondo ou do tipo de endereço",
   "wallet.coinSel.avoid.fewer-probable": "Confirmar mais ligações prováveis",
-  "wallet.coinSel.avoid.fewer-inputs": "Mais entradas ({{n}} aqui)",
+  "wallet.coinSel.avoid.fewer-inputs": "Mais entradas ({{other}} na outra opção)",
   "wallet.coinSel.avoid.lower-fee": "Uma taxa de {{other}} sats ({{amount}} aqui)",
-  "wallet.coinControl.chose": "Você escolheu a {{option}}"
+  "wallet.coinControl.chose": "Você escolheu a {{option}}",
+  "wallet.coinSel.path.probable_one": "Confirma 1 ligação provável",
+  "wallet.coinSel.path.probable_other": "Confirma {{n}} ligações prováveis",
+  "wallet.coinSel.learn.probable_one": "A confirmação de 1 ligação provável",
+  "wallet.coinSel.learn.probable_other": "A confirmação de {{n}} ligações prováveis"
 }

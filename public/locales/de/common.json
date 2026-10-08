@@ -3473,7 +3473,6 @@
   "wallet.coinSel.learn.links": "Dass {{n}} bisher unverknüpfte Gruppen von Coins zu einer Wallet gehören",
   "wallet.coinSel.learn.links-none": "Nichts Neues darüber, welche Coins zusammengehören",
   "wallet.coinSel.learn.single": "Nichts über deine anderen Coins",
-  "wallet.coinSel.learn.probable": "Eine Bestätigung von {{n}} wahrscheinlichen Verknüpfungen",
   "wallet.coinSel.learn.recipient-known": "Der Empfänger: nichts Neues, er kennt diese Coins schon",
   "wallet.coinSel.learn.recipient": "Der Empfänger: dass du mindestens {{amount}} sats in diesen Coins hältst",
   "wallet.coinSel.learn.change-none": "Kein Wechselgeld-Output, dem man folgen kann",
@@ -3497,7 +3496,6 @@
   "wallet.coinSel.path.detect-none": "Die Regeln für runde Beträge und Adresstyp zeigen nicht auf das Wechselgeld",
   "wallet.coinSel.path.detect-round": "Wechselgeld erkennbar: runder Zahlungsbetrag",
   "wallet.coinSel.path.detect-type": "Wechselgeld erkennbar: anderer Adresstyp",
-  "wallet.coinSel.path.probable": "Bestätigt {{n}} wahrscheinliche Verknüpfungen",
   "wallet.coinSel.warn.change-merge": "Führt Wechselgeld-Coin #{{count}} mit anderen Coins zusammen: Ein Beobachter, der das Wechselgeld erkannt hat, verknüpft es jetzt mit ihnen. Gib Wechselgeld einzeln aus, möglichst ohne Wechselgeld, oder verschiebe es mit einem Lightning-Swap.",
   "wallet.coinSel.alert.change-alone.title": "Wechselgeld einzeln ausgegeben",
   "wallet.coinSel.alert.change-alone.body": "Coins, die kein Wechselgeld sind, ergeben {{amount}} sats, zu wenig für diese Zahlung, daher gibt der erste Plan einen Wechselgeld-Coin allein aus. Für weniger Wechselgeld teile die Zahlung oder zahle einen Teil über einen Lightning-Swap.",
@@ -3514,7 +3512,7 @@
   "guide.checklist.rankE": "Wechselgeld, auf das die Regel für runde Beträge oder die für den Adresstyp zeigen würde: weniger solche Regeln zuerst.",
   "guide.checklist.rankF": "Bestätigte wahrscheinliche Verknüpfungen: weniger zuerst.",
   "guide.checklist.rankG": "Inputs: weniger zuerst.",
-  "guide.checklist.rankH": "Gebühr, einschließlich des Rests an die Miner: niedriger zuerst. Ein Unterschied unter 1.000 sats oder 1% der Zahlung zählt als keiner.",
+  "guide.checklist.rankH": "Gebühr, einschließlich des Rests an die Miner: niedriger zuerst. Ein Unterschied unter 1.000 sats oder 1% der Zahlung, je nachdem, was größer ist, zählt als keiner.",
   "wallet.coinSel.path.change-toxic": "Toxisches Wechselgeld: {{amount}} sats, später schwer auszugeben",
   "wallet.coinSel.noClean.title": "Keine saubere Option",
   "wallet.coinSel.noClean.intro": "Beide besten Pläne verraten etwas Wesentliches, daher wird keiner empfohlen. Vergleiche, was jeder verrät und vermeidet, und entscheide:",
@@ -3535,7 +3533,11 @@
   "wallet.coinSel.avoid.less-change": "Wechselgeld von {{other}} sats (hier {{amount}})",
   "wallet.coinSel.avoid.undetectable": "Wechselgeld, auf das die Regel für runde Beträge oder den Adresstyp zeigt",
   "wallet.coinSel.avoid.fewer-probable": "Mehr wahrscheinliche Verknüpfungen zu bestätigen",
-  "wallet.coinSel.avoid.fewer-inputs": "Mehr Inputs (hier {{n}})",
+  "wallet.coinSel.avoid.fewer-inputs": "Mehr Inputs ({{other}} in der anderen Option)",
   "wallet.coinSel.avoid.lower-fee": "Eine Gebühr von {{other}} sats (hier {{amount}})",
-  "wallet.coinControl.chose": "Du hast {{option}} gewählt"
+  "wallet.coinControl.chose": "Du hast {{option}} gewählt",
+  "wallet.coinSel.path.probable_one": "Bestätigt 1 wahrscheinliche Verknüpfung",
+  "wallet.coinSel.path.probable_other": "Bestätigt {{n}} wahrscheinliche Verknüpfungen",
+  "wallet.coinSel.learn.probable_one": "Eine Bestätigung von 1 wahrscheinlichen Verknüpfung",
+  "wallet.coinSel.learn.probable_other": "Eine Bestätigung von {{n}} wahrscheinlichen Verknüpfungen"
 }

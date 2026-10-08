@@ -3473,7 +3473,6 @@
   "wallet.coinSel.learn.links": "Que {{n}} grupos de monedas que nada vinculaba son de la misma cartera",
   "wallet.coinSel.learn.links-none": "Nada nuevo sobre qué monedas van juntas",
   "wallet.coinSel.learn.single": "Nada sobre tus otras monedas",
-  "wallet.coinSel.learn.probable": "La confirmación de {{n}} vínculos probables",
   "wallet.coinSel.learn.recipient-known": "El destinatario: nada nuevo, ya conoce estas monedas",
   "wallet.coinSel.learn.recipient": "El destinatario: que tienes al menos {{amount}} sats en estas monedas",
   "wallet.coinSel.learn.change-none": "Ninguna salida de cambio que seguir",
@@ -3497,7 +3496,6 @@
   "wallet.coinSel.path.detect-none": "Las reglas del importe redondo y del tipo de dirección no señalan el cambio",
   "wallet.coinSel.path.detect-round": "Cambio detectable: importe del pago redondo",
   "wallet.coinSel.path.detect-type": "Cambio detectable: tipo de dirección distinto",
-  "wallet.coinSel.path.probable": "Confirma {{n}} vínculos probables",
   "wallet.coinSel.warn.change-merge": "Fusiona la moneda de cambio #{{count}} con otras monedas: un observador que identificó el cambio ahora la vincula con ellas. Gasta el cambio por separado, sin cambio si puedes, o muévelo con un swap de Lightning.",
   "wallet.coinSel.alert.change-alone.title": "Cambio gastado por separado",
   "wallet.coinSel.alert.change-alone.body": "Las monedas que no son cambio suman {{amount}} sats, no bastan para este pago, así que el primer plan gasta una moneda de cambio sola. Para dejar menos cambio, divide el pago o paga una parte mediante un swap de Lightning.",
@@ -3514,7 +3512,7 @@
   "guide.checklist.rankE": "Cambio que señalarían la regla del importe redondo o la del tipo de dirección: menos reglas primero.",
   "guide.checklist.rankF": "Vínculos probables confirmados: menos primero.",
   "guide.checklist.rankG": "Entradas: menos primero.",
-  "guide.checklist.rankH": "Comisión, incluido lo que se da a los mineros: menor primero. Una diferencia de menos de 1.000 sats o del 1% del pago cuenta como ninguna.",
+  "guide.checklist.rankH": "Comisión, incluido lo que se da a los mineros: menor primero. Una diferencia de menos de 1.000 sats o del 1% del pago, lo que sea mayor, cuenta como ninguna.",
   "wallet.coinSel.path.change-toxic": "Cambio tóxico: {{amount}} sats, difícil de gastar después",
   "wallet.coinSel.noClean.title": "Ninguna opción limpia",
   "wallet.coinSel.noClean.intro": "Los dos mejores planes filtran algo importante, así que ninguno se recomienda. Compara lo que cada uno revela y lo que evita, y elige:",
@@ -3535,7 +3533,11 @@
   "wallet.coinSel.avoid.less-change": "Un cambio de {{other}} sats ({{amount}} aquí)",
   "wallet.coinSel.avoid.undetectable": "Un cambio que señalan las reglas del importe redondo o del tipo de dirección",
   "wallet.coinSel.avoid.fewer-probable": "Confirmar más vínculos probables",
-  "wallet.coinSel.avoid.fewer-inputs": "Más entradas ({{n}} aquí)",
+  "wallet.coinSel.avoid.fewer-inputs": "Más entradas ({{other}} en la otra opción)",
   "wallet.coinSel.avoid.lower-fee": "Una comisión de {{other}} sats ({{amount}} aquí)",
-  "wallet.coinControl.chose": "Has elegido la {{option}}"
+  "wallet.coinControl.chose": "Has elegido la {{option}}",
+  "wallet.coinSel.path.probable_one": "Confirma 1 vínculo probable",
+  "wallet.coinSel.path.probable_other": "Confirma {{n}} vínculos probables",
+  "wallet.coinSel.learn.probable_one": "La confirmación de 1 vínculo probable",
+  "wallet.coinSel.learn.probable_other": "La confirmación de {{n}} vínculos probables"
 }
