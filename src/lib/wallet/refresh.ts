@@ -8,8 +8,8 @@
  * 3. Addresses holding an unconfirmed tx, or a tx with fewer than
  *    CONFIRM_DEPTH confirmations at the saved tip (reorg-safe), are refetched.
  * 4. Per chain, the addresses after the last used index are checked in a
- *    window of REFRESH_WINDOW; a used one is refetched and the window extends
- *    until REFRESH_WINDOW consecutive unused addresses.
+ *    window of REFRESH_WINDOW (or the saved gap limit, if lower); a used one is
+ *    refetched and the window extends until that many consecutive unused addresses.
  *
  * Not seen: a new payment to an already used address below the frontier that
  * holds no saved coin. The weekly full rescan (FULL_RESCAN_AFTER_MS) covers it.
@@ -90,7 +90,8 @@ export async function quickRefresh(
   chains: readonly (0 | 1)[],
   api: MempoolClient,
   getTipHeight: () => Promise<number | null>,
-  { signal, local, window = REFRESH_WINDOW }: { signal?: AbortSignal; local: boolean; window?: number },
+  // Never looks further ahead than the full scan did (hosted scans default to a gap of 5)
+  { signal, local, window = Math.min(REFRESH_WINDOW, snap.gapLimit) }: { signal?: AbortSignal; local: boolean; window?: number },
 ): Promise<RefreshResult> {
   const pace: Pace = local ? (fn) => fn() : createPacer(HOSTED_BURST, HOSTED_INTERVAL_MS, signal);
   const concurrency = local ? 6 : 3;
