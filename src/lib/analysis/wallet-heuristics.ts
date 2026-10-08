@@ -137,13 +137,20 @@ function rulesPick(tx: MempoolTransaction, a: MempoolVout, b: MempoolVout): { ty
  * real change. A payment counts when at least one rule picks the change and
  * none picks the payment: with contradicting rules an analyst cannot tell.
  */
+/** The rules that point at the real change of `p`, or null when none does or one points at the payment. */
+export function changeExposure({ tx, change, payment }: SimplePayment): { type: boolean; round: boolean; optimal: boolean } | null {
+  const right = rulesPick(tx, change, payment);
+  const wrong = rulesPick(tx, payment, change);
+  return wrong.type || wrong.round || wrong.optimal || !(right.type || right.round || right.optimal) ? null : right;
+}
+
 export function checkChangeExposure(payments: readonly SimplePayment[]): Finding[] {
   let byType = 0, byRound = 0, byOptimal = 0;
   const exposedTxids: string[] = [];
-  for (const { tx, change, payment } of payments) {
-    const right = rulesPick(tx, change, payment);
-    const wrong = rulesPick(tx, payment, change);
-    if (wrong.type || wrong.round || wrong.optimal || !(right.type || right.round || right.optimal)) continue;
+  for (const p of payments) {
+    const { tx } = p;
+    const right = changeExposure(p);
+    if (!right) continue;
     if (right.type) byType++;
     if (right.round) byRound++;
     if (right.optimal) byOptimal++;
