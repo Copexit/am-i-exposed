@@ -446,15 +446,19 @@ export function labelsFilename(xpub: string): string {
   return `${bytesToHex(sha256(new TextEncoder().encode(xpub))).slice(0, 8)}-labels.jsonl`;
 }
 
-/** Selector inputs with each coin's label, tags, origins and freeze. */
+/** Selector inputs with each coin's label, tags, origins, observer and platform fields, and freeze. */
 export function withLabels<T extends { utxo: { txid: string; vout: number } }>(coins: readonly T[], labels: WalletLabels | null): (T & {
-  label?: string; labelTags?: readonly LabelTag[]; labelOrigins?: readonly string[]; frozen?: boolean;
+  label?: string; labelTags?: readonly LabelTag[]; labelOrigins?: readonly string[]; frozen?: boolean; labelObserver?: string; labelPlatform?: string;
 })[] {
   if (!labels) return [...coins];
   return coins.map((c) => {
     const l = labels.coins.get(`${c.utxo.txid}:${c.utxo.vout}`);
     if (!l) return c;
-    return { ...c, label: l.text, labelTags: l.tags, labelOrigins: l.origins, ...(l.frozen ? { frozen: true } : {}) };
+    const p = l.text ? parseLabel(l.text) : null;
+    return {
+      ...c, label: l.text, labelTags: l.tags, labelOrigins: l.origins, ...(l.frozen ? { frozen: true } : {}),
+      ...(p?.who ? { labelObserver: p.who } : {}), ...(p?.platform ? { labelPlatform: p.platform } : {}),
+    };
   });
 }
 

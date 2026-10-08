@@ -288,7 +288,7 @@ describe("adviseCoinSelection: no-change plan", () => {
     expect(a.plans[1]!.origins).toBe(3);
   });
 
-  it("never recommends merging CoinJoin outputs, even two of the same CoinJoin", () => {
+  it("never merges CoinJoin outputs when one coin pays alone, even two of the same CoinJoin", () => {
     const a = plans(adviseCoinSelection([
       coin(500_000),
       coin(41_000, { txid: "cj", origin: "mixed" }),
@@ -299,8 +299,9 @@ describe("adviseCoinSelection: no-change plan", () => {
     // Mixed with a plain coin
     expect(strategies(adviseCoinSelection([coin(450_000), coin(60_000, { origin: "mixed" }), coin(40_200)], 100_000, 1)))
       .toEqual(["single-coin"]);
+    // Rule 9: with no single coin, merging only CoinJoin outputs is allowed (not a fallback), still with its high warning
     const only = plans(adviseCoinSelection([coin(41_000, { txid: "cj", origin: "mixed" }), coin(20_000, { txid: "cj", origin: "mixed" })], 60_000, 1)).plans;
-    expect(only.map(p => [p.strategy, p.reason])).toEqual([["no-change", "fallback"]]);
+    expect(only.map(p => [p.strategy, p.reason])).toEqual([["no-change", "links"]]);
     expect(only[0]!.warnings[0]).toMatchObject({ id: "coinjoin-merge", severity: "high", count: 2 });
   });
 
@@ -432,12 +433,12 @@ describe("adviseCoinSelection: privacy cost ranking", () => {
     expect(a.plans[0]!.warnings.map(w => w.id)).not.toContain("merges-origins");
   });
 
-  it("the big-change cost grows with the ratio past 10x, capped at half a link more", () => {
+  it("the big-change cost: bigChange from 3x, the cap (half a link more) from 10x", () => {
     const cost = (big: number) => plans(adviseCoinSelection([coin(big)], 100_000, 1)).plans[0]!.cost;
     expect(cost(500_000)).toBe(4 + 9); // ~4x
-    expect(cost(1_100_000)).toBeCloseTo(4 + 9, 0); // ~10x
-    expect(cost(2_100_000)).toBeCloseTo(4 + 9 + 12 * Math.log10(2), 1); // ~20x
-    expect(cost(100_000_000)).toBe(4 + 9 + 6); // ~1000x: capped
+    expect(cost(1_090_000)).toBe(4 + 9); // just under 10x
+    expect(cost(1_110_000)).toBe(4 + 9 + 6); // just over 10x: capped
+    expect(cost(100_000_000)).toBe(4 + 9 + 6); // ~1000x
   });
 
   it("never prefers merging 3 unrelated receipts over one big coin", () => {
