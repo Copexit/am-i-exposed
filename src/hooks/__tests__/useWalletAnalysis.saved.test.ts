@@ -101,6 +101,32 @@ describe("useWalletAnalysis saved wallets", () => {
     expect(second.current.labels).toEqual([{ type: "addr", ref: addr(0, 0), label: "salary" }]);
   });
 
+  it("keeps the wallet-level origin (an xpub label record) without storing the key", async () => {
+    const { setWalletOrigin } = await import("@/lib/wallet/labels");
+    const first = await scan();
+    const parsedXpub = first.current.descriptor!.xpub;
+    act(() => { first.current.setLabels(setWalletOrigin([], parsedXpub, "nokyc")); });
+    await waitFor(async () => expect((await loadSnapshot(KEY, ZPUB))?.labels).toHaveLength(1));
+    const second = await scan();
+    expect(second.current.labels).toEqual(setWalletOrigin([], parsedXpub, "nokyc"));
+  });
+
+  it("forget stops the running refresh and nothing is saved again", async () => {
+    await scan();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    vi.stubGlobal("fetch", vi.fn(async () => { await gate; return new Response(String(chain.current.tip)); }));
+    const hook = renderHook(() => useWalletAnalysis());
+    let done!: Promise<void>;
+    act(() => { done = hook.result.current.analyze(ZPUB); });
+    await waitFor(() => expect(hook.result.current.saved?.status).toBe("refreshing"));
+    await act(async () => { await hook.result.current.forget(); });
+    release();
+    await act(async () => { await done; });
+    expect(hook.result.current.saved).toBeNull();
+    expect(await loadSnapshot(KEY, ZPUB)).toBeNull();
+  });
+
   it("forget deletes the snapshot", async () => {
     const r = await scan();
     await act(async () => { await r.current.forget(); });
