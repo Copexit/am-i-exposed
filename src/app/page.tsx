@@ -157,6 +157,12 @@ export default function ScannerPage() {
               scriptTypeDetected={wallet.scriptTypeDetected}
               gapLimit={wallet.gapLimit}
               onRescanGap={(n) => { if (wallet.query) void wallet.analyze(wallet.query, undefined, n); }}
+              labelRecords={wallet.labels}
+              onLabelsChange={wallet.setLabels}
+              saved={wallet.saved}
+              saveError={wallet.saveError}
+              onFullRescan={() => { if (wallet.query) void wallet.analyze(wallet.query, undefined, undefined, { fullRescan: true }); }}
+              onForget={() => void wallet.forget()}
             />
           </Suspense>
         )}

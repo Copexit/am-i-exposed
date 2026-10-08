@@ -1,19 +1,23 @@
 "use client";
 
-import { Database, Trash2 } from "lucide-react";
+import { Database, Trash2, X } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { idbCount, idbClear } from "@/lib/api/idb-cache";
 import { useAnalysisSettings } from "@/hooks/useAnalysisSettings";
+import { clearSavedWallets, forgetWallet, listSavedWallets, type SavedWalletMeta } from "@/lib/wallet/saved-wallets";
+import { formatSize, formatTimeAgo } from "@/lib/format";
 
 export function CacheSettingsPanel() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { settings, update } = useAnalysisSettings();
   const [count, setCount] = useState<number | null>(null);
+  const [wallets, setWallets] = useState<SavedWalletMeta[]>([]);
   const [clearing, setClearing] = useState(false);
 
   const refreshCount = useCallback(() => {
     idbCount().then(setCount).catch(() => setCount(0));
+    void listSavedWallets().then(setWallets);
   }, []);
 
   useEffect(() => {
@@ -23,8 +27,9 @@ export function CacheSettingsPanel() {
   const handleClear = async () => {
     setClearing(true);
     try {
-      await idbClear();
+      await Promise.all([idbClear(), clearSavedWallets()]);
       setCount(0);
+      setWallets([]);
     } catch {
       // Silently fail
     } finally {
@@ -62,7 +67,7 @@ export function CacheSettingsPanel() {
           {settings.enableCache && (
             <button
               onClick={handleClear}
-              disabled={clearing || count === 0}
+              disabled={clearing || (count === 0 && wallets.length === 0)}
               className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Trash2 size={12} />
@@ -92,6 +97,31 @@ export function CacheSettingsPanel() {
           />
         </button>
       </label>
+
+      {settings.enableCache && wallets.length > 0 && (
+        <div className="mt-2">
+          <span className="text-xs text-muted">{t("settings.savedWallets", { defaultValue: "Saved wallets" })}</span>
+          <ul className="mt-1 space-y-0.5" data-testid="saved-wallets">
+            {wallets.map((w) => (
+              <li key={w.key} className="flex items-center gap-2 text-[11px] text-muted">
+                <span className="font-mono text-foreground" title={t("settings.savedWalletId", { defaultValue: "Wallet ID (hash, not the key)" })}>{w.key.slice(0, 8)}</span>
+                <span className="flex-1 min-w-0 truncate">
+                  {w.scriptType} · {w.backend.split("@")[0]} · {formatTimeAgo(Math.floor(w.scannedAt / 1000), i18n.language)} · {formatSize(w.size)}
+                </span>
+                <button
+                  type="button"
+                  onClick={async () => { await forgetWallet(w.key); refreshCount(); }}
+                  aria-label={t("wallet.saved.forget", { defaultValue: "Forget this wallet" })}
+                  title={t("wallet.saved.forget", { defaultValue: "Forget this wallet" })}
+                  className="p-1 -m-1 rounded text-muted hover:text-foreground cursor-pointer"
+                >
+                  <X size={12} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <p className="text-[10px] text-muted/60 mt-1">
         {settings.enableCache

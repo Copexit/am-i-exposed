@@ -5,7 +5,8 @@ import { useTranslation } from "react-i18next";
 import { ChevronRight } from "lucide-react";
 import type { WalletAuditResult, WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import type { DescriptorParseResult, ScriptType } from "@/lib/bitcoin/descriptor";
-import { RESCAN_GAP_LIMITS, type UtxoTraceResult } from "@/hooks/useWalletAnalysis";
+import { RESCAN_GAP_LIMITS, type UtxoTraceResult, type SavedStatus } from "@/hooks/useWalletAnalysis";
+import { SavedScanBar } from "@/components/wallet/SavedScanBar";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { GRADE_COLORS, GRADE_VAR, P2PKH_DUST_LIMIT } from "@/lib/constants";
 import { fmtN } from "@/lib/format";
@@ -56,6 +57,13 @@ interface WalletResultsProps {
   gapLimit?: number | null;
   /** Rescan with the standard gap limit (offered when the scan used a lower one) */
   onRescanGap?: (gapLimit: number) => void;
+  /** BIP329 labels, kept with the saved wallet when there is one */
+  labelRecords: Bip329Record[];
+  onLabelsChange: (records: Bip329Record[]) => void;
+  saved?: SavedStatus | null;
+  saveError?: { code: "tooLarge" | "quota"; size: number } | null;
+  onFullRescan?: () => void;
+  onForget?: () => void;
 }
 
 /** Wallet (xpub / descriptor) audit: verdict band, grouped findings, analyst workspace. */
@@ -67,12 +75,9 @@ const WRAP: Record<ScriptType, (k: string) => string> = {
   "p2pkh": (k) => `pkh(${k})`,
 };
 
-export function WalletResults({ descriptor, result, addressInfos, utxoTraces, onBack, onScan, durationMs, scriptTypeDetected, gapLimit, onRescanGap }: WalletResultsProps) {
+export function WalletResults({ descriptor, result, addressInfos, utxoTraces, onBack, onScan, durationMs, scriptTypeDetected, gapLimit, onRescanGap, labelRecords, onLabelsChange, saved, saveError, onFullRescan, onForget }: WalletResultsProps) {
   const { t } = useTranslation();
   const [addressesOpen, setAddressesOpen] = useState(false);
-  // BIP329 labels: memory only, as imported (lib/wallet/bip329). One serializable array, so a later
-  // version can persist it per wallet.
-  const [labelRecords, setLabelRecords] = useState<Bip329Record[]>([]);
   const labels = useMemo(
     () => (labelRecords.length > 0 ? matchLabels(labelRecords, addressInfos, descriptor.xpub) : null),
     [labelRecords, addressInfos, descriptor.xpub],
@@ -106,7 +111,12 @@ export function WalletResults({ descriptor, result, addressInfos, utxoTraces, on
   return (
     <WalletLabelsContext.Provider value={labels}>
     <FlowShell className="py-6 sm:py-10 space-y-10" testId="wallet-results">
-      <NewScanLink onBack={onBack} />
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
+        <NewScanLink onBack={onBack} />
+        {(saved || saveError) && (
+          <SavedScanBar saved={saved ?? null} saveError={saveError ?? null} onFullRescan={onFullRescan} onForget={onForget} />
+        )}
+      </div>
 
       {/* Verdict band */}
       <section
@@ -257,7 +267,7 @@ export function WalletResults({ descriptor, result, addressInfos, utxoTraces, on
         accountPath={descriptor.accountPath}
         xpub={descriptor.xpub}
         labelRecords={labelRecords}
-        onLabelsChange={setLabelRecords}
+        onLabelsChange={onLabelsChange}
       />
     </FlowShell>
     </WalletLabelsContext.Provider>
