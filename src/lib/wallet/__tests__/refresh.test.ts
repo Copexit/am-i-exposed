@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { WalletAddressInfo } from "@/lib/analysis/wallet-audit";
+import type { ScriptType } from "@/lib/bitcoin/descriptor";
 import { scanChain } from "../scan";
 import { quickRefresh, verifyCoins, newTxids, REFRESH_WINDOW } from "../refresh";
 import { lastUsedIndex, SNAPSHOT_VERSION, type WalletSnapshot } from "../saved-wallets";
@@ -194,14 +195,15 @@ describe("request counts: quick refresh vs full scan (mocked 250-address wallet,
 });
 
 // Optional: the same comparison on a real signet wallet. Never hardcode a key here:
-// AIE_HARNESS_XPUB=tpub... [AIE_HARNESS_API=https://mempool.space/signet/api] [AIE_HARNESS_GAP=20] pnpm vitest run refresh
+// AIE_HARNESS_XPUB=tpub... [AIE_HARNESS_TYPE=p2wpkh] [AIE_HARNESS_API=https://mempool.space/signet/api] [AIE_HARNESS_GAP=20] pnpm vitest run refresh
 const REAL_XPUB = process.env.AIE_HARNESS_XPUB;
 describe.skipIf(!REAL_XPUB)("request counts on a real wallet (AIE_HARNESS_XPUB)", () => {
   it("counts requests", async () => {
     const { parseXpub } = await import("@/lib/bitcoin/descriptor");
     const { createMempoolClient } = await import("@/lib/api/mempool");
     const { walletChains } = await import("../scan");
-    const real = parseXpub(REAL_XPUB!);
+    // A bare xpub/tpub reads as legacy: AIE_HARNESS_TYPE=p2wpkh (or a descriptor) sets the address type
+    const real = parseXpub(REAL_XPUB!, process.env.AIE_HARNESS_TYPE as ScriptType | undefined);
     const base = process.env.AIE_HARNESS_API ?? "https://mempool.space/signet/api";
     const gap = Number(process.env.AIE_HARNESS_GAP ?? 20);
     const inner = createMempoolClient(base);
