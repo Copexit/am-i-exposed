@@ -7,7 +7,7 @@ import { useNetwork } from "@/context/NetworkContext";
 import type { Venue } from "@/lib/observatory/p2p/types";
 import { useObsState } from "@/hooks/useObsState";
 import { useP2p, useP2pHistory } from "@/hooks/useP2p";
-import { buildMarkets, defaultCurrency, filterMethod, filterVenues, headline as buildHeadline, makerSide, methodCounts, premiumBoard } from "@/lib/observatory/p2p/market";
+import { buildMarkets, defaultCurrency, filterAmount, filterMethod, filterVenues, indexFor, headline as buildHeadline, makerSide, methodCounts, premiumBoard } from "@/lib/observatory/p2p/market";
 import { Section, SubNav } from "@/components/observatory/ObsSections";
 import { P2pHeadline } from "./P2pHeadline";
 import { SourceStrip } from "./SourceStrip";
@@ -15,6 +15,9 @@ import { MarketSelector, type MarketPatch } from "./MarketSelector";
 import { P2pFooter } from "./P2pFooter";
 import { PaymentMethodPicker, PmFilterNote } from "./PaymentMethodPicker";
 import { DepthWall } from "./DepthWall";
+import { AmountFilter, fmtBtcAmount, focusAmountInput, type AmountPatch } from "./AmountFilter";
+import { fmtFiat } from "@/lib/observatory/p2p/p2p-format";
+import type { ObsState } from "@/lib/observatory/obs-hash";
 import { OfferList } from "./OfferList";
 import { PremiumBoard } from "./PremiumBoard";
 import { VenueSection } from "./VenueSection";
@@ -70,13 +73,21 @@ export function P2pTab() {
 
   const head = useMemo(() => (offers.length ? buildHeadline(markets, hosts, cur) : null), [markets, hosts, cur, offers.length]);
   const byVenue = useMemo(() => filterVenues(offers, obs.venue), [offers, obs.venue]);
-  // Currency chips count every method; the wall, list, stats and nearest markets follow the method filter.
+  // Currency chips count every method and amount; the wall, list, stats, method counts and nearest markets follow the filters.
   const venueMarkets = useMemo(() => buildMarkets(byVenue, index), [byVenue, index]);
-  const shown = useMemo(() => (obs.pm ? buildMarkets(filterMethod(byVenue, obs.pm), index) : venueMarkets), [byVenue, obs.pm, index, venueMarkets]);
+  const idx = cur ? indexFor(cur, index) : null;
+  const byAmount = useMemo(
+    () => filterAmount(byVenue, cur, obs.amt === null ? null : { value: obs.amt, unit: obs.amtu }, idx),
+    [byVenue, cur, obs.amt, obs.amtu, idx],
+  );
+  const shown = useMemo(
+    () => (obs.pm || obs.amt !== null ? buildMarkets(filterMethod(byAmount, obs.pm), index) : venueMarkets),
+    [byAmount, obs.pm, obs.amt, index, venueMarkets],
+  );
 
   const market = cur ? shown.get(cur) ?? null : null;
   const maker = makerSide(obs.side);
-  const sideOffers = useMemo(() => (cur ? venueMarkets.get(cur)?.offers.filter((o) => o.side === maker) ?? [] : []), [venueMarkets, cur, maker]);
+  const sideOffers = useMemo(() => byAmount.filter((o) => o.currency === cur && o.side === maker), [byAmount, cur, maker]);
   const methods = useMemo(() => methodCounts(sideOffers), [sideOffers]);
   const nearest = useMemo(() => [...shown.values()]
     .filter((m) => m.currency !== cur && m.index !== null)
@@ -85,6 +96,12 @@ export function P2pTab() {
     .sort((a, b) => b.n - a.n)
     .slice(0, 3)
     .map((m) => m.c), [shown, cur, maker]);
+  const amountLabel = obs.amt === null || !cur ? null : obs.amtu === "btc" ? `${fmtBtcAmount(obs.amt, locale)} BTC` : fmtFiat(obs.amt, cur, locale);
+
+  // A fiat amount means nothing in another currency: switching market clears it.
+  const setMarket = useCallback((patch: Partial<ObsState>) =>
+    setObs(patch.cur && patch.cur !== cur && obs.amt !== null && obs.amtu === "fiat" ? { ...patch, amt: null } : patch), [setObs, cur, obs.amt, obs.amtu]);
+  const onAmount = useCallback((patch: AmountPatch) => setObs(patch), [setObs]);
 
   // History loads lazily, when the Volume section approaches the viewport.
   const [volumeNear, setVolumeNear] = useState(() => typeof IntersectionObserver === "undefined");
@@ -101,12 +118,12 @@ export function P2pTab() {
 
   const board = useMemo(() => premiumBoard(markets, obs.side), [markets, obs.side]);
   const onBoard = useCallback((c: string, v: Venue) => {
-    setObs({ cur: c, venue: [v], pm: null });
+    setMarket({ cur: c, venue: [v], pm: null });
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     requestAnimationFrame(() => document.getElementById("p2p-markets")?.scrollIntoView?.({ behavior: reduce ? "auto" : "smooth", block: "start" }));
-  }, [setObs]);
+  }, [setMarket]);
 
-  const onChange = useCallback((patch: MarketPatch) => setObs(patch), [setObs]);
+  const onChange = useCallback((patch: MarketPatch) => setMarket(patch), [setMarket]);
   const retry = useCallback(() => { for (const s of sources) s.refresh(); }, [sources]);
 
   const nav = [
@@ -135,9 +152,14 @@ export function P2pTab() {
             lead={t("observatory.p2p.markets.lead", { defaultValue: "Every live offer in one currency, by premium over the index. Pick what you want to do and where." })}
           >
             <MarketSelector markets={venueMarkets} cur={cur} side={obs.side} venues={obs.venue} onChange={onChange}>
-              <PaymentMethodPicker methods={methods} total={sideOffers.length} pm={obs.pm} onChange={(pm) => setObs({ pm })} />
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-start">
+                {cur && <AmountFilter cur={cur} idx={idx} amt={obs.amt} unit={obs.amtu} onChange={onAmount} />}
+                <PaymentMethodPicker methods={methods} total={sideOffers.length} pm={obs.pm} onChange={(pm) => setObs({ pm })} />
+              </div>
             </MarketSelector>
-            {!loading && <PmFilterNote market={market} side={obs.side} pm={obs.pm} onClear={() => setObs({ pm: null })} />}
+            {!loading && (
+              <PmFilterNote market={market} side={obs.side} pm={obs.pm} amount={amountLabel} hosts={hosts} onClear={() => setObs({ pm: null })} onClearAmount={() => { setObs({ amt: null }); focusAmountInput(); }} />
+            )}
             {loading ? (
               <BlockSkeleton h={320} />
             ) : (
@@ -149,7 +171,7 @@ export function P2pTab() {
                   hosts={hosts}
                   nearest={nearest}
                   onView={(view) => setObs({ view })}
-                  onPickCurrency={(c) => setObs({ cur: c })}
+                  onPickCurrency={(c) => setMarket({ cur: c })}
                 />
                 <OfferList market={market} side={obs.side} hosts={hosts} nowSec={data.nowSec} />
               </>

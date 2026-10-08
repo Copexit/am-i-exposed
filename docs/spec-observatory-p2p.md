@@ -347,10 +347,29 @@ Extends the Observatory hash (`src/lib/observatory/obs-hash.ts`, tolerant parse,
 - `&side=sell` (default `buy`, meaning the visitor wants to buy, so sell offers are listed)
 - `&venue=robosats,mostro` (subset of venues; default all)
 - `&pm=sepa-instant` (payment-method filter, a canonical id from `src/lib/observatory/p2p/payment-methods.ts` or `other`; unknown ids are ignored). Raw labels from every venue (RoboSats space-joined `pm` tag, Mostro free text, HodlHodl names with a type) map to catalog ids; a label matching nothing maps to `other`, so no offer is dropped. An offer matches when any of its methods matches. The filter narrows the wall, the offer list and the nearest-market suggestions, and a status note states the filtered count, BTC and median premium; currency chip counts and the headline stay unfiltered.
+- `&amt=250&amtu=fiat` (amount filter, see below). `amt` is a plain decimal (`^\d{1,13}(\.\d{1,8})?$`, no signs, exponents or grouping) between 0.01 and 1e12 for `amtu=fiat`, or between 1 sat (0.00000001) and 21e6 for `amtu=btc`; anything else is dropped. `amtu` is written with every `amt`; a missing or unknown unit reads as `fiat`.
 - `&view=table` (reused: replaces the wall with a table of depth steps)
 - `&coordinator=<key>` (reused: scrolls to and highlights that coordinator or instance card)
 
-`cur`, `side` and `venue` changes replace the history entry (they are selections), like `coordinator` and `tx` today.
+`cur`, `side`, `venue`, `pm`, `amt` and `amtu` changes replace the history entry (they are selections), like `coordinator` and `tx` today.
+
+### Amount filter
+
+An amount input sits beside the payment-method picker, in the selected market currency or in BTC (a unit toggle). It composes with side, currency, venue and payment method, and narrows the wall, the offer list, the picker's method counts and the status note. The note reads "Offers that accept €250 by SEPA: N offers, X BTC. Median premium +x%." A second line names the best listed offer for the amount ("Cheapest for €250 by SEPA: <venue>, +x%", or "Best price to sell ..." on the sell side). Unlisted Mostro instances never appear in that line. Currency chip counts and the headline stay unfiltered.
+
+Venue encodings, all normalized to `fiatMin`/`fiatMax` in the offer currency:
+- RoboSats: `fa` with two values is a range and one value is a fixed amount; `amt` is 0.
+- Mostro: `fa` is a range or one value; one value with `amt > 0` is a fixed fiat amount for fixed sats.
+- HodlHodl: `min_amount`/`max_amount`, with min == max a fixed amount.
+- No `fa` tag, or empty HodlHodl limits, gives null limits.
+
+Matching (`amountMatch` and `filterAmount` in `market.ts`), only in the selected currency:
+- Range: `fiatMin <= amount <= fiatMax`, inclusive. A one-sided limit is open on the missing side.
+- Fixed (`fiatMin === fiatMax`): matches within ±5% of the offer amount (`FIXED_TOLERANCE`).
+- No stated limits: kept, and the amount cell reads "No limits stated".
+- A BTC amount is priced at the offer's own `price` when it has one, else at the market index; it is an estimate. An offer with neither is kept.
+
+Input: `inputmode=decimal`, accessible name "Amount in EUR". Typing writes the hash after a 400 ms pause. Both "1.234,56" and "1,234.56" parse; a lone separator followed by exactly 3 digits is a grouping mark unless it is the locale's decimal mark. Pasted currency symbols or codes at either end ("€250", "250 EUR") are stripped. Out-of-range values get their own message with the bounds. The converted value shows under the input ("≈ 0.0034 BTC"), and a tooltip states the rules and the tolerance. Switching unit converts the value at the index. The BTC unit is `aria-disabled`, with its reason described, when the currency has no index. Changing currency clears a fiat amount, including one still pending in the debounce; a BTC amount is kept. Clearing from the input, Escape or the note's "Any amount" returns focus to the input.
 
 ## Mobile layout (390 px)
 

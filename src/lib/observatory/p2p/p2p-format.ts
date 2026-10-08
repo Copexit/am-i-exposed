@@ -28,3 +28,29 @@ export function fmtFiatRange(min: number | null, max: number | null, currency: s
   if (min === null || min === max) return fmtFiat(max, currency, locale);
   return `${fmtFiat(min, currency, locale, min >= 10_000)} - ${fmtFiat(max, currency, locale, max >= 10_000)}`;
 }
+
+/**
+ * A typed or pasted amount in either "1.234,56" or "1,234.56" form; null unless a positive number.
+ * The last separator is the decimal one when both appear; a lone separator is grouping only when
+ * it repeats, or when exactly 3 digits follow a non-zero integer part and it is not the locale's decimal mark.
+ */
+export function parseAmount(text: string, locale: string): number | null {
+  // A pasted "€250", "250 EUR" or "R$ 250": currency symbols and codes at either end go.
+  const s = text.replace(/^[\p{L}\p{Sc}\s]+|[\p{L}\p{Sc}\s]+$/gu, "").replace(/[\s\u00a0\u202f']/g, "");
+  if (!/^[\d.,]+$/.test(s) || !/\d/.test(s)) return null;
+  const dots = s.split(".").length - 1;
+  const commas = s.split(",").length - 1;
+  let dec: "." | "," | null = null;
+  if (dots && commas) dec = s.lastIndexOf(".") > s.lastIndexOf(",") ? "." : ",";
+  else if (dots + commas === 1) {
+    const sep = dots ? "." : ",";
+    const [int = "", frac = ""] = s.split(sep);
+    const localeDec = (1.5).toLocaleString(locale).charAt(1);
+    dec = frac.length === 3 && /[1-9]/.test(int) && sep !== localeDec ? null : sep;
+  }
+  const grp = dec === "." ? "," : dec === "," ? "." : /[.,]/;
+  const [int, frac, extra] = s.split(dec ?? "\u0000").map((p, i) => (i === 0 ? p.split(grp).join("") : p));
+  if (extra !== undefined || (frac !== undefined && /[.,]/.test(frac))) return null;
+  const n = Number(`${int || "0"}.${frac ?? ""}`.replace(/\.$/, ""));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}

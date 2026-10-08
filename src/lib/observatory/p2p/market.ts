@@ -183,3 +183,34 @@ export function methodCounts(offers: P2pOffer[]): { id: string; count: number }[
     .map(([id, count]) => ({ id, count }))
     .sort((a, b) => Number(a.id === "other") - Number(b.id === "other") || b.count - a.count || a.id.localeCompare(b.id));
 }
+
+/** A fixed-amount offer matches an amount within this fraction of its amount. */
+export const FIXED_TOLERANCE = 0.05;
+
+/**
+ * How an offer takes a fiat amount: inside its min..max ("range"), within ±5% of its one amount
+ * ("fixed"), or "open" when it states no limits (kept, and marked). null: it does not take it.
+ * A one-sided limit counts as open on the other side.
+ */
+export function amountMatch(o: P2pOffer, amount: number): "range" | "fixed" | "open" | null {
+  const { fiatMin: lo, fiatMax: hi } = o;
+  if (lo === null && hi === null) return "open";
+  if (lo !== null && lo === hi) return Math.abs(amount - lo) <= lo * FIXED_TOLERANCE + 1e-9 ? "fixed" : null;
+  return amount >= (lo ?? 0) && amount <= (hi ?? Infinity) ? "range" : null;
+}
+
+export interface AmountFilterSpec { value: number; unit: "fiat" | "btc" }
+
+/**
+ * Offers in `currency` that take the amount; other currencies and a null amount pass through.
+ * A BTC amount is priced at the offer's own price when it has one, else at the index; an offer
+ * with neither is kept, since nothing says it cannot take the amount.
+ */
+export function filterAmount(offers: P2pOffer[], currency: string | null, amount: AmountFilterSpec | null, idx: number | null = null): P2pOffer[] {
+  if (amount === null) return offers;
+  return offers.filter((o) => {
+    if (o.currency !== currency) return true;
+    const rate = amount.unit === "btc" ? o.price ?? idx : 1;
+    return rate === null || amountMatch(o, amount.value * rate) !== null;
+  });
+}

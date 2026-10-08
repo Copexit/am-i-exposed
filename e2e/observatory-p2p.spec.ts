@@ -113,6 +113,39 @@ test("payment-method picker open at 390 px: no horizontal scroll", async ({ page
   await expect(page.getByTestId("p2p-pm-trigger")).toBeFocused();
 });
 
+test("amount filter: €250 narrows the list, names the cheapest venue, survives a reload, clears on currency change", async ({ page }) => {
+  await page.goto("/observatory/#p2p&cur=EUR");
+  await expect(rows(page).first()).toBeVisible({ timeout: 20_000 });
+  const input = page.getByRole("textbox", { name: "Amount in EUR" });
+  await input.fill("250");
+  await expect(page).toHaveURL(/#p2p&cur=EUR&amt=250&amtu=fiat$/);
+  // The clear button is not part of the input's name.
+  await expect(page.getByRole("textbox", { name: "Amount in EUR", exact: true })).toHaveValue("250");
+  await expect(page.getByTestId("p2p-amount")).toHaveAccessibleName("Amount in EUR");
+  await expect(page.getByTestId("p2p-amount-converted")).toContainText(/≈ 0\.00\d+ BTC/);
+  await expect(page.getByTestId("p2p-pm-note")).toContainText("Offers that accept €250:");
+  await expect(page.getByTestId("p2p-amount-best")).toContainText(/^Cheapest for €250: \S.+, [+−]?\d+\.\d%\.$/);
+  const shown = Number((await page.getByTestId("p2p-pm-note").textContent())!.match(/(\d+) offers?/)![1]);
+  expect(shown).toBeGreaterThan(0);
+  expect(await rows(page).count()).toBeGreaterThanOrEqual(Math.min(shown, 25));
+
+  await page.reload();
+  await expect(page.getByTestId("p2p-pm-note")).toContainText("€250", { timeout: 20_000 });
+  await expect(page.getByRole("textbox", { name: "Amount in EUR" })).toHaveValue("250");
+  await page.getByRole("list", { name: "Currency" }).getByRole("button", { name: /^USD \d/ }).click();
+  await expect(page).toHaveURL(/#p2p&cur=USD$/);
+  await expect(page.getByRole("textbox", { name: "Amount in USD" })).toHaveValue("");
+});
+
+test("amount filter at 390 px: no horizontal scroll with a value and the note", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/observatory/#p2p&cur=EUR&amt=250&amtu=fiat");
+  await expect(page.locator("[data-testid=p2p-offer-card]").first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId("p2p-amount-best")).toBeVisible();
+  const [sw, iw] = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
+  expect(sw).toBeLessThanOrEqual(iw);
+});
+
 for (const lang of ["en", "de", "pl"]) {
   test(`no horizontal scroll at 390 px (${lang})`, async ({ page }) => {
     await page.addInitScript((l) => { try { localStorage.setItem("ami-language", l); } catch { /* private mode */ } }, lang);

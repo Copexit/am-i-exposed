@@ -10,7 +10,7 @@ export const OBSERVATORY_TABS = ["wabisabi", "whirlpool", "p2p"] as const;
 export type ObservatoryTab = (typeof OBSERVATORY_TABS)[number];
 
 /** Patches that only move the selection (coordinator, tx, P2P market) rewrite the current history entry. */
-const SELECTION_KEYS: ReadonlySet<string> = new Set(["coordinator", "tx", "cur", "side", "venue", "pm"]);
+const SELECTION_KEYS: ReadonlySet<string> = new Set(["coordinator", "tx", "cur", "side", "venue", "pm", "amt", "amtu"]);
 
 /**
  * The Observatory's URL state (tab, period, coordinator, tx, view), backed by the hash so every
