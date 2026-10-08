@@ -199,14 +199,18 @@ export function amountMatch(o: P2pOffer, amount: number): "range" | "fixed" | "o
   return amount >= (lo ?? 0) && amount <= (hi ?? Infinity) ? "range" : null;
 }
 
-/** Offers in `currency` that take `amount` of it; other currencies and a null amount pass through. */
-export function filterAmount(offers: P2pOffer[], currency: string | null, amount: number | null): P2pOffer[] {
-  return amount === null ? offers : offers.filter((o) => o.currency !== currency || amountMatch(o, amount) !== null);
-}
+export interface AmountFilterSpec { value: number; unit: "fiat" | "btc" }
 
-/** The amount in fiat: as entered, or BTC at the index; null when a BTC amount has no index to convert at. */
-export function amountInFiat(amount: number | null, unit: "fiat" | "btc", idx: number | null): number | null {
-  if (amount === null) return null;
-  if (unit === "fiat") return amount;
-  return idx !== null ? amount * idx : null;
+/**
+ * Offers in `currency` that take the amount; other currencies and a null amount pass through.
+ * A BTC amount is priced at the offer's own price when it has one, else at the index; an offer
+ * with neither is kept, since nothing says it cannot take the amount.
+ */
+export function filterAmount(offers: P2pOffer[], currency: string | null, amount: AmountFilterSpec | null, idx: number | null = null): P2pOffer[] {
+  if (amount === null) return offers;
+  return offers.filter((o) => {
+    if (o.currency !== currency) return true;
+    const rate = amount.unit === "btc" ? o.price ?? idx : 1;
+    return rate === null || amountMatch(o, amount.value * rate) !== null;
+  });
 }

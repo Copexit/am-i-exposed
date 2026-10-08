@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseObsHash, serializeObsHash, type ObsState } from "../obs-hash";
+import { amtInRange, parseObsHash, serializeObsHash, type ObsState } from "../obs-hash";
 
 const TABS = ["wabisabi", "whirlpool", "p2p"] as const;
 const P2P = { cur: null, side: "buy", venue: ["robosats", "mostro", "hodlhodl"], pm: null, amt: null, amtu: "fiat" } as const;
@@ -49,6 +49,14 @@ describe("obs hash", () => {
     }
     expect(parseObsHash("#p2p&amt=1000000000000", TABS).amt).toBe(1e12);
     expect(parseObsHash("#p2p&amt=21000001&amtu=btc", TABS).amt).toBeNull();
+    // Below one cent or one sat: never written as amt=0, never read back.
+    expect(parseObsHash("#p2p&amt=0.001", TABS).amt).toBeNull();
+    expect(parseObsHash("#p2p&amt=0.01", TABS).amt).toBe(0.01);
+    expect(parseObsHash("#p2p&amt=0.000000009&amtu=btc", TABS).amt).toBeNull();
+    expect(parseObsHash("#p2p&amt=0.00000001&amtu=btc", TABS).amt).toBe(1e-8);
+    expect(amtInRange(0.004, "fiat")).toBeNull();
+    expect(amtInRange(5e-9, "btc")).toBeNull();
+    expect(amtInRange(1e12 + 1, "fiat")).toBeNull();
     expect(parseObsHash("#p2p&amt=5&amtu=sats", TABS).amtu).toBe("fiat");
   });
 });

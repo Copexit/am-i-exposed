@@ -235,6 +235,9 @@ describe("amount filter", () => {
     expect(window.location.hash).toBe("#p2p&cur=EUR");
     act(() => { vi.advanceTimersByTime(450); });
     expect(window.location.hash).toBe("#p2p&cur=EUR&amt=250&amtu=fiat");
+    // The clear button sits beside the input, not in its name.
+    expect(screen.getByRole("textbox", { name: "Amount in EUR" })).toBe(input);
+    expect(input.getAttribute("aria-label")).toBe("Amount in EUR");
     expect(screen.getByTestId("p2p-amount-converted").textContent).toContain(`≈ ${fmtBtcAmount(250 / idx, "en")} BTC`);
 
     const match = eurSells.filter((o) => takes(o, 250));
@@ -249,6 +252,7 @@ describe("amount filter", () => {
     act(() => { fireEvent.click(screen.getByRole("button", { name: "Any amount" })); });
     expect(window.location.hash).toBe("#p2p&cur=EUR");
     expect((input as HTMLInputElement).value).toBe("");
+    expect(document.activeElement).toBe(input);
   }, 30_000);
 
   it("composes with the method filter and the sell side", () => {
@@ -289,9 +293,37 @@ describe("amount filter", () => {
     type("abc");
     expect(screen.getByTestId("p2p-amount").getAttribute("aria-invalid")).toBe("true");
     expect(window.location.hash).toBe("#p2p&cur=EUR");
-    type("250");
+    type("0,001");
+    expect(screen.getByTestId("p2p-amount-converted").textContent).toContain("Enter an amount between 0.01 and 1,000,000,000,000.");
+    expect(window.location.hash).toBe("#p2p&cur=EUR");
+    type("2000000000000");
+    expect(screen.getByTestId("p2p-amount-converted").textContent).toContain("between 0.01 and");
+    type("EUR 250");
+    expect(window.location.hash).toBe("#p2p&cur=EUR&amt=250&amtu=fiat");
     act(() => { fireEvent.click(screen.getByRole("button", { name: "Clear amount filter" })); });
     expect(window.location.hash).toBe("#p2p&cur=EUR");
     expect(document.activeElement).toBe(screen.getByTestId("p2p-amount"));
+  }, 30_000);
+
+  it("a currency switch while typing drops the pending fiat amount", () => {
+    window.history.replaceState(null, "", "/observatory/#p2p&cur=EUR");
+    render(<ObservatoryPage />);
+    act(() => { fireEvent.change(screen.getByTestId("p2p-amount"), { target: { value: "250" } }); });
+    act(() => { fireEvent.click(within(screen.getByRole("list", { name: "Currency" })).getByRole("button", { name: /^USD\d/ })); });
+    act(() => { vi.advanceTimersByTime(1000); });
+    expect(window.location.hash).toBe("#p2p&cur=USD");
+    expect((screen.getByRole("textbox", { name: "Amount in USD" }) as HTMLInputElement).value).toBe("");
+  }, 30_000);
+
+  it("BTC is aria-disabled with a reachable reason when the currency has no index", () => {
+    const { EUR: _drop, ...prices } = index.prices;
+    hooks.data = p2pData({ index: { ...index, prices } });
+    window.history.replaceState(null, "", "/observatory/#p2p&cur=EUR");
+    render(<ObservatoryPage />);
+    const btc = within(screen.getByRole("group", { name: "Amount unit" })).getByRole("button", { name: "BTC" });
+    expect(btc.getAttribute("aria-disabled")).toBe("true");
+    expect(document.getElementById(btc.getAttribute("aria-describedby")!)!.textContent).toContain("No index price for EUR");
+    act(() => { fireEvent.click(btc); });
+    expect(window.location.hash).not.toContain("amtu=btc");
   }, 30_000);
 });

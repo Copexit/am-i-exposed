@@ -21,8 +21,13 @@ export interface ObsState {
   amtu: "fiat" | "btc";
 }
 
-/** Sane ceilings for a typed amount: no market lists an offer above these. */
+/** Sane bounds for a typed amount: one cent or one sat at least; no market lists an offer above the ceilings. */
+export const AMT_MIN = { fiat: 0.01, btc: 1e-8 } as const;
 export const AMT_MAX = { fiat: 1e12, btc: 21e6 } as const;
+
+/** The amount when it is within AMT_MIN..AMT_MAX for its unit, else null. */
+export const amtInRange = (n: number | null, unit: "fiat" | "btc"): number | null =>
+  n !== null && n >= AMT_MIN[unit] - 1e-12 && n <= AMT_MAX[unit] ? n : null;
 
 const DEFAULTS: ObsState = { tab: "wabisabi", period: 1, coordinator: null, tx: null, view: "map", cur: null, side: "buy", venue: [...VENUES], pm: null, amt: null, amtu: "fiat" };
 
@@ -60,8 +65,7 @@ function parseCur(v: string | undefined): string | null {
 /** Plain decimal only ("250", "0.0034"): no signs, exponents or separators. */
 function parseAmt(v: string | undefined, unit: "fiat" | "btc"): number | null {
   if (!/^\d{1,13}(\.\d{1,8})?$/.test(v ?? "")) return null;
-  const n = Number(v);
-  return n > 0 && n <= AMT_MAX[unit] ? n : null;
+  return amtInRange(Number(v), unit);
 }
 
 function parseVenues(v: string | undefined): Venue[] {

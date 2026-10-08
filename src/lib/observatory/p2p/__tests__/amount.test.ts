@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { amountInFiat, amountMatch, buildMarkets, filterAmount, FIXED_TOLERANCE } from "../market";
+import { amountMatch, buildMarkets, filterAmount, FIXED_TOLERANCE } from "../market";
 import { robosatsIndex, robosatsOffers } from "../normalize-robosats";
 import { mostroOffers } from "../normalize-mostro";
 import { hodlhodlOffers } from "../normalize-hodlhodl";
@@ -83,7 +83,7 @@ describe("filterAmount", () => {
   const all = [...robo, ...mostro, ...hodl];
   it("narrows only the chosen currency and composes with the market build", () => {
     const eur = all.filter((o) => o.currency === "EUR");
-    const out = filterAmount(all, "EUR", 250);
+    const out = filterAmount(all, "EUR", { value: 250, unit: "fiat" });
     expect(out.filter((o) => o.currency !== "EUR")).toHaveLength(all.length - eur.length);
     const kept = out.filter((o) => o.currency === "EUR");
     expect(kept.length).toBeGreaterThan(0);
@@ -96,11 +96,17 @@ describe("filterAmount", () => {
 });
 
 describe("amount conversion and parsing", () => {
-  it("BTC converts at the index; fiat passes through; no index, no BTC amount", () => {
-    expect(amountInFiat(250, "fiat", null)).toBe(250);
-    expect(amountInFiat(0.01, "btc", 75_000)).toBe(750);
-    expect(amountInFiat(0.01, "btc", null)).toBeNull();
-    expect(amountInFiat(null, "btc", 75_000)).toBeNull();
+  it("a BTC amount is priced at the offer's own price, else the index; neither keeps the offer", () => {
+    const o = first(hodl, (x) => ranged(x) && x.price !== null);
+    const btcAt = (fiat: number, rate: number) => fiat / rate;
+    const keep = (x: P2pOffer, btc: number, idx: number | null) => filterAmount([x], x.currency, { value: btc, unit: "btc" }, idx).length === 1;
+    // Priced at the offer's own price, its max is in even when the index is far off; without a price the index decides.
+    expect(keep(o, btcAt(o.fiatMax!, o.price!), o.price! * 0.5)).toBe(true);
+    expect(keep(o, btcAt(o.fiatMax!, o.price!) * 1.01, null)).toBe(false);
+    expect(keep({ ...o, price: null }, btcAt(o.fiatMax!, 2 * o.price!), 2 * o.price!)).toBe(true);
+    expect(keep({ ...o, price: null }, btcAt(o.fiatMax!, o.price!) * 1.01, o.price!)).toBe(false);
+    expect(keep({ ...o, price: null }, 1e6, null)).toBe(true);
+    expect(filterAmount([o], o.currency, null)).toEqual([o]);
   });
 
   it("parses both grouping conventions", () => {
@@ -116,6 +122,9 @@ describe("amount conversion and parsing", () => {
     expect(parseAmount("0.0034", "de")).toBe(0.0034);
     expect(parseAmount("0,001", "en")).toBe(0.001);
     expect(parseAmount(",5", "es")).toBe(0.5);
-    for (const bad of ["", "abc", "-5", "1e5", "0", "1,2,3.4,5", "1.234,5.6", "€250"]) expect(parseAmount(bad, "en")).toBeNull();
+    for (const pasted of ["€250", "250 €", "EUR 250", "250EUR", "€ 250", "R$ 250", "250 zł"]) expect(parseAmount(pasted, "en")).toBe(250);
+    expect(parseAmount("₿0.01", "en")).toBe(0.01);
+    expect(parseAmount("BTC 0,01", "de")).toBe(0.01);
+    for (const bad of ["", "abc", "EUR", "-5", "1e5", "0", "1,2,3.4,5", "1.234,5.6", "250-EUR", "2 50€x5"]) expect(parseAmount(bad, "en")).toBeNull();
   });
 });

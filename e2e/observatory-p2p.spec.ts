@@ -119,6 +119,9 @@ test("amount filter: €250 narrows the list, names the cheapest venue, survives
   const input = page.getByRole("textbox", { name: "Amount in EUR" });
   await input.fill("250");
   await expect(page).toHaveURL(/#p2p&cur=EUR&amt=250&amtu=fiat$/);
+  // The clear button is not part of the input's name.
+  await expect(page.getByRole("textbox", { name: "Amount in EUR", exact: true })).toHaveValue("250");
+  await expect(page.getByTestId("p2p-amount")).toHaveAccessibleName("Amount in EUR");
   await expect(page.getByTestId("p2p-amount-converted")).toContainText(/≈ 0\.00\d+ BTC/);
   await expect(page.getByTestId("p2p-pm-note")).toContainText("Offers that accept €250:");
   await expect(page.getByTestId("p2p-amount-best")).toContainText(/^Cheapest for €250: \S.+, [+−]?\d+\.\d%\.$/);

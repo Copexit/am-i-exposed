@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Info, X } from "lucide-react";
-import { AMT_MAX } from "@/lib/observatory/obs-hash";
+import { AMT_MAX, AMT_MIN, amtInRange } from "@/lib/observatory/obs-hash";
 import { fmtFiat, parseAmount } from "@/lib/observatory/p2p/p2p-format";
 import { CHIP, CHIP_OFF, CHIP_ON } from "./p2p-ui";
 
@@ -24,7 +24,11 @@ function symbol(cur: string, locale: string): string {
   }
 }
 
-const valid = (n: number | null, unit: AmountUnit) => (n !== null && n <= AMT_MAX[unit] ? n : null);
+/** The amount input, so a clear from the note can return focus to it. */
+export const AMOUNT_INPUT_ID = "p2p-amount-input";
+export const focusAmountInput = () => document.getElementById(AMOUNT_INPUT_ID)?.focus();
+
+const valid = amtInRange;
 const toText = (n: number | null, unit: AmountUnit, locale: string) =>
   n === null ? "" : n.toLocaleString(locale, { maximumFractionDigits: unit === "btc" ? 8 : 2, useGrouping: false });
 
@@ -44,13 +48,16 @@ export function AmountFilter({ cur, idx, amt, unit, onChange }: Props) {
   const [text, setText] = useState(() => toText(amt, unit, locale));
   const input = useRef<HTMLInputElement>(null);
   const descId = useId();
-  const typed = valid(parseAmount(text, locale), unit);
+  const noIdxId = useId();
+  const parsed = parseAmount(text, locale);
+  const typed = valid(parsed, unit);
 
-  // Outside changes (clear, Back, a currency switch) rewrite the field; the user's own typing does not.
-  const [seen, setSeen] = useState({ amt, unit });
-  if (seen.amt !== amt || seen.unit !== unit) {
-    setSeen({ amt, unit });
-    if (valid(parseAmount(text, locale), unit) !== amt) setText(toText(amt, unit, locale));
+  // Outside changes (clear, Back) rewrite the field; the user's own typing does not. A currency
+  // switch with a fiat unit drops the text too, so a pending commit never lands in the new market.
+  const [seen, setSeen] = useState({ amt, unit, cur });
+  if (seen.amt !== amt || seen.unit !== unit || seen.cur !== cur) {
+    setSeen({ amt, unit, cur });
+    if (valid(parseAmount(text, locale), unit) !== amt || (seen.cur !== cur && unit === "fiat")) setText(toText(amt, unit, locale));
   }
 
   useEffect(() => {
@@ -70,7 +77,17 @@ export function AmountFilter({ cur, idx, amt, unit, onChange }: Props) {
   };
   const clear = () => { setText(""); onChange({ amt: null }); input.current?.focus(); };
 
-  const tolerance = t("observatory.p2p.amount.tolerance", { defaultValue: "Offers match when the amount is inside their limits. Fixed-amount offers match within ±5%. Offers with no stated limits stay in the list." });
+  const tolerance = t("observatory.p2p.amount.tolerance", { defaultValue: "Offers match when the amount is inside their limits. Fixed-amount offers match within ±5%. Offers with no stated limits stay in the list. A BTC amount is priced at each offer's own price when it has one, else at the index, so it is an estimate." });
+  const noIndex = t("observatory.p2p.amount.noIndexBtc", { defaultValue: "No index price for {{cur}}: a BTC amount cannot be converted.", cur: fiatCode });
+  const bad = text.trim() === "" || typed !== null
+    ? null
+    : parsed === null
+      ? t("observatory.p2p.amount.invalid", { defaultValue: "Enter a positive number." })
+      : t("observatory.p2p.amount.range", {
+        defaultValue: "Enter an amount between {{min}} and {{max}}.",
+        min: unit === "btc" ? `${AMT_MIN.btc.toFixed(8)} BTC` : AMT_MIN.fiat.toLocaleString(locale),
+        max: unit === "btc" ? `${AMT_MAX.btc.toLocaleString(locale)} BTC` : AMT_MAX.fiat.toLocaleString(locale),
+      });
   const converted = typed === null || idx === null
     ? null
     : unit === "fiat" ? `${fmtBtcAmount(typed / idx, locale)} BTC` : fmtFiat(typed * idx, fiatCode, locale);
@@ -86,23 +103,26 @@ export function AmountFilter({ cur, idx, amt, unit, onChange }: Props) {
                 key={u}
                 type="button"
                 aria-pressed={unit === u}
-                disabled={off}
-                title={off ? t("observatory.p2p.amount.noIndexBtc", { defaultValue: "No index price for {{cur}}: a BTC amount cannot be converted.", cur: fiatCode }) : undefined}
-                onClick={() => switchUnit(u)}
-                className={`${CHIP} min-h-9 justify-center px-2 text-xs num disabled:cursor-not-allowed disabled:opacity-40 ${unit === u ? CHIP_ON : CHIP_OFF}`}
+                aria-disabled={off || undefined}
+                aria-describedby={off ? noIdxId : undefined}
+                title={off ? noIndex : undefined}
+                onClick={() => { if (!off) switchUnit(u); }}
+                className={`${CHIP} min-h-9 justify-center px-2 text-xs num aria-disabled:cursor-not-allowed aria-disabled:opacity-40 ${unit === u ? CHIP_ON : CHIP_OFF}`}
               >
                 {u === "btc" ? "BTC" : fiatCode}
               </button>
             );
           })}
+          {idx === null && <span id={noIdxId} className="sr-only">{noIndex}</span>}
         </div>}
-        <label className="relative min-w-0 flex-1">
-          <span className="sr-only">{t("observatory.p2p.amount.label", { defaultValue: "Amount in {{unit}}", unit: unitLabel })}</span>
+        <div className="relative min-w-0 flex-1">
           <span aria-hidden="true" className="num pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-faint">
             {sym}
           </span>
           <input
             ref={input}
+            id={AMOUNT_INPUT_ID}
+            aria-label={t("observatory.p2p.amount.label", { defaultValue: "Amount in {{unit}}", unit: unitLabel })}
             type="text"
             inputMode="decimal"
             autoComplete="off"
@@ -115,8 +135,8 @@ export function AmountFilter({ cur, idx, amt, unit, onChange }: Props) {
             placeholder={t("observatory.p2p.amount.placeholder", { defaultValue: "Amount" })}
             title={tolerance}
             aria-describedby={descId}
-            aria-invalid={text.trim() !== "" && typed === null ? true : undefined}
-            className={`num h-10 w-full rounded-lg border bg-surface-inset ${sym.length > 2 ? "pl-14" : "pl-8"} text-sm text-foreground placeholder:text-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bitcoin ${text ? "pr-10" : "pr-3"} ${text.trim() !== "" && typed === null ? "border-severity-high/60" : "border-hairline"}`}
+            aria-invalid={bad !== null || undefined}
+            className={`num h-10 w-full rounded-lg border bg-surface-inset ${sym.length > 2 ? "pl-14" : "pl-8"} text-sm text-foreground placeholder:text-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bitcoin ${text ? "pr-10" : "pr-3"} ${bad !== null ? "border-severity-high/60" : "border-hairline"}`}
           />
           {text && (
             <button
@@ -128,14 +148,14 @@ export function AmountFilter({ cur, idx, amt, unit, onChange }: Props) {
               <X size={14} aria-hidden="true" />
             </button>
           )}
-        </label>
+        </div>
       </div>
       <p id={descId} data-testid="p2p-amount-converted" className="num mt-1 flex min-h-4 items-center gap-1 px-1 text-xs text-faint">
         {converted !== null && <span>{`≈ ${converted}`}</span>}
         {converted === null && unit === "btc" && idx === null && (
-          <span>{t("observatory.p2p.amount.noIndexBtc", { defaultValue: "No index price for {{cur}}: a BTC amount cannot be converted.", cur: fiatCode })}</span>
+          <span>{noIndex}</span>
         )}
-        {text.trim() !== "" && typed === null && <span className="text-severity-high">{t("observatory.p2p.amount.invalid", { defaultValue: "Enter a positive number." })}</span>}
+        {bad !== null && <span className="text-severity-high">{bad}</span>}
         <span title={tolerance} className="ml-auto inline-flex shrink-0 items-center">
           <Info size={12} aria-hidden="true" />
           <span className="sr-only">{tolerance}</span>

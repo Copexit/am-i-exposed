@@ -30,12 +30,13 @@ export function fmtFiatRange(min: number | null, max: number | null, currency: s
 }
 
 /**
- * A typed amount in either "1.234,56" or "1,234.56" form; null unless a positive number.
+ * A typed or pasted amount in either "1.234,56" or "1,234.56" form; null unless a positive number.
  * The last separator is the decimal one when both appear; a lone separator is grouping only when
  * it repeats, or when exactly 3 digits follow a non-zero integer part and it is not the locale's decimal mark.
  */
 export function parseAmount(text: string, locale: string): number | null {
-  const s = text.replace(/[\s  ']/g, "");
+  // A pasted "€250", "250 EUR" or "R$ 250": currency symbols and codes at either end go.
+  const s = text.replace(/^[\p{L}\p{Sc}\s]+|[\p{L}\p{Sc}\s]+$/gu, "").replace(/[\s\u00a0\u202f']/g, "");
   if (!/^[\d.,]+$/.test(s) || !/\d/.test(s)) return null;
   const dots = s.split(".").length - 1;
   const commas = s.split(",").length - 1;

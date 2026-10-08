@@ -7,7 +7,7 @@ import { useNetwork } from "@/context/NetworkContext";
 import type { Venue } from "@/lib/observatory/p2p/types";
 import { useObsState } from "@/hooks/useObsState";
 import { useP2p, useP2pHistory } from "@/hooks/useP2p";
-import { amountInFiat, buildMarkets, defaultCurrency, filterAmount, filterMethod, filterVenues, indexFor, headline as buildHeadline, makerSide, methodCounts, premiumBoard } from "@/lib/observatory/p2p/market";
+import { buildMarkets, defaultCurrency, filterAmount, filterMethod, filterVenues, indexFor, headline as buildHeadline, makerSide, methodCounts, premiumBoard } from "@/lib/observatory/p2p/market";
 import { Section, SubNav } from "@/components/observatory/ObsSections";
 import { P2pHeadline } from "./P2pHeadline";
 import { SourceStrip } from "./SourceStrip";
@@ -15,7 +15,7 @@ import { MarketSelector, type MarketPatch } from "./MarketSelector";
 import { P2pFooter } from "./P2pFooter";
 import { PaymentMethodPicker, PmFilterNote } from "./PaymentMethodPicker";
 import { DepthWall } from "./DepthWall";
-import { AmountFilter, fmtBtcAmount, type AmountPatch } from "./AmountFilter";
+import { AmountFilter, fmtBtcAmount, focusAmountInput, type AmountPatch } from "./AmountFilter";
 import { fmtFiat } from "@/lib/observatory/p2p/p2p-format";
 import type { ObsState } from "@/lib/observatory/obs-hash";
 import { OfferList } from "./OfferList";
@@ -76,11 +76,13 @@ export function P2pTab() {
   // Currency chips count every method and amount; the wall, list, stats, method counts and nearest markets follow the filters.
   const venueMarkets = useMemo(() => buildMarkets(byVenue, index), [byVenue, index]);
   const idx = cur ? indexFor(cur, index) : null;
-  const amtFiat = amountInFiat(obs.amt, obs.amtu, idx);
-  const byAmount = useMemo(() => filterAmount(byVenue, cur, amtFiat), [byVenue, cur, amtFiat]);
+  const byAmount = useMemo(
+    () => filterAmount(byVenue, cur, obs.amt === null ? null : { value: obs.amt, unit: obs.amtu }, idx),
+    [byVenue, cur, obs.amt, obs.amtu, idx],
+  );
   const shown = useMemo(
-    () => (obs.pm || amtFiat !== null ? buildMarkets(filterMethod(byAmount, obs.pm), index) : venueMarkets),
-    [byAmount, obs.pm, amtFiat, index, venueMarkets],
+    () => (obs.pm || obs.amt !== null ? buildMarkets(filterMethod(byAmount, obs.pm), index) : venueMarkets),
+    [byAmount, obs.pm, obs.amt, index, venueMarkets],
   );
 
   const market = cur ? shown.get(cur) ?? null : null;
@@ -94,7 +96,7 @@ export function P2pTab() {
     .sort((a, b) => b.n - a.n)
     .slice(0, 3)
     .map((m) => m.c), [shown, cur, maker]);
-  const amountLabel = amtFiat === null || !cur ? null : obs.amtu === "btc" ? `${fmtBtcAmount(obs.amt!, locale)} BTC` : fmtFiat(obs.amt!, cur, locale);
+  const amountLabel = obs.amt === null || !cur ? null : obs.amtu === "btc" ? `${fmtBtcAmount(obs.amt, locale)} BTC` : fmtFiat(obs.amt, cur, locale);
 
   // A fiat amount means nothing in another currency: switching market clears it.
   const setMarket = useCallback((patch: Partial<ObsState>) =>
@@ -156,7 +158,7 @@ export function P2pTab() {
               </div>
             </MarketSelector>
             {!loading && (
-              <PmFilterNote market={market} side={obs.side} pm={obs.pm} amount={amountLabel} hosts={hosts} onClear={() => setObs({ pm: null })} onClearAmount={() => setObs({ amt: null })} />
+              <PmFilterNote market={market} side={obs.side} pm={obs.pm} amount={amountLabel} hosts={hosts} onClear={() => setObs({ pm: null })} onClearAmount={() => { setObs({ amt: null }); focusAmountInput(); }} />
             )}
             {loading ? (
               <BlockSkeleton h={320} />
