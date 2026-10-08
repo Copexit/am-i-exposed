@@ -73,17 +73,18 @@ for (const width of [1440, 390]) {
     await page.getByRole("button", { name: /Coin Selection Advisor/ }).click();
     await page.getByLabel("Amount (sats)").fill("600000");
     await page.getByRole("button", { name: "Suggest selection" }).click();
+    // Every coin is change: each change coin alone first (spend change on its own), huge change before toxic
     const first = page.locator("[data-testid^='coin-plan-']").first();
     await expect(first.getByText("Recommended")).toBeVisible();
-    await expect(first.getByText("591,429 sats")).toBeVisible();
-    await expect(first.getByText("134,361 sats")).toBeVisible();
-    await expect(first.getByTestId("plan-reason")).toHaveText("Joins coins an observer can probably already link.");
-    const single = page.getByTestId("coin-plan-single-coin").filter({ hasText: "99,000,000 sats" });
-    await expect(single.getByTestId("plan-reason")).toHaveText("Leaves change 164x the payment: most of the coin's value stays on change linked to this payment.");
-    // The CoinJoin change coin is an option too, last, with its warning
-    const cj = page.locator("[data-testid^='coin-plan-']").nth(2);
+    await expect(first.getByText("99,000,000 sats", { exact: true })).toBeVisible();
+    await expect(first.getByTestId("plan-learns")).toContainText("A change output of 98,399,300 sats (164x the payment) that can be followed");
+    const cj = page.locator("[data-testid^='coin-plan-']").nth(1);
     await expect(cj.getByText("15,240,920 sats", { exact: true })).toBeVisible();
     await expect(cj.getByText(/Spends CoinJoin change, which is not mixed/)).toBeVisible();
+    // The pair merges two change coins: last, with the warning
+    const pair = page.locator("[data-testid^='coin-plan-']").nth(2);
+    await expect(pair.getByText("591,429 sats", { exact: true })).toBeVisible();
+    await expect(pair.getByText(/^Merges change coin #1 with other coins/)).toBeVisible();
     await shot(page, page.getByTestId("coin-selector"), `test-results/wa-selector-${width}.png`);
   });
 }
@@ -102,8 +103,8 @@ for (const width of [1440, 390]) {
     const selector = page.getByTestId("coin-selector");
     await selector.getByLabel("Amount (sats)").fill("600000");
     await selector.getByRole("button", { name: "Suggest selection" }).click();
-    await selector.getByRole("button", { name: "Least change" }).click();
-    await expect(selector.getByRole("button", { name: "Least change" })).toHaveAttribute("aria-pressed", "true");
+    await selector.getByRole("button", { name: "Least change", exact: true }).click();
+    await expect(selector.getByRole("button", { name: "Least change", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(selector.getByText("Recommended", { exact: true })).toHaveCount(0);
     const plans = selector.locator("[data-testid^='coin-plan-']");
     await expect(plans.nth(1).getByText("15,240,920 sats", { exact: true })).toBeVisible();

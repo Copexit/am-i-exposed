@@ -63,8 +63,8 @@ for (const width of [1440, 390]) {
     const first = selector.locator("[data-testid^='coin-plan-']").first();
     await expect(first.getByText("Recommended")).toBeVisible();
     await expect(first.getByText("133,000 sats", { exact: true })).toBeVisible();
-    await expect(first.getByTestId("plan-reason")).toHaveText(/^The recipient already knows these coins/);
-    await expect(first.getByTestId("plan-path").getByRole("listitem").first()).toContainText("Coins the recipient already knows: used");
+    await expect(first.getByTestId("plan-learns")).toContainText("The recipient: nothing new, it already knows these coins");
+    await expect(first.getByTestId("plan-path").getByRole("listitem").nth(1)).toContainText("Coins the recipient already knows: used");
 
     // Rules 6 and 7: reused, round, type mismatch
     await expect(selector.getByTestId("spend-alert-reused-history")).toContainText("Avoid sending to a reused address");

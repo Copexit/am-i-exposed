@@ -118,7 +118,7 @@ test("coin selection advisor: multi-coin plans when no single coin pays", async 
   const same = page.getByTestId("coin-plan-same-origin");
   await expect(same).toBeVisible();
   await expect(same.getByText("Recommended")).toBeVisible();
-  await expect(same.getByRole("list").first().getByRole("listitem")).toHaveCount(3);
+  await expect(same.getByTestId("plan-coins").getByRole("listitem")).toHaveCount(3);
   await expect(page.getByTestId("coin-plan-multi-coin").getByText(/Joins 2 unrelated origins/)).toBeVisible();
   await expect(page.getByText("Advanced: Stonewall")).toBeVisible();
   await expect(page.getByText(/Not enough funds/)).toHaveCount(0);
@@ -170,7 +170,8 @@ test("coin selection advisor: a no-change set of already linked coins comes firs
   await expect(noChange).toHaveAttribute("data-testid", "coin-plan-no-change");
   await expect(noChange.getByText("Recommended", { exact: true })).toBeVisible();
   await expect(noChange.getByText(/so no change output is created that anyone can follow/)).toBeVisible();
-  await expect(noChange.getByTestId("plan-reason")).toHaveText("Links nothing new and leaves no change.");
+  await expect(noChange.getByTestId("plan-learns")).toContainText("Nothing new about which coins belong together");
+  await expect(noChange.getByTestId("plan-learns")).toContainText("No change output to follow");
 });
 
 const OUTSIDE_1 = "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh";
