@@ -4,7 +4,7 @@ import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 export const metadata: Metadata = {
   title: "CoinJoin Observatory: live WabiSabi map and coordinators | am-i.exposed",
   description:
-    "A live map of Bitcoin CoinJoins across the public WabiSabi coordinators: volume, live rounds, coordinator history and remix flows, sourced from Wabisator. Ashigaru Whirlpool pools from whirlpoolstats.xyz.",
+    "A live map of Bitcoin CoinJoins across the public WabiSabi coordinators: volume, live rounds, coordinator history and remix flows, sourced from Wabisator. Ashigaru Whirlpool pools from whirlpoolstats.xyz. P2P markets: live KYC-free bitcoin offers and premiums from RoboSats, Mostro and HodlHodl.",
   keywords: [
     "whirlpool stats",
     "wabisabi coordinator status",
@@ -13,6 +13,11 @@ export const metadata: Metadata = {
     "kruw coordinator",
     "wabisator",
     "coinjoin map",
+    "robosats",
+    "mostro",
+    "hodlhodl",
+    "kyc-free bitcoin",
+    "p2p bitcoin premium",
   ],
   alternates: {
     canonical: "https://am-i.exposed/observatory/",
@@ -20,7 +25,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "CoinJoin Observatory | am-i.exposed",
     description:
-      "A live map of WabiSabi CoinJoins and coordinators (Wabisator), plus Whirlpool pools (whirlpoolstats.xyz).",
+      "A live map of WabiSabi CoinJoins and coordinators (Wabisator), Whirlpool pools (whirlpoolstats.xyz) and KYC-free P2P markets (RoboSats, Mostro, HodlHodl).",
     url: "https://am-i.exposed/observatory/",
     type: "article",
     siteName: "am-i.exposed",
@@ -30,7 +35,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "CoinJoin Observatory | am-i.exposed",
     description:
-      "A live map of WabiSabi CoinJoins and coordinators (Wabisator), plus Whirlpool pools (whirlpoolstats.xyz).",
+      "A live map of WabiSabi CoinJoins and coordinators (Wabisator), Whirlpool pools (whirlpoolstats.xyz) and KYC-free P2P markets (RoboSats, Mostro, HodlHodl).",
   },
 };
 

@@ -18,6 +18,7 @@ import { ObservatoryPageHeader } from "@/components/observatory/ObservatoryPageH
 import { SyncPill } from "@/components/observatory/SyncPill";
 import { SkeletonCards } from "@/components/observatory/SkeletonCards";
 import { WabiSabiTab } from "@/components/observatory/wabisabi/WabiSabiTab";
+import { P2pTab } from "@/components/observatory/p2p/P2pTab";
 import {
   lastCycleBlocks,
   whirlpoolLifetimeCycles,
@@ -56,9 +57,12 @@ export function ObservatoryPage() {
     label: {
       wabisabi: t("observatory.tabs.wabisabi", { defaultValue: "WabiSabi (Wasabi)" }),
       whirlpool: t("observatory.tabs.whirlpool", { defaultValue: "Whirlpool (Ashigaru)" }),
+      p2p: t("observatory.tabs.p2p", { defaultValue: "P2P markets" }),
     }[id],
   }));
   const selectTab = (id: ObservatoryTab) => setObs({ tab: id });
+  const p2p = tab === "p2p";
+  const p2pTitle = t("observatory.p2p.pageTitle", { defaultValue: "P2P markets" });
 
   const onTabKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const i = tabs.findIndex((x) => x.id === tab);
@@ -76,15 +80,17 @@ export function ObservatoryPage() {
   };
 
   return (
-    <PageShell spacing="space-y-4 sm:space-y-5" compact>
+    <PageShell spacing="space-y-4 sm:space-y-5" compact eyebrow={p2p ? p2pTitle : undefined}>
       <ObservatoryPageHeader
         showMainnetBadge
+        title={p2p ? p2pTitle : undefined}
+        description={p2p ? t("observatory.p2p.pageDescription", { defaultValue: "Live KYC-free bitcoin offers from RoboSats, Mostro and HodlHodl, fetched through a relay or Tor, never from your browser." }) : undefined}
         aside={
           <div
             role="tablist"
-            aria-label={t("observatory.tabs.label", { defaultValue: "CoinJoin protocol" })}
+            aria-label={t("observatory.tabs.label", { defaultValue: "Observatory section" })}
             onKeyDown={onTabKeyDown}
-            className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-surface-inset border border-card-border sm:inline-grid"
+            className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-surface-inset border border-card-border sm:inline-grid"
           >
             {tabs.map(({ id, label }) => (
               <button
@@ -115,7 +121,7 @@ export function ObservatoryPage() {
         aria-labelledby={`observatory-tab-${tab}`}
         className="space-y-8"
       >
-        {tab === "whirlpool" ? <WhirlpoolTab /> : <WabiSabiTab />}
+        {tab === "whirlpool" ? <WhirlpoolTab /> : tab === "p2p" ? <P2pTab /> : <WabiSabiTab />}
       </div>
     </PageShell>
   );

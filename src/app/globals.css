@@ -158,6 +158,58 @@ html[data-theme="light"] {
   --coord-other-fg: #6a727d;
 }
 
+/*
+ * Observatory P2P palette, read by src/lib/observatory/p2p/venue-palette.ts. Categorical only:
+ * a venue or RoboSats coordinator, never a judgement (premiums use the severity tokens).
+ * --p2p-<venue> / --p2p-coord-<key>: fills (bars, wall steps), OKLCH L~0.78 in dark, L~0.6 in light.
+ * --p2p-*-fg: text and small marks on cards (>= 4:1 on --card-bg in light).
+ */
+:root {
+  --p2p-robosats: #b49cff;
+  --p2p-mostro: #8fd37a;
+  --p2p-hodlhodl: #4fc3e8;
+  --p2p-robosats-fg: var(--p2p-robosats);
+  --p2p-mostro-fg: var(--p2p-mostro);
+  --p2p-hodlhodl-fg: var(--p2p-hodlhodl);
+  --p2p-coord-temple: #e8af4f;
+  --p2p-coord-lake: #5fb8ff;
+  --p2p-coord-bazaar: #f39a7f;
+  --p2p-coord-alice: #f299d5;
+  --p2p-coord-eleuteria: #9fcb6f;
+  --p2p-coord-freeport: #31d5c5;
+  --p2p-coord-ammanaya: #b9a8ff;
+  --p2p-coord-temple-fg: var(--p2p-coord-temple);
+  --p2p-coord-lake-fg: var(--p2p-coord-lake);
+  --p2p-coord-bazaar-fg: var(--p2p-coord-bazaar);
+  --p2p-coord-alice-fg: var(--p2p-coord-alice);
+  --p2p-coord-eleuteria-fg: var(--p2p-coord-eleuteria);
+  --p2p-coord-freeport-fg: var(--p2p-coord-freeport);
+  --p2p-coord-ammanaya-fg: var(--p2p-coord-ammanaya);
+}
+
+html[data-theme="light"] {
+  --p2p-robosats: #8a6cf0;
+  --p2p-mostro: #4f9a3a;
+  --p2p-hodlhodl: #1797c4;
+  --p2p-robosats-fg: #6447cc;
+  --p2p-mostro-fg: #3b7a2a;
+  --p2p-hodlhodl-fg: #00729c;
+  --p2p-coord-temple: #c88a1c;
+  --p2p-coord-lake: #2f8fd8;
+  --p2p-coord-bazaar: #d06a50;
+  --p2p-coord-alice: #c4609f;
+  --p2p-coord-eleuteria: #6f9a35;
+  --p2p-coord-freeport: #0fa597;
+  --p2p-coord-ammanaya: #7d6ad8;
+  --p2p-coord-temple-fg: #9a6500;
+  --p2p-coord-lake-fg: #0070b8;
+  --p2p-coord-bazaar-fg: #b14f42;
+  --p2p-coord-alice-fg: #a25089;
+  --p2p-coord-eleuteria-fg: #588021;
+  --p2p-coord-freeport-fg: #00897b;
+  --p2p-coord-ammanaya-fg: #6a5bc2;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -389,6 +441,12 @@ select:focus-visible {
 }
 
 /* Observatory: values and sections fade in instead of popping. */
+/* P2P depth wall draw-in, left to right (used with motion-safe: only). */
+@keyframes p2p-wall-in {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
 @keyframes obs-fade {
   from { opacity: 0; }
   to { opacity: 1; }

@@ -28,6 +28,19 @@ The JSON-RPC method is allowlisted server-side. The legacy `/liquisabi/api` rout
 - `aggregate` calls are edge-cached for the registry `ttl`.
 - `lookup` calls (carrying a user txid) are validated, forwarded with a rebuilt JSON-RPC body, and answered with `Cache-Control: no-store`. They never touch the edge cache.
 - Unknown services/routes give 404, bodies over 64 KB give 413, bad params 400, upstream failures 502.
+- GET routes may declare a `fixedQuery` (appended after the validated params, never overridable) and an `offset` validator (0..5000, floored to a multiple of 100). HodlHodl uses both for `pagination[offset]` and `pagination[limit]=100`.
+- A service without a clearnet `base` (onion-only RoboSats coordinators) answers `404 ONION_ONLY`; those are reached only by the self-hosted sidecar over Tor.
+
+### P2P routes (Observatory P2P markets)
+
+| Route | Upstream | TTL |
+|---|---|---|
+| `GET /svc/robosats-{temple,lake}/api/{info,limits,historical}/` | coordinator clearnet REST | 60 / 300 / 3600 s |
+| `GET /svc/robosats-nostr/orders` | RoboSats federation relays, kind 38383 pending orders | 30 s |
+| `GET /svc/mostro-nostr/{orders,info,trades}` | Mostro relays: orders, 38385 info, 7 days of `success` | 30 / 300 / 600 s |
+| `GET /svc/hodlhodl/api/v1/offers?pagination[offset]=N` | HodlHodl REST, 100 offers per page | 60 s |
+
+Nostr routes (`nostr` block in the registry) open a WebSocket to every listed relay through a `fetch` upgrade, send the registry filter (`since` rounded to the TTL when `sinceSeconds` is set), collect until EOSE/CLOSED, an error or `timeoutMs`, and answer one snapshot `{ events, relays: [{ url, status, count }], fetchedAt }`. Malformed events, kinds outside the filter and duplicates are dropped; the snapshot is capped at 3,000 events and 4 MiB. It is `502 UPSTREAM_DOWN` only when every relay errors. The client cannot send a filter, and signatures are verified by the browser, not here. A `nostr` route that is not a GET `aggregate` is `500 MISCONFIGURED`.
 
 The legacy `/whirlpool/*` and `/liquisabi/api` routes are kept for one release.
 

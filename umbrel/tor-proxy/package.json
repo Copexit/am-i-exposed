@@ -6,6 +6,7 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "socks-proxy-agent": "^8.0.5"
+    "socks-proxy-agent": "^8.0.5",
+    "ws": "^8.22.0"
   }
 }

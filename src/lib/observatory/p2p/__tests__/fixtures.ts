@@ -1,0 +1,30 @@
+/** Typed access to the recorded P2P fixtures (2026-10-07, fetchedAt 1791386100). */
+import robosatsOrdersJson from "../../__tests__/fixtures/p2p/nostr/robosats-orders.json";
+import mostroOrdersJson from "../../__tests__/fixtures/p2p/nostr/mostro-orders.json";
+import mostroInfoJson from "../../__tests__/fixtures/p2p/nostr/mostro-info.json";
+import mostroTradesJson from "../../__tests__/fixtures/p2p/nostr/mostro-trades.json";
+import signedSampleJson from "../../__tests__/fixtures/p2p/nostr/signed-sample.json";
+import templeInfoJson from "../../__tests__/fixtures/p2p/robosats/temple-info.json";
+import lakeInfoJson from "../../__tests__/fixtures/p2p/robosats/lake-info.json";
+import bazaarInfoJson from "../../__tests__/fixtures/p2p/robosats/bazaar-info.json";
+import templeLimitsJson from "../../__tests__/fixtures/p2p/robosats/temple-limits.json";
+import templeHistJson from "../../__tests__/fixtures/p2p/robosats/temple-historical.json";
+import lakeHistJson from "../../__tests__/fixtures/p2p/robosats/lake-historical.json";
+import hodl0Json from "../../__tests__/fixtures/p2p/hodlhodl/offers-0.json";
+import hodl500Json from "../../__tests__/fixtures/p2p/hodlhodl/offers-500.json";
+import type { HodlPage, NostrSnapshot, RoboHistorical, RoboInfo, RoboLimits } from "../types";
+
+export const NOW = 1791386100;
+export const robosatsOrders = robosatsOrdersJson as unknown as NostrSnapshot;
+export const mostroOrders = mostroOrdersJson as unknown as NostrSnapshot;
+export const mostroInfo = mostroInfoJson as unknown as NostrSnapshot;
+export const mostroTrades = mostroTradesJson as unknown as NostrSnapshot;
+export const signedSample = signedSampleJson as unknown as NostrSnapshot;
+export const templeInfo = templeInfoJson as unknown as RoboInfo;
+export const lakeInfo = lakeInfoJson as unknown as RoboInfo;
+export const bazaarInfo = bazaarInfoJson as unknown as RoboInfo;
+export const templeLimits = templeLimitsJson as unknown as RoboLimits;
+export const templeHistorical = templeHistJson as unknown as RoboHistorical;
+export const lakeHistorical = lakeHistJson as unknown as RoboHistorical;
+export const hodl0 = hodl0Json as unknown as HodlPage;
+export const hodl500 = hodl500Json as unknown as HodlPage;

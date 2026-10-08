@@ -258,10 +258,48 @@ export async function mockObservatoryApi(page: Page): Promise<string[]> {
         : null;
       if (fixture) body = JSON.stringify({ ...JSON.parse(readWabiAgg(fixture)), id: rpc.id });
     }
+    else body = p2pBody(pathname, new URL(req.url()).searchParams);
     if (body === null) return route.fulfill({ status: 404, headers: cors, body: "not found" });
     await route.fulfill({ status: 200, headers: cors, body, contentType: "application/json" });
   });
   return bodies;
+}
+
+const P2P_FIXTURES = path.join(__dirname, "../../src/lib/observatory/__tests__/fixtures/p2p");
+const readP2p = (name: string) => fs.readFileSync(path.join(P2P_FIXTURES, name), "utf-8");
+/** Recorded 2026-10-07 16:35 UTC; Nostr offers expire against the visitor clock, so P2P specs pin it here. */
+export const P2P_FIXTURE_TIME = new Date(1791386100 * 1000 + 60_000);
+
+/**
+ * P2P routes from the recorded fixtures. The browser verifies every Nostr signature and the
+ * redacted order files do not verify, so both order snapshots are the untouched signed sample
+ * (6 RoboSats, 6 Mostro events); Mostro info is unredacted and verifies; trades are served as is.
+ */
+function p2pBody(pathname: string, query: URLSearchParams): string | null {
+  switch (pathname) {
+    case "/svc/robosats-nostr/orders":
+    case "/svc/mostro-nostr/orders":
+      return readP2p("nostr/signed-sample.json");
+    case "/svc/mostro-nostr/info": return readP2p("nostr/mostro-info.json");
+    case "/svc/mostro-nostr/trades": return readP2p("nostr/mostro-trades.json");
+    case "/svc/robosats-temple/api/info/": return readP2p("robosats/temple-info.json");
+    case "/svc/robosats-lake/api/info/": return readP2p("robosats/lake-info.json");
+    case "/svc/robosats-temple/api/limits/":
+    case "/svc/robosats-lake/api/limits/": return readP2p("robosats/temple-limits.json");
+    case "/svc/robosats-temple/api/historical/": return readP2p("robosats/temple-historical.json");
+    case "/svc/robosats-lake/api/historical/": return readP2p("robosats/lake-historical.json");
+    case "/svc/hodlhodl/api/v1/offers":
+      return readP2p(Number(query.get("pagination[offset]") ?? 0) >= 500 ? "hodlhodl/offers-500.json" : "hodlhodl/offers-0.json");
+    default: return null;
+  }
+}
+
+/** Makes one P2P worker route answer 502 (register after mockObservatoryApi: the newest route wins). */
+export async function failP2pRoute(page: Page, pathname: string): Promise<void> {
+  await page.route(`https://coinjoin-stats.copexit.workers.dev${pathname}**`, (route) =>
+    route.request().method() === "OPTIONS"
+      ? route.fulfill({ status: 204, headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*" } })
+      : route.fulfill({ status: 502, headers: { "access-control-allow-origin": "*" }, contentType: "application/json", body: '{"error":{"code":"UPSTREAM_DOWN"}}' }));
 }
 
 const WABISATOR_FIXTURES = path.join(__dirname, "../../src/lib/services/__tests__/fixtures");

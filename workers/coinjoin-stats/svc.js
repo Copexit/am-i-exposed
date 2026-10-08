@@ -4,6 +4,7 @@
  * aggregate: edge-cached. lookup: carries a user txid, never cached.
  */
 import registry from "../../src/lib/services/registry.json";
+import { handleNostr } from "./nostr.js";
 
 const MAX_UPSTREAM_BYTES = 4 * 1024 * 1024;
 const MAX_REQUEST_BYTES = 64 * 1024;
@@ -15,6 +16,11 @@ export function validateParam(kind, value) {
     if (typeof value !== "string") return null;
     const v = value.trim().toLowerCase();
     return /^[0-9a-f]{64}$/.test(v) ? v : null;
+  }
+  if (kind === "offset") {
+    const n = parseInt(String(value ?? "0"), 10);
+    if (!Number.isFinite(n) || n < 0) return "0";
+    return String(Math.floor(Math.min(n, 5000) / 100) * 100);
   }
   const n = parseInt(String(value ?? "1"), 10);
   return String(!Number.isFinite(n) || n < 1 ? 1 : Math.min(n, 10000));
@@ -33,9 +39,16 @@ async function handle(reg, request, url, ctx, cors) {
   const id = service.id;
   const path = route.path;
 
+  if (route.nostr) {
+    // Fail closed: a nostr snapshot is only ever a GET aggregate with registry filters.
+    if (request.method !== "GET" || route.class !== "aggregate") return misconfigured(cors);
+    return handleNostr({ service, route, ctx, cors });
+  }
+
   if (request.method === "GET") {
     // Fail closed: only an exact "aggregate" is cached, only "lookup" is no-store.
     if (route.class !== "aggregate" && route.class !== "lookup") return misconfigured(cors);
+    if (!service.base) return err(404, "ONION_ONLY", "Service is reachable only through Tor", cors);
     const qs = new URLSearchParams();
     for (const [name, kind] of Object.entries(route.query ?? {})) {
       if (!url.searchParams.has(name)) continue;
@@ -43,6 +56,7 @@ async function handle(reg, request, url, ctx, cors) {
       if (v === null) return err(400, "BAD_PARAMS", "Invalid params", cors);
       qs.set(name, v);
     }
+    for (const [name, value] of Object.entries(route.fixedQuery ?? {})) qs.set(name, value);
     const query = qs.toString();
     return forward({
       ctx, cors, route,
@@ -54,6 +68,7 @@ async function handle(reg, request, url, ctx, cors) {
   }
 
   // POST
+  if (!service.base) return err(404, "ONION_ONLY", "Service is reachable only through Tor", cors);
   const text = await request.text();
   if (text.length > MAX_REQUEST_BYTES) return err(413, "TOO_LARGE", "Request body too large", cors);
   let body;

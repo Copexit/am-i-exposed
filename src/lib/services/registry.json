@@ -11,13 +11,38 @@
           "path": "/api.php",
           "http": "POST",
           "rpc": {
-            "dashboard": { "class": "aggregate", "ttl": 60 },
-            "coordinators-status": { "class": "aggregate", "ttl": 15 },
-            "flow-map": { "class": "aggregate", "ttl": 60 },
-            "volume-history": { "class": "aggregate", "ttl": 600 },
-            "rounds-paginated": { "class": "aggregate", "ttl": 60 },
-            "coinjoin": { "class": "lookup", "params": { "txId": "txid" } },
-            "search": { "class": "lookup", "params": { "query": "txid" } }
+            "dashboard": {
+              "class": "aggregate",
+              "ttl": 60
+            },
+            "coordinators-status": {
+              "class": "aggregate",
+              "ttl": 15
+            },
+            "flow-map": {
+              "class": "aggregate",
+              "ttl": 60
+            },
+            "volume-history": {
+              "class": "aggregate",
+              "ttl": 600
+            },
+            "rounds-paginated": {
+              "class": "aggregate",
+              "ttl": 60
+            },
+            "coinjoin": {
+              "class": "lookup",
+              "params": {
+                "txId": "txid"
+              }
+            },
+            "search": {
+              "class": "lookup",
+              "params": {
+                "query": "txid"
+              }
+            }
           }
         }
       ]
@@ -29,7 +54,16 @@
       "homepage": "https://liquisabi.com",
       "base": "https://liquisabi.com",
       "routes": [
-        { "path": "/api", "http": "POST", "rpc": { "dashboard": { "class": "aggregate", "ttl": 60 } } }
+        {
+          "path": "/api",
+          "http": "POST",
+          "rpc": {
+            "dashboard": {
+              "class": "aggregate",
+              "ttl": 60
+            }
+          }
+        }
       ]
     },
     {
@@ -39,9 +73,468 @@
       "homepage": "https://whirlpoolstats.xyz",
       "base": "https://whirlpoolstats.xyz/api",
       "routes": [
-        { "path": "/summary", "http": "GET", "class": "aggregate", "ttl": 60, "timeoutMs": 20000 },
-        { "path": "/charts", "http": "GET", "class": "aggregate", "ttl": 120, "timeoutMs": 60000 },
-        { "path": "/txs", "http": "GET", "class": "aggregate", "ttl": 60, "timeoutMs": 30000, "query": { "page": "page" } }
+        {
+          "path": "/summary",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 60,
+          "timeoutMs": 20000
+        },
+        {
+          "path": "/charts",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 120,
+          "timeoutMs": 60000
+        },
+        {
+          "path": "/txs",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 60,
+          "timeoutMs": 30000,
+          "query": {
+            "page": "page"
+          }
+        }
+      ]
+    },
+    {
+      "id": "robosats-temple",
+      "name": "Temple of Sats (RoboSats)",
+      "kind": "p2p-exchange",
+      "homepage": "https://learn.robosats.org",
+      "base": "https://unsafe.templeofsats.org",
+      "onion": "http://ngdk7ocdzmz5kzsysa3om6du7ycj2evxp2f2olfkyq37htx3gllwp2yd.onion",
+      "p2p": {
+        "venue": "robosats",
+        "key": "temple",
+        "pubkey": "74001620297035daa61475c069f90b6950087fea0d0134b795fac758c34e7191"
+      },
+      "routes": [
+        {
+          "path": "/api/info/",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 60,
+          "timeoutMs": 20000
+        },
+        {
+          "path": "/api/limits/",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 300,
+          "timeoutMs": 20000
+        },
+        {
+          "path": "/api/historical/",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 3600,
+          "timeoutMs": 30000
+        }
+      ]
+    },
+    {
+      "id": "robosats-lake",
+      "name": "TheBigLake (RoboSats)",
+      "kind": "p2p-exchange",
+      "homepage": "https://learn.robosats.org",
+      "base": "https://unsafe.thebiglake.org",
+      "onion": "http://4t4jxmivv6uqej6xzx2jx3fxh75gtt65v3szjoqmc4ugdlhipzdat6yd.onion",
+      "p2p": {
+        "venue": "robosats",
+        "key": "lake",
+        "pubkey": "f2d4855df39a7db6196666e8469a07a131cddc08dcaa744a344343ffcf54a10c"
+      },
+      "routes": [
+        {
+          "path": "/api/info/",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 60,
+          "timeoutMs": 20000
+        },
+        {
+          "path": "/api/limits/",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 300,
+          "timeoutMs": 20000
+        },
+        {
+          "path": "/api/historical/",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 3600,
+          "timeoutMs": 30000
+        }
+      ]
+    },
+    {
+      "id": "robosats-bazaar",
+      "name": "LibreBazaar (RoboSats)",
+      "kind": "p2p-exchange",
+      "homepage": "https://learn.robosats.org",
+      "onion": "http://librebazovfmmkyi2jekraxsuso3mh622avuuzqpejixdl5dhuhb4tid.onion",
+      "p2p": {
+        "venue": "robosats",
+        "key": "bazaar",
+        "pubkey": "95521a33ba34f5924464f425e81b896b1aa9069796a778368ed053e3612c509b"
+      },
+      "routes": [
+        {
+          "path": "/api/info/",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 60,
+          "timeoutMs": 20000
+        },
+        {
+          "path": "/api/limits/",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 300,
+          "timeoutMs": 20000
+        },
+        {
+          "path": "/api/historical/",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 3600,
+          "timeoutMs": 30000
+        }
+      ]
+    },
+    {
+      "id": "robosats-alice",
+      "name": "Alice (RoboSats)",
+      "kind": "p2p-exchange",
+      "homepage": "https://learn.robosats.org",
+      "onion": "http://alice7bqexhtnkiqhtgkuwgtzzfkishw23ac4sfwpznrwlmnipxlomyd.onion",
+      "p2p": {
+        "venue": "robosats",
+        "key": "alice",
+        "pubkey": "40d33962fdf26e0910805f36a3a96b239cf93b95d4a3e6dd779f1ea3ff9b0866"
+      },
+      "routes": [
+        {
+          "path": "/api/info/",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 60,
+          "timeoutMs": 20000
+        },
+        {
+          "path": "/api/limits/",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 300,
+          "timeoutMs": 20000
+        },
+        {
+          "path": "/api/historical/",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 3600,
+          "timeoutMs": 30000
+        }
+      ]
+    },
+    {
+      "id": "robosats-eleuteria",
+      "name": "Eleuteria (RoboSats)",
+      "kind": "p2p-exchange",
+      "homepage": "https://learn.robosats.org",
+      "onion": "http://ixiiqsuzt7hh5qxshiqwyewyh3gyygltbygqlvlyitg3gl3u2cemk3ad.onion",
+      "p2p": {
+        "venue": "robosats",
+        "key": "eleuteria",
+        "pubkey": "0f243ba69b7c7ffa73934bc7f5fa6586b8013afdc310d808b1ec2c2c98f1c219"
+      },
+      "routes": [
+        {
+          "path": "/api/info/",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 60,
+          "timeoutMs": 20000
+        },
+        {
+          "path": "/api/limits/",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 300,
+          "timeoutMs": 20000
+        },
+        {
+          "path": "/api/historical/",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 3600,
+          "timeoutMs": 30000
+        }
+      ]
+    },
+    {
+      "id": "robosats-freeport",
+      "name": "FreePort (RoboSats)",
+      "kind": "p2p-exchange",
+      "homepage": "https://learn.robosats.org",
+      "onion": "http://2enoseg66hme76khjjn2qvrhipnzwgwa44mewgrdphrxbhzcxd2vdiqd.onion",
+      "p2p": {
+        "venue": "robosats",
+        "key": "freeport",
+        "pubkey": "e489cdb0b24fa416a49b524625e0edab0f7235f3a0261a3cdfc64c4efdc14afd"
+      },
+      "routes": [
+        {
+          "path": "/api/info/",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 60,
+          "timeoutMs": 20000
+        },
+        {
+          "path": "/api/limits/",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 300,
+          "timeoutMs": 20000
+        },
+        {
+          "path": "/api/historical/",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 3600,
+          "timeoutMs": 30000
+        }
+      ]
+    },
+    {
+      "id": "robosats-ammanaya",
+      "name": "Ammanaya (RoboSats)",
+      "kind": "p2p-exchange",
+      "homepage": "https://learn.robosats.org",
+      "onion": "http://ammannjgzybw4qm2odmci7xgolh5grzijidacjxose5tthm375dcopad.onion",
+      "p2p": {
+        "venue": "robosats",
+        "key": "ammanaya",
+        "pubkey": "91820b0fc7e52873a574208c7b4e9b8ae848ee25e5c03bac655c45d060995548"
+      },
+      "routes": [
+        {
+          "path": "/api/info/",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 60,
+          "timeoutMs": 20000
+        },
+        {
+          "path": "/api/limits/",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 300,
+          "timeoutMs": 20000
+        },
+        {
+          "path": "/api/historical/",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 3600,
+          "timeoutMs": 30000
+        }
+      ]
+    },
+    {
+      "id": "robosats-nostr",
+      "name": "RoboSats federation relays",
+      "kind": "nostr-relay",
+      "homepage": "https://learn.robosats.org",
+      "relays": [
+        "wss://unsafe.thebiglake.org/relay/",
+        "wss://unsafe.templeofsats.org/relay/"
+      ],
+      "onionRelays": [
+        "ws://4t4jxmivv6uqej6xzx2jx3fxh75gtt65v3szjoqmc4ugdlhipzdat6yd.onion/relay/",
+        "ws://ngdk7ocdzmz5kzsysa3om6du7ycj2evxp2f2olfkyq37htx3gllwp2yd.onion/relay/",
+        "ws://librebazovfmmkyi2jekraxsuso3mh622avuuzqpejixdl5dhuhb4tid.onion/relay/"
+      ],
+      "routes": [
+        {
+          "path": "/orders",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 30,
+          "timeoutMs": 8000,
+          "nostr": {
+            "filter": {
+              "kinds": [
+                38383
+              ],
+              "authors": [
+                "74001620297035daa61475c069f90b6950087fea0d0134b795fac758c34e7191",
+                "f2d4855df39a7db6196666e8469a07a131cddc08dcaa744a344343ffcf54a10c",
+                "95521a33ba34f5924464f425e81b896b1aa9069796a778368ed053e3612c509b",
+                "40d33962fdf26e0910805f36a3a96b239cf93b95d4a3e6dd779f1ea3ff9b0866",
+                "0f243ba69b7c7ffa73934bc7f5fa6586b8013afdc310d808b1ec2c2c98f1c219",
+                "e489cdb0b24fa416a49b524625e0edab0f7235f3a0261a3cdfc64c4efdc14afd",
+                "91820b0fc7e52873a574208c7b4e9b8ae848ee25e5c03bac655c45d060995548"
+              ],
+              "#s": [
+                "pending"
+              ],
+              "limit": 1000
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "mostro-nostr",
+      "name": "Mostro relays",
+      "kind": "nostr-relay",
+      "homepage": "https://mostro.network",
+      "relays": [
+        "wss://relay.mostro.network",
+        "wss://nos.lol",
+        "wss://relay.damus.io"
+      ],
+      "routes": [
+        {
+          "path": "/orders",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 30,
+          "timeoutMs": 8000,
+          "nostr": {
+            "filter": {
+              "kinds": [
+                38383
+              ],
+              "#y": [
+                "mostro"
+              ],
+              "#s": [
+                "pending"
+              ],
+              "limit": 1000
+            }
+          }
+        },
+        {
+          "path": "/info",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 300,
+          "timeoutMs": 8000,
+          "nostr": {
+            "filter": {
+              "kinds": [
+                38385
+              ],
+              "#y": [
+                "mostro"
+              ],
+              "limit": 500
+            }
+          }
+        },
+        {
+          "path": "/trades",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 600,
+          "timeoutMs": 8000,
+          "nostr": {
+            "filter": {
+              "kinds": [
+                38383
+              ],
+              "#y": [
+                "mostro"
+              ],
+              "#s": [
+                "success"
+              ],
+              "limit": 2000
+            },
+            "sinceSeconds": 604800
+          }
+        }
+      ],
+      "p2p": {
+        "venue": "mostro",
+        "key": "mostro",
+        "instancesSource": "Mainnet instances with both live orders and completed trades on relay.mostro.network, nos.lol and relay.damus.io, recorded 2026-10-07 (src/lib/observatory/__tests__/fixtures/p2p/nostr). Add an instance by PR after checking it trades.",
+        "instances": [
+          {
+            "pubkey": "82fa8cb978b43c79b2156585bac2c011176a21d2aead6d9f7c575c005be88390",
+            "name": "Mostro"
+          },
+          {
+            "pubkey": "00000978acc594c506976c655b6decbf2d4af25ffdaa6680f2a9568b0a88441b",
+            "name": "MostroColomBia"
+          },
+          {
+            "pubkey": "0000cc02101ec29eea9ce623258752b9d7da66c27845ed26846dd0b0fc736b40",
+            "name": "NostroMostro"
+          },
+          {
+            "pubkey": "00000235a3e904cfe1213a8a54d6f1ec1bef7cc6bfaabd6193e82931ccf1366a",
+            "name": "Kmbalache"
+          },
+          {
+            "pubkey": "00037abd44e7a846689e230d5446abcd0d56a344fa81fff85c09d1929feda486",
+            "name": "Mostro Brasil"
+          },
+          {
+            "pubkey": "afe3de9aa8616d7c2e62eb336d3a127cf9daa9b4482ab1e9361d5c175d3b8cf3",
+            "name": "Barattolo P2P"
+          },
+          {
+            "pubkey": "000009ee1e4b1dc7add19ab30e4ef854d7b562e208b62686fd9002b50b24dabb",
+            "name": "Mostro Venezuela"
+          },
+          {
+            "pubkey": "00003f6be51b51a1a0cf9c94232ab1bba1f5c1bfd5a0e8687e9647558536b791",
+            "name": "Mostro Mexico"
+          },
+          {
+            "pubkey": "b3626fe91b602bdbca3673bec0855221f41dc8f6d0e4027e51eaa525d68d87f2",
+            "name": "MostrAR"
+          },
+          {
+            "pubkey": "da23a31d75572138ab8149911a04224812a34bda679caba7cb1824fdf7c592ec",
+            "name": "MostroEuropa"
+          }
+        ]
+      }
+    },
+    {
+      "id": "hodlhodl",
+      "name": "HodlHodl",
+      "kind": "p2p-exchange",
+      "homepage": "https://hodlhodl.com",
+      "base": "https://hodlhodl.com",
+      "p2p": {
+        "venue": "hodlhodl",
+        "key": "hodlhodl"
+      },
+      "routes": [
+        {
+          "path": "/api/v1/offers",
+          "http": "GET",
+          "class": "aggregate",
+          "ttl": 60,
+          "timeoutMs": 20000,
+          "query": {
+            "pagination[offset]": "offset"
+          },
+          "fixedQuery": {
+            "pagination[limit]": "100"
+          }
+        }
       ]
     }
   ]

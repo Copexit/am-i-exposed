@@ -106,6 +106,29 @@ describe("tor-proxy handler", () => {
     expect(fetchViaAgent.mock.calls[0][1].timeoutMs).toBe(30000);
   });
 
+  it("GET hodlhodl forwards a floored offset plus the fixed limit", async () => {
+    const fetchViaAgent = vi.fn().mockResolvedValue("{}");
+    const handler = createHandler({ fetchViaAgent, logger: silentLogger });
+    await handler(makeReq({ url: "/svc/hodlhodl/api/v1/offers?pagination%5Boffset%5D=230&pagination%5Blimit%5D=9999&x=1" }), makeRes());
+    const u = new URL(fetchViaAgent.mock.calls[0][0]);
+    expect(u.origin + u.pathname).toBe("https://hodlhodl.com/api/v1/offers");
+    expect(u.searchParams.get("pagination[offset]")).toBe("200");
+    expect(u.searchParams.get("pagination[limit]")).toBe("100");
+    expect(u.searchParams.has("x")).toBe(false);
+  });
+
+  it("onion-only coordinators go to their http onion; a service with no upstream 404s", async () => {
+    const fetchViaAgent = vi.fn().mockResolvedValue("{}");
+    const services = [{ id: "r", relays: ["wss://r"], routes: [{ path: "/g", http: "GET", class: "aggregate" }] }];
+    const handler = createHandler({ fetchViaAgent, logger: silentLogger });
+    await handler(makeReq({ url: "/svc/robosats-bazaar/api/info/" }), makeRes());
+    expect(fetchViaAgent.mock.calls[0][0]).toBe("http://librebazovfmmkyi2jekraxsuso3mh622avuuzqpejixdl5dhuhb4tid.onion/api/info/");
+    const res = makeRes();
+    await createHandler({ fetchViaAgent, services, logger: silentLogger })(makeReq({ url: "/svc/r/g" }), res);
+    expect(res.status()).toBe(404);
+    expect(fetchViaAgent).toHaveBeenCalledTimes(1);
+  });
+
   it("404s unknown services, 405s the wrong method, and drops the /observatory routes", async () => {
     const handler = createHandler({ fetchViaAgent: vi.fn(), logger: silentLogger });
     for (const [url, method, status] of [

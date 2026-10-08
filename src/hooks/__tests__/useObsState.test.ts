@@ -8,7 +8,7 @@ describe("useObsState", () => {
 
   it("defaults to the WabiSabi map for the last 24 h without a hash", () => {
     const { result } = renderHook(() => useObsState());
-    expect(result.current[0]).toEqual({ tab: "wabisabi", period: 1, coordinator: null, tx: null, view: "map" });
+    expect(result.current[0]).toEqual({ tab: "wabisabi", period: 1, coordinator: null, tx: null, view: "map", cur: null, side: "buy", venue: ["robosats", "mostro", "hodlhodl"] });
   });
 
   it("reads a deep link and ignores malformed values", () => {
@@ -38,6 +38,16 @@ describe("useObsState", () => {
     expect(window.history.length).toBe(before);
     act(() => result.current[1]({ coordinator: null, tx: null }));
     expect(window.location.hash).toBe("#wabisabi&period=7");
+  });
+
+  it("replaces the entry for P2P market selections", () => {
+    const { result } = renderHook(() => useObsState());
+    act(() => result.current[1]({ tab: "p2p" }));
+    const before = window.history.length;
+    act(() => result.current[1]({ cur: "BRL" }));
+    act(() => result.current[1]({ side: "sell", venue: ["mostro"] }));
+    expect(window.location.hash).toBe("#p2p&cur=BRL&side=sell&venue=mostro");
+    expect(window.history.length).toBe(before);
   });
 
   it("restores state on back and forward", async () => {

@@ -3,6 +3,8 @@
  * workers/coinjoin-stats/svc.js validation (CommonJS, no cache: every response
  * is no-store). The upstream is service.onion ?? service.base.
  */
+const { createNostrRoute } = require("./nostr");
+
 const MAX_REQUEST_BYTES = 64 * 1024;
 const MAX_PARAMS_JSON = 2048;
 const DEFAULT_TIMEOUT_MS = 30000;
@@ -12,6 +14,11 @@ function validateParam(kind, value) {
     if (typeof value !== "string") return null;
     const v = value.trim().toLowerCase();
     return /^[0-9a-f]{64}$/.test(v) ? v : null;
+  }
+  if (kind === "offset") {
+    const n = parseInt(String(value ?? "0"), 10);
+    if (!Number.isFinite(n) || n < 0) return "0";
+    return String(Math.floor(Math.min(n, 5000) / 100) * 100);
   }
   const n = parseInt(String(value ?? "1"), 10);
   return String(!Number.isFinite(n) || n < 1 ? 1 : Math.min(n, 10000));
@@ -43,7 +50,8 @@ function send(res, status, body, extra = {}) {
 const fail = (res, status, code, message, extra) =>
   send(res, status, JSON.stringify({ error: { code, message } }), extra);
 
-function createSvcHandler({ fetchViaAgent, services, logger = console }) {
+function createSvcHandler({ fetchViaAgent, services, logger = console, openSocket }) {
+  const nostrRoute = openSocket ? createNostrRoute({ openSocket }) : null;
   const forward = async (res, service, route, path, init) => {
     try {
       const body = await fetchViaAgent((service.onion ?? service.base) + path, {
@@ -69,10 +77,18 @@ function createSvcHandler({ fetchViaAgent, services, logger = console }) {
     const route = routes.find((r) => r.http === req.method);
     if (!route) return fail(res, 405, "METHOD_NOT_ALLOWED", "Method not allowed");
     const path = route.path;
+    const upstreamBase = service.onion ?? service.base;
+
+    if (route.nostr) {
+      // Fail closed: a nostr snapshot is only ever a GET aggregate with registry filters.
+      if (req.method !== "GET" || route.class !== "aggregate" || !nostrRoute) return misconfigured(res);
+      return nostrRoute(res, service, route);
+    }
 
     if (req.method === "GET") {
       // Fail closed: only "aggregate" and "lookup" are valid classes.
       if (route.class !== "aggregate" && route.class !== "lookup") return misconfigured(res);
+      if (!upstreamBase) return fail(res, 404, "NOT_FOUND", "Unknown service route");
       const qs = new URLSearchParams();
       for (const [name, kind] of Object.entries(route.query ?? {})) {
         if (!url.searchParams.has(name)) continue;
@@ -80,10 +96,12 @@ function createSvcHandler({ fetchViaAgent, services, logger = console }) {
         if (v === null) return fail(res, 400, "BAD_PARAMS", "Invalid params");
         qs.set(name, v);
       }
+      for (const [name, value] of Object.entries(route.fixedQuery ?? {})) qs.set(name, value);
       const query = qs.toString();
       return forward(res, service, route, path + (query ? "?" + query : ""), { method: "GET" });
     }
 
+    if (!upstreamBase) return fail(res, 404, "NOT_FOUND", "Unknown service route");
     let text;
     try {
       text = await readBody(req);

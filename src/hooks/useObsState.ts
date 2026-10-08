@@ -6,11 +6,11 @@ import { setHash } from "@/lib/hash-nav";
 import { parseObsHash, serializeObsHash, type ObsState } from "@/lib/observatory/obs-hash";
 
 /** Observatory tabs, in display order; the first is the default. */
-export const OBSERVATORY_TABS = ["wabisabi", "whirlpool"] as const;
+export const OBSERVATORY_TABS = ["wabisabi", "whirlpool", "p2p"] as const;
 export type ObservatoryTab = (typeof OBSERVATORY_TABS)[number];
 
-/** Patches that only move the selection (coordinator, tx) rewrite the current history entry. */
-const SELECTION_KEYS: ReadonlySet<string> = new Set(["coordinator", "tx"]);
+/** Patches that only move the selection (coordinator, tx, P2P market) rewrite the current history entry. */
+const SELECTION_KEYS: ReadonlySet<string> = new Set(["coordinator", "tx", "cur", "side", "venue"]);
 
 /**
  * The Observatory's URL state (tab, period, coordinator, tx, view), backed by the hash so every
