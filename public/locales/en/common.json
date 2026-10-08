@@ -3166,7 +3166,7 @@
   "wallet.coinSel.reason.links": "Links {{count}} group of coins that was not linked on-chain before.",
   "wallet.coinSel.reason.links_other": "Links {{count}} groups of coins that were not linked on-chain before.",
   "wallet.coinSel.reason.bad-change": "Its change is too small to spend later or comes from a CoinJoin coin, which costs privacy later.",
-  "wallet.coinSel.reason.big-change": "Leaves change {{ratio}}x the payment: the recipient learns how much the coin held.",
+  "wallet.coinSel.reason.big-change": "Leaves change {{ratio}}x the payment: most of the coin's value stays on change linked to this payment.",
   "wallet.coinSel.reason.clean": "Links nothing new and leaves no change.",
   "wallet.coinSel.reason.small-change": "Links nothing new, and the change stays modest next to the payment.",
   "wallet.coinSel.warn.mixed-change": "Spends a mixed CoinJoin output on a smaller payment: the change can be followed back to it. Mixed outputs are best spent whole.",
@@ -3178,7 +3178,7 @@
   "wallet.utxos.chainChange": "Change chain",
   "wallet.utxos.chainReceive": "Receive chain",
   "wallet.coinSel.strategy.probably-linked": "Probably linked coins",
-  "wallet.coinSel.note.probablyLinked": "Probably already linked: these coins come from the same payment, but an observer has to guess which output was the change.",
+  "wallet.coinSel.note.probablyLinked": "Probably already linked: these coins come from the same payments, but an observer has to guess which output was the change.",
   "wallet.coinSel.reason.inferred-links": "Joins coins an observer can probably already link.",
   "wallet.coinSel.hint.probably-linked": "Probably linked to #{{n}}",
   "wallet.utxos.group": "Group {{letter}}",
@@ -3188,5 +3188,6 @@
   "wallet.utxos.allLinked": "All {{count}} coin is linked by this wallet's history.",
   "wallet.utxos.allLinked_other": "All {{count}} coins are linked by this wallet's history.",
   "wallet.utxos.allProbablyLinked": "All {{count}} coin is probably linked by this wallet's history: they come from the same payments, but an observer has to guess which outputs were the change.",
-  "wallet.utxos.allProbablyLinked_other": "All {{count}} coins are probably linked by this wallet's history: they come from the same payments, but an observer has to guess which outputs were the change."
+  "wallet.utxos.allProbablyLinked_other": "All {{count}} coins are probably linked by this wallet's history: they come from the same payments, but an observer has to guess which outputs were the change.",
+  "wallet.coinSel.originsProbable": "{{n}} (probably linked)"
 }

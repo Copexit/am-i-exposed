@@ -3326,7 +3326,7 @@
   "wallet.coinSel.reason.links_many": "Wiąże {{count}} grup monet, które wcześniej nie były powiązane w łańcuchu.",
   "wallet.coinSel.reason.links_other": "Wiąże {{count}} grupy monet, które wcześniej nie były powiązane w łańcuchu.",
   "wallet.coinSel.reason.bad-change": "Reszta jest za mała, by ją później wydać, lub pochodzi z monety z CoinJoin, co później kosztuje prywatność.",
-  "wallet.coinSel.reason.big-change": "Zostawia resztę {{ratio}} razy większą niż płatność: odbiorca dowiaduje się, ile zawierała moneta.",
+  "wallet.coinSel.reason.big-change": "Zostawia resztę {{ratio}} razy większą niż płatność: większość wartości monety zostaje w reszcie powiązanej z tą płatnością.",
   "wallet.coinSel.reason.clean": "Nie wiąże niczego nowego i nie zostawia reszty.",
   "wallet.coinSel.reason.small-change": "Nie wiąże niczego nowego, a reszta pozostaje umiarkowana w stosunku do płatności.",
   "wallet.coinSel.warn.mixed-change": "Wydaje zmiksowane wyjście CoinJoin na mniejszą płatność: resztę da się prześledzić do niego. Zmiksowane wyjścia najlepiej wydawać w całości.",
@@ -3338,7 +3338,7 @@
   "wallet.utxos.chainChange": "Łańcuch reszty",
   "wallet.utxos.chainReceive": "Łańcuch odbioru",
   "wallet.coinSel.strategy.probably-linked": "Prawdopodobnie powiązane monety",
-  "wallet.coinSel.note.probablyLinked": "Prawdopodobnie już powiązane: te monety pochodzą z tej samej płatności, ale obserwator musi zgadnąć, które wyjście było resztą.",
+  "wallet.coinSel.note.probablyLinked": "Prawdopodobnie już powiązane: te monety pochodzą z tych samych płatności, ale obserwator musi zgadnąć, które wyjście było resztą.",
   "wallet.coinSel.reason.inferred-links": "Łączy monety, które obserwator prawdopodobnie już potrafi powiązać.",
   "wallet.coinSel.hint.probably-linked": "Prawdopodobnie powiązana z #{{n}}",
   "wallet.utxos.group": "Grupa {{letter}}",
@@ -3352,5 +3352,6 @@
   "wallet.utxos.allProbablyLinked": "{{count}} moneta jest prawdopodobnie powiązana przez historię tego portfela: pochodzi z tych samych płatności, ale obserwator musi zgadnąć, które wyjścia były resztą.",
   "wallet.utxos.allProbablyLinked_few": "Wszystkie {{count}} monety są prawdopodobnie powiązane przez historię tego portfela: pochodzą z tych samych płatności, ale obserwator musi zgadnąć, które wyjścia były resztą.",
   "wallet.utxos.allProbablyLinked_many": "Wszystkie {{count}} monet jest prawdopodobnie powiązanych przez historię tego portfela: pochodzą z tych samych płatności, ale obserwator musi zgadnąć, które wyjścia były resztą.",
-  "wallet.utxos.allProbablyLinked_other": "Wszystkie {{count}} monety są prawdopodobnie powiązane przez historię tego portfela: pochodzą z tych samych płatności, ale obserwator musi zgadnąć, które wyjścia były resztą."
+  "wallet.utxos.allProbablyLinked_other": "Wszystkie {{count}} monety są prawdopodobnie powiązane przez historię tego portfela: pochodzą z tych samych płatności, ale obserwator musi zgadnąć, które wyjścia były resztą.",
+  "wallet.coinSel.originsProbable": "{{n}} (prawdopodobnie powiązane)"
 }

@@ -37,11 +37,11 @@ describe("tester wallet replay: payments with two wallet outputs (kept coin + re
 
   it("600,000 sats at 5 sat/vB: the probably-linked pair first, the 164x single coin second, no CoinJoin coin", () => {
     const plans = advise(infos);
-    // Pair: half a link (inferred) + change = 10. Single 99M: change + 3x + one link per tenfold past 10x (164x) = 27.58.
-    // The CoinJoin coin alone costs 27.65 (bad change, 24x), just behind the 99M coin, so it is not the single-coin plan.
+    // Pair: half a link (inferred) + change = 10. Single 99M: change + big change capped at 3x cost + half a link = 19.
+    // The CoinJoin coin alone costs 27.65 (bad change, 24x), behind the 99M coin, so it is not the single-coin plan.
     expect(plans.map(pin)).toEqual([
       ["probably-linked", "inferred-links", [591_429, 134_361], 1_040, 124_750, 2, 1, 10],
-      ["single-coin", "big-change", [99_000_000], 700, 98_399_300, 1, 1, 27.58],
+      ["single-coin", "big-change", [99_000_000], 700, 98_399_300, 1, 1, 19],
     ]);
     expect(plans.flatMap((p) => p.selected).some((c) => c.utxo.value === CJ_CHANGE)).toBe(false);
   });
@@ -58,11 +58,11 @@ describe("tester wallet replay: peel shape, one wallet output per tx", () => {
     expect(new Set(coins.map((c) => c.group)).size).toBe(11);
   });
 
-  it("600,000 sats at 5 sat/vB: the pair still first (one new link beats a 164x change), the single coin shown with its cost", () => {
+  it("600,000 sats at 5 sat/vB: the pair still first (one new link + change 16 < capped 164x change 19), the single coin shown", () => {
     const plans = advise(infos);
     expect(plans.map(pin)).toEqual([
       ["multi-coin", "links", [591_429, 134_361], 1_040, 124_750, 2, 2, 16],
-      ["single-coin", "big-change", [99_000_000], 700, 98_399_300, 1, 1, 27.58],
+      ["single-coin", "big-change", [99_000_000], 700, 98_399_300, 1, 1, 19],
     ]);
   });
 });

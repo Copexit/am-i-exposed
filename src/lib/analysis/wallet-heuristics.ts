@@ -95,11 +95,13 @@ export function checkMerges(
   }
   if (change.length > 0) {
     const count = change.length;
-    // Every merge only across inferred links: one notch lower
-    const soft = inferredOnly === count;
+    // Severity and score follow the certain merges; one notch lower only when there are none
+    const certainCount = count - inferredOnly;
+    const soft = certainCount === 0;
+    const n = soft ? count : certainCount;
     findings.push({
       id: "wallet-change-merge",
-      severity: soft ? (count > 1 ? "medium" : "low") : count > 1 ? "high" : "medium",
+      severity: soft ? (n > 1 ? "medium" : "low") : n > 1 ? "high" : "medium",
       confidence: "high",
       title: `${count} spend${count > 1 ? "s" : ""} merged change with other coins`,
       description:
@@ -109,7 +111,7 @@ export function checkMerges(
       recommendation:
         "Use coin control: spend change on its own or with coins from the same transaction. " +
         "When a payment needs more, spend the change completely in a payment that leaves no new change, or run it through a CoinJoin first.",
-      scoreImpact: soft ? (count >= 5 ? -7 : count > 1 ? -4 : -2) : count >= 5 ? -10 : count > 1 ? -7 : -4,
+      scoreImpact: soft ? (n >= 5 ? -7 : n > 1 ? -4 : -2) : n >= 5 ? -10 : n > 1 ? -7 : -4,
       params: { count, inferredCount: inferredOnly, ...txRefs(change) },
     });
   }

@@ -80,7 +80,7 @@ for (const width of [1440, 390]) {
     await expect(first.getByTestId("plan-reason")).toHaveText("Joins coins an observer can probably already link.");
     const single = page.getByTestId("coin-plan-single-coin");
     await expect(single.getByText("99,000,000 sats")).toBeVisible();
-    await expect(single.getByTestId("plan-reason")).toHaveText("Leaves change 164x the payment: the recipient learns how much the coin held.");
+    await expect(single.getByTestId("plan-reason")).toHaveText("Leaves change 164x the payment: most of the coin's value stays on change linked to this payment.");
     await expect(page.getByText("15,240,920 sats", { exact: true }).locator("xpath=ancestor::section[starts-with(@data-testid,'coin-plan-')]")).toHaveCount(0);
     await shot(page, page.getByTestId("coin-selector"), `test-results/wa-selector-${width}.png`);
   });

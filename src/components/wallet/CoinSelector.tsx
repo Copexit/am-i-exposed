@@ -118,7 +118,13 @@ function PlanCard({ plan, recommended }: { plan: CoinSelectionPlan; recommended:
     { label: t("wallet.coinSel.inputs", { defaultValue: "Inputs" }), value: fmtN(plan.selected.length) },
     { label: t("wallet.coinSel.fee", { defaultValue: "Fee" }), value: `${fmtN(plan.fee)} ${sats}` },
     { label: t("wallet.coinSel.change", { defaultValue: "Change" }), value: plan.change > 0 ? `${fmtN(plan.change)} ${sats}` : t("wallet.coinSel.noChange", { defaultValue: "No change" }) },
-    { label: t("wallet.coinSel.origins", { defaultValue: "Origins" }), value: fmtN(plan.origins) },
+    {
+      label: t("wallet.coinSel.origins", { defaultValue: "Origins" }),
+      // Coins only probably linked count as one origin, said so
+      value: plan.strategy === "probably-linked"
+        ? t("wallet.coinSel.originsProbable", { count: plan.groups, n: fmtN(plan.groups), defaultValue: "{{n}} (probably linked)" })
+        : fmtN(plan.groups),
+    },
   ];
 
   return (

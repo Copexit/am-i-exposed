@@ -111,4 +111,16 @@ describe("W2 with linkage clusters", () => {
     const spends = [...g.txs.values()].filter((t) => t.vin.every((v) => g.own.has(v.prevout!.scriptpubkey_address!)));
     expect(checkMerges(g, spends, c).findings.map((f) => f.id)).toEqual(["wallet-change-merge"]);
   });
+
+  it("scores W2 by its certain merges: 1 certain + 1 inferred is medium -4, counted as 2", () => {
+    const h = new History();
+    const r = h.receive(recv(0), 1_000_000, 100);
+    const out = h.tx([r], [{ address: ext(1), value: 100_007 }, { address: chg(0), value: 400_000 }, { address: chg(1), value: 498_000 }], 101);
+    const [, c2] = h.tx([out[1]!, out[2]!], [{ address: ext(2), value: 600_000 }, { address: chg(2), value: 297_000 }], 102); // inferred only
+    h.tx([c2!, h.receive(recv(1), 50_000, 103)], [{ address: ext(3), value: 346_000 }], 104); // certain
+    const { g, c } = clusters(h);
+    const spends = [...g.txs.values()].filter((t) => t.vin.every((v) => g.own.has(v.prevout!.scriptpubkey_address!)));
+    const [f] = checkMerges(g, spends, c).findings;
+    expect([f!.severity, f!.scoreImpact, f!.params?.count, f!.params?.inferredCount]).toEqual(["medium", -4, 2, 1]);
+  });
 });

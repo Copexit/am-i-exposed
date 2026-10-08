@@ -3166,7 +3166,7 @@
   "wallet.coinSel.reason.links": "Vincula {{count}} grupo de monedas que antes no estaba vinculado en la cadena.",
   "wallet.coinSel.reason.links_other": "Vincula {{count}} grupos de monedas que antes no estaban vinculados en la cadena.",
   "wallet.coinSel.reason.bad-change": "Su cambio es demasiado pequeño para gastarlo después o viene de una moneda de CoinJoin, lo que cuesta privacidad más adelante.",
-  "wallet.coinSel.reason.big-change": "Deja un cambio {{ratio}} veces el pago: el destinatario sabe cuánto tenía la moneda.",
+  "wallet.coinSel.reason.big-change": "Deja un cambio {{ratio}} veces el pago: la mayor parte del valor de la moneda queda en un cambio vinculado a este pago.",
   "wallet.coinSel.reason.clean": "No vincula nada nuevo y no deja cambio.",
   "wallet.coinSel.reason.small-change": "No vincula nada nuevo y el cambio es moderado frente al pago.",
   "wallet.coinSel.warn.mixed-change": "Gasta una salida mezclada de CoinJoin en un pago menor: el cambio se puede rastrear hasta ella. Las salidas mezcladas conviene gastarlas enteras.",
@@ -3178,7 +3178,7 @@
   "wallet.utxos.chainChange": "Cadena de cambio",
   "wallet.utxos.chainReceive": "Cadena de recepción",
   "wallet.coinSel.strategy.probably-linked": "Monedas probablemente vinculadas",
-  "wallet.coinSel.note.probablyLinked": "Probablemente ya vinculadas: estas monedas vienen del mismo pago, pero un observador tiene que adivinar qué salida era el cambio.",
+  "wallet.coinSel.note.probablyLinked": "Probablemente ya vinculadas: estas monedas vienen de los mismos pagos, pero un observador tiene que adivinar qué salida era el cambio.",
   "wallet.coinSel.reason.inferred-links": "Junta monedas que un observador probablemente ya puede vincular.",
   "wallet.coinSel.hint.probably-linked": "Probablemente vinculada a #{{n}}",
   "wallet.utxos.group": "Grupo {{letter}}",
@@ -3188,5 +3188,6 @@
   "wallet.utxos.allLinked": "La {{count}} moneda está vinculada por el historial de este monedero.",
   "wallet.utxos.allLinked_other": "Las {{count}} monedas están vinculadas por el historial de este monedero.",
   "wallet.utxos.allProbablyLinked": "La {{count}} moneda está probablemente vinculada por el historial de este monedero: viene de los mismos pagos, pero un observador tiene que adivinar qué salidas eran el cambio.",
-  "wallet.utxos.allProbablyLinked_other": "Las {{count}} monedas están probablemente vinculadas por el historial de este monedero: vienen de los mismos pagos, pero un observador tiene que adivinar qué salidas eran el cambio."
+  "wallet.utxos.allProbablyLinked_other": "Las {{count}} monedas están probablemente vinculadas por el historial de este monedero: vienen de los mismos pagos, pero un observador tiene que adivinar qué salidas eran el cambio.",
+  "wallet.coinSel.originsProbable": "{{n}} (probablemente vinculadas)"
 }

@@ -347,12 +347,12 @@ const HUGE_CHANGE_RATIO = 10;
  * Privacy cost weights. A new link is the main cost; a link the history
  * already makes probable (inferred) costs half. Change badness (toxic size,
  * or change from a CoinJoin coin) costs a little less than a link. Change
- * much larger than the payment shows the recipient how much the coin held:
- * from 3x it costs bigChange, and from 10x one more link per tenfold
- * (a 164x change tells the recipient the coin held 164 payments). The ratios
- * keep the earlier rulings: a changeless merge of 2 origins beats a single
- * coin whose change is toxic or 3x the payment, never one with ordinary
- * change, and never a merge of 3 origins.
+ * much larger than the payment keeps most of the coin's value on change
+ * linked to this payment (the recipient sees the input's value either way):
+ * from 3x it costs bigChange, from 10x it grows with the ratio, capped at
+ * bigChange + half a link. The ratios keep the earlier rulings: a changeless
+ * merge of 2 origins beats a single coin whose change is toxic or 3x the
+ * payment, never one with ordinary change, and never a merge of 3 origins.
  */
 const COST = { link: 12, change: 4, badChange: 10, bigChange: 9, coinjoinMerge: 40 } as const;
 
@@ -360,7 +360,7 @@ const COST = { link: 12, change: 4, badChange: 10, bigChange: 9, coinjoinMerge: 
 function bigChangeCost(ratio: number): number {
   if (ratio < BIG_CHANGE_RATIO) return 0;
   if (ratio < HUGE_CHANGE_RATIO) return COST.bigChange;
-  return COST.bigChange + COST.link * Math.log10(ratio / HUGE_CHANGE_RATIO);
+  return COST.bigChange + Math.min(COST.link / 2, COST.link * Math.log10(ratio / HUGE_CHANGE_RATIO));
 }
 
 interface Scored {

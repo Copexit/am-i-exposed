@@ -425,11 +425,19 @@ describe("adviseCoinSelection: privacy cost ranking", () => {
     expect(a.plans[0]!.warnings.map(w => w.id)).not.toContain("merges-origins");
   });
 
-  it("the big-change cost grows with the change-to-payment ratio past 10x", () => {
+  it("the big-change cost grows with the ratio past 10x, capped at half a link more", () => {
     const cost = (big: number) => plans(adviseCoinSelection([coin(big)], 100_000, 1)).plans[0]!.cost;
     expect(cost(500_000)).toBe(4 + 9); // ~4x
     expect(cost(1_100_000)).toBeCloseTo(4 + 9, 0); // ~10x
-    expect(cost(10_100_000) - cost(1_100_000)).toBeCloseTo(12, 0); // each tenfold adds one link
+    expect(cost(2_100_000)).toBeCloseTo(4 + 9 + 12 * Math.log10(2), 1); // ~20x
+    expect(cost(100_000_000)).toBe(4 + 9 + 6); // ~1000x: capped
+  });
+
+  it("never prefers merging 3 unrelated receipts over one big coin", () => {
+    const a = plans(adviseCoinSelection([coin(100_000_000), coin(40_000), coin(40_000), coin(40_000)], 100_000, 1));
+    expect(values(a.plans[0]!)).toEqual([100_000_000]);
+    const five = plans(adviseCoinSelection([coin(1_000_000_000), ...Array.from({ length: 5 }, () => coin(30_000))], 140_000, 1));
+    expect(values(five.plans[0]!)).toEqual([1_000_000_000]);
   });
 
   it("stays fast with about 1,000 coins across clusters and origins", () => {

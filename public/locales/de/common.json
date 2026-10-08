@@ -3166,7 +3166,7 @@
   "wallet.coinSel.reason.links": "Verknüpft {{count}} Münzgruppe, die on-chain bisher nicht verknüpft war.",
   "wallet.coinSel.reason.links_other": "Verknüpft {{count}} Münzgruppen, die on-chain bisher nicht verknüpft waren.",
   "wallet.coinSel.reason.bad-change": "Das Wechselgeld ist zu klein, um es später auszugeben, oder stammt aus einer CoinJoin-Münze, was später Privatsphäre kostet.",
-  "wallet.coinSel.reason.big-change": "Hinterlässt Wechselgeld vom {{ratio}}-Fachen der Zahlung: Der Empfänger erfährt, wie viel die Münze enthielt.",
+  "wallet.coinSel.reason.big-change": "Hinterlässt Wechselgeld vom {{ratio}}-Fachen der Zahlung: Der Großteil des Münzwerts bleibt als Wechselgeld mit dieser Zahlung verknüpft.",
   "wallet.coinSel.reason.clean": "Verknüpft nichts Neues und hinterlässt kein Wechselgeld.",
   "wallet.coinSel.reason.small-change": "Verknüpft nichts Neues, und das Wechselgeld bleibt im Verhältnis zur Zahlung gering.",
   "wallet.coinSel.warn.mixed-change": "Gibt eine gemixte CoinJoin-Ausgabe für eine kleinere Zahlung aus: Das Wechselgeld lässt sich zu ihr zurückverfolgen. Gemixte Ausgaben gibt man am besten ganz aus.",
@@ -3178,7 +3178,7 @@
   "wallet.utxos.chainChange": "Wechselgeld-Kette",
   "wallet.utxos.chainReceive": "Empfangskette",
   "wallet.coinSel.strategy.probably-linked": "Wahrscheinlich verknüpfte Münzen",
-  "wallet.coinSel.note.probablyLinked": "Wahrscheinlich schon verknüpft: Diese Münzen stammen aus derselben Zahlung, aber ein Beobachter muss raten, welche Ausgabe das Wechselgeld war.",
+  "wallet.coinSel.note.probablyLinked": "Wahrscheinlich schon verknüpft: Diese Münzen stammen aus denselben Zahlungen, aber ein Beobachter muss raten, welche Ausgabe das Wechselgeld war.",
   "wallet.coinSel.reason.inferred-links": "Verbindet Münzen, die ein Beobachter wahrscheinlich schon verknüpfen kann.",
   "wallet.coinSel.hint.probably-linked": "Wahrscheinlich verknüpft mit #{{n}}",
   "wallet.utxos.group": "Gruppe {{letter}}",
@@ -3188,5 +3188,6 @@
   "wallet.utxos.allLinked": "Die {{count}} Münze ist durch den Verlauf dieser Wallet verknüpft.",
   "wallet.utxos.allLinked_other": "Alle {{count}} Münzen sind durch den Verlauf dieser Wallet verknüpft.",
   "wallet.utxos.allProbablyLinked": "Die {{count}} Münze ist durch den Verlauf dieser Wallet wahrscheinlich verknüpft: Sie stammt aus denselben Zahlungen, aber ein Beobachter muss raten, welche Ausgaben das Wechselgeld waren.",
-  "wallet.utxos.allProbablyLinked_other": "Alle {{count}} Münzen sind durch den Verlauf dieser Wallet wahrscheinlich verknüpft: Sie stammen aus denselben Zahlungen, aber ein Beobachter muss raten, welche Ausgaben das Wechselgeld waren."
+  "wallet.utxos.allProbablyLinked_other": "Alle {{count}} Münzen sind durch den Verlauf dieser Wallet wahrscheinlich verknüpft: Sie stammen aus denselben Zahlungen, aber ein Beobachter muss raten, welche Ausgaben das Wechselgeld waren.",
+  "wallet.coinSel.originsProbable": "{{n}} (wahrscheinlich verknüpft)"
 }
