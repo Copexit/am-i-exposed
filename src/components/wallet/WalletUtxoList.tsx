@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import type { WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import { buildCoinInputs, groupLetters, INPUT_VB, scriptType, withHints } from "@/lib/analysis/coin-selection";
-import { parseLabel } from "@/lib/wallet/labels";
+import { parseLabel, type LabelTag } from "@/lib/wallet/labels";
 import { LabelTagChip, LabelText, useWalletLabels } from "./WalletLabels";
 import { P2PKH_DUST_LIMIT, TXID_RE } from "@/lib/constants";
 import { fmtN } from "@/lib/format";
@@ -77,13 +77,16 @@ export function WalletUtxoList({ addressInfos, onScan, accountPath }: {
   // Group-by-label view: by origin (prefix and counterparty), else by the label's text before "·"; unlabeled last.
   const groups = useMemo(() => {
     if (!grouped) return null;
-    const m = new Map<string, { key: string; origins: string[]; who: string; rows: typeof sorted; sats: number }>();
+    const m = new Map<string, { key: string; origins: string[]; tags: LabelTag[]; who: string; rows: typeof sorted; sats: number }>();
     for (const r of sorted) {
       const l = labels.coins.get(`${r.utxo.txid}:${r.utxo.vout}`);
-      const who = l?.text ? parseLabel(l.text).who : "";
+      const parsed = l?.text ? parseLabel(l.text) : null;
+      const who = parsed?.who ?? "";
       const key = l?.origins.length ? l.origins.join("+") : who ? `:${who.toLowerCase()}` : "";
       let g = m.get(key);
-      if (!g) m.set(key, (g = { key, origins: l?.origins ?? [], who, rows: [], sats: 0 }));
+      // Chips: the origin tags, or for a group by text the label's own tags
+      const tags = l?.origins.length ? [...new Set(l.origins.map(o => o.split(":")[0] as LabelTag))] : parsed?.tags ?? [];
+      if (!g) m.set(key, (g = { key, origins: l?.origins ?? [], tags, who, rows: [], sats: 0 }));
       g.rows.push(r);
       g.sats += r.utxo.value;
     }
@@ -185,7 +188,7 @@ export function WalletUtxoList({ addressInfos, onScan, accountPath }: {
             {r.hints.map(h => <HintChip key={h.kind} hint={h} />)}
           </span>
           {label?.text && (
-            <span role="cell" className={`flex items-baseline gap-2 min-w-0 md:col-start-2 md:col-span-6 md:order-last ${MOBILE_FULL}`}>
+            <span role="cell" className="flex items-baseline gap-2 min-w-0 col-start-2 col-span-2 md:col-span-6 md:col-start-2 md:order-last">
               <LabelText text={label.text} />
               {label.source === "addr" && <span className="text-[11px] text-faint shrink-0">{t("wallet.labels.fromAddress", { defaultValue: "address label" })}</span>}
             </span>
@@ -243,7 +246,7 @@ export function WalletUtxoList({ addressInfos, onScan, accountPath }: {
                     {g.key === ""
                       ? <span className="text-[13px] text-muted">{t("wallet.labels.unlabeled", { defaultValue: "No label" })}</span>
                       : <>
-                        {[...new Set(g.origins.map(o => o.split(":")[0]!))].map(tag => <LabelTagChip key={tag} tag={tag as Parameters<typeof LabelTagChip>[0]["tag"]} />)}
+                        {g.tags.map(tag => <LabelTagChip key={tag} tag={tag} />)}
                         <span className="text-[13px] font-medium text-foreground truncate">{(g.origins[0] && labels?.originNames.get(g.origins[0])) || g.who}</span>
                       </>}
                   </span>

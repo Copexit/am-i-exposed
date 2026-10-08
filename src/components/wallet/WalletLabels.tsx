@@ -38,7 +38,7 @@ export function LabelTagChip({ tag, inherited = false }: { tag: LabelTag; inheri
 /** A label's text, one line, truncated with the full text on hover. */
 export function LabelText({ text, className = "" }: { text: string; className?: string }) {
   return (
-    <span data-testid="label-text" title={text} className={`text-[12px] text-foreground/85 italic truncate min-w-0 ${className}`}>
+    <span data-testid="label-text" title={text} className={`text-[12px] leading-5 text-foreground/80 truncate min-w-0 ${className}`}>
       {text}
     </span>
   );

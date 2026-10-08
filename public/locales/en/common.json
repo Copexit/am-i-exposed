@@ -3233,7 +3233,7 @@
   "wallet.labels.ruleBroken": "Broken:",
   "wallet.labels.rule.kyc": "KYC kept apart from no-KYC",
   "wallet.labels.rule.coinjoin": "CoinJoin coins spent one by one",
-  "wallet.labels.rule.origin": "One origin",
+  "wallet.labels.rule.origin": "Coins of one origin",
   "wallet.labels.rule.toxic": "Toxic coins not merged",
   "wallet.coinSel.warn.label-kyc": "Merges [KYC] coins with [noKYC] coins: the identity on the KYC coins now covers the coins kept away from it.",
   "wallet.coinSel.warn.label-coinjoin": "Spends {{count}} [CJ] coin together with other coins: CoinJoin coins are best spent one by one.",
