@@ -57,6 +57,17 @@ describe("label rules in coin selection", () => {
     expect(apart.cost - linked.cost).toBeGreaterThanOrEqual(6);
   });
 
+  it("rule 2: no second penalty when the [CJ] coin is a mixed output on-chain", () => {
+    const mixedCj = coin(60_000, ["cj"], "w", { origin: "mixed" });
+    const other = coin(55_000);
+    const labeled = plans(adviseCoinSelection([mixedCj, other], 100_000, 2))[0]!;
+    const unlabeled = plans(adviseCoinSelection([{ ...mixedCj, labelTags: undefined, labelOrigins: undefined }, other], 100_000, 2))[0]!;
+    expect(ids(labeled)).toContain("coinjoin-mix");
+    expect(ids(labeled)).not.toContain("label-coinjoin");
+    expect(labeled.labelRules).toContainEqual({ id: "coinjoin", ok: false });
+    expect(labeled.cost).toBe(unlabeled.cost);
+  });
+
   it("rule 5: a [toxic] coin merged with others warns", () => {
     const p = plans(adviseCoinSelection([coin(60_000, ["toxic"]), coin(55_000)], 100_000, 2))[0]!;
     expect(ids(p)).toContain("label-toxic");

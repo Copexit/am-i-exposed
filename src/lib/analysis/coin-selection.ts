@@ -393,6 +393,8 @@ interface LabelVerdict {
   /** Distinct explicit origins not already certainly linked */
   origins: number;
   cj: number;
+  /** The [CJ] rule is broken and not already covered by the on-chain CoinJoin penalty */
+  cjWarn: boolean;
 }
 
 /** Label rules for a set of coins; `cluster` is each coin's certain origin id. */
@@ -406,10 +408,14 @@ function labelVerdict(coins: readonly CoinSelectionInput[], cluster: readonly nu
     if (kyc && nokyc) cost += LABEL_COST.kyc;
   }
   const cj = coins.filter(c => has(c, "cj")).length;
+  // The on-chain CoinJoin merge cost (COST.coinjoinMerge) already covers a merge whose [CJ] coins
+  // are all mixed outputs on-chain: no second penalty, no second warning.
+  let cjWarn = false;
   if (cj > 0) {
     const ok = coins.length === 1;
     rules.push({ id: "coinjoin", ok });
-    if (!ok) cost += LABEL_COST.coinjoin;
+    cjWarn = !ok && !coins.every(c => !has(c, "cj") || c.origin === "mixed");
+    if (cjWarn) cost += LABEL_COST.coinjoin;
   }
   // Origins: keys sharing a certain cluster count once (already linked on-chain).
   const parent = new Map<string, string>();
@@ -433,7 +439,7 @@ function labelVerdict(coins: readonly CoinSelectionInput[], cluster: readonly nu
     rules.push({ id: "toxic", ok });
     if (!ok) cost += LABEL_COST.toxic;
   }
-  return { rules, cost, origins, cj };
+  return { rules, cost, origins, cj, cjWarn };
 }
 
 /** Big-change cost for a change-to-payment ratio. */
@@ -551,7 +557,7 @@ function buildPlan(x: Scored, amount: number, feeRate: number, fallback: boolean
   for (const r of x.labels.rules) {
     if (r.ok) continue;
     if (r.id === "kyc") warnings.unshift({ id: "label-kyc", severity: "critical", count: coins.length });
-    else if (r.id === "coinjoin") warnings.push({ id: "label-coinjoin", severity: "high", count: x.labels.cj });
+    else if (r.id === "coinjoin") { if (x.labels.cjWarn) warnings.push({ id: "label-coinjoin", severity: "high", count: x.labels.cj }); }
     else if (r.id === "origin") warnings.push({ id: "label-origins", severity: "medium", count: x.labels.origins });
     else warnings.push({ id: "label-toxic", severity: "medium", count: coins.length });
   }

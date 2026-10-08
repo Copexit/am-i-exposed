@@ -125,4 +125,22 @@ describe("wallet labels UI", () => {
     expect(within(within(plan).getByTestId("plan-label-rules")).getByText("KYC kept apart from no-KYC")).toBeTruthy();
     expect(within(plan).getByText("Frozen")).toBeTruthy();
   });
+
+  it("coin selector: new coins or labels clear the advice; the frozen toggle re-runs the submitted inputs", () => {
+    const labels = matchLabels([{ type: "output", ref: `${nokyc.txid}:0`, spendable: false }], infos);
+    const coins = withLabels(buildCoinInputs(infos), labels);
+    const { rerender } = render(<CoinSelector utxos={coins} />);
+    fireEvent.change(screen.getByLabelText("Amount (sats)"), { target: { value: "500000" } });
+    fireEvent.change(screen.getByLabelText("Fee (sat/vB)"), { target: { value: "1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Suggest selection" }));
+    expect(screen.getByText(/Not enough funds/)).toBeTruthy();
+    // An unsubmitted edit is not used by the toggle
+    fireEvent.change(screen.getByLabelText("Amount (sats)"), { target: { value: "1" } });
+    fireEvent.click(screen.getByLabelText("Include the frozen coin (1)"));
+    const plan = screen.getAllByTestId(/^coin-plan-/)[0]!;
+    expect(plan.textContent).toContain("300,000");
+    expect(plan.textContent).toContain("299,000");
+    rerender(<CoinSelector utxos={withLabels(buildCoinInputs(infos), null)} />);
+    expect(screen.queryAllByTestId(/^coin-plan-/)).toHaveLength(0);
+  });
 });

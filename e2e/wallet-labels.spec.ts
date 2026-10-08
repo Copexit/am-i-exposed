@@ -49,6 +49,20 @@ test.beforeEach(async ({ page }) => {
 
 const SHOTS = process.env.WB_SHOTS ?? "test-results";
 
+/** Screenshot of an element through a full-page clip, so the sticky header never covers it. */
+async function shot(page: Page, el: import("@playwright/test").Locator, path: string) {
+  await el.scrollIntoViewIfNeeded();
+  const box = (await el.boundingBox())!;
+  const scrollY = await page.evaluate(() => window.scrollY);
+  await page.screenshot({ path, fullPage: true, clip: { x: box.x, y: box.y + scrollY, width: box.width, height: box.height } });
+}
+
+/** No horizontal page scroll (checked at every width, the point is 390 px). */
+async function noHorizontalScroll(page: Page) {
+  const { sw, iw } = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }));
+  expect(sw, `scrollWidth ${sw} > innerWidth ${iw}`).toBeLessThanOrEqual(iw);
+}
+
 for (const width of [1440, 390]) {
   test(`labels at ${width}px: import, chips, KYC + noKYC warning, export`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
@@ -61,7 +75,7 @@ for (const width of [1440, 390]) {
     await panel.locator("input[type=file]").setInputFiles({ name: "sparrow.jsonl", mimeType: "application/jsonl", buffer: Buffer.from(LABELS) });
     await expect(panel.getByTestId("labels-summary")).toHaveText("12 labels applied, 1 not matching this wallet, 1 invalid");
     await expect(panel.getByRole("link", { name: "How to label coins" })).toHaveAttribute("href", "/guide/#labeling-coins");
-    await panel.screenshot({ path: `${SHOTS}/wb-panel-${width}.png` });
+    await shot(page, panel, `${SHOTS}/wb-panel-${width}.png`);
 
     // Chips and labels on the coins
     await page.getByRole("button", { name: /Coins \(UTXOs\)/ }).click();
@@ -73,10 +87,11 @@ for (const width of [1440, 390]) {
     const cjRow = list.getByTestId("utxo-row").filter({ hasText: "15,240,920 sats" });
     await expect(cjRow.getByTestId("label-tag-toxic")).toBeVisible();
     await expect(cjRow.getByText("Frozen", { exact: true })).toBeVisible();
-    await list.screenshot({ path: `${SHOTS}/wb-utxos-${width}.png` });
+    await shot(page, list, `${SHOTS}/wb-utxos-${width}.png`);
     await list.getByRole("button", { name: "Group by label" }).click();
     await expect(list.getByTestId("utxo-label-group")).toHaveCount(4);
-    await list.screenshot({ path: `${SHOTS}/wb-groups-${width}.png` });
+    await noHorizontalScroll(page);
+    await shot(page, list, `${SHOTS}/wb-groups-${width}.png`);
 
     // Coin selector: frozen coins left out, the only plan merges KYC with noKYC
     await page.getByRole("button", { name: /Coin Selection Advisor/ }).click();
@@ -86,7 +101,8 @@ for (const width of [1440, 390]) {
     await expect(plan.getByText(/Merges \[KYC\] coins with \[noKYC\] coins/)).toBeVisible();
     await expect(plan.getByTestId("plan-label-rules")).toContainText("KYC kept apart from no-KYC");
     await expect(page.getByLabel("Include frozen coins (9)")).toBeVisible();
-    await page.getByTestId("coin-selector").screenshot({ path: `${SHOTS}/wb-selector-${width}.png` });
+    await noHorizontalScroll(page);
+    await shot(page, page.getByTestId("coin-selector"), `${SHOTS}/wb-selector-${width}.png`);
 
     // Export
     const [download] = await Promise.all([page.waitForEvent("download"), page.getByTestId("labels-export").click()]);
@@ -102,10 +118,11 @@ for (const width of [1440, 390]) {
     // Addresses show their tags; the guide link lands on the labeling section
     await page.getByRole("button", { name: /^Addresses/ }).click();
     await expect(page.locator("#wallet-addresses").getByTestId("label-tag-kyc")).toBeVisible();
-    await page.locator("#wallet-addresses").screenshot({ path: `${SHOTS}/wb-addresses-${width}.png` });
+    await shot(page, page.locator("#wallet-addresses"), `${SHOTS}/wb-addresses-${width}.png`);
+    await noHorizontalScroll(page);
     await page.getByRole("link", { name: "How to label coins" }).click();
     const section = page.locator("section").filter({ has: page.locator("#labeling-coins") });
     await expect(section.getByRole("heading", { name: "How to label coins" })).toBeInViewport({ timeout: 5_000 });
-    await section.screenshot({ path: `${SHOTS}/wb-guide-${width}.png` });
+    await shot(page, section, `${SHOTS}/wb-guide-${width}.png`);
   });
 }

@@ -58,7 +58,12 @@ export function normalizeRef(type: Bip329Type, ref: string): string | null {
   switch (type) {
     case "tx": return HEX64.test(r.toLowerCase()) ? r.toLowerCase() : null;
     case "input":
-    case "output": return OUTPOINT.test(r.toLowerCase()) ? r.toLowerCase() : null;
+    case "output": {
+      // "txid:01" and "txid:1" are the same outpoint: the vout is stored as a plain number
+      if (!OUTPOINT.test(r.toLowerCase())) return null;
+      const [txid, vout] = r.toLowerCase().split(":");
+      return Number(vout) <= 0xffffffff ? `${txid}:${Number(vout)}` : null;
+    }
     case "pubkey": return PUBKEY.test(r.toLowerCase()) ? r.toLowerCase() : null;
     case "addr": {
       // Shape only (the wallet match is the real check). Bech32 is lowercased; mixed case is invalid (BIP173).
@@ -84,6 +89,16 @@ export function userPart(label: string): string {
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
+/**
+ * First MAX_LABEL_LENGTH UTF-16 units (Sparrow counts Java chars), never
+ * splitting a surrogate pair.
+ */
+function cut(s: string): string {
+  const head = s.slice(0, MAX_LABEL_LENGTH);
+  const last = head.charCodeAt(head.length - 1);
+  return last >= 0xd800 && last <= 0xdbff ? head.slice(0, -1) : head;
+}
+
 /** Byte length of a string as UTF-8. */
 export const utf8Bytes = (s: string) => new TextEncoder().encode(s).length;
 
@@ -104,15 +119,16 @@ export function parseBip329(text: string): Bip329ParseResult | null {
     // A wrong-typed optional field (e.g. "spendable": "false") makes the line invalid, not silently misread.
     if (norm === null || (label !== undefined && label !== null && typeof label !== "string")
       || (origin !== undefined && origin !== null && typeof origin !== "string")
-      || (spendable !== undefined && spendable !== null && typeof spendable !== "boolean")
-      || (typeof spendable === "boolean" && type !== "output")) { invalid++; continue; }
+      || (spendable !== undefined && spendable !== null && typeof spendable !== "boolean")) { invalid++; continue; }
 
     const rec: Bip329Record = { ...obj, type: type as Bip329Type, ref: norm };
+    // spendable only means something on outputs (BIP329): drop it elsewhere, keep the label
+    if (type !== "output") delete rec.spendable;
     // null means "not set" (some exporters write it); drop it so the record stays canonical
     for (const k of ["label", "origin", "spendable"] as const) if (rec[k] === null) delete rec[k];
     if (typeof rec.label === "string") {
       let l = userPart(rec.label.replace(/[\r\n]+/g, " "));
-      if (l.length > MAX_LABEL_LENGTH) { l = l.slice(0, MAX_LABEL_LENGTH); truncated++; }
+      if (l.length > MAX_LABEL_LENGTH) { l = cut(l); truncated++; }
       if (l) rec.label = l;
       else delete rec.label;
     }

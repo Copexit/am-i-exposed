@@ -132,11 +132,6 @@ function rulesPick(tx: MempoolTransaction, a: MempoolVout, b: MempoolVout): { ty
   };
 }
 
-/**
- * W3: in how many simple payments the standard change rules point at the
- * real change. A payment counts when at least one rule picks the change and
- * none picks the payment: with contradicting rules an analyst cannot tell.
- */
 /** The rules that point at the real change of `p`, or null when none does or one points at the payment. */
 export function changeExposure({ tx, change, payment }: SimplePayment): { type: boolean; round: boolean; optimal: boolean } | null {
   const right = rulesPick(tx, change, payment);
@@ -144,6 +139,11 @@ export function changeExposure({ tx, change, payment }: SimplePayment): { type: 
   return wrong.type || wrong.round || wrong.optimal || !(right.type || right.round || right.optimal) ? null : right;
 }
 
+/**
+ * W3: in how many simple payments the standard change rules point at the
+ * real change. A payment counts when at least one rule picks the change and
+ * none picks the payment: with contradicting rules an analyst cannot tell.
+ */
 export function checkChangeExposure(payments: readonly SimplePayment[]): Finding[] {
   let byType = 0, byRound = 0, byOptimal = 0;
   const exposedTxids: string[] = [];

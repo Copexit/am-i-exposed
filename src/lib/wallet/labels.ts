@@ -132,8 +132,11 @@ export function matchLabels(records: readonly Bip329Record[], infos: readonly Wa
     const cls = coinClass(g, txid, vout);
     if (origins.length === 0 && fundTx && depth < 1000 && (cls === "change" || cls === "self" || cls === "coinjoin-change")) {
       const parents = fundTx.vin.map((v) => resolve(v.txid, v.vout, depth + 1));
-      const inheritedTags = new Set(parents.flatMap((p) => p.tags.filter((t) => ORIGIN_TAGS.has(t) || t === "toxic")));
-      origins = [...new Set(parents.flatMap((p) => p.origins))];
+      // Change of a [CJ] coin is not mixed: it inherits as toxic (CoinJoin change), never as [CJ].
+      const inheritedTags = new Set(parents.flatMap((p) => p.tags
+        .filter((t) => ORIGIN_TAGS.has(t) || t === "toxic")
+        .map((t): LabelTag => (t === "cj" ? "toxic" : t))));
+      origins = [...new Set(parents.flatMap((p) => p.origins.filter((o) => !o.startsWith("cj:"))))];
       tags = [...new Set([...tags, ...inheritedTags])];
     }
     const r = { tags, origins };

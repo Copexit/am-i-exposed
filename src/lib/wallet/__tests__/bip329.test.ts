@@ -50,8 +50,42 @@ describe("parseBip329", () => {
       `{"type":"tx","ref":"${TX.toUpperCase()}","label":"ok"}`,
     ].join("\n");
     const r = parseBip329(text)!;
-    expect(r.invalid).toBe(9);
+    expect(r.invalid).toBe(8);
+    expect(r.empty).toBe(1); // the tx with only "spendable": the field is dropped, nothing is left
     expect(r.records).toEqual([{ type: "tx", ref: TX, label: "ok" }]);
+  });
+
+  it("spendable on a non-output record: drops only that field", () => {
+    expect(parseBip329(`{"type":"tx","ref":"${TX}","label":"keep","spendable":false}`)!.records).toEqual([{ type: "tx", ref: TX, label: "keep" }]);
+  });
+
+  it("a leading-zero vout is the same outpoint", () => {
+    const r = parseBip329(`{"type":"output","ref":"${TX}:01","label":"a"}\n{"type":"input","ref":"${TX}:007","label":"b"}\n{"type":"output","ref":"${TX}:1","label":"c"}`)!;
+    expect(r.records.map(x => x.ref)).toEqual([`${TX}:7`, `${TX}:1`]);
+    expect(r.duplicates).toBe(1);
+    expect(r.records[1]!.label).toBe("c");
+  });
+
+  it("an uppercase P2TR address is lowercased", () => {
+    const P2TR = "bc1p5d7rjq7g6rdk2yhzks9smlaqtedr4dekq08ge8ztwac72sfr9rusxg3297";
+    expect(parseBip329(`{"type":"addr","ref":"${P2TR.toUpperCase()}","label":"x"}`)!.records[0]!.ref).toBe(P2TR);
+  });
+
+  it("a __proto__ key is kept as data and never touches the prototype", () => {
+    const r = parseBip329(`{"type":"tx","ref":"${TX}","label":"x","__proto__":{"polluted":true}}`)!;
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    const rec = r.records[0]!;
+    expect(Object.getPrototypeOf(rec)).toBe(Object.prototype);
+    expect(Object.prototype.hasOwnProperty.call(rec, "__proto__")).toBe(true);
+    expect(serializeBip329(r.records)).toContain('"__proto__":{"polluted":true}');
+    expect(parseBip329(serializeBip329(r.records))!.records).toEqual(r.records);
+  });
+
+  it("the 255-character cut never splits a surrogate pair", () => {
+    const label = "x".repeat(MAX_LABEL_LENGTH - 1) + "\u{1F600}tail";
+    const out = parseBip329(JSON.stringify({ type: "tx", ref: TX, label }))!.records[0]!.label!;
+    expect(out).toBe("x".repeat(MAX_LABEL_LENGTH - 1));
+    expect(out.length).toBeLessThanOrEqual(MAX_LABEL_LENGTH);
   });
 
   it("deduplicates by type and ref: the last one wins", () => {

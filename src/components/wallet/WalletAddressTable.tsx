@@ -115,7 +115,7 @@ export function WalletAddressTable({ addressInfos, onScan }: WalletAddressTableP
               />
 
               {/* Path + type badge */}
-              <span className="text-xs font-mono text-muted flex-shrink-0 w-20">
+              <span className="text-xs font-mono text-muted flex-shrink-0 w-12 sm:w-20">
                 {item.info.derived.path}
               </span>
               <span className={`text-[10px] px-1.5 py-0.5 rounded flex-shrink-0 ${
@@ -130,10 +130,11 @@ export function WalletAddressTable({ addressInfos, onScan }: WalletAddressTableP
 
               {/* Truncated address, and its label */}
               <span className="flex items-center gap-2 flex-1 min-w-0">
-                <span className="font-mono text-xs text-foreground/80 truncate shrink-0 max-w-full">
+                {/* At phone width a labeled address shows its origin chip instead of the address */}
+                <span className={`font-mono text-xs text-foreground/80 truncate min-w-0 ${label ? "max-sm:hidden" : ""}`}>
                   {addr.slice(0, 12)}...{addr.slice(-6)}
                 </span>
-                {label && parseLabel(label).tags.slice(0, 1).map(tag => <LabelTagChip key={tag} tag={tag} />)}
+                {label && parseLabel(label).tags.slice(0, 1).map(tag => <span key={tag} className="shrink-0"><LabelTagChip tag={tag} /></span>)}
                 {label && <LabelText text={label} className="hidden sm:block" />}
               </span>
 

@@ -59,6 +59,12 @@ describe("matchLabels", () => {
     expect(m.coins.get(`${change.txid}:1`)).toMatchObject({ text: undefined, tags: ["kyc"], inherited: true, origins: ["kyc:bitstamp"] });
   });
 
+  it("change of a [CJ] coin inherits as toxic, never as [CJ]", () => {
+    const { change, kyc, infos } = wallet();
+    const m = matchLabels([{ type: "output", ref: `${kyc.txid}:0`, label: "[CJ] Whirlpool" }], infos);
+    expect(m.coins.get(`${change.txid}:1`)).toMatchObject({ tags: ["toxic"], inherited: true, origins: [] });
+  });
+
   it("a change with its own origin label does not inherit", () => {
     const { change, kyc, infos } = wallet();
     const m = matchLabels([

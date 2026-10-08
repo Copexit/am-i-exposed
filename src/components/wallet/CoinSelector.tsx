@@ -22,18 +22,29 @@ export function CoinSelector({ utxos }: { utxos: CoinSelectionInput[] }) {
   const [amount, setAmount] = useState("");
   const [feeRate, setFeeRate] = useState("5");
   const [advice, setAdvice] = useState<CoinSelectionAdvice | null>(null);
+  /** Inputs of the last submit: the frozen toggle re-runs with these, not with unsubmitted edits */
+  const [submitted, setSubmitted] = useState<{ amount: number; feeRate: number } | null>(null);
   const [includeFrozen, setIncludeFrozen] = useState(false);
   const frozen = utxos.filter(u => u.frozen).length;
+  // New coins or labels: the old advice no longer describes them.
+  const [seenUtxos, setSeenUtxos] = useState(utxos);
+  if (seenUtxos !== utxos) {
+    setSeenUtxos(utxos);
+    setAdvice(null);
+    setSubmitted(null);
+  }
 
-  function run(withFrozen: boolean) {
-    // Empty fields become NaN (not 0) so they read as invalid.
+  function run(input: { amount: number; feeRate: number }, withFrozen: boolean) {
     const coins = withFrozen ? utxos : utxos.filter(u => !u.frozen);
-    setAdvice(adviseCoinSelection(coins, amount.trim() ? Number(amount) : NaN, feeRate.trim() ? Number(feeRate) : NaN));
+    setAdvice(adviseCoinSelection(coins, input.amount, input.feeRate));
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    run(includeFrozen);
+    // Empty fields become NaN (not 0) so they read as invalid.
+    const input = { amount: amount.trim() ? Number(amount) : NaN, feeRate: feeRate.trim() ? Number(feeRate) : NaN };
+    setSubmitted(input);
+    run(input, includeFrozen);
   }
 
   return (
@@ -65,7 +76,7 @@ export function CoinSelector({ utxos }: { utxos: CoinSelectionInput[] }) {
           <input
             type="checkbox"
             checked={includeFrozen}
-            onChange={e => { setIncludeFrozen(e.target.checked); if (advice) run(e.target.checked); }}
+            onChange={e => { setIncludeFrozen(e.target.checked); if (submitted) run(submitted, e.target.checked); }}
             className="size-4 accent-bitcoin"
           />
           {t("wallet.labels.includeFrozen", { count: frozen, n: fmtN(frozen), defaultValue: "Include frozen coins ({{n}})" })}

@@ -65,7 +65,8 @@ export function WalletLabelsPanel({ records, onChange, addressInfos, xpub }: {
     a.href = url;
     a.download = labelsFilename(xpub);
     a.click();
-    URL.revokeObjectURL(url);
+    // Firefox starts the download after click() returns: revoke later
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   return (
