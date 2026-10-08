@@ -13,12 +13,20 @@ import {
   type CoinSelectionPlan,
   type PlanWarningId,
 } from "@/lib/analysis/coin-selection";
+import {
+  recipientHistory, roundChange, spendingAlerts, validRecipient, walletAddressType,
+  type RecipientHistory, type SpendAlert,
+} from "@/lib/analysis/spending-advice";
+import type { WalletAddressInfo } from "@/lib/analysis/wallet-audit";
+import { createMempoolClient } from "@/lib/api/mempool";
+import { useNetwork } from "@/context/NetworkContext";
+import type { Severity } from "@/lib/types";
 import { fmtN } from "@/lib/format";
 import { SEVERITY_STYLES } from "@/components/findingCardConstants";
 import { HintChip } from "./HintChip";
 import { LabelTagChip, LabelText } from "./WalletLabels";
 import { parseMaxAbsorb, useCoinControl, type CoinControl } from "./useCoinControl";
-import { Check, X } from "lucide-react";
+import { AlertTriangle, Check, X } from "lucide-react";
 
 export const FIELD = "w-full h-10 bg-surface-inset border border-card-border rounded-lg px-3 text-sm text-foreground num placeholder:text-faint focus:border-bitcoin/50 focus-visible:outline-none transition-colors";
 
@@ -32,18 +40,48 @@ const COLLAPSED_PLANS = 3;
 export const parseInputs = (amount: string, feeRate: string) =>
   ({ amount: amount.trim() ? Number(amount) : NaN, feeRate: feeRate.trim() ? Number(feeRate) : NaN });
 
-export function CoinSelector({ utxos, control }: {
+/** Where the reuse check sends the address: the API's host (a relative API URL is this site's own). */
+const apiHost = (base: string) => { try { return new URL(base, window.location.origin).host; } catch { return base; } };
+
+interface Submitted {
+  amount: number;
+  feeRate: number;
+  maxAbsorb: number;
+  /** Valid recipient address, or null */
+  recipient: string | null;
+  /** What the wallet's history says about the recipient (local) */
+  history: RecipientHistory | null;
+}
+
+export function CoinSelector({ utxos, control, history }: {
   utxos: CoinSelectionInput[];
   /** Shared with the UTXO list (manual selection, criterion, URL); a selector on its own keeps its own */
   control?: CoinControl;
+  /** The wallet's scan: checked locally for the recipient address (rule 1, rule 6) */
+  history?: readonly WalletAddressInfo[];
 }) {
   const { t } = useTranslation();
   const id = useId();
   const own = useCoinControl(null, utxos);
   const c = control ?? own;
+  const { network, config, apiReady } = useNetwork();
   const [advice, setAdvice] = useState<CoinSelectionAdvice | null>(null);
   /** Inputs of the last submit: the frozen toggle re-runs with these, not with unsubmitted edits */
-  const [submitted, setSubmitted] = useState<{ amount: number; feeRate: number; maxAbsorb: number } | null>(null);
+  const [submitted, setSubmitted] = useState<Submitted | null>(null);
+  const recipient = c.recipient.trim();
+  const recipientOk = recipient !== "" && validRecipient(recipient, network);
+  /** The explicit reuse check, for one address; in memory only, never stored */
+  const [reuse, setReuse] = useState<{ address: string; state: "loading" | "used" | "unused" | "error" } | null>(null);
+  const reuseState = reuse?.address === recipient ? reuse.state : null;
+  const host = apiHost(config.mempoolBaseUrl);
+
+  function checkReuse() {
+    const address = recipient;
+    setReuse({ address, state: "loading" });
+    createMempoolClient(config.mempoolBaseUrl).getAddress(address)
+      .then(d => setReuse({ address, state: d.chain_stats.tx_count + d.mempool_stats.tx_count > 0 ? "used" : "unused" }))
+      .catch(() => setReuse({ address, state: "error" }));
+  }
   const [includeFrozen, setIncludeFrozen] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const frozen = utxos.filter(u => u.frozen).length;
@@ -55,11 +93,12 @@ export function CoinSelector({ utxos, control }: {
     setSubmitted(null);
   }
 
-  function run(input: { amount: number; feeRate: number }, withFrozen: boolean) {
+  function run(input: { amount: number; feeRate: number }, withFrozen: boolean, to: string | null = recipientOk ? recipient : null) {
     const coins = withFrozen ? utxos : utxos.filter(u => !u.frozen);
-    const withMax = { ...input, maxAbsorb: parseMaxAbsorb(c.maxAbsorb) };
-    setSubmitted(withMax);
-    setAdvice(adviseCoinSelection(coins, input.amount, input.feeRate, withMax.maxAbsorb));
+    const known = to && history ? recipientHistory(history, utxos, to) : null;
+    const next: Submitted = { ...input, maxAbsorb: parseMaxAbsorb(c.maxAbsorb), recipient: to, history: known };
+    setSubmitted(next);
+    setAdvice(adviseCoinSelection(coins, input.amount, input.feeRate, next.maxAbsorb, { known: new Set(known?.known.keys()) }));
   }
 
   // "Compare with suggestions" (from the UTXO list): run with the shared inputs.
@@ -77,7 +116,9 @@ export function CoinSelector({ utxos, control }: {
   // The manual selection as one more plan, evaluated at the submitted amount and fee rate.
   const comparing = c.compareSeq > 0 && c.selected.size > 0 && advice?.kind === "plans" && submitted !== null;
   const manual = useMemo(
-    () => (comparing ? evaluateSelection(c.utxos, c.selected, submitted.amount, submitted.feeRate, { maxAbsorb: submitted.maxAbsorb, absorb: c.absorb, includeFrozen }) : null),
+    () => (comparing ? evaluateSelection(c.utxos, c.selected, submitted.amount, submitted.feeRate, {
+      maxAbsorb: submitted.maxAbsorb, absorb: c.absorb, includeFrozen, known: new Set(submitted.history?.known.keys()),
+    }) : null),
     [comparing, c.utxos, c.selected, submitted, c.absorb, includeFrozen],
   );
   const entries = useMemo(() => {
@@ -99,11 +140,72 @@ export function CoinSelector({ utxos, control }: {
 
   const criterionLabel = (k: (typeof PLAN_CRITERIA)[number]) => t(`wallet.coinSel.rank.${k}`);
   const visible = entries.filter((e, i) => showAll || i < COLLAPSED_PLANS || e.mine);
+  const alerts = advice?.kind === "plans" && submitted
+    ? spendingAlerts({
+        amount: submitted.amount,
+        recipient: submitted.recipient,
+        walletType: walletAddressType(utxos),
+        history: submitted.history,
+        apiReused: submitted.recipient !== null && reuse?.address === submitted.recipient && reuse.state !== "loading" && reuse.state !== "error" ? reuse.state === "used" : null,
+        change: entries[0]?.plan.change ?? 0,
+      })
+    : [];
 
   return (
     <div className="space-y-5" data-testid="coin-selector">
       {/* Inputs and button share one grid row aligned to the end, so a wrapped label never shifts them. */}
       <form onSubmit={handleSubmit} className="grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,9rem)_minmax(0,11rem)_auto] items-end gap-3">
+        <div className="min-w-0 col-span-2 sm:col-span-4 space-y-1.5">
+          <label htmlFor={`${id}-to`} className="block text-[13px] text-muted">
+            {t("wallet.coinSel.recipient", { defaultValue: "Recipient address (optional)" })}
+          </label>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              id={`${id}-to`}
+              type="text"
+              value={c.recipient}
+              onChange={e => c.setRecipient(e.target.value)}
+              placeholder={network === "mainnet" ? "bc1q..." : "tb1q..."}
+              autoComplete="off"
+              spellCheck={false}
+              aria-invalid={recipient !== "" && !recipientOk}
+              aria-describedby={`${id}-to-note`}
+              className={`${FIELD} font-mono text-[13px] min-w-0 flex-1`}
+            />
+            {recipientOk && (
+              <button
+                type="button"
+                onClick={checkReuse}
+                disabled={!apiReady || reuseState === "loading"}
+                data-testid="reuse-check"
+                className="h-10 px-3.5 rounded-lg border border-card-border text-sm text-foreground hover:border-bitcoin/50 hover:text-bitcoin transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50 disabled:cursor-default"
+              >
+                {t("wallet.coinSel.reuseCheck", { defaultValue: "Check if this address was used before" })}
+              </button>
+            )}
+          </div>
+          <p id={`${id}-to-note`} className="text-[13px] text-muted leading-relaxed">
+            {recipient !== "" && !recipientOk
+              ? <span className="text-severity-high">{t("wallet.coinSel.recipientInvalid", { defaultValue: "Not a valid address for this network." })}</span>
+              : t("wallet.coinSel.recipientNote", { host, defaultValue: "Checked against this wallet's history on this device. The button sends this one address to {{host}}, only when clicked." })}
+            {" "}
+            <a href="/guide/#spending-checklist" className="text-bitcoin hover:text-bitcoin-hover underline-offset-2 hover:underline whitespace-nowrap">
+              {t("wallet.coinSel.checklistLink", { defaultValue: "Spending checklist" })}
+            </a>
+          </p>
+          {reuseState && reuseState !== "used" && (
+            <p role="status" data-testid="reuse-result" className={`text-[13px] ${reuseState === "error" ? "text-severity-high" : "text-muted"}`}>
+              {reuseState === "loading" ? t("wallet.coinSel.reuseLoading", { host, defaultValue: "Asking {{host}}..." })
+                : reuseState === "unused" ? t("wallet.coinSel.reuseUnused", { host, defaultValue: "No earlier transactions for this address on {{host}}." })
+                : t("wallet.coinSel.reuseError", { defaultValue: "The check failed. Try again later." })}
+            </p>
+          )}
+          {reuseState === "used" && (
+            <p role="status" data-testid="reuse-result" className="text-[13px] text-severity-critical">
+              {t("wallet.coinSel.reuseUsed", { host, defaultValue: "{{host}} shows earlier transactions for this address." })}
+            </p>
+          )}
+        </div>
         <div className="min-w-0">
           <label htmlFor={`${id}-amount`} className="block text-[13px] text-muted mb-1.5">
             {t("wallet.coinSel.amount", { defaultValue: "Amount (sats)" })}
@@ -135,7 +237,7 @@ export function CoinSelector({ utxos, control }: {
           <input
             type="checkbox"
             checked={includeFrozen}
-            onChange={e => { setIncludeFrozen(e.target.checked); if (submitted) run(submitted, e.target.checked); }}
+            onChange={e => { setIncludeFrozen(e.target.checked); if (submitted) run(submitted, e.target.checked, submitted.recipient); }}
             className="size-4 accent-bitcoin"
           />
           {t("wallet.labels.includeFrozen", { count: frozen, n: fmtN(frozen), defaultValue: "Include frozen coins ({{n}})" })}
@@ -157,6 +259,8 @@ export function CoinSelector({ utxos, control }: {
           })}
         </p>
       )}
+
+      {alerts.length > 0 && <SpendAlerts alerts={alerts} />}
 
       {advice?.kind === "plans" && (
         <div className="space-y-3">
@@ -199,6 +303,7 @@ export function CoinSelector({ utxos, control }: {
                 key={planKey(plan)}
                 ref={mine ? manualRef : undefined}
                 plan={plan}
+                maxAbsorb={submitted?.maxAbsorb ?? 0}
                 recommended={c.criterion === "privacy" && i === 0 && entries.length > 1}
                 mine={mine ? { rank: mineRank + 1, of: entries.length, criterion: criterionLabel(c.criterion) } : undefined}
               />
@@ -243,8 +348,67 @@ export function CoinSelector({ utxos, control }: {
   );
 }
 
-function PlanCard({ plan, recommended, mine, ref }: {
+/** Upper-case script type for display ("p2tr" to "P2TR"). */
+const typeName = (t?: string) => (t ?? "").toUpperCase();
+
+const ALERT_TONE: Record<Severity, string> = {
+  critical: "border-severity-critical/30 bg-severity-critical/5",
+  high: "border-severity-high/25 bg-severity-high/5",
+  medium: "border-severity-medium/25 bg-severity-medium/5",
+  low: "border-hairline bg-surface-2/40",
+  good: "border-severity-good/20 bg-severity-good/5",
+};
+
+/** Alerts about the recipient and the amount (rules 3, 6, 7 of the spending checklist), above the plans. */
+function SpendAlerts({ alerts }: { alerts: SpendAlert[] }) {
+  const { t } = useTranslation();
+  return (
+    <ul data-testid="spend-alerts" className="space-y-2">
+      {alerts.map(a => (
+        <li
+          key={a.id}
+          data-testid={`spend-alert-${a.id}`}
+          className={`flex items-start gap-3 rounded-lg border px-4 py-3 ${ALERT_TONE[a.severity]}`}
+        >
+          <span className={`mt-[7px] w-2 h-2 rounded-full shrink-0 ${SEVERITY_STYLES[a.severity].dot}`} aria-hidden="true" />
+          <div className="min-w-0 space-y-0.5">
+            <p className="text-sm font-medium text-foreground">{t(`wallet.coinSel.alert.${a.id}.title`)}</p>
+            <p className="text-[13px] text-muted leading-relaxed">
+              {t(`wallet.coinSel.alert.${a.id}.body`, { sent: fmtN(a.sent ?? 0), paid: fmtN(a.paid ?? 0), amount: fmtN(a.amount ?? 0), to: typeName(a.to), from: typeName(a.from) })}
+            </p>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** The plan's steps through the spending checklist, each passed or not. */
+function DecisionPath({ plan }: { plan: CoinSelectionPlan }) {
+  const { t } = useTranslation();
+  return (
+    <div data-testid="plan-path" className="space-y-1.5">
+      <span className="eyebrow block">{t("wallet.coinSel.pathTitle", { defaultValue: "Decision path" })}</span>
+      <ol className="space-y-1">
+        {plan.path.map(s => (
+          <li key={s.id} className="flex items-start gap-2 text-[13px] leading-relaxed">
+            <span className="num text-faint w-3 shrink-0 text-right">{s.rule}</span>
+            {s.ok
+              ? <Check size={14} className="mt-[3px] shrink-0 text-severity-good" aria-hidden="true" />
+              : <AlertTriangle size={14} className="mt-[3px] shrink-0 text-severity-medium" aria-hidden="true" />}
+            <span className="sr-only">{s.ok ? t("wallet.coinSel.pathOk", { defaultValue: "Passed:" }) : t("wallet.coinSel.pathWarn", { defaultValue: "Warning:" })}</span>
+            <span className="text-foreground/90 min-w-0">{t(`wallet.coinSel.path.${s.id}`, { n: fmtN(s.n ?? 0), amount: fmtN(s.amount ?? 0), name: s.name ?? "" })}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function PlanCard({ plan, maxAbsorb, recommended, mine, ref }: {
   plan: CoinSelectionPlan;
+  /** Max extra fee: caps the round-change nudge */
+  maxAbsorb: number;
   recommended: boolean;
   /** The user's own selection, with its rank under the current criterion */
   mine?: { rank: number; of: number; criterion: string };
@@ -252,6 +416,7 @@ function PlanCard({ plan, recommended, mine, ref }: {
 }) {
   const { t } = useTranslation();
   const sats = t("common.sats", { defaultValue: "sats" });
+  const round = roundChange(plan, maxAbsorb);
   const note =
     plan.strategy === "single-coin" ? (plan.change > 0 ? "singleChange" : "single")
     : plan.strategy === "no-change" ? "noChange"
@@ -343,6 +508,14 @@ function PlanCard({ plan, recommended, mine, ref }: {
         </ol>
       </div>
 
+      {round && (
+        <p data-testid="round-change" className="rounded-lg border border-dashed border-hairline-strong px-3 py-2.5 text-[13px] leading-relaxed">
+          <span className="text-foreground block">{t("wallet.coinSel.roundChange", { amount: fmtN(round.extra), defaultValue: "Round change: +{{amount}} sats fee so the change also looks round" })}</span>
+          <span className="text-muted block">{t("wallet.coinSel.roundChangeDetail", { fee: fmtN(round.fee), change: fmtN(round.change), defaultValue: "Fee {{fee}} sats, change {{change}} sats." })}</span>
+        </p>
+      )}
+
+      <DecisionPath plan={plan} />
       <PlanRules plan={plan} />
       <PlanWarnings plan={plan} />
     </section>

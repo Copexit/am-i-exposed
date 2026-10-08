@@ -40,11 +40,11 @@ describe("tester wallet replay: payments with two wallet outputs (kept coin + re
   it("600,000 sats at 5 sat/vB: the probably-linked pair first, the 164x single coin second, the CoinJoin coin last", () => {
     const plans = advise(infos);
     // Pair: half a link (inferred) + change = 10. Single 99M: change + big change capped at 3x cost + half a link = 19.
-    // The CoinJoin coin alone costs 27.65 (bad change, 24x): less change than the 99M coin, so not pruned, but last.
+    // The CoinJoin coin alone costs 29 (bad change, 24x: big change capped from 10x): less change than the 99M coin, so not pruned, but last.
     expect(plans.map(pin)).toEqual([
       ["probably-linked", "inferred-links", [591_429, 134_361], 1_040, 124_750, 2, 1, 10],
       ["single-coin", "big-change", [99_000_000], 700, 98_399_300, 1, 1, 19],
-      ["single-coin", "bad-change", [CJ_CHANGE], 700, 14_640_220, 1, 1, 27.65],
+      ["single-coin", "bad-change", [CJ_CHANGE], 700, 14_640_220, 1, 1, 29],
     ]);
     expect(plans[2]!.warnings.map((w) => w.id)).toContain("coinjoin-change");
   });
@@ -78,7 +78,7 @@ describe("tester wallet replay: peel shape, one wallet output per tx", () => {
     expect(plans.map(pin)).toEqual([
       ["multi-coin", "links", [591_429, 134_361], 1_040, 124_750, 2, 2, 16],
       ["single-coin", "big-change", [99_000_000], 700, 98_399_300, 1, 1, 19],
-      ["single-coin", "bad-change", [CJ_CHANGE], 700, 14_640_220, 1, 1, 27.65],
+      ["single-coin", "bad-change", [CJ_CHANGE], 700, 14_640_220, 1, 1, 29],
     ]);
   });
 });

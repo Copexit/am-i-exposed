@@ -130,7 +130,7 @@ export function WalletWorkspace({ result, addressInfos, utxoTraces, onScan, addr
             open={coinsOpen}
             onToggle={() => setCoinsOpen(o => !o)}
           >
-            <CoinSelector utxos={allUtxos} control={coinControl} />
+            <CoinSelector utxos={allUtxos} control={coinControl} history={addressInfos} />
           </Panel>
         )}
       </div>

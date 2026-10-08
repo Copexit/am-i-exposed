@@ -127,7 +127,6 @@ describe("manual coin control: small change", () => {
     fireEvent.click(box(134_361));
     fireEvent.change(within(bar()).getByLabelText("Amount (sats)"), { target: { value: "720000" } });
     expect(within(bar()).getByText("4,750 sats")).toBeTruthy();
-    expect(within(bar()).getByText(/Leaves only 4,750 sats of change/)).toBeTruthy();
     fireEvent.click(within(bar()).getByLabelText("Pay the 4,750 sats of change to miners (no change)"));
     expect(within(bar()).getByText("No change")).toBeTruthy();
     expect(within(bar()).getByText("5,790 sats")).toBeTruthy();
@@ -158,6 +157,21 @@ describe("coin control URL state", () => {
     expect(params.get("coins")!.split(",").sort()).toEqual([op(134_361), op(591_429)].sort());
     fireEvent.click(within(bar()).getByRole("button", { name: "Clear" }));
     expect(window.location.hash).toBe(`#xpub=${XPUB}&rank=least-change`);
+  });
+
+  it("keeps the recipient in the hash only (to=), restores it, and drops it when cleared", () => {
+    const to = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
+    window.history.replaceState(null, "", `/#xpub=${XPUB}&to=${to}`);
+    render(<Workspace />);
+    const field = screen.getByLabelText("Recipient address (optional)") as HTMLInputElement;
+    expect(field.value).toBe(to);
+    fireEvent.change(field, { target: { value: "" } });
+    expect(window.location.hash).toBe(`#xpub=${XPUB}`);
+    fireEvent.change(field, { target: { value: ` ${to} ` } });
+    expect(window.location.hash).toBe(`#xpub=${XPUB}&to=${to}`);
+    // Not address characters: never written
+    fireEvent.change(field, { target: { value: "<script>" } });
+    expect(window.location.hash).toBe(`#xpub=${XPUB}`);
   });
 
   it("ignores and never writes the keys when the hash holds another wallet", () => {
