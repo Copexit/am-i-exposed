@@ -109,6 +109,18 @@ describe("checkChangeExposure", () => {
     expect([f!.severity, f!.scoreImpact]).toEqual(["high", -6]);
   });
 
+  it("does not count a payment whose rules contradict each other", () => {
+    const h = new History();
+    // type points at the change (Taproot payment), round points at the payment (round change 500,000)
+    pay(h, h.receive(recv(0), 623_457 + 1_000, 100), 123_457, chg(0), 101, extTaproot(1));
+    // optimal points at the change, round points at the payment (round change)
+    h.tx([h.receive(recv(1), 300_000, 102), h.receive(recv(2), 400_000, 103)], [{ address: ext(2), value: 599_003 }, { address: chg(1), value: 100_000 }], 104);
+    // only type: counted
+    pay(h, h.receive(recv(3), 1_000_000, 105), 123_457, chg(2), 106, extTaproot(2));
+    const [f] = checkChangeExposure(run(h).payments);
+    expect(f!.params).toMatchObject({ exposed: 1, payments: 3, byType: 1, byRound: 0, byOptimal: 0 });
+  });
+
   it("medium above 20%, low otherwise, nothing when none exposed", () => {
     const h = new History();
     pay(h, h.receive(recv(0), 1_000_000, 100), 200_000, chg(0), 101); // exposed (round)

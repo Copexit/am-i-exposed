@@ -6,7 +6,7 @@ import type { Finding, Severity } from "@/lib/types";
 import { getAddressType } from "@/lib/bitcoin/address-type";
 import { isRoundAmount } from "./heuristics/round-amount";
 import { coinClass, type SimplePayment, type WalletGraph } from "./wallet-behavior";
-import type { MempoolTransaction } from "@/lib/api/types";
+import type { MempoolTransaction, MempoolVout } from "@/lib/api/types";
 import { buildClusters, type WalletClusters } from "./wallet-clusters";
 
 /** Txids listed on a finding card; the rest are counted in `more`. */
@@ -97,21 +97,36 @@ export function checkMerges(
   return { findings, merged: new Set([...postmix, ...change]) };
 }
 
-/** W3: in how many simple payments a standard change rule points at the real change. */
+/**
+ * The standard change rules for a 2-output payment, asked of output `a`
+ * against output `b`: does each rule pick `a` as the change?
+ */
+function rulesPick(tx: MempoolTransaction, a: MempoolVout, b: MempoolVout): { type: boolean; round: boolean; optimal: boolean } {
+  const at = getAddressType(a.scriptpubkey_address!);
+  const minIn = Math.min(...tx.vin.map((v) => v.prevout!.value));
+  return {
+    type: at !== getAddressType(b.scriptpubkey_address!) && tx.vin.every((v) => getAddressType(v.prevout!.scriptpubkey_address!) === at),
+    round: isRoundAmount(b.value) && !isRoundAmount(a.value),
+    optimal: tx.vin.length >= 2 && a.value < minIn && b.value >= minIn,
+  };
+}
+
+/**
+ * W3: in how many simple payments the standard change rules point at the
+ * real change. A payment counts when at least one rule picks the change and
+ * none picks the payment: with contradicting rules an analyst cannot tell.
+ */
 export function checkChangeExposure(payments: readonly SimplePayment[]): Finding[] {
   let byType = 0, byRound = 0, byOptimal = 0;
   const exposedTxids: string[] = [];
   for (const { tx, change, payment } of payments) {
-    const ct = getAddressType(change.scriptpubkey_address!);
-    const type = ct !== getAddressType(payment.scriptpubkey_address!)
-      && tx.vin.every((v) => getAddressType(v.prevout!.scriptpubkey_address!) === ct);
-    const round = isRoundAmount(payment.value) && !isRoundAmount(change.value);
-    const minIn = Math.min(...tx.vin.map((v) => v.prevout!.value));
-    const optimal = tx.vin.length >= 2 && change.value < minIn && payment.value >= minIn;
-    if (type) byType++;
-    if (round) byRound++;
-    if (optimal) byOptimal++;
-    if (type || round || optimal) exposedTxids.push(tx.txid);
+    const right = rulesPick(tx, change, payment);
+    const wrong = rulesPick(tx, payment, change);
+    if (wrong.type || wrong.round || wrong.optimal || !(right.type || right.round || right.optimal)) continue;
+    if (right.type) byType++;
+    if (right.round) byRound++;
+    if (right.optimal) byOptimal++;
+    exposedTxids.push(tx.txid);
   }
   const exposed = exposedTxids.length;
   if (exposed === 0) return [];
