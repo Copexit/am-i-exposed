@@ -57,7 +57,8 @@ test("a scanned wallet reopens at once from its saved scan, then refreshes to up
   await expect(status).toContainText("Refreshing...");
   await expect(stat(page, "Total balance")).toHaveText("39,852,779 sats");
   release();
-  await expect(status).toHaveText("Up to date", { timeout: 15_000 });
+  // Phase 1 renders, then phase 2 verifies the one saved coin in the background
+  await expect(status).toHaveText("Up to date (coins verified 1/1)", { timeout: 15_000 });
   // The quick refresh never walks address histories again
   expect(historyFetches).toEqual([]);
 });
@@ -92,13 +93,16 @@ test("wallet bookmark: privacy dialog, one-click reopen, export excludes wallets
   const file = readFileSync((await download.path())!, "utf-8");
   expect(file).not.toContain(ZPUB);
 
-  // One click reopens it from the saved scan
+  // One click reopens it from the saved scan; the API prompt says it is a bookmarked wallet
   const release = await holdRefresh(page);
+  await page.evaluate(() => sessionStorage.removeItem("xpub-privacy-ack"));
   await item.getByRole("button").first().click();
+  await expect(page.getByTestId("xpub-warn-bookmarked")).toContainText('This is your bookmarked wallet "Savings". It will be checked against mempool.space');
+  await page.getByRole("button", { name: "I understand the risk, proceed" }).click();
   await expect(page.getByTestId("saved-scan-status")).toContainText("Saved scan from");
   await expect(stat(page, "Total balance")).toHaveText("39,852,779 sats");
   release();
-  await expect(page.getByTestId("saved-scan-status")).toHaveText("Up to date", { timeout: 15_000 });
+  await expect(page.getByTestId("saved-scan-status")).toHaveText("Up to date (coins verified 1/1)", { timeout: 15_000 });
 
   // Survives a reload (localStorage)
   await page.goto("/");

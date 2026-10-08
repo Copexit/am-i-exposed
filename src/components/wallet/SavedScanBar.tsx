@@ -23,6 +23,10 @@ export function SavedScanBar({ saved, saveError, onFullRescan, onForget }: {
     : saved.status === "updated" ? t("wallet.saved.updated", { count: saved.newTxs, n: fmtN(saved.newTxs), defaultValue: "Updated: {{n}} new transactions" })
     : saved.status === "upToDate" ? t("wallet.saved.upToDate", { defaultValue: "Up to date" })
     : t("wallet.saved.saved", { defaultValue: "Saved on this device" });
+  const coins = saved?.coins;
+  const coinText = !coins || coins.total === 0 || saved?.status === "refreshing" ? ""
+    : coins.running ? ` · ${t("wallet.saved.verifying", { n: fmtN(coins.verified), m: fmtN(coins.total), defaultValue: "Verifying coins {{n}}/{{m}}" })}`
+    : ` ${t("wallet.saved.coinsVerified", { n: fmtN(coins.verified), m: fmtN(coins.total), defaultValue: "(coins verified {{n}}/{{m}})" })}`;
 
   const btn = "inline-flex items-center gap-1.5 min-h-[36px] px-2 rounded-md text-muted hover:text-foreground hover:bg-surface-2 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed";
 
@@ -30,10 +34,10 @@ export function SavedScanBar({ saved, saveError, onFullRescan, onForget }: {
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
       {text && (
         <span data-testid="saved-scan-status" data-status={saved?.status} role="status" className="inline-flex items-center gap-2 text-muted min-w-0">
-          {saved?.status === "refreshing"
+          {saved?.status === "refreshing" || coins?.running
             ? <Loader2 size={14} aria-hidden="true" className="shrink-0 animate-spin" />
             : <History size={14} aria-hidden="true" className="shrink-0" />}
-          <span>{text}</span>
+          <span>{text}{coinText}</span>
         </span>
       )}
       {saveError && (

@@ -30,7 +30,7 @@ export function WalletBookmarkButton({ input, scriptType, grade, score, snapshot
   const btn = "inline-flex items-center gap-1.5 min-h-[36px] px-2 rounded-md text-[13px] text-muted hover:text-foreground hover:bg-surface-2 transition-colors cursor-pointer";
 
   return (
-    <span className="relative inline-flex">
+    <>
       <button type="button" onClick={() => (saved ? setRemoving(true) : setDialog(true))} className={btn} data-testid="wallet-bookmark">
         <Star size={13} aria-hidden="true" className={saved ? "text-bitcoin fill-bitcoin" : ""} />
         {saved
@@ -38,7 +38,7 @@ export function WalletBookmarkButton({ input, scriptType, grade, score, snapshot
           : t("wallet.bookmark.button", { defaultValue: "Bookmark this wallet" })}
       </button>
       {removing && (
-        <div className="absolute right-0 top-full mt-2 z-50 w-72">
+        <div className="basis-full flex sm:justify-end">
           <RemoveWalletBookmarkPrompt
             snapshotKey={snapshotKey ?? undefined}
             onDone={(remove) => { if (remove) removeBookmark(input); setRemoving(false); }}
@@ -58,7 +58,7 @@ export function WalletBookmarkButton({ input, scriptType, grade, score, snapshot
           }}
         />
       )}
-    </span>
+    </>
   );
 }
 

@@ -10,6 +10,8 @@ import { useFocusTrap } from "@/hooks/useFocusTrap";
 interface XpubPrivacyWarningProps {
   addressCount: number;
   apiEndpoint: string;
+  /** Set (possibly "") when opening a wallet bookmark: its name, if any */
+  bookmarkName?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -19,6 +21,7 @@ const SESSION_KEY = "xpub-privacy-ack";
 export function XpubPrivacyWarning({
   addressCount,
   apiEndpoint,
+  bookmarkName,
   onConfirm,
   onCancel,
 }: XpubPrivacyWarningProps) {
@@ -102,6 +105,13 @@ export function XpubPrivacyWarning({
 
             {/* Body */}
             <div id="xpub-warn-desc" className="space-y-4 text-sm text-foreground/90 leading-relaxed">
+              {bookmarkName !== undefined && (
+                <p data-testid="xpub-warn-bookmarked" className="rounded-lg border border-hairline bg-surface-inset px-4 py-3">
+                  {bookmarkName
+                    ? t("wallet.xpub_warning_bookmarkedNamed", { name: bookmarkName, apiEndpoint, defaultValue: "This is your bookmarked wallet \"{{name}}\". It will be checked against {{apiEndpoint}}." })
+                    : t("wallet.xpub_warning_bookmarked", { apiEndpoint, defaultValue: "This is a bookmarked wallet. It will be checked against {{apiEndpoint}}." })}
+                </p>
+              )}
               <p>
                 {t("wallet.xpub_warning_scanning", {
                   addressCount,

@@ -4,6 +4,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 import { useScanner } from "@/hooks/useScanner";
+import type { Bookmark } from "@/hooks/useBookmarks";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { XpubPrivacyWarning } from "@/components/wallet/XpubPrivacyWarning";
 import { Home } from "@/components/home/Home";
@@ -187,10 +188,17 @@ export default function ScannerPage() {
         <XpubPrivacyWarning
           addressCount={xpubAddressCount}
           apiEndpoint={apiEndpoint}
+          bookmarkName={walletBookmarkName(bm.bookmarks, pendingXpub)}
           onConfirm={handleXpubConfirm}
           onCancel={handleXpubCancel}
         />
       )}
     </div>
   );
+}
+
+/** The name ("" when unnamed) of the wallet bookmark for `input`, or undefined when it is not bookmarked. */
+function walletBookmarkName(bookmarks: Bookmark[], input: string): string | undefined {
+  const b = bookmarks.find((x) => x.type === "wallet" && x.input === input);
+  return b && (b.label ?? "");
 }

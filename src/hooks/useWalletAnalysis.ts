@@ -84,7 +84,11 @@ export interface SavedStatus {
   /** saved: fresh full scan stored; refreshing: saved scan shown, quick refresh running */
   status: "saved" | "refreshing" | "upToDate" | "updated" | "failed";
   newTxs: number;
+  /** Saved coins checked against the backend (phase 2 runs while `running`) */
+  coins?: CoinsStatus;
 }
+
+export interface CoinsStatus { verified: number; total: number; running: boolean }
 
 /** Wallet software's usual gap limit; used on self-hosted backends, which have no throttle. */
 export const STANDARD_GAP_LIMIT = 20;
@@ -230,7 +234,7 @@ export function useWalletAnalysis() {
         }));
 
         const {
-          scanChain, walletChains, collectWalletTxs, traceWalletTxs, UTXO_TRACE_DEPTH, auditWallet, buildTraceBarrier, quickRefresh,
+          scanChain, walletChains, collectWalletTxs, traceWalletTxs, UTXO_TRACE_DEPTH, auditWallet, buildTraceBarrier, quickRefresh, verifyCoins, newTxids, refreshPacer,
         } = engine;
 
         // Step 2: Incrementally derive + fetch addresses.
@@ -265,45 +269,73 @@ export function useWalletAnalysis() {
             labels: base.labels,
             saved: { scannedAt: base.scannedAt, status: "refreshing", newTxs: 0 },
           }));
-          try {
-            const fresh = createApiClient(cfg, controller.signal, { fresh: true });
-            const r = await quickRefresh(base, parsed, walletChains(parsed), fresh,
-              () => fetchTipHeight(backend, controller.signal), { signal: controller.signal, local: localApi });
-            if (controller.signal.aborted) return;
-            // Graph pre-expansion: saved traces are kept, only new wallet txs are traced
-            const wanted = collectWalletTxs(r.infos);
-            const toTrace = new Map([...wanted].filter(([txid]) => !savedTraces.has(txid)));
+          const fresh = createApiClient(cfg, controller.signal, { fresh: true });
+          const pace = refreshPacer(localApi, controller.signal);
+          let traces = savedTraces;
+          /** Show and save merged data; graph traces only for new wallet txs. */
+          const commit = async (infos: WalletAddressInfo[], tipHeight: number | null, coins: CoinsStatus) => {
+            const wanted = collectWalletTxs(infos);
+            const toTrace = new Map([...wanted].filter(([txid]) => !traces.has(txid)));
             const traced = toTrace.size > 0
               ? await traceWalletTxs(toTrace, api, controller.signal, traceOpts(), () => {})
               : new Map<string, UtxoTraceResult>();
             if (controller.signal.aborted) return;
-            const traces = new Map([...wanted.keys()].flatMap(txid => {
-              const tr = traced.get(txid) ?? savedTraces.get(txid);
+            traces = new Map([...wanted.keys()].flatMap(txid => {
+              const tr = traced.get(txid) ?? traces.get(txid);
               return tr ? [[txid, tr] as const] : [];
             }));
             const ctx = savedRef.current;
+            const added = newTxids(base.infos, infos).length;
             const next: WalletSnapshot = {
-              ...base, scannedAt: Date.now(), tipHeight: r.tipHeight, lastUsed: lastUsedIndex(r.infos),
-              infos: r.infos, traces: [...traces], labels: ctx?.snap.labels ?? base.labels,
+              ...base, scannedAt: Date.now(), tipHeight, lastUsed: lastUsedIndex(infos),
+              infos, traces: [...traces], labels: ctx?.snap.labels ?? base.labels,
             };
             setState(prev => ({
               ...prev,
-              descriptor: descriptorOf(parsed, r.infos),
-              result: auditWallet(r.infos),
-              addressInfos: r.infos,
+              descriptor: descriptorOf(parsed, infos),
+              result: auditWallet(infos),
+              addressInfos: infos,
               utxoTraces: traces.size > 0 ? traces : null,
               durationMs: Date.now() - startTime,
               // A forgotten wallet stays forgotten
-              saved: ctx ? { scannedAt: next.scannedAt, status: r.newTxids.length > 0 ? "updated" : "upToDate", newTxs: r.newTxids.length } : null,
+              saved: ctx ? { scannedAt: next.scannedAt, status: added > 0 ? "updated" : "upToDate", newTxs: added, coins } : null,
             }));
             if (ctx?.key === key) {
               ctx.snap = next;
               const saveError = await saveSnapshot(key, parsed.xpub, backend, next).then(() => null, toSaveError);
               if (saveError) setState(prev => ({ ...prev, saveError }));
             }
+          };
+          let coins: CoinsStatus | undefined;
+          try {
+            // Phase 1: tip, frontier, unconfirmed txs (blocking, a few dozen requests)
+            const r = await quickRefresh(base, parsed, walletChains(parsed), fresh,
+              () => fetchTipHeight(backend, controller.signal), { signal: controller.signal, local: localApi, pace });
+            if (controller.signal.aborted) return;
+            const total = r.coins;
+            const first = total - r.pending.length;
+            coins = { verified: first, total, running: r.pending.length > 0 };
+            await commit(r.infos, r.tipHeight, coins);
+            if (controller.signal.aborted || r.pending.length === 0) return;
+
+            // Phase 2: the other saved coins, in the background; results update as spends turn up
+            const verified = await verifyCoins(r.infos, r.pending, fresh, { signal: controller.signal, local: localApi, pace }, (done, infos) => {
+              if (controller.signal.aborted) return;
+              coins = { verified: first + done, total, running: true };
+              const c = coins;
+              setState(prev => ({
+                ...prev,
+                ...(infos ? { descriptor: descriptorOf(parsed, infos), result: auditWallet(infos), addressInfos: infos } : {}),
+                saved: prev.saved && { ...prev.saved, coins: c },
+              }));
+            });
+            if (controller.signal.aborted) return;
+            await commit(verified, r.tipHeight, { verified: total, total, running: false });
           } catch {
             if (controller.signal.aborted) return;
-            setState(prev => ({ ...prev, saved: prev.saved && { ...prev.saved, status: "failed" } }));
+            const c = coins && { ...coins, running: false };
+            // Phase 1 failed: the saved scan stays. Phase 2 failed: phase 1 results stay, coins partly verified
+            setState(prev => ({ ...prev, saved: prev.saved && (c ? { ...prev.saved, coins: c } : { ...prev.saved, status: "failed" }) }));
           }
           return;
         }

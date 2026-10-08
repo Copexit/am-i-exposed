@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState } from "react";
+import { Fragment, memo, useState } from "react";
 import { Lock, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { gradeColor, truncateId } from "@/lib/constants";
@@ -30,10 +30,10 @@ export const BookmarkList = memo(function BookmarkList({
   return (
     <div className="flex flex-wrap gap-2">
       {bookmarks.map((bm) => (
+        <Fragment key={bm.input}>
         <div
-          key={bm.input}
           data-testid={bm.type === "wallet" ? "wallet-bookmark-item" : undefined}
-          className="relative inline-flex items-center gap-2 px-3 py-2.5 rounded-lg bg-surface-elevated/50
+          className="inline-flex items-center gap-2 px-3 py-2.5 rounded-lg bg-surface-elevated/50
             border border-card-border hover:border-card-border hover:bg-surface-elevated
             transition-all text-xs group"
         >
@@ -69,15 +69,17 @@ export const BookmarkList = memo(function BookmarkList({
           >
             <X size={12} />
           </button>
-          {confirming === bm.input && (
-            <div className="absolute left-0 top-full mt-1 z-50 w-72 max-w-[calc(100vw-2rem)]">
-              <RemoveWalletBookmarkPrompt
-                snapshotKey={bm.snapshotKey}
-                onDone={(remove) => { if (remove) onRemoveBookmark(bm.input); setConfirming(null); }}
-              />
-            </div>
-          )}
         </div>
+        {/* In the flow (a full row), so it never covers the page below */}
+        {confirming === bm.input && (
+          <div className="basis-full max-w-sm">
+            <RemoveWalletBookmarkPrompt
+              snapshotKey={bm.snapshotKey}
+              onDone={(remove) => { if (remove) onRemoveBookmark(bm.input); setConfirming(null); }}
+            />
+          </div>
+        )}
+        </Fragment>
       ))}
     </div>
   );
