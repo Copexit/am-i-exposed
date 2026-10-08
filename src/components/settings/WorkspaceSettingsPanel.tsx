@@ -5,7 +5,8 @@ import { useTranslation } from "react-i18next";
 import { Download, Upload } from "lucide-react";
 import { useBookmarks } from "@/hooks/useBookmarks";
 import { ExportWalletsPrompt } from "@/components/history/ExportWalletsPrompt";
-import { ImportedWalletsNote } from "@/components/history/ImportedWalletsNote";
+import { ImportWalletsPrompt } from "@/components/history/ImportWalletsPrompt";
+import { walletsInImport } from "@/hooks/useBookmarks";
 import { useSavedGraphs } from "@/hooks/useSavedGraphs";
 import type { TFunction } from "i18next";
 
@@ -18,7 +19,7 @@ export function WorkspaceSettingsPanel() {
   const { graphs } = useSavedGraphs();
   const fileRef = useRef<HTMLInputElement>(null);
   const [exportPrompt, setExportPrompt] = useState(false);
-  const [importedWallets, setImportedWallets] = useState(0);
+  const [pendingImport, setPendingImport] = useState<{ json: string; wallets: number } | null>(null);
   const walletCount = bookmarks.filter((b) => b.type === "wallet").length;
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
@@ -43,26 +44,32 @@ export function WorkspaceSettingsPanel() {
     else doExport(false);
   }, [bookmarks, graphs, walletCount, doExport, showToast, t]);
 
+  const runImport = useCallback((json: string, includeWallets: boolean) => {
+    const result = importBookmarks(json, { includeWallets });
+    if (result.error === "storage_full") {
+      showToast("error", t("workspace.storageFull", { defaultValue: "Browser storage is full. Delete some bookmarks or saved graphs and try again." }));
+    } else if (result.error) {
+      showToast("error", t("workspace.importError", { defaultValue: "Import failed. Invalid file format." }));
+    } else {
+      showToast("success", t("workspace.imported", { count: result.imported, defaultValue: "Imported {{count}} scans." }));
+    }
+  }, [importBookmarks, showToast, t]);
+
   const handleImport = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
       const json = reader.result as string;
-      const result = importBookmarks(json);
-      if (result.error === "storage_full") {
-        showToast("error", t("workspace.storageFull", { defaultValue: "Browser storage is full. Delete some bookmarks or saved graphs and try again." }));
-      } else if (result.error) {
-        showToast("error", t("workspace.importError", { defaultValue: "Import failed. Invalid file format." }));
-      } else {
-        showToast("success", t("workspace.imported", { count: result.imported, defaultValue: "Imported {{count}} scans." }));
-        setImportedWallets(result.wallets ?? 0);
-      }
+      const wallets = walletsInImport(json);
+      if (wallets > 0) setPendingImport({ json, wallets });
+      else runImport(json, false);
     };
     reader.readAsText(file);
     // Reset input so the same file can be re-imported
     e.target.value = "";
-  }, [importBookmarks, showToast, t]);
+  }, [runImport]);
+
 
   return (
     <div className="border-t border-card-border pt-3 space-y-2">
@@ -95,7 +102,13 @@ export function WorkspaceSettingsPanel() {
           className="hidden"
         />
       </div>
-      {importedWallets > 0 && <ImportedWalletsNote count={importedWallets} onDismiss={() => setImportedWallets(0)} />}
+      {pendingImport && (
+        <ImportWalletsPrompt
+          walletCount={pendingImport.wallets}
+          onImport={(includeWallets) => { runImport(pendingImport.json, includeWallets); setPendingImport(null); }}
+          onCancel={() => setPendingImport(null)}
+        />
+      )}
       {exportPrompt && (
         <ExportWalletsPrompt walletCount={walletCount} onExport={doExport} onCancel={() => setExportPrompt(false)} />
       )}

@@ -58,13 +58,24 @@ const store = createLocalStorageStore<Bookmark[]>(
   },
 );
 
-/** Valid wallet entries in an import (they carry raw keys: the UI warns). */
+/** Valid wallet entries in a list (they carry raw keys). */
 const countWallets = (items: unknown[]) => items.filter((b) => isValidBookmark(b) && b.type === "wallet").length;
 
+/** Wallet bookmarks (raw xpubs) in an import file: the UI asks before importing them. */
+export function walletsInImport(json: string): number {
+  try {
+    const parsed: unknown = JSON.parse(json);
+    const items = Array.isArray(parsed) ? parsed : (parsed as { bookmarks?: unknown } | null)?.bookmarks;
+    return Array.isArray(items) ? countWallets(items) : 0;
+  } catch {
+    return 0;
+  }
+}
+
 /** Merge entries into storage. Returns the count merged, or null when the write failed. */
-function mergeBookmarks(items: unknown[]): number | null {
-  // Labels are capped as when typed (40 characters)
-  const valid = items.filter(isValidBookmark).map((b) => (typeof b.label === "string" ? { ...b, label: b.label.slice(0, 40) } : { ...b, label: undefined }));
+function mergeBookmarks(items: unknown[], includeWallets: boolean): number | null {
+  // Labels are capped as when typed (40 characters); wallet keys only after a confirmation
+  const valid = items.filter(isValidBookmark).filter((b) => includeWallets || b.type !== "wallet").map((b) => (typeof b.label === "string" ? { ...b, label: b.label.slice(0, 40) } : { ...b, label: undefined }));
   if (valid.length === 0) return 0;
   const existing = store.getSnapshot();
   const byInput = new Map(existing.map((b) => [b.input, b]));
@@ -161,9 +172,12 @@ export function useBookmarks() {
     URL.revokeObjectURL(url);
   }, []);
 
-  /** Import workspace. Handles: workspace {bookmarks,graphs}, legacy bookmark array, legacy graph export. */
+  /**
+   * Import workspace. Handles: workspace {bookmarks,graphs}, legacy bookmark array, legacy graph export.
+   * Wallet bookmarks are skipped unless `includeWallets` (after the privacy confirmation).
+   */
   const importBookmarks = useCallback(
-    (json: string): { imported: number; error?: string; wallets?: number } => {
+    (json: string, { includeWallets = false }: { includeWallets?: boolean } = {}): { imported: number; error?: string } => {
       let parsed: unknown;
       try {
         parsed = JSON.parse(json);
@@ -177,10 +191,10 @@ export function useBookmarks() {
 
       // Format 1: Legacy bookmark array
       if (Array.isArray(parsed)) {
-        const count = mergeBookmarks(parsed);
+        const count = mergeBookmarks(parsed, includeWallets);
         if (count === null) return storageFull;
         if (count === 0) return { imported: 0, error: "no_valid_entries" };
-        return { imported: count, wallets: countWallets(parsed) };
+        return { imported: count };
       }
 
       if (typeof parsed !== "object" || parsed === null) {
@@ -190,7 +204,7 @@ export function useBookmarks() {
 
       // Format 2: Workspace { version, bookmarks, graphs }
       if (Array.isArray(obj.bookmarks)) {
-        const count = mergeBookmarks(obj.bookmarks);
+        const count = mergeBookmarks(obj.bookmarks, includeWallets);
         if (count === null) return storageFull;
         importedCount += count;
       }
@@ -206,7 +220,7 @@ export function useBookmarks() {
       }
 
       if (importedCount === 0) return { imported: 0, error: "no_valid_entries" };
-      return { imported: importedCount, wallets: Array.isArray(obj.bookmarks) ? countWallets(obj.bookmarks) : 0 };
+      return { imported: importedCount };
     },
     [],
   );

@@ -263,15 +263,24 @@ describe("quick refresh equals a full scan", () => {
       return chain.tx(outs, [c], confirmed);
     };
 
-    // History: receives on 0..15 with gaps, a few spends
-    for (let i = 0; i < 12; i++) chain.tx([{ address: addr(0, Math.floor(rand() * 16)), value: 10_000 + i }]);
+    // History: receives on 0..15 with gaps (7 is always an unused invoice address), a few spends
+    const INVOICE = 7;
+    for (let i = 0; i < 12; i++) {
+      const idx = Math.floor(rand() * 15);
+      chain.tx([{ address: addr(0, idx === INVOICE ? 15 : idx), value: 10_000 + i }]);
+    }
+    chain.tx([{ address: addr(0, 15), value: 9_999 }]);
     for (let i = 0; i < 4; i++) spend(rand() < 0.7);
     chain.mine(50);
     const shallow = chain.tx([{ address: addr(0, 3), value: 4_242 }]);
     const pending = chain.tx([{ address: addr(0, 4), value: 5_151 }], [], false);
+    const evicted = chain.tx([{ address: addr(0, 5), value: 6_161 }], [], false);
+    const rbf = spend(true, false);
     const before = await fullScan(chain, GAP);
     const snap = snapshotOf(chain, before, GAP);
     const last = snap.lastUsed[0];
+    expect(last).toBe(15);
+    expect(before.find(i => i.derived.path === `0/${INVOICE}`)!.txs).toEqual([]);
 
     // Activity since the snapshot
     chain.mine();
@@ -279,8 +288,10 @@ describe("quick refresh equals a full scan", () => {
     chain.confirm(pending.txid);                    // confirmation
     chain.tx([{ address: addr(0, last + 3), value: 3_000 }]);          // past the frontier
     chain.tx([{ address: addr(0, last + 3 + 25), value: 3_100 }]);     // within the gap of the new one
-    const gapIdx = before.find(i => !i.derived.isChange && i.txs.length === 0 && i.derived.index < last)?.derived.index;
-    if (gapIdx !== undefined) chain.tx([{ address: addr(0, gapIdx), value: 3_200 }]); // a late invoice payment
+    chain.tx([{ address: addr(0, INVOICE), value: 3_200 }]);          // a late invoice payment
+    chain.drop(evicted.txid);                                          // an unconfirmed receive dropped from the mempool
+    chain.drop(rbf.txid);                                              // an unconfirmed spend replaced (RBF), new change
+    chain.tx([{ address: EXT, value: 1_000 }, { address: addr(1, nextChange++), value: 800 }], rbf.vin.map(v => ({ txid: v.txid, vout: v.vout })), false);
     const holder = before.find(i => i.utxos.length > 0)!;
     chain.tx([{ address: holder.derived.address, value: 3_300 }]);    // reuse of a coin-holding address
     spend(true);                                    // spend with change

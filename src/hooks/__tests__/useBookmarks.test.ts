@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useBookmarks } from "../useBookmarks";
+import { useBookmarks, walletsInImport } from "../useBookmarks";
 
 beforeEach(() => {
   localStorage.clear();
@@ -294,17 +294,23 @@ describe("useBookmarks", () => {
       expect(blobs[1]).toContain(ZPUB);
     });
 
-    it("imports valid wallet entries and rejects invalid ones", () => {
+    it("imports wallet entries only when asked (after the privacy confirmation), rejecting invalid ones", () => {
+      const file = JSON.stringify({ version: 1, bookmarks: [
+        { input: "tx1", type: "txid", grade: "B", score: 80, savedAt: 1 },
+        { ...wallet, label: "x".repeat(60), savedAt: 1 },
+        { ...wallet, input: "zpubnotakey", savedAt: 2 },
+      ], graphs: [] });
+      expect(walletsInImport(file)).toBe(1);
+      expect(walletsInImport("not json")).toBe(0);
       const { result } = renderHook(() => useBookmarks());
       let r = { imported: 0 } as { imported: number; error?: string };
-      act(() => {
-        r = result.current.importBookmarks(JSON.stringify({ version: 1, bookmarks: [
-          { ...wallet, savedAt: 1 },
-          { ...wallet, input: "zpubnotakey", savedAt: 2 },
-        ], graphs: [] }));
-      });
+      act(() => { r = result.current.importBookmarks(file); });
       expect(r.imported).toBe(1);
-      expect(result.current.bookmarks[0]).toMatchObject({ type: "wallet", label: "Savings" });
+      expect(result.current.bookmarks.map((b) => b.type)).toEqual(["txid"]);
+      act(() => { r = result.current.importBookmarks(file, { includeWallets: true }); });
+      expect(r.imported).toBe(1);
+      const w = result.current.bookmarks.find((b) => b.type === "wallet")!;
+      expect(w.label).toHaveLength(40);
     });
 
     it("removes all wallet bookmarks, keeps the others", () => {

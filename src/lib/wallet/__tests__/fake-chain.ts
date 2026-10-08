@@ -46,6 +46,14 @@ export class FakeChain {
     return tx;
   }
 
+  /** Drop a tx (evicted or RBF-replaced): its inputs become unspent again. */
+  drop(txid: string) {
+    const tx = this.txs.get(txid)!;
+    for (const vin of tx.vin) this.outspends.get(vin.txid)?.splice(vin.vout, 1, { spent: false });
+    this.txs.delete(txid);
+    this.outspends.delete(txid);
+  }
+
   mine(blocks = 1) {
     this.tip += blocks;
   }
