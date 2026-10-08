@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown } from "lucide-react";
 import type { Market, Venue } from "@/lib/observatory/p2p/types";
@@ -16,12 +17,14 @@ interface Props {
   side: "buy" | "sell";
   venues: Venue[];
   onChange: (patch: MarketPatch) => void;
+  /** Rendered beside the Buy / Sell intent (the payment-method picker). */
+  children?: ReactNode;
 }
 
 const TOP = 8;
 
 /** Currency chips (top 8 plus a native "More" select), the Buy / Sell intent and the venue filter. */
-export function MarketSelector({ markets, cur, side, venues, onChange }: Props) {
+export function MarketSelector({ markets, cur, side, venues, onChange, children }: Props) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language || "en";
   const order = marketOrder(markets);
@@ -32,24 +35,27 @@ export function MarketSelector({ markets, cur, side, venues, onChange }: Props) 
 
   return (
     <div className="space-y-3">
-      <div
-        role="group"
-        aria-label={t("observatory.p2p.selector.intent", { defaultValue: "What do you want to do?" })}
-        className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-surface-inset border border-card-border sm:inline-grid sm:w-auto"
-      >
-        {(["buy", "sell"] as const).map((s) => (
-          <button
-            key={s}
-            type="button"
-            aria-pressed={side === s}
-            onClick={() => onChange({ side: s })}
-            className={`${CHIP} justify-center px-4 font-medium ${side === s ? CHIP_ON : CHIP_OFF}`}
-          >
-            {s === "buy"
-              ? t("observatory.p2p.selector.buy", { defaultValue: "I want to buy BTC" })
-              : t("observatory.p2p.selector.sell", { defaultValue: "I want to sell BTC" })}
-          </button>
-        ))}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          role="group"
+          aria-label={t("observatory.p2p.selector.intent", { defaultValue: "What do you want to do?" })}
+          className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-surface-inset border border-card-border sm:inline-grid sm:w-auto"
+        >
+          {(["buy", "sell"] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              aria-pressed={side === s}
+              onClick={() => onChange({ side: s })}
+              className={`${CHIP} justify-center px-4 font-medium ${side === s ? CHIP_ON : CHIP_OFF}`}
+            >
+              {s === "buy"
+                ? t("observatory.p2p.selector.buy", { defaultValue: "I want to buy BTC" })
+                : t("observatory.p2p.selector.sell", { defaultValue: "I want to sell BTC" })}
+            </button>
+          ))}
+        </div>
+        {children}
       </div>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">

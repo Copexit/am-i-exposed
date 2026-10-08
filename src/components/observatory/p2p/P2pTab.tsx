@@ -7,12 +7,13 @@ import { useNetwork } from "@/context/NetworkContext";
 import type { Venue } from "@/lib/observatory/p2p/types";
 import { useObsState } from "@/hooks/useObsState";
 import { useP2p, useP2pHistory } from "@/hooks/useP2p";
-import { buildMarkets, defaultCurrency, filterVenues, headline as buildHeadline, makerSide, premiumBoard } from "@/lib/observatory/p2p/market";
+import { buildMarkets, defaultCurrency, filterMethod, filterVenues, headline as buildHeadline, makerSide, methodCounts, premiumBoard } from "@/lib/observatory/p2p/market";
 import { Section, SubNav } from "@/components/observatory/ObsSections";
 import { P2pHeadline } from "./P2pHeadline";
 import { SourceStrip } from "./SourceStrip";
 import { MarketSelector, type MarketPatch } from "./MarketSelector";
 import { P2pFooter } from "./P2pFooter";
+import { PaymentMethodPicker, PmFilterNote } from "./PaymentMethodPicker";
 import { DepthWall } from "./DepthWall";
 import { OfferList } from "./OfferList";
 import { PremiumBoard } from "./PremiumBoard";
@@ -68,10 +69,15 @@ export function P2pTab() {
     : defaultCurrency(locale, markets);
 
   const head = useMemo(() => (offers.length ? buildHeadline(markets, hosts, cur) : null), [markets, hosts, cur, offers.length]);
-  const shown = useMemo(() => buildMarkets(filterVenues(offers, obs.venue), index), [offers, obs.venue, index]);
+  const byVenue = useMemo(() => filterVenues(offers, obs.venue), [offers, obs.venue]);
+  // Currency chips count every method; the wall, list, stats and nearest markets follow the method filter.
+  const venueMarkets = useMemo(() => buildMarkets(byVenue, index), [byVenue, index]);
+  const shown = useMemo(() => (obs.pm ? buildMarkets(filterMethod(byVenue, obs.pm), index) : venueMarkets), [byVenue, obs.pm, index, venueMarkets]);
 
   const market = cur ? shown.get(cur) ?? null : null;
   const maker = makerSide(obs.side);
+  const sideOffers = useMemo(() => (cur ? venueMarkets.get(cur)?.offers.filter((o) => o.side === maker) ?? [] : []), [venueMarkets, cur, maker]);
+  const methods = useMemo(() => methodCounts(sideOffers), [sideOffers]);
   const nearest = useMemo(() => [...shown.values()]
     .filter((m) => m.currency !== cur && m.index !== null)
     .map((m) => ({ c: m.currency, n: m.offers.filter((o) => o.side === maker).length }))
@@ -128,7 +134,10 @@ export function P2pTab() {
             title={t("observatory.p2p.markets.title", { defaultValue: "Markets" })}
             lead={t("observatory.p2p.markets.lead", { defaultValue: "Every live offer in one currency, by premium over the index. Pick what you want to do and where." })}
           >
-            <MarketSelector markets={shown} cur={cur} side={obs.side} venues={obs.venue} onChange={onChange} />
+            <MarketSelector markets={venueMarkets} cur={cur} side={obs.side} venues={obs.venue} onChange={onChange}>
+              <PaymentMethodPicker methods={methods} total={sideOffers.length} pm={obs.pm} onChange={(pm) => setObs({ pm })} />
+            </MarketSelector>
+            {obs.pm && !loading && <PmFilterNote market={market} side={obs.side} pm={obs.pm} onClear={() => setObs({ pm: null })} />}
             {loading ? (
               <BlockSkeleton h={320} />
             ) : (

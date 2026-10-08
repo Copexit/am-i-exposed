@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import React from "react";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { p2pData, emptyData, source, index } from "./p2p-data";
-import { buildMarkets } from "@/lib/observatory/p2p/market";
+import { buildMarkets, methodCounts } from "@/lib/observatory/p2p/market";
 import { fmtPremium } from "@/lib/observatory/p2p/p2p-format";
 import type { P2pData } from "@/hooks/useP2p";
 
@@ -120,5 +120,50 @@ describe("MarketSelector", () => {
     expect(onChange).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "RoboSats" }));
     expect(onChange).toHaveBeenLastCalledWith({ venue: ["robosats", "mostro"] });
+  });
+});
+
+describe("payment-method filter", () => {
+  const eurSells = p2pData().offers.filter((o) => o.currency === "EUR" && o.side === "sell");
+  const top = methodCounts(eurSells)[0]!;
+
+  it("lists the market's methods by count, searches, writes pm= and filters the list with a note", () => {
+    window.history.replaceState(null, "", "/observatory/#p2p&cur=EUR");
+    render(<ObservatoryPage />);
+    const trigger = screen.getByTestId("p2p-pm-trigger");
+    expect(trigger.textContent).toContain("Any payment method");
+    act(() => { fireEvent.click(trigger); });
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    const panel = screen.getByRole("group", { name: "Payment method" });
+    const options = within(panel).getAllByRole("button");
+    expect(options[0]!.textContent).toContain(`Any payment method${eurSells.length}`);
+    expect(options[1]!.textContent).toContain(String(top.count));
+
+    act(() => { fireEvent.change(within(panel).getByRole("searchbox", { name: "Search payment methods" }), { target: { value: "zzzz" } }); });
+    expect(panel.textContent).toContain("No payment method matches.");
+    act(() => { fireEvent.change(within(panel).getByRole("searchbox"), { target: { value: "revo" } }); });
+    act(() => { fireEvent.click(within(panel).getByRole("button", { name: /^Revolut/ })); });
+    expect(window.location.hash).toBe("#p2p&cur=EUR&pm=revolut");
+    expect(screen.queryByRole("group", { name: "Payment method" })).toBeNull();
+
+    const want = eurSells.filter((o) => o.pm.includes("revolut")).length;
+    expect(want).toBeGreaterThan(0);
+    expect(screen.getAllByTestId("p2p-offer-row")).toHaveLength(Math.min(want, 25));
+    expect(screen.getByTestId("p2p-pm-note").textContent).toContain(`accept Revolut: ${want} offers`);
+
+    act(() => { fireEvent.click(screen.getByRole("button", { name: "Clear payment method filter" })); });
+    expect(window.location.hash).toBe("#p2p&cur=EUR");
+    expect(screen.queryByTestId("p2p-pm-note")).toBeNull();
+  });
+
+  it("Escape closes the panel and returns focus; an unknown pm id is ignored", () => {
+    window.history.replaceState(null, "", "/observatory/#p2p&cur=EUR&pm=bogus");
+    render(<ObservatoryPage />);
+    expect(screen.queryByTestId("p2p-pm-note")).toBeNull();
+    const trigger = screen.getByTestId("p2p-pm-trigger");
+    act(() => { fireEvent.click(trigger); });
+    act(() => { fireEvent.keyDown(screen.getByRole("searchbox"), { key: "Escape" }); });
+    expect(screen.queryByRole("group", { name: "Payment method" })).toBeNull();
+    expect(document.activeElement).toBe(trigger);
   });
 });
