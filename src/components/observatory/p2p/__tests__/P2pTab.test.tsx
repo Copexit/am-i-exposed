@@ -4,7 +4,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import React from "react";
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { p2pData, emptyData, source, index } from "./p2p-data";
-import { buildMarkets, methodCounts } from "@/lib/observatory/p2p/market";
+import { amountMatch, buildMarkets, methodCounts } from "@/lib/observatory/p2p/market";
+import { fmtBtcAmount } from "../AmountFilter";
 import { fmtPremium } from "@/lib/observatory/p2p/p2p-format";
 import type { P2pData } from "@/hooks/useP2p";
 
@@ -211,4 +212,86 @@ describe("payment-method filter", () => {
     expect(window.location.hash).not.toContain("pm=");
     expect(window.location.hash).toMatch(/cur=[A-Z]+&venue=/);
   });
+});
+
+describe("amount filter", () => {
+  const all = p2pData().offers;
+  const eurSells = all.filter((o) => o.currency === "EUR" && o.side === "sell");
+  const idx = index.prices.EUR!;
+  const takes = (o: (typeof all)[number], a: number) => amountMatch(o, a) !== null;
+  const type = (v: string) => {
+    act(() => { fireEvent.change(screen.getByTestId("p2p-amount"), { target: { value: v } }); });
+    act(() => { vi.advanceTimersByTime(450); });
+  };
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("typing writes amt= after a pause and narrows the list, note and cheapest line", () => {
+    window.history.replaceState(null, "", "/observatory/#p2p&cur=EUR");
+    render(<ObservatoryPage />);
+    const input = screen.getByRole("textbox", { name: "Amount in EUR" });
+    expect(input.getAttribute("inputmode")).toBe("decimal");
+    act(() => { fireEvent.change(input, { target: { value: "250" } }); });
+    expect(window.location.hash).toBe("#p2p&cur=EUR");
+    act(() => { vi.advanceTimersByTime(450); });
+    expect(window.location.hash).toBe("#p2p&cur=EUR&amt=250&amtu=fiat");
+    expect(screen.getByTestId("p2p-amount-converted").textContent).toContain(`≈ ${fmtBtcAmount(250 / idx, "en")} BTC`);
+
+    const match = eurSells.filter((o) => takes(o, 250));
+    const listed = match.filter((o) => !o.unlisted);
+    expect(match.length).toBeGreaterThan(0);
+    expect(match.length).toBeLessThan(eurSells.length);
+    expect(screen.getAllByTestId("p2p-offer-row")).toHaveLength(Math.min(match.length, 25));
+    expect(screen.getByTestId("p2p-pm-note").textContent).toContain(`Offers that accept €250: ${listed.length} offers`);
+    const best = Math.min(...listed.flatMap((o) => (o.premium === null ? [] : [o.premium])));
+    expect(screen.getByTestId("p2p-amount-best").textContent).toMatch(new RegExp(`^Cheapest for €250: .+, ${fmtPremium(best, "en").replace(/[+.]/g, "\\$&")}\\.$`));
+
+    act(() => { fireEvent.click(screen.getByRole("button", { name: "Any amount" })); });
+    expect(window.location.hash).toBe("#p2p&cur=EUR");
+    expect((input as HTMLInputElement).value).toBe("");
+  }, 30_000);
+
+  it("composes with the method filter and the sell side", () => {
+    const eurBuys = all.filter((o) => o.currency === "EUR" && o.side === "buy" && !o.unlisted);
+    const pm = methodCounts(eurBuys.filter((o) => takes(o, 500)))[0]!.id;
+    window.history.replaceState(null, "", `/observatory/#p2p&cur=EUR&side=sell&pm=${pm}&amt=500&amtu=fiat`);
+    render(<ObservatoryPage />);
+    const want = eurBuys.filter((o) => takes(o, 500) && o.pm.includes(pm)).length;
+    expect(screen.getByTestId("p2p-pm-note").textContent).toMatch(new RegExp(`accept €500 by .+: ${want} offers?`));
+    expect(screen.getByTestId("p2p-amount-best").textContent).toMatch(/^Best price to sell €500 by /);
+    expect((screen.getByTestId("p2p-amount") as HTMLInputElement).value).toBe("500");
+  }, 30_000);
+
+  it("the BTC unit converts at the index and survives a currency switch; a fiat amount does not", () => {
+    window.history.replaceState(null, "", "/observatory/#p2p&cur=EUR&amt=250&amtu=fiat");
+    render(<ObservatoryPage />);
+    act(() => { fireEvent.click(screen.getByRole("button", { name: "BTC" })); });
+    const btc = Math.round((250 / idx) * 1e8) / 1e8;
+    expect(window.location.hash).toBe(`#p2p&cur=EUR&amt=${btc}&amtu=btc`);
+    expect(screen.getByRole("textbox", { name: "Amount in BTC" })).toBeTruthy();
+    expect(screen.getByTestId("p2p-amount-converted").textContent).toMatch(/≈ €2(49|50)/);
+    const chips = screen.getByRole("list", { name: "Currency" });
+    act(() => { fireEvent.click(within(chips).getByRole("button", { name: /^USD/ })); });
+    expect(window.location.hash).toBe(`#p2p&cur=USD&amt=${btc}&amtu=btc`);
+    act(() => { fireEvent.click(screen.getByRole("button", { name: "USD" })); });
+    expect(window.location.hash).toMatch(/^#p2p&cur=USD&amt=\d+(\.\d+)?&amtu=fiat$/);
+    act(() => { fireEvent.click(within(chips).getByRole("button", { name: /^EUR/ })); });
+    expect(window.location.hash).toBe("#p2p&cur=EUR");
+  }, 30_000);
+
+  it("locale grouping, invalid text and the clear button", () => {
+    window.history.replaceState(null, "", "/observatory/#p2p&cur=EUR");
+    render(<ObservatoryPage />);
+    type("1,234.5");
+    expect(window.location.hash).toBe("#p2p&cur=EUR&amt=1234.5&amtu=fiat");
+    type("1.234,5");
+    expect(window.location.hash).toBe("#p2p&cur=EUR&amt=1234.5&amtu=fiat");
+    type("abc");
+    expect(screen.getByTestId("p2p-amount").getAttribute("aria-invalid")).toBe("true");
+    expect(window.location.hash).toBe("#p2p&cur=EUR");
+    type("250");
+    act(() => { fireEvent.click(screen.getByRole("button", { name: "Clear amount filter" })); });
+    expect(window.location.hash).toBe("#p2p&cur=EUR");
+    expect(document.activeElement).toBe(screen.getByTestId("p2p-amount"));
+  }, 30_000);
 });

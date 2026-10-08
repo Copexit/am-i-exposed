@@ -86,7 +86,9 @@ export function Amount({ offer }: { offer: P2pOffer }) {
   const fiat = fmtFiatRange(offer.fiatMin, offer.fiatMax, offer.currency, locale);
   return (
     <span className="block min-w-0">
-      <span className="num block text-sm text-foreground">{fiat ?? "–"}</span>
+      {fiat !== null
+        ? <span className="num block text-sm text-foreground">{fiat}</span>
+        : <span className="block text-sm text-muted">{t("observatory.p2p.offer.noLimits", { defaultValue: "No limits stated" })}</span>}
       <span className="num block text-xs text-faint">
         {offer.satsMax !== null
           ? t("observatory.p2p.offer.upToBtc", { defaultValue: "up to {{btc}} BTC", btc: fmtSatsBtc(offer.satsMax, locale) })

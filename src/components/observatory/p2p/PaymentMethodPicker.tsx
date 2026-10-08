@@ -3,12 +3,13 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Banknote, ChevronDown, Coins, CreditCard, Ellipsis, Gift, Landmark, Wallet, X, Zap, type LucideIcon } from "lucide-react";
-import type { Market } from "@/lib/observatory/p2p/types";
+import type { Market, VenueHost } from "@/lib/observatory/p2p/types";
 import { pmCategory, pmName, type PmCategory } from "@/lib/observatory/p2p/payment-methods";
 import { fmtPremium, fmtSatsBtc } from "@/lib/observatory/p2p/p2p-format";
 import { fmtCount } from "@/lib/observatory/obs-format";
 import { makerSide } from "@/lib/observatory/p2p/market";
-import { CHIP, CHIP_OFF } from "./p2p-ui";
+import { CHIP, CHIP_OFF, VENUE_LABEL } from "./p2p-ui";
+import { hostName, hostNames } from "./offer-facts";
 
 const GLYPH: Record<PmCategory, LucideIcon> = {
   instant: Zap, bank: Landmark, wallet: Wallet, cash: Banknote, gift: Gift, crypto: Coins, other: Ellipsis,
@@ -147,31 +148,67 @@ export function PaymentMethodPicker({ methods, total, pm, onChange }: Props) {
   );
 }
 
-/** States what the method filter narrows; the live region stays mounted so screen readers hear each change. */
-export function PmFilterNote({ market, side, pm, onClear }: { market: Market | null; side: "buy" | "sell"; pm: string | null; onClear: () => void }) {
+/** States what the method and amount filters narrow, and the best listed offer for the amount; the live region stays mounted so screen readers hear each change. */
+export function PmFilterNote({ market, side, pm, amount, hosts, onClear, onClearAmount }: {
+  market: Market | null;
+  side: "buy" | "sell";
+  pm: string | null;
+  /** The amount as typed, formatted ("€250", "0.0034 BTC"); null when no amount filter applies. */
+  amount: string | null;
+  hosts: VenueHost[];
+  onClear: () => void;
+  onClearAmount: () => void;
+}) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language || "en";
   const label = usePmLabel();
   // Unlisted Mostro instances are kept out of BTC and the median: the count follows.
   const count = market?.offers.filter((o) => o.side === makerSide(side) && !o.unlisted).length ?? 0;
   const median = market?.medianPremium[side] ?? null;
+  const btc = fmtSatsBtc(market?.liquiditySats[side] ?? 0, locale);
+  const method = pm ? label(pm) : "";
+  const best = side === "buy" ? market?.bestBuy : market?.bestSell;
+  const names = hostNames(hosts);
+  const venue = best ? (best.venue === "hodlhodl" ? VENUE_LABEL.hodlhodl : `${VENUE_LABEL[best.venue]} (${hostName(names, best)})`) : "";
+  const BTN = "min-h-10 shrink-0 rounded-lg px-2 text-sm text-foreground underline-offset-2 hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bitcoin";
   return (
     // Empty, it must not add a gap to the section's spacing.
-    <div role="status" className={pm ? undefined : "my-0"}>
-      {pm && (
+    <div role="status" className={pm || amount ? undefined : "my-0"}>
+      {(pm || amount) && (
         <div data-testid="p2p-pm-note" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-hairline bg-surface-inset px-3 py-2 text-sm text-muted">
-          <p className="min-w-0">
-            {t("observatory.p2p.pm.note", {
-              defaultValue: "Filtered to offers that accept {{method}}: {{count}} offers, {{btc}} BTC.",
-              method: label(pm),
-              count,
-              btc: fmtSatsBtc(market?.liquiditySats[side] ?? 0, locale),
-            })}
-            {median !== null && ` ${t("observatory.p2p.pm.median", { defaultValue: "Median premium {{premium}}.", premium: fmtPremium(median, locale) })}`}
-          </p>
-          <button type="button" onClick={() => { onClear(); focusPmTrigger(); }} className="min-h-10 shrink-0 rounded-lg px-2 text-sm text-foreground underline-offset-2 hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bitcoin">
-            {t("observatory.p2p.pm.showAll", { defaultValue: "Show all methods" })}
-          </button>
+          <div className="min-w-0 space-y-1">
+            <p>
+              {amount === null
+                ? t("observatory.p2p.pm.note", { defaultValue: "Filtered to offers that accept {{method}}: {{count}} offers, {{btc}} BTC.", method, count, btc })
+                : pm
+                  ? t("observatory.p2p.amount.noteMethod", { defaultValue: "Offers that accept {{amount}} by {{method}}: {{count}} offers, {{btc}} BTC.", amount, method, count, btc })
+                  : t("observatory.p2p.amount.note", { defaultValue: "Offers that accept {{amount}}: {{count}} offers, {{btc}} BTC.", amount, count, btc })}
+              {median !== null && ` ${t("observatory.p2p.pm.median", { defaultValue: "Median premium {{premium}}.", premium: fmtPremium(median, locale) })}`}
+            </p>
+            {amount !== null && best?.premium != null && (
+              <p data-testid="p2p-amount-best" className="font-medium text-foreground">
+                {side === "buy"
+                  ? pm
+                    ? t("observatory.p2p.amount.cheapestMethod", { defaultValue: "Cheapest for {{amount}} by {{method}}: {{venue}}, {{premium}}.", amount, method, venue, premium: fmtPremium(best.premium, locale) })
+                    : t("observatory.p2p.amount.cheapest", { defaultValue: "Cheapest for {{amount}}: {{venue}}, {{premium}}.", amount, venue, premium: fmtPremium(best.premium, locale) })
+                  : pm
+                    ? t("observatory.p2p.amount.bestSellMethod", { defaultValue: "Best price to sell {{amount}} by {{method}}: {{venue}}, {{premium}}.", amount, method, venue, premium: fmtPremium(best.premium, locale) })
+                    : t("observatory.p2p.amount.bestSell", { defaultValue: "Best price to sell {{amount}}: {{venue}}, {{premium}}.", amount, venue, premium: fmtPremium(best.premium, locale) })}
+              </p>
+            )}
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-1">
+            {amount !== null && (
+              <button type="button" onClick={onClearAmount} className={BTN}>
+                {t("observatory.p2p.amount.showAll", { defaultValue: "Any amount" })}
+              </button>
+            )}
+            {pm && (
+              <button type="button" onClick={() => { onClear(); focusPmTrigger(); }} className={BTN}>
+                {t("observatory.p2p.pm.showAll", { defaultValue: "Show all methods" })}
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

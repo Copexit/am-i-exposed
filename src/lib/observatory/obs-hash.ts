@@ -16,9 +16,15 @@ export interface ObsState {
   venue: Venue[];
   /** P2P payment-method filter (canonical id); unknown ids are ignored */
   pm: string | null;
+  /** P2P amount filter: a positive number in the market currency or in BTC (amtu) */
+  amt: number | null;
+  amtu: "fiat" | "btc";
 }
 
-const DEFAULTS: ObsState = { tab: "wabisabi", period: 1, coordinator: null, tx: null, view: "map", cur: null, side: "buy", venue: [...VENUES], pm: null };
+/** Sane ceilings for a typed amount: no market lists an offer above these. */
+export const AMT_MAX = { fiat: 1e12, btc: 21e6 } as const;
+
+const DEFAULTS: ObsState = { tab: "wabisabi", period: 1, coordinator: null, tx: null, view: "map", cur: null, side: "buy", venue: [...VENUES], pm: null, amt: null, amtu: "fiat" };
 
 function decode(s: string): string {
   try { return decodeURIComponent(s); } catch { return s; }
@@ -30,6 +36,7 @@ export function parseObsHash(hash: string, knownTabs: readonly string[]): ObsSta
   const params = new Map(rest.map((p) => { const i = p.indexOf("="); return i < 0 ? [p, ""] : [p.slice(0, i), decode(p.slice(i + 1))]; }));
   const period = Number(params.get("period"));
   const tx = (params.get("tx") ?? "").toLowerCase();
+  const amtu = params.get("amtu") === "btc" ? "btc" : "fiat";
   return {
     tab: knownTabs.includes(tab) ? tab : DEFAULTS.tab,
     period: period === 7 || period === 30 ? period : DEFAULTS.period,
@@ -40,6 +47,8 @@ export function parseObsHash(hash: string, knownTabs: readonly string[]): ObsSta
     side: params.get("side") === "sell" ? "sell" : "buy",
     venue: parseVenues(params.get("venue")),
     pm: isPmId(params.get("pm") ?? "") ? params.get("pm")! : null,
+    amt: parseAmt(params.get("amt"), amtu),
+    amtu,
   };
 }
 
@@ -48,14 +57,23 @@ function parseCur(v: string | undefined): string | null {
   return /^[A-Z]{3,5}$/.test(c) ? c : null;
 }
 
+/** Plain decimal only ("250", "0.0034"): no signs, exponents or separators. */
+function parseAmt(v: string | undefined, unit: "fiat" | "btc"): number | null {
+  if (!/^\d{1,13}(\.\d{1,8})?$/.test(v ?? "")) return null;
+  const n = Number(v);
+  return n > 0 && n <= AMT_MAX[unit] ? n : null;
+}
+
 function parseVenues(v: string | undefined): Venue[] {
   const picked = new Set((v ?? "").split(","));
   const out = VENUES.filter((x) => picked.has(x));
   return out.length ? out : [...VENUES];
 }
 
+type P2pKey = "cur" | "side" | "venue" | "pm" | "amt" | "amtu";
+
 /** "#wabisabi&period=7&coordinator=kruw"; default values are omitted. */
-export function serializeObsHash(input: Omit<ObsState, "cur" | "side" | "venue" | "pm"> & Partial<Pick<ObsState, "cur" | "side" | "venue" | "pm">>): string {
+export function serializeObsHash(input: Omit<ObsState, P2pKey> & Partial<Pick<ObsState, P2pKey>>): string {
   const s: ObsState = { ...DEFAULTS, ...input };
   const parts = [s.tab];
   if (s.period !== DEFAULTS.period) parts.push(`period=${s.period}`);
@@ -67,5 +85,6 @@ export function serializeObsHash(input: Omit<ObsState, "cur" | "side" | "venue" 
   const venues = VENUES.filter((v) => s.venue.includes(v));
   if (venues.length && venues.length < VENUES.length) parts.push(`venue=${venues.join(",")}`);
   if (s.pm) parts.push(`pm=${s.pm}`);
+  if (s.amt !== null) parts.push(`amt=${s.amt.toFixed(s.amtu === "btc" ? 8 : 2).replace(/\.?0+$/, "")}`, `amtu=${s.amtu}`);
   return `#${parts.join("&")}`;
 }
