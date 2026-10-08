@@ -213,7 +213,7 @@ describe("CoinSelector: spending decision tree", () => {
       "2Warning:Single coin: 32,300 sats over the payment, more than 10%",
       "3Warning:Change 32,300 sats: keep it apart, or send it to a Lightning swap",
     ]);
-    expect(within(first).getByTestId("round-change").textContent).toBe("Round change: +2,300 sats fee so the change also looks round Fee 3,000 sats, change 30,000 sats.");
+    expect(within(first).getByTestId("round-change").textContent).toBe("Round change: +2,300 sats fee so the change also looks roundFee 3,000 sats, change 30,000 sats.");
     const alerts = within(screen.getByTestId("spend-alerts")).getAllByRole("listitem").map(li => li.dataset.testid);
     expect(alerts).toEqual(["spend-alert-reused-history", "spend-alert-round", "spend-alert-type-mismatch", "spend-alert-change-tips"]);
     expect(screen.getByTestId("spend-alert-reused-history").textContent).toMatch(/^Avoid sending to a reused address.*payments from it: 1, payments to it: 0/);

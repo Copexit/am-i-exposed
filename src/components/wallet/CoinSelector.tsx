@@ -510,9 +510,8 @@ function PlanCard({ plan, maxAbsorb, recommended, mine, ref }: {
 
       {round && (
         <p data-testid="round-change" className="rounded-lg border border-dashed border-hairline-strong px-3 py-2.5 text-[13px] leading-relaxed">
-          <span className="text-foreground">{t("wallet.coinSel.roundChange", { amount: fmtN(round.extra), defaultValue: "Round change: +{{amount}} sats fee so the change also looks round" })}</span>
-          {" "}
-          <span className="text-muted">{t("wallet.coinSel.roundChangeDetail", { fee: fmtN(round.fee), change: fmtN(round.change), defaultValue: "Fee {{fee}} sats, change {{change}} sats." })}</span>
+          <span className="text-foreground block">{t("wallet.coinSel.roundChange", { amount: fmtN(round.extra), defaultValue: "Round change: +{{amount}} sats fee so the change also looks round" })}</span>
+          <span className="text-muted block">{t("wallet.coinSel.roundChangeDetail", { fee: fmtN(round.fee), change: fmtN(round.change), defaultValue: "Fee {{fee}} sats, change {{change}} sats." })}</span>
         </p>
       )}
 
