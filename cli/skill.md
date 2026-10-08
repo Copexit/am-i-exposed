@@ -39,7 +39,7 @@ Analyzes address reuse, UTXO hygiene, spending patterns, entity identification, 
 ### Scan Wallet (xpub/zpub)
 
 ```bash
-am-i-exposed scan xpub <zpub|xpub|descriptor> [--json] [--gap-limit N] [--network mainnet|testnet4|signet]
+am-i-exposed scan xpub <zpub|xpub|descriptor> [--json] [--gap-limit N] [--labels FILE] [--export-labels FILE] [--network mainnet|testnet4|signet]
 ```
 
 Derives addresses from extended public key or output descriptor, scans each for activity, and runs a wallet-level privacy audit covering address reuse, UTXO hygiene, toxic change, consolidation history, and script type consistency.

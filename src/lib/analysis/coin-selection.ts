@@ -38,6 +38,7 @@ import type { WalletAddressInfo } from "./wallet-audit";
 import { buildWalletGraph, coinClass, type CoinClass } from "./wallet-behavior";
 import { buildClusters } from "./wallet-clusters";
 import { P2PKH_DUST_LIMIT, TOXIC_CHANGE_THRESHOLD } from "@/lib/constants";
+import type { LabelTag } from "@/lib/wallet/labels";
 
 // ---------- Types ----------
 
@@ -53,6 +54,14 @@ export interface CoinSelectionInput {
   group?: string;
   /** The address has been funded more than once */
   reusedAddress?: boolean;
+  /** Wallet label tags (lib/wallet/labels), own or inherited from the funding coins */
+  labelTags?: readonly LabelTag[];
+  /** Wallet label origin keys ("kyc:bitstamp"), own or inherited */
+  labelOrigins?: readonly string[];
+  /** Wallet label text (the output's, else its address's) */
+  label?: string;
+  /** Frozen by a label (spendable: false): left out unless the user includes frozen coins */
+  frozen?: boolean;
 }
 
 /** Where a selected coin comes from. `with` is the 1-based row of the related coin. */
@@ -70,7 +79,17 @@ export interface SelectedCoin extends CoinSelectionInput {
 }
 
 export type PlanWarningId =
-  | "coinjoin-mix" | "coinjoin-merge" | "mixed-change" | "coinjoin-change" | "merges-origins" | "toxic-change" | "mixed-scripts";
+  | "coinjoin-mix" | "coinjoin-merge" | "mixed-change" | "coinjoin-change" | "merges-origins" | "toxic-change" | "mixed-scripts"
+  | "label-kyc" | "label-coinjoin" | "label-origins" | "label-toxic";
+
+/**
+ * The labeling convention's spending rules (guide, "How to label coins"):
+ * kyc (1) never merge [KYC] with [noKYC]; coinjoin (2) spend [CJ] coins one by
+ * one; origin (3) merge only coins of one origin or already linked on-chain;
+ * toxic (5) never merge a [toxic] coin. Rule 4 (change inherits its parent's
+ * origin) is applied when labels are resolved.
+ */
+export type LabelRuleId = "kyc" | "coinjoin" | "origin" | "toxic";
 
 export interface PlanWarning {
   id: PlanWarningId;
@@ -103,6 +122,8 @@ export interface CoinSelectionPlan {
   /** Distinct inferred linkage clusters (at most `origins`) */
   groups: number;
   warnings: PlanWarning[];
+  /** Label rules that apply to the selected coins, and whether the plan respects each */
+  labelRules: { id: LabelRuleId; ok: boolean }[];
 }
 
 interface Excluded {
@@ -356,6 +377,71 @@ const HUGE_CHANGE_RATIO = 10;
  */
 const COST = { link: 12, change: 4, badChange: 10, bigChange: 9, coinjoinMerge: 40 } as const;
 
+/**
+ * Label rule costs, on top of the on-chain costs: [KYC] with [noKYC] ties an
+ * identity to coins kept away from it (as bad as undoing a CoinJoin); [CJ]
+ * with other coins, or several [CJ] coins, undoes the mix the label claims;
+ * a [toxic] coin merged spreads its taint; each extra explicit origin not
+ * already certainly linked costs half a link (the on-chain link is counted
+ * separately).
+ */
+const LABEL_COST = { kyc: 40, coinjoin: 30, toxic: COST.badChange, origin: COST.link / 2 } as const;
+
+interface LabelVerdict {
+  rules: { id: LabelRuleId; ok: boolean }[];
+  cost: number;
+  /** Distinct explicit origins not already certainly linked */
+  origins: number;
+  cj: number;
+  /** The [CJ] rule is broken and not already covered by the on-chain CoinJoin penalty */
+  cjWarn: boolean;
+}
+
+/** Label rules for a set of coins; `cluster` is each coin's certain origin id. */
+function labelVerdict(coins: readonly CoinSelectionInput[], cluster: readonly number[]): LabelVerdict {
+  const has = (c: CoinSelectionInput, t: LabelTag) => c.labelTags?.includes(t) ?? false;
+  const rules: { id: LabelRuleId; ok: boolean }[] = [];
+  let cost = 0;
+  const kyc = coins.some(c => has(c, "kyc")), nokyc = coins.some(c => has(c, "nokyc"));
+  if (kyc || nokyc) {
+    rules.push({ id: "kyc", ok: !(kyc && nokyc) });
+    if (kyc && nokyc) cost += LABEL_COST.kyc;
+  }
+  const cj = coins.filter(c => has(c, "cj")).length;
+  // The on-chain CoinJoin merge cost (COST.coinjoinMerge) already covers a merge whose [CJ] coins
+  // are all mixed outputs on-chain: no second penalty, no second warning.
+  let cjWarn = false;
+  if (cj > 0) {
+    const ok = coins.length === 1;
+    rules.push({ id: "coinjoin", ok });
+    cjWarn = !ok && !coins.every(c => !has(c, "cj") || c.origin === "mixed");
+    if (cjWarn) cost += LABEL_COST.coinjoin;
+  }
+  // Origins: keys sharing a certain cluster count once (already linked on-chain).
+  const parent = new Map<string, string>();
+  const find = (k: string): string => { const p = parent.get(k); return p === undefined || p === k ? k : find(p); };
+  const byCluster = new Map<number, string>();
+  coins.forEach((c, i) => {
+    for (const k of c.labelOrigins ?? []) {
+      if (!parent.has(k)) parent.set(k, k);
+      const first = byCluster.get(cluster[i]!);
+      if (first === undefined) byCluster.set(cluster[i]!, k);
+      else parent.set(find(k), find(first));
+    }
+  });
+  const origins = new Set([...parent.keys()].map(find)).size;
+  if (origins > 0) {
+    rules.push({ id: "origin", ok: origins === 1 });
+    cost += (origins - 1) * LABEL_COST.origin;
+  }
+  if (coins.some(c => has(c, "toxic"))) {
+    const ok = coins.length === 1;
+    rules.push({ id: "toxic", ok });
+    if (!ok) cost += LABEL_COST.toxic;
+  }
+  return { rules, cost, origins, cj, cjWarn };
+}
+
 /** Big-change cost for a change-to-payment ratio. */
 function bigChangeCost(ratio: number): number {
   if (ratio < BIG_CHANGE_RATIO) return 0;
@@ -375,6 +461,7 @@ interface Scored {
   /** Merges a mixed output, or a mixed output leaves change at least the payment */
   severe: boolean;
   badChange: boolean;
+  labels: LabelVerdict;
 }
 
 function score(picked: Candidate[], amount: number, feeRate: number): Scored | null {
@@ -392,7 +479,9 @@ function score(picked: Candidate[], amount: number, feeRate: number): Scored | n
   if (badChange) cost += COST.badChange;
   cost += bigChangeCost(s.change / amount);
   const severe = mixed && (picked.length > 1 || s.change >= amount);
-  return { picked, ...s, origins, groups, mixed: mixedCount, cost, severe, badChange };
+  const labels = labelVerdict(picked.map(c => c.coin), picked.map(c => c.group));
+  cost += labels.cost;
+  return { picked, ...s, origins, groups, mixed: mixedCount, cost, severe, badChange, labels };
 }
 
 /** Smallest coins first until they pay, or null past MAX_SMALL_SET coins. */
@@ -465,10 +554,18 @@ function buildPlan(x: Scored, amount: number, feeRate: number, fallback: boolean
   if (change > 0 && change < TOXIC_CHANGE_THRESHOLD) warnings.push({ id: "toxic-change", severity: "medium", count: change });
   const scripts = new Set(coins.map(c => scriptType(c.address))).size;
   if (scripts > 1) warnings.push({ id: "mixed-scripts", severity: "low", count: scripts });
+  for (const r of x.labels.rules) {
+    if (r.ok) continue;
+    if (r.id === "kyc") warnings.unshift({ id: "label-kyc", severity: "critical", count: coins.length });
+    else if (r.id === "coinjoin") { if (x.labels.cjWarn) warnings.push({ id: "label-coinjoin", severity: "high", count: x.labels.cj }); }
+    else if (r.id === "origin") warnings.push({ id: "label-origins", severity: "medium", count: x.labels.origins });
+    else warnings.push({ id: "label-toxic", severity: "medium", count: coins.length });
+  }
 
   return {
     strategy: strategyOf(x), reason: reasonOf(x, amount, fallback), cost: x.cost,
     selected: withHints(coins), inputTotal, paymentAmount: amount, fee, change, absorbed, origins, groups, warnings,
+    labelRules: x.labels.rules,
   };
 }
 
@@ -573,4 +670,39 @@ export function buildCoinInputs(infos: WalletAddressInfo[]): CoinSelectionInput[
       reusedAddress: funded > 1,
     }));
   });
+}
+
+/**
+ * Linkage-group letters for the UTXO list and exported labels. Coins are
+ * lettered by value (largest first); each inferred cluster of 2+ coins gets a
+ * letter, `inferred` when it spans several certain clusters (only probably
+ * linked). One group for the whole wallet is reported as `allLinked` and gets
+ * no letters.
+ */
+export function groupLetters(coins: readonly CoinSelectionInput[]): {
+  letters: Map<string, { letter: string; inferred: boolean }>;
+  allLinked: "certain" | "inferred" | null;
+} {
+  const op = (c: CoinSelectionInput) => `${c.utxo.txid}:${c.utxo.vout}`;
+  const sorted = [...coins].sort((a, b) => b.utxo.value - a.utxo.value);
+  const groupOf = (c: CoinSelectionInput) => c.group ?? op(c);
+  const members = new Map<string, CoinSelectionInput[]>();
+  for (const c of sorted) {
+    const m = members.get(groupOf(c));
+    if (m) m.push(c);
+    else members.set(groupOf(c), [c]);
+  }
+  const certainOne = (m: CoinSelectionInput[]) => new Set(m.map(c => c.cluster)).size === 1;
+  const letters = new Map<string, { letter: string; inferred: boolean }>();
+  if (sorted.length > 1 && members.size === 1) {
+    return { letters, allLinked: certainOne(sorted) ? "certain" : "inferred" };
+  }
+  let i = 0;
+  for (const m of members.values()) {
+    if (m.length < 2) continue;
+    const letter = i < 26 ? String.fromCharCode(65 + i) : String(i + 1);
+    for (const c of m) letters.set(op(c), { letter, inferred: !certainOne(m) });
+    i++;
+  }
+  return { letters, allLinked: null };
 }

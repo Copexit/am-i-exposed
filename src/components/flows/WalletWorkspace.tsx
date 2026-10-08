@@ -9,13 +9,17 @@ import { CoinSelector } from "@/components/wallet/CoinSelector";
 import { WalletUtxoList } from "@/components/wallet/WalletUtxoList";
 import { fmtN } from "@/lib/format";
 import { buildCoinInputs } from "@/lib/analysis/coin-selection";
+import { withLabels } from "@/lib/wallet/labels";
+import type { Bip329Record } from "@/lib/wallet/bip329";
+import { useWalletLabels } from "@/components/wallet/WalletLabels";
+import { WalletLabelsPanel } from "@/components/wallet/WalletLabelsPanel";
 
 const WalletAddressTable = lazy(() => import("@/components/wallet/WalletAddressTable").then(m => ({ default: m.WalletAddressTable })));
 const WalletTxList = lazy(() => import("@/components/wallet/WalletTxList").then(m => ({ default: m.WalletTxList })));
 const WalletGraphExplorerPanel = lazy(() => import("@/components/wallet/WalletGraphExplorerPanel").then(m => ({ default: m.WalletGraphExplorerPanel })));
 
 /** Analyst workspace: wallet graph, address table, tx history, coin selection. */
-export function WalletWorkspace({ result, addressInfos, utxoTraces, onScan, addressesOpen, onAddressesOpenChange, accountPath }: {
+export function WalletWorkspace({ result, addressInfos, utxoTraces, onScan, addressesOpen, onAddressesOpenChange, accountPath, xpub, labelRecords, onLabelsChange }: {
   result: WalletAuditResult;
   /** Account derivation path when known, for the UTXO list's path tooltips */
   accountPath?: string;
@@ -24,12 +28,18 @@ export function WalletWorkspace({ result, addressInfos, utxoTraces, onScan, addr
   onScan: (input: string) => void;
   addressesOpen: boolean;
   onAddressesOpenChange: (open: boolean) => void;
+  xpub: string;
+  /** BIP329 labels as imported (memory only) */
+  labelRecords: Bip329Record[];
+  onLabelsChange: (records: Bip329Record[]) => void;
 }) {
   const { t } = useTranslation();
   const [txsOpen, setTxsOpen] = useState(false);
   const [coinsOpen, setCoinsOpen] = useState(false);
   const [utxosOpen, setUtxosOpen] = useState(false);
-  const allUtxos = useMemo(() => buildCoinInputs(addressInfos), [addressInfos]);
+  const [labelsOpen, setLabelsOpen] = useState(false);
+  const labels = useWalletLabels();
+  const allUtxos = useMemo(() => withLabels(buildCoinInputs(addressInfos), labels), [addressInfos, labels]);
   const hasTxs = result.totalTxs > 0;
 
   if (!hasTxs && result.activeAddresses === 0 && allUtxos.length === 0) return null;
@@ -81,6 +91,19 @@ export function WalletWorkspace({ result, addressInfos, utxoTraces, onScan, addr
             </Suspense>
           </Panel>
         )}
+
+        <Panel
+          id="wallet-labels"
+          title={t("wallet.labels.title", { defaultValue: "Labels (BIP329)" })}
+          count={labelRecords.length}
+          countLabel={labelRecords.length > 0
+            ? t("wallet.labels.loaded", { count: labelRecords.length, n: fmtN(labelRecords.length), defaultValue: "{{n}} loaded" })
+            : t("wallet.labels.notLoaded", { defaultValue: "Import or export" })}
+          open={labelsOpen}
+          onToggle={() => setLabelsOpen(o => !o)}
+        >
+          <WalletLabelsPanel records={labelRecords} onChange={onLabelsChange} addressInfos={addressInfos} xpub={xpub} />
+        </Panel>
 
         {allUtxos.length > 0 && (
           <Panel

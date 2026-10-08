@@ -4,7 +4,7 @@ import { describe, it, expect } from "vitest";
 import { PATHWAYS, COMBINED_PATHWAYS } from "../pathways";
 
 // Static section ids rendered by the guide page components.
-const SECTION_IDS = ["combined-strategies", "common-mistakes", "maintaining-privacy", "privacy-techniques", "recovery-playbook", "verify", "wallet-comparison", "why"];
+const SECTION_IDS = ["combined-strategies", "common-mistakes", "labeling-coins", "maintaining-privacy", "privacy-techniques", "recovery-playbook", "verify", "wallet-comparison", "why"];
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {

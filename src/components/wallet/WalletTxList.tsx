@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { ChevronDown, Search } from "lucide-react";
 import type { WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import type { MempoolTransaction } from "@/lib/api/types";
+import { LabelText, useWalletLabels } from "./WalletLabels";
 
 interface WalletTxListProps {
   addressInfos: WalletAddressInfo[];
@@ -18,6 +19,7 @@ interface DedupedTx {
 }
 
 export function WalletTxList({ addressInfos, onScan }: WalletTxListProps) {
+  const labels = useWalletLabels();
   const { t, i18n } = useTranslation();
   const [expandedTxid, setExpandedTxid] = useState<string | null>(null);
 
@@ -80,6 +82,8 @@ export function WalletTxList({ addressInfos, onScan }: WalletTxListProps) {
               <span className="font-mono text-xs text-foreground/80 flex-shrink-0">
                 {tx.txid.slice(0, 10)}...{tx.txid.slice(-4)}
               </span>
+
+              {labels?.tx.get(tx.txid) && <LabelText text={labels.tx.get(tx.txid)!} className="max-w-[40%]" />}
 
               {/* Date */}
               <span className="text-xs text-muted flex-shrink-0 hidden sm:inline">

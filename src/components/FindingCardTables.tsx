@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { LabelText, useWalletLabels } from "@/components/wallet/WalletLabels";
 import { ExternalLink, Copy, Check } from "lucide-react";
 import { truncateId } from "@/lib/constants";
 import { formatSats, fmtN } from "@/lib/format";
@@ -207,6 +208,7 @@ export function TxRefList({ txidsJson, more, onTxClick }: {
   onTxClick?: (txid: string) => void;
 }) {
   const { t } = useTranslation();
+  const labels = useWalletLabels();
   let txids: string[];
   try {
     const parsed: unknown = JSON.parse(txidsJson);
@@ -220,7 +222,7 @@ export function TxRefList({ txidsJson, more, onTxClick }: {
       <p className="eyebrow mb-1">{t("finding.txRefs", { defaultValue: "Transactions" })}</p>
       <ul className="flex flex-wrap gap-x-4">
         {txids.map((txid) => (
-          <li key={txid}>
+          <li key={txid} className="inline-flex items-center gap-2 min-w-0 max-w-full">
             {onTxClick ? (
               <button
                 type="button"
@@ -232,6 +234,7 @@ export function TxRefList({ txidsJson, more, onTxClick }: {
             ) : (
               <span className="inline-flex items-center min-h-[40px] font-mono text-xs text-foreground/70">{truncateId(txid, 8)}</span>
             )}
+            {labels?.tx.get(txid) && <LabelText text={labels.tx.get(txid)!} className="max-w-[16rem]" />}
           </li>
         ))}
       </ul>
