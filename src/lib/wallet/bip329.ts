@@ -144,3 +144,25 @@ export function parseBip329(text: string): Bip329ParseResult | null {
 export function serializeBip329(records: readonly Bip329Record[]): string {
   return records.map((r) => JSON.stringify(r) + "\n").join("");
 }
+
+/**
+ * A small example labels file for the guide: fake testnet txids and
+ * addresses, every label marked "Example", in the labeling convention
+ * (observer · platform or reason · fiat value at the time, illustrative values) and
+ * shaped like a Sparrow export (tx labels copied to outputs with " (received)"
+ * or " (change)", a frozen coin).
+ */
+export function exampleLabels(): Bip329Record[] {
+  const txid = (n: number) => `${"0".repeat(63)}${n}`;
+  const addr = (n: number) => `tb1qexample${"0".repeat(28)}${n}`;
+  return [
+    { type: "tx", ref: txid(1), label: "[KYC] Example Exchange · withdrawal · 1000 EUR" },
+    { type: "output", ref: `${txid(1)}:0`, label: "[KYC] Example Exchange · withdrawal · 1000 EUR (received)" },
+    { type: "tx", ref: txid(2), label: "[noKYC] Example Juan · P2P purchase · 250 EUR (73600 EUR/BTC)" },
+    { type: "addr", ref: addr(2), label: "[noKYC] Example Juan · P2P purchase" },
+    { type: "output", ref: `${txid(3)}:1`, label: "[CJ] Example CoinJoin · pool" },
+    { type: "output", ref: `${txid(4)}:2`, label: "[toxic] Example dust", spendable: false },
+    { type: "tx", ref: txid(5), label: "Example rent payment" },
+    { type: "output", ref: `${txid(5)}:1`, label: "Example rent payment (change)" },
+  ];
+}

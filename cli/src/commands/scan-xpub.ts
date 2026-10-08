@@ -18,6 +18,11 @@ import { autoLabels, exportRecords, matchLabels } from "@/lib/wallet/labels";
 
 export interface LabelsSummary {
   applied: number;
+  /** Records that give a current coin its label */
+  onCoins: number;
+  /** Records on spent coins, past transactions, addresses and keys */
+  history: number;
+  /** Records for other wallets */
   unmatched: number;
   invalid: number;
   truncated: number;
@@ -39,7 +44,7 @@ export function walletLabelFiles(
 ): LabelsSummary | null {
   if (!labels && !exportLabels) return null;
   let records: Bip329Record[] = [];
-  const summary: LabelsSummary = { applied: 0, unmatched: 0, invalid: 0, truncated: 0, frozen: 0 };
+  const summary: LabelsSummary = { applied: 0, onCoins: 0, history: 0, unmatched: 0, invalid: 0, truncated: 0, frozen: 0 };
   if (labels) {
     if (statSync(labels).size > MAX_FILE_BYTES) throw new Error(`Labels file larger than ${MAX_FILE_BYTES / 1024 / 1024} MB: ${labels}`);
     const parsed = parseBip329(readFileSync(labels, "utf8"));
@@ -47,7 +52,7 @@ export function walletLabelFiles(
     records = parsed.records;
     const m = matchLabels(records, addresses, xpub);
     Object.assign(summary, {
-      applied: m.applied, unmatched: m.unmatched, invalid: parsed.invalid, truncated: parsed.truncated,
+      applied: m.applied, onCoins: m.onCoins, history: m.history, unmatched: m.unmatched, invalid: parsed.invalid, truncated: parsed.truncated,
       frozen: [...m.coins.values()].filter((c) => c.frozen).length,
     });
   }
@@ -102,7 +107,7 @@ export async function scanXpub(
     console.log(formatWalletResult(descriptor, result, network));
     if (labels) {
       const parts = [];
-      if (opts.labels) parts.push(`${labels.applied} applied, ${labels.unmatched} not matching this wallet, ${labels.invalid} invalid${labels.frozen ? `, ${labels.frozen} frozen coins` : ""}`);
+      if (opts.labels) parts.push(`${labels.onCoins} on current coins, ${labels.history} on past transactions and addresses, ${labels.unmatched} for other wallets, ${labels.invalid} invalid${labels.frozen ? `, ${labels.frozen} frozen coins` : ""}`);
       if (labels.exported !== undefined) parts.push(`${labels.exported} written to ${String(opts.exportLabels ?? opts["export-labels"])}`);
       console.log(`Labels: ${parts.join("; ")}`);
     }
