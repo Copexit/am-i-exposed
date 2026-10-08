@@ -22,6 +22,13 @@ async function mockTesterWallet(page: Page) {
   }])));
 }
 
+/** Screenshot of an element through a full-page clip, so the sticky header never covers it. */
+async function shot(page: Page, el: import("@playwright/test").Locator, path: string) {
+  const box = (await el.boundingBox())!;
+  const scrollY = await page.evaluate(() => window.scrollY);
+  await page.screenshot({ path, fullPage: true, clip: { x: box.x, y: box.y + scrollY, width: box.width, height: box.height } });
+}
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     sessionStorage.setItem("xpub-privacy-ack", "1");
@@ -47,7 +54,7 @@ for (const width of [1440, 390]) {
       return [...el.children].some((li) => li.getBoundingClientRect().right > box.right + 0.5);
     });
     expect(overflow).toBe(false);
-    await origins.screenshot({ path: `test-results/wa-origins-${width}.png` });
+    await shot(page, origins, `test-results/wa-origins-${width}.png`);
 
     // UTXO list: the CoinJoin change coin is CoinJoin change (not mixed), with a Path column
     await page.getByRole("button", { name: /Coins \(UTXOs\)/ }).click();
@@ -57,7 +64,10 @@ for (const width of [1440, 390]) {
     await expect(cjRow.getByText("Mixed (CoinJoin)")).toHaveCount(0);
     await expect(cjRow.getByTitle(`Change chain, index ${CJ_INDEX} (m/84'/0'/0'/1/${CJ_INDEX})`)).toHaveCount(1);
     await expect(list.getByRole("columnheader", { name: "Path" })).toHaveCount(1);
-    await list.screenshot({ path: `test-results/wa-utxos-${width}.png` });
+    // Every coin comes from the same payments (two wallet outputs each): one probable group, said once
+    await expect(list.getByTestId("utxo-all-linked")).toContainText("All 11 coins are probably linked");
+    await expect(list.getByText(/^Group /)).toHaveCount(0);
+    await shot(page, list, `test-results/wa-utxos-${width}.png`);
 
     // Coin selection: 600,000 sats at 5 sat/vB
     await page.getByRole("button", { name: /Coin Selection Advisor/ }).click();
@@ -67,7 +77,11 @@ for (const width of [1440, 390]) {
     await expect(first.getByText("Recommended")).toBeVisible();
     await expect(first.getByText("591,429 sats")).toBeVisible();
     await expect(first.getByText("134,361 sats")).toBeVisible();
+    await expect(first.getByTestId("plan-reason")).toHaveText("Joins coins an observer can probably already link.");
+    const single = page.getByTestId("coin-plan-single-coin");
+    await expect(single.getByText("99,000,000 sats")).toBeVisible();
+    await expect(single.getByTestId("plan-reason")).toHaveText("Leaves change 164x the payment: the recipient learns how much the coin held.");
     await expect(page.getByText("15,240,920 sats", { exact: true }).locator("xpath=ancestor::section[starts-with(@data-testid,'coin-plan-')]")).toHaveCount(0);
-    await page.getByTestId("coin-selector").screenshot({ path: `test-results/wa-selector-${width}.png` });
+    await shot(page, page.getByTestId("coin-selector"), `test-results/wa-selector-${width}.png`);
   });
 }

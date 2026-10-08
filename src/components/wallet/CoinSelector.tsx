@@ -112,7 +112,8 @@ function PlanCard({ plan, recommended }: { plan: CoinSelectionPlan; recommended:
   const note =
     plan.strategy === "single-coin" ? (plan.change > 0 ? "singleChange" : "single")
     : plan.strategy === "no-change" ? "noChange"
-    : plan.strategy === "same-origin" ? "linked" : "merge";
+    : plan.strategy === "same-origin" ? "linked"
+    : plan.strategy === "probably-linked" ? "probablyLinked" : "merge";
   const stats = [
     { label: t("wallet.coinSel.inputs", { defaultValue: "Inputs" }), value: fmtN(plan.selected.length) },
     { label: t("wallet.coinSel.fee", { defaultValue: "Fee" }), value: `${fmtN(plan.fee)} ${sats}` },
@@ -133,7 +134,7 @@ function PlanCard({ plan, recommended }: { plan: CoinSelectionPlan; recommended:
         </div>
         <p className="text-sm text-muted leading-relaxed">{t(`wallet.coinSel.note.${note}`)}</p>
         <p data-testid="plan-reason" className="text-sm text-foreground leading-relaxed">
-          {t(`wallet.coinSel.reason.${plan.reason}`, { count: plan.origins })}
+          {t(`wallet.coinSel.reason.${plan.reason}`, { count: plan.groups, ratio: fmtN(Math.round(plan.change / plan.paymentAmount)) })}
         </p>
         {plan.absorbed > 0 && (
           <p className="text-[13px] text-muted leading-relaxed">

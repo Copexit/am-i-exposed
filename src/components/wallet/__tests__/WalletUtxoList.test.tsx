@@ -14,7 +14,7 @@ vi.mock("react-i18next", async () => {
 vi.mock("@/hooks/useChainTip", () => ({ useChainTip: () => 900_000 }));
 
 import { WalletUtxoList } from "../WalletUtxoList";
-import { testerHistory } from "@/lib/analysis/__tests__/fixtures/wallet-history";
+import { History, testerHistory, recv, chg, ext, walletAddrs } from "@/lib/analysis/__tests__/fixtures/wallet-history";
 
 afterEach(cleanup);
 
@@ -122,6 +122,27 @@ describe("WalletUtxoList", () => {
     const cj = screen.getAllByTestId("utxo-row").find(r => r.textContent!.includes("15,240,920"))!;
     expect(within(cj).getByText("CoinJoin change")).toBeTruthy();
     expect(within(cj).queryByText("Mixed (CoinJoin)")).toBeNull();
-    expect(screen.getAllByText("Change").length).toBe(10);
+    // Change on the change chain: the chain chip already says it
+    expect(screen.queryAllByText("Change")).toHaveLength(0);
+    // One (inferred) cluster for the whole wallet: said once, no per-row link chips
+    expect(screen.getByTestId("utxo-all-linked").textContent).toMatch(/^All 11 coins are probably linked by this wallet's history/);
+    expect(screen.queryByText(/^Group /)).toBeNull();
+    expect(screen.queryByText(/^Linked to/)).toBeNull();
+  });
+
+  it("letters each linked group, dashed with a ? when only probably linked", () => {
+    const h = new History();
+    h.receive(recv(0), 50_000, 100);
+    h.receive(recv(0), 60_000, 101); // same address: certain
+    const r = h.receive(recv(1), 1_000_000, 102);
+    h.tx([r], [{ address: ext(1), value: 100_007 }, { address: chg(0), value: 400_000 }, { address: recv(2), value: 498_000 }], 103); // two wallet outputs: inferred
+    h.receive(recv(3), 70_000, 104); // alone
+    render(<WalletUtxoList addressInfos={h.infos(walletAddrs(4))} onScan={() => {}} />);
+    expect(screen.queryByTestId("utxo-all-linked")).toBeNull();
+    const probable = screen.getAllByText("Group A?");
+    expect(probable).toHaveLength(2);
+    expect(probable[0]!.className).toContain("border-dashed");
+    expect(screen.getAllByText("Group B")).toHaveLength(2);
+    expect(screen.getAllByText("Group B")[0]!.className).not.toContain("border-dashed");
   });
 });

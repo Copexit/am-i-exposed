@@ -3166,7 +3166,7 @@
   "wallet.coinSel.reason.links": "Lie {{count}} groupe de pièces qui n'était pas lié on-chain auparavant.",
   "wallet.coinSel.reason.links_other": "Lie {{count}} groupes de pièces qui n'étaient pas liés on-chain auparavant.",
   "wallet.coinSel.reason.bad-change": "Sa monnaie est trop petite pour être dépensée plus tard ou provient d'une pièce de CoinJoin, ce qui coûte en confidentialité plus tard.",
-  "wallet.coinSel.reason.big-change": "Ne lie rien de nouveau, mais la monnaie est bien plus grande que le paiement : elle montre au destinataire combien la pièce contenait.",
+  "wallet.coinSel.reason.big-change": "Laisse une monnaie de {{ratio}} fois le paiement : le destinataire apprend combien la pièce contenait.",
   "wallet.coinSel.reason.clean": "Ne lie rien de nouveau et ne laisse aucune monnaie.",
   "wallet.coinSel.reason.small-change": "Ne lie rien de nouveau, et la monnaie reste modeste par rapport au paiement.",
   "wallet.coinSel.warn.mixed-change": "Dépense une sortie mixée de CoinJoin pour un paiement plus petit : la monnaie peut être retracée jusqu'à elle. Une sortie mixée se dépense de préférence en entier.",
@@ -3176,5 +3176,17 @@
   "wallet.utxos.pathHeaderTitle": "Chemin de dérivation : chaîne (0 réception, 1 monnaie) et index",
   "wallet.utxos.pathTitle": "{{chain}}, index {{index}} ({{path}})",
   "wallet.utxos.chainChange": "Chaîne de monnaie",
-  "wallet.utxos.chainReceive": "Chaîne de réception"
+  "wallet.utxos.chainReceive": "Chaîne de réception",
+  "wallet.coinSel.strategy.probably-linked": "Pièces probablement liées",
+  "wallet.coinSel.note.probablyLinked": "Probablement déjà liées : ces pièces viennent du même paiement, mais un observateur doit deviner quelle sortie était la monnaie.",
+  "wallet.coinSel.reason.inferred-links": "Réunit des pièces qu'un observateur peut probablement déjà lier.",
+  "wallet.coinSel.hint.probably-linked": "Probablement liée à #{{n}}",
+  "wallet.utxos.group": "Groupe {{letter}}",
+  "wallet.utxos.groupInferred": "Groupe {{letter}} ?",
+  "wallet.utxos.groupTitle": "Les pièces de ce groupe sont déjà liées par l'historique du portefeuille : même adresse, dépensées ensemble, ou l'une descend de l'autre.",
+  "wallet.utxos.groupInferredTitle": "Probablement liées : ces pièces viennent des mêmes paiements, mais un observateur doit deviner quelles sorties étaient la monnaie.",
+  "wallet.utxos.allLinked": "La {{count}} pièce est liée par l'historique de ce portefeuille.",
+  "wallet.utxos.allLinked_other": "Les {{count}} pièces sont liées par l'historique de ce portefeuille.",
+  "wallet.utxos.allProbablyLinked": "La {{count}} pièce est probablement liée par l'historique de ce portefeuille : elle vient des mêmes paiements, mais un observateur doit deviner quelles sorties étaient la monnaie.",
+  "wallet.utxos.allProbablyLinked_other": "Les {{count}} pièces sont probablement liées par l'historique de ce portefeuille : elles viennent des mêmes paiements, mais un observateur doit deviner quelles sorties étaient la monnaie."
 }

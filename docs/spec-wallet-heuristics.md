@@ -105,7 +105,7 @@ This is in line with tx-level Post-Mix Consolidation (-12 to -18).
 
 ### W2: Change merged with other coins (`wallet-change-merge`), the tester's request
 
-**What:** a solo spend with 2+ inputs, no `mixed` input, and at least one input of class `change` or `coinjoin-change` that sat in a different linkage cluster (`wallet-clusters.ts`) from another input just before the spend. A spend counted by W1 is not counted here.
+**What:** a solo spend with 2+ inputs, no `mixed` input, and at least one input of class `change` or `coinjoin-change` that sat in a different certain linkage cluster (`wallet-clusters.ts`) from another input just before the spend. A spend counted by W1 is not counted here. If every counted spend stayed within one inferred cluster, the finding drops a notch (low -2, medium -4, medium -7).
 
 **Why:**
 - Change carries the history of the payment that created it. The payment's recipient, and anyone who identified the change with the standard rules (Meiklejohn's one-time change address heuristic, Kappos et al. 2022), already attribute it to the sender.
@@ -122,10 +122,13 @@ This is in line with tx-level Post-Mix Consolidation (-12 to -18).
 
 **Params:** `count`, `_txids`, `more`.
 
-**Already-linked coins do not count.** A change input merged only with coins its history already links adds no new link and is skipped. The linkage clusters (2026-10, tester report "17 spends merged change with other coins") are a union-find over the wallet's outpoints:
+**Already-linked coins do not count.** A change input merged only with coins its history certainly links adds no new link and is skipped. The linkage clusters (2026-10, tester report "17 spends merged change with other coins") are union-finds over the wallet's outpoints, in two tiers. Certain:
 - the same address;
-- coins co-spent in a solo spend, and a solo spend's wallet outputs with its inputs (same funding tx, common wallet-owned ancestors);
-- a CoinJoin's `coinjoin-change` with the wallet's inputs of that CoinJoin (that link is what makes it toxic).
+- inputs co-spent in a solo spend;
+- a solo spend with exactly one wallet output: that output joins its inputs;
+- a CoinJoin's `coinjoin-change` with the wallet's inputs of that CoinJoin, when those inputs were one certain cluster (that link is what makes it toxic).
+
+Inferred (adds to certain): a solo spend with 2+ wallet outputs joins them with each other and its inputs, and so their descendants. An observer has to guess which output was the change; merging them confirms the guess, so W2 still counts it, a notch lower.
 
 A `mixed` output, a receipt from outside (a batch payout to two wallet addresses is not known to link them) and any tx with an outside input never link. Spends are processed parents first, so each sees the clusters as they were when it was made. The coin selection advisor uses the same clusters.
 

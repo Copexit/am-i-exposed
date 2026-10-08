@@ -32,17 +32,41 @@ export function WalletUtxoList({ addressInfos, onScan, accountPath }: {
   const [showAll, setShowAll] = useState(false);
 
   // Row numbers (#n, also used by the hints) follow the amount order and stay with the coin when re-sorted.
-  const rows = useMemo(() => {
+  const { rows, allLinked } = useMemo(() => {
     const derived = new Map(addressInfos.map(i => [i.derived.address, i.derived]));
     const coins = buildCoinInputs(addressInfos).sort((a, b) => b.utxo.value - a.utxo.value);
-    return withHints(coins).map((c, i) => {
-      const hints: Hint[] = [...c.hints];
-      // Every coin shows its origin class, as counted in the coin-origins bar.
-      if (c.origin && c.origin !== "mixed" && c.origin !== "coinjoin-change") hints.unshift({ kind: "class", origin: c.origin });
+    // Linkage groups (inferred clusters, wallet-clusters.ts). One group for the whole
+    // wallet is said once above the list; otherwise each group of 2+ coins gets a letter,
+    // with a "?" when only probably linked (it spans several certain clusters).
+    const groupOf = (c: (typeof coins)[number]) => c.group ?? `${c.utxo.txid}:${c.utxo.vout}`;
+    const members = new Map<string, typeof coins>();
+    for (const c of coins) {
+      const m = members.get(groupOf(c));
+      if (m) m.push(c);
+      else members.set(groupOf(c), [c]);
+    }
+    const certainOne = (m: typeof coins) => new Set(m.map(c => c.cluster)).size === 1;
+    const one = coins.length > 1 && members.size === 1;
+    const letters = new Map<string, string>();
+    for (const [g, m] of members) {
+      const i = letters.size;
+      if (m.length > 1) letters.set(g, i < 26 ? String.fromCharCode(65 + i) : String(i + 1));
+    }
+    const linkKinds = new Set<Hint["kind"]>(["linked", "probably-linked", ...(one ? (["same-tx", "same-address"] as const) : [])]);
+    const rows = withHints(coins).map((c, i) => {
+      const d = derived.get(c.address);
+      const hints: Hint[] = c.hints.filter(h => !linkKinds.has(h.kind));
+      // Each coin shows its origin class as counted in the coin-origins bar, unless the chain chip already says it.
+      if (c.origin && c.origin !== "mixed" && c.origin !== "coinjoin-change" && !(c.origin === "change" && d?.isChange)) {
+        hints.unshift({ kind: "class", origin: c.origin });
+      }
+      const letter = one ? undefined : letters.get(groupOf(c));
+      if (letter) hints.push({ kind: "group", letter, inferred: !certainOne(members.get(groupOf(c))!) });
       if (c.utxo.value < P2PKH_DUST_LIMIT) hints.push({ kind: "dust" });
       else if (c.utxo.value <= INPUT_VB[scriptType(c.address)] * REFERENCE_FEE_RATE) hints.push({ kind: "uneconomical" });
-      return { ...c, hints, n: i + 1, derived: derived.get(c.address) };
+      return { ...c, hints, n: i + 1, derived: d };
     });
+    return { rows, allLinked: !one ? null : certainOne(coins) ? "certain" as const : "inferred" as const };
   }, [addressInfos]);
 
   const sorted = useMemo(() => {
@@ -87,6 +111,13 @@ export function WalletUtxoList({ addressInfos, onScan, accountPath }: {
 
   return (
     <div className="space-y-3" data-testid="utxo-list">
+      {allLinked && (
+        <p data-testid="utxo-all-linked" className="text-[13px] text-muted">
+          {allLinked === "certain"
+            ? t("wallet.utxos.allLinked", { count: rows.length, defaultValue: "All {{count}} coins are linked by this wallet's history." })
+            : t("wallet.utxos.allProbablyLinked", { count: rows.length, defaultValue: "All {{count}} coins are probably linked by this wallet's history." })}
+        </p>
+      )}
       <div className="flex items-center gap-1 flex-wrap">
         <span className="text-[13px] text-muted mr-1">{t("wallet.utxos.sortBy", { defaultValue: "Sort by" })}</span>
         {sortButton("amount", t("wallet.utxos.amount", { defaultValue: "Amount" }))}
