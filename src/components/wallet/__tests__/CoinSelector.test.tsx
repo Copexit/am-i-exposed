@@ -10,7 +10,15 @@ vi.mock("react-i18next", async () => {
   return { useTranslation: () => ({ t, i18n: { language: "en" } }) };
 });
 
+const getAddress = vi.fn();
+vi.mock("@/lib/api/mempool", () => ({ createMempoolClient: () => ({ getAddress }) }));
+vi.mock("@/context/NetworkContext", () => ({
+  useNetwork: () => ({ network: "mainnet", config: { mempoolBaseUrl: "https://mempool.space/api" }, apiReady: true }),
+}));
+
 import { CoinSelector } from "../CoinSelector";
+import { buildCoinInputs } from "@/lib/analysis/coin-selection";
+import { History, recv } from "@/lib/analysis/__tests__/fixtures/wallet-history";
 
 afterEach(cleanup);
 
@@ -168,3 +176,82 @@ describe("CoinSelector", () => {
   });
 });
 
+/** BIP350 test vector (P2TR): the recipient, who once paid the wallet 133,000 sats. */
+const TAPROOT = "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0";
+/** BIP173 test vector (P2WPKH): a recipient the wallet never saw. */
+const FRESH = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
+
+function recipientWallet() {
+  const h = new History();
+  h.tx([{ address: TAPROOT, value: 140_000 }], [{ address: recv(0), value: 133_000 }], 100);
+  h.receive(recv(1), 104_000, 101);
+  const infos = h.infos([0, 1].map(i => ({ address: recv(i), isChange: false, index: i })));
+  return { infos, utxos: buildCoinInputs(infos) };
+}
+
+function runTo(to: string, amount = "100000") {
+  const { infos, utxos } = recipientWallet();
+  render(<CoinSelector utxos={utxos} history={infos} />);
+  fireEvent.change(screen.getByLabelText("Recipient address (optional)"), { target: { value: to } });
+  fireEvent.change(screen.getByLabelText("Amount (sats)"), { target: { value: amount } });
+  fireEvent.change(screen.getByLabelText("Fee (sat/vB)"), { target: { value: "5" } });
+  fireEvent.click(screen.getByRole("button", { name: "Suggest selection" }));
+}
+
+describe("CoinSelector: spending decision tree", () => {
+  afterEach(() => getAddress.mockReset());
+
+  it("prefers the coin the recipient sent, with alerts, the decision path and the round-change variant", () => {
+    runTo(TAPROOT);
+    const first = screen.getAllByTestId(/^coin-plan-/)[0]!;
+    expect(within(first).getByText("133,000 sats")).toBeTruthy();
+    expect(within(first).getByText("Recommended")).toBeTruthy();
+    expect(within(first).getByTestId("plan-reason").textContent).toMatch(/^The recipient already knows these coins/);
+    const path = within(within(first).getByTestId("plan-path")).getAllByRole("listitem").map(li => li.textContent);
+    expect(path).toEqual([
+      "1Passed:Coins the recipient already knows: used",
+      "2Warning:Single coin: 32,300 sats over the payment, more than 10%",
+      "3Warning:Change 32,300 sats: keep it apart, or send it to a Lightning swap",
+    ]);
+    expect(within(first).getByTestId("round-change").textContent).toBe("Round change: +2,300 sats fee so the change also looks round Fee 3,000 sats, change 30,000 sats.");
+    const alerts = within(screen.getByTestId("spend-alerts")).getAllByRole("listitem").map(li => li.dataset.testid);
+    expect(alerts).toEqual(["spend-alert-reused-history", "spend-alert-round", "spend-alert-type-mismatch", "spend-alert-change-tips"]);
+    expect(screen.getByTestId("spend-alert-reused-history").textContent).toMatch(/^Avoid sending to a reused address.*payments from it: 1, payments to it: 0/);
+    expect(screen.getByTestId("spend-alert-type-mismatch").textContent).toMatch(/is P2TR and this wallet uses P2WPKH/);
+    // Nothing was sent anywhere
+    expect(getAddress).not.toHaveBeenCalled();
+  });
+
+  it("no recipient: the closest coin, no recipient step, the round alert still shown", () => {
+    runTo("");
+    const first = screen.getAllByTestId(/^coin-plan-/)[0]!;
+    expect(within(first).getByText("104,000 sats")).toBeTruthy();
+    expect(within(first).getByTestId("plan-path").textContent).not.toMatch(/recipient/);
+    expect(screen.getByTestId("spend-alert-round")).toBeTruthy();
+    expect(screen.queryByTestId("spend-alert-reused-history")).toBeNull();
+  });
+
+  it("an invalid recipient says so and offers no reuse check", () => {
+    const { utxos } = recipientWallet();
+    render(<CoinSelector utxos={utxos} />);
+    fireEvent.change(screen.getByLabelText("Recipient address (optional)"), { target: { value: FRESH.slice(0, -1) + "5" } });
+    expect(screen.getByText("Not a valid address for this network.")).toBeTruthy();
+    expect(screen.queryByTestId("reuse-check")).toBeNull();
+    expect(screen.getByRole("link", { name: "Spending checklist" }).getAttribute("href")).toBe("/guide/#spending-checklist");
+  });
+
+  it("the reuse check runs only on click, for that one address, and its answer raises the alert", async () => {
+    getAddress.mockResolvedValue({ chain_stats: { tx_count: 2 }, mempool_stats: { tx_count: 0 } });
+    runTo(FRESH, "123456");
+    expect(screen.queryByTestId("spend-alert-reused-api")).toBeNull();
+    expect(getAddress).not.toHaveBeenCalled();
+    expect(screen.getByText(/The button sends this one address to mempool.space, only when clicked/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Check if this address was used before" }));
+    expect(getAddress).toHaveBeenCalledWith(FRESH);
+    expect(await screen.findByTestId("spend-alert-reused-api")).toBeTruthy();
+    expect(screen.getByTestId("reuse-result").textContent).toMatch(/shows earlier transactions for this address/);
+    // Another address: the answer no longer applies
+    fireEvent.change(screen.getByLabelText("Recipient address (optional)"), { target: { value: TAPROOT } });
+    expect(screen.queryByTestId("reuse-result")).toBeNull();
+  });
+});

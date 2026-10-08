@@ -160,6 +160,21 @@ describe("coin control URL state", () => {
     expect(window.location.hash).toBe(`#xpub=${XPUB}&rank=least-change`);
   });
 
+  it("keeps the recipient in the hash only (to=), restores it, and drops it when cleared", () => {
+    const to = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
+    window.history.replaceState(null, "", `/#xpub=${XPUB}&to=${to}`);
+    render(<Workspace />);
+    const field = screen.getByLabelText("Recipient address (optional)") as HTMLInputElement;
+    expect(field.value).toBe(to);
+    fireEvent.change(field, { target: { value: "" } });
+    expect(window.location.hash).toBe(`#xpub=${XPUB}`);
+    fireEvent.change(field, { target: { value: ` ${to} ` } });
+    expect(window.location.hash).toBe(`#xpub=${XPUB}&to=${to}`);
+    // Not address characters: never written
+    fireEvent.change(field, { target: { value: "<script>" } });
+    expect(window.location.hash).toBe(`#xpub=${XPUB}`);
+  });
+
   it("ignores and never writes the keys when the hash holds another wallet", () => {
     window.history.replaceState(null, "", `/#xpub=xpubOTHER&coins=${op(134_361)}`);
     render(<Workspace />);
