@@ -9,7 +9,7 @@ vi.mock("react-i18next", async () => {
   return { useTranslation: () => ({ t, i18n: { language: "en" } }) };
 });
 
-import { LabelingSection } from "../LabelingSection";
+import { LabelingSection, SpendingChecklist } from "../LabelingSection";
 import { parseBip329 } from "@/lib/wallet/bip329";
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
@@ -35,5 +35,16 @@ describe("LabelingSection", () => {
     const parsed = parseBip329(await act(() => blobs[0]!.text()))!;
     expect(parsed.invalid).toBe(0);
     expect(parsed.records.length).toBeGreaterThan(5);
+  });
+
+  it("spending checklist: nine ordered rules, rule 9 never calls a CoinJoin merge good", () => {
+    const { container } = render(<SpendingChecklist />);
+    expect(container.querySelector("#spending-checklist")!.textContent).toBe("Spending checklist");
+    const items = container.querySelectorAll("ol > li");
+    expect(items).toHaveLength(9);
+    expect(items[0]!.id).toBe("spending-rule-1");
+    expect(items[0]!.textContent).toMatch(/already knows one of your coins/);
+    expect(items[5]!.textContent).toBe("Never send to an address that was used before. Ask for a new one.");
+    expect(items[8]!.textContent).toMatch(/least bad.*never good/);
   });
 });

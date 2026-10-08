@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Tags } from "lucide-react";
+import { Download, ListChecks, Tags } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { LabelTagChip } from "@/components/wallet/WalletLabels";
 import type { LabelTag } from "@/lib/wallet/labels";
@@ -144,6 +144,42 @@ export function LabelingSection() {
         </button>
         <p className="text-[13px] text-muted">{t("guide.labeling.exampleNote", { defaultValue: "A few made-up testnet records in this convention, shaped like a Sparrow export. They match no real wallet." })}</p>
       </div>
+    </section>
+  );
+}
+
+/** The tester's spending rules as an ordered decision tree (coin-selection decision path, spending-advice alerts). */
+const CHECKLIST = [
+  "Paying someone who already knows one of your coins (they sent it to you, or you paid them before)? Spend that coin: they learn nothing new about your activity.",
+  "Otherwise spend one coin that covers the payment and is close to the amount. If the change would be under 5,000 sats, give it to the miners and leave no change.",
+  "Handle change one coin at a time: pay with no change, or send leftover change to a Lightning swap. Until then, keep it frozen.",
+  "Torn between merging coins and one coin that leaves a lot of change? Prefer the option that uses up the change or leaves a small one, and accept the merge.",
+  "If a payment needs several coins, merge coins from the same observer or platform. Otherwise accept the merge, knowing each observer learns more about your activity.",
+  "Never send to an address that was used before. Ask for a new one.",
+  "Watch for round amounts and for a recipient address of a different type than yours: both reveal which output is your change. Paying on-chain via a swap from Lightning avoids both.",
+  "Paying a round amount? Raise the fee a little so the change is round too: the round-amount rule then cannot tell payment from change.",
+  "When a merge cannot be avoided, merging only CoinJoin outputs is the least bad: they carry no history. It still links them and shrinks their anonymity, so it is never good.",
+];
+
+/** Spending checklist: the decision tree the coin selection advisor follows, linked from the selector. */
+export function SpendingChecklist() {
+  const { t } = useTranslation();
+  return (
+    <section className="space-y-4">
+      <h2 id="spending-checklist" className="text-2xl font-bold text-foreground scroll-mt-24">
+        <ListChecks size={20} className="inline mr-2 text-bitcoin" aria-hidden="true" />
+        {t("guide.checklist.title", { defaultValue: "Spending checklist" })}
+      </h2>
+      <p className="text-base text-muted leading-relaxed">
+        {t("guide.checklist.intro", { defaultValue: "A decision tree for each payment, in order. The coin selection advisor follows it: each plan shows its decision path, and alerts above the plans cover rules 3, 6 and 7." })}
+      </p>
+      <ol className="space-y-2 list-decimal pl-5">
+        {CHECKLIST.map((r, i) => (
+          <li key={i} id={`spending-rule-${i + 1}`} className="text-sm text-muted leading-relaxed scroll-mt-24 marker:text-bitcoin marker:font-medium">
+            {t(`guide.checklist.rule${i + 1}`, { defaultValue: r })}
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }
