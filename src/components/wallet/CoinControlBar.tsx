@@ -4,7 +4,7 @@ import { useId, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { absorbedIf, evaluateSelection, outpointOf, planLinks } from "@/lib/analysis/coin-selection";
 import { fmtN } from "@/lib/format";
-import { FIELD, parseInputs, PlanRules, PlanWarnings } from "./CoinSelector";
+import { FIELD, ObserverLearns, parseInputs, PlanRules, PlanWarnings } from "./CoinSelector";
 import { parseMaxAbsorb, type CoinControl } from "./useCoinControl";
 import { LabelTagChip } from "./WalletLabels";
 import { LABEL_TAGS } from "@/lib/wallet/labels";
@@ -37,6 +37,9 @@ export function CoinControlBar({ control: c, onCompare }: { control: CoinControl
   if (c.selected.size === 0) return null;
 
   const plan = result.kind === "plan" ? result.plan : null;
+  // The selection is one of the advisor's dilemma options: say which, with its cons.
+  const coinsKey = (p: { selected: { utxo: { txid: string; vout: number } }[] }) => p.selected.map(u => `${u.utxo.txid}:${u.utxo.vout}`).sort().join();
+  const chosen = plan && c.dilemma ? (coinsKey(plan) === coinsKey(c.dilemma.a) ? "A" : coinsKey(plan) === coinsKey(c.dilemma.b) ? "B" : null) : null;
   const links = plan && planLinks(plan);
   const stats = plan && links && [
     { label: t("wallet.coinSel.fee", { defaultValue: "Fee" }), value: `${fmtN(plan.fee)} ${sats}` },
@@ -113,6 +116,12 @@ export function CoinControlBar({ control: c, onCompare }: { control: CoinControl
               <input type="checkbox" checked={c.absorb} onChange={e => c.setAbsorb(e.target.checked)} className="size-4 accent-bitcoin" />
               {t("wallet.coinControl.absorb", { amount: fmtN(absorbable), defaultValue: "Pay the {{amount}} sats of change to miners (no change)" })}
             </label>
+          )}
+          {chosen && (
+            <div data-testid="dilemma-choice" className="space-y-1">
+              <p className="text-sm font-medium text-foreground">{t("wallet.coinControl.chose", { option: t(`wallet.coinSel.noClean.option${chosen}`) })}</p>
+              <ObserverLearns plan={plan} />
+            </div>
           )}
           <PlanRules plan={plan} />
           <PlanWarnings plan={plan} />

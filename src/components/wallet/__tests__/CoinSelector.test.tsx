@@ -48,7 +48,7 @@ describe("CoinSelector", () => {
     const plan = screen.getByTestId("coin-plan-single-coin");
     expect(within(plan).getByText("Single coin")).toBeTruthy();
     expect(within(plan).getByText("40,000 sats")).toBeTruthy();
-    expect(within(within(plan).getAllByRole("list")[0]!).getAllByRole("listitem")).toHaveLength(1);
+    expect(within(within(plan).getByTestId("plan-coins")).getAllByRole("listitem")).toHaveLength(1);
     expect(plan.textContent).not.toContain("|");
   });
 
@@ -74,24 +74,27 @@ describe("CoinSelector", () => {
     expect(screen.getByText("Advanced: Stonewall")).toBeTruthy();
   });
 
-  it("shows a recommended No change plan next to the single coin, with the trade-off", () => {
+  it("shows the single coin first (no new link) and the changeless pair of unrelated coins next, each saying what an observer learns", () => {
     run([coin(500_000, "big", "bc1qbig"), coin(41_000, "p1", "bc1qp1"), coin(20_000, "p2", "bc1qp2")], "60000");
     const noChange = screen.getByTestId("coin-plan-no-change");
     const single = screen.getByTestId("coin-plan-single-coin");
-    expect(noChange.compareDocumentPosition(single) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(within(noChange).getByText("Recommended")).toBeTruthy();
+    expect(single.compareDocumentPosition(noChange) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(single).getByText("Recommended")).toBeTruthy();
     expect(within(noChange).getByText("Coins whose total equals the payment plus fee, so no change output is created that anyone can follow.")).toBeTruthy();
-    expect(within(noChange).getByTestId("plan-reason").textContent).toMatch(/^Links 2 group/);
-    expect(within(within(noChange).getAllByRole("list")[0]!).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(noChange).getByTestId("plan-learns").textContent).toContain("That 2 groups of coins nothing linked before belong to one wallet");
+    expect(within(noChange).getByTestId("plan-learns").textContent).toContain("No change output to follow");
+    expect(within(within(noChange).getByTestId("plan-coins")).getAllByRole("listitem")).toHaveLength(2);
     expect(within(noChange).getByText("The fee includes 823 sats of leftover, too small to be worth a change output.")).toBeTruthy();
-    expect(within(single).queryByText("Recommended")).toBeNull();
+    expect(within(noChange).queryByText("Recommended")).toBeNull();
     expect(within(single).getByText(/leaves a change output that observers can follow/)).toBeTruthy();
   });
 
   it("shows a no-change set on one address first: it links nothing new", () => {
     run([coin(150_000, "big", "bc1qbig"), coin(41_000, "p1", "bc1qsame"), coin(20_000, "p2", "bc1qsame")], "60000");
     expect(screen.getAllByTestId(/^coin-plan-/)[0]!.dataset.testid).toBe("coin-plan-no-change");
-    expect(within(screen.getByTestId("coin-plan-no-change")).getByTestId("plan-reason").textContent).toBe("Links nothing new and leaves no change.");
+    const learns = within(screen.getByTestId("coin-plan-no-change")).getByTestId("plan-learns").textContent;
+    expect(learns).toContain("Nothing new about which coins belong together");
+    expect(learns).toContain("No change output to follow");
   });
 
   it("uses the same copy for linked coins of one tx", () => {
@@ -101,7 +104,7 @@ describe("CoinSelector", () => {
       { ...coin(20_000, "self", "bc1qc2", { cluster: "self" }), utxo: { txid: "self".padEnd(64, "0"), vout: 1, value: 20_000, status: { confirmed: true } } },
     ], "60000");
     const plan = screen.getByTestId("coin-plan-no-change");
-    expect(within(plan).getByText("Links nothing new and leaves no change.")).toBeTruthy();
+    expect(within(plan).getByText("Nothing new about which coins belong together")).toBeTruthy();
     expect(within(plan).getByText("Same tx as #2")).toBeTruthy();
   });
 
@@ -131,7 +134,7 @@ describe("CoinSelector", () => {
       coin(61_000, "p1", "bc1qp1"), coin(40_500, "p2", "bc1qp2"), coin(25_000, "p3", "bc1qp3"), coin(12_000, "p4", "bc1qp4"),
     ]} />);
     fireEvent.change(screen.getByLabelText("Amount (sats)"), { target: { value: "100800" } });
-    fireEvent.change(screen.getByLabelText("Fee (sat/vB)"), { target: { value: "2" } });
+    fireEvent.change(screen.getByLabelText("Fee (sat/vB)"), { target: { value: "20" } });
     fireEvent.click(screen.getByRole("button", { name: "Suggest selection" }));
     const cards = () => screen.getAllByTestId(/^coin-plan-/);
     expect(cards()).toHaveLength(3);
@@ -155,7 +158,7 @@ describe("CoinSelector", () => {
     expect(cards()).toHaveLength(3);
   });
 
-  it("offers small change to miners: a no-change card with the extra fee, recommended in the tester's case", () => {
+  it("offers small change to miners: a no-change card with the extra fee, in the tester's case", () => {
     render(<CoinSelector utxos={[
       coin(165_519_188, "big", "bc1qbig", { origin: "change" }),
       coin(3_296_321, "pay", "bc1qpay1", { origin: "change", cluster: "p1", group: "pay" }),
@@ -166,10 +169,10 @@ describe("CoinSelector", () => {
     expect((screen.getByLabelText("Max extra fee to avoid change") as HTMLInputElement).value).toBe("5000");
     fireEvent.change(screen.getByLabelText("Amount (sats)"), { target: { value: "100000" } });
     fireEvent.click(screen.getByRole("button", { name: "Suggest selection" }));
-    const first = screen.getAllByTestId(/^coin-plan-/)[0]!;
-    expect(within(first).getByTestId("plan-absorbs").textContent).toBe("No change: +2,072 sats to miners");
-    expect(within(first).getByText("Recommended")).toBeTruthy();
-    expect(within(first).getByTestId("plan-reason").textContent).toContain("Pays 2,072 sats more fee so no change is left.");
+    // The change coin alone ranks first (spend change on its own); the receipts' pair pays its change to miners
+    const pair = screen.getAllByTestId("plan-absorbs")[0]!.closest("section")!;
+    expect(within(pair).getByTestId("plan-absorbs").textContent).toBe("No change: +2,072 sats to miners");
+    expect(within(pair).getByTestId("plan-path").textContent).toContain("No change: +2,072 sats to miners");
     // Turned off: no variant
     fireEvent.change(screen.getByLabelText("Max extra fee to avoid change"), { target: { value: "0" } });
     fireEvent.click(screen.getByRole("button", { name: "Suggest selection" }));
@@ -207,12 +210,15 @@ describe("CoinSelector: spending decision tree", () => {
     const first = screen.getAllByTestId(/^coin-plan-/)[0]!;
     expect(within(first).getByText("133,000 sats")).toBeTruthy();
     expect(within(first).getByText("Recommended")).toBeTruthy();
-    expect(within(first).getByTestId("plan-reason").textContent).toMatch(/^The recipient already knows these coins/);
+    expect(within(first).getByTestId("plan-learns").textContent).toContain("The recipient: nothing new, it already knows these coins");
     const path = within(within(first).getByTestId("plan-path")).getAllByRole("listitem").map(li => li.textContent);
     expect(path).toEqual([
-      "1Passed:Coins the recipient already knows: used",
-      "2Warning:Single coin: 32,300 sats over the payment, more than 10%",
-      "3Warning:Change 32,300 sats: keep it apart, or send it to a Lightning swap",
+      "aPassed:Hard rules respected",
+      "bPassed:Coins the recipient already knows: used",
+      "cPassed:No new links",
+      "dNote:Change 32,300 sats (0.32x the payment)",
+      "eWarning:Change detectable: round payment amount",
+      "eWarning:Change detectable: different address type",
     ]);
     expect(within(first).getByTestId("round-change").textContent).toBe("Round change: +2,300 sats fee so the change also looks roundFee 3,000 sats, change 30,000 sats.");
     const alerts = within(screen.getByTestId("spend-alerts")).getAllByRole("listitem").map(li => li.dataset.testid);
