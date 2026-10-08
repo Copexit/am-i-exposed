@@ -91,3 +91,8 @@ export function fmtInterpretations(nbCmbn: number, entropy: number, saturated = 
     ? `~2^${Math.round(entropy)}`
     : nbCmbn.toLocaleString(locale);
 }
+
+/** Byte size as "1.2 MB" (KB below 0.1 MB). */
+export function formatSize(bytes: number): string {
+  return bytes < 100 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}

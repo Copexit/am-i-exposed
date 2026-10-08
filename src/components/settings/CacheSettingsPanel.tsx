@@ -1,19 +1,29 @@
 "use client";
 
-import { Database, Trash2 } from "lucide-react";
+import { Database, Star, Trash2, X } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { idbCount, idbClear } from "@/lib/api/idb-cache";
 import { useAnalysisSettings } from "@/hooks/useAnalysisSettings";
+import { clearSavedWallets, forgetWallet, listSavedWallets, type SavedWalletMeta } from "@/lib/wallet/saved-wallets";
+import { formatSize, formatTimeAgo } from "@/lib/format";
+import { useBookmarks } from "@/hooks/useBookmarks";
 
 export function CacheSettingsPanel() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { settings, update } = useAnalysisSettings();
   const [count, setCount] = useState<number | null>(null);
+  const [wallets, setWallets] = useState<SavedWalletMeta[]>([]);
   const [clearing, setClearing] = useState(false);
+  const [clearError, setClearError] = useState(false);
+  const [confirmForget, setConfirmForget] = useState<string | null>(null);
+  const { bookmarks, removeWalletBookmarks } = useBookmarks();
+  const walletBookmarks = bookmarks.filter((b) => b.type === "wallet");
+  const bookmarkFor = (key: string) => walletBookmarks.find((b) => b.snapshotKey === key);
 
   const refreshCount = useCallback(() => {
     idbCount().then(setCount).catch(() => setCount(0));
+    void listSavedWallets().then(setWallets);
   }, []);
 
   useEffect(() => {
@@ -22,11 +32,15 @@ export function CacheSettingsPanel() {
 
   const handleClear = async () => {
     setClearing(true);
+    setClearError(false);
     try {
-      await idbClear();
+      await Promise.all([idbClear(), clearSavedWallets()]);
       setCount(0);
+      setWallets([]);
     } catch {
-      // Silently fail
+      // Usually another tab still holds the saved wallets open
+      setClearError(true);
+      refreshCount();
     } finally {
       setClearing(false);
     }
@@ -62,7 +76,7 @@ export function CacheSettingsPanel() {
           {settings.enableCache && (
             <button
               onClick={handleClear}
-              disabled={clearing || count === 0}
+              disabled={clearing || (count === 0 && wallets.length === 0)}
               className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Trash2 size={12} />
@@ -92,6 +106,70 @@ export function CacheSettingsPanel() {
           />
         </button>
       </label>
+
+      {settings.enableCache && wallets.length > 0 && (
+        <div className="mt-2">
+          <span className="text-xs text-muted">{t("settings.savedWallets", { defaultValue: "Saved wallets" })}</span>
+          <ul className="mt-1 space-y-0.5" data-testid="saved-wallets">
+            {wallets.map((w) => (
+              <li key={w.key} className="flex items-center gap-2 text-[11px] text-muted">
+                <span className="font-mono text-foreground" title={t("settings.savedWalletId", { defaultValue: "Wallet ID (a hash, not the key)" })}>{w.key.slice(0, 8)}</span>
+                {bookmarkFor(w.key) && (
+                  <span className="inline-flex items-center gap-0.5 text-bitcoin" title={t("settings.bookmarked", { defaultValue: "Bookmarked" })}>
+                    <Star size={10} className="fill-bitcoin" aria-label={t("settings.bookmarked", { defaultValue: "Bookmarked" })} />
+                    {bookmarkFor(w.key)?.label}
+                  </span>
+                )}
+                <span className="flex-1 min-w-0 truncate">
+                  {w.scriptType} · {w.backend.split("@")[0]} · {formatTimeAgo(Math.floor(w.scannedAt / 1000), i18n.language)} · {formatSize(w.size)}
+                </span>
+                {confirmForget === w.key ? (
+                  <span role="group" aria-label={t("wallet.saved.forget", { defaultValue: "Forget this wallet" })} className="inline-flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      autoFocus
+                      onClick={async () => { setConfirmForget(null); await forgetWallet(w.key); refreshCount(); }}
+                      className="text-severity-high hover:text-foreground cursor-pointer"
+                    >
+                      {t("settings.forgetConfirm", { defaultValue: "Forget" })}
+                    </button>
+                    <button type="button" onClick={() => setConfirmForget(null)} className="text-muted hover:text-foreground cursor-pointer">
+                      {t("wallet.bookmark.cancel", { defaultValue: "Cancel" })}
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmForget(w.key)}
+                    aria-label={t("wallet.saved.forget", { defaultValue: "Forget this wallet" })}
+                    title={t("wallet.saved.forget", { defaultValue: "Forget this wallet" })}
+                    className="p-1 -m-1 rounded text-muted hover:text-foreground cursor-pointer"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {clearError && (
+        <p role="alert" className="text-[11px] text-severity-high mt-1">
+          {t("settings.clearBlocked", { defaultValue: "Saved wallets could not be cleared: another tab of this site is using them. Close it and try again." })}
+        </p>
+      )}
+
+      {walletBookmarks.length > 0 && (
+        <button
+          type="button"
+          onClick={removeWalletBookmarks}
+          className="mt-2 inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
+        >
+          <Trash2 size={12} />
+          {t("settings.removeWalletBookmarks", { count: walletBookmarks.length, defaultValue: "Remove all wallet bookmarks ({{count}})" })}
+        </button>
+      )}
 
       <p className="text-[10px] text-muted/60 mt-1">
         {settings.enableCache

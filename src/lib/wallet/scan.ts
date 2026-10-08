@@ -30,7 +30,7 @@ const ADDRESS_RETRIES = 2;
  * A 4xx refusal of the UTXO list is final (esplora answers 400 for >500 UTXOs):
  * the address and its history are known, so it is kept with no UTXOs.
  */
-async function fetchAddress(
+export async function fetchAddress(
   api: MempoolClient,
   derived: DerivedAddress,
 ): Promise<WalletAddressInfo> {

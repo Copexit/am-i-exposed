@@ -4,6 +4,9 @@ import { useState, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { Download, Upload } from "lucide-react";
 import { useBookmarks } from "@/hooks/useBookmarks";
+import { ExportWalletsPrompt } from "@/components/history/ExportWalletsPrompt";
+import { ImportWalletsPrompt } from "@/components/history/ImportWalletsPrompt";
+import { walletsInImport } from "@/hooks/useBookmarks";
 import { useSavedGraphs } from "@/hooks/useSavedGraphs";
 import type { TFunction } from "i18next";
 
@@ -15,6 +18,9 @@ export function WorkspaceSettingsPanel() {
   const { bookmarks, exportBookmarks, importBookmarks } = useBookmarks();
   const { graphs } = useSavedGraphs();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [exportPrompt, setExportPrompt] = useState(false);
+  const [pendingImport, setPendingImport] = useState<{ json: string; wallets: number } | null>(null);
+  const walletCount = bookmarks.filter((b) => b.type === "wallet").length;
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const showToast = useCallback((type: "success" | "error", message: string) => {
@@ -22,14 +28,32 @@ export function WorkspaceSettingsPanel() {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
+  const doExport = useCallback((includeWallets: boolean) => {
+    setExportPrompt(false);
+    exportBookmarks({ includeWallets });
+    const n = includeWallets ? bookmarks.length : bookmarks.length - walletCount;
+    showToast("success", t("workspace.exported", { bookmarks: nBookmarks(t, n), graphs: nGraphs(t, graphs.length), defaultValue: "Exported {{bookmarks}} and {{graphs}}." }));
+  }, [bookmarks, walletCount, graphs, exportBookmarks, showToast, t]);
+
   const handleExport = useCallback(() => {
     if (bookmarks.length === 0 && graphs.length === 0) {
       showToast("error", t("workspace.noData", { defaultValue: "No data to export." }));
       return;
     }
-    exportBookmarks();
-    showToast("success", t("workspace.exported", { bookmarks: nBookmarks(t, bookmarks.length), graphs: nGraphs(t, graphs.length), defaultValue: "Exported {{bookmarks}} and {{graphs}}." }));
-  }, [bookmarks, graphs, exportBookmarks, showToast, t]);
+    if (walletCount > 0) setExportPrompt(true);
+    else doExport(false);
+  }, [bookmarks, graphs, walletCount, doExport, showToast, t]);
+
+  const runImport = useCallback((json: string, includeWallets: boolean) => {
+    const result = importBookmarks(json, { includeWallets });
+    if (result.error === "storage_full") {
+      showToast("error", t("workspace.storageFull", { defaultValue: "Browser storage is full. Delete some bookmarks or saved graphs and try again." }));
+    } else if (result.error) {
+      showToast("error", t("workspace.importError", { defaultValue: "Import failed. Invalid file format." }));
+    } else {
+      showToast("success", t("workspace.imported", { count: result.imported, defaultValue: "Imported {{count}} scans." }));
+    }
+  }, [importBookmarks, showToast, t]);
 
   const handleImport = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -37,19 +61,15 @@ export function WorkspaceSettingsPanel() {
     const reader = new FileReader();
     reader.onload = () => {
       const json = reader.result as string;
-      const result = importBookmarks(json);
-      if (result.error === "storage_full") {
-        showToast("error", t("workspace.storageFull", { defaultValue: "Browser storage is full. Delete some bookmarks or saved graphs and try again." }));
-      } else if (result.error) {
-        showToast("error", t("workspace.importError", { defaultValue: "Import failed. Invalid file format." }));
-      } else {
-        showToast("success", t("workspace.imported", { count: result.imported, defaultValue: "Imported {{count}} scans." }));
-      }
+      const wallets = walletsInImport(json);
+      if (wallets > 0) setPendingImport({ json, wallets });
+      else runImport(json, false);
     };
     reader.readAsText(file);
     // Reset input so the same file can be re-imported
     e.target.value = "";
-  }, [importBookmarks, showToast, t]);
+  }, [runImport]);
+
 
   return (
     <div className="border-t border-card-border pt-3 space-y-2">
@@ -82,6 +102,16 @@ export function WorkspaceSettingsPanel() {
           className="hidden"
         />
       </div>
+      {pendingImport && (
+        <ImportWalletsPrompt
+          walletCount={pendingImport.wallets}
+          onImport={(includeWallets) => { runImport(pendingImport.json, includeWallets); setPendingImport(null); }}
+          onCancel={() => setPendingImport(null)}
+        />
+      )}
+      {exportPrompt && (
+        <ExportWalletsPrompt walletCount={walletCount} onExport={doExport} onCancel={() => setExportPrompt(false)} />
+      )}
       {toast && (
         <p className={`text-[11px] ${toast.type === "success" ? "text-severity-good" : "text-severity-critical"}`}>
           {toast.message}

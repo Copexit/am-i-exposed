@@ -47,7 +47,7 @@ This applies to all strings, comments, UI text, metadata, test descriptions, and
 - Support all mempool.space networks: mainnet, testnet4, signet
 - Address validation must be network-aware (bc1 for mainnet, tb1 for testnet/signet)
 - API: mempool.space only (no secondary/fallback APIs)
-- Never log or persist user addresses/txids
+- Never log or send user addresses/txids anywhere. Local browser storage only (response cache and saved wallets), governed by the "Persist cache" setting and clearable; raw xpubs are stored only in wallet bookmarks after explicit confirmation
 
 ### Severity levels
 

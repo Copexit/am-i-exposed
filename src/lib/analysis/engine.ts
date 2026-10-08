@@ -10,6 +10,7 @@ export { runTxidAnalysis } from "./run-txid-analysis";
 export { runAddressAnalysis } from "./run-address-analysis";
 export { auditWallet } from "./wallet-audit";
 export { buildTraceBarrier } from "./chain-trace";
-export { scanChain, detectScriptType, walletChains, collectWalletTxs, traceWalletTxs, UTXO_TRACE_DEPTH } from "@/lib/wallet/scan";
+export { scanChain, detectScriptType, BARE_KEY_TYPES, walletChains, collectWalletTxs, traceWalletTxs, UTXO_TRACE_DEPTH } from "@/lib/wallet/scan";
+export { quickRefresh, verifyCoins, extendFrontier, newTxids, refreshPacer } from "@/lib/wallet/refresh";
 
 export { runLocalAnalysis, countLookups, LookupFailedError } from "./run-local-analysis";

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import { useBookmarks } from "../useBookmarks";
+import { useBookmarks, walletsInImport } from "../useBookmarks";
 
 beforeEach(() => {
   localStorage.clear();
@@ -253,5 +253,74 @@ describe("useBookmarks", () => {
     expect(result.current.bookmarks.map((b) => b.input)).toEqual(["a".repeat(64)]);
     expect(localStorage.getItem("bookmarks")).not.toContain("cHNidP");
     expect(localStorage.getItem("bookmarks")).toContain("a".repeat(64));
+  });
+  describe("wallet bookmarks", () => {
+    // BIP-84 test vector account zpub (public test data)
+    const ZPUB = "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs";
+    const wallet = { input: ZPUB, type: "wallet" as const, grade: "B", score: 80, scriptType: "p2wpkh", network: "mainnet", label: "Savings", snapshotKey: "ab".repeat(32) };
+
+    it("keeps old bookmark data working next to wallet entries", async () => {
+      // Data written by an older version: no wallet fields at all
+      localStorage.setItem("bookmarks", JSON.stringify([
+        { input: "a".repeat(64), type: "txid", grade: "B", score: 78, savedAt: 2 },
+        { input: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh", type: "address", grade: "C", score: 60, label: "x", savedAt: 1 },
+        { ...wallet, savedAt: 3 },
+        // Invalid wallet entries are dropped: bad key, missing fields, bad snapshot key
+        { ...wallet, input: ZPUB.slice(0, -1) + "x", savedAt: 4 },
+        { input: ZPUB, type: "wallet", grade: "B", score: 1, savedAt: 5 },
+        { ...wallet, snapshotKey: "not-hex", savedAt: 6 },
+      ]));
+      const { useBookmarks: fresh } = await import("../useBookmarks");
+      const { result } = renderHook(() => fresh());
+      expect(result.current.bookmarks.map((b) => b.type)).toEqual(["txid", "address", "wallet"]);
+    });
+
+    it("exports without wallets by default, with them only when asked", () => {
+      const { result } = renderHook(() => useBookmarks());
+      act(() => {
+        result.current.addBookmark({ input: "tx1", type: "txid", grade: "B", score: 80 });
+        result.current.addBookmark(wallet);
+      });
+      const blobs: string[] = [];
+      vi.stubGlobal("Blob", class { constructor(parts: string[]) { blobs.push(parts.join("")); } });
+      vi.stubGlobal("URL", { createObjectURL: () => "blob:test", revokeObjectURL: () => {} });
+      const spy = vi.spyOn(document, "createElement").mockReturnValue({ click: () => {} } as unknown as HTMLAnchorElement);
+      act(() => { result.current.exportBookmarks(); });
+      act(() => { result.current.exportBookmarks({ includeWallets: true }); });
+      spy.mockRestore();
+      vi.unstubAllGlobals();
+      expect(blobs[0]).not.toContain(ZPUB);
+      expect(blobs[0]).toContain("tx1");
+      expect(blobs[1]).toContain(ZPUB);
+    });
+
+    it("imports wallet entries only when asked (after the privacy confirmation), rejecting invalid ones", () => {
+      const file = JSON.stringify({ version: 1, bookmarks: [
+        { input: "tx1", type: "txid", grade: "B", score: 80, savedAt: 1 },
+        { ...wallet, label: "x".repeat(60), savedAt: 1 },
+        { ...wallet, input: "zpubnotakey", savedAt: 2 },
+      ], graphs: [] });
+      expect(walletsInImport(file)).toBe(1);
+      expect(walletsInImport("not json")).toBe(0);
+      const { result } = renderHook(() => useBookmarks());
+      let r = { imported: 0 } as { imported: number; error?: string };
+      act(() => { r = result.current.importBookmarks(file); });
+      expect(r.imported).toBe(1);
+      expect(result.current.bookmarks.map((b) => b.type)).toEqual(["txid"]);
+      act(() => { r = result.current.importBookmarks(file, { includeWallets: true }); });
+      expect(r.imported).toBe(1);
+      const w = result.current.bookmarks.find((b) => b.type === "wallet")!;
+      expect(w.label).toHaveLength(40);
+    });
+
+    it("removes all wallet bookmarks, keeps the others", () => {
+      const { result } = renderHook(() => useBookmarks());
+      act(() => {
+        result.current.addBookmark({ input: "tx1", type: "txid", grade: "B", score: 80 });
+        result.current.addBookmark(wallet);
+      });
+      act(() => { result.current.removeWalletBookmarks(); });
+      expect(result.current.bookmarks.map((b) => b.input)).toEqual(["tx1"]);
+    });
   });
 });

@@ -12,6 +12,7 @@ import {
   deriveOneAddress,
   isDescriptor,
   type DescriptorParseResult,
+  type ParsedXpub,
   type ScriptType,
 } from "@/lib/bitcoin/descriptor";
 import type { WalletAuditResult, WalletAddressInfo } from "@/lib/analysis/wallet-audit";
@@ -20,6 +21,11 @@ import { mapApiErrorMessage } from "@/lib/api/error-message";
 import { loadEngine } from "@/lib/analysis/load-engine";
 import { detectAddressNetwork } from "@/lib/api/detect-network";
 import { NETWORK_CONFIG, type BitcoinNetwork } from "@/lib/bitcoin/networks";
+import type { Bip329Record } from "@/lib/wallet/bip329";
+import {
+  walletKey, loadSnapshot, saveSnapshot, forgetWallet, fullRescanReason, lastUsedIndex, savedEpoch, onSavedWalletsChanged,
+  SavedWalletError, SNAPSHOT_VERSION, type WalletSnapshot,
+} from "@/lib/wallet/saved-wallets";
 
 export type { UtxoTraceResult } from "@/lib/wallet/scan";
 
@@ -62,7 +68,27 @@ interface WalletAnalysisState {
   scriptTypeDetected: boolean;
   /** Consecutive unused addresses the scan stopped after */
   gapLimit: number | null;
+  /** BIP329 labels (saved with the wallet when it is saved) */
+  labels: Bip329Record[];
+  /** Set while the results come from (or were written to) a saved snapshot */
+  saved: SavedStatus | null;
+  /** Hashed id of this wallet's saved scan (set whether or not one exists) */
+  snapshotKey: string | null;
+  /** The scan could not be saved on this device */
+  saveError: { code: SavedWalletError["code"]; size: number } | null;
 }
+
+export interface SavedStatus {
+  /** When the shown data was last fetched (ms) */
+  scannedAt: number;
+  /** saved: fresh full scan stored; refreshing: saved scan shown, quick refresh running */
+  status: "saved" | "refreshing" | "upToDate" | "updated" | "failed";
+  newTxs: number;
+  /** Saved coins checked against the backend (phase 2 runs while `running`) */
+  coins?: CoinsStatus;
+}
+
+export interface CoinsStatus { verified: number; total: number; running: boolean }
 
 /** Wallet software's usual gap limit; used on self-hosted backends, which have no throttle. */
 export const STANDARD_GAP_LIMIT = 20;
@@ -84,7 +110,35 @@ const INITIAL_STATE: WalletAnalysisState = {
   autoSwitchedNetwork: null,
   scriptTypeDetected: false,
   gapLimit: null,
+  labels: [],
+  saved: null,
+  snapshotKey: null,
+  saveError: null,
 };
+
+/** Chain tip height, uncached and best-effort. */
+async function fetchTipHeight(baseUrl: string, signal: AbortSignal): Promise<number | null> {
+  try {
+    const res = await fetch(`${baseUrl.replace(/\/+$/, "")}/blocks/tip/height`, { signal, headers: { Accept: "text/plain" } });
+    const n = res.ok ? parseInt((await res.text()).trim(), 10) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+function descriptorOf(parsed: ParsedXpub, infos: WalletAddressInfo[]): DescriptorParseResult {
+  return {
+    scriptType: parsed.scriptType,
+    network: parsed.network,
+    receiveAddresses: infos.filter(i => !i.derived.isChange).map(i => i.derived),
+    changeAddresses: infos.filter(i => i.derived.isChange).map(i => i.derived),
+    xpub: parsed.xpub,
+    accountPath: accountPathOf(parsed),
+  };
+}
+
+const toSaveError = (e: unknown) => e instanceof SavedWalletError ? { code: e.code, size: e.size } : null;
 
 // ---------- Hook ----------
 
@@ -93,13 +147,16 @@ export function useWalletAnalysis() {
   const { t } = useTranslation();
   const { network, setNetwork, config, configFor, customApiUrl, isUmbrel, isCustomApi } = useNetwork();
   const abortRef = useRef<AbortController | null>(null);
+  /** The saved snapshot behind the shown results (labels are written through it) */
+  const savedRef = useRef<{ key: string; xpub: string; backend: string; snap: WalletSnapshot; epoch: string } | null>(null);
 
   const analyze = useCallback(
-    async (input: string, scriptTypeOverride?: ScriptType, gapLimitOverride?: number) => {
+    async (input: string, scriptTypeOverride?: ScriptType, gapLimitOverride?: number, { fullRescan = false } = {}) => {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
       const startTime = Date.now();
+      savedRef.current = null;
 
       setState({
         ...INITIAL_STATE,
@@ -111,16 +168,42 @@ export function useWalletAnalysis() {
         // Step 1: Parse xpub/descriptor (no address derivation yet)
         let parsed = parseXpub(input, scriptTypeOverride);
 
+        const engine = await loadEngine();
+        if (controller.signal.aborted) return;
+
+        // A bare xpub/tpub (the "legacy" prefix) can be any address type
+        const bareKey = !scriptTypeOverride && !isDescriptor(input) && parsed.scriptType === "p2pkh";
+
+        /** A saved scan of this wallet on a backend (a bare key: under the type it was saved as). */
+        const findSaved = async (base: string) => {
+          for (const scriptType of bareKey ? engine.BARE_KEY_TYPES : [parsed.scriptType]) {
+            const k = walletKey({ ...parsed, scriptType }, base);
+            const found = await loadSnapshot(k, parsed.xpub);
+            if (found) return { snap: found, key: k, scriptType };
+          }
+          return null;
+        };
+
         // A key for another network (tpub on mainnet, xpub on signet): on public
         // mempool.space scan where its addresses live, like a single address does.
         // A self-hosted or custom backend cannot answer for another network.
         let cfg = config;
         let switchedTo: BitcoinNetwork | null = null;
+        let found: Awaited<ReturnType<typeof findSaved>> = null;
         if ((parsed.network === "mainnet") !== (network === "mainnet")) {
-          const first = deriveOneAddress(parsed, parsed.singleChain === 1 ? 1 : 0, 0).address;
-          const detected = isUmbrel || customApiUrl
-            ? null
-            : await detectAddressNetwork(first, network, controller.signal, (n) => configFor(n).mempoolBaseUrl);
+          let detected: BitcoinNetwork | null = null;
+          if (!isUmbrel && !customApiUrl) {
+            // A saved scan already says where it lives: no detection requests
+            for (const n of Object.keys(NETWORK_CONFIG) as BitcoinNetwork[]) {
+              if ((n === "mainnet") !== (parsed.network === "mainnet")) continue;
+              found = await findSaved(configFor(n).mempoolBaseUrl);
+              if (found) { detected = n; break; }
+            }
+            if (!detected) {
+              const first = deriveOneAddress(parsed, parsed.singleChain === 1 ? 1 : 0, 0).address;
+              detected = await detectAddressNetwork(first, network, controller.signal, (n) => configFor(n).mempoolBaseUrl);
+            }
+          }
           if (controller.signal.aborted) return;
           if (!detected) {
             throw new Error(t("errors.walletWrongNetwork", {
@@ -134,16 +217,22 @@ export function useWalletAnalysis() {
           setNetwork(detected);
         }
 
-        const engine = await loadEngine();
-        if (controller.signal.aborted) return;
         const api = createApiClient(cfg, controller.signal);
+        const backend = cfg.mempoolBaseUrl;
+        found ??= await findSaved(backend);
+        if (controller.signal.aborted) return;
+        const snap: WalletSnapshot | null = found?.snap ?? null;
+        let key = found?.key ?? "";
+        if (found) parsed = { ...parsed, scriptType: found.scriptType };
 
-        // A bare xpub/tpub (the "legacy" prefix) can be any address type
-        const bareKey = !scriptTypeOverride && !isDescriptor(input) && parsed.scriptType === "p2pkh";
-        if (bareKey) {
+        if (bareKey && !snap) {
           parsed = { ...parsed, scriptType: await engine.detectScriptType(parsed, api) };
           if (controller.signal.aborted) return;
         }
+
+        key ||= walletKey(parsed, backend);
+        // A forget or clear from now on (this tab or another) stops every save of this scan
+        const epoch = savedEpoch(key);
 
         setState(prev => ({
           ...prev,
@@ -157,20 +246,127 @@ export function useWalletAnalysis() {
             accountPath: accountPathOf(parsed),
           },
           progress: { fetched: 0, total: 0 },
+          snapshotKey: key,
           autoSwitchedNetwork: switchedTo,
           scriptTypeDetected: bareKey,
         }));
 
         const {
-          scanChain, walletChains, collectWalletTxs, traceWalletTxs, UTXO_TRACE_DEPTH, auditWallet, buildTraceBarrier,
+          scanChain, walletChains, collectWalletTxs, traceWalletTxs, UTXO_TRACE_DEPTH, auditWallet, buildTraceBarrier, quickRefresh, verifyCoins, extendFrontier, newTxids, refreshPacer,
         } = engine;
 
         // Step 2: Incrementally derive + fetch addresses.
         const localApi = isLocalApi(cfg.mempoolBaseUrl);
-        const { walletGapLimit: saved, minSats } = getAnalysisSettings();
+        const { walletGapLimit: savedGap, minSats } = getAnalysisSettings();
         // The low default keeps hosted scans short (throttled); a self-hosted backend scans like a wallet
+        const settingGap = localApi && savedGap === DEFAULT_ANALYSIS_SETTINGS.walletGapLimit ? STANDARD_GAP_LIMIT : savedGap;
+        const traceOpts = () => {
+          const settings = getAnalysisSettings();
+          return {
+            depth: Math.min(UTXO_TRACE_DEPTH, settings.maxDepth),
+            minSats,
+            // Hosted APIs: one trace at a time to stay under the rate limit
+            concurrency: localApi ? 3 : 1,
+            barrier: buildTraceBarrier(settings),
+          };
+        };
+
+        // Saved scan, recent enough and walked at least as deep as asked: show it, then quick-refresh
+        if (snap && !fullRescan && gapLimitOverride === undefined && fullRescanReason(snap, settingGap) === null) {
+          const base = snap;
+          const savedTraces = new Map(base.traces);
+          savedRef.current = { key, xpub: parsed.xpub, backend, snap: base, epoch };
+          setState(prev => ({
+            ...prev,
+            phase: "complete",
+            descriptor: descriptorOf(parsed, base.infos),
+            result: auditWallet(base.infos),
+            addressInfos: base.infos,
+            utxoTraces: savedTraces.size > 0 ? savedTraces : null,
+            gapLimit: base.gapLimit,
+            labels: base.labels,
+            saved: { scannedAt: base.scannedAt, status: "refreshing", newTxs: 0 },
+          }));
+          const fresh = createApiClient(cfg, controller.signal, { fresh: true });
+          const pace = refreshPacer(localApi, controller.signal);
+          let traces = savedTraces;
+          /** Show and save merged data; graph traces only for new wallet txs. */
+          const commit = async (infos: WalletAddressInfo[], tipHeight: number | null, coins: CoinsStatus) => {
+            const wanted = collectWalletTxs(infos);
+            const toTrace = new Map([...wanted].filter(([txid]) => !traces.has(txid)));
+            const traced = toTrace.size > 0
+              ? await traceWalletTxs(toTrace, api, controller.signal, traceOpts(), () => {})
+              : new Map<string, UtxoTraceResult>();
+            if (controller.signal.aborted) return;
+            traces = new Map([...wanted.keys()].flatMap(txid => {
+              const tr = traced.get(txid) ?? traces.get(txid);
+              return tr ? [[txid, tr] as const] : [];
+            }));
+            const ctx = savedRef.current;
+            const added = newTxids(base.infos, infos).length;
+            const next: WalletSnapshot = {
+              ...base, scannedAt: Date.now(), tipHeight, lastUsed: lastUsedIndex(infos),
+              infos, traces: [...traces], labels: ctx?.snap.labels ?? base.labels,
+            };
+            setState(prev => ({
+              ...prev,
+              descriptor: descriptorOf(parsed, infos),
+              result: auditWallet(infos),
+              addressInfos: infos,
+              utxoTraces: traces.size > 0 ? traces : null,
+              durationMs: Date.now() - startTime,
+              // A forgotten wallet stays forgotten
+              saved: ctx ? { scannedAt: next.scannedAt, status: added > 0 ? "updated" : "upToDate", newTxs: added, coins } : null,
+            }));
+            if (ctx?.key === key) {
+              ctx.snap = next;
+              const saveError = await saveSnapshot(key, parsed.xpub, backend, next, epoch).then(() => null, toSaveError);
+              if (saveError) setState(prev => ({ ...prev, saveError }));
+            }
+          };
+          let coins: CoinsStatus | undefined;
+          try {
+            // Phase 1: tip, frontier, unconfirmed txs (blocking, a few dozen requests)
+            const r = await quickRefresh(base, parsed, walletChains(parsed), fresh,
+              () => fetchTipHeight(backend, controller.signal), { signal: controller.signal, local: localApi, pace });
+            if (controller.signal.aborted) return;
+            const total = r.coins;
+            const first = total - r.pending.length;
+            const more = r.pending.length > 0 || r.frontier.length > 0;
+            coins = { verified: first, total, running: more };
+            await commit(r.infos, r.tipHeight, coins);
+            if (controller.signal.aborted || !more) return;
+
+            // Phase 2: the other saved coins, in the background; results update as spends turn up
+            const verified = await verifyCoins(r.infos, r.pending, fresh, { signal: controller.signal, local: localApi, pace }, (done, infos) => {
+              if (controller.signal.aborted) return;
+              coins = { verified: first + done, total, running: true };
+              const c = coins;
+              setState(prev => ({
+                ...prev,
+                ...(infos ? { descriptor: descriptorOf(parsed, infos), result: auditWallet(infos), addressInfos: infos } : {}),
+                saved: prev.saved && { ...prev.saved, coins: c },
+              }));
+            });
+            if (controller.signal.aborted) return;
+            // New activity on a chain: walk on to the saved gap limit past it, as the full scan would
+            const infos = r.frontier.length > 0
+              ? await extendFrontier(verified, parsed, r.frontier, base.gapLimit, fresh, { signal: controller.signal, local: localApi, pace })
+              : verified;
+            if (controller.signal.aborted) return;
+            await commit(infos, r.tipHeight, { verified: total, total, running: false });
+          } catch {
+            if (controller.signal.aborted) return;
+            const c = coins && { ...coins, running: false };
+            // Phase 1 failed: the saved scan stays. Phase 2 failed: phase 1 results stay, coins partly verified
+            setState(prev => ({ ...prev, saved: prev.saved && (c ? { ...prev.saved, coins: c } : { ...prev.saved, status: "failed" }) }));
+          }
+          return;
+        }
+
+        // A full rescan never walks less deep than the saved scan did
         const walletGapLimit = gapLimitOverride
-          ?? (localApi && saved === DEFAULT_ANALYSIS_SETTINGS.walletGapLimit ? STANDARD_GAP_LIMIT : saved);
+          ?? Math.max(settingGap, snap?.v === SNAPSHOT_VERSION ? snap.gapLimit : 0);
         setState(prev => ({ ...prev, gapLimit: walletGapLimit }));
         const allInfos: WalletAddressInfo[] = [];
         const failedAddresses: string[] = [];
@@ -194,22 +390,7 @@ export function useWalletAnalysis() {
 
         if (controller.signal.aborted) return;
 
-        // Build final descriptor result from discovered addresses
-        const receiveAddresses = allInfos
-          .filter(i => !i.derived.isChange)
-          .map(i => i.derived);
-        const changeAddresses = allInfos
-          .filter(i => i.derived.isChange)
-          .map(i => i.derived);
-
-        const descriptor: DescriptorParseResult = {
-          scriptType: parsed.scriptType,
-          network: parsed.network,
-          receiveAddresses,
-          changeAddresses,
-          xpub: parsed.xpub,
-          accountPath: accountPathOf(parsed),
-        };
+        const descriptor = descriptorOf(parsed, allInfos);
 
         // Step 2.5: Trace wallet tx provenance concurrently
         const utxoTxs = collectWalletTxs(allInfos);
@@ -224,19 +405,11 @@ export function useWalletAnalysis() {
             traceProgress: { traced: 0, total: utxoTxs.size },
           }));
 
-          const settings = getAnalysisSettings();
-          const { maxDepth } = settings;
           const traceResults = await traceWalletTxs(
             utxoTxs,
             api,
             controller.signal,
-            // Hosted APIs: one trace at a time to stay under the rate limit
-            {
-              depth: Math.min(UTXO_TRACE_DEPTH, maxDepth),
-              minSats,
-              concurrency: localApi ? 3 : 1,
-              barrier: buildTraceBarrier(settings),
-            },
+            traceOpts(),
             (traced) => setState(prev => ({
               ...prev,
               traceProgress: { traced, total: utxoTxs.size },
@@ -256,6 +429,25 @@ export function useWalletAnalysis() {
         }));
 
         const result = auditWallet(allInfos, failedAddresses);
+        const labels = snap?.labels ?? [];
+
+        // Save a complete scan (a partial one would hide the failed addresses from every quick refresh)
+        let saved: SavedStatus | null = null;
+        let saveError: WalletAnalysisState["saveError"] = null;
+        if (failedAddresses.length === 0 && getAnalysisSettings().enableCache) {
+          const now = Date.now();
+          const next: WalletSnapshot = {
+            v: SNAPSHOT_VERSION, scannedAt: now, fullScanAt: now, gapLimit: walletGapLimit,
+            tipHeight: await fetchTipHeight(backend, controller.signal), scriptType: parsed.scriptType,
+            lastUsed: lastUsedIndex(allInfos), infos: allInfos, traces: utxoTraces ? [...utxoTraces] : [], labels,
+          };
+          if (controller.signal.aborted) return;
+          const written = await saveSnapshot(key, parsed.xpub, backend, next, epoch).catch((e: unknown) => { saveError = toSaveError(e); return false; });
+          if (written) {
+            savedRef.current = { key, xpub: parsed.xpub, backend, snap: next, epoch };
+            saved = { scannedAt: now, status: "saved", newTxs: 0 };
+          }
+        }
 
         setState(prev => ({
           ...prev,
@@ -264,6 +456,9 @@ export function useWalletAnalysis() {
           addressInfos: allInfos,
           failedAddresses,
           utxoTraces,
+          labels,
+          saved,
+          saveError,
           durationMs: Date.now() - startTime,
         }));
       } catch (err) {
@@ -289,6 +484,13 @@ export function useWalletAnalysis() {
     [network, setNetwork, config, configFor, customApiUrl, t, isUmbrel, isCustomApi],
   );
 
+  // A forget or clear in settings or another tab: this view is no longer saved
+  useEffect(() => onSavedWalletsChanged((key) => {
+    if (!savedRef.current || (key !== null && key !== savedRef.current.key)) return;
+    savedRef.current = null;
+    setState(prev => ({ ...prev, saved: null }));
+  }), []);
+
   // Abort in-flight requests on unmount
   useEffect(() => {
     return () => {
@@ -299,8 +501,31 @@ export function useWalletAnalysis() {
   const reset = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
+    savedRef.current = null;
     setState(INITIAL_STATE);
   }, []);
 
-  return { ...state, analyze, reset };
+  /** Update labels; a saved wallet keeps them with its snapshot. */
+  const setLabels = useCallback((labels: Bip329Record[]) => {
+    setState(prev => ({ ...prev, labels }));
+    const ctx = savedRef.current;
+    if (!ctx) return;
+    ctx.snap = { ...ctx.snap, labels };
+    // ponytail: last write wins between tabs editing the same wallet's labels; a merge if that ever matters
+    saveSnapshot(ctx.key, ctx.xpub, ctx.backend, ctx.snap, ctx.epoch).catch((e: unknown) => {
+      const saveError = toSaveError(e);
+      if (saveError) setState(prev => ({ ...prev, saveError }));
+    });
+  }, []);
+
+  /** "Forget this wallet": stop its refresh and delete its snapshot; the shown results stay. */
+  const forget = useCallback(async () => {
+    const ctx = savedRef.current;
+    savedRef.current = null;
+    abortRef.current?.abort();
+    setState(prev => ({ ...prev, saved: null }));
+    if (ctx) await forgetWallet(ctx.key);
+  }, []);
+
+  return { ...state, analyze, reset, setLabels, forget };
 }

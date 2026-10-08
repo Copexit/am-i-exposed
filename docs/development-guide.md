@@ -103,7 +103,8 @@ src/
     ├── scoring/score.ts          # calculateScore, sumImpact, grades
     ├── recommendations/          # Primary recommendation cascade, remediation actions
     ├── graph/                    # Graph reducer, expansion ops, auto-trace, URL codec, saved graphs
-    ├── wallet/scan.ts            # Gap-limit address scan with hosted-API throttling
+    ├── wallet/                   # scan.ts: gap-limit address scan with hosted-API throttling;
+    │                             # saved-wallets.ts: hashed-key snapshots (IndexedDB); refresh.ts: quick refresh
     ├── observatory/              # whirlpool + Wabisator clients, cache, sky/board/coordinator models, URL state
     └── i18n/                     # i18next config and React provider
 ```
@@ -180,6 +181,23 @@ All requests go to one mempool.space-compatible backend (public, Tor onion, Umbr
 - `POST /tx` (opt-in broadcast, `Content-Type: text/plain`, body = signed hex; never retried or automatic), `POST /txs/test` (dry-run before broadcast)
 
 Base URLs: `https://mempool.space/api`, `/testnet4/api`, `/signet/api`; Tor: `http://mempoolhqx4isw62xs7abwphsq7ldayuidyx2v2oethdhhj6mlo2r6ad.onion/api`. Wallet scans against hosted APIs use a short burst (300ms gaps) followed by a 9s sustained delay per address; local backends are not throttled.
+
+## Saved wallets
+
+A complete wallet scan is saved as a snapshot so the next open renders at once (`src/lib/wallet/saved-wallets.ts`, `refresh.ts`, `useWalletAnalysis`).
+
+- **Storage:** IndexedDB `aie-wallets` (stores `meta` and `data`), separate from the `aie-cache` response cache and governed by the same setting ("Persist cache across sessions"): with it off nothing is read or written. Settings "Clear" deletes both databases; the settings panel lists saved wallets (hash prefix, script type, network, last scan, size) with a forget button each.
+- **Key:** hex SHA-256 of key string + script type + chain + `cacheKeyPrefix(backend)`. The raw xpub is never stored; a BIP329 `xpub` label for the wallet is kept with a placeholder ref, labels of other xpubs are dropped.
+- **Snapshot (`SNAPSHOT_VERSION` 1):** derived addresses with chain/index, address stats, UTXOs, each tx once (addresses refer to txids), graph traces, highest used index per chain, gap limit, scan and full-scan times, tip height, BIP329 labels. Self-contained on purpose: the response cache evicts at 10k entries and expires address data, so it cannot rebuild results on its own.
+- **Caps:** 25 MB per wallet (graph traces are dropped first, then the save is refused with a visible message), 100 MB in total (least recently scanned wallets are evicted). Partial scans (failed addresses) are never saved.
+- **Quick refresh, phase 1** (blocking, renders "Up to date"/"Updated: N new transactions"): tip height; addresses with an unconfirmed tx or a tx under 6 confirmations at the saved tip are refetched; saved addresses with no history at or below the last used index (earlier invoices) get one address check each; per chain a window of min(20, saved gap limit) after the last used index, extended past each used address found; an address whose saved coin is spent by a fetched tx is refetched (stats stay exact).
+- **Quick refresh, phase 2** (background, progressive, cancelled on navigation and on forget; the first failure stops all workers): every other address holding a saved coin gets one `/address/:addr/utxo` request, so both a spend and a new payment to that address are caught, and is refetched when its coins differ ("Verifying coins 40/150", then "(coins verified 150/150)"). On a chain where phase 1 found activity, the walk continues to the full saved gap limit past it, as the full scan does. Both phases use an uncached client (`createApiClient(cfg, signal, { fresh: true })`) and, on hosted APIs, one shared token bucket matching the full scan (burst 18, then one request per 3 s). New wallet txs are traced for the graph; saved traces are kept.
+- **Not seen until the weekly full rescan:** a new payment to an address that already has history but holds no saved coin, and activity more than 20 unused addresses past the last used one when nothing nearer is used and the saved gap limit is larger. The 20-address window keeps phase 1 short on hosted APIs (a gap-300 window would be 600 requests, about 30 min); deeper walks happen once activity is found. `refresh.test.ts` checks that refresh + coin verification + frontier extension equal a full scan (infos and audit) over random histories with spends, an unconfirmed tx, a confirmation, a reorg and payments within the gap.
+- **Forget and clear:** a module epoch per key (bumped by forget) and a global one (bumped by clear) are captured when a scan starts and checked inside the write transaction, so an in-flight refresh never resurrects a forgotten wallet. Forget/clear are broadcast to other tabs (`BroadcastChannel("aie-wallets")`), which drop their saved state; open connections close on `versionchange` so a clear is not blocked, and a clear still blocked after 5 s is reported in settings. Labels: last write wins between tabs editing the same wallet.
+- **Full rescan:** the "Full rescan" button, or automatically when the last full walk is older than 7 days, the gap limit setting is above the snapshot's, or the schema version changed (labels survive). A full rescan never walks less deep than the saved gap limit.
+- **Request counts** (`src/lib/wallet/__tests__/refresh.test.ts`, mocked 250 used addresses, 150 coins, gap 300): full scan 2,550 requests; quick refresh phase 1: 41 (45 with one new payment), phase 2: 150 in the background (430 after a new payment: the walk continues to the saved gap of 300). Set `AIE_HARNESS_XPUB` (and optionally `AIE_HARNESS_API`, `AIE_HARNESS_GAP`) to run the same comparison against a real signet wallet; never commit a key.
+- **Wallet bookmarks (opt-in):** "Bookmark this wallet" stores the raw xpub/descriptor in the `bookmarks` localStorage entry (`type: "wallet"`, with script type, network, grade, name and the snapshot key) only after a privacy dialog is confirmed. Wallet entries are validated on load and import (the key must parse); a file with wallet entries shows the same privacy warning first and imports them only after "I understand" (or imports the rest without them); exports exclude them unless unticked; cache "Clear" keeps them.
+- **CLI:** out of scope. Each CLI run is a one-shot scan; its SQLite response cache already serves repeated runs, and a snapshot/refresh path would need its own flags and storage.
 
 ## Services
 

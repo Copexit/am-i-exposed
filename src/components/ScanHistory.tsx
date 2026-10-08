@@ -7,6 +7,9 @@ import { useTranslation } from "react-i18next";
 import { RecentScans } from "./RecentScans";
 import { BookmarkList } from "./history/BookmarkList";
 import { HistoryTab } from "./history/HistoryTab";
+import { ExportWalletsPrompt } from "./history/ExportWalletsPrompt";
+import { ImportWalletsPrompt } from "./history/ImportWalletsPrompt";
+import { walletsInImport } from "@/hooks/useBookmarks";
 import type { RecentScan } from "@/hooks/useRecentScans";
 import type { Bookmark } from "@/hooks/useBookmarks";
 import type { ExampleItem } from "@/lib/constants";
@@ -19,8 +22,8 @@ interface ScanHistoryProps {
   onClearScans?: () => void;
   onRemoveBookmark: (input: string) => void;
   onClearBookmarks: () => void;
-  onExportBookmarks?: () => void;
-  onImportBookmarks?: (json: string) => { imported: number; error?: string };
+  onExportBookmarks?: (opts?: { includeWallets?: boolean }) => void;
+  onImportBookmarks?: (json: string, opts?: { includeWallets?: boolean }) => { imported: number; error?: string };
 }
 
 type Tab = "recent" | "bookmarks" | "examples";
@@ -47,31 +50,44 @@ export const ScanHistory = memo(function ScanHistory({
         : "recent";
   const [tab, setTab] = useState<Tab>(defaultTab);
 
+  const [exportPrompt, setExportPrompt] = useState(false);
+  /** A file with wallet bookmarks, waiting for the privacy confirmation */
+  const [pendingImport, setPendingImport] = useState<{ json: string; wallets: number } | null>(null);
+  const walletCount = bookmarks.filter((b) => b.type === "wallet").length;
   const [importFeedback, setImportFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(feedbackTimerRef.current), []);
+
+  const runImport = useCallback((json: string, includeWallets: boolean) => {
+    if (!onImportBookmarks) return;
+    const result = onImportBookmarks(json, { includeWallets });
+    if (result.error === "storage_full") {
+      setImportFeedback({ type: "error", message: t("workspace.storageFull", { defaultValue: "Browser storage is full. Delete some bookmarks or saved graphs and try again." }) });
+    } else if (result.error) {
+      setImportFeedback({ type: "error", message: t("history.importError", { defaultValue: "Invalid bookmark file" }) });
+    } else {
+      setImportFeedback({ type: "success", message: t("history.importSuccess", { defaultValue: "{{count}} bookmarks imported", count: result.imported }) });
+    }
+    clearTimeout(feedbackTimerRef.current);
+    feedbackTimerRef.current = setTimeout(() => setImportFeedback(null), 3000);
+  }, [onImportBookmarks, t]);
 
   const handleImportFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !onImportBookmarks) return;
     const reader = new FileReader();
     reader.onload = () => {
-      const result = onImportBookmarks(reader.result as string);
-      if (result.error === "storage_full") {
-        setImportFeedback({ type: "error", message: t("workspace.storageFull", { defaultValue: "Browser storage is full. Delete some bookmarks or saved graphs and try again." }) });
-      } else if (result.error) {
-        setImportFeedback({ type: "error", message: t("history.importError", { defaultValue: "Invalid bookmark file" }) });
-      } else {
-        setImportFeedback({ type: "success", message: t("history.importSuccess", { defaultValue: "{{count}} bookmarks imported", count: result.imported }) });
-      }
-      clearTimeout(feedbackTimerRef.current);
-      feedbackTimerRef.current = setTimeout(() => setImportFeedback(null), 3000);
+      const json = reader.result as string;
+      const wallets = walletsInImport(json);
+      if (wallets > 0) setPendingImport({ json, wallets });
+      else runImport(json, false);
     };
     reader.readAsText(file);
     // Reset so same file can be re-imported
     e.target.value = "";
-  }, [onImportBookmarks, t]);
+  }, [onImportBookmarks, runImport]);
+
 
   const handleClear = () => {
     if (tab === "recent" && onClearScans) {
@@ -158,7 +174,7 @@ export const ScanHistory = memo(function ScanHistory({
           )}
           {tab === "bookmarks" && bookmarks.length > 0 && onExportBookmarks && (
             <button
-              onClick={onExportBookmarks}
+              onClick={() => (walletCount > 0 ? setExportPrompt(true) : onExportBookmarks())}
               className="inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer p-1"
               title={t("history.exportBookmarks", { defaultValue: "Export bookmarks as JSON" })}
               aria-label={t("history.exportBookmarks", { defaultValue: "Export bookmarks as JSON" })}
@@ -200,6 +216,24 @@ export const ScanHistory = memo(function ScanHistory({
 
       {tab === "bookmarks" && (
         <div role="tabpanel" id="panel-bookmarks" aria-labelledby="tab-bookmarks">
+        {pendingImport && (
+          <div className="mb-2">
+            <ImportWalletsPrompt
+              walletCount={pendingImport.wallets}
+              onImport={(includeWallets) => { runImport(pendingImport.json, includeWallets); setPendingImport(null); }}
+              onCancel={() => setPendingImport(null)}
+            />
+          </div>
+        )}
+        {exportPrompt && onExportBookmarks && (
+          <div className="mb-2">
+            <ExportWalletsPrompt
+              walletCount={walletCount}
+              onExport={(includeWallets) => { onExportBookmarks({ includeWallets }); setExportPrompt(false); }}
+              onCancel={() => setExportPrompt(false)}
+            />
+          </div>
+        )}
         {importFeedback && (
           <p className={`text-xs mb-2 px-1 ${importFeedback.type === "error" ? "text-severity-critical" : "text-severity-good"}`} role="status">
             {importFeedback.message}

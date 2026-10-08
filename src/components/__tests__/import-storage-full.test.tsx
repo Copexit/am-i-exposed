@@ -13,6 +13,7 @@ vi.mock("react-i18next", () => ({
 const importBookmarks = vi.fn(() => ({ imported: 0, error: "storage_full" }));
 vi.mock("@/hooks/useBookmarks", () => ({
   useBookmarks: () => ({ bookmarks: [], exportBookmarks: vi.fn(), importBookmarks }),
+  walletsInImport: () => 0,
 }));
 vi.mock("@/hooks/useSavedGraphs", () => ({
   useSavedGraphs: () => ({ graphs: [] }),
