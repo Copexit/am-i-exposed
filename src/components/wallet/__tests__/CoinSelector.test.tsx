@@ -74,18 +74,18 @@ describe("CoinSelector", () => {
     expect(screen.getByText("Advanced: Stonewall")).toBeTruthy();
   });
 
-  it("shows the single coin first (no new link) and the changeless pair of unrelated coins next, each saying what an observer learns", () => {
+  it("shows the changeless pair first (rule 4) and the single coin with big change next, each saying what an observer learns", () => {
     run([coin(500_000, "big", "bc1qbig"), coin(41_000, "p1", "bc1qp1"), coin(20_000, "p2", "bc1qp2")], "60000");
     const noChange = screen.getByTestId("coin-plan-no-change");
     const single = screen.getByTestId("coin-plan-single-coin");
-    expect(single.compareDocumentPosition(noChange) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(within(single).getByText("Recommended")).toBeTruthy();
+    expect(noChange.compareDocumentPosition(single) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(noChange).getByText("Recommended")).toBeTruthy();
     expect(within(noChange).getByText("Coins whose total equals the payment plus fee, so no change output is created that anyone can follow.")).toBeTruthy();
     expect(within(noChange).getByTestId("plan-learns").textContent).toContain("That 2 groups of coins nothing linked before belong to one wallet");
     expect(within(noChange).getByTestId("plan-learns").textContent).toContain("No change output to follow");
     expect(within(within(noChange).getByTestId("plan-coins")).getAllByRole("listitem")).toHaveLength(2);
     expect(within(noChange).getByText("The fee includes 823 sats of leftover, too small to be worth a change output.")).toBeTruthy();
-    expect(within(noChange).queryByText("Recommended")).toBeNull();
+    expect(within(single).queryByText("Recommended")).toBeNull();
     expect(within(single).getByText(/leaves a change output that observers can follow/)).toBeTruthy();
   });
 
@@ -215,8 +215,8 @@ describe("CoinSelector: spending decision tree", () => {
     expect(path).toEqual([
       "aPassed:Hard rules respected",
       "bPassed:Coins the recipient already knows: used",
-      "cPassed:No new links",
-      "dNote:Change 32,300 sats (0.32x the payment)",
+      "cNote:Change 32,300 sats (0.32x the payment)",
+      "dPassed:No new links",
       "eWarning:Change detectable: round payment amount",
       "eWarning:Change detectable: different address type",
     ]);

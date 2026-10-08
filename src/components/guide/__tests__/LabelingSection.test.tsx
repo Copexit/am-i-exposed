@@ -50,7 +50,8 @@ describe("LabelingSection", () => {
     const tiers = container.querySelectorAll("[data-testid='ranking-order'] li");
     expect(tiers).toHaveLength(8);
     expect(tiers[0]!.textContent).toMatch(/^Hard rules/);
-    expect(tiers[3]!.textContent).toMatch(/^Change: none, then small/);
+    expect(tiers[2]!.textContent).toMatch(/^Change: none, then small.*3 or more unrelated groups/);
+    expect(tiers[3]!.textContent).toMatch(/^New links/);
     expect(tiers[7]!.textContent).toMatch(/^Fee/);
   });
 

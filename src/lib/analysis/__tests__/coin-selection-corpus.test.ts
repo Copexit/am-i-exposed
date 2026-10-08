@@ -38,6 +38,13 @@ const replay = () => { const { h, addresses } = testerHistory(); return buildCoi
 
 const CASES: Case[] = [
   {
+    name: "rule 4",
+    why: "Two unrelated receipts pay with no change; one receipt would leave change 20x the payment. The merge wins, accepting what it implies.",
+    coins: () => [coin(2_100_200, { origin: "received" }), coin(60_000, { origin: "received" }), coin(40_200, { origin: "received" })],
+    amount: 100_000, feeRate: 1, maxAbsorb: 0,
+    order: ["60000+40200", "2100200"],
+  },
+  {
     name: "tester, 38,034 sats",
     why: "38,625 pays with no change (591 sats over, to miners); 64,332 would leave change and is only cheaper by 436 sats, under the fee tolerance, so it is not listed.",
     coins: replica, amount: 38_034, feeRate: 5,
@@ -93,18 +100,18 @@ const CASES: Case[] = [
   },
   {
     name: "all-change wallet, no coin pays alone",
-    why: "Every plan merges change (tier a, equal). Fewer links first: a pair, though its change is toxic; the 3-coin set leaves spendable change and stays listed. 60,000 + 50,000 is the 60,000 + 45,000 pair with more change: not listed.",
+    why: "Every plan merges change (tier a, equal). The 3-coin set leaves spendable change (big by the 3-group guard) and goes before the pair's toxic change. 60,000 + 50,000 is the 60,000 + 45,000 pair with more change: not listed.",
     coins: () => [coin(60_000, { origin: "change" }), coin(50_000, { origin: "change" }), coin(45_000, { origin: "change" })],
     amount: 100_000, feeRate: 1, maxAbsorb: 0,
-    order: ["60000+45000", "60000+50000+45000"],
+    order: ["60000+50000+45000", "60000+45000"],
     noClean: true,
   },
   {
-    name: "change alone over a merge of receipts",
-    why: "The change coin alone links nothing (tier c) and respects the change rule; the receipts' changeless pair links two groups.",
+    name: "receipts' merge over a change coin with big change",
+    why: "Both respect the change rule. Rule 4: the receipts' changeless pair uses up the change, so it goes before the change coin alone, which leaves 1.5x the payment.",
     coins: () => [coin(250_000, { origin: "change" }), coin(60_000, { origin: "received" }), coin(40_200, { origin: "received" })],
     amount: 100_000, feeRate: 1, maxAbsorb: 0,
-    order: ["250000", "60000+40200"],
+    order: ["60000+40200", "250000"],
   },
   {
     name: "one label observer",

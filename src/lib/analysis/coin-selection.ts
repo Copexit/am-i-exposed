@@ -21,11 +21,13 @@
  *      coins, a change coin merged with other coins, two outputs of one
  *      transaction merged, a toxic coin merged): fewer first;
  *   b. the recipient already knows every input: first;
- *   c. new certain links: fewer first; at equal links, links one label
- *      observer already knows or between CoinJoin outputs only first;
- *   d. change: none < small (at most the payment) < big (more than the
+ *   c. change: none < small (at most the payment) < big (more than the
  *      payment) < huge (10x the payment or more) < toxic (under 10,000 sats,
- *      or from a CoinJoin coin, whatever its size);
+ *      or from a CoinJoin coin, whatever its size). Guide rule 4: a merge
+ *      that uses up the change beats one coin with a lot of change. Guard: a
+ *      merge joining 3 or more unrelated groups counts as at least "big" here;
+ *   d. new certain links: fewer first; at equal links, links one label
+ *      observer already knows or between CoinJoin outputs only first;
  *   e. change detectable by the round-amount or address-type rules: fewer first;
  *   f. probable links confirmed: fewer first;
  *   g. inputs: fewer first;
@@ -143,11 +145,11 @@ export interface PlanFacts {
   violations: ViolationId[];
   /** b. The recipient already knows every input */
   known: boolean;
-  /** c. New certain links (clusters joined that nothing linked before) */
+  /** d. New certain links (clusters joined that nothing linked before) */
   links: number;
-  /** c. Those links are known to one label observer already, or join CoinJoin outputs only */
+  /** d. Those links are known to one label observer already, or join CoinJoin outputs only */
   softLinks: boolean;
-  /** d. Change class */
+  /** c. Change class (compared with the 3-group guard, changeRank) */
   change: ChangeClass;
   /** e. Rules that would point at the change: round payment amount, address type */
   detectable: ("round" | "type")[];
@@ -732,12 +734,15 @@ export type PlanCriterion = (typeof PLAN_CRITERIA)[number];
 
 type Tier = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h";
 
+/** Tier c: the change class, a merge joining 3+ unrelated groups (2+ new links) counting as at least "big" (guard). */
+const changeRank = (f: PlanFacts) => Math.max(CHANGE_ORDER[f.change], f.links >= 2 ? CHANGE_ORDER.big : 0);
+
 /** Privacy first, step by step: the guide's order (see the module comment and the guide's "How plans are ranked"). */
 const STEPS: [Tier, (a: CoinSelectionPlan, b: CoinSelectionPlan) => number][] = [
   ["a", (a, b) => a.facts.violations.length - b.facts.violations.length],
   ["b", (a, b) => Number(!a.facts.known) - Number(!b.facts.known)],
-  ["c", (a, b) => a.facts.links - b.facts.links || Number(!a.facts.softLinks) - Number(!b.facts.softLinks)],
-  ["d", (a, b) => CHANGE_ORDER[a.facts.change] - CHANGE_ORDER[b.facts.change]],
+  ["c", (a, b) => changeRank(a.facts) - changeRank(b.facts)],
+  ["d", (a, b) => a.facts.links - b.facts.links || Number(!a.facts.softLinks) - Number(!b.facts.softLinks)],
   ["e", (a, b) => a.facts.detectable.length - b.facts.detectable.length],
   ["f", (a, b) => a.facts.probable - b.facts.probable],
   ["g", (a, b) => a.facts.inputs - b.facts.inputs],
@@ -771,7 +776,7 @@ export function planAvoids(plan: CoinSelectionPlan, other: CoinSelectionPlan): A
   const out: AvoidItem[] = o.violations.filter(v => !f.violations.includes(v)).map(violation => ({ id: "violation" as const, violation }));
   if (f.known && !o.known) out.push({ id: "recipient" });
   if (f.links < o.links) out.push(f.links === 0 ? { id: "no-links" } : { id: "fewer-links", n: plan.groups });
-  if (CHANGE_ORDER[f.change] < CHANGE_ORDER[o.change]) out.push(plan.change === 0 ? { id: "no-change" } : { id: "less-change", amount: plan.change, other: other.change });
+  if (changeRank(f) < changeRank(o)) out.push(plan.change === 0 ? { id: "no-change" } : { id: "less-change", amount: plan.change, other: other.change });
   if (f.detectable.length < o.detectable.length) out.push({ id: "undetectable" });
   if (f.probable < o.probable) out.push({ id: "fewer-probable" });
   if (f.inputs < o.inputs) out.push({ id: "fewer-inputs", n: f.inputs });
@@ -811,7 +816,7 @@ export function rankPlans<P extends CoinSelectionPlan>(plans: readonly P[], crit
 /** The facts as numbers, lower is better, in tier order; the fee (index FEE) compares with a tolerance; then change. */
 const dims = (p: CoinSelectionPlan) => {
   const f = p.facts;
-  return [f.violations.length, Number(!f.known), f.links, Number(!f.softLinks), CHANGE_ORDER[f.change], f.detectable.length, f.probable, f.inputs, f.fee, p.change];
+  return [f.violations.length, Number(!f.known), changeRank(f), f.links, Number(!f.softLinks), f.detectable.length, f.probable, f.inputs, f.fee, p.change];
 };
 const FEE = 8;
 
@@ -882,14 +887,14 @@ function decisionPath(x: Scored, change: number, absorbed: number, amount: numbe
       : k > 0 ? { tier: "b", id: "known-partial", ok: false, n: k }
       : { tier: "b", id: "known-unused", ok: false, n: known.size });
   }
-  steps.push(f.links === 0 ? { tier: "c", id: "links-none", ok: true }
-    : { tier: "c", id: f.softLinks ? "links-soft" : "links", ok: false, n: x.groups });
   const ratio = Math.round((change / amount) * 100) / 100;
   steps.push(
-    f.change === "none" ? (x.absorbs ? { tier: "d", id: "change-absorbed", ok: true, amount: absorbed } : { tier: "d", id: "change-none", ok: true })
-    : f.change === "small" ? { tier: "d", id: "change-small", ok: null, amount: change, ratio }
-    : { tier: "d", id: f.change === "huge" ? "change-huge" : f.change === "toxic" ? "change-toxic" : "change-big", ok: false, amount: change, ratio },
+    f.change === "none" ? (x.absorbs ? { tier: "c", id: "change-absorbed", ok: true, amount: absorbed } : { tier: "c", id: "change-none", ok: true })
+    : f.change === "small" ? { tier: "c", id: "change-small", ok: null, amount: change, ratio }
+    : { tier: "c", id: f.change === "huge" ? "change-huge" : f.change === "toxic" ? "change-toxic" : "change-big", ok: false, amount: change, ratio },
   );
+  steps.push(f.links === 0 ? { tier: "d", id: "links-none", ok: true }
+    : { tier: "d", id: f.softLinks ? "links-soft" : "links", ok: false, n: x.groups });
   if (change > 0) {
     if (f.detectable.length === 0) steps.push({ tier: "e", id: "detect-none", ok: true });
     for (const d of f.detectable) steps.push({ tier: "e", id: d === "round" ? "detect-round" : "detect-type", ok: false });

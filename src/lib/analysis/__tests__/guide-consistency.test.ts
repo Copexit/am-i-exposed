@@ -104,9 +104,10 @@ describe("guide: spending checklist", () => {
     expect(spendingAlerts({ amount: 100_000, recipient: null, walletType: null, history: null, apiReused: null, change: 50_000 }).map(a => a.id)).toEqual(["round", "change-tips"]);
   });
 
-  it("rule 4, a merge links coins: one coin with big change first; between options linking the same coins, less change", () => {
-    expect(top(plans([coin(450_000), coin(60_000), coin(40_200)], 100_000))).toEqual([450_000]);
+  it("rule 4, prefer the option that uses up the change, accepting the merge; not a merge of 3+ groups against big change", () => {
+    expect(top(plans([coin(450_000), coin(60_000), coin(40_200)], 100_000))).toEqual([60_000, 40_200]);
     expect(top(plans([coin(160_000), coin(450_000)], 100_000))).toEqual([160_000]);
+    expect(top(plans([coin(300_000), coin(40_000), coin(40_000), coin(40_000)], 100_000))).toEqual([300_000]);
   });
 
   it("rule 5, merge coins of one observer, never two outputs of one transaction", () => {
