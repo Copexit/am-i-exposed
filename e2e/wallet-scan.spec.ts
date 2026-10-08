@@ -156,7 +156,7 @@ test("coins (UTXOs) section lists every coin, sortable, with totals and scan lin
   await expect(page).toHaveURL(new RegExp(`#tx=${"e1".repeat(32)}`));
 });
 
-test("coin selection advisor: a no-change set of already linked coins stands alone", async ({ page }) => {
+test("coin selection advisor: a no-change set of already linked coins comes first, other options follow", async ({ page }) => {
   await mockMultiCoinWallet(page);
   await page.goto(`/#xpub=${ZPUB}`);
   await expect(stat(page, "Total balance")).toHaveText("1,850,000 sats", { timeout: 20_000 });
@@ -165,11 +165,12 @@ test("coin selection advisor: a no-change set of already linked coins stands alo
   await page.getByLabel("Amount (sats)").fill("449000");
   await page.getByRole("button", { name: "Suggest selection" }).click();
 
-  // 250,000 + 200,000 on one address pay it with no change: nothing to trade off, so no other plan
-  const noChange = page.getByTestId("coin-plan-no-change");
+  // 250,000 + 200,000 on one address pay it with no change: recommended; options with less fee are still listed
+  const noChange = page.locator("[data-testid^='coin-plan-']").first();
+  await expect(noChange).toHaveAttribute("data-testid", "coin-plan-no-change");
+  await expect(noChange.getByText("Recommended", { exact: true })).toBeVisible();
   await expect(noChange.getByText(/so no change output is created that anyone can follow/)).toBeVisible();
   await expect(noChange.getByTestId("plan-reason")).toHaveText("Links nothing new and leaves no change.");
-  await expect(page.getByTestId("coin-plan-single-coin")).toHaveCount(0);
 });
 
 const OUTSIDE_1 = "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh";

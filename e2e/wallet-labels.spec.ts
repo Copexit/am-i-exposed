@@ -73,8 +73,8 @@ for (const width of [1440, 390]) {
     await page.getByRole("button", { name: /Labels \(BIP329\)/ }).click();
     const panel = page.getByTestId("labels-panel");
     await panel.locator("input[type=file]").setInputFiles({ name: "sparrow.jsonl", mimeType: "application/jsonl", buffer: Buffer.from(LABELS) });
-    await expect(panel.getByTestId("labels-summary")).toHaveText("12 labels applied, 1 not matching this wallet, 1 invalid");
-    await expect(panel.getByRole("link", { name: "How to label coins" })).toHaveAttribute("href", "/guide/#labeling-coins");
+    await expect(panel.getByTestId("labels-summary")).toHaveText(/^13 labels read: \d+ on current coins, \d+ on past transactions and addresses, 1 for other wallets, 1 invalid$/);
+    await expect(panel.getByRole("link", { name: "Labeling recommendations" })).toHaveAttribute("href", "/guide/#labeling-coins");
     await shot(page, panel, `${SHOTS}/wb-panel-${width}.png`);
 
     // Chips and labels on the coins
@@ -88,6 +88,14 @@ for (const width of [1440, 390]) {
     await expect(cjRow.getByTestId("label-tag-toxic")).toBeVisible();
     await expect(cjRow.getByText("Frozen", { exact: true })).toBeVisible();
     await shot(page, list, `${SHOTS}/wb-utxos-${width}.png`);
+    // A tag's toggletip: its meaning and the guide link, and still no horizontal scroll at phone width
+    for (const chip of await list.locator("[data-testid^='label-tag-']").all()) {
+      await chip.focus();
+      await expect(list.getByTestId("label-tag-tip")).toBeVisible();
+      await noHorizontalScroll(page);
+    }
+    await expect(list.getByTestId("label-tag-tip").getByRole("link", { name: "Labeling recommendations" })).toHaveAttribute("href", "/guide/#labeling-coins");
+    await page.keyboard.press("Escape");
     await list.getByRole("button", { name: "Group by label" }).click();
     await expect(list.getByTestId("utxo-label-group")).toHaveCount(4);
     await noHorizontalScroll(page);
@@ -120,9 +128,9 @@ for (const width of [1440, 390]) {
     await expect(page.locator("#wallet-addresses").getByTestId("label-tag-kyc")).toBeVisible();
     await shot(page, page.locator("#wallet-addresses"), `${SHOTS}/wb-addresses-${width}.png`);
     await noHorizontalScroll(page);
-    await page.getByRole("link", { name: "How to label coins" }).click();
+    await page.getByRole("link", { name: "Labeling recommendations" }).click();
     const section = page.locator("section").filter({ has: page.locator("#labeling-coins") });
-    await expect(section.getByRole("heading", { name: "How to label coins" })).toBeInViewport({ timeout: 5_000 });
+    await expect(section.getByRole("heading", { name: "Labeling recommendations" })).toBeInViewport({ timeout: 5_000 });
     await shot(page, section, `${SHOTS}/wb-guide-${width}.png`);
   });
 }

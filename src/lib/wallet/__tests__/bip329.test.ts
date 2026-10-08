@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { MAX_FILE_BYTES, MAX_LABEL_LENGTH, parseBip329, serializeBip329, userPart } from "../bip329";
+import { MAX_FILE_BYTES, MAX_LABEL_LENGTH, exampleLabels, parseBip329, serializeBip329, userPart } from "../bip329";
+import { parseLabel } from "../labels";
 
 const TX = "f91d0a8a78462bc59398f2c5d7a84fcff491c26ba54c4833478b202796c8aafd";
 
@@ -113,5 +114,19 @@ describe("parseBip329", () => {
     const once = parseBip329(SPARROW + "\n" + CORE)!.records;
     expect(parseBip329(serializeBip329(once))!.records).toEqual(once);
     expect(serializeBip329(once).split("\n").at(-1)).toBe("");
+  });
+});
+
+describe("exampleLabels", () => {
+  it("is a valid BIP329 file that the parser reads back whole, on testnet refs, marked as example", () => {
+    const text = serializeBip329(exampleLabels());
+    const parsed = parseBip329(text)!;
+    expect(parsed).toMatchObject({ invalid: 0, empty: 0, truncated: 0, duplicates: 0 });
+    expect(parsed.records).toEqual(exampleLabels());
+    for (const r of parsed.records) {
+      expect(r.label).toMatch(/Example/);
+      if (r.type === "addr") expect(r.ref.startsWith("tb1")).toBe(true);
+    }
+    expect(parseLabel(parsed.records[1]!.label!)).toMatchObject({ tags: ["kyc"], who: "Example Exchange", platform: "withdrawal", fiat: { currency: "EUR" }, suffix: "received" });
   });
 });

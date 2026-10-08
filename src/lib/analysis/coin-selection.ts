@@ -7,15 +7,17 @@
  * Candidate sets, always all of them (a covering single coin does not stop
  * the search for multi-coin sets):
  * - every single coin that pays;
- * - changeless sets of 2-3 coins (changelessSet), wallet-wide and within each
+ * - changeless sets of 2-3 coins (changelessSets), wallet-wide and within each
  *   linkage cluster;
  * - from the coins that cannot pay alone: for each, the smallest partner that
  *   pays with it; the smallest coins added up; the fewest coins; and the
  *   fewest coins within each linkage cluster.
  *
- * Ranked by privacy cost (COST), then inputs, then fee, then change. Up to
- * MAX_PLANS plans are returned, the best of each strategy; a plan with no
- * cost (links nothing new, leaves no change) is returned alone. A plan with a high-severity warning (CoinJoin outputs merged
+ * Ranked by privacy cost (COST), then inputs, then fee, then change. The
+ * searches keep their next-best sets too; Pareto pruning drops a plan that
+ * another beats on cost, fee, change and new links, and up to MAX_PLANS plans
+ * are returned: the best under each ranking criterion (rankPlans), then the
+ * rest by privacy cost. A plan with a high-severity warning (CoinJoin outputs merged
  * with each other or with unmixed coins, a mixed output leaving change at
  * least the payment) is shown only when no other set pays.
  *
@@ -80,10 +82,11 @@ export interface SelectedCoin extends CoinSelectionInput {
 
 export type PlanWarningId =
   | "coinjoin-mix" | "coinjoin-merge" | "mixed-change" | "coinjoin-change" | "merges-origins" | "toxic-change" | "mixed-scripts"
+  | "absorb-change" | "extra-fee"
   | "label-kyc" | "label-coinjoin" | "label-origins" | "label-toxic";
 
 /**
- * The labeling convention's spending rules (guide, "How to label coins"):
+ * The labeling convention's spending rules (guide, "Labeling recommendations"):
  * kyc (1) never merge [KYC] with [noKYC]; coinjoin (2) spend [CJ] coins one by
  * one; origin (3) merge only coins of one origin or already linked on-chain;
  * toxic (5) never merge a [toxic] coin. Rule 4 (change inherits its parent's
@@ -115,8 +118,10 @@ export interface CoinSelectionPlan {
   fee: number;
   /** Change in sats, 0 when changeless */
   change: number;
-  /** Changeless only: leftover sats added to the fee instead of a dust-sized change output */
+  /** Changeless only: leftover sats added to the fee instead of a change output */
   absorbed: number;
+  /** The no-change variant of a plan whose change was at most the max extra fee: `absorbed` is that change, paid to miners */
+  absorbsChange: boolean;
   /** Distinct certain linkage clusters among the selected coins */
   origins: number;
   /** Distinct inferred linkage clusters (at most `origins`) */
@@ -241,7 +246,7 @@ const better = (a: RankKey, b: RankKey) =>
  * fewer distinct origins, then less change (or overpay).
  * Candidates must be sorted by value descending. `budget.left` is shared and decremented.
  */
-function fewestCoins(cands: Candidate[], amount: number, feeRate: number, budget: { left: number }, maxK = Infinity): Candidate[] | null {
+function fewestCoins(cands: Candidate[], amount: number, feeRate: number, budget: { left: number }, maxK = Infinity): Candidate[][] {
   // Smallest k whose k largest coins can pay.
   let k = 0;
   for (let i = 0, sum = 0, vb = 0; i < cands.length; i++) {
@@ -249,14 +254,14 @@ function fewestCoins(cands: Candidate[], amount: number, feeRate: number, budget
     vb += cands[i]!.vb;
     if (settle(sum, vb, amount, feeRate)) { k = i + 1; break; }
   }
-  if (k === 0 || k > maxK) return null;
+  if (k === 0 || k > maxK) return [];
 
   const suffix = new Array<number>(cands.length + 1).fill(0);
   for (let i = cands.length - 1; i >= 0; i--) suffix[i] = suffix[i + 1]! + cands[i]!.value;
   const minFee = Math.ceil((k * INPUT_VB.p2tr + BASE_VB + OUTPUT_VB) * feeRate);
 
-  let best: Candidate[] | null = null;
-  let bestKey: RankKey = [Infinity, Infinity, Infinity];
+  /** The ALTERNATIVES best leaves, best first */
+  const best: { key: RankKey; set: Candidate[] }[] = [];
   const chosen: number[] = [];
   const seen = new Set<number>();
 
@@ -271,9 +276,11 @@ function fewestCoins(cands: Candidate[], amount: number, feeRate: number, budget
       seen.clear();
       for (const i of chosen) seen.add(cands[i]!.group);
       const key: RankKey = [changeClass(s.change), seen.size, s.change || s.fee];
-      if (better(key, bestKey)) {
-        bestKey = key;
-        best = chosen.map(i => cands[i]!);
+      if (best.length < ALTERNATIVES || better(key, best.at(-1)!.key)) {
+        let at = best.findIndex(b => better(key, b.key));
+        if (at < 0) at = best.length;
+        best.splice(at, 0, { key, set: chosen.map(i => cands[i]!) });
+        if (best.length > ALTERNATIVES) best.pop();
       }
       return;
     }
@@ -287,7 +294,7 @@ function fewestCoins(cands: Candidate[], amount: number, feeRate: number, budget
     dfs(index + 1, sum, vb);
   }
   dfs(0, 0, 0);
-  return best;
+  return best.map(b => b.set);
 }
 
 /**
@@ -296,9 +303,9 @@ function fewestCoins(cands: Candidate[], amount: number, feeRate: number, budget
  * [target, target + cost of change], where target is the amount plus the fee of a
  * 1-output tx and cost of change is one more output plus CHANGELESS_TOLERANCE
  * (the window in which settle() reports no change). Fewest inputs first, then
- * least fee. `budget.left` is shared and decremented.
+ * least fee; up to ALTERNATIVES sets. `budget.left` is shared and decremented.
  */
-function changelessSet(cands: Candidate[], amount: number, feeRate: number, budget: { left: number }): Candidate[] | null {
+function changelessSets(cands: Candidate[], amount: number, feeRate: number, budget: { left: number }): Candidate[][] {
   const lo = amount + (BASE_VB + OUTPUT_VB) * feeRate;
   const hi = lo + OUTPUT_VB * feeRate + CHANGELESS_TOLERANCE;
   const ev = (c: Candidate) => c.value - c.vb * feeRate;
@@ -311,33 +318,33 @@ function changelessSet(cands: Candidate[], amount: number, feeRate: number, budg
     while (l < r) { const m = (l + r) >> 1; if (e[m]! < x) l = m + 1; else r = m; }
     return l;
   };
-  let best: Candidate[] | null = null;
-  let bestFee = Infinity;
+  const found: { set: Candidate[]; fee: number }[] = [];
   const consider = (idx: number[]) => {
-    const set = idx.map(i => cs[i]!).reverse(); // largest first, like the other plans
+    const set = idx.map(i => cs[i]!);
     // ev uses an unrounded fee; settle() has the final word.
     const s = settle(set.reduce((t, c) => t + c.value, 0), set.reduce((t, c) => t + c.vb, 0), amount, feeRate);
-    if (s && s.change === 0 && s.fee < bestFee) { best = set; bestFee = s.fee; }
+    if (s && s.change === 0) found.push({ set, fee: s.fee });
   };
+  const best = () => found.sort((a, b) => a.fee - b.fee).slice(0, ALTERNATIVES).map(f => f.set);
 
   // Pairs: for each coin the smallest partner that reaches the target (least overpay).
   for (let i = 0; i < n - 1 && e[i]! + e[i + 1]! <= hi; i++) {
-    if (budget.left-- <= 0) return best;
+    if (budget.left-- <= 0) return best();
     const j = lb(lo - e[i]!, i + 1);
     if (j < n && e[i]! + e[j]! <= hi) consider([i, j]);
   }
-  if (best) return best;
+  if (found.length > 0) return best();
 
   // ponytail: budgeted O(n^2 log n) triple scan; past the budget on huge wallets a triple may be missed.
   for (let i = 0; i < n - 2 && e[i]! + e[i + 1]! + e[i + 2]! <= hi; i++) {
     // Skip partners too small to reach the target even with the largest third coin.
     for (let j = Math.max(i + 1, lb(lo - e[i]! - e[n - 1]!, i + 1)); j < n - 1 && e[i]! + e[j]! + e[j + 1]! <= hi; j++) {
-      if (budget.left-- <= 0) return best;
+      if (budget.left-- <= 0) return best();
       const k = lb(lo - e[i]! - e[j]!, j + 1);
       if (k < n && e[i]! + e[j]! + e[k]! <= hi) consider([i, j, k]);
     }
   }
-  return best;
+  return best();
 }
 
 /** Coins by inferred origin (each holds whole certain origins). */
@@ -354,7 +361,9 @@ function groupBy(cands: Candidate[]): Candidate[][] {
 /** Change at least this many times the payment counts as "much larger". */
 const BIG_CHANGE_RATIO = 3;
 /** Plans returned at most. */
-export const MAX_PLANS = 3;
+export const MAX_PLANS = 8;
+/** Sets kept per search (fewest coins, changeless): its best and the next best. */
+const ALTERNATIVES = 3;
 /**
  * When a single coin pays, sets of coins that cannot pay alone are searched
  * only up to this size: a set past it links too much to beat one coin.
@@ -375,7 +384,19 @@ const HUGE_CHANGE_RATIO = 10;
  * merge of 2 origins beats a single coin whose change is toxic or 3x the
  * payment, never one with ordinary change, and never a merge of 3 origins.
  */
-const COST = { link: 12, change: 4, badChange: 10, bigChange: 9, coinjoinMerge: 40 } as const;
+const COST = { link: 12, change: 4, badChange: 10, bigChange: 9, coinjoinMerge: 40, extraFee: 12 } as const;
+
+/**
+ * What a plan with `change` adds to the fee when its change goes to miners,
+ * counted as `absorbed` is (above a 1-output tx's fee): the change plus the
+ * change output it no longer pays for. The max extra fee is compared with this.
+ */
+export const absorbedIf = (change: number, feeRate: number) => change + Math.ceil(OUTPUT_VB * feeRate);
+
+/** Default max extra fee to leave no change: change at or below it can go to miners instead (the tester's 5,000 sats). */
+export const DEFAULT_MAX_ABSORB = 5_000;
+/** Extra fee above this share of the payment gets a visible note. */
+const EXTRA_FEE_NOTE = 0.1;
 
 /**
  * Label rule costs, on top of the on-chain costs: [KYC] with [noKYC] ties an
@@ -455,22 +476,29 @@ interface Scored {
   change: number;
   origins: number;
   groups: number;
-  /** Mixed outputs spent: on equal cost, CoinJoin change (toxic anyway) goes before a mixed output */
-  mixed: number;
   cost: number;
   /** Merges a mixed output, or a mixed output leaves change at least the payment */
   severe: boolean;
   badChange: boolean;
   labels: LabelVerdict;
+  absorbs: boolean;
 }
 
-function score(picked: Candidate[], amount: number, feeRate: number): Scored | null {
-  const s = settle(picked.reduce((t, c) => t + c.value, 0), picked.reduce((t, c) => t + c.vb, 0), amount, feeRate);
+/**
+ * Score a set. `absorbMax` > 0: the no-change variant instead, only when the
+ * set leaves change of at most `absorbMax` (the change goes to the fee).
+ */
+function score(picked: Candidate[], amount: number, feeRate: number, absorbMax = 0): Scored | null {
+  let s = settle(picked.reduce((t, c) => t + c.value, 0), picked.reduce((t, c) => t + c.vb, 0), amount, feeRate);
   if (!s) return null;
+  const absorbs = absorbMax > 0;
+  if (absorbs) {
+    if (s.change === 0 || absorbedIf(s.change, feeRate) > absorbMax) return null;
+    s = { fee: s.fee + s.change, change: 0 };
+  }
   const origins = new Set(picked.map(c => c.group)).size;
   const groups = new Set(picked.map(c => c.loose)).size;
-  const mixedCount = picked.filter(c => c.coin.origin === "mixed").length;
-  const mixed = mixedCount > 0;
+  const mixed = picked.some(c => c.coin.origin === "mixed");
   const fromCoinJoin = mixed || picked.some(c => c.coin.origin === "coinjoin-change");
   const badChange = s.change > 0 && (s.change < TOXIC_CHANGE_THRESHOLD || fromCoinJoin);
   let cost = (groups - 1) * COST.link + (origins - groups) * (COST.link / 2);
@@ -481,7 +509,9 @@ function score(picked: Candidate[], amount: number, feeRate: number): Scored | n
   const severe = mixed && (picked.length > 1 || s.change >= amount);
   const labels = labelVerdict(picked.map(c => c.coin), picked.map(c => c.group));
   cost += labels.cost;
-  return { picked, ...s, origins, groups, mixed: mixedCount, cost, severe, badChange, labels };
+  // The extra fee costs in proportion to the payment, so a large donation never wins by default.
+  if (absorbs) cost += COST.extraFee * (s.fee - Math.ceil((picked.reduce((t, c) => t + c.vb, 0) + BASE_VB + OUTPUT_VB) * feeRate)) / amount;
+  return { picked, ...s, origins, groups, cost, severe, badChange, labels, absorbs };
 }
 
 /** Smallest coins first until they pay, or null past MAX_SMALL_SET coins. */
@@ -524,6 +554,92 @@ function reasonOf(x: Scored, amount: number, fallback: boolean): PlanReason {
 
 // ---------- Plans ----------
 
+/** Selector inputs as search candidates (largest first), leaving out dust and uneconomical coins unless `keep`. */
+function candidatesOf(utxos: CoinSelectionInput[], feeRate: number, keep?: ReadonlySet<string>): { cands: Candidate[] } & Excluded {
+  const kept = (c: CoinSelectionInput) => keep?.has(outpointOf(c)) ?? false;
+  const notDust = utxos.filter(u => u.utxo.value >= P2PKH_DUST_LIMIT || kept(u));
+  const vbOf = (c: CoinSelectionInput) => INPUT_VB[scriptType(c.address)];
+  const usable = notDust.filter(c => c.utxo.value > vbOf(c) * feeRate || kept(c));
+  const group = originIds(usable, false);
+  const loose = originIds(usable, true);
+  const cands = usable
+    .map((coin, i) => ({ coin, group: group[i]!, loose: loose[i]!, value: coin.utxo.value, vb: vbOf(coin) }))
+    .sort((a, b) => b.value - a.value);
+  return { cands, dustExcluded: utxos.length - notDust.length, uneconomical: notDust.length - usable.length };
+}
+
+export const outpointOf = (c: CoinSelectionInput) => `${c.utxo.txid}:${c.utxo.vout}`;
+
+/** New links a plan creates: `certain` joins of unrelated groups, `inferred` joins of coins only probably linked already. */
+export const planLinks = (p: CoinSelectionPlan) => ({ certain: p.groups - 1, inferred: p.origins - p.groups });
+
+/** How the plan list is ordered. Only the order changes; every plan keeps its warnings. */
+export const PLAN_CRITERIA = ["privacy", "least-change", "no-change", "fewest-coins", "lowest-fee"] as const;
+export type PlanCriterion = (typeof PLAN_CRITERIA)[number];
+
+const mixedIn = (p: CoinSelectionPlan) => p.selected.filter(c => c.origin === "mixed").length;
+/** Privacy cost, then CoinJoin change before a mixed output, then fewer inputs, less fee, less change. */
+const byPrivacy = (a: CoinSelectionPlan, b: CoinSelectionPlan) =>
+  a.cost - b.cost || mixedIn(a) - mixedIn(b) || a.selected.length - b.selected.length || a.fee - b.fee || a.change - b.change;
+const CRITERION_ORDER: Record<PlanCriterion, (a: CoinSelectionPlan, b: CoinSelectionPlan) => number> = {
+  privacy: byPrivacy,
+  "least-change": (a, b) => a.change - b.change || byPrivacy(a, b),
+  // Changeless plans first, each side by privacy (unlike least change, the rest is not ordered by change)
+  "no-change": (a, b) => Number(a.change > 0) - Number(b.change > 0) || byPrivacy(a, b),
+  "fewest-coins": (a, b) => a.selected.length - b.selected.length || byPrivacy(a, b),
+  "lowest-fee": (a, b) => a.fee - b.fee || byPrivacy(a, b),
+};
+
+/** The plans ordered by a criterion, best first (a new array). */
+export function rankPlans<P extends CoinSelectionPlan>(plans: readonly P[], criterion: PlanCriterion): P[] {
+  return [...plans].sort(CRITERION_ORDER[criterion]);
+}
+
+/**
+ * Pareto pruning: drops a plan when another is at least as good on cost, fee,
+ * change and new links, and strictly better on one. Keeps the input order.
+ */
+function pareto(plans: CoinSelectionPlan[]): CoinSelectionPlan[] {
+  const dims = (p: CoinSelectionPlan) => { const l = planLinks(p); return [p.cost, p.fee, p.change, l.certain + l.inferred / 2]; };
+  const d = plans.map(dims);
+  // ponytail: O(n^2) over the scored sets (a few hundred at most on a 1000-coin wallet).
+  return plans.filter((_, i) => !d.some((o, j) => j !== i && o.every((v, k) => v <= d[i]![k]!) && o.some((v, k) => v < d[i]![k]!)));
+}
+
+export type SelectionEvaluation =
+  | { kind: "plan"; plan: CoinSelectionPlan }
+  | { kind: "insufficient"; total: number; shortfall: number }
+  | { kind: "invalid" };
+
+/**
+ * Evaluate coins the user picked by hand, with the same scoring and plan
+ * building as the advisor. Origins are resolved over the whole wallet (as the
+ * advisor does), so a set the advisor suggested evaluates to the same plan.
+ * Dust and uneconomical coins count when picked.
+ */
+export function evaluateSelection(
+  utxos: CoinSelectionInput[],
+  outpoints: ReadonlySet<string>,
+  paymentAmount: number,
+  feeRate: number,
+  { maxAbsorb = DEFAULT_MAX_ABSORB, absorb = false, includeFrozen = false }: { maxAbsorb?: number; absorb?: boolean; includeFrozen?: boolean } = {},
+): SelectionEvaluation {
+  if (!Number.isSafeInteger(paymentAmount) || paymentAmount <= 0 || !Number.isFinite(feeRate) || feeRate <= 0) return { kind: "invalid" };
+  // The advisor's coin set (frozen coins left out unless included), plus the picked coins themselves.
+  const pool = includeFrozen ? utxos : utxos.filter(u => !u.frozen || outpoints.has(outpointOf(u)));
+  const picked = candidatesOf(pool, feeRate, outpoints).cands.filter(c => outpoints.has(outpointOf(c.coin)));
+  if (picked.length === 0) return { kind: "invalid" };
+  const x = score(picked, paymentAmount, feeRate);
+  if (!x) {
+    const total = picked.reduce((s, c) => s + c.value, 0);
+    const fee = Math.ceil((picked.reduce((s, c) => s + c.vb, 0) + BASE_VB + OUTPUT_VB) * feeRate);
+    return { kind: "insufficient", total, shortfall: paymentAmount + fee - total };
+  }
+  // Absorb asked and possible (change at most maxAbsorb): the no-change variant.
+  const v = absorb ? score(picked, paymentAmount, feeRate, maxAbsorb) : null;
+  return { kind: "plan", plan: buildPlan(v ?? x, paymentAmount, feeRate, false, maxAbsorb) };
+}
+
 const strategyOf = (x: Scored): PlanStrategy =>
   x.picked.length === 1 ? "single-coin"
   : x.change === 0 ? "no-change"
@@ -531,8 +647,9 @@ const strategyOf = (x: Scored): PlanStrategy =>
   : x.groups === 1 ? "probably-linked"
   : "multi-coin";
 
-function buildPlan(x: Scored, amount: number, feeRate: number, fallback: boolean): CoinSelectionPlan {
-  const coins = x.picked.map(c => c.coin);
+function buildPlan(x: Scored, amount: number, feeRate: number, fallback: boolean, maxAbsorb: number): CoinSelectionPlan {
+  // Largest first, so one set reads the same whichever search found it.
+  const coins = [...x.picked].sort((a, b) => b.value - a.value).map(c => c.coin);
   const inputTotal = x.picked.reduce((s, c) => s + c.value, 0);
   const inVb = x.picked.reduce((s, c) => s + c.vb, 0);
   const { fee, change, origins, groups } = x;
@@ -552,6 +669,9 @@ function buildPlan(x: Scored, amount: number, feeRate: number, fallback: boolean
   if (cjChange > 0) warnings.push({ id: "coinjoin-change", severity: "medium", count: cjChange });
   if (groups > 1) warnings.push({ id: "merges-origins", severity: "medium", count: groups });
   if (change > 0 && change < TOXIC_CHANGE_THRESHOLD) warnings.push({ id: "toxic-change", severity: "medium", count: change });
+  // Small change: the no-change variant (listed too) pays it to miners instead.
+  if (change > 0 && absorbedIf(change, feeRate) <= maxAbsorb) warnings.push({ id: "absorb-change", severity: "low", count: change });
+  if (x.absorbs && absorbed > EXTRA_FEE_NOTE * amount) warnings.push({ id: "extra-fee", severity: "low", count: Math.round((absorbed / amount) * 100) });
   const scripts = new Set(coins.map(c => scriptType(c.address))).size;
   if (scripts > 1) warnings.push({ id: "mixed-scripts", severity: "low", count: scripts });
   for (const r of x.labels.rules) {
@@ -564,7 +684,7 @@ function buildPlan(x: Scored, amount: number, feeRate: number, fallback: boolean
 
   return {
     strategy: strategyOf(x), reason: reasonOf(x, amount, fallback), cost: x.cost,
-    selected: withHints(coins), inputTotal, paymentAmount: amount, fee, change, absorbed, origins, groups, warnings,
+    selected: withHints(coins), inputTotal, paymentAmount: amount, fee, change, absorbed, absorbsChange: x.absorbs, origins, groups, warnings,
     labelRules: x.labels.rules,
   };
 }
@@ -575,27 +695,19 @@ function buildPlan(x: Scored, amount: number, feeRate: number, fallback: boolean
  * @param utxos - Wallet UTXOs with address and origin info
  * @param paymentAmount - Payment amount in sats
  * @param feeRate - Fee rate in sat/vB
+ * @param maxAbsorb - Max extra fee to leave no change: a plan with change up to this also comes as a no-change variant
  */
 export function adviseCoinSelection(
   utxos: CoinSelectionInput[],
   paymentAmount: number,
   feeRate = 5,
+  maxAbsorb = DEFAULT_MAX_ABSORB,
 ): CoinSelectionAdvice {
   if (!Number.isSafeInteger(paymentAmount) || paymentAmount <= 0 || !Number.isFinite(feeRate) || feeRate <= 0) {
     return { kind: "invalid" };
   }
 
-  const notDust = utxos.filter(u => u.utxo.value >= P2PKH_DUST_LIMIT);
-  const vbOf = (c: CoinSelectionInput) => INPUT_VB[scriptType(c.address)];
-  const usable = notDust.filter(c => c.utxo.value > vbOf(c) * feeRate);
-  const excluded: Excluded = { dustExcluded: utxos.length - notDust.length, uneconomical: notDust.length - usable.length };
-
-  const group = originIds(usable, false);
-  const loose = originIds(usable, true);
-  const cands: Candidate[] = usable
-    .map((coin, i) => ({ coin, group: group[i]!, loose: loose[i]!, value: coin.utxo.value, vb: vbOf(coin) }))
-    .sort((a, b) => b.value - a.value);
-
+  const { cands, ...excluded } = candidatesOf(utxos, feeRate);
   const spendable = cands.reduce((s, c) => s + c.value, 0);
   const allVb = cands.reduce((s, c) => s + c.vb, 0);
   if (!settle(spendable, allVb, paymentAmount, feeRate)) {
@@ -613,39 +725,40 @@ export function adviseCoinSelection(
   const sets: (Candidate[] | null)[] = singles.map(c => [c]);
   const budget = { left: MAX_ITERATIONS };
   const groupBudget = { left: MAX_ITERATIONS };
-  sets.push(changelessSet(cands, paymentAmount, feeRate, budget));
-  for (const g of groupBy(cands)) if (g.length > 1) sets.push(changelessSet(g, paymentAmount, feeRate, groupBudget));
+  sets.push(...changelessSets(cands, paymentAmount, feeRate, budget));
+  for (const g of groupBy(cands)) if (g.length > 1) sets.push(...changelessSets(g, paymentAmount, feeRate, groupBudget));
   if (pays(small)) {
     // No single coin: the first DFS leaf is the top-k set, so a result always exists.
     const maxK = singles.length > 0 ? MAX_SMALL_SET : Infinity;
-    sets.push(fewestCoins(small, paymentAmount, feeRate, { left: MAX_ITERATIONS }, maxK));
+    sets.push(...fewestCoins(small, paymentAmount, feeRate, { left: MAX_ITERATIONS }, maxK));
     sets.push(smallestFirst(small, paymentAmount, feeRate));
     sets.push(...smallestPartners(small, paymentAmount, feeRate, { left: MAX_ITERATIONS }));
     const sameBudget = { left: MAX_ITERATIONS };
-    for (const g of groupBy(small)) if (g.length > 1 && pays(g)) sets.push(fewestCoins(g, paymentAmount, feeRate, sameBudget, maxK));
+    for (const g of groupBy(small)) if (g.length > 1 && pays(g)) sets.push(...fewestCoins(g, paymentAmount, feeRate, sameBudget, maxK));
   }
 
   const seen = new Set<string>();
   const scored: Scored[] = [];
   for (const set of sets) {
     if (!set) continue;
-    const id = set.map(c => `${c.coin.utxo.txid}:${c.coin.utxo.vout}`).sort().join();
+    const id = set.map(c => outpointOf(c.coin)).sort().join();
     if (seen.has(id)) continue;
     seen.add(id);
     const x = score(set, paymentAmount, feeRate);
     if (x) scored.push(x);
+    // Small change: also the same coins with the change paid to miners.
+    const v = maxAbsorb > 0 ? score(set, paymentAmount, feeRate, maxAbsorb) : null;
+    if (v) scored.push(v);
   }
-  scored.sort((a, b) => a.cost - b.cost || a.mixed - b.mixed || a.picked.length - b.picked.length || a.fee - b.fee || a.change - b.change);
 
   // High-severity plans only when nothing else pays.
   const safe = scored.filter(x => !x.severe);
   const fallback = safe.length === 0;
-  // The best plan of each strategy. A plan with no cost (links nothing new, no change) stands alone.
-  const plans: CoinSelectionPlan[] = [];
-  for (const x of fallback ? scored : safe) {
-    if (plans.length === MAX_PLANS || plans[0]?.cost === 0) break;
-    if (!plans.some(p => p.strategy === strategyOf(x))) plans.push(buildPlan(x, paymentAmount, feeRate, fallback));
-  }
+  const front = pareto(rankPlans((fallback ? scored : safe).map(x => buildPlan(x, paymentAmount, feeRate, fallback, maxAbsorb)), "privacy"));
+  // Each criterion's best plan is kept, then the rest by privacy cost, up to MAX_PLANS.
+  const keep = new Set(PLAN_CRITERIA.map(c => rankPlans(front, c)[0]!));
+  for (const p of front) if (keep.size < MAX_PLANS) keep.add(p);
+  const plans = front.filter(p => keep.has(p));
 
   // Stonewall pays the amount twice (payment + decoy), each side funded by its own coins.
   const stonewall = singles.length > 0 ? null : spendable >= 2 * (paymentAmount + plans[0]!.fee);
@@ -683,7 +796,7 @@ export function groupLetters(coins: readonly CoinSelectionInput[]): {
   letters: Map<string, { letter: string; inferred: boolean }>;
   allLinked: "certain" | "inferred" | null;
 } {
-  const op = (c: CoinSelectionInput) => `${c.utxo.txid}:${c.utxo.vout}`;
+  const op = outpointOf;
   const sorted = [...coins].sort((a, b) => b.utxo.value - a.utxo.value);
   const groupOf = (c: CoinSelectionInput) => c.group ?? op(c);
   const members = new Map<string, CoinSelectionInput[]>();

@@ -33,7 +33,7 @@ describe("walletLabelFiles", () => {
       "not json",
     ].join("\n"));
     const s = walletLabelFiles(infos, "xpub", { labels: input, exportLabels: output })!;
-    expect(s).toMatchObject({ applied: 2, unmatched: 1, invalid: 1, frozen: 1 });
+    expect(s).toMatchObject({ applied: 2, onCoins: 1, history: 1, unmatched: 1, invalid: 1, frozen: 1 });
     const back = parseBip329(readFileSync(output, "utf8"))!.records;
     expect(back).toEqual(parseBip329(readFileSync(input, "utf8"))!.records);
     expect(s.exported).toBeGreaterThanOrEqual(3);

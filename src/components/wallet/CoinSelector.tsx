@@ -1,30 +1,51 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   adviseCoinSelection,
+  evaluateSelection,
+  outpointOf,
+  rankPlans,
+  PLAN_CRITERIA,
   type CoinSelectionAdvice,
   type CoinSelectionInput,
   type CoinSelectionPlan,
+  type PlanWarningId,
 } from "@/lib/analysis/coin-selection";
 import { fmtN } from "@/lib/format";
 import { SEVERITY_STYLES } from "@/components/findingCardConstants";
 import { HintChip } from "./HintChip";
 import { LabelTagChip, LabelText } from "./WalletLabels";
+import { parseMaxAbsorb, useCoinControl, type CoinControl } from "./useCoinControl";
 import { Check, X } from "lucide-react";
 
-const FIELD = "w-full h-10 bg-surface-inset border border-card-border rounded-lg px-3 text-sm text-foreground num placeholder:text-faint focus:border-bitcoin/50 focus-visible:outline-none transition-colors";
+export const FIELD = "w-full h-10 bg-surface-inset border border-card-border rounded-lg px-3 text-sm text-foreground num placeholder:text-faint focus:border-bitcoin/50 focus-visible:outline-none transition-colors";
 
-export function CoinSelector({ utxos }: { utxos: CoinSelectionInput[] }) {
+/** One plan's identity: its coins, and whether its change goes to miners. */
+const planKey = (p: CoinSelectionPlan) => p.selected.map(outpointOf).sort().join() + (p.absorbsChange ? "+absorb" : "");
+
+/** Plans shown before "Show all". */
+const COLLAPSED_PLANS = 3;
+
+/** Amount and fee rate as typed; empty fields become NaN (not 0) so they read as invalid. */
+export const parseInputs = (amount: string, feeRate: string) =>
+  ({ amount: amount.trim() ? Number(amount) : NaN, feeRate: feeRate.trim() ? Number(feeRate) : NaN });
+
+export function CoinSelector({ utxos, control }: {
+  utxos: CoinSelectionInput[];
+  /** Shared with the UTXO list (manual selection, criterion, URL); a selector on its own keeps its own */
+  control?: CoinControl;
+}) {
   const { t } = useTranslation();
   const id = useId();
-  const [amount, setAmount] = useState("");
-  const [feeRate, setFeeRate] = useState("5");
+  const own = useCoinControl(null, utxos);
+  const c = control ?? own;
   const [advice, setAdvice] = useState<CoinSelectionAdvice | null>(null);
   /** Inputs of the last submit: the frozen toggle re-runs with these, not with unsubmitted edits */
-  const [submitted, setSubmitted] = useState<{ amount: number; feeRate: number } | null>(null);
+  const [submitted, setSubmitted] = useState<{ amount: number; feeRate: number; maxAbsorb: number } | null>(null);
   const [includeFrozen, setIncludeFrozen] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const frozen = utxos.filter(u => u.frozen).length;
   // New coins or labels: the old advice no longer describes them.
   const [seenUtxos, setSeenUtxos] = useState(utxos);
@@ -36,32 +57,70 @@ export function CoinSelector({ utxos }: { utxos: CoinSelectionInput[] }) {
 
   function run(input: { amount: number; feeRate: number }, withFrozen: boolean) {
     const coins = withFrozen ? utxos : utxos.filter(u => !u.frozen);
-    setAdvice(adviseCoinSelection(coins, input.amount, input.feeRate));
+    const withMax = { ...input, maxAbsorb: parseMaxAbsorb(c.maxAbsorb) };
+    setSubmitted(withMax);
+    setAdvice(adviseCoinSelection(coins, input.amount, input.feeRate, withMax.maxAbsorb));
+  }
+
+  // "Compare with suggestions" (from the UTXO list): run with the shared inputs.
+  const [seenCompare, setSeenCompare] = useState(0);
+  if (seenCompare !== c.compareSeq) {
+    setSeenCompare(c.compareSeq);
+    if (c.compareSeq > 0) run(parseInputs(c.amount, c.feeRate), includeFrozen);
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // Empty fields become NaN (not 0) so they read as invalid.
-    const input = { amount: amount.trim() ? Number(amount) : NaN, feeRate: feeRate.trim() ? Number(feeRate) : NaN };
-    setSubmitted(input);
-    run(input, includeFrozen);
+    run(parseInputs(c.amount, c.feeRate), includeFrozen);
   }
+
+  // The manual selection as one more plan, evaluated at the submitted amount and fee rate.
+  const comparing = c.compareSeq > 0 && c.selected.size > 0 && advice?.kind === "plans" && submitted !== null;
+  const manual = useMemo(
+    () => (comparing ? evaluateSelection(c.utxos, c.selected, submitted.amount, submitted.feeRate, { maxAbsorb: submitted.maxAbsorb, absorb: c.absorb, includeFrozen }) : null),
+    [comparing, c.utxos, c.selected, submitted, c.absorb, includeFrozen],
+  );
+  const entries = useMemo(() => {
+    if (advice?.kind !== "plans") return [];
+    const key = planKey;
+    const mineKey = manual?.kind === "plan" ? key(manual.plan) : null;
+    // A suggestion with the same coins is the manual set: marked, not listed twice.
+    const list = advice.plans.map(plan => ({ plan, mine: key(plan) === mineKey }));
+    if (manual?.kind === "plan" && !list.some(e => e.mine)) list.push({ plan: manual.plan, mine: true });
+    const order = rankPlans(list.map(e => e.plan), c.criterion);
+    return order.map(p => list.find(e => e.plan === p)!);
+  }, [advice, manual, c.criterion]);
+  const mineRank = entries.findIndex(e => e.mine);
+
+  const manualRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (c.compareSeq > 0) manualRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [c.compareSeq]);
+
+  const criterionLabel = (k: (typeof PLAN_CRITERIA)[number]) => t(`wallet.coinSel.rank.${k}`);
+  const visible = entries.filter((e, i) => showAll || i < COLLAPSED_PLANS || e.mine);
 
   return (
     <div className="space-y-5" data-testid="coin-selector">
       {/* Inputs and button share one grid row aligned to the end, so a wrapped label never shifts them. */}
-      <form onSubmit={handleSubmit} className="grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,11rem)_auto] items-end gap-3">
+      <form onSubmit={handleSubmit} className="grid grid-cols-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,9rem)_minmax(0,11rem)_auto] items-end gap-3">
         <div className="min-w-0">
           <label htmlFor={`${id}-amount`} className="block text-[13px] text-muted mb-1.5">
             {t("wallet.coinSel.amount", { defaultValue: "Amount (sats)" })}
           </label>
-          <input id={`${id}-amount`} type="number" inputMode="numeric" value={amount} onChange={e => setAmount(e.target.value)} placeholder="50000" min="1" className={FIELD} />
+          <input id={`${id}-amount`} type="number" inputMode="numeric" value={c.amount} onChange={e => c.setAmount(e.target.value)} placeholder="50000" min="1" className={FIELD} />
         </div>
         <div className="min-w-0">
           <label htmlFor={`${id}-fee`} className="block text-[13px] text-muted mb-1.5">
             {t("wallet.coinSel.feeRate", { defaultValue: "Fee (sat/vB)" })}
           </label>
-          <input id={`${id}-fee`} type="number" inputMode="decimal" value={feeRate} onChange={e => setFeeRate(e.target.value)} placeholder="5" min="0.1" step="any" className={FIELD} />
+          <input id={`${id}-fee`} type="number" inputMode="decimal" value={c.feeRate} onChange={e => c.setFeeRate(e.target.value)} placeholder="5" min="0.1" step="any" className={FIELD} />
+        </div>
+        <div className="min-w-0 col-span-2 sm:col-span-1">
+          <label htmlFor={`${id}-absorb`} className="block text-[13px] text-muted mb-1.5" title={t("wallet.coinSel.maxAbsorbTitle", { defaultValue: "Change at or below this is also offered as a no-change option: the change goes to miners instead. 0 turns it off." })}>
+            {t("wallet.coinSel.maxAbsorb", { defaultValue: "Max extra fee to avoid change" })}
+          </label>
+          <input id={`${id}-absorb`} type="number" inputMode="numeric" value={c.maxAbsorb} onChange={e => c.setMaxAbsorb(e.target.value)} placeholder="5000" min="0" className={FIELD} />
         </div>
         <button
           type="submit"
@@ -108,9 +167,55 @@ export function CoinSelector({ utxos }: { utxos: CoinSelectionInput[] }) {
               defaultValue: "Options found: {{count}}. Recommended: {{strategy}}.",
             })}
           </p>
-          {advice.plans.map((plan, i) => (
-            <PlanCard key={i} plan={plan} recommended={i === 0 && advice.plans.length > 1} />
-          ))}
+          {entries.length > 1 && (
+            <div className="flex items-center gap-x-2 gap-y-1.5 flex-wrap" role="group" aria-labelledby={`${id}-rank`}>
+              <span id={`${id}-rank`} className="text-[13px] text-muted mr-1">{t("wallet.coinSel.rankBy", { defaultValue: "Rank by" })}</span>
+              <div data-testid="plan-criterion" className="inline-flex flex-wrap gap-1 rounded-lg bg-surface-inset p-1">
+                {PLAN_CRITERIA.map(k => (
+                  <button
+                    key={k}
+                    type="button"
+                    aria-pressed={c.criterion === k}
+                    onClick={() => c.setCriterion(k)}
+                    className={`h-9 px-3 rounded-md text-[13px] whitespace-nowrap transition-colors cursor-pointer ${c.criterion === k ? "bg-surface-2 text-foreground shadow-(--shadow-card)" : "text-muted hover:text-foreground"}`}
+                  >
+                    {criterionLabel(k)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {manual && manual.kind !== "plan" && (
+            <p data-testid="manual-short" className="rounded-lg border border-dashed border-hairline-strong px-4 py-3 text-sm text-muted">
+              {manual.kind === "insufficient"
+                ? t("wallet.coinControl.compareShort", { amount: fmtN(manual.shortfall), defaultValue: "Your selection is {{amount}} sats short of the amount plus fee, so it is not ranked." })
+                : t("wallet.coinSel.invalid", { defaultValue: "Enter a whole amount in sats and a fee rate above zero." })}
+            </p>
+          )}
+          {visible.map(({ plan, mine }) => {
+            const i = entries.findIndex(e => e.plan === plan);
+            return (
+              <PlanCard
+                key={planKey(plan)}
+                ref={mine ? manualRef : undefined}
+                plan={plan}
+                recommended={c.criterion === "privacy" && i === 0 && entries.length > 1}
+                mine={mine ? { rank: mineRank + 1, of: entries.length, criterion: criterionLabel(c.criterion) } : undefined}
+              />
+            );
+          })}
+          {entries.length > COLLAPSED_PLANS && (
+            <button
+              type="button"
+              aria-expanded={showAll}
+              onClick={() => setShowAll(s => !s)}
+              className="text-[13px] text-bitcoin hover:text-bitcoin-hover min-h-[44px] cursor-pointer"
+            >
+              {showAll
+                ? t("wallet.coinSel.showFewer", { defaultValue: "Show fewer options" })
+                : t("wallet.coinSel.showAll", { n: fmtN(entries.length), defaultValue: "Show all {{n}} options" })}
+            </button>
+          )}
           {advice.stonewall !== null && (
             <div className="rounded-lg border border-dashed border-hairline-strong px-4 py-3 text-sm space-y-2">
               <span className="eyebrow block">{t("wallet.coinSel.stonewallTitle", { defaultValue: "Advanced: Stonewall" })}</span>
@@ -138,7 +243,13 @@ export function CoinSelector({ utxos }: { utxos: CoinSelectionInput[] }) {
   );
 }
 
-function PlanCard({ plan, recommended }: { plan: CoinSelectionPlan; recommended: boolean }) {
+function PlanCard({ plan, recommended, mine, ref }: {
+  plan: CoinSelectionPlan;
+  recommended: boolean;
+  /** The user's own selection, with its rank under the current criterion */
+  mine?: { rank: number; of: number; criterion: string };
+  ref?: React.Ref<HTMLElement>;
+}) {
   const { t } = useTranslation();
   const sats = t("common.sats", { defaultValue: "sats" });
   const note =
@@ -160,21 +271,38 @@ function PlanCard({ plan, recommended }: { plan: CoinSelectionPlan; recommended:
   ];
 
   return (
-    <section data-testid={`coin-plan-${plan.strategy}`} className="rounded-lg border border-hairline bg-surface-2/40 p-4 space-y-4">
+    <section
+      ref={ref}
+      data-testid={mine ? "coin-plan-manual" : `coin-plan-${plan.strategy}`}
+      className={`rounded-lg border p-4 space-y-4 scroll-mt-24 ${mine ? "border-bitcoin/40 bg-bitcoin/5" : "border-hairline bg-surface-2/40"}`}
+    >
       <div className="space-y-1">
         <div className="flex items-center gap-2 flex-wrap">
-          <h3 className="text-[15px] font-medium text-foreground">{t(`wallet.coinSel.strategy.${plan.strategy}`)}</h3>
+          <h3 className="text-[15px] font-medium text-foreground">
+            {mine ? t("wallet.coinControl.yours", { defaultValue: "Your selection" }) : t(`wallet.coinSel.strategy.${plan.strategy}`)}
+          </h3>
           {recommended && (
             <span className="text-[11px] leading-none rounded px-1.5 py-1 bg-severity-good/10 text-severity-good">
               {t("wallet.coinSel.recommended", { defaultValue: "Recommended" })}
+            </span>
+          )}
+          {plan.absorbsChange && (
+            <span data-testid="plan-absorbs" className="text-[11px] leading-none rounded px-1.5 py-1 bg-severity-low/10 text-severity-low whitespace-nowrap">
+              {t("wallet.coinSel.absorbBadge", { amount: fmtN(plan.absorbed), defaultValue: "No change: +{{amount}} sats to miners" })}
+            </span>
+          )}
+          {mine && (
+            <span data-testid="manual-rank" className="text-[11px] leading-none rounded px-1.5 py-1 bg-bitcoin/10 text-bitcoin">
+              {t("wallet.coinControl.rank", { n: mine.rank, of: mine.of, criterion: mine.criterion, defaultValue: "#{{n}} of {{of}} by {{criterion}}" })}
             </span>
           )}
         </div>
         <p className="text-sm text-muted leading-relaxed">{t(`wallet.coinSel.note.${note}`)}</p>
         <p data-testid="plan-reason" className="text-sm text-foreground leading-relaxed">
           {t(`wallet.coinSel.reason.${plan.reason}`, { count: plan.groups, ratio: fmtN(Math.round(plan.change / plan.paymentAmount)) })}
+          {plan.absorbsChange && <> {t("wallet.coinSel.absorbReason", { amount: fmtN(plan.absorbed), defaultValue: "Pays {{amount}} sats more fee so no change is left." })}</>}
         </p>
-        {plan.absorbed > 0 && (
+        {plan.absorbed > 0 && !plan.absorbsChange && (
           <p className="text-[13px] text-muted leading-relaxed">
             {t("wallet.coinSel.absorbed", { amount: fmtN(plan.absorbed), defaultValue: "The fee includes {{amount}} sats of leftover, too small to be worth a change output." })}
           </p>
@@ -215,31 +343,57 @@ function PlanCard({ plan, recommended }: { plan: CoinSelectionPlan; recommended:
         </ol>
       </div>
 
-      {plan.labelRules.length > 0 && (
-        <div data-testid="plan-label-rules" className="space-y-1.5">
-          <span className="eyebrow block">{t("wallet.labels.rules", { defaultValue: "Label rules" })}</span>
-          <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
-            {plan.labelRules.map(r => (
-              <li key={r.id} className={`inline-flex items-center gap-1.5 text-[13px] ${r.ok ? "text-severity-good" : "text-severity-critical"}`}>
-                {r.ok ? <Check size={14} aria-hidden="true" /> : <X size={14} aria-hidden="true" />}
-                <span className="sr-only">{r.ok ? t("wallet.labels.ruleOk", { defaultValue: "Respected:" }) : t("wallet.labels.ruleBroken", { defaultValue: "Broken:" })}</span>
-                {t(`wallet.labels.rule.${r.id}`)}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {plan.warnings.length > 0 && (
-        <ul className="space-y-1.5">
-          {plan.warnings.map(w => (
-            <li key={w.id} className="flex items-start gap-2.5 text-sm text-foreground">
-              <span className={`mt-[7px] w-1.5 h-1.5 rounded-full shrink-0 ${SEVERITY_STYLES[w.severity].dot}`} aria-hidden="true" />
-              <span>{t(`wallet.coinSel.warn.${w.id}`, { count: w.count, amount: fmtN(w.count) })}</span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <PlanRules plan={plan} />
+      <PlanWarnings plan={plan} />
     </section>
+  );
+}
+
+/** Label rules that apply to the coins, each respected or broken. */
+export function PlanRules({ plan }: { plan: CoinSelectionPlan }) {
+  const { t } = useTranslation();
+  if (plan.labelRules.length === 0) return null;
+  return (
+    <div data-testid="plan-label-rules" className="space-y-1.5">
+      <span className="eyebrow block">{t("wallet.labels.rules", { defaultValue: "Label rules" })}</span>
+      <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
+        {plan.labelRules.map(r => (
+          <li key={r.id} className={`inline-flex items-center gap-1.5 text-[13px] ${r.ok ? "text-severity-good" : "text-severity-critical"}`}>
+            {r.ok ? <Check size={14} aria-hidden="true" /> : <X size={14} aria-hidden="true" />}
+            <span className="sr-only">{r.ok ? t("wallet.labels.ruleOk", { defaultValue: "Respected:" }) : t("wallet.labels.ruleBroken", { defaultValue: "Broken:" })}</span>
+            {t(`wallet.labels.rule.${r.id}`)}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Label warnings and the spending rule each breaks (guide, LabelingSection anchors). */
+const RULE_OF: Partial<Record<PlanWarningId, number>> = { "label-kyc": 1, "label-coinjoin": 2, "label-origins": 3, "label-toxic": 5 };
+
+/** A plan's warnings, most severe first as the advisor orders them; a label warning links to its rule. */
+export function PlanWarnings({ plan }: { plan: CoinSelectionPlan }) {
+  const { t } = useTranslation();
+  if (plan.warnings.length === 0) return null;
+  return (
+    <ul className="space-y-1.5">
+      {plan.warnings.map(w => (
+        <li key={w.id} className="flex items-start gap-2.5 text-sm text-foreground">
+          <span className={`mt-[7px] w-1.5 h-1.5 rounded-full shrink-0 ${SEVERITY_STYLES[w.severity].dot}`} aria-hidden="true" />
+          <span>
+            {t(`wallet.coinSel.warn.${w.id}`, { count: w.count, amount: fmtN(w.count) })}
+            {RULE_OF[w.id] !== undefined && (
+              <>
+                {" "}
+                <a href={`/guide/#labeling-rule-${RULE_OF[w.id]}`} className="text-bitcoin hover:text-bitcoin-hover underline-offset-2 hover:underline">
+                  {t("wallet.labels.ruleLink", { n: RULE_OF[w.id], rule: t(`guide.labeling.ruleShort${RULE_OF[w.id]}`), defaultValue: "Rule {{n}}: {{rule}}" })}
+                </a>
+              </>
+            )}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }

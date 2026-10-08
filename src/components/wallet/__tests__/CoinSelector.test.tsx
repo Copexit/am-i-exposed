@@ -53,11 +53,14 @@ describe("CoinSelector", () => {
       coin(20_000, "s3", "bc1qshared", { reusedAddress: true }),
     ], "70000");
     expect(screen.queryByText(/Not enough funds/)).toBeNull();
-    const same = screen.getByTestId("coin-plan-same-origin");
+    // The same-address coins leave under 5,000 sats of change: first comes their no-change version
+    const same = screen.getAllByTestId(/^coin-plan-/)[0]!;
+    expect(within(same).getByTestId("plan-absorbs").textContent).toBe("No change: +4,755 sats to miners");
     expect(within(same).getByText("Recommended")).toBeTruthy();
+    expect(within(screen.getByTestId("coin-plan-same-origin")).getByText(/Leaves only/)).toBeTruthy();
     expect(within(same).getAllByText("Same address as #1").length).toBeGreaterThan(0);
     expect(within(same).getByText("Reused address")).toBeTruthy();
-    const fewest = screen.getByTestId("coin-plan-multi-coin");
+    const fewest = screen.getAllByTestId("coin-plan-multi-coin")[0]!;
     expect(within(fewest).getByText(/Joins 2 unrelated origins/)).toBeTruthy();
     expect(screen.getByText("Advanced: Stonewall")).toBeTruthy();
   });
@@ -76,9 +79,9 @@ describe("CoinSelector", () => {
     expect(within(single).getByText(/leaves a change output that observers can follow/)).toBeTruthy();
   });
 
-  it("shows a no-change set on one address alone: it links nothing new", () => {
+  it("shows a no-change set on one address first: it links nothing new", () => {
     run([coin(150_000, "big", "bc1qbig"), coin(41_000, "p1", "bc1qsame"), coin(20_000, "p2", "bc1qsame")], "60000");
-    expect(screen.queryByTestId("coin-plan-single-coin")).toBeNull();
+    expect(screen.getAllByTestId(/^coin-plan-/)[0]!.dataset.testid).toBe("coin-plan-no-change");
     expect(within(screen.getByTestId("coin-plan-no-change")).getByTestId("plan-reason").textContent).toBe("Links nothing new and leaves no change.");
   });
 
@@ -111,4 +114,57 @@ describe("CoinSelector", () => {
     run([coin(30_000, "aa", "bc1qa"), coin(20_000, "bb", "bc1qb")], "60000");
     expect(screen.getByRole("status").textContent).toContain("10,177 sats short");
   });
+
+  it("ranks by a criterion without dropping warnings; Recommended only under Privacy first; 3 shown, then all", () => {
+    render(<CoinSelector utxos={[
+      coin(900_000, "a1", "bc1qa1"), coin(260_000, "a2", "bc1qa2"), coin(130_000, "a3", "bc1qa3", { origin: "coinjoin-change" }),
+      coin(70_000, "k1", "bc1qk1", { cluster: "k" }), coin(45_000, "k2", "bc1qk2", { cluster: "k" }), coin(30_000, "k3", "bc1qk3", { cluster: "k" }),
+      coin(61_000, "p1", "bc1qp1"), coin(40_500, "p2", "bc1qp2"), coin(25_000, "p3", "bc1qp3"), coin(12_000, "p4", "bc1qp4"),
+    ]} />);
+    fireEvent.change(screen.getByLabelText("Amount (sats)"), { target: { value: "100800" } });
+    fireEvent.change(screen.getByLabelText("Fee (sat/vB)"), { target: { value: "2" } });
+    fireEvent.click(screen.getByRole("button", { name: "Suggest selection" }));
+    const cards = () => screen.getAllByTestId(/^coin-plan-/);
+    expect(cards()).toHaveLength(3);
+    expect(screen.getByRole("button", { name: "Privacy first" }).getAttribute("aria-pressed")).toBe("true");
+    expect(within(cards()[0]!).getByText("Recommended")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^Show all \d+ options$/ }));
+    const all = cards().length;
+    expect(all).toBeGreaterThan(3);
+    const warnings = cards().map(c => within(c).queryAllByRole("listitem").length).reduce((a, b) => a + b, 0);
+
+    fireEvent.click(screen.getByRole("button", { name: "No change if possible" }));
+    expect(cards()).toHaveLength(all);
+    expect(cards()[0]!.dataset.testid).toBe("coin-plan-no-change");
+    expect(screen.queryByText("Recommended")).toBeNull();
+    // Same plans, same warnings and coin rows, another order
+    expect(cards().map(c => within(c).queryAllByRole("listitem").length).reduce((a, b) => a + b, 0)).toBe(warnings);
+    fireEvent.click(screen.getByRole("button", { name: "Lowest fee" }));
+    const fees = cards().map(c => Number(within(c).getByText("Fee").nextElementSibling!.textContent!.replace(/\D/g, "")));
+    expect(fees).toEqual([...fees].sort((a, b) => a - b));
+    fireEvent.click(screen.getByRole("button", { name: "Show fewer options" }));
+    expect(cards()).toHaveLength(3);
+  });
+
+  it("offers small change to miners: a no-change card with the extra fee, recommended in the tester's case", () => {
+    render(<CoinSelector utxos={[
+      coin(165_519_188, "big", "bc1qbig", { origin: "change" }),
+      coin(3_296_321, "pay", "bc1qpay1", { origin: "change", cluster: "p1", group: "pay" }),
+      { ...coin(2_399_400, "pay", "bc1qpay2", { origin: "change", cluster: "p2", group: "pay" }), utxo: { txid: "pay".padEnd(64, "0"), vout: 1, value: 2_399_400, status: { confirmed: true } } },
+      coin(64_332, "r1", "bc1qr1", { origin: "received" }),
+      coin(38_625, "r2", "bc1qr2", { origin: "received" }),
+    ]} />);
+    expect((screen.getByLabelText("Max extra fee to avoid change") as HTMLInputElement).value).toBe("5000");
+    fireEvent.change(screen.getByLabelText("Amount (sats)"), { target: { value: "100000" } });
+    fireEvent.click(screen.getByRole("button", { name: "Suggest selection" }));
+    const first = screen.getAllByTestId(/^coin-plan-/)[0]!;
+    expect(within(first).getByTestId("plan-absorbs").textContent).toBe("No change: +2,072 sats to miners");
+    expect(within(first).getByText("Recommended")).toBeTruthy();
+    expect(within(first).getByTestId("plan-reason").textContent).toContain("Pays 2,072 sats more fee so no change is left.");
+    // Turned off: no variant
+    fireEvent.change(screen.getByLabelText("Max extra fee to avoid change"), { target: { value: "0" } });
+    fireEvent.click(screen.getByRole("button", { name: "Suggest selection" }));
+    expect(screen.queryByTestId("plan-absorbs")).toBeNull();
+  });
 });
+

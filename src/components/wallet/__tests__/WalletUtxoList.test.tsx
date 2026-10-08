@@ -82,7 +82,7 @@ describe("WalletUtxoList", () => {
   it("exposes column labels to screen readers as a table", () => {
     render(<WalletUtxoList addressInfos={wallet} onScan={() => {}} />);
     const table = screen.getByRole("table", { name: "Coins (UTXOs)" });
-    expect(within(table).getAllByRole("columnheader").map(h => h.textContent)).toEqual(["#", "Coin", "Amount", "Path", "Address", "Age", "Origin"]);
+    expect(within(table).getAllByRole("columnheader").map(h => h.textContent)).toEqual(["#", "Coin", "Amount", "Path", "Address", "Age", "On-chain links"]);
     expect(within(within(table).getAllByRole("row")[1]!).getAllByRole("cell")).toHaveLength(7);
   });
 
@@ -145,4 +145,16 @@ describe("WalletUtxoList", () => {
     expect(screen.getAllByText("Group B")).toHaveLength(2);
     expect(screen.getAllByText("Group B")[0]!.className).not.toContain("border-dashed");
   });
+
+  it("explains the on-chain link chips in a legend, and keeps label tags out of that column", () => {
+    render(<WalletUtxoList addressInfos={wallet} onScan={() => {}} />);
+    const legend = screen.getByTestId("links-legend");
+    expect(within(legend).queryByText("Self-transfer")).toBeNull();
+    (legend as HTMLDetailsElement).open = true;
+    fireEvent(legend, new Event("toggle"));
+    expect(within(legend).getByText("Created in the same transaction as coin #3, so an observer can tie them together.")).toBeTruthy();
+    expect(within(legend).getByText("This coin came from a payment the wallet made to itself.")).toBeTruthy();
+    expect(within(legend).getByText(/^Dashed: probably linked/)).toBeTruthy();
+  });
 });
+

@@ -12,21 +12,30 @@ import { fmtN } from "@/lib/format";
 import { useChainTip } from "@/hooks/useChainTip";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { HintChip, REFERENCE_FEE_RATE, type Hint } from "./HintChip";
+import { CoinControlBar } from "./CoinControlBar";
+import { LabelsHint, NoPrefixHint } from "./LabelsHint";
+import type { CoinControl } from "./useCoinControl";
 
 /** Rows shown before "Show all". */
 const COLLAPSED_ROWS = 20;
 
 type SortKey = "amount" | "age";
 
-const COLS = "md:grid-cols-[2.25rem_minmax(0,1.1fr)_6.5rem_minmax(0,1fr)_8rem_minmax(0,1.4fr)_9.5rem]";
+const COLS = "md:grid-cols-[3.5rem_minmax(0,1.1fr)_6.5rem_minmax(0,1fr)_8rem_minmax(0,1.4fr)_9.5rem]";
 const MOBILE_FULL = "col-start-2 col-span-2 md:col-start-auto md:col-span-1";
 
 /** Every coin of the wallet: amount, outpoint, address, age and origin hints. */
-export function WalletUtxoList({ addressInfos, onScan, accountPath }: {
+export function WalletUtxoList({ addressInfos, onScan, accountPath, control, onCompare, onImportLabels }: {
   addressInfos: WalletAddressInfo[];
   onScan: (txid: string) => void;
   /** Account derivation path (e.g. m/84'/1'/0') when known */
   accountPath?: string;
+  /** Manual coin control: a checkbox per row and the selection summary */
+  control?: CoinControl;
+  /** "Compare with suggestions" was pressed */
+  onCompare?: () => void;
+  /** Open the labels import (from the no-labels hint) */
+  onImportLabels?: () => void;
 }) {
   const { t } = useTranslation();
   const tip = useChainTip();
@@ -62,6 +71,12 @@ export function WalletUtxoList({ addressInfos, onScan, accountPath }: {
   const labels = useWalletLabels();
   const [byLabel, setByLabel] = useState(false);
   const labelOf = (r: (typeof rows)[number]) => labels?.coins.get(`${r.utxo.txid}:${r.utxo.vout}`);
+  // Label checks by outpoint (labels that disagree with the chain), for the row marker
+  const checksOf = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const c of labels?.checks ?? []) for (const ref of c.refs) m.set(ref, [...(m.get(ref) ?? []), c.id]);
+    return m;
+  }, [labels]);
 
   const sorted = useMemo(() => {
     // Older coins have a lower block height; unconfirmed ones are the newest.
@@ -127,6 +142,7 @@ export function WalletUtxoList({ addressInfos, onScan, accountPath }: {
       const { txid, vout, value, status } = r.utxo;
     const label = labelOf(r);
       const outpoint = `${txid}:${vout}`;
+      const checked = control?.selected.has(outpoint) ?? false;
       const short = `${txid.slice(0, 8)}...${txid.slice(-4)}:${vout}`;
       const age = !status.confirmed || !status.block_height
         ? t("wallet.utxos.unconfirmed", { defaultValue: "Unconfirmed" })
@@ -138,9 +154,27 @@ export function WalletUtxoList({ addressInfos, onScan, accountPath }: {
           role="row"
           key={outpoint}
           data-testid="utxo-row"
-          className={`grid grid-cols-[2rem_minmax(0,1fr)_auto] ${COLS} gap-x-3 md:gap-x-4 gap-y-1.5 items-center px-3 py-2.5 border-t border-hairline first:border-t-0`}
+          aria-selected={control ? checked : undefined}
+          className={`grid ${control ? "grid-cols-[3.25rem_minmax(0,1fr)_auto]" : "grid-cols-[2rem_minmax(0,1fr)_auto]"} ${COLS} gap-x-3 md:gap-x-4 gap-y-1.5 items-center px-3 py-2.5 border-t border-hairline first:border-t-0 ${checked ? "bg-bitcoin/5" : ""}`}
         >
-          <span role="cell" className="num text-[13px] text-faint">#{r.n}</span>
+          {control ? (
+            <label role="cell" className="flex items-center gap-1.5 min-h-10 -my-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={checked}
+                onChange={e => {
+                  // Frozen by a label: selectable only after a confirmation.
+                  if (e.target.checked && label?.frozen && !window.confirm(t("wallet.coinControl.frozenConfirm", { defaultValue: "This coin is frozen by its label. Select it anyway?" }))) return;
+                  control.toggle(outpoint, e.target.checked);
+                }}
+                aria-label={t("wallet.coinControl.select", { n: r.n, amount: fmtN(value), defaultValue: "Select coin #{{n}} ({{amount}} sats)" })}
+                className="size-4 accent-bitcoin cursor-pointer"
+              />
+              <span className="num text-[13px] text-faint">#{r.n}</span>
+            </label>
+          ) : (
+            <span role="cell" className="num text-[13px] text-faint">#{r.n}</span>
+          )}
           <span role="cell" className="flex items-center min-w-0">
             {/* 40 px touch targets; negative margins keep the row compact. */}
             {TXID_RE.test(txid) ? (
@@ -183,14 +217,29 @@ export function WalletUtxoList({ addressInfos, onScan, accountPath }: {
           </span>
           <span role="cell" className={`text-[12px] md:text-[13px] ${status.confirmed ? "text-muted" : "text-severity-medium"} ${MOBILE_FULL}`}>{age}</span>
           <span role="cell" className={`flex flex-wrap gap-1.5 empty:hidden md:empty:block ${MOBILE_FULL}`}>
-            {label?.tags.map(tag => <LabelTagChip key={tag} tag={tag} inherited={label.inherited && !(label.text && parseLabel(label.text).tags.includes(tag))} />)}
-            {label?.frozen && <HintChip hint={{ kind: "frozen" }} />}
             {r.hints.map(h => <HintChip key={h.kind} hint={h} />)}
           </span>
-          {label?.text && (
-            <span role="cell" className="flex items-baseline gap-2 min-w-0 col-start-2 col-span-2 md:col-span-6 md:col-start-2 md:order-last">
-              <LabelText text={label.text} />
-              {label.source === "addr" && <span className="text-[11px] text-faint shrink-0">{t("wallet.labels.fromAddress", { defaultValue: "address label" })}</span>}
+          {(label || checksOf.has(outpoint)) && (
+            // The label area: origin tags from the labels, freeze, label check and text; on-chain chips stay in their column.
+            <span role="cell" data-testid="utxo-label" className="flex flex-wrap items-center gap-x-2 gap-y-1.5 min-w-0 col-start-2 col-span-2 md:col-span-6 md:col-start-2 md:order-last">
+              {label?.tags.map(tag => <LabelTagChip key={tag} tag={tag} inherited={label.inherited && !(label.text && parseLabel(label.text).tags.includes(tag))} />)}
+              {label?.frozen && <HintChip hint={{ kind: "frozen" }} />}
+              {checksOf.has(outpoint) && (
+                <span
+                  data-testid="label-check-marker"
+                  title={checksOf.get(outpoint)!.map(id => t(`wallet.labels.check.${id}`)).join(" ")}
+                  className="text-[11px] leading-none whitespace-nowrap border border-severity-medium/30 text-severity-medium rounded px-1.5 py-1"
+                >
+                  {t("wallet.labels.checkMarker", { defaultValue: "Check label" })}
+                </span>
+              )}
+              {label?.text && (
+                <span className="flex items-baseline gap-2 min-w-0 max-w-full">
+                  <LabelText text={label.text} />
+                  {label.source === "addr" && <span className="text-[11px] text-faint shrink-0">{t("wallet.labels.fromAddress", { defaultValue: "address label" })}</span>}
+                  {label.source === "tx" && <span className="text-[11px] text-faint shrink-0">{t("wallet.labels.fromTx", { defaultValue: "from transaction" })}</span>}
+                </span>
+              )}
             </span>
           )}
         </div>
@@ -199,6 +248,8 @@ export function WalletUtxoList({ addressInfos, onScan, accountPath }: {
 
   return (
     <div className="space-y-3" data-testid="utxo-list">
+      {labels === null && <LabelsHint onImport={onImportLabels} />}
+      {labels !== null && !labels.hasPrefixes && <NoPrefixHint />}
       {allLinked && (
         <p data-testid="utxo-all-linked" className="text-[13px] text-muted">
           {allLinked === "certain"
@@ -206,6 +257,7 @@ export function WalletUtxoList({ addressInfos, onScan, accountPath }: {
             : t("wallet.utxos.allProbablyLinked", { count: rows.length, defaultValue: "All {{count}} coins are probably linked by this wallet's history." })}
         </p>
       )}
+      <LinksLegend />
       <div className="flex items-center gap-1 flex-wrap">
         <span className="text-[13px] text-muted mr-1">{t("wallet.utxos.sortBy", { defaultValue: "Sort by" })}</span>
         {sortButton("amount", t("wallet.utxos.amount", { defaultValue: "Amount" }))}
@@ -234,7 +286,7 @@ export function WalletUtxoList({ addressInfos, onScan, accountPath }: {
           </span>
           <span role="columnheader">{t("wallet.utxos.address", { defaultValue: "Address" })}</span>
           <span role="columnheader">{t("wallet.utxos.age", { defaultValue: "Age" })}</span>
-          <span role="columnheader">{t("wallet.utxos.origin", { defaultValue: "Origin" })}</span>
+          <span role="columnheader">{t("wallet.utxos.links", { defaultValue: "On-chain links" })}</span>
         </div>
 
         <div role="rowgroup">
@@ -281,6 +333,43 @@ export function WalletUtxoList({ addressInfos, onScan, accountPath }: {
             : t("wallet.utxos.showAll", { n: fmtN(rows.length), defaultValue: "Show all {{n}}" })}
         </button>
       )}
+
+      {control && <CoinControlBar control={control} onCompare={onCompare ?? (() => {})} />}
     </div>
+  );
+}
+
+/** What each on-chain link chip says, in plain words (a native disclosure, so it works at any width). */
+function LinksLegend() {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  const items: { hint: Hint; key: string }[] = [
+    { hint: { kind: "class", origin: "received" }, key: "received" },
+    { hint: { kind: "class", origin: "change" }, key: "change" },
+    { hint: { kind: "class", origin: "self" }, key: "self" },
+    { hint: { kind: "coinjoin" }, key: "mixed" },
+    { hint: { kind: "coinjoin-change" }, key: "coinjoin-change" },
+    { hint: { kind: "same-tx", with: 3 }, key: "same-tx" },
+    { hint: { kind: "same-address", with: 3 }, key: "same-address" },
+    { hint: { kind: "group", letter: "A", inferred: false }, key: "group" },
+    { hint: { kind: "group", letter: "A", inferred: true }, key: "group-inferred" },
+    { hint: { kind: "reused-address" }, key: "reused-address" },
+    { hint: { kind: "dust" }, key: "dust" },
+  ];
+  return (
+    <details data-testid="links-legend" className="text-[13px]" onToggle={e => setOpen(e.currentTarget.open)}>
+      <summary className="inline-flex items-center min-h-10 text-muted hover:text-foreground cursor-pointer select-none">
+        {t("wallet.utxos.legendTitle", { defaultValue: "On-chain links: what the chips mean" })}
+      </summary>
+      {/* Rendered only while open, so the sample chips never mix with the list's own */}
+      {open && <dl className="mt-1 grid grid-cols-1 sm:grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-lg border border-hairline px-3 py-3">
+        {items.map(({ hint, key }) => (
+          <div key={key} className="contents">
+            <dt className="flex items-start"><HintChip hint={hint} /></dt>
+            <dd className="text-muted leading-relaxed -mt-0.5 sm:mt-0 mb-1 sm:mb-0">{t(`wallet.utxos.legend.${key}`)}</dd>
+          </div>
+        ))}
+      </dl>}
+    </details>
   );
 }

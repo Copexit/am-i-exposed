@@ -50,7 +50,7 @@ const LINES = [
 
 function Harness() {
   const [records, setRecords] = useState<Bip329Record[]>([]);
-  const labels = records.length ? matchLabels(records, infos) : null;
+  const labels = records.length ? matchLabels(records, infos, "xpubTEST") : null;
   return (
     <WalletLabelsContext.Provider value={labels}>
       <WalletLabelsPanel records={records} onChange={setRecords} addressInfos={infos} xpub="xpubTEST" />
@@ -66,7 +66,7 @@ describe("wallet labels UI", () => {
     fireEvent.click(screen.getByRole("button", { name: "Paste" }));
     fireEvent.change(screen.getByLabelText("BIP329 JSON Lines, one record per line"), { target: { value: LINES } });
     fireEvent.click(screen.getByRole("button", { name: "Apply labels" }));
-    expect(screen.getByTestId("labels-summary").textContent).toBe("4 labels applied, 1 not matching this wallet, 1 invalid");
+    expect(screen.getByTestId("labels-summary").textContent).toBe("5 labels read: 3 on current coins, 1 on past transactions and addresses, 1 for other wallets, 1 invalid");
 
     const rows = screen.getAllByTestId("utxo-row");
     const changeRow = rows.find(r => r.textContent!.includes("299,000"))!;
@@ -142,5 +142,120 @@ describe("wallet labels UI", () => {
     expect(plan.textContent).toContain("299,000");
     rerender(<CoinSelector utxos={withLabels(buildCoinInputs(infos), null)} />);
     expect(screen.queryAllByTestId(/^coin-plan-/)).toHaveLength(0);
+  });
+
+  it("tag chips explain themselves on focus, with a link to the guide; inherited ones say so", () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByRole("button", { name: "Paste" }));
+    fireEvent.change(screen.getByLabelText("BIP329 JSON Lines, one record per line"), { target: { value: LINES } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply labels" }));
+    const changeRow = screen.getAllByTestId("utxo-row").find(r => r.textContent!.includes("299,000"))!;
+    const chip = within(changeRow).getByTestId("label-tag-kyc");
+    expect(chip.tagName).toBe("BUTTON");
+    expect(screen.queryByTestId("label-tag-tip")).toBeNull();
+    fireEvent.focus(chip);
+    const tip = screen.getByTestId("label-tag-tip");
+    expect(chip.getAttribute("aria-describedby")).toBe(tip.id);
+    expect(tip.textContent).toContain("Bought or withdrawn with your identity");
+    expect(tip.textContent).toContain("Inherited from the coins it came from.");
+    expect(within(tip).getByRole("link", { name: "Labeling recommendations" }).getAttribute("href")).toBe("/guide/#labeling-coins");
+    fireEvent.keyDown(chip, { key: "Escape" });
+    expect(screen.queryByTestId("label-tag-tip")).toBeNull();
+  });
+
+  it("a label warning names and links its rule", () => {
+    const labels = matchLabels([
+      { type: "output", ref: `${change.txid}:1`, label: "[KYC] Bitstamp" },
+      { type: "output", ref: `${nokyc.txid}:0`, label: "[noKYC] Bisq" },
+    ], infos);
+    render(<CoinSelector utxos={withLabels(buildCoinInputs(infos), labels)} />);
+    fireEvent.change(screen.getByLabelText("Amount (sats)"), { target: { value: "500000" } });
+    fireEvent.change(screen.getByLabelText("Fee (sat/vB)"), { target: { value: "1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Suggest selection" }));
+    const link = screen.getByRole("link", { name: "Rule 1: never merge KYC with no-KYC" });
+    expect(link.getAttribute("href")).toBe("/guide/#labeling-rule-1");
+  });
+
+  it("lists label checks in the panel and marks the affected coins", () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByRole("button", { name: "Paste" }));
+    // The noKYC coin is a receipt: [change] on it is wrong, and Sparrow's "(change)" on a receive address too
+    fireEvent.change(screen.getByLabelText("BIP329 JSON Lines, one record per line"), {
+      target: { value: `{"type":"output","ref":"${nokyc.txid}:0","label":"[change] Bisq (change)"}` },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Apply labels" }));
+    const checks = screen.getByTestId("label-checks");
+    expect(within(checks).getByText(/Labeled \[change\], but the coin was received from someone else/)).toBeTruthy();
+    expect(within(checks).getByText(/does not match the address chain/)).toBeTruthy();
+    const marked = screen.getAllByTestId("label-check-marker");
+    expect(marked).toHaveLength(1);
+    expect(marked[0]!.closest("[data-testid='utxo-row']")!.textContent).toContain("300,000");
+  });
+});
+
+describe("labels panel: summary, wallet origin, grouping", () => {
+  it("says only the positive counts when nothing is for another wallet or invalid", () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByRole("button", { name: "Paste" }));
+    fireEvent.change(screen.getByLabelText("BIP329 JSON Lines, one record per line"), { target: { value: LINES.split("\n").slice(0, 4).join("\n") } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply labels" }));
+    expect(screen.getByTestId("labels-summary").textContent).toBe("4 labels read: 3 on current coins, 1 on past transactions and addresses");
+  });
+
+  it("sets the wallet-level origin on the xpub record: unlabeled coins take it", () => {
+    render(<Harness />);
+    expect(screen.queryAllByTestId("label-tag-nokyc")).toHaveLength(0);
+    fireEvent.change(screen.getByLabelText("This wallet holds"), { target: { value: "nokyc" } });
+    // Every unlabeled coin now counts as no-KYC, and the note says so
+    expect(screen.getAllByTestId("label-tag-nokyc").length).toBe(screen.getAllByTestId("utxo-row").length);
+    expect(screen.getByText(/Coins with no origin prefix of their own count as no-KYC/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("This wallet holds"), { target: { value: "" } });
+    expect(screen.queryAllByTestId("label-tag-nokyc")).toHaveLength(0);
+  });
+
+  it("groups by origin and observer, not by the whole label, and hints when no label has a prefix", () => {
+    const l = matchLabels([
+      { type: "output", ref: `${change.txid}:1`, label: "[noKYC] Juan · RoboSats compra · 250 EUR" },
+      { type: "output", ref: `${nokyc.txid}:0`, label: "[noKYC] Juan · Bisq venta" },
+    ], infos);
+    const { unmount } = render(<WalletLabelsContext.Provider value={l}><WalletUtxoList addressInfos={infos} onScan={() => {}} /></WalletLabelsContext.Provider>);
+    fireEvent.click(screen.getByRole("button", { name: "Group by label" }));
+    const groups = screen.getAllByTestId("utxo-label-group");
+    expect(within(groups[0]!).getAllByTestId("utxo-row")).toHaveLength(2);
+    expect(screen.queryByTestId("no-prefix-hint")).toBeNull();
+    unmount();
+    const plain = matchLabels([{ type: "output", ref: `${change.txid}:1`, label: "e (change)" }], infos);
+    render(<WalletLabelsContext.Provider value={plain}><WalletUtxoList addressInfos={infos} onScan={() => {}} /></WalletLabelsContext.Provider>);
+    expect(screen.getByTestId("no-prefix-hint").textContent).toMatch(/None of your labels use origin prefixes/);
+    // Shown without Sparrow's suffix
+    expect(screen.getByTestId("label-text").textContent).toBe("e");
+  });
+});
+
+describe("labels hint (no labels loaded)", () => {
+  it("shows a quiet hint with both links, and remembers its dismissal", () => {
+    localStorage.clear();
+    const onImport = vi.fn();
+    const { unmount } = render(<WalletUtxoList addressInfos={infos} onScan={() => {}} onImportLabels={onImport} />);
+    const hint = screen.getByTestId("labels-hint");
+    expect(within(hint).getByRole("link", { name: "Labeling recommendations" }).getAttribute("href")).toBe("/guide/#labeling-coins");
+    fireEvent.click(within(hint).getByRole("button", { name: "Import labels" }));
+    expect(onImport).toHaveBeenCalled();
+    fireEvent.click(within(hint).getByRole("button", { name: "Dismiss the labeling tip" }));
+    expect(screen.queryByTestId("labels-hint")).toBeNull();
+    unmount();
+    render(<WalletUtxoList addressInfos={infos} onScan={() => {}} />);
+    expect(screen.queryByTestId("labels-hint")).toBeNull();
+    localStorage.clear();
+  });
+
+  it("is not shown while labels are loaded", () => {
+    localStorage.clear();
+    render(
+      <WalletLabelsContext.Provider value={matchLabels([{ type: "tx", ref: change.txid, label: "rent" }], infos)}>
+        <WalletUtxoList addressInfos={infos} onScan={() => {}} />
+      </WalletLabelsContext.Provider>,
+    );
+    expect(screen.queryByTestId("labels-hint")).toBeNull();
   });
 });

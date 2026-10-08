@@ -4,11 +4,13 @@
  * 600,000 sats at 5 sat/vB used to pick the 15,240,920-sat CoinJoin coin (the
  * smallest coin that covers), leaving 14.64M of change tied to the payment.
  * The tester expected 591,429 + 134,361; both that pair and the best single
- * coin must be shown, each with its trade-off.
+ * coin must be shown, each with its trade-off. Later the tester asked to see
+ * the options instead of one verdict: the CoinJoin change coin is listed too,
+ * last under Privacy first, with its warning.
  */
 import { describe, it, expect } from "vitest";
 import { testerHistory, testerPeelHistory, TESTER_KEPT as KEPT, TESTER_CJ_CHANGE as CJ_CHANGE } from "./fixtures/wallet-history";
-import { adviseCoinSelection, buildCoinInputs, type CoinSelectionPlan } from "../coin-selection";
+import { adviseCoinSelection, buildCoinInputs, rankPlans, type CoinSelectionPlan } from "../coin-selection";
 import { auditWallet } from "../wallet-audit";
 
 const advise = (infos: Parameters<typeof buildCoinInputs>[0]) => {
@@ -35,15 +37,28 @@ describe("tester wallet replay: payments with two wallet outputs (kept coin + re
     expect([o["coinjoin-change"].count, o.change.count]).toEqual([1, 10]);
   });
 
-  it("600,000 sats at 5 sat/vB: the probably-linked pair first, the 164x single coin second, no CoinJoin coin", () => {
+  it("600,000 sats at 5 sat/vB: the probably-linked pair first, the 164x single coin second, the CoinJoin coin last", () => {
     const plans = advise(infos);
     // Pair: half a link (inferred) + change = 10. Single 99M: change + big change capped at 3x cost + half a link = 19.
-    // The CoinJoin coin alone costs 27.65 (bad change, 24x), behind the 99M coin, so it is not the single-coin plan.
+    // The CoinJoin coin alone costs 27.65 (bad change, 24x): less change than the 99M coin, so not pruned, but last.
     expect(plans.map(pin)).toEqual([
       ["probably-linked", "inferred-links", [591_429, 134_361], 1_040, 124_750, 2, 1, 10],
       ["single-coin", "big-change", [99_000_000], 700, 98_399_300, 1, 1, 19],
+      ["single-coin", "bad-change", [CJ_CHANGE], 700, 14_640_220, 1, 1, 27.65],
     ]);
-    expect(plans.flatMap((p) => p.selected).some((c) => c.utxo.value === CJ_CHANGE)).toBe(false);
+    expect(plans[2]!.warnings.map((w) => w.id)).toContain("coinjoin-change");
+  });
+
+  it("orders the same plans by each criterion, as the numbers say", () => {
+    const plans = advise(infos);
+    const order = (c: Parameters<typeof rankPlans>[1]) => rankPlans(plans, c).map((p) => values(p)[0]);
+    // Least change: the pair (124,750) before the CoinJoin coin (14.6M) before the 99M coin
+    expect(order("least-change")).toEqual([591_429, CJ_CHANGE, 99_000_000]);
+    // Nothing is changeless: same as Privacy first
+    expect(order("no-change")).toEqual([591_429, 99_000_000, CJ_CHANGE]);
+    // One coin beats two; among single coins, privacy cost decides
+    expect(order("fewest-coins")).toEqual([99_000_000, CJ_CHANGE, 591_429]);
+    expect(order("lowest-fee")).toEqual([99_000_000, CJ_CHANGE, 591_429]);
   });
 });
 
@@ -63,6 +78,7 @@ describe("tester wallet replay: peel shape, one wallet output per tx", () => {
     expect(plans.map(pin)).toEqual([
       ["multi-coin", "links", [591_429, 134_361], 1_040, 124_750, 2, 2, 16],
       ["single-coin", "big-change", [99_000_000], 700, 98_399_300, 1, 1, 19],
+      ["single-coin", "bad-change", [CJ_CHANGE], 700, 14_640_220, 1, 1, 27.65],
     ]);
   });
 });
