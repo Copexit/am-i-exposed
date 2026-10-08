@@ -10,6 +10,7 @@ import { WalletComparison } from "@/components/guide/WalletComparison";
 import { GuideMistakes } from "@/components/guide/GuideMistakes";
 import { RecoveryPlaybook } from "@/components/guide/RecoveryPlaybook";
 import { MaintenanceSection } from "@/components/guide/MaintenanceSection";
+import { LabelingSection } from "@/components/guide/LabelingSection";
 import { KnowledgeTabBar } from "@/components/KnowledgeTabBar";
 import { useLocationHash } from "@/components/chrome/useLocationHash";
 
@@ -72,6 +73,7 @@ export function GuidePage() {
             { id: "common-mistakes", label: t("guide.toc.mistakes", { defaultValue: "Common mistakes" }) },
             { id: "recovery-playbook", label: t("guide.toc.recovery", { defaultValue: "Recovery playbook" }) },
             { id: "maintaining-privacy", label: t("guide.toc.maintaining", { defaultValue: "Maintaining privacy" }) },
+            { id: "labeling-coins", label: t("guide.toc.labeling", { defaultValue: "How to label coins" }) },
           ].map((item) => (
             <a
               key={item.id}
@@ -100,6 +102,8 @@ export function GuidePage() {
         <RecoveryPlaybook />
 
         <MaintenanceSection />
+
+        <LabelingSection />
 
         {/* Back to top */}
         <div className="text-center pt-6 pb-4">
