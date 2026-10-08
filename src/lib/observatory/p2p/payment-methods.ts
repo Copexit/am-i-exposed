@@ -9,10 +9,17 @@ import { cleanLabel } from "./sanitize";
 
 export type PmCategory = "instant" | "bank" | "wallet" | "cash" | "gift" | "crypto" | "other";
 
-export interface PaymentMethod { id: string; name: string; category: PmCategory; re: RegExp }
+export interface PaymentMethod {
+  id: string;
+  name: string;
+  category: PmCategory;
+  re: RegExp;
+  /** For names that are also dictionary words: in a long label only this case-sensitive pattern counts. */
+  strict?: RegExp;
+}
 
 // Patterns run on lowercased, accent-free text.
-const C = (id: string, name: string, category: PmCategory, re: RegExp): PaymentMethod => ({ id, name, category, re });
+const C = (id: string, name: string, category: PmCategory, re: RegExp, strict?: RegExp): PaymentMethod => ({ id, name, category, re, ...(strict ? { strict } : {}) });
 
 export const PAYMENT_METHODS: readonly PaymentMethod[] = [
   // Instant bank rails
@@ -39,17 +46,17 @@ export const PAYMENT_METHODS: readonly PaymentMethod[] = [
   C("wero", "Wero", "instant", /\bwero\b/),
   C("promptpay", "PromptPay", "instant", /\bpromptpay\b/),
   C("mobilepay", "MobilePay", "instant", /\bmobilepay\b/),
-  C("ideal", "iDEAL", "instant", /\bideal\b/),
+  C("ideal", "iDEAL", "instant", /\bideal\b/, /\b(?:iDEAL|iDeal|IDEAL)\b/),
   // Bank transfers
   C("sepa", "SEPA", "bank", /(?<!instant\s*)\bsepa\b(?!\s*(?:\(eu\)\s*)?inst)/),
-  C("bank", "Bank transfer", "bank", /\b(?:bank\s*(?:transfer|wire)|any national bank|transferencia|transferencia bancaria|wire|swift|ted|banco)\b/),
+  C("bank", "Bank transfer", "bank", /\b(?:bank\s*(?:transfer|wire)|any national bank|transferencia|transferencia bancaria|wire|swift|ted|banco)\b|(?<!(?:sber|tinkoff)\s*)\bbank\b/),
   C("n26", "N26", "bank", /\bn26\b/),
   C("bancolombia", "Bancolombia", "bank", /\bbancolombia\b/),
   C("sber", "Sber Bank", "bank", /\bsber\b/),
   C("tinkoff", "Tinkoff", "bank", /\btinkoff\b/),
   // Online payment systems, e-wallets and remittance
   C("revolut", "Revolut", "wallet", /\brevolut\b/),
-  C("wise", "Wise", "wallet", /\bwise\b|\btransferwise\b/),
+  C("wise", "Wise", "wallet", /\bwise\b|\btransferwise\b/, /\b(?:Wise|WISE|TransferWise)\b/),
   C("paypal", "PayPal", "wallet", /\bpaypal\b/),
   C("venmo", "Venmo", "wallet", /\bvenmo\b/),
   C("cashapp", "Cash App", "wallet", /\bcash\s*app\b/),
@@ -84,16 +91,16 @@ export const PAYMENT_METHODS: readonly PaymentMethod[] = [
   C("moneygram", "MoneyGram", "wallet", /\bmoneygram\b/),
   C("remittance", "Remittance apps", "wallet", /\b(?:ria money|xoom|world\s*remit|remitly|sendwave|nala)\b/),
   // Cash
-  C("cash", "Cash in person", "cash", /\b(?:f2f|in person|en persona|cara a cara|contanti|cash by mail)\b/),
+  C("cash", "Cash in person", "cash", /\b(?:f2f|in person|in persona|en persona|in hand|cara a cara|contanti|cash by mail)\b|(?<!(?:bbva|retiro de|sacar)\s*)\befectivo\b(?!\s+(?:movil|bbva))/),
   C("cardless", "Cardless ATM cash", "cash", /\b(?:sin tarjeta|cardless|hal\s*cash|retiro (?:de efectivo )?(?:en |por )?cajero|retiro cajero|efectivo (?:movil|bbva)|bbva efectivo|sacar (?:con codigo|sin tarjeta|dinero)|instant money|dimo)\b/),
-  C("cash-deposit", "Cash deposit", "cash", /\b(?:deposito|cash deposit|cash in|oxxo)\b/),
+  C("cash-deposit", "Cash deposit", "cash", /\b(?:deposito|cash deposit|oxxo)\b|\bcash[\s-]in\b(?!\s+(?:person|hand))/),
   // Gift cards
   C("amazon", "Amazon gift card", "gift", /\bamazon\b/),
   C("gift-card", "Other gift cards", "gift", /\b(?:steam|google play|ozon|ebay|doordash|apple gift)\b/),
   // Crypto
   C("usdt", "USDT", "crypto", /\busdt\b|\btether\b/),
   C("usdc", "USDC", "crypto", /\busdc\b|\busd coin\b/),
-  C("stablecoin", "Other stablecoins", "crypto", /\b(?:dai|busd|tusd|pyusd|dollar on chain)\b/),
+  C("stablecoin", "Other stablecoins", "crypto", /\b(?:dai|busd|tusd|pyusd|dollar on chain)\b/, /\bDAI\b|\b(?:BUSD|TUSD|PYUSD|busd|tusd|pyusd|[Dd]ollar on [Cc]hain)\b/),
   C("monero", "Monero", "crypto", /\bmonero\b|\bxmr\b/),
   C("btc", "Bitcoin (on-chain, L2, wrapped)", "crypto", /\bon-?\s?chain\b|\bl-?btc\b|\bwbtc\b|\brbtc\b|\blightning\b/),
 ];
@@ -113,7 +120,10 @@ const HODL_TYPE: Record<string, string> = {
   "bitcoin l2": "btc",
 };
 
-const fold = (s: string) => cleanLabel(s).normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+/** Labels longer than this must match a dictionary-word method with its own capitalisation. */
+const SHORT_LABEL = 24;
+// Capped: a free-text label longer than this carries no extra method worth the regex time.
+const unaccent = (s: string) => cleanLabel(s.slice(0, 512)).normalize("NFD").replace(/\p{M}/gu, "");
 
 /**
  * Canonical ids for an offer's raw labels (deduped, catalog order). A label that
@@ -123,10 +133,13 @@ export function paymentMethodIds(labels: readonly string[], types: readonly (str
   const ids = new Set<string>();
   labels.forEach((raw, i) => {
     if (typeof raw !== "string") return;
-    const text = fold(raw);
+    const orig = unaccent(raw);
+    const text = orig.toLowerCase();
     if (!text) return;
     let hit = false;
-    for (const m of PAYMENT_METHODS) if (m.re.test(text)) { ids.add(m.id); hit = true; }
+    for (const m of PAYMENT_METHODS) {
+      if (m.strict && orig.length > SHORT_LABEL ? m.strict.test(orig) : m.re.test(text)) { ids.add(m.id); hit = true; }
+    }
     if (hit) return;
     const t = HODL_TYPE[(types[i] ?? "").trim().toLowerCase()];
     ids.add(t ?? OTHER_PM);

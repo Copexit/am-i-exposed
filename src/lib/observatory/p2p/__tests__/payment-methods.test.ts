@@ -80,3 +80,37 @@ describe("normalized offers carry canonical methods", () => {
     expect(counts.find((c) => c.id === "pix")?.count).toBe(pix.length);
   });
 });
+
+describe("review fixes", () => {
+  it("cash in person / in hand are cash, not cash deposit; cash-in still is", () => {
+    expect(paymentMethodIds(["Cash in person"])).toEqual(["cash"]);
+    expect(paymentMethodIds(["Cash in hand"])).toEqual(["cash"]);
+    expect(paymentMethodIds(["Any national bank (Cash in)"], ["Cash"])).toEqual(["bank", "cash-deposit"]);
+    expect(paymentMethodIds(["Cash-in at the counter"])).toEqual(["cash-deposit"]);
+  });
+
+  it("efectivo, in persona and a bare bank", () => {
+    expect(paymentMethodIds(["Efectivo"])).toEqual(["cash"]);
+    expect(paymentMethodIds(["Contanti in persona"])).toEqual(["cash"]);
+    expect(paymentMethodIds(["BBVA Efectivo Móvil"])).toEqual(["cardless"]);
+    expect(paymentMethodIds(["Retiro de efectivo en cajero BBVA"])).toEqual(["cardless"]);
+    expect(paymentMethodIds(["Monzo Bank"])).toEqual(["bank"]);
+    expect(paymentMethodIds(["Sber Bank SBP"])).toEqual(["sbp", "sber"]);
+  });
+
+  it("dictionary words count only in short labels or with the method's capitalisation", () => {
+    expect(paymentMethodIds(["wise"])).toEqual(["wise"]);
+    expect(paymentMethodIds(["ideal"])).toEqual(["ideal"]);
+    expect(paymentMethodIds(["dai"])).toEqual(["stablecoin"]);
+    expect(paymentMethodIds(["be wise and release quickly please"])).toEqual(["other"]);
+    expect(paymentMethodIds(["PIX, ideal para quem está começando"])).toEqual(["pix"]);
+    expect(paymentMethodIds(["Dai, pago veloce con Satispay"])).toEqual(["satispay"]);
+    expect(paymentMethodIds(["Revolut Wise Instant SEPA Bizum Paysera"])).toEqual(["sepa-instant", "bizum", "revolut", "wise", "paysera"]);
+    expect(paymentMethodIds(["USDT DAI on any network you like"])).toEqual(["usdt", "stablecoin"]);
+  });
+
+  it("caps very long labels before matching", () => {
+    expect(paymentMethodIds([`${"x ".repeat(400)}Revolut`])).toEqual(["other"]);
+    expect(paymentMethodIds([`Revolut ${"x ".repeat(10_000)}`])).toEqual(["revolut"]);
+  });
+});
