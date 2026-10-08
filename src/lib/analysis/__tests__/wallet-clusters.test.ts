@@ -28,14 +28,15 @@ describe("buildClusters", () => {
     expect(c.linking.size).toBe(0);
   });
 
-  it("never links CoinJoin outputs to the wallet's inputs or to each other, nor a received batch", () => {
+  it("links a CoinJoin's change to the wallet's inputs, never its mixed output, nor a received batch", () => {
     const h = new History();
     const r = h.receive(recv(0), 2_000_000, 100);
     const cj = coinJoin(h, r, 1_000_000, recv(1), chg(0), 101);
     const batch = h.tx([{ address: ext(50), value: 900_000 }], [{ address: recv(2), value: 300_000 }, { address: recv(3), value: 300_000 }], 102);
     const { c } = clusters(h);
-    const ids = [c.of(r.txid, r.vout), c.of(cj[0]!.txid, 0), c.of(cj[5]!.txid, 5), c.of(batch[0]!.txid, 0), c.of(batch[1]!.txid, 1)];
-    expect(new Set(ids).size).toBe(5);
+    expect(c.of(cj[5]!.txid, 5)).toBe(c.of(r.txid, r.vout));
+    const ids = [c.of(r.txid, r.vout), c.of(cj[0]!.txid, 0), c.of(batch[0]!.txid, 0), c.of(batch[1]!.txid, 1)];
+    expect(new Set(ids).size).toBe(4);
   });
 
   it("records the clusters a spend linked, as they were before it", () => {
