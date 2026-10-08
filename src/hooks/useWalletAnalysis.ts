@@ -168,16 +168,42 @@ export function useWalletAnalysis() {
         // Step 1: Parse xpub/descriptor (no address derivation yet)
         let parsed = parseXpub(input, scriptTypeOverride);
 
+        const engine = await loadEngine();
+        if (controller.signal.aborted) return;
+
+        // A bare xpub/tpub (the "legacy" prefix) can be any address type
+        const bareKey = !scriptTypeOverride && !isDescriptor(input) && parsed.scriptType === "p2pkh";
+
+        /** A saved scan of this wallet on a backend (a bare key: under the type it was saved as). */
+        const findSaved = async (base: string) => {
+          for (const scriptType of bareKey ? engine.BARE_KEY_TYPES : [parsed.scriptType]) {
+            const k = walletKey({ ...parsed, scriptType }, base);
+            const found = await loadSnapshot(k, parsed.xpub);
+            if (found) return { snap: found, key: k, scriptType };
+          }
+          return null;
+        };
+
         // A key for another network (tpub on mainnet, xpub on signet): on public
         // mempool.space scan where its addresses live, like a single address does.
         // A self-hosted or custom backend cannot answer for another network.
         let cfg = config;
         let switchedTo: BitcoinNetwork | null = null;
+        let found: Awaited<ReturnType<typeof findSaved>> = null;
         if ((parsed.network === "mainnet") !== (network === "mainnet")) {
-          const first = deriveOneAddress(parsed, parsed.singleChain === 1 ? 1 : 0, 0).address;
-          const detected = isUmbrel || customApiUrl
-            ? null
-            : await detectAddressNetwork(first, network, controller.signal, (n) => configFor(n).mempoolBaseUrl);
+          let detected: BitcoinNetwork | null = null;
+          if (!isUmbrel && !customApiUrl) {
+            // A saved scan already says where it lives: no detection requests
+            for (const n of Object.keys(NETWORK_CONFIG) as BitcoinNetwork[]) {
+              if ((n === "mainnet") !== (parsed.network === "mainnet")) continue;
+              found = await findSaved(configFor(n).mempoolBaseUrl);
+              if (found) { detected = n; break; }
+            }
+            if (!detected) {
+              const first = deriveOneAddress(parsed, parsed.singleChain === 1 ? 1 : 0, 0).address;
+              detected = await detectAddressNetwork(first, network, controller.signal, (n) => configFor(n).mempoolBaseUrl);
+            }
+          }
           if (controller.signal.aborted) return;
           if (!detected) {
             throw new Error(t("errors.walletWrongNetwork", {
@@ -191,23 +217,13 @@ export function useWalletAnalysis() {
           setNetwork(detected);
         }
 
-        const engine = await loadEngine();
-        if (controller.signal.aborted) return;
         const api = createApiClient(cfg, controller.signal);
-
-        // A bare xpub/tpub (the "legacy" prefix) can be any address type
-        const bareKey = !scriptTypeOverride && !isDescriptor(input) && parsed.scriptType === "p2pkh";
-
-        // A saved scan of this wallet on this backend (a bare key: under the type it was saved as)
         const backend = cfg.mempoolBaseUrl;
-        let snap: WalletSnapshot | null = null;
-        let key = "";
-        for (const scriptType of bareKey ? engine.BARE_KEY_TYPES : [parsed.scriptType]) {
-          const k = walletKey({ ...parsed, scriptType }, backend);
-          const found = await loadSnapshot(k, parsed.xpub);
-          if (found) { snap = found; key = k; parsed = { ...parsed, scriptType }; break; }
-        }
+        found ??= await findSaved(backend);
         if (controller.signal.aborted) return;
+        const snap: WalletSnapshot | null = found?.snap ?? null;
+        let key = found?.key ?? "";
+        if (found) parsed = { ...parsed, scriptType: found.scriptType };
 
         if (bareKey && !snap) {
           parsed = { ...parsed, scriptType: await engine.detectScriptType(parsed, api) };

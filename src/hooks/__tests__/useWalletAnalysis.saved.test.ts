@@ -11,11 +11,13 @@ const chain = vi.hoisted(() => ({ current: null as unknown as import("@/lib/wall
 vi.mock("@/context/NetworkContext", () => ({
   useNetwork: () => ({
     network: "mainnet", setNetwork: vi.fn(), config: NETWORK_CONFIG.mainnet,
-    configFor: () => NETWORK_CONFIG.mainnet, customApiUrl: null, isUmbrel: false, isCustomApi: false,
+    configFor: (n: keyof typeof NETWORK_CONFIG) => NETWORK_CONFIG[n], customApiUrl: null, isUmbrel: false, isCustomApi: false,
   }),
 }));
 // Self-hosted: no throttle delays, gap limit 20
 vi.mock("@/lib/api/client", () => ({ createApiClient: () => chain.current.client(), isLocalApi: () => true }));
+const detect = vi.hoisted(() => vi.fn(async () => "signet"));
+vi.mock("@/lib/api/detect-network", () => ({ detectAddressNetwork: detect }));
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 
 import { useWalletAnalysis } from "../useWalletAnalysis";
@@ -113,5 +115,23 @@ describe("useWalletAnalysis saved wallets", () => {
     expect(r.current.saved).toBeNull();
     saveAnalysisSettings(DEFAULT_ANALYSIS_SETTINGS);
     expect(await listSavedWallets()).toEqual([]);
+  });
+
+  it("a saved key from another network reopens without network detection requests", async () => {
+    // Testnet key, empty history, on the mainnet backend: detected as signet once
+    const { HDKey } = await import("@scure/bip32");
+    const tpub = HDKey.fromMasterSeed(new Uint8Array(32).fill(7), { private: 0x04358394, public: 0x043587cf }).publicExtendedKey;
+    detect.mockClear();
+    const run = async () => {
+      const hook = renderHook(() => useWalletAnalysis());
+      await act(async () => { await hook.result.current.analyze(`wpkh(${tpub})`); });
+      return hook.result;
+    };
+    expect((await run()).current.saved).toMatchObject({ status: "saved" });
+    expect(detect).toHaveBeenCalledTimes(1);
+    const second = await run();
+    expect(second.current.autoSwitchedNetwork).toBe("signet");
+    expect(second.current.saved?.status).toBe("upToDate");
+    expect(detect).toHaveBeenCalledTimes(1);
   });
 });
