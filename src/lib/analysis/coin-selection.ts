@@ -20,8 +20,9 @@
  * least the payment) is shown only when no other set pays.
  *
  * Linkage clusters (wallet-clusters.ts) carry what the wallet's history
- * already links on-chain: merging within one cluster is free and counts as
- * one origin. Mixed CoinJoin outputs are spent whole, ideally with no
+ * already links on-chain: merging within one certain cluster is free and
+ * counts as one origin; merging within one inferred cluster (sibling outputs
+ * of one payment and their descendants) costs half a link. Mixed CoinJoin outputs are spent whole, ideally with no
  * change. CoinJoin change is not mixed: it stays linked to the coins that
  * entered the CoinJoin.
  *
@@ -46,8 +47,10 @@ export interface CoinSelectionInput {
   address: string;
   /** Origin class from the wallet's history (wallet-behavior coinClass) */
   origin?: CoinClass;
-  /** Linkage cluster (wallet-clusters): coins of one cluster are already linked on-chain */
+  /** Certain linkage cluster (wallet-clusters): coins of one cluster are already linked on-chain */
   cluster?: string;
+  /** Inferred linkage cluster: probably linked (sibling outputs of one payment and their descendants) */
+  group?: string;
   /** The address has been funded more than once */
   reusedAddress?: boolean;
 }
@@ -59,6 +62,7 @@ export type OriginHint =
   | { kind: "same-tx"; with: number }
   | { kind: "same-address"; with: number }
   | { kind: "linked"; with: number }
+  | { kind: "probably-linked"; with: number }
   | { kind: "reused-address" };
 
 export interface SelectedCoin extends CoinSelectionInput {
@@ -75,10 +79,10 @@ export interface PlanWarning {
   count: number;
 }
 
-export type PlanStrategy = "single-coin" | "no-change" | "same-origin" | "multi-coin";
+export type PlanStrategy = "single-coin" | "no-change" | "same-origin" | "probably-linked" | "multi-coin";
 
 /** Why a plan ranks where it does, in one line. */
-export type PlanReason = "fallback" | "links" | "bad-change" | "big-change" | "clean" | "small-change";
+export type PlanReason = "fallback" | "links" | "inferred-links" | "bad-change" | "big-change" | "clean" | "small-change";
 
 export interface CoinSelectionPlan {
   strategy: PlanStrategy;
@@ -94,8 +98,10 @@ export interface CoinSelectionPlan {
   change: number;
   /** Changeless only: leftover sats added to the fee instead of a dust-sized change output */
   absorbed: number;
-  /** Distinct linkage clusters among the selected coins */
+  /** Distinct certain linkage clusters among the selected coins */
   origins: number;
+  /** Distinct inferred linkage clusters (at most `origins`) */
+  groups: number;
   warnings: PlanWarning[];
 }
 
@@ -151,15 +157,19 @@ const changeClass = (change: number) => (change === 0 ? 0 : change >= TOXIC_CHAN
 // ---------- Origins ----------
 
 /**
- * Origin per coin: union-find over its linkage cluster and its address (the
- * address also covers coins that carry no cluster).
+ * Origin per coin: union-find over its address and linkage cluster (the
+ * address also covers coins that carry no cluster). `inferred` adds the
+ * inferred cluster.
  */
-function originIds(coins: CoinSelectionInput[]): number[] {
+function originIds(coins: CoinSelectionInput[], inferred: boolean): number[] {
   const parent = coins.map((_, i) => i);
   const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i]!)));
   const firstBy = new Map<string, number>();
   coins.forEach((c, i) => {
-    for (const k of [`a:${c.address}`, ...(c.cluster !== undefined ? [`c:${c.cluster}`] : [])]) {
+    const keys = [`a:${c.address}`];
+    if (c.cluster !== undefined) keys.push(`c:${c.cluster}`);
+    if (inferred && c.group !== undefined) keys.push(`g:${c.group}`);
+    for (const k of keys) {
       const j = firstBy.get(k);
       if (j === undefined) firstBy.set(k, i);
       else parent[find(i)] = find(j);
@@ -179,7 +189,9 @@ export function withHints(coins: CoinSelectionInput[]): SelectedCoin[] {
     if (sameAddr >= 0) hints.push({ kind: "same-address", with: sameAddr + 1 });
     if (sameTx < 0 && sameAddr < 0 && c.cluster !== undefined) {
       const linked = coins.findIndex((o, j) => j !== i && o.cluster === c.cluster);
+      const probably = coins.findIndex((o, j) => j !== i && c.group !== undefined && o.group === c.group);
       if (linked >= 0) hints.push({ kind: "linked", with: linked + 1 });
+      else if (probably >= 0) hints.push({ kind: "probably-linked", with: probably + 1 });
     }
     if (c.reusedAddress) hints.push({ kind: "reused-address" });
     return { ...c, hints };
@@ -190,7 +202,10 @@ export function withHints(coins: CoinSelectionInput[]): SelectedCoin[] {
 
 interface Candidate {
   coin: CoinSelectionInput;
+  /** Certain origin (originIds) */
   group: number;
+  /** Inferred origin */
+  loose: number;
   value: number;
   vb: number;
 }
@@ -304,12 +319,13 @@ function changelessSet(cands: Candidate[], amount: number, feeRate: number, budg
   return best;
 }
 
+/** Coins by inferred origin (each holds whole certain origins). */
 function groupBy(cands: Candidate[]): Candidate[][] {
   const groups = new Map<number, Candidate[]>();
   for (const c of cands) {
-    const g = groups.get(c.group);
+    const g = groups.get(c.loose);
     if (g) g.push(c);
-    else groups.set(c.group, [c]);
+    else groups.set(c.loose, [c]);
   }
   return [...groups.values()];
 }
@@ -324,22 +340,37 @@ export const MAX_PLANS = 3;
  */
 const MAX_SMALL_SET = 6;
 
+/** From this change-to-payment ratio the big-change cost grows with the ratio. */
+const HUGE_CHANGE_RATIO = 10;
+
 /**
- * Privacy cost weights. A new link is the main cost. Change badness (toxic
- * size, or change from a CoinJoin coin) costs a little less than a link, and
- * change much larger than the payment (it shows the recipient what the coins
- * held and becomes the wallet's next, easy to follow coin) a little less
- * again. The ratios keep the earlier rulings: a changeless merge of 2 origins
- * beats a single coin whose change is toxic or 3x the payment, never one
- * with ordinary change, and never a merge of 3 origins.
+ * Privacy cost weights. A new link is the main cost; a link the history
+ * already makes probable (inferred) costs half. Change badness (toxic size,
+ * or change from a CoinJoin coin) costs a little less than a link. Change
+ * much larger than the payment shows the recipient how much the coin held:
+ * from 3x it costs bigChange, and from 10x one more link per tenfold
+ * (a 164x change tells the recipient the coin held 164 payments). The ratios
+ * keep the earlier rulings: a changeless merge of 2 origins beats a single
+ * coin whose change is toxic or 3x the payment, never one with ordinary
+ * change, and never a merge of 3 origins.
  */
 const COST = { link: 12, change: 4, badChange: 10, bigChange: 9, coinjoinMerge: 40 } as const;
+
+/** Big-change cost for a change-to-payment ratio. */
+function bigChangeCost(ratio: number): number {
+  if (ratio < BIG_CHANGE_RATIO) return 0;
+  if (ratio < HUGE_CHANGE_RATIO) return COST.bigChange;
+  return COST.bigChange + COST.link * Math.log10(ratio / HUGE_CHANGE_RATIO);
+}
 
 interface Scored {
   picked: Candidate[];
   fee: number;
   change: number;
   origins: number;
+  groups: number;
+  /** Mixed outputs spent: on equal cost, CoinJoin change (toxic anyway) goes before a mixed output */
+  mixed: number;
   cost: number;
   /** Merges a mixed output, or a mixed output leaves change at least the payment */
   severe: boolean;
@@ -350,16 +381,18 @@ function score(picked: Candidate[], amount: number, feeRate: number): Scored | n
   const s = settle(picked.reduce((t, c) => t + c.value, 0), picked.reduce((t, c) => t + c.vb, 0), amount, feeRate);
   if (!s) return null;
   const origins = new Set(picked.map(c => c.group)).size;
-  const mixed = picked.some(c => c.coin.origin === "mixed");
+  const groups = new Set(picked.map(c => c.loose)).size;
+  const mixedCount = picked.filter(c => c.coin.origin === "mixed").length;
+  const mixed = mixedCount > 0;
   const fromCoinJoin = mixed || picked.some(c => c.coin.origin === "coinjoin-change");
   const badChange = s.change > 0 && (s.change < TOXIC_CHANGE_THRESHOLD || fromCoinJoin);
-  let cost = (origins - 1) * COST.link;
+  let cost = (groups - 1) * COST.link + (origins - groups) * (COST.link / 2);
   if (mixed && picked.length > 1) cost += COST.coinjoinMerge;
   if (s.change > 0) cost += COST.change;
   if (badChange) cost += COST.badChange;
-  if (s.change >= BIG_CHANGE_RATIO * amount) cost += COST.bigChange;
+  cost += bigChangeCost(s.change / amount);
   const severe = mixed && (picked.length > 1 || s.change >= amount);
-  return { picked, ...s, origins, cost, severe, badChange };
+  return { picked, ...s, origins, groups, mixed: mixedCount, cost, severe, badChange };
 }
 
 /** Smallest coins first until they pay, or null past MAX_SMALL_SET coins. */
@@ -393,7 +426,8 @@ function smallestPartners(small: Candidate[], amount: number, feeRate: number, b
 
 function reasonOf(x: Scored, amount: number, fallback: boolean): PlanReason {
   if (fallback) return "fallback";
-  if (x.origins > 1) return "links";
+  if (x.groups > 1) return "links";
+  if (x.origins > 1) return "inferred-links";
   if (x.badChange) return "bad-change";
   if (x.change >= BIG_CHANGE_RATIO * amount) return "big-change";
   return x.change === 0 ? "clean" : "small-change";
@@ -402,13 +436,17 @@ function reasonOf(x: Scored, amount: number, fallback: boolean): PlanReason {
 // ---------- Plans ----------
 
 const strategyOf = (x: Scored): PlanStrategy =>
-  x.picked.length === 1 ? "single-coin" : x.change === 0 ? "no-change" : x.origins === 1 ? "same-origin" : "multi-coin";
+  x.picked.length === 1 ? "single-coin"
+  : x.change === 0 ? "no-change"
+  : x.origins === 1 ? "same-origin"
+  : x.groups === 1 ? "probably-linked"
+  : "multi-coin";
 
 function buildPlan(x: Scored, amount: number, feeRate: number, fallback: boolean): CoinSelectionPlan {
   const coins = x.picked.map(c => c.coin);
   const inputTotal = x.picked.reduce((s, c) => s + c.value, 0);
   const inVb = x.picked.reduce((s, c) => s + c.vb, 0);
-  const { fee, change, origins } = x;
+  const { fee, change, origins, groups } = x;
   const absorbed = change === 0 ? fee - Math.ceil((inVb + BASE_VB + OUTPUT_VB) * feeRate) : 0;
   const warnings: PlanWarning[] = [];
 
@@ -423,14 +461,14 @@ function buildPlan(x: Scored, amount: number, feeRate: number, fallback: boolean
   }
   const cjChange = coins.filter(c => c.origin === "coinjoin-change").length;
   if (cjChange > 0) warnings.push({ id: "coinjoin-change", severity: "medium", count: cjChange });
-  if (origins > 1) warnings.push({ id: "merges-origins", severity: "medium", count: origins });
+  if (groups > 1) warnings.push({ id: "merges-origins", severity: "medium", count: groups });
   if (change > 0 && change < TOXIC_CHANGE_THRESHOLD) warnings.push({ id: "toxic-change", severity: "medium", count: change });
   const scripts = new Set(coins.map(c => scriptType(c.address))).size;
   if (scripts > 1) warnings.push({ id: "mixed-scripts", severity: "low", count: scripts });
 
   return {
     strategy: strategyOf(x), reason: reasonOf(x, amount, fallback), cost: x.cost,
-    selected: withHints(coins), inputTotal, paymentAmount: amount, fee, change, absorbed, origins, warnings,
+    selected: withHints(coins), inputTotal, paymentAmount: amount, fee, change, absorbed, origins, groups, warnings,
   };
 }
 
@@ -455,9 +493,10 @@ export function adviseCoinSelection(
   const usable = notDust.filter(c => c.utxo.value > vbOf(c) * feeRate);
   const excluded: Excluded = { dustExcluded: utxos.length - notDust.length, uneconomical: notDust.length - usable.length };
 
-  const group = originIds(usable);
+  const group = originIds(usable, false);
+  const loose = originIds(usable, true);
   const cands: Candidate[] = usable
-    .map((coin, i) => ({ coin, group: group[i]!, value: coin.utxo.value, vb: vbOf(coin) }))
+    .map((coin, i) => ({ coin, group: group[i]!, loose: loose[i]!, value: coin.utxo.value, vb: vbOf(coin) }))
     .sort((a, b) => b.value - a.value);
 
   const spendable = cands.reduce((s, c) => s + c.value, 0);
@@ -499,7 +538,7 @@ export function adviseCoinSelection(
     const x = score(set, paymentAmount, feeRate);
     if (x) scored.push(x);
   }
-  scored.sort((a, b) => a.cost - b.cost || a.picked.length - b.picked.length || a.fee - b.fee || a.change - b.change);
+  scored.sort((a, b) => a.cost - b.cost || a.mixed - b.mixed || a.picked.length - b.picked.length || a.fee - b.fee || a.change - b.change);
 
   // High-severity plans only when nothing else pays.
   const safe = scored.filter(x => !x.severe);
@@ -530,6 +569,7 @@ export function buildCoinInputs(infos: WalletAddressInfo[]): CoinSelectionInput[
       address: info.derived.address,
       origin: coinClass(g, utxo.txid, utxo.vout),
       cluster: clusters.of(utxo.txid, utxo.vout),
+      group: clusters.inferredOf(utxo.txid, utxo.vout),
       reusedAddress: funded > 1,
     }));
   });

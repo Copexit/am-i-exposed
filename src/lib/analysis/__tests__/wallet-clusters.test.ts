@@ -10,7 +10,7 @@ const clusters = (h: History, n = 8) => {
 };
 
 describe("buildClusters", () => {
-  it("links coins by address, by solo-spend co-spending and by wallet-owned ancestry", () => {
+  it("certain: address and single-output descent; inferred: sibling wallet outputs and their descendants", () => {
     const h = new History();
     const r0 = h.receive(recv(0), 1_000_000, 100);
     const r0b = h.receive(recv(0), 50_000, 101); // same address as r0
@@ -21,10 +21,16 @@ describe("buildClusters", () => {
     const [, c1] = h.tx([s0!], [{ address: ext(2), value: 100_009 }, { address: chg(1), value: 297_000 }], 104);
     const { c } = clusters(h);
     const id = (x: { txid: string; vout: number }) => c.of(x.txid, x.vout);
+    const inf = (x: { txid: string; vout: number }) => c.inferredOf(x.txid, x.vout);
     expect(id(r0b)).toBe(id(r0));
-    expect(id(c0!)).toBe(id(r0));
-    expect(id(c1!)).toBe(id(c0!));
-    expect(id(r1)).not.toBe(id(r0));
+    // 2 wallet outputs: c0 and s0 are only inferred to be linked, to each other and to r0
+    expect(id(c0!)).not.toBe(id(r0));
+    expect(id(s0!)).not.toBe(id(c0!));
+    expect([inf(c0!), inf(s0!)]).toEqual([inf(r0), inf(r0)]);
+    // 1 wallet output: c1 is certainly s0's
+    expect(id(c1!)).toBe(id(s0!));
+    expect(inf(c1!)).toBe(inf(c0!));
+    expect(inf(r1)).not.toBe(inf(r0));
     expect(c.linking.size).toBe(0);
   });
 
@@ -39,13 +45,25 @@ describe("buildClusters", () => {
     expect(new Set(ids).size).toBe(4);
   });
 
+  it("does not link CoinJoin change to wallet inputs that span more than one cluster", () => {
+    const h = new History();
+    const a = h.receive(recv(0), 1_000_000, 100);
+    const b = h.receive(recv(1), 1_000_000, 101);
+    const others = [1, 2, 3, 4].map((i) => ({ address: ext(500 + i), value: 1_050_000 }));
+    const out = h.tx([a, b, ...others], [...[0, 1, 2, 3, 4].map((i) => ({ address: ext(600 + i), value: 1_000_000 })), { address: chg(0), value: 990_000 }], 102);
+    const { c } = clusters(h);
+    const change = c.of(out[5]!.txid, 5);
+    expect([c.of(a.txid, a.vout), c.of(b.txid, b.vout)]).not.toContain(change);
+    expect([c.inferredOf(a.txid, a.vout), c.inferredOf(b.txid, b.vout)]).not.toContain(c.inferredOf(out[5]!.txid, 5));
+  });
+
   it("records the clusters a spend linked, as they were before it", () => {
     const h = new History();
     const a = h.receive(recv(0), 100_000, 100);
     const b = h.receive(recv(1), 100_000, 101);
     const m = h.tx([a, b], [{ address: ext(1), value: 150_000 }, { address: chg(0), value: 49_000 }], 102);
     const { c } = clusters(h);
-    const before = c.linking.get(m[0]!.txid)!;
+    const before = c.linking.get(m[0]!.txid)!.certain;
     expect(before).toHaveLength(2);
     expect(before[0]).not.toBe(before[1]);
     expect(c.of(a.txid, a.vout)).toBe(c.of(b.txid, b.vout));
@@ -61,14 +79,26 @@ describe("buildClusters", () => {
 });
 
 describe("W2 with linkage clusters", () => {
-  it("does not count change merged with a coin that descends from the same wallet coins", () => {
+  it("counts change merged with a coin from a sibling output's line, a notch lower (inferred link)", () => {
     const h = new History();
     const r = h.receive(recv(0), 1_000_000, 100);
     const [, c0, s0] = h.tx([r], [{ address: ext(1), value: 100_007 }, { address: chg(0), value: 300_000 }, { address: recv(1), value: 598_000 }], 101);
     const [, c1] = h.tx([s0!], [{ address: ext(2), value: 100_009 }, { address: chg(1), value: 497_000 }], 102);
     h.tx([c0!, c1!], [{ address: ext(3), value: 796_000 }], 103);
     const { g, c } = clusters(h);
-    expect(checkMerges(g, [...g.txs.values()].filter((t) => t.vin.every((v) => g.own.has(v.prevout!.scriptpubkey_address!))), c).findings).toEqual([]);
+    const [f] = checkMerges(g, [...g.txs.values()].filter((t) => t.vin.every((v) => g.own.has(v.prevout!.scriptpubkey_address!))), c).findings;
+    expect([f!.id, f!.severity, f!.scoreImpact, f!.params?.inferredCount]).toEqual(["wallet-change-merge", "low", -2, 1]);
+  });
+
+  it("does not count change merged with a coin it is certainly linked to (single-output descent)", () => {
+    const h = new History();
+    const r = h.receive(recv(0), 1_000_000, 100);
+    const [, c0] = h.tx([r], [{ address: ext(1), value: 100_007 }, { address: chg(0), value: 898_000 }], 101);
+    const r2 = h.receive(recv(0), 20_000, 102); // same address as r: certain
+    h.tx([c0!, r2], [{ address: ext(3), value: 916_000 }], 103);
+    const { g, c } = clusters(h);
+    const spends = [...g.txs.values()].filter((t) => t.vin.every((v) => g.own.has(v.prevout!.scriptpubkey_address!)));
+    expect(checkMerges(g, spends, c).findings).toEqual([]);
   });
 
   it("still counts change merged with an unrelated receipt", () => {

@@ -411,6 +411,27 @@ describe("adviseCoinSelection: privacy cost ranking", () => {
     for (const p of a.plans) expect(["links", "bad-change", "big-change", "clean", "small-change"]).toContain(p.reason);
   });
 
+  it("on equal cost spends CoinJoin change (toxic anyway) before a mixed output", () => {
+    const a = plans(adviseCoinSelection([coin(1_000_000, { origin: "mixed" }), coin(1_000_000, { origin: "coinjoin-change" })], 900_000, 1));
+    expect(a.plans[0]!.selected[0]!.origin).toBe("coinjoin-change");
+  });
+
+  it("an inferred link (same payment's outputs) costs half a link", () => {
+    const a = plans(adviseCoinSelection([
+      coin(5_000_000), coin(75_000, { cluster: "a", group: "k" }), coin(40_000, { cluster: "b", group: "k" }),
+    ], 100_000, 1));
+    expect([a.plans[0]!.strategy, a.plans[0]!.reason, a.plans[0]!.origins, a.plans[0]!.groups, a.plans[0]!.cost]).toEqual(["probably-linked", "inferred-links", 2, 1, 10]);
+    expect(a.plans[0]!.selected[1]!.hints).toContainEqual({ kind: "probably-linked", with: 1 });
+    expect(a.plans[0]!.warnings.map(w => w.id)).not.toContain("merges-origins");
+  });
+
+  it("the big-change cost grows with the change-to-payment ratio past 10x", () => {
+    const cost = (big: number) => plans(adviseCoinSelection([coin(big)], 100_000, 1)).plans[0]!.cost;
+    expect(cost(500_000)).toBe(4 + 9); // ~4x
+    expect(cost(1_100_000)).toBeCloseTo(4 + 9, 0); // ~10x
+    expect(cost(10_100_000) - cost(1_100_000)).toBeCloseTo(12, 0); // each tenfold adds one link
+  });
+
   it("stays fast with about 1,000 coins across clusters and origins", () => {
     const origins = ["change", "received", "self", "mixed", "coinjoin-change", "unknown"] as const;
     const many = Array.from({ length: 1_000 }, (_, i) =>

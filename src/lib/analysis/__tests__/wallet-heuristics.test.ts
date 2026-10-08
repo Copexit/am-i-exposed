@@ -77,15 +77,16 @@ describe("checkMerges", () => {
     expect(JSON.parse(String(checkMerges(run(h, 12).g, run(h, 12).spends).findings[0]!.params!._txids))).toEqual(ids);
   });
 
-  it("W2 ignores merges of outputs of one tx and receipts-only merges", () => {
+  it("W2: merging two wallet outputs of one tx is an inferred-link merge (low); receipts-only merges are ignored", () => {
     const h = new History();
     const r = h.receive(recv(0), 1_000_000, 100);
     const out = h.tx([r], [{ address: ext(1), value: 100_007 }, { address: chg(0), value: 400_000 }, { address: chg(1), value: 498_000 }], 101);
-    h.tx([out[1]!, out[2]!], [{ address: ext(2), value: 897_000 }], 102);
+    // Spending both confirms to anyone that both were the wallet's, so the guess about the change was right
+    const m = h.tx([out[1]!, out[2]!], [{ address: ext(2), value: 897_000 }], 102);
     h.tx([h.receive(recv(1), 100_000, 103), h.receive(recv(2), 100_000, 104)], [{ address: ext(3), value: 199_000 }], 105);
     const { findings, merged } = checkMerges(run(h).g, run(h).spends);
-    expect(findings).toEqual([]);
-    expect(merged.size).toBe(0);
+    expect(findings.map((f) => [f.id, f.severity, f.scoreImpact])).toEqual([["wallet-change-merge", "low", -2]]);
+    expect([...merged]).toEqual([m[0]!.txid]);
   });
 });
 

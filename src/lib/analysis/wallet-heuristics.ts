@@ -17,14 +17,28 @@ export function txRefs(txids: readonly string[]): { _txids: string; more: number
 }
 
 /**
- * W2: a change input spent with a coin from another linkage cluster
- * (wallet-clusters). Coins on its address, from its funding tx or descending
- * from the same wallet-owned coins add no new link.
+ * W2: a change input spent with a coin from another certain linkage cluster
+ * (wallet-clusters). Coins on its address, co-spent with it before or
+ * descending from it through single-output spends add no new link.
+ * "inferred" when every such coin was in its inferred cluster (they come
+ * from the same payment, but an observer had to guess which output was the
+ * change): still a merge, scored a notch lower.
  */
-function mergesChange(classes: readonly string[], before: readonly string[] | undefined): boolean {
-  if (!before) return false;
-  return classes.some((c, i) =>
-    (c === "change" || c === "coinjoin-change") && before.some((o, j) => j !== i && o !== before[i]));
+function mergesChange(
+  classes: readonly string[],
+  link: { certain: readonly string[]; inferred: readonly string[] } | undefined,
+): "certain" | "inferred" | null {
+  if (!link) return null;
+  let merged = false;
+  for (const [i, c] of classes.entries()) {
+    if (c !== "change" && c !== "coinjoin-change") continue;
+    for (let j = 0; j < classes.length; j++) {
+      if (j === i || link.certain[j] === link.certain[i]) continue;
+      if (link.inferred[j] !== link.inferred[i]) return "certain";
+      merged = true;
+    }
+  }
+  return merged ? "inferred" : null;
 }
 
 /**
@@ -39,13 +53,16 @@ export function checkMerges(
   const unmixed: string[] = [];
   const mixedOnly: string[] = [];
   const change: string[] = [];
+  let inferredOnly = 0;
   for (const tx of spends) {
     if (tx.vin.length < 2) continue;
     const classes = tx.vin.map((v) => coinClass(g, v.txid, v.vout));
     if (classes.includes("mixed")) {
       (classes.some((c) => c !== "mixed" && c !== "unknown") ? unmixed : mixedOnly).push(tx.txid);
-    } else if (mergesChange(classes, clusters.linking.get(tx.txid))) {
-      change.push(tx.txid);
+    } else {
+      const m = mergesChange(classes, clusters.linking.get(tx.txid));
+      if (m) change.push(tx.txid);
+      if (m === "inferred") inferredOnly++;
     }
   }
 
@@ -78,9 +95,11 @@ export function checkMerges(
   }
   if (change.length > 0) {
     const count = change.length;
+    // Every merge only across inferred links: one notch lower
+    const soft = inferredOnly === count;
     findings.push({
       id: "wallet-change-merge",
-      severity: count > 1 ? "high" : "medium",
+      severity: soft ? (count > 1 ? "medium" : "low") : count > 1 ? "high" : "medium",
       confidence: "high",
       title: `${count} spend${count > 1 ? "s" : ""} merged change with other coins`,
       description:
@@ -90,8 +109,8 @@ export function checkMerges(
       recommendation:
         "Use coin control: spend change on its own or with coins from the same transaction. " +
         "When a payment needs more, spend the change completely in a payment that leaves no new change, or run it through a CoinJoin first.",
-      scoreImpact: count >= 5 ? -10 : count > 1 ? -7 : -4,
-      params: { count, ...txRefs(change) },
+      scoreImpact: soft ? (count >= 5 ? -7 : count > 1 ? -4 : -2) : count >= 5 ? -10 : count > 1 ? -7 : -4,
+      params: { count, inferredCount: inferredOnly, ...txRefs(change) },
     });
   }
   return { findings, merged: new Set([...postmix, ...change]) };

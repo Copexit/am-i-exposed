@@ -136,3 +136,30 @@ export function testerHistory(receive = recv(0), change: (i: number) => string =
   ];
   return { h, addresses };
 }
+
+/**
+ * Peel-shaped variant of the tester's wallet: every tx has exactly one wallet
+ * output. Each coin is the change of one payment from its own receipt, and the
+ * CoinJoin change comes from one more receipt. With one wallet output per tx
+ * two unspent coins can only share a certain cluster through address reuse,
+ * so the links here are certain but each coin is its own cluster.
+ */
+export function testerPeelHistory(receive: (i: number) => string = recv, change: (i: number) => string = chg, cjIndex = 146) {
+  const h = new History();
+  const fee = 1_000;
+  const denom = 10_000_000;
+  TESTER_KEPT.forEach((kept, i) => {
+    const pay = 1_000_000 + i * 7_919;
+    const r = h.receive(receive(i), kept + pay + fee, 100 + 2 * i);
+    h.tx([r], [{ address: ext(i), value: pay }, { address: change(i), value: kept }], 101 + 2 * i);
+  });
+  const r = h.receive(receive(TESTER_KEPT.length), denom + TESTER_CJ_CHANGE + 5_000, 130);
+  const others = [1, 2, 3, 4].map((i) => ({ address: ext(500 + i), value: denom + 50_000 }));
+  h.tx([r, ...others], [...[0, 1, 2, 3, 4].map((i) => ({ address: ext(600 + i), value: denom })), { address: change(cjIndex), value: TESTER_CJ_CHANGE }], 131);
+  const addresses = [
+    ...Array.from({ length: TESTER_KEPT.length + 1 }, (_, i) => ({ address: receive(i), isChange: false, index: i })),
+    ...Array.from({ length: TESTER_KEPT.length }, (_, i) => ({ address: change(i), isChange: true, index: i })),
+    { address: change(cjIndex), isChange: true, index: cjIndex },
+  ];
+  return { h, addresses };
+}
