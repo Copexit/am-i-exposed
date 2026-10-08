@@ -9,6 +9,8 @@ services:
       APP_TOR_PROXY_IP: tor-proxy
       APP_TOR_PROXY_PORT: "3001"
       APP_MEMPOOL_HIDDEN_SERVICE: ""
+      APP_MEMPOOL_EXTERNAL_URL: ""
+      APP_BITCOIN_NETWORK: ""
     volumes:
       - ./out:/usr/share/nginx/html:ro
       - ./umbrel/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro

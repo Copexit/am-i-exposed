@@ -8,7 +8,7 @@ import { SiteHeader } from "@/components/chrome/SiteHeader";
 import { SiteFooter } from "@/components/chrome/SiteFooter";
 import { PrivacyNotice } from "@/components/chrome/PrivacyNotice";
 import { DARK_COLORS, LIGHT_COLORS } from "@/lib/palette";
-import { MempoolDownDialog } from "@/components/MempoolDownDialog";
+import { MempoolDownDialog, NetworkUnverifiedNotice } from "@/components/MempoolDownDialog";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -137,6 +137,7 @@ export default function RootLayout({
             </main>
             <SiteFooter />
             <MempoolDownDialog />
+            <NetworkUnverifiedNotice />
           </NetworkProvider>
         </I18nProvider>
       </body>

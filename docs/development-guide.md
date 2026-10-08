@@ -59,7 +59,7 @@ src/
 │       ├── UtxoBubbleChart.tsx, PrivacyTimeline.tsx, FingerprintTimeline.tsx, EntityGraph.tsx
 │       ├── GraphExplorer.tsx, graph/             # OXT-style graph (see docs/adr-oxt-graph.md)
 │       └── shared/svgConstants.ts                # SVG colors, derived from src/lib/palette.ts
-├── context/NetworkContext.tsx    # Selected network and its NETWORK_CONFIG
+├── context/NetworkContext.tsx    # Active network (selected, or the self-hosted backend's) and its NETWORK_CONFIG
 ├── hooks/                        # React wrappers: useScanner (the scanner state machine behind page.tsx),
 │                                 # useAnalysis, useWalletAnalysis, useHashRouting, useBoltzmann,
 │                                 # useGraphExpansion, useAnalysisSettings, useTheme, usePalette, ...
@@ -178,6 +178,17 @@ All requests go to one mempool.space-compatible backend (public, Tor onion, Umbr
 - `GET /address-prefix/{prefix}` (autocomplete)
 - `GET /v1/historical-price?currency=USD|EUR&timestamp={ts}`
 - `GET /v1/fees/recommended`, `GET /tx/{txid}/status`
+- `GET /block-height/0` (genesis hash, plain text): which chain a self-hosted backend serves, see below
+
+### Backend network detection
+
+A self-hosted backend (Umbrel / StartOS `/api`, or a custom URL) has no network in its path, so the app asks it: `src/lib/api/backend-network.ts` maps the genesis hash from `/block-height/0` to mainnet, testnet4 or signet (supported), or testnet3, regtest, `unknown` (unsupported). Every signet, default or custom, shares one genesis block, so a custom signet reads as signet.
+
+- **Umbrel:** `useLocalApi` asks on every load, alongside the health probe (no persistent cache: `/api` stays the same URL when the node switches networks). If the node cannot be asked, the `bitcoinNetwork` hint in `/api/local-info` (Umbrel's `APP_BITCOIN_NETWORK`) applies, then mainnet with a "Network could not be verified" notice.
+- **Custom URL:** re-asked on every load (a node can switch chains behind the same URL). Last load's answer (IndexedDB `genesis@{baseUrl}`) is shown at once, but `apiReady` waits for the new answer, and while a backend is being re-asked (`isBackendChainPending`) nothing is read from or written to the response, analysis or saved-wallet caches, so no entry lands under a wrong `network@url` prefix. Settings "Apply" re-asks and shows "Connected: Signet" (plain "Connected." when the backend cannot report it). A URL that cannot be asked keeps the selected network, with the same notice.
+- **Mismatches:** on a self-hosted backend an address or key of another network is refused with a message naming the backend's network (or saying it could not be verified and is assumed).
+- `NetworkContext` (`resolveBackendNetwork`): a supported chain pins the network (selector shows it, the others disabled; `?network=` and saved graphs of another network are refused); an unsupported chain opens the "Unsupported Network" dialog naming it. `cacheKeyPrefix` takes the detected network for the backend's URL.
+- The CLI does the same for `--api`, asked on every run (no cache): the reported chain replaces the default `--network`; an explicit `--network` that does not match is an error.
 - `POST /tx` (opt-in broadcast, `Content-Type: text/plain`, body = signed hex; never retried or automatic), `POST /txs/test` (dry-run before broadcast)
 
 Base URLs: `https://mempool.space/api`, `/testnet4/api`, `/signet/api`; Tor: `http://mempoolhqx4isw62xs7abwphsq7ldayuidyx2v2oethdhhj6mlo2r6ad.onion/api`. Wallet scans against hosted APIs use a short burst (300ms gaps) followed by a 9s sustained delay per address; local backends are not throttled.

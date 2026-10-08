@@ -6,11 +6,11 @@ import { NETWORK_CONFIG } from "@/lib/bitcoin/networks";
 import { HDKey } from "@scure/bip32";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
 
-const net = vi.hoisted(() => ({ isUmbrel: false, setNetwork: vi.fn(), detected: null as string | null }));
+const net = vi.hoisted(() => ({ isUmbrel: false, setNetwork: vi.fn(), detected: null as string | null, network: "mainnet" as BitcoinNetwork, networkUnverified: false }));
 vi.mock("@/context/NetworkContext", () => ({
   useNetwork: () => ({
-    network: "mainnet", setNetwork: net.setNetwork, config: NETWORK_CONFIG.mainnet,
-    configFor: (n: BitcoinNetwork) => NETWORK_CONFIG[n], customApiUrl: null, isUmbrel: net.isUmbrel, isCustomApi: false,
+    network: net.network, setNetwork: net.setNetwork, config: net.isUmbrel ? { ...NETWORK_CONFIG[net.network], mempoolBaseUrl: "/api" } : NETWORK_CONFIG[net.network],
+    configFor: (n: BitcoinNetwork) => NETWORK_CONFIG[n], customApiUrl: null, isUmbrel: net.isUmbrel, isCustomApi: false, networkUnverified: net.networkUnverified,
   }),
 }));
 // No address has history: a bare key falls back to native segwit
@@ -50,13 +50,44 @@ describe("useWalletAnalysis descriptor errors", () => {
 const TPUB = HDKey.fromMasterSeed(new Uint8Array(32).fill(1), { private: 0x04358394, public: 0x043587cf }).publicExtendedKey;
 
 describe("useWalletAnalysis key on another network", () => {
-  afterEach(() => { net.isUmbrel = false; net.detected = null; net.setNetwork.mockClear(); createApiClient.mockClear(); });
+  afterEach(() => { net.isUmbrel = false; net.networkUnverified = false; net.network = "mainnet"; net.detected = null; net.setNetwork.mockClear(); createApiClient.mockClear(); });
 
   it("self-hosted mainnet backend: clear error, nothing fetched", async () => {
     net.isUmbrel = true;
     const { result } = renderHook(() => useWalletAnalysis());
     await act(async () => { await result.current.analyze(TPUB); });
     expect(result.current.phase).toBe("error");
+    expect(result.current.error).toBe("errors.walletWrongNetwork");
+    expect(createApiClient).not.toHaveBeenCalled();
+  });
+
+  it("self-hosted backend whose network is assumed: the refusal says it could not be verified", async () => {
+    net.isUmbrel = true;
+    net.networkUnverified = true;
+    const { result } = renderHook(() => useWalletAnalysis());
+    await act(async () => { await result.current.analyze(TPUB); });
+    expect(result.current.error).toBe("errors.walletWrongNetworkUnverified");
+    expect(createApiClient).not.toHaveBeenCalled();
+  });
+
+  it("self-hosted signet backend: a tpub scans there, no network switch", async () => {
+    net.isUmbrel = true;
+    net.network = "signet";
+    const { result } = renderHook(() => useWalletAnalysis());
+    await act(async () => { await result.current.analyze(TPUB); });
+    // Past the network check (the stub client cannot finish the scan)
+    expect(result.current.error).not.toBe("errors.walletWrongNetwork");
+    expect(result.current.descriptor?.network).not.toBe("mainnet");
+    expect(createApiClient).toHaveBeenCalledWith(expect.objectContaining({ mempoolBaseUrl: "/api", label: "Signet" }), expect.anything());
+    expect(net.setNetwork).not.toHaveBeenCalled();
+    expect(result.current.autoSwitchedNetwork).toBeNull();
+  });
+
+  it("self-hosted signet backend: a mainnet xpub is refused, naming the backend's network", async () => {
+    net.isUmbrel = true;
+    net.network = "signet";
+    const { result } = renderHook(() => useWalletAnalysis());
+    await act(async () => { await result.current.analyze(HDKey.fromMasterSeed(new Uint8Array(32).fill(3)).publicExtendedKey); });
     expect(result.current.error).toBe("errors.walletWrongNetwork");
     expect(createApiClient).not.toHaveBeenCalled();
   });

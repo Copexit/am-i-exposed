@@ -25,7 +25,7 @@ COPY umbrel/nginx.conf.template /etc/nginx/templates/default.conf.template
 # Optional variables default to empty: envsubst leaves an unset variable as a
 # literal ${...}, which nginx rejects at startup ("unknown variable"). The
 # Umbrel compose does not set these; StartOS and other packagers may.
-ENV APP_MEMPOOL_HIDDEN_SERVICE="" APP_MEMPOOL_EXTERNAL_URL=""
+ENV APP_MEMPOOL_HIDDEN_SERVICE="" APP_MEMPOOL_EXTERNAL_URL="" APP_BITCOIN_NETWORK=""
 
 # Copy static export from build stage
 COPY --from=builder /app/out /usr/share/nginx/html

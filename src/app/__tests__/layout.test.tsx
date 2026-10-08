@@ -16,7 +16,7 @@ vi.mock("@/lib/i18n/LangAttributeSync", () => ({ LangAttributeSync: Empty }));
 vi.mock("@/components/chrome/SiteHeader", () => ({ SiteHeader: Empty }));
 vi.mock("@/components/chrome/SiteFooter", () => ({ SiteFooter: Empty }));
 vi.mock("@/components/chrome/PrivacyNotice", () => ({ PrivacyNotice: Empty }));
-vi.mock("@/components/MempoolDownDialog", () => ({ MempoolDownDialog: Empty }));
+vi.mock("@/components/MempoolDownDialog", () => ({ MempoolDownDialog: Empty, NetworkUnverifiedNotice: Empty }));
 
 import RootLayout from "../layout";
 import { DARK_COLORS, LIGHT_COLORS } from "@/lib/palette";

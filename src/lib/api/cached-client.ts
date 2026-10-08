@@ -10,6 +10,7 @@ import { createMempoolClient, type MempoolClient, type MempoolClientOptions } fr
 import { idbGet, idbPut } from "./idb-cache";
 import { cacheKeyPrefix, withCachePolicy, type WithCache } from "./cache-policy";
 import { getAnalysisSettings } from "@/lib/analysis/settings";
+import { isBackendChainPending } from "./backend-network";
 
 /**
  * Cache-or-fetch helper. Checks IDB cache first (if caching is enabled),
@@ -43,6 +44,8 @@ export function createCachedMempoolClient(
   network?: string,
   options?: MempoolClientOptions,
 ): MempoolClient {
+  // The backend's chain is being re-asked: its cache key prefix may be wrong, so no cache
+  if (isBackendChainPending(baseUrl)) return createMempoolClient(baseUrl, options);
   return withCachePolicy(
     createMempoolClient(baseUrl, options),
     cacheKeyPrefix(baseUrl, network),

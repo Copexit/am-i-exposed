@@ -8,6 +8,9 @@ import { useNetwork } from "@/context/NetworkContext";
 import { diagnoseUrl } from "@/lib/api/url-diagnostics";
 import { normalizeApiUrl } from "@/lib/api/normalize-api-url";
 import { abortSignalTimeout } from "@/lib/abort-signal";
+import { detectBackendChain, isSupportedChain, type BackendChain } from "@/lib/api/backend-network";
+import { idbChainStore } from "@/lib/api/idb-cache";
+import { NETWORK_CONFIG } from "@/lib/bitcoin/networks";
 
 type HealthStatus = "idle" | "checking" | "ok" | "error";
 
@@ -17,10 +20,14 @@ interface NetworkSettingsProps {
 
 export function NetworkSettings({ onClosePanel }: NetworkSettingsProps) {
   const { t } = useTranslation();
-  const { customApiUrl, setCustomApiUrl } = useNetwork();
+  const { customApiUrl, setCustomApiUrl, backendChain, apiReady } = useNetwork();
   const [inputValue, setInputValue] = useState(customApiUrl ?? "");
   const [health, setHealth] = useState<HealthStatus>(customApiUrl ? "ok" : "idle");
   const [errorHint, setErrorHint] = useState("");
+  // Chain the last "Apply" got back (null: the backend could not report it); undefined: not applied in this panel
+  const [probed, setProbed] = useState<BackendChain | null | undefined>(undefined);
+  // A value from the last load shows only once the backend confirmed it (apiReady)
+  const shownChain = probed === undefined ? (apiReady ? backendChain : null) : probed;
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -53,6 +60,8 @@ export function NetworkSettings({ onClosePanel }: NetworkSettingsProps) {
           signal: abortSignalTimeout(10000),
         });
         if (res.ok) {
+          // Re-ask which chain the backend serves (it may have been repointed)
+          setProbed(await detectBackendChain(trimmed, { store: idbChainStore, refresh: true }));
           setHealth("ok");
           setCustomApiUrl(trimmed);
         } else {
@@ -197,7 +206,12 @@ export function NetworkSettings({ onClosePanel }: NetworkSettingsProps) {
         {health === "ok" && (
           <div className="flex items-center gap-1.5 text-xs text-severity-good">
             <Check size={14} />
-            {t("settings.connected", { defaultValue: "Connected. Using custom endpoint." })}
+            {shownChain && isSupportedChain(shownChain)
+              ? t("settings.connectedNetwork", {
+                  network: NETWORK_CONFIG[shownChain].label,
+                  defaultValue: "Connected: {{network}}. Using custom endpoint.",
+                })
+              : t("settings.connected", { defaultValue: "Connected. Using custom endpoint." })}
           </div>
         )}
         {health === "error" && (

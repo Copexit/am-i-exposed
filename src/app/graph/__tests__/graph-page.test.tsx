@@ -87,6 +87,7 @@ function setNet(over: Record<string, unknown> = {}) {
     configFor: (n: BitcoinNetwork) => NETWORK_CONFIG[n],
     setNetwork: vi.fn(),
     isUmbrel: false,
+    networkPinned: false,
     apiReady: true,
     ...over,
   };
@@ -194,7 +195,7 @@ describe("GraphPage", () => {
   });
 
   it("refuses a saved graph from another network on Umbrel", async () => {
-    setNet({ config: UMBREL, configFor: () => UMBREL, isUmbrel: true });
+    setNet({ config: UMBREL, configFor: () => UMBREL, isUmbrel: true, networkPinned: true });
     const confirm = vi.spyOn(window, "confirm");
     await renderPage();
     const saved = { id: "g", name: "", savedAt: 0, network: "signet", nodes: [], rootTxid: TX_A } as unknown as SavedGraph;

@@ -16,6 +16,7 @@
 
 import type { MempoolClient } from "./mempool";
 import type { MempoolTransaction } from "./types";
+import { knownBackendChain } from "./backend-network";
 
 /** TTL constants in milliseconds. */
 export const TTL_10_MIN = 10 * 60 * 1000;
@@ -41,10 +42,12 @@ export function networkFromUrl(url: string): string {
 /**
  * Key prefix for one backend. Includes the normalized base URL so custom,
  * Umbrel and onion backends (whose network cannot be read from the URL)
- * never share entries with each other or with mempool.space.
+ * never share entries with each other or with mempool.space. The network is
+ * the one the backend reported (genesis check, backend-network.ts) when known,
+ * else read from the URL path.
  */
 export function cacheKeyPrefix(baseUrl: string, network?: string): string {
-  return `${network ?? networkFromUrl(baseUrl)}@${baseUrl.replace(/\/+$/, "")}`;
+  return `${network ?? knownBackendChain(baseUrl) ?? networkFromUrl(baseUrl)}@${baseUrl.replace(/\/+$/, "")}`;
 }
 
 /** Compute adaptive TTL for address txs based on activity recency. */

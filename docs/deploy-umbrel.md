@@ -164,6 +164,7 @@ services:
 - `TOR_PROXY_IP` = `10.21.21.11` (Umbrel's global Tor SOCKS5 proxy)
 - `TOR_PROXY_PORT` = `9050`
 - `APP_MEMPOOL_IP` / `APP_MEMPOOL_PORT` (from mempool app's exports.sh)
+- `APP_BITCOIN_NETWORK` (from the bitcoin app's exports.sh: mainnet, testnet, testnet4, signet, regtest; optional hint for `/api/local-info`)
 
 **Do NOT add `user: "1000:1000"`** to the web service - nginx-unprivileged runs as UID 101.
 
@@ -175,7 +176,9 @@ Key proxy rules:
 - `/api/*` -> `http://${APP_MEMPOOL_IP}:${APP_MEMPOOL_PORT}/api/*` (direct proxy to local mempool)
 - `/tor-proxy/*` -> `http://${APP_TOR_PROXY_IP}:${APP_TOR_PROXY_PORT}/` (Tor proxy sidecar, 60s read timeout)
 
-There are no `/signet/api` or `/testnet4/api` routes. On Umbrel the app pins the network to mainnet (`UMBREL_NETWORK` in `src/context/NetworkContext.tsx`) and always calls `/api/*`, because `/api/local-info` does not report which network the local mempool serves.
+There are no `/signet/api` or `/testnet4/api` routes: the app always calls `/api/*`, and the network is whatever the node runs (Umbrel's Bitcoin Node can run mainnet, testnet, testnet4, signet or regtest, and mempool follows it). On each load the app reads the genesis hash from `/api/block-height/0` and pins the network to it (mainnet, testnet4 or signet). Testnet3, regtest and unknown chains are not supported: the app shows an "Unsupported Network" dialog naming the chain. See "Backend network detection" in [development-guide.md](./development-guide.md).
+
+`/api/local-info` also returns `bitcoinNetwork` from `APP_BITCOIN_NETWORK` (exported by Umbrel's bitcoin app; empty by default in `Dockerfile.umbrel`). It is only a fallback when the genesis check fails. To pass it, the app-store `docker-compose.yml` needs `APP_BITCOIN_NETWORK: ${APP_BITCOIN_NETWORK}` in the web service environment.
 
 The `/tor-proxy/` route has a 60s read timeout (vs 30s for API) because Tor circuits can be slow on first use.
 

@@ -7,6 +7,9 @@
  * DB: "aie-cache", version 1, single object store "responses" (keyPath: "key").
  */
 
+import { getAnalysisSettings } from "@/lib/analysis/settings";
+import type { BackendChain, ChainStore } from "./backend-network";
+
 const DB_NAME = "aie-cache";
 const DB_VERSION = 1;
 const STORE_NAME = "responses";
@@ -296,3 +299,9 @@ export async function _resetForTest(): Promise<void> {
   dbPromise = null;
   fallbackMap = null;
 }
+
+/** Store for detected backend chains (infinite TTL), honouring the cache setting. */
+export const idbChainStore: ChainStore = {
+  get: (key) => (getAnalysisSettings().enableCache ? idbGet<BackendChain>(key) : Promise.resolve(undefined)),
+  put: (key, chain) => (getAnalysisSettings().enableCache ? idbPut(key, chain) : Promise.resolve()),
+};

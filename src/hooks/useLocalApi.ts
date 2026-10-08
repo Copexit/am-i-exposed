@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { abortSignalAny, abortSignalTimeout } from "@/lib/abort-signal";
+import { chainFromHint, detectBackendChain, type BackendChain } from "@/lib/api/backend-network";
 
 export type LocalApiStatus = "checking" | "available" | "unavailable";
 
@@ -19,6 +20,11 @@ interface LocalApiResult {
    * hostname so the `host:port` fallback yields a broken link.
    */
   mempoolExternalUrl: string | null;
+  /**
+   * Chain the node serves: the genesis check of /api, else the packager hint
+   * (local-info bitcoinNetwork, Umbrel's APP_BITCOIN_NETWORK). null = unknown.
+   */
+  chain: BackendChain | null;
 }
 
 const MEMPOOL_TIMEOUT_MS = 3_000;
@@ -39,6 +45,7 @@ async function probeLocalInfo(
   mempoolPort: string | null;
   mempoolOnion: string | null;
   mempoolExternalUrl: string | null;
+  hint: BackendChain | null;
 } | null> {
   try {
     const res = await fetch("/api/local-info", {
@@ -61,6 +68,7 @@ async function probeLocalInfo(
           ? info.mempoolOnion
           : null,
       mempoolExternalUrl: externalUrl,
+      hint: chainFromHint(typeof info.bitcoinNetwork === "string" ? info.bitcoinNetwork : null),
     };
   } catch {
     return null;
@@ -101,7 +109,7 @@ async function probe(
 
   if (!info) {
     // Not on Umbrel - skip Phase 2 entirely
-    return { isUmbrel: false, status: "unavailable", mempoolPort: null, mempoolOnion: null, mempoolExternalUrl: null };
+    return { isUmbrel: false, status: "unavailable", mempoolPort: null, mempoolOnion: null, mempoolExternalUrl: null, chain: null };
   }
 
   // Umbrel detected! Push early state so badge shows "Local" immediately
@@ -111,19 +119,26 @@ async function probe(
     mempoolPort: info.mempoolPort,
     mempoolOnion: info.mempoolOnion,
     mempoolExternalUrl: info.mempoolExternalUrl,
+    chain: info.hint,
   };
   earlyUpdate(earlyResult);
 
-  // Phase 2: Mempool health check
+  // Phase 2: Mempool health check, and the chain the node serves. Re-asked on
+  // every load (no persistent cache): /api stays the same URL when the node
+  // switches networks.
   if (signal.aborted) return earlyResult;
-  const healthy = await probeMempool(signal);
+  const [healthy, genesis] = await Promise.all([
+    probeMempool(signal),
+    detectBackendChain("/api", { refresh: true, signal }),
+  ]);
 
   return {
     isUmbrel: true,
-    status: healthy ? "available" : "unavailable",
+    status: healthy || genesis ? "available" : "unavailable",
     mempoolPort: info.mempoolPort,
     mempoolOnion: info.mempoolOnion,
     mempoolExternalUrl: info.mempoolExternalUrl,
+    chain: genesis ?? info.hint,
   };
 }
 
@@ -139,7 +154,7 @@ async function probe(
  */
 export function useLocalApi(): LocalApiResult {
   const [result, setResult] = useState<LocalApiResult>(
-    () => cachedResult ?? { isUmbrel: false, status: "checking", mempoolPort: null, mempoolOnion: null, mempoolExternalUrl: null },
+    () => cachedResult ?? { isUmbrel: false, status: "checking", mempoolPort: null, mempoolOnion: null, mempoolExternalUrl: null, chain: null },
   );
 
   useEffect(() => {

@@ -3474,5 +3474,13 @@
   "guide.checklist.rule6": "Sende nie an eine bereits benutzte Adresse. Bitte um eine neue.",
   "guide.checklist.rule7": "Achte auf runde Beträge und auf eine Empfängeradresse eines anderen Typs als deiner: beides verrät, welcher Output dein Wechselgeld ist. Eine On-Chain-Zahlung über einen Swap aus Lightning vermeidet beides.",
   "guide.checklist.rule8": "Du zahlst einen runden Betrag? Erhöhe die Gebühr etwas, damit auch das Wechselgeld rund ist: Dann kann die Regel für runde Beträge Zahlung und Wechselgeld nicht unterscheiden.",
-  "guide.checklist.rule9": "Lässt sich eine Zusammenführung nicht vermeiden, ist es am wenigsten schlecht, nur CoinJoin-Outputs zusammenzuführen: Sie haben keine Vorgeschichte. Es verknüpft sie trotzdem und verringert ihre Anonymität, ist also nie gut."
+  "guide.checklist.rule9": "Lässt sich eine Zusammenführung nicht vermeiden, ist es am wenigsten schlecht, nur CoinJoin-Outputs zusammenzuführen: Sie haben keine Vorgeschichte. Es verknüpft sie trotzdem und verringert ihre Anonymität, ist also nie gut.",
+  "settings.connectedNetwork": "Verbunden: {{network}}. Benutzerdefinierter Endpunkt wird verwendet.",
+  "backend.unsupportedTitle": "Nicht unterstütztes Netzwerk",
+  "backend.unsupportedBody": "Das verbundene Backend bedient {{chain}}, das nicht unterstützt wird. am-i.exposed funktioniert mit Mainnet-, Testnet4- und Signet-Backends. Stelle den Node auf eines davon um oder nutze ein anderes Backend.",
+  "backend.unknownChain": "eine unbekannte Chain",
+  "backend.networkUnverified": "Netzwerk konnte nicht überprüft werden; {{network}} wird angenommen.",
+  "errors.walletWrongNetworkUnverified": "Dieser Schlüssel gehört zu {{keyNetwork}}, das Netzwerk des verbundenen Backends konnte aber nicht überprüft werden und wird als {{network}} angenommen. Seine Adressen können dort nicht abgefragt werden.",
+  "errors.addressWrongNetwork": "Diese Adresse gehört zu {{addressNetwork}}, das verbundene Backend bedient aber {{network}}. Sie kann dort nicht abgefragt werden.",
+  "errors.addressWrongNetworkUnverified": "Diese Adresse gehört zu {{addressNetwork}}, das Netzwerk des verbundenen Backends konnte aber nicht überprüft werden und wird als {{network}} angenommen. Sie kann dort nicht abgefragt werden."
 }

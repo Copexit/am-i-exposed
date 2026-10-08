@@ -8,6 +8,7 @@ import { scanPsbt } from "./commands/scan-psbt";
 import { boltzmann, DEFAULT_INTRAFEES_RATIO } from "./commands/boltzmann";
 import { chainTrace } from "./commands/chain-trace";
 import { VERSION } from "./output/json";
+import { networkForApi } from "./util/api";
 
 // Defaults shared with the web app's analysis settings
 const DEFAULT_MIN_SATS = String(DEFAULT_ANALYSIS_SETTINGS.minSats);
@@ -193,6 +194,14 @@ async function run(fn: () => Promise<void>): Promise<void> {
     // Initialize entity filter unless --no-entities
     if (opts.entities !== false) {
       await initEntityFilter();
+    }
+
+    // A custom --api serves one chain: use it (or check an explicit --network against it)
+    if (opts.api) {
+      program.setOptionValue("network", await networkForApi(opts.api, {
+        explicit: program.getOptionValueSource("network") !== "default",
+        fallback: opts.network,
+      }));
     }
 
     await fn();
