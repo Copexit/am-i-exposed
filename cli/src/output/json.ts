@@ -133,6 +133,7 @@ export function walletJson(
   network: string,
   apiUrl?: string,
   failedAddresses: string[] = [],
+  labels: object | null = null,
 ): void {
   jsonOutput({
     version: VERSION,
@@ -150,6 +151,7 @@ export function walletJson(
       utxoOrigins: result.utxoOrigins,
     },
     failedAddresses,
+    ...(labels ? { labels } : {}),
     findings: result.findings,
     links: buildLinks("xpub", descriptor, network, apiUrl),
   });

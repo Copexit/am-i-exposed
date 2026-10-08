@@ -150,6 +150,14 @@ am-i-exposed scan xpub <zpub> --json --gap-limit 30
 # .walletInfo.reusedAddresses should be 0
 ```
 
+**Wallet labels (BIP329)** - match a Sparrow label export and write it back with automatic labels:
+```bash
+am-i-exposed scan xpub <zpub> --labels sparrow-labels.jsonl --export-labels labeled.jsonl
+# .labels: applied, unmatched, invalid, frozen, exported. The export keeps your labels and adds
+# "aie: ..." labels (CoinJoin output, toxic change, exposed change, reused address, group);
+# where both exist the label reads "<your label> | aie: ...". Files stay local.
+```
+
 ## Performance
 
 | Mode | Time |

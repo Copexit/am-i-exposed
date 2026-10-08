@@ -68,6 +68,8 @@ scan
     "Wallet-level privacy audit via xpub, zpub, or output descriptor",
   )
   .option("--gap-limit <N>", "Consecutive unused addresses before stopping", "20")
+  .option("--labels <file>", "BIP329 labels file (.jsonl) to match against the wallet")
+  .option("--export-labels <file>", "Write BIP329 labels: the imported ones plus automatic aie: labels")
   .action(async (descriptor: string, opts: Record<string, string>) => {
     await run(() => scanXpub(descriptor, mergeOpts(opts)));
   });
