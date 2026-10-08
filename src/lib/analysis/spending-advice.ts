@@ -83,7 +83,7 @@ export function walletAddressType(coins: readonly CoinSelectionInput[]): string 
   return best === "unknown" ? null : best;
 }
 
-export type SpendAlertId = "reused-history" | "reused-api" | "round" | "type-mismatch" | "change-tips";
+export type SpendAlertId = "reused-history" | "reused-api" | "change-merge-needed" | "change-alone" | "round" | "type-mismatch" | "change-tips";
 
 export interface SpendAlert {
   id: SpendAlertId;
@@ -101,7 +101,7 @@ export interface SpendAlert {
  * round amount and address-type mismatch (rule 7, both reveal the change by
  * the W3 rules) and what to do with change (rule 3).
  */
-export function spendingAlerts({ amount, recipient, walletType, history, apiReused, change }: {
+export function spendingAlerts({ amount, recipient, walletType, history, apiReused, change, changeOnly = null }: {
   amount: number;
   /** Valid recipient address, or null */
   recipient: string | null;
@@ -111,10 +111,18 @@ export function spendingAlerts({ amount, recipient, walletType, history, apiReus
   apiReused: boolean | null;
   /** Change of the top plan (0 when changeless) */
   change: number;
+  /**
+   * The coins that are not change cannot pay (sum `plainTotal`): whether the top plan still spends
+   * change on its own (`compliant`), or no plan pays without merging change. null otherwise.
+   */
+  changeOnly?: { plainTotal: number; compliant: boolean } | null;
 }): SpendAlert[] {
   const alerts: SpendAlert[] = [];
   if (history && (history.sent > 0 || history.paid > 0)) alerts.push({ id: "reused-history", severity: "critical", sent: history.sent, paid: history.paid });
   else if (apiReused) alerts.push({ id: "reused-api", severity: "critical" });
+  if (changeOnly) alerts.push(changeOnly.compliant
+    ? { id: "change-alone", severity: "medium", amount: changeOnly.plainTotal }
+    : { id: "change-merge-needed", severity: "high", amount: changeOnly.plainTotal });
   if (isRoundAmount(amount)) alerts.push({ id: "round", severity: "medium", amount });
   const to = recipient ? getAddressType(recipient) : "unknown";
   if (walletType && to !== "unknown" && to !== walletType) alerts.push({ id: "type-mismatch", severity: "medium", to, from: walletType });

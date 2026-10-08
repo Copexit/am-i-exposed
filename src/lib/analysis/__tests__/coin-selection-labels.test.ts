@@ -46,7 +46,7 @@ describe("label rules in coin selection", () => {
     expect(alone.labelRules).toEqual([{ id: "coinjoin", ok: true }, { id: "origin", ok: true }]);
   });
 
-  it("rule 3: different explicit origins add a cost unless already certainly linked", () => {
+  it("rule 3: different explicit origins warn unless already certainly linked", () => {
     const a = coin(60_000, ["kyc"], "bitstamp", { cluster: "c1" });
     const b = coin(55_000, ["kyc"], "kraken", { cluster: "c2" });
     const apart = plans(adviseCoinSelection([a, b], 100_000, 2))[0]!;
@@ -54,10 +54,10 @@ describe("label rules in coin selection", () => {
     const linked = plans(adviseCoinSelection([{ ...a }, { ...b, cluster: "c1" }], 100_000, 2))[0]!;
     expect(ids(linked)).not.toContain("label-origins");
     expect(linked.labelRules).toContainEqual({ id: "origin", ok: true });
-    expect(apart.cost - linked.cost).toBeGreaterThanOrEqual(6);
+    expect([apart.facts.links, linked.facts.links]).toEqual([1, 0]);
   });
 
-  it("rule 2: no second penalty when the [CJ] coin is a mixed output on-chain", () => {
+  it("rule 2: one violation, not two, when the [CJ] coin is a mixed output on-chain", () => {
     const mixedCj = coin(60_000, ["cj"], "w", { origin: "mixed" });
     const other = coin(55_000);
     const labeled = plans(adviseCoinSelection([mixedCj, other], 100_000, 2))[0]!;
@@ -65,7 +65,7 @@ describe("label rules in coin selection", () => {
     expect(ids(labeled)).toContain("coinjoin-mix");
     expect(ids(labeled)).not.toContain("label-coinjoin");
     expect(labeled.labelRules).toContainEqual({ id: "coinjoin", ok: false });
-    expect(labeled.cost).toBe(unlabeled.cost);
+    expect(labeled.facts.violations).toEqual(unlabeled.facts.violations);
   });
 
   it("rule 5: a [toxic] coin merged with others warns", () => {

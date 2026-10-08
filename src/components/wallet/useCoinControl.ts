@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { DEFAULT_MAX_ABSORB, outpointOf, PLAN_CRITERIA, type CoinSelectionInput, type PlanCriterion } from "@/lib/analysis/coin-selection";
+import { DEFAULT_MAX_ABSORB, outpointOf, PLAN_CRITERIA, type CoinSelectionInput, type CoinSelectionPlan, type PlanCriterion } from "@/lib/analysis/coin-selection";
 
 /**
  * Coin control state shared by the UTXO list (manual selection) and the
@@ -37,6 +37,9 @@ export interface CoinControl {
   selected: ReadonlySet<string>;
   toggle: (outpoint: string, on: boolean) => void;
   clear: () => void;
+  /** The advisor's dilemma (no clean option): its two plans, Option A and Option B; in memory only */
+  dilemma: { a: CoinSelectionPlan; b: CoinSelectionPlan } | null;
+  setDilemma: (d: { a: CoinSelectionPlan; b: CoinSelectionPlan } | null) => void;
   /** Bumped by "Compare with suggestions"; 0 when not comparing */
   compareSeq: number;
   compare: () => void;
@@ -99,6 +102,7 @@ export function useCoinControl(xpub: string | null, utxos: CoinSelectionInput[])
   // The selection belongs to one wallet: another xpub starts empty.
   const [sel, setSel] = useState({ xpub, outpoints: initial.outpoints });
   const [compareSeq, setCompareSeq] = useState(0);
+  const [dilemma, setDilemma] = useState<{ a: CoinSelectionPlan; b: CoinSelectionPlan } | null>(null);
 
   const own = sel.xpub === xpub ? sel.outpoints : EMPTY;
   const selected = useMemo(() => {
@@ -110,7 +114,7 @@ export function useCoinControl(xpub: string | null, utxos: CoinSelectionInput[])
   useEffect(() => { if (xpub) writeHash(xpub, criterion, selected, maxAbsorb, recipient); }, [xpub, criterion, selected, maxAbsorb, recipient]);
 
   return {
-    utxos, amount, setAmount, feeRate, setFeeRate, criterion, setCriterion, maxAbsorb, setMaxAbsorb, recipient, setRecipient, absorb, setAbsorb, selected, compareSeq,
+    utxos, amount, setAmount, feeRate, setFeeRate, criterion, setCriterion, maxAbsorb, setMaxAbsorb, recipient, setRecipient, absorb, setAbsorb, selected, compareSeq, dilemma, setDilemma,
     toggle: (op, on) => setSel(s => {
       const next = new Set(s.xpub === xpub ? s.outpoints : EMPTY);
       if (on) next.add(op);

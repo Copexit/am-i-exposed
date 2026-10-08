@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next";
 import {
   adviseCoinSelection,
   evaluateSelection,
+  noCleanOption,
+  planAvoids,
   outpointOf,
   rankPlans,
   PLAN_CRITERIA,
@@ -22,11 +24,13 @@ import { createMempoolClient } from "@/lib/api/mempool";
 import { useNetwork } from "@/context/NetworkContext";
 import type { Severity } from "@/lib/types";
 import { fmtN } from "@/lib/format";
+import { getAddressType } from "@/lib/bitcoin/address-type";
+import { isChangeClass } from "@/lib/analysis/wallet-behavior";
 import { SEVERITY_STYLES } from "@/components/findingCardConstants";
 import { HintChip } from "./HintChip";
 import { LabelTagChip, LabelText } from "./WalletLabels";
 import { parseMaxAbsorb, useCoinControl, type CoinControl } from "./useCoinControl";
-import { AlertTriangle, Check, X } from "lucide-react";
+import { AlertTriangle, Check, Info, X } from "lucide-react";
 
 export const FIELD = "w-full h-10 bg-surface-inset border border-card-border rounded-lg px-3 text-sm text-foreground num placeholder:text-faint focus:border-bitcoin/50 focus-visible:outline-none transition-colors";
 
@@ -98,7 +102,7 @@ export function CoinSelector({ utxos, control, history }: {
     const known = to && history ? recipientHistory(history, utxos, to) : null;
     const next: Submitted = { ...input, maxAbsorb: parseMaxAbsorb(c.maxAbsorb), recipient: to, history: known };
     setSubmitted(next);
-    setAdvice(adviseCoinSelection(coins, input.amount, input.feeRate, next.maxAbsorb, { known: new Set(known?.known.keys()) }));
+    setAdvice(adviseCoinSelection(coins, input.amount, input.feeRate, next.maxAbsorb, { known: new Set(known?.known.keys()), ...(to ? { recipientType: getAddressType(to) } : {}) }));
   }
 
   // "Compare with suggestions" (from the UTXO list): run with the shared inputs.
@@ -118,6 +122,7 @@ export function CoinSelector({ utxos, control, history }: {
   const manual = useMemo(
     () => (comparing ? evaluateSelection(c.utxos, c.selected, submitted.amount, submitted.feeRate, {
       maxAbsorb: submitted.maxAbsorb, absorb: c.absorb, includeFrozen, known: new Set(submitted.history?.known.keys()),
+      ...(submitted.recipient ? { recipientType: getAddressType(submitted.recipient) } : {}),
     }) : null),
     [comparing, c.utxos, c.selected, submitted, c.absorb, includeFrozen],
   );
@@ -140,6 +145,14 @@ export function CoinSelector({ utxos, control, history }: {
 
   const criterionLabel = (k: (typeof PLAN_CRITERIA)[number]) => t(`wallet.coinSel.rank.${k}`);
   const visible = entries.filter((e, i) => showAll || i < COLLAPSED_PLANS || e.mine);
+  /** Both best plans leak something significant (Privacy first only): side by side, no Recommended badge */
+  const dilemma = useMemo(() => (advice?.kind === "plans" ? noCleanOption(advice.plans) : null), [advice]);
+  const noClean = c.criterion === "privacy" ? dilemma : null;
+  // The dilemma's two options, for the summary bar ("You chose Option B")
+  const setDilemma = c.setDilemma;
+  useEffect(() => { setDilemma(dilemma ? { a: dilemma.first, b: dilemma.second } : null); }, [dilemma, setDilemma]);
+  /** The suggestion with the least change, hinted on the Recommended card when it has less change */
+  const leastChange = rankPlans(entries.filter(e => !e.mine).map(e => e.plan), "least-change")[0];
   const alerts = advice?.kind === "plans" && submitted
     ? spendingAlerts({
         amount: submitted.amount,
@@ -148,6 +161,7 @@ export function CoinSelector({ utxos, control, history }: {
         history: submitted.history,
         apiReused: submitted.recipient !== null && reuse?.address === submitted.recipient && reuse.state !== "loading" && reuse.state !== "error" ? reuse.state === "used" : null,
         change: entries[0]?.plan.change ?? 0,
+        changeOnly: changeOnly(utxos.filter(u => includeFrozen || !u.frozen), submitted.amount, entries.find(e => !e.mine)?.plan),
       })
     : [];
 
@@ -261,6 +275,7 @@ export function CoinSelector({ utxos, control, history }: {
       )}
 
       {alerts.length > 0 && <SpendAlerts alerts={alerts} />}
+      {noClean && <NoCleanOption {...noClean} />}
 
       {advice?.kind === "plans" && (
         <div className="space-y-3">
@@ -304,7 +319,9 @@ export function CoinSelector({ utxos, control, history }: {
                 ref={mine ? manualRef : undefined}
                 plan={plan}
                 maxAbsorb={submitted?.maxAbsorb ?? 0}
-                recommended={c.criterion === "privacy" && i === 0 && entries.length > 1}
+                recommended={c.criterion === "privacy" && i === 0 && entries.length > 1 && !noClean}
+                leastChange={c.criterion === "privacy" && i === 0 && leastChange && leastChange.change < plan.change
+                  ? { plan: leastChange, show: () => c.setCriterion("least-change") } : undefined}
                 mine={mine ? { rank: mineRank + 1, of: entries.length, criterion: criterionLabel(c.criterion) } : undefined}
               />
             );
@@ -348,6 +365,25 @@ export function CoinSelector({ utxos, control, history }: {
   );
 }
 
+/**
+ * Spend change on its own: when the coins that are not change cannot pay, say so, and whether the
+ * top plan still respects the rule (one change coin alone) or no plan does.
+ */
+function changeOnly(coins: readonly CoinSelectionInput[], amount: number, top: CoinSelectionPlan | undefined): { plainTotal: number; compliant: boolean } | null {
+  if (!top || !top.selected.some(c => isChangeClass(c.origin))) return null;
+  const plainTotal = coins.filter(c => !isChangeClass(c.origin)).reduce((s, c) => s + c.utxo.value, 0);
+  if (plainTotal >= amount + top.fee) return null;
+  return { plainTotal, compliant: !top.facts.violations.includes("change-merge") };
+}
+
+/** A change-to-payment ratio for display: whole from 10x, 2 decimals below, "<0.01" when tiny. */
+export function fmtRatio(change: number, amount: number, lang: string): string {
+  const r = change / amount;
+  if (r >= 10) return Math.round(r).toLocaleString(lang);
+  const v = Math.round(r * 100) / 100;
+  return v === 0 && r > 0 ? `<${(0.01).toLocaleString(lang)}` : v.toLocaleString(lang);
+}
+
 /** Upper-case script type for display ("p2tr" to "P2TR"). */
 const typeName = (t?: string) => (t ?? "").toUpperCase();
 
@@ -383,21 +419,114 @@ function SpendAlerts({ alerts }: { alerts: SpendAlert[] }) {
   );
 }
 
-/** The plan's steps through the spending checklist, each passed or not. */
-function DecisionPath({ plan }: { plan: CoinSelectionPlan }) {
+/** The two best plans side by side when neither is clean: what each reveals (cons) and avoids (pros), no winner implied. */
+function NoCleanOption({ first, second }: NonNullable<ReturnType<typeof noCleanOption>>) {
   const { t } = useTranslation();
+  const column = (plan: CoinSelectionPlan, other: CoinSelectionPlan, option: "A" | "B") => (
+    <div data-testid={`dilemma-option-${option}`} className="min-w-0 rounded-lg border border-hairline bg-surface-2/40 p-3 space-y-2">
+      <span className="eyebrow block">{t(`wallet.coinSel.noClean.option${option}`)}</span>
+      <p className="num text-[13px] text-foreground break-words">
+        {plan.selected.map(c => fmtN(c.utxo.value)).join(" + ")} {t("common.sats", { defaultValue: "sats" })}
+      </p>
+      <ObserverLearns plan={plan} />
+      <PlanAvoids plan={plan} other={other} />
+    </div>
+  );
+  return (
+    <section data-testid="no-clean-option" className="rounded-lg border border-severity-medium/25 bg-severity-medium/5 p-4 space-y-3">
+      <div className="space-y-1">
+        <h3 className="text-[15px] font-medium text-foreground">{t("wallet.coinSel.noClean.title", { defaultValue: "No clean option" })}</h3>
+        <p className="text-[13px] text-muted leading-relaxed">{t("wallet.coinSel.noClean.intro")}</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {column(first, second, "A")}
+        {column(second, first, "B")}
+      </div>
+      <p className="text-[13px] text-foreground leading-relaxed">{t("wallet.coinSel.noClean.waysOut", { defaultValue: "Ways out: split the payment, pay part of it via a Lightning swap, or pay from another wallet or account." })}</p>
+    </section>
+  );
+}
+
+/** "What it avoids": what `plan` avoids that `other` does (planAvoids), as short bullets. */
+function PlanAvoids({ plan, other }: { plan: CoinSelectionPlan; other: CoinSelectionPlan }) {
+  const { t } = useTranslation();
+  const items = planAvoids(plan, other);
+  if (items.length === 0) return null;
+  return (
+    <div data-testid="plan-avoids" className="space-y-1">
+      <span className="text-[13px] text-muted">{t("wallet.coinSel.noClean.avoidsTitle", { defaultValue: "What it avoids" })}</span>
+      <ul className="space-y-0.5">
+        {items.map(i => (
+          <li key={i.id + ("violation" in i ? i.violation : "")} className="flex items-start gap-2 text-sm text-foreground leading-relaxed">
+            <span className="text-faint shrink-0" aria-hidden="true">+</span>
+            <span className="min-w-0">
+              {t(`wallet.coinSel.avoid.${i.id}`, {
+                rule: "violation" in i ? t(`wallet.coinSel.violationShort.${i.violation}`) : "",
+                n: "n" in i ? fmtN(i.n) : "",
+                amount: "amount" in i ? fmtN(i.amount) : "",
+                other: "other" in i ? fmtN(i.other) : "",
+              })}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** "What an observer learns": the plan's facts as short bullets (replaces a free-form reason line). */
+export function ObserverLearns({ plan }: { plan: CoinSelectionPlan }) {
+  const { t, i18n } = useTranslation();
+  const f = plan.facts;
+  const ratio = fmtRatio(plan.change, plan.paymentAmount, i18n.language);
+  const changeRow = plan.warnings.find(w => w.id === "change-merge")?.count ?? 0;
+  const items: { key: string; params?: Record<string, string | number> }[] = [
+    ...f.violations.map(v => ({ key: `violation.${v}`, params: { n: fmtN(changeRow) } })),
+    f.links > 0 ? { key: "links", params: { n: fmtN(plan.groups) } } : { key: plan.selected.length > 1 ? "links-none" : "single" },
+    ...(f.probable > 0 ? [{ key: "probable", params: { n: fmtN(f.probable), count: f.probable } }] : []),
+    f.known ? { key: "recipient-known" } : { key: "recipient", params: { amount: fmtN(plan.inputTotal) } },
+    plan.change === 0 ? { key: "change-none" } : { key: "change", params: { amount: fmtN(plan.change), ratio } },
+    ...f.detectable.map(d => ({ key: `detect-${d}` })),
+  ];
+  return (
+    <div data-testid="plan-learns" className="space-y-1">
+      <span className="text-[13px] text-muted">{t("wallet.coinSel.learnsTitle", { defaultValue: "What an observer learns" })}</span>
+      <ul className="space-y-0.5">
+        {items.map(i => (
+          <li key={i.key} className="flex items-start gap-2 text-sm text-foreground leading-relaxed">
+            <span className="text-faint shrink-0" aria-hidden="true">-</span>
+            <span className="min-w-0">{t(`wallet.coinSel.learn.${i.key}`, i.params ?? {})}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** The plan's Privacy-first tiers in order (guide, "How plans are ranked"), each passed, warned or informational. */
+function DecisionPath({ plan }: { plan: CoinSelectionPlan }) {
+  const { t, i18n } = useTranslation();
   return (
     <div data-testid="plan-path" className="space-y-1.5">
       <span className="eyebrow block">{t("wallet.coinSel.pathTitle", { defaultValue: "Decision path" })}</span>
       <ol className="space-y-1">
-        {plan.path.map(s => (
-          <li key={s.id} className="flex items-start gap-2 text-[13px] leading-relaxed">
-            <span className="num text-faint w-3 shrink-0 text-right">{s.rule}</span>
-            {s.ok
-              ? <Check size={14} className="mt-[3px] shrink-0 text-severity-good" aria-hidden="true" />
-              : <AlertTriangle size={14} className="mt-[3px] shrink-0 text-severity-medium" aria-hidden="true" />}
-            <span className="sr-only">{s.ok ? t("wallet.coinSel.pathOk", { defaultValue: "Passed:" }) : t("wallet.coinSel.pathWarn", { defaultValue: "Warning:" })}</span>
-            <span className="text-foreground/90 min-w-0">{t(`wallet.coinSel.path.${s.id}`, { n: fmtN(s.n ?? 0), amount: fmtN(s.amount ?? 0), name: s.name ?? "" })}</span>
+        {plan.path.map((s, i) => (
+          <li key={`${s.id}-${s.violation ?? i}`} className="flex items-start gap-2 text-[13px] leading-relaxed">
+            <span className="num text-faint w-3 shrink-0 text-right">{s.tier}</span>
+            {s.ok === true ? <Check size={14} className="mt-[3px] shrink-0 text-severity-good" aria-hidden="true" />
+              : s.ok === false ? <AlertTriangle size={14} className="mt-[3px] shrink-0 text-severity-medium" aria-hidden="true" />
+              : <Info size={14} className="mt-[3px] shrink-0 text-muted" aria-hidden="true" />}
+            <span className="sr-only">
+              {s.ok === true ? t("wallet.coinSel.pathOk", { defaultValue: "Passed:" })
+                : s.ok === false ? t("wallet.coinSel.pathWarn", { defaultValue: "Warning:" })
+                : t("wallet.coinSel.pathNote", { defaultValue: "Note:" })}
+            </span>
+            <span className="text-foreground/90 min-w-0">
+              {t(s.violation ? `wallet.coinSel.path.violation.${s.violation}` : `wallet.coinSel.path.${s.id}`, {
+                n: fmtN(s.n ?? 0), amount: fmtN(s.amount ?? 0), ratio: fmtRatio(s.amount ?? 0, plan.paymentAmount, i18n.language),
+                ...(s.id === "probable" ? { count: s.n ?? 0 } : {}),
+              })}
+            </span>
           </li>
         ))}
       </ol>
@@ -405,11 +534,13 @@ function DecisionPath({ plan }: { plan: CoinSelectionPlan }) {
   );
 }
 
-function PlanCard({ plan, maxAbsorb, recommended, mine, ref }: {
+function PlanCard({ plan, maxAbsorb, recommended, leastChange, mine, ref }: {
   plan: CoinSelectionPlan;
   /** Max extra fee: caps the round-change nudge */
   maxAbsorb: number;
   recommended: boolean;
+  /** A suggestion with less change than this one, and how to show it */
+  leastChange?: { plan: CoinSelectionPlan; show: () => void };
   /** The user's own selection, with its rank under the current criterion */
   mine?: { rank: number; of: number; criterion: string };
   ref?: React.Ref<HTMLElement>;
@@ -463,10 +594,19 @@ function PlanCard({ plan, maxAbsorb, recommended, mine, ref }: {
           )}
         </div>
         <p className="text-sm text-muted leading-relaxed">{t(`wallet.coinSel.note.${note}`)}</p>
-        <p data-testid="plan-reason" className="text-sm text-foreground leading-relaxed">
-          {t(`wallet.coinSel.reason.${plan.reason}`, { count: plan.groups, ratio: fmtN(Math.round(plan.change / plan.paymentAmount)) })}
-          {plan.absorbsChange && <> {t("wallet.coinSel.absorbReason", { amount: fmtN(plan.absorbed), defaultValue: "Pays {{amount}} sats more fee so no change is left." })}</>}
-        </p>
+        {plan.fallback && <p className="text-sm text-foreground leading-relaxed">{t("wallet.coinSel.reason.fallback")}</p>}
+        <ObserverLearns plan={plan} />
+        {leastChange && (
+          <p data-testid="least-change-hint" className="text-[13px] text-muted leading-relaxed">
+            {leastChange.plan.groups > 1
+              ? t("wallet.coinSel.leastHint", { amount: fmtN(leastChange.plan.change), n: fmtN(leastChange.plan.selected.length), groups: fmtN(leastChange.plan.groups) })
+              : t("wallet.coinSel.leastHintSame", { amount: fmtN(leastChange.plan.change), n: fmtN(leastChange.plan.selected.length) })}
+            {" "}
+            <button type="button" onClick={leastChange.show} className="text-bitcoin hover:text-bitcoin-hover underline-offset-2 hover:underline cursor-pointer">
+              {t("wallet.coinSel.leastHintLink", { defaultValue: "See Least change" })}
+            </button>
+          </p>
+        )}
         {plan.absorbed > 0 && !plan.absorbsChange && (
           <p className="text-[13px] text-muted leading-relaxed">
             {t("wallet.coinSel.absorbed", { amount: fmtN(plan.absorbed), defaultValue: "The fee includes {{amount}} sats of leftover, too small to be worth a change output." })}
@@ -485,7 +625,7 @@ function PlanCard({ plan, maxAbsorb, recommended, mine, ref }: {
 
       <div className="space-y-2">
         <span className="eyebrow block">{t("wallet.coinSel.coins", { defaultValue: "Coins to spend" })}</span>
-        <ol className="rounded-lg border border-hairline divide-y divide-hairline">
+        <ol data-testid="plan-coins" className="rounded-lg border border-hairline divide-y divide-hairline">
           {plan.selected.map((c, i) => (
             <li key={`${c.utxo.txid}:${c.utxo.vout}`} className="flex items-start gap-3 px-3 py-2.5">
               <span className="num text-[13px] text-faint w-6 shrink-0">#{i + 1}</span>
@@ -543,7 +683,7 @@ export function PlanRules({ plan }: { plan: CoinSelectionPlan }) {
 }
 
 /** Label warnings and the spending rule each breaks (guide, LabelingSection anchors). */
-const RULE_OF: Partial<Record<PlanWarningId, number>> = { "label-kyc": 1, "label-coinjoin": 2, "label-origins": 3, "label-toxic": 5 };
+const RULE_OF: Partial<Record<PlanWarningId, number>> = { "label-kyc": 1, "label-coinjoin": 2, "label-origins": 3, "label-toxic": 5, "change-merge": 6 };
 
 /** A plan's warnings, most severe first as the advisor orders them; a label warning links to its rule. */
 export function PlanWarnings({ plan }: { plan: CoinSelectionPlan }) {

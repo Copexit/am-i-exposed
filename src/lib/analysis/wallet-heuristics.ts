@@ -5,7 +5,7 @@
 import type { Finding, Severity } from "@/lib/types";
 import { getAddressType } from "@/lib/bitcoin/address-type";
 import { isRoundAmount } from "./heuristics/round-amount";
-import { coinClass, type SimplePayment, type WalletGraph } from "./wallet-behavior";
+import { coinClass, isChangeClass, type CoinClass, type SimplePayment, type WalletGraph } from "./wallet-behavior";
 import type { MempoolTransaction, MempoolVout } from "@/lib/api/types";
 import { buildClusters, type WalletClusters } from "./wallet-clusters";
 
@@ -31,7 +31,7 @@ function mergesChange(
   if (!link) return null;
   let merged = false;
   for (const [i, c] of classes.entries()) {
-    if (c !== "change" && c !== "coinjoin-change") continue;
+    if (!isChangeClass(c as CoinClass)) continue;
     for (let j = 0; j < classes.length; j++) {
       if (j === i || link.certain[j] === link.certain[i]) continue;
       if (link.inferred[j] !== link.inferred[i]) return "certain";

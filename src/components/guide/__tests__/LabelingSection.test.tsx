@@ -40,11 +40,23 @@ describe("LabelingSection", () => {
   it("spending checklist: nine ordered rules, rule 9 never calls a CoinJoin merge good", () => {
     const { container } = render(<SpendingChecklist />);
     expect(container.querySelector("#spending-checklist")!.textContent).toBe("Spending checklist");
-    const items = container.querySelectorAll("ol > li");
+    const items = container.querySelectorAll("li[id^='spending-rule-']");
     expect(items).toHaveLength(9);
     expect(items[0]!.id).toBe("spending-rule-1");
     expect(items[0]!.textContent).toMatch(/already knows one of your coins/);
     expect(items[5]!.textContent).toBe("Never send to an address that was used before. Ask for a new one.");
     expect(items[8]!.textContent).toMatch(/least bad.*never good/);
+    // How plans are ranked: exactly the tiers a-h of the advisor's Privacy first
+    const tiers = container.querySelectorAll("[data-testid='ranking-order'] li");
+    expect(tiers).toHaveLength(8);
+    expect(tiers[0]!.textContent).toMatch(/^Hard rules/);
+    expect(tiers[2]!.textContent).toMatch(/^Change: none, then small.*3 or more unrelated groups/);
+    expect(tiers[3]!.textContent).toMatch(/^New links/);
+    expect(tiers[7]!.textContent).toMatch(/^Fee/);
+  });
+
+  it("labeling rule 6: spend change on its own", () => {
+    const { container } = render(<LabelingSection />);
+    expect(container.querySelector("#labeling-rule-6")!.textContent).toMatch(/^Spend change on its own/);
   });
 });

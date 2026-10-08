@@ -24,9 +24,10 @@ const WHAT = [
 const RULES = [
   "Never merge [KYC] coins with [noKYC] coins.",
   "Do not merge [CJ] coins with coins that are not [CJ]: spend them one by one, ideally with no change.",
-  "Merge only coins with the same origin, or coins already linked on-chain.",
+  "Prefer merging coins with the same origin, or coins already linked on-chain. When a payment needs a merge across origins, accept it (spending checklist, rules 4 and 5).",
   "Change inherits the origin of its parent coins.",
   "Toxic coins: freeze them, or remix them alone.",
+  "Spend change on its own: never merge a change coin (change, a self-transfer output, CoinJoin change) with other coins. Spend it alone, without change if possible, or move it with a Lightning swap.",
 ];
 
 /** Sparrow how-to steps (menu names checked against Sparrow's source: app.fxml, EntryCell, WalletForm). */
@@ -122,7 +123,7 @@ export function LabelingSection() {
           ))}
         </ol>
         <p className="text-sm text-muted leading-relaxed pt-1">
-          {t("guide.labeling.rulesNote", { defaultValue: "With labels loaded, the coin selection advisor warns about and ranks down plans that break rules 1, 2, 3 and 5, and leaves frozen coins out unless asked." })}
+          {t("guide.labeling.rulesNote", { defaultValue: "With labels loaded, the coin selection advisor ranks plans that break rules 1, 2, 5 or 6 below every plan that respects them, warns about rule 3, and leaves frozen coins out unless asked. Rule 6 needs no labels." })}
         </p>
       </div>
 
@@ -151,15 +152,28 @@ export function LabelingSection() {
 /** The tester's spending rules as an ordered decision tree (coin-selection decision path, spending-advice alerts). */
 const CHECKLIST = [
   "Paying someone who already knows one of your coins (they sent it to you, or you paid them before)? Spend that coin: they learn nothing new about your activity.",
-  "Otherwise spend one coin that covers the payment and is close to the amount. If the change would be under 5,000 sats, give it to the miners and leave no change.",
+  "Otherwise spend one coin that covers the payment and is close to the amount (change of at most 10% of the payment). If the change would be under 5,000 sats, give it to the miners and leave no change.",
   "Handle change one coin at a time: pay with no change, or send leftover change to a Lightning swap. Until then, keep it frozen.",
-  "Torn between merging coins and one coin that leaves a lot of change? Prefer the option that uses up the change or leaves a small one, and accept the merge.",
-  "If a payment needs several coins, merge coins from the same observer or platform. Otherwise accept the merge, knowing each observer learns more about your activity.",
+  "Torn between merging coins and one coin that leaves a lot of change? Prefer the option that uses up the change or leaves a small one (at most the payment), and accept what the merge implies, unless it breaks a rule above (change, KYC, CoinJoin) or joins 3 or more unrelated groups of coins against a coin with moderate change.",
+  "If a payment needs several coins, merge coins from the same observer or platform. Otherwise accept the merge, knowing each observer learns more about your activity. Never merge change, and never spend two outputs of the same transaction together: it shows that payment was to yourself.",
   "Never send to an address that was used before. Ask for a new one.",
   "Watch for round amounts and for a recipient address of a different type than yours: both reveal which output is your change. Paying on-chain via a swap from Lightning avoids both.",
   "Paying a round amount? Raise the fee a little so the change is round too: the round-amount rule then cannot tell payment from change.",
   "When a merge cannot be avoided, merging only CoinJoin outputs is the least bad: they carry no history. It still links them and shrinks their anonymity, so it is never good.",
 ];
+
+/** How Privacy first ranks plans, tier by tier: literally coin-selection comparePrivacy (a-h). */
+const RANK = ["A", "B", "C", "D", "E", "F", "G", "H"] as const;
+const RANK_EN: Record<(typeof RANK)[number], string> = {
+  A: "Hard rules: fewer violations of never merging KYC with no-KYC coins, CoinJoin outputs with other coins, change with other coins, two outputs of one transaction, or toxic coins.",
+  B: "The recipient: a plan spending only coins the recipient already knows goes first.",
+  C: "Change: none, then small (at most the payment), then big (more than the payment), then huge (10x the payment or more), then toxic (under 10,000 sats, or from a CoinJoin coin, whatever its size). A merge that uses up the change goes before one coin with more change (rule 4), but a merge joining 3 or more unrelated groups of coins counts as big change here.",
+  D: "New links: fewer groups of coins joined that nothing linked before. At equal links, links one label observer already knows, or between CoinJoin outputs only, go first.",
+  E: "Change that the round-amount or address-type rule would point at: fewer such rules first.",
+  F: "Probable links confirmed: fewer first.",
+  G: "Inputs: fewer first.",
+  H: "Fee, including leftover paid to miners: lower first. A difference below 1,000 sats or 1% of the payment, whichever is larger, counts as none.",
+};
 
 /** Spending checklist: the decision tree the coin selection advisor follows, linked from the selector. */
 export function SpendingChecklist() {
@@ -171,7 +185,7 @@ export function SpendingChecklist() {
         {t("guide.checklist.title", { defaultValue: "Spending checklist" })}
       </h2>
       <p className="text-base text-muted leading-relaxed">
-        {t("guide.checklist.intro", { defaultValue: "A decision tree for each payment, in order. The coin selection advisor follows it: each plan shows its decision path, and alerts above the plans cover rules 3, 6 and 7." })}
+        {t("guide.checklist.intro", { defaultValue: "A decision tree for each payment. The labeling rules come first (never merge KYC with no-KYC, CoinJoin outputs with other coins, or change with other coins), then these rules in order. Each plan in the coin selection advisor shows its decision path, and alerts above the plans cover rules 3, 6 and 7." })}
       </p>
       <ol className="space-y-2 list-decimal pl-5">
         {CHECKLIST.map((r, i) => (
@@ -180,6 +194,15 @@ export function SpendingChecklist() {
           </li>
         ))}
       </ol>
+      <div data-testid="ranking-order" className="rounded-lg border border-card-border px-4 py-3 space-y-2">
+        <h3 id="spending-ranking" className="text-lg font-semibold text-foreground scroll-mt-24">{t("guide.checklist.rankTitle", { defaultValue: "How plans are ranked (Privacy first)" })}</h3>
+        <p className="text-sm text-muted leading-relaxed">{t("guide.checklist.rankIntro", { defaultValue: "The advisor compares what each plan lets an observer learn, step by step: a plan goes first when it is better at the first step where two plans differ." })}</p>
+        <ol className="space-y-1 list-[lower-alpha] pl-5">
+          {RANK.map(k => (
+            <li key={k} className="text-sm text-muted leading-relaxed">{t(`guide.checklist.rank${k}`, { defaultValue: RANK_EN[k] })}</li>
+          ))}
+        </ol>
+      </div>
     </section>
   );
 }
