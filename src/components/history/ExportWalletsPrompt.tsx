@@ -13,7 +13,7 @@ export function ExportWalletsPrompt({ walletCount, onExport, onCancel }: {
   const { t } = useTranslation();
   const [exclude, setExclude] = useState(true);
   return (
-    <div role="dialog" data-testid="export-wallets-prompt" aria-label={t("history.exportBookmarks", { defaultValue: "Export bookmarks as JSON" })}
+    <div role="group" data-testid="export-wallets-prompt" aria-label={t("history.exportBookmarks", { defaultValue: "Export bookmarks as JSON" })}
       className="rounded-lg border border-severity-medium/30 bg-surface-elevated p-3 space-y-2 text-xs"
       onKeyDown={(e) => { if (e.key === "Escape") onCancel(); }}>
       <p className="flex gap-2 text-foreground leading-relaxed">

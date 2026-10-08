@@ -2,7 +2,8 @@ import { describe, it, expect } from "vitest";
 import type { WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import type { ScriptType } from "@/lib/bitcoin/descriptor";
 import { scanChain } from "../scan";
-import { quickRefresh, verifyCoins, newTxids, REFRESH_WINDOW } from "../refresh";
+import { quickRefresh, verifyCoins, extendFrontier, newTxids, REFRESH_WINDOW } from "../refresh";
+import { auditWallet } from "@/lib/analysis/wallet-audit";
 import { lastUsedIndex, SNAPSHOT_VERSION, type WalletSnapshot } from "../saved-wallets";
 import { FakeChain, parsed, addr } from "./fake-chain";
 
@@ -48,7 +49,8 @@ async function refreshAll(chain: FakeChain, snap: WalletSnapshot) {
   const phase1 = chain.total;
   chain.requests = {};
   const progress: number[] = [];
-  const infos = await verifyCoins(r.infos, r.pending, chain.client(), { local: true }, (done) => progress.push(done));
+  const verified = await verifyCoins(r.infos, r.pending, chain.client(), { local: true }, (done) => progress.push(done));
+  const infos = await extendFrontier(verified, parsed, r.frontier, snap.gapLimit, chain.client(), { local: true });
   return { ...r, infos, newTxids: newTxids(snap.infos, infos), phase1, phase2: chain.total, phase2Requests: chain.requests, progress };
 }
 
@@ -190,7 +192,7 @@ describe("request counts: quick refresh vs full scan (mocked 250-address wallet,
     // + 3 calls for the new address, + 1 more frontier address
     expect(active.phase1).toBe(idle.phase1 + 3 + 1);
 
-    console.info(`[request harness] full scan: ${full} requests; quick refresh phase 1: ${idle.phase1} (idle), ${active.phase1} (one new payment); phase 2: ${idle.phase2}`);
+    console.info(`[request harness] full scan: ${full} requests; quick refresh phase 1: ${idle.phase1} (idle), ${active.phase1} (one new payment); phase 2: ${idle.phase2} (idle), ${active.phase2} (one new payment: the walk goes on to the saved gap)`);
   }, 60_000);
 });
 
@@ -236,3 +238,59 @@ describe.skipIf(!REAL_XPUB)("request counts on a real wallet (AIE_HARNESS_XPUB)"
       + `quick refresh phase 1: ${p1} requests in ${(p1ms / 1000).toFixed(1)} s; phase 2: ${n} requests in ${((Date.now() - t) / 1000).toFixed(1)} s`);
   }, 4 * 3_600_000);
 });
+
+describe("quick refresh equals a full scan", () => {
+  /** Deterministic PRNG (mulberry32). */
+  const rng = (seed: number) => () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const EXT = "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh";
+
+  it.each([1, 2, 3])("random history, seed %i", async (seed) => {
+    const rand = rng(seed);
+    const pick = <T,>(xs: T[]) => xs[Math.floor(rand() * xs.length)]!;
+    const GAP = 30;
+    const chain = new FakeChain();
+    let nextChange = 0;
+    const coins = () => [...chain.txs.values()].flatMap(t => t.vout.flatMap((o, vout) =>
+      o.scriptpubkey_address?.startsWith("bc1q") && o.scriptpubkey_address !== EXT && !chain.outspends.get(t.txid)![vout]!.spent ? [{ txid: t.txid, vout }] : []));
+    const spend = (withChange: boolean, confirmed = true) => {
+      const c = pick(coins());
+      const outs = [{ address: EXT, value: 1_000 }, ...(withChange ? [{ address: addr(1, nextChange++), value: 900 }] : [])];
+      return chain.tx(outs, [c], confirmed);
+    };
+
+    // History: receives on 0..15 with gaps, a few spends
+    for (let i = 0; i < 12; i++) chain.tx([{ address: addr(0, Math.floor(rand() * 16)), value: 10_000 + i }]);
+    for (let i = 0; i < 4; i++) spend(rand() < 0.7);
+    chain.mine(50);
+    const shallow = chain.tx([{ address: addr(0, 3), value: 4_242 }]);
+    const pending = chain.tx([{ address: addr(0, 4), value: 5_151 }], [], false);
+    const before = await fullScan(chain, GAP);
+    const snap = snapshotOf(chain, before, GAP);
+    const last = snap.lastUsed[0];
+
+    // Activity since the snapshot
+    chain.mine();
+    chain.confirm(shallow.txid, chain.tip);        // reorg: re-mined one block later
+    chain.confirm(pending.txid);                    // confirmation
+    chain.tx([{ address: addr(0, last + 3), value: 3_000 }]);          // past the frontier
+    chain.tx([{ address: addr(0, last + 3 + 25), value: 3_100 }]);     // within the gap of the new one
+    const gapIdx = before.find(i => !i.derived.isChange && i.txs.length === 0 && i.derived.index < last)?.derived.index;
+    if (gapIdx !== undefined) chain.tx([{ address: addr(0, gapIdx), value: 3_200 }]); // a late invoice payment
+    const holder = before.find(i => i.utxos.length > 0)!;
+    chain.tx([{ address: holder.derived.address, value: 3_300 }]);    // reuse of a coin-holding address
+    spend(true);                                    // spend with change
+    spend(false);                                   // sweep, no wallet output
+    spend(true, false);                             // unconfirmed spend
+
+    const refreshed = (await refreshAll(chain, snap)).infos;
+    const full = await fullScan(chain, GAP);
+    expect(refreshed).toEqual(full);
+    expect(auditWallet(refreshed)).toEqual(auditWallet(full));
+  });
+});
+

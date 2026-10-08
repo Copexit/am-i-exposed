@@ -2,28 +2,33 @@
  * Quick refresh of a saved wallet scan: only what can have changed since the
  * snapshot is fetched, instead of walking the whole gap limit again.
  *
- * Phase 1 (quickRefresh, blocking, a few dozen requests):
+ * Phase 1 (quickRefresh, blocking):
  * 1. Tip height (confirmations are computed from it).
  * 2. Addresses holding an unconfirmed tx, or a tx with fewer than
  *    CONFIRM_DEPTH confirmations at the saved tip (reorg-safe), are refetched.
- * 3. Per chain, the addresses after the last used index are checked in a
- *    window of REFRESH_WINDOW (or the saved gap limit, if lower); a used one is
- *    refetched and the window extends until that many consecutive unused addresses.
- * 4. A fetched tx that spends a saved coin marks it spent at once (its inputs are known).
+ * 3. Saved addresses with no history at or below the last used index (invoice
+ *    addresses handed out earlier) get one cheap address check each.
+ * 4. Per chain, the addresses after the last used index are checked in a window
+ *    of min(REFRESH_WINDOW, gap limit), extended past each used one found.
+ * 5. An address whose saved coin is spent by a tx fetched above is refetched too.
  *
- * Phase 2 (verifyCoins, background, cancellable): every other saved coin is
- * verified, with one UTXO-list request per address or one outspends request
- * per funding tx, whichever needs fewer; an address with a change is refetched.
+ * Phase 2 (background, cancellable):
+ * - verifyCoins: every other address holding a saved coin gets one UTXO-list
+ *   request; a spent coin or a new one (a payment to that reused address)
+ *   refetches the address.
+ * - extendFrontier: on a chain where phase 1 found activity, the walk goes on
+ *   until the full saved gap limit of consecutive unused addresses, as the full scan does.
  *
- * Not seen: a new payment to an already used address below the frontier that
- * holds no saved coin. The weekly full rescan (FULL_RESCAN_AFTER_MS) covers it.
+ * Not seen until the weekly full rescan (FULL_RESCAN_AFTER_MS):
+ * - a new payment to an address that already has history but holds no saved coin;
+ * - activity more than REFRESH_WINDOW unused addresses past the last used one,
+ *   when the saved gap limit is larger and nothing nearer is used (the window
+ *   trades that depth for a short phase 1 on hosted APIs).
  */
 
 import { deriveOneAddress, type DerivedAddress, type ParsedXpub } from "@/lib/bitcoin/descriptor";
 import type { WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import type { MempoolClient } from "@/lib/api/mempool";
-import type { MempoolOutspend } from "@/lib/api/types";
-import { ApiError } from "@/lib/api/fetch-with-retry";
 import { abortableSleep } from "@/lib/abort-signal";
 import { fetchAddress } from "./scan";
 import type { WalletSnapshot } from "./saved-wallets";
@@ -46,7 +51,12 @@ export interface RefreshResult {
   pending: Coin[];
   /** Saved coins in total */
   coins: number;
+  /** Where phase 1 stopped per chain, for extendFrontier (only chains with new activity) */
+  frontier: Frontier[];
 }
+
+/** A chain's walk position: next index to check, and unused addresses in a row before it. */
+export interface Frontier { chain: 0 | 1; next: number; unused: number }
 
 export type Pace = <T>(fn: () => Promise<T>) => Promise<T>;
 
@@ -97,14 +107,20 @@ export function createPacer(burst: number, intervalMs: number, signal?: AbortSig
   };
 }
 
-/** Run `fn` over `items` with at most `n` in flight; results keep input order. */
+/** Run `fn` over `items` with at most `n` in flight; results keep input order. The first failure stops all workers. */
 async function mapPool<T, R>(items: readonly T[], n: number, fn: (item: T) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array<R>(items.length);
   let next = 0;
+  let failed = false;
   const worker = async () => {
-    while (next < items.length) {
+    while (!failed && next < items.length) {
       const i = next++;
-      out[i] = await fn(items[i]!);
+      try {
+        out[i] = await fn(items[i]!);
+      } catch (e) {
+        failed = true;
+        throw e;
+      }
     }
   };
   await Promise.all(Array.from({ length: Math.min(n, items.length) }, worker));
@@ -124,7 +140,6 @@ export async function quickRefresh(
   chains: readonly (0 | 1)[],
   api: MempoolClient,
   getTipHeight: () => Promise<number | null>,
-  // Never looks further ahead than the full scan did (hosted scans default to a gap of 5)
   { signal, local, window = Math.min(REFRESH_WINDOW, snap.gapLimit), pace = refreshPacer(local, signal) }:
     { signal?: AbortSignal; local: boolean; window?: number; pace?: Pace },
 ): Promise<RefreshResult> {
@@ -134,6 +149,12 @@ export async function quickRefresh(
   const byAddr = new Map(snap.infos.map(i => [i.derived.address, i]));
   const dirty = new Map<string, DerivedAddress>();
   const mark = (d: DerivedAddress) => dirty.set(d.address, d);
+  const fetched = new Set<string>();
+  /** Refetch every marked address not fetched yet. */
+  const fetchDirty = () => mapPool([...dirty.values()].filter(d => !fetched.has(d.address)), concurrency, async d => {
+    fetched.add(d.address);
+    byAddr.set(d.address, await fetchAddress(paced, d));
+  });
 
   const tipHeight = (await pace(getTipHeight)) ?? snap.tipHeight;
 
@@ -146,65 +167,95 @@ export async function quickRefresh(
     }
   }
 
-  // Frontier: past the last used index on each chain
-  for (const chain of chains) {
-    let next = snap.lastUsed[chain] + 1;
-    let unused = 0;
-    while (unused < window) {
-      if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-      const batch = Array.from({ length: window - unused }, (_, k) => deriveOneAddress(parsed, chain, next + k));
-      next += batch.length;
-      const data = await mapPool(batch, concurrency, d => paced.getAddress(d.address));
-      batch.forEach((derived, k) => {
-        const addressData = data[k]!;
-        if (isUsed({ addressData, txs: [] })) {
-          mark(derived);
-          unused = 0;
-        } else {
-          unused++;
-          byAddr.set(derived.address, { derived, txs: [], utxos: [], addressData });
-        }
-      });
-    }
-  }
-
-  await mapPool([...dirty.values()], concurrency, async d => {
-    byAddr.set(d.address, await fetchAddress(paced, d));
+  // Unused addresses below the frontier (late payments to earlier invoices)
+  const gaps = snap.infos.filter(i => !isUsed(i) && i.derived.index <= snap.lastUsed[i.derived.isChange ? 1 : 0]);
+  await mapPool(gaps, concurrency, async (i) => {
+    const addressData = await paced.getAddress(i.derived.address);
+    if (isUsed({ addressData, txs: [] })) mark(i.derived);
+    else byAddr.set(i.derived.address, { ...i, addressData });
   });
 
-  // A fetched tx spending a saved coin: the coin is spent, its address gets the tx
-  const owner = new Map<string, WalletAddressInfo>();
-  for (const info of snap.infos) {
-    if (dirty.has(info.derived.address)) continue;
-    for (const u of info.utxos) owner.set(coinId(u.txid, u.vout), info);
+  // Frontier: past the last used index on each chain
+  const frontier: Frontier[] = [];
+  for (const chain of chains) {
+    const f = await walk(parsed, chain, snap.lastUsed[chain] + 1, 0, window, paced, concurrency, signal, byAddr, mark);
+    if (f.found) frontier.push({ chain, next: f.next, unused: f.unused });
   }
-  const verified = new Set<string>();
-  for (const d of dirty.keys()) {
-    for (const tx of byAddr.get(d)!.txs) {
+
+  await fetchDirty();
+
+  // A fetched tx spending a saved coin: refetch the coin's address (stats, history, coins)
+  const owner = new Map<string, WalletAddressInfo>();
+  for (const info of snap.infos) for (const u of info.utxos) owner.set(coinId(u.txid, u.vout), info);
+  for (const a of fetched) {
+    for (const tx of byAddr.get(a)!.txs) {
       for (const vin of tx.vin) {
-        const id = coinId(vin.txid, vin.vout);
-        const info = owner.get(id);
-        if (!info) continue;
-        const cur = byAddr.get(info.derived.address)!;
-        // ponytail: address stats stay as saved until the next refetch; the audit reads txs and utxos
-        byAddr.set(info.derived.address, {
-          ...cur,
-          utxos: cur.utxos.filter(u => coinId(u.txid, u.vout) !== id),
-          txs: cur.txs.some(t => t.txid === tx.txid) ? cur.txs : [tx, ...cur.txs],
-        });
-        verified.add(id);
+        const info = owner.get(coinId(vin.txid, vin.vout));
+        if (info) mark(info.derived);
       }
     }
   }
+  await fetchDirty();
 
   const saved = snap.infos.flatMap(i => i.utxos.map(u => ({ txid: u.txid, vout: u.vout, address: i.derived.address })));
-  const pending = saved.filter(c => !dirty.has(c.address) && !verified.has(coinId(c.txid, c.vout)));
-  return { infos: sortInfos(byAddr.values()), tipHeight, pending, coins: saved.length };
+  const pending = saved.filter(c => !fetched.has(c.address));
+  return { infos: sortInfos(byAddr.values()), tipHeight, pending, coins: saved.length, frontier };
+}
+
+/** Check addresses from `next` until `limit` consecutive unused ones; used ones are marked for a refetch. */
+async function walk(
+  parsed: ParsedXpub, chain: 0 | 1, next: number, unused: number, limit: number, api: MempoolClient, concurrency: number,
+  signal: AbortSignal | undefined, byAddr: Map<string, WalletAddressInfo>, mark: (d: DerivedAddress) => void,
+): Promise<{ next: number; unused: number; found: boolean }> {
+  let found = false;
+  while (unused < limit) {
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+    const batch = Array.from({ length: limit - unused }, (_, k) => deriveOneAddress(parsed, chain, next + k));
+    next += batch.length;
+    const data = await mapPool(batch, concurrency, d => api.getAddress(d.address));
+    batch.forEach((derived, k) => {
+      const addressData = data[k]!;
+      if (isUsed({ addressData, txs: [] })) {
+        mark(derived);
+        unused = 0;
+        found = true;
+      } else {
+        unused++;
+        byAddr.set(derived.address, { derived, txs: [], utxos: [], addressData });
+      }
+    });
+  }
+  return { next, unused, found };
 }
 
 /**
- * Phase 2: verify `pending` coins, reporting progress after each request and
- * the updated infos whenever an address changed. Throws AbortError when cancelled.
+ * Phase 2, after new activity on a chain: continue phase 1's walk until the
+ * saved gap limit of consecutive unused addresses (the full scan's stop rule).
+ */
+export async function extendFrontier(
+  infos: readonly WalletAddressInfo[],
+  parsed: ParsedXpub,
+  frontier: readonly Frontier[],
+  gapLimit: number,
+  api: MempoolClient,
+  { signal, local, pace = refreshPacer(local, signal) }: { signal?: AbortSignal; local: boolean; pace?: Pace },
+): Promise<WalletAddressInfo[]> {
+  const concurrency = local ? 6 : 3;
+  const paced = pacedClient(api, pace);
+  const byAddr = new Map(infos.map(i => [i.derived.address, i]));
+  const dirty = new Map<string, DerivedAddress>();
+  for (const f of frontier) {
+    await walk(parsed, f.chain, f.next, f.unused, gapLimit, paced, concurrency, signal, byAddr, (d) => dirty.set(d.address, d));
+  }
+  await mapPool([...dirty.values()], concurrency, async d => { byAddr.set(d.address, await fetchAddress(paced, d)); });
+  return sortInfos(byAddr.values());
+}
+
+/**
+ * Phase 2: verify `pending` coins with one UTXO-list request per address (so a
+ * new payment to that address is caught too), reporting progress after each
+ * request and the updated infos whenever an address changed. Throws AbortError
+ * when cancelled; the first failure stops all workers.
  */
 export async function verifyCoins(
   infos: readonly WalletAddressInfo[],
@@ -216,38 +267,18 @@ export async function verifyCoins(
   const concurrency = local ? 6 : 3;
   const paced = pacedClient(api, pace);
   const cur = new Map(infos.map(i => [i.derived.address, i]));
-  const group = (key: (c: Coin) => string) => {
-    const m = new Map<string, Coin[]>();
-    for (const c of pending) m.set(key(c), [...(m.get(key(c)) ?? []), c]);
-    return m;
-  };
-  const byAddress = group(c => c.address);
-  const byTx = group(c => c.txid);
-  const useAddresses = byAddress.size <= byTx.size;
+  const byAddress = new Map<string, number>();
+  for (const c of pending) byAddress.set(c.address, (byAddress.get(c.address) ?? 0) + 1);
   let done = 0;
 
-  await mapPool([...(useAddresses ? byAddress : byTx)], concurrency, async ([key, coins]) => {
+  await mapPool([...byAddress], concurrency, async ([address, count]) => {
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-    const changed = new Set<string>();
-    if (useAddresses) {
-      const now = new Set((await paced.getAddressUtxos(key)).map(u => coinId(u.txid, u.vout)));
-      const before = new Set(cur.get(key)!.utxos.map(u => coinId(u.txid, u.vout)));
-      // A spent coin, or a new one (a payment to this already used address)
-      if (coins.some(c => !now.has(coinId(c.txid, c.vout))) || [...now].some(id => !before.has(id))) changed.add(key);
-    } else {
-      let outs: MempoolOutspend[] | null;
-      try {
-        outs = await paced.getTxOutspends(key);
-      } catch (e) {
-        // A dropped or replaced unconfirmed funding tx
-        if (!(e instanceof ApiError && e.code === "NOT_FOUND")) throw e;
-        outs = null;
-      }
-      for (const c of coins) if (!outs || outs[c.vout]?.spent) changed.add(c.address);
-    }
-    for (const a of changed) cur.set(a, await fetchAddress(paced, cur.get(a)!.derived));
-    done += coins.length;
-    onProgress(done, changed.size > 0 ? sortInfos(cur.values()) : null);
+    const now = (await paced.getAddressUtxos(address)).map(u => coinId(u.txid, u.vout)).sort();
+    const before = cur.get(address)!.utxos.map(u => coinId(u.txid, u.vout)).sort();
+    const changed = now.join() !== before.join();
+    if (changed) cur.set(address, await fetchAddress(paced, cur.get(address)!.derived));
+    done += count;
+    onProgress(done, changed ? sortInfos(cur.values()) : null);
   });
   return sortInfos(cur.values());
 }

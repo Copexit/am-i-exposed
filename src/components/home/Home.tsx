@@ -35,7 +35,7 @@ export interface HomeProps {
   onRemoveBookmark: (id: string) => void;
   onClearBookmarks: () => void;
   onExportBookmarks?: (opts?: { includeWallets?: boolean }) => void;
-  onImportBookmarks?: ((json: string) => { imported: number; error?: string }) | undefined;
+  onImportBookmarks?: ((json: string) => { imported: number; error?: string; wallets?: number }) | undefined;
 }
 
 const UTXOS = buildFieldUtxos(FIELD_TX);

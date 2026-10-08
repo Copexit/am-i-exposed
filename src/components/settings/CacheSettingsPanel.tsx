@@ -15,6 +15,8 @@ export function CacheSettingsPanel() {
   const [count, setCount] = useState<number | null>(null);
   const [wallets, setWallets] = useState<SavedWalletMeta[]>([]);
   const [clearing, setClearing] = useState(false);
+  const [clearError, setClearError] = useState(false);
+  const [confirmForget, setConfirmForget] = useState<string | null>(null);
   const { bookmarks, removeWalletBookmarks } = useBookmarks();
   const walletBookmarks = bookmarks.filter((b) => b.type === "wallet");
   const bookmarkFor = (key: string) => walletBookmarks.find((b) => b.snapshotKey === key);
@@ -30,12 +32,15 @@ export function CacheSettingsPanel() {
 
   const handleClear = async () => {
     setClearing(true);
+    setClearError(false);
     try {
       await Promise.all([idbClear(), clearSavedWallets()]);
       setCount(0);
       setWallets([]);
     } catch {
-      // Silently fail
+      // Usually another tab still holds the saved wallets open
+      setClearError(true);
+      refreshCount();
     } finally {
       setClearing(false);
     }
@@ -118,19 +123,41 @@ export function CacheSettingsPanel() {
                 <span className="flex-1 min-w-0 truncate">
                   {w.scriptType} · {w.backend.split("@")[0]} · {formatTimeAgo(Math.floor(w.scannedAt / 1000), i18n.language)} · {formatSize(w.size)}
                 </span>
-                <button
-                  type="button"
-                  onClick={async () => { await forgetWallet(w.key); refreshCount(); }}
-                  aria-label={t("wallet.saved.forget", { defaultValue: "Forget this wallet" })}
-                  title={t("wallet.saved.forget", { defaultValue: "Forget this wallet" })}
-                  className="p-1 -m-1 rounded text-muted hover:text-foreground cursor-pointer"
-                >
-                  <X size={12} />
-                </button>
+                {confirmForget === w.key ? (
+                  <span role="group" aria-label={t("wallet.saved.forget", { defaultValue: "Forget this wallet" })} className="inline-flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      autoFocus
+                      onClick={async () => { setConfirmForget(null); await forgetWallet(w.key); refreshCount(); }}
+                      className="text-severity-high hover:text-foreground cursor-pointer"
+                    >
+                      {t("settings.forgetConfirm", { defaultValue: "Forget" })}
+                    </button>
+                    <button type="button" onClick={() => setConfirmForget(null)} className="text-muted hover:text-foreground cursor-pointer">
+                      {t("wallet.bookmark.cancel", { defaultValue: "Cancel" })}
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmForget(w.key)}
+                    aria-label={t("wallet.saved.forget", { defaultValue: "Forget this wallet" })}
+                    title={t("wallet.saved.forget", { defaultValue: "Forget this wallet" })}
+                    className="p-1 -m-1 rounded text-muted hover:text-foreground cursor-pointer"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
               </li>
             ))}
           </ul>
         </div>
+      )}
+
+      {clearError && (
+        <p role="alert" className="text-[11px] text-severity-high mt-1">
+          {t("settings.clearBlocked", { defaultValue: "Saved wallets could not be cleared: another tab of this site is using them. Close it and try again." })}
+        </p>
       )}
 
       {walletBookmarks.length > 0 && (

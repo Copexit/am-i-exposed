@@ -35,6 +35,8 @@ export const FULL_RESCAN_AFTER_MS = 7 * 24 * 60 * 60 * 1000;
 const DB_NAME = "aie-wallets";
 const DB_VERSION = 1;
 const SELF_XPUB = "@this-wallet";
+/** How long a clear waits for other tabs to let go of the database. */
+const CLEAR_BLOCKED_MS = 5000;
 
 /** Everything needed to rebuild the results without the network. */
 export interface WalletSnapshot {
@@ -157,6 +159,52 @@ export function fullRescanReason(s: WalletSnapshot, gapLimit: number, now = Date
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
+// ---------- Forget/clear epochs, across tabs ----------
+
+/** Bumped by clear (all wallets) and forget (one key); a save started under an older epoch is dropped. */
+let clearEpoch = 0;
+const keyEpochs = new Map<string, number>();
+const listeners = new Set<(key: string | null) => void>();
+let channel: BroadcastChannel | null | undefined;
+
+type ChannelMessage = { type: "forget"; key: string } | { type: "clear" };
+
+function bump(msg: ChannelMessage) {
+  if (msg.type === "clear") clearEpoch++;
+  else keyEpochs.set(msg.key, (keyEpochs.get(msg.key) ?? 0) + 1);
+  for (const cb of listeners) cb(msg.type === "clear" ? null : msg.key);
+}
+
+function getChannel(): BroadcastChannel | null {
+  if (channel !== undefined) return channel;
+  channel = typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel(DB_NAME);
+  if (channel) {
+    channel.onmessage = (e: MessageEvent<ChannelMessage>) => bump(e.data);
+    // Node (tests): do not keep the process alive
+    (channel as { unref?: () => void }).unref?.();
+  }
+  return channel;
+}
+
+/** Apply a forget/clear here and tell the other tabs. */
+function announce(msg: ChannelMessage) {
+  bump(msg);
+  getChannel()?.postMessage(msg);
+}
+
+/** Token for saveSnapshot: captured when a scan starts, stale once the wallet is forgotten or cleared. */
+export function savedEpoch(key: string): string {
+  getChannel();
+  return `${clearEpoch}:${keyEpochs.get(key) ?? 0}`;
+}
+
+/** Called with the forgotten key, or null after a clear (in this tab or another one). */
+export function onSavedWalletsChanged(cb: (key: string | null) => void): () => void {
+  getChannel();
+  listeners.add(cb);
+  return () => { listeners.delete(cb); };
+}
+
 function enabled(): boolean {
   return getAnalysisSettings().enableCache && typeof indexedDB !== "undefined" && indexedDB !== null;
 }
@@ -169,7 +217,12 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains("meta")) db.createObjectStore("meta", { keyPath: "key" });
       if (!db.objectStoreNames.contains("data")) db.createObjectStore("data", { keyPath: "key" });
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      const db = req.result;
+      // Another tab clears the store: let its delete go through
+      db.onversionchange = () => { db.close(); dbPromise = null; };
+      resolve(db);
+    };
     req.onerror = () => { dbPromise = null; reject(req.error); };
   });
   return dbPromise;
@@ -210,9 +263,11 @@ export async function loadSnapshot(key: string, xpub: string): Promise<WalletSna
  * Save (replace) a wallet's snapshot. Drops graph traces when over the
  * per-wallet cap, then evicts the least recently scanned wallets to stay under
  * the total cap. Throws SavedWalletError when it still cannot be stored.
+ * With `epoch` (from savedEpoch), nothing is written once the wallet was
+ * forgotten or cleared since; returns whether it was written.
  */
-export async function saveSnapshot(key: string, xpub: string, backend: string, snap: WalletSnapshot): Promise<void> {
-  if (!enabled()) return;
+export async function saveSnapshot(key: string, xpub: string, backend: string, snap: WalletSnapshot, epoch?: string): Promise<boolean> {
+  if (!enabled()) return false;
   let json = JSON.stringify(toStored(snap, xpub));
   if (json.length > MAX_SNAPSHOT_BYTES && snap.traces.length > 0) json = JSON.stringify(toStored({ ...snap, traces: [] }, xpub));
   if (json.length > MAX_SNAPSHOT_BYTES) throw new SavedWalletError("tooLarge", json.length);
@@ -227,8 +282,11 @@ export async function saveSnapshot(key: string, xpub: string, backend: string, s
     evict.push(m.key);
     total -= m.size;
   }
+  let stale = false;
   try {
     await run(["meta", "data"], "readwrite", tx => {
+      // Checked inside the transaction: a forget announced earlier wins, one queued later deletes this write
+      if (epoch !== undefined && epoch !== savedEpoch(key)) { stale = true; return; }
       for (const k of evict) { tx.objectStore("meta").delete(k); tx.objectStore("data").delete(k); }
       tx.objectStore("meta").put(meta);
       tx.objectStore("data").put({ key, json });
@@ -237,10 +295,12 @@ export async function saveSnapshot(key: string, xpub: string, backend: string, s
     if (e instanceof DOMException && e.name === "QuotaExceededError") throw new SavedWalletError("quota", json.length);
     throw e;
   }
+  return !stale;
 }
 
 /** "Forget this wallet". */
 export async function forgetWallet(key: string): Promise<void> {
+  announce({ type: "forget", key });
   try {
     await run(["meta", "data"], "readwrite", tx => { tx.objectStore("meta").delete(key); tx.objectStore("data").delete(key); });
   } catch {
@@ -248,8 +308,9 @@ export async function forgetWallet(key: string): Promise<void> {
   }
 }
 
-/** Delete every saved wallet (the whole database, no empty shell left). */
+/** Delete every saved wallet (the whole database, no empty shell left). Rejects when another tab keeps it open. */
 export async function clearSavedWallets(): Promise<void> {
+  announce({ type: "clear" });
   if (dbPromise) {
     try { (await dbPromise).close(); } catch { /* never opened */ }
     dbPromise = null;
@@ -257,8 +318,10 @@ export async function clearSavedWallets(): Promise<void> {
   if (typeof indexedDB === "undefined" || indexedDB === null) return;
   await new Promise<void>((resolve, reject) => {
     const req = indexedDB.deleteDatabase(DB_NAME);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
-    req.onblocked = () => resolve();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    req.onsuccess = () => { clearTimeout(timer); resolve(); };
+    req.onerror = () => { clearTimeout(timer); reject(req.error); };
+    // Other tabs close on versionchange; one that does not keeps the delete pending
+    req.onblocked = () => { timer = setTimeout(() => reject(new Error("blocked")), CLEAR_BLOCKED_MS); };
   });
 }

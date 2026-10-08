@@ -8,6 +8,7 @@ import { RecentScans } from "./RecentScans";
 import { BookmarkList } from "./history/BookmarkList";
 import { HistoryTab } from "./history/HistoryTab";
 import { ExportWalletsPrompt } from "./history/ExportWalletsPrompt";
+import { ImportedWalletsNote } from "./history/ImportedWalletsNote";
 import type { RecentScan } from "@/hooks/useRecentScans";
 import type { Bookmark } from "@/hooks/useBookmarks";
 import type { ExampleItem } from "@/lib/constants";
@@ -21,7 +22,7 @@ interface ScanHistoryProps {
   onRemoveBookmark: (input: string) => void;
   onClearBookmarks: () => void;
   onExportBookmarks?: (opts?: { includeWallets?: boolean }) => void;
-  onImportBookmarks?: (json: string) => { imported: number; error?: string };
+  onImportBookmarks?: (json: string) => { imported: number; error?: string; wallets?: number };
 }
 
 type Tab = "recent" | "bookmarks" | "examples";
@@ -49,6 +50,7 @@ export const ScanHistory = memo(function ScanHistory({
   const [tab, setTab] = useState<Tab>(defaultTab);
 
   const [exportPrompt, setExportPrompt] = useState(false);
+  const [importedWallets, setImportedWallets] = useState(0);
   const walletCount = bookmarks.filter((b) => b.type === "wallet").length;
   const [importFeedback, setImportFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -67,6 +69,7 @@ export const ScanHistory = memo(function ScanHistory({
         setImportFeedback({ type: "error", message: t("history.importError", { defaultValue: "Invalid bookmark file" }) });
       } else {
         setImportFeedback({ type: "success", message: t("history.importSuccess", { defaultValue: "{{count}} bookmarks imported", count: result.imported }) });
+        setImportedWallets(result.wallets ?? 0);
       }
       clearTimeout(feedbackTimerRef.current);
       feedbackTimerRef.current = setTimeout(() => setImportFeedback(null), 3000);
@@ -203,6 +206,9 @@ export const ScanHistory = memo(function ScanHistory({
 
       {tab === "bookmarks" && (
         <div role="tabpanel" id="panel-bookmarks" aria-labelledby="tab-bookmarks">
+        {importedWallets > 0 && (
+          <div className="mb-2"><ImportedWalletsNote count={importedWallets} onDismiss={() => setImportedWallets(0)} /></div>
+        )}
         {exportPrompt && onExportBookmarks && (
           <div className="mb-2">
             <ExportWalletsPrompt

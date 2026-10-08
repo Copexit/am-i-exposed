@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Download, Upload } from "lucide-react";
 import { useBookmarks } from "@/hooks/useBookmarks";
 import { ExportWalletsPrompt } from "@/components/history/ExportWalletsPrompt";
+import { ImportedWalletsNote } from "@/components/history/ImportedWalletsNote";
 import { useSavedGraphs } from "@/hooks/useSavedGraphs";
 import type { TFunction } from "i18next";
 
@@ -17,6 +18,7 @@ export function WorkspaceSettingsPanel() {
   const { graphs } = useSavedGraphs();
   const fileRef = useRef<HTMLInputElement>(null);
   const [exportPrompt, setExportPrompt] = useState(false);
+  const [importedWallets, setImportedWallets] = useState(0);
   const walletCount = bookmarks.filter((b) => b.type === "wallet").length;
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
@@ -54,6 +56,7 @@ export function WorkspaceSettingsPanel() {
         showToast("error", t("workspace.importError", { defaultValue: "Import failed. Invalid file format." }));
       } else {
         showToast("success", t("workspace.imported", { count: result.imported, defaultValue: "Imported {{count}} scans." }));
+        setImportedWallets(result.wallets ?? 0);
       }
     };
     reader.readAsText(file);
@@ -92,6 +95,7 @@ export function WorkspaceSettingsPanel() {
           className="hidden"
         />
       </div>
+      {importedWallets > 0 && <ImportedWalletsNote count={importedWallets} onDismiss={() => setImportedWallets(0)} />}
       {exportPrompt && (
         <ExportWalletsPrompt walletCount={walletCount} onExport={doExport} onCancel={() => setExportPrompt(false)} />
       )}

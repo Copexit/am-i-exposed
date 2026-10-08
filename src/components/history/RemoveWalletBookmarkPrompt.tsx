@@ -8,7 +8,7 @@ export function RemoveWalletBookmarkPrompt({ snapshotKey, onDone }: { snapshotKe
   const { t } = useTranslation();
   const link = "text-left text-xs min-h-[32px] cursor-pointer transition-colors";
   return (
-    <div role="dialog" aria-label={t("wallet.bookmark.removeTitle", { defaultValue: "Remove this wallet bookmark?" })}
+    <div role="group" aria-label={t("wallet.bookmark.removeTitle", { defaultValue: "Remove this wallet bookmark?" })}
       className="rounded-lg border border-card-border bg-surface-elevated p-3 shadow-lg space-y-1"
       onKeyDown={(e) => { if (e.key === "Escape") onDone(false); }}>
       <p className="text-xs text-foreground mb-1">{t("wallet.bookmark.removeTitle", { defaultValue: "Remove this wallet bookmark?" })}</p>

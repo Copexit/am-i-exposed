@@ -58,9 +58,13 @@ const store = createLocalStorageStore<Bookmark[]>(
   },
 );
 
+/** Valid wallet entries in an import (they carry raw keys: the UI warns). */
+const countWallets = (items: unknown[]) => items.filter((b) => isValidBookmark(b) && b.type === "wallet").length;
+
 /** Merge entries into storage. Returns the count merged, or null when the write failed. */
 function mergeBookmarks(items: unknown[]): number | null {
-  const valid = items.filter(isValidBookmark);
+  // Labels are capped as when typed (40 characters)
+  const valid = items.filter(isValidBookmark).map((b) => (typeof b.label === "string" ? { ...b, label: b.label.slice(0, 40) } : { ...b, label: undefined }));
   if (valid.length === 0) return 0;
   const existing = store.getSnapshot();
   const byInput = new Map(existing.map((b) => [b.input, b]));
@@ -159,7 +163,7 @@ export function useBookmarks() {
 
   /** Import workspace. Handles: workspace {bookmarks,graphs}, legacy bookmark array, legacy graph export. */
   const importBookmarks = useCallback(
-    (json: string): { imported: number; error?: string } => {
+    (json: string): { imported: number; error?: string; wallets?: number } => {
       let parsed: unknown;
       try {
         parsed = JSON.parse(json);
@@ -176,7 +180,7 @@ export function useBookmarks() {
         const count = mergeBookmarks(parsed);
         if (count === null) return storageFull;
         if (count === 0) return { imported: 0, error: "no_valid_entries" };
-        return { imported: count };
+        return { imported: count, wallets: countWallets(parsed) };
       }
 
       if (typeof parsed !== "object" || parsed === null) {
@@ -202,7 +206,7 @@ export function useBookmarks() {
       }
 
       if (importedCount === 0) return { imported: 0, error: "no_valid_entries" };
-      return { imported: importedCount };
+      return { imported: importedCount, wallets: Array.isArray(obj.bookmarks) ? countWallets(obj.bookmarks) : 0 };
     },
     [],
   );

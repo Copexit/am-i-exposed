@@ -53,7 +53,7 @@ test("a scanned wallet reopens at once from its saved scan, then refreshes to up
   await page.reload();
 
   const status = page.getByTestId("saved-scan-status");
-  await expect(status).toContainText("Saved scan from");
+  await expect(status).toContainText("Saved scan ");
   await expect(status).toContainText("Refreshing...");
   await expect(stat(page, "Total balance")).toHaveText("39,852,779 sats");
   release();
@@ -99,7 +99,7 @@ test("wallet bookmark: privacy dialog, one-click reopen, export excludes wallets
   await item.getByRole("button").first().click();
   await expect(page.getByTestId("xpub-warn-bookmarked")).toContainText('This is your bookmarked wallet "Savings". It will be checked against mempool.space');
   await page.getByRole("button", { name: "I understand the risk, proceed" }).click();
-  await expect(page.getByTestId("saved-scan-status")).toContainText("Saved scan from");
+  await expect(page.getByTestId("saved-scan-status")).toContainText("Saved scan ");
   await expect(stat(page, "Total balance")).toHaveText("39,852,779 sats");
   release();
   await expect(page.getByTestId("saved-scan-status")).toHaveText("Up to date (coins verified 1/1)", { timeout: 15_000 });

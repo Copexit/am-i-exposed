@@ -3,7 +3,7 @@ import "fake-indexeddb/auto";
 import { saveAnalysisSettings, DEFAULT_ANALYSIS_SETTINGS } from "@/lib/analysis/settings";
 import type { WalletAddressInfo } from "@/lib/analysis/wallet-audit";
 import {
-  walletKey, saveSnapshot, loadSnapshot, listSavedWallets, forgetWallet, clearSavedWallets,
+  walletKey, saveSnapshot, savedEpoch, onSavedWalletsChanged, loadSnapshot, listSavedWallets, forgetWallet, clearSavedWallets,
   fullRescanReason, SNAPSHOT_VERSION, MAX_SNAPSHOT_BYTES, FULL_RESCAN_AFTER_MS, SavedWalletError, type WalletSnapshot,
 } from "../saved-wallets";
 import { FakeChain, ZPUB, parsed, addr } from "./fake-chain";
@@ -132,4 +132,53 @@ describe("saved wallets", () => {
     await clearSavedWallets();
     expect(await listSavedWallets()).toEqual([]);
   });
+
+  describe("forget and clear durability", () => {
+    it("a save started before a forget or a clear writes nothing", async () => {
+      const epoch = savedEpoch(KEY);
+      await forgetWallet(KEY);
+      expect(await saveSnapshot(KEY, ZPUB, BASE, snapshot(), epoch)).toBe(false);
+      expect(await loadSnapshot(KEY, ZPUB)).toBeNull();
+      const epoch2 = savedEpoch(KEY);
+      await clearSavedWallets();
+      expect(await saveSnapshot(KEY, ZPUB, BASE, snapshot(), epoch2)).toBe(false);
+      expect(await listSavedWallets()).toEqual([]);
+      // A fresh epoch saves again
+      expect(await saveSnapshot(KEY, ZPUB, BASE, snapshot(), savedEpoch(KEY))).toBe(true);
+    });
+
+    it("a forget from another tab drops this tab's pending saves and notifies", async () => {
+      const seen: (string | null)[] = [];
+      const off = onSavedWalletsChanged((k) => seen.push(k));
+      const epoch = savedEpoch(KEY);
+      const otherTab = new BroadcastChannel("aie-wallets");
+      otherTab.postMessage({ type: "forget", key: KEY });
+      await new Promise((r) => setTimeout(r, 50));
+      otherTab.close();
+      off();
+      expect(seen).toEqual([KEY]);
+      expect(savedEpoch(KEY)).not.toBe(epoch);
+      expect(await saveSnapshot(KEY, ZPUB, BASE, snapshot(), epoch)).toBe(false);
+    });
+
+    it("an open connection lets another tab's delete through (versionchange)", async () => {
+      await saveSnapshot(KEY, ZPUB, BASE, snapshot());
+      await new Promise<void>((resolve, reject) => {
+        const req = indexedDB.deleteDatabase("aie-wallets");
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+        req.onblocked = () => reject(new Error("blocked"));
+      });
+      expect(await loadSnapshot(KEY, ZPUB)).toBeNull();
+    });
+
+    it("clear reports a tab that keeps the database open instead of claiming success", async () => {
+      await saveSnapshot(KEY, ZPUB, BASE, snapshot());
+      // A connection without a versionchange handler (an old tab)
+      const stuck = await new Promise<IDBDatabase>((res) => { const r = indexedDB.open("aie-wallets"); r.onsuccess = () => res(r.result); });
+      await expect(clearSavedWallets()).rejects.toThrow("blocked");
+      stuck.close();
+    }, 15_000);
+  });
 });
+

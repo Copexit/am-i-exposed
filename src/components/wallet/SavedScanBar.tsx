@@ -15,7 +15,7 @@ export function SavedScanBar({ saved, saveError, onFullRescan, onForget }: {
 }) {
   const { t, i18n } = useTranslation();
   const ago = saved ? formatTimeAgo(Math.floor(saved.scannedAt / 1000), i18n.language) : "";
-  const savedFrom = t("wallet.saved.from", { ago, defaultValue: "Saved scan from {{ago}}" });
+  const savedFrom = t("wallet.saved.from", { ago, defaultValue: "Saved scan {{ago}}" });
 
   const text = !saved ? null
     : saved.status === "refreshing" ? `${savedFrom} · ${t("wallet.saved.refreshing", { defaultValue: "Refreshing..." })}`
