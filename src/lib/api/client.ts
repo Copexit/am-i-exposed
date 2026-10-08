@@ -1,4 +1,5 @@
 import { createCachedMempoolClient } from "./cached-client";
+import { createMempoolClient } from "./mempool";
 import type { NetworkConfig } from "@/lib/bitcoin/networks";
 
 /** Timeout for hosted mempool.space (and Tor) */
@@ -42,11 +43,14 @@ export function isLocalApi(url: string): boolean {
  * Self-hosted/Umbrel APIs get a 60s per-request timeout (Electrs can be slow
  * on large addresses). Hosted mempool.space keeps the default 15s timeout.
  */
-export function createApiClient(config: NetworkConfig, signal?: AbortSignal) {
+export function createApiClient(config: NetworkConfig, signal?: AbortSignal, { fresh = false } = {}) {
   const timeoutMs = isLocalApi(config.mempoolBaseUrl)
     ? LOCAL_TIMEOUT_MS
     : HOSTED_TIMEOUT_MS;
-  return createCachedMempoolClient(config.mempoolBaseUrl, undefined, { signal, timeoutMs });
+  // `fresh`: bypass the response cache (a saved wallet's quick refresh needs current data)
+  return fresh
+    ? createMempoolClient(config.mempoolBaseUrl, { signal, timeoutMs })
+    : createCachedMempoolClient(config.mempoolBaseUrl, undefined, { signal, timeoutMs });
 }
 
 export type ApiClient = ReturnType<typeof createApiClient>;
