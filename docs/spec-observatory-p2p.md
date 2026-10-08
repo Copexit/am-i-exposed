@@ -346,6 +346,7 @@ Extends the Observatory hash (`src/lib/observatory/obs-hash.ts`, tolerant parse,
 - `&cur=EUR` (3 to 5 uppercase letters; unknown codes fall back to the default market once data loads)
 - `&side=sell` (default `buy`, meaning the visitor wants to buy, so sell offers are listed)
 - `&venue=robosats,mostro` (subset of venues; default all)
+- `&pm=sepa-instant` (payment-method filter, a canonical id from `src/lib/observatory/p2p/payment-methods.ts` or `other`; unknown ids are ignored). Raw labels from every venue (RoboSats space-joined `pm` tag, Mostro free text, HodlHodl names with a type) map to catalog ids; a label matching nothing maps to `other`, so no offer is dropped. An offer matches when any of its methods matches. The filter narrows the wall, the offer list and the nearest-market suggestions, and a status note states the filtered count, BTC and median premium; currency chip counts and the headline stay unfiltered.
 - `&view=table` (reused: replaces the wall with a table of depth steps)
 - `&coordinator=<key>` (reused: scrolls to and highlights that coordinator or instance card)
 

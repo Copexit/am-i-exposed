@@ -2,6 +2,7 @@ import { getService } from "@/lib/services/registry";
 import { latestReplaceable, tag } from "./nostr-verify";
 import { currencyCode, fiatRange, num, pricing, toLayer } from "./normalize-common";
 import { indexFor } from "./market";
+import { paymentMethodIds } from "./payment-methods";
 import { sanitizeMethods, sanitizeNotice } from "./sanitize";
 import type { DailyVolume, IndexPrices, NostrEvent, P2pOffer, VenueHost } from "./types";
 
@@ -48,6 +49,7 @@ export function mostroOffers(orders: NostrEvent[], info: NostrEvent[], index: In
       premium,
       price,
       methods: sanitizeMethods(tag(e, "pm") ?? []),
+      pm: paymentMethodIds(tag(e, "pm") ?? []),
       layer: toLayer(tag(e, "layer")?.[0]),
       bondPct: null,
       createdAt: num(tag(e, "published_at")?.[0]) ?? e.created_at,

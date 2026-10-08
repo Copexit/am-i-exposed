@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { parseObsHash, serializeObsHash, type ObsState } from "../obs-hash";
 
 const TABS = ["wabisabi", "whirlpool", "p2p"] as const;
-const P2P = { cur: null, side: "buy", venue: ["robosats", "mostro", "hodlhodl"] } as const;
+const P2P = { cur: null, side: "buy", venue: ["robosats", "mostro", "hodlhodl"], pm: null } as const;
 const tx = "ab".repeat(32);
 
 describe("obs hash", () => {
@@ -11,7 +11,7 @@ describe("obs hash", () => {
       { tab: "wabisabi", period: 7, coordinator: "kruw", tx, view: "table", ...P2P, venue: [...P2P.venue] },
       { tab: "whirlpool", period: 1, coordinator: null, tx: null, view: "map", ...P2P, venue: [...P2P.venue] },
       { tab: "wabisabi", period: 30, coordinator: "coinjoin_nl", tx: null, view: "map", ...P2P, venue: [...P2P.venue] },
-      { tab: "p2p", period: 1, coordinator: "temple", tx: null, view: "table", cur: "EUR", side: "sell", venue: ["mostro", "hodlhodl"] },
+      { tab: "p2p", period: 1, coordinator: "temple", tx: null, view: "table", cur: "EUR", side: "sell", venue: ["mostro", "hodlhodl"], pm: "revolut" },
     ];
     for (const s of states) expect(parseObsHash(serializeObsHash(s), TABS)).toEqual(s);
   });
@@ -31,5 +31,10 @@ describe("obs hash", () => {
     expect(parseObsHash("#p2p&cur=zz1&side=nope&venue=evil", TABS)).toMatchObject({ tab: "p2p", cur: null, side: "buy", venue: ["robosats", "mostro", "hodlhodl"] });
     expect(parseObsHash("#p2p&cur=brl", TABS).cur).toBe("BRL");
     expect(serializeObsHash({ ...parseObsHash("#p2p&venue=hodlhodl,robosats,mostro", TABS) })).toBe("#p2p");
+  });
+  it("pm: canonical ids round-trip, unknown ids are ignored", () => {
+    expect(serializeObsHash(parseObsHash("#p2p&cur=EUR&pm=sepa-instant", TABS))).toBe("#p2p&cur=EUR&pm=sepa-instant");
+    expect(parseObsHash("#p2p&pm=other", TABS).pm).toBe("other");
+    for (const junk of ["nope", "Revolut", "__proto__", "%E0%A4%A", ""]) expect(parseObsHash(`#p2p&pm=${junk}`, TABS).pm).toBeNull();
   });
 });

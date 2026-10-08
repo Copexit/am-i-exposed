@@ -77,6 +77,42 @@ test("no P2P request leaves for a third party: only the app and the relay worker
   expect([...hosts].filter((h) => venue.test(h))).toEqual([]);
 });
 
+test("payment-method filter: pick Revolut, the list narrows, pm= survives a reload, clear restores", async ({ page }) => {
+  await page.goto("/observatory/#p2p&cur=EUR");
+  await expect(rows(page).first()).toBeVisible({ timeout: 20_000 });
+  await page.getByTestId("p2p-pm-trigger").click();
+  const any = page.getByRole("group", { name: "Payment method" }).getByRole("button", { name: /^Any payment method/ });
+  const total = Number((await any.textContent())!.replace(/\D/g, ""));
+  await page.getByRole("searchbox", { name: "Search payment methods" }).fill("revol");
+  await page.getByRole("group", { name: "Payment method" }).getByRole("button", { name: /^Revolut/ }).click();
+  await expect(page).toHaveURL(/#p2p&cur=EUR&pm=revolut$/);
+  await expect(page.getByTestId("p2p-pm-note")).toContainText("Revolut");
+  await expect(rows(page).first()).toBeVisible();
+  const shown = Number((await page.getByTestId("p2p-pm-note").textContent())!.match(/(\d+) offers?/)![1]);
+  expect(shown).toBeGreaterThan(0);
+  expect(shown).toBeLessThan(total);
+  expect(await rows(page).count()).toBe(Math.min(shown, 25));
+
+  await page.reload();
+  await expect(page.getByTestId("p2p-pm-note")).toContainText("Revolut", { timeout: 20_000 });
+  await expect(page.getByTestId("p2p-pm-trigger")).toContainText("Revolut");
+  await page.getByRole("button", { name: "Clear payment method filter" }).click();
+  await expect(page).toHaveURL(/#p2p&cur=EUR$/);
+  await expect(page.getByTestId("p2p-pm-note")).toHaveCount(0);
+});
+
+test("payment-method picker open at 390 px: no horizontal scroll", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/observatory/#p2p&cur=EUR&pm=sepa-instant");
+  await expect(page.locator("[data-testid=p2p-offer-card]").first()).toBeVisible({ timeout: 20_000 });
+  await page.getByTestId("p2p-pm-trigger").click();
+  await expect(page.getByRole("searchbox", { name: "Search payment methods" })).toBeFocused();
+  const [sw, iw] = await page.evaluate(() => [document.documentElement.scrollWidth, window.innerWidth]);
+  expect(sw).toBeLessThanOrEqual(iw);
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("p2p-pm-trigger")).toBeFocused();
+});
+
 for (const lang of ["en", "de", "pl"]) {
   test(`no horizontal scroll at 390 px (${lang})`, async ({ page }) => {
     await page.addInitScript((l) => { try { localStorage.setItem("ami-language", l); } catch { /* private mode */ } }, lang);

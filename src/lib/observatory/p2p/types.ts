@@ -24,6 +24,8 @@ export interface P2pOffer {
   /** Fiat per BTC */
   price: number | null;
   methods: string[];
+  /** Canonical payment-method ids (payment-methods.ts); unmatched labels give "other". */
+  pm: string[];
   layer: Layer;
   bondPct: number | null;
   createdAt: number;
@@ -125,8 +127,8 @@ export interface HodlOffer {
   min_amount_sats: string | null;
   max_amount_sats: string | null;
   fee: { author_fee_rate: string };
-  payment_methods?: { name: string }[];
-  payment_method_instructions?: { payment_method_name: string }[];
+  payment_methods?: { name: string; type?: string }[];
+  payment_method_instructions?: { payment_method_name: string; payment_method_type?: string }[];
   working_now: boolean;
   country_code: string;
 }

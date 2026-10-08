@@ -1,6 +1,7 @@
 import { SERVICES } from "@/lib/services/registry";
 import { tag } from "./nostr-verify";
 import { currencyCode, fiatRange, num, pricing, toLayer } from "./normalize-common";
+import { paymentMethodIds } from "./payment-methods";
 import { sanitizeMethods, sanitizeNotice } from "./sanitize";
 import type { DailyVolume, IndexPrices, NostrEvent, P2pOffer, RoboHistorical, RoboInfo, RoboLimits, VenueHost } from "./types";
 
@@ -43,6 +44,7 @@ export function robosatsOffers(events: NostrEvent[], index: IndexPrices | null, 
       price,
       // RoboSats splits labels on spaces: join them back before sanitizing.
       methods: sanitizeMethods([(tag(e, "pm") ?? []).join(" ")]),
+      pm: paymentMethodIds([(tag(e, "pm") ?? []).join(" ")]),
       layer: toLayer(tag(e, "layer")?.[0]),
       bondPct: num(tag(e, "bond")?.[0]),
       createdAt: e.created_at,

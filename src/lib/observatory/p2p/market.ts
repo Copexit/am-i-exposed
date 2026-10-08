@@ -169,3 +169,17 @@ export function depthClip(points: DepthPoint[], lo = 2, hi = 98): { points: Dept
     above: points.filter((p) => p.premium > max).length,
   };
 }
+
+/** Offers accepting a payment method (any of an offer's methods); null keeps all. */
+export function filterMethod(offers: P2pOffer[], pm: string | null): P2pOffer[] {
+  return pm ? offers.filter((o) => o.pm.includes(pm)) : offers;
+}
+
+/** Payment methods in these offers with offer counts, most common first, "other" last. */
+export function methodCounts(offers: P2pOffer[]): { id: string; count: number }[] {
+  const c = new Map<string, number>();
+  for (const o of offers) for (const id of o.pm) c.set(id, (c.get(id) ?? 0) + 1);
+  return [...c]
+    .map(([id, count]) => ({ id, count }))
+    .sort((a, b) => Number(a.id === "other") - Number(b.id === "other") || b.count - a.count || a.id.localeCompare(b.id));
+}
