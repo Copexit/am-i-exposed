@@ -1,5 +1,6 @@
 import type { Period } from "./wabisator-client";
 import { VENUES, type Venue } from "./p2p/types";
+import { isPmId } from "./p2p/payment-methods";
 
 export interface ObsState {
   tab: string;
@@ -13,9 +14,11 @@ export interface ObsState {
   side: "buy" | "sell";
   /** P2P venue filter; default all three */
   venue: Venue[];
+  /** P2P payment-method filter (canonical id); unknown ids are ignored */
+  pm: string | null;
 }
 
-const DEFAULTS: ObsState = { tab: "wabisabi", period: 1, coordinator: null, tx: null, view: "map", cur: null, side: "buy", venue: [...VENUES] };
+const DEFAULTS: ObsState = { tab: "wabisabi", period: 1, coordinator: null, tx: null, view: "map", cur: null, side: "buy", venue: [...VENUES], pm: null };
 
 function decode(s: string): string {
   try { return decodeURIComponent(s); } catch { return s; }
@@ -36,6 +39,7 @@ export function parseObsHash(hash: string, knownTabs: readonly string[]): ObsSta
     cur: parseCur(params.get("cur")),
     side: params.get("side") === "sell" ? "sell" : "buy",
     venue: parseVenues(params.get("venue")),
+    pm: isPmId(params.get("pm") ?? "") ? params.get("pm")! : null,
   };
 }
 
@@ -51,7 +55,7 @@ function parseVenues(v: string | undefined): Venue[] {
 }
 
 /** "#wabisabi&period=7&coordinator=kruw"; default values are omitted. */
-export function serializeObsHash(input: Omit<ObsState, "cur" | "side" | "venue"> & Partial<Pick<ObsState, "cur" | "side" | "venue">>): string {
+export function serializeObsHash(input: Omit<ObsState, "cur" | "side" | "venue" | "pm"> & Partial<Pick<ObsState, "cur" | "side" | "venue" | "pm">>): string {
   const s: ObsState = { ...DEFAULTS, ...input };
   const parts = [s.tab];
   if (s.period !== DEFAULTS.period) parts.push(`period=${s.period}`);
@@ -62,5 +66,6 @@ export function serializeObsHash(input: Omit<ObsState, "cur" | "side" | "venue">
   if (s.side !== DEFAULTS.side) parts.push(`side=${s.side}`);
   const venues = VENUES.filter((v) => s.venue.includes(v));
   if (venues.length && venues.length < VENUES.length) parts.push(`venue=${venues.join(",")}`);
+  if (s.pm) parts.push(`pm=${s.pm}`);
   return `#${parts.join("&")}`;
 }

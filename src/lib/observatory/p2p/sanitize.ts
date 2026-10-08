@@ -19,6 +19,9 @@ function clean(s: string, max: number): string {
   return out.length > max ? `${out.slice(0, max - 1).trimEnd()}…` : out;
 }
 
+/** Contact details stripped, untruncated: input for payment-method matching. */
+export const cleanLabel = (s: string): string => clean(s, Infinity);
+
 /** Default max 4 labels, 32 chars each; deduped case-insensitively. */
 export function sanitizeMethods(raw: string[], max = 4, maxChars = 32): string[] {
   const out: string[] = [];

@@ -1,5 +1,6 @@
 import { computePremium, indexFor } from "./market";
 import { currencyCode, num } from "./normalize-common";
+import { paymentMethodIds } from "./payment-methods";
 import { sanitizeMethods } from "./sanitize";
 import type { HodlPage, IndexPrices, P2pOffer, VenueHost } from "./types";
 
@@ -20,9 +21,10 @@ export function hodlhodlOffers(pages: HodlPage[], index: IndexPrices | null, now
         : price !== null && idx !== null ? computePremium(price, idx) : null;
       const fiatMax = num(o.max_amount);
       const sats = num(o.max_amount_sats);
-      const methods = o.payment_methods?.length
-        ? o.payment_methods.map((m) => m.name)
-        : (o.payment_method_instructions ?? []).map((m) => m.payment_method_name);
+      const raw = o.payment_methods?.length
+        ? o.payment_methods.map((m) => ({ name: m.name, type: m.type }))
+        : (o.payment_method_instructions ?? []).map((m) => ({ name: m.payment_method_name, type: m.payment_method_type }));
+      const methods = raw.map((m) => m.name);
       out.set(o.id, {
         id: `hodlhodl:hodlhodl:${o.id}`,
         venue: "hodlhodl",
@@ -35,6 +37,7 @@ export function hodlhodlOffers(pages: HodlPage[], index: IndexPrices | null, now
         premium,
         price,
         methods: sanitizeMethods(methods),
+        pm: paymentMethodIds(methods, raw.map((m) => m.type)),
         layer: "onchain",
         bondPct: null,
         createdAt: nowSec,
