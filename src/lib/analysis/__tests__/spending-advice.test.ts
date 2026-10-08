@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { adviseCoinSelection, buildCoinInputs, evaluateSelection, outpointOf, type CoinSelectionAdvice, type CoinSelectionInput, type CoinSelectionPlan } from "../coin-selection";
+import { buildCoinInputs, outpointOf, type CoinSelectionInput, type CoinSelectionPlan } from "../coin-selection";
 import { recipientHistory, roundChange, roundChangeCap, spendingAlerts, validRecipient, walletAddressType } from "../spending-advice";
 import { History, ext, recv } from "./fixtures/wallet-history";
 import { isRoundAmount } from "../heuristics/round-amount";
@@ -10,9 +10,6 @@ function coin(value: number, opts: Partial<Omit<CoinSelectionInput, "utxo">> & {
   seq++;
   return { utxo: { txid: txid ?? `sp${seq}`, vout: 0, value, status: { confirmed: true } }, address: `bc1qspend${seq}`, ...rest };
 }
-const plans = (a: CoinSelectionAdvice) => { if (a.kind !== "plans") throw new Error(a.kind); return a.plans; };
-const values = (p: CoinSelectionPlan) => p.selected.map(s => s.utxo.value).sort((a, b) => b - a);
-const NO_ABSORB = 0;
 
 /** The recipient (ext(77)) paid the wallet 133,000; another payer sent 104,000; the wallet once paid ext(78), keeping change. */
 function recipientWallet() {
@@ -51,29 +48,6 @@ describe("rule 1: coins the recipient already knows", () => {
     expect(Object.fromEntries(known)).toEqual({ [outpointOf(s2)]: "sent", [outpointOf(linked)]: "linked", [outpointOf(named)]: "observer" });
   });
 
-  it("prefers the coin the recipient sent over a closer coin, with the reason and the decision path", () => {
-    const { infos, coins, known } = recipientWallet();
-    const without = plans(adviseCoinSelection(coins, 100_000, 5));
-    expect(values(without[0]!)).toEqual([104_000]);
-    const k = recipientHistory(infos, coins, ext(77)).known;
-    const top = plans(adviseCoinSelection(coins, 100_000, 5, undefined, { known: new Set(k.keys()) }))[0]!;
-    expect(values(top)).toEqual([133_000]);
-    expect(top.selected[0]!.utxo.txid).toBe(known.txid);
-    expect(top.reason).toBe("recipient-knows");
-    expect(top.path[0]).toEqual({ rule: 1, id: "known-used", ok: true, n: 1 });
-    // The other plans say the known coin is not used
-    const other = plans(adviseCoinSelection(coins, 100_000, 5, undefined, { known: new Set(k.keys()) })).find(p => values(p)[0] === 104_000)!;
-    expect(other.path[0]).toEqual({ rule: 1, id: "known-unused", ok: false, n: 1 });
-  });
-
-  it("a known coin with change 20x the payment beats an unknown coin with ordinary change (no big-change cost when known)", () => {
-    const big = coin(2_000_000);
-    const p = plans(adviseCoinSelection([big, coin(115_000)], 100_000, 1, NO_ABSORB, { known: new Set([outpointOf(big)]) }));
-    expect(values(p[0]!)).toEqual([2_000_000]);
-    expect(p[0]!.cost).toBe(4 - 12);
-    expect(p[0]!.reason).toBe("recipient-knows");
-  });
-
   it("does not count a mixed output of a CoinJoin the recipient took part in", () => {
     const h = new History();
     const outs = h.tx(
@@ -94,108 +68,6 @@ describe("rule 1: coins the recipient already knows", () => {
     expect(recipientHistory(infos, coins, recv(2)).known.size).toBe(0);
   });
 
-  it("evaluates a manual selection with the same bonus", () => {
-    const { infos, coins, known } = recipientWallet();
-    const k = new Set(recipientHistory(infos, coins, ext(77)).known.keys());
-    const op = new Set([`${known.txid}:0`]);
-    const a = evaluateSelection(coins, op, 100_000, 5, { known: k });
-    const b = evaluateSelection(coins, op, 100_000, 5);
-    if (a.kind !== "plan" || b.kind !== "plan") throw new Error("plan");
-    expect(a.plan.cost).toBe(b.plan.cost - 12);
-    expect(a.plan.reason).toBe("recipient-knows");
-  });
-});
-
-describe("rule 2: close single coin", () => {
-  it("marks a single coin within 10% as close, and a merge says whether one existed", () => {
-    const p = plans(adviseCoinSelection([coin(105_000), coin(400_000)], 100_000, 1, NO_ABSORB));
-    const close = p.find(x => values(x)[0] === 105_000)!;
-    expect(close.path[0]).toEqual({ rule: 2, id: "close-single", ok: true, amount: close.change });
-    const far = p.find(x => values(x)[0] === 400_000);
-    if (far) expect(far.path[0]).toMatchObject({ rule: 2, id: "far-single", ok: false });
-    const merge = plans(adviseCoinSelection([coin(70_000), coin(50_000)], 100_000, 1, NO_ABSORB))[0]!;
-    expect(merge.path[0]).toEqual({ rule: 2, id: "no-close-single", ok: true });
-  });
-
-  it("an absorbed leftover counts toward the 10%", () => {
-    const p = plans(adviseCoinSelection([coin(103_000)], 100_000, 1))[0]!;
-    expect(p.absorbsChange).toBe(true);
-    expect(p.path).toEqual([
-      { rule: 2, id: "close-single", ok: true, amount: p.absorbed },
-      { rule: 3, id: "no-change", ok: true },
-    ]);
-  });
-});
-
-describe("rule 4: consolidation with small change vs one coin with big change (Privacy first)", () => {
-  it("a 2-origin merge with change at most the payment beats one coin with change at least 10x", () => {
-    const p = plans(adviseCoinSelection([coin(2_000_000), coin(70_000), coin(50_000)], 100_000, 1, NO_ABSORB));
-    expect(values(p[0]!)).toEqual([70_000, 50_000]);
-    expect(p[0]!.cost).toBe(12 + 4);
-    expect(p[0]!.path).toContainEqual({ rule: 4, id: "merge-small-change", ok: true, amount: p[0]!.change });
-    // Toxic small change does not pass the step
-    const toxic = plans(adviseCoinSelection([coin(70_000), coin(35_000)], 100_000, 1, NO_ABSORB))[0]!;
-    expect(toxic.path).toContainEqual({ rule: 4, id: "merge-small-change", ok: false, amount: toxic.change });
-    const single = p.find(x => x.selected.length === 1)!;
-    expect(single.cost).toBe(4 + 9 + 6);
-    expect(single.path).toContainEqual({ rule: 4, id: "huge-change", ok: false, n: 19 });
-  });
-
-  it("not against one coin whose change is 3x-10x (big-change cap ruling unchanged)", () => {
-    expect(values(plans(adviseCoinSelection([coin(900_000), coin(70_000), coin(50_000)], 100_000, 1, NO_ABSORB))[0]!)).toEqual([900_000]);
-  });
-
-  it("not when the merge links 3 unrelated origins", () => {
-    expect(values(plans(adviseCoinSelection([coin(2_000_000), coin(40_000), coin(40_000), coin(40_000)], 100_000, 1, NO_ABSORB))[0]!)).toEqual([2_000_000]);
-  });
-
-  it("not when the merge breaks the KYC or CJ label rules", () => {
-    const kyc = plans(adviseCoinSelection([coin(2_000_000), coin(70_000, { labelTags: ["kyc"] }), coin(50_000, { labelTags: ["nokyc"] })], 100_000, 1, NO_ABSORB));
-    expect(values(kyc[0]!)).toEqual([2_000_000]);
-    const cj = plans(adviseCoinSelection([coin(2_000_000), coin(70_000, { labelTags: ["cj"] }), coin(50_000)], 100_000, 1, NO_ABSORB));
-    expect(values(cj[0]!)).toEqual([2_000_000]);
-  });
-
-  it("a changeless merge says so in its path; an absorbed one shows the extra fee", () => {
-    const absorbed = plans(adviseCoinSelection([coin(70_000), coin(33_000)], 100_000, 1))[0]!;
-    expect(absorbed.absorbsChange).toBe(true);
-    expect(absorbed.path).toContainEqual({ rule: 4, id: "merge-absorbed", ok: true, amount: absorbed.absorbed });
-  });
-});
-
-describe("rule 5: merge coins of one observer or platform", () => {
-  it("a merge of coins one label observer knows costs half a link per new link", () => {
-    const p = plans(adviseCoinSelection([
-      coin(70_000, { labelObserver: "Juan" }), coin(50_000, { labelObserver: "juan" }), coin(55_000, { labelObserver: "Ana" }),
-    ], 100_000, 1, NO_ABSORB));
-    expect(values(p[0]!)).toEqual([70_000, 50_000]);
-    expect(p[0]!.cost).toBe(6 + 4);
-    expect(p[0]!.path).toContainEqual({ rule: 5, id: "same-observer", ok: true, name: "Juan" });
-    const mixed = p.find(x => values(x).includes(55_000));
-    if (mixed) expect(mixed.path).toContainEqual({ rule: 5, id: "new-links", ok: false, n: 2 });
-  });
-
-  it("the platform field counts too, and coins already linked say so", () => {
-    const p = plans(adviseCoinSelection([coin(70_000, { labelPlatform: "RoboSats" }), coin(50_000, { labelPlatform: "RoboSats" })], 100_000, 1, NO_ABSORB))[0]!;
-    expect(p.path).toContainEqual({ rule: 5, id: "same-observer", ok: true, name: "RoboSats" });
-    const linked = plans(adviseCoinSelection([coin(70_000, { cluster: "a" }), coin(50_000, { cluster: "a" })], 100_000, 1, NO_ABSORB))[0]!;
-    expect(linked.path).toContainEqual({ rule: 5, id: "already-linked", ok: true });
-  });
-});
-
-describe("rule 9: merging only CoinJoin outputs (ruling)", () => {
-  it("is the least-bad merge when one is needed: cheaper than a merge of coins with history, never good", () => {
-    const p = plans(adviseCoinSelection([
-      coin(60_000, { origin: "mixed" }), coin(40_500, { origin: "mixed" }), coin(55_000), coin(45_250),
-    ], 100_000, 1, NO_ABSORB));
-    expect(values(p[0]!)).toEqual([60_000, 40_500]);
-    expect(p[0]!.cost).toBe(11);
-    expect(p[0]!.warnings[0]).toMatchObject({ id: "coinjoin-merge", severity: "high" });
-    expect(p[0]!.path).toContainEqual({ rule: 9, id: "coinjoin-only", ok: false, n: 2 });
-    expect(p.find(x => values(x).join() === "55000,45250")!.cost).toBe(12);
-    // Mixed with unmixed coins: never (severe)
-    expect(p.some(x => x.selected.some(c => c.origin === "mixed") && x.selected.some(c => c.origin !== "mixed"))).toBe(false);
-  });
 });
 
 describe("alerts (rules 3, 6, 7)", () => {
@@ -208,6 +80,12 @@ describe("alerts (rules 3, 6, 7)", () => {
     expect(spendingAlerts({ ...base, history, apiReused: true })).toEqual([{ id: "reused-history", severity: "critical", sent: 1, paid: 2 }]);
     expect(spendingAlerts({ ...base, history: { sent: 0, paid: 0, known: new Map() }, apiReused: true })).toEqual([{ id: "reused-api", severity: "critical" }]);
     expect(spendingAlerts({ ...base, apiReused: false })).toEqual([]);
+  });
+  it("spend change on its own: the coins that are not change cannot pay", () => {
+    expect(spendingAlerts({ ...base, changeOnly: { plainTotal: 2_502_357, compliant: true } }))
+      .toEqual([{ id: "change-alone", severity: "medium", amount: 2_502_357 }]);
+    expect(spendingAlerts({ ...base, changeOnly: { plainTotal: 0, compliant: false } }))
+      .toEqual([{ id: "change-merge-needed", severity: "high", amount: 0 }]);
   });
   it("round amount, type mismatch and change tips", () => {
     const a = spendingAlerts({ ...base, amount: 100_000, recipient: "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0", change: 5 });

@@ -12,6 +12,11 @@ import { detectWhirlpool } from "./heuristics/coinjoin-detectors";
 import { getSpendableOutputs } from "./heuristics/tx-utils";
 
 export type CoinClass = "mixed" | "coinjoin-change" | "change" | "self" | "received" | "unknown";
+/**
+ * Change, for the "spend change on its own" rule (coin selector) and W2 alike:
+ * change of a payment, an output of a self-transfer, CoinJoin change.
+ */
+export const isChangeClass = (c: CoinClass | undefined): boolean => c === "change" || c === "self" || c === "coinjoin-change";
 export const COIN_CLASSES: readonly CoinClass[] = ["mixed", "coinjoin-change", "change", "self", "received", "unknown"];
 export type OriginCounts = Record<CoinClass, { count: number; sats: number }>;
 

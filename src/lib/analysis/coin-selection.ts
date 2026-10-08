@@ -10,32 +10,41 @@
  * - changeless sets of 2-3 coins (changelessSets), wallet-wide and within each
  *   linkage cluster;
  * - from the coins that cannot pay alone: for each, the smallest partner that
- *   pays with it; the smallest coins added up; the fewest coins; and the
- *   fewest coins within each linkage cluster.
+ *   pays with it; the smallest coins added up; the fewest coins; the sets
+ *   with the least change; and the fewest coins within each linkage cluster;
+ * - the coins the recipient already knows, on their own.
  *
- * Ranked by privacy cost (COST), then inputs, then fee, then change. The
- * searches keep their next-best sets too; Pareto pruning drops a plan that
- * another beats on cost, fee, change and new links, and up to MAX_PLANS plans
- * are returned: the best under each ranking criterion (rankPlans), then the
- * rest by privacy cost. A plan that merges CoinJoin outputs with unmixed coins,
- * or a mixed output leaving change at least the payment, is shown only when
- * no other set pays. Merging only CoinJoin outputs (checklist rule 9) keeps
- * its high-severity warning and is never shown when one coin pays alone;
- * when a merge is needed it is the least-bad one: each such link costs a
- * little less than one between coins with history.
- *
- * Spending checklist (guide, "Spending checklist"): coins the recipient
- * already knows rank up (rule 1), coins one label observer already knows
- * merge at half a link (rule 5), a merge with small change beats one coin
- * with change 10x the payment (rule 4, bigChangeCost), and each plan carries
- * its decision path.
+ * Privacy first (guide, "Spending checklist", "How plans are ranked") compares
+ * what each plan lets an observer learn (PlanFacts), not a sum of weights,
+ * in this order (comparePrivacy):
+ *   a. hard rule violations (KYC with no-KYC, CoinJoin outputs with other
+ *      coins, a change coin merged with other coins, two outputs of one
+ *      transaction merged, a toxic coin merged): fewer first;
+ *   b. the recipient already knows every input: first;
+ *   c. new certain links: fewer first; at equal links, links one label
+ *      observer already knows or between CoinJoin outputs only first;
+ *   d. change: none < small (at most the payment) < big (more than the
+ *      payment) < huge (10x the payment or more) < toxic (under 10,000 sats,
+ *      or from a CoinJoin coin, whatever its size);
+ *   e. change detectable by the round-amount or address-type rules: fewer first;
+ *   f. probable links confirmed: fewer first;
+ *   g. inputs: fewer first;
+ *   h. fee (absorbed leftover included): lower first, a difference below
+ *      max(1,000 sats, 1% of the payment) counting as none;
+ *   then less change.
+ * Pareto pruning over the same facts drops a plan another beats or matches on
+ * every one; up to MAX_PLANS plans are returned: the best under each ranking
+ * criterion (rankPlans), then the rest in Privacy-first order. A plan that
+ * merges CoinJoin outputs with unmixed coins, or a mixed output leaving change
+ * at least the payment, is shown only when no other set pays; a merge of only
+ * CoinJoin outputs never when one coin pays alone.
  *
  * Linkage clusters (wallet-clusters.ts) carry what the wallet's history
- * already links on-chain: merging within one certain cluster is free and
- * counts as one origin; merging within one inferred cluster (sibling outputs
- * of one payment and their descendants) costs half a link. Mixed CoinJoin outputs are spent whole, ideally with no
- * change. CoinJoin change is not mixed: it stays linked to the coins that
- * entered the CoinJoin.
+ * already links on-chain: merging within one certain cluster links nothing
+ * new; merging within one inferred cluster (descendants of one payment's
+ * outputs) confirms a probable link. Sibling outputs of one transaction are
+ * not "probably linked" here: spending them together reveals the transaction
+ * paid the wallet itself, a hard violation and a new certain link.
  *
  * Never selected: dust (may come from a dust attack) and coins worth no more
  * than their own input fee at the given rate.
@@ -46,8 +55,10 @@
 import type { MempoolUtxo } from "@/lib/api/types";
 import type { Severity } from "@/lib/types";
 import type { WalletAddressInfo } from "./wallet-audit";
-import { buildWalletGraph, coinClass, type CoinClass } from "./wallet-behavior";
+import { buildWalletGraph, coinClass, isChangeClass, type CoinClass } from "./wallet-behavior";
 import { buildClusters } from "./wallet-clusters";
+import { isRoundAmount } from "./heuristics/round-amount";
+import { getAddressType } from "@/lib/bitcoin/address-type";
 import { P2PKH_DUST_LIMIT, TOXIC_CHANGE_THRESHOLD } from "@/lib/constants";
 import type { LabelTag } from "@/lib/wallet/labels";
 
@@ -94,6 +105,7 @@ export interface SelectedCoin extends CoinSelectionInput {
 }
 
 export type PlanWarningId =
+  | "change-merge" | "same-tx"
   | "coinjoin-mix" | "coinjoin-merge" | "mixed-change" | "coinjoin-change" | "merges-origins" | "toxic-change" | "mixed-scripts"
   | "extra-fee"
   | "label-kyc" | "label-coinjoin" | "label-origins" | "label-toxic";
@@ -101,55 +113,84 @@ export type PlanWarningId =
 /**
  * The labeling convention's spending rules (guide, "Labeling recommendations"):
  * kyc (1) never merge [KYC] with [noKYC]; coinjoin (2) spend [CJ] coins one by
- * one; origin (3) merge only coins of one origin or already linked on-chain;
+ * one; origin (3) prefer coins of one origin or already linked on-chain;
  * toxic (5) never merge a [toxic] coin. Rule 4 (change inherits its parent's
- * origin) is applied when labels are resolved.
+ * origin) is applied when labels are resolved; rule 6 (spend change on its
+ * own) is a hard violation (PlanFacts).
  */
 export type LabelRuleId = "kyc" | "coinjoin" | "origin" | "toxic";
 
 export interface PlanWarning {
   id: PlanWarningId;
   severity: Severity;
-  /** Number shown in the message (coins, origins, change sats, script types) */
+  /** Number shown in the message (coins, origins, change sats, script types, coin row) */
   count: number;
 }
 
 export type PlanStrategy = "single-coin" | "no-change" | "same-origin" | "probably-linked" | "multi-coin";
 
-/** Why a plan ranks where it does, in one line. */
-export type PlanReason = "fallback" | "recipient-knows" | "links" | "inferred-links" | "bad-change" | "big-change" | "clean" | "small-change";
+/** Hard rule violations (tier a), in the guide's order. */
+export type ViolationId = "kyc" | "coinjoin" | "change-merge" | "same-tx" | "toxic";
+export const VIOLATIONS: readonly ViolationId[] = ["kyc", "coinjoin", "change-merge", "same-tx", "toxic"];
+
+/** Change class (tier d). */
+export type ChangeClass = "none" | "small" | "big" | "huge" | "toxic";
+const CHANGE_ORDER: Record<ChangeClass, number> = { none: 0, small: 1, big: 2, huge: 3, toxic: 4 };
+
+/** What a plan lets an observer learn: the facts Privacy first compares, in tier order. */
+export interface PlanFacts {
+  /** a. Hard rule violations, distinct, in VIOLATIONS order */
+  violations: ViolationId[];
+  /** b. The recipient already knows every input */
+  known: boolean;
+  /** c. New certain links (clusters joined that nothing linked before) */
+  links: number;
+  /** c. Those links are known to one label observer already, or join CoinJoin outputs only */
+  softLinks: boolean;
+  /** d. Change class */
+  change: ChangeClass;
+  /** e. Rules that would point at the change: round payment amount, address type */
+  detectable: ("round" | "type")[];
+  /** f. Probable links confirmed (clusters an observer could already guess were linked) */
+  probable: number;
+  /** g. Inputs */
+  inputs: number;
+  /** h. Fee in sats, absorbed leftover included */
+  fee: number;
+}
 
 /**
- * One step of the spending decision tree (guide, "Spending checklist"), as
- * checked for one plan: the checklist rule it comes from and whether the
- * plan passes it. Rules 6-8 are about the recipient and the amount, not the
- * coins: they are alerts (spending-advice.ts), not steps.
+ * One tier of the Privacy-first order, as checked for one plan: ok true
+ * (passes), false (a warning) or null (information only).
  */
 export type DecisionStepId =
+  | "rules-ok" | "violation"
   | "known-used" | "known-partial" | "known-unused"
-  | "close-single" | "far-single" | "no-close-single" | "close-single-skipped"
-  | "no-change" | "change-left"
-  | "merge-no-change" | "merge-absorbed" | "merge-small-change" | "merge-big-change" | "huge-change"
-  | "already-linked" | "same-observer" | "new-links"
-  | "coinjoin-only" | "coinjoin-mixed";
+  | "links-none" | "links" | "links-soft"
+  | "change-none" | "change-absorbed" | "change-small" | "change-big" | "change-toxic" | "change-huge"
+  | "detect-none" | "detect-round" | "detect-type"
+  | "probable";
 
 export interface DecisionStep {
-  rule: 1 | 2 | 3 | 4 | 5 | 9;
+  tier: "a" | "b" | "c" | "d" | "e" | "f";
   id: DecisionStepId;
-  ok: boolean;
-  /** Count shown in the text (coins, origins, change-to-payment ratio) */
+  /** true passed, false warning, null neutral (information only) */
+  ok: boolean | null;
+  /** Count shown in the text (links, coins) */
   n?: number;
   /** Sats shown in the text */
   amount?: number;
-  /** Observer or platform name (same-observer) */
-  name?: string;
+  /** Change-to-payment ratio */
+  ratio?: number;
+  /** Violation (violation step) */
+  violation?: ViolationId;
 }
 
 export interface CoinSelectionPlan {
   strategy: PlanStrategy;
-  reason: PlanReason;
-  /** Privacy cost points (COST); lower is better */
-  cost: number;
+  /** Shown only because no plan without a CoinJoin violation pays */
+  fallback: boolean;
+  facts: PlanFacts;
   selected: SelectedCoin[];
   inputTotal: number;
   paymentAmount: number;
@@ -163,22 +204,23 @@ export interface CoinSelectionPlan {
   absorbsChange: boolean;
   /** Distinct certain linkage clusters among the selected coins */
   origins: number;
-  /** Distinct inferred linkage clusters (at most `origins`) */
+  /** Distinct groups after merging: inferred clusters, with sibling outputs of one tx kept apart (at most `origins`) */
   groups: number;
   warnings: PlanWarning[];
   /** Label rules that apply to the selected coins, and whether the plan respects each */
   labelRules: { id: LabelRuleId; ok: boolean }[];
-  /** The decision tree's steps for this plan, in order */
+  /** The Privacy-first tiers for this plan, in order */
   path: DecisionStep[];
 }
 
 /**
- * Context for the decision tree: `known` are the outpoints the recipient
- * already knows (spending-advice.knownToRecipient); empty when no recipient
- * is given or it knows none of the coins.
+ * Context: `known` are the outpoints the recipient already knows
+ * (spending-advice.recipientHistory), `recipientType` the recipient address
+ * type (getAddressType) when given.
  */
 export interface SpendContext {
   known?: ReadonlySet<string>;
+  recipientType?: string;
 }
 
 interface Excluded {
@@ -410,8 +452,6 @@ function groupBy(cands: Candidate[]): Candidate[][] {
   return [...groups.values()];
 }
 
-/** Change at least this many times the payment counts as "much larger". */
-const BIG_CHANGE_RATIO = 3;
 /** Plans returned at most. */
 export const MAX_PLANS = 8;
 /** Sets kept per search (fewest coins, changeless): its best and the next best. */
@@ -422,22 +462,11 @@ const ALTERNATIVES = 3;
  */
 const MAX_SMALL_SET = 6;
 
-/** From this change-to-payment ratio the big-change cost grows with the ratio. */
+/** Change at least this many times the payment is "huge" (tier d). */
 const HUGE_CHANGE_RATIO = 10;
 
-/**
- * Privacy cost weights. A new link is the main cost; a link the history
- * already makes probable (inferred) costs half. Change badness (toxic size,
- * or change from a CoinJoin coin) costs a little less than a link. Change
- * much larger than the payment keeps most of the coin's value on change
- * linked to this payment (the recipient sees the input's value either way):
- * from 3x it costs bigChange, from 10x bigChange + half a link (rule 4). The ratios keep the earlier rulings: a changeless
- * merge of 2 origins beats a single coin whose change is toxic or 3x the
- * payment, never one with ordinary change, and never a merge of 3 origins.
- * coinjoinLink: a link between CoinJoin outputs only (rule 9). known: the
- * bonus for a plan of only coins the recipient already knows (rule 1).
- */
-const COST = { link: 12, change: 4, badChange: 10, bigChange: 9, coinjoinMerge: 40, extraFee: 12, coinjoinLink: 11, known: 12 } as const;
+/** A single coin is "close" when what it leaves over the payment is at most this share of the payment (checklist). */
+export const CLOSE_RATIO = 0.1;
 
 /**
  * What a plan with `change` adds to the fee when its change goes to miners,
@@ -452,22 +481,17 @@ export const DEFAULT_MAX_ABSORB = 5_000;
 const EXTRA_FEE_NOTE = 0.1;
 
 /**
- * Label rule costs, on top of the on-chain costs: [KYC] with [noKYC] ties an
- * identity to coins kept away from it (as bad as undoing a CoinJoin); [CJ]
- * with other coins, or several [CJ] coins, undoes the mix the label claims;
- * a [toxic] coin merged spreads its taint; each extra explicit origin not
- * already certainly linked costs half a link (the on-chain link is counted
- * separately).
+ * A fee difference below this counts as none (tier h): max(1,000 sats, 1% of
+ * the payment). A plan only that much cheaper earns no slot of its own.
  */
-const LABEL_COST = { kyc: 40, coinjoin: 30, toxic: COST.badChange, origin: COST.link / 2 } as const;
+export const feeTolerance = (amount: number) => Math.max(1_000, Math.round(0.01 * amount));
 
 interface LabelVerdict {
   rules: { id: LabelRuleId; ok: boolean }[];
-  cost: number;
   /** Distinct explicit origins not already certainly linked */
   origins: number;
   cj: number;
-  /** The [CJ] rule is broken and not already covered by the on-chain CoinJoin penalty */
+  /** The [CJ] rule is broken by coins that are not all mixed outputs on-chain */
   cjWarn: boolean;
 }
 
@@ -475,21 +499,15 @@ interface LabelVerdict {
 function labelVerdict(coins: readonly CoinSelectionInput[], cluster: readonly number[]): LabelVerdict {
   const has = (c: CoinSelectionInput, t: LabelTag) => c.labelTags?.includes(t) ?? false;
   const rules: { id: LabelRuleId; ok: boolean }[] = [];
-  let cost = 0;
   const kyc = coins.some(c => has(c, "kyc")), nokyc = coins.some(c => has(c, "nokyc"));
-  if (kyc || nokyc) {
-    rules.push({ id: "kyc", ok: !(kyc && nokyc) });
-    if (kyc && nokyc) cost += LABEL_COST.kyc;
-  }
+  if (kyc || nokyc) rules.push({ id: "kyc", ok: !(kyc && nokyc) });
   const cj = coins.filter(c => has(c, "cj")).length;
-  // The on-chain CoinJoin merge cost (COST.coinjoinMerge) already covers a merge whose [CJ] coins
-  // are all mixed outputs on-chain: no second penalty, no second warning.
+  // A merge whose [CJ] coins are all mixed outputs on-chain is covered by the on-chain CoinJoin warning.
   let cjWarn = false;
   if (cj > 0) {
     const ok = coins.length === 1;
     rules.push({ id: "coinjoin", ok });
     cjWarn = !ok && !coins.every(c => !has(c, "cj") || c.origin === "mixed");
-    if (cjWarn) cost += LABEL_COST.coinjoin;
   }
   // Origins: keys sharing a certain cluster count once (already linked on-chain).
   const parent = new Map<string, string>();
@@ -504,39 +522,12 @@ function labelVerdict(coins: readonly CoinSelectionInput[], cluster: readonly nu
     }
   });
   const origins = new Set([...parent.keys()].map(find)).size;
-  if (origins > 0) {
-    rules.push({ id: "origin", ok: origins === 1 });
-    cost += (origins - 1) * LABEL_COST.origin;
-  }
-  if (coins.some(c => has(c, "toxic"))) {
-    const ok = coins.length === 1;
-    rules.push({ id: "toxic", ok });
-    if (!ok) cost += LABEL_COST.toxic;
-  }
-  return { rules, cost, origins, cj, cjWarn };
+  if (origins > 0) rules.push({ id: "origin", ok: origins === 1 });
+  if (coins.some(c => has(c, "toxic"))) rules.push({ id: "toxic", ok: coins.length === 1 });
+  return { rules, origins, cj, cjWarn };
 }
 
-/**
- * Big-change cost for a change-to-payment ratio: bigChange from 3x, and from
- * 10x the cap (bigChange + half a link).
- *
- * Checklist rule 4 (ruling): under Privacy first, a merge of 2 origins (one
- * new link, 12) that leaves no change or change of at most the payment
- * (+4, 16 in all) beats one coin whose change is at least 10x the payment
- * (4 + 15 = 19). A merge of 3 origins (24), a merge that breaks the KYC or
- * CJ label rules (+40 / +30) or one that also leaves toxic change (+10)
- * still loses, and so does the 2-origin merge with change against one coin
- * whose change is 3x-10x (13).
- */
-function bigChangeCost(ratio: number): number {
-  if (ratio < BIG_CHANGE_RATIO) return 0;
-  return ratio < HUGE_CHANGE_RATIO ? COST.bigChange : COST.bigChange + COST.link / 2;
-}
-
-/** A single coin is "close" when what it leaves over the payment (change or absorbed) is at most this share of the payment. */
-export const CLOSE_RATIO = 0.1;
-
-/** The observer (else platform) every coin's label names, when all coins share one; mixed outputs never count. */
+/** The observer (else platform) every coin's label shares, when all coins share one; mixed outputs never count. */
 function sharedObserver(coins: readonly CoinSelectionInput[]): string | undefined {
   if (coins.length < 2 || coins.some(c => c.origin === "mixed")) return undefined;
   for (const f of ["labelObserver", "labelPlatform"] as const) {
@@ -546,31 +537,54 @@ function sharedObserver(coins: readonly CoinSelectionInput[]): string | undefine
   return undefined;
 }
 
+/** A change coin (wallet-behavior isChangeClass: change, self-transfer output, CoinJoin change). Same definition as W2. */
+const isChangeCoin = (c: CoinSelectionInput) => isChangeClass(c.origin);
+
+/**
+ * Links between sibling outputs of one tx the wallet built (change or self-transfer outputs): per txid,
+ * distinct certain origins among the picked coins, minus one. Outputs of someone else's tx (a CoinJoin,
+ * a batch payout) are not siblings in this sense: they reveal no payment to yourself.
+ */
+function siblingLinks(picked: readonly Candidate[]): number {
+  const byTx = new Map<string, Set<number>>();
+  for (const c of picked) {
+    if (!isChangeCoin(c.coin)) continue;
+    const g = byTx.get(c.coin.utxo.txid);
+    if (g) g.add(c.group);
+    else byTx.set(c.coin.utxo.txid, new Set([c.group]));
+  }
+  let n = 0;
+  for (const g of byTx.values()) n += g.size - 1;
+  return n;
+}
+
 interface Scored {
   picked: Candidate[];
   fee: number;
   change: number;
   origins: number;
   groups: number;
-  cost: number;
+  facts: PlanFacts;
   /** Merges a mixed output with unmixed coins, or a mixed output leaves change at least the payment */
   severe: boolean;
   /** Merges only CoinJoin outputs (rule 9) */
   mixedOnly: boolean;
-  badChange: boolean;
   labels: LabelVerdict;
   absorbs: boolean;
-  /** Every coin is known to the recipient (rule 1) */
-  known: boolean;
-  /** The observer or platform every coin's label shares (rule 5) */
-  observer?: string;
+  /** New links between sibling outputs of one transaction (counted in `groups`) */
+  siblings: number;
+  /** 1-based row (largest first) of the first change coin in a change merge */
+  changeRow: number;
 }
 
+/** What tier e knows about the payment: round amount, and whether the recipient's address type differs from the change's. */
+interface DetectContext { round: boolean; recipientType?: string }
+
 /**
- * Score a set. `absorbMax` > 0: the no-change variant instead, only when the
- * set leaves change of at most `absorbMax` (the change goes to the fee).
+ * Score a set: its facts. `absorbMax` > 0: the no-change variant instead, only
+ * when the set leaves change of at most `absorbMax` (the change goes to the fee).
  */
-function score(picked: Candidate[], amount: number, feeRate: number, absorbMax = 0, knownSet: ReadonlySet<string> = EMPTY): Scored | null {
+function score(picked: Candidate[], amount: number, feeRate: number, absorbMax: number, knownSet: ReadonlySet<string>, detect: DetectContext): Scored | null {
   let s = settle(picked.reduce((t, c) => t + c.value, 0), picked.reduce((t, c) => t + c.vb, 0), amount, feeRate);
   if (!s) return null;
   const absorbs = absorbMax > 0;
@@ -578,36 +592,53 @@ function score(picked: Candidate[], amount: number, feeRate: number, absorbMax =
     if (s.change === 0 || absorbedIf(s.change, feeRate) > absorbMax) return null;
     s = { fee: s.fee + s.change, change: 0 };
   }
+  const coins = picked.map(c => c.coin);
   const origins = new Set(picked.map(c => c.group)).size;
+  // Sibling outputs of one transaction (ruling): spending them together shows both were the wallet's,
+  // so that payment was to the wallet itself: the same-tx violation, counted once (not also as a
+  // probable link, nor as a change merge, which describe the same coin pair).
+  const siblings = siblingLinks(picked);
   const groups = new Set(picked.map(c => c.loose)).size;
-  const mixedCount = picked.filter(c => c.coin.origin === "mixed").length;
+  const mixedCount = coins.filter(c => c.origin === "mixed").length;
   const mixed = mixedCount > 0;
-  /** Rule 9 (ruling): only CoinJoin outputs merged, the least-bad merge when one is needed */
   const mixedOnly = picked.length > 1 && mixedCount === picked.length;
-  const fromCoinJoin = mixed || picked.some(c => c.coin.origin === "coinjoin-change");
-  const badChange = s.change > 0 && (s.change < TOXIC_CHANGE_THRESHOLD || fromCoinJoin);
-  const observer = sharedObserver(picked.map(c => c.coin));
-  // Rule 5: one observer already knows every coin, so a merge tells it nothing new; it still links them
-  // for everyone else, so each new link costs half (as an inferred one). Rule 9: a link between
-  // CoinJoin outputs (no history behind them) costs a little less than one between coins with history.
-  const linkCost = observer ? COST.link / 2 : mixedOnly ? COST.coinjoinLink : COST.link;
-  let cost = (groups - 1) * linkCost + (origins - groups) * (COST.link / 2);
-  if (mixed && picked.length > 1 && !mixedOnly) cost += COST.coinjoinMerge;
-  if (s.change > 0) cost += COST.change;
-  if (badChange) cost += COST.badChange;
-  // Rule 1: the recipient already knows the coin, so its large change reveals nothing new to it.
-  const known = knownSet.size > 0 && picked.every(c => knownSet.has(outpointOf(c.coin)));
-  if (!known) cost += bigChangeCost(s.change / amount);
-  const severe = mixed && ((picked.length > 1 && !mixedOnly) || s.change >= amount);
-  const labels = labelVerdict(picked.map(c => c.coin), picked.map(c => c.group));
-  cost += labels.cost;
-  // Rule 1: paying with coins the recipient already knows tells it nothing new about your activity.
-  if (known) cost -= COST.known;
-  // The extra fee costs in proportion to the payment, so a large donation never wins by default.
-  if (absorbs) cost += COST.extraFee * (s.fee - Math.ceil((picked.reduce((t, c) => t + c.vb, 0) + BASE_VB + OUTPUT_VB) * feeRate)) / amount;
-  return { picked, ...s, origins, groups, cost, severe, badChange, labels, absorbs, known, mixedOnly, ...(observer ? { observer } : {}) };
-}
+  const fromCoinJoin = mixed || coins.some(c => c.origin === "coinjoin-change");
+  const labels = labelVerdict(coins, picked.map(c => c.group));
+  const broken = (id: LabelRuleId) => labels.rules.some(r => r.id === id && !r.ok);
 
+  const violations: ViolationId[] = [];
+  if (broken("kyc")) violations.push("kyc");
+  if (labels.cjWarn || (mixed && !mixedOnly && picked.length > 1)) violations.push("coinjoin");
+  // Change merged with coins it is not already linked to on-chain (same certain cluster) and that are
+  // not its own siblings (same-tx, below). CoinJoin change is change: no second "toxic" count for it.
+  const sorted = [...picked].sort((a, b) => b.value - a.value);
+  const changeRow = sorted.findIndex(c => isChangeCoin(c.coin) && sorted.some(o => o !== c && o.group !== c.group && o.coin.utxo.txid !== c.coin.utxo.txid)) + 1;
+  if (changeRow > 0) violations.push("change-merge");
+  if (siblings > 0) violations.push("same-tx");
+  if (broken("toxic")) violations.push("toxic");
+
+  const toxic = s.change > 0 && (s.change < TOXIC_CHANGE_THRESHOLD || fromCoinJoin);
+  const change: ChangeClass = s.change === 0 ? "none" : toxic ? "toxic"
+    : s.change >= HUGE_CHANGE_RATIO * amount ? "huge" : s.change > amount ? "big" : "small";
+  const detectable: PlanFacts["detectable"] = [];
+  if (s.change > 0) {
+    if (detect.round && !isRoundAmount(s.change)) detectable.push("round");
+    if (detect.recipientType && detect.recipientType !== "unknown" && detect.recipientType !== getAddressType(sorted[0]!.coin.address)) detectable.push("type");
+  }
+  const facts: PlanFacts = {
+    violations,
+    known: knownSet.size > 0 && coins.every(c => knownSet.has(outpointOf(c))),
+    links: groups - 1,
+    softLinks: groups > 1 && (mixedOnly || sharedObserver(coins) !== undefined),
+    change,
+    detectable,
+    probable: origins - groups - siblings,
+    inputs: picked.length,
+    fee: s.fee,
+  };
+  const severe = mixed && ((picked.length > 1 && !mixedOnly) || s.change >= amount);
+  return { picked, ...s, origins, groups, facts, severe, mixedOnly, labels, absorbs, siblings, changeRow };
+}
 
 /** Smallest coins first until they pay, or null past MAX_SMALL_SET coins. */
 function smallestFirst(small: Candidate[], amount: number, feeRate: number): Candidate[] | null {
@@ -618,6 +649,42 @@ function smallestFirst(small: Candidate[], amount: number, feeRate: number): Can
     if (settle(sum, vb, amount, feeRate)) return asc.slice(0, i + 1);
   }
   return null;
+}
+
+/**
+ * Sets of up to `maxK` coins with the least change (rules 2 and 4: a small-change
+ * consolidation), up to ALTERNATIVES, least change first. Budgeted branch and bound
+ * over `small` sorted descending: a branch stops once it pays (more coins only add
+ * change) or once its sum is past the best overpay found.
+ */
+function leastChangeSets(small: Candidate[], amount: number, feeRate: number, budget: { left: number }, maxK: number): Candidate[][] {
+  const suffix = new Array<number>(small.length + 1).fill(0);
+  for (let i = small.length - 1; i >= 0; i--) suffix[i] = suffix[i + 1]! + small[i]!.value;
+  const best: { over: number; set: Candidate[] }[] = [];
+  const chosen: Candidate[] = [];
+  const worst = () => (best.length < ALTERNATIVES ? Infinity : best.at(-1)!.over);
+  function dfs(index: number, sum: number, vb: number): void {
+    if (budget.left-- <= 0) return;
+    if (chosen.length > 0 && settle(sum, vb, amount, feeRate)) {
+      const over = sum - amount;
+      if (over < worst()) {
+        best.push({ over, set: [...chosen] });
+        best.sort((a, b) => a.over - b.over);
+        if (best.length > ALTERNATIVES) best.pop();
+      }
+      return;
+    }
+    if (chosen.length >= maxK || sum + suffix[index]! < amount || sum - amount >= worst()) return;
+    for (let i = index; i < small.length; i++) {
+      if (sum + small[i]!.value - amount >= worst()) continue;
+      chosen.push(small[i]!);
+      dfs(i + 1, sum + small[i]!.value, vb + small[i]!.vb);
+      chosen.pop();
+      if (budget.left <= 0) return;
+    }
+  }
+  dfs(0, 0, 0);
+  return best.map(b => b.set);
 }
 
 /** For each coin, the smallest partner that pays with it. `small` is sorted descending. */
@@ -636,16 +703,6 @@ function smallestPartners(small: Candidate[], amount: number, feeRate: number, b
     }
   }
   return out;
-}
-
-function reasonOf(x: Scored, amount: number, fallback: boolean): PlanReason {
-  if (fallback) return "fallback";
-  if (x.known) return "recipient-knows";
-  if (x.groups > 1) return "links";
-  if (x.origins > 1) return "inferred-links";
-  if (x.badChange) return "bad-change";
-  if (x.change >= BIG_CHANGE_RATIO * amount) return "big-change";
-  return x.change === 0 ? "clean" : "small-change";
 }
 
 // ---------- Plans ----------
@@ -673,17 +730,77 @@ export const planLinks = (p: CoinSelectionPlan) => ({ certain: p.groups - 1, inf
 export const PLAN_CRITERIA = ["privacy", "least-change", "no-change", "fewest-coins", "lowest-fee"] as const;
 export type PlanCriterion = (typeof PLAN_CRITERIA)[number];
 
-const mixedIn = (p: CoinSelectionPlan) => p.selected.filter(c => c.origin === "mixed").length;
-/** Privacy cost, then CoinJoin change before a mixed output, then fewer inputs, less fee, less change. */
-const byPrivacy = (a: CoinSelectionPlan, b: CoinSelectionPlan) =>
-  a.cost - b.cost || mixedIn(a) - mixedIn(b) || a.selected.length - b.selected.length || a.fee - b.fee || a.change - b.change;
+type Tier = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h";
+
+/** Privacy first, step by step: the guide's order (see the module comment and the guide's "How plans are ranked"). */
+const STEPS: [Tier, (a: CoinSelectionPlan, b: CoinSelectionPlan) => number][] = [
+  ["a", (a, b) => a.facts.violations.length - b.facts.violations.length],
+  ["b", (a, b) => Number(!a.facts.known) - Number(!b.facts.known)],
+  ["c", (a, b) => a.facts.links - b.facts.links || Number(!a.facts.softLinks) - Number(!b.facts.softLinks)],
+  ["d", (a, b) => CHANGE_ORDER[a.facts.change] - CHANGE_ORDER[b.facts.change]],
+  ["e", (a, b) => a.facts.detectable.length - b.facts.detectable.length],
+  ["f", (a, b) => a.facts.probable - b.facts.probable],
+  ["g", (a, b) => a.facts.inputs - b.facts.inputs],
+  // A fee difference below feeTolerance counts as none; then less change.
+  ["h", (a, b) => { const d = a.facts.fee - b.facts.fee; return (Math.abs(d) < feeTolerance(a.paymentAmount) ? 0 : d) || a.change - b.change; }],
+];
+
+/** Privacy first: the first step at which two plans differ decides. */
+export function comparePrivacy(a: CoinSelectionPlan, b: CoinSelectionPlan): number {
+  for (const [, cmp] of STEPS) { const d = cmp(a, b); if (d !== 0) return d; }
+  return 0;
+}
+
+/** The step (tier) at which `a` ranks before `b`, or null when they tie. */
+export function decidingTier(a: CoinSelectionPlan, b: CoinSelectionPlan): Tier | null {
+  for (const [tier, cmp] of STEPS) if (cmp(a, b) !== 0) return tier;
+  return null;
+}
+
+/** One thing a plan avoids that the other plan does (dilemma panel, "What it avoids"). */
+export type AvoidItem =
+  | { id: "violation"; violation: ViolationId }
+  | { id: "recipient" | "no-links" | "no-change" | "undetectable" | "fewer-probable" }
+  | { id: "fewer-links" | "fewer-inputs"; n: number }
+  | { id: "less-change"; amount: number; other: number }
+  | { id: "lower-fee"; amount: number; other: number };
+
+/** What `plan` avoids that `other` does, step by step in the guide's order (each fact once). */
+export function planAvoids(plan: CoinSelectionPlan, other: CoinSelectionPlan): AvoidItem[] {
+  const f = plan.facts, o = other.facts;
+  const out: AvoidItem[] = o.violations.filter(v => !f.violations.includes(v)).map(violation => ({ id: "violation" as const, violation }));
+  if (f.known && !o.known) out.push({ id: "recipient" });
+  if (f.links < o.links) out.push(f.links === 0 ? { id: "no-links" } : { id: "fewer-links", n: plan.groups });
+  if (CHANGE_ORDER[f.change] < CHANGE_ORDER[o.change]) out.push(plan.change === 0 ? { id: "no-change" } : { id: "less-change", amount: plan.change, other: other.change });
+  if (f.detectable.length < o.detectable.length) out.push({ id: "undetectable" });
+  if (f.probable < o.probable) out.push({ id: "fewer-probable" });
+  if (f.inputs < o.inputs) out.push({ id: "fewer-inputs", n: f.inputs });
+  if (o.fee - f.fee >= feeTolerance(plan.paymentAmount)) out.push({ id: "lower-fee", amount: f.fee, other: o.fee });
+  return out;
+}
+
+/** A significant leak: a hard rule violation, or huge change (10x the payment or more). */
+export const significantLeak = (p: CoinSelectionPlan) => p.facts.violations.length > 0 || p.facts.change === "huge";
+
+/**
+ * No clean option: the top plan under Privacy first still leaks something
+ * significant and the best alternative trades it for another significant leak.
+ * Then no plan is "Recommended"; the two are shown side by side. Null otherwise.
+ * `plans` must be in Privacy-first order.
+ */
+export function noCleanOption(plans: readonly CoinSelectionPlan[]): { first: CoinSelectionPlan; second: CoinSelectionPlan; tier: Tier | null } | null {
+  const [first, second] = plans;
+  if (!first || !second || !significantLeak(first) || !significantLeak(second)) return null;
+  return { first, second, tier: decidingTier(first, second) };
+}
+
 const CRITERION_ORDER: Record<PlanCriterion, (a: CoinSelectionPlan, b: CoinSelectionPlan) => number> = {
-  privacy: byPrivacy,
-  "least-change": (a, b) => a.change - b.change || byPrivacy(a, b),
+  privacy: comparePrivacy,
+  "least-change": (a, b) => a.change - b.change || comparePrivacy(a, b),
   // Changeless plans first, each side by privacy (unlike least change, the rest is not ordered by change)
-  "no-change": (a, b) => Number(a.change > 0) - Number(b.change > 0) || byPrivacy(a, b),
-  "fewest-coins": (a, b) => a.selected.length - b.selected.length || byPrivacy(a, b),
-  "lowest-fee": (a, b) => a.fee - b.fee || byPrivacy(a, b),
+  "no-change": (a, b) => Number(a.change > 0) - Number(b.change > 0) || comparePrivacy(a, b),
+  "fewest-coins": (a, b) => a.selected.length - b.selected.length || comparePrivacy(a, b),
+  "lowest-fee": (a, b) => a.fee - b.fee || comparePrivacy(a, b),
 };
 
 /** The plans ordered by a criterion, best first (a new array). */
@@ -691,15 +808,23 @@ export function rankPlans<P extends CoinSelectionPlan>(plans: readonly P[], crit
   return [...plans].sort(CRITERION_ORDER[criterion]);
 }
 
+/** The facts as numbers, lower is better, in tier order; the fee (index FEE) compares with a tolerance; then change. */
+const dims = (p: CoinSelectionPlan) => {
+  const f = p.facts;
+  return [f.violations.length, Number(!f.known), f.links, Number(!f.softLinks), CHANGE_ORDER[f.change], f.detectable.length, f.probable, f.inputs, f.fee, p.change];
+};
+const FEE = 8;
+
 /**
- * Pareto pruning: drops a plan when another is at least as good on cost, fee,
- * change and new links, and strictly better on one. Keeps the input order.
+ * Pareto pruning over the facts: drops a plan when another is at least as good
+ * on every one (a fee within feeTolerance counting as equal) and strictly
+ * better on one. Keeps the input order.
  */
-function pareto(plans: CoinSelectionPlan[]): CoinSelectionPlan[] {
-  const dims = (p: CoinSelectionPlan) => { const l = planLinks(p); return [p.cost, p.fee, p.change, l.certain + l.inferred / 2]; };
+function pareto(plans: CoinSelectionPlan[], tolerance: number): CoinSelectionPlan[] {
   const d = plans.map(dims);
+  const le = (o: number[], i: number[], k: number) => (k === FEE ? o[k]! <= i[k]! + tolerance : o[k]! <= i[k]!);
   // ponytail: O(n^2) over the scored sets (a few hundred at most on a 1000-coin wallet).
-  return plans.filter((_, i) => !d.some((o, j) => j !== i && o.every((v, k) => v <= d[i]![k]!) && o.some((v, k) => v < d[i]![k]!)));
+  return plans.filter((_, i) => !d.some((o, j) => j !== i && o.every((_, k) => le(o, d[i]!, k)) && o.some((v, k) => v < d[i]![k]!)));
 }
 
 export type SelectionEvaluation =
@@ -708,7 +833,7 @@ export type SelectionEvaluation =
   | { kind: "invalid" };
 
 /**
- * Evaluate coins the user picked by hand, with the same scoring and plan
+ * Evaluate coins the user picked by hand, with the same facts and plan
  * building as the advisor. Origins are resolved over the whole wallet (as the
  * advisor does), so a set the advisor suggested evaluates to the same plan.
  * Dust and uneconomical coins count when picked.
@@ -718,7 +843,7 @@ export function evaluateSelection(
   outpoints: ReadonlySet<string>,
   paymentAmount: number,
   feeRate: number,
-  { maxAbsorb = DEFAULT_MAX_ABSORB, absorb = false, includeFrozen = false, known = EMPTY }: { maxAbsorb?: number; absorb?: boolean; includeFrozen?: boolean } & SpendContext = {},
+  { maxAbsorb = DEFAULT_MAX_ABSORB, absorb = false, includeFrozen = false, known = EMPTY, recipientType }: { maxAbsorb?: number; absorb?: boolean; includeFrozen?: boolean } & SpendContext = {},
 ): SelectionEvaluation {
   if (!Number.isSafeInteger(paymentAmount) || paymentAmount <= 0 || !Number.isFinite(feeRate) || feeRate <= 0) return { kind: "invalid" };
   // The advisor's coin set (frozen coins left out unless included), plus the picked coins themselves.
@@ -726,63 +851,54 @@ export function evaluateSelection(
   const all = candidatesOf(pool, feeRate, outpoints).cands;
   const picked = all.filter(c => outpoints.has(outpointOf(c.coin)));
   if (picked.length === 0) return { kind: "invalid" };
-  const x = score(picked, paymentAmount, feeRate, 0, known);
+  const detect = { round: isRoundAmount(paymentAmount), ...(recipientType ? { recipientType } : {}) };
+  const x = score(picked, paymentAmount, feeRate, 0, known, detect);
   if (!x) {
     const total = picked.reduce((s, c) => s + c.value, 0);
     const fee = Math.ceil((picked.reduce((s, c) => s + c.vb, 0) + BASE_VB + OUTPUT_VB) * feeRate);
     return { kind: "insufficient", total, shortfall: paymentAmount + fee - total };
   }
   // Absorb asked and possible (change at most maxAbsorb): the no-change variant.
-  const v = absorb ? score(picked, paymentAmount, feeRate, maxAbsorb, known) : null;
-  const ctx = { known, closeSingles: closeSingles(all, paymentAmount, feeRate) };
-  return { kind: "plan", plan: buildPlan(v ?? x, paymentAmount, feeRate, false, maxAbsorb, ctx) };
+  const v = absorb ? score(picked, paymentAmount, feeRate, maxAbsorb, known, detect) : null;
+  return { kind: "plan", plan: buildPlan(v ?? x, paymentAmount, feeRate, false, maxAbsorb, known) };
 }
 
 const strategyOf = (x: Scored): PlanStrategy =>
   x.picked.length === 1 ? "single-coin"
   : x.change === 0 ? "no-change"
   : x.origins === 1 ? "same-origin"
-  : x.groups === 1 ? "probably-linked"
+  : x.groups === 1 && x.siblings === 0 ? "probably-linked"
   : "multi-coin";
 
-/** Coins that pay alone leaving at most CLOSE_RATIO of the payment over (rule 2). */
-function closeSingles(cands: readonly Candidate[], amount: number, feeRate: number): number {
-  return cands.filter(c => { const s = settle(c.value, c.vb, amount, feeRate); return s !== null && s.change <= CLOSE_RATIO * amount; }).length;
-}
-
-interface PathContext { known: ReadonlySet<string>; closeSingles: number }
-
-/** The decision tree's steps for a plan (rules 1, 2, 3, 4, 5 and 9 of the spending checklist). */
-function decisionPath(x: Scored, coins: readonly CoinSelectionInput[], change: number, absorbed: number, amount: number, ctx: PathContext): DecisionStep[] {
-  const steps: DecisionStep[] = [];
-  if (ctx.known.size > 0) {
-    const k = coins.filter(c => ctx.known.has(outpointOf(c))).length;
-    steps.push(k === coins.length ? { rule: 1, id: "known-used", ok: true, n: k }
-      : k > 0 ? { rule: 1, id: "known-partial", ok: false, n: k }
-      : { rule: 1, id: "known-unused", ok: false, n: ctx.known.size });
+/** The Privacy-first tiers a-f for a plan, each passed, warned or informational (g, h: the inputs and fee figures). */
+function decisionPath(x: Scored, change: number, absorbed: number, amount: number, known: ReadonlySet<string>): DecisionStep[] {
+  const f = x.facts;
+  const steps: DecisionStep[] = f.violations.length === 0
+    ? [{ tier: "a", id: "rules-ok", ok: true }]
+    : f.violations.map(v => ({ tier: "a" as const, id: "violation" as const, ok: false, violation: v }));
+  if (known.size > 0) {
+    const k = x.picked.filter(c => known.has(outpointOf(c.coin))).length;
+    steps.push(f.known ? { tier: "b", id: "known-used", ok: true }
+      : k > 0 ? { tier: "b", id: "known-partial", ok: false, n: k }
+      : { tier: "b", id: "known-unused", ok: false, n: known.size });
   }
-  const single = coins.length === 1;
-  const left = change + absorbed;
-  if (single) steps.push(left <= CLOSE_RATIO * amount ? { rule: 2, id: "close-single", ok: true, amount: left } : { rule: 2, id: "far-single", ok: false, amount: left });
-  else steps.push(ctx.closeSingles === 0 ? { rule: 2, id: "no-close-single", ok: true } : { rule: 2, id: "close-single-skipped", ok: false, n: ctx.closeSingles });
-  steps.push(change === 0 ? { rule: 3, id: "no-change", ok: true } : { rule: 3, id: "change-left", ok: false, amount: change });
-  const ratio = Math.round(change / amount);
-  if (!single) {
-    steps.push(change === 0 ? (absorbed > 0 && x.absorbs ? { rule: 4, id: "merge-absorbed", ok: true, amount: absorbed } : { rule: 4, id: "merge-no-change", ok: true })
-      : change <= amount ? { rule: 4, id: "merge-small-change", ok: change >= TOXIC_CHANGE_THRESHOLD, amount: change }
-      : { rule: 4, id: "merge-big-change", ok: false, n: Math.max(1, ratio) });
-    steps.push(x.groups === 1 ? { rule: 5, id: "already-linked", ok: true }
-      : x.observer ? { rule: 5, id: "same-observer", ok: true, name: x.observer }
-      : { rule: 5, id: "new-links", ok: false, n: x.groups });
-    const mixed = coins.filter(c => c.origin === "mixed").length;
-    if (mixed > 0) steps.push(mixed === coins.length ? { rule: 9, id: "coinjoin-only", ok: false, n: mixed } : { rule: 9, id: "coinjoin-mixed", ok: false, n: mixed });
-  } else if (change >= HUGE_CHANGE_RATIO * amount) {
-    steps.push({ rule: 4, id: "huge-change", ok: false, n: ratio });
+  steps.push(f.links === 0 ? { tier: "c", id: "links-none", ok: true }
+    : { tier: "c", id: f.softLinks ? "links-soft" : "links", ok: false, n: x.groups });
+  const ratio = Math.round((change / amount) * 100) / 100;
+  steps.push(
+    f.change === "none" ? (x.absorbs ? { tier: "d", id: "change-absorbed", ok: true, amount: absorbed } : { tier: "d", id: "change-none", ok: true })
+    : f.change === "small" ? { tier: "d", id: "change-small", ok: null, amount: change, ratio }
+    : { tier: "d", id: f.change === "huge" ? "change-huge" : f.change === "toxic" ? "change-toxic" : "change-big", ok: false, amount: change, ratio },
+  );
+  if (change > 0) {
+    if (f.detectable.length === 0) steps.push({ tier: "e", id: "detect-none", ok: true });
+    for (const d of f.detectable) steps.push({ tier: "e", id: d === "round" ? "detect-round" : "detect-type", ok: false });
   }
+  if (f.probable > 0) steps.push({ tier: "f", id: "probable", ok: null, n: f.probable });
   return steps;
 }
 
-function buildPlan(x: Scored, amount: number, feeRate: number, fallback: boolean, maxAbsorb: number, ctx: PathContext): CoinSelectionPlan {
+function buildPlan(x: Scored, amount: number, feeRate: number, fallback: boolean, maxAbsorb: number, known: ReadonlySet<string>): CoinSelectionPlan {
   // Largest first, so one set reads the same whichever search found it.
   const coins = [...x.picked].sort((a, b) => b.value - a.value).map(c => c.coin);
   const inputTotal = x.picked.reduce((s, c) => s + c.value, 0);
@@ -791,6 +907,9 @@ function buildPlan(x: Scored, amount: number, feeRate: number, fallback: boolean
   const absorbed = change === 0 ? fee - Math.ceil((inVb + BASE_VB + OUTPUT_VB) * feeRate) : 0;
   const warnings: PlanWarning[] = [];
 
+  // The spend-change-on-its-own rule first: it outranks everything but the label rules, which unshift below.
+  if (x.changeRow > 0) warnings.push({ id: "change-merge", severity: "high", count: x.changeRow });
+  if (x.siblings > 0) warnings.push({ id: "same-tx", severity: "high", count: x.siblings + 1 });
   const mixed = coins.filter(c => c.origin === "mixed");
   if (mixed.length > 0 && mixed.length < coins.length) {
     warnings.push({ id: "coinjoin-mix", severity: "high", count: mixed.length });
@@ -816,10 +935,10 @@ function buildPlan(x: Scored, amount: number, feeRate: number, fallback: boolean
   }
 
   return {
-    strategy: strategyOf(x), reason: reasonOf(x, amount, fallback), cost: x.cost,
+    strategy: strategyOf(x), fallback, facts: x.facts,
     selected: withHints(coins), inputTotal, paymentAmount: amount, fee, change, absorbed, absorbsChange: x.absorbs, origins, groups, warnings,
     labelRules: x.labels.rules,
-    path: decisionPath(x, coins, change, absorbed, amount, ctx),
+    path: decisionPath(x, change, absorbed, amount, known),
   };
 }
 
@@ -830,14 +949,14 @@ function buildPlan(x: Scored, amount: number, feeRate: number, fallback: boolean
  * @param paymentAmount - Payment amount in sats
  * @param feeRate - Fee rate in sat/vB
  * @param maxAbsorb - Max extra fee to leave no change: a plan with change up to this also comes as a no-change variant
- * @param ctx - Coins the recipient already knows (rule 1): searched on their own too, and a plan of only those ranks up
+ * @param ctx - Coins the recipient already knows (tier b), searched on their own too; the recipient's address type (tier e)
  */
 export function adviseCoinSelection(
   utxos: CoinSelectionInput[],
   paymentAmount: number,
   feeRate = 5,
   maxAbsorb = DEFAULT_MAX_ABSORB,
-  { known = EMPTY }: SpendContext = {},
+  { known = EMPTY, recipientType }: SpendContext = {},
 ): CoinSelectionAdvice {
   if (!Number.isSafeInteger(paymentAmount) || paymentAmount <= 0 || !Number.isFinite(feeRate) || feeRate <= 0) {
     return { kind: "invalid" };
@@ -863,16 +982,26 @@ export function adviseCoinSelection(
   const groupBudget = { left: MAX_ITERATIONS };
   sets.push(...changelessSets(cands, paymentAmount, feeRate, budget));
   for (const g of groupBy(cands)) if (g.length > 1) sets.push(...changelessSets(g, paymentAmount, feeRate, groupBudget));
+  // Coins that are not change, on their own: the sets that respect "spend change on its own".
+  const plain = cands.filter(c => !isChangeCoin(c.coin));
+  if (plain.length > 1 && plain.length < cands.length) sets.push(...changelessSets(plain, paymentAmount, feeRate, { left: MAX_ITERATIONS }));
+  const plainSmall = small.filter(c => !isChangeCoin(c.coin));
   if (pays(small)) {
     // No single coin: the first DFS leaf is the top-k set, so a result always exists.
     const maxK = singles.length > 0 ? MAX_SMALL_SET : Infinity;
     sets.push(...fewestCoins(small, paymentAmount, feeRate, { left: MAX_ITERATIONS }, maxK));
     sets.push(smallestFirst(small, paymentAmount, feeRate));
     sets.push(...smallestPartners(small, paymentAmount, feeRate, { left: MAX_ITERATIONS }));
+    sets.push(...leastChangeSets(small, paymentAmount, feeRate, { left: MAX_ITERATIONS }, Math.min(maxK, MAX_SMALL_SET)));
     const sameBudget = { left: MAX_ITERATIONS };
     for (const g of groupBy(small)) if (g.length > 1 && pays(g)) sets.push(...fewestCoins(g, paymentAmount, feeRate, sameBudget, maxK));
   }
-  // Rule 1: the coins the recipient already knows, on their own (singles are already in).
+  if (plainSmall.length > 1 && plainSmall.length < small.length && pays(plainSmall)) {
+    const maxK = singles.length > 0 ? MAX_SMALL_SET : Infinity;
+    sets.push(...fewestCoins(plainSmall, paymentAmount, feeRate, { left: MAX_ITERATIONS }, maxK));
+    sets.push(...leastChangeSets(plainSmall, paymentAmount, feeRate, { left: MAX_ITERATIONS }, Math.min(maxK, MAX_SMALL_SET)));
+  }
+  // Tier b: the coins the recipient already knows, on their own (singles are already in).
   const knownCands = cands.filter(c => known.has(outpointOf(c.coin)));
   if (knownCands.length > 1 && pays(knownCands)) {
     const knownBudget = { left: MAX_ITERATIONS };
@@ -880,6 +1009,7 @@ export function adviseCoinSelection(
     sets.push(...fewestCoins(knownCands.filter(c => !pays([c])), paymentAmount, feeRate, knownBudget, MAX_SMALL_SET));
   }
 
+  const detect = { round: isRoundAmount(paymentAmount), ...(recipientType ? { recipientType } : {}) };
   const seen = new Set<string>();
   const scored: Scored[] = [];
   for (const set of sets) {
@@ -887,10 +1017,10 @@ export function adviseCoinSelection(
     const id = set.map(c => outpointOf(c.coin)).sort().join();
     if (seen.has(id)) continue;
     seen.add(id);
-    const x = score(set, paymentAmount, feeRate, 0, known);
+    const x = score(set, paymentAmount, feeRate, 0, known, detect);
     // Small change: also the same coins with the change paid to miners. Toxic change with that
     // twin is not kept: the twin is the same coins without a change output nobody should create.
-    const v = maxAbsorb > 0 ? score(set, paymentAmount, feeRate, maxAbsorb, known) : null;
+    const v = maxAbsorb > 0 ? score(set, paymentAmount, feeRate, maxAbsorb, known, detect) : null;
     if (x && !(v && x.change < TOXIC_CHANGE_THRESHOLD)) scored.push(x);
     if (v) scored.push(v);
   }
@@ -900,9 +1030,8 @@ export function adviseCoinSelection(
   const avoidable = scored.some(x => x.picked.length === 1 && !x.severe);
   const safe = scored.filter(x => !x.severe && !(x.mixedOnly && avoidable));
   const fallback = safe.length === 0;
-  const ctx = { known, closeSingles: closeSingles(cands, paymentAmount, feeRate) };
-  const front = pareto(rankPlans((fallback ? scored : safe).map(x => buildPlan(x, paymentAmount, feeRate, fallback, maxAbsorb, ctx)), "privacy"));
-  // Each criterion's best plan is kept, then the rest by privacy cost, up to MAX_PLANS.
+  const front = pareto(rankPlans((fallback ? scored : safe).map(x => buildPlan(x, paymentAmount, feeRate, fallback, maxAbsorb, known)), "privacy"), feeTolerance(paymentAmount));
+  // Each criterion's best plan is kept, then the rest in Privacy-first order, up to MAX_PLANS.
   const keep = new Set(PLAN_CRITERIA.map(c => rankPlans(front, c)[0]!));
   for (const p of front) if (keep.size < MAX_PLANS) keep.add(p);
   const plans = front.filter(p => keep.has(p));

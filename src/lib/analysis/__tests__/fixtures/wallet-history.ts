@@ -163,3 +163,25 @@ export function testerPeelHistory(receive: (i: number) => string = recv, change:
   ];
   return { h, addresses };
 }
+
+/**
+ * Synthetic replica of a tester's signet wallet (amounts and tx structure only,
+ * no real txids or addresses): 165,519,188 is the change of a payment,
+ * 3,296,321 (change chain) and 2,399,400 (receive chain) are the two outputs
+ * of one self-transfer, and 64,332 and 38,625 are receipts.
+ */
+export function decisionTreeReplica(
+  receive: (i: number) => string = recv, change: (i: number) => string = chg, selfReceive = 122, selfChange = 140,
+): WalletAddressInfo[] {
+  const h = new History();
+  const a = h.receive(receive(0), 165_700_000, 100);
+  h.tx([a], [{ address: ext(1), value: 179_812 }, { address: change(0), value: 165_519_188 }], 101);
+  h.receive(receive(1), 64_332, 101);
+  const b = h.receive(receive(2), 5_697_000, 102);
+  h.tx([b], [{ address: change(selfChange), value: 3_296_321 }, { address: receive(selfReceive), value: 2_399_400 }], 103);
+  h.receive(receive(3), 38_625, 104);
+  return h.infos([
+    ...[0, 1, 2, 3, selfReceive].map((i) => ({ address: receive(i), isChange: false, index: i })),
+    ...[0, selfChange].map((i) => ({ address: change(i), isChange: true, index: i })),
+  ]);
+}

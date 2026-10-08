@@ -6,7 +6,9 @@
  * The tester expected 591,429 + 134,361; both that pair and the best single
  * coin must be shown, each with its trade-off. Later the tester asked to see
  * the options instead of one verdict: the CoinJoin change coin is listed too,
- * last under Privacy first, with its warning.
+ * with its warning. Under "spend change on its own" (every coin here is
+ * change), the pair merges two change coins: it stays an option (least
+ * change) but ranks below each change coin spent alone.
  */
 import { describe, it, expect } from "vitest";
 import { testerHistory, testerPeelHistory, TESTER_KEPT as KEPT, TESTER_CJ_CHANGE as CJ_CHANGE } from "./fixtures/wallet-history";
@@ -19,7 +21,7 @@ const advise = (infos: Parameters<typeof buildCoinInputs>[0]) => {
   return a.plans;
 };
 const values = (p: CoinSelectionPlan) => p.selected.map((c) => c.utxo.value).sort((x, y) => y - x);
-const pin = (p: CoinSelectionPlan) => [p.strategy, p.reason, values(p), p.fee, p.change, p.origins, p.groups, Math.round(p.cost * 100) / 100];
+const pin = (p: CoinSelectionPlan) => [p.strategy, values(p), p.fee, p.change, p.origins, p.groups, p.facts.violations, p.facts.change];
 
 describe("tester wallet replay: payments with two wallet outputs (kept coin + rest)", () => {
   const { h, addresses } = testerHistory();
@@ -37,16 +39,16 @@ describe("tester wallet replay: payments with two wallet outputs (kept coin + re
     expect([o["coinjoin-change"].count, o.change.count]).toEqual([1, 10]);
   });
 
-  it("600,000 sats at 5 sat/vB: the probably-linked pair first, the 164x single coin second, the CoinJoin coin last", () => {
+  it("600,000 sats at 5 sat/vB: the 164x change coin alone first, the CoinJoin change coin (toxic change) second, the change pair last", () => {
     const plans = advise(infos);
-    // Pair: half a link (inferred) + change = 10. Single 99M: change + big change capped at 3x cost + half a link = 19.
-    // The CoinJoin coin alone costs 29 (bad change, 24x: big change capped from 10x): less change than the 99M coin, so not pruned, but last.
+    // Tier a: the pair merges change. Tier d among the singles: huge before toxic.
     expect(plans.map(pin)).toEqual([
-      ["probably-linked", "inferred-links", [591_429, 134_361], 1_040, 124_750, 2, 1, 10],
-      ["single-coin", "big-change", [99_000_000], 700, 98_399_300, 1, 1, 19],
-      ["single-coin", "bad-change", [CJ_CHANGE], 700, 14_640_220, 1, 1, 29],
+      ["single-coin", [99_000_000], 700, 98_399_300, 1, 1, [], "huge"],
+      ["single-coin", [CJ_CHANGE], 700, 14_640_220, 1, 1, [], "toxic"],
+      ["probably-linked", [591_429, 134_361], 1_040, 124_750, 2, 1, ["change-merge"], "small"],
     ]);
-    expect(plans[2]!.warnings.map((w) => w.id)).toContain("coinjoin-change");
+    expect(plans[1]!.warnings.map((w) => w.id)).toContain("coinjoin-change");
+    expect(plans[2]!.warnings[0]).toMatchObject({ id: "change-merge", severity: "high", count: 1 });
   });
 
   it("orders the same plans by each criterion, as the numbers say", () => {
@@ -55,8 +57,8 @@ describe("tester wallet replay: payments with two wallet outputs (kept coin + re
     // Least change: the pair (124,750) before the CoinJoin coin (14.6M) before the 99M coin
     expect(order("least-change")).toEqual([591_429, CJ_CHANGE, 99_000_000]);
     // Nothing is changeless: same as Privacy first
-    expect(order("no-change")).toEqual([591_429, 99_000_000, CJ_CHANGE]);
-    // One coin beats two; among single coins, privacy cost decides
+    expect(order("no-change")).toEqual([99_000_000, CJ_CHANGE, 591_429]);
+    // One coin beats two; among single coins, Privacy first decides
     expect(order("fewest-coins")).toEqual([99_000_000, CJ_CHANGE, 591_429]);
     expect(order("lowest-fee")).toEqual([99_000_000, CJ_CHANGE, 591_429]);
   });
@@ -73,12 +75,12 @@ describe("tester wallet replay: peel shape, one wallet output per tx", () => {
     expect(new Set(coins.map((c) => c.group)).size).toBe(11);
   });
 
-  it("600,000 sats at 5 sat/vB: the pair still first (one new link + change 16 < capped 164x change 19), the single coin shown", () => {
+  it("600,000 sats at 5 sat/vB: same order; the pair is a new certain link here", () => {
     const plans = advise(infos);
     expect(plans.map(pin)).toEqual([
-      ["multi-coin", "links", [591_429, 134_361], 1_040, 124_750, 2, 2, 16],
-      ["single-coin", "big-change", [99_000_000], 700, 98_399_300, 1, 1, 19],
-      ["single-coin", "bad-change", [CJ_CHANGE], 700, 14_640_220, 1, 1, 29],
+      ["single-coin", [99_000_000], 700, 98_399_300, 1, 1, [], "huge"],
+      ["single-coin", [CJ_CHANGE], 700, 14_640_220, 1, 1, [], "toxic"],
+      ["multi-coin", [591_429, 134_361], 1_040, 124_750, 2, 2, ["change-merge"], "small"],
     ]);
   });
 });
