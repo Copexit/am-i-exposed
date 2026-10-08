@@ -14,6 +14,10 @@ const GLYPH: Record<PmCategory, LucideIcon> = {
   instant: Zap, bank: Landmark, wallet: Wallet, cash: Banknote, gift: Gift, crypto: Coins, other: Ellipsis,
 };
 
+/** The picker's trigger, so a clear from outside the picker can return focus to it. */
+export const PM_TRIGGER_ID = "p2p-pm-trigger";
+export const focusPmTrigger = () => document.getElementById(PM_TRIGGER_ID)?.focus();
+
 const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 
 /** Brand names stay as they are; generic catalog names ("Bank transfer", "Other") are translated. */
@@ -81,10 +85,13 @@ export function PaymentMethodPicker({ methods, total, pm, onChange }: Props) {
       ref={root}
       className="relative w-full sm:w-auto"
       onKeyDown={(e) => { if (e.key === "Escape" && open) { e.stopPropagation(); close(); } }}
+      // Tabbing out closes the panel; a null relatedTarget (a click, or Safari not focusing buttons) is left to the pointerdown handler.
+      onBlur={(e) => { if (open && e.relatedTarget && !root.current?.contains(e.relatedTarget as Node)) { setOpen(false); setQ(""); } }}
     >
       <div className="flex items-center gap-1">
         <button
           ref={trigger}
+          id={PM_TRIGGER_ID}
           type="button"
           aria-expanded={open}
           aria-controls={panelId}
@@ -102,7 +109,7 @@ export function PaymentMethodPicker({ methods, total, pm, onChange }: Props) {
         {pm && (
           <button
             type="button"
-            onClick={() => onChange(null)}
+            onClick={() => { onChange(null); trigger.current?.focus(); }}
             aria-label={t("observatory.p2p.pm.clear", { defaultValue: "Clear payment method filter" })}
             className={`${CHIP} justify-center border border-hairline px-2.5 ${CHIP_OFF}`}
           >
@@ -140,27 +147,33 @@ export function PaymentMethodPicker({ methods, total, pm, onChange }: Props) {
   );
 }
 
-/** States what the method filter narrows, with the filtered market's stats. */
-export function PmFilterNote({ market, side, pm, onClear }: { market: Market | null; side: "buy" | "sell"; pm: string; onClear: () => void }) {
+/** States what the method filter narrows; the live region stays mounted so screen readers hear each change. */
+export function PmFilterNote({ market, side, pm, onClear }: { market: Market | null; side: "buy" | "sell"; pm: string | null; onClear: () => void }) {
   const { t, i18n } = useTranslation();
   const locale = i18n.language || "en";
   const label = usePmLabel();
-  const count = market?.offers.filter((o) => o.side === makerSide(side)).length ?? 0;
+  // Unlisted Mostro instances are kept out of BTC and the median: the count follows.
+  const count = market?.offers.filter((o) => o.side === makerSide(side) && !o.unlisted).length ?? 0;
   const median = market?.medianPremium[side] ?? null;
   return (
-    <div data-testid="p2p-pm-note" role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-hairline bg-surface-inset px-3 py-2 text-sm text-muted">
-      <p className="min-w-0">
-        {t("observatory.p2p.pm.note", {
-          defaultValue: "Filtered to offers that accept {{method}}: {{count}} offers, {{btc}} BTC.",
-          method: label(pm),
-          count,
-          btc: fmtSatsBtc(market?.liquiditySats[side] ?? 0, locale),
-        })}
-        {median !== null && ` ${t("observatory.p2p.pm.median", { defaultValue: "Median premium {{premium}}.", premium: fmtPremium(median, locale) })}`}
-      </p>
-      <button type="button" onClick={onClear} className="min-h-10 shrink-0 rounded-lg px-2 text-sm text-foreground underline-offset-2 hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bitcoin">
-        {t("observatory.p2p.pm.showAll", { defaultValue: "Show all methods" })}
-      </button>
+    // Empty, it must not add a gap to the section's spacing.
+    <div role="status" className={pm ? undefined : "my-0"}>
+      {pm && (
+        <div data-testid="p2p-pm-note" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-hairline bg-surface-inset px-3 py-2 text-sm text-muted">
+          <p className="min-w-0">
+            {t("observatory.p2p.pm.note", {
+              defaultValue: "Filtered to offers that accept {{method}}: {{count}} offers, {{btc}} BTC.",
+              method: label(pm),
+              count,
+              btc: fmtSatsBtc(market?.liquiditySats[side] ?? 0, locale),
+            })}
+            {median !== null && ` ${t("observatory.p2p.pm.median", { defaultValue: "Median premium {{premium}}.", premium: fmtPremium(median, locale) })}`}
+          </p>
+          <button type="button" onClick={() => { onClear(); focusPmTrigger(); }} className="min-h-10 shrink-0 rounded-lg px-2 text-sm text-foreground underline-offset-2 hover:underline cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bitcoin">
+            {t("observatory.p2p.pm.showAll", { defaultValue: "Show all methods" })}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

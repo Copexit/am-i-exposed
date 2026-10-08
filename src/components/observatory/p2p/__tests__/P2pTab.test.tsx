@@ -166,4 +166,49 @@ describe("payment-method filter", () => {
     expect(screen.queryByRole("group", { name: "Payment method" })).toBeNull();
     expect(document.activeElement).toBe(trigger);
   });
+
+  it("clear and Show all return focus to the trigger; the status region stays mounted", () => {
+    window.history.replaceState(null, "", "/observatory/#p2p&cur=EUR&pm=revolut");
+    render(<ObservatoryPage />);
+    const trigger = screen.getByTestId("p2p-pm-trigger");
+    const status = screen.getByTestId("p2p-pm-note").parentElement!;
+    expect(status.getAttribute("role")).toBe("status");
+    act(() => { fireEvent.click(screen.getByRole("button", { name: "Clear payment method filter" })); });
+    expect(document.activeElement).toBe(trigger);
+    expect(screen.queryByTestId("p2p-pm-note")).toBeNull();
+    expect(status.isConnected).toBe(true);
+
+    act(() => { window.history.replaceState(null, "", "/observatory/#p2p&cur=EUR&pm=revolut"); window.dispatchEvent(new HashChangeEvent("hashchange")); });
+    expect(status.isConnected && status.textContent).toContain("Revolut");
+    act(() => { fireEvent.click(screen.getByRole("button", { name: "Show all methods" })); });
+    expect(window.location.hash).toBe("#p2p&cur=EUR");
+    expect(document.activeElement).toBe(screen.getByTestId("p2p-pm-trigger"));
+  });
+
+  it("the note counts listed offers only, like its BTC and median", () => {
+    window.history.replaceState(null, "", "/observatory/#p2p&cur=EUR&pm=revolut");
+    render(<ObservatoryPage />);
+    const listed = eurSells.filter((o) => o.pm.includes("revolut") && !o.unlisted).length;
+    expect(screen.getByTestId("p2p-pm-note").textContent).toContain(`${listed} offers`);
+  });
+
+  it("tabbing out of the panel closes it", () => {
+    window.history.replaceState(null, "", "/observatory/#p2p&cur=EUR");
+    render(<ObservatoryPage />);
+    act(() => { fireEvent.click(screen.getByTestId("p2p-pm-trigger")); });
+    const search = screen.getByRole("searchbox");
+    act(() => { fireEvent.blur(search, { relatedTarget: within(screen.getByRole("group", { name: "Payment method" })).getAllByRole("button")[0] }); });
+    expect(screen.queryByRole("group", { name: "Payment method" })).not.toBeNull();
+    act(() => { fireEvent.blur(search, { relatedTarget: screen.getByRole("button", { name: "I want to sell BTC" }) }); });
+    expect(screen.queryByRole("group", { name: "Payment method" })).toBeNull();
+  });
+
+  it("a Premiums board cell clears the method filter", () => {
+    window.history.replaceState(null, "", "/observatory/#p2p&cur=EUR&pm=revolut");
+    render(<ObservatoryPage />);
+    const cell = document.querySelector<HTMLElement>("[data-testid^=p2p-cell-]:not([disabled])")!;
+    act(() => { fireEvent.click(cell); });
+    expect(window.location.hash).not.toContain("pm=");
+    expect(window.location.hash).toMatch(/cur=[A-Z]+&venue=/);
+  });
 });

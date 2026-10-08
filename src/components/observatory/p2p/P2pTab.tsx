@@ -101,7 +101,7 @@ export function P2pTab() {
 
   const board = useMemo(() => premiumBoard(markets, obs.side), [markets, obs.side]);
   const onBoard = useCallback((c: string, v: Venue) => {
-    setObs({ cur: c, venue: [v] });
+    setObs({ cur: c, venue: [v], pm: null });
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     requestAnimationFrame(() => document.getElementById("p2p-markets")?.scrollIntoView?.({ behavior: reduce ? "auto" : "smooth", block: "start" }));
   }, [setObs]);
@@ -137,7 +137,7 @@ export function P2pTab() {
             <MarketSelector markets={venueMarkets} cur={cur} side={obs.side} venues={obs.venue} onChange={onChange}>
               <PaymentMethodPicker methods={methods} total={sideOffers.length} pm={obs.pm} onChange={(pm) => setObs({ pm })} />
             </MarketSelector>
-            {obs.pm && !loading && <PmFilterNote market={market} side={obs.side} pm={obs.pm} onClear={() => setObs({ pm: null })} />}
+            {!loading && <PmFilterNote market={market} side={obs.side} pm={obs.pm} onClear={() => setObs({ pm: null })} />}
             {loading ? (
               <BlockSkeleton h={320} />
             ) : (
