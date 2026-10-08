@@ -118,7 +118,7 @@ test("coin selection advisor: multi-coin plans when no single coin pays", async 
   const same = page.getByTestId("coin-plan-same-origin");
   await expect(same).toBeVisible();
   await expect(same.getByText("Recommended")).toBeVisible();
-  await expect(same.getByRole("listitem")).toHaveCount(3);
+  await expect(same.getByRole("list").first().getByRole("listitem")).toHaveCount(3);
   await expect(page.getByTestId("coin-plan-multi-coin").getByText(/Joins 2 unrelated origins/)).toBeVisible();
   await expect(page.getByText("Advanced: Stonewall")).toBeVisible();
   await expect(page.getByText(/Not enough funds/)).toHaveCount(0);
