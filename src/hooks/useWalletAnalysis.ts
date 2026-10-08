@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useNetwork } from "@/context/NetworkContext";
+import { isBackendChainPending } from "@/lib/api/backend-network";
 import { createApiClient, isLocalApi } from "@/lib/api/client";
 import { getAnalysisSettings } from "@/hooks/useAnalysisSettings";
 import { DEFAULT_ANALYSIS_SETTINGS } from "@/lib/analysis/settings";
@@ -145,7 +146,7 @@ const toSaveError = (e: unknown) => e instanceof SavedWalletError ? { code: e.co
 export function useWalletAnalysis() {
   const [state, setState] = useState<WalletAnalysisState>(INITIAL_STATE);
   const { t } = useTranslation();
-  const { network, setNetwork, config, configFor, customApiUrl, isUmbrel, isCustomApi } = useNetwork();
+  const { network, setNetwork, config, configFor, customApiUrl, isUmbrel, isCustomApi, networkUnverified } = useNetwork();
   const abortRef = useRef<AbortController | null>(null);
   /** The saved snapshot behind the shown results (labels are written through it) */
   const savedRef = useRef<{ key: string; xpub: string; backend: string; snap: WalletSnapshot; epoch: string } | null>(null);
@@ -206,11 +207,16 @@ export function useWalletAnalysis() {
           }
           if (controller.signal.aborted) return;
           if (!detected) {
-            throw new Error(t("errors.walletWrongNetwork", {
-              keyNetwork: parsed.network === "mainnet" ? "Mainnet" : "Testnet/Signet",
-              network: NETWORK_CONFIG[network].label,
-              defaultValue: "This key belongs to {{keyNetwork}}, but the connected backend serves {{network}}. Its addresses cannot be looked up there.",
-            }));
+            const vars = { keyNetwork: parsed.network === "mainnet" ? "Mainnet" : "Testnet/Signet", network: NETWORK_CONFIG[network].label };
+            throw new Error(networkUnverified
+              ? t("errors.walletWrongNetworkUnverified", {
+                ...vars,
+                defaultValue: "This key belongs to {{keyNetwork}}, but the connected backend's network could not be verified and is assumed to be {{network}}. Its addresses cannot be looked up there.",
+              })
+              : t("errors.walletWrongNetwork", {
+                ...vars,
+                defaultValue: "This key belongs to {{keyNetwork}}, but the connected backend serves {{network}}. Its addresses cannot be looked up there.",
+              }));
           }
           cfg = configFor(detected);
           switchedTo = detected;
@@ -232,7 +238,9 @@ export function useWalletAnalysis() {
 
         key ||= walletKey(parsed, backend);
         // A forget or clear from now on (this tab or another) stops every save of this scan
-        const epoch = savedEpoch(key);
+        // Started while the backend's chain is being re-asked: the key's network
+        // prefix may be wrong, so this scan is never saved (an epoch that never matches)
+        const epoch = isBackendChainPending(backend) ? "unverified" : savedEpoch(key);
 
         setState(prev => ({
           ...prev,
@@ -481,7 +489,7 @@ export function useWalletAnalysis() {
         }));
       }
     },
-    [network, setNetwork, config, configFor, customApiUrl, t, isUmbrel, isCustomApi],
+    [network, setNetwork, config, configFor, customApiUrl, t, isUmbrel, isCustomApi, networkUnverified],
   );
 
   // A forget or clear in settings or another tab: this view is no longer saved

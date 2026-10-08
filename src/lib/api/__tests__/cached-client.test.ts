@@ -94,6 +94,28 @@ describe("networkFromUrl", () => {
 });
 
 describe("createCachedMempoolClient", () => {
+  it("caches nothing for a backend whose chain is being re-asked", async () => {
+    const tx = makeMockTx("bbb", true);
+    const mock = makeMockClient({ getTransaction: vi.fn().mockResolvedValue(tx) });
+    mockCreate.mockReturnValue(mock as ReturnType<typeof createMempoolClient>);
+    let answer!: (r: Response) => void;
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((r) => { answer = r; })));
+    const { detectBackendChain } = await import("../backend-network");
+    const detecting = detectBackendChain("http://node.local/api", { refresh: true });
+
+    const client = createCachedMempoolClient("http://node.local/api");
+    await client.getTransaction("bbb");
+    await client.getTransaction("bbb");
+    expect(mock.getTransaction).toHaveBeenCalledTimes(2);
+    for (const net of ["mainnet", "signet"]) expect(await idbGet(`${net}@http://node.local/api:tx:bbb`)).toBeUndefined();
+
+    answer(new Response("00000008819873e925422c1ff0f99f7cc9bbb232af63a077a480a3633bee1ef6"));
+    await detecting;
+    vi.unstubAllGlobals();
+    await createCachedMempoolClient("http://node.local/api").getTransaction("bbb");
+    expect((await idbGet<MempoolTransaction>("signet@http://node.local/api:tx:bbb"))?.txid).toBe("bbb");
+  });
+
   describe("getTransaction", () => {
     it("caches confirmed transactions with infinite TTL", async () => {
       const tx = makeMockTx("aaa", true);

@@ -3,7 +3,8 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useNetwork } from "@/context/NetworkContext";
 import { useTranslation } from "react-i18next";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { AlertTriangle, RefreshCw, X } from "lucide-react";
+import { NETWORK_CONFIG } from "@/lib/bitcoin/networks";
 import { UNSUPPORTED_CHAIN_LABEL } from "@/lib/api/backend-network";
 
 /**
@@ -133,6 +134,37 @@ export function MempoolDownDialog() {
           {t("common.dismiss", { defaultValue: "Dismiss" })}
         </button>
       </div>
+    </div>
+  );
+}
+
+/** Small notice when a self-hosted backend could not report its network, so it is assumed. */
+export function NetworkUnverifiedNotice() {
+  const { networkUnverified, network, isUmbrel, localApiStatus } = useNetwork();
+  const { t } = useTranslation();
+  const [dismissed, setDismissed] = useState(false);
+  // Mempool down: MempoolDownDialog already says so
+  if (!networkUnverified || dismissed || (isUmbrel && localApiStatus === "unavailable")) return null;
+  return (
+    <div
+      role="status"
+      className="fixed bottom-4 left-4 right-4 max-w-sm mx-auto z-50 flex items-center gap-3 rounded-xl border border-warning/30 px-4 py-3 text-sm text-foreground"
+      style={{ background: "var(--card-bg)", boxShadow: "var(--glass-shadow)" }}
+    >
+      <AlertTriangle size={16} className="text-warning shrink-0" aria-hidden="true" />
+      <span className="flex-1">
+        {t("backend.networkUnverified", {
+          network: NETWORK_CONFIG[network].label,
+          defaultValue: "Network could not be verified; assuming {{network}}.",
+        })}
+      </span>
+      <button
+        onClick={() => setDismissed(true)}
+        aria-label={t("common.dismiss", { defaultValue: "Dismiss" })}
+        className="text-muted hover:text-foreground transition-colors cursor-pointer"
+      >
+        <X size={14} />
+      </button>
     </div>
   );
 }

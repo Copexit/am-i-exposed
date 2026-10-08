@@ -7,16 +7,17 @@ import { createApiClient, isLocalApi } from "@/lib/api/client";
 import { backendClass } from "@/lib/api/backend-class";
 import { createMempoolClient } from "@/lib/api/mempool";
 import { ApiError } from "@/lib/api/fetch-with-retry";
-import { detectAddressNetwork, detectTxidNetwork } from "@/lib/api/detect-network";
+import { detectAddressNetwork, detectTxidNetwork, isMainnetAddress } from "@/lib/api/detect-network";
 import { mapApiErrorMessage } from "@/lib/api/error-message";
-import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
-import { detectInputType } from "@/lib/analysis/detect-input";
+import { NETWORK_CONFIG, type BitcoinNetwork } from "@/lib/bitcoin/networks";
+import { cleanInput, detectInputType } from "@/lib/analysis/detect-input";
 import { getTxHeuristicSteps, getAddressHeuristicSteps } from "@/lib/analysis/heuristic-steps";
 import { loadEngine } from "@/lib/analysis/load-engine";
 import { parseLocalTx, localTxLabel, type LocalTx } from "@/lib/input/local-tx";
 import { getAnalysisSettings, type AnalysisSettings } from "@/hooks/useAnalysisSettings";
 import { getCachedResult, putCachedResult } from "@/lib/api/analysis-cache";
 import { cacheKeyPrefix } from "@/lib/api/cache-policy";
+import { isBackendChainPending } from "@/lib/api/backend-network";
 import type { HeuristicTranslator } from "@/lib/analysis/heuristics/types";
 
 import {
@@ -37,7 +38,7 @@ function makeLookupClient(baseUrl: string, signal: AbortSignal) {
 
 export function useAnalysis() {
   const [state, setState] = useState<AnalysisState>(INITIAL_STATE);
-  const { network, setNetwork, config, configFor, customApiUrl, isUmbrel, isCustomApi } = useNetwork();
+  const { network, setNetwork, config, configFor, customApiUrl, isUmbrel, isCustomApi, networkUnverified } = useNetwork();
   const { t } = useTranslation();
   const abortRef = useRef<AbortController | null>(null);
   /** Cache write owed by the analysis that just completed; flushed after the commit. */
@@ -121,6 +122,30 @@ export function useAnalysis() {
       let net = network;
       let cfg = config;
       let switchedTo: BitcoinNetwork | undefined;
+      // A self-hosted backend serves one network: an address of another one is refused
+      if (inputType === "address" && (isUmbrel || !!customApiUrl) && isMainnetAddress(cleanInput(input)) !== (network === "mainnet")) {
+        const vars = {
+          addressNetwork: network === "mainnet" ? "Testnet/Signet" : "Mainnet",
+          network: NETWORK_CONFIG[network].label,
+        };
+        setState({
+          ...INITIAL_STATE,
+          phase: "error",
+          query: input,
+          inputType,
+          error: networkUnverified
+            ? t("errors.addressWrongNetworkUnverified", {
+              ...vars,
+              defaultValue: "This address belongs to {{addressNetwork}}, but the connected backend's network could not be verified and is assumed to be {{network}}. It cannot be looked up there.",
+            })
+            : t("errors.addressWrongNetwork", {
+              ...vars,
+              defaultValue: "This address belongs to {{addressNetwork}}, but the connected backend serves {{network}}. It cannot be looked up there.",
+            }),
+          errorCode: "not-retryable",
+        });
+        return;
+      }
       if (inputType === "address" && !isUmbrel && !customApiUrl) {
         const detected = await detectAddressNetwork(input, network, controller.signal, (n) => configFor(n).mempoolBaseUrl);
         if (controller.signal.aborted) return;
@@ -226,8 +251,10 @@ export function useAnalysis() {
 
       // Check analysis result cache before making API calls
       const analysisSettingsForCache = getAnalysisSettings();
+      // The backend's chain is being re-asked: its cache key prefix may be wrong, so no cache
+      const unverifiedBackend = isBackendChainPending(cfg.mempoolBaseUrl);
       // Keyed per backend: custom/Umbrel/onion results never share an entry with mempool.space
-      const cached = opts?.awaitIndexing ? null : await getCachedResult(cacheKeyPrefix(cfg.mempoolBaseUrl, net), input, analysisSettingsForCache);
+      const cached = opts?.awaitIndexing || unverifiedBackend ? null : await getCachedResult(cacheKeyPrefix(cfg.mempoolBaseUrl, net), input, analysisSettingsForCache);
       // reset() or a newer analyze() ran during the lookup: leave their state alone
       if (controller.signal.aborted) return;
       if (cached) {
@@ -276,7 +303,7 @@ export function useAnalysis() {
        * the committed state is cached (by the effect below) unless the result is partial.
        */
       const complete = (fields: Partial<AnalysisState>, cacheNetwork?: BitcoinNetwork) => {
-        if (cacheNetwork && !fields.result?.partial) {
+        if (cacheNetwork && !fields.result?.partial && !unverifiedBackend) {
           const cacheKey = cacheKeyPrefix(configFor(cacheNetwork).mempoolBaseUrl, cacheNetwork);
           pendingCacheRef.current = { cacheKey, input, settings: analysisSettingsForCache };
         }
@@ -436,7 +463,7 @@ export function useAnalysis() {
         }));
       }
     },
-    [network, setNetwork, config, configFor, customApiUrl, isCustomApi, isUmbrel, t, ht, onStep],
+    [network, setNetwork, config, configFor, customApiUrl, isCustomApi, isUmbrel, networkUnverified, t, ht, onStep],
   );
 
   // Flush the cache write owed by a just-completed analysis from committed state

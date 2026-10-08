@@ -100,20 +100,27 @@ describe("networkForApi", () => {
 
   it("uses the chain the custom API reports when --network was not given", async () => {
     serve(SIGNET);
-    expect(await networkForApi("http://signet-a.local/api", { explicit: false, fallback: "mainnet", cache: false })).toBe("signet");
+    expect(await networkForApi("http://signet-a.local/api", { explicit: false, fallback: "mainnet" })).toBe("signet");
   });
 
   it("rejects an explicit --network that does not match the API", async () => {
     serve(SIGNET);
-    await expect(networkForApi("http://signet-b.local/api", { explicit: true, fallback: "mainnet", cache: false }))
+    await expect(networkForApi("http://signet-b.local/api", { explicit: true, fallback: "mainnet" }))
       .rejects.toThrow(/serves signet/);
+  });
+
+  it("asks the backend on every call (no chain cache): a node that switched chains is caught", async () => {
+    serve(SIGNET);
+    expect(await networkForApi("http://switch.local/api", { explicit: false, fallback: "mainnet" })).toBe("signet");
+    serve("000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f");
+    expect(await networkForApi("http://switch.local/api", { explicit: false, fallback: "signet" })).toBe("mainnet");
   });
 
   it("rejects an unsupported chain, and keeps --network when the API cannot be asked", async () => {
     serve(REGTEST);
-    await expect(networkForApi("http://regtest.local/api", { explicit: false, fallback: "mainnet", cache: false }))
+    await expect(networkForApi("http://regtest.local/api", { explicit: false, fallback: "mainnet" }))
       .rejects.toThrow(/Regtest/);
     serve("not found", 404);
-    expect(await networkForApi("http://old.local/api", { explicit: true, fallback: "testnet4", cache: false })).toBe("testnet4");
+    expect(await networkForApi("http://old.local/api", { explicit: true, fallback: "testnet4" })).toBe("testnet4");
   });
 });

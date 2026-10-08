@@ -83,6 +83,16 @@ export interface ChainStore {
 
 /** Detected chains by normalized base URL, for this page load / process. */
 const known = new Map<string, BackendChain>();
+/** Backends being re-asked: their network is not confirmed yet, so nothing is cached for them. */
+const pending = new Map<string, number>();
+
+/**
+ * True while a backend's chain is being re-asked. Cache writers skip it, so no
+ * entry lands under a `network@url` prefix the backend no longer serves.
+ */
+export function isBackendChainPending(baseUrl: string): boolean {
+  return (pending.get(trimSlash(baseUrl)) ?? 0) > 0;
+}
 let listeners: (() => void)[] = [];
 
 /** The chain detected for a backend in this session, if any. */
@@ -105,10 +115,11 @@ function remember(url: string, chain: BackendChain) {
 export const genesisCacheKey = (baseUrl: string) => `genesis@${trimSlash(baseUrl)}`;
 
 /**
- * Detect the chain a backend serves, once per backend: memory, then `store`
- * (infinite TTL, keyed by base URL), then the network. `refresh` skips both
- * caches and re-asks the backend (still writing them). Returns null when the
- * backend could not be asked; the caller keeps its previous assumption.
+ * Detect the chain a backend serves: memory, then `store` (keyed by base URL),
+ * then the network. `refresh` skips both caches and re-asks the backend (still
+ * writing them); the web app always refreshes, so a stored value is only shown
+ * until the backend answers. Returns null when the backend could not be asked;
+ * the caller keeps its previous assumption.
  */
 export async function detectBackendChain(
   baseUrl: string,
@@ -123,16 +134,24 @@ export async function detectBackendChain(
       return hit;
     }
   }
-  const chain = await fetchGenesisChain(url, signal);
-  if (chain) {
-    remember(url, chain);
-    await store?.put(key, chain).catch(() => {});
+  pending.set(url, (pending.get(url) ?? 0) + 1);
+  try {
+    const chain = await fetchGenesisChain(url, signal);
+    if (chain) {
+      remember(url, chain);
+      await store?.put(key, chain).catch(() => {});
+    }
+    return chain;
+  } finally {
+    const n = (pending.get(url) ?? 1) - 1;
+    if (n > 0) pending.set(url, n);
+    else pending.delete(url);
   }
-  return chain;
 }
 
 /** Test helper: forget every detection. */
 export function _resetBackendChainsForTest() {
   known.clear();
+  pending.clear();
   listeners = [];
 }

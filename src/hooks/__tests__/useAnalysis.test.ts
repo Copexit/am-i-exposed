@@ -22,6 +22,7 @@ const m = vi.hoisted(() => ({
   createMempoolClient: vi.fn(),
   lookupClient: { tag: "lookup" },
   isUmbrel: false,
+  networkUnverified: false,
   host: "http://onion.example",
 }));
 
@@ -31,7 +32,7 @@ vi.mock("@/lib/api/analysis-cache", () => ({
 }));
 vi.mock("@/lib/analysis/run-txid-analysis", () => ({ runTxidAnalysis: m.runTxidAnalysis }));
 vi.mock("@/lib/analysis/run-address-analysis", () => ({ runAddressAnalysis: vi.fn() }));
-vi.mock("@/lib/api/detect-network", () => ({ detectTxidNetwork: m.detectTxidNetwork }));
+vi.mock("@/lib/api/detect-network", async (orig) => ({ ...(await orig<typeof import("@/lib/api/detect-network")>()), detectTxidNetwork: m.detectTxidNetwork }));
 vi.mock("@/lib/api/client", () => ({
   createApiClient: m.createApiClient,
   isLocalApi: (u: string) => u.includes("umbrel") || u.includes("localhost"),
@@ -39,6 +40,7 @@ vi.mock("@/lib/api/client", () => ({
 vi.mock("@/lib/input/local-tx", () => ({
   parseLocalTx: m.parseLocalTx,
   localTxLabel: () => ({ key: "local.queryPsbt", inputs: 0, outputs: 0 }),
+  isRawTxHex: () => false,
 }));
 vi.mock("@/lib/analysis/run-local-analysis", () => ({
   runLocalAnalysis: m.runLocalAnalysis,
@@ -71,6 +73,7 @@ vi.mock("@/context/NetworkContext", () => ({
     configFor: onionConfigFor,
     customApiUrl: null,
     get isUmbrel() { return m.isUmbrel; },
+    get networkUnverified() { return m.networkUnverified; },
     isCustomApi: false,
   }),
 }));
@@ -86,6 +89,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   m.host = "http://onion.example";
   m.isUmbrel = false;
+  m.networkUnverified = false;
   m.createMempoolClient.mockReturnValue(m.lookupClient);
   m.getCachedResult.mockResolvedValue(null);
   m.putCachedResult.mockResolvedValue(undefined);
@@ -304,6 +308,26 @@ describe("useAnalysis", () => {
       await act(async () => { await hook.current.analyze(INPUT); });
       expect(m.runLocalAnalysis).toHaveBeenCalledWith(LOCAL_RAW, expect.objectContaining({ lookup: m.lookupClient }));
       expect(hook.current.localLookup?.status).toBe("done");
+    });
+  });
+
+  describe("address of another network on a self-hosted backend", () => {
+    const TB1 = "tb1q72xweewm4uvlkgzevmewy0dk3mmpymgr3n58qx";
+    it("is refused, naming the backend's network, without a request", async () => {
+      m.isUmbrel = true;
+      const { result: hook } = renderHook(() => useAnalysis());
+      await act(async () => { await hook.current.analyze(TB1); });
+      expect(hook.current.phase).toBe("error");
+      expect(hook.current.error).toBe("This address belongs to Testnet/Signet, but the connected backend serves Mainnet. It cannot be looked up there.");
+      expect(m.createApiClient).not.toHaveBeenCalled();
+    });
+
+    it("says the backend's network could not be verified when it is assumed", async () => {
+      m.isUmbrel = true;
+      m.networkUnverified = true;
+      const { result: hook } = renderHook(() => useAnalysis());
+      await act(async () => { await hook.current.analyze(`https://mempool.space/testnet4/address/${TB1}`); });
+      expect(hook.current.error).toContain("network could not be verified and is assumed to be Mainnet");
     });
   });
 });

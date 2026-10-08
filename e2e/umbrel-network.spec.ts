@@ -9,11 +9,12 @@ const GENESIS = {
   regtest: "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206",
 };
 
-async function mockUmbrel(page: Page, genesis: string) {
+async function mockUmbrel(page: Page, genesis: string | null) {
   await page.route("**/api/local-info", (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ mempoolPort: "3006", mempoolOnion: "", mempoolExternalUrl: "" }) }));
   await page.route("**/api/blocks/tip/height", (route) => route.fulfill({ status: 200, contentType: "text/plain", body: "850000" }));
-  await page.route("**/api/block-height/0", (route) => route.fulfill({ status: 200, contentType: "text/plain", body: genesis }));
+  await page.route("**/api/block-height/0", (route) =>
+    route.fulfill(genesis ? { status: 200, contentType: "text/plain", body: genesis } : { status: 404, body: "Not found" }));
 }
 
 /** Wallet scan setup: `address` (first p2wpkh receive address of the key) holds one funded output. */
@@ -93,4 +94,11 @@ test("regtest Umbrel: an unsupported-network message names the chain", async ({ 
   const dialog = page.getByRole("alertdialog", { name: "Unsupported Network" });
   await expect(dialog).toBeVisible({ timeout: 10_000 });
   await expect(dialog).toContainText("serves Regtest, which is not supported");
+});
+
+test("Umbrel whose network cannot be verified: mainnet assumed, with a notice", async ({ page }) => {
+  await mockMempoolApi(page);
+  await mockUmbrel(page, null);
+  await page.goto("/");
+  await expect(page.getByRole("status").filter({ hasText: "Network could not be verified; assuming Mainnet." })).toBeVisible({ timeout: 10_000 });
 });

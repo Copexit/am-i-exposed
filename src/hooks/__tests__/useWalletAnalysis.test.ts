@@ -6,11 +6,11 @@ import { NETWORK_CONFIG } from "@/lib/bitcoin/networks";
 import { HDKey } from "@scure/bip32";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
 
-const net = vi.hoisted(() => ({ isUmbrel: false, setNetwork: vi.fn(), detected: null as string | null, network: "mainnet" as BitcoinNetwork }));
+const net = vi.hoisted(() => ({ isUmbrel: false, setNetwork: vi.fn(), detected: null as string | null, network: "mainnet" as BitcoinNetwork, networkUnverified: false }));
 vi.mock("@/context/NetworkContext", () => ({
   useNetwork: () => ({
     network: net.network, setNetwork: net.setNetwork, config: net.isUmbrel ? { ...NETWORK_CONFIG[net.network], mempoolBaseUrl: "/api" } : NETWORK_CONFIG[net.network],
-    configFor: (n: BitcoinNetwork) => NETWORK_CONFIG[n], customApiUrl: null, isUmbrel: net.isUmbrel, isCustomApi: false,
+    configFor: (n: BitcoinNetwork) => NETWORK_CONFIG[n], customApiUrl: null, isUmbrel: net.isUmbrel, isCustomApi: false, networkUnverified: net.networkUnverified,
   }),
 }));
 // No address has history: a bare key falls back to native segwit
@@ -50,7 +50,7 @@ describe("useWalletAnalysis descriptor errors", () => {
 const TPUB = HDKey.fromMasterSeed(new Uint8Array(32).fill(1), { private: 0x04358394, public: 0x043587cf }).publicExtendedKey;
 
 describe("useWalletAnalysis key on another network", () => {
-  afterEach(() => { net.isUmbrel = false; net.network = "mainnet"; net.detected = null; net.setNetwork.mockClear(); createApiClient.mockClear(); });
+  afterEach(() => { net.isUmbrel = false; net.networkUnverified = false; net.network = "mainnet"; net.detected = null; net.setNetwork.mockClear(); createApiClient.mockClear(); });
 
   it("self-hosted mainnet backend: clear error, nothing fetched", async () => {
     net.isUmbrel = true;
@@ -58,6 +58,15 @@ describe("useWalletAnalysis key on another network", () => {
     await act(async () => { await result.current.analyze(TPUB); });
     expect(result.current.phase).toBe("error");
     expect(result.current.error).toBe("errors.walletWrongNetwork");
+    expect(createApiClient).not.toHaveBeenCalled();
+  });
+
+  it("self-hosted backend whose network is assumed: the refusal says it could not be verified", async () => {
+    net.isUmbrel = true;
+    net.networkUnverified = true;
+    const { result } = renderHook(() => useWalletAnalysis());
+    await act(async () => { await result.current.analyze(TPUB); });
+    expect(result.current.error).toBe("errors.walletWrongNetworkUnverified");
     expect(createApiClient).not.toHaveBeenCalled();
   });
 

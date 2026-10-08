@@ -201,7 +201,6 @@ async function run(fn: () => Promise<void>): Promise<void> {
       program.setOptionValue("network", await networkForApi(opts.api, {
         explicit: program.getOptionValueSource("network") !== "default",
         fallback: opts.network,
-        cache: opts.cache !== false,
       }));
     }
 

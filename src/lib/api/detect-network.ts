@@ -56,7 +56,7 @@ export async function detectTxidNetwork(
 }
 
 /** Mainnet address prefixes: bech32 `bc1`, legacy `1`, P2SH `3`. Everything else valid is a test-network format. */
-function isMainnetAddress(address: string): boolean {
+export function isMainnetAddress(address: string): boolean {
   return /^bc1/i.test(address) || /^[13]/.test(address);
 }
 

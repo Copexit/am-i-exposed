@@ -3671,6 +3671,10 @@
   "guide.checklist.rule9": "Gdy łączenia nie da się uniknąć, łączenie tylko wyjść CoinJoin jest najmniej złe: nie mają historii. Nadal je jednak wiąże i zmniejsza ich anonimowość, więc nigdy nie jest dobre.",
   "settings.connectedNetwork": "Połączono: {{network}}. Używany jest własny endpoint.",
   "backend.unsupportedTitle": "Nieobsługiwana sieć",
-  "backend.unsupportedBody": "Podłączony serwer obsługuje {{chain}}, która nie jest wspierana. am-i.exposed działa z serwerami Mainnet, Testnet4 i Signet. Przełącz węzeł na jedną z nich lub użyj innego serwera.",
-  "backend.unknownChain": "nieznany łańcuch"
+  "backend.unsupportedBody": "Podłączony serwer obsługuje sieć {{chain}}, która nie jest wspierana. am-i.exposed działa z serwerami Mainnet, Testnet4 i Signet. Przełącz węzeł na jedną z tych sieci lub użyj innego serwera.",
+  "backend.unknownChain": "nierozpoznaną",
+  "backend.networkUnverified": "Nie udało się zweryfikować sieci; przyjęto {{network}}.",
+  "errors.walletWrongNetworkUnverified": "Ten klucz należy do {{keyNetwork}}, ale nie udało się zweryfikować sieci podłączonego serwera, przyjęto {{network}}. Jego adresów nie można tam sprawdzić.",
+  "errors.addressWrongNetwork": "Ten adres należy do {{addressNetwork}}, ale podłączony serwer obsługuje {{network}}. Nie można go tam sprawdzić.",
+  "errors.addressWrongNetworkUnverified": "Ten adres należy do {{addressNetwork}}, ale nie udało się zweryfikować sieci podłączonego serwera, przyjęto {{network}}. Nie można go tam sprawdzić."
 }

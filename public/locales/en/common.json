@@ -3478,5 +3478,9 @@
   "settings.connectedNetwork": "Connected: {{network}}. Using custom endpoint.",
   "backend.unsupportedTitle": "Unsupported Network",
   "backend.unsupportedBody": "The connected backend serves {{chain}}, which is not supported. am-i.exposed works with Mainnet, Testnet4 and Signet backends. Switch the node to one of them, or use another backend.",
-  "backend.unknownChain": "an unrecognized chain"
+  "backend.unknownChain": "an unrecognized chain",
+  "backend.networkUnverified": "Network could not be verified; assuming {{network}}.",
+  "errors.walletWrongNetworkUnverified": "This key belongs to {{keyNetwork}}, but the connected backend's network could not be verified and is assumed to be {{network}}. Its addresses cannot be looked up there.",
+  "errors.addressWrongNetwork": "This address belongs to {{addressNetwork}}, but the connected backend serves {{network}}. It cannot be looked up there.",
+  "errors.addressWrongNetworkUnverified": "This address belongs to {{addressNetwork}}, but the connected backend's network could not be verified and is assumed to be {{network}}. It cannot be looked up there."
 }

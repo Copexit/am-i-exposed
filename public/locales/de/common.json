@@ -3478,5 +3478,9 @@
   "settings.connectedNetwork": "Verbunden: {{network}}. Benutzerdefinierter Endpunkt wird verwendet.",
   "backend.unsupportedTitle": "Nicht unterstütztes Netzwerk",
   "backend.unsupportedBody": "Das verbundene Backend bedient {{chain}}, das nicht unterstützt wird. am-i.exposed funktioniert mit Mainnet-, Testnet4- und Signet-Backends. Stelle den Node auf eines davon um oder nutze ein anderes Backend.",
-  "backend.unknownChain": "eine unbekannte Chain"
+  "backend.unknownChain": "eine unbekannte Chain",
+  "backend.networkUnverified": "Netzwerk konnte nicht überprüft werden; {{network}} wird angenommen.",
+  "errors.walletWrongNetworkUnverified": "Dieser Schlüssel gehört zu {{keyNetwork}}, das Netzwerk des verbundenen Backends konnte aber nicht überprüft werden und wird als {{network}} angenommen. Seine Adressen können dort nicht abgefragt werden.",
+  "errors.addressWrongNetwork": "Diese Adresse gehört zu {{addressNetwork}}, das verbundene Backend bedient aber {{network}}. Sie kann dort nicht abgefragt werden.",
+  "errors.addressWrongNetworkUnverified": "Diese Adresse gehört zu {{addressNetwork}}, das Netzwerk des verbundenen Backends konnte aber nicht überprüft werden und wird als {{network}} angenommen. Sie kann dort nicht abgefragt werden."
 }

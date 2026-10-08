@@ -3478,5 +3478,9 @@
   "settings.connectedNetwork": "Connecté : {{network}}. Utilisation du point d'accès personnalisé.",
   "backend.unsupportedTitle": "Réseau non pris en charge",
   "backend.unsupportedBody": "Le serveur connecté sert {{chain}}, qui n'est pas pris en charge. am-i.exposed fonctionne avec des serveurs Mainnet, Testnet4 et Signet. Basculez le nœud sur l'un d'eux ou utilisez un autre serveur.",
-  "backend.unknownChain": "une chaîne inconnue"
+  "backend.unknownChain": "une chaîne inconnue",
+  "backend.networkUnverified": "Le réseau n'a pas pu être vérifié ; {{network}} est supposé.",
+  "errors.walletWrongNetworkUnverified": "Cette clé appartient à {{keyNetwork}}, mais le réseau du serveur connecté n'a pas pu être vérifié et est supposé être {{network}}. Ses adresses ne peuvent pas y être consultées.",
+  "errors.addressWrongNetwork": "Cette adresse appartient à {{addressNetwork}}, mais le serveur connecté sert {{network}}. Elle ne peut pas y être consultée.",
+  "errors.addressWrongNetworkUnverified": "Cette adresse appartient à {{addressNetwork}}, mais le réseau du serveur connecté n'a pas pu être vérifié et est supposé être {{network}}. Elle ne peut pas y être consultée."
 }

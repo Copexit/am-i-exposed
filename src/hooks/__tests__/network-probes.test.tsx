@@ -292,6 +292,7 @@ describe("NetworkProvider backend network (genesis check)", () => {
     await flush();
     expect(hinted.result.current.network).toBe("signet");
     expect(hinted.result.current.localApiStatus).toBe("available"); // tip height still answered
+    expect(hinted.result.current.networkUnverified).toBe(false);
     cleanup();
 
     vi.resetModules();
@@ -300,6 +301,8 @@ describe("NetworkProvider backend network (genesis check)", () => {
     await flush();
     expect(bare.result.current.network).toBe("mainnet");
     expect(bare.result.current.unsupportedChain).toBeNull();
+    // Neither the node nor a hint: mainnet is assumed, and said so
+    expect(bare.result.current.networkUnverified).toBe(true);
   });
 
   it("custom URL: the network its backend reports, used for config and the cache key", async () => {
@@ -324,6 +327,31 @@ describe("NetworkProvider backend network (genesis check)", () => {
     expect(calledUrls(fetchFn).some((u) => u.includes("mempool.space"))).toBe(false);
   });
 
+  it("custom URL: last load's chain shows at once, but the backend is re-asked before anything is cached", async () => {
+    localStorage.setItem("ami-custom-api-url", "http://node.local:3006/api");
+    const stored = { get: vi.fn(async () => "signet" as const), put: vi.fn(async () => {}) };
+    vi.doMock("@/lib/api/idb-cache", () => ({ idbChainStore: stored }));
+    // The node switched to mainnet since the last load
+    mockFetch({
+      "/api/local-info": { delay: 5, status: 404, body: "not found" },
+      "node.local:3006/api/block-height/0": { delay: 200, body: GENESIS.mainnet },
+    });
+    const { isBackendChainPending } = await import("@/lib/api/backend-network");
+    const { cacheKeyPrefix } = await import("@/lib/api/cache-policy");
+    const { result } = await renderNetwork();
+    await flush(50);
+    expect(result.current.network).toBe("signet"); // shown at once
+    expect(result.current.apiReady).toBe(false);
+    expect(isBackendChainPending("http://node.local:3006/api")).toBe(true); // cache writers skip it
+    await flush(500);
+    expect(result.current.network).toBe("mainnet");
+    expect(result.current.apiReady).toBe(true);
+    expect(isBackendChainPending("http://node.local:3006/api")).toBe(false);
+    expect(cacheKeyPrefix("http://node.local:3006/api")).toBe("mainnet@http://node.local:3006/api");
+    expect(stored.put).toHaveBeenCalledWith("genesis@http://node.local:3006/api", "mainnet");
+    vi.doUnmock("@/lib/api/idb-cache");
+  });
+
   it("custom URL that cannot be asked: keeps the selected network, not pinned", async () => {
     localStorage.setItem("ami-custom-api-url", "http://node.local:3006/api");
     window.history.replaceState(null, "", "/?network=testnet4");
@@ -334,6 +362,7 @@ describe("NetworkProvider backend network (genesis check)", () => {
     expect(result.current.network).toBe("testnet4");
     expect(result.current.networkPinned).toBe(false);
     expect(result.current.apiReady).toBe(true);
+    expect(result.current.networkUnverified).toBe(true);
   });
 });
 
