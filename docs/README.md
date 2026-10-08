@@ -43,6 +43,7 @@
 - **[superpowers/plans/2026-10-07-wallet-heuristics.md](./superpowers/plans/2026-10-07-wallet-heuristics.md)** - Task-by-task implementation plan for the spec above
 - **[spec-site-videos.md](./spec-site-videos.md)** - Promo on the home page and /tutorial page, GitHub Pages only
 - **[tx-graph-roadmap.md](./tx-graph-roadmap.md)** - Transaction graph roadmap
+- **[wallet-roadmap.md](./wallet-roadmap.md)** - Roadmap to a privacy-first watch-only wallet (spend with hardware signers, receive, multisig)
 
 ## Research Archive
 
