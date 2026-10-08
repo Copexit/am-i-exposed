@@ -1,6 +1,7 @@
 import type { Finding, ScoringResult, TxType } from "@/lib/types";
 import type { PrimaryRec } from "@/lib/recommendations/primary-recommendation";
 import type { WalletAuditResult } from "@/lib/analysis/wallet-audit";
+import { COIN_CLASSES, type CoinClass } from "@/lib/analysis/wallet-behavior";
 import type { MempoolTransaction } from "@/lib/api/types";
 import { formatSats } from "@/lib/format";
 import {
@@ -12,6 +13,15 @@ import {
   header,
 } from "./colors";
 import { VERSION } from "./json";
+
+const ORIGIN_LABEL: Record<CoinClass, string> = {
+  mixed: "mixed",
+  "coinjoin-change": "CoinJoin change",
+  change: "change",
+  self: "self-transfer",
+  received: "received",
+  unknown: "unknown origin",
+};
 
 function line(label: string, value: string): string {
   return `${dim(label.padEnd(13))}${value}`;
@@ -98,6 +108,10 @@ export function formatWalletResult(
   lines.push(line("Balance:", `${formatSats(result.totalBalance)} sats`));
   lines.push(line("Reused addrs:", String(result.reusedAddresses)));
   lines.push(line("Dust UTXOs:", String(result.dustUtxos)));
+  const origins = COIN_CLASSES.filter((c) => result.utxoOrigins[c].count > 0)
+    .map((c) => `${result.utxoOrigins[c].count} ${ORIGIN_LABEL[c]}`);
+  // The label fills the 13-column pad, so it carries its own separating space
+  if (origins.length > 0) lines.push(line("Coin origins: ", origins.join(", ")));
   lines.push("");
   lines.push(
     `Score: ${formatScore(result.score, result.grade)}   Grade: ${formatGrade(result.grade)}`,

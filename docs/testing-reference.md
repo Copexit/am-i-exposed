@@ -139,6 +139,13 @@ Values are asserted by `src/lib/analysis/__tests__/golden-cases.test.ts` (heuris
 | Whirlpool Ashigaru 5f0080e3 | tx | 70 | A+ | 100 | h4-whirlpool (+30), h5-entropy (+15), anon-set-strong (+5), script-uniform (+2) |
 | Satoshi's address | addr | 93 | F | 0 | h8-address-reuse (-93), recurring-payment-pattern (-10), high-activity-exchange (-8), temporal-burst-high (-5), h10-p2pkh (-5), spending-high-volume (-3), spending-never-spent (+2) |
 
+**Golden wallets** (`src/lib/analysis/__tests__/wallet-golden.test.ts`, synthetic offline histories built in `src/lib/analysis/__tests__/fixtures/wallet-history.ts`):
+
+- `goldenWallet()`: **C 52** = 70 + `wallet-postmix-merge` (-15) + `wallet-change-merge` (-4) + `wallet-change-exposed` (-4, 2 of 5 payments) + `wallet-peel-chain` (-3) + `wallet-no-reuse` (+5) + `wallet-uniform-script` (+3).
+- `cleanWallet()`: **B 81** = 70 + `wallet-no-merge` (+3) + `wallet-no-reuse` (+5) + `wallet-uniform-script` (+3).
+
+A delta there is a scoring change and must be justified in the commit.
+
 ### Why the golden values moved (unreleased 0.37.x engine fixes)
 
 - **Consolidations, +3.** The changeless Branch-and-Bound credit (`h-coin-selection-bnb`, +3) no longer fires on 3+ input consolidations or self-sends. On those transactions it had also been the second signal of `behavioral-fingerprint-rollup` (-6, next to `h11-wallet-fingerprint`), so both go and the net is +3: golden corpus `2d2dcc80...` D 31 -> D 34 and `8ce796fe...` C 53 -> C 56, consolidation `40b88e16...` D 48 -> C 51 (heuristics only). The home card stays D: the offline e2e fixtures and the live scan (D 37) add `chain-forward-peel`. The rollup now counts only penalties (`scoreImpact < 0`); the BnB credit is a privacy gain shared by any exact-amount spend, not a wallet fingerprint (docs/privacy-engine.md, Behavioral Fingerprint Rollup).

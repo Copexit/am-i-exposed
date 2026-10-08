@@ -37,6 +37,9 @@ import { buildWabiSabiMultiTierFinding, buildStonewallFinding } from "../analysi
 import { analyzeChangeDetection } from "../analysis/heuristics/change-detection";
 import { analyzeOpReturn } from "../analysis/heuristics/op-return";
 import { analyzeCioh } from "../analysis/heuristics/cioh";
+import { History, coinJoin, recv, chg, ext, walletAddrs, goldenWallet } from "../analysis/__tests__/fixtures/wallet-history";
+import { buildWalletGraph, simplePayments, soloSpends } from "../analysis/wallet-behavior";
+import { checkChangeExposure, checkMerges, checkNoMerge, checkPeelChains } from "../analysis/wallet-heuristics";
 
 const locale = (lang: string) =>
   JSON.parse(readFileSync(join(process.cwd(), "public/locales", lang, "common.json"), "utf8")) as Record<string, string>;
@@ -413,5 +416,66 @@ describe("finding locale text keeps the heuristic's information", () => {
       expect(f.params).toEqual({ count: 2 });
       expect(render(f).title).toBe("2 input addresses linked by CIOH");
     });
+  });
+});
+
+describe("wallet merge findings render in every locale", () => {
+  const merges = () => {
+    const h = new History();
+    const r = h.receive(recv(0), 2_000_000, 100);
+    const cj = coinJoin(h, r, 1_000_000, recv(1), chg(0), 101);
+    const [, change] = h.tx([h.receive(recv(2), 1_000_000, 102)], [{ address: ext(1), value: 200_007 }, { address: chg(1), value: 798_000 }], 103);
+    h.tx([cj[0]!, change!], [{ address: ext(2), value: 1_790_000 }], 104); // W1 unmixed
+    const [, c2] = h.tx([h.receive(recv(3), 1_000_000, 105)], [{ address: ext(3), value: 200_007 }, { address: chg(2), value: 798_000 }], 106);
+    h.tx([c2!, h.receive(recv(4), 100_000, 107)], [{ address: ext(4), value: 890_000 }], 108); // W2
+    const g = buildWalletGraph(h.infos(walletAddrs(5)));
+    return checkMerges(g, soloSpends(g)).findings;
+  };
+
+  it("English locale text equals the code's English text", () => {
+    for (const f of merges()) {
+      expect(render(f).title).toBe(f.title);
+      expect(render(f).description).toBe(f.description);
+      expect(render(f).recommendation).toBe(f.recommendation);
+    }
+  });
+
+  it("every locale resolves title, description and recommendation", () => {
+    for (const f of merges()) {
+      for (const lng of LANGS) {
+        const text = render(f, lng);
+        for (const v of Object.values(text)) {
+          expect(v).not.toMatch(/\{\{|^finding\./);
+        }
+        if (lng !== "en") expect(text.description).not.toBe(f.description);
+      }
+    }
+  });
+});
+
+describe("wallet pattern findings render in every locale", () => {
+  const patterns = () => {
+    const infos = goldenWallet();
+    const g = buildWalletGraph(infos);
+    const payments = simplePayments(g, soloSpends(g));
+    return [...checkChangeExposure(payments), ...checkPeelChains(payments), ...checkNoMerge(3, false)];
+  };
+
+  it("English locale text equals the code's English text", () => {
+    const fs = patterns();
+    expect(fs.map((f) => f.id)).toEqual(["wallet-change-exposed", "wallet-peel-chain", "wallet-no-merge"]);
+    for (const f of fs) {
+      expect(render(f).title).toBe(f.title);
+      expect(render(f).description).toBe(f.description);
+      expect(render(f).recommendation).toBe(f.recommendation);
+    }
+  });
+
+  it("every locale resolves title, description and recommendation", () => {
+    for (const f of patterns()) {
+      for (const lng of LANGS) {
+        for (const v of Object.values(render(f, lng))) expect(v).not.toMatch(/\{\{|^finding\./);
+      }
+    }
   });
 });

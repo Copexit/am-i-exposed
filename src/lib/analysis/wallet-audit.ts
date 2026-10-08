@@ -9,7 +9,9 @@
  * - UTXO hygiene (dust, toxic change, mixed script types)
  * - Spending patterns over time
  * - Fingerprint consistency across transactions
- * - Consolidation history
+ * - Consolidation history (skipping spends already counted as merges)
+ * - Wallet-level heuristics: merges (post-mix, change), change exposure,
+ *   peel chains (docs/spec-wallet-heuristics.md)
  */
 
 import type { Finding, Severity, Grade } from "@/lib/types";
@@ -20,6 +22,8 @@ import { enrichFindingsWithMetadata } from "./finding-metadata";
 import { P2PKH_DUST_LIMIT, TOXIC_CHANGE_THRESHOLD } from "@/lib/constants";
 import type { MempoolAddress, MempoolTransaction, MempoolUtxo } from "@/lib/api/types";
 import type { DerivedAddress } from "@/lib/bitcoin/descriptor";
+import { buildWalletGraph, simplePayments, soloSpends, utxoOrigins, type OriginCounts } from "./wallet-behavior";
+import { checkChangeExposure, checkMerges, checkNoMerge, checkPeelChains } from "./wallet-heuristics";
 
 // ---------- Types ----------
 
@@ -46,6 +50,8 @@ export interface WalletAuditResult {
   reusedAddresses: number;
   /** Number of dust UTXOs below relay dust limit */
   dustUtxos: number;
+  /** Unspent coins by origin class (count, sats) */
+  utxoOrigins: OriginCounts;
 }
 
 // ---------- Analysis functions ----------
@@ -194,7 +200,7 @@ function checkUtxoHygiene(addresses: WalletAddressInfo[]): Finding[] {
 }
 
 /** Check spending patterns - consolidation, batch spending, timing. */
-function checkSpendingPatterns(addresses: WalletAddressInfo[]): Finding[] {
+function checkSpendingPatterns(addresses: WalletAddressInfo[], exclude: ReadonlySet<string>): Finding[] {
   const findings: Finding[] = [];
 
   // Collect all unique transactions where this wallet is the sender
@@ -204,7 +210,7 @@ function checkSpendingPatterns(addresses: WalletAddressInfo[]): Finding[] {
 
   for (const addr of addresses) {
     for (const tx of addr.txs) {
-      if (allTxIds.has(tx.txid)) continue;
+      if (allTxIds.has(tx.txid) || exclude.has(tx.txid)) continue;
       allTxIds.add(tx.txid);
 
       // A consolidation spends 3+ of this wallet's own coins into few outputs;
@@ -310,8 +316,20 @@ export function auditWallet(addresses: WalletAddressInfo[], failedAddresses: str
   // Run all checks
   findings.push(...checkAddressReuse(addresses));
   findings.push(...checkUtxoHygiene(addresses));
-  findings.push(...checkSpendingPatterns(addresses));
+  const graph = buildWalletGraph(addresses);
+  const spends = soloSpends(graph);
+  const payments = simplePayments(graph, spends);
+  const merges = checkMerges(graph, spends);
+  findings.push(...merges.findings);
+  findings.push(...checkChangeExposure(payments));
+  const peel = checkPeelChains(payments);
+  findings.push(...peel);
+  // A spend counted as a merge (W1/W2) is not counted again as a consolidation
+  const consolidations = checkSpendingPatterns(addresses, merges.merged);
+  findings.push(...consolidations);
   findings.push(...checkGoodPractices(addresses));
+  // No "coins kept apart" credit next to a peel chain: the payments are linked anyway
+  findings.push(...checkNoMerge(spends.length, merges.merged.size > 0 || consolidations.length > 0 || peel.length > 0));
   if (failedAddresses.length > 0) {
     // Rendered via finding.wallet-scan-partial.* keys, English fallback here
     const count = failedAddresses.length;
@@ -375,5 +393,6 @@ export function auditWallet(addresses: WalletAddressInfo[], failedAddresses: str
     totalBalance,
     reusedAddresses,
     dustUtxos,
+    utxoOrigins: utxoOrigins(graph, addresses),
   };
 }

@@ -10,6 +10,7 @@ import { CopyButton } from "@/components/ui/CopyButton";
 import { GRADE_COLORS, GRADE_VAR, P2PKH_DUST_LIMIT } from "@/lib/constants";
 import { fmtN } from "@/lib/format";
 import { FlowShell, NewScanLink, Chip } from "./FlowUi";
+import { CoinOrigins } from "@/components/wallet/CoinOrigins";
 import { FindingGroups } from "./FindingGroups";
 import { ServiceCheck } from "@/components/services/ServiceCheck";
 import { selectTxids, WALLET_CAP } from "@/lib/services/wabisabi-attribution";
@@ -152,6 +153,8 @@ export function WalletResults({ descriptor, result, addressInfos, utxoTraces, on
                 </div>
               ))}
             </dl>
+
+            <CoinOrigins origins={result.utxoOrigins} />
 
             {showWorst && worst && (
               <button

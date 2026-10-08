@@ -147,6 +147,7 @@ export function walletJson(
       totalBalance: result.totalBalance,
       reusedAddresses: result.reusedAddresses,
       dustUtxos: result.dustUtxos,
+      utxoOrigins: result.utxoOrigins,
     },
     failedAddresses,
     findings: result.findings,
