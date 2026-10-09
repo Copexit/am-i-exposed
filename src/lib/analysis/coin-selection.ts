@@ -60,7 +60,7 @@ import type { Severity } from "@/lib/types";
 import type { WalletAddressInfo } from "./wallet-audit";
 import { buildWalletGraph, coinClass, isChangeClass, type CoinClass } from "./wallet-behavior";
 import { buildClusters } from "./wallet-clusters";
-import { changeIdentifiable, type ChangeWhy } from "./wallet-heuristics";
+import { changeIdentifiable, type ChangeWhy } from "./change-identifiable";
 import { isRoundAmount } from "./heuristics/round-amount";
 import { getAddressType } from "@/lib/bitcoin/address-type";
 import { P2PKH_DUST_LIMIT, TOXIC_CHANGE_THRESHOLD } from "@/lib/constants";

@@ -5,12 +5,14 @@
  * Certain: anyone sees the link without guessing.
  * - the same address;
  * - inputs co-spent in a solo spend (every input the wallet's, not a CoinJoin);
- * - a solo spend with exactly one wallet output: that output joins its inputs;
+ * - a solo spend with exactly one wallet output: that output joins its inputs,
+ *   when an observer can tell it is the change (changeIdentifiable);
  * - a CoinJoin's change (wallet-behavior "coinjoin-change") joins the wallet's
  *   inputs of that CoinJoin, when those inputs were already one certain
  *   cluster (that link is what makes it toxic).
  * Inferred (a superset of certain): a solo spend with 2+ wallet outputs joins
- * them with each other and with its inputs. An observer who guesses which
+ * them with each other and with its inputs; so does a solo spend's only wallet
+ * output when it is ambiguous change. An observer who guesses which
  * output was the change links them; one who does not, does not.
  * Never linked: a CoinJoin's mixed outputs (to anything), coins received
  * from outside (a batch payout to two wallet addresses is not known to link
@@ -20,6 +22,7 @@
  */
 import type { MempoolTransaction } from "@/lib/api/types";
 import { coinClass, isOwn, soloSpends, type WalletGraph } from "./wallet-behavior";
+import { changeIdentifiable } from "./change-identifiable";
 
 export interface WalletClusters {
   /** Certain cluster id of a wallet coin; a coin the history never links has its own. */
@@ -118,7 +121,9 @@ export function buildClusters(g: WalletGraph): WalletClusters {
     const before = ins.map(certain.find);
     if (new Set(before).size > 1) linking.set(tx.txid, { certain: before, inferred: ins.map(inferred.find) });
     for (const i of ins) both(i, ins[0]!);
-    if (outs.length === 1) both(outs[0]!, ins[0]!);
+    // A payment's only wallet output joins its inputs for certain only when an observer can tell it is the
+    // change (changeIdentifiable); ambiguous change, like sibling outputs, only in the inferred tier.
+    if (outs.length === 1 && changeIdentifiable(g, tx.txid, outIdx[0]!) !== null) both(outs[0]!, ins[0]!);
     else for (const o of outs) inferred.union(o, ins[0]!);
   }
 

@@ -3736,5 +3736,5 @@
   "wallet.coinSel.learn.probable_few": "Potwierdzenie {{n}} prawdopodobnych powiązań",
   "wallet.coinSel.learn.probable_many": "Potwierdzenie {{n}} prawdopodobnych powiązań",
   "wallet.coinSel.learn.probable_other": "Potwierdzenie {{n}} prawdopodobnego powiązania",
-  "wallet.coinSel.learn.ambiguous-change": "Wiąże monetę reszty #{{n}} z pozostałymi; obserwator nie mógł wiedzieć, że to Twoja reszta, więc wcześniejsza płatność pozostaje niejednoznaczna"
+  "wallet.coinSel.learn.ambiguous-change": "Wiąże monetę reszty #{{n}} z pozostałymi; obserwator nie mógł po samej płatności poznać, że to Twoja reszta"
 }

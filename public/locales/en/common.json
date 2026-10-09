@@ -3540,5 +3540,5 @@
   "wallet.coinSel.path.probable_other": "Confirms {{n}} probable links",
   "wallet.coinSel.learn.probable_one": "A confirmation of 1 probable link",
   "wallet.coinSel.learn.probable_other": "A confirmation of {{n}} probable links",
-  "wallet.coinSel.learn.ambiguous-change": "Links change coin #{{n}} to the others; an observer could not tell it was your change, so the earlier payment stays ambiguous"
+  "wallet.coinSel.learn.ambiguous-change": "Links change coin #{{n}} to the others; an observer could not tell it was your change from the payment itself"
 }

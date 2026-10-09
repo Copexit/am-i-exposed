@@ -3540,5 +3540,5 @@
   "wallet.coinSel.path.probable_other": "Confirma {{n}} vínculos probables",
   "wallet.coinSel.learn.probable_one": "La confirmación de 1 vínculo probable",
   "wallet.coinSel.learn.probable_other": "La confirmación de {{n}} vínculos probables",
-  "wallet.coinSel.learn.ambiguous-change": "Vincula la moneda de cambio #{{n}} con las demás; un observador no podía saber que era tu cambio, así que el pago anterior sigue siendo ambiguo"
+  "wallet.coinSel.learn.ambiguous-change": "Vincula la moneda de cambio #{{n}} con las demás; un observador no podía saber por el propio pago que era tu cambio"
 }

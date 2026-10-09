@@ -116,7 +116,7 @@ describe("manual coin control", () => {
     const first = screen.getAllByTestId(/^coin-plan-/)[0]!;
     expect(first.dataset.testid).toBe("coin-plan-manual");
     expect(within(first).getByText("Recommended")).toBeTruthy();
-    expect(within(first).getByTestId("plan-learns").textContent).toContain("an observer could not tell it was your change, so the earlier payment stays ambiguous");
+    expect(within(first).getByTestId("plan-learns").textContent).toContain("an observer could not tell it was your change from the payment itself");
     expect(within(bar()).queryByTestId("dilemma-choice")).toBeNull();
   });
 

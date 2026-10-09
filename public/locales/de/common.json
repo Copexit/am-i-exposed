@@ -3540,5 +3540,5 @@
   "wallet.coinSel.path.probable_other": "Bestätigt {{n}} wahrscheinliche Verknüpfungen",
   "wallet.coinSel.learn.probable_one": "Eine Bestätigung von 1 wahrscheinlichen Verknüpfung",
   "wallet.coinSel.learn.probable_other": "Eine Bestätigung von {{n}} wahrscheinlichen Verknüpfungen",
-  "wallet.coinSel.learn.ambiguous-change": "Verknüpft Wechselgeld-Coin #{{n}} mit den anderen; ein Beobachter konnte nicht erkennen, dass es dein Wechselgeld war, also bleibt die frühere Zahlung mehrdeutig"
+  "wallet.coinSel.learn.ambiguous-change": "Verknüpft Wechselgeld-Coin #{{n}} mit den anderen; ein Beobachter konnte an der Zahlung selbst nicht erkennen, dass es dein Wechselgeld war"
 }
