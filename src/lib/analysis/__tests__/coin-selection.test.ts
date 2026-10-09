@@ -633,7 +633,7 @@ describe("Privacy first is a total order", () => {
   /** A plan with only the facts the ranking reads; the fee quantized from the lowest fee among the plans. */
   const plan = (fee: number, change: number, id: string): CoinSelectionPlan => ({
     strategy: "single-coin", fallback: false,
-    facts: { violations: [], known: false, links: 0, softLinks: false, change: "small", detectable: [], probable: 0, inputs: 1, fee },
+    facts: { violations: [], known: false, links: 0, softLinks: false, change: "small", detectable: [], probable: 0, inputs: 1, fee, changeCoins: [] },
     selected: [{ utxo: { txid: id, vout: 0, value: 1, status: { confirmed: true } }, address: "x", hints: [] }],
     inputTotal: 0, paymentAmount: 50_000, fee, change, absorbed: 0, absorbsChange: false, origins: 1, groups: 1, warnings: [], labelRules: [], path: [],
   });

@@ -5,6 +5,9 @@
 import type { Finding, Severity } from "@/lib/types";
 import { getAddressType } from "@/lib/bitcoin/address-type";
 import { isRoundAmount } from "./heuristics/round-amount";
+import {
+  checkAddressTypeMismatch, checkOptimalChange, checkRoundAmount, checkShadowChange, checkUnnecessaryInput, checkValueDisparity,
+} from "./heuristics/change-detection-signals";
 import { coinClass, isChangeClass, type CoinClass, type SimplePayment, type WalletGraph } from "./wallet-behavior";
 import type { MempoolTransaction, MempoolVout } from "@/lib/api/types";
 import { buildClusters, type WalletClusters } from "./wallet-clusters";
@@ -20,12 +23,14 @@ export function txRefs(txids: readonly string[]): { _txids: string; more: number
  * W2: a change input spent with a coin from another certain linkage cluster
  * (wallet-clusters). Coins on its address, co-spent with it before or
  * descending from it through single-output spends add no new link.
- * "inferred" when every such coin was in its inferred cluster (they come
- * from the same payment, but an observer had to guess which output was the
- * change): still a merge, scored a notch lower.
+ * "inferred" (a notch lower) when every such coin was in its inferred cluster
+ * (they come from the same payment, but an observer had to guess which output
+ * was the change), or when the change input is ambiguous: no rule lets an
+ * observer tell it was change (changeIdentifiable). Still a merge.
  */
 function mergesChange(
   classes: readonly string[],
+  identifiable: readonly boolean[],
   link: { certain: readonly string[]; inferred: readonly string[] } | undefined,
 ): "certain" | "inferred" | null {
   if (!link) return null;
@@ -34,11 +39,99 @@ function mergesChange(
     if (!isChangeClass(c as CoinClass)) continue;
     for (let j = 0; j < classes.length; j++) {
       if (j === i || link.certain[j] === link.certain[i]) continue;
-      if (link.inferred[j] !== link.inferred[i]) return "certain";
+      if (link.inferred[j] !== link.inferred[i] && identifiable[i]) return "certain";
       merged = true;
     }
   }
   return merged ? "inferred" : null;
+}
+
+/** Why an observer can tell a wallet output is change (changeIdentifiable). */
+export type ChangeWhy = "coinjoin" | "round" | "type" | "optimal" | "disparity" | "unnecessary" | "shadow" | "same-address" | "spent-address";
+
+/**
+ * The engine's change-detection signals (H2, change-detection-signals.ts) on a
+ * 2-output tx: for each output index, the signals that vote it the change.
+ */
+function h2Votes(tx: MempoolTransaction, outs: MempoolVout[]): { why: [ChangeWhy[], ChangeWhy[]]; weight: [number, number] } {
+  const votes: [ChangeWhy[], ChangeWhy[]] = [[], []];
+  const weight: [number, number] = [0, 0];
+  const run = (why: ChangeWhy, check: (m: Map<number, number>, sig: string[]) => void) => {
+    const m = new Map<number, number>();
+    check(m, []);
+    for (const i of [0, 1] as const) if ((m.get(i) ?? 0) > 0) { votes[i].push(why); weight[i] += m.get(i)!; }
+  };
+  const fee = tx.fee ?? tx.vin.reduce((t, v) => t + (v.prevout?.value ?? 0), 0) - tx.vout.reduce((t, o) => t + o.value, 0);
+  run("type", (m, sig) => checkAddressTypeMismatch(tx.vin, outs, m, sig));
+  run("round", (m, sig) => checkRoundAmount(outs, m, sig));
+  run("disparity", (m, sig) => checkValueDisparity(outs, m, sig));
+  run("unnecessary", (m, sig) => checkUnnecessaryInput(tx.vin, outs, m, sig));
+  run("optimal", (m, sig) => checkOptimalChange(tx.vin, outs, fee, m, sig));
+  run("shadow", (m, sig) => checkShadowChange(tx.vin, outs, m, sig));
+  return { why: votes, weight };
+}
+
+const spentAddressesOf = new WeakMap<WalletGraph, Map<string, Set<string>>>();
+/** Address to the outpoints spent from it, over the scanned history (memoized per graph). */
+function spentFrom(g: WalletGraph): Map<string, Set<string>> {
+  let m = spentAddressesOf.get(g);
+  if (!m) {
+    m = new Map();
+    for (const tx of g.txs.values()) for (const v of tx.vin) {
+      const a = v.prevout?.scriptpubkey_address;
+      if (!a) continue;
+      let s = m.get(a);
+      if (!s) m.set(a, (s = new Set()));
+      s.add(`${v.txid}:${v.vout}`);
+    }
+    spentAddressesOf.set(g, m);
+  }
+  return m;
+}
+
+/**
+ * Can an observer tell that wallet output `vout` of `txid` is change? The
+ * reason, or null when it is ambiguous. For change-class outputs
+ * (isChangeClass), shared by W2 and the coin selector:
+ * - coinjoin: CoinJoin change (the odd output of a CoinJoin or Tx0);
+ * - same-address: sent back to an address of the tx's own inputs;
+ * - spent-address: its address was already spent from in another spend
+ *   (address reuse: the history links it for certain);
+ * - on a 2-output tx, the engine's change-detection signals (H2: address
+ *   type, round amount, value disparity, unnecessary input, optimal change,
+ *   shadow change) pick it: some vote for it and none for the other output
+ *   (as W3 counts exposed change), or H2 would report it at medium
+ *   confidence or more (weight 2+ with a 2/3 majority);
+ * - on a tx with more outputs, a standard rule (W3, rulesPick: round, type,
+ *   optimal) picks it against every other output, and none picks another
+ *   output against it.
+ * Otherwise (one output of a self-transfer whose outputs look alike, a
+ * payment whose change no rule points at) it is ambiguous.
+ */
+export function changeIdentifiable(g: WalletGraph, txid: string, vout: number): ChangeWhy | null {
+  const tx = g.txs.get(txid);
+  const out = tx?.vout[vout];
+  if (!tx || !out?.scriptpubkey_address) return null;
+  if (coinClass(g, txid, vout) === "coinjoin-change") return "coinjoin";
+  const addr = out.scriptpubkey_address;
+  if (tx.vin.some((v) => v.prevout?.scriptpubkey_address === addr)) return "same-address";
+  const spent = spentFrom(g).get(addr);
+  if (spent && [...spent].some((op) => op !== `${txid}:${vout}`)) return "spent-address";
+  if (!tx.vin.every((v) => v.prevout?.scriptpubkey_address)) return null;
+  const outs = tx.vout.filter((o) => o.scriptpubkey_address);
+  if (outs.length === 2) {
+    const i = outs.indexOf(out);
+    const { why, weight } = h2Votes(tx, outs);
+    const [mine, theirs] = [weight[i]!, weight[1 - i]!];
+    // As W3 (some signal, none against) or as H2 at medium confidence or more (weight 2+, a 2/3 majority).
+    const picked = (mine > 0 && theirs === 0) || (mine >= 2 && mine / (mine + theirs) >= 2 / 3);
+    return picked ? why[i]![0]! : null;
+  }
+  const others = tx.vout.filter((o, i) => i !== vout && o.scriptpubkey_address);
+  if (others.length === 0) return null;
+  if (others.some((o) => { const w = rulesPick(tx, o, out); return w.type || w.round || w.optimal; })) return null;
+  for (const rule of ["round", "type", "optimal"] as const) if (others.every((o) => rulesPick(tx, out, o)[rule])) return rule;
+  return null;
 }
 
 /**
@@ -60,7 +153,8 @@ export function checkMerges(
     if (classes.includes("mixed")) {
       (classes.some((c) => c !== "mixed" && c !== "unknown") ? unmixed : mixedOnly).push(tx.txid);
     } else {
-      const m = mergesChange(classes, clusters.linking.get(tx.txid));
+      const identifiable = tx.vin.map((v, i) => isChangeClass(classes[i]) && changeIdentifiable(g, v.txid, v.vout) !== null);
+      const m = mergesChange(classes, identifiable, clusters.linking.get(tx.txid));
       if (m) change.push(tx.txid);
       if (m === "inferred") inferredOnly++;
     }
