@@ -3,6 +3,7 @@ import { History, coinJoin, recv, chg, ext, walletAddrs } from "./fixtures/walle
 import { buildWalletGraph } from "../wallet-behavior";
 import { buildClusters } from "../wallet-clusters";
 import { checkMerges } from "../wallet-heuristics";
+import { buildCoinInputs, evaluateSelection, outpointOf } from "../coin-selection";
 
 const clusters = (h: History, n = 8) => {
   const g = buildWalletGraph(h.infos(walletAddrs(n)));
@@ -17,8 +18,8 @@ describe("buildClusters", () => {
     const r1 = h.receive(recv(1), 400_000, 102); // unrelated receipt
     // r0 pays someone, keeping change c0 and a self output s0 (same funding tx)
     const [, c0, s0] = h.tx([r0], [{ address: ext(1), value: 100_007 }, { address: chg(0), value: 500_000 }, { address: recv(2), value: 398_000 }], 103);
-    // s0 pays again: its change c1 descends from r0 too
-    const [, c1] = h.tx([s0!], [{ address: ext(2), value: 100_009 }, { address: chg(1), value: 297_000 }], 104);
+    // s0 pays a round amount: its change c1 (identifiable by the round-amount rule) descends from r0 too
+    const [, c1] = h.tx([s0!], [{ address: ext(2), value: 100_000 }, { address: chg(1), value: 297_009 }], 104);
     const { c } = clusters(h);
     const id = (x: { txid: string; vout: number }) => c.of(x.txid, x.vout);
     const inf = (x: { txid: string; vout: number }) => c.inferredOf(x.txid, x.vout);
@@ -27,7 +28,7 @@ describe("buildClusters", () => {
     expect(id(c0!)).not.toBe(id(r0));
     expect(id(s0!)).not.toBe(id(c0!));
     expect([inf(c0!), inf(s0!)]).toEqual([inf(r0), inf(r0)]);
-    // 1 wallet output: c1 is certainly s0's
+    // 1 wallet output, identifiable change: c1 is certainly s0's
     expect(id(c1!)).toBe(id(s0!));
     expect(inf(c1!)).toBe(inf(c0!));
     expect(inf(r1)).not.toBe(inf(r0));
@@ -90,15 +91,37 @@ describe("W2 with linkage clusters", () => {
     expect([f!.id, f!.severity, f!.scoreImpact, f!.params?.inferredCount]).toEqual(["wallet-change-merge", "low", -2, 1]);
   });
 
-  it("does not count change merged with a coin it is certainly linked to (single-output descent)", () => {
+  it("does not count identifiable change merged with a coin it is certainly linked to (single-output descent)", () => {
     const h = new History();
     const r = h.receive(recv(0), 1_000_000, 100);
-    const [, c0] = h.tx([r], [{ address: ext(1), value: 100_007 }, { address: chg(0), value: 898_000 }], 101);
+    const [, c0] = h.tx([r], [{ address: ext(1), value: 100_000 }, { address: chg(0), value: 898_007 }], 101);
     const r2 = h.receive(recv(0), 20_000, 102); // same address as r: certain
     h.tx([c0!, r2], [{ address: ext(3), value: 916_000 }], 103);
     const { g, c } = clusters(h);
     const spends = [...g.txs.values()].filter((t) => t.vin.every((v) => g.own.has(v.prevout!.scriptpubkey_address!)));
     expect(checkMerges(g, spends, c).findings).toEqual([]);
+  });
+
+  it("ambiguous change joins its payment's inputs only in the inferred tier: merging it with a coin on the input's address is a probable link and W2's lower notch", () => {
+    const h = new History();
+    const r = h.receive(recv(0), 1_000_000, 100);
+    // 100,007 and 898,000 from one input: no change-detection rule tells which is change
+    const [, c0] = h.tx([r], [{ address: ext(1), value: 100_007 }, { address: chg(0), value: 898_000 }], 101);
+    const r2 = h.receive(recv(0), 20_000, 102); // same address as r: certainly linked to r
+    const { c } = clusters(h);
+    expect(c.of(c0!.txid, c0!.vout)).not.toBe(c.of(r2.txid, r2.vout));
+    expect(c.inferredOf(c0!.txid, c0!.vout)).toBe(c.inferredOf(r2.txid, r2.vout));
+    // The selector: no hard violation, a probable link, no new certain link
+    const coins = buildCoinInputs(h.infos([{ address: recv(0), isChange: false, index: 0 }, { address: chg(0), isChange: true, index: 0 }]));
+    const e = evaluateSelection(coins, new Set(coins.map(outpointOf)), 900_000, 1);
+    if (e.kind !== "plan") throw new Error(e.kind);
+    expect(e.plan.facts).toMatchObject({ violations: [], links: 0 });
+    expect(e.plan.facts.probable).toBeGreaterThan(0);
+    // W2, after the merge: the lower notch
+    h.tx([c0!, r2], [{ address: ext(3), value: 916_000 }], 103);
+    const after = clusters(h);
+    const spends = [...after.g.txs.values()].filter((t) => t.vin.every((v) => after.g.own.has(v.prevout!.scriptpubkey_address!)));
+    expect(checkMerges(after.g, spends, after.c).findings.map((f) => [f.id, f.severity, f.scoreImpact])).toEqual([["wallet-change-merge", "low", -2]]);
   });
 
   it("still counts change merged with an unrelated receipt", () => {

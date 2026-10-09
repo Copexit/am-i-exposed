@@ -60,6 +60,7 @@ import type { Severity } from "@/lib/types";
 import type { WalletAddressInfo } from "./wallet-audit";
 import { buildWalletGraph, coinClass, isChangeClass, type CoinClass } from "./wallet-behavior";
 import { buildClusters } from "./wallet-clusters";
+import { changeIdentifiable, type ChangeWhy } from "./change-identifiable";
 import { isRoundAmount } from "./heuristics/round-amount";
 import { getAddressType } from "@/lib/bitcoin/address-type";
 import { P2PKH_DUST_LIMIT, TOXIC_CHANGE_THRESHOLD } from "@/lib/constants";
@@ -87,6 +88,12 @@ export interface CoinSelectionInput {
   label?: string;
   /** Frozen by a label (spendable: false): left out unless the user includes frozen coins */
   frozen?: boolean;
+  /**
+   * For a change coin (isChangeClass): why an observer can tell it is change
+   * (wallet-heuristics changeIdentifiable), or null when it is ambiguous.
+   * Left out: unknown, taken as identifiable.
+   */
+  changeWhy?: ChangeWhy | null;
   /** The label's observer field (who can link the coin to you), when labeled */
   labelObserver?: string;
   /** The label's platform or reason field, when present */
@@ -160,6 +167,12 @@ export interface PlanFacts {
   inputs: number;
   /** h. Fee in sats, absorbed leftover included */
   fee: number;
+  /**
+   * The change coins merged with other coins (not their own siblings or coins already linked to them),
+   * by 1-based row (largest first): identifiable ones are the change-merge violation (a), ambiguous
+   * ones a probable link (f). `why` null: ambiguous; "unknown": no history, taken as identifiable.
+   */
+  changeCoins: { row: number; identifiable: boolean; why: ChangeWhy | "unknown" | null }[];
 }
 
 /**
@@ -617,8 +630,13 @@ function score(picked: Candidate[], amount: number, feeRate: number, absorbMax: 
   if (labels.cjWarn || (mixed && !mixedOnly && picked.length > 1)) violations.push("coinjoin");
   // Change merged with coins it is not already linked to on-chain (same certain cluster) and that are
   // not its own siblings (same-tx, below). CoinJoin change is change: no second "toxic" count for it.
+  // Only change an observer can identify as change (changeIdentifiable): an ambiguous change coin merged
+  // links its group like any coin, and confirms a probable link (tier f).
   const sorted = [...picked].sort((a, b) => b.value - a.value);
-  const changeRow = sorted.findIndex(c => isChangeCoin(c.coin) && sorted.some(o => o !== c && o.group !== c.group && o.coin.utxo.txid !== c.coin.utxo.txid)) + 1;
+  const changeCoins: PlanFacts["changeCoins"] = sorted.flatMap((c, i) => isChangeCoin(c.coin) && sorted.some(o => o !== c && o.group !== c.group && o.coin.utxo.txid !== c.coin.utxo.txid)
+    ? [{ row: i + 1, identifiable: c.coin.changeWhy !== null, why: c.coin.changeWhy === undefined ? "unknown" as const : c.coin.changeWhy }]
+    : []);
+  const changeRow = changeCoins.find(c => c.identifiable)?.row ?? 0;
   if (changeRow > 0) violations.push("change-merge");
   if (siblings > 0) violations.push("same-tx");
   if (broken("toxic")) violations.push("toxic");
@@ -639,9 +657,10 @@ function score(picked: Candidate[], amount: number, feeRate: number, absorbMax: 
     softLinks: groups > 1 && (mixedOnly || sharedObserver(coins) !== undefined),
     change,
     detectable,
-    probable: origins - groups - siblings,
+    probable: origins - groups - siblings + changeCoins.filter(c => !c.identifiable).length,
     inputs: picked.length,
     fee: s.fee,
+    changeCoins,
   };
   const severe = mixed && ((picked.length > 1 && !mixedOnly) || s.change >= amount);
   return { picked, ...s, origins, groups, facts, severe, mixedOnly, labels, absorbs, siblings, changeRow };
@@ -1088,6 +1107,7 @@ export function buildCoinInputs(infos: WalletAddressInfo[]): CoinSelectionInput[
       cluster: clusters.of(utxo.txid, utxo.vout),
       group: clusters.inferredOf(utxo.txid, utxo.vout),
       reusedAddress: funded > 1,
+      ...(isChangeClass(coinClass(g, utxo.txid, utxo.vout)) ? { changeWhy: changeIdentifiable(g, utxo.txid, utxo.vout) } : {}),
     }));
   });
 }

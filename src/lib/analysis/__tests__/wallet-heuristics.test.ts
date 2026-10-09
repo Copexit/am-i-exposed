@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { History, coinJoin, recv, chg, ext, extTaproot, walletAddrs, type Coin } from "./fixtures/wallet-history";
 import { buildWalletGraph, simplePayments, soloSpends } from "../wallet-behavior";
-import { checkMerges, checkChangeExposure, checkPeelChains, checkNoMerge, txRefs, MAX_TX_REFS } from "../wallet-heuristics";
+import { changeIdentifiable, checkMerges, checkChangeExposure, checkPeelChains, checkNoMerge, txRefs, MAX_TX_REFS } from "../wallet-heuristics";
 
 const run = (h: History, n = 8) => {
   const g = buildWalletGraph(h.infos(walletAddrs(n)));
@@ -73,11 +73,12 @@ describe("checkMerges", () => {
     expect(f[0]!.params?._variant).toBe("mixed");
   });
 
-  it("W2: change merged with a receipt is medium -4; 2 spends high -7; 5 spends high -10", () => {
+  it("W2: identifiable change merged with a receipt is medium -4; 2 spends high -7; 5 spends high -10", () => {
     const h = new History();
     const ids: string[] = [];
     for (let i = 0; i < 5; i++) {
-      const [, change] = pay(h, h.receive(recv(i * 2), 1_000_000, 100 + i * 10), 200_007, chg(i), 101 + i * 10);
+      // A round payment: the round-amount rule points at the change
+      const [, change] = pay(h, h.receive(recv(i * 2), 1_000_000, 100 + i * 10), 200_000, chg(i), 101 + i * 10);
       const other = h.receive(recv(i * 2 + 1), 300_000, 102 + i * 10);
       ids.push(h.tx([change!, other], [{ address: ext(200 + i), value: 1_090_000 }], 103 + i * 10)[0]!.txid);
       const f = checkMerges(run(h, 12).g, run(h, 12).spends).findings;
@@ -86,6 +87,25 @@ describe("checkMerges", () => {
       expect([f[0]!.severity, f[0]!.scoreImpact]).toEqual(i === 0 ? ["medium", -4] : i < 4 ? ["high", -7] : ["high", -10]);
     }
     expect(JSON.parse(String(checkMerges(run(h, 12).g, run(h, 12).spends).findings[0]!.params!._txids))).toEqual(ids);
+  });
+
+  it("W2: ambiguous change (no change-detection rule points at it) merged with a receipt is a notch lower: low -2", () => {
+    const h = new History();
+    const [, change] = pay(h, h.receive(recv(0), 1_000_000, 100), 200_007, chg(0), 101);
+    const other = h.receive(recv(1), 300_000, 102);
+    h.tx([change!, other], [{ address: ext(200), value: 1_090_000 }], 103);
+    const f = checkMerges(run(h).g, run(h).spends).findings;
+    expect(f.map((x) => [x.id, x.severity, x.scoreImpact])).toEqual([["wallet-change-merge", "low", -2]]);
+    expect(changeIdentifiable(run(h).g, change!.txid, change!.vout)).toBeNull();
+  });
+
+  it("changeIdentifiable: engine signals, the same address, a spent address, CoinJoin change", () => {
+    const h = new History();
+    const [, round] = pay(h, h.receive(recv(0), 1_000_000, 100), 200_000, chg(0), 101);
+    const [, same] = h.tx([h.receive(recv(1), 1_000_000, 102)], [{ address: ext(5), value: 200_007 }, { address: recv(1), value: 798_993 }], 103);
+    const g = run(h).g;
+    expect(changeIdentifiable(g, round!.txid, round!.vout)).toBe("round");
+    expect(changeIdentifiable(g, same!.txid, same!.vout)).toBe("same-address");
   });
 
   it("W2: merging two wallet outputs of one tx is an inferred-link merge (low); receipts-only merges are ignored", () => {

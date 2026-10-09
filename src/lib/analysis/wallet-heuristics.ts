@@ -3,10 +3,10 @@
  * history (merges, change exposure, peel chains). docs/spec-wallet-heuristics.md
  */
 import type { Finding, Severity } from "@/lib/types";
-import { getAddressType } from "@/lib/bitcoin/address-type";
-import { isRoundAmount } from "./heuristics/round-amount";
+import { changeIdentifiable, rulesPick } from "./change-identifiable";
+export { changeIdentifiable, type ChangeWhy } from "./change-identifiable";
 import { coinClass, isChangeClass, type CoinClass, type SimplePayment, type WalletGraph } from "./wallet-behavior";
-import type { MempoolTransaction, MempoolVout } from "@/lib/api/types";
+import type { MempoolTransaction } from "@/lib/api/types";
 import { buildClusters, type WalletClusters } from "./wallet-clusters";
 
 /** Txids listed on a finding card; the rest are counted in `more`. */
@@ -20,12 +20,14 @@ export function txRefs(txids: readonly string[]): { _txids: string; more: number
  * W2: a change input spent with a coin from another certain linkage cluster
  * (wallet-clusters). Coins on its address, co-spent with it before or
  * descending from it through single-output spends add no new link.
- * "inferred" when every such coin was in its inferred cluster (they come
- * from the same payment, but an observer had to guess which output was the
- * change): still a merge, scored a notch lower.
+ * "inferred" (a notch lower) when every such coin was in its inferred cluster
+ * (they come from the same payment, but an observer had to guess which output
+ * was the change), or when the change input is ambiguous: no rule lets an
+ * observer tell it was change (changeIdentifiable). Still a merge.
  */
 function mergesChange(
   classes: readonly string[],
+  identifiable: readonly boolean[],
   link: { certain: readonly string[]; inferred: readonly string[] } | undefined,
 ): "certain" | "inferred" | null {
   if (!link) return null;
@@ -34,7 +36,7 @@ function mergesChange(
     if (!isChangeClass(c as CoinClass)) continue;
     for (let j = 0; j < classes.length; j++) {
       if (j === i || link.certain[j] === link.certain[i]) continue;
-      if (link.inferred[j] !== link.inferred[i]) return "certain";
+      if (link.inferred[j] !== link.inferred[i] && identifiable[i]) return "certain";
       merged = true;
     }
   }
@@ -60,7 +62,9 @@ export function checkMerges(
     if (classes.includes("mixed")) {
       (classes.some((c) => c !== "mixed" && c !== "unknown") ? unmixed : mixedOnly).push(tx.txid);
     } else {
-      const m = mergesChange(classes, clusters.linking.get(tx.txid));
+      // Identifiable from what the history showed before this merge (address spends after it do not count).
+      const identifiable = tx.vin.map((v, i) => isChangeClass(classes[i]) && changeIdentifiable(g, v.txid, v.vout, tx) !== null);
+      const m = mergesChange(classes, identifiable, clusters.linking.get(tx.txid));
       if (m) change.push(tx.txid);
       if (m === "inferred") inferredOnly++;
     }
@@ -116,20 +120,6 @@ export function checkMerges(
     });
   }
   return { findings, merged: new Set([...postmix, ...change]) };
-}
-
-/**
- * The standard change rules for a 2-output payment, asked of output `a`
- * against output `b`: does each rule pick `a` as the change?
- */
-function rulesPick(tx: MempoolTransaction, a: MempoolVout, b: MempoolVout): { type: boolean; round: boolean; optimal: boolean } {
-  const at = getAddressType(a.scriptpubkey_address!);
-  const minIn = Math.min(...tx.vin.map((v) => v.prevout!.value));
-  return {
-    type: at !== getAddressType(b.scriptpubkey_address!) && tx.vin.every((v) => getAddressType(v.prevout!.scriptpubkey_address!) === at),
-    round: isRoundAmount(b.value) && !isRoundAmount(a.value),
-    optimal: tx.vin.length >= 2 && a.value < minIn && b.value >= minIn,
-  };
 }
 
 /** The rules that point at the real change of `p`, or null when none does or one points at the payment. */

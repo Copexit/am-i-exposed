@@ -52,16 +52,15 @@ const CASES: Case[] = [
   },
   {
     name: "tester, 3,382,886 sats",
-    why: "Coins that are not change (the receipts; both outputs of the self-transfer are change) add up to 102,957: the only plan that breaks no hard rule is the 165M change coin alone, with huge change. The sibling pair (both outputs of one self-transfer) is one violation and no new link; his 3-coin pick is one violation (change merged) and links 3 groups, so it goes third. Both best plans leak something significant: no clean option, nothing recommended. The tester would pick B; the panel lets him.",
+    why: "His pick, \"without doubt the best\": 3,296,321 is one output of a self-transfer whose two outputs look alike, so an observer cannot tell it is his change; merging it with the two receipts breaks no hard rule and leaves small change (tier c). The 165M change coin alone leaves huge change; the self-transfer pair reveals the payment to himself (same-tx). No clean-option panel: the first plan is clean.",
     coins: replica, amount: 3_382_886, feeRate: 5,
-    order: ["165519188", "3296321+2399400", "3296321+64332+38625"],
-    noClean: true,
+    order: ["3296321+64332+38625", "165519188", "3296321+2399400"],
   },
   {
     name: "tester replay, 600,000 sats",
-    why: "Every coin is change. Each coin alone respects the rule; the 99M coin's huge change beats the CoinJoin change coin's toxic change; the 591,429 + 134,361 pair merges change.",
+    why: "591,429 and 134,361 are wallet outputs of payments with three outputs of one address type and non-round amounts: no change-detection rule can tell which outputs are change, so merging them is no hard violation. Their pair leaves small change (tier c) and goes first; the 99M coin alone leaves huge change, the CoinJoin change coin toxic change.",
     coins: replay, amount: 600_000, feeRate: 5,
-    order: ["99000000", "15240920", "591429+134361"],
+    order: ["591429+134361", "99000000", "15240920"],
   },
   {
     name: "KYC with no-KYC",

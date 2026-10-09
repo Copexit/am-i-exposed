@@ -370,7 +370,9 @@ export function CoinSelector({ utxos, control, history }: {
  * top plan still respects the rule (one change coin alone) or no plan does.
  */
 function changeOnly(coins: readonly CoinSelectionInput[], amount: number, top: CoinSelectionPlan | undefined): { plainTotal: number; compliant: boolean } | null {
+  // Only when the top plan spends a change coin alone, or merges identifiable change: merging ambiguous change is fine.
   if (!top || !top.selected.some(c => isChangeClass(c.origin))) return null;
+  if (top.selected.length > 1 && !top.facts.violations.includes("change-merge")) return null;
   const plainTotal = coins.filter(c => !isChangeClass(c.origin)).reduce((s, c) => s + c.utxo.value, 0);
   if (plainTotal >= amount + top.fee) return null;
   return { plainTotal, compliant: !top.facts.violations.includes("change-merge") };
@@ -482,6 +484,7 @@ export function ObserverLearns({ plan }: { plan: CoinSelectionPlan }) {
   const changeRow = plan.warnings.find(w => w.id === "change-merge")?.count ?? 0;
   const items: { key: string; params?: Record<string, string | number> }[] = [
     ...f.violations.map(v => ({ key: `violation.${v}`, params: { n: fmtN(changeRow) } })),
+    ...f.changeCoins.filter(c => !c.identifiable).map(c => ({ key: "ambiguous-change", params: { n: fmtN(c.row) } })),
     f.links > 0 ? { key: "links", params: { n: fmtN(plan.groups) } } : { key: plan.selected.length > 1 ? "links-none" : "single" },
     ...(f.probable > 0 ? [{ key: "probable", params: { n: fmtN(f.probable), count: f.probable } }] : []),
     f.known ? { key: "recipient-known" } : { key: "recipient", params: { amount: fmtN(plan.inputTotal) } },
