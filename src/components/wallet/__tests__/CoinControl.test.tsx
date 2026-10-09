@@ -17,7 +17,7 @@ import { WalletUtxoList } from "../WalletUtxoList";
 import { CoinSelector } from "../CoinSelector";
 import { WalletLabelsContext } from "../WalletLabels";
 import { useCoinControl } from "../useCoinControl";
-import { decisionTreeReplica, testerHistory, TESTER_CJ_CHANGE } from "@/lib/analysis/__tests__/fixtures/wallet-history";
+import { History, chg, decisionTreeReplica, ext, recv, testerHistory, TESTER_CJ_CHANGE } from "@/lib/analysis/__tests__/fixtures/wallet-history";
 import { buildCoinInputs, outpointOf, evaluateSelection } from "@/lib/analysis/coin-selection";
 import { matchLabels, withLabels } from "@/lib/wallet/labels";
 import type { WalletAddressInfo } from "@/lib/analysis/wallet-audit";
@@ -81,8 +81,9 @@ describe("manual coin control", () => {
     expect((screen.getAllByLabelText("Amount (sats)")[0] as HTMLInputElement).value).toBe("600000");
     const manual = screen.getByTestId("coin-plan-manual");
     expect(within(manual).getByText("Your selection")).toBeTruthy();
-    // 99M + 591k merges two change coins (tier a): after each change coin alone, and after the pair (no new link)
-    expect(within(manual).getByTestId("manual-rank").textContent).toBe("4 of 4 · Privacy first");
+    // 99M + 591k: ambiguous change (no rule tells it is change), so no hard violation; huge change ranks it
+    // after the small-change pair and before the toxic CoinJoin change coin
+    expect(within(manual).getByTestId("manual-rank").textContent).toBe("3 of 4 · Privacy first");
     // Fewest coins: both single coins, then the pairs by privacy cost
     fireEvent.click(screen.getByRole("button", { name: "Fewest coins" }));
     expect(within(screen.getByTestId("coin-plan-manual")).getByTestId("manual-rank").textContent).toBe("4 of 4 · Fewest coins");
@@ -98,32 +99,45 @@ describe("manual coin control", () => {
     fireEvent.click(within(bar()).getByRole("button", { name: "Compare with suggestions" }));
     const plans = screen.getAllByTestId(/^coin-plan-/);
     expect(plans).toHaveLength(3);
-    // The pair merges two change coins: after each change coin alone (spend change on its own)
-    expect(plans[2]!.dataset.testid).toBe("coin-plan-manual");
-    expect(within(plans[2]!).getByTestId("manual-rank").textContent).toBe("3 of 3 · Privacy first");
+    // The pair merges ambiguous change (no hard violation) and leaves small change: first
+    expect(plans[0]!.dataset.testid).toBe("coin-plan-manual");
+    expect(within(plans[0]!).getByTestId("manual-rank").textContent).toBe("1 of 3 · Privacy first");
     expect(within(plans[0]!).getByText("Recommended")).toBeTruthy();
   });
 
-  it("no clean option: Option A and Option B side by side, nothing recommended, and the bar names the option picked", () => {
+  it("the tester's 3,382,886 case: his 3-coin pick (ambiguous change) first and recommended, no dilemma", () => {
     render(<Workspace infos={decisionTreeReplica()} />);
     fireEvent.click(box(3_296_321));
-    fireEvent.click(box(2_399_400));
+    fireEvent.click(box(64_332));
+    fireEvent.click(box(38_625));
     fireEvent.change(within(bar()).getByLabelText("Amount (sats)"), { target: { value: "3382886" } });
     fireEvent.click(within(bar()).getByRole("button", { name: "Compare with suggestions" }));
+    expect(screen.queryByTestId("no-clean-option")).toBeNull();
+    const first = screen.getAllByTestId(/^coin-plan-/)[0]!;
+    expect(first.dataset.testid).toBe("coin-plan-manual");
+    expect(within(first).getByText("Recommended")).toBeTruthy();
+    expect(within(first).getByTestId("plan-learns").textContent).toContain("an observer could not tell it was your change, so the earlier payment stays ambiguous");
+    expect(within(bar()).queryByTestId("dilemma-choice")).toBeNull();
+  });
+
+  it("no clean option: Option A and Option B side by side, nothing recommended, and the bar names the option picked", () => {
+    // Identifiable change (round payments): one huge-change coin, or identifiable change merged with a receipt
+    const hh = new History();
+    hh.tx([hh.receive(recv(0), 51_100_000, 100)], [{ address: ext(1), value: 1_000_000 }, { address: chg(0), value: 50_099_000 }], 101);
+    hh.tx([hh.receive(recv(1), 1_901_007, 102)], [{ address: ext(2), value: 1_000_000 }, { address: chg(1), value: 900_007 }], 103);
+    hh.receive(recv(2), 200_000, 104);
+    render(<Workspace infos={hh.infos([0, 1, 2].map(i => ({ address: recv(i), isChange: false, index: i })).concat([0, 1].map(i => ({ address: chg(i), isChange: true, index: i }))))} />);
+    fireEvent.click(box(900_007));
+    fireEvent.click(box(200_000));
+    fireEvent.change(within(bar()).getByLabelText("Amount (sats)"), { target: { value: "1050000" } });
+    fireEvent.click(within(bar()).getByRole("button", { name: "Compare with suggestions" }));
     const panel = screen.getByTestId("no-clean-option");
-    const a = within(panel).getByTestId("dilemma-option-A");
-    const b = within(panel).getByTestId("dilemma-option-B");
-    expect(a.textContent).toContain("165,519,188 sats");
-    expect(b.textContent).toContain("3,296,321 + 2,399,400 sats");
-    expect(within(a).getByTestId("plan-avoids").textContent).toContain('Breaking "never spend two outputs of one transaction together"');
-    expect(within(b).getByTestId("plan-avoids").textContent).toContain("Change of 162,135,602 sats (2,311,795 here)");
-    expect(within(b).getByTestId("plan-learns").textContent).toContain("That an earlier transaction was a payment to yourself");
+    expect(within(panel).getByTestId("dilemma-option-A").textContent).toContain("50,099,000 sats");
+    expect(within(panel).getByTestId("dilemma-option-B").textContent).toContain("900,007 + 200,000 sats");
+    expect(within(within(panel).getByTestId("dilemma-option-A")).getByTestId("plan-avoids").textContent).toContain('Breaking "spend identifiable change on its own"');
     expect(screen.queryByText("Recommended")).toBeNull();
     const choice = within(bar()).getByTestId("dilemma-choice");
     expect(choice.textContent).toContain("You chose Option B");
-    expect(choice.textContent).toContain("That an earlier transaction was a payment to yourself");
-    // The coins that are not change cannot pay: the alert says the top plan spends a change coin alone
-    expect(screen.getByTestId("spend-alert-change-alone").textContent).toContain("Coins that are not change add up to 102,957 sats");
   });
 
   it("asks before selecting a frozen coin", () => {

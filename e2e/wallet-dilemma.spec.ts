@@ -51,7 +51,7 @@ async function suggest(page: Page, amount: string) {
 }
 
 for (const width of [1440, 390]) {
-  test(`tester replica at ${width}px: 38,034 pays with one receipt; 3,382,886 has no clean option`, async ({ page }) => {
+  test(`tester replica at ${width}px: 38,034 pays with one receipt; 3,382,886 recommends his 3-coin pick`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto(`/#xpub=${ZPUB}`);
     await expect(page.getByText("Wallet Privacy Audit")).toBeVisible({ timeout: 20_000 });
@@ -66,15 +66,15 @@ for (const width of [1440, 390]) {
     await expect(selector.getByTestId("no-clean-option")).toHaveCount(0);
     if (width === 1440) await shot(page, selector, `${SHOTS}/wf2-38034-${width}.png`);
 
-    // 3,382,886: no clean option, Option A the change coin alone, Option B the self-transfer pair, nothing recommended
+    // 3,382,886: his pick first and recommended (3,296,321 is ambiguous change: no hard violation), no dilemma
     selector = await suggest(page, "3382886");
-    const panel = selector.getByTestId("no-clean-option");
-    await expect(panel).toBeVisible();
-    await expect(panel.getByTestId("dilemma-option-A")).toContainText("165,519,188 sats");
-    await expect(panel.getByTestId("dilemma-option-B")).toContainText("3,296,321 + 2,399,400 sats");
-    await expect(selector.getByText("Recommended", { exact: true })).toHaveCount(0);
-    await expect(plans.nth(2)).toContainText("64,332 sats");
-    await expect(selector.getByTestId("spend-alert-change-alone")).toBeVisible();
+    await expect(selector.getByTestId("no-clean-option")).toHaveCount(0);
+    const first = plans.first();
+    await expect(first.getByText("Recommended")).toBeVisible();
+    await expect(first.getByText("64,332 sats", { exact: true })).toBeVisible();
+    await expect(first.getByTestId("plan-learns")).toContainText("an observer could not tell it was your change");
+    await expect(plans.nth(1)).toContainText("165,519,188 sats");
+    await expect(plans.nth(2)).toContainText("2,399,400 sats");
     const { sw, iw } = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }));
     expect(sw, `scrollWidth ${sw} > innerWidth ${iw}`).toBeLessThanOrEqual(iw);
     await shot(page, selector, `${SHOTS}/wf2-3382886-${width}.png`);

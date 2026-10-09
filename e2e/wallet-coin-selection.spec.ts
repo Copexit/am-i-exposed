@@ -73,18 +73,17 @@ for (const width of [1440, 390]) {
     await page.getByRole("button", { name: /Coin Selection Advisor/ }).click();
     await page.getByLabel("Amount (sats)").fill("600000");
     await page.getByRole("button", { name: "Suggest selection" }).click();
-    // Every coin is change: each change coin alone first (spend change on its own), huge change before toxic
-    const first = page.locator("[data-testid^='coin-plan-']").first();
-    await expect(first.getByText("Recommended")).toBeVisible();
-    await expect(first.getByText("99,000,000 sats", { exact: true })).toBeVisible();
-    await expect(first.getByTestId("plan-learns")).toContainText("A change output of 98,399,300 sats (164x the payment) that can be followed");
-    const cj = page.locator("[data-testid^='coin-plan-']").nth(1);
+    // Every coin is change, but no rule tells which outputs were change: the pair (small change) first
+    const pair = page.locator("[data-testid^='coin-plan-']").first();
+    await expect(pair.getByText("Recommended")).toBeVisible();
+    await expect(pair.getByText("591,429 sats", { exact: true })).toBeVisible();
+    await expect(pair.getByTestId("plan-learns")).toContainText("an observer could not tell it was your change");
+    const single = page.locator("[data-testid^='coin-plan-']").nth(1);
+    await expect(single.getByText("99,000,000 sats", { exact: true })).toBeVisible();
+    await expect(single.getByTestId("plan-learns")).toContainText("A change output of 98,399,300 sats (164x the payment) that can be followed");
+    const cj = page.locator("[data-testid^='coin-plan-']").nth(2);
     await expect(cj.getByText("15,240,920 sats", { exact: true })).toBeVisible();
     await expect(cj.getByText(/Spends CoinJoin change, which is not mixed/)).toBeVisible();
-    // The pair merges two change coins: last, with the warning
-    const pair = page.locator("[data-testid^='coin-plan-']").nth(2);
-    await expect(pair.getByText("591,429 sats", { exact: true })).toBeVisible();
-    await expect(pair.getByText(/^Merges change coin #1 with other coins/)).toBeVisible();
     await shot(page, page.getByTestId("coin-selector"), `test-results/wa-selector-${width}.png`);
   });
 }
