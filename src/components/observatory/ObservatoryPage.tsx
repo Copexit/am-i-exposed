@@ -1,12 +1,16 @@
 "use client";
 
-import type { KeyboardEvent } from "react";
+import { useEffect, type KeyboardEvent } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { PageShell } from "@/components/PageShell";
 import { useNetwork } from "@/context/NetworkContext";
 import { useObservatory } from "@/hooks/useObservatory";
 import { useChainTip } from "@/hooks/useChainTip";
-import { OBSERVATORY_TABS, useObsState, type ObservatoryTab } from "@/hooks/useObsState";
+import { OBSERVATORY_TABS, legacyObsRedirect, obsRouteTab, useObsState, type ObservatoryTab } from "@/hooks/useObsState";
+import { useLocationHash } from "@/components/chrome/useLocationHash";
+import { serializeObsHash } from "@/lib/observatory/obs-hash";
 import { ObservatoryHero } from "@/components/observatory/ObservatoryHero";
 import { WhirlpoolPoolCard } from "@/components/observatory/WhirlpoolPoolCard";
 import { RecentCyclesTable } from "@/components/observatory/RecentCyclesTable";
@@ -31,16 +35,43 @@ function fmtBtc(value: number): string {
   return `${value.toFixed(3).replace(/\.?0+$/, "")} BTC`;
 }
 
+/**
+ * The Observatory. /observatory/ is the hub (WabiSabi shown); /observatory/<tab>/ preselects a tab
+ * and carries its own heading. Old hub deep links (#p2p&cur=EUR) move to the tab's route.
+ */
 export function ObservatoryPage() {
   const { t } = useTranslation();
   const { network } = useNetwork();
-  const [obs, setObs] = useObsState();
+  const route = obsRouteTab(usePathname());
+  const [obs] = useObsState();
   const tab = obs.tab as ObservatoryTab;
+  const hash = useLocationHash();
+  const redirect = route ? null : legacyObsRedirect(hash);
+  useEffect(() => {
+    if (redirect) window.location.replace(redirect);
+  }, [redirect]);
+
+  const p2pTitle = t("observatory.p2p.pageTitle", { defaultValue: "P2P markets" });
+  const heading = {
+    wabisabi: {
+      title: t("observatory.route.wabisabi.title", { defaultValue: "Live CoinJoin map: WabiSabi coordinators" }),
+      description: t("observatory.route.wabisabi.intro", { defaultValue: "Live WabiSabi CoinJoin rounds, volume, fees and coordinator history across the public coordinators that Wasabi Wallet and compatible clients use, sourced from Wabisator." }),
+    },
+    whirlpool: {
+      title: t("observatory.route.whirlpool.title", { defaultValue: "Whirlpool CoinJoin pools (Ashigaru)" }),
+      description: t("observatory.route.whirlpool.intro", { defaultValue: "Live Whirlpool pool sizes, unspent capacity and recent mixing cycles for Ashigaru and compatible clients, sourced from whirlpoolstats.xyz." }),
+    },
+    p2p: {
+      title: t("observatory.route.p2p.title", { defaultValue: "KYC-free bitcoin P2P offers: RoboSats, Mostro, HodlHodl" }),
+      description: t("observatory.p2p.pageDescription", { defaultValue: "Live KYC-free bitcoin offers from RoboSats, Mostro and HodlHodl, fetched through a relay or Tor, never from your browser." }),
+    },
+  } as const;
+  const header = route ? heading[route] : { title: undefined, description: undefined };
 
   if (network !== "mainnet") {
     return (
       <PageShell>
-        <ObservatoryPageHeader showMainnetBadge={false} />
+        <ObservatoryPageHeader showMainnetBadge={false} {...header} />
         <div className="rounded-xl border border-card-border bg-surface-elevated/50 p-6 text-muted">
           {t("observatory.mainnetOnly", {
             defaultValue:
@@ -60,12 +91,15 @@ export function ObservatoryPage() {
       p2p: t("observatory.tabs.p2p", { defaultValue: "P2P markets" }),
     }[id],
   }));
-  const selectTab = (id: ObservatoryTab) => setObs({ tab: id });
   const p2p = tab === "p2p";
-  const p2pTitle = t("observatory.p2p.pageTitle", { defaultValue: "P2P markets" });
+  // Period and Map/Table view mean the same on every tab, so a tab link carries them; the rest is per tab.
+  const shared = serializeObsHash({ tab: "", period: obs.period, view: obs.view, coordinator: null, tx: null }).replace(/^#&?/, "");
+  const tabHref = (id: ObservatoryTab) => `/observatory/${id}/${shared ? `#${shared}` : ""}`;
 
+  // Tabs are links to the tab routes (crawlable, one history entry each); arrows move focus, Enter follows.
   const onTabKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    const i = tabs.findIndex((x) => x.id === tab);
+    const focused = tabs.findIndex((x) => document.activeElement?.id === `observatory-tab-${x.id}`);
+    const i = focused >= 0 ? focused : tabs.findIndex((x) => x.id === tab);
     const n = tabs.length;
     const next =
       e.key === "ArrowRight" ? tabs[(i + 1) % n]
@@ -75,7 +109,6 @@ export function ObservatoryPage() {
       : undefined;
     if (!next) return;
     e.preventDefault();
-    selectTab(next.id);
     document.getElementById(`observatory-tab-${next.id}`)?.focus();
   };
 
@@ -83,8 +116,7 @@ export function ObservatoryPage() {
     <PageShell spacing="space-y-4 sm:space-y-5" compact eyebrow={p2p ? p2pTitle : undefined}>
       <ObservatoryPageHeader
         showMainnetBadge
-        title={p2p ? p2pTitle : undefined}
-        description={p2p ? t("observatory.p2p.pageDescription", { defaultValue: "Live KYC-free bitcoin offers from RoboSats, Mostro and HodlHodl, fetched through a relay or Tor, never from your browser." }) : undefined}
+        {...header}
         aside={
           <div
             role="tablist"
@@ -93,23 +125,22 @@ export function ObservatoryPage() {
             className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-surface-inset border border-card-border sm:inline-grid"
           >
             {tabs.map(({ id, label }) => (
-              <button
+              <Link
                 key={id}
+                href={tabHref(id)}
                 id={`observatory-tab-${id}`}
-                type="button"
                 role="tab"
                 aria-selected={tab === id}
                 aria-controls="observatory-panel"
                 tabIndex={tab === id ? 0 : -1}
-                onClick={() => selectTab(id)}
-                className={`rounded-md px-3 sm:px-5 py-2 min-h-10 text-sm font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bitcoin ${
+                className={`inline-flex items-center justify-center text-center rounded-md px-3 sm:px-5 py-2 min-h-10 text-sm font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bitcoin ${
                   tab === id
                     ? "bg-surface-elevated text-foreground shadow-sm ring-1 ring-hairline-strong"
                     : "text-muted hover:text-foreground"
                 }`}
               >
                 {label}
-              </button>
+              </Link>
             ))}
           </div>
         }
@@ -121,7 +152,7 @@ export function ObservatoryPage() {
         aria-labelledby={`observatory-tab-${tab}`}
         className="space-y-8"
       >
-        {tab === "whirlpool" ? <WhirlpoolTab /> : tab === "p2p" ? <P2pTab /> : <WabiSabiTab />}
+        {redirect ? null : tab === "whirlpool" ? <WhirlpoolTab /> : tab === "p2p" ? <P2pTab /> : <WabiSabiTab />}
       </div>
     </PageShell>
   );

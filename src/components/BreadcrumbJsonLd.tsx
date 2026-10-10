@@ -1,3 +1,5 @@
+import { routeJsonLd, type SeoRouteKey } from "@/app/seo-routes";
+
 const ORIGIN = "https://am-i.exposed";
 
 /** Home > page BreadcrumbList JSON-LD. Server-safe (no hooks), rendered by route layouts. */
@@ -17,4 +19,9 @@ export function BreadcrumbJsonLd({ name, path }: { name: string; path: string })
       }}
     />
   );
+}
+
+/** BreadcrumbList + page JSON-LD for a route in SEO_ROUTES. */
+export function RouteJsonLd({ route }: { route: SeoRouteKey }) {
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(routeJsonLd(route)) }} />;
 }

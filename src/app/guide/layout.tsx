@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 
 export const metadata: Metadata = {
-  title: "Bitcoin Privacy Guide - How to Protect Your On-Chain Privacy | am-i.exposed",
+  title: "Bitcoin Privacy Guide: On-Chain Privacy | am-i.exposed",
   description:
     "Practical Bitcoin privacy: avoid address reuse, hide change, use CoinJoin, and understand what chain analysis can infer about your transactions.",
   keywords: [
@@ -32,15 +31,6 @@ export const metadata: Metadata = {
   },
 };
 
-export default function GuideLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <>
-      <BreadcrumbJsonLd name="Privacy Guide" path="/guide/" />
-      {children}
-    </>
-  );
+export default function GuideLayout({ children }: { children: React.ReactNode }) {
+  return children;
 }

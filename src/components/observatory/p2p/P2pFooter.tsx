@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -27,6 +28,12 @@ export function P2pFooter({ isUmbrel }: { isUmbrel: boolean }) {
         {isUmbrel
           ? t("observatory.p2p.footer.privacyUmbrel", { defaultValue: "Data is fetched through Tor on this node. No request from this page carries anything about the visitor." })
           : t("observatory.p2p.footer.privacy", { defaultValue: "Data is fetched through the am-i.exposed relay (or Tor on a self-hosted node). No request from this page carries anything about the visitor." })}
+      </p>
+      <p className="max-w-3xl leading-relaxed text-pretty">
+        {t("observatory.p2p.footer.labelHint", { defaultValue: "Coins bought here stay KYC-free only while they never merge with KYC coins." })}{" "}
+        <Link href="/guide/labeling/" className="text-bitcoin hover:underline underline-offset-4">
+          {t("observatory.p2p.footer.labelLink", { defaultValue: "How to label and spend them" })}
+        </Link>
       </p>
       <p className="max-w-3xl text-xs leading-relaxed text-faint text-pretty">
         {t("observatory.p2p.footer.index", { defaultValue: "Index: RoboSats coordinator price, median of blockchain.info and yadio.io. Order events are signature-checked in this browser; trader names, ratings and contact details are never shown." })}

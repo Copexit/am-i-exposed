@@ -3545,5 +3545,19 @@
   "wallet.coinSel.path.probable_other": "Confirma {{n}} ligações prováveis",
   "wallet.coinSel.learn.probable_one": "A confirmação de 1 ligação provável",
   "wallet.coinSel.learn.probable_other": "A confirmação de {{n}} ligações prováveis",
-  "wallet.coinSel.learn.ambiguous-change": "Liga a moeda de troco #{{n}} às demais; um observador não podia saber pelo próprio pagamento que era seu troco"
+  "wallet.coinSel.learn.ambiguous-change": "Liga a moeda de troco #{{n}} às demais; um observador não podia saber pelo próprio pagamento que era seu troco",
+  "observatory.route.wabisabi.title": "Mapa de CoinJoin ao vivo: coordenadores WabiSabi",
+  "observatory.route.wabisabi.intro": "Rondas, volume, comissões e histórico de CoinJoin WabiSabi ao vivo nos coordenadores públicos usados pela Wasabi Wallet e clientes compatíveis, com dados do Wabisator.",
+  "observatory.route.whirlpool.title": "Pools de CoinJoin Whirlpool (Ashigaru)",
+  "observatory.route.whirlpool.intro": "Tamanho dos pools Whirlpool, capacidade por gastar e ciclos de mistura recentes ao vivo para o Ashigaru e clientes compatíveis, com dados do whirlpoolstats.xyz.",
+  "observatory.route.p2p.title": "Ofertas P2P de bitcoin sem KYC: RoboSats, Mostro, HodlHodl",
+  "observatory.p2p.footer.labelHint": "As moedas compradas aqui só continuam sem KYC enquanto nunca se juntarem a moedas KYC.",
+  "observatory.p2p.footer.labelLink": "Como rotulá-las e gastá-las",
+  "common.coinjoinMap": "Mapa de CoinJoin",
+  "guide.topic.labeling.title": "Como rotular UTXOs de bitcoin (BIP329 e Sparrow)",
+  "guide.topic.labeling.intro": "Rotula cada moeda pela sua origem, para que moedas que ligariam as tuas identidades nunca acabem na mesma transação. Prefixos de origem, as regras que implicam, um ficheiro BIP329 de exemplo e os passos no Sparrow.",
+  "guide.topic.spending.title": "Lista de privacidade para o controlo de moedas em bitcoin",
+  "guide.topic.spending.intro": "Que moedas gastar juntas, quando evitar o troco e como os planos de pagamento são ordenados: a lista que o seletor de moedas do am-i.exposed segue em cada pagamento.",
+  "guide.topic.related": "Relacionado",
+  "guide.topic.fullGuide": "Guia de privacidade completo"
 }

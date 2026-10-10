@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("Whirlpool tab shows pools and recent cycles only", async ({ page }) => {
-  await page.goto("/observatory/#whirlpool");
+  await page.goto("/observatory/whirlpool/");
 
   const whirlpoolTab = page.getByRole("tab", { name: "Whirlpool (Ashigaru)" });
   await expect(whirlpoolTab).toHaveAttribute("aria-selected", "true");

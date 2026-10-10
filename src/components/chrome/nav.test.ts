@@ -10,6 +10,12 @@ describe("chrome nav", () => {
     expect(isNavActive("/about/", "/about")).toBe(true);
     expect(isNavActive("/about/", "/")).toBe(false);
   });
+  it("keeps the section active on its subroutes", () => {
+    expect(isNavActive("/guide/", "/guide/labeling/")).toBe(true);
+    expect(isNavActive("/observatory/", "/observatory/p2p/")).toBe(true);
+    expect(isNavActive("/observatory/", "/observatoryx/")).toBe(false);
+    expect(isNavActive("/about/", "/observatory/")).toBe(false);
+  });
   it("deep-links graph from a tx scan only", () => {
     expect(graphHref("/", `#tx=${TX}`)).toBe(`/graph/#txid=${TX}`);
     expect(graphHref("/", "#addr=1abc")).toBe("/graph/");

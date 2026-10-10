@@ -12,6 +12,8 @@ import type { CoordinatorsStatus, FlowMap } from "@/lib/observatory/wabisator-ty
 import type { WhirlpoolCharts, WhirlpoolSummary } from "@/lib/observatory/types";
 import type { Polled } from "@/hooks/useWabisator";
 
+vi.mock("next/navigation", () => ({ usePathname: () => window.location.pathname }));
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) => {
@@ -72,25 +74,24 @@ describe("Observatory tab shell", () => {
     expect(screen.queryByText("Whirlpool pools")).toBeNull();
   });
 
-  it("renders the Whirlpool content on #whirlpool, and switching tabs writes the hash", () => {
-    window.history.replaceState(null, "", "/observatory/#whirlpool");
+  it("renders the Whirlpool content on /observatory/whirlpool/, with its own heading and tabs that link to the routes", () => {
+    window.history.replaceState(null, "", "/observatory/whirlpool/");
     render(<ObservatoryPage />);
     expect(screen.getByRole("tab", { name: "Whirlpool (Ashigaru)" }).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByText("Whirlpool pools")).toBeTruthy();
     expect(document.querySelector("#obs-map")).toBeNull();
-    act(() => screen.getByRole("tab", { name: "WabiSabi (Wasabi)" }).click());
-    expect(window.location.hash).toBe("#wabisabi");
-    expect(document.querySelector("#obs-map")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Whirlpool CoinJoin pools (Ashigaru)");
+    expect(screen.getByRole("tab", { name: "WabiSabi (Wasabi)" }).getAttribute("href")).toMatch(/^\/observatory\/wabisabi\/?$/);
   });
 
   it("follows the period and view in the hash: view=table shows the tables", () => {
-    window.history.replaceState(null, "", "/observatory/#wabisabi&period=7&view=table");
+    window.history.replaceState(null, "", "/observatory/wabisabi/#period=7&view=table");
     render(<ObservatoryPage />);
     expect(hooks.flowPeriods.at(-1)).toBe(7);
     expect(screen.getByRole("table", { name: /Coordinators/ })).toBeTruthy();
     expect(screen.getByRole("table", { name: /Remix flows/ })).toBeTruthy();
     act(() => { fireEvent.click(screen.getByRole("button", { name: "Map" })); });
-    expect(window.location.hash).toBe("#wabisabi&period=7");
+    expect(window.location.hash).toBe("#period=7");
     expect(screen.queryByRole("table")).toBeNull();
   });
 
@@ -98,16 +99,16 @@ describe("Observatory tab shell", () => {
     render(<ObservatoryPage />);
     const kruw = screen.getByRole("button", { name: "Kruw" });
     act(() => kruw.click());
-    expect(window.location.hash).toBe("#wabisabi&coordinator=kruw");
+    expect(window.location.hash).toBe("#coordinator=kruw");
     expect(screen.getByRole("button", { name: "Kruw" }).getAttribute("aria-pressed")).toBe("true");
     expect(document.getElementById("obs-coord-kruw-title")?.textContent).toBe("Kruw");
     act(() => screen.getByRole("button", { name: "Kruw" }).click());
-    expect(window.location.hash).toBe("#wabisabi");
+    expect(window.location.hash).toBe("");
     expect(document.getElementById("obs-coord-kruw-title")).toBeNull();
   });
 
   it("keeps the coordinator page mounted, with its chart range, while the next period loads", () => {
-    window.history.replaceState(null, "", "/observatory/#wabisabi&coordinator=kruw");
+    window.history.replaceState(null, "", "/observatory/wabisabi/#coordinator=kruw");
     hooks.flowByPeriod[7] = polled<FlowMap>(null);
     render(<ObservatoryPage />);
     const range = () => screen.getByRole("group", { name: "Range" });
@@ -122,7 +123,7 @@ describe("Observatory tab shell", () => {
   });
 
   it("does not leave the coordinator page dimmed when the next period fails to load", () => {
-    window.history.replaceState(null, "", "/observatory/#wabisabi&coordinator=kruw");
+    window.history.replaceState(null, "", "/observatory/wabisabi/#coordinator=kruw");
     hooks.flowByPeriod[7] = polled<FlowMap>(null, new Error("down"));
     render(<ObservatoryPage />);
     act(() => { fireEvent.click(within(screen.getByRole("group", { name: "Period" })).getByRole("button", { name: "7 d" })); });
@@ -160,7 +161,7 @@ describe("Observatory tab shell", () => {
       expect(screen.getAllByTestId("obs-flow-bars").length).toBe(2);
       const ev = scene1.events[10]!;
       search(ev.txid);
-      expect(window.location.hash).toBe(`#wabisabi&tx=${ev.txid}`);
+      expect(window.location.hash).toBe(`#tx=${ev.txid}`);
       expect(screen.queryByTestId("obs-search-result")).toBeNull();
       const card = document.getElementById("obs-event-card")!;
       expect(card.getAttribute("role")).toBe("group");
@@ -172,11 +173,11 @@ describe("Observatory tab shell", () => {
     });
 
     it("a found txid from the table view returns to the map, and the seek applies once", () => {
-      window.history.replaceState(null, "", "/observatory/#wabisabi&view=table");
+      window.history.replaceState(null, "", "/observatory/wabisabi/#view=table");
       render(<ObservatoryPage />);
       const ev = scene1.events[60]!;
       search(ev.txid);
-      expect(window.location.hash).toBe(`#wabisabi&tx=${ev.txid}`);
+      expect(window.location.hash).toBe(`#tx=${ev.txid}`);
       const at = Math.round(100 * (replayProgress(ev.t, scene1) - 1.5 / 60));
       expect(at).toBeGreaterThan(10);
       expect(Number(slider().getAttribute("aria-valuenow"))).toBe(at);
@@ -199,21 +200,21 @@ describe("Observatory tab shell", () => {
   });
 
   it("renders gracefully for an unknown coordinator and a malformed txid, dropping the unknown key", () => {
-    window.history.replaceState(null, "", "/observatory/#wabisabi&coordinator=nope&tx=zz");
+    window.history.replaceState(null, "", "/observatory/wabisabi/#coordinator=nope&tx=zz");
     const before = window.history.length;
     const { container } = render(<ObservatoryPage />);
     expect(document.querySelector("#obs-map")).toBeTruthy();
-    expect(window.location.hash).toBe("#wabisabi");
+    expect(window.location.hash).toBe("");
     expect(window.history.length).toBe(before);
     expect(container.querySelector("#obs-coordinator [aria-hidden='true'].rounded-xl")).toBeNull();
   });
 
   it("keeps the coordinator skeleton while the coordinators are still loading", () => {
-    window.history.replaceState(null, "", "/observatory/#wabisabi&coordinator=kruw");
+    window.history.replaceState(null, "", "/observatory/wabisabi/#coordinator=kruw");
     hooks.flow = polled<FlowMap>(null);
     hooks.status = polled<CoordinatorsStatus>(null);
     const { container } = render(<ObservatoryPage />);
-    expect(window.location.hash).toBe("#wabisabi&coordinator=kruw");
+    expect(window.location.hash).toBe("#coordinator=kruw");
     expect(container.querySelector("#obs-coordinator [aria-hidden='true'].rounded-xl")).toBeTruthy();
   });
 

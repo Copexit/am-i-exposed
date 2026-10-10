@@ -244,7 +244,7 @@ describe("CoinSelector: spending decision tree", () => {
     fireEvent.change(screen.getByLabelText("Recipient address (optional)"), { target: { value: FRESH.slice(0, -1) + "5" } });
     expect(screen.getByText("Not a valid address for this network.")).toBeTruthy();
     expect(screen.queryByTestId("reuse-check")).toBeNull();
-    expect(screen.getByRole("link", { name: "Spending checklist" }).getAttribute("href")).toBe("/guide/#spending-checklist");
+    expect(screen.getByRole("link", { name: "Spending checklist" }).getAttribute("href")).toBe("/guide/spending/");
   });
 
   it("the reuse check runs only on click, for that one address, and its answer raises the alert", async () => {
