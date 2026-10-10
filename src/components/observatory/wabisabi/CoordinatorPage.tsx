@@ -8,7 +8,7 @@ import { useVolumeHistory } from "@/hooks/useWabisator";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { coordinatorKpis, largestCoinjoins, remixPartners, volumeSeries, type HistoryRange } from "@/lib/observatory/coordinator-page";
 import { coordinatorFgVar } from "@/lib/observatory/coordinator-palette";
-import { fmtBtc, fmtCount, safeHttpUrl } from "@/lib/observatory/obs-format";
+import { fmtBtc, fmtCount, localizeFees, safeHttpUrl } from "@/lib/observatory/obs-format";
 import { TXID_RE } from "@/lib/constants";
 import type { Flow, Scene, Star } from "@/lib/observatory/sky-model";
 import type { Period } from "@/lib/observatory/wabisator-client";
@@ -169,7 +169,7 @@ function Body({ coordinatorKey: key, scene, flow, status, star, titleId, color, 
           {fees && (
             <span className="inline-flex min-h-8 items-baseline gap-1.5 rounded-md border border-hairline bg-surface-inset px-2.5 py-1 text-xs">
               <span className="text-muted">{t("observatory.wabisabi.rule.fees", { defaultValue: "Fees" })}</span>
-              <span className="text-foreground">{fees}</span>
+              <span className="text-foreground">{localizeFees(fees, t)}</span>
             </span>
           )}
           {readMore && (

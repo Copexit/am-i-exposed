@@ -3034,6 +3034,8 @@
   "observatory.wabisabi.rule.amounts": "Kwoty",
   "observatory.wabisabi.rule.miningFee": "Opłata za wydobycie",
   "observatory.wabisabi.rule.fees": "Opłaty",
+  "observatory.wabisabi.fees.freeRemixing": "Darmowy remix",
+  "observatory.wabisabi.fees.freeUnder": "Za darmo poniżej {{amount}}",
   "observatory.wabisabi.live.refreshed": "Odświeżono {{seconds}} s temu",
   "observatory.wabisabi.live.readMore": "Strona",
   "observatory.wabisabi.live.coinjoins24h": "CoinJoiny w 24 h",

@@ -2910,6 +2910,8 @@
   "observatory.wabisabi.rule.amounts": "Importes",
   "observatory.wabisabi.rule.miningFee": "Comisión de minería",
   "observatory.wabisabi.rule.fees": "Comisiones",
+  "observatory.wabisabi.fees.freeRemixing": "Remezcla gratuita",
+  "observatory.wabisabi.fees.freeUnder": "Gratis por debajo de {{amount}}",
   "observatory.wabisabi.live.refreshed": "Actualizado hace {{seconds}} s",
   "observatory.wabisabi.live.readMore": "Web",
   "observatory.wabisabi.live.coinjoins24h": "CoinJoins en 24 h",

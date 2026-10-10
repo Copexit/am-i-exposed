@@ -2910,6 +2910,8 @@
   "observatory.wabisabi.rule.amounts": "Amounts",
   "observatory.wabisabi.rule.miningFee": "Mining fee",
   "observatory.wabisabi.rule.fees": "Fees",
+  "observatory.wabisabi.fees.freeRemixing": "Free remixing",
+  "observatory.wabisabi.fees.freeUnder": "Free under {{amount}}",
   "observatory.wabisabi.live.refreshed": "Refreshed {{seconds}} s ago",
   "observatory.wabisabi.live.readMore": "Website",
   "observatory.wabisabi.live.coinjoins24h": "CoinJoins in 24 h",

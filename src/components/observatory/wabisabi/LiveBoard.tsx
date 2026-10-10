@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { ArrowRight, ArrowUpRight, ChevronDown, Radio } from "lucide-react";
 import { buildBoard, type BoardCard } from "@/lib/observatory/board";
 import { coordinatorFgVar } from "@/lib/observatory/coordinator-palette";
-import { fmtBtc, fmtCount } from "@/lib/observatory/obs-format";
+import { fmtBtc, fmtCount, localizeFees } from "@/lib/observatory/obs-format";
 import type { Polled } from "@/hooks/useWabisator";
 import type { CoordinatorsStatus } from "@/lib/observatory/wabisator-types";
 import { ObservatoryErrorState } from "@/components/observatory/ObservatoryErrorState";
@@ -62,7 +62,7 @@ function Card({ card, onOpen, reduced }: { card: BoardCard; onOpen: (key: string
   const locale = i18n.language || "en";
   const ruleLabel = useRuleLabel();
   const color = coordinatorFgVar(card.key);
-  const chips = [{ label: t("observatory.wabisabi.rule.fees", { defaultValue: "Fees" }), value: card.fees }, ...card.rules.map((r) => ({ label: ruleLabel(r.label), value: r.value }))];
+  const chips = [{ label: t("observatory.wabisabi.rule.fees", { defaultValue: "Fees" }), value: localizeFees(card.fees, t) }, ...card.rules.map((r) => ({ label: ruleLabel(r.label), value: r.value }))];
 
   return (
     <article
