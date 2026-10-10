@@ -38,7 +38,7 @@ test("table view lists Kruw", async ({ page }) => {
 });
 
 test("coordinator deep link shows the Kruw page with rounds", async ({ page }) => {
-  await page.goto("/observatory/#wabisabi&coordinator=kruw");
+  await page.goto("/observatory/wabisabi/#coordinator=kruw");
   await expect(page.getByRole("heading", { name: "Kruw" }).first()).toBeVisible({ timeout: 15_000 });
   await expect(page.locator("table").filter({ has: page.getByRole("columnheader", { name: "Transaction" }) }).locator("tbody tr").first()).toBeVisible({ timeout: 15_000 });
 });
@@ -60,7 +60,7 @@ test("search: a known txid is found, an unknown one links to the analyzer and is
 });
 
 test("whirlpool tab still renders pool cards", async ({ page }) => {
-  await page.goto("/observatory/#whirlpool");
+  await page.goto("/observatory/whirlpool/");
   await expect(page.getByText("0.025 BTC Pool").first()).toBeVisible({ timeout: 15_000 });
 });
 
@@ -75,7 +75,7 @@ test("no horizontal scroll at 390 px", async ({ page }) => {
 test("an unknown coordinator and a malformed tx in the URL are ignored", async ({ page }) => {
   const errors: Error[] = [];
   page.on("pageerror", (e) => errors.push(e));
-  await page.goto("/observatory/#wabisabi&coordinator=nope&tx=zz");
+  await page.goto("/observatory/wabisabi/#coordinator=nope&tx=zz");
   await expect(coinjoins(page)).toContainText(/[1-9]/, { timeout: 15_000 });
   await expect(page.locator("#obs-map canvas").first()).toBeVisible();
   expect(errors).toEqual([]);

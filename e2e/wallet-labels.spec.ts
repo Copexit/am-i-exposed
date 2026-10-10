@@ -128,7 +128,7 @@ for (const width of [1440, 390]) {
     await expect(page.locator("#wallet-addresses").getByTestId("label-tag-kyc")).toBeVisible();
     await shot(page, page.locator("#wallet-addresses"), `${SHOTS}/wb-addresses-${width}.png`);
     await noHorizontalScroll(page);
-    await page.getByRole("link", { name: "Labeling recommendations" }).click();
+    await page.getByTestId("labels-panel").getByRole("link", { name: "Labeling recommendations" }).click();
     const section = page.locator("section").filter({ has: page.locator("#labeling-coins") });
     await expect(section.getByRole("heading", { name: "Labeling recommendations" })).toBeInViewport({ timeout: 5_000 });
     await shot(page, section, `${SHOTS}/wb-guide-${width}.png`);
