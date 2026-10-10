@@ -22,7 +22,7 @@ export function KnowledgeTabBar() {
   const isActive = (href: string) => {
     const normalized = currentPath.replace(/\/$/, "") || "/";
     const target = href.replace(/\/$/, "") || "/";
-    return normalized === target;
+    return normalized === target || normalized.startsWith(`${target}/`);
   };
 
   return (

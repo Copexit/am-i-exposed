@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { PageShell } from "@/components/PageShell";
 import { PATHWAYS, COMBINED_PATHWAYS } from "@/data/guide/pathways";
@@ -10,7 +11,7 @@ import { WalletComparison } from "@/components/guide/WalletComparison";
 import { GuideMistakes } from "@/components/guide/GuideMistakes";
 import { RecoveryPlaybook } from "@/components/guide/RecoveryPlaybook";
 import { MaintenanceSection } from "@/components/guide/MaintenanceSection";
-import { LabelingSection, SpendingChecklist } from "@/components/guide/LabelingSection";
+import { guideTopicFor } from "@/data/guide/topics";
 import { KnowledgeTabBar } from "@/components/KnowledgeTabBar";
 import { useLocationHash } from "@/components/chrome/useLocationHash";
 
@@ -29,6 +30,12 @@ export function GuidePage() {
   // expanded, so scrolling in the same tick as the expand finds nothing.
   useEffect(() => {
     if (!hash) return;
+    // Labeling and the spending checklist moved to their own routes: old anchors follow them.
+    const topic = guideTopicFor(hash);
+    if (topic) {
+      window.location.replace(`/guide/${topic}/#${hash}`);
+      return;
+    }
     const timer = setTimeout(() => {
       if (PATHWAYS.some((p) => p.id === hash)) setExpandedPathway(hash);
       if (COMBINED_PATHWAYS.some((c) => c.id === hash)) setShowCombined(true);
@@ -73,8 +80,6 @@ export function GuidePage() {
             { id: "common-mistakes", label: t("guide.toc.mistakes", { defaultValue: "Common mistakes" }) },
             { id: "recovery-playbook", label: t("guide.toc.recovery", { defaultValue: "Recovery playbook" }) },
             { id: "maintaining-privacy", label: t("guide.toc.maintaining", { defaultValue: "Maintaining privacy" }) },
-            { id: "labeling-coins", label: t("guide.toc.labeling", { defaultValue: "Labeling recommendations" }) },
-            { id: "spending-checklist", label: t("guide.toc.checklist", { defaultValue: "Spending checklist" }) },
           ].map((item) => (
             <a
               key={item.id}
@@ -83,6 +88,18 @@ export function GuidePage() {
             >
               {item.label}
             </a>
+          ))}
+          {[
+            { href: "/guide/labeling/", label: t("guide.toc.labeling", { defaultValue: "Labeling recommendations" }) },
+            { href: "/guide/spending/", label: t("guide.toc.checklist", { defaultValue: "Spending checklist" }) },
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="block text-base text-bitcoin/80 hover:text-bitcoin transition-colors"
+            >
+              {item.label} &rarr;
+            </Link>
           ))}
         </nav>
 
@@ -103,10 +120,6 @@ export function GuidePage() {
         <RecoveryPlaybook />
 
         <MaintenanceSection />
-
-        <LabelingSection />
-
-        <SpendingChecklist />
 
         {/* Back to top */}
         <div className="text-center pt-6 pb-4">
