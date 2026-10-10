@@ -11,6 +11,8 @@ import { WalletBookmarkButton } from "@/components/wallet/WalletBookmarkButton";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { GRADE_COLORS, GRADE_VAR, P2PKH_DUST_LIMIT } from "@/lib/constants";
 import { fmtN } from "@/lib/format";
+import { useNetwork } from "@/context/NetworkContext";
+import { NETWORK_CONFIG } from "@/lib/bitcoin/networks";
 import { FlowShell, NewScanLink, Chip } from "./FlowUi";
 import { CoinOrigins } from "@/components/wallet/CoinOrigins";
 import { FindingGroups } from "./FindingGroups";
@@ -81,6 +83,7 @@ const WRAP: Record<ScriptType, (k: string) => string> = {
 
 export function WalletResults({ descriptor, result, addressInfos, utxoTraces, onBack, onScan, durationMs, scriptTypeDetected, gapLimit, onRescanGap, labelRecords, onLabelsChange, saved, saveError, onFullRescan, onForget, query, snapshotKey }: WalletResultsProps) {
   const { t } = useTranslation();
+  const { network } = useNetwork();
   const [addressesOpen, setAddressesOpen] = useState(false);
   const labels = useMemo(
     () => (labelRecords.length > 0 ? matchLabels(labelRecords, addressInfos, descriptor.xpub) : null),
@@ -229,7 +232,7 @@ export function WalletResults({ descriptor, result, addressInfos, utxoTraces, on
           <dl className="space-y-2.5 text-sm">
             <ScopeRow label={t("flows.receiveChain", { defaultValue: "Receive chain" })} value={fmtN(descriptor.receiveAddresses.length)} />
             <ScopeRow label={t("flows.changeChain", { defaultValue: "Change chain" })} value={fmtN(descriptor.changeAddresses.length)} />
-            <ScopeRow label={t("flows.network", { defaultValue: "Network" })} value={descriptor.network} />
+            <ScopeRow label={t("flows.network", { defaultValue: "Network" })} value={NETWORK_CONFIG[network].label} />
             {gapLimit != null && <ScopeRow label={t("wallet.gapLimit", { defaultValue: "Gap limit" })} value={fmtN(gapLimit)} />}
           </dl>
           {gapLimit != null && gapLimit < Math.max(...RESCAN_GAP_LIMITS) && onRescanGap && (

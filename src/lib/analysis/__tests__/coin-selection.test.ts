@@ -5,6 +5,10 @@ import {
 } from "../coin-selection";
 import type { WalletAddressInfo } from "../wallet-audit";
 
+// ponytail: wall-clock budget; CI runs tests under coverage instrumentation (several times slower), so the
+// budget is relaxed only there. Replace with an iteration count if it keeps flaking.
+const PERF_BUDGET_MS = process.env.npm_lifecycle_event === "test:coverage" ? 4_000 : 1_500;
+
 let seq = 0;
 function coin(value: number, opts: Partial<Omit<CoinSelectionInput, "utxo">> & { txid?: string } = {}): CoinSelectionInput {
   const { txid, ...rest } = opts;
@@ -194,7 +198,7 @@ describe("adviseCoinSelection", () => {
     const many = Array.from({ length: 3_000 }, (_, i) => coin(10_000 + (i % 150) * 13, { txid: `grp${i % 20}`, cluster: `grp${i % 20}` }));
     const start = performance.now();
     const a = plans(adviseCoinSelection(many, 400_000, 2, NO_ABSORB));
-    expect(performance.now() - start).toBeLessThan(1_500);
+    expect(performance.now() - start).toBeLessThan(PERF_BUDGET_MS);
     // Change before links: a changeless set first (4 groups: counts as big change by the guard, still
     // better than the one-cluster set's toxic change)
     expect([a.plans[0]!.strategy, a.plans[0]!.change]).toEqual(["no-change", 0]);
@@ -311,7 +315,7 @@ describe("adviseCoinSelection: no-change plan", () => {
     const many = Array.from({ length: 3_000 }, (_, i) => coin(2_000 + i * 2));
     const start = performance.now();
     const a = plans(adviseCoinSelection([coin(10_000_000), ...many], 9_990_000, 3));
-    expect(performance.now() - start).toBeLessThan(1_500);
+    expect(performance.now() - start).toBeLessThan(PERF_BUDGET_MS);
     expect(a.plans[0]!.strategy).toBe("single-coin");
   });
 
@@ -319,7 +323,7 @@ describe("adviseCoinSelection: no-change plan", () => {
     const many = Array.from({ length: 3_000 }, (_, i) => coin(5_000 + i * 7));
     const start = performance.now();
     const a = plans(adviseCoinSelection([coin(5_000_000), ...many], 40_000, 2));
-    expect(performance.now() - start).toBeLessThan(1_500);
+    expect(performance.now() - start).toBeLessThan(PERF_BUDGET_MS);
     expect(a.plans.some(p => p.strategy === "no-change" && p.change === 0)).toBe(true);
   });
 });

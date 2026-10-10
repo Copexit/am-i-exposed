@@ -18,3 +18,18 @@ export function safeHttpUrl(url: string | null | undefined): string | null {
     return null;
   }
 }
+
+/**
+ * The upstream fee string ("0.3% + Free remixing + Free under 0.03 BTC") is free text joined by " + ".
+ * Known phrases are translated; the rate and any unknown part pass through unchanged.
+ */
+export function localizeFees(fees: string, t: (key: string, o: { defaultValue: string; amount?: string }) => string): string {
+  return fees
+    .split(" + ")
+    .map((part) => {
+      if (part === "Free remixing") return t("observatory.wabisabi.fees.freeRemixing", { defaultValue: part });
+      const m = /^Free under (.+)$/.exec(part);
+      return m ? t("observatory.wabisabi.fees.freeUnder", { defaultValue: part, amount: m[1] }) : part;
+    })
+    .join(" + ");
+}
