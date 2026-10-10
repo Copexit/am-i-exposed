@@ -3545,5 +3545,19 @@
   "wallet.coinSel.path.probable_other": "Confirms {{n}} probable links",
   "wallet.coinSel.learn.probable_one": "A confirmation of 1 probable link",
   "wallet.coinSel.learn.probable_other": "A confirmation of {{n}} probable links",
-  "wallet.coinSel.learn.ambiguous-change": "Links change coin #{{n}} to the others; an observer could not tell it was your change from the payment itself"
+  "wallet.coinSel.learn.ambiguous-change": "Links change coin #{{n}} to the others; an observer could not tell it was your change from the payment itself",
+  "observatory.route.wabisabi.title": "Live CoinJoin map: WabiSabi coordinators",
+  "observatory.route.wabisabi.intro": "Live WabiSabi CoinJoin rounds, volume, fees and coordinator history across the public coordinators that Wasabi Wallet and compatible clients use, sourced from Wabisator.",
+  "observatory.route.whirlpool.title": "Whirlpool CoinJoin pools (Ashigaru)",
+  "observatory.route.whirlpool.intro": "Live Whirlpool pool sizes, unspent capacity and recent mixing cycles for Ashigaru and compatible clients, sourced from whirlpoolstats.xyz.",
+  "observatory.route.p2p.title": "KYC-free bitcoin P2P offers: RoboSats, Mostro, HodlHodl",
+  "observatory.p2p.footer.labelHint": "Coins bought here stay KYC-free only while they never merge with KYC coins.",
+  "observatory.p2p.footer.labelLink": "How to label and spend them",
+  "common.coinjoinMap": "CoinJoin map",
+  "guide.topic.labeling.title": "How to label bitcoin UTXOs (BIP329 and Sparrow)",
+  "guide.topic.labeling.intro": "Label every coin by where it came from, so coins that would tie your identities together never end up in the same transaction. Origin prefixes, the rules they imply, a BIP329 example file and the steps in Sparrow.",
+  "guide.topic.spending.title": "Bitcoin coin control privacy checklist",
+  "guide.topic.spending.intro": "Which coins to spend together, when to avoid change and how payment plans are ranked: the checklist the am-i.exposed coin selector follows for every payment.",
+  "guide.topic.related": "Related",
+  "guide.topic.fullGuide": "Full privacy guide"
 }

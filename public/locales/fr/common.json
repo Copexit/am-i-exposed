@@ -3545,5 +3545,19 @@
   "wallet.coinSel.path.probable_other": "Confirme {{n}} liens probables",
   "wallet.coinSel.learn.probable_one": "La confirmation de 1 lien probable",
   "wallet.coinSel.learn.probable_other": "La confirmation de {{n}} liens probables",
-  "wallet.coinSel.learn.ambiguous-change": "Relie la pièce de monnaie #{{n}} aux autres ; un observateur ne pouvait pas savoir, d'après le paiement lui-même, que c'était votre monnaie"
+  "wallet.coinSel.learn.ambiguous-change": "Relie la pièce de monnaie #{{n}} aux autres ; un observateur ne pouvait pas savoir, d'après le paiement lui-même, que c'était votre monnaie",
+  "observatory.route.wabisabi.title": "Carte CoinJoin en direct : coordinateurs WabiSabi",
+  "observatory.route.wabisabi.intro": "Rounds, volume, frais et historique CoinJoin WabiSabi en direct sur les coordinateurs publics utilisés par Wasabi Wallet et les clients compatibles, données de Wabisator.",
+  "observatory.route.whirlpool.title": "Pools CoinJoin Whirlpool (Ashigaru)",
+  "observatory.route.whirlpool.intro": "Taille des pools Whirlpool, capacité non dépensée et cycles de mixage récents en direct pour Ashigaru et les clients compatibles, données de whirlpoolstats.xyz.",
+  "observatory.route.p2p.title": "Offres P2P de bitcoin sans KYC : RoboSats, Mostro, HodlHodl",
+  "observatory.p2p.footer.labelHint": "Les pièces achetées ici restent sans KYC tant qu'elles ne sont jamais fusionnées avec des pièces KYC.",
+  "observatory.p2p.footer.labelLink": "Comment les étiqueter et les dépenser",
+  "common.coinjoinMap": "Carte CoinJoin",
+  "guide.topic.labeling.title": "Comment étiqueter ses UTXO bitcoin (BIP329 et Sparrow)",
+  "guide.topic.labeling.intro": "Étiquette chaque pièce selon son origine, pour que des pièces qui relieraient tes identités ne se retrouvent jamais dans la même transaction. Préfixes d'origine, les règles qui en découlent, un fichier BIP329 d'exemple et les étapes dans Sparrow.",
+  "guide.topic.spending.title": "Liste de confidentialité pour le contrôle des pièces bitcoin",
+  "guide.topic.spending.intro": "Quelles pièces dépenser ensemble, quand éviter la monnaie et comment les plans de paiement sont classés : la liste que suit le sélecteur de pièces d'am-i.exposed à chaque paiement.",
+  "guide.topic.related": "Voir aussi",
+  "guide.topic.fullGuide": "Guide de confidentialité complet"
 }

@@ -19,10 +19,13 @@ export function navItems(): readonly NavItem[] {
 const strip = (p: string) => p.replace(/\/+$/, "") || "/";
 const KNOWLEDGE = new Set(["/guide", "/faq", "/glossary"]);
 
+/** The page itself or one of its subroutes (/observatory/p2p/, /guide/labeling/). */
+const within = (cur: string, target: string) => cur === target || (target !== "/" && cur.startsWith(`${target}/`));
+
 export function isNavActive(href: string, pathname: string): boolean {
   const cur = strip(pathname);
   const target = strip(href);
-  return target === "/guide" ? KNOWLEDGE.has(cur) : cur === target;
+  return target === "/guide" ? [...KNOWLEDGE].some((k) => within(cur, k)) : within(cur, target);
 }
 
 /** Graph link opens the current tx when one is loaded on the scanner. */

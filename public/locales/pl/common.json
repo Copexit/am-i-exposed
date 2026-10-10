@@ -3741,5 +3741,19 @@
   "wallet.coinSel.learn.probable_few": "Potwierdzenie {{n}} prawdopodobnych powiązań",
   "wallet.coinSel.learn.probable_many": "Potwierdzenie {{n}} prawdopodobnych powiązań",
   "wallet.coinSel.learn.probable_other": "Potwierdzenie {{n}} prawdopodobnego powiązania",
-  "wallet.coinSel.learn.ambiguous-change": "Wiąże monetę reszty #{{n}} z pozostałymi; obserwator nie mógł po samej płatności poznać, że to Twoja reszta"
+  "wallet.coinSel.learn.ambiguous-change": "Wiąże monetę reszty #{{n}} z pozostałymi; obserwator nie mógł po samej płatności poznać, że to Twoja reszta",
+  "observatory.route.wabisabi.title": "Mapa CoinJoin na żywo: koordynatorzy WabiSabi",
+  "observatory.route.wabisabi.intro": "Rundy, wolumen, opłaty i historia CoinJoin WabiSabi na żywo u publicznych koordynatorów używanych przez Wasabi Wallet i zgodne klienty, dane z Wabisator.",
+  "observatory.route.whirlpool.title": "Pule CoinJoin Whirlpool (Ashigaru)",
+  "observatory.route.whirlpool.intro": "Rozmiary pul Whirlpool, niewydana pojemność i ostatnie cykle mieszania na żywo dla Ashigaru i zgodnych klientów, dane z whirlpoolstats.xyz.",
+  "observatory.route.p2p.title": "Oferty P2P bitcoina bez KYC: RoboSats, Mostro, HodlHodl",
+  "observatory.p2p.footer.labelHint": "Monety kupione tutaj pozostają bez KYC tylko wtedy, gdy nigdy nie zostaną połączone z monetami KYC.",
+  "observatory.p2p.footer.labelLink": "Jak je oznaczać i wydawać",
+  "common.coinjoinMap": "Mapa CoinJoin",
+  "guide.topic.labeling.title": "Jak oznaczać UTXO bitcoina (BIP329 i Sparrow)",
+  "guide.topic.labeling.intro": "Oznacz każdą monetę według jej pochodzenia, aby monety, które powiązałyby twoje tożsamości, nigdy nie trafiły do tej samej transakcji. Prefiksy pochodzenia, wynikające z nich zasady, przykładowy plik BIP329 i kroki w Sparrow.",
+  "guide.topic.spending.title": "Lista kontrolna prywatności przy kontroli monet bitcoina",
+  "guide.topic.spending.intro": "Które monety wydawać razem, kiedy unikać reszty i jak szeregowane są plany płatności: lista, którą selektor monet am-i.exposed stosuje przy każdej płatności.",
+  "guide.topic.related": "Powiązane",
+  "guide.topic.fullGuide": "Pełny przewodnik po prywatności"
 }

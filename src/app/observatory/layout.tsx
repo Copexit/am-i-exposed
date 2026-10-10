@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 
 export const metadata: Metadata = {
-  title: "CoinJoin Observatory: live WabiSabi map and coordinators | am-i.exposed",
+  title: "CoinJoin Observatory: Live Privacy Stats | am-i.exposed",
   description:
-    "A live map of Bitcoin CoinJoins across the public WabiSabi coordinators: volume, live rounds, coordinator history and remix flows, sourced from Wabisator. Ashigaru Whirlpool pools from whirlpoolstats.xyz. P2P markets: live KYC-free bitcoin offers and premiums from RoboSats, Mostro and HodlHodl.",
+    "Live bitcoin privacy stats: a WabiSabi CoinJoin map and coordinators, Ashigaru Whirlpool pools, and KYC-free P2P offers from RoboSats, Mostro and HodlHodl.",
   keywords: [
     "whirlpool stats",
     "wabisabi coordinator status",
@@ -39,15 +38,6 @@ export const metadata: Metadata = {
   },
 };
 
-export default function ObservatoryLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <>
-      <BreadcrumbJsonLd name="CoinJoin Observatory" path="/observatory/" />
-      {children}
-    </>
-  );
+export default function ObservatoryLayout({ children }: { children: React.ReactNode }) {
+  return children;
 }

@@ -3545,5 +3545,19 @@
   "wallet.coinSel.path.probable_other": "Bestätigt {{n}} wahrscheinliche Verknüpfungen",
   "wallet.coinSel.learn.probable_one": "Eine Bestätigung von 1 wahrscheinlichen Verknüpfung",
   "wallet.coinSel.learn.probable_other": "Eine Bestätigung von {{n}} wahrscheinlichen Verknüpfungen",
-  "wallet.coinSel.learn.ambiguous-change": "Verknüpft Wechselgeld-Coin #{{n}} mit den anderen; ein Beobachter konnte an der Zahlung selbst nicht erkennen, dass es dein Wechselgeld war"
+  "wallet.coinSel.learn.ambiguous-change": "Verknüpft Wechselgeld-Coin #{{n}} mit den anderen; ein Beobachter konnte an der Zahlung selbst nicht erkennen, dass es dein Wechselgeld war",
+  "observatory.route.wabisabi.title": "Live-CoinJoin-Karte: WabiSabi-Koordinatoren",
+  "observatory.route.wabisabi.intro": "WabiSabi-CoinJoin-Runden, Volumen, Gebühren und Verlauf live über die öffentlichen Koordinatoren, die Wasabi Wallet und kompatible Clients nutzen, mit Daten von Wabisator.",
+  "observatory.route.whirlpool.title": "Whirlpool-CoinJoin-Pools (Ashigaru)",
+  "observatory.route.whirlpool.intro": "Whirlpool-Poolgrößen, unausgegebene Kapazität und aktuelle Mixing-Zyklen live für Ashigaru und kompatible Clients, mit Daten von whirlpoolstats.xyz.",
+  "observatory.route.p2p.title": "P2P-Bitcoin-Angebote ohne KYC: RoboSats, Mostro, HodlHodl",
+  "observatory.p2p.footer.labelHint": "Hier gekaufte Coins bleiben nur KYC-frei, solange sie nie mit KYC-Coins zusammengeführt werden.",
+  "observatory.p2p.footer.labelLink": "So labelst und gibst du sie aus",
+  "common.coinjoinMap": "CoinJoin-Karte",
+  "guide.topic.labeling.title": "Bitcoin-UTXOs labeln (BIP329 und Sparrow)",
+  "guide.topic.labeling.intro": "Label jeden Coin nach seiner Herkunft, damit Coins, die deine Identitäten verknüpfen würden, nie in derselben Transaktion landen. Herkunftspräfixe, die Regeln dazu, eine BIP329-Beispieldatei und die Schritte in Sparrow.",
+  "guide.topic.spending.title": "Datenschutz-Checkliste für Bitcoin-Coin-Control",
+  "guide.topic.spending.intro": "Welche Coins zusammen ausgegeben werden, wann Wechselgeld zu vermeiden ist und wie Zahlungspläne gereiht werden: die Checkliste, der die Coin-Auswahl von am-i.exposed bei jeder Zahlung folgt.",
+  "guide.topic.related": "Verwandt",
+  "guide.topic.fullGuide": "Vollständiger Datenschutz-Leitfaden"
 }

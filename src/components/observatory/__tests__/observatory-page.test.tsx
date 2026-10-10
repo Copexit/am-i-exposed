@@ -6,6 +6,8 @@ import summaryFixture from "@/lib/observatory/__tests__/fixtures/whirlpool-summa
 import chartsFixture from "@/lib/observatory/__tests__/fixtures/whirlpool-charts.json";
 import type { WhirlpoolCharts, WhirlpoolSummary } from "@/lib/observatory/types";
 
+vi.mock("next/navigation", () => ({ usePathname: () => window.location.pathname }));
+
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) => {
@@ -44,7 +46,7 @@ vi.mock("@/hooks/useObservatory", () => ({
   }),
 }));
 
-import ObservatoryPage from "@/app/observatory/page";
+import ObservatoryPage from "@/app/observatory/whirlpool/page";
 
 // jsdom has no ResizeObserver (used by the chart's parent-size hook)
 globalThis.ResizeObserver ??= class {
@@ -55,7 +57,7 @@ globalThis.ResizeObserver ??= class {
 
 describe("ObservatoryPage whirlpool trend footer", () => {
   it("reports the 0.025 pool values regardless of upstream pool order", () => {
-    window.history.replaceState(null, "", "/observatory/#whirlpool");
+    window.history.replaceState(null, "", "/observatory/whirlpool/");
     render(<ObservatoryPage />);
     // 0.025_BTC_Pool capacity series runs 0.05 -> 13.65 in the fixture
     expect(screen.getByText(/0\.025 pool: start 0\.05 BTC · end 13\.65 BTC/)).toBeTruthy();

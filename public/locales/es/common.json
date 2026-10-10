@@ -3545,5 +3545,19 @@
   "wallet.coinSel.path.probable_other": "Confirma {{n}} vínculos probables",
   "wallet.coinSel.learn.probable_one": "La confirmación de 1 vínculo probable",
   "wallet.coinSel.learn.probable_other": "La confirmación de {{n}} vínculos probables",
-  "wallet.coinSel.learn.ambiguous-change": "Vincula la moneda de cambio #{{n}} con las demás; un observador no podía saber por el propio pago que era tu cambio"
+  "wallet.coinSel.learn.ambiguous-change": "Vincula la moneda de cambio #{{n}} con las demás; un observador no podía saber por el propio pago que era tu cambio",
+  "observatory.route.wabisabi.title": "Mapa de CoinJoin en directo: coordinadores WabiSabi",
+  "observatory.route.wabisabi.intro": "Rondas, volumen, comisiones e historial de CoinJoin WabiSabi en directo en los coordinadores públicos que usan Wasabi Wallet y los clientes compatibles, con datos de Wabisator.",
+  "observatory.route.whirlpool.title": "Pools de CoinJoin Whirlpool (Ashigaru)",
+  "observatory.route.whirlpool.intro": "Tamaño de los pools Whirlpool, capacidad sin gastar y ciclos de mezcla recientes en directo para Ashigaru y clientes compatibles, con datos de whirlpoolstats.xyz.",
+  "observatory.route.p2p.title": "Ofertas P2P de bitcoin sin KYC: RoboSats, Mostro, HodlHodl",
+  "observatory.p2p.footer.labelHint": "Las monedas compradas aquí siguen sin KYC solo mientras nunca se junten con monedas KYC.",
+  "observatory.p2p.footer.labelLink": "Cómo etiquetarlas y gastarlas",
+  "common.coinjoinMap": "Mapa de CoinJoin",
+  "guide.topic.labeling.title": "Cómo etiquetar UTXOs de bitcoin (BIP329 y Sparrow)",
+  "guide.topic.labeling.intro": "Etiqueta cada moneda según su origen, para que las monedas que unirían tus identidades nunca acaben en la misma transacción. Prefijos de origen, las reglas que implican, un archivo BIP329 de ejemplo y los pasos en Sparrow.",
+  "guide.topic.spending.title": "Lista de privacidad para el control de monedas en bitcoin",
+  "guide.topic.spending.intro": "Qué monedas gastar juntas, cuándo evitar el cambio y cómo se ordenan los planes de pago: la lista que sigue el selector de monedas de am-i.exposed en cada pago.",
+  "guide.topic.related": "Relacionado",
+  "guide.topic.fullGuide": "Guía de privacidad completa"
 }
