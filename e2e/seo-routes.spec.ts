@@ -81,3 +81,13 @@ test("/guide/ links to the topic routes", async ({ page }) => {
   await expect(page).toHaveURL(/\/guide\/labeling\/$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("How to label bitcoin UTXOs (BIP329 and Sparrow)");
 });
+
+test("tab links carry the period and the Map/Table view across tabs", async ({ page }) => {
+  await page.goto("/observatory/wabisabi/#period=7&view=table");
+  await expect(page.getByRole("tab", { name: "Whirlpool (Ashigaru)" })).toHaveAttribute("href", "/observatory/whirlpool/#period=7&view=table");
+  await page.getByRole("tab", { name: "Whirlpool (Ashigaru)" }).click();
+  await expect(page).toHaveURL(/\/observatory\/whirlpool\/#period=7&view=table$/);
+  await page.getByRole("tab", { name: "WabiSabi (Wasabi)" }).click();
+  await expect(page).toHaveURL(/\/observatory\/wabisabi\/#period=7&view=table$/);
+  await expect(page.getByRole("rowheader", { name: /Kruw/ }).first()).toBeVisible({ timeout: 15_000 });
+});

@@ -48,7 +48,13 @@ describe("SEO routes", () => {
     const ld = routeJsonLd("p2p") as { "@graph": [{ itemListElement: { item: string }[] }, { "@type": string; url: string }] };
     expect(ld["@graph"][0].itemListElement.map((i) => i.item)).toEqual([`${ORIGIN}/`, `${ORIGIN}/observatory/`, `${ORIGIN}/observatory/p2p/`]);
     expect(ld["@graph"][1]).toMatchObject({ "@type": "WebPage", url: `${ORIGIN}/observatory/p2p/` });
-    expect((routeJsonLd("labeling") as { "@graph": [unknown, { "@type": string }] })["@graph"][1]["@type"]).toBe("TechArticle");
+    const article = (routeJsonLd("labeling") as { "@graph": [unknown, { "@type": string; datePublished: string; dateModified: string }] })["@graph"][1];
+    expect(article["@type"]).toBe("TechArticle");
+    expect(article.datePublished).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(article.dateModified >= article.datePublished).toBe(true);
+    // dateModified is the sitemap's lastmod for the route.
+    const xml = readFileSync(join(process.cwd(), "public/sitemap.xml"), "utf8");
+    expect(xml).toContain(`<loc>${ORIGIN}/guide/labeling/</loc>\n    <lastmod>${article.dateModified}</lastmod>`);
   });
 
   it("the sitemap lists every route with a lastmod", () => {

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { lastMod, ROUTE_SOURCES } from "../../scripts/lastmod.mjs";
 
 export const ORIGIN = "https://am-i.exposed";
 
@@ -91,6 +92,9 @@ export function routeMetadata(key: SeoRouteKey): Metadata {
   };
 }
 
+/** The same git sources the sitemap's lastmod uses. */
+const sources = (path: string): string => ROUTE_SOURCES[path as keyof typeof ROUTE_SOURCES] ?? `src/app${path}`;
+
 /** BreadcrumbList (Home > parent > page) plus the page node, as one @graph. */
 export function routeJsonLd(key: SeoRouteKey): object {
   const r: SeoRoute = SEO_ROUTES[key];
@@ -105,7 +109,7 @@ export function routeJsonLd(key: SeoRouteKey): object {
     inLanguage: "en",
     isPartOf: { "@type": "WebSite", name: "am-i.exposed", url: `${ORIGIN}/` },
     ...(r.schema === "TechArticle"
-      ? { headline: r.name, author: { "@type": "Organization", name: "Copexit", url: "https://github.com/Copexit" }, image: `${url}opengraph-image` }
+      ? { headline: r.name, datePublished: lastMod(sources(r.path), { first: true }), dateModified: lastMod(sources(r.path)), author: { "@type": "Organization", name: "Copexit", url: "https://github.com/Copexit" }, image: `${url}opengraph-image` }
       : { primaryImageOfPage: `${url}opengraph-image` }),
   };
   return {

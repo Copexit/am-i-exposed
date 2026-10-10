@@ -10,6 +10,7 @@ import { useObservatory } from "@/hooks/useObservatory";
 import { useChainTip } from "@/hooks/useChainTip";
 import { OBSERVATORY_TABS, legacyObsRedirect, obsRouteTab, useObsState, type ObservatoryTab } from "@/hooks/useObsState";
 import { useLocationHash } from "@/components/chrome/useLocationHash";
+import { serializeObsHash } from "@/lib/observatory/obs-hash";
 import { ObservatoryHero } from "@/components/observatory/ObservatoryHero";
 import { WhirlpoolPoolCard } from "@/components/observatory/WhirlpoolPoolCard";
 import { RecentCyclesTable } from "@/components/observatory/RecentCyclesTable";
@@ -91,6 +92,9 @@ export function ObservatoryPage() {
     }[id],
   }));
   const p2p = tab === "p2p";
+  // Period and Map/Table view mean the same on every tab, so a tab link carries them; the rest is per tab.
+  const shared = serializeObsHash({ tab: "", period: obs.period, view: obs.view, coordinator: null, tx: null }).replace(/^#&?/, "");
+  const tabHref = (id: ObservatoryTab) => `/observatory/${id}/${shared ? `#${shared}` : ""}`;
 
   // Tabs are links to the tab routes (crawlable, one history entry each); arrows move focus, Enter follows.
   const onTabKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -123,7 +127,7 @@ export function ObservatoryPage() {
             {tabs.map(({ id, label }) => (
               <Link
                 key={id}
-                href={`/observatory/${id}/`}
+                href={tabHref(id)}
                 id={`observatory-tab-${id}`}
                 role="tab"
                 aria-selected={tab === id}

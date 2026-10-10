@@ -54,6 +54,9 @@ export function GuidePage() {
     return () => clearTimeout(timer);
   }, [scrollTarget]);
 
+  // An old anchor of a moved section: keep the frame blank while the redirect loads, no flash of the full guide.
+  if (guideTopicFor(hash)) return <PageShell>{null}</PageShell>;
+
   return (
     <PageShell>
         <KnowledgeTabBar />
