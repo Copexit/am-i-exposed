@@ -74,7 +74,7 @@ for (const width of [1440, 390]) {
     const panel = page.getByTestId("labels-panel");
     await panel.locator("input[type=file]").setInputFiles({ name: "sparrow.jsonl", mimeType: "application/jsonl", buffer: Buffer.from(LABELS) });
     await expect(panel.getByTestId("labels-summary")).toHaveText(/^13 labels read: \d+ on current coins, \d+ on past transactions and addresses, 1 for other wallets, 1 invalid$/);
-    await expect(panel.getByRole("link", { name: "Labeling recommendations" })).toHaveAttribute("href", "/guide/#labeling-coins");
+    await expect(panel.getByRole("link", { name: "Labeling recommendations" })).toHaveAttribute("href", "/guide/labeling/");
     await shot(page, panel, `${SHOTS}/wb-panel-${width}.png`);
 
     // Chips and labels on the coins
@@ -94,7 +94,7 @@ for (const width of [1440, 390]) {
       await expect(list.getByTestId("label-tag-tip")).toBeVisible();
       await noHorizontalScroll(page);
     }
-    await expect(list.getByTestId("label-tag-tip").getByRole("link", { name: "Labeling recommendations" })).toHaveAttribute("href", "/guide/#labeling-coins");
+    await expect(list.getByTestId("label-tag-tip").getByRole("link", { name: "Labeling recommendations" })).toHaveAttribute("href", "/guide/labeling/");
     await page.keyboard.press("Escape");
     await list.getByRole("button", { name: "Group by label" }).click();
     await expect(list.getByTestId("utxo-label-group")).toHaveCount(4);

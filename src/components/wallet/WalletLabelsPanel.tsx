@@ -94,7 +94,7 @@ export function WalletLabelsPanel({ records, onChange, addressInfos, xpub }: {
     <div className="space-y-4" data-testid="labels-panel">
       <p className="text-sm text-muted leading-relaxed max-w-2xl">
         {t("wallet.labels.intro", { defaultValue: "Import BIP329 labels (.jsonl) exported from Sparrow or another wallet to see them on coins, addresses and transactions, and to let the coin selector follow them. Labels stay in this tab's memory: they are never stored or sent." })}{" "}
-        <a href="/guide/#labeling-coins" className="text-bitcoin hover:text-bitcoin-hover underline-offset-2 hover:underline">
+        <a href="/guide/labeling/" className="text-bitcoin hover:text-bitcoin-hover underline-offset-2 hover:underline">
           {t("wallet.labels.howTo", { defaultValue: "Labeling recommendations" })}
         </a>
       </p>

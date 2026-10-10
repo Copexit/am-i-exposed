@@ -203,7 +203,7 @@ export function CoinSelector({ utxos, control, history }: {
               ? <span className="text-severity-high">{t("wallet.coinSel.recipientInvalid", { defaultValue: "Not a valid address for this network." })}</span>
               : t("wallet.coinSel.recipientNote", { host, defaultValue: "Checked against this wallet's history on this device. The button sends this one address to {{host}}, only when clicked." })}
             {" "}
-            <a href="/guide/#spending-checklist" className="text-bitcoin hover:text-bitcoin-hover underline-offset-2 hover:underline whitespace-nowrap">
+            <a href="/guide/spending/" className="text-bitcoin hover:text-bitcoin-hover underline-offset-2 hover:underline whitespace-nowrap">
               {t("wallet.coinSel.checklistLink", { defaultValue: "Spending checklist" })}
             </a>
           </p>
@@ -702,7 +702,7 @@ export function PlanWarnings({ plan }: { plan: CoinSelectionPlan }) {
             {RULE_OF[w.id] !== undefined && (
               <>
                 {" "}
-                <a href={`/guide/#labeling-rule-${RULE_OF[w.id]}`} className="text-bitcoin hover:text-bitcoin-hover underline-offset-2 hover:underline">
+                <a href={`/guide/labeling/#labeling-rule-${RULE_OF[w.id]}`} className="text-bitcoin hover:text-bitcoin-hover underline-offset-2 hover:underline">
                   {t("wallet.labels.ruleLink", { n: RULE_OF[w.id], rule: t(`guide.labeling.ruleShort${RULE_OF[w.id]}`), defaultValue: "Rule {{n}}: {{rule}}" })}
                 </a>
               </>

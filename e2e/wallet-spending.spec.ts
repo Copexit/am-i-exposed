@@ -76,7 +76,7 @@ for (const width of [1440, 390]) {
 
     // The recipient lives in the hash only
     expect(new URLSearchParams(new URL(page.url()).hash.slice(1)).get("to")).toBe(RECIPIENT);
-    await expect(selector.getByRole("link", { name: "Spending checklist" })).toHaveAttribute("href", "/guide/#spending-checklist");
+    await expect(selector.getByRole("link", { name: "Spending checklist" })).toHaveAttribute("href", "/guide/spending/");
 
     const { sw, iw } = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }));
     expect(sw, `scrollWidth ${sw} > innerWidth ${iw}`).toBeLessThanOrEqual(iw);

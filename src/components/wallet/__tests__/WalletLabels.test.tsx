@@ -158,7 +158,7 @@ describe("wallet labels UI", () => {
     expect(chip.getAttribute("aria-describedby")).toBe(tip.id);
     expect(tip.textContent).toContain("Bought or withdrawn with your identity");
     expect(tip.textContent).toContain("Inherited from the coins it came from.");
-    expect(within(tip).getByRole("link", { name: "Labeling recommendations" }).getAttribute("href")).toBe("/guide/#labeling-coins");
+    expect(within(tip).getByRole("link", { name: "Labeling recommendations" }).getAttribute("href")).toBe("/guide/labeling/");
     fireEvent.keyDown(chip, { key: "Escape" });
     expect(screen.queryByTestId("label-tag-tip")).toBeNull();
   });
@@ -173,7 +173,7 @@ describe("wallet labels UI", () => {
     fireEvent.change(screen.getByLabelText("Fee (sat/vB)"), { target: { value: "1" } });
     fireEvent.click(screen.getByRole("button", { name: "Suggest selection" }));
     const link = screen.getByRole("link", { name: "Rule 1: never merge KYC with no-KYC" });
-    expect(link.getAttribute("href")).toBe("/guide/#labeling-rule-1");
+    expect(link.getAttribute("href")).toBe("/guide/labeling/#labeling-rule-1");
   });
 
   it("lists label checks in the panel and marks the affected coins", () => {
@@ -238,7 +238,7 @@ describe("labels hint (no labels loaded)", () => {
     const onImport = vi.fn();
     const { unmount } = render(<WalletUtxoList addressInfos={infos} onScan={() => {}} onImportLabels={onImport} />);
     const hint = screen.getByTestId("labels-hint");
-    expect(within(hint).getByRole("link", { name: "Labeling recommendations" }).getAttribute("href")).toBe("/guide/#labeling-coins");
+    expect(within(hint).getByRole("link", { name: "Labeling recommendations" }).getAttribute("href")).toBe("/guide/labeling/");
     fireEvent.click(within(hint).getByRole("button", { name: "Import labels" }));
     expect(onImport).toHaveBeenCalled();
     fireEvent.click(within(hint).getByRole("button", { name: "Dismiss the labeling tip" }));

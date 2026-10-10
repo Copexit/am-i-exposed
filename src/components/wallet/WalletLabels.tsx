@@ -70,7 +70,7 @@ export function LabelTagChip({ tag, inherited = false, tip = true }: { tag: Labe
           <span className="block rounded-md border border-card-border bg-surface-elevated shadow-lg px-3 py-2.5 text-[12px] leading-relaxed text-foreground whitespace-normal font-normal space-y-1.5">
             <span className="block">{t(`guide.labeling.prefix.${tag}`)}</span>
             {inherited && <span className="block text-muted">{t("wallet.labels.inheritedTip", { defaultValue: "Inherited from the coins it came from." })}</span>}
-            <a href="/guide/#labeling-coins" className="inline-block text-bitcoin hover:text-bitcoin-hover underline-offset-2 hover:underline">
+            <a href="/guide/labeling/" className="inline-block text-bitcoin hover:text-bitcoin-hover underline-offset-2 hover:underline">
               {t("wallet.labels.howTo", { defaultValue: "Labeling recommendations" })}
             </a>
           </span>

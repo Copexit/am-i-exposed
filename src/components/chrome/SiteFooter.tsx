@@ -40,6 +40,10 @@ export function SiteFooter() {
           aria-label={t("common.footerNavigation", { defaultValue: "Footer navigation" })}
           className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px]"
         >
+          <Link href="/observatory/wabisabi/" className={LINK}>{t("common.coinjoinMap", { defaultValue: "CoinJoin map" })}</Link>
+          <Link href="/observatory/p2p/" className={LINK}>{t("observatory.tabs.p2p", { defaultValue: "P2P markets" })}</Link>
+          <Link href="/guide/labeling/" className={LINK}>{t("guide.toc.labeling", { defaultValue: "Labeling recommendations" })}</Link>
+          <Link href="/guide/spending/" className={LINK}>{t("guide.toc.checklist", { defaultValue: "Spending checklist" })}</Link>
           <Link href="/setup-guide/" className={LINK}>{t("common.setupGuide", { defaultValue: "Setup Guide" })}</Link>
           {VIDEOS_ENABLED && <Link href="/tutorial/" className={LINK}>{t("common.tutorial", { defaultValue: "Tutorial" })}</Link>}
           <Link href="/agents/" className={LINK}>{t("common.agentsCli", { defaultValue: "Agents & CLI" })}</Link>

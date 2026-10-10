@@ -20,7 +20,7 @@ export function LabelsHint({ onImport }: { onImport?: () => void }) {
       <Tags size={14} className="mt-[3px] shrink-0 text-faint" aria-hidden="true" />
       <p className="flex-1 min-w-0">
         {t("wallet.labels.hint", { defaultValue: "Label your coins by origin ([KYC], [noKYC], [CJ]...) so coin selection can warn before you link identities." })}{" "}
-        <a href="/guide/#labeling-coins" className="text-bitcoin hover:text-bitcoin-hover underline-offset-2 hover:underline">{t("wallet.labels.howTo", { defaultValue: "Labeling recommendations" })}</a>
+        <a href="/guide/labeling/" className="text-bitcoin hover:text-bitcoin-hover underline-offset-2 hover:underline">{t("wallet.labels.howTo", { defaultValue: "Labeling recommendations" })}</a>
         {onImport && (
           <>
             {" · "}
@@ -50,7 +50,7 @@ export function NoPrefixHint() {
       <Tags size={14} className="mt-[3px] shrink-0 text-faint" aria-hidden="true" />
       <span className="min-w-0">
         {t("wallet.labels.noPrefix", { defaultValue: "None of your labels use origin prefixes ([KYC], [noKYC], [CJ]...), so coin selection cannot check origin rules." })}{" "}
-        <a href="/guide/#labeling-coins" className="text-bitcoin hover:text-bitcoin-hover underline-offset-2 hover:underline">{t("wallet.labels.howTo", { defaultValue: "Labeling recommendations" })}</a>
+        <a href="/guide/labeling/" className="text-bitcoin hover:text-bitcoin-hover underline-offset-2 hover:underline">{t("wallet.labels.howTo", { defaultValue: "Labeling recommendations" })}</a>
       </span>
     </p>
   );
