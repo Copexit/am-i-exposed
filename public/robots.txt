@@ -2,6 +2,5 @@ User-agent: *
 Allow: /
 
 Disallow: /offline.html
-Disallow: /_next/
 
 Sitemap: https://am-i.exposed/sitemap.xml

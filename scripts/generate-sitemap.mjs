@@ -10,7 +10,12 @@ const PAGES = [
   { path: "/faq/", priority: "0.7", changefreq: "monthly", source: "src/app/faq/page.tsx" },
   { path: "/glossary/", priority: "0.7", changefreq: "monthly", source: "src/app/glossary/page.tsx" },
   { path: "/guide/", priority: "0.8", changefreq: "monthly", source: "src/app/guide/page.tsx" },
+  { path: "/guide/labeling/", priority: "0.7", changefreq: "monthly", source: "src/app/guide/labeling src/components/guide/LabelingSection.tsx" },
+  { path: "/guide/spending/", priority: "0.7", changefreq: "monthly", source: "src/app/guide/spending src/components/guide/LabelingSection.tsx" },
   { path: "/observatory/", priority: "0.7", changefreq: "daily", source: "src/app/observatory/page.tsx" },
+  { path: "/observatory/wabisabi/", priority: "0.7", changefreq: "daily", source: "src/app/observatory/wabisabi src/components/observatory/wabisabi" },
+  { path: "/observatory/whirlpool/", priority: "0.6", changefreq: "daily", source: "src/app/observatory/whirlpool src/components/observatory/ObservatoryPage.tsx" },
+  { path: "/observatory/p2p/", priority: "0.7", changefreq: "daily", source: "src/app/observatory/p2p src/components/observatory/p2p" },
   { path: "/graph/", priority: "0.6", changefreq: "monthly", source: "src/app/graph/page.tsx" },
   { path: "/agents/", priority: "0.6", changefreq: "monthly", source: "src/app/agents/page.tsx" },
   { path: "/welcome/", priority: "0.5", changefreq: "yearly", source: "src/app/welcome/page.tsx" },
@@ -20,10 +25,11 @@ const PAGES = [
 const TUTORIAL = { path: "/tutorial/", priority: "0.7", changefreq: "monthly", source: "src/app/tutorial/page.tsx" };
 if (process.env.NEXT_PUBLIC_VIDEOS === "1" && existsSync(TUTORIAL.source)) PAGES.push(TUTORIAL);
 
-function getLastMod(file) {
+/** Last commit date of the source paths (space-separated files or folders); today when uncommitted. */
+function getLastMod(paths) {
   try {
-    const date = execSync(`git log -1 --format=%cI -- ${file}`, { encoding: "utf-8" }).trim();
-    return date.split("T")[0];
+    const date = execSync(`git log -1 --format=%cI -- ${paths}`, { encoding: "utf-8" }).trim();
+    return date ? date.split("T")[0] : new Date().toISOString().split("T")[0];
   } catch {
     return new Date().toISOString().split("T")[0];
   }
