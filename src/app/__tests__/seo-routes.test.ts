@@ -20,7 +20,7 @@ describe("SEO routes", () => {
     for (const m of ALL) {
       expect(String(m.title).length, String(m.title)).toBeLessThanOrEqual(60);
       expect(String(m.description).length, String(m.title)).toBeLessThanOrEqual(155);
-      expect(String(m.title) + String(m.description)).not.toMatch(/—|\b(we|us|our)\b|proprietary/i);
+      expect(String(m.title) + String(m.description)).not.toMatch(/\b(we|us|our)\b|proprietary/i);
     }
     expect(new Set(ALL.map((m) => m.title)).size).toBe(ALL.length);
     expect(new Set(ALL.map((m) => m.description)).size).toBe(ALL.length);

@@ -20,7 +20,7 @@ src/
 │   ├── globals.css               # Theme tokens (dark default, html[data-theme="light"] overrides)
 │   ├── graph/                    # Standalone graph explorer
 │   ├── observatory/              # Observatory (WabiSabi, Whirlpool, P2P markets)
-│   ├── guide/ faq/ glossary/ about/ agents/ setup-guide/ welcome/   # Route + metadata layout; body in components/pages
+│   ├── guide/ (+ labeling/ spending/) faq/ glossary/ about/ agents/ setup-guide/ welcome/   # Route + metadata layout; body in components/pages; split-out routes share src/app/seo-routes.ts
 │   └── */opengraph-image.tsx     # Static OG / Twitter images per route
 ├── components/
 │   ├── chrome/                   # SiteHeader (nav, settings, mobile menu), SiteFooter, PrivacyNotice, nav.ts
@@ -227,7 +227,8 @@ Backed by Wabisator, not LiquiSabi. Only the four aggregate RPC methods are used
 - **Data:** `src/lib/observatory/wabisator-client.ts` calls `serviceRpc("wabisator", "/api.php", ...)` for `flow-map` (`until` floored to 300 s, `since = until - days*86400`), `coordinators-status`, `volume-history`, `rounds-paginated`. Hooks in `src/hooks/useWabisator.ts` poll only while the page is visible and keep the last good data on failure (flow-map 20/60/120 s for 1/7/30 d, status 10 s, volume 600 s, rounds 60 s).
 - **Models:** `sky-model.ts` (scene, star layout, replay clock, particle caps), `board.ts` (live round cards), `coordinator-page.ts`, `obs-search.ts` (txid/date), `coordinator-palette.ts`, `obs-format.ts`.
 - **Components:** `src/components/observatory/wabisabi/`: `WabiSabiTab` (sections, sticky sub-nav with scroll-spy), `SkyMap` + `sky-renderer` (canvas), `Timeline`, `Ticker`, `StatsStrip`, `TableView`, `LiveBoard`/`RoundRow`, `CoordinatorPage` (`VolumeHistoryChart`, `RoundsTable`), `RemixFlows`, `ObsSearch`.
-- **URL state:** `useObsState` / `obs-hash.ts`: `#wabisabi&period=1|7|30&coordinator=<key>&tx=<txid>&view=map|table`. Unknown coordinators and malformed txids are dropped.
+- **Routes:** each tab is a static route (`/observatory/wabisabi/`, `/observatory/whirlpool/`, `/observatory/p2p/`) with its own metadata, OG images and JSON-LD (`src/app/seo-routes.ts`); `/observatory/` is the hub (WabiSabi shown). Tabs are links between the routes. Old hub links (`/observatory/#p2p&cur=EUR`) redirect to the tab route keeping the rest of the hash (`legacyObsRedirect`).
+- **URL state:** `useObsState` / `obs-hash.ts`: the tab comes from the path (`obsRouteTab`), the rest from the hash: `/observatory/wabisabi/#period=1|7|30&coordinator=<key>&tx=<txid>&view=map|table`. Unknown coordinators and malformed txids are dropped.
 - **e2e:** `mockObservatoryApi` serves the aggregate methods from `src/lib/observatory/__tests__/fixtures/wabisator/`.
 
 ## Observatory (P2P markets tab)
@@ -240,7 +241,7 @@ Live KYC-free offers from RoboSats (whole federation), Mostro and HodlHodl. Spec
 - **Pure modules:** `src/lib/observatory/p2p/`: `nostr-verify.ts` (NIP-01 id + BIP-340 Schnorr, verified in the browser), `normalize-robosats.ts` / `normalize-mostro.ts` / `normalize-hodlhodl.ts` (one `P2pOffer` schema; trader names, content, titles and descriptions are never read), `sanitize.ts` (payment methods and notices), `market.ts` (index, markets, depth, board, headline), `volume.ts`.
 - **Data:** `p2p-client.ts` + `src/hooks/useP2p.ts` (`useP2p`, `useP2pHistory`), polled with `src/hooks/usePolled.ts`: orders 30 s, coordinator info 60 s, index and Mostro info 300 s, HodlHodl 60 s; history (1 h) and Mostro trades (600 s) load when the Volume section nears the viewport. Each source reports `ok`, `partial`, `stale`, `down` or `loading`.
 - **Components:** `src/components/observatory/p2p/`: `P2pTab`, `P2pHeadline`, `SourceStrip`, `MarketSelector`, `DepthWall`, `OfferList` (+ `offer-facts`), `PremiumBoard`, `VenueSection`, `P2pVolume`, `P2pFooter`. Colours: `--p2p-*` tokens in `globals.css`, read through `venue-palette.ts`.
-- **URL state:** `#p2p&cur=EUR&side=sell&venue=robosats,mostro&view=table&coordinator=<key>`; `cur`, `side` and `venue` replace the history entry.
+- **URL state:** `/observatory/p2p/#cur=EUR&side=sell&venue=robosats,mostro&view=table&coordinator=<key>`; `cur`, `side` and `venue` replace the history entry.
 - **e2e:** `mockObservatoryApi` also serves the P2P routes from `src/lib/observatory/__tests__/fixtures/p2p/` (signed sample for both order snapshots, since redacted events fail verification); `failP2pRoute` makes one route 502.
 
 ## Key design decisions
