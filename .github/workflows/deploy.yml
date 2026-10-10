@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history: sitemap lastmod and JSON-LD dates come from git log
 
       - uses: pnpm/action-setup@v4
 
