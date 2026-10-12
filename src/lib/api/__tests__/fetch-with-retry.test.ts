@@ -164,6 +164,35 @@ describe("fetchWithRetry", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
+  it("retries a timed-out attempt when retryTimeouts is on (hosted APIs)", async () => {
+    mockFetch
+      .mockRejectedValueOnce(new DOMException("Signal timed out", "TimeoutError"))
+      .mockResolvedValueOnce(ok());
+    const result = settle(fetchWithRetry("https://example.com", { retryTimeouts: true }));
+    await vi.runAllTimersAsync();
+    const settled = await result;
+    expect(settled.ok).toBe(true);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("gives up after the retries when every attempt times out, with retryTimeouts on", async () => {
+    mockFetch.mockRejectedValue(new DOMException("Signal timed out", "TimeoutError"));
+    const result = settle(fetchWithRetry("https://example.com", { retryTimeouts: true }));
+    await vi.runAllTimersAsync();
+    const settled = await result;
+    expect(settled.ok).toBe(false);
+    if (!settled.ok) expect((settled.error as ApiError).message).toBe("Request timed out");
+    expect(mockFetch).toHaveBeenCalledTimes(4);
+  });
+
+  it("does not pass its own options to fetch", async () => {
+    mockFetch.mockResolvedValueOnce(ok());
+    await fetchWithRetry("https://example.com", { retryTimeouts: true, timeoutMs: 5 });
+    const init = mockFetch.mock.calls[0]![1] as Record<string, unknown>;
+    expect(init).not.toHaveProperty("retryTimeouts");
+    expect(init).not.toHaveProperty("timeoutMs");
+  });
+
   it("does not retry when the caller's signal aborted", async () => {
     const controller = new AbortController();
     mockFetch.mockImplementation(async () => {

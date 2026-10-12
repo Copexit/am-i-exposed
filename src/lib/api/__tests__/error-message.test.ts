@@ -16,7 +16,9 @@ describe("mapApiErrorMessage", () => {
 
   it("picks the backend-specific network message", () => {
     const err = new ApiError("NETWORK_ERROR", "Request timed out");
-    expect(mapApiErrorMessage(err, t, hosted).message).toBe("errors.network");
+    // A hosted timeout means a slow API, not a broken connection
+    expect(mapApiErrorMessage(err, t, hosted).message).toBe("errors.timeout");
+    expect(mapApiErrorMessage(new ApiError("NETWORK_ERROR", "Network request failed"), t, hosted).message).toBe("errors.network");
     expect(mapApiErrorMessage(err, t, { isUmbrel: true, isCustomApi: false }).message).toBe("errors.network_umbrel");
     expect(mapApiErrorMessage(err, t, { isUmbrel: false, isCustomApi: true }).message).toBe("errors.network_custom");
   });

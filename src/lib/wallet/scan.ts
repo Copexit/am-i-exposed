@@ -151,8 +151,10 @@ export async function scanChain(
         // Only rate limits and 5xx are worth waiting for. Network failures were
         // already retried by fetchWithRetry (a timeout would just repeat the same
         // slow query), and 404/4xx/invalid input are deterministic.
+        // On hosted APIs a timeout is transient too (intermittent ~30 s stalls on mempool.space)
         const transient = e instanceof ApiError
-          && (e.code === "RATE_LIMITED" || (e.code === "API_UNAVAILABLE" && (e.status ?? 0) >= 500));
+          && (e.code === "RATE_LIMITED" || (e.code === "API_UNAVAILABLE" && (e.status ?? 0) >= 500)
+            || (!isLocal && e.code === "NETWORK_ERROR"));
         if (!transient) break;
       }
     }

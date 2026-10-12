@@ -326,6 +326,7 @@
   "errors.psbt_parse": "Nie udało się sparsować PSBT: {{message}}",
   "errors.rate_limited": "Ograniczono liczbę żądań przez mempool.space. Poczekaj chwilę i spróbuj ponownie.",
   "errors.try_again": "Spróbuj ponownie",
+  "errors.timeout": "mempool.space odpowiadał zbyt długo. Może być teraz przeciążony: spróbuj ponownie za kilka minut lub podłącz własny węzeł.",
   "errors.unexpected": "Wystąpił nieoczekiwany błąd.",
   "exchange.activeExchanges": "Aktywne giełdy z udokumentowanymi zasadami CoinJoin",
   "exchange.defunctExchanges": "Historyczne (już niedziałające)",

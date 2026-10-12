@@ -314,6 +314,7 @@
   "errors.psbt_parse": "Failed to parse PSBT: {{message}}",
   "errors.rate_limited": "Rate limited by mempool.space. Please wait a moment and try again.",
   "errors.try_again": "Try again",
+  "errors.timeout": "mempool.space took too long to answer. It may be busy right now: try again in a few minutes, or connect your own node.",
   "errors.unexpected": "An unexpected error occurred.",
   "exchange.activeExchanges": "Active exchanges with documented CoinJoin policies",
   "exchange.defunctExchanges": "Historical (no longer operating)",

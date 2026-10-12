@@ -20,6 +20,12 @@ const REQUEST_TIMEOUT_MS = 15_000;
 interface FetchRetryOptions extends RequestInit {
   /** Per-attempt timeout in ms. Defaults to 15_000. */
   timeoutMs?: number;
+  /**
+   * Retry an attempt that timed out. On for hosted APIs (mempool.space intermittently stalls a
+   * request for ~30 s while an immediate retry answers in under a second); off for self-hosted
+   * backends, where a timeout means a heavy query that a retry would only repeat.
+   */
+  retryTimeouts?: boolean;
 }
 
 const sleep = abortableSleep;
@@ -41,7 +47,8 @@ export async function fetchWithRetry(
       const fetchSignal = options?.signal
         ? abortSignalAny([options.signal, timeoutSignal])
         : timeoutSignal;
-      const response = await fetch(url, { ...options, signal: fetchSignal });
+      const { timeoutMs: _t, retryTimeouts: _r, ...init } = options ?? {};
+      const response = await fetch(url, { ...init, signal: fetchSignal });
 
       if (response.ok) return response;
 
@@ -75,6 +82,10 @@ export async function fetchWithRetry(
       // A per-attempt timeout is final: retrying would send a slow backend the
       // same heavy query again and multiply the wait (60s per attempt on Umbrel).
       if (error instanceof DOMException && (error.name === "TimeoutError" || error.name === "AbortError")) {
+        if (options?.retryTimeouts && attempt < MAX_RETRIES) {
+          await sleep(retryDelay(attempt), options?.signal ?? undefined);
+          continue;
+        }
         throw new ApiError("NETWORK_ERROR", "Request timed out");
       }
 

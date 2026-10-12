@@ -105,7 +105,7 @@ export function formatWalletResult(
   lines.push(line("Active addrs:", String(result.activeAddresses)));
   lines.push(line("Transactions:", String(result.totalTxs)));
   lines.push(line("UTXOs:", String(result.totalUtxos)));
-  lines.push(line("Balance:", `${formatSats(result.totalBalance)} sats`));
+  lines.push(line("Balance:", formatSats(result.totalBalance)));
   lines.push(line("Reused addrs:", String(result.reusedAddresses)));
   lines.push(line("Dust UTXOs:", String(result.dustUtxos)));
   const origins = COIN_CLASSES.filter((c) => result.utxoOrigins[c].count > 0)
