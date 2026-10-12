@@ -32,6 +32,12 @@ export function mapApiErrorMessage(
           retryable: true,
         };
       case "NETWORK_ERROR":
+        if (err.message === "Request timed out" && !isUmbrel && !isCustomApi) {
+          return {
+            message: t("errors.timeout", { defaultValue: "mempool.space took too long to answer. It may be busy right now: try again in a few minutes, or connect your own node." }),
+            retryable: true,
+          };
+        }
         return {
           message: isUmbrel
             ? t("errors.network_umbrel", { defaultValue: "Connection to local mempool failed. Try restarting mempool from your Umbrel dashboard." })

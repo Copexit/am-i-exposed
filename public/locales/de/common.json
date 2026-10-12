@@ -314,6 +314,7 @@
   "errors.psbt_parse": "PSBT konnte nicht geparst werden: {{message}}",
   "errors.rate_limited": "Ratelimit von mempool.space erreicht. Bitte warte einen Moment und versuche es erneut.",
   "errors.try_again": "Erneut versuchen",
+  "errors.timeout": "mempool.space hat zu lange gebraucht, um zu antworten. Es ist vielleicht gerade ausgelastet: Versuche es in ein paar Minuten erneut oder verbinde deinen eigenen Node.",
   "errors.unexpected": "Ein unerwarteter Fehler ist aufgetreten.",
   "exchange.activeExchanges": "Aktive Börsen mit dokumentierten CoinJoin-Richtlinien",
   "exchange.defunctExchanges": "Historisch (nicht mehr in Betrieb)",

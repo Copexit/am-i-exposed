@@ -27,6 +27,8 @@ export interface MempoolClientOptions {
   signal?: AbortSignal;
   /** Per-request timeout in ms. Defaults to 15s. Use longer for local Electrs backends. */
   timeoutMs?: number;
+  /** Retry timed-out requests (hosted APIs only, see fetchWithRetry). */
+  retryTimeouts?: boolean;
 }
 
 /** Shared implementation for historical price fetching by currency. */
@@ -53,13 +55,14 @@ export function createMempoolClient(baseUrl: string, options?: MempoolClientOpti
   const base = baseUrl.replace(/\/+$/, "");
   const signal = options?.signal;
   const timeoutMs = options?.timeoutMs;
+  const retryTimeouts = options?.retryTimeouts;
 
   /** Combine the client signal with an optional per-call one. */
   const withCallSignal = (callSignal?: AbortSignal) =>
     callSignal && signal ? abortSignalAny([signal, callSignal]) : (callSignal ?? signal);
 
   async function get<T>(path: string, callSignal?: AbortSignal): Promise<T> {
-    const res = await fetchWithRetry(`${base}${path}`, { signal: withCallSignal(callSignal), timeoutMs });
+    const res = await fetchWithRetry(`${base}${path}`, { signal: withCallSignal(callSignal), timeoutMs, retryTimeouts });
     try {
       return await res.json();
     } catch {
@@ -68,7 +71,7 @@ export function createMempoolClient(baseUrl: string, options?: MempoolClientOpti
   }
 
   async function getText(path: string): Promise<string> {
-    const res = await fetchWithRetry(`${base}${path}`, { signal, timeoutMs });
+    const res = await fetchWithRetry(`${base}${path}`, { signal, timeoutMs, retryTimeouts });
     return res.text();
   }
 

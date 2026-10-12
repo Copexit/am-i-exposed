@@ -314,6 +314,7 @@
   "errors.psbt_parse": "Error al analizar PSBT: {{message}}",
   "errors.rate_limited": "Límite de tasa alcanzado en mempool.space. Por favor espera un momento e intenta de nuevo.",
   "errors.try_again": "Intentar de nuevo",
+  "errors.timeout": "mempool.space ha tardado demasiado en responder. Puede que esté saturado: inténtalo de nuevo en unos minutos o conecta tu propio nodo.",
   "errors.unexpected": "Ocurrió un error inesperado.",
   "exchange.activeExchanges": "Exchanges activos con políticas documentadas sobre CoinJoin",
   "exchange.defunctExchanges": "Históricos (ya no operan)",

@@ -44,13 +44,13 @@ export function isLocalApi(url: string): boolean {
  * on large addresses). Hosted mempool.space keeps the default 15s timeout.
  */
 export function createApiClient(config: NetworkConfig, signal?: AbortSignal, { fresh = false } = {}) {
-  const timeoutMs = isLocalApi(config.mempoolBaseUrl)
-    ? LOCAL_TIMEOUT_MS
-    : HOSTED_TIMEOUT_MS;
+  const local = isLocalApi(config.mempoolBaseUrl);
+  const timeoutMs = local ? LOCAL_TIMEOUT_MS : HOSTED_TIMEOUT_MS;
+  const retryTimeouts = !local;
   // `fresh`: bypass the response cache (a saved wallet's quick refresh needs current data)
   return fresh
-    ? createMempoolClient(config.mempoolBaseUrl, { signal, timeoutMs })
-    : createCachedMempoolClient(config.mempoolBaseUrl, undefined, { signal, timeoutMs });
+    ? createMempoolClient(config.mempoolBaseUrl, { signal, timeoutMs, retryTimeouts })
+    : createCachedMempoolClient(config.mempoolBaseUrl, undefined, { signal, timeoutMs, retryTimeouts });
 }
 
 export type ApiClient = ReturnType<typeof createApiClient>;
