@@ -72,6 +72,7 @@ export function useSaveLoadShare(args: UseSaveLoadShareArgs) {
     nodes: nodes ?? new Map(),
     rootTxid: rootTxid ?? "",
     rootTxids: rootTxids ?? new Set(),
+    addedRoots: new Set(),
     maxNodes: 100,
     undoStack: [],
     loading: new Set(),
@@ -94,28 +95,18 @@ export function useSaveLoadShare(args: UseSaveLoadShareArgs) {
   }, [saveName, rootTxid, buildGraphState, network, saveGraph, graphs.length, t, posOverrides, savedAnnotations, nodeLabels, edgeLabels, layoutMode, hiddenTxids]);
 
   const handleUpdate = useCallback(() => {
-    if (!currentGraphId) return;
-    const state = buildGraphState();
-    const nodesArr = [...state.nodes.values()].map((n) => ({
-      txid: n.txid, depth: n.depth,
-      parentEdge: n.parentEdge ? { ...n.parentEdge } : undefined,
-      childEdge: n.childEdge ? { ...n.childEdge } : undefined,
-    }));
-    const hidden = [...(hiddenTxids ?? [])].filter((txid) => state.nodes.has(txid));
-    const ok = updateGraph(currentGraphId, {
-      nodes: nodesArr,
-      rootTxid: state.rootTxid,
-      rootTxids: [...state.rootTxids],
-      layoutMode: layoutMode === "time" ? layoutMode : undefined,
-      hiddenTxids: hidden.length ? hidden : undefined,
-    });
+    if (!currentGraphId || !network) return;
+    // The whole graph, as Save writes it (labels, annotations, positions, ...), under the same id and name
+    const name = graphs.find((g) => g.id === currentGraphId)?.name ?? "";
+    const serialized = serializeGraph(buildGraphState(), name, network, undefined, undefined, posOverrides, savedAnnotations, nodeLabels, edgeLabels, layoutMode, hiddenTxids);
+    const ok = updateGraph(currentGraphId, serialized);
     if (!ok) {
       setToast(t("workspace.storageFull", { defaultValue: "Browser storage is full. Delete some bookmarks or saved graphs and try again." }));
       return;
     }
     setToast(t("graphSaveLoad.updated", { defaultValue: "Graph updated" }));
     setActivePanel(null);
-  }, [currentGraphId, buildGraphState, updateGraph, t, layoutMode, hiddenTxids]);
+  }, [currentGraphId, network, graphs, buildGraphState, updateGraph, t, posOverrides, savedAnnotations, nodeLabels, edgeLabels, layoutMode, hiddenTxids]);
 
   const handleShare = useCallback(() => {
     if (!network) return;

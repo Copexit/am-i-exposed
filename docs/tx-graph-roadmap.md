@@ -8,7 +8,7 @@ See `docs/adr-oxt-graph.md` for the current architecture and `docs/research-oxt-
 
 ## Shipped: Investigation Tools
 
-Four features for tracing and organising a graph. All run in the browser against mempool.space only.
+Four features for tracing and organising a graph. All run in the browser against the configured mempool backend (mempool.space or your own instance).
 
 ### Find connection
 
@@ -31,7 +31,7 @@ The Save panel exports node and edge labels as a BIP329 `.jsonl` file and import
 The "Time" toolbar toggle (shortcut `t`) places nodes in columns by block height, with a header per column and a gap marker for skipped blocks; unconfirmed transactions go last. In port mode, 3 or more parallel outputs between the same two transactions are drawn as one thicker edge with a ×N badge; the badge toggles the individual output curves.
 
 Limits:
-- Time-mode drags are not saved. The saved positions belong to the hops layout, and switching layouts drops the other mode's drags. A saved graph remembers the layout mode only.
+- Time-mode drags are not saved. The saved positions belong to the hops layout, and leaving the time layout drops its drags (hops drags are kept). A saved graph remembers the layout mode only.
 
 ### Multi-select and batch actions
 

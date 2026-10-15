@@ -69,3 +69,29 @@ test("graph labels: BIP329 import with a preview, export round trip", async ({ p
   rows = await exported();
   expect(rows).toContainEqual({ type: "tx", ref: ROOT.txid, label: "mixer exit" });
 });
+
+test("labels imported into an open saved graph survive Update and reopening", async ({ page }) => {
+  await mockMempoolApi(page);
+  await mockExtraTxs(page, [buildParent()]);
+  await page.goto(`/graph/#txid=${ROOT.txid}`);
+  await expect(page.getByText(label(ROOT.txid))).toBeVisible({ timeout: 15_000 });
+  await page.getByTitle("Save graph (S)").click();
+  const nameInput = page.getByPlaceholder("Graph name...");
+  await nameInput.fill("Labelled");
+  await nameInput.locator("..").getByRole("button", { name: "Save", exact: true }).click();
+
+  // With no hash, the page reopens the saved graph, so Update is offered
+  await page.goto("/graph/");
+  await expect(page.getByText(label(ROOT.txid))).toBeVisible({ timeout: 15_000 });
+  await page.getByTitle("Save graph (S)").click();
+  const io = page.getByTestId("graph-labels-io");
+  await io.locator("input[type=file]").setInputFiles(file([{ type: "tx", ref: ROOT.txid, label: "exchange deposit" }]));
+  await expect(page.getByTestId("graph-labels-status")).toHaveText("1 label imported");
+  await page.getByRole("button", { name: "Update", exact: true }).click();
+
+  await page.goto("/graph/");
+  await expect(page.getByText(label(ROOT.txid))).toBeVisible({ timeout: 15_000 });
+  await page.getByTitle("Save graph (S)").click();
+  const [d] = await Promise.all([page.waitForEvent("download"), io.getByRole("button", { name: "Export labels (BIP329)" }).click()]);
+  expect(readFileSync((await d.path())!, "utf8")).toContain("exchange deposit");
+});

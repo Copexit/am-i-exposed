@@ -164,7 +164,7 @@ function graphExplorerReducer(state: GraphExplorerState, action: GraphExplorerAc
     case "RESET_VIEW":
       return {
         ...state, unbundledPairs: new Set(), nodePositionOverrides: new Map(), timePositionOverrides: new Map(),
-        selection: new Set(), hidden: new Set(), isolate: null,
+        selection: new Set(), hidden: new Set(), isolate: null, highlightTxids: new Set(),
       };
     case "SET_NODE_POSITION_OVERRIDES":
       return { ...state, nodePositionOverrides: action.overrides };
@@ -258,6 +258,9 @@ function graphExplorerReducer(state: GraphExplorerState, action: GraphExplorerAc
         hidden: new Set(savedHiddenTxids(action.graph)),
         selection: new Set(),
         isolate: null,
+        highlightTxids: new Set(),
+        selectMode: false,
+        pickMode: false,
       };
     case "CLEAR_FULLSCREEN":
       return { ...state, selectedNode: null, viewTransform: { x: 0, y: 0, scale: 1 } };

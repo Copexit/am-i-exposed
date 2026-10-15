@@ -39,13 +39,12 @@ export function useSavedGraphs() {
   const updateGraph = useCallback(
     (
       id: string,
-      patch: Partial<
-        Pick<SavedGraph, "name" | "nodes" | "rootTxid" | "rootTxids" | "viewTransform" | "changeOutputs" | "layoutMode" | "hiddenTxids">
-      >,
+      /** Fields to replace (a key set to undefined clears that field). Never the id. */
+      patch: Partial<SavedGraph>,
     ): boolean => {
       const existing = savedGraphStore.getSnapshot();
       const updated = existing.map((g) =>
-        g.id === id ? { ...g, ...patch, savedAt: Date.now() } : g,
+        g.id === id ? { ...g, ...patch, id: g.id, savedAt: Date.now() } : g,
       );
       return savedGraphStore.set(updated);
     },

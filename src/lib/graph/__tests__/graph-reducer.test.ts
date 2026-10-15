@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { graphReducer, makeInitialState, type GraphState } from "../graph-reducer";
+import { graphReducer, makeInitialState, type GraphAction, type GraphState } from "../graph-reducer";
 import { makeTx } from "@/lib/analysis/heuristics/__tests__/fixtures/tx-factory";
 
 function withRoot(txid: string): GraphState {
@@ -92,5 +92,45 @@ describe("graphReducer REMOVE_NODES", () => {
   it("is a no-op when only roots or unknown txids are given", () => {
     const state = built();
     expect(graphReducer(state, { type: "REMOVE_NODES", txids: ["root", "zzz"] })).toBe(state);
+  });
+});
+
+describe("graphReducer added roots (a connection path anchored on its own)", () => {
+  const node = (txid: string, from: string) =>
+    ({ txid, tx: makeTx({ txid }), depth: 1, parentEdge: { fromTxid: from, outputIndex: 0 } });
+  // root, plus an extra root r2 with a child k2 hanging only from it
+  const withExtra = () => graphReducer(withRoot("root"), {
+    type: "ADD_NODES", nodes: [{ txid: "r2", tx: makeTx({ txid: "r2" }), depth: 0 }, node("k2", "r2")], root: "r2",
+  });
+
+  it("removes an added root and its cascade; the primary root stays", () => {
+    const actions: GraphAction[] = [{ type: "REMOVE_NODE", txid: "r2" }, { type: "REMOVE_NODES", txids: ["r2", "root"] }];
+    for (const action of actions) {
+      const next = graphReducer(withExtra(), action);
+      expect([...next.nodes.keys()]).toEqual(["root"]);
+      expect([...next.rootTxids]).toEqual(["root"]);
+    }
+  });
+
+  it("UNDO of the removal brings the added root back as a root", () => {
+    const removed = graphReducer(withExtra(), { type: "REMOVE_NODE", txid: "r2" });
+    const back = graphReducer(removed, { type: "UNDO" });
+    expect([...back.rootTxids]).toEqual(["root", "r2"]);
+    expect(back.nodes.has("k2")).toBe(true);
+  });
+
+  it("Reset returns to the primary root only", () => {
+    const next = graphReducer(withExtra(), { type: "RESET" });
+    expect([...next.nodes.keys()]).toEqual(["root"]);
+    expect([...next.rootTxids]).toEqual(["root"]);
+    expect(next.addedRoots.size).toBe(0);
+  });
+
+  it("roots of a multi-root graph are never removed", () => {
+    const multi = graphReducer(makeInitialState(200), {
+      type: "SET_MULTI_ROOT", txs: new Map([["a", makeTx({ txid: "a" })], ["b", makeTx({ txid: "b" })]]),
+    });
+    expect(graphReducer(multi, { type: "REMOVE_NODES", txids: ["a", "b"] })).toBe(multi);
+    expect([...graphReducer(multi, { type: "RESET" }).rootTxids]).toEqual(["a", "b"]);
   });
 });

@@ -230,6 +230,8 @@ export interface GraphCanvasProps {
   excludedTxids?: ReadonlySet<string>;
   /** Escape belongs to the window handler (selection, select mode, pick mode, panel): the canvas leaves it. */
   escapeTaken?: boolean;
+  /** Roots added by a connection path: removable like any node. */
+  removableRoots?: ReadonlySet<string>;
 }
 
 export interface MinimapProps {

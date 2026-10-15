@@ -469,7 +469,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
     layoutMode, unbundledPairs,
     onToggleBundle: (key: string) => dispatch({ type: "TOGGLE_BUNDLE", key }),
     // In pick mode a click (with or without a modifier) sets the connection's To
-    selection, selectMode, excludedTxids,
+    selection, selectMode, excludedTxids, removableRoots: graph.addedRoots,
     // The window handler owns Escape while any of these is open
     escapeTaken: selection.size > 0 || selectMode || pickMode || !!connection,
     onToggleSelect: pickMode ? undefined : (txid: string) => dispatch({ type: "TOGGLE_SELECTED", txid }),

@@ -329,6 +329,7 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     nodes: state.nodes,
     rootTxid: state.rootTxid,
     rootTxids: state.rootTxids,
+    addedRoots: state.addedRoots,
     loading: state.loading,
     errors: state.errors,
     nodeCount: state.nodes.size,

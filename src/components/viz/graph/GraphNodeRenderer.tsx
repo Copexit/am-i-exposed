@@ -30,6 +30,8 @@ type GraphNodeRendererProps = Omit<NodeLabelAnnotationProps, "node"> & {
   hoveredEdges: Set<string> | null;
   focusedNode: string | null;
   highlightTxids?: Set<string>;
+  /** Shows the collapse button (false for the roots the graph was built from). */
+  canCollapse: boolean;
   /** In the multi-selection: drawn with a solid outline. */
   isSelected?: boolean;
   focusSpotlight: { nodes: Set<string>; edges: Set<string> } | null;
@@ -75,6 +77,7 @@ export function GraphNodeRenderer({
   focusedNode,
   highlightTxids,
   isSelected,
+  canCollapse,
   focusSpotlight,
   expandedNodeTxid,
   heatMapActive,
@@ -328,6 +331,7 @@ export function GraphNodeRenderer({
         onExpandInput={onExpandInput}
         onExpandOutput={onExpandOutput}
         onCollapse={onCollapse}
+        canCollapse={canCollapse}
       />
 
       <NodeLabelAnnotation

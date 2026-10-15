@@ -16,6 +16,8 @@ interface NodeExpandButtonsProps {
   onExpandInput: (txid: string, inputIndex: number) => void;
   onExpandOutput: (txid: string, outputIndex: number) => void;
   onCollapse: (txid: string) => void;
+  /** Shows the collapse button (every node but a root the graph was built from). */
+  canCollapse: boolean;
 }
 
 export function NodeExpandButtons({
@@ -27,6 +29,7 @@ export function NodeExpandButtons({
   onExpandInput,
   onExpandOutput,
   onCollapse,
+  canCollapse,
 }: NodeExpandButtonsProps) {
   const { t } = useTranslation();
   const expandProps = { r: 11, fill: SVG_COLORS.surfaceElevated, stroke: color, strokeWidth: 1.5, glyph: "+", glyphColor: color, fontSize: 16 };
@@ -80,8 +83,8 @@ export function NodeExpandButtons({
         ) : null;
       })()}
 
-      {/* Collapse button for non-root nodes */}
-      {!node.isRoot && (
+      {/* Collapse button: non-root nodes and roots added by a connection path */}
+      {canCollapse && (
         <SvgCircleButton
           cx={node.x + node.width - 8}
           cy={node.y + node.height - 6}

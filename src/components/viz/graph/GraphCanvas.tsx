@@ -76,6 +76,7 @@ export function GraphCanvas({
   selectMode,
   excludedTxids,
   escapeTaken,
+  removableRoots,
 }: GraphCanvasProps) {
   // Subscribe to theme changes so SVG_COLORS proxy resolves fresh values on re-render
   useTheme();
@@ -458,6 +459,7 @@ export function GraphCanvas({
             focusedNode={focusedNode}
             highlightTxids={highlightTxids}
             isSelected={!!selection?.has(node.txid)}
+            canCollapse={!node.isRoot || !!removableRoots?.has(node.txid)}
             focusSpotlight={focusSpotlight}
             expandedNodeTxid={expandedNodeTxid ?? null}
             heatMapActive={heatMapActive}

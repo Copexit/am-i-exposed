@@ -38,6 +38,12 @@ export interface GraphState {
   rootTxid: string;
   /** All root txids (multi-root mode). Single-root mode has one entry. */
   rootTxids: Set<string>;
+  /**
+   * Txids that ADD_NODES made extra roots (a connection path with no tx in the
+   * graph). Unlike the roots the graph was built from, these can be removed and
+   * Reset drops them. Kept after a removal so UNDO can restore one as a root.
+   */
+  addedRoots: Set<string>;
   /** Maximum nodes allowed in the graph. */
   maxNodes: number;
   /** Stack of previous node snapshots for undo (most recent last). */
@@ -87,7 +93,7 @@ function freshState(
   rootTxids: Set<string>,
   maxNodes: number,
 ): GraphState {
-  return { nodes, rootTxid, rootTxids, maxNodes, undoStack: [], loading: new Set(), errors: new Map() };
+  return { nodes, rootTxid, rootTxids, addedRoots: new Set(), maxNodes, undoStack: [], loading: new Set(), errors: new Map() };
 }
 
 /** Push current nodes onto the undo stack, capping at MAX_UNDO. */
@@ -202,27 +208,27 @@ export function graphReducer(state: GraphState, action: GraphAction): GraphState
         nodes.set(node.txid, node);
       }
       if (nodes.size === state.nodes.size) return state;
-      const rootTxids = action.root && nodes.has(action.root) ? new Set(state.rootTxids).add(action.root) : state.rootTxids;
-      return { ...state, nodes, rootTxids, undoStack: pushUndo(state) };
+      const added = action.root && nodes.has(action.root) && !state.rootTxids.has(action.root) ? action.root : null;
+      if (!added) return { ...state, nodes, undoStack: pushUndo(state) };
+      return {
+        ...state, nodes, undoStack: pushUndo(state),
+        rootTxids: new Set(state.rootTxids).add(added),
+        addedRoots: new Set(state.addedRoots).add(added),
+      };
     }
 
-    case "REMOVE_NODE": {
-      if (state.rootTxids.has(action.txid)) return state;
-      if (!state.nodes.has(action.txid)) return state;
-      const nodes = new Map(state.nodes);
-      nodes.delete(action.txid);
-      cascadeRemoveUnreachable(nodes, state.rootTxids);
-      return { ...state, nodes, undoStack: pushUndo(state) };
-    }
-
+    case "REMOVE_NODE":
     case "REMOVE_NODES": {
+      const txids = action.type === "REMOVE_NODE" ? [action.txid] : action.txids;
       const nodes = new Map(state.nodes);
-      for (const txid of action.txids) {
-        if (!state.rootTxids.has(txid)) nodes.delete(txid);
+      // The roots the graph was built from stay; an added root goes like any node
+      for (const txid of txids) {
+        if (!state.rootTxids.has(txid) || state.addedRoots.has(txid)) nodes.delete(txid);
       }
       if (nodes.size === state.nodes.size) return state;
-      cascadeRemoveUnreachable(nodes, state.rootTxids);
-      return { ...state, nodes, undoStack: pushUndo(state) };
+      const rootTxids = new Set([...state.rootTxids].filter((t) => nodes.has(t)));
+      cascadeRemoveUnreachable(nodes, rootTxids);
+      return { ...state, nodes, rootTxids: rootTxids.size === state.rootTxids.size ? state.rootTxids : rootTxids, undoStack: pushUndo(state) };
     }
 
     case "SET_LOADING": {
@@ -246,21 +252,25 @@ export function graphReducer(state: GraphState, action: GraphAction): GraphState
 
     case "RESET": {
       const nodes = new Map<string, GraphNode>();
-      for (const rtxid of state.rootTxids) {
+      const rootTxids = new Set([...state.rootTxids].filter((t) => !state.addedRoots.has(t)));
+      for (const rtxid of rootTxids) {
         const root = state.nodes.get(rtxid);
         if (root) nodes.set(rtxid, root);
       }
       if (nodes.size === 0) return state;
-      return { ...state, nodes, undoStack: [], loading: new Set(), errors: new Map() };
+      return { ...state, nodes, rootTxids, addedRoots: new Set(), undoStack: [], loading: new Set(), errors: new Map() };
     }
 
     case "UNDO": {
       const nodes = state.undoStack.at(-1);
       if (!nodes) return state;
-      // An extra root added by the undone step (ADD_NODES) leaves with its node
-      const rootTxids = [...state.rootTxids].every((t) => nodes.has(t))
+      // An extra root added by the undone step (ADD_NODES) leaves with its node;
+      // one the undone step removed comes back as a root
+      const roots = [...state.rootTxids].filter((t) => nodes.has(t));
+      for (const t of state.addedRoots) if (nodes.has(t) && !state.rootTxids.has(t)) roots.push(t);
+      const rootTxids = roots.length === state.rootTxids.size && roots.every((t) => state.rootTxids.has(t))
         ? state.rootTxids
-        : new Set([...state.rootTxids].filter((t) => nodes.has(t)));
+        : new Set(roots);
       return { ...state, nodes, rootTxids, undoStack: state.undoStack.slice(0, -1) };
     }
 
@@ -274,6 +284,7 @@ export function makeInitialState(maxNodes: number): GraphState {
     nodes: new Map(),
     rootTxid: "",
     rootTxids: new Set(),
+    addedRoots: new Set(),
     maxNodes,
     undoStack: [],
     loading: new Set(),
