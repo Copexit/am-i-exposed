@@ -12,7 +12,7 @@ import { MIN_PASSWORD_LENGTH, inputClass } from "./BackupExportDialog";
 
 /** Shown after an import that left wallet bookmarks out because of the lock. */
 export const skippedMessage = (t: TFunction, count: number) =>
-  t("walletLock.importSkipped", { count, defaultValue: "{{count}} wallet bookmarks skipped: with the wallet lock on, wallets are imported only while it is unlocked, and locked ones only when the same password opens both." });
+  t("walletLock.importSkipped", { count, defaultValue: "{{count}} wallet bookmarks skipped: with the wallet lock on, wallets are restored only from a full backup while the lock is unlocked, and locked ones only when the backup holds this same lock." });
 
 type Mode = "idle" | "enable" | "unlock" | "disable" | "forgot";
 

@@ -3747,6 +3747,7 @@
   "walletLock.unlockTitle": "Gespeicherte Wallet-Schlüssel sind gesperrt",
   "walletLock.unlockHint": "Passwort der Wallet-Sperre eingeben. Sie bleiben in diesem Tab entsperrt bis zum Neuladen oder \"Jetzt sperren\".",
   "walletLock.lockedWallet": "Gesperrte Wallet",
-  "walletLock.importSkipped_one": "{{count}} Wallet-Lesezeichen übersprungen: Bei aktiver Wallet-Sperre werden Wallets nur im entsperrten Zustand importiert, gesperrte nur, wenn dasselbe Passwort beide öffnet.",
-  "walletLock.importSkipped_other": "{{count}} Wallet-Lesezeichen übersprungen: Bei aktiver Wallet-Sperre werden Wallets nur im entsperrten Zustand importiert, gesperrte nur, wenn dasselbe Passwort beide öffnet."
+  "walletLock.importSkipped_one": "{{count}} Wallet-Lesezeichen übersprungen: Bei aktiver Wallet-Sperre werden Wallets nur aus einer vollständigen Sicherung und nur bei entsperrter Sperre wiederhergestellt, gesperrte nur, wenn die Sicherung dieselbe Sperre enthält.",
+  "walletLock.importSkipped_other": "{{count}} Wallet-Lesezeichen übersprungen: Bei aktiver Wallet-Sperre werden Wallets nur aus einer vollständigen Sicherung und nur bei entsperrter Sperre wiederhergestellt, gesperrte nur, wenn die Sicherung dieselbe Sperre enthält.",
+  "walletLock.damaged": "Die Daten der Wallet-Sperre sind beschädigt. \"Passwort vergessen\" in den Einstellungen setzt sie zurück."
 }

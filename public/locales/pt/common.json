@@ -3753,6 +3753,7 @@
   "walletLock.unlockTitle": "As chaves de carteiras salvas estão bloqueadas",
   "walletLock.unlockHint": "Digite a senha do bloqueio de carteiras. Elas ficam desbloqueadas nesta aba até recarregar ou \"Bloquear agora\".",
   "walletLock.lockedWallet": "Carteira bloqueada",
-  "walletLock.importSkipped_one": "{{count}} favorito de carteira ignorado: com o bloqueio de carteiras ativado, carteiras só são importadas enquanto ele está desbloqueado, e as bloqueadas só quando a mesma senha abre os dois.",
-  "walletLock.importSkipped_other": "{{count}} favoritos de carteira ignorados: com o bloqueio de carteiras ativado, carteiras só são importadas enquanto ele está desbloqueado, e as bloqueadas só quando a mesma senha abre os dois."
+  "walletLock.importSkipped_one": "{{count}} favorito de carteira ignorado: com o bloqueio de carteiras ativado, carteiras só são restauradas de um backup completo enquanto o bloqueio está aberto, e as bloqueadas só quando o backup contém este mesmo bloqueio.",
+  "walletLock.importSkipped_other": "{{count}} favoritos de carteira ignorados: com o bloqueio de carteiras ativado, carteiras só são restauradas de um backup completo enquanto o bloqueio está aberto, e as bloqueadas só quando o backup contém este mesmo bloqueio.",
+  "walletLock.damaged": "Os dados do bloqueio de carteiras estão danificados. \"Esqueci a senha\" nas configurações os redefine."
 }

@@ -13,6 +13,8 @@ import { useKeyboardNav } from "@/hooks/useKeyboardNav";
 import { useHashRouting } from "@/hooks/useHashRouting";
 import { isXpubPrivacyAcked } from "@/components/wallet/XpubPrivacyWarning";
 import { setHash } from "@/lib/hash-nav";
+import { isPlaceholder } from "@/lib/backup/wallet-vault";
+import { lockedPlaceholder, resolvePlaceholder } from "@/hooks/walletVault";
 
 type TranslationFn = (key: string, options?: Record<string, unknown>) => string;
 
@@ -73,6 +75,8 @@ export function useScanner() {
   const bookmarks = useBookmarks();
   const inputRef = useRef<HTMLInputElement>(null);
   const [pendingXpub, setPendingXpub] = useState<string | null>(null);
+  /** A locked wallet's placeholder (bookmark or `#xpub=` hash) waiting for the wallet lock's password */
+  const [pendingLocked, setPendingLocked] = useState<string | null>(null);
 
   // Detect third-party API (not Umbrel and no custom API)
   const { network, customApiUrl, isUmbrel, config } = useNetwork();
@@ -80,7 +84,7 @@ export function useScanner() {
 
   // Hash routing (refs, hashchange listener, initial hash detection)
   const { pendingHash, dismissPendingHash, skipNextHashChangeRef } = useHashRouting(
-    { analyze, walletAnalyze: wallet.analyze, reset, walletReset: wallet.reset, isThirdPartyApi, setPendingXpub },
+    { analyze, walletAnalyze: wallet.analyze, reset, walletReset: wallet.reset, isThirdPartyApi, setPendingXpub, setPendingLocked },
   );
 
   // Register service worker
@@ -127,7 +131,8 @@ export function useScanner() {
   });
 
   const startXpubScan = useCallback((input: string) => {
-    const newHash = `xpub=${encodeURIComponent(input)}`;
+    // A locked bookmark's key never goes into the URL (history, session restore): its placeholder does
+    const newHash = `xpub=${encodeURIComponent(lockedPlaceholder(input) ?? input)}`;
     const oldHash = window.location.hash.slice(1);
     if (oldHash !== newHash) skipNextHashChangeRef.current = true;
     setHash(newHash);
@@ -146,7 +151,14 @@ export function useScanner() {
     if (window.location.hash.startsWith("#xpub=")) setHash("", { replace: true });
   }, []);
 
-  const handleSubmit = useCallback((input: string) => {
+  const handleSubmit = useCallback((submitted: string) => {
+    // A placeholder is never scanned or sent: its key comes from the vault, after the password if needed
+    let input = submitted;
+    if (isPlaceholder(submitted)) {
+      const key = resolvePlaceholder(submitted);
+      if (!key) { setPendingLocked(submitted); return; }
+      input = key;
+    }
     if (isXpubOrDescriptor(input)) {
       if (isThirdPartyApi && !isXpubPrivacyAcked()) { setPendingXpub(input); return; }
       startXpubScan(input);
@@ -163,6 +175,17 @@ export function useScanner() {
     // Fire-and-forget: the callee catches its own errors.
     if (oldHash === newHash) { wallet.reset(); void analyze(input); }
   }, [analyze, isThirdPartyApi, network, startXpubScan, wallet]);
+
+  const handleLockedUnlocked = useCallback(() => {
+    const key = pendingLocked && resolvePlaceholder(pendingLocked);
+    setPendingLocked(null);
+    if (key) handleSubmit(key);
+  }, [pendingLocked, handleSubmit]);
+
+  const handleLockedCancel = useCallback(() => {
+    setPendingLocked(null);
+    if (window.location.hash.startsWith("#xpub=")) setHash("", { replace: true });
+  }, []);
 
   const handleBack = useCallback(() => {
     setHash("");
@@ -211,6 +234,7 @@ export function useScanner() {
     inputRef,
     pendingHash,
     pendingXpub,
+    pendingLocked,
     xpubAddressCount,
     apiEndpoint,
     isThirdPartyApi,
@@ -221,5 +245,7 @@ export function useScanner() {
     handleBroadcastSuccess,
     handleXpubConfirm,
     handleXpubCancel,
+    handleLockedUnlocked,
+    handleLockedCancel,
   };
 }

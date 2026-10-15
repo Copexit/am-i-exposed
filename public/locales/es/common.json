@@ -3753,6 +3753,7 @@
   "walletLock.unlockTitle": "Las claves de billeteras guardadas están bloqueadas",
   "walletLock.unlockHint": "Introduce la contraseña del bloqueo de billeteras. Quedan desbloqueadas en esta pestaña hasta recargar o pulsar \"Bloquear ahora\".",
   "walletLock.lockedWallet": "Billetera bloqueada",
-  "walletLock.importSkipped_one": "{{count}} marcador de billetera omitido: con el bloqueo de billeteras activado, las billeteras solo se importan mientras está desbloqueado, y las bloqueadas solo si la misma contraseña abre ambos.",
-  "walletLock.importSkipped_other": "{{count}} marcadores de billetera omitidos: con el bloqueo de billeteras activado, las billeteras solo se importan mientras está desbloqueado, y las bloqueadas solo si la misma contraseña abre ambos."
+  "walletLock.importSkipped_one": "{{count}} marcador de billetera omitido: con el bloqueo de billeteras activado, las billeteras solo se restauran desde una copia completa mientras el bloqueo está abierto, y las bloqueadas solo si la copia contiene este mismo bloqueo.",
+  "walletLock.importSkipped_other": "{{count}} marcadores de billetera omitidos: con el bloqueo de billeteras activado, las billeteras solo se restauran desde una copia completa mientras el bloqueo está abierto, y las bloqueadas solo si la copia contiene este mismo bloqueo.",
+  "walletLock.damaged": "Los datos del bloqueo de billeteras están dañados. \"He olvidado la contraseña\" en los ajustes los restablece."
 }

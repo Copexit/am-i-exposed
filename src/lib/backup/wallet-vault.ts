@@ -6,7 +6,7 @@
 
 import { sha256 } from "@noble/hashes/sha2.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
-import { openJson, sealJson, isSealedEnvelope, type SealedEnvelope } from "@/lib/crypto/envelope";
+import { newSealKey, openJsonKeyed, openJsonWithKey, sealJsonWithKey, isSealedEnvelope, type SealedEnvelope, type SealKey } from "@/lib/crypto/envelope";
 
 export const VAULT_KEY = "ami-wallet-vault";
 const PREFIX = "wallet-locked:";
@@ -24,26 +24,47 @@ export function placeholderFor(input: string): string {
 
 export const isPlaceholder = (s: string): boolean => /^wallet-locked:[0-9a-f]{16}$/.test(s);
 
-/** The lock is on while a vault is stored. */
+export function parseVault(raw: string): SealedEnvelope | null {
+  const v: unknown = JSON.parse(raw);
+  return isSealedEnvelope(v) ? v : null;
+}
+
+/** The lock is on while a (well-formed) vault is stored. */
 export function isLockOn(): boolean {
   try {
-    return localStorage.getItem(VAULT_KEY) !== null;
+    const raw = localStorage.getItem(VAULT_KEY);
+    return raw !== null && parseVault(raw) !== null;
   } catch {
     return false;
   }
 }
 
-export const sealVault = (entries: VaultEntries, password: string): Promise<SealedEnvelope> => sealJson({ entries }, password);
+export const sealVault = (entries: VaultEntries, k: SealKey): Promise<SealedEnvelope> => sealJsonWithKey({ entries }, k);
 
-/** Throws WrongPasswordError on a wrong password, Error on a malformed vault. */
-export async function openVault(env: SealedEnvelope, password: string): Promise<VaultEntries> {
-  const v = await openJson<{ entries?: unknown }>(env, password);
-  const e = v?.entries;
-  if (typeof e !== "object" || e === null || Array.isArray(e)) throw new Error("Malformed wallet vault");
+/** Raised when the vault decrypts but its content is not a vault. */
+export class DamagedVaultError extends Error {
+  constructor() {
+    super("Malformed wallet vault");
+    this.name = "DamagedVaultError";
+  }
+}
+
+function toEntries(value: { entries?: unknown } | null): VaultEntries {
+  const e = value?.entries;
+  if (typeof e !== "object" || e === null || Array.isArray(e)) throw new DamagedVaultError();
   return Object.fromEntries(Object.entries(e).filter((x): x is [string, string] => isPlaceholder(x[0]) && typeof x[1] === "string"));
 }
 
-export function parseVault(raw: string): SealedEnvelope | null {
-  const v: unknown = JSON.parse(raw);
-  return isSealedEnvelope(v) ? v : null;
+/** A new vault key (fresh salt): only when the lock is turned on. */
+export const newVaultKey = (password: string): Promise<SealKey> => newSealKey(password);
+
+/** Throws WrongPasswordError on a wrong password, DamagedVaultError on a malformed vault. */
+export async function openVault(env: SealedEnvelope, password: string): Promise<{ entries: VaultEntries; sealKey: SealKey }> {
+  const { value, sealKey } = await openJsonKeyed<{ entries?: unknown } | null>(env, password);
+  return { entries: toEntries(value), sealKey };
+}
+
+/** Open another vault sealed under the same key (same lock, e.g. an earlier backup of it); WrongPasswordError otherwise. */
+export async function openVaultWithKey(env: SealedEnvelope, k: SealKey): Promise<VaultEntries> {
+  return toEntries(await openJsonWithKey<{ entries?: unknown } | null>(env, k));
 }

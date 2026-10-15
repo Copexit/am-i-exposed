@@ -3747,6 +3747,7 @@
   "walletLock.unlockTitle": "Saved wallet keys are locked",
   "walletLock.unlockHint": "Enter the wallet lock password. They stay unlocked in this tab until a reload or \"Lock now\".",
   "walletLock.lockedWallet": "Locked wallet",
-  "walletLock.importSkipped_one": "{{count}} wallet bookmark skipped: with the wallet lock on, wallets are imported only while it is unlocked, and locked ones only when the same password opens both.",
-  "walletLock.importSkipped_other": "{{count}} wallet bookmarks skipped: with the wallet lock on, wallets are imported only while it is unlocked, and locked ones only when the same password opens both."
+  "walletLock.importSkipped_one": "{{count}} wallet bookmark skipped: with the wallet lock on, wallets are restored only from a full backup while the lock is unlocked, and locked ones only when the backup holds this same lock.",
+  "walletLock.importSkipped_other": "{{count}} wallet bookmarks skipped: with the wallet lock on, wallets are restored only from a full backup while the lock is unlocked, and locked ones only when the backup holds this same lock.",
+  "walletLock.damaged": "The wallet lock data is damaged. \"Forgot password\" in the settings resets it."
 }

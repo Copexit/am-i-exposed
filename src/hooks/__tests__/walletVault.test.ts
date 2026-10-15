@@ -120,4 +120,55 @@ describe("wallet key lock", () => {
     expect(localStorage.getItem(VAULT_KEY)).toBe(vaultBefore);
     expect(bookmarkStore.getSnapshot()).toEqual([tx]);
   });
+
+  describe("races (compare-and-swap)", () => {
+    const B = "xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj";
+    const allResolve = () => bookmarkStore.getSnapshot().every((b) => !b.locked || resolveBookmarkInput(b) !== null);
+
+    it("two interleaved saves both land, each with its key", async () => {
+      await enableLock(PW);
+      const [r1, r2] = await Promise.all([saveWalletBookmark(wallet()), saveWalletBookmark(wallet(B))]);
+      expect([r1, r2]).toEqual(["ok", "ok"]);
+      expect(bookmarkStore.getSnapshot().map((b) => resolveBookmarkInput(b)).sort()).toEqual([B, ZPUB].sort());
+      expect(JSON.stringify(localStorage)).not.toContain(B);
+    });
+
+    it("turning off while a save lands keeps both keys", async () => {
+      bookmarkStore.set([wallet()]);
+      await enableLock(PW);
+      const off = disableLock(PW); // PBKDF2 runs while the save re-seals with the key
+      expect(await saveWalletBookmark(wallet(B))).toBe("ok");
+      expect(await off).toBe(true);
+      expect(localStorage.getItem(VAULT_KEY)).toBeNull();
+      expect(bookmarkStore.getSnapshot().map((b) => b.input).sort()).toEqual([B, ZPUB].sort());
+    });
+
+    it("an unlock racing a save opens the newer vault and loses nothing", async () => {
+      bookmarkStore.set([wallet()]);
+      await enableLock(PW);
+      const u = unlock(PW); // still unlocked from enable: the save below lands while unlock derives
+      expect(await saveWalletBookmark(wallet(B))).toBe("ok");
+      await u;
+      expect(isUnlocked()).toBe(true);
+      expect(bookmarkStore.getSnapshot()).toHaveLength(2);
+      expect(allResolve()).toBe(true);
+    });
+
+    it("two enables at once: one wins, the other changes nothing", async () => {
+      bookmarkStore.set([wallet()]);
+      const results = await Promise.all([enableLock(PW), enableLock("another password")]);
+      expect(results.filter(Boolean)).toHaveLength(1);
+      expect(allResolve()).toBe(true);
+    });
+
+    it("never stores a locked bookmark without its key", async () => {
+      await enableLock(PW);
+      const before = JSON.stringify(localStorage);
+      bookmarkStore.set([{ ...wallet(placeholderFor(B)), locked: true }]); // orphan (tampered)
+      expect(await saveWalletBookmark(wallet())).toBe("failed");
+      expect(localStorage.getItem(VAULT_KEY)).toBe(JSON.parse(before)[VAULT_KEY]);
+      expect(await disableLock(PW)).toBe(false);
+      expect(localStorage.getItem(VAULT_KEY)).not.toBeNull();
+    });
+  });
 });

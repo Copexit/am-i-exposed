@@ -3753,6 +3753,7 @@
   "walletLock.unlockTitle": "Les clés de portefeuille enregistrées sont verrouillées",
   "walletLock.unlockHint": "Saisissez le mot de passe du verrou des portefeuilles. Elles restent déverrouillées dans cet onglet jusqu'au rechargement ou à \"Verrouiller maintenant\".",
   "walletLock.lockedWallet": "Portefeuille verrouillé",
-  "walletLock.importSkipped_one": "{{count}} favori de portefeuille ignoré : avec le verrou des portefeuilles activé, les portefeuilles ne sont importés que s'il est déverrouillé, et les verrouillés seulement si le même mot de passe ouvre les deux.",
-  "walletLock.importSkipped_other": "{{count}} favoris de portefeuille ignorés : avec le verrou des portefeuilles activé, les portefeuilles ne sont importés que s'il est déverrouillé, et les verrouillés seulement si le même mot de passe ouvre les deux."
+  "walletLock.importSkipped_one": "{{count}} favori de portefeuille ignoré : avec le verrou des portefeuilles activé, les portefeuilles ne sont restaurés que depuis une sauvegarde complète et verrou ouvert, et les verrouillés seulement si la sauvegarde contient ce même verrou.",
+  "walletLock.importSkipped_other": "{{count}} favoris de portefeuille ignorés : avec le verrou des portefeuilles activé, les portefeuilles ne sont restaurés que depuis une sauvegarde complète et verrou ouvert, et les verrouillés seulement si la sauvegarde contient ce même verrou.",
+  "walletLock.damaged": "Les données du verrou des portefeuilles sont endommagées. \"Mot de passe oublié\" dans les réglages les réinitialise."
 }

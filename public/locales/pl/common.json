@@ -4007,8 +4007,9 @@
   "walletLock.unlockTitle": "Klucze zapisanych portfeli są zablokowane",
   "walletLock.unlockHint": "Wpisz hasło blokady portfeli. Pozostaną odblokowane w tej karcie do przeładowania lub \"Zablokuj teraz\".",
   "walletLock.lockedWallet": "Zablokowany portfel",
-  "walletLock.importSkipped_one": "Pominięto {{count}} zakładkę portfela: przy włączonej blokadzie portfele są importowane tylko po jej odblokowaniu, a zablokowane tylko wtedy, gdy to samo hasło otwiera oba sejfy.",
-  "walletLock.importSkipped_few": "Pominięto {{count}} zakładki portfeli: przy włączonej blokadzie portfele są importowane tylko po jej odblokowaniu, a zablokowane tylko wtedy, gdy to samo hasło otwiera oba sejfy.",
-  "walletLock.importSkipped_many": "Pominięto {{count}} zakładek portfeli: przy włączonej blokadzie portfele są importowane tylko po jej odblokowaniu, a zablokowane tylko wtedy, gdy to samo hasło otwiera oba sejfy.",
-  "walletLock.importSkipped_other": "Pominięto {{count}} zakładki portfeli: przy włączonej blokadzie portfele są importowane tylko po jej odblokowaniu, a zablokowane tylko wtedy, gdy to samo hasło otwiera oba sejfy."
+  "walletLock.importSkipped_one": "Pominięto {{count}} zakładkę portfela: przy włączonej blokadzie portfele są przywracane tylko z pełnej kopii i tylko po odblokowaniu, a zablokowane tylko wtedy, gdy kopia zawiera tę samą blokadę.",
+  "walletLock.importSkipped_few": "Pominięto {{count}} zakładki portfeli: przy włączonej blokadzie portfele są przywracane tylko z pełnej kopii i tylko po odblokowaniu, a zablokowane tylko wtedy, gdy kopia zawiera tę samą blokadę.",
+  "walletLock.importSkipped_many": "Pominięto {{count}} zakładek portfeli: przy włączonej blokadzie portfele są przywracane tylko z pełnej kopii i tylko po odblokowaniu, a zablokowane tylko wtedy, gdy kopia zawiera tę samą blokadę.",
+  "walletLock.importSkipped_other": "Pominięto {{count}} zakładki portfeli: przy włączonej blokadzie portfele są przywracane tylko z pełnej kopii i tylko po odblokowaniu, a zablokowane tylko wtedy, gdy kopia zawiera tę samą blokadę.",
+  "walletLock.damaged": "Dane blokady portfeli są uszkodzone. \"Nie pamiętam hasła\" w ustawieniach je resetuje."
 }

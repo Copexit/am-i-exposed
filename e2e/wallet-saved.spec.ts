@@ -153,5 +153,18 @@ test("wallet key lock: a locked bookmark asks for the password, then the wallet 
   await prompt.getByTestId("unlock-wallets-password").fill(PASSWORD);
   await prompt.getByTestId("unlock-wallets-submit").click();
   await expect(stat(page, "Total balance")).toHaveText("39,852,779 sats", { timeout: 20_000 });
+  // The URL (history, session restore) and the title hold the placeholder, never the key
+  expect(page.url()).toMatch(/#xpub=wallet-locked%3A[0-9a-f]{16}$/);
+  expect(page.url()).not.toContain(ZPUB);
+  expect(await page.title()).not.toContain("pub");
+
+  // Reloading that URL asks for the password again, then scans
+  await page.reload();
+  const again = page.getByRole("dialog", { name: "Saved wallet keys are locked" });
+  await expect(again.getByTestId("unlock-wallets-prompt")).toBeVisible({ timeout: 15_000 });
+  await again.getByTestId("unlock-wallets-password").fill(PASSWORD);
+  await again.getByTestId("unlock-wallets-submit").click();
+  await expect(stat(page, "Total balance")).toHaveText("39,852,779 sats", { timeout: 20_000 });
+  expect(page.url()).not.toContain(ZPUB);
   expect(apiCalls).toEqual([]);
 });

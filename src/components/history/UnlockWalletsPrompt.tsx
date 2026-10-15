@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Lock } from "lucide-react";
 import { unlock } from "@/hooks/walletVault";
 import { WrongPasswordError } from "@/lib/crypto/envelope";
+import { DamagedVaultError } from "@/lib/backup/wallet-vault";
 import { inputClass } from "@/components/settings/BackupExportDialog";
 
 /** Password prompt for the wallet key lock. `onUnlocked` runs once the vault is open in this tab. */
@@ -12,7 +13,7 @@ export function UnlockWalletsPrompt({ onUnlocked, onCancel }: { onUnlocked: () =
   const { t } = useTranslation();
   const id = useId();
   const [pw, setPw] = useState("");
-  const [error, setError] = useState<"wrong" | "failed" | null>(null);
+  const [error, setError] = useState<"wrong" | "damaged" | "failed" | null>(null);
   const [busy, setBusy] = useState(false);
 
   const submit = async () => {
@@ -23,7 +24,7 @@ export function UnlockWalletsPrompt({ onUnlocked, onCancel }: { onUnlocked: () =
       await unlock(pw);
       onUnlocked();
     } catch (e) {
-      setError(e instanceof WrongPasswordError ? "wrong" : "failed");
+      setError(e instanceof WrongPasswordError ? "wrong" : e instanceof DamagedVaultError ? "damaged" : "failed");
       setBusy(false);
     }
   };
@@ -51,6 +52,7 @@ export function UnlockWalletsPrompt({ onUnlocked, onCancel }: { onUnlocked: () =
       </label>
       <p id={`${id}-err`} role="alert" className="text-severity-critical empty:hidden">
         {error === "wrong" && t("backup.wrongPassword", { defaultValue: "Wrong password. Try again." })}
+        {error === "damaged" && t("walletLock.damaged", { defaultValue: "The wallet lock data is damaged. \"Forgot password\" in the settings resets it." })}
         {error === "failed" && t("walletLock.failed", { defaultValue: "The wallet lock could not be updated. Browser storage may be full." })}
       </p>
       <div className="flex justify-end gap-3">

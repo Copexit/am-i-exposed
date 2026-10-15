@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sealJson, openJson, isSealedEnvelope, WrongPasswordError } from "../envelope";
+import { sealJson, openJson, isSealedEnvelope, WrongPasswordError, openJsonKeyed, sealJsonWithKey, openJsonWithKey } from "../envelope";
 
 // openJson enforces >= 100000, so tests use that floor.
 const OPTS = { iterations: 100000 };
@@ -61,5 +61,19 @@ describe("envelope", () => {
     const env = await sealJson(1, "pw", OPTS);
     await expect(openJson({ ...env, iterations: 99999 }, "pw")).rejects.toThrow(/invalid/i);
     await expect(openJson({ ...env, iterations: 10_000_001 }, "pw")).rejects.not.toBeInstanceOf(WrongPasswordError);
+  });
+
+  it("keyed: open returns a non-extractable key that re-seals with the same salt and a fresh IV", async () => {
+    const env = await sealJson({ a: 1 }, "pw", OPTS);
+    const { value, sealKey } = await openJsonKeyed(env, "pw");
+    expect(value).toEqual({ a: 1 });
+    expect(sealKey.key.extractable).toBe(false);
+    const again = await sealJsonWithKey({ a: 2 }, sealKey);
+    expect(again.salt).toBe(env.salt);
+    expect(again.iv).not.toBe(env.iv);
+    expect(await openJson(again, "pw")).toEqual({ a: 2 });
+    expect(await openJsonWithKey(again, sealKey)).toEqual({ a: 2 });
+    const other = await sealJson({ a: 3 }, "pw", OPTS);
+    await expect(openJsonWithKey(other, sealKey)).rejects.toBeInstanceOf(WrongPasswordError);
   });
 });
