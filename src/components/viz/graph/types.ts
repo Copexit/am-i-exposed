@@ -4,7 +4,7 @@ import type { ScoringResult } from "@/lib/types";
 import type { EntityCategory } from "@/lib/analysis/entities";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
-import type { SavedGraph, GraphAnnotation } from "@/lib/graph/saved-graph-types";
+import type { SavedGraph, GraphAnnotation, GraphLayoutMode } from "@/lib/graph/saved-graph-types";
 import type { useChartTooltip } from "../shared/ChartTooltip";
 
 // Re-export for convenience
@@ -182,6 +182,11 @@ export interface GraphCanvasProps {
   edgeLabels?: Map<string, string>;
   /** Set a label on an edge (empty string removes it). */
   onSetEdgeLabel?: (key: string, label: string) => void;
+  /** Column layout: by hops (default) or chronological with block headers. */
+  layoutMode?: GraphLayoutMode;
+  /** Port-mode parallel-output bundles ("from->to") the user split into separate beziers. */
+  unbundledPairs?: Set<string>;
+  onToggleBundle?: (key: string) => void;
   containerWidth: number;
   containerHeight?: number;
   tooltip: ReturnType<typeof useChartTooltip<TooltipData>>;
@@ -192,6 +197,8 @@ export interface GraphCanvasProps {
   selectedNode: { txid: string; x: number; y: number } | null;
   setSelectedNode: (node: { txid: string; x: number; y: number } | null) => void;
   focusedNode: string | null;
+  /** Extra nodes drawn with the focus ring (an added connection path). */
+  highlightTxids?: Set<string>;
   setFocusedNode: (txid: string | null) => void;
   heatMap: Map<string, ScoringResult>;
   heatMapActive: boolean;
@@ -214,6 +221,17 @@ export interface GraphCanvasProps {
   }) => void;
   /** Boltzmann results for any node (not just root). Keyed by txid. */
   boltzmannCache?: Map<string, BoltzmannWorkerResult>;
+  /** Multi-selected txids (drawn with the selection outline). */
+  selection?: Set<string>;
+  /** Toggles a node's selection; a modifier-click (or any tap in select mode) calls it instead of opening the node. */
+  onToggleSelect?: (txid: string) => void;
+  selectMode?: boolean;
+  /** Txids left out of the layout (manual hides, outside an isolate). */
+  excludedTxids?: ReadonlySet<string>;
+  /** Escape belongs to the window handler (selection, select mode, pick mode, panel): the canvas leaves it. */
+  escapeTaken?: boolean;
+  /** Roots added by a connection path: removable like any node. */
+  removableRoots?: ReadonlySet<string>;
 }
 
 export interface MinimapProps {

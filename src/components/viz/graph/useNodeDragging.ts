@@ -31,6 +31,7 @@ export function useNodeDragging({
   const justDraggedRef = useRef(false);
 
   const handleNodeMouseDown = useCallback((e: React.MouseEvent, node: LayoutNode) => {
+    if (e.shiftKey) e.preventDefault(); // Shift+click selects a node, not page text
     if (!onNodePositionChange || !viewTransform || annotateMode) return;
     if (e.button !== 0) return; // left click only
     e.stopPropagation();

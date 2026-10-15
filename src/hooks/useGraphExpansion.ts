@@ -23,6 +23,8 @@ import {
   expandOutputOp,
   type ExpansionContext,
 } from "@/lib/graph/graph-expansion-ops";
+import { planPathNodes } from "@/lib/graph/path-to-graph";
+import type { ConnectionPath } from "@/lib/graph/connection-search";
 
 // Re-export types that consumers import from this module
 export type { GraphNode, MultiRootEntry } from "@/lib/graph/graph-reducer";
@@ -198,6 +200,10 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     dispatch({ type: "REMOVE_NODE", txid });
   }, []);
 
+  const removeNodes = useCallback((txids: string[]) => {
+    dispatch({ type: "REMOVE_NODES", txids });
+  }, []);
+
   const undo = useCallback(() => {
     dispatch({ type: "UNDO" });
   }, []);
@@ -253,6 +259,36 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     if (childTxid) await expandNode(childTxid);
   }, [expansionCtx, expandNode]);
 
+  // ---- Connection paths ----
+
+  /**
+   * Add a connection path's txs, anchored on the nodes already in the graph
+   * (an extra root when none is). Txs missing from `txs` are fetched first.
+   */
+  const addPath = useCallback(async (
+    path: ConnectionPath,
+    txs: ReadonlyMap<string, MempoolTransaction>,
+  ): Promise<{ added: number; skipped: number }> => {
+    const all = new Map(txs);
+    const client = fetcherRef.current;
+    const missing = path.hops.filter((h) => !all.has(h.txid) && !stateRef.current.nodes.has(h.txid));
+    if (client) {
+      await Promise.all(missing.map(async (h) => {
+        try { all.set(h.txid, await client.getTransaction(h.txid)); } catch { /* ends that branch */ }
+      }));
+    }
+    const { nodes, maxNodes } = stateRef.current;
+    const plan = planPathNodes(path, all, nodes);
+    if (plan.nodes.length > 0 && nodes.size < maxNodes) {
+      const action: GraphAction = { type: "ADD_NODES", nodes: plan.nodes, root: plan.root };
+      // Advance the ref now, so a back-to-back call ("Add all") plans against this result
+      stateRef.current = graphReducer(stateRef.current, action);
+      dispatch(action);
+    }
+    const added = stateRef.current.nodes.size - nodes.size;
+    return { added, skipped: path.hops.filter((h) => !nodes.has(h.txid)).length - added };
+  }, []);
+
   // ---- Auto-trace (peel chain following) ----
 
   // A cancelled trace's late updates are dropped (cancelAutoTrace already reset the UI)
@@ -293,6 +329,7 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     nodes: state.nodes,
     rootTxid: state.rootTxid,
     rootTxids: state.rootTxids,
+    addedRoots: state.addedRoots,
     loading: state.loading,
     errors: state.errors,
     nodeCount: state.nodes.size,
@@ -306,6 +343,7 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     expandInput,
     expandOutput,
     collapse,
+    removeNodes,
     undo,
     canUndo: state.undoStack.length > 0,
     reset,
@@ -322,5 +360,8 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     autoTraceProgress,
     lastAutoTraceStop,
     autoTraceLinkability,
+    // Connection search
+    addPath,
+    fetcher,
   };
 }

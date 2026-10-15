@@ -35,6 +35,9 @@ export interface GraphAnnotation {
   connectedNodeTxid?: string;
 }
 
+/** "hops" = one column per expansion depth; "time" = one column per (block height, intra-block level). */
+export type GraphLayoutMode = "hops" | "time";
+
 /** A named, persisted graph snapshot. */
 export interface SavedGraph {
   id: string;
@@ -54,6 +57,10 @@ export interface SavedGraph {
   nodeLabels?: Record<string, string>;
   /** User labels on edges, keyed by "fromTxid->toTxid". */
   edgeLabels?: Record<string, string>;
+  /** Column layout; absent = "hops" (older graphs and share links). */
+  layoutMode?: GraphLayoutMode;
+  /** Nodes the user hid; absent = none. Read through `savedHiddenTxids`. */
+  hiddenTxids?: string[];
 }
 
 // ─── Serialization ──────────────────────────────────────────────────
@@ -71,6 +78,8 @@ export function serializeGraph(
   annotations?: GraphAnnotation[],
   nodeLabels?: Map<string, string>,
   edgeLabels?: Map<string, string>,
+  layoutMode?: GraphLayoutMode,
+  hidden?: ReadonlySet<string>,
 ): SavedGraph {
   const nodes: SavedGraphNode[] = [];
   for (const [, node] of state.nodes) {
@@ -79,6 +88,8 @@ export function serializeGraph(
     if (node.childEdge) saved.childEdge = { ...node.childEdge };
     nodes.push(saved);
   }
+
+  const hiddenTxids = hidden ? [...hidden].filter((txid) => state.nodes.has(txid)) : [];
 
   // Convert Map to Record for JSON serialization
   let posRecord: Record<string, { x: number; y: number }> | undefined;
@@ -101,7 +112,15 @@ export function serializeGraph(
     annotations: annotations?.length ? annotations : undefined,
     nodeLabels: nodeLabels?.size ? Object.fromEntries(nodeLabels) : undefined,
     edgeLabels: edgeLabels?.size ? Object.fromEntries(edgeLabels) : undefined,
+    layoutMode: layoutMode === "time" ? layoutMode : undefined,
+    hiddenTxids: hiddenTxids.length ? hiddenTxids : undefined,
   };
+}
+
+/** The saved hidden txids, dropping malformed entries (the graph itself stays valid). */
+export function savedHiddenTxids(graph: SavedGraph): string[] {
+  const raw: unknown = graph.hiddenTxids;
+  return Array.isArray(raw) ? raw.filter((t): t is string => typeof t === "string" && TXID_HEX.test(t)) : [];
 }
 
 // ─── Validation ─────────────────────────────────────────────────────
@@ -125,6 +144,8 @@ export function validateSavedGraph(obj: unknown): obj is SavedGraph {
   if (typeof obj.rootTxid !== "string" || !TXID_HEX.test(obj.rootTxid)) return false;
   if (!Array.isArray(obj.rootTxids)) return false;
   if (!Array.isArray(obj.nodes) || obj.nodes.length === 0) return false;
+  // An unknown layoutMode (a newer build) is not fatal: it opens in hops.
+  // Bad hiddenTxids are not fatal either: savedHiddenTxids drops them.
 
   for (const n of obj.nodes) {
     if (!isObj(n)) return false;

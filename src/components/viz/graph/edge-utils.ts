@@ -263,18 +263,59 @@ export function computeEdgeStroke(ctx: StrokeContext): EdgeStrokeStyle {
   };
 }
 
+/** Port mode bundles this many or more parallel outputs of one tx into one child. */
+export const BUNDLE_MIN_OUTPUTS = 3;
+
+/** A bundled parallel-output edge: its badge position, outputs, and whether the user split it. */
+export interface EdgeBundle {
+  key: string;
+  x: number;
+  y: number;
+  vouts: number[];
+  expanded: boolean;
+}
+
+/** Average port position over `keys`, or null when none of them is laid out. */
+function portCentroid(keys: string[], portPositions: PortPositionMap): { x: number; y: number } | null {
+  const pts = keys.flatMap((k) => portPositions.get(k) ?? []);
+  if (pts.length === 0) return null;
+  return { x: pts[0]!.x, y: pts.reduce((s, p) => s + p.y, 0) / pts.length };
+}
+
 /**
  * Resolve the primary SVG path for an edge, considering port routing and consolidation.
- * Also returns any extra consolidation paths when applicable.
+ * Also returns any extra consolidation paths when applicable. With ports shown,
+ * 3+ parallel outputs into one child draw as one bundled bezier (port-group
+ * midpoint to child) plus a badge, unless the pair is in `unbundledPairs`.
  */
 export function resolveEdgePaths(
   edge: LayoutEdge,
   expandedNodeTxid: string | null | undefined,
   portPositions: PortPositionMap,
   nodes: Map<string, { tx: { vin: Array<{ txid: string; vout: number }> } }>,
-): { primary: string; extraConsolidation: string[] } {
+  unbundledPairs?: Set<string>,
+): { primary: string; extraConsolidation: string[]; bundle?: EdgeBundle } {
   const hasPortRouting = expandedNodeTxid && (edge.fromTxid === expandedNodeTxid || edge.toTxid === expandedNodeTxid);
   const isConsolidationWithPorts = hasPortRouting && edge.consolidationCount >= 2 && edge.outputIndices && edge.outputIndices.length >= 2;
+
+  if (isConsolidationWithPorts && edge.outputIndices!.length >= BUNDLE_MIN_OUTPUTS) {
+    const vouts = edge.outputIndices!;
+    const key = `${edge.fromTxid}->${edge.toTxid}`;
+    const src = portCentroid(vouts.map((o) => `${edge.fromTxid}:output:${o}`), portPositions) ?? { x: edge.x1, y: edge.y1 };
+    const destVins = nodes.get(edge.toTxid)?.tx.vin.flatMap((v, i) =>
+      v.txid === edge.fromTxid && vouts.includes(v.vout) ? [`${edge.toTxid}:input:${i}`] : []) ?? [];
+    const dst = portCentroid(destVins, portPositions) ?? { x: edge.x2, y: edge.y2 };
+    const bundle: EdgeBundle = { key, x: (src.x + dst.x) / 2, y: (src.y + dst.y) / 2, vouts, expanded: !!unbundledPairs?.has(key) };
+    if (!bundle.expanded) {
+      const cp = Math.max(Math.abs(dst.x - src.x) * 0.4, 40);
+      const primary = edge.isBackward
+        ? `M${dst.x},${dst.y} C${dst.x + cp},${dst.y} ${src.x - cp},${src.y} ${src.x},${src.y}`
+        : `M${src.x},${src.y} C${src.x + cp},${src.y} ${dst.x - cp},${dst.y} ${dst.x},${dst.y}`;
+      return { primary, extraConsolidation: [], bundle };
+    }
+    const paths = buildConsolidationPaths(edge, portPositions, nodes);
+    return { primary: paths[0] ?? edgePath(edge), extraConsolidation: paths.slice(1), bundle };
+  }
 
   if (isConsolidationWithPorts) {
     const consolidationPaths = buildConsolidationPaths(edge, portPositions, nodes);

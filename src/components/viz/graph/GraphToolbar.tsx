@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Search, Loader2, Pencil } from "lucide-react";
+import { Search, Loader2, Pencil, Route, Clock, SquareDashedMousePointer } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { truncateId, TXID_RE } from "@/lib/constants";
 import { HeatIcon, FingerprintIcon, GraphIcon, UndoIcon, ResetIcon } from "./icons";
@@ -9,7 +9,7 @@ import { SaveGraphPanel } from "./SaveGraphPanel";
 import { useSaveLoadShare } from "./useSaveLoadShare";
 import type { GraphNode } from "@/components/viz/graph/types";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
-import type { SavedGraph, GraphAnnotation } from "@/lib/graph/saved-graph-types";
+import type { SavedGraph, GraphAnnotation, GraphLayoutMode } from "@/lib/graph/saved-graph-types";
 
 type EdgeMode = "default" | "linkability" | "entropy";
 
@@ -53,6 +53,19 @@ interface GraphToolbarProps {
   annotations?: GraphAnnotation[];
   nodeLabels?: Map<string, string>;
   edgeLabels?: Map<string, string>;
+  /** Replaces both label maps in one update (BIP329 import). */
+  onSetLabels?: (nodeLabels: Map<string, string>, edgeLabels: Map<string, string>) => void;
+  /** Opens the Find connection panel. */
+  onFindConnection?: () => void;
+  findConnectionOpen?: boolean;
+  /** Column layout and its toggle (hops <-> chronological). */
+  layoutMode?: GraphLayoutMode;
+  onToggleLayoutMode?: () => void;
+  /** Touch select mode: a tap toggles a node's selection. */
+  selectMode?: boolean;
+  onToggleSelectMode?: () => void;
+  /** Manually hidden txids (saved with the graph). */
+  hiddenTxids?: Set<string>;
   /** Inline (non-fullscreen) shows only node count, undo/reset and fullscreen. */
   compact?: boolean;
 }
@@ -100,6 +113,7 @@ export function GraphToolbar(props: GraphToolbarProps) {
     nodes, rootTxid, rootTxids, network, currentGraphId,
     onLoadSavedGraph, nodePositionOverrides: posOverrides,
     annotations: savedAnnotations, nodeLabels: props.nodeLabels, edgeLabels: props.edgeLabels,
+    layoutMode: props.layoutMode, hiddenTxids: props.hiddenTxids,
   });
 
   // ─── Keyboard shortcut registration ───────────────────────────
@@ -250,6 +264,25 @@ export function GraphToolbar(props: GraphToolbarProps) {
         </span>
       </button>
 
+      {props.onToggleLayoutMode && (
+        <button
+          onClick={props.onToggleLayoutMode}
+          aria-pressed={props.layoutMode === "time"}
+          className={`${btnBase} ${
+            props.layoutMode === "time"
+              ? "text-bitcoin border-bitcoin/30 bg-bitcoin/10"
+              : "text-muted hover:text-foreground border-card-border"
+          }`}
+          title={t("graph.timeLayoutTitle", { defaultValue: "Chronological layout (T)" })}
+          aria-label={t("graph.timeLayoutLabel", { defaultValue: "Chronological layout" })}
+        >
+          <span className="flex items-center gap-1">
+            <Clock size={12} />
+            <span className="hidden sm:inline">{t("graph.timeLayout", { defaultValue: "Time" })}</span>
+          </span>
+        </button>
+      )}
+
       {SEP}
 
       {/* ── Annotate mode ───────────────────────────────────── */}
@@ -267,6 +300,38 @@ export function GraphToolbar(props: GraphToolbarProps) {
             <Pencil size={12} />
             <span className="hidden sm:inline">{t("graph.annotateLabel", { defaultValue: "Annotate" })}</span>
           </span>
+        </button>
+      )}
+
+      {props.onToggleSelectMode && (
+        <button
+          onClick={props.onToggleSelectMode}
+          aria-pressed={!!props.selectMode}
+          className={`${btnBase} ${
+            props.selectMode
+              ? "text-bitcoin border-bitcoin/30 bg-bitcoin/10"
+              : "text-muted hover:text-foreground border-card-border"
+          }`}
+          title={t("graph.selectModeTitle", { defaultValue: "Select nodes (or Ctrl/Cmd+click, Shift+Enter)" })}
+          aria-label={t("graph.selectMode", { defaultValue: "Select nodes" })}
+        >
+          <SquareDashedMousePointer size={12} />
+        </button>
+      )}
+
+      {props.onFindConnection && (
+        <button
+          onClick={props.onFindConnection}
+          aria-pressed={!!props.findConnectionOpen}
+          className={`${btnBase} ${
+            props.findConnectionOpen
+              ? "text-bitcoin border-bitcoin/30 bg-bitcoin/10"
+              : "text-muted hover:text-foreground border-card-border"
+          }`}
+          title={t("graph.connection.title", { defaultValue: "Find connection" })}
+          aria-label={t("graph.connection.title", { defaultValue: "Find connection" })}
+        >
+          <Route size={12} />
         </button>
       )}
 
@@ -329,6 +394,10 @@ export function GraphToolbar(props: GraphToolbarProps) {
           onLoadSavedGraph={onLoadSavedGraph}
           rootTxid={rootTxid}
           currentLabel={currentLabel}
+          nodes={nodes}
+          nodeLabels={props.nodeLabels}
+          edgeLabels={props.edgeLabels}
+          onSetLabels={props.onSetLabels}
         />
       )}
 

@@ -7,7 +7,7 @@
 
 import { useReducer, useCallback, useRef } from "react";
 import type { ScoringResult } from "@/lib/types";
-import type { GraphAnnotation, SavedGraph } from "@/lib/graph/saved-graph-types";
+import { savedHiddenTxids, type GraphAnnotation, type GraphLayoutMode, type SavedGraph } from "@/lib/graph/saved-graph-types";
 import type { NodeFilter, ViewTransform } from "./types";
 
 // ─── State ──────────────────────────────────────────────────────────
@@ -22,8 +22,16 @@ export interface GraphExplorerState {
   filter: NodeFilter;
   sidebarCollapsed: boolean;
 
-  // Node position overrides from dragging
+  // Node position overrides from dragging (and expansion seeds), per layout mode.
+  /** Hops-mode positions: the ones saved with the graph. */
   nodePositionOverrides: Map<string, { x: number; y: number }>;
+  /** Time-mode drags: session-only, never saved, dropped when leaving time mode. */
+  timePositionOverrides: Map<string, { x: number; y: number }>;
+
+  // Column layout
+  layoutMode: GraphLayoutMode;
+  /** Port-mode parallel-output bundles ("from->to") shown as separate beziers. */
+  unbundledPairs: Set<string>;
 
   // Annotations
   annotations: GraphAnnotation[];
@@ -52,6 +60,23 @@ export interface GraphExplorerState {
 
   // Layout info
   visibleCount: number;
+
+  // Find connection panel (null = closed)
+  connection: { from: string; to: string } | null;
+  /** The next node click sets the connection's To. */
+  pickMode: boolean;
+  /** Transient focus-ring set (an added path), cleared by the next canvas click. */
+  highlightTxids: Set<string>;
+
+  // Multi-select and batch actions
+  /** Selected txids (modifier-click or select mode); selecting never opens the sidebar. */
+  selection: Set<string>;
+  /** Manually hidden txids (saved with the graph). */
+  hidden: Set<string>;
+  /** Show only nodes within `hops` of these txids (not saved). */
+  isolate: { txids: Set<string>; hops: 1 | 2 } | null;
+  /** Touch: a node tap toggles its selection. */
+  selectMode: boolean;
 }
 
 // ─── Actions ────────────────────────────────────────────────────────
@@ -64,6 +89,9 @@ type GraphExplorerAction =
   | { type: "TOGGLE_FILTER"; key: keyof NodeFilter }
   | { type: "SET_SIDEBAR_COLLAPSED"; collapsed: boolean }
   | { type: "SET_NODE_POSITION"; txid: string; x: number; y: number }
+  | { type: "TOGGLE_LAYOUT_MODE" }
+  | { type: "TOGGLE_BUNDLE"; key: string }
+  | { type: "RESET_VIEW" }
   | { type: "SET_NODE_POSITION_OVERRIDES"; overrides: Map<string, { x: number; y: number }> }
   | { type: "SET_ANNOTATIONS"; annotations: GraphAnnotation[] }
   | { type: "TOGGLE_ANNOTATE_MODE" }
@@ -71,6 +99,7 @@ type GraphExplorerAction =
   | { type: "SET_EDGE_LABEL"; key: string; label: string }
   | { type: "SET_NODE_LABELS"; labels: Map<string, string> }
   | { type: "SET_EDGE_LABELS"; labels: Map<string, string> }
+  | { type: "SET_LABELS"; nodeLabels: Map<string, string>; edgeLabels: Map<string, string> }
   | { type: "SET_VIEW_TRANSFORM"; vt: ViewTransform | undefined }
   | { type: "SET_EDGE_MODE"; mode: EdgeMode }
   | { type: "CYCLE_EDGE_MODE"; hasLinkability: boolean }
@@ -85,7 +114,21 @@ type GraphExplorerAction =
   | { type: "MERGE_CHANGE_OUTPUTS"; keys: Set<string>; userToggled: Set<string> }
   | { type: "SET_VISIBLE_COUNT"; count: number }
   | { type: "RESTORE_SAVED_GRAPH"; graph: SavedGraph }
-  | { type: "CLEAR_FULLSCREEN" };
+  | { type: "CLEAR_FULLSCREEN" }
+  | { type: "OPEN_CONNECTION"; from: string }
+  | { type: "CLOSE_CONNECTION" }
+  | { type: "SET_CONNECTION_FIELD"; field: "from" | "to"; value: string }
+  | { type: "SET_PICK_MODE"; active: boolean }
+  | { type: "PICK_NODE"; txid: string }
+  | { type: "SET_HIGHLIGHT"; txids: Set<string> }
+  | { type: "TOGGLE_SELECTED"; txid: string }
+  | { type: "SET_SELECTION"; txids: Set<string> }
+  /** Drops selected txids that are not laid out (filtered, hidden, isolated away, removed). */
+  | { type: "PRUNE_SELECTION"; visible: ReadonlyMap<string, unknown> | ReadonlySet<string> }
+  | { type: "HIDE_NODES"; txids: Set<string> }
+  | { type: "SET_HIDDEN"; txids: Set<string> }
+  | { type: "SET_ISOLATE"; isolate: { txids: Set<string>; hops: 1 | 2 } | null }
+  | { type: "SET_SELECT_MODE"; active: boolean };
 
 // ─── Reducer ────────────────────────────────────────────────────────
 
@@ -104,10 +147,25 @@ function graphExplorerReducer(state: GraphExplorerState, action: GraphExplorerAc
     case "SET_SIDEBAR_COLLAPSED":
       return { ...state, sidebarCollapsed: action.collapsed };
     case "SET_NODE_POSITION": {
-      const next = new Map(state.nodePositionOverrides);
+      const field = state.layoutMode === "time" ? "timePositionOverrides" : "nodePositionOverrides";
+      const next = new Map(state[field]);
       next.set(action.txid, { x: action.x, y: action.y });
-      return { ...state, nodePositionOverrides: next };
+      return { ...state, [field]: next };
     }
+    case "TOGGLE_LAYOUT_MODE":
+      // A hops x means nothing on a time axis: each mode has its own overrides,
+      // and time mode always starts clean
+      return { ...state, layoutMode: state.layoutMode === "time" ? "hops" : "time", timePositionOverrides: new Map() };
+    case "TOGGLE_BUNDLE": {
+      const next = new Set(state.unbundledPairs);
+      if (next.has(action.key)) next.delete(action.key); else next.add(action.key);
+      return { ...state, unbundledPairs: next };
+    }
+    case "RESET_VIEW":
+      return {
+        ...state, unbundledPairs: new Set(), nodePositionOverrides: new Map(), timePositionOverrides: new Map(),
+        selection: new Set(), hidden: new Set(), isolate: null, highlightTxids: new Set(),
+      };
     case "SET_NODE_POSITION_OVERRIDES":
       return { ...state, nodePositionOverrides: action.overrides };
     case "SET_ANNOTATIONS":
@@ -128,6 +186,8 @@ function graphExplorerReducer(state: GraphExplorerState, action: GraphExplorerAc
     }
     case "SET_NODE_LABELS":
       return { ...state, nodeLabels: action.labels };
+    case "SET_LABELS":
+      return { ...state, nodeLabels: action.nodeLabels, edgeLabels: action.edgeLabels };
     case "SET_EDGE_LABELS":
       return { ...state, edgeLabels: action.labels };
     case "SET_VIEW_TRANSFORM":
@@ -185,6 +245,9 @@ function graphExplorerReducer(state: GraphExplorerState, action: GraphExplorerAc
         nodePositionOverrides: action.graph.nodePositions
           ? new Map(Object.entries(action.graph.nodePositions))
           : new Map(),
+        timePositionOverrides: new Map(),
+        unbundledPairs: new Set(),
+        layoutMode: action.graph.layoutMode === "time" ? "time" : "hops",
         annotations: action.graph.annotations ?? [],
         nodeLabels: action.graph.nodeLabels
           ? new Map(Object.entries(action.graph.nodeLabels))
@@ -192,12 +255,56 @@ function graphExplorerReducer(state: GraphExplorerState, action: GraphExplorerAc
         edgeLabels: action.graph.edgeLabels
           ? new Map(Object.entries(action.graph.edgeLabels))
           : new Map(),
+        hidden: new Set(savedHiddenTxids(action.graph)),
+        selection: new Set(),
+        isolate: null,
+        highlightTxids: new Set(),
+        selectMode: false,
+        pickMode: false,
       };
     case "CLEAR_FULLSCREEN":
       return { ...state, selectedNode: null, viewTransform: { x: 0, y: 0, scale: 1 } };
+    case "OPEN_CONNECTION":
+      // From follows the node it was opened from; an open panel keeps its To
+      return { ...state, connection: { from: action.from, to: state.connection?.to ?? "" } };
+    case "CLOSE_CONNECTION":
+      return { ...state, connection: null, pickMode: false };
+    case "SET_CONNECTION_FIELD":
+      return state.connection ? { ...state, connection: { ...state.connection, [action.field]: action.value } } : state;
+    case "SET_PICK_MODE":
+      return { ...state, pickMode: action.active && !!state.connection };
+    case "PICK_NODE":
+      return state.connection ? { ...state, pickMode: false, connection: { ...state.connection, to: action.txid } } : state;
+    case "SET_HIGHLIGHT":
+      return state.highlightTxids.size === 0 && action.txids.size === 0 ? state : { ...state, highlightTxids: action.txids };
+    case "TOGGLE_SELECTED": {
+      const next = new Set(state.selection);
+      if (next.has(action.txid)) next.delete(action.txid); else next.add(action.txid);
+      return { ...state, selection: next };
+    }
+    case "SET_SELECTION":
+      return state.selection.size === 0 && action.txids.size === 0 ? state : { ...state, selection: action.txids };
+    case "PRUNE_SELECTION": {
+      const kept = [...state.selection].filter((txid) => action.visible.has(txid));
+      return kept.length === state.selection.size ? state : { ...state, selection: new Set(kept) };
+    }
+    case "HIDE_NODES":
+      // Hidden nodes leave the selection: the batch bar only counts what is on screen
+      return { ...state, hidden: new Set([...state.hidden, ...action.txids]), selection: new Set() };
+    case "SET_HIDDEN":
+      return { ...state, hidden: action.txids };
+    case "SET_ISOLATE":
+      return { ...state, isolate: action.isolate };
+    case "SET_SELECT_MODE":
+      return { ...state, selectMode: action.active };
     default:
       return state;
   }
+}
+
+/** The position overrides of the active layout mode (what the canvas lays out with). */
+export function activePositionOverrides(state: GraphExplorerState): Map<string, { x: number; y: number }> {
+  return state.layoutMode === "time" ? state.timePositionOverrides : state.nodePositionOverrides;
 }
 
 // ─── Initial state factory ──────────────────────────────────────────
@@ -210,6 +317,9 @@ function createInitialState(_alwaysFullscreen?: boolean): GraphExplorerState {
     filter: { showCoinJoin: true, showEntity: true, showStandard: true },
     sidebarCollapsed: typeof window !== "undefined" && window.innerWidth < 640,
     nodePositionOverrides: new Map(),
+    timePositionOverrides: new Map(),
+    layoutMode: "hops",
+    unbundledPairs: new Set(),
     annotations: [],
     annotateMode: false,
     nodeLabels: new Map(),
@@ -222,6 +332,13 @@ function createInitialState(_alwaysFullscreen?: boolean): GraphExplorerState {
     fingerprintMode: false,
     changeOutputs: new Set(),
     visibleCount: 0,
+    connection: null,
+    pickMode: false,
+    highlightTxids: new Set(),
+    selection: new Set(),
+    hidden: new Set(),
+    isolate: null,
+    selectMode: false,
   };
 }
 
@@ -249,6 +366,10 @@ export function useGraphExplorerState(alwaysFullscreen?: boolean) {
 
   const handleSetNodeLabel = useCallback((txid: string, label: string) => {
     dispatch({ type: "SET_NODE_LABEL", txid, label });
+  }, []);
+
+  const handleSetLabels = useCallback((nodeLabels: Map<string, string>, edgeLabels: Map<string, string>) => {
+    dispatch({ type: "SET_LABELS", nodeLabels, edgeLabels });
   }, []);
 
   const handleSetEdgeLabel = useCallback((key: string, label: string) => {
@@ -301,6 +422,7 @@ export function useGraphExplorerState(alwaysFullscreen?: boolean) {
     handleNodePositionChange,
     handleSetNodeLabel,
     handleSetEdgeLabel,
+    handleSetLabels,
     handleToggleHeatMap,
     handleToggleFingerprint,
     handleLayoutComplete,

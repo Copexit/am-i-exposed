@@ -93,3 +93,94 @@ describe("useSaveLoadShare - storage failures", () => {
     expect(result.current.toast).toBe(STORAGE_FULL);
   });
 });
+
+describe("useSaveLoadShare - layout mode", () => {
+  const txid = "d".repeat(64);
+  const nodes = new Map([[txid, { txid, depth: 0 }]]) as never;
+  const stored = () => JSON.parse(localStorage.getItem("ami-saved-graphs") ?? "[]") as { id: string; layoutMode?: string }[];
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
+
+  it("saves the time layout, and Update rewrites it when the mode changes", () => {
+    const { result, rerender } = renderHook(
+      ({ layoutMode, currentGraphId }: { layoutMode: "hops" | "time"; currentGraphId: string | null }) =>
+        useSaveLoadShare({ nodes, rootTxid: txid, rootTxids: new Set([txid]), network: "mainnet", currentGraphId, layoutMode }),
+      { initialProps: { layoutMode: "time", currentGraphId: null } },
+    );
+    act(() => { result.current.handleSave(); });
+    const [saved] = stored();
+    expect(saved?.layoutMode).toBe("time");
+
+    rerender({ layoutMode: "hops", currentGraphId: saved!.id });
+    act(() => { result.current.handleUpdate(); });
+    expect(stored()[0]?.layoutMode).toBeUndefined();
+
+    rerender({ layoutMode: "time", currentGraphId: saved!.id });
+    act(() => { result.current.handleUpdate(); });
+    expect(stored()[0]?.layoutMode).toBe("time");
+  });
+});
+
+describe("useSaveLoadShare - hidden nodes", () => {
+  const root = "e".repeat(64), kid = "f".repeat(64);
+  const nodes = new Map([[root, { txid: root, depth: 0 }], [kid, { txid: kid, depth: 1 }]]) as never;
+  const stored = () => JSON.parse(localStorage.getItem("ami-saved-graphs") ?? "[]") as { id: string; hiddenTxids?: string[] }[];
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
+
+  it("saves the hidden txids, and Update rewrites them", () => {
+    const { result, rerender } = renderHook(
+      ({ hiddenTxids, currentGraphId }: { hiddenTxids: Set<string>; currentGraphId: string | null }) =>
+        useSaveLoadShare({ nodes, rootTxid: root, rootTxids: new Set([root]), network: "mainnet", currentGraphId, hiddenTxids }),
+      { initialProps: { hiddenTxids: new Set([kid, "a".repeat(64)]), currentGraphId: null as string | null } },
+    );
+    act(() => { result.current.handleSave(); });
+    const [saved] = stored();
+    // A hidden txid no longer in the graph is not saved
+    expect(saved?.hiddenTxids).toEqual([kid]);
+
+    rerender({ hiddenTxids: new Set(), currentGraphId: saved!.id });
+    act(() => { result.current.handleUpdate(); });
+    expect(stored()[0]?.hiddenTxids).toBeUndefined();
+
+    rerender({ hiddenTxids: new Set([kid]), currentGraphId: saved!.id });
+    act(() => { result.current.handleUpdate(); });
+    expect(stored()[0]?.hiddenTxids).toEqual([kid]);
+  });
+});
+
+describe("useSaveLoadShare - Update saves the whole graph", () => {
+  const txid = "9".repeat(64);
+  const nodes = new Map([[txid, { txid, depth: 0 }]]) as never;
+  const stored = () => JSON.parse(localStorage.getItem("ami-saved-graphs") ?? "[]") as Record<string, unknown>[];
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
+
+  it("writes labels, annotations and positions, keeping the id and name", () => {
+    type P = { nodeLabels?: Map<string, string>; currentGraphId: string | null };
+    const { result, rerender } = renderHook(
+      ({ nodeLabels, currentGraphId }: P) => useSaveLoadShare({
+        nodes, rootTxid: txid, rootTxids: new Set([txid]), network: "mainnet", currentGraphId, nodeLabels,
+        edgeLabels: nodeLabels && new Map([["a->b", "edge"]]),
+        nodePositionOverrides: nodeLabels && new Map([[txid, { x: 1, y: 2 }]]),
+        annotations: nodeLabels && [{ id: "n", type: "note", x: 0, y: 0, title: "t", body: "" }],
+      }),
+      { initialProps: { currentGraphId: null } as P },
+    );
+    act(() => { result.current.setSaveName("Mine"); });
+    act(() => { result.current.handleSave(); });
+    const [saved] = stored();
+    expect(saved?.nodeLabels).toBeUndefined();
+
+    // Labels imported into the open saved graph, then Update
+    rerender({ nodeLabels: new Map([[txid, "exchange deposit"]]), currentGraphId: saved!.id as string });
+    act(() => { result.current.handleUpdate(); });
+    const [updated] = stored();
+    expect(updated).toMatchObject({
+      id: saved!.id, name: "Mine",
+      nodeLabels: { [txid]: "exchange deposit" }, edgeLabels: { "a->b": "edge" },
+      nodePositions: { [txid]: { x: 1, y: 2 } }, annotations: [{ id: "n" }],
+    });
+    expect(stored()).toHaveLength(1);
+  });
+});

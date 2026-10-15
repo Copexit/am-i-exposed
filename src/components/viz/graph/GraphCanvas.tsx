@@ -15,6 +15,7 @@ import { useLabelEditor } from "./useLabelEditor";
 import { useGraphLayout } from "./useGraphLayout";
 import { GraphAnnotations } from "./GraphAnnotations";
 import { GraphNodeRenderer } from "./GraphNodeRenderer";
+import { TimeAxis } from "./TimeAxis";
 import type { GraphCanvasProps, LayoutNode } from "./types";
 import { isOpReturnOutput } from "@/lib/analysis/heuristics/tx-utils";
 
@@ -39,6 +40,7 @@ export function GraphCanvas({
   selectedNode,
   setSelectedNode,
   focusedNode,
+  highlightTxids,
   setFocusedNode,
   heatMap,
   heatMapActive,
@@ -66,6 +68,15 @@ export function GraphCanvas({
   onSetNodeLabel,
   edgeLabels,
   onSetEdgeLabel,
+  layoutMode,
+  unbundledPairs,
+  onToggleBundle,
+  selection,
+  onToggleSelect,
+  selectMode,
+  excludedTxids,
+  escapeTaken,
+  removableRoots,
 }: GraphCanvasProps) {
   // Subscribe to theme changes so SVG_COLORS proxy resolves fresh values on re-render
   useTheme();
@@ -129,12 +140,12 @@ export function GraphCanvas({
     ricochetHopLabels, portPositions,
     maxEdgeValue, edgeScriptInfo,
     detChainEdges, entropyEdges,
-    toxicMergeNodes, hoveredEdges, focusSpotlight,
+    toxicMergeNodes, hoveredEdges, focusSpotlight, timeColumns,
   } = useGraphLayout({
     nodes, rootTxid, filter, rootTxids,
     expandedNodeTxid, isFullscreen: isFs,
     nodePositionOverrides, boltzmannCache,
-    entropyGradientMode, hoveredNode,
+    entropyGradientMode, hoveredNode, layoutMode, excludedTxids,
   });
 
   // Report visible count to parent (eliminates redundant layout call)
@@ -176,6 +187,9 @@ export function GraphCanvas({
     onExpandOutput,
     onCollapse,
     onToggleExpand,
+    escapeHandledAbove: escapeTaken,
+    onToggleSelect,
+    selectMode,
   });
 
   // Auto-scroll to keep focused node visible
@@ -245,10 +259,15 @@ export function GraphCanvas({
   }, [nodes, atCapacity, onExpandInput, onExpandOutput]);
 
   // Handle node click - toggle expansion (UTXO ports) or floating analysis panel
-  const handleNodeClick = useCallback((node: LayoutNode, currentSelected: string | null) => {
+  const handleNodeClick = useCallback((node: LayoutNode, currentSelected: string | null, e?: React.MouseEvent) => {
     // In annotate mode, clicking a node opens its label editor
     if (annotateMode && onSetNodeLabel) {
       startEditNodeLabel(node.txid);
+      return;
+    }
+    // Ctrl/Cmd/Shift-click (or a tap in select mode) toggles the selection, never the sidebar
+    if (onToggleSelect && (selectMode || e?.ctrlKey || e?.metaKey || e?.shiftKey)) {
+      onToggleSelect(node.txid);
       return;
     }
     // If expansion is available, toggle the expanded UTXO port view
@@ -267,7 +286,7 @@ export function GraphCanvas({
       x: pos.x,
       y: pos.y,
     });
-  }, [setSelectedNode, toScreen, onToggleExpand, annotateMode, onSetNodeLabel, startEditNodeLabel]);
+  }, [setSelectedNode, toScreen, onToggleExpand, annotateMode, onSetNodeLabel, startEditNodeLabel, onToggleSelect, selectMode]);
 
   // Minimap scroll handler
   const [scrollPos, setScrollPos] = useState({ left: 0, top: 0 });
@@ -377,6 +396,8 @@ export function GraphCanvas({
           pointerEvents="none"
         />
 
+        {timeColumns && <TimeAxis columns={timeColumns} />}
+
         {/* Edges (main edges, hover overlay, det-chain overlay, flow particles) */}
         <GraphEdges
           edges={edges}
@@ -399,6 +420,8 @@ export function GraphCanvas({
           edgeScriptInfo={edgeScriptInfo}
           tooltip={tooltip}
           toScreen={toScreen}
+          unbundledPairs={unbundledPairs}
+          onToggleBundle={onToggleBundle}
         />
 
         {/* Annotations layer (between edges and nodes) */}
@@ -434,6 +457,9 @@ export function GraphCanvas({
             hoveredNode={hoveredNode}
             hoveredEdges={hoveredEdges}
             focusedNode={focusedNode}
+            highlightTxids={highlightTxids}
+            isSelected={!!selection?.has(node.txid)}
+            canCollapse={!node.isRoot || !!removableRoots?.has(node.txid)}
             focusSpotlight={focusSpotlight}
             expandedNodeTxid={expandedNodeTxid ?? null}
             heatMapActive={heatMapActive}

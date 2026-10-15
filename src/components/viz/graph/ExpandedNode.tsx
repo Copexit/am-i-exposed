@@ -24,7 +24,7 @@ interface ExpandedNodeProps {
   onHoverPort: (portKey: string | null) => void;
   onExpandInput: (txid: string, inputIndex: number) => void;
   onExpandOutput: (txid: string, outputIndex: number) => void;
-  onNodeClick: () => void;
+  onNodeClick: (e: React.MouseEvent) => void;
   onMouseDown?: (e: React.MouseEvent) => void;
   onTouchStart?: (e: React.TouchEvent) => void;
   atCapacity: boolean;

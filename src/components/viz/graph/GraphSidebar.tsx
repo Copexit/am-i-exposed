@@ -66,6 +66,8 @@ interface GraphSidebarProps {
   onCancelAutoTrace?: () => void;
   /** Why the last auto-trace stopped (stable code). */
   autoTraceStop?: string | null;
+  /** Open the Find connection panel with this tx as From. */
+  onFindConnection?: (txid: string) => void;
 }
 
 // CopyButton imported from shared component
@@ -91,6 +93,7 @@ export function GraphSidebar({
   onCancelAutoTrace,
   autoTraceStop,
   onSetAsRoot,
+  onFindConnection,
 }: GraphSidebarProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<Tab>("io");
@@ -247,7 +250,15 @@ export function GraphSidebar({
       </div>
 
       {/* Action buttons */}
-      <div className="px-3 py-2 border-t border-card-border shrink-0 flex gap-2">
+      <div className="px-3 py-2 border-t border-card-border shrink-0 flex flex-wrap gap-2">
+        {onFindConnection && (
+          <button
+            onClick={() => onFindConnection(tx.txid)}
+            className="basis-full text-xs text-center py-2 rounded-lg border border-card-border text-muted hover:text-foreground hover:border-muted transition-colors cursor-pointer"
+          >
+            {t("graph.connection.fromHere", { defaultValue: "Find connection from here" })}
+          </button>
+        )}
         <button
           onClick={() => onFullScan(tx.txid)}
           className="flex-1 text-xs text-center py-2 rounded-lg border border-card-border text-muted hover:text-foreground hover:border-muted transition-colors cursor-pointer"

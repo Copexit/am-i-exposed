@@ -10,7 +10,7 @@ import { copyToClipboard } from "@/lib/clipboard";
 import type { GraphNode } from "@/components/viz/graph/types";
 import type { GraphState } from "@/lib/graph/graph-reducer";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
-import type { SavedGraph, GraphAnnotation } from "@/lib/graph/saved-graph-types";
+import type { SavedGraph, GraphAnnotation, GraphLayoutMode } from "@/lib/graph/saved-graph-types";
 
 type Panel = "save" | "load" | null;
 
@@ -25,6 +25,8 @@ interface UseSaveLoadShareArgs {
   annotations?: GraphAnnotation[];
   nodeLabels?: Map<string, string>;
   edgeLabels?: Map<string, string>;
+  layoutMode?: GraphLayoutMode;
+  hiddenTxids?: Set<string>;
 }
 
 export function useSaveLoadShare(args: UseSaveLoadShareArgs) {
@@ -32,7 +34,7 @@ export function useSaveLoadShare(args: UseSaveLoadShareArgs) {
     nodes, rootTxid, rootTxids, network, currentGraphId,
     nodePositionOverrides: posOverrides,
     annotations: savedAnnotations,
-    nodeLabels, edgeLabels,
+    nodeLabels, edgeLabels, layoutMode, hiddenTxids,
   } = args;
 
   const { t } = useTranslation();
@@ -48,6 +50,8 @@ export function useSaveLoadShare(args: UseSaveLoadShareArgs) {
   useEffect(() => {
     if (!activePanel) return;
     const handler = (e: MouseEvent) => {
+      // The label import preview is a portal: a click in it is not an outside click
+      if ((e.target as Element).closest?.("[data-labels-preview]")) return;
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
         setActivePanel(null);
         setConfirmDeleteId(null);
@@ -68,6 +72,7 @@ export function useSaveLoadShare(args: UseSaveLoadShareArgs) {
     nodes: nodes ?? new Map(),
     rootTxid: rootTxid ?? "",
     rootTxids: rootTxids ?? new Set(),
+    addedRoots: new Set(),
     maxNodes: 100,
     undoStack: [],
     loading: new Set(),
@@ -77,7 +82,7 @@ export function useSaveLoadShare(args: UseSaveLoadShareArgs) {
   const handleSave = useCallback(() => {
     if (!network) return;
     const name = saveName.trim() || `Graph - ${truncateId(rootTxid ?? "")}`;
-    const saved = serializeGraph(buildGraphState(), name, network, undefined, undefined, posOverrides, savedAnnotations, nodeLabels, edgeLabels);
+    const saved = serializeGraph(buildGraphState(), name, network, undefined, undefined, posOverrides, savedAnnotations, nodeLabels, edgeLabels, layoutMode, hiddenTxids);
     const id = saveGraph(saved);
     if (id) {
       setToast(t("graphSaveLoad.saved", { defaultValue: "Graph saved" }));
@@ -87,28 +92,21 @@ export function useSaveLoadShare(args: UseSaveLoadShareArgs) {
     } else {
       setToast(t("workspace.storageFull", { defaultValue: "Browser storage is full. Delete some bookmarks or saved graphs and try again." }));
     }
-  }, [saveName, rootTxid, buildGraphState, network, saveGraph, graphs.length, t, posOverrides, savedAnnotations, nodeLabels, edgeLabels]);
+  }, [saveName, rootTxid, buildGraphState, network, saveGraph, graphs.length, t, posOverrides, savedAnnotations, nodeLabels, edgeLabels, layoutMode, hiddenTxids]);
 
   const handleUpdate = useCallback(() => {
-    if (!currentGraphId) return;
-    const state = buildGraphState();
-    const nodesArr = [...state.nodes.values()].map((n) => ({
-      txid: n.txid, depth: n.depth,
-      parentEdge: n.parentEdge ? { ...n.parentEdge } : undefined,
-      childEdge: n.childEdge ? { ...n.childEdge } : undefined,
-    }));
-    const ok = updateGraph(currentGraphId, {
-      nodes: nodesArr,
-      rootTxid: state.rootTxid,
-      rootTxids: [...state.rootTxids],
-    });
+    if (!currentGraphId || !network) return;
+    // The whole graph, as Save writes it (labels, annotations, positions, ...), under the same id and name
+    const name = graphs.find((g) => g.id === currentGraphId)?.name ?? "";
+    const serialized = serializeGraph(buildGraphState(), name, network, undefined, undefined, posOverrides, savedAnnotations, nodeLabels, edgeLabels, layoutMode, hiddenTxids);
+    const ok = updateGraph(currentGraphId, serialized);
     if (!ok) {
       setToast(t("workspace.storageFull", { defaultValue: "Browser storage is full. Delete some bookmarks or saved graphs and try again." }));
       return;
     }
     setToast(t("graphSaveLoad.updated", { defaultValue: "Graph updated" }));
     setActivePanel(null);
-  }, [currentGraphId, buildGraphState, updateGraph, t]);
+  }, [currentGraphId, network, graphs, buildGraphState, updateGraph, t, posOverrides, savedAnnotations, nodeLabels, edgeLabels, layoutMode, hiddenTxids]);
 
   const handleShare = useCallback(() => {
     if (!network) return;

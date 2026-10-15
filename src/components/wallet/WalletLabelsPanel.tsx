@@ -4,7 +4,10 @@ import { useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Download, FileUp, ClipboardPaste, Trash2 } from "lucide-react";
 import type { WalletAddressInfo } from "@/lib/analysis/wallet-audit";
-import { MAX_FILE_BYTES, parseBip329, recordKey, serializeBip329, type Bip329Record } from "@/lib/wallet/bip329";
+import { parseBip329, type Bip329Record } from "@/lib/wallet/bip329";
+import { applyMerge, mergeBip329, type Bip329Merge } from "@/lib/wallet/bip329-merge";
+import { downloadBip329, readBip329File } from "@/lib/wallet/bip329-io";
+import { Bip329ConflictPreview } from "@/components/labels/Bip329ConflictPreview";
 import { autoLabels, exportRecords, labelsFilename, matchLabels, setWalletOrigin, withFiatValues, WALLET_ORIGINS, type WalletOrigin } from "@/lib/wallet/labels";
 import { createApiClient } from "@/lib/api/client";
 import { useNetwork } from "@/context/NetworkContext";
@@ -41,6 +44,7 @@ export function WalletLabelsPanel({ records, onChange, addressInfos, xpub }: {
   const fileRef = useRef<HTMLInputElement>(null);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [paste, setPaste] = useState("");
+  const [pending, setPending] = useState<{ merge: Bip329Merge; summary: ImportSummary } | null>(null);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [error, setError] = useState<"too-large" | "empty" | null>(null);
   const [onlyAuto, setOnlyAuto] = useState(false);
@@ -52,25 +56,26 @@ export function WalletLabelsPanel({ records, onChange, addressInfos, xpub }: {
   const checks = matched?.checks ?? [];
   const walletOrigin = matched?.walletOrigin ?? null;
 
-  function apply(text: string) {
-    const parsed = parseBip329(text);
-    if (!parsed) { setError("too-large"); setSummary(null); return; }
+  function apply(parsed: NonNullable<ReturnType<typeof parseBip329>>) {
     if (parsed.records.length === 0 && parsed.invalid === 0) { setError("empty"); setSummary(null); return; }
     const m = matchLabels(parsed.records, addressInfos, xpub);
     setError(null);
-    setSummary({ read: parsed.records.length, onCoins: m.onCoins, history: m.history, unmatched: m.unmatched, invalid: parsed.invalid, truncated: parsed.truncated });
-    // A new import adds to the labels already loaded; the same ref is replaced.
-    const keys = new Set(parsed.records.map(recordKey));
-    onChange([...records.filter(r => !keys.has(recordKey(r))), ...parsed.records]);
+    const sum: ImportSummary = { read: parsed.records.length, onCoins: m.onCoins, history: m.history, unmatched: m.unmatched, invalid: parsed.invalid, truncated: parsed.truncated };
+    // A new import adds to the labels already loaded; a clash on the same ref is kept as is until the preview says otherwise.
+    const merge = mergeBip329([...records], parsed.records);
+    if (merge.conflicts.length > 0) { setPending({ merge, summary: sum }); return; }
     setPaste("");
     setPasteOpen(false);
+    setSummary(sum);
+    onChange(applyMerge([...records], merge, new Set()));
   }
 
   async function onFile(file: File | undefined) {
     if (!file) return;
-    if (file.size > MAX_FILE_BYTES) { setError("too-large"); setSummary(null); return; }
-    apply(await file.text());
+    const parsed = await readBip329File(file);
     if (fileRef.current) fileRef.current.value = "";
+    if (!parsed) { setError("too-large"); setSummary(null); return; }
+    apply(parsed);
   }
 
   async function download() {
@@ -80,18 +85,18 @@ export function WalletLabelsPanel({ records, onChange, addressInfos, xpub }: {
       ? await withFiatValues(records, addressInfos, ts => (fiatCur === "EUR" ? api.getHistoricalEurPrice(ts) : api.getHistoricalPrice(ts)), fiatCur)
       : records;
     const out = exportRecords(base, autoLabels(addressInfos), onlyAuto);
-    const blob = new Blob([serializeBip329(out)], { type: "application/jsonl" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = labelsFilename(xpub);
-    a.click();
-    // Firefox starts the download after click() returns: revoke later
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    downloadBip329(out, labelsFilename(xpub));
   }
 
   return (
     <div className="space-y-4" data-testid="labels-panel">
+      {pending && (
+        <Bip329ConflictPreview
+          merge={pending.merge}
+          onCancel={() => setPending(null)}
+          onApply={(keys) => { onChange(applyMerge([...records], pending.merge, keys)); setSummary(pending.summary); setPaste(""); setPasteOpen(false); setPending(null); }}
+        />
+      )}
       <p className="text-sm text-muted leading-relaxed max-w-2xl">
         {t("wallet.labels.intro", { defaultValue: "Import BIP329 labels (.jsonl) exported from Sparrow or another wallet to see them on coins, addresses and transactions, and to let the coin selector follow them. Labels stay in this tab's memory: they are never stored or sent." })}{" "}
         <a href="/guide/labeling/" className="text-bitcoin hover:text-bitcoin-hover underline-offset-2 hover:underline">
@@ -140,7 +145,7 @@ export function WalletLabelsPanel({ records, onChange, addressInfos, xpub }: {
           <button
             type="button"
             disabled={!paste.trim()}
-            onClick={() => apply(paste)}
+            onClick={() => { const p = parseBip329(paste); if (p) apply(p); else { setError("too-large"); setSummary(null); } }}
             className="h-10 px-4 bg-bitcoin text-black font-semibold text-sm rounded-lg hover:bg-bitcoin-hover transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {t("wallet.labels.apply", { defaultValue: "Apply labels" })}
@@ -240,6 +245,9 @@ export function WalletLabelsPanel({ records, onChange, addressInfos, xpub }: {
         )}
         <p className="basis-full text-[13px] text-muted leading-relaxed">
           {t("wallet.labels.exportNote", { defaultValue: "BIP329 file for Sparrow and other wallets: your labels unchanged, plus automatic \"aie:\" labels on coins and addresses (CoinJoin output, toxic change, exposed change, reused address, linkage group). Where you already have a label it becomes \"your label | aie: ...\". Importing it here again drops the aie: part." })}
+        </p>
+        <p className="basis-full text-[13px] text-muted leading-relaxed">
+          {t("labels.plaintext", { defaultValue: "The file is plain text: anyone who gets it can read every label. Keep it private." })}
         </p>
       </div>
     </div>
