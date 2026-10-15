@@ -275,13 +275,13 @@ export function useGraphExpansion(fetcher: GraphExpansionFetcher | null, maxNode
     }
     const { nodes, maxNodes } = stateRef.current;
     const plan = planPathNodes(path, all, nodes);
-    const added = Math.min(plan.nodes.length, Math.max(0, maxNodes - nodes.size));
-    if (added > 0) {
+    if (plan.nodes.length > 0 && nodes.size < maxNodes) {
       const action: GraphAction = { type: "ADD_NODES", nodes: plan.nodes, root: plan.root };
       // Advance the ref now, so a back-to-back call ("Add all") plans against this result
       stateRef.current = graphReducer(stateRef.current, action);
       dispatch(action);
     }
+    const added = stateRef.current.nodes.size - nodes.size;
     return { added, skipped: path.hops.filter((h) => !nodes.has(h.txid)).length - added };
   }, []);
 

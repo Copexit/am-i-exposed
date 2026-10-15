@@ -9,7 +9,7 @@ import { useFullscreen } from "@/hooks/useFullscreen";
 import { useGraphBoltzmann } from "@/hooks/useGraphBoltzmann";
 import { useConnectionSearch } from "@/hooks/useConnectionSearch";
 import type { ConnectionPath } from "@/lib/graph/connection-search";
-import { ConnectionPanel } from "./graph/ConnectionPanel";
+import { ConnectionPanel, CONNECTION_PANEL_INSET, SM_BREAKPOINT } from "./graph/ConnectionPanel";
 import { GraphSidebar } from "./graph/GraphSidebar";
 import { MAX_ZOOM, MIN_ZOOM } from "./graph/constants";
 import {
@@ -159,14 +159,40 @@ export function GraphExplorer(props: GraphExplorerProps) {
   // ─── Find connection ───────────────────────────────────
   const connectionSearch = useConnectionSearch(graph.fetcher);
   const { addPath } = graph;
+  // Focus returns to whatever opened the panel (toolbar or sidebar button)
+  const connectionTriggerRef = useRef<HTMLElement | null>(null);
   const openConnection = useCallback((from?: string) => {
+    connectionTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dispatch({ type: "OPEN_CONNECTION", from: from ?? graph.expandedNodeTxid ?? graph.rootTxid });
   }, [dispatch, graph.expandedNodeTxid, graph.rootTxid]);
-  const handleAddPath = useCallback(async (path: ConnectionPath) => {
-    const result = await addPath(path, connectionSearch.txs);
-    dispatch({ type: "SET_HIGHLIGHT", txids: new Set(path.hops.map((h) => h.txid)) });
-    return result;
+  const { reset: resetConnectionSearch } = connectionSearch;
+  const closeConnection = useCallback(() => {
+    resetConnectionSearch();
+    dispatch({ type: "CLOSE_CONNECTION" });
+    const trigger = connectionTriggerRef.current;
+    connectionTriggerRef.current = null;
+    if (trigger?.isConnected) trigger.focus();
+  }, [resetConnectionSearch, dispatch]);
+  /** Adds the paths in order; highlights every path tx and returns the totals. */
+  const handleAddPaths = useCallback(async (paths: ConnectionPath[]) => {
+    const total = { added: 0, skipped: 0 };
+    for (const path of paths) {
+      const r = await addPath(path, connectionSearch.txs);
+      total.added += r.added;
+      total.skipped += r.skipped;
+    }
+    dispatch({ type: "SET_HIGHLIGHT", txids: new Set(paths.flatMap((p) => p.hops.map((h) => h.txid))) });
+    return total;
   }, [addPath, connectionSearch.txs, dispatch]);
+
+  // While the desktop panel is open, framing leaves its width free on the right
+  const panelOpen = !!connection;
+  const fitDims = useCallback(() => {
+    const d = containerDimsRef.current;
+    const inset = panelOpen && window.innerWidth >= SM_BREAKPOINT ? CONNECTION_PANEL_INSET : 0;
+    return inset && d.width > inset + 240 ? { ...d, width: d.width - inset } : d;
+  }, [panelOpen, containerDimsRef]);
+
   const cycleEdgeMode = useCallback(() => {
     dispatch({ type: "CYCLE_EDGE_MODE", hasLinkability });
   }, [hasLinkability, dispatch]);
@@ -206,9 +232,9 @@ export function GraphExplorer(props: GraphExplorerProps) {
   // Fit/auto-fit frame the boxes the canvas actually rendered (seeded and
   // dragged positions, expanded-node sizes), not a separately recomputed layout.
   const handleFitView = useCallback(() => {
-    const vt = computeFitView([...nodePositionsRef.current.values()], containerDimsRef.current);
+    const vt = computeFitView([...nodePositionsRef.current.values()], fitDims());
     if (vt) dispatch({ type: "SET_VIEW_TRANSFORM", vt });
-  }, [dispatch, nodePositionsRef, containerDimsRef]);
+  }, [dispatch, nodePositionsRef, fitDims]);
 
   const handleExpandFullscreen = useCallback(() => {
     pendingFrameRef.current = true;
@@ -235,10 +261,10 @@ export function GraphExplorer(props: GraphExplorerProps) {
     requestAnimationFrame(() => {
       const pos = nodePositionsRef.current;
       const focus = [rootTxid, ...(rootTxids ?? []), ...added].flatMap((id) => pos.get(id) ?? []);
-      const vt = computeAutoFitView([...pos.values()], focus, containerDimsRef.current);
+      const vt = computeAutoFitView([...pos.values()], focus, fitDims());
       if (vt) dispatch({ type: "SET_VIEW_TRANSFORM", vt });
     });
-  }, [handleLayoutComplete, rootTxid, rootTxids, nodePositionsRef, containerDimsRef, dispatch]);
+  }, [handleLayoutComplete, rootTxid, rootTxids, nodePositionsRef, fitDims, dispatch]);
 
   // ─── Stable callbacks ──────────────────────────────────
   const { onLoadSavedGraph } = props;
@@ -314,7 +340,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
     onRegisterHandlers: (handlers: Record<string, () => void>) => { tbHandlersRef.current = handlers; },
     annotateMode, onToggleAnnotateMode: () => dispatch({ type: "TOGGLE_ANNOTATE_MODE" }),
     nodePositionOverrides, annotations, nodeLabels, edgeLabels,
-    onFindConnection: graph.fetcher ? () => openConnection() : undefined,
+    onFindConnection: graph.fetcher ? () => (connection ? closeConnection() : openConnection()) : undefined,
     findConnectionOpen: !!connection,
   };
 
@@ -369,10 +395,10 @@ export function GraphExplorer(props: GraphExplorerProps) {
       onFieldChange={(field, value) => dispatch({ type: "SET_CONNECTION_FIELD", field, value })}
       pickMode={pickMode}
       onTogglePick={() => dispatch({ type: "SET_PICK_MODE", active: !pickMode })}
-      onClose={() => { connectionSearch.reset(); dispatch({ type: "CLOSE_CONNECTION" }); }}
+      onClose={closeConnection}
       search={connectionSearch}
       boltzmannCache={boltzmannCache}
-      onAddPath={handleAddPath}
+      onAddPaths={handleAddPaths}
     />
   );
 

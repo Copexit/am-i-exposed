@@ -48,7 +48,8 @@ export function useConnectionSearch(fetcher: GraphExpansionFetcher | null) {
   const [txs, setTxs] = useState<ReadonlyMap<string, MempoolTransaction>>(new Map());
   const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => () => abortRef.current?.abort(), []);
+  // Unmount: abort and drop the ref, so the finishing search writes no state
+  useEffect(() => () => { abortRef.current?.abort(); abortRef.current = null; }, []);
 
   const cancel = useCallback(() => abortRef.current?.abort(), []);
 
@@ -64,11 +65,12 @@ export function useConnectionSearch(fetcher: GraphExpansionFetcher | null) {
 
     const resolve = async (e: Endpoint): Promise<string[] | "failed"> => {
       if (e.kind === "txid") return [e.value];
+      if (!fetcher.getAddressTxs) return "failed";
       try {
-        // First page of history only
-        const list = await fetcher.getAddressTxs?.(e.value, 1);
-        for (const tx of list ?? []) seen.set(tx.txid, tx);
-        return (list ?? []).map((tx) => tx.txid);
+        // First page of history only. The client takes no signal here: an abort drops the result below.
+        const list = await fetcher.getAddressTxs(e.value, 1);
+        for (const tx of list) seen.set(tx.txid, tx);
+        return list.map((tx) => tx.txid);
       } catch {
         return "failed";
       }
@@ -112,6 +114,7 @@ export function useConnectionSearch(fetcher: GraphExpansionFetcher | null) {
 
   const reset = useCallback(() => {
     abortRef.current?.abort();
+    abortRef.current = null;
     setState(IDLE);
   }, []);
 

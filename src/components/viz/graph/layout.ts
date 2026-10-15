@@ -276,6 +276,33 @@ export function layoutGraph(
     }
   }
 
+  // Any other on-chain link between two nodes in the graph. A node holds one
+  // edge per direction, so e.g. a connection path's pivot funded from both sides
+  // would otherwise show only one of its links.
+  for (const [, node] of graphNodes) {
+    for (const v of node.tx.vin) {
+      if (v.is_coinbase || !graphNodes.has(v.txid)) continue;
+      const eKey = `${v.txid}->${node.txid}`;
+      if (edgeSet.has(eKey)) continue;
+      edgeSet.add(eKey);
+      const fromPos = nodePositions.get(v.txid);
+      const toPos = nodePositions.get(node.txid);
+      if (!fromPos || !toPos) continue;
+      const vins = node.tx.vin.filter((w) => w.txid === v.txid);
+      edges.push({
+        fromTxid: v.txid,
+        toTxid: node.txid,
+        x1: fromPos.x + fromPos.w,
+        y1: fromPos.y + fromPos.h / 2,
+        x2: toPos.x,
+        y2: toPos.y + toPos.h / 2,
+        isBackward: false,
+        consolidationCount: vins.length,
+        outputIndices: vins.map((w) => w.vout),
+      });
+    }
+  }
+
   // Calculate total dimensions (extra padding for pan/zoom drag surface)
   const extraPadding = reserveBackwardSpace ? 400 : 0;
   const maxX = Math.max(...layoutNodes.map((n) => n.x + n.width), 0) + extraPadding;

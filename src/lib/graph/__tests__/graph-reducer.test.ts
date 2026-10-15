@@ -61,4 +61,10 @@ describe("graphReducer ADD_NODES", () => {
     const next = graphReducer(state, { type: "ADD_NODES", nodes: [{ txid: "r2", tx: makeTx({ txid: "r2" }), depth: 0 }], root: "r2" });
     expect([...next.rootTxids]).toEqual(["root", "r2"]);
   });
+
+  it("drops the extra root again on UNDO", () => {
+    const state = withRoot("root");
+    const next = graphReducer(state, { type: "ADD_NODES", nodes: [{ txid: "r2", tx: makeTx({ txid: "r2" }), depth: 0 }], root: "r2" });
+    expect([...graphReducer(next, { type: "UNDO" }).rootTxids]).toEqual(["root"]);
+  });
 });

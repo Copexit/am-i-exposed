@@ -245,7 +245,11 @@ export function graphReducer(state: GraphState, action: GraphAction): GraphState
     case "UNDO": {
       const nodes = state.undoStack.at(-1);
       if (!nodes) return state;
-      return { ...state, nodes, undoStack: state.undoStack.slice(0, -1) };
+      // An extra root added by the undone step (ADD_NODES) leaves with its node
+      const rootTxids = [...state.rootTxids].every((t) => nodes.has(t))
+        ? state.rootTxids
+        : new Set([...state.rootTxids].filter((t) => nodes.has(t)));
+      return { ...state, nodes, rootTxids, undoStack: state.undoStack.slice(0, -1) };
     }
 
     default:

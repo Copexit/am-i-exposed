@@ -83,6 +83,11 @@ test("find connection: a search from the root finds a child two hops away and ad
   await expect(page.locator(`[data-txid="${CHILD.txid}"]`)).toBeVisible();
   await expect(page.locator(`[data-txid="${MID.txid}"]`)).toBeVisible();
   await expect(card.getByRole("button", { name: "Added" })).toBeDisabled();
+
+  // The toolbar button toggles the panel; closing returns focus to it
+  await page.getByRole("button", { name: "Find connection", pressed: true }).click();
+  await expect(panel).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Find connection", pressed: false })).toBeFocused();
 });
 
 test.describe("on a phone", () => {
@@ -125,5 +130,17 @@ test.describe("on a phone", () => {
     await start.scrollIntoViewIfNeeded();
     await start.tap();
     await expect(panel.getByTestId("connection-card").first()).toBeVisible();
+  });
+
+  test("picking To on a phone collapses the sheet until a node is tapped", async ({ page }) => {
+    await page.goto(`/graph/#txid=${ROOT.txid}`);
+    await expect(page.getByText(label(ROOT.txid))).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole("button", { name: "Find connection" }).first().click();
+    const panel = page.getByTestId("connection-panel");
+    await panel.getByRole("button", { name: "Pick a node in the graph" }).tap();
+    await expect(panel.getByLabel("To", { exact: true })).toBeHidden();
+    await page.locator(`[data-txid="${ROOT.txid}"]`).tap();
+    await expect(panel.getByLabel("To", { exact: true })).toHaveValue(ROOT.txid);
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Crosshair, Loader2 } from "lucide-react";
 import { useNetwork } from "@/context/NetworkContext";
@@ -20,8 +20,14 @@ interface ConnectionPanelProps {
   onClose: () => void;
   search: ReturnType<typeof useConnectionSearch>;
   boltzmannCache: ReadonlyMap<string, BoltzmannWorkerResult>;
-  onAddPath: (path: ConnectionPath) => Promise<AddResult>;
+  /** Adds paths in order and returns the totals. */
+  onAddPaths: (paths: ConnectionPath[]) => Promise<AddResult>;
 }
+
+/** Tailwind's sm breakpoint: below it the panel is a bottom sheet. */
+export const SM_BREAKPOINT = 640;
+/** Canvas width the desktop panel covers (w-80 plus its right-2 offset and a gap). */
+export const CONNECTION_PANEL_INSET = 336;
 
 /** Budget fields: [default, min, max]. */
 const BOUNDS = {
@@ -40,13 +46,18 @@ const inputClass = "w-full min-w-0 h-9 px-2 rounded-lg border border-card-border
 const btnClass = "text-xs px-3 py-1.5 min-h-9 rounded-lg border transition-colors cursor-pointer";
 
 export function ConnectionPanel(props: ConnectionPanelProps) {
-  const { from, to, onFieldChange, pickMode, onTogglePick, onClose, search, boltzmannCache, onAddPath } = props;
+  const { from, to, onFieldChange, pickMode, onTogglePick, onClose, search, boltzmannCache, onAddPaths } = props;
   const { t } = useTranslation();
   const { network } = useNetwork();
   const [budget, setBudget] = useState<Budget>({ maxHops: BOUNDS.maxHops[0], maxTxs: BOUNDS.maxTxs[0], seconds: BOUNDS.seconds[0] });
   const [stopAtCoinJoins, setStopAtCoinJoins] = useState(true);
   const [errors, setErrors] = useState<{ from?: string; to?: string }>({});
   const running = search.status === "running";
+  const [addAllResult, setAddAllResult] = useState<AddResult | null>(null);
+
+  // Focus moves into the panel on open (the panel itself, so a phone keyboard does not pop up)
+  const sectionRef = useRef<HTMLElement>(null);
+  useEffect(() => sectionRef.current?.focus(), []);
 
   const invalid = t("graph.connection.invalidInput", { defaultValue: "Enter a txid or an address for this network." });
 
@@ -60,6 +71,7 @@ export function ConnectionPanel(props: ConnectionPanelProps) {
     });
     if (!a || !z || same) return;
     setBudget(b);
+    setAddAllResult(null);
     void search.start(a, z, {
       ...DEFAULT_CONNECTION_OPTIONS,
       maxHops: b.maxHops,
@@ -85,8 +97,9 @@ export function ConnectionPanel(props: ConnectionPanelProps) {
   })).filter((g) => g.items.length > 0), [search.results, search.txs, boltzmannCache]);
 
   const addAll = async () => {
-    for (const g of groups) for (const { path } of g.items) await onAddPath(path);
+    setAddAllResult(await onAddPaths(groups.flatMap((g) => g.items.map((i) => i.path))));
   };
+  const addOne = (path: ConnectionPath) => onAddPaths([path]);
 
   const kindLabel: Record<ConnectionKind, string> = {
     "direct": t("graph.connection.kindDirect", { defaultValue: "Direct spend" }),
@@ -161,7 +174,14 @@ export function ConnectionPanel(props: ConnectionPanelProps) {
     <section
       aria-label={t("graph.connection.title", { defaultValue: "Find connection" })}
       data-testid="connection-panel"
-      className="absolute z-30 inset-x-0 bottom-0 max-h-[75%] rounded-t-xl sm:inset-x-auto sm:right-2 sm:top-2 sm:bottom-2 sm:w-80 sm:max-h-none sm:rounded-xl border border-card-border bg-card-bg/95 backdrop-blur-xl shadow-(--shadow-pop) flex flex-col overflow-hidden"
+      ref={sectionRef}
+      tabIndex={-1}
+      onKeyDown={(e) => {
+        if (e.key !== "Escape") return;
+        e.stopPropagation();
+        if (pickMode) onTogglePick(); else onClose();
+      }}
+      className="outline-none absolute z-30 inset-x-0 bottom-0 max-h-[75%] rounded-t-xl sm:inset-x-auto sm:right-2 sm:top-2 sm:bottom-2 sm:w-80 sm:max-h-none sm:rounded-xl border border-card-border bg-card-bg/95 backdrop-blur-xl shadow-(--shadow-pop) flex flex-col overflow-hidden"
     >
       <div className="flex items-center justify-between px-3 py-2 border-b border-card-border shrink-0">
         <h2 className="text-sm font-medium text-foreground">{t("graph.connection.title", { defaultValue: "Find connection" })}</h2>
@@ -175,7 +195,17 @@ export function ConnectionPanel(props: ConnectionPanelProps) {
         </button>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
+      {/* Phone: in pick mode the sheet shrinks to this row so the graph can be tapped */}
+      {pickMode && (
+        <div className="sm:hidden flex items-center justify-between gap-2 px-3 py-2 text-[11px] text-bitcoin" role="status">
+          <span>{t("graph.connection.pickHintTouch", { defaultValue: "Tap a node in the graph to use it as To." })}</span>
+          <button type="button" onClick={onTogglePick} className={`${btnClass} shrink-0 text-muted hover:text-foreground border-card-border`}>
+            {t("common.cancel", { defaultValue: "Cancel" })}
+          </button>
+        </div>
+      )}
+
+      <div className={`flex-1 min-h-0 overflow-y-auto p-3 space-y-3 ${pickMode ? "max-sm:hidden" : ""}`}>
         <form
           className="space-y-2.5"
           onSubmit={(e) => { e.preventDefault(); if (!running) run(budget); }}
@@ -274,16 +304,28 @@ export function ConnectionPanel(props: ConnectionPanelProps) {
         {groups.length > 0 && (
           <div className="space-y-3">
             {!running && (
-              <button type="button" onClick={() => void addAll()} className={`${btnClass} text-muted hover:text-foreground border-card-border`}>
-                {t("graph.connection.addAll", { defaultValue: "Add all to graph" })}
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => void addAll()} className={`${btnClass} text-muted hover:text-foreground border-card-border`}>
+                  {t("graph.connection.addAll", { defaultValue: "Add all to graph" })}
+                </button>
+                {addAllResult && (
+                  <span className="text-[11px] text-muted" role="status">
+                    {t("graph.connection.addedCount", { count: addAllResult.added, defaultValue: "{{count}} transaction added." })}
+                    {addAllResult.skipped > 0 && (
+                      <span className="text-severity-medium">
+                        {" "}{t("graph.connection.skipped", { count: addAllResult.skipped, defaultValue: "{{count}} transaction not added (node limit or fetch error)" })}
+                      </span>
+                    )}
+                  </span>
+                )}
+              </div>
             )}
             {groups.map((g) => (
               <div key={g.kind} className="space-y-1.5">
                 <h3 className="text-xs font-medium text-muted">{kindLabel[g.kind]}</h3>
                 <ul className="space-y-2">
                   {g.items.map(({ path, score }) => (
-                    <ConnectionResultCard key={path.hops.map((h) => h.txid).join()} path={path} score={score} onAdd={onAddPath} />
+                    <ConnectionResultCard key={path.hops.map((h) => h.txid).join()} path={path} score={score} onAdd={addOne} />
                   ))}
                 </ul>
               </div>
