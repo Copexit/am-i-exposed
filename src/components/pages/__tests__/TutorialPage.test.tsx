@@ -23,7 +23,13 @@ vi.mock("@/components/PageShell", () => ({ PageShell: ({ children }: { children:
 
 import { TutorialPage } from "../TutorialPage";
 
-beforeEach(() => { h.on = true; h.lang = "en"; vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined); });
+beforeEach(() => {
+  h.on = true;
+  h.lang = "en";
+  vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+  Element.prototype.scrollIntoView = vi.fn(); // jsdom has none
+  history.replaceState(null, "", "/tutorial/");
+});
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 
 const defaultTrack = (c: HTMLElement) => c.querySelector("track[default]")?.getAttribute("srclang");
@@ -81,6 +87,29 @@ describe("TutorialPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Play the graph tutorial" }));
     const v = [...container.querySelectorAll("video")].find((x) => x.getAttribute("src")?.includes("graph-tutorial")) as HTMLVideoElement;
     expect(v.querySelector("track[default]")?.getAttribute("srclang")).toBe("en");
+  });
+
+  it("a chapter link cues that chapter without playing, and a chapter click writes its link", () => {
+    history.replaceState(null, "", "/tutorial/#graph-tutorial-connection");
+    const { container } = render(<TutorialPage />);
+    const chapter = screen.getByRole("button", { name: "Jump to 6:24, Find connection" });
+    expect(chapter.getAttribute("aria-current")).toBe("true");
+    expect(container.querySelector("video")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Play the graph tutorial" }));
+    const v = container.querySelector("video") as HTMLVideoElement;
+    expect(v.currentTime).toBeCloseTo(384.43);
+    fireEvent.click(screen.getByRole("button", { name: "Jump to 0:43, How to open the graph" }));
+    expect(location.hash).toBe("#graph-tutorial-open");
+  });
+
+  it("section headings have anchors and copy their link", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    const { container } = render(<TutorialPage />);
+    for (const id of ["tutorial", "chapters", "try", "graph-tutorial", "graph-chapters"]) expect(container.querySelector(`#${id}`)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Copy link: The transaction graph, in depth" }));
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith(`${location.origin}/tutorial/#graph-tutorial`));
+    expect(location.hash).toBe("#graph-tutorial");
   });
 
   it("lists the four example scans", () => {

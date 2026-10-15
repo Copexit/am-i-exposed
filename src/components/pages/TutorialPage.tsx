@@ -1,7 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Check, Link as LinkIcon } from "lucide-react";
+import { copyToClipboard } from "@/lib/clipboard";
 import { PageShell } from "@/components/PageShell";
 import { PosterVideo, type PosterVideoHandle } from "@/components/media/PosterVideo";
 import { VIDEOS_ENABLED } from "@/lib/media/videos-enabled";
@@ -20,19 +22,58 @@ const TRY_LABELS = [
 const TRY = TRY_LABELS.map((k) => EXAMPLES.find((e) => e.labelKey === k)).filter((e) => e !== undefined);
 const GRAPH = graphTutorialSource();
 
-function ChapterList({ chapters, seek }: { chapters: { start: number; title: string }[]; seek: (s: number) => void }) {
+const linkTo = (id: string) => `${location.origin}${location.pathname}#${id}`;
+
+/** Section heading with its own anchor and a copy-link button. */
+function SectionHeading({ id, as: Tag = "h2", className, children }: { id: string; as?: "h2" | "h3"; className: string; children: string }) {
+  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const copy = async () => {
+    history.replaceState(null, "", `#${id}`);
+    if (!(await copyToClipboard(linkTo(id)))) return;
+    setCopied(true);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setCopied(false), 2000);
+  };
+  return (
+    <div className="group flex items-center gap-1.5">
+      <Tag id={id} className={className}>{children}</Tag>
+      <button
+        type="button"
+        onClick={copy}
+        aria-label={`${t("share.copyLink", { defaultValue: "Copy link" })}: ${children}`}
+        title={copied ? t("share.copied", { defaultValue: "Copied" }) : t("share.copyLink", { defaultValue: "Copy link" })}
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted hover:text-foreground transition-colors cursor-pointer ${FOCUS}`}
+      >
+        {copied ? <Check size={16} aria-hidden="true" className="text-severity-good" /> : <LinkIcon size={16} aria-hidden="true" />}
+      </button>
+      <span className="sr-only" role="status">{copied ? t("share.copied", { defaultValue: "Copied" }) : ""}</span>
+    </div>
+  );
+}
+
+interface Chapter { id: string; start: number; title: string }
+
+/** Chapter jump buttons; each click also puts the chapter's link (`#<prefix>-<id>`) in the address bar. */
+function ChapterList({ prefix, chapters, current, seek }: { prefix: string; chapters: Chapter[]; current: string | null; seek: (s: number) => void }) {
   const { t } = useTranslation();
   return (
     <ol className="space-y-1">
       {chapters.map((c) => {
         const time = formatTime(c.start);
+        const hash = `${prefix}-${c.id}`;
         return (
-          <li key={c.start}>
+          <li key={c.id}>
             <button
               type="button"
               aria-label={t("tutorial.jump", { time, title: c.title })}
-              onClick={() => seek(c.start)}
-              className={`min-h-[44px] w-full rounded-lg px-3 text-left text-sm text-muted hover:text-foreground transition-colors cursor-pointer ${FOCUS}`}
+              aria-current={current === hash ? "true" : undefined}
+              onClick={() => { history.replaceState(null, "", `#${hash}`); seek(c.start); }}
+              className={`min-h-[44px] w-full rounded-lg px-3 text-left text-sm transition-colors cursor-pointer ${
+                current === hash ? "bg-surface-1 text-foreground" : "text-muted hover:text-foreground"
+              } ${FOCUS}`}
             >
               <span className="num text-bitcoin">{time}</span>
               <span className="ml-2">{c.title}</span>
@@ -50,6 +91,34 @@ export function TutorialPage() {
   const graphRef = useRef<PosterVideoHandle>(null);
   // Language of the mounted video: chapter times must keep matching it after a UI language switch.
   const [playedLang, setPlayedLang] = useState<VideoLang | null>(null);
+  // Chapter named by the URL hash (a shared chapter link)
+  const [current, setCurrent] = useState<string | null>(null);
+
+  const lang = playedLang ?? pickVideoLang(i18n.language);
+  const chapters: Chapter[] = TUTORIAL_CHAPTERS.map((c) => ({ id: c.id, start: c.start[lang], title: t(`tutorial.chapter.${c.id}`) }));
+  const graphChapters: Chapter[] = GRAPH_TUTORIAL_CHAPTERS.map((c) => ({ id: c.id, start: c.start, title: t(`tutorial.graph.chapter.${c.id}`) }));
+  // Read by the hash handler, which is bound once
+  const cues = useRef<{ hash: string; start: number; video: React.RefObject<PosterVideoHandle | null>; anchor: string }[]>([]);
+  useEffect(() => {
+    cues.current = [
+      ...chapters.map((c) => ({ hash: `tutorial-${c.id}`, start: c.start, video: ref, anchor: "tutorial" })),
+      ...graphChapters.map((c) => ({ hash: `graph-tutorial-${c.id}`, start: c.start, video: graphRef, anchor: "graph-tutorial" })),
+    ];
+  });
+
+  useEffect(() => {
+    if (!VIDEOS_ENABLED) return;
+    const apply = () => {
+      const cue = cues.current.find((c) => `#${c.hash}` === location.hash);
+      setCurrent(cue?.hash ?? null);
+      if (!cue) return;
+      cue.video.current?.cue(cue.start);
+      document.getElementById(cue.anchor)?.scrollIntoView();
+    };
+    apply();
+    window.addEventListener("hashchange", apply);
+    return () => window.removeEventListener("hashchange", apply);
+  }, []);
 
   if (!VIDEOS_ENABLED) {
     return (
@@ -62,13 +131,14 @@ export function TutorialPage() {
     );
   }
 
-  const lang = playedLang ?? pickVideoLang(i18n.language);
   const src = tutorialSource(lang);
+  const seekMain = (sec: number) => ref.current?.seek(sec);
+  const seekGraph = (sec: number) => graphRef.current?.seek(sec);
 
   return (
     <PageShell>
       <div className="space-y-3">
-        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">{t("tutorial.title", { defaultValue: "How to use am-i.exposed" })}</h1>
+        <h1 id="tutorial" className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">{t("tutorial.title", { defaultValue: "How to use am-i.exposed" })}</h1>
         <p className="text-muted text-lg leading-relaxed max-w-3xl">{t("tutorial.intro")}</p>
       </div>
 
@@ -83,15 +153,12 @@ export function TutorialPage() {
       />
 
       <section className="space-y-3">
-        <h2 className="text-xl font-semibold text-foreground">{t("tutorial.chapters")}</h2>
-        <ChapterList
-          chapters={TUTORIAL_CHAPTERS.map((c) => ({ start: c.start[lang], title: t(`tutorial.chapter.${c.id}`) }))}
-          seek={(sec) => ref.current?.seek(sec)}
-        />
+        <SectionHeading id="chapters" className="text-xl font-semibold text-foreground">{t("tutorial.chapters")}</SectionHeading>
+        <ChapterList prefix="tutorial" chapters={chapters} current={current} seek={seekMain} />
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-xl font-semibold text-foreground">{t("tutorial.try_title")}</h2>
+        <SectionHeading id="try" className="text-xl font-semibold text-foreground">{t("tutorial.try_title")}</SectionHeading>
         <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {TRY.map((ex) => (
             <li key={ex.input}>
@@ -108,7 +175,7 @@ export function TutorialPage() {
       </section>
 
       <section className="space-y-3" aria-labelledby="graph-tutorial">
-        <h2 id="graph-tutorial" className="text-2xl font-semibold text-foreground">{t("tutorial.graph.title")}</h2>
+        <SectionHeading id="graph-tutorial" className="text-2xl font-semibold text-foreground">{t("tutorial.graph.title")}</SectionHeading>
         <p className="text-muted leading-relaxed max-w-3xl">{t("tutorial.graph.intro")}</p>
         <PosterVideo
           ref={graphRef}
@@ -119,11 +186,8 @@ export function TutorialPage() {
           playLabel={t("tutorial.graph.play")}
           videoLabel={t("tutorial.graph.title")}
         />
-        <h3 className="text-lg font-semibold text-foreground">{t("tutorial.chapters")}</h3>
-        <ChapterList
-          chapters={GRAPH_TUTORIAL_CHAPTERS.map((c) => ({ start: c.start, title: t(`tutorial.graph.chapter.${c.id}`) }))}
-          seek={(sec) => graphRef.current?.seek(sec)}
-        />
+        <SectionHeading id="graph-chapters" as="h3" className="text-lg font-semibold text-foreground">{t("tutorial.chapters")}</SectionHeading>
+        <ChapterList prefix="graph-tutorial" chapters={graphChapters} current={current} seek={seekGraph} />
       </section>
     </PageShell>
   );
