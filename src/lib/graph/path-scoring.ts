@@ -49,11 +49,15 @@ export function scorePath(
   const hops: HopScore[] = [];
   path.hops.forEach((hop, i) => {
     const sharedDescendantPivot = path.kind === "shared-descendant" && i === path.pivot;
+    const sharedAncestorPivot = path.kind === "shared-ancestor" && i === path.pivot;
     const bothIdx = hop.inIndex !== undefined && hop.outIndex !== undefined;
-    if (!sharedDescendantPivot && !bothIdx) return; // endpoints and the shared-ancestor origin
+    if (!sharedDescendantPivot && !sharedAncestorPivot && !bothIdx) return; // path endpoints
     const tx = txs.get(hop.txid);
     if (!tx) {
       hops.push({ txid: hop.txid, probability: UNKNOWN_TX_PROB, basis: "estimate" });
+    } else if (sharedAncestorPivot && !bothIdx) {
+      // Two outputs of one tx (payment + change, or a batch) do not prove one owner
+      hops.push({ txid: hop.txid, probability: 1 / tx.vout.length, basis: "estimate" });
     } else if (sharedDescendantPivot && !bothIdx) {
       // Two inputs co-spent in one tx: common-input ownership, unless a CoinJoin
       hops.push(isCoinJoinTx(tx)

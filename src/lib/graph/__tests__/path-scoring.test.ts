@@ -103,13 +103,18 @@ describe("scorePath", () => {
   });
 
   describe("bent paths", () => {
-    it("shared-ancestor: the pivot origin is not scored; B-side hops use their own indices", () => {
+    it("shared-ancestor: a common funder is only an estimate; B-side hops use their own indices", () => {
       const path: ConnectionPath = {
         kind: "shared-ancestor", meetTxid: "p", pivot: 1, pivotLink: { outIndex: 1 },
         hops: [{ txid: "a", inIndex: 0 }, { txid: "p", outIndex: 0 }, { txid: "x", inIndex: 0, outIndex: 0 }, { txid: "b", inIndex: 0 }],
       };
       const s = scorePath(path, map(tx("p", 1, 3), tx("x", 1, 2)), none);
-      expect(s.hops.map((h) => h.txid)).toEqual(["x"]);
+      expect(s.hops).toEqual([
+        { txid: "p", probability: 1 / 3, basis: "estimate" },
+        { txid: "x", probability: 1, basis: "deterministic" },
+      ]);
+      expect(s.tier).not.toBe("deterministic");
+      expect(s.estimated).toBe(true);
     });
 
     it("shared-descendant: co-spent pivot is deterministic", () => {
