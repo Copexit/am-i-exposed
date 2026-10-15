@@ -16,6 +16,7 @@ export interface HoveredEdgeOverlayProps {
   hoveredEdgeKey: string | null;
   linkabilityEdgeMode?: boolean;
   rootBoltzmannResult?: BoltzmannWorkerResult | null;
+  unbundledPairs?: Set<string>;
 }
 
 export function HoveredEdgeOverlay({
@@ -27,6 +28,7 @@ export function HoveredEdgeOverlay({
   hoveredEdgeKey,
   linkabilityEdgeMode,
   rootBoltzmannResult,
+  unbundledPairs,
 }: HoveredEdgeOverlayProps) {
   const overlay = useMemo(() => {
     if (!hoveredEdgeKey || !linkabilityEdgeMode || !rootBoltzmannResult) return null;
@@ -36,10 +38,10 @@ export function HoveredEdgeOverlay({
     if (!mat?.length) return null;
     const maxProb = getEdgeMaxProb(mat, edge.outputIndices);
     if (maxProb <= 0) return null;
-    const { primary: d } = resolveEdgePaths(edge, expandedNodeTxid, portPositions, nodes);
+    const { primary: d } = resolveEdgePaths(edge, expandedNodeTxid, portPositions, nodes, unbundledPairs);
     const color = probColor(maxProb);
     return { d, color };
-  }, [hoveredEdgeKey, linkabilityEdgeMode, rootBoltzmannResult, edges, rootTxid, expandedNodeTxid, portPositions, nodes]);
+  }, [hoveredEdgeKey, linkabilityEdgeMode, rootBoltzmannResult, edges, rootTxid, expandedNodeTxid, portPositions, nodes, unbundledPairs]);
 
   if (!overlay) return null;
   return (

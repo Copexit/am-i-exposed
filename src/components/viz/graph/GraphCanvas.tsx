@@ -15,6 +15,7 @@ import { useLabelEditor } from "./useLabelEditor";
 import { useGraphLayout } from "./useGraphLayout";
 import { GraphAnnotations } from "./GraphAnnotations";
 import { GraphNodeRenderer } from "./GraphNodeRenderer";
+import { TimeAxis } from "./TimeAxis";
 import type { GraphCanvasProps, LayoutNode } from "./types";
 import { isOpReturnOutput } from "@/lib/analysis/heuristics/tx-utils";
 
@@ -67,6 +68,9 @@ export function GraphCanvas({
   onSetNodeLabel,
   edgeLabels,
   onSetEdgeLabel,
+  layoutMode,
+  unbundledPairs,
+  onToggleBundle,
 }: GraphCanvasProps) {
   // Subscribe to theme changes so SVG_COLORS proxy resolves fresh values on re-render
   useTheme();
@@ -130,12 +134,12 @@ export function GraphCanvas({
     ricochetHopLabels, portPositions,
     maxEdgeValue, edgeScriptInfo,
     detChainEdges, entropyEdges,
-    toxicMergeNodes, hoveredEdges, focusSpotlight,
+    toxicMergeNodes, hoveredEdges, focusSpotlight, timeColumns,
   } = useGraphLayout({
     nodes, rootTxid, filter, rootTxids,
     expandedNodeTxid, isFullscreen: isFs,
     nodePositionOverrides, boltzmannCache,
-    entropyGradientMode, hoveredNode,
+    entropyGradientMode, hoveredNode, layoutMode,
   });
 
   // Report visible count to parent (eliminates redundant layout call)
@@ -378,6 +382,8 @@ export function GraphCanvas({
           pointerEvents="none"
         />
 
+        {timeColumns && <TimeAxis columns={timeColumns} />}
+
         {/* Edges (main edges, hover overlay, det-chain overlay, flow particles) */}
         <GraphEdges
           edges={edges}
@@ -400,6 +406,8 @@ export function GraphCanvas({
           edgeScriptInfo={edgeScriptInfo}
           tooltip={tooltip}
           toScreen={toScreen}
+          unbundledPairs={unbundledPairs}
+          onToggleBundle={onToggleBundle}
         />
 
         {/* Annotations layer (between edges and nodes) */}

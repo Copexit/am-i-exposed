@@ -40,7 +40,7 @@ export function useSavedGraphs() {
     (
       id: string,
       patch: Partial<
-        Pick<SavedGraph, "name" | "nodes" | "rootTxid" | "rootTxids" | "viewTransform" | "changeOutputs">
+        Pick<SavedGraph, "name" | "nodes" | "rootTxid" | "rootTxids" | "viewTransform" | "changeOutputs" | "layoutMode">
       >,
     ): boolean => {
       const existing = savedGraphStore.getSnapshot();

@@ -59,7 +59,9 @@ export function GraphExplorer(props: GraphExplorerProps) {
     viewTransform, edgeMode, heatMapActive, heatMap, heatProgress,
     fingerprintMode, changeOutputs, visibleCount,
     connection, pickMode, highlightTxids,
+    layoutMode, unbundledPairs,
   } = state;
+  const timeMode = layoutMode === "time";
 
   const linkabilityEdgeMode = edgeMode === "linkability";
   const entropyGradientMode = edgeMode === "entropy";
@@ -90,7 +92,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
     for (const txid of graph.nodes.keys()) {
       if (!prevKeys.has(txid)) {
         const y = freeY(seed.x, seed.y, txid);
-        dispatch({ type: "SET_NODE_POSITION", txid, x: seed.x, y });
+        dispatch({ type: "SET_NODE_POSITION", txid, x: seed.x, y, seeded: true });
         pendingSeedRef.current = null;
         break;
       }
@@ -100,24 +102,27 @@ export function GraphExplorer(props: GraphExplorerProps) {
 
   const { expandInput, expandOutput, expandPortInput, expandPortOutput } = graph;
 
-  // Seed position before any expand (backward or forward, node button or port)
+  // Seed position before any expand (backward or forward, node button or port).
+  // The time layout places new nodes by block height instead.
   const seedBackward = useCallback((txid: string) => {
+    if (timeMode) return;
     const triggerPos = nodePositionsRef.current.get(txid);
     if (triggerPos) {
       const targetX = triggerPos.x - SEED_BACKWARD_DX;
       const y = freeY(targetX, triggerPos.y);
       pendingSeedRef.current = { triggerTxid: txid, direction: "backward", x: targetX, y };
     }
-  }, [nodePositionsRef, freeY]);
+  }, [nodePositionsRef, freeY, timeMode]);
 
   const seedForward = useCallback((txid: string) => {
+    if (timeMode) return;
     const triggerPos = nodePositionsRef.current.get(txid);
     if (triggerPos) {
       const targetX = triggerPos.x + triggerPos.w + SEED_FORWARD_GAP;
       const y = freeY(targetX, triggerPos.y);
       pendingSeedRef.current = { triggerTxid: txid, direction: "forward", x: targetX, y };
     }
-  }, [nodePositionsRef, freeY]);
+  }, [nodePositionsRef, freeY, timeMode]);
 
   const handleExpandInput = useCallback((txid: string, inputIndex: number) => {
     seedBackward(txid);
@@ -236,6 +241,14 @@ export function GraphExplorer(props: GraphExplorerProps) {
     if (vt) dispatch({ type: "SET_VIEW_TRANSFORM", vt });
   }, [dispatch, nodePositionsRef, fitDims]);
 
+  // A layout switch moves every column: frame all of the result (like Fit)
+  const fitAllNextRef = useRef(false);
+  const toggleLayoutMode = useCallback(() => {
+    pendingFrameRef.current = true;
+    fitAllNextRef.current = true;
+    dispatch({ type: "TOGGLE_LAYOUT_MODE" });
+  }, [dispatch]);
+
   const handleExpandFullscreen = useCallback(() => {
     pendingFrameRef.current = true;
     expandFullscreen();
@@ -256,12 +269,14 @@ export function GraphExplorer(props: GraphExplorerProps) {
     const changed = keys.size !== prev.size || added.length > 0;
     if (!changed && !pendingFrameRef.current) return;
     pendingFrameRef.current = false;
+    const fitAll = fitAllNextRef.current;
+    fitAllNextRef.current = false;
     fittedKeysRef.current = keys;
     // rAF: run after GraphCanvas's own first-render root centering
     requestAnimationFrame(() => {
       const pos = nodePositionsRef.current;
       const focus = [rootTxid, ...(rootTxids ?? []), ...added].flatMap((id) => pos.get(id) ?? []);
-      const vt = computeAutoFitView([...pos.values()], focus, fitDims());
+      const vt = fitAll ? computeFitView([...pos.values()], fitDims()) : computeAutoFitView([...pos.values()], focus, fitDims());
       if (vt) dispatch({ type: "SET_VIEW_TRANSFORM", vt });
     });
   }, [handleLayoutComplete, rootTxid, rootTxids, nodePositionsRef, fitDims, dispatch]);
@@ -282,7 +297,11 @@ export function GraphExplorer(props: GraphExplorerProps) {
   }, [dispatch]);
 
   // ─── Keyboard shortcuts ────────────────────────────────
-  const { undo, reset } = graph;
+  const { undo, reset: resetGraph } = graph;
+  const reset = useCallback(() => {
+    resetGraph();
+    dispatch({ type: "CLEAR_BUNDLES" });
+  }, [resetGraph, dispatch]);
   const tbHandlersRef = useRef<Record<string, () => void>>({});
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -296,6 +315,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
         case "h": handleToggleHeatMap(); break;
         case "g": handleToggleFingerprint(); break;
         case "l": cycleEdgeMode(); break;
+        case "t": toggleLayoutMode(); break;
         case "u": undo(); break;
         case "r": reset(); break;
         case "+": case "=": zoomBy(1.25); break;
@@ -312,14 +332,14 @@ export function GraphExplorer(props: GraphExplorerProps) {
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [handleToggleHeatMap, handleToggleFingerprint, cycleEdgeMode, isExpanded, collapseFullscreen, handleExpandFullscreen, undo, reset, zoomBy, handleFitView, dispatch, pickMode]);
+  }, [handleToggleHeatMap, handleToggleFingerprint, cycleEdgeMode, isExpanded, collapseFullscreen, handleExpandFullscreen, undo, reset, zoomBy, handleFitView, dispatch, pickMode, toggleLayoutMode]);
 
   // Compact inline: canvas height fits the laid-out graph (260-500px).
   const compactHeight = useMemo(() => {
     if (!compact) return undefined;
-    const { height } = layoutGraph(graph.nodes, graph.rootTxid, filter, graph.rootTxids, graph.expandedNodeTxid, false, nodePositionOverrides);
+    const { height } = layoutGraph(graph.nodes, graph.rootTxid, filter, graph.rootTxids, graph.expandedNodeTxid, false, nodePositionOverrides, layoutMode);
     return Math.min(500, Math.max(260, height + 48));
-  }, [compact, graph.nodes, graph.rootTxid, filter, graph.rootTxids, graph.expandedNodeTxid, nodePositionOverrides]);
+  }, [compact, graph.nodes, graph.rootTxid, filter, graph.rootTxids, graph.expandedNodeTxid, nodePositionOverrides, layoutMode]);
 
   // Early return for empty graph (but not alwaysFullscreen)
   if (graph.nodes.size === 0 && !props.alwaysFullscreen) return null;
@@ -342,6 +362,7 @@ export function GraphExplorer(props: GraphExplorerProps) {
     nodePositionOverrides, annotations, nodeLabels, edgeLabels, onSetLabels: handleSetLabels,
     onFindConnection: graph.fetcher ? () => (connection ? closeConnection() : openConnection()) : undefined,
     findConnectionOpen: !!connection,
+    layoutMode, onToggleLayoutMode: toggleLayoutMode,
   };
 
   // Any canvas click ends the highlight; in pick mode a node click sets To instead
@@ -377,6 +398,8 @@ export function GraphExplorer(props: GraphExplorerProps) {
     nodePositionOverrides, onNodePositionChange: handleNodePositionChange,
     annotations, annotateMode, onAnnotationsChange: setAnnotations,
     nodeLabels, onSetNodeLabel: handleSetNodeLabel, edgeLabels, onSetEdgeLabel: handleSetEdgeLabel,
+    layoutMode, unbundledPairs,
+    onToggleBundle: (key: string) => dispatch({ type: "TOGGLE_BUNDLE", key }),
   };
 
   const legend = (

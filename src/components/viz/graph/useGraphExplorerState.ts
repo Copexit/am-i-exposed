@@ -7,7 +7,7 @@
 
 import { useReducer, useCallback, useRef } from "react";
 import type { ScoringResult } from "@/lib/types";
-import type { GraphAnnotation, SavedGraph } from "@/lib/graph/saved-graph-types";
+import type { GraphAnnotation, GraphLayoutMode, SavedGraph } from "@/lib/graph/saved-graph-types";
 import type { NodeFilter, ViewTransform } from "./types";
 
 // ─── State ──────────────────────────────────────────────────────────
@@ -22,8 +22,15 @@ export interface GraphExplorerState {
   filter: NodeFilter;
   sidebarCollapsed: boolean;
 
-  // Node position overrides from dragging
+  // Node position overrides from dragging (and expansion seeds)
   nodePositionOverrides: Map<string, { x: number; y: number }>;
+  /** Overrides that are only expansion seeds, not user drags (dropped on a layout switch). */
+  seededTxids: Set<string>;
+
+  // Column layout
+  layoutMode: GraphLayoutMode;
+  /** Port-mode parallel-output bundles ("from->to") shown as separate beziers. */
+  unbundledPairs: Set<string>;
 
   // Annotations
   annotations: GraphAnnotation[];
@@ -70,7 +77,10 @@ type GraphExplorerAction =
   | { type: "SET_FILTER"; filter: NodeFilter }
   | { type: "TOGGLE_FILTER"; key: keyof NodeFilter }
   | { type: "SET_SIDEBAR_COLLAPSED"; collapsed: boolean }
-  | { type: "SET_NODE_POSITION"; txid: string; x: number; y: number }
+  | { type: "SET_NODE_POSITION"; txid: string; x: number; y: number; seeded?: boolean }
+  | { type: "TOGGLE_LAYOUT_MODE" }
+  | { type: "TOGGLE_BUNDLE"; key: string }
+  | { type: "CLEAR_BUNDLES" }
   | { type: "SET_NODE_POSITION_OVERRIDES"; overrides: Map<string, { x: number; y: number }> }
   | { type: "SET_ANNOTATIONS"; annotations: GraphAnnotation[] }
   | { type: "TOGGLE_ANNOTATE_MODE" }
@@ -120,8 +130,28 @@ function graphExplorerReducer(state: GraphExplorerState, action: GraphExplorerAc
     case "SET_NODE_POSITION": {
       const next = new Map(state.nodePositionOverrides);
       next.set(action.txid, { x: action.x, y: action.y });
-      return { ...state, nodePositionOverrides: next };
+      const seeded = new Set(state.seededTxids);
+      if (action.seeded) seeded.add(action.txid); else seeded.delete(action.txid);
+      return { ...state, nodePositionOverrides: next, seededTxids: seeded };
     }
+    case "TOGGLE_LAYOUT_MODE": {
+      // Seeds only kept new nodes near their trigger in the old layout; drags stay
+      const overrides = new Map(state.nodePositionOverrides);
+      for (const txid of state.seededTxids) overrides.delete(txid);
+      return {
+        ...state,
+        layoutMode: state.layoutMode === "time" ? "hops" : "time",
+        nodePositionOverrides: overrides,
+        seededTxids: new Set(),
+      };
+    }
+    case "TOGGLE_BUNDLE": {
+      const next = new Set(state.unbundledPairs);
+      if (next.has(action.key)) next.delete(action.key); else next.add(action.key);
+      return { ...state, unbundledPairs: next };
+    }
+    case "CLEAR_BUNDLES":
+      return state.unbundledPairs.size === 0 ? state : { ...state, unbundledPairs: new Set() };
     case "SET_NODE_POSITION_OVERRIDES":
       return { ...state, nodePositionOverrides: action.overrides };
     case "SET_ANNOTATIONS":
@@ -201,6 +231,8 @@ function graphExplorerReducer(state: GraphExplorerState, action: GraphExplorerAc
         nodePositionOverrides: action.graph.nodePositions
           ? new Map(Object.entries(action.graph.nodePositions))
           : new Map(),
+        seededTxids: new Set(),
+        layoutMode: action.graph.layoutMode ?? "hops",
         annotations: action.graph.annotations ?? [],
         nodeLabels: action.graph.nodeLabels
           ? new Map(Object.entries(action.graph.nodeLabels))
@@ -239,6 +271,9 @@ function createInitialState(_alwaysFullscreen?: boolean): GraphExplorerState {
     filter: { showCoinJoin: true, showEntity: true, showStandard: true },
     sidebarCollapsed: typeof window !== "undefined" && window.innerWidth < 640,
     nodePositionOverrides: new Map(),
+    seededTxids: new Set(),
+    layoutMode: "hops",
+    unbundledPairs: new Set(),
     annotations: [],
     annotateMode: false,
     nodeLabels: new Map(),

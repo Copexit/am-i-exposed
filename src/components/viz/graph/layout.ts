@@ -10,6 +10,7 @@ import type { MempoolTransaction } from "@/lib/api/types";
 import type { EntityMatch } from "@/lib/analysis/entity-filter/types";
 import type { FindingId } from "@/lib/analysis/finding-metadata";
 import type { Finding } from "@/lib/types";
+import type { GraphLayoutMode } from "@/lib/graph/saved-graph-types";
 
 /** Detect CoinJoin type from findings. */
 export function getCoinJoinType(findings: Finding[]): string | undefined {
@@ -102,7 +103,46 @@ function getCachedAnalysis(graphNodes: Map<string, GraphNode>, tx: MempoolTransa
   return cached;
 }
 
-/** Lay out graph nodes in depth-based columns, build edges from parent/child relationships. */
+/** A column of the chronological layout: its block height (null = unconfirmed). */
+export interface TimeColumn {
+  x: number;
+  width: number;
+  height: number | null;
+  /** Block timestamp (unix seconds) of the column's first confirmed tx. */
+  time?: number;
+  /** Blocks since the previous column's height (0 for the first or unconfirmed column). */
+  gap: number;
+}
+
+const blockHeightOf = (tx: MempoolTransaction): number =>
+  tx.status?.confirmed && tx.status.block_height != null ? tx.status.block_height : Infinity;
+
+/**
+ * Chronological column key per node: (block height, intra-block level), where the
+ * level is the longest chain of in-graph parents confirmed in the same block.
+ * Unconfirmed txs share height Infinity, so they sort last, ordered by parent chain.
+ */
+export function timeColumnKeys(graphNodes: Map<string, GraphNode>): Map<string, { height: number; level: number }> {
+  const level = new Map<string, number>();
+  const levelOf = (node: GraphNode): number => {
+    const memo = level.get(node.txid);
+    if (memo !== undefined) return memo;
+    level.set(node.txid, 0); // guards a malformed self-loop
+    const h = blockHeightOf(node.tx);
+    let l = 0;
+    for (const v of node.tx.vin) {
+      const parent = v.is_coinbase ? undefined : graphNodes.get(v.txid);
+      if (parent && parent !== node && blockHeightOf(parent.tx) === h) l = Math.max(l, levelOf(parent) + 1);
+    }
+    level.set(node.txid, l);
+    return l;
+  };
+  const keys = new Map<string, { height: number; level: number }>();
+  for (const node of graphNodes.values()) keys.set(node.txid, { height: blockHeightOf(node.tx), level: levelOf(node) });
+  return keys;
+}
+
+/** Lay out graph nodes in columns (by depth, or chronologically), build edges from parent/child relationships. */
 export function layoutGraph(
   graphNodes: Map<string, GraphNode>,
   rootTxid: string,
@@ -113,23 +153,59 @@ export function layoutGraph(
   reserveBackwardSpace?: boolean,
   /** User-defined position overrides (from node dragging). */
   positionOverrides?: Map<string, { x: number; y: number }>,
-): { layoutNodes: LayoutNode[]; edges: LayoutEdge[]; width: number; height: number; nodePositions: Map<string, { x: number; y: number; w: number; h: number }> } {
+  layoutMode: GraphLayoutMode = "hops",
+): { layoutNodes: LayoutNode[]; edges: LayoutEdge[]; width: number; height: number; nodePositions: Map<string, { x: number; y: number; w: number; h: number }>; timeColumns?: TimeColumn[] } {
   const layoutNodes: LayoutNode[] = [];
   const edges: LayoutEdge[] = [];
+  const timeMode = layoutMode === "time";
 
-  // Group by depth
+  const isRootTx = (txid: string) => rootTxids ? rootTxids.has(txid) : txid === rootTxid;
+  // Filter (never filter root, never filter expanded)
+  const isFiltered = (node: GraphNode) => {
+    if (isRootTx(node.txid) || node.txid === expandedNodeTxid) return false;
+    const { isCJ, entityMatch } = getCachedAnalysis(graphNodes, node.tx, node.txid);
+    if (isCJ) return !filter.showCoinJoin;
+    if (entityMatch) return !filter.showEntity;
+    return !filter.showStandard;
+  };
+
+  // Column of each node: its depth, or (time mode) the rank of its (height, level) key.
+  // Time mode builds columns from visible nodes only, so a filtered block leaves no empty column.
+  const colOf = new Map<string, number>();
+  let timeKeys: Map<string, { height: number; level: number }> | undefined;
+  if (timeMode) {
+    timeKeys = timeColumnKeys(graphNodes);
+    const distinct = new Map<string, { height: number; level: number }>();
+    for (const node of graphNodes.values()) {
+      if (isFiltered(node)) continue;
+      const k = timeKeys.get(node.txid)!;
+      distinct.set(`${k.height}:${k.level}`, k);
+    }
+    const ranked = [...distinct.entries()].sort(([, a], [, b]) => a.height - b.height || a.level - b.level);
+    const rank = new Map(ranked.map(([id], i) => [id, i]));
+    for (const node of graphNodes.values()) {
+      const k = timeKeys.get(node.txid)!;
+      const r = rank.get(`${k.height}:${k.level}`);
+      if (r !== undefined) colOf.set(node.txid, r);
+    }
+  } else {
+    for (const node of graphNodes.values()) colOf.set(node.txid, node.depth);
+  }
+
+  // Group by column
   const depthGroups = new Map<number, GraphNode[]>();
   for (const [, node] of graphNodes) {
-    const group = depthGroups.get(node.depth) ?? [];
+    const col = colOf.get(node.txid);
+    if (col === undefined) continue;
+    const group = depthGroups.get(col) ?? [];
     group.push(node);
-    depthGroups.set(node.depth, group);
+    depthGroups.set(col, group);
   }
 
   const depths = [...depthGroups.keys()].sort((a, b) => a - b);
 
-  // Determine which depth column contains the expanded node
-  const expandedNode = expandedNodeTxid ? graphNodes.get(expandedNodeTxid) : undefined;
-  const expandedDepth = expandedNode?.depth;
+  // Determine which column contains the expanded node
+  const expandedDepth = expandedNodeTxid ? colOf.get(expandedNodeTxid) : undefined;
 
   // Calculate per-column widths (expanded column is wider)
   const colWidths = new Map<number, number>();
@@ -139,12 +215,13 @@ export function layoutGraph(
   }
 
   // Calculate cumulative x positions.
-  // Reserve space to the left of depth 0 so backward expansions don't shift
+  // Reserve space to the left of the root column so backward expansions don't shift
   // existing nodes. In pan/zoom mode, reserve ~half viewport width so the root
   // can be centered and backward expansions fill the left side naturally.
-  // As negative-depth columns are added, the reserved space shrinks to match.
+  // As columns are added before the root, the reserved space shrinks to match.
   const viewportHalf = typeof window !== "undefined" ? Math.round(window.innerWidth / 2) : 700;
-  const existingBackwardWidth = depths.filter((d) => d < 0).length * (NODE_W + COL_GAP);
+  const rootCol = timeMode ? (colOf.get(rootTxid) ?? 0) : 0;
+  const existingBackwardWidth = depths.filter((d) => d < rootCol).length * (NODE_W + COL_GAP);
   const backwardPadding = reserveBackwardSpace
     ? Math.max(0, viewportHalf - existingBackwardWidth)
     : 0;
@@ -156,7 +233,7 @@ export function layoutGraph(
     cumX += colWidths.get(depth)! + COL_GAP;
   }
 
-  // Layout each depth column with variable node heights
+  // Layout each column with variable node heights
   const nodePositions = new Map<string, { x: number; y: number; w: number; h: number }>();
 
   for (const depth of depths) {
@@ -165,16 +242,9 @@ export function layoutGraph(
     let yOffset = MARGIN.top;
 
     group.forEach((node) => {
+      if (isFiltered(node)) return;
       const { isCJ, coinJoinType, entityMatch } = getCachedAnalysis(graphNodes, node.tx, node.txid);
-      const isRoot = rootTxids ? rootTxids.has(node.txid) : node.txid === rootTxid;
-
-      // Apply filter (never filter root, never filter expanded)
-      if (!isRoot && node.txid !== expandedNodeTxid) {
-        if (isCJ && !filter.showCoinJoin) return;
-        if (entityMatch && !isCJ && !filter.showEntity) return;
-        if (!isCJ && !entityMatch && !filter.showStandard) return;
-      }
-
+      const isRoot = isRootTx(node.txid);
       const isExpanded = node.txid === expandedNodeTxid;
       const nodeW = isExpanded ? EXPANDED_NODE_W : NODE_W;
       const nodeH = isExpanded ? calcExpandedHeight(node.tx) : NODE_H;
@@ -308,12 +378,33 @@ export function layoutGraph(
   const maxX = Math.max(...layoutNodes.map((n) => n.x + n.width), 0) + extraPadding;
   const maxY = Math.max(...layoutNodes.map((n) => n.y + n.height), 0) + extraPadding;
 
+  // Time mode: one header per column, from any of its nodes (they share a height)
+  let timeColumns: TimeColumn[] | undefined;
+  if (timeKeys) {
+    timeColumns = [];
+    let prevHeight: number | null = null;
+    for (const col of depths) {
+      const first = depthGroups.get(col)![0]!;
+      const h = timeKeys.get(first.txid)!.height;
+      const height = Number.isFinite(h) ? h : null;
+      timeColumns.push({
+        x: colX.get(col)!,
+        width: colWidths.get(col)!,
+        height,
+        time: first.tx.status?.block_time,
+        gap: height !== null && prevHeight !== null ? height - prevHeight : 0,
+      });
+      prevHeight = height;
+    }
+  }
+
   return {
     layoutNodes,
     edges,
     width: maxX + MARGIN.right,
     height: maxY + MARGIN.bottom,
     nodePositions,
+    timeColumns,
   };
 }
 

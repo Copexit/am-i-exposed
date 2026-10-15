@@ -93,3 +93,30 @@ describe("useSaveLoadShare - storage failures", () => {
     expect(result.current.toast).toBe(STORAGE_FULL);
   });
 });
+
+describe("useSaveLoadShare - layout mode", () => {
+  const txid = "d".repeat(64);
+  const nodes = new Map([[txid, { txid, depth: 0 }]]) as never;
+  const stored = () => JSON.parse(localStorage.getItem("ami-saved-graphs") ?? "[]") as { id: string; layoutMode?: string }[];
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
+
+  it("saves the time layout, and Update rewrites it when the mode changes", () => {
+    const { result, rerender } = renderHook(
+      ({ layoutMode, currentGraphId }: { layoutMode: "hops" | "time"; currentGraphId: string | null }) =>
+        useSaveLoadShare({ nodes, rootTxid: txid, rootTxids: new Set([txid]), network: "mainnet", currentGraphId, layoutMode }),
+      { initialProps: { layoutMode: "time", currentGraphId: null } },
+    );
+    act(() => { result.current.handleSave(); });
+    const [saved] = stored();
+    expect(saved?.layoutMode).toBe("time");
+
+    rerender({ layoutMode: "hops", currentGraphId: saved!.id });
+    act(() => { result.current.handleUpdate(); });
+    expect(stored()[0]?.layoutMode).toBeUndefined();
+
+    rerender({ layoutMode: "time", currentGraphId: saved!.id });
+    act(() => { result.current.handleUpdate(); });
+    expect(stored()[0]?.layoutMode).toBe("time");
+  });
+});

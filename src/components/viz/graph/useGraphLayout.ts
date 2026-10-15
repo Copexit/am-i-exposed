@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 import { layoutGraph } from "./layout";
+import type { TimeColumn } from "./layout";
+import type { GraphLayoutMode } from "@/lib/graph/saved-graph-types";
 import { buildPortPositionMap } from "./portLayout";
 import { computeDeterministicChains, buildDetChainEdgeSet } from "./deterministicChains";
 import { detectToxicMerges, buildToxicMergeSet } from "./toxicChange";
@@ -22,6 +24,7 @@ interface UseGraphLayoutParams {
   boltzmannCache?: Map<string, BoltzmannWorkerResult>;
   entropyGradientMode?: boolean;
   hoveredNode: string | null;
+  layoutMode?: GraphLayoutMode;
 }
 
 interface UseGraphLayoutResult {
@@ -39,6 +42,7 @@ interface UseGraphLayoutResult {
   toxicMergeNodes: Set<string>;
   hoveredEdges: Set<string> | null;
   focusSpotlight: FocusSpotlight | null;
+  timeColumns?: TimeColumn[];
 }
 
 export function useGraphLayout({
@@ -52,10 +56,11 @@ export function useGraphLayout({
   boltzmannCache,
   entropyGradientMode,
   hoveredNode,
+  layoutMode = "hops",
 }: UseGraphLayoutParams): UseGraphLayoutResult {
-  const { layoutNodes, edges, width, height, nodePositions } = useMemo(
-    () => layoutGraph(nodes, rootTxid, filter, rootTxids, expandedNodeTxid, isFullscreen, nodePositionOverrides),
-    [nodes, rootTxid, filter, rootTxids, expandedNodeTxid, isFullscreen, nodePositionOverrides],
+  const { layoutNodes, edges, width, height, nodePositions, timeColumns } = useMemo(
+    () => layoutGraph(nodes, rootTxid, filter, rootTxids, expandedNodeTxid, isFullscreen, nodePositionOverrides, layoutMode),
+    [nodes, rootTxid, filter, rootTxids, expandedNodeTxid, isFullscreen, nodePositionOverrides, layoutMode],
   );
 
   // Pre-compute ricochet hop labels by walking forward from hop 0 nodes
@@ -141,5 +146,6 @@ export function useGraphLayout({
     toxicMergeNodes,
     hoveredEdges,
     focusSpotlight,
+    timeColumns,
   };
 }

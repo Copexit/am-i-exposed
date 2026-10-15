@@ -4,7 +4,7 @@ import type { ScoringResult } from "@/lib/types";
 import type { EntityCategory } from "@/lib/analysis/entities";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
-import type { SavedGraph, GraphAnnotation } from "@/lib/graph/saved-graph-types";
+import type { SavedGraph, GraphAnnotation, GraphLayoutMode } from "@/lib/graph/saved-graph-types";
 import type { useChartTooltip } from "../shared/ChartTooltip";
 
 // Re-export for convenience
@@ -182,6 +182,11 @@ export interface GraphCanvasProps {
   edgeLabels?: Map<string, string>;
   /** Set a label on an edge (empty string removes it). */
   onSetEdgeLabel?: (key: string, label: string) => void;
+  /** Column layout: by hops (default) or chronological with block headers. */
+  layoutMode?: GraphLayoutMode;
+  /** Port-mode parallel-output bundles ("from->to") the user split into separate beziers. */
+  unbundledPairs?: Set<string>;
+  onToggleBundle?: (key: string) => void;
   containerWidth: number;
   containerHeight?: number;
   tooltip: ReturnType<typeof useChartTooltip<TooltipData>>;

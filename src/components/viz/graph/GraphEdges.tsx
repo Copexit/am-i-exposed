@@ -2,6 +2,7 @@
 
 import { motion } from "motion/react";
 import { Text } from "@visx/text";
+import { useTranslation } from "react-i18next";
 import { SVG_COLORS } from "../shared/svgConstants";
 import {
   edgePath, portAwareEdgePath,
@@ -13,7 +14,7 @@ import { HoveredEdgeOverlay } from "./HoveredEdgeOverlay";
 import type { LayoutEdge, PortPositionMap, TooltipData } from "./types";
 import type { GraphNode } from "@/hooks/useGraphExpansion";
 import type { BoltzmannWorkerResult } from "@/lib/analysis/boltzmann-pool";
-import type { EdgeScriptInfo, EntropyEdgeEntry } from "./edge-utils";
+import type { EdgeBundle, EdgeScriptInfo, EntropyEdgeEntry } from "./edge-utils";
 import type { useChartTooltip } from "../shared/ChartTooltip";
 
 // Re-export types that consumers import from this module
@@ -58,6 +59,10 @@ export interface GraphEdgesProps {
   // Tooltip + coordinate conversion
   tooltip: ReturnType<typeof useChartTooltip<TooltipData>>;
   toScreen: (gx: number, gy: number) => { x: number; y: number };
+
+  // Parallel-output bundles split by the user ("from->to")
+  unbundledPairs?: Set<string>;
+  onToggleBundle?: (key: string) => void;
 }
 
 /**
@@ -85,6 +90,8 @@ export function GraphEdges({
   edgeScriptInfo,
   tooltip,
   toScreen,
+  unbundledPairs,
+  onToggleBundle,
 }: GraphEdgesProps) {
   const { showEdgeTooltip, hideEdgeTooltip } = useEdgeTooltip({ tooltip, toScreen, setHoveredEdgeKey });
 
@@ -112,6 +119,8 @@ export function GraphEdges({
           edgeScriptInfo={edgeScriptInfo}
           showEdgeTooltip={showEdgeTooltip}
           hideEdgeTooltip={hideEdgeTooltip}
+          unbundledPairs={unbundledPairs}
+          onToggleBundle={onToggleBundle}
         />
       ))}
 
@@ -125,12 +134,13 @@ export function GraphEdges({
         hoveredEdgeKey={hoveredEdgeKey}
         linkabilityEdgeMode={linkabilityEdgeMode}
         rootBoltzmannResult={rootBoltzmannResult}
+        unbundledPairs={unbundledPairs}
       />
 
       {/* Deterministic chain overlay */}
       {detChainEdges.size > 0 && edges.filter((e) => detChainEdges.has(`e-${e.fromTxid}-${e.toTxid}`)).map((edge) => {
         const detKey = `detchain-${edge.fromTxid}-${edge.toTxid}`;
-        const { primary: d } = resolveEdgePaths(edge, expandedNodeTxid, portPositions, nodes);
+        const { primary: d } = resolveEdgePaths(edge, expandedNodeTxid, portPositions, nodes, unbundledPairs);
         return (
           <g key={detKey} style={{ pointerEvents: "none" }}>
             <path d={d} fill="none" stroke={SVG_COLORS.critical} strokeWidth={5} strokeOpacity={0.15} filter="url(#glow-medium)" />
@@ -200,6 +210,8 @@ interface GraphEdgeProps {
     entropyEntry: EntropyEdgeEntry | undefined;
   }) => void;
   hideEdgeTooltip: () => void;
+  unbundledPairs?: Set<string>;
+  onToggleBundle?: (key: string) => void;
 }
 
 function GraphEdge({
@@ -221,12 +233,14 @@ function GraphEdge({
   edgeScriptInfo,
   showEdgeTooltip,
   hideEdgeTooltip,
+  unbundledPairs,
+  onToggleBundle,
 }: GraphEdgeProps) {
   const edgeKey = `e-${edge.fromTxid}-${edge.toTxid}`;
 
-  // Resolve paths (primary + extra consolidation paths)
-  const { primary: d, extraConsolidation } = resolveEdgePaths(
-    edge, expandedNodeTxid, portPositions, nodes,
+  // Resolve paths (primary + extra consolidation paths, or one bundled path)
+  const { primary: d, extraConsolidation, bundle } = resolveEdgePaths(
+    edge, expandedNodeTxid, portPositions, nodes, unbundledPairs,
   );
   const midX = (edge.x1 + edge.x2) / 2;
 
@@ -282,7 +296,7 @@ function GraphEdge({
         d={d}
         fill="none"
         stroke={stroke.strokeColor}
-        strokeWidth={stroke.strokeWidth}
+        strokeWidth={bundle && !bundle.expanded ? stroke.strokeWidth * 2 : stroke.strokeWidth}
         strokeOpacity={stroke.strokeOpacity}
         strokeDasharray={stroke.dashArray}
         markerEnd={stroke.markerEnd}
@@ -313,7 +327,10 @@ function GraphEdge({
           transition={{ duration: 0.4, delay: 0.05 * (ci + 1) }}
         />
       ))}
-      {isConsolidation && (
+      {bundle && onToggleBundle && (
+        <BundleBadge bundle={bundle} color={stroke.strokeColor} dimmed={isDimmedByHover} onToggle={onToggleBundle} />
+      )}
+      {isConsolidation && !bundle && (
         <Text
           x={midX}
           y={(edge.y1 + edge.y2) / 2 - 6}
@@ -369,3 +386,49 @@ function GraphEdge({
   );
 }
 
+
+/** "×N" badge on a bundled parallel-output edge; toggles it to per-port beziers and back. */
+function BundleBadge({ bundle, color, dimmed, onToggle }: {
+  bundle: EdgeBundle;
+  color: string;
+  dimmed: boolean;
+  onToggle: (key: string) => void;
+}) {
+  const { t } = useTranslation();
+  const n = bundle.vouts.length;
+  const label = bundle.expanded
+    ? t("graph.bundle.collapse", { defaultValue: "Bundle parallel outputs" })
+    : t("graph.bundle.expand", { defaultValue: "Show each output separately" });
+  const toggle = (e: React.SyntheticEvent) => { e.stopPropagation(); onToggle(bundle.key); };
+  return (
+    <g
+      role="button"
+      tabIndex={0}
+      aria-pressed={bundle.expanded}
+      aria-label={`${label} (×${n})`}
+      data-testid="bundle-badge"
+      className="cursor-pointer outline-none [&:focus-visible>rect:last-of-type]:stroke-[2.5]"
+      opacity={dimmed ? 0.3 : 1}
+      onClick={toggle}
+      onMouseDown={(e) => e.stopPropagation()}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(e); } }}
+    >
+      <title>{t("graph.bundle.vouts", { vouts: bundle.vouts.join(", "), defaultValue: "Outputs {{vouts}}" })}</title>
+      {/* Larger transparent hit area for taps */}
+      <rect x={bundle.x - 22} y={bundle.y - 16} width={44} height={32} fill="transparent" />
+      <rect
+        x={bundle.x - 15} y={bundle.y - 9} width={30} height={18} rx={9}
+        fill={bundle.expanded ? SVG_COLORS.background : color}
+        fillOpacity={bundle.expanded ? 0.9 : 1}
+        stroke={color} strokeWidth={1.5}
+      />
+      <text
+        x={bundle.x} y={bundle.y + 3.5} textAnchor="middle" fontSize={10} fontWeight={700}
+        fill={bundle.expanded ? color : SVG_COLORS.background}
+        style={{ pointerEvents: "none" }}
+      >
+        {`×${n}`}
+      </text>
+    </g>
+  );
+}

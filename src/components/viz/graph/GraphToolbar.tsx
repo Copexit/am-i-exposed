@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Search, Loader2, Pencil, Route } from "lucide-react";
+import { Search, Loader2, Pencil, Route, Clock } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { truncateId, TXID_RE } from "@/lib/constants";
 import { HeatIcon, FingerprintIcon, GraphIcon, UndoIcon, ResetIcon } from "./icons";
@@ -9,7 +9,7 @@ import { SaveGraphPanel } from "./SaveGraphPanel";
 import { useSaveLoadShare } from "./useSaveLoadShare";
 import type { GraphNode } from "@/components/viz/graph/types";
 import type { BitcoinNetwork } from "@/lib/bitcoin/networks";
-import type { SavedGraph, GraphAnnotation } from "@/lib/graph/saved-graph-types";
+import type { SavedGraph, GraphAnnotation, GraphLayoutMode } from "@/lib/graph/saved-graph-types";
 
 type EdgeMode = "default" | "linkability" | "entropy";
 
@@ -58,6 +58,9 @@ interface GraphToolbarProps {
   /** Opens the Find connection panel. */
   onFindConnection?: () => void;
   findConnectionOpen?: boolean;
+  /** Column layout and its toggle (hops <-> chronological). */
+  layoutMode?: GraphLayoutMode;
+  onToggleLayoutMode?: () => void;
   /** Inline (non-fullscreen) shows only node count, undo/reset and fullscreen. */
   compact?: boolean;
 }
@@ -105,6 +108,7 @@ export function GraphToolbar(props: GraphToolbarProps) {
     nodes, rootTxid, rootTxids, network, currentGraphId,
     onLoadSavedGraph, nodePositionOverrides: posOverrides,
     annotations: savedAnnotations, nodeLabels: props.nodeLabels, edgeLabels: props.edgeLabels,
+    layoutMode: props.layoutMode,
   });
 
   // ─── Keyboard shortcut registration ───────────────────────────
@@ -254,6 +258,25 @@ export function GraphToolbar(props: GraphToolbarProps) {
           </span>
         </span>
       </button>
+
+      {props.onToggleLayoutMode && (
+        <button
+          onClick={props.onToggleLayoutMode}
+          aria-pressed={props.layoutMode === "time"}
+          className={`${btnBase} ${
+            props.layoutMode === "time"
+              ? "text-bitcoin border-bitcoin/30 bg-bitcoin/10"
+              : "text-muted hover:text-foreground border-card-border"
+          }`}
+          title={t("graph.timeLayoutTitle", { defaultValue: "Chronological layout (T)" })}
+          aria-label={t("graph.timeLayoutLabel", { defaultValue: "Chronological layout" })}
+        >
+          <span className="flex items-center gap-1">
+            <Clock size={12} />
+            <span className="hidden sm:inline">{t("graph.timeLayout", { defaultValue: "Time" })}</span>
+          </span>
+        </button>
+      )}
 
       {SEP}
 

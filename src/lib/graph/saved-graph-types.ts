@@ -35,6 +35,9 @@ export interface GraphAnnotation {
   connectedNodeTxid?: string;
 }
 
+/** "hops" = one column per expansion depth; "time" = one column per (block height, intra-block level). */
+export type GraphLayoutMode = "hops" | "time";
+
 /** A named, persisted graph snapshot. */
 export interface SavedGraph {
   id: string;
@@ -54,6 +57,8 @@ export interface SavedGraph {
   nodeLabels?: Record<string, string>;
   /** User labels on edges, keyed by "fromTxid->toTxid". */
   edgeLabels?: Record<string, string>;
+  /** Column layout; absent = "hops" (older graphs and share links). */
+  layoutMode?: GraphLayoutMode;
 }
 
 // ─── Serialization ──────────────────────────────────────────────────
@@ -71,6 +76,7 @@ export function serializeGraph(
   annotations?: GraphAnnotation[],
   nodeLabels?: Map<string, string>,
   edgeLabels?: Map<string, string>,
+  layoutMode?: GraphLayoutMode,
 ): SavedGraph {
   const nodes: SavedGraphNode[] = [];
   for (const [, node] of state.nodes) {
@@ -101,6 +107,7 @@ export function serializeGraph(
     annotations: annotations?.length ? annotations : undefined,
     nodeLabels: nodeLabels?.size ? Object.fromEntries(nodeLabels) : undefined,
     edgeLabels: edgeLabels?.size ? Object.fromEntries(edgeLabels) : undefined,
+    layoutMode: layoutMode === "time" ? layoutMode : undefined,
   };
 }
 
@@ -125,6 +132,7 @@ export function validateSavedGraph(obj: unknown): obj is SavedGraph {
   if (typeof obj.rootTxid !== "string" || !TXID_HEX.test(obj.rootTxid)) return false;
   if (!Array.isArray(obj.rootTxids)) return false;
   if (!Array.isArray(obj.nodes) || obj.nodes.length === 0) return false;
+  if (obj.layoutMode !== undefined && obj.layoutMode !== "hops" && obj.layoutMode !== "time") return false;
 
   for (const n of obj.nodes) {
     if (!isObj(n)) return false;
