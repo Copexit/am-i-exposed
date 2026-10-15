@@ -1,0 +1,709 @@
+WEBVTT
+
+1
+00:00:06.653 --> 00:00:09.006
+Bitcoin no tiene cuentas ni saldos.
+
+2
+00:00:09.006 --> 00:00:12.618
+Tiene monedas que pasan de una transacción a otra.
+
+3
+00:00:12.787 --> 00:00:17.177
+Cada transacción gasta monedas antiguas, sus entradas, y crea monedas nuevas,
+
+4
+00:00:17.177 --> 00:00:18.111
+sus salidas.
+
+5
+00:00:18.287 --> 00:00:22.797
+Esta, por ejemplo, tiene una entrada a la izquierda y dos salidas a la derecha.
+
+6
+00:00:22.953 --> 00:00:26.915
+Una salida que todavía no se ha gastado se llama UTXO.
+
+7
+00:00:27.087 --> 00:00:31.338
+Cuando una salida se gasta, se convierte en la entrada de otra transacción.
+
+8
+00:00:31.520 --> 00:00:33.973
+Así se forma una cadena. El grafo la dibuja:
+
+9
+00:00:33.973 --> 00:00:37.234
+cada caja es una transacción y cada línea, una moneda.
+
+10
+00:00:37.387 --> 00:00:40.581
+Un analista de cadena recorre este grafo para seguir el dinero.
+
+11
+00:00:40.581 --> 00:00:42.605
+Aquí puedes ver lo mismo que ve él.
+
+12
+00:00:46.420 --> 00:00:48.786
+Hay dos formas de abrir el grafo. La primera:
+
+13
+00:00:48.786 --> 00:00:51.506
+escanea una transacción en la página de inicio.
+
+14
+00:00:51.853 --> 00:00:55.645
+En el resultado, la sección Herramientas de analista incluye el grafo,
+
+15
+00:00:55.645 --> 00:00:58.008
+ya expandido con el análisis de cadena.
+
+16
+00:00:58.187 --> 00:01:00.407
+La caja naranja es la transacción escaneada.
+
+17
+00:01:00.407 --> 00:01:03.232
+A los lados están las anteriores y las posteriores.
+
+18
+00:01:03.387 --> 00:01:06.322
+Este botón lo abre a pantalla completa, con todas las herramientas.
+
+19
+00:01:06.487 --> 00:01:09.666
+La segunda forma es la página Grafo, en el menú de arriba.
+
+20
+00:01:09.666 --> 00:01:12.493
+Desde un resultado, abre esa misma transacción.
+
+21
+00:01:12.653 --> 00:01:17.630
+Si entras sin una transacción, abre tu último grafo guardado, o un ejemplo.
+
+22
+00:01:17.787 --> 00:01:21.390
+Pega un identificador de transacción en el buscador y pulsa Intro.
+
+23
+00:01:21.390 --> 00:01:23.441
+La tecla barra también lo enfoca.
+
+24
+00:01:27.253 --> 00:01:29.993
+Cada caja es un nodo, es decir, una transacción.
+
+25
+00:01:30.153 --> 00:01:32.472
+Arriba está su identificador abreviado.
+
+26
+00:01:32.472 --> 00:01:36.348
+Debajo, cuántas entradas y salidas tiene, y el total en sats.
+
+27
+00:01:36.520 --> 00:01:39.778
+La última línea dice qué tipo de transacción parece:
+
+28
+00:01:39.778 --> 00:01:42.910
+envío simple, envío por lotes o consolidación.
+
+29
+00:01:43.087 --> 00:01:47.246
+El borde naranja marca la raíz, la transacción desde la que empezaste.
+
+30
+00:01:47.246 --> 00:01:49.398
+El azul, una transacción normal.
+
+31
+00:01:49.553 --> 00:01:53.429
+Cian indica una entidad conocida, con su nombre dentro del nodo.
+
+32
+00:01:53.429 --> 00:01:55.133
+Aquí, el exchange Huobi.
+
+33
+00:01:55.287 --> 00:01:59.861
+Y el verde es un CoinJoin, con la etiqueta de su protocolo. Lo verás más adelante.
+
+34
+00:02:00.020 --> 00:02:03.122
+Al pasar el ratón por un nodo aparece un resumen, con su tasa de comisión.
+
+35
+00:02:03.287 --> 00:02:06.918
+La leyenda, arriba a la izquierda, recoge todos los colores. Tenla a mano.
+
+36
+00:02:11.253 --> 00:02:13.499
+Los botones con un más hacen crecer el grafo.
+
+37
+00:02:13.499 --> 00:02:16.743
+El de la izquierda trae la transacción que creó una entrada.
+
+38
+00:02:16.920 --> 00:02:20.218
+El de la derecha trae la transacción que gastó una salida.
+
+39
+00:02:20.218 --> 00:02:23.028
+Si nada la ha gastado, no hay nada que traer.
+
+40
+00:02:23.187 --> 00:02:24.405
+Cada clic añade un nodo.
+
+41
+00:02:24.405 --> 00:02:27.903
+Este contador indica cuántos hay, hasta un máximo de doscientos.
+
+42
+00:02:28.053 --> 00:02:32.740
+Doble clic en un nodo expande hasta cinco entradas y cinco salidas de una vez.
+
+43
+00:02:32.920 --> 00:02:36.551
+La equis de un nodo lo contrae, y con él lo que cuelga de ese lado.
+
+44
+00:02:36.720 --> 00:02:40.579
+Deshacer revierte el último paso. Reiniciar vuelve a dejar solo la raíz.
+
+45
+00:02:40.753 --> 00:02:44.621
+Arrastra el fondo para moverte. La rueda, o más y menos, cambian el zoom.
+
+46
+00:02:44.621 --> 00:02:46.195
+Ajustar lo encuadra todo.
+
+47
+00:02:46.353 --> 00:02:49.480
+También puedes arrastrar un nodo para colocarlo donde quieras.
+
+48
+00:02:49.653 --> 00:02:51.313
+Casi todo tiene atajo de teclado.
+
+49
+00:02:51.313 --> 00:02:54.631
+Pasa el ratón por un botón y verás su tecla entre paréntesis.
+
+50
+00:02:58.820 --> 00:03:00.060
+Cada línea es una moneda:
+
+51
+00:03:00.060 --> 00:03:03.236
+una salida de una transacción que se gasta en la siguiente.
+
+52
+00:03:03.387 --> 00:03:08.471
+Su color indica el tipo de dirección. Verde para las direcciones antiguas, P2PKH.
+
+53
+00:03:08.471 --> 00:03:11.107
+Azul para SegWit, morado para Taproot.
+
+54
+00:03:11.287 --> 00:03:15.687
+Su grosor depende del importe: cuantos más sats lleva, más gruesa.
+
+55
+00:03:15.853 --> 00:03:19.117
+Un trazo rojo brillante marca una cadena determinista:
+
+56
+00:03:19.117 --> 00:03:22.872
+enlaces que se siguen con total certeza, salto tras salto.
+
+57
+00:03:23.053 --> 00:03:26.584
+El botón Enlaces, o la tecla L, cambia lo que muestran las líneas:
+
+58
+00:03:26.584 --> 00:03:29.081
+tipo de script, vinculabilidad o entropía.
+
+59
+00:03:29.253 --> 00:03:32.083
+Vinculabilidad colorea cada línea según la probabilidad
+
+60
+00:03:32.083 --> 00:03:34.648
+de que una entrada concreta pague esa salida.
+
+61
+00:03:34.820 --> 00:03:39.177
+Entropía la colorea según cuántas interpretaciones admite la transacción.
+
+62
+00:03:39.177 --> 00:03:41.158
+Más entropía, más privacidad.
+
+63
+00:03:41.320 --> 00:03:45.363
+Y si tres o más salidas de una transacción se gastan juntas en otra,
+
+64
+00:03:45.363 --> 00:03:48.704
+se agrupan en una sola línea con una etiqueta por N.
+
+65
+00:03:52.320 --> 00:03:54.709
+Haz clic en un nodo y se abre en modo puertos:
+
+66
+00:03:54.709 --> 00:03:57.816
+cada entrada a la izquierda y cada salida a la derecha.
+
+67
+00:03:57.987 --> 00:04:01.245
+Ahora las líneas salen de la salida exacta que se gastó.
+
+68
+00:04:01.420 --> 00:04:05.057
+A la derecha se abre el panel de detalles, con una puntuación rápida:
+
+69
+00:04:05.057 --> 00:04:07.046
+aquí, F, veinticuatro sobre cien.
+
+70
+00:04:07.220 --> 00:04:10.127
+Esa nota usa solo las heurísticas de esta transacción.
+
+71
+00:04:10.127 --> 00:04:12.961
+El escaneo completo añade el análisis de cadena.
+
+72
+00:04:13.120 --> 00:04:16.968
+La pestaña I/O lista entradas y salidas, con dirección e importe.
+
+73
+00:04:17.120 --> 00:04:20.299
+Las etiquetas de arriba vienen del análisis Boltzmann:
+
+74
+00:04:20.299 --> 00:04:24.023
+bits de entropía, enlaces deterministas e interpretaciones.
+
+75
+00:04:24.187 --> 00:04:26.120
+Esta salida lleva la marca de cambio.
+
+76
+00:04:26.120 --> 00:04:29.974
+La casilla de la derecha te deja marcar o desmarcar el cambio a mano.
+
+77
+00:04:30.153 --> 00:04:33.190
+Rastrear sigue el cambio hacia delante de forma automática.
+
+78
+00:04:33.190 --> 00:04:35.653
+Rastreo de vínculo sigue la vinculabilidad.
+
+79
+00:04:35.820 --> 00:04:39.919
+Aquí se detiene enseguida, y dice por qué: la salida no se ha gastado.
+
+80
+00:04:40.087 --> 00:04:43.707
+La pestaña Análisis enumera los problemas y los aspectos positivos encontrados.
+
+81
+00:04:43.887 --> 00:04:47.413
+Técnico muestra versión, locktime, tamaño, comisión y bloque.
+
+82
+00:04:47.587 --> 00:04:51.036
+Abajo puedes buscar una conexión desde aquí, abrir el escaneo completo,
+
+83
+00:04:51.036 --> 00:04:53.181
+o convertir este nodo en la nueva raíz.
+
+84
+00:04:53.353 --> 00:04:55.946
+Otro clic en el nodo cierra el modo puertos.
+
+85
+00:04:59.553 --> 00:05:03.396
+Ahora, lo importante: qué revela este grafo sobre su dueño.
+
+86
+00:05:03.553 --> 00:05:05.982
+Esta transacción paga tres millones de sats,
+
+87
+00:05:05.982 --> 00:05:09.213
+y devuelve el resto a la misma dirección que lo gastó.
+
+88
+00:05:09.387 --> 00:05:11.349
+Eso es reutilizar una dirección.
+
+89
+00:05:11.349 --> 00:05:14.787
+Cualquiera sabe cuál es el pago y cuál es el cambio.
+
+90
+00:05:14.953 --> 00:05:19.911
+Por eso Boltzmann encuentra una sola interpretación y cero bits de entropía.
+
+91
+00:05:19.911 --> 00:05:21.988
+Todo enlace es determinista.
+
+92
+00:05:22.153 --> 00:05:24.700
+Hacia atrás, las monedas salen de Huobi.
+
+93
+00:05:24.700 --> 00:05:28.006
+Un exchange sabe a qué cliente pagó cada retiro.
+
+94
+00:05:28.187 --> 00:05:29.013
+Hacia delante,
+
+95
+00:05:29.013 --> 00:05:34.160
+el receptor junta este pago con otras treinta y nueve monedas en una consolidación.
+
+96
+00:05:34.320 --> 00:05:37.473
+Gastar monedas juntas sugiere que tienen el mismo dueño.
+
+97
+00:05:37.473 --> 00:05:40.426
+Es la heurística de propiedad común de entradas.
+
+98
+00:05:40.587 --> 00:05:42.924
+Compara ahora con un CoinJoin Whirlpool.
+
+99
+00:05:44.653 --> 00:05:49.100
+Cinco entradas y cinco salidas idénticas, de dos millones y medio de sats.
+
+100
+00:05:49.100 --> 00:05:52.414
+El nodo anterior, en verde, también es un CoinJoin.
+
+101
+00:05:52.587 --> 00:05:59.828
+Boltzmann encuentra 1.496 interpretaciones: 10,55 bits de entropía.
+
+102
+00:05:59.987 --> 00:06:03.318
+Ninguna salida se puede atar con certeza a una entrada.
+
+103
+00:06:03.318 --> 00:06:06.234
+Así un CoinJoin rompe los enlaces del grafo.
+
+104
+00:06:06.387 --> 00:06:09.972
+Recuerda: determinista significa que el enlace es seguro.
+
+105
+00:06:09.972 --> 00:06:13.177
+Ambiguo, que hay muchas explicaciones posibles.
+
+106
+00:06:13.353 --> 00:06:16.233
+El Mapa de calor colorea cada nodo según su puntuación de privacidad.
+
+107
+00:06:16.387 --> 00:06:20.697
+Y Huella cambia la forma y el color de los nodos según su versión y su locktime,
+
+108
+00:06:20.697 --> 00:06:23.209
+rastros que pueden delatar a la billetera.
+
+109
+00:06:27.587 --> 00:06:31.806
+¿Están conectadas dos transacciones? Buscar conexión responde a esa pregunta.
+
+110
+00:06:31.987 --> 00:06:36.094
+Se abre desde la barra, o desde un nodo. Desde se rellena con la raíz.
+
+111
+00:06:36.253 --> 00:06:38.744
+En Hasta, pega un txid o una dirección.
+
+112
+00:06:38.744 --> 00:06:42.123
+Con el botón de la mira eliges un nodo del grafo.
+
+113
+00:06:42.287 --> 00:06:46.661
+Límites ajusta la búsqueda: saltos por lado, transacciones descargadas y segundos.
+
+114
+00:06:46.820 --> 00:06:48.640
+Por defecto se detiene en los CoinJoins,
+
+115
+00:06:48.640 --> 00:06:50.983
+porque atravesar uno no prueba ningún vínculo.
+
+116
+00:06:51.153 --> 00:06:55.840
+Cada transacción descargada es una petición a mempool.space o a tu propio nodo.
+
+117
+00:06:56.020 --> 00:07:00.146
+Aquí, Hasta es una transacción tres saltos más adelante, que no está en el grafo.
+
+118
+00:07:01.620 --> 00:07:05.123
+El resumen dice dónde se detuvo la búsqueda, y qué no pudo atravesar.
+
+119
+00:07:05.287 --> 00:07:07.686
+Encontró un camino del tipo Desde financia a Hasta.
+
+120
+00:07:07.853 --> 00:07:13.136
+Otros tipos posibles son: gasto directo, origen común, y gastadas juntas después.
+
+121
+00:07:13.287 --> 00:07:17.656
+Cada salto muestra su probabilidad. El primero es seguro: cien por cien.
+
+122
+00:07:17.820 --> 00:07:22.490
+El siguiente cae al uno por ciento: esa transacción tiene ochenta y siete entradas.
+
+123
+00:07:22.653 --> 00:07:26.078
+El salto más débil decide la clase del camino. Aquí, Ambiguo.
+
+124
+00:07:26.253 --> 00:07:30.437
+Las clases van de determinista a probable, débil y ambiguo.
+
+125
+00:07:30.620 --> 00:07:34.327
+Sin matriz de Boltzmann para un salto, su valor es una estimación,
+
+126
+00:07:34.327 --> 00:07:35.588
+y se avisa debajo.
+
+127
+00:07:35.753 --> 00:07:39.683
+Añadir al grafo trae todo el camino en un solo paso, que puedes deshacer.
+
+128
+00:07:39.853 --> 00:07:42.357
+Ojo: sin camino no significa sin conexión.
+
+129
+00:07:42.357 --> 00:07:47.434
+Solo que no se encontró dentro de esos límites. Para eso está Buscar más a fondo.
+
+130
+00:07:51.220 --> 00:07:54.828
+El botón Tiempo, o la tecla T, ordena los nodos por altura de bloque.
+
+131
+00:07:54.987 --> 00:07:57.326
+Cada columna muestra su número de bloque y la fecha.
+
+132
+00:07:57.487 --> 00:08:00.943
+Entre columnas, un separador indica cuántos bloques faltan.
+
+133
+00:08:01.120 --> 00:08:06.759
+Aquí se ve que el retiro de Huobi fue en febrero, y el pago casi tres meses después.
+
+134
+00:08:06.920 --> 00:08:09.634
+Pulsa Tiempo otra vez para volver a la vista por saltos.
+
+135
+00:08:13.220 --> 00:08:16.782
+Con Control, o Mayúsculas, y clic, seleccionas varios nodos a la vez.
+
+136
+00:08:16.953 --> 00:08:20.511
+En pantallas táctiles, activa este botón y cada toque selecciona.
+
+137
+00:08:20.687 --> 00:08:24.284
+Abajo aparece una barra con acciones para toda la selección.
+
+138
+00:08:24.453 --> 00:08:28.588
+Etiquetar pone el mismo nombre a todos. Aquí, los dos nodos de Huobi.
+
+139
+00:08:28.753 --> 00:08:33.403
+Aislar deja a la vista solo la selección y sus vecinos, a uno o dos saltos.
+
+140
+00:08:33.587 --> 00:08:37.519
+Cada filtro activo aparece arriba como una ficha. Su equis lo quita.
+
+141
+00:08:37.687 --> 00:08:42.456
+Ocultar quita nodos de la vista sin borrarlos. La ficha cuenta cuántos hay ocultos.
+
+142
+00:08:42.620 --> 00:08:47.052
+Quitar los borra del grafo. La raíz nunca se puede quitar ni ocultar.
+
+143
+00:08:47.520 --> 00:08:51.819
+En la leyenda, un clic en Estándar o en CoinJoin oculta ese tipo de nodo.
+
+144
+00:08:55.953 --> 00:08:59.313
+Para escribir, activa Anotar, o pulsa la tecla A.
+
+145
+00:08:59.487 --> 00:09:02.437
+Haz clic en un nodo para darle una etiqueta. Intro la guarda.
+
+146
+00:09:02.587 --> 00:09:05.842
+Los círculos sobre las líneas sirven para etiquetar una moneda concreta.
+
+147
+00:09:06.020 --> 00:09:11.129
+Y un clic en el fondo crea una nota. Con doble clic escribes su título y su texto.
+
+148
+00:09:11.287 --> 00:09:14.600
+Etiquetas y notas se guardan con el grafo, en tu navegador.
+
+149
+00:09:18.187 --> 00:09:23.371
+Guardar, o la tecla S, guarda el grafo con un nombre. Se queda solo en tu navegador.
+
+150
+00:09:23.553 --> 00:09:28.836
+Abrir lista tus grafos guardados. Y al volver a la página Grafo, se abre el último.
+
+151
+00:09:28.987 --> 00:09:31.790
+Compartir copia un enlace que lleva el grafo dentro.
+
+152
+00:09:32.953 --> 00:09:34.430
+Piénsalo antes de enviarlo:
+
+153
+00:09:34.430 --> 00:09:38.235
+quien lo abra verá exactamente qué transacciones estabas mirando.
+
+154
+00:09:41.820 --> 00:09:46.479
+El panel Guardar también exporta tus etiquetas en formato BIP329.
+
+155
+00:09:46.653 --> 00:09:51.669
+BIP329 es un estándar para llevar etiquetas de una billetera a otra.
+
+156
+00:09:51.820 --> 00:09:56.766
+Ojo: el archivo es texto plano. Quien lo tenga puede leer todas tus etiquetas.
+
+157
+00:09:56.920 --> 00:10:01.937
+Importar lee un archivo así. Si choca con tus etiquetas, primero ves una revisión.
+
+158
+00:10:02.120 --> 00:10:05.777
+Cuenta las etiquetas nuevas, las que no cambian y los conflictos.
+
+159
+00:10:05.953 --> 00:10:09.979
+En cada conflicto se conserva tu etiqueta, salvo que marques la entrante.
+
+160
+00:10:09.979 --> 00:10:11.828
+Luego aplicas la importación.
+
+161
+00:10:15.620 --> 00:10:19.284
+Para terminar, todo junto, con el mismo pago, desde cero.
+
+162
+00:10:19.453 --> 00:10:22.566
+Hacia atrás: las monedas salen de un retiro de Huobi.
+
+163
+00:10:22.566 --> 00:10:24.695
+El exchange conoce a su cliente.
+
+164
+00:10:24.853 --> 00:10:27.905
+En el centro, el cambio vuelve a la misma dirección:
+
+165
+00:10:27.905 --> 00:10:30.033
+pago y cambio quedan a la vista.
+
+166
+00:10:30.187 --> 00:10:33.776
+Hacia delante, el pago acaba en la consolidación del receptor.
+
+167
+00:10:33.953 --> 00:10:37.495
+Buscar conexión llega más lejos, pero a través de un salto ambiguo.
+
+168
+00:10:39.020 --> 00:10:43.457
+Se etiqueta lo descubierto y se guarda el grafo para seguir otro día.
+
+169
+00:10:44.520 --> 00:10:45.207
+La lección:
+
+170
+00:10:45.207 --> 00:10:50.455
+retiro identificado, dirección reutilizada y cambio evidente forman un rastro claro.
+
+171
+00:10:50.455 --> 00:10:52.391
+Un CoinJoin lo habría roto.
+
+172
+00:10:56.187 --> 00:10:59.543
+Resumen. Los nodos son transacciones, y las líneas, monedas.
+
+173
+00:10:59.720 --> 00:11:02.721
+El más expande, un clic abre los puertos y los detalles,
+
+174
+00:11:02.721 --> 00:11:04.901
+y Enlaces muestra la vinculabilidad.
+
+175
+00:11:05.053 --> 00:11:09.229
+Buscar conexión, Tiempo, la selección y las etiquetas te ayudan a investigar.
+
+176
+00:11:09.387 --> 00:11:12.001
+Y todo el análisis se ejecuta en tu navegador.
+
+177
+00:11:13.853 --> 00:11:15.630
+Pruébalo en am-i.exposed.

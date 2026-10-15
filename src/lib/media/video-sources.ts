@@ -14,6 +14,12 @@ export function tutorialSource(lang: VideoLang) {
   return { src: `${n}.mp4`, poster: `${n}.webp`, aspect: "16/9" as const };
 }
 
+/** The graph tutorial has English narration only; its subtitles carry the other language. */
+export function graphTutorialSource() {
+  const n = "/media/graph-tutorial-en-16x9";
+  return { src: `${n}.mp4`, poster: `${n}.webp`, aspect: "16/9" as const };
+}
+
 export interface SubtitleTrack {
   lang: string;
   label: string;
@@ -30,8 +36,10 @@ const TRACKS = [
   ["pl", "Polski"],
 ] as const;
 
-export function subtitleTracks(uiLang: string): SubtitleTrack[] {
+/** `/media/<name>-<lang>.vtt` for each of `langs`; the UI language's track is the default, else English. */
+export function subtitleTracks(uiLang: string, name = "tutorial", langs: readonly string[] = TRACKS.map(([l]) => l)): SubtitleTrack[] {
   const base = uiLang.toLowerCase().split("-")[0] ?? "";
-  const def = TRACKS.some(([l]) => l === base) ? base : "en";
-  return TRACKS.map(([lang, label]) => ({ lang, label, src: `/media/tutorial-${lang}.vtt`, default: lang === def }));
+  const def = langs.includes(base) ? base : "en";
+  return TRACKS.filter(([l]) => langs.includes(l))
+    .map(([lang, label]) => ({ lang, label, src: `/media/${name}-${lang}.vtt`, default: lang === def }));
 }

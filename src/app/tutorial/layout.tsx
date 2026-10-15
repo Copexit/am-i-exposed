@@ -4,7 +4,7 @@ import { VIDEOS_ENABLED } from "@/lib/media/videos-enabled";
 
 const TITLE = "How to use am-i.exposed | Bitcoin Privacy Scanner Tutorial";
 const DESC =
-  "A 5-minute narrated walkthrough of am-i.exposed: scanning a transaction, reading the findings, a CoinJoin example, the analyst tools and checking an address.";
+  "Narrated walkthroughs of am-i.exposed: scanning a transaction, reading the findings, a CoinJoin example and checking an address, plus an in-depth guide to the transaction graph.";
 
 export const metadata: Metadata = {
   title: TITLE,

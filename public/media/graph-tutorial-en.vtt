@@ -1,0 +1,689 @@
+WEBVTT
+
+1
+00:00:06.653 --> 00:00:08.889
+Bitcoin has no accounts or balances.
+
+2
+00:00:08.889 --> 00:00:12.618
+It has coins that move from one transaction to the next.
+
+3
+00:00:12.787 --> 00:00:18.111
+Each transaction spends old coins, its inputs, and creates new coins, its outputs.
+
+4
+00:00:18.287 --> 00:00:22.797
+This one, for example, has one input on the left and two outputs on the right.
+
+5
+00:00:22.953 --> 00:00:26.915
+An output that has not been spent yet is called a UTXO.
+
+6
+00:00:27.087 --> 00:00:31.338
+When an output is spent, it becomes the input of another transaction.
+
+7
+00:00:31.520 --> 00:00:33.888
+That forms a chain. The graph draws it:
+
+8
+00:00:33.888 --> 00:00:37.234
+each box is a transaction, and each line is a coin.
+
+9
+00:00:37.387 --> 00:00:40.218
+A chain analyst walks this graph to follow the money.
+
+10
+00:00:40.218 --> 00:00:42.605
+Here you can see what that analyst sees.
+
+11
+00:00:46.420 --> 00:00:49.184
+There are two ways to open the graph. The first:
+
+12
+00:00:49.184 --> 00:00:51.506
+scan a transaction on the home page.
+
+13
+00:00:51.853 --> 00:00:55.432
+In the result, the Analyst tools section includes the graph,
+
+14
+00:00:55.432 --> 00:00:58.008
+already expanded by the chain analysis.
+
+15
+00:00:58.187 --> 00:01:03.232
+The orange box is the scanned transaction. Around it are the ones before and after.
+
+16
+00:01:03.387 --> 00:01:06.322
+This button opens it full screen, with every tool.
+
+17
+00:01:06.487 --> 00:01:09.485
+The second way is the Graph page, in the top menu.
+
+18
+00:01:09.485 --> 00:01:12.493
+From a result, it opens that same transaction.
+
+19
+00:01:12.653 --> 00:01:17.630
+If you open it without a transaction, it shows your last saved graph, or an example.
+
+20
+00:01:17.787 --> 00:01:21.410
+Paste a transaction ID into the search box and press Enter.
+
+21
+00:01:21.410 --> 00:01:23.441
+The slash key focuses it too.
+
+22
+00:01:27.253 --> 00:01:29.993
+Each box is a node, that is, a transaction.
+
+23
+00:01:30.153 --> 00:01:32.073
+At the top is its shortened ID.
+
+24
+00:01:32.073 --> 00:01:36.348
+Below, how many inputs and outputs it has, and the total in sats.
+
+25
+00:01:36.520 --> 00:01:40.117
+The last line says what kind of transaction it looks like:
+
+26
+00:01:40.117 --> 00:01:42.910
+simple send, batch send or consolidation.
+
+27
+00:01:43.087 --> 00:01:47.168
+An orange border marks the root, the transaction you started from.
+
+28
+00:01:47.168 --> 00:01:49.398
+Blue is an ordinary transaction.
+
+29
+00:01:49.553 --> 00:01:55.133
+Cyan means a known entity, with its name inside the node. Here, the Huobi exchange.
+
+30
+00:01:55.287 --> 00:01:59.861
+And green is a CoinJoin, tagged with its protocol. You will see one later.
+
+31
+00:02:00.020 --> 00:02:03.122
+Hovering over a node shows a summary, with its fee rate.
+
+32
+00:02:03.287 --> 00:02:06.918
+The legend, at the top left, lists every color. Keep it handy.
+
+33
+00:02:11.253 --> 00:02:13.056
+The plus buttons grow the graph.
+
+34
+00:02:13.056 --> 00:02:16.743
+The left one brings in the transaction that created an input.
+
+35
+00:02:16.920 --> 00:02:20.228
+The right one brings in the transaction that spent an output.
+
+36
+00:02:20.228 --> 00:02:23.028
+If nothing spent it, there is nothing to bring.
+
+37
+00:02:23.187 --> 00:02:27.903
+Each click adds a node. This counter shows how many there are, up to two hundred.
+
+38
+00:02:28.053 --> 00:02:32.740
+Double-clicking a node expands up to five inputs and five outputs at once.
+
+39
+00:02:32.920 --> 00:02:36.551
+A node's X collapses it, together with whatever hangs from it.
+
+40
+00:02:36.720 --> 00:02:40.579
+Undo reverts the last step. Reset goes back to just the root.
+
+41
+00:02:40.753 --> 00:02:44.601
+Drag the background to pan. The wheel, or plus and minus, zoom.
+
+42
+00:02:44.601 --> 00:02:46.195
+Fit frames everything.
+
+43
+00:02:46.353 --> 00:02:49.480
+You can also drag a node to place it wherever you like.
+
+44
+00:02:49.653 --> 00:02:52.017
+Almost everything has a keyboard shortcut.
+
+45
+00:02:52.017 --> 00:02:54.631
+Hover a button to see its key in brackets.
+
+46
+00:02:58.820 --> 00:03:03.236
+Each line is a coin: an output of one transaction, spent in the next.
+
+47
+00:03:03.387 --> 00:03:08.271
+Its color shows the address type. Green for legacy addresses, P2PKH.
+
+48
+00:03:08.271 --> 00:03:11.107
+Blue for SegWit, purple for Taproot.
+
+49
+00:03:11.287 --> 00:03:15.687
+Its thickness depends on the amount: the more sats it carries, the thicker it is.
+
+50
+00:03:15.853 --> 00:03:18.841
+A glowing red stroke marks a deterministic chain:
+
+51
+00:03:18.841 --> 00:03:22.872
+links that can be followed with full certainty, hop after hop.
+
+52
+00:03:23.053 --> 00:03:26.664
+The Edges button, or the L key, changes what the lines show:
+
+53
+00:03:26.664 --> 00:03:29.081
+script type, linkability or entropy.
+
+54
+00:03:29.253 --> 00:03:32.065
+Linkability colors each line by the probability
+
+55
+00:03:32.065 --> 00:03:34.648
+that a specific input paid that output.
+
+56
+00:03:34.820 --> 00:03:39.196
+Entropy colors it by how many interpretations the transaction allows.
+
+57
+00:03:39.196 --> 00:03:41.158
+More entropy, more privacy.
+
+58
+00:03:41.320 --> 00:03:45.850
+And when three or more outputs of one transaction are spent together in another,
+
+59
+00:03:45.850 --> 00:03:48.704
+they merge into one line with a times N badge.
+
+60
+00:03:52.320 --> 00:03:54.645
+Click a node and it opens in port mode:
+
+61
+00:03:54.645 --> 00:03:57.816
+each input on the left, each output on the right.
+
+62
+00:03:57.987 --> 00:04:01.245
+Now the lines leave from the exact output that was spent.
+
+63
+00:04:01.420 --> 00:04:04.668
+On the right, the details panel opens, with a quick score:
+
+64
+00:04:04.668 --> 00:04:07.046
+here, F, twenty-four out of a hundred.
+
+65
+00:04:07.220 --> 00:04:10.367
+That grade uses only this transaction's heuristics.
+
+66
+00:04:10.367 --> 00:04:12.961
+The full scan adds the chain analysis.
+
+67
+00:04:13.120 --> 00:04:16.968
+The I/O tab lists inputs and outputs, with address and amount.
+
+68
+00:04:17.120 --> 00:04:20.262
+The badges on top come from the Boltzmann analysis:
+
+69
+00:04:20.262 --> 00:04:24.023
+bits of entropy, deterministic links and interpretations.
+
+70
+00:04:24.187 --> 00:04:26.263
+This output carries the change mark.
+
+71
+00:04:26.263 --> 00:04:29.974
+The box on the right lets you mark or unmark change by hand.
+
+72
+00:04:30.153 --> 00:04:32.895
+Trace follows the change forward automatically.
+
+73
+00:04:32.895 --> 00:04:35.653
+Link trace follows the linkability instead.
+
+74
+00:04:35.820 --> 00:04:39.919
+Here it stops right away, and says why: the output has not been spent.
+
+75
+00:04:40.087 --> 00:04:43.707
+The Analysis tab lists the problems and the positives found.
+
+76
+00:04:43.887 --> 00:04:47.413
+Technical shows version, locktime, size, fee and block.
+
+77
+00:04:47.587 --> 00:04:51.291
+At the bottom you can find a connection from here, open the full scan,
+
+78
+00:04:51.291 --> 00:04:53.181
+or make this node the new root.
+
+79
+00:04:53.353 --> 00:04:55.946
+Another click on the node closes port mode.
+
+80
+00:04:59.553 --> 00:05:03.396
+Now, the important part: what this graph reveals about its owner.
+
+81
+00:05:03.553 --> 00:05:05.794
+This transaction pays three million sats,
+
+82
+00:05:05.794 --> 00:05:09.213
+and sends the rest back to the same address that spent it.
+
+83
+00:05:09.387 --> 00:05:10.646
+That is address reuse.
+
+84
+00:05:10.646 --> 00:05:14.787
+Anyone can tell which output is the payment and which is the change.
+
+85
+00:05:14.953 --> 00:05:19.929
+That is why Boltzmann finds a single interpretation and zero bits of entropy.
+
+86
+00:05:19.929 --> 00:05:21.988
+Every link is deterministic.
+
+87
+00:05:22.153 --> 00:05:24.467
+Going back, the coins come from Huobi.
+
+88
+00:05:24.467 --> 00:05:28.006
+An exchange knows which customer each withdrawal paid.
+
+89
+00:05:28.187 --> 00:05:29.021
+Going forward,
+
+90
+00:05:29.021 --> 00:05:34.160
+the recipient merges this payment with thirty-nine other coins in a consolidation.
+
+91
+00:05:34.320 --> 00:05:37.487
+Spending coins together suggests they share an owner.
+
+92
+00:05:37.487 --> 00:05:40.426
+That is the common input ownership heuristic.
+
+93
+00:05:40.587 --> 00:05:42.924
+Now compare it with a Whirlpool CoinJoin.
+
+94
+00:05:44.653 --> 00:05:49.173
+Five inputs, and five identical outputs of two and a half million sats.
+
+95
+00:05:49.173 --> 00:05:52.414
+The earlier node, in green, is also a CoinJoin.
+
+96
+00:05:52.587 --> 00:05:59.828
+Boltzmann finds 1,496 interpretations: 10.55 bits of entropy.
+
+97
+00:05:59.987 --> 00:06:02.868
+No output can be tied to an input with certainty.
+
+98
+00:06:02.868 --> 00:06:06.234
+That is how a CoinJoin breaks the links in the graph.
+
+99
+00:06:06.387 --> 00:06:09.562
+Remember: deterministic means the link is certain.
+
+100
+00:06:09.562 --> 00:06:13.177
+Ambiguous means there are many possible explanations.
+
+101
+00:06:13.353 --> 00:06:16.233
+The Heat map colors each node by its privacy score.
+
+102
+00:06:16.387 --> 00:06:20.881
+And Fingerprint changes each node's shape and color by its version and locktime,
+
+103
+00:06:20.881 --> 00:06:23.209
+traces that can give away the wallet.
+
+104
+00:06:27.587 --> 00:06:31.806
+Are two transactions connected? Find connection answers that question.
+
+105
+00:06:31.987 --> 00:06:36.094
+It opens from the toolbar, or from a node. From is filled in with the root.
+
+106
+00:06:36.253 --> 00:06:38.400
+In To, paste a txid or an address.
+
+107
+00:06:38.400 --> 00:06:42.123
+The crosshair button lets you pick a node in the graph.
+
+108
+00:06:42.287 --> 00:06:46.661
+Budgets tune the search: hops per side, transactions fetched, and seconds.
+
+109
+00:06:46.820 --> 00:06:50.983
+By default it stops at CoinJoins, because crossing one proves no link.
+
+110
+00:06:51.153 --> 00:06:55.840
+Each fetched transaction is a request to mempool.space or to your own node.
+
+111
+00:06:56.020 --> 00:07:00.146
+Here, To is a transaction three hops ahead, which is not in the graph.
+
+112
+00:07:01.620 --> 00:07:05.123
+The summary says where the search stopped, and what it could not cross.
+
+113
+00:07:05.287 --> 00:07:07.686
+It found a path of the kind From funds To.
+
+114
+00:07:07.853 --> 00:07:13.136
+Other possible kinds are: direct spend, shared ancestor, and spent together later.
+
+115
+00:07:13.287 --> 00:07:17.656
+Each hop shows its probability. The first is certain: one hundred percent.
+
+116
+00:07:17.820 --> 00:07:22.490
+The next one drops to one percent: that transaction has eighty-seven inputs.
+
+117
+00:07:22.653 --> 00:07:26.078
+The weakest hop sets the path's tier. Here, Ambiguous.
+
+118
+00:07:26.253 --> 00:07:30.437
+The tiers go from deterministic, to likely, weak and ambiguous.
+
+119
+00:07:30.620 --> 00:07:35.588
+Without a Boltzmann matrix for a hop, its value is an estimate, and a note says so.
+
+120
+00:07:35.753 --> 00:07:39.683
+Add to graph brings in the whole path in one step, which you can undo.
+
+121
+00:07:39.853 --> 00:07:42.472
+Careful: no path does not mean no connection.
+
+122
+00:07:42.472 --> 00:07:47.434
+Only that none was found within those budgets. That is what Search deeper is for.
+
+123
+00:07:51.220 --> 00:07:54.828
+The Time button, or the T key, orders the nodes by block height.
+
+124
+00:07:54.987 --> 00:07:57.326
+Each column shows its block number and date.
+
+125
+00:07:57.487 --> 00:08:00.943
+Between columns, a marker says how many blocks were skipped.
+
+126
+00:08:01.120 --> 00:08:04.268
+Here you can see the Huobi withdrawal happened in February,
+
+127
+00:08:04.268 --> 00:08:06.759
+and the payment almost three months later.
+
+128
+00:08:06.920 --> 00:08:09.634
+Press Time again to go back to the hop layout.
+
+129
+00:08:13.220 --> 00:08:16.782
+Control-click, or Shift-click, selects several nodes at once.
+
+130
+00:08:16.953 --> 00:08:20.511
+On touch screens, turn on this button and every tap selects.
+
+131
+00:08:20.687 --> 00:08:24.284
+A bar appears at the bottom, with actions for the whole selection.
+
+132
+00:08:24.453 --> 00:08:28.588
+Label gives them all the same name. Here, the two Huobi nodes.
+
+133
+00:08:28.753 --> 00:08:33.403
+Isolate keeps only the selection and its neighbors in view, one or two hops away.
+
+134
+00:08:33.587 --> 00:08:37.519
+Each active filter shows up top as a chip. Its X removes it.
+
+135
+00:08:37.687 --> 00:08:40.336
+Hide takes nodes out of view without deleting them.
+
+136
+00:08:40.336 --> 00:08:42.456
+The chip counts how many are hidden.
+
+137
+00:08:42.620 --> 00:08:47.052
+Remove deletes them from the graph. The root can never be removed or hidden.
+
+138
+00:08:47.520 --> 00:08:51.819
+In the legend, a click on Standard or CoinJoin hides that kind of node.
+
+139
+00:08:55.953 --> 00:08:59.313
+To write on the graph, turn on Annotate, or press the A key.
+
+140
+00:08:59.487 --> 00:09:02.437
+Click a node to give it a label. Enter saves it.
+
+141
+00:09:02.587 --> 00:09:05.842
+The circles on the lines let you label a specific coin.
+
+142
+00:09:06.020 --> 00:09:08.533
+And a click on the background creates a note.
+
+143
+00:09:08.533 --> 00:09:11.129
+Double-click it to write a title and text.
+
+144
+00:09:11.287 --> 00:09:14.600
+Labels and notes are saved with the graph, in your browser.
+
+145
+00:09:18.187 --> 00:09:23.371
+Save, or the S key, stores the graph under a name. It stays in your browser only.
+
+146
+00:09:23.553 --> 00:09:25.175
+Open lists your saved graphs.
+
+147
+00:09:25.175 --> 00:09:28.836
+And when you come back to the Graph page, the last one opens.
+
+148
+00:09:28.987 --> 00:09:31.790
+Share copies a link that carries the graph inside it.
+
+149
+00:09:32.953 --> 00:09:34.252
+Think before sending it:
+
+150
+00:09:34.252 --> 00:09:38.235
+whoever opens it sees exactly which transactions you were looking at.
+
+151
+00:09:41.820 --> 00:09:46.479
+The Save panel also exports your labels in BIP329 format.
+
+152
+00:09:46.653 --> 00:09:51.669
+BIP329 is a standard for moving labels from one wallet to another.
+
+153
+00:09:51.820 --> 00:09:56.766
+Careful: the file is plain text. Anyone who has it can read all your labels.
+
+154
+00:09:56.920 --> 00:10:01.937
+Import reads such a file. If it clashes with your labels, you see a review first.
+
+155
+00:10:02.120 --> 00:10:05.777
+It counts the new labels, the unchanged ones and the conflicts.
+
+156
+00:10:05.953 --> 00:10:10.054
+In each conflict your label is kept, unless you tick the incoming one.
+
+157
+00:10:10.054 --> 00:10:11.828
+Then you apply the import.
+
+158
+00:10:15.620 --> 00:10:19.284
+To finish, all of it together, with the same payment, from scratch.
+
+159
+00:10:19.453 --> 00:10:24.695
+Backwards: the coins come from a Huobi withdrawal. The exchange knows its customer.
+
+160
+00:10:24.853 --> 00:10:27.790
+In the middle, the change goes back to the same address:
+
+161
+00:10:27.790 --> 00:10:30.033
+payment and change are in plain sight.
+
+162
+00:10:30.187 --> 00:10:33.776
+Forwards, the payment ends up in the recipient's consolidation.
+
+163
+00:10:33.953 --> 00:10:37.495
+Find connection reaches further, but through an ambiguous hop.
+
+164
+00:10:39.020 --> 00:10:43.457
+What was found gets labeled, and the graph is saved to continue another day.
+
+165
+00:10:44.520 --> 00:10:45.196
+The lesson:
+
+166
+00:10:45.196 --> 00:10:50.175
+an identified withdrawal, a reused address and obvious change make a clear trail.
+
+167
+00:10:50.175 --> 00:10:52.391
+A CoinJoin would have broken it.
+
+168
+00:10:56.187 --> 00:10:59.543
+Recap. Nodes are transactions, and lines are coins.
+
+169
+00:10:59.720 --> 00:11:04.901
+Plus expands, a click opens the ports and details, and Edges shows linkability.
+
+170
+00:11:05.053 --> 00:11:09.229
+Find connection, Time, selection and labels help you investigate.
+
+171
+00:11:09.387 --> 00:11:12.001
+And the whole analysis runs in your browser.
+
+172
+00:11:13.853 --> 00:11:15.630
+Try it at am-i.exposed.

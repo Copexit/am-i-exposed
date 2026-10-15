@@ -95,7 +95,7 @@ test("/tutorial with ami-language=de: en video, de subtitles default", async ({ 
   await page.goto("/tutorial/");
   await page.waitForLoadState("networkidle");
   expect(m.mp4()).toEqual([]);
-  await page.getByRole("button", { name: DE_PLAY }).click();
+  await page.getByRole("button", { name: DE_PLAY, exact: true }).click();
   await expect.poll(() => m.mp4()).toContain("/media/tutorial-en-16x9.mp4");
   await expect(page.locator("video")).toHaveCount(1);
   await expect(page.locator('video track[srclang="de"]')).toHaveAttribute("default", "");
@@ -124,4 +124,18 @@ test("tutorial examples are links", async ({ page }) => {
   await page.goto("/tutorial/");
   await expect(page.locator('a[href^="/#tx="], a[href^="/#addr="]').first()).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Breadcrumb" }).locator('[aria-current="page"]')).toHaveText("Tutorial");
+});
+
+test("/tutorial graph video: es UI gets the en video with es subtitles by default", async ({ page }) => {
+  const m = trackMedia(page);
+  await setLang(page, "es");
+  await page.setViewportSize(DESKTOP);
+  await page.goto("/tutorial/");
+  await page.waitForLoadState("networkidle");
+  expect(m.mp4()).toEqual([]);
+  await page.getByRole("button", { name: "Reproducir el tutorial del grafo", exact: true }).click();
+  await expect.poll(() => m.mp4()).toContain("/media/graph-tutorial-en-16x9.mp4");
+  const video = page.locator('video[src="/media/graph-tutorial-en-16x9.mp4"]');
+  await expect(video.locator('track[srclang="es"]')).toHaveAttribute("default", "");
+  await expect(video.locator("track")).toHaveCount(2);
 });
